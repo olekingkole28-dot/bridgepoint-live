@@ -1,0 +1,46 @@
+name: Verify BridgePoint Live
+
+on:
+  push:
+    paths:
+      - .github/workflows/verify-live.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify DNS and public endpoints
+        run: |
+          set +e
+          echo '=== APEX A ==='
+          dig +short A bridgepointintelligence.online
+          echo '=== APEX AAAA ==='
+          dig +short AAAA bridgepointintelligence.online
+          echo '=== WWW CNAME ==='
+          dig +short CNAME www.bridgepointintelligence.online
+          echo '=== WWW A ==='
+          dig +short A www.bridgepointintelligence.online
+          echo '=== HTTP APEX ==='
+          curl -sS -I -L --max-time 20 http://bridgepointintelligence.online/ | sed -n '1,20p'
+          echo '=== HTTPS APEX ==='
+          curl -sS -I -L --max-time 20 https://bridgepointintelligence.online/ | sed -n '1,20p'
+          echo "HTTPS_CURL_EXIT=$?"
+          echo '=== HTTPS RELEASE ==='
+          curl -sS -L --max-time 20 https://bridgepointintelligence.online/bridgepoint-release.json
+          echo
+          echo "HTTPS_RELEASE_EXIT=$?"
+          echo '=== HTTP RELEASE ==='
+          curl -sS -L --max-time 20 http://bridgepointintelligence.online/bridgepoint-release.json
+          echo
+          echo "HTTP_RELEASE_EXIT=$?"
+          echo '=== GITHUB.IO RELEASE ==='
+          curl -sS -L --max-time 20 https://olekingkole28-dot.github.io/bridgepoint-live/bridgepoint-release.json
+          echo
+          echo "GITHUB_IO_RELEASE_EXIT=$?"
+          echo '=== TLS CERTIFICATE ==='
+          timeout 20 openssl s_client -connect bridgepointintelligence.online:443 -servername bridgepointintelligence.online </dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates -ext subjectAltName
+          echo "TLS_CERT_EXIT=$?"
