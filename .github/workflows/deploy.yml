@@ -1,0 +1,45 @@
+name: Deploy BridgePoint Live
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download finished BridgePoint Flutter release
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          curl -L --fail --retry 3 'https://sdmntpreastus2.oaiusercontent.com/files/00000000-8d34-81f6-ab4f-c1d1861bcf92/raw?se=2026-08-16T07%3A59%3A21Z&sp=r&sv=2026-02-06&sr=b&scid=c585190c-dde9-5898-abc4-6b1b37544fc4&skoid=dd316919-ffbf-4550-9c54-dfc99f412009&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-15T21%3A36%3A57Z&ske=2026-08-16T21%3A36%3A57Z&sks=b&skv=2026-02-06&sig=39HiK%2BPLIrwHp5ywP3MPXqJoV%2BTQh%2BinbQokeHPMmPk%3D' -o /tmp/bridgepoint.zip
+          unzip -q /tmp/bridgepoint.zip -d site
+          touch site/.nojekyll
+          sed -i 's#<base href="/">#<base href="/bridgepoint-live/">#' site/index.html
+          test -s site/index.html
+          test -s site/main.dart.js
+          test -s site/bridgepoint-release.json
+          echo "BridgePoint compiled release staged successfully."
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Publish BridgePoint
+        id: deployment
+        uses: actions/deploy-pages@v4
