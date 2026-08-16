@@ -3,6 +3,8 @@ name: Deploy BridgePoint Live
 on:
   push:
     branches: [main]
+    paths:
+      - .github/workflows/deploy.yml
   workflow_dispatch:
 
 permissions:
@@ -27,7 +29,7 @@ jobs:
           set -euo pipefail
           rm -rf site
           mkdir -p site
-          curl -L --fail --retry 3 'https://sdmntpreastus2.oaiusercontent.com/files/00000000-5f50-81f6-9974-0afa97cc7961/raw?se=2026-08-16T15%3A26%3A22Z&sp=r&sv=2026-02-06&sr=b&scid=8808810b-003d-5fc6-8525-027666614322&skoid=dd316919-ffbf-4550-9c54-dfc99f412009&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-16T11%3A41%3A20Z&ske=2026-08-17T11%3A41%3A20Z&sks=b&skv=2026-02-06&sig=UtrPZbRrllhf6LmoQxTosfEEA/C%2BFD7mqFhgsB68wNA%3D' -o /tmp/bridgepoint.zip
+          curl -L --fail --retry 3 'https://sdmntpreastus2.oaiusercontent.com/files/00000000-75f8-81f6-b55f-fa7492bf2b41/raw?se=2026-08-16T15%3A38%3A11Z&sp=r&sv=2026-02-06&sr=b&scid=9802f137-83aa-520d-8ec7-d860cb7faea2&skoid=dd316919-ffbf-4550-9c54-dfc99f412009&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-16T13%3A12%3A22Z&ske=2026-08-17T13%3A12%3A22Z&sks=b&skv=2026-02-06&sig=Qg7dagkcYy0MLySSpD0VsLvXQNiA4nJwI5L7WtVHfSk%3D' -o /tmp/bridgepoint.zip
           unzip -q /tmp/bridgepoint.zip -d site
           touch site/.nojekyll
           sed -i 's#<base href="/">#<base href="./">#' site/index.html
