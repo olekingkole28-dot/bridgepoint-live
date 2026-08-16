@@ -27,15 +27,15 @@ jobs:
           set -euo pipefail
           rm -rf site
           mkdir -p site
-          curl -L --fail --retry 3 'https://sdmntprnorthcentralus.oaiusercontent.com/files/00000000-4fa8-822f-ae3e-3a1c2478f560/raw?se=2026-08-16T13%3A05%3A44Z&sp=r&sv=2026-02-06&sr=b&scid=0eed3503-8b85-55bf-9391-7ccbe400c202&skoid=e9d2f8b1-028a-4cff-8eb1-d0e66fbefcca&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-15T21%3A32%3A56Z&ske=2026-08-16T21%3A32%3A56Z&sks=b&skv=2026-02-06&sig=PbR13MM6U3o3svtol70H/L0uInxSBAF3P9I%2BlmVMhaw%3D' -o /tmp/bridgepoint.zip
+          curl -L --fail --retry 3 'https://sdmntpreastus2.oaiusercontent.com/files/00000000-5f50-81f6-9974-0afa97cc7961/raw?se=2026-08-16T15%3A26%3A22Z&sp=r&sv=2026-02-06&sr=b&scid=8808810b-003d-5fc6-8525-027666614322&skoid=dd316919-ffbf-4550-9c54-dfc99f412009&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-16T11%3A41%3A20Z&ske=2026-08-17T11%3A41%3A20Z&sks=b&skv=2026-02-06&sig=UtrPZbRrllhf6LmoQxTosfEEA/C%2BFD7mqFhgsB68wNA%3D' -o /tmp/bridgepoint.zip
           unzip -q /tmp/bridgepoint.zip -d site
           touch site/.nojekyll
           sed -i 's#<base href="/">#<base href="./">#' site/index.html
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/bridgepoint-release.json
-          grep -q 'd5e6fb8728e17e866b242f7d6e9647fe74832794' site/bridgepoint-release.json
-          echo "BridgePoint release 129 staged successfully for custom-domain hosting."
+          grep -q 'bdb33ce008b68cdd957a24a6fdd1c44e63590453' site/bridgepoint-release.json
+          echo "BridgePoint v212 audited release staged successfully for public hosting."
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
