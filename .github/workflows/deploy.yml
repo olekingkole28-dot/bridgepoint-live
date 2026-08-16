@@ -22,18 +22,20 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Download finished BridgePoint Flutter release
+      - name: Download audited BridgePoint Flutter release
         run: |
           set -euo pipefail
+          rm -rf site
           mkdir -p site
-          curl -L --fail --retry 3 'https://sdmntpreastus2.oaiusercontent.com/files/00000000-8d34-81f6-ab4f-c1d1861bcf92/raw?se=2026-08-16T07%3A59%3A21Z&sp=r&sv=2026-02-06&sr=b&scid=c585190c-dde9-5898-abc4-6b1b37544fc4&skoid=dd316919-ffbf-4550-9c54-dfc99f412009&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-15T21%3A36%3A57Z&ske=2026-08-16T21%3A36%3A57Z&sks=b&skv=2026-02-06&sig=39HiK%2BPLIrwHp5ywP3MPXqJoV%2BTQh%2BinbQokeHPMmPk%3D' -o /tmp/bridgepoint.zip
+          curl -L --fail --retry 3 'https://sdmntpreastus.oaiusercontent.com/files/00000000-0fb0-81f9-8783-7705afd12cfa/raw?se=2026-08-16T09%3A01%3A46Z&sp=r&sv=2026-02-06&sr=b&scid=c1fd334b-367b-5f9c-bfff-ca7188d0b4b8&skoid=e9d2f8b1-028a-4cff-8eb1-d0e66fbefcca&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-15T21%3A31%3A06Z&ske=2026-08-16T21%3A31%3A06Z&sks=b&skv=2026-02-06&sig=N1ZICvDLZAvpi2DQKJfNVerjPB%2BWpZ/mmHI/0VyNwSE%3D' -o /tmp/bridgepoint.zip
           unzip -q /tmp/bridgepoint.zip -d site
           touch site/.nojekyll
           sed -i 's#<base href="/">#<base href="/bridgepoint-live/">#' site/index.html
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/bridgepoint-release.json
-          echo "BridgePoint compiled release staged successfully."
+          grep -q '5ac28d17fa30c965084e1adf0edaaaaecc53f832' site/bridgepoint-release.json
+          echo "BridgePoint run 96 staged successfully."
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
