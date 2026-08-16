@@ -30,12 +30,12 @@ jobs:
           curl -L --fail --retry 3 'https://sdmntprnorthcentralus.oaiusercontent.com/files/00000000-b69c-822f-bab5-ed00ea356581/raw?se=2026-08-16T09%3A37%3A19Z&sp=r&sv=2026-02-06&sr=b&scid=e0a4a9a2-98dc-542d-9396-1d1f56681d8c&skoid=bbd22fc4-f881-4ea4-b2f3-c12033cf6a8b&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-16T06%3A07%3A55Z&ske=2026-08-17T06%3A07%3A55Z&sks=b&skv=2026-02-06&sig=cyTeKE/ahaDn1gverfTRLgevIIEcH8S%2BfTzTpq4HmfY%3D' -o /tmp/bridgepoint.zip
           unzip -q /tmp/bridgepoint.zip -d site
           touch site/.nojekyll
-          sed -i 's#<base href="/">#<base href="/bridgepoint-live/">#' site/index.html
+          sed -i 's#<base href="/">#<base href="./">#' site/index.html
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/bridgepoint-release.json
           grep -q '3c6bbd468c375c208c56741390ec9dbbce170fba' site/bridgepoint-release.json
-          echo "BridgePoint run 103 staged successfully."
+          echo "BridgePoint run 103 staged successfully for project-path or custom-domain hosting."
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
