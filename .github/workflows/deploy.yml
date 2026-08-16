@@ -27,15 +27,15 @@ jobs:
           set -euo pipefail
           rm -rf site
           mkdir -p site
-          curl -L --fail --retry 3 'https://sdmntpreastus.oaiusercontent.com/files/00000000-0fb0-81f9-8783-7705afd12cfa/raw?se=2026-08-16T09%3A01%3A46Z&sp=r&sv=2026-02-06&sr=b&scid=c1fd334b-367b-5f9c-bfff-ca7188d0b4b8&skoid=e9d2f8b1-028a-4cff-8eb1-d0e66fbefcca&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-15T21%3A31%3A06Z&ske=2026-08-16T21%3A31%3A06Z&sks=b&skv=2026-02-06&sig=N1ZICvDLZAvpi2DQKJfNVerjPB%2BWpZ/mmHI/0VyNwSE%3D' -o /tmp/bridgepoint.zip
+          curl -L --fail --retry 3 'https://sdmntprnorthcentralus.oaiusercontent.com/files/00000000-b69c-822f-bab5-ed00ea356581/raw?se=2026-08-16T09%3A37%3A19Z&sp=r&sv=2026-02-06&sr=b&scid=e0a4a9a2-98dc-542d-9396-1d1f56681d8c&skoid=bbd22fc4-f881-4ea4-b2f3-c12033cf6a8b&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-16T06%3A07%3A55Z&ske=2026-08-17T06%3A07%3A55Z&sks=b&skv=2026-02-06&sig=cyTeKE/ahaDn1gverfTRLgevIIEcH8S%2BfTzTpq4HmfY%3D' -o /tmp/bridgepoint.zip
           unzip -q /tmp/bridgepoint.zip -d site
           touch site/.nojekyll
           sed -i 's#<base href="/">#<base href="/bridgepoint-live/">#' site/index.html
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/bridgepoint-release.json
-          grep -q '5ac28d17fa30c965084e1adf0edaaaaecc53f832' site/bridgepoint-release.json
-          echo "BridgePoint run 96 staged successfully."
+          grep -q '3c6bbd468c375c208c56741390ec9dbbce170fba' site/bridgepoint-release.json
+          echo "BridgePoint run 103 staged successfully."
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
