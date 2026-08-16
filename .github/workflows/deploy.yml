@@ -25,25 +25,20 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Restore known-good BridgePoint v218 site artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: github-pages
-          path: /tmp/bridgepoint-pages
-          run-id: 31968380587
-          github-token: ${{ github.token }}
-      - name: Stage known-good BridgePoint v218 release
+      - name: Download audited BridgePoint v219 release
         run: |
           set -euo pipefail
           rm -rf site
           mkdir -p site
-          test -s /tmp/bridgepoint-pages/artifact.tar
-          tar -xf /tmp/bridgepoint-pages/artifact.tar -C site
+          curl -L --fail --retry 3 'https://sdmntprnorthcentralus.oaiusercontent.com/files/00000000-6704-822f-a4d7-1ba06797c91e/raw?se=2026-08-16T21%3A29%3A55Z&sp=r&sv=2026-02-06&sr=b&scid=e4c9ea4c-9259-5437-984d-441839acdfae&skoid=de71a0d5-fb02-4fce-be69-9296aced242b&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-16T11%3A38%3A37Z&ske=2026-08-17T11%3A38%3A37Z&sks=b&skv=2026-02-06&sig=T1IpzmeCk3bqrsH6zsHbtm3Id/%2BCB8YfO7sJzuFbRj8%3D' -o /tmp/bridgepoint-v219.zip
+          unzip -q /tmp/bridgepoint-v219.zip -d site
+          touch site/.nojekyll
+          sed -i 's#<base href="/">#<base href="./">#' site/index.html
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/bridgepoint-release.json
-          grep -q '2f465f113f054e49b120cf5871b0ee938b7ba42c' site/bridgepoint-release.json
-          echo "BridgePoint v218 restored from durable GitHub Pages artifact storage."
+          grep -q '3c51dbcee735d8bac38dd8945f233ece59945fae' site/bridgepoint-release.json
+          echo "Audited BridgePoint v219 staged for production."
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
