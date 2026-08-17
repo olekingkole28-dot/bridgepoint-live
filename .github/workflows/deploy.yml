@@ -25,28 +25,23 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Restore verified BridgePoint v224 production artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: github-pages
-          path: /tmp/bridgepoint-pages
-          run-id: 31984584367
-          github-token: ${{ github.token }}
-      - name: Stage verified BridgePoint v224 production release
+      - name: Download verified BridgePoint v227 production build
         run: |
           set -euo pipefail
+          curl -fL --retry 3 --retry-delay 2 'https://sdmntprwestus3.oaiusercontent.com/files/00000000-41a4-81fd-bc01-1e694c0e875d/raw?se=2026-08-17T01%3A59%3A43Z&sp=r&sv=2026-02-06&sr=b&scid=4023d190-e820-5c63-bd43-c9bef5eba2ae&skoid=732f244e-db13-47c3-bcc7-7ee02a9397bc&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-16T21%3A25%3A06Z&ske=2026-08-17T21%3A25%3A06Z&sks=b&skv=2026-02-06&sig=M11Asdqtedb/4tpsPnht5QtXaWK%2BTgHDZG7cp512Qow%3D' -o /tmp/bridgepoint-v227.zip
           rm -rf site
           mkdir -p site
-          test -s /tmp/bridgepoint-pages/artifact.tar
-          tar -xf /tmp/bridgepoint-pages/artifact.tar -C site
+          unzip -q /tmp/bridgepoint-v227.zip -d site
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/bridgepoint-release.json
-          grep -q 'fefd460e7799bc648b39bf1f751da1f554228750' site/bridgepoint-release.json
+          grep -q '4030ebb3568d092fcbc33777ee8103ce75d42c68' site/bridgepoint-release.json
           grep -q 'bridgepointintelligence@gmail.com' site/main.dart.js
           grep -q 'Purchases & billing' site/main.dart.js
           grep -q 'Demo customer checkout - no charge' site/main.dart.js
-          echo 'BridgePoint v224 restored from durable GitHub Pages artifact storage.'
+          grep -q 'First-time invited owner / Forgot password' site/main.dart.js
+          grep -q 'Connect Resend' site/main.dart.js
+          echo 'BridgePoint v227 production build verified for deployment.'
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
