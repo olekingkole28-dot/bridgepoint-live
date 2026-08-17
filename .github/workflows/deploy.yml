@@ -25,34 +25,33 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Download verified BridgePoint v228 production build
+      - name: Download verified BridgePoint v229 production build
         run: |
           set -euo pipefail
-          curl -fL --retry 3 --retry-delay 2 'https://sdmntprnorthcentralus.oaiusercontent.com/files/00000000-9e44-822f-90cc-9a353138f744/raw?se=2026-08-17T03%3A33%3A19Z&sp=r&sv=2026-02-06&sr=b&scid=42f71e96-ebb2-5813-a181-4604523f26f0&skoid=bbd22fc4-f881-4ea4-b2f3-c12033cf6a8b&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-16T20%3A03%3A00Z&ske=2026-08-17T20%3A03%3A00Z&sks=b&skv=2026-02-06&sig=fo1WSTogXwWb1Imgub%2B5NGW8HbO7prZO/%2BqsO089cyI%3D' -o /tmp/bridgepoint-v228.zip
-          echo '30d66c1d95ddb05e7ac928a9c5b261d94e90d6897eb300046fa396ba5db091b5  /tmp/bridgepoint-v228.zip' | sha256sum -c -
+          curl -fL --retry 3 --retry-delay 2 'https://sdmntprnorthcentralus.oaiusercontent.com/files/00000000-0430-822f-9d90-e4e6d2022448/raw?se=2026-08-17T17%3A49%3A32Z&sp=r&sv=2026-02-06&sr=b&scid=775ead29-ce6a-5058-b644-079a628dd4c2&skoid=bbd22fc4-f881-4ea4-b2f3-c12033cf6a8b&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T02%3A07%3A20Z&ske=2026-08-18T02%3A07%3A20Z&sks=b&skv=2026-02-06&sig=xGaOqK1XTZYMALfUiWfqeH7kIKsK9qaDpomEavTa87k%3D' -o /tmp/bridgepoint-v229.zip
+          echo 'ef44a97b77ea1f356b229b1baf5dfd9197657ebf25d63ea509e15aa35a46c06a  /tmp/bridgepoint-v229.zip' | sha256sum -c -
           rm -rf site
           mkdir -p site
-          unzip -q /tmp/bridgepoint-v228.zip -d site
+          unzip -q /tmp/bridgepoint-v229.zip -d site
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/bridgepoint-release.json
-          grep -q '2899bd4ec92bca526b3adba99174ea4aebf30530' site/bridgepoint-release.json
-          grep -q 'bridgepoint-v228-owner-map-weather-expansion' site/main.dart.js
+          grep -q '7856ce424502c2ac55b907761f8048faddcf90bb' site/bridgepoint-release.json
+          grep -q 'BridgePoint could not reach the server several times in a row' site/main.dart.js
+          grep -q 'bridgepoint-us-storm-clouds-v229' site/main.dart.js
+          grep -q 'Nationwide alert feed checked' site/main.dart.js
+          grep -q 'Automation Recovery' site/main.dart.js
+          grep -q 'Test NOAA live' site/main.dart.js
+          grep -q 'Open radar' site/main.dart.js
           grep -q 'IN-PROGRESS BUILDS' site/main.dart.js
           grep -q 'Build steps, percentages & approval gates' site/main.dart.js
-          grep -q 'Approve & continue' site/main.dart.js
-          grep -q 'NOAA LIVE RAIN / PRECIPITATION RADAR' site/main.dart.js
-          grep -q 'Open radar' site/main.dart.js
-          grep -q 'Creates a unique BridgePoint link' site/main.dart.js
-          grep -q 'Adds a company or person' site/main.dart.js
-          grep -q 'Automation Recovery' site/main.dart.js
           grep -q 'First-time invited owner / Forgot password' site/main.dart.js
           grep -q 'bridgepointintelligence@gmail.com' site/main.dart.js
-          if grep -q 'nowcoast.noaa.gov/geoserver/observations/satellite' site/main.dart.js; then
-            echo 'Legacy satellite endpoint unexpectedly remains active in compiled release.' >&2
+          if grep -q 'Connection looks spotty' site/main.dart.js; then
+            echo 'Old noisy connection warning unexpectedly remains user-visible.' >&2
             exit 1
           fi
-          echo 'BridgePoint v228 production artifact verified for deployment.'
+          echo 'BridgePoint v229 production artifact verified for deployment.'
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
