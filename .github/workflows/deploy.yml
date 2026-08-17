@@ -25,13 +25,20 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Download verified BridgePoint v224 production build
+      - name: Restore verified BridgePoint v224 production artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          path: /tmp/bridgepoint-pages
+          run-id: 31984584367
+          github-token: ${{ github.token }}
+      - name: Stage verified BridgePoint v224 production release
         run: |
           set -euo pipefail
-          curl -fL --retry 3 --retry-delay 2 'https://sdmntprnorthcentralus.oaiusercontent.com/files/00000000-4f18-822f-b621-16d59e5c6e60/raw?se=2026-08-17T01%3A22%3A51Z&sp=r&sv=2026-02-06&sr=b&scid=436f8721-e9b1-568a-b6c6-835cc1a97627&skoid=e9d2f8b1-028a-4cff-8eb1-d0e66fbefcca&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-16T20%3A34%3A34Z&ske=2026-08-17T20%3A34%3A34Z&sks=b&skv=2026-02-06&sig=mPADyOtMbWnsXfcr2P/8AMBRVL%2BbrE3bHD8lqRT7Etk%3D' -o /tmp/bridgepoint-v224.zip
           rm -rf site
           mkdir -p site
-          unzip -q /tmp/bridgepoint-v224.zip -d site
+          test -s /tmp/bridgepoint-pages/artifact.tar
+          tar -xf /tmp/bridgepoint-pages/artifact.tar -C site
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/bridgepoint-release.json
@@ -39,7 +46,7 @@ jobs:
           grep -q 'bridgepointintelligence@gmail.com' site/main.dart.js
           grep -q 'Purchases & billing' site/main.dart.js
           grep -q 'Demo customer checkout - no charge' site/main.dart.js
-          echo 'BridgePoint v224 production build verified for deployment.'
+          echo 'BridgePoint v224 restored from durable GitHub Pages artifact storage.'
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
