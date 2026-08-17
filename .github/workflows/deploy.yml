@@ -25,56 +25,51 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Download verified BridgePoint v265 production build
+      - name: Download audited BridgePoint v286 production build
         run: |
           set -euo pipefail
-          curl -fL --retry 3 --retry-delay 2 'https://sdmntprnorthcentralus.oaiusercontent.com/files/00000000-c8f4-822f-b372-28db642635ac/raw?se=2026-08-17T20%3A51%3A07Z&sp=r&sv=2026-02-06&sr=b&scid=96a19672-5bfc-5730-b7e2-4288e1fa3392&skoid=bbd22fc4-f881-4ea4-b2f3-c12033cf6a8b&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T06%3A31%3A44Z&ske=2026-08-18T06%3A31%3A44Z&sks=b&skv=2026-02-06&sig=oTNk2jA5B7Z/4zAqmaMtYHcxk88plom2D/ty4/2m30o%3D' -o /tmp/bridgepoint-v265.zip
-          echo 'd9ae40b29d1ba851a366c01dfcbd35c5b85f06862f954dc3b12ee4a83fa4317f  /tmp/bridgepoint-v265.zip' | sha256sum -c -
+          curl -fL --retry 3 --retry-delay 2 'https://sdmntpreastus2.oaiusercontent.com/files/00000000-d298-81f6-bbc8-c97817c7e313/raw?se=2026-08-17T22%3A22%3A45Z&sp=r&sv=2026-02-06&sr=b&scid=04bb1c07-968c-5a9e-b53d-7609434a4311&skoid=e9d2f8b1-028a-4cff-8eb1-d0e66fbefcca&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T21%3A29%3A36Z&ske=2026-08-18T21%3A29%3A36Z&sks=b&skv=2026-02-06&sig=3PdivXDJRZdYOTvl4hUKHFbh0HeQGCm38Jty9W35qTc%3D' -o /tmp/bridgepoint-v286.zip
+          echo '85f69490ebd10ee2fb64a7f068641a371d04256048c0bfef918774e8edec536f  /tmp/bridgepoint-v286.zip' | sha256sum -c -
           rm -rf site
           mkdir -p site
-          unzip -q /tmp/bridgepoint-v265.zip -d site
+          unzip -q /tmp/bridgepoint-v286.zip -d site
+          touch site/.nojekyll
+          sed -i 's#<base href="/">#<base href="./">#' site/index.html
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/bridgepoint-release.json
-          grep -q '0b947b68971852e648a9e0195a1d05992e261f3e' site/bridgepoint-release.json
+          grep -q 'e4e053221562721eb22ef91ff05664ca10725b2d' site/bridgepoint-release.json
 
-          # Existing production contract guards.
+          # Core production contract guards.
           grep -q 'PROPERTY HEARTBEAT' site/main.dart.js
           grep -q 'Ask BridgePoint AI' site/main.dart.js
           grep -q 'More BridgePoint tools' site/main.dart.js
           grep -q 'bridgepoint_live_clusters_v250' site/main.dart.js
-          grep -q 'Live clusters' site/main.dart.js
-          grep -q 'EMERGING' site/main.dart.js
-          grep -q 'RECOVERY' site/main.dart.js
           grep -q 'bridgepoint_property_heartbeat_v245' site/main.dart.js
-          grep -q 'BridgePoint could not reach the server several times in a row' site/main.dart.js
           grep -q 'bridgepoint-us-storm-clouds-v229' site/main.dart.js
           grep -q 'Automation Recovery' site/main.dart.js
 
-          # Community 3D, section errors, voice and package-aware AI guards.
+          # Community 3D + real NOAA/NWS weather + mobile gesture guards.
           grep -q 'bridgepoint_community_3d_buildings_v241' site/main.dart.js
           grep -q 'U.S. 3D BUILDINGS' site/main.dart.js
+          grep -q 'OpenFreeMap' site/main.dart.js
+          grep -q 'two-finger tilt' site/main.dart.js
+          grep -q 'Weather checking' site/main.dart.js
+          grep -q 'bridgepoint-weather-center-v136' site/main.dart.js
           grep -q 'BridgePoint Community Chat' site/main.dart.js
-          grep -q 'Properties could not load' site/main.dart.js
-          grep -q 'BridgePoint AI search could not load' site/main.dart.js
-          grep -q 'bridgepoint_ai_answer_v262' site/main.dart.js
-          grep -q 'Talk to BridgePoint AI' site/main.dart.js
-          grep -q 'Unlock more intelligence' site/main.dart.js
-          grep -q 'Ask anything' site/main.dart.js
 
-          # v265 simplified executive Owner Center guards.
+          # Latest owner, review, preview and system-explorer guards.
+          grep -q 'Meet the Owner' site/main.dart.js
+          grep -q 'Customer preview' site/main.dart.js
+          grep -q 'SYSTEM EXPLORER' site/main.dart.js
           grep -q 'decisions first' site/main.dart.js
-          grep -q 'Detailed metrics' site/main.dart.js
-          grep -q 'Growth & operations' site/main.dart.js
-          grep -q 'Advanced admin' site/main.dart.js
           grep -q 'Owner Center could not load' site/main.dart.js
-          grep -q 'critical owner numbers are summarized below' site/main.dart.js
 
           if grep -q 'Connection looks spotty' site/main.dart.js; then
             echo 'Old noisy connection warning unexpectedly remains user-visible.' >&2
             exit 1
           fi
-          echo 'BridgePoint v265 verified production artifact ready for deployment.'
+          echo 'BridgePoint v286 audited production artifact ready for deployment.'
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
