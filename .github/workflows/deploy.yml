@@ -25,37 +25,34 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Download verified BridgePoint v248 production build
+      - name: Download verified BridgePoint v253 production build
         run: |
           set -euo pipefail
-          curl -fL --retry 3 --retry-delay 2 'https://sdmntprsoutheastus3.oaiusercontent.com/files/00000000-51b0-820c-bf35-4d5116d1518c/raw?se=2026-08-17T19%3A34%3A53Z&sp=r&sv=2026-02-06&sr=b&scid=0c50e5e6-2516-560e-9c69-a85dc39db849&skoid=77636ecc-ad8d-44df-baa7-163b524a0261&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T13%3A43%3A45Z&ske=2026-08-18T13%3A43%3A45Z&sks=b&skv=2026-02-06&sig=RwUQ5dW/eEK7GyYtmVYW2b8RtzPaRTIJs5Hr41bXVSo%3D' -o /tmp/bridgepoint-v248.zip
-          echo '75705ebaf5abd3106ad490e181cf2353c6dd8620dd9934711dd792ee1e4e31cd  /tmp/bridgepoint-v248.zip' | sha256sum -c -
+          curl -fL --retry 3 --retry-delay 2 'https://sdmntpreastus.oaiusercontent.com/files/00000000-a53c-81f9-96fb-3b284c820c1f/raw?se=2026-08-17T19%3A48%3A54Z&sp=r&sv=2026-02-06&sr=b&scid=565d3881-cc8f-52c4-9c89-bc61dd7cd553&skoid=77636ecc-ad8d-44df-baa7-163b524a0261&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T12%3A23%3A15Z&ske=2026-08-18T12%3A23%3A15Z&sks=b&skv=2026-02-06&sig=Ca1eh5JQTjN/9K5IxIT5GzASxR9kz6mTd50VnYKYPoo%3D' -o /tmp/bridgepoint-v253.zip
+          echo 'e655e5503d7fead04c19b9fdbfc97bc244ff0ff72bc54aca2880c95730a363b2  /tmp/bridgepoint-v253.zip' | sha256sum -c -
           rm -rf site
           mkdir -p site
-          unzip -q /tmp/bridgepoint-v248.zip -d site
+          unzip -q /tmp/bridgepoint-v253.zip -d site
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/bridgepoint-release.json
-          grep -q '3d46ca97213f0a931f10a39f5c855a51ace18600' site/bridgepoint-release.json
+          grep -q '1771e7e1c3dab1856468771ae37fe8cafba436f3' site/bridgepoint-release.json
           grep -q 'PROPERTY HEARTBEAT' site/main.dart.js
-          grep -q 'Private Property Memory' site/main.dart.js
-          grep -q 'Advanced intelligence details' site/main.dart.js
           grep -q 'Ask BridgePoint AI' site/main.dart.js
           grep -q 'More BridgePoint tools' site/main.dart.js
-          grep -q 'bridgepoint_universal_search_context_v244' site/main.dart.js
+          grep -q 'bridgepoint_live_clusters_v250' site/main.dart.js
+          grep -q 'Live clusters' site/main.dart.js
+          grep -q 'EMERGING' site/main.dart.js
+          grep -q 'RECOVERY' site/main.dart.js
           grep -q 'bridgepoint_property_heartbeat_v245' site/main.dart.js
-          grep -q 'bridgepoint_property_twins_v232' site/main.dart.js
-          grep -q 'bridgepoint_save_property_fact_v237' site/main.dart.js
           grep -q 'BridgePoint could not reach the server several times in a row' site/main.dart.js
           grep -q 'bridgepoint-us-storm-clouds-v229' site/main.dart.js
           grep -q 'Automation Recovery' site/main.dart.js
-          grep -q 'First-time invited owner / Forgot password' site/main.dart.js
-          grep -q 'bridgepointintelligence@gmail.com' site/main.dart.js
           if grep -q 'Connection looks spotty' site/main.dart.js; then
             echo 'Old noisy connection warning unexpectedly remains user-visible.' >&2
             exit 1
           fi
-          echo 'BridgePoint v248 verified production artifact ready for deployment.'
+          echo 'BridgePoint v253 verified production artifact ready for deployment.'
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
