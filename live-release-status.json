@@ -1,14 +1,15 @@
 {
   "status": "PUBLISHED",
-  "release_sha": "1fb4ea469616a76151e8021b0a4db6f716213396",
-  "built_at": "2026-08-18T20:59:44Z",
-  "deployed_at": "2026-08-18T21:34:30.735780Z",
+  "release_sha": "5ae3c17cb98da89dbda757e1e03ad34b2ffd8239",
+  "built_at": "2026-08-18T23:17:53Z",
+  "deployed_at": "2026-08-18T23:50:45.339157Z",
   "public_origin": "https://bridgepointintelligence.online/",
   "pages_url": "https://bridgepointintelligence.online/",
-  "artifact_sha256": "63d43c58cf354bfb7de9587caa9d8d848975f36020f6f9fc74a8dae8f83e22b5",
+  "artifact_sha256": "78c1a32387bea59254df8012483ef8de96e8c7122e425ebc67556ec8b9c1bd1a",
   "source_build_repo": "olekingkole28-dot/bridgepoint_data_studio",
-  "source_workflow_run_id": 32185246471,
-  "source_merge_sha": "1fb4ea469616a76151e8021b0a4db6f716213396",
-  "merged_v321_sha": "ac97f1810ca6154d6c1f5bbb68c0b11f04e76974",
-  "release_label": "BridgePoint v321 expansion ETAs + radar clarity + resilience"
+  "source_workflow_run_id": 32196544879,
+  "source_release_sha": "5ae3c17cb98da89dbda757e1e03ad34b2ffd8239",
+  "source_branch_head_sha": "8c56f266ff8720af9d732c402164c807fe2385fa",
+  "merged_v322_sha": "b896f4c61ae9b5dd1b372e7cb59e40036164953d",
+  "release_label": "BridgePoint v322 governed whole-system AI"
 }
