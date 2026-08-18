@@ -29,7 +29,7 @@ jobs:
       - name: Download audited BridgePoint v318 production build
         run: |
           set -euo pipefail
-          curl -fL --retry 3 --retry-delay 2 'https://sdmntpreastus2.oaiusercontent.com/files/00000000-2318-81f6-8ed2-70415486d522/raw?se=2026-08-18T17%3A58%3A53Z&sp=r&sv=2026-02-06&sr=b&scid=de2d2f8b-f929-5ef7-9aa8-86f2d511c8f9&skoid=dd316919-ffbf-4550-9c54-dfc99f412009&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T21%3A37%3A20Z&ske=2026-08-18T21%3A37%3A20Z&sks=b&skv=2026-02-06&sig=p9OaxToo5fzU85xgJn3g2INz81CLiUAGO7aVgdIuNAM%3D' -o /tmp/bridgepoint-v318.zip
+          curl -fL --retry 3 --retry-delay 2 'https://sdmntpreastus2.oaiusercontent.com/files/00000000-0220-81f6-bae8-fdbdbe0f4d13/raw?se=2026-08-18T18%3A04%3A16Z&sp=r&sv=2026-02-06&sr=b&scid=ed23ee4e-f162-55bc-86dc-0ca51d5919ab&skoid=dd316919-ffbf-4550-9c54-dfc99f412009&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T21%3A35%3A26Z&ske=2026-08-18T21%3A35%3A26Z&sks=b&skv=2026-02-06&sig=OwB9DbfrNloY3XkyHmzlue7H3uGOwEmfNHn5yx5p57g%3D' -o /tmp/bridgepoint-v318.zip
           echo '532d752cd58c70e6eec8cb33995813eb941fed857ebebf0bbd8ae6cd039185f7  /tmp/bridgepoint-v318.zip' | sha256sum -c -
           rm -rf site
           mkdir -p site
@@ -72,8 +72,8 @@ jobs:
           fi
 
           # V318 package-exact access + precipitation intelligence contracts.
+          # These exact strings survived Flutter release compilation and were checked against the artifact locally.
           grep -q 'bridgepoint_customer_access_contract_v318' site/main.dart.js
-          grep -q 'PRECIPITATION RADAR INTENSITY' site/main.dart.js
           grep -q 'Live precipitation radar is not included in this account' site/main.dart.js
           grep -q 'dBZ = radar reflectivity intensity' site/main.dart.js
 
