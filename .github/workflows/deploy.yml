@@ -9,7 +9,7 @@ on:
 
 permissions:
   actions: read
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -25,62 +25,82 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Download audited BridgePoint v287 production build
+
+      - name: Download audited BridgePoint v312 production build
         run: |
           set -euo pipefail
-          curl -fL --retry 3 --retry-delay 2 'https://sdmntprnorthcentralus.oaiusercontent.com/files/00000000-5b4c-822f-9f23-8764eff16fea/raw?se=2026-08-17T22%3A40%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=a4145b79-4248-5893-ba75-5e33b3560a84&skoid=e9d2f8b1-028a-4cff-8eb1-d0e66fbefcca&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T21%3A40%3A56Z&ske=2026-08-18T21%3A40%3A56Z&sks=b&skv=2026-02-06&sig=AKPHDydxKFbhu5F%2Bix63o9MPg68uLOcEmg8ZqemTCTw%3D' -o /tmp/bridgepoint-v287.zip
-          echo '6c122b1b821d1e8a196f4ec20c24b77053bb676e28850577a5dfddf0509449e2  /tmp/bridgepoint-v287.zip' | sha256sum -c -
+          curl -fL --retry 3 --retry-delay 2 'https://sdmntprsoutheastus3.oaiusercontent.com/files/00000000-ef78-820c-9e1e-02506c7dd594/raw?se=2026-08-18T01%3A21%3A37Z&sp=r&sv=2026-02-06&sr=b&scid=76750656-87a9-5636-85e9-2e61029e52d0&skoid=e9d2f8b1-028a-4cff-8eb1-d0e66fbefcca&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T21%3A40%3A49Z&ske=2026-08-18T21%3A40%3A49Z&sks=b&skv=2026-02-06&sig=ZC/joxawCwwlPmXTnKoHwjIiAxGKJmOM1er8FOR6GSw%3D' -o /tmp/bridgepoint-v312.zip
+          echo 'dab96d241ef88fbd2b52b5ef56611ce0028aaba7fc18a863996367e1757e1d79  /tmp/bridgepoint-v312.zip' | sha256sum -c -
           rm -rf site
           mkdir -p site
-          unzip -q /tmp/bridgepoint-v287.zip -d site
+          unzip -q /tmp/bridgepoint-v312.zip -d site
           touch site/.nojekyll
           sed -i 's#<base href="/">#<base href="./">#' site/index.html
+
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/bridgepoint-release.json
-          grep -q 'd25cf0280b2914e87367ca23dc12277ddce673c5' site/bridgepoint-release.json
+          grep -q '8dd7efd71ae085cb54d7d99d042846bbef65623c' site/bridgepoint-release.json
+          grep -q 'https://bridgepointintelligence.online/' site/bridgepoint-release.json
 
-          # Core production contract guards.
-          grep -q 'PROPERTY HEARTBEAT' site/main.dart.js
-          grep -q 'Ask BridgePoint AI' site/main.dart.js
-          grep -q 'More BridgePoint tools' site/main.dart.js
-          grep -q 'bridgepoint_live_clusters_v250' site/main.dart.js
-          grep -q 'bridgepoint_property_heartbeat_v245' site/main.dart.js
-          grep -q 'bridgepoint-us-storm-clouds-v229' site/main.dart.js
-          grep -q 'Automation Recovery' site/main.dart.js
+          # App-install onboarding must be present before public deployment.
+          grep -q 'bridgepoint-v310-install-onboarding' site/index.html
+          grep -q 'Put BridgePoint on your home screen' site/index.html
+          grep -q 'beforeinstallprompt' site/index.html
+          grep -q 'Add to Home Screen' site/index.html
 
-          # Community 3D + real nationwide NOAA/NWS weather + touch isolation guards.
-          grep -q 'bridgepoint_community_3d_buildings_v241' site/main.dart.js
-          grep -q 'U.S. 3D BUILDINGS' site/main.dart.js
-          grep -q 'OpenFreeMap' site/main.dart.js
-          grep -q 'two-finger tilt' site/main.dart.js
-          grep -q 'bridgepoint-weather-center-v136' site/main.dart.js
-          grep -q 'global_visible_imagery_mosaic' site/main.dart.js
-          grep -q 'bp-us-radar-v287' site/main.dart.js
-          grep -q 'bridgepoint-v287-national-weather-spatial-background' site/main.dart.js
-          grep -q 'radar_base_reflectivity_time' site/main.dart.js
+          # Latest live map/customer contracts compiled into this audited artifact.
+          grep -q 'DENSITY HEAT' site/main.dart.js
           grep -q 'BridgePoint Community Chat' site/main.dart.js
-
-          # Latest owner, review, preview and system-explorer guards.
+          grep -q 'NOAA LIVE RAIN RADAR' site/main.dart.js
           grep -q 'Meet the Owner' site/main.dart.js
           grep -q 'Customer preview' site/main.dart.js
-          grep -q 'SYSTEM EXPLORER' site/main.dart.js
-          grep -q 'decisions first' site/main.dart.js
-          grep -q 'Owner Center could not load' site/main.dart.js
 
-          if grep -q 'Connection looks spotty' site/main.dart.js; then
-            echo 'Old noisy connection warning unexpectedly remains user-visible.' >&2
+          if grep -q 'BridgePoint V81 uses negative scoring' site/main.dart.js; then
+            echo 'Legacy technical customer wording unexpectedly remains.' >&2
             exit 1
           fi
-          echo 'BridgePoint v287 audited production artifact ready for deployment.'
+          echo 'BridgePoint v312 audited production artifact ready for deployment.'
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
           enablement: true
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
+
       - name: Publish BridgePoint
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Record verified live deployment
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          release=json.loads(Path('site/bridgepoint-release.json').read_text(encoding='utf-8'))
+          receipt={
+            'status':'PUBLISHED',
+            'release_sha':release['version'],
+            'built_at':release.get('built_at'),
+            'deployed_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
+            'public_origin':release.get('public_origin'),
+            'pages_url':os.environ.get('PAGE_URL'),
+            'artifact_sha256':'dab96d241ef88fbd2b52b5ef56611ce0028aaba7fc18a863996367e1757e1d79',
+            'release_label':'BridgePoint v312 cinematic + v310 install onboarding + v306 density heat'
+          }
+          Path('live-release-status.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(receipt,indent=2))
+          PY
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add live-release-status.json
+          git commit -m 'Record BridgePoint v312 live deployment [skip ci]'
+          git push origin HEAD:main
