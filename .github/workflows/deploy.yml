@@ -26,41 +26,45 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download audited BridgePoint v312 production build
+      - name: Download audited BridgePoint v315 production build
         run: |
           set -euo pipefail
-          curl -fL --retry 3 --retry-delay 2 'https://sdmntprsoutheastus3.oaiusercontent.com/files/00000000-ef78-820c-9e1e-02506c7dd594/raw?se=2026-08-18T01%3A21%3A37Z&sp=r&sv=2026-02-06&sr=b&scid=76750656-87a9-5636-85e9-2e61029e52d0&skoid=e9d2f8b1-028a-4cff-8eb1-d0e66fbefcca&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T21%3A40%3A49Z&ske=2026-08-18T21%3A40%3A49Z&sks=b&skv=2026-02-06&sig=ZC/joxawCwwlPmXTnKoHwjIiAxGKJmOM1er8FOR6GSw%3D' -o /tmp/bridgepoint-v312.zip
-          echo 'dab96d241ef88fbd2b52b5ef56611ce0028aaba7fc18a863996367e1757e1d79  /tmp/bridgepoint-v312.zip' | sha256sum -c -
+          curl -fL --retry 3 --retry-delay 2 'https://sdmntprnorthcentralus.oaiusercontent.com/files/00000000-ca88-822f-bd5c-82a5406fb791/raw?se=2026-08-18T03%3A12%3A17Z&sp=r&sv=2026-02-06&sr=b&scid=f4095b0d-ab56-59f0-883c-53da52d3d6ad&skoid=d1cabc79-3240-4866-94fe-6005330cb49e&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T22%3A42%3A55Z&ske=2026-08-18T22%3A42%3A55Z&sks=b&skv=2026-02-06&sig=fMqdbA97gDzr6E2AiiEYbQbm34HyLcc7jY5aHJfDiws%3D' -o /tmp/bridgepoint-v315.zip
+          echo 'b8538ea9d8819285163deb619856937194c60f6abc8b5e5cb5a968f0ccc13416  /tmp/bridgepoint-v315.zip' | sha256sum -c -
           rm -rf site
           mkdir -p site
-          unzip -q /tmp/bridgepoint-v312.zip -d site
+          unzip -q /tmp/bridgepoint-v315.zip -d site
           touch site/.nojekyll
           sed -i 's#<base href="/">#<base href="./">#' site/index.html
 
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/bridgepoint-release.json
-          grep -q '8dd7efd71ae085cb54d7d99d042846bbef65623c' site/bridgepoint-release.json
+          grep -q '40ee5a45c03d05f22dd09496dfb2fa2f1fb34037' site/bridgepoint-release.json
           grep -q 'https://bridgepointintelligence.online/' site/bridgepoint-release.json
 
-          # App-install onboarding must be present before public deployment.
+          # Install / PWA contracts must remain present.
           grep -q 'bridgepoint-v310-install-onboarding' site/index.html
           grep -q 'Put BridgePoint on your home screen' site/index.html
           grep -q 'beforeinstallprompt' site/index.html
           grep -q 'Add to Home Screen' site/index.html
 
-          # Latest live map/customer contracts compiled into this audited artifact.
+          # Final customer/owner release contracts compiled into this audited artifact.
           grep -q 'DENSITY HEAT' site/main.dart.js
           grep -q 'BridgePoint Community Chat' site/main.dart.js
           grep -q 'NOAA LIVE RAIN RADAR' site/main.dart.js
           grep -q 'Meet the Owner' site/main.dart.js
           grep -q 'Customer preview' site/main.dart.js
+          grep -q 'Investor Room' site/main.dart.js
+          grep -q 'Preview package fit' site/main.dart.js
+          grep -q 'BEST ACTIONABLE FIT' site/main.dart.js
+          grep -q 'bridgepoint-v314-investor-room' site/main.dart.js
 
           if grep -q 'BridgePoint V81 uses negative scoring' site/main.dart.js; then
             echo 'Legacy technical customer wording unexpectedly remains.' >&2
             exit 1
           fi
-          echo 'BridgePoint v312 audited production artifact ready for deployment.'
+          echo 'BridgePoint v315 audited production artifact ready for deployment.'
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -93,8 +97,8 @@ jobs:
             'deployed_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'public_origin':release.get('public_origin'),
             'pages_url':os.environ.get('PAGE_URL'),
-            'artifact_sha256':'dab96d241ef88fbd2b52b5ef56611ce0028aaba7fc18a863996367e1757e1d79',
-            'release_label':'BridgePoint v312 cinematic + v310 install onboarding + v306 density heat'
+            'artifact_sha256':'b8538ea9d8819285163deb619856937194c60f6abc8b5e5cb5a968f0ccc13416',
+            'release_label':'BridgePoint v315 final polish + Investor Room + catalog-aware package fit'
           }
           Path('live-release-status.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(receipt,indent=2))
@@ -102,5 +106,5 @@ jobs:
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add live-release-status.json
-          git commit -m 'Record BridgePoint v312 live deployment [skip ci]'
+          git commit -m 'Record BridgePoint v315 live deployment [skip ci]'
           git push origin HEAD:main
