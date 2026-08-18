@@ -1,15 +1,15 @@
 {
   "status": "PUBLISHED",
-  "release_sha": "5ae3c17cb98da89dbda757e1e03ad34b2ffd8239",
-  "built_at": "2026-08-18T23:17:53Z",
-  "deployed_at": "2026-08-18T23:50:45.339157Z",
+  "release_sha": "43cc53ef70edaa1afc211bdcdd19ed54849b9173",
+  "built_at": "2026-08-18T23:47:16Z",
+  "deployed_at": "2026-08-18T23:52:58.053703Z",
   "public_origin": "https://bridgepointintelligence.online/",
   "pages_url": "https://bridgepointintelligence.online/",
-  "artifact_sha256": "78c1a32387bea59254df8012483ef8de96e8c7122e425ebc67556ec8b9c1bd1a",
+  "artifact_sha256": "c1252f4bf736833faaeb8beea0bf9f5d95cb14f2c5f9c4ea2d25b920f0d294a8",
   "source_build_repo": "olekingkole28-dot/bridgepoint_data_studio",
-  "source_workflow_run_id": 32196544879,
-  "source_release_sha": "5ae3c17cb98da89dbda757e1e03ad34b2ffd8239",
-  "source_branch_head_sha": "8c56f266ff8720af9d732c402164c807fe2385fa",
-  "merged_v322_sha": "b896f4c61ae9b5dd1b372e7cb59e40036164953d",
-  "release_label": "BridgePoint v322 governed whole-system AI"
+  "source_workflow_run_id": 32198615466,
+  "source_release_sha": "43cc53ef70edaa1afc211bdcdd19ed54849b9173",
+  "source_branch_head_sha": "975f8e2a3da6dd2d66352184773a850f8d7f9376",
+  "merged_v323_sha": "2af05200a3a6000d53e684638a29e58484a6331a",
+  "release_label": "BridgePoint v323 Network + safety + owner moderation"
 }
