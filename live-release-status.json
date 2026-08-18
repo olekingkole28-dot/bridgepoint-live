@@ -1,10 +1,10 @@
 {
   "status": "PUBLISHED",
-  "release_sha": "b7a3ea1b3ac952ca0619b50a449419fb9cdfd8ad",
-  "built_at": "2026-08-18T16:18:16Z",
-  "deployed_at": "2026-08-18T16:26:15.257551Z",
+  "release_sha": "be93bc4c44cdccd895fbd8cfc367e4610f9cb8a2",
+  "built_at": "2026-08-18T17:50:33Z",
+  "deployed_at": "2026-08-18T18:00:12.013044Z",
   "public_origin": "https://bridgepointintelligence.online/",
   "pages_url": "https://bridgepointintelligence.online/",
-  "artifact_sha256": "30fb7ce0d751af810c212c7b924e9fa4b06d05193f266b7a51e61e598b22c6b7",
-  "release_label": "BridgePoint v316 manual social mode + preserved About social links"
+  "artifact_sha256": "532d752cd58c70e6eec8cb33995813eb941fed857ebebf0bbd8ae6cd039185f7",
+  "release_label": "BridgePoint v318 package-exact access + live precipitation intelligence"
 }
