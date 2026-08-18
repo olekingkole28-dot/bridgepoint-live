@@ -1,10 +1,10 @@
 {
   "status": "PUBLISHED",
-  "release_sha": "40ee5a45c03d05f22dd09496dfb2fa2f1fb34037",
-  "built_at": "2026-08-18T02:50:23Z",
-  "deployed_at": "2026-08-18T03:08:21.522025Z",
+  "release_sha": "b7a3ea1b3ac952ca0619b50a449419fb9cdfd8ad",
+  "built_at": "2026-08-18T16:18:16Z",
+  "deployed_at": "2026-08-18T16:26:15.257551Z",
   "public_origin": "https://bridgepointintelligence.online/",
   "pages_url": "https://bridgepointintelligence.online/",
-  "artifact_sha256": "b8538ea9d8819285163deb619856937194c60f6abc8b5e5cb5a968f0ccc13416",
-  "release_label": "BridgePoint v315 final polish + Investor Room + catalog-aware package fit"
+  "artifact_sha256": "30fb7ce0d751af810c212c7b924e9fa4b06d05193f266b7a51e61e598b22c6b7",
+  "release_label": "BridgePoint v316 manual social mode + preserved About social links"
 }
