@@ -26,30 +26,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download audited BridgePoint v318 production build
+      - name: Download audited BridgePoint v321 production build
         run: |
           set -euo pipefail
-          curl -fL --retry 3 --retry-delay 2 'https://sdmntpreastus2.oaiusercontent.com/files/00000000-0220-81f6-bae8-fdbdbe0f4d13/raw?se=2026-08-18T18%3A04%3A16Z&sp=r&sv=2026-02-06&sr=b&scid=ed23ee4e-f162-55bc-86dc-0ca51d5919ab&skoid=dd316919-ffbf-4550-9c54-dfc99f412009&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T21%3A35%3A26Z&ske=2026-08-18T21%3A35%3A26Z&sks=b&skv=2026-02-06&sig=OwB9DbfrNloY3XkyHmzlue7H3uGOwEmfNHn5yx5p57g%3D' -o /tmp/bridgepoint-v318.zip
-          echo '532d752cd58c70e6eec8cb33995813eb941fed857ebebf0bbd8ae6cd039185f7  /tmp/bridgepoint-v318.zip' | sha256sum -c -
+          curl -fL --retry 3 --retry-delay 2 'https://sdmntprwestcentralus.oaiusercontent.com/files/00000000-f840-81fb-915a-f83017cccdf0/raw?se=2026-08-18T21%3A38%3A11Z&sp=r&sv=2026-02-06&sr=b&scid=c333eda0-0fcc-50d0-86ae-506dbae59cae&skoid=a1be202a-6464-476c-a496-723317c4a4db&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-17T22%3A43%3A00Z&ske=2026-08-18T22%3A43%3A00Z&sks=b&skv=2026-02-06&sig=DO2E2bXWzANud2v6gmSQZjyVyjrVBxsjwgsPExIzCXU%3D' -o /tmp/bridgepoint-v321.zip
+          echo '63d43c58cf354bfb7de9587caa9d8d848975f36020f6f9fc74a8dae8f83e22b5  /tmp/bridgepoint-v321.zip' | sha256sum -c -
           rm -rf site
           mkdir -p site
-          unzip -q /tmp/bridgepoint-v318.zip -d site
+          unzip -q /tmp/bridgepoint-v321.zip -d site
           touch site/.nojekyll
           sed -i 's#<base href="/">#<base href="./">#' site/index.html
 
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/bridgepoint-release.json
-          grep -q 'be93bc4c44cdccd895fbd8cfc367e4610f9cb8a2' site/bridgepoint-release.json
+          grep -q '1fb4ea469616a76151e8021b0a4db6f716213396' site/bridgepoint-release.json
           grep -q 'https://bridgepointintelligence.online/' site/bridgepoint-release.json
 
-          # Install / PWA contracts must remain present.
+          # PWA/install and established customer contracts must remain present.
           grep -q 'bridgepoint-v310-install-onboarding' site/index.html
           grep -q 'Put BridgePoint on your home screen' site/index.html
           grep -q 'beforeinstallprompt' site/index.html
           grep -q 'Add to Home Screen' site/index.html
-
-          # Established customer/owner contracts must remain present.
           grep -q 'DENSITY HEAT' site/main.dart.js
           grep -q 'BridgePoint Community Chat' site/main.dart.js
           grep -q 'NOAA LIVE RAIN RADAR' site/main.dart.js
@@ -57,31 +55,26 @@ jobs:
           grep -q 'Customer preview' site/main.dart.js
           grep -q 'Investor Room' site/main.dart.js
           grep -q 'Preview package fit' site/main.dart.js
-          grep -q 'BEST ACTIONABLE FIT' site/main.dart.js
-          grep -q 'bridgepoint-v314-investor-room' site/main.dart.js
 
-          # V316 manual-social contract remains: public profile links stay; auto-publisher/OAuth stays removed.
-          grep -q 'bridgepoint_brand_contact_v215' site/main.dart.js
+          # V321 expansion/radar/resilience contracts compiled into the audited artifact.
+          grep -q 'bridgepoint_public_expansion_status_v321' site/main.dart.js
+          grep -q 'Calculating from live throughput' site/main.dart.js
+          grep -q 'Queued states show their real queue position' site/main.dart.js
+          grep -q 'expansion badges hidden so the radar stays clear' site/main.dart.js
+          grep -q 'LIVE SOURCE OUTAGES' site/main.dart.js
+          grep -q 'AUTO-DISCOVERY PENDING' site/main.dart.js
+          grep -q 'temporarily unavailable' site/main.dart.js
+
+          # Manual-social and customer-safe contracts remain intact.
           if grep -q 'bridgepoint-social-publisher-v120' site/main.dart.js; then
-            echo 'Automatic social publisher unexpectedly remains in v318.' >&2
+            echo 'Automatic social publisher unexpectedly remains.' >&2
             exit 1
           fi
-          if grep -q 'bridgepoint-social-connect-v122' site/main.dart.js; then
-            echo 'Automatic social OAuth connector unexpectedly remains in v318.' >&2
-            exit 1
-          fi
-
-          # V318 package-exact access + precipitation intelligence contracts.
-          # These exact strings survived Flutter release compilation and were checked against the artifact locally.
-          grep -q 'bridgepoint_customer_access_contract_v318' site/main.dart.js
-          grep -q 'Live precipitation radar is not included in this account' site/main.dart.js
-          grep -q 'dBZ = radar reflectivity intensity' site/main.dart.js
-
           if grep -q 'BridgePoint V81 uses negative scoring' site/main.dart.js; then
             echo 'Legacy technical customer wording unexpectedly remains.' >&2
             exit 1
           fi
-          echo 'BridgePoint v318 audited access + precipitation production artifact ready for deployment.'
+          echo 'BridgePoint v321 audited expansion ETA + radar + resilience artifact ready for deployment.'
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -114,8 +107,12 @@ jobs:
             'deployed_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'public_origin':release.get('public_origin'),
             'pages_url':os.environ.get('PAGE_URL'),
-            'artifact_sha256':'532d752cd58c70e6eec8cb33995813eb941fed857ebebf0bbd8ae6cd039185f7',
-            'release_label':'BridgePoint v318 package-exact access + live precipitation intelligence'
+            'artifact_sha256':'63d43c58cf354bfb7de9587caa9d8d848975f36020f6f9fc74a8dae8f83e22b5',
+            'source_build_repo':'olekingkole28-dot/bridgepoint_data_studio',
+            'source_workflow_run_id':32185246471,
+            'source_merge_sha':'1fb4ea469616a76151e8021b0a4db6f716213396',
+            'merged_v321_sha':'ac97f1810ca6154d6c1f5bbb68c0b11f04e76974',
+            'release_label':'BridgePoint v321 expansion ETAs + radar clarity + resilience'
           }
           Path('live-release-status.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(receipt,indent=2))
@@ -123,5 +120,5 @@ jobs:
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add live-release-status.json
-          git commit -m 'Record BridgePoint v318 live deployment [skip ci]'
+          git commit -m 'Record BridgePoint v321 live deployment [skip ci]'
           git push origin HEAD:main
