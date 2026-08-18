@@ -29,7 +29,7 @@ jobs:
       - name: Download audited BridgePoint v322 production build
         run: |
           set -euo pipefail
-          curl -fL --retry 3 --retry-delay 2 'https://sdmntprwestus3.oaiusercontent.com/files/00000000-01b4-81fd-82e5-fd3471134b69/raw?se=2026-08-18T23%3A47%3A29Z&sp=r&sv=2026-02-06&sr=b&scid=4ed172f2-35a9-5d80-8048-284dd43fe0a7&skoid=c953efd6-2ae8-41b4-a6d6-34b1475ac07c&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-18T23%3A01%3A42Z&ske=2026-08-19T23%3A01%3A42Z&sks=b&skv=2026-02-06&sig=qn1nirRucv9DIwYcl8N3B2nGcuj0r%2BsTLn/bPKNFjck%3D' -o /tmp/bridgepoint-v322.zip
+          curl -fL --retry 3 --retry-delay 2 'https://sdmntprwestus3.oaiusercontent.com/files/00000000-9538-81fd-8ad9-5dabb48ae7b5/raw?se=2026-08-18T23%3A53%3A32Z&sp=r&sv=2026-02-06&sr=b&scid=06ad5497-967c-5bd4-a6a8-48b7e41fc8ae&skoid=c953efd6-2ae8-41b4-a6d6-34b1475ac07c&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-18T21%3A59%3A15Z&ske=2026-08-19T21%3A59%3A15Z&sks=b&skv=2026-02-06&sig=2kRUveAMue8NdPe3cbUQWYnQaxTDa5H38m5wN9pMfOk%3D' -o /tmp/bridgepoint-v322.zip
           echo '78c1a32387bea59254df8012483ef8de96e8c7122e425ebc67556ec8b9c1bd1a  /tmp/bridgepoint-v322.zip' | sha256sum -c -
           rm -rf site
           mkdir -p site
@@ -43,7 +43,6 @@ jobs:
           grep -q '5ae3c17cb98da89dbda757e1e03ad34b2ffd8239' site/bridgepoint-release.json
           grep -q 'https://bridgepointintelligence.online/' site/bridgepoint-release.json
 
-          # Existing production/PWA/customer contracts must remain present.
           grep -q 'bridgepoint-v310-install-onboarding' site/index.html
           grep -q 'Put BridgePoint on your home screen' site/index.html
           grep -q 'beforeinstallprompt' site/index.html
@@ -55,7 +54,6 @@ jobs:
           grep -q 'Investor Room' site/main.dart.js
           grep -q 'Preview package fit' site/main.dart.js
 
-          # V321 expansion/radar/resilience contracts remain compiled in.
           grep -q 'bridgepoint_public_expansion_status_v321' site/main.dart.js
           grep -q 'Calculating from live throughput' site/main.dart.js
           grep -q 'Queued states show their real queue position' site/main.dart.js
@@ -63,7 +61,6 @@ jobs:
           grep -q 'LIVE SOURCE OUTAGES' site/main.dart.js
           grep -q 'AUTO-DISCOVERY PENDING' site/main.dart.js
 
-          # V322 governed whole-system BridgePoint AI contracts.
           grep -q 'bridgepoint_ai_answer_v322' site/main.dart.js
           grep -q 'OWNER_GOVERNED' site/main.dart.js
           grep -q 'BridgePoint AI uses BridgePoint system contracts only' site/main.dart.js
