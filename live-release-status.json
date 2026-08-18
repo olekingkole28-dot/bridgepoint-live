@@ -1,10 +1,14 @@
 {
   "status": "PUBLISHED",
-  "release_sha": "be93bc4c44cdccd895fbd8cfc367e4610f9cb8a2",
-  "built_at": "2026-08-18T17:50:33Z",
-  "deployed_at": "2026-08-18T18:00:12.013044Z",
+  "release_sha": "1fb4ea469616a76151e8021b0a4db6f716213396",
+  "built_at": "2026-08-18T20:59:44Z",
+  "deployed_at": "2026-08-18T21:34:30.735780Z",
   "public_origin": "https://bridgepointintelligence.online/",
   "pages_url": "https://bridgepointintelligence.online/",
-  "artifact_sha256": "532d752cd58c70e6eec8cb33995813eb941fed857ebebf0bbd8ae6cd039185f7",
-  "release_label": "BridgePoint v318 package-exact access + live precipitation intelligence"
+  "artifact_sha256": "63d43c58cf354bfb7de9587caa9d8d848975f36020f6f9fc74a8dae8f83e22b5",
+  "source_build_repo": "olekingkole28-dot/bridgepoint_data_studio",
+  "source_workflow_run_id": 32185246471,
+  "source_merge_sha": "1fb4ea469616a76151e8021b0a4db6f716213396",
+  "merged_v321_sha": "ac97f1810ca6154d6c1f5bbb68c0b11f04e76974",
+  "release_label": "BridgePoint v321 expansion ETAs + radar clarity + resilience"
 }
