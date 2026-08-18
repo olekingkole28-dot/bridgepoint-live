@@ -1,10 +1,10 @@
 {
   "status": "PUBLISHED",
-  "release_sha": "8dd7efd71ae085cb54d7d99d042846bbef65623c",
-  "built_at": "2026-08-18T01:07:54Z",
-  "deployed_at": "2026-08-18T01:18:10.187401Z",
+  "release_sha": "40ee5a45c03d05f22dd09496dfb2fa2f1fb34037",
+  "built_at": "2026-08-18T02:50:23Z",
+  "deployed_at": "2026-08-18T03:08:21.522025Z",
   "public_origin": "https://bridgepointintelligence.online/",
   "pages_url": "https://bridgepointintelligence.online/",
-  "artifact_sha256": "dab96d241ef88fbd2b52b5ef56611ce0028aaba7fc18a863996367e1757e1d79",
-  "release_label": "BridgePoint v312 cinematic + v310 install onboarding + v306 density heat"
+  "artifact_sha256": "b8538ea9d8819285163deb619856937194c60f6abc8b5e5cb5a968f0ccc13416",
+  "release_label": "BridgePoint v315 final polish + Investor Room + catalog-aware package fit"
 }
