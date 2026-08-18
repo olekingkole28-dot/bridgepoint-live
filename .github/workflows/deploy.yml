@@ -63,9 +63,9 @@ jobs:
 
           grep -q 'bridgepoint_ai_answer_v322' site/main.dart.js
           grep -q 'OWNER_GOVERNED' site/main.dart.js
-          grep -q 'BridgePoint AI uses BridgePoint system contracts only' site/main.dart.js
-          grep -q 'Customer package purchases cannot grant this scope' site/main.dart.js
-          grep -q 'Grounded in BridgePoint' site/main.dart.js
+          grep -q 'OWNER TRUTH' site/main.dart.js
+          grep -q 'CUSTOMER SAFE' site/main.dart.js
+          grep -q 'system-aware' site/main.dart.js
 
           if grep -q 'bridgepoint-social-publisher-v120' site/main.dart.js; then
             echo 'Automatic social publisher unexpectedly remains.' >&2
