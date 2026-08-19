@@ -1,15 +1,15 @@
 {
   "status": "PUBLISHED",
-  "release_sha": "43cc53ef70edaa1afc211bdcdd19ed54849b9173",
-  "built_at": "2026-08-18T23:47:16Z",
-  "deployed_at": "2026-08-18T23:52:58.053703Z",
+  "release_sha": "2c9dda097f0e8258a115c7843cbab9351d32a8cc",
+  "built_at": "2026-08-19T00:07:46Z",
+  "deployed_at": "2026-08-19T00:17:35.282944Z",
   "public_origin": "https://bridgepointintelligence.online/",
   "pages_url": "https://bridgepointintelligence.online/",
-  "artifact_sha256": "c1252f4bf736833faaeb8beea0bf9f5d95cb14f2c5f9c4ea2d25b920f0d294a8",
+  "artifact_sha256": "de8c2ae9dab96a68788f748fea233e060c25cba474c232a897a6859f4f3d1c6d",
   "source_build_repo": "olekingkole28-dot/bridgepoint_data_studio",
-  "source_workflow_run_id": 32198615466,
-  "source_release_sha": "43cc53ef70edaa1afc211bdcdd19ed54849b9173",
-  "source_branch_head_sha": "975f8e2a3da6dd2d66352184773a850f8d7f9376",
-  "merged_v323_sha": "2af05200a3a6000d53e684638a29e58484a6331a",
-  "release_label": "BridgePoint v323 Network + safety + owner moderation"
+  "source_workflow_run_id": 32199974426,
+  "source_release_sha": "2c9dda097f0e8258a115c7843cbab9351d32a8cc",
+  "source_branch_head_sha": "2ceae92c9f7cc2f30c75920cb43fc12094665230",
+  "merged_v324_sha": "4d7efa7ab39f18ad1bdbf48c433f7b74c08fa4be",
+  "release_label": "BridgePoint v324 Owner Truth + customer-safe catalog"
 }
