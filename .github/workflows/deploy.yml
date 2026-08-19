@@ -26,21 +26,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download audited BridgePoint v323 production build
+      - name: Download audited BridgePoint v324 production build
         run: |
           set -euo pipefail
-          curl -fL --retry 3 --retry-delay 2 'https://sdmntprsouthcentralus.oaiusercontent.com/files/00000000-24f8-81f7-854c-68626eb1bdd6/raw?se=2026-08-18T23%3A56%3A43Z&sp=r&sv=2026-02-06&sr=b&scid=11ee2394-c52f-59fb-9a59-182e695fee60&skoid=c953efd6-2ae8-41b4-a6d6-34b1475ac07c&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-18T22%3A50%3A31Z&ske=2026-08-19T22%3A50%3A31Z&sks=b&skv=2026-02-06&sig=qdoNjPKJFT3RYRsbF%2B/gm2yH2qvyizE515uLMBvNTZQ%3D' -o /tmp/bridgepoint-v323.zip
-          echo 'c1252f4bf736833faaeb8beea0bf9f5d95cb14f2c5f9c4ea2d25b920f0d294a8  /tmp/bridgepoint-v323.zip' | sha256sum -c -
+          curl -fL --retry 3 --retry-delay 2 'https://sdmntprsouthcentralus.oaiusercontent.com/files/00000000-de8c-81f7-b9a9-4b9c969be967/raw?se=2026-08-19T00%3A21%3A28Z&sp=r&sv=2026-02-06&sr=b&scid=0d7869fd-a860-5ad7-8f7f-c5a98402c570&skoid=c953efd6-2ae8-41b4-a6d6-34b1475ac07c&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-18T22%3A52%3A21Z&ske=2026-08-19T22%3A52%3A21Z&sks=b&skv=2026-02-06&sig=a4auvt3on2b0YMy3R1uEpR5jghs2m6sVCRKAgLs6qzI%3D' -o /tmp/bridgepoint-v324.zip
+          echo 'de8c2ae9dab96a68788f748fea233e060c25cba474c232a897a6859f4f3d1c6d  /tmp/bridgepoint-v324.zip' | sha256sum -c -
           rm -rf site
           mkdir -p site
-          unzip -q /tmp/bridgepoint-v323.zip -d site
+          unzip -q /tmp/bridgepoint-v324.zip -d site
           touch site/.nojekyll
           sed -i 's#<base href="/">#<base href="./">#' site/index.html
 
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/bridgepoint-release.json
-          grep -q '43cc53ef70edaa1afc211bdcdd19ed54849b9173' site/bridgepoint-release.json
+          grep -q '2c9dda097f0e8258a115c7843cbab9351d32a8cc' site/bridgepoint-release.json
           grep -q 'https://bridgepointintelligence.online/' site/bridgepoint-release.json
 
           # Existing production/PWA/customer contracts must remain present.
@@ -55,7 +55,7 @@ jobs:
           grep -q 'Investor Room' site/main.dart.js
           grep -q 'Preview package fit' site/main.dart.js
 
-          # V321 expansion/radar/resilience contracts remain compiled in.
+          # V321 expansion/radar/resilience contracts.
           grep -q 'bridgepoint_public_expansion_status_v321' site/main.dart.js
           grep -q 'Calculating from live throughput' site/main.dart.js
           grep -q 'Queued states show their real queue position' site/main.dart.js
@@ -63,7 +63,7 @@ jobs:
           grep -q 'LIVE SOURCE OUTAGES' site/main.dart.js
           grep -q 'AUTO-DISCOVERY PENDING' site/main.dart.js
 
-          # V322 governed whole-system AI remains compiled in.
+          # V322 governed whole-system AI contracts.
           grep -q 'bridgepoint_ai_answer_v322' site/main.dart.js
           grep -q 'OWNER_GOVERNED' site/main.dart.js
           grep -q 'OWNER TRUTH' site/main.dart.js
@@ -83,6 +83,16 @@ jobs:
           grep -q 'Network moderation' site/main.dart.js
           grep -q 'Block member' site/main.dart.js
 
+          # V324 canonical Owner Truth + customer-safe commercial catalog.
+          grep -q 'bridgepoint_owner_truth_v322' site/main.dart.js
+          grep -q 'CANONICAL OWNER TRUTH' site/main.dart.js
+          grep -q 'CUSTOMER ACCOUNTS' site/main.dart.js
+          grep -q 'PRODUCTION BILLING' site/main.dart.js
+          grep -q 'CT PERMIT SOURCES' site/main.dart.js
+          grep -q 'PERMITS MATCHED' site/main.dart.js
+          grep -q 'CONTACT SALES' site/main.dart.js
+          grep -q 'OWNER CATALOG' site/main.dart.js
+
           if grep -q 'bridgepoint-social-publisher-v120' site/main.dart.js; then
             echo 'Automatic social publisher unexpectedly remains.' >&2
             exit 1
@@ -91,7 +101,7 @@ jobs:
             echo 'Legacy technical customer wording unexpectedly remains.' >&2
             exit 1
           fi
-          echo 'BridgePoint v323 audited Network artifact ready for GitHub Pages deployment.'
+          echo 'BridgePoint v324 audited Owner Truth + safe catalog artifact ready for GitHub Pages deployment.'
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -124,13 +134,13 @@ jobs:
             'deployed_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'public_origin':release.get('public_origin'),
             'pages_url':os.environ.get('PAGE_URL'),
-            'artifact_sha256':'c1252f4bf736833faaeb8beea0bf9f5d95cb14f2c5f9c4ea2d25b920f0d294a8',
+            'artifact_sha256':'de8c2ae9dab96a68788f748fea233e060c25cba474c232a897a6859f4f3d1c6d',
             'source_build_repo':'olekingkole28-dot/bridgepoint_data_studio',
-            'source_workflow_run_id':32198615466,
-            'source_release_sha':'43cc53ef70edaa1afc211bdcdd19ed54849b9173',
-            'source_branch_head_sha':'975f8e2a3da6dd2d66352184773a850f8d7f9376',
-            'merged_v323_sha':'2af05200a3a6000d53e684638a29e58484a6331a',
-            'release_label':'BridgePoint v323 Network + safety + owner moderation'
+            'source_workflow_run_id':32199974426,
+            'source_release_sha':'2c9dda097f0e8258a115c7843cbab9351d32a8cc',
+            'source_branch_head_sha':'2ceae92c9f7cc2f30c75920cb43fc12094665230',
+            'merged_v324_sha':'4d7efa7ab39f18ad1bdbf48c433f7b74c08fa4be',
+            'release_label':'BridgePoint v324 Owner Truth + customer-safe catalog'
           }
           Path('live-release-status.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(receipt,indent=2))
@@ -138,5 +148,5 @@ jobs:
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add live-release-status.json
-          git commit -m 'Record BridgePoint v323 live deployment [skip ci]'
+          git commit -m 'Record BridgePoint v324 live deployment [skip ci]'
           git push origin HEAD:main
