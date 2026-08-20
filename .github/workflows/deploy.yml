@@ -50,7 +50,7 @@ jobs:
           grep -q 'Add to Home Screen' site/index.html
           grep -q 'DENSITY HEAT' site/main.dart.js
           grep -q 'BridgePoint Community Chat' site/main.dart.js
-          grep -q 'NOAA LIVE RAIN RADAR' site/main.dart.js
+          grep -q 'NOAA LIVE RAIN / PRECIPITATION RADAR' site/main.dart.js
           grep -q 'Meet the Owner' site/main.dart.js
           grep -q 'Investor Room' site/main.dart.js
           grep -q 'Preview package fit' site/main.dart.js
