@@ -29,7 +29,7 @@ jobs:
       - name: Download audited BridgePoint v396 production build
         run: |
           set -euo pipefail
-          curl -fL --retry 4 --retry-delay 2 'https://sdmntpreastus2.oaiusercontent.com/files/00000000-de1c-81f6-ab4e-d2b90e4acc22/raw?se=2026-08-21T05%3A05%3A16Z&sp=r&sv=2026-02-06&sr=b&scid=0c5e7388-7d60-56e6-acd6-6c4ca49893c4&skoid=5cab1ff4-c20d-41dc-babb-df0c2cc21dd4&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-20T22%3A10%3A12Z&ske=2026-08-21T22%3A10%3A12Z&sks=b&skv=2026-02-06&sig=PWtqLEuFk1rKNuf3YL1TJ5%2BC2jg7k9nMLTb5OKh6UDs%3D' -o /tmp/bridgepoint-v396.zip
+          curl -fL --retry 4 --retry-delay 2 'https://sdmntpreastus2.oaiusercontent.com/files/00000000-0398-81f6-a0cd-6fae8455aa4b/raw?se=2026-08-21T05%3A10%3A04Z&sp=r&sv=2026-02-06&sr=b&scid=aacce857-603f-5d06-b53e-66a44beb9d99&skoid=5cab1ff4-c20d-41dc-babb-df0c2cc21dd4&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-20T22%3A02%3A55Z&ske=2026-08-21T22%3A02%3A55Z&sks=b&skv=2026-02-06&sig=RgJ2zAzpaZQiNZlEXz/Oh3ls8kD8ZA6nj6RlqgFgTsg%3D' -o /tmp/bridgepoint-v396.zip
           echo '45fa40ce5456c08b373426c8852580cd355b253c8390da28d71a44a25f138132  /tmp/bridgepoint-v396.zip' | sha256sum -c -
 
           rm -rf site
