@@ -1,4 +1,4 @@
-name: Deploy BridgePoint Live + Research
+name: Deploy BridgePoint Live + Research + Sample
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/deploy-tracking-v421.yml
       - articles/**
+      - sample/**
   workflow_dispatch:
 
 permissions:
@@ -50,18 +51,22 @@ jobs:
             exit 1
           fi
 
-      - name: Overlay BridgePoint research hub
+      - name: Overlay BridgePoint research hub and sample funnel
         run: |
           set -euo pipefail
           test -d articles
-          rm -rf site/articles
+          test -d sample
+          rm -rf site/articles site/sample
           cp -a articles site/articles
+          cp -a sample site/sample
           test -s site/articles/index.html
           test -s site/articles/feed.xml
           test -s site/articles/why-a-storm-map-is-not-a-damage-map.md
           test -s site/articles/why-property-matching-is-the-hidden-failure-point-in-property-ai.md
           test -s site/articles/connecticut-roofing-opportunity-brief-2026-08-21.md
-          echo 'BridgePoint research hub overlaid onto audited production artifact.'
+          test -s site/sample/index.html
+          grep -q 'request_territory_sample_v425' site/sample/index.html
+          echo 'BridgePoint research hub and territory-sample funnel overlaid onto audited production artifact.'
 
       - name: Refresh durable live artifact branch
         env:
@@ -77,7 +82,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint live artifact with V421 tracking and research hub'
+          git commit -m 'BridgePoint live artifact with research and territory sample funnel'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -95,7 +100,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Record verified V421/V422 + research deployment
+      - name: Record verified V421/V422 + research + sample deployment
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
@@ -108,9 +113,11 @@ jobs:
             'base_release_sha':'2e111cc765d23533e2adf953b44a5578201a0790',
             'tracking_version':421,
             'owner_funnel_version':422,
+            'sample_funnel_version':425,
             'capture':'FIRST_PARTY_BROWSER',
             'research_hub':'/articles/',
             'research_feed':'/articles/feed.xml',
+            'territory_sample':'/sample/',
             'deployed_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'public_origin':'https://bridgepointintelligence.online/',
             'pages_url':os.environ.get('PAGE_URL'),
@@ -124,5 +131,5 @@ jobs:
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add tracking-release-status.json
-          git commit -m 'Record live research-hub deployment [skip ci]' || true
+          git commit -m 'Record live sample-funnel deployment [skip ci]' || true
           git push origin HEAD:main
