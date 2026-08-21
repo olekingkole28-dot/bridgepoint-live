@@ -26,15 +26,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download audited BridgePoint v396 production build
+      - name: Download audited BridgePoint v397 production build
         run: |
           set -euo pipefail
-          curl -fL --retry 4 --retry-delay 2 'https://sdmntpreastus2.oaiusercontent.com/files/00000000-de1c-81f6-ab4e-d2b90e4acc22/raw?se=2026-08-21T05%3A05%3A16Z&sp=r&sv=2026-02-06&sr=b&scid=0c5e7388-7d60-56e6-acd6-6c4ca49893c4&skoid=5cab1ff4-c20d-41dc-babb-df0c2cc21dd4&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-20T22%3A10%3A12Z&ske=2026-08-21T22%3A10%3A12Z&sks=b&skv=2026-02-06&sig=PWtqLEuFk1rKNuf3YL1TJ5%2BC2jg7k9nMLTb5OKh6UDs%3D' -o /tmp/bridgepoint-v396.zip
-          echo '45fa40ce5456c08b373426c8852580cd355b253c8390da28d71a44a25f138132  /tmp/bridgepoint-v396.zip' | sha256sum -c -
+          curl -fL --retry 4 --retry-delay 2 'https://sdmntprsoutheastus3.oaiusercontent.com/files/00000000-7394-820c-ab55-575943a7de6a/raw?se=2026-08-21T06%3A04%3A17Z&sp=r&sv=2026-02-06&sr=b&scid=38216c31-9a04-5e17-938e-5f73912056c0&skoid=f28c0102-4d9d-4950-baf0-4a8e5f6cf9d4&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-20T21%3A58%3A58Z&ske=2026-08-21T21%3A58%3A58Z&sks=b&skv=2026-02-06&sig=JsDoAZ9SI5McHpBK0CRdTUieFgy3N3IUaOhsw3Vxpgc%3D' -o /tmp/bridgepoint-v397.zip
+          echo '5d61eae44b53e439dfc96b8ce6b0e5d9fbe2e3bd9a17c1bff0fd364ca7757d05  /tmp/bridgepoint-v397.zip' | sha256sum -c -
 
           rm -rf site
           mkdir -p site
-          unzip -q /tmp/bridgepoint-v396.zip -d site
+          unzip -q /tmp/bridgepoint-v397.zip -d site
           touch site/.nojekyll
           sed -i 's#<base href="/">#<base href="./">#' site/index.html
 
@@ -42,7 +42,7 @@ jobs:
           test -s site/main.dart.js
           test -s site/flutter_bootstrap.js
           test -s site/bridgepoint-release.json
-          grep -q '89d0f1d4ba3565d03aa8458baa6a53ad86c026d1' site/bridgepoint-release.json
+          grep -q '754650fad126693bf34ce88c99ad47d827888ac2' site/bridgepoint-release.json
           grep -q 'https://bridgepointintelligence.online/' site/bridgepoint-release.json
 
           # PWA freshness / install / update contracts.
@@ -65,8 +65,12 @@ jobs:
           grep -q 'NOAA LIVE RAIN / PRECIPITATION RADAR' site/main.dart.js
           grep -q 'Preview package fit' site/main.dart.js
           grep -q 'Investor Room' site/main.dart.js
+
+          # Radar V397: stable current/prior layers plus a hidden adjacent-frame cache warmer.
           grep -q 'noaa-radar-current-v395' site/main.dart.js
           grep -q 'noaa-radar-prev-v395' site/main.dart.js
+          grep -q 'noaa-radar-next-v397' site/main.dart.js
+          grep -q 'MapServer/WMSServer?_bp=' site/main.dart.js
 
           # Generic national coverage/customer copy remains neutral.
           grep -q 'Coverage & Market Readiness' site/main.dart.js
@@ -85,7 +89,7 @@ jobs:
             exit 1
           fi
 
-          echo 'BridgePoint v396 audited production artifact ready for GitHub Pages deployment.'
+          echo 'BridgePoint v397 audited production artifact ready for GitHub Pages deployment.'
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -118,13 +122,13 @@ jobs:
             'deployed_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'public_origin':release.get('public_origin'),
             'pages_url':os.environ.get('PAGE_URL'),
-            'artifact_sha256':'45fa40ce5456c08b373426c8852580cd355b253c8390da28d71a44a25f138132',
+            'artifact_sha256':'5d61eae44b53e439dfc96b8ce6b0e5d9fbe2e3bd9a17c1bff0fd364ca7757d05',
             'source_build_repo':'olekingkole28-dot/bridgepoint_data_studio',
-            'source_workflow_run_id':32448324994,
-            'source_release_sha':'89d0f1d4ba3565d03aa8458baa6a53ad86c026d1',
-            'source_branch_head_sha':'f31d90d33713ea7a5d21becb047aa01e13457409',
-            'main_release_sha':'00e97e8437c240cad0d0c4c9a2047487d6b93dbf',
-            'release_label':'BridgePoint v396 PWA update-ready handoff + v395 radar persistence + v390-v394 national/mobile/customer-preview improvements'
+            'source_workflow_run_id':32452367342,
+            'source_release_sha':'754650fad126693bf34ce88c99ad47d827888ac2',
+            'source_branch_head_sha':'ec2bc5f670f74d37c9b59f3a08c4462dde641f6b',
+            'main_release_sha':'7cdf4f93938e06cba5b0ef18b94904370c9805f3',
+            'release_label':'BridgePoint v397 adjacent NOAA radar prefetch + fresh NOW revision + v396 PWA update handoff + v395 stable radar persistence'
           }
           Path('live-release-status.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(receipt,indent=2))
@@ -132,5 +136,5 @@ jobs:
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add live-release-status.json
-          git commit -m 'Record BridgePoint v396 live deployment [skip ci]'
+          git commit -m 'Record BridgePoint v397 live deployment [skip ci]'
           git push origin HEAD:main
