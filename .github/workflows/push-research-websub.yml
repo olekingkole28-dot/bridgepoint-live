@@ -1,0 +1,35 @@
+name: Push BridgePoint Research Feed
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - articles/**
+      - .github/workflows/push-research-websub.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bridgepoint-research-websub
+  cancel-in-progress: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for public Pages deployment
+        run: sleep 75
+      - name: Notify Google PubSubHubbub/WebSub hub
+        run: |
+          set -euo pipefail
+          code="$(curl -sS -o /tmp/websub-response.txt -w '%{http_code}' -X POST 'https://pubsubhubbub.appspot.com/' \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'hub.mode=publish' \
+            --data-urlencode 'hub.url=https://bridgepointintelligence.online/articles/feed.xml' || true)"
+          echo "WebSub HTTP ${code}"
+          cat /tmp/websub-response.txt || true
+          if [ "$code" != "200" ] && [ "$code" != "204" ]; then
+            echo 'WebSub ping did not confirm acceptance; the next research publish will retry.'
+          fi
