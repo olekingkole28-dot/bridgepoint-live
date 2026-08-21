@@ -1,15 +1,15 @@
 {
   "status": "PUBLISHED",
-  "release_sha": "73a2b069b4f83dff775e3b85c151dc41d7a23d54",
-  "built_at": "2026-08-21T03:22:27Z",
-  "deployed_at": "2026-08-21T03:26:22.817124Z",
+  "release_sha": "89d0f1d4ba3565d03aa8458baa6a53ad86c026d1",
+  "built_at": "2026-08-21T04:50:23Z",
+  "deployed_at": "2026-08-21T05:05:00.285801Z",
   "public_origin": "https://bridgepointintelligence.online/",
   "pages_url": "https://bridgepointintelligence.online/",
-  "artifact_sha256": "1e3a5e17cc2bc4c36e18df1aa9e554e180d8e917b8af22383a32563eb35d2e30",
+  "artifact_sha256": "45fa40ce5456c08b373426c8852580cd355b253c8390da28d71a44a25f138132",
   "source_build_repo": "olekingkole28-dot/bridgepoint_data_studio",
-  "source_workflow_run_id": 32443133149,
-  "source_release_sha": "73a2b069b4f83dff775e3b85c151dc41d7a23d54",
-  "source_branch_head_sha": "41f0a5e422693c2108c0241ad6c5e94ddb5e4277",
-  "main_release_sha": "e4311e970fcca1199a94c7910a5c498902c9dec6",
-  "release_label": "BridgePoint v394 national coverage cleanup on top of v390-v393 mobile owner/radar/customer-preview release"
+  "source_workflow_run_id": 32448324994,
+  "source_release_sha": "89d0f1d4ba3565d03aa8458baa6a53ad86c026d1",
+  "source_branch_head_sha": "f31d90d33713ea7a5d21becb047aa01e13457409",
+  "main_release_sha": "00e97e8437c240cad0d0c4c9a2047487d6b93dbf",
+  "release_label": "BridgePoint v396 PWA update-ready handoff + v395 radar persistence + v390-v394 national/mobile/customer-preview improvements"
 }
