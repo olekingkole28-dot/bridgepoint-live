@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use BridgePoint Intelligence public research or aggregate data, please cite this project and preserve its methodology limitations."
+title: "BridgePoint Intelligence"
+type: software
+authors:
+  - family-names: Johnson
+    given-names: Kole
+    affiliation: BridgePoint Intelligence
+repository-code: "https://github.com/olekingkole28-dot/bridgepoint-live"
+url: "https://bridgepointintelligence.online/"
+date-released: 2026-08-21
+abstract: >-
+  BridgePoint Intelligence is a U.S. property-intelligence platform and public research project focused on property matching, provenance, evidence quality, geospatial alignment, and explainable property-level prioritization. Public aggregate data intentionally excludes private property records, customer data, and proprietary scoring weights.
+keywords:
+  - property intelligence
+  - proptech
+  - construction technology
+  - geospatial matching
+  - property data
+  - explainable AI
+  - public records
+  - roofing
+  - restoration
+  - real estate
