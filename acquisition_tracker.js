@@ -4,11 +4,12 @@
   const supabaseUrl='https://xdfsjztwgsbmabshzsjw.supabase.co';
   const apikey='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
   const endpoint=`${supabaseUrl}/rest/v1/rpc/track_acquisition_event_v400`;
-  const captureVersion=432;
+  const geoEndpoint=`${supabaseUrl}/functions/v1/bridgepoint-coarse-geo-v436`;
+  const captureVersion=436;
 
   const visitorKey='bp_visitor_id_v421';
   const sessionKey='bp_session_id_v421';
-  const geoKey='bp_coarse_geo_v432';
+  const geoKey='bp_coarse_geo_v436';
   const onceKey='bp_funnel_once_v432';
 
   const safeStorage=(storage,key,fallback)=>{
@@ -32,29 +33,59 @@
   }catch(_){geo={};}
 
   const cleanCode=(value,max)=>String(value||'').trim().toUpperCase().slice(0,max);
-  async function fetchText(url,controller){
-    const response=await fetch(url,{signal:controller.signal,cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'});
-    if(!response.ok)throw new Error(`geo ${response.status}`);
-    return (await response.text()).trim();
+  const validCountry=value=>/^[A-Z]{2}$/.test(value);
+  const validUsState=value=>/^(A[LKZR]|C[AOT]|D[EC]|F[L]|G[A]|H[I]|I[ADLN]|K[SY]|L[A]|M[ADEHINOST]|N[CDEHJMVY]|O[HKR]|P[A]|R[I]|S[CD]|T[NX]|U[T]|V[AIT]|W[AIVY])$/.test(value);
+  function keepGeo(countryRaw,regionRaw,source){
+    const country=cleanCode(countryRaw,2);
+    const region=cleanCode(regionRaw,2);
+    const next={};
+    if(validCountry(country))next.country_code=country;
+    if(country==='US'&&validUsState(region))next.region_code=region;
+    if(next.country_code)next.geo_source=source;
+    next.geo_resolver_version=436;
+    return next;
+  }
+  function cacheGeo(next){
+    if(next&&next.country_code)geo=next;
+    try{sessionStorage.setItem(geoKey,JSON.stringify(geo));}catch(_){/* session-only cache is optional */}
+    return geo;
+  }
+  async function fetchWithTimeout(url,options={},timeoutMs=2200){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),timeoutMs);
+    try{return await fetch(url,{...options,signal:controller.signal});}
+    finally{clearTimeout(timer);}
+  }
+  async function bridgepointGeo(){
+    try{
+      const response=await fetchWithTimeout(geoEndpoint,{
+        method:'GET',cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',
+        headers:{apikey,'Accept':'application/json'},
+      },2400);
+      if(!response.ok)return null;
+      const data=await response.json();
+      const next=keepGeo(data?.country_code,data?.region_code,`BRIDGEPOINT_${cleanCode(data?.source,32)||'EDGE'}`);
+      return next.country_code?next:null;
+    }catch(_){return null;}
+  }
+  async function legacyGeoFallback(){
+    try{
+      const response=await fetchWithTimeout('https://ipapi.co/json/',{
+        cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',headers:{'Accept':'application/json'},
+      },2600);
+      if(!response.ok)return null;
+      const data=await response.json();
+      const next=keepGeo(data?.country_code??data?.country,data?.region_code,'IPAPI_BROWSER_FALLBACK');
+      return next.country_code?next:null;
+    }catch(_){return null;}
   }
   async function loadCoarseGeo(){
-    if(geo.country_code&&geo.region_code)return geo;
-    const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(),1600);
-    try{
-      const [countryRaw,regionRaw]=await Promise.all([
-        fetchText('https://ipapi.co/country/',controller),
-        fetchText('https://ipapi.co/region_code/',controller),
-      ]);
-      const country=cleanCode(countryRaw,2);
-      const region=cleanCode(regionRaw,8);
-      const next={};
-      if(/^[A-Z]{2}$/.test(country))next.country_code=country;
-      if(country==='US'&&/^[A-Z]{2}$/.test(region))next.region_code=region;
-      geo=next;
-      try{sessionStorage.setItem(geoKey,JSON.stringify(geo));}catch(_){/* session-only cache is optional */}
-    }catch(_){/* server-side country capture still works when coarse lookup is unavailable */}
-    finally{clearTimeout(timer);}
+    if(geo.country_code&&(geo.country_code!=='US'||geo.region_code))return geo;
+    const primary=await bridgepointGeo();
+    if(primary?.country_code&&(primary.country_code!=='US'||primary.region_code))return cacheGeo(primary);
+    const fallback=await legacyGeoFallback();
+    if(fallback?.country_code)return cacheGeo(fallback);
+    if(primary?.country_code)return cacheGeo(primary);
     return geo;
   }
   const geoReady=loadCoarseGeo();
