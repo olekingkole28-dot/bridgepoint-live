@@ -26,87 +26,55 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download audited BridgePoint v325 production build
+      - name: Download audited BridgePoint v393 production build
         run: |
           set -euo pipefail
-          curl -fL --retry 3 --retry-delay 2 'https://sdmntprsoutheastus3.oaiusercontent.com/files/00000000-b188-820c-b70d-b0d85a6476ae/raw?se=2026-08-20T05%3A27%3A50Z&sp=r&sv=2026-02-06&sr=b&scid=63f4ef1a-737f-5fc2-9c2b-7fd8bf38d770&skoid=0da8417a-a4c3-4a19-9b05-b82cee9d8868&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-20T00%3A34%3A47Z&ske=2026-08-21T00%3A34%3A47Z&sks=b&skv=2026-02-06&sig=Gmj0ZeTMZPBKH/K/7ivpqHiOE5SJlJloU0Gf0dD/rB0%3D' -o /tmp/bridgepoint-v325.zip
-          echo '2c901978db7307f8aafa8d2e7798acc587381eb0815cbb4b2924d8455fa34607  /tmp/bridgepoint-v325.zip' | sha256sum -c -
+          curl -fL --retry 3 --retry-delay 2 'https://sdmntprsouthcentralus.oaiusercontent.com/files/00000000-10a8-81f7-815c-502110fd1d14/raw?se=2026-08-21T03%3A22%3A24Z&sp=r&sv=2026-02-06&sr=b&scid=e65030f4-a7b7-5ad8-99b7-3d479746a0ba&skoid=e9d2f8b1-028a-4cff-8eb1-d0e66fbefcca&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-20T19%3A57%3A52Z&ske=2026-08-21T19%3A57%3A52Z&sks=b&skv=2026-02-06&sig=ZaqP0aoM/IWbce7n%2BCrsS3MHOb6jRgwf7Mt%2BfaPKoZU%3D' -o /tmp/bridgepoint-v393.zip
+          echo 'd765e70ae04b42eaeb4f28d11966d1dcca2721cc4811edcfaf6a3098ffe2bb0f  /tmp/bridgepoint-v393.zip' | sha256sum -c -
+
           rm -rf site
           mkdir -p site
-          unzip -q /tmp/bridgepoint-v325.zip -d site
+          unzip -q /tmp/bridgepoint-v393.zip -d site
           touch site/.nojekyll
           sed -i 's#<base href="/">#<base href="./">#' site/index.html
 
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/bridgepoint-release.json
-          grep -q '4decea4e4a0b2640f8b492222d06414a9060f9fe' site/bridgepoint-release.json
+          grep -q '03a44232b666f5f92fcc4cb73b75b82b837dc946' site/bridgepoint-release.json
           grep -q 'https://bridgepointintelligence.online/' site/bridgepoint-release.json
 
-          # Existing production/PWA/customer contracts must remain present.
+          # PWA freshness / install contracts.
           grep -q 'bridgepoint-v310-install-onboarding' site/index.html
-          grep -q 'Put BridgePoint on your home screen' site/index.html
+          grep -q 'bridgepoint_auto_update_restoring' site/index.html
           grep -q 'beforeinstallprompt' site/index.html
-          grep -q 'Add to Home Screen' site/index.html
-          grep -q 'DENSITY HEAT' site/main.dart.js
+
+          # Current national/customer-preview contracts.
+          grep -q 'bridgepoint_owner_preview_signals_v390' site/main.dart.js
+          grep -q 'bridgepoint_owner_preview_opportunities_v390' site/main.dart.js
+          grep -q 'bridgepoint_public_expansion_status_v321' site/main.dart.js
+          grep -q 'bridgepoint_ai_answer_v322' site/main.dart.js
+          grep -q 'bridgepoint_network_feed_v323' site/main.dart.js
           grep -q 'BridgePoint Community Chat' site/main.dart.js
           grep -q 'NOAA LIVE RAIN / PRECIPITATION RADAR' site/main.dart.js
-          grep -q 'Meet the Owner' site/main.dart.js
-          grep -q 'Investor Room' site/main.dart.js
           grep -q 'Preview package fit' site/main.dart.js
+          grep -q 'Investor Room' site/main.dart.js
 
-          # V321 expansion/radar/resilience contracts.
-          grep -q 'bridgepoint_public_expansion_status_v321' site/main.dart.js
-          grep -q 'Calculating from live throughput' site/main.dart.js
-          grep -q 'Queued states show their real queue position' site/main.dart.js
-          grep -q 'expansion badges hidden so the radar stays clear' site/main.dart.js
-          grep -q 'LIVE SOURCE OUTAGES' site/main.dart.js
-          grep -q 'AUTO-DISCOVERY PENDING' site/main.dart.js
-
-          # V322 governed whole-system AI contracts.
-          grep -q 'bridgepoint_ai_answer_v322' site/main.dart.js
-          grep -q 'OWNER_GOVERNED' site/main.dart.js
-          grep -q 'OWNER TRUTH' site/main.dart.js
-          grep -q 'CUSTOMER SAFE' site/main.dart.js
-          grep -q 'system-aware' site/main.dart.js
-
-          # V323 BridgePoint Network + safety + owner moderation contracts.
-          grep -q 'bridgepoint_network_feed_v323' site/main.dart.js
-          grep -q 'bridgepoint_network_send_message_v323' site/main.dart.js
-          grep -q 'bridgepoint_network_report_v323' site/main.dart.js
-          grep -q 'bridgepoint_network_block_user_v323' site/main.dart.js
-          grep -q 'bridgepoint_network_prepare_media_post_v323' site/main.dart.js
-          grep -q 'bridgepoint_network_attach_media_v323' site/main.dart.js
-          grep -q 'bridgepoint_owner_network_moderation_v323' site/main.dart.js
-          grep -q 'bridgepoint_owner_network_moderate_v323' site/main.dart.js
-          grep -q 'People & Friends' site/main.dart.js
-          grep -q 'Network moderation' site/main.dart.js
-          grep -q 'Block member' site/main.dart.js
-
-          # V324 canonical Owner Truth + customer-safe commercial catalog.
-          grep -q 'bridgepoint_owner_truth_v322' site/main.dart.js
-          grep -q 'CANONICAL OWNER TRUTH' site/main.dart.js
-          grep -q 'CUSTOMER ACCOUNTS' site/main.dart.js
-          grep -q 'PRODUCTION BILLING' site/main.dart.js
-          grep -q 'CT PERMIT SOURCES' site/main.dart.js
-          grep -q 'PERMITS MATCHED' site/main.dart.js
-          grep -q 'CONTACT SALES' site/main.dart.js
-          grep -q 'OWNER CATALOG' site/main.dart.js
-
-          # V325 phone-first/community/radar/share contracts.
-          grep -q 'Share BridgePoint' site/main.dart.js
-          grep -q 'NOAA radar is weather context' site/main.dart.js
-          grep -q 'BridgePoint Community Chat' site/main.dart.js
-
+          # These regressions were visible on the owner's phone and must never ship again.
+          if grep -q 'Expansion Engine' site/main.dart.js site/index.html; then
+            echo 'Legacy Expansion Engine launcher unexpectedly remains.' >&2
+            exit 1
+          fi
+          if grep -q 'Enabled Connecticut sources' site/main.dart.js; then
+            echo 'Legacy Connecticut-only source summary unexpectedly remains.' >&2
+            exit 1
+          fi
           if grep -q 'bridgepoint-social-publisher-v120' site/main.dart.js; then
             echo 'Automatic social publisher unexpectedly remains.' >&2
             exit 1
           fi
-          if grep -q 'BridgePoint V81 uses negative scoring' site/main.dart.js; then
-            echo 'Legacy technical customer wording unexpectedly remains.' >&2
-            exit 1
-          fi
-          echo 'BridgePoint v325 audited mobile/community/radar/share artifact ready for GitHub Pages deployment.'
+
+          echo 'BridgePoint v393 audited production artifact ready for GitHub Pages deployment.'
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -139,13 +107,13 @@ jobs:
             'deployed_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'public_origin':release.get('public_origin'),
             'pages_url':os.environ.get('PAGE_URL'),
-            'artifact_sha256':'2c901978db7307f8aafa8d2e7798acc587381eb0815cbb4b2924d8455fa34607',
+            'artifact_sha256':'d765e70ae04b42eaeb4f28d11966d1dcca2721cc4811edcfaf6a3098ffe2bb0f',
             'source_build_repo':'olekingkole28-dot/bridgepoint_data_studio',
-            'source_workflow_run_id':32312310910,
-            'source_release_sha':'4decea4e4a0b2640f8b492222d06414a9060f9fe',
-            'source_branch_head_sha':'23443c27a4530c3b2d9a2e9f04432639c8b88255',
-            'merged_v325_sha':'714842f9849fc56ce66cf0c276db0e05d3100e03',
-            'release_label':'BridgePoint v325 mobile responsiveness + community/radar/share polish'
+            'source_workflow_run_id':32441479163,
+            'source_release_sha':'03a44232b666f5f92fcc4cb73b75b82b837dc946',
+            'source_branch_head_sha':'ee9d315064421c5b3c8ccc043ed24d58bac64f15',
+            'merged_release_sha':'6265e86ec815e0f190e356234b21113f9cd7b4f6',
+            'release_label':'BridgePoint v390-v393 mobile owner cleanup, radar continuity and real package/state customer preview'
           }
           Path('live-release-status.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(receipt,indent=2))
@@ -153,5 +121,5 @@ jobs:
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add live-release-status.json
-          git commit -m 'Record BridgePoint v325 live deployment [skip ci]'
+          git commit -m 'Record BridgePoint v393 live deployment [skip ci]'
           git push origin HEAD:main
