@@ -1,10 +1,11 @@
-name: Deploy BridgePoint Live + Research + Sample
+name: Deploy BridgePoint Website + App
 
 on:
   push:
     branches: [main]
     paths:
       - .github/workflows/deploy-tracking-v421.yml
+      - landing/**
       - articles/**
       - sample/**
   workflow_dispatch:
@@ -30,45 +31,59 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Restore durable audited BridgePoint V422 build
+      - name: Restore immutable audited Flutter app
         run: |
           set -euo pipefail
-          git fetch origin live-artifact:refs/remotes/origin/live-artifact
-          rm -rf site
-          mkdir -p site
-          git archive --format=tar origin/live-artifact | tar -xf - -C site
-          touch site/.nojekyll
-          test -s site/index.html
-          test -s site/main.dart.js
-          test -s site/acquisition_tracker.js
-          test -s site/bridgepoint-release.json
-          grep -q '2e111cc765d23533e2adf953b44a5578201a0790' site/bridgepoint-release.json
-          grep -q 'https://bridgepointintelligence.online/' site/bridgepoint-release.json
-          grep -q 'acquisition_tracker.js' site/index.html
-          grep -q "send('LANDING_VIEW'" site/acquisition_tracker.js
-          if grep -q 'service_role' site/acquisition_tracker.js; then
+          git fetch origin app-artifact-v422:refs/remotes/origin/app-artifact-v422
+          rm -rf site /tmp/bridgepoint-app
+          mkdir -p site /tmp/bridgepoint-app site/app
+          git archive --format=tar origin/app-artifact-v422 | tar -xf - -C /tmp/bridgepoint-app
+          test -s /tmp/bridgepoint-app/index.html
+          test -s /tmp/bridgepoint-app/main.dart.js
+          test -s /tmp/bridgepoint-app/acquisition_tracker.js
+          test -s /tmp/bridgepoint-app/bridgepoint-release.json
+          grep -q '2e111cc765d23533e2adf953b44a5578201a0790' /tmp/bridgepoint-app/bridgepoint-release.json
+          grep -q 'https://bridgepointintelligence.online/' /tmp/bridgepoint-app/bridgepoint-release.json
+          grep -q 'acquisition_tracker.js' /tmp/bridgepoint-app/index.html
+          if grep -q 'service_role' /tmp/bridgepoint-app/acquisition_tracker.js; then
             echo 'Forbidden privileged credential marker found in browser tracker.' >&2
             exit 1
           fi
+          cp -a /tmp/bridgepoint-app/. site/app/
+          rm -rf site/app/articles site/app/sample site/app/landing
+          cp /tmp/bridgepoint-app/acquisition_tracker.js site/acquisition_tracker.js
+          touch site/.nojekyll site/app/.nojekyll
+          echo 'Audited Flutter application preserved at /app/.'
 
-      - name: Overlay BridgePoint research hub and sample funnel
+      - name: Overlay public national website, research and territory request
         run: |
           set -euo pipefail
+          test -s landing/index.html
           test -d articles
           test -d sample
-          rm -rf site/articles site/sample
+          cp landing/index.html site/index.html
           cp -a articles site/articles
           cp -a sample site/sample
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('site/index.html')
+          s=p.read_text(encoding='utf-8')
+          guard="""<script>(function(){try{if(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true){window.location.replace('/app/'+window.location.search+window.location.hash)}}catch(e){}})();</script>"""
+          s=s.replace('</head>',guard+'\n</head>')
+          p.write_text(s,encoding='utf-8')
+          PY
+          test -s site/index.html
+          test -s site/app/index.html
+          test -s site/app/main.dart.js
           test -s site/articles/index.html
           test -s site/articles/feed.xml
-          test -s site/articles/why-a-storm-map-is-not-a-damage-map.md
-          test -s site/articles/why-property-matching-is-the-hidden-failure-point-in-property-ai.md
-          test -s site/articles/connecticut-roofing-opportunity-brief-2026-08-21.md
           test -s site/sample/index.html
+          grep -q 'U.S. property intelligence platform' site/index.html
+          grep -q '/app/' site/index.html
           grep -q 'request_territory_sample_v425' site/sample/index.html
-          echo 'BridgePoint research hub and territory-sample funnel overlaid onto audited production artifact.'
+          echo 'National discovery homepage published at root; app preserved one click deeper.'
 
-      - name: Refresh durable live artifact branch
+      - name: Refresh durable deployed website branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -82,7 +97,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint live artifact with research and territory sample funnel'
+          git commit -m 'BridgePoint national website with app, research and territory funnel'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -100,7 +115,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Record verified V421/V422 + research + sample deployment
+      - name: Record verified national website deployment
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
@@ -113,16 +128,19 @@ jobs:
             'base_release_sha':'2e111cc765d23533e2adf953b44a5578201a0790',
             'tracking_version':421,
             'owner_funnel_version':422,
-            'sample_funnel_version':425,
+            'sample_request_version':426,
+            'public_landing_version':427,
             'capture':'FIRST_PARTY_BROWSER',
+            'public_home':'/',
+            'app_path':'/app/',
             'research_hub':'/articles/',
             'research_feed':'/articles/feed.xml',
-            'territory_sample':'/sample/',
+            'territory_request':'/sample/',
             'deployed_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'public_origin':'https://bridgepointintelligence.online/',
             'pages_url':os.environ.get('PAGE_URL'),
+            'immutable_app_branch':'app-artifact-v422',
             'durable_artifact_branch':'live-artifact',
-            'events':['LANDING_VIEW','SIGNUP_VIEW','SIGNUP_SUBMIT','PRICING_VIEW','SAMPLE_REQUEST','CHECKOUT_START'],
             'contains_privileged_secret':False
           }
           open('tracking-release-status.json','w',encoding='utf-8').write(json.dumps(receipt,indent=2)+'\n')
@@ -131,5 +149,5 @@ jobs:
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add tracking-release-status.json
-          git commit -m 'Record live sample-funnel deployment [skip ci]' || true
+          git commit -m 'Record national website deployment [skip ci]' || true
           git push origin HEAD:main
