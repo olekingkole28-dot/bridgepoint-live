@@ -8,6 +8,10 @@ on:
       - landing/**
       - articles/**
       - sample/**
+      - robots.txt
+      - sitemap.xml
+      - llms.txt
+      - dc8a83e4caade76fd824cf929dca48d6.txt
   workflow_dispatch:
 
 permissions:
@@ -55,21 +59,27 @@ jobs:
           touch site/.nojekyll site/app/.nojekyll
           echo 'Audited Flutter application preserved at /app/.'
 
-      - name: Overlay public national website, research and territory request
+      - name: Overlay public national website, research, territory request and discovery files
         run: |
           set -euo pipefail
           test -s landing/index.html
           test -d articles
           test -d sample
+          test -s robots.txt
+          test -s sitemap.xml
+          test -s llms.txt
+          test -s dc8a83e4caade76fd824cf929dca48d6.txt
           cp landing/index.html site/index.html
           cp -a articles site/articles
           cp -a sample site/sample
+          cp robots.txt sitemap.xml llms.txt dc8a83e4caade76fd824cf929dca48d6.txt site/
           python - <<'PY'
           from pathlib import Path
           p=Path('site/index.html')
           s=p.read_text(encoding='utf-8')
           guard="""<script>(function(){try{if(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true){window.location.replace('/app/'+window.location.search+window.location.hash)}}catch(e){}})();</script>"""
-          s=s.replace('</head>',guard+'\n</head>')
+          discovery="""<link rel=\"canonical\" href=\"https://bridgepointintelligence.online/\">\n<link rel=\"alternate\" type=\"application/rss+xml\" title=\"BridgePoint Intelligence Research\" href=\"https://bridgepointintelligence.online/articles/feed.xml\">\n<meta property=\"og:type\" content=\"website\">\n<meta property=\"og:title\" content=\"BridgePoint Intelligence | U.S. Property Intelligence\">\n<meta property=\"og:description\" content=\"Explainable property intelligence built from matched records, weather exposure, property change and other permitted evidence.\">\n<meta property=\"og:url\" content=\"https://bridgepointintelligence.online/\">\n<script type=\"application/ld+json\">{\"@context\":\"https://schema.org\",\"@graph\":[{\"@type\":\"Organization\",\"@id\":\"https://bridgepointintelligence.online/#organization\",\"name\":\"BridgePoint Intelligence\",\"url\":\"https://bridgepointintelligence.online/\"},{\"@type\":\"SoftwareApplication\",\"@id\":\"https://bridgepointintelligence.online/#software\",\"name\":\"BridgePoint Intelligence\",\"applicationCategory\":\"BusinessApplication\",\"operatingSystem\":\"Web\",\"url\":\"https://bridgepointintelligence.online/app/\",\"description\":\"Property intelligence platform that combines matched public/property records, weather exposure, property changes and other permitted evidence into explainable prioritization for property-focused teams.\",\"publisher\":{\"@id\":\"https://bridgepointintelligence.online/#organization\"}}]}</script>"""
+          s=s.replace('</head>',discovery+'\n'+guard+'\n</head>')
           p.write_text(s,encoding='utf-8')
           PY
           test -s site/index.html
@@ -78,10 +88,15 @@ jobs:
           test -s site/articles/index.html
           test -s site/articles/feed.xml
           test -s site/sample/index.html
+          test -s site/robots.txt
+          test -s site/sitemap.xml
+          test -s site/llms.txt
+          test -s site/dc8a83e4caade76fd824cf929dca48d6.txt
           grep -q 'U.S. property intelligence platform' site/index.html
+          grep -q 'application/ld+json' site/index.html
           grep -q '/app/' site/index.html
           grep -q 'request_territory_sample_v425' site/sample/index.html
-          echo 'National discovery homepage published at root; app preserved one click deeper.'
+          echo 'National discovery homepage, app, research, territory funnel and crawler discovery files prepared.'
 
       - name: Refresh durable deployed website branch
         env:
@@ -97,7 +112,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint national website with app, research and territory funnel'
+          git commit -m 'BridgePoint national website with app, research, territory and discovery distribution'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -115,6 +130,32 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
+      - name: Notify IndexNow discovery network
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          payload={
+            'host':'bridgepointintelligence.online',
+            'key':'dc8a83e4caade76fd824cf929dca48d6',
+            'keyLocation':'https://bridgepointintelligence.online/dc8a83e4caade76fd824cf929dca48d6.txt',
+            'urlList':[
+              'https://bridgepointintelligence.online/',
+              'https://bridgepointintelligence.online/articles/',
+              'https://bridgepointintelligence.online/articles/feed.xml',
+              'https://bridgepointintelligence.online/sample/',
+              'https://bridgepointintelligence.online/app/'
+            ]
+          }
+          open('/tmp/indexnow.json','w',encoding='utf-8').write(json.dumps(payload))
+          PY
+          code="$(curl -sS -o /tmp/indexnow-response.txt -w '%{http_code}' -X POST 'https://api.indexnow.org/indexnow' -H 'Content-Type: application/json; charset=utf-8' --data-binary @/tmp/indexnow.json || true)"
+          echo "IndexNow HTTP ${code}"
+          cat /tmp/indexnow-response.txt || true
+          if [ "$code" != "200" ] && [ "$code" != "202" ]; then
+            echo 'IndexNow notification did not confirm acceptance; deployment remains valid and the next publish will retry.'
+          fi
+
       - name: Record verified national website deployment
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
@@ -130,12 +171,16 @@ jobs:
             'owner_funnel_version':422,
             'sample_request_version':426,
             'public_landing_version':427,
+            'public_discovery_version':428,
             'capture':'FIRST_PARTY_BROWSER',
             'public_home':'/',
             'app_path':'/app/',
             'research_hub':'/articles/',
             'research_feed':'/articles/feed.xml',
             'territory_request':'/sample/',
+            'sitemap':'/sitemap.xml',
+            'ai_discovery':'/llms.txt',
+            'indexnow_enabled':True,
             'deployed_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'public_origin':'https://bridgepointintelligence.online/',
             'pages_url':os.environ.get('PAGE_URL'),
@@ -149,5 +194,5 @@ jobs:
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add tracking-release-status.json
-          git commit -m 'Record national website deployment [skip ci]' || true
+          git commit -m 'Record public discovery deployment [skip ci]' || true
           git push origin HEAD:main
