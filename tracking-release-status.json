@@ -1,0 +1,20 @@
+{
+  "status": "PUBLISHED",
+  "base_release_sha": "2e111cc765d23533e2adf953b44a5578201a0790",
+  "tracking_version": 421,
+  "owner_funnel_version": 422,
+  "capture": "FIRST_PARTY_BROWSER",
+  "deployed_at": "2026-08-21T16:28:09.705359Z",
+  "public_origin": "https://bridgepointintelligence.online/",
+  "pages_url": "https://bridgepointintelligence.online/",
+  "durable_artifact_branch": "live-artifact",
+  "events": [
+    "LANDING_VIEW",
+    "SIGNUP_VIEW",
+    "SIGNUP_SUBMIT",
+    "PRICING_VIEW",
+    "SAMPLE_REQUEST",
+    "CHECKOUT_START"
+  ],
+  "contains_privileged_secret": false
+}
