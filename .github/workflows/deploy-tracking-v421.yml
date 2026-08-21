@@ -26,85 +26,61 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download audited BridgePoint v397 production build
+      - name: Download audited BridgePoint V422 production build
         run: |
           set -euo pipefail
-          curl -fL --retry 4 --retry-delay 2 'https://sdmntprsoutheastus3.oaiusercontent.com/files/00000000-7394-820c-ab55-575943a7de6a/raw?se=2026-08-21T06%3A04%3A17Z&sp=r&sv=2026-02-06&sr=b&scid=38216c31-9a04-5e17-938e-5f73912056c0&skoid=f28c0102-4d9d-4950-baf0-4a8e5f6cf9d4&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-20T21%3A58%3A58Z&ske=2026-08-21T21%3A58%3A58Z&sks=b&skv=2026-02-06&sig=JsDoAZ9SI5McHpBK0CRdTUieFgy3N3IUaOhsw3Vxpgc%3D' -o /tmp/bridgepoint-v397.zip
-          echo '5d61eae44b53e439dfc96b8ce6b0e5d9fbe2e3bd9a17c1bff0fd364ca7757d05  /tmp/bridgepoint-v397.zip' | sha256sum -c -
+          curl -fL --retry 4 --retry-delay 2 'https://sdmntprcentralus.oaiusercontent.com/files/00000000-6af0-81f5-85b0-18f3f6137d0d/raw?se=2026-08-21T16%3A29%3A06Z&sp=r&sv=2026-02-06&sr=b&scid=3e218eac-33d5-5889-a02e-f1dcf20e7e26&skoid=e9d2f8b1-028a-4cff-8eb1-d0e66fbefcca&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-20T19%3A50%3A28Z&ske=2026-08-21T19%3A50%3A28Z&sks=b&skv=2026-02-06&sig=yKMuX%2Bj1%2BjwhMKyj9/QEZfs/3g6E3ubQA/00iQHaTls%3D' -o /tmp/bridgepoint-current.zip
+          echo '6d0cd5d256e2a2bebdde8eb0c1477d9967a5e1341fb275a17f021a728fa23c9f  /tmp/bridgepoint-current.zip' | sha256sum -c -
           rm -rf site
           mkdir -p site
-          unzip -q /tmp/bridgepoint-v397.zip -d site
+          unzip -q /tmp/bridgepoint-current.zip -d site
           touch site/.nojekyll
           sed -i 's#<base href="/">#<base href="./">#' site/index.html
           test -s site/index.html
           test -s site/main.dart.js
-          test -s site/bridgepoint-release.json
-          grep -q '754650fad126693bf34ce88c99ad47d827888ac2' site/bridgepoint-release.json
-          grep -q 'https://bridgepointintelligence.online/' site/bridgepoint-release.json
-
-      - name: Install first-party acquisition tracking V421
-        run: |
-          set -euo pipefail
-          cat > site/acquisition_tracker.js <<'JS'
-          (()=>{
-            const supabaseUrl='https://xdfsjztwgsbmabshzsjw.supabase.co';
-            const apikey='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
-            const endpoint=`${supabaseUrl}/rest/v1/rpc/track_acquisition_event_v400`;
-            const safeId=()=>globalThis.crypto?.randomUUID?.()||`${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-            const getStored=(storage,key)=>{try{return storage.getItem(key)}catch(_){return null}};
-            const setStored=(storage,key,value)=>{try{storage.setItem(key,value)}catch(_){}};
-            let visitorId=getStored(localStorage,'bp_visitor_id_v421');
-            if(!visitorId){visitorId=safeId();setStored(localStorage,'bp_visitor_id_v421',visitorId)}
-            let sessionId=getStored(sessionStorage,'bp_session_id_v421');
-            if(!sessionId){sessionId=safeId();setStored(sessionStorage,'bp_session_id_v421',sessionId)}
-            const params=new URLSearchParams(location.search);
-            const campaign={
-              p_utm_source:params.get('utm_source'),p_utm_medium:params.get('utm_medium'),
-              p_utm_campaign:params.get('utm_campaign'),p_utm_content:params.get('utm_content'),
-              p_referral_code:params.get('ref')||params.get('referral_code')
-            };
-            const send=(eventType,metadata={})=>{
-              const payload={
-                p_event_type:eventType,p_visitor_id:visitorId,p_session_id:sessionId,
-                p_page_path:`${location.pathname}${location.search}`.slice(0,1000),
-                p_platform:'WEB',p_referrer_host:(()=>{try{return document.referrer?new URL(document.referrer).host:null}catch(_){return null}})(),
-                ...campaign,p_auth_error_code:null,
-                p_metadata:{capture_version:421,href_hash:location.hash||null,...metadata}
-              };
-              fetch(endpoint,{method:'POST',headers:{apikey,'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload),keepalive:true}).catch(()=>{});
-            };
-            send('LANDING_VIEW',{visibility:document.visibilityState});
-            let lastSignupView=0;
-            document.addEventListener('click',(event)=>{
-              const el=event.target instanceof Element?event.target.closest('button,a,[role="button"]'):null;
-              if(!el)return;
-              const label=(el.textContent||el.getAttribute('aria-label')||'').replace(/\s+/g,' ').trim().slice(0,120);
-              const normalized=label.toLowerCase();
-              if(normalized.includes('start 7-day trial')||normalized.includes('create account')){
-                if(Date.now()-lastSignupView>1000){send('SIGNUP_VIEW',{control:label});lastSignupView=Date.now()}
-                return;
-              }
-              if(normalized.includes('start free trial')){send('SIGNUP_SUBMIT',{control:label});return;}
-              if(normalized.includes('pricing')||normalized.includes('plan')){send('PRICING_VIEW',{control:label});return;}
-              if(normalized.includes('sample')){send('SAMPLE_REQUEST',{control:label});return;}
-              if(normalized.includes('checkout')||normalized.includes('buy now')||normalized.includes('subscribe'))send('CHECKOUT_START',{control:label});
-            },true);
-          })();
-          JS
-          sed -i 's#</body>#  <script src="acquisition_tracker.js" defer></script>\n</body>#' site/index.html
           test -s site/acquisition_tracker.js
-          grep -q 'acquisition_tracker.js' site/index.html
+          test -s site/bridgepoint-release.json
+          grep -q '2e111cc765d23533e2adf953b44a5578201a0790' site/bridgepoint-release.json
+          grep -q 'https://bridgepointintelligence.online/' site/bridgepoint-release.json
           grep -q "send('LANDING_VIEW'" site/acquisition_tracker.js
-          grep -q "SIGNUP_VIEW" site/acquisition_tracker.js
-          grep -q "CHECKOUT_START" site/acquisition_tracker.js
           if grep -q 'service_role' site/acquisition_tracker.js; then
             echo 'Forbidden privileged credential marker found in browser tracker.' >&2
             exit 1
           fi
-          echo 'V421 first-party acquisition tracker installed onto audited v397 artifact.'
+
+      - name: Enable first-party acquisition tracking V421
+        run: |
+          set -euo pipefail
+          if ! grep -q 'acquisition_tracker.js' site/index.html; then
+            sed -i 's#</body>#  <script src="acquisition_tracker.js" defer></script>\n</body>#' site/index.html
+          fi
+          grep -q 'acquisition_tracker.js' site/index.html
+          grep -q 'SIGNUP_VIEW' site/acquisition_tracker.js
+          grep -q 'CHECKOUT_START' site/acquisition_tracker.js
+          echo 'V421 browser tracker enabled on audited V422 artifact.'
+
+      - name: Preserve durable deployed artifact branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/live-artifact
+          mkdir /tmp/live-artifact
+          cp -a site/. /tmp/live-artifact/
+          cd /tmp/live-artifact
+          git init
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m 'BridgePoint live artifact 2e111cc with V421 tracking'
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -115,7 +91,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Record V421 tracking overlay deployment
+      - name: Record verified V421/V422 deployment
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
@@ -125,12 +101,14 @@ jobs:
           from datetime import datetime, timezone
           receipt={
             'status':'PUBLISHED',
-            'base_release_sha':'754650fad126693bf34ce88c99ad47d827888ac2',
+            'base_release_sha':'2e111cc765d23533e2adf953b44a5578201a0790',
             'tracking_version':421,
+            'owner_funnel_version':422,
             'capture':'FIRST_PARTY_BROWSER',
             'deployed_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'public_origin':'https://bridgepointintelligence.online/',
             'pages_url':os.environ.get('PAGE_URL'),
+            'durable_artifact_branch':'live-artifact',
             'events':['LANDING_VIEW','SIGNUP_VIEW','SIGNUP_SUBMIT','PRICING_VIEW','SAMPLE_REQUEST','CHECKOUT_START'],
             'contains_privileged_secret':False
           }
@@ -140,5 +118,5 @@ jobs:
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add tracking-release-status.json
-          git commit -m 'Record V421 browser tracking deployment [skip ci]' || true
+          git commit -m 'Record V421/V422 browser tracking deployment [skip ci]' || true
           git push origin HEAD:main
