@@ -1,0 +1,102 @@
+name: Verify BridgePoint Live Radar
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/verify-live.yml
+      - live-release-status.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bridgepoint-live-radar-verification
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch exact public PWA assets
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/bridgepoint-release.json' -o /tmp/live-release.json
+          curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/main.dart.js' -o /tmp/live-main.dart.js
+          curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/flutter_bootstrap.js' -o /tmp/live-bootstrap.js
+          test -s /tmp/live-release.json
+          test -s /tmp/live-main.dart.js
+          test -s /tmp/live-bootstrap.js
+
+      - name: Verify published release and radar continuity contracts
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          receipt=json.loads(Path('live-release-status.json').read_text(encoding='utf-8'))
+          live=json.loads(Path('/tmp/live-release.json').read_text(encoding='utf-8'))
+          assert receipt.get('status')=='PUBLISHED', receipt
+          assert live.get('public_origin')=='https://bridgepointintelligence.online/', live
+          assert live.get('version')==receipt.get('release_sha'), (live,receipt)
+          print('Live release marker matches deployment receipt:', live['version'])
+          PY
+          grep -q 'noaa-radar-current-v395' /tmp/live-main.dart.js
+          grep -q 'noaa-radar-prev-v395' /tmp/live-main.dart.js
+          grep -q 'noaa-radar-next-v397' /tmp/live-main.dart.js
+          grep -q 'MapServer/WMSServer?_bp=' /tmp/live-main.dart.js
+          grep -q 'bridgepoint-pwa-update-handoff-v396' /tmp/live-bootstrap.js
+          grep -q 'BridgePoint update ready' /tmp/live-bootstrap.js
+          echo 'Public compiled PWA contains stable current/prior radar + adjacent prefetch + update handoff.'
+
+      - name: Bounded NOAA radar transport QA
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 2 --retry-delay 2 --max-time 20 \
+            'https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0' \
+            -o /tmp/noaa-now.xml
+          curl -fsSL --retry 2 --retry-delay 2 --max-time 20 \
+            'https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity_time/ImageServer/WMSServer?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0' \
+            -o /tmp/noaa-history.xml
+          test -s /tmp/noaa-now.xml
+          test -s /tmp/noaa-history.xml
+          grep -qi 'WMS_Capabilities\|WMT_MS_Capabilities' /tmp/noaa-now.xml
+          grep -qi 'WMS_Capabilities\|WMT_MS_Capabilities' /tmp/noaa-history.xml
+          echo 'NOAA current and time-aware historical WMS transports are reachable.'
+
+      - name: Record live radar verification receipt
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          release=json.loads(Path('/tmp/live-release.json').read_text(encoding='utf-8'))
+          status={
+            'status':'VERIFIED',
+            'release_sha':release['version'],
+            'verified_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
+            'public_origin':'https://bridgepointintelligence.online/',
+            'checks':{
+              'public_release_matches_receipt':True,
+              'compiled_current_radar_layer_v395':True,
+              'compiled_prior_radar_layer_v395':True,
+              'compiled_next_frame_prefetch_v397':True,
+              'compiled_fresh_now_revision':True,
+              'pwa_update_handoff_v396':True,
+              'noaa_current_wms_reachable':True,
+              'noaa_historical_wms_reachable':True,
+            },
+            'note':'Bounded live artifact/transport QA. Authenticated gesture/timing observation remains a separate browser-session check.'
+          }
+          Path('live-verification-status.json').write_text(json.dumps(status,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(status,indent=2))
+          PY
+          git config user.name 'BridgePoint Verification Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add live-verification-status.json
+          git commit -m 'Record BridgePoint live radar verification [skip ci]'
+          git push origin HEAD:main
