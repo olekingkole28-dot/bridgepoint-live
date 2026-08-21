@@ -1,0 +1,35 @@
+{
+  "snapshot_date": "2026-08-21",
+  "company": "BridgePoint Intelligence",
+  "public_origin": "https://bridgepointintelligence.online/",
+  "connecticut": {
+    "market_status": "LIVE",
+    "canonical_property_count": 1282833,
+    "verified_ranked_opportunity_rows": 940,
+    "verticals": {
+      "general_contracting": {"properties": 456, "max_independent_evidence_families": 4, "avg_customer_score": 70.8},
+      "property_investment": {"properties": 342, "max_independent_evidence_families": 3, "avg_customer_score": 66.1},
+      "restoration": {"properties": 48, "max_independent_evidence_families": 2, "avg_customer_score": 60.3},
+      "roofing": {"properties": 48, "max_independent_evidence_families": 2, "avg_customer_score": 59.9},
+      "public_adjusting": {"properties": 45, "max_independent_evidence_families": 2, "avg_customer_score": 58.6},
+      "development": {"properties": 1, "max_independent_evidence_families": 1, "avg_customer_score": 54.9}
+    },
+    "roofing_municipality_counts": {
+      "Torrington": 19,
+      "Vernon": 15,
+      "Burlington": 6,
+      "New Britain": 4,
+      "Killingly": 2,
+      "Middlebury": 1,
+      "Tolland": 1
+    }
+  },
+  "limitations": [
+    "Verified opportunity does not mean confirmed physical damage.",
+    "Verified opportunity does not mean a confirmed insurance claim.",
+    "Field verification still has the last word.",
+    "Counts can change as evidence refreshes and verification gates rerun."
+  ],
+  "methodology": "https://bridgepointintelligence.online/articles/",
+  "data_desk": "https://bridgepointintelligence.online/press/"
+}
