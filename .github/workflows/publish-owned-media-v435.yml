@@ -1,0 +1,86 @@
+name: Publish BridgePoint Owned Media
+
+on:
+  schedule:
+    - cron: '31 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - scripts/publish_owned_media.py
+      - .github/workflows/publish-owned-media-v435.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bridgepoint-owned-media-publish-v435
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate quality-gated public research
+        run: |
+          set -euo pipefail
+          python scripts/publish_owned_media.py
+          test -s articles/auto/index.html
+          test -s articles/auto/feed.xml
+          test -s articles/auto/sitemap.xml
+          test -s articles/auto/manifest.json
+          if grep -R -E -i 'service_role|sb_secret' articles/auto; then
+            echo 'Forbidden privileged credential marker found in generated public media.' >&2
+            exit 1
+          fi
+
+      - name: Commit only changed automatic research
+        id: commit
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- articles/auto && git ls-files --error-unmatch articles/auto/index.html >/dev/null 2>&1; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'No public story change; leaving the site untouched.'
+            exit 0
+          fi
+          git config user.name 'BridgePoint Research Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -- articles/auto
+          git diff --cached --check
+          git commit -m 'Publish quality-gated BridgePoint research [owned-media-v435]'
+          git push origin HEAD:main
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Notify research discovery networks after a real change
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          sleep 75
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest=json.loads(Path('articles/auto/manifest.json').read_text(encoding='utf-8'))
+          urls=[
+            'https://bridgepointintelligence.online/articles/auto/',
+            'https://bridgepointintelligence.online/articles/auto/feed.xml',
+            *manifest.get('urls',[]),
+          ][:100]
+          payload={
+            'host':'bridgepointintelligence.online',
+            'key':'dc8a83e4caade76fd824cf929dca48d6',
+            'keyLocation':'https://bridgepointintelligence.online/dc8a83e4caade76fd824cf929dca48d6.txt',
+            'urlList':urls,
+          }
+          Path('/tmp/indexnow-owned.json').write_text(json.dumps(payload),encoding='utf-8')
+          print(f'Prepared {len(urls)} discovery URLs.')
+          PY
+          code="$(curl -sS -o /tmp/indexnow-owned-response.txt -w '%{http_code}' -X POST 'https://api.indexnow.org/indexnow' -H 'Content-Type: application/json; charset=utf-8' --data-binary @/tmp/indexnow-owned.json || true)"
+          echo "IndexNow owned-media HTTP ${code}"
+          cat /tmp/indexnow-owned-response.txt || true
+          websub="$(curl -sS -o /tmp/websub-owned-response.txt -w '%{http_code}' -X POST 'https://pubsubhubbub.appspot.com/' -H 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'hub.mode=publish' --data-urlencode 'hub.url=https://bridgepointintelligence.online/articles/auto/feed.xml' || true)"
+          echo "WebSub owned-media HTTP ${websub}"
+          cat /tmp/websub-owned-response.txt || true
