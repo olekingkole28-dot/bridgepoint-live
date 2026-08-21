@@ -12,6 +12,11 @@ BridgePoint Intelligence is a U.S. property intelligence platform that combines 
 - Machine-readable facts: https://bridgepointintelligence.online/articles/bridgepoint-facts.json
 - Territory request: https://bridgepointintelligence.online/sample/
 
+## Canonical research
+- Why a Storm Map Is Not a Damage Map: https://bridgepointintelligence.online/articles/why-a-storm-map-is-not-a-damage-map.html
+- Why Property Matching Is the Hidden Failure Point in Property AI: https://bridgepointintelligence.online/articles/why-property-matching-is-the-hidden-failure-point-in-property-ai.html
+- Connecticut roofing intelligence brief: https://bridgepointintelligence.online/articles/connecticut-roofing-intelligence-brief.html
+
 ## Current market truth
 - Connecticut: LIVE and customer-ready.
 - Connecticut authoritative property-foundation denominator: 1,282,833 canonical properties.
