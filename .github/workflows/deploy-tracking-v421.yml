@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - .github/workflows/deploy-tracking-v421.yml
+      - acquisition_tracker.js
       - landing/**
       - articles/**
       - sample/**
@@ -55,9 +56,16 @@ jobs:
           fi
           cp -a /tmp/bridgepoint-app/. site/app/
           rm -rf site/app/articles site/app/sample site/app/landing
-          cp /tmp/bridgepoint-app/acquisition_tracker.js site/acquisition_tracker.js
+          test -s acquisition_tracker.js
+          grep -q 'captureVersion=432' acquisition_tracker.js
+          if grep -q 'service_role' acquisition_tracker.js; then
+            echo 'Forbidden privileged credential marker found in v432 browser tracker.' >&2
+            exit 1
+          fi
+          cp acquisition_tracker.js site/acquisition_tracker.js
+          cp acquisition_tracker.js site/app/acquisition_tracker.js
           touch site/.nojekyll site/app/.nojekyll
-          echo 'Audited Flutter application preserved at /app/.'
+          echo 'Audited Flutter application preserved at /app/ with acquisition tracker v432 overlaid.'
 
       - name: Overlay public national website, research, territory request and discovery files
         run: |
@@ -85,6 +93,10 @@ jobs:
           test -s site/index.html
           test -s site/app/index.html
           test -s site/app/main.dart.js
+          test -s site/acquisition_tracker.js
+          test -s site/app/acquisition_tracker.js
+          grep -q 'captureVersion=432' site/acquisition_tracker.js
+          grep -q 'captureVersion=432' site/app/acquisition_tracker.js
           test -s site/articles/index.html
           test -s site/articles/feed.xml
           test -s site/sample/index.html
@@ -112,7 +124,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint national website with app, research, territory and discovery distribution'
+          git commit -m 'BridgePoint national website with state-aware funnel tracking v432'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -167,12 +179,12 @@ jobs:
           receipt={
             'status':'PUBLISHED',
             'base_release_sha':'2e111cc765d23533e2adf953b44a5578201a0790',
-            'tracking_version':421,
-            'owner_funnel_version':422,
+            'tracking_version':432,
+            'owner_funnel_version':432,
             'sample_request_version':426,
             'public_landing_version':427,
             'public_discovery_version':428,
-            'capture':'FIRST_PARTY_BROWSER',
+            'capture':'FIRST_PARTY_BROWSER_WITH_COARSE_STATE_ONLY',
             'public_home':'/',
             'app_path':'/app/',
             'research_hub':'/articles/',
@@ -181,6 +193,7 @@ jobs:
             'sitemap':'/sitemap.xml',
             'ai_discovery':'/llms.txt',
             'indexnow_enabled':True,
+            'exact_ip_stored':False,
             'deployed_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'public_origin':'https://bridgepointintelligence.online/',
             'pages_url':os.environ.get('PAGE_URL'),
@@ -194,5 +207,5 @@ jobs:
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add tracking-release-status.json
-          git commit -m 'Record public discovery deployment [skip ci]' || true
+          git commit -m 'Record acquisition tracking v432 deployment [skip ci]' || true
           git push origin HEAD:main
