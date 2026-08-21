@@ -65,7 +65,8 @@ jobs:
           grep -q 'NOAA LIVE RAIN / PRECIPITATION RADAR' site/main.dart.js
           grep -q 'Preview package fit' site/main.dart.js
           grep -q 'Investor Room' site/main.dart.js
-          grep -q 'bridgepoint-v395-radar-layer-identity' site/main.dart.js
+          grep -q 'noaa-radar-current-v395' site/main.dart.js
+          grep -q 'noaa-radar-prev-v395' site/main.dart.js
 
           # Generic national coverage/customer copy remains neutral.
           grep -q 'Coverage & Market Readiness' site/main.dart.js
