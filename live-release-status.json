@@ -1,15 +1,15 @@
 {
   "status": "PUBLISHED",
-  "release_sha": "89d0f1d4ba3565d03aa8458baa6a53ad86c026d1",
-  "built_at": "2026-08-21T04:50:23Z",
-  "deployed_at": "2026-08-21T05:05:00.285801Z",
+  "release_sha": "754650fad126693bf34ce88c99ad47d827888ac2",
+  "built_at": "2026-08-21T05:55:48Z",
+  "deployed_at": "2026-08-21T06:00:49.595628Z",
   "public_origin": "https://bridgepointintelligence.online/",
   "pages_url": "https://bridgepointintelligence.online/",
-  "artifact_sha256": "45fa40ce5456c08b373426c8852580cd355b253c8390da28d71a44a25f138132",
+  "artifact_sha256": "5d61eae44b53e439dfc96b8ce6b0e5d9fbe2e3bd9a17c1bff0fd364ca7757d05",
   "source_build_repo": "olekingkole28-dot/bridgepoint_data_studio",
-  "source_workflow_run_id": 32448324994,
-  "source_release_sha": "89d0f1d4ba3565d03aa8458baa6a53ad86c026d1",
-  "source_branch_head_sha": "f31d90d33713ea7a5d21becb047aa01e13457409",
-  "main_release_sha": "00e97e8437c240cad0d0c4c9a2047487d6b93dbf",
-  "release_label": "BridgePoint v396 PWA update-ready handoff + v395 radar persistence + v390-v394 national/mobile/customer-preview improvements"
+  "source_workflow_run_id": 32452367342,
+  "source_release_sha": "754650fad126693bf34ce88c99ad47d827888ac2",
+  "source_branch_head_sha": "ec2bc5f670f74d37c9b59f3a08c4462dde641f6b",
+  "main_release_sha": "7cdf4f93938e06cba5b0ef18b94904370c9805f3",
+  "release_label": "BridgePoint v397 adjacent NOAA radar prefetch + fresh NOW revision + v396 PWA update handoff + v395 stable radar persistence"
 }
