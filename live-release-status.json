@@ -1,15 +1,15 @@
 {
   "status": "PUBLISHED",
-  "release_sha": "4decea4e4a0b2640f8b492222d06414a9060f9fe",
-  "built_at": "2026-08-19T23:13:28Z",
-  "deployed_at": "2026-08-20T05:25:24.415203Z",
+  "release_sha": "03a44232b666f5f92fcc4cb73b75b82b837dc946",
+  "built_at": "2026-08-21T02:54:45Z",
+  "deployed_at": "2026-08-21T03:18:36.396517Z",
   "public_origin": "https://bridgepointintelligence.online/",
   "pages_url": "https://bridgepointintelligence.online/",
-  "artifact_sha256": "2c901978db7307f8aafa8d2e7798acc587381eb0815cbb4b2924d8455fa34607",
+  "artifact_sha256": "d765e70ae04b42eaeb4f28d11966d1dcca2721cc4811edcfaf6a3098ffe2bb0f",
   "source_build_repo": "olekingkole28-dot/bridgepoint_data_studio",
-  "source_workflow_run_id": 32312310910,
-  "source_release_sha": "4decea4e4a0b2640f8b492222d06414a9060f9fe",
-  "source_branch_head_sha": "23443c27a4530c3b2d9a2e9f04432639c8b88255",
-  "merged_v325_sha": "714842f9849fc56ce66cf0c276db0e05d3100e03",
-  "release_label": "BridgePoint v325 mobile responsiveness + community/radar/share polish"
+  "source_workflow_run_id": 32441479163,
+  "source_release_sha": "03a44232b666f5f92fcc4cb73b75b82b837dc946",
+  "source_branch_head_sha": "ee9d315064421c5b3c8ccc043ed24d58bac64f15",
+  "merged_release_sha": "6265e86ec815e0f190e356234b21113f9cd7b4f6",
+  "release_label": "BridgePoint v390-v393 mobile owner cleanup, radar continuity and real package/state customer preview"
 }
