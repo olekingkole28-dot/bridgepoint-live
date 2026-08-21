@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>BridgePoint Intelligence Research</title>
+    <link>https://github.com/olekingkole28-dot/bridgepoint-live/tree/main/articles</link>
+    <description>Property intelligence research and methodology from BridgePoint Intelligence.</description>
+    <language>en-us</language>
+    <lastBuildDate>Fri, 21 Aug 2026 16:56:00 GMT</lastBuildDate>
+    <item>
+      <title>Connecticut Roofing Opportunity Brief — August 21, 2026</title>
+      <link>https://github.com/olekingkole28-dot/bridgepoint-live/blob/main/articles/connecticut-roofing-opportunity-brief-2026-08-21.md</link>
+      <guid isPermaLink="true">https://github.com/olekingkole28-dot/bridgepoint-live/blob/main/articles/connecticut-roofing-opportunity-brief-2026-08-21.md</guid>
+      <pubDate>Fri, 21 Aug 2026 16:56:00 GMT</pubDate>
+      <description>BridgePoint's current strict Connecticut roofing-opportunity distribution by municipality, with evidence-freshness and methodology limitations.</description>
+    </item>
+    <item>
+      <title>Why a Storm Map Is Not a Damage Map</title>
+      <link>https://github.com/olekingkole28-dot/bridgepoint-live/blob/main/articles/why-a-storm-map-is-not-a-damage-map.md</link>
+      <guid isPermaLink="true">https://github.com/olekingkole28-dot/bridgepoint-live/blob/main/articles/why-a-storm-map-is-not-a-damage-map.md</guid>
+      <pubDate>Fri, 21 Aug 2026 16:06:04 GMT</pubDate>
+      <description>A BridgePoint Intelligence research note on the difference between weather exposure evidence and confirmed property damage.</description>
+    </item>
+    <item>
+      <title>Why Property Matching Is the Hidden Failure Point in Property AI</title>
+      <link>https://github.com/olekingkole28-dot/bridgepoint-live/blob/main/articles/why-property-matching-is-the-hidden-failure-point-in-property-ai.md</link>
+      <guid isPermaLink="true">https://github.com/olekingkole28-dot/bridgepoint-live/blob/main/articles/why-property-matching-is-the-hidden-failure-point-in-property-ai.md</guid>
+      <pubDate>Fri, 21 Aug 2026 16:00:21 GMT</pubDate>
+      <description>A BridgePoint Intelligence research note on address normalization, parcel identity, provenance and why matching quality determines whether property intelligence can be trusted.</description>
+    </item>
+  </channel>
+</rss>
