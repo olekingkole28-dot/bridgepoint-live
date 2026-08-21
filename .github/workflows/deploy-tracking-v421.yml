@@ -1,10 +1,11 @@
-name: Deploy BridgePoint Tracking V421
+name: Deploy BridgePoint Live + Research
 
 on:
   push:
     branches: [main]
     paths:
       - .github/workflows/deploy-tracking-v421.yml
+      - articles/**
   workflow_dispatch:
 
 permissions:
@@ -25,41 +26,44 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Download audited BridgePoint V422 production build
+      - name: Restore durable audited BridgePoint V422 build
         run: |
           set -euo pipefail
-          curl -fL --retry 4 --retry-delay 2 'https://sdmntprcentralus.oaiusercontent.com/files/00000000-6af0-81f5-85b0-18f3f6137d0d/raw?se=2026-08-21T16%3A29%3A06Z&sp=r&sv=2026-02-06&sr=b&scid=3e218eac-33d5-5889-a02e-f1dcf20e7e26&skoid=e9d2f8b1-028a-4cff-8eb1-d0e66fbefcca&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-20T19%3A50%3A28Z&ske=2026-08-21T19%3A50%3A28Z&sks=b&skv=2026-02-06&sig=yKMuX%2Bj1%2BjwhMKyj9/QEZfs/3g6E3ubQA/00iQHaTls%3D' -o /tmp/bridgepoint-current.zip
-          echo '6d0cd5d256e2a2bebdde8eb0c1477d9967a5e1341fb275a17f021a728fa23c9f  /tmp/bridgepoint-current.zip' | sha256sum -c -
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
           rm -rf site
           mkdir -p site
-          unzip -q /tmp/bridgepoint-current.zip -d site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
           touch site/.nojekyll
-          sed -i 's#<base href="/">#<base href="./">#' site/index.html
           test -s site/index.html
           test -s site/main.dart.js
           test -s site/acquisition_tracker.js
           test -s site/bridgepoint-release.json
           grep -q '2e111cc765d23533e2adf953b44a5578201a0790' site/bridgepoint-release.json
           grep -q 'https://bridgepointintelligence.online/' site/bridgepoint-release.json
+          grep -q 'acquisition_tracker.js' site/index.html
           grep -q "send('LANDING_VIEW'" site/acquisition_tracker.js
           if grep -q 'service_role' site/acquisition_tracker.js; then
             echo 'Forbidden privileged credential marker found in browser tracker.' >&2
             exit 1
           fi
 
-      - name: Enable first-party acquisition tracking V421
+      - name: Overlay BridgePoint research hub
         run: |
           set -euo pipefail
-          if ! grep -q 'acquisition_tracker.js' site/index.html; then
-            sed -i 's#</body>#  <script src="acquisition_tracker.js" defer></script>\n</body>#' site/index.html
-          fi
-          grep -q 'acquisition_tracker.js' site/index.html
-          grep -q 'SIGNUP_VIEW' site/acquisition_tracker.js
-          grep -q 'CHECKOUT_START' site/acquisition_tracker.js
-          echo 'V421 browser tracker enabled on audited V422 artifact.'
+          test -d articles
+          rm -rf site/articles
+          cp -a articles site/articles
+          test -s site/articles/index.html
+          test -s site/articles/feed.xml
+          test -s site/articles/why-a-storm-map-is-not-a-damage-map.md
+          test -s site/articles/why-property-matching-is-the-hidden-failure-point-in-property-ai.md
+          test -s site/articles/connecticut-roofing-opportunity-brief-2026-08-21.md
+          echo 'BridgePoint research hub overlaid onto audited production artifact.'
 
-      - name: Preserve durable deployed artifact branch
+      - name: Refresh durable live artifact branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -73,7 +77,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint live artifact 2e111cc with V421 tracking'
+          git commit -m 'BridgePoint live artifact with V421 tracking and research hub'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -91,7 +95,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Record verified V421/V422 deployment
+      - name: Record verified V421/V422 + research deployment
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
@@ -105,6 +109,8 @@ jobs:
             'tracking_version':421,
             'owner_funnel_version':422,
             'capture':'FIRST_PARTY_BROWSER',
+            'research_hub':'/articles/',
+            'research_feed':'/articles/feed.xml',
             'deployed_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'public_origin':'https://bridgepointintelligence.online/',
             'pages_url':os.environ.get('PAGE_URL'),
@@ -118,5 +124,5 @@ jobs:
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add tracking-release-status.json
-          git commit -m 'Record V421/V422 browser tracking deployment [skip ci]' || true
+          git commit -m 'Record live research-hub deployment [skip ci]' || true
           git push origin HEAD:main
