@@ -1,0 +1,17 @@
+{
+  "status": "VERIFIED",
+  "release_sha": "754650fad126693bf34ce88c99ad47d827888ac2",
+  "verified_at": "2026-08-21T06:02:01.790272Z",
+  "public_origin": "https://bridgepointintelligence.online/",
+  "checks": {
+    "public_release_matches_receipt": true,
+    "compiled_current_radar_layer_v395": true,
+    "compiled_prior_radar_layer_v395": true,
+    "compiled_next_frame_prefetch_v397": true,
+    "compiled_fresh_now_revision": true,
+    "pwa_update_handoff_v396": true,
+    "noaa_current_wms_reachable": true,
+    "noaa_historical_wms_reachable": true
+  },
+  "note": "Bounded live artifact/transport QA. Authenticated gesture/timing observation remains a separate browser-session check."
+}
