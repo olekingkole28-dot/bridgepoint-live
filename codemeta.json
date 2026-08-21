@@ -1,0 +1,18 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "name": "BridgePoint Intelligence",
+  "description": "U.S. property-intelligence platform and public research project focused on property matching, provenance, evidence quality, geospatial alignment and explainable property-level prioritization.",
+  "url": "https://bridgepointintelligence.online/",
+  "codeRepository": "https://github.com/olekingkole28-dot/bridgepoint-live",
+  "datePublished": "2026-08-21",
+  "author": [{"@type":"Person","givenName":"Kole","familyName":"Johnson","affiliation":{"@type":"Organization","name":"BridgePoint Intelligence"}}],
+  "keywords": ["property intelligence","proptech","construction technology","contech","property data","public records","geospatial matching","property matching","explainable AI","roofing intelligence","restoration intelligence","real estate technology"],
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web",
+  "isAccessibleForFree": true,
+  "sameAs": [
+    "https://bridgepointintelligence.online/articles/data-desk.html",
+    "https://bridgepointintelligence.online/articles/"
+  ]
+}
