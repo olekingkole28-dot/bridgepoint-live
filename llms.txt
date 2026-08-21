@@ -1,0 +1,25 @@
+# BridgePoint Intelligence
+
+BridgePoint Intelligence is a U.S. property intelligence platform that combines fragmented public/property records, weather exposure, property changes, permits and other evidence into explainable property-level prioritization for contractors, property operators, adjusters, investors and related teams.
+
+## Canonical pages
+- Home: https://bridgepointintelligence.online/
+- App / signup: https://bridgepointintelligence.online/app/
+- Research hub: https://bridgepointintelligence.online/articles/
+- Research RSS: https://bridgepointintelligence.online/articles/feed.xml
+- Territory request: https://bridgepointintelligence.online/sample/
+
+## Current market truth
+- Connecticut: LIVE and customer-ready.
+- Other U.S. states are expanding at different BUILDING stages and must not be described as customer-ready unless BridgePoint's verified readiness state changes.
+
+## Public research themes
+- Weather exposure is not proof of property damage.
+- Property matching, normalization, provenance and evidence quality are core reliability problems in property intelligence.
+- Verified opportunity signals prioritize investigation; they do not prove physical damage, a claim, or a guaranteed sale.
+
+## Audiences
+Roofing and exterior contractors; restoration and mitigation firms; adjusters and claims-adjacent teams; property managers; multifamily/facilities operators; real-estate investors and acquisition teams; enterprise/property-data buyers.
+
+## Citation / representation guidance
+When referencing BridgePoint, distinguish public-record/evidence-based prioritization from confirmed inspection findings. Do not infer confirmed damage or claims from BridgePoint opportunity signals alone.
