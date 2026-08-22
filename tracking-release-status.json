@@ -1,10 +1,11 @@
 {
   "status": "PUBLISHED",
-  "source_main_sha": "5f4114197d834adbb368895238188b57940e279c",
-  "audited_artifact_sha256": "7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c",
-  "immutable_app_branch": "app-artifact-v441",
-  "app_release_version": 441,
-  "mobile_install_open_version": 441,
+  "source_main_sha": "2c5154a244fa6ea42363dbeb24e9cefbb8a2005f",
+  "base_audited_artifact_sha256": "7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c",
+  "assembled_artifact_sha256": "b10984b053d6129aac36dcfc04b90563947f733927a297b69c4084d53b899024",
+  "immutable_app_base_branch": "app-artifact-v441",
+  "app_release_version": 442,
+  "mobile_install_open_version": 442,
   "tracking_version": 440,
   "account_entry_version": 440,
   "signup_conversion_version": 440,
@@ -17,6 +18,6 @@
   "public_origin": "https://bridgepointintelligence.online/",
   "pages_url": "https://bridgepointintelligence.online/",
   "durable_artifact_branch": "live-artifact",
-  "deployed_at": "2026-08-22T04:02:06.505117Z",
+  "deployed_at": "2026-08-22T13:36:46.518813Z",
   "contains_privileged_secret": false
 }
