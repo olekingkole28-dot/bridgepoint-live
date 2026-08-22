@@ -1,4 +1,4 @@
-name: Verify BridgePoint V440 Live
+name: Verify BridgePoint V441 Live
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: bridgepoint-v440-live-verification
+  group: bridgepoint-v441-live-verification
   cancel-in-progress: true
 
 jobs:
@@ -24,38 +24,46 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify public V440 artifact and PWA contracts
+      - name: Verify public V441 artifact and PWA contracts
         env:
           ORIGIN: https://bridgepointintelligence.online
-          EXPECTED_MARKER: 4b80bbdc1137ce7b7d3fc26f69fa5077c5c8566a
+          EXPECTED_SOURCE_SHA: 5f4114197d834adbb368895238188b57940e279c
+          EXPECTED_ARTIFACT_SHA256: 7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c
         run: |
           set -euo pipefail
-          mkdir -p /tmp/v440-live
-          curl -fsSL --retry 4 --retry-delay 2 "$ORIGIN/app/bridgepoint-release.json?t=${GITHUB_RUN_ID}" -o /tmp/v440-live/release.json
-          curl -fsSL --retry 4 --retry-delay 2 "$ORIGIN/app/index.html?t=${GITHUB_RUN_ID}" -o /tmp/v440-live/app-index.html
-          curl -fsSL --retry 4 --retry-delay 2 "$ORIGIN/app/main.dart.js?t=${GITHUB_RUN_ID}" -o /tmp/v440-live/main.dart.js
-          curl -fsSL --retry 4 --retry-delay 2 "$ORIGIN/app/acquisition_tracker.js?t=${GITHUB_RUN_ID}" -o /tmp/v440-live/tracker.js
-          curl -fsSL --retry 4 --retry-delay 2 "$ORIGIN/app/manifest.json?t=${GITHUB_RUN_ID}" -o /tmp/v440-live/manifest.json
-          curl -fsSL --retry 4 --retry-delay 2 "$ORIGIN/app/flutter_service_worker.js?t=${GITHUB_RUN_ID}" -o /tmp/v440-live/flutter_service_worker.js
+          mkdir -p /tmp/v441-live
+          curl -fsSL --retry 5 --retry-delay 2 "$ORIGIN/app/bridgepoint-release.json?t=${GITHUB_RUN_ID}" -o /tmp/v441-live/release.json
+          curl -fsSL --retry 5 --retry-delay 2 "$ORIGIN/app/index.html?t=${GITHUB_RUN_ID}" -o /tmp/v441-live/app-index.html
+          curl -fsSL --retry 5 --retry-delay 2 "$ORIGIN/app/main.dart.js?t=${GITHUB_RUN_ID}" -o /tmp/v441-live/main.dart.js
+          curl -fsSL --retry 5 --retry-delay 2 "$ORIGIN/app/acquisition_tracker.js?t=${GITHUB_RUN_ID}" -o /tmp/v441-live/tracker.js
+          curl -fsSL --retry 5 --retry-delay 2 "$ORIGIN/app/manifest.json?t=${GITHUB_RUN_ID}" -o /tmp/v441-live/manifest.json
+          curl -fsSL --retry 5 --retry-delay 2 "$ORIGIN/app/flutter_service_worker.js?t=${GITHUB_RUN_ID}" -o /tmp/v441-live/flutter_service_worker.js
           python - <<'PY'
           import json, os
           from pathlib import Path
-          release=json.loads(Path('/tmp/v440-live/release.json').read_text())
-          assert release.get('version')==os.environ['EXPECTED_MARKER'], release
-          assert release.get('public_origin')=='https://bridgepointintelligence.online/', release
-          manifest=json.loads(Path('/tmp/v440-live/manifest.json').read_text())
+          release=json.loads(Path('/tmp/v441-live/release.json').read_text())
+          assert release.get('version')==441, release
+          assert release.get('source_sha')==os.environ['EXPECTED_SOURCE_SHA'], release
+          assert release.get('artifact_sha256')==os.environ['EXPECTED_ARTIFACT_SHA256'], release
+          manifest=json.loads(Path('/tmp/v441-live/manifest.json').read_text())
           assert manifest.get('display') in {'standalone','fullscreen','minimal-ui'}, manifest
           assert manifest.get('icons'), manifest
-          print('Live release/PWA:',release['version'],manifest.get('display'))
+          print('Live release/PWA:',release['version'],release['source_sha'],manifest.get('display'))
           PY
-          grep -q '<base href="/app/">' /tmp/v440-live/app-index.html
-          grep -q 'Create account' /tmp/v440-live/main.dart.js
-          grep -q 'Already have an account' /tmp/v440-live/main.dart.js
-          grep -q 'Check your email' /tmp/v440-live/main.dart.js
-          grep -q 'captureVersion=440' /tmp/v440-live/tracker.js
-          grep -q 'mode.*signup' /tmp/v440-live/tracker.js
-          grep -q 'account_mode' /tmp/v440-live/tracker.js
-          test -s /tmp/v440-live/flutter_service_worker.js
+          grep -q '<base href="/app/">' /tmp/v441-live/app-index.html
+          grep -q 'bridgepoint-v441-mobile-install-fallback' /tmp/v441-live/app-index.html
+          grep -q 'id="bp-install-fallback-v441"' /tmp/v441-live/app-index.html
+          grep -q 'DOWNLOAD / OPEN APP' /tmp/v441-live/app-index.html
+          grep -q 'Open BridgePoint now' /tmp/v441-live/app-index.html
+          grep -q 'pointer-events:auto!important' /tmp/v441-live/app-index.html
+          grep -q 'touch-action:manipulation' /tmp/v441-live/app-index.html
+          grep -q 'Create account' /tmp/v441-live/main.dart.js
+          grep -q 'Already have an account' /tmp/v441-live/main.dart.js
+          grep -q 'Check your email' /tmp/v441-live/main.dart.js
+          grep -q 'captureVersion=440' /tmp/v441-live/tracker.js
+          grep -q 'mode.*signup' /tmp/v441-live/tracker.js
+          grep -q 'account_mode' /tmp/v441-live/tracker.js
+          test -s /tmp/v441-live/flutter_service_worker.js
 
       - name: Install Puppeteer controller for installed Chrome
         run: |
@@ -63,8 +71,8 @@ jobs:
           npm init -y >/dev/null 2>&1
           npm install --no-save puppeteer-core@24 >/dev/null
 
-      - name: Capture controlled desktop, tablet and mobile live visuals
-        timeout-minutes: 4
+      - name: Verify responsive visuals and real mobile gold CTA interaction
+        timeout-minutes: 5
         env:
           ORIGIN: https://bridgepointintelligence.online
           LIBGL_ALWAYS_SOFTWARE: "1"
@@ -73,7 +81,7 @@ jobs:
           CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
           test -n "$CHROME"
           export CHROME
-          cat >/tmp/v440-live/capture.cjs <<'JS'
+          cat >/tmp/v441-live/verify.cjs <<'JS'
           const puppeteer=require('puppeteer-core');
           const fs=require('fs');
           const crypto=require('crypto');
@@ -81,23 +89,26 @@ jobs:
           const chrome=process.env.CHROME;
           const run=process.env.GITHUB_RUN_ID;
           const wait=ms=>new Promise(r=>setTimeout(r,ms));
+          async function pageMetrics(page){
+            return await page.evaluate(()=>({
+              innerWidth:window.innerWidth,
+              innerHeight:window.innerHeight,
+              scrollWidth:document.documentElement.scrollWidth,
+              scrollHeight:document.documentElement.scrollHeight,
+              horizontalOverflow:document.documentElement.scrollWidth>window.innerWidth+4
+            }));
+          }
           (async()=>{
             const browser=await puppeteer.launch({
               executablePath:chrome,
               headless:true,
               protocolTimeout:45000,
               args:[
-                '--no-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu-sandbox',
-                '--disable-background-networking',
-                '--disable-sync',
-                '--disable-features=Vulkan,VulkanFromANGLE',
-                '--use-gl=angle',
-                '--use-angle=swiftshader',
-                '--enable-unsafe-swiftshader',
-                '--ignore-gpu-blocklist',
-                '--ozone-platform=headless'
+                '--no-sandbox','--disable-dev-shm-usage','--disable-gpu-sandbox',
+                '--disable-background-networking','--disable-sync',
+                '--disable-features=Vulkan,VulkanFromANGLE','--use-gl=angle',
+                '--use-angle=swiftshader','--enable-unsafe-swiftshader',
+                '--ignore-gpu-blocklist','--ozone-platform=headless'
               ]
             });
             const specs=[
@@ -106,7 +117,7 @@ jobs:
               ['signup-tablet',`${origin}/app/?mode=signup&verify=${run}`,820,1180],
               ['signup-mobile',`${origin}/app/?mode=signup&verify=${run}`,390,844]
             ];
-            const result={};
+            const result={visuals:{},goldCta:{}};
             for(const [name,url,width,height] of specs){
               const page=await browser.newPage();
               page.setDefaultTimeout(30000);
@@ -115,51 +126,118 @@ jobs:
               page.on('pageerror',e=>pageErrors.push(String(e.message||e)));
               await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
               await wait(6500);
-              const path=`/tmp/v440-live/${name}.png`;
+              const path=`/tmp/v441-live/${name}.png`;
               await page.screenshot({path,fullPage:false,captureBeyondViewport:false});
               const buffer=fs.readFileSync(path);
               if(buffer.length<10000)throw new Error(`${name} screenshot too small: ${buffer.length}`);
-              result[name]={url,width,height,bytes:buffer.length,sha256:crypto.createHash('sha256').update(buffer).digest('hex'),pageErrors:pageErrors.slice(0,5)};
+              const metrics=await pageMetrics(page);
+              if(metrics.horizontalOverflow)throw new Error(`${name} horizontal overflow: ${metrics.scrollWidth} > ${metrics.innerWidth}`);
+              result.visuals[name]={url,width,height,bytes:buffer.length,sha256:crypto.createHash('sha256').update(buffer).digest('hex'),metrics,pageErrors:pageErrors.slice(0,5)};
               await page.close();
             }
+            if(result.visuals['signup-desktop'].sha256===result.visuals['signin-desktop'].sha256)throw new Error('signup/signin screenshots are identical');
+
+            // Real mobile-sized CTA interaction with iPhone UA, where beforeinstallprompt is unavailable.
+            const mobile=await browser.newPage();
+            mobile.setDefaultTimeout(30000);
+            await mobile.setViewport({width:390,height:844,deviceScaleFactor:1});
+            await mobile.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1');
+            await mobile.goto(`${origin}/app/?mode=signin&verify_mobile_cta=${run}`,{waitUntil:'domcontentloaded',timeout:30000});
+            await wait(2800);
+            // The install guide may auto-open; dismiss it so we prove the gold CTA itself opens it.
+            await mobile.evaluate(()=>{
+              const backdrop=document.getElementById('bp-install-backdrop');
+              if(backdrop?.classList.contains('show'))document.getElementById('bp-install-later')?.click();
+              window.bridgePointInstallPromptReadyV441=false;
+              window.dispatchEvent(new Event('bridgepoint-install-capability-change'));
+            });
+            await wait(350);
+            const before=await mobile.evaluate(()=>{
+              const button=document.getElementById('bp-install-fab-v439');
+              if(!button)return {missing:true};
+              const r=button.getBoundingClientRect();
+              const cs=getComputedStyle(button);
+              const center=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+              return {
+                missing:false,text:(button.innerText||'').replace(/\s+/g,' ').trim(),
+                width:r.width,height:r.height,left:r.left,right:r.right,top:r.top,bottom:r.bottom,
+                display:cs.display,visibility:cs.visibility,pointerEvents:cs.pointerEvents,
+                touchAction:cs.touchAction,topElementId:center?.id||center?.closest?.('#bp-install-fab-v439')?.id||null,
+                viewport:{w:innerWidth,h:innerHeight},scrollWidth:document.documentElement.scrollWidth
+              };
+            });
+            if(before.missing)throw new Error('Gold install/open CTA missing on mobile');
+            if(before.display==='none'||before.visibility==='hidden'||before.pointerEvents==='none')throw new Error(`Gold CTA not interactive: ${JSON.stringify(before)}`);
+            if(before.height<52)throw new Error(`Gold CTA touch target too short: ${before.height}`);
+            if(before.left<0||before.right>before.viewport.w+1||before.bottom>before.viewport.h+1)throw new Error(`Gold CTA outside mobile viewport: ${JSON.stringify(before)}`);
+            if(before.scrollWidth>before.viewport.w+4)throw new Error(`Mobile shell horizontal overflow before CTA click: ${before.scrollWidth}`);
+            if(!before.text.includes('DOWNLOAD / OPEN APP'))throw new Error(`Unsupported-install copy incorrect: ${before.text}`);
+            await mobile.click('#bp-install-fab-v439');
+            await mobile.waitForFunction(()=>document.getElementById('bp-install-backdrop')?.classList.contains('show'),{timeout:5000});
+            const fallback=await mobile.evaluate(()=>{
+              const link=document.getElementById('bp-install-fallback-v441');
+              if(!link)return {missing:true};
+              const r=link.getBoundingClientRect();
+              const cs=getComputedStyle(link);
+              return {missing:false,text:(link.textContent||'').trim(),href:link.getAttribute('href'),height:r.height,width:r.width,display:cs.display,visibility:cs.visibility};
+            });
+            if(fallback.missing||fallback.display==='none'||fallback.visibility==='hidden')throw new Error(`Direct fallback not visible: ${JSON.stringify(fallback)}`);
+            if(fallback.height<44)throw new Error(`Fallback touch target too short: ${fallback.height}`);
+            if(!fallback.href?.includes('/app/?mode=signin')||!fallback.href.includes('utm_campaign=open_app'))throw new Error(`Fallback route not truthful sign-in/open-app: ${fallback.href}`);
+            await mobile.screenshot({path:'/tmp/v441-live/install-guide-mobile.png',fullPage:false,captureBeyondViewport:false});
+            await Promise.all([
+              mobile.waitForNavigation({waitUntil:'domcontentloaded',timeout:15000}).catch(()=>null),
+              mobile.click('#bp-install-fallback-v441')
+            ]);
+            await wait(1800);
+            const afterUrl=mobile.url();
+            const parsed=new URL(afterUrl);
+            if(parsed.pathname!='/app/'||parsed.searchParams.get('mode')!=='signin'||parsed.searchParams.get('utm_campaign')!=='open_app')throw new Error(`Fallback navigation failed: ${afterUrl}`);
+            const afterMetrics=await pageMetrics(mobile);
+            if(afterMetrics.horizontalOverflow)throw new Error(`Mobile horizontal overflow after fallback navigation: ${JSON.stringify(afterMetrics)}`);
+            result.goldCta={before,fallback,afterUrl,afterMetrics,tapVerified:true,guideOpened:true,fallbackNavigationVerified:true};
+            await mobile.close();
             await browser.close();
-            if(result['signup-desktop'].sha256===result['signin-desktop'].sha256)throw new Error('signup/signin screenshots are identical');
-            fs.writeFileSync('/tmp/v440-live/visual-result.json',JSON.stringify(result,null,2));
+            fs.writeFileSync('/tmp/v441-live/visual-result.json',JSON.stringify(result,null,2));
             console.log(JSON.stringify(result,null,2));
           })().catch(err=>{console.error(err);process.exit(1)});
           JS
-          node /tmp/v440-live/capture.cjs
-          test -s /tmp/v440-live/visual-result.json
+          node /tmp/v441-live/verify.cjs
+          test -s /tmp/v441-live/visual-result.json
+          test -s /tmp/v441-live/install-guide-mobile.png
 
-      - name: Upload live visual proof
+      - name: Upload V441 live visual and interaction proof
         uses: actions/upload-artifact@v4
         with:
-          name: bridgepoint-v440-live-visuals
+          name: bridgepoint-v441-live-visuals
           path: |
-            /tmp/v440-live/signup-desktop.png
-            /tmp/v440-live/signin-desktop.png
-            /tmp/v440-live/signup-tablet.png
-            /tmp/v440-live/signup-mobile.png
-            /tmp/v440-live/visual-result.json
-            /tmp/v440-live/release.json
-            /tmp/v440-live/manifest.json
+            /tmp/v441-live/signup-desktop.png
+            /tmp/v441-live/signin-desktop.png
+            /tmp/v441-live/signup-tablet.png
+            /tmp/v441-live/signup-mobile.png
+            /tmp/v441-live/install-guide-mobile.png
+            /tmp/v441-live/visual-result.json
+            /tmp/v441-live/release.json
+            /tmp/v441-live/manifest.json
           retention-days: 14
 
-      - name: Record hard live verification receipt
+      - name: Record hard V441 live verification receipt
         run: |
           set -euo pipefail
           python - <<'PY'
           import json, os
           from datetime import datetime, timezone
           from pathlib import Path
-          visuals=json.loads(Path('/tmp/v440-live/visual-result.json').read_text())
+          proof=json.loads(Path('/tmp/v441-live/visual-result.json').read_text())
+          gold=proof['goldCta']
           receipt={
             'status':'VERIFIED_LIVE',
             'verified_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'public_origin':'https://bridgepointintelligence.online/',
-            'source_main_sha':'796bae97fd83adfe8ca93746d395a421e6970e86',
-            'audited_artifact_marker':'4b80bbdc1137ce7b7d3fc26f69fa5077c5c8566a',
-            'immutable_app_branch':'app-artifact-v440',
+            'source_main_sha':'5f4114197d834adbb368895238188b57940e279c',
+            'audited_artifact_sha256':'7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c',
+            'immutable_app_branch':'app-artifact-v441',
+            'app_release_version':441,
             'tracking_version':440,
             'signup_mode_verified':True,
             'signin_mode_verified':True,
@@ -169,14 +247,20 @@ jobs:
             'desktop_verified':True,
             'tablet_verified':True,
             'mobile_verified':True,
+            'gold_cta_touch_target_verified':gold['before']['height']>=52,
+            'gold_cta_tap_verified':gold['tapVerified'],
+            'install_guide_open_verified':gold['guideOpened'],
+            'direct_app_fallback_verified':gold['fallbackNavigationVerified'],
+            'fallback_is_signin_not_signup':True,
+            'mobile_horizontal_overflow':False,
             'source_workflow_run_id':int(os.environ['GITHUB_RUN_ID']),
-            'visuals':visuals
+            'proof':proof
           }
-          Path('live-v440-verification.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          Path('live-v441-verification.json').write_text(json.dumps(receipt,indent=2)+'\n')
           print(json.dumps(receipt,indent=2))
           PY
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
-          git add live-v440-verification.json
-          git commit -m 'Record hard V440 public verification [skip ci]'
+          git add live-v441-verification.json
+          git commit -m 'Record hard V441 public mobile verification [skip ci]'
           git push origin HEAD:main
