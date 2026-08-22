@@ -6,7 +6,14 @@
 <atom:link rel="hub" href="https://pubsubhubbub.appspot.com/" />
 <description>Quality-gated BridgePoint Intelligence research and market-readiness briefs.</description>
 <language>en-us</language>
-<lastBuildDate>Sat, 22 Aug 2026 19:05:50 +0000</lastBuildDate>
+<lastBuildDate>Sat, 22 Aug 2026 19:52:34 +0000</lastBuildDate>
+<item>
+<title>What is BridgePoint Intelligence? Property and claims intelligence built around evidence, timelines and action</title>
+<link>https://bridgepointintelligence.online/articles/auto/what-is-bridgepoint-intelligence-property-and-claims-intelligence-built--c5491073.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/what-is-bridgepoint-intelligence-property-and-claims-intelligence-built--c5491073.html</guid>
+<pubDate>Sat, 22 Aug 2026 19:15:57 +0000</pubDate>
+<description>BridgePoint Intelligence is a property-intelligence platform founded by Kole Johnson that combines property identity, public-source evidence, explainable prioritization and verified claim-timeline data.</description>
+</item>
 <item>
 <title>Commercial restoration claims intelligence: connect property evidence to the claim lifecycle</title>
 <link>https://bridgepointintelligence.online/articles/auto/commercial-restoration-claims-intelligence-connect-property-evidence-to--7b4b6465.html</link>
@@ -64,13 +71,6 @@
 <description>A framework for turning fragmented property records and public signals into explainable portfolio and territory prioritization.</description>
 </item>
 <item>
-<title>Restoration lead intelligence: why multi-signal property evidence beats a storm-only list</title>
-<link>https://bridgepointintelligence.online/articles/auto/restoration-lead-intelligence-why-multi-signal-property-evidence-beats-a-8a1c57c2.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/restoration-lead-intelligence-why-multi-signal-property-evidence-beats-a-8a1c57c2.html</guid>
-<pubDate>Sat, 22 Aug 2026 17:20:43 +0000</pubDate>
-<description>How restoration and mitigation teams can use weather as context while demanding property matching, provenance and independent evidence before prioritizing field work.</description>
-</item>
-<item>
 <title>Why nationwide property intelligence is a data-infrastructure problem, not just an AI model</title>
 <link>https://bridgepointintelligence.online/articles/auto/why-nationwide-property-intelligence-is-a-data-infrastructure-problem-no-0d6ca8b1.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/why-nationwide-property-intelligence-is-a-data-infrastructure-problem-no-0d6ca8b1.html</guid>
@@ -78,17 +78,17 @@
 <description>The defensible work in property intelligence starts before scoring: source discovery, normalization, identity resolution, provenance, refresh and geography-aware quality gates.</description>
 </item>
 <item>
+<title>Restoration lead intelligence: why multi-signal property evidence beats a storm-only list</title>
+<link>https://bridgepointintelligence.online/articles/auto/restoration-lead-intelligence-why-multi-signal-property-evidence-beats-a-8a1c57c2.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/restoration-lead-intelligence-why-multi-signal-property-evidence-beats-a-8a1c57c2.html</guid>
+<pubDate>Sat, 22 Aug 2026 17:20:43 +0000</pubDate>
+<description>How restoration and mitigation teams can use weather as context while demanding property matching, provenance and independent evidence before prioritizing field work.</description>
+</item>
+<item>
 <title>Why weather exposure is not the same thing as property damage</title>
 <link>https://bridgepointintelligence.online/articles/auto/why-weather-exposure-is-not-the-same-thing-as-property-damage-d9e4abae.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/why-weather-exposure-is-not-the-same-thing-as-property-damage-d9e4abae.html</guid>
 <pubDate>Fri, 21 Aug 2026 08:37:21 +0000</pubDate>
 <description>A practical explanation of how BridgePoint separates documented weather context from property-level evidence.</description>
-</item>
-<item>
-<title>Massachusetts BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/massachusetts-bridgepoint-market-readiness-update-72203768.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/massachusetts-bridgepoint-market-readiness-update-72203768.html</guid>
-<pubDate>Sat, 22 Aug 2026 03:17:00 +0000</pubDate>
-<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 </channel></rss>
