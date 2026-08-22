@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - .github/workflows/verify-live.yml
-      - live-release-status.json
+      - tracking-release-status.json
   workflow_dispatch:
 
 permissions:
@@ -24,8 +24,8 @@ jobs:
       - name: Fetch exact public PWA assets
         run: |
           set -euo pipefail
-          curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/bridgepoint-release.json' -o /tmp/live-release.json
-          curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/main.dart.js' -o /tmp/live-main.dart.js
+          curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/app/bridgepoint-release.json' -o /tmp/live-release.json
+          curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/app/main.dart.js' -o /tmp/live-main.dart.js
           curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/app/flutter_bootstrap.js' -o /tmp/live-bootstrap.js
           test -s /tmp/live-release.json
           test -s /tmp/live-main.dart.js
@@ -37,11 +37,13 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          receipt=json.loads(Path('live-release-status.json').read_text(encoding='utf-8'))
+          receipt=json.loads(Path('tracking-release-status.json').read_text(encoding='utf-8'))
           live=json.loads(Path('/tmp/live-release.json').read_text(encoding='utf-8'))
           assert receipt.get('status')=='PUBLISHED', receipt
-          assert live.get('public_origin')=='https://bridgepointintelligence.online/', live
-          assert live.get('version')==receipt.get('release_sha'), (live,receipt)
+          assert receipt.get('public_origin')=='https://bridgepointintelligence.online/', receipt
+          assert live.get('version')==receipt.get('app_release_version'), (live,receipt)
+          assert live.get('source_sha')==receipt.get('source_main_sha'), (live,receipt)
+          assert live.get('artifact_sha256')==receipt.get('assembled_artifact_sha256'), (live,receipt)
           print('Live release marker matches deployment receipt:', live['version'])
           PY
           grep -q 'noaa-radar-current-v395' /tmp/live-main.dart.js
@@ -77,7 +79,9 @@ jobs:
           release=json.loads(Path('/tmp/live-release.json').read_text(encoding='utf-8'))
           status={
             'status':'VERIFIED',
-            'release_sha':release['version'],
+            'release_version':release['version'],
+            'source_sha':release['source_sha'],
+            'artifact_sha256':release['artifact_sha256'],
             'verified_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'public_origin':'https://bridgepointintelligence.online/',
             'checks':{
