@@ -1,6 +1,7 @@
 {
   "status": "FAILED",
-  "checkedAt": "2026-08-22T05:57:55.827435+00:00",
-  "error": "Verifier exited before result.json was created",
-  "checks": {}
+  "phase": "node_start",
+  "checkedAt": "2026-08-22T06:00:28.882Z",
+  "checks": {},
+  "error": "Error: puppeteer load failed: Cannot find module 'puppeteer-core'\nRequire stack:\n- /tmp/v441-v3/verify.cjs\n    at /tmp/v441-v3/verify.cjs:7:19\n    at Object.<anonymous> (/tmp/v441-v3/verify.cjs:50:3)\n    at Module._compile (node:internal/modules/cjs/loader:1781:14)\n    at Object..js (node:internal/modules/cjs/loader:1913:10)\n    at Module.load (node:internal/modules/cjs/loader:1505:32)\n    at Function._load (node:internal/modules/cjs/loader:1309:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)\n    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)\n    at node:internal/main/run_main_module:36:49"
 }
