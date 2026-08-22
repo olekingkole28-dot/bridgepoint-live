@@ -1,7 +1,52 @@
 {
   "status": "FAILED",
-  "phase": "node_start",
-  "checkedAt": "2026-08-22T06:00:28.882Z",
-  "checks": {},
-  "error": "Error: puppeteer load failed: Cannot find module 'puppeteer-core'\nRequire stack:\n- /tmp/v441-v3/verify.cjs\n    at /tmp/v441-v3/verify.cjs:7:19\n    at Object.<anonymous> (/tmp/v441-v3/verify.cjs:50:3)\n    at Module._compile (node:internal/modules/cjs/loader:1781:14)\n    at Object..js (node:internal/modules/cjs/loader:1913:10)\n    at Module.load (node:internal/modules/cjs/loader:1505:32)\n    at Function._load (node:internal/modules/cjs/loader:1309:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)\n    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)\n    at node:internal/main/run_main_module:36:49"
+  "phase": "mobile_interaction",
+  "checkedAt": "2026-08-22T06:56:35.302Z",
+  "checks": {
+    "releaseReceipt": true
+  },
+  "error": "Error: fallback not interactable: {\"missing\":false,\"href\":\"/app/?mode=signin&utm_source=install_guide&utm_medium=mobile_fallback&utm_campaign=open_app\",\"left\":0,\"top\":377,\"width\":420,\"height\":72,\"display\":\"flex\",\"visibility\":\"visible\",\"pointerEvents\":\"auto\",\"centerInside\":false}\n    at /tmp/v441-v4/verify.cjs:64:126",
+  "release": {
+    "version": 441,
+    "release": "V441 Mobile Install/Open CTA",
+    "source_sha": "5f4114197d834adbb368895238188b57940e279c",
+    "source_build_artifact": "bridgepoint-v441-web.zip",
+    "source_pr": 55,
+    "source_pr_head": "e5e2e6122ab2fb8a65e11bf05de6f75fb58ec5fc",
+    "artifact_sha256": "7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c",
+    "published_at": "2026-08-22T03:58:06.530040Z",
+    "immutable_branch": "app-artifact-v441",
+    "customer_domain": "https://bridgepointintelligence.online/",
+    "classifier_version": 441,
+    "deployment_contract": "Exact CI-built V441 Flutter web artifact; mobile install/open fallback verified before publication"
+  },
+  "before": {
+    "missing": false,
+    "text": "↓ DOWNLOAD / OPEN APP Open BridgePoint now or see install steps",
+    "left": 10,
+    "top": 706,
+    "width": 370,
+    "height": 56,
+    "right": 380,
+    "bottom": 762,
+    "display": "flex",
+    "visibility": "visible",
+    "pointerEvents": "auto",
+    "centerInside": true,
+    "vw": 390,
+    "vh": 844,
+    "sw": 390
+  },
+  "fallback": {
+    "missing": false,
+    "href": "/app/?mode=signin&utm_source=install_guide&utm_medium=mobile_fallback&utm_campaign=open_app",
+    "left": 0,
+    "top": 377,
+    "width": 420,
+    "height": 72,
+    "display": "flex",
+    "visibility": "visible",
+    "pointerEvents": "auto",
+    "centerInside": false
+  }
 }
