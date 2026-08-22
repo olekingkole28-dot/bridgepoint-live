@@ -42,11 +42,16 @@ jobs:
           PY
           )"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$version" -lt 442 ]; then
+            echo 'needs_recovery=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'needs_recovery=false' >> "$GITHUB_OUTPUT"
+          fi
           echo "Current durable app release: V${version}"
 
       - name: Dispatch existing audited V442 publisher
         id: dispatch
-        if: steps.receipt.outputs.version != '442'
+        if: steps.receipt.outputs.needs_recovery == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -72,9 +77,9 @@ jobs:
             echo "Publisher dispatch failed with exit code $code: $clean"
           fi
 
-      - name: No-op after V442 receipt exists
-        if: steps.receipt.outputs.version == '442'
-        run: echo 'V442 durable receipt already exists; recovery is idle.'
+      - name: No-op after V442 or newer receipt exists
+        if: steps.receipt.outputs.needs_recovery == 'false'
+        run: echo 'V442-or-newer durable receipt already exists; downgrade recovery is idle.'
 
       - name: Persist recovery diagnostic
         if: always()
@@ -90,7 +95,7 @@ jobs:
           import json, os
           from datetime import datetime, timezone
           receipt_version=int(os.environ.get('RECEIPT_VERSION') or 0)
-          status=os.environ.get('DISPATCH_STATUS') or ('IDLE_V442' if receipt_version == 442 else 'DISPATCH_FAILED')
+          status=os.environ.get('DISPATCH_STATUS') or ('IDLE_V442_OR_NEWER' if receipt_version >= 442 else 'DISPATCH_FAILED')
           exit_code=os.environ.get('DISPATCH_EXIT_CODE')
           payload={
             'checked_at': datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
