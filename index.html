@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/app/">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="BridgePoint Intelligence turns verified property signals into explainable opportunities, field workflows, timelines, alerts, and live operational intelligence.">
+  <meta name="theme-color" content="#07111F">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BridgePoint">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <title>BridgePoint Intelligence</title>
+  <link rel="manifest" href="manifest.json">
+  
+  <link href='https://unpkg.com/maplibre-gl@^5.24.0/dist/maplibre-gl.css' rel='stylesheet'>
+  <script src='https://unpkg.com/maplibre-gl@^5.24.0/dist/maplibre-gl.js'></script>
+  <style id="bridgepoint-v439-gold-install-cta">
+    @keyframes bpInstallBounceV439{0%,78%,100%{transform:translateY(0) scale(1)}84%{transform:translateY(-8px) scale(1.025)}90%{transform:translateY(0) scale(1)}95%{transform:translateY(-3px) scale(1.01)}}
+    @keyframes bpInstallGlowV439{0%,100%{box-shadow:0 10px 34px rgba(255,190,35,.28),0 0 0 0 rgba(255,216,74,.20)}50%{box-shadow:0 14px 42px rgba(255,190,35,.42),0 0 0 8px rgba(255,216,74,0)}}
+    #bp-install-fab-v439{position:fixed;left:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:2147483000;display:none;align-items:center;gap:10px;border:1px solid rgba(255,242,167,.78);border-radius:999px;padding:10px 15px 10px 11px;background:linear-gradient(135deg,#ffe879,#f2ad13);color:#211804;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-weight:950;cursor:pointer;animation:bpInstallBounceV439 3.2s ease-in-out infinite,bpInstallGlowV439 2.2s ease-in-out infinite;max-width:min(330px,calc(100vw - 36px));text-align:left}
+    #bp-install-fab-v439.show{display:flex}#bp-install-fab-v439 .bp-dl-icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(33,24,4,.12);font-size:19px;flex:0 0 auto}#bp-install-fab-v439 strong{display:block;font-size:11px;line-height:1.05;letter-spacing:.4px}#bp-install-fab-v439 small{display:block;font-size:9px;line-height:1.15;font-weight:800;opacity:.72;margin-top:2px}
+    #bp-install-primary{animation:bpInstallGlowV439 2.2s ease-in-out infinite}
+    @media(max-width:620px){#bp-install-fab-v439{left:10px;bottom:calc(82px + env(safe-area-inset-bottom));padding:9px 12px 9px 9px;max-width:calc(100vw - 20px)}}
+    @media(prefers-reduced-motion:reduce){#bp-install-fab-v439,#bp-install-primary{animation:none!important}}
+  </style>
+  <style id="bridgepoint-v441-mobile-install-fallback">
+    #bp-install-fab-v439{pointer-events:auto!important;touch-action:manipulation;min-height:52px;-webkit-tap-highlight-color:rgba(0,0,0,0);isolation:isolate}
+    #bp-install-fab-v439>*{pointer-events:none}
+    #bp-install-fallback-v441{display:inline-flex;align-items:center;justify-content:center;min-height:46px;border-radius:12px;padding:12px 14px;text-decoration:none;font:900 12px/1.2 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#122238;color:#fff;border:1px solid rgba(255,255,255,.16);flex:1 1 180px;touch-action:manipulation}
+    #bp-install-fallback-v441:focus-visible,#bp-install-fab-v439:focus-visible{outline:3px solid rgba(255,226,91,.8);outline-offset:3px}
+    @media(max-width:620px){#bp-install-fab-v439{left:10px;right:10px;bottom:calc(82px + env(safe-area-inset-bottom));max-width:none;width:auto;justify-content:flex-start;padding:10px 13px 10px 10px}#bp-install-fab-v439 strong{font-size:12px}#bp-install-fab-v439 small{font-size:10px}.bp-install-actions{display:grid!important;grid-template-columns:1fr!important}.bp-install-primary,.bp-install-secondary,#bp-install-fallback-v441{width:100%!important;min-width:0}}
+  </style>
+  <style id="bridgepoint-v442-install-guide-mobile-width">
+    #bp-install-fallback-v441{box-sizing:border-box!important;max-width:100%!important}
+    @media(max-width:620px){
+      .bp-install-actions{box-sizing:border-box!important;width:min(100%,calc(100vw - 24px))!important;max-width:calc(100vw - 24px)!important;margin-left:auto!important;margin-right:auto!important;overflow:visible!important}
+      .bp-install-actions>*{box-sizing:border-box!important;max-width:100%!important;min-width:0!important}
+      .bp-install-primary,.bp-install-secondary,#bp-install-fallback-v441{box-sizing:border-box!important;width:100%!important;max-width:100%!important;min-width:0!important}
+    }
+  </style>
+  <style id="bridgepoint-v443-install-guide-runtime">
+    #bp-install-backdrop{display:none;position:fixed;inset:0;z-index:2147483647;background:rgba(2,8,16,.82);backdrop-filter:blur(12px);padding:18px;align-items:center;justify-content:center;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-sizing:border-box;overscroll-behavior:contain}
+    #bp-install-backdrop.show{display:flex}
+    #bp-install-backdrop:not(.show){visibility:hidden;pointer-events:none}
+    #bp-install-card{width:min(520px,100%);max-width:100%;max-height:min(760px,calc(100vh - 28px));overflow:auto;overscroll-behavior:contain;border-radius:24px;border:1px solid rgba(53,210,232,.28);background:linear-gradient(155deg,rgba(13,26,43,.99),rgba(7,17,31,.995));box-shadow:0 30px 100px rgba(0,0,0,.62);color:#fff;padding:22px;box-sizing:border-box}
+    .bp-install-top{display:flex;gap:14px;align-items:center}.bp-install-icon{width:58px;height:58px;border-radius:16px;background:linear-gradient(135deg,#35d2e8,#4f7cff);display:grid;place-items:center;flex:0 0 auto;font-weight:950;font-size:24px;box-shadow:0 10px 30px rgba(53,210,232,.22)}
+    .bp-install-eyebrow{font-size:10px;letter-spacing:.9px;color:#35d2e8;font-weight:900}.bp-install-title{font-size:22px;line-height:1.08;font-weight:950;margin-top:3px}.bp-install-copy{color:#b6c5d8;font-size:13px;line-height:1.55;margin:16px 0 13px}
+    .bp-install-benefits{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0 17px}.bp-install-benefit{padding:10px;border-radius:12px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.065);font-size:10px;color:#b6c5d8;min-width:0}.bp-install-benefit b{display:block;color:#fff;font-size:11px;margin-bottom:2px}
+    #bp-install-steps{padding:13px 14px;border-radius:14px;background:rgba(53,210,232,.055);border:1px solid rgba(53,210,232,.13);margin:0 0 16px}.bp-install-step{display:flex;gap:10px;align-items:flex-start;padding:6px 0}.bp-install-num{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;background:rgba(53,210,232,.14);color:#35d2e8;font-size:10px;font-weight:950}.bp-install-step-text{font-size:11px;line-height:1.4;color:#d7e1ed}.bp-install-step-text b{color:#fff}
+    .bp-install-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:9px;width:100%;max-width:100%;box-sizing:border-box}.bp-install-primary,.bp-install-secondary,#bp-install-fallback-v441{appearance:none;-webkit-appearance:none;box-sizing:border-box;min-width:0;min-height:48px;border-radius:12px;padding:12px 15px;font:900 12px/1.2 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;text-align:center;touch-action:manipulation}.bp-install-primary{border:0;background:#35d2e8;color:#07111f}.bp-install-secondary,#bp-install-fallback-v441{background:#122238;color:#fff;border:1px solid rgba(255,255,255,.14)}.bp-install-note{font-size:9.5px;color:#8196ae;line-height:1.45;margin-top:11px;text-align:center}
+    #bp-install-fallback-v441:focus-visible,.bp-install-primary:focus-visible,.bp-install-secondary:focus-visible{outline:3px solid rgba(255,226,91,.8);outline-offset:3px}
+    @supports(height:100dvh){#bp-install-card{max-height:calc(100dvh - 28px)}}
+    @media(max-width:620px){#bp-install-backdrop{padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));align-items:flex-end}#bp-install-card{width:100%;max-width:100%;max-height:calc(100vh - 20px);border-radius:22px 22px 16px 16px;padding:18px}.bp-install-title{font-size:20px}.bp-install-benefits{display:none}.bp-install-actions{grid-template-columns:1fr!important;width:100%!important;max-width:100%!important;margin:0!important}.bp-install-primary,.bp-install-secondary,#bp-install-fallback-v441{width:100%!important;max-width:100%!important;min-width:0!important}.bp-install-note{margin-bottom:2px}}
+    @supports(height:100dvh){@media(max-width:620px){#bp-install-card{max-height:calc(100dvh - max(20px,env(safe-area-inset-top)) - max(20px,env(safe-area-inset-bottom)))}}}
+    @media(max-width:360px){#bp-install-card{padding:15px}.bp-install-top{gap:10px}.bp-install-icon{width:48px;height:48px;border-radius:14px;font-size:21px}.bp-install-title{font-size:18px}.bp-install-copy{margin:12px 0;font-size:12px}#bp-install-steps{padding:10px 11px;margin-bottom:12px}.bp-install-actions{gap:7px}}
+    @media(max-height:600px) and (max-width:620px){.bp-install-copy{margin:9px 0}.bp-install-step{padding:4px 0}.bp-install-note{display:none}}
+    @media(prefers-reduced-motion:reduce){#bp-install-backdrop,#bp-install-card{scroll-behavior:auto}}
+  </style>
+</head>
+<body>
+  <div id="bp-update-toast" role="status" aria-live="polite"><span class="pulse"></span><span id="bp-update-message">BridgePoint is updating…</span></div>
+
+  <button id="bp-install-fab-v439" type="button" aria-label="Download or install the BridgePoint app"><span class="bp-dl-icon" aria-hidden="true">↓</span><span><strong>DOWNLOAD / INSTALL APP</strong><small>Put BridgePoint on this device</small></span></button>
+
+  <div id="bp-install-backdrop" role="dialog" aria-modal="true" aria-labelledby="bp-install-title" aria-describedby="bp-install-description">
+    <section id="bp-install-card">
+      <div class="bp-install-top">
+        <div class="bp-install-icon" aria-hidden="true">B</div>
+        <div><div class="bp-install-eyebrow">BRIDGEPOINT APP</div><div class="bp-install-title" id="bp-install-title">Put BridgePoint on your home screen</div></div>
+      </div>
+      <p class="bp-install-copy" id="bp-install-description">BridgePoint is open in your browser. Install it as an app for faster one-tap access, a full-screen workspace, and automatic release updates.</p>
+      <div class="bp-install-benefits">
+        <div class="bp-install-benefit"><b>One tap to open</b>No browser searching or saved link needed.</div>
+        <div class="bp-install-benefit"><b>App-style workspace</b>Opens in its own BridgePoint window.</div>
+        <div class="bp-install-benefit"><b>Stays current</b>BridgePoint checks for new releases automatically.</div>
+      </div>
+      <div id="bp-install-steps" aria-live="polite"></div>
+      <div class="bp-install-actions">
+        <button id="bp-install-primary" class="bp-install-primary" type="button">Install BridgePoint</button>
+        <button id="bp-install-fallback-v441" class="bp-install-secondary" type="button">Continue to BridgePoint</button>
+        <button id="bp-install-later" class="bp-install-secondary" type="button">Not now</button>
+      </div>
+      <div class="bp-install-note">Continue into BridgePoint now. You can install it later from the gold app button.</div>
+    </section>
+  </div>
+
+  <script>
+  (()=>{
+    const releaseKey='bridgepoint_release_v390';
+    const checkEveryMs=60000;
+    let applying=false;
+    const toast=document.getElementById('bp-update-toast');
+    const message=document.getElementById('bp-update-message');
+
+    function show(text){if(message)message.textContent=text;if(toast)toast.classList.add('show');}
+    function releaseUrl(){return new URL(`bridgepoint-release.json?t=${Date.now()}`,document.baseURI).toString();}
+    async function currentRelease(){
+      const response=await fetch(releaseUrl(),{cache:'no-store',headers:{'Cache-Control':'no-cache'}});
+      if(!response.ok)throw new Error(`release ${response.status}`);
+      const payload=await response.json();
+      return String(payload.version||payload.sha||payload.release||'').trim();
+    }
+    async function clearFlutterShell(){
+      if('serviceWorker' in navigator){
+        const basePath=new URL(document.baseURI).pathname;
+        const registrations=await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.filter(r=>{try{return new URL(r.scope).pathname.startsWith(basePath)}catch(_){return false}}).map(r=>r.unregister()));
+      }
+      if('caches' in window){
+        const keys=await caches.keys();
+        const stale=keys.filter(k=>k==='flutter-app-cache'||k==='flutter-temp-cache'||k==='flutter-app-manifest'||k.startsWith('flutter-app-'));
+        await Promise.all(stale.map(k=>caches.delete(k)));
+      }
+    }
+    async function applyRelease(next){
+      if(applying||!next)return;
+      applying=true;
+      show('A new BridgePoint version is ready — updating automatically…');
+      localStorage.setItem(releaseKey,next);
+      sessionStorage.setItem('bridgepoint_auto_update_restoring','1');
+      try{await clearFlutterShell()}catch(_){ }
+      show('BridgePoint updated — restoring your workspace…');
+      await new Promise(resolve=>setTimeout(resolve,650));
+      const target=new URL(location.href);
+      target.searchParams.set('bpv',next.slice(0,16));
+      location.replace(target.toString());
+    }
+    async function check(){
+      if(applying)return;
+      try{
+        const next=await currentRelease();
+        if(!next)return;
+        const previous=localStorage.getItem(releaseKey);
+        if(!previous){localStorage.setItem(releaseKey,next);return;}
+        if(previous!==next)await applyRelease(next);
+      }catch(_){/* Update checks never interrupt BridgePoint. */}
+    }
+    window.bridgePointCheckForUpdate=check;
+    window.addEventListener('load',()=>{
+      if(sessionStorage.getItem('bridgepoint_auto_update_restoring')==='1'){
+        sessionStorage.removeItem('bridgepoint_auto_update_restoring');
+        show('BridgePoint is up to date.');
+        setTimeout(()=>toast?.classList.remove('show'),2200);
+      }
+      setTimeout(check,4500);
+      setInterval(check,checkEveryMs);
+    });
+    window.addEventListener('online',check);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)check()});
+  })();
+  </script>
+
+  <script>
+  /* bridgepoint-v310-install-onboarding */
+  (()=>{
+    const installedKey='bridgepoint_app_installed_v310';
+    const dismissedKey='bridgepoint_install_dismissed_session_v310';
+    const backdrop=document.getElementById('bp-install-backdrop');
+    const primary=document.getElementById('bp-install-primary');
+    const later=document.getElementById('bp-install-later');
+    const steps=document.getElementById('bp-install-steps');
+    let deferredPrompt=null;
+    let shown=false;
+
+    const isIos=()=>/iphone|ipad|ipod/i.test(navigator.userAgent||'');
+    const isAndroid=()=>/android/i.test(navigator.userAgent||'');
+    const isStandalone=()=>window.matchMedia?.('(display-mode: standalone)').matches===true||navigator.standalone===true||document.referrer.startsWith('android-app://');
+    function hasAuthSession(){
+      try{
+        const keys=Object.keys(localStorage).filter(k=>k.startsWith('sb-')&&k.endsWith('-auth-token'));
+        for(const key of keys){
+          const raw=localStorage.getItem(key);if(!raw)continue;
+          const value=JSON.parse(raw);
+          const token=value?.access_token||value?.currentSession?.access_token||value?.session?.access_token;
+          if(token)return true;
+        }
+      }catch(_){ }
+      return false;
+    }
+    function markInstalled(){
+      try{localStorage.setItem(installedKey,'1')}catch(_){ }
+      backdrop?.classList.remove('show');shown=false;
+    }
+    function alreadyInstalled(){
+      if(isStandalone()){markInstalled();return true;}
+      try{return localStorage.getItem(installedKey)==='1'}catch(_){return false}
+    }
+    function dismissedThisSession(){try{return sessionStorage.getItem(dismissedKey)==='1'}catch(_){return false}}
+    function step(n,html){return `<div class="bp-install-step"><span class="bp-install-num">${n}</span><div class="bp-install-step-text">${html}</div></div>`}
+    function renderInstructions(){
+      if(!steps||!primary)return;
+      if(deferredPrompt){
+        primary.style.display='';primary.textContent='Install BridgePoint';
+        steps.innerHTML=step(1,'Tap <b>Install BridgePoint</b> below.')+step(2,'Approve the browser install prompt.')+step(3,'Open BridgePoint from your home screen or app launcher.');
+        return;
+      }
+      if(isIos()){
+        primary.style.display='none';
+        steps.innerHTML=step(1,'Tap the browser <b>Share</b> button (the square with the arrow pointing up).')+step(2,'Choose <b>Add to Home Screen</b>. If you do not see it immediately, scroll the Share menu.')+step(3,'Tap <b>Add</b>. BridgePoint will appear with your other apps.');
+        return;
+      }
+      if(isAndroid()){
+        primary.style.display='none';
+        steps.innerHTML=step(1,'Open your browser menu <b>⋮</b>.')+step(2,'Tap <b>Install app</b> or <b>Add to Home screen</b>.')+step(3,'Confirm <b>Install</b>, then open BridgePoint from your app launcher.');
+        return;
+      }
+      primary.style.display='none';
+      steps.innerHTML=step(1,'Look for the <b>Install</b> icon in your browser address bar, or open the browser menu.')+step(2,'Choose <b>Install BridgePoint</b> / <b>Install app</b>.')+step(3,'Confirm the install. BridgePoint will open in its own app window.');
+    }
+    function showInstall(force=false){
+      if(shown||alreadyInstalled()||dismissedThisSession()||(!force&&!hasAuthSession()))return;
+      shown=true;renderInstructions();backdrop?.classList.add('show');primary?.focus();
+    }
+    async function requestInstall(){
+      if(!deferredPrompt){renderInstructions();return;}
+      const prompt=deferredPrompt;deferredPrompt=null;
+      try{
+        prompt.prompt();
+        const choice=await prompt.userChoice;
+        if(choice?.outcome==='accepted')markInstalled();else{shown=false;backdrop?.classList.remove('show');}
+      }catch(_){renderInstructions()}
+    }
+
+    window.bridgePointInstallPromptReadyV441=false;
+    window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredPrompt=event;window.bridgePointInstallPromptReadyV441=true;renderInstructions();setTimeout(showInstall,150);window.dispatchEvent(new Event('bridgepoint-install-capability-change'))});
+    window.addEventListener('appinstalled',markInstalled);
+    window.matchMedia?.('(display-mode: standalone)').addEventListener?.('change',event=>{if(event.matches)markInstalled()});
+    primary?.addEventListener('click',requestInstall);
+    later?.addEventListener('click',()=>{try{sessionStorage.setItem(dismissedKey,'1')}catch(_){ }backdrop?.classList.remove('show');shown=false;});
+    backdrop?.addEventListener('click',event=>{if(event.target===backdrop)later?.click()});
+    document.addEventListener('keydown',event=>{if(event.key==='Escape'&&backdrop?.classList.contains('show'))later?.click()});
+
+    if(alreadyInstalled())return;
+    const authWatch=setInterval(()=>{if(alreadyInstalled()){clearInterval(authWatch);return;}if(hasAuthSession()){showInstall();if(shown)clearInterval(authWatch)}},1200);
+    window.addEventListener('load',()=>setTimeout(showInstall,1800));
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(showInstall,250)});
+    window.bridgePointShowInstallGuide=()=>{try{sessionStorage.removeItem(dismissedKey)}catch(_){ }shown=false;showInstall(true)};
+  })();
+  </script>
+
+  <script>
+  /* bridgepoint-v390-bootstrap-cache-gate */
+  (async()=>{
+    const epoch='bridgepoint_bootstrap_epoch_v390';
+    try{if(localStorage.getItem(epoch)!=='1'){
+      if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister()));}
+      if('caches' in window){const keys=await caches.keys();await Promise.all(keys.filter(k=>k.startsWith('flutter')||k.includes('bridgepoint')).map(k=>caches.delete(k)));}
+      localStorage.setItem(epoch,'1');
+    }}catch(_){ }
+    const s=document.createElement('script');s.src='flutter_bootstrap.js?bpv=390';s.async=true;document.body.appendChild(s);
+  })();
+  </script>
+
+  
+  <script id="bridgepoint-v439-install-runtime">
+  (()=>{
+    const button=document.getElementById('bp-install-fab-v439');
+    if(!button)return;
+    const installedKey='bridgepoint_app_installed_v310';
+    const standalone=()=>window.matchMedia?.('(display-mode: standalone)').matches===true||navigator.standalone===true||document.referrer.startsWith('android-app://');
+    const installed=()=>{if(standalone())return true;try{return localStorage.getItem(installedKey)==='1'}catch(_){return false}};
+    const appUrl='/app/?mode=signin&utm_source=gold_install_cta&utm_medium=floating_cta&utm_campaign=open_app';
+    const setButtonCopy=(title,subtitle)=>{const strong=button.querySelector('strong');const small=button.querySelector('small');if(strong)strong.textContent=title;if(small)small.textContent=subtitle;button.setAttribute('aria-label',`${title}. ${subtitle}`)};
+    const installPromptReady=()=>Boolean(window.bridgePointInstallPromptReadyV441);
+    const sync=()=>{const isInstalled=installed();button.classList.toggle('show',!isInstalled);setButtonCopy(installPromptReady()?'INSTALL BRIDGEPOINT':'DOWNLOAD / OPEN APP',installPromptReady()?'Install BridgePoint on this device':'Open BridgePoint now or see install steps')};
+    button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();if(installed()){window.location.assign(appUrl);return;}if(typeof window.bridgePointShowInstallGuide==='function'){window.bridgePointShowInstallGuide();return;}window.location.assign(appUrl);},{passive:false});
+    window.addEventListener('appinstalled',()=>{try{localStorage.setItem(installedKey,'1')}catch(_){ }sync();});
+    window.matchMedia?.('(display-mode: standalone)').addEventListener?.('change',sync);
+    window.addEventListener('load',()=>setTimeout(sync,250));
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});
+    window.addEventListener('bridgepoint-install-capability-change',sync);
+    sync();
+  })();
+  </script>
+  <script>document.getElementById('bp-install-fallback-v441')?.addEventListener('click',()=>{try{window.bridgepointTrack?.('VALUE_VIEW',{surface:'install_fallback',account_mode:'signin'})}catch(_){}});</script>
+  <script>
+  /* bridgepoint-v443-install-guide-runtime */
+  (()=>{
+    const dismissedKey='bridgepoint_install_dismissed_session_v310';
+    const backdrop=document.getElementById('bp-install-backdrop');
+    const fallback=document.getElementById('bp-install-fallback-v441');
+    if(!backdrop||!fallback)return;
+    const sync=()=>{
+      const open=backdrop.classList.contains('show');
+      backdrop.setAttribute('aria-hidden',open?'false':'true');
+      if(open){backdrop.removeAttribute('inert');document.documentElement.style.overflow='hidden'}
+      else{backdrop.setAttribute('inert','');document.documentElement.style.removeProperty('overflow')}
+    };
+    const continueIntoApp=event=>{
+      event.preventDefault();
+      try{sessionStorage.setItem(dismissedKey,'1')}catch(_){ }
+      backdrop.classList.remove('show');
+      sync();
+      document.querySelector('flt-glass-pane,flutter-view,[role="main"],main')?.focus?.();
+      try{window.bridgepointTrack?.('VALUE_VIEW',{surface:'install_continue',account_mode:'signin'})}catch(_){ }
+    };
+    fallback.addEventListener('click',continueIntoApp,{passive:false});
+    new MutationObserver(sync).observe(backdrop,{attributes:true,attributeFilter:['class']});
+    sync();
+  })();
+  </script>
+</body>
+</html>

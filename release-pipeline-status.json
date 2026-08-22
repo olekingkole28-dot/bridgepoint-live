@@ -1,0 +1,7 @@
+{
+  "status": "BUILD_COMPLETED",
+  "conclusion": "success",
+  "completed_at": "2026-08-18T19:37:53.604765Z",
+  "source_workflow_run_id": 32177414754,
+  "source_sha": "7e8c535a3f10645b6315566c37380a2b18d2833b"
+}

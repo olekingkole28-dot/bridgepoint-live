@@ -1,0 +1,15 @@
+{
+  "version": 444,
+  "release": "V444 Dynamic Account Avatar",
+  "source_sha": "0db7bdb8480cd2ee1874089f0f14815f93b5d0b7",
+  "source_pr": 59,
+  "audited_pr_head": "c44e5ed1400b84028239bea35a211163115c95a8",
+  "source_workflow_run_id": 32577988357,
+  "source_artifact_id": 9477073141,
+  "artifact_sha256": "3fb1703b65a69de01626f3328ccdd74cddbbe7c34d4f83fe55f337d4e16990a3",
+  "artifact_digest_scope": "site/app excluding bridgepoint-release.json",
+  "published_at": "2026-08-22T14:18:17.073205Z",
+  "customer_domain": "https://bridgepointintelligence.online/",
+  "classifier_version": 444,
+  "deployment_contract": "Audited Flutter build with dynamic profile initials, 48px account target, Settings action, and retained V443 mobile runtime repair"
+}
