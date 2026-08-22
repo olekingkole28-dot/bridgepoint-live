@@ -1,0 +1,177 @@
+name: Verify BridgePoint V442 Mobile CTA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - tracking-release-status.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bridgepoint-v442-mobile-cta
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify V442 real-touch mobile behavior and narrow widths
+        id: verify
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          ROOT=/tmp/v442-mobile
+          mkdir -p "$ROOT"
+          fail_json() {
+            python - "$1" "$2" <<'PY'
+          import json,sys
+          from datetime import datetime,timezone
+          json.dump({'status':'FAILED','phase':sys.argv[1],'checkedAt':datetime.now(timezone.utc).isoformat(),'error':sys.argv[2],'checks':{}},open('/tmp/v442-mobile/result.json','w'),indent=2)
+          open('/tmp/v442-mobile/result.json','a').write('\n')
+          PY
+          }
+
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROME" ]; then fail_json chrome_discovery 'Chrome/Chromium executable missing'; exit 1; fi
+          echo "chrome=$CHROME" | tee "$ROOT/bootstrap.log"
+          node --version | tee -a "$ROOT/bootstrap.log"
+          npm --version | tee -a "$ROOT/bootstrap.log"
+
+          cd "$ROOT"
+          npm init -y >>"$ROOT/bootstrap.log" 2>&1
+          npm install --no-save --ignore-scripts puppeteer-core@24.16.0 >>"$ROOT/bootstrap.log" 2>&1
+          code=$?
+          if [ $code -ne 0 ]; then fail_json dependency_install "puppeteer-core install failed with exit $code"; exit $code; fi
+          test -f "$ROOT/node_modules/puppeteer-core/lib/cjs/puppeteer/puppeteer-core.js" || { fail_json dependency_install 'puppeteer-core module missing under verifier root'; exit 1; }
+
+          export CHROME
+          cat >"$ROOT/verify.cjs" <<'JS'
+          const fs=require('fs');
+          const result={status:'FAILED',phase:'node_start',checkedAt:new Date().toISOString(),checks:{},widths:{},error:null};
+          const save=()=>fs.writeFileSync('/tmp/v442-mobile/result.json',JSON.stringify(result,null,2)+'\n');
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const inspect=async page=>page.evaluate(()=>{
+            const cta=document.getElementById('bp-install-fab-v439');
+            const backdrop=document.getElementById('bp-install-backdrop');
+            const fallback=document.getElementById('bp-install-fallback-v441');
+            const geom=e=>{
+              if(!e)return {missing:true};
+              const r=e.getBoundingClientRect(),s=getComputedStyle(e),top=document.elementFromPoint(Math.min(innerWidth-1,Math.max(0,r.left+r.width/2)),Math.min(innerHeight-1,Math.max(0,r.top+r.height/2)));
+              return {missing:false,text:(e.innerText||'').replace(/\s+/g,' ').trim(),href:e.getAttribute?.('href')||null,left:r.left,top:r.top,width:r.width,height:r.height,right:r.right,bottom:r.bottom,display:s.display,visibility:s.visibility,pointerEvents:s.pointerEvents,centerInside:Boolean(top===e||top?.closest?.('#'+e.id))};
+            };
+            return {vw:innerWidth,vh:innerHeight,sw:document.documentElement.scrollWidth,cta:geom(cta),guideOpen:Boolean(backdrop?.classList.contains('show')),fallback:geom(fallback)};
+          });
+          (async()=>{
+            const puppeteer=require('/tmp/v442-mobile/node_modules/puppeteer-core');
+            result.phase='release_receipt';
+            const ORIGIN='https://bridgepointintelligence.online';
+            const rr=await fetch(`${ORIGIN}/app/bridgepoint-release.json?t=${Date.now()}`);
+            if(!rr.ok)throw new Error(`release marker HTTP ${rr.status}`);
+            const release=await rr.json(); result.release=release;
+            if(release.version!==442||release.source_sha!=='2c5154a244fa6ea42363dbeb24e9cefbb8a2005f'||release.base_release_version!==441)throw new Error(`V442 release receipt mismatch: ${JSON.stringify(release)}`);
+            result.checks.releaseReceipt=true;
+
+            result.phase='browser_launch';
+            const browser=await puppeteer.launch({executablePath:process.env.CHROME,headless:true,protocolTimeout:30000,args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--disable-vulkan','--disable-background-networking','--disable-sync']});
+            try{
+              for(const width of [320,360,390,430]){
+                result.phase=`responsive_${width}`;
+                const page=await browser.newPage();
+                page.setDefaultTimeout(15000);
+                await page.setViewport({width,height:Math.max(700,Math.round(width*2.16)),deviceScaleFactor:1,isMobile:true,hasTouch:true});
+                await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1');
+                await page.goto(`${ORIGIN}/app/?mode=signin&verify_v442_width=${width}&t=${Date.now()}`,{waitUntil:'domcontentloaded',timeout:20000});
+                await sleep(2800);
+                await page.evaluate(()=>{const d=document.getElementById('bp-install-backdrop');if(d?.classList.contains('show'))document.getElementById('bp-install-later')?.click();window.bridgePointInstallPromptReadyV441=false;window.dispatchEvent(new Event('bridgepoint-install-capability-change'));});
+                await sleep(350);
+                let s=await inspect(page);
+                const c=s.cta;
+                if(c.missing||c.display==='none'||c.visibility==='hidden'||c.pointerEvents==='none'||!c.centerInside)throw new Error(`CTA not interactable at ${width}: ${JSON.stringify(s)}`);
+                if(c.height<52||c.left<0||c.right>s.vw+1||s.sw>s.vw+4)throw new Error(`CTA geometry/overflow failed at ${width}: ${JSON.stringify(s)}`);
+                if(!c.text.includes('DOWNLOAD / OPEN APP'))throw new Error(`CTA copy wrong at ${width}: ${c.text}`);
+                await page.touchscreen.tap(c.left+c.width/2,c.top+c.height/2);
+                await page.waitForFunction(()=>document.getElementById('bp-install-backdrop')?.classList.contains('show'),{timeout:5000});
+                s=await inspect(page);
+                const f=s.fallback;
+                if(!s.guideOpen||f.missing||f.display==='none'||f.visibility==='hidden'||f.pointerEvents==='none'||!f.centerInside)throw new Error(`fallback not interactable at ${width}: ${JSON.stringify(s)}`);
+                if(f.height<44||f.left<0||f.right>s.vw+1||s.sw>s.vw+4)throw new Error(`fallback geometry/overflow failed at ${width}: ${JSON.stringify(s)}`);
+                if(!f.href?.includes('/app/?mode=signin')||!f.href.includes('utm_campaign=open_app'))throw new Error(`fallback route wrong at ${width}: ${f.href}`);
+                result.widths[String(width)]={viewport:s.vw,scrollWidth:s.sw,cta:{left:c.left,right:c.right,height:c.height},fallback:{left:f.left,right:f.right,height:f.height,centerInside:f.centerInside}};
+                if(width===390){
+                  await page.screenshot({path:'/tmp/v442-mobile/guide-390.png',captureBeyondViewport:false});
+                  await page.touchscreen.tap(f.left+f.width/2,f.top+f.height/2);
+                  await sleep(1600);
+                  const u=new URL(page.url()); result.afterUrl=u.toString();
+                  if(u.pathname!='/app/'||u.searchParams.get('mode')!=='signin'||u.searchParams.get('utm_campaign')!=='open_app')throw new Error(`fallback navigation failed: ${u}`);
+                  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+4);
+                  if(overflow)throw new Error('horizontal overflow after fallback navigation');
+                }
+                await page.close();
+              }
+              result.checks={releaseReceipt:true,width320:true,width360:true,width390:true,width430:true,visibleTouchTarget:true,noPointerInterception:true,noHorizontalOverflow:true,realTouchTapOpenedGuide:true,directFallbackVisible:true,fallbackInsideViewport:true,fallbackIsSigninNotSignup:true,touchFallbackNavigation:true};
+              result.status='VERIFIED_LIVE';result.phase='complete';
+            }finally{await browser.close();}
+          })().catch(e=>{result.error=String(e?.stack||e);process.exitCode=1}).finally(()=>{save();console.log(JSON.stringify(result,null,2))});
+          JS
+
+          node "$ROOT/verify.cjs" 2>&1 | tee "$ROOT/run.log"
+          exit ${PIPESTATUS[0]}
+
+      - name: Guarantee durable receipt
+        if: always()
+        run: |
+          test -s /tmp/v442-mobile/result.json || python - <<'PY'
+          import json
+          from datetime import datetime,timezone
+          json.dump({'status':'FAILED','phase':'unknown_preflight','checkedAt':datetime.now(timezone.utc).isoformat(),'error':'Verifier ended before a phase-specific receipt was written','checks':{}},open('/tmp/v442-mobile/result.json','w'),indent=2)
+          PY
+
+      - name: Upload V442 mobile proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-v442-mobile-proof
+          path: |
+            /tmp/v442-mobile/result.json
+            /tmp/v442-mobile/bootstrap.log
+            /tmp/v442-mobile/run.log
+            /tmp/v442-mobile/guide-390.png
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Persist V442 verification receipt
+        if: always()
+        run: |
+          set -euo pipefail
+          cp /tmp/v442-mobile/result.json live-v442-mobile-verification.json
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add live-v442-mobile-verification.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Record V442 mobile CTA verification [skip ci]'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+
+      - name: Enforce V442 hard gate
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('/tmp/v442-mobile/result.json'))
+          if r.get('status')!='VERIFIED_LIVE': raise SystemExit(f"{r.get('phase')}: {r.get('error')}")
+          print('V442 mobile CTA verified live at 320/360/390/430 widths with real touch navigation.')
+          PY
