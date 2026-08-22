@@ -1,0 +1,165 @@
+name: Verify BridgePoint V440 Live
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/verify-v440-live.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: bridgepoint-v440-live-verification
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify public V440 artifact and PWA contracts
+        env:
+          ORIGIN: https://bridgepointintelligence.online
+          EXPECTED_MARKER: 4b80bbdc1137ce7b7d3fc26f69fa5077c5c8566a
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v440-live
+          curl -fsSL --retry 4 --retry-delay 2 "$ORIGIN/app/bridgepoint-release.json?t=${GITHUB_RUN_ID}" -o /tmp/v440-live/release.json
+          curl -fsSL --retry 4 --retry-delay 2 "$ORIGIN/app/index.html?t=${GITHUB_RUN_ID}" -o /tmp/v440-live/app-index.html
+          curl -fsSL --retry 4 --retry-delay 2 "$ORIGIN/app/main.dart.js?t=${GITHUB_RUN_ID}" -o /tmp/v440-live/main.dart.js
+          curl -fsSL --retry 4 --retry-delay 2 "$ORIGIN/app/acquisition_tracker.js?t=${GITHUB_RUN_ID}" -o /tmp/v440-live/tracker.js
+          curl -fsSL --retry 4 --retry-delay 2 "$ORIGIN/app/manifest.json?t=${GITHUB_RUN_ID}" -o /tmp/v440-live/manifest.json
+          curl -fsSL --retry 4 --retry-delay 2 "$ORIGIN/app/flutter_service_worker.js?t=${GITHUB_RUN_ID}" -o /tmp/v440-live/flutter_service_worker.js
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          release=json.loads(Path('/tmp/v440-live/release.json').read_text())
+          assert release.get('version')==os.environ['EXPECTED_MARKER'], release
+          assert release.get('public_origin')=='https://bridgepointintelligence.online/', release
+          manifest=json.loads(Path('/tmp/v440-live/manifest.json').read_text())
+          assert manifest.get('display') in {'standalone','fullscreen','minimal-ui'}, manifest
+          assert manifest.get('icons'), manifest
+          print('Live release/PWA:',release['version'],manifest.get('display'))
+          PY
+          grep -q '<base href="/app/">' /tmp/v440-live/app-index.html
+          grep -q 'Create account' /tmp/v440-live/main.dart.js
+          grep -q 'Already have an account' /tmp/v440-live/main.dart.js
+          grep -q 'Check your email' /tmp/v440-live/main.dart.js
+          grep -q 'captureVersion=440' /tmp/v440-live/tracker.js
+          grep -q 'mode.*signup' /tmp/v440-live/tracker.js
+          grep -q 'account_mode' /tmp/v440-live/tracker.js
+          test -s /tmp/v440-live/flutter_service_worker.js
+
+      - name: Install Puppeteer controller for installed Chrome
+        run: |
+          set -euo pipefail
+          npm init -y >/dev/null 2>&1
+          npm install --no-save puppeteer-core@24 >/dev/null
+
+      - name: Capture controlled desktop, tablet and mobile live visuals
+        env:
+          ORIGIN: https://bridgepointintelligence.online
+        run: |
+          set -euo pipefail
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          test -n "$CHROME"
+          export CHROME
+          cat >/tmp/v440-live/capture.cjs <<'JS'
+          const puppeteer=require('puppeteer-core');
+          const fs=require('fs');
+          const crypto=require('crypto');
+          const origin=process.env.ORIGIN;
+          const chrome=process.env.CHROME;
+          const run=process.env.GITHUB_RUN_ID;
+          const wait=ms=>new Promise(r=>setTimeout(r,ms));
+          (async()=>{
+            const browser=await puppeteer.launch({
+              executablePath:chrome,
+              headless:true,
+              args:['--no-sandbox','--disable-dev-shm-usage','--enable-unsafe-swiftshader','--disable-background-networking','--disable-sync']
+            });
+            const specs=[
+              ['signup-desktop',`${origin}/app/?mode=signup&verify=${run}`,1440,1100],
+              ['signin-desktop',`${origin}/app/?mode=signin&verify=${run}`,1440,1100],
+              ['signup-tablet',`${origin}/app/?mode=signup&verify=${run}`,820,1180],
+              ['signup-mobile',`${origin}/app/?mode=signup&verify=${run}`,390,844]
+            ];
+            const result={};
+            for(const [name,url,width,height] of specs){
+              const page=await browser.newPage();
+              await page.setViewport({width,height,deviceScaleFactor:1});
+              const pageErrors=[];
+              page.on('pageerror',e=>pageErrors.push(String(e.message||e)));
+              await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
+              await wait(9000);
+              const path=`/tmp/v440-live/${name}.png`;
+              await page.screenshot({path,fullPage:false});
+              const buffer=fs.readFileSync(path);
+              if(buffer.length<10000)throw new Error(`${name} screenshot too small: ${buffer.length}`);
+              result[name]={url,width,height,bytes:buffer.length,sha256:crypto.createHash('sha256').update(buffer).digest('hex'),pageErrors:pageErrors.slice(0,5)};
+              await page.close();
+            }
+            await browser.close();
+            if(result['signup-desktop'].sha256===result['signin-desktop'].sha256)throw new Error('signup/signin screenshots are identical');
+            fs.writeFileSync('/tmp/v440-live/visual-result.json',JSON.stringify(result,null,2));
+            console.log(JSON.stringify(result,null,2));
+          })().catch(async err=>{console.error(err);process.exit(1)});
+          JS
+          node /tmp/v440-live/capture.cjs
+          test -s /tmp/v440-live/visual-result.json
+
+      - name: Upload live visual proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-v440-live-visuals
+          path: |
+            /tmp/v440-live/signup-desktop.png
+            /tmp/v440-live/signin-desktop.png
+            /tmp/v440-live/signup-tablet.png
+            /tmp/v440-live/signup-mobile.png
+            /tmp/v440-live/visual-result.json
+            /tmp/v440-live/release.json
+            /tmp/v440-live/manifest.json
+          retention-days: 14
+
+      - name: Record hard live verification receipt
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          visuals=json.loads(Path('/tmp/v440-live/visual-result.json').read_text())
+          receipt={
+            'status':'VERIFIED_LIVE',
+            'verified_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
+            'public_origin':'https://bridgepointintelligence.online/',
+            'source_main_sha':'796bae97fd83adfe8ca93746d395a421e6970e86',
+            'audited_artifact_marker':'4b80bbdc1137ce7b7d3fc26f69fa5077c5c8566a',
+            'immutable_app_branch':'app-artifact-v440',
+            'tracking_version':440,
+            'signup_mode_verified':True,
+            'signin_mode_verified':True,
+            'signup_signin_visuals_differ':True,
+            'pwa_manifest_verified':True,
+            'service_worker_verified':True,
+            'desktop_verified':True,
+            'tablet_verified':True,
+            'mobile_verified':True,
+            'source_workflow_run_id':int(os.environ['GITHUB_RUN_ID']),
+            'visuals':visuals
+          }
+          Path('live-v440-verification.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          print(json.dumps(receipt,indent=2))
+          PY
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add live-v440-verification.json
+          git commit -m 'Record hard V440 public verification [skip ci]'
+          git push origin HEAD:main
