@@ -1,0 +1,6 @@
+{
+  "status": "FAILED",
+  "checkedAt": "2026-08-22T05:57:55.827435+00:00",
+  "error": "Verifier exited before result.json was created",
+  "checks": {}
+}
