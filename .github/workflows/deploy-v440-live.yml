@@ -1,4 +1,4 @@
-name: Deploy BridgePoint Live — Audited V441
+name: Deploy BridgePoint Live — Audited V442
 
 on:
   push:
@@ -36,7 +36,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Assemble current public site with exact audited V441 app
+      - name: Assemble current public site with audited V442 mobile repair
         run: |
           set -euo pipefail
           git fetch origin live-artifact:refs/remotes/origin/live-artifact
@@ -48,7 +48,8 @@ jobs:
           git archive --format=tar origin/live-artifact | tar -xf - -C /tmp/public-base
           cp -a /tmp/public-base/. site/
 
-          # Replace only the compiled application with the exact audited V441 artifact.
+          # Start from the exact CI-audited V441 compiled application. V442 is a web-shell-only
+          # responsive repair that passed the full source release audit/analyze/tests/web build.
           rm -rf site/app
           mkdir -p site/app
           git archive --format=tar origin/app-artifact-v441 | tar -xf - -C /tmp/v441-app
@@ -88,8 +89,35 @@ jobs:
           PY
           grep -q '<base href="/app/">' site/app/index.html
 
+          # Apply the exact V442 responsive rule that passed the source repository's permanent
+          # release audit, Flutter analyze, tests, and installable web build. The live V441 hard
+          # verifier proved the fallback was 420px wide on a 390px viewport; this clamps it.
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('site/app/index.html')
+          s=p.read_text(encoding='utf-8')
+          marker='bridgepoint-v442-install-guide-mobile-width'
+          if marker not in s:
+              if 'bridgepoint-v441-mobile-install-fallback' not in s or 'id="bp-install-fallback-v441"' not in s:
+                  raise SystemExit('V442 prerequisites missing from live base artifact')
+              style='''  <style id="bridgepoint-v442-install-guide-mobile-width">
+    #bp-install-fallback-v441{box-sizing:border-box!important;max-width:100%!important}
+    @media(max-width:620px){
+      .bp-install-actions{box-sizing:border-box!important;width:min(100%,calc(100vw - 24px))!important;max-width:calc(100vw - 24px)!important;margin-left:auto!important;margin-right:auto!important;overflow:visible!important}
+      .bp-install-actions>*{box-sizing:border-box!important;max-width:100%!important;min-width:0!important}
+      .bp-install-primary,.bp-install-secondary,#bp-install-fallback-v441{box-sizing:border-box!important;width:100%!important;max-width:100%!important;min-width:0!important}
+    }
+  </style>
+'''
+              if '</head>' not in s: raise SystemExit('V442 live head anchor missing')
+              s=s.replace('</head>',style+'</head>',1)
+          p.write_text(s,encoding='utf-8')
+          PY
+          grep -q 'bridgepoint-v442-install-guide-mobile-width' site/app/index.html
+          grep -q 'width:min(100%,calc(100vw - 24px))!important' site/app/index.html
+          grep -q 'max-width:calc(100vw - 24px)!important' site/app/index.html
+
           # Overlay the current privacy-safe V440 acquisition tracker at both public scopes.
-          # V441 changes install/open UX only; ordinary app entry must remain VALUE_VIEW/signin.
           test -s acquisition_tracker.js
           grep -q 'captureVersion=440' acquisition_tracker.js
           grep -q 'bridgepoint-coarse-geo-v436' acquisition_tracker.js
@@ -102,6 +130,38 @@ jobs:
           cp acquisition_tracker.js site/acquisition_tracker.js
           cp acquisition_tracker.js site/app/acquisition_tracker.js
           touch site/.nojekyll site/app/.nojekyll
+
+          # Write a truthful V442 marker. The compiled Flutter JS remains the immutable audited
+          # V441 binary; V442 changes only the audited web shell CSS. The content digest excludes
+          # the marker itself to avoid self-reference.
+          BASE_SHA='7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c'
+          APP_DIGEST="$(find site/app -type f ! -name bridgepoint-release.json -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
+          export BASE_SHA APP_DIGEST
+          python - <<'PY'
+          import json,os
+          from datetime import datetime,timezone
+          marker={
+            'version':442,
+            'release':'V442 Mobile Install Guide Width',
+            'source_sha':'2c5154a244fa6ea42363dbeb24e9cefbb8a2005f',
+            'source_pr':56,
+            'source_pr_head':'563efa353fd4f794c2952a1983d3e580543f6e9a',
+            'base_release_version':441,
+            'base_source_sha':'5f4114197d834adbb368895238188b57940e279c',
+            'base_artifact_sha256':os.environ['BASE_SHA'],
+            'artifact_sha256':os.environ['APP_DIGEST'],
+            'artifact_digest_scope':'site/app excluding bridgepoint-release.json',
+            'published_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
+            'immutable_base_branch':'app-artifact-v441',
+            'customer_domain':'https://bridgepointintelligence.online/',
+            'classifier_version':442,
+            'deployment_contract':'CI-audited V441 compiled app + source-audited V442 viewport-clamp web-shell repair'
+          }
+          open('site/app/bridgepoint-release.json','w',encoding='utf-8').write(json.dumps(marker,indent=2)+'\n')
+          print(json.dumps(marker,indent=2))
+          PY
+          grep -q '"version": 442' site/app/bridgepoint-release.json
+          grep -q '2c5154a244fa6ea42363dbeb24e9cefbb8a2005f' site/app/bridgepoint-release.json
 
           # Public-site continuity guards.
           test -s site/index.html
@@ -119,7 +179,7 @@ jobs:
           grep -q 'bridgepoint_owner_acquisition_v432' site/owner/acquisition/index.html
           grep -q 'noindex,nofollow,noarchive' site/owner/acquisition/index.html
 
-          echo 'BridgePoint public site assembled with exact audited V441 mobile install/open artifact.'
+          echo 'BridgePoint public site assembled with audited V442 mobile install-guide width repair.'
 
       - name: Persist exact deployed site for rollback and audit
         env:
@@ -135,7 +195,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint live artifact with audited V441 mobile install/open release'
+          git commit -m 'BridgePoint live artifact with audited V442 mobile width repair'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -153,21 +213,28 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Record exact V441 production receipt
+      - name: Record exact V442 production receipt
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           set -euo pipefail
+          APP_DIGEST="$(python - <<'PY'
+          import json
+          print(json.load(open('site/app/bridgepoint-release.json'))['artifact_sha256'])
+          PY
+          )"
+          export APP_DIGEST
           python - <<'PY'
           import json, os
           from datetime import datetime, timezone
           receipt={
             'status':'PUBLISHED',
-            'source_main_sha':'5f4114197d834adbb368895238188b57940e279c',
-            'audited_artifact_sha256':'7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c',
-            'immutable_app_branch':'app-artifact-v441',
-            'app_release_version':441,
-            'mobile_install_open_version':441,
+            'source_main_sha':'2c5154a244fa6ea42363dbeb24e9cefbb8a2005f',
+            'base_audited_artifact_sha256':'7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c',
+            'assembled_artifact_sha256':os.environ['APP_DIGEST'],
+            'immutable_app_base_branch':'app-artifact-v441',
+            'app_release_version':442,
+            'mobile_install_open_version':442,
             'tracking_version':440,
             'account_entry_version':440,
             'signup_conversion_version':440,
@@ -189,7 +256,7 @@ jobs:
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add tracking-release-status.json
-          git commit -m 'Record audited V441 live deployment [skip ci]' || true
+          git commit -m 'Record audited V442 live deployment [skip ci]' || true
           for attempt in 1 2 3; do
             if git push origin HEAD:main; then exit 0; fi
             git fetch origin main
