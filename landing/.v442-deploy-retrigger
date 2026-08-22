@@ -1,0 +1,5 @@
+BridgePoint V442 deployment retrigger.
+Expected app source: 2c5154a244fa6ea42363dbeb24e9cefbb8a2005f
+Expected release: 442
+Reason: main contains the audited V442 publisher/verifier, but live-artifact and tracking-release-status remained on V441 at the 2026-08-22 verification pass.
+This marker is a workflow trigger only and is not copied into the assembled public site.
