@@ -93,14 +93,14 @@ jobs:
               if '</head>' not in s:
                   raise SystemExit('V442 live head anchor missing')
               style='''  <style id="bridgepoint-v442-install-guide-mobile-width">
-    #bp-install-fallback-v441{box-sizing:border-box!important;max-width:100%!important}
-    @media(max-width:620px){
-      .bp-install-actions{box-sizing:border-box!important;width:min(100%,calc(100vw - 24px))!important;max-width:calc(100vw - 24px)!important;margin-left:auto!important;margin-right:auto!important;overflow:visible!important}
-      .bp-install-actions>*{box-sizing:border-box!important;max-width:100%!important;min-width:0!important}
-      .bp-install-primary,.bp-install-secondary,#bp-install-fallback-v441{box-sizing:border-box!important;width:100%!important;max-width:100%!important;min-width:0!important}
-    }
-  </style>
-'''
+          #bp-install-fallback-v441{box-sizing:border-box!important;max-width:100%!important}
+          @media(max-width:620px){
+            .bp-install-actions{box-sizing:border-box!important;width:min(100%,calc(100vw - 24px))!important;max-width:calc(100vw - 24px)!important;margin-left:auto!important;margin-right:auto!important;overflow:visible!important}
+            .bp-install-actions>*{box-sizing:border-box!important;max-width:100%!important;min-width:0!important}
+            .bp-install-primary,.bp-install-secondary,#bp-install-fallback-v441{box-sizing:border-box!important;width:100%!important;max-width:100%!important;min-width:0!important}
+          }
+          </style>
+          '''
               s=s.replace('</head>',style+'</head>',1)
           p.write_text(s,encoding='utf-8')
           PY
