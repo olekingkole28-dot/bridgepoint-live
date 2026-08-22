@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="BridgePoint Intelligence turns verified property signals into explainable opportunities, field workflows, timelines, alerts, and live operational intelligence.">
+  <meta name="theme-color" content="#07111F">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BridgePoint">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <title>BridgePoint Intelligence</title>
+  <link rel="manifest" href="manifest.json">
+  
+  <link href='https://unpkg.com/maplibre-gl@^5.24.0/dist/maplibre-gl.css' rel='stylesheet'>
+  <script src='https://unpkg.com/maplibre-gl@^5.24.0/dist/maplibre-gl.js'></script>
+  <style id="bridgepoint-v439-gold-install-cta">
+    @keyframes bpInstallBounceV439{0%,78%,100%{transform:translateY(0) scale(1)}84%{transform:translateY(-8px) scale(1.025)}90%{transform:translateY(0) scale(1)}95%{transform:translateY(-3px) scale(1.01)}}
+    @keyframes bpInstallGlowV439{0%,100%{box-shadow:0 10px 34px rgba(255,190,35,.28),0 0 0 0 rgba(255,216,74,.20)}50%{box-shadow:0 14px 42px rgba(255,190,35,.42),0 0 0 8px rgba(255,216,74,0)}}
+    #bp-install-fab-v439{position:fixed;left:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:2147483000;display:none;align-items:center;gap:10px;border:1px solid rgba(255,242,167,.78);border-radius:999px;padding:10px 15px 10px 11px;background:linear-gradient(135deg,#ffe879,#f2ad13);color:#211804;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-weight:950;cursor:pointer;animation:bpInstallBounceV439 3.2s ease-in-out infinite,bpInstallGlowV439 2.2s ease-in-out infinite;max-width:min(330px,calc(100vw - 36px));text-align:left}
+    #bp-install-fab-v439.show{display:flex}#bp-install-fab-v439 .bp-dl-icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(33,24,4,.12);font-size:19px;flex:0 0 auto}#bp-install-fab-v439 strong{display:block;font-size:11px;line-height:1.05;letter-spacing:.4px}#bp-install-fab-v439 small{display:block;font-size:9px;line-height:1.15;font-weight:800;opacity:.72;margin-top:2px}
+    #bp-install-primary{animation:bpInstallGlowV439 2.2s ease-in-out infinite}
+    @media(max-width:620px){#bp-install-fab-v439{left:10px;bottom:calc(82px + env(safe-area-inset-bottom));padding:9px 12px 9px 9px;max-width:calc(100vw - 20px)}}
+    @media(prefers-reduced-motion:reduce){#bp-install-fab-v439,#bp-install-primary{animation:none!important}}
+  </style>
+</head>
+<body>
+  <div id="bp-update-toast" role="status" aria-live="polite"><span class="pulse"></span><span id="bp-update-message">BridgePoint is updating…</span></div>
+
+  <button id="bp-install-fab-v439" type="button" aria-label="Download or install the BridgePoint app"><span class="bp-dl-icon" aria-hidden="true">↓</span><span><strong>DOWNLOAD / INSTALL APP</strong><small>Put BridgePoint on this device</small></span></button>
+
+  <div id="bp-install-backdrop" role="dialog" aria-modal="true" aria-labelledby="bp-install-title" aria-describedby="bp-install-description">
+    <section id="bp-install-card">
+      <div class="bp-install-top">
+        <div class="bp-install-icon" aria-hidden="true">B</div>
+        <div><div class="bp-install-eyebrow">BRIDGEPOINT APP</div><div class="bp-install-title" id="bp-install-title">Put BridgePoint on your home screen</div></div>
+      </div>
+      <p class="bp-install-copy" id="bp-install-description">BridgePoint is open in your browser. Install it as an app for faster one-tap access, a full-screen workspace, and automatic release updates.</p>
+      <div class="bp-install-benefits">
+        <div class="bp-install-benefit"><b>One tap to open</b>No browser searching or saved link needed.</div>
+        <div class="bp-install-benefit"><b>App-style workspace</b>Opens in its own BridgePoint window.</div>
+        <div class="bp-install-benefit"><b>Stays current</b>BridgePoint checks for new releases automatically.</div>
+      </div>
+      <div id="bp-install-steps" aria-live="polite"></div>
+      <div class="bp-install-actions">
+        <button id="bp-install-primary" class="bp-install-primary" type="button">Install BridgePoint</button>
+        <button id="bp-install-later" class="bp-install-secondary" type="button">Not now</button>
+      </div>
+      <div class="bp-install-note">If you choose “Not now,” BridgePoint will remind you on a future browser sign-in until this device has been installed.</div>
+    </section>
+  </div>
+
+  <script>
+  (()=>{
+    const releaseKey='bridgepoint_release_v390';
+    const checkEveryMs=60000;
+    let applying=false;
+    const toast=document.getElementById('bp-update-toast');
+    const message=document.getElementById('bp-update-message');
+
+    function show(text){if(message)message.textContent=text;if(toast)toast.classList.add('show');}
+    function releaseUrl(){return new URL(`bridgepoint-release.json?t=${Date.now()}`,document.baseURI).toString();}
+    async function currentRelease(){
+      const response=await fetch(releaseUrl(),{cache:'no-store',headers:{'Cache-Control':'no-cache'}});
+      if(!response.ok)throw new Error(`release ${response.status}`);
+      const payload=await response.json();
+      return String(payload.version||payload.sha||payload.release||'').trim();
+    }
+    async function clearFlutterShell(){
+      if('serviceWorker' in navigator){
+        const basePath=new URL(document.baseURI).pathname;
+        const registrations=await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.filter(r=>{try{return new URL(r.scope).pathname.startsWith(basePath)}catch(_){return false}}).map(r=>r.unregister()));
+      }
+      if('caches' in window){
+        const keys=await caches.keys();
+        const stale=keys.filter(k=>k==='flutter-app-cache'||k==='flutter-temp-cache'||k==='flutter-app-manifest'||k.startsWith('flutter-app-'));
+        await Promise.all(stale.map(k=>caches.delete(k)));
+      }
+    }
+    async function applyRelease(next){
+      if(applying||!next)return;
+      applying=true;
+      show('A new BridgePoint version is ready — updating automatically…');
+      localStorage.setItem(releaseKey,next);
+      sessionStorage.setItem('bridgepoint_auto_update_restoring','1');
+      try{await clearFlutterShell()}catch(_){ }
+      show('BridgePoint updated — restoring your workspace…');
+      await new Promise(resolve=>setTimeout(resolve,650));
+      const target=new URL(location.href);
+      target.searchParams.set('bpv',next.slice(0,16));
+      location.replace(target.toString());
+    }
+    async function check(){
+      if(applying)return;
+      try{
+        const next=await currentRelease();
+        if(!next)return;
+        const previous=localStorage.getItem(releaseKey);
+        if(!previous){localStorage.setItem(releaseKey,next);return;}
+        if(previous!==next)await applyRelease(next);
+      }catch(_){/* Update checks never interrupt BridgePoint. */}
+    }
+    window.bridgePointCheckForUpdate=check;
+    window.addEventListener('load',()=>{
+      if(sessionStorage.getItem('bridgepoint_auto_update_restoring')==='1'){
+        sessionStorage.removeItem('bridgepoint_auto_update_restoring');
+        show('BridgePoint is up to date.');
+        setTimeout(()=>toast?.classList.remove('show'),2200);
+      }
+      setTimeout(check,4500);
+      setInterval(check,checkEveryMs);
+    });
+    window.addEventListener('online',check);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)check()});
+  })();
+  </script>
+
+  <script>
+  /* bridgepoint-v310-install-onboarding */
+  (()=>{
+    const installedKey='bridgepoint_app_installed_v310';
+    const dismissedKey='bridgepoint_install_dismissed_session_v310';
+    const backdrop=document.getElementById('bp-install-backdrop');
+    const primary=document.getElementById('bp-install-primary');
+    const later=document.getElementById('bp-install-later');
+    const steps=document.getElementById('bp-install-steps');
+    let deferredPrompt=null;
+    let shown=false;
+
+    const isIos=()=>/iphone|ipad|ipod/i.test(navigator.userAgent||'');
+    const isAndroid=()=>/android/i.test(navigator.userAgent||'');
+    const isStandalone=()=>window.matchMedia?.('(display-mode: standalone)').matches===true||navigator.standalone===true||document.referrer.startsWith('android-app://');
+    function hasAuthSession(){
+      try{
+        const keys=Object.keys(localStorage).filter(k=>k.startsWith('sb-')&&k.endsWith('-auth-token'));
+        for(const key of keys){
+          const raw=localStorage.getItem(key);if(!raw)continue;
+          const value=JSON.parse(raw);
+          const token=value?.access_token||value?.currentSession?.access_token||value?.session?.access_token;
+          if(token)return true;
+        }
+      }catch(_){ }
+      return false;
+    }
+    function markInstalled(){
+      try{localStorage.setItem(installedKey,'1')}catch(_){ }
+      backdrop?.classList.remove('show');shown=false;
+    }
+    function alreadyInstalled(){
+      if(isStandalone()){markInstalled();return true;}
+      try{return localStorage.getItem(installedKey)==='1'}catch(_){return false}
+    }
+    function dismissedThisSession(){try{return sessionStorage.getItem(dismissedKey)==='1'}catch(_){return false}}
+    function step(n,html){return `<div class="bp-install-step"><span class="bp-install-num">${n}</span><div class="bp-install-step-text">${html}</div></div>`}
+    function renderInstructions(){
+      if(!steps||!primary)return;
+      if(deferredPrompt){
+        primary.style.display='';primary.textContent='Install BridgePoint';
+        steps.innerHTML=step(1,'Tap <b>Install BridgePoint</b> below.')+step(2,'Approve the browser install prompt.')+step(3,'Open BridgePoint from your home screen or app launcher.');
+        return;
+      }
+      if(isIos()){
+        primary.style.display='none';
+        steps.innerHTML=step(1,'Tap the browser <b>Share</b> button (the square with the arrow pointing up).')+step(2,'Choose <b>Add to Home Screen</b>. If you do not see it immediately, scroll the Share menu.')+step(3,'Tap <b>Add</b>. BridgePoint will appear with your other apps.');
+        return;
+      }
+      if(isAndroid()){
+        primary.style.display='none';
+        steps.innerHTML=step(1,'Open your browser menu <b>⋮</b>.')+step(2,'Tap <b>Install app</b> or <b>Add to Home screen</b>.')+step(3,'Confirm <b>Install</b>, then open BridgePoint from your app launcher.');
+        return;
+      }
+      primary.style.display='none';
+      steps.innerHTML=step(1,'Look for the <b>Install</b> icon in your browser address bar, or open the browser menu.')+step(2,'Choose <b>Install BridgePoint</b> / <b>Install app</b>.')+step(3,'Confirm the install. BridgePoint will open in its own app window.');
+    }
+    function showInstall(){
+      if(shown||alreadyInstalled()||dismissedThisSession())return;
+      shown=true;renderInstructions();backdrop?.classList.add('show');primary?.focus();
+    }
+    async function requestInstall(){
+      if(!deferredPrompt){renderInstructions();return;}
+      const prompt=deferredPrompt;deferredPrompt=null;
+      try{
+        prompt.prompt();
+        const choice=await prompt.userChoice;
+        if(choice?.outcome==='accepted')markInstalled();else{shown=false;backdrop?.classList.remove('show');}
+      }catch(_){renderInstructions()}
+    }
+
+    window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredPrompt=event;renderInstructions();setTimeout(showInstall,150)});
+    window.addEventListener('appinstalled',markInstalled);
+    window.matchMedia?.('(display-mode: standalone)').addEventListener?.('change',event=>{if(event.matches)markInstalled()});
+    primary?.addEventListener('click',requestInstall);
+    later?.addEventListener('click',()=>{try{sessionStorage.setItem(dismissedKey,'1')}catch(_){ }backdrop?.classList.remove('show');shown=false;});
+    backdrop?.addEventListener('click',event=>{if(event.target===backdrop)later?.click()});
+    document.addEventListener('keydown',event=>{if(event.key==='Escape'&&backdrop?.classList.contains('show'))later?.click()});
+
+    if(alreadyInstalled())return;
+    const authWatch=setInterval(()=>{if(alreadyInstalled()){clearInterval(authWatch);return;}if(hasAuthSession()){showInstall();if(shown)clearInterval(authWatch)}},1200);
+    window.addEventListener('load',()=>setTimeout(showInstall,1800));
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(showInstall,250)});
+    window.bridgePointShowInstallGuide=()=>{try{sessionStorage.removeItem(dismissedKey)}catch(_){ }shown=false;showInstall()};
+  })();
+  </script>
+
+  <script>
+  /* bridgepoint-v390-bootstrap-cache-gate */
+  (async()=>{
+    const epoch='bridgepoint_bootstrap_epoch_v390';
+    try{if(localStorage.getItem(epoch)!=='1'){
+      if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister()));}
+      if('caches' in window){const keys=await caches.keys();await Promise.all(keys.filter(k=>k.startsWith('flutter')||k.includes('bridgepoint')).map(k=>caches.delete(k)));}
+      localStorage.setItem(epoch,'1');
+    }}catch(_){ }
+    const s=document.createElement('script');s.src='flutter_bootstrap.js?bpv=390';s.async=true;document.body.appendChild(s);
+  })();
+  </script>
+
+  
+  <script id="bridgepoint-v439-install-runtime">
+  (()=>{
+    const button=document.getElementById('bp-install-fab-v439');
+    if(!button)return;
+    const installedKey='bridgepoint_app_installed_v310';
+    const standalone=()=>window.matchMedia?.('(display-mode: standalone)').matches===true||navigator.standalone===true||document.referrer.startsWith('android-app://');
+    const installed=()=>{if(standalone())return true;try{return localStorage.getItem(installedKey)==='1'}catch(_){return false}};
+    const sync=()=>button.classList.toggle('show',!installed());
+    button.addEventListener('click',()=>{if(installed()){sync();return;}if(typeof window.bridgePointShowInstallGuide==='function')window.bridgePointShowInstallGuide();else document.getElementById('bp-install-backdrop')?.classList.add('show');});
+    window.addEventListener('appinstalled',()=>{try{localStorage.setItem(installedKey,'1')}catch(_){ }sync();});
+    window.matchMedia?.('(display-mode: standalone)').addEventListener?.('change',sync);
+    window.addEventListener('load',()=>setTimeout(sync,250));
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});
+    sync();
+  })();
+  </script>
+</body>
+</html>
