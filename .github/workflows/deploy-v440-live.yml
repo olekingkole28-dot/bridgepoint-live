@@ -15,6 +15,11 @@ on:
       - llms.txt
       - dc8a83e4caade76fd824cf929dca48d6.txt
   workflow_dispatch:
+    inputs:
+      release_reason:
+        description: Audited V442 publisher recovery reason
+        required: false
+        default: recovery
 
 permissions:
   contents: write
