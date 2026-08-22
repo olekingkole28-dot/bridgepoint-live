@@ -142,7 +142,7 @@ jobs:
           import json,os
           from datetime import datetime,timezone
           marker={
-            'version':442,
+            'version':443,
             'release':'V443 Mobile Install Runtime Repair',
             'source_sha':'2c357f65a6b67afc924b624fe5f9e86cce5d0dc6',
             'source_pr':57,
@@ -155,13 +155,13 @@ jobs:
             'published_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'immutable_base_branch':'app-artifact-v441',
             'customer_domain':'https://bridgepointintelligence.online/',
-            'classifier_version':442,
+            'classifier_version':443,
             'deployment_contract':'CI-audited V441 compiled app + source-audited V442 width clamp + V443 runtime behavior repair'
           }
           open('site/app/bridgepoint-release.json','w',encoding='utf-8').write(json.dumps(marker,indent=2)+'\n')
           print(json.dumps(marker,indent=2))
           PY
-          grep -q '"version": 442' site/app/bridgepoint-release.json
+          grep -q '"version": 443' site/app/bridgepoint-release.json
           grep -q '2c357f65a6b67afc924b624fe5f9e86cce5d0dc6' site/app/bridgepoint-release.json
 
           python - <<'PY'
@@ -261,8 +261,8 @@ jobs:
             'base_audited_artifact_sha256':'7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c',
             'assembled_artifact_sha256':os.environ['APP_DIGEST'],
             'immutable_app_base_branch':'app-artifact-v441',
-            'app_release_version':442,
-            'mobile_install_open_version':442,
+            'app_release_version':443,
+            'mobile_install_open_version':443,
             'tracking_version':440,
             'account_entry_version':440,
             'signup_conversion_version':440,
