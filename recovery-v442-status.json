@@ -1,0 +1,8 @@
+{
+  "checked_at": "2026-08-22T10:56:17.686924Z",
+  "durable_receipt_version": 441,
+  "recovery_status": "DISPATCH_FAILED",
+  "publisher_workflow": ".github/workflows/deploy-v440-live.yml",
+  "publisher_ref": "main",
+  "alternate_artifact_path_created": false
+}
