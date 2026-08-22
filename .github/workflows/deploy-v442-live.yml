@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - .github/workflows/deploy-v440-live.yml
+      - .github/workflows/deploy-v442-live.yml
       - acquisition_tracker.js
       - landing/**
       - articles/**
@@ -41,23 +41,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Assemble current public site with audited V442 mobile repair
+      - name: Assemble audited V442 production site
+        shell: bash
         run: |
           set -euo pipefail
           git fetch origin live-artifact:refs/remotes/origin/live-artifact
           git fetch origin app-artifact-v441:refs/remotes/origin/app-artifact-v441
           rm -rf site /tmp/public-base /tmp/v441-app
           mkdir -p site /tmp/public-base /tmp/v441-app
-
-          # Preserve the most recently published public landing/research/sample/owner surfaces.
           git archive --format=tar origin/live-artifact | tar -xf - -C /tmp/public-base
           cp -a /tmp/public-base/. site/
-
-          # Start from the exact CI-audited V441 compiled application. V442 is a web-shell-only
-          # responsive repair that passed the full source release audit/analyze/tests/web build.
           rm -rf site/app
           mkdir -p site/app
           git archive --format=tar origin/app-artifact-v441 | tar -xf - -C /tmp/v441-app
+
           test -s /tmp/v441-app/index.html
           test -s /tmp/v441-app/main.dart.js
           test -s /tmp/v441-app/flutter_bootstrap.js
@@ -82,7 +79,6 @@ jobs:
           cp -a /tmp/v441-app/. site/app/
           rm -rf site/app/articles site/app/sample site/app/landing site/app/owner
 
-          # The source artifact is built for root; the live application is mounted at /app/.
           python - <<'PY'
           from pathlib import Path
           p=Path('site/app/index.html')
@@ -90,21 +86,12 @@ jobs:
           if '<base href="/">' not in s and '<base href="/app/">' not in s:
               raise SystemExit('Unexpected Flutter base href; refusing to deploy')
           s=s.replace('<base href="/">','<base href="/app/">')
-          p.write_text(s,encoding='utf-8')
-          PY
-          grep -q '<base href="/app/">' site/app/index.html
-
-          # Apply the exact V442 responsive rule that passed the source repository's permanent
-          # release audit, Flutter analyze, tests, and installable web build. The live V441 hard
-          # verifier proved the fallback was 420px wide on a 390px viewport; this clamps it.
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('site/app/index.html')
-          s=p.read_text(encoding='utf-8')
           marker='bridgepoint-v442-install-guide-mobile-width'
           if marker not in s:
               if 'bridgepoint-v441-mobile-install-fallback' not in s or 'id="bp-install-fallback-v441"' not in s:
-                  raise SystemExit('V442 prerequisites missing from live base artifact')
+                  raise SystemExit('V442 prerequisites missing from audited V441 base')
+              if '</head>' not in s:
+                  raise SystemExit('V442 live head anchor missing')
               style='''  <style id="bridgepoint-v442-install-guide-mobile-width">
     #bp-install-fallback-v441{box-sizing:border-box!important;max-width:100%!important}
     @media(max-width:620px){
@@ -114,15 +101,14 @@ jobs:
     }
   </style>
 '''
-              if '</head>' not in s: raise SystemExit('V442 live head anchor missing')
               s=s.replace('</head>',style+'</head>',1)
           p.write_text(s,encoding='utf-8')
           PY
+          grep -q '<base href="/app/">' site/app/index.html
           grep -q 'bridgepoint-v442-install-guide-mobile-width' site/app/index.html
           grep -q 'width:min(100%,calc(100vw - 24px))!important' site/app/index.html
           grep -q 'max-width:calc(100vw - 24px)!important' site/app/index.html
 
-          # Overlay the current privacy-safe V440 acquisition tracker at both public scopes.
           test -s acquisition_tracker.js
           grep -q 'captureVersion=440' acquisition_tracker.js
           grep -q 'bridgepoint-coarse-geo-v436' acquisition_tracker.js
@@ -136,9 +122,6 @@ jobs:
           cp acquisition_tracker.js site/app/acquisition_tracker.js
           touch site/.nojekyll site/app/.nojekyll
 
-          # Write a truthful V442 marker. The compiled Flutter JS remains the immutable audited
-          # V441 binary; V442 changes only the audited web shell CSS. The content digest excludes
-          # the marker itself to avoid self-reference.
           BASE_SHA='7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c'
           APP_DIGEST="$(find site/app -type f ! -name bridgepoint-release.json -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
           export BASE_SHA APP_DIGEST
@@ -168,7 +151,6 @@ jobs:
           grep -q '"version": 442' site/app/bridgepoint-release.json
           grep -q '2c5154a244fa6ea42363dbeb24e9cefbb8a2005f' site/app/bridgepoint-release.json
 
-          # Public-site continuity guards.
           test -s site/index.html
           test -s site/articles/index.html
           test -s site/articles/feed.xml
@@ -183,12 +165,12 @@ jobs:
           grep -q 'request_territory_sample_v425' site/sample/index.html
           grep -q 'bridgepoint_owner_acquisition_v432' site/owner/acquisition/index.html
           grep -q 'noindex,nofollow,noarchive' site/owner/acquisition/index.html
-
           echo 'BridgePoint public site assembled with audited V442 mobile install-guide width repair.'
 
       - name: Persist exact deployed site for rollback and audit
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
           set -euo pipefail
           rm -rf /tmp/final-live
@@ -221,6 +203,7 @@ jobs:
       - name: Record exact V442 production receipt
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        shell: bash
         run: |
           set -euo pipefail
           APP_DIGEST="$(python - <<'PY'
