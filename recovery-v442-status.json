@@ -1,7 +1,9 @@
 {
-  "checked_at": "2026-08-22T10:56:17.686924Z",
+  "checked_at": "2026-08-22T10:57:14.744380Z",
   "durable_receipt_version": 441,
-  "recovery_status": "DISPATCH_FAILED",
+  "recovery_status": "FAILED",
+  "dispatch_exit_code": 1,
+  "dispatch_message": "{\"message\":\"Workflow does not have 'workflow_dispatch' trigger\",\"documentation_url\":\"https://docs.github.com/rest/actions/workflows#create-a-workflow-dispatch-event\",\"status\":\"422\"}gh: Workflow does not have 'workflow_dispatch' trigger (HTTP 422)",
   "publisher_workflow": ".github/workflows/deploy-v440-live.yml",
   "publisher_ref": "main",
   "alternate_artifact_path_created": false
