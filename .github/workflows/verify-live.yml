@@ -26,7 +26,7 @@ jobs:
           set -euo pipefail
           curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/bridgepoint-release.json' -o /tmp/live-release.json
           curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/main.dart.js' -o /tmp/live-main.dart.js
-          curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/flutter_bootstrap.js' -o /tmp/live-bootstrap.js
+          curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/app/flutter_bootstrap.js' -o /tmp/live-bootstrap.js
           test -s /tmp/live-release.json
           test -s /tmp/live-main.dart.js
           test -s /tmp/live-bootstrap.js
