@@ -1,0 +1,14 @@
+{
+  "version": 441,
+  "release": "V441 Mobile Install/Open CTA",
+  "source_sha": "5f4114197d834adbb368895238188b57940e279c",
+  "source_build_artifact": "bridgepoint-v441-web.zip",
+  "source_pr": 55,
+  "source_pr_head": "e5e2e6122ab2fb8a65e11bf05de6f75fb58ec5fc",
+  "artifact_sha256": "7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c",
+  "published_at": "2026-08-22T03:58:06.530040Z",
+  "immutable_branch": "app-artifact-v441",
+  "customer_domain": "https://bridgepointintelligence.online/",
+  "classifier_version": 441,
+  "deployment_contract": "Exact CI-built V441 Flutter web artifact; mobile install/open fallback verified before publication"
+}
