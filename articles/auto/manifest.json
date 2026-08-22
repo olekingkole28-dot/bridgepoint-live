@@ -1,0 +1,13 @@
+{
+  "version": 435,
+  "generated_at": "2026-08-21T23:42:17.667804Z",
+  "source_rpc": "bridgepoint_public_owned_media_feed_v435",
+  "story_count": 3,
+  "privacy": "No customer identity, property address, raw evidence, proprietary scoring weight, exact visitor location or exact IP is exposed.",
+  "publication_rule": "Only quality-gate-passed, customer-safe, non-private, non-proprietary stories are eligible. Published and evergreen explainers are always eligible; state briefs require observed demand.",
+  "urls": [
+    "https://bridgepointintelligence.online/articles/auto/south-carolina-bridgepoint-market-readiness-update-2fd02513.html",
+    "https://bridgepointintelligence.online/articles/auto/california-bridgepoint-market-readiness-update-faa8db3b.html",
+    "https://bridgepointintelligence.online/articles/auto/why-weather-exposure-is-not-the-same-thing-as-property-damage-d9e4abae.html"
+  ]
+}

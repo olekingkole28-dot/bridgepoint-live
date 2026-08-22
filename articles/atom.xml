@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>BridgePoint Intelligence Research</title>
+  <id>https://bridgepointintelligence.online/articles/</id>
+  <link href="https://bridgepointintelligence.online/articles/"/>
+  <link rel="self" type="application/atom+xml" href="https://bridgepointintelligence.online/articles/atom.xml"/>
+  <link rel="hub" href="https://pubsubhubbub.appspot.com/"/>
+  <updated>2026-08-21T18:30:00Z</updated>
+  <author><name>BridgePoint Intelligence</name></author>
+  <subtitle>Evidence-first property intelligence research, public aggregate data and methodology.</subtitle>
+  <entry>
+    <title>BridgePoint Intelligence Data Desk — Connecticut Verified Opportunity Aggregates</title>
+    <id>https://bridgepointintelligence.online/articles/data-desk.html</id>
+    <link href="https://bridgepointintelligence.online/articles/data-desk.html"/>
+    <updated>2026-08-21T18:30:00Z</updated>
+    <summary>Journalist- and researcher-safe aggregate Connecticut property-intelligence data with downloadable CSV/JSON and explicit methodology limitations.</summary>
+  </entry>
+  <entry>
+    <title>California BridgePoint Market-Readiness Update — August 21, 2026</title>
+    <id>https://bridgepointintelligence.online/articles/#california-readiness-2026-08-21</id>
+    <link href="https://bridgepointintelligence.online/articles/#california-readiness-2026-08-21"/>
+    <updated>2026-08-21T17:40:00Z</updated>
+    <summary>California is BUILDING in BridgePoint's national expansion pipeline and is not represented as customer-ready.</summary>
+  </entry>
+  <entry>
+    <title>Connecticut Roofing Opportunity Brief — August 21, 2026</title>
+    <id>https://bridgepointintelligence.online/articles/connecticut-roofing-opportunity-brief-2026-08-21.md</id>
+    <link href="https://bridgepointintelligence.online/articles/connecticut-roofing-opportunity-brief-2026-08-21.md"/>
+    <updated>2026-08-21T16:56:00Z</updated>
+    <summary>Current strict Connecticut roofing-opportunity distribution by municipality with evidence and methodology limitations.</summary>
+  </entry>
+  <entry>
+    <title>Why a Storm Map Is Not a Damage Map</title>
+    <id>https://bridgepointintelligence.online/articles/why-a-storm-map-is-not-a-damage-map.md</id>
+    <link href="https://bridgepointintelligence.online/articles/why-a-storm-map-is-not-a-damage-map.md"/>
+    <updated>2026-08-21T16:06:04Z</updated>
+    <summary>Why area-level weather evidence can narrow territory without proving damage at a specific property.</summary>
+  </entry>
+  <entry>
+    <title>Why Property Matching Is the Hidden Failure Point in Property AI</title>
+    <id>https://bridgepointintelligence.online/articles/why-property-matching-is-the-hidden-failure-point-in-property-ai.md</id>
+    <link href="https://bridgepointintelligence.online/articles/why-property-matching-is-the-hidden-failure-point-in-property-ai.md"/>
+    <updated>2026-08-21T16:00:21Z</updated>
+    <summary>Why address normalization, parcel identity, provenance and matching quality determine whether property intelligence can be trusted.</summary>
+  </entry>
+</feed>

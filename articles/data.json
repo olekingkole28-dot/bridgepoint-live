@@ -1,0 +1,34 @@
+{
+  "@context": "https://project-open-data.cio.gov/v1.1/schema/catalog.jsonld",
+  "@id": "https://bridgepointintelligence.online/articles/data.json",
+  "@type": "dcat:Catalog",
+  "conformsTo": "https://project-open-data.cio.gov/v1.1/schema",
+  "describedBy": "https://project-open-data.cio.gov/v1.1/schema/catalog.json",
+  "dataset": [
+    {
+      "title": "BridgePoint Connecticut Verified Opportunity Aggregates",
+      "description": "Journalist- and researcher-safe aggregate snapshot from BridgePoint Intelligence's verified ranked opportunity layer. No property addresses, customer data or proprietary scoring weights are included. Verified opportunities are prioritization candidates, not confirmed physical damage, insurance claims or completed inspections.",
+      "identifier": "bridgepoint-ct-verified-opportunity-aggregates-2026-08-21",
+      "accessLevel": "public",
+      "modified": "2026-08-21",
+      "publisher": {"name": "BridgePoint Intelligence"},
+      "contactPoint": {"fn": "BridgePoint Intelligence", "hasEmail": "mailto:olekingkole28@gmail.com"},
+      "keyword": ["property intelligence","proptech","construction technology","property data","public records","roofing","restoration","property investment","Connecticut"],
+      "spatial": "Connecticut, United States",
+      "temporal": "2026-08-21/2026-08-21",
+      "landingPage": "https://bridgepointintelligence.online/articles/data-desk.html",
+      "distribution": [
+        {
+          "title": "Connecticut opportunity aggregates CSV",
+          "downloadURL": "https://bridgepointintelligence.online/articles/ct-opportunity-aggregates.csv",
+          "mediaType": "text/csv"
+        },
+        {
+          "title": "BridgePoint machine-readable facts JSON",
+          "downloadURL": "https://bridgepointintelligence.online/articles/bridgepoint-facts.json",
+          "mediaType": "application/json"
+        }
+      ]
+    }
+  ]
+}

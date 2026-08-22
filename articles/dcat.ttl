@@ -1,0 +1,25 @@
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://bridgepointintelligence.online/articles/data-desk.html>
+  a dcat:Dataset ;
+  dct:title "BridgePoint Connecticut Verified Opportunity Aggregates" ;
+  dct:description "Aggregate snapshot from BridgePoint Intelligence's verified ranked opportunity layer. No property addresses, customer data or proprietary scoring weights are included. Verified opportunities are prioritization candidates, not confirmed physical damage, insurance claims or completed inspections." ;
+  dct:issued "2026-08-21"^^xsd:date ;
+  dct:publisher <https://bridgepointintelligence.online/> ;
+  dct:spatial "Connecticut, United States" ;
+  dcat:keyword "property intelligence", "proptech", "construction technology", "roofing", "restoration", "property investment" ;
+  dcat:distribution <https://bridgepointintelligence.online/articles/ct-opportunity-aggregates.csv>, <https://bridgepointintelligence.online/articles/bridgepoint-facts.json> .
+
+<https://bridgepointintelligence.online/articles/ct-opportunity-aggregates.csv>
+  a dcat:Distribution ;
+  dct:title "BridgePoint CT Opportunity Aggregate CSV" ;
+  dcat:downloadURL <https://bridgepointintelligence.online/articles/ct-opportunity-aggregates.csv> ;
+  dcat:mediaType "text/csv" .
+
+<https://bridgepointintelligence.online/articles/bridgepoint-facts.json>
+  a dcat:Distribution ;
+  dct:title "BridgePoint Machine-Readable Facts" ;
+  dcat:downloadURL <https://bridgepointintelligence.online/articles/bridgepoint-facts.json> ;
+  dcat:mediaType "application/json" .

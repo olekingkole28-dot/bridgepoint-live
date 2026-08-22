@@ -1,0 +1,29 @@
+{
+  "profile": "tabular-data-package",
+  "name": "bridgepoint-connecticut-verified-opportunity-aggregates",
+  "title": "BridgePoint Connecticut Verified Opportunity Aggregates",
+  "description": "Journalist- and researcher-safe aggregate snapshot from BridgePoint Intelligence's verified ranked opportunity layer. No property addresses, customer data, or proprietary scoring weights are included. Verified opportunities are prioritization candidates, not confirmed physical damage, insurance claims, or completed inspections.",
+  "homepage": "https://bridgepointintelligence.online/articles/data-desk.html",
+  "created": "2026-08-21",
+  "keywords": ["property intelligence", "proptech", "construction technology", "Connecticut", "roofing", "restoration", "public adjusting", "property investment", "property data"],
+  "licenses": [{"name": "Public citation snapshot", "title": "Public aggregate citation use with attribution and limitations preserved"}],
+  "sources": [{"title": "BridgePoint Intelligence verified ranked opportunity layer", "path": "https://bridgepointintelligence.online/articles/data-desk.html"}],
+  "resources": [{
+    "name": "ct-opportunity-aggregates",
+    "path": "https://bridgepointintelligence.online/articles/ct-opportunity-aggregates.csv",
+    "profile": "tabular-data-resource",
+    "format": "csv",
+    "mediatype": "text/csv",
+    "schema": {
+      "fields": [
+        {"name": "snapshot_date", "type": "date"},
+        {"name": "vertical", "type": "string"},
+        {"name": "municipality", "type": "string"},
+        {"name": "verified_opportunity_rows", "type": "integer"},
+        {"name": "distinct_properties", "type": "integer"},
+        {"name": "max_independent_evidence_families", "type": "integer"},
+        {"name": "avg_customer_score", "type": "number"}
+      ]
+    }
+  }]
+}

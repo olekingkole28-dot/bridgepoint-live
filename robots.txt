@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Disallow: /owner/
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /owner/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /owner/
+
+User-agent: GPTBot
+Disallow: /
+
+Sitemap: https://bridgepointintelligence.online/sitemap.xml

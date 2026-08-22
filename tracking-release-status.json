@@ -1,0 +1,19 @@
+{
+  "status": "PUBLISHED",
+  "source_main_sha": "2c357f65a6b67afc924b624fe5f9e86cce5d0dc6",
+  "assembled_artifact_sha256": "7f49edc6b9c70ca51d976a4200100d2da94f246fce3755e4fd6bf9f7926c44b9",
+  "immutable_app_base_branch": "app-artifact-v441",
+  "app_release_version": 443,
+  "mobile_install_open_version": 443,
+  "tracking_version": 440,
+  "account_entry_version": 440,
+  "signup_conversion_version": 440,
+  "coarse_geo_resolver_version": 436,
+  "owner_funnel_version": 432,
+  "public_home": "/",
+  "app_path": "/app/",
+  "public_origin": "https://bridgepointintelligence.online/",
+  "durable_artifact_branch": "live-artifact",
+  "assembled_at": "2026-08-22T19:14:10.028714Z",
+  "contains_privileged_secret": false
+}
