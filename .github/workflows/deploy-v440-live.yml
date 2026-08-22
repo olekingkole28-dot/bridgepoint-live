@@ -1,4 +1,4 @@
-name: Deploy BridgePoint Live — Audited V440
+name: Deploy BridgePoint Live — Audited V441
 
 on:
   push:
@@ -36,36 +36,44 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Assemble current public site with exact audited V440 app
+      - name: Assemble current public site with exact audited V441 app
         run: |
           set -euo pipefail
           git fetch origin live-artifact:refs/remotes/origin/live-artifact
-          git fetch origin app-artifact-v440:refs/remotes/origin/app-artifact-v440
-          rm -rf site /tmp/public-base /tmp/v440-app
-          mkdir -p site /tmp/public-base /tmp/v440-app
+          git fetch origin app-artifact-v441:refs/remotes/origin/app-artifact-v441
+          rm -rf site /tmp/public-base /tmp/v441-app
+          mkdir -p site /tmp/public-base /tmp/v441-app
 
           # Preserve the most recently published public landing/research/sample/owner surfaces.
           git archive --format=tar origin/live-artifact | tar -xf - -C /tmp/public-base
           cp -a /tmp/public-base/. site/
 
-          # Replace only the compiled application with the exact audited V440 artifact.
+          # Replace only the compiled application with the exact audited V441 artifact.
           rm -rf site/app
           mkdir -p site/app
-          git archive --format=tar origin/app-artifact-v440 | tar -xf - -C /tmp/v440-app
-          test -s /tmp/v440-app/index.html
-          test -s /tmp/v440-app/main.dart.js
-          test -s /tmp/v440-app/flutter_bootstrap.js
-          test -s /tmp/v440-app/bridgepoint-release.json
-          grep -q '4b80bbdc1137ce7b7d3fc26f69fa5077c5c8566a' /tmp/v440-app/bridgepoint-release.json
-          grep -q 'https://bridgepointintelligence.online/' /tmp/v440-app/bridgepoint-release.json
-          grep -q 'Create account' /tmp/v440-app/main.dart.js
-          grep -q 'Already have an account' /tmp/v440-app/main.dart.js
-          grep -q 'Check your email' /tmp/v440-app/main.dart.js
-          if grep -Eqi 'SUPABASE_SERVICE_ROLE_KEY|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' /tmp/v440-app/main.dart.js; then
+          git archive --format=tar origin/app-artifact-v441 | tar -xf - -C /tmp/v441-app
+          test -s /tmp/v441-app/index.html
+          test -s /tmp/v441-app/main.dart.js
+          test -s /tmp/v441-app/flutter_bootstrap.js
+          test -s /tmp/v441-app/bridgepoint-release.json
+          grep -q '"version": 441' /tmp/v441-app/bridgepoint-release.json
+          grep -q '5f4114197d834adbb368895238188b57940e279c' /tmp/v441-app/bridgepoint-release.json
+          grep -q '7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c' /tmp/v441-app/bridgepoint-release.json
+          grep -q 'bridgepoint-v441-mobile-install-fallback' /tmp/v441-app/index.html
+          grep -q 'id="bp-install-fallback-v441"' /tmp/v441-app/index.html
+          grep -q 'DOWNLOAD / OPEN APP' /tmp/v441-app/index.html
+          grep -q 'window.location.assign(appUrl)' /tmp/v441-app/index.html
+          grep -q 'mode=signin&utm_source=install_guide' /tmp/v441-app/index.html
+          grep -q 'pointer-events:auto!important' /tmp/v441-app/index.html
+          grep -q 'touch-action:manipulation' /tmp/v441-app/index.html
+          grep -q 'Create account' /tmp/v441-app/main.dart.js
+          grep -q 'Already have an account' /tmp/v441-app/main.dart.js
+          grep -q 'Check your email' /tmp/v441-app/main.dart.js
+          if grep -Eqi 'SUPABASE_SERVICE_ROLE_KEY|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' /tmp/v441-app/main.dart.js; then
             echo 'Privileged secret marker found in audited browser artifact.' >&2
             exit 1
           fi
-          cp -a /tmp/v440-app/. site/app/
+          cp -a /tmp/v441-app/. site/app/
           rm -rf site/app/articles site/app/sample site/app/landing site/app/owner
 
           # The source artifact is built for root; the live application is mounted at /app/.
@@ -81,6 +89,7 @@ jobs:
           grep -q '<base href="/app/">' site/app/index.html
 
           # Overlay the current privacy-safe V440 acquisition tracker at both public scopes.
+          # V441 changes install/open UX only; ordinary app entry must remain VALUE_VIEW/signin.
           test -s acquisition_tracker.js
           grep -q 'captureVersion=440' acquisition_tracker.js
           grep -q 'bridgepoint-coarse-geo-v436' acquisition_tracker.js
@@ -110,7 +119,7 @@ jobs:
           grep -q 'bridgepoint_owner_acquisition_v432' site/owner/acquisition/index.html
           grep -q 'noindex,nofollow,noarchive' site/owner/acquisition/index.html
 
-          echo 'BridgePoint public site assembled with exact audited V440 signup conversion artifact.'
+          echo 'BridgePoint public site assembled with exact audited V441 mobile install/open artifact.'
 
       - name: Persist exact deployed site for rollback and audit
         env:
@@ -126,7 +135,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint live artifact with audited V440 signup conversion'
+          git commit -m 'BridgePoint live artifact with audited V441 mobile install/open release'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -144,7 +153,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Record exact V440 production receipt
+      - name: Record exact V441 production receipt
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
@@ -154,9 +163,11 @@ jobs:
           from datetime import datetime, timezone
           receipt={
             'status':'PUBLISHED',
-            'source_main_sha':'796bae97fd83adfe8ca93746d395a421e6970e86',
-            'audited_artifact_marker':'4b80bbdc1137ce7b7d3fc26f69fa5077c5c8566a',
-            'immutable_app_branch':'app-artifact-v440',
+            'source_main_sha':'5f4114197d834adbb368895238188b57940e279c',
+            'audited_artifact_sha256':'7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c',
+            'immutable_app_branch':'app-artifact-v441',
+            'app_release_version':441,
+            'mobile_install_open_version':441,
             'tracking_version':440,
             'account_entry_version':440,
             'signup_conversion_version':440,
@@ -178,7 +189,7 @@ jobs:
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add tracking-release-status.json
-          git commit -m 'Record audited V440 live deployment [skip ci]' || true
+          git commit -m 'Record audited V441 live deployment [skip ci]' || true
           for attempt in 1 2 3; do
             if git push origin HEAD:main; then exit 0; fi
             git fetch origin main
