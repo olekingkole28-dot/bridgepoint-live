@@ -6,13 +6,48 @@
 <atom:link rel="hub" href="https://pubsubhubbub.appspot.com/" />
 <description>Quality-gated BridgePoint Intelligence research and market-readiness briefs.</description>
 <language>en-us</language>
-<lastBuildDate>Sat, 22 Aug 2026 17:59:08 +0000</lastBuildDate>
+<lastBuildDate>Sat, 22 Aug 2026 19:05:50 +0000</lastBuildDate>
 <item>
-<title>Why nationwide property intelligence is a data-infrastructure problem, not just an AI model</title>
-<link>https://bridgepointintelligence.online/articles/auto/why-nationwide-property-intelligence-is-a-data-infrastructure-problem-no-0d6ca8b1.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/why-nationwide-property-intelligence-is-a-data-infrastructure-problem-no-0d6ca8b1.html</guid>
-<pubDate>Sat, 22 Aug 2026 17:20:43 +0000</pubDate>
-<description>The defensible work in property intelligence starts before scoring: source discovery, normalization, identity resolution, provenance, refresh and geography-aware quality gates.</description>
+<title>Commercial restoration claims intelligence: connect property evidence to the claim lifecycle</title>
+<link>https://bridgepointintelligence.online/articles/auto/commercial-restoration-claims-intelligence-connect-property-evidence-to--7b4b6465.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/commercial-restoration-claims-intelligence-connect-property-evidence-to--7b4b6465.html</guid>
+<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
+<description>How restoration operators can combine property context, field evidence and verified claim timing without replacing estimating or claims-core systems.</description>
+</item>
+<item>
+<title>Commercial roofing insurance intelligence: prioritize properties without confusing exposure with damage</title>
+<link>https://bridgepointintelligence.online/articles/auto/commercial-roofing-insurance-intelligence-prioritize-properties-without--562dcf65.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/commercial-roofing-insurance-intelligence-prioritize-properties-without--562dcf65.html</guid>
+<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
+<description>A commercial-roofing workflow for combining property records, permitted evidence, weather context and claim timing while preserving field-verification limits.</description>
+</item>
+<item>
+<title>BridgePoint Intelligence opens founding commercial claims pilot for restoration, roofing and public-adjusting firms</title>
+<link>https://bridgepointintelligence.online/articles/auto/bridgepoint-intelligence-opens-founding-commercial-claims-pilot-for-rest-27b8c316.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/bridgepoint-intelligence-opens-founding-commercial-claims-pilot-for-rest-27b8c316.html</guid>
+<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
+<description>The Connecticut-born property-intelligence platform is recruiting a limited reference cohort to measure daily workflow use and verified claim-stage duration alongside existing claims systems.</description>
+</item>
+<item>
+<title>Property intelligence for public adjusters: build the claim timeline before the dispute gets old</title>
+<link>https://bridgepointintelligence.online/articles/auto/property-intelligence-for-public-adjusters-build-the-claim-timeline-befo-4b6ec6cf.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/property-intelligence-for-public-adjusters-build-the-claim-timeline-befo-4b6ec6cf.html</guid>
+<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
+<description>A practical framework for using property evidence, provenance and verified milestone timing alongside existing estimating and claims systems.</description>
+</item>
+<item>
+<title>Xactimate-compatible property intelligence: how BridgePoint is designed to fit existing claims workflows</title>
+<link>https://bridgepointintelligence.online/articles/auto/xactimate-compatible-property-intelligence-how-bridgepoint-is-designed-t-fbd99891.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/xactimate-compatible-property-intelligence-how-bridgepoint-is-designed-t-fbd99891.html</guid>
+<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
+<description>BridgePoint is building vendor-neutral claim and property exports now while keeping native Xactimate activation truthfully gated behind authorized integration.</description>
+</item>
+<item>
+<title>Insurance claim delay benchmarks: why disputed-claim timeline duration is a missing data layer</title>
+<link>https://bridgepointintelligence.online/articles/auto/insurance-claim-delay-benchmarks-why-disputed-claim-timeline-duration-is-2f44c18d.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/insurance-claim-delay-benchmarks-why-disputed-claim-timeline-duration-is-2f44c18d.html</guid>
+<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
+<description>A methodology for measuring verified stage-by-stage claim duration without turning observational data into unsupported causal claims.</description>
 </item>
 <item>
 <title>Property intelligence for roofing contractors: what to verify before driving a territory</title>
@@ -36,6 +71,13 @@
 <description>How restoration and mitigation teams can use weather as context while demanding property matching, provenance and independent evidence before prioritizing field work.</description>
 </item>
 <item>
+<title>Why nationwide property intelligence is a data-infrastructure problem, not just an AI model</title>
+<link>https://bridgepointintelligence.online/articles/auto/why-nationwide-property-intelligence-is-a-data-infrastructure-problem-no-0d6ca8b1.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/why-nationwide-property-intelligence-is-a-data-infrastructure-problem-no-0d6ca8b1.html</guid>
+<pubDate>Sat, 22 Aug 2026 17:20:43 +0000</pubDate>
+<description>The defensible work in property intelligence starts before scoring: source discovery, normalization, identity resolution, provenance, refresh and geography-aware quality gates.</description>
+</item>
+<item>
 <title>Why weather exposure is not the same thing as property damage</title>
 <link>https://bridgepointintelligence.online/articles/auto/why-weather-exposure-is-not-the-same-thing-as-property-damage-d9e4abae.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/why-weather-exposure-is-not-the-same-thing-as-property-damage-d9e4abae.html</guid>
@@ -47,48 +89,6 @@
 <link>https://bridgepointintelligence.online/articles/auto/massachusetts-bridgepoint-market-readiness-update-72203768.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/massachusetts-bridgepoint-market-readiness-update-72203768.html</guid>
 <pubDate>Sat, 22 Aug 2026 03:17:00 +0000</pubDate>
-<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
-</item>
-<item>
-<title>Iowa BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/iowa-bridgepoint-market-readiness-update-4716903f.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/iowa-bridgepoint-market-readiness-update-4716903f.html</guid>
-<pubDate>Sat, 22 Aug 2026 03:17:00 +0000</pubDate>
-<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
-</item>
-<item>
-<title>Texas BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/texas-bridgepoint-market-readiness-update-a3e057e0.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/texas-bridgepoint-market-readiness-update-a3e057e0.html</guid>
-<pubDate>Sat, 22 Aug 2026 03:17:00 +0000</pubDate>
-<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
-</item>
-<item>
-<title>Connecticut BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/connecticut-bridgepoint-market-readiness-update-6d3ab4b5.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/connecticut-bridgepoint-market-readiness-update-6d3ab4b5.html</guid>
-<pubDate>Sat, 22 Aug 2026 03:17:00 +0000</pubDate>
-<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
-</item>
-<item>
-<title>Virginia BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/virginia-bridgepoint-market-readiness-update-1fa26ce7.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/virginia-bridgepoint-market-readiness-update-1fa26ce7.html</guid>
-<pubDate>Sat, 22 Aug 2026 03:17:00 +0000</pubDate>
-<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
-</item>
-<item>
-<title>California BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/california-bridgepoint-market-readiness-update-27da9e3e.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/california-bridgepoint-market-readiness-update-27da9e3e.html</guid>
-<pubDate>Sat, 22 Aug 2026 01:17:00 +0000</pubDate>
-<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
-</item>
-<item>
-<title>Idaho BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/idaho-bridgepoint-market-readiness-update-4a174d1f.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/idaho-bridgepoint-market-readiness-update-4a174d1f.html</guid>
-<pubDate>Sat, 22 Aug 2026 00:17:00 +0000</pubDate>
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 </channel></rss>
