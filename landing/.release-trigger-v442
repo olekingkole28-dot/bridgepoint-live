@@ -1,0 +1,3 @@
+V442 audited deployment trigger.
+Source app main: 2c5154a244fa6ea42363dbeb24e9cefbb8a2005f
+Purpose: trigger the existing audited V442 publisher; no customer-facing content change.
