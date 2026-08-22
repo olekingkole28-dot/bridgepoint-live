@@ -1,0 +1,48 @@
+name: Recover BridgePoint V442 Deploy
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: bridgepoint-v442-deploy-recovery
+  cancel-in-progress: true
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check durable release receipt
+        id: receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('tracking-release-status.json')
+          try:
+              print(int(json.loads(p.read_text(encoding='utf-8')).get('app_release_version',0)))
+          except Exception:
+              print(0)
+          PY
+          )"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Current durable app release: V${version}"
+      - name: Dispatch the existing audited V442 publisher
+        if: steps.receipt.outputs.version != '442'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run deploy-v440-live.yml --ref main
+          echo 'Dispatched existing audited V442 publisher; no alternate artifact path was created.'
+      - name: No-op after V442 receipt exists
+        if: steps.receipt.outputs.version == '442'
+        run: echo 'V442 durable receipt already exists; recovery dispatcher is idle.'
