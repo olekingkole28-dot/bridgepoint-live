@@ -1,5 +1,5 @@
 name: Recover BridgePoint V442 Deploy
-# V442 publisher dispatch registration repaired; this workflow is the sole recovery trigger.
+# Sole recovery trigger for the freshly registered audited V442 publisher identity.
 
 on:
   push:
@@ -56,7 +56,7 @@ jobs:
           response="$(gh api --method POST \
             -H 'Accept: application/vnd.github+json' \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "/repos/${GITHUB_REPOSITORY}/actions/workflows/deploy-v440-live.yml/dispatches" \
+            "/repos/${GITHUB_REPOSITORY}/actions/workflows/deploy-v442-live.yml/dispatches" \
             -f ref=main 2>&1)"
           code=$?
           set -e
@@ -65,7 +65,7 @@ jobs:
           echo "dispatch_message=$clean" >> "$GITHUB_OUTPUT"
           if [ "$code" -eq 0 ]; then
             echo 'dispatch_status=REQUESTED' >> "$GITHUB_OUTPUT"
-            echo 'Dispatched the existing audited V442 publisher through the Actions REST endpoint.'
+            echo 'Dispatched the sole audited V442 publisher through the Actions REST endpoint.'
           else
             echo 'dispatch_status=FAILED' >> "$GITHUB_OUTPUT"
             echo "Publisher dispatch failed with exit code $code: $clean"
@@ -97,7 +97,7 @@ jobs:
             'recovery_status': status,
             'dispatch_exit_code': int(exit_code) if exit_code and exit_code.isdigit() else None,
             'dispatch_message': (os.environ.get('DISPATCH_MESSAGE') or '')[:1800],
-            'publisher_workflow': '.github/workflows/deploy-v440-live.yml',
+            'publisher_workflow': '.github/workflows/deploy-v442-live.yml',
             'publisher_ref': 'main',
             'alternate_artifact_path_created': False
           }
