@@ -1,7 +1,9 @@
 {
   "status": "VERIFIED",
-  "release_sha": "754650fad126693bf34ce88c99ad47d827888ac2",
-  "verified_at": "2026-08-21T06:02:01.790272Z",
+  "release_version": 443,
+  "source_sha": "2c357f65a6b67afc924b624fe5f9e86cce5d0dc6",
+  "artifact_sha256": "7f49edc6b9c70ca51d976a4200100d2da94f246fce3755e4fd6bf9f7926c44b9",
+  "verified_at": "2026-08-22T14:04:10.000029Z",
   "public_origin": "https://bridgepointintelligence.online/",
   "checks": {
     "public_release_matches_receipt": true,
