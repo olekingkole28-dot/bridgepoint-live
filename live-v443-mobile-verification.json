@@ -1,7 +1,7 @@
 {
   "status": "VERIFIED_LIVE",
   "phase": "complete",
-  "checkedAt": "2026-08-22T19:14:42.956Z",
+  "checkedAt": "2026-08-22T22:35:01.490Z",
   "checks": {
     "releaseReceipt": true,
     "width320": true,
@@ -24,9 +24,9 @@
       "viewport": 320,
       "scrollWidth": 320,
       "cta": {
-        "left": 9.967437744140625,
-        "right": 310.0325622558594,
-        "height": 59.606689453125
+        "left": 10,
+        "right": 310,
+        "height": 59.59375
       },
       "continue": {
         "left": 26,
@@ -43,9 +43,9 @@
       "viewport": 360,
       "scrollWidth": 360,
       "cta": {
-        "left": 10,
-        "right": 350,
-        "height": 56
+        "left": 9.847427368164062,
+        "right": 350.15260314941406,
+        "height": 56.05023193359375
       },
       "continue": {
         "left": 26,
@@ -62,9 +62,9 @@
       "viewport": 390,
       "scrollWidth": 390,
       "cta": {
-        "left": 9.959991455078125,
-        "right": 380.0400085449219,
-        "height": 56.0120849609375
+        "left": 10,
+        "right": 380,
+        "height": 56
       },
       "continue": {
         "left": 29,
@@ -128,7 +128,7 @@
     "base_artifact_sha256": "7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c",
     "artifact_sha256": "7f49edc6b9c70ca51d976a4200100d2da94f246fce3755e4fd6bf9f7926c44b9",
     "artifact_digest_scope": "site/app excluding bridgepoint-release.json",
-    "published_at": "2026-08-22T19:14:10.004438Z",
+    "published_at": "2026-08-22T22:34:25.827795Z",
     "immutable_base_branch": "app-artifact-v441",
     "customer_domain": "https://bridgepointintelligence.online/",
     "classifier_version": 443,
