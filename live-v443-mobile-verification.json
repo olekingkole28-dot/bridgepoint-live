@@ -1,0 +1,25 @@
+{
+  "status": "FAILED",
+  "phase": "release_receipt",
+  "checkedAt": "2026-08-22T13:53:59.575Z",
+  "checks": {},
+  "widths": {},
+  "error": "Error: V443 release receipt mismatch: {\"version\":442,\"release\":\"V443 Mobile Install Runtime Repair\",\"source_sha\":\"2c357f65a6b67afc924b624fe5f9e86cce5d0dc6\",\"source_pr\":57,\"source_pr_head\":\"6e60d771baf70801288d0b9f696634d13c3458bb\",\"base_release_version\":441,\"base_source_sha\":\"5f4114197d834adbb368895238188b57940e279c\",\"base_artifact_sha256\":\"7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c\",\"artifact_sha256\":\"7f49edc6b9c70ca51d976a4200100d2da94f246fce3755e4fd6bf9f7926c44b9\",\"artifact_digest_scope\":\"site/app excluding bridgepoint-release.json\",\"published_at\":\"2026-08-22T13:53:29.817472Z\",\"immutable_base_branch\":\"app-artifact-v441\",\"customer_domain\":\"https://bridgepointintelligence.online/\",\"classifier_version\":442,\"deployment_contract\":\"CI-audited V441 compiled app + source-audited V442 width clamp + V443 runtime behavior repair\"}\n    at /tmp/v443-mobile/verify.cjs:24:135\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)",
+  "release": {
+    "version": 442,
+    "release": "V443 Mobile Install Runtime Repair",
+    "source_sha": "2c357f65a6b67afc924b624fe5f9e86cce5d0dc6",
+    "source_pr": 57,
+    "source_pr_head": "6e60d771baf70801288d0b9f696634d13c3458bb",
+    "base_release_version": 441,
+    "base_source_sha": "5f4114197d834adbb368895238188b57940e279c",
+    "base_artifact_sha256": "7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c",
+    "artifact_sha256": "7f49edc6b9c70ca51d976a4200100d2da94f246fce3755e4fd6bf9f7926c44b9",
+    "artifact_digest_scope": "site/app excluding bridgepoint-release.json",
+    "published_at": "2026-08-22T13:53:29.817472Z",
+    "immutable_base_branch": "app-artifact-v441",
+    "customer_domain": "https://bridgepointintelligence.online/",
+    "classifier_version": 442,
+    "deployment_contract": "CI-audited V441 compiled app + source-audited V442 width clamp + V443 runtime behavior repair"
+  }
+}
