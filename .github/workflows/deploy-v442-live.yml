@@ -20,6 +20,8 @@ on:
         description: Audited V442 publisher recovery reason
         required: false
         default: recovery
+  repository_dispatch:
+    types: [bridgepoint_v442_release]
 
 permissions:
   contents: write
