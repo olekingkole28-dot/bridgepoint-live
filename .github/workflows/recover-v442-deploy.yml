@@ -1,13 +1,17 @@
 name: Recover BridgePoint V442 Deploy
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/recover-v442-deploy.yml
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
 
 permissions:
   actions: write
-  contents: read
+  contents: write
 
 concurrency:
   group: bridgepoint-v442-deploy-recovery
@@ -18,6 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Check durable release receipt
         id: receipt
         shell: bash
@@ -35,14 +42,58 @@ jobs:
           )"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Current durable app release: V${version}"
-      - name: Dispatch the existing audited V442 publisher
+
+      - name: Dispatch existing audited V442 publisher
+        id: dispatch
         if: steps.receipt.outputs.version != '442'
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
           set -euo pipefail
-          gh workflow run deploy-v440-live.yml --ref main
-          echo 'Dispatched existing audited V442 publisher; no alternate artifact path was created.'
+          gh api --method POST \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "/repos/${GITHUB_REPOSITORY}/actions/workflows/deploy-v440-live.yml/dispatches" \
+            -f ref=main
+          echo 'dispatch_status=REQUESTED' >> "$GITHUB_OUTPUT"
+          echo 'Dispatched the existing audited V442 publisher through the Actions REST endpoint.'
+
       - name: No-op after V442 receipt exists
         if: steps.receipt.outputs.version == '442'
-        run: echo 'V442 durable receipt already exists; recovery dispatcher is idle.'
+        run: echo 'V442 durable receipt already exists; recovery is idle.'
+
+      - name: Persist recovery diagnostic
+        if: always()
+        env:
+          RECEIPT_VERSION: ${{ steps.receipt.outputs.version }}
+          DISPATCH_STATUS: ${{ steps.dispatch.outputs.dispatch_status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          receipt_version=int(os.environ.get('RECEIPT_VERSION') or 0)
+          status=os.environ.get('DISPATCH_STATUS') or ('IDLE_V442' if receipt_version == 442 else 'DISPATCH_FAILED')
+          payload={
+            'checked_at': datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
+            'durable_receipt_version': receipt_version,
+            'recovery_status': status,
+            'publisher_workflow': '.github/workflows/deploy-v440-live.yml',
+            'publisher_ref': 'main',
+            'alternate_artifact_path_created': False
+          }
+          open('recovery-v442-status.json','w',encoding='utf-8').write(json.dumps(payload,indent=2)+'\n')
+          print(json.dumps(payload,indent=2))
+          PY
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add recovery-v442-status.json
+          git commit -m 'Record V442 recovery dispatch status [skip ci]' || exit 0
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then exit 0; fi
+            git fetch origin main
+            git rebase origin/main || { git rebase --abort || true; exit 0; }
+          done
+          exit 0
