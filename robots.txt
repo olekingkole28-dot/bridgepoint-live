@@ -14,3 +14,4 @@ User-agent: GPTBot
 Disallow: /
 
 Sitemap: https://bridgepointintelligence.online/sitemap.xml
+Sitemap: https://bridgepointintelligence.online/articles/auto/sitemap.xml
