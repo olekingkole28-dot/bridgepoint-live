@@ -161,7 +161,7 @@ jobs:
           open('site/app/bridgepoint-release.json','w',encoding='utf-8').write(json.dumps(marker,indent=2)+'\n')
           print(json.dumps(marker,indent=2))
           PY
-          grep -q '"version": 442' site/app/bridgepoint-release.json
+          grep -q '"version": 443' site/app/bridgepoint-release.json
           grep -q '2c357f65a6b67afc924b624fe5f9e86cce5d0dc6' site/app/bridgepoint-release.json
 
           python - <<'PY'
