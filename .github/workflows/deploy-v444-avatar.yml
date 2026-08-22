@@ -1,11 +1,12 @@
 name: Deploy BridgePoint Live — Audited V444 Avatar
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/deploy-v444-avatar.yml
   workflow_dispatch:
+    inputs:
+      artifact_url:
+        description: Short-lived URL for an audited BridgePoint web artifact
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -23,8 +24,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     env:
-      AVATAR_ARTIFACT_URL: >-
-        https://sdmntprwestcentralus.oaiusercontent.com/files/00000000-838c-81fb-b209-10fac34967dc/raw?se=2026-08-22T14%3A21%3A21Z&sp=r&sv=2026-02-06&sr=b&scid=75dfaeef-fba2-4076-82e6-0b08c5609362&skoid=18c14e53-ea0c-429b-8d09-d22d66ca7169&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-22T13%3A58%3A24Z&ske=2026-08-23T13%3A58%3A24Z&sks=b&skv=2026-02-06&sig=MwyP5hcAieugMgRoOF5mtXj82i6CffzQY4SJDD72wSM%3D
+      AVATAR_ARTIFACT_URL: ${{ inputs.artifact_url }}
     steps:
       - uses: actions/checkout@v4
         with:
