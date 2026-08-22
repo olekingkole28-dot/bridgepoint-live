@@ -5,12 +5,12 @@
   const apikey='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
   const endpoint=`${supabaseUrl}/rest/v1/rpc/track_acquisition_event_v400`;
   const geoEndpoint=`${supabaseUrl}/functions/v1/bridgepoint-coarse-geo-v436`;
-  const captureVersion=436;
+  const captureVersion=440;
 
   const visitorKey='bp_visitor_id_v421';
   const sessionKey='bp_session_id_v421';
   const geoKey='bp_coarse_geo_v436';
-  const onceKey='bp_funnel_once_v432';
+  const onceKey='bp_funnel_once_v440';
 
   const safeStorage=(storage,key,fallback)=>{
     try{
@@ -32,6 +32,7 @@
     if(cached)geo=JSON.parse(cached)||{};
   }catch(_){geo={};}
 
+  const normalize=value=>String(value||'').replace(/\s+/g,' ').trim().toLowerCase();
   const cleanCode=(value,max)=>String(value||'').trim().toUpperCase().slice(0,max);
   const validCountry=value=>/^[A-Z]{2}$/.test(value);
   const validUsState=value=>/^(A[LKZR]|C[AOT]|D[EC]|F[L]|G[A]|H[I]|I[ADLN]|K[SY]|L[A]|M[ADEHINOST]|N[CDEHJMVY]|O[HKR]|P[A]|R[I]|S[CD]|T[NX]|U[T]|V[AIT]|W[AIVY])$/.test(value);
@@ -47,7 +48,7 @@
   }
   function cacheGeo(next){
     if(next&&next.country_code)geo=next;
-    try{sessionStorage.setItem(geoKey,JSON.stringify(geo));}catch(_){/* session-only cache is optional */}
+    try{sessionStorage.setItem(geoKey,JSON.stringify(geo));}catch(_){/* session cache optional */}
     return geo;
   }
   async function fetchWithTimeout(url,options={},timeoutMs=2200){
@@ -90,9 +91,7 @@
   }
   const geoReady=loadCoarseGeo();
 
-  function currentSource(){
-    return params.get('utm_source')||referrerHost||'direct/unknown';
-  }
+  function currentSource(){return params.get('utm_source')||referrerHost||'direct/unknown';}
   function markOnce(key){
     try{
       const current=JSON.parse(sessionStorage.getItem(onceKey)||'{}');
@@ -102,6 +101,36 @@
       return true;
     }catch(_){return true;}
   }
+
+  function appEntryMode(anchor){
+    if(!(anchor instanceof HTMLAnchorElement))return null;
+    const href=anchor.getAttribute('href')||'';
+    if(!href.startsWith('/app'))return null;
+    const text=normalize(anchor.textContent||anchor.getAttribute('aria-label')||anchor.getAttribute('title'));
+    let url;
+    try{url=new URL(href,location.origin);}catch(_){return null;}
+    const campaign=normalize(url.searchParams.get('utm_campaign'));
+    const explicitSignup=url.searchParams.get('mode')==='signup'||/start[_ -]?trial|proof[_ -]?to[_ -]?trial|signup|create[_ -]?account/.test(campaign)||/start.*trial|free trial|create account|sign up|signup|try bridgepoint/.test(text);
+    const explicitSignin=url.searchParams.get('mode')==='signin'||campaign==='open_app'||/open app|open bridgepoint|sign in|existing user/.test(text);
+    if(explicitSignup)return 'signup';
+    if(explicitSignin)return 'signin';
+    return null;
+  }
+
+  function normalizeAppEntryLinks(){
+    for(const anchor of document.querySelectorAll('a[href^="/app"]')){
+      const mode=appEntryMode(anchor);
+      if(!mode)continue;
+      try{
+        const url=new URL(anchor.getAttribute('href')||'/app/',location.origin);
+        url.searchParams.set('mode',mode);
+        anchor.setAttribute('href',`${url.pathname}${url.search}${url.hash}`);
+        anchor.dataset.bpAccountMode=mode;
+      }catch(_){/* preserve original href */}
+    }
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',normalizeAppEntryLinks,{once:true});
+  else normalizeAppEntryLinks();
 
   async function send(eventType,metadata={}){
     const body={
@@ -117,21 +146,10 @@
       p_utm_content:params.get('utm_content'),
       p_referral_code:params.get('ref'),
       p_auth_error_code:null,
-      p_metadata:{
-        capture_version:captureVersion,
-        visibility:document.visibilityState,
-        source_hint:currentSource(),
-        ...geo,
-        ...metadata,
-      },
+      p_metadata:{capture_version:captureVersion,visibility:document.visibilityState,source_hint:currentSource(),...geo,...metadata},
     };
     try{
-      await fetch(endpoint,{
-        method:'POST',
-        keepalive:true,
-        headers:{apikey,'Content-Type':'application/json','Accept':'application/json'},
-        body:JSON.stringify(body),
-      });
+      await fetch(endpoint,{method:'POST',keepalive:true,headers:{apikey,'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body)});
     }catch(_){/* analytics must never block the customer experience */}
   }
 
@@ -139,7 +157,8 @@
     if(path==='/')return ['LANDING_VIEW',{surface:'homepage'}];
     if(path.startsWith('/articles'))return ['VALUE_VIEW',{surface:'research'}];
     if(path.startsWith('/sample'))return ['SAMPLE_VIEW',{surface:'territory_sample'}];
-    if(path.startsWith('/app'))return ['VALUE_VIEW',{surface:'app_entry'}];
+    if(path.startsWith('/app')&&params.get('mode')==='signup')return ['SIGNUP_VIEW',{surface:'app_signup'}];
+    if(path.startsWith('/app'))return ['VALUE_VIEW',{surface:'app_entry',account_mode:params.get('mode')||'unspecified'}];
     return ['VALUE_VIEW',{surface:'public_page'}];
   }
 
@@ -167,27 +186,24 @@
   document.addEventListener('click',event=>{
     const target=event.target instanceof Element?event.target.closest('a,button'):null;
     if(!target)return;
-    const text=(target.textContent||'').trim().toLowerCase();
+    const text=normalize(target.textContent||target.getAttribute('aria-label')||target.getAttribute('title'));
     const href=target instanceof HTMLAnchorElement?target.getAttribute('href')||'':'';
-    if(href.startsWith('/articles')||text.includes('research')||text.includes('brief')){
-      send('VALUE_VIEW',{surface:'research_click',destination:href.slice(0,160)});
+    if(href.startsWith('/articles')||text.includes('research')||text.includes('brief'))send('VALUE_VIEW',{surface:'research_click',destination:href.slice(0,160)});
+    if(href.startsWith('/sample')||text.includes('territory sample')||text.includes('sample'))send('SAMPLE_REQUEST',{surface:'public_cta',destination:href.slice(0,160)});
+
+    let mode=null;
+    if(target instanceof HTMLAnchorElement)mode=target.dataset.bpAccountMode||appEntryMode(target);
+    if(mode==='signup'||text.includes('start trial')||text.includes('start free')||text.includes('create account')||text.includes('free trial')){
+      send('CREATE_ACCOUNT_CLICK',{surface:'public_cta',destination:href.slice(0,160),account_mode:'signup'});
+    }else if(href.startsWith('/app')||text.includes('open app')||text.includes('open bridgepoint')||text.includes('sign in')){
+      send('VALUE_VIEW',{surface:'app_entry_click',destination:href.slice(0,160),account_mode:mode||'signin'});
     }
-    if(href.startsWith('/sample')||text.includes('territory sample')||text.includes('sample')){
-      send('SAMPLE_REQUEST',{surface:'public_cta',destination:href.slice(0,160)});
-    }
-    if(href.startsWith('/app')||text.includes('start trial')||text.includes('start free')||text.includes('create account')){
-      send('CREATE_ACCOUNT_CLICK',{surface:'public_cta',destination:href.slice(0,160)});
-    }
-    if(text.includes('pricing')||text.includes('plans')||text.includes('package')){
-      send('PRICING_VIEW',{surface:'public_cta'});
-    }
+    if(text.includes('pricing')||text.includes('plans')||text.includes('package'))send('PRICING_VIEW',{surface:'public_cta'});
   },{capture:true});
 
   document.addEventListener('submit',event=>{
     const form=event.target instanceof HTMLFormElement?event.target:null;
     if(!form)return;
-    if(path.startsWith('/sample')||form.matches('[data-bp-sample-form]')){
-      send('SAMPLE_REQUEST',{surface:'territory_form_submit'});
-    }
+    if(path.startsWith('/sample')||form.matches('[data-bp-sample-form]'))send('SAMPLE_REQUEST',{surface:'territory_form_submit'});
   },{capture:true});
 })();
