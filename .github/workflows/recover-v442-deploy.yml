@@ -1,4 +1,5 @@
 name: Recover BridgePoint V442 Deploy
+# V442 publisher dispatch registration repaired; this workflow is the sole recovery trigger.
 
 on:
   push:
