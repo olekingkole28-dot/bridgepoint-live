@@ -65,10 +65,13 @@ jobs:
           grep -q 'bridgepoint-v441-mobile-install-fallback' /tmp/v441-app/index.html
           grep -q 'id="bp-install-fallback-v441"' /tmp/v441-app/index.html
           grep -q 'DOWNLOAD / OPEN APP' /tmp/v441-app/index.html
+          grep -q 'window.location.assign(appUrl)' /tmp/v441-app/index.html
           grep -q 'mode=signin&utm_source=install_guide' /tmp/v441-app/index.html
+          grep -q 'pointer-events:auto!important' /tmp/v441-app/index.html
           grep -q 'touch-action:manipulation' /tmp/v441-app/index.html
           grep -q 'Create account' /tmp/v441-app/main.dart.js
           grep -q 'Already have an account' /tmp/v441-app/main.dart.js
+          grep -q 'Check your email' /tmp/v441-app/main.dart.js
           if grep -Eqi 'SUPABASE_SERVICE_ROLE_KEY|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' /tmp/v441-app/main.dart.js; then
             echo 'Privileged secret marker found in audited browser artifact.' >&2
             exit 1
@@ -87,6 +90,8 @@ jobs:
           if marker not in s:
               if 'bridgepoint-v441-mobile-install-fallback' not in s or 'id="bp-install-fallback-v441"' not in s:
                   raise SystemExit('V442 prerequisites missing from audited V441 base')
+              if '</head>' not in s:
+                  raise SystemExit('V442 live head anchor missing')
               style='''  <style id="bridgepoint-v442-install-guide-mobile-width">
     #bp-install-fallback-v441{box-sizing:border-box!important;max-width:100%!important}
     @media(max-width:620px){
@@ -107,6 +112,7 @@ jobs:
           test -s acquisition_tracker.js
           grep -q 'captureVersion=440' acquisition_tracker.js
           grep -q 'bridgepoint-coarse-geo-v436' acquisition_tracker.js
+          grep -q 'mode.*signup' acquisition_tracker.js
           grep -q 'account_mode' acquisition_tracker.js
           if grep -q 'service_role' acquisition_tracker.js; then
             echo 'Forbidden privileged credential marker found in browser tracker.' >&2
@@ -140,6 +146,7 @@ jobs:
             'deployment_contract':'CI-audited V441 compiled app + source-audited V442 viewport-clamp web-shell repair'
           }
           open('site/app/bridgepoint-release.json','w',encoding='utf-8').write(json.dumps(marker,indent=2)+'\n')
+          print(json.dumps(marker,indent=2))
           PY
           grep -q '"version": 442' site/app/bridgepoint-release.json
           grep -q '2c5154a244fa6ea42363dbeb24e9cefbb8a2005f' site/app/bridgepoint-release.json
@@ -158,6 +165,7 @@ jobs:
           grep -q 'request_territory_sample_v425' site/sample/index.html
           grep -q 'bridgepoint_owner_acquisition_v432' site/owner/acquisition/index.html
           grep -q 'noindex,nofollow,noarchive' site/owner/acquisition/index.html
+          echo 'BridgePoint public site assembled with audited V442 mobile install-guide width repair.'
 
       - name: Persist exact deployed site for rollback and audit
         env:
@@ -231,6 +239,7 @@ jobs:
             'contains_privileged_secret':False
           }
           open('tracking-release-status.json','w',encoding='utf-8').write(json.dumps(receipt,indent=2)+'\n')
+          print(json.dumps(receipt,indent=2))
           PY
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
