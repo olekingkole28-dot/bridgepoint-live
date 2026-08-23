@@ -6,7 +6,7 @@
 <atom:link rel="hub" href="https://pubsubhubbub.appspot.com/" />
 <description>Quality-gated BridgePoint Intelligence research and market-readiness briefs.</description>
 <language>en-us</language>
-<lastBuildDate>Sun, 23 Aug 2026 13:46:35 +0000</lastBuildDate>
+<lastBuildDate>Sun, 23 Aug 2026 14:55:20 +0000</lastBuildDate>
 <item>
 <title>Watertown roof permit decoded: what a public filing can tell you before anyone inspects the property</title>
 <link>https://bridgepointintelligence.online/articles/auto/watertown-roof-permit-decoded-what-a-public-filing-can-tell-you-before-a-b9901b22.html</link>
@@ -22,18 +22,18 @@
 <description>BridgePoint Intelligence is a property-intelligence platform founded by Kole Johnson that combines property identity, public-source evidence, explainable prioritization and verified claim-timeline data.</description>
 </item>
 <item>
-<title>Xactimate-compatible property intelligence: how BridgePoint is designed to fit existing claims workflows</title>
-<link>https://bridgepointintelligence.online/articles/auto/xactimate-compatible-property-intelligence-how-bridgepoint-is-designed-t-fbd99891.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/xactimate-compatible-property-intelligence-how-bridgepoint-is-designed-t-fbd99891.html</guid>
-<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
-<description>BridgePoint is building vendor-neutral claim and property exports now while keeping native Xactimate activation truthfully gated behind authorized integration.</description>
-</item>
-<item>
 <title>Property intelligence for public adjusters: build the claim timeline before the dispute gets old</title>
 <link>https://bridgepointintelligence.online/articles/auto/property-intelligence-for-public-adjusters-build-the-claim-timeline-befo-4b6ec6cf.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/property-intelligence-for-public-adjusters-build-the-claim-timeline-befo-4b6ec6cf.html</guid>
 <pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
 <description>A practical framework for using property evidence, provenance and verified milestone timing alongside existing estimating and claims systems.</description>
+</item>
+<item>
+<title>Xactimate-compatible property intelligence: how BridgePoint is designed to fit existing claims workflows</title>
+<link>https://bridgepointintelligence.online/articles/auto/xactimate-compatible-property-intelligence-how-bridgepoint-is-designed-t-fbd99891.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/xactimate-compatible-property-intelligence-how-bridgepoint-is-designed-t-fbd99891.html</guid>
+<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
+<description>BridgePoint is building vendor-neutral claim and property exports now while keeping native Xactimate activation truthfully gated behind authorized integration.</description>
 </item>
 <item>
 <title>Insurance claim delay benchmarks: why disputed-claim timeline duration is a missing data layer</title>
