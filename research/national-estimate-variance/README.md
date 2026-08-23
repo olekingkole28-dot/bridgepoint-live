@@ -21,6 +21,35 @@ The registry therefore separates:
 - verification status;
 - rights and de-identification eligibility.
 
+## Public Smart Supplement simulation
+
+`smart_supplement_demo.py` is a deliberately simplified, simulated demonstration of the BridgePoint comparison contract:
+
+```text
+authorized/simulated estimate input
+→ regional benchmark context
+→ peril screening context
+→ estimate variance
+→ human-review recommendation
+```
+
+The demo intentionally does **not**:
+
+- fetch or pretend to fetch live NOAA observations;
+- label a benchmark as the single “true market cost”;
+- decide coverage owed;
+- call a positive variance legal underpayment;
+- promise payment;
+- expose BridgePoint production scoring logic, proprietary weights, customer claims, or restricted pricing sources.
+
+The production BridgePoint Smart Supplement workflow is separate and more detailed. It can distinguish missing supported scope, quantity differences, and price variance, carry evidence references/confidence, and assemble a human-review packet when authorized claim and estimate inputs exist.
+
+Run the public simulation with:
+
+```bash
+python smart_supplement_demo.py
+```
+
 ## Publication gates
 
 A record may enter a public aggregate only when all of these are true:
