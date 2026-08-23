@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -74,4 +74,21 @@ jobs:
           done
           curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/local-ai/ | grep -q 'Install Local AI on this PC'
           curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/backup/ | grep -q 'Run full backup + verify'
-          echo 'V619 autonomy surfaces are live.'
+      - name: Record successful live verification
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bp-status
+          cat > /tmp/bp-status/v619-live.json <<JSON
+          {"version":619,"status":"LIVE_VERIFIED","run_id":"${GITHUB_RUN_ID}","commit":"${GITHUB_SHA}","verified_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","local_ai":"/owner/local-ai/","backup_restore":"/owner/backup/"}
+          JSON
+          encoded=$(base64 -w0 /tmp/bp-status/v619-live.json)
+          api="repos/${GITHUB_REPOSITORY}/contents/.deploy-status/v619-live.json"
+          old_sha=$(gh api "$api" --jq .sha 2>/dev/null || true)
+          if [ -n "$old_sha" ]; then
+            gh api -X PUT "$api" -f message='Record V619 live verification' -f content="$encoded" -f sha="$old_sha" -f branch=main >/dev/null
+          else
+            gh api -X PUT "$api" -f message='Record V619 live verification' -f content="$encoded" -f branch=main >/dev/null
+          fi
