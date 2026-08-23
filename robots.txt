@@ -1,14 +1,17 @@
 User-agent: *
 Allow: /
 Disallow: /owner/
+Disallow: /downloads/
 
 User-agent: OAI-SearchBot
 Allow: /
 Disallow: /owner/
+Disallow: /downloads/
 
 User-agent: PerplexityBot
 Allow: /
 Disallow: /owner/
+Disallow: /downloads/
 
 User-agent: GPTBot
 Disallow: /
