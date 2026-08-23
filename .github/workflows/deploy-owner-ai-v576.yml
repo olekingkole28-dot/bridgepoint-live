@@ -35,7 +35,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Assemble V576 from durable artifact
+      - name: Assemble V583 from durable artifact
         shell: bash
         run: |
           set -euo pipefail
@@ -48,12 +48,12 @@ jobs:
           test -s site/owner/ai/index.html
           test -s site/owner/ai/executive/index.html
           test -s site/owner/ai/reasoning/index.html
+          test -s site/owner/ai/control/index.html
           test -s site/owner/growth-swarm/index.html
 
           python - <<'PY'
           from pathlib import Path
 
-          # Patch the owner home with explicit AI separation and growth visibility.
           owner = Path('site/owner/index.html')
           s = owner.read_text(encoding='utf-8')
           marker = 'bp-v576-owner-ai-links'
@@ -67,9 +67,17 @@ jobs:
               if needle not in s:
                   raise SystemExit('Owner launchgrid missing; refusing blind patch')
               s = s.replace(needle, needle + block, 1)
+          control_marker = 'bp-v583-ai-control-center'
+          if control_marker not in s:
+              needle = '<div class="launchgrid">'
+              block = '''<span id="bp-v583-ai-control-center" style="display:none"></span>
+          <a class="launch" href="/owner/ai/control/"><b>🎛 OWNER AI · Control Center</b><span>One screen for GPT-5.6 provider health, reviewer status, worker fleet, waiting tasks and recent reasoning calls.</span></a>
+          '''
+              if needle not in s:
+                  raise SystemExit('Owner launchgrid missing for control-center patch')
+              s = s.replace(needle, needle + block, 1)
           owner.write_text(s, encoding='utf-8')
 
-          # Patch Workforce with explicit distinction from customer AI and links to control surfaces.
           fleet = Path('site/owner/ai/index.html')
           s = fleet.read_text(encoding='utf-8')
           marker = 'bp-v576-ai-separation'
@@ -79,27 +87,31 @@ jobs:
               if needle not in s:
                   raise SystemExit('AI main marker missing; refusing blind patch')
               s = s.replace(needle, needle + block, 1)
+          if 'bp-v583-control-shortcut' not in s:
+              needle = '<div class="top">'
+              block = '''<div id="bp-v583-control-shortcut" style="margin:10px 0;padding:10px;border:1px solid #2d6571;border-radius:12px;background:#0d2437"><b>🎛 New:</b> <a style="color:#48ddff" href="/owner/ai/control/">Open the all-in-one Owner AI Control Center</a> for provider health, model calls, workers and waiting tasks.</div>'''
+              if needle in s:
+                  s = s.replace(needle, block + needle, 1)
           fleet.write_text(s, encoding='utf-8')
 
-          # Make release state explicit without changing the Flutter payload.
-          rel = Path('site/owner/ai/v576-release.json')
-          rel.write_text('{"version":576,"release":"Owner AI Executive + Reasoning Observatory + Growth Swarm","owner_ai_system_changing":true,"customer_ai_system_changing":false,"owner_only":true,"growth_agents":5,"external_email":false,"external_social":false,"paid_spend":false}\n', encoding='utf-8')
+          rel = Path('site/owner/ai/v583-release.json')
+          rel.write_text('{"version":583,"release":"Owner AI Control Center + Provider Visibility","owner_ai_system_changing":true,"customer_ai_system_changing":false,"owner_only":true,"control_center":"/owner/ai/control/","provider":"BridgePoint Reasoning Provider V578/V579","runtime_candidate":"V580","external_email":false,"external_social":false,"paid_spend":false}\n', encoding='utf-8')
           PY
 
           grep -q 'bridgepoint_owner_intent_submit_v572' site/owner/ai/executive/index.html
           grep -q 'bridgepoint_owner_reasoning_v570' site/owner/ai/reasoning/index.html
+          grep -q 'bridgepoint_owner_ai_control_center_v582' site/owner/ai/control/index.html
           grep -q 'bridgepoint_owner_growth_swarm_v576' site/owner/growth-swarm/index.html
-          grep -q 'bp-v576-owner-ai-links' site/owner/index.html
-          grep -q 'bp-v576-ai-separation' site/owner/ai/index.html
+          grep -q 'bp-v583-ai-control-center' site/owner/index.html
+          grep -q 'bp-v583-control-shortcut' site/owner/ai/index.html
 
-          # Owner pages may contain the public anon/publishable browser key but never privileged server secrets.
-          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY|sb_secret_|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|BRIDGEPOINT_AI_API_KEY|OPENAI_API_KEY|ANTHROPIC_API_KEY' site/owner/ai site/owner/growth-swarm; then
+          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY|sb_secret_|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|BRIDGEPOINT_AI_API_KEY|OPENAI_API_KEY|ANTHROPIC_API_KEY|sk-proj-|sk-ant-' site/owner/ai site/owner/growth-swarm; then
             echo 'Privileged secret marker found in owner web artifact.' >&2
             exit 1
           fi
           touch site/.nojekyll site/app/.nojekyll
 
-      - name: Persist exact V576 durable artifact
+      - name: Persist exact V583 durable artifact
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -114,7 +126,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint V576 owner AI executive and growth swarm'
+          git commit -m 'BridgePoint V583 owner AI control center'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -126,7 +138,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
-      - name: Publish V576
+      - name: Publish V583
         id: deployment
         uses: actions/deploy-pages@v4
 
@@ -134,10 +146,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for path in owner/ai/executive/ owner/ai/reasoning/ owner/growth-swarm/; do
+          for path in owner/ai/control/ owner/ai/executive/ owner/ai/reasoning/ owner/growth-swarm/; do
             body="$(curl -fsSL --retry 4 --retry-delay 3 "https://bridgepointintelligence.online/$path")"
             test -n "$body"
           done
+          curl -fsSL --retry 4 --retry-delay 3 https://bridgepointintelligence.online/owner/ai/control/ | grep -q 'Owner AI Control Center'
           curl -fsSL --retry 4 --retry-delay 3 https://bridgepointintelligence.online/owner/ai/executive/ | grep -q 'SYSTEM-CHANGING AI'
           curl -fsSL --retry 4 --retry-delay 3 https://bridgepointintelligence.online/owner/ai/reasoning/ | grep -q 'Reasoning Observatory'
           curl -fsSL --retry 4 --retry-delay 3 https://bridgepointintelligence.online/owner/growth-swarm/ | grep -q 'Growth Swarm'
