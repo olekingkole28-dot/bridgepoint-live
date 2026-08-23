@@ -1,0 +1,99 @@
+name: Deploy BridgePoint V595 — Overnight Completion
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/deploy-bridgepoint-v595.yml
+  workflow_run:
+    workflows:
+      - "Deploy BridgePoint Owner Local AI V592"
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assemble V595 from durable artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site
+          mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/owner/completion/index.html
+          test -s site/owner/local-ai/index.html
+          test -s site/owner/ai/control/index.html
+          test -s site/owner/ai/executive/index.html
+          test -s site/owner/ai/reasoning/index.html
+          test -s site/owner/growth-swarm/index.html
+          cat > site/owner/ai/v595-release.json <<'JSON'
+          {"version":595,"release":"Overnight Autonomous Completion + National Depth + Local-First AI","owner_only":true,"master_completion":"/owner/completion/","local_ai":"/owner/local-ai/","control_center":"/owner/ai/control/","reasoning":"/owner/ai/reasoning/","growth_swarm":"/owner/growth-swarm/","provider_mode":"LOCAL_FIRST","hosted_reasoning_default":false,"master_ledger_dispatch_version":589,"master_ledger_reconcile_version":590,"national_depth_version":595,"source_revalidator_version":594,"customer_ai_system_changing":false,"external_email":false,"external_social":false,"paid_spend":false}
+          JSON
+          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY|sb_secret_|OPENAI_API_KEY|ANTHROPIC_API_KEY|sk-proj-|sk-ant-|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/owner; then
+            echo 'Privileged secret marker found in owner artifact.' >&2
+            exit 1
+          fi
+          touch site/.nojekyll site/app/.nojekyll
+      - name: Persist exact V595 durable artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/final-live && mkdir /tmp/final-live
+          cp -a site/. /tmp/final-live/
+          cd /tmp/final-live
+          git init
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m 'BridgePoint V595 overnight autonomous completion'
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Publish V595
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify live V595 owner routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          declare -A EXPECT=(
+            [owner/completion/]="Master Completion"
+            [owner/local-ai/]="BridgePoint Local AI Setup"
+            [owner/ai/control/]="Owner AI Control Center"
+            [owner/ai/executive/]="SYSTEM-CHANGING AI"
+            [owner/ai/reasoning/]="Reasoning Observatory"
+            [owner/growth-swarm/]="Growth Swarm"
+          )
+          for path in "${!EXPECT[@]}"; do
+            f="/tmp/$(echo "$path" | tr '/' '_').html"
+            curl -fsSL --retry 6 --retry-delay 3 "https://bridgepointintelligence.online/$path" -o "$f"
+            test -s "$f"
+            grep -q "${EXPECT[$path]}" "$f"
+          done
