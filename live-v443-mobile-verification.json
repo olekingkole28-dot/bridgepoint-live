@@ -1,7 +1,7 @@
 {
   "status": "VERIFIED_LIVE",
   "phase": "complete",
-  "checkedAt": "2026-08-23T20:02:48.078Z",
+  "checkedAt": "2026-08-23T20:04:01.940Z",
   "checks": {
     "releaseReceipt": true,
     "width320": true,
@@ -128,7 +128,7 @@
     "base_artifact_sha256": "7e18e90df85526abc7ec001fbd506f72afd8e140b178282347b60e5643848d9c",
     "artifact_sha256": "7f49edc6b9c70ca51d976a4200100d2da94f246fce3755e4fd6bf9f7926c44b9",
     "artifact_digest_scope": "site/app excluding bridgepoint-release.json",
-    "published_at": "2026-08-23T20:02:16.201093Z",
+    "published_at": "2026-08-23T20:03:23.081554Z",
     "immutable_base_branch": "app-artifact-v441",
     "customer_domain": "https://bridgepointintelligence.online/",
     "classifier_version": 443,
