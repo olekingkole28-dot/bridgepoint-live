@@ -37,15 +37,15 @@ jobs:
           test -s site/owner/index.html
           test -s site/owner/local-ai/index.html
           test -s site/owner/backup/index.html
-          test -s site/downloads/local-ai/INSTALL_BRIDGEPOINT_LOCAL_AI.cmd
+          test -s site/downloads/local-ai/Install_BridgePoint_Local_AI.bat
           test -s site/downloads/local-ai/install_windows.ps1
           test -s site/downloads/local-ai/bridgepoint_local_ai.ps1
-          test -s site/downloads/backup/RUN_BRIDGEPOINT_FULL_BACKUP.cmd
-          test -s site/downloads/backup/RUN_BRIDGEPOINT_RESTORE_TEST.cmd
+          test -s site/downloads/backup/BridgePoint_Backup_Wizard.bat
+          test -s site/downloads/backup/BridgePoint_Restore_Test.bat
           test -s site/downloads/backup/bridgepoint_full_export_windows.ps1
           test -s site/downloads/backup/bridgepoint_verify_backup_windows.ps1
           test -s site/downloads/backup/bridgepoint_restore_test_windows.ps1
-          grep -q 'INSTALL_BRIDGEPOINT_LOCAL_AI.cmd' site/owner/local-ai/index.html
+          grep -q 'Install_BridgePoint_Local_AI.bat' site/owner/local-ai/index.html
           grep -q 'Backup & Restore' site/owner/local-ai/index.html
           grep -q 'BridgePoint Backup & Restore' site/owner/backup/index.html
           grep -q 'bridgepoint_owner_backup_readiness_v616' site/owner/backup/index.html
@@ -67,13 +67,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for path in owner/local-ai/ owner/backup/ downloads/local-ai/INSTALL_BRIDGEPOINT_LOCAL_AI.cmd downloads/backup/RUN_BRIDGEPOINT_FULL_BACKUP.cmd; do
+          for path in owner/local-ai/ owner/backup/ downloads/local-ai/Install_BridgePoint_Local_AI.bat downloads/backup/BridgePoint_Backup_Wizard.bat downloads/backup/BridgePoint_Restore_Test.bat; do
             url="https://bridgepointintelligence.online/$path"
             curl -fsSL --retry 8 --retry-delay 3 "$url" -o /tmp/check
             test -s /tmp/check
           done
-          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/local-ai/ | grep -q 'Install Local AI on this PC'
-          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/backup/ | grep -q 'Run full backup + verify'
+          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/local-ai/ | grep -q 'Download One-Click Installer'
+          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/backup/ | grep -q 'Run Full Backup'
       - name: Record successful live verification
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
