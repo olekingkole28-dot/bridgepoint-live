@@ -1,209 +1,31 @@
 (()=>{
-  'use strict';
-
-  const supabaseUrl='https://xdfsjztwgsbmabshzsjw.supabase.co';
-  const apikey='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
-  const endpoint=`${supabaseUrl}/rest/v1/rpc/track_acquisition_event_v400`;
-  const geoEndpoint=`${supabaseUrl}/functions/v1/bridgepoint-coarse-geo-v436`;
-  const captureVersion=440;
-
-  const visitorKey='bp_visitor_id_v421';
-  const sessionKey='bp_session_id_v421';
-  const geoKey='bp_coarse_geo_v436';
-  const onceKey='bp_funnel_once_v440';
-
-  const safeStorage=(storage,key,fallback)=>{
-    try{
-      let value=storage.getItem(key);
-      if(!value){value=fallback();storage.setItem(key,value);}
-      return value;
-    }catch(_){return fallback();}
-  };
-  const newId=()=>globalThis.crypto?.randomUUID?.()||`bp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const visitorId=safeStorage(localStorage,visitorKey,newId);
-  const sessionId=safeStorage(sessionStorage,sessionKey,newId);
-  const params=new URLSearchParams(location.search);
-  const path=location.pathname||'/';
-  const referrerHost=(()=>{try{return document.referrer?new URL(document.referrer).hostname:null;}catch(_){return null;}})();
-
-  let geo={};
-  try{
-    const cached=sessionStorage.getItem(geoKey);
-    if(cached)geo=JSON.parse(cached)||{};
-  }catch(_){geo={};}
-
-  const normalize=value=>String(value||'').replace(/\s+/g,' ').trim().toLowerCase();
-  const cleanCode=(value,max)=>String(value||'').trim().toUpperCase().slice(0,max);
-  const validCountry=value=>/^[A-Z]{2}$/.test(value);
-  const validUsState=value=>/^(A[LKZR]|C[AOT]|D[EC]|F[L]|G[A]|H[I]|I[ADLN]|K[SY]|L[A]|M[ADEHINOST]|N[CDEHJMVY]|O[HKR]|P[A]|R[I]|S[CD]|T[NX]|U[T]|V[AIT]|W[AIVY])$/.test(value);
-  function keepGeo(countryRaw,regionRaw,source){
-    const country=cleanCode(countryRaw,2);
-    const region=cleanCode(regionRaw,2);
-    const next={};
-    if(validCountry(country))next.country_code=country;
-    if(country==='US'&&validUsState(region))next.region_code=region;
-    if(next.country_code)next.geo_source=source;
-    next.geo_resolver_version=436;
-    return next;
-  }
-  function cacheGeo(next){
-    if(next&&next.country_code)geo=next;
-    try{sessionStorage.setItem(geoKey,JSON.stringify(geo));}catch(_){/* session cache optional */}
-    return geo;
-  }
-  async function fetchWithTimeout(url,options={},timeoutMs=2200){
-    const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(),timeoutMs);
-    try{return await fetch(url,{...options,signal:controller.signal});}
-    finally{clearTimeout(timer);}
-  }
-  async function bridgepointGeo(){
-    try{
-      const response=await fetchWithTimeout(geoEndpoint,{
-        method:'GET',cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',
-        headers:{apikey,'Accept':'application/json'},
-      },2400);
-      if(!response.ok)return null;
-      const data=await response.json();
-      const next=keepGeo(data?.country_code,data?.region_code,`BRIDGEPOINT_${cleanCode(data?.source,32)||'EDGE'}`);
-      return next.country_code?next:null;
-    }catch(_){return null;}
-  }
-  async function legacyGeoFallback(){
-    try{
-      const response=await fetchWithTimeout('https://ipapi.co/json/',{
-        cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',headers:{'Accept':'application/json'},
-      },2600);
-      if(!response.ok)return null;
-      const data=await response.json();
-      const next=keepGeo(data?.country_code??data?.country,data?.region_code,'IPAPI_BROWSER_FALLBACK');
-      return next.country_code?next:null;
-    }catch(_){return null;}
-  }
-  async function loadCoarseGeo(){
-    if(geo.country_code&&(geo.country_code!=='US'||geo.region_code))return geo;
-    const primary=await bridgepointGeo();
-    if(primary?.country_code&&(primary.country_code!=='US'||primary.region_code))return cacheGeo(primary);
-    const fallback=await legacyGeoFallback();
-    if(fallback?.country_code)return cacheGeo(fallback);
-    if(primary?.country_code)return cacheGeo(primary);
-    return geo;
-  }
-  const geoReady=loadCoarseGeo();
-
-  function currentSource(){return params.get('utm_source')||referrerHost||'direct/unknown';}
-  function markOnce(key){
-    try{
-      const current=JSON.parse(sessionStorage.getItem(onceKey)||'{}');
-      if(current[key])return false;
-      current[key]=true;
-      sessionStorage.setItem(onceKey,JSON.stringify(current));
-      return true;
-    }catch(_){return true;}
-  }
-
-  function appEntryMode(anchor){
-    if(!(anchor instanceof HTMLAnchorElement))return null;
-    const href=anchor.getAttribute('href')||'';
-    if(!href.startsWith('/app'))return null;
-    const text=normalize(anchor.textContent||anchor.getAttribute('aria-label')||anchor.getAttribute('title'));
-    let url;
-    try{url=new URL(href,location.origin);}catch(_){return null;}
-    const campaign=normalize(url.searchParams.get('utm_campaign'));
-    const explicitSignup=url.searchParams.get('mode')==='signup'||/start[_ -]?trial|proof[_ -]?to[_ -]?trial|signup|create[_ -]?account/.test(campaign)||/start.*trial|free trial|create account|sign up|signup|try bridgepoint/.test(text);
-    const explicitSignin=url.searchParams.get('mode')==='signin'||campaign==='open_app'||/open app|open bridgepoint|sign in|existing user/.test(text);
-    if(explicitSignup)return 'signup';
-    if(explicitSignin)return 'signin';
-    return null;
-  }
-
-  function normalizeAppEntryLinks(){
-    for(const anchor of document.querySelectorAll('a[href^="/app"]')){
-      const mode=appEntryMode(anchor);
-      if(!mode)continue;
-      try{
-        const url=new URL(anchor.getAttribute('href')||'/app/',location.origin);
-        url.searchParams.set('mode',mode);
-        anchor.setAttribute('href',`${url.pathname}${url.search}${url.hash}`);
-        anchor.dataset.bpAccountMode=mode;
-      }catch(_){/* preserve original href */}
-    }
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',normalizeAppEntryLinks,{once:true});
-  else normalizeAppEntryLinks();
-
-  async function send(eventType,metadata={}){
-    const body={
-      p_event_type:eventType,
-      p_visitor_id:visitorId,
-      p_session_id:sessionId,
-      p_page_path:`${location.pathname}${location.search}`.slice(0,256),
-      p_platform:'WEB',
-      p_referrer_host:referrerHost,
-      p_utm_source:params.get('utm_source'),
-      p_utm_medium:params.get('utm_medium'),
-      p_utm_campaign:params.get('utm_campaign'),
-      p_utm_content:params.get('utm_content'),
-      p_referral_code:params.get('ref'),
-      p_auth_error_code:null,
-      p_metadata:{capture_version:captureVersion,visibility:document.visibilityState,source_hint:currentSource(),...geo,...metadata},
-    };
-    try{
-      await fetch(endpoint,{method:'POST',keepalive:true,headers:{apikey,'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body)});
-    }catch(_){/* analytics must never block the customer experience */}
-  }
-
-  function initialStage(){
-    if(path==='/')return ['LANDING_VIEW',{surface:'homepage'}];
-    if(path.startsWith('/articles'))return ['VALUE_VIEW',{surface:'research'}];
-    if(path.startsWith('/sample'))return ['SAMPLE_VIEW',{surface:'territory_sample'}];
-    if(path.startsWith('/app')&&params.get('mode')==='signup')return ['SIGNUP_VIEW',{surface:'app_signup'}];
-    if(path.startsWith('/app'))return ['VALUE_VIEW',{surface:'app_entry',account_mode:params.get('mode')||'unspecified'}];
-    return ['VALUE_VIEW',{surface:'public_page'}];
-  }
-
-  geoReady.finally(()=>{
-    const [eventType,metadata]=initialStage();
-    send(eventType,metadata);
-    if(path.startsWith('/sample'))send('VALUE_VIEW',{surface:'territory_sample',intent:'proof_before_signup'});
-  });
-
-  const valueSelectors=['#how','#markets','#research','[data-bp-value]'];
-  const targets=valueSelectors.flatMap(selector=>Array.from(document.querySelectorAll(selector)));
-  if('IntersectionObserver' in window&&targets.length){
-    const observer=new IntersectionObserver(entries=>{
-      for(const entry of entries){
-        if(!entry.isIntersecting||entry.intersectionRatio<0.45)continue;
-        const id=entry.target.id||entry.target.getAttribute('data-bp-value')||'value-section';
-        const key=`value:${path}:${id}`;
-        if(markOnce(key))send('VALUE_VIEW',{surface:'homepage_section',section:id});
-        observer.unobserve(entry.target);
-      }
-    },{threshold:[0.45]});
-    targets.forEach(target=>observer.observe(target));
-  }
-
-  document.addEventListener('click',event=>{
-    const target=event.target instanceof Element?event.target.closest('a,button'):null;
-    if(!target)return;
-    const text=normalize(target.textContent||target.getAttribute('aria-label')||target.getAttribute('title'));
-    const href=target instanceof HTMLAnchorElement?target.getAttribute('href')||'':'';
-    if(href.startsWith('/articles')||text.includes('research')||text.includes('brief'))send('VALUE_VIEW',{surface:'research_click',destination:href.slice(0,160)});
-    if(href.startsWith('/sample')||text.includes('territory sample')||text.includes('sample'))send('SAMPLE_REQUEST',{surface:'public_cta',destination:href.slice(0,160)});
-
-    let mode=null;
-    if(target instanceof HTMLAnchorElement)mode=target.dataset.bpAccountMode||appEntryMode(target);
-    if(mode==='signup'||text.includes('start trial')||text.includes('start free')||text.includes('create account')||text.includes('free trial')){
-      send('CREATE_ACCOUNT_CLICK',{surface:'public_cta',destination:href.slice(0,160),account_mode:'signup'});
-    }else if(href.startsWith('/app')||text.includes('open app')||text.includes('open bridgepoint')||text.includes('sign in')){
-      send('VALUE_VIEW',{surface:'app_entry_click',destination:href.slice(0,160),account_mode:mode||'signin'});
-    }
-    if(text.includes('pricing')||text.includes('plans')||text.includes('package'))send('PRICING_VIEW',{surface:'public_cta'});
-  },{capture:true});
-
-  document.addEventListener('submit',event=>{
-    const form=event.target instanceof HTMLFormElement?event.target:null;
-    if(!form)return;
-    if(path.startsWith('/sample')||form.matches('[data-bp-sample-form]'))send('SAMPLE_REQUEST',{surface:'territory_form_submit'});
-  },{capture:true});
+'use strict';
+const SUPABASE='https://xdfsjztwgsbmabshzsjw.supabase.co';
+const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+const TRACK=`${SUPABASE}/rest/v1/rpc/track_acquisition_event_v400`;
+const GEO=`${SUPABASE}/functions/v1/bridgepoint-coarse-geo-v436`;
+const VERSION=635;
+const params=new URLSearchParams(location.search),path=location.pathname||'/';
+const newId=()=>globalThis.crypto?.randomUUID?.()||`bp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const stored=(store,key)=>{try{let v=store.getItem(key);if(!v){v=newId();store.setItem(key,v)}return v}catch(_){return newId()}};
+const visitorId=stored(localStorage,'bp_visitor_id_v421'),sessionId=stored(sessionStorage,'bp_session_id_v421');
+const referrerHost=(()=>{try{return document.referrer?new URL(document.referrer).hostname:null}catch(_){return null}})();
+const normalize=v=>String(v||'').replace(/\s+/g,' ').trim().toLowerCase();
+const onceKey='bp_funnel_once_v635';
+function once(k){try{const m=JSON.parse(sessionStorage.getItem(onceKey)||'{}');if(m[k])return false;m[k]=1;sessionStorage.setItem(onceKey,JSON.stringify(m));return true}catch(_){return true}}
+let geo={};
+async function loadGeo(){try{const c=sessionStorage.getItem('bp_coarse_geo_v436');if(c)geo=JSON.parse(c)||{}}catch(_){geo={}}if(geo.country_code)return geo;try{const r=await fetch(GEO,{method:'GET',cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',headers:{apikey:KEY,Accept:'application/json'}});if(r.ok){const d=await r.json();const country=String(d?.country_code||'').toUpperCase().slice(0,2),region=String(d?.region_code||'').toUpperCase().slice(0,2);geo={};if(/^[A-Z]{2}$/.test(country))geo.country_code=country;if(country==='US'&&/^[A-Z]{2}$/.test(region))geo.region_code=region;try{sessionStorage.setItem('bp_coarse_geo_v436',JSON.stringify(geo))}catch(_){}}}catch(_){}return geo}
+async function send(eventType,metadata={}){try{await fetch(TRACK,{method:'POST',keepalive:true,headers:{apikey:KEY,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({p_event_type:eventType,p_visitor_id:visitorId,p_session_id:sessionId,p_page_path:`${location.pathname}${location.search}`.slice(0,256),p_platform:'WEB',p_referrer_host:referrerHost,p_utm_source:params.get('utm_source'),p_utm_medium:params.get('utm_medium'),p_utm_campaign:params.get('utm_campaign'),p_utm_content:params.get('utm_content'),p_referral_code:params.get('ref'),p_auth_error_code:null,p_metadata:{capture_version:VERSION,visibility:document.visibilityState,source_hint:params.get('utm_source')||referrerHost||'direct/unknown',...geo,...metadata}})})}catch(_){}}
+function appMode(a){if(!(a instanceof HTMLAnchorElement))return null;const href=a.getAttribute('href')||'';if(!href.startsWith('/app'))return null;let u;try{u=new URL(href,location.origin)}catch(_){return null}const text=normalize(a.textContent||a.getAttribute('aria-label')||''),campaign=normalize(u.searchParams.get('utm_campaign'));if(u.searchParams.get('mode')==='signup'||/trial|signup|create.account/.test(campaign)||/start.*trial|free trial|create account|sign up|try bridgepoint/.test(text))return 'signup';if(u.searchParams.get('mode')==='signin'||campaign==='open_app'||/open app|open bridgepoint|sign in|existing user/.test(text))return 'signin';return null}
+function normalizeLinks(){for(const a of document.querySelectorAll('a[href^="/app"]')){const mode=appMode(a);if(!mode)continue;try{const u=new URL(a.getAttribute('href')||'/app/',location.origin);u.searchParams.set('mode',mode);a.href=`${u.pathname}${u.search}${u.hash}`;a.dataset.bpAccountMode=mode}catch(_){}}}
+function optimizeHomepage(){if(path!=='/')return;const hero=document.querySelector('.hero');if(!hero)return;const h1=hero.querySelector('h1'),p=hero.querySelector('p'),actions=hero.querySelector('.actions'),fine=hero.querySelector('.fine');if(h1)h1.textContent='Know which properties deserve attention before you drive.';if(p)p.textContent='BridgePoint matches property records, weather, property changes and verified evidence into explainable opportunities for contractors, restoration teams, adjusters and property operators.';if(actions)actions.innerHTML='<a class="btn primary" data-bp-conversion="hero-trial" href="/app/?mode=signup&utm_source=homepage&utm_medium=hero&utm_campaign=start_trial_v635">Start the 7-day trial</a><a class="btn secondary" href="#live-proof">See live proof first</a>';if(fine)fine.textContent='Connecticut is customer-ready now · Stripe checkout · transparent 7-day trial · cancel before renewal.';const nav=document.querySelector('.links .open');if(nav){nav.textContent='Start 7-day trial';nav.setAttribute('href','/app/?mode=signup&utm_source=homepage&utm_medium=nav&utm_campaign=start_trial_v635')}
+const proof=document.getElementById('live-proof'),deep=document.getElementById('deep-tech');if(proof&&deep&&deep.parentNode)deep.parentNode.insertBefore(proof,deep);
+if(!document.getElementById('bp-v635-style')){const s=document.createElement('style');s.id='bp-v635-style';s.textContent='@media(max-width:700px){body{padding-bottom:66px}.bp-v635-sticky{position:fixed;left:10px;right:10px;bottom:10px;z-index:9999;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid #36536e;border-radius:14px;background:rgba(7,17,31,.96);box-shadow:0 12px 35px rgba(0,0,0,.35)}.bp-v635-sticky span{font-size:.82rem;color:#c6d5e2}.bp-v635-sticky a{white-space:nowrap;padding:10px 12px;border-radius:9px;background:#1693ff;color:#fff;text-decoration:none;font-weight:800}}@media(min-width:701px){.bp-v635-sticky{display:none}}';document.head.appendChild(s)}
+if(!document.querySelector('.bp-v635-sticky')){const bar=document.createElement('div');bar.className='bp-v635-sticky';bar.innerHTML='<span>See BridgePoint in your territory</span><a href="/app/?mode=signup&utm_source=homepage&utm_medium=mobile_sticky&utm_campaign=start_trial_v635">Start trial</a>';document.body.appendChild(bar)}}
+function init(){normalizeLinks();optimizeHomepage();loadGeo().finally(()=>{let type='VALUE_VIEW',meta={surface:'public_page'};if(path==='/'){type='LANDING_VIEW';meta={surface:'homepage',variant:'conversion_v635'}}else if(path.startsWith('/articles'))meta={surface:'research'};else if(path.startsWith('/sample')){type='SAMPLE_VIEW';meta={surface:'territory_sample'}}else if(path.startsWith('/app')&&params.get('mode')==='signup'){type='SIGNUP_VIEW';meta={surface:'app_signup',variant:'conversion_v635'}}else if(path.startsWith('/app'))meta={surface:'app_entry',account_mode:params.get('mode')||'unspecified'};send(type,meta)})
+const targets=['#how','#markets','#research','[data-bp-value]'].flatMap(s=>Array.from(document.querySelectorAll(s)));if('IntersectionObserver'in window&&targets.length){const o=new IntersectionObserver(es=>{for(const e of es){if(!e.isIntersecting||e.intersectionRatio<.45)continue;const id=e.target.id||e.target.getAttribute('data-bp-value')||'value-section';if(once(`value:${path}:${id}`))send('VALUE_VIEW',{surface:'homepage_section',section:id});o.unobserve(e.target)}},{threshold:[.45]});targets.forEach(t=>o.observe(t))}}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+document.addEventListener('click',e=>{const t=e.target instanceof Element?e.target.closest('a,button'):null;if(!t)return;const text=normalize(t.textContent||t.getAttribute('aria-label')||''),href=t instanceof HTMLAnchorElement?t.getAttribute('href')||'':'';if(href.startsWith('/articles')||text.includes('research')||text.includes('brief'))send('VALUE_VIEW',{surface:'research_click',destination:href.slice(0,160)});if(href.startsWith('/sample')||text.includes('territory sample')||text.includes('sample'))send('SAMPLE_REQUEST',{surface:'public_cta',destination:href.slice(0,160)});const mode=t instanceof HTMLAnchorElement?(t.dataset.bpAccountMode||appMode(t)):null;if(mode==='signup'||/start.*trial|free trial|create account|sign up/.test(text))send('CREATE_ACCOUNT_CLICK',{surface:t.dataset.bpConversion||'public_cta',destination:href.slice(0,160),account_mode:'signup'});else if(href.startsWith('/app')||text.includes('open app')||text.includes('open bridgepoint')||text.includes('sign in'))send('VALUE_VIEW',{surface:'app_entry_click',destination:href.slice(0,160),account_mode:mode||'signin'});if(text.includes('pricing')||text.includes('plans')||text.includes('package'))send('PRICING_VIEW',{surface:'public_cta'})},{capture:true});
+document.addEventListener('input',e=>{if(!path.startsWith('/app')||params.get('mode')!=='signup')return;const t=e.target;if(!(t instanceof HTMLInputElement||t instanceof HTMLSelectElement||t instanceof HTMLTextAreaElement))return;if(once('signup-form-start'))send('SIGNUP_FORM_START',{surface:'app_signup',field_type:t.type||t.tagName.toLowerCase(),variant:'conversion_v635'})},{capture:true});
+document.addEventListener('submit',e=>{const form=e.target instanceof HTMLFormElement?e.target:null;if(!form)return;if(path.startsWith('/sample')||form.matches('[data-bp-sample-form]'))send('SAMPLE_REQUEST',{surface:'territory_form_submit'});if(path.startsWith('/app')&&params.get('mode')==='signup'&&once('signup-submit'))send('SIGNUP_SUBMIT',{surface:'app_signup',variant:'conversion_v635'})},{capture:true});
 })();
