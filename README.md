@@ -15,6 +15,14 @@ The platform makes an explicit distinction between **evidence that deserves atte
 - Automatic research: https://bridgepointintelligence.online/articles/auto/
 - Research RSS: https://bridgepointintelligence.online/articles/auto/feed.xml
 
+## Free utilities
+
+BridgePoint publishes narrow, useful technical tools that solve one public-data workflow without exposing proprietary production logic.
+
+- [Free NWS Claim Timeline Formatter](free-utilities/nws-claim-timeline/) — converts NWS alert records for a latitude/longitude into a clean Markdown or JSON timeline for claim review.
+
+These utilities organize public evidence; they do not determine damage, coverage, causation, claim value, or legal underpayment.
+
 ## Claims and restoration intelligence
 
 BridgePoint is building a verified real-world claim-timeline layer around milestones such as first notice of loss, inspection, estimates, supplements, carrier responses, disputes, appraisal, settlement, payment, reopen, and close.
