@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="theme-color" content="#071522">
+<title>BridgePoint Mobile Continuity</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:#06111d;color:#fff}*{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#071522,#0c2034 58%,#07111c);min-height:100vh}.wrap{width:min(900px,100%);margin:auto;padding:18px 14px 40px}.hero,.card{background:rgba(10,27,45,.94);border:1px solid #29445e;border-radius:18px;box-shadow:0 12px 40px #0005}.hero{padding:20px}.eyebrow{font-size:11px;letter-spacing:.12em;color:#6fc7ff;font-weight:900}.hero h1{font-size:26px;margin:6px 0}.muted{color:#9eb3c7}.mode{display:inline-flex;margin-top:12px;border-radius:999px;padding:7px 11px;font-weight:900;border:1px solid #4d657b}.good{color:#6ce6a8;border-color:#2d7450}.warn{color:#ffd06e;border-color:#705b2f}.bad{color:#ff858f;border-color:#84414b}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}.card{padding:15px}.card span{display:block;text-transform:uppercase;font-size:9px;letter-spacing:.08em;color:#9eb3c7}.card b{display:block;font-size:21px;margin-top:3px}.wide{grid-column:1/-1}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.btn{border:1px solid #376184;background:#0e2a43;color:#fff;border-radius:11px;padding:10px 13px;text-decoration:none;font-weight:900;font-size:12px;cursor:pointer}.primary{background:linear-gradient(135deg,#147bd4,#18a3ff);border-color:#2aa7ff}.note{margin-top:12px;padding:12px;border-radius:12px;border:1px solid #314d66;background:#081827;font-size:12px;line-height:1.5}.row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #1b3245;font-size:12px}.row:last-child{border-bottom:0}.footer{font-size:11px;color:#8299ac;margin-top:14px;text-align:center}@media(max-width:600px){.grid{grid-template-columns:1fr 1fr}.hero h1{font-size:22px}.card{padding:12px}.card b{font-size:18px}}@media(max-width:390px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <div class="eyebrow">OWNER · MOBILE CONTINUITY V655</div>
+    <h1>BridgePoint stays alive when the PC is off.</h1>
+    <div class="muted">This phone is your control and recovery surface. Cloud services and the five ChatGPT customer hunters do not depend on the Windows PC.</div>
+    <div id="mode" class="mode">Connecting…</div>
+    <div class="actions"><button id="refresh" class="btn primary">Refresh now</button><a class="btn" href="/app/">Open BridgePoint</a><a class="btn" href="/">Public site</a></div>
+  </section>
+
+  <section class="grid">
+    <div class="card"><span>Cloud core</span><b id="cloud">—</b></div>
+    <div class="card"><span>Windows local AI</span><b id="local">—</b></div>
+    <div class="card"><span>AI queue waiting</span><b id="queued">—</b></div>
+    <div class="card"><span>AI running</span><b id="running">—</b></div>
+    <div class="card"><span>Search distribution</span><b id="index">—</b></div>
+    <div class="card"><span>Properties added · 5m</span><b id="props">—</b></div>
+    <div class="card"><span>Real signups · 24h</span><b id="signups">—</b></div>
+    <div class="card"><span>Stripe paid</span><b id="paid">—</b></div>
+    <div class="card"><span>Stripe trials</span><b id="trials">—</b></div>
+    <div class="card"><span>Qualified landings · 24h</span><b id="landings">—</b></div>
+    <div class="card"><span>Active cloud jobs</span><b id="crons">—</b></div>
+    <div class="card"><span>Recent cron failures</span><b id="fails">—</b></div>
+
+    <div class="card wide">
+      <span>Redundancy truth</span>
+      <div class="note"><b style="font-size:14px;margin:0 0 6px">What happens if the computer shuts off?</b>
+        Supabase ingestion, Stripe billing, the public app, IndexNow/search distribution, national data jobs, and the five ChatGPT acquisition workers keep running in the cloud. Only the local Ollama reasoning node pauses unless a hosted model provider is explicitly configured.
+      </div>
+      <div id="details" style="margin-top:10px"></div>
+    </div>
+  </section>
+  <div id="status" class="footer">Owner sign-in required. Auto-refreshes every 15 seconds while open.</div>
+</div>
+<script>
+const SB='https://xdfsjztwgsbmabshzsjw.supabase.co',KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+const $=id=>document.getElementById(id),fmt=v=>Number(v||0).toLocaleString(),when=v=>v?new Date(v).toLocaleString():'—';
+function token(){let t=sessionStorage.getItem('bp_owner_access_token')||'';if(t)return t;try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)||'';if(k.startsWith('sb-')&&k.endsWith('-auth-token')){const d=JSON.parse(localStorage.getItem(k)||'{}');t=d?.access_token||d?.currentSession?.access_token||d?.session?.access_token||'';if(t)return t}}}catch(_){}return''}
+async function load(){const t=token();if(!t){$('mode').textContent='OWNER SIGN-IN REQUIRED';$('mode').className='mode warn';$('status').textContent='Open /app/ and sign in as the BridgePoint owner, then return here.';return}try{const r=await fetch(`${SB}/rest/v1/rpc/bridgepoint_mobile_continuity_v655`,{method:'POST',headers:{apikey:KEY,Authorization:`Bearer ${t}`,'Content-Type':'application/json'},body:'{}'});const d=await r.json();if(!r.ok)throw new Error(d.message||'Continuity check failed');const c=d.continuity||{};const m=String(c.continuity_mode||'UNKNOWN');$('mode').textContent=m.replaceAll('_',' ');$('mode').className='mode '+(m==='FULL_REDUNDANCY'||m==='HOSTED_AI_FAILOVER'?'good':m.includes('CLOUD_CONTINUITY')?'warn':'bad');$('cloud').textContent=c.cloud_core_ok?'ONLINE':'DEGRADED';$('local').textContent=c.local_ai_online?'ONLINE':'OFFLINE';$('queued').textContent=fmt(c.queued_ai);$('running').textContent=fmt(c.running_ai);$('index').textContent=c.indexnow_ok?`OK · ${c.indexnow_last_status||''}`:'CHECK';$('props').textContent=fmt(c.properties_added_5m);$('signups').textContent=fmt(c.signup_success_24h);$('paid').textContent=fmt(c.stripe_paid);$('trials').textContent=fmt(c.stripe_trialing);$('landings').textContent=fmt(c.qualified_landings_24h);$('crons').textContent=fmt(c.active_bridgepoint_crons);$('fails').textContent=fmt(c.recent_cron_failures);$('details').innerHTML=`<div class="row"><div>PC last seen</div><strong>${when(c.local_ai_last_seen_at)}</strong></div><div class="row"><div>Hosted AI fallback</div><strong>${c.hosted_ai_fallback_ready?'READY':'NOT CONFIGURED'}</strong></div><div class="row"><div>Customer hunters</div><strong>CLOUD / DEVICE-INDEPENDENT</strong></div><div class="row"><div>Checked</div><strong>${when(c.checked_at)}</strong></div>`;$('status').textContent='Live owner continuity check · '+when(c.checked_at)}catch(e){$('mode').textContent='CHECK FAILED';$('mode').className='mode bad';$('status').textContent=String(e)}}
+$('refresh').onclick=load;load();setInterval(load,15000);
+</script>
+</body>
+</html>
