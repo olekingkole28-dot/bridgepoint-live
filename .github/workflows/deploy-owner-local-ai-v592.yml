@@ -36,12 +36,12 @@ jobs:
           git archive --format=tar origin/live-artifact | tar -xf - -C site
           test -s site/owner/local-ai/index.html
           test -s site/owner/backup/index.html
-          test -s site/downloads/local-ai/INSTALL_BRIDGEPOINT_LOCAL_AI.cmd
+          test -s site/downloads/local-ai/Install_BridgePoint_Local_AI.bat
           test -s site/downloads/local-ai/install_windows.ps1
           test -s site/downloads/local-ai/bridgepoint_local_ai.ps1
-          test -s site/downloads/backup/RUN_BRIDGEPOINT_FULL_BACKUP.cmd
-          test -s site/downloads/backup/RUN_BRIDGEPOINT_RESTORE_TEST.cmd
-          grep -q 'INSTALL_BRIDGEPOINT_LOCAL_AI.cmd' site/owner/local-ai/index.html
+          test -s site/downloads/backup/BridgePoint_Backup_Wizard.bat
+          test -s site/downloads/backup/BridgePoint_Restore_Test.bat
+          grep -q 'Install_BridgePoint_Local_AI.bat' site/owner/local-ai/index.html
           grep -q 'BridgePoint Backup & Restore' site/owner/backup/index.html
           if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|sb_secret_|OPENAI_API_KEY[[:space:]]*=|ANTHROPIC_API_KEY[[:space:]]*=|sk-proj-|sk-ant-' site/owner site/downloads; then
             echo 'Privileged secret marker found in autonomy artifact.' >&2
@@ -63,9 +63,9 @@ jobs:
           set -euo pipefail
           curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/local-ai/ -o /tmp/local-ai.html
           curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/backup/ -o /tmp/backup.html
-          grep -q 'Install Local AI on this PC' /tmp/local-ai.html
-          grep -q 'Run full backup + verify' /tmp/backup.html
-          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/downloads/local-ai/INSTALL_BRIDGEPOINT_LOCAL_AI.cmd -o /tmp/local-ai.cmd
-          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/downloads/backup/RUN_BRIDGEPOINT_FULL_BACKUP.cmd -o /tmp/backup.cmd
-          test -s /tmp/local-ai.cmd
-          test -s /tmp/backup.cmd
+          grep -q 'Download One-Click Installer' /tmp/local-ai.html
+          grep -q 'Run Full Backup' /tmp/backup.html
+          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/downloads/local-ai/Install_BridgePoint_Local_AI.bat -o /tmp/local-ai.bat
+          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/downloads/backup/BridgePoint_Backup_Wizard.bat -o /tmp/backup.bat
+          test -s /tmp/local-ai.bat
+          test -s /tmp/backup.bat
