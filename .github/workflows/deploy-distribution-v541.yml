@@ -1,4 +1,4 @@
-name: Deploy BridgePoint Distribution V541
+name: Deploy BridgePoint Distribution V546
 
 on:
   push:
@@ -6,6 +6,8 @@ on:
     paths:
       - enterprise/**
       - research/national-estimate-variance/**
+      - tools/**
+      - start/**
       - owner/distribution/**
       - owner/innovation/**
       - .well-known/**
@@ -50,15 +52,21 @@ jobs:
           test -s research/national-estimate-variance/index.html
           test -s research/national-estimate-variance/audit.py
           test -s research/national-estimate-variance/README.md
+          test -s tools/nws-claim-weather-formatter/index.html
+          test -s tools/nws-claim-weather-formatter/weather_formatter.py
+          test -s tools/nws-claim-weather-formatter/README.md
+          test -s start/index.html
           test -s owner/distribution/index.html
           test -s owner/innovation/index.html
           test -s .well-known/security.txt
 
-          rm -rf site/enterprise site/research/national-estimate-variance site/owner/distribution site/owner/innovation site/.well-known
+          rm -rf site/enterprise site/research/national-estimate-variance site/tools site/start site/owner/distribution site/owner/innovation site/.well-known
           mkdir -p site/research site/owner
           cp -a enterprise site/enterprise
           mkdir -p site/research/national-estimate-variance
           cp -a research/national-estimate-variance/. site/research/national-estimate-variance/
+          cp -a tools site/tools
+          cp -a start site/start
           cp -a owner/distribution site/owner/distribution
           cp -a owner/innovation site/owner/innovation
           cp -a .well-known site/.well-known
@@ -79,15 +87,22 @@ jobs:
           if not home.exists():
               raise SystemExit('Durable homepage missing')
           h=home.read_text(encoding='utf-8')
-          marker='id="carrier-enterprise-v541"'
-          if marker not in h:
+          if 'id="carrier-enterprise-v541"' not in h:
               block='''
           <section class="wrap section" id="carrier-enterprise-v541"><div class="sample"><div><span class="kicker">For carriers & enterprise</span><h2>From property history toward live property state.</h2><p>See BridgePoint's storm-year and quiet-year operating model, transparent readiness registry, Smart Supplement workflow and open estimate-variance benchmark.</p></div><div class="actions"><a class="btn primary" href="/enterprise/?utm_source=homepage&utm_medium=enterprise_surface&utm_campaign=distribution_v541">For Carriers & Enterprise</a><a class="btn secondary" href="/research/national-estimate-variance/?utm_source=homepage&utm_medium=open_registry&utm_campaign=distribution_v541">Open benchmark registry</a></div></div></section>
           '''
               if '</main>' not in h:
                   raise SystemExit('Homepage main anchor missing; refusing blind patch')
               h=h.replace('</main>',block+'</main>',1)
-              home.write_text(h,encoding='utf-8')
+
+          if 'id="lead-magnet-v546"' not in h:
+              block='''
+          <section class="wrap section" id="lead-magnet-v546"><div class="sample"><div><span class="kicker">Free tool · no account required</span><h2>Turn NWS alerts into copy-ready claim notes.</h2><p>Paste a latitude and longitude into the free BridgePoint NWS Claim Weather Formatter, then copy the official alert timeline into your workflow. When you need the full property and estimate workflow, move into BridgePoint.</p></div><div class="actions"><a class="btn primary" href="/tools/nws-claim-weather-formatter/?utm_source=homepage&utm_medium=lead_magnet&utm_campaign=distribution_v546">Use the free weather formatter</a><a class="btn secondary" href="/start/?utm_source=homepage&utm_medium=self_guided&utm_campaign=distribution_v546">Take the 60-second tour</a></div></div></section>
+          '''
+              if '</main>' not in h:
+                  raise SystemExit('Homepage main anchor missing; refusing blind patch')
+              h=h.replace('</main>',block+'</main>',1)
+          home.write_text(h,encoding='utf-8')
 
           sitemap=Path('site/sitemap.xml')
           if sitemap.exists():
@@ -96,7 +111,9 @@ jobs:
               for url,freq,priority in [
                   ('https://bridgepointintelligence.online/enterprise/','weekly','0.9'),
                   ('https://bridgepointintelligence.online/enterprise/trust/','monthly','0.7'),
-                  ('https://bridgepointintelligence.online/research/national-estimate-variance/','weekly','0.9')]:
+                  ('https://bridgepointintelligence.online/research/national-estimate-variance/','weekly','0.9'),
+                  ('https://bridgepointintelligence.online/tools/nws-claim-weather-formatter/','weekly','0.9'),
+                  ('https://bridgepointintelligence.online/start/','weekly','0.9')]:
                   if url not in x:
                       additions.append(f'  <url><loc>{url}</loc><changefreq>{freq}</changefreq><priority>{priority}</priority></url>')
               if additions:
@@ -111,26 +128,31 @@ jobs:
           test -s site/enterprise/trust/index.html
           test -s site/enterprise/capabilities.json
           test -s site/research/national-estimate-variance/index.html
+          test -s site/tools/nws-claim-weather-formatter/index.html
+          test -s site/tools/nws-claim-weather-formatter/weather_formatter.py
+          test -s site/start/index.html
           test -s site/owner/distribution/index.html
           test -s site/.well-known/security.txt
           grep -q 'For carriers, platforms' site/enterprise/index.html
           grep -q 'Public Trust Center' site/enterprise/trust/index.html
           grep -q 'manifest_version' site/enterprise/capabilities.json
           grep -q 'National Property Estimate Variance Index' site/research/national-estimate-variance/index.html
+          grep -q 'NWS Claim Weather Formatter' site/tools/nws-claim-weather-formatter/index.html
+          grep -q 'SELF-GUIDED' site/start/index.html
           grep -q 'bridgepoint_owner_distribution_v538' site/owner/distribution/index.html
           grep -q 'href="/owner/distribution/"' site/owner/innovation/index.html
           grep -q 'carrier-enterprise-v541' site/index.html
-          grep -q 'bridgepointintelligence.online/enterprise/' site/sitemap.xml
-          grep -q 'bridgepointintelligence.online/enterprise/trust/' site/sitemap.xml
-          grep -q 'bridgepointintelligence.online/research/national-estimate-variance/' site/sitemap.xml
+          grep -q 'lead-magnet-v546' site/index.html
+          grep -q 'bridgepointintelligence.online/tools/nws-claim-weather-formatter/' site/sitemap.xml
+          grep -q 'bridgepointintelligence.online/start/' site/sitemap.xml
           grep -q 'bridgepointintelligence@gmail.com' site/.well-known/security.txt
 
-          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY|sb_secret|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/enterprise site/research/national-estimate-variance site/owner/distribution site/.well-known; then
+          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY|sb_secret|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/enterprise site/research/national-estimate-variance site/tools site/start site/owner/distribution site/.well-known; then
             echo 'Privileged secret marker found in distribution surfaces.' >&2
             exit 1
           fi
           touch site/.nojekyll
-          echo 'Distribution V541 assembled without replacing the audited customer app.'
+          echo 'Distribution V546 assembled without replacing the audited customer app.'
 
       - name: Persist exact distribution-enabled live artifact
         env:
@@ -147,7 +169,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint live artifact with Distribution V541'
+          git commit -m 'BridgePoint live artifact with Distribution V546'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
