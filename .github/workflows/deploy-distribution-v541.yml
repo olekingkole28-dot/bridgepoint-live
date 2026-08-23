@@ -1,4 +1,4 @@
-name: Deploy BridgePoint Distribution V546
+name: Deploy BridgePoint Distribution V547
 
 on:
   push:
@@ -8,6 +8,10 @@ on:
       - research/national-estimate-variance/**
       - tools/**
       - start/**
+      - audit/**
+      - estimate-preflight/**
+      - developers/**
+      - storms/**
       - owner/distribution/**
       - owner/innovation/**
       - .well-known/**
@@ -55,18 +59,29 @@ jobs:
           test -s tools/nws-claim-weather-formatter/index.html
           test -s tools/nws-claim-weather-formatter/weather_formatter.py
           test -s tools/nws-claim-weather-formatter/README.md
+          test -s tools/programmatic-audit-pages/generate.py
+          test -s tools/bridgepoint-property-intelligence/pyproject.toml
+          test -s tools/bridgepoint-browser-assist/manifest.json
           test -s start/index.html
+          test -s audit/index.html
+          test -s estimate-preflight/index.html
+          test -s developers/index.html
+          test -s storms/index.html
           test -s owner/distribution/index.html
           test -s owner/innovation/index.html
           test -s .well-known/security.txt
 
-          rm -rf site/enterprise site/research/national-estimate-variance site/tools site/start site/owner/distribution site/owner/innovation site/.well-known
+          rm -rf site/enterprise site/research/national-estimate-variance site/tools site/start site/audit site/estimate-preflight site/developers site/storms site/owner/distribution site/owner/innovation site/.well-known
           mkdir -p site/research site/owner
           cp -a enterprise site/enterprise
           mkdir -p site/research/national-estimate-variance
           cp -a research/national-estimate-variance/. site/research/national-estimate-variance/
           cp -a tools site/tools
           cp -a start site/start
+          cp -a audit site/audit
+          cp -a estimate-preflight site/estimate-preflight
+          cp -a developers site/developers
+          cp -a storms site/storms
           cp -a owner/distribution site/owner/distribution
           cp -a owner/innovation site/owner/innovation
           cp -a .well-known site/.well-known
@@ -102,6 +117,14 @@ jobs:
               if '</main>' not in h:
                   raise SystemExit('Homepage main anchor missing; refusing blind patch')
               h=h.replace('</main>',block+'</main>',1)
+
+          if 'id="self-service-flywheel-v547"' not in h:
+              block='''
+          <section class="wrap section" id="self-service-flywheel-v547"><div class="sample"><div><span class="kicker">Self-service intelligence</span><h2>Start useful work before a sales conversation.</h2><p>Preflight an estimate locally without uploading it, watch the live NWS storm ledger, or test BridgePoint's transparent open developer baseline.</p></div><div class="actions"><a class="btn primary" href="/estimate-preflight/?utm_source=homepage&utm_medium=self_service&utm_campaign=distribution_v547">Private estimate preflight</a><a class="btn secondary" href="/storms/?utm_source=homepage&utm_medium=weather_ledger&utm_campaign=distribution_v547">Live storm ledger</a><a class="btn secondary" href="/developers/?utm_source=homepage&utm_medium=developer&utm_campaign=distribution_v547">Developer sandbox</a></div></div></section>
+          '''
+              if '</main>' not in h:
+                  raise SystemExit('Homepage main anchor missing; refusing blind patch')
+              h=h.replace('</main>',block+'</main>',1)
           home.write_text(h,encoding='utf-8')
 
           sitemap=Path('site/sitemap.xml')
@@ -113,7 +136,11 @@ jobs:
                   ('https://bridgepointintelligence.online/enterprise/trust/','monthly','0.7'),
                   ('https://bridgepointintelligence.online/research/national-estimate-variance/','weekly','0.9'),
                   ('https://bridgepointintelligence.online/tools/nws-claim-weather-formatter/','weekly','0.9'),
-                  ('https://bridgepointintelligence.online/start/','weekly','0.9')]:
+                  ('https://bridgepointintelligence.online/start/','weekly','0.9'),
+                  ('https://bridgepointintelligence.online/audit/','weekly','0.9'),
+                  ('https://bridgepointintelligence.online/estimate-preflight/','weekly','0.9'),
+                  ('https://bridgepointintelligence.online/developers/','weekly','0.8'),
+                  ('https://bridgepointintelligence.online/storms/','hourly','0.9')]:
                   if url not in x:
                       additions.append(f'  <url><loc>{url}</loc><changefreq>{freq}</changefreq><priority>{priority}</priority></url>')
               if additions:
@@ -131,6 +158,10 @@ jobs:
           test -s site/tools/nws-claim-weather-formatter/index.html
           test -s site/tools/nws-claim-weather-formatter/weather_formatter.py
           test -s site/start/index.html
+          test -s site/audit/index.html
+          test -s site/estimate-preflight/index.html
+          test -s site/developers/index.html
+          test -s site/storms/index.html
           test -s site/owner/distribution/index.html
           test -s site/.well-known/security.txt
           grep -q 'For carriers, platforms' site/enterprise/index.html
@@ -139,20 +170,23 @@ jobs:
           grep -q 'National Property Estimate Variance Index' site/research/national-estimate-variance/index.html
           grep -q 'NWS Claim Weather Formatter' site/tools/nws-claim-weather-formatter/index.html
           grep -q 'SELF-GUIDED' site/start/index.html
+          grep -q 'LOCAL-ONLY PREFLIGHT' site/estimate-preflight/index.html
+          grep -q 'OPEN DEVELOPER SANDBOX' site/developers/index.html
+          grep -q 'PUBLIC WEATHER LEDGER' site/storms/index.html
           grep -q 'bridgepoint_owner_distribution_v538' site/owner/distribution/index.html
           grep -q 'href="/owner/distribution/"' site/owner/innovation/index.html
-          grep -q 'carrier-enterprise-v541' site/index.html
-          grep -q 'lead-magnet-v546' site/index.html
-          grep -q 'bridgepointintelligence.online/tools/nws-claim-weather-formatter/' site/sitemap.xml
-          grep -q 'bridgepointintelligence.online/start/' site/sitemap.xml
+          grep -q 'self-service-flywheel-v547' site/index.html
+          grep -q 'bridgepointintelligence.online/estimate-preflight/' site/sitemap.xml
+          grep -q 'bridgepointintelligence.online/developers/' site/sitemap.xml
+          grep -q 'bridgepointintelligence.online/storms/' site/sitemap.xml
           grep -q 'bridgepointintelligence@gmail.com' site/.well-known/security.txt
 
-          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY|sb_secret|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/enterprise site/research/national-estimate-variance site/tools site/start site/owner/distribution site/.well-known; then
+          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY|sb_secret|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/enterprise site/research/national-estimate-variance site/tools site/start site/audit site/estimate-preflight site/developers site/storms site/owner/distribution site/.well-known; then
             echo 'Privileged secret marker found in distribution surfaces.' >&2
             exit 1
           fi
           touch site/.nojekyll
-          echo 'Distribution V546 assembled without replacing the audited customer app.'
+          echo 'Distribution V547 assembled without replacing the audited customer app.'
 
       - name: Persist exact distribution-enabled live artifact
         env:
@@ -169,7 +203,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint live artifact with Distribution V546'
+          git commit -m 'BridgePoint live artifact with Distribution V547'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
