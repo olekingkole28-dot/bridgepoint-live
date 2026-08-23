@@ -1,19 +1,14 @@
-name: Deploy BridgePoint Owner Local AI V592
+name: Deploy BridgePoint Owner Local AI V619
 
 on:
   push:
     branches: [main]
     paths:
       - .github/workflows/deploy-owner-local-ai-v592.yml
-      - experience/owner-local-ai-v592.html
-  workflow_run:
-    workflows:
-      - "Deploy BridgePoint Owner AI V591"
-    types: [completed]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -23,7 +18,6 @@ concurrency:
 
 jobs:
   deploy-local-ai:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -32,67 +26,46 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Assemble V592 from durable artifact
+      - name: Assemble from authoritative durable artifact
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin live-artifact:refs/remotes/origin/live-artifact
           rm -rf site
-          mkdir -p site/owner/local-ai
+          mkdir -p site
           git archive --format=tar origin/live-artifact | tar -xf - -C site
-          test -s experience/owner-local-ai-v592.html
-          cp experience/owner-local-ai-v592.html site/owner/local-ai/index.html
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('site/owner/index.html')
-          s=p.read_text(encoding='utf-8')
-          if 'bp-v592-local-ai' not in s:
-              needle='<div class="launchgrid">'
-              block='''<span id="bp-v592-local-ai" style="display:none"></span>\n          <a class="launch" href="/owner/local-ai/"><b>🖥 Local AI Setup</b><span>Enroll your Windows computer as BridgePoint's outbound-only local reasoning node with no hosted-model billing required.</span></a>\n          '''
-              if needle not in s: raise SystemExit('Owner launchgrid missing')
-              s=s.replace(needle,needle+block,1)
-          p.write_text(s,encoding='utf-8')
-          rel=Path('site/owner/ai/v592-release.json')
-          rel.write_text('{"version":592,"release":"Owner Local AI Setup","owner_only":true,"local_ai":"/owner/local-ai/","provider_mode":"LOCAL_FIRST","hosted_reasoning_default":false,"service_role_on_pc":false}\n',encoding='utf-8')
-          PY
-          grep -q 'bridgepoint_owner_create_local_reasoning_enrollment_v584' site/owner/local-ai/index.html
-          grep -q 'bp-v592-local-ai' site/owner/index.html
-          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY|sb_secret_|OPENAI_API_KEY|ANTHROPIC_API_KEY|sk-proj-|sk-ant-' site/owner/local-ai; then
-            echo 'Privileged secret marker found in local AI owner artifact.' >&2
+          test -s site/owner/local-ai/index.html
+          test -s site/owner/backup/index.html
+          test -s site/downloads/local-ai/INSTALL_BRIDGEPOINT_LOCAL_AI.cmd
+          test -s site/downloads/local-ai/install_windows.ps1
+          test -s site/downloads/local-ai/bridgepoint_local_ai.ps1
+          test -s site/downloads/backup/RUN_BRIDGEPOINT_FULL_BACKUP.cmd
+          test -s site/downloads/backup/RUN_BRIDGEPOINT_RESTORE_TEST.cmd
+          grep -q 'INSTALL_BRIDGEPOINT_LOCAL_AI.cmd' site/owner/local-ai/index.html
+          grep -q 'BridgePoint Backup & Restore' site/owner/backup/index.html
+          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|sb_secret_|OPENAI_API_KEY[[:space:]]*=|ANTHROPIC_API_KEY[[:space:]]*=|sk-proj-|sk-ant-' site/owner site/downloads; then
+            echo 'Privileged secret marker found in autonomy artifact.' >&2
             exit 1
           fi
-          touch site/.nojekyll site/app/.nojekyll
-      - name: Persist V592 durable artifact
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf /tmp/final-live && mkdir /tmp/final-live
-          cp -a site/. /tmp/final-live/
-          cd /tmp/final-live
-          git init
-          git config user.name 'BridgePoint Release Bot'
-          git config user.email 'actions@users.noreply.github.com'
-          git checkout -b live-artifact
-          git add -A
-          git commit -m 'BridgePoint V592 owner local AI setup'
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push --force origin live-artifact
+          touch site/.nojekyll
       - uses: actions/configure-pages@v5
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
-      - name: Publish V592
+      - name: Publish current Local AI + backup surfaces
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Verify live Local AI setup
+      - name: Verify live Local AI + backup
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsSL --retry 6 --retry-delay 3 https://bridgepointintelligence.online/owner/local-ai/ -o /tmp/local-ai.html
-          test -s /tmp/local-ai.html
-          grep -q 'BridgePoint Local AI Setup' /tmp/local-ai.html
-          grep -q 'Generate enrollment code' /tmp/local-ai.html
+          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/local-ai/ -o /tmp/local-ai.html
+          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/backup/ -o /tmp/backup.html
+          grep -q 'Install Local AI on this PC' /tmp/local-ai.html
+          grep -q 'Run full backup + verify' /tmp/backup.html
+          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/downloads/local-ai/INSTALL_BRIDGEPOINT_LOCAL_AI.cmd -o /tmp/local-ai.cmd
+          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/downloads/backup/RUN_BRIDGEPOINT_FULL_BACKUP.cmd -o /tmp/backup.cmd
+          test -s /tmp/local-ai.cmd
+          test -s /tmp/backup.cmd
