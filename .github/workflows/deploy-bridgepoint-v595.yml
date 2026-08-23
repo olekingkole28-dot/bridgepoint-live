@@ -97,3 +97,5 @@ jobs:
             test -s "$f"
             grep -q "${EXPECT[$path]}" "$f"
           done
+
+# trigger: publish IndexNow verification key v646
