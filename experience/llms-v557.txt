@@ -1,0 +1,19 @@
+# BridgePoint Intelligence
+
+> BridgePoint Intelligence is a property-centered intelligence platform and infrastructure layer. It connects fragmented property records, weather exposure, physical change, claims evidence, field workflows, building health, digital-twin context, climate/peril screening, and related signals into explainable property-level decisions.
+
+## Authoritative public pages
+- Home: https://bridgepointintelligence.online/
+- Everything BridgePoint: https://bridgepointintelligence.online/capabilities/
+- Investor relations: https://bridgepointintelligence.online/investors/
+- Enterprise: https://bridgepointintelligence.online/enterprise/
+- Research: https://bridgepointintelligence.online/articles/
+- Developers: https://bridgepointintelligence.online/developers/
+- Free territory request: https://bridgepointintelligence.online/sample/
+- Contact / private message: https://bridgepointintelligence.online/contact/
+
+## Truth policy
+BridgePoint distinguishes LIVE, BACKEND_READY, DESIGN_READY, PARTIAL, hidden, blocked, and experimental capabilities. Public materials should not describe experimental or blocked systems as validated production capabilities. Geographic depth varies by state; Connecticut is the deepest current customer-ready geography. Customer counts, paid adoption, revenue, data coverage, model performance, integrations, and readiness should be represented only from verified BridgePoint sources.
+
+## Investor-relations notice
+Public company information is not an offer to sell, or a solicitation of an offer to buy, any security. Any future securities offering would be made only through appropriate legal documents and an applicable registration or exemption.
