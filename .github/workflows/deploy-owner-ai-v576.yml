@@ -1,0 +1,143 @@
+name: Deploy BridgePoint Owner AI V576
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/deploy-owner-ai-v576.yml
+  workflow_run:
+    workflows:
+      - "Deploy BridgePoint Autonomous Company V557"
+      - "Deploy BridgePoint Experience V550"
+      - "Deploy BridgePoint Owner Command Center V551"
+      - "Deploy BridgePoint V552 — Dynamic Avatar Heal"
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy-owner-ai:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble V576 from durable artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site
+          mkdir -p site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+
+          test -s site/owner/index.html
+          test -s site/owner/ai/index.html
+          test -s site/owner/ai/executive/index.html
+          test -s site/owner/ai/reasoning/index.html
+          test -s site/owner/growth-swarm/index.html
+
+          python - <<'PY'
+          from pathlib import Path
+
+          # Patch the owner home with explicit AI separation and growth visibility.
+          owner = Path('site/owner/index.html')
+          s = owner.read_text(encoding='utf-8')
+          marker = 'bp-v576-owner-ai-links'
+          if marker not in s:
+              needle = '<div class="launchgrid">'
+              block = '''<span id="bp-v576-owner-ai-links" style="display:none"></span>
+          <a class="launch" href="/owner/ai/executive/"><b>🧠 OWNER AI · System Executive</b><span>Private system-changing AI. Tell it what you want done; it plans, delegates, verifies and retries through governed worker tools.</span></a>
+          <a class="launch" href="/owner/ai/reasoning/"><b>🔬 AI Reasoning Observatory</b><span>Evidence, hypotheses, dissent, gates, confidence, calibration and outcomes. Owner-only.</span></a>
+          <a class="launch" href="/owner/growth-swarm/"><b>📈 Growth Swarm</b><span>Five acquisition agents measured by owned-media output, funnel movement and verified payment.</span></a>
+          '''
+              if needle not in s:
+                  raise SystemExit('Owner launchgrid missing; refusing blind patch')
+              s = s.replace(needle, needle + block, 1)
+          owner.write_text(s, encoding='utf-8')
+
+          # Patch Workforce with explicit distinction from customer AI and links to control surfaces.
+          fleet = Path('site/owner/ai/index.html')
+          s = fleet.read_text(encoding='utf-8')
+          marker = 'bp-v576-ai-separation'
+          if marker not in s:
+              needle = '<main id="main" class="hidden">'
+              block = '''<div id="bp-v576-ai-separation" style="margin:10px 0;padding:11px;border:1px solid #32694f;border-radius:12px;background:#10271d;color:#b8ffd9"><b>Two different AIs:</b> <a style="color:#48ddff" href="/owner/ai/executive/">Owner AI Executive</a> can coordinate governed system work and is admin-only. <a style="color:#48ddff" href="/app/">Customer BridgePoint AI</a> only receives customer-safe, package/entitlement-scoped intelligence and has no system-changing tools. <a style="color:#48ddff" href="/owner/ai/reasoning/">Reasoning Observatory</a> and <a style="color:#48ddff" href="/owner/growth-swarm/">Growth Swarm</a> are owner-only.</div>'''
+              if needle not in s:
+                  raise SystemExit('AI main marker missing; refusing blind patch')
+              s = s.replace(needle, needle + block, 1)
+          fleet.write_text(s, encoding='utf-8')
+
+          # Make release state explicit without changing the Flutter payload.
+          rel = Path('site/owner/ai/v576-release.json')
+          rel.write_text('{"version":576,"release":"Owner AI Executive + Reasoning Observatory + Growth Swarm","owner_ai_system_changing":true,"customer_ai_system_changing":false,"owner_only":true,"growth_agents":5,"external_email":false,"external_social":false,"paid_spend":false}\n', encoding='utf-8')
+          PY
+
+          grep -q 'bridgepoint_owner_intent_submit_v572' site/owner/ai/executive/index.html
+          grep -q 'bridgepoint_owner_reasoning_v570' site/owner/ai/reasoning/index.html
+          grep -q 'bridgepoint_owner_growth_swarm_v576' site/owner/growth-swarm/index.html
+          grep -q 'bp-v576-owner-ai-links' site/owner/index.html
+          grep -q 'bp-v576-ai-separation' site/owner/ai/index.html
+
+          # Owner pages may contain the public anon/publishable browser key but never privileged server secrets.
+          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY|sb_secret_|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|BRIDGEPOINT_AI_API_KEY|OPENAI_API_KEY|ANTHROPIC_API_KEY' site/owner/ai site/owner/growth-swarm; then
+            echo 'Privileged secret marker found in owner web artifact.' >&2
+            exit 1
+          fi
+          touch site/.nojekyll site/app/.nojekyll
+
+      - name: Persist exact V576 durable artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/final-live
+          mkdir /tmp/final-live
+          cp -a site/. /tmp/final-live/
+          cd /tmp/final-live
+          git init
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m 'BridgePoint V576 owner AI executive and growth swarm'
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Publish V576
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live owner AI routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in owner/ai/executive/ owner/ai/reasoning/ owner/growth-swarm/; do
+            body="$(curl -fsSL --retry 4 --retry-delay 3 "https://bridgepointintelligence.online/$path")"
+            test -n "$body"
+          done
+          curl -fsSL --retry 4 --retry-delay 3 https://bridgepointintelligence.online/owner/ai/executive/ | grep -q 'SYSTEM-CHANGING AI'
+          curl -fsSL --retry 4 --retry-delay 3 https://bridgepointintelligence.online/owner/ai/reasoning/ | grep -q 'Reasoning Observatory'
+          curl -fsSL --retry 4 --retry-delay 3 https://bridgepointintelligence.online/owner/growth-swarm/ | grep -q 'Growth Swarm'
