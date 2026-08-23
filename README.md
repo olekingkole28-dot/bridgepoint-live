@@ -10,6 +10,7 @@
 - **Property managers & operators:** https://bridgepointintelligence.online/for-property-managers/
 - **See a Connecticut territory sample:** https://bridgepointintelligence.online/sample/
 - **Free property & claim tools:** https://bridgepointintelligence.online/free-tools/
+- **Free local-first coordinate formatter:** https://bridgepointintelligence.online/free-tools/coordinate/
 - **Start the 7-day trial:** https://bridgepointintelligence.online/app/
 
 BridgePoint combines property identity resolution, public/property records, geospatial matching, weather and disaster context, property changes, provenance, evidence, signals, patterns, scoring, explainable prioritization, and verified claim-timeline data.
@@ -29,6 +30,8 @@ The platform makes an explicit distinction between **evidence that deserves atte
 
 BridgePoint publishes narrow, useful technical tools that solve one public-data workflow without exposing proprietary production logic.
 
+- [BridgePoint Coordinate Formatter](free-tools/coordinate/) — a MIT-licensed, no-login, no-tracking, local-first browser utility that validates latitude/longitude pairs and formats them as decimal, CSV, GeoJSON coordinate order, and maps-query pairs.
+- [Claim Evidence Preflight](free-tools/claim_evidence_preflight.py) — a small Python utility that checks plain text for common property/claim evidence categories before deeper review.
 - [Free NWS Claim Timeline Formatter](free-utilities/nws-claim-timeline/) — converts NWS alert records for a latitude/longitude into a clean Markdown or JSON timeline for claim review.
 
 These utilities organize public evidence; they do not determine damage, coverage, causation, claim value, or legal underpayment.
