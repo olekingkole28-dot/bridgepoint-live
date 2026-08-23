@@ -2,6 +2,16 @@
 
 **BridgePoint Intelligence** is a U.S. property and claims intelligence platform founded by **Kole Johnson**. It is built for commercial contractors, restoration firms, public and insurance adjusters, property operators, real-estate organizations, insurers, lenders, investors, and other teams that need property-level evidence to move into an operational workflow.
 
+## Start here
+
+- **Roofing contractors:** https://bridgepointintelligence.online/for-roofers/
+- **Restoration & mitigation:** https://bridgepointintelligence.online/for-restoration/
+- **Public adjusters:** https://bridgepointintelligence.online/for-public-adjusters/
+- **Property managers & operators:** https://bridgepointintelligence.online/for-property-managers/
+- **See a Connecticut territory sample:** https://bridgepointintelligence.online/sample/
+- **Free property & claim tools:** https://bridgepointintelligence.online/free-tools/
+- **Start the 7-day trial:** https://bridgepointintelligence.online/app/
+
 BridgePoint combines property identity resolution, public/property records, geospatial matching, weather and disaster context, property changes, provenance, evidence, signals, patterns, scoring, explainable prioritization, and verified claim-timeline data.
 
 The platform makes an explicit distinction between **evidence that deserves attention** and **confirmed physical findings or insurance outcomes**. Weather exposure, for example, is context; it is not automatic proof that a property was damaged. A BridgePoint `VERIFIED` opportunity means the platform's evidence and quality gates passed, not that damage, coverage, customer intent, a permit, or a guaranteed sale has been confirmed.
