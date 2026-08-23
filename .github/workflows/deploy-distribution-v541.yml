@@ -8,6 +8,7 @@ on:
       - research/national-estimate-variance/**
       - owner/distribution/**
       - owner/innovation/**
+      - .well-known/**
       - .github/workflows/deploy-distribution-v541.yml
   workflow_dispatch:
 
@@ -42,24 +43,29 @@ jobs:
           cp -a /tmp/public-base/. site/
 
           test -s enterprise/index.html
+          test -s enterprise/trust/index.html
+          test -s enterprise/capabilities.json
+          test -s enterprise/integration-guide.md
+          test -s enterprise/data-governance.md
           test -s research/national-estimate-variance/index.html
           test -s research/national-estimate-variance/audit.py
           test -s research/national-estimate-variance/README.md
           test -s owner/distribution/index.html
           test -s owner/innovation/index.html
+          test -s .well-known/security.txt
 
-          rm -rf site/enterprise site/research/national-estimate-variance site/owner/distribution site/owner/innovation
+          rm -rf site/enterprise site/research/national-estimate-variance site/owner/distribution site/owner/innovation site/.well-known
           mkdir -p site/research site/owner
           cp -a enterprise site/enterprise
           mkdir -p site/research/national-estimate-variance
           cp -a research/national-estimate-variance/. site/research/national-estimate-variance/
           cp -a owner/distribution site/owner/distribution
           cp -a owner/innovation site/owner/innovation
+          cp -a .well-known site/.well-known
 
           python - <<'PY'
           from pathlib import Path
 
-          # Put Distribution beside Innovation without rewriting the app.
           innovation=Path('site/owner/innovation/index.html')
           s=innovation.read_text(encoding='utf-8')
           if 'href="/owner/distribution/"' not in s:
@@ -69,7 +75,6 @@ jobs:
               s=s.replace(needle,'<a class="btn" href="/owner/distribution/">Distribution</a>'+needle,1)
               innovation.write_text(s,encoding='utf-8')
 
-          # Add a durable public enterprise discovery block to the current homepage.
           home=Path('site/index.html')
           if not home.exists():
               raise SystemExit('Durable homepage missing')
@@ -90,6 +95,7 @@ jobs:
               additions=[]
               for url,freq,priority in [
                   ('https://bridgepointintelligence.online/enterprise/','weekly','0.9'),
+                  ('https://bridgepointintelligence.online/enterprise/trust/','monthly','0.7'),
                   ('https://bridgepointintelligence.online/research/national-estimate-variance/','weekly','0.9')]:
                   if url not in x:
                       additions.append(f'  <url><loc>{url}</loc><changefreq>{freq}</changefreq><priority>{priority}</priority></url>')
@@ -102,17 +108,24 @@ jobs:
 
           test -s site/app/index.html
           test -s site/enterprise/index.html
+          test -s site/enterprise/trust/index.html
+          test -s site/enterprise/capabilities.json
           test -s site/research/national-estimate-variance/index.html
           test -s site/owner/distribution/index.html
+          test -s site/.well-known/security.txt
           grep -q 'For carriers, platforms' site/enterprise/index.html
+          grep -q 'Public Trust Center' site/enterprise/trust/index.html
+          grep -q 'manifest_version' site/enterprise/capabilities.json
           grep -q 'National Property Estimate Variance Index' site/research/national-estimate-variance/index.html
           grep -q 'bridgepoint_owner_distribution_v538' site/owner/distribution/index.html
           grep -q 'href="/owner/distribution/"' site/owner/innovation/index.html
           grep -q 'carrier-enterprise-v541' site/index.html
           grep -q 'bridgepointintelligence.online/enterprise/' site/sitemap.xml
+          grep -q 'bridgepointintelligence.online/enterprise/trust/' site/sitemap.xml
           grep -q 'bridgepointintelligence.online/research/national-estimate-variance/' site/sitemap.xml
+          grep -q 'bridgepointintelligence@gmail.com' site/.well-known/security.txt
 
-          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY|sb_secret|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/enterprise site/research/national-estimate-variance site/owner/distribution; then
+          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY|sb_secret|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/enterprise site/research/national-estimate-variance site/owner/distribution site/.well-known; then
             echo 'Privileged secret marker found in distribution surfaces.' >&2
             exit 1
           fi
