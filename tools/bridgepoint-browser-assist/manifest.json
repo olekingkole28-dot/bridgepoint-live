@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "BridgePoint Property Context Assistant",
+  "version": "0.1.0",
+  "description": "User-activated local page context screening for property and estimate workflows.",
+  "permissions": ["activeTab", "scripting"],
+  "action": {
+    "default_title": "BridgePoint Context",
+    "default_popup": "popup.html"
+  }
+}
