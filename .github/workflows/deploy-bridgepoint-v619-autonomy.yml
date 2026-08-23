@@ -1,4 +1,4 @@
-name: Deploy BridgePoint V619 Autonomy
+name: Deploy BridgePoint V622 Autonomy Dashboard
 
 on:
   push:
@@ -45,33 +45,77 @@ jobs:
           test -s site/downloads/backup/bridgepoint_full_export_windows.ps1
           test -s site/downloads/backup/bridgepoint_verify_backup_windows.ps1
           test -s site/downloads/backup/bridgepoint_restore_test_windows.ps1
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('site/owner/index.html')
+          s=p.read_text(encoding='utf-8')
+          marker='bp-owner-autonomy-v622'
+          if marker not in s:
+              needle='<section id="metrics" class="metrics"></section>'
+              if needle not in s:
+                  raise SystemExit('Owner metrics anchor missing')
+              block=r'''
+          <style id="bp-owner-autonomy-v622-style">
+          #bp-owner-autonomy-v622{margin:14px 0;border:1px solid #3a617f;background:linear-gradient(145deg,#102841,#0a1727);border-radius:18px;padding:16px}.bp622-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.bp622-title{font-size:19px;font-weight:950}.bp622-sub{color:#9eb3c7;font-size:12px}.bp622-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:12px}.bp622-card{background:#091827;border:1px solid #29445e;border-radius:12px;padding:11px}.bp622-card span{display:block;color:#9eb3c7;font-size:9px;text-transform:uppercase;letter-spacing:.06em}.bp622-card b{display:block;font-size:17px;margin:3px 0}.bp622-detail{font-size:10px;color:#9eb3c7}.bp622-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}.bp622-actions a{border:1px solid #35536f;background:#0e2034;color:#fff;border-radius:9px;padding:8px 10px;text-decoration:none;font-size:10px;font-weight:900}.bp622-actions a:first-child{background:linear-gradient(135deg,#147bd4,#18a3ff);border-color:#2aa7ff}.bp622-good{color:#68e1a6}.bp622-warn{color:#ffca5e}.bp622-bad{color:#ff7d88}@media(max-width:1150px){.bp622-grid{grid-template-columns:repeat(3,1fr)}}@media(max-width:650px){.bp622-grid{grid-template-columns:1fr 1fr}}
+          </style>
+          <section id="bp-owner-autonomy-v622">
+            <div class="bp622-head"><div><div class="eyebrow">AUTONOMY & CONTINUITY · LIVE V622</div><div class="bp622-title">BridgePoint running without this chat</div><div class="bp622-sub">Local reasoning, forgotten-work completion, U.S. expansion, self-selling growth, backup and restore truth in one place.</div></div><div id="bp622-generated" class="bp622-sub">Loading live status…</div></div>
+            <div id="bp622-grid" class="bp622-grid"><div class="bp622-card"><span>Status</span><b>Loading…</b></div></div>
+            <div class="bp622-actions"><a href="/owner/local-ai/">🖥 Install / View Local AI</a><a href="/owner/backup/">💾 Backup & Restore</a><a href="/owner/completion/">✅ Forgotten Work / Master Ledger</a><a href="/owner/growth-swarm/">📈 Self-Selling Growth</a><a href="/owner/ai/control/">🎛 AI Control</a></div>
+          </section>
+          <script id="bp-owner-autonomy-v622-script">(()=>{const B='https://xdfsjztwgsbmabshzsjw.supabase.co',K='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25',g=id=>document.getElementById(id),esc=v=>String(v??'—').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));function tok(){let t=sessionStorage.getItem('bp_owner_access_token')||'';if(t)return t;try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)||'';if(k.startsWith('sb-')&&k.endsWith('-auth-token')){const d=JSON.parse(localStorage.getItem(k)||'{}');t=d?.access_token||d?.currentSession?.access_token||d?.session?.access_token||'';if(t)return t}}}catch(_){}return''}async function load(){const t=tok();if(!t)return;try{const r=await fetch(B+'/rest/v1/rpc/bridgepoint_owner_autonomy_status_v621',{method:'POST',headers:{apikey:K,Authorization:'Bearer '+t,'Content-Type':'application/json'},body:'{}'}),d=await r.json();if(!r.ok)throw new Error(d.message||'Status unavailable');const a=d.automation||{},l=d.local_ai||{},m=d.master_completion||{},n=d.national||{},s=d.selling_itself||{},b=d.backup||{},sup=d.supervisor||{};const cls=x=>x?'bp622-good':'bp622-warn';const bs=x=>x?.status||'NOT RUN';g('bp622-grid').innerHTML=`<div class="bp622-card"><span>Autonomy supervisor</span><b class="${sup.status==='HEALTHY'?'bp622-good':'bp622-bad'}">${esc(sup.status||'UNKNOWN')}</b><div class="bp622-detail">Core jobs ${esc(a.core_jobs_active||0)}/${esc(a.core_jobs_total||0)} active</div></div><div class="bp622-card"><span>Selling itself</span><b class="${cls(s.running)}">${s.running?'ACTIVE':'NEEDS ATTENTION'}</b><div class="bp622-detail">Growth AI queued: ${esc(s.queued_growth_ai||0)}</div></div><div class="bp622-card"><span>Local AI computer</span><b class="${l.online>0?'bp622-good':'bp622-warn'}">${l.online>0?esc(l.online)+' ONLINE':'INSTALL NEEDED'}</b><div class="bp622-detail">${esc(l.queued_ai||0)} reasoning jobs waiting</div></div><div class="bp622-card"><span>Forgotten / unfinished work</span><b class="${m.open===0?'bp622-good':'bp622-warn'}">${esc(m.open||0)} OPEN</b><div class="bp622-detail">Master ledger ${esc(m.total||0)} tracked</div></div><div class="bp622-card"><span>U.S. expansion</span><b>${esc(n.activated||0)}/${esc(n.jurisdictions||0)} LIVE</b><div class="bp622-detail">${esc(n.property_foundation||0)} in property foundation · ${esc(n.phase_counts?.SIGNALS_EVIDENCE||0)} signals/evidence</div></div><div class="bp622-card"><span>Backup / restore</span><b class="${bs(b.latest_verify)==='SUCCEEDED'?'bp622-good':'bp622-warn'}">${esc(bs(b.latest_verify))}</b><div class="bp622-detail">Export ${esc(bs(b.latest_export))} · restore test ${esc(bs(b.latest_restore_test))}</div></div>`;g('bp622-generated').textContent='Updated '+new Date(d.generated_at).toLocaleTimeString()}catch(e){g('bp622-grid').innerHTML=`<div class="bp622-card"><span>Autonomy status</span><b class="bp622-bad">ERROR</b><div class="bp622-detail">${esc(e.message||e)}</div></div>`}}setInterval(load,15000);setTimeout(load,800);})();</script>
+          '''
+              s=s.replace(needle,needle+block,1)
+              s=s.replace('LIVE OWNER RELEASE V600','LIVE OWNER RELEASE V622')
+              s=s.replace('Founder cockpit · V600','Founder cockpit · V622')
+              p.write_text(s,encoding='utf-8')
+          PY
+          grep -q 'bp-owner-autonomy-v622' site/owner/index.html
+          grep -q 'bridgepoint_owner_autonomy_status_v621' site/owner/index.html
           grep -q 'Install_BridgePoint_Local_AI.bat' site/owner/local-ai/index.html
-          grep -q 'Backup & Restore' site/owner/local-ai/index.html
           grep -q 'BridgePoint Backup & Restore' site/owner/backup/index.html
-          grep -q 'bridgepoint_owner_backup_readiness_v616' site/owner/backup/index.html
           if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|sb_secret_|OPENAI_API_KEY[[:space:]]*=|ANTHROPIC_API_KEY[[:space:]]*=|sk-proj-|sk-ant-' site/owner site/downloads; then
             echo 'Privileged secret marker found in autonomy artifact.' >&2
             exit 1
           fi
           touch site/.nojekyll
+      - name: Persist current Owner dashboard into durable live artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/final-live && mkdir /tmp/final-live
+          cp -a site/. /tmp/final-live/
+          cd /tmp/final-live
+          git init
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m 'BridgePoint V622 autonomy dashboard'
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
       - uses: actions/configure-pages@v5
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
-      - name: Publish V619
+      - name: Publish V622
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Verify live autonomy surfaces
+      - name: Verify live Owner autonomy surfaces
         shell: bash
         run: |
           set -euo pipefail
-          for path in owner/local-ai/ owner/backup/ downloads/local-ai/Install_BridgePoint_Local_AI.bat downloads/backup/BridgePoint_Backup_Wizard.bat downloads/backup/BridgePoint_Restore_Test.bat; do
+          for path in owner/ owner/local-ai/ owner/backup/ downloads/local-ai/Install_BridgePoint_Local_AI.bat downloads/backup/BridgePoint_Backup_Wizard.bat downloads/backup/BridgePoint_Restore_Test.bat; do
             url="https://bridgepointintelligence.online/$path"
             curl -fsSL --retry 8 --retry-delay 3 "$url" -o /tmp/check
             test -s /tmp/check
           done
+          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/ | grep -q 'Autonomy & Continuity'
+          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/ | grep -q 'bridgepoint_owner_autonomy_status_v621'
           curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/local-ai/ | grep -q 'Download One-Click Installer'
           curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/backup/ | grep -q 'Run Full Backup'
       - name: Record successful live verification
@@ -81,14 +125,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/bp-status
-          cat > /tmp/bp-status/v619-live.json <<JSON
-          {"version":619,"status":"LIVE_VERIFIED","run_id":"${GITHUB_RUN_ID}","commit":"${GITHUB_SHA}","verified_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","local_ai":"/owner/local-ai/","backup_restore":"/owner/backup/"}
+          cat > /tmp/bp-status/v622-live.json <<JSON
+          {"version":622,"status":"LIVE_VERIFIED","run_id":"${GITHUB_RUN_ID}","commit":"${GITHUB_SHA}","verified_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","owner_dashboard":"/owner/","local_ai":"/owner/local-ai/","backup_restore":"/owner/backup/"}
           JSON
-          encoded=$(base64 -w0 /tmp/bp-status/v619-live.json)
-          api="repos/${GITHUB_REPOSITORY}/contents/.deploy-status/v619-live.json"
+          encoded=$(base64 -w0 /tmp/bp-status/v622-live.json)
+          api="repos/${GITHUB_REPOSITORY}/contents/.deploy-status/v622-live.json"
           old_sha=$(gh api "$api" --jq .sha 2>/dev/null || true)
           if [ -n "$old_sha" ]; then
-            gh api -X PUT "$api" -f message='Record V619 live verification' -f content="$encoded" -f sha="$old_sha" -f branch=main >/dev/null
+            gh api -X PUT "$api" -f message='Record V622 live verification' -f content="$encoded" -f sha="$old_sha" -f branch=main >/dev/null
           else
-            gh api -X PUT "$api" -f message='Record V619 live verification' -f content="$encoded" -f branch=main >/dev/null
+            gh api -X PUT "$api" -f message='Record V622 live verification' -f content="$encoded" -f branch=main >/dev/null
           fi
