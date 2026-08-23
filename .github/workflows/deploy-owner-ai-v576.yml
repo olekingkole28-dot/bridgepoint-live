@@ -1,10 +1,11 @@
-name: Deploy BridgePoint Owner AI V576
+name: Deploy BridgePoint Owner AI V591
 
 on:
   push:
     branches: [main]
     paths:
       - .github/workflows/deploy-owner-ai-v576.yml
+      - experience/owner-completion-v590.html
   workflow_run:
     workflows:
       - "Deploy BridgePoint Autonomous Company V557"
@@ -35,7 +36,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Assemble V583 from durable artifact
+      - name: Assemble V591 from durable artifact
         shell: bash
         run: |
           set -euo pipefail
@@ -50,6 +51,9 @@ jobs:
           test -s site/owner/ai/reasoning/index.html
           test -s site/owner/ai/control/index.html
           test -s site/owner/growth-swarm/index.html
+          test -s experience/owner-completion-v590.html
+          mkdir -p site/owner/completion
+          cp experience/owner-completion-v590.html site/owner/completion/index.html
 
           python - <<'PY'
           from pathlib import Path
@@ -67,11 +71,19 @@ jobs:
               if needle not in s:
                   raise SystemExit('Owner launchgrid missing; refusing blind patch')
               s = s.replace(needle, needle + block, 1)
+          if 'bp-v591-master-completion' not in s:
+              needle = '<div class="launchgrid">'
+              block = '''<span id="bp-v591-master-completion" style="display:none"></span>
+          <a class="launch" href="/owner/completion/"><b>✅ Master Completion · National Depth</b><span>Canonical no-forgotten-work ledger, worker assignments, independent verification, local AI status and 50-state + DC data-depth truth.</span></a>
+          '''
+              if needle not in s:
+                  raise SystemExit('Owner launchgrid missing for master-completion patch')
+              s = s.replace(needle, needle + block, 1)
           control_marker = 'bp-v583-ai-control-center'
           if control_marker not in s:
               needle = '<div class="launchgrid">'
               block = '''<span id="bp-v583-ai-control-center" style="display:none"></span>
-          <a class="launch" href="/owner/ai/control/"><b>🎛 OWNER AI · Control Center</b><span>One screen for GPT-5.6 provider health, reviewer status, worker fleet, waiting tasks and recent reasoning calls.</span></a>
+          <a class="launch" href="/owner/ai/control/"><b>🎛 OWNER AI · Control Center</b><span>Private provider/runtime, worker fleet, waiting tasks and reasoning state.</span></a>
           '''
               if needle not in s:
                   raise SystemExit('Owner launchgrid missing for control-center patch')
@@ -89,29 +101,36 @@ jobs:
               s = s.replace(needle, needle + block, 1)
           if 'bp-v583-control-shortcut' not in s:
               needle = '<div class="top">'
-              block = '''<div id="bp-v583-control-shortcut" style="margin:10px 0;padding:10px;border:1px solid #2d6571;border-radius:12px;background:#0d2437"><b>🎛 New:</b> <a style="color:#48ddff" href="/owner/ai/control/">Open the all-in-one Owner AI Control Center</a> for provider health, model calls, workers and waiting tasks.</div>'''
+              block = '''<div id="bp-v583-control-shortcut" style="margin:10px 0;padding:10px;border:1px solid #2d6571;border-radius:12px;background:#0d2437"><b>🎛 New:</b> <a style="color:#48ddff" href="/owner/ai/control/">Open the Owner AI Control Center</a> for runtime and worker status.</div>'''
+              if needle in s:
+                  s = s.replace(needle, block + needle, 1)
+          if 'bp-v591-ledger-shortcut' not in s:
+              needle = '<div class="top">'
+              block = '''<div id="bp-v591-ledger-shortcut" style="margin:10px 0;padding:10px;border:1px solid #32694f;border-radius:12px;background:#10271d"><b>✅ Canonical backlog:</b> <a style="color:#48ddff" href="/owner/completion/">Master Completion + National Depth</a> shows every recovered requirement and its verification state.</div>'''
               if needle in s:
                   s = s.replace(needle, block + needle, 1)
           fleet.write_text(s, encoding='utf-8')
 
-          rel = Path('site/owner/ai/v583-release.json')
-          rel.write_text('{"version":583,"release":"Owner AI Control Center + Provider Visibility","owner_ai_system_changing":true,"customer_ai_system_changing":false,"owner_only":true,"control_center":"/owner/ai/control/","provider":"BridgePoint Reasoning Provider V578/V579","runtime_candidate":"V580","external_email":false,"external_social":false,"paid_spend":false}\n', encoding='utf-8')
+          rel = Path('site/owner/ai/v591-release.json')
+          rel.write_text('{"version":591,"release":"Master Completion + Local-First AI Visibility","owner_only":true,"master_completion":"/owner/completion/","control_center":"/owner/ai/control/","reasoning":"/owner/ai/reasoning/","growth_swarm":"/owner/growth-swarm/","customer_ai_system_changing":false,"provider_mode":"LOCAL_FIRST","external_email":false,"external_social":false,"paid_spend":false}\n', encoding='utf-8')
           PY
 
           grep -q 'bridgepoint_owner_intent_submit_v572' site/owner/ai/executive/index.html
           grep -q 'bridgepoint_owner_reasoning_v570' site/owner/ai/reasoning/index.html
           grep -q 'bridgepoint_owner_ai_control_center_v582' site/owner/ai/control/index.html
           grep -q 'bridgepoint_owner_growth_swarm_v576' site/owner/growth-swarm/index.html
-          grep -q 'bp-v583-ai-control-center' site/owner/index.html
-          grep -q 'bp-v583-control-shortcut' site/owner/ai/index.html
+          grep -q 'bridgepoint_owner_master_completion_v586' site/owner/completion/index.html
+          grep -q 'bridgepoint_owner_national_depth_v590' site/owner/completion/index.html
+          grep -q 'bp-v591-master-completion' site/owner/index.html
+          grep -q 'bp-v591-ledger-shortcut' site/owner/ai/index.html
 
-          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY|sb_secret_|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|BRIDGEPOINT_AI_API_KEY|OPENAI_API_KEY|ANTHROPIC_API_KEY|sk-proj-|sk-ant-' site/owner/ai site/owner/growth-swarm; then
+          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY|sb_secret_|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|BRIDGEPOINT_AI_API_KEY|OPENAI_API_KEY|ANTHROPIC_API_KEY|sk-proj-|sk-ant-' site/owner/ai site/owner/growth-swarm site/owner/completion; then
             echo 'Privileged secret marker found in owner web artifact.' >&2
             exit 1
           fi
           touch site/.nojekyll site/app/.nojekyll
 
-      - name: Persist exact V583 durable artifact
+      - name: Persist exact V591 durable artifact
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -126,7 +145,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint V583 owner AI control center'
+          git commit -m 'BridgePoint V591 master completion and local-first AI'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -138,19 +157,24 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
-      - name: Publish V583
+      - name: Publish V591
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify live owner AI routes
+      - name: Verify live owner routes
         shell: bash
         run: |
           set -euo pipefail
-          for path in owner/ai/control/ owner/ai/executive/ owner/ai/reasoning/ owner/growth-swarm/; do
-            body="$(curl -fsSL --retry 4 --retry-delay 3 "https://bridgepointintelligence.online/$path")"
-            test -n "$body"
+          declare -A EXPECT=(
+            [owner/ai/control/]="Owner AI Control Center"
+            [owner/ai/executive/]="SYSTEM-CHANGING AI"
+            [owner/ai/reasoning/]="Reasoning Observatory"
+            [owner/growth-swarm/]="Growth Swarm"
+            [owner/completion/]="Master Completion"
+          )
+          for path in "${!EXPECT[@]}"; do
+            file="/tmp/$(echo "$path" | tr '/' '_').html"
+            curl -fsSL --retry 6 --retry-delay 3 "https://bridgepointintelligence.online/$path" -o "$file"
+            test -s "$file"
+            grep -q "${EXPECT[$path]}" "$file"
           done
-          curl -fsSL --retry 4 --retry-delay 3 https://bridgepointintelligence.online/owner/ai/control/ | grep -q 'Owner AI Control Center'
-          curl -fsSL --retry 4 --retry-delay 3 https://bridgepointintelligence.online/owner/ai/executive/ | grep -q 'SYSTEM-CHANGING AI'
-          curl -fsSL --retry 4 --retry-delay 3 https://bridgepointintelligence.online/owner/ai/reasoning/ | grep -q 'Reasoning Observatory'
-          curl -fsSL --retry 4 --retry-delay 3 https://bridgepointintelligence.online/owner/growth-swarm/ | grep -q 'Growth Swarm'
