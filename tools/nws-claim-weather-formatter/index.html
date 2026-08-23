@@ -6,6 +6,7 @@
   <title>Free NWS Claim Weather Formatter | BridgePoint Intelligence</title>
   <meta name="description" content="Free BridgePoint utility that converts National Weather Service alert data for a coordinate into clean, copy-ready claim notes." />
   <meta name="robots" content="index,follow" />
+  <script src="/acquisition_tracker.js" defer></script>
   <style>
     :root{color-scheme:dark;--bg:#071017;--panel:#0e1a24;--panel2:#132431;--text:#eff8ff;--muted:#9cb0bf;--cyan:#45d9ff;--amber:#ffcb66;--line:#243847}
     *{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at top,#123043 0,#071017 44%);color:var(--text)}
@@ -27,8 +28,8 @@
         <div><label for="lon">Longitude</label><input id="lon" inputmode="decimal" placeholder="-72.6506" value="-72.6506" /></div>
       </div>
       <div class="actions">
-        <button class="primary" id="history">Format recent alerts</button>
-        <button class="secondary" id="active">Active alerts only</button>
+        <button class="primary" id="history" data-bp-value="free_nws_formatter_run">Format recent alerts</button>
+        <button class="secondary" id="active" data-bp-value="free_nws_formatter_active">Active alerts only</button>
       </div>
       <div class="status" id="status"></div>
       <p class="note">The NWS alerts endpoint contains recently issued alerts; the active endpoint returns alerts currently in effect. Weather warnings describe an area and are not proof that an individual property sustained damage.</p>
@@ -40,11 +41,11 @@
     </div>
   </section>
 
-  <section class="hook">
+  <section class="hook" data-bp-value="free_tool_to_trial">
     <div class="brand">WHEN THE FREE TOOL ISN'T ENOUGH</div>
     <h2>Move from weather formatting to the full claim/property workflow.</h2>
     <p class="lead" style="font-size:16px">BridgePoint can organize property evidence and compare authorized estimate line items for missing scope, quantity differences and price variance—with evidence references and human review.</p>
-    <div class="actions"><a class="btn primary" href="/app/?utm_source=free_utility&utm_medium=web&utm_campaign=nws_claim_formatter">Start the 7-day BridgePoint trial</a><a class="btn secondary" href="/research/national-estimate-variance/">See the open methodology</a></div>
+    <div class="actions"><a class="btn primary" href="/app/?utm_source=free_utility&utm_medium=web&utm_campaign=start_trial_nws_claim_formatter">Start the 7-day BridgePoint trial</a><a class="btn secondary" href="/research/national-estimate-variance/?utm_source=free_utility&utm_medium=methodology&utm_campaign=nws_claim_formatter">See the open methodology</a></div>
   </section>
 
   <p class="note" style="margin-top:24px">This free utility does not determine causation, engineering damage, insurance coverage, legal underpayment, or payment owed. Source: National Weather Service API.</p>
