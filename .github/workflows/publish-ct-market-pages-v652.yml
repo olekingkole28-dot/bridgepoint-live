@@ -1,0 +1,111 @@
+name: Publish CT Market Acquisition Pages V652
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-ct-market-pages-v652.yml
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assemble durable site and generate useful Connecticut market pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site
+          mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          python - <<'PY'
+          from pathlib import Path
+          import html,re,json
+          markets={
+            'Waterbury':29305,'Hartford':28515,'Bridgeport':28061,'New Haven':27251,'Stamford':25722,
+            'West Hartford':22609,'Norwalk':22132,'Bristol':21975,'Fairfield':19620,'Milford':19408,
+            'Greenwich':19364,'Danbury':19088,'Manchester':18820,'Southington':18482,'Berlin':18036,
+            'Stratford':17876,'West Haven':16942,'Wallingford':16758,'Hamden':16749,'Meriden':16506,
+            'Middletown':15801,'New Britain':15737,'Glastonbury':15315,'Torrington':14723,'Enfield':14324,
+            'East Hartford':14284,'Norwich':14132,'New Milford':13713,'Branford':13541,'Shelton':13297,
+            'Groton':13062,'Newington':12532,'Windsor':12192,'Trumbull':12151,'Naugatuck':11540,
+            'South Windsor':11331,'East Haven':11313,'Newtown':11228,'Farmington':11218,'Cheshire':10950,
+          }
+          def slug(s): return re.sub(r'[^a-z0-9]+','-',s.lower()).strip('-')
+          style='''<style>body{margin:0;background:#071018;color:#eef8ff;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}.wrap{max-width:980px;margin:auto;padding:34px 20px 64px}.eyebrow{color:#5de4ff;font-weight:800;letter-spacing:.14em;font-size:12px}.hero{padding:44px 0 28px}.hero h1{font-size:clamp(36px,7vw,68px);line-height:.98;margin:10px 0 18px;max-width:900px}.sub{color:#a9becb;font-size:18px;line-height:1.6;max-width:780px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:26px 0}.card{background:#0c1822;border:1px solid #193242;border-radius:16px;padding:20px}.metric{font-size:32px;font-weight:900}.muted{color:#9fb3c0;line-height:1.55}.actions{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0}.btn{display:inline-block;padding:13px 18px;border-radius:10px;background:#41d9f5;color:#031015;text-decoration:none;font-weight:850}.btn.secondary{background:#122634;color:#eafaff;border:1px solid #285068}.links a{color:#73e7fa;text-decoration:none}.fine{font-size:12px;color:#78909c;margin-top:26px}</style>'''
+          header='''<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="index,follow,max-image-preview:large"><link rel="icon" href="/favicon.ico">'''
+          for town,count in markets.items():
+            s=slug(town); path=Path('site/connecticut')/s/'index.html'; path.parent.mkdir(parents=True,exist_ok=True)
+            title=f'{town} CT Property Intelligence | BridgePoint Intelligence'
+            desc=f'Explore BridgePoint property intelligence for {town}, Connecticut. BridgePoint currently normalizes {count:,} canonical property records for this municipality, with evidence-driven workflows for property professionals.'
+            canonical=f'https://bridgepointintelligence.online/connecticut/{s}/'
+            schema=json.dumps({'@context':'https://schema.org','@type':'WebPage','name':title,'url':canonical,'description':desc,'isPartOf':{'@type':'WebSite','name':'BridgePoint Intelligence','url':'https://bridgepointintelligence.online/'},'about':{'@type':'Place','name':f'{town}, Connecticut'}})
+            body=f'''<!doctype html><html lang="en"><head>{header}<title>{html.escape(title)}</title><meta name="description" content="{html.escape(desc)}"><link rel="canonical" href="{canonical}">{style}<script type="application/ld+json">{schema}</script></head><body><main class="wrap"><section class="hero"><div class="eyebrow">CONNECTICUT PROPERTY INTELLIGENCE</div><h1>{html.escape(town)} property intelligence before the visit.</h1><p class="sub">BridgePoint turns fragmented property and event evidence into one field-ready workflow: property context, changing signals, timelines, maps and explainable opportunity prioritization.</p><div class="actions"><a class="btn" href="/app/?mode=create&utm_source=organic_local&utm_medium=ct_market&utm_campaign={s}">Start the 7-day trial</a><a class="btn secondary" href="/sample/?utm_source=organic_local&utm_medium=ct_market&utm_campaign={s}">See a territory sample</a></div></section><section class="grid"><div class="card"><div class="metric">{count:,}</div><div class="muted">canonical BridgePoint property records currently normalized for {html.escape(town)}.</div></div><div class="card"><strong>What BridgePoint connects</strong><p class="muted">Property records, weather and event context, permits/public-record evidence, timelines and verified opportunity signals when supporting data is available.</p></div><div class="card"><strong>Built for action</strong><p class="muted">Use the app to answer “why this property?” and “why now?” without treating a score as proof of physical damage, claim coverage or a guaranteed outcome.</p></div></section><section class="card links"><h2>Choose the workflow closest to your work</h2><p><a href="/for-roofers/?utm_source=organic_local&utm_medium=ct_market&utm_campaign={s}">Roofing & exterior contractors</a> · <a href="/for-restoration/?utm_source=organic_local&utm_medium=ct_market&utm_campaign={s}">Restoration & mitigation</a> · <a href="/for-public-adjusters/?utm_source=organic_local&utm_medium=ct_market&utm_campaign={s}">Public adjusters</a> · <a href="/for-property-managers/?utm_source=organic_local&utm_medium=ct_market&utm_campaign={s}">Property managers</a></p><p><a href="/free-tools/?utm_source=organic_local&utm_medium=ct_market&utm_campaign={s}">Free property & claim tools</a> · <a href="/enterprise/trust/">Trust & security</a> · <a href="/about/">About BridgePoint</a></p></section><p class="fine">Record count is a current BridgePoint canonical-property count for {html.escape(town)} and can change as source reconciliation continues. BridgePoint is decision-support intelligence, not legal, insurance, engineering or coverage advice.</p></main></body></html>'''
+            path.write_text(body,encoding='utf-8')
+
+          hub=Path('site/connecticut/index.html'); hub.parent.mkdir(parents=True,exist_ok=True)
+          cards=''.join(f'<div class="card"><a href="/connecticut/{slug(t)}/" style="color:#73e7fa;font-weight:850;text-decoration:none">{html.escape(t)}</a><div class="muted">{n:,} canonical property records</div></div>' for t,n in markets.items())
+          hub.write_text(f'''<!doctype html><html lang="en"><head>{header}<title>Connecticut Property Intelligence | BridgePoint</title><meta name="description" content="BridgePoint property intelligence entry points for 40 Connecticut municipalities, with current canonical property counts and role-specific workflows."><link rel="canonical" href="https://bridgepointintelligence.online/connecticut/">{style}</head><body><main class="wrap"><section class="hero"><div class="eyebrow">BRIDGEPOINT CONNECTICUT</div><h1>Property intelligence across Connecticut.</h1><p class="sub">Choose a municipality to see the current BridgePoint property foundation and enter the workflow built for roofing, restoration, public adjusting, property management and other property professionals.</p><div class="actions"><a class="btn" href="/app/?mode=create&utm_source=organic_local&utm_medium=ct_hub">Start the 7-day trial</a><a class="btn secondary" href="/free-tools/">Use free tools first</a></div></section><section class="grid">{cards}</section></main></body></html>''',encoding='utf-8')
+
+          sitemap=Path('site/sitemap.xml')
+          text=sitemap.read_text(encoding='utf-8') if sitemap.exists() else '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>'
+          urls=['https://bridgepointintelligence.online/connecticut/']+[f'https://bridgepointintelligence.online/connecticut/{slug(t)}/' for t in markets]
+          additions=''.join(f'<url><loc>{u}</loc><changefreq>weekly</changefreq><priority>{"0.8" if u.endswith("/connecticut/") else "0.7"}</priority></url>' for u in urls if f'<loc>{u}</loc>' not in text)
+          text=text.replace('</urlset>',additions+'</urlset>')
+          sitemap.write_text(text,encoding='utf-8')
+          Path('site/connecticut/market-counts.json').write_text(json.dumps({'generated_from':'BridgePoint canonical production counts','as_of':'2026-08-23','markets':markets},indent=2),encoding='utf-8')
+          print('generated',len(markets),'municipality pages plus hub')
+          PY
+          test -s site/connecticut/middletown/index.html
+          test -s site/connecticut/hartford/index.html
+          grep -q 'connecticut/middletown/' site/sitemap.xml
+          touch site/.nojekyll
+      - name: Persist generated acquisition surface to live-artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/ct-live && mkdir /tmp/ct-live
+          cp -a site/. /tmp/ct-live/
+          cd /tmp/ct-live
+          git init
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m 'BridgePoint V652 Connecticut local acquisition surface'
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Publish V652
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify public market pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in connecticut/ connecticut/middletown/ connecticut/hartford/ connecticut/stamford/; do
+            curl -fsSL --retry 8 --retry-delay 3 "https://bridgepointintelligence.online/$path" | grep -qi 'property intelligence'
+          done
