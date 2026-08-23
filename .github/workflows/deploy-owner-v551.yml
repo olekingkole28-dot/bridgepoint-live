@@ -1,0 +1,137 @@
+name: Deploy BridgePoint Owner Command Center V551
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - experience/owner-command-v551.html
+      - .github/workflows/deploy-owner-v551.yml
+  workflow_run:
+    workflows:
+      - "Deploy BridgePoint Experience V550"
+      - "Deploy BridgePoint Live — Audited V443"
+      - "Deploy BridgePoint Distribution V547"
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy-owner:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble owner command center on durable live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site /tmp/public-base
+          mkdir -p site /tmp/public-base
+          git archive --format=tar origin/live-artifact | tar -xf - -C /tmp/public-base
+          cp -a /tmp/public-base/. site/
+
+          test -s experience/owner-command-v551.html
+          test -s site/app/index.html
+          test -s site/app/technology/index.html
+          mkdir -p site/owner
+          cp experience/owner-command-v551.html site/owner/index.html
+
+          python - <<'PY'
+          from pathlib import Path
+
+          # Every deeper owner surface gets a permanent return route.
+          owner_root=Path('site/owner')
+          for p in owner_root.rglob('index.html'):
+              if p == owner_root/'index.html':
+                  continue
+              s=p.read_text(encoding='utf-8')
+              if 'bp-owner-home-v551' in s or '</body>' not in s:
+                  continue
+              link='''<a id="bp-owner-home-v551" href="/owner/" style="position:fixed;right:12px;bottom:12px;z-index:2147483000;padding:9px 12px;border-radius:999px;border:1px solid rgba(72,221,255,.45);background:rgba(7,24,39,.94);color:#f5f9fd;text-decoration:none;font:800 11px/1 system-ui,-apple-system,Segoe UI,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.35);backdrop-filter:blur(8px)">◆ Owner Home</a>'''
+              s=s.replace('</body>',link+'</body>',1)
+              p.write_text(s,encoding='utf-8')
+
+          # Make the owner front door explicit in the Technology Center when owner mode is active.
+          tech=Path('site/app/technology/index.html')
+          s=tech.read_text(encoding='utf-8')
+          marker='<div id="ownerLinks" class="ownerLinks"></div>'
+          if marker in s and 'bp-owner-tech-home-v551' not in s:
+              s=s.replace(marker,'<div class="ownerLinks"><a id="bp-owner-tech-home-v551" class="btn tiny" href="/owner/">Owner Command Center</a></div>'+marker,1)
+          tech.write_text(s,encoding='utf-8')
+
+          # Add a hidden owner launcher to the audited app shell. It only appears after the
+          # authenticated capability endpoint confirms owner_mode=true.
+          app=Path('site/app/index.html')
+          a=app.read_text(encoding='utf-8')
+          if 'bp-owner-launch-v551' not in a:
+              if '</head>' not in a or '</body>' not in a:
+                  raise SystemExit('Unexpected app shell; refusing owner overlay')
+              style='''<style id="bp-owner-style-v551">#bp-owner-launch-v551{display:none;position:fixed;right:14px;bottom:14px;z-index:2147483000;align-items:center;gap:7px;padding:10px 13px;border-radius:999px;border:1px solid rgba(188,155,255,.55);background:rgba(30,19,47,.94);box-shadow:0 10px 34px rgba(0,0,0,.35),0 0 24px rgba(188,155,255,.12);color:#f8f4ff;text-decoration:none;font:850 12px/1 system-ui,-apple-system,Segoe UI,sans-serif;backdrop-filter:blur(9px);touch-action:manipulation}#bp-owner-launch-v551.show{display:flex}@media(max-width:620px){#bp-owner-launch-v551{right:10px;bottom:10px;padding:9px 11px;font-size:11px}}</style>'''
+              a=a.replace('</head>',style+'</head>',1)
+              script='''<script id="bp-owner-detect-v551">(()=>{const BASE='https://xdfsjztwgsbmabshzsjw.supabase.co',KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';function tok(){try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)||'';if(k.startsWith('sb-')&&k.endsWith('-auth-token')){const d=JSON.parse(localStorage.getItem(k)||'{}'),t=d?.access_token||d?.currentSession?.access_token||d?.session?.access_token;if(t)return t}}}catch(_){}return''}async function check(){const t=tok(),el=document.getElementById('bp-owner-launch-v551');if(!t||!el)return;try{const r=await fetch(BASE+'/rest/v1/rpc/bridgepoint_capability_experience_v550',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+t,'Content-Type':'application/json'},body:JSON.stringify({p_include_all:true})}),d=await r.json();if(r.ok&&d?.owner_mode===true)el.classList.add('show')}catch(_){}}window.addEventListener('load',()=>setTimeout(check,1200));})();</script>'''
+              launcher='<a id="bp-owner-launch-v551" href="/owner/" aria-label="Open BridgePoint Owner Command Center">◆ Owner Command Center</a>'
+              a=a.replace('</body>',launcher+script+'</body>',1)
+          app.write_text(a,encoding='utf-8')
+          PY
+
+          test -s site/owner/index.html
+          grep -q 'Founder cockpit · V551' site/owner/index.html
+          grep -q 'bridgepoint_owner_autonomy_v548' site/owner/index.html
+          grep -q 'bridgepoint_owner_property_trust_v549' site/owner/index.html
+          grep -q 'bridgepoint_owner_distribution_v538' site/owner/index.html
+          grep -q 'bp-owner-launch-v551' site/app/index.html
+          grep -q 'Owner Command Center' site/app/technology/index.html
+          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY|sb_secret|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/owner site/app/technology; then
+            echo 'Privileged secret marker found in owner V551 surfaces.' >&2
+            exit 1
+          fi
+          touch site/.nojekyll site/app/.nojekyll
+          echo 'BridgePoint V551 owner command center assembled.'
+
+      - name: Persist exact V551 live artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/final-live
+          mkdir /tmp/final-live
+          cp -a site/. /tmp/final-live/
+          cd /tmp/final-live
+          git init
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m 'BridgePoint live artifact with V551 owner command center'
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Publish BridgePoint owner command center
+        id: deployment
+        uses: actions/deploy-pages@v4
