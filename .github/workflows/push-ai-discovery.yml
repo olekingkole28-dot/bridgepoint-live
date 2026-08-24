@@ -7,6 +7,8 @@ on:
       - founder/**
       - answers/**
       - press/**
+      - partners/**
+      - commerce/**
       - llms.txt
       - llms-full.txt
       - sitemap.xml
@@ -29,7 +31,7 @@ jobs:
       - name: Wait for public site deployment
         run: sleep 75
 
-      - name: Push AI, founder, facts and conversion URLs to IndexNow
+      - name: Push AI, founder, partner, commerce, facts and conversion URLs to IndexNow
         shell: bash
         run: |
           set -euo pipefail
@@ -47,8 +49,17 @@ jobs:
               "https://bridgepointintelligence.online/llms.txt",
               "https://bridgepointintelligence.online/llms-full.txt",
               "https://bridgepointintelligence.online/start-now/",
+              "https://bridgepointintelligence.online/partners/",
+              "https://bridgepointintelligence.online/partners/program.json",
+              "https://bridgepointintelligence.online/partners/program.yaml",
+              "https://bridgepointintelligence.online/commerce/",
+              "https://bridgepointintelligence.online/commerce/openai-products.csv",
               "https://bridgepointintelligence.online/articles/",
+              "https://bridgepointintelligence.online/articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html",
               "https://bridgepointintelligence.online/articles/data-desk.html",
+              "https://bridgepointintelligence.online/articles/data.json",
+              "https://bridgepointintelligence.online/articles/datapackage.json",
+              "https://bridgepointintelligence.online/articles/dcat.ttl",
               "https://bridgepointintelligence.online/capabilities/",
               "https://bridgepointintelligence.online/enterprise/",
               "https://bridgepointintelligence.online/developers/",
@@ -73,11 +84,16 @@ jobs:
             'https://bridgepointintelligence.online/press/' \
             'https://bridgepointintelligence.online/llms.txt' \
             'https://bridgepointintelligence.online/llms-full.txt' \
-            'https://bridgepointintelligence.online/start-now/'; do
+            'https://bridgepointintelligence.online/start-now/' \
+            'https://bridgepointintelligence.online/partners/' \
+            'https://bridgepointintelligence.online/partners/program.json' \
+            'https://bridgepointintelligence.online/commerce/' \
+            'https://bridgepointintelligence.online/commerce/openai-products.csv'; do
             code="$(curl -L -sS -o /tmp/page -w '%{http_code}' "$url" || true)"
             echo "$url -> $code"
             test "$code" = "200"
           done
           curl -fsSL 'https://bridgepointintelligence.online/founder/' | grep -q 'Kole Johnson'
           curl -fsSL 'https://bridgepointintelligence.online/answers/' | grep -q 'What is BridgePoint Intelligence?'
-          curl -fsSL 'https://bridgepointintelligence.online/llms.txt' | grep -q 'Founder: Kole Johnson'
+          curl -fsSL 'https://bridgepointintelligence.online/partners/' | grep -q '30%'
+          curl -fsSL 'https://bridgepointintelligence.online/commerce/openai-products.csv' | grep -q 'BP-COMPANY-MONTHLY'
