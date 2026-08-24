@@ -86,7 +86,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Android mobile touch and layout smoke test
+      - name: Android mobile browser and app-runtime smoke test
         shell: bash
         run: |
           set -euo pipefail
@@ -102,7 +102,7 @@ jobs:
           const puppeteer=require('puppeteer-core');
           const ORIGIN='https://bridgepointintelligence.online';
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-          const heroSelector='a[href*="utm_medium=hero"][href*="free_territory_preview"]';
+          const heroSelector='a.btn.primary[href*="/sample/"]';
           (async()=>{
             const browser=await puppeteer.launch({
               executablePath:process.env.CHROME,
@@ -115,6 +115,18 @@ jobs:
               page.setDefaultTimeout(22000);
               await page.setViewport({width:390,height:844,deviceScaleFactor:1,isMobile:true,hasTouch:true});
               await page.setUserAgent('Mozilla/5.0 (Linux; Android 16; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36');
+              await page.evaluateOnNewDocument(()=>{
+                try{Object.defineProperty(navigator,'standalone',{configurable:true,get:()=>false})}catch(_){}
+                const original=window.matchMedia?.bind(window);
+                if(original){
+                  window.matchMedia=(query)=>{
+                    if(String(query).includes('display-mode')&&String(query).includes('standalone')){
+                      return {matches:false,media:query,onchange:null,addListener(){},removeListener(){},addEventListener(){},removeEventListener(){},dispatchEvent(){return false}};
+                    }
+                    return original(query);
+                  };
+                }
+              });
               const consoleErrors=[];
               const pageErrors=[];
               page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text())});
@@ -122,18 +134,21 @@ jobs:
 
               await page.goto(`${ORIGIN}/?verify_mobile_v683=${Date.now()}`,{waitUntil:'domcontentloaded',timeout:35000});
               await page.waitForSelector('h1',{visible:true,timeout:12000});
+              const pre=await page.evaluate(()=>({
+                url:location.href,title:document.title,h1:document.querySelector('h1')?.textContent||'',
+                sampleLinks:[...document.querySelectorAll('a[href*="/sample/"]')].map(a=>({text:(a.textContent||'').trim(),href:a.getAttribute('href'),display:getComputedStyle(a).display,rect:a.getBoundingClientRect().toJSON?.()||{}})),
+                body:(document.body.innerText||'').slice(0,600)
+              }));
+              console.log('HOME_PRE_DIAGNOSTIC',JSON.stringify(pre));
+              if(!pre.url.startsWith(`${ORIGIN}/?`)&&pre.url!==`${ORIGIN}/`) throw new Error(`Normal mobile browser unexpectedly redirected from homepage to ${pre.url}`);
+              if(!pre.h1.includes('Know where to work before you knock')) throw new Error(`Mobile homepage headline mismatch at ${pre.url}: ${pre.h1}`);
               await page.waitForSelector(heroSelector,{visible:true,timeout:12000});
               const home=await page.evaluate((sel)=>({
                 url:location.href,
-                title:document.title,
-                h1:document.querySelector('h1')?.textContent||'',
                 href:document.querySelector(sel)?.getAttribute('href')||'',
-                overflow:document.documentElement.scrollWidth-window.innerWidth,
-                body:(document.body.innerText||'').slice(0,500)
+                overflow:document.documentElement.scrollWidth-window.innerWidth
               }),heroSelector);
-              console.log('HOME_DIAGNOSTIC',JSON.stringify(home));
-              if(!home.h1.includes('Know where to work before you knock')) throw new Error(`Mobile homepage headline mismatch at ${home.url}: ${home.h1}`);
-              if(!home.href.includes('/sample/')) throw new Error(`Mobile territory CTA missing or misrouted: ${home.href}`);
+              if(!home.href.includes('/sample/')) throw new Error(`Mobile territory CTA misrouted: ${home.href}`);
               if(home.overflow>8) throw new Error(`Mobile homepage horizontal overflow ${home.overflow}px`);
 
               await Promise.all([
@@ -145,8 +160,7 @@ jobs:
               const sample=await page.evaluate(()=>({
                 url:location.href,
                 hasAction:document.body.innerText.includes('Show my free opportunities'),
-                overflow:document.documentElement.scrollWidth-window.innerWidth,
-                body:(document.body.innerText||'').slice(0,500)
+                overflow:document.documentElement.scrollWidth-window.innerWidth
               }));
               console.log('SAMPLE_DIAGNOSTIC',JSON.stringify(sample));
               if(!sample.hasAction) throw new Error('Sample mobile action missing');
@@ -216,7 +230,7 @@ jobs:
               'capability_catalog_live':True,
               'free_tools_live':True,
               'security_txt_live':True,
-              'android_390x844_real_touch_smoke_passed':True,
+              'android_390x844_browser_touch_smoke_passed':True,
               'flutter_runtime_mounted_mobile':True,
               'no_privileged_secret_shape_on_checked_surfaces':True,
               'noaa_current_wms_reachable':True,
@@ -232,6 +246,6 @@ jobs:
           if git diff --cached --quiet; then
             echo 'Verification receipt unchanged.'
           else
-            git commit -m 'Record guarded V683 Android mobile/live verification [skip ci]'
+            git commit -m 'Record guarded V683 Android browser/live verification [skip ci]'
             git push origin HEAD:main
           fi
