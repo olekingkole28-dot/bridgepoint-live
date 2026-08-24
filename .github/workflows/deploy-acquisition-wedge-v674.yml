@@ -65,6 +65,16 @@ jobs:
           if missing:
               raise SystemExit('Homepage V674 verification missing: '+repr(missing))
           p.write_text(s,encoding='utf-8')
+
+          sp=Path('site/sample/index.html')
+          x=sp.read_text(encoding='utf-8')
+          x=x.replace('<option value="OTHER">Another U.S. state — building</option>','')
+          x=x.replace("state_code:$('state').value==='OTHER'?'':$('state').value","state_code:$('state').value")
+          x=x.replace("let st=$('state').value==='OTHER'?'US':$('state').value;","let st=$('state').value;")
+          x=x.replace("const st=$('state').value==='OTHER'?'CT':$('state').value;","const st=$('state').value;")
+          if 'value="OTHER">Another U.S. state' in x:
+              raise SystemExit('Ambiguous OTHER-state option still present')
+          sp.write_text(x,encoding='utf-8')
           PY
           grep -q 'Show my free opportunities' site/sample/index.html
           grep -q 'Buy this territory report — \$49 once' site/sample/index.html
