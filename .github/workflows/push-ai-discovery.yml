@@ -1,20 +1,13 @@
-name: Push BridgePoint AI Discovery
+name: Push BridgePoint Acquisition Discovery
 
 on:
+  workflow_run:
+    workflows:
+      - "Deploy BridgePoint Single Publisher V683"
+    types: [completed]
   push:
     branches: [main]
     paths:
-      - founder/**
-      - answers/**
-      - press/**
-      - partners/**
-      - commerce/**
-      - free-tools/**
-      - llms.txt
-      - llms-full.txt
-      - sitemap.xml
-      - start-now/**
-      - server.json
       - .github/workflows/push-ai-discovery.yml
   workflow_dispatch:
 
@@ -22,82 +15,75 @@ permissions:
   contents: read
 
 concurrency:
-  group: bridgepoint-ai-discovery
+  group: bridgepoint-acquisition-discovery
   cancel-in-progress: true
 
 jobs:
   notify:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for public site deployment
-        run: sleep 75
-
-      - name: Push AI, founder, partner, commerce, free snapshot and conversion URLs to IndexNow
+      - name: Push current acquisition, market, role and machine-discovery URLs to IndexNow
         shell: bash
         run: |
           set -euo pipefail
-          cat >/tmp/indexnow-ai.json <<'JSON'
-          {
-            "host": "bridgepointintelligence.online",
-            "key": "dc8a83e4caade76fd824cf929dca48d6",
-            "keyLocation": "https://bridgepointintelligence.online/dc8a83e4caade76fd824cf929dca48d6.txt",
-            "urlList": [
-              "https://bridgepointintelligence.online/",
-              "https://bridgepointintelligence.online/founder/",
-              "https://bridgepointintelligence.online/answers/",
-              "https://bridgepointintelligence.online/press/",
-              "https://bridgepointintelligence.online/press/bridgepoint-facts.json",
-              "https://bridgepointintelligence.online/llms.txt",
-              "https://bridgepointintelligence.online/llms-full.txt",
-              "https://bridgepointintelligence.online/free-tools/",
-              "https://bridgepointintelligence.online/start-now/",
-              "https://bridgepointintelligence.online/partners/",
-              "https://bridgepointintelligence.online/partners/program.json",
-              "https://bridgepointintelligence.online/partners/program.yaml",
-              "https://bridgepointintelligence.online/commerce/",
-              "https://bridgepointintelligence.online/commerce/openai-products.csv",
-              "https://bridgepointintelligence.online/articles/",
-              "https://bridgepointintelligence.online/articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html",
-              "https://bridgepointintelligence.online/articles/data-desk.html",
-              "https://bridgepointintelligence.online/articles/data.json",
-              "https://bridgepointintelligence.online/articles/datapackage.json",
-              "https://bridgepointintelligence.online/articles/dcat.ttl",
-              "https://bridgepointintelligence.online/capabilities/",
-              "https://bridgepointintelligence.online/enterprise/",
-              "https://bridgepointintelligence.online/developers/",
-              "https://bridgepointintelligence.online/investors/"
-            ]
+          python - <<'PY'
+          import json, re
+          towns='''Waterbury Hartford Bridgeport New-Haven Stamford West-Hartford Norwalk Bristol Fairfield Milford Greenwich Danbury Manchester Southington Berlin Stratford West-Haven Wallingford Hamden Meriden Middletown New-Britain Glastonbury Torrington Enfield East-Hartford Norwich New-Milford Branford Shelton Groton Newington Windsor Trumbull Naugatuck South-Windsor East-Haven Newtown Farmington Cheshire'''.split()
+          origin='https://bridgepointintelligence.online'
+          base=[
+            '/', '/sample/', '/free-tools/', '/start-now/', '/for-roofers/', '/for-restoration/',
+            '/for-public-adjusters/', '/for-property-managers/', '/connecticut/', '/capabilities/',
+            '/enterprise/trust/', '/about/', '/contact/', '/articles/', '/founder/', '/answers/',
+            '/press/', '/partners/', '/commerce/', '/developers/', '/investors/', '/llms.txt', '/llms-full.txt'
+          ]
+          urls=[origin+p for p in base]
+          urls += [origin+'/connecticut/'+re.sub(r'[^a-z0-9]+','-',t.lower()).strip('-')+'/' for t in towns]
+          payload={
+            'host':'bridgepointintelligence.online',
+            'key':'dc8a83e4caade76fd824cf929dca48d6',
+            'keyLocation':origin+'/dc8a83e4caade76fd824cf929dca48d6.txt',
+            'urlList':urls
           }
-          JSON
-          code="$(curl -sS -o /tmp/indexnow-ai-response.txt -w '%{http_code}' -X POST 'https://api.indexnow.org/indexnow' -H 'Content-Type: application/json; charset=utf-8' --data-binary @/tmp/indexnow-ai.json || true)"
-          echo "IndexNow AI discovery HTTP ${code}"
-          cat /tmp/indexnow-ai-response.txt || true
+          open('/tmp/indexnow-acquisition.json','w').write(json.dumps(payload))
+          print('Submitting',len(urls),'high-intent discovery URLs')
+          PY
+          code="$(curl -sS -o /tmp/indexnow-response.txt -w '%{http_code}' -X POST 'https://api.indexnow.org/indexnow' -H 'Content-Type: application/json; charset=utf-8' --data-binary @/tmp/indexnow-acquisition.json || true)"
+          echo "IndexNow acquisition discovery HTTP ${code}"
+          cat /tmp/indexnow-response.txt || true
           if [ "$code" != "200" ] && [ "$code" != "202" ]; then
             exit 1
           fi
 
-      - name: Verify canonical machine-discovery surfaces
+      - name: Verify highest-intent acquisition surfaces are publicly reachable
         shell: bash
         run: |
           set -euo pipefail
-          for url in \
-            'https://bridgepointintelligence.online/founder/' \
-            'https://bridgepointintelligence.online/answers/' \
-            'https://bridgepointintelligence.online/press/' \
-            'https://bridgepointintelligence.online/llms.txt' \
-            'https://bridgepointintelligence.online/llms-full.txt' \
-            'https://bridgepointintelligence.online/free-tools/' \
-            'https://bridgepointintelligence.online/start-now/' \
-            'https://bridgepointintelligence.online/partners/' \
-            'https://bridgepointintelligence.online/partners/program.json' \
-            'https://bridgepointintelligence.online/commerce/' \
-            'https://bridgepointintelligence.online/commerce/openai-products.csv'; do
-            code="$(curl -L -sS -o /tmp/page -w '%{http_code}' "$url" || true)"
-            echo "$url -> $code"
+          for spec in \
+            'home|https://bridgepointintelligence.online/' \
+            'sample|https://bridgepointintelligence.online/sample/' \
+            'roofers|https://bridgepointintelligence.online/for-roofers/' \
+            'restoration|https://bridgepointintelligence.online/for-restoration/' \
+            'adjusters|https://bridgepointintelligence.online/for-public-adjusters/' \
+            'property-managers|https://bridgepointintelligence.online/for-property-managers/' \
+            'ct-hub|https://bridgepointintelligence.online/connecticut/' \
+            'middletown|https://bridgepointintelligence.online/connecticut/middletown/' \
+            'hartford|https://bridgepointintelligence.online/connecticut/hartford/' \
+            'free-tools|https://bridgepointintelligence.online/free-tools/' \
+            'trust|https://bridgepointintelligence.online/enterprise/trust/'; do
+            name="${spec%%|*}"; url="${spec#*|}"
+            code="$(curl -L -sS --retry 4 --retry-delay 2 -o "/tmp/$name" -w '%{http_code}' "$url" || true)"
+            echo "$name -> $code"
             test "$code" = "200"
+            test -s "/tmp/$name"
           done
-          curl -fsSL 'https://bridgepointintelligence.online/founder/' | grep -q 'Kole Johnson'
-          curl -fsSL 'https://bridgepointintelligence.online/answers/' | grep -q 'What is BridgePoint Intelligence?'
-          curl -fsSL 'https://bridgepointintelligence.online/free-tools/' | grep -q 'Free Property Intelligence Snapshot'
-          curl -fsSL 'https://bridgepointintelligence.online/partners/' | grep -q '30%'
-          curl -fsSL 'https://bridgepointintelligence.online/commerce/openai-products.csv' | grep -q 'BP-COMPANY-MONTHLY'
+          grep -q 'Know where to work before you knock' /tmp/home
+          grep -q 'Show my free opportunities' /tmp/sample
+          grep -qi 'roof' /tmp/roofers
+          grep -qi 'restoration' /tmp/restoration
+          grep -qi 'adjuster' /tmp/adjusters
+          grep -qi 'property' /tmp/property-managers
+          grep -qi 'Connecticut' /tmp/ct-hub
+          grep -qi 'Middletown' /tmp/middletown
+          grep -q 'Free Property Intelligence Snapshot' /tmp/free-tools
+          grep -q 'Public Trust Center' /tmp/trust
