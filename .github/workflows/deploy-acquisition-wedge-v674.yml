@@ -276,13 +276,23 @@ jobs:
             echo "$url -> $code"
             test "$code" = "200"
           done
-          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/' | grep -q 'Know where to work before you knock'
-          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/app/bridgepoint-release.json' | grep -q '9fd86839adbce02e48d36d893828b0e9cccd7987'
-          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/app/public-promotion-v682.json' | grep -q '"public_release":682'
-          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/free-tools/' | grep -q 'Free Property Intelligence Snapshot'
-          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/acquisition_tracker.js' | grep -q 'bp_referral_v670'
-          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/connecticut/middletown/' | grep -qi 'property intelligence'
+
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/' -o /tmp/v683-home
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/app/bridgepoint-release.json' -o /tmp/v683-release
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/app/public-promotion-v682.json' -o /tmp/v683-promotion
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/free-tools/' -o /tmp/v683-free-tools
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/acquisition_tracker.js' -o /tmp/v683-tracker
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/connecticut/middletown/' -o /tmp/v683-middletown
+          grep -q 'Know where to work before you knock' /tmp/v683-home
+          grep -q '9fd86839adbce02e48d36d893828b0e9cccd7987' /tmp/v683-release
+          grep -q '"public_release":682' /tmp/v683-promotion
+          grep -q 'Free Property Intelligence Snapshot' /tmp/v683-free-tools
+          grep -q 'bp_referral_v670' /tmp/v683-tracker
+          grep -qi 'property intelligence' /tmp/v683-middletown
+
           if [ -d articles/auto ]; then
-            curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/articles/auto/' | grep -q '<'
-            curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/articles/auto/feed.xml' | grep -q '<'
+            curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/articles/auto/' -o /tmp/v683-auto-index
+            curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/articles/auto/feed.xml' -o /tmp/v683-auto-feed
+            grep -q '<' /tmp/v683-auto-index
+            grep -q '<' /tmp/v683-auto-feed
           fi
