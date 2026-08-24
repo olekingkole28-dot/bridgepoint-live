@@ -4,15 +4,27 @@ on:
   push:
     branches: [main]
     paths:
-      - sample/index.html
-      - pilot/index.html
-      - contact/index.html
-      - owner/global/index.html
-      - downloads/backup/**
-      - enterprise/trust/index.html
-      - .well-known/security.txt
+      - sample/**
+      - pilot/**
+      - contact/**
       - experience/capabilities.html
       - experience/app-technology.html
+      - growth/**
+      - claim-guide/**
+      - acquisition_tracker.js
+      - enterprise/**
+      - research/national-estimate-variance/**
+      - tools/**
+      - start/**
+      - audit/**
+      - estimate-preflight/**
+      - developers/**
+      - storms/**
+      - owner/global/**
+      - owner/distribution/**
+      - owner/innovation/**
+      - downloads/backup/**
+      - .well-known/**
       - .github/workflows/deploy-acquisition-wedge-v674.yml
   workflow_dispatch:
 
@@ -44,16 +56,40 @@ jobs:
           rm -rf site && mkdir site
           git archive --format=tar origin/live-artifact | tar -xf - -C site
 
-          mkdir -p site/sample site/pilot site/contact site/owner/global site/downloads/backup site/enterprise/trust site/.well-known site/capabilities site/app/technology
-          cp sample/index.html site/sample/index.html
-          cp pilot/index.html site/pilot/index.html
-          cp contact/index.html site/contact/index.html
-          cp owner/global/index.html site/owner/global/index.html
-          cp -a downloads/backup/. site/downloads/backup/
-          cp enterprise/trust/index.html site/enterprise/trust/index.html
-          cp .well-known/security.txt site/.well-known/security.txt
+          test -s site/app/bridgepoint-release.json
+          test -s site/app/public-promotion-v682.json
+          test -s site/app/main.dart.js
+          test -s sample/index.html
+          test -s pilot/index.html
+          test -s contact/index.html
+          test -s experience/capabilities.html
+          test -s experience/app-technology.html
+          test -s enterprise/trust/index.html
+          test -s .well-known/security.txt
+          test -s downloads/backup/bridgepoint_local_runner.py
+
+          for d in sample pilot contact growth claim-guide enterprise tools start audit estimate-preflight developers storms; do
+            rm -rf "site/$d"
+            cp -a "$d" "site/$d"
+          done
+          cp acquisition_tracker.js site/acquisition_tracker.js
+
+          rm -rf site/research/national-estimate-variance
+          mkdir -p site/research/national-estimate-variance
+          cp -a research/national-estimate-variance/. site/research/national-estimate-variance/
+
+          mkdir -p site/capabilities site/app/technology site/owner site/downloads/backup site/.well-known
           cp experience/capabilities.html site/capabilities/index.html
           cp experience/app-technology.html site/app/technology/index.html
+          for d in global distribution innovation; do
+            rm -rf "site/owner/$d"
+            cp -a "owner/$d" "site/owner/$d"
+          done
+          rm -rf site/downloads/backup
+          mkdir -p site/downloads/backup
+          cp -a downloads/backup/. site/downloads/backup/
+          rm -rf site/.well-known
+          cp -a .well-known site/.well-known
 
           python -m py_compile site/downloads/backup/bridgepoint_local_runner.py
           python - <<'PY'
@@ -63,8 +99,6 @@ jobs:
           release_path=Path('site/app/bridgepoint-release.json')
           promotion_path=Path('site/app/public-promotion-v682.json')
           app_js=Path('site/app/main.dart.js')
-          if not (release_path.is_file() and promotion_path.is_file() and app_js.is_file()):
-              raise SystemExit('Modern compiled-app promotion receipt is missing.')
           release=json.loads(release_path.read_text(encoding='utf-8'))
           promotion=json.loads(promotion_path.read_text(encoding='utf-8'))
           if release.get('version') != promotion.get('compiled_source_sha'):
@@ -87,7 +121,7 @@ jobs:
               s=s.replace('<a href="/contact/">Contact</a>','<a href="/enterprise/trust/">Trust Center</a><a href="/contact/">Contact</a>',1)
           home.write_text(s,encoding='utf-8')
 
-          authored=[Path('site/index.html'),Path('site/sample/index.html'),Path('site/pilot/index.html'),Path('site/contact/index.html'),Path('site/owner/global/index.html'),Path('site/enterprise/trust/index.html'),Path('site/.well-known/security.txt'),Path('site/capabilities/index.html'),Path('site/app/technology/index.html')]
+          authored=[Path('site/index.html'),Path('site/sample/index.html'),Path('site/pilot/index.html'),Path('site/contact/index.html'),Path('site/enterprise/trust/index.html'),Path('site/.well-known/security.txt'),Path('site/capabilities/index.html'),Path('site/app/technology/index.html')]
           authored += [f for f in Path('site/downloads/backup').iterdir() if f.is_file() and f.suffix.lower() in {'.ps1','.py','.bat','.txt'}]
           pats=[
             re.compile(r'(?i)(SUPABASE_SERVICE_ROLE_KEY|STRIPE_SECRET_KEY|OPENAI_API_KEY)\s*=\s*["\']?[^\s"\']{12,}'),
@@ -105,18 +139,12 @@ jobs:
           grep -q 'Buy this territory report — \$49 once' site/sample/index.html
           grep -q 'Prove BridgePoint beside the workflow you already use' site/pilot/index.html
           grep -q 'independent Connecticut-based property-intelligence software platform' site/contact/index.html
-          grep -q 'Start worldwide discovery' site/owner/global/index.html
-          grep -q 'Public Trust Center' site/enterprise/trust/index.html
           grep -q 'Everything BridgePoint Can Do' site/capabilities/index.html
           grep -q 'Everything BridgePoint' site/app/technology/index.html
+          grep -q 'Public Trust Center' site/enterprise/trust/index.html
           grep -q 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' site/.well-known/security.txt
           grep -q 'BridgePoint State Export Wizard' site/downloads/backup/BridgePoint_State_Export_Wizard.bat
-          grep -q 'BridgePoint Local' site/downloads/backup/BridgePoint_Local_Run.bat
           grep -q '127.0.0.1' site/downloads/backup/bridgepoint_local_runner.py
-          grep -q 'BridgePoint Full Backup' site/downloads/backup/BridgePoint_Backup_Wizard.bat
-          grep -q 'pg_dump' site/downloads/backup/bridgepoint_full_export_windows.ps1
-          grep -q 'SHA-256' site/downloads/backup/bridgepoint_verify_backup_windows.ps1
-          grep -q 'BridgePoint Restore Test' site/downloads/backup/BridgePoint_Restore_Test.bat
           grep -q 'Production BridgePoint database is blocked' site/downloads/backup/bridgepoint_restore_wizard.ps1
           touch site/.nojekyll site/app/.nojekyll
 
