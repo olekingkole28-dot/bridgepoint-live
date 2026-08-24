@@ -36,6 +36,7 @@ on:
       - llms-full.txt
       - robots.txt
       - sitemap.xml
+      - scripts/generate_ct_market_pages.py
       - enterprise/**
       - research/national-estimate-variance/**
       - tools/**
@@ -93,6 +94,7 @@ jobs:
           test -s enterprise/trust/index.html
           test -s .well-known/security.txt
           test -s downloads/backup/bridgepoint_local_runner.py
+          test -s scripts/generate_ct_market_pages.py
 
           for d in sample pilot contact growth claim-guide enterprise tools start audit estimate-preflight developers storms founder answers press start-now partners commerce free-tools; do
             test -d "$d"
@@ -132,6 +134,7 @@ jobs:
           rm -rf site/.well-known
           cp -a .well-known site/.well-known
 
+          python scripts/generate_ct_market_pages.py site
           python -m py_compile site/downloads/backup/bridgepoint_local_runner.py
           python - <<'PY'
           from pathlib import Path
@@ -200,6 +203,10 @@ jobs:
           grep -q 'Free Property Intelligence Snapshot' site/free-tools/index.html
           grep -q 'bp_referral_v670' site/acquisition_tracker.js
           grep -q 'Connecticut Property Intelligence Pulse' site/articles/feed.xml
+          test -s site/connecticut/middletown/index.html
+          test -s site/connecticut/hartford/index.html
+          test -s site/connecticut/market-counts.json
+          grep -q 'connecticut/middletown/' site/sitemap.xml
           if [ -d site/articles/auto ]; then
             test -s site/articles/auto/index.html
             test -s site/articles/auto/feed.xml
@@ -261,7 +268,10 @@ jobs:
             'https://bridgepointintelligence.online/partners/' \
             'https://bridgepointintelligence.online/commerce/' \
             'https://bridgepointintelligence.online/free-tools/' \
-            'https://bridgepointintelligence.online/articles/feed.xml'; do
+            'https://bridgepointintelligence.online/articles/feed.xml' \
+            'https://bridgepointintelligence.online/connecticut/' \
+            'https://bridgepointintelligence.online/connecticut/middletown/' \
+            'https://bridgepointintelligence.online/connecticut/hartford/'; do
             code="$(curl -L -sS --retry 6 --retry-delay 3 -o /tmp/page -w '%{http_code}' "$url" || true)"
             echo "$url -> $code"
             test "$code" = "200"
@@ -271,6 +281,7 @@ jobs:
           curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/app/public-promotion-v682.json' | grep -q '"public_release":682'
           curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/free-tools/' | grep -q 'Free Property Intelligence Snapshot'
           curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/acquisition_tracker.js' | grep -q 'bp_referral_v670'
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/connecticut/middletown/' | grep -qi 'property intelligence'
           if [ -d articles/auto ]; then
             curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/articles/auto/' | grep -q '<'
             curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/articles/auto/feed.xml' | grep -q '<'
