@@ -11,6 +11,8 @@ on:
       - downloads/backup/**
       - enterprise/trust/index.html
       - .well-known/security.txt
+      - experience/capabilities.html
+      - experience/app-technology.html
       - .github/workflows/deploy-acquisition-wedge-v674.yml
   workflow_dispatch:
 
@@ -42,7 +44,7 @@ jobs:
           rm -rf site && mkdir site
           git archive --format=tar origin/live-artifact | tar -xf - -C site
 
-          mkdir -p site/sample site/pilot site/contact site/owner/global site/downloads/backup site/enterprise/trust site/.well-known
+          mkdir -p site/sample site/pilot site/contact site/owner/global site/downloads/backup site/enterprise/trust site/.well-known site/capabilities site/app/technology
           cp sample/index.html site/sample/index.html
           cp pilot/index.html site/pilot/index.html
           cp contact/index.html site/contact/index.html
@@ -50,6 +52,8 @@ jobs:
           cp -a downloads/backup/. site/downloads/backup/
           cp enterprise/trust/index.html site/enterprise/trust/index.html
           cp .well-known/security.txt site/.well-known/security.txt
+          cp experience/capabilities.html site/capabilities/index.html
+          cp experience/app-technology.html site/app/technology/index.html
 
           python -m py_compile site/downloads/backup/bridgepoint_local_runner.py
           python - <<'PY'
@@ -83,7 +87,7 @@ jobs:
               s=s.replace('<a href="/contact/">Contact</a>','<a href="/enterprise/trust/">Trust Center</a><a href="/contact/">Contact</a>',1)
           home.write_text(s,encoding='utf-8')
 
-          authored=[Path('site/index.html'),Path('site/sample/index.html'),Path('site/pilot/index.html'),Path('site/contact/index.html'),Path('site/owner/global/index.html'),Path('site/enterprise/trust/index.html'),Path('site/.well-known/security.txt')]
+          authored=[Path('site/index.html'),Path('site/sample/index.html'),Path('site/pilot/index.html'),Path('site/contact/index.html'),Path('site/owner/global/index.html'),Path('site/enterprise/trust/index.html'),Path('site/.well-known/security.txt'),Path('site/capabilities/index.html'),Path('site/app/technology/index.html')]
           authored += [f for f in Path('site/downloads/backup').iterdir() if f.is_file() and f.suffix.lower() in {'.ps1','.py','.bat','.txt'}]
           pats=[
             re.compile(r'(?i)(SUPABASE_SERVICE_ROLE_KEY|STRIPE_SECRET_KEY|OPENAI_API_KEY)\s*=\s*["\']?[^\s"\']{12,}'),
@@ -100,9 +104,11 @@ jobs:
           grep -q 'Show my free opportunities' site/sample/index.html
           grep -q 'Buy this territory report — \$49 once' site/sample/index.html
           grep -q 'Prove BridgePoint beside the workflow you already use' site/pilot/index.html
-          grep -q 'BridgePoint Intelligence is an independent Connecticut-based property-intelligence software platform' site/contact/index.html
+          grep -q 'independent Connecticut-based property-intelligence software platform' site/contact/index.html
           grep -q 'Start worldwide discovery' site/owner/global/index.html
           grep -q 'Public Trust Center' site/enterprise/trust/index.html
+          grep -q 'Everything BridgePoint Can Do' site/capabilities/index.html
+          grep -q 'Everything BridgePoint' site/app/technology/index.html
           grep -q 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' site/.well-known/security.txt
           grep -q 'BridgePoint State Export Wizard' site/downloads/backup/BridgePoint_State_Export_Wizard.bat
           grep -q 'BridgePoint Local' site/downloads/backup/BridgePoint_Local_Run.bat
@@ -151,9 +157,11 @@ jobs:
           curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/app/public-promotion-v682.json' -o /tmp/promotion.json
           curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/enterprise/trust/' -o /tmp/trust
           curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/contact/' -o /tmp/contact
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/capabilities/' -o /tmp/capabilities
           grep -q 'Know where to work before you knock' /tmp/home
           grep -q 'Trust Center' /tmp/home
           grep -q '9fd86839adbce02e48d36d893828b0e9cccd7987' /tmp/release.json
           grep -q '"public_release":682' /tmp/promotion.json
           grep -q 'Public Trust Center' /tmp/trust
           grep -q 'independent Connecticut-based property-intelligence software platform' /tmp/contact
+          grep -q 'Everything BridgePoint Can Do' /tmp/capabilities
