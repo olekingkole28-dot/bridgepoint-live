@@ -98,7 +98,7 @@ jobs:
           grep -q 'Kole Johnson' site/founder/index.html
           grep -q 'What is BridgePoint Intelligence?' site/answers/index.html
           grep -q 'Founding Performance Partners' site/partners/index.html
-          grep -q 'bp_referral_code_v671' site/acquisition_tracker.js
+          grep -q 'bp_referral_v670' site/acquisition_tracker.js
           grep -q 'Connecticut Property Intelligence Pulse' site/articles/feed.xml
           grep -q 'Connecticut Property Intelligence Pulse' site/articles/atom.xml
           grep -q 'Connecticut Property Intelligence Pulse' site/articles/feed.json
@@ -167,7 +167,7 @@ jobs:
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/founder/' | grep -q 'Kole Johnson'
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/answers/' | grep -q 'What is BridgePoint Intelligence?'
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/partners/' | grep -q '30%'
-          curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/acquisition_tracker.js' | grep -q 'bp_referral_code_v671'
+          curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/acquisition_tracker.js' | grep -q 'bp_referral_v670'
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/articles/feed.xml' | grep -q 'Connecticut Property Intelligence Pulse'
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/articles/data.json' | grep -q 'Kole Johnson'
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/app/main.dart.js' -o /tmp/main.dart.js
