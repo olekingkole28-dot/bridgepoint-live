@@ -31,6 +31,7 @@ on:
       - articles/ct-opportunity-aggregates.csv
       - articles/bridgepoint-facts.json
       - articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html
+      - articles/auto/**
       - llms.txt
       - llms-full.txt
       - robots.txt
@@ -110,6 +111,11 @@ jobs:
             test -s "articles/$file"
             cp "articles/$file" "site/articles/$file"
           done
+          if [ -d articles/auto ]; then
+            rm -rf site/articles/auto
+            mkdir -p site/articles/auto
+            cp -a articles/auto/. site/articles/auto/
+          fi
 
           mkdir -p site/capabilities site/app/technology site/owner site/owner/completion site/downloads/backup site/.well-known
           cp experience/capabilities.html site/capabilities/index.html
@@ -194,6 +200,12 @@ jobs:
           grep -q 'Free Property Intelligence Snapshot' site/free-tools/index.html
           grep -q 'bp_referral_v670' site/acquisition_tracker.js
           grep -q 'Connecticut Property Intelligence Pulse' site/articles/feed.xml
+          if [ -d site/articles/auto ]; then
+            test -s site/articles/auto/index.html
+            test -s site/articles/auto/feed.xml
+            test -s site/articles/auto/sitemap.xml
+            test -s site/articles/auto/manifest.json
+          fi
           grep -q 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' site/.well-known/security.txt
           grep -q 'BridgePoint State Export Wizard' site/downloads/backup/BridgePoint_State_Export_Wizard.bat
           grep -q '127.0.0.1' site/downloads/backup/bridgepoint_local_runner.py
@@ -259,3 +271,7 @@ jobs:
           curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/app/public-promotion-v682.json' | grep -q '"public_release":682'
           curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/free-tools/' | grep -q 'Free Property Intelligence Snapshot'
           curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/acquisition_tracker.js' | grep -q 'bp_referral_v670'
+          if [ -d articles/auto ]; then
+            curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/articles/auto/' | grep -q '<'
+            curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/articles/auto/feed.xml' | grep -q '<'
+          fi
