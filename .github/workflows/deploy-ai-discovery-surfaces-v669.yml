@@ -8,6 +8,8 @@ on:
       - answers/**
       - press/**
       - start-now/**
+      - articles/index.html
+      - articles/feed.xml
       - articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html
       - llms.txt
       - llms-full.txt
@@ -53,6 +55,8 @@ jobs:
             cp -a "$dir/." "site/$dir/"
           done
           mkdir -p site/articles
+          cp articles/index.html site/articles/index.html
+          cp articles/feed.xml site/articles/feed.xml
           cp articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html site/articles/
           cp llms.txt llms-full.txt robots.txt sitemap.xml site/
 
@@ -69,12 +73,13 @@ jobs:
           test -s site/start-now/index.html
           test -s site/llms.txt
           test -s site/llms-full.txt
+          test -s site/articles/feed.xml
           grep -q 'Kole Johnson' site/founder/index.html
           grep -q 'What is BridgePoint Intelligence?' site/answers/index.html
           grep -q 'Founder: Kole Johnson' site/llms.txt
-          grep -q 'bridgepoint-public-mcp' server.json || true
+          grep -q 'Connecticut Property Intelligence Pulse' site/articles/feed.xml
 
-          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|sb_secret_|OPENAI_API_KEY[[:space:]]*=|ANTHROPIC_API_KEY[[:space:]]*=|sk-proj-|sk-ant-|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/founder site/answers site/press site/start-now site/llms.txt site/llms-full.txt; then
+          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|sb_secret_|OPENAI_API_KEY[[:space:]]*=|ANTHROPIC_API_KEY[[:space:]]*=|sk-proj-|sk-ant-|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/founder site/answers site/press site/start-now site/llms.txt site/llms-full.txt site/articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html; then
             echo 'Privileged secret marker found in public discovery surfaces.' >&2
             exit 1
           fi
@@ -126,6 +131,7 @@ jobs:
           done
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/founder/' | grep -q 'Kole Johnson'
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/answers/' | grep -q 'What is BridgePoint Intelligence?'
+          curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/articles/feed.xml' | grep -q 'Connecticut Property Intelligence Pulse'
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/app/main.dart.js' -o /tmp/main.dart.js
           grep -q 'display_name' /tmp/main.dart.js
           grep -q 'Open Account & Settings for' /tmp/main.dart.js
