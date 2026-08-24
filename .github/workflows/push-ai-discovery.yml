@@ -9,6 +9,7 @@ on:
       - press/**
       - partners/**
       - commerce/**
+      - free-tools/**
       - llms.txt
       - llms-full.txt
       - sitemap.xml
@@ -31,7 +32,7 @@ jobs:
       - name: Wait for public site deployment
         run: sleep 75
 
-      - name: Push AI, founder, partner, commerce, facts and conversion URLs to IndexNow
+      - name: Push AI, founder, partner, commerce, free snapshot and conversion URLs to IndexNow
         shell: bash
         run: |
           set -euo pipefail
@@ -48,6 +49,7 @@ jobs:
               "https://bridgepointintelligence.online/press/bridgepoint-facts.json",
               "https://bridgepointintelligence.online/llms.txt",
               "https://bridgepointintelligence.online/llms-full.txt",
+              "https://bridgepointintelligence.online/free-tools/",
               "https://bridgepointintelligence.online/start-now/",
               "https://bridgepointintelligence.online/partners/",
               "https://bridgepointintelligence.online/partners/program.json",
@@ -84,6 +86,7 @@ jobs:
             'https://bridgepointintelligence.online/press/' \
             'https://bridgepointintelligence.online/llms.txt' \
             'https://bridgepointintelligence.online/llms-full.txt' \
+            'https://bridgepointintelligence.online/free-tools/' \
             'https://bridgepointintelligence.online/start-now/' \
             'https://bridgepointintelligence.online/partners/' \
             'https://bridgepointintelligence.online/partners/program.json' \
@@ -95,5 +98,6 @@ jobs:
           done
           curl -fsSL 'https://bridgepointintelligence.online/founder/' | grep -q 'Kole Johnson'
           curl -fsSL 'https://bridgepointintelligence.online/answers/' | grep -q 'What is BridgePoint Intelligence?'
+          curl -fsSL 'https://bridgepointintelligence.online/free-tools/' | grep -q 'Free Property Intelligence Snapshot'
           curl -fsSL 'https://bridgepointintelligence.online/partners/' | grep -q '30%'
           curl -fsSL 'https://bridgepointintelligence.online/commerce/openai-products.csv' | grep -q 'BP-COMPANY-MONTHLY'
