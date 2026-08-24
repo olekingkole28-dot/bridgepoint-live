@@ -1,0 +1,141 @@
+name: Deploy BridgePoint V653 — Customer Avatar Last-Write Guard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/deploy-v653-avatar-last-write-guard.yml
+  workflow_run:
+    workflows:
+      - "Deploy BridgePoint Owner Everything V623"
+      - "Deploy BridgePoint V619 Autonomy"
+      - "Deploy BridgePoint Experience V550"
+      - "Deploy BridgePoint Growth V536"
+      - "Deploy BridgePoint Distribution V541"
+      - "Deploy BridgePoint Owner AI V576"
+      - "Deploy BridgePoint V552 — Dynamic Avatar Heal"
+      - "Deploy BridgePoint Live — Audited V443"
+      - "Deploy BridgePoint Live — Audited V444 Avatar"
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  guard-customer-avatar:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore audited dynamic-account app over latest public site
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          git fetch origin app-artifact-v444:refs/remotes/origin/app-artifact-v444
+          rm -rf site /tmp/live /tmp/avatar
+          mkdir -p site /tmp/live /tmp/avatar
+          git archive --format=tar origin/live-artifact | tar -xf - -C /tmp/live
+          git archive --format=tar origin/app-artifact-v444 | tar -xf - -C /tmp/avatar
+          cp -a /tmp/live/. site/
+
+          # Replace ONLY the compiled customer app. Preserve current public,
+          # owner, investor, growth, research, download, and technology surfaces.
+          rm -rf site/app
+          mkdir -p site/app
+          cp -a /tmp/avatar/. site/app/
+
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('site/app/index.html')
+          s=p.read_text(encoding='utf-8')
+          if '<base href="/">' in s:
+              s=s.replace('<base href="/">','<base href="/app/">',1)
+          if '<base href="/app/">' not in s:
+              raise SystemExit('Unexpected Flutter base href')
+          p.write_text(s,encoding='utf-8')
+          PY
+
+          test -s site/app/index.html
+          test -s site/app/main.dart.js
+          test -s site/app/flutter_bootstrap.js
+          grep -q 'display_name' site/app/main.dart.js
+          grep -q 'Open Account & Settings for' site/app/main.dart.js
+          grep -q 'Account & Settings' site/app/main.dart.js
+          grep -q 'BridgePoint account' site/app/main.dart.js
+
+          APP_DIGEST="$(find site/app -type f ! -name bridgepoint-release.json -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
+          export APP_DIGEST
+          python - <<'PY'
+          import json,os
+          from datetime import datetime,timezone
+          now=datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
+          marker={
+            'version':653,
+            'release':'V653 Customer Avatar Last-Write Guard',
+            'compiled_app_base_version':444,
+            'dynamic_profile_initials':True,
+            'account_settings_action_compiled':True,
+            'owner_initials_not_customer_default':True,
+            'artifact_sha256':os.environ['APP_DIGEST'],
+            'published_at':now,
+            'customer_domain':'https://bridgepointintelligence.online/'
+          }
+          open('site/app/bridgepoint-release.json','w',encoding='utf-8').write(json.dumps(marker,indent=2)+'\n')
+          PY
+          touch site/.nojekyll site/app/.nojekyll
+
+      - name: Persist guarded live artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/final-live && mkdir /tmp/final-live
+          cp -a site/. /tmp/final-live/
+          cd /tmp/final-live
+          git init
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m 'BridgePoint V653 customer avatar last-write guard'
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Publish V653
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify customer avatar guard is live
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 18); do
+            if curl -fsSL --max-time 20 "https://bridgepointintelligence.online/app/bridgepoint-release.json?t=${GITHUB_RUN_ID}-${attempt}" -o /tmp/live.json && grep -q '"version": 653' /tmp/live.json; then break; fi
+            sleep 10
+          done
+          grep -q '"version": 653' /tmp/live.json
+          curl -fsSL --retry 4 --retry-delay 2 "https://bridgepointintelligence.online/app/main.dart.js?t=${GITHUB_RUN_ID}" -o /tmp/main.dart.js
+          grep -q 'display_name' /tmp/main.dart.js
+          grep -q 'Open Account & Settings for' /tmp/main.dart.js
+          grep -q 'Account & Settings' /tmp/main.dart.js
