@@ -1,0 +1,37 @@
+name: Publish BridgePoint Public MCP
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - server.json
+      - .github/workflows/publish-mcp-registry.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install official MCP publisher
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" -o /tmp/mcp-publisher.tgz
+          tar -xzf /tmp/mcp-publisher.tgz -C /tmp mcp-publisher
+          chmod +x /tmp/mcp-publisher
+          /tmp/mcp-publisher --help >/dev/null
+
+      - name: Validate registry metadata
+        run: /tmp/mcp-publisher validate server.json
+
+      - name: Authenticate with official MCP Registry using GitHub OIDC
+        run: /tmp/mcp-publisher login github-oidc --registry=https://registry.modelcontextprotocol.io
+
+      - name: Publish BridgePoint MCP
+        run: /tmp/mcp-publisher publish server.json --registry=https://registry.modelcontextprotocol.io
