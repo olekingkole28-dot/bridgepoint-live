@@ -6,7 +6,7 @@
 <atom:link rel="hub" href="https://pubsubhubbub.appspot.com/" />
 <description>Quality-gated BridgePoint Intelligence research and market-readiness briefs.</description>
 <language>en-us</language>
-<lastBuildDate>Sun, 23 Aug 2026 23:47:45 +0000</lastBuildDate>
+<lastBuildDate>Mon, 24 Aug 2026 03:33:49 +0000</lastBuildDate>
 <item>
 <title>Woodstock roof permit decoded: what a public filing can tell you before anyone inspects the property</title>
 <link>https://bridgepointintelligence.online/articles/auto/woodstock-roof-permit-decoded-what-a-public-filing-can-tell-you-before-a-80ceea10.html</link>
@@ -36,18 +36,18 @@
 <description>How restoration operators can combine property context, field evidence and verified claim timing without replacing estimating or claims-core systems.</description>
 </item>
 <item>
-<title>Xactimate-compatible property intelligence: how BridgePoint is designed to fit existing claims workflows</title>
-<link>https://bridgepointintelligence.online/articles/auto/xactimate-compatible-property-intelligence-how-bridgepoint-is-designed-t-fbd99891.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/xactimate-compatible-property-intelligence-how-bridgepoint-is-designed-t-fbd99891.html</guid>
-<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
-<description>BridgePoint is building vendor-neutral claim and property exports now while keeping native Xactimate activation truthfully gated behind authorized integration.</description>
-</item>
-<item>
 <title>Commercial roofing insurance intelligence: prioritize properties without confusing exposure with damage</title>
 <link>https://bridgepointintelligence.online/articles/auto/commercial-roofing-insurance-intelligence-prioritize-properties-without--562dcf65.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/commercial-roofing-insurance-intelligence-prioritize-properties-without--562dcf65.html</guid>
 <pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
 <description>A commercial-roofing workflow for combining property records, permitted evidence, weather context and claim timing while preserving field-verification limits.</description>
+</item>
+<item>
+<title>Xactimate-compatible property intelligence: how BridgePoint is designed to fit existing claims workflows</title>
+<link>https://bridgepointintelligence.online/articles/auto/xactimate-compatible-property-intelligence-how-bridgepoint-is-designed-t-fbd99891.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/xactimate-compatible-property-intelligence-how-bridgepoint-is-designed-t-fbd99891.html</guid>
+<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
+<description>BridgePoint is building vendor-neutral claim and property exports now while keeping native Xactimate activation truthfully gated behind authorized integration.</description>
 </item>
 <item>
 <title>Insurance claim delay benchmarks: why disputed-claim timeline duration is a missing data layer</title>
@@ -71,6 +71,13 @@
 <description>How restoration and mitigation teams can use weather as context while demanding property matching, provenance and independent evidence before prioritizing field work.</description>
 </item>
 <item>
+<title>Property intelligence for real estate operators: how to prioritize a portfolio without another raw lead list</title>
+<link>https://bridgepointintelligence.online/articles/auto/property-intelligence-for-real-estate-operators-how-to-prioritize-a-port-3902f712.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/property-intelligence-for-real-estate-operators-how-to-prioritize-a-port-3902f712.html</guid>
+<pubDate>Sat, 22 Aug 2026 17:20:43 +0000</pubDate>
+<description>A framework for turning fragmented property records and public signals into explainable portfolio and territory prioritization.</description>
+</item>
+<item>
 <title>Why nationwide property intelligence is a data-infrastructure problem, not just an AI model</title>
 <link>https://bridgepointintelligence.online/articles/auto/why-nationwide-property-intelligence-is-a-data-infrastructure-problem-no-0d6ca8b1.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/why-nationwide-property-intelligence-is-a-data-infrastructure-problem-no-0d6ca8b1.html</guid>
@@ -83,12 +90,5 @@
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/property-intelligence-for-roofing-contractors-what-to-verify-before-driv-f07b8482.html</guid>
 <pubDate>Sat, 22 Aug 2026 17:20:43 +0000</pubDate>
 <description>A practical buyer guide to property matching, source provenance, multi-signal evidence and field verification before a roofing team spends time in a territory.</description>
-</item>
-<item>
-<title>Property intelligence for real estate operators: how to prioritize a portfolio without another raw lead list</title>
-<link>https://bridgepointintelligence.online/articles/auto/property-intelligence-for-real-estate-operators-how-to-prioritize-a-port-3902f712.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/property-intelligence-for-real-estate-operators-how-to-prioritize-a-port-3902f712.html</guid>
-<pubDate>Sat, 22 Aug 2026 17:20:43 +0000</pubDate>
-<description>A framework for turning fragmented property records and public signals into explainable portfolio and territory prioritization.</description>
 </item>
 </channel></rss>
