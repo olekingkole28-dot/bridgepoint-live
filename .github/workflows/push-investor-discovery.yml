@@ -1,0 +1,60 @@
+name: Push BridgePoint Investor Discovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - investors/**
+      - enterprise/**
+      - .github/workflows/push-investor-discovery.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bridgepoint-investor-discovery
+  cancel-in-progress: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for public site deployment
+        run: sleep 75
+
+      - name: Push investor-facing URLs to IndexNow
+        run: |
+          set -euo pipefail
+          cat >/tmp/indexnow-investor.json <<'JSON'
+          {
+            "host": "bridgepointintelligence.online",
+            "key": "dc8a83e4caade76fd824cf929dca48d6",
+            "keyLocation": "https://bridgepointintelligence.online/dc8a83e4caade76fd824cf929dca48d6.txt",
+            "urlList": [
+              "https://bridgepointintelligence.online/investors/",
+              "https://bridgepointintelligence.online/enterprise/",
+              "https://bridgepointintelligence.online/enterprise/trust/",
+              "https://bridgepointintelligence.online/deep-tech/",
+              "https://bridgepointintelligence.online/research/national-estimate-variance/",
+              "https://bridgepointintelligence.online/articles/data-desk.html"
+            ]
+          }
+          JSON
+          code="$(curl -sS -o /tmp/indexnow-investor-response.txt -w '%{http_code}' -X POST 'https://api.indexnow.org/indexnow' \
+            -H 'Content-Type: application/json; charset=utf-8' \
+            --data-binary @/tmp/indexnow-investor.json || true)"
+          echo "IndexNow investor HTTP ${code}"
+          cat /tmp/indexnow-investor-response.txt || true
+          if [ "$code" != "200" ] && [ "$code" != "202" ]; then
+            echo 'IndexNow investor push did not confirm acceptance.'
+            exit 1
+          fi
+
+      - name: Verify investor page is reachable
+        run: |
+          set -euo pipefail
+          code="$(curl -L -sS -o /tmp/investor-page.html -w '%{http_code}' 'https://bridgepointintelligence.online/investors/' || true)"
+          echo "Investor page HTTP ${code}"
+          test "$code" = "200"
+          grep -qi 'Property intelligence as infrastructure' /tmp/investor-page.html
