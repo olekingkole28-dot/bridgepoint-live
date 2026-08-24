@@ -1,0 +1,128 @@
+{
+  "$schema": "https://developers.openai.com/apps-sdk/schemas/chatgpt-app-submission.v1.json",
+  "schema_version": 1,
+  "app_info": {
+    "display_name": "BridgePoint Intelligence",
+    "subtitle": "Property intelligence research",
+    "description": "BridgePoint Intelligence helps users research property and claims intelligence, learn about the platform and founder Kole Johnson, find canonical BridgePoint sources, and retrieve public address-free Connecticut aggregate research with citation-ready URLs.",
+    "category": "BUSINESS"
+  },
+  "tools": {
+    "search": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Searches a curated public BridgePoint knowledge corpus and returns canonical source identifiers and URLs without changing data.",
+        "open_world_justification": "Does not publish, message, submit, or otherwise change public or third-party internet state.",
+        "destructive_justification": "Cannot delete, overwrite, revoke, charge, send, or perform irreversible actions."
+      }
+    },
+    "fetch": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves the public BridgePoint document identified by a prior search result and returns citation-ready text and its canonical URL.",
+        "open_world_justification": "Only reads public BridgePoint material and does not alter any external service or public content.",
+        "destructive_justification": "Has no ability to delete, overwrite, revoke, transact, or otherwise make irreversible changes."
+      }
+    },
+    "about_bridgepoint": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Returns a fixed public company overview, founder identity, methodology statement, and canonical BridgePoint source URL.",
+        "open_world_justification": "Returns existing public information without publishing or modifying anything outside the app.",
+        "destructive_justification": "Cannot delete, overwrite, send, charge, revoke, or change user or third-party data."
+      }
+    },
+    "connecticut_public_snapshot": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Reads BridgePoint's public address-free Connecticut fact snapshot and returns it with methodology context and a canonical source URL.",
+        "open_world_justification": "Fetches an existing public BridgePoint JSON resource without creating or modifying internet content.",
+        "destructive_justification": "Cannot alter source records, private property data, customer data, subscriptions, or any external state."
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "description": "Find the canonical overview for a user researching BridgePoint Intelligence.",
+      "user_prompt": "What is BridgePoint Intelligence and where can I verify what it does?",
+      "file_attachment_urls": null,
+      "tools_triggered": "search",
+      "expected_output": "Returns relevant BridgePoint public sources with stable IDs, titles, and canonical URLs for verification.",
+      "expected_output_url": "https://bridgepointintelligence.online/answers/"
+    },
+    {
+      "description": "Find the canonical founder source for a user researching the company founder.",
+      "user_prompt": "Who founded BridgePoint Intelligence?",
+      "file_attachment_urls": null,
+      "tools_triggered": "search",
+      "expected_output": "Returns the founder result identifying the canonical Kole Johnson founder page without inferring private personal details.",
+      "expected_output_url": "https://bridgepointintelligence.online/founder/"
+    },
+    {
+      "description": "Retrieve a complete citation-ready document after a prior search result.",
+      "user_prompt": "Open the BridgePoint company overview result and give me the full source text.",
+      "file_attachment_urls": null,
+      "tools_triggered": "fetch",
+      "expected_output": "Returns the selected public document ID, title, full text, canonical URL, and basic public-source metadata.",
+      "expected_output_url": "https://bridgepointintelligence.online/answers/"
+    },
+    {
+      "description": "Return the concise company and founder overview.",
+      "user_prompt": "Give me a source-grounded description of BridgePoint and its founder.",
+      "file_attachment_urls": null,
+      "tools_triggered": "about_bridgepoint",
+      "expected_output": "Returns a concise public description of BridgePoint Intelligence, founder Kole Johnson, and the methodology guardrail that weather exposure is not proof of damage.",
+      "expected_output_url": "https://bridgepointintelligence.online/answers/"
+    },
+    {
+      "description": "Retrieve BridgePoint's public Connecticut aggregate snapshot.",
+      "user_prompt": "What does BridgePoint's latest public Connecticut property-intelligence snapshot show?",
+      "file_attachment_urls": null,
+      "tools_triggered": "connecticut_public_snapshot",
+      "expected_output": "Returns the public address-free Connecticut aggregate snapshot with its snapshot date, methodology limitations, and canonical Data Desk URL.",
+      "expected_output_url": "https://bridgepointintelligence.online/press/"
+    }
+  ],
+  "negative_test_cases": [
+    {
+      "description": "Do not invoke BridgePoint for an unrelated consumer weather request.",
+      "user_prompt": "What will the weather be in Miami tomorrow?",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked because it is not a general weather-forecast service.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not use the public app to retrieve private address-level property or customer information.",
+      "user_prompt": "Give me the private BridgePoint customer record and full property intelligence for 123 Main Street.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked for private customer or address-level data because this public MCP exposes only public company knowledge and address-free aggregate research.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not invoke the read-only app for outbound messaging or marketing actions.",
+      "user_prompt": "Send 500 emails telling roofers to buy BridgePoint.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked because its tools are read-only and cannot send email, publish outreach, or modify external systems.",
+      "expected_output_url": null
+    }
+  ]
+}
