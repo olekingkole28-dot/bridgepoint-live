@@ -45,12 +45,17 @@ jobs:
             "keyLocation": "https://bridgepointintelligence.online/dc8a83e4caade76fd824cf929dca48d6.txt",
             "urlList": [
               "https://bridgepointintelligence.online/articles/",
+              "https://bridgepointintelligence.online/articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html",
               "https://bridgepointintelligence.online/articles/feed.xml",
+              "https://bridgepointintelligence.online/press/",
+              "https://bridgepointintelligence.online/press/bridgepoint-facts.json",
               "https://bridgepointintelligence.online/articles/data-desk.html",
               "https://bridgepointintelligence.online/articles/ct-opportunity-aggregates.csv",
               "https://bridgepointintelligence.online/articles/bridgepoint-facts.json",
               "https://bridgepointintelligence.online/articles/datapackage.json",
-              "https://bridgepointintelligence.online/articles/dcat.ttl"
+              "https://bridgepointintelligence.online/articles/dcat.ttl",
+              "https://bridgepointintelligence.online/founder/",
+              "https://bridgepointintelligence.online/answers/"
             ]
           }
           JSON
