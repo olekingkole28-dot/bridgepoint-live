@@ -1,0 +1,109 @@
+name: Promote Verified Flutter V682
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/promote-current-flutter-v682.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download exact verified private Flutter artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 4 --retry-delay 2 'https://sdmntprcentralus.oaiusercontent.com/files/00000000-a4f0-81f5-b0dd-91d02a8c54dc/raw?se=2026-08-24T04%3A49%3A56Z&sp=r&sv=2026-02-06&sr=b&scid=ab3d78e5-9c2a-50df-b236-512c0fb617c3&skoid=e9d2f8b1-028a-4cff-8eb1-d0e66fbefcca&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-08-23T12%3A37%3A18Z&ske=2026-08-24T12%3A37%3A18Z&sks=b&skv=2026-02-06&sig=lH0h9bjRfEyhPj73BmIbY8Icn8zJHgPovfQDT9H9hns%3D' -o /tmp/current-flutter.zip
+          echo '2b9a708a5e62c5b9542f69ee43f4f9a3634e2bfc9cbf9ba2714de264fcb36e23  /tmp/current-flutter.zip' | sha256sum -c -
+          rm -rf /tmp/current-app && mkdir -p /tmp/current-app
+          unzip -q /tmp/current-flutter.zip -d /tmp/current-app
+          test -s /tmp/current-app/index.html
+          test -s /tmp/current-app/main.dart.js
+          test -s /tmp/current-app/bridgepoint-release.json
+          grep -q '9fd86839adbce02e48d36d893828b0e9cccd7987' /tmp/current-app/bridgepoint-release.json
+          grep -q 'https://bridgepointintelligence.online/' /tmp/current-app/bridgepoint-release.json
+
+      - name: Assemble V682 with current compiled app
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          rm -rf site/app && mkdir -p site/app
+          cp -a /tmp/current-app/. site/app/
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('site/app/index.html')
+          s=p.read_text(encoding='utf-8')
+          if '<base href="/">' in s:
+              s=s.replace('<base href="/">','<base href="/app/">',1)
+          if '<base href="/app/">' not in s:
+              raise SystemExit('Unexpected Flutter base href')
+          p.write_text(s,encoding='utf-8')
+          Path('site/app/public-promotion-v682.json').write_text('{"public_release":682,"compiled_source_sha":"9fd86839adbce02e48d36d893828b0e9cccd7987","private_build_run":32690206147,"artifact_sha256":"2b9a708a5e62c5b9542f69ee43f4f9a3634e2bfc9cbf9ba2714de264fcb36e23","source_repo_private":true}\n',encoding='utf-8')
+          PY
+          grep -q '<base href="/app/">' site/app/index.html
+          grep -q '9fd86839adbce02e48d36d893828b0e9cccd7987' site/app/bridgepoint-release.json
+          grep -q 'Operations Hub' site/app/main.dart.js
+          grep -q 'Owner' site/app/main.dart.js
+          if grep -E -i 'sb_secret_[A-Za-z0-9_-]{20,}|sk_live_[A-Za-z0-9_-]{20,}|sk-proj-[A-Za-z0-9_-]{20,}' site/app/index.html site/app/main.dart.js; then
+            echo 'Privileged credential-shaped value found in compiled app' >&2
+            exit 1
+          fi
+          touch site/.nojekyll site/app/.nojekyll
+
+      - name: Persist V682 durable artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/final-live && mkdir /tmp/final-live
+          cp -a site/. /tmp/final-live/
+          cd /tmp/final-live
+          git init -q
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m 'BridgePoint V682 current verified Flutter app'
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Publish V682
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live modern app
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/app/bridgepoint-release.json?v=682' -o /tmp/release.json
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/app/public-promotion-v682.json?v=682' -o /tmp/promotion.json
+          grep -q '9fd86839adbce02e48d36d893828b0e9cccd7987' /tmp/release.json
+          grep -q '"public_release":682' /tmp/promotion.json
