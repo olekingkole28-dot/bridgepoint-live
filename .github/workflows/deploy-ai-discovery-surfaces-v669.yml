@@ -1,0 +1,132 @@
+name: Deploy BridgePoint AI Discovery Surfaces V669
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - founder/**
+      - answers/**
+      - press/**
+      - start-now/**
+      - articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html
+      - llms.txt
+      - llms-full.txt
+      - robots.txt
+      - sitemap.xml
+      - .github/workflows/deploy-ai-discovery-surfaces-v669.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Overlay public discovery surfaces onto durable live site
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site
+          mkdir -p site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+
+          # Overlay only public discovery/conversion surfaces from main.
+          for dir in founder answers press start-now; do
+            test -d "$dir"
+            rm -rf "site/$dir"
+            mkdir -p "site/$dir"
+            cp -a "$dir/." "site/$dir/"
+          done
+          mkdir -p site/articles
+          cp articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html site/articles/
+          cp llms.txt llms-full.txt robots.txt sitemap.xml site/
+
+          # Protect the customer app from public-content deployments.
+          test -s site/app/main.dart.js
+          grep -q 'display_name' site/app/main.dart.js
+          grep -q 'Open Account & Settings for' site/app/main.dart.js
+          grep -q 'Account & Settings' site/app/main.dart.js
+
+          test -s site/founder/index.html
+          test -s site/answers/index.html
+          test -s site/press/index.html
+          test -s site/press/bridgepoint-facts.json
+          test -s site/start-now/index.html
+          test -s site/llms.txt
+          test -s site/llms-full.txt
+          grep -q 'Kole Johnson' site/founder/index.html
+          grep -q 'What is BridgePoint Intelligence?' site/answers/index.html
+          grep -q 'Founder: Kole Johnson' site/llms.txt
+          grep -q 'bridgepoint-public-mcp' server.json || true
+
+          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|sb_secret_|OPENAI_API_KEY[[:space:]]*=|ANTHROPIC_API_KEY[[:space:]]*=|sk-proj-|sk-ant-|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/founder site/answers site/press site/start-now site/llms.txt site/llms-full.txt; then
+            echo 'Privileged secret marker found in public discovery surfaces.' >&2
+            exit 1
+          fi
+          touch site/.nojekyll
+
+      - name: Persist discovery-enhanced durable live artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/final-live && mkdir /tmp/final-live
+          cp -a site/. /tmp/final-live/
+          cd /tmp/final-live
+          git init
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m 'BridgePoint V669 AI discovery and citation surfaces'
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Publish V669
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify public discovery surfaces and customer avatar contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          for url in \
+            'https://bridgepointintelligence.online/founder/' \
+            'https://bridgepointintelligence.online/answers/' \
+            'https://bridgepointintelligence.online/press/' \
+            'https://bridgepointintelligence.online/llms.txt' \
+            'https://bridgepointintelligence.online/llms-full.txt' \
+            'https://bridgepointintelligence.online/start-now/' \
+            'https://bridgepointintelligence.online/articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html'; do
+            code="$(curl -L -sS --retry 6 --retry-delay 3 -o /tmp/page -w '%{http_code}' "$url" || true)"
+            echo "$url -> $code"
+            test "$code" = "200"
+          done
+          curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/founder/' | grep -q 'Kole Johnson'
+          curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/answers/' | grep -q 'What is BridgePoint Intelligence?'
+          curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/app/main.dart.js' -o /tmp/main.dart.js
+          grep -q 'display_name' /tmp/main.dart.js
+          grep -q 'Open Account & Settings for' /tmp/main.dart.js
+          grep -q 'Account & Settings' /tmp/main.dart.js
