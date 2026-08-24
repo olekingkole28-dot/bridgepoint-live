@@ -1,35 +1,46 @@
 {
-  "snapshot_date": "2026-08-21",
+  "snapshot_date_et": "2026-08-23",
+  "latest_strict_layer_update_utc": "2026-08-24T00:16:00.125711Z",
   "company": "BridgePoint Intelligence",
+  "founder": "Kole Johnson",
   "public_origin": "https://bridgepointintelligence.online/",
+  "canonical_answers": "https://bridgepointintelligence.online/answers/",
+  "founder_page": "https://bridgepointintelligence.online/founder/",
+  "ai_brief": "https://bridgepointintelligence.online/llms.txt",
   "connecticut": {
     "market_status": "LIVE",
     "canonical_property_count": 1282833,
-    "verified_ranked_opportunity_rows": 940,
+    "strict_verified_opportunity_rows": 773,
+    "distinct_properties_across_strict_layer": 534,
+    "represented_verticals": 5,
     "verticals": {
-      "general_contracting": {"properties": 456, "max_independent_evidence_families": 4, "avg_customer_score": 70.8},
-      "property_investment": {"properties": 342, "max_independent_evidence_families": 3, "avg_customer_score": 66.1},
-      "restoration": {"properties": 48, "max_independent_evidence_families": 2, "avg_customer_score": 60.3},
-      "roofing": {"properties": 48, "max_independent_evidence_families": 2, "avg_customer_score": 59.9},
-      "public_adjusting": {"properties": 45, "max_independent_evidence_families": 2, "avg_customer_score": 58.6},
-      "development": {"properties": 1, "max_independent_evidence_families": 1, "avg_customer_score": 54.9}
+      "general_contracting": {"properties": 340, "max_independent_evidence_families": 4, "avg_customer_score": 75.9},
+      "property_investment": {"properties": 286, "max_independent_evidence_families": 3, "avg_customer_score": 73.9},
+      "restoration": {"properties": 50, "max_independent_evidence_families": 2, "avg_customer_score": 62.6},
+      "roofing": {"properties": 50, "max_independent_evidence_families": 2, "avg_customer_score": 62.2},
+      "public_adjusting": {"properties": 47, "max_independent_evidence_families": 2, "avg_customer_score": 61.8}
     },
     "roofing_municipality_counts": {
       "Torrington": 19,
       "Vernon": 15,
       "Burlington": 6,
       "New Britain": 4,
-      "Killingly": 2,
+      "Killingly": 3,
       "Middlebury": 1,
-      "Tolland": 1
-    }
+      "Tolland": 1,
+      "Willington": 1
+    },
+    "counting_note": "A property may appear in more than one vertical, so vertical property counts should not be summed to infer distinct properties across the strict layer."
   },
   "limitations": [
     "Verified opportunity does not mean confirmed physical damage.",
     "Verified opportunity does not mean a confirmed insurance claim.",
+    "Weather exposure is context, not proof of damage.",
+    "Opportunity signals prioritize investigation and do not prove customer intent or a guaranteed sale.",
     "Field verification still has the last word.",
     "Counts can change as evidence refreshes and verification gates rerun."
   ],
   "methodology": "https://bridgepointintelligence.online/articles/",
-  "data_desk": "https://bridgepointintelligence.online/press/"
+  "data_desk": "https://bridgepointintelligence.online/press/",
+  "start": "https://bridgepointintelligence.online/start-now/"
 }
