@@ -22,6 +22,7 @@ jobs:
   verify:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
 
@@ -85,6 +86,78 @@ jobs:
             exit 1
           fi
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Mobile touch and layout smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT=/tmp/bp-mobile-v683
+          mkdir -p "$ROOT"
+          cd "$ROOT"
+          npm init -y >/dev/null 2>&1
+          npm install --no-save --ignore-scripts puppeteer-core@24.16.0 >/dev/null 2>&1
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME"
+          export CHROME
+          cat > verify.cjs <<'JS'
+          const puppeteer=require('puppeteer-core');
+          const ORIGIN='https://bridgepointintelligence.online';
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          (async()=>{
+            const browser=await puppeteer.launch({
+              executablePath:process.env.CHROME,
+              headless:true,
+              protocolTimeout:45000,
+              args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--disable-vulkan','--disable-background-networking','--disable-sync']
+            });
+            try{
+              const page=await browser.newPage();
+              page.setDefaultTimeout(20000);
+              await page.setViewport({width:390,height:844,deviceScaleFactor:1,isMobile:true,hasTouch:true});
+              await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1');
+
+              await page.goto(`${ORIGIN}/?verify_mobile_v683=${Date.now()}`,{waitUntil:'networkidle2',timeout:35000});
+              const home=await page.evaluate(()=>({
+                h1:document.querySelector('h1')?.textContent||'',
+                href:[...document.querySelectorAll('a')].find(a=>(a.textContent||'').includes('Show me my territory'))?.getAttribute('href')||'',
+                overflow:document.documentElement.scrollWidth-window.innerWidth
+              }));
+              if(!home.h1.includes('Know where to work before you knock')) throw new Error('Mobile homepage headline missing');
+              if(!home.href.includes('/sample/')) throw new Error('Mobile territory CTA missing or misrouted');
+              if(home.overflow>8) throw new Error(`Mobile homepage horizontal overflow ${home.overflow}px`);
+
+              const [nav]=await Promise.all([
+                page.waitForNavigation({waitUntil:'domcontentloaded',timeout:20000}),
+                page.evaluate(()=>{const a=[...document.querySelectorAll('a')].find(x=>(x.textContent||'').includes('Show me my territory')); a.click();})
+              ]);
+              if(!page.url().includes('/sample/')) throw new Error(`Territory CTA landed at ${page.url()}`);
+              const sample=await page.evaluate(()=>({
+                hasAction:document.body.innerText.includes('Show my free opportunities'),
+                overflow:document.documentElement.scrollWidth-window.innerWidth
+              }));
+              if(!sample.hasAction) throw new Error('Sample mobile action missing');
+              if(sample.overflow>8) throw new Error(`Sample page horizontal overflow ${sample.overflow}px`);
+
+              await page.goto(`${ORIGIN}/app/?verify_mobile_v683=${Date.now()}`,{waitUntil:'domcontentloaded',timeout:30000});
+              await sleep(7000);
+              const app=await page.evaluate(()=>({
+                mounted:!!document.querySelector('flutter-view,flt-glass-pane,canvas'),
+                overflow:document.documentElement.scrollWidth-window.innerWidth,
+                bodyLength:(document.body.innerText||'').length
+              }));
+              if(!app.mounted) throw new Error('Flutter runtime did not mount on mobile browser');
+              if(app.overflow>20) throw new Error(`Flutter mobile shell horizontal overflow ${app.overflow}px`);
+              console.log(JSON.stringify({home,sample,app,url:page.url()},null,2));
+            } finally {
+              await browser.close();
+            }
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
+          node verify.cjs
+
       - name: Verify NOAA radar transports remain reachable
         shell: bash
         run: |
@@ -131,6 +204,8 @@ jobs:
               'capability_catalog_live':True,
               'free_tools_live':True,
               'security_txt_live':True,
+              'mobile_390x844_touch_smoke_passed':True,
+              'flutter_runtime_mounted_mobile':True,
               'no_privileged_secret_shape_on_checked_surfaces':True,
               'noaa_current_wms_reachable':True,
               'noaa_historical_wms_reachable':True
@@ -145,6 +220,6 @@ jobs:
           if git diff --cached --quiet; then
             echo 'Verification receipt unchanged.'
           else
-            git commit -m 'Record guarded V683 live-domain verification [skip ci]'
+            git commit -m 'Record guarded V683 mobile/live verification [skip ci]'
             git push origin HEAD:main
           fi
