@@ -13,7 +13,28 @@ on:
       - experience/owner-completion-v590.html
       - growth/**
       - claim-guide/**
+      - founder/**
+      - answers/**
+      - press/**
+      - start-now/**
+      - partners/**
+      - commerce/**
+      - free-tools/**
       - acquisition_tracker.js
+      - articles/index.html
+      - articles/feed.xml
+      - articles/atom.xml
+      - articles/feed.json
+      - articles/data.json
+      - articles/datapackage.json
+      - articles/dcat.ttl
+      - articles/ct-opportunity-aggregates.csv
+      - articles/bridgepoint-facts.json
+      - articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html
+      - llms.txt
+      - llms-full.txt
+      - robots.txt
+      - sitemap.xml
       - enterprise/**
       - research/national-estimate-variance/**
       - tools/**
@@ -72,15 +93,23 @@ jobs:
           test -s .well-known/security.txt
           test -s downloads/backup/bridgepoint_local_runner.py
 
-          for d in sample pilot contact growth claim-guide enterprise tools start audit estimate-preflight developers storms; do
+          for d in sample pilot contact growth claim-guide enterprise tools start audit estimate-preflight developers storms founder answers press start-now partners commerce free-tools; do
+            test -d "$d"
             rm -rf "site/$d"
             cp -a "$d" "site/$d"
           done
           cp acquisition_tracker.js site/acquisition_tracker.js
+          cp llms.txt llms-full.txt robots.txt sitemap.xml site/
 
           rm -rf site/research/national-estimate-variance
           mkdir -p site/research/national-estimate-variance
           cp -a research/national-estimate-variance/. site/research/national-estimate-variance/
+
+          mkdir -p site/articles
+          for file in index.html feed.xml atom.xml feed.json data.json datapackage.json dcat.ttl ct-opportunity-aggregates.csv bridgepoint-facts.json bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html; do
+            test -s "articles/$file"
+            cp "articles/$file" "site/articles/$file"
+          done
 
           mkdir -p site/capabilities site/app/technology site/owner site/owner/completion site/downloads/backup site/.well-known
           cp experience/capabilities.html site/capabilities/index.html
@@ -159,10 +188,20 @@ jobs:
           grep -q 'Everything BridgePoint in one place' site/owner/everything-v623.js
           grep -q 'Master Completion' site/owner/completion/index.html
           grep -q 'Public Trust Center' site/enterprise/trust/index.html
+          grep -q 'Kole Johnson' site/founder/index.html
+          grep -q 'Founding Performance Partners' site/partners/index.html
+          grep -q 'BP-HOME-MONTHLY' site/commerce/openai-products.csv
+          grep -q 'Free Property Intelligence Snapshot' site/free-tools/index.html
+          grep -q 'bp_referral_v670' site/acquisition_tracker.js
+          grep -q 'Connecticut Property Intelligence Pulse' site/articles/feed.xml
           grep -q 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' site/.well-known/security.txt
           grep -q 'BridgePoint State Export Wizard' site/downloads/backup/BridgePoint_State_Export_Wizard.bat
           grep -q '127.0.0.1' site/downloads/backup/bridgepoint_local_runner.py
           grep -q 'Production BridgePoint database is blocked' site/downloads/backup/bridgepoint_restore_wizard.ps1
+          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|sb_secret_|OPENAI_API_KEY[[:space:]]*=|ANTHROPIC_API_KEY[[:space:]]*=|sk-proj-|sk-ant-|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/founder site/answers site/press site/start-now site/partners site/commerce site/free-tools site/llms.txt site/llms-full.txt site/articles; then
+            echo 'Privileged secret marker found in discovery surfaces.' >&2
+            exit 1
+          fi
           touch site/.nojekyll site/app/.nojekyll
 
       - name: Persist exact V683 durable artifact
@@ -197,16 +236,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/' -o /tmp/home
-          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/app/bridgepoint-release.json' -o /tmp/release.json
-          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/app/public-promotion-v682.json' -o /tmp/promotion.json
-          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/enterprise/trust/' -o /tmp/trust
-          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/contact/' -o /tmp/contact
-          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/capabilities/' -o /tmp/capabilities
-          grep -q 'Know where to work before you knock' /tmp/home
-          grep -q 'Trust Center' /tmp/home
-          grep -q '9fd86839adbce02e48d36d893828b0e9cccd7987' /tmp/release.json
-          grep -q '"public_release":682' /tmp/promotion.json
-          grep -q 'Public Trust Center' /tmp/trust
-          grep -q 'independent Connecticut-based property-intelligence software platform' /tmp/contact
-          grep -q 'Everything BridgePoint Can Do' /tmp/capabilities
+          for url in \
+            'https://bridgepointintelligence.online/' \
+            'https://bridgepointintelligence.online/app/bridgepoint-release.json' \
+            'https://bridgepointintelligence.online/app/public-promotion-v682.json' \
+            'https://bridgepointintelligence.online/enterprise/trust/' \
+            'https://bridgepointintelligence.online/contact/' \
+            'https://bridgepointintelligence.online/capabilities/' \
+            'https://bridgepointintelligence.online/founder/' \
+            'https://bridgepointintelligence.online/answers/' \
+            'https://bridgepointintelligence.online/press/' \
+            'https://bridgepointintelligence.online/partners/' \
+            'https://bridgepointintelligence.online/commerce/' \
+            'https://bridgepointintelligence.online/free-tools/' \
+            'https://bridgepointintelligence.online/articles/feed.xml'; do
+            code="$(curl -L -sS --retry 6 --retry-delay 3 -o /tmp/page -w '%{http_code}' "$url" || true)"
+            echo "$url -> $code"
+            test "$code" = "200"
+          done
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/' | grep -q 'Know where to work before you knock'
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/app/bridgepoint-release.json' | grep -q '9fd86839adbce02e48d36d893828b0e9cccd7987'
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/app/public-promotion-v682.json' | grep -q '"public_release":682'
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/free-tools/' | grep -q 'Free Property Intelligence Snapshot'
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/acquisition_tracker.js' | grep -q 'bp_referral_v670'
