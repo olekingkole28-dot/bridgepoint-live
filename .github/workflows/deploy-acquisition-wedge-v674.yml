@@ -9,6 +9,8 @@ on:
       - contact/**
       - experience/capabilities.html
       - experience/app-technology.html
+      - experience/owner-everything-v623.js
+      - experience/owner-completion-v590.html
       - growth/**
       - claim-guide/**
       - acquisition_tracker.js
@@ -64,6 +66,8 @@ jobs:
           test -s contact/index.html
           test -s experience/capabilities.html
           test -s experience/app-technology.html
+          test -s experience/owner-everything-v623.js
+          test -s experience/owner-completion-v590.html
           test -s enterprise/trust/index.html
           test -s .well-known/security.txt
           test -s downloads/backup/bridgepoint_local_runner.py
@@ -78,9 +82,11 @@ jobs:
           mkdir -p site/research/national-estimate-variance
           cp -a research/national-estimate-variance/. site/research/national-estimate-variance/
 
-          mkdir -p site/capabilities site/app/technology site/owner site/downloads/backup site/.well-known
+          mkdir -p site/capabilities site/app/technology site/owner site/owner/completion site/downloads/backup site/.well-known
           cp experience/capabilities.html site/capabilities/index.html
           cp experience/app-technology.html site/app/technology/index.html
+          cp experience/owner-everything-v623.js site/owner/everything-v623.js
+          cp experience/owner-completion-v590.html site/owner/completion/index.html
           for d in global distribution innovation; do
             rm -rf "site/owner/$d"
             cp -a "owner/$d" "site/owner/$d"
@@ -121,7 +127,16 @@ jobs:
               s=s.replace('<a href="/contact/">Contact</a>','<a href="/enterprise/trust/">Trust Center</a><a href="/contact/">Contact</a>',1)
           home.write_text(s,encoding='utf-8')
 
-          authored=[Path('site/index.html'),Path('site/sample/index.html'),Path('site/pilot/index.html'),Path('site/contact/index.html'),Path('site/enterprise/trust/index.html'),Path('site/.well-known/security.txt'),Path('site/capabilities/index.html'),Path('site/app/technology/index.html')]
+          owner=Path('site/owner/index.html')
+          os=owner.read_text(encoding='utf-8')
+          tag='<script src="/owner/everything-v623.js?v=623"></script>'
+          if tag not in os:
+              if '</body>' not in os:
+                  raise SystemExit('Owner Center missing body close')
+              os=os.replace('</body>',tag+'\n</body>',1)
+          owner.write_text(os,encoding='utf-8')
+
+          authored=[Path('site/index.html'),Path('site/sample/index.html'),Path('site/pilot/index.html'),Path('site/contact/index.html'),Path('site/enterprise/trust/index.html'),Path('site/.well-known/security.txt'),Path('site/capabilities/index.html'),Path('site/app/technology/index.html'),Path('site/owner/everything-v623.js'),Path('site/owner/completion/index.html')]
           authored += [f for f in Path('site/downloads/backup').iterdir() if f.is_file() and f.suffix.lower() in {'.ps1','.py','.bat','.txt'}]
           pats=[
             re.compile(r'(?i)(SUPABASE_SERVICE_ROLE_KEY|STRIPE_SECRET_KEY|OPENAI_API_KEY)\s*=\s*["\']?[^\s"\']{12,}'),
@@ -141,6 +156,8 @@ jobs:
           grep -q 'independent Connecticut-based property-intelligence software platform' site/contact/index.html
           grep -q 'Everything BridgePoint Can Do' site/capabilities/index.html
           grep -q 'Everything BridgePoint' site/app/technology/index.html
+          grep -q 'Everything BridgePoint in one place' site/owner/everything-v623.js
+          grep -q 'Master Completion' site/owner/completion/index.html
           grep -q 'Public Trust Center' site/enterprise/trust/index.html
           grep -q 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' site/.well-known/security.txt
           grep -q 'BridgePoint State Export Wizard' site/downloads/backup/BridgePoint_State_Export_Wizard.bat
