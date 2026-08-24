@@ -10,6 +10,13 @@ on:
       - start-now/**
       - articles/index.html
       - articles/feed.xml
+      - articles/atom.xml
+      - articles/feed.json
+      - articles/data.json
+      - articles/datapackage.json
+      - articles/dcat.ttl
+      - articles/ct-opportunity-aggregates.csv
+      - articles/bridgepoint-facts.json
       - articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html
       - llms.txt
       - llms-full.txt
@@ -55,9 +62,20 @@ jobs:
             cp -a "$dir/." "site/$dir/"
           done
           mkdir -p site/articles
-          cp articles/index.html site/articles/index.html
-          cp articles/feed.xml site/articles/feed.xml
-          cp articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html site/articles/
+          for file in \
+            index.html \
+            feed.xml \
+            atom.xml \
+            feed.json \
+            data.json \
+            datapackage.json \
+            dcat.ttl \
+            ct-opportunity-aggregates.csv \
+            bridgepoint-facts.json \
+            bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html; do
+            test -s "articles/$file"
+            cp "articles/$file" "site/articles/$file"
+          done
           cp llms.txt llms-full.txt robots.txt sitemap.xml site/
 
           # Protect the customer app from public-content deployments.
@@ -74,12 +92,22 @@ jobs:
           test -s site/llms.txt
           test -s site/llms-full.txt
           test -s site/articles/feed.xml
+          test -s site/articles/atom.xml
+          test -s site/articles/feed.json
+          test -s site/articles/data.json
+          test -s site/articles/datapackage.json
+          test -s site/articles/dcat.ttl
           grep -q 'Kole Johnson' site/founder/index.html
           grep -q 'What is BridgePoint Intelligence?' site/answers/index.html
           grep -q 'Founder: Kole Johnson' site/llms.txt
           grep -q 'Connecticut Property Intelligence Pulse' site/articles/feed.xml
+          grep -q 'Connecticut Property Intelligence Pulse' site/articles/atom.xml
+          grep -q 'Connecticut Property Intelligence Pulse' site/articles/feed.json
+          grep -q 'Kole Johnson' site/articles/data.json
+          grep -q 'Kole Johnson' site/articles/datapackage.json
+          grep -q 'Kole Johnson' site/articles/dcat.ttl
 
-          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|sb_secret_|OPENAI_API_KEY[[:space:]]*=|ANTHROPIC_API_KEY[[:space:]]*=|sk-proj-|sk-ant-|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/founder site/answers site/press site/start-now site/llms.txt site/llms-full.txt site/articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html; then
+          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|sb_secret_|OPENAI_API_KEY[[:space:]]*=|ANTHROPIC_API_KEY[[:space:]]*=|sk-proj-|sk-ant-|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/founder site/answers site/press site/start-now site/llms.txt site/llms-full.txt site/articles; then
             echo 'Privileged secret marker found in public discovery surfaces.' >&2
             exit 1
           fi
@@ -124,6 +152,12 @@ jobs:
             'https://bridgepointintelligence.online/llms.txt' \
             'https://bridgepointintelligence.online/llms-full.txt' \
             'https://bridgepointintelligence.online/start-now/' \
+            'https://bridgepointintelligence.online/articles/feed.xml' \
+            'https://bridgepointintelligence.online/articles/atom.xml' \
+            'https://bridgepointintelligence.online/articles/feed.json' \
+            'https://bridgepointintelligence.online/articles/data.json' \
+            'https://bridgepointintelligence.online/articles/datapackage.json' \
+            'https://bridgepointintelligence.online/articles/dcat.ttl' \
             'https://bridgepointintelligence.online/articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html'; do
             code="$(curl -L -sS --retry 6 --retry-delay 3 -o /tmp/page -w '%{http_code}' "$url" || true)"
             echo "$url -> $code"
@@ -132,6 +166,7 @@ jobs:
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/founder/' | grep -q 'Kole Johnson'
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/answers/' | grep -q 'What is BridgePoint Intelligence?'
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/articles/feed.xml' | grep -q 'Connecticut Property Intelligence Pulse'
+          curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/articles/data.json' | grep -q 'Kole Johnson'
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/app/main.dart.js' -o /tmp/main.dart.js
           grep -q 'display_name' /tmp/main.dart.js
           grep -q 'Open Account & Settings for' /tmp/main.dart.js
