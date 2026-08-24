@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.olekingkole28-dot/bridgepoint-intelligence",
   "title": "BridgePoint Intelligence",
-  "description": "Read-only public property and claims intelligence discovery tools for BridgePoint Intelligence, founder Kole Johnson, public research, and address-free Connecticut aggregate facts.",
-  "version": "1.0.0",
+  "description": "Read-only BridgePoint Intelligence research and company-knowledge tools with standard search/fetch support, canonical citations, founder Kole Johnson, and address-free Connecticut aggregate facts.",
+  "version": "1.1.0",
   "repository": {
     "url": "https://github.com/olekingkole28-dot/bridgepoint-live",
     "source": "github"
