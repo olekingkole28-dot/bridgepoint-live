@@ -7,6 +7,7 @@ on:
       - .github/workflows/deploy-v653-avatar-last-write-guard.yml
   workflow_run:
     workflows:
+      - "Deploy BridgePoint AI Discovery Surfaces V669"
       - "Deploy BridgePoint Owner Everything V623"
       - "Deploy BridgePoint V619 Autonomy"
       - "Deploy BridgePoint Experience V550"
@@ -53,7 +54,7 @@ jobs:
           cp -a /tmp/live/. site/
 
           # Replace ONLY the compiled customer app. Preserve current public,
-          # owner, investor, growth, research, download, and technology surfaces.
+          # founder, AI, investor, growth, research, download, and owner surfaces.
           rm -rf site/app
           mkdir -p site/app
           cp -a /tmp/avatar/. site/app/
@@ -77,6 +78,15 @@ jobs:
           grep -q 'Account & Settings' site/app/main.dart.js
           grep -q 'BridgePoint account' site/app/main.dart.js
 
+          # Ensure the new public discovery surfaces survive the avatar guard.
+          test -s site/founder/index.html
+          test -s site/answers/index.html
+          test -s site/llms.txt
+          test -s site/llms-full.txt
+          test -s site/start-now/index.html
+          grep -q 'Kole Johnson' site/founder/index.html
+          grep -q 'What is BridgePoint Intelligence?' site/answers/index.html
+
           APP_DIGEST="$(find site/app -type f ! -name bridgepoint-release.json -print0 | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
           export APP_DIGEST
           python - <<'PY'
@@ -90,6 +100,7 @@ jobs:
             'dynamic_profile_initials':True,
             'account_settings_action_compiled':True,
             'owner_initials_not_customer_default':True,
+            'ai_discovery_surfaces_preserved':True,
             'artifact_sha256':os.environ['APP_DIGEST'],
             'published_at':now,
             'customer_domain':'https://bridgepointintelligence.online/'
@@ -139,3 +150,4 @@ jobs:
           grep -q 'display_name' /tmp/main.dart.js
           grep -q 'Open Account & Settings for' /tmp/main.dart.js
           grep -q 'Account & Settings' /tmp/main.dart.js
+          curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/founder/' | grep -q 'Kole Johnson'
