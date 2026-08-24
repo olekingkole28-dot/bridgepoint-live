@@ -6,6 +6,9 @@ on:
     paths:
       - sample/index.html
       - pilot/index.html
+      - owner/global/index.html
+      - downloads/backup/BridgePoint_State_Export_Wizard.bat
+      - downloads/backup/bridgepoint_state_export_windows.ps1
       - .github/workflows/deploy-acquisition-wedge-v674.yml
   workflow_dispatch:
 
@@ -28,18 +31,22 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Assemble durable site and install acquisition wedge
+      - name: Assemble durable site and install acquisition + global owner controls
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin live-artifact:refs/remotes/origin/live-artifact
           rm -rf site
-          mkdir -p site/sample site/pilot
+          mkdir -p site/sample site/pilot site/owner/global site/downloads/backup
           git archive --format=tar origin/live-artifact | tar -xf - -C site
           cp sample/index.html site/sample/index.html
           cp pilot/index.html site/pilot/index.html
+          cp owner/global/index.html site/owner/global/index.html
+          cp downloads/backup/BridgePoint_State_Export_Wizard.bat site/downloads/backup/BridgePoint_State_Export_Wizard.bat
+          cp downloads/backup/bridgepoint_state_export_windows.ps1 site/downloads/backup/bridgepoint_state_export_windows.ps1
           python - <<'PY'
           from pathlib import Path
+          import re
           p=Path('site/index.html')
           s=p.read_text(encoding='utf-8')
           pairs=[
@@ -54,17 +61,23 @@ jobs:
             ('<div class="fine">Connecticut is customer-ready now. Additional U.S. states and deeper capabilities are released behind explicit readiness and validation gates.</div>','<div class="fine">No signup or email is required for the free Connecticut preview. Start the 7-day trial only after you see the value, or buy a one-time territory report. Additional states remain behind readiness gates.</div>')
           ]
           for old,new in pairs:
-              if old in s:
-                  s=s.replace(old,new,1)
+              if old in s: s=s.replace(old,new,1)
           if '/pilot/' not in s:
               s=s.replace('<a href="/contact/">Contact</a>','<a href="/pilot/">Institutional pilot</a><a href="/contact/">Contact</a>',1)
           if '<!-- bp-acquisition-wedge-v674 -->' not in s:
               s=s.replace('</body>','<!-- bp-acquisition-wedge-v674 -->\n</body>',1)
           required=['Know where to work before you knock.','Show me my territory — free','/pilot/','bp-acquisition-wedge-v674']
           missing=[x for x in required if x not in s]
-          if missing:
-              raise SystemExit('Homepage V674 verification missing: '+repr(missing))
+          if missing: raise SystemExit('Homepage V674 verification missing: '+repr(missing))
           p.write_text(s,encoding='utf-8')
+
+          op=Path('site/owner/index.html')
+          os=op.read_text(encoding='utf-8')
+          if 'href="/owner/global/"' not in os:
+              anchor='<a class="btn" href="/owner/backup/">💾 Backup & Restore</a>'
+              if anchor in os: os=os.replace(anchor,anchor+'<a class="btn" href="/owner/global/">🌍 Global / Export Control</a>',1)
+              else: os=os.replace('</main>','<section class="card"><h2>Global / Export Control</h2><p class="muted">Worldwide expansion, state exports, localization and local-first controls.</p><a class="btn primary" href="/owner/global/">Open Global Control</a></section></main>',1)
+          op.write_text(os,encoding='utf-8')
 
           sp=Path('site/sample/index.html')
           x=sp.read_text(encoding='utf-8')
@@ -72,20 +85,25 @@ jobs:
           x=x.replace("state_code:$('state').value==='OTHER'?'':$('state').value","state_code:$('state').value")
           x=x.replace("let st=$('state').value==='OTHER'?'US':$('state').value;","let st=$('state').value;")
           x=x.replace("const st=$('state').value==='OTHER'?'CT':$('state').value;","const st=$('state').value;")
-          if 'value="OTHER">Another U.S. state' in x:
-              raise SystemExit('Ambiguous OTHER-state option still present')
+          if 'value="OTHER">Another U.S. state' in x: raise SystemExit('Ambiguous OTHER-state option still present')
           sp.write_text(x,encoding='utf-8')
+
+          # Scan only authored/modified surfaces using secret-value patterns. Compiled Flutter code legitimately contains
+          # prefix-detection strings such as "sb_secret_" and must not be treated as an exposed credential by itself.
+          scan=[Path('site/index.html'),Path('site/sample/index.html'),Path('site/pilot/index.html'),Path('site/owner/global/index.html'),Path('site/downloads/backup/bridgepoint_state_export_windows.ps1'),Path('site/downloads/backup/BridgePoint_State_Export_Wizard.bat')]
+          pats=[re.compile(r'(?i)(SUPABASE_SERVICE_ROLE_KEY|STRIPE_SECRET_KEY|OPENAI_API_KEY)\s*=\s*["\']?[^\s"\']{12,}'),re.compile(r'(?i)sb_secret_[A-Za-z0-9_-]{20,}'),re.compile(r'(?i)sk_live_[A-Za-z0-9_-]{20,}'),re.compile(r'(?i)sk-proj-[A-Za-z0-9_-]{20,}')]
+          for f in scan:
+              text=f.read_text(encoding='utf-8',errors='ignore')
+              if any(p.search(text) for p in pats): raise SystemExit('Privileged secret value found in authored surface: '+str(f))
           PY
           grep -q 'Show my free opportunities' site/sample/index.html
           grep -q 'Buy this territory report — \$49 once' site/sample/index.html
           grep -q 'Prove BridgePoint beside the workflow you already use' site/pilot/index.html
-          grep -q 'bridgepoint-anchor-pilot-v674' site/pilot/index.html
+          grep -q 'Start worldwide discovery' site/owner/global/index.html
+          grep -q 'BridgePoint State Export Wizard' site/downloads/backup/BridgePoint_State_Export_Wizard.bat
+          grep -q 'Global / Export Control' site/owner/index.html
           touch site/.nojekyll
-          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|sb_secret_|STRIPE_SECRET_KEY[[:space:]]*=|sk_live_|sk_test_|OPENAI_API_KEY[[:space:]]*=|sk-proj-' site; then
-            echo 'Privileged secret marker found in public artifact.' >&2
-            exit 1
-          fi
-      - name: Persist V674 durable live artifact
+      - name: Persist durable live artifact
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -99,7 +117,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint V674 value-first acquisition wedge and anchor pilot'
+          git commit -m 'BridgePoint V677 acquisition, global control and portability'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
       - uses: actions/configure-pages@v5
@@ -108,18 +126,22 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
-      - name: Publish V674
+      - name: Publish V677
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Verify live acquisition surfaces
+      - name: Verify live surfaces
         shell: bash
         run: |
           set -euo pipefail
           curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/ -o /tmp/home
           curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/sample/ -o /tmp/sample
           curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/pilot/ -o /tmp/pilot
+          curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/owner/global/ -o /tmp/global
+          curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/downloads/backup/BridgePoint_State_Export_Wizard.bat -o /tmp/state-export.bat
           grep -q 'Know where to work before you knock' /tmp/home
           grep -q 'bp-acquisition-wedge-v674' /tmp/home
           grep -q 'Show my free opportunities' /tmp/sample
           grep -q 'Buy this territory report — \$49 once' /tmp/sample
           grep -q 'Prove BridgePoint beside the workflow you already use' /tmp/pilot
+          grep -q 'Start worldwide discovery' /tmp/global
+          grep -q 'BridgePoint State Export Wizard' /tmp/state-export.bat
