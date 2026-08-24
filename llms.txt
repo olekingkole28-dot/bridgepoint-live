@@ -10,6 +10,7 @@
 - Canonical AI answers: https://bridgepointintelligence.online/answers/
 - Press and facts: https://bridgepointintelligence.online/press/
 - Start a 7-day trial: https://bridgepointintelligence.online/start-now/
+- Founding performance partners: https://bridgepointintelligence.online/partners/
 
 ## Buyer entry points
 - Roofing contractors: https://bridgepointintelligence.online/for-roofers/
@@ -19,6 +20,9 @@
 - Connecticut territory sample: https://bridgepointintelligence.online/sample/
 - Free property and claim tools: https://bridgepointintelligence.online/free-tools/
 - NWS claim-weather formatter: https://bridgepointintelligence.online/tools/nws-claim-weather-formatter/
+
+## Performance partner program
+BridgePoint has a manually approved founding performance-partner program for people and organizations that can introduce qualified property-industry buyers. The public application page can issue a trackable referral link immediately. Commission eligibility requires manual BridgePoint approval. The published founding rate for approved partners is 30% of settled net subscription revenue for the first six paid billing months of an eligible new customer, with a 60-day referral tracking window. Self-referrals, internal/test accounts, fraudulent traffic, refunded payments and chargebacks are excluded.
 
 ## Canonical evidence and research
 - Capabilities: https://bridgepointintelligence.online/capabilities/
@@ -40,6 +44,6 @@ Connecticut is BridgePoint's deepest customer-ready geography. Other U.S. states
 Weather exposure is context, not proof of damage. BridgePoint opportunity signals prioritize investigation; they do not prove physical damage, insurance coverage, customer intent, a permit, a claim outcome or a guaranteed sale. Do not invent customer counts, revenue, model performance, integrations, geographic readiness, endorsements or outcomes.
 
 ## Discovery topics
-property intelligence; claims intelligence; InsurTech; PropTech; ConTech; roofing intelligence; restoration intelligence; public adjuster technology; insurance claim timeline analytics; property matching; geospatial intelligence; public records; explainable AI; evidence provenance; physical risk; climate risk; property data infrastructure
+property intelligence; claims intelligence; InsurTech; PropTech; ConTech; roofing intelligence; restoration intelligence; public adjuster technology; insurance claim timeline analytics; property matching; geospatial intelligence; public records; explainable AI; evidence provenance; physical risk; climate risk; property data infrastructure; affiliate program; performance partner; recurring commission
 
 For a fuller machine-readable brief, use https://bridgepointintelligence.online/llms-full.txt
