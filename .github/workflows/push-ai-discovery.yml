@@ -1,0 +1,83 @@
+name: Push BridgePoint AI Discovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - founder/**
+      - answers/**
+      - press/**
+      - llms.txt
+      - llms-full.txt
+      - sitemap.xml
+      - start-now/**
+      - server.json
+      - .github/workflows/push-ai-discovery.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bridgepoint-ai-discovery
+  cancel-in-progress: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for public site deployment
+        run: sleep 75
+
+      - name: Push AI, founder, facts and conversion URLs to IndexNow
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >/tmp/indexnow-ai.json <<'JSON'
+          {
+            "host": "bridgepointintelligence.online",
+            "key": "dc8a83e4caade76fd824cf929dca48d6",
+            "keyLocation": "https://bridgepointintelligence.online/dc8a83e4caade76fd824cf929dca48d6.txt",
+            "urlList": [
+              "https://bridgepointintelligence.online/",
+              "https://bridgepointintelligence.online/founder/",
+              "https://bridgepointintelligence.online/answers/",
+              "https://bridgepointintelligence.online/press/",
+              "https://bridgepointintelligence.online/press/bridgepoint-facts.json",
+              "https://bridgepointintelligence.online/llms.txt",
+              "https://bridgepointintelligence.online/llms-full.txt",
+              "https://bridgepointintelligence.online/start-now/",
+              "https://bridgepointintelligence.online/articles/",
+              "https://bridgepointintelligence.online/articles/data-desk.html",
+              "https://bridgepointintelligence.online/capabilities/",
+              "https://bridgepointintelligence.online/enterprise/",
+              "https://bridgepointintelligence.online/developers/",
+              "https://bridgepointintelligence.online/investors/"
+            ]
+          }
+          JSON
+          code="$(curl -sS -o /tmp/indexnow-ai-response.txt -w '%{http_code}' -X POST 'https://api.indexnow.org/indexnow' -H 'Content-Type: application/json; charset=utf-8' --data-binary @/tmp/indexnow-ai.json || true)"
+          echo "IndexNow AI discovery HTTP ${code}"
+          cat /tmp/indexnow-ai-response.txt || true
+          if [ "$code" != "200" ] && [ "$code" != "202" ]; then
+            exit 1
+          fi
+
+      - name: Verify canonical machine-discovery surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          for url in \
+            'https://bridgepointintelligence.online/founder/' \
+            'https://bridgepointintelligence.online/answers/' \
+            'https://bridgepointintelligence.online/press/' \
+            'https://bridgepointintelligence.online/llms.txt' \
+            'https://bridgepointintelligence.online/llms-full.txt' \
+            'https://bridgepointintelligence.online/start-now/'; do
+            code="$(curl -L -sS -o /tmp/page -w '%{http_code}' "$url" || true)"
+            echo "$url -> $code"
+            test "$code" = "200"
+          done
+          curl -fsSL 'https://bridgepointintelligence.online/founder/' | grep -q 'Kole Johnson'
+          curl -fsSL 'https://bridgepointintelligence.online/answers/' | grep -q 'What is BridgePoint Intelligence?'
+          curl -fsSL 'https://bridgepointintelligence.online/llms.txt' | grep -q 'Founder: Kole Johnson'
