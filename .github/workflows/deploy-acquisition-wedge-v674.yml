@@ -1,4 +1,4 @@
-name: Deploy BridgePoint Acquisition + Portability V680
+name: Deploy BridgePoint Acquisition + Portability V681
 
 on:
   push:
@@ -7,10 +7,7 @@ on:
       - sample/index.html
       - pilot/index.html
       - owner/global/index.html
-      - downloads/backup/BridgePoint_State_Export_Wizard.bat
-      - downloads/backup/bridgepoint_state_export_windows.ps1
-      - downloads/backup/BridgePoint_Local_Run.bat
-      - downloads/backup/bridgepoint_local_runner.py
+      - downloads/backup/**
       - .github/workflows/deploy-acquisition-wedge-v674.yml
   workflow_dispatch:
 
@@ -44,11 +41,8 @@ jobs:
           cp sample/index.html site/sample/index.html
           cp pilot/index.html site/pilot/index.html
           cp owner/global/index.html site/owner/global/index.html
-          cp downloads/backup/BridgePoint_State_Export_Wizard.bat site/downloads/backup/BridgePoint_State_Export_Wizard.bat
-          cp downloads/backup/bridgepoint_state_export_windows.ps1 site/downloads/backup/bridgepoint_state_export_windows.ps1
-          cp downloads/backup/BridgePoint_Local_Run.bat site/downloads/backup/BridgePoint_Local_Run.bat
-          cp downloads/backup/bridgepoint_local_runner.py site/downloads/backup/bridgepoint_local_runner.py
-          python -m py_compile downloads/backup/bridgepoint_local_runner.py
+          cp -a downloads/backup/. site/downloads/backup/
+          python -m py_compile site/downloads/backup/bridgepoint_local_runner.py
           python - <<'PY'
           from pathlib import Path
           import re
@@ -71,12 +65,12 @@ jobs:
                   s=s.replace(old,new,1)
           if '/pilot/' not in s:
               s=s.replace('<a href="/contact/">Contact</a>','<a href="/pilot/">Institutional pilot</a><a href="/contact/">Contact</a>',1)
-          if '<!-- bp-acquisition-wedge-v680 -->' not in s:
-              s=s.replace('</body>','<!-- bp-acquisition-wedge-v680 -->\n</body>',1)
-          required=['Know where to work before you knock.','Show me my territory — free','/pilot/','bp-acquisition-wedge-v680']
+          if '<!-- bp-acquisition-wedge-v681 -->' not in s:
+              s=s.replace('</body>','<!-- bp-acquisition-wedge-v681 -->\n</body>',1)
+          required=['Know where to work before you knock.','Show me my territory — free','/pilot/','bp-acquisition-wedge-v681']
           missing=[x for x in required if x not in s]
           if missing:
-              raise SystemExit('Homepage V680 verification missing: '+repr(missing))
+              raise SystemExit('Homepage V681 verification missing: '+repr(missing))
           p.write_text(s,encoding='utf-8')
 
           op=Path('site/owner/index.html')
@@ -99,14 +93,14 @@ jobs:
               raise SystemExit('Ambiguous OTHER-state option still present')
           sp.write_text(x,encoding='utf-8')
 
-          scan=[
-            Path('site/index.html'),Path('site/sample/index.html'),Path('site/pilot/index.html'),
-            Path('site/owner/global/index.html'),Path('site/downloads/backup/bridgepoint_state_export_windows.ps1'),
-            Path('site/downloads/backup/BridgePoint_State_Export_Wizard.bat'),Path('site/downloads/backup/BridgePoint_Local_Run.bat'),
-            Path('site/downloads/backup/bridgepoint_local_runner.py')]
+          # Scan authored public surfaces for credential-shaped values, not harmless
+          # prefix-detection strings in compiled app code.
+          scan=[Path('site/index.html'),Path('site/sample/index.html'),Path('site/pilot/index.html'),Path('site/owner/global/index.html')]
+          scan += [f for f in Path('site/downloads/backup').iterdir() if f.is_file() and f.suffix.lower() in {'.ps1','.py','.bat','.txt'}]
           pats=[
             re.compile(r'(?i)(SUPABASE_SERVICE_ROLE_KEY|STRIPE_SECRET_KEY|OPENAI_API_KEY)\s*=\s*["\']?[^\s"\']{12,}'),
-            re.compile(r'(?i)sb_secret_[A-Za-z0-9_-]{20,}'),re.compile(r'(?i)sk_live_[A-Za-z0-9_-]{20,}'),
+            re.compile(r'(?i)sb_secret_[A-Za-z0-9_-]{20,}'),
+            re.compile(r'(?i)sk_live_[A-Za-z0-9_-]{20,}'),
             re.compile(r'(?i)sk-proj-[A-Za-z0-9_-]{20,}')]
           for f in scan:
               text=f.read_text(encoding='utf-8',errors='ignore')
@@ -120,6 +114,11 @@ jobs:
           grep -q 'BridgePoint State Export Wizard' site/downloads/backup/BridgePoint_State_Export_Wizard.bat
           grep -q 'BridgePoint Local' site/downloads/backup/BridgePoint_Local_Run.bat
           grep -q '127.0.0.1' site/downloads/backup/bridgepoint_local_runner.py
+          grep -q 'BridgePoint Full Backup' site/downloads/backup/BridgePoint_Backup_Wizard.bat
+          grep -q 'pg_dump' site/downloads/backup/bridgepoint_full_export_windows.ps1
+          grep -q 'SHA-256' site/downloads/backup/bridgepoint_verify_backup_windows.ps1
+          grep -q 'BridgePoint Restore Test' site/downloads/backup/BridgePoint_Restore_Test.bat
+          grep -q 'Production BridgePoint database is blocked' site/downloads/backup/bridgepoint_restore_wizard.ps1
           grep -q 'Global / Export Control' site/owner/index.html
           touch site/.nojekyll
       - name: Persist durable live artifact
@@ -136,7 +135,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint V680 acquisition, global control and local portability'
+          git commit -m 'BridgePoint V681 acquisition, global control and complete portability toolkit'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
       - uses: actions/configure-pages@v5
@@ -145,7 +144,7 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
-      - name: Publish V680
+      - name: Publish V681
         id: deployment
         uses: actions/deploy-pages@v4
       - name: Verify live surfaces
@@ -156,15 +155,21 @@ jobs:
           curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/sample/ -o /tmp/sample
           curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/pilot/ -o /tmp/pilot
           curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/owner/global/ -o /tmp/global
-          curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/downloads/backup/BridgePoint_State_Export_Wizard.bat -o /tmp/state-export.bat
-          curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/downloads/backup/BridgePoint_Local_Run.bat -o /tmp/local.bat
-          curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/downloads/backup/bridgepoint_local_runner.py -o /tmp/local.py
+          base=https://bridgepointintelligence.online/downloads/backup
+          for f in BridgePoint_State_Export_Wizard.bat BridgePoint_Local_Run.bat bridgepoint_local_runner.py BridgePoint_Backup_Wizard.bat bridgepoint_backup_wizard.ps1 bridgepoint_full_export_windows.ps1 bridgepoint_verify_backup_windows.ps1 BridgePoint_Restore_Test.bat bridgepoint_restore_wizard.ps1 bridgepoint_restore_test_windows.ps1; do
+            curl -fsSL --retry 10 --retry-delay 3 "$base/$f" -o "/tmp/$f"
+          done
           grep -q 'Know where to work before you knock' /tmp/home
-          grep -q 'bp-acquisition-wedge-v680' /tmp/home
+          grep -q 'bp-acquisition-wedge-v681' /tmp/home
           grep -q 'Show my free opportunities' /tmp/sample
           grep -q 'Buy this territory report — \$49 once' /tmp/sample
           grep -q 'Prove BridgePoint beside the workflow you already use' /tmp/pilot
           grep -q 'Start worldwide discovery' /tmp/global
-          grep -q 'BridgePoint State Export Wizard' /tmp/state-export.bat
-          grep -q 'BridgePoint Local' /tmp/local.bat
-          python -m py_compile /tmp/local.py
+          grep -q 'BridgePoint State Export Wizard' /tmp/BridgePoint_State_Export_Wizard.bat
+          grep -q 'BridgePoint Local' /tmp/BridgePoint_Local_Run.bat
+          python -m py_compile /tmp/bridgepoint_local_runner.py
+          grep -q 'BridgePoint Full Backup' /tmp/BridgePoint_Backup_Wizard.bat
+          grep -q 'pg_dump' /tmp/bridgepoint_full_export_windows.ps1
+          grep -q 'SHA-256' /tmp/bridgepoint_verify_backup_windows.ps1
+          grep -q 'BridgePoint Restore Test' /tmp/BridgePoint_Restore_Test.bat
+          grep -q 'Production BridgePoint database is blocked' /tmp/bridgepoint_restore_wizard.ps1
