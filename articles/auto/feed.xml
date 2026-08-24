@@ -6,27 +6,20 @@
 <atom:link rel="hub" href="https://pubsubhubbub.appspot.com/" />
 <description>Quality-gated BridgePoint Intelligence research and market-readiness briefs.</description>
 <language>en-us</language>
-<lastBuildDate>Mon, 24 Aug 2026 11:49:49 +0000</lastBuildDate>
+<lastBuildDate>Mon, 24 Aug 2026 14:26:37 +0000</lastBuildDate>
+<item>
+<title>Brooklyn roof permit decoded: what a public filing can tell you before anyone inspects the property</title>
+<link>https://bridgepointintelligence.online/articles/auto/brooklyn-roof-permit-decoded-what-a-public-filing-can-tell-you-before-an-7183dc59.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/brooklyn-roof-permit-decoded-what-a-public-filing-can-tell-you-before-an-7183dc59.html</guid>
+<pubDate>Mon, 24 Aug 2026 13:35:00 +0000</pubDate>
+<description>A source-backed public-record explainer that separates documented roof work from assumptions about present condition, storm causation or insurance coverage.</description>
+</item>
 <item>
 <title>What is BridgePoint Intelligence? Property and claims intelligence built around evidence, timelines and action</title>
 <link>https://bridgepointintelligence.online/articles/auto/what-is-bridgepoint-intelligence-property-and-claims-intelligence-built--c5491073.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/what-is-bridgepoint-intelligence-property-and-claims-intelligence-built--c5491073.html</guid>
 <pubDate>Sat, 22 Aug 2026 19:15:57 +0000</pubDate>
 <description>BridgePoint Intelligence is a property-intelligence platform founded by Kole Johnson that combines property identity, public-source evidence, explainable prioritization and verified claim-timeline data.</description>
-</item>
-<item>
-<title>Xactimate-compatible property intelligence: how BridgePoint is designed to fit existing claims workflows</title>
-<link>https://bridgepointintelligence.online/articles/auto/xactimate-compatible-property-intelligence-how-bridgepoint-is-designed-t-fbd99891.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/xactimate-compatible-property-intelligence-how-bridgepoint-is-designed-t-fbd99891.html</guid>
-<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
-<description>BridgePoint is building vendor-neutral claim and property exports now while keeping native Xactimate activation truthfully gated behind authorized integration.</description>
-</item>
-<item>
-<title>Insurance claim delay benchmarks: why disputed-claim timeline duration is a missing data layer</title>
-<link>https://bridgepointintelligence.online/articles/auto/insurance-claim-delay-benchmarks-why-disputed-claim-timeline-duration-is-2f44c18d.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/insurance-claim-delay-benchmarks-why-disputed-claim-timeline-duration-is-2f44c18d.html</guid>
-<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
-<description>A methodology for measuring verified stage-by-stage claim duration without turning observational data into unsupported causal claims.</description>
 </item>
 <item>
 <title>BridgePoint Intelligence opens founding commercial claims pilot for restoration, roofing and public-adjusting firms</title>
@@ -36,11 +29,18 @@
 <description>The Connecticut-born property-intelligence platform is recruiting a limited reference cohort to measure daily workflow use and verified claim-stage duration alongside existing claims systems.</description>
 </item>
 <item>
-<title>Property intelligence for public adjusters: build the claim timeline before the dispute gets old</title>
-<link>https://bridgepointintelligence.online/articles/auto/property-intelligence-for-public-adjusters-build-the-claim-timeline-befo-4b6ec6cf.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/property-intelligence-for-public-adjusters-build-the-claim-timeline-befo-4b6ec6cf.html</guid>
+<title>Commercial restoration claims intelligence: connect property evidence to the claim lifecycle</title>
+<link>https://bridgepointintelligence.online/articles/auto/commercial-restoration-claims-intelligence-connect-property-evidence-to--7b4b6465.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/commercial-restoration-claims-intelligence-connect-property-evidence-to--7b4b6465.html</guid>
 <pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
-<description>A practical framework for using property evidence, provenance and verified milestone timing alongside existing estimating and claims systems.</description>
+<description>How restoration operators can combine property context, field evidence and verified claim timing without replacing estimating or claims-core systems.</description>
+</item>
+<item>
+<title>Xactimate-compatible property intelligence: how BridgePoint is designed to fit existing claims workflows</title>
+<link>https://bridgepointintelligence.online/articles/auto/xactimate-compatible-property-intelligence-how-bridgepoint-is-designed-t-fbd99891.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/xactimate-compatible-property-intelligence-how-bridgepoint-is-designed-t-fbd99891.html</guid>
+<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
+<description>BridgePoint is building vendor-neutral claim and property exports now while keeping native Xactimate activation truthfully gated behind authorized integration.</description>
 </item>
 <item>
 <title>Commercial roofing insurance intelligence: prioritize properties without confusing exposure with damage</title>
@@ -50,11 +50,25 @@
 <description>A commercial-roofing workflow for combining property records, permitted evidence, weather context and claim timing while preserving field-verification limits.</description>
 </item>
 <item>
-<title>Commercial restoration claims intelligence: connect property evidence to the claim lifecycle</title>
-<link>https://bridgepointintelligence.online/articles/auto/commercial-restoration-claims-intelligence-connect-property-evidence-to--7b4b6465.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/commercial-restoration-claims-intelligence-connect-property-evidence-to--7b4b6465.html</guid>
+<title>Insurance claim delay benchmarks: why disputed-claim timeline duration is a missing data layer</title>
+<link>https://bridgepointintelligence.online/articles/auto/insurance-claim-delay-benchmarks-why-disputed-claim-timeline-duration-is-2f44c18d.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/insurance-claim-delay-benchmarks-why-disputed-claim-timeline-duration-is-2f44c18d.html</guid>
 <pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
-<description>How restoration operators can combine property context, field evidence and verified claim timing without replacing estimating or claims-core systems.</description>
+<description>A methodology for measuring verified stage-by-stage claim duration without turning observational data into unsupported causal claims.</description>
+</item>
+<item>
+<title>Property intelligence for public adjusters: build the claim timeline before the dispute gets old</title>
+<link>https://bridgepointintelligence.online/articles/auto/property-intelligence-for-public-adjusters-build-the-claim-timeline-befo-4b6ec6cf.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/property-intelligence-for-public-adjusters-build-the-claim-timeline-befo-4b6ec6cf.html</guid>
+<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
+<description>A practical framework for using property evidence, provenance and verified milestone timing alongside existing estimating and claims systems.</description>
+</item>
+<item>
+<title>Property intelligence for real estate operators: how to prioritize a portfolio without another raw lead list</title>
+<link>https://bridgepointintelligence.online/articles/auto/property-intelligence-for-real-estate-operators-how-to-prioritize-a-port-3902f712.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/property-intelligence-for-real-estate-operators-how-to-prioritize-a-port-3902f712.html</guid>
+<pubDate>Sat, 22 Aug 2026 17:20:43 +0000</pubDate>
+<description>A framework for turning fragmented property records and public signals into explainable portfolio and territory prioritization.</description>
 </item>
 <item>
 <title>Restoration lead intelligence: why multi-signal property evidence beats a storm-only list</title>
@@ -71,24 +85,10 @@
 <description>The defensible work in property intelligence starts before scoring: source discovery, normalization, identity resolution, provenance, refresh and geography-aware quality gates.</description>
 </item>
 <item>
-<title>Property intelligence for real estate operators: how to prioritize a portfolio without another raw lead list</title>
-<link>https://bridgepointintelligence.online/articles/auto/property-intelligence-for-real-estate-operators-how-to-prioritize-a-port-3902f712.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/property-intelligence-for-real-estate-operators-how-to-prioritize-a-port-3902f712.html</guid>
-<pubDate>Sat, 22 Aug 2026 17:20:43 +0000</pubDate>
-<description>A framework for turning fragmented property records and public signals into explainable portfolio and territory prioritization.</description>
-</item>
-<item>
 <title>Property intelligence for roofing contractors: what to verify before driving a territory</title>
 <link>https://bridgepointintelligence.online/articles/auto/property-intelligence-for-roofing-contractors-what-to-verify-before-driv-f07b8482.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/property-intelligence-for-roofing-contractors-what-to-verify-before-driv-f07b8482.html</guid>
 <pubDate>Sat, 22 Aug 2026 17:20:43 +0000</pubDate>
 <description>A practical buyer guide to property matching, source provenance, multi-signal evidence and field verification before a roofing team spends time in a territory.</description>
-</item>
-<item>
-<title>Why weather exposure is not the same thing as property damage</title>
-<link>https://bridgepointintelligence.online/articles/auto/why-weather-exposure-is-not-the-same-thing-as-property-damage-d9e4abae.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/why-weather-exposure-is-not-the-same-thing-as-property-damage-d9e4abae.html</guid>
-<pubDate>Fri, 21 Aug 2026 08:37:21 +0000</pubDate>
-<description>A practical explanation of how BridgePoint separates documented weather context from property-level evidence.</description>
 </item>
 </channel></rss>
