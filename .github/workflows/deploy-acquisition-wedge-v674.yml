@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - sample/index.html
+      - pilot/index.html
       - .github/workflows/deploy-acquisition-wedge-v674.yml
   workflow_dispatch:
 
@@ -33,38 +34,42 @@ jobs:
           set -euo pipefail
           git fetch origin live-artifact:refs/remotes/origin/live-artifact
           rm -rf site
-          mkdir -p site/sample
+          mkdir -p site/sample site/pilot
           git archive --format=tar origin/live-artifact | tar -xf - -C site
           cp sample/index.html site/sample/index.html
+          cp pilot/index.html site/pilot/index.html
           python - <<'PY'
           from pathlib import Path
           p=Path('site/index.html')
           s=p.read_text(encoding='utf-8')
-          replacements={
-            '<title>BridgePoint Intelligence | Property Intelligence Across the U.S.</title>':'<title>BridgePoint Intelligence | Know Where to Work Before You Knock</title>',
-            'content="BridgePoint Intelligence turns fragmented property records, weather exposure, property changes and other permitted evidence into explainable property intelligence. Explore Deep Property Intelligence before entering the app."':'content="See which properties deserve attention first and why. Preview live Connecticut territory opportunities before signup, then unlock the full BridgePoint Intelligence platform."',
-            '>Free territory request<':'>Free territory preview<',
-            '<span class="eyebrow">U.S. property intelligence platform</span>':'<span class="eyebrow">Connecticut opportunity intelligence · U.S. platform</span>',
-            '<h1>One property. One living intelligence record.</h1>':'<h1>Know where to work before you knock.</h1>',
-            '<p>BridgePoint connects property records, weather, physical change, claims evidence, field work, building health, digital twins, climate, sensors and more into one explainable property intelligence system—then keeps improving that picture as new verified evidence arrives.</p>':'<p>Give BridgePoint a territory and your line of work. See real ranked property opportunities and the evidence behind them before you create an account—then use the full platform when you are ready.</p>',
-            '<a class="btn primary" href="#live-proof">See live Connecticut proof</a>':'<a class="btn primary" href="/sample/?utm_source=homepage&utm_medium=hero&utm_campaign=free_territory_preview">Show me my territory — free</a>',
-            '<a class="btn secondary" href="/sample/?utm_source=homepage&utm_medium=hero&utm_campaign=territory_request">Request your territory</a>':'<a class="btn secondary" href="#live-proof">See live Connecticut proof</a>',
-            '<div class="fine">Connecticut is customer-ready now. Additional U.S. states and deeper capabilities are released behind explicit readiness and validation gates.</div>':'<div class="fine">No signup or email is required for the free Connecticut preview. Start the 7-day trial only after you see the value, or buy a one-time territory report. Additional states remain behind readiness gates.</div>'
-          }
-          missing=[]
-          for old,new in replacements.items():
-              if old not in s: missing.append(old[:80])
-              else: s=s.replace(old,new,1)
+          pairs=[
+            ('<title>BridgePoint Intelligence | Property Intelligence Across the U.S.</title>','<title>BridgePoint Intelligence | Know Where to Work Before You Knock</title>'),
+            ('content="BridgePoint Intelligence turns fragmented property records, weather exposure, property changes and other permitted evidence into explainable property intelligence. Explore Deep Property Intelligence before entering the app."','content="See which properties deserve attention first and why. Preview live Connecticut territory opportunities before signup, then unlock the full BridgePoint Intelligence platform."'),
+            ('>Free territory request<','>Free territory preview<'),
+            ('<span class="eyebrow">U.S. property intelligence platform</span>','<span class="eyebrow">Connecticut opportunity intelligence · U.S. platform</span>'),
+            ('<h1>One property. One living intelligence record.</h1>','<h1>Know where to work before you knock.</h1>'),
+            ('<p>BridgePoint connects property records, weather, physical change, claims evidence, field work, building health, digital twins, climate, sensors and more into one explainable property intelligence system—then keeps improving that picture as new verified evidence arrives.</p>','<p>Give BridgePoint a territory and your line of work. See real ranked property opportunities and the evidence behind them before you create an account—then use the full platform when you are ready.</p>'),
+            ('<a class="btn primary" href="#live-proof">See live Connecticut proof</a>','<a class="btn primary" href="/sample/?utm_source=homepage&utm_medium=hero&utm_campaign=free_territory_preview">Show me my territory — free</a>'),
+            ('<a class="btn secondary" href="/sample/?utm_source=homepage&utm_medium=hero&utm_campaign=territory_request">Request your territory</a>','<a class="btn secondary" href="#live-proof">See live Connecticut proof</a>'),
+            ('<div class="fine">Connecticut is customer-ready now. Additional U.S. states and deeper capabilities are released behind explicit readiness and validation gates.</div>','<div class="fine">No signup or email is required for the free Connecticut preview. Start the 7-day trial only after you see the value, or buy a one-time territory report. Additional states remain behind readiness gates.</div>')
+          ]
+          for old,new in pairs:
+              if old in s:
+                  s=s.replace(old,new,1)
+          if '/pilot/' not in s:
+              s=s.replace('<a href="/contact/">Contact</a>','<a href="/pilot/">Institutional pilot</a><a href="/contact/">Contact</a>',1)
+          if '<!-- bp-acquisition-wedge-v674 -->' not in s:
+              s=s.replace('</body>','<!-- bp-acquisition-wedge-v674 -->\n</body>',1)
+          required=['Know where to work before you knock.','Show me my territory — free','/pilot/','bp-acquisition-wedge-v674']
+          missing=[x for x in required if x not in s]
           if missing:
-              raise SystemExit('Homepage acquisition anchors missing: '+repr(missing))
-          marker='<!-- bp-acquisition-wedge-v674 -->'
-          s=s.replace('</body>',marker+'\n</body>',1)
+              raise SystemExit('Homepage V674 verification missing: '+repr(missing))
           p.write_text(s,encoding='utf-8')
           PY
-          grep -q 'bp-acquisition-wedge-v674' site/index.html
-          grep -q 'Know where to work before you knock' site/index.html
-          grep -q 'Show me my territory — free' site/index.html
+          grep -q 'Show my free opportunities' site/sample/index.html
           grep -q 'Buy this territory report — \$49 once' site/sample/index.html
+          grep -q 'Prove BridgePoint beside the workflow you already use' site/pilot/index.html
+          grep -q 'bridgepoint-anchor-pilot-v674' site/pilot/index.html
           touch site/.nojekyll
           if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|sb_secret_|STRIPE_SECRET_KEY[[:space:]]*=|sk_live_|sk_test_|OPENAI_API_KEY[[:space:]]*=|sk-proj-' site; then
             echo 'Privileged secret marker found in public artifact.' >&2
@@ -84,7 +89,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint V674 value-first acquisition wedge'
+          git commit -m 'BridgePoint V674 value-first acquisition wedge and anchor pilot'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
       - uses: actions/configure-pages@v5
@@ -102,7 +107,9 @@ jobs:
           set -euo pipefail
           curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/ -o /tmp/home
           curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/sample/ -o /tmp/sample
+          curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/pilot/ -o /tmp/pilot
           grep -q 'Know where to work before you knock' /tmp/home
           grep -q 'bp-acquisition-wedge-v674' /tmp/home
           grep -q 'Show my free opportunities' /tmp/sample
           grep -q 'Buy this territory report — \$49 once' /tmp/sample
+          grep -q 'Prove BridgePoint beside the workflow you already use' /tmp/pilot
