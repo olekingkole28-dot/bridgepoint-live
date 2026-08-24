@@ -3,18 +3,35 @@ Allow: /
 Disallow: /owner/
 Disallow: /downloads/
 
+# OpenAI search discovery
 User-agent: OAI-SearchBot
 Allow: /
 Disallow: /owner/
 Disallow: /downloads/
 
+# OpenAI model crawler — public knowledge surfaces only
+User-agent: GPTBot
+Allow: /
+Disallow: /owner/
+Disallow: /downloads/
+
+# User-triggered OpenAI fetches
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /owner/
+Disallow: /downloads/
+
+# Perplexity search discovery
 User-agent: PerplexityBot
 Allow: /
 Disallow: /owner/
 Disallow: /downloads/
 
-User-agent: GPTBot
-Disallow: /
+# Anthropic public crawler
+User-agent: ClaudeBot
+Allow: /
+Disallow: /owner/
+Disallow: /downloads/
 
 Sitemap: https://bridgepointintelligence.online/sitemap.xml
 Sitemap: https://bridgepointintelligence.online/articles/auto/sitemap.xml
