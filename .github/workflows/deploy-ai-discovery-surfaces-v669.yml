@@ -1,4 +1,4 @@
-name: Deploy BridgePoint AI Discovery Surfaces V672
+name: Deploy BridgePoint AI Discovery Surfaces V673
 
 on:
   push:
@@ -10,6 +10,7 @@ on:
       - start-now/**
       - partners/**
       - commerce/**
+      - free-tools/**
       - acquisition_tracker.js
       - articles/index.html
       - articles/feed.xml
@@ -48,7 +49,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Overlay public AI discovery, partner and commerce surfaces onto durable live site
+      - name: Overlay public acquisition and discovery surfaces onto durable live site
         shell: bash
         run: |
           set -euo pipefail
@@ -57,7 +58,7 @@ jobs:
           mkdir -p site
           git archive --format=tar origin/live-artifact | tar -xf - -C site
 
-          for dir in founder answers press start-now partners commerce; do
+          for dir in founder answers press start-now partners commerce free-tools; do
             test -d "$dir"
             rm -rf "site/$dir"
             mkdir -p "site/$dir"
@@ -77,7 +78,7 @@ jobs:
           grep -q 'Open Account & Settings for' site/app/main.dart.js
           grep -q 'Account & Settings' site/app/main.dart.js
 
-          # Public discovery contracts.
+          # Public acquisition/discovery contracts.
           test -s site/founder/index.html
           test -s site/answers/index.html
           test -s site/press/index.html
@@ -87,23 +88,27 @@ jobs:
           test -s site/partners/program.yaml
           test -s site/commerce/index.html
           test -s site/commerce/openai-products.csv
+          test -s site/free-tools/index.html
           test -s site/acquisition_tracker.js
           grep -q 'Kole Johnson' site/founder/index.html
           grep -q 'Founding Performance Partners' site/partners/index.html
           grep -q '30%' site/partners/program.yaml
           grep -q 'BP-HOME-MONTHLY' site/commerce/openai-products.csv
           grep -q 'is_eligible_search' site/commerce/openai-products.csv
+          grep -q 'Free Property Intelligence Snapshot' site/free-tools/index.html
+          grep -q 'Founding customer sprint' site/free-tools/index.html
+          grep -q 'bridgepoint-public-property-snapshot-v673' site/free-tools/index.html
           grep -q 'bp_referral_v670' site/acquisition_tracker.js
           grep -q 'Connecticut Property Intelligence Pulse' site/articles/feed.xml
           grep -q 'Kole Johnson' site/articles/data.json
 
-          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|sb_secret_|OPENAI_API_KEY[[:space:]]*=|ANTHROPIC_API_KEY[[:space:]]*=|sk-proj-|sk-ant-|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/founder site/answers site/press site/start-now site/partners site/commerce site/llms.txt site/llms-full.txt site/articles; then
-            echo 'Privileged secret marker found in public discovery surfaces.' >&2
+          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|sb_secret_|OPENAI_API_KEY[[:space:]]*=|ANTHROPIC_API_KEY[[:space:]]*=|sk-proj-|sk-ant-|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' site/founder site/answers site/press site/start-now site/partners site/commerce site/free-tools site/llms.txt site/llms-full.txt site/articles; then
+            echo 'Privileged secret marker found in public surfaces.' >&2
             exit 1
           fi
           touch site/.nojekyll
 
-      - name: Persist discovery-enhanced durable live artifact
+      - name: Persist conversion-enhanced durable live artifact
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -117,7 +122,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint V672 AI discovery, partner and commerce surfaces'
+          git commit -m 'BridgePoint V673 free property snapshot conversion funnel'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -127,11 +132,11 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
-      - name: Publish V672
+      - name: Publish V673
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify public discovery, partner, commerce and avatar contracts
+      - name: Verify acquisition, commerce and avatar contracts
         shell: bash
         run: |
           set -euo pipefail
@@ -146,6 +151,7 @@ jobs:
             'https://bridgepointintelligence.online/partners/program.json' \
             'https://bridgepointintelligence.online/commerce/' \
             'https://bridgepointintelligence.online/commerce/openai-products.csv' \
+            'https://bridgepointintelligence.online/free-tools/' \
             'https://bridgepointintelligence.online/acquisition_tracker.js' \
             'https://bridgepointintelligence.online/articles/feed.xml' \
             'https://bridgepointintelligence.online/articles/data.json'; do
@@ -153,6 +159,7 @@ jobs:
             echo "$url -> $code"
             test "$code" = "200"
           done
+          curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/free-tools/' | grep -q 'Free Property Intelligence Snapshot'
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/commerce/openai-products.csv' | grep -q 'BP-HOME-MONTHLY'
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/partners/' | grep -q '30%'
           curl -fsSL --retry 6 --retry-delay 3 'https://bridgepointintelligence.online/acquisition_tracker.js' | grep -q 'bp_referral_v670'
