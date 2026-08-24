@@ -1,100 +1,140 @@
-name: Verify BridgePoint Live Radar
+name: Verify BridgePoint V683 Live Domain
 
 on:
+  workflow_run:
+    workflows:
+      - "Deploy BridgePoint Single Publisher V683"
+    types: [completed]
   push:
     branches: [main]
     paths:
       - .github/workflows/verify-live.yml
-      - tracking-release-status.json
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: bridgepoint-live-radar-verification
+  group: bridgepoint-v683-live-verification
   cancel-in-progress: true
 
 jobs:
   verify:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch exact public PWA assets
+      - name: Fetch live custom-domain surfaces
+        shell: bash
         run: |
           set -euo pipefail
-          curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/app/bridgepoint-release.json' -o /tmp/live-release.json
-          curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/app/main.dart.js' -o /tmp/live-main.dart.js
-          curl -fsSL --retry 4 --retry-delay 2 'https://bridgepointintelligence.online/app/flutter_bootstrap.js' -o /tmp/live-bootstrap.js
-          test -s /tmp/live-release.json
-          test -s /tmp/live-main.dart.js
-          test -s /tmp/live-bootstrap.js
+          fetch() {
+            local url="$1" out="$2"
+            code="$(curl --proto '=https' --tlsv1.2 -L -sS --retry 6 --retry-delay 3 --max-time 45 -o "$out" -w '%{http_code}' "$url")"
+            echo "$url -> $code"
+            test "$code" = "200"
+            test -s "$out"
+          }
+          fetch 'https://bridgepointintelligence.online/' /tmp/home
+          fetch 'https://bridgepointintelligence.online/app/' /tmp/app-index
+          fetch 'https://bridgepointintelligence.online/app/bridgepoint-release.json' /tmp/release.json
+          fetch 'https://bridgepointintelligence.online/app/public-promotion-v682.json' /tmp/promotion.json
+          fetch 'https://bridgepointintelligence.online/app/main.dart.js' /tmp/main.dart.js
+          fetch 'https://bridgepointintelligence.online/sample/' /tmp/sample
+          fetch 'https://bridgepointintelligence.online/contact/' /tmp/contact
+          fetch 'https://bridgepointintelligence.online/enterprise/trust/' /tmp/trust
+          fetch 'https://bridgepointintelligence.online/capabilities/' /tmp/capabilities
+          fetch 'https://bridgepointintelligence.online/free-tools/' /tmp/free-tools
+          fetch 'https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security.txt
 
-      - name: Verify published release and radar continuity contracts
+      - name: Verify modern compiled app provenance and public contracts
+        shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json
+          import hashlib, json
           from pathlib import Path
-          receipt=json.loads(Path('tracking-release-status.json').read_text(encoding='utf-8'))
-          live=json.loads(Path('/tmp/live-release.json').read_text(encoding='utf-8'))
-          assert receipt.get('status')=='PUBLISHED', receipt
-          assert receipt.get('public_origin')=='https://bridgepointintelligence.online/', receipt
-          assert live.get('version')==receipt.get('app_release_version'), (live,receipt)
-          assert live.get('source_sha')==receipt.get('source_main_sha'), (live,receipt)
-          assert live.get('artifact_sha256')==receipt.get('assembled_artifact_sha256'), (live,receipt)
-          print('Live release marker matches deployment receipt:', live['version'])
-          PY
-          grep -q 'noaa-radar-current-v395' /tmp/live-main.dart.js
-          grep -q 'noaa-radar-prev-v395' /tmp/live-main.dart.js
-          grep -q 'noaa-radar-next-v397' /tmp/live-main.dart.js
-          grep -q 'MapServer/WMSServer?_bp=' /tmp/live-main.dart.js
-          grep -q 'bridgepoint-pwa-update-handoff-v396' /tmp/live-bootstrap.js
-          grep -q 'BridgePoint update ready' /tmp/live-bootstrap.js
-          echo 'Public compiled PWA contains stable current/prior radar + adjacent prefetch + update handoff.'
 
-      - name: Bounded NOAA radar transport QA
+          release=json.loads(Path('/tmp/release.json').read_text(encoding='utf-8'))
+          promotion=json.loads(Path('/tmp/promotion.json').read_text(encoding='utf-8'))
+          actual=hashlib.sha256(Path('/tmp/main.dart.js').read_bytes()).hexdigest()
+
+          assert release.get('public_origin') == 'https://bridgepointintelligence.online/', release
+          assert release.get('version') == promotion.get('compiled_source_sha'), (release,promotion)
+          assert actual == promotion.get('main_js_sha256'), (actual,promotion.get('main_js_sha256'))
+          assert promotion.get('source_repo_private') is True, promotion
+          assert promotion.get('public_release') == 682, promotion
+          assert release.get('version') not in {444,'444',653,'653'}, release
+          print('Verified compiled app source:', release.get('version'))
+          print('Verified main.dart.js SHA-256:', actual)
+          PY
+
+          grep -q '<base href="/app/">' /tmp/app-index
+          grep -q 'Know where to work before you knock' /tmp/home
+          grep -q 'Trust Center' /tmp/home
+          grep -q 'Show my free opportunities' /tmp/sample
+          grep -q 'independent Connecticut-based property-intelligence software platform' /tmp/contact
+          grep -q 'Public Trust Center' /tmp/trust
+          grep -q 'Everything BridgePoint Can Do' /tmp/capabilities
+          grep -q 'Free Property Intelligence Snapshot' /tmp/free-tools
+          grep -q 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security.txt
+
+          if grep -E -i 'sb_secret_[A-Za-z0-9_-]{20,}|sk_live_[A-Za-z0-9_-]{20,}|sk-proj-[A-Za-z0-9_-]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' /tmp/home /tmp/app-index /tmp/sample /tmp/contact /tmp/trust /tmp/capabilities /tmp/free-tools /tmp/security.txt; then
+            echo 'Privileged secret-shaped value found on a fetched public surface.' >&2
+            exit 1
+          fi
+
+      - name: Verify NOAA radar transports remain reachable
+        shell: bash
         run: |
           set -euo pipefail
-          curl -fsSL --retry 2 --retry-delay 2 --max-time 20 \
+          curl --proto '=https' --tlsv1.2 -fsSL --retry 2 --retry-delay 2 --max-time 25 \
             'https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0' \
             -o /tmp/noaa-now.xml
-          curl -fsSL --retry 2 --retry-delay 2 --max-time 20 \
+          curl --proto '=https' --tlsv1.2 -fsSL --retry 2 --retry-delay 2 --max-time 25 \
             'https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity_time/ImageServer/WMSServer?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0' \
             -o /tmp/noaa-history.xml
-          test -s /tmp/noaa-now.xml
-          test -s /tmp/noaa-history.xml
           grep -qi 'WMS_Capabilities\|WMT_MS_Capabilities' /tmp/noaa-now.xml
           grep -qi 'WMS_Capabilities\|WMT_MS_Capabilities' /tmp/noaa-history.xml
-          echo 'NOAA current and time-aware historical WMS transports are reachable.'
 
-      - name: Record live radar verification receipt
+      - name: Record V683 live verification receipt
+        shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json
+          import hashlib, json
           from datetime import datetime, timezone
           from pathlib import Path
-          release=json.loads(Path('/tmp/live-release.json').read_text(encoding='utf-8'))
+
+          release=json.loads(Path('/tmp/release.json').read_text(encoding='utf-8'))
+          promotion=json.loads(Path('/tmp/promotion.json').read_text(encoding='utf-8'))
+          actual=hashlib.sha256(Path('/tmp/main.dart.js').read_bytes()).hexdigest()
           status={
             'status':'VERIFIED',
-            'release_version':release['version'],
-            'source_sha':release['source_sha'],
-            'artifact_sha256':release['artifact_sha256'],
+            'publisher_release':683,
+            'compiled_public_release':promotion.get('public_release'),
+            'compiled_source_sha':promotion.get('compiled_source_sha'),
+            'main_js_sha256':actual,
             'verified_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
             'public_origin':'https://bridgepointintelligence.online/',
+            'source_repo_private':promotion.get('source_repo_private') is True,
             'checks':{
-              'public_release_matches_receipt':True,
-              'compiled_current_radar_layer_v395':True,
-              'compiled_prior_radar_layer_v395':True,
-              'compiled_next_frame_prefetch_v397':True,
-              'compiled_fresh_now_revision':True,
-              'pwa_update_handoff_v396':True,
+              'custom_domain_https_200':True,
+              'compiled_digest_matches_promotion_receipt':True,
+              'release_source_matches_promotion_receipt':True,
+              'obsolete_v444_v653_regression_blocked':True,
+              'territory_first_homepage_live':True,
+              'sample_surface_live':True,
+              'contact_identity_surface_live':True,
+              'trust_center_live':True,
+              'capability_catalog_live':True,
+              'free_tools_live':True,
+              'security_txt_live':True,
+              'no_privileged_secret_shape_on_checked_surfaces':True,
               'noaa_current_wms_reachable':True,
-              'noaa_historical_wms_reachable':True,
-            },
-            'note':'Bounded live artifact/transport QA. Authenticated gesture/timing observation remains a separate browser-session check.'
+              'noaa_historical_wms_reachable':True
+            }
           }
           Path('live-verification-status.json').write_text(json.dumps(status,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(status,indent=2))
@@ -102,5 +142,9 @@ jobs:
           git config user.name 'BridgePoint Verification Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add live-verification-status.json
-          git commit -m 'Record BridgePoint live radar verification [skip ci]'
-          git push origin HEAD:main
+          if git diff --cached --quiet; then
+            echo 'Verification receipt unchanged.'
+          else
+            git commit -m 'Record guarded V683 live-domain verification [skip ci]'
+            git push origin HEAD:main
+          fi
