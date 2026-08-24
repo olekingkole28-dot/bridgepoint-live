@@ -1,19 +1,26 @@
 {
   "status": "VERIFIED",
-  "release_version": 443,
-  "source_sha": "2c357f65a6b67afc924b624fe5f9e86cce5d0dc6",
-  "artifact_sha256": "7f49edc6b9c70ca51d976a4200100d2da94f246fce3755e4fd6bf9f7926c44b9",
-  "verified_at": "2026-08-22T14:04:10.000029Z",
+  "publisher_release": 683,
+  "compiled_public_release": 682,
+  "compiled_source_sha": "9fd86839adbce02e48d36d893828b0e9cccd7987",
+  "main_js_sha256": "4be550aac49824ceb1093cbd1f322244988e3e187e092e3c0885c76572609f51",
+  "verified_at": "2026-08-24T05:08:04.433579Z",
   "public_origin": "https://bridgepointintelligence.online/",
+  "source_repo_private": true,
   "checks": {
-    "public_release_matches_receipt": true,
-    "compiled_current_radar_layer_v395": true,
-    "compiled_prior_radar_layer_v395": true,
-    "compiled_next_frame_prefetch_v397": true,
-    "compiled_fresh_now_revision": true,
-    "pwa_update_handoff_v396": true,
+    "custom_domain_https_200": true,
+    "compiled_digest_matches_promotion_receipt": true,
+    "release_source_matches_promotion_receipt": true,
+    "obsolete_v444_v653_regression_blocked": true,
+    "territory_first_homepage_live": true,
+    "sample_surface_live": true,
+    "contact_identity_surface_live": true,
+    "trust_center_live": true,
+    "capability_catalog_live": true,
+    "free_tools_live": true,
+    "security_txt_live": true,
+    "no_privileged_secret_shape_on_checked_surfaces": true,
     "noaa_current_wms_reachable": true,
     "noaa_historical_wms_reachable": true
-  },
-  "note": "Bounded live artifact/transport QA. Authenticated gesture/timing observation remains a separate browser-session check."
+  }
 }
