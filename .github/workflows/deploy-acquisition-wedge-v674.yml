@@ -1,4 +1,4 @@
-name: Deploy BridgePoint Acquisition + Portability V681
+name: Deploy BridgePoint Single Publisher V683
 
 on:
   push:
@@ -8,6 +8,8 @@ on:
       - pilot/index.html
       - owner/global/index.html
       - downloads/backup/**
+      - enterprise/trust/index.html
+      - .well-known/security.txt
       - .github/workflows/deploy-acquisition-wedge-v674.yml
   workflow_dispatch:
 
@@ -30,87 +32,75 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Assemble durable BridgePoint site
+
+      - name: Assemble current durable BridgePoint release
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin live-artifact:refs/remotes/origin/live-artifact
-          rm -rf site
-          mkdir -p site/sample site/pilot site/owner/global site/downloads/backup
+          rm -rf site && mkdir site
           git archive --format=tar origin/live-artifact | tar -xf - -C site
+
+          mkdir -p site/sample site/pilot site/owner/global site/downloads/backup site/enterprise/trust site/.well-known
           cp sample/index.html site/sample/index.html
           cp pilot/index.html site/pilot/index.html
           cp owner/global/index.html site/owner/global/index.html
           cp -a downloads/backup/. site/downloads/backup/
+          cp enterprise/trust/index.html site/enterprise/trust/index.html
+          cp .well-known/security.txt site/.well-known/security.txt
+
           python -m py_compile site/downloads/backup/bridgepoint_local_runner.py
           python - <<'PY'
           from pathlib import Path
-          import re
+          import hashlib, json, re
 
-          p=Path('site/index.html')
-          s=p.read_text(encoding='utf-8')
-          pairs=[
-            ('<title>BridgePoint Intelligence | Property Intelligence Across the U.S.</title>','<title>BridgePoint Intelligence | Know Where to Work Before You Knock</title>'),
-            ('content="BridgePoint Intelligence turns fragmented property records, weather exposure, property changes and other permitted evidence into explainable property intelligence. Explore Deep Property Intelligence before entering the app."','content="See which properties deserve attention first and why. Preview live Connecticut territory opportunities before signup, then unlock the full BridgePoint Intelligence platform."'),
-            ('>Free territory request<','>Free territory preview<'),
-            ('<span class="eyebrow">U.S. property intelligence platform</span>','<span class="eyebrow">Connecticut opportunity intelligence · U.S. platform</span>'),
-            ('<h1>One property. One living intelligence record.</h1>','<h1>Know where to work before you knock.</h1>'),
-            ('<p>BridgePoint connects property records, weather, physical change, claims evidence, field work, building health, digital twins, climate, sensors and more into one explainable property intelligence system—then keeps improving that picture as new verified evidence arrives.</p>','<p>Give BridgePoint a territory and your line of work. See real ranked property opportunities and the evidence behind them before you create an account—then use the full platform when you are ready.</p>'),
-            ('<a class="btn primary" href="#live-proof">See live Connecticut proof</a>','<a class="btn primary" href="/sample/?utm_source=homepage&utm_medium=hero&utm_campaign=free_territory_preview">Show me my territory — free</a>'),
-            ('<a class="btn secondary" href="/sample/?utm_source=homepage&utm_medium=hero&utm_campaign=territory_request">Request your territory</a>','<a class="btn secondary" href="#live-proof">See live Connecticut proof</a>'),
-            ('<div class="fine">Connecticut is customer-ready now. Additional U.S. states and deeper capabilities are released behind explicit readiness and validation gates.</div>','<div class="fine">No signup or email is required for the free Connecticut preview. Start the 7-day trial only after you see the value, or buy a one-time territory report. Additional states remain behind readiness gates.</div>')
-          ]
-          for old,new in pairs:
-              if old in s:
-                  s=s.replace(old,new,1)
-          if '/pilot/' not in s:
-              s=s.replace('<a href="/contact/">Contact</a>','<a href="/pilot/">Institutional pilot</a><a href="/contact/">Contact</a>',1)
-          if '<!-- bp-acquisition-wedge-v681 -->' not in s:
-              s=s.replace('</body>','<!-- bp-acquisition-wedge-v681 -->\n</body>',1)
-          required=['Know where to work before you knock.','Show me my territory — free','/pilot/','bp-acquisition-wedge-v681']
+          release_path=Path('site/app/bridgepoint-release.json')
+          promotion_path=Path('site/app/public-promotion-v682.json')
+          app_js=Path('site/app/main.dart.js')
+          if not (release_path.is_file() and promotion_path.is_file() and app_js.is_file()):
+              raise SystemExit('Modern compiled-app promotion receipt is missing.')
+          release=json.loads(release_path.read_text(encoding='utf-8'))
+          promotion=json.loads(promotion_path.read_text(encoding='utf-8'))
+          if release.get('version') != promotion.get('compiled_source_sha'):
+              raise SystemExit('Compiled app source SHA does not match promotion receipt.')
+          actual=hashlib.sha256(app_js.read_bytes()).hexdigest()
+          if actual != promotion.get('main_js_sha256'):
+              raise SystemExit('Compiled app digest does not match promotion receipt.')
+          if release.get('version') in {653, '653'} or promotion.get('compiled_source_sha') in {444, '444'}:
+              raise SystemExit('Obsolete V444/V653 app regression blocked.')
+          if promotion.get('source_repo_private') is not True:
+              raise SystemExit('Private-source provenance guard failed.')
+
+          home=Path('site/index.html')
+          s=home.read_text(encoding='utf-8')
+          required=['Know where to work before you knock.','Show me my territory — free','bp-acquisition-wedge-v681']
           missing=[x for x in required if x not in s]
           if missing:
-              raise SystemExit('Homepage V681 verification missing: '+repr(missing))
-          p.write_text(s,encoding='utf-8')
+              raise SystemExit('Acquisition wedge missing: '+repr(missing))
+          if 'href="/enterprise/trust/"' not in s:
+              s=s.replace('<a href="/contact/">Contact</a>','<a href="/enterprise/trust/">Trust Center</a><a href="/contact/">Contact</a>',1)
+          home.write_text(s,encoding='utf-8')
 
-          op=Path('site/owner/index.html')
-          os=op.read_text(encoding='utf-8')
-          if 'href="/owner/global/"' not in os:
-              anchor='<a class="btn" href="/owner/backup/">💾 Backup & Restore</a>'
-              if anchor in os:
-                  os=os.replace(anchor,anchor+'<a class="btn" href="/owner/global/">🌍 Global / Export Control</a>',1)
-              else:
-                  os=os.replace('</main>','<section class="card"><h2>Global / Export Control</h2><p class="muted">Worldwide expansion, state exports, localization and local-first controls.</p><a class="btn primary" href="/owner/global/">Open Global Control</a></section></main>',1)
-          op.write_text(os,encoding='utf-8')
-
-          sp=Path('site/sample/index.html')
-          x=sp.read_text(encoding='utf-8')
-          x=x.replace('<option value="OTHER">Another U.S. state — building</option>','')
-          x=x.replace("state_code:$('state').value==='OTHER'?'':$('state').value","state_code:$('state').value")
-          x=x.replace("let st=$('state').value==='OTHER'?'US':$('state').value;","let st=$('state').value;")
-          x=x.replace("const st=$('state').value==='OTHER'?'CT':$('state').value;","const st=$('state').value;")
-          if 'value="OTHER">Another U.S. state' in x:
-              raise SystemExit('Ambiguous OTHER-state option still present')
-          sp.write_text(x,encoding='utf-8')
-
-          # Scan authored public surfaces for credential-shaped values, not harmless
-          # prefix-detection strings in compiled app code.
-          scan=[Path('site/index.html'),Path('site/sample/index.html'),Path('site/pilot/index.html'),Path('site/owner/global/index.html')]
-          scan += [f for f in Path('site/downloads/backup').iterdir() if f.is_file() and f.suffix.lower() in {'.ps1','.py','.bat','.txt'}]
+          authored=[Path('site/index.html'),Path('site/sample/index.html'),Path('site/pilot/index.html'),Path('site/owner/global/index.html'),Path('site/enterprise/trust/index.html'),Path('site/.well-known/security.txt')]
+          authored += [f for f in Path('site/downloads/backup').iterdir() if f.is_file() and f.suffix.lower() in {'.ps1','.py','.bat','.txt'}]
           pats=[
             re.compile(r'(?i)(SUPABASE_SERVICE_ROLE_KEY|STRIPE_SECRET_KEY|OPENAI_API_KEY)\s*=\s*["\']?[^\s"\']{12,}'),
             re.compile(r'(?i)sb_secret_[A-Za-z0-9_-]{20,}'),
             re.compile(r'(?i)sk_live_[A-Za-z0-9_-]{20,}'),
             re.compile(r'(?i)sk-proj-[A-Za-z0-9_-]{20,}')]
-          for f in scan:
+          for f in authored:
               text=f.read_text(encoding='utf-8',errors='ignore')
               if any(p.search(text) for p in pats):
-                  raise SystemExit('Privileged secret value found in authored surface: '+str(f))
+                  raise SystemExit('Privileged secret-shaped value found in '+str(f))
           PY
+
+          grep -q '<base href="/app/">' site/app/index.html
           grep -q 'Show my free opportunities' site/sample/index.html
           grep -q 'Buy this territory report — \$49 once' site/sample/index.html
           grep -q 'Prove BridgePoint beside the workflow you already use' site/pilot/index.html
           grep -q 'Start worldwide discovery' site/owner/global/index.html
+          grep -q 'Public Trust Center' site/enterprise/trust/index.html
+          grep -q 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' site/.well-known/security.txt
           grep -q 'BridgePoint State Export Wizard' site/downloads/backup/BridgePoint_State_Export_Wizard.bat
           grep -q 'BridgePoint Local' site/downloads/backup/BridgePoint_Local_Run.bat
           grep -q '127.0.0.1' site/downloads/backup/bridgepoint_local_runner.py
@@ -119,9 +109,9 @@ jobs:
           grep -q 'SHA-256' site/downloads/backup/bridgepoint_verify_backup_windows.ps1
           grep -q 'BridgePoint Restore Test' site/downloads/backup/BridgePoint_Restore_Test.bat
           grep -q 'Production BridgePoint database is blocked' site/downloads/backup/bridgepoint_restore_wizard.ps1
-          grep -q 'Global / Export Control' site/owner/index.html
-          touch site/.nojekyll
-      - name: Persist durable live artifact
+          touch site/.nojekyll site/app/.nojekyll
+
+      - name: Persist exact V683 durable artifact
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -130,46 +120,35 @@ jobs:
           rm -rf /tmp/final-live && mkdir /tmp/final-live
           cp -a site/. /tmp/final-live/
           cd /tmp/final-live
-          git init
+          git init -q
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'BridgePoint V681 acquisition, global control and complete portability toolkit'
+          git commit -m 'BridgePoint V683 guarded single-publisher release'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
+
       - uses: actions/configure-pages@v5
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
-      - name: Publish V681
+      - name: Publish V683
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Verify live surfaces
+
+      - name: Verify live release
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/ -o /tmp/home
-          curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/sample/ -o /tmp/sample
-          curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/pilot/ -o /tmp/pilot
-          curl -fsSL --retry 10 --retry-delay 3 https://bridgepointintelligence.online/owner/global/ -o /tmp/global
-          base=https://bridgepointintelligence.online/downloads/backup
-          for f in BridgePoint_State_Export_Wizard.bat BridgePoint_Local_Run.bat bridgepoint_local_runner.py BridgePoint_Backup_Wizard.bat bridgepoint_backup_wizard.ps1 bridgepoint_full_export_windows.ps1 bridgepoint_verify_backup_windows.ps1 BridgePoint_Restore_Test.bat bridgepoint_restore_wizard.ps1 bridgepoint_restore_test_windows.ps1; do
-            curl -fsSL --retry 10 --retry-delay 3 "$base/$f" -o "/tmp/$f"
-          done
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/' -o /tmp/home
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/app/bridgepoint-release.json' -o /tmp/release.json
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/app/public-promotion-v682.json' -o /tmp/promotion.json
+          curl -fsSL --retry 10 --retry-delay 3 'https://bridgepointintelligence.online/enterprise/trust/' -o /tmp/trust
           grep -q 'Know where to work before you knock' /tmp/home
-          grep -q 'bp-acquisition-wedge-v681' /tmp/home
-          grep -q 'Show my free opportunities' /tmp/sample
-          grep -q 'Buy this territory report — \$49 once' /tmp/sample
-          grep -q 'Prove BridgePoint beside the workflow you already use' /tmp/pilot
-          grep -q 'Start worldwide discovery' /tmp/global
-          grep -q 'BridgePoint State Export Wizard' /tmp/BridgePoint_State_Export_Wizard.bat
-          grep -q 'BridgePoint Local' /tmp/BridgePoint_Local_Run.bat
-          python -m py_compile /tmp/bridgepoint_local_runner.py
-          grep -q 'BridgePoint Full Backup' /tmp/BridgePoint_Backup_Wizard.bat
-          grep -q 'pg_dump' /tmp/bridgepoint_full_export_windows.ps1
-          grep -q 'SHA-256' /tmp/bridgepoint_verify_backup_windows.ps1
-          grep -q 'BridgePoint Restore Test' /tmp/BridgePoint_Restore_Test.bat
-          grep -q 'Production BridgePoint database is blocked' /tmp/bridgepoint_restore_wizard.ps1
+          grep -q 'Trust Center' /tmp/home
+          grep -q '9fd86839adbce02e48d36d893828b0e9cccd7987' /tmp/release.json
+          grep -q '"public_release":682' /tmp/promotion.json
+          grep -q 'Public Trust Center' /tmp/trust
