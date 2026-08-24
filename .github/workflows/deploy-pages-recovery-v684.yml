@@ -1,0 +1,56 @@
+name: Deploy BridgePoint Pages Recovery V684
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/deploy-pages-recovery-v684.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout durable live artifact
+        uses: actions/checkout@v4
+        with:
+          ref: live-artifact
+          fetch-depth: 1
+
+      - name: Read existing Pages configuration
+        uses: actions/configure-pages@v5
+
+      - name: Upload durable BridgePoint artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Publish durable BridgePoint artifact
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify public BridgePoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          for url in \
+            'https://bridgepointintelligence.online/' \
+            'https://bridgepointintelligence.online/app/' \
+            'https://bridgepointintelligence.online/enterprise/trust/' \
+            'https://bridgepointintelligence.online/sample/'; do
+            code="$(curl -L -sS --retry 6 --retry-delay 3 -o /tmp/page -w '%{http_code}' "$url" || true)"
+            echo "$url -> $code"
+            test "$code" = "200"
+          done
