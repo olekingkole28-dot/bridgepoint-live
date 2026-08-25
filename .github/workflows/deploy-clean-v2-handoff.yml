@@ -24,9 +24,9 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     env:
-      EXPECTED_SOURCE: a014ccde6df596764907aa2d3daf237049e75e90
-      EXPECTED_ARCHIVE_SHA: 4534bc382f2844b50881317daaf84c21be42130d58acdc890682dd8d8ce8dc77
-      RELEASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co/storage/v1/object/public/bridgepoint-release-handoff/clean-v2-a014ccde6df596764907aa2d3daf237049e75e90.tar.gz
+      EXPECTED_SOURCE: 92c1f489f188c5f45af597a18ca192f1660231a7
+      EXPECTED_ARCHIVE_SHA: 4a41f04c91715a835481eaf8802ad8b0d740254810a80ceaaf3608e4644b804b
+      RELEASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co/storage/v1/object/public/bridgepoint-release-handoff/clean-v2-92c1f489f188c5f45af597a18ca192f1660231a7.tar.gz
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,10 +62,12 @@ jobs:
           release=json.loads((target/'bridgepoint-v2-release.json').read_text())
           if release.get('architecture')!='clean-v2': raise SystemExit('Clean V2 marker missing in downloaded release')
           if release.get('version')!=os.environ['EXPECTED_SOURCE']: raise SystemExit('Downloaded release source SHA mismatch')
+          if release.get('restored_product_surfaces') is not True: raise SystemExit('Restored product marker missing')
+          if release.get('progressive_national_map') is not True: raise SystemExit('Progressive national map marker missing')
           print(json.dumps({'source_sha':release['version'],'archive_bytes':len(archive),'archive_sha256':actual},indent=2))
           PY
 
-      - name: Assemble durable public site with Clean V2 app
+      - name: Assemble durable public site with restored Clean V2 app
         shell: bash
         run: |
           set -euo pipefail
@@ -88,6 +90,8 @@ jobs:
           promotion=json.loads(Path('site/app/public-promotion-v682.json').read_text())
           if release.get('architecture')!='clean-v2': raise SystemExit('Clean V2 marker missing')
           if release.get('version')!=expected: raise SystemExit('V2 release/source SHA mismatch')
+          if release.get('restored_product_surfaces') is not True: raise SystemExit('Restored product marker missing')
+          if release.get('progressive_national_map') is not True: raise SystemExit('Progressive map marker missing')
           if compat.get('version')!=expected: raise SystemExit('Compatibility release/source SHA mismatch')
           if promotion.get('compiled_source_sha')!=expected: raise SystemExit('Promotion/source SHA mismatch')
           if promotion.get('source_repo_private') is not True: raise SystemExit('Private-source provenance missing')
@@ -97,9 +101,10 @@ jobs:
           if '<base href="/app/">' not in index: raise SystemExit('App base href is not /app/')
           if 'Install BridgePoint' not in index: raise SystemExit('Install BridgePoint marker missing')
           if 'bp-expansion-launcher' in index: raise SystemExit('Legacy expansion overlay leaked into Clean V2 host')
+          if not Path('site/app/assets/assets/brand/bridgepoint-mark-v80.svg').is_file(): raise SystemExit('BridgePoint brand mark missing from durable assets')
           if not Path('site/app/assets/assets/images/bridgepoint-intelligence-background-v1.webp').is_file(): raise SystemExit('Existing app assets were not preserved')
           if not Path('site/app/canvaskit/canvaskit.wasm').is_file(): raise SystemExit('Existing CanvasKit runtime was not preserved')
-          print('Clean V2 public site contract verified for '+expected)
+          print('Restored Clean V2 public site contract verified for '+expected)
           PY
 
       - name: Persist exact durable live-artifact
@@ -116,7 +121,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m "Publish BridgePoint Clean V2 durable app ${EXPECTED_SOURCE}"
+          git commit -m "Publish restored BridgePoint Clean V2 app ${EXPECTED_SOURCE}"
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -126,11 +131,11 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: site
-      - name: Deploy Clean V2
+      - name: Deploy restored Clean V2
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify public Clean V2 app
+      - name: Verify public restored Clean V2 app
         shell: bash
         run: |
           set -euo pipefail
@@ -138,12 +143,13 @@ jobs:
           for attempt in $(seq 1 24); do
             marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-v2-release.json?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
             app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
+            brand_code="$(curl -sS -o /tmp/bp-brand.svg -w '%{http_code}' --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/assets/assets/brand/bridgepoint-mark-v80.svg?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
             root="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
-            if printf '%s' "$marker" | grep -q "$EXPECTED_SOURCE" && printf '%s' "$marker" | grep -q 'clean-v2' && printf '%s' "$app" | grep -q 'flutter_bootstrap.js' && [ "${#root}" -gt 200 ]; then
-              echo "BridgePoint Clean V2 verified live at ${ORIGIN}/app/"
+            if printf '%s' "$marker" | grep -q "$EXPECTED_SOURCE" && printf '%s' "$marker" | grep -q 'clean-v2' && printf '%s' "$marker" | grep -q 'restored_product_surfaces' && printf '%s' "$app" | grep -q 'flutter_bootstrap.js' && [ "$brand_code" = '200' ] && grep -q 'BridgePoint Intelligence B and destination mark' /tmp/bp-brand.svg && [ "${#root}" -gt 200 ]; then
+              echo "Restored BridgePoint Clean V2 verified live at ${ORIGIN}/app/"
               exit 0
             fi
             sleep 10
           done
-          echo 'Public Clean V2 marker did not converge.' >&2
+          echo 'Public restored Clean V2 marker did not converge.' >&2
           exit 1
