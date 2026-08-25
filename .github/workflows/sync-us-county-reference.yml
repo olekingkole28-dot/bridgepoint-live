@@ -1,0 +1,46 @@
+name: Sync U.S. County Reference
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/sync-us-county-reference.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch official Census county reference
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt'
+          tmp="$(mktemp)"
+          curl --fail --location --retry 4 --retry-all-errors --connect-timeout 20 --max-time 120 "$url" -o "$tmp"
+          first="$(head -n 1 "$tmp" | tr -d '\r')"
+          test "$first" = 'STATE|STATEFP|COUNTYFP|COUNTYNS|COUNTYNAME|CLASSFP|FUNCSTAT'
+          lines="$(wc -l < "$tmp")"
+          test "$lines" -gt 3000
+          mkdir -p data
+          mv "$tmp" data/national_county2020.txt
+          printf '{"source":"%s","source_authority":"U.S. Census Bureau","rows_including_header":%s,"synced_at":"%s"}\n' \
+            "$url" "$lines" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > data/national_county2020.meta.json
+
+      - name: Commit reference when changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'BridgePoint Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add data/national_county2020.txt data/national_county2020.meta.json
+          if git diff --cached --quiet; then
+            echo 'No county-reference change.'
+            exit 0
+          fi
+          git commit -m 'Sync official Census county reference'
+          git push
