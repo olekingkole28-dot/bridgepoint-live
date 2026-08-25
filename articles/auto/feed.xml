@@ -6,7 +6,7 @@
 <atom:link rel="hub" href="https://pubsubhubbub.appspot.com/" />
 <description>Quality-gated BridgePoint Intelligence research and market-readiness briefs.</description>
 <language>en-us</language>
-<lastBuildDate>Tue, 25 Aug 2026 03:16:27 +0000</lastBuildDate>
+<lastBuildDate>Tue, 25 Aug 2026 05:17:54 +0000</lastBuildDate>
 <item>
 <title>Harwinton roof permit decoded: what a public filing can tell you before anyone inspects the property</title>
 <link>https://bridgepointintelligence.online/articles/auto/harwinton-roof-permit-decoded-what-a-public-filing-can-tell-you-before-a-fdb52a63.html</link>
@@ -71,18 +71,18 @@
 <description>A practical buyer guide to property matching, source provenance, multi-signal evidence and field verification before a roofing team spends time in a territory.</description>
 </item>
 <item>
-<title>Why nationwide property intelligence is a data-infrastructure problem, not just an AI model</title>
-<link>https://bridgepointintelligence.online/articles/auto/why-nationwide-property-intelligence-is-a-data-infrastructure-problem-no-0d6ca8b1.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/why-nationwide-property-intelligence-is-a-data-infrastructure-problem-no-0d6ca8b1.html</guid>
-<pubDate>Sat, 22 Aug 2026 17:20:43 +0000</pubDate>
-<description>The defensible work in property intelligence starts before scoring: source discovery, normalization, identity resolution, provenance, refresh and geography-aware quality gates.</description>
-</item>
-<item>
 <title>Property intelligence for real estate operators: how to prioritize a portfolio without another raw lead list</title>
 <link>https://bridgepointintelligence.online/articles/auto/property-intelligence-for-real-estate-operators-how-to-prioritize-a-port-3902f712.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/property-intelligence-for-real-estate-operators-how-to-prioritize-a-port-3902f712.html</guid>
 <pubDate>Sat, 22 Aug 2026 17:20:43 +0000</pubDate>
 <description>A framework for turning fragmented property records and public signals into explainable portfolio and territory prioritization.</description>
+</item>
+<item>
+<title>Why nationwide property intelligence is a data-infrastructure problem, not just an AI model</title>
+<link>https://bridgepointintelligence.online/articles/auto/why-nationwide-property-intelligence-is-a-data-infrastructure-problem-no-0d6ca8b1.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/why-nationwide-property-intelligence-is-a-data-infrastructure-problem-no-0d6ca8b1.html</guid>
+<pubDate>Sat, 22 Aug 2026 17:20:43 +0000</pubDate>
+<description>The defensible work in property intelligence starts before scoring: source discovery, normalization, identity resolution, provenance, refresh and geography-aware quality gates.</description>
 </item>
 <item>
 <title>Restoration lead intelligence: why multi-signal property evidence beats a storm-only list</title>
