@@ -24,10 +24,10 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     env:
-      EXPECTED_SOURCE: 8c6abbf9e12a9a51155f4b109c4ca4493decad91
-      EXPECTED_ARCHIVE_SHA: 7f09128d2055bbcca60a4f4dd4d2cc66ff6cc984281a6c3d850488c852dcfc71
-      EXPECTED_FONT_SHA: 4b23192bf49e3c48098dcd2b26a47b815a6076ad571149d2d9c3b5a010346cd7
-      RELEASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co/storage/v1/object/public/bridgepoint-release-handoff/clean-v2-8c6abbf9e12a9a51155f4b109c4ca4493decad91.tar.gz
+      EXPECTED_SOURCE: b9f6aa060641a132de9ef884c11d515d897d330f
+      EXPECTED_ARCHIVE_SHA: e0d74227f7904723cc6ca51f3bd275a1b870b2473e18716d7c59227286555158
+      EXPECTED_FONT_SHA: 0df8f065d89ba11840a32e4783e7fde12eebff11a594d9b76190e5ceded95a81
+      RELEASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co/storage/v1/object/public/bridgepoint-release-handoff/clean-v2-b9f6aa060641a132de9ef884c11d515d897d330f.tar.gz
     steps:
       - uses: actions/checkout@v4
         with:
@@ -106,7 +106,7 @@ jobs:
           if 'bp-expansion-launcher' in index: raise SystemExit('Legacy overlay leaked')
           if not Path('site/app/assets/assets/brand/bridgepoint-mark-v80.svg').is_file(): raise SystemExit('Brand mark missing')
           if not Path('site/app/canvaskit/canvaskit.wasm').is_file(): raise SystemExit('CanvasKit runtime missing')
-          print('Icon-complete restored V2 public site contract verified for '+expected)
+          print('Map-polished restored V2 public site contract verified for '+expected)
           PY
 
       - name: Persist exact durable live-artifact
@@ -123,7 +123,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m "Publish icon-complete restored BridgePoint V2 ${EXPECTED_SOURCE}"
+          git commit -m "Publish map-polished restored BridgePoint V2 ${EXPECTED_SOURCE}"
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -150,10 +150,10 @@ jobs:
             root="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
             font_sha="$(sha256sum /tmp/bp-icons.otf 2>/dev/null | awk '{print $1}' || true)"
             if printf '%s' "$marker" | grep -q "$EXPECTED_SOURCE" && printf '%s' "$marker" | grep -q 'current_icon_font' && printf '%s' "$app" | grep -q 'flutter_bootstrap.js' && [ "$brand_code" = '200' ] && [ "$font_code" = '200' ] && [ "$font_sha" = "$EXPECTED_FONT_SHA" ] && grep -q 'BridgePoint Intelligence B and destination mark' /tmp/bp-brand.svg && [ "${#root}" -gt 200 ]; then
-              echo "Icon-complete restored BridgePoint V2 verified live at ${ORIGIN}/app/"
+              echo "Map-polished restored BridgePoint V2 verified live at ${ORIGIN}/app/"
               exit 0
             fi
             sleep 10
           done
-          echo 'Public icon-complete restored V2 did not converge.' >&2
+          echo 'Public map-polished restored V2 did not converge.' >&2
           exit 1
