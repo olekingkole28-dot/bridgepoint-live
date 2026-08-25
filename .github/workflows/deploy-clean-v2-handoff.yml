@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - '.github/workflows/deploy-clean-v2-handoff.yml'
       - 'handoff/clean-v2/**'
   workflow_dispatch:
 
@@ -22,44 +23,46 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      EXPECTED_SOURCE: a014ccde6df596764907aa2d3daf237049e75e90
+      EXPECTED_ARCHIVE_SHA: 4534bc382f2844b50881317daaf84c21be42130d58acdc890682dd8d8ce8dc77
+      RELEASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co/storage/v1/object/public/bridgepoint-release-handoff/clean-v2-a014ccde6df596764907aa2d3daf237049e75e90.tar.gz
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Reconstruct and verify private-source V2 handoff
+      - name: Download and verify private-source Clean V2 release
         shell: bash
         run: |
           set -euo pipefail
-          test -s handoff/clean-v2/manifest.json
+          rm -rf /tmp/bridgepoint-v2-delta /tmp/bridgepoint-v2-delta.tar.gz
+          mkdir -p /tmp/bridgepoint-v2-delta
+          curl -fsSL --retry 6 --retry-delay 2 -H 'Cache-Control: no-cache' "$RELEASE_URL" -o /tmp/bridgepoint-v2-delta.tar.gz
           python - <<'PY'
           from pathlib import Path
-          import base64, hashlib, json, tarfile
-          root=Path('handoff/clean-v2')
-          manifest=json.loads((root/'manifest.json').read_text())
-          chunks=sorted(root.glob('chunk-*'))
-          expected=int(manifest['chunk_count'])
-          if len(chunks)!=expected:
-              raise SystemExit(f'Expected {expected} chunks, found {len(chunks)}')
-          encoded=b''.join(p.read_bytes() for p in chunks)
-          archive=base64.b64decode(encoded, validate=True)
+          import hashlib, json, os, tarfile
+          archive_path=Path('/tmp/bridgepoint-v2-delta.tar.gz')
+          archive=archive_path.read_bytes()
           actual=hashlib.sha256(archive).hexdigest()
-          if actual != manifest['archive_sha256']:
-              raise SystemExit(f'Handoff SHA mismatch: {actual} != {manifest["archive_sha256"]}')
-          out=Path('/tmp/bridgepoint-v2-delta.tar.gz')
-          out.write_bytes(archive)
+          expected=os.environ['EXPECTED_ARCHIVE_SHA']
+          if actual != expected:
+              raise SystemExit(f'Release SHA mismatch: {actual} != {expected}')
           target=Path('/tmp/bridgepoint-v2-delta')
-          target.mkdir(parents=True, exist_ok=True)
-          with tarfile.open(out,'r:gz') as tf:
+          with tarfile.open(archive_path,'r:gz') as tf:
+              base=target.resolve()
               for member in tf.getmembers():
                   resolved=(target/member.name).resolve()
-                  if not str(resolved).startswith(str(target.resolve())):
+                  if not str(resolved).startswith(str(base)):
                       raise SystemExit('Unsafe archive path')
               tf.extractall(target)
           required=['index.html','main.dart.js','flutter_bootstrap.js','manifest.json','bridgepoint-v2-release.json','bridgepoint-release.json','public-promotion-v682.json']
           missing=[p for p in required if not (target/p).is_file()]
-          if missing: raise SystemExit('Handoff missing: '+', '.join(missing))
-          print(json.dumps({'source_sha':manifest['source_sha'],'chunks':len(chunks),'archive_bytes':len(archive)},indent=2))
+          if missing: raise SystemExit('Release missing: '+', '.join(missing))
+          release=json.loads((target/'bridgepoint-v2-release.json').read_text())
+          if release.get('architecture')!='clean-v2': raise SystemExit('Clean V2 marker missing in downloaded release')
+          if release.get('version')!=os.environ['EXPECTED_SOURCE']: raise SystemExit('Downloaded release source SHA mismatch')
+          print(json.dumps({'source_sha':release['version'],'archive_bytes':len(archive),'archive_sha256':actual},indent=2))
           PY
 
       - name: Assemble durable public site with Clean V2 app
@@ -78,15 +81,15 @@ jobs:
 
           python - <<'PY'
           from pathlib import Path
-          import hashlib, json
-          manifest=json.loads(Path('handoff/clean-v2/manifest.json').read_text())
+          import hashlib, json, os
+          expected=os.environ['EXPECTED_SOURCE']
           release=json.loads(Path('site/app/bridgepoint-v2-release.json').read_text())
           compat=json.loads(Path('site/app/bridgepoint-release.json').read_text())
           promotion=json.loads(Path('site/app/public-promotion-v682.json').read_text())
           if release.get('architecture')!='clean-v2': raise SystemExit('Clean V2 marker missing')
-          if release.get('version')!=manifest.get('source_sha'): raise SystemExit('V2 release/source SHA mismatch')
-          if compat.get('version')!=manifest.get('source_sha'): raise SystemExit('Compatibility release/source SHA mismatch')
-          if promotion.get('compiled_source_sha')!=manifest.get('source_sha'): raise SystemExit('Promotion/source SHA mismatch')
+          if release.get('version')!=expected: raise SystemExit('V2 release/source SHA mismatch')
+          if compat.get('version')!=expected: raise SystemExit('Compatibility release/source SHA mismatch')
+          if promotion.get('compiled_source_sha')!=expected: raise SystemExit('Promotion/source SHA mismatch')
           if promotion.get('source_repo_private') is not True: raise SystemExit('Private-source provenance missing')
           actual=hashlib.sha256(Path('site/app/main.dart.js').read_bytes()).hexdigest()
           if actual!=promotion.get('main_js_sha256'): raise SystemExit('Compiled JS digest mismatch')
@@ -96,7 +99,7 @@ jobs:
           if 'bp-expansion-launcher' in index: raise SystemExit('Legacy expansion overlay leaked into Clean V2 host')
           if not Path('site/app/assets/assets/images/bridgepoint-intelligence-background-v1.webp').is_file(): raise SystemExit('Existing app assets were not preserved')
           if not Path('site/app/canvaskit/canvaskit.wasm').is_file(): raise SystemExit('Existing CanvasKit runtime was not preserved')
-          print('Clean V2 public site contract verified for '+manifest['source_sha'])
+          print('Clean V2 public site contract verified for '+expected)
           PY
 
       - name: Persist exact durable live-artifact
@@ -113,14 +116,14 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'Publish BridgePoint Clean V2 durable app'
+          git commit -m "Publish BridgePoint Clean V2 durable app ${EXPECTED_SOURCE}"
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v4
+      - name: Read existing Pages configuration
+        uses: actions/configure-pages@v5
+      - name: Upload durable Clean V2 site
+        uses: actions/upload-pages-artifact@v4
         with:
           path: site
       - name: Deploy Clean V2
@@ -131,13 +134,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          EXPECTED="$(python -c "import json;print(json.load(open('handoff/clean-v2/manifest.json'))['source_sha'])")"
           ORIGIN='https://bridgepointintelligence.online'
           for attempt in $(seq 1 24); do
-            marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-v2-release.json?verify=${EXPECTED}" 2>/dev/null || true)"
-            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?verify=${EXPECTED}" 2>/dev/null || true)"
-            root="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/?verify=${EXPECTED}" 2>/dev/null || true)"
-            if printf '%s' "$marker" | grep -q "$EXPECTED" && printf '%s' "$marker" | grep -q 'clean-v2' && printf '%s' "$app" | grep -q 'flutter_bootstrap.js' && [ "${#root}" -gt 200 ]; then
+            marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-v2-release.json?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
+            root="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
+            if printf '%s' "$marker" | grep -q "$EXPECTED_SOURCE" && printf '%s' "$marker" | grep -q 'clean-v2' && printf '%s' "$app" | grep -q 'flutter_bootstrap.js' && [ "${#root}" -gt 200 ]; then
               echo "BridgePoint Clean V2 verified live at ${ORIGIN}/app/"
               exit 0
             fi
