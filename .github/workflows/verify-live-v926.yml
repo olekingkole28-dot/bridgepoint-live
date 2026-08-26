@@ -209,15 +209,27 @@ jobs:
               'noaa_current_wms_reachable':True,'noaa_historical_wms_reachable':True
             }
           }
-          Path('live-verification-status-v926.json').write_text(json.dumps(status,indent=2)+'\n',encoding='utf-8')
+          Path('/tmp/live-verification-status-v926.json').write_text(json.dumps(status,indent=2)+'\n',encoding='utf-8')
           print(json.dumps(status,indent=2))
           PY
           git config user.name 'BridgePoint Verification Bot'
           git config user.email 'actions@users.noreply.github.com'
-          git add live-verification-status-v926.json
-          if git diff --cached --quiet; then
-            echo 'V926 verification receipt unchanged.'
-          else
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git checkout -B v926-receipt-write origin/main
+            cp /tmp/live-verification-status-v926.json live-verification-status-v926.json
+            git add live-verification-status-v926.json
+            if git diff --cached --quiet; then
+              echo 'V926 verification receipt already current.'
+              exit 0
+            fi
             git commit -m 'Record current multi-viewport live verification V926 [skip ci]'
-            git push origin HEAD:main
-          fi
+            if git push origin HEAD:main; then
+              echo "V926 verification receipt published on attempt ${attempt}."
+              exit 0
+            fi
+            echo "Concurrent main update detected; retrying receipt publication (${attempt}/5)."
+            sleep 2
+          done
+          echo 'Could not publish V926 receipt after concurrency-safe retries.' >&2
+          exit 1
