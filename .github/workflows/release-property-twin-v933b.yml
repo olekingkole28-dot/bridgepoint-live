@@ -1,0 +1,109 @@
+name: Release Property Twin V933
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-property-twin-v933b.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout control scripts
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: control
+          fetch-depth: 1
+
+      - name: Checkout durable live artifact
+        uses: actions/checkout@v4
+        with:
+          ref: live-artifact
+          path: site
+          fetch-depth: 0
+
+      - name: Apply guarded V933 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python control/ops/patch-property-twin-v933.py site/app/twin/index.html site/app/property-twin-release-v933.json
+          grep -q 'bridgepoint_property_terrain_v931' site/app/twin/index.html
+          grep -q 'USGS 3DEP terrain elevation' site/app/twin/index.html
+          grep -q '"version": 933' site/app/property-twin-release-v933.json
+
+      - name: Commit durable V933 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd site
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/twin/index.html app/property-twin-release-v933.json
+          if git diff --cached --quiet; then
+            echo 'V933 artifact already present.'
+          else
+            git commit -m 'Release Property Twin terrain intelligence V933'
+            git push origin HEAD:live-artifact
+          fi
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build Pages artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar --dereference --hard-dereference --directory site -cvf "$RUNNER_TEMP/bridgepoint-pages-v933.tar" --exclude=.git --exclude=.github .
+          tar -tf "$RUNNER_TEMP/bridgepoint-pages-v933.tar" > "$RUNNER_TEMP/v933-files.txt"
+          grep -Fxq './.well-known/security.txt' "$RUNNER_TEMP/v933-files.txt"
+          grep -Fxq './.nojekyll' "$RUNNER_TEMP/v933-files.txt"
+          grep -Fxq './app/twin/index.html' "$RUNNER_TEMP/v933-files.txt"
+          grep -Fxq './app/property-twin-release-v933.json' "$RUNNER_TEMP/v933-files.txt"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-pages
+          path: ${{ runner.temp }}/bridgepoint-pages-v933.tar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify V933 production surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 24); do
+            stamp="$(date +%s)"
+            twin_code="$(curl -L -sS --max-time 20 -o /tmp/twin-v933 -w '%{http_code}' "${ORIGIN}/app/twin/?verify_v933=${stamp}" || true)"
+            rel_code="$(curl -L -sS --max-time 20 -o /tmp/release-v933 -w '%{http_code}' "${ORIGIN}/app/property-twin-release-v933.json?verify_v933=${stamp}" || true)"
+            sec_code="$(curl -L -sS --max-time 20 -o /tmp/security-v933 -w '%{http_code}' "${ORIGIN}/.well-known/security.txt" || true)"
+            if [ "$twin_code" = '200' ] && [ "$rel_code" = '200' ] && [ "$sec_code" = '200' ]; then
+              if grep -q 'bridgepoint_property_terrain_v931' /tmp/twin-v933 && grep -q 'USGS 3DEP terrain elevation' /tmp/twin-v933 && grep -q '"version": 933' /tmp/release-v933 && grep -q 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security-v933; then
+                echo 'BridgePoint Property Twin V933 verified live.'
+                exit 0
+              fi
+            fi
+            echo "attempt=${attempt} twin=${twin_code} release=${rel_code} security=${sec_code}"
+            sleep 10
+          done
+          exit 1
