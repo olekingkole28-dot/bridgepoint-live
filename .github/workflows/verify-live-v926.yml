@@ -42,8 +42,6 @@ jobs:
           fetch "https://bridgepointintelligence.online/app/twin/?verify_v926=${stamp}" /tmp/twin
           fetch "https://bridgepointintelligence.online/app/twin-launcher.js?verify_v926=${stamp}" /tmp/twin-launcher.js
           fetch "https://bridgepointintelligence.online/app/property-twin-release-v922.json?verify_v926=${stamp}" /tmp/twin-release.json
-          # This exact well-known route is intentionally fetched without a query string.
-          # The custom-domain edge returns 404 when a cache-buster is appended to this file.
           fetch "https://bridgepointintelligence.online/.well-known/security.txt" /tmp/security.txt
 
       - name: Verify current release contracts and public-secret boundary
@@ -99,7 +97,11 @@ jobs:
             {name:'tablet',width:768,height:1024,isMobile:true,hasTouch:true},
             {name:'desktop',width:1440,height:900,isMobile:false,hasTouch:false},
           ];
-          const ignorable=x=>/favicon|ERR_BLOCKED_BY_CLIENT|404 \(Not Found\)/i.test(x);
+          const genericResourceConsole=x=>/Failed to load resource:.*status of (404|4\d\d|5\d\d)/i.test(x);
+          const knownIgnorableUrl=url=>{
+            try { const u=new URL(url); return u.origin===ORIGIN && /^\/favicon\.ico(?:$|\?)/.test(u.pathname); }
+            catch { return false; }
+          };
           (async()=>{
             const browser=await puppeteer.launch({
               executablePath:process.env.CHROME,
@@ -113,9 +115,11 @@ jobs:
                 const page=await browser.newPage();
                 page.setDefaultTimeout(25000);
                 await page.setViewport({width:vp.width,height:vp.height,deviceScaleFactor:1,isMobile:vp.isMobile,hasTouch:vp.hasTouch});
-                const consoleErrors=[],pageErrors=[];
+                const consoleErrors=[],pageErrors=[],httpErrors=[],requestFailures=[];
                 page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text())});
                 page.on('pageerror',e=>pageErrors.push(String(e.message||e)));
+                page.on('response',r=>{if(r.status()>=400)httpErrors.push({status:r.status(),url:r.url()})});
+                page.on('requestfailed',r=>requestFailures.push({url:r.url(),error:r.failure()?.errorText||'request failed'}));
 
                 await page.goto(`${ORIGIN}/?verify_v926_${vp.name}=${Date.now()}`,{waitUntil:'domcontentloaded',timeout:40000});
                 await page.waitForSelector('h1',{visible:true,timeout:15000});
@@ -148,10 +152,15 @@ jobs:
                 if(!twin.hasAuth && !twin.authVisible) throw new Error(`${vp.name}: unauthenticated Twin gate missing`);
                 if(twin.overflow>8) throw new Error(`${vp.name}: Property Twin horizontal overflow ${twin.overflow}px`);
 
-                const badConsole=consoleErrors.filter(x=>!ignorable(x));
+                const criticalHttp=httpErrors.filter(x=>!knownIgnorableUrl(x.url));
+                const criticalFailed=requestFailures.filter(x=>!knownIgnorableUrl(x.url));
+                const badConsole=consoleErrors.filter(x=>!genericResourceConsole(x) && !/ERR_BLOCKED_BY_CLIENT|favicon/i.test(x));
+                console.log(`V926_${vp.name.toUpperCase()}_NETWORK`,JSON.stringify({httpErrors,requestFailures,consoleErrors,pageErrors}));
                 if(pageErrors.length) throw new Error(`${vp.name}: page errors ${JSON.stringify(pageErrors.slice(0,5))}`);
+                if(criticalHttp.length) throw new Error(`${vp.name}: HTTP resource errors ${JSON.stringify(criticalHttp.slice(0,8))}`);
+                if(criticalFailed.length) throw new Error(`${vp.name}: failed requests ${JSON.stringify(criticalFailed.slice(0,8))}`);
                 if(badConsole.length) throw new Error(`${vp.name}: console errors ${JSON.stringify(badConsole.slice(0,5))}`);
-                results.push({viewport:vp.name,home,app,twin});
+                results.push({viewport:vp.name,home,app,twin,httpErrors,requestFailures});
                 await page.close();
               }
               console.log('V926_BROWSER_RESULTS',JSON.stringify(results));
@@ -184,24 +193,13 @@ jobs:
           from pathlib import Path
           release=json.loads(Path('/tmp/twin-release.json').read_text(encoding='utf-8'))
           status={
-            'status':'VERIFIED',
-            'verifier_version':926,
-            'property_twin_release':release.get('version'),
-            'trigger_sha':os.environ['CURRENT_SHA'],
-            'verified_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
-            'public_origin':'https://bridgepointintelligence.online/',
+            'status':'VERIFIED','verifier_version':926,'property_twin_release':release.get('version'),'trigger_sha':os.environ['CURRENT_SHA'],
+            'verified_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),'public_origin':'https://bridgepointintelligence.online/',
             'checks':{
-              'current_release_contract':True,
-              'custom_domain_https_200':True,
-              'public_secret_boundary_checked':True,
-              'phone_390x844_home_app_twin_passed':True,
-              'tablet_768x1024_home_app_twin_passed':True,
-              'desktop_1440x900_home_app_twin_passed':True,
-              'flutter_runtime_mounted_all_viewports':True,
-              'property_twin_auth_shell_all_viewports':True,
-              'horizontal_overflow_guard_all_viewports':True,
-              'noaa_current_wms_reachable':True,
-              'noaa_historical_wms_reachable':True
+              'current_release_contract':True,'custom_domain_https_200':True,'public_secret_boundary_checked':True,
+              'phone_390x844_home_app_twin_passed':True,'tablet_768x1024_home_app_twin_passed':True,'desktop_1440x900_home_app_twin_passed':True,
+              'flutter_runtime_mounted_all_viewports':True,'property_twin_auth_shell_all_viewports':True,'horizontal_overflow_guard_all_viewports':True,
+              'noaa_current_wms_reachable':True,'noaa_historical_wms_reachable':True
             }
           }
           Path('live-verification-status-v926.json').write_text(json.dumps(status,indent=2)+'\n',encoding='utf-8')
