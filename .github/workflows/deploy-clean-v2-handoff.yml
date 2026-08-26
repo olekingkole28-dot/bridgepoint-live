@@ -24,16 +24,17 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     env:
-      EXPECTED_SOURCE: b9f6aa060641a132de9ef884c11d515d897d330f
-      EXPECTED_ARCHIVE_SHA: e0d74227f7904723cc6ca51f3bd275a1b870b2473e18716d7c59227286555158
-      EXPECTED_FONT_SHA: 0df8f065d89ba11840a32e4783e7fde12eebff11a594d9b76190e5ceded95a81
-      RELEASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co/storage/v1/object/public/bridgepoint-release-handoff/clean-v2-b9f6aa060641a132de9ef884c11d515d897d330f.tar.gz
+      EXPECTED_SOURCE: adf87b7dfde314089d539e84c74b002b77e225f5
+      EXPECTED_ARCHIVE_SHA: fdfa6fdc59950904b75a91029f7f3f865b7a7052938220143c9e7af221590e9e
+      EXPECTED_FONT_SHA: 5ead0dec4402d0f92550c069627e41db1ba9e6b5f968174cddf81cdeb6e1f974
+      EXPECTED_SPACE_SHA: acad6de1fc93436f5c0f1f4137751ef04f1aea3063e7036535970ffcfbd79f72
+      RELEASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co/storage/v1/object/public/bridgepoint-release-handoff/clean-v2-adf87b7dfde314089d539e84c74b002b77e225f5.tar.gz
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Download and verify private-source Clean V2 release
+      - name: Download and verify private-source visual V2 release
         shell: bash
         run: |
           set -euo pipefail
@@ -46,31 +47,39 @@ jobs:
           archive_path=Path('/tmp/bridgepoint-v2-delta.tar.gz')
           archive=archive_path.read_bytes()
           actual=hashlib.sha256(archive).hexdigest()
-          expected=os.environ['EXPECTED_ARCHIVE_SHA']
-          if actual != expected: raise SystemExit(f'Release SHA mismatch: {actual} != {expected}')
+          if actual != os.environ['EXPECTED_ARCHIVE_SHA']:
+              raise SystemExit(f'Release SHA mismatch: {actual}')
           target=Path('/tmp/bridgepoint-v2-delta')
           with tarfile.open(archive_path,'r:gz') as tf:
               base=target.resolve()
               for member in tf.getmembers():
                   resolved=(target/member.name).resolve()
-                  if not str(resolved).startswith(str(base)): raise SystemExit('Unsafe archive path')
+                  if not str(resolved).startswith(str(base)):
+                      raise SystemExit('Unsafe archive path')
               tf.extractall(target)
           required=['index.html','main.dart.js','flutter_bootstrap.js','manifest.json','bridgepoint-v2-release.json','bridgepoint-release.json','public-promotion-v682.json','assets/assets/brand/bridgepoint-mark-v80.svg','assets/fonts/MaterialIcons-Regular.otf']
           missing=[p for p in required if not (target/p).is_file()]
           if missing: raise SystemExit('Release missing: '+', '.join(missing))
           release=json.loads((target/'bridgepoint-v2-release.json').read_text())
           promotion=json.loads((target/'public-promotion-v682.json').read_text())
-          if release.get('architecture')!='clean-v2': raise SystemExit('Clean V2 marker missing')
-          if release.get('version')!=os.environ['EXPECTED_SOURCE']: raise SystemExit('Downloaded release source SHA mismatch')
-          for flag in ['restored_product_surfaces','progressive_national_map','saved_alerts_restored','opportunities_restored','current_icon_font']:
+          if release.get('architecture')!='clean-v2' or release.get('version')!=os.environ['EXPECTED_SOURCE']:
+              raise SystemExit('Downloaded release source/architecture mismatch')
+          for flag in ['restored_product_surfaces','progressive_national_map','saved_alerts_restored','opportunities_restored','current_icon_font','visual_polish_v2']:
               if release.get(flag) is not True: raise SystemExit(f'{flag} marker missing')
-          font_sha=hashlib.sha256((target/'assets/fonts/MaterialIcons-Regular.otf').read_bytes()).hexdigest()
-          if font_sha!=os.environ['EXPECTED_FONT_SHA']: raise SystemExit(f'Icon font SHA mismatch: {font_sha}')
-          if promotion.get('material_icon_font_sha256')!=font_sha: raise SystemExit('Promotion icon font digest mismatch')
-          print(json.dumps({'source_sha':release['version'],'archive_bytes':len(archive),'archive_sha256':actual,'material_icon_font_sha256':font_sha},indent=2))
+          if release.get('brand_font')!='SpaceGrotesk': raise SystemExit('Space Grotesk brand marker missing')
+          icon=target/'assets/fonts/MaterialIcons-Regular.otf'
+          icon_sha=hashlib.sha256(icon.read_bytes()).hexdigest()
+          if icon_sha!=os.environ['EXPECTED_FONT_SHA'] or promotion.get('material_icon_font_sha256')!=icon_sha:
+              raise SystemExit('Material icon font digest mismatch')
+          spaces=list((target/'assets').rglob('SpaceGrotesk.ttf'))
+          if len(spaces)!=1: raise SystemExit(f'Expected exactly one SpaceGrotesk.ttf, found {len(spaces)}')
+          space_sha=hashlib.sha256(spaces[0].read_bytes()).hexdigest()
+          if space_sha!=os.environ['EXPECTED_SPACE_SHA'] or promotion.get('space_grotesk_sha256')!=space_sha:
+              raise SystemExit('Space Grotesk digest mismatch')
+          print(json.dumps({'source_sha':release['version'],'archive_bytes':len(archive),'archive_sha256':actual,'material_icon_font_sha256':icon_sha,'space_grotesk_sha256':space_sha},indent=2))
           PY
 
-      - name: Assemble durable public site with restored Clean V2 app
+      - name: Assemble durable public site with visual-polished V2 app
         shell: bash
         run: |
           set -euo pipefail
@@ -91,22 +100,28 @@ jobs:
           compat=json.loads(Path('site/app/bridgepoint-release.json').read_text())
           promotion=json.loads(Path('site/app/public-promotion-v682.json').read_text())
           if release.get('version')!=expected or release.get('architecture')!='clean-v2': raise SystemExit('Release mismatch')
-          for flag in ['restored_product_surfaces','progressive_national_map','saved_alerts_restored','opportunities_restored','current_icon_font']:
+          for flag in ['restored_product_surfaces','progressive_national_map','saved_alerts_restored','opportunities_restored','current_icon_font','visual_polish_v2']:
               if release.get(flag) is not True: raise SystemExit(f'{flag} marker missing')
+          if release.get('brand_font')!='SpaceGrotesk': raise SystemExit('Brand font marker missing')
           if compat.get('version')!=expected or promotion.get('compiled_source_sha')!=expected: raise SystemExit('Promotion/source mismatch')
           if promotion.get('source_repo_private') is not True: raise SystemExit('Private source provenance missing')
           main_sha=hashlib.sha256(Path('site/app/main.dart.js').read_bytes()).hexdigest()
           if main_sha!=promotion.get('main_js_sha256'): raise SystemExit('Compiled JS digest mismatch')
-          font=Path('site/app/assets/fonts/MaterialIcons-Regular.otf')
-          if not font.is_file(): raise SystemExit('Current Material icon font missing')
-          font_sha=hashlib.sha256(font.read_bytes()).hexdigest()
-          if font_sha!=os.environ['EXPECTED_FONT_SHA'] or font_sha!=promotion.get('material_icon_font_sha256'): raise SystemExit('Material icon font digest mismatch')
+          icon=Path('site/app/assets/fonts/MaterialIcons-Regular.otf')
+          icon_sha=hashlib.sha256(icon.read_bytes()).hexdigest()
+          if icon_sha!=os.environ['EXPECTED_FONT_SHA'] or icon_sha!=promotion.get('material_icon_font_sha256'): raise SystemExit('Material icon font digest mismatch')
+          spaces=list(Path('site/app/assets').rglob('SpaceGrotesk.ttf'))
+          if len(spaces)!=1: raise SystemExit(f'Expected one SpaceGrotesk.ttf, found {len(spaces)}')
+          space_sha=hashlib.sha256(spaces[0].read_bytes()).hexdigest()
+          if space_sha!=os.environ['EXPECTED_SPACE_SHA'] or space_sha!=promotion.get('space_grotesk_sha256'): raise SystemExit('Space Grotesk digest mismatch')
+          manifest=Path('site/app/assets/FontManifest.json').read_text(encoding='utf-8')
+          if 'BridgePointGrotesk' not in manifest: raise SystemExit('BridgePointGrotesk missing from FontManifest')
           index=Path('site/app/index.html').read_text(encoding='utf-8',errors='ignore')
           if '<base href="/app/">' not in index or 'Install BridgePoint' not in index: raise SystemExit('App host contract missing')
           if 'bp-expansion-launcher' in index: raise SystemExit('Legacy overlay leaked')
           if not Path('site/app/assets/assets/brand/bridgepoint-mark-v80.svg').is_file(): raise SystemExit('Brand mark missing')
           if not Path('site/app/canvaskit/canvaskit.wasm').is_file(): raise SystemExit('CanvasKit runtime missing')
-          print('Map-polished restored V2 public site contract verified for '+expected)
+          print('Visual-polished BridgePoint V2 public site contract verified for '+expected)
           PY
 
       - name: Persist exact durable live-artifact
@@ -123,7 +138,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m "Publish map-polished restored BridgePoint V2 ${EXPECTED_SOURCE}"
+          git commit -m "Publish visual-polished BridgePoint V2 ${EXPECTED_SOURCE}"
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -133,11 +148,11 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: site
-      - name: Deploy restored Clean V2
+      - name: Deploy visual-polished Clean V2
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify public restored Clean V2 app
+      - name: Verify public visual-polished V2 app
         shell: bash
         run: |
           set -euo pipefail
@@ -146,14 +161,17 @@ jobs:
             marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-v2-release.json?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
             app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
             brand_code="$(curl -sS -o /tmp/bp-brand.svg -w '%{http_code}' --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/assets/assets/brand/bridgepoint-mark-v80.svg?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
-            font_code="$(curl -sS -o /tmp/bp-icons.otf -w '%{http_code}' --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/assets/fonts/MaterialIcons-Regular.otf?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
+            icon_code="$(curl -sS -o /tmp/bp-icons.otf -w '%{http_code}' --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/assets/fonts/MaterialIcons-Regular.otf?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
+            space_code="$(curl -sS -o /tmp/bp-space.ttf -w '%{http_code}' --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/assets/assets/fonts/SpaceGrotesk.ttf?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
+            font_manifest="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/assets/FontManifest.json?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
             root="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/?verify=${EXPECTED_SOURCE}" 2>/dev/null || true)"
-            font_sha="$(sha256sum /tmp/bp-icons.otf 2>/dev/null | awk '{print $1}' || true)"
-            if printf '%s' "$marker" | grep -q "$EXPECTED_SOURCE" && printf '%s' "$marker" | grep -q 'current_icon_font' && printf '%s' "$app" | grep -q 'flutter_bootstrap.js' && [ "$brand_code" = '200' ] && [ "$font_code" = '200' ] && [ "$font_sha" = "$EXPECTED_FONT_SHA" ] && grep -q 'BridgePoint Intelligence B and destination mark' /tmp/bp-brand.svg && [ "${#root}" -gt 200 ]; then
-              echo "Map-polished restored BridgePoint V2 verified live at ${ORIGIN}/app/"
+            icon_sha="$(sha256sum /tmp/bp-icons.otf 2>/dev/null | awk '{print $1}' || true)"
+            space_sha="$(sha256sum /tmp/bp-space.ttf 2>/dev/null | awk '{print $1}' || true)"
+            if printf '%s' "$marker" | grep -q "$EXPECTED_SOURCE" && printf '%s' "$marker" | grep -q 'visual_polish_v2' && printf '%s' "$marker" | grep -q 'SpaceGrotesk' && printf '%s' "$app" | grep -q 'flutter_bootstrap.js' && [ "$brand_code" = '200' ] && [ "$icon_code" = '200' ] && [ "$space_code" = '200' ] && [ "$icon_sha" = "$EXPECTED_FONT_SHA" ] && [ "$space_sha" = "$EXPECTED_SPACE_SHA" ] && printf '%s' "$font_manifest" | grep -q 'BridgePointGrotesk' && grep -q 'BridgePoint Intelligence B and destination mark' /tmp/bp-brand.svg && [ "${#root}" -gt 200 ]; then
+              echo "Visual-polished BridgePoint V2 verified live at ${ORIGIN}/app/"
               exit 0
             fi
             sleep 10
           done
-          echo 'Public map-polished restored V2 did not converge.' >&2
+          echo 'Public visual-polished V2 did not converge.' >&2
           exit 1
