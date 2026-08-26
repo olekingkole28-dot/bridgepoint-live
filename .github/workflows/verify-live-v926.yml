@@ -1,6 +1,10 @@
 name: Verify BridgePoint V926 Current Live Release
 
 on:
+  workflow_run:
+    workflows:
+      - "Publish BridgePoint Property Twin V922"
+    types: [completed]
   push:
     branches: [main]
     paths:
@@ -16,6 +20,7 @@ concurrency:
 
 jobs:
   verify-current-live:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -185,6 +190,7 @@ jobs:
         shell: bash
         env:
           CURRENT_SHA: ${{ github.sha }}
+          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -192,8 +198,9 @@ jobs:
           from datetime import datetime,timezone
           from pathlib import Path
           release=json.loads(Path('/tmp/twin-release.json').read_text(encoding='utf-8'))
+          trigger_sha=os.environ.get('WORKFLOW_RUN_SHA') or os.environ.get('CURRENT_SHA')
           status={
-            'status':'VERIFIED','verifier_version':926,'property_twin_release':release.get('version'),'trigger_sha':os.environ['CURRENT_SHA'],
+            'status':'VERIFIED','verifier_version':926,'property_twin_release':release.get('version'),'trigger_sha':trigger_sha,
             'verified_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),'public_origin':'https://bridgepointintelligence.online/',
             'checks':{
               'current_release_contract':True,'custom_domain_https_200':True,'public_secret_boundary_checked':True,
@@ -208,5 +215,9 @@ jobs:
           git config user.name 'BridgePoint Verification Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add live-verification-status-v926.json
-          git commit -m 'Record current multi-viewport live verification V926 [skip ci]'
-          git push origin HEAD:main
+          if git diff --cached --quiet; then
+            echo 'V926 verification receipt unchanged.'
+          else
+            git commit -m 'Record current multi-viewport live verification V926 [skip ci]'
+            git push origin HEAD:main
+          fi
