@@ -2,8 +2,8 @@
   "status": "VERIFIED",
   "verifier_version": 926,
   "property_twin_release": 922,
-  "trigger_sha": "6cc5ea53a9a235dce4def1bad79ec9e4ad79ca0f",
-  "verified_at": "2026-08-26T23:23:43.946792Z",
+  "trigger_sha": "9099595c2d0539accbc2fd2a5b6cca6c7543cf73",
+  "verified_at": "2026-08-26T23:34:38.214234Z",
   "public_origin": "https://bridgepointintelligence.online/",
   "checks": {
     "current_release_contract": true,
