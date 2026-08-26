@@ -12,8 +12,6 @@ permissions:
   pages: write
   id-token: write
 
-environments:
-
 concurrency:
   group: bridgepoint-live-pages
   cancel-in-progress: false
