@@ -42,6 +42,9 @@ jobs:
 
           test -s site/app/index.html
           test -s site/app/main.dart.js
+          test -s site/.well-known/security.txt
+          test -f site/.nojekyll
+          test -f site/app/.nojekyll
           test -s handoff/public-overlays/twin/index.html
           test -s handoff/public-overlays/twin-launcher.js
 
@@ -118,16 +121,36 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      - name: Build Pages artifact including hidden operational paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar \
+            --dereference --hard-dereference \
+            --directory site \
+            -cf "$RUNNER_TEMP/bridgepoint-pages-v922.tar" \
+            --exclude=.git \
+            --exclude=.github \
+            .
+          tar -tf "$RUNNER_TEMP/bridgepoint-pages-v922.tar" > "$RUNNER_TEMP/bridgepoint-pages-v922.list"
+          grep -Fxq './.well-known/security.txt' "$RUNNER_TEMP/bridgepoint-pages-v922.list"
+          grep -Fxq './.nojekyll' "$RUNNER_TEMP/bridgepoint-pages-v922.list"
+          grep -Fxq './app/.nojekyll' "$RUNNER_TEMP/bridgepoint-pages-v922.list"
+          grep -Fxq './app/twin/index.html' "$RUNNER_TEMP/bridgepoint-pages-v922.list"
+
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
-          path: site
+          name: github-pages
+          path: ${{ runner.temp }}/bridgepoint-pages-v922.tar
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify Property Twin live
+      - name: Verify Property Twin and operational files live
         shell: bash
         run: |
           set -euo pipefail
@@ -137,13 +160,15 @@ jobs:
             twin="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/twin/?v=922-${attempt}" 2>/dev/null || true)"
             release="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/property-twin-release-v922.json?v=922-${attempt}" 2>/dev/null || true)"
             launcher="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/twin-launcher.js?v=922-${attempt}" 2>/dev/null || true)"
+            security="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/.well-known/security.txt" 2>/dev/null || true)"
             if printf '%s' "$app" | grep -q 'twin-launcher.js' \
               && printf '%s' "$app" | grep -q 'flutter_bootstrap.js' \
               && printf '%s' "$twin" | grep -q 'bridgepoint_property_twin_v918' \
               && printf '%s' "$twin" | grep -q '3D Site' \
               && printf '%s' "$release" | grep -q '"version": 922' \
-              && printf '%s' "$launcher" | grep -q 'Property Twin 3D'; then
-              echo 'BridgePoint Property Twin V922 verified live.'
+              && printf '%s' "$launcher" | grep -q 'Property Twin 3D' \
+              && printf '%s' "$security" | grep -q 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt'; then
+              echo 'BridgePoint Property Twin V922 and hidden operational files verified live.'
               exit 0
             fi
             sleep 10
