@@ -1,0 +1,21 @@
+{
+  "status": "VERIFIED",
+  "verifier_version": 926,
+  "property_twin_release": 922,
+  "trigger_sha": "6cc5ea53a9a235dce4def1bad79ec9e4ad79ca0f",
+  "verified_at": "2026-08-26T23:23:43.946792Z",
+  "public_origin": "https://bridgepointintelligence.online/",
+  "checks": {
+    "current_release_contract": true,
+    "custom_domain_https_200": true,
+    "public_secret_boundary_checked": true,
+    "phone_390x844_home_app_twin_passed": true,
+    "tablet_768x1024_home_app_twin_passed": true,
+    "desktop_1440x900_home_app_twin_passed": true,
+    "flutter_runtime_mounted_all_viewports": true,
+    "property_twin_auth_shell_all_viewports": true,
+    "horizontal_overflow_guard_all_viewports": true,
+    "noaa_current_wms_reachable": true,
+    "noaa_historical_wms_reachable": true
+  }
+}
