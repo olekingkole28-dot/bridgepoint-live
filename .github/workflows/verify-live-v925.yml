@@ -1,0 +1,233 @@
+name: Verify BridgePoint V925 Current Live Release
+
+on:
+  workflow_run:
+    workflows:
+      - "Publish BridgePoint Property Twin V922"
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-live-v925.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bridgepoint-v925-current-live-verification
+  cancel-in-progress: true
+
+jobs:
+  verify-current-live:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Fetch current production surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          fetch() {
+            local url="$1" out="$2"
+            code="$(curl --proto '=https' --tlsv1.2 -L -sS --retry 5 --retry-delay 2 --max-time 45 -H 'Cache-Control: no-cache' -o "$out" -w '%{http_code}' "$url")"
+            echo "$url -> $code"
+            test "$code" = "200"
+            test -s "$out"
+          }
+          stamp="$(date +%s)"
+          fetch "https://bridgepointintelligence.online/?verify_v925=${stamp}" /tmp/home
+          fetch "https://bridgepointintelligence.online/app/?verify_v925=${stamp}" /tmp/app-index
+          fetch "https://bridgepointintelligence.online/app/main.dart.js?verify_v925=${stamp}" /tmp/main.dart.js
+          fetch "https://bridgepointintelligence.online/app/twin/?verify_v925=${stamp}" /tmp/twin
+          fetch "https://bridgepointintelligence.online/app/twin-launcher.js?verify_v925=${stamp}" /tmp/twin-launcher.js
+          fetch "https://bridgepointintelligence.online/app/property-twin-release-v922.json?verify_v925=${stamp}" /tmp/twin-release.json
+          fetch "https://bridgepointintelligence.online/.well-known/security.txt?verify_v925=${stamp}" /tmp/security.txt
+
+      - name: Verify current release contracts and public-secret boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          release=json.loads(Path('/tmp/twin-release.json').read_text(encoding='utf-8'))
+          assert release.get('version') == 922, release
+          assert release.get('surface') == 'property-twin', release
+          assert release.get('backend_contract') == 'bridgepoint_property_twin_v918', release
+          assert release.get('search_contract') == 'bridgepoint_property_suggestions_v192', release
+          assert release.get('auth') == 'supabase-user-session-rls', release
+          assert release.get('source_repo_private') is True, release
+          assert release.get('private_source_exposed') is False, release
+          print('Verified current Property Twin release contract:', release)
+          PY
+          grep -q '<base href="/app/">' /tmp/app-index
+          grep -q 'twin-launcher.js' /tmp/app-index
+          grep -q 'Property Twin 3D' /tmp/twin-launcher.js
+          grep -q 'bridgepoint_property_twin_v918' /tmp/twin
+          grep -q 'Sign in to Property Twin' /tmp/twin
+          grep -q 'Public Trust Center\|Canonical:' /tmp/security.txt
+          if grep -E -i 'sb_secret_[A-Za-z0-9_-]{20,}|sk_live_[A-Za-z0-9_-]{20,}|sk-proj-[A-Za-z0-9_-]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' /tmp/home /tmp/app-index /tmp/twin /tmp/twin-launcher.js /tmp/security.txt; then
+            echo 'Privileged secret-shaped value found on a checked public surface.' >&2
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Phone tablet desktop browser and runtime QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT=/tmp/bp-v925-browser
+          mkdir -p "$ROOT"
+          cd "$ROOT"
+          npm init -y >/dev/null 2>&1
+          npm install --no-save --ignore-scripts puppeteer-core@24.16.0 >/dev/null 2>&1
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          test -n "$CHROME"
+          export CHROME
+          cat > verify.cjs <<'JS'
+          const puppeteer=require('puppeteer-core');
+          const ORIGIN='https://bridgepointintelligence.online';
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const viewports=[
+            {name:'phone',width:390,height:844,isMobile:true,hasTouch:true},
+            {name:'tablet',width:768,height:1024,isMobile:true,hasTouch:true},
+            {name:'desktop',width:1440,height:900,isMobile:false,hasTouch:false},
+          ];
+          function fatalConsole(errors){
+            return errors.filter(x=>!/favicon|net::ERR_BLOCKED_BY_CLIENT|Failed to load resource: the server responded with a status of 404/i.test(x));
+          }
+          (async()=>{
+            const browser=await puppeteer.launch({
+              executablePath:process.env.CHROME,
+              headless:true,
+              protocolTimeout:60000,
+              args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--disable-vulkan','--disable-background-networking','--disable-sync']
+            });
+            const results=[];
+            try{
+              for(const vp of viewports){
+                const page=await browser.newPage();
+                page.setDefaultTimeout(25000);
+                await page.setViewport({width:vp.width,height:vp.height,deviceScaleFactor:1,isMobile:vp.isMobile,hasTouch:vp.hasTouch});
+                const consoleErrors=[],pageErrors=[];
+                page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text())});
+                page.on('pageerror',e=>pageErrors.push(String(e.message||e)));
+
+                await page.goto(`${ORIGIN}/?verify_v925_${vp.name}=${Date.now()}`,{waitUntil:'domcontentloaded',timeout:40000});
+                await page.waitForSelector('h1',{visible:true,timeout:15000});
+                const home=await page.evaluate(()=>({
+                  h1:document.querySelector('h1')?.textContent||'',
+                  overflow:document.documentElement.scrollWidth-window.innerWidth,
+                  sample:!!document.querySelector('a[href*="/sample/"]')
+                }));
+                if(!home.h1.includes('Know where to work before you knock')) throw new Error(`${vp.name}: homepage headline mismatch`);
+                if(!home.sample) throw new Error(`${vp.name}: sample CTA missing`);
+                if(home.overflow>8) throw new Error(`${vp.name}: homepage horizontal overflow ${home.overflow}px`);
+
+                await page.goto(`${ORIGIN}/app/?verify_v925_${vp.name}=${Date.now()}`,{waitUntil:'domcontentloaded',timeout:40000});
+                await page.waitForFunction(()=>!!document.querySelector('flutter-view,flt-glass-pane,canvas'),{timeout:25000});
+                await sleep(1200);
+                const app=await page.evaluate(()=>({
+                  mounted:!!document.querySelector('flutter-view,flt-glass-pane,canvas'),
+                  overflow:document.documentElement.scrollWidth-window.innerWidth
+                }));
+                if(!app.mounted) throw new Error(`${vp.name}: Flutter runtime did not mount`);
+                if(app.overflow>20) throw new Error(`${vp.name}: Flutter shell horizontal overflow ${app.overflow}px`);
+
+                await page.goto(`${ORIGIN}/app/twin/?verify_v925_${vp.name}=${Date.now()}`,{waitUntil:'domcontentloaded',timeout:40000});
+                await page.waitForFunction(()=>document.body.innerText.includes('Property Twin'),{timeout:20000});
+                await sleep(800);
+                const twin=await page.evaluate(()=>({
+                  hasTitle:document.body.innerText.includes('Property Twin'),
+                  hasAuth:document.body.innerText.includes('Sign in to Property Twin'),
+                  overflow:document.documentElement.scrollWidth-window.innerWidth,
+                  authVisible:!!document.querySelector('#authWrap.show')
+                }));
+                if(!twin.hasTitle) throw new Error(`${vp.name}: Property Twin shell missing`);
+                if(!twin.hasAuth && !twin.authVisible) throw new Error(`${vp.name}: unauthenticated Twin gate missing`);
+                if(twin.overflow>8) throw new Error(`${vp.name}: Property Twin horizontal overflow ${twin.overflow}px`);
+
+                const badConsole=fatalConsole(consoleErrors);
+                if(pageErrors.length) throw new Error(`${vp.name}: page errors ${JSON.stringify(pageErrors.slice(0,5))}`);
+                if(badConsole.length) throw new Error(`${vp.name}: console errors ${JSON.stringify(badConsole.slice(0,5))}`);
+                results.push({viewport:vp.name,home,app,twin});
+                await page.close();
+              }
+              console.log('V925_BROWSER_RESULTS',JSON.stringify(results));
+            } finally {
+              await browser.close();
+            }
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
+          node verify.cjs | tee /tmp/v925-browser.log
+          grep -q 'V925_BROWSER_RESULTS' /tmp/v925-browser.log
+
+      - name: Verify NOAA radar transports
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --proto '=https' --tlsv1.2 -fsSL --retry 2 --retry-delay 2 --max-time 30 \
+            'https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity/MapServer/WMSServer?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0' \
+            -o /tmp/noaa-now.xml
+          curl --proto '=https' --tlsv1.2 -fsSL --retry 2 --retry-delay 2 --max-time 30 \
+            'https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity_time/ImageServer/WMSServer?SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0' \
+            -o /tmp/noaa-history.xml
+          grep -qi 'WMS_Capabilities\|WMT_MS_Capabilities' /tmp/noaa-now.xml
+          grep -qi 'WMS_Capabilities\|WMT_MS_Capabilities' /tmp/noaa-history.xml
+
+      - name: Record current V925 verification receipt
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          CURRENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os
+          from datetime import datetime,timezone
+          from pathlib import Path
+          release=json.loads(Path('/tmp/twin-release.json').read_text(encoding='utf-8'))
+          trigger_sha=os.environ.get('WORKFLOW_RUN_SHA') or os.environ.get('CURRENT_SHA')
+          status={
+            'status':'VERIFIED',
+            'verifier_version':925,
+            'property_twin_release':release.get('version'),
+            'trigger_sha':trigger_sha,
+            'verified_at':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
+            'public_origin':'https://bridgepointintelligence.online/',
+            'checks':{
+              'current_release_contract':True,
+              'custom_domain_https_200':True,
+              'public_secret_boundary_checked':True,
+              'phone_390x844_home_app_twin_passed':True,
+              'tablet_768x1024_home_app_twin_passed':True,
+              'desktop_1440x900_home_app_twin_passed':True,
+              'flutter_runtime_mounted_all_viewports':True,
+              'property_twin_auth_shell_all_viewports':True,
+              'horizontal_overflow_guard_all_viewports':True,
+              'noaa_current_wms_reachable':True,
+              'noaa_historical_wms_reachable':True
+            }
+          }
+          Path('live-verification-status-v925.json').write_text(json.dumps(status,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(status,indent=2))
+          PY
+          git config user.name 'BridgePoint Verification Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add live-verification-status-v925.json
+          if git diff --cached --quiet; then
+            echo 'V925 verification receipt unchanged.'
+          else
+            git commit -m 'Record current multi-viewport live verification V925 [skip ci]'
+            git push origin HEAD:main
+          fi
