@@ -40,8 +40,8 @@ jobs:
           test -s site/app/index.html
           test -s site/app/main.dart.js
           test -s site/.well-known/security.txt
-          test -s site/.nojekyll
-          test -s site/app/.nojekyll
+          test -f site/.nojekyll
+          test -f site/app/.nojekyll
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
