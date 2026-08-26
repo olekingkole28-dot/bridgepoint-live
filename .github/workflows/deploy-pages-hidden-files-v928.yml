@@ -1,0 +1,95 @@
+name: Deploy BridgePoint Pages Hidden Files V928
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-pages-hidden-files-v928.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+environments:
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout release repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Assemble durable current live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site
+          mkdir -p site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/main.dart.js
+          test -s site/.well-known/security.txt
+          test -s site/.nojekyll
+          test -s site/app/.nojekyll
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build Pages artifact including hidden operational paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar \
+            --dereference --hard-dereference \
+            --directory site \
+            -cvf "$RUNNER_TEMP/bridgepoint-pages-v928.tar" \
+            --exclude=.git \
+            --exclude=.github \
+            .
+          tar -tf "$RUNNER_TEMP/bridgepoint-pages-v928.tar" | grep -q '^./\.well-known/security.txt$'
+          tar -tf "$RUNNER_TEMP/bridgepoint-pages-v928.tar" | grep -q '^./\.nojekyll$'
+
+      - name: Upload Pages artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-pages
+          path: ${{ runner.temp }}/bridgepoint-pages-v928.tar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify hidden and core production files live
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 24); do
+            sec_code="$(curl -L -sS --max-time 15 -o /tmp/security-v928 -w '%{http_code}' "${ORIGIN}/.well-known/security.txt" || true)"
+            app_code="$(curl -L -sS --max-time 15 -o /tmp/app-v928 -w '%{http_code}' "${ORIGIN}/app/" || true)"
+            if [ "$sec_code" = '200' ] && [ "$app_code" = '200' ] \
+              && grep -q 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security-v928 \
+              && grep -q 'flutter_bootstrap.js' /tmp/app-v928; then
+              echo 'BridgePoint V928 Pages deployment verified, including .well-known/security.txt.'
+              exit 0
+            fi
+            echo "attempt=${attempt} security=${sec_code} app=${app_code}"
+            sleep 10
+          done
+          echo 'V928 hidden-file deployment did not converge on the public domain.' >&2
+          exit 1
