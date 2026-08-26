@@ -53,12 +53,14 @@ jobs:
           tar \
             --dereference --hard-dereference \
             --directory site \
-            -cvf "$RUNNER_TEMP/bridgepoint-pages-v928.tar" \
+            -cf "$RUNNER_TEMP/bridgepoint-pages-v928.tar" \
             --exclude=.git \
             --exclude=.github \
             .
-          tar -tf "$RUNNER_TEMP/bridgepoint-pages-v928.tar" | grep -q '^./\.well-known/security.txt$'
-          tar -tf "$RUNNER_TEMP/bridgepoint-pages-v928.tar" | grep -q '^./\.nojekyll$'
+          tar -tf "$RUNNER_TEMP/bridgepoint-pages-v928.tar" > "$RUNNER_TEMP/bridgepoint-pages-v928.list"
+          grep -Fxq './.well-known/security.txt' "$RUNNER_TEMP/bridgepoint-pages-v928.list"
+          grep -Fxq './.nojekyll' "$RUNNER_TEMP/bridgepoint-pages-v928.list"
+          grep -Fxq './app/.nojekyll' "$RUNNER_TEMP/bridgepoint-pages-v928.list"
 
       - name: Upload Pages artifact
         uses: actions/upload-artifact@v4
