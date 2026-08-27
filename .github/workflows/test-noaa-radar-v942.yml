@@ -1,0 +1,47 @@
+name: Test NOAA Radar V942
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/test-noaa-radar-v942.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Compare NOAA WMS time formats
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity_time/ImageServer/WMSServer?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=0&STYLES=&CRS=EPSG:3857&BBOX=-13884991,2875744,-7455066,6338219&WIDTH=800&HEIGHT=500&FORMAT=image/png&TRANSPARENT=true'
+          REST='https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer/query?where=1%3D1&outFields=idp_validtime&returnGeometry=false&orderByFields=idp_validtime%20DESC&resultRecordCount=1&f=json'
+          curl -fsSL --retry 3 "$REST" -o /tmp/frame.json
+          EPOCH="$(python - <<'PY'
+          import json
+          d=json.load(open('/tmp/frame.json'))
+          print(int(d['features'][0]['attributes']['idp_validtime']))
+          PY
+          )"
+          ISO="$(python - "$EPOCH" <<'PY'
+          import sys,datetime
+          ms=int(sys.argv[1])
+          print(datetime.datetime.fromtimestamp(ms/1000,datetime.timezone.utc).isoformat().replace('+00:00','Z'))
+          PY
+          )"
+          echo "frame_epoch=$EPOCH frame_iso=$ISO"
+          curl -fsSL --retry 3 "$BASE" -o /tmp/latest
+          curl -fsSL --retry 3 "$BASE&TIME=$EPOCH" -o /tmp/epoch
+          curl -fsSL --retry 3 "$BASE&TIME=$ISO" -o /tmp/iso
+          for f in latest epoch iso; do
+            echo "$f bytes=$(stat -c '%s' /tmp/$f) type=$(file -b /tmp/$f) sha=$(sha256sum /tmp/$f | cut -d' ' -f1)"
+          done
+          python - <<'PY'
+          from pathlib import Path
+          for name in ['latest','epoch','iso']:
+              b=Path('/tmp/'+name).read_bytes()
+              if not b.startswith(b'\x89PNG\r\n\x1a\n'):
+                  raise SystemExit(f'{name} did not return PNG')
+          print('ALL_THREE_RETURNED_PNG')
+          PY
