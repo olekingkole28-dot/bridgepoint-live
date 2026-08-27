@@ -48,15 +48,20 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
-          $tokens=$null
-          $errors=$null
-          [void][System.Management.Automation.Language.Parser]::ParseFile("artifact/downloads/local-ai/bridgepoint_local_ai.ps1",[ref]$tokens,[ref]$errors)
-          if($errors.Count -gt 0){$errors | ForEach-Object { Write-Error $_.Message }; exit 1}
-          $tokens2=$null
-          $errors2=$null
-          [void][System.Management.Automation.Language.Parser]::ParseFile("artifact/downloads/backup/bridgepoint_state_export_windows.ps1",[ref]$tokens2,[ref]$errors2)
-          if($errors2.Count -gt 0){$errors2 | ForEach-Object { Write-Error $_.Message }; exit 1}
-          Write-Host "PowerShell syntax checks passed."
+          function Test-PsFile([string]$Path){
+            $tokens=$null
+            $errors=$null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($Path,[ref]$tokens,[ref]$errors)
+            if($errors.Count -gt 0){
+              foreach($e in $errors){
+                Write-Host ('PARSER_ERROR {0}:{1}:{2} text={3} message={4}' -f $Path,$e.Extent.StartLineNumber,$e.Extent.StartColumnNumber,$e.Extent.Text,$e.Message)
+              }
+              throw ('PowerShell parse failed: {0} error(s) in {1}' -f $errors.Count,$Path)
+            }
+            Write-Host ('PowerShell syntax passed: {0}' -f $Path)
+          }
+          Test-PsFile 'artifact/downloads/local-ai/bridgepoint_local_ai.ps1'
+          Test-PsFile 'artifact/downloads/backup/bridgepoint_state_export_windows.ps1'
 
       - name: Commit durable agent release
         shell: bash
@@ -73,4 +78,4 @@ jobs:
             git push origin HEAD:live-artifact
           fi
 
-# V936 guarded release retry after parser fix 2026-08-27
+# V936 parser diagnostics trigger 2026-08-27
