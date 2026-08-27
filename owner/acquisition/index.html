@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>BridgePoint Owner Acquisition</title>
+<style>
+:root{--bg:#07111f;--panel:#0e1b2c;--line:#29425b;--text:#f4f8fc;--muted:#9fb2c5;--cyan:#5bd8ed;--blue:#6d91ff;--green:#55d7a0;--amber:#ffc857;--red:#ff7474}*{box-sizing:border-box}body{margin:0;background:linear-gradient(150deg,#06101c,#0a1727);color:var(--text);font:14px/1.45 Arial,sans-serif}.wrap{max-width:1280px;margin:auto;padding:24px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.brand{font-weight:900;font-size:18px}.muted{color:var(--muted)}button,select,input{font:inherit}.btn{border:1px solid #36536d;background:#10233a;color:white;border-radius:10px;padding:10px 13px;cursor:pointer}.primary{background:#167ed3;border-color:#167ed3}.danger{border-color:#70404a}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}.card{background:rgba(14,27,44,.96);border:1px solid var(--line);border-radius:15px;padding:17px;min-width:0}.metric b{display:block;font-size:25px;margin:4px 0}.metric span{color:var(--muted);font-size:12px}.section{margin-top:16px}.section h2{margin:0 0 12px;font-size:17px}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:14px}.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px}table{width:100%;border-collapse:collapse;min-width:600px}th,td{text-align:left;padding:10px 11px;border-bottom:1px solid #20364b;white-space:nowrap}th{font-size:11px;color:#9fb2c5;text-transform:uppercase;letter-spacing:.04em}td{font-size:12px}.bar{height:7px;border-radius:9px;background:#1c3045;overflow:hidden}.bar i{display:block;height:100%;background:var(--cyan)}.drop{border-left:4px solid var(--amber)}.login{max-width:430px;margin:90px auto}.login input{width:100%;margin:7px 0;padding:12px;background:#091727;color:white;border:1px solid #35506b;border-radius:9px}.hidden{display:none!important}.pill{display:inline-block;padding:3px 7px;border:1px solid #35506b;border-radius:999px;font-size:10px;color:#bfd3e5}.good{color:var(--green)}.warn{color:var(--amber)}.error{color:var(--red);white-space:pre-wrap}.journey{padding:12px 0;border-bottom:1px solid #20364b}.journey:last-child{border:0}.journey strong{font-size:12px}.journey div{color:var(--muted);font-size:11px;margin-top:3px}@media(max-width:950px){.grid{grid-template-columns:1fr 1fr}.twocol{grid-template-columns:1fr}}@media(max-width:560px){.grid{grid-template-columns:1fr}.wrap{padding:14px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="login" class="login card">
+    <div class="brand">BridgePoint Owner Center</div><p class="muted">Owner-only acquisition view. Your password is sent directly to Supabase over HTTPS and is not stored by this page.</p>
+    <input id="email" type="email" autocomplete="username" placeholder="Owner email">
+    <input id="password" type="password" autocomplete="current-password" placeholder="Password">
+    <button id="signIn" class="btn primary" style="width:100%;margin-top:8px">Sign in</button>
+    <p id="loginError" class="error"></p>
+  </div>
+
+  <div id="dashboard" class="hidden">
+    <div class="top"><div><div class="brand">BridgePoint · Acquisition</div><div class="muted">State → source → page → next stage, automatically refreshed. Coarse geography only.</div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><select id="range" class="btn"><option value="1">24 hours</option><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option></select><button id="refresh" class="btn">Refresh</button><button id="signOut" class="btn danger">Sign out</button></div></div>
+    <div id="status" class="muted" style="margin-top:10px"></div>
+    <div id="metrics" class="grid"></div>
+    <div id="dropoff" class="card drop"></div>
+
+    <div class="twocol section">
+      <div class="card"><h2>Visitors by state</h2><div id="states" class="tablewrap"></div></div>
+      <div class="card"><h2>Traffic sources</h2><div id="sources" class="tablewrap"></div></div>
+    </div>
+    <div class="twocol section">
+      <div class="card"><h2>Pages visited</h2><div id="pages" class="tablewrap"></div></div>
+      <div class="card"><h2>State × source</h2><div id="stateSources" class="tablewrap"></div></div>
+    </div>
+    <div class="section card"><h2>Full funnel</h2><div id="funnel" class="tablewrap"></div></div>
+    <div class="section card"><h2>Recent anonymous visitor journeys</h2><div id="journeys"></div></div>
+    <div class="section muted">Privacy rule: anonymous browser token plus coarse country/state only. Exact IP, postal code, latitude and longitude are not displayed here.</div>
+  </div>
+</div>
+<script>
+(()=>{
+const BASE='https://xdfsjztwgsbmabshzsjw.supabase.co';
+const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+const $=id=>document.getElementById(id); let token=sessionStorage.getItem('bp_owner_access_token')||''; let timer;
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function findAppToken(){try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)||'';if(!k.startsWith('sb-')||!k.endsWith('-auth-token'))continue;const raw=JSON.parse(localStorage.getItem(k)||'{}');const t=raw?.access_token||raw?.currentSession?.access_token||raw?.session?.access_token;if(t)return t}}catch(_){}return ''}
+async function login(){ $('loginError').textContent=''; try{const r=await fetch(BASE+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify({email:$('email').value.trim(),password:$('password').value})});const d=await r.json();if(!r.ok||!d.access_token)throw new Error(d.error_description||d.msg||'Sign-in failed');token=d.access_token;sessionStorage.setItem('bp_owner_access_token',token);showDashboard();await load()}catch(e){$('loginError').textContent=e.message||String(e)}}
+function showDashboard(){if(!token)return;$('login').classList.add('hidden');$('dashboard').classList.remove('hidden');clearInterval(timer);timer=setInterval(load,60000)}
+function metric(label,value,detail){return `<div class="card metric"><span>${esc(label)}</span><b>${esc(value)}</b><span>${esc(detail)}</span></div>`}
+function table(headers,rows){if(!rows.length)return '<div class="muted" style="padding:15px">No tracked rows in this window.</div>';return `<table><thead><tr>${headers.map(h=>`<th>${esc(h[0])}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${headers.map(h=>`<td>${esc(h[1](r))}</td>`).join('')}</tr>`).join('')}</tbody></table>`}
+async function load(){if(!token)return;const days=Number($('range').value||1);const since=new Date(Date.now()-days*86400000).toISOString();$('status').textContent='Refreshing live acquisition truth…';try{const r=await fetch(BASE+'/rest/v1/rpc/bridgepoint_owner_acquisition_v432',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({p_since:since})});const d=await r.json();if(r.status===401||r.status===403){token='';sessionStorage.removeItem('bp_owner_access_token');location.reload();return}if(!r.ok)throw new Error(typeof d==='object'?(d.message||JSON.stringify(d)):String(d));render(d);$('status').textContent='Updated '+new Date(d.generated_at).toLocaleString()+' · auto-refreshes every 60 seconds'}catch(e){$('status').innerHTML='<span class="error">'+esc(e.message||String(e))+'</span>'}}
+function render(d){const t=d.totals||{},drop=d.largest_core_dropoff||{},f=d.funnel||[];const paid=f.find(x=>x.event_type==='PAID')?.visitors||0;const trials=f.find(x=>x.event_type==='TRIAL_START')?.visitors||0;const signup=f.find(x=>x.event_type==='SIGNUP_SUCCESS')?.visitors||0;
+$('metrics').innerHTML=[metric('UNIQUE VISITORS',t.unique_visitors||0,'Tracked anonymous browsers'),metric('US WITH STATE',t.us_visitors_with_state||0,(t.us_visitors_unknown_state||0)+' US visitors still state-unknown'),metric('GEO COVERAGE',(t.geo_coverage_pct??'—')+'%','Visitors with coarse country'),metric('SIGNUPS / TRIALS / PAID',`${signup} / ${trials} / ${paid}`,'Current selected window')].join('');
+$('dropoff').innerHTML=`<strong>Largest measured dropoff: ${esc(drop.label||'Not enough data')}</strong><div class="muted" style="margin-top:5px">${esc(drop.prior_visitors??'—')} → ${esc(drop.visitors??'—')} visitors · ${esc(drop.conversion_pct??'—')}% conversion · ${esc(drop.drop_count??0)} lost between measured stages.</div>`;
+$('states').innerHTML=table([['Country',r=>r.country_code||'UNKNOWN'],['State',r=>r.region_code||'UNKNOWN'],['Visitors',r=>r.visitors],['Latest',r=>r.latest_at?new Date(r.latest_at).toLocaleString():'—']],d.states||[]);
+$('sources').innerHTML=table([['Source',r=>r.source],['Visitors',r=>r.visitors],['Latest',r=>r.latest_at?new Date(r.latest_at).toLocaleString():'—']],d.sources||[]);
+$('pages').innerHTML=table([['Page',r=>r.page_path],['Visitors',r=>r.visitors],['Events',r=>r.events],['Latest',r=>r.latest_at?new Date(r.latest_at).toLocaleString():'—']],d.pages||[]);
+$('stateSources').innerHTML=table([['Country',r=>r.country_code],['State',r=>r.region_code||'—'],['Source',r=>r.source],['Visitors',r=>r.visitors]],d.state_sources||[]);
+$('funnel').innerHTML=table([['Stage',r=>r.label],['Visitors',r=>r.visitors],['Events',r=>r.events],['From prior',r=>r.conversion_from_prior_pct==null?'—':r.conversion_from_prior_pct+'%'],['Latest',r=>r.latest_at?new Date(r.latest_at).toLocaleString():'—']],f);
+const journeys=d.recent_visitors||[];$('journeys').innerHTML=journeys.length?journeys.map(j=>`<div class="journey"><strong>${esc(j.anonymous_visitor)} · ${esc(j.country_code||'UNKNOWN')}${j.country_code==='US'?' / '+esc(j.region_code||'UNKNOWN'):''} · ${esc(j.source)}</strong><div>${esc(j.entry_page)} → ${esc(j.latest_page)} · latest stage ${esc(j.latest_stage)} · ${esc(j.event_count)} events · last ${esc(new Date(j.last_seen).toLocaleString())}</div></div>`).join(''):'<div class="muted">No recent visitors in this window.</div>';
+}
+$('signIn').onclick=login;$('password').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('refresh').onclick=load;$('range').onchange=load;$('signOut').onclick=()=>{token='';sessionStorage.removeItem('bp_owner_access_token');location.reload()};
+if(!token)token=findAppToken();if(token){sessionStorage.setItem('bp_owner_access_token',token);showDashboard();load()}
+})();
+</script>
+<a id="bp-owner-home-v551" href="/owner/" style="position:fixed;right:12px;bottom:12px;z-index:2147483000;padding:9px 12px;border-radius:999px;border:1px solid rgba(72,221,255,.45);background:rgba(7,24,39,.94);color:#f5f9fd;text-decoration:none;font:800 11px/1 system-ui,-apple-system,Segoe UI,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.35);backdrop-filter:blur(8px)">◆ Owner Home</a></body></html>

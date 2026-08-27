@@ -1,0 +1,15 @@
+{
+  "version": 933,
+  "surface": "property-twin",
+  "compatibility_release": 922,
+  "backend_contract": "bridgepoint_property_twin_v918",
+  "terrain_contract": "bridgepoint_property_terrain_v931",
+  "terrain_source": "USGS_3DEP_V918",
+  "terrain_priority_lane": "bridgepoint-usgs-3dep-priority-v931",
+  "terrain_truth": "3DEP terrain DEM; not represented as surveyed spot elevation or raw point-cloud measurement",
+  "search_contract": "bridgepoint_property_suggestions_v192",
+  "auth": "supabase-user-session-rls",
+  "source_repo_private": true,
+  "private_source_exposed": false,
+  "automatic_fidelity_upgrade": true
+}

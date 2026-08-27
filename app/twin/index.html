@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#030a12">
+  <title>BridgePoint Property Twin</title>
+  <style>
+    :root{--bg:#030a12;--panel:#081624;--panel2:#0d2033;--cyan:#48e1ff;--green:#69e7a7;--amber:#ffc95e;--muted:#aebfd1;--line:rgba(72,225,255,.16);--white:#f4f8fc}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:radial-gradient(circle at 18% 5%,#102b42 0,#06111e 34%,#030a12 72%);color:var(--white);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{min-height:100vh}.shell{width:min(1440px,100%);margin:auto;padding:14px 14px 40px}.top{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:20;padding:10px 0 12px;background:linear-gradient(180deg,rgba(3,10,18,.98),rgba(3,10,18,.82),transparent);backdrop-filter:blur(10px)}.brand{display:flex;align-items:center;gap:10px;min-width:0}.mark{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;border:1px solid rgba(72,225,255,.3);background:rgba(72,225,255,.1);font-weight:1000;color:var(--cyan);box-shadow:0 0 30px rgba(72,225,255,.09)}.brand h1{font-size:17px;margin:0;font-weight:950}.brand p{font-size:10px;color:var(--muted);margin:2px 0 0}.grow{flex:1}.btn,.chip,.search button{border:1px solid var(--line);background:#0b1a2a;color:white;border-radius:12px;min-height:42px;padding:0 13px;font-weight:850;cursor:pointer}.btn:hover,.chip:hover,.search button:hover{border-color:rgba(72,225,255,.55)}.btn.primary,.chip.active{background:var(--cyan);color:#021018;border-color:var(--cyan)}.btn.ghost{background:rgba(255,255,255,.03)}.status{display:flex;flex-wrap:wrap;gap:7px}.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;border:1px solid rgba(72,225,255,.19);background:rgba(72,225,255,.07);font-size:10.5px;font-weight:850;color:#d9f8ff}.pill.green{border-color:rgba(105,231,167,.25);background:rgba(105,231,167,.08);color:var(--green)}.pill.amber{border-color:rgba(255,201,94,.25);background:rgba(255,201,94,.08);color:var(--amber)}.hero{padding:16px;border:1px solid rgba(72,225,255,.21);border-radius:20px;background:linear-gradient(135deg,rgba(15,43,66,.96),rgba(7,19,33,.96));box-shadow:0 20px 70px rgba(0,0,0,.28)}.eyebrow{font-size:10px;letter-spacing:.15em;font-weight:950;color:var(--cyan)}.hero h2{font-size:clamp(21px,3vw,31px);line-height:1.08;margin:6px 0 7px}.hero .sub{color:var(--muted);font-size:12px;line-height:1.5;margin-bottom:12px}.search{display:flex;gap:8px;margin-top:11px}.search input,.auth input{width:100%;border:1px solid rgba(72,225,255,.18);border-radius:13px;background:#071522;color:white;min-height:46px;padding:0 13px;outline:none;font-size:14px}.search input:focus,.auth input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(72,225,255,.08)}.results{display:grid;gap:7px;margin-top:9px}.result{width:100%;text-align:left;border:1px solid rgba(72,225,255,.12);border-radius:13px;background:#081725;color:white;padding:11px 12px;cursor:pointer}.result:hover{border-color:rgba(72,225,255,.48);background:#0b2032}.result strong{display:block;font-size:13px}.result span{display:block;color:var(--muted);font-size:10.5px;margin-top:3px}.layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(310px,.7fr);gap:12px;margin-top:12px}.visual-card,.card{border:1px solid var(--line);border-radius:18px;background:rgba(8,22,36,.96);overflow:hidden}.visual-toolbar{display:flex;align-items:center;gap:7px;padding:9px;border-bottom:1px solid rgba(72,225,255,.11);overflow:auto}.chip{min-height:36px;border-radius:10px;padding:0 11px;font-size:11px;white-space:nowrap}.visual{position:relative;min-height:520px;background:#020812}.view{display:none;position:absolute;inset:0}.view.active{display:block}.view img{width:100%;height:100%;object-fit:cover;display:block}.image-meta{position:absolute;left:10px;right:10px;bottom:10px;padding:9px 10px;border-radius:11px;background:rgba(3,10,18,.88);font-size:10.5px;font-weight:750;color:#e8f6ff;backdrop-filter:blur(8px)}#three{position:absolute;inset:0}.three-help{position:absolute;left:10px;bottom:10px;right:10px;display:flex;gap:7px;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(3,10,18,.88);border-radius:11px;font-size:10px;color:#d9e8f4;pointer-events:none}.three-modes{position:absolute;left:10px;top:10px;display:flex;gap:6px;z-index:5}.three-modes button{pointer-events:auto}.empty{height:100%;display:grid;place-items:center;padding:28px;text-align:center;background:radial-gradient(circle at 50% 25%,#102b42,#030a12 70%)}.empty .icon{font-size:38px;color:var(--cyan)}.empty h3{margin:9px 0 5px;font-size:16px}.empty p{color:var(--muted);font-size:11px;line-height:1.5;max-width:460px;margin:0}.side{display:grid;gap:12px;align-content:start}.card{padding:13px}.card h3{font-size:13px;margin:0 0 9px;font-weight:950}.plain{display:grid;gap:8px}.plain div{position:relative;padding-left:14px;color:#dbe6f0;font-size:11.5px;line-height:1.45}.plain div:before{content:"";position:absolute;width:5px;height:5px;border-radius:50%;background:var(--cyan);left:0;top:.5em}.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.metric{padding:10px;border-radius:12px;background:#0b1b2b;border:1px solid rgba(255,255,255,.06)}.metric b{display:block;font-size:20px}.metric span{display:block;color:var(--muted);font-size:9.5px;margin-top:2px}.truth{border-color:rgba(255,201,94,.23);color:var(--amber);font-size:10.5px;line-height:1.45}.auth-wrap{position:fixed;inset:0;z-index:100;display:none;place-items:center;padding:18px;background:rgba(2,7,12,.88);backdrop-filter:blur(14px)}.auth-wrap.show{display:grid}.auth{width:min(440px,100%);border:1px solid rgba(72,225,255,.25);border-radius:20px;background:#091827;padding:20px;box-shadow:0 28px 90px rgba(0,0,0,.6)}.auth h2{margin:0 0 4px}.auth p{margin:0 0 14px;color:var(--muted);font-size:11px;line-height:1.5}.auth label{font-size:10px;font-weight:850;color:var(--muted)}.auth input{margin:5px 0 10px}.auth .btn{width:100%}.error{display:none;margin-top:9px;color:#ff8d8d;font-size:10.5px}.loading{position:fixed;inset:0;z-index:90;display:none;place-items:center;background:rgba(2,8,14,.66);backdrop-filter:blur(4px)}.loading.show{display:grid}.spinner{width:34px;height:34px;border:3px solid rgba(72,225,255,.16);border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.footer-note{font-size:9.5px;color:#7f94aa;text-align:center;margin-top:14px}.hidden{display:none!important}@media(max-width:900px){.layout{grid-template-columns:1fr}.visual{min-height:55vh}.side{grid-template-columns:1fr 1fr}.truth{grid-column:1/-1}}@media(max-width:620px){.shell{padding:8px 8px 28px}.top{gap:7px}.brand p{display:none}.top .btn span{display:none}.hero{padding:13px}.search{flex-direction:column}.search button{width:100%}.visual{min-height:52vh}.side{grid-template-columns:1fr}.visual-toolbar{padding:7px}.chip{min-height:34px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  </style>
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/"}}</script>
+</head>
+<body>
+  <div class="loading" id="loading"><div><div class="spinner"></div><div style="margin-top:9px;font-size:11px;font-weight:800">Assembling live property twin…</div></div></div>
+  <div class="auth-wrap" id="authWrap">
+    <form class="auth" id="authForm">
+      <div class="eyebrow">BRIDGEPOINT INTELLIGENCE</div>
+      <h2>Sign in to Property Twin</h2>
+      <p>This direct workspace uses the same BridgePoint account, entitlements and row-level security as the main app.</p>
+      <label>Email</label><input id="email" type="email" autocomplete="username" required>
+      <label>Password</label><input id="password" type="password" autocomplete="current-password" required>
+      <button class="btn primary" type="submit">Sign in</button>
+      <div class="error" id="authError"></div>
+    </form>
+  </div>
+
+  <main class="shell">
+    <header class="top">
+      <div class="brand"><div class="mark">BP</div><div><h1>Property Twin</h1><p>BridgePoint Intelligence • live physical + evidence workspace</p></div></div>
+      <div class="grow"></div>
+      <button class="btn ghost" id="backBtn" type="button">← <span>Back to BridgePoint</span></button>
+      <button class="btn ghost" id="signOutBtn" type="button">Sign out</button>
+    </header>
+
+    <section class="hero">
+      <div class="eyebrow">BEST AVAILABLE NOW • AUTOMATIC FIDELITY UPGRADES</div>
+      <h2 id="title">Search any BridgePoint property</h2>
+      <div class="sub" id="subtitle">3D site context, exterior imagery, current aerial, dated history and explainable property intelligence in one place.</div>
+      <div class="status" id="status"></div>
+      <div class="search"><input id="searchInput" placeholder="Address, parcel, owner or municipality" autocomplete="off"><button id="searchBtn" type="button">Search</button></div>
+      <div class="results" id="results"></div>
+    </section>
+
+    <section class="layout" id="workspace" hidden>
+      <div class="visual-card">
+        <div class="visual-toolbar">
+          <button class="chip active" data-view="three" type="button">◫ 3D Site</button>
+          <button class="chip" data-view="front" type="button">⌂ Front</button>
+          <button class="chip" data-view="aerial" type="button">◉ Aerial</button>
+          <button class="chip" data-view="history" type="button">↶ History</button>
+        </div>
+        <div class="visual">
+          <div class="view active" id="view-three"><div id="three"></div><div class="three-modes"><button class="chip active" id="orbitBtn" type="button">Orbit</button><button class="chip" id="walkBtn" type="button">Walk</button></div><div class="three-help"><span id="threeMeta">Drag to orbit • wheel/pinch to zoom</span><span id="threeTruth"></span></div></div>
+          <div class="view" id="view-front"></div>
+          <div class="view" id="view-aerial"></div>
+          <div class="view" id="view-history"></div>
+        </div>
+      </div>
+      <aside class="side">
+        <section class="card"><h3>What BridgePoint knows right now</h3><div class="plain" id="plain"></div></section>
+        <section class="card"><h3>Intelligence, not a mystery score</h3><div class="metrics" id="metrics"></div><div class="plain" id="intelPlain" style="margin-top:9px"></div></section>
+        <section class="card"><h3>Source & freshness</h3><div class="plain" id="sourcePlain"></div></section>
+        <section class="card truth" id="truth">BridgePoint separates source-backed facts from visualization estimates. A nearby storm, image or score is a reason to investigate—not proof that physical damage occurred.</section>
+      </aside>
+    </section>
+    <div class="footer-note">BridgePoint Property Twin • same account controls and evidence rules as the main app</div>
+  </main>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const SUPABASE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co';
+    const SUPABASE_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+    const sb=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    const $=id=>document.getElementById(id);
+    const loading=$('loading'),authWrap=$('authWrap'),authError=$('authError'),workspace=$('workspace'),results=$('results');
+    let twin=null,currentRow=null,sceneState=null,view='three',historyIndex=0;
+
+    const asMap=v=>v&&typeof v==='object'&&!Array.isArray(v)?v:{};
+    const asRows=v=>Array.isArray(v)?v:[];
+    const clean=(v,f='—')=>{const s=String(v??'').trim();return !s||s==='null'?f:s};
+    const bool=(v)=>v===true;
+    const esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    const showLoading=v=>loading.classList.toggle('show',!!v);
+    const pill=(text,kind='')=>`<span class="pill ${kind}">${esc(text)}</span>`;
+    const err=(el,msg)=>{el.textContent=msg||'';el.style.display=msg?'block':'none'};
+
+    $('backBtn').onclick=()=>location.href='/app/';
+    $('signOutBtn').onclick=async()=>{await sb.auth.signOut();location.href='/app/';};
+    $('authForm').addEventListener('submit',async e=>{e.preventDefault();err(authError,'');showLoading(true);const {error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});showLoading(false);if(error){err(authError,error.message);return}authWrap.classList.remove('show');await maybeLoadDeepLink();});
+
+    async function requireSession(){const {data}=await sb.auth.getSession();if(data.session){authWrap.classList.remove('show');return true}authWrap.classList.add('show');return false}
+    sb.auth.onAuthStateChange((_event,session)=>{if(session)authWrap.classList.remove('show')});
+
+    $('searchBtn').onclick=search;
+    $('searchInput').addEventListener('keydown',e=>{if(e.key==='Enter')search()});
+    document.querySelectorAll('[data-view]').forEach(btn=>btn.onclick=()=>selectView(btn.dataset.view));
+    $('orbitBtn').onclick=()=>setCameraMode(false);
+    $('walkBtn').onclick=()=>setCameraMode(true);
+
+    async function search(){
+      if(!await requireSession())return;
+      const q=$('searchInput').value.trim();if(q.length<2)return;
+      showLoading(true);results.innerHTML='';
+      const {data,error}=await sb.rpc('bridgepoint_property_suggestions_v192',{p_query:q,p_limit:30});
+      showLoading(false);
+      if(error){results.innerHTML=`<div class="result"><strong>Search unavailable</strong><span>${esc(error.message)}</span></div>`;return}
+      let rows=Array.isArray(data)?data:(data?.suggestions||data?.properties||data?.results||data?.items||data?.rows||[]);
+      rows=Array.isArray(rows)?rows:[];
+      if(!rows.length){results.innerHTML='<div class="result"><strong>No matching property yet</strong><span>Try a more specific address, parcel, owner or municipality.</span></div>';return}
+      results.innerHTML=rows.map((r,i)=>`<button class="result" data-i="${i}" type="button"><strong>${esc(r.full_address||r.address||'Property')}</strong><span>${esc(r.municipality||r.city||'')} ${esc(r.state_code||'')} • ${esc(r.parcel_number||'parcel unavailable')} • ${esc(r.property_type||'property')}</span></button>`).join('');
+      results.querySelectorAll('[data-i]').forEach(el=>el.onclick=()=>openProperty(rows[Number(el.dataset.i)]));
+    }
+
+    async function openProperty(row){
+      if(!await requireSession())return;
+      const id=clean(row.property_id||row.id,'');if(!id)return;
+      currentRow=row;showLoading(true);results.innerHTML='';
+      const {data,error}=await sb.rpc('bridgepoint_property_twin_v918',{p_property_id:id});
+      showLoading(false);
+      if(error){results.innerHTML=`<div class="result"><strong>Property Twin unavailable</strong><span>${esc(error.message)}</span></div>`;return}
+      twin=asMap(data);
+      if(twin.locked){workspace.hidden=true;results.innerHTML=`<div class="result"><strong>${esc(twin.required_geography||'This geography')} is locked for this account</strong><span>Your BridgePoint package controls remain enforced here.</span></div>`;return}
+      const address=clean(row.full_address||row.address||twin?.property?.full_address,'Property Twin');
+      $('title').textContent=address;
+      $('subtitle').textContent=`${clean(row.municipality||row.city,'')} ${clean(row.state_code||twin.state_code,'')} • ${clean(row.parcel_number,'parcel available through evidence')} • live physical + evidence workspace`;
+      historyIndex=0;workspace.hidden=false;renderTwin();
+      history.replaceState(null,'',`/app/twin/?property=${encodeURIComponent(id)}`);
+      workspace.scrollIntoView({behavior:'smooth',block:'start'});
+    }
+
+    function renderTwin(){
+      const caps=asMap(twin.capabilities),queued=asMap(twin.enrichment_queued),site=asMap(twin.site_3d),media=asMap(twin.media),intel=asMap(twin.intelligence);
+      const live=Object.values(caps).filter(bool).length,up=Object.values(queued).filter(bool).length;
+      $('status').innerHTML=pill(`${live} live`,'green')+(up?pill(`${up} upgrading`,'amber'):'')+pill(`${site.building_count||0} nearby structures`)+pill(clean(site.structure_mode,'physical context'));
+      renderPlain(caps,queued,site,media,intel);renderImageViews(media);renderThree(site);selectView(view);
+    }
+
+    function renderPlain(caps,queued,site,media,intel){
+      const front=asMap(media.front),aerial=asMap(media.aerial_current),hist=asRows(media.aerial_history);const lines=[];
+      lines.push(caps.geocoded?'This property is pinned to a real map location.':'BridgePoint is still resolving the exact location and will not invent one.');
+      if(site.structure_mode==='SOURCE_FOOTPRINT_HEIGHT')lines.push('The focal structure uses source-backed footprint and displayed height data.');
+      else if(site.structure_mode==='SOURCE_FOOTPRINT_ESTIMATED_HEIGHT')lines.push('The footprint is source-backed; displayed height is explicitly a visualization estimate, not a measurement.');
+      else if(queued.building_geometry)lines.push('The site is usable now and a better building model has been queued automatically.');
+      else lines.push('Physical site context stays usable while BridgePoint upgrades structure fidelity.');
+      if(Object.keys(front).length)lines.push(`A real exterior/street image is attached from ${clean(front.source_name||front.provider,'an approved source')}${front.captured_at?' • '+String(front.captured_at).split('T')[0]:''}.`);
+      else if(queued.front_imagery)lines.push('BridgePoint is automatically searching approved exterior imagery sources for a front view.');
+      else lines.push('No synthetic front photo is used; aerial and 3D context remain available.');
+      if(Object.keys(aerial).length)lines.push(hist.length?`Current aerial context plus ${hist.length} dated historical observation${hist.length===1?'':'s'} are attached.`:'Current aerial context is available; historical imagery stays separate until there is a dated source.');
+      $('plain').innerHTML=lines.map(x=>`<div>${esc(x)}</div>`).join('');
+
+      const score=asMap(intel.score),signals=asRows(intel.signals),patterns=asRows(intel.patterns);
+      $('metrics').innerHTML=`<div class="metric"><b>${signals.length}</b><span>visible signals</span></div><div class="metric"><b>${patterns.length}</b><span>visible patterns</span></div><div class="metric"><b>${esc(score.priority_tier||'—')}</b><span>priority tier</span></div><div class="metric"><b>${esc(site.building_count||0)}</b><span>nearby structures</span></div>`;
+      const intelLines=[];if(score.available)intelLines.push(`Priority is ${clean(score.priority_tier,'reviewed')} and is tied to linked evidence, not one unexplained number.`);intelLines.push('Signals and patterns remain traceable to underlying property evidence and freshness.');
+      $('intelPlain').innerHTML=intelLines.map(x=>`<div>${esc(x)}</div>`).join('');
+
+      const sourceLines=[];if(front.source_name||front.provider)sourceLines.push(`Front: ${clean(front.source_name||front.provider)}${front.captured_at?' • '+String(front.captured_at).split('T')[0]:''}`);if(aerial.source_name||aerial.provider)sourceLines.push(`Aerial: ${clean(aerial.source_name||aerial.provider)}${aerial.reference_only?' • context only':''}`);sourceLines.push(`3D: ${clean(site.structure_mode,'site context')} • ${site.source_count||0} physical source${Number(site.source_count||0)===1?'':'s'}`);$('sourcePlain').innerHTML=sourceLines.map(x=>`<div>${esc(x)}</div>`).join('');
+      $('truth').textContent=clean(site.truth_notice,'BridgePoint separates source-backed facts from visualization estimates. A signal is a reason to investigate, not proof that a physical event occurred.');
+    }
+
+    function emptyHtml(icon,title,body){return `<div class="empty"><div><div class="icon">${icon}</div><h3>${esc(title)}</h3><p>${esc(body)}</p></div></div>`}
+    function imageHtml(item,emptyTitle,emptyBody){item=asMap(item);let url=clean(item.thumbnail_url||item.media_url,'').replaceAll('{{sizeprefix}}','th');if(!url)return emptyHtml('◫',emptyTitle,emptyBody);const meta=[clean(item.source_name||item.provider,'Visual source'),item.captured_at?`captured ${String(item.captured_at).split('T')[0]}`:'',item.reference_only?'context only':''].filter(Boolean).join(' • ');return `<img alt="BridgePoint property visual evidence" src="${esc(url)}"><div class="image-meta">${esc(meta)}</div>`}
+    function renderImageViews(media){
+      const front=asMap(media.front),aerial=asMap(media.aerial_current),hist=asRows(media.aerial_history);
+      $('view-front').innerHTML=imageHtml(front,'Front imagery is upgrading','BridgePoint will not manufacture a house photo. 3D and aerial stay usable while approved imagery sources are searched.');
+      $('view-aerial').innerHTML=imageHtml(aerial,'Current aerial context is upgrading','Aerial context appears when the property location is resolved.');
+      if(!hist.length){$('view-history').innerHTML=emptyHtml('↶','Historical imagery is expanding nationally','Current imagery stays separate from dated historical evidence.');return}
+      const item=hist[Math.min(historyIndex,hist.length-1)];$('view-history').innerHTML=imageHtml(item,'Historical image could not render','The dated source remains in the property record.');
+      if(hist.length>1){const bar=document.createElement('div');bar.className='three-modes';bar.innerHTML=`<button class="chip" id="histPrev" type="button">←</button><button class="chip" id="histNext" type="button">→</button>`;$('view-history').appendChild(bar);bar.querySelector('#histPrev').onclick=()=>{historyIndex=(historyIndex-1+hist.length)%hist.length;renderImageViews(media)};bar.querySelector('#histNext').onclick=()=>{historyIndex=(historyIndex+1)%hist.length;renderImageViews(media)}}
+    }
+
+    function selectView(next){view=next||'three';document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));const target=$(`view-${view}`);if(target)target.classList.add('active');if(view==='three'&&sceneState)requestAnimationFrame(()=>resizeThree())}
+
+    function polygonRings(geometry){
+      if(!geometry||!geometry.type)return[];const c=geometry.coordinates||[];
+      if(geometry.type==='Polygon')return c.length?[c[0]]:[];
+      if(geometry.type==='MultiPolygon')return c.filter(p=>Array.isArray(p)&&p.length).map(p=>p[0]);
+      return[];
+    }
+    function localPoint(lon,lat,centerLon,centerLat){const mx=111320*Math.cos(centerLat*Math.PI/180);const mz=110540;return{x:(lon-centerLon)*mx,z:-(lat-centerLat)*mz}}
+
+    function renderThree(site){
+      disposeThree();const host=$('three');host.replaceChildren();const buildings=asRows(site.buildings),center=asMap(site.center);const centerLat=Number(center.lat),centerLon=Number(center.lng);
+      if(!Number.isFinite(centerLat)||!Number.isFinite(centerLon)){host.innerHTML=emptyHtml('◫','3D site is waiting on location resolution','BridgePoint will not invent coordinates.');return}
+      const scene=new THREE.Scene();scene.background=new THREE.Color(0x030a12);scene.fog=new THREE.FogExp2(0x030a12,.0008);
+      const camera=new THREE.PerspectiveCamera(48,1,.1,6000);camera.up.set(0,1,0);
+      const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.outputColorSpace=THREE.SRGBColorSpace;host.appendChild(renderer.domElement);
+      scene.add(new THREE.HemisphereLight(0xb9e8ff,0x101820,1.5));const sun=new THREE.DirectionalLight(0xffffff,1.3);sun.position.set(180,300,120);scene.add(sun);
+      const grid=new THREE.GridHelper(1200,60,0x1b526b,0x112a39);grid.material.opacity=.35;grid.material.transparent=true;scene.add(grid);
+      const parcel=site.parcel_geometry;for(const ring of polygonRings(parcel)){const pts=ring.map(p=>localPoint(Number(p[0]),Number(p[1]),centerLon,centerLat));if(pts.length<3)continue;const geo=new THREE.BufferGeometry().setFromPoints(pts.map(p=>new THREE.Vector3(p.x,.08,p.z)));const line=new THREE.LineLoop(geo,new THREE.LineBasicMaterial({color:0xffc95e,transparent:true,opacity:.9}));scene.add(line)}
+      let maxR=45,targetFound=false,sourceHeights=0;
+      for(const b of buildings){for(const ring of polygonRings(b.geometry)){const pts=ring.map(p=>localPoint(Number(p[0]),Number(p[1]),centerLon,centerLat));if(pts.length<3)continue;const shape=new THREE.Shape();shape.moveTo(pts[0].x,-pts[0].z);for(const p of pts.slice(1))shape.lineTo(p.x,-p.z);shape.closePath();let h=Number(b.render_height_m||b.height_m||8.5);if(!Number.isFinite(h)||h<=0)h=8.5;h=Math.max(2,Math.min(h,180));const estimated=String(b.height_source||'')==='ESTIMATED_VISUALIZATION_ONLY';if(!estimated)sourceHeights++;const isTarget=b.is_target===true;targetFound=targetFound||isTarget;const geom=new THREE.ExtrudeGeometry(shape,{depth:h,bevelEnabled:false,curveSegments:1,steps:1});geom.rotateX(-Math.PI/2);const mat=new THREE.MeshStandardMaterial({color:isTarget?0x48e1ff:(estimated?0x7d8496:0x6c83aa),roughness:.72,metalness:.04,transparent:true,opacity:isTarget?.94:.74});const mesh=new THREE.Mesh(geom,mat);scene.add(mesh);const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geom),new THREE.LineBasicMaterial({color:isTarget?0xbff6ff:(estimated?0xffc95e:0xacc3d8),transparent:true,opacity:.72}));scene.add(edges);for(const p of pts)maxR=Math.max(maxR,Math.hypot(p.x,p.z))}}
+      const marker=new THREE.Mesh(new THREE.SphereGeometry(1.8,20,14),new THREE.MeshStandardMaterial({color:0x48e1ff,emissive:0x174d5c}));marker.position.set(0,2.2,0);scene.add(marker);
+      const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.08;controls.target.set(0,Math.min(12,maxR*.05),0);controls.maxPolarAngle=Math.PI*.49;controls.minDistance=5;controls.maxDistance=Math.max(300,maxR*5);camera.position.set(maxR*.78,Math.max(60,maxR*.72),maxR*.92);controls.update();
+      sceneState={scene,camera,renderer,controls,host,maxR,walk:false,keys:new Set(),raf:0,onKeyDown:e=>sceneState?.keys.add(e.key.toLowerCase()),onKeyUp:e=>sceneState?.keys.delete(e.key.toLowerCase())};addEventListener('keydown',sceneState.onKeyDown);addEventListener('keyup',sceneState.onKeyUp);$('threeTruth').textContent=buildings.length?`${buildings.length} structures • ${sourceHeights} source-height${sourceHeights===1?'':'s'}${targetFound?' • target resolved':''}`:'geolocated site • structure geometry upgrading';$('threeMeta').textContent='Drag to orbit • wheel/pinch to zoom';resizeThree();animateThree();setCameraMode(false);
+    }
+
+    function resizeThree(){if(!sceneState)return;const {host,camera,renderer}=sceneState;const w=Math.max(1,host.clientWidth),h=Math.max(1,host.clientHeight);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
+    function animateThree(){if(!sceneState)return;const s=sceneState;if(s.walk){const speed=Math.max(.4,s.maxR*.004);const forward=new THREE.Vector3();s.camera.getWorldDirection(forward);forward.y=0;forward.normalize();const right=new THREE.Vector3().crossVectors(forward,s.camera.up).normalize();let move=new THREE.Vector3();if(s.keys.has('w')||s.keys.has('arrowup'))move.add(forward);if(s.keys.has('s')||s.keys.has('arrowdown'))move.sub(forward);if(s.keys.has('d')||s.keys.has('arrowright'))move.add(right);if(s.keys.has('a')||s.keys.has('arrowleft'))move.sub(right);if(move.lengthSq()>0){move.normalize().multiplyScalar(speed);s.camera.position.add(move);s.controls.target.add(move)}}s.controls.update();s.renderer.render(s.scene,s.camera);s.raf=requestAnimationFrame(animateThree)}
+    function setCameraMode(walk){if(!sceneState)return;const s=sceneState;s.walk=!!walk;$('orbitBtn').classList.toggle('active',!walk);$('walkBtn').classList.toggle('active',walk);if(walk){s.camera.position.set(0,2.2,Math.max(18,s.maxR*.45));s.controls.target.set(0,2.2,0);s.controls.maxPolarAngle=Math.PI*.52;$('threeMeta').textContent='Walk mode • drag to look • WASD / arrows to move • wheel to zoom'}else{s.camera.position.set(s.maxR*.78,Math.max(60,s.maxR*.72),s.maxR*.92);s.controls.target.set(0,Math.min(12,s.maxR*.05),0);s.controls.maxPolarAngle=Math.PI*.49;$('threeMeta').textContent='Orbit mode • drag to rotate • wheel/pinch to zoom'}s.controls.update()}
+    function disposeThree(){if(!sceneState)return;cancelAnimationFrame(sceneState.raf);removeEventListener('keydown',sceneState.onKeyDown);removeEventListener('keyup',sceneState.onKeyUp);sceneState.controls.dispose();sceneState.renderer.dispose();sceneState=null}
+    addEventListener('resize',resizeThree);
+
+    async function maybeLoadDeepLink(){if(!await requireSession())return;const id=new URL(location.href).searchParams.get('property');if(!id)return;showLoading(true);const {data,error}=await sb.rpc('bridgepoint_property_twin_v918',{p_property_id:id});showLoading(false);if(error)return;twin=asMap(data);currentRow={property_id:id,state_code:twin.state_code};$('title').textContent=`Property Twin • ${id.slice(0,8)}`;$('subtitle').textContent=`${clean(twin.state_code,'')} • direct authenticated property workspace`;workspace.hidden=false;renderTwin()}
+
+    await maybeLoadDeepLink();
+  </script>
+</body>
+</html>

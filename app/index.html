@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/app/">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description" content="BridgePoint Intelligence connects property records, weather, permits, imagery, physical intelligence, risk, claims, portfolios, workflows and integrations around one canonical property identity.">
+  <meta name="theme-color" content="#07111F">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BridgePoint">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <title>BridgePoint Intelligence</title>
+  <style>
+    html,body{margin:0;width:100%;height:100%;background:#06111e;color:#fff}
+    body{overflow:hidden}
+    #bp-install{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));z-index:2147483000;display:none;align-items:center;gap:8px;min-height:44px;border:1px solid rgba(53,210,232,.34);border-radius:13px;padding:0 13px;background:rgba(7,19,33,.96);color:#fff;box-shadow:0 14px 42px rgba(0,0,0,.38);font:800 12px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;backdrop-filter:blur(14px)}
+    #bp-install.show{display:flex}#bp-install .bp-dot{width:8px;height:8px;border-radius:50%;background:#35d2e8;box-shadow:0 0 12px rgba(53,210,232,.72)}
+    #bp-install-dialog{position:fixed;inset:0;z-index:2147483500;display:none;place-items:center;padding:16px;background:rgba(2,8,14,.72);backdrop-filter:blur(10px)}
+    #bp-install-dialog.show{display:grid}.bp-install-card{width:min(460px,100%);max-height:calc(100vh - 32px);overflow:auto;border-radius:18px;border:1px solid rgba(53,210,232,.25);background:#0d1a2b;box-shadow:0 24px 80px rgba(0,0,0,.55);padding:18px;font:500 13px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-sizing:border-box}.bp-install-title{font-size:18px;font-weight:900}.bp-install-sub{margin-top:5px;color:#8fa5bf}.bp-install-steps{margin:14px 0 0;padding-left:20px;color:#d9e5f1}.bp-install-steps li{margin:7px 0}.bp-install-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.bp-install-actions button{min-height:44px;border-radius:11px;padding:0 14px;font:850 12px/1 system-ui;border:0;cursor:pointer}.bp-install-close{background:#122238;color:#fff;border:1px solid rgba(255,255,255,.1)!important}
+    @media(max-width:430px){#bp-install{left:10px;bottom:max(10px,env(safe-area-inset-bottom));min-height:46px}.bp-install-card{padding:16px}.bp-install-actions{flex-direction:column}.bp-install-actions button{width:100%}}
+  </style>
+</head>
+<body>
+  <button id="bp-install" type="button" aria-label="Install BridgePoint Intelligence"><span class="bp-dot" aria-hidden="true"></span><span>Install BridgePoint</span></button>
+  <div id="bp-install-dialog" role="dialog" aria-modal="true" aria-labelledby="bp-install-title">
+    <div class="bp-install-card">
+      <div id="bp-install-title" class="bp-install-title">Install BridgePoint</div>
+      <div id="bp-install-copy" class="bp-install-sub"></div>
+      <ol id="bp-install-steps" class="bp-install-steps"></ol>
+      <div class="bp-install-actions"><button id="bp-install-close" class="bp-install-close" type="button">Done</button></div>
+    </div>
+  </div>
+  <script>
+    (()=>{
+      const button=document.getElementById('bp-install');
+      const dialog=document.getElementById('bp-install-dialog');
+      const copy=document.getElementById('bp-install-copy');
+      const steps=document.getElementById('bp-install-steps');
+      const close=document.getElementById('bp-install-close');
+      let installPrompt=null;
+      const standalone=()=>window.matchMedia?.('(display-mode: standalone)').matches||window.navigator.standalone===true;
+      const ios=()=>/iphone|ipad|ipod/i.test(navigator.userAgent);
+      const showButton=()=>{if(!standalone())button.classList.add('show')};
+      const hideButton=()=>button.classList.remove('show');
+      const guidance=()=>{
+        const data=ios()?{
+          copy:'Safari installs BridgePoint from the Share menu. Your signed-in app opens full-screen from the Home Screen.',
+          steps:['Tap the Share button in Safari.','Choose “Add to Home Screen”.','Confirm “Add”. Open BridgePoint from the new icon.']
+        }:{
+          copy:'Your browser did not expose a one-tap install prompt. You can still install BridgePoint from the browser app/install menu.',
+          steps:['Open the browser menu.','Choose “Install app”, “Install BridgePoint”, or “Add to Home screen”.','Confirm the install and launch BridgePoint from your device.']
+        };
+        copy.textContent=data.copy;steps.replaceChildren(...data.steps.map(text=>{const li=document.createElement('li');li.textContent=text;return li}));dialog.classList.add('show');
+      };
+      addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;showButton()});
+      addEventListener('appinstalled',()=>{installPrompt=null;hideButton();dialog.classList.remove('show')});
+      button.addEventListener('click',async()=>{
+        if(standalone()){hideButton();return}
+        if(installPrompt){const prompt=installPrompt;installPrompt=null;await prompt.prompt();const choice=await prompt.userChoice.catch(()=>null);if(choice?.outcome!=='accepted')showButton();return}
+        guidance();
+      });
+      close.addEventListener('click',()=>dialog.classList.remove('show'));
+      dialog.addEventListener('click',event=>{if(event.target===dialog)dialog.classList.remove('show')});
+      addEventListener('load',()=>{if(!standalone())window.setTimeout(showButton,1200)},{once:true});
+    })();
+  </script>
+  <script src="podcast-entry-v941.js?v=941"></script>
+  <script src="signup-confirmation-v946.js?v=946"></script>
+  
+  <script src="live-system-ribbon-v958.js?v=958"></script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
