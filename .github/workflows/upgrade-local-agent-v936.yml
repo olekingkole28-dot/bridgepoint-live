@@ -78,4 +78,4 @@ jobs:
             git push origin HEAD:live-artifact
           fi
 
-# V936 parser diagnostics trigger 2026-08-27
+# V936 retry after fixing legacy backup parser bugs 2026-08-27
