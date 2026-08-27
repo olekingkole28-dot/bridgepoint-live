@@ -1,0 +1,123 @@
+name: Release Live System Ribbon V958
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-live-system-v958.yml'
+      - 'handoff/public-overlays/live-system-ribbon-v958.js'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout control branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Assemble durable app
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site
+          mkdir -p site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/main.dart.js
+          test -s handoff/public-overlays/live-system-ribbon-v958.js
+          cp handoff/public-overlays/live-system-ribbon-v958.js site/app/live-system-ribbon-v958.js
+
+      - name: Replace floating parcel button with live system ribbon
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('site/app/index.html')
+          s=p.read_text(encoding='utf-8')
+          old='<script src="live-parcel-counter-v956.js?v=956"></script>'
+          new='<script src="live-system-ribbon-v958.js?v=958"></script>'
+          s=s.replace(old,'')
+          if new not in s:
+              marker='<script src="flutter_bootstrap.js" async></script>'
+              if marker not in s:
+                  raise SystemExit('Flutter bootstrap marker missing')
+              s=s.replace(marker,new+'\n  '+marker,1)
+          if s.count(new)!=1:
+              raise SystemExit('Expected exactly one V958 system ribbon script')
+          if old in s:
+              raise SystemExit('Old V956 floating parcel counter still referenced')
+          p.write_text(s,encoding='utf-8')
+          PY
+          grep -q 'bridgepoint_public_system_pulse_v957' site/app/live-system-ribbon-v958.js
+          grep -q 'bridgepoint_owner_live_activity_v958' site/app/live-system-ribbon-v958.js
+          grep -q 'live-system-ribbon-v958.js?v=958' site/app/index.html
+          ! grep -q 'live-parcel-counter-v956.js?v=956' site/app/index.html
+          touch site/.nojekyll site/app/.nojekyll
+
+      - name: Persist durable live artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/bridgepoint-v958-live
+          mkdir -p /tmp/bridgepoint-v958-live
+          cp -a site/. /tmp/bridgepoint-v958-live/
+          cd /tmp/bridgepoint-v958-live
+          git init -q
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m 'Publish live system ribbon V958'
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live ribbon
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 24); do
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?v=958-${attempt}" 2>/dev/null || true)"
+            ribbon="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/live-system-ribbon-v958.js?v=958-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'live-system-ribbon-v958.js?v=958' \
+              && ! printf '%s' "$app" | grep -q 'live-parcel-counter-v956.js?v=956' \
+              && printf '%s' "$ribbon" | grep -q 'LIVE BRIDGEPOINT' \
+              && printf '%s' "$ribbon" | grep -q 'bridgepoint_public_system_pulse_v957'; then
+              echo 'V958 live system ribbon verified.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'V958 live system ribbon did not converge.' >&2
+          exit 1
