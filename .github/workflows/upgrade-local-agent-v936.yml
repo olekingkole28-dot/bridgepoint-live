@@ -72,3 +72,5 @@ jobs:
             git commit -m 'Release Local AI portable export worker V936'
             git push origin HEAD:live-artifact
           fi
+
+# V936 guarded release trigger 2026-08-27
