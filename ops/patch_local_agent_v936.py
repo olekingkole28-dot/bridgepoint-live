@@ -27,6 +27,19 @@ replace_once(
 " foreach($n in @('bridgepoint_full_export_windows.ps1','bridgepoint_verify_backup_windows.ps1','bridgepoint_restore_test_windows.ps1','bridgepoint_state_export_windows.ps1'))",
 'export tool download')
 
+replace_once(
+'if($LASTEXITCODE-ne 0){throw "Export exited $LASTEXITCODE: $($out|Select-Object -Last 8|Out-String)"}',
+'if($LASTEXITCODE-ne 0){throw "Export exited ${LASTEXITCODE}: $($out|Select-Object -Last 8|Out-String)"}',
+'legacy backup export interpolation')
+replace_once(
+'if($LASTEXITCODE-ne 0){throw "Verify exited $LASTEXITCODE: $($out|Select-Object -Last 8|Out-String)"}',
+'if($LASTEXITCODE-ne 0){throw "Verify exited ${LASTEXITCODE}: $($out|Select-Object -Last 8|Out-String)"}',
+'legacy backup verify interpolation')
+replace_once(
+'if($LASTEXITCODE-ne 0){throw "Restore-test exited $LASTEXITCODE: $($out|Select-Object -Last 8|Out-String)"}',
+'if($LASTEXITCODE-ne 0){throw "Restore-test exited ${LASTEXITCODE}: $($out|Select-Object -Last 8|Out-String)"}',
+'legacy restore-test interpolation')
+
 marker="function Ollama([string]$model,[array]$messages){"
 if marker not in s:
     raise SystemExit('RunPortableExport insertion marker missing')
@@ -63,6 +76,7 @@ required=[
     "'export_complete'",
     "'export_fail'",
     "portable_export_protocol='STATE_V936'",
+    '${LASTEXITCODE}:'
 ]
 for needle in required:
     if needle not in s:
