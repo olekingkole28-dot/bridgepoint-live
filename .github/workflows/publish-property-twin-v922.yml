@@ -1,4 +1,4 @@
-name: Publish BridgePoint Property Twin V922
+name: Publish BridgePoint Property Visual V937
 
 on:
   push:
@@ -6,7 +6,6 @@ on:
     paths:
       - '.github/workflows/publish-property-twin-v922.yml'
       - 'handoff/public-overlays/twin/**'
-      - 'handoff/public-overlays/twin-launcher.js'
   workflow_dispatch:
 
 permissions:
@@ -19,7 +18,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish-property-twin:
+  publish-property-visual:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -31,7 +30,7 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Assemble current live artifact plus Property Twin
+      - name: Assemble current live artifact without global Twin launcher
         shell: bash
         run: |
           set -euo pipefail
@@ -46,25 +45,29 @@ jobs:
           test -f site/.nojekyll
           test -f site/app/.nojekyll
           test -s handoff/public-overlays/twin/index.html
-          test -s handoff/public-overlays/twin-launcher.js
 
           mkdir -p site/app/twin
           cp handoff/public-overlays/twin/index.html site/app/twin/index.html
-          cp handoff/public-overlays/twin-launcher.js site/app/twin-launcher.js
+          rm -f site/app/twin-launcher.js
 
           python - <<'PY'
           from pathlib import Path
           import json
+          import re
 
           index = Path('site/app/index.html')
           html = index.read_text(encoding='utf-8')
-          launcher = '<script src="twin-launcher.js" defer></script>'
-          if launcher not in html:
-              needle = '<script src="flutter_bootstrap.js" async></script>'
-              if needle not in html:
-                  raise SystemExit('Flutter bootstrap host marker missing')
-              html = html.replace(needle, launcher + '\n  ' + needle)
-              index.write_text(html, encoding='utf-8')
+          html = re.sub(
+              r'\s*<script[^>]+src=["\'][^"\']*twin-launcher\.js[^"\']*["\'][^>]*>\s*</script>\s*',
+              '\n  ',
+              html,
+              flags=re.IGNORECASE,
+          )
+          if 'twin-launcher.js' in html:
+              raise SystemExit('Global Property Twin launcher reference survived removal')
+          if 'flutter_bootstrap.js' not in html:
+              raise SystemExit('Flutter bootstrap host marker missing')
+          index.write_text(html, encoding='utf-8')
 
           twin = Path('site/app/twin/index.html').read_text(encoding='utf-8')
           if 'bridgepoint_property_twin_v918' not in twin:
@@ -75,28 +78,30 @@ jobs:
               raise SystemExit('Forbidden privileged credential marker in public Twin')
           if 'sb_publishable_' not in twin:
               raise SystemExit('Public Supabase publishable key marker missing')
-          if 'three@0.179.1' not in twin:
-              raise SystemExit('Three.js Property Twin renderer marker missing')
 
           release = {
-              'version': 922,
-              'surface': 'property-twin',
+              'version': 937,
+              'surface': 'property-visual-context',
               'backend_contract': 'bridgepoint_property_twin_v918',
               'search_contract': 'bridgepoint_property_suggestions_v192',
-              'views': ['3d_site','front','aerial_current','aerial_history'],
+              'views': ['front','aerial_current','structure_3d','aerial_history'],
+              'global_floating_launcher': False,
+              'navigation_contract': 'PROPERTY_CONTEXT_ONLY',
+              'structure_3d_truth': 'SOURCE_BACKED_GEOMETRY_NOT_PHOTOREALISTIC_IMAGERY',
               'auth': 'supabase-user-session-rls',
               'source_repo_private': True,
               'private_source_exposed': False,
-              'production_host': '/app/twin/'
+              'compatibility_route': '/app/twin/'
           }
           Path('site/app/property-twin-release-v922.json').write_text(
               json.dumps(release, indent=2) + '\n', encoding='utf-8'
           )
           PY
 
-          grep -q 'twin-launcher.js' site/app/index.html
-          grep -q 'Property Twin 3D' site/app/twin-launcher.js
+          ! grep -q 'twin-launcher.js' site/app/index.html
+          test ! -e site/app/twin-launcher.js
           grep -q 'Property Twin' site/app/twin/index.html
+          grep -q '"global_floating_launcher": false' site/app/property-twin-release-v922.json
           touch site/.nojekyll site/app/.nojekyll
 
       - name: Persist durable live artifact
@@ -114,7 +119,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'Publish BridgePoint Property Twin V922 on current live artifact'
+          git commit -m 'Remove global Property Twin launcher V937'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -128,21 +133,22 @@ jobs:
           tar \
             --dereference --hard-dereference \
             --directory site \
-            -cf "$RUNNER_TEMP/bridgepoint-pages-v922.tar" \
+            -cf "$RUNNER_TEMP/bridgepoint-pages-v937.tar" \
             --exclude=.git \
             --exclude=.github \
             .
-          tar -tf "$RUNNER_TEMP/bridgepoint-pages-v922.tar" > "$RUNNER_TEMP/bridgepoint-pages-v922.list"
-          grep -Fxq './.well-known/security.txt' "$RUNNER_TEMP/bridgepoint-pages-v922.list"
-          grep -Fxq './.nojekyll' "$RUNNER_TEMP/bridgepoint-pages-v922.list"
-          grep -Fxq './app/.nojekyll' "$RUNNER_TEMP/bridgepoint-pages-v922.list"
-          grep -Fxq './app/twin/index.html' "$RUNNER_TEMP/bridgepoint-pages-v922.list"
+          tar -tf "$RUNNER_TEMP/bridgepoint-pages-v937.tar" > "$RUNNER_TEMP/bridgepoint-pages-v937.list"
+          grep -Fxq './.well-known/security.txt' "$RUNNER_TEMP/bridgepoint-pages-v937.list"
+          grep -Fxq './.nojekyll' "$RUNNER_TEMP/bridgepoint-pages-v937.list"
+          grep -Fxq './app/.nojekyll' "$RUNNER_TEMP/bridgepoint-pages-v937.list"
+          grep -Fxq './app/twin/index.html' "$RUNNER_TEMP/bridgepoint-pages-v937.list"
+          ! grep -Fxq './app/twin-launcher.js' "$RUNNER_TEMP/bridgepoint-pages-v937.list"
 
       - name: Upload Pages artifact
         uses: actions/upload-artifact@v4
         with:
           name: github-pages
-          path: ${{ runner.temp }}/bridgepoint-pages-v922.tar
+          path: ${{ runner.temp }}/bridgepoint-pages-v937.tar
           retention-days: 1
           if-no-files-found: error
 
@@ -150,28 +156,28 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify Property Twin and operational files live
+      - name: Verify launcher removal and Property compatibility route live
         shell: bash
         run: |
           set -euo pipefail
           ORIGIN='https://bridgepointintelligence.online'
           for attempt in $(seq 1 24); do
-            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?v=922-${attempt}" 2>/dev/null || true)"
-            twin="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/twin/?v=922-${attempt}" 2>/dev/null || true)"
-            release="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/property-twin-release-v922.json?v=922-${attempt}" 2>/dev/null || true)"
-            launcher="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/twin-launcher.js?v=922-${attempt}" 2>/dev/null || true)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?v=937-${attempt}" 2>/dev/null || true)"
+            twin="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/twin/?v=937-${attempt}" 2>/dev/null || true)"
+            release="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/property-twin-release-v922.json?v=937-${attempt}" 2>/dev/null || true)"
             security="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/.well-known/security.txt" 2>/dev/null || true)"
-            if printf '%s' "$app" | grep -q 'twin-launcher.js' \
+            launcher_code="$(curl -sS -o /tmp/v937-launcher -w '%{http_code}' --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/twin-launcher.js?v=937-${attempt}" 2>/dev/null || true)"
+            if ! printf '%s' "$app" | grep -q 'twin-launcher.js' \
               && printf '%s' "$app" | grep -q 'flutter_bootstrap.js' \
               && printf '%s' "$twin" | grep -q 'bridgepoint_property_twin_v918' \
-              && printf '%s' "$twin" | grep -q '3D Site' \
-              && printf '%s' "$release" | grep -q '"version": 922' \
-              && printf '%s' "$launcher" | grep -q 'Property Twin 3D' \
+              && printf '%s' "$release" | grep -q '"version": 937' \
+              && printf '%s' "$release" | grep -q '"global_floating_launcher": false' \
+              && test "$launcher_code" = '404' \
               && printf '%s' "$security" | grep -q 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt'; then
-              echo 'BridgePoint Property Twin V922 and hidden operational files verified live.'
+              echo 'V937 verified: global Twin launcher absent; contextual compatibility route remains live.'
               exit 0
             fi
             sleep 10
           done
-          echo 'Property Twin V922 did not converge on the public domain.' >&2
+          echo 'Property visual V937 did not converge on the public domain.' >&2
           exit 1
