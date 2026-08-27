@@ -1,0 +1,74 @@
+name: Release BridgePoint Local AI V936
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/upgrade-local-agent-v936.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bridgepoint-local-agent-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout control scripts
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: controls
+
+      - name: Checkout durable live artifact
+        uses: actions/checkout@v4
+        with:
+          ref: live-artifact
+          path: artifact
+          fetch-depth: 0
+
+      - name: Apply guarded V936 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp controls/ops/patch_local_agent_v936.py artifact/patch_local_agent_v936.py
+          cd artifact
+          python patch_local_agent_v936.py
+          rm patch_local_agent_v936.py
+          grep -q '\$AgentVersion=936' downloads/local-ai/bridgepoint_local_ai.ps1
+          grep -q 'portable_export_protocol=.STATE_V936.' downloads/local-ai/bridgepoint_local_ai.ps1
+          grep -q 'bridgepoint_state_export_windows.ps1' downloads/local-ai/bridgepoint_local_ai.ps1
+
+      - name: Parse-check PowerShell
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $tokens=$null
+          $errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile("artifact/downloads/local-ai/bridgepoint_local_ai.ps1",[ref]$tokens,[ref]$errors)
+          if($errors.Count -gt 0){$errors | ForEach-Object { Write-Error $_.Message }; exit 1}
+          $tokens2=$null
+          $errors2=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile("artifact/downloads/backup/bridgepoint_state_export_windows.ps1",[ref]$tokens2,[ref]$errors2)
+          if($errors2.Count -gt 0){$errors2 | ForEach-Object { Write-Error $_.Message }; exit 1}
+          Write-Host "PowerShell syntax checks passed."
+
+      - name: Commit durable agent release
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifact
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add downloads/local-ai/bridgepoint_local_ai.ps1
+          if git diff --cached --quiet; then
+            echo 'Local agent V936 already present.'
+          else
+            git commit -m 'Release Local AI portable export worker V936'
+            git push origin HEAD:live-artifact
+          fi
