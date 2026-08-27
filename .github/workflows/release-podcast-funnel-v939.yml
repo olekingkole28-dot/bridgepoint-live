@@ -1,0 +1,187 @@
+name: Release Podcast Conversion Funnel V939
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/release-podcast-funnel-v939.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout control branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Assemble durable live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir -p site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/index.html
+          test -s site/app/index.html
+          test -s site/app/main.dart.js
+          test -s site/.well-known/security.txt
+
+      - name: Apply guarded podcast conversion patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          p=Path('site/index.html')
+          s=p.read_text(encoding='utf-8')
+
+          old_nav='<header class="wrap nav"><div class="brand">BridgePoint Intelligence</div><nav class="links"><a href="/capabilities/">Everything</a><a href="#deep-tech">Deep Tech</a><a href="#live-proof">Live proof</a><a href="#how">How it works</a><a href="#markets">Markets</a><a href="/articles/">Research</a><a href="/sample/">Free territory preview</a><a href="/investors/">Investors</a><a href="/pilot/">Institutional pilot</a><a href="/enterprise/trust/">Trust Center</a><a href="/contact/">Contact</a><a class="open" href="/app/?utm_source=homepage&utm_medium=nav&utm_campaign=open_app">Open app</a></nav></header>'
+          new_nav='<header class="wrap nav"><div class="brand">BridgePoint Intelligence</div><nav class="links"><a href="#how">How it works</a><a href="#live-proof">Live proof</a><a href="/sample/?utm_source=homepage&utm_medium=nav&utm_campaign=free_preview">Free preview</a><a class="open" data-bp-install href="/app/?utm_source=homepage&utm_medium=nav&utm_campaign=podcast_install">Install / Open</a></nav></header>'
+          if old_nav not in s:
+              if 'data-bp-install' not in s:
+                  raise SystemExit('V939 nav source drift: expected old nav not found')
+          else:
+              s=s.replace(old_nav,new_nav,1)
+
+          old_actions='<div class="actions"><a class="btn primary" href="/sample/?utm_source=homepage&utm_medium=hero&utm_campaign=free_territory_preview">Show me my territory — free</a><a class="btn secondary" href="/capabilities/?utm_source=homepage&utm_medium=hero&utm_campaign=v550_everything">See everything BridgePoint can do</a><a class="btn secondary" href="#deep-tech">Explore Deep Property Intelligence</a><a class="btn secondary" href="#live-proof">See live Connecticut proof</a><a class="btn secondary" href="/app/?utm_source=homepage&utm_medium=hero&utm_campaign=start_trial">Open BridgePoint / Start trial</a></div><div class="fine">No signup or email is required for the free Connecticut preview. Start the 7-day trial only after you see the value, or buy a one-time territory report. Additional states remain behind readiness gates.</div>'
+          new_actions='<div class="actions"><a class="btn primary" data-bp-install href="/app/?utm_source=homepage&utm_medium=hero&utm_campaign=podcast_install">INSTALL / OPEN BRIDGEPOINT</a><a class="btn secondary" href="/sample/?utm_source=homepage&utm_medium=hero&utm_campaign=podcast_free_preview">See my free territory preview</a></div><div class="fine"><strong>One clear next step:</strong> open BridgePoint, create your account and start the 7-day trial. On supported phones and computers this button can install BridgePoint like an app. Prefer to look first? The territory preview requires no signup or email.</div>'
+          if old_actions not in s:
+              if 'INSTALL / OPEN BRIDGEPOINT' not in s:
+                  raise SystemExit('V939 hero source drift: expected old action block not found')
+          else:
+              s=s.replace(old_actions,new_actions,1)
+
+          # Tighten hero explanation for podcast/social visitors while preserving the full proof below.
+          old_p='<p>Give BridgePoint a territory and your line of work. See real ranked property opportunities and the evidence behind them before you create an account—then use the full platform when you are ready.</p>'
+          new_p='<p>Property intelligence before the visit. BridgePoint connects fragmented public and property records, weather, ownership changes, imagery and other evidence around the same real property—then helps you see what deserves attention first and why.</p>'
+          if old_p in s:
+              s=s.replace(old_p,new_p,1)
+
+          install_js='''\n<script id="bp-pwa-install-v939">\n(function(){\n  let deferredPrompt=null;\n  const buttons=()=>Array.from(document.querySelectorAll('[data-bp-install]'));\n  function label(text){buttons().forEach(function(el){el.textContent=text;});}\n  window.addEventListener('beforeinstallprompt',function(e){\n    e.preventDefault(); deferredPrompt=e; label('INSTALL BRIDGEPOINT');\n  });\n  document.addEventListener('click',async function(e){\n    const target=e.target.closest&&e.target.closest('[data-bp-install]');\n    if(!target||!deferredPrompt)return;\n    e.preventDefault();\n    try{\n      deferredPrompt.prompt();\n      await deferredPrompt.userChoice;\n    }finally{\n      deferredPrompt=null; label('OPEN BRIDGEPOINT');\n    }\n  });\n  window.addEventListener('appinstalled',function(){deferredPrompt=null;label('OPEN BRIDGEPOINT');});\n})();\n</script>\n'''
+          if 'bp-pwa-install-v939' not in s:
+              if '</body>' not in s:
+                  raise SystemExit('V939 homepage missing body close')
+              s=s.replace('</body>',install_js+'</body>',1)
+
+          # Add release marker for verification without exposing implementation secrets.
+          marker='<!-- bp-podcast-conversion-v939 -->'
+          if marker not in s:
+              s=s.replace('<body>','<body>'+marker,1)
+
+          p.write_text(s,encoding='utf-8')
+
+          assert 'bp-podcast-conversion-v939' in s
+          assert 'INSTALL / OPEN BRIDGEPOINT' in s
+          assert 'podcast_free_preview' in s
+          assert 'bp-pwa-install-v939' in s
+          assert s.count('<nav class="links">') == 1
+          nav=s.split('<nav class="links">',1)[1].split('</nav>',1)[0]
+          assert nav.count('<a ') == 4, nav
+          assert 'Institutional pilot' not in nav and 'Deep Tech' not in nav and 'Investors' not in nav
+
+          receipt={
+            'version':939,
+            'release':'PODCAST_CONVERSION_FUNNEL',
+            'primary_cta':'INSTALL_OR_OPEN_BRIDGEPOINT',
+            'secondary_cta':'FREE_TERRITORY_PREVIEW',
+            'top_nav_links':4,
+            'pwa_install_prompt':True,
+            'app_route':'/app/',
+            'trial_copy':'7-day trial',
+            'informational_sections_preserved':True,
+            'released_for':'Boroughs & Burbs podcast traffic 2026-08-27'
+          }
+          Path('site/podcast-conversion-v939.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
+          PY
+
+          grep -q 'bp-podcast-conversion-v939' site/index.html
+          grep -q 'INSTALL / OPEN BRIDGEPOINT' site/index.html
+          grep -q 'bp-pwa-install-v939' site/index.html
+          grep -q 'See my free territory preview' site/index.html
+          grep -q '"version": 939' site/podcast-conversion-v939.json
+          touch site/.nojekyll site/app/.nojekyll
+
+      - name: Persist durable live artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/bridgepoint-v939-live && mkdir -p /tmp/bridgepoint-v939-live
+          cp -a site/. /tmp/bridgepoint-v939-live/
+          cd /tmp/bridgepoint-v939-live
+          git init -q
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m 'Simplify podcast conversion funnel V939'
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build hidden-file-safe Pages artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar --dereference --hard-dereference --directory site -cf "$RUNNER_TEMP/bridgepoint-v939.tar" --exclude=.git --exclude=.github .
+          tar -tf "$RUNNER_TEMP/bridgepoint-v939.tar" > "$RUNNER_TEMP/bridgepoint-v939.list"
+          grep -Fxq './.well-known/security.txt' "$RUNNER_TEMP/bridgepoint-v939.list"
+          grep -Fxq './index.html' "$RUNNER_TEMP/bridgepoint-v939.list"
+          grep -Fxq './app/index.html' "$RUNNER_TEMP/bridgepoint-v939.list"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-pages
+          path: ${{ runner.temp }}/bridgepoint-v939.tar
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live podcast funnel
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 24); do
+            home="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/?v=939-${attempt}" 2>/dev/null || true)"
+            receipt="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/podcast-conversion-v939.json?v=939-${attempt}" 2>/dev/null || true)"
+            app_code="$(curl -sS -o /tmp/v939-app -w '%{http_code}' --max-time 15 "${ORIGIN}/app/?v=939-${attempt}" 2>/dev/null || true)"
+            sample_code="$(curl -sS -o /tmp/v939-sample -w '%{http_code}' --max-time 15 "${ORIGIN}/sample/?v=939-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$home" | grep -q 'bp-podcast-conversion-v939' \
+              && printf '%s' "$home" | grep -q 'INSTALL / OPEN BRIDGEPOINT' \
+              && printf '%s' "$home" | grep -q 'See my free territory preview' \
+              && printf '%s' "$home" | grep -q 'bp-pwa-install-v939' \
+              && printf '%s' "$receipt" | grep -q '"version": 939' \
+              && test "$app_code" = '200' \
+              && test "$sample_code" = '200'; then
+              echo 'V939 verified live: simplified podcast funnel, install/open CTA, free preview, app and sample routes healthy.'
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'V939 public conversion funnel did not converge.' >&2
+          exit 1
