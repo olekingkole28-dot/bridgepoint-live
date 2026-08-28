@@ -26,7 +26,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          url='https://api.github.com/repos/olekingkole28-dot/bridgepoint_data_studio/contents/pubspec.yaml?ref=customer-ready-v960-rebased'
+          echo 'V970 Home build access probe'
+          url='https://api.github.com/repos/olekingkole28-dot/bridgepoint_data_studio/contents/pubspec.yaml?ref=main'
           probe(){
             local label="$1" token="$2"
             if [ -z "$token" ]; then echo "$label=missing"; return 0; fi
