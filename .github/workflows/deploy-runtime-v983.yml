@@ -1,0 +1,130 @@
+name: Deploy BridgePoint Runtime V983
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-runtime-v983.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assemble and verify unified v983
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/main.dart.js
+          test -s site/app/experience-v974.js
+          test -s site/app/live-home-v981.js
+          test -s site/app/map-radar-v974.js
+          test -s site/app/runtime-unifier-v983.js
+          test -s site/app/flutter_service_worker.js
+          test -s site/app/manifest.json
+
+          node --check site/app/experience-v974.js
+          node --check site/app/live-home-v981.js
+          node --check site/app/map-radar-v963.js
+          node --check site/app/map-radar-v974.js
+          node --check site/app/runtime-unifier-v983.js
+          node --check site/app/flutter_service_worker.js
+
+          grep -q 'data-bridgepoint-runtime="v983"' site/app/index.html
+          grep -q '__bridgepointCanonicalRuntime=.v983' site/app/index.html
+          grep -q 'experience-v974.js?v=983' site/app/index.html
+          grep -q 'live-home-v981.js?v=983' site/app/index.html
+          grep -q 'map-radar-v974.js?v=983' site/app/index.html
+          grep -q 'runtime-unifier-v983.js?v=983' site/app/index.html
+          grep -q 'flutter_bootstrap.js?v=983' site/app/index.html
+
+          grep -q '__bridgepointRuntimeUnifierV983' site/app/runtime-unifier-v983.js
+          grep -q 'bp983-home-mask' site/app/runtime-unifier-v983.js
+          grep -q 'z-index:2147480400' site/app/runtime-unifier-v983.js
+          grep -q 'BridgePointOpenIntelligenceMapV974' site/app/runtime-unifier-v983.js
+          grep -q "txt==='map'" site/app/runtime-unifier-v983.js
+          grep -q '27 languages are available before sign-in' site/app/runtime-unifier-v983.js
+          grep -q "\['ht','Kreyòl ayisyen'" site/app/runtime-unifier-v983.js
+          grep -q "\['zh-Hans','简体中文'" site/app/runtime-unifier-v983.js
+          grep -q "\['ar','العربية'" site/app/runtime-unifier-v983.js
+          grep -q "onboarding_version:'v983'" site/app/runtime-unifier-v983.js
+          grep -q 'bpPreferredLocaleV974' site/app/runtime-unifier-v983.js
+          grep -q 'bridgepoint_public_system_pulse_v957' site/app/live-home-v981.js
+          grep -q 'PARCEL INGESTION' site/app/live-home-v981.js
+          grep -q 'SCORING COVERAGE' site/app/live-home-v981.js
+          grep -q 'LIVE • 3 SEC' site/app/live-home-v981.js
+          grep -q 'Intelligence Map + Live Weather' site/app/map-radar-v974.js
+          grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' site/app/map-radar-v974.js
+          grep -q "\['hail','Hail'\]" site/app/map-radar-v974.js
+          grep -q "\['tornado','Tornado'\]" site/app/map-radar-v974.js
+          grep -q "\['wildfire','Wildfire'\]" site/app/map-radar-v974.js
+          grep -q "\['hurricane','Hurricane'\]" site/app/map-radar-v974.js
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v983'" site/app/flutter_service_worker.js
+          grep -q '"start_url": "./?bpv=v983"' site/app/manifest.json
+
+          if grep -q 'id="bp-install"' site/app/index.html; then echo 'Legacy install UI returned' >&2; exit 1; fi
+          if grep -q 'live-system-v961.js' site/app/index.html; then echo 'Legacy combined Home/owner overlay returned' >&2; exit 1; fi
+          if grep -q 'packages-access-v962.js' site/app/index.html; then echo 'Legacy package overlay returned' >&2; exit 1; fi
+          if grep -q 'podcast-entry-v941.js' site/app/index.html; then echo 'Legacy entry overlay returned' >&2; exit 1; fi
+          if grep -q 'experience-v974-fix.js' site/app/index.html; then echo 'Stale black-hole override returned' >&2; exit 1; fi
+
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy v983
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify unified v983 on public domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 24); do
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?v983=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            unified="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/runtime-unifier-v983.js?v983=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            live="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/live-home-v981.js?v983=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            map="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-radar-v974.js?v983=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            sw="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/flutter_service_worker.js?v983=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            manifest="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/manifest.json?v983=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v983"' \
+              && printf '%s' "$app" | grep -q 'runtime-unifier-v983.js?v=983' \
+              && printf '%s' "$app" | grep -q 'live-home-v981.js?v=983' \
+              && ! printf '%s' "$app" | grep -q 'id="bp-install"' \
+              && ! printf '%s' "$app" | grep -q 'live-system-v961.js' \
+              && printf '%s' "$unified" | grep -q 'bp983-home-mask' \
+              && printf '%s' "$unified" | grep -q 'BridgePointOpenIntelligenceMapV974' \
+              && printf '%s' "$unified" | grep -q '27 languages are available before sign-in' \
+              && printf '%s' "$unified" | grep -q "onboarding_version:'v983'" \
+              && printf '%s' "$live" | grep -q 'bridgepoint_public_system_pulse_v957' \
+              && printf '%s' "$live" | grep -q 'PARCEL INGESTION' \
+              && printf '%s' "$map" | grep -q 'Intelligence Map + Live Weather' \
+              && printf '%s' "$map" | grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' \
+              && printf '%s' "$sw" | grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v983'" \
+              && printf '%s' "$manifest" | grep -q 'bpv=v983'; then
+              echo 'BridgePoint unified v983 verified on public domain.'
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'BridgePoint unified v983 did not converge on public domain.' >&2
+          exit 1
