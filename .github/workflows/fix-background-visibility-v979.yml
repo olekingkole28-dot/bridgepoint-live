@@ -1,0 +1,73 @@
+name: Fix BridgePoint Background Visibility V979
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/fix-background-visibility-v979.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch live background visibility and scale
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/experience-v974.js')
+          s=p.read_text()
+          s=s.replace("#bp974-cosmos{position:fixed;inset:0;z-index:2147480500;pointer-events:none;opacity:.48;mix-blend-mode:screen;transition:opacity .22s ease,visibility .22s ease}","#bp974-cosmos{position:fixed;inset:0;z-index:2147480500;pointer-events:none;opacity:.60;mix-blend-mode:screen;transition:opacity .22s ease,visibility .22s ease}")
+          s=s.replace("@media(max-width:680px){#bp974-preapp{right:8px;top:max(8px,env(safe-area-inset-top));gap:5px}.bp974-pill{min-height:38px;padding:0 9px;font-size:11px}.bp974-grid{grid-template-columns:1fr}.bp974-field.full{grid-column:auto}.bp974-language-list{grid-template-columns:1fr 1fr}.bp974-card{padding:16px}#bp974-cosmos{opacity:.42}}","@media(max-width:680px){#bp974-preapp{right:8px;top:max(8px,env(safe-area-inset-top));gap:5px}.bp974-pill{min-height:38px;padding:0 9px;font-size:11px}.bp974-grid{grid-template-columns:1fr}.bp974-field.full{grid-column:auto}.bp974-language-list{grid-template-columns:1fr 1fr}.bp974-card{padding:16px}#bp974-cosmos{opacity:.56}}")
+          s=s.replace("const cx=w*.5,cy=h*.50,r=Math.max(108,Math.min(w,h)*.22),pulse=.5+.5*Math.sin(t*.016);","const cx=w*.5,cy=h*.50,r=Math.max(126,Math.min(w,h)*.285),pulse=.5+.5*Math.sin(t*.016);")
+          old="""  function modalLikeOpen(){
+    if(modal.classList.contains('show'))return true;
+    const nodes=document.querySelectorAll('[role=\"dialog\"],[aria-modal=\"true\"],flt-semantics');
+    for(const el of nodes){const label=(el.getAttribute?.('aria-label')||el.textContent||'').trim();if(el.getAttribute?.('aria-modal')==='true'||/^(property|opportunity|signal|state)\\b/i.test(label))return true;}
+    return false;
+  }
+"""
+          new="""  function modalLikeOpen(){
+    if(modal.classList.contains('show'))return true;
+    for(const el of document.querySelectorAll('[role=\"dialog\"],[aria-modal=\"true\"]')){
+      const rect=el.getBoundingClientRect?.();
+      if(!rect||rect.width<2||rect.height<2)continue;
+      if(el.getAttribute?.('aria-modal')==='true'||rect.height>innerHeight*.30)return true;
+    }
+    for(const el of document.querySelectorAll('flt-semantics[aria-label]')){
+      const label=(el.getAttribute('aria-label')||'').trim();
+      if(!/^(property|opportunity|signal|state)\\b/i.test(label))continue;
+      const rect=el.getBoundingClientRect?.();
+      if(!rect)continue;
+      const looksLikeBottomSheet=rect.top>innerHeight*.12&&rect.top<innerHeight*.72&&rect.bottom>innerHeight*.82&&rect.height>innerHeight*.34&&rect.width>innerWidth*.70;
+      if(looksLikeBottomSheet)return true;
+    }
+    return false;
+  }
+"""
+          if old not in s:
+              raise SystemExit('old modalLikeOpen block not found')
+          s=s.replace(old,new)
+          p.write_text(s)
+          idx=Path('app/index.html')
+          html=idx.read_text().replace('experience-v974.js?v=978','experience-v974.js?v=979')
+          idx.write_text(html)
+          PY
+          node --check app/experience-v974.js
+          grep -q 'r=Math.max(126,Math.min(w,h)\*.285)' app/experience-v974.js
+          grep -q 'looksLikeBottomSheet' app/experience-v974.js
+          grep -q 'experience-v974.js?v=979' app/index.html
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/experience-v974.js app/index.html
+          git commit -m 'Fix black hole visibility and scale v979'
+          git push origin HEAD:live-artifact
