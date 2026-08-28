@@ -1,0 +1,140 @@
+name: Deploy BridgePoint Runtime V984B
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-runtime-v984b.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble validated v984 live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/index.html
+          test -s site/landing-v984.js
+          test -s site/app/index.html
+          test -s site/app/main.dart.js
+          for f in experience-v974.js map-radar-v974.js map-polish-v984.js runtime-unifier-v984.js live-home-v984.js signals-activity-v984.js owner-console-v984.js visual-polish-v984.js; do
+            test -s "site/app/$f"
+            node --check "site/app/$f"
+          done
+          node --check site/landing-v984.js
+
+      - name: Recheck public landing and app contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'BridgePoint Intelligence | U.S. Property Intelligence' site/index.html
+          grep -q 'Live U.S. network' site/index.html
+          grep -q 'Nationwide expansion' site/index.html
+          grep -q 'id="language"' site/index.html
+          grep -q 'bridgepoint_public_system_pulse_v957' site/landing-v984.js
+          grep -q "const kinds=\['home','hail','tornado','hurricane','fire','flood','claim','permit','solar','risk'\]" site/landing-v984.js
+          ! grep -qi 'Connecticut opportunity intelligence' site/index.html
+          ! grep -qi 'territory preview' site/index.html
+          grep -q 'data-bridgepoint-runtime="v984"' site/app/index.html
+          grep -q 'runtime-unifier-v984.js?v=984' site/app/index.html
+          grep -q 'live-home-v984.js?v=984' site/app/index.html
+          grep -q 'owner-console-v984.js?v=984' site/app/index.html
+          ! grep -q 'runtime-unifier-v983.js' site/app/index.html
+          ! grep -q 'live-home-v981.js' site/app/index.html
+          ! grep -q 'map-radar-v963.js' site/app/index.html
+          ! grep -q 'id="bp-install"' site/app/index.html
+          ! grep -q 'stopImmediatePropagation' site/app/runtime-unifier-v984.js
+          grep -q 'BridgePointNavigateFlutterTabV984' site/app/runtime-unifier-v984.js
+          grep -q 'bridgepoint_public_pipeline_activity_v984' site/app/live-home-v984.js
+          grep -q 'bridgepoint_owner_live_activity_v958' site/app/owner-console-v984.js
+          grep -q 'bridgepoint_owner_acquisition_v432' site/app/owner-console-v984.js
+          grep -q 'bridgepoint_owner_commerce_v984' site/app/owner-console-v984.js
+          grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' site/app/map-radar-v974.js
+          grep -q "\['hail','Hail'\]" site/app/map-radar-v974.js
+          grep -q "\['tornado','Tornado'\]" site/app/map-radar-v974.js
+          grep -q "\['wildfire','Wildfire'\]" site/app/map-radar-v974.js
+          grep -q "\['hurricane','Hurricane'\]" site/app/map-radar-v974.js
+          grep -q 'returnHome' site/app/map-polish-v984.js
+          grep -q "location.replace('./?bpv=v984&home=1')" site/app/map-polish-v984.js
+          grep -q '"start_url": "./?bpv=v984"' site/app/manifest.json
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v984'" site/app/flutter_service_worker.js
+          touch site/.nojekyll site/app/.nojekyll
+
+      - name: Verify production pipeline heartbeat
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl -fsSL --max-time 20 -X POST \
+            'https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_pipeline_activity_v984' \
+            -H 'apikey: sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25' \
+            -H 'Authorization: Bearer sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25' \
+            -H 'Content-Type: application/json' -d '{}')"
+          printf '%s' "$response" | grep -Eq '"available"[[:space:]]*:[[:space:]]*true'
+          printf '%s' "$response" | grep -q '"scoring"'
+          printf '%s' "$response" | grep -q '"signals"'
+          printf '%s' "$response" | grep -q '"matching"'
+          printf '%s' "$response" | grep -q '"patterns"'
+          printf '%s' "$response" | grep -q '"opportunities"'
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy v984
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify v984 on actual public domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            root="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/?v984b=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            landing="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/landing-v984.js?v984b=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?v984b=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            home="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/live-home-v984.js?v984b=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            unify="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/runtime-unifier-v984.js?v984b=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            map="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-radar-v974.js?v984b=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            polish="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-polish-v984.js?v984b=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            owner="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/owner-console-v984.js?v984b=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$root" | grep -q 'BridgePoint Intelligence | U.S. Property Intelligence' \
+              && printf '%s' "$root" | grep -q 'Live U.S. network' \
+              && ! printf '%s' "$root" | grep -qi 'Connecticut opportunity intelligence' \
+              && ! printf '%s' "$root" | grep -qi 'territory preview' \
+              && printf '%s' "$landing" | grep -q 'bridgepoint_public_system_pulse_v957' \
+              && printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v984"' \
+              && ! printf '%s' "$app" | grep -q 'runtime-unifier-v983.js' \
+              && printf '%s' "$home" | grep -q 'bridgepoint_public_pipeline_activity_v984' \
+              && printf '%s' "$unify" | grep -q 'BridgePointSelectedTabV984' \
+              && printf '%s' "$map" | grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' \
+              && printf '%s' "$map" | grep -q "\['tornado','Tornado'\]" \
+              && printf '%s' "$polish" | grep -q 'returnHome' \
+              && printf '%s' "$owner" | grep -q 'bridgepoint_owner_acquisition_v432'; then
+              echo 'BridgePoint v984 verified on the actual public domain.'
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'BridgePoint v984 did not converge on the actual public domain.' >&2
+          exit 1
