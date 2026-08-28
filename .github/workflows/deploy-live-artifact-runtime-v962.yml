@@ -27,7 +27,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Assemble and verify canonical v978 artifact
+      - name: Assemble and verify canonical runtime with v979 background
         shell: bash
         run: |
           set -euo pipefail
@@ -54,7 +54,7 @@ jobs:
           grep -q '<base href="/app/">' site/app/index.html
           grep -q 'data-bridgepoint-runtime="v978"' site/app/index.html
           grep -q '__bridgepointCanonicalRuntime=.v978' site/app/index.html
-          grep -q 'experience-v974.js?v=978' site/app/index.html
+          grep -q 'experience-v974.js?v=979' site/app/index.html
           grep -q 'map-radar-v963.js?v=978' site/app/index.html
           grep -q 'map-radar-v974.js?v=978' site/app/index.html
           grep -q 'flutter_bootstrap.js?v=978' site/app/index.html
@@ -75,8 +75,8 @@ jobs:
           grep -q '__bridgepointExperienceV974' site/app/experience-v974.js
           grep -Fq "['home','72,225,255']" site/app/experience-v974.js
           grep -q 'drawIntakeIcon' site/app/experience-v974.js
-          grep -Fq 'const cx=w*.5,cy=h*.50' site/app/experience-v974.js
-          grep -q 'modalLikeOpen' site/app/experience-v974.js
+          grep -Fq 'const cx=w*.5,cy=h*.50,r=Math.max(126,Math.min(w,h)*.285)' site/app/experience-v974.js
+          grep -q 'looksLikeBottomSheet' site/app/experience-v974.js
           grep -q 'drawPlanet' site/app/experience-v974.js
 
           grep -q '__bridgepointMapRadarV974' site/app/map-radar-v974.js
@@ -98,7 +98,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify canonical v978 on public domain
+      - name: Verify canonical runtime and v979 background on public domain
         shell: bash
         run: |
           set -euo pipefail
@@ -110,7 +110,7 @@ jobs:
             sw="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/flutter_service_worker.js?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
             manifest="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/manifest.json?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
             if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v978"' \
-              && printf '%s' "$app" | grep -q 'experience-v974.js?v=978' \
+              && printf '%s' "$app" | grep -q 'experience-v974.js?v=979' \
               && printf '%s' "$app" | grep -q 'map-radar-v974.js?v=978' \
               && printf '%s' "$app" | grep -q 'flutter_bootstrap.js?v=978' \
               && ! printf '%s' "$app" | grep -q 'id="bp-install"' \
@@ -118,15 +118,16 @@ jobs:
               && ! printf '%s' "$app" | grep -q 'packages-access-v962.js' \
               && ! printf '%s' "$app" | grep -q 'podcast-entry-v941.js' \
               && printf '%s' "$experience" | grep -q 'drawIntakeIcon' \
-              && printf '%s' "$experience" | grep -Fq 'const cx=w*.5,cy=h*.50' \
+              && printf '%s' "$experience" | grep -Fq 'const cx=w*.5,cy=h*.50,r=Math.max(126,Math.min(w,h)*.285)' \
+              && printf '%s' "$experience" | grep -q 'looksLikeBottomSheet' \
               && printf '%s' "$experience" | grep -q 'drawPlanet' \
               && printf '%s' "$map" | grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' \
               && printf '%s' "$sw" | grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v978'" \
               && printf '%s' "$manifest" | grep -q 'bpv=v978'; then
-              echo 'BridgePoint canonical v978 verified on the public domain.'
+              echo 'BridgePoint canonical runtime with v979 background verified on the public domain.'
               exit 0
             fi
             sleep 10
           done
-          echo 'Canonical v978 did not converge on the public domain.' >&2
+          echo 'Canonical runtime with v979 background did not converge on the public domain.' >&2
           exit 1
