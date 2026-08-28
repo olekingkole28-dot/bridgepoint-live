@@ -1,0 +1,76 @@
+name: Deploy BridgePoint Live Artifact Runtime V962
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-live-artifact-runtime-v962.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble exact durable live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/index.html
+          test -s site/app/index.html
+          test -s site/app/main.dart.js
+          test -s site/app/flutter_bootstrap.js
+          test -s site/app/live-system-v961.js
+          test -s site/app/packages-access-v962.js
+          test -s site/app/signup-confirmation-v946.js
+          grep -q '<base href="/app/">' site/app/index.html
+          grep -q 'live-system-v961.js?v=961' site/app/index.html
+          grep -q 'packages-access-v962.js?v=962' site/app/index.html
+          grep -q 'bridgepoint_public_system_pulse_v957' site/app/live-system-v961.js
+          grep -q 'bridgepoint_owner_live_activity_v958' site/app/live-system-v961.js
+          grep -q 'bridgepoint_customer_access_contract_v318' site/app/packages-access-v962.js
+          grep -q 'bridgepoint_customer_plans_v944' site/app/packages-access-v962.js
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy current durable runtime
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify V962 runtime live
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 24); do
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?v=962-${attempt}" 2>/dev/null || true)"
+            pulse="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/live-system-v961.js?v=962-${attempt}" 2>/dev/null || true)"
+            access="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/packages-access-v962.js?v=962-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'live-system-v961.js?v=961' && printf '%s' "$app" | grep -q 'packages-access-v962.js?v=962' && printf '%s' "$pulse" | grep -q 'bridgepoint_public_system_pulse_v957' && printf '%s' "$access" | grep -q 'bridgepoint_customer_access_contract_v318'; then
+              echo 'BridgePoint V962 runtime verified live.'
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'V962 runtime did not converge on the public domain.' >&2
+          exit 1
