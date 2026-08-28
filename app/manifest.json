@@ -2,7 +2,7 @@
   "name": "BridgePoint Intelligence",
   "short_name": "BridgePoint",
   "id": "./",
-  "start_url": "./?bpv=v990",
+  "start_url": "./?bpv=v991",
   "scope": "./",
   "display": "standalone",
   "background_color": "#030811",
