@@ -1,6 +1,6 @@
 'use strict';
 
-const BRIDGEPOINT_CACHE_RETIREMENT = 'v994';
+const BRIDGEPOINT_CACHE_RETIREMENT = 'v995';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -29,5 +29,5 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', () => {
-  // v994 intentionally does not cache BridgePoint. Network is the source of truth.
+  // v995 intentionally does not cache BridgePoint. Network is the source of truth.
 });
