@@ -49,7 +49,7 @@ jobs:
           grep -q 'live-system-v961.js?v=972' site/app/index.html
           grep -q 'packages-access-v962.js?v=962' site/app/index.html
           grep -q 'map-radar-v963.js?v=963' site/app/index.html
-          grep -q 'experience-v974.js?v=975' site/app/index.html
+          grep -q 'experience-v974.js?v=976' site/app/index.html
           if grep -q 'experience-v974-fix' site/app/index.html; then echo 'Stale black-hole override referenced by app host' >&2; exit 1; fi
           grep -q 'map-radar-v974.js?v=974' site/app/index.html
           grep -q 'bridgepoint_public_system_pulse_v957' site/app/live-system-v961.js
@@ -65,6 +65,8 @@ jobs:
           grep -q 'zh-Hant' site/app/experience-v974.js
           grep -q 'preferred_locale' site/app/experience-v974.js
           grep -Fq "const intake=[" site/app/experience-v974.js
+          grep -Fq "['home','72,225,255']" site/app/experience-v974.js
+          grep -q 'drawIntakeIcon' site/app/experience-v974.js
           grep -Fq "const cx=w*.5,cy=h*.50" site/app/experience-v974.js
           grep -q 'modalLikeOpen' site/app/experience-v974.js
           grep -q 'bp974-covered' site/app/experience-v974.js
@@ -102,7 +104,7 @@ jobs:
             if printf '%s' "$app" | grep -q 'live-system-v961.js?v=972' \
               && printf '%s' "$app" | grep -q 'packages-access-v962.js?v=962' \
               && printf '%s' "$app" | grep -q 'map-radar-v963.js?v=963' \
-              && printf '%s' "$app" | grep -q 'experience-v974.js?v=975' \
+              && printf '%s' "$app" | grep -q 'experience-v974.js?v=976' \
               && ! printf '%s' "$app" | grep -q 'experience-v974-fix' \
               && printf '%s' "$app" | grep -q 'map-radar-v974.js?v=974' \
               && printf '%s' "$pulse" | grep -q 'bridgepoint_public_system_pulse_v957' \
@@ -110,7 +112,8 @@ jobs:
               && printf '%s' "$map" | grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' \
               && printf '%s' "$map" | grep -q 'bridgepoint_flutter_opportunities_state_v341' \
               && printf '%s' "$experience" | grep -q '__bridgepointExperienceV974' \
-              && printf '%s' "$experience" | grep -Fq 'const intake=[' \
+              && printf '%s' "$experience" | grep -Fq "['home','72,225,255']" \
+              && printf '%s' "$experience" | grep -q 'drawIntakeIcon' \
               && printf '%s' "$experience" | grep -Fq 'const cx=w*.5,cy=h*.50' \
               && printf '%s' "$experience" | grep -q 'modalLikeOpen' \
               && printf '%s' "$experience" | grep -q 'bp974-covered' \
@@ -120,10 +123,10 @@ jobs:
               && printf '%s' "$map974" | grep -q 'bridgepoint_flutter_signal_map_v80' \
               && printf '%s' "$map974" | grep -q 'Hurricane' \
               && printf '%s' "$map974" | grep -q 'Wildfire'; then
-              echo 'BridgePoint v975 space-ingestion runtime verified on the public domain.'
+              echo 'BridgePoint v976 vector space-ingestion runtime verified on the public domain.'
               exit 0
             fi
             sleep 10
           done
-          echo 'Current v975 runtime did not converge on the public domain.' >&2
+          echo 'Current v976 runtime did not converge on the public domain.' >&2
           exit 1
