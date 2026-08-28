@@ -1,0 +1,102 @@
+name: Deploy BridgePoint Runtime V993
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-runtime-v993.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble v993 live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/lazy-runtime-v993.js
+          test -s site/app/owner-business-pulse-v993.js
+          node --check site/app/lazy-runtime-v993.js
+          node --check site/app/owner-business-pulse-v993.js
+          node --check site/app/signals-activity-v984.js
+          node --check site/app/live-home-v984.js
+          node --check site/app/tab-handoff-v990.js
+          node --check site/app/nav-clearance-v991.js
+
+      - name: Verify owner pulse and faster startup contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v993"' site/app/index.html
+          grep -q 'flutter_bootstrap.js?v=993' site/app/index.html
+          grep -q 'lazy-runtime-v993.js?v=993' site/app/index.html
+          grep -q 'owner-business-pulse-v993.js?v=993' site/app/index.html
+          grep -q 'tab-handoff-v990.js?v=993' site/app/index.html
+          grep -q 'nav-clearance-v991.js?v=993' site/app/index.html
+          ! grep -q '<script[^>]*src="map-radar-v974.js' site/app/index.html
+          ! grep -q '<script[^>]*src="map-polish-v984.js' site/app/index.html
+          ! grep -q '<script[^>]*src="owner-console-v984.js' site/app/index.html
+          grep -q 'map-radar-v974.js?v=${V}' site/app/lazy-runtime-v993.js
+          grep -q 'owner-console-v984.js?v=${V}' site/app/lazy-runtime-v993.js
+          grep -q 'bridgepoint_owner_business_pulse_v993' site/app/owner-business-pulse-v993.js
+          grep -q 'MODELED PRE-MONEY' site/app/owner-business-pulse-v993.js
+          grep -q 'ACTIVE VIEWERS' site/app/owner-business-pulse-v993.js
+          grep -q 'SIGNED IN' site/app/owner-business-pulse-v993.js
+          grep -q 'MRR' site/app/owner-business-pulse-v993.js
+          grep -q 'ARR' site/app/owner-business-pulse-v993.js
+          grep -q 'setInterval(refresh,15000)' site/app/signals-activity-v984.js
+          grep -q '"start_url": "./?bpv=v993"' site/app/manifest.json
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v993'" site/app/flutter_service_worker.js
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy v993
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify v993 on actual public domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?v993=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            lazy="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/lazy-runtime-v993.js?v993=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            pulse="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/owner-business-pulse-v993.js?v993=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v993"' \
+              && printf '%s' "$app" | grep -q 'lazy-runtime-v993.js?v=993' \
+              && printf '%s' "$app" | grep -q 'owner-business-pulse-v993.js?v=993' \
+              && ! printf '%s' "$app" | grep -q '<script[^>]*src="map-radar-v974.js' \
+              && ! printf '%s' "$app" | grep -q '<script[^>]*src="owner-console-v984.js' \
+              && printf '%s' "$lazy" | grep -q 'BridgePointOpenMapV993' \
+              && printf '%s' "$pulse" | grep -q 'bridgepoint_owner_business_pulse_v993'; then
+              echo 'BridgePoint v993 owner pulse + lazy runtime verified on public domain.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'v993 did not converge on public domain' >&2
+          exit 1
