@@ -1,0 +1,99 @@
+name: Deploy BridgePoint Runtime V987
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-runtime-v987.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble v987 live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/flutter_bootstrap.js
+          test -s site/app/layer-isolation-v987.js
+          node --check site/app/layer-isolation-v987.js
+
+      - name: Verify Home layer isolation contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v987"' site/app/index.html
+          grep -q 'flutter_bootstrap.js?v=987' site/app/index.html
+          grep -q 'layer-isolation-v987.js?v=987' site/app/index.html
+          grep -q 'background:#020610!important' site/app/layer-isolation-v987.js
+          grep -q 'z-index:2147480500!important' site/app/layer-isolation-v987.js
+          grep -q 'z-index:2147483000!important' site/app/layer-isolation-v987.js
+          grep -q 'clip-path:inset' site/app/layer-isolation-v987.js
+          grep -q '"start_url": "./?bpv=v987"' site/app/manifest.json
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v987'" site/app/flutter_service_worker.js
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('site/app/index.html').read_text()
+          assert s.index('flutter_bootstrap.js?v=987') < s.index('experience-v974.js?v=987')
+          assert s.index('experience-v974.js?v=987') < s.index('layer-isolation-v987.js?v=987')
+          print('Flutter first, atmosphere second, isolation last.')
+          PY
+
+      - name: Preserve production feature bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in experience-v974.js map-radar-v974.js map-polish-v984.js owner-console-v984.js runtime-unifier-v984.js live-home-v984.js signals-activity-v984.js visual-polish-v984.js startup-recovery-v986.js; do
+            test -s "site/app/$f"
+            node --check "site/app/$f"
+          done
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy v987
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify v987 on actual public domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?v987=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            layer="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/layer-isolation-v987.js?v987=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v987"' \
+              && printf '%s' "$app" | grep -q 'layer-isolation-v987.js?v=987' \
+              && printf '%s' "$layer" | grep -q 'background:#020610!important' \
+              && printf '%s' "$layer" | grep -q 'z-index:2147480500!important' \
+              && printf '%s' "$layer" | grep -q 'z-index:2147483000!important'; then
+              echo 'BridgePoint v987 Home isolation verified on public domain.'
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'BridgePoint v987 did not converge on public domain.' >&2
+          exit 1
