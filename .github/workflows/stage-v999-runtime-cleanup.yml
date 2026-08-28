@@ -31,9 +31,7 @@ jobs:
             ("for(const k of ['matching','scoring','patterns','opportunities'])",
              "for(const k of ['signals','matching','scoring','patterns','opportunities'])"),
             ('await ownerCheck();await refresh();',
-             'await refresh();void ownerCheck();'),
-            ("addEventListener('bridgepoint-tab-v984',()=>{sync();if(visible())refresh();});",
-             "addEventListener('bridgepoint-tab-v984',()=>{sync();if(visible())refresh();});addEventListener('bridgepoint-shell-tab-v999',()=>{sync();if(visible())refresh();});")
+             'await refresh();void ownerCheck();')
           ]
           for old, new in replacements:
             count = s.count(old)
@@ -41,6 +39,16 @@ jobs:
               raise SystemExit(f'unexpected Home replacement count {count}: {old[:80]}')
             if count == 1:
               s = s.replace(old, new)
+
+          base_listener = "addEventListener('bridgepoint-tab-v984',()=>{sync();if(visible())refresh();});"
+          shell_listener = "addEventListener('bridgepoint-shell-tab-v999',()=>{sync();if(visible())refresh();});"
+          s = s.replace(shell_listener, '')
+          if s.count(base_listener) != 1:
+            raise SystemExit(f'expected exactly one base Home tab listener, got {s.count(base_listener)}')
+          s = s.replace(base_listener, base_listener + shell_listener, 1)
+          if s.count(shell_listener) != 1:
+            raise SystemExit(f'expected exactly one v999 Home listener, got {s.count(shell_listener)}')
+
           required = [
             "data-act=\"signals\"",
             "['signals','matching','scoring','patterns','opportunities']",
@@ -100,6 +108,7 @@ jobs:
           grep -q 'bp999-flutter flutter-view' app/bridgepoint-shell-v999.js
           grep -q "for(const k of \['signals','matching','scoring','patterns','opportunities'\])" app/live-home-v984.js
           grep -q 'await refresh();void ownerCheck();' app/live-home-v984.js
+          test "$(grep -o "bridgepoint-shell-tab-v999" app/live-home-v984.js | wc -l)" -eq 1
           grep -q "if(window.__bridgepointCanonicalRuntime==='v999')return;" app/runtime-unifier-v984.js
           grep -q '"start_url": "./?bpv=v999"' app/manifest.json
           grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v999'" app/flutter_service_worker.js
@@ -126,5 +135,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add app/live-home-v984.js app/index.html app/runtime-unifier-v984.js
-          git commit -m 'Finalize v999 single-controller runtime cleanup'
+          git commit -m 'Finalize idempotent v999 runtime cleanup'
           git push origin HEAD:staging-v999-runtime-cleanup
