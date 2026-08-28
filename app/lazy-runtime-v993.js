@@ -2,7 +2,7 @@
 'use strict';
 if(window.__bridgepointLazyRuntimeV993)return;
 window.__bridgepointLazyRuntimeV993=true;
-const V='993';
+const V='999';
 const loaded=new Map();
 function loadScript(src,id){
   if(id&&document.getElementById(id))return Promise.resolve();
@@ -14,20 +14,21 @@ function prefetch(src){if(document.querySelector(`link[data-bp-prefetch="${src}"
 let mapPromise=null;
 async function loadMap(){
   if(mapPromise)return mapPromise;
-  mapPromise=(async()=>{await loadScript(`map-radar-v974.js?v=${V}`,'bp993-map-runtime');await loadScript(`map-polish-v984.js?v=${V}`,'bp993-map-polish');return true;})().catch(e=>{mapPromise=null;throw e;});
+  mapPromise=(async()=>{await loadScript(`map-radar-v974.js?v=${V}`,'bp999-map-runtime');await loadScript(`map-polish-v984.js?v=${V}`,'bp999-map-polish');return true;})().catch(e=>{mapPromise=null;throw e;});
   return mapPromise;
 }
 async function openMap(){await loadMap();return window.BridgePointOpenIntelligenceMapV974?.();}
 let ownerPromise=null;
 async function loadOwner(){
   if(ownerPromise)return ownerPromise;
-  ownerPromise=loadScript(`owner-console-v984.js?v=${V}`,'bp993-owner-console').catch(e=>{ownerPromise=null;throw e;});
+  ownerPromise=loadScript(`owner-console-v984.js?v=${V}`,'bp999-owner-console').catch(e=>{ownerPromise=null;throw e;});
   return ownerPromise;
 }
 const ownerProxy=async()=>{try{await loadOwner();const fn=window.BridgePointOpenOwnerConsoleV984;if(fn&&fn!==ownerProxy)return fn();}catch(e){console.error(e);}};
 window.BridgePointOpenOwnerConsoleV984=ownerProxy;
 window.BridgePointOpenMapV993=openMap;
 addEventListener('bridgepoint-tab-v990',e=>{if(e?.detail?.tab==='map')openMap().catch(console.error);});
+addEventListener('bridgepoint-shell-tab-v999',e=>{if(e?.detail?.tab==='map')openMap().catch(console.error);});
 addEventListener('bridgepoint-owner-confirmed-v993',()=>{setTimeout(()=>prefetch(`owner-console-v984.js?v=${V}`),1800);},{once:true});
 const idle=window.requestIdleCallback||((fn)=>setTimeout(fn,4500));
 idle(()=>{prefetch(`map-radar-v974.js?v=${V}`);prefetch(`map-polish-v984.js?v=${V}`);},{timeout:7000});
