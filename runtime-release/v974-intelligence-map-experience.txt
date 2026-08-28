@@ -1,0 +1,2 @@
+BridgePoint v974 public runtime deployment trigger.
+Includes nationwide state coverage visibility, simplified intelligence markers, animated NOAA radar, weather filters, 27-language pre-app selector/onboarding, and black-hole motion layer.
