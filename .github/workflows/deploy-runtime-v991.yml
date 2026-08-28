@@ -1,0 +1,82 @@
+name: Deploy BridgePoint Runtime V991
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-runtime-v991.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble v991 live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/nav-clearance-v991.js
+          node --check site/app/nav-clearance-v991.js
+          node --check site/app/tab-handoff-v990.js
+          node --check site/app/live-home-v984.js
+
+      - name: Verify nav is physically clear of Home
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v991"' site/app/index.html
+          grep -q 'nav-clearance-v991.js?v=991' site/app/index.html
+          grep -q 'bottom:var(--bp991-nav-clearance,132px)' site/app/nav-clearance-v991.js
+          grep -q 'Math.ceil(innerHeight-top)+12' site/app/nav-clearance-v991.js
+          grep -q 'Math.max(124,Math.min(190,clearance))' site/app/nav-clearance-v991.js
+          grep -q 'tab-handoff-v990.js?v=991' site/app/index.html
+          grep -q '"start_url": "./?bpv=v991"' site/app/manifest.json
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v991'" site/app/flutter_service_worker.js
+          grep -q 'flutter_bootstrap.js?v=991' site/app/index.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy v991
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify v991 on actual public domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?v991=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            nav="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/nav-clearance-v991.js?v991=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v991"' \
+              && printf '%s' "$app" | grep -q 'nav-clearance-v991.js?v=991' \
+              && printf '%s' "$nav" | grep -q 'bottom:var(--bp991-nav-clearance,132px)' \
+              && printf '%s' "$nav" | grep -q 'Math.ceil(innerHeight-top)+12'; then
+              echo 'BridgePoint v991 mobile nav clearance verified on public domain.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'v991 did not converge on public domain' >&2
+          exit 1
