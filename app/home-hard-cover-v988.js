@@ -1,28 +1,30 @@
 (()=>{
 'use strict';
-if(window.__bridgepointHomeHardCoverV988)return;
-window.__bridgepointHomeHardCoverV988=true;
+if(window.__bridgepointHomeHardCoverV989)return;
+window.__bridgepointHomeHardCoverV989=true;
 
 const css=document.createElement('style');
-css.id='bp988-home-hard-cover-style';
+css.id='bp989-home-hard-cover-style';
 css.textContent=`
   #bp984-home-mask{display:none!important;visibility:hidden!important;opacity:0!important}
   #bp988-home-hard-cover{
-    position:fixed;
-    z-index:2147482800;
-    left:0;right:0;
-    top:max(64px,env(safe-area-inset-top));
-    bottom:var(--bp984-nav-gap,86px);
+    position:fixed!important;
+    z-index:2147483600!important;
+    left:0!important;right:0!important;
+    top:max(64px,env(safe-area-inset-top))!important;
+    bottom:var(--bp984-nav-gap,86px)!important;
     display:none;
-    background:#020610;
-    opacity:1;
-    pointer-events:none;
+    background:#020610!important;
+    opacity:1!important;
+    filter:none!important;
+    backdrop-filter:none!important;
+    pointer-events:none!important;
   }
   #bp974-cosmos{
-    z-index:2147482900!important;
+    z-index:2147483601!important;
     clip-path:inset(max(64px,env(safe-area-inset-top)) 0 var(--bp984-nav-gap,86px) 0)!important;
   }
-  #bp-live-home-v984{z-index:2147483000!important}
+  #bp-live-home-v984{z-index:2147483602!important}
 `;
 document.head.appendChild(css);
 
@@ -41,12 +43,13 @@ function homeIsActuallyVisible(){
 }
 function sync(){
   const mapOpen=document.getElementById('bp974-map-dialog')?.classList.contains('show')===true;
-  cover.style.display=homeIsActuallyVisible()&&!mapOpen?'block':'none';
+  const on=homeIsActuallyVisible()&&!mapOpen;
+  cover.style.setProperty('display',on?'block':'none','important');
 }
 
 sync();
 new MutationObserver(sync).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style','aria-selected','aria-current']});
 addEventListener('bridgepoint-tab-v984',sync);
 addEventListener('resize',sync,{passive:true});
-setInterval(sync,500);
+setInterval(sync,250);
 })();
