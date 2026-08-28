@@ -16,10 +16,11 @@ jobs:
           ref: staging-v999-runtime-cleanup
           fetch-depth: 0
 
-      - name: Consolidate Home activity without duplicate polling
+      - name: Consolidate Home and disable legacy navigation polling
         shell: python
         run: |
           from pathlib import Path
+
           p = Path('app/live-home-v984.js')
           s = p.read_text()
           replacements = [
@@ -37,7 +38,7 @@ jobs:
           for old, new in replacements:
             count = s.count(old)
             if count not in (0, 1):
-              raise SystemExit(f'unexpected replacement count {count}: {old[:80]}')
+              raise SystemExit(f'unexpected Home replacement count {count}: {old[:80]}')
             if count == 1:
               s = s.replace(old, new)
           required = [
@@ -52,11 +53,23 @@ jobs:
           p.write_text(s)
 
           idx = Path('app/index.html')
-          html = idx.read_text()
-          html = html.replace('  <script defer src="signals-activity-v984.js?v=999"></script>\n', '')
+          html = idx.read_text().replace('  <script defer src="signals-activity-v984.js?v=999"></script>\n', '')
           if 'signals-activity-v984.js' in html:
             raise SystemExit('duplicate signals runtime still loaded')
           idx.write_text(html)
+
+          u = Path('app/runtime-unifier-v984.js')
+          us = u.read_text()
+          old = "async function boot(){const tok=findToken(),ok=await valid(tok);if(!ok){renderEntry();entry.classList.add('show');}else entry.classList.remove('show');sync();new MutationObserver(sync).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['aria-selected','aria-current','class','style']});addEventListener('resize',sync,{passive:true});setInterval(sync,1200);}boot();"
+          new = "async function boot(){const tok=findToken(),ok=await valid(tok);if(!ok){renderEntry();entry.classList.add('show');}else entry.classList.remove('show');if(window.__bridgepointCanonicalRuntime==='v999')return;sync();new MutationObserver(sync).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['aria-selected','aria-current','class','style']});addEventListener('resize',sync,{passive:true});setInterval(sync,1200);}boot();"
+          count = us.count(old)
+          if count not in (0, 1):
+            raise SystemExit(f'unexpected unifier boot replacement count: {count}')
+          if count == 1:
+            us = us.replace(old, new)
+          if "if(window.__bridgepointCanonicalRuntime==='v999')return;" not in us:
+            raise SystemExit('v999 unifier nav-polling bypass missing')
+          u.write_text(us)
 
       - name: Validate JavaScript syntax
         run: |
@@ -87,6 +100,7 @@ jobs:
           grep -q 'bp999-flutter flutter-view' app/bridgepoint-shell-v999.js
           grep -q "for(const k of \['signals','matching','scoring','patterns','opportunities'\])" app/live-home-v984.js
           grep -q 'await refresh();void ownerCheck();' app/live-home-v984.js
+          grep -q "if(window.__bridgepointCanonicalRuntime==='v999')return;" app/runtime-unifier-v984.js
           grep -q '"start_url": "./?bpv=v999"' app/manifest.json
           grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v999'" app/flutter_service_worker.js
           ! grep -q 'home-hard-cover-v988.js' app/index.html
@@ -111,6 +125,6 @@ jobs:
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add app/live-home-v984.js app/index.html
-          git commit -m 'Consolidate v999 Home activity and startup path'
+          git add app/live-home-v984.js app/index.html app/runtime-unifier-v984.js
+          git commit -m 'Finalize v999 single-controller runtime cleanup'
           git push origin HEAD:staging-v999-runtime-cleanup
