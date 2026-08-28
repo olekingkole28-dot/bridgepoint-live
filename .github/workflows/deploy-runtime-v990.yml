@@ -1,0 +1,94 @@
+name: Deploy BridgePoint Runtime V990
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-runtime-v990.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble v990 live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/tab-handoff-v990.js
+          test -s site/app/live-home-v984.js
+          test -s site/app/home-hard-cover-v988.js
+          test -s site/app/map-radar-v974.js
+          node --check site/app/tab-handoff-v990.js
+          node --check site/app/live-home-v984.js
+          node --check site/app/home-hard-cover-v988.js
+          node --check site/app/map-radar-v974.js
+
+      - name: Verify bottom-nav handoff contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v990"' site/app/index.html
+          grep -q 'tab-handoff-v990.js?v=990' site/app/index.html
+          grep -q 'flutter_bootstrap.js?v=990' site/app/index.html
+          grep -q 'document.addEventListener('\''pointerup' site/app/tab-handoff-v990.js
+          grep -q "TABS=\['home','map','properties','worth','more'\]" site/app/tab-handoff-v990.js
+          grep -q 'bp990-nonhome #bp-live-home-v984{display:none!important' site/app/tab-handoff-v990.js
+          grep -q 'bp990-nonhome #bp988-home-hard-cover{display:none!important' site/app/tab-handoff-v990.js
+          grep -q 'bp990-nonhome #bp974-cosmos{display:none!important' site/app/tab-handoff-v990.js
+          grep -q 'BridgePointOpenIntelligenceMapV974' site/app/tab-handoff-v990.js
+          grep -q 'BridgePointSelectedTabV984=()=>' site/app/tab-handoff-v990.js
+          if grep -q 'preventDefault\|stopPropagation\|stopImmediatePropagation' site/app/tab-handoff-v990.js; then
+            echo 'v990 tab handoff must never block Flutter taps' >&2
+            exit 1
+          fi
+          grep -q '"start_url": "./?bpv=v990"' site/app/manifest.json
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v990'" site/app/flutter_service_worker.js
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy v990
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify v990 on actual public domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?v990=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            tabs="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/tab-handoff-v990.js?v990=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v990"' \
+              && printf '%s' "$app" | grep -q 'tab-handoff-v990.js?v=990' \
+              && printf '%s' "$tabs" | grep -q "TABS=\['home','map','properties','worth','more'\]" \
+              && printf '%s' "$tabs" | grep -q 'BridgePointOpenIntelligenceMapV974' \
+              && printf '%s' "$tabs" | grep -q 'bp990-nonhome #bp-live-home-v984{display:none!important'; then
+              echo 'BridgePoint v990 bottom-nav handoff verified on public domain.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'v990 did not converge on public domain' >&2
+          exit 1
