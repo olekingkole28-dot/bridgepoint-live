@@ -1,0 +1,85 @@
+name: Deploy BridgePoint Runtime V998
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-runtime-v998.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble v998 live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/home-flutter-separation-v998.js
+          node --check site/app/home-flutter-separation-v998.js
+          node --check site/app/runtime-unifier-v984.js
+          node --check site/app/live-home-v984.js
+
+      - name: Verify Home has no visible or clickable Flutter underlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v998"' site/app/index.html
+          grep -q 'home-flutter-separation-v998.js?v=998' site/app/index.html
+          grep -q 'html.bp998-home flutter-view,html.bp998-home flt-glass-pane' site/app/home-flutter-separation-v998.js
+          grep -q 'opacity:0!important' site/app/home-flutter-separation-v998.js
+          grep -q 'pointer-events:none!important' site/app/home-flutter-separation-v998.js
+          grep -q 'id=.bp998-web-header' site/app/home-flutter-separation-v998.js || grep -q "header.id='bp998-web-header'" site/app/home-flutter-separation-v998.js
+          grep -q "nav.id='bp998-web-nav'" site/app/home-flutter-separation-v998.js
+          grep -q "BridgePointNavigateFlutterTabV984" site/app/home-flutter-separation-v998.js
+          grep -q '"start_url": "./?bpv=v998"' site/app/manifest.json
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v998'" site/app/flutter_service_worker.js
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy v998
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify v998 on actual public domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?v998=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            sep="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/home-flutter-separation-v998.js?v998=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v998"' \
+              && printf '%s' "$app" | grep -q 'home-flutter-separation-v998.js?v=998' \
+              && printf '%s' "$sep" | grep -q 'html.bp998-home flutter-view' \
+              && printf '%s' "$sep" | grep -q 'pointer-events:none!important' \
+              && printf '%s' "$sep" | grep -q "bp998-web-nav"; then
+              echo 'BridgePoint v998 hard Flutter separation verified on public domain.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'v998 did not converge on public domain' >&2
+          exit 1
