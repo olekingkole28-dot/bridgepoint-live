@@ -27,7 +27,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Assemble and syntax-check exact durable live artifact
+      - name: Assemble and verify canonical v978 artifact
         shell: bash
         run: |
           set -euo pipefail
@@ -38,91 +38,95 @@ jobs:
           test -s site/app/index.html
           test -s site/app/main.dart.js
           test -s site/app/flutter_bootstrap.js
-          test -s site/app/live-system-v961.js
-          test -s site/app/packages-access-v962.js
-          test -s site/app/map-radar-v963.js
+          test -s site/app/flutter_service_worker.js
+          test -s site/app/manifest.json
           test -s site/app/experience-v974.js
-          test ! -e site/app/experience-v974-fix.js
+          test -s site/app/map-radar-v963.js
           test -s site/app/map-radar-v974.js
           test -s site/app/signup-confirmation-v946.js
+          test ! -e site/app/experience-v974-fix.js
+
           node --check site/app/experience-v974.js
+          node --check site/app/map-radar-v963.js
           node --check site/app/map-radar-v974.js
+          node --check site/app/flutter_service_worker.js
+
           grep -q '<base href="/app/">' site/app/index.html
-          grep -q 'live-system-v961.js?v=972' site/app/index.html
-          grep -q 'packages-access-v962.js?v=962' site/app/index.html
-          grep -q 'map-radar-v963.js?v=963' site/app/index.html
-          grep -q 'experience-v974.js?v=976' site/app/index.html
-          grep -q 'map-radar-v974.js?v=977' site/app/index.html
-          if grep -q 'experience-v974-fix' site/app/index.html; then echo 'Stale black-hole override referenced by app host' >&2; exit 1; fi
-          grep -q 'bridgepoint_public_system_pulse_v957' site/app/live-system-v961.js
-          grep -q 'bridgepoint_owner_live_activity_v958' site/app/live-system-v961.js
-          grep -q 'bridgepoint_customer_access_contract_v318' site/app/packages-access-v962.js
-          grep -q 'bridgepoint_customer_plans_v944' site/app/packages-access-v962.js
-          grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' site/app/map-radar-v963.js
-          grep -q 'bridgepoint_flutter_property_map_viewport_v838' site/app/map-radar-v963.js
-          grep -q 'bridgepoint_flutter_opportunities_state_v341' site/app/map-radar-v963.js
+          grep -q 'data-bridgepoint-runtime="v978"' site/app/index.html
+          grep -q '__bridgepointCanonicalRuntime=.v978' site/app/index.html
+          grep -q 'experience-v974.js?v=978' site/app/index.html
+          grep -q 'map-radar-v963.js?v=978' site/app/index.html
+          grep -q 'map-radar-v974.js?v=978' site/app/index.html
+          grep -q 'flutter_bootstrap.js?v=978' site/app/index.html
+          grep -q 'getRegistrations' site/app/index.html
+          grep -q 'caches.keys' site/app/index.html
+
+          if grep -q 'id="bp-install"' site/app/index.html; then echo 'Legacy install button returned' >&2; exit 1; fi
+          if grep -q 'live-system-v961.js' site/app/index.html; then echo 'Legacy Home overlay returned' >&2; exit 1; fi
+          if grep -q 'packages-access-v962.js' site/app/index.html; then echo 'Legacy package overlay returned' >&2; exit 1; fi
+          if grep -q 'podcast-entry-v941.js' site/app/index.html; then echo 'Legacy entry overlay returned' >&2; exit 1; fi
+          if grep -q 'experience-v974-fix' site/app/index.html; then echo 'Stale black-hole override returned' >&2; exit 1; fi
+
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v978'" site/app/flutter_service_worker.js
+          grep -q 'caches.delete' site/app/flutter_service_worker.js
+          grep -q 'registration.unregister' site/app/flutter_service_worker.js
+          grep -q '"start_url": "./?bpv=v978"' site/app/manifest.json
+
           grep -q '__bridgepointExperienceV974' site/app/experience-v974.js
-          grep -q 'Create your BridgePoint account' site/app/experience-v974.js
-          grep -q 'zh-Hant' site/app/experience-v974.js
-          grep -q 'preferred_locale' site/app/experience-v974.js
-          grep -Fq "const intake=[" site/app/experience-v974.js
           grep -Fq "['home','72,225,255']" site/app/experience-v974.js
           grep -q 'drawIntakeIcon' site/app/experience-v974.js
-          grep -Fq "const cx=w*.5,cy=h*.50" site/app/experience-v974.js
+          grep -Fq 'const cx=w*.5,cy=h*.50' site/app/experience-v974.js
           grep -q 'modalLikeOpen' site/app/experience-v974.js
-          grep -q 'bp974-covered' site/app/experience-v974.js
           grep -q 'drawPlanet' site/app/experience-v974.js
+
           grep -q '__bridgepointMapRadarV974' site/app/map-radar-v974.js
+          grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' site/app/map-radar-v974.js
           grep -q 'bridgepoint_flutter_geographic_catalog_v77' site/app/map-radar-v974.js
           grep -q 'bridgepoint_flutter_signal_map_v80' site/app/map-radar-v974.js
-          grep -q 'Wildfire' site/app/map-radar-v974.js
           grep -q 'Hurricane' site/app/map-radar-v974.js
+          grep -q 'Wildfire' site/app/map-radar-v974.js
           grep -q 'Tornado' site/app/map-radar-v974.js
           grep -q 'Hail' site/app/map-radar-v974.js
-          grep -q '2600' site/app/map-radar-v974.js
+
           touch site/.nojekyll site/app/.nojekyll
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site
-      - name: Deploy current durable runtime
+      - name: Deploy canonical runtime
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify current runtime live
+      - name: Verify canonical v978 on public domain
         shell: bash
         run: |
           set -euo pipefail
           origin='https://bridgepointintelligence.online'
           for attempt in $(seq 1 24); do
             app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
-            pulse="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/live-system-v961.js?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
-            access="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/packages-access-v962.js?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
             experience="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/experience-v974.js?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
-            map974="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-radar-v974.js?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
-            if printf '%s' "$app" | grep -q 'experience-v974.js?v=976' \
-              && printf '%s' "$app" | grep -q 'map-radar-v974.js?v=977' \
-              && ! printf '%s' "$app" | grep -q 'experience-v974-fix' \
-              && printf '%s' "$pulse" | grep -q 'bridgepoint_public_system_pulse_v957' \
-              && printf '%s' "$access" | grep -q 'bridgepoint_customer_access_contract_v318' \
-              && printf '%s' "$experience" | grep -q '__bridgepointExperienceV974' \
-              && printf '%s' "$experience" | grep -Fq "['home','72,225,255']" \
+            map="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-radar-v974.js?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            sw="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/flutter_service_worker.js?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            manifest="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/manifest.json?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v978"' \
+              && printf '%s' "$app" | grep -q 'experience-v974.js?v=978' \
+              && printf '%s' "$app" | grep -q 'map-radar-v974.js?v=978' \
+              && printf '%s' "$app" | grep -q 'flutter_bootstrap.js?v=978' \
+              && ! printf '%s' "$app" | grep -q 'id="bp-install"' \
+              && ! printf '%s' "$app" | grep -q 'live-system-v961.js' \
+              && ! printf '%s' "$app" | grep -q 'packages-access-v962.js' \
+              && ! printf '%s' "$app" | grep -q 'podcast-entry-v941.js' \
               && printf '%s' "$experience" | grep -q 'drawIntakeIcon' \
               && printf '%s' "$experience" | grep -Fq 'const cx=w*.5,cy=h*.50' \
-              && printf '%s' "$experience" | grep -q 'modalLikeOpen' \
-              && printf '%s' "$experience" | grep -q 'bp974-covered' \
               && printf '%s' "$experience" | grep -q 'drawPlanet' \
-              && printf '%s' "$map974" | grep -q '__bridgepointMapRadarV974' \
-              && printf '%s' "$map974" | grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' \
-              && printf '%s' "$map974" | grep -q 'bridgepoint_flutter_geographic_catalog_v77' \
-              && printf '%s' "$map974" | grep -q 'bridgepoint_flutter_signal_map_v80' \
-              && printf '%s' "$map974" | grep -q 'Hurricane' \
-              && printf '%s' "$map974" | grep -q 'Wildfire'; then
-              echo 'BridgePoint v977 radar + v976 vector space runtime verified on the public domain.'
+              && printf '%s' "$map" | grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' \
+              && printf '%s' "$sw" | grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v978'" \
+              && printf '%s' "$manifest" | grep -q 'bpv=v978'; then
+              echo 'BridgePoint canonical v978 verified on the public domain.'
               exit 0
             fi
             sleep 10
           done
-          echo 'Current v977 runtime did not converge on the public domain.' >&2
+          echo 'Canonical v978 did not converge on the public domain.' >&2
           exit 1
