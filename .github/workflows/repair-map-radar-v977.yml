@@ -1,0 +1,42 @@
+name: Repair Map Radar V977
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/repair-map-radar-v977.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Repair and verify live radar runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/map-radar-v974.js')
+          s=p.read_text(encoding='utf-8')
+          old="const m=L.marker(c,{icon:L.divIcon({className:'',html,iconSize:[64,34],iconAnchor:[32,17]),zIndexOffset:-200});"
+          new="const m=L.marker(c,{icon:L.divIcon({className:'',html,iconSize:[64,34],iconAnchor:[32,17]}),zIndexOffset:-200});"
+          count=s.count(old)
+          if count != 1:
+              raise SystemExit(f'Expected exactly one broken state-marker expression, found {count}')
+          p.write_text(s.replace(old,new),encoding='utf-8')
+          PY
+          node --check app/map-radar-v974.js
+          node --check app/experience-v974.js
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/map-radar-v974.js
+          git commit -m 'Fix v977 nationwide radar state marker syntax'
+          git push origin HEAD:live-artifact
