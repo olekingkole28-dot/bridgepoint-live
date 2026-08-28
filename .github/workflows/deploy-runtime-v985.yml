@@ -1,0 +1,110 @@
+name: Deploy BridgePoint Runtime V985
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-runtime-v985.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble v985 live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/startup-safety-v985.js
+          test -s site/app/flutter_bootstrap.js
+          test -s site/app/main.dart.js
+          test -s site/app/runtime-unifier-v984.js
+          test -s site/app/live-home-v984.js
+          test -s site/app/map-radar-v974.js
+          test -s site/app/owner-console-v984.js
+          node --check site/app/startup-safety-v985.js
+          node --check site/app/runtime-unifier-v984.js
+          node --check site/app/live-home-v984.js
+          node --check site/app/map-radar-v974.js
+
+      - name: Verify nonblocking startup contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v985"' site/app/index.html
+          grep -q "__bridgepointCanonicalRuntime='v985'" site/app/index.html
+          grep -q 'startup-safety-v985.js?v=985' site/app/index.html
+          grep -q 'flutter_bootstrap.js?v=985' site/app/startup-safety-v985.js
+          grep -q 'ensureFlutterLoader' site/app/startup-safety-v985.js
+          grep -q 'backgroundCleanup' site/app/startup-safety-v985.js
+          grep -q 'revealEntryIfNeeded' site/app/startup-safety-v985.js
+          ! grep -q 'await navigator.serviceWorker.getRegistrations' site/app/index.html
+          ! grep -q 'await caches.keys' site/app/index.html
+          ! grep -q 'flutter_bootstrap.js?v=984' site/app/index.html
+          grep -q '"start_url": "./?bpv=v985"' site/app/manifest.json
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v985'" site/app/flutter_service_worker.js
+
+      - name: Verify v984 feature set preserved
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'live-home-v984.js?v=985' site/app/index.html
+          grep -q 'owner-console-v984.js?v=985' site/app/index.html
+          grep -q 'map-radar-v974.js?v=985' site/app/index.html
+          grep -q 'runtime-unifier-v984.js?v=985' site/app/index.html
+          grep -q 'bridgepoint_public_pipeline_activity_v984' site/app/live-home-v984.js
+          grep -q 'bridgepoint_owner_acquisition_v432' site/app/owner-console-v984.js
+          grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' site/app/map-radar-v974.js
+          grep -q "\['ht','Kreyòl ayisyen'" site/app/runtime-unifier-v984.js
+          grep -q "\['zh-Hans','简体中文'" site/app/runtime-unifier-v984.js
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy v985
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify v985 on actual public domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?v985=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            safe="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/startup-safety-v985.js?v985=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            manifest="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/manifest.json?v985=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v985"' \
+              && printf '%s' "$app" | grep -q 'startup-safety-v985.js?v=985' \
+              && ! printf '%s' "$app" | grep -q 'await navigator.serviceWorker.getRegistrations' \
+              && printf '%s' "$safe" | grep -q 'ensureFlutterLoader' \
+              && printf '%s' "$safe" | grep -q "flutter_bootstrap.js?v=985" \
+              && printf '%s' "$manifest" | grep -q 'bpv=v985'; then
+              echo 'BridgePoint v985 startup hotfix verified on the actual public domain.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'BridgePoint v985 did not converge on the actual public domain.' >&2
+          exit 1
