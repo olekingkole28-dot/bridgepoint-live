@@ -1,0 +1,83 @@
+name: Deploy BridgePoint Runtime V994
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-runtime-v994.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble v994 live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/nav-seam-cover-v994.js
+          node --check site/app/nav-seam-cover-v994.js
+          node --check site/app/tab-handoff-v990.js
+          node --check site/app/nav-clearance-v991.js
+
+      - name: Verify seam cover cannot block tabs
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v994"' site/app/index.html
+          grep -q 'nav-seam-cover-v994.js?v=994' site/app/index.html
+          grep -q 'pointer-events:none!important' site/app/nav-seam-cover-v994.js
+          grep -q 'bottom:var(--bp992-nav-clearance,96px)' site/app/nav-seam-cover-v994.js
+          grep -q 'height:44px' site/app/nav-seam-cover-v994.js
+          grep -q 'html.bp990-home #bp994-nav-seam-cover{display:block}' site/app/nav-seam-cover-v994.js
+          grep -q 'html.bp990-nonhome #bp994-nav-seam-cover{display:none!important}' site/app/nav-seam-cover-v994.js
+          grep -q '"start_url": "./?bpv=v994"' site/app/manifest.json
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v994'" site/app/flutter_service_worker.js
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy v994
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify v994 on actual public domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?v994=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            seam="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/nav-seam-cover-v994.js?v994=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v994"' \
+              && printf '%s' "$app" | grep -q 'nav-seam-cover-v994.js?v=994' \
+              && printf '%s' "$seam" | grep -q 'pointer-events:none!important' \
+              && printf '%s' "$seam" | grep -q 'height:44px'; then
+              echo 'BridgePoint v994 nav seam cover verified on public domain.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'v994 did not converge on public domain' >&2
+          exit 1
