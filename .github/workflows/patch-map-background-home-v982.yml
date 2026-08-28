@@ -1,0 +1,37 @@
+name: Patch Map Background and Live Home V982
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/patch-map-background-home-v982.yml'
+      - '.github/scripts/patch_map_background_and_home_v982.py'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .github/scripts/patch_map_background_and_home_v982.py /tmp/patch_v982.py
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          python3 /tmp/patch_v982.py
+          node --check app/experience-v974.js
+          node --check app/live-home-v981.js
+          grep -q "mapOpen=document.getElementById('bp974-map-dialog')" app/experience-v974.js
+          grep -q 'experience-v974.js?v=982' app/index.html
+          grep -q 'live-home-v981.js?v=981' app/index.html
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/experience-v974.js app/index.html
+          git commit -m 'Hide space on Intelligence Map and restore live Home v982'
+          git push origin HEAD:live-artifact
