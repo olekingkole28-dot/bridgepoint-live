@@ -105,7 +105,7 @@
     }
     return false;
   }
-  function syncAuth(){const token=findAccessToken();controls.style.display=token?'none':'flex';canvas.classList.toggle('bp974-covered',modalLikeOpen());}
+  function syncAuth(){const token=findAccessToken();controls.style.display=token?'none':'flex';const mapOpen=document.getElementById('bp974-map-dialog')?.classList.contains('show')===true;canvas.classList.toggle('bp974-covered',modalLikeOpen()||mapOpen);}
   syncAuth();setInterval(syncAuth,700);
   new MutationObserver(syncAuth).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['role','aria-modal','aria-label','class']});
 })();
