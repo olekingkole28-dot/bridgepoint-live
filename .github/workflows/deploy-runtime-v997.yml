@@ -1,0 +1,85 @@
+name: Deploy BridgePoint Runtime V997
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-runtime-v997.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble v997 live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/nav-clearance-v991.js
+          node --check site/app/nav-clearance-v991.js
+          node --check site/app/tab-handoff-v990.js
+          test ! -e site/app/nav-seam-cover-v994.js
+
+      - name: Verify actual painted nav boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v997"' site/app/index.html
+          grep -q 'nav-clearance-v991.js?v=997' site/app/index.html
+          grep -q 'shared full-width ancestor' site/app/nav-clearance-v991.js
+          grep -q 'fullWidth=r.width>=innerWidth\*.88' site/app/nav-clearance-v991.js
+          grep -q 'nearBottom=r.bottom>=innerHeight-8' site/app/nav-clearance-v991.js
+          grep -q -- '--bp997-nav-clearance' site/app/nav-clearance-v991.js
+          ! grep -q 'const overlap=Math.min(66' site/app/nav-clearance-v991.js
+          ! grep -q 'nav-seam-cover-v994.js?v=' site/app/index.html
+          grep -q '"start_url": "./?bpv=v997"' site/app/manifest.json
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v997'" site/app/flutter_service_worker.js
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy v997
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify v997 on actual public domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?v997=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            nav="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/nav-clearance-v991.js?v997=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v997"' \
+              && printf '%s' "$app" | grep -q 'nav-clearance-v991.js?v=997' \
+              && printf '%s' "$nav" | grep -q 'shared full-width ancestor' \
+              && printf '%s' "$nav" | grep -q -- '--bp997-nav-clearance' \
+              && ! printf '%s' "$nav" | grep -q 'const overlap=Math.min(66'; then
+              echo 'BridgePoint v997 actual painted nav boundary verified on public domain.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'v997 did not converge on public domain' >&2
+          exit 1
