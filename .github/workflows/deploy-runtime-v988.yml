@@ -1,0 +1,97 @@
+name: Deploy BridgePoint Runtime V988
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-runtime-v988.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble v988 live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/home-hard-cover-v988.js
+          test -s site/app/flutter_bootstrap.js
+          test -s site/app/live-home-v984.js
+          node --check site/app/home-hard-cover-v988.js
+
+      - name: Verify independent Home cover contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v988"' site/app/index.html
+          grep -q 'flutter_bootstrap.js?v=988' site/app/index.html
+          grep -q 'home-hard-cover-v988.js?v=988' site/app/index.html
+          ! grep -q 'layer-isolation-v987.js' site/app/index.html
+          grep -q '#bp984-home-mask{display:none!important' site/app/home-hard-cover-v988.js
+          grep -q 'z-index:2147482800' site/app/home-hard-cover-v988.js
+          grep -q 'z-index:2147482900!important' site/app/home-hard-cover-v988.js
+          grep -q '#bp-live-home-v984{z-index:2147483000!important}' site/app/home-hard-cover-v988.js
+          grep -q 'getComputedStyle(home)' site/app/home-hard-cover-v988.js
+          grep -q '"start_url": "./?bpv=v988"' site/app/manifest.json
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v988'" site/app/flutter_service_worker.js
+
+      - name: Preserve production feature bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in experience-v974.js map-radar-v974.js map-polish-v984.js owner-console-v984.js runtime-unifier-v984.js live-home-v984.js signals-activity-v984.js visual-polish-v984.js startup-recovery-v986.js; do
+            test -s "site/app/$f"
+            node --check "site/app/$f"
+          done
+          grep -q 'bridgepoint_public_pipeline_activity_v984' site/app/live-home-v984.js
+          grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' site/app/map-radar-v974.js
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy v988
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify v988 on actual public domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?v988=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            cover="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/home-hard-cover-v988.js?v988=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v988"' \
+              && printf '%s' "$app" | grep -q 'home-hard-cover-v988.js?v=988' \
+              && ! printf '%s' "$app" | grep -q 'layer-isolation-v987.js' \
+              && printf '%s' "$cover" | grep -q 'bp988-home-hard-cover' \
+              && printf '%s' "$cover" | grep -q 'getComputedStyle(home)' \
+              && printf '%s' "$cover" | grep -q 'z-index:2147482800'; then
+              echo 'BridgePoint v988 independent Home hard cover verified on the public domain.'
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'BridgePoint v988 did not converge on the public domain.' >&2
+          exit 1
