@@ -1,2 +1,3 @@
-BridgePoint v999 staging clean-tree validation trigger.
+BridgePoint v999 settled staging validation trigger.
 No production deployment from this branch.
+Expected result: validators pass with zero runtime cleanup commit.
