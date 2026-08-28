@@ -1,6 +1,6 @@
 'use strict';
 
-const BRIDGEPOINT_CACHE_RETIREMENT = 'v984';
+const BRIDGEPOINT_CACHE_RETIREMENT = 'v985';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -10,7 +10,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     try {
       const keys = await caches.keys();
-      await Promise.all(keys.map((key) => caches.delete(key)));
+      await Promise.allSettled(keys.map((key) => caches.delete(key)));
     } catch (_) {}
 
     try {
@@ -34,5 +34,5 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', () => {
-  // v984 intentionally does not cache BridgePoint. Network is the source of truth.
+  // v985 intentionally does not cache BridgePoint. Network is the source of truth.
 });
