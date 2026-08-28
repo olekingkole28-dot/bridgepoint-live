@@ -27,8 +27,6 @@ async function loadOwner(){
 const ownerProxy=async()=>{try{await loadOwner();const fn=window.BridgePointOpenOwnerConsoleV984;if(fn&&fn!==ownerProxy)return fn();}catch(e){console.error(e);}};
 window.BridgePointOpenOwnerConsoleV984=ownerProxy;
 window.BridgePointOpenMapV993=openMap;
-addEventListener('bridgepoint-tab-v990',e=>{if(e?.detail?.tab==='map')openMap().catch(console.error);});
-addEventListener('bridgepoint-shell-tab-v999',e=>{if(e?.detail?.tab==='map')openMap().catch(console.error);});
 addEventListener('bridgepoint-owner-confirmed-v993',()=>{setTimeout(()=>prefetch(`owner-console-v984.js?v=${V}`),1800);},{once:true});
 const idle=window.requestIdleCallback||((fn)=>setTimeout(fn,4500));
 idle(()=>{prefetch(`map-radar-v974.js?v=${V}`);prefetch(`map-polish-v984.js?v=${V}`);},{timeout:7000});
