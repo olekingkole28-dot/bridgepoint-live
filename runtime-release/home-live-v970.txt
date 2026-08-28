@@ -1,1 +1,1 @@
-V970 moves live metrics into the Flutter Home page and removes the global top ribbon.
+V972 deploys the live visual Home runtime: intro first, 3-second Supabase pulse, animated donuts, loading bars, counters, live deltas, and owner-only activity. The duplicate property-universe counter and giant daily-brief paragraph are removed from the Home presentation.
