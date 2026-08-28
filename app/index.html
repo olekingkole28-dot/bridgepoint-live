@@ -14,23 +14,23 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png?v=983">
-  <link rel="icon" type="image/png" href="favicon.png?v=983">
-  <link rel="manifest" href="manifest.json?v=983">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png?v=984">
+  <link rel="icon" type="image/png" href="favicon.png?v=984">
+  <link rel="manifest" href="manifest.json?v=984">
   <title>BridgePoint Intelligence</title>
   <style>
     html,body{margin:0;width:100%;height:100%;background:#030811;color:#fff}
     body{overflow:hidden}
-    #bp-install,#bp-install-dialog,#bp-pwa-update-v396,#bp-live-home-v972,#bp-live-system-v961{display:none!important;visibility:hidden!important;pointer-events:none!important}
+    #bp-install,#bp-install-dialog,#bp-pwa-update-v396,#bp-live-home-v972,#bp-live-home-v981,#bp-live-system-v961,#bp983-entry,#bp983-home-mask{display:none!important;visibility:hidden!important;pointer-events:none!important}
   </style>
 </head>
-<body data-bridgepoint-runtime="v983">
+<body data-bridgepoint-runtime="v984">
   <script>
-    window.__bridgepointCanonicalRuntime='v983';
+    window.__bridgepointCanonicalRuntime='v984';
     window.__bridgepointLegacyOverlayDisabled=true;
     (()=>{
-      const staleIds=['bp-install','bp-install-dialog','bp-pwa-update-v396','bp-live-home-v972','bp-live-system-v961'];
-      const staleStyles=['bp-pwa-update-style-v396','bp-live-home-v972-style','bp-live-system-v961-style'];
+      const staleIds=['bp-install','bp-install-dialog','bp-pwa-update-v396','bp-live-home-v972','bp-live-home-v981','bp-live-system-v961','bp983-entry','bp983-home-mask'];
+      const staleStyles=['bp-pwa-update-style-v396','bp-live-home-v972-style','bp-live-home-v981-style','bp-live-system-v961-style','bp983-style'];
       const removeStale=()=>{
         for(const id of staleIds) document.getElementById(id)?.remove();
         for(const id of staleStyles) document.getElementById(id)?.remove();
@@ -39,12 +39,15 @@
       new MutationObserver(removeStale).observe(document.documentElement,{childList:true,subtree:true});
     })();
   </script>
-  <script src="experience-v974.js?v=983"></script>
-  <script src="signup-confirmation-v946.js?v=983"></script>
-  <script src="live-home-v981.js?v=983"></script>
-  <script src="map-radar-v963.js?v=983"></script>
-  <script src="map-radar-v974.js?v=983"></script>
-  <script src="runtime-unifier-v983.js?v=983"></script>
+  <script src="experience-v974.js?v=984"></script>
+  <script src="signup-confirmation-v946.js?v=984"></script>
+  <script src="map-radar-v974.js?v=984"></script>
+  <script src="map-polish-v984.js?v=984"></script>
+  <script src="owner-console-v984.js?v=984"></script>
+  <script src="runtime-unifier-v984.js?v=984"></script>
+  <script src="live-home-v984.js?v=984"></script>
+  <script src="signals-activity-v984.js?v=984"></script>
+  <script src="visual-polish-v984.js?v=984"></script>
   <script>
     (async()=>{
       try{
@@ -60,9 +63,9 @@
         }
       }catch(_){ }
       const loader=document.createElement('script');
-      loader.src='flutter_bootstrap.js?v=983';
+      loader.src='flutter_bootstrap.js?v=984';
       loader.async=true;
-      loader.dataset.bridgepointCanonicalRuntime='v983';
+      loader.dataset.bridgepointCanonicalRuntime='v984';
       document.body.appendChild(loader);
     })();
   </script>
