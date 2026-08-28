@@ -10,7 +10,7 @@
   const states=['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
   const css=document.createElement('style');
   css.textContent=`
-    #bp974-cosmos{position:fixed;inset:0;z-index:2147480500;pointer-events:none;opacity:.48;mix-blend-mode:screen;transition:opacity .22s ease,visibility .22s ease}
+    #bp974-cosmos{position:fixed;inset:0;z-index:2147480500;pointer-events:none;opacity:.60;mix-blend-mode:screen;transition:opacity .22s ease,visibility .22s ease}
     #bp974-cosmos.bp974-covered{opacity:0!important;visibility:hidden!important}
     #bp974-preapp{position:fixed;z-index:2147483300;right:max(12px,env(safe-area-inset-right));top:max(12px,env(safe-area-inset-top));display:flex;gap:7px;align-items:center;font:800 12px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     .bp974-pill{min-height:40px;border:1px solid rgba(72,225,255,.26);border-radius:12px;padding:0 12px;background:rgba(6,17,30,.90);color:#fff;box-shadow:0 10px 32px rgba(0,0,0,.28);backdrop-filter:blur(14px);cursor:pointer;font-weight:850}.bp974-pill.primary{color:#06111e;background:linear-gradient(135deg,#48e1ff,#6c83ff);border-color:transparent}
@@ -20,7 +20,7 @@
     .bp974-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.bp974-field{display:flex;flex-direction:column;gap:6px}.bp974-field.full{grid-column:1/-1}.bp974-field label{font-size:10px;color:#9fb3c6;font-weight:900;letter-spacing:.55px;text-transform:uppercase}.bp974-field input,.bp974-field select{width:100%;min-height:46px;border:1px solid rgba(255,255,255,.11);border-radius:12px;background:#0b1c2e;color:#fff;padding:0 12px;font:700 13px system-ui;outline:none}.bp974-field input:focus,.bp974-field select:focus{border-color:#48e1ff;box-shadow:0 0 0 3px rgba(72,225,255,.08)}
     .bp974-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.bp974-actions button{min-height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.12);padding:0 15px;background:#12243a;color:#fff;font-weight:900;cursor:pointer}.bp974-actions .primary{background:linear-gradient(135deg,#48e1ff,#6c83ff);color:#031018;border:0}.bp974-status{min-height:18px;margin-top:10px;color:#9fb3c6}.bp974-status.bad{color:#ff8d8d}.bp974-status.good{color:#45e6a6}
     .bp974-language-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:15px}.bp974-language{min-height:45px;text-align:left;border:1px solid rgba(255,255,255,.10);border-radius:11px;background:#0b1c2e;color:#fff;padding:0 10px;font-weight:800;cursor:pointer}.bp974-language.active{border-color:#48e1ff;background:rgba(72,225,255,.10);color:#76ebff}
-    @media(max-width:680px){#bp974-preapp{right:8px;top:max(8px,env(safe-area-inset-top));gap:5px}.bp974-pill{min-height:38px;padding:0 9px;font-size:11px}.bp974-grid{grid-template-columns:1fr}.bp974-field.full{grid-column:auto}.bp974-language-list{grid-template-columns:1fr 1fr}.bp974-card{padding:16px}#bp974-cosmos{opacity:.42}}
+    @media(max-width:680px){#bp974-preapp{right:8px;top:max(8px,env(safe-area-inset-top));gap:5px}.bp974-pill{min-height:38px;padding:0 9px;font-size:11px}.bp974-grid{grid-template-columns:1fr}.bp974-field.full{grid-column:auto}.bp974-language-list{grid-template-columns:1fr 1fr}.bp974-card{padding:16px}#bp974-cosmos{opacity:.56}}
     @media(prefers-reduced-motion:reduce){#bp974-cosmos{opacity:.26}}
   `;
   document.head.appendChild(css);
@@ -67,7 +67,7 @@
   }
   function draw(){
     ctx.clearRect(0,0,w,h);
-    const cx=w*.5,cy=h*.50,r=Math.max(108,Math.min(w,h)*.22),pulse=.5+.5*Math.sin(t*.016);
+    const cx=w*.5,cy=h*.50,r=Math.max(126,Math.min(w,h)*.285),pulse=.5+.5*Math.sin(t*.016);
     for(let i=0;i<118;i++){const [x,y]=star(i),tw=.25+.75*(.5+.5*Math.sin(t*.003+i*1.7)),big=i%23===0,rr=big?1.35:i%7===0?.85:.45,a=.10+tw*(big?.30:.13);ctx.fillStyle=`rgba(230,242,255,${a})`;ctx.beginPath();ctx.arc(x,y,rr,0,Math.PI*2);ctx.fill();if(big){ctx.strokeStyle=`rgba(230,242,255,${a*.55})`;ctx.lineWidth=.6;ctx.beginPath();ctx.moveTo(x-3.2,y);ctx.lineTo(x+3.2,y);ctx.moveTo(x,y-3.2);ctx.lineTo(x,y+3.2);ctx.stroke();}}
     drawPlanet(w*.13,h*.18,Math.max(16,Math.min(w,h)*.052),'rgba(125,151,205,.55)','rgba(29,45,83,.24)');
     drawPlanet(w*.86,h*.80,Math.max(11,Math.min(w,h)*.034),'rgba(211,143,103,.46)','rgba(74,34,52,.20)');
@@ -90,8 +90,19 @@
   controls.querySelector('[data-language]').textContent='🌐 '+languageName(selected);controls.querySelector('[data-language]').onclick=openLanguages;controls.querySelector('[data-create]').onclick=openCreate;modal.addEventListener('click',e=>{if(e.target===modal)close();});
   function modalLikeOpen(){
     if(modal.classList.contains('show'))return true;
-    const nodes=document.querySelectorAll('[role="dialog"],[aria-modal="true"],flt-semantics');
-    for(const el of nodes){const label=(el.getAttribute?.('aria-label')||el.textContent||'').trim();if(el.getAttribute?.('aria-modal')==='true'||/^(property|opportunity|signal|state)\b/i.test(label))return true;}
+    for(const el of document.querySelectorAll('[role="dialog"],[aria-modal="true"]')){
+      const rect=el.getBoundingClientRect?.();
+      if(!rect||rect.width<2||rect.height<2)continue;
+      if(el.getAttribute?.('aria-modal')==='true'||rect.height>innerHeight*.30)return true;
+    }
+    for(const el of document.querySelectorAll('flt-semantics[aria-label]')){
+      const label=(el.getAttribute('aria-label')||'').trim();
+      if(!/^(property|opportunity|signal|state)\b/i.test(label))continue;
+      const rect=el.getBoundingClientRect?.();
+      if(!rect)continue;
+      const looksLikeBottomSheet=rect.top>innerHeight*.12&&rect.top<innerHeight*.72&&rect.bottom>innerHeight*.82&&rect.height>innerHeight*.34&&rect.width>innerWidth*.70;
+      if(looksLikeBottomSheet)return true;
+    }
     return false;
   }
   function syncAuth(){const token=findAccessToken();controls.style.display=token?'none':'flex';canvas.classList.toggle('bp974-covered',modalLikeOpen());}
