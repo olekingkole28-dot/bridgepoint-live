@@ -41,11 +41,15 @@ jobs:
           test -s site/app/live-system-v961.js
           test -s site/app/packages-access-v962.js
           test -s site/app/map-radar-v963.js
+          test -s site/app/experience-v974.js
+          test -s site/app/map-radar-v974.js
           test -s site/app/signup-confirmation-v946.js
           grep -q '<base href="/app/">' site/app/index.html
           grep -q 'live-system-v961.js?v=972' site/app/index.html
           grep -q 'packages-access-v962.js?v=962' site/app/index.html
           grep -q 'map-radar-v963.js?v=963' site/app/index.html
+          grep -q 'experience-v974.js?v=974' site/app/index.html
+          grep -q 'map-radar-v974.js?v=974' site/app/index.html
           grep -q 'bridgepoint_public_system_pulse_v957' site/app/live-system-v961.js
           grep -q 'bridgepoint_owner_live_activity_v958' site/app/live-system-v961.js
           grep -q 'bridgepoint_customer_access_contract_v318' site/app/packages-access-v962.js
@@ -54,6 +58,18 @@ jobs:
           grep -q 'bridgepoint_flutter_property_map_viewport_v838' site/app/map-radar-v963.js
           grep -q 'bridgepoint_flutter_opportunities_state_v341' site/app/map-radar-v963.js
           grep -q '5500' site/app/map-radar-v963.js
+          grep -q '__bridgepointExperienceV974' site/app/experience-v974.js
+          grep -q 'Create your BridgePoint account' site/app/experience-v974.js
+          grep -q 'zh-Hant' site/app/experience-v974.js
+          grep -q 'preferred_locale' site/app/experience-v974.js
+          grep -q '__bridgepointMapRadarV974' site/app/map-radar-v974.js
+          grep -q 'bridgepoint_flutter_geographic_catalog_v77' site/app/map-radar-v974.js
+          grep -q 'bridgepoint_flutter_signal_map_v80' site/app/map-radar-v974.js
+          grep -q 'Wildfire' site/app/map-radar-v974.js
+          grep -q 'Hurricane' site/app/map-radar-v974.js
+          grep -q 'Tornado' site/app/map-radar-v974.js
+          grep -q 'Hail' site/app/map-radar-v974.js
+          grep -q '2600' site/app/map-radar-v974.js
           touch site/.nojekyll site/app/.nojekyll
 
       - uses: actions/configure-pages@v5
@@ -74,11 +90,29 @@ jobs:
             pulse="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/live-system-v961.js?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
             access="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/packages-access-v962.js?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
             map="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-radar-v963.js?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
-            if printf '%s' "$app" | grep -q 'live-system-v961.js?v=972' && printf '%s' "$app" | grep -q 'packages-access-v962.js?v=962' && printf '%s' "$app" | grep -q 'map-radar-v963.js?v=963' && printf '%s' "$pulse" | grep -q 'bridgepoint_public_system_pulse_v957' && printf '%s' "$access" | grep -q 'bridgepoint_customer_access_contract_v318' && printf '%s' "$map" | grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' && printf '%s' "$map" | grep -q 'bridgepoint_flutter_opportunities_state_v341'; then
-              echo 'BridgePoint current runtime verified live.'
+            experience="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/experience-v974.js?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            map974="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-radar-v974.js?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'live-system-v961.js?v=972' \
+              && printf '%s' "$app" | grep -q 'packages-access-v962.js?v=962' \
+              && printf '%s' "$app" | grep -q 'map-radar-v963.js?v=963' \
+              && printf '%s' "$app" | grep -q 'experience-v974.js?v=974' \
+              && printf '%s' "$app" | grep -q 'map-radar-v974.js?v=974' \
+              && printf '%s' "$pulse" | grep -q 'bridgepoint_public_system_pulse_v957' \
+              && printf '%s' "$access" | grep -q 'bridgepoint_customer_access_contract_v318' \
+              && printf '%s' "$map" | grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' \
+              && printf '%s' "$map" | grep -q 'bridgepoint_flutter_opportunities_state_v341' \
+              && printf '%s' "$experience" | grep -q '__bridgepointExperienceV974' \
+              && printf '%s' "$experience" | grep -q 'Create your BridgePoint account' \
+              && printf '%s' "$experience" | grep -q 'preferred_locale' \
+              && printf '%s' "$map974" | grep -q '__bridgepointMapRadarV974' \
+              && printf '%s' "$map974" | grep -q 'bridgepoint_flutter_geographic_catalog_v77' \
+              && printf '%s' "$map974" | grep -q 'bridgepoint_flutter_signal_map_v80' \
+              && printf '%s' "$map974" | grep -q 'Hurricane' \
+              && printf '%s' "$map974" | grep -q 'Wildfire'; then
+              echo 'BridgePoint v974 runtime verified on the public domain.'
               exit 0
             fi
             sleep 10
           done
-          echo 'Current runtime did not converge on the public domain.' >&2
+          echo 'Current v974 runtime did not converge on the public domain.' >&2
           exit 1
