@@ -1,10 +1,11 @@
-name: Deploy BridgePoint Live Artifact Runtime V962
+name: Deploy BridgePoint Live Artifact Runtime
 
 on:
   workflow_dispatch:
   push:
     paths:
       - '.github/workflows/deploy-live-artifact-runtime-v962.yml'
+      - 'runtime-release/**'
 
 permissions:
   contents: read
@@ -39,14 +40,20 @@ jobs:
           test -s site/app/flutter_bootstrap.js
           test -s site/app/live-system-v961.js
           test -s site/app/packages-access-v962.js
+          test -s site/app/map-radar-v963.js
           test -s site/app/signup-confirmation-v946.js
           grep -q '<base href="/app/">' site/app/index.html
           grep -q 'live-system-v961.js?v=961' site/app/index.html
           grep -q 'packages-access-v962.js?v=962' site/app/index.html
+          grep -q 'map-radar-v963.js?v=963' site/app/index.html
           grep -q 'bridgepoint_public_system_pulse_v957' site/app/live-system-v961.js
           grep -q 'bridgepoint_owner_live_activity_v958' site/app/live-system-v961.js
           grep -q 'bridgepoint_customer_access_contract_v318' site/app/packages-access-v962.js
           grep -q 'bridgepoint_customer_plans_v944' site/app/packages-access-v962.js
+          grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' site/app/map-radar-v963.js
+          grep -q 'bridgepoint_flutter_property_map_viewport_v838' site/app/map-radar-v963.js
+          grep -q 'bridgepoint_flutter_opportunities_state_v341' site/app/map-radar-v963.js
+          grep -q '5500' site/app/map-radar-v963.js
           touch site/.nojekyll site/app/.nojekyll
 
       - uses: actions/configure-pages@v5
@@ -57,20 +64,21 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify V962 runtime live
+      - name: Verify current runtime live
         shell: bash
         run: |
           set -euo pipefail
           origin='https://bridgepointintelligence.online'
           for attempt in $(seq 1 24); do
-            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?v=962-${attempt}" 2>/dev/null || true)"
-            pulse="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/live-system-v961.js?v=962-${attempt}" 2>/dev/null || true)"
-            access="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/packages-access-v962.js?v=962-${attempt}" 2>/dev/null || true)"
-            if printf '%s' "$app" | grep -q 'live-system-v961.js?v=961' && printf '%s' "$app" | grep -q 'packages-access-v962.js?v=962' && printf '%s' "$pulse" | grep -q 'bridgepoint_public_system_pulse_v957' && printf '%s' "$access" | grep -q 'bridgepoint_customer_access_contract_v318'; then
-              echo 'BridgePoint V962 runtime verified live.'
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            pulse="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/live-system-v961.js?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            access="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/packages-access-v962.js?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            map="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-radar-v963.js?runtime=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'live-system-v961.js?v=961' && printf '%s' "$app" | grep -q 'packages-access-v962.js?v=962' && printf '%s' "$app" | grep -q 'map-radar-v963.js?v=963' && printf '%s' "$pulse" | grep -q 'bridgepoint_public_system_pulse_v957' && printf '%s' "$access" | grep -q 'bridgepoint_customer_access_contract_v318' && printf '%s' "$map" | grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' && printf '%s' "$map" | grep -q 'bridgepoint_flutter_opportunities_state_v341'; then
+              echo 'BridgePoint current runtime verified live.'
               exit 0
             fi
             sleep 10
           done
-          echo 'V962 runtime did not converge on the public domain.' >&2
+          echo 'Current runtime did not converge on the public domain.' >&2
           exit 1
