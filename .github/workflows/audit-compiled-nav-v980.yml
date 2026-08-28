@@ -1,0 +1,40 @@
+name: Audit Compiled Mobile Nav V980
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/audit-compiled-nav-v980.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Inspect compiled navigation strings
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          git show origin/live-artifact:app/main.dart.js > /tmp/main.dart.js
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('/tmp/main.dart.js').read_text(errors='ignore')
+          for term in ['Investor','Worth','More','Owner Control','Plans & access','Properties','Home']:
+              print('\n===',term,'===')
+              start=0
+              hits=0
+              while hits<8:
+                  i=s.find(term,start)
+                  if i<0: break
+                  print('offset',i)
+                  print(s[max(0,i-420):min(len(s),i+620)].replace('\n',' '))
+                  start=i+len(term)
+                  hits+=1
+              print('hits_shown',hits)
+          PY
