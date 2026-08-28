@@ -14,20 +14,19 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png?v=978">
-  <link rel="icon" type="image/png" href="favicon.png?v=978">
-  <link rel="manifest" href="manifest.json?v=978">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png?v=983">
+  <link rel="icon" type="image/png" href="favicon.png?v=983">
+  <link rel="manifest" href="manifest.json?v=983">
   <title>BridgePoint Intelligence</title>
   <style>
     html,body{margin:0;width:100%;height:100%;background:#030811;color:#fff}
     body{overflow:hidden}
-    /* v978: legacy floating install/update/home overlays are intentionally disabled. */
     #bp-install,#bp-install-dialog,#bp-pwa-update-v396,#bp-live-home-v972,#bp-live-system-v961{display:none!important;visibility:hidden!important;pointer-events:none!important}
   </style>
 </head>
-<body data-bridgepoint-runtime="v978">
+<body data-bridgepoint-runtime="v983">
   <script>
-    window.__bridgepointCanonicalRuntime='v978';
+    window.__bridgepointCanonicalRuntime='v983';
     window.__bridgepointLegacyOverlayDisabled=true;
     (()=>{
       const staleIds=['bp-install','bp-install-dialog','bp-pwa-update-v396','bp-live-home-v972','bp-live-system-v961'];
@@ -40,11 +39,12 @@
       new MutationObserver(removeStale).observe(document.documentElement,{childList:true,subtree:true});
     })();
   </script>
-  <script src="experience-v974.js?v=982"></script>
-  <script src="signup-confirmation-v946.js?v=978"></script>
-  <script src="live-home-v981.js?v=981"></script>
-  <script src="map-radar-v963.js?v=978"></script>
-  <script src="map-radar-v974.js?v=978"></script>
+  <script src="experience-v974.js?v=983"></script>
+  <script src="signup-confirmation-v946.js?v=983"></script>
+  <script src="live-home-v981.js?v=983"></script>
+  <script src="map-radar-v963.js?v=983"></script>
+  <script src="map-radar-v974.js?v=983"></script>
+  <script src="runtime-unifier-v983.js?v=983"></script>
   <script>
     (async()=>{
       try{
@@ -60,9 +60,9 @@
         }
       }catch(_){ }
       const loader=document.createElement('script');
-      loader.src='flutter_bootstrap.js?v=978';
+      loader.src='flutter_bootstrap.js?v=983';
       loader.async=true;
-      loader.dataset.bridgepointCanonicalRuntime='v978';
+      loader.dataset.bridgepointCanonicalRuntime='v983';
       document.body.appendChild(loader);
     })();
   </script>
