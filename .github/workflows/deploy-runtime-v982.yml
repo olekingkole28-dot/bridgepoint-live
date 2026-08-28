@@ -1,0 +1,95 @@
+name: Deploy BridgePoint Runtime V982
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-runtime-v982.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assemble and verify v982
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/main.dart.js
+          test -s site/app/experience-v974.js
+          test -s site/app/live-home-v981.js
+          test -s site/app/map-radar-v974.js
+          test -s site/app/flutter_service_worker.js
+          node --check site/app/experience-v974.js
+          node --check site/app/live-home-v981.js
+          node --check site/app/map-radar-v974.js
+          grep -q 'experience-v974.js?v=982' site/app/index.html
+          grep -q 'live-home-v981.js?v=981' site/app/index.html
+          grep -q "mapOpen=document.getElementById('bp974-map-dialog')" site/app/experience-v974.js
+          grep -q "modalLikeOpen()||mapOpen" site/app/experience-v974.js
+          grep -q 'bridgepoint_public_system_pulse_v957' site/app/live-home-v981.js
+          grep -q 'PARCEL INGESTION' site/app/live-home-v981.js
+          grep -q 'MATCHING' site/app/live-home-v981.js
+          grep -q 'SCORING COVERAGE' site/app/live-home-v981.js
+          grep -q 'SIGNALS' site/app/live-home-v981.js
+          grep -q 'PATTERNS' site/app/live-home-v981.js
+          grep -q 'OPPORTUNITIES' site/app/live-home-v981.js
+          grep -q 'LIVE • 3 SEC' site/app/live-home-v981.js
+          if grep -q 'id="bp-install"' site/app/index.html; then echo 'Legacy install UI returned' >&2; exit 1; fi
+          if grep -q 'live-system-v961.js' site/app/index.html; then echo 'Legacy combined Home/owner overlay returned' >&2; exit 1; fi
+          if grep -q 'packages-access-v962.js' site/app/index.html; then echo 'Legacy package overlay returned' >&2; exit 1; fi
+          if grep -q 'podcast-entry-v941.js' site/app/index.html; then echo 'Legacy entry overlay returned' >&2; exit 1; fi
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy v982
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify v982 on public domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 24); do
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?v982=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            exp="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/experience-v974.js?v982=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            live="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/live-home-v981.js?v982=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            map="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-radar-v974.js?v982=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'experience-v974.js?v=982' \
+              && printf '%s' "$app" | grep -q 'live-home-v981.js?v=981' \
+              && ! printf '%s' "$app" | grep -q 'id="bp-install"' \
+              && ! printf '%s' "$app" | grep -q 'live-system-v961.js' \
+              && printf '%s' "$exp" | grep -q "mapOpen=document.getElementById('bp974-map-dialog')" \
+              && printf '%s' "$exp" | grep -q 'modalLikeOpen()||mapOpen' \
+              && printf '%s' "$live" | grep -q 'bridgepoint_public_system_pulse_v957' \
+              && printf '%s' "$live" | grep -q 'PARCEL INGESTION' \
+              && printf '%s' "$live" | grep -q 'SCORING COVERAGE' \
+              && printf '%s' "$live" | grep -q 'LIVE • 3 SEC' \
+              && printf '%s' "$map" | grep -q 'Intelligence Map + Live Weather'; then
+              echo 'BridgePoint v982 verified: live Home counters restored and space hidden on Intelligence Map.'
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'BridgePoint v982 did not converge on public domain.' >&2
+          exit 1
