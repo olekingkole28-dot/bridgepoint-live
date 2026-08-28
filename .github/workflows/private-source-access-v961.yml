@@ -1,0 +1,43 @@
+name: BridgePoint Private Source Access V961
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/private-source-access-v961.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check safe cross-repo access paths
+        env:
+          GH_TOKEN_DEFAULT: ${{ secrets.GITHUB_TOKEN }}
+          PRIVATE_REPO_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          PAT: ${{ secrets.PAT }}
+          BRIDGEPOINT_REPO_TOKEN: ${{ secrets.BRIDGEPOINT_REPO_TOKEN }}
+          BRIDGEPOINT_GITHUB_TOKEN: ${{ secrets.BRIDGEPOINT_GITHUB_TOKEN }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          SOURCE_REPO_TOKEN: ${{ secrets.SOURCE_REPO_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://api.github.com/repos/olekingkole28-dot/bridgepoint_data_studio/contents/pubspec.yaml?ref=customer-ready-v960-rebased'
+          probe(){
+            local label="$1" token="$2"
+            if [ -z "$token" ]; then echo "$label=missing"; return 0; fi
+            code="$(curl -sS -o /dev/null -w '%{http_code}' -H 'Accept: application/vnd.github+json' -H "Authorization: Bearer $token" "$url" || true)"
+            if [ "$code" = '200' ]; then echo "$label=private-source-readable"; else echo "$label=present-but-no-private-read:$code"; fi
+          }
+          probe GITHUB_TOKEN "$GH_TOKEN_DEFAULT"
+          probe PRIVATE_REPO_TOKEN "$PRIVATE_REPO_TOKEN"
+          probe GH_PAT "$GH_PAT"
+          probe PAT "$PAT"
+          probe BRIDGEPOINT_REPO_TOKEN "$BRIDGEPOINT_REPO_TOKEN"
+          probe BRIDGEPOINT_GITHUB_TOKEN "$BRIDGEPOINT_GITHUB_TOKEN"
+          probe RELEASE_TOKEN "$RELEASE_TOKEN"
+          probe SOURCE_REPO_TOKEN "$SOURCE_REPO_TOKEN"
