@@ -1,0 +1,109 @@
+name: Deploy BridgePoint Runtime V986
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/deploy-runtime-v986.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble v986 live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/flutter_bootstrap.js
+          test -s site/app/main.dart.js
+          test -s site/app/startup-recovery-v986.js
+          test -s site/app/experience-v974.js
+          node --check site/app/startup-recovery-v986.js
+          node --check site/app/experience-v974.js
+
+      - name: Verify direct Flutter boot is first
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v986"' site/app/index.html
+          grep -q 'flutter_bootstrap.js?v=986' site/app/index.html
+          grep -q 'data-bridgepoint-direct-flutter="v986"' site/app/index.html
+          grep -q 'startup-recovery-v986.js?v=986' site/app/index.html
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('site/app/index.html').read_text()
+          a=s.index('flutter_bootstrap.js?v=986')
+          b=s.index('experience-v974.js?v=986')
+          assert a < b, (a,b)
+          assert 'startup-safety-v985.js' not in s
+          assert 'await navigator.serviceWorker.getRegistrations' not in s
+          assert 'await caches.keys' not in s
+          print('Direct Flutter bootstrap precedes all visual/runtime overlays.')
+          PY
+          grep -q '"start_url": "./?bpv=v986"' site/app/manifest.json
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v986'" site/app/flutter_service_worker.js
+
+      - name: Preserve v984 feature bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in map-radar-v974.js map-polish-v984.js owner-console-v984.js runtime-unifier-v984.js live-home-v984.js signals-activity-v984.js visual-polish-v984.js; do test -s "site/app/$f"; node --check "site/app/$f"; done
+          grep -q 'bridgepoint_public_pipeline_activity_v984' site/app/live-home-v984.js
+          grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' site/app/map-radar-v974.js
+          grep -q 'bridgepoint_owner_acquisition_v432' site/app/owner-console-v984.js
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy v986
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify v986 on actual public domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?v986=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            recovery="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/startup-recovery-v986.js?v986=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            boot="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/flutter_bootstrap.js?v986=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v986"' \
+              && printf '%s' "$app" | grep -q 'data-bridgepoint-direct-flutter="v986"' \
+              && printf '%s' "$app" | grep -q 'startup-recovery-v986.js?v=986' \
+              && ! printf '%s' "$app" | grep -q 'startup-safety-v985.js' \
+              && printf '%s' "$recovery" | grep -q 'BridgePoint is restarting the app' \
+              && printf '%s' "$boot" | grep -q '_flutter.loader.load'; then
+              APP="$app" python - <<'PY'
+          import os
+          s=os.environ['APP']
+          assert s.index('flutter_bootstrap.js?v=986') < s.index('experience-v974.js?v=986')
+          PY
+              echo 'BridgePoint v986 direct Flutter boot verified on the actual public domain.'
+              exit 0
+            fi
+            sleep 10
+          done
+          echo 'BridgePoint v986 did not converge on the actual public domain.' >&2
+          exit 1
