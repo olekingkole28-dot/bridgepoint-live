@@ -1,0 +1,116 @@
+name: Deploy BridgePoint V1060 Customer Repair
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-v1060-customer-repair.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Assemble exact tested V1060 artifact
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          expected='e771654a84d79a9beebe593e4dfe102d6f15f6d2'
+          actual="$(git rev-parse origin/live-artifact)"
+          echo "LIVE_ARTIFACT=${actual}"
+          test "$actual" = "$expected"
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          cd site/app
+          for f in index.html preapp-buttons-v1060.js map-ui-v1060.js shell-correction-v1060.js navigation-repair-v1060.js preauth-legal-v1059.js customer-surfaces-v1042.js work-hub-v1054.js app-more-v1054.js; do test -s "$f"; done
+          for f in preapp-buttons-v1060.js map-ui-v1060.js shell-correction-v1060.js navigation-repair-v1060.js; do node --check "$f"; done
+          grep -q 'data-bridgepoint-runtime="v1060"' index.html
+          grep -q 'preapp-buttons-v1060.js?v=1060' index.html
+          grep -q 'map-ui-v1060.js?v=1060' index.html
+          grep -q 'shell-correction-v1060.js?v=1060' index.html
+          grep -q 'navigation-repair-v1060.js?v=1060' index.html
+          ! grep -q 'navigation-repair-v1059.js' index.html
+          grep -q "fifth.dataset.tab='more'" shell-correction-v1060.js
+          grep -q "getElementById('bp1055-more-button')?.remove" shell-correction-v1060.js
+          grep -q 'BridgePointSingleShellV1055||window.BridgePointSingleShellV1060' navigation-repair-v1060.js
+          grep -q "const off=\['satellite','radar','props','signals'\]" map-ui-v1060.js
+          grep -q 'bp1060-kind-hail' map-ui-v1060.js
+          grep -q 'bp1060-kind-lightning' map-ui-v1060.js
+          grep -q 'bp1060-kind-permit' map-ui-v1060.js
+          grep -q 'bp1060-kind-transfer' map-ui-v1060.js
+          grep -q 'bp1060-kind-solar' map-ui-v1060.js
+          grep -q 'bp1060-preapp-button' preapp-buttons-v1060.js
+          grep -q 'bridgepoint_flutter_properties_v725' customer-surfaces-v1042.js
+          grep -q 'bridgepoint_saved_opportunities_v842' work-hub-v1054.js
+          grep -q 'Plans, API & Technology' app-more-v1054.js
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' *.js index.html
+          cd ../..
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {path: site}
+      - name: Deploy exact V1060
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify public V1060 files
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 18); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1060&verify=${salt}" 2>/dev/null || true)"
+            shell="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/shell-correction-v1060.js?verify=${salt}" 2>/dev/null || true)"
+            nav="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/navigation-repair-v1060.js?verify=${salt}" 2>/dev/null || true)"
+            map="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/map-ui-v1060.js?verify=${salt}" 2>/dev/null || true)"
+            pre="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/preapp-buttons-v1060.js?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1060"' \
+              && printf '%s' "$app" | grep -q 'shell-correction-v1060.js?v=1060' \
+              && printf '%s' "$app" | grep -q 'navigation-repair-v1060.js?v=1060' \
+              && printf '%s' "$shell" | grep -q "fifth.dataset.tab='more'" \
+              && printf '%s' "$nav" | grep -q 'BridgePointSingleShellV1055||window.BridgePointSingleShellV1060' \
+              && printf '%s' "$map" | grep -q "const off=\['satellite','radar','props','signals'\]" \
+              && printf '%s' "$map" | grep -q 'bp1060-kind-lightning' \
+              && printf '%s' "$pre" | grep -q 'bp1060-preapp-button'; then
+              echo PUBLIC_FILES_V1060_PASS
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'V1060 files did not converge publicly' >&2
+          exit 1
+      - name: Verify public mobile UI
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp && npm init -y >/dev/null 2>&1 && npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,protocolTimeout:45000,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
+            try{
+              const p=await browser.newPage();await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.goto('https://bridgepointintelligence.online/app/?v1060public='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await p.waitForSelector('#bp1055-deeptech .bp1060-preapp-button',{timeout:18000});
+              const cards=await p.$$eval('#bp1055-deeptech .bp1060-preapp-button',els=>els.map(e=>({tag:e.tagName,text:e.textContent,intent:e.dataset.bp1060Intent})));
+              assert.ok(cards.length>0,'public DeepTech buttons missing');
+              assert.ok(cards.every(x=>x.tag==='BUTTON'),'DeepTech must be real buttons');
+              await p.waitForFunction(()=>window.BridgePointSingleShellV1060&&window.__bridgepointNavigationRepairV1060,{timeout:10000});
+              assert.strictEqual(await p.$('#bp1055-more-button'),null,'header 3-dot must be removed');
+              assert.deepStrictEqual(await p.$$eval('#bp1055-nav [data-tab]',els=>els.map(e=>e.dataset.tab)),['home','map','properties','work','more']);
+              const lab=await p.$('#bp1055-deeptech [data-bp1060-intent="lab"]');
+              if(lab){await lab.evaluate(e=>e.scrollIntoView({block:'center'}));const owns=await lab.evaluate(e=>{const r=e.getBoundingClientRect(),h=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return h===e||e.contains(h)});assert.strictEqual(owns,true,'lab button center covered');await lab.evaluate(e=>e.click());await p.waitForSelector('#bp1059-legal.show',{timeout:10000});assert.strictEqual(await p.evaluate(()=>{const a=document.getElementById('bp1046-auth');return !a||getComputedStyle(a).display==='none'}),true,'legal must remain before auth');}
+              console.log('PUBLIC_MOBILE_V1060_PASS');
+            } finally {await browser.close();}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
