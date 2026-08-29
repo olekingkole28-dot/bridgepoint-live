@@ -1,0 +1,99 @@
+name: Deploy BridgePoint V1059 Regression Repair
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-v1059-regression-repair.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Assemble exact tested V1059 artifact
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          expected='44672dc817c7fe2c5bc81ee545b8ebd743e47b39'
+          actual="$(git rev-parse origin/live-artifact)"
+          echo "Deploying live-artifact ${actual}"
+          test "$actual" = "$expected"
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          cd site/app
+          test -s index.html
+          for f in preauth-legal-v1059.js entry-visual-v1059.js navigation-repair-v1059.js auth-restoration-v1046.js single-shell-v1055.js customer-surfaces-v1042.js plans-primary-v1042.js product-tools-v1056.js workflow-tools-v1057.js intelligence-lab-v1058.js; do test -s "$f"; node --check "$f"; done
+          grep -q 'data-bridgepoint-runtime="v1059"' index.html
+          grep -q '<script src="preauth-legal-v1059.js?v=1059"></script>' index.html
+          grep -q 'entry-visual-v1059.js?v=1059' index.html
+          grep -q 'navigation-repair-v1059.js?v=1059' index.html
+          grep -q 'REQUIRED BEFORE SECURE ACCOUNT ACCESS' preauth-legal-v1059.js
+          grep -q 'bp1059-entry-grid' entry-visual-v1059.js
+          grep -q 'flutter-view,flt-glass-pane' navigation-repair-v1059.js
+          grep -q '#bp1055-feature-gate{bottom:' navigation-repair-v1059.js
+          grep -q 'dismissFeatureGate' navigation-repair-v1059.js
+          grep -q 'bridgepoint_accept_legal_v82' preauth-legal-v1059.js
+          grep -q 'bridgepoint_flutter_properties_v725' customer-surfaces-v1042.js
+          grep -q 'bridgepoint_flutter_property_detail_v344' customer-surfaces-v1042.js
+          grep -q 'bridgepoint_saved_opportunities_v842' customer-surfaces-v1042.js
+          grep -q 'bridgepoint-checkout-v67' plans-primary-v1042.js
+          grep -q 'BridgePointProductToolsV1056' preauth-legal-v1059.js
+          grep -q 'BridgePointWorkflowToolsV1057' preauth-legal-v1059.js
+          grep -q 'BridgePointIntelligenceLabV1058' preauth-legal-v1059.js
+          ! grep -q 'new MutationObserver' navigation-repair-v1059.js
+          ! grep -q 'new MutationObserver' entry-visual-v1059.js
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' *.js index.html
+          cd ../..
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {path: site}
+      - name: Deploy exact V1059 artifact
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify V1059 on public domain
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 45); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1059&verify=${salt}" 2>/dev/null || true)"
+            legal="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/preauth-legal-v1059.js?verify=${salt}" 2>/dev/null || true)"
+            entry="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/entry-visual-v1059.js?verify=${salt}" 2>/dev/null || true)"
+            nav="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/navigation-repair-v1059.js?verify=${salt}" 2>/dev/null || true)"
+            surfaces="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/customer-surfaces-v1042.js?verify=${salt}" 2>/dev/null || true)"
+            plans="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/plans-primary-v1042.js?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1059"' \
+              && printf '%s' "$app" | grep -q 'preauth-legal-v1059.js?v=1059' \
+              && printf '%s' "$app" | grep -q 'entry-visual-v1059.js?v=1059' \
+              && printf '%s' "$app" | grep -q 'navigation-repair-v1059.js?v=1059' \
+              && printf '%s' "$legal" | grep -q 'REQUIRED BEFORE SECURE ACCOUNT ACCESS' \
+              && printf '%s' "$legal" | grep -q 'bridgepoint_accept_legal_v82' \
+              && printf '%s' "$entry" | grep -q 'Open Product Tools' \
+              && printf '%s' "$entry" | grep -q 'Open Workflow Tools' \
+              && printf '%s' "$entry" | grep -q 'Open Intelligence Lab' \
+              && printf '%s' "$entry" | grep -q 'Open Property Workspace' \
+              && printf '%s' "$nav" | grep -q 'flutter-view,flt-glass-pane' \
+              && printf '%s' "$nav" | grep -q 'dismissFeatureGate' \
+              && printf '%s' "$surfaces" | grep -q 'bridgepoint_flutter_properties_v725' \
+              && printf '%s' "$surfaces" | grep -q 'bridgepoint_saved_opportunities_v842' \
+              && printf '%s' "$plans" | grep -q 'bridgepoint-checkout-v67'; then
+              echo 'PUBLIC_V1059_VERIFIED'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'V1059 public verification did not converge' >&2
+          exit 1
