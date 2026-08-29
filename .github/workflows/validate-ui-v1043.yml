@@ -1,0 +1,67 @@
+name: Validate UI V1043
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/validate-ui-v1043.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble staged V1043 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin ui-v1043:refs/remotes/origin/ui-v1043
+          rm -rf site && mkdir site
+          git archive --format=tar origin/ui-v1043 | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/customer-home-v1043.js
+          test -s site/app/single-shell-v1043.js
+
+      - name: JavaScript syntax checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check site/app/customer-home-v1043.js
+          node --check site/app/single-shell-v1043.js
+          node --check site/app/plans-primary-v1042.js
+          node --check site/app/customer-surfaces-v1042.js
+
+      - name: Runtime wiring checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v1043"' site/app/index.html
+          grep -q 'customer-home-v1043.js?v=1043' site/app/index.html
+          grep -q 'single-shell-v1043.js?v=1043' site/app/index.html
+          ! grep -q 'single-shell-v1042.js' site/app/index.html
+          grep -q 'BridgePointSingleShellV1043' site/app/single-shell-v1043.js
+          grep -q 'data-tab="saved"' site/app/single-shell-v1043.js
+          grep -q 'Plans & Billing' site/app/customer-home-v1043.js
+          grep -q 'What do you want to work on?' site/app/customer-home-v1043.js
+
+      - name: Guard customer-critical V1042 surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'BridgePointOpenPropertiesV1042' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_flutter_properties_v725' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_flutter_property_detail_v344' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_saved_opportunities_v842' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_claims_workspace_v833' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_calendar_agenda_v835' site/app/customer-surfaces-v1042.js
+          grep -q 'BridgePointOpenPlansV1042' site/app/plans-primary-v1042.js
+
+      - name: Validation summary
+        run: echo 'V1043 staged UI passed syntax, wiring, and customer-surface regression guards.'
