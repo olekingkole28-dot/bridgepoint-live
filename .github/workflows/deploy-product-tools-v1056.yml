@@ -1,0 +1,87 @@
+name: Deploy BridgePoint Product Tools V1056
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-product-tools-v1056.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assemble exact V1056 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/product-tools-v1056.js
+          node --check site/app/product-tools-v1056.js
+          node --check site/app/single-shell-v1055.js
+          node --check site/app/customer-surfaces-v1042.js
+          node --check site/app/work-hub-v1054.js
+          node --check site/app/plans-primary-v1042.js
+          grep -q 'data-bridgepoint-runtime="v1056"' site/app/index.html
+          grep -q 'product-tools-v1056.js?v=1056' site/app/index.html
+          grep -q 'bridgepoint_product_tools_v1056' site/app/product-tools-v1056.js
+          grep -q 'bridgepoint-geographic-checkout-v1056' site/app/product-tools-v1056.js
+          grep -q 'bridgepoint_iot_create_integration_v519' site/app/product-tools-v1056.js
+          grep -q 'bridgepoint_create_drone_dispatch_v520' site/app/product-tools-v1056.js
+          grep -q 'bridgepoint_digital_twin_summary_v856' site/app/product-tools-v1056.js
+          grep -q 'bridgepoint_owner_demo_mode_v155' site/app/product-tools-v1056.js
+          ! grep -q 'flutter_bootstrap.js' site/app/index.html
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' site/app/*.js site/app/index.html
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy V1056
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify public V1056 Product Tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          project='https://xdfsjztwgsbmabshzsjw.supabase.co'
+          for attempt in $(seq 1 45); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1056&verify=${salt}" 2>/dev/null || true)"
+            tools="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/product-tools-v1056.js?verify=${salt}" 2>/dev/null || true)"
+            geo_code="$(curl -sS -o /tmp/geo1056.json -w '%{http_code}' --max-time 20 -X POST "${project}/functions/v1/bridgepoint-geographic-checkout-v1056" -H 'Content-Type: application/json' -d '{"item_type":"STATE","item_key":"NY","interval":"month"}' 2>/dev/null || true)"
+            hook_code="$(curl -sS -o /tmp/hook1056.json -w '%{http_code}' --max-time 20 -X POST "${project}/functions/v1/bridgepoint-stripe-webhook-v65" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1056"' \
+              && printf '%s' "$app" | grep -q 'product-tools-v1056.js?v=1056' \
+              && printf '%s' "$tools" | grep -q 'BRIDGEPOINT PRODUCT TOOLS' \
+              && printf '%s' "$tools" | grep -q 'bridgepoint_product_tools_v1056' \
+              && printf '%s' "$tools" | grep -q 'bridgepoint_iot_create_integration_v519' \
+              && printf '%s' "$tools" | grep -q 'bridgepoint_create_drone_dispatch_v520' \
+              && printf '%s' "$tools" | grep -q 'bridgepoint_owner_demo_mode_v155' \
+              && test "$geo_code" = '401' \
+              && test "$hook_code" = '400' \
+              && grep -q 'Invalid signature' /tmp/hook1056.json; then
+              echo 'V1056 publicly verified: Product Tools live; geography checkout protected; webhook signature guard healthy.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'V1056 public verification did not converge.' >&2
+          exit 1
