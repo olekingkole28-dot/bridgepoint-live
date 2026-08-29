@@ -1,0 +1,78 @@
+name: Validate UI V1045
+
+on:
+  push:
+    branches: [ui-v1045]
+    paths:
+      - 'app/index.html'
+      - 'app/more-intelligence-v1045.js'
+      - 'app/preapp-coverage-v1045.js'
+      - '.github/workflows/validate-ui-v1045.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JavaScript syntax checks
+        run: |
+          set -euo pipefail
+          node --check app/more-intelligence-v1045.js
+          node --check app/preapp-coverage-v1045.js
+          node --check app/preapp-funnel-v1044.js
+          node --check app/customer-home-v1044.js
+          node --check app/single-shell-v1044.js
+          node --check app/customer-surfaces-v1042.js
+          node --check app/plans-primary-v1042.js
+      - name: Runtime wiring checks
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v1045"' app/index.html
+          grep -q 'preapp-coverage-v1045.js?v=1045' app/index.html
+          grep -q 'more-intelligence-v1045.js?v=1045' app/index.html
+          grep -q 'single-shell-v1044.js?v=1045' app/index.html
+          grep -q 'preapp-funnel-v1044.js?v=1045' app/index.html
+      - name: Preserve primary customer shell
+        run: |
+          set -euo pipefail
+          grep -q 'data-tab="plans"' app/single-shell-v1044.js
+          grep -q '<span>Plans</span>' app/single-shell-v1044.js
+          grep -q 'BridgePointOpenPlansV1042' app/single-shell-v1044.js
+          grep -q 'BridgePointOpenPropertiesV1042' app/single-shell-v1044.js
+          grep -q 'BridgePointOpenMoreV1042' app/single-shell-v1044.js
+          grep -q 'BridgePointSingleShellV1042=api' app/single-shell-v1044.js
+      - name: Existing workspace regression guards
+        run: |
+          set -euo pipefail
+          grep -q 'bridgepoint_saved_opportunities_v842' app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_claims_workspace_v833' app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_calendar_agenda_v835' app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_flutter_properties_v725' app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_flutter_property_detail_v344' app/customer-surfaces-v1042.js
+      - name: New backend surfaces are real customer functions
+        run: |
+          set -euo pipefail
+          grep -q 'bridgepoint_daily_brief_v74' app/more-intelligence-v1045.js
+          grep -q 'bridgepoint_flutter_signals' app/more-intelligence-v1045.js
+          grep -q 'bridgepoint_flutter_sources' app/more-intelligence-v1045.js
+          grep -q 'bridgepoint_weather_radar_state_v860' app/more-intelligence-v1045.js
+          grep -q 'bridgepoint_watchlists_v88' app/more-intelligence-v1045.js
+          grep -q 'bridgepoint_create_watchlist_v88' app/more-intelligence-v1045.js
+          grep -q 'bridgepoint_route_plans_v87' app/more-intelligence-v1045.js
+          grep -q 'bridgepoint_capability_library_v831' app/more-intelligence-v1045.js
+          ! grep -q 'bridgepoint_pattern_intelligence_v212' app/more-intelligence-v1045.js
+      - name: Pre-app coverage and acquisition guards
+        run: |
+          set -euo pipefail
+          grep -q 'bridgepoint_public_expansion_status_v321' app/preapp-coverage-v1045.js
+          grep -q 'LIVE U.S. COVERAGE CHECKER' app/preapp-coverage-v1045.js
+          grep -q 'data-bp1045-direct-preview' app/preapp-coverage-v1045.js
+          grep -q ':not(\[data-bp1045-direct-preview\])' app/preapp-coverage-v1045.js
+          grep -q 'See your territory free' app/preapp-funnel-v1044.js
+          grep -q 'bridgepoint_public_customer_plans_v1041' app/preapp-funnel-v1044.js
+          grep -q 'bridgepoint_public_capability_catalog_v550' app/preapp-funnel-v1044.js
+          test -s sample/index.html
+          test -s start/index.html
+      - name: Validation summary
+        run: echo 'V1045 customer-safe backend surfacing and pre-app coverage gates passed.'
