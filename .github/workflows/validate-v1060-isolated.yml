@@ -1,0 +1,116 @@
+name: Validate V1060 Isolated Customer Surfaces
+on:
+  push:
+    paths:
+      - '.github/workflows/validate-v1060-isolated.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Fetch staged V1060
+        run: |
+          set -euo pipefail
+          git fetch origin ui-v1060-customer-repair:refs/remotes/origin/ui-v1060-customer-repair
+          echo "STAGED_SHA=$(git rev-parse origin/ui-v1060-customer-repair)"
+          rm -rf /tmp/v1060 && mkdir -p /tmp/v1060
+          git archive origin/ui-v1060-customer-repair | tar -x -C /tmp/v1060
+      - name: Build isolated harness
+        run: |
+          cat > /tmp/v1060/app/v1060-harness.html <<'HTML'
+          <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;width:100%;height:100%;background:#030811;color:white}#bp1055-nav{position:fixed;left:0;right:0;bottom:0;height:76px;display:grid;grid-template-columns:repeat(5,1fr);z-index:50;background:#071827}.bp1055-tab{border:0;background:none;color:white;display:grid;place-items:center}.bp1055-tab svg{width:20px;height:20px;stroke:currentColor;fill:none}</style></head><body>
+          <header id="bp1055-header"><button id="bp1055-more-button">⋯</button></header>
+          <nav id="bp1055-nav"><button class="bp1055-tab active" data-tab="home">Home</button><button class="bp1055-tab" data-tab="map">Map</button><button class="bp1055-tab" data-tab="properties">Properties</button><button class="bp1055-tab" data-tab="work">Work</button><button class="bp1055-tab" data-tab="plans">Plans</button></nav>
+          <div id="bp-live-home-v984">HOME</div>
+          <script>
+          localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'abcdefghijklmnopqrstuvwxyz1234567890',user:{id:'11111111-1111-1111-1111-111111111111'}}));
+          window.fetch=async function(url,opts){const u=String(url);let d={};if(u.includes('bridgepoint_saved_opportunities_v842'))d={saved_opportunities:[]};else if(u.includes('bridgepoint_claims_workspace_v833'))d={claims:[],eligible_saved_opportunities:[],claim_stage_options:[]};else if(u.includes('bridgepoint_calendar_agenda_v835'))d={events:[],unscheduled_routes:[]};else if(u.includes('bridgepoint_route_plans_v87'))d={routes:[]};else if(u.includes('bridgepoint_customer_notes_v70'))d={notes:[]};else if(u.includes('bridgepoint_public_brand_profile_v1054'))d={social_profiles:[],brand_links:{}};else if(u.includes('bridgepoint_public_package_catalog_v1054'))d={packages:[]};else if(u.includes('bridgepoint_public_legal_preview_v1054'))d={required_documents:[]};else if(u.includes('bridgepoint_flutter_properties_v725'))d={properties:[],returned_results:0,has_more:false};return new Response(JSON.stringify(d),{status:200,headers:{'Content-Type':'application/json'}})};
+          </script>
+          <script src="customer-surfaces-v1042.js?v=1060"></script>
+          <script src="work-hub-v1054.js?v=1060"></script>
+          <script src="app-more-v1054.js?v=1060"></script>
+          <script>
+          window.BridgePointSingleShellV1055={
+            home(){window.BridgePointClosePropertiesV1042?.();window.BridgePointWorkHubV1054?.close?.();window.BridgePointCloseMoreV1042?.();},
+            map(){},
+            properties(){window.BridgePointOpenPropertiesV1042?.();},
+            work(){window.BridgePointWorkHubV1054?.open?.('overview');},
+            plans(){},
+            more(){window.BridgePointOpenMoreV1042?.();},
+            getActive(){return 'home';}
+          };
+          </script>
+          <script src="shell-correction-v1060.js?v=1060"></script>
+          <script>
+          // Simulate the entitlement layer wrapping the corrected shell. Nav repair must prefer this wrapper.
+          window.__wrapperCalls=[];
+          const corrected=window.BridgePointSingleShellV1060;
+          window.BridgePointSingleShellV1055={...corrected,
+            home(){window.__wrapperCalls.push('home');return corrected.home();},
+            map(){window.__wrapperCalls.push('map');return corrected.map();},
+            properties(){window.__wrapperCalls.push('properties');return corrected.properties();},
+            work(){window.__wrapperCalls.push('work');return corrected.work();},
+            more(){window.__wrapperCalls.push('more');return corrected.more();}
+          };
+          </script>
+          <script src="navigation-repair-v1060.js?v=1060"></script>
+          </body></html>
+          HTML
+      - name: Static guards
+        run: |
+          set -euo pipefail
+          cd /tmp/v1060/app
+          for f in shell-correction-v1060.js navigation-repair-v1060.js map-ui-v1060.js preapp-buttons-v1060.js customer-surfaces-v1042.js work-hub-v1054.js app-more-v1054.js; do node --check "$f"; done
+          grep -q 'BridgePointSingleShellV1055||window.BridgePointSingleShellV1060' navigation-repair-v1060.js
+          grep -q 'stable>=4||tries>40' preapp-buttons-v1060.js
+      - name: Browser isolated navigation and map checks
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp && npm init -y >/dev/null 2>&1 && npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          python3 -m http.server 4173 --directory /tmp/v1060 >/tmp/v1060-isolated-http.log 2>&1 &
+          sleep 1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,protocolTimeout:30000,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
+            try{
+              const p=await browser.newPage();await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.goto('http://127.0.0.1:4173/app/v1060-harness.html',{waitUntil:'domcontentloaded',timeout:15000});
+              await p.waitForFunction(()=>window.BridgePointSingleShellV1060&&window.BridgePointNavigationRepairV1060,{timeout:5000});
+              await p.waitForSelector('#bp1042-properties');
+              assert.strictEqual(await p.$('#bp1055-more-button'),null,'header three-dot must be removed');
+              assert.deepStrictEqual(await p.$$eval('#bp1055-nav [data-tab]',els=>els.map(e=>e.dataset.tab)),['home','map','properties','work','more']);
+              for(const tab of ['home','map','properties','work','more']){
+                const hit=await p.$eval(`#bp1055-nav [data-tab="${tab}"]`,(b,tab)=>{const r=b.getBoundingClientRect(),e=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return e?.closest?.('[data-tab]')?.dataset.tab===tab;},tab);
+                assert.strictEqual(hit,true,`${tab} must own its center hit point`);
+              }
+              await p.$eval('#bp1055-nav [data-tab="properties"]',e=>e.click());await p.waitForSelector('#bp1042-properties.show',{timeout:3000});assert.notStrictEqual(await p.$eval('#bp1042-properties',e=>getComputedStyle(e).display),'none');
+              await p.$eval('#bp1055-nav [data-tab="work"]',e=>e.click());await p.waitForSelector('#bp1054-work.show',{timeout:3000});assert.notStrictEqual(await p.$eval('#bp1054-work',e=>getComputedStyle(e).display),'none');
+              await p.$eval('#bp1055-nav [data-tab="more"]',e=>e.click());await p.waitForSelector('#bp1042-more.show',{timeout:3000});assert.notStrictEqual(await p.$eval('#bp1042-more',e=>getComputedStyle(e).display),'none');
+              await sleep(350);assert.ok(await p.$('#bp1042-more [data-bp1054-card="catalog"]'),'More must contain Plans/API/Technology card');
+              await p.$eval('#bp1055-nav [data-tab="home"]',e=>e.click());await sleep(80);assert.strictEqual(await p.$eval('#bp1042-properties',e=>e.classList.contains('show')),false);assert.strictEqual(await p.$eval('#bp1054-work',e=>e.classList.contains('show')),false);assert.strictEqual(await p.$eval('#bp1042-more',e=>e.classList.contains('show')),false);
+              const calls=await p.evaluate(()=>window.__wrapperCalls);for(const k of ['properties','work','more','home'])assert.ok(calls.includes(k),`entitlement wrapper path missing ${k}`);
+              console.log('ISOLATED_NAV_PASS',calls.join(','));
+
+              await p.addScriptTag({url:'http://127.0.0.1:4173/app/map-ui-v1060.js?v=1060'});
+              await p.evaluate(()=>{const d=document.createElement('div');d.id='bp974-map-dialog';d.className='show';d.innerHTML=`<select data-state><option value="US">US</option><option value="CA" disabled>CA</option><option value="TX" disabled>TX</option><option value="AK" disabled>AK</option><option value="HI" disabled>HI</option></select><button class="active" data-satellite>Satellite</button><button class="active" data-radar>Radar</button><button class="active" data-props>Properties</button><button class="active" data-opps>Opportunities</button><button class="active" data-signals>Signals</button><div data-keybox><div class="keyrow">old key</div></div><div class="intel-marker signal">⚡</div><div class="intel-marker critical" title="hail">🧊</div>`;d.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('active')));document.body.appendChild(d);window.BridgePointMapUIV1060.apply();});
+              await sleep(100);
+              for(const k of ['satellite','radar','props','signals'])assert.strictEqual(await p.$eval(`#bp974-map-dialog [data-${k}]`,e=>e.classList.contains('active')),false,`${k} defaults off`);
+              assert.strictEqual(await p.$eval('#bp974-map-dialog [data-opps]',e=>e.classList.contains('active')),true,'opportunities default on');
+              for(const code of ['CA','TX','AK','HI'])assert.strictEqual(await p.$eval(`#bp974-map-dialog [data-state] option[value="${code}"]`,e=>e.disabled),false,`${code} selectable`);
+              assert.ok((await p.$eval('#bp974-map-dialog option[value="CA"]',e=>e.textContent)).includes('California'));
+              assert.strictEqual(await p.$eval('#bp974-map-dialog .intel-marker.signal',e=>e.classList.contains('bp1060-kind-lightning')),true);
+              assert.strictEqual(await p.$eval('#bp974-map-dialog .intel-marker[title="hail"]',e=>e.classList.contains('bp1060-kind-hail')),true);
+              assert.strictEqual(await p.$$eval('#bp974-map-dialog .bp1060-event-icon',els=>els.length),2);
+              console.log('ISOLATED_MAP_PASS');
+            } finally {await browser.close();}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+      - name: Summary
+        run: echo 'V1060 isolated browser gate passed real customer surface visibility, bottom More routing, entitlement-wrapper preservation, all-state map selection, opportunities-only defaults, and colored SVG marker classification.'
