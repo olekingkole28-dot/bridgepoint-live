@@ -75,7 +75,7 @@ tab.id='bp1036-commerce-tab';
 tab.type='button';
 tab.setAttribute('aria-label','Plans and founding offer');
 tab.innerHTML='<span class="icon">★</span><span class="copy"><span class="main">Plans & Access</span><span class="promo">LIVE OFFER</span></span>';
-document.body.appendChild(tab);
+// v1040: floating founding-offer control disabled; Plans is primary navigation.
 
 const dialog=document.createElement('div');
 dialog.id='bp1036-plans-dialog';
