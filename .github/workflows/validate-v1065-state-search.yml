@@ -30,3 +30,85 @@ jobs:
       - name: Reject merge markers
         run: |
           ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' app/state-property-search-v1065.js app/index.html
+      - name: Browser regression - state selection wins over stale results
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          cp "$GITHUB_WORKSPACE/app/state-property-search-v1065.js" /tmp/state-property-search-v1065.js
+          cat > /tmp/index.html <<'HTML'
+          <!doctype html><html><body>
+          <section id="bp1042-properties" class="show">
+            <input data-query value="">
+            <select data-state><option value="">All</option><option value="CT">CT</option><option value="NC">NC</option><option value="FL">FL</option></select>
+            <button data-search>Search</button>
+            <div data-status></div>
+            <div data-results></div>
+          </section>
+          <script>
+          localStorage.setItem('sb-test-auth-token',JSON.stringify({access_token:'abcdefghijklmnopqrstuvwxyz1234567890'}));
+          const rows={
+            CT:{property_id:'ct-1',full_address:'150 AMHERST ST TORRINGTON CT 06790',municipality:'Torrington',county:'Litchfield',state_code:'CT',postal_code:'06790',property_type:'RESIDENTIAL'},
+            NC:{property_id:'nc-1',full_address:'1731 JAMESTON DR CHARLOTTE NC 28209',municipality:'Charlotte',county:'Mecklenburg',state_code:'NC',postal_code:'28209',property_type:'SINGLE FAMILY RESIDENTIAL'},
+            FL:{property_id:'fl-1',full_address:'123 BAY ST TAMPA FL 33602',municipality:'Tampa',county:'Hillsborough',state_code:'FL',postal_code:'33602',property_type:'RESIDENTIAL'}
+          };
+          window.fetch=(url,opts={})=>{
+            const body=JSON.parse(opts.body||'{}'),state=(body.p_state_code||'CT').toUpperCase();
+            const delay=state==='CT'?450:state==='NC'?45:70;
+            return new Promise((resolve,reject)=>{
+              const timer=setTimeout(()=>resolve({ok:true,status:200,json:async()=>({complete:true,version:1065,state_filter:state,returned_results:1,has_more:false,properties:[rows[state]]})}),delay);
+              if(opts.signal){opts.signal.addEventListener('abort',()=>{clearTimeout(timer);const e=new Error('aborted');e.name='AbortError';reject(e);},{once:true});}
+            });
+          };
+          </script>
+          <script src="state-property-search-v1065.js"></script>
+          </body></html>
+          HTML
+          python3 -m http.server 4173 --directory /tmp >/tmp/v1065-http.log 2>&1 &
+          sleep 1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
+            try{
+              const page=await browser.newPage();
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('http://127.0.0.1:4173/',{waitUntil:'domcontentloaded',timeout:15000});
+              await page.waitForFunction(()=>window.BridgePointStatePropertySearchV1065,{timeout:5000});
+
+              // Reproduce the screenshot race: CT starts, user selects NC before CT returns.
+              await page.select('[data-state]','CT');
+              await page.evaluate(()=>document.querySelector('[data-state]').dispatchEvent(new Event('change',{bubbles:true})));
+              await sleep(35);
+              await page.select('[data-state]','NC');
+              await page.evaluate(()=>document.querySelector('[data-state]').dispatchEvent(new Event('change',{bubbles:true})));
+              await page.waitForFunction(()=>document.querySelectorAll('[data-property]').length===1 && document.querySelector('[data-property]')?.dataset.bp1065State==='NC',{timeout:5000});
+              await sleep(600); // CT would have returned by now if it could repaint the UI.
+              let result=await page.evaluate(()=>({
+                selected:document.querySelector('[data-state]').value,
+                states:[...document.querySelectorAll('[data-property]')].map(x=>x.dataset.bp1065State),
+                text:document.querySelector('[data-results]').innerText,
+                status:document.querySelector('[data-status]').innerText
+              }));
+              assert.strictEqual(result.selected,'NC');
+              assert.deepStrictEqual(result.states,['NC']);
+              assert.ok(result.text.includes('CHARLOTTE'));
+              assert.ok(!result.text.includes('TORRINGTON'));
+              assert.ok(result.status.includes('NC'));
+
+              // A subsequent state switch must automatically rerun and replace NC.
+              await page.select('[data-state]','FL');
+              await page.evaluate(()=>document.querySelector('[data-state]').dispatchEvent(new Event('change',{bubbles:true})));
+              await page.waitForFunction(()=>document.querySelector('[data-property]')?.dataset.bp1065State==='FL',{timeout:5000});
+              result=await page.evaluate(()=>({states:[...document.querySelectorAll('[data-property]')].map(x=>x.dataset.bp1065State),text:document.querySelector('[data-results]').innerText,status:document.querySelector('[data-status]').innerText}));
+              assert.deepStrictEqual(result.states,['FL']);
+              assert.ok(result.text.includes('TAMPA'));
+              assert.ok(!result.text.includes('CHARLOTTE'));
+              assert.ok(result.status.includes('FL'));
+              console.log('V1065_STATE_SWITCH_BROWSER_PASS');
+            } finally {await browser.close();}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
