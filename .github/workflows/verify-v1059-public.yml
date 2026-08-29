@@ -1,0 +1,69 @@
+name: Verify Public V1059
+on:
+  push:
+    paths:
+      - '.github/workflows/verify-v1059-public.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify public files and preserved contracts
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          salt="${GITHUB_SHA}-$(date +%s)"
+          app="$(curl -fsSL --retry 6 --retry-delay 4 --max-time 30 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1059&verify=${salt}")"
+          legal="$(curl -fsSL --retry 6 --retry-delay 4 --max-time 30 -H 'Cache-Control: no-cache, no-store' "${origin}/app/preauth-legal-v1059.js?verify=${salt}")"
+          entry="$(curl -fsSL --retry 6 --retry-delay 4 --max-time 30 -H 'Cache-Control: no-cache, no-store' "${origin}/app/entry-visual-v1059.js?verify=${salt}")"
+          nav="$(curl -fsSL --retry 6 --retry-delay 4 --max-time 30 -H 'Cache-Control: no-cache, no-store' "${origin}/app/navigation-repair-v1059.js?verify=${salt}")"
+          surfaces="$(curl -fsSL --retry 6 --retry-delay 4 --max-time 30 -H 'Cache-Control: no-cache, no-store' "${origin}/app/customer-surfaces-v1042.js?verify=${salt}")"
+          plans="$(curl -fsSL --retry 6 --retry-delay 4 --max-time 30 -H 'Cache-Control: no-cache, no-store' "${origin}/app/plans-primary-v1042.js?verify=${salt}")"
+          printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1059"'
+          printf '%s' "$app" | grep -q 'preauth-legal-v1059.js?v=1059'
+          printf '%s' "$app" | grep -q 'entry-visual-v1059.js?v=1059'
+          printf '%s' "$app" | grep -q 'navigation-repair-v1059.js?v=1059'
+          printf '%s' "$legal" | grep -q 'REQUIRED BEFORE SECURE ACCOUNT ACCESS'
+          printf '%s' "$legal" | grep -q 'bridgepoint_accept_legal_v82'
+          printf '%s' "$entry" | grep -q 'Product Tools'
+          printf '%s' "$entry" | grep -q 'Workflow Tools'
+          printf '%s' "$entry" | grep -q 'Intelligence Lab'
+          printf '%s' "$entry" | grep -q 'Property Workspace'
+          printf '%s' "$nav" | grep -q 'flutter-view,flt-glass-pane'
+          printf '%s' "$nav" | grep -q 'dismissFeatureGate'
+          printf '%s' "$nav" | grep -q '#bp1055-feature-gate{bottom:'
+          printf '%s' "$surfaces" | grep -q 'bridgepoint_flutter_properties_v725'
+          printf '%s' "$surfaces" | grep -q 'bridgepoint_flutter_property_detail_v344'
+          printf '%s' "$surfaces" | grep -q 'bridgepoint_saved_opportunities_v842'
+          printf '%s' "$plans" | grep -q 'bridgepoint-checkout-v67'
+          echo 'PUBLIC_FILES_V1059_PASS'
+      - name: Verify public entry and legal UI in Chrome
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp && npm init -y >/dev/null 2>&1 && npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,protocolTimeout:40000,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
+            try{
+              const ctx=await browser.createBrowserContext(),page=await ctx.newPage();
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('https://bridgepointintelligence.online/app/?publicverify='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await page.waitForSelector('#bp1059-entry-grid',{timeout:15000});
+              assert.strictEqual(await page.$$eval('#bp1059-entry-grid [data-bp1059-entry]',x=>x.length),4);
+              await page.$eval('[data-bp1059-entry="product"]',b=>b.scrollIntoView({block:'center'}));
+              await new Promise(r=>setTimeout(r,150));
+              const hit=await page.$eval('[data-bp1059-entry="product"]',b=>{const r=b.getBoundingClientRect(),e=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return e?.closest?.('[data-bp1059-entry]')?.getAttribute('data-bp1059-entry')||null});
+              assert.strictEqual(hit,'product');
+              await page.click('[data-bp1059-entry="product"]');
+              await page.waitForSelector('#bp1059-legal.show',{timeout:15000});
+              await page.waitForSelector('#bp1059-legal [data-accept]',{timeout:15000});
+              assert.strictEqual(await page.evaluate(()=>{const a=document.getElementById('bp1046-auth');return !a||getComputedStyle(a).display==='none'}),true);
+              console.log('PUBLIC_BROWSER_V1059_PASS');
+              await ctx.close();
+            } finally {await browser.close();}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
