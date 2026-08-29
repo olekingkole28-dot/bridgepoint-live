@@ -1,7 +1,7 @@
 name: Validate BridgePoint V1046 Restoration
 on:
   push:
-    branches: [ui-v1046]
+    branches: [ui-v1046, live-artifact]
   workflow_dispatch:
 jobs:
   validate:
