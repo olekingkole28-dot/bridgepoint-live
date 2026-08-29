@@ -1,7 +1,7 @@
 name: Validate BridgePoint Restoration
 on:
   push:
-    branches: [ui-v1046, ui-v1047, ui-v1048, ui-v1049, ui-v1050, live-artifact]
+    branches: [ui-v1046, ui-v1047, ui-v1048, ui-v1049, ui-v1050, ui-v1051, live-artifact]
   workflow_dispatch:
 jobs:
   validate:
@@ -21,6 +21,7 @@ jobs:
           node --check app/operations-restoration-v1048.js
           node --check app/advanced-workflows-v1049.js
           node --check app/owner-product-admin-v1050.js
+          node --check app/navigation-owner-tools-v1051.js
       - name: Verify runtime loader references
         run: |
           grep -q 'auth-restoration-v1046.js' app/index.html
@@ -31,7 +32,8 @@ jobs:
           grep -q 'operations-restoration-v1048.js' app/index.html
           grep -q 'advanced-workflows-v1049.js' app/index.html
           grep -q 'owner-product-admin-v1050.js' app/index.html
-          grep -q 'data-bridgepoint-runtime="v1050"' app/index.html
+          grep -q 'navigation-owner-tools-v1051.js' app/index.html
+          grep -q 'data-bridgepoint-runtime="v1051"' app/index.html
       - name: Verify no merge markers
         run: |
           ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' app/*.js app/index.html
