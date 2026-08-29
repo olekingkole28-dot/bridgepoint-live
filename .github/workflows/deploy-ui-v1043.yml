@@ -1,0 +1,96 @@
+name: Deploy Customer UI V1043
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-ui-v1043.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble and regression-check V1043
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/customer-home-v1043.js
+          test -s site/app/single-shell-v1043.js
+          node --check site/app/customer-home-v1043.js
+          node --check site/app/single-shell-v1043.js
+          node --check site/app/plans-primary-v1042.js
+          node --check site/app/customer-surfaces-v1042.js
+          grep -q 'data-bridgepoint-runtime="v1043"' site/app/index.html
+          grep -q 'customer-home-v1043.js?v=1043' site/app/index.html
+          grep -q 'single-shell-v1043.js?v=1043' site/app/index.html
+          ! grep -q 'single-shell-v1042.js' site/app/index.html
+          grep -q 'data-tab="saved"' site/app/single-shell-v1043.js
+          grep -q 'What do you want to work on?' site/app/customer-home-v1043.js
+          grep -q 'Plans & Billing' site/app/customer-home-v1043.js
+          grep -q 'BridgePointOpenPropertiesV1042' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_flutter_properties_v725' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_flutter_property_detail_v344' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_saved_opportunities_v842' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_claims_workspace_v833' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_calendar_agenda_v835' site/app/customer-surfaces-v1042.js
+          grep -q 'BridgePointOpenPlansV1042' site/app/plans-primary-v1042.js
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy V1043
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify public V1043
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 36); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1043&verify=${salt}" 2>/dev/null || true)"
+            shell="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/single-shell-v1043.js?verify=${salt}" 2>/dev/null || true)"
+            home="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/customer-home-v1043.js?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1043"' \
+              && printf '%s' "$app" | grep -q 'single-shell-v1043.js?v=1043' \
+              && printf '%s' "$app" | grep -q 'customer-home-v1043.js?v=1043' \
+              && ! printf '%s' "$app" | grep -q 'single-shell-v1042.js' \
+              && printf '%s' "$shell" | grep -q 'data-tab="saved"' \
+              && printf '%s' "$shell" | grep -q 'BridgePointOpenPropertiesV1042' \
+              && printf '%s' "$home" | grep -q 'What do you want to work on?' \
+              && printf '%s' "$home" | grep -q 'Plans & Billing'; then
+              echo 'V1043 verified live: customer-first Home, clean SVG navigation, Saved primary tab, existing customer surfaces preserved.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'V1043 public verification did not converge.' >&2
+          exit 1
