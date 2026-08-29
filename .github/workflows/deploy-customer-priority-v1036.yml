@@ -1,0 +1,85 @@
+name: Deploy BridgePoint Customer Priority V1036
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-customer-priority-v1036.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble customer-priority live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/customer-priority-v1036.js
+          node --check site/app/customer-priority-v1036.js
+          grep -q 'data-customer-priority="v1036"' site/app/index.html
+          grep -q 'customer-priority-v1036.js?v=1036' site/app/index.html
+          grep -q 'bridgepoint_public_launch_promotion_v1035' site/app/customer-priority-v1036.js
+          grep -q 'bridgepoint_flutter_property_map_viewport_v1035' site/app/customer-priority-v1036.js
+          grep -q 'bridgepoint_flutter_opportunities_state_v1036' site/app/customer-priority-v1036.js
+          grep -q 'bridgepoint_flutter_signal_map_v1036' site/app/customer-priority-v1036.js
+          grep -q 'Plans & Access' site/app/customer-priority-v1036.js
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy customer priority v1036
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify public app and live promotion truth
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          project='https://xdfsjztwgsbmabshzsjw.supabase.co'
+          key='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25'
+          for attempt in $(seq 1 30); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?priority=${salt}" 2>/dev/null || true)"
+            priority="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/customer-priority-v1036.js?priority=${salt}" 2>/dev/null || true)"
+            promo="$(curl -fsSL --max-time 15 -X POST "${project}/rest/v1/rpc/bridgepoint_public_launch_promotion_v1035" -H "apikey: ${key}" -H "Authorization: Bearer ${key}" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-customer-priority="v1036"' \
+              && printf '%s' "$app" | grep -q 'customer-priority-v1036.js?v=1036' \
+              && printf '%s' "$priority" | grep -q 'Plans & Access' \
+              && printf '%s' "$priority" | grep -q 'bridgepoint_flutter_property_map_viewport_v1035' \
+              && printf '%s' "$priority" | grep -q 'bridgepoint_flutter_opportunities_state_v1036' \
+              && printf '%s' "$priority" | grep -q 'bridgepoint_flutter_signal_map_v1036' \
+              && printf '%s' "$promo" | grep -q 'remaining_spots' \
+              && printf '%s' "$promo" | grep -q 'FIRST10_50_6MONTHS'; then
+              echo "BridgePoint v1036 customer priority verified live. Promotion payload: ${promo}"
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'BridgePoint v1036 public verification did not converge.' >&2
+          exit 1
