@@ -54,8 +54,10 @@ jobs:
           grep -q "const V='1001'" app/lazy-runtime-v1000.js
           grep -q 'map-national-v1001.js' app/lazy-runtime-v1000.js
           grep -q 'US — Nationwide' app/map-national-v1001.js
-          grep -q 'ImageServer' app/radar-rest-v1000.js
-          grep -q 'loadRadarCatalog' app/radar-rest-v1000.js
+          grep -q 'subsetForMap' app/radar-rest-v1000.js
+          grep -q "return'CONUS'" app/radar-rest-v1000.js
+          grep -q "return'ALASKA'" app/radar-rest-v1000.js
+          grep -q "return'HAWAII'" app/radar-rest-v1000.js
           grep -q 'esriMosaicLockRaster' app/radar-rest-v1000.js
           ! grep -q "u.searchParams.set('time'" app/radar-rest-v1000.js
           grep -q '"start_url": "./?bpv=v1001"' app/manifest.json
@@ -100,7 +102,7 @@ jobs:
           vm.runInContext(`BridgePointMapNationalV1001.patchLeaflet();let m=new L.Map();m.setView([39.4,-98.3],7);if(m.last.z!==4)throw new Error('US nationwide zoom not forced');m=new L.Map();m.setView([41.5978,-72.7554],7);if(m.last.z!==4)throw new Error('initial CT jump not blocked');console.log('nationwide map behavior passed')`,ctx);
           NODE
 
-      - name: Verify NOAA latest and locked historical rasters contain real colored pixels
+      - name: Verify NOAA latest and CONUS historical rasters contain real colored pixels
         run: |
           set -euo pipefail
           base='https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer'
@@ -108,30 +110,28 @@ jobs:
           python <<'PY'
           import json, urllib.parse
           j=json.load(open('/tmp/noaa-catalog.json'))
-          groups={}
+          rows=[]
           for f in j.get('features',[]):
               a=f.get('attributes') or {}
-              try: oid=int(a['objectid']); t=int(a['idp_validtime'])
-              except Exception: continue
-              groups.setdefault(t,[]).append(oid)
-          times=sorted(groups, reverse=True)
-          if len(times)<2: raise SystemExit('NOAA primary raster catalog has fewer than two frame times')
-          selected=[times[0],times[min(6,len(times)-1)]]
-          if selected[0]==selected[1]: selected=[times[0],times[-1]]
-          print('selected NOAA frames',[(t,groups[t][:20]) for t in selected])
-          for i,t in enumerate(selected):
-              rule={'mosaicMethod':'esriMosaicLockRaster','lockRasterIds':groups[t][:20],'mosaicOperation':'MT_FIRST'}
+              if str(a.get('idp_subset','')).upper()!='CONUS': continue
+              try: rows.append((int(a['idp_validtime']),int(a['objectid']),str(a.get('name',''))))
+              except Exception: pass
+          rows=sorted(rows,reverse=True)
+          if len(rows)<7: raise SystemExit(f'NOAA CONUS catalog has only {len(rows)} frames')
+          selected=[rows[0],rows[6]]
+          print('selected CONUS frames',selected)
+          for i,(t,oid,name) in enumerate(selected):
+              rule={'mosaicMethod':'esriMosaicLockRaster','lockRasterIds':[oid],'ascending':True,'mosaicOperation':'MT_FIRST'}
               open(f'/tmp/noaa-rule-{i}.txt','w').write(urllib.parse.quote(json.dumps(rule,separators=(',',':')),safe=''))
-              open(f'/tmp/noaa-time-{i}.txt','w').write(str(t))
           PY
           url="$base/exportImage?bbox=-130,20,-60,55&bboxSR=4326&imageSR=4326&size=1200,650&format=png32&transparent=true&interpolation=RSP_BilinearInterpolation&f=image"
           curl -fsSL --retry 2 --max-time 45 "$url" -o /tmp/noaa-latest.png
-          for i in 0 1; do rule="$(cat /tmp/noaa-rule-$i.txt)"; curl -fsSL --retry 2 --max-time 45 "$url&mosaicRule=$rule" -o "/tmp/noaa-locked-$i.png"; done
+          for i in 0 1; do rule="$(cat /tmp/noaa-rule-$i.txt)"; curl -fsSL --retry 2 --max-time 45 "$url&mosaicRule=$rule" -o "/tmp/noaa-conus-$i.png"; done
           node <<'NODE'
           const fs=require('fs'),crypto=require('crypto');const {PNG}=require('pngjs');
-          const files=['/tmp/noaa-latest.png','/tmp/noaa-locked-0.png','/tmp/noaa-locked-1.png'];const hashes=[];
+          const files=['/tmp/noaa-latest.png','/tmp/noaa-conus-0.png','/tmp/noaa-conus-1.png'];const hashes=[];
           for(const f of files){const buf=fs.readFileSync(f),p=PNG.sync.read(buf);let visible=0,colored=0;const buckets=new Set();for(let i=0;i<p.data.length;i+=4){const r=p.data[i],g=p.data[i+1],b=p.data[i+2],a=p.data[i+3];if(a>10){visible++;if(Math.max(r,g,b)-Math.min(r,g,b)>12){colored++;buckets.add(`${r>>4},${g>>4},${b>>4}`)}}}const hash=crypto.createHash('sha256').update(buf).digest('hex');hashes.push(hash);console.log(f,{visible,colored,colorBuckets:buckets.size,hash:hash.slice(0,12)});if(visible<25||colored<25||buckets.size<2)throw new Error(`${f} lacks meaningful colored radar pixels`)}
-          if(new Set(hashes.slice(1)).size!==2)throw new Error('NOAA locked historical frames are not changing');
+          if(hashes[1]===hashes[2])throw new Error('NOAA CONUS historical frames are not changing');
           NODE
 
       - name: Commit deterministic runtime edit
