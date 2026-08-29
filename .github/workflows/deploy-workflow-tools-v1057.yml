@@ -1,0 +1,93 @@
+name: Deploy BridgePoint Workflow Tools V1057
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-workflow-tools-v1057.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assemble exact V1057 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/workflow-tools-v1057.js
+          node --check site/app/workflow-tools-v1057.js
+          node --check site/app/product-tools-v1056.js
+          node --check site/app/single-shell-v1055.js
+          node --check site/app/property-360-v1046.js
+          node --check site/app/customer-surfaces-v1042.js
+          node --check site/app/work-hub-v1054.js
+          node --check site/app/plans-primary-v1042.js
+          grep -q 'data-bridgepoint-runtime="v1057"' site/app/index.html
+          grep -q 'workflow-tools-v1057.js?v=1057' site/app/index.html
+          grep -q 'product-tools-v1056.js?v=1057' site/app/index.html
+          grep -q 'bridgepoint_workflow_tools_v1057' site/app/workflow-tools-v1057.js
+          grep -q 'bridgepoint_prepare_crm_export_v87' site/app/workflow-tools-v1057.js
+          grep -q 'bridgepoint_record_opportunity_feedback_v88' site/app/workflow-tools-v1057.js
+          grep -q 'bridgepoint_custom_model_builder_v1057' site/app/workflow-tools-v1057.js
+          grep -q 'bridgepoint_product_tools_v1056' site/app/product-tools-v1056.js
+          grep -q 'bridgepoint-checkout-v67' site/app/plans-primary-v1042.js
+          ! grep -q 'flutter_bootstrap.js' site/app/index.html
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' site/app/*.js site/app/index.html
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy V1057
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify public V1057 Workflow Tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          project='https://xdfsjztwgsbmabshzsjw.supabase.co'
+          key='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25'
+          for attempt in $(seq 1 45); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1057&verify=${salt}" 2>/dev/null || true)"
+            workflows="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/workflow-tools-v1057.js?verify=${salt}" 2>/dev/null || true)"
+            products="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/product-tools-v1056.js?verify=${salt}" 2>/dev/null || true)"
+            wf_code="$(curl -sS -o /tmp/wf1057.json -w '%{http_code}' --max-time 20 -X POST "${project}/rest/v1/rpc/bridgepoint_workflow_tools_v1057" -H "apikey: ${key}" -H "Authorization: Bearer ${key}" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || true)"
+            builder_code="$(curl -sS -o /tmp/builder1057.json -w '%{http_code}' --max-time 20 -X POST "${project}/rest/v1/rpc/bridgepoint_custom_model_builder_v1057" -H "apikey: ${key}" -H "Authorization: Bearer ${key}" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1057"' \
+              && printf '%s' "$app" | grep -q 'workflow-tools-v1057.js?v=1057' \
+              && printf '%s' "$workflows" | grep -q 'BRIDGEPOINT WORKFLOW TOOLS' \
+              && printf '%s' "$workflows" | grep -q 'bridgepoint_create_watchlist_v88' \
+              && printf '%s' "$workflows" | grep -q 'bridgepoint_prepare_crm_export_v87' \
+              && printf '%s' "$workflows" | grep -q 'bridgepoint_record_opportunity_feedback_v88' \
+              && printf '%s' "$workflows" | grep -q 'bridgepoint_marketplace_add_model_v1057' \
+              && printf '%s' "$workflows" | grep -q 'bridgepoint_custom_model_signal_upsert_v1057' \
+              && printf '%s' "$products" | grep -q 'BRIDGEPOINT PRODUCT TOOLS' \
+              && { test "$wf_code" = '401' || test "$wf_code" = '400'; } \
+              && { test "$builder_code" = '401' || test "$builder_code" = '400'; }; then
+              echo 'V1057 publicly verified: Workflow Tools live; watchlists, CRM handoff, feedback/learning, marketplace and custom-model UI wired; V1056 Product Tools preserved.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'V1057 public verification did not converge.' >&2
+          exit 1
