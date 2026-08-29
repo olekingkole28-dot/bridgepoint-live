@@ -27,7 +27,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Assemble and verify v999 single-controller runtime
+      - name: Assemble and verify v1000 recovery runtime
         shell: bash
         run: |
           set -euo pipefail
@@ -35,50 +35,53 @@ jobs:
           rm -rf site && mkdir site
           git archive --format=tar origin/live-artifact | tar -xf - -C site
 
-          test -s site/index.html
-          test -s site/app/index.html
-          test -s site/app/main.dart.js
-          test -s site/app/flutter_bootstrap.js
-          test -s site/app/flutter_service_worker.js
-          test -s site/app/manifest.json
-          test -s site/app/experience-v974.js
-          test -s site/app/runtime-unifier-v984.js
-          test -s site/app/lazy-runtime-v993.js
-          test -s site/app/live-home-v984.js
-          test -s site/app/owner-business-pulse-v993.js
-          test -s site/app/bridgepoint-shell-v999.js
-          test -s site/app/map-radar-v974.js
-          test -s site/app/map-polish-v984.js
-          test -s site/app/startup-recovery-v986.js
+          for f in \
+            site/index.html \
+            site/app/index.html \
+            site/app/main.dart.js \
+            site/app/flutter_bootstrap.js \
+            site/app/flutter_service_worker.js \
+            site/app/manifest.json \
+            site/app/experience-v974.js \
+            site/app/runtime-unifier-v984.js \
+            site/app/lazy-runtime-v1000.js \
+            site/app/bridgepoint-shell-v1000.js \
+            site/app/radar-rest-v1000.js \
+            site/app/live-home-v984.js \
+            site/app/owner-business-pulse-v993.js \
+            site/app/map-radar-v974.js \
+            site/app/map-polish-v984.js; do
+            test -s "$f"
+          done
 
           for f in \
             site/app/experience-v974.js \
             site/app/runtime-unifier-v984.js \
-            site/app/lazy-runtime-v993.js \
+            site/app/lazy-runtime-v1000.js \
+            site/app/bridgepoint-shell-v1000.js \
+            site/app/radar-rest-v1000.js \
             site/app/live-home-v984.js \
             site/app/owner-business-pulse-v993.js \
-            site/app/bridgepoint-shell-v999.js \
             site/app/map-radar-v974.js \
             site/app/map-polish-v984.js \
-            site/app/startup-recovery-v986.js \
             site/app/flutter_service_worker.js; do
             node --check "$f"
           done
 
           grep -q '<base href="/app/">' site/app/index.html
-          grep -q 'data-bridgepoint-runtime="v999"' site/app/index.html
-          grep -q "__bridgepointCanonicalRuntime='v999'" site/app/index.html
-          grep -q 'flutter_bootstrap.js?v=999' site/app/index.html
-          grep -q 'experience-v974.js?v=999' site/app/index.html
-          grep -q 'runtime-unifier-v984.js?v=999' site/app/index.html
-          grep -q 'lazy-runtime-v993.js?v=999' site/app/index.html
-          grep -q 'live-home-v984.js?v=999' site/app/index.html
-          grep -q 'owner-business-pulse-v993.js?v=999' site/app/index.html
-          grep -q 'bridgepoint-shell-v999.js?v=999' site/app/index.html
-          grep -q 'startup-recovery-v986.js?v=999' site/app/index.html
-          test "$(grep -n 'flutter_bootstrap.js?v=999' site/app/index.html | cut -d: -f1)" -lt "$(grep -n 'experience-v974.js?v=999' site/app/index.html | cut -d: -f1)"
+          grep -q 'data-bridgepoint-runtime="v1000"' site/app/index.html
+          grep -q "__bridgepointCanonicalRuntime='v1000'" site/app/index.html
+          grep -q "get('entry')==='1'" site/app/index.html
+          grep -q 'html:not(.bp1000-entry-allowed) #bp984-entry' site/app/index.html
+          grep -q 'lazy-runtime-v1000.js?v=1000' site/app/index.html
+          grep -q 'bridgepoint-shell-v1000.js?v=1000' site/app/index.html
+          grep -q 'flutter_bootstrap.js?v=1000' site/app/index.html
+          test "$(grep -n 'bridgepoint-shell-v1000.js?v=1000' site/app/index.html | cut -d: -f1)" -lt "$(grep -n 'flutter_bootstrap.js?v=1000' site/app/index.html | cut -d: -f1)"
 
           for old in \
+            bridgepoint-shell-v999.js \
+            lazy-runtime-v993.js \
+            startup-recovery-v986.js \
             home-hard-cover-v988.js \
             tab-handoff-v990.js \
             nav-clearance-v991.js \
@@ -95,44 +98,30 @@ jobs:
             fi
           done
 
-          grep -q '__bridgepointShellV999' site/app/bridgepoint-shell-v999.js
-          grep -q 'window.BridgePointShellV999' site/app/bridgepoint-shell-v999.js
-          grep -q 'bp999-home flutter-view' site/app/bridgepoint-shell-v999.js
-          grep -q 'bp999-flutter flutter-view' site/app/bridgepoint-shell-v999.js
-          grep -q 'pointer-events:none!important' site/app/bridgepoint-shell-v999.js
-          ! grep -q 'setInterval' site/app/bridgepoint-shell-v999.js
-          ! grep -q 'preventDefault' site/app/bridgepoint-shell-v999.js
-          ! grep -q 'stopPropagation' site/app/bridgepoint-shell-v999.js
+          grep -q '__bridgepointShellV1000' site/app/bridgepoint-shell-v1000.js
+          grep -q 'clip-path:inset(calc(100% - var(--bp1000-native-nav))' site/app/bridgepoint-shell-v1000.js
+          ! grep -q 'BridgePointNavigateFlutterTabV984' site/app/bridgepoint-shell-v1000.js
+          ! grep -q 'preventDefault' site/app/bridgepoint-shell-v1000.js
+          ! grep -q 'stopPropagation' site/app/bridgepoint-shell-v1000.js
+
+          grep -q 'ImageServer/exportImage' site/app/radar-rest-v1000.js
+          grep -q "u.searchParams.set('f','image')" site/app/radar-rest-v1000.js
+          grep -q 'falling back to latest live radar' site/app/radar-rest-v1000.js
+          grep -q 'radar-rest-v1000.js' site/app/lazy-runtime-v1000.js
+          grep -q "__bridgepointCanonicalRuntime==='v1000'" site/app/runtime-unifier-v984.js
 
           grep -q "for(const k of \['signals','matching','scoring','patterns','opportunities'\])" site/app/live-home-v984.js
           grep -q 'await refresh();void ownerCheck();' site/app/live-home-v984.js
-          test "$(grep -o 'bridgepoint-shell-tab-v999' site/app/live-home-v984.js | wc -l)" -eq 1
-          grep -q "if(window.__bridgepointCanonicalRuntime==='v999')return;" site/app/runtime-unifier-v984.js
-          grep -q "const V='999'" site/app/lazy-runtime-v993.js
-          ! grep -q "bridgepoint-tab-v990.*openMap" site/app/lazy-runtime-v993.js
-          ! grep -q "bridgepoint-shell-tab-v999.*openMap" site/app/lazy-runtime-v993.js
-
-          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v999'" site/app/flutter_service_worker.js
-          grep -q 'caches.delete' site/app/flutter_service_worker.js
-          grep -q 'registration.unregister' site/app/flutter_service_worker.js
-          grep -q '"start_url": "./?bpv=v999"' site/app/manifest.json
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v1000'" site/app/flutter_service_worker.js
+          grep -q '"start_url": "./?bpv=v1000"' site/app/manifest.json
 
           grep -q 'Nationwide U.S. property intelligence' site/index.html
           grep -q 'all 50 states and D.C.' site/index.html
+          grep -q 'href="/app/?entry=1&utm_source=' site/index.html
           if grep -qi 'Connecticut opportunity intelligence' site/index.html; then
             echo 'Connecticut-only landing copy returned' >&2
             exit 1
           fi
-
-          grep -q 'drawIntakeIcon' site/app/experience-v974.js
-          grep -q 'drawPlanet' site/app/experience-v974.js
-          grep -q '__bridgepointMapRadarV974' site/app/map-radar-v974.js
-          grep -q 'radar_base_reflectivity_time/ImageServer/WMSServer' site/app/map-radar-v974.js
-          grep -q 'bridgepoint_flutter_signal_map_v80' site/app/map-radar-v974.js
-          grep -q 'Hurricane' site/app/map-radar-v974.js
-          grep -q 'Wildfire' site/app/map-radar-v974.js
-          grep -q 'Tornado' site/app/map-radar-v974.js
-          grep -q 'Hail' site/app/map-radar-v974.js
 
           touch site/.nojekyll site/app/.nojekyll
 
@@ -140,11 +129,11 @@ jobs:
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site
-      - name: Deploy v999 runtime
+      - name: Deploy v1000 recovery runtime
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify v999 on public custom domain
+      - name: Verify v1000 on public custom domain
         shell: bash
         run: |
           set -euo pipefail
@@ -153,32 +142,31 @@ jobs:
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
             root="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/?runtime=${salt}" 2>/dev/null || true)"
             app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?runtime=${salt}" 2>/dev/null || true)"
-            shell="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/bridgepoint-shell-v999.js?runtime=${salt}" 2>/dev/null || true)"
-            home="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/live-home-v984.js?runtime=${salt}" 2>/dev/null || true)"
-            lazy="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/lazy-runtime-v993.js?runtime=${salt}" 2>/dev/null || true)"
+            shell="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/bridgepoint-shell-v1000.js?runtime=${salt}" 2>/dev/null || true)"
+            radar="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/radar-rest-v1000.js?runtime=${salt}" 2>/dev/null || true)"
+            lazy="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/lazy-runtime-v1000.js?runtime=${salt}" 2>/dev/null || true)"
             sw="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/flutter_service_worker.js?runtime=${salt}" 2>/dev/null || true)"
             manifest="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/manifest.json?runtime=${salt}" 2>/dev/null || true)"
 
             if printf '%s' "$root" | grep -q 'Nationwide U.S. property intelligence' \
-              && printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v999"' \
-              && printf '%s' "$app" | grep -q 'flutter_bootstrap.js?v=999' \
-              && printf '%s' "$app" | grep -q 'bridgepoint-shell-v999.js?v=999' \
-              && printf '%s' "$app" | grep -q 'owner-business-pulse-v993.js?v=999' \
-              && ! printf '%s' "$app" | grep -q 'tab-handoff-v990.js' \
-              && ! printf '%s' "$app" | grep -q 'nav-clearance-v991.js' \
-              && ! printf '%s' "$app" | grep -q 'home-flutter-separation-v998.js' \
-              && ! printf '%s' "$app" | grep -q 'signals-activity-v984.js' \
-              && printf '%s' "$shell" | grep -q 'window.BridgePointShellV999' \
-              && printf '%s' "$shell" | grep -q 'bp999-home flutter-view' \
-              && printf '%s' "$home" | grep -q "\['signals','matching','scoring','patterns','opportunities'\]" \
-              && printf '%s' "$home" | grep -q 'await refresh();void ownerCheck();' \
-              && printf '%s' "$lazy" | grep -q "const V='999'" \
-              && printf '%s' "$sw" | grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v999'" \
-              && printf '%s' "$manifest" | grep -q 'bpv=v999'; then
-              echo 'BridgePoint v999 single-controller runtime verified on the public custom domain.'
+              && printf '%s' "$root" | grep -q 'href="/app/?entry=1&utm_source=' \
+              && printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1000"' \
+              && printf '%s' "$app" | grep -q 'bridgepoint-shell-v1000.js?v=1000' \
+              && printf '%s' "$app" | grep -q 'lazy-runtime-v1000.js?v=1000' \
+              && printf '%s' "$app" | grep -q 'flutter_bootstrap.js?v=1000' \
+              && ! printf '%s' "$app" | grep -q 'bridgepoint-shell-v999.js' \
+              && ! printf '%s' "$app" | grep -q 'startup-recovery-v986.js' \
+              && printf '%s' "$shell" | grep -q '__bridgepointShellV1000' \
+              && printf '%s' "$shell" | grep -q 'bp1000-native-nav' \
+              && printf '%s' "$radar" | grep -q 'ImageServer/exportImage' \
+              && printf '%s' "$radar" | grep -q 'falling back to latest live radar' \
+              && printf '%s' "$lazy" | grep -q 'radar-rest-v1000.js' \
+              && printf '%s' "$sw" | grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v1000'" \
+              && printf '%s' "$manifest" | grep -q 'bpv=v1000'; then
+              echo 'BridgePoint v1000 recovery runtime verified on the public custom domain.'
               exit 0
             fi
             sleep 8
           done
-          echo 'BridgePoint v999 did not converge on the public custom domain.' >&2
+          echo 'BridgePoint v1000 did not converge on the public custom domain.' >&2
           exit 1
