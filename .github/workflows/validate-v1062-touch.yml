@@ -1,0 +1,94 @@
+name: Validate V1062 Physical Touch Navigation
+on:
+  push:
+    paths:
+      - '.github/workflows/validate-v1062-touch.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Fetch staged V1062
+        run: |
+          set -euo pipefail
+          git fetch origin ui-v1062-full-runtime-nav:refs/remotes/origin/ui-v1062-full-runtime-nav
+          rm -rf /tmp/v1062 && mkdir -p /tmp/v1062
+          git archive origin/ui-v1062-full-runtime-nav | tar -x -C /tmp/v1062
+          echo "STAGED_SHA=$(git rev-parse origin/ui-v1062-full-runtime-nav)"
+          node --check /tmp/v1062/app/nav-single-owner-v1062.js
+          node --check /tmp/v1062/app/national-state-experience-v1062.js
+          grep -q 'national-state-experience-v1062.js?v=1062' /tmp/v1062/app/index.html
+          ! grep -q 'national-state-experience-v1053.js' /tmp/v1062/app/index.html
+      - name: Physical touch test in complete app
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp && npm init -y >/dev/null 2>&1 && npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          python3 -m http.server 4173 --directory /tmp/v1062 >/tmp/v1062-touch-http.log 2>&1 &
+          sleep 1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,protocolTimeout:60000,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
+            try{
+              const p=await browser.newPage();
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.setRequestInterception(true);
+              p.on('request',req=>{
+                const u=req.url(),cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*','Access-Control-Allow-Methods':'GET,POST,OPTIONS'};
+                if(u.includes('xdfsjztwgsbmabshzsjw.supabase.co')){
+                  if(req.method()==='OPTIONS')return req.respond({status:204,headers:cors,body:''});
+                  let body={};
+                  if(u.includes('/auth/v1/user'))body={id:'11111111-1111-1111-1111-111111111111',email:'owner@example.com'};
+                  else if(u.includes('bridgepoint_customer_access_contract_v318'))body={owner_override:true,features:['map','property_profiles','favorites','claims_intelligence','calendar'],feature_flags:{}};
+                  else if(u.includes('bridgepoint_trial_access_v1055'))body={owner_override:true,intelligence_active:true,subscriptions:[]};
+                  else if(u.includes('bridgepoint_public_legal_preview_v1054'))body={required_documents:[]};
+                  else if(u.includes('bridgepoint_public_customer_plans_v1041')||u.includes('bridgepoint_public_package_catalog_v1054'))body={packages:[]};
+                  else if(u.includes('bridgepoint_flutter_properties_v725'))body={properties:[],returned_results:0,total:0,has_more:false};
+                  else if(u.includes('bridgepoint_national_experience_v1053'))body={states:[]};
+                  else if(u.includes('bridgepoint_state_experience_v1053'))body={state_code:'CT',state_name:'Connecticut',data_status:'LIVE'};
+                  else if(u.includes('bridgepoint_saved_opportunities_v842'))body={saved_opportunities:[]};
+                  else if(u.includes('bridgepoint_claims_workspace_v833'))body={claims:[],eligible_saved_opportunities:[],claim_stage_options:[]};
+                  else if(u.includes('bridgepoint_calendar_agenda_v835'))body={events:[],unscheduled_routes:[]};
+                  else if(u.includes('bridgepoint_route_plans_v87'))body={routes:[]};
+                  else if(u.includes('bridgepoint_customer_notes_v70'))body={notes:[]};
+                  else if(u.includes('bridgepoint_public_brand_profile_v1054'))body={social_profiles:[],brand_links:{}};
+                  else if(u.includes('bridgepoint_daily_brief_v74'))body={summary:{},overnight:{},live_system:{}};
+                  else if(u.includes('bridgepoint_public_expansion_status_v321'))body={markets:[]};
+                  else if(u.includes('bridgepoint_public_capability_catalog_v550'))body={capabilities:[]};
+                  else if(u.includes('bridgepoint_public_launch_promotion_v1035'))body={active:false};
+                  return req.respond({status:200,contentType:'application/json',headers:cors,body:JSON.stringify(body)});
+                }
+                if(/^https?:/.test(u)&&!u.startsWith('http://127.0.0.1:4173/'))return req.abort();
+                req.continue();
+              });
+              await p.evaluateOnNewDocument(()=>{
+                localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'abcdefghijklmnopqrstuvwxyz1234567890',refresh_token:'refresh123',user:{id:'11111111-1111-1111-1111-111111111111',email:'owner@example.com'}}));
+                sessionStorage.setItem('bp1054_required_legal_acceptance',JSON.stringify({accepted:true,documents:[]}));
+              });
+              await p.goto('http://127.0.0.1:4173/app/?physicaltouch=1',{waitUntil:'domcontentloaded',timeout:30000});
+              await p.waitForFunction(()=>window.__bridgepointNavSingleOwnerV1062===true,{timeout:15000});
+              await sleep(3500);
+              assert.deepStrictEqual(await p.$$eval('#bp1062-nav [data-tab]',els=>els.map(e=>e.dataset.tab)),['home','map','properties','work','plans','more']);
+              async function touch(tab,wait=450){
+                const pt=await p.$eval(`#bp1062-nav [data-tab="${tab}"]`,el=>{const r=el.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,h=document.elementFromPoint(x,y);return{x,y,owns:h===el||el.contains(h)}});
+                assert.strictEqual(pt.owns,true,`${tab} touch point is covered`);
+                await p.touchscreen.tap(pt.x,pt.y);await sleep(wait);
+              }
+              await touch('properties',700);assert.strictEqual(await p.$eval('#bp1042-properties',e=>e.classList.contains('show')&&getComputedStyle(e).display!=='none'),true,'Properties failed physical touch');
+              await touch('work',700);assert.strictEqual(await p.$eval('#bp1054-work',e=>e.classList.contains('show')&&getComputedStyle(e).display!=='none'),true,'Work failed physical touch');
+              await touch('plans',700);assert.strictEqual(await p.$eval('#bp1042-plans',e=>e.classList.contains('show')&&getComputedStyle(e).display!=='none'),true,'Plans failed physical touch');
+              await touch('more',700);assert.strictEqual(await p.$eval('#bp1042-more',e=>e.classList.contains('show')&&getComputedStyle(e).display!=='none'),true,'More failed physical touch');
+              await touch('home',350);assert.strictEqual(await p.$eval('#bp1042-more',e=>e.classList.contains('show')),false,'Home failed physical touch');
+              // Rapid cross-tab touches must not be swallowed by same-event dedupe.
+              await touch('properties',260);await touch('work',260);await touch('plans',260);await touch('more',500);
+              assert.strictEqual(await p.$eval('#bp1042-more',e=>e.classList.contains('show')&&getComputedStyle(e).display!=='none'),true,'Rapid switching did not finish on More');
+              console.log('V1062_PHYSICAL_TOUCH_PASS');
+            } finally {await browser.close();}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
