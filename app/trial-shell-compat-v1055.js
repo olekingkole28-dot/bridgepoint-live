@@ -1,0 +1,6 @@
+(()=>{
+'use strict';
+if(window.__bridgepointTrialShellCompatV1055)return;window.__bridgepointTrialShellCompatV1055=true;let done=false;
+function install(){if(done)return;const base=window.BridgePointSingleShellV1055,t=window.BridgePointTrialV1055;if(!base||!t)return;done=true;const guard=fn=>(...a)=>{if(t.isLocked?.()){t.showGate?.();return}return fn?.(...a)};const api={...base,map:guard(base.map),properties:guard(base.properties),work:guard(base.work)};window.BridgePointSingleShellV1055=api;window.BridgePointSingleShellV1054=api;window.BridgePointSingleShellV1044=api;window.BridgePointSingleShellV1043=api;window.BridgePointSingleShellV1042=api;}
+document.addEventListener('click',e=>{const t=window.BridgePointTrialV1055;if(!t?.isLocked?.())return;const b=e.target.closest?.('#bp1055-nav [data-tab="map"],#bp1055-nav [data-tab="properties"],#bp1055-nav [data-tab="work"]');if(b){e.preventDefault();e.stopImmediatePropagation();t.showGate?.()}},true);setInterval(install,700);setTimeout(install,250);
+})();
