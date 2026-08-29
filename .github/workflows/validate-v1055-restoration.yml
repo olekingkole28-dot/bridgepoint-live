@@ -1,0 +1,94 @@
+name: Validate V1055 Restoration
+on:
+  push:
+    paths:
+      - '.github/workflows/validate-v1055-restoration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch staged V1055
+        run: |
+          git fetch origin ui-v1055:refs/remotes/origin/ui-v1055
+          mkdir -p /tmp/v1055
+          git archive origin/ui-v1055 app | tar -x -C /tmp/v1055
+      - name: JavaScript syntax checks
+        run: |
+          set -euo pipefail
+          cd /tmp/v1055/app
+          for f in \
+            visual-system-v1055.js \
+            preapp-deeptech-v1055.js \
+            presignup-onboarding-v1055.js \
+            trial-access-v1055.js \
+            trial-shell-compat-v1055.js \
+            owner-everything-v1055.js \
+            quick-tools-v1055.js \
+            entitlement-ux-v1055.js \
+            runtime-self-heal-v1055.js \
+            single-shell-v1055.js \
+            work-hub-v1054.js \
+            app-more-v1054.js \
+            owner-home-v1054.js \
+            customer-surfaces-v1042.js \
+            plans-primary-v1042.js \
+            property-360-v1046.js; do
+              node --check "$f"
+          done
+      - name: Local node syntax checks
+        run: |
+          set -euo pipefail
+          python -m py_compile /tmp/v1055/app/downloads/bridgepoint_local_node_v1055.py
+          pwsh -NoProfile -Command "[scriptblock]::Create((Get-Content -Raw '/tmp/v1055/app/downloads/install_bridgepoint_local_node_v1055.ps1')) | Out-Null"
+      - name: V1055 entrypoint wiring checks
+        run: |
+          set -euo pipefail
+          I=/tmp/v1055/app/index.html
+          grep -q 'data-bridgepoint-runtime="v1055"' "$I"
+          grep -q 'preapp-deeptech-v1055.js' "$I"
+          grep -q 'presignup-onboarding-v1055.js' "$I"
+          grep -q 'owner-everything-v1055.js' "$I"
+          grep -q 'single-shell-v1055.js' "$I"
+          grep -q 'entitlement-ux-v1055.js' "$I"
+          grep -q 'trial-access-v1055.js' "$I"
+          grep -q 'runtime-self-heal-v1055.js' "$I"
+          ! grep -q 'single-shell-v1054.js' "$I"
+          grep -q '>Plans<' /tmp/v1055/app/single-shell-v1055.js
+          grep -q 'bp1055-more-button' /tmp/v1055/app/single-shell-v1055.js
+      - name: Preserve customer critical contracts
+        run: |
+          set -euo pipefail
+          grep -q 'bridgepoint_flutter_properties_v725' /tmp/v1055/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_flutter_property_detail_v344' /tmp/v1055/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_saved_opportunities_v842' /tmp/v1055/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_claims_workspace_v833' /tmp/v1055/app/work-hub-v1054.js
+          grep -q 'bridgepoint_calendar_agenda_v835' /tmp/v1055/app/work-hub-v1054.js
+          grep -q 'bridgepoint-checkout-v67' /tmp/v1055/app/plans-primary-v1042.js
+          grep -q 'bridgepoint_property_heartbeat_v245' /tmp/v1055/app/property-heartbeat-v1054.js
+      - name: V1055 restoration contract references
+        run: |
+          set -euo pipefail
+          grep -q 'bridgepoint_public_package_fit_v1055' /tmp/v1055/app/presignup-onboarding-v1055.js
+          grep -q 'bridgepoint_trial_access_v1055' /tmp/v1055/app/trial-access-v1055.js
+          grep -q 'bridgepoint_owner_completion_items_v1055' /tmp/v1055/app/owner-everything-v1055.js
+          grep -q 'bridgepoint_owner_request_us_portable_export_v1055' /tmp/v1055/app/owner-everything-v1055.js
+          grep -q 'portable_export_authority' /tmp/v1055/app/downloads/bridgepoint_local_node_v1055.py
+          grep -q 'PROPERTIES' /tmp/v1055/app/downloads/bridgepoint_local_node_v1055.py
+          grep -q 'EVIDENCE' /tmp/v1055/app/downloads/bridgepoint_local_node_v1055.py
+      - name: Check protected local node gateway
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /tmp/node.json -w '%{http_code}' -X POST \
+            'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-local-reasoning-v584' \
+            -H 'content-type: application/json' \
+            --data '{"action":"status","node_id":"00000000-0000-0000-0000-000000000000"}')
+          test "$code" = "401"
+          grep -q 'UNAUTHORIZED_NODE' /tmp/node.json
+      - name: Validation summary
+        run: echo 'V1055 staged restoration passed syntax, wiring, compatibility, local-node and gateway guards.'
