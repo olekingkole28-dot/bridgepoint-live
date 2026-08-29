@@ -1,0 +1,212 @@
+name: Rebuild BridgePoint Single Runtime V1040
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/rebuild-single-runtime-v1040.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  rebuild-deploy-verify:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Collapse live app to one shell and one map controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          git checkout -B live-artifact origin/live-artifact
+
+          cat > app/single-shell-v1040.js <<'JS'
+          (()=>{
+          'use strict';
+          if(window.__bridgepointSingleShellV1040)return;
+          window.__bridgepointSingleShellV1040=true;
+          const PROJECT='https://xdfsjztwgsbmabshzsjw.supabase.co';
+          const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+          let active='home',offer=null;
+          const de=document.documentElement;
+          de.style.setProperty('--bp1040-nav-height','88px');
+          de.style.setProperty('--bp1040-header-height','72px');
+          de.classList.add('bp1040-shell','bp1040-home');
+
+          const style=document.createElement('style');
+          style.id='bp1040-single-shell-style';
+          style.textContent=`
+          :root{--bp1040-nav-height:88px;--bp1040-header-height:72px}
+          #bp1036-commerce-tab,#bp1000-nav-wait,#bp1037-home-seam-guard,#bp984-home-mask,#bp988-home-hard-cover,#bp994-nav-seam-cover,#bp999-nav,#bp998-web-nav,#bp999-header,#bp998-web-header{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important}
+          #bp1040-header{position:fixed;z-index:2147483618;left:0;right:0;top:0;height:var(--bp1040-header-height);display:none;box-sizing:border-box;padding:max(8px,env(safe-area-inset-top)) 14px 8px;align-items:flex-end;gap:10px;background:linear-gradient(180deg,#06111f,#081a2b);border-bottom:1px solid rgba(72,225,255,.12);color:#fff;font:800 14px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+          html.bp1040-home #bp1040-header{display:flex}.bp1040-brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1}.bp1040-brand img{width:40px;height:40px;border-radius:11px}.bp1040-brand b{font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bp1040-live{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid rgba(69,230,166,.18);border-radius:999px;background:rgba(69,230,166,.06);color:#8df2c5;font-size:9px;font-weight:1000}.bp1040-live i{width:7px;height:7px;border-radius:50%;background:#45e6a6;box-shadow:0 0 12px rgba(69,230,166,.7)}
+          #bp1040-nav{position:fixed;z-index:2147483635;left:0;right:0;bottom:0;height:calc(var(--bp1040-nav-height) + env(safe-area-inset-bottom));padding:7px 8px max(8px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;background:linear-gradient(180deg,#08182a,#071626);border-top:1px solid rgba(72,225,255,.15);box-shadow:0 -12px 36px rgba(0,0,0,.38);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+          .bp1040-tab{appearance:none;border:0;border-radius:14px;background:transparent;color:#aebed0;display:grid;place-items:center;align-content:center;gap:4px;font-weight:900;font-size:11px;min-width:0;cursor:pointer}.bp1040-tab .ico{width:39px;height:30px;border-radius:12px;display:grid;place-items:center;font-size:20px;color:#b6c8d8}.bp1040-tab.active{color:#fff}.bp1040-tab.active .ico{background:rgba(72,225,255,.14);color:#56e5ff;box-shadow:inset 0 0 0 1px rgba(72,225,255,.14)}.bp1040-tab[data-tab="plans"] .ico{color:#ffc95e}.bp1040-tab[data-tab="plans"].active .ico{background:rgba(255,201,94,.12);color:#ffd77e;box-shadow:inset 0 0 0 1px rgba(255,201,94,.2)}
+          html.bp1040-home flutter-view,html.bp1040-home flt-glass-pane,html.bp1040-plans flutter-view,html.bp1040-plans flt-glass-pane,html.bp1040-map flutter-view,html.bp1040-map flt-glass-pane{opacity:0!important;pointer-events:none!important;clip-path:none!important;-webkit-clip-path:none!important}
+          html.bp1040-home #bp-live-home-v984{display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;top:var(--bp1040-header-height)!important;bottom:calc(var(--bp1040-nav-height) + env(safe-area-inset-bottom))!important;z-index:2147483605!important}
+          html.bp1040-home #bp974-cosmos{display:block!important;visibility:visible!important;opacity:1!important;pointer-events:none!important;clip-path:inset(var(--bp1040-header-height) 0 calc(var(--bp1040-nav-height) + env(safe-area-inset-bottom)) 0)!important}
+          html.bp1040-flutter #bp-live-home-v984,html.bp1040-flutter #bp974-cosmos,html.bp1040-plans #bp-live-home-v984,html.bp1040-plans #bp974-cosmos,html.bp1040-map #bp-live-home-v984,html.bp1040-map #bp974-cosmos{display:none!important;visibility:hidden!important;pointer-events:none!important}
+          html.bp1040-flutter flutter-view,html.bp1040-flutter flt-glass-pane{opacity:1!important;visibility:visible!important;pointer-events:auto!important;clip-path:inset(0 0 calc(var(--bp1040-nav-height) + env(safe-area-inset-bottom)) 0)!important;-webkit-clip-path:inset(0 0 calc(var(--bp1040-nav-height) + env(safe-area-inset-bottom)) 0)!important}
+          #bp974-map-dialog{bottom:calc(var(--bp1040-nav-height) + env(safe-area-inset-bottom))!important;z-index:2147483632!important}
+          #bp1036-plans-dialog{bottom:calc(var(--bp1040-nav-height) + env(safe-area-inset-bottom))!important;z-index:2147483631!important;background:#06101c!important}
+          #bp1036-plans-dialog .bp1036-shell{margin-bottom:18px!important}.bp1040-card-offer{margin:8px 0 10px;padding:8px 9px;border-radius:10px;border:1px solid rgba(255,201,94,.25);background:rgba(255,201,94,.08);color:#ffd77e;font-size:10px;font-weight:900;line-height:1.25}
+          @media(max-width:700px){:root{--bp1040-nav-height:84px}.bp1040-tab{font-size:10.5px}.bp1040-tab .ico{height:28px;font-size:19px}}
+          `;
+          document.head.appendChild(style);
+
+          const header=document.createElement('header');header.id='bp1040-header';header.innerHTML='<div class="bp1040-brand"><img src="icons/Icon-192.png?v=1040" alt=""><b>BridgePoint Intelligence</b></div><div class="bp1040-live"><i></i>LIVE</div>';document.body.appendChild(header);
+          const nav=document.createElement('nav');nav.id='bp1040-nav';nav.setAttribute('aria-label','Primary navigation');nav.innerHTML='<button class="bp1040-tab active" data-tab="home" type="button"><span class="ico">▦</span><span>Home</span></button><button class="bp1040-tab" data-tab="map" type="button"><span class="ico">◉</span><span>Map</span></button><button class="bp1040-tab" data-tab="plans" type="button"><span class="ico">★</span><span>Plans</span></button><button class="bp1040-tab" data-tab="properties" type="button"><span class="ico">⌂</span><span>Properties</span></button><button class="bp1040-tab" data-tab="more" type="button"><span class="ico">▦</span><span>More</span></button>';document.body.appendChild(nav);
+
+          function clean(){for(const id of ['bp1036-commerce-tab','bp1000-nav-wait','bp1037-home-seam-guard','bp999-nav','bp998-web-nav','bp999-header','bp998-web-header'])document.getElementById(id)?.remove();}
+          function setMode(tab){active=tab;for(const c of ['bp1040-home','bp1040-map','bp1040-plans','bp1040-flutter'])de.classList.remove(c);de.classList.add(tab==='home'?'bp1040-home':tab==='map'?'bp1040-map':tab==='plans'?'bp1040-plans':'bp1040-flutter');nav.querySelectorAll('.bp1040-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));window.__bridgepointActiveTabV1040=tab;window.dispatchEvent(new CustomEvent('bridgepoint-tab-v1040',{detail:{tab}}));}
+          function closePlans(){document.getElementById('bp1036-plans-dialog')?.classList.remove('show')}function closeMap(){document.getElementById('bp974-map-dialog')?.classList.remove('show')}
+          function flutterNav(label,tries=0){let ok=false;try{ok=window.BridgePointNavigateFlutterTabV984?.(label)===true}catch(_){}if(!ok&&tries<24)setTimeout(()=>flutterNav(label,tries+1),120)}
+          function home(){closePlans();closeMap();setMode('home')}
+          async function map(){closePlans();setMode('map');try{if(typeof window.BridgePointOpenMapV993==='function')await window.BridgePointOpenMapV993();else await window.BridgePointOpenIntelligenceMapV974?.()}catch(e){console.error(e);home()}}
+          async function plans(){closeMap();setMode('plans');try{await window.BridgePointOpenPlansV1036?.()}catch(e){console.error(e)}setTimeout(syncOfferCards,60)}
+          function properties(){closePlans();closeMap();setMode('properties');flutterNav('properties')}
+          function more(){closePlans();closeMap();setMode('more');let ok=false;try{ok=window.BridgePointNavigateFlutterTabV984?.('more')===true}catch(_){}if(!ok)flutterNav('work')}
+          nav.querySelector('[data-tab="home"]').onclick=home;nav.querySelector('[data-tab="map"]').onclick=map;nav.querySelector('[data-tab="plans"]').onclick=plans;nav.querySelector('[data-tab="properties"]').onclick=properties;nav.querySelector('[data-tab="more"]').onclick=more;
+
+          async function loadOffer(){try{const r=await fetch(`${PROJECT}/rest/v1/rpc/bridgepoint_public_launch_promotion_v1035`,{method:'POST',headers:{apikey:KEY,Authorization:`Bearer ${KEY}`,'Content-Type':'application/json','Cache-Control':'no-cache'},body:'{}',cache:'no-store'});if(r.ok)offer=await r.json()}catch(_){}syncOfferCards()}
+          function syncOfferCards(){clean();for(const card of document.querySelectorAll('#bp1036-plans-dialog .bp1036-card')){let badge=card.querySelector('.bp1040-card-offer');if(!badge){badge=document.createElement('div');badge.className='bp1040-card-offer';card.querySelector('.price')?.insertAdjacentElement('afterend',badge)}if(offer?.active){const left=Math.max(0,Number(offer.remaining_spots||0)),pct=Number(offer.percent_off||50),months=Number(offer.duration_months||6),trial=Number(offer.trial_days||7);badge.textContent=left>0?`${left} founding spots left • ${pct}% off for ${months} paid months after the ${trial}-day trial`:'Founding spots filled • standard pricing applies';badge.style.display='block'}else badge.style.display='none'}}
+          new MutationObserver(()=>{clean();syncOfferCards()}).observe(document.documentElement,{childList:true,subtree:true});clean();loadOffer();setInterval(loadOffer,20000);addEventListener('focus',loadOffer,{passive:true});document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadOffer()});
+          window.BridgePointSelectedTabV984=()=>active;window.BridgePointSingleShellV1040={home,map,plans,properties,more,getActive:()=>active};home();
+          })();
+          JS
+
+          python - <<'PY'
+          from pathlib import Path
+
+          idx=Path('app/index.html')
+          s=idx.read_text()
+          s=s.replace("window.__bridgepointCanonicalRuntime='v1040';","window.__bridgepointCanonicalRuntime='v1001';")
+          s=s.replace('  <script defer src="bridgepoint-shell-v1000.js?v=1040"></script>\n','')
+          if 'single-shell-v1040.js?v=1040' not in s: raise SystemExit('single shell missing from index')
+          idx.write_text(s)
+
+          cp=Path('app/customer-priority-v1036.js')
+          s=cp.read_text()
+          if 'document.body.appendChild(tab);' in s:
+            s=s.replace('document.body.appendChild(tab);','// v1040: floating founding-offer control disabled; Plans is primary navigation.')
+          cp.write_text(s)
+
+          lazy=Path('app/lazy-runtime-v1000.js')
+          s=lazy.read_text()
+          s=s.replace("    await loadScript(`map-national-v1001.js?v=${V}`,'bp1001-map-national');\n",'')
+          s=s.replace("prefetch(`map-national-v1001.js?v=${V}`);",'')
+          lazy.write_text(s)
+
+          p=Path('app/map-radar-v974.js')
+          s=p.read_text()
+          s=s.replace('window.__bridgepointMapLabelsV1038=true;','window.__bridgepointMapLabelsV1040=true;')
+          s=s.replace("currentState='CT'","currentState='US'")
+          old="const stateOpts=Object.keys(centers).sort().map(s=>`<option value=\"${s}\"${s==='CT'?' selected':''}>${s}</option>`).join('');"
+          new="const stateOpts='<option value=\"US\" selected>US — Nationwide</option>'+Object.keys(centers).sort().map(s=>`<option value=\"${s}\">${s}</option>`).join('');"
+          if old not in s: raise SystemExit('state option anchor missing')
+          s=s.replace(old,new,1)
+
+          s=s.replace("m.on('click',()=>{currentState=code;dialog.querySelector('[data-state]').value=code;});","m.on('click',()=>goState(code));")
+
+          old="async function loadProperties(){if(!propsOn||!map||map.getZoom()<7||!feature('property_profiles')){propertyLayer?.clearLayers();return;}"
+          new="async function loadProperties(){if(!propsOn||!map||map.getZoom()<4||!feature('property_profiles')){propertyLayer?.clearLayers();return;}"
+          if old not in s: raise SystemExit('property zoom anchor missing')
+          s=s.replace(old,new,1)
+          s=s.replace("p_limit:180","p_limit:map.getZoom()<=4?180:map.getZoom()<=6?300:500",1)
+          s=s.replace("L.circleMarker([lat,lng],{radius:4,color:'#fff',weight:1,fillColor:'#48e1ff',fillOpacity:.55})","L.circleMarker([lat,lng],{radius:map.getZoom()<=4?2.2:map.getZoom()<=6?3:4,color:'#fff',weight:1,fillColor:'#48e1ff',fillOpacity:.68})",1)
+
+          old="function goState(code){currentState=code;dialog.querySelector('[data-state]').value=code;const c=centers[code]||[39.4,-98.3];map.setView(c,7);loadIntel();scheduleProperties();}"
+          new="function goState(code){currentState=code;dialog.querySelector('[data-state]').value=code;if(code==='US'){latestOpps=[];latestSignals=[];renderIntel();map.setView([39.4,-98.3],4);scheduleProperties();return;}const c=centers[code]||[39.4,-98.3];map.setView(c,8);loadIntel();scheduleProperties();}"
+          if old not in s: raise SystemExit('goState anchor missing')
+          s=s.replace(old,new,1)
+
+          old="function setBase(){if(baseLayer)map.removeLayer(baseLayer);if(roadLayer)map.removeLayer(roadLayer);if(labelLayer)map.removeLayer(labelLayer);baseLayer=L.tileLayer(satelliteOn?'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}':'https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:satelliteOn?'Esri':'OpenStreetMap'}).addTo(map);if(satelliteOn){roadLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,attribution:'Esri transportation'}).addTo(map);labelLayer=L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,attribution:'Esri boundaries & places'}).addTo(map);}baseLayer.bringToBack();if(roadLayer)roadLayer.bringToFront();if(labelLayer)labelLayer.bringToFront();}"
+          new="function ensureMapPanes(){for(const [name,z] of [['bpRoadPane',245],['bpLabelPane',255],['bpRadarPane',300]]){if(!map.getPane(name)){const pane=map.createPane(name);pane.style.zIndex=String(z);pane.style.pointerEvents='none';}}}function setBase(){ensureMapPanes();if(baseLayer)map.removeLayer(baseLayer);if(roadLayer)map.removeLayer(roadLayer);if(labelLayer)map.removeLayer(labelLayer);baseLayer=L.tileLayer(satelliteOn?'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}':'https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:satelliteOn?'Esri':'OpenStreetMap'}).addTo(map);if(satelliteOn){roadLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',{pane:'bpRoadPane',maxZoom:20,attribution:'Esri transportation'}).addTo(map);labelLayer=L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{pane:'bpLabelPane',maxZoom:20,attribution:'Esri boundaries & places'}).addTo(map);}baseLayer.bringToBack();}"
+          if old not in s: raise SystemExit('setBase anchor missing')
+          s=s.replace(old,new,1)
+          s=s.replace("radarLayer=L.tileLayer.wms(NOAA_WMS,{layers:'0',format:'image/png',transparent:true,version:'1.3.0',maxZoom:18,opacity:.72,attribution:'NOAA/NWS MRMS'})","radarLayer=L.tileLayer.wms(NOAA_WMS,{pane:'bpRadarPane',layers:'0',format:'image/png',transparent:true,version:'1.3.0',maxZoom:18,opacity:.62,attribution:'NOAA/NWS MRMS'})",1)
+          p.write_text(s)
+          PY
+
+          node --check app/single-shell-v1040.js
+          node --check app/customer-priority-v1036.js
+          node --check app/lazy-runtime-v1000.js
+          node --check app/map-radar-v974.js
+          grep -q 'Home</span></button><button.*Map</span></button><button.*Plans</span></button><button.*Properties</span></button><button.*More' app/single-shell-v1040.js
+          ! grep -q 'bridgepoint-shell-v1000.js?v=1040' app/index.html
+          ! grep -q 'document.body.appendChild(tab);' app/customer-priority-v1036.js
+          ! grep -q 'map-national-v1001.js' app/lazy-runtime-v1000.js
+          grep -q 'US — Nationwide' app/map-radar-v974.js
+          grep -q 'bpLabelPane' app/map-radar-v974.js
+          grep -q 'map.getZoom()<4' app/map-radar-v974.js
+
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/index.html app/single-shell-v1040.js app/customer-priority-v1036.js app/lazy-runtime-v1000.js app/map-radar-v974.js
+          if ! git diff --cached --quiet; then
+            git commit -m 'Collapse app to one shell and one map controller v1040'
+            git push origin HEAD:live-artifact
+          fi
+
+      - name: Assemble exact live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/single-shell-v1040.js
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy V1040
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify one-shell public convergence
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            salt="v1040-${GITHUB_SHA}-${attempt}-$(date +%s)"
+            idx="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?v=${salt}" 2>/dev/null || true)"
+            shell="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/single-shell-v1040.js?v=${salt}" 2>/dev/null || true)"
+            cp="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/customer-priority-v1036.js?v=${salt}" 2>/dev/null || true)"
+            lazy="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/lazy-runtime-v1000.js?v=${salt}" 2>/dev/null || true)"
+            map="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/map-radar-v974.js?v=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$idx" | grep -q 'single-shell-v1040.js?v=1040' \
+              && ! printf '%s' "$idx" | grep -q 'bridgepoint-shell-v1000.js?v=1040' \
+              && printf '%s' "$shell" | grep -q 'data-tab="plans"' \
+              && printf '%s' "$shell" | grep -q 'bp1040-card-offer' \
+              && ! printf '%s' "$cp" | grep -q 'document.body.appendChild(tab);' \
+              && ! printf '%s' "$lazy" | grep -q 'map-national-v1001.js' \
+              && printf '%s' "$map" | grep -q 'US — Nationwide' \
+              && printf '%s' "$map" | grep -q 'bpLabelPane' \
+              && printf '%s' "$map" | grep -q 'map.getZoom()<4'; then
+              echo 'V1040 verified: one shell, Plans primary, no floating founder button, one map controller, national real-address loading and visible label panes.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'V1040 public verification did not converge.' >&2
+          exit 1
