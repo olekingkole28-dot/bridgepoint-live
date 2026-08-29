@@ -67,6 +67,7 @@ jobs:
           const base='http://127.0.0.1:4173/app/';
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
           async function mocks(page,user=false){
+            page.on('console',m=>console.log('BROWSER',m.type(),m.text()));
             page.on('pageerror',e=>console.log('PAGEERROR',e.message||String(e)));
             await page.setRequestInterception(true);
             page.on('request',req=>{
@@ -113,7 +114,12 @@ jobs:
               await pre.waitForSelector('#bp1055-nav',{timeout:7000});
               assert.strictEqual(await pre.$eval('#bp1055-nav',e=>getComputedStyle(e).display),'none','app nav must not cover public page');
               assert.strictEqual(await pre.evaluate(()=>sessionStorage.getItem('bp1054_required_legal_acceptance')),null,'fresh public visitor must have no legal acceptance');
+              const hit=await pre.$eval('[data-bp1059-entry="product"]',b=>{const r=b.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,el=document.elementFromPoint(x,y);return{button:{x,y,left:r.left,top:r.top,width:r.width,height:r.height},hit:{tag:el?.tagName||null,id:el?.id||null,cls:el?.className||null,target:el?.getAttribute?.('data-bp1059-entry')||null,text:(el?.textContent||'').trim().slice(0,100)},preapp:document.documentElement.className};});
+              console.log('PUBLIC_CTA_HIT',JSON.stringify(hit));
               await pre.click('[data-bp1059-entry="product"]');
+              await sleep(350);
+              const after=await pre.evaluate(()=>({legalExists:!!document.getElementById('bp1059-legal'),legalClass:document.getElementById('bp1059-legal')?.className||'',htmlClass:document.documentElement.className,intent:sessionStorage.getItem('bp1059_entry_intent'),accept:sessionStorage.getItem('bp1054_required_legal_acceptance'),authClass:document.getElementById('bp1046-auth')?.className||'',active:document.activeElement?.outerHTML?.slice(0,180)||''}));
+              console.log('PUBLIC_CTA_AFTER',JSON.stringify(after));
               await pre.waitForSelector('#bp1059-legal.show',{timeout:5000});
               assert.strictEqual(await pre.$eval('#bp1046-auth',e=>getComputedStyle(e).display),'none','feature CTA must still gate auth behind legal');
               await preCtx.close();
