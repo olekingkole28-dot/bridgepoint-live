@@ -34,6 +34,7 @@ jobs:
           grep -q 'entry-visual-v1059.js?v=1059' "$I"
           grep -q 'navigation-repair-v1059.js?v=1059' "$I"
           grep -q 'flutter-view,flt-glass-pane' /tmp/v1059/app/navigation-repair-v1059.js
+          grep -q 'bp1059-preapp-active #bp-live-home-v984' /tmp/v1059/app/navigation-repair-v1059.js
           ! grep -q 'new MutationObserver' /tmp/v1059/app/navigation-repair-v1059.js
           ! grep -q 'new MutationObserver' /tmp/v1059/app/entry-visual-v1059.js
           grep -q 'bp1059-entry-grid' /tmp/v1059/app/entry-visual-v1059.js
@@ -121,7 +122,13 @@ jobs:
               assert.strictEqual(hit.hit.target,'product','physical public CTA hit-test must land on the Product Tools button');
               await pre.click('[data-bp1059-entry="product"]');
               await pre.waitForSelector('#bp1059-legal.show',{timeout:5000});
-              assert.strictEqual(await pre.$eval('#bp1046-auth',e=>getComputedStyle(e).display),'none','feature CTA must still gate auth behind legal');
+              assert.strictEqual(await pre.evaluate(()=>{const a=document.getElementById('bp1046-auth');return !a||getComputedStyle(a).display==='none';}),true,'feature CTA must keep auth absent or hidden until legal acceptance');
+              assert.ok((await pre.evaluate(()=>sessionStorage.getItem('bp1059_entry_intent')||'')).includes('product'),'feature CTA must preserve Product Tools intent');
+              await pre.click('#bp1059-legal [data-accept]');
+              await pre.click('#bp1059-legal [data-continue]');
+              await pre.waitForSelector('#bp1046-auth.show',{timeout:5000});
+              await pre.waitForSelector('.bp1059-auth-intro h1',{timeout:5000});
+              assert.strictEqual(await pre.$eval('.bp1059-auth-intro h1',e=>e.textContent.trim()),'Welcome back');
               await preCtx.close();
 
               const navCtx=await browser.createBrowserContext();
@@ -142,4 +149,4 @@ jobs:
           })().catch(e=>{console.error(e);process.exit(1);});
           NODE
       - name: Validation summary
-        run: echo 'V1059 passed isolated legal-before-auth, visible public feature CTA, Flutter click shield, all primary navigation clicks, syntax and preserved customer contracts.'
+        run: echo 'V1059 passed legal-before-auth, visible public feature CTA, post-accept auth mounting, Flutter click shield, all primary navigation clicks, syntax and preserved customer contracts.'
