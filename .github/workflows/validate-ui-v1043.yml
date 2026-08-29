@@ -1,4 +1,4 @@
-name: Validate UI V1043
+name: Validate Staged BridgePoint UI
 
 on:
   push:
@@ -18,50 +18,103 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Assemble staged V1043 artifact
+      - name: Assemble staged V1054 artifact
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin ui-v1043:refs/remotes/origin/ui-v1043
+          git fetch origin ui-v1054:refs/remotes/origin/ui-v1054
           rm -rf site && mkdir site
-          git archive --format=tar origin/ui-v1043 | tar -xf - -C site
+          git archive --format=tar origin/ui-v1054 | tar -xf - -C site
           test -s site/app/index.html
-          test -s site/app/customer-home-v1043.js
-          test -s site/app/single-shell-v1043.js
+          for f in legal-gate-v1054.js preapp-restoration-v1054.js work-hub-v1054.js owner-home-v1054.js app-more-v1054.js property-heartbeat-v1054.js single-shell-v1054.js; do test -s "site/app/$f"; done
 
       - name: JavaScript syntax checks
         shell: bash
         run: |
           set -euo pipefail
-          node --check site/app/customer-home-v1043.js
-          node --check site/app/single-shell-v1043.js
-          node --check site/app/plans-primary-v1042.js
-          node --check site/app/customer-surfaces-v1042.js
+          for f in \
+            legal-gate-v1054.js \
+            preapp-restoration-v1054.js \
+            work-hub-v1054.js \
+            owner-home-v1054.js \
+            app-more-v1054.js \
+            property-heartbeat-v1054.js \
+            single-shell-v1054.js \
+            plans-primary-v1042.js \
+            customer-surfaces-v1042.js \
+            property-360-v1046.js \
+            national-state-experience-v1053.js \
+            property-visual-first-v1053.js; do
+            node --check "site/app/$f"
+          done
 
-      - name: Runtime wiring checks
+      - name: Runtime and performance wiring checks
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'data-bridgepoint-runtime="v1043"' site/app/index.html
-          grep -q 'customer-home-v1043.js?v=1043' site/app/index.html
-          grep -q 'single-shell-v1043.js?v=1043' site/app/index.html
-          ! grep -q 'single-shell-v1042.js' site/app/index.html
-          grep -q 'BridgePointSingleShellV1043' site/app/single-shell-v1043.js
-          grep -q 'data-tab="saved"' site/app/single-shell-v1043.js
-          grep -q 'Plans & Billing' site/app/customer-home-v1043.js
-          grep -q 'What do you want to work on?' site/app/customer-home-v1043.js
+          grep -q 'data-bridgepoint-runtime="v1054"' site/app/index.html
+          grep -q 'legal-gate-v1054.js?v=1054' site/app/index.html
+          grep -q 'preapp-restoration-v1054.js?v=1054' site/app/index.html
+          grep -q 'work-hub-v1054.js?v=1054' site/app/index.html
+          grep -q 'owner-home-v1054.js?v=1054' site/app/index.html
+          grep -q 'app-more-v1054.js?v=1054' site/app/index.html
+          grep -q 'property-heartbeat-v1054.js?v=1054' site/app/index.html
+          grep -q 'single-shell-v1054.js?v=1054' site/app/index.html
+          ! grep -q 'flutter_bootstrap.js' site/app/index.html
+          ! grep -q 'owner-business-pulse-v993.js' site/app/index.html
+          ! grep -q 'owner-command-center-v1053.js' site/app/index.html
+          ! grep -q 'single-shell-v1044.js' site/app/index.html
+          grep -q 'data-tab="work"' site/app/single-shell-v1054.js
+          grep -q 'navSeq' site/app/single-shell-v1054.js
+          ! grep -q 'setInterval(removeOld' site/app/single-shell-v1054.js
 
-      - name: Guard customer-critical V1042 surfaces
+      - name: Restoration contract guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'bridgepoint_public_legal_preview_v1054' site/app/legal-gate-v1054.js
+          grep -q 'legal_accepted:true' site/app/legal-gate-v1054.js
+          grep -q 'bridgepoint_public_brand_profile_v1054' site/app/preapp-restoration-v1054.js
+          grep -q 'bridgepoint_public_package_catalog_v1054' site/app/preapp-restoration-v1054.js
+          grep -q 'bridgepoint_public_ai_ask_v1054' site/app/preapp-restoration-v1054.js
+          grep -q 'bridgepoint_claims_workspace_v833' site/app/work-hub-v1054.js
+          grep -q 'bridgepoint_claim_intelligence_v836' site/app/work-hub-v1054.js
+          grep -q 'bridgepoint_owner_command_center_v1054' site/app/owner-home-v1054.js
+          grep -q 'bridgepoint_owner_pattern_intelligence_v319' site/app/owner-home-v1054.js
+          grep -q 'bridgepoint_owner_ai_fleet_v557' site/app/owner-home-v1054.js
+          grep -q 'bridgepoint_property_heartbeat_v245' site/app/property-heartbeat-v1054.js
+          grep -q 'bridgepoint_request_technology_package_v93' site/app/app-more-v1054.js
+          grep -q 'bridgepoint_owner_update_founder_profile_v281' site/app/app-more-v1054.js
+
+      - name: Guard customer-critical existing surfaces
         shell: bash
         run: |
           set -euo pipefail
           grep -q 'BridgePointOpenPropertiesV1042' site/app/customer-surfaces-v1042.js
           grep -q 'bridgepoint_flutter_properties_v725' site/app/customer-surfaces-v1042.js
           grep -q 'bridgepoint_flutter_property_detail_v344' site/app/customer-surfaces-v1042.js
-          grep -q 'bridgepoint_saved_opportunities_v842' site/app/customer-surfaces-v1042.js
-          grep -q 'bridgepoint_claims_workspace_v833' site/app/customer-surfaces-v1042.js
-          grep -q 'bridgepoint_calendar_agenda_v835' site/app/customer-surfaces-v1042.js
           grep -q 'BridgePointOpenPlansV1042' site/app/plans-primary-v1042.js
+          grep -q 'bridgepoint_property_timeline_v857' site/app/property-360-v1046.js
+          grep -q 'bridgepoint_property_media_bundle_v169' site/app/property-360-v1046.js
+          grep -q 'bridgepoint_property_geometry_v854' site/app/property-360-v1046.js
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' site/app/*.js site/app/index.html
+
+      - name: Verify public V1054 backend contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          project='https://xdfsjztwgsbmabshzsjw.supabase.co'
+          key='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25'
+          legal="$(curl -fsSL --max-time 20 -X POST "$project/rest/v1/rpc/bridgepoint_public_legal_preview_v1054" -H "apikey: $key" -H "Authorization: Bearer $key" -H 'Content-Type: application/json' -d '{}')"
+          packages="$(curl -fsSL --max-time 20 -X POST "$project/rest/v1/rpc/bridgepoint_public_package_catalog_v1054" -H "apikey: $key" -H "Authorization: Bearer $key" -H 'Content-Type: application/json' -d '{}')"
+          notes="$(curl -fsSL --max-time 20 -X POST "$project/rest/v1/rpc/bridgepoint_daily_team_notes_v1054" -H "apikey: $key" -H "Authorization: Bearer $key" -H 'Content-Type: application/json' -d '{}')"
+          guide="$(curl -fsSL --max-time 20 -X POST "$project/rest/v1/rpc/bridgepoint_public_ai_ask_v1054" -H "apikey: $key" -H "Authorization: Bearer $key" -H 'Content-Type: application/json' -d '{"p_message":"What is BridgePoint Intelligence?"}')"
+          printf '%s' "$legal" | grep -q 'Terms of Service'
+          printf '%s' "$legal" | grep -q 'required_documents'
+          printf '%s' "$packages" | grep -q 'technology_bridgepoint_property_api'
+          printf '%s' "$packages" | grep -q 'pattern_intelligence'
+          printf '%s' "$notes" | grep -q 'molly'
+          printf '%s' "$guide" | grep -q 'PUBLIC_SAFE_COMPANY_BRAIN'
 
       - name: Validation summary
-        run: echo 'V1043 staged UI passed syntax, wiring, and customer-surface regression guards.'
+        run: echo 'V1054 staged restoration passed syntax, wiring, performance, legal, workspace, owner, property and backend-contract guards.'
