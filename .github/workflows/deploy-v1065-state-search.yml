@@ -1,0 +1,75 @@
+name: Deploy BridgePoint V1065 State Search
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-v1065-state-search.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Assemble exact tested V1065 artifact
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          expected='baf181a4936a13063f5b3d1514eb9ff6d71b9db5'
+          actual="$(git rev-parse origin/live-artifact)"
+          echo "Deploying live-artifact ${actual}"
+          test "$actual" = "$expected"
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          cd site/app
+          node --check state-property-search-v1065.js
+          node --check national-state-experience-v1062.js
+          node --check nav-single-owner-v1062.js
+          grep -q 'data-bridgepoint-runtime="v1065"' index.html
+          grep -q 'state-property-search-v1065.js?v=1065' index.html
+          grep -q 'national-state-experience-v1062.js?v=1065' index.html
+          grep -q 'nav-single-owner-v1062.js?v=1065' index.html
+          grep -q 'bridgepoint_flutter_properties_v1065' state-property-search-v1065.js
+          grep -q 'STALE_REQUEST' state-property-search-v1065.js
+          grep -q 'State filter mismatch' state-property-search-v1065.js
+          grep -q "addEventListener('change'" state-property-search-v1065.js
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' index.html state-property-search-v1065.js
+          cd ../..
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {path: site}
+      - name: Deploy exact V1065
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify public V1065 files
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 20); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1065&verify=${salt}" 2>/dev/null || true)"
+            statejs="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/state-property-search-v1065.js?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1065"' \
+              && printf '%s' "$app" | grep -q 'state-property-search-v1065.js?v=1065' \
+              && printf '%s' "$statejs" | grep -q 'bridgepoint_flutter_properties_v1065' \
+              && printf '%s' "$statejs" | grep -q 'STALE_REQUEST' \
+              && printf '%s' "$statejs" | grep -q 'State filter mismatch'; then
+              echo 'PUBLIC_V1065_STATE_SEARCH_PASS'
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'Public V1065 files did not converge' >&2
+          exit 1
