@@ -1,0 +1,102 @@
+name: Deploy Web Native Tabs V1042
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-web-native-tabs-v1042.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble and validate V1042
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/plans-primary-v1042.js
+          test -s site/app/customer-surfaces-v1042.js
+          test -s site/app/single-shell-v1042.js
+          node --check site/app/plans-primary-v1042.js
+          node --check site/app/customer-surfaces-v1042.js
+          node --check site/app/single-shell-v1042.js
+          grep -q 'data-bridgepoint-runtime="v1042"' site/app/index.html
+          grep -q 'plans-primary-v1042.js?v=1042' site/app/index.html
+          grep -q 'customer-surfaces-v1042.js?v=1042' site/app/index.html
+          grep -q 'single-shell-v1042.js?v=1042' site/app/index.html
+          ! grep -q 'single-shell-v1041.js' site/app/index.html
+          grep -q 'BridgePointOpenPropertiesV1042' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_flutter_properties_v725' site/app/customer-surfaces-v1042.js
+          grep -q 'BridgePointOpenMoreV1042' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_saved_opportunities_v842' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_claims_workspace_v833' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_calendar_agenda_v835' site/app/customer-surfaces-v1042.js
+          grep -q 'plans={packages:FALLBACK}' site/app/plans-primary-v1042.js
+          grep -q 'BridgePointOpenPlansV1042' site/app/plans-primary-v1042.js
+          grep -q 'flutter-view,flt-glass-pane{opacity:0!important' site/app/single-shell-v1042.js
+          grep -q 'BridgePointOpenPropertiesV1042' site/app/single-shell-v1042.js
+          grep -q 'BridgePointOpenMoreV1042' site/app/single-shell-v1042.js
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy V1042
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify public V1042 and public plans backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          project='https://xdfsjztwgsbmabshzsjw.supabase.co'
+          key='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25'
+          for attempt in $(seq 1 36); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1042&verify=${salt}" 2>/dev/null || true)"
+            shell="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/single-shell-v1042.js?verify=${salt}" 2>/dev/null || true)"
+            surfaces="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/customer-surfaces-v1042.js?verify=${salt}" 2>/dev/null || true)"
+            plans="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/plans-primary-v1042.js?verify=${salt}" 2>/dev/null || true)"
+            catalog="$(curl -fsSL --max-time 15 -X POST "${project}/rest/v1/rpc/bridgepoint_public_customer_plans_v1041" -H "apikey: ${key}" -H "Authorization: Bearer ${key}" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1042"' \
+              && printf '%s' "$app" | grep -q 'customer-surfaces-v1042.js?v=1042' \
+              && ! printf '%s' "$app" | grep -q 'single-shell-v1041.js' \
+              && printf '%s' "$shell" | grep -q 'BridgePointOpenPropertiesV1042' \
+              && printf '%s' "$shell" | grep -q 'BridgePointOpenMoreV1042' \
+              && printf '%s' "$surfaces" | grep -q 'bridgepoint_flutter_properties_v725' \
+              && printf '%s' "$surfaces" | grep -q 'bridgepoint_saved_opportunities_v842' \
+              && printf '%s' "$plans" | grep -q 'plans={packages:FALLBACK}' \
+              && printf '%s' "$catalog" | grep -q 'BridgePoint Homeowner' \
+              && printf '%s' "$catalog" | grep -q 'BridgePoint Company'; then
+              echo 'V1042 verified live: web-native Properties and More, immediate Plans cards, no hidden Flutter primary-tab handoff.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'V1042 public verification did not converge.' >&2
+          exit 1
