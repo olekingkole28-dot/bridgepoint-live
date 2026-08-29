@@ -1,4 +1,4 @@
-name: Deploy BridgePoint Restoration V1053
+name: Deploy BridgePoint Restoration V1054
 
 on:
   push:
@@ -27,45 +27,43 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Assemble validated V1053 artifact
+      - name: Assemble validated V1054 artifact
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin live-artifact:refs/remotes/origin/live-artifact
           rm -rf site && mkdir site
           git archive --format=tar origin/live-artifact | tar -xf - -C site
-
           test -s site/app/index.html
-          test -s site/app/owner-command-center-v1053.js
-          test -s site/app/national-state-experience-v1053.js
-          test -s site/app/property-visual-first-v1053.js
-          test -s site/app/preapp-national-proof-v1053.js
-          test -s site/app/property-360-v1046.js
-          test -s site/app/customer-surfaces-v1042.js
-          test -s site/app/owner-business-pulse-v993.js
-          test -s site/app/single-shell-v1044.js
-
-          node --check site/app/owner-command-center-v1053.js
-          node --check site/app/national-state-experience-v1053.js
-          node --check site/app/property-visual-first-v1053.js
-          node --check site/app/preapp-national-proof-v1053.js
+          for f in legal-gate-v1054.js preapp-restoration-v1054.js work-hub-v1054.js owner-home-v1054.js app-more-v1054.js property-heartbeat-v1054.js single-shell-v1054.js; do
+            test -s "site/app/$f"
+            node --check "site/app/$f"
+          done
           node --check site/app/property-360-v1046.js
           node --check site/app/customer-surfaces-v1042.js
-          node --check site/app/owner-business-pulse-v993.js
-          node --check site/app/single-shell-v1044.js
+          node --check site/app/plans-primary-v1042.js
+          node --check site/app/national-state-experience-v1053.js
+          node --check site/app/property-visual-first-v1053.js
 
-          grep -q 'data-bridgepoint-runtime="v1053"' site/app/index.html
-          grep -q 'owner-command-center-v1053.js?v=1053' site/app/index.html
-          grep -q 'national-state-experience-v1053.js?v=1053' site/app/index.html
-          grep -q 'property-visual-first-v1053.js?v=1053' site/app/index.html
-          grep -q 'preapp-national-proof-v1053.js?v=1053' site/app/index.html
-          grep -q 'bridgepoint_owner_command_center_v1053' site/app/owner-command-center-v1053.js
-          grep -q 'gross_customer_churn_rate' site/app/owner-command-center-v1053.js
-          grep -q 'bridgepoint_state_experience_v1053' site/app/national-state-experience-v1053.js
-          grep -q 'bridgepoint_property_media_bundle_v169' site/app/national-state-experience-v1053.js
-          grep -q 'bridgepoint_property_source_3d_v855' site/app/property-visual-first-v1053.js
-          grep -q 'bridgepoint_property_geometry_v854' site/app/property-visual-first-v1053.js
-          grep -q 'bridgepoint_public_national_progress_v1053' site/app/preapp-national-proof-v1053.js
+          grep -q 'data-bridgepoint-runtime="v1054"' site/app/index.html
+          grep -q 'legal-gate-v1054.js?v=1054' site/app/index.html
+          grep -q 'preapp-restoration-v1054.js?v=1054' site/app/index.html
+          grep -q 'work-hub-v1054.js?v=1054' site/app/index.html
+          grep -q 'owner-home-v1054.js?v=1054' site/app/index.html
+          grep -q 'app-more-v1054.js?v=1054' site/app/index.html
+          grep -q 'property-heartbeat-v1054.js?v=1054' site/app/index.html
+          grep -q 'single-shell-v1054.js?v=1054' site/app/index.html
+          ! grep -q 'flutter_bootstrap.js' site/app/index.html
+          ! grep -q 'owner-business-pulse-v993.js' site/app/index.html
+          ! grep -q 'owner-command-center-v1053.js' site/app/index.html
+          ! grep -q 'single-shell-v1044.js' site/app/index.html
+          grep -q 'data-tab="work"' site/app/single-shell-v1054.js
+          grep -q 'bridgepoint_claims_workspace_v833' site/app/work-hub-v1054.js
+          grep -q 'bridgepoint_owner_command_center_v1054' site/app/owner-home-v1054.js
+          grep -q 'bridgepoint_property_heartbeat_v245' site/app/property-heartbeat-v1054.js
+          grep -q 'bridgepoint_public_legal_preview_v1054' site/app/legal-gate-v1054.js
+          grep -q 'bridgepoint_public_package_catalog_v1054' site/app/preapp-restoration-v1054.js
+          grep -q 'bridgepoint_owner_update_founder_profile_v281' site/app/app-more-v1054.js
           ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' site/app/*.js site/app/index.html
           touch site/.nojekyll site/app/.nojekyll
 
@@ -75,11 +73,11 @@ jobs:
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site
-      - name: Deploy V1053
+      - name: Deploy V1054
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify public V1053 and nationwide truth backend
+      - name: Verify public V1054 restoration
         shell: bash
         run: |
           set -euo pipefail
@@ -88,27 +86,36 @@ jobs:
           key='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25'
           for attempt in $(seq 1 45); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
-            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1053&verify=${salt}" 2>/dev/null || true)"
-            owner="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/owner-command-center-v1053.js?verify=${salt}" 2>/dev/null || true)"
-            nation="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/national-state-experience-v1053.js?verify=${salt}" 2>/dev/null || true)"
-            visual="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/property-visual-first-v1053.js?verify=${salt}" 2>/dev/null || true)"
-            preapp="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/preapp-national-proof-v1053.js?verify=${salt}" 2>/dev/null || true)"
-            progress="$(curl -fsSL --max-time 20 -X POST "${project}/rest/v1/rpc/bridgepoint_public_national_progress_v1053" -H "apikey: ${key}" -H "Authorization: Bearer ${key}" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || true)"
-            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1053"' \
-              && printf '%s' "$app" | grep -q 'owner-command-center-v1053.js?v=1053' \
-              && printf '%s' "$app" | grep -q 'national-state-experience-v1053.js?v=1053' \
-              && printf '%s' "$app" | grep -q 'property-visual-first-v1053.js?v=1053' \
-              && printf '%s' "$app" | grep -q 'preapp-national-proof-v1053.js?v=1053' \
-              && printf '%s' "$owner" | grep -q 'BridgePointOwnerCommandV1053' \
-              && printf '%s' "$nation" | grep -q 'BridgePointNationalExperienceV1053' \
-              && printf '%s' "$visual" | grep -q 'BridgePointPropertyVisualV1053' \
-              && printf '%s' "$preapp" | grep -q 'bridgepoint_public_national_progress_v1053' \
-              && printf '%s' "$progress" | grep -q 'canonical_properties' \
-              && printf '%s' "$progress" | grep -q 'Connecticut'; then
-              echo 'V1053 verified publicly: owner acquisition/CRM/churn/investor command center, nationwide state loading, imagery-led property cards, visual-first 3D Property 360, and pre-app nationwide proof are live.'
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1054&verify=${salt}" 2>/dev/null || true)"
+            shell="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/single-shell-v1054.js?verify=${salt}" 2>/dev/null || true)"
+            legaljs="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/legal-gate-v1054.js?verify=${salt}" 2>/dev/null || true)"
+            work="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/work-hub-v1054.js?verify=${salt}" 2>/dev/null || true)"
+            owner="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/owner-home-v1054.js?verify=${salt}" 2>/dev/null || true)"
+            preapp="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/preapp-restoration-v1054.js?verify=${salt}" 2>/dev/null || true)"
+            heartbeat="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/property-heartbeat-v1054.js?verify=${salt}" 2>/dev/null || true)"
+            legal="$(curl -fsSL --max-time 20 -X POST "${project}/rest/v1/rpc/bridgepoint_public_legal_preview_v1054" -H "apikey: ${key}" -H "Authorization: Bearer ${key}" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || true)"
+            packages="$(curl -fsSL --max-time 20 -X POST "${project}/rest/v1/rpc/bridgepoint_public_package_catalog_v1054" -H "apikey: ${key}" -H "Authorization: Bearer ${key}" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || true)"
+            notes="$(curl -fsSL --max-time 20 -X POST "${project}/rest/v1/rpc/bridgepoint_daily_team_notes_v1054" -H "apikey: ${key}" -H "Authorization: Bearer ${key}" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1054"' \
+              && printf '%s' "$app" | grep -q 'single-shell-v1054.js?v=1054' \
+              && printf '%s' "$app" | grep -q 'work-hub-v1054.js?v=1054' \
+              && ! printf '%s' "$app" | grep -q 'flutter_bootstrap.js' \
+              && printf '%s' "$shell" | grep -q 'BridgePointSingleShellV1054' \
+              && printf '%s' "$shell" | grep -q 'data-tab="work"' \
+              && printf '%s' "$legaljs" | grep -q 'legal_accepted:true' \
+              && printf '%s' "$work" | grep -q 'bridgepoint_claim_intelligence_v836' \
+              && printf '%s' "$owner" | grep -q 'bridgepoint_owner_command_center_v1054' \
+              && printf '%s' "$owner" | grep -q 'bridgepoint_owner_pattern_intelligence_v319' \
+              && printf '%s' "$preapp" | grep -q 'Plans, API & Tech' \
+              && printf '%s' "$heartbeat" | grep -q 'PROPERTY HEARTBEAT' \
+              && printf '%s' "$legal" | grep -q 'Terms of Service' \
+              && printf '%s' "$packages" | grep -q 'technology_bridgepoint_property_api' \
+              && printf '%s' "$packages" | grep -q 'pattern_intelligence' \
+              && printf '%s' "$notes" | grep -q 'molly'; then
+              echo 'V1054 publicly verified: required pre-signup legal gate, full public About/Guide/catalog, consolidated Work + full Claims, private owner command center, internal metric exclusions, Property Heartbeat, race-safe tabs, and no hidden Flutter bootstrap.'
               exit 0
             fi
             sleep 8
           done
-          echo 'V1053 public verification did not converge.' >&2
+          echo 'V1054 public verification did not converge.' >&2
           exit 1
