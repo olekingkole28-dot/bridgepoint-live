@@ -1,0 +1,28 @@
+name: Diagnose V1062 Navigation Freeze
+on:
+  push:
+    paths:
+      - '.github/workflows/diag-v1062-freeze.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Fetch V1062
+        run: |
+          git fetch origin ui-v1062-full-runtime-nav:refs/remotes/origin/ui-v1062-full-runtime-nav
+          rm -rf /tmp/v1062 && mkdir -p /tmp/v1062
+          git archive origin/ui-v1062-full-runtime-nav | tar -x -C /tmp/v1062
+      - name: Find reactive scripts
+        run: |
+          cd /tmp/v1062/app
+          echo '=== MUTATION OBSERVERS ==='
+          grep -R -n -E 'MutationObserver|observe\(' -- *.js || true
+          echo '=== TAB EVENT LISTENERS ==='
+          grep -R -n -E 'bridgepoint-tab-v1055|bp1042-properties|BridgePointOpenPropertiesV1042|bp1055-(home|properties)' -- *.js || true
+          echo '=== HIGH FREQUENCY TIMERS ==='
+          grep -R -n -E 'setInterval\([^,]+,[ ]*(50|100|150|200|250|300|400|500|600|700|800|900|1000)\)' -- *.js || true
