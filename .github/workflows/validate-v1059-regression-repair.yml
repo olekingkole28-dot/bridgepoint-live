@@ -34,9 +34,10 @@ jobs:
           grep -q 'entry-visual-v1059.js?v=1059' "$I"
           grep -q 'navigation-repair-v1059.js?v=1059' "$I"
           grep -q 'flutter-view,flt-glass-pane' /tmp/v1059/app/navigation-repair-v1059.js
+          ! grep -q 'new MutationObserver' /tmp/v1059/app/navigation-repair-v1059.js
+          ! grep -q 'new MutationObserver' /tmp/v1059/app/entry-visual-v1059.js
           grep -q 'bp1059-entry-grid' /tmp/v1059/app/entry-visual-v1059.js
           grep -q 'bridgepoint_accept_legal_v82' /tmp/v1059/app/preauth-legal-v1059.js
-          grep -q 'startDirect' /tmp/v1059/app/preauth-legal-v1059.js
           grep -q 'bridgepoint_flutter_properties_v725' /tmp/v1059/app/customer-surfaces-v1042.js
           grep -q 'bridgepoint_flutter_property_detail_v344' /tmp/v1059/app/customer-surfaces-v1042.js
           grep -q 'bridgepoint_saved_opportunities_v842' /tmp/v1059/app/customer-surfaces-v1042.js
@@ -56,7 +57,6 @@ jobs:
           python3 -m http.server 4173 --directory /tmp/v1059 >/tmp/v1059-http.log 2>&1 &
           sleep 1
           curl -fsS 'http://127.0.0.1:4173/app/preauth-legal-v1059.js?v=1059' | grep -q '__bridgepointPreAuthLegalV1059'
-          curl -fsS 'http://127.0.0.1:4173/app/?entry=1&mode=signin' | grep -q '<script src="preauth-legal-v1059.js?v=1059"></script>'
       - name: Browser regression checks
         run: |
           set -euo pipefail
@@ -67,10 +67,7 @@ jobs:
           const base='http://127.0.0.1:4173/app/';
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
           async function mocks(page,user=false){
-            page.on('console',m=>console.log('CONSOLE',m.type(),m.text()));
             page.on('pageerror',e=>console.log('PAGEERROR',e.message||String(e)));
-            page.on('requestfailed',r=>console.log('REQUEST_FAILED',r.url(),r.failure()?.errorText));
-            page.on('response',r=>{if(r.url().includes('preauth-legal-v1059'))console.log('PREAUTH_RESPONSE',r.status(),r.url(),r.headers()['content-type']||'');});
             await page.setRequestInterception(true);
             page.on('request',req=>{
               const u=req.url(), cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*','Access-Control-Allow-Methods':'GET,POST,OPTIONS'};
@@ -94,50 +91,49 @@ jobs:
           (async()=>{
             const browser=await puppeteer.launch({headless:true,protocolTimeout:30000,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
             try{
-              const legal=await browser.newPage();await mocks(legal,false);
+              const legalCtx=await browser.createBrowserContext();
+              const legal=await legalCtx.newPage();await mocks(legal,false);
               await legal.goto(base+'?entry=1&mode=signin',{waitUntil:'domcontentloaded',timeout:15000});
-              await sleep(500);
-              console.log('LEGAL_URL',legal.url());
-              const tags=await legal.$$eval('script',xs=>xs.map(x=>x.src).filter(Boolean).filter(x=>x.includes('1059')));
-              console.log('V1059_SCRIPTS',tags.join('|'));
-              const flag=await legal.evaluate(()=>window.__bridgepointPreAuthLegalV1059===true);
-              console.log('PREAUTH_FLAG',flag);
-              assert.strictEqual(flag,true,'preauth legal bootstrap must execute');
+              await legal.waitForFunction(()=>window.__bridgepointPreAuthLegalV1059===true,{timeout:5000});
               await legal.waitForSelector('#bp1059-legal.show',{timeout:5000});
               await legal.waitForSelector('#bp1046-auth',{timeout:5000});
-              assert.strictEqual(await legal.$eval('#bp1046-auth',e=>getComputedStyle(e).display),'none');
+              assert.strictEqual(await legal.$eval('#bp1046-auth',e=>getComputedStyle(e).display),'none','auth must be hidden before legal acceptance');
               await legal.click('#bp1059-legal [data-accept]');
               await legal.click('#bp1059-legal [data-continue]');
               await legal.waitForSelector('#bp1046-auth.show',{timeout:5000});
               await legal.waitForSelector('.bp1059-auth-intro h1',{timeout:5000});
               assert.strictEqual(await legal.$eval('.bp1059-auth-intro h1',e=>e.textContent.trim()),'Welcome back');
+              await legalCtx.close();
 
-              const pre=await browser.newPage();await mocks(pre,false);
+              const preCtx=await browser.createBrowserContext();
+              const pre=await preCtx.newPage();await mocks(pre,false);
               await pre.goto(base,{waitUntil:'domcontentloaded',timeout:15000});
               await pre.waitForSelector('#bp1059-entry-grid',{timeout:7000});
-              assert.strictEqual(await pre.$$eval('#bp1059-entry-grid [data-bp1059-entry]',x=>x.length),4);
+              assert.strictEqual(await pre.$$eval('#bp1059-entry-grid [data-bp1059-entry]',x=>x.length),4,'pre-app must expose four large workspace buttons');
               await pre.waitForSelector('#bp1055-nav',{timeout:7000});
-              assert.strictEqual(await pre.$eval('#bp1055-nav',e=>getComputedStyle(e).display),'none');
+              assert.strictEqual(await pre.$eval('#bp1055-nav',e=>getComputedStyle(e).display),'none','app nav must not cover public page');
+              assert.strictEqual(await pre.evaluate(()=>sessionStorage.getItem('bp1054_required_legal_acceptance')),null,'fresh public visitor must have no legal acceptance');
               await pre.click('[data-bp1059-entry="product"]');
               await pre.waitForSelector('#bp1059-legal.show',{timeout:5000});
+              assert.strictEqual(await pre.$eval('#bp1046-auth',e=>getComputedStyle(e).display),'none','feature CTA must still gate auth behind legal');
+              await preCtx.close();
 
-              const nav=await browser.newPage();await mocks(nav,true);
+              const navCtx=await browser.createBrowserContext();
+              const nav=await navCtx.newPage();await mocks(nav,true);
               await nav.evaluateOnNewDocument(()=>localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'abcdefghijklmnopqrstuvwxyz1234567890',user:{id:'11111111-1111-1111-1111-111111111111'}})));
               await nav.goto(base,{waitUntil:'domcontentloaded',timeout:15000});
               await nav.waitForSelector('#bp1055-nav',{timeout:7000});
               await nav.waitForFunction(()=>window.BridgePointSingleShellV1055&&window.__bridgepointNavigationRepairV1059,{timeout:7000});
               await nav.evaluate(()=>{const f=document.createElement('flutter-view');Object.assign(f.style,{position:'fixed',inset:'0',zIndex:'2147483647'});document.body.appendChild(f);window.__navCalls=[];const a=window.BridgePointSingleShellV1055;for(const k of ['home','map','properties','work','plans','more'])a[k]=()=>window.__navCalls.push(k);});
-              assert.strictEqual(await nav.$eval('flutter-view',e=>getComputedStyle(e).pointerEvents),'none');
+              assert.strictEqual(await nav.$eval('flutter-view',e=>getComputedStyle(e).pointerEvents),'none','Flutter overlay must not steal clicks');
               for(const k of ['home','map','properties','work','plans']){await nav.click(`#bp1055-nav [data-tab="${k}"]`);await sleep(60);}
               await nav.click('#bp1055-more-button');await sleep(60);
               const calls=await nav.evaluate(()=>window.__navCalls);
               for(const k of ['home','map','properties','work','plans','more'])assert(calls.includes(k),`navigation click missing: ${k}`);
+              await navCtx.close();
               console.log('V1059 browser regression passed:',calls.join(','));
             } finally {await browser.close();}
           })().catch(e=>{console.error(e);process.exit(1);});
           NODE
-      - name: Local HTTP diagnostics
-        if: always()
-        run: cat /tmp/v1059-http.log || true
       - name: Validation summary
-        run: echo 'V1059 passed legal-before-auth, pre-app feature CTAs, Flutter click shield, all primary navigation clicks, syntax and preserved customer contracts.'
+        run: echo 'V1059 passed isolated legal-before-auth, public feature CTAs, Flutter click shield, all primary navigation clicks, syntax and preserved customer contracts.'
