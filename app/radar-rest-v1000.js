@@ -1,12 +1,16 @@
 (()=>{
 'use strict';
-if(window.__bridgepointRadarRestV1000)return;
-window.__bridgepointRadarRestV1000=true;
+if(window.__bridgepointRadarRestV1001)return;
+window.__bridgepointRadarRestV1001=true;
 
 const LEAFLET_JS='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
 const LEAFLET_CSS='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-const EXPORT='https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer/exportImage';
+const IMAGE_SERVER='https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer';
+const EXPORT=`${IMAGE_SERVER}/exportImage`;
+const QUERY=`${IMAGE_SERVER}/query`;
 let leafletPromise=null;
+let catalogPromise=null;
+let catalogLoadedAt=0;
 
 function ensureLeaflet(){
   if(window.L)return Promise.resolve(window.L);
@@ -27,13 +31,52 @@ function status(text,bad=false){
   el.textContent=text;
   el.style.color=bad?'#ff9a9a':'#48e1ff';
 }
+async function loadRadarCatalog(force=false){
+  const fresh=Date.now()-catalogLoadedAt<180000;
+  if(catalogPromise&&fresh&&!force)return catalogPromise;
+  catalogPromise=(async()=>{
+    const u=new URL(QUERY);
+    u.searchParams.set('where','category = 1');
+    u.searchParams.set('outFields','objectid,idp_validtime,idp_subset,name,category');
+    u.searchParams.set('returnGeometry','false');
+    u.searchParams.set('orderByFields','idp_validtime DESC');
+    u.searchParams.set('resultRecordCount','1000');
+    u.searchParams.set('f','json');
+    const r=await fetch(u.toString(),{cache:'no-store'});
+    if(!r.ok)throw new Error(`NOAA catalog ${r.status}`);
+    const j=await r.json();
+    const rows=(j.features||[]).map(x=>x?.attributes||{}).map(a=>({
+      id:Number(a.objectid),
+      time:Number(a.idp_validtime),
+      subset:String(a.idp_subset||''),
+      name:String(a.name||'')
+    })).filter(x=>Number.isFinite(x.id)&&Number.isFinite(x.time));
+    if(!rows.length)throw new Error('NOAA catalog empty');
+    const groups=new Map();
+    for(const row of rows){
+      if(!groups.has(row.time))groups.set(row.time,{time:row.time,ids:[],rows:[]});
+      const g=groups.get(row.time);g.ids.push(row.id);g.rows.push(row);
+    }
+    const frames=[...groups.values()].sort((a,b)=>a.time-b.time);
+    if(!frames.length)throw new Error('NOAA frame catalog empty');
+    catalogLoadedAt=Date.now();
+    return frames;
+  })().catch(e=>{catalogPromise=null;throw e;});
+  return catalogPromise;
+}
+function nearestFrame(frames,target){
+  if(!frames?.length||!Number.isFinite(target))return null;
+  let best=frames[frames.length-1],dist=Math.abs(best.time-target);
+  for(const f of frames){const d=Math.abs(f.time-target);if(d<dist){best=f;dist=d;}}
+  return best;
+}
 function installReliableRadar(){
   const L=window.L;
-  if(!L||L.tileLayer.__bp1000RadarPatched)return;
+  if(!L||L.tileLayer.__bp1001RadarPatched)return;
   const originalWms=L.tileLayer.wms;
   const ReliableRadar=L.Layer.extend({
-    options:{opacity:.82,attribution:'NOAA/NWS MRMS'},
-    initialize(options){L.setOptions(this,options||{});this._time=null;this._overlay=null;this._map=null;this._timer=null;this._seq=0;},
+    options:{opacity:.84,attribution:'NOAA/NWS MRMS'},
+    initialize(options){L.setOptions(this,options||{});this._time=null;this._frame=null;this._overlay=null;this._map=null;this._timer=null;this._seq=0;},
     onAdd(map){
       this._map=map;
       if(!map.getPane('bp1000RadarPane')){const p=map.createPane('bp1000RadarPane');p.style.zIndex='450';p.style.pointerEvents='none';}
@@ -58,10 +101,10 @@ function installReliableRadar(){
     },
     redraw(){
       clearTimeout(this._timer);
-      this._timer=setTimeout(()=>this._request(false),70);
+      this._timer=setTimeout(()=>void this._request(false),70);
       return this;
     },
-    _buildUrl(useLatest){
+    _buildUrl(frame,useLatest){
       const map=this._map,b=map.getBounds(),size=map.getSize(),dpr=Math.min(1.75,Math.max(1,window.devicePixelRatio||1));
       const west=Math.max(-180,b.getWest()),east=Math.min(180,b.getEast()),south=Math.max(-85,b.getSouth()),north=Math.min(85,b.getNorth());
       const w=Math.min(1800,Math.max(512,Math.round(size.x*dpr))),h=Math.min(1200,Math.max(384,Math.round(size.y*dpr)));
@@ -74,36 +117,42 @@ function installReliableRadar(){
       u.searchParams.set('transparent','true');
       u.searchParams.set('interpolation','RSP_BilinearInterpolation');
       u.searchParams.set('f','image');
-      if(!useLatest&&this._time)u.searchParams.set('time',String(Math.round(this._time)));
+      if(!useLatest&&frame?.ids?.length){
+        u.searchParams.set('mosaicRule',JSON.stringify({mosaicMethod:'esriMosaicLockRaster',lockRasterIds:frame.ids.slice(0,20),mosaicOperation:'MT_FIRST'}));
+      }
       u.searchParams.set('_bp',String(Date.now()));
-      return {url:u.toString(),bounds:[[south,west],[north,east]],hasTime:!useLatest&&!!this._time};
+      return {url:u.toString(),bounds:[[south,west],[north,east]],locked:!useLatest&&!!frame?.ids?.length};
     },
-    _request(useLatest){
+    async _request(useLatest){
       if(!this._map)return;
-      const seq=++this._seq,req=this._buildUrl(useLatest);
-      status(req.hasTime?'NOAA MRMS radar • loading selected frame…':'NOAA MRMS radar • loading latest frame…');
+      const seq=++this._seq;
+      let frame=null;
+      if(!useLatest&&this._time){
+        try{frame=nearestFrame(await loadRadarCatalog(),this._time);}catch(e){console.warn('BridgePoint NOAA catalog fallback',e);}
+      }
+      const req=this._buildUrl(frame,useLatest||!frame);
+      this._frame=frame;
+      status(req.locked?'NOAA MRMS radar • loading exact historical raster…':'NOAA MRMS radar • loading latest live image…');
       const probe=new Image();
       probe.decoding='async';
       probe.onload=()=>{
         if(seq!==this._seq||!this._map)return;
         if(!this._overlay){
-          this._overlay=L.imageOverlay(req.url,req.bounds,{opacity:Number(this.options.opacity)||.82,interactive:false,pane:'bp1000RadarPane',className:'bp1000-radar-image'}).addTo(this._map);
+          this._overlay=L.imageOverlay(req.url,req.bounds,{opacity:Number(this.options.opacity)||.84,interactive:false,pane:'bp1000RadarPane',className:'bp1000-radar-image'}).addTo(this._map);
         }else{
           this._overlay.setBounds(req.bounds);
           this._overlay.setUrl(req.url);
           if(!this._map.hasLayer(this._overlay))this._overlay.addTo(this._map);
         }
-        const d=this._time?new Date(this._time):new Date();
-        status(`NOAA MRMS radar LIVE • ${useLatest?'latest':d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}`);
+        const d=frame?new Date(frame.time):new Date();
+        status(`NOAA MRMS radar LIVE • ${frame?d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'latest'}`);
       };
       probe.onerror=()=>{
         if(seq!==this._seq||!this._map)return;
-        if(req.hasTime){
-          status('NOAA frame missed • falling back to latest live radar…');
-          this._request(true);
-        }else{
-          status('NOAA radar image failed to load',true);
-        }
+        if(req.locked){
+          status('NOAA historical raster missed • falling back to latest live radar…');
+          void this._request(true);
+        }else status('NOAA radar image failed to load',true);
       };
       probe.src=req.url;
     }
@@ -112,7 +161,7 @@ function installReliableRadar(){
     if(/radar_base_reflectivity_time\/ImageServer\/WMSServer/i.test(String(url||'')))return new ReliableRadar(options||{});
     return originalWms.call(this,url,options);
   };
-  L.tileLayer.__bp1000RadarPatched=true;
+  L.tileLayer.__bp1001RadarPatched=true;
 }
 
 const originalOpen=window.BridgePointOpenIntelligenceMapV974;
@@ -123,5 +172,5 @@ if(typeof originalOpen==='function'){
     return originalOpen.apply(this,arguments);
   };
 }
-window.BridgePointRadarV1000={ensureLeaflet,installReliableRadar};
+window.BridgePointRadarV1000={ensureLeaflet,installReliableRadar,loadRadarCatalog};
 })();
