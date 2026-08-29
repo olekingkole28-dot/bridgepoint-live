@@ -1,0 +1,111 @@
+name: Deploy BridgePoint V1066 Regression Baseline
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-v1066-regression-baseline.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Assemble exact tested V1066 artifact
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          expected='d714e802ff67020ba1a374c0ca67a615c3ef8c86'
+          actual="$(git rev-parse origin/live-artifact)"
+          echo "live-artifact=${actual}"
+          test "$actual" = "$expected"
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          cd site/app
+          for f in legal-entry-reset-v1066.js entry-experience-v1066.js state-property-search-v1066.js nav-single-owner-v1062.js preauth-legal-v1059.js auth-restoration-v1046.js; do test -s "$f"; node --check "$f"; done
+          grep -F 'data-bridgepoint-runtime="v1066"' index.html
+          grep -F 'legal-entry-reset-v1066.js?v=1066' index.html
+          grep -F 'entry-experience-v1066.js?v=1066' index.html
+          grep -F 'state-property-search-v1066.js?v=1066' index.html
+          grep -F 'nav-single-owner-v1062.js?v=1066' index.html
+          grep -F 'bridgepoint_flutter_properties_v1066' state-property-search-v1066.js
+          grep -F 'data-tab="plans"' nav-single-owner-v1062.js
+          grep -F 'data-tab="more"' nav-single-owner-v1062.js
+          ! grep -F 'state-property-search-v1065.js' index.html
+          ! grep -F 'entry-visual-v1059.js' index.html
+          ! grep -F 'preapp-buttons-v1060.js' index.html
+          ! grep -F 'preapp-links-v1063.js' index.html
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' index.html legal-entry-reset-v1066.js entry-experience-v1066.js state-property-search-v1066.js
+          cd ../..
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {path: site}
+      - name: Deploy exact V1066
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify public V1066 files
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 18); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1066&verify=${salt}" 2>/dev/null || true)"
+            entry="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/entry-experience-v1066.js?verify=${salt}" 2>/dev/null || true)"
+            search="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/state-property-search-v1066.js?verify=${salt}" 2>/dev/null || true)"
+            legal="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/legal-entry-reset-v1066.js?verify=${salt}" 2>/dev/null || true)"
+            nav="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/nav-single-owner-v1062.js?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1066"' \
+              && printf '%s' "$app" | grep -q 'entry-experience-v1066.js?v=1066' \
+              && printf '%s' "$app" | grep -q 'state-property-search-v1066.js?v=1066' \
+              && printf '%s' "$entry" | grep -q 'EXPLORE BRIDGEPOINT' \
+              && printf '%s' "$entry" | grep -q 'Deep Tech' \
+              && printf '%s' "$search" | grep -q 'bridgepoint_flutter_properties_v1066' \
+              && printf '%s' "$legal" | grep -q 'bp1054_required_legal_acceptance' \
+              && printf '%s' "$nav" | grep -q 'data-tab="plans"' \
+              && printf '%s' "$nav" | grep -q 'data-tab="more"'; then
+              echo 'PUBLIC_V1066_FILES_PASS'
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'Public V1066 files did not converge' >&2
+          exit 1
+      - name: Verify public V1066 entry flow in mobile Chrome
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp && npm init -y >/dev/null 2>&1 && npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,protocolTimeout:40000,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
+            try{
+              const ctx=await browser.createBrowserContext(),page=await ctx.newPage();
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('https://bridgepointintelligence.online/app/?verify1066='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await page.waitForSelector('#bp1066-preapp-actions',{timeout:15000});
+              assert.strictEqual(await page.$$eval('#bp1066-preapp-actions .bp1066e-card',x=>x.length),6);
+              await page.$eval('[data-bp1066-entry="product"]',b=>b.scrollIntoView({block:'center'}));
+              await new Promise(r=>setTimeout(r,150));
+              const hit=await page.$eval('[data-bp1066-entry="product"]',b=>{const r=b.getBoundingClientRect(),e=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return e?.closest?.('[data-bp1066-entry]')?.getAttribute('data-bp1066-entry')||null});
+              assert.strictEqual(hit,'product');
+              await page.click('[data-bp1066-entry="product"]');
+              await page.waitForSelector('#bp1059-legal.show [data-accept]',{timeout:15000});
+              assert.strictEqual(await page.evaluate(()=>{const a=document.getElementById('bp1046-auth');return !a||getComputedStyle(a).display==='none'}),true);
+              console.log('PUBLIC_V1066_ENTRY_PASS');
+              await ctx.close();
+            }finally{await browser.close();}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
