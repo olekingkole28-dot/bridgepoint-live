@@ -1,0 +1,32 @@
+name: Validate BridgePoint V1065 State Search
+
+on:
+  push:
+    branches:
+      - ui-v1065-state-search
+      - live-artifact
+    paths:
+      - 'app/state-property-search-v1065.js'
+      - 'app/index.html'
+      - '.github/workflows/validate-v1065-state-search.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check state search JavaScript
+        run: node --check app/state-property-search-v1065.js
+      - name: Verify V1065 runtime wiring
+        run: |
+          grep -F 'data-bridgepoint-runtime="v1065"' app/index.html
+          grep -F 'state-property-search-v1065.js?v=1065' app/index.html
+          grep -F "bridgepoint_flutter_properties_v1065" app/state-property-search-v1065.js
+          grep -F 'BridgePointStatePropertySearchV1065' app/state-property-search-v1065.js
+      - name: Reject merge markers
+        run: |
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' app/state-property-search-v1065.js app/index.html
