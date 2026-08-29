@@ -1,0 +1,92 @@
+name: Validate V1058 Intelligence Lab
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/validate-v1058-intelligence-lab.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch staged V1058
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin ui-v1058-intelligence-lab:refs/remotes/origin/ui-v1058-intelligence-lab
+          rm -rf /tmp/v1058 && mkdir -p /tmp/v1058
+          git archive origin/ui-v1058-intelligence-lab app | tar -x -C /tmp/v1058
+          test -s /tmp/v1058/app/index.html
+          test -s /tmp/v1058/app/intelligence-lab-v1058.js
+      - name: JavaScript syntax checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/v1058/app
+          for f in intelligence-lab-v1058.js workflow-tools-v1057.js product-tools-v1056.js single-shell-v1055.js trial-access-v1055.js entitlement-ux-v1055.js runtime-self-heal-v1055.js work-hub-v1054.js app-more-v1054.js property-360-v1046.js customer-surfaces-v1042.js plans-primary-v1042.js; do node --check "$f"; done
+      - name: Entrypoint wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          I=/tmp/v1058/app/index.html
+          grep -q 'data-bridgepoint-runtime="v1058"' "$I"
+          grep -q 'intelligence-lab-v1058.js?v=1058' "$I"
+          grep -q 'workflow-tools-v1057.js?v=1058' "$I"
+          grep -q 'product-tools-v1056.js?v=1058' "$I"
+          grep -q 'single-shell-v1055.js?v=1058' "$I"
+          ! grep -q 'flutter_bootstrap.js' "$I"
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' /tmp/v1058/app/*.js "$I"
+      - name: Intelligence Lab contract references
+        shell: bash
+        run: |
+          set -euo pipefail
+          F=/tmp/v1058/app/intelligence-lab-v1058.js
+          grep -q 'bridgepoint_intelligence_lab_context_v1058' "$F"
+          grep -q 'bridgepoint_pattern_intelligence_v212' "$F"
+          grep -q 'bridgepoint_pattern_geography_v900' "$F"
+          grep -q 'bridgepoint_model_transparency_v509' "$F"
+          grep -q 'bridgepoint_owner_pattern_intelligence_v319' "$F"
+          grep -q 'bridgepoint_owner_pattern_moat_v735' "$F"
+          grep -q 'bridgepoint_owner_source_value_v252' "$F"
+      - name: Preserve V1057 and V1056 contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'bridgepoint_workflow_tools_v1057' /tmp/v1058/app/workflow-tools-v1057.js
+          grep -q 'bridgepoint_prepare_crm_export_v87' /tmp/v1058/app/workflow-tools-v1057.js
+          grep -q 'bridgepoint_custom_model_builder_v1057' /tmp/v1058/app/workflow-tools-v1057.js
+          grep -q 'bridgepoint_product_tools_v1056' /tmp/v1058/app/product-tools-v1056.js
+          grep -q 'bridgepoint-geographic-checkout-v1056' /tmp/v1058/app/product-tools-v1056.js
+      - name: Preserve customer critical contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'bridgepoint_flutter_properties_v725' /tmp/v1058/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_flutter_property_detail_v344' /tmp/v1058/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_saved_opportunities_v842' /tmp/v1058/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_claims_workspace_v833' /tmp/v1058/app/work-hub-v1054.js
+          grep -q 'bridgepoint_calendar_agenda_v835' /tmp/v1058/app/work-hub-v1054.js
+          grep -q 'bridgepoint-checkout-v67' /tmp/v1058/app/plans-primary-v1042.js
+      - name: Auth guard checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          project='https://xdfsjztwgsbmabshzsjw.supabase.co'
+          key='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25'
+          for fn in bridgepoint_intelligence_lab_context_v1058 bridgepoint_pattern_intelligence_v212 bridgepoint_pattern_geography_v900; do
+            code=$(curl -sS -o "/tmp/${fn}.json" -w '%{http_code}' -X POST "$project/rest/v1/rpc/$fn" -H "apikey: $key" -H "Authorization: Bearer $key" -H 'Content-Type: application/json' -d '{}')
+            test "$code" = '401' || test "$code" = '400'
+          done
+      - name: Local node regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile /tmp/v1058/app/downloads/bridgepoint_local_node_v1055.py
+          pwsh -NoProfile -Command "[scriptblock]::Create((Get-Content -Raw '/tmp/v1058/app/downloads/install_bridgepoint_local_node_v1055.ps1')) | Out-Null"
+      - name: Validation summary
+        run: echo 'V1058 Intelligence Lab passed syntax, wiring, customer-contract, prior-restoration and auth-guard regressions.'
