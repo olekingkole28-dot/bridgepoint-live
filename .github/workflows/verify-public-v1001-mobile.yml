@@ -1,0 +1,111 @@
+name: Verify public v1001 mobile
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/verify-public-v1001-mobile.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  mobile-live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install browser verification dependencies
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0 pngjs@7
+          npx playwright install --with-deps chromium
+      - name: Exercise live Android-size app and radar
+        run: |
+          node <<'NODE'
+          const {chromium}=require('playwright');
+          const {PNG}=require('pngjs');
+          const fs=require('fs');
+
+          function diffRatio(a,b){
+            const A=PNG.sync.read(a),B=PNG.sync.read(b);
+            if(A.width!==B.width||A.height!==B.height)throw new Error('screenshot size mismatch');
+            let changed=0,total=0;
+            const top=95,bottom=A.height-120;
+            for(let y=top;y<bottom;y++)for(let x=0;x<A.width;x++){
+              const i=(y*A.width+x)*4;
+              const d=Math.abs(A.data[i]-B.data[i])+Math.abs(A.data[i+1]-B.data[i+1])+Math.abs(A.data[i+2]-B.data[i+2]);
+              if(d>45)changed++; total++;
+            }
+            return changed/Math.max(1,total);
+          }
+          function radarPixels(buf){
+            const p=PNG.sync.read(buf);let visible=0,colored=0;const buckets=new Set();
+            for(let i=0;i<p.data.length;i+=4){
+              const r=p.data[i],g=p.data[i+1],b=p.data[i+2],a=p.data[i+3];
+              if(a>10){visible++;if(Math.max(r,g,b)-Math.min(r,g,b)>12){colored++;buckets.add(`${r>>4},${g>>4},${b>>4}`)}}
+            }
+            return {visible,colored,buckets:buckets.size};
+          }
+
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true,userAgent:'Mozilla/5.0 (Linux; Android 16; BridgePoint-QA) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'});
+            const page=await context.newPage();
+            page.on('console',m=>console.log('BROWSER',m.type(),m.text()));
+            page.on('pageerror',e=>console.log('PAGEERROR',String(e)));
+            const start=Date.now();
+            await page.goto(`https://bridgepointintelligence.online/app/?bpv=v1001&qa=${Date.now()}`,{waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForFunction(()=>document.body?.dataset?.bridgepointRuntime==='v1001',{timeout:30000});
+            const shellMs=Date.now()-start;
+            console.log('v1001 shell DOM ready ms',shellMs);
+
+            await page.waitForSelector('#bp984-entry.show',{timeout:30000});
+            const langCount=await page.locator('#bp984-entry select option').count();
+            console.log('entry language options',langCount);
+            if(langCount<27)throw new Error(`expected >=27 language options, got ${langCount}`);
+
+            await page.waitForSelector('flutter-view',{state:'attached',timeout:90000});
+            const flutterMs=Date.now()-start;
+            console.log('flutter-view attached ms',flutterMs);
+            await page.evaluate(()=>{document.getElementById('bp984-entry')?.classList.remove('show');document.documentElement.style.setProperty('scroll-behavior','auto');});
+            await page.waitForFunction(()=>window.BridgePointShellV1000?.getMode?.()==='home',{timeout:15000});
+            await page.waitForTimeout(1200);
+
+            const taps=[['properties',195],['worth',273],['more',351]];
+            const shots={};
+            for(const [name,x] of taps){
+              await page.touchscreen.tap(x,815);
+              await page.waitForFunction(n=>window.BridgePointShellV1000?.getMode?.()===n,name,{timeout:10000});
+              await page.waitForTimeout(1800);
+              shots[name]=await page.screenshot({fullPage:false});
+              fs.writeFileSync(`/tmp/${name}.png`,shots[name]);
+              console.log('tab reached',name);
+            }
+            const pw=diffRatio(shots.properties,shots.worth);
+            const wm=diffRatio(shots.worth,shots.more);
+            const pm=diffRatio(shots.properties,shots.more);
+            console.log('screen diff ratios',{propertiesWorth:pw,worthMore:wm,propertiesMore:pm});
+            if(Math.max(pw,wm,pm)<0.01)throw new Error('Properties/Worth/More rendered effectively the same Flutter screen');
+
+            await page.touchscreen.tap(39,815);
+            await page.waitForFunction(()=>window.BridgePointShellV1000?.getMode?.()==='home',{timeout:10000});
+            await page.evaluate(async()=>{await window.BridgePointOpenMapV993?.();});
+            await page.waitForSelector('#bp974-map-dialog.show',{timeout:30000});
+            await page.waitForFunction(()=>document.querySelector('#bp974-map-dialog [data-state]')?.value==='US',{timeout:20000});
+            await page.waitForFunction(()=>{const i=document.querySelector('.bp1000-radar-image');return i&&i.complete&&i.naturalWidth>10&&String(i.src).includes('exportImage')},{timeout:45000});
+            const radarSrc=await page.locator('.bp1000-radar-image').getAttribute('src');
+            console.log('live radar source prefix',String(radarSrc).slice(0,180));
+            const response=await fetch(radarSrc);
+            if(!response.ok)throw new Error(`live radar image HTTP ${response.status}`);
+            const radarBuf=Buffer.from(await response.arrayBuffer());
+            const rp=radarPixels(radarBuf);
+            console.log('live production radar pixels',rp);
+            if(rp.visible<25||rp.colored<25||rp.buckets<2)throw new Error('production radar overlay has no meaningful colored pixels');
+            await page.screenshot({path:'/tmp/live-map.png',fullPage:false});
+
+            await browser.close();
+            console.log('PUBLIC V1001 MOBILE VERIFICATION PASSED');
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
