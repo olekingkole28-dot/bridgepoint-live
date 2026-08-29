@@ -1,0 +1,90 @@
+name: Deploy BridgePoint Intelligence Lab V1058
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-intelligence-lab-v1058.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assemble exact V1058 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/intelligence-lab-v1058.js
+          node --check site/app/intelligence-lab-v1058.js
+          node --check site/app/workflow-tools-v1057.js
+          node --check site/app/product-tools-v1056.js
+          node --check site/app/single-shell-v1055.js
+          grep -q 'data-bridgepoint-runtime="v1058"' site/app/index.html
+          grep -q 'intelligence-lab-v1058.js?v=1058' site/app/index.html
+          grep -q 'bridgepoint_intelligence_lab_context_v1058' site/app/intelligence-lab-v1058.js
+          grep -q 'bridgepoint_pattern_intelligence_v212' site/app/intelligence-lab-v1058.js
+          grep -q 'bridgepoint_pattern_geography_v900' site/app/intelligence-lab-v1058.js
+          grep -q 'bridgepoint_model_transparency_v509' site/app/intelligence-lab-v1058.js
+          grep -q 'bridgepoint_owner_source_value_v252' site/app/intelligence-lab-v1058.js
+          grep -q 'bridgepoint_workflow_tools_v1057' site/app/workflow-tools-v1057.js
+          grep -q 'bridgepoint_product_tools_v1056' site/app/product-tools-v1056.js
+          ! grep -q 'flutter_bootstrap.js' site/app/index.html
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' site/app/*.js site/app/index.html
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy V1058
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify public V1058 Intelligence Lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          project='https://xdfsjztwgsbmabshzsjw.supabase.co'
+          key='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25'
+          for attempt in $(seq 1 45); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1058&verify=${salt}" 2>/dev/null || true)"
+            lab="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/intelligence-lab-v1058.js?verify=${salt}" 2>/dev/null || true)"
+            wf="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/workflow-tools-v1057.js?verify=${salt}" 2>/dev/null || true)"
+            pt="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/product-tools-v1056.js?verify=${salt}" 2>/dev/null || true)"
+            ctx_code="$(curl -sS -o /tmp/lab1058.json -w '%{http_code}' --max-time 20 -X POST "${project}/rest/v1/rpc/bridgepoint_intelligence_lab_context_v1058" -H "apikey: ${key}" -H "Authorization: Bearer ${key}" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1058"' \
+              && printf '%s' "$app" | grep -q 'intelligence-lab-v1058.js?v=1058' \
+              && printf '%s' "$lab" | grep -q 'BRIDGEPOINT INTELLIGENCE LAB' \
+              && printf '%s' "$lab" | grep -q 'bridgepoint_pattern_intelligence_v212' \
+              && printf '%s' "$lab" | grep -q 'bridgepoint_pattern_geography_v900' \
+              && printf '%s' "$lab" | grep -q 'bridgepoint_model_transparency_v509' \
+              && printf '%s' "$lab" | grep -q 'bridgepoint_owner_pattern_moat_v735' \
+              && printf '%s' "$lab" | grep -q 'bridgepoint_owner_source_value_v252' \
+              && printf '%s' "$wf" | grep -q 'BRIDGEPOINT WORKFLOW TOOLS' \
+              && printf '%s' "$pt" | grep -q 'BRIDGEPOINT PRODUCT TOOLS' \
+              && { test "$ctx_code" = '401' || test "$ctx_code" = '400'; }; then
+              echo 'V1058 publicly verified: Intelligence Lab live; V1057 Workflow Tools and V1056 Product Tools preserved.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'V1058 public verification did not converge.' >&2
+          exit 1
