@@ -1,0 +1,115 @@
+name: Validate V1061 Single Owner Navigation
+on:
+  push:
+    paths:
+      - '.github/workflows/validate-v1061-nav.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Fetch staged V1061
+        run: |
+          set -euo pipefail
+          git fetch origin ui-v1061-nav-single-owner:refs/remotes/origin/ui-v1061-nav-single-owner
+          rm -rf /tmp/v1061 && mkdir -p /tmp/v1061
+          git archive origin/ui-v1061-nav-single-owner | tar -x -C /tmp/v1061
+          echo "STAGED_SHA=$(git rev-parse origin/ui-v1061-nav-single-owner)"
+      - name: Static guards
+        run: |
+          set -euo pipefail
+          cd /tmp/v1061/app
+          node --check nav-single-owner-v1061.js
+          grep -q 'data-bridgepoint-runtime="v1061"' index.html
+          grep -q 'nav-single-owner-v1061.js?v=1061' index.html
+          grep -q "#bp1055-nav,#bp1055-more-button" nav-single-owner-v1061.js
+          grep -q "nav.id='bp1061-nav'" nav-single-owner-v1061.js
+          grep -q "data-tab=\"more\"" nav-single-owner-v1061.js
+          grep -q "addEventListener('pointerup'" nav-single-owner-v1061.js
+          grep -q "BridgePointOpenPropertiesV1042" nav-single-owner-v1061.js
+          grep -q "BridgePointWorkHubV1054" nav-single-owner-v1061.js
+          grep -q "BridgePointOpenMoreV1042" nav-single-owner-v1061.js
+      - name: Build conflict harness
+        run: |
+          cat >/tmp/v1061/harness.html <<'HTML'
+          <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
+          <section id="bp-live-home-v984" style="display:block">HOME</section>
+          <script>window.BridgePointOpenIntelligenceMapV974=async()=>{let d=document.getElementById('bp974-map-dialog');if(!d){d=document.createElement('div');d.id='bp974-map-dialog';document.body.appendChild(d)}d.classList.add('show')};</script>
+          <script src="/app/customer-surfaces-v1042.js"></script>
+          <script src="/app/work-hub-v1054.js"></script>
+          <script src="/app/app-more-v1054.js"></script>
+          <script src="/app/single-shell-v1055.js"></script>
+          <script src="/app/entitlement-ux-v1055.js"></script>
+          <script src="/app/trial-access-v1055.js"></script>
+          <script src="/app/trial-shell-compat-v1055.js"></script>
+          <script src="/app/runtime-self-heal-v1055.js"></script>
+          <script src="/app/shell-correction-v1060.js"></script>
+          <script src="/app/navigation-repair-v1060.js"></script>
+          <script src="/app/nav-single-owner-v1061.js"></script>
+          </body></html>
+          HTML
+      - name: Browser conflict regression
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          python3 -m http.server 4173 --directory /tmp/v1061 >/tmp/v1061-http.log 2>&1 &
+          sleep 1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,protocolTimeout:45000,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
+            try{
+              const p=await browser.newPage();
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.setRequestInterception(true);
+              p.on('request',req=>{
+                const u=req.url(),cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*','Access-Control-Allow-Methods':'GET,POST,OPTIONS'};
+                if(u.includes('xdfsjztwgsbmabshzsjw.supabase.co')){
+                  if(req.method()==='OPTIONS')return req.respond({status:204,headers:cors,body:''});
+                  let body={};
+                  if(u.includes('bridgepoint_customer_access_contract_v318'))body={owner_override:true,features:['map','property_profiles','favorites','claims_intelligence','calendar'],feature_flags:{}};
+                  else if(u.includes('bridgepoint_trial_access_v1055'))body={owner_override:true,intelligence_active:true,subscriptions:[]};
+                  else if(u.includes('bridgepoint_saved_opportunities_v842'))body={saved_opportunities:[]};
+                  else if(u.includes('bridgepoint_claims_workspace_v833'))body={claims:[],eligible_saved_opportunities:[],claim_stage_options:[]};
+                  else if(u.includes('bridgepoint_calendar_agenda_v835'))body={events:[],unscheduled_routes:[]};
+                  else if(u.includes('bridgepoint_route_plans_v87'))body={routes:[]};
+                  else if(u.includes('bridgepoint_customer_notes_v70'))body={notes:[]};
+                  else if(u.includes('bridgepoint_public_package_catalog_v1054'))body={packages:[]};
+                  else if(u.includes('bridgepoint_public_brand_profile_v1054'))body={social_profiles:[],brand_links:{}};
+                  else if(u.includes('bridgepoint_public_legal_preview_v1054'))body={required_documents:[]};
+                  return req.respond({status:200,contentType:'application/json',headers:cors,body:JSON.stringify(body)});
+                }
+                if(/^https?:/.test(u)&&!u.startsWith('http://127.0.0.1:4173/'))return req.abort();
+                req.continue();
+              });
+              await p.evaluateOnNewDocument(()=>localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'abcdefghijklmnopqrstuvwxyz1234567890',user:{id:'11111111-1111-1111-1111-111111111111'}})));
+              await p.goto('http://127.0.0.1:4173/harness.html',{waitUntil:'domcontentloaded',timeout:15000});
+              await p.waitForSelector('#bp1061-nav',{timeout:7000});
+              await sleep(1800); // allow old trial/entitlement installers to run and try to interfere
+              assert.strictEqual(await p.$('#bp1055-nav'),null,'legacy nav must be removed');
+              assert.strictEqual(await p.$('#bp1055-more-button'),null,'legacy header More must be removed');
+              assert.deepStrictEqual(await p.$$eval('#bp1061-nav [data-tab]',els=>els.map(e=>e.dataset.tab)),['home','map','properties','work','more']);
+              for(const tab of ['home','map','properties','work','more']){
+                const hit=await p.$eval(`#bp1061-nav [data-tab="${tab}"]`,el=>{const r=el.getBoundingClientRect(),h=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return h===el||el.contains(h)});
+                assert.strictEqual(hit,true,`${tab} must own its center touch point`);
+              }
+              async function tap(tab){await p.$eval(`#bp1061-nav [data-tab="${tab}"]`,b=>b.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerType:'touch'})));await sleep(180)}
+              await tap('properties');assert.strictEqual(await p.$eval('#bp1042-properties',e=>e.classList.contains('show')&&getComputedStyle(e).display!=='none'),true,'Properties must visibly open');
+              await tap('work');assert.strictEqual(await p.$eval('#bp1054-work',e=>e.classList.contains('show')&&getComputedStyle(e).display!=='none'),true,'Work must visibly open');
+              await tap('more');assert.strictEqual(await p.$eval('#bp1042-more',e=>e.classList.contains('show')&&getComputedStyle(e).display!=='none'),true,'More must visibly open');
+              await tap('home');assert.strictEqual(await p.$eval('#bp1042-more',e=>e.classList.contains('show')),false,'Home must close More');
+              await tap('map');assert.strictEqual(await p.$eval('#bp974-map-dialog',e=>e.classList.contains('show')),true,'Map must visibly open');
+              console.log('V1061_NAV_CONFLICT_PASS');
+            } finally { await browser.close(); }
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+      - name: Summary
+        run: echo 'V1061 passed with legacy shell, trial guard, entitlement wrapper, V1060 nav repair and V1061 nav loaded together.'
