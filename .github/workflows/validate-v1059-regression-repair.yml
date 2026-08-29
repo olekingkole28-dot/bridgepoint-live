@@ -98,6 +98,7 @@ jobs:
               await legal.goto(base+'?entry=1&mode=signin',{waitUntil:'domcontentloaded',timeout:15000});
               await legal.waitForFunction(()=>window.__bridgepointPreAuthLegalV1059===true,{timeout:5000});
               await legal.waitForSelector('#bp1059-legal.show',{timeout:5000});
+              await legal.waitForSelector('#bp1059-legal [data-accept]',{timeout:5000});
               await legal.waitForSelector('#bp1046-auth',{timeout:5000});
               assert.strictEqual(await legal.$eval('#bp1046-auth',e=>getComputedStyle(e).display),'none','auth must be hidden before legal acceptance');
               await legal.click('#bp1059-legal [data-accept]');
@@ -122,6 +123,7 @@ jobs:
               assert.strictEqual(hit.hit.target,'product','physical public CTA hit-test must land on the Product Tools button');
               await pre.click('[data-bp1059-entry="product"]');
               await pre.waitForSelector('#bp1059-legal.show',{timeout:5000});
+              await pre.waitForSelector('#bp1059-legal [data-accept]',{timeout:5000});
               assert.strictEqual(await pre.evaluate(()=>{const a=document.getElementById('bp1046-auth');return !a||getComputedStyle(a).display==='none';}),true,'feature CTA must keep auth absent or hidden until legal acceptance');
               assert.ok((await pre.evaluate(()=>sessionStorage.getItem('bp1059_entry_intent')||'')).includes('product'),'feature CTA must preserve Product Tools intent');
               await pre.click('#bp1059-legal [data-accept]');
@@ -133,13 +135,20 @@ jobs:
 
               const navCtx=await browser.createBrowserContext();
               const nav=await navCtx.newPage();await mocks(nav,true);
+              await nav.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               await nav.evaluateOnNewDocument(()=>localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'abcdefghijklmnopqrstuvwxyz1234567890',user:{id:'11111111-1111-1111-1111-111111111111'}})));
               await nav.goto(base,{waitUntil:'domcontentloaded',timeout:15000});
               await nav.waitForSelector('#bp1055-nav',{timeout:7000});
               await nav.waitForFunction(()=>window.BridgePointSingleShellV1055&&window.__bridgepointNavigationRepairV1059,{timeout:7000});
               await nav.evaluate(()=>{const f=document.createElement('flutter-view');Object.assign(f.style,{position:'fixed',inset:'0',zIndex:'2147483647'});document.body.appendChild(f);window.__navCalls=[];const a=window.BridgePointSingleShellV1055;for(const k of ['home','map','properties','work','plans','more'])a[k]=()=>window.__navCalls.push(k);});
               assert.strictEqual(await nav.$eval('flutter-view',e=>getComputedStyle(e).pointerEvents),'none','Flutter overlay must not steal clicks');
-              for(const k of ['home','map','properties','work','plans']){await nav.click(`#bp1055-nav [data-tab="${k}"]`);await sleep(60);}
+              for(const k of ['home','map','properties','work','plans']){
+                const hit=await nav.$eval(`#bp1055-nav [data-tab="${k}"]`,b=>{const r=b.getBoundingClientRect(),e=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return e?.closest?.('[data-tab]')?.getAttribute('data-tab')||null;});
+                assert.strictEqual(hit,k,`mobile hit-test must land on ${k} tab`);
+                await nav.click(`#bp1055-nav [data-tab="${k}"]`);await sleep(60);
+              }
+              const moreHit=await nav.$eval('#bp1055-more-button',b=>{const r=b.getBoundingClientRect(),e=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return e?.closest?.('#bp1055-more-button')?.id||null;});
+              assert.strictEqual(moreHit,'bp1055-more-button','mobile hit-test must land on More button');
               await nav.click('#bp1055-more-button');await sleep(60);
               const calls=await nav.evaluate(()=>window.__navCalls);
               for(const k of ['home','map','properties','work','plans','more'])assert(calls.includes(k),`navigation click missing: ${k}`);
@@ -149,4 +158,4 @@ jobs:
           })().catch(e=>{console.error(e);process.exit(1);});
           NODE
       - name: Validation summary
-        run: echo 'V1059 passed legal-before-auth, visible public feature CTA, post-accept auth mounting, Flutter click shield, all primary navigation clicks, syntax and preserved customer contracts.'
+        run: echo 'V1059 passed legal-before-auth, visible public feature CTA, post-accept auth mounting, mobile Flutter click shield, all primary navigation clicks, syntax and preserved customer contracts.'
