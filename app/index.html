@@ -14,34 +14,36 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png?v=999">
-  <link rel="icon" type="image/png" href="favicon.png?v=999">
-  <link rel="manifest" href="manifest.json?v=999">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png?v=1000">
+  <link rel="icon" type="image/png" href="favicon.png?v=1000">
+  <link rel="manifest" href="manifest.json?v=1000">
   <title>BridgePoint Intelligence</title>
   <style>
     html,body{margin:0;width:100%;height:100%;background:#030811;color:#fff}
     body{overflow:hidden}
-    #bp-install,#bp-install-dialog,#bp-pwa-update-v396,#bp-live-home-v972,#bp-live-home-v981,#bp-live-system-v961,#bp983-entry,#bp983-home-mask,#bp994-nav-seam-cover,#bp988-home-hard-cover,#bp998-web-header,#bp998-web-nav{display:none!important;visibility:hidden!important;pointer-events:none!important}
+    #bp-install,#bp-install-dialog,#bp-pwa-update-v396,#bp-live-home-v972,#bp-live-home-v981,#bp-live-system-v961,#bp983-entry,#bp983-home-mask,#bp994-nav-seam-cover,#bp988-home-hard-cover,#bp998-web-header,#bp998-web-nav,#bp999-header,#bp999-nav,#bp999-toast{display:none!important;visibility:hidden!important;pointer-events:none!important}
+    html:not(.bp1000-entry-allowed) #bp984-entry{display:none!important;visibility:hidden!important;pointer-events:none!important}
   </style>
 </head>
-<body data-bridgepoint-runtime="v999">
+<body data-bridgepoint-runtime="v1000">
   <script>
-    window.__bridgepointCanonicalRuntime='v999';
+    window.__bridgepointCanonicalRuntime='v1000';
+    window.__bridgepointRuntimeRelease='v1000';
     window.__bridgepointLegacyOverlayDisabled=true;
-    for(const id of ['bp-install','bp-install-dialog','bp-pwa-update-v396','bp-live-home-v972','bp-live-home-v981','bp-live-system-v961','bp983-entry','bp983-home-mask','bp994-nav-seam-cover','bp988-home-hard-cover','bp998-web-header','bp998-web-nav']) document.getElementById(id)?.remove();
+    const bp1000Params=new URLSearchParams(location.search);
+    if(bp1000Params.get('entry')==='1')document.documentElement.classList.add('bp1000-entry-allowed');
+    for(const id of ['bp-install','bp-install-dialog','bp-pwa-update-v396','bp-live-home-v972','bp-live-home-v981','bp-live-system-v961','bp983-entry','bp983-home-mask','bp994-nav-seam-cover','bp988-home-hard-cover','bp998-web-header','bp998-web-nav','bp999-header','bp999-nav','bp999-toast']) document.getElementById(id)?.remove();
   </script>
 
-  <!-- Flutter boots first. Enhancements may never block app startup. -->
-  <script src="flutter_bootstrap.js?v=999" data-bridgepoint-direct-flutter="v999"></script>
-
-  <script defer src="experience-v974.js?v=999"></script>
-  <script defer src="signup-confirmation-v946.js?v=999"></script>
-  <script defer src="runtime-unifier-v984.js?v=999"></script>
-  <script defer src="lazy-runtime-v993.js?v=999"></script>
-  <script defer src="live-home-v984.js?v=999"></script>
-  <script defer src="owner-business-pulse-v993.js?v=999"></script>
-  <script defer src="visual-polish-v984.js?v=999"></script>
-  <script defer src="bridgepoint-shell-v999.js?v=999"></script>
-  <script defer src="startup-recovery-v986.js?v=999"></script>
+  <!-- Paint the web Home and entry policy before the heavy Flutter bundle starts. -->
+  <script defer src="experience-v974.js?v=1000"></script>
+  <script defer src="signup-confirmation-v946.js?v=1000"></script>
+  <script defer src="runtime-unifier-v984.js?v=1000"></script>
+  <script defer src="lazy-runtime-v1000.js?v=1000"></script>
+  <script defer src="bridgepoint-shell-v1000.js?v=1000"></script>
+  <script defer src="live-home-v984.js?v=1000"></script>
+  <script defer src="owner-business-pulse-v993.js?v=1000"></script>
+  <script defer src="visual-polish-v984.js?v=1000"></script>
+  <script defer src="flutter_bootstrap.js?v=1000" data-bridgepoint-direct-flutter="v1000"></script>
 </body>
 </html>
