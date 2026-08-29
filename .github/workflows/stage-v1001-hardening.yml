@@ -41,17 +41,7 @@ jobs:
       - name: Validate JavaScript and architecture
         run: |
           set -euo pipefail
-          for f in \
-            app/runtime-unifier-v984.js \
-            app/bridgepoint-shell-v1000.js \
-            app/lazy-runtime-v1000.js \
-            app/radar-rest-v1000.js \
-            app/map-national-v1001.js \
-            app/map-radar-v974.js \
-            app/live-home-v984.js \
-            app/flutter_service_worker.js; do
-            node --check "$f"
-          done
+          for f in app/runtime-unifier-v984.js app/bridgepoint-shell-v1000.js app/lazy-runtime-v1000.js app/radar-rest-v1000.js app/map-national-v1001.js app/map-radar-v974.js app/live-home-v984.js app/flutter_service_worker.js; do node --check "$f"; done
           grep -q 'data-bridgepoint-runtime="v1001"' app/index.html
           grep -q "__bridgepointCanonicalRuntime='v1001'" app/index.html
           ! grep -q 'html:not(.bp1000-entry-allowed) #bp984-entry' app/index.html
@@ -64,8 +54,10 @@ jobs:
           grep -q "const V='1001'" app/lazy-runtime-v1000.js
           grep -q 'map-national-v1001.js' app/lazy-runtime-v1000.js
           grep -q 'US — Nationwide' app/map-national-v1001.js
-          grep -q 'return original.call(this,US_CENTER,4,options)' app/map-national-v1001.js
-          grep -q 'ImageServer/exportImage' app/radar-rest-v1000.js
+          grep -q 'ImageServer' app/radar-rest-v1000.js
+          grep -q 'loadRadarCatalog' app/radar-rest-v1000.js
+          grep -q 'esriMosaicLockRaster' app/radar-rest-v1000.js
+          ! grep -q "u.searchParams.set('time'" app/radar-rest-v1000.js
           grep -q '"start_url": "./?bpv=v1001"' app/manifest.json
           grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v1001'" app/flutter_service_worker.js
           grep -q 'href="/app/?entry=1&utm_source=' index.html
@@ -79,117 +71,74 @@ jobs:
           const src=fs.readFileSync('app/runtime-unifier-v984.js','utf8');
           async function run(withToken){
             const dom=new JSDOM('<!doctype html><html><head></head><body></body></html>',{runScripts:'outside-only',url:'https://example.test/app/?bpv=v1001',pretendToBeVisual:true});
-            const w=dom.window;
-            w.__bridgepointCanonicalRuntime='v1001';
+            const w=dom.window;w.__bridgepointCanonicalRuntime='v1001';
             w.fetch=async(url)=>({ok:String(url).includes('/auth/v1/user')?withToken:false,json:async()=>({})});
             if(withToken)w.localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'x'.repeat(80)}));
-            w.eval(src);
-            await new Promise(r=>setTimeout(r,25));
-            const entry=w.document.getElementById('bp984-entry');
-            if(!entry)throw new Error('entry UI was not built');
+            w.eval(src);await new Promise(r=>setTimeout(r,25));
+            const entry=w.document.getElementById('bp984-entry');if(!entry)throw new Error('entry UI was not built');
             return entry.classList.contains('show');
           }
-          (async()=>{
-            if(await run(false)!==true)throw new Error('signed-out user did not receive entry screen');
-            if(await run(true)!==false)throw new Error('valid saved session was prompted again');
-            console.log('v1001 auth-entry policy passed');
-          })().catch(e=>{console.error(e);process.exit(1)});
+          (async()=>{if(await run(false)!==true)throw new Error('signed-out user did not receive entry screen');if(await run(true)!==false)throw new Error('valid saved session was prompted again');console.log('v1001 auth-entry policy passed')})().catch(e=>{console.error(e);process.exit(1)});
           NODE
 
       - name: Prove native bottom tab handoff still works
         run: |
           node <<'NODE'
-          const fs=require('fs');
-          const {JSDOM}=require('jsdom');
+          const fs=require('fs');const {JSDOM}=require('jsdom');
           const dom=new JSDOM('<!doctype html><html><head></head><body><flutter-view><flt-glass-pane></flt-glass-pane></flutter-view><section id="bp-live-home-v984"></section><canvas id="bp974-cosmos"></canvas></body></html>',{runScripts:'outside-only',url:'https://example.test/app/?bpv=v1001',pretendToBeVisual:true});
-          const w=dom.window;
-          Object.defineProperty(w,'innerWidth',{value:390,writable:true});
-          Object.defineProperty(w,'innerHeight',{value:844,writable:true});
-          w.BridgePointOpenMapV993=async()=>true;
-          w.eval(fs.readFileSync('app/bridgepoint-shell-v1000.js','utf8'));
-          const tap=x=>w.document.dispatchEvent(new w.MouseEvent('pointerup',{bubbles:true,clientX:x,clientY:830}));
-          const wait=()=>new Promise(r=>setTimeout(r,8));
-          (async()=>{
-            tap(195);await wait();if(w.BridgePointShellV1000.getMode()!=='properties')throw new Error('Properties failed');
-            tap(273);await wait();if(w.BridgePointShellV1000.getMode()!=='worth')throw new Error('Worth failed');
-            tap(351);await wait();if(w.BridgePointShellV1000.getMode()!=='more')throw new Error('More failed');
-            tap(39);await wait();if(w.BridgePointShellV1000.getMode()!=='home')throw new Error('Home failed');
-            console.log('native tabs passed');
-          })().catch(e=>{console.error(e);process.exit(1)});
+          const w=dom.window;Object.defineProperty(w,'innerWidth',{value:390,writable:true});Object.defineProperty(w,'innerHeight',{value:844,writable:true});w.BridgePointOpenMapV993=async()=>true;w.eval(fs.readFileSync('app/bridgepoint-shell-v1000.js','utf8'));
+          const tap=x=>w.document.dispatchEvent(new w.MouseEvent('pointerup',{bubbles:true,clientX:x,clientY:830}));const wait=()=>new Promise(r=>setTimeout(r,8));
+          (async()=>{tap(195);await wait();if(w.BridgePointShellV1000.getMode()!=='properties')throw new Error('Properties failed');tap(273);await wait();if(w.BridgePointShellV1000.getMode()!=='worth')throw new Error('Worth failed');tap(351);await wait();if(w.BridgePointShellV1000.getMode()!=='more')throw new Error('More failed');tap(39);await wait();if(w.BridgePointShellV1000.getMode()!=='home')throw new Error('Home failed');console.log('native tabs passed')})().catch(e=>{console.error(e);process.exit(1)});
           NODE
 
       - name: Prove nationwide map override uses U.S. zoom
         run: |
           node <<'NODE'
-          const fs=require('fs'),vm=require('vm');
-          const ctx=vm.createContext({console,setTimeout,clearTimeout});
-          vm.runInContext(`
-            window=globalThis;
-            document={getElementById:()=>null,createElement:()=>({}),body:{appendChild:()=>{}}};
-            Event=function Event(type,init){this.type=type;Object.assign(this,init||{})};
-            function Map(){this._zoom=4;this.last=null;this.el={id:'bp974-map'};}
-            Map.prototype.getContainer=function(){return this.el};
-            Map.prototype.getZoom=function(){return this._zoom};
-            Map.prototype.setView=function(c,z){this.last={c,z};this._zoom=z;return this};
-            L={Map};
-            BridgePointRadarV1000={ensureLeaflet:async()=>L};
-            BridgePointOpenIntelligenceMapV974=async()=>true;
-          `,ctx);
+          const fs=require('fs'),vm=require('vm');const ctx=vm.createContext({console,setTimeout,clearTimeout});
+          vm.runInContext(`window=globalThis;document={getElementById:()=>null,createElement:()=>({}),body:{appendChild:()=>{}}};Event=function(type,init){this.type=type;Object.assign(this,init||{})};function Map(){this._zoom=4;this.last=null;this.el={id:'bp974-map'}};Map.prototype.getContainer=function(){return this.el};Map.prototype.getZoom=function(){return this._zoom};Map.prototype.setView=function(c,z){this.last={c,z};this._zoom=z;return this};L={Map};BridgePointRadarV1000={ensureLeaflet:async()=>L};BridgePointOpenIntelligenceMapV974=async()=>true;`,ctx);
           vm.runInContext(fs.readFileSync('app/map-national-v1001.js','utf8'),ctx);
-          vm.runInContext(`
-            BridgePointMapNationalV1001.patchLeaflet();
-            let m=new L.Map();
-            m.setView([39.4,-98.3],7);
-            if(m.last.z!==4)throw new Error('US nationwide zoom not forced to 4');
-            m=new L.Map();
-            m.setView([41.5978,-72.7554],7);
-            if(m.last.z!==4)throw new Error('initial CT jump was not blocked');
-            console.log('nationwide map behavior passed');
-          `,ctx);
+          vm.runInContext(`BridgePointMapNationalV1001.patchLeaflet();let m=new L.Map();m.setView([39.4,-98.3],7);if(m.last.z!==4)throw new Error('US nationwide zoom not forced');m=new L.Map();m.setView([41.5978,-72.7554],7);if(m.last.z!==4)throw new Error('initial CT jump not blocked');console.log('nationwide map behavior passed')`,ctx);
           NODE
 
-      - name: Verify NOAA latest and timed frames contain real colored pixels
+      - name: Verify NOAA latest and locked historical rasters contain real colored pixels
         run: |
           set -euo pipefail
           base='https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer'
-          curl -fsSL --retry 2 --max-time 45 "$base/query?where=1%3D1&outFields=idp_validtime&returnGeometry=false&orderByFields=idp_validtime%20DESC&resultRecordCount=100&f=json" -o /tmp/noaa-frames.json
-          node <<'NODE' >/tmp/noaa-times.txt
-          const j=require('/tmp/noaa-frames.json');
-          const xs=[...new Set((j.features||[]).map(x=>Number(x?.attributes?.idp_validtime)).filter(Number.isFinite))].sort((a,b)=>b-a);
-          if(xs.length<2)throw new Error('NOAA did not expose two distinct time frames');
-          console.log(xs[0]);console.log(xs[Math.min(6,xs.length-1)]);
-          NODE
+          curl -fsSL --retry 2 --max-time 45 "$base/query?where=category%20%3D%201&outFields=objectid%2Cidp_validtime%2Cidp_subset%2Cname%2Ccategory&returnGeometry=false&orderByFields=idp_validtime%20DESC&resultRecordCount=1000&f=json" -o /tmp/noaa-catalog.json
+          python <<'PY'
+          import json, urllib.parse
+          j=json.load(open('/tmp/noaa-catalog.json'))
+          groups={}
+          for f in j.get('features',[]):
+              a=f.get('attributes') or {}
+              try: oid=int(a['objectid']); t=int(a['idp_validtime'])
+              except Exception: continue
+              groups.setdefault(t,[]).append(oid)
+          times=sorted(groups, reverse=True)
+          if len(times)<2: raise SystemExit('NOAA primary raster catalog has fewer than two frame times')
+          selected=[times[0],times[min(6,len(times)-1)]]
+          if selected[0]==selected[1]: selected=[times[0],times[-1]]
+          print('selected NOAA frames',[(t,groups[t][:20]) for t in selected])
+          for i,t in enumerate(selected):
+              rule={'mosaicMethod':'esriMosaicLockRaster','lockRasterIds':groups[t][:20],'mosaicOperation':'MT_FIRST'}
+              open(f'/tmp/noaa-rule-{i}.txt','w').write(urllib.parse.quote(json.dumps(rule,separators=(',',':')),safe=''))
+              open(f'/tmp/noaa-time-{i}.txt','w').write(str(t))
+          PY
           url="$base/exportImage?bbox=-130,20,-60,55&bboxSR=4326&imageSR=4326&size=1200,650&format=png32&transparent=true&interpolation=RSP_BilinearInterpolation&f=image"
           curl -fsSL --retry 2 --max-time 45 "$url" -o /tmp/noaa-latest.png
-          i=0
-          while read -r t; do
-            curl -fsSL --retry 2 --max-time 45 "$url&time=$t" -o "/tmp/noaa-time-$i.png"
-            i=$((i+1))
-          done </tmp/noaa-times.txt
+          for i in 0 1; do rule="$(cat /tmp/noaa-rule-$i.txt)"; curl -fsSL --retry 2 --max-time 45 "$url&mosaicRule=$rule" -o "/tmp/noaa-locked-$i.png"; done
           node <<'NODE'
-          const fs=require('fs'),crypto=require('crypto');
-          const {PNG}=require('pngjs');
-          const files=['/tmp/noaa-latest.png','/tmp/noaa-time-0.png','/tmp/noaa-time-1.png'];
-          const hashes=[];
-          for(const f of files){
-            const buf=fs.readFileSync(f),p=PNG.sync.read(buf);let visible=0,colored=0;const buckets=new Set();
-            for(let i=0;i<p.data.length;i+=4){const r=p.data[i],g=p.data[i+1],b=p.data[i+2],a=p.data[i+3];if(a>10){visible++;if(Math.max(r,g,b)-Math.min(r,g,b)>12){colored++;buckets.add(`${r>>4},${g>>4},${b>>4}`)}}}
-            const hash=crypto.createHash('sha256').update(buf).digest('hex');hashes.push(hash);
-            console.log(f,{visible,colored,colorBuckets:buckets.size,hash:hash.slice(0,12)});
-            if(visible<25||colored<25||buckets.size<2)throw new Error(`${f} lacks meaningful colored radar pixels`);
-          }
-          if(new Set(hashes).size<2)throw new Error('NOAA timed frames are not changing');
+          const fs=require('fs'),crypto=require('crypto');const {PNG}=require('pngjs');
+          const files=['/tmp/noaa-latest.png','/tmp/noaa-locked-0.png','/tmp/noaa-locked-1.png'];const hashes=[];
+          for(const f of files){const buf=fs.readFileSync(f),p=PNG.sync.read(buf);let visible=0,colored=0;const buckets=new Set();for(let i=0;i<p.data.length;i+=4){const r=p.data[i],g=p.data[i+1],b=p.data[i+2],a=p.data[i+3];if(a>10){visible++;if(Math.max(r,g,b)-Math.min(r,g,b)>12){colored++;buckets.add(`${r>>4},${g>>4},${b>>4}`)}}}const hash=crypto.createHash('sha256').update(buf).digest('hex');hashes.push(hash);console.log(f,{visible,colored,colorBuckets:buckets.size,hash:hash.slice(0,12)});if(visible<25||colored<25||buckets.size<2)throw new Error(`${f} lacks meaningful colored radar pixels`)}
+          if(new Set(hashes.slice(1)).size!==2)throw new Error('NOAA locked historical frames are not changing');
           NODE
 
       - name: Commit deterministic runtime edit
         run: |
           set -euo pipefail
-          if git diff --quiet; then
-            echo 'v1001 tree already settled.'
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --quiet; then echo 'v1001 tree already settled.'; exit 0; fi
+          git config user.name 'github-actions[bot]';git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add app/runtime-unifier-v984.js
           git commit -m 'Finalize v1001 auth and runtime guard'
           git push origin HEAD:staging-v1001-hardening
