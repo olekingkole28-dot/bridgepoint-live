@@ -1,0 +1,106 @@
+name: Deploy Customer UI V1044
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-ui-v1044.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assemble and regression-check V1044
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/preapp-funnel-v1044.js
+          test -s site/app/customer-home-v1044.js
+          test -s site/app/single-shell-v1044.js
+          test -s site/app/customer-surfaces-v1042.js
+          test -s site/app/plans-primary-v1042.js
+          test -s site/sample/index.html
+          test -s site/start/index.html
+          node --check site/app/preapp-funnel-v1044.js
+          node --check site/app/customer-home-v1044.js
+          node --check site/app/single-shell-v1044.js
+          grep -q 'data-bridgepoint-runtime="v1044"' site/app/index.html
+          grep -q 'preapp-funnel-v1044.js?v=1044' site/app/index.html
+          grep -q 'single-shell-v1044.js?v=1044' site/app/index.html
+          ! grep -q 'single-shell-v1043.js' site/app/index.html
+          grep -q 'data-tab="plans"' site/app/single-shell-v1044.js
+          grep -q 'BridgePointSingleShellV1042=api' site/app/single-shell-v1044.js
+          grep -q 'bridgepoint_saved_opportunities_v842' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_claims_workspace_v833' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_calendar_agenda_v835' site/app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_public_customer_plans_v1041' site/app/preapp-funnel-v1044.js
+          grep -q 'bridgepoint_public_capability_catalog_v550' site/app/preapp-funnel-v1044.js
+          grep -q 'See your territory free' site/app/preapp-funnel-v1044.js
+          grep -q 'Show me my territory' site/sample/index.html
+          grep -q '60-Second BridgePoint Tour' site/start/index.html
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy V1044
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify public V1044
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          project='https://xdfsjztwgsbmabshzsjw.supabase.co'
+          key='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25'
+          for attempt in $(seq 1 36); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1044&verify=${salt}" 2>/dev/null || true)"
+            shell="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/single-shell-v1044.js?verify=${salt}" 2>/dev/null || true)"
+            preapp="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/preapp-funnel-v1044.js?verify=${salt}" 2>/dev/null || true)"
+            sample="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/sample/?verify=${salt}" 2>/dev/null || true)"
+            tour="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/start/?verify=${salt}" 2>/dev/null || true)"
+            plans="$(curl -fsSL --max-time 15 -X POST "${project}/rest/v1/rpc/bridgepoint_public_customer_plans_v1041" -H "apikey: ${key}" -H "Authorization: Bearer ${key}" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || true)"
+            caps="$(curl -fsSL --max-time 15 -X POST "${project}/rest/v1/rpc/bridgepoint_public_capability_catalog_v550" -H "apikey: ${key}" -H "Authorization: Bearer ${key}" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1044"' \
+              && printf '%s' "$app" | grep -q 'preapp-funnel-v1044.js?v=1044' \
+              && printf '%s' "$app" | grep -q 'single-shell-v1044.js?v=1044' \
+              && ! printf '%s' "$app" | grep -q 'single-shell-v1043.js' \
+              && printf '%s' "$shell" | grep -q 'data-tab="plans"' \
+              && printf '%s' "$shell" | grep -q 'BridgePointSingleShellV1042=api' \
+              && printf '%s' "$preapp" | grep -q 'See your territory free' \
+              && printf '%s' "$preapp" | grep -q 'bridgepoint_public_capability_catalog_v550' \
+              && printf '%s' "$sample" | grep -q 'Show me my territory' \
+              && printf '%s' "$tour" | grep -q '60-Second BridgePoint Tour' \
+              && printf '%s' "$plans" | grep -q 'BridgePoint Homeowner' \
+              && printf '%s' "$plans" | grep -q 'BridgePoint Company' \
+              && printf '%s' "$caps" | grep -q 'customer_capability_count'; then
+              echo 'V1044 verified live: Plans restored, More compatibility repaired, pre-app funnel live, existing territory/tour preserved.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'V1044 public verification did not converge.' >&2
+          exit 1
