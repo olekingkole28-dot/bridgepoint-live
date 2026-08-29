@@ -114,12 +114,12 @@ jobs:
               await pre.waitForSelector('#bp1055-nav',{timeout:7000});
               assert.strictEqual(await pre.$eval('#bp1055-nav',e=>getComputedStyle(e).display),'none','app nav must not cover public page');
               assert.strictEqual(await pre.evaluate(()=>sessionStorage.getItem('bp1054_required_legal_acceptance')),null,'fresh public visitor must have no legal acceptance');
-              const hit=await pre.$eval('[data-bp1059-entry="product"]',b=>{const r=b.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,el=document.elementFromPoint(x,y);return{button:{x,y,left:r.left,top:r.top,width:r.width,height:r.height},hit:{tag:el?.tagName||null,id:el?.id||null,cls:el?.className||null,target:el?.getAttribute?.('data-bp1059-entry')||null,text:(el?.textContent||'').trim().slice(0,100)},preapp:document.documentElement.className};});
+              await pre.$eval('[data-bp1059-entry="product"]',b=>b.scrollIntoView({block:'center',inline:'center'}));
+              await sleep(120);
+              const hit=await pre.$eval('[data-bp1059-entry="product"]',b=>{const r=b.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,el=document.elementFromPoint(x,y);return{button:{x,y,left:r.left,top:r.top,width:r.width,height:r.height},hit:{tag:el?.tagName||null,id:el?.id||null,cls:el?.className||null,target:el?.getAttribute?.('data-bp1059-entry')||null,text:(el?.textContent||'').trim().slice(0,100)}};});
               console.log('PUBLIC_CTA_HIT',JSON.stringify(hit));
+              assert.strictEqual(hit.hit.target,'product','physical public CTA hit-test must land on the Product Tools button');
               await pre.click('[data-bp1059-entry="product"]');
-              await sleep(350);
-              const after=await pre.evaluate(()=>({legalExists:!!document.getElementById('bp1059-legal'),legalClass:document.getElementById('bp1059-legal')?.className||'',htmlClass:document.documentElement.className,intent:sessionStorage.getItem('bp1059_entry_intent'),accept:sessionStorage.getItem('bp1054_required_legal_acceptance'),authClass:document.getElementById('bp1046-auth')?.className||'',active:document.activeElement?.outerHTML?.slice(0,180)||''}));
-              console.log('PUBLIC_CTA_AFTER',JSON.stringify(after));
               await pre.waitForSelector('#bp1059-legal.show',{timeout:5000});
               assert.strictEqual(await pre.$eval('#bp1046-auth',e=>getComputedStyle(e).display),'none','feature CTA must still gate auth behind legal');
               await preCtx.close();
@@ -142,4 +142,4 @@ jobs:
           })().catch(e=>{console.error(e);process.exit(1);});
           NODE
       - name: Validation summary
-        run: echo 'V1059 passed isolated legal-before-auth, public feature CTAs, Flutter click shield, all primary navigation clicks, syntax and preserved customer contracts.'
+        run: echo 'V1059 passed isolated legal-before-auth, visible public feature CTA, Flutter click shield, all primary navigation clicks, syntax and preserved customer contracts.'
