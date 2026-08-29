@@ -1,0 +1,29 @@
+name: Validate BridgePoint V1046 Restoration
+on:
+  push:
+    branches: [ui-v1046]
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check restoration JavaScript syntax
+        run: |
+          node --check app/auth-restoration-v1046.js
+          node --check app/property-360-v1046.js
+          node --check app/workspace-restoration-v1046.js
+          node --check app/home-widgets-v1046.js
+      - name: Verify runtime loader references
+        run: |
+          grep -q 'auth-restoration-v1046.js' app/index.html
+          grep -q 'property-360-v1046.js' app/index.html
+          grep -q 'workspace-restoration-v1046.js' app/index.html
+          grep -q 'home-widgets-v1046.js' app/index.html
+          grep -q 'data-bridgepoint-runtime="v1046"' app/index.html
+      - name: Verify no merge markers
+        run: |
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' app/*.js app/index.html
