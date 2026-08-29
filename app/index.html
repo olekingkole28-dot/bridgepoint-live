@@ -36,11 +36,11 @@
     for(const id of ['bp-install','bp-install-dialog','bp-pwa-update-v396','bp-live-home-v972','bp-live-home-v981','bp-live-system-v961','bp983-entry','bp983-home-mask','bp994-nav-seam-cover','bp988-home-hard-cover','bp998-web-header','bp998-web-nav','bp999-toast','bp1036-commerce-tab','bp1036-plans-dialog','bp1000-nav-wait','bp1037-home-seam-guard','bp1040-nav','bp1040-header','bp1041-nav','bp1041-header','bp1041-wait','bp1042-nav','bp1042-header','bp1043-nav','bp1043-header','bp1044-nav','bp1044-header','bp1054-nav','bp1054-header']) document.getElementById(id)?.remove();
     (async()=>{try{const k='bp-runtime-cache-reset-v1059';if(localStorage.getItem(k)!=='done'){localStorage.setItem(k,'done');if('serviceWorker'in navigator){for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister();}if('caches'in window){for(const n of await caches.keys())await caches.delete(n);}}}catch(_){}})();
   </script>
+  <script src="preauth-legal-v1059.js?v=1059"></script>
 
   <script defer src="experience-v974.js?v=1059"></script>
   <script defer src="visual-system-v1055.js?v=1059"></script>
   <script defer src="legal-gate-v1054.js?v=1059"></script>
-  <script defer src="preauth-legal-v1059.js?v=1059"></script>
   <script defer src="preapp-funnel-v1044.js?v=1059"></script>
   <script defer src="preapp-national-proof-v1053.js?v=1059"></script>
   <script defer src="preapp-restoration-v1054.js?v=1059"></script>
