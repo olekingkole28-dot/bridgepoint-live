@@ -1,0 +1,112 @@
+name: Deploy BridgePoint Restoration V1052
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-restoration-v1052.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble validated V1052 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+
+          test -s site/app/index.html
+          test -s site/app/auth-restoration-v1046.js
+          test -s site/app/property-360-v1046.js
+          test -s site/app/workspace-restoration-v1046.js
+          test -s site/app/home-widgets-v1046.js
+          test -s site/app/capability-explorer-v1047.js
+          test -s site/app/operations-restoration-v1048.js
+          test -s site/app/advanced-workflows-v1049.js
+          test -s site/app/owner-product-admin-v1050.js
+          test -s site/app/navigation-owner-tools-v1051.js
+          test -s site/app/property-replay-v1052.js
+          test -s site/app/home-field-v1052.js
+          test -s site/app/weather-language-ai-v1052.js
+          test -s site/app/single-shell-v1044.js
+
+          node --check site/app/auth-restoration-v1046.js
+          node --check site/app/property-360-v1046.js
+          node --check site/app/workspace-restoration-v1046.js
+          node --check site/app/home-widgets-v1046.js
+          node --check site/app/capability-explorer-v1047.js
+          node --check site/app/operations-restoration-v1048.js
+          node --check site/app/advanced-workflows-v1049.js
+          node --check site/app/owner-product-admin-v1050.js
+          node --check site/app/navigation-owner-tools-v1051.js
+          node --check site/app/property-replay-v1052.js
+          node --check site/app/home-field-v1052.js
+          node --check site/app/weather-language-ai-v1052.js
+          node --check site/app/single-shell-v1044.js
+
+          grep -q 'data-bridgepoint-runtime="v1052"' site/app/index.html
+          grep -q 'property-replay-v1052.js?v=1052' site/app/index.html
+          grep -q 'home-field-v1052.js?v=1052' site/app/index.html
+          grep -q 'weather-language-ai-v1052.js?v=1052' site/app/index.html
+          grep -q 'navigation-owner-tools-v1051.js?v=1052' site/app/index.html
+          grep -q 'single-shell-v1044.js?v=1052' site/app/index.html
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' site/app/*.js site/app/index.html
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy V1052
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify public V1052
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 45); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1052&verify=${salt}" 2>/dev/null || true)"
+            replay="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/property-replay-v1052.js?verify=${salt}" 2>/dev/null || true)"
+            home="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/home-field-v1052.js?verify=${salt}" 2>/dev/null || true)"
+            platform="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/weather-language-ai-v1052.js?verify=${salt}" 2>/dev/null || true)"
+            owner="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/navigation-owner-tools-v1051.js?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1052"' \
+              && printf '%s' "$app" | grep -q 'property-replay-v1052.js?v=1052' \
+              && printf '%s' "$app" | grep -q 'home-field-v1052.js?v=1052' \
+              && printf '%s' "$app" | grep -q 'weather-language-ai-v1052.js?v=1052' \
+              && printf '%s' "$replay" | grep -q 'BridgePointPropertyReplayV1052' \
+              && printf '%s' "$home" | grep -q 'BridgePointHomeFieldV1052' \
+              && printf '%s' "$platform" | grep -q 'BridgePointWeatherLanguageAIV1052' \
+              && printf '%s' "$owner" | grep -q 'BridgePointNavigationOwnerToolsV1051'; then
+              echo 'V1052 verified publicly: restored property replay/autopsy/feedback, Home Passport + field workflows, weather/localization/AI/market access, owner tools and searchable More are deployed.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'V1052 public verification did not converge.' >&2
+          exit 1
