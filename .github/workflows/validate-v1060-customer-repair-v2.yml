@@ -1,0 +1,123 @@
+name: Validate V1060 Customer Repair V2
+on:
+  push:
+    paths:
+      - '.github/workflows/validate-v1060-customer-repair-v2.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Fetch exact staged V1060
+        run: |
+          set -euo pipefail
+          git fetch origin ui-v1060-customer-repair:refs/remotes/origin/ui-v1060-customer-repair
+          echo "STAGED_SHA=$(git rev-parse origin/ui-v1060-customer-repair)"
+          rm -rf /tmp/v1060 && mkdir -p /tmp/v1060
+          git archive origin/ui-v1060-customer-repair | tar -x -C /tmp/v1060
+      - name: Static V1060 guards
+        run: |
+          set -euo pipefail
+          cd /tmp/v1060/app
+          for f in preapp-buttons-v1060.js map-ui-v1060.js shell-correction-v1060.js navigation-repair-v1060.js customer-surfaces-v1042.js work-hub-v1054.js app-more-v1054.js; do node --check "$f"; done
+          grep -q 'data-bridgepoint-runtime="v1060"' index.html
+          grep -q 'preapp-buttons-v1060.js?v=1060' index.html
+          grep -q 'map-ui-v1060.js?v=1060' index.html
+          grep -q 'shell-correction-v1060.js?v=1060' index.html
+          grep -q 'navigation-repair-v1060.js?v=1060' index.html
+          ! grep -q 'navigation-repair-v1059.js' index.html
+          grep -q "fifth.dataset.tab='more'" shell-correction-v1060.js
+          grep -q "getElementById('bp1055-more-button')?.remove" shell-correction-v1060.js
+          grep -q "const off=\['satellite','radar','props','signals'\]" map-ui-v1060.js
+          grep -q 'bp1060-kind-lightning' map-ui-v1060.js
+          grep -q 'bp1060-kind-hail' map-ui-v1060.js
+          grep -q 'bp1060-preapp-button' preapp-buttons-v1060.js
+      - name: Browser V1060 regression
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          python3 -m http.server 4173 --directory /tmp/v1060 >/tmp/v1060-v2-http.log 2>&1 &
+          sleep 1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const base='http://127.0.0.1:4173/app/',sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          async function mocks(page,{user=false,owner=false}={}){
+            await page.setRequestInterception(true);
+            page.on('pageerror',e=>console.log('PAGEERROR',e.message||String(e)));
+            page.on('request',req=>{
+              const u=req.url(),cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*','Access-Control-Allow-Methods':'GET,POST,OPTIONS'};
+              if(u.includes('xdfsjztwgsbmabshzsjw.supabase.co')){
+                if(req.method()==='OPTIONS')return req.respond({status:204,headers:cors,body:''});
+                let body={};
+                if(u.includes('bridgepoint_public_legal_preview_v1054'))body={required_documents:[{document_key:'terms',document_version:'test-1',title:'Terms',summary:'Required',content_markdown:'Terms.'},{document_key:'privacy',document_version:'test-1',title:'Privacy',summary:'Required',content_markdown:'Privacy.'}]};
+                else if(u.includes('bridgepoint_public_deeptech_v534'))body={subheadline:'Live capability network.',capabilities:[{name:'Digital Twins',status:'LIVE',domain:'PROPERTY',automation:'AUTOMATED',summary:'Connected property modeling.'},{name:'Climate Risk',status:'LIVE_SCREENING',domain:'RISK',automation:'AUTOMATED',summary:'Property risk screening.'}],labs:[{name:'LiDAR Intelligence Lab',phase:'R&D',status:'BUILDING',truthful_positioning:'LiDAR validation program.'}]};
+                else if(u.includes('bridgepoint_public_national_progress_v1053'))body={states:[{state_name:'California',state_code:'CA',overall_progress_pct:70,data_status:'BUILDING',current_phase:'FOUNDATION',canonical_property_count:1000,discovered_sources:20}],totals:{canonical_properties:1000,building_states:50,discovered_sources:100}};
+                else if(u.includes('/auth/v1/user'))body=user?{id:'11111111-1111-1111-1111-111111111111',email:'test@example.com'}:{};
+                else if(u.includes('bridgepoint_customer_access_contract_v318'))body={owner_override:owner,features:owner?['map','property_profiles','favorites','opportunities','signals','calendar','claims_intelligence']:[],feature_flags:{}};
+                else if(u.includes('bridgepoint_saved_opportunities_v842'))body={saved_opportunities:[]};
+                else if(u.includes('bridgepoint_claims_workspace_v833'))body={claims:[],eligible_saved_opportunities:[],claim_stage_options:[]};
+                else if(u.includes('bridgepoint_calendar_agenda_v835'))body={events:[],unscheduled_routes:[]};
+                else if(u.includes('bridgepoint_route_plans_v87'))body={routes:[]};
+                else if(u.includes('bridgepoint_customer_notes_v70'))body={notes:[]};
+                else if(u.includes('bridgepoint_public_customer_plans_v1041')||u.includes('bridgepoint_public_package_catalog_v1054'))body={packages:[]};
+                else if(u.includes('bridgepoint_public_capability_catalog_v550'))body={capabilities:[]};
+                else if(u.includes('bridgepoint_public_launch_promotion_v1035'))body={active:false};
+                else if(u.includes('bridgepoint_public_brand_profile_v1054'))body={social_profiles:[],brand_links:{}};
+                return req.respond({status:200,contentType:'application/json',headers:cors,body:JSON.stringify(body)});
+              }
+              if(/^https?:/.test(u)&&!u.startsWith('http://127.0.0.1:4173/'))return req.abort();
+              req.continue();
+            });
+          }
+          async function hit(page,selector,closest){return page.$eval(selector,(el,closest)=>{el.scrollIntoView({block:'center',inline:'center'});const r=el.getBoundingClientRect(),h=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return closest?h?.closest?.(closest)?.getAttribute('data-tab')||h?.closest?.(closest)?.id||null:h===el||el.contains(h);},closest)}
+          async function domClick(page,selector){await page.$eval(selector,e=>e.click())}
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,protocolTimeout:60000,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
+            try{
+              const pc=await browser.createBrowserContext(),p=await pc.newPage();await mocks(p);await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.goto(base,{waitUntil:'domcontentloaded',timeout:20000});
+              await p.waitForSelector('#bp1055-deeptech .bp1060-preapp-button',{timeout:12000});
+              const cards=await p.$$eval('#bp1055-deeptech .bp1060-preapp-button',els=>els.map(e=>({tag:e.tagName,intent:e.dataset.bp1060Intent,text:e.textContent.trim()})));
+              assert.ok(cards.length>=3);assert.ok(cards.every(x=>x.tag==='BUTTON'));assert.ok(cards.some(x=>x.intent==='lab'&&x.text.includes('Open Intelligence Lab')));
+              assert.strictEqual(await hit(p,'#bp1055-deeptech [data-bp1060-intent="lab"]'),true,'DeepTech lab button must own its center hit point');
+              await domClick(p,'#bp1055-deeptech [data-bp1060-intent="lab"]');
+              await p.waitForSelector('#bp1059-legal.show',{timeout:7000});
+              assert.strictEqual(await p.evaluate(()=>{const a=document.getElementById('bp1046-auth');return !a||getComputedStyle(a).display==='none'}),true);
+              console.log('PUBLIC_BUTTONS_PASS');await pc.close();
+
+              const ac=await browser.createBrowserContext(),a=await ac.newPage();await mocks(a,{user:true,owner:true});await a.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await a.evaluateOnNewDocument(()=>localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'abcdefghijklmnopqrstuvwxyz1234567890',user:{id:'11111111-1111-1111-1111-111111111111'}})));
+              await a.goto(base,{waitUntil:'domcontentloaded',timeout:20000});
+              await a.waitForFunction(()=>window.BridgePointSingleShellV1060&&window.__bridgepointNavigationRepairV1060,{timeout:12000});
+              await a.waitForSelector('#bp1055-nav',{timeout:7000});
+              assert.strictEqual(await a.$('#bp1055-more-button'),null);
+              assert.deepStrictEqual(await a.$$eval('#bp1055-nav [data-tab]',els=>els.map(e=>e.dataset.tab)),['home','map','properties','work','more']);
+              for(const tab of ['home','map','properties','work','more'])assert.strictEqual(await hit(a,`#bp1055-nav [data-tab="${tab}"]`,'[data-tab]'),tab,`${tab} center must be tappable`);
+
+              await domClick(a,'#bp1055-nav [data-tab="properties"]');await a.waitForSelector('#bp1042-properties.show',{timeout:5000});assert.notStrictEqual(await a.$eval('#bp1042-properties',e=>getComputedStyle(e).display),'none');console.log('PROPERTIES_PASS');
+              await domClick(a,'#bp1055-nav [data-tab="work"]');await a.waitForSelector('#bp1054-work.show',{timeout:5000});assert.notStrictEqual(await a.$eval('#bp1054-work',e=>getComputedStyle(e).display),'none');console.log('WORK_PASS');
+              await domClick(a,'#bp1055-nav [data-tab="more"]');await a.waitForSelector('#bp1042-more.show',{timeout:5000});assert.notStrictEqual(await a.$eval('#bp1042-more',e=>getComputedStyle(e).display),'none');await a.waitForSelector('#bp1042-more [data-bp1054-card="catalog"]',{timeout:5000});console.log('MORE_PASS');
+              await domClick(a,'#bp1055-nav [data-tab="home"]');await sleep(120);assert.strictEqual(await a.$eval('#bp1042-properties',e=>e.classList.contains('show')),false);assert.strictEqual(await a.$eval('#bp1054-work',e=>e.classList.contains('show')),false);assert.strictEqual(await a.$eval('#bp1042-more',e=>e.classList.contains('show')),false);
+
+              await a.evaluate(()=>{const d=document.createElement('div');d.id='bp974-map-dialog';d.className='show';d.innerHTML=`<select data-state><option value="US">US</option><option value="CA" disabled>CA</option><option value="TX" disabled>TX</option><option value="AK" disabled>AK</option><option value="HI" disabled>HI</option></select><button class="active" data-satellite>Satellite</button><button class="active" data-radar>Radar</button><button class="active" data-props>Properties</button><button class="active" data-opps>Opportunities</button><button class="active" data-signals>Signals</button><div data-keybox><div class="keyrow">🧊 Hail · ⚡ Lightning</div></div><div class="intel-marker signal">⚡</div><div class="intel-marker critical" title="hail">🧊</div>`;d.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('active')));document.body.appendChild(d);window.BridgePointMapUIV1060.apply();});
+              await sleep(100);
+              for(const k of ['satellite','radar','props','signals'])assert.strictEqual(await a.$eval(`#bp974-map-dialog [data-${k}]`,e=>e.classList.contains('active')),false,`${k} defaults off`);
+              assert.strictEqual(await a.$eval('#bp974-map-dialog [data-opps]',e=>e.classList.contains('active')),true);
+              for(const code of ['CA','TX','AK','HI'])assert.strictEqual(await a.$eval(`#bp974-map-dialog [data-state] option[value="${code}"]`,e=>e.disabled),false);
+              assert.ok((await a.$eval('#bp974-map-dialog [data-state] option[value="CA"]',e=>e.textContent)).includes('California'));
+              assert.strictEqual(await a.$eval('#bp974-map-dialog .intel-marker.signal',e=>e.classList.contains('bp1060-kind-lightning')),true);
+              assert.strictEqual(await a.$eval('#bp974-map-dialog .intel-marker[title="hail"]',e=>e.classList.contains('bp1060-kind-hail')),true);
+              assert.strictEqual(await a.$$eval('#bp974-map-dialog .bp1060-event-icon',e=>e.length),2);console.log('MAP_UI_PASS');
+              await ac.close();console.log('V1060_V2_PASS');
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+      - name: V1060 summary
+        run: echo 'V1060 V2 passed hit testing, real Properties/Work/More visibility, no header More duplicate, pre-app buttons, and opportunities-only all-state map UI behavior.'
