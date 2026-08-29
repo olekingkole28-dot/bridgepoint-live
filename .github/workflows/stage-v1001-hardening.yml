@@ -78,7 +78,7 @@ jobs:
           const {JSDOM}=require('jsdom');
           const src=fs.readFileSync('app/runtime-unifier-v984.js','utf8');
           async function run(withToken){
-            const dom=new JSDOM('<!doctype html><html><head></head><body></body></html>',{runScripts:'outside-only',url:'https://bridgepointintelligence.online/app/?bpv=v1001',pretendToBeVisual:true});
+            const dom=new JSDOM('<!doctype html><html><head></head><body></body></html>',{runScripts:'outside-only',url:'https://example.test/app/?bpv=v1001',pretendToBeVisual:true});
             const w=dom.window;
             w.__bridgepointCanonicalRuntime='v1001';
             w.fetch=async(url)=>({ok:String(url).includes('/auth/v1/user')?withToken:false,json:async()=>({})});
@@ -101,7 +101,7 @@ jobs:
           node <<'NODE'
           const fs=require('fs');
           const {JSDOM}=require('jsdom');
-          const dom=new JSDOM('<!doctype html><html><head></head><body><flutter-view><flt-glass-pane></flt-glass-pane></flutter-view><section id="bp-live-home-v984"></section><canvas id="bp974-cosmos"></canvas></body></html>',{runScripts:'outside-only',url:'https://bridgepointintelligence.online/app/?bpv=v1001',pretendToBeVisual:true});
+          const dom=new JSDOM('<!doctype html><html><head></head><body><flutter-view><flt-glass-pane></flt-glass-pane></flutter-view><section id="bp-live-home-v984"></section><canvas id="bp974-cosmos"></canvas></body></html>',{runScripts:'outside-only',url:'https://example.test/app/?bpv=v1001',pretendToBeVisual:true});
           const w=dom.window;
           Object.defineProperty(w,'innerWidth',{value:390,writable:true});
           Object.defineProperty(w,'innerHeight',{value:844,writable:true});
@@ -121,23 +121,31 @@ jobs:
       - name: Prove nationwide map override uses U.S. zoom
         run: |
           node <<'NODE'
-          const fs=require('fs');
-          const {JSDOM}=require('jsdom');
-          const dom=new JSDOM('<!doctype html><html><body></body></html>',{runScripts:'outside-only',url:'https://bridgepointintelligence.online/app/'});
-          const w=dom.window;
-          function Map(){this._zoom=4;this.last=null;this.el={id:'bp974-map'};}
-          Map.prototype.getContainer=function(){return this.el};
-          Map.prototype.getZoom=function(){return this._zoom};
-          Map.prototype.setView=function(c,z){this.last={c,z};this._zoom=z;return this};
-          w.L={Map};
-          w.BridgePointRadarV1000={ensureLeaflet:async()=>w.L};
-          w.BridgePointOpenIntelligenceMapV974=async()=>true;
-          w.eval(fs.readFileSync('app/map-national-v1001.js','utf8'));
-          w.BridgePointMapNationalV1001.patchLeaflet();
-          let m=new w.L.Map();
-          m.setView([39.4,-98.3],7);if(m.last.z!==4)throw new Error('US nationwide zoom not forced to 4');
-          m=new w.L.Map();m.setView([41.5978,-72.7554],7);if(m.last.z!==4)throw new Error('initial CT jump was not blocked');
-          console.log('nationwide map behavior passed');
+          const fs=require('fs'),vm=require('vm');
+          const ctx=vm.createContext({console,setTimeout,clearTimeout});
+          vm.runInContext(`
+            window=globalThis;
+            document={getElementById:()=>null,createElement:()=>({}),body:{appendChild:()=>{}}};
+            Event=function Event(type,init){this.type=type;Object.assign(this,init||{})};
+            function Map(){this._zoom=4;this.last=null;this.el={id:'bp974-map'};}
+            Map.prototype.getContainer=function(){return this.el};
+            Map.prototype.getZoom=function(){return this._zoom};
+            Map.prototype.setView=function(c,z){this.last={c,z};this._zoom=z;return this};
+            L={Map};
+            BridgePointRadarV1000={ensureLeaflet:async()=>L};
+            BridgePointOpenIntelligenceMapV974=async()=>true;
+          `,ctx);
+          vm.runInContext(fs.readFileSync('app/map-national-v1001.js','utf8'),ctx);
+          vm.runInContext(`
+            BridgePointMapNationalV1001.patchLeaflet();
+            let m=new L.Map();
+            m.setView([39.4,-98.3],7);
+            if(m.last.z!==4)throw new Error('US nationwide zoom not forced to 4');
+            m=new L.Map();
+            m.setView([41.5978,-72.7554],7);
+            if(m.last.z!==4)throw new Error('initial CT jump was not blocked');
+            console.log('nationwide map behavior passed');
+          `,ctx);
           NODE
 
       - name: Verify NOAA latest and timed frames contain real colored pixels
@@ -149,7 +157,7 @@ jobs:
           const j=require('/tmp/noaa-frames.json');
           const xs=[...new Set((j.features||[]).map(x=>Number(x?.attributes?.idp_validtime)).filter(Number.isFinite))].sort((a,b)=>b-a);
           if(xs.length<2)throw new Error('NOAA did not expose two distinct time frames');
-          console.log(xs[0]);console.log(xs[1]);
+          console.log(xs[0]);console.log(xs[Math.min(6,xs.length-1)]);
           NODE
           url="$base/exportImage?bbox=-130,20,-60,55&bboxSR=4326&imageSR=4326&size=1200,650&format=png32&transparent=true&interpolation=RSP_BilinearInterpolation&f=image"
           curl -fsSL --retry 2 --max-time 45 "$url" -o /tmp/noaa-latest.png
