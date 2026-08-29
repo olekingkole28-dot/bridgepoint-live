@@ -1,0 +1,64 @@
+name: Deploy UI Recovery V1041
+on:
+  push:
+    paths:
+      - '.github/workflows/deploy-ui-recovery-v1041.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages-v1041
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: live-artifact
+          fetch-depth: 1
+      - name: Validate V1041 runtime
+        run: |
+          set -euo pipefail
+          node --check app/plans-primary-v1041.js
+          node --check app/single-shell-v1041.js
+          grep -q 'single-shell-v1041.js?v=1041' app/index.html
+          grep -q 'plans-primary-v1041.js?v=1041' app/index.html
+          ! grep -q 'single-shell-v1040.js?v=1040' app/index.html
+          grep -q 'bridgepoint_public_customer_plans_v1041' app/plans-primary-v1041.js
+          grep -q "navigateFlutter(labels,index)" app/single-shell-v1041.js
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: .
+      - name: Deploy V1041
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify public V1041
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            salt="v1041-${GITHUB_SHA}-${attempt}-$(date +%s)"
+            idx="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?v=${salt}" 2>/dev/null || true)"
+            shell="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/single-shell-v1041.js?v=${salt}" 2>/dev/null || true)"
+            plans="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/plans-primary-v1041.js?v=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$idx" | grep -q 'data-bridgepoint-runtime="v1041"' \
+              && printf '%s' "$idx" | grep -q 'single-shell-v1041.js?v=1041' \
+              && printf '%s' "$idx" | grep -q 'plans-primary-v1041.js?v=1041' \
+              && ! printf '%s' "$idx" | grep -q 'single-shell-v1040.js?v=1040' \
+              && printf '%s' "$shell" | grep -q 'Opening ${label}' \
+              && printf '%s' "$shell" | grep -q 'navigateFlutter(labels,index)' \
+              && printf '%s' "$plans" | grep -q 'bridgepoint_public_customer_plans_v1041'; then
+              echo 'V1041 verified publicly: resilient Properties/More handoff and non-hanging Plans runtime are live.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'V1041 public verification did not converge.' >&2
+          exit 1
