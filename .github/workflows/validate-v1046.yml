@@ -1,7 +1,7 @@
 name: Validate BridgePoint Restoration
 on:
   push:
-    branches: [ui-v1046, ui-v1047, ui-v1048, ui-v1049, ui-v1050, ui-v1051, ui-v1052, live-artifact]
+    branches: [ui-v1046, ui-v1047, ui-v1048, ui-v1049, ui-v1050, ui-v1051, ui-v1052, ui-v1053, live-artifact]
   workflow_dispatch:
 jobs:
   validate:
@@ -25,6 +25,10 @@ jobs:
           node --check app/property-replay-v1052.js
           node --check app/home-field-v1052.js
           node --check app/weather-language-ai-v1052.js
+          node --check app/owner-command-center-v1053.js
+          node --check app/national-state-experience-v1053.js
+          node --check app/property-visual-first-v1053.js
+          node --check app/preapp-national-proof-v1053.js
       - name: Verify runtime loader references
         run: |
           grep -q 'auth-restoration-v1046.js' app/index.html
@@ -39,7 +43,18 @@ jobs:
           grep -q 'property-replay-v1052.js' app/index.html
           grep -q 'home-field-v1052.js' app/index.html
           grep -q 'weather-language-ai-v1052.js' app/index.html
-          grep -q 'data-bridgepoint-runtime="v1052"' app/index.html
+          grep -q 'owner-command-center-v1053.js' app/index.html
+          grep -q 'national-state-experience-v1053.js' app/index.html
+          grep -q 'property-visual-first-v1053.js' app/index.html
+          grep -q 'preapp-national-proof-v1053.js' app/index.html
+          grep -q 'data-bridgepoint-runtime="v1053"' app/index.html
+          grep -q 'bridgepoint_owner_command_center_v1053' app/owner-command-center-v1053.js
+          grep -q 'gross_customer_churn_rate' app/owner-command-center-v1053.js
+          grep -q 'bridgepoint_state_experience_v1053' app/national-state-experience-v1053.js
+          grep -q 'bridgepoint_property_media_bundle_v169' app/national-state-experience-v1053.js
+          grep -q 'bridgepoint_property_source_3d_v855' app/property-visual-first-v1053.js
+          grep -q 'bridgepoint_property_geometry_v854' app/property-visual-first-v1053.js
+          grep -q 'bridgepoint_public_national_progress_v1053' app/preapp-national-proof-v1053.js
       - name: Verify no merge markers
         run: |
           ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' app/*.js app/index.html
