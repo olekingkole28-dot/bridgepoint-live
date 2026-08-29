@@ -1,0 +1,136 @@
+name: BridgePoint Home + Map Labels V1038
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-home-and-map-labels-v1038.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  patch-deploy-verify:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch exact live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/map-radar-v974.js')
+          s=p.read_text(encoding='utf-8')
+          old="let leafletPromise,dialog,map,baseLayer,labelLayer,radarLayer,stateLayer,propertyLayer,opportunityLayer,signalLayer,access=null"
+          new="let leafletPromise,dialog,map,baseLayer,roadLayer,labelLayer,radarLayer,stateLayer,propertyLayer,opportunityLayer,signalLayer,access=null"
+          if old in s:
+              s=s.replace(old,new,1)
+          elif new not in s:
+              raise SystemExit('Map layer declaration anchor missing')
+
+          old_set="function setBase(){if(baseLayer)map.removeLayer(baseLayer);if(labelLayer)map.removeLayer(labelLayer);baseLayer=L.tileLayer(satelliteOn?'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}':'https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:satelliteOn?'Esri':'OpenStreetMap'}).addTo(map);if(satelliteOn)labelLayer=L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}).addTo(map);baseLayer.bringToBack();if(labelLayer)labelLayer.bringToBack();}"
+          new_set="function setBase(){if(baseLayer)map.removeLayer(baseLayer);if(roadLayer)map.removeLayer(roadLayer);if(labelLayer)map.removeLayer(labelLayer);baseLayer=L.tileLayer(satelliteOn?'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}':'https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,attribution:satelliteOn?'Esri':'OpenStreetMap'}).addTo(map);if(satelliteOn){roadLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,attribution:'Esri transportation'}).addTo(map);labelLayer=L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,attribution:'Esri boundaries & places'}).addTo(map);}baseLayer.bringToBack();if(roadLayer)roadLayer.bringToFront();if(labelLayer)labelLayer.bringToFront();}"
+          if old_set in s:
+              s=s.replace(old_set,new_set,1)
+          elif 'Reference/World_Transportation/MapServer' not in s:
+              raise SystemExit('Map base-layer anchor missing')
+
+          # Make the control accurately describe what users see.
+          s=s.replace('<button class=\"btn active\" data-satellite>Satellite</button>', '<button class=\"btn active\" data-satellite>Satellite + labels</button>')
+          if "window.__bridgepointMapLabelsV1038=true;" not in s:
+              anchor="window.__bridgepointMapRadarV974=true;"
+              if anchor not in s: raise SystemExit('Map runtime marker missing')
+              s=s.replace(anchor,anchor+"\n  window.__bridgepointMapLabelsV1038=true;",1)
+          p.write_text(s,encoding='utf-8')
+
+          idx=Path('app/index.html')
+          h=idx.read_text(encoding='utf-8')
+          if 'home-seam-fix-v1037.js?v=1037' not in h: raise SystemExit('V1037 seam fix is not wired')
+          if '#bp1036-commerce-tab' not in h: raise SystemExit('Floating founder button suppression missing')
+          h=h.replace('data-customer-priority="v1037"','data-customer-priority="v1038"')
+          h=h.replace("window.__bridgepointCustomerPriorityRelease='v1037';","window.__bridgepointCustomerPriorityRelease='v1038';")
+          idx.write_text(h,encoding='utf-8')
+          PY
+
+          node --check app/map-radar-v974.js
+          node --check app/home-seam-fix-v1037.js
+          grep -q 'World_Transportation/MapServer' app/map-radar-v974.js
+          grep -q 'World_Boundaries_and_Places/MapServer' app/map-radar-v974.js
+          grep -q 'Satellite + labels' app/map-radar-v974.js
+          grep -q 'data-customer-priority="v1038"' app/index.html
+          grep -q 'home-seam-fix-v1037.js?v=1037' app/index.html
+          grep -q '#bp1036-commerce-tab' app/index.html
+
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/map-radar-v974.js app/index.html
+          if ! git diff --cached --quiet; then
+            git commit -m 'Fix home seam and add boundaries roads town labels v1038'
+            git push origin HEAD:live-artifact
+          fi
+
+      - name: Assemble exact live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/home-seam-fix-v1037.js
+          test -s site/app/map-radar-v974.js
+          grep -q 'data-customer-priority="v1038"' site/app/index.html
+          grep -q 'World_Transportation/MapServer' site/app/map-radar-v974.js
+          grep -q 'World_Boundaries_and_Places/MapServer' site/app/map-radar-v974.js
+          grep -q 'Satellite + labels' site/app/map-radar-v974.js
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify public convergence
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?v=${salt}" 2>/dev/null || true)"
+            seam="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/home-seam-fix-v1037.js?v=${salt}" 2>/dev/null || true)"
+            mapjs="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/map-radar-v974.js?v=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-customer-priority="v1038"' \
+              && printf '%s' "$app" | grep -q '#bp1036-commerce-tab' \
+              && printf '%s' "$app" | grep -q 'home-seam-fix-v1037.js?v=1037' \
+              && printf '%s' "$seam" | grep -q 'bp1037-home-seam-guard' \
+              && printf '%s' "$mapjs" | grep -q 'World_Transportation/MapServer' \
+              && printf '%s' "$mapjs" | grep -q 'World_Boundaries_and_Places/MapServer' \
+              && printf '%s' "$mapjs" | grep -q 'Satellite + labels'; then
+              echo 'V1038 public app verified: seam fix wired, floating founder button suppressed, roads/boundaries/place labels live.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'V1038 public verification did not converge.' >&2
+          exit 1
