@@ -31,6 +31,16 @@ function status(text,bad=false){
   el.textContent=text;
   el.style.color=bad?'#ff9a9a':'#48e1ff';
 }
+function subsetForMap(map){
+  try{
+    const c=map.getCenter(),lat=Number(c.lat),lng=Number(c.lng);
+    if(lat>=50&&lng<=-125)return'ALASKA';
+    if(lat>=17&&lat<=24&&lng>=-162&&lng<=-153)return'HAWAII';
+    if(lat>=12&&lat<=23&&lng>=-70&&lng<=-59)return'CARIB';
+    if(lat>=10&&lat<=18&&lng>=140&&lng<=150)return'GUAM';
+  }catch(_){}
+  return'CONUS';
+}
 async function loadRadarCatalog(force=false){
   const fresh=Date.now()-catalogLoadedAt<180000;
   if(catalogPromise&&fresh&&!force)return catalogPromise;
@@ -45,29 +55,24 @@ async function loadRadarCatalog(force=false){
     const r=await fetch(u.toString(),{cache:'no-store'});
     if(!r.ok)throw new Error(`NOAA catalog ${r.status}`);
     const j=await r.json();
-    const rows=(j.features||[]).map(x=>x?.attributes||{}).map(a=>({
+    const frames=(j.features||[]).map(x=>x?.attributes||{}).map(a=>({
       id:Number(a.objectid),
       time:Number(a.idp_validtime),
-      subset:String(a.idp_subset||''),
+      subset:String(a.idp_subset||'').toUpperCase(),
       name:String(a.name||'')
-    })).filter(x=>Number.isFinite(x.id)&&Number.isFinite(x.time));
-    if(!rows.length)throw new Error('NOAA catalog empty');
-    const groups=new Map();
-    for(const row of rows){
-      if(!groups.has(row.time))groups.set(row.time,{time:row.time,ids:[],rows:[]});
-      const g=groups.get(row.time);g.ids.push(row.id);g.rows.push(row);
-    }
-    const frames=[...groups.values()].sort((a,b)=>a.time-b.time);
+    })).filter(x=>Number.isFinite(x.id)&&Number.isFinite(x.time)&&x.subset).sort((a,b)=>a.time-b.time);
     if(!frames.length)throw new Error('NOAA frame catalog empty');
     catalogLoadedAt=Date.now();
     return frames;
   })().catch(e=>{catalogPromise=null;throw e;});
   return catalogPromise;
 }
-function nearestFrame(frames,target){
+function nearestFrame(frames,target,subset){
   if(!frames?.length||!Number.isFinite(target))return null;
-  let best=frames[frames.length-1],dist=Math.abs(best.time-target);
-  for(const f of frames){const d=Math.abs(f.time-target);if(d<dist){best=f;dist=d;}}
+  const scoped=frames.filter(f=>f.subset===subset);
+  const source=scoped.length?scoped:frames;
+  let best=source[source.length-1],dist=Math.abs(best.time-target);
+  for(const f of source){const d=Math.abs(f.time-target);if(d<dist){best=f;dist=d;}}
   return best;
 }
 function installReliableRadar(){
@@ -117,60 +122,34 @@ function installReliableRadar(){
       u.searchParams.set('transparent','true');
       u.searchParams.set('interpolation','RSP_BilinearInterpolation');
       u.searchParams.set('f','image');
-      if(!useLatest&&frame?.ids?.length){
-        u.searchParams.set('mosaicRule',JSON.stringify({mosaicMethod:'esriMosaicLockRaster',lockRasterIds:frame.ids.slice(0,20),mosaicOperation:'MT_FIRST'}));
-      }
+      if(!useLatest&&frame?.id){u.searchParams.set('mosaicRule',JSON.stringify({mosaicMethod:'esriMosaicLockRaster',lockRasterIds:[frame.id],ascending:true,mosaicOperation:'MT_FIRST'}));}
       u.searchParams.set('_bp',String(Date.now()));
-      return {url:u.toString(),bounds:[[south,west],[north,east]],locked:!useLatest&&!!frame?.ids?.length};
+      return {url:u.toString(),bounds:[[south,west],[north,east]],locked:!useLatest&&!!frame?.id};
     },
     async _request(useLatest){
       if(!this._map)return;
-      const seq=++this._seq;
+      const seq=++this._seq,subset=subsetForMap(this._map);
       let frame=null;
       if(!useLatest&&this._time){
-        try{frame=nearestFrame(await loadRadarCatalog(),this._time);}catch(e){console.warn('BridgePoint NOAA catalog fallback',e);}
+        try{frame=nearestFrame(await loadRadarCatalog(),this._time,subset);}catch(e){console.warn('BridgePoint NOAA catalog fallback',e);}
       }
-      const req=this._buildUrl(frame,useLatest||!frame);
-      this._frame=frame;
-      status(req.locked?'NOAA MRMS radar • loading exact historical raster…':'NOAA MRMS radar • loading latest live image…');
-      const probe=new Image();
-      probe.decoding='async';
+      const req=this._buildUrl(frame,useLatest||!frame);this._frame=frame;
+      status(req.locked?`NOAA MRMS ${subset} • loading historical raster…`:`NOAA MRMS ${subset} • loading latest live image…`);
+      const probe=new Image();probe.decoding='async';
       probe.onload=()=>{
         if(seq!==this._seq||!this._map)return;
-        if(!this._overlay){
-          this._overlay=L.imageOverlay(req.url,req.bounds,{opacity:Number(this.options.opacity)||.84,interactive:false,pane:'bp1000RadarPane',className:'bp1000-radar-image'}).addTo(this._map);
-        }else{
-          this._overlay.setBounds(req.bounds);
-          this._overlay.setUrl(req.url);
-          if(!this._map.hasLayer(this._overlay))this._overlay.addTo(this._map);
-        }
-        const d=frame?new Date(frame.time):new Date();
-        status(`NOAA MRMS radar LIVE • ${frame?d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'latest'}`);
+        if(!this._overlay){this._overlay=L.imageOverlay(req.url,req.bounds,{opacity:Number(this.options.opacity)||.84,interactive:false,pane:'bp1000RadarPane',className:'bp1000-radar-image'}).addTo(this._map);}else{this._overlay.setBounds(req.bounds);this._overlay.setUrl(req.url);if(!this._map.hasLayer(this._overlay))this._overlay.addTo(this._map);}
+        const d=frame?new Date(frame.time):new Date();status(`NOAA MRMS ${subset} LIVE • ${frame?d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}):'latest'}`);
       };
-      probe.onerror=()=>{
-        if(seq!==this._seq||!this._map)return;
-        if(req.locked){
-          status('NOAA historical raster missed • falling back to latest live radar…');
-          void this._request(true);
-        }else status('NOAA radar image failed to load',true);
-      };
+      probe.onerror=()=>{if(seq!==this._seq||!this._map)return;if(req.locked){status(`NOAA ${subset} historical raster missed • falling back to latest…`);void this._request(true);}else status('NOAA radar image failed to load',true);};
       probe.src=req.url;
     }
   });
-  L.tileLayer.wms=function(url,options){
-    if(/radar_base_reflectivity_time\/ImageServer\/WMSServer/i.test(String(url||'')))return new ReliableRadar(options||{});
-    return originalWms.call(this,url,options);
-  };
+  L.tileLayer.wms=function(url,options){if(/radar_base_reflectivity_time\/ImageServer\/WMSServer/i.test(String(url||'')))return new ReliableRadar(options||{});return originalWms.call(this,url,options);};
   L.tileLayer.__bp1001RadarPatched=true;
 }
 
 const originalOpen=window.BridgePointOpenIntelligenceMapV974;
-if(typeof originalOpen==='function'){
-  window.BridgePointOpenIntelligenceMapV974=async function(){
-    await ensureLeaflet();
-    installReliableRadar();
-    return originalOpen.apply(this,arguments);
-  };
-}
-window.BridgePointRadarV1000={ensureLeaflet,installReliableRadar,loadRadarCatalog};
+if(typeof originalOpen==='function')window.BridgePointOpenIntelligenceMapV974=async function(){await ensureLeaflet();installReliableRadar();return originalOpen.apply(this,arguments);};
+window.BridgePointRadarV1000={ensureLeaflet,installReliableRadar,loadRadarCatalog,subsetForMap};
 })();
