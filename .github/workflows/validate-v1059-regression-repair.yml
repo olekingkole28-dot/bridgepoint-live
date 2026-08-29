@@ -17,6 +17,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin ui-v1059-regression-repair:refs/remotes/origin/ui-v1059-regression-repair
+          echo "STAGED_SHA=$(git rev-parse origin/ui-v1059-regression-repair)"
           rm -rf /tmp/v1059 && mkdir -p /tmp/v1059
           git archive origin/ui-v1059-regression-repair | tar -x -C /tmp/v1059
       - name: JavaScript syntax checks
@@ -29,7 +30,7 @@ jobs:
           set -euo pipefail
           I=/tmp/v1059/app/index.html
           grep -q 'data-bridgepoint-runtime="v1059"' "$I"
-          grep -q 'preauth-legal-v1059.js?v=1059' "$I"
+          grep -q '<script src="preauth-legal-v1059.js?v=1059"></script>' "$I"
           grep -q 'entry-visual-v1059.js?v=1059' "$I"
           grep -q 'navigation-repair-v1059.js?v=1059' "$I"
           grep -q 'flutter-view,flt-glass-pane' /tmp/v1059/app/navigation-repair-v1059.js
@@ -54,6 +55,8 @@ jobs:
           npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
           python3 -m http.server 4173 --directory /tmp/v1059 >/tmp/v1059-http.log 2>&1 &
           sleep 1
+          curl -fsS 'http://127.0.0.1:4173/app/preauth-legal-v1059.js?v=1059' | grep -q '__bridgepointPreAuthLegalV1059'
+          curl -fsS 'http://127.0.0.1:4173/app/?entry=1&mode=signin' | grep -q '<script src="preauth-legal-v1059.js?v=1059"></script>'
       - name: Browser regression checks
         run: |
           set -euo pipefail
@@ -64,7 +67,10 @@ jobs:
           const base='http://127.0.0.1:4173/app/';
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
           async function mocks(page,user=false){
+            page.on('console',m=>console.log('CONSOLE',m.type(),m.text()));
             page.on('pageerror',e=>console.log('PAGEERROR',e.message||String(e)));
+            page.on('requestfailed',r=>console.log('REQUEST_FAILED',r.url(),r.failure()?.errorText));
+            page.on('response',r=>{if(r.url().includes('preauth-legal-v1059'))console.log('PREAUTH_RESPONSE',r.status(),r.url(),r.headers()['content-type']||'');});
             await page.setRequestInterception(true);
             page.on('request',req=>{
               const u=req.url(), cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*','Access-Control-Allow-Methods':'GET,POST,OPTIONS'};
@@ -90,7 +96,13 @@ jobs:
             try{
               const legal=await browser.newPage();await mocks(legal,false);
               await legal.goto(base+'?entry=1&mode=signin',{waitUntil:'domcontentloaded',timeout:15000});
-              await legal.waitForFunction(()=>window.__bridgepointPreAuthLegalV1059===true,{timeout:5000});
+              await sleep(500);
+              console.log('LEGAL_URL',legal.url());
+              const tags=await legal.$$eval('script',xs=>xs.map(x=>x.src).filter(Boolean).filter(x=>x.includes('1059')));
+              console.log('V1059_SCRIPTS',tags.join('|'));
+              const flag=await legal.evaluate(()=>window.__bridgepointPreAuthLegalV1059===true);
+              console.log('PREAUTH_FLAG',flag);
+              assert.strictEqual(flag,true,'preauth legal bootstrap must execute');
               await legal.waitForSelector('#bp1059-legal.show',{timeout:5000});
               await legal.waitForSelector('#bp1046-auth',{timeout:5000});
               assert.strictEqual(await legal.$eval('#bp1046-auth',e=>getComputedStyle(e).display),'none');
@@ -124,5 +136,8 @@ jobs:
             } finally {await browser.close();}
           })().catch(e=>{console.error(e);process.exit(1);});
           NODE
+      - name: Local HTTP diagnostics
+        if: always()
+        run: cat /tmp/v1059-http.log || true
       - name: Validation summary
         run: echo 'V1059 passed legal-before-auth, pre-app feature CTAs, Flutter click shield, all primary navigation clicks, syntax and preserved customer contracts.'
