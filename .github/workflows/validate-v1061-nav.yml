@@ -93,7 +93,7 @@ jobs:
               await p.evaluateOnNewDocument(()=>localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'abcdefghijklmnopqrstuvwxyz1234567890',user:{id:'11111111-1111-1111-1111-111111111111'}})));
               await p.goto('http://127.0.0.1:4173/harness.html',{waitUntil:'domcontentloaded',timeout:15000});
               await p.waitForSelector('#bp1061-nav',{timeout:7000});
-              await sleep(1800); // allow old trial/entitlement installers to run and try to interfere
+              await sleep(1800);
               assert.strictEqual(await p.$('#bp1055-nav'),null,'legacy nav must be removed');
               assert.strictEqual(await p.$('#bp1055-more-button'),null,'legacy header More must be removed');
               assert.deepStrictEqual(await p.$$eval('#bp1061-nav [data-tab]',els=>els.map(e=>e.dataset.tab)),['home','map','properties','work','more']);
@@ -113,3 +113,4 @@ jobs:
           NODE
       - name: Summary
         run: echo 'V1061 passed with legacy shell, trial guard, entitlement wrapper, V1060 nav repair and V1061 nav loaded together.'
+# rerun after cross-tab debounce correction
