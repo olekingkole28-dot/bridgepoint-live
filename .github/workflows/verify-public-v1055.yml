@@ -1,0 +1,61 @@
+name: Verify Public BridgePoint V1055
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-public-v1055.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify public V1055 files and live product contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          project='https://xdfsjztwgsbmabshzsjw.supabase.co'
+          key='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25'
+          fit='{"p_answers":{"audience":"homeowner","property_focus":"one home","goal":"understand my property","team_scale":"one person","territory":"one property","integration":"bridgepoint app","capabilities":["monitoring"]}}'
+          for attempt in $(seq 1 30); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1055&verify=${salt}" 2>/dev/null || true)"
+            shell="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/single-shell-v1055.js?verify=${salt}" 2>/dev/null || true)"
+            deep="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/preapp-deeptech-v1055.js?verify=${salt}" 2>/dev/null || true)"
+            onboard="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/presignup-onboarding-v1055.js?verify=${salt}" 2>/dev/null || true)"
+            owner="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/owner-everything-v1055.js?verify=${salt}" 2>/dev/null || true)"
+            trial="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/trial-access-v1055.js?verify=${salt}" 2>/dev/null || true)"
+            agent="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/downloads/bridgepoint_local_node_v1055.py?verify=${salt}" 2>/dev/null || true)"
+            installer="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/downloads/install_bridgepoint_local_node_v1055.ps1?verify=${salt}" 2>/dev/null || true)"
+            deepapi="$(curl -fsSL --max-time 20 -X POST "${project}/rest/v1/rpc/bridgepoint_public_deeptech_v534" -H "apikey: ${key}" -H "Authorization: Bearer ${key}" -H 'Content-Type: application/json' -d '{}' 2>/dev/null || true)"
+            fitapi="$(curl -fsSL --max-time 20 -X POST "${project}/rest/v1/rpc/bridgepoint_public_package_fit_v1055" -H "apikey: ${key}" -H "Authorization: Bearer ${key}" -H 'Content-Type: application/json' -d "$fit" 2>/dev/null || true)"
+            guide="$(curl -fsSL --max-time 20 -X POST "${project}/rest/v1/rpc/bridgepoint_public_ai_ask_v1055" -H "apikey: ${key}" -H "Authorization: Bearer ${key}" -H 'Content-Type: application/json' -d '{"p_message":"What can BridgePoint do with IoT and drones?"}' 2>/dev/null || true)"
+            node_code="$(curl -sS -o /tmp/node1055.json -w '%{http_code}' --max-time 20 -X POST "${project}/functions/v1/bridgepoint-local-reasoning-v584" -H 'Content-Type: application/json' -d '{"action":"status","node_id":"00000000-0000-0000-0000-000000000000"}' 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1055"' \
+              && printf '%s' "$app" | grep -q 'single-shell-v1055.js?v=1055' \
+              && printf '%s' "$app" | grep -q 'owner-everything-v1055.js?v=1055' \
+              && ! printf '%s' "$app" | grep -q 'flutter_bootstrap.js' \
+              && printf '%s' "$shell" | grep -q '>Plans<' \
+              && printf '%s' "$shell" | grep -q 'bp1055-more-button' \
+              && printf '%s' "$deep" | grep -q 'THE BRIDGEPOINT INTELLIGENCE STACK' \
+              && printf '%s' "$onboard" | grep -q 'STEP 2 OF 3' \
+              && printf '%s' "$owner" | grep -q '1,080 Build List' \
+              && printf '%s' "$owner" | grep -q 'Queue full U.S. local export' \
+              && printf '%s' "$trial" | grep -q '7-DAY FREE TRIAL COMPLETE' \
+              && printf '%s' "$agent" | grep -q 'portable_export_authority' \
+              && printf '%s' "$installer" | grep -q 'BridgePoint Local Node v' \
+              && printf '%s' "$deepapi" | grep -q 'IOT_FUSION' \
+              && printf '%s' "$deepapi" | grep -q 'DRONE_TO_CAD' \
+              && printf '%s' "$fitapi" | grep -q 'fit_engine_version' \
+              && printf '%s' "$guide" | grep -q 'PUBLIC_SAFE_COMPANY_BRAIN_PLUS_LIVE_PRODUCT_REGISTRIES' \
+              && test "$node_code" = '401' \
+              && grep -q 'UNAUTHORIZED_NODE' /tmp/node1055.json; then
+              echo 'PUBLIC V1055 VERIFIED'
+              exit 0
+            fi
+            sleep 6
+          done
+          echo 'Public V1055 verification failed to converge.' >&2
+          exit 1
