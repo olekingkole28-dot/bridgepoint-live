@@ -83,8 +83,33 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install isolated DOM test dependency
-        run: npm install --no-save --package-lock=false jsdom@24
+      - name: Install isolated test dependencies
+        run: npm install --no-save --package-lock=false jsdom@24 pngjs@7
+
+      - name: Verify NOAA returns real colored radar pixels
+        run: |
+          set -euo pipefail
+          url='https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer/exportImage?bbox=-130,20,-60,55&bboxSR=4326&imageSR=4326&size=1200,650&format=png32&transparent=true&interpolation=RSP_BilinearInterpolation&f=image'
+          curl -fsSL --retry 2 --max-time 45 "$url" -o /tmp/noaa-radar.png
+          test "$(wc -c < /tmp/noaa-radar.png)" -gt 1000
+          node <<'NODE'
+          const fs=require('fs');
+          const {PNG}=require('pngjs');
+          const p=PNG.sync.read(fs.readFileSync('/tmp/noaa-radar.png'));
+          let visible=0, colored=0;
+          const colors=new Set();
+          for(let i=0;i<p.data.length;i+=4){
+            const r=p.data[i],g=p.data[i+1],b=p.data[i+2],a=p.data[i+3];
+            if(a>10){
+              visible++;
+              if(Math.max(r,g,b)-Math.min(r,g,b)>12){colored++;colors.add(`${r>>4},${g>>4},${b>>4}`);}
+            }
+          }
+          console.log({width:p.width,height:p.height,visible,colored,colorBuckets:colors.size});
+          if(visible<25)throw new Error('NOAA export returned no meaningful visible radar pixels');
+          if(colored<25||colors.size<2)throw new Error('NOAA export did not contain meaningful colored radar pixels');
+          NODE
+
       - name: Simulate native bottom navigation state handoff
         run: |
           node <<'NODE'
