@@ -1,0 +1,81 @@
+name: Deploy BridgePoint V1062 Full Runtime Navigation
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-v1062-full-runtime-nav.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Assemble exact V1062 artifact
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          expected='55408d40fb7ce72f809a2204d63c7428530f36e4'
+          actual="$(git rev-parse origin/live-artifact)"
+          test "$actual" = "$expected"
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          cd site/app
+          node --check nav-single-owner-v1062.js
+          node --check national-state-experience-v1062.js
+          grep -q 'data-bridgepoint-runtime="v1062"' index.html
+          grep -q 'nav-single-owner-v1062.js?v=1062' index.html
+          grep -q 'national-state-experience-v1062.js?v=1062' index.html
+          ! grep -q 'shell-correction-v1060.js' index.html
+          ! grep -q 'navigation-repair-v1060.js' index.html
+          ! grep -q 'nav-single-owner-v1061.js' index.html
+          ! grep -q 'national-state-experience-v1053.js' index.html
+          grep -q 'grid-template-columns:repeat(6' nav-single-owner-v1062.js
+          grep -q 'data-tab="plans"' nav-single-owner-v1062.js
+          grep -q 'data-tab="more"' nav-single-owner-v1062.js
+          ! grep -q 'MutationObserver' national-state-experience-v1062.js
+          cd ../..
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {path: site}
+      - name: Deploy exact V1062
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify public V1062 files
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 18); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1062&verify=${salt}" 2>/dev/null || true)"
+            nav="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/nav-single-owner-v1062.js?verify=${salt}" 2>/dev/null || true)"
+            nat="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/national-state-experience-v1062.js?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1062"' \
+              && printf '%s' "$app" | grep -q 'nav-single-owner-v1062.js?v=1062' \
+              && printf '%s' "$app" | grep -q 'national-state-experience-v1062.js?v=1062' \
+              && ! printf '%s' "$app" | grep -q 'navigation-repair-v1060.js' \
+              && ! printf '%s' "$app" | grep -q 'nav-single-owner-v1061.js' \
+              && printf '%s' "$nav" | grep -q 'grid-template-columns:repeat(6' \
+              && printf '%s' "$nav" | grep -q 'data-tab="plans"' \
+              && printf '%s' "$nav" | grep -q 'data-tab="more"' \
+              && printf '%s' "$nat" | grep -q '__bridgepointNationalStateExperienceV1062' \
+              && ! printf '%s' "$nat" | grep -q 'MutationObserver'; then
+              echo 'PUBLIC_V1062_FILES_PASS'
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'Public V1062 files did not converge' >&2
+          exit 1
