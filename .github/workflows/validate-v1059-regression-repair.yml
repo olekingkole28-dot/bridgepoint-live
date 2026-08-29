@@ -71,7 +71,11 @@ jobs:
           const puppeteer=require('puppeteer-core');
           const assert=require('assert');
           const base='http://127.0.0.1:4173/app/';
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
           async function mocks(page,user=false){
+            page.on('console',m=>console.log('BROWSER CONSOLE:',m.type(),m.text()));
+            page.on('pageerror',e=>console.log('BROWSER PAGEERROR:',e.stack||e.message||String(e)));
+            page.on('requestfailed',r=>console.log('REQUEST FAILED:',r.url(),r.failure()?.errorText));
             await page.setRequestInterception(true);
             page.on('request',req=>{
               const u=req.url();
@@ -94,16 +98,35 @@ jobs:
               req.continue();
             });
           }
+          async function dump(page,label){
+            const state=await page.evaluate(()=>({
+              url:location.href,
+              ready:document.readyState,
+              runtime:window.__bridgepointRuntimeRelease,
+              entryRequested:window.__bridgepointEntryRequested,
+              preauthFlag:window.__bridgepointPreAuthLegalV1059||null,
+              authFlag:!!window.BridgePointAuthV1046,
+              classes:document.documentElement.className,
+              legal:!!document.getElementById('bp1059-legal'),
+              legalClass:document.getElementById('bp1059-legal')?.className||null,
+              auth:!!document.getElementById('bp1046-auth'),
+              authClass:document.getElementById('bp1046-auth')?.className||null,
+              scripts:[...document.scripts].map(s=>s.src).filter(x=>x.includes('1059'))
+            }));
+            console.log(label,JSON.stringify(state,null,2));
+          }
           (async()=>{
             const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
             try{
               const legal=await browser.newPage();await mocks(legal,false);
               await legal.goto(base+'?entry=1&mode=signin',{waitUntil:'domcontentloaded'});
+              await sleep(1500);await dump(legal,'LEGAL STATE');
               await legal.waitForSelector('#bp1059-legal.show',{timeout:10000});
               assert.strictEqual(await legal.$eval('#bp1046-auth',e=>getComputedStyle(e).display),'none','auth must stay hidden before legal acceptance');
               await legal.click('#bp1059-legal [data-accept]');
               await legal.click('#bp1059-legal [data-continue]');
               await legal.waitForSelector('#bp1046-auth.show',{timeout:5000});
+              await legal.waitForSelector('.bp1059-auth-intro h1',{timeout:5000});
               assert.strictEqual(await legal.$eval('.bp1059-auth-intro h1',e=>e.textContent.trim()),'Welcome back');
 
               const pre=await browser.newPage();await mocks(pre,false);
@@ -122,8 +145,8 @@ jobs:
               await nav.waitForFunction(()=>window.BridgePointSingleShellV1055&&window.__bridgepointNavigationRepairV1059,{timeout:10000});
               await nav.evaluate(()=>{const f=document.createElement('flutter-view');Object.assign(f.style,{position:'fixed',inset:'0',zIndex:'2147483647'});document.body.appendChild(f);window.__navCalls=[];const a=window.BridgePointSingleShellV1055;for(const k of ['home','map','properties','work','plans','more'])a[k]=()=>window.__navCalls.push(k);});
               assert.strictEqual(await nav.$eval('flutter-view',e=>getComputedStyle(e).pointerEvents),'none','Flutter glass layer must not receive pointer events');
-              for(const k of ['home','map','properties','work','plans']){await nav.click(`#bp1055-nav [data-tab="${k}"]`);await new Promise(r=>setTimeout(r,80));}
-              await nav.click('#bp1055-more-button');await new Promise(r=>setTimeout(r,80));
+              for(const k of ['home','map','properties','work','plans']){await nav.click(`#bp1055-nav [data-tab="${k}"]`);await sleep(80);}
+              await nav.click('#bp1055-more-button');await sleep(80);
               const calls=await nav.evaluate(()=>window.__navCalls);
               for(const k of ['home','map','properties','work','plans','more'])assert(calls.includes(k),`navigation click missing: ${k}`);
               console.log('V1059 browser regression checks passed',calls);
