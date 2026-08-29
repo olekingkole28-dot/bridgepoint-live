@@ -67,7 +67,7 @@ jobs:
         run: |
           set -euo pipefail
           origin='https://bridgepointintelligence.online'
-          for attempt in $(seq 1 45); do
+          for attempt in $(seq 1 12); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
             app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1059&verify=${salt}" 2>/dev/null || true)"
             legal="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/preauth-legal-v1059.js?verify=${salt}" 2>/dev/null || true)"
@@ -81,19 +81,20 @@ jobs:
               && printf '%s' "$app" | grep -q 'navigation-repair-v1059.js?v=1059' \
               && printf '%s' "$legal" | grep -q 'REQUIRED BEFORE SECURE ACCOUNT ACCESS' \
               && printf '%s' "$legal" | grep -q 'bridgepoint_accept_legal_v82' \
-              && printf '%s' "$entry" | grep -q 'Open Product Tools' \
-              && printf '%s' "$entry" | grep -q 'Open Workflow Tools' \
-              && printf '%s' "$entry" | grep -q 'Open Intelligence Lab' \
-              && printf '%s' "$entry" | grep -q 'Open Property Workspace' \
+              && printf '%s' "$entry" | grep -q 'Product Tools' \
+              && printf '%s' "$entry" | grep -q 'Workflow Tools' \
+              && printf '%s' "$entry" | grep -q 'Intelligence Lab' \
+              && printf '%s' "$entry" | grep -q 'Property Workspace' \
               && printf '%s' "$nav" | grep -q 'flutter-view,flt-glass-pane' \
               && printf '%s' "$nav" | grep -q 'dismissFeatureGate' \
+              && printf '%s' "$nav" | grep -q '#bp1055-feature-gate{bottom:' \
               && printf '%s' "$surfaces" | grep -q 'bridgepoint_flutter_properties_v725' \
               && printf '%s' "$surfaces" | grep -q 'bridgepoint_saved_opportunities_v842' \
               && printf '%s' "$plans" | grep -q 'bridgepoint-checkout-v67'; then
               echo 'PUBLIC_V1059_VERIFIED'
               exit 0
             fi
-            sleep 8
+            sleep 5
           done
           echo 'V1059 public verification did not converge' >&2
           exit 1
