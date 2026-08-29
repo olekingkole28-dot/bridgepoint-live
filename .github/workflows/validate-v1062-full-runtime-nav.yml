@@ -50,6 +50,7 @@ jobs:
               const p=await browser.newPage();
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               p.on('pageerror',e=>console.log('PAGEERROR',e.message||String(e)));
+              p.on('console',m=>console.log('BROWSER',m.type(),m.text()));
               await p.setRequestInterception(true);
               p.on('request',req=>{
                 const u=req.url(),cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*','Access-Control-Allow-Methods':'GET,POST,OPTIONS'};
@@ -61,7 +62,7 @@ jobs:
                   else if(u.includes('bridgepoint_trial_access_v1055'))body={owner_override:true,intelligence_active:true,subscriptions:[]};
                   else if(u.includes('bridgepoint_public_legal_preview_v1054'))body={required_documents:[]};
                   else if(u.includes('bridgepoint_public_customer_plans_v1041')||u.includes('bridgepoint_public_package_catalog_v1054'))body={packages:[]};
-                  else if(u.includes('bridgepoint_flutter_properties_v725'))body={properties:[],total:0};
+                  else if(u.includes('bridgepoint_flutter_properties_v725'))body={properties:[],returned_results:0,total:0,has_more:false};
                   else if(u.includes('bridgepoint_saved_opportunities_v842'))body={saved_opportunities:[]};
                   else if(u.includes('bridgepoint_claims_workspace_v833'))body={claims:[],eligible_saved_opportunities:[],claim_stage_options:[]};
                   else if(u.includes('bridgepoint_calendar_agenda_v835'))body={events:[],unscheduled_routes:[]};
@@ -92,21 +93,19 @@ jobs:
                 const hit=await p.$eval(`#bp1062-nav [data-tab="${tab}"]`,el=>{const r=el.getBoundingClientRect(),h=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return h===el||el.contains(h)});
                 assert.strictEqual(hit,true,`${tab} center is covered in full app`);
               }
-              async function tap(tab){await p.$eval(`#bp1062-nav [data-tab="${tab}"]`,b=>b.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'touch'})));await sleep(700)}
+              const before=await p.evaluate(()=>({openProperties:typeof window.BridgePointOpenPropertiesV1042,customerSurfaceFlag:window.__bridgepointCustomerSurfacesV1042,propertiesExists:!!document.getElementById('bp1042-properties'),htmlClass:document.documentElement.className,trialLocked:window.BridgePointTrialV1055?.isLocked?.(),entHas:window.BridgePointEntitlementsV1055?.has?.('property_profiles'),active:window.BridgePointNavV1062?.getActive?.()}));
+              console.log('PROPERTIES_BEFORE',JSON.stringify(before));
+              async function tap(tab){await p.$eval(`#bp1062-nav [data-tab="${tab}"]`,b=>b.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'touch'})));await sleep(1100)}
               await tap('properties');
-              await p.waitForSelector('#bp1042-properties.show',{timeout:6000});
-              assert.notStrictEqual(await p.$eval('#bp1042-properties',e=>getComputedStyle(e).display),'none','Properties must visibly open in full app');
-              await tap('work');
-              await p.waitForSelector('#bp1054-work.show',{timeout:6000});
-              assert.notStrictEqual(await p.$eval('#bp1054-work',e=>getComputedStyle(e).display),'none','Work must visibly open in full app');
-              await tap('plans');
-              await p.waitForSelector('#bp1042-plans.show',{timeout:6000});
-              assert.notStrictEqual(await p.$eval('#bp1042-plans',e=>getComputedStyle(e).display),'none','Plans must visibly open in full app');
-              await tap('more');
-              await p.waitForSelector('#bp1042-more.show',{timeout:6000});
-              assert.notStrictEqual(await p.$eval('#bp1042-more',e=>getComputedStyle(e).display),'none','More must visibly open in full app');
-              await tap('home');
-              assert.strictEqual(await p.$eval('#bp1042-more',e=>e.classList.contains('show')),false,'Home must close More');
+              const after=await p.evaluate(()=>{const e=document.getElementById('bp1042-properties'),s=e?getComputedStyle(e):null;return{propertiesExists:!!e,className:e?.className||null,display:s?.display||null,visibility:s?.visibility||null,pointer:s?.pointerEvents||null,htmlClass:document.documentElement.className,active:window.BridgePointNavV1062?.getActive?.(),openProperties:typeof window.BridgePointOpenPropertiesV1042,featureGate:document.getElementById('bp1055-feature-gate')?.className||null,trialGate:document.getElementById('bp1055-trial-gate')?.className||null};});
+              console.log('PROPERTIES_AFTER',JSON.stringify(after));
+              assert.ok(after.propertiesExists,'Properties panel was never created');
+              assert.ok(String(after.className).includes('show'),'Properties panel was created but not marked show');
+              assert.notStrictEqual(after.display,'none','Properties panel is still display:none');
+              await tap('work');await p.waitForSelector('#bp1054-work.show',{timeout:6000});assert.notStrictEqual(await p.$eval('#bp1054-work',e=>getComputedStyle(e).display),'none');
+              await tap('plans');await p.waitForSelector('#bp1042-plans.show',{timeout:6000});assert.notStrictEqual(await p.$eval('#bp1042-plans',e=>getComputedStyle(e).display),'none');
+              await tap('more');await p.waitForSelector('#bp1042-more.show',{timeout:6000});assert.notStrictEqual(await p.$eval('#bp1042-more',e=>getComputedStyle(e).display),'none');
+              await tap('home');assert.strictEqual(await p.$eval('#bp1042-more',e=>e.classList.contains('show')),false);
               console.log('V1062_FULL_RUNTIME_NAV_PASS');
             } finally {await browser.close();}
           })().catch(e=>{console.error(e);process.exit(1)});
