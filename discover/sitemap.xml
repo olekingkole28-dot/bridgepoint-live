@@ -60,4 +60,11 @@
   <url><loc>https://bridgepointintelligence.online/discover/topics/explainer/</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://bridgepointintelligence.online/discover/topics/article/</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://bridgepointintelligence.online/discover/topics/market-brief/</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://bridgepointintelligence.online/discover/use-cases/roofing-property-intelligence/</loc><changefreq>daily</changefreq><priority>0.85</priority></url>
+  <url><loc>https://bridgepointintelligence.online/discover/use-cases/restoration-mitigation-intelligence/</loc><changefreq>daily</changefreq><priority>0.85</priority></url>
+  <url><loc>https://bridgepointintelligence.online/discover/use-cases/claims-evidence-intelligence/</loc><changefreq>daily</changefreq><priority>0.85</priority></url>
+  <url><loc>https://bridgepointintelligence.online/discover/use-cases/storm-weather-property-intelligence/</loc><changefreq>daily</changefreq><priority>0.85</priority></url>
+  <url><loc>https://bridgepointintelligence.online/discover/use-cases/property-matching-intelligence/</loc><changefreq>daily</changefreq><priority>0.85</priority></url>
+  <url><loc>https://bridgepointintelligence.online/discover/use-cases/real-estate-operator-intelligence/</loc><changefreq>daily</changefreq><priority>0.85</priority></url>
+  <url><loc>https://bridgepointintelligence.online/discover/use-cases/property-data-infrastructure/</loc><changefreq>daily</changefreq><priority>0.85</priority></url>
 </urlset>

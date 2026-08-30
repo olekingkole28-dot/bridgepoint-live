@@ -1,9 +1,9 @@
 {
   "version": 1111,
-  "generated_at": "2026-08-30T18:44:57.024672Z",
+  "generated_at": "2026-08-30T18:46:37.564781Z",
   "source_rpc": "bridgepoint_public_owned_media_feed_v435",
   "safe_story_count": 68,
-  "page_count": 60,
+  "page_count": 67,
   "privacy": "No customer identity, property address, raw evidence, proprietary scoring weight, exact visitor location or exact IP is exposed.",
   "publication_rule": "Only quality-gate-passed, customer-safe, non-private, non-proprietary stories are eligible. The freshest safe brief for every U.S. state or district with qualifying research is eligible for nationwide discovery; evergreen explainers remain eligible.",
   "urls": [
@@ -66,6 +66,58 @@
     "https://bridgepointintelligence.online/discover/states/mp/",
     "https://bridgepointintelligence.online/discover/topics/explainer/",
     "https://bridgepointintelligence.online/discover/topics/article/",
-    "https://bridgepointintelligence.online/discover/topics/market-brief/"
+    "https://bridgepointintelligence.online/discover/topics/market-brief/",
+    "https://bridgepointintelligence.online/discover/use-cases/roofing-property-intelligence/",
+    "https://bridgepointintelligence.online/discover/use-cases/restoration-mitigation-intelligence/",
+    "https://bridgepointintelligence.online/discover/use-cases/claims-evidence-intelligence/",
+    "https://bridgepointintelligence.online/discover/use-cases/storm-weather-property-intelligence/",
+    "https://bridgepointintelligence.online/discover/use-cases/property-matching-intelligence/",
+    "https://bridgepointintelligence.online/discover/use-cases/real-estate-operator-intelligence/",
+    "https://bridgepointintelligence.online/discover/use-cases/property-data-infrastructure/"
+  ],
+  "intent_hub_count": 7,
+  "intent_hubs": [
+    {
+      "slug": "roofing-property-intelligence",
+      "title": "Roofing Property Intelligence",
+      "story_count": 5,
+      "url": "https://bridgepointintelligence.online/discover/use-cases/roofing-property-intelligence/"
+    },
+    {
+      "slug": "restoration-mitigation-intelligence",
+      "title": "Restoration & Mitigation Intelligence",
+      "story_count": 4,
+      "url": "https://bridgepointintelligence.online/discover/use-cases/restoration-mitigation-intelligence/"
+    },
+    {
+      "slug": "claims-evidence-intelligence",
+      "title": "Claims Evidence Intelligence",
+      "story_count": 67,
+      "url": "https://bridgepointintelligence.online/discover/use-cases/claims-evidence-intelligence/"
+    },
+    {
+      "slug": "storm-weather-property-intelligence",
+      "title": "Storm & Weather Property Intelligence",
+      "story_count": 7,
+      "url": "https://bridgepointintelligence.online/discover/use-cases/storm-weather-property-intelligence/"
+    },
+    {
+      "slug": "property-matching-intelligence",
+      "title": "Property Matching Intelligence",
+      "story_count": 9,
+      "url": "https://bridgepointintelligence.online/discover/use-cases/property-matching-intelligence/"
+    },
+    {
+      "slug": "real-estate-operator-intelligence",
+      "title": "Real Estate Operator Intelligence",
+      "story_count": 4,
+      "url": "https://bridgepointintelligence.online/discover/use-cases/real-estate-operator-intelligence/"
+    },
+    {
+      "slug": "property-data-infrastructure",
+      "title": "Property Data Infrastructure",
+      "story_count": 7,
+      "url": "https://bridgepointintelligence.online/discover/use-cases/property-data-infrastructure/"
+    }
   ]
 }
