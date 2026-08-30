@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - scripts/publish_discovery_hubs.py
+      - scripts/publish_intent_hubs_v1113.py
       - .github/workflows/publish-discovery-hubs-v1111.yml
   workflow_dispatch:
 
@@ -32,17 +33,22 @@ jobs:
           # existing privacy, unsupported-claim, and proprietary-data guard.
           sed -i 's/fetch_feed(25)/fetch_feed(75)/g' scripts/publish_discovery_hubs.py
           python scripts/publish_discovery_hubs.py
+          python scripts/publish_intent_hubs_v1113.py
           test -s discover/index.html
           test -s discover/sitemap.xml
           test -s discover/manifest.json
           python - <<'PY'
+          import json
           from pathlib import Path
           expected=set('AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC'.split())
           present={p.parent.name.upper() for p in Path('discover/states').glob('*/index.html')}
           missing=sorted(expected-present)
           if missing:
               raise SystemExit('Nationwide discovery guard failed; missing: '+','.join(missing))
-          print('Nationwide discovery guard passed:',len(expected),'states/DC present; total jurisdiction pages:',len(present))
+          manifest=json.loads(Path('discover/manifest.json').read_text(encoding='utf-8'))
+          if int(manifest.get('intent_hub_count',0)) < 4:
+              raise SystemExit(f"Search-intent guard failed: only {manifest.get('intent_hub_count',0)} intent hubs")
+          print('Nationwide discovery guard passed:',len(expected),'states/DC present; total jurisdiction pages:',len(present),'intent hubs:',manifest.get('intent_hub_count'))
           PY
           if grep -R -E -i 'service_role|sb_secret|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY' discover; then
             echo 'Forbidden privileged credential marker found in generated discovery output.' >&2
@@ -62,7 +68,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git add -- discover
           git diff --cached --check
-          git commit -m 'Refresh BridgePoint nationwide discovery hubs [v1112]'
+          git commit -m 'Refresh BridgePoint nationwide discovery hubs [v1113]'
           git push origin HEAD:main
           echo 'changed=true' >> "$GITHUB_OUTPUT"
 
