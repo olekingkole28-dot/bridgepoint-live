@@ -50,21 +50,25 @@ function root(){return document.getElementById('bp1046-auth')}
 function createActive(r=root()){return !!r?.querySelector('[data-mode="create"]')?.classList.contains('active')}
 function enhance(){
   const r=root();if(!r)return;
+  const active=createActive(r);
   const normal=r.querySelector('[data-normal]');
   if(normal&&!normal.querySelector('.bp1072-create-intro')){
     const intro=document.createElement('div');intro.className='bp1072-create-intro';intro.hidden=true;intro.innerHTML='<b>Two quick steps to activate BridgePoint</b><span><em>1.</em> Create your account and accept the required terms below. <em>2.</em> We email you a verification link. Open that email and confirm your address before signing in.</span>';
     const rec=normal.querySelector('[data-rec]');(rec?.parentElement||normal).insertBefore(intro,rec||normal.firstChild);
   }
-  const intro=normal?.querySelector('.bp1072-create-intro');if(intro)intro.hidden=!createActive(r);
+  const intro=normal?.querySelector('.bp1072-create-intro');if(intro&&intro.hidden===active)intro.hidden=!active;
   const submit=r.querySelector('[data-submit]');
-  if(submit&&createActive(r)&&!submit.disabled)submit.textContent='Create account & send verification email';
+  const submitLabel='Create account & send verification email';
+  if(submit&&active&&!submit.disabled&&submit.textContent!==submitLabel)submit.textContent=submitLabel;
   const gate=r.querySelector('.bp1054-legal');
   if(gate){
     const b=gate.querySelector('.bp1054-legal-head b'),small=gate.querySelector('.bp1054-legal-head small');
-    if(b)b.textContent='Required terms — one checkbox';
-    if(small)small.textContent='Review the five BridgePoint disclosures below, then check the single box to accept them and continue. You can expand any item to read it here.';
+    const title='Required terms — one checkbox';
+    const copy='Review the five BridgePoint disclosures below, then check the single box to accept them and continue. You can expand any item to read it here.';
+    if(b&&b.textContent!==title)b.textContent=title;
+    if(small&&small.textContent!==copy)small.textContent=copy;
   }
-  if(createActive(r)&&!signupViewTracked){signupViewTracked=true;track('SIGNUP_VIEW',{metadata:{variant:'two_step_email_confirmation_v1072'}})}
+  if(active&&!signupViewTracked){signupViewTracked=true;track('SIGNUP_VIEW',{metadata:{variant:'two_step_email_confirmation_v1072'}})}
 }
 
 function confirmationPanel(r){
@@ -134,6 +138,6 @@ document.addEventListener('input',e=>{
   formStartTracked=true;track('SIGNUP_FORM_START',{metadata:{variant:'two_step_email_confirmation_v1072',field_type:e.target.type||'input'}});
 },{capture:true});
 document.addEventListener('click',e=>{if(e.target instanceof Element&&e.target.closest('#bp1046-auth [data-mode]'))setTimeout(enhance,0)},true);
-const mo=new MutationObserver(enhance);mo.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class','hidden']});
+const mo=new MutationObserver(enhance);mo.observe(document.documentElement,{childList:true,subtree:true});
 setTimeout(enhance,80);
 })();
