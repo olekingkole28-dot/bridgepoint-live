@@ -1,0 +1,215 @@
+name: Deploy BridgePoint V1070 Simple Entry Flow
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-entry-flow-v1070.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+
+      - name: Assemble exact V1066 runtime with V1070 entry simplification
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          expected='d714e802ff67020ba1a374c0ca67a615c3ef8c86'
+          actual="$(git rev-parse origin/live-artifact)"
+          echo "live-artifact=${actual}"
+          test "$actual" = "$expected"
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          # 1) Homepage remains the single public product/vision page.
+          root=Path('site/index.html')
+          text=root.read_text()
+          # Make every actual account CTA deterministic create-mode.
+          pat=re.compile(r'(?P<prefix><a[^>]*href=")(?P<href>/app/\?entry=1[^\"]*)(?P<suffix>"[^>]*data-track="CREATE_ACCOUNT_CLICK"[^>]*>)')
+          count=0
+          def create_href(m):
+              global count
+              href=m.group('href')
+              if 'mode=create' not in href:
+                  href=href.replace('/app/?entry=1','/app/?entry=1&mode=create',1)
+              href=href.replace('utm_campaign=national_open','utm_campaign=start_trial_v1070')
+              count+=1
+              return m.group('prefix')+href+m.group('suffix')
+          text=pat.sub(create_href,text)
+          if count != 3:
+              raise SystemExit(f'Expected 3 homepage account CTAs, patched {count}')
+          text=text.replace('>Open BridgePoint</a>','>Start free trial</a>',1)
+          text=text.replace('>OPEN BRIDGEPOINT</a>','>START 7-DAY FREE TRIAL</a>',1)
+          # Add explicit returning-user sign-in without removing public links.
+          nav_marker='<select id="language" class="lang" aria-label="Language"></select>'
+          if nav_marker not in text: raise SystemExit('homepage nav marker missing')
+          text=text.replace(nav_marker,nav_marker+'<a href="/app/?entry=1&mode=signin&utm_source=homepage&utm_medium=nav&utm_campaign=returning_user_v1070">Sign in</a>',1)
+          hero_watch='<a class="btn secondary" href="#network" data-i="watch">WATCH THE U.S. NETWORK BUILD</a>'
+          if hero_watch not in text: raise SystemExit('homepage hero watch marker missing')
+          text=text.replace(hero_watch,'<a class="btn secondary" href="/app/?entry=1&mode=signin&utm_source=homepage&utm_medium=hero&utm_campaign=returning_user_v1070">SIGN IN</a>'+hero_watch,1)
+          root.write_text(text)
+
+          # 2) Bare /app/ no longer auto-mounts the second marketing/pre-app page.
+          pre=Path('site/app/preapp-funnel-v1044.js')
+          s=pre.read_text()
+          old="async function start(){if(window.__bridgepointEntryRequested)return;const token=findToken();if(await validToken(token))return;mount();}"
+          new="async function start(){if(window.__bridgepointEntryRequested)return;const token=findToken();if(await validToken(token))return;window.__bridgepointEntryRequested=true;if(window.BridgePointPreAuthLegalV1059?.begin){window.BridgePointPreAuthLegalV1059.begin('signin',null);return;}location.replace('./?entry=1&mode=signin');}"
+          if old not in s: raise SystemExit('preapp start marker missing')
+          pre.write_text(s.replace(old,new,1))
+
+          # 3) Keep the existing auth modal, but closing it logged-out returns to the public page.
+          auth=Path('site/app/auth-restoration-v1046.js')
+          a=auth.read_text()
+          old="function close(){root?.classList.remove('show');}"
+          new="function close(){root?.classList.remove('show');let signed=false;try{const raw=localStorage.getItem(STORAGE);if(raw){const x=JSON.parse(raw);signed=!!x?.access_token;}}catch(_){}if(!signed&&location.pathname.startsWith('/app/'))location.href='../';}"
+          if old not in a: raise SystemExit('auth close marker missing')
+          auth.write_text(a.replace(old,new,1))
+          PY
+
+          # 4) Replace the redundant standalone pre-auth legal page with a compatibility router.
+          #    Required legal remains INSIDE create-account via legal-gate-v1054.js.
+          cat > site/app/preauth-legal-v1059.js <<'JS'
+          (()=>{
+          'use strict';
+          if(window.__bridgepointPreAuthLegalV1059)return;
+          window.__bridgepointPreAuthLegalV1059=true;
+          const PROJECT='https://xdfsjztwgsbmabshzsjw.supabase.co';
+          const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+          const API=`${PROJECT}/rest/v1/rpc/`;
+          const ACCEPT_KEY='bp1054_required_legal_acceptance';
+          const INTENT_KEY='bp1059_entry_intent';
+          let directStarted=false;
+          function token(){try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)||'';if(!/auth|supabase|sb-/i.test(k))continue;const raw=localStorage.getItem(k);if(!raw)continue;const x=JSON.parse(raw),seen=new Set(),walk=o=>{if(!o||typeof o!=='object'||seen.has(o))return null;seen.add(o);if(typeof o.access_token==='string'&&o.access_token.length>30)return o.access_token;for(const v of Object.values(o)){const r=walk(v);if(r)return r;}return null;};const r=walk(x);if(r)return r;}}catch(_){}return null;}
+          function currentAcceptance(){try{return JSON.parse(sessionStorage.getItem(ACCEPT_KEY)||'null');}catch(_){return null;}}
+          function saveIntent(mode,target){const x={mode:mode==='create'?'create':'signin',target:target||null};try{sessionStorage.setItem(INTENT_KEY,JSON.stringify(x));}catch(_){}return x;}
+          function readIntent(){try{return JSON.parse(sessionStorage.getItem(INTENT_KEY)||'null');}catch(_){return null;}}
+          function openAuth(mode='signin',target=null,attempt=0){saveIntent(mode,target);const auth=window.BridgePointAuthV1046;if(!auth?.open){if(attempt<80)return setTimeout(()=>openAuth(mode,target,attempt+1),40);return;}auth.open(mode==='create'?'create':'signin');}
+          function begin(mode='signin',target=null){openAuth(mode,target);}
+          async function recordServerAcceptance(){const t=token(),a=currentAcceptance();if(!t||!a?.accepted||!Array.isArray(a.documents)||!a.documents.length)return;try{const c=new AbortController(),tm=setTimeout(()=>c.abort(),9000);const r=await fetch(API+'bridgepoint_accept_legal_v82',{method:'POST',headers:{apikey:KEY,Authorization:`Bearer ${t}`,'Content-Type':'application/json','Cache-Control':'no-cache'},body:JSON.stringify({p_document_keys:a.documents.map(d=>d.document_key),p_acceptance_source:'APP_REQUIRED_GATE'}),signal:c.signal,cache:'no-store'});clearTimeout(tm);if(!r.ok)return;}catch(_){} }
+          function route(){const t=token(),x=readIntent();if(!t||!x?.target)return;let done=true;if(x.target==='product')window.BridgePointProductToolsV1056?.open?.('geography');else if(x.target==='workflow')window.BridgePointWorkflowToolsV1057?.open?.('watchlists');else if(x.target==='lab')window.BridgePointIntelligenceLabV1058?.open?.('patterns');else if(x.target==='properties')window.BridgePointSingleShellV1055?.properties?.();else done=false;if(done)try{sessionStorage.removeItem(INTENT_KEY);}catch(_){} }
+          const q=new URLSearchParams(location.search),hash=new URLSearchParams((location.hash||'').replace(/^#/,''));
+          const recovery=!!hash.get('access_token');
+          const direct=!recovery&&(q.get('entry')==='1'||q.get('mode')==='signin'||q.get('mode')==='create');
+          function startDirect(){if(directStarted||!direct||token())return;directStarted=true;openAuth(q.get('mode')==='create'?'create':'signin',readIntent()?.target||null);}
+          if(direct&&!token())setTimeout(startDirect,0);
+          document.addEventListener('DOMContentLoaded',startDirect,{once:true});
+          window.addEventListener('load',()=>{startDirect();void recordServerAcceptance();setTimeout(route,700);});
+          setTimeout(()=>{startDirect();void recordServerAcceptance();setTimeout(route,400);},300);
+          window.BridgePointPreAuthLegalV1059={begin,currentAcceptance};
+          })();
+          JS
+          node --check site/app/preauth-legal-v1059.js
+
+          # Regression invariants: exact V1066 app stays intact; no conversion overlay is layered in.
+          grep -F 'data-bridgepoint-runtime="v1066"' site/app/index.html
+          grep -F 'entry-experience-v1066.js?v=1066' site/app/index.html
+          grep -F 'state-property-search-v1066.js?v=1066' site/app/index.html
+          grep -F 'nav-single-owner-v1062.js?v=1066' site/app/index.html
+          grep -F 'legal-gate-v1054.js?v=1066' site/app/index.html
+          grep -F "window.BridgePointPreAuthLegalV1059={begin,currentAcceptance}" site/app/preauth-legal-v1059.js
+          grep -F "window.BridgePointPreAuthLegalV1059.begin('signin',null)" site/app/preapp-funnel-v1044.js
+          test "$(grep -o 'mode=create' site/index.html | wc -l)" -ge 3
+          test "$(grep -o 'returning_user_v1070' site/index.html | wc -l)" -eq 2
+          ! grep -q 'conversion-guard-v1069' site/app/index.html
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' site/index.html site/app/index.html site/app/preauth-legal-v1059.js site/app/preapp-funnel-v1044.js site/app/auth-restoration-v1046.js
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {path: site}
+      - name: Deploy V1070
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify public V1070 files
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 24); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            home="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/?v=1070&verify=${salt}" 2>/dev/null || true)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1070&verify=${salt}" 2>/dev/null || true)"
+            pre="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/preapp-funnel-v1044.js?verify=${salt}" 2>/dev/null || true)"
+            legal="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/preauth-legal-v1059.js?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$home" | grep -q 'start_trial_v1070' \
+              && printf '%s' "$home" | grep -q 'returning_user_v1070' \
+              && printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1066"' \
+              && printf '%s' "$pre" | grep -q "BridgePointPreAuthLegalV1059.begin('signin',null)" \
+              && printf '%s' "$legal" | grep -q 'recordServerAcceptance'; then
+              echo 'PUBLIC_V1070_FILES_PASS'
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'V1070 public files did not converge' >&2
+          exit 1
+
+      - name: Verify simple entry flow in mobile Chrome
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp && npm init -y >/dev/null 2>&1 && npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,protocolTimeout:60000,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
+            try{
+              // Homepage remains the public product page.
+              let ctx=await browser.createBrowserContext(),page=await ctx.newPage();
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('https://bridgepointintelligence.online/?verify1070='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              assert(await page.$('#network'));
+              assert(await page.$('a[href="/pricing/"]'));
+              const trial=await page.$eval('.hero a[data-track="CREATE_ACCOUNT_CLICK"]',a=>({href:a.href,text:a.textContent.trim()}));
+              assert(trial.href.includes('mode=create'));assert(/trial/i.test(trial.text));
+              assert(await page.$('a[href*="mode=signin"][href*="returning_user_v1070"]'));
+
+              // Start trial: directly to ONE auth screen; legal is embedded in create account.
+              await page.click('.hero a[data-track="CREATE_ACCOUNT_CLICK"]');
+              await page.waitForSelector('#bp1046-auth.show',{timeout:20000});
+              await page.waitForSelector('#bp1046-auth .bp1054-legal.show [data-legal-accept]',{timeout:20000});
+              assert.strictEqual(await page.$('#bp1059-legal.show'),null);
+              assert.strictEqual(await page.$('#bp1044-preapp'),null);
+              assert(await page.$('#bp1046-auth [data-mode="create"].active'));
+              await ctx.close();
+
+              // Returning-user sign in: directly to ONE sign-in screen, no standalone legal page.
+              ctx=await browser.createBrowserContext();page=await ctx.newPage();
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('https://bridgepointintelligence.online/app/?entry=1&mode=signin&verify1070signin='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await page.waitForSelector('#bp1046-auth.show [data-mode="signin"].active',{timeout:20000});
+              assert.strictEqual(await page.$('#bp1059-legal.show'),null);
+              assert.strictEqual(await page.$('#bp1044-preapp'),null);
+              const legalVisible=await page.$eval('#bp1046-auth .bp1054-legal',e=>getComputedStyle(e).display!=='none').catch(()=>false);
+              assert.strictEqual(legalVisible,false);
+              await ctx.close();
+
+              // Bare /app/ logged-out: no second marketing page; direct sign in.
+              ctx=await browser.createBrowserContext();page=await ctx.newPage();
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('https://bridgepointintelligence.online/app/?verify1070bare='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await page.waitForSelector('#bp1046-auth.show [data-mode="signin"].active',{timeout:20000});
+              assert.strictEqual(await page.$('#bp1044-preapp'),null);
+              assert.strictEqual(await page.$('#bp1059-legal.show'),null);
+              console.log('PUBLIC_V1070_SIMPLE_ENTRY_PASS');
+              await ctx.close();
+            }finally{await browser.close();}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
