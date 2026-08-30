@@ -9,6 +9,12 @@ on:
     branches: [main]
     paths:
       - .github/workflows/push-ai-discovery.yml
+      - llms.txt
+      - llms-full.txt
+      - robots.txt
+      - sitemap.xml
+      - discover/**
+      - articles/auto/**
   workflow_dispatch:
 
 permissions:
@@ -23,22 +29,26 @@ jobs:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - name: Push current acquisition, market, role and machine-discovery URLs to IndexNow
+      - name: Push nationwide acquisition, market, role and machine-discovery URLs to IndexNow
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import json, re
           towns='''Waterbury Hartford Bridgeport New-Haven Stamford West-Hartford Norwalk Bristol Fairfield Milford Greenwich Danbury Manchester Southington Berlin Stratford West-Haven Wallingford Hamden Meriden Middletown New-Britain Glastonbury Torrington Enfield East-Hartford Norwich New-Milford Branford Shelton Groton Newington Windsor Trumbull Naugatuck South-Windsor East-Haven Newtown Farmington Cheshire'''.split()
+          states='''AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC'''.split()
           origin='https://bridgepointintelligence.online'
           base=[
             '/', '/sample/', '/free-tools/', '/start-now/', '/for-roofers/', '/for-restoration/',
             '/for-public-adjusters/', '/for-property-managers/', '/connecticut/', '/capabilities/',
             '/enterprise/trust/', '/about/', '/contact/', '/articles/', '/founder/', '/answers/',
-            '/press/', '/partners/', '/commerce/', '/developers/', '/investors/', '/llms.txt', '/llms-full.txt'
+            '/press/', '/partners/', '/commerce/', '/developers/', '/investors/', '/llms.txt', '/llms-full.txt',
+            '/discover/', '/discover/sitemap.xml', '/articles/auto/', '/articles/auto/feed.xml', '/articles/auto/sitemap.xml'
           ]
           urls=[origin+p for p in base]
+          urls += [origin+'/discover/states/'+code.lower()+'/' for code in states]
           urls += [origin+'/connecticut/'+re.sub(r'[^a-z0-9]+','-',t.lower()).strip('-')+'/' for t in towns]
+          urls=list(dict.fromkeys(urls))[:100]
           payload={
             'host':'bridgepointintelligence.online',
             'key':'dc8a83e4caade76fd824cf929dca48d6',
@@ -46,7 +56,7 @@ jobs:
             'urlList':urls
           }
           open('/tmp/indexnow-acquisition.json','w').write(json.dumps(payload))
-          print('Submitting',len(urls),'high-intent discovery URLs')
+          print('Submitting',len(urls),'high-intent nationwide discovery URLs')
           PY
           code="$(curl -sS -o /tmp/indexnow-response.txt -w '%{http_code}' -X POST 'https://api.indexnow.org/indexnow' -H 'Content-Type: application/json; charset=utf-8' --data-binary @/tmp/indexnow-acquisition.json || true)"
           echo "IndexNow acquisition discovery HTTP ${code}"
@@ -67,6 +77,7 @@ jobs:
             'adjusters|https://bridgepointintelligence.online/for-public-adjusters/' \
             'property-managers|https://bridgepointintelligence.online/for-property-managers/' \
             'ct-hub|https://bridgepointintelligence.online/connecticut/' \
+            'discover|https://bridgepointintelligence.online/discover/' \
             'middletown|https://bridgepointintelligence.online/connecticut/middletown/' \
             'hartford|https://bridgepointintelligence.online/connecticut/hartford/' \
             'free-tools|https://bridgepointintelligence.online/free-tools/' \
@@ -84,6 +95,7 @@ jobs:
           grep -qi 'adjuster' /tmp/adjusters
           grep -qi 'property' /tmp/property-managers
           grep -qi 'Connecticut' /tmp/ct-hub
+          grep -qi 'public intelligence discovery' /tmp/discover
           grep -qi 'Middletown' /tmp/middletown
           grep -q 'Free Property Intelligence Snapshot' /tmp/free-tools
           grep -q 'Public Trust Center' /tmp/trust
