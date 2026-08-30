@@ -35,3 +35,4 @@ Disallow: /downloads/
 
 Sitemap: https://bridgepointintelligence.online/sitemap.xml
 Sitemap: https://bridgepointintelligence.online/articles/auto/sitemap.xml
+Sitemap: https://bridgepointintelligence.online/discover/sitemap.xml
