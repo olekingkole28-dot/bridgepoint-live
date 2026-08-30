@@ -25,18 +25,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Generate quality-gated public research
+      - name: Generate quality-gated nationwide public research
         run: |
           set -euo pipefail
-          # The public RPC itself hard-caps output at 25 and applies all privacy,
-          # quality, unsupported-claim, and thin-duplicate gates. Keep the
-          # publisher aligned with that safe ceiling so discovery links resolve.
-          sed -i 's/feed = fetch_feed(12)/feed = fetch_feed(25)/' scripts/publish_owned_media.py
+          # The public RPC hard-caps output at 75 and applies all privacy,
+          # quality, unsupported-claim, and thin-duplicate gates. Pull the full
+          # safe nationwide selection so every qualifying state can resolve.
+          sed -i 's/feed = fetch_feed(12)/feed = fetch_feed(75)/' scripts/publish_owned_media.py
           python scripts/publish_owned_media.py
           test -s articles/auto/index.html
           test -s articles/auto/feed.xml
           test -s articles/auto/sitemap.xml
           test -s articles/auto/manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('articles/auto/manifest.json').read_text(encoding='utf-8'))
+          if int(m.get('story_count',0)) < 51:
+              raise SystemExit(f"Nationwide owned-media guard failed: only {m.get('story_count')} safe stories rendered")
+          print('Nationwide owned-media guard passed:',m.get('story_count'),'safe stories')
+          PY
           if grep -R -E -i 'service_role|sb_secret' articles/auto; then
             echo 'Forbidden privileged credential marker found in generated public media.' >&2
             exit 1
