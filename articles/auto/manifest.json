@@ -1,10 +1,10 @@
 {
   "version": 435,
-  "generated_at": "2026-08-30T18:41:26.764804Z",
+  "generated_at": "2026-08-30T18:51:26.339124Z",
   "source_rpc": "bridgepoint_public_owned_media_feed_v435",
   "story_count": 68,
   "privacy": "No customer identity, property address, raw evidence, proprietary scoring weight, exact visitor location or exact IP is exposed.",
-  "publication_rule": "Only quality-gate-passed, customer-safe, non-private, non-proprietary stories are eligible. The freshest safe brief for every U.S. state or district with qualifying research is eligible for nationwide discovery; evergreen explainers remain eligible.",
+  "publication_rule": "Only quality-gate-passed, customer-safe, non-private, non-proprietary stories are eligible. The freshest safe brief for every U.S. state or district with qualifying research is eligible for nationwide discovery. Within that safe set, observed territory demand and aggregate on-site discovery engagement affect ordering; evergreen explainers remain eligible.",
   "urls": [
     "https://bridgepointintelligence.online/articles/auto/marlborough-roof-permit-decoded-what-a-public-filing-can-tell-you-before-e637b9e7.html",
     "https://bridgepointintelligence.online/articles/auto/what-is-bridgepoint-intelligence-property-and-claims-intelligence-built--c5491073.html",
