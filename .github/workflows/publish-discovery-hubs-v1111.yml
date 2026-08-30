@@ -1,0 +1,78 @@
+name: Publish BridgePoint Discovery Hubs
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - scripts/publish_discovery_hubs.py
+      - .github/workflows/publish-discovery-hubs-v1111.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bridgepoint-discovery-hubs-v1111
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build safe public discovery surfaces
+        run: |
+          set -euo pipefail
+          python scripts/publish_discovery_hubs.py
+          test -s discover/index.html
+          test -s discover/sitemap.xml
+          test -s discover/manifest.json
+          if grep -R -E -i 'service_role|sb_secret|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY' discover; then
+            echo 'Forbidden privileged credential marker found in generated discovery output.' >&2
+            exit 1
+          fi
+
+      - name: Commit only changed discovery pages
+        id: commit
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- discover && git ls-files --error-unmatch discover/index.html >/dev/null 2>&1; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'No discovery change.'
+            exit 0
+          fi
+          git config user.name 'BridgePoint Discovery Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -- discover
+          git diff --cached --check
+          git commit -m 'Refresh BridgePoint public discovery hubs [v1111]'
+          git push origin HEAD:main
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Notify search discovery after a real change
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          sleep 45
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest=json.loads(Path('discover/manifest.json').read_text(encoding='utf-8'))
+          urls=['https://bridgepointintelligence.online/discover/','https://bridgepointintelligence.online/discover/sitemap.xml',*manifest.get('urls',[])][:100]
+          payload={
+            'host':'bridgepointintelligence.online',
+            'key':'dc8a83e4caade76fd824cf929dca48d6',
+            'keyLocation':'https://bridgepointintelligence.online/dc8a83e4caade76fd824cf929dca48d6.txt',
+            'urlList':list(dict.fromkeys(urls)),
+          }
+          Path('/tmp/indexnow-discovery.json').write_text(json.dumps(payload),encoding='utf-8')
+          print(f"Prepared {len(payload['urlList'])} search-discovery URLs.")
+          PY
+          code="$(curl -sS -o /tmp/indexnow-discovery-response.txt -w '%{http_code}' -X POST 'https://api.indexnow.org/indexnow' -H 'Content-Type: application/json; charset=utf-8' --data-binary @/tmp/indexnow-discovery.json || true)"
+          echo "IndexNow discovery HTTP ${code}"
+          cat /tmp/indexnow-discovery-response.txt || true
