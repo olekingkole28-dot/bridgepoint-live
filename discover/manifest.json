@@ -1,0 +1,28 @@
+{
+  "version": 1111,
+  "generated_at": "2026-08-30T18:30:02.908490Z",
+  "source_rpc": "bridgepoint_public_owned_media_feed_v435",
+  "safe_story_count": 25,
+  "page_count": 17,
+  "privacy": "No customer identity, property address, raw evidence, proprietary scoring weight, exact visitor location or exact IP is exposed.",
+  "publication_rule": "Only quality-gate-passed, customer-safe, non-private, non-proprietary stories are eligible. State briefs are de-duplicated to the freshest safe brief per state and require observed demand or prior publication; evergreen explainers remain eligible.",
+  "urls": [
+    "https://bridgepointintelligence.online/discover/",
+    "https://bridgepointintelligence.online/discover/states/ct/",
+    "https://bridgepointintelligence.online/discover/states/ca/",
+    "https://bridgepointintelligence.online/discover/states/ia/",
+    "https://bridgepointintelligence.online/discover/states/va/",
+    "https://bridgepointintelligence.online/discover/states/wa/",
+    "https://bridgepointintelligence.online/discover/states/ma/",
+    "https://bridgepointintelligence.online/discover/states/dc/",
+    "https://bridgepointintelligence.online/discover/states/ny/",
+    "https://bridgepointintelligence.online/discover/states/az/",
+    "https://bridgepointintelligence.online/discover/states/nv/",
+    "https://bridgepointintelligence.online/discover/states/il/",
+    "https://bridgepointintelligence.online/discover/states/or/",
+    "https://bridgepointintelligence.online/discover/states/nj/",
+    "https://bridgepointintelligence.online/discover/topics/explainer/",
+    "https://bridgepointintelligence.online/discover/topics/article/",
+    "https://bridgepointintelligence.online/discover/topics/market-brief/"
+  ]
+}
