@@ -61,7 +61,7 @@ if not clarity_src.exists(): raise SystemExit('signup clarity source missing')
 clarity_dst.write_text(clarity_src.read_text())
 subprocess.run(['node','--check',str(clarity_dst)],check=True)
 clarity=clarity_dst.read_text()
-for marker in ['Two quick steps to activate BridgePoint','Create account & send verification email','Check your email to finish.','SIGNUP_SUBMIT','SIGNUP_SUCCESS','SIGNUP_ERROR','/auth/v1/signup']:
+for marker in ['Two quick steps to activate BridgePoint','Create account & send verification email','Check your email to finish.','SIGNUP_SUBMIT','SIGNUP_SUCCESS','SIGNUP_ERROR','auth\\/v1\\/signup']:
     if marker not in clarity: raise SystemExit(f'signup clarity marker missing: {marker}')
 
 app=Path('site/app/index.html')
