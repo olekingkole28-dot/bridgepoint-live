@@ -1,0 +1,132 @@
+name: Deploy BridgePoint V1071 Simple Entry Flow
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-entry-flow-v1071.yml'
+      - 'deploy/entry-flow-v1071/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+
+      - name: Assemble V1066 runtime with V1071 simplified entry
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          expected='d714e802ff67020ba1a374c0ca67a615c3ef8c86'
+          actual="$(git rev-parse origin/live-artifact)"
+          test "$actual" = "$expected"
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          python3 deploy/entry-flow-v1071/patch.py
+          cp deploy/entry-flow-v1071/preauth-legal-v1059.js site/app/preauth-legal-v1059.js
+          node --check site/app/preauth-legal-v1059.js
+
+          grep -F 'data-bridgepoint-runtime="v1066"' site/app/index.html
+          grep -F 'state-property-search-v1066.js?v=1066' site/app/index.html
+          grep -F 'legal-gate-v1054.js?v=1066' site/app/index.html
+          grep -F "window.BridgePointPreAuthLegalV1059={begin,currentAcceptance}" site/app/preauth-legal-v1059.js
+          grep -F "BridgePointPreAuthLegalV1059.begin('signin',null)" site/app/preapp-funnel-v1044.js
+          test "$(grep -o 'start_trial_v1071' site/index.html | wc -l)" -eq 3
+          test "$(grep -o 'returning_user_v1071' site/index.html | wc -l)" -eq 2
+          test "$(grep -o 'START 7-DAY FREE TRIAL' site/index.html | wc -l)" -ge 1
+          ! grep -q 'conversion-guard-v1069' site/app/index.html
+          ! grep -q 'id="bp1059-legal"' site/app/preauth-legal-v1059.js
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' site/index.html site/app/index.html site/app/preauth-legal-v1059.js site/app/preapp-funnel-v1044.js site/app/auth-restoration-v1046.js
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {path: site}
+      - name: Deploy V1071
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify public files
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 24); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            home="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/?v=1071&verify=${salt}" 2>/dev/null || true)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1071&verify=${salt}" 2>/dev/null || true)"
+            pre="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/preapp-funnel-v1044.js?verify=${salt}" 2>/dev/null || true)"
+            legal="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/preauth-legal-v1059.js?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$home" | grep -q 'start_trial_v1071' \
+              && printf '%s' "$home" | grep -q 'returning_user_v1071' \
+              && printf '%s' "$home" | grep -q 'START 7-DAY FREE TRIAL' \
+              && printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1066"' \
+              && printf '%s' "$pre" | grep -q "BridgePointPreAuthLegalV1059.begin('signin',null)" \
+              && printf '%s' "$legal" | grep -q 'recordServerAcceptance'; then
+              echo 'PUBLIC_V1071_FILES_PASS'
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
+
+      - name: Verify two-step entry flow in mobile Chrome
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp && npm init -y >/dev/null 2>&1 && npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,protocolTimeout:60000,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
+            try{
+              // PUBLIC PAGE -> CREATE ACCOUNT (legal embedded) -> app after real signup.
+              let ctx=await browser.createBrowserContext(),page=await ctx.newPage();
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('https://bridgepointintelligence.online/?verify1071='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              assert(await page.$('#network'));
+              const trial=await page.$eval('.hero a[data-track="CREATE_ACCOUNT_CLICK"]',a=>({href:a.href,text:a.textContent.trim()}));
+              assert(trial.href.includes('mode=create'));
+              assert(/trial/i.test(trial.text));
+              await page.click('.hero a[data-track="CREATE_ACCOUNT_CLICK"]');
+              await page.waitForSelector('#bp1046-auth.show [data-mode="create"].active',{timeout:20000});
+              await page.waitForSelector('#bp1046-auth .bp1054-legal.show [data-legal-accept]',{timeout:20000});
+              assert.strictEqual(await page.$('#bp1059-legal.show'),null);
+              assert.strictEqual(await page.$('#bp1044-preapp'),null);
+              const createHeading=await page.$eval('#bp1046-auth .bp1066-auth-intro h1',e=>e.textContent.trim()).catch(()=> '');
+              assert(/create/i.test(createHeading));
+              await ctx.close();
+
+              // PUBLIC PAGE -> SIGN IN -> app after real login. No legal screen for returning users.
+              ctx=await browser.createBrowserContext();page=await ctx.newPage();
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('https://bridgepointintelligence.online/app/?entry=1&mode=signin&verify1071signin='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await page.waitForSelector('#bp1046-auth.show [data-mode="signin"].active',{timeout:20000});
+              assert.strictEqual(await page.$('#bp1059-legal.show'),null);
+              assert.strictEqual(await page.$('#bp1044-preapp'),null);
+              const legalVisible=await page.$eval('#bp1046-auth .bp1054-legal',e=>getComputedStyle(e).display!=='none').catch(()=>false);
+              assert.strictEqual(legalVisible,false);
+              await ctx.close();
+
+              // Bare /app/ logged out goes straight to sign in, not a second marketing page.
+              ctx=await browser.createBrowserContext();page=await ctx.newPage();
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('https://bridgepointintelligence.online/app/?verify1071bare='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await page.waitForSelector('#bp1046-auth.show [data-mode="signin"].active',{timeout:20000});
+              assert.strictEqual(await page.$('#bp1044-preapp'),null);
+              assert.strictEqual(await page.$('#bp1059-legal.show'),null);
+              console.log('PUBLIC_V1071_TWO_STEP_ENTRY_PASS');
+              await ctx.close();
+            }finally{await browser.close();}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
