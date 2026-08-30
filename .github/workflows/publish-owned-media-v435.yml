@@ -28,6 +28,10 @@ jobs:
       - name: Generate quality-gated public research
         run: |
           set -euo pipefail
+          # The public RPC itself hard-caps output at 25 and applies all privacy,
+          # quality, unsupported-claim, and thin-duplicate gates. Keep the
+          # publisher aligned with that safe ceiling so discovery links resolve.
+          sed -i 's/feed = fetch_feed(12)/feed = fetch_feed(25)/' scripts/publish_owned_media.py
           python scripts/publish_owned_media.py
           test -s articles/auto/index.html
           test -s articles/auto/feed.xml
