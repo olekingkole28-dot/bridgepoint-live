@@ -52,3 +52,16 @@ old="function close(){root?.classList.remove('show');}"
 new="function close(){root?.classList.remove('show');let signed=false;try{const raw=localStorage.getItem(STORAGE);if(raw){const x=JSON.parse(raw);signed=!!x?.access_token;}}catch(_){}if(!signed&&location.pathname.startsWith('/app/'))location.href='../';}"
 if old not in a: raise SystemExit('auth close marker missing')
 auth.write_text(a.replace(old,new,1))
+
+# V1072 signup clarity: replace the easy-to-miss legacy toast with a persistent two-step flow.
+clarity_src=Path('deploy/entry-flow-v1071/signup-clarity-v1072.js')
+clarity_dst=Path('site/app/signup-clarity-v1072.js')
+if not clarity_src.exists(): raise SystemExit('signup clarity source missing')
+clarity_dst.write_text(clarity_src.read_text())
+app=Path('site/app/index.html')
+app_text=app.read_text()
+legacy='  <script defer src="signup-confirmation-v946.js?v=1066"></script>'
+modern='  <script defer src="signup-clarity-v1072.js?v=1072"></script>'
+if legacy not in app_text: raise SystemExit('legacy signup confirmation script marker missing')
+app_text=app_text.replace(legacy,modern,1)
+app.write_text(app_text)
