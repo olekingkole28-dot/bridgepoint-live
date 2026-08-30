@@ -1,0 +1,154 @@
+name: Deploy BridgePoint V1068 Conversion Guard
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-conversion-guard-v1068.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Assemble exact V1066 baseline plus retry-safe V1068 conversion layer
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          expected='d714e802ff67020ba1a374c0ca67a615c3ef8c86'
+          actual="$(git rev-parse origin/live-artifact)"
+          test "$actual" = "$expected"
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          # Expose the already-tested V1044 public preapp mount/start functions so a thin
+          # conversion watchdog can retry the SAME implementation if asynchronous startup misses.
+          p=Path('site/app/preapp-funnel-v1044.js')
+          s=p.read_text()
+          old="setTimeout(start,120);\n})();"
+          new="window.BridgePointPreappFunnelV1044={mount,start};\nsetTimeout(start,120);\n})();"
+          if old not in s: raise SystemExit('V1044 preapp end marker missing')
+          p.write_text(s.replace(old,new,1))
+
+          root=Path('site/index.html')
+          text=root.read_text()
+          pat=re.compile(r'<a(?P<attrs>[^>]*?)href="(?P<href>/app/\?entry=1[^\"]*)"(?P<tail>[^>]*?data-track="CREATE_ACCOUNT_CLICK"[^>]*)>')
+          changed=0
+          def fix(m):
+              global changed
+              href=m.group('href')
+              href=href.replace('/app/?entry=1','/app/?entry=1&mode=create',1) if 'mode=create' not in href else href
+              href=href.replace('utm_campaign=national_open','utm_campaign=start_trial_v1068')
+              changed+=1
+              return '<a'+m.group('attrs')+'href="'+href+'"'+m.group('tail')+' data-conversion="v1068">'
+          text=pat.sub(fix,text)
+          if changed != 3: raise SystemExit(f'Expected 3 CREATE_ACCOUNT_CLICK anchors; patched {changed}')
+          marker='<script src="/landing-v984.js?v=984"></script>'
+          if marker not in text: raise SystemExit('landing marker missing')
+          text=text.replace(marker,marker+'\n<script src="/conversion-guard-v1068.js?v=1068"></script>',1)
+          root.write_text(text)
+
+          app=Path('site/app/index.html')
+          at=app.read_text()
+          marker='  <script defer src="entry-experience-v1066.js?v=1066"></script>'
+          if marker not in at: raise SystemExit('V1066 entry marker missing')
+          at=at.replace(marker,marker+'\n  <script defer src="conversion-guard-v1068.js?v=1068"></script>',1)
+          app.write_text(at)
+          PY
+
+          cat > site/conversion-guard-v1068.js <<'JS'
+          (()=>{
+          'use strict';
+          if(window.__bridgepointConversionGuardV1068)return;
+          window.__bridgepointConversionGuardV1068=true;
+          const AUTH_KEY='sb-xdfsjztwgsbmabshzsjw-auth-token',INTENT_KEY='bp1059_entry_intent';
+          function session(){try{const raw=localStorage.getItem(AUTH_KEY);if(!raw)return null;const x=JSON.parse(raw),seen=new Set(),walk=o=>{if(!o||typeof o!=='object'||seen.has(o))return null;seen.add(o);if(typeof o.access_token==='string'&&o.access_token.length>30)return o;for(const v of Object.values(o)){const r=walk(v);if(r)return r;}return null;};const s=walk(x);if(!s)return null;const exp=Number(s.expires_at||0);return exp&&exp*1000<=Date.now()+30000?null:s;}catch(_){return null;}}
+          function ensureCreateHref(a){try{const u=new URL(a.getAttribute('href')||'',location.href);if(u.origin!==location.origin||!u.pathname.startsWith('/app/'))return;u.searchParams.set('entry','1');u.searchParams.set('mode','create');if(!u.searchParams.get('utm_campaign')||u.searchParams.get('utm_campaign')==='national_open')u.searchParams.set('utm_campaign','start_trial_v1068');a.setAttribute('href',u.pathname+'?'+u.searchParams.toString()+u.hash);a.dataset.conversion='v1068';}catch(_){}}
+          function patchLanding(){document.querySelectorAll('a[data-track="CREATE_ACCOUNT_CLICK"]').forEach(ensureCreateHref);const lang=document.getElementById('language')?.value||'en';if(lang==='en')document.querySelectorAll('a[data-track="CREATE_ACCOUNT_CLICK"]').forEach(a=>a.textContent=a.classList.contains('open')?'Start free trial':'START 7-DAY FREE TRIAL');const hero=document.querySelector('.hero .actions');if(hero&&!hero.querySelector('[data-bp1068-signin]')){const a=document.createElement('a');a.className='btn secondary';a.dataset.bp1068Signin='1';a.href='/app/?entry=1&mode=signin&utm_source=homepage&utm_medium=hero&utm_campaign=returning_user_v1068';a.textContent='SIGN IN';const watch=hero.querySelector('a[href="#network"]');hero.insertBefore(a,watch||null);}const nav=document.querySelector('.navlinks');if(nav&&!nav.querySelector('[data-bp1068-signin]')){const primary=nav.querySelector('a.open');if(primary){const a=document.createElement('a');a.dataset.bp1068Signin='1';a.href='/app/?entry=1&mode=signin&utm_source=homepage&utm_medium=nav&utm_campaign=returning_user_v1068';a.textContent='Sign in';nav.insertBefore(a,primary);}}if(!document.getElementById('bp1068-public-value-note')){const actions=document.querySelector('.hero .actions');if(actions){const n=document.createElement('div');n.id='bp1068-public-value-note';n.style.cssText='width:100%;margin-top:2px;color:#9eb6c8;font-size:11px;font-weight:750';n.textContent='Public proof stays open. A free account starts the 7-day trial and unlocks property-level intelligence, scores, evidence and opportunities.';actions.insertAdjacentElement('afterend',n);}}}
+          function stylePreapp(){if(document.getElementById('bp1068-conversion-style'))return;const s=document.createElement('style');s.id='bp1068-conversion-style';s.textContent='#bp1068-boundary{margin:8px 0 0;padding:10px 12px;border:1px solid rgba(69,230,166,.18);border-radius:12px;background:rgba(69,230,166,.055);color:#a9c9bc;font-size:10px;line-height:1.45}#bp1068-boundary b{color:#eafff5}.bp1068-signin{min-height:40px;border:1px solid rgba(255,255,255,.11);border-radius:11px;background:#0d2236;color:#d9e8f2;padding:0 12px;font-weight:900;cursor:pointer;margin-left:auto}';document.head.appendChild(s);}
+          function patchPreapp(){const host=document.getElementById('bp1066-preapp-actions');if(!host)return false;stylePreapp();const signed=!!session();host.querySelectorAll('[data-bp1066-entry]').forEach(b=>{const open=b.querySelector('.bp1066e-open');if(open)open.textContent=signed?'Open secure workspace →':'Start free trial to unlock →';b.dataset.bp1068Protected='1';if(!signed)b.dataset.track='CREATE_ACCOUNT_CLICK';});const head=host.querySelector('.bp1066e-head');if(head&&!head.querySelector('[data-bp1068-signin]')){const b=document.createElement('button');b.type='button';b.className='bp1068-signin';b.dataset.bp1068Signin='1';b.textContent='Sign in';head.appendChild(b);}if(!document.getElementById('bp1068-boundary')){const n=document.createElement('div');n.id='bp1068-boundary';n.innerHTML='<b>See the platform publicly. Unlock the proprietary output with your account.</b> Nationwide progress, capabilities, Deep Tech and plan information stay public. Property addresses tied to intelligence, live scores, evidence, ranked opportunities, exports and saved workflows require account access.';host.querySelector('.bp1066e-head')?.insertAdjacentElement('afterend',n);}return true;}
+          function start(mode,target){try{sessionStorage.setItem(INTENT_KEY,JSON.stringify({mode,target:target||null}));}catch(_){}if(window.BridgePointPreAuthLegalV1059?.begin){window.BridgePointPreAuthLegalV1059.begin(mode,target||null);return;}const u=new URL('./',location.href);u.searchParams.set('entry','1');u.searchParams.set('mode',mode);if(target)u.searchParams.set('intent',target);location.href=u.href;}
+          function retryPublicPreapp(){if(!location.pathname.startsWith('/app/')||window.__bridgepointEntryRequested||session())return;if(document.getElementById('bp1044-preapp'))return;window.BridgePointPreappFunnelV1044?.start?.();}
+          document.addEventListener('click',e=>{const sign=e.target.closest?.('[data-bp1068-signin]');if(sign&&location.pathname.startsWith('/app/')){e.preventDefault();e.stopImmediatePropagation();start('signin',null);return;}const b=e.target.closest?.('[data-bp1066-entry]');if(!b||session())return;e.preventDefault();e.stopImmediatePropagation();start('create',b.dataset.bp1066Entry||null);},true);
+          function refresh(){patchLanding();retryPublicPreapp();patchPreapp();}
+          refresh();for(const ms of [0,80,250,700,1400,2800,5000,9000])setTimeout(refresh,ms);window.addEventListener('pageshow',refresh);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});document.getElementById('language')?.addEventListener('change',()=>setTimeout(patchLanding,0));const mo=new MutationObserver(()=>{if(!document.hidden)patchPreapp();});if(document.body)mo.observe(document.body,{childList:true,subtree:true});else document.addEventListener('DOMContentLoaded',()=>mo.observe(document.body,{childList:true,subtree:true}),{once:true});
+          window.BridgePointConversionGuardV1068={refresh,session,start,retryPublicPreapp};
+          })();
+          JS
+          cp site/conversion-guard-v1068.js site/app/conversion-guard-v1068.js
+          node --check site/conversion-guard-v1068.js
+
+          grep -F 'data-bridgepoint-runtime="v1066"' site/app/index.html
+          grep -F 'entry-experience-v1066.js?v=1066' site/app/index.html
+          grep -F 'state-property-search-v1066.js?v=1066' site/app/index.html
+          grep -F 'nav-single-owner-v1062.js?v=1066' site/app/index.html
+          grep -F 'BridgePointPreappFunnelV1044={mount,start}' site/app/preapp-funnel-v1044.js
+          grep -F 'conversion-guard-v1068.js?v=1068' site/app/index.html
+          test "$(grep -o 'data-track="CREATE_ACCOUNT_CLICK"' site/index.html | wc -l)" -eq 3
+          test "$(grep -o 'mode=create' site/index.html | wc -l)" -ge 3
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' site/index.html site/app/index.html site/app/preapp-funnel-v1044.js site/conversion-guard-v1068.js
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {path: site}
+      - name: Deploy V1068
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify public files
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 24); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            home="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/?v=1068&verify=${salt}" 2>/dev/null || true)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1068&verify=${salt}" 2>/dev/null || true)"
+            guard="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/conversion-guard-v1068.js?verify=${salt}" 2>/dev/null || true)"
+            pre="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/preapp-funnel-v1044.js?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$home" | grep -q 'conversion-guard-v1068.js?v=1068' && printf '%s' "$home" | grep -q 'mode=create' && printf '%s' "$app" | grep -q 'data-bridgepoint-runtime="v1066"' && printf '%s' "$app" | grep -q 'state-property-search-v1066.js?v=1066' && printf '%s' "$guard" | grep -q 'retryPublicPreapp' && printf '%s' "$pre" | grep -q 'BridgePointPreappFunnelV1044={mount,start}'; then echo PUBLIC_V1068_FILES_PASS; exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Verify homepage, public exploration, signup, and returning-user sign-in in mobile Chrome
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp && npm init -y >/dev/null 2>&1 && npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,protocolTimeout:60000,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
+            try{
+              let ctx=await browser.createBrowserContext(),page=await ctx.newPage();
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('https://bridgepointintelligence.online/?verify1068='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await page.waitForSelector('.hero a[data-track="CREATE_ACCOUNT_CLICK"]',{timeout:15000});
+              const href=await page.$eval('.hero a[data-track="CREATE_ACCOUNT_CLICK"]',a=>a.href);assert(href.includes('mode=create'));assert(await page.$('#network'));assert(await page.$('a[href="/pricing/"]'));
+              await page.click('.hero a[data-track="CREATE_ACCOUNT_CLICK"]');await page.waitForSelector('#bp1059-legal.show [data-continue]',{timeout:20000});assert(/account setup/i.test(await page.$eval('#bp1059-legal [data-continue]',b=>b.textContent.trim())));await ctx.close();
+
+              ctx=await browser.createBrowserContext();page=await ctx.newPage();await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('https://bridgepointintelligence.online/app/?verify1068pre='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              try{await page.waitForSelector('#bp1066-preapp-actions',{timeout:25000});}catch(e){console.log('DIAG',await page.evaluate(()=>({url:location.href,entry:window.__bridgepointEntryRequested,pre1044:!!document.getElementById('bp1044-preapp'),pre1066:!!document.getElementById('bp1066-preapp-actions'),legal:document.getElementById('bp1059-legal')?.className,auth:document.getElementById('bp1046-auth')?.className,flags:{f1044:!!window.BridgePointPreappFunnelV1044,e1066:!!window.BridgePointEntryExperienceV1066,c1068:!!window.BridgePointConversionGuardV1068}})));throw e;}
+              assert.strictEqual(await page.$$eval('#bp1066-preapp-actions .bp1066e-card',x=>x.length),6);assert(await page.$('#bp1068-boundary'));
+              await page.$eval('[data-bp1066-entry="properties"]',b=>b.scrollIntoView({block:'center'}));await page.click('[data-bp1066-entry="properties"]');await page.waitForSelector('#bp1059-legal.show [data-continue]',{timeout:20000});assert(/account setup/i.test(await page.$eval('#bp1059-legal [data-continue]',b=>b.textContent.trim())));await ctx.close();
+
+              ctx=await browser.createBrowserContext();page=await ctx.newPage();await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('https://bridgepointintelligence.online/app/?entry=1&mode=signin&verify1068signin='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});await page.waitForSelector('#bp1059-legal.show [data-continue]',{timeout:20000});assert(/secure sign in/i.test(await page.$eval('#bp1059-legal [data-continue]',b=>b.textContent.trim())));console.log('PUBLIC_V1068_CONVERSION_AND_REGRESSION_PASS');await ctx.close();
+            }finally{await browser.close();}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
