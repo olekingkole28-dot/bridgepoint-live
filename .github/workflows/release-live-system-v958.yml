@@ -43,32 +43,33 @@ jobs:
           test -s handoff/public-overlays/live-system-ribbon-v958.js
           cp handoff/public-overlays/live-system-ribbon-v958.js site/app/live-system-ribbon-v958.js
 
-      - name: Replace floating parcel button with live system ribbon
+      - name: Install live system ribbon in current shell
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
+          import re
+
           p=Path('site/app/index.html')
           s=p.read_text(encoding='utf-8')
-          old='<script src="live-parcel-counter-v956.js?v=956"></script>'
-          new='<script src="live-system-ribbon-v958.js?v=958"></script>'
-          s=s.replace(old,'')
-          if new not in s:
-              marker='<script src="flutter_bootstrap.js" async></script>'
-              if marker not in s:
-                  raise SystemExit('Flutter bootstrap marker missing')
-              s=s.replace(marker,new+'\n  '+marker,1)
-          if s.count(new)!=1:
+          # Remove any older live counter/ribbon tags regardless of query-string version.
+          s=re.sub(r'\s*<script[^>]+src=["\'][^"\']*(?:live-parcel-counter-v956|live-system-ribbon-v958)\.js[^"\']*["\'][^>]*></script>\s*','\n',s,flags=re.I)
+          new='  <script defer src="live-system-ribbon-v958.js?v=958"></script>'
+          if '</body>' not in s:
+              raise SystemExit('App shell has no </body> marker')
+          s=s.replace('</body>',new+'\n</body>',1)
+          if len(re.findall(r'live-system-ribbon-v958\.js',s,re.I)) != 1:
               raise SystemExit('Expected exactly one V958 system ribbon script')
-          if old in s:
+          if re.search(r'live-parcel-counter-v956\.js',s,re.I):
               raise SystemExit('Old V956 floating parcel counter still referenced')
           p.write_text(s,encoding='utf-8')
           PY
           grep -q 'bridgepoint_public_system_pulse_v957' site/app/live-system-ribbon-v958.js
           grep -q 'bridgepoint_owner_live_activity_v958' site/app/live-system-ribbon-v958.js
+          grep -q 'REFRESH_MS=3000' site/app/live-system-ribbon-v958.js
           grep -q 'live-system-ribbon-v958.js?v=958' site/app/index.html
-          ! grep -q 'live-parcel-counter-v956.js?v=956' site/app/index.html
+          ! grep -q 'live-parcel-counter-v956.js' site/app/index.html
           touch site/.nojekyll site/app/.nojekyll
 
       - name: Persist durable live artifact
@@ -111,10 +112,11 @@ jobs:
             app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?v=958-${attempt}" 2>/dev/null || true)"
             ribbon="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/live-system-ribbon-v958.js?v=958-${attempt}" 2>/dev/null || true)"
             if printf '%s' "$app" | grep -q 'live-system-ribbon-v958.js?v=958' \
-              && ! printf '%s' "$app" | grep -q 'live-parcel-counter-v956.js?v=956' \
+              && ! printf '%s' "$app" | grep -q 'live-parcel-counter-v956.js' \
               && printf '%s' "$ribbon" | grep -q 'LIVE BRIDGEPOINT' \
-              && printf '%s' "$ribbon" | grep -q 'bridgepoint_public_system_pulse_v957'; then
-              echo 'V958 live system ribbon verified.'
+              && printf '%s' "$ribbon" | grep -q 'bridgepoint_public_system_pulse_v957' \
+              && printf '%s' "$ribbon" | grep -q 'REFRESH_MS=3000'; then
+              echo 'V958 live system ribbon verified at 3-second cadence.'
               exit 0
             fi
             sleep 8
