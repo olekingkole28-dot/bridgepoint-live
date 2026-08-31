@@ -6,9 +6,12 @@
   const ID='bp-live-system-v958';
   const API='https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/';
   const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+  const REFRESH_MS=3000;
   const nf=new Intl.NumberFormat('en-US');
   let lastPublic=null;
   let ownerLoaded=false;
+  let publicLoading=false;
+  let ownerLoading=false;
 
   const css=document.createElement('style');
   css.id=`${ID}-style`;
@@ -74,7 +77,7 @@
       el.textContent=key==='registered_sources'||key==='active_opportunities'||key==='ingested_source_records'?nf.format(Number(raw||0)):compact(raw);
       el.title=nf.format(Number(raw||0));
     }
-    bar.title=`Live production totals • ${nf.format(Number(data.total_parcels||0))} parcels across ${data.states_present||0} states/DC • refreshes every ${data.refresh_hint_seconds||5}s`;
+    bar.title=`Live production totals • ${nf.format(Number(data.total_parcels||0))} parcels across ${data.states_present||0} states/DC • refreshes every ${Math.round(REFRESH_MS/1000)}s`;
   }
 
   function findAccessToken(){
@@ -101,20 +104,25 @@
   }
 
   async function rpc(name,token){
-    const headers={'apikey':KEY,'Content-Type':'application/json'};
+    const headers={'apikey':KEY,'Content-Type':'application/json','Cache-Control':'no-cache'};
     headers.Authorization=`Bearer ${token||KEY}`;
-    const res=await fetch(`${API}${name}`,{method:'POST',headers,body:'{}',cache:'no-store'});
+    const res=await fetch(`${API}${name}?_=${Date.now()}`,{method:'POST',headers,body:'{}',cache:'no-store'});
     if(!res.ok) throw new Error(`${name}:${res.status}`);
     return await res.json();
   }
 
   async function refreshPublic(){
+    if(publicLoading) return;
+    publicLoading=true;
     try{renderPublic(await rpc('bridgepoint_public_system_pulse_v957'));}catch(_){ }
+    finally{publicLoading=false;}
   }
 
   async function refreshOwner(){
+    if(ownerLoading) return;
     const token=findAccessToken();
     if(!token) return;
+    ownerLoading=true;
     try{
       const data=await rpc('bridgepoint_owner_live_activity_v958',token);
       if(!data||data.available!==true) return;
@@ -129,11 +137,12 @@
       ownerLoaded=true;
     }catch(_){
       if(ownerLoaded) bar.classList.remove('bp958-owner-ready');
-    }
+    }finally{ownerLoading=false;}
   }
 
   refreshPublic();
   refreshOwner();
-  setInterval(()=>{if(!document.hidden){refreshPublic();refreshOwner();}},5000);
+  setInterval(()=>{if(!document.hidden){refreshPublic();refreshOwner();}},REFRESH_MS);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshPublic();refreshOwner();}});
+  window.addEventListener('focus',()=>{refreshPublic();refreshOwner()});
 })();
