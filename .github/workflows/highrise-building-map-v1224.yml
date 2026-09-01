@@ -1,0 +1,143 @@
+name: BridgePoint High-Rise Map V1224
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/highrise-building-map-v1224.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  patch-deploy-verify:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch tested building signal contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('app/map-radar-v974.js')
+          s=p.read_text(encoding='utf-8')
+
+          s=re.sub(r'window\.__bridgepointHighriseMapV\d+=true;', 'window.__bridgepointHighriseMapV1224=true;', s, count=1)
+          if 'window.__bridgepointHighriseMapV1224=true;' not in s:
+              anchor='window.__bridgepointMapLabelsV1040=true;'
+              if anchor not in s: raise SystemExit('Map version anchor missing')
+              s=s.replace(anchor,anchor+'\n  window.__bridgepointHighriseMapV1224=true;',1)
+
+          s=s.replace('bridgepoint_flutter_signal_map_buildings_v1220','bridgepoint_flutter_signal_building_map_v1222')
+          s=s.replace('bridgepoint_flutter_signal_building_detail_v1220','bridgepoint_flutter_signal_building_detail_v1222')
+
+          sig_re=re.compile(r"  function signalPopup\(row\)\{.*?\n  function detailRows",re.S)
+          sig_new=r'''  function signalPopup(row){const units=Number(row.affected_unit_count??row.affected_units??0),props=Number(row.property_count??row.affected_properties??1),signals=Number(row.signal_count||1),building=Number(row.building_scoped_count??row.building_or_property_signals??0),types=Array.isArray(row.signal_names)?row.signal_names.slice(0,6).map(esc).join(' · '):esc(row.signal_name||kind(row)||'signal');return `<div class="popup"><div class="tag">Signal group • ${esc(kind(row))}</div><h3>${esc(row.title||row.signal_name||'BridgePoint signal')}</h3><p><b>${esc(row.full_address||'Property / building')}</b><br>${esc(row.municipality||'')} ${esc(row.state_code||'')}</p><p><b>Mapped signals:</b> ${signals} · <b>Matched properties:</b> ${props} · <b>Affected units identified:</b> ${units}</p><p><b>Building/shared scoped:</b> ${building}${types?`<br><b>Types:</b> ${types}`:''}</p><p><b>Severity:</b> ${esc(row.severity||'—')} · <b>Confidence:</b> ${esc(row.confidence||'—')}</p><p class="limit">Opening this marker loads the exact rendered signals and their entity scope. Shared coordinates are grouped for display; scope is not inferred from pin overlap.</p></div>`;}
+            function detailRows'''
+          s,n=sig_re.subn(sig_new,s,count=1)
+          if n!=1: raise SystemExit(f'Signal popup patch count={n}')
+
+          s=s.replace("detailRows(d?.signals,'signal',d?.returned_results)","detailRows(d?.signals,'signal',d?.returned_results??d?.total_results)")
+          p.write_text(s,encoding='utf-8')
+
+          lazy=Path('app/lazy-runtime-v1000.js')
+          l=lazy.read_text(encoding='utf-8')
+          l,n=re.subn(r"const V='\d+';","const V='1224';",l,count=1)
+          if n!=1: raise SystemExit('Lazy runtime version anchor missing')
+          l=re.sub(r'window\.__bridgepointHighriseLazyV\d+=true;','window.__bridgepointHighriseLazyV1224=true;',l,count=1)
+          if 'window.__bridgepointHighriseLazyV1224=true;' not in l:
+              l=l.replace('window.__bridgepointLazyRuntimeV1001=true;','window.__bridgepointLazyRuntimeV1001=true;\nwindow.__bridgepointHighriseLazyV1224=true;',1)
+          lazy.write_text(l,encoding='utf-8')
+
+          idx=Path('app/index.html')
+          h=idx.read_text(encoding='utf-8')
+          h,n=re.subn(r'lazy-runtime-v1000\.js\?v=\d+','lazy-runtime-v1000.js?v=1224',h,count=1)
+          if n!=1: raise SystemExit('Lazy loader cache anchor missing')
+          idx.write_text(h,encoding='utf-8')
+          PY
+
+          node --check app/map-radar-v974.js
+          node --check app/lazy-runtime-v1000.js
+          grep -q '__bridgepointHighriseMapV1224=true' app/map-radar-v974.js
+          grep -q 'bridgepoint_flutter_opportunity_building_map_v1220' app/map-radar-v974.js
+          grep -q 'bridgepoint_flutter_opportunity_building_detail_v1220' app/map-radar-v974.js
+          grep -q 'bridgepoint_flutter_signal_building_map_v1222' app/map-radar-v974.js
+          grep -q 'bridgepoint_flutter_signal_building_detail_v1222' app/map-radar-v974.js
+          ! grep -q 'bridgepoint_flutter_signal_map_buildings_v1220' app/map-radar-v974.js
+          grep -q "const V='1224'" app/lazy-runtime-v1000.js
+          grep -q 'lazy-runtime-v1000.js?v=1224' app/index.html
+
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/map-radar-v974.js app/lazy-runtime-v1000.js app/index.html
+          if ! git diff --cached --quiet; then
+            git commit -m 'Use tested building-first signal contracts v1224'
+            git push origin HEAD:live-artifact
+          fi
+
+      - name: Assemble exact live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          node --check site/app/map-radar-v974.js
+          node --check site/app/lazy-runtime-v1000.js
+          grep -q '__bridgepointHighriseMapV1224=true' site/app/map-radar-v974.js
+          grep -q 'bridgepoint_flutter_signal_building_map_v1222' site/app/map-radar-v974.js
+          grep -q 'bridgepoint_flutter_signal_building_detail_v1222' site/app/map-radar-v974.js
+          grep -q "const V='1224'" site/app/lazy-runtime-v1000.js
+          grep -q 'lazy-runtime-v1000.js?v=1224' site/app/index.html
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify public convergence
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?v=${salt}" 2>/dev/null || true)"
+            lazy="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/lazy-runtime-v1000.js?v=${salt}" 2>/dev/null || true)"
+            mapjs="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/map-radar-v974.js?v=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'lazy-runtime-v1000.js?v=1224' \
+              && printf '%s' "$lazy" | grep -q "const V='1224'" \
+              && printf '%s' "$mapjs" | grep -q '__bridgepointHighriseMapV1224=true' \
+              && printf '%s' "$mapjs" | grep -q 'bridgepoint_flutter_signal_building_map_v1222' \
+              && printf '%s' "$mapjs" | grep -q 'bridgepoint_flutter_signal_building_detail_v1222'; then
+                echo 'V1224 public building-first map verified.'
+                exit 0
+            fi
+            sleep 10
+          done
+          echo 'V1224 public verification did not converge.' >&2
+          exit 1
