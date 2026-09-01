@@ -1,0 +1,106 @@
+name: Deploy BridgePoint High-Rise Map V1220
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-highrise-map-v1220.yml'
+      - 'deploy/highrise-map-v1220/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  patch-deploy-verify:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch exact live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp deploy/highrise-map-v1220/patch.py /tmp/bridgepoint-highrise-map-v1220.py
+          git fetch origin live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          python3 /tmp/bridgepoint-highrise-map-v1220.py
+
+          node --check site/app/map-radar-v974.js
+          node --check site/app/lazy-runtime-v1000.js
+          grep -Fq 'window.__bridgepointHighriseMapV1220=true;' site/app/map-radar-v974.js
+          grep -Fq 'bridgepoint_flutter_opportunity_building_map_v1220' site/app/map-radar-v974.js
+          grep -Fq 'bridgepoint_flutter_opportunity_building_detail_v1220' site/app/map-radar-v974.js
+          grep -Fq 'bridgepoint_flutter_signal_map_buildings_v1220' site/app/map-radar-v974.js
+          grep -Fq 'bridgepoint_flutter_signal_building_detail_v1220' site/app/map-radar-v974.js
+          grep -Fq 'bridgepoint_flutter_property_map_buildings_v1220' site/app/map-radar-v974.js
+          grep -Fq "const V='1220';" site/app/lazy-runtime-v1000.js
+          grep -Fq 'window.__bridgepointHighriseLazyV1220=true;' site/app/lazy-runtime-v1000.js
+          grep -Fq 'lazy-runtime-v1000.js?v=1220' site/app/index.html
+          grep -Fq "['water','Water / leaks']" site/app/map-radar-v974.js
+          grep -Fq "['mold','Mold']" site/app/map-radar-v974.js
+          grep -Fq "['structural','Structural']" site/app/map-radar-v974.js
+          grep -Fq "['heat','Heat']" site/app/map-radar-v974.js
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' site/app/map-radar-v974.js site/app/lazy-runtime-v1000.js site/app/index.html
+
+          cp site/app/map-radar-v974.js app/map-radar-v974.js
+          cp site/app/lazy-runtime-v1000.js app/lazy-runtime-v1000.js
+          cp site/app/index.html app/index.html
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/map-radar-v974.js app/lazy-runtime-v1000.js app/index.html
+          if ! git diff --cached --quiet; then
+            git commit -m 'Use building and unit aware map feeds v1220'
+            git push origin HEAD:live-artifact
+          fi
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy V1220 map
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify public convergence
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1220&verify=${salt}" 2>/dev/null || true)"
+            lazy="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/lazy-runtime-v1000.js?verify=${salt}" 2>/dev/null || true)"
+            mapjs="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/map-radar-v974.js?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -Fq 'lazy-runtime-v1000.js?v=1220' \
+              && printf '%s' "$lazy" | grep -Fq "const V='1220';" \
+              && printf '%s' "$lazy" | grep -Fq 'window.__bridgepointHighriseLazyV1220=true;' \
+              && printf '%s' "$mapjs" | grep -Fq 'window.__bridgepointHighriseMapV1220=true;' \
+              && printf '%s' "$mapjs" | grep -Fq 'bridgepoint_flutter_opportunity_building_map_v1220' \
+              && printf '%s' "$mapjs" | grep -Fq 'bridgepoint_flutter_signal_map_buildings_v1220' \
+              && printf '%s' "$mapjs" | grep -Fq 'bridgepoint_flutter_property_map_buildings_v1220' \
+              && printf '%s' "$mapjs" | grep -Fq "['water','Water / leaks']" \
+              && printf '%s' "$mapjs" | grep -Fq "['heat','Heat']"; then
+              echo 'PUBLIC_HIGHRISE_MAP_V1220_PASS'
+              exit 0
+            fi
+            sleep 6
+          done
+          echo 'High-rise map V1220 did not converge publicly.' >&2
+          exit 1
