@@ -1,0 +1,159 @@
+name: BridgePoint High-Rise Map V1222
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/highrise-building-map-v1222.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  patch-deploy-verify:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch building-first map
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('app/map-radar-v974.js')
+          s=p.read_text(encoding='utf-8')
+
+          if 'window.__bridgepointHighriseMapV1222=true;' not in s:
+              anchor='window.__bridgepointMapLabelsV1040=true;'
+              if anchor not in s:
+                  raise SystemExit('V1040 map marker missing')
+              s=s.replace(anchor,anchor+'\n  window.__bridgepointHighriseMapV1222=true;',1)
+
+          s=s.replace("let leafletPromise,dialog,map,baseLayer,roadLayer,labelLayer,radarLayer,stateLayer,propertyLayer,opportunityLayer,signalLayer,access=null,catalog=[],currentState='US',frames=[],frameIndex=0,playing=true,playTimer=null,loadTimer=null,activeFilter='all',propsOn=true,oppsOn=true,signalsOn=true,radarOn=true,satelliteOn=true,framesVerified=false;",
+                      "let leafletPromise,dialog,map,baseLayer,roadLayer,labelLayer,radarLayer,stateLayer,propertyLayer,opportunityLayer,signalLayer,access=null,catalog=[],currentState='US',frames=[],frameIndex=0,playing=true,playTimer=null,loadTimer=null,intelTimer=null,intelSeq=0,activeFilter='all',propsOn=true,oppsOn=true,signalsOn=true,radarOn=true,satelliteOn=true,framesVerified=false;")
+
+          css_anchor='.intel-marker.lower{border-color:#45e6a6}'
+          if '.intel-count{' not in s:
+              if css_anchor not in s: raise SystemExit('Intel marker CSS anchor missing')
+              s=s.replace(css_anchor,css_anchor+'.intel-marker{position:relative}.intel-count{position:absolute;right:-7px;top:-7px;min-width:18px;height:18px;padding:0 4px;display:grid;place-items:center;border-radius:999px;background:#07111d;border:1px solid rgba(255,255,255,.75);color:#fff;font-size:9px;font-weight:950;line-height:1}',1)
+
+          s=s.replace("function textOf(row){return Object.values(row||{}).filter(v=>typeof v==='string').join(' ').toLowerCase();}",
+                      "function textOf(row){return Object.values(row||{}).flatMap(v=>Array.isArray(v)?v:(typeof v==='string'?[v]:[])).join(' ').toLowerCase();}")
+
+          render_re=re.compile(r"  let latestOpps=\[\],latestSignals=\[\];\n  function renderIntel\(\)\{.*?\n  function stateClass",re.S)
+          render_new=r'''  let latestOpps=[],latestSignals=[],detailCache=new Map();
+  function markerCount(row,type){return Math.max(1,Number(type==='opp'?row.opportunity_count:row.signal_count)||1,Number(row.affected_unit_count)||0);}
+  function countBadge(n){return n>1?`<span class="intel-count">${n>99?'99+':n}</span>`:'';}
+  function renderIntel(){if(!window.L)return;opportunityLayer?.clearLayers();signalLayer?.clearLayers();if(oppsOn)for(const row of latestOpps){if(!match(row))continue;const lat=Number(row.latitude),lng=Number(row.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lng))continue;const k=kind(row),n=markerCount(row,'opp'),html=`<div class="intel-marker ${priority(row)}" title="${esc(k)}">${glyph(k)}${countBadge(n)}</div>`;const m=L.marker([lat,lng],{icon:L.divIcon({className:'',html,iconSize:[34,34],iconAnchor:[17,17]})});m.bindPopup(oppPopup(row),{maxWidth:390}).on('popupopen',()=>hydrateOpportunityPopup(m,row)).addTo(opportunityLayer);}if(signalsOn)for(const row of latestSignals){if(!match(row))continue;const lat=Number(row.latitude),lng=Number(row.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lng))continue;const k=kind(row),n=markerCount(row,'signal'),html=`<div class="intel-marker signal">${glyph(k)}${countBadge(n)}</div>`;const m=L.marker([lat,lng],{icon:L.divIcon({className:'',html,iconSize:[27,27],iconAnchor:[13,13]})});m.bindPopup(signalPopup(row),{maxWidth:390}).on('popupopen',()=>hydrateSignalPopup(m,row)).addTo(signalLayer);}}
+  function scopeLabel(x){const u=x?.unit_designator;return u?`Unit ${esc(u)}`:(String(x?.entity_scope||'').toUpperCase()==='STRUCTURE'?'Building / shared structure':'Property');}
+  function detailRows(items,type){if(!Array.isArray(items)||!items.length)return '<p class="limit">No additional rendered rows for this building in the current map sample.</p>';const rows=items.slice(0,16).map(x=>{const title=esc(x.title||x.signal_name||'BridgePoint intelligence'),metric=type==='opp'?`${esc(x.score??'—')}/100 · ${esc(x.priority||'ranked')}`:`severity ${esc(x.severity??'—')} · confidence ${esc(x.confidence??'—')}`;return `<p><b>${scopeLabel(x)}</b> · ${metric}<br>${title}</p>`;}).join('');return rows+(items.length>16?`<p class="limit">${items.length-16} more rows available in the property/building detail.</p>`:'');}
+  function oppPopup(row,detail){const n=Number(row.opportunity_count||1),u=Number(row.affected_unit_count||0),b=Number(row.building_scoped_count||0);return `<div class="popup"><div class="tag">Opportunity building · ${esc(row.priority||'ranked')} · ${esc(row.score??row.opportunity_score??'—')}/100</div><h3>${esc(row.title||row.opportunity_name||'BridgePoint opportunity')}</h3><p><b>${esc(row.full_address||'Property')}</b><br>${esc(row.municipality||'')} ${esc(row.state_code||'')}</p><p>${esc(row.explanation||row.reason||'BridgePoint matched property-level evidence and grouped this building for a clean map view.')}</p><p><b>Mapped opportunities:</b> ${n} · <b>Affected units:</b> ${u} · <b>Building/shared:</b> ${b}<br><b>Direct signals:</b> ${esc(row.direct_signal_count||0)} · <b>Direct sources:</b> ${esc(row.direct_source_count||0)}</p>${detail?`<div class="limit"><b>Building drilldown</b></div>${detailRows(detail.opportunities,'opp')}`:'<p class="limit">Opening building/unit detail…</p>'}<p class="limit">One marker represents the building. Unit-specific evidence stays attached to its unit; building-wide evidence stays at building scope.</p></div>`;}
+  function signalPopup(row,detail){const n=Number(row.signal_count||1),u=Number(row.affected_unit_count||0),b=Number(row.building_scoped_count||0),types=Array.isArray(row.signal_names)?row.signal_names.slice(0,6).map(esc).join(' · '):esc(row.signal_name||'signal');return `<div class="popup"><div class="tag">Signal building · ${esc(kind(row))}</div><h3>${esc(row.title||row.signal_name||'BridgePoint signal')}</h3><p><b>${esc(row.full_address||'Property')}</b><br>${esc(row.municipality||'')} ${esc(row.state_code||'')}</p><p><b>Mapped signals:</b> ${n} · <b>Affected units:</b> ${u} · <b>Building/shared:</b> ${b}<br><b>Types:</b> ${types}</p>${detail?`<div class="limit"><b>Building drilldown</b></div>${detailRows(detail.signals,'signal')}`:'<p class="limit">Opening building/unit detail…</p>'}<p class="limit">Weather and hazard context is not proof of property damage. Verify source, time, scope and match quality.</p></div>`;}
+  async function hydrateOpportunityPopup(marker,row){if(!row.building_group_key)return;const token=findToken();if(!token)return;const key=`opp|${currentState}|${row.building_group_key}`;try{let data=detailCache.get(key);if(!data){data=await rpc('bridgepoint_flutter_opportunity_building_detail_v1220',token,{p_state_code:currentState,p_building_group_key:row.building_group_key,p_model_key:'all',p_limit:100,p_offset:0});detailCache.set(key,data);}if(marker.isPopupOpen())marker.setPopupContent(oppPopup(row,data));}catch(_){if(marker.isPopupOpen())marker.setPopupContent(oppPopup(row,{opportunities:[]}));}}
+  async function hydrateSignalPopup(marker,row){if(!row.building_group_key)return;const token=findToken();if(!token)return;const b=map.getBounds(),key=`sig|${currentState}|${row.building_group_key}|${b.getSouth().toFixed(3)}|${b.getWest().toFixed(3)}|${b.getNorth().toFixed(3)}|${b.getEast().toFixed(3)}`;try{let data=detailCache.get(key);if(!data){data=await rpc('bridgepoint_flutter_signal_building_detail_v1222',token,{p_state_code:currentState,p_building_group_key:row.building_group_key,p_min_lat:b.getSouth(),p_max_lat:b.getNorth(),p_min_lng:b.getWest(),p_max_lng:b.getEast(),p_limit:150});detailCache.set(key,data);}if(marker.isPopupOpen())marker.setPopupContent(signalPopup(row,data));}catch(_){if(marker.isPopupOpen())marker.setPopupContent(signalPopup(row,{signals:[]}));}}
+  function stateClass'''
+          s,n=render_re.subn(render_new,s,count=1)
+          if n!=1: raise SystemExit(f'Render block patch count={n}')
+
+          load_re=re.compile(r"  async function loadIntel\(\)\{.*?\n  function scheduleProperties",re.S)
+          load_new=r'''  async function loadIntel(){const token=findToken();if(!token||currentState==='US'){latestOpps=[];latestSignals=[];renderIntel();return;}const row=catalog.find(x=>String(x.state_code||'').toUpperCase()===currentState);if(row&&row.has_access===false){latestOpps=[];latestSignals=[];renderIntel();return;}const seq=++intelSeq;try{loading(true,`Loading ${currentState} intelligence…`);const bounds=map.getBounds();const common={p_state_code:currentState,p_min_lat:bounds.getSouth(),p_max_lat:bounds.getNorth(),p_min_lng:bounds.getWest(),p_max_lng:bounds.getEast()};const [opps,sigs]=await Promise.allSettled([feature('opportunities')?rpc('bridgepoint_flutter_opportunity_building_map_v1220',token,{...common,p_model_key:'all',p_limit:300,p_priority:null,p_stage:null}):Promise.resolve({opportunities:[]}),feature('signals')?rpc('bridgepoint_flutter_signal_building_map_v1222',token,{...common,p_limit:250}):Promise.resolve({markers:[]})]);if(seq!==intelSeq)return;latestOpps=opps.status==='fulfilled'&&Array.isArray(opps.value?.opportunities)?opps.value.opportunities:[];latestSignals=sigs.status==='fulfilled'&&Array.isArray(sigs.value?.markers)?sigs.value.markers:[];renderIntel();}finally{if(seq===intelSeq)loading(false);}}
+  function scheduleIntel(){clearTimeout(intelTimer);intelTimer=setTimeout(()=>{if(currentState!=='US')loadIntel();},220);}
+  function scheduleProperties'''
+          s,n=load_re.subn(load_new,s,count=1)
+          if n!=1: raise SystemExit(f'loadIntel patch count={n}')
+
+          old_move="map.on('moveend zoomend',()=>{const c=map.getCenter(),s=stateFromCenter(c.lat,c.lng);if(map.getZoom()>=6&&s!==currentState){currentState=s;dialog.querySelector('[data-state]').value=s;loadIntel();}scheduleProperties();});"
+          new_move="map.on('moveend zoomend',()=>{const c=map.getCenter(),s=stateFromCenter(c.lat,c.lng);if(map.getZoom()>=6&&s!==currentState){currentState=s;dialog.querySelector('[data-state]').value=s;}scheduleIntel();scheduleProperties();});"
+          if old_move in s:s=s.replace(old_move,new_move,1)
+          elif new_move not in s:raise SystemExit('Map move handler anchor missing')
+
+          old_key='<div class="keyrow"><b>Large rounded marker:</b> ranked opportunity. <b>Small circle:</b> supporting signal. Both use the same event icon.</div>'
+          new_key='<div class="keyrow"><b>Building-first markers:</b> one marker per building/address. A badge shows grouped intelligence; open it to drill into affected units without stacking pins.</div>'
+          if old_key in s:s=s.replace(old_key,new_key,1)
+
+          p.write_text(s,encoding='utf-8')
+
+          idx=Path('app/index.html')
+          h=idx.read_text(encoding='utf-8')
+          h2,n=re.subn(r'map-radar-v974\.js\?v=\d+','map-radar-v974.js?v=1222',h)
+          if n==0 and 'map-radar-v974.js?v=1222' not in h:
+              raise SystemExit('Map cache-version anchor missing')
+          idx.write_text(h2,encoding='utf-8')
+          PY
+
+          node --check app/map-radar-v974.js
+          grep -q '__bridgepointHighriseMapV1222=true' app/map-radar-v974.js
+          grep -q 'bridgepoint_flutter_opportunity_building_map_v1220' app/map-radar-v974.js
+          grep -q 'bridgepoint_flutter_signal_building_map_v1222' app/map-radar-v974.js
+          grep -q 'bridgepoint_flutter_signal_building_detail_v1222' app/map-radar-v974.js
+          grep -q 'map-radar-v974.js?v=1222' app/index.html
+
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/map-radar-v974.js app/index.html
+          if ! git diff --cached --quiet; then
+            git commit -m 'Use building-first opportunity and signal map v1222'
+            git push origin HEAD:live-artifact
+          fi
+
+      - name: Assemble exact live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          node --check site/app/map-radar-v974.js
+          grep -q '__bridgepointHighriseMapV1222=true' site/app/map-radar-v974.js
+          grep -q 'bridgepoint_flutter_signal_building_map_v1222' site/app/map-radar-v974.js
+          grep -q 'map-radar-v974.js?v=1222' site/app/index.html
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify public convergence
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for attempt in $(seq 1 30); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?v=${salt}" 2>/dev/null || true)"
+            mapjs="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/app/map-radar-v974.js?v=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'map-radar-v974.js?v=1222' \
+              && printf '%s' "$mapjs" | grep -q '__bridgepointHighriseMapV1222=true' \
+              && printf '%s' "$mapjs" | grep -q 'bridgepoint_flutter_opportunity_building_map_v1220' \
+              && printf '%s' "$mapjs" | grep -q 'bridgepoint_flutter_signal_building_map_v1222' \
+              && printf '%s' "$mapjs" | grep -q 'bridgepoint_flutter_signal_building_detail_v1222'; then
+              echo 'V1222 public map verified: building-first opportunities/signals and unit drilldown are live.'
+              exit 0
+            fi
+            sleep 8
+          done
+          echo 'V1222 public verification did not converge.' >&2
+          exit 1
