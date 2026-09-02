@@ -1,0 +1,131 @@
+name: Deploy BridgePoint Owner Session V624
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/deploy-owner-session-v624.yml
+      - experience/owner-session-v624.js
+      - experience/owner-everything-v623.js
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble Owner Center V624
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site
+          mkdir -p site/owner
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/owner/index.html
+          test -s experience/owner-session-v624.js
+          test -s experience/owner-everything-v623.js
+          cp experience/owner-session-v624.js site/owner/session-v624.js
+          cp experience/owner-everything-v623.js site/owner/everything-v623.js
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('site/owner/index.html')
+          s=p.read_text(encoding='utf-8')
+          tag='<script src="/owner/session-v624.js?v=624"></script>'
+          if tag not in s:
+              if '</head>' not in s:
+                  raise SystemExit('Owner Center missing </head>')
+              s=s.replace('</head>',tag+'\n</head>',1)
+          old="if(!token)token=findToken();if(token){sessionStorage.setItem('bp_owner_access_token',token);enter()}"
+          new="if(!token)token=(window.BP_OWNER_SESSION_V624?.findValidToken?.()||'');if(token){sessionStorage.setItem('bp_owner_access_token',token);enter()}"
+          if old in s:
+              s=s.replace(old,new,1)
+          elif 'BP_OWNER_SESSION_V624?.findValidToken' not in s:
+              raise SystemExit('Owner bootstrap token pattern not found')
+          s=s.replace('LIVE OWNER RELEASE V623','LIVE OWNER RELEASE V624')
+          s=s.replace('Founder cockpit · V623','Founder cockpit · V624')
+          p.write_text(s,encoding='utf-8')
+          PY
+          grep -q 'session-v624.js' site/owner/index.html
+          grep -q 'BP_OWNER_SESSION_V624?.findValidToken' site/owner/index.html
+          grep -q 'BP_OWNER_SESSION_V624' site/owner/session-v624.js
+          grep -q 'everything-v623.js' site/owner/index.html
+          if grep -R -E -i 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|sb_secret_|OPENAI_API_KEY[[:space:]]*=|ANTHROPIC_API_KEY[[:space:]]*=|sk-proj-|sk-ant-' site/owner site/downloads 2>/dev/null; then
+            echo 'Privileged secret marker found in Owner Center artifact.' >&2
+            exit 1
+          fi
+          touch site/.nojekyll
+
+      - name: Persist durable V624 artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/final-live && mkdir /tmp/final-live
+          cp -a site/. /tmp/final-live/
+          cd /tmp/final-live
+          git init
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m 'BridgePoint V624 resilient owner session'
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Publish V624
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live Owner Center V624
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/ -o /tmp/owner.html
+          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/session-v624.js -o /tmp/session.js
+          curl -fsSL --retry 8 --retry-delay 3 https://bridgepointintelligence.online/owner/everything-v623.js -o /tmp/everything.js
+          grep -q 'session-v624.js' /tmp/owner.html
+          grep -q 'BP_OWNER_SESSION_V624' /tmp/session.js
+          grep -q 'BP_OWNER_SESSION_V624?.findValidToken' /tmp/owner.html
+          grep -q 'Everything BridgePoint in one place' /tmp/everything.js
+
+      - name: Record V624 live verification
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bp-status
+          cat > /tmp/bp-status/v624-live.json <<JSON
+          {"version":624,"status":"LIVE_VERIFIED","run_id":"${GITHUB_RUN_ID}","commit":"${GITHUB_SHA}","verified_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","owner":"/owner/","session_guard":true,"backend_authorization_unchanged":true}
+          JSON
+          encoded=$(base64 -w0 /tmp/bp-status/v624-live.json)
+          api="repos/${GITHUB_REPOSITORY}/contents/.deploy-status/v624-live.json"
+          old_sha=$(gh api "$api" --jq .sha 2>/dev/null || true)
+          if [ -n "$old_sha" ]; then
+            gh api -X PUT "$api" -f message='Record V624 live verification' -f content="$encoded" -f sha="$old_sha" -f branch=main >/dev/null
+          else
+            gh api -X PUT "$api" -f message='Record V624 live verification' -f content="$encoded" -f branch=main >/dev/null
+          fi
