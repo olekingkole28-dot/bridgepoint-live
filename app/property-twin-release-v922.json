@@ -1,0 +1,19 @@
+{
+  "version": 937,
+  "surface": "property-visual-context",
+  "backend_contract": "bridgepoint_property_twin_v918",
+  "search_contract": "bridgepoint_property_suggestions_v192",
+  "views": [
+    "front",
+    "aerial_current",
+    "structure_3d",
+    "aerial_history"
+  ],
+  "global_floating_launcher": false,
+  "navigation_contract": "PROPERTY_CONTEXT_ONLY",
+  "structure_3d_truth": "SOURCE_BACKED_GEOMETRY_NOT_PHOTOREALISTIC_IMAGERY",
+  "auth": "supabase-user-session-rls",
+  "source_repo_private": true,
+  "private_source_exposed": false,
+  "compatibility_route": "/app/twin/"
+}

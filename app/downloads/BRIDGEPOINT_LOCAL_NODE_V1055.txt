@@ -1,0 +1,46 @@
+BRIDGEPOINT LOCAL NODE V1055 — WINDOWS
+
+What this does
+- Runs selected BridgePoint AI reasoning jobs locally through Ollama.
+- Keeps the hosted system as the governed source of truth and action gate.
+- Processes owner portable-export jobs state-by-state.
+- Writes local state bundles as gzipped newline JSON and, when DuckDB is available, a bridgepoint.duckdb database.
+- Never places the Supabase service-role key on your computer.
+
+Update an existing BridgePoint PC
+1. Sign into BridgePoint as the owner.
+2. Open Home > Founder control center > Everything > Exports & Local Node.
+3. Download install_bridgepoint_local_node_v1055.ps1.
+4. Right-click the downloaded file and run it with PowerShell, or run:
+   powershell -ExecutionPolicy Bypass -File .\install_bridgepoint_local_node_v1055.ps1
+5. If %LOCALAPPDATA%\BridgePoint\node.json already exists, the updater preserves the existing node identity/token and replaces the old agent with V1055.
+6. If this PC has no node config, BridgePoint will ask for a one-time enrollment code. Generate one from the same owner screen; codes expire after 20 minutes.
+
+Local paths
+- Agent/config/logs: %LOCALAPPDATA%\BridgePoint
+- Portable exports: %LOCALAPPDATA%\BridgePoint\exports\<STATE>\<REQUEST_ID>
+- Each completed state bundle contains manifest.json, compressed dataset files, and bridgepoint.duckdb when DuckDB can be installed.
+
+Portable export datasets
+STATE_SUMMARY, PROPERTIES, SIGNALS, PATTERNS, SCORES, OPPORTUNITIES, EVIDENCE, MEDIA, SOURCES, PACKAGE_MAP.
+
+Nationwide export
+Use Request full U.S. local export in the owner screen. BridgePoint queues one governed state job at a time. This avoids trying to dump the entire U.S. database in one database transaction or one browser download.
+
+Security
+- The local node is outbound-only.
+- A node-specific token authenticates it to the BridgePoint Edge gateway.
+- Local reasoning results go back through BridgePoint governance before system execution.
+- The AI model does not self-authorize destructive, regulated, billing, or external actions.
+
+Models currently used by the light Windows node
+- Primary: qwen2.5:3b
+- Reviewer: deepseek-r1:1.5b
+
+If the node shows OFFLINE
+- Make sure Ollama is running.
+- Open Task Scheduler and start “BridgePoint Local Node”.
+- Or run:
+  py -3 %LOCALAPPDATA%\BridgePoint\bridgepoint_local_node_v1055.py --status
+
+BridgePoint Intelligence — Local Node V1055

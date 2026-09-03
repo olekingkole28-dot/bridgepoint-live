@@ -1,0 +1,154 @@
+name: Stage v1000 recovery
+
+on:
+  push:
+    branches: [staging-v1000-recovery]
+
+permissions:
+  contents: write
+
+jobs:
+  recover-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: staging-v1000-recovery
+          fetch-depth: 0
+
+      - name: Apply deterministic entry and runtime fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('app/runtime-unifier-v984.js')
+          s = p.read_text()
+          old = "if(window.__bridgepointCanonicalRuntime==='v999')return;"
+          new = "if(window.__bridgepointCanonicalRuntime==='v999'||window.__bridgepointCanonicalRuntime==='v1000')return;"
+          if old in s:
+              s = s.replace(old, new, 1)
+          if new not in s:
+              raise SystemExit('v1000 legacy-nav bypass missing')
+          s = s.replace("location.replace('./?bpv=v984')", "location.replace('./?bpv=v1000')")
+          p.write_text(s)
+
+          root = Path('index.html')
+          h = root.read_text()
+          h = h.replace('href="/app/?utm_source=', 'href="/app/?entry=1&utm_source=')
+          if 'href="/app/?utm_source=' in h:
+              raise SystemExit('landing app link without entry trigger remains')
+          if 'href="/app/?entry=1&utm_source=' not in h:
+              raise SystemExit('landing entry trigger missing')
+          root.write_text(h)
+
+      - name: Validate JavaScript syntax
+        run: |
+          set -euo pipefail
+          node --check app/bridgepoint-shell-v1000.js
+          node --check app/radar-rest-v1000.js
+          node --check app/lazy-runtime-v1000.js
+          node --check app/runtime-unifier-v984.js
+          node --check app/live-home-v984.js
+          node --check app/map-radar-v974.js
+          node --check app/flutter_service_worker.js
+
+      - name: Validate v1000 architecture
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v1000"' app/index.html
+          grep -q "__bridgepointCanonicalRuntime='v1000'" app/index.html
+          grep -q "get('entry')==='1'" app/index.html
+          grep -q 'html:not(.bp1000-entry-allowed) #bp984-entry' app/index.html
+          grep -q 'lazy-runtime-v1000.js?v=1000' app/index.html
+          grep -q 'bridgepoint-shell-v1000.js?v=1000' app/index.html
+          grep -q 'flutter_bootstrap.js?v=1000' app/index.html
+          ! grep -q 'bridgepoint-shell-v999.js' app/index.html
+          ! grep -q 'lazy-runtime-v993.js' app/index.html
+          ! grep -q 'startup-recovery-v986.js' app/index.html
+          grep -q 'clip-path:inset(calc(100% - var(--bp1000-native-nav))' app/bridgepoint-shell-v1000.js
+          ! grep -q 'BridgePointNavigateFlutterTabV984' app/bridgepoint-shell-v1000.js
+          ! grep -q 'preventDefault' app/bridgepoint-shell-v1000.js
+          ! grep -q 'stopPropagation' app/bridgepoint-shell-v1000.js
+          grep -q 'ImageServer/exportImage' app/radar-rest-v1000.js
+          grep -q "u.searchParams.set('f','image')" app/radar-rest-v1000.js
+          grep -q 'falling back to latest live radar' app/radar-rest-v1000.js
+          grep -q 'radar-rest-v1000.js' app/lazy-runtime-v1000.js
+          grep -q "__bridgepointCanonicalRuntime==='v1000'" app/runtime-unifier-v984.js
+          grep -q 'href="/app/?entry=1&utm_source=' index.html
+          grep -q '"start_url": "./?bpv=v1000"' app/manifest.json
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v1000'" app/flutter_service_worker.js
+          test "$(grep -n 'bridgepoint-shell-v1000.js?v=1000' app/index.html | cut -d: -f1)" -lt "$(grep -n 'flutter_bootstrap.js?v=1000' app/index.html | cut -d: -f1)"
+          git diff --check
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install isolated test dependencies
+        run: npm install --no-save --package-lock=false jsdom@24 pngjs@7
+
+      - name: Verify NOAA returns real colored radar pixels
+        run: |
+          set -euo pipefail
+          url='https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer/exportImage?bbox=-130,20,-60,55&bboxSR=4326&imageSR=4326&size=1200,650&format=png32&transparent=true&interpolation=RSP_BilinearInterpolation&f=image'
+          curl -fsSL --retry 2 --max-time 45 "$url" -o /tmp/noaa-radar.png
+          test "$(wc -c < /tmp/noaa-radar.png)" -gt 1000
+          node <<'NODE'
+          const fs=require('fs');
+          const {PNG}=require('pngjs');
+          const p=PNG.sync.read(fs.readFileSync('/tmp/noaa-radar.png'));
+          let visible=0, colored=0;
+          const colors=new Set();
+          for(let i=0;i<p.data.length;i+=4){
+            const r=p.data[i],g=p.data[i+1],b=p.data[i+2],a=p.data[i+3];
+            if(a>10){
+              visible++;
+              if(Math.max(r,g,b)-Math.min(r,g,b)>12){colored++;colors.add(`${r>>4},${g>>4},${b>>4}`);}
+            }
+          }
+          console.log({width:p.width,height:p.height,visible,colored,colorBuckets:colors.size});
+          if(visible<25)throw new Error('NOAA export returned no meaningful visible radar pixels');
+          if(colored<25||colors.size<2)throw new Error('NOAA export did not contain meaningful colored radar pixels');
+          NODE
+
+      - name: Simulate native bottom navigation state handoff
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const {JSDOM}=require('jsdom');
+          const dom=new JSDOM('<!doctype html><html><head></head><body><flutter-view><flt-glass-pane></flt-glass-pane></flutter-view><section id="bp-live-home-v984"></section><canvas id="bp974-cosmos"></canvas></body></html>',{runScripts:'outside-only',url:'https://bridgepointintelligence.online/app/?bpv=v1000',pretendToBeVisual:true});
+          const {window}=dom;
+          Object.defineProperty(window,'innerWidth',{value:390,writable:true});
+          Object.defineProperty(window,'innerHeight',{value:844,writable:true});
+          window.BridgePointOpenMapV993=async()=>true;
+          window.eval(fs.readFileSync('app/bridgepoint-shell-v1000.js','utf8'));
+          const tap=(x)=>window.document.dispatchEvent(new window.MouseEvent('pointerup',{bubbles:true,clientX:x,clientY:830}));
+          const wait=()=>new Promise(r=>setTimeout(r,8));
+          (async()=>{
+            if(window.BridgePointShellV1000.getMode()!=='home')throw new Error('startup not Home');
+            if(window.document.querySelector('#bp999-nav'))throw new Error('v999 web nav returned');
+            tap(195); await wait();
+            if(window.BridgePointShellV1000.getMode()!=='properties')throw new Error('Properties native handoff failed');
+            tap(273); await wait();
+            if(window.BridgePointShellV1000.getMode()!=='worth')throw new Error('Worth native handoff failed');
+            tap(351); await wait();
+            if(window.BridgePointShellV1000.getMode()!=='more')throw new Error('More native handoff failed');
+            tap(39); await wait();
+            if(window.BridgePointShellV1000.getMode()!=='home')throw new Error('Home native handoff failed');
+            tap(117); await wait();
+            if(window.BridgePointShellV1000.getMode()!=='map')throw new Error('Map native handoff failed');
+            console.log('v1000 native navigation simulation passed');
+          })().catch(e=>{console.error(e);process.exit(1);});
+          NODE
+
+      - name: Commit deterministic recovery edits
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'Recovery tree already settled.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/runtime-unifier-v984.js index.html
+          git commit -m 'Finalize v1000 entry and runtime recovery'
+          git push origin HEAD:staging-v1000-recovery

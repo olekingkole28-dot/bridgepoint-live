@@ -1,0 +1,39 @@
+(()=>{
+'use strict';
+if(window.__bridgepointSingleShellV1042)return;
+window.__bridgepointSingleShellV1042=true;
+let active='home',mapWasOpen=false;
+const de=document.documentElement;
+de.style.setProperty('--bp1042-nav-height','84px');
+de.style.setProperty('--bp1042-header-height','72px');
+
+const style=document.createElement('style');style.id='bp1042-shell-style';style.textContent=`
+:root{--bp1042-nav-height:84px;--bp1042-header-height:72px}
+#bp1040-nav,#bp1040-header,#bp1041-nav,#bp1041-header,#bp1036-commerce-tab,#bp1036-plans-dialog,#bp1000-nav-wait,#bp1041-wait,#bp1037-home-seam-guard,#bp984-home-mask,#bp988-home-hard-cover,#bp994-nav-seam-cover,#bp999-nav,#bp998-web-nav,#bp999-header,#bp998-web-header{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important}
+flutter-view,flt-glass-pane{opacity:0!important;visibility:hidden!important;pointer-events:none!important;clip-path:none!important;-webkit-clip-path:none!important}
+#bp1042-header{position:fixed;z-index:2147483618;left:0;right:0;top:0;height:var(--bp1042-header-height);display:none;box-sizing:border-box;padding:max(8px,env(safe-area-inset-top)) 14px 8px;align-items:flex-end;gap:10px;background:linear-gradient(180deg,#06111f,#081a2b);border-bottom:1px solid rgba(72,225,255,.12);color:#fff;font:800 14px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}html.bp1042-home #bp1042-header{display:flex}.bp1042-brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1}.bp1042-brand img{width:40px;height:40px;border-radius:11px}.bp1042-brand b{font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bp1042-live{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid rgba(69,230,166,.18);border-radius:999px;background:rgba(69,230,166,.06);color:#8df2c5;font-size:9px;font-weight:1000}.bp1042-live i{width:7px;height:7px;border-radius:50%;background:#45e6a6;box-shadow:0 0 12px rgba(69,230,166,.7)}
+#bp1042-nav{position:fixed;z-index:2147483635;left:0;right:0;bottom:0;height:calc(var(--bp1042-nav-height) + env(safe-area-inset-bottom));padding:7px 8px max(8px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;background:linear-gradient(180deg,#08182a,#071626);border-top:1px solid rgba(72,225,255,.15);box-shadow:0 -12px 36px rgba(0,0,0,.38);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.bp1042-tab{appearance:none;border:0;border-radius:14px;background:transparent;color:#aebed0;display:grid;place-items:center;align-content:center;gap:4px;font-weight:900;font-size:10.5px;min-width:0;cursor:pointer}.bp1042-tab .ico{width:39px;height:29px;border-radius:12px;display:grid;place-items:center;font-size:19px;color:#b6c8d8}.bp1042-tab.active{color:#fff}.bp1042-tab.active .ico{background:rgba(72,225,255,.14);color:#56e5ff;box-shadow:inset 0 0 0 1px rgba(72,225,255,.14)}.bp1042-tab[data-tab="plans"] .ico{color:#ffc95e}.bp1042-tab[data-tab="plans"].active .ico{background:rgba(255,201,94,.12);color:#ffd77e;box-shadow:inset 0 0 0 1px rgba(255,201,94,.2)}
+html.bp1042-home #bp-live-home-v984{display:block!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important;top:var(--bp1042-header-height)!important;bottom:calc(var(--bp1042-nav-height) + env(safe-area-inset-bottom))!important;z-index:2147483605!important}html:not(.bp1042-home) #bp-live-home-v984{display:none!important;visibility:hidden!important;pointer-events:none!important}html.bp1042-home #bp974-cosmos{display:block!important;visibility:visible!important;opacity:1!important;pointer-events:none!important;clip-path:inset(var(--bp1042-header-height) 0 calc(var(--bp1042-nav-height) + env(safe-area-inset-bottom)) 0)!important}html:not(.bp1042-home) #bp974-cosmos{display:none!important;visibility:hidden!important}
+#bp974-map-dialog{bottom:calc(var(--bp1042-nav-height) + env(safe-area-inset-bottom))!important;z-index:2147483632!important}
+@media(max-width:700px){:root{--bp1042-nav-height:84px}.bp1042-tab{font-size:10px}.bp1042-tab .ico{height:28px;font-size:18px}}
+`;document.head.appendChild(style);
+
+const header=document.createElement('header');header.id='bp1042-header';header.innerHTML='<div class="bp1042-brand"><img src="icons/Icon-192.png?v=1042" alt=""><b>BridgePoint Intelligence</b></div><div class="bp1042-live"><i></i>LIVE</div>';document.body.appendChild(header);
+const nav=document.createElement('nav');nav.id='bp1042-nav';nav.setAttribute('aria-label','Primary navigation');nav.innerHTML='<button class="bp1042-tab active" data-tab="home" type="button"><span class="ico">▦</span><span>Home</span></button><button class="bp1042-tab" data-tab="map" type="button"><span class="ico">◉</span><span>Map</span></button><button class="bp1042-tab" data-tab="plans" type="button"><span class="ico">★</span><span>Plans</span></button><button class="bp1042-tab" data-tab="properties" type="button"><span class="ico">⌂</span><span>Properties</span></button><button class="bp1042-tab" data-tab="more" type="button"><span class="ico">▦</span><span>More</span></button>';document.body.appendChild(nav);
+
+function removeOld(){for(const id of ['bp1040-nav','bp1040-header','bp1041-nav','bp1041-header','bp1036-commerce-tab','bp1000-nav-wait','bp1041-wait','bp1037-home-seam-guard','bp999-nav','bp998-web-nav','bp999-header','bp998-web-header'])document.getElementById(id)?.remove();}
+function closeMap(){document.getElementById('bp974-map-dialog')?.classList.remove('show');mapWasOpen=false;}
+function closeAll(){window.BridgePointClosePlansV1042?.();window.BridgePointClosePropertiesV1042?.();window.BridgePointCloseMoreV1042?.();closeMap();}
+function setMode(tab){active=tab;for(const c of [...de.classList])if(c.startsWith('bp1042-')&&c!=='bp1042-shell')de.classList.remove(c);de.classList.add('bp1042-shell',`bp1042-${tab}`);nav.querySelectorAll('.bp1042-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));window.__bridgepointActiveTabV1042=tab;window.dispatchEvent(new CustomEvent('bridgepoint-tab-v1042',{detail:{tab}}));try{window.BridgePointSyncRuntimeV984?.();}catch(_){}}
+function home(){closeAll();setMode('home');}
+async function map(){window.BridgePointClosePlansV1042?.();window.BridgePointClosePropertiesV1042?.();window.BridgePointCloseMoreV1042?.();setMode('map');try{if(typeof window.BridgePointOpenMapV993==='function')await window.BridgePointOpenMapV993();else await window.BridgePointOpenIntelligenceMapV974?.();mapWasOpen=document.getElementById('bp974-map-dialog')?.classList.contains('show')===true;if(!mapWasOpen)throw new Error('Map did not open');}catch(e){console.error(e);home();}}
+function plans(){closeMap();window.BridgePointClosePropertiesV1042?.();window.BridgePointCloseMoreV1042?.();setMode('plans');window.BridgePointOpenPlansV1042?.();}
+function properties(){closeMap();window.BridgePointClosePlansV1042?.();window.BridgePointCloseMoreV1042?.();setMode('properties');window.BridgePointOpenPropertiesV1042?.();}
+function more(){closeMap();window.BridgePointClosePlansV1042?.();window.BridgePointClosePropertiesV1042?.();setMode('more');window.BridgePointOpenMoreV1042?.();}
+nav.querySelector('[data-tab="home"]').onclick=home;nav.querySelector('[data-tab="map"]').onclick=map;nav.querySelector('[data-tab="plans"]').onclick=plans;nav.querySelector('[data-tab="properties"]').onclick=properties;nav.querySelector('[data-tab="more"]').onclick=more;
+
+window.BridgePointSelectedTabV984=()=>active;window.BridgePointSingleShellV1042={home,map,plans,properties,more,getActive:()=>active};
+new MutationObserver(removeOld).observe(document.documentElement,{childList:true,subtree:true});removeOld();
+setInterval(()=>{removeOld();if(active==='map'&&mapWasOpen&&document.getElementById('bp974-map-dialog')?.classList.contains('show')!==true)home();},500);
+home();
+})();
