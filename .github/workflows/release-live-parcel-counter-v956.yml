@@ -43,28 +43,41 @@ jobs:
           test -s handoff/public-overlays/live-parcel-counter-v956.js
           sha256sum site/app/main.dart.js | awk '{print $1}' > /tmp/before-main-sha
 
-      - name: Install parcel counter overlay
+      - name: Install 3-second aggregate parcel progress overlay
         shell: bash
         run: |
           set -euo pipefail
           cp handoff/public-overlays/live-parcel-counter-v956.js site/app/live-parcel-counter-v956.js
           python - <<'PY'
           from pathlib import Path
-          p=Path('site/app/index.html')
-          s=p.read_text(encoding='utf-8')
-          script='<script src="live-parcel-counter-v956.js?v=956"></script>'
-          marker='<script src="flutter_bootstrap.js" async></script>'
-          if script not in s:
-              if marker not in s:
-                  raise SystemExit('Flutter bootstrap marker missing')
-              s=s.replace(marker,script+'\n  '+marker,1)
-          if s.count(script)!=1:
-              raise SystemExit('Expected exactly one V956 parcel counter script')
-          p.write_text(s,encoding='utf-8')
+          import re
+
+          p = Path('site/app/index.html')
+          s = p.read_text(encoding='utf-8')
+          script = '<script src="live-parcel-counter-v956.js?v=1578"></script>'
+          pattern = r'<script\s+src=["\']live-parcel-counter-v956\.js\?v=[^"\']+["\']\s*></script>'
+
+          if re.search(pattern, s):
+              s = re.sub(pattern, script, s, count=1)
+          elif 'live-parcel-counter-v956.js' not in s:
+              bootstrap = '<script src="flutter_bootstrap.js" async></script>'
+              if bootstrap in s:
+                  s = s.replace(bootstrap, script + '\n  ' + bootstrap, 1)
+              elif '</body>' in s:
+                  s = s.replace('</body>', '  ' + script + '\n</body>', 1)
+              else:
+                  raise SystemExit('No safe parcel-overlay insertion point')
+
+          if s.count('live-parcel-counter-v956.js') != 1:
+              raise SystemExit('Expected exactly one parcel counter script')
+          p.write_text(s, encoding='utf-8')
           PY
           grep -q 'bridgepoint_public_parcel_progress_v956' site/app/live-parcel-counter-v956.js
-          grep -q 'LIVE U.S. PARCELS' site/app/live-parcel-counter-v956.js
-          grep -q 'live-parcel-counter-v956.js?v=956' site/app/index.html
+          grep -q 'secured_unique_backlog_ceiling' site/app/live-parcel-counter-v956.js
+          grep -q 'canonical_pct_of_161m' site/app/live-parcel-counter-v956.js
+          grep -q '3000' site/app/live-parcel-counter-v956.js
+          grep -q 'live-parcel-counter-v956.js?v=1578' site/app/index.html
+          grep -q 'main.dart.js' site/app/index.html
           after="$(sha256sum site/app/main.dart.js | awk '{print $1}')"
           before="$(cat /tmp/before-main-sha)"
           test "$after" = "$before"
@@ -85,7 +98,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'Publish live U.S. parcel counter V956'
+          git commit -m 'Publish 3-second aggregate U.S. parcel progress V1578'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -101,22 +114,23 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify live parcel counter
+      - name: Verify live aggregate parcel progress
         shell: bash
         run: |
           set -euo pipefail
           ORIGIN='https://bridgepointintelligence.online'
           for attempt in $(seq 1 24); do
-            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?v=956-${attempt}" 2>/dev/null || true)"
-            js="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/live-parcel-counter-v956.js?v=956-${attempt}" 2>/dev/null || true)"
-            if printf '%s' "$app" | grep -q 'live-parcel-counter-v956.js?v=956' \
-              && printf '%s' "$app" | grep -q 'flutter_bootstrap.js' \
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?v=1578-${attempt}" 2>/dev/null || true)"
+            js="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/live-parcel-counter-v956.js?v=1578-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -q 'live-parcel-counter-v956.js?v=1578' \
+              && printf '%s' "$app" | grep -q 'main.dart.js' \
               && printf '%s' "$js" | grep -q 'bridgepoint_public_parcel_progress_v956' \
-              && printf '%s' "$js" | grep -q 'LIVE U.S. PARCELS'; then
-              echo 'V956 verified live: public parcel counter overlay is installed without changing compiled Flutter.'
+              && printf '%s' "$js" | grep -q 'secured_unique_backlog_ceiling' \
+              && printf '%s' "$js" | grep -q '3000'; then
+              echo 'V1578 verified live: aggregate parcel progress refreshes every 3 seconds without exposing source metadata.'
               exit 0
             fi
             sleep 8
           done
-          echo 'V956 parcel counter did not converge on the live app.' >&2
+          echo 'V1578 parcel progress overlay did not converge on the live app.' >&2
           exit 1
