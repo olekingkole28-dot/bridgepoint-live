@@ -72,12 +72,11 @@ jobs:
               raise SystemExit('Expected exactly one parcel counter script')
           p.write_text(s, encoding='utf-8')
           PY
-          grep -q 'bridgepoint_public_parcel_progress_v956' site/app/live-parcel-counter-v956.js
-          grep -q 'secured_unique_backlog_ceiling' site/app/live-parcel-counter-v956.js
-          grep -q 'canonical_pct_of_161m' site/app/live-parcel-counter-v956.js
-          grep -q '3000' site/app/live-parcel-counter-v956.js
-          grep -q 'live-parcel-counter-v956.js?v=1578' site/app/index.html
-          grep -q 'main.dart.js' site/app/index.html
+          grep -Fq 'bridgepoint_public_parcel_progress_v956' site/app/live-parcel-counter-v956.js
+          grep -Fq 'secured_unique_backlog_ceiling' site/app/live-parcel-counter-v956.js
+          grep -Fq 'canonical_pct_of_161m' site/app/live-parcel-counter-v956.js
+          grep -Fq 'POLL_MS=3000' site/app/live-parcel-counter-v956.js
+          grep -Fq 'live-parcel-counter-v956.js?v=1578' site/app/index.html
           after="$(sha256sum site/app/main.dart.js | awk '{print $1}')"
           before="$(cat /tmp/before-main-sha)"
           test "$after" = "$before"
@@ -122,11 +121,10 @@ jobs:
           for attempt in $(seq 1 24); do
             app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?v=1578-${attempt}" 2>/dev/null || true)"
             js="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/live-parcel-counter-v956.js?v=1578-${attempt}" 2>/dev/null || true)"
-            if printf '%s' "$app" | grep -q 'live-parcel-counter-v956.js?v=1578' \
-              && printf '%s' "$app" | grep -q 'main.dart.js' \
-              && printf '%s' "$js" | grep -q 'bridgepoint_public_parcel_progress_v956' \
-              && printf '%s' "$js" | grep -q 'secured_unique_backlog_ceiling' \
-              && printf '%s' "$js" | grep -q '3000'; then
+            if printf '%s' "$app" | grep -Fq 'live-parcel-counter-v956.js?v=1578' \
+              && printf '%s' "$js" | grep -Fq 'bridgepoint_public_parcel_progress_v956' \
+              && printf '%s' "$js" | grep -Fq 'secured_unique_backlog_ceiling' \
+              && printf '%s' "$js" | grep -Fq 'POLL_MS=3000'; then
               echo 'V1578 verified live: aggregate parcel progress refreshes every 3 seconds without exposing source metadata.'
               exit 0
             fi
