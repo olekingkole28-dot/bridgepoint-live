@@ -6,7 +6,7 @@
 <atom:link rel="hub" href="https://pubsubhubbub.appspot.com/" />
 <description>Quality-gated BridgePoint Intelligence research and market-readiness briefs.</description>
 <language>en-us</language>
-<lastBuildDate>Thu, 03 Sep 2026 20:11:50 +0000</lastBuildDate>
+<lastBuildDate>Thu, 03 Sep 2026 20:27:37 +0000</lastBuildDate>
 <item>
 <title>Plymouth roof permit decoded: what a public filing can tell you before anyone inspects the property</title>
 <link>https://bridgepointintelligence.online/articles/auto/plymouth-roof-permit-decoded-what-a-public-filing-can-tell-you-before-an-932df944.html</link>
@@ -22,11 +22,11 @@
 <description>BridgePoint Intelligence is a property-intelligence platform founded by Kole Johnson that combines property identity, public-source evidence, explainable prioritization and verified claim-timeline data.</description>
 </item>
 <item>
-<title>Insurance claim delay benchmarks: why disputed-claim timeline duration is a missing data layer</title>
-<link>https://bridgepointintelligence.online/articles/auto/insurance-claim-delay-benchmarks-why-disputed-claim-timeline-duration-is-2f44c18d.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/insurance-claim-delay-benchmarks-why-disputed-claim-timeline-duration-is-2f44c18d.html</guid>
+<title>BridgePoint Intelligence opens founding commercial claims pilot for restoration, roofing and public-adjusting firms</title>
+<link>https://bridgepointintelligence.online/articles/auto/bridgepoint-intelligence-opens-founding-commercial-claims-pilot-for-rest-27b8c316.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/bridgepoint-intelligence-opens-founding-commercial-claims-pilot-for-rest-27b8c316.html</guid>
 <pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
-<description>A methodology for measuring verified stage-by-stage claim duration without turning observational data into unsupported causal claims.</description>
+<description>The Connecticut-born property-intelligence platform is recruiting a limited reference cohort to measure daily workflow use and verified claim-stage duration alongside existing claims systems.</description>
 </item>
 <item>
 <title>Xactimate-compatible property intelligence: how BridgePoint is designed to fit existing claims workflows</title>
@@ -34,20 +34,6 @@
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/xactimate-compatible-property-intelligence-how-bridgepoint-is-designed-t-fbd99891.html</guid>
 <pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
 <description>BridgePoint is building vendor-neutral claim and property exports now while keeping native Xactimate activation truthfully gated behind authorized integration.</description>
-</item>
-<item>
-<title>Commercial roofing insurance intelligence: prioritize properties without confusing exposure with damage</title>
-<link>https://bridgepointintelligence.online/articles/auto/commercial-roofing-insurance-intelligence-prioritize-properties-without--562dcf65.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/commercial-roofing-insurance-intelligence-prioritize-properties-without--562dcf65.html</guid>
-<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
-<description>A commercial-roofing workflow for combining property records, permitted evidence, weather context and claim timing while preserving field-verification limits.</description>
-</item>
-<item>
-<title>BridgePoint Intelligence opens founding commercial claims pilot for restoration, roofing and public-adjusting firms</title>
-<link>https://bridgepointintelligence.online/articles/auto/bridgepoint-intelligence-opens-founding-commercial-claims-pilot-for-rest-27b8c316.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/bridgepoint-intelligence-opens-founding-commercial-claims-pilot-for-rest-27b8c316.html</guid>
-<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
-<description>The Connecticut-born property-intelligence platform is recruiting a limited reference cohort to measure daily workflow use and verified claim-stage duration alongside existing claims systems.</description>
 </item>
 <item>
 <title>Property intelligence for public adjusters: build the claim timeline before the dispute gets old</title>
@@ -64,11 +50,25 @@
 <description>How restoration operators can combine property context, field evidence and verified claim timing without replacing estimating or claims-core systems.</description>
 </item>
 <item>
-<title>Restoration lead intelligence: why multi-signal property evidence beats a storm-only list</title>
-<link>https://bridgepointintelligence.online/articles/auto/restoration-lead-intelligence-why-multi-signal-property-evidence-beats-a-8a1c57c2.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/restoration-lead-intelligence-why-multi-signal-property-evidence-beats-a-8a1c57c2.html</guid>
+<title>Commercial roofing insurance intelligence: prioritize properties without confusing exposure with damage</title>
+<link>https://bridgepointintelligence.online/articles/auto/commercial-roofing-insurance-intelligence-prioritize-properties-without--562dcf65.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/commercial-roofing-insurance-intelligence-prioritize-properties-without--562dcf65.html</guid>
+<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
+<description>A commercial-roofing workflow for combining property records, permitted evidence, weather context and claim timing while preserving field-verification limits.</description>
+</item>
+<item>
+<title>Insurance claim delay benchmarks: why disputed-claim timeline duration is a missing data layer</title>
+<link>https://bridgepointintelligence.online/articles/auto/insurance-claim-delay-benchmarks-why-disputed-claim-timeline-duration-is-2f44c18d.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/insurance-claim-delay-benchmarks-why-disputed-claim-timeline-duration-is-2f44c18d.html</guid>
+<pubDate>Sat, 22 Aug 2026 19:04:49 +0000</pubDate>
+<description>A methodology for measuring verified stage-by-stage claim duration without turning observational data into unsupported causal claims.</description>
+</item>
+<item>
+<title>Property intelligence for roofing contractors: what to verify before driving a territory</title>
+<link>https://bridgepointintelligence.online/articles/auto/property-intelligence-for-roofing-contractors-what-to-verify-before-driv-f07b8482.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/property-intelligence-for-roofing-contractors-what-to-verify-before-driv-f07b8482.html</guid>
 <pubDate>Sat, 22 Aug 2026 17:20:43 +0000</pubDate>
-<description>How restoration and mitigation teams can use weather as context while demanding property matching, provenance and independent evidence before prioritizing field work.</description>
+<description>A practical buyer guide to property matching, source provenance, multi-signal evidence and field verification before a roofing team spends time in a territory.</description>
 </item>
 <item>
 <title>Why nationwide property intelligence is a data-infrastructure problem, not just an AI model</title>
@@ -85,11 +85,11 @@
 <description>A framework for turning fragmented property records and public signals into explainable portfolio and territory prioritization.</description>
 </item>
 <item>
-<title>Property intelligence for roofing contractors: what to verify before driving a territory</title>
-<link>https://bridgepointintelligence.online/articles/auto/property-intelligence-for-roofing-contractors-what-to-verify-before-driv-f07b8482.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/property-intelligence-for-roofing-contractors-what-to-verify-before-driv-f07b8482.html</guid>
+<title>Restoration lead intelligence: why multi-signal property evidence beats a storm-only list</title>
+<link>https://bridgepointintelligence.online/articles/auto/restoration-lead-intelligence-why-multi-signal-property-evidence-beats-a-8a1c57c2.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/restoration-lead-intelligence-why-multi-signal-property-evidence-beats-a-8a1c57c2.html</guid>
 <pubDate>Sat, 22 Aug 2026 17:20:43 +0000</pubDate>
-<description>A practical buyer guide to property matching, source provenance, multi-signal evidence and field verification before a roofing team spends time in a territory.</description>
+<description>How restoration and mitigation teams can use weather as context while demanding property matching, provenance and independent evidence before prioritizing field work.</description>
 </item>
 <item>
 <title>Why weather exposure is not the same thing as property damage</title>
@@ -121,9 +121,9 @@
 </item>
 <item>
 <title>Washington BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/washington-bridgepoint-market-readiness-update-0ca8ff2b.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/washington-bridgepoint-market-readiness-update-0ca8ff2b.html</guid>
-<pubDate>Wed, 02 Sep 2026 16:17:03 +0000</pubDate>
+<link>https://bridgepointintelligence.online/articles/auto/washington-bridgepoint-market-readiness-update-bfdc20ef.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/washington-bridgepoint-market-readiness-update-bfdc20ef.html</guid>
+<pubDate>Thu, 03 Sep 2026 20:17:11 +0000</pubDate>
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
@@ -155,6 +155,13 @@
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
+<title>Oregon BridgePoint market-readiness update</title>
+<link>https://bridgepointintelligence.online/articles/auto/oregon-bridgepoint-market-readiness-update-5a1bb763.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/oregon-bridgepoint-market-readiness-update-5a1bb763.html</guid>
+<pubDate>Thu, 03 Sep 2026 20:17:11 +0000</pubDate>
+<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
+</item>
+<item>
 <title>Nevada BridgePoint market-readiness update</title>
 <link>https://bridgepointintelligence.online/articles/auto/nevada-bridgepoint-market-readiness-update-4bfc69ef.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/nevada-bridgepoint-market-readiness-update-4bfc69ef.html</guid>
@@ -176,10 +183,10 @@
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
-<title>Oregon BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/oregon-bridgepoint-market-readiness-update-46c957cb.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/oregon-bridgepoint-market-readiness-update-46c957cb.html</guid>
-<pubDate>Wed, 02 Sep 2026 00:17:02 +0000</pubDate>
+<title>Idaho BridgePoint market-readiness update</title>
+<link>https://bridgepointintelligence.online/articles/auto/idaho-bridgepoint-market-readiness-update-9d737e2f.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/idaho-bridgepoint-market-readiness-update-9d737e2f.html</guid>
+<pubDate>Thu, 03 Sep 2026 20:17:11 +0000</pubDate>
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
@@ -211,17 +218,24 @@
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
-<title>Idaho BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/idaho-bridgepoint-market-readiness-update-71a4da2e.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/idaho-bridgepoint-market-readiness-update-71a4da2e.html</guid>
-<pubDate>Wed, 02 Sep 2026 04:17:03 +0000</pubDate>
-<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
-</item>
-<item>
 <title>South Carolina BridgePoint market-readiness update</title>
 <link>https://bridgepointintelligence.online/articles/auto/south-carolina-bridgepoint-market-readiness-update-a302463d.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/south-carolina-bridgepoint-market-readiness-update-a302463d.html</guid>
 <pubDate>Thu, 03 Sep 2026 09:17:00 +0000</pubDate>
+<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
+</item>
+<item>
+<title>Hawaii BridgePoint market-readiness update</title>
+<link>https://bridgepointintelligence.online/articles/auto/hawaii-bridgepoint-market-readiness-update-6a5972e8.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/hawaii-bridgepoint-market-readiness-update-6a5972e8.html</guid>
+<pubDate>Thu, 03 Sep 2026 20:17:11 +0000</pubDate>
+<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
+</item>
+<item>
+<title>Arkansas BridgePoint market-readiness update</title>
+<link>https://bridgepointintelligence.online/articles/auto/arkansas-bridgepoint-market-readiness-update-86e73af7.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/arkansas-bridgepoint-market-readiness-update-86e73af7.html</guid>
+<pubDate>Thu, 03 Sep 2026 20:17:11 +0000</pubDate>
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
@@ -253,16 +267,9 @@
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
-<title>North Dakota BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/north-dakota-bridgepoint-market-readiness-update-0fa399a8.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/north-dakota-bridgepoint-market-readiness-update-0fa399a8.html</guid>
-<pubDate>Thu, 03 Sep 2026 12:17:00 +0000</pubDate>
-<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
-</item>
-<item>
-<title>Nebraska BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/nebraska-bridgepoint-market-readiness-update-a3c6e42b.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/nebraska-bridgepoint-market-readiness-update-a3c6e42b.html</guid>
+<title>New Mexico BridgePoint market-readiness update</title>
+<link>https://bridgepointintelligence.online/articles/auto/new-mexico-bridgepoint-market-readiness-update-3c895ca6.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/new-mexico-bridgepoint-market-readiness-update-3c895ca6.html</guid>
 <pubDate>Thu, 03 Sep 2026 12:17:00 +0000</pubDate>
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
@@ -274,17 +281,17 @@
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
-<title>New Mexico BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/new-mexico-bridgepoint-market-readiness-update-3c895ca6.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/new-mexico-bridgepoint-market-readiness-update-3c895ca6.html</guid>
+<title>Nebraska BridgePoint market-readiness update</title>
+<link>https://bridgepointintelligence.online/articles/auto/nebraska-bridgepoint-market-readiness-update-a3c6e42b.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/nebraska-bridgepoint-market-readiness-update-a3c6e42b.html</guid>
 <pubDate>Thu, 03 Sep 2026 12:17:00 +0000</pubDate>
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
-<title>Mississippi BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/mississippi-bridgepoint-market-readiness-update-6a5a3a50.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/mississippi-bridgepoint-market-readiness-update-6a5a3a50.html</guid>
-<pubDate>Thu, 03 Sep 2026 10:17:00 +0000</pubDate>
+<title>North Dakota BridgePoint market-readiness update</title>
+<link>https://bridgepointintelligence.online/articles/auto/north-dakota-bridgepoint-market-readiness-update-0fa399a8.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/north-dakota-bridgepoint-market-readiness-update-0fa399a8.html</guid>
+<pubDate>Thu, 03 Sep 2026 12:17:00 +0000</pubDate>
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
@@ -295,16 +302,23 @@
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
-<title>Alabama BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/alabama-bridgepoint-market-readiness-update-9e922d23.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/alabama-bridgepoint-market-readiness-update-9e922d23.html</guid>
-<pubDate>Thu, 03 Sep 2026 09:17:00 +0000</pubDate>
+<title>Mississippi BridgePoint market-readiness update</title>
+<link>https://bridgepointintelligence.online/articles/auto/mississippi-bridgepoint-market-readiness-update-6a5a3a50.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/mississippi-bridgepoint-market-readiness-update-6a5a3a50.html</guid>
+<pubDate>Thu, 03 Sep 2026 10:17:00 +0000</pubDate>
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
 <title>Florida BridgePoint market-readiness update</title>
 <link>https://bridgepointintelligence.online/articles/auto/florida-bridgepoint-market-readiness-update-bae468f7.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/florida-bridgepoint-market-readiness-update-bae468f7.html</guid>
+<pubDate>Thu, 03 Sep 2026 09:17:00 +0000</pubDate>
+<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
+</item>
+<item>
+<title>Alabama BridgePoint market-readiness update</title>
+<link>https://bridgepointintelligence.online/articles/auto/alabama-bridgepoint-market-readiness-update-9e922d23.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/alabama-bridgepoint-market-readiness-update-9e922d23.html</guid>
 <pubDate>Thu, 03 Sep 2026 09:17:00 +0000</pubDate>
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
@@ -358,9 +372,30 @@
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
+<title>Rhode Island BridgePoint market-readiness update</title>
+<link>https://bridgepointintelligence.online/articles/auto/rhode-island-bridgepoint-market-readiness-update-cb20a22d.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/rhode-island-bridgepoint-market-readiness-update-cb20a22d.html</guid>
+<pubDate>Thu, 03 Sep 2026 00:17:03 +0000</pubDate>
+<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
+</item>
+<item>
 <title>Puerto Rico BridgePoint market-readiness update</title>
 <link>https://bridgepointintelligence.online/articles/auto/puerto-rico-bridgepoint-market-readiness-update-26bdef43.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/puerto-rico-bridgepoint-market-readiness-update-26bdef43.html</guid>
+<pubDate>Thu, 03 Sep 2026 00:17:03 +0000</pubDate>
+<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
+</item>
+<item>
+<title>Minnesota BridgePoint market-readiness update</title>
+<link>https://bridgepointintelligence.online/articles/auto/minnesota-bridgepoint-market-readiness-update-a3ba8042.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/minnesota-bridgepoint-market-readiness-update-a3ba8042.html</guid>
+<pubDate>Thu, 03 Sep 2026 00:17:03 +0000</pubDate>
+<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
+</item>
+<item>
+<title>Michigan BridgePoint market-readiness update</title>
+<link>https://bridgepointintelligence.online/articles/auto/michigan-bridgepoint-market-readiness-update-d18b397a.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/michigan-bridgepoint-market-readiness-update-d18b397a.html</guid>
 <pubDate>Thu, 03 Sep 2026 00:17:03 +0000</pubDate>
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
@@ -379,13 +414,6 @@
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
-<title>Minnesota BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/minnesota-bridgepoint-market-readiness-update-a3ba8042.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/minnesota-bridgepoint-market-readiness-update-a3ba8042.html</guid>
-<pubDate>Thu, 03 Sep 2026 00:17:03 +0000</pubDate>
-<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
-</item>
-<item>
 <title>Georgia BridgePoint market-readiness update</title>
 <link>https://bridgepointintelligence.online/articles/auto/georgia-bridgepoint-market-readiness-update-f7f684fb.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/georgia-bridgepoint-market-readiness-update-f7f684fb.html</guid>
@@ -400,31 +428,10 @@
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
-<title>Michigan BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/michigan-bridgepoint-market-readiness-update-d18b397a.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/michigan-bridgepoint-market-readiness-update-d18b397a.html</guid>
-<pubDate>Thu, 03 Sep 2026 00:17:03 +0000</pubDate>
-<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
-</item>
-<item>
-<title>Rhode Island BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/rhode-island-bridgepoint-market-readiness-update-cb20a22d.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/rhode-island-bridgepoint-market-readiness-update-cb20a22d.html</guid>
-<pubDate>Thu, 03 Sep 2026 00:17:03 +0000</pubDate>
-<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
-</item>
-<item>
 <title>Montana BridgePoint market-readiness update</title>
 <link>https://bridgepointintelligence.online/articles/auto/montana-bridgepoint-market-readiness-update-c6a0f24b.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/montana-bridgepoint-market-readiness-update-c6a0f24b.html</guid>
 <pubDate>Wed, 02 Sep 2026 16:17:03 +0000</pubDate>
-<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
-</item>
-<item>
-<title>Arkansas BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/arkansas-bridgepoint-market-readiness-update-d7002e21.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/arkansas-bridgepoint-market-readiness-update-d7002e21.html</guid>
-<pubDate>Wed, 02 Sep 2026 08:17:03 +0000</pubDate>
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
@@ -442,13 +449,6 @@
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
-<title>Hawaii BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/hawaii-bridgepoint-market-readiness-update-5693e4d9.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/hawaii-bridgepoint-market-readiness-update-5693e4d9.html</guid>
-<pubDate>Wed, 02 Sep 2026 03:17:00 +0000</pubDate>
-<description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
-</item>
-<item>
 <title>Alaska BridgePoint market-readiness update</title>
 <link>https://bridgepointintelligence.online/articles/auto/alaska-bridgepoint-market-readiness-update-4a3b3884.html</link>
 <guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/alaska-bridgepoint-market-readiness-update-4a3b3884.html</guid>
@@ -456,9 +456,9 @@
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
-<title>U.S. Virgin Islands BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/u-s-virgin-islands-bridgepoint-market-readiness-update-e338a6d4.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/u-s-virgin-islands-bridgepoint-market-readiness-update-e338a6d4.html</guid>
+<title>American Samoa BridgePoint market-readiness update</title>
+<link>https://bridgepointintelligence.online/articles/auto/american-samoa-bridgepoint-market-readiness-update-e16a49d2.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/american-samoa-bridgepoint-market-readiness-update-e16a49d2.html</guid>
 <pubDate>Tue, 25 Aug 2026 02:17:00 +0000</pubDate>
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
@@ -470,9 +470,9 @@
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
 <item>
-<title>American Samoa BridgePoint market-readiness update</title>
-<link>https://bridgepointintelligence.online/articles/auto/american-samoa-bridgepoint-market-readiness-update-e16a49d2.html</link>
-<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/american-samoa-bridgepoint-market-readiness-update-e16a49d2.html</guid>
+<title>U.S. Virgin Islands BridgePoint market-readiness update</title>
+<link>https://bridgepointintelligence.online/articles/auto/u-s-virgin-islands-bridgepoint-market-readiness-update-e338a6d4.html</link>
+<guid isPermaLink="true">https://bridgepointintelligence.online/articles/auto/u-s-virgin-islands-bridgepoint-market-readiness-update-e338a6d4.html</guid>
 <pubDate>Tue, 25 Aug 2026 02:17:00 +0000</pubDate>
 <description>A factual BridgePoint coverage-status brief; readiness is not a damage or claim determination.</description>
 </item>
