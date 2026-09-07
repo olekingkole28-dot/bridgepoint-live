@@ -1,4 +1,4 @@
-name: Sandbox Public Funnel Guardian V1986
+name: Sandbox Public Funnel Guardian V1987
 
 on:
   push:
@@ -23,6 +23,7 @@ jobs:
           node --check sandbox-v1985/app.js
           node --check sandbox-v1985/media-admin.js
           node --check sandbox-v1985/trial-banner-v1986.js
+          if test -s sandbox-v1985/enterprise-request.js; then node --check sandbox-v1985/enterprise-request.js; fi
       - name: Funnel contract audit
         shell: bash
         run: |
@@ -58,13 +59,21 @@ jobs:
           set -euo pipefail
           SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co'
           KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25'
-          pulse="$(curl -fsS --max-time 15 -X POST "$SUPA/rest/v1/rpc/bridgepoint_public_system_pulse_v957" -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{}')"
-          legal="$(curl -fsS --max-time 15 -X POST "$SUPA/rest/v1/rpc/bridgepoint_public_legal_preview_v1054" -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{}')"
-          media="$(curl -fsS --max-time 15 -X POST "$SUPA/rest/v1/rpc/bridgepoint_public_featured_media_v1986" -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{"p_limit":3}')"
-          teaser="$(curl -fsS --max-time 15 -X POST "$SUPA/rest/v1/rpc/bridgepoint_public_property_teaser_v1986" -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{"p_query":"7 HEARTHSTONE DRIVE, Bethel, 06801, CT"}')"
-          printf '%s' "$pulse" | grep -q 'total_parcels'
-          printf '%s' "$legal" | grep -q 'required_documents'
-          printf '%s' "$media" | grep -q 'items'
-          printf '%s' "$teaser" | grep -q '"state_code":"CT"'
-          printf '%s' "$teaser" | grep -q 'permit_record_count'
-          echo 'Sandbox funnel contracts green.'
+          curl -fsS --max-time 20 -X POST "$SUPA/rest/v1/rpc/bridgepoint_public_system_pulse_v957" -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{}' > /tmp/pulse.json
+          curl -fsS --max-time 20 -X POST "$SUPA/rest/v1/rpc/bridgepoint_public_legal_preview_v1054" -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{}' > /tmp/legal.json
+          curl -fsS --max-time 20 -X POST "$SUPA/rest/v1/rpc/bridgepoint_public_featured_media_v1986" -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{"p_limit":3}' > /tmp/media.json
+          curl -fsS --max-time 20 -X POST "$SUPA/rest/v1/rpc/bridgepoint_public_property_teaser_v1986" -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{"p_query":"7 HEARTHSTONE DRIVE, Bethel, 06801, CT"}' > /tmp/teaser.json
+          python - <<'PY'
+          import json
+          pulse=json.load(open('/tmp/pulse.json'))
+          legal=json.load(open('/tmp/legal.json'))
+          media=json.load(open('/tmp/media.json'))
+          teaser=json.load(open('/tmp/teaser.json'))
+          assert int(pulse.get('total_parcels') or 0)>0, pulse
+          assert isinstance(legal.get('required_documents'), list) and legal['required_documents'], legal
+          assert isinstance(media.get('items'), list), media
+          assert teaser.get('resolved') is True, teaser
+          assert (teaser.get('property') or {}).get('state_code')=='CT', teaser
+          assert 'permit_record_count' in (teaser.get('teaser') or {}), teaser
+          print('Sandbox funnel contracts green.')
+          PY
