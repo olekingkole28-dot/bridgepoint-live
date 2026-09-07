@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#03070d">
+  <meta name="description" content="BridgePoint Intelligence connects U.S. property identity, parcel geometry, weather-linked records, permits and supported evidence around one canonical property record.">
+  <title>BridgePoint Intelligence — Every Property. One Canonical ID.</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <canvas id="cosmos" aria-hidden="true"></canvas>
+  <div class="noise" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="BridgePoint Intelligence home">
+      <img src="/app/assets/assets/brand/bridgepoint-mark-v80.svg" alt="" onerror="this.style.display='none'">
+      <span><b>BRIDGEPOINT</b><small>INTELLIGENCE</small></span>
+    </a>
+    <div class="top-actions">
+      <button class="text-button" data-open-signin>Sign in</button>
+      <button class="mini-cta" data-start-account>Start free</button>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero section-shell">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="live-dot"></span> LIVE U.S. PROPERTY FOUNDATION</div>
+        <div class="counter-wrap">
+          <span class="counter-label">CANONICAL PROPERTIES CONNECTED</span>
+          <strong id="parcel-counter" class="parcel-counter">Loading…</strong>
+          <span id="counter-meta" class="counter-meta">Reading BridgePoint's live aggregate counter</span>
+        </div>
+        <h1>Every U.S. Property.<br><span>Every Weather Exposure.</span><br>Pinned to One Canonical ID.</h1>
+        <p class="hero-lede">Search a real address and see BridgePoint connect the property to source-backed parcel geometry, weather-linked history, permits and the evidence trail underneath it—before you create an account.</p>
+        <div class="hero-actions">
+          <button class="primary-cta" data-start-account>
+            <span>Download App & Start 7-Day Free Trial</span>
+            <small>No card before you see the product</small>
+          </button>
+          <a class="ghost-cta" href="#teaser">Try one address free</a>
+        </div>
+        <div class="proof-strip" aria-label="BridgePoint product truths">
+          <span>51 U.S. jurisdictions tracked</span><i></i><span>Source-backed records</span><i></i><span>Explainable intelligence</span><i></i><span>3-sec live aggregate pulse</span>
+        </div>
+      </div>
+
+      <div class="hero-visual" aria-hidden="true">
+        <div class="canonical-core">
+          <span class="orbit orbit-a"><b>PARCEL</b></span>
+          <span class="orbit orbit-b"><b>WEATHER</b></span>
+          <span class="orbit orbit-c"><b>PERMITS</b></span>
+          <span class="orbit orbit-d"><b>CLAIMS</b></span>
+          <div class="core-ring"><div class="core-dot"></div></div>
+          <div class="core-copy"><small>ONE PROPERTY</small><b>CANONICAL<br>ID</b></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="teaser section-shell" id="teaser">
+      <div class="section-kicker">THE FREE “AHA”</div>
+      <div class="split-heading">
+        <div>
+          <h2>Type one real address.<br>See the property come together.</h2>
+          <p>No login for the teaser. BridgePoint only exposes a restricted public preview here; advanced intelligence remains locked until account creation.</p>
+        </div>
+        <div class="teaser-badge">FREE PROPERTY TEASER</div>
+      </div>
+
+      <form id="teaser-form" class="address-search">
+        <label for="address-input">Property address</label>
+        <div class="search-line">
+          <input id="address-input" autocomplete="street-address" placeholder="123 Main St, Middletown, CT" required minlength="6" maxlength="140">
+          <button type="submit">Reveal property</button>
+        </div>
+        <small>Uses BridgePoint’s public, privacy-safe property snapshot. Owner identity and proprietary scoring are not exposed here.</small>
+      </form>
+
+      <div id="teaser-state" class="teaser-state empty">
+        <div class="map-stage">
+          <svg id="parcel-svg" viewBox="0 0 600 420" role="img" aria-label="Property parcel preview"><g id="parcel-grid"></g><path id="parcel-path" d="" /></svg>
+          <div class="map-scan"></div>
+          <div class="map-caption"><span class="live-dot"></span><b>RESTRICTED TEASER VIEW</b><small>Source-backed geometry when available · not a legal survey</small></div>
+        </div>
+        <div class="teaser-panel">
+          <div id="teaser-empty-copy" class="empty-copy">
+            <div class="target-icon">⌖</div>
+            <h3>Your property preview appears here.</h3>
+            <p>Search above to reveal the address match, visual parcel outline, weather-linked history and permit activity.</p>
+          </div>
+          <div id="teaser-results" hidden>
+            <span class="result-label">MATCHED PROPERTY</span>
+            <h3 id="result-address"></h3>
+            <div class="result-meta" id="result-meta"></div>
+            <div class="teaser-metrics">
+              <article><span>WEATHER-LINKED HISTORY</span><b id="weather-count">—</b><small>BridgePoint-linked property signals</small></article>
+              <article><span>ACTIVE PERMIT RECORDS</span><b id="permit-count">—</b><small id="permit-total">Linked permit records</small></article>
+            </div>
+            <div class="permit-log">
+              <div class="permit-head"><b>Recent permit log</b><span>PUBLIC TEASER</span></div>
+              <div id="permit-items"></div>
+            </div>
+            <div class="locked-stack">
+              <div class="blur-row"><span>Distress / opportunity score</span><b>87.4</b></div>
+              <div class="blur-row"><span>Claim lifecycle intelligence</span><b>12 events</b></div>
+              <div class="blur-row"><span>Live weather vectors + 3D mode</span><b>READY</b></div>
+              <div class="lock-glass"><span>🔒</span><b>Advanced intelligence is locked</b><small>Create your free account to unlock eligible 3D, live weather, full timeline, claims and source-document views.</small><button data-start-account>Activate free account</button></div>
+            </div>
+            <p id="teaser-disclosure" class="truth-note"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="media section-shell" id="proof">
+      <div class="section-kicker">B2B INDUSTRY SOCIAL PROOF</div>
+      <div class="split-heading">
+        <div>
+          <h2>See BridgePoint discussed<br>outside BridgePoint.</h2>
+          <p>Founder interviews, podcast appearances and public product conversations live here. This feed is owner-managed, so new clips publish to the homepage without a site rebuild.</p>
+        </div>
+        <a class="owner-media-link" href="./media-admin.html">Owner: manage public media →</a>
+      </div>
+      <div id="media-grid" class="media-grid">
+        <article class="media-placeholder"><div class="media-pulse"></div><b>Public media feed is ready</b><p>Add Boroughs &amp; Burbs, The Claim Files, demos or any future appearance from the owner media manager.</p></article>
+      </div>
+    </section>
+
+    <section class="flow section-shell">
+      <div class="section-kicker">THE SMOOTHEST PATH INTO THE PRODUCT</div>
+      <h2>Discover → verify → create → use.</h2>
+      <p class="flow-lede">No checkout wall before the product. The public site proves value, the legal handshake happens before account creation, and the 7-day access clock begins at account creation.</p>
+      <div class="flow-track">
+        <article><span>01</span><b>Search or tap Start Free</b><p>Use the public teaser or go straight into account creation.</p></article>
+        <article><span>02</span><b>Legal handshake</b><p>Review required platform documents plus explicit data-use and verification acknowledgments.</p></article>
+        <article><span>03</span><b>Create your account</b><p>Email, password and your primary industry/niche. No credit card on the public site.</p></article>
+        <article><span>04</span><b>7-day clock begins</b><p>The backend starts the access window on account creation. The signed-in app reads the server countdown.</p></article>
+        <article><span>05</span><b>Choose Plans inside the app</b><p>Upgrade when a locked capability matters to your workflow. Enterprise/API access stays approval-based.</p></article>
+      </div>
+    </section>
+
+    <section class="final-cta section-shell">
+      <div class="final-card">
+        <div><span class="section-kicker">READY WHEN YOU ARE</span><h2>Start with a property.<br>Stay for the intelligence.</h2><p>Create the account first. Explore BridgePoint during the 7-day window. Choose a paid plan only from inside the product.</p></div>
+        <button class="primary-cta" data-start-account><span>Download App & Start 7-Day Free Trial</span><small>7-day clock starts when your account is created</small></button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-inner"><div><b>BridgePoint Intelligence</b><small>Property intelligence with source and confidence context.</small></div><div><a href="#teaser">Free property teaser</a><button data-open-signin>Sign in</button><a href="./media-admin.html">Owner media</a></div></div>
+    <p>BridgePoint intelligence, scores, geometry and linked records are decision-support information, not a legal survey, engineering conclusion, insurance coverage determination or guarantee of physical condition. Verify material decisions against authoritative records and on-site evidence.</p>
+  </footer>
+
+  <div id="legal-modal" class="modal" aria-hidden="true">
+    <div class="modal-card legal-card" role="dialog" aria-modal="true" aria-labelledby="legal-title">
+      <button class="modal-close" data-close-modal aria-label="Close">×</button>
+      <span class="modal-step">STEP 1 OF 2 · REQUIRED BEFORE ACCOUNT CREATION</span>
+      <h2 id="legal-title">Know exactly what BridgePoint is—and what it isn’t.</h2>
+      <p>Review the current required BridgePoint documents. These are loaded from the live legal registry, not hardcoded copies.</p>
+      <div id="legal-docs" class="legal-docs"><div class="loading-line">Loading current required documents…</div></div>
+      <div class="ack-stack">
+        <label><input type="checkbox" id="ack-terms"><span><b>I accept all active required BridgePoint platform documents shown above.</b><small>The exact document versions are recorded when the account is created.</small></span></label>
+        <label><input type="checkbox" id="ack-fcra"><span><b>I will not use BridgePoint for consumer credit, employment, tenant, insurance-eligibility or other regulated consumer-reporting decisions.</b><small>Sandbox use restriction · FCRA-specific production wording remains subject to legal review.</small></span></label>
+        <label><input type="checkbox" id="ack-verify"><span><b>I understand source, score and geometry data must be independently verified for material field, engineering, construction or boundary decisions.</b><small>BridgePoint is decision-support intelligence, not a substitute for authoritative/onsite verification.</small></span></label>
+      </div>
+      <div class="modal-actions"><button class="secondary-modal" data-close-modal>Not yet</button><button id="continue-account" class="primary-modal" disabled>Continue to account creation</button></div>
+    </div>
+  </div>
+
+  <div id="account-modal" class="modal" aria-hidden="true">
+    <div class="modal-card account-card" role="dialog" aria-modal="true" aria-labelledby="account-title">
+      <button class="modal-close" data-close-modal aria-label="Close">×</button>
+      <span class="modal-step">STEP 2 OF 2 · CREATE YOUR BRIDGEPOINT ACCOUNT</span>
+      <h2 id="account-title">Your 7-day access window starts here.</h2>
+      <p>No payment method is collected on this public page. Plans and contextual upgrades live inside BridgePoint.</p>
+      <form id="account-form">
+        <label>Email<input id="signup-email" type="email" autocomplete="email" required placeholder="you@company.com"></label>
+        <label>Password<input id="signup-password" type="password" autocomplete="new-password" required minlength="8" placeholder="8+ characters"></label>
+        <label>What best describes your work?
+          <select id="signup-niche" required>
+            <option value="">Choose one</option>
+            <option value="contractor">Contractor / Roofing / Exterior</option>
+            <option value="public_adjuster">Public Adjuster</option>
+            <option value="carrier">Carrier / Insurance</option>
+            <option value="investor">Investor / Developer</option>
+            <option value="restoration">Restoration / Mitigation</option>
+            <option value="property_operator">Property Operator / Real Estate</option>
+            <option value="other">Other Property Professional</option>
+          </select>
+        </label>
+        <div class="trial-start-callout"><span>7 DAYS</span><div><b>Trial/access countdown begins when the account record is created.</b><small>The app reads the remaining time from BridgePoint's server—not from your phone clock.</small></div></div>
+        <button class="primary-modal wide" type="submit">Create account & start 7-day access</button>
+        <div id="account-status" class="form-status"></div>
+      </form>
+      <button id="switch-signin" class="signin-switch">Already have an account? Sign in instead</button>
+    </div>
+  </div>
+
+  <div id="signin-modal" class="modal" aria-hidden="true">
+    <div class="modal-card account-card" role="dialog" aria-modal="true" aria-labelledby="signin-title">
+      <button class="modal-close" data-close-modal aria-label="Close">×</button>
+      <span class="modal-step">WELCOME BACK</span>
+      <h2 id="signin-title">Sign in to BridgePoint.</h2>
+      <form id="signin-form">
+        <label>Email<input id="signin-email" type="email" autocomplete="email" required></label>
+        <label>Password<input id="signin-password" type="password" autocomplete="current-password" required></label>
+        <button class="primary-modal wide" type="submit">Sign in & open app</button>
+        <div id="signin-status" class="form-status"></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="created-modal" class="modal" aria-hidden="true">
+    <div class="modal-card created-card" role="dialog" aria-modal="true" aria-labelledby="created-title">
+      <span class="success-orbit">✓</span>
+      <span class="modal-step">ACCOUNT CREATED · 7-DAY WINDOW STARTED</span>
+      <h2 id="created-title">BridgePoint is ready.</h2>
+      <p id="created-copy">Check your email if verification is required, then sign in. Your server-backed 7-day access window has already started from account creation.</p>
+      <div class="created-actions"><a class="primary-modal link-button" href="/app/?entry=1&mode=signin&utm_source=homepage_v1986">Open BridgePoint</a><button class="secondary-modal" data-close-modal>Stay here</button></div>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
