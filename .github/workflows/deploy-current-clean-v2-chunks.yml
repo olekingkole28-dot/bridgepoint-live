@@ -1,0 +1,143 @@
+name: Deploy Current BridgePoint Clean V2
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'handoff/current-clean-v2/manifest.json'
+      - '.github/workflows/deploy-current-clean-v2-chunks.yml'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check handoff availability
+        id: handoff
+        shell: bash
+        run: |
+          if [ -s handoff/current-clean-v2/manifest.json ]; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo 'No current handoff staged yet; workflow installed and waiting for manifest.'
+          fi
+
+      - name: Reconstruct and verify current Clean V2
+        if: steps.handoff.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('handoff/current-clean-v2/manifest.json')
+          m=json.loads(p.read_text())
+          chunks=int(m['chunk_count'])
+          parts=[]
+          for i in range(chunks):
+              q=Path(f'handoff/current-clean-v2/chunk-{i:03d}')
+              if not q.is_file(): raise SystemExit(f'missing {q}')
+              parts.append(q.read_text().strip())
+          Path('/tmp/bp-current.b64').write_text(''.join(parts))
+          print(json.dumps(m,indent=2))
+          PY
+          base64 -d /tmp/bp-current.b64 > /tmp/bp-current.tar.gz
+          EXPECTED="$(python3 -c "import json;print(json.load(open('handoff/current-clean-v2/manifest.json'))['archive_sha256'])")"
+          ACTUAL="$(sha256sum /tmp/bp-current.tar.gz | awk '{print $1}')"
+          test "$ACTUAL" = "$EXPECTED"
+          rm -rf /tmp/bp-current && mkdir /tmp/bp-current
+          tar -xzf /tmp/bp-current.tar.gz -C /tmp/bp-current
+          test -s /tmp/bp-current/index.html
+          test -s /tmp/bp-current/main.dart.js
+          test -s /tmp/bp-current/flutter_bootstrap.js
+          test -s /tmp/bp-current/bridgepoint-v2-release.json
+          test -s /tmp/bp-current/bridgepoint-3d-world/index.html
+          grep -Fq 'clean-v2' /tmp/bp-current/bridgepoint-v2-release.json
+          grep -Fq 'live_weather_fx' /tmp/bp-current/bridgepoint-v2-release.json
+
+      - name: Assemble durable GitHub Pages site
+        if: steps.handoff.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          mkdir -p site/app
+          cp -a /tmp/bp-current/. site/app/
+          touch site/.nojekyll site/app/.nojekyll
+          test -s site/index.html
+          test -s site/app/index.html
+          test -s site/app/main.dart.js
+          test -s site/app/bridgepoint-v2-release.json
+          test -s site/app/bridgepoint-3d-world/index.html
+
+      - name: Persist exact live artifact
+        if: steps.handoff.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE="$(python3 -c "import json;print(json.load(open('handoff/current-clean-v2/manifest.json'))['source_sha'])")"
+          rm -rf /tmp/final-live && mkdir /tmp/final-live
+          cp -a site/. /tmp/final-live/
+          cd /tmp/final-live
+          git init -q
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m "Publish current BridgePoint Clean V2 ${SOURCE}"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - uses: actions/configure-pages@v5
+        if: steps.handoff.outputs.ready == 'true'
+      - uses: actions/upload-pages-artifact@v4
+        if: steps.handoff.outputs.ready == 'true'
+        with:
+          path: site
+      - name: Deploy current Clean V2 to GitHub Pages
+        if: steps.handoff.outputs.ready == 'true'
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify production custom domain
+        if: steps.handoff.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          SOURCE="$(python3 -c "import json;print(json.load(open('handoff/current-clean-v2/manifest.json'))['source_sha'])")"
+          ok=0
+          for attempt in $(seq 1 36); do
+            marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-v2-release.json?verify=${SOURCE}-${attempt}" 2>/dev/null || true)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?verify=${SOURCE}-${attempt}" 2>/dev/null || true)"
+            world_code="$(curl -sS -o /tmp/world.html -w '%{http_code}' --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-3d-world/index.html?verify=${SOURCE}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$marker" | grep -Fq "$SOURCE" && printf '%s' "$marker" | grep -Fq 'live_weather_fx' && printf '%s' "$app" | grep -Fq 'flutter_bootstrap.js' && [ "$world_code" = '200' ] && grep -Fq 'BridgePoint 3D World' /tmp/world.html; then
+              ok=1
+              echo "CURRENT_CLEAN_V2_LIVE ${SOURCE}"
+              break
+            fi
+            sleep 5
+          done
+          test "$ok" = 1
