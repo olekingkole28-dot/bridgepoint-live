@@ -1,0 +1,76 @@
+name: Deploy V2020 Owner Physical Counters
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/deploy-v2020-owner-physical-counters.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Build current live artifact with owner counters
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          node --check app/owner-physical-world-v2020.js
+          node --check app/map-v1997-weather-hotfix.js
+          node --check app/universe-v1994.js
+          grep -Fq "owner-physical-world-v2020.js?v=2020" app/map-v1997-weather-hotfix.js
+          grep -Fq "bridgepoint_owner_physical_world_counters_v2020" app/owner-physical-world-v2020.js
+          grep -Fq "INSTANT_PROPERTY_SEARCH_V1999" app/universe-v1994.js
+          grep -Fq "bridgepoint_flutter_property_detail_v344" app/universe-v1994.js
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {name: github-pages-v2020-owner-counters, path: site}
+      - name: Deploy current product
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with: {artifact_name: github-pages-v2020-owner-counters}
+      - name: Verify live owner counter UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 24); do
+            salt="$i-$(date +%s)"
+            curl -fsSL --max-time 12 -H 'Cache-Control: no-cache' "$origin/app/owner-physical-world-v2020.js?v=$salt" -o /tmp/owner.js || true
+            curl -fsSL --max-time 12 -H 'Cache-Control: no-cache' "$origin/app/map-v1997-weather-hotfix.js?v=$salt" -o /tmp/loader.js || true
+            if grep -Fq "bridgepoint_owner_physical_world_counters_v2020" /tmp/owner.js && grep -Fq "owner-physical-world-v2020.js?v=2020" /tmp/loader.js; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const origin='https://bridgepointintelligence.online';
+          const cors={'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'apikey,authorization,content-type,cache-control','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Vary':'Origin'};
+          const snapshot={complete:true,version:2020,generated_at:new Date().toISOString(),buildings:{total_geometry_estimate:46555132,with_height_estimate:35661231,with_floors_exact_tracked:332},parcel_boundaries:{verified_exact:2178029,still_needed_verified:156730098,coverage_pct:1.3706},roof:{shape_exact:185,height_exact:0,material_exact:0,direction_exact:0,min_height_exact:0}};
+          (async()=>{const b=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});try{
+            async function page(owner){const p=await b.newPage();await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});await p.setRequestInterception(true);p.on('request',req=>{const u=req.url();if(u.includes('xdfsjztwgsbmabshzsjw.supabase.co')){if(req.method()==='OPTIONS')return req.respond({status:204,headers:cors,body:''});if(u.includes('/auth/v1/user'))return req.respond({status:200,headers:{...cors,'Content-Type':'application/json'},body:JSON.stringify({id:'00000000-0000-4000-8000-000000000001',email:'verify@bridgepoint.local'})});if(u.includes('/rest/v1/rpc/')){const n=u.split('/rpc/')[1].split('?')[0];if(n==='bridgepoint_owner_physical_world_counters_v2020')return req.respond({status:owner?200:403,headers:{...cors,'Content-Type':'application/json'},body:owner?JSON.stringify(snapshot):JSON.stringify({message:'Owner access required'})});let body={complete:true};if(n==='bridgepoint_legal_state_v82')body={required_acceptance_missing:false,missing_count:0,documents:[]};else if(n==='bridgepoint_trial_access_v1055')body={status:'trialing',remaining_days:7};else if(n==='bridgepoint_public_system_pulse_v1992')body={total_parcels:158908127,total_addresses:134000000,active_opportunities:1,signals:4,detected_patterns:2,scored_properties:1,registered_sources:700,states_present:51};else body=[];return req.respond({status:200,headers:{...cors,'Content-Type':'application/json'},body:JSON.stringify(body)});}}req.continue();});await p.goto(origin+'/?v='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});await p.evaluate(()=>localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'fake-access-token-long-enough',refresh_token:'fake-refresh-token-long-enough',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:'00000000-0000-4000-8000-000000000001'}})));await p.goto(origin+'/app/?v='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});return p}
+            const own=await page(true);await own.waitForSelector('#ownerPhysicalWorldV2020:not([hidden])',{timeout:12000});const s=await own.evaluate(()=>({buildings:document.querySelector('#owner3dBuildings')?.textContent,boundaries:document.querySelector('#ownerExactBoundaries')?.textContent,roof:document.querySelector('#ownerRoofShape')?.textContent}));assert(s.buildings.includes('46,555,132'));assert(s.boundaries.includes('2,178,029'));assert(s.roof.includes('185'));await own.close();
+            const non=await page(false);await new Promise(r=>setTimeout(r,2500));const visible=await non.evaluate(()=>{const e=document.querySelector('#ownerPhysicalWorldV2020');return !!e&&!e.hidden});assert.equal(visible,false);await non.close();console.log('V2020_OWNER_COUNTERS_PASS');
+          }finally{await b.close()}})().catch(e=>{console.error(e);process.exit(1)});
+          NODE
