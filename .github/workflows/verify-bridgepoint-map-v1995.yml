@@ -1,0 +1,85 @@
+name: Verify BridgePoint Immersive Map V1995
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-bridgepoint-map-v1995.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Verify live V1995 assets without pipe truncation
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for attempt in $(seq 1 24); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            rm -f /tmp/bp-app.html /tmp/bp-map.js /tmp/bp-lib.js
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?surface=map&bpv=1995&verify=${salt}" -o /tmp/bp-app.html || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v1995.js?verify=${salt}" -o /tmp/bp-map.js || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/vendor/maplibre-gl-v1995.js?verify=${salt}" -o /tmp/bp-lib.js || true
+            if test -s /tmp/bp-app.html && test -s /tmp/bp-map.js && test -s /tmp/bp-lib.js \
+              && grep -Fq 'map-v1995.js?v=1995' /tmp/bp-app.html \
+              && grep -Fq 'maplibre-gl-v1995.js?v=1995' /tmp/bp-app.html \
+              && grep -Fq 'bridgepoint_3d_world_viewport_v1899' /tmp/bp-map.js \
+              && grep -Fq 'Measure distance' /tmp/bp-map.js; then
+              ok=1; break
+            fi
+            sleep 4
+          done
+          test "$ok" = 1
+          test "$(wc -c < /tmp/bp-lib.js)" -gt 500000
+          echo V1995_ASSETS_PASS
+
+      - name: Verify phone canvas, satellite source, 3D layer and measurement controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const origin='https://bridgepointintelligence.online';
+          (async()=>{const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=swiftshader']});try{
+            const p=await browser.newPage();
+            await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+            await p.setRequestInterception(true);
+            p.on('request',req=>{const u=req.url();
+              if(/cdn\.jsdelivr\.net|unpkg\.com/.test(u))return req.abort();
+              if(u.includes('supabase.co/auth/v1/user'))return req.respond({status:200,contentType:'application/json',body:JSON.stringify({id:'00000000-0000-4000-8000-000000000001',email:'map-test@bridgepoint.local'})});
+              if(u.includes('supabase.co/rest/v1/rpc/')){const name=u.split('/rpc/')[1].split('?')[0];let body={complete:true};
+                if(name==='bridgepoint_legal_state_v82')body={complete:true,required_acceptance_missing:false,missing_count:0,documents:[]};
+                if(name==='bridgepoint_trial_access_v1055')body={complete:true,owner_override:true,subscriptions:[]};
+                if(name==='bridgepoint_public_system_pulse_v1992')body={total_parcels:158000000,total_addresses:170000000,active_opportunities:12000,signals:50000,detected_patterns:10000,scored_properties:100000,registered_sources:5000,states_present:51};
+                if(name==='bridgepoint_flutter_intelligence_map_national_v1037')body={complete:true,opportunities:[{property_id:'00000000-0000-4000-8000-000000000099',full_address:'1 Test Ave',latitude:39.2,longitude:-96.5,score:91}],signals:[]};
+                if(name==='bridgepoint_live_3d_hazard_scene_v1973')body={complete:true,events:[]};
+                if(name==='bridgepoint_flutter_property_map_viewport_v1035')body=[];
+                if(name==='bridgepoint_live_map_parcels_v1993')body={complete:true,polygon_count:1,geojson:{type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'Polygon',coordinates:[[[-96.51,39.19],[-96.49,39.19],[-96.49,39.21],[-96.51,39.21],[-96.51,39.19]]]},properties:{parcel_number:'TEST-1'}}]}};
+                if(name==='bridgepoint_3d_world_viewport_v1899')body={complete:true,returned:1,buildings:[{building_id:'1',geometry:{type:'Polygon',coordinates:[[[-96.502,39.198],[-96.498,39.198],[-96.498,39.202],[-96.502,39.202],[-96.502,39.198]]]},render_height_m:12,height_m:12,truth_label:'Source-backed footprint and height.'}]};
+                return req.respond({status:200,contentType:'application/json',body:JSON.stringify(body)});}
+              req.continue();});
+            await p.goto(origin+'/?seed='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+            await p.evaluate(()=>localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'fake-map-v1995-access-token',refresh_token:'fake-map-v1995-refresh-token',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:'00000000-0000-4000-8000-000000000001',email:'map-test@bridgepoint.local'}})));
+            await p.goto(origin+'/app/?surface=map&bpv=1995&mock='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+            await p.waitForFunction(()=>document.querySelector('#app')?.hidden===false,{timeout:7000});
+            await p.waitForSelector('#bpMeasureTools',{timeout:9000});
+            await p.waitForFunction(()=>document.querySelector('#liveMap canvas')&&document.querySelector('#liveMap canvas').width>100,{timeout:12000});
+            const state=await p.evaluate(()=>({canvas:!!document.querySelector('#liveMap canvas'),canvasWidth:document.querySelector('#liveMap canvas')?.width||0,measure:!!document.querySelector('[data-bpmeasure="distance"]'),area:!!document.querySelector('[data-bpmeasure="area"]'),status:document.querySelector('#mapStatus')?.textContent||'',local:!!window.maplibregl,sat:performance.getEntriesByType('resource').some(r=>r.name.includes('World_Imagery'))}));
+            assert(state.canvas&&state.canvasWidth>100&&state.measure&&state.area&&state.local,'map canvas/tooling missing');
+            await p.click('[data-bpmeasure="distance"]');
+            assert(await p.$eval('[data-bpmeasure="distance"]',x=>x.classList.contains('active')),'measure mode did not activate');
+            await p.evaluate(()=>{const b=document.querySelector('#liveMap').getBoundingClientRect();const ev=(x,y)=>new MouseEvent('click',{bubbles:true,clientX:b.left+x,clientY:b.top+y});document.querySelector('#liveMap canvas').dispatchEvent(ev(120,220));document.querySelector('#liveMap canvas').dispatchEvent(ev(180,260));});
+            console.log('V1995_PHONE_MAP_CANVAS_PASS',state);
+          }finally{await browser.close()}})().catch(e=>{console.error(e);process.exit(1)});
+          NODE
