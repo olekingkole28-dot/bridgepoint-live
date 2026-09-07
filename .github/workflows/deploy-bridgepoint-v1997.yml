@@ -1,0 +1,201 @@
+name: Deploy BridgePoint V1997 Immersive Nationwide Map
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-bridgepoint-v1997.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build V1997 live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          test -s app/vendor/maplibre-gl-v1995.js
+          test -s app/vendor/maplibre-gl-v1995.css
+
+          git show origin/main:release-v1997/map-v1997.js > app/map-v1997.js
+          git show origin/main:release-v1997/map-v1997.css > app/map-v1997.css
+          git show origin/main:release-v1997/flutter_service_worker.js > app/flutter_service_worker.js
+          git show origin/main:release-v1997/public-about-v1997.js > public-about-v1997.js
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('app/index.html')
+          s=p.read_text()
+          s=re.sub(r'\s*<link[^>]+href=["\']\./map-v1995\.css[^"\']*["\'][^>]*>','',s,flags=re.I)
+          s=re.sub(r'\s*<link[^>]+href=["\']\./map-v1997\.css[^"\']*["\'][^>]*>','',s,flags=re.I)
+          s=re.sub(r'\s*<script[^>]+src=["\']\./map-v1995\.js[^"\']*["\'][^>]*></script>','',s,flags=re.I)
+          s=re.sub(r'\s*<script[^>]+src=["\']\./map-v1997\.js[^"\']*["\'][^>]*></script>','',s,flags=re.I)
+          s=s.replace('<link rel="stylesheet" href="./universe-v1994.css?v=1994">','<link rel="stylesheet" href="./universe-v1994.css?v=1994">\n<link rel="stylesheet" href="./map-v1997.css?v=1997">')
+          s=s.replace('<script src="./universe-v1994.js?v=1994"></script>','<script src="./universe-v1994.js?v=1994"></script>\n<script src="./map-v1997.js?v=1997"></script>')
+          p.write_text(s)
+
+          p=Path('app/map-v1997.js')
+          s=p.read_text()
+          s=s.replace('\n})();','\nwindow.__bp97MapState=S;\n})();')
+          p.write_text(s)
+
+          p=Path('index.html')
+          s=p.read_text()
+          tag='<script defer src="/public-about-v1997.js?v=1997"></script>'
+          if tag not in s:
+              s=s.replace('</body>',tag+'\n</body>')
+          p.write_text(s)
+          PY
+
+          node --check app/map-v1997.js
+          node --check app/flutter_service_worker.js
+          node --check public-about-v1997.js
+          grep -Fq 'bridgepoint_live_map_boundary_scene_v1997' app/map-v1997.js
+          grep -Fq 'bridgepoint_3d_world_viewport_v1997' app/map-v1997.js
+          grep -Fq 'bridgepoint_live_map_weather_scene_v1997' app/map-v1997.js
+          grep -Fq 'World_Boundaries_and_Places' app/map-v1997.js
+          grep -Fq 'raster-dem' app/map-v1997.js
+          grep -Fq 'bp97-exact-glow' app/map-v1997.js
+          grep -Fq 'bp97-floorbands' app/map-v1997.js
+          grep -Fq 'bp97WeatherCanvas' app/map-v1997.js
+          grep -Fq 'window.__bp97MapState=S' app/map-v1997.js
+          grep -Fq 'map-v1997.js?v=1997' app/index.html
+          grep -Fq 'map-v1997.css?v=1997' app/index.html
+          ! grep -Fq 'map-v1995.js?v=1995' app/index.html
+          ! grep -Fq 'map-v1995.css?v=1995' app/index.html
+          grep -Fq 'public-about-v1997.js?v=1997' index.html
+          grep -Fq 'bridgepoint-universe-v1997' app/flutter_service_worker.js
+
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/index.html app/map-v1997.js app/map-v1997.css app/flutter_service_worker.js index.html public-about-v1997.js
+          if ! git diff --cached --quiet; then
+            git commit -m 'Release V1997 nationwide terrain parcel building weather map'
+            git push origin HEAD:live-artifact
+          fi
+
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: github-pages-v1997
+          path: site
+      - name: Deploy V1997
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-v1997
+
+      - name: Verify live V1997 files
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for attempt in $(seq 1 36); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?surface=map&bpv=1997&verify=${salt}" -o /tmp/app.html || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v1997.js?verify=${salt}" -o /tmp/map.js || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/?bpv=1997&verify=${salt}" -o /tmp/home.html || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/public-about-v1997.js?verify=${salt}" -o /tmp/about.js || true
+            if grep -Fq 'map-v1997.js?v=1997' /tmp/app.html \
+              && grep -Fq 'bridgepoint_live_map_boundary_scene_v1997' /tmp/map.js \
+              && grep -Fq 'bp97-exact-glow' /tmp/map.js \
+              && grep -Fq 'public-about-v1997.js?v=1997' /tmp/home.html \
+              && grep -Fq 'WHAT BRIDGEPOINT IS' /tmp/about.js; then ok=1; break; fi
+            sleep 5
+          done
+          test "$ok" = 1
+          echo V1997_LIVE_FILES_PASS
+
+      - name: Verify phone scene with exact parcels, terrain, labels, floors and weather
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const origin='https://bridgepointintelligence.online';
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=swiftshader']});
+            try{
+              const ctx=browser.defaultBrowserContext();
+              await ctx.overridePermissions(origin,['geolocation']);
+              const p=await browser.newPage();
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.setGeolocation({latitude:41.5623,longitude:-72.6506,accuracy:25});
+              await p.setRequestInterception(true);
+              p.on('request',req=>{const u=req.url();
+                if(u.includes('supabase.co/auth/v1/user'))return req.respond({status:200,contentType:'application/json',body:JSON.stringify({id:'00000000-0000-4000-8000-000000000001',email:'map-v1997@bridgepoint.local'})});
+                if(u.includes('supabase.co/rest/v1/rpc/')){const name=u.split('/rpc/')[1].split('?')[0];let body={complete:true};
+                  if(name==='bridgepoint_legal_state_v82')body={complete:true,required_acceptance_missing:false,missing_count:0,documents:[]};
+                  if(name==='bridgepoint_trial_access_v1055')body={complete:true,owner_override:true,subscriptions:[]};
+                  if(name==='bridgepoint_public_system_pulse_v1992')body={total_parcels:158000000,total_addresses:134000000,total_source_records:222000000,active_opportunities:12000,signals:50000,detected_patterns:10000,scored_properties:100000,registered_sources:778,states_present:51};
+                  if(name==='bridgepoint_live_map_boundary_scene_v1997')body={complete:true,exact_count:1,estimated_count:1,exact_geojson:{type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'Polygon',coordinates:[[[-72.652,41.561],[-72.649,41.561],[-72.649,41.564],[-72.652,41.564],[-72.652,41.561]]]},properties:{geometry_truth:'SOURCE_BACKED'}}]},estimated_geojson:{type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'Polygon',coordinates:[[[-72.656,41.558],[-72.653,41.558],[-72.653,41.561],[-72.656,41.561],[-72.656,41.558]]]},properties:{geometry_truth:'ESTIMATED_VORONOI',legal_boundary:false}}]}};
+                  if(name==='bridgepoint_3d_world_viewport_v1997')body={complete:true,returned:2,buildings:[{building_id:'tall',geometry:{type:'Polygon',coordinates:[[[-72.6513,41.5619],[-72.6504,41.5619],[-72.6504,41.5628],[-72.6513,41.5628],[-72.6513,41.5619]]]},render_height_m:62,height_m:62,ground_elevation_m:0,floors:18,height_truth:'SOURCE_BACKED',truth_label:'Source-backed footprint and height.'},{building_id:'house',geometry:{type:'Polygon',coordinates:[[[-72.6499,41.5616],[-72.6493,41.5616],[-72.6493,41.5621],[-72.6499,41.5621],[-72.6499,41.5616]]]},render_height_m:9,ground_elevation_m:0,floors:2,height_truth:'FLOOR_DERIVED_VISUAL',truth_label:'Source-backed footprint; visual height derived from source-backed floor count.'}]};
+                  if(name==='bridgepoint_live_map_weather_scene_v1997')body={complete:true,events:[{hazard_event_id:'rain1',hazard_type:'RAIN',event_name:'Observed Rain',observation_kind:'OBSERVED',severity:'Moderate',latitude:41.5623,longitude:-72.6506,effect_mode:'OBSERVED_PHYSICAL_OR_SOURCE_GEOMETRY',render_primitive:'RADAR_PRECIPITATION_FIELD',headline:'Observed precipitation'}]};
+                  if(name==='bridgepoint_flutter_property_map_viewport_v1035')body=[];
+                  if(name==='bridgepoint_flutter_intelligence_map_national_v1037')body={opportunities:[]};
+                  return req.respond({status:200,contentType:'application/json',body:JSON.stringify(body)});
+                }
+                req.continue();
+              });
+              await p.goto(origin+'/?seed='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await p.evaluate(()=>localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'fake-v1997-access-token',refresh_token:'fake-v1997-refresh-token',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:'00000000-0000-4000-8000-000000000001',email:'map-v1997@bridgepoint.local'}})));
+              await p.goto(origin+'/app/?surface=map&bpv=1997&mock='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await p.waitForFunction(()=>document.querySelector('#app')?.hidden===false,{timeout:7000});
+              await p.waitForSelector('#bp97MapTools',{timeout:10000});
+              await p.waitForFunction(()=>window.__bp97MapState?.ready===true&&document.querySelector('#liveMap canvas')?.width>100,{timeout:15000});
+              await p.waitForFunction(()=>window.__bp97MapState?.map?.getZoom()>14,{timeout:10000});
+              await p.waitForFunction(()=>window.__bp97MapState?.exact?.features?.length===1&&window.__bp97MapState?.buildings?.features?.length===2&&window.__bp97MapState?.hazards?.features?.length===1,{timeout:12000});
+              const state=await p.evaluate(()=>{const s=window.__bp97MapState,m=s.map;return{zoom:m.getZoom(),center:m.getCenter().toArray(),terrain:!!m.getTerrain(),labels:!!m.getLayer('labels'),exactGlow:!!m.getLayer('bp97-exact-glow'),estLine:!!m.getLayer('bp97-est-line'),building:!!m.getLayer('bp97-building'),floorbands:s.floors.features.length,weatherVolume:!!m.getLayer('bp97-weather-volume'),particles:s.particles.length,canvas:document.querySelector('#liveMap canvas').width,weatherCanvas:document.querySelector('#bp97WeatherCanvas').width}});
+              assert(state.zoom>14,'did not start near user');
+              assert(Math.abs(state.center[0]+72.6506)<.1&&Math.abs(state.center[1]-41.5623)<.1,'geolocation start wrong');
+              assert(state.terrain&&state.labels&&state.exactGlow&&state.estLine&&state.building&&state.floorbands>=19&&state.weatherVolume&&state.particles>0&&state.canvas>100&&state.weatherCanvas>100,'required V1997 scene elements missing');
+              await p.click('[data-bp97measure="distance"]');
+              assert(await p.$eval('[data-bp97measure="distance"]',x=>x.classList.contains('active')),'measurement mode failed');
+              console.log('V1997_PHONE_SCENE_PASS',state);
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+
+      - name: Verify mobile public capability section and live source-record counter
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          (async()=>{const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});try{const p=await browser.newPage();await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});await p.goto('https://bridgepointintelligence.online/?bpv=1997&public='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});await p.waitForSelector('#bpAbout1997',{timeout:8000});await p.waitForSelector('#source-record-counter',{timeout:8000});await p.waitForFunction(()=>/[0-9]/.test(document.querySelector('#source-record-counter')?.textContent||''),{timeout:12000});const x=await p.evaluate(()=>({about:document.querySelector('#bpAbout1997')?.innerText||'',source:document.querySelector('#source-record-counter')?.textContent||'',sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth}));assert(/Canonical property foundation/.test(x.about)&&/Live weather \+ hazards/.test(x.about)&&/[0-9]/.test(x.source)&&x.sw<=x.cw+2,'public V1997 capability/counter verification failed');console.log('V1997_PUBLIC_PASS',x.source)}finally{await browser.close()}})().catch(e=>{console.error(e);process.exit(1)});
+          NODE
