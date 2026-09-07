@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#03070d">
+  <title>BridgePoint Owner — Public Media</title>
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    body{min-height:100vh}.admin-shell{width:min(1040px,calc(100% - 28px));margin:0 auto;padding:44px 0 80px}.admin-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:22px}.admin-head h1{margin:6px 0;font-size:clamp(2rem,5vw,4rem);line-height:.95;letter-spacing:-.045em}.admin-head p{color:#94aaba;max-width:670px}.admin-back{color:#8ce7ff;text-decoration:none;font-size:11px}.admin-grid{display:grid;grid-template-columns:.95fr 1.05fr;gap:14px}.admin-card{border:1px solid var(--line);border-radius:18px;background:linear-gradient(155deg,rgba(10,27,44,.95),rgba(5,12,20,.96));padding:20px;box-shadow:var(--shadow)}.admin-card h2{margin:0 0 5px;font-size:1.2rem}.admin-card>p{color:#88a1b1;font-size:11px}.admin-form{display:grid;gap:11px;margin-top:15px}.admin-form label{display:grid;gap:5px;color:#afc1cd;font-size:10px;font-weight:800}.admin-form input,.admin-form textarea,.admin-form select{width:100%;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:#06131f;color:#fff;padding:10px;outline:none}.admin-form input,.admin-form select{min-height:44px}.admin-form textarea{min-height:90px;resize:vertical}.admin-form input:focus,.admin-form textarea:focus,.admin-form select:focus{border-color:var(--cyan)}.admin-form .inline{display:grid;grid-template-columns:1fr 120px;gap:9px}.file-box{padding:13px;border:1px dashed rgba(72,225,255,.26);border-radius:12px;background:rgba(72,225,255,.03)}.file-box small{display:block;color:#7692a3;margin-top:5px}.check-row{display:flex!important;grid-template-columns:none!important;align-items:center;gap:8px!important}.check-row input{width:18px;height:18px;min-height:auto;accent-color:var(--green)}.admin-submit{min-height:49px;border:0;border-radius:11px;background:linear-gradient(135deg,var(--cyan),#6c83ff);color:#031018;font-weight:950;cursor:pointer}.admin-status{min-height:18px;color:#8da6b5;font-size:10px}.admin-status.good{color:var(--green)}.admin-status.bad{color:var(--red)}.media-admin-list{display:grid;gap:9px;margin-top:15px}.media-admin-item{display:grid;grid-template-columns:92px 1fr auto;gap:10px;align-items:center;padding:10px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:#06131f}.media-admin-thumb{width:92px;aspect-ratio:16/9;border-radius:8px;background:#02060b;object-fit:cover}.media-admin-thumb.blank{display:grid;place-items:center;color:#4f6e82;font-size:9px}.media-admin-copy b{display:block;font-size:11px}.media-admin-copy small{display:block;color:#7f98a9;font-size:8.5px;margin-top:2px}.media-admin-actions{display:flex;gap:5px;flex-direction:column}.media-admin-actions button{border:1px solid rgba(255,255,255,.1);border-radius:8px;background:#0c2032;color:#fff;padding:6px 8px;font-size:8px;font-weight:900;cursor:pointer}.owner-lock{padding:32px;text-align:center}.owner-lock h2{font-size:1.7rem}.owner-lock form{max-width:400px;margin:18px auto 0}.danger-note{padding:10px;border-radius:10px;border:1px solid rgba(255,201,94,.17);background:rgba(255,201,94,.04);color:#bda974;font-size:9px;margin-top:12px}@media(max-width:820px){.admin-grid{grid-template-columns:1fr}.admin-head{flex-direction:column}.media-admin-item{grid-template-columns:70px 1fr}.media-admin-thumb{width:70px}.media-admin-actions{grid-column:1/-1;flex-direction:row}.admin-form .inline{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <canvas id="cosmos" aria-hidden="true"></canvas>
+  <main class="admin-shell">
+    <div class="admin-head"><div><span class="section-kicker">OWNER ONLY · PUBLIC MEDIA CONSOLE</span><h1>Publish the proof<br>without rebuilding the site.</h1><p>Add Boroughs &amp; Burbs, The Claim Files, demos, interviews or future coverage. Upload an MP4 up to 50 MB or paste a YouTube/Vimeo/public-media URL. Published items immediately appear in the sandbox homepage media feed.</p></div><a class="admin-back" href="./index.html">← Back to public funnel</a></div>
+
+    <section id="owner-lock" class="admin-card owner-lock">
+      <span class="section-kicker">OWNER ACCESS CHECK</span><h2>Sign in with an owner account.</h2><p>This console verifies the live BridgePoint owner override before allowing uploads or publishing.</p>
+      <form id="owner-login" class="admin-form">
+        <label>Email<input id="owner-email" type="email" autocomplete="email" required></label>
+        <label>Password<input id="owner-password" type="password" autocomplete="current-password" required></label>
+        <button class="admin-submit" type="submit">Verify owner & open console</button><div id="owner-login-status" class="admin-status"></div>
+      </form>
+    </section>
+
+    <section id="owner-console" hidden>
+      <div class="admin-grid">
+        <article class="admin-card">
+          <h2>Add or edit public media</h2><p>Use the Story Key to edit an existing item. Leave it blank to create one automatically.</p>
+          <form id="media-form" class="admin-form">
+            <label>Story key (optional)<input id="media-key" placeholder="boroughs-burbs-2026"></label>
+            <label>Title<input id="media-title" required placeholder="BridgePoint on Boroughs & Burbs"></label>
+            <label>Description<textarea id="media-description" placeholder="What this clip is and why it matters."></textarea></label>
+            <div class="inline"><label>Media type<select id="media-kind"><option value="video">Video</option><option value="podcast">Podcast</option><option value="audio">Audio</option><option value="press">Press / article</option><option value="other">Other</option></select></label><label>Display order<input id="media-order" type="number" value="100" min="0" max="9999"></label></div>
+            <label>Source / show name<input id="media-source" placeholder="Boroughs & Burbs"></label>
+            <label>External media URL<input id="media-url" type="url" placeholder="YouTube, Vimeo, MP4, podcast or article URL"></label>
+            <div class="file-box"><label>Or upload MP4 directly<input id="media-file" type="file" accept="video/mp4"></label><small>Uses BridgePoint's existing public growth-creatives bucket. 50 MB maximum. Longer/full episodes can use an external YouTube/Vimeo URL instead.</small></div>
+            <label>Thumbnail URL (optional)<input id="media-thumb" type="url" placeholder="https://…"></label>
+            <label class="check-row"><input id="media-publish" type="checkbox" checked><span>Publish immediately to the public media feed</span></label>
+            <button class="admin-submit" type="submit">Save media</button>
+            <div id="media-status" class="admin-status"></div>
+          </form>
+          <div class="danger-note">Publishing is an owner action. Only use media you have the right to publish or embed. This console does not bypass third-party copyright or platform terms.</div>
+        </article>
+        <article class="admin-card">
+          <h2>Current owner-managed media</h2><p>Edit ordering/content or unpublish an item without removing the underlying uploaded file.</p>
+          <div id="media-admin-list" class="media-admin-list"><div class="admin-status">Loading owner media…</div></div>
+        </article>
+      </div>
+    </section>
+  </main>
+<script src="./media-admin.js"></script>
+</body>
+</html>
