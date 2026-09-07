@@ -1,0 +1,167 @@
+name: Deploy Unified BridgePoint Universe V1992
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-unified-app-v1992.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  replace-deploy-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Replace post-login app and upgrade public proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main live-artifact
+          git checkout -B live-artifact origin/live-artifact
+
+          mkdir -p app/twin
+          git show origin/main:release-v1992/app/index.html > app/index.html
+          git show origin/main:release-v1992/app/universe-v1992.css > app/universe-v1992.css
+          git show origin/main:release-v1992/app/universe-v1992.js > app/universe-v1992.js
+          git show origin/main:release-v1992/app/flutter_service_worker.js > app/flutter_service_worker.js
+          git show origin/main:release-v1992/app/manifest.json > app/manifest.json
+          git show origin/main:release-v1992/app/twin/index.html > app/twin/index.html
+          git show origin/main:release-v1992/public-v1992.js > public-v1992.js
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          old='50 states + D.C. + Puerto Rico present'
+          if old in s:
+              s=s.replace(old,'100% of U.S. state + D.C. jurisdictions represented')
+          if 'public-v1992.js?v=1992' not in s:
+              if '</body>' not in s:
+                  raise SystemExit('homepage closing body missing')
+              s=s.replace('</body>','<script defer src="/public-v1992.js?v=1992"></script>\n</body>')
+          p.write_text(s)
+          PY
+
+          node --check public-v1992.js
+          node --check app/universe-v1992.js
+          node --check app/flutter_service_worker.js
+          grep -Fq 'Address records connected' <(tr '[:upper:]' '[:lower:]' < app/index.html)
+          grep -Fq 'BridgePoint Universe V1992' app/index.html
+          grep -Fq 'Enter 3D Universe' app/index.html
+          grep -Fq 'Orbit' app/index.html
+          grep -Fq 'Walk' app/index.html
+          grep -Fq 'Home' app/index.html
+          grep -Fq 'Map' app/index.html
+          grep -Fq 'Properties' app/index.html
+          grep -Fq 'Work' app/index.html
+          grep -Fq 'Plans' app/index.html
+          grep -Fq 'More' app/index.html
+          ! grep -Fq 'main.dart.js' app/index.html
+          ! grep -Fq 'Sign in to Property Twin' app/twin/index.html
+          grep -Fq 'bridgepoint-universe-v1992' app/flutter_service_worker.js
+          grep -Fq 'self.skipWaiting()' app/flutter_service_worker.js
+          grep -Fq '"id": "./"' app/manifest.json
+          grep -Fq '"scope": "./"' app/manifest.json
+          grep -Fq 'public-v1992.js?v=1992' index.html
+          grep -Fq 'bridgepoint_public_system_pulse_v1992' public-v1992.js
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' index.html public-v1992.js app/index.html app/universe-v1992.js app/universe-v1992.css app/flutter_service_worker.js app/manifest.json app/twin/index.html
+
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add index.html public-v1992.js app/index.html app/universe-v1992.css app/universe-v1992.js app/flutter_service_worker.js app/manifest.json app/twin/index.html
+          if ! git diff --cached --quiet; then
+            git commit -m 'Replace post-login experience with unified BridgePoint Universe v1992'
+            git push origin HEAD:live-artifact
+          fi
+
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy V1992
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live files and PWA replacement
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for attempt in $(seq 1 36); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            home="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/?bpv=1992&verify=${salt}" 2>/dev/null || true)"
+            pub="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/public-v1992.js?verify=${salt}" 2>/dev/null || true)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1992&verify=${salt}" 2>/dev/null || true)"
+            appjs="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/universe-v1992.js?verify=${salt}" 2>/dev/null || true)"
+            sw="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/flutter_service_worker.js?verify=${salt}" 2>/dev/null || true)"
+            twin="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/twin/?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$home" | grep -Fq 'public-v1992.js?v=1992' \
+              && printf '%s' "$pub" | grep -Fq 'ADDRESS RECORDS CONNECTED' \
+              && printf '%s' "$pub" | grep -Fq '100% of U.S. state + D.C. jurisdictions represented' \
+              && printf '%s' "$app" | grep -Fq 'Enter 3D Universe' \
+              && ! printf '%s' "$app" | grep -Fq 'main.dart.js' \
+              && printf '%s' "$appjs" | grep -Fq 'bridgepoint_property_twin_v918' \
+              && printf '%s' "$appjs" | grep -Fq 'setTwinWalk' \
+              && printf '%s' "$sw" | grep -Fq 'bridgepoint-universe-v1992' \
+              && printf '%s' "$sw" | grep -Fq 'self.skipWaiting()' \
+              && printf '%s' "$twin" | grep -Fq '/app/?surface=map'; then
+              ok=1; break
+            fi
+            sleep 5
+          done
+          test "$ok" = 1
+          echo 'UNIFIED_V1992_FILES_PASS'
+
+      - name: Verify public counters and single-login routing
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,protocolTimeout:90000,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
+            try{
+              const page=await browser.newPage();
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('https://bridgepointintelligence.online/?bpv=1992&verify='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await page.waitForFunction(()=>{const x=document.querySelector('#address-counter')?.textContent||'';return /[0-9]/.test(x)&&!x.includes('Loading')},{timeout:30000});
+              const address=await page.$eval('#address-counter',e=>e.textContent);
+              assert(/[0-9]/.test(address));
+              await page.waitForFunction(()=>/100% of U\.S\. state \+ D\.C\. jurisdictions represented/.test(document.body.innerText),{timeout:30000});
+
+              const appPage=await browser.newPage();
+              await appPage.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await appPage.goto('https://bridgepointintelligence.online/app/?verify='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await appPage.waitForFunction(()=>location.pathname==='/'&&new URL(location.href).searchParams.get('signin')==='1',{timeout:30000});
+              await appPage.waitForSelector('#signin-modal.show',{timeout:20000});
+              console.log('UNIFIED_V1992_PUBLIC_AND_SINGLE_LOGIN_PASS',address);
+            }finally{await browser.close();}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
