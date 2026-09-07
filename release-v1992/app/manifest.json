@@ -1,0 +1,20 @@
+{
+  "name": "BridgePoint Intelligence",
+  "short_name": "BridgePoint",
+  "id": "./",
+  "start_url": "./?bpv=1992",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#02060b",
+  "theme_color": "#02060b",
+  "description": "Unified nationwide property intelligence: U.S. 3D universe, canonical properties, property twins, imagery, signals, patterns and opportunities.",
+  "orientation": "any",
+  "prefer_related_applications": false,
+  "categories": ["business", "productivity", "navigation"],
+  "icons": [
+    {"src":"icons/Icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+    {"src":"icons/Icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
+    {"src":"icons/Icon-maskable-192.png","sizes":"192x192","type":"image/png","purpose":"maskable"},
+    {"src":"icons/Icon-maskable-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}
+  ]
+}
