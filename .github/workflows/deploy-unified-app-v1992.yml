@@ -61,7 +61,7 @@ jobs:
           node --check public-v1992.js
           node --check app/universe-v1992.js
           node --check app/flutter_service_worker.js
-          grep -Fq 'Address records connected' <(tr '[:upper:]' '[:lower:]' < app/index.html)
+          grep -Fq 'address records connected' <(tr '[:upper:]' '[:lower:]' < app/index.html)
           grep -Fq 'BridgePoint Universe V1992' app/index.html
           grep -Fq 'Enter 3D Universe' app/index.html
           grep -Fq 'Orbit' app/index.html
