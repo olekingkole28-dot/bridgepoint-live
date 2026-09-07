@@ -1,0 +1,83 @@
+name: Deploy V1997 Weather Volume Hotfix
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/deploy-v1997-weather-hotfix.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Apply hotfix to live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          git show origin/main:release-v1997/map-v1997-weather-hotfix.js > app/map-v1997-weather-hotfix.js
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/index.html'); s=p.read_text()
+          tag='<script src="./map-v1997-weather-hotfix.js?v=1997.1"></script>'
+          if tag not in s:
+              s=s.replace('<script src="./map-v1997.js?v=1997"></script>','<script src="./map-v1997.js?v=1997"></script>\n'+tag)
+          p.write_text(s)
+          PY
+          node --check app/map-v1997-weather-hotfix.js
+          grep -Fq 'fill-extrusion-opacity' app/map-v1997-weather-hotfix.js
+          grep -Fq 'map-v1997-weather-hotfix.js?v=1997.1' app/index.html
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/index.html app/map-v1997-weather-hotfix.js
+          if ! git diff --cached --quiet; then git commit -m 'Fix V1997 3D weather volume compatibility'; git push origin HEAD:live-artifact; fi
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {name: github-pages-v1997-hotfix, path: site}
+      - name: Deploy hotfix
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with: {artifact_name: github-pages-v1997-hotfix}
+      - name: Verify live phone scene and public homepage
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          for i in $(seq 1 24); do
+            curl -fsSL --max-time 12 -H 'Cache-Control: no-cache' "$origin/app/?surface=map&hotfix=$i-$(date +%s)" -o /tmp/app.html || true
+            curl -fsSL --max-time 12 -H 'Cache-Control: no-cache' "$origin/app/map-v1997-weather-hotfix.js?x=$i-$(date +%s)" -o /tmp/hot.js || true
+            if grep -Fq 'map-v1997-weather-hotfix.js?v=1997.1' /tmp/app.html && grep -Fq "'fill-extrusion-opacity':.18" /tmp/hot.js; then break; fi
+            sleep 4
+          done
+          grep -Fq 'map-v1997-weather-hotfix.js?v=1997.1' /tmp/app.html
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const origin='https://bridgepointintelligence.online';
+          const cors={'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'apikey,authorization,content-type,cache-control','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Vary':'Origin'};
+          (async()=>{const b=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-angle=swiftshader']});try{
+            const ctx=b.defaultBrowserContext();await ctx.overridePermissions(origin,['geolocation']);const p=await b.newPage();await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});await p.setGeolocation({latitude:41.5623,longitude:-72.6506,accuracy:25});
+            await p.setRequestInterception(true);p.on('request',req=>{const u=req.url();if(u.includes('xdfsjztwgsbmabshzsjw.supabase.co')){if(req.method()==='OPTIONS')return req.respond({status:204,headers:cors,body:''});if(u.includes('/auth/v1/user'))return req.respond({status:200,headers:{...cors,'Content-Type':'application/json'},body:JSON.stringify({id:'00000000-0000-4000-8000-000000000001',email:'verify@bridgepoint.local'})});if(u.includes('/rest/v1/rpc/')){const n=u.split('/rpc/')[1].split('?')[0];let body={complete:true};if(n==='bridgepoint_legal_state_v82')body={required_acceptance_missing:false,missing_count:0,documents:[]};if(n==='bridgepoint_trial_access_v1055')body={owner_override:true,subscriptions:[]};if(n==='bridgepoint_public_system_pulse_v1992'||n==='bridgepoint_public_system_pulse_v957')body={total_parcels:158000000,total_addresses:134000000,total_source_records:222000000,active_opportunities:12000,signals:50000,detected_patterns:10000,scored_properties:100000,registered_sources:778,states_present:51};if(n==='bridgepoint_public_featured_media_v1986')body={items:[]};if(n==='bridgepoint_live_map_boundary_scene_v1997')body={exact_count:1,estimated_count:1,exact_geojson:{type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'Polygon',coordinates:[[[-72.652,41.561],[-72.649,41.561],[-72.649,41.564],[-72.652,41.564],[-72.652,41.561]]]},properties:{geometry_truth:'SOURCE_BACKED'}}]},estimated_geojson:{type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'Polygon',coordinates:[[[-72.656,41.558],[-72.653,41.558],[-72.653,41.561],[-72.656,41.561],[-72.656,41.558]]]},properties:{geometry_truth:'ESTIMATED_VORONOI'}}]}};if(n==='bridgepoint_3d_world_viewport_v1997')body={buildings:[{building_id:'tall',geometry:{type:'Polygon',coordinates:[[[-72.6513,41.5619],[-72.6504,41.5619],[-72.6504,41.5628],[-72.6513,41.5628],[-72.6513,41.5619]]]},render_height_m:62,height_m:62,ground_elevation_m:0,floors:18,height_truth:'SOURCE_BACKED'},{building_id:'house',geometry:{type:'Polygon',coordinates:[[[-72.6499,41.5616],[-72.6493,41.5616],[-72.6493,41.5621],[-72.6499,41.5621],[-72.6499,41.5616]]]},render_height_m:9,ground_elevation_m:0,floors:2,height_truth:'FLOOR_DERIVED_VISUAL'}]};if(n==='bridgepoint_live_map_weather_scene_v1997')body={events:[{hazard_event_id:'r',hazard_type:'RAIN',observation_kind:'OBSERVED',severity:'Moderate',geometry_geojson:{type:'Polygon',coordinates:[[[-72.66,41.55],[-72.64,41.55],[-72.64,41.57],[-72.66,41.57],[-72.66,41.55]]]},effect_mode:'OBSERVED_PHYSICAL_OR_SOURCE_GEOMETRY',render_primitive:'RADAR_PRECIPITATION_FIELD',headline:'Observed rain'}]};if(n==='bridgepoint_flutter_property_map_viewport_v1035')body=[];if(n==='bridgepoint_flutter_intelligence_map_national_v1037')body={opportunities:[]};if(['bridgepoint_daily_brief_v74','bridgepoint_calendar_agenda_v835','bridgepoint_watchlists_v88','bridgepoint_my_property_trackers_v212','bridgepoint_flutter_opportunities_v235','bridgepoint_notifications_v74','bridgepoint_notification_preferences_v834'].includes(n))body=[];if(n==='bridgepoint_owner_ai_control_plane_v491')return req.respond({status:403,headers:{...cors,'Content-Type':'application/json'},body:'{}'});return req.respond({status:200,headers:{...cors,'Content-Type':'application/json'},body:JSON.stringify(body)});}}req.continue();});
+            await p.goto(origin+'/?seed='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});await p.evaluate(()=>localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'fake',refresh_token:'fake',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:'00000000-0000-4000-8000-000000000001',email:'verify@bridgepoint.local'}})));await p.goto(origin+'/app/?surface=map&hotfix='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});await p.waitForFunction(()=>window.__bp97MapState?.ready&&window.__bp97MapState?.map?.getZoom()>14,{timeout:22000});await p.waitForFunction(()=>window.__bp97MapState?.exact?.features?.length===1&&window.__bp97MapState?.buildings?.features?.length===2&&window.__bp97MapState?.hazards?.features?.length===1,{timeout:12000});await p.waitForFunction(()=>window.__bp97MapState?.map?.getLayer('bp97-weather-volume'),{timeout:6000});const s=await p.evaluate(()=>{const x=window.__bp97MapState,m=x.map;return{terrain:!!m.getTerrain(),labels:!!m.getLayer('labels'),exact:!!m.getLayer('bp97-exact-glow'),est:!!m.getLayer('bp97-est-line'),building:!!m.getLayer('bp97-building'),floors:x.floors.features.length,weather:!!m.getLayer('bp97-weather-volume'),particles:x.particles.length,zoom:m.getZoom(),center:m.getCenter().toArray()}});console.log(s);assert(s.terrain&&s.labels&&s.exact&&s.est&&s.building&&s.floors>=18&&s.weather&&s.particles>0&&s.zoom>14);await p.click('[data-bp97measure="distance"]');assert(await p.$eval('[data-bp97measure="distance"]',e=>e.classList.contains('active')));
+            const pub=await b.newPage();await pub.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});await pub.goto(origin+'/?public='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});await pub.waitForSelector('#bpAbout1997',{timeout:10000});await pub.waitForSelector('#source-record-counter',{timeout:10000});const v=await pub.evaluate(()=>({about:document.querySelector('#bpAbout1997')?.innerText||'',sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth}));assert(/Canonical property foundation/.test(v.about)&&/Live weather \+ hazards/.test(v.about)&&v.sw<=v.cw+2);console.log('V1997_HOTFIX_FULL_PASS');
+          }finally{await b.close()}})().catch(e=>{console.error(e);process.exit(1)});
+          NODE
