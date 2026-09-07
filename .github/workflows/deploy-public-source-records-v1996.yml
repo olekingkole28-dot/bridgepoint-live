@@ -1,0 +1,82 @@
+name: Deploy Public Source Records V1996
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-public-source-records-v1996.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages-v1996-public
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Add source-record counter and research entry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          git show origin/main:release-v1996/public-source-records-v1996.js > public-source-records-v1996.js
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html'); s=p.read_text()
+          tag='<script defer src="/public-source-records-v1996.js?v=1996"></script>'
+          if tag not in s: s=s.replace('</body>',tag+'\n</body>')
+          p.write_text(s)
+          PY
+          node --check public-source-records-v1996.js
+          grep -Fq 'SOURCE RECORDS CONNECTED' public-source-records-v1996.js
+          grep -Fq '/articles/' public-source-records-v1996.js
+          grep -Fq 'public-source-records-v1996.js?v=1996' index.html
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add index.html public-source-records-v1996.js
+          if ! git diff --cached --quiet; then git commit -m 'Show live source-record scale and research library on public homepage'; git push origin HEAD:live-artifact; fi
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: github-pages-public-v1996
+          path: site
+      - name: Deploy public V1996
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-public-v1996
+      - name: Verify live public counter code and research
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for attempt in $(seq 1 24); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/?v=1996&verify=${salt}" -o /tmp/home.html || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/public-source-records-v1996.js?verify=${salt}" -o /tmp/src.js || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/articles/?verify=${salt}" -o /tmp/articles.html || true
+            if grep -Fq 'public-source-records-v1996.js?v=1996' /tmp/home.html && grep -Fq 'SOURCE RECORDS CONNECTED' /tmp/src.js && grep -Fq 'BridgePoint Intelligence Research' /tmp/articles.html; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
+          echo PUBLIC_SOURCE_RECORDS_AND_RESEARCH_PASS
