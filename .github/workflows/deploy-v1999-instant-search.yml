@@ -1,0 +1,87 @@
+name: Deploy V1999 Instant Property Search
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/deploy-v1999-instant-search.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Patch current app search only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('app/universe-v1994.js')
+          s=p.read_text()
+          replacement=r'''async function runSearch(q){
+q=String(q||'').trim();const root=$('#globalSearchResults');if(q.length<2)return;
+const key=q.toLowerCase(),cache=runSearch._cache||(runSearch._cache=new Map());
+const render=rs=>{root.innerHTML=rs.length?rs.map((x,i)=>`<button class="result-card" data-searchrow="${i}"><span class="source-pill">${esc(pick(x,'match_reason','result_type','entity_type','property_type')||'PROPERTY')}</span><h4>${esc(pick(x,'full_address','display_address','address','title','name')||'BridgePoint property')}</h4><p>${esc([pick(x,'municipality','city'),pick(x,'county'),pick(x,'state_code'),pick(x,'postal_code'),pick(x,'parcel_number')].filter(Boolean).join(' · '))}</p></button>`).join(''):'<div class="empty-state"><span>⌕</span><h3>No confident property match.</h3><p>Try adding the city/state or ZIP. Common address typos are corrected automatically.</p></div>';$$('[data-searchrow]',root).forEach(b=>b.onclick=()=>openProperty(rs[Number(b.dataset.searchrow)]));};
+if(cache.has(key)){render(cache.get(key));return}
+root.innerHTML='<div class="skeleton tall"></div>';
+try{const d=await rpc('bridgepoint_property_suggestions_v192',{p_query:q,p_limit:20}),rs=firstArray(d);cache.set(key,rs);if(cache.size>80)cache.delete(cache.keys().next().value);render(rs)}catch(e){root.innerHTML=`<div class="empty-state"><span>⌕</span><h3>Search unavailable</h3><p>${esc(e.message)}</p></div>`}
+} // INSTANT_PROPERTY_SEARCH_V1999
+function propertyId()'''
+          ns,n=re.subn(r"async function runSearch\(q\)\{.*?\nfunction propertyId\(\)",replacement,s,count=1,flags=re.S)
+          if n!=1:
+              raise SystemExit(f'runSearch patch count={n}')
+          p.write_text(ns)
+          PY
+          node --check app/universe-v1994.js
+          grep -Fq 'INSTANT_PROPERTY_SEARCH_V1999' app/universe-v1994.js
+          if grep -A3 -F 'async function runSearch(q)' app/universe-v1994.js | grep -Fq 'bridgepoint_universal_search_context_v244'; then
+            echo 'Slow universal context still blocks property search' >&2; exit 1
+          fi
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/universe-v1994.js
+          if ! git diff --cached --quiet; then
+            git commit -m 'Make current V1998 app property search instant and typo tolerant'
+            git push origin HEAD:live-artifact
+          fi
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {name: github-pages-v1999-search, path: site}
+      - name: Deploy current product
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with: {artifact_name: github-pages-v1999-search}
+      - name: Verify live search patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 24); do
+            salt="$i-$(date +%s)"
+            curl -fsSL --max-time 12 -H 'Cache-Control: no-cache' "$origin/app/universe-v1994.js?v=$salt" -o /tmp/universe.js || true
+            if grep -Fq 'INSTANT_PROPERTY_SEARCH_V1999' /tmp/universe.js && grep -Fq 'bridgepoint_property_suggestions_v192' /tmp/universe.js; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
+          grep -Fq "detail:rpc('bridgepoint_flutter_property_detail_v344',{p_property_id:id})" /tmp/universe.js
+          grep -Fq 'v1998-live-extras.js?v=1998' <(curl -fsSL "$origin/app/map-v1997-weather-hotfix.js?v=$(date +%s)")
+          echo V1999_LIVE_SEARCH_PATCH_PASS
