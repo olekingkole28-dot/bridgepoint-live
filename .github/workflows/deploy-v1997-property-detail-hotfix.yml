@@ -1,0 +1,90 @@
+name: Deploy V1997 Property Intelligence Hotfix
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/deploy-v1997-property-detail-hotfix.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Patch current V1997 customer property detail route
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/universe-v1994.js')
+          s=p.read_text()
+          old="detail:rpc('bridgepoint_flutter_property_detail_core_v1960',{p_property_id:id})"
+          new="detail:rpc('bridgepoint_flutter_property_detail_v344',{p_property_id:id})"
+          if old not in s and new not in s:
+              raise SystemExit('expected V1997 property detail call not found')
+          s=s.replace(old,new)
+          p.write_text(s)
+          PY
+          node --check app/universe-v1994.js
+          grep -Fq "detail:rpc('bridgepoint_flutter_property_detail_v344',{p_property_id:id})" app/universe-v1994.js
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/universe-v1994.js
+          if ! git diff --cached --quiet; then
+            git commit -m 'Route V1997 property workspace through customer-safe detail contract'
+            git push origin HEAD:live-artifact
+          fi
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {name: github-pages-v1997-property-hotfix, path: site}
+      - name: Deploy current product hotfix
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with: {artifact_name: github-pages-v1997-property-hotfix}
+      - name: Verify live opportunity to property flow on phone viewport
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 24); do
+            salt="$i-$(date +%s)"
+            curl -fsSL --max-time 12 -H 'Cache-Control: no-cache' "$origin/app/universe-v1994.js?propertyfix=$salt" -o /tmp/universe.js || true
+            if grep -Fq "detail:rpc('bridgepoint_flutter_property_detail_v344',{p_property_id:id})" /tmp/universe.js; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const origin='https://bridgepointintelligence.online';
+          const cors={'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'apikey,authorization,content-type,cache-control','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Vary':'Origin'};
+          (async()=>{const b=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});try{
+            const p=await b.newPage();await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+            await p.setRequestInterception(true);p.on('request',req=>{const u=req.url();if(u.includes('xdfsjztwgsbmabshzsjw.supabase.co')){if(req.method()==='OPTIONS')return req.respond({status:204,headers:cors,body:''});if(u.includes('/auth/v1/user'))return req.respond({status:200,headers:{...cors,'Content-Type':'application/json'},body:JSON.stringify({id:'00000000-0000-4000-8000-000000000001',email:'verify@bridgepoint.local'})});if(u.includes('/rest/v1/rpc/')){const n=u.split('/rpc/')[1].split('?')[0];let body={complete:true};if(n==='bridgepoint_legal_state_v82')body={required_acceptance_missing:false,missing_count:0,documents:[]};if(n==='bridgepoint_trial_access_v1055')body={status:'trialing',remaining_days:7};if(n==='bridgepoint_public_system_pulse_v1992')body={total_parcels:158000000,total_addresses:134000000,active_opportunities:1,signals:4,detected_patterns:2,scored_properties:1,registered_sources:700,states_present:51};if(n==='bridgepoint_flutter_opportunities_v235')body={opportunities:[{opportunity_id:'10000000-0000-4000-8000-000000000001',property_id:'20000000-0000-4000-8000-000000000002',full_address:'123 Verification St, Middletown, CT 06457',state_code:'CT',priority:'HIGH',score:91,reason:'Verified test opportunity'}]};if(n==='bridgepoint_flutter_property_detail_v344')body={complete:true,locked:false,property:{property_id:'20000000-0000-4000-8000-000000000002',full_address:'123 Verification St, Middletown, CT 06457',municipality:'Middletown',county:'Middlesex',state_code:'CT',postal_code:'06457',parcel_number:'TEST-1',property_type:'Residential',year_built:2001,assessed_total_value:250000,canonical_confidence:.99},intelligence:{available:true,opportunities:[]}};if(n==='bridgepoint_property_timeline_v857')body={complete:true,timeline:[]};if(n==='bridgepoint_customer_notes_v70')body={complete:true,notes:[]};if(n==='bridgepoint_claims_workspace_v833')body={complete:true,claims:[]};if(n==='bridgepoint_property_heartbeat_v245'||n==='bridgepoint_property_score_explainability_v1959')body={complete:true};if(['bridgepoint_daily_brief_v74','bridgepoint_calendar_agenda_v835','bridgepoint_watchlists_v88','bridgepoint_my_property_trackers_v212','bridgepoint_notifications_v74','bridgepoint_notification_preferences_v834'].includes(n))body=[];return req.respond({status:200,headers:{...cors,'Content-Type':'application/json'},body:JSON.stringify(body)});}}req.continue();});
+            await p.goto(origin+'/?seed='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});await p.evaluate(()=>localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'fake-access-token-long-enough',refresh_token:'fake-refresh-token-long-enough',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:'00000000-0000-4000-8000-000000000001',email:'verify@bridgepoint.local'}})));
+            await p.goto(origin+'/app/?surface=opportunities&propertyfix='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});await p.waitForFunction(()=>document.querySelector('#app')?.hidden===false,{timeout:10000});
+            await p.click('[data-nav="opportunities"]');await p.waitForSelector('[data-opp="0"]',{timeout:10000});await p.click('[data-opp="0"]');await p.waitForSelector('#inspectProperty',{timeout:5000});await p.click('#inspectProperty');await p.waitForFunction(()=>document.querySelector('#propertyAddress')?.textContent.includes('123 Verification St'),{timeout:10000});
+            const state=await p.evaluate(()=>({address:document.querySelector('#propertyAddress')?.textContent,propertyActive:document.querySelector('[data-surface="property"]')?.classList.contains('active'),content:document.querySelector('#propertyTabContent')?.textContent||''}));assert(state.propertyActive);assert(/123 Verification St/.test(state.address));assert(!/Property detail could not load/i.test(state.content));console.log('V1997_PROPERTY_INTELLIGENCE_FLOW_PASS');
+          }finally{await b.close()}})().catch(e=>{console.error(e);process.exit(1)});
+          NODE
