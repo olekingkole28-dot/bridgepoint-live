@@ -37,6 +37,7 @@ jobs:
 
           mkdir -p app/twin
           git show origin/main:release-v1993/app/index.html > app/index.html
+          git show origin/main:release-v1993/app/auth-preflight-v1993.js > app/auth-preflight-v1993.js
           git show origin/main:release-v1993/app/universe-v1993.css > app/universe-v1993.css
           git show origin/main:release-v1993/app/universe-v1993.js > app/universe-v1993.js
           git show origin/main:release-v1993/app/flutter_service_worker.js > app/flutter_service_worker.js
@@ -52,6 +53,13 @@ jobs:
               s=s.replace('</body>','<script defer src="/public-v1993.js?v=1993"></script>\n</body>')
           p.write_text(s)
 
+          p=Path('app/index.html')
+          s=p.read_text()
+          auth='<script src="./auth-preflight-v1993.js?v=1993"></script>'
+          if auth not in s:
+              s=s.replace('<title>BridgePoint Intelligence</title>','<title>BridgePoint Intelligence</title>\n'+auth)
+          p.write_text(s)
+
           p=Path('app.js')
           s=p.read_text()
           s=s.replace('setInterval(refreshPulse,3000);','setInterval(()=>{if(!document.hidden&&!document.querySelector(\'.modal.show\'))refreshPulse()},30000);')
@@ -60,9 +68,12 @@ jobs:
           PY
 
           node --check public-v1993.js
+          node --check app/auth-preflight-v1993.js
           node --check app/universe-v1993.js
           node --check app/flutter_service_worker.js
           node --check app.js
+          grep -Fq 'auth-preflight-v1993.js?v=1993' app/index.html
+          grep -Fq "location.replace('/?signin=1" app/auth-preflight-v1993.js
           grep -Fq 'tiles.openfreemap.org/styles/liberty' app/universe-v1993.js
           grep -Fq 'bridgepoint_live_map_parcels_v1993' app/universe-v1993.js
           grep -Fq 'bridgepoint_flutter_signal_building_map_v1220' app/universe-v1993.js
@@ -83,9 +94,9 @@ jobs:
 
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
-          git add index.html app.js public-v1993.js app/index.html app/universe-v1993.css app/universe-v1993.js app/flutter_service_worker.js app/manifest.json
+          git add index.html app.js public-v1993.js app/index.html app/auth-preflight-v1993.js app/universe-v1993.css app/universe-v1993.js app/flutter_service_worker.js app/manifest.json
           if ! git diff --cached --quiet; then
-            git commit -m 'Release BridgePoint live property map and mobile stability v1993'
+            git commit -m 'Harden BridgePoint mobile auth and live map v1993'
             git push origin HEAD:live-artifact
           fi
 
@@ -119,12 +130,15 @@ jobs:
             home="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/?bpv=1993&verify=${salt}" 2>/dev/null || true)"
             pub="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/public-v1993.js?verify=${salt}" 2>/dev/null || true)"
             app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?bpv=1993&verify=${salt}" 2>/dev/null || true)"
+            auth="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/auth-preflight-v1993.js?verify=${salt}" 2>/dev/null || true)"
             js="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/universe-v1993.js?verify=${salt}" 2>/dev/null || true)"
             sw="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/flutter_service_worker.js?verify=${salt}" 2>/dev/null || true)"
             if printf '%s' "$home" | grep -Fq 'public-v1993.js?v=1993' \
               && printf '%s' "$pub" | grep -Fq 'setInterval(refresh,30000)' \
               && printf '%s' "$app" | grep -Fq 'LIVE U.S. INTELLIGENCE MAP' \
+              && printf '%s' "$app" | grep -Fq 'auth-preflight-v1993.js?v=1993' \
               && printf '%s' "$app" | grep -Fq 'bridgepoint-mark-v80.svg' \
+              && printf '%s' "$auth" | grep -Fq "location.replace('/?signin=1" \
               && printf '%s' "$js" | grep -Fq 'bridgepoint_live_map_parcels_v1993' \
               && printf '%s' "$js" | grep -Fq 'mapservices.weather.noaa.gov' \
               && printf '%s' "$sw" | grep -Fq 'bridgepoint-universe-v1993'; then
@@ -135,7 +149,7 @@ jobs:
           test "$ok" = 1
           echo 'V1993_LIVE_FILES_PASS'
 
-      - name: Verify mobile public page and app auth handoff
+      - name: Verify mobile public page and immediate auth handoff
         shell: bash
         run: |
           set -euo pipefail
@@ -153,14 +167,15 @@ jobs:
               await page.goto('https://bridgepointintelligence.online/?bpv=1993&verify='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await page.waitForSelector('#address-counter',{timeout:20000});
               await page.waitForFunction(()=>/\d/.test(document.querySelector('#address-counter')?.textContent||''),{timeout:20000});
-              const dims=await page.evaluate(()=>({sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,bg:getComputedStyle(document.body).backgroundColor,cosmos:getComputedStyle(document.querySelector('#cosmos')).position}));
+              const dims=await page.evaluate(()=>({sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,cosmos:getComputedStyle(document.querySelector('#cosmos')).position}));
               assert(dims.sw<=dims.cw+2,'horizontal overflow detected');
               assert.equal(dims.cosmos,'fixed');
+
               const app=await browser.newPage();
               await app.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               await app.goto('https://bridgepointintelligence.online/app/?verify='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
-              await app.waitForFunction(()=>location.pathname==='/'&&new URL(location.href).searchParams.get('signin')==='1',{timeout:30000});
-              await app.waitForSelector('#signin-modal.show',{timeout:20000});
+              await app.waitForFunction(()=>new URL(location.href).searchParams.get('signin')==='1',{timeout:10000});
+              await app.waitForSelector('#signin-modal.show',{timeout:15000});
               console.log('V1993_MOBILE_PASS');
             } finally { await browser.close(); }
           })().catch(e=>{console.error(e);process.exit(1)});
