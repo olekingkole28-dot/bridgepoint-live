@@ -1,0 +1,209 @@
+name: Deploy BridgePoint V1994 Full Product Shell
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-bridgepoint-v1994.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages-v1994
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build V1994 production artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main live-artifact
+          git checkout -B live-artifact origin/live-artifact
+
+          git show origin/main:release-v1994/public-v1994.js > public-v1994.js
+          git show origin/main:release-v1994/app/index.html > app/index.html
+          git show origin/main:release-v1994/app/universe-v1994.css > app/universe-v1994.css
+          git show origin/main:release-v1994/app/universe-v1994.js > app/universe-v1994.js
+          git show origin/main:release-v1994/app/flutter_service_worker.js > app/flutter_service_worker.js
+          git show origin/main:release-v1994/app/manifest.json > app/manifest.json
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text()
+          s=re.sub(r'\s*<script[^>]+src=["\']/public-v199[0-9]+\.js[^"\']*["\'][^>]*></script>\s*','\n',s,flags=re.I)
+          s=s.replace('</body>','<script defer src="/public-v1994.js?v=1994"></script>\n</body>')
+          p.write_text(s)
+
+          p=Path('app.js')
+          s=p.read_text()
+          s=s.replace('setInterval(refreshPulse,3000);','setInterval(()=>{if(!document.hidden&&!document.querySelector(\'.modal.show\'))refreshPulse()},30000);')
+          s=s.replace("planet(w*.13,h*.18,Math.max(16,Math.min(w,h)*.052),'rgba(125,151,205,.55)','rgba(29,45,83,.24)');planet(w*.86,h*.80,Math.max(11,Math.min(w,h)*.034),'rgba(211,143,103,.46)','rgba(74,34,52,.20)');",'')
+          p.write_text(s)
+          PY
+
+          node --check public-v1994.js
+          node --check app/universe-v1994.js
+          node --check app/flutter_service_worker.js
+          node --check app.js
+
+          grep -Fq 'bp-public-legal-handshake-v1994' public-v1994.js
+          grep -Fq "openLegal('signin')" public-v1994.js
+          grep -Fq 'data-surface="calendar"' app/index.html
+          grep -Fq 'data-surface="watchlists"' app/index.html
+          grep -Fq 'data-surface="analytics"' app/index.html
+          grep -Fq 'data-surface="notifications"' app/index.html
+          grep -Fq 'data-surface="team"' app/index.html
+          grep -Fq 'id="legalGate"' app/index.html
+          grep -Fq 'bridgepoint-mark-v80.svg' app/index.html
+          grep -Fq 'bridgepoint_legal_state_v82' app/universe-v1994.js
+          grep -Fq 'bridgepoint_accept_legal_v82' app/universe-v1994.js
+          grep -Fq 'bridgepoint_claims_workspace_v833' app/universe-v1994.js
+          grep -Fq 'bridgepoint_calendar_agenda_v835' app/universe-v1994.js
+          grep -Fq 'bridgepoint_watchlists_v88' app/universe-v1994.js
+          grep -Fq 'bridgepoint_notifications_v74' app/universe-v1994.js
+          grep -Fq 'bridgepoint_team_workspace_v80' app/universe-v1994.js
+          grep -Fq 'bridgepoint_pattern_intelligence_v212' app/universe-v1994.js
+          grep -Fq 'bridgepoint-checkout-v67' app/universe-v1994.js
+          grep -Fq 'bridgepoint_property_site_3d_v918' app/universe-v1994.js
+          grep -Fq 'bridgepoint_live_map_parcels_v1993' app/universe-v1994.js
+          grep -Fq 'bridgepoint_flutter_property_map_viewport_v1035' app/universe-v1994.js
+          grep -Fq 'bridgepoint-universe-v1994' app/flutter_service_worker.js
+          ! grep -Eq '^\s*import\s' app/universe-v1994.js
+          grep -Fq '/public-v1994.js?v=1994' index.html
+          ! grep -Eq '/public-v199[0-3]\.js' index.html
+
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add index.html app.js public-v1994.js app/index.html app/universe-v1994.css app/universe-v1994.js app/flutter_service_worker.js app/manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Release BridgePoint full product shell and enforced legal gate v1994'
+            git push origin HEAD:live-artifact
+          fi
+
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: github-pages-v1994
+          path: site
+
+      - name: Deploy V1994
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-v1994
+
+      - name: Verify live V1994 files
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for attempt in $(seq 1 36); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            home="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/?bpv=1994&verify=${salt}" 2>/dev/null || true)"
+            pub="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/public-v1994.js?verify=${salt}" 2>/dev/null || true)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?bpv=1994&verify=${salt}" 2>/dev/null || true)"
+            js="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/universe-v1994.js?verify=${salt}" 2>/dev/null || true)"
+            sw="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/flutter_service_worker.js?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$home" | grep -Fq '/public-v1994.js?v=1994' \
+              && printf '%s' "$pub" | grep -Fq 'bp-public-legal-handshake-v1994' \
+              && printf '%s' "$app" | grep -Fq 'NATIONWIDE PROPERTY + CLAIMS INTELLIGENCE' \
+              && printf '%s' "$app" | grep -Fq 'data-surface="calendar"' \
+              && printf '%s' "$app" | grep -Fq 'id="legalGate"' \
+              && printf '%s' "$js" | grep -Fq 'bridgepoint_claims_workspace_v833' \
+              && printf '%s' "$js" | grep -Fq 'bridgepoint_calendar_agenda_v835' \
+              && printf '%s' "$js" | grep -Fq 'bridgepoint_property_site_3d_v918' \
+              && printf '%s' "$sw" | grep -Fq 'bridgepoint-universe-v1994'; then
+              ok=1; break
+            fi
+            sleep 5
+          done
+          test "$ok" = 1
+          echo 'V1994_LIVE_FILES_PASS'
+
+      - name: Verify mobile legal gate and resilient app boot
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const origin='https://bridgepointintelligence.online';
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
+            try{
+              const page=await browser.newPage();
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto(origin+'/?bpv=1994&verify='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await page.waitForSelector('#address-counter',{timeout:20000});
+              const dims=await page.evaluate(()=>({sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,cosmos:getComputedStyle(document.querySelector('#cosmos')).position}));
+              assert(dims.sw<=dims.cw+2,'horizontal overflow detected');
+              assert.equal(dims.cosmos,'fixed');
+              await page.evaluate(()=>document.querySelector('footer [data-open-signin]').click());
+              await page.waitForSelector('#legal-modal.show',{timeout:5000});
+              assert.equal(await page.$('#signin-modal.show'),null,'sign-in bypassed legal gate');
+              await page.evaluate(()=>{for(const id of ['ack-terms','ack-fcra','ack-verify']){const x=document.getElementById(id);x.checked=true;x.dispatchEvent(new Event('change',{bubbles:true}))}});
+              await page.waitForFunction(()=>!document.querySelector('#continue-account').disabled,{timeout:3000});
+              await page.click('#continue-account');
+              await page.waitForSelector('#signin-modal.show',{timeout:5000});
+              const handshake=await page.evaluate(()=>JSON.parse(sessionStorage.getItem('bp-public-legal-handshake-v1994')||'null'));
+              assert(handshake&&handshake.fcra_restriction===true&&handshake.independent_verification===true,'legal handshake missing');
+
+              const fresh=await browser.newPage();
+              await fresh.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await fresh.goto(origin+'/app/?bpv=1994&fresh='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await fresh.waitForFunction(()=>location.pathname==='/'&&new URL(location.href).searchParams.get('signin')==='1',{timeout:6000});
+
+              const app=await browser.newPage();
+              await app.setRequestInterception(true);
+              app.on('request',req=>{
+                const u=req.url();
+                if(/cdn\.jsdelivr\.net|unpkg\.com/.test(u))return req.abort();
+                if(u.includes('xdfsjztwgsbmabshzsjw.supabase.co/auth/v1/user'))return req.respond({status:200,contentType:'application/json',body:JSON.stringify({id:'00000000-0000-4000-8000-000000000001',email:'mobile-test@bridgepoint.local'})});
+                if(u.includes('xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/')){
+                  const name=u.split('/rpc/')[1].split('?')[0];
+                  let body={complete:true};
+                  if(name==='bridgepoint_legal_state_v82')body={complete:true,required_acceptance_missing:false,missing_count:0,documents:[]};
+                  if(name==='bridgepoint_public_system_pulse_v1992')body={total_parcels:158000000,total_addresses:170000000,active_opportunities:12000,signals:50000,detected_patterns:10000,scored_properties:100000,registered_sources:5000,states_present:51};
+                  if(name==='bridgepoint_trial_access_v1055')body={status:'trialing',remaining_days:7};
+                  return req.respond({status:200,contentType:'application/json',body:JSON.stringify(body)});
+                }
+                req.continue();
+              });
+              await app.goto(origin+'/?seed='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await app.evaluate(()=>localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'fake-access-token-long-enough-for-v1994-mobile-shell',refresh_token:'fake-refresh-token-long-enough-for-v1994-mobile-shell',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:'00000000-0000-4000-8000-000000000001',email:'mobile-test@bridgepoint.local'}})));
+              await app.goto(origin+'/app/?bpv=1994&mock='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await app.waitForFunction(()=>document.querySelector('#app')?.hidden===false&&getComputedStyle(document.querySelector('#boot')).display==='none',{timeout:7000});
+              const shell=await app.evaluate(()=>({home:document.querySelector('[data-surface="home"]')?.classList.contains('active'),calendar:!!document.querySelector('[data-surface="calendar"]'),watchlists:!!document.querySelector('[data-surface="watchlists"]'),property:!!document.querySelector('[data-surface="property"]'),claims:document.body.textContent.includes('Claims lifecycle')}));
+              assert(shell.home&&shell.calendar&&shell.watchlists&&shell.property&&shell.claims,'full app shell did not open');
+              console.log('V1994_MOBILE_LEGAL_AND_RESILIENT_BOOT_PASS');
+            } finally { await browser.close(); }
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
