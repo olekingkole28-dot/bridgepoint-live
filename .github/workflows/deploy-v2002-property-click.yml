@@ -1,0 +1,59 @@
+name: Deploy V2002 Property-First Map Clicks
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/deploy-v2002-property-click.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Build current V2002 live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          node --check app/map-v2002-property-click.js
+          node --check app/map-v1997-weather-hotfix.js
+          grep -Fq "bridgepoint_map_click_property_v2002" app/map-v2002-property-click.js
+          grep -Fq "map-v2002-property-click.js?v=2002" app/map-v1997-weather-hotfix.js
+          grep -Fq "INSTANT_PROPERTY_SEARCH_V1999" app/universe-v1994.js
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {name: github-pages-v2002-click, path: site}
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with: {artifact_name: github-pages-v2002-click}
+      - name: Verify live click assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 24); do
+            salt="$i-$(date +%s)"
+            curl -fsSL --max-time 12 -H 'Cache-Control: no-cache' "$origin/app/map-v2002-property-click.js?v=$salt" -o /tmp/click.js || true
+            curl -fsSL --max-time 12 -H 'Cache-Control: no-cache' "$origin/app/map-v1997-weather-hotfix.js?v=$salt" -o /tmp/loader.js || true
+            if grep -Fq 'bridgepoint_map_click_property_v2002' /tmp/click.js && grep -Fq 'map-v2002-property-click.js?v=2002' /tmp/loader.js; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
