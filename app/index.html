@@ -9,7 +9,9 @@
 <link rel="manifest" href="./manifest.json?v=1994">
 <link rel="icon" type="image/png" href="./favicon.png">
 <link rel="apple-touch-icon" href="./icons/Icon-192.png">
+<link rel="stylesheet" href="./vendor/maplibre-gl-v1995.css?v=1995">
 <link rel="stylesheet" href="./universe-v1994.css?v=1994">
+<link rel="stylesheet" href="./map-v1995.css?v=1995">
 <script>(()=>{try{const keys=['sb-xdfsjztwgsbmabshzsjw-auth-token','bp-homepage-auth-v1990','bp-homepage-auth-v1992'];let ok=false;for(const k of keys){const x=JSON.parse(localStorage.getItem(k)||'null');if(x&&x.access_token&&x.refresh_token){ok=true;break}}if(!ok)location.replace('/?signin=1&return='+encodeURIComponent('/app/')+'&v=1994')}catch(_){}})();</script>
 </head>
 <body>
@@ -38,7 +40,9 @@
 <div id="moreMenu" class="more-menu" hidden><div class="more-sheet glass"><div class="sheet-head"><div><span class="eyebrow">BRIDGEPOINT</span><h3>Everything else</h3></div><button id="closeMore">×</button></div><div class="more-grid"><button data-nav="calendar"><span>▦</span><b>Calendar</b><small>Follow-up</small></button><button data-nav="watchlists"><span>◉</span><b>Watchlists</b><small>Track properties</small></button><button data-nav="intelligence"><span>◇</span><b>Intelligence</b><small>Plans + models</small></button><button data-nav="analytics"><span>⌁</span><b>Analytics</b><small>Patterns</small></button><button data-nav="notifications"><span>●</span><b>Notifications</b><small>Alerts</small></button><button data-nav="team"><span>◎</span><b>Company</b><small>Team workspace</small></button><button data-nav="reports"><span>▤</span><b>Reports</b><small>Evidence</small></button><button data-nav="settings"><span>⚙</span><b>Settings</b><small>Account + app</small></button><button id="adminMenuButton" data-nav="admin" hidden><span>★</span><b>Owner</b><small>Admin tools</small></button></div></div></div>
 <div id="legalGate" class="overlay" hidden><div class="gate-card glass"><span class="eyebrow">REQUIRED LEGAL HANDSHAKE</span><h2>Current BridgePoint terms must be accepted before the app opens.</h2><div id="appLegalDocs" class="legal-docs"></div><label class="ack"><input id="appAckTerms" type="checkbox"><span>I accept the active required BridgePoint documents shown above.</span></label><label class="ack"><input id="appAckFcra" type="checkbox"><span>I will not use BridgePoint for prohibited consumer-reporting decisions.</span></label><label class="ack"><input id="appAckVerify" type="checkbox"><span>I understand material field, boundary, engineering and insurance decisions require authoritative verification.</span></label><button id="appAcceptLegal" class="primary" disabled>Accept & enter BridgePoint</button></div></div>
 <div id="formModal" class="overlay" hidden><div class="form-card glass"><button id="formClose" class="modal-x">×</button><div id="formModalBody"></div></div></div><div id="toast" class="toast"></div></div>
+<script src="./vendor/maplibre-gl-v1995.js?v=1995"></script>
 <script src="./universe-v1994.js?v=1994"></script>
+<script src="./map-v1995.js?v=1995"></script>
 <script src="./trial-countdown-v1994.js?v=1994"></script>
 </body>
 </html>
