@@ -1,0 +1,5 @@
+const CACHE='bridgepoint-universe-v1994';
+const CORE=['./','./index.html','./universe-v1994.css?v=1994','./universe-v1994.js?v=1994','./manifest.json?v=1994','./assets/assets/brand/bridgepoint-mark-v80.svg','./icons/Icon-192.png','./icons/Icon-512.png'];
+self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE).catch(()=>{})))});
+self.addEventListener('activate',e=>{e.waitUntil((async()=>{for(const k of await caches.keys())if(k.startsWith('bridgepoint-universe-')&&k!==CACHE)await caches.delete(k);await self.clients.claim()})())});
+self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;const u=new URL(e.request.url);if(u.origin!==location.origin)return;e.respondWith((async()=>{try{const r=await fetch(e.request,{cache:'no-store'});if(r&&r.ok){const c=await caches.open(CACHE);c.put(e.request,r.clone()).catch(()=>{})}return r}catch(_){return(await caches.match(e.request))||(await caches.match('./index.html'))}})())});
