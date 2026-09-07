@@ -1,0 +1,70 @@
+name: Sandbox Public Funnel Guardian V1986
+
+on:
+  push:
+    branches: [ui-sandbox-v1985]
+    paths:
+      - 'sandbox-v1985/**'
+      - '.github/workflows/sandbox-public-funnel-v1986.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: JavaScript syntax
+        run: |
+          set -euo pipefail
+          node --check sandbox-v1985/app.js
+          node --check sandbox-v1985/media-admin.js
+          node --check sandbox-v1985/trial-banner-v1986.js
+      - name: Funnel contract audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s sandbox-v1985/index.html
+          test -s sandbox-v1985/styles.css
+          grep -q 'Download App & Start 7-Day Free Trial' sandbox-v1985/index.html
+          grep -q 'Every U.S. Property' sandbox-v1985/index.html
+          grep -q 'Property address' sandbox-v1985/index.html
+          grep -q 'B2B INDUSTRY SOCIAL PROOF' sandbox-v1985/index.html
+          grep -q 'Legal handshake' sandbox-v1985/index.html
+          grep -q 'No payment method is collected on this public page' sandbox-v1985/index.html
+          grep -q 'bridgepoint_public_system_pulse_v957' sandbox-v1985/app.js
+          grep -q 'bridgepoint_public_property_teaser_v1986' sandbox-v1985/app.js
+          grep -q 'bridgepoint_public_legal_preview_v1054' sandbox-v1985/app.js
+          grep -q 'legal_accepted:true' sandbox-v1985/app.js
+          grep -q 'fcra_use_restriction_ack:true' sandbox-v1985/app.js
+          grep -q 'bridgepoint_public_featured_media_v1986' sandbox-v1985/app.js
+          grep -q 'bridgepoint_owner_upsert_featured_media_v1986' sandbox-v1985/media-admin.js
+          grep -q 'bridgepoint-growth-creatives' sandbox-v1985/media-admin.js
+          grep -q 'bridgepoint_trial_access_v1055' sandbox-v1985/trial-banner-v1986.js
+          if grep -Eqi 'stripe|credit[ -]?card|checkout' sandbox-v1985/index.html sandbox-v1985/app.js; then
+            echo 'Public funnel contains checkout/card/Stripe language or implementation.' >&2
+            exit 1
+          fi
+          if grep -Eqi 'actions/deploy-pages|vercel deploy|firebase deploy|supabase functions deploy' .github/workflows/sandbox-public-funnel-v1986.yml; then
+            echo 'Sandbox guardian must never deploy production.' >&2
+            exit 1
+          fi
+      - name: Public backend contract smoke tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co'
+          KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25'
+          pulse="$(curl -fsS --max-time 15 -X POST "$SUPA/rest/v1/rpc/bridgepoint_public_system_pulse_v957" -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{}')"
+          legal="$(curl -fsS --max-time 15 -X POST "$SUPA/rest/v1/rpc/bridgepoint_public_legal_preview_v1054" -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{}')"
+          media="$(curl -fsS --max-time 15 -X POST "$SUPA/rest/v1/rpc/bridgepoint_public_featured_media_v1986" -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{"p_limit":3}')"
+          teaser="$(curl -fsS --max-time 15 -X POST "$SUPA/rest/v1/rpc/bridgepoint_public_property_teaser_v1986" -H "apikey: $KEY" -H 'Content-Type: application/json' -d '{"p_query":"7 HEARTHSTONE DRIVE, Bethel, 06801, CT"}')"
+          printf '%s' "$pulse" | grep -q 'total_parcels'
+          printf '%s' "$legal" | grep -q 'required_documents'
+          printf '%s' "$media" | grep -q 'items'
+          printf '%s' "$teaser" | grep -q '"state_code":"CT"'
+          printf '%s' "$teaser" | grep -q 'permit_record_count'
+          echo 'Sandbox funnel contracts green.'
