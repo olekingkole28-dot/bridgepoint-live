@@ -8,5 +8,6 @@ function install(){const s=window.__bp97MapState,m=s?.map;if(!s?.ready||!m){setT
   }
 }catch(e){console.warn('BridgePoint V1997 weather volume hotfix',e)}
 }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+function loadV1998(){if(window.__bridgepointV1998Extras||document.querySelector('script[data-bp-v1998]'))return;const s=document.createElement('script');s.src='./v1998-live-extras.js?v=1998';s.defer=true;s.dataset.bpV1998='1';document.head.appendChild(s)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{install();loadV1998()},{once:true});else{install();loadV1998()}
 })();
