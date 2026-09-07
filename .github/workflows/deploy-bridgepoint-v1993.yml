@@ -1,0 +1,167 @@
+name: Deploy BridgePoint V1993 Live Map + Mobile Stability
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-bridgepoint-v1993.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages-v1993
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build V1993 production artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main live-artifact
+          git checkout -B live-artifact origin/live-artifact
+
+          mkdir -p app/twin
+          git show origin/main:release-v1993/app/index.html > app/index.html
+          git show origin/main:release-v1993/app/universe-v1993.css > app/universe-v1993.css
+          git show origin/main:release-v1993/app/universe-v1993.js > app/universe-v1993.js
+          git show origin/main:release-v1993/app/flutter_service_worker.js > app/flutter_service_worker.js
+          git show origin/main:release-v1993/app/manifest.json > app/manifest.json
+          git show origin/main:release-v1993/public-v1993.js > public-v1993.js
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          s=s.replace('<script defer src="/public-v1992.js?v=1992"></script>','<script defer src="/public-v1993.js?v=1993"></script>')
+          if 'public-v1993.js?v=1993' not in s:
+              s=s.replace('</body>','<script defer src="/public-v1993.js?v=1993"></script>\n</body>')
+          p.write_text(s)
+
+          p=Path('app.js')
+          s=p.read_text()
+          s=s.replace('setInterval(refreshPulse,3000);','setInterval(()=>{if(!document.hidden&&!document.querySelector(\'.modal.show\'))refreshPulse()},30000);')
+          s=s.replace("planet(w*.13,h*.18,Math.max(16,Math.min(w,h)*.052),'rgba(125,151,205,.55)','rgba(29,45,83,.24)');planet(w*.86,h*.80,Math.max(11,Math.min(w,h)*.034),'rgba(211,143,103,.46)','rgba(74,34,52,.20)');",'')
+          p.write_text(s)
+          PY
+
+          node --check public-v1993.js
+          node --check app/universe-v1993.js
+          node --check app/flutter_service_worker.js
+          node --check app.js
+          grep -Fq 'tiles.openfreemap.org/styles/liberty' app/universe-v1993.js
+          grep -Fq 'bridgepoint_live_map_parcels_v1993' app/universe-v1993.js
+          grep -Fq 'bridgepoint_flutter_signal_building_map_v1220' app/universe-v1993.js
+          grep -Fq 'mapservices.weather.noaa.gov' app/universe-v1993.js
+          grep -Fq 'server.arcgisonline.com/ArcGIS/rest/services/World_Imagery' app/universe-v1993.js
+          grep -Fq 'bridgepoint_public_package_catalog_v1054' app/universe-v1993.js
+          grep -Fq 'bridgepoint_submit_feedback_v70' app/universe-v1993.js
+          grep -Fq 'bridgepoint-mark-v80.svg' app/index.html
+          grep -Fq 'Plans that are actually in BridgePoint' app/index.html
+          grep -Fq 'Your BridgePoint control center' app/index.html
+          ! grep -Fq 'hero-orbit' app/index.html
+          ! grep -Fq 'universe3d' app/index.html
+          ! grep -Fq 'setInterval(refreshPulse,3000)' app.js
+          grep -Fq 'public-v1993.js?v=1993' index.html
+          grep -Fq 'bridgepoint-universe-v1993' app/flutter_service_worker.js
+          grep -Fq '"id":"./"' app/manifest.json
+          grep -Fq '"scope":"./"' app/manifest.json
+
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add index.html app.js public-v1993.js app/index.html app/universe-v1993.css app/universe-v1993.js app/flutter_service_worker.js app/manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Release BridgePoint live property map and mobile stability v1993'
+            git push origin HEAD:live-artifact
+          fi
+
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: github-pages-v1993
+          path: site
+
+      - name: Deploy V1993
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-v1993
+
+      - name: Verify live V1993 files
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for attempt in $(seq 1 30); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            home="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/?bpv=1993&verify=${salt}" 2>/dev/null || true)"
+            pub="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/public-v1993.js?verify=${salt}" 2>/dev/null || true)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?bpv=1993&verify=${salt}" 2>/dev/null || true)"
+            js="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/universe-v1993.js?verify=${salt}" 2>/dev/null || true)"
+            sw="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/flutter_service_worker.js?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$home" | grep -Fq 'public-v1993.js?v=1993' \
+              && printf '%s' "$pub" | grep -Fq 'setInterval(refresh,30000)' \
+              && printf '%s' "$app" | grep -Fq 'LIVE U.S. INTELLIGENCE MAP' \
+              && printf '%s' "$app" | grep -Fq 'bridgepoint-mark-v80.svg' \
+              && printf '%s' "$js" | grep -Fq 'bridgepoint_live_map_parcels_v1993' \
+              && printf '%s' "$js" | grep -Fq 'mapservices.weather.noaa.gov' \
+              && printf '%s' "$sw" | grep -Fq 'bridgepoint-universe-v1993'; then
+              ok=1; break
+            fi
+            sleep 5
+          done
+          test "$ok" = 1
+          echo 'V1993_LIVE_FILES_PASS'
+
+      - name: Verify mobile public page and app auth handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
+            try{
+              const page=await browser.newPage();
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('https://bridgepointintelligence.online/?bpv=1993&verify='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await page.waitForSelector('#address-counter',{timeout:20000});
+              await page.waitForFunction(()=>/\d/.test(document.querySelector('#address-counter')?.textContent||''),{timeout:20000});
+              const dims=await page.evaluate(()=>({sw:document.documentElement.scrollWidth,cw:document.documentElement.clientWidth,bg:getComputedStyle(document.body).backgroundColor,cosmos:getComputedStyle(document.querySelector('#cosmos')).position}));
+              assert(dims.sw<=dims.cw+2,'horizontal overflow detected');
+              assert.equal(dims.cosmos,'fixed');
+              const app=await browser.newPage();
+              await app.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await app.goto('https://bridgepointintelligence.online/app/?verify='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await app.waitForFunction(()=>location.pathname==='/'&&new URL(location.href).searchParams.get('signin')==='1',{timeout:30000});
+              await app.waitForSelector('#signin-modal.show',{timeout:20000});
+              console.log('V1993_MOBILE_PASS');
+            } finally { await browser.close(); }
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
