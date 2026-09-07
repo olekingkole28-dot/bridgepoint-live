@@ -1,0 +1,32 @@
+name: Debug V1997 Map Runtime
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/debug-v1997-map.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Browser diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          const origin='https://bridgepointintelligence.online';
+          (async()=>{const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=swiftshader']});try{
+            const ctx=browser.defaultBrowserContext();await ctx.overridePermissions(origin,['geolocation']);const p=await browser.newPage();await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});await p.setGeolocation({latitude:41.5623,longitude:-72.6506,accuracy:25});
+            p.on('console',m=>console.log('BROWSER_CONSOLE',m.type(),m.text()));p.on('pageerror',e=>console.log('PAGE_ERROR',e.stack||e.message));p.on('requestfailed',r=>console.log('REQ_FAILED',r.url(),r.failure()?.errorText));
+            await p.setRequestInterception(true);p.on('request',req=>{const u=req.url();if(u.includes('supabase.co/auth/v1/user'))return req.respond({status:200,contentType:'application/json',body:JSON.stringify({id:'00000000-0000-4000-8000-000000000001',email:'debug@bridgepoint.local'})});if(u.includes('supabase.co/rest/v1/rpc/')){const name=u.split('/rpc/')[1].split('?')[0];let body={complete:true};if(name==='bridgepoint_legal_state_v82')body={complete:true,required_acceptance_missing:false,missing_count:0,documents:[]};if(name==='bridgepoint_trial_access_v1055')body={complete:true,owner_override:true,subscriptions:[]};if(name==='bridgepoint_public_system_pulse_v1992')body={total_parcels:1,total_addresses:1,total_source_records:1,active_opportunities:0,signals:0,detected_patterns:0,scored_properties:0,registered_sources:1,states_present:51};if(name==='bridgepoint_live_map_boundary_scene_v1997')body={complete:true,exact_count:1,estimated_count:0,exact_geojson:{type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'Polygon',coordinates:[[[-72.652,41.561],[-72.649,41.561],[-72.649,41.564],[-72.652,41.564],[-72.652,41.561]]]},properties:{geometry_truth:'SOURCE_BACKED'}}]},estimated_geojson:{type:'FeatureCollection',features:[]}};if(name==='bridgepoint_3d_world_viewport_v1997')body={complete:true,returned:1,buildings:[{building_id:'b',geometry:{type:'Polygon',coordinates:[[[-72.6513,41.5619],[-72.6504,41.5619],[-72.6504,41.5628],[-72.6513,41.5628],[-72.6513,41.5619]]]},render_height_m:62,height_m:62,ground_elevation_m:0,floors:18,height_truth:'SOURCE_BACKED'}]};if(name==='bridgepoint_live_map_weather_scene_v1997')body={complete:true,events:[]};if(name==='bridgepoint_flutter_property_map_viewport_v1035')body=[];if(name==='bridgepoint_flutter_intelligence_map_national_v1037')body={opportunities:[]};return req.respond({status:200,contentType:'application/json',body:JSON.stringify(body)});}req.continue();});
+            await p.goto(origin+'/?debugseed='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});await p.evaluate(()=>localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'fake-debug-access',refresh_token:'fake-debug-refresh',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:'00000000-0000-4000-8000-000000000001',email:'debug@bridgepoint.local'}})));await p.goto(origin+'/app/?surface=map&bpv=1997&debug='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+            for(let i=0;i<8;i++){await new Promise(r=>setTimeout(r,2000));console.log('STATE',i,await p.evaluate(()=>({href:location.href,appHidden:document.querySelector('#app')?.hidden,boot:getComputedStyle(document.querySelector('#boot')).display,surface:document.querySelector('[data-surface="map"]')?.className,mapScript:!!window.__bridgepointMapV1997,state:window.__bp97MapState?{ready:window.__bp97MapState.ready,map:!!window.__bp97MapState.map,busy:window.__bp97MapState.busy,zoom:window.__bp97MapState.map?.getZoom?.(),container:document.querySelector('#liveMap')?.getBoundingClientRect()?.toJSON?.(),canvas:document.querySelector('#liveMap canvas')?.getBoundingClientRect()?.toJSON?.()}:null,tools:!!document.querySelector('#bp97MapTools'),maplibre:!!window.maplibregl,status:document.querySelector('#mapStatus')?.textContent})));}
+          }finally{await browser.close()}})().catch(e=>{console.error(e);process.exit(1)});
+          NODE
