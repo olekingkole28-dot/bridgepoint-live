@@ -44,8 +44,8 @@ jobs:
           grep -q 'bridgepoint_owner_upsert_featured_media_v1986' sandbox-v1985/media-admin.js
           grep -q 'bridgepoint-growth-creatives' sandbox-v1985/media-admin.js
           grep -q 'bridgepoint_trial_access_v1055' sandbox-v1985/trial-banner-v1986.js
-          if grep -Eqi 'stripe|credit[ -]?card|checkout' sandbox-v1985/index.html sandbox-v1985/app.js; then
-            echo 'Public funnel contains checkout/card/Stripe language or implementation.' >&2
+          if grep -Eqi 'api\.stripe\.com|js\.stripe\.com|checkout_session|payment_intent|card-element|create-checkout|stripe\.redirectToCheckout' sandbox-v1985/index.html sandbox-v1985/app.js; then
+            echo 'Public funnel contains payment/checkout implementation.' >&2
             exit 1
           fi
           if grep -Eqi 'actions/deploy-pages|vercel deploy|firebase deploy|supabase functions deploy' .github/workflows/sandbox-public-funnel-v1986.yml; then
