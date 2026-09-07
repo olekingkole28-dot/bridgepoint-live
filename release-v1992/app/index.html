@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#02060b">
+<meta name="description" content="BridgePoint Intelligence unified nationwide property intelligence workspace.">
+<title>BridgePoint Intelligence</title>
+<link rel="manifest" href="./manifest.json?v=1992">
+<link rel="icon" type="image/png" href="./favicon.png">
+<link rel="apple-touch-icon" href="./icons/Icon-192.png">
+<link rel="stylesheet" href="./universe-v1992.css?v=1992">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/"}}</script>
+</head>
+<body>
+<canvas id="cosmos" aria-hidden="true"></canvas>
+<div id="boot" class="boot"><div class="boot-ring"></div><b>Opening BridgePoint Universe</b><span>One account · one app · nationwide intelligence</span></div>
+<div id="app" class="app" hidden>
+<header class="topbar">
+  <button class="brand" data-nav="home" aria-label="BridgePoint Home"><span class="brand-mark">B</span><span><b>BRIDGEPOINT</b><small>INTELLIGENCE</small></span></button>
+  <div class="top-proof"><span class="live-dot"></span><b id="jurisdictionProof">U.S. network live</b><small id="coverageDepth">coverage depth expanding</small></div>
+  <div class="top-actions"><button id="installBtn" class="icon-btn" hidden>Install</button><button id="accountBtn" class="avatar">BP</button></div>
+</header>
+<main class="stage">
+<section class="surface active" data-surface="home">
+  <div class="home-hero glass">
+    <div class="hero-copy"><span class="eyebrow">NATIONWIDE PROPERTY INTELLIGENCE</span><h1>One U.S. property universe.<br><em>Every signal anchored to place.</em></h1><p>Move from the whole country into a jurisdiction, a property, its 3D site, imagery, evidence, patterns and opportunities without leaving BridgePoint.</p><div class="hero-actions"><button class="primary" data-nav="map">Enter 3D Universe</button><button class="secondary" data-nav="properties">Search a property</button></div></div>
+    <div class="hero-orbit"><div class="mini-hole"><i></i><span>U.S.</span></div><div class="orbit-label a">PARCELS</div><div class="orbit-label b">ADDRESSES</div><div class="orbit-label c">WEATHER</div><div class="orbit-label d">CLAIMS</div></div>
+  </div>
+  <div class="counter-grid">
+    <article class="counter-card glass"><span>CANONICAL PROPERTIES</span><strong id="homeParcels">—</strong><small>live canonical foundation</small></article>
+    <article class="counter-card glass"><span>ADDRESS RECORDS CONNECTED</span><strong id="homeAddresses">—</strong><small id="addressMethod">live address estimate</small></article>
+    <article class="counter-card glass"><span>U.S. JURISDICTIONS</span><strong id="homeJurisdictions">—</strong><small>50 states + D.C. represented</small></article>
+    <article class="counter-card glass"><span>SIGNALS</span><strong id="homeSignals">—</strong><small>linked evidence signals</small></article>
+    <article class="counter-card glass"><span>PATTERNS</span><strong id="homePatterns">—</strong><small>detected intelligence patterns</small></article>
+    <article class="counter-card glass"><span>QUALIFIED OPPORTUNITIES</span><strong id="homeOpps">—</strong><small>strict opportunity layer</small></article>
+  </div>
+  <div class="home-grid">
+    <article class="glass mission-card"><span class="eyebrow">PROPERTY HEARTBEAT</span><h2>From national context to one building.</h2><p>Search, zoom, orbit, walk, inspect imagery, open timeline evidence, explain scores and move qualified work forward from the same canonical identity.</p><div class="feature-row"><span>3D Site</span><span>Orbit + Walk</span><span>Front imagery</span><span>Aerial history</span><span>Signals</span><span>Patterns</span><span>Claims lifecycle</span></div></article>
+    <article class="glass pulse-card"><span class="eyebrow">LIVE SYSTEM PULSE</span><div class="pulse-list"><div><span>Scored properties</span><b id="homeScored">—</b></div><div><span>Scoring coverage</span><b id="homeScorePct">—</b></div><div><span>Matching jurisdictions</span><b id="homeMatching">—</b></div><div><span>Registered sources</span><b id="homeSources">—</b></div></div></article>
+  </div>
+</section>
+
+<section class="surface" data-surface="map">
+  <div class="surface-head"><div><span class="eyebrow">3D U.S. INTELLIGENCE UNIVERSE</span><h2>Fly the country. Drop into the property.</h2></div><div class="head-tools"><select id="stateSelect" aria-label="Jurisdiction"><option value="US">US — Nationwide</option></select><button class="secondary" id="resetUniverse">Reset view</button></div></div>
+  <div class="universe-layout">
+    <div class="universe-card glass"><div id="universe3d" class="universe3d"></div><div class="universe-hud"><span id="universeHint">Drag to orbit · pinch/wheel to zoom · tap a jurisdiction</span><span id="universeState">US — Nationwide</span></div></div>
+    <aside class="map-side glass"><span class="eyebrow">GO ANYWHERE</span><h3 id="mapSideTitle">United States</h3><p id="mapSideCopy">Every state and D.C. is represented in BridgePoint. Choose a jurisdiction or search a property to drop from national scale into its property twin.</p><form id="mapSearchForm" class="compact-search"><input id="mapSearch" placeholder="Address, parcel, owner, municipality"><button>Search</button></form><div id="mapResults" class="result-list"></div><div class="layer-list"><button class="layer active" data-layer="properties">⌂ Properties</button><button class="layer active" data-layer="signals">ϟ Signals</button><button class="layer active" data-layer="opportunities">◎ Opportunities</button><button class="layer" data-layer="weather">≋ Weather</button></div><div class="truth-box">The universe is a navigation visualization. Property geometry, imagery, scores and evidence retain their own source and confidence context.</div></aside>
+  </div>
+  <div id="twinDock" class="twin-dock glass" hidden></div>
+</section>
+
+<section class="surface" data-surface="properties">
+  <div class="surface-head"><div><span class="eyebrow">NATIONAL PROPERTY SEARCH</span><h2>Find the canonical property first.</h2></div></div>
+  <form id="propertySearchForm" class="big-search glass"><input id="propertySearch" placeholder="Search address, parcel, owner or municipality" autocomplete="off"><button>Search U.S.</button></form>
+  <div class="properties-layout"><div id="propertyResults" class="result-grid"></div><aside id="propertyPreview" class="glass property-preview"><div class="empty-state"><span>⌖</span><h3>Select a property</h3><p>The canonical identity, jurisdiction and available intelligence will appear here.</p></div></aside></div>
+</section>
+
+<section class="surface" data-surface="work">
+  <div class="surface-head"><div><span class="eyebrow">WORK</span><h2>Qualified intelligence that can become action.</h2></div><button id="refreshWork" class="secondary">Refresh</button></div>
+  <div class="work-kpis"><article class="glass"><span>Qualified opportunities</span><strong id="workOppCount">—</strong></article><article class="glass"><span>Saved work</span><strong id="savedCount">—</strong></article><article class="glass"><span>Signals</span><strong id="workSignals">—</strong></article></div>
+  <div class="work-layout"><div><h3>Latest opportunities</h3><div id="opportunityList" class="work-list"></div></div><aside><h3>Saved opportunities</h3><div id="savedList" class="work-list"></div></aside></div>
+</section>
+
+<section class="surface" data-surface="plans">
+  <div class="surface-head"><div><span class="eyebrow">PLANS + ACCESS</span><h2>Upgrade inside the product when you need more.</h2></div></div>
+  <div id="trialCard" class="trial-card glass"><div class="trial-ring"><b id="trialDays">7D</b></div><div><span class="eyebrow">YOUR ACCESS WINDOW</span><h3 id="trialText">Checking server-backed access…</h3><p>The countdown comes from BridgePoint, not your phone clock.</p></div></div>
+  <div id="planGrid" class="plan-grid"><article class="glass plan-card"><h3>Loading plans…</h3></article></div>
+</section>
+
+<section class="surface" data-surface="more">
+  <div class="surface-head"><div><span class="eyebrow">MORE</span><h2>Account, trust and BridgePoint controls.</h2></div></div>
+  <div class="more-grid"><article class="glass more-card"><h3>Account</h3><p id="accountEmail">Signed in</p><button id="signOutBtn" class="secondary">Sign out</button></article><article class="glass more-card"><h3>Legal + data use</h3><p>Your required legal acceptance is recorded before account creation. Material field, boundary, engineering and insurance decisions still require authoritative verification.</p><a href="/" class="secondary link-btn">Public site</a></article><article class="glass more-card"><h3>Enterprise / API</h3><p>Licensing, enterprise access and API partnerships remain approval-based.</p><a href="/enterprise.html" class="secondary link-btn">Enterprise access</a></article><article class="glass more-card"><h3>Release</h3><p>BridgePoint Universe V1992 · unified post-sign-in shell · PWA update channel active.</p><button id="forceUpdateBtn" class="secondary">Check for app update</button></article></div>
+</section>
+</main>
+<nav class="bottom-nav" aria-label="BridgePoint navigation"><button class="active" data-nav="home"><span>◉</span><b>Home</b></button><button data-nav="map"><span>◇</span><b>Map</b></button><button data-nav="properties"><span>⌂</span><b>Properties</b></button><button data-nav="work"><span>ϟ</span><b>Work</b></button><button data-nav="plans"><span>▣</span><b>Plans</b></button><button data-nav="more"><span>•••</span><b>More</b></button></nav>
+<div id="toast" class="toast"></div>
+</div>
+<script type="module" src="./universe-v1992.js?v=1992"></script>
+</body>
+</html>
