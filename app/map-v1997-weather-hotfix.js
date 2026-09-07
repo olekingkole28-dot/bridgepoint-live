@@ -8,9 +8,13 @@ function install(){const s=window.__bp97MapState,m=s?.map;if(!s?.ready||!m){setT
   }
 }catch(e){console.warn('BridgePoint V1997 weather volume hotfix',e)}
 }
-function loadV1998(){if(window.__bridgepointV1998Extras||document.querySelector('script[data-bp-v1998]'))return;const s=document.createElement('script');s.src='./v1998-live-extras.js?v=1998';s.defer=true;s.dataset.bpV1998='1';document.head.appendChild(s)}
-function loadV2000(){if(window.__bridgepointLanguageV2000||document.querySelector('script[data-bp-language-v2000]'))return;const s=document.createElement('script');s.src='/language-v2000.js?v=2000';s.defer=true;s.dataset.bpLanguageV2000='1';document.head.appendChild(s)}
-function loadV2002(){if(window.__bridgepointMapPropertyClickV2002||document.querySelector('script[data-bp-map-click-v2002]'))return;const s=document.createElement('script');s.src='./map-v2002-property-click.js?v=2002';s.defer=true;s.dataset.bpMapClickV2002='1';document.head.appendChild(s)}
-function loadV2020(){if(window.__bridgepointOwnerPhysicalWorldV2020||document.querySelector('script[data-bp-owner-physical-v2020]'))return;const s=document.createElement('script');s.src='./owner-physical-world-v2020.js?v=2020';s.defer=true;s.dataset.bpOwnerPhysicalV2020='1';document.head.appendChild(s)}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{install();loadV1998();loadV2000();loadV2002();loadV2020()},{once:true});else{install();loadV1998();loadV2000();loadV2002();loadV2020()}
+function loadScript(src,key){if(window[key]||document.querySelector(`script[data-bp-loader="${key}"]`))return;const s=document.createElement('script');s.src=src;s.defer=true;s.dataset.bpLoader=key;document.head.appendChild(s)}
+function loadAll(){
+  loadScript('./v1998-live-extras.js?v=1998','__bridgepointV1998Extras');
+  loadScript('/language-v2000.js?v=2000','__bridgepointLanguageV2000');
+  loadScript('./map-v2002-property-click.js?v=2002','__bridgepointMapPropertyClickV2002');
+  loadScript('./owner-physical-world-v2020.js?v=2020','__bridgepointOwnerPhysicalWorldV2020');
+  loadScript('./map-v2045-physical-world.js?v=2045','__bridgepointPhysicalWorldV2045');
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{install();loadAll()},{once:true});else{install();loadAll()}
 })();
