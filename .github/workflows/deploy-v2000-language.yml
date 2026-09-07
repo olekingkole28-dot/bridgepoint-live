@@ -1,0 +1,92 @@
+name: Deploy V2000 27-Language Continuity
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/deploy-v2000-language.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Build current live artifact with language layer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          node --check language-v2000.js
+          node --check public-about-v1997.js
+          node --check app/map-v1997-weather-hotfix.js
+          node --check app/universe-v1994.js
+          grep -Fq "language-v2000.js?v=2000" public-about-v1997.js
+          grep -Fq "language-v2000.js?v=2000" app/map-v1997-weather-hotfix.js
+          grep -Fq "INSTANT_PROPERTY_SEARCH_V1999" app/universe-v1994.js
+          grep -Fq "bridgepoint_flutter_property_detail_v344" app/universe-v1994.js
+          python3 - <<'PY'
+          import re
+          s=open('language-v2000.js',encoding='utf-8').read()
+          m=re.search(r"const LANGS=\[(.*?)\];",s,re.S)
+          if not m: raise SystemExit('LANGS missing')
+          count=len(re.findall(r"\['[^']+','[^']+'\]",m.group(1)))
+          if count!=27: raise SystemExit(f'expected 27 languages, found {count}')
+          PY
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {name: github-pages-v2000-language, path: site}
+      - name: Deploy current V2000 product
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with: {artifact_name: github-pages-v2000-language}
+      - name: Verify live language continuity
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 24); do
+            salt="$i-$(date +%s)"
+            curl -fsSL --max-time 12 -H 'Cache-Control: no-cache' "$origin/language-v2000.js?v=$salt" -o /tmp/language.js || true
+            curl -fsSL --max-time 12 -H 'Cache-Control: no-cache' "$origin/app/universe-v1994.js?v=$salt" -o /tmp/universe.js || true
+            if grep -Fq "bp-language-v2000" /tmp/language.js && grep -Fq "INSTANT_PROPERTY_SEARCH_V1999" /tmp/universe.js; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const origin='https://bridgepointintelligence.online';
+          const cors={'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'apikey,authorization,content-type,cache-control','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Vary':'Origin'};
+          (async()=>{const b=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});try{
+            const p=await b.newPage();await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+            await p.goto(origin+'/?lang=es&v='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+            await p.waitForSelector('#bpLanguagePickerV2000 select',{timeout:10000});
+            let state=await p.evaluate(()=>({count:document.querySelectorAll('#bpLanguagePickerV2000 option').length,value:document.querySelector('#bpLanguagePickerV2000 select').value,stored:localStorage.getItem('bp-language-v2000'),lang:document.documentElement.lang}));
+            assert.equal(state.count,27);assert.equal(state.value,'es');assert.equal(state.stored,'es');assert.equal(state.lang,'es');
+            await p.setRequestInterception(true);p.on('request',req=>{const u=req.url();if(u.includes('xdfsjztwgsbmabshzsjw.supabase.co')){if(req.method()==='OPTIONS')return req.respond({status:204,headers:cors,body:''});if(u.includes('/auth/v1/user'))return req.respond({status:200,headers:{...cors,'Content-Type':'application/json'},body:JSON.stringify({id:'00000000-0000-4000-8000-000000000001',email:'verify@bridgepoint.local'})});if(u.includes('/rest/v1/rpc/')){const n=u.split('/rpc/')[1].split('?')[0];let body={complete:true};if(n==='bridgepoint_legal_state_v82')body={required_acceptance_missing:false,missing_count:0,documents:[]};if(n==='bridgepoint_trial_access_v1055')body={status:'trialing',remaining_days:7};if(n==='bridgepoint_public_system_pulse_v1992')body={total_parcels:158000000,total_addresses:134000000,active_opportunities:1,signals:4,detected_patterns:2,scored_properties:1,registered_sources:700,states_present:51};if(['bridgepoint_daily_brief_v74','bridgepoint_calendar_agenda_v835','bridgepoint_watchlists_v88','bridgepoint_my_property_trackers_v212','bridgepoint_notifications_v74','bridgepoint_notification_preferences_v834','bridgepoint_flutter_opportunities_v235'].includes(n))body=[];return req.respond({status:200,headers:{...cors,'Content-Type':'application/json'},body:JSON.stringify(body)});}}req.continue();});
+            await p.evaluate(()=>localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'fake-access-token-long-enough',refresh_token:'fake-refresh-token-long-enough',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:'00000000-0000-4000-8000-000000000001',email:'verify@bridgepoint.local'}})));
+            await p.goto(origin+'/app/?v='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+            await p.waitForSelector('#bpLanguagePickerV2000 select',{timeout:10000});
+            state=await p.evaluate(()=>({count:document.querySelectorAll('#bpLanguagePickerV2000 option').length,value:document.querySelector('#bpLanguagePickerV2000 select').value,stored:localStorage.getItem('bp-language-v2000'),lang:document.documentElement.lang,hasSearch:document.documentElement.innerHTML.includes('globalSearchForm')}));
+            assert.equal(state.count,27);assert.equal(state.value,'es');assert.equal(state.stored,'es');assert.equal(state.lang,'es');assert(state.hasSearch);console.log('V2000_LANGUAGE_CONTINUITY_PASS');
+          }finally{await b.close()}})().catch(e=>{console.error(e);process.exit(1)});
+          NODE
