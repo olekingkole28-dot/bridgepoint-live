@@ -1,0 +1,180 @@
+name: Deploy BridgePoint Nationwide Funnel V1990
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-public-funnel-v1990.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  replace-deploy-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble production from approved sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact ui-sandbox-v1985
+          git checkout -B live-artifact origin/live-artifact
+
+          # Public funnel: latest approved visitor-facing sandbox.
+          git show origin/ui-sandbox-v1985:sandbox-v1985/index.html > index.html
+          git show origin/ui-sandbox-v1985:sandbox-v1985/styles.css > styles.css
+          git show origin/ui-sandbox-v1985:sandbox-v1985/media-admin.html > media-admin.html
+          git show origin/ui-sandbox-v1985:sandbox-v1985/media-admin.js > media-admin.js
+          git show origin/ui-sandbox-v1985:sandbox-v1985/enterprise.html > enterprise.html
+          git show origin/ui-sandbox-v1985:sandbox-v1985/enterprise-request.js > enterprise-request.js
+
+          # Production uses the pre-preview-guard implementation: real Supabase signup + legal metadata.
+          git show 00b6da74d23352608a1f2950f9d724b16891c930:sandbox-v1985/app.js > app.js
+          git show origin/ui-sandbox-v1985:sandbox-v1985/trial-banner-v1986.js > app/trial-banner-v1986.js
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          idx=Path('index.html')
+          s=idx.read_text()
+          s=s.replace('51 U.S. jurisdictions tracked','50 states + D.C. + Puerto Rico present')
+          s=s.replace('Sandbox use restriction · FCRA-specific production wording remains subject to legal review.','Consumer-reporting use restriction. This product acknowledgment is not legal advice.')
+          s=s.replace('homepage_v1986','homepage_v1990')
+          idx.write_text(s)
+
+          js=Path('app.js')
+          s=js.read_text()
+          old="localStorage.setItem('bp-sandbox-auth-v1986',JSON.stringify({access_token:data.access_token,refresh_token:data.refresh_token,expires_at:Math.floor(Date.now()/1000)+(data.expires_in||3600),user:data.user||null}))"
+          new="const session={...data,expires_at:data.expires_at||Math.floor(Date.now()/1000)+(data.expires_in||3600)};localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify(session));localStorage.setItem('bp-homepage-auth-v1990',JSON.stringify(session))"
+          if old not in s:
+              raise SystemExit('Expected sandbox auth persistence signature missing')
+          s=s.replace(old,new)
+          s=s.replace('homepage_v1986','homepage_v1990')
+          js.write_text(s)
+
+          app=Path('app/index.html')
+          s=app.read_text()
+          marker='<script defer src="trial-access-v1055.js?v=1066"></script>'
+          inject=marker+'\n  <script defer src="trial-banner-v1986.js?v=1990"></script>'
+          if 'trial-banner-v1986.js?v=1990' not in s:
+              if marker not in s:
+                  raise SystemExit('Trial access marker missing from app shell')
+              s=s.replace(marker,inject)
+          app.write_text(s)
+          PY
+
+          node --check app.js
+          node --check media-admin.js
+          node --check enterprise-request.js
+          node --check app/trial-banner-v1986.js
+
+          grep -Fq 'Every U.S. Property' index.html
+          grep -Fq 'Download App & Start 7-Day Free Trial' index.html
+          grep -Fq 'Property address' index.html
+          grep -Fq 'Legal handshake' index.html
+          grep -Fq 'Enterprise / API access' index.html
+          grep -Fq 'bridgepoint_public_property_teaser_v1986' app.js
+          grep -Fq 'bridgepoint_public_legal_preview_v1054' app.js
+          grep -Fq 'legal_accepted:true' app.js
+          grep -Fq 'sb-xdfsjztwgsbmabshzsjw-auth-token' app.js
+          ! grep -Fq 'PREVIEW_GUARD' app.js
+          grep -Fq 'trial-banner-v1986.js?v=1990' app/index.html
+          grep -Fq 'US — Nationwide' app/map-radar-v974.js
+          grep -Fq 'map.setView([39.4,-98.3],4)' app/map-radar-v974.js
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' index.html app.js styles.css app/index.html app/trial-banner-v1986.js
+
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add index.html styles.css app.js media-admin.html media-admin.js enterprise.html enterprise-request.js app/index.html app/trial-banner-v1986.js
+          if ! git diff --cached --quiet; then
+            git commit -m 'Replace public funnel and wire production trial shell v1990'
+            git push origin HEAD:live-artifact
+          fi
+
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy V1990
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live production files
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for attempt in $(seq 1 30); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            home="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/?v=1990&verify=${salt}" 2>/dev/null || true)"
+            homejs="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app.js?v=1990&verify=${salt}" 2>/dev/null || true)"
+            app="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/?bpv=1990&verify=${salt}" 2>/dev/null || true)"
+            mapjs="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/map-radar-v974.js?verify=${salt}" 2>/dev/null || true)"
+            banner="$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache, no-store' "${origin}/app/trial-banner-v1986.js?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$home" | grep -Fq 'Every U.S. Property' \
+              && printf '%s' "$home" | grep -Fq 'Download App & Start 7-Day Free Trial' \
+              && printf '%s' "$homejs" | grep -Fq 'bridgepoint_public_property_teaser_v1986' \
+              && printf '%s' "$homejs" | grep -Fq 'legal_accepted:true' \
+              && printf '%s' "$app" | grep -Fq 'trial-banner-v1986.js?v=1990' \
+              && printf '%s' "$mapjs" | grep -Fq 'US — Nationwide' \
+              && printf '%s' "$banner" | grep -Fq 'bridgepoint_trial_access_v1055'; then
+              ok=1; break
+            fi
+            sleep 5
+          done
+          test "$ok" = 1
+          echo 'PUBLIC_V1990_FILES_PASS'
+
+      - name: Verify homepage to legal to account UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,protocolTimeout:60000,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});
+            try{
+              const page=await browser.newPage();
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto('https://bridgepointintelligence.online/?verify1990='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await page.waitForFunction(()=>document.querySelector('#parcel-counter')?.textContent && !/Loading/.test(document.querySelector('#parcel-counter').textContent),{timeout:20000});
+              assert(await page.$('#teaser-form'));
+              await page.click('[data-start-account]');
+              await page.waitForSelector('#legal-modal.show',{timeout:15000});
+              await page.waitForFunction(()=>document.querySelectorAll('#legal-docs details').length>0,{timeout:20000});
+              for(const id of ['#ack-terms','#ack-fcra','#ack-verify'])await page.click(id);
+              await page.click('#continue-account');
+              await page.waitForSelector('#account-modal.show',{timeout:10000});
+              assert(await page.$('#signup-email'));
+              assert(await page.$('#signup-password'));
+              assert(await page.$('#signup-niche'));
+              console.log('PUBLIC_V1990_FUNNEL_UI_PASS');
+            }finally{await browser.close();}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
