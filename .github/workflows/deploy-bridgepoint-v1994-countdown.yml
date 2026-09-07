@@ -1,0 +1,119 @@
+name: Deploy BridgePoint V1994 Server Countdown
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-bridgepoint-v1994-countdown.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages-v1994
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Add server-anchored countdown to live V1994
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          grep -Fq 'NATIONWIDE PROPERTY + CLAIMS INTELLIGENCE' app/index.html
+          git show origin/main:release-v1994/app/trial-countdown-v1994.js > app/trial-countdown-v1994.js
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/index.html')
+          s=p.read_text()
+          tag='<script src="./trial-countdown-v1994.js?v=1994"></script>'
+          if tag not in s:
+              s=s.replace('</body>',tag+'\n</body>')
+          p.write_text(s)
+          PY
+          node --check app/trial-countdown-v1994.js
+          grep -Fq 'bridgepoint_trial_access_v1055' app/trial-countdown-v1994.js
+          grep -Fq 'seconds_remaining' app/trial-countdown-v1994.js
+          grep -Fq 'trial-countdown-v1994.js?v=1994' app/index.html
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/index.html app/trial-countdown-v1994.js
+          if ! git diff --cached --quiet; then
+            git commit -m 'Anchor V1994 trial countdown to BridgePoint server time'
+            git push origin HEAD:live-artifact
+          fi
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: github-pages-v1994-countdown
+          path: site
+      - name: Deploy V1994 countdown
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-v1994-countdown
+
+      - name: Verify live countdown and nonblocking app
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for attempt in $(seq 1 30); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            app="$(curl -fsSL --max-time 12 -H 'Cache-Control: no-cache' "${origin}/app/?bpv=1994&verify=${salt}" 2>/dev/null || true)"
+            trial="$(curl -fsSL --max-time 12 -H 'Cache-Control: no-cache' "${origin}/app/trial-countdown-v1994.js?verify=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$app" | grep -Fq 'trial-countdown-v1994.js?v=1994' && printf '%s' "$trial" | grep -Fq 'seconds_remaining'; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const origin='https://bridgepointintelligence.online';
+          (async()=>{const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage']});try{
+            const app=await browser.newPage();
+            await app.setRequestInterception(true);
+            app.on('request',req=>{const u=req.url();
+              if(/cdn\.jsdelivr\.net|unpkg\.com/.test(u))return req.abort();
+              if(u.includes('supabase.co/auth/v1/user'))return req.respond({status:200,contentType:'application/json',body:JSON.stringify({id:'00000000-0000-4000-8000-000000000001',email:'countdown-test@bridgepoint.local'})});
+              if(u.includes('supabase.co/rest/v1/rpc/')){const name=u.split('/rpc/')[1].split('?')[0];let body={complete:true};
+                if(name==='bridgepoint_legal_state_v82')body={complete:true,required_acceptance_missing:false,missing_count:0,documents:[]};
+                if(name==='bridgepoint_trial_access_v1055')body={complete:true,owner_override:false,intelligence_active:true,trial_active:true,trial_expired:false,needs_purchase:false,subscriptions:[{status:'trialing',trial_active:true,seconds_remaining:604799,package_key:'all_intelligence',package_name:'BridgePoint Intelligence Suite'}]};
+                if(name==='bridgepoint_public_system_pulse_v1992')body={total_parcels:158000000,total_addresses:170000000,active_opportunities:12000,signals:50000,detected_patterns:10000,scored_properties:100000,registered_sources:5000,states_present:51};
+                return req.respond({status:200,contentType:'application/json',body:JSON.stringify(body)});}
+              req.continue();});
+            await app.goto(origin+'/?seed='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+            await app.evaluate(()=>localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'fake-access-token-countdown-v1994',refresh_token:'fake-refresh-token-countdown-v1994',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:'00000000-0000-4000-8000-000000000001',email:'countdown-test@bridgepoint.local'}})));
+            await app.goto(origin+'/app/?bpv=1994&countdown='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+            await app.waitForFunction(()=>document.querySelector('#app')?.hidden===false&&getComputedStyle(document.querySelector('#boot')).display==='none',{timeout:7000});
+            await app.waitForFunction(()=>/Free access/.test(document.querySelector('#trialRibbon')?.textContent||''),{timeout:5000});
+            const a=await app.$eval('#trialRibbon',x=>x.textContent);await new Promise(r=>setTimeout(r,1200));const b=await app.$eval('#trialRibbon',x=>x.textContent);
+            assert.notEqual(a,b,'server-anchored countdown did not tick');
+            assert(/6d 23:59:/.test(b),'countdown format is wrong: '+b);
+            console.log('V1994_SERVER_COUNTDOWN_PASS',b);
+          }finally{await browser.close()}})().catch(e=>{console.error(e);process.exit(1)});
+          NODE
