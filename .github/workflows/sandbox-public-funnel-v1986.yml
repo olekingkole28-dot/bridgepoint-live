@@ -48,7 +48,7 @@ jobs:
             echo 'Public funnel contains payment/checkout implementation.' >&2
             exit 1
           fi
-          if grep -Eqi 'actions/deploy-pages|vercel deploy|firebase deploy|supabase functions deploy' .github/workflows/sandbox-public-funnel-v1986.yml; then
+          if grep -Eq '^[[:space:]]*- uses:[[:space:]]*actions/deploy-pages|^[[:space:]]*- uses:[[:space:]]*amondnet/vercel-action|^[[:space:]]*run:[[:space:]].*(vercel deploy|firebase deploy|supabase functions deploy)' .github/workflows/sandbox-public-funnel-v1986.yml; then
             echo 'Sandbox guardian must never deploy production.' >&2
             exit 1
           fi
