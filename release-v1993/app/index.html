@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#010204">
+<meta name="description" content="BridgePoint Intelligence nationwide property intelligence workspace.">
+<title>BridgePoint Intelligence</title>
+<link rel="manifest" href="./manifest.json?v=1993">
+<link rel="icon" type="image/png" href="./favicon.png">
+<link rel="apple-touch-icon" href="./icons/Icon-192.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css">
+<link rel="stylesheet" href="./universe-v1993.css?v=1993">
+</head>
+<body>
+<canvas id="cosmos" aria-hidden="true"></canvas>
+<div id="boot" class="boot"><div class="boot-ring"></div><b>Opening BridgePoint</b><span>One account · one live property universe</span></div>
+<div id="app" class="app" hidden>
+<header class="topbar">
+  <button class="brand" data-nav="home" aria-label="BridgePoint Home"><img src="./assets/assets/brand/bridgepoint-mark-v80.svg" alt=""><span><b>BRIDGEPOINT</b><small>INTELLIGENCE</small></span></button>
+  <div class="top-live"><i></i><span>U.S. LIVE</span></div>
+  <button id="accountBtn" class="avatar" aria-label="Account">BP</button>
+</header>
+
+<main class="stage">
+<section class="surface active" data-surface="home">
+  <div class="home-hero glass">
+    <span class="eyebrow">NATIONWIDE PROPERTY + CLAIMS INTELLIGENCE</span>
+    <h1>Every U.S. property.<br><em>One live intelligence universe.</em></h1>
+    <p>Search a real address, fly the live map, switch between geography and aerial imagery, inspect parcel boundaries and buildings, open a property twin, and layer weather and opportunity evidence without leaving BridgePoint.</p>
+    <div class="hero-actions"><button class="primary" data-nav="map">Open live map</button><button class="secondary" data-nav="properties">Search a property</button></div>
+  </div>
+
+  <div class="counter-grid">
+    <article class="counter-card glass"><span>CANONICAL PROPERTIES</span><strong id="homeParcels">—</strong><small>live canonical foundation</small></article>
+    <article class="counter-card glass"><span>ADDRESS RECORDS CONNECTED</span><strong id="homeAddresses">—</strong><small>live national address foundation</small></article>
+    <article class="counter-card glass"><span>U.S. JURISDICTIONS</span><strong id="homeJurisdictions">—</strong><small>50 states + D.C. represented</small></article>
+    <article class="counter-card glass"><span>QUALIFIED OPPORTUNITIES</span><strong id="homeOpps">—</strong><small>strict opportunity layer</small></article>
+  </div>
+
+  <div class="home-grid">
+    <article class="glass mission-card"><span class="eyebrow">PROPERTY HEARTBEAT</span><h2>Map → parcel → building → evidence.</h2><p>The map is now the navigation layer. At neighborhood zoom it loads BridgePoint properties and parcel geometry. Select a property to open its 3D site, exterior imagery, aerial history, signals and timeline.</p><div class="feature-row"><span>Street geography</span><span>Satellite / aerial</span><span>Parcel lines</span><span>3D buildings</span><span>Weather radar</span><span>Storm signals</span><span>Property Twin</span></div></article>
+    <article class="glass pulse-card"><span class="eyebrow">LIVE SYSTEM PULSE</span><div class="pulse-list"><div><span>Signals</span><b id="homeSignals">—</b></div><div><span>Patterns</span><b id="homePatterns">—</b></div><div><span>Scored properties</span><b id="homeScored">—</b></div><div><span>Registered sources</span><b id="homeSources">—</b></div></div></article>
+  </div>
+</section>
+
+<section class="surface" data-surface="map">
+  <div class="surface-head"><div><span class="eyebrow">LIVE U.S. INTELLIGENCE MAP</span><h2>Zoom from the country into the property.</h2></div></div>
+  <div class="map-toolbar glass">
+    <form id="mapSearchForm" class="map-search"><input id="mapSearch" placeholder="Address, parcel, owner, municipality" autocomplete="off"><button>Search</button></form>
+    <div class="basemap-switch"><button class="active" data-base="street">Map</button><button data-base="satellite">Satellite</button></div>
+    <div class="layer-scroll">
+      <button class="layer active" data-layer="parcels">Parcel lines</button>
+      <button class="layer active" data-layer="properties">Properties</button>
+      <button class="layer active" data-layer="buildings">3D buildings</button>
+      <button class="layer active" data-layer="signals">Storm + signals</button>
+      <button class="layer" data-layer="radar">Live radar</button>
+    </div>
+  </div>
+  <div class="map-shell glass">
+    <div id="liveMap"></div>
+    <div id="mapStatus" class="map-status">Drag to move · pinch to zoom · tap a property</div>
+    <button id="locateMe" class="map-fab locate" aria-label="My location">⌖</button>
+    <button id="resetMap" class="map-fab reset" aria-label="Reset map">U.S.</button>
+  </div>
+  <div id="mapResults" class="map-results"></div>
+  <div id="twinDock" class="twin-dock glass" hidden></div>
+</section>
+
+<section class="surface" data-surface="properties">
+  <div class="surface-head"><div><span class="eyebrow">NATIONAL PROPERTY SEARCH</span><h2>Find the canonical property.</h2></div></div>
+  <form id="propertySearchForm" class="big-search glass"><input id="propertySearch" placeholder="Search address, parcel, owner or municipality" autocomplete="off"><button>Search U.S.</button></form>
+  <div class="properties-layout"><div id="propertyResults" class="result-grid"></div><aside id="propertyPreview" class="glass property-preview"><div class="empty-state"><span>⌖</span><h3>Select a property</h3><p>The canonical identity, jurisdiction and available intelligence will appear here.</p></div></aside></div>
+</section>
+
+<section class="surface" data-surface="work">
+  <div class="surface-head"><div><span class="eyebrow">WORK</span><h2>Turn intelligence into action.</h2></div><button id="refreshWork" class="secondary">Refresh</button></div>
+  <div class="work-kpis"><article class="glass"><span>Qualified opportunities</span><strong id="workOppCount">—</strong></article><article class="glass"><span>Saved work</span><strong id="savedCount">—</strong></article><article class="glass"><span>Signals</span><strong id="workSignals">—</strong></article></div>
+  <div class="work-layout"><div><h3>Latest opportunities</h3><div id="opportunityList" class="work-list"></div></div><aside><h3>Saved opportunities</h3><div id="savedList" class="work-list"></div></aside></div>
+</section>
+
+<section class="surface" data-surface="plans">
+  <div class="surface-head"><div><span class="eyebrow">PLANS + ACCESS</span><h2>Plans that are actually in BridgePoint.</h2></div></div>
+  <div id="trialCard" class="trial-card glass"><div class="trial-ring"><b id="trialDays">7D</b></div><div><span class="eyebrow">YOUR ACCESS WINDOW</span><h3 id="trialText">Checking server-backed access…</h3><p>The countdown comes from BridgePoint, not your phone clock.</p></div></div>
+  <div class="plan-filter"><button class="active" data-plan-filter="core">Core plans</button><button data-plan-filter="enterprise">Enterprise + technology</button></div>
+  <div id="planGrid" class="plan-grid"><article class="glass plan-card"><h3>Loading plans…</h3></article></div>
+</section>
+
+<section class="surface" data-surface="more">
+  <div class="surface-head"><div><span class="eyebrow">MORE</span><h2>Your BridgePoint control center.</h2></div></div>
+  <div class="more-grid">
+    <article class="glass more-card account-card"><span class="eyebrow">ACCOUNT</span><h3 id="accountEmail">Signed in</h3><div class="button-row"><button id="signOutBtn" class="secondary">Sign out</button><button id="forceUpdateBtn" class="secondary">Check update</button></div></article>
+    <article class="glass more-card"><span class="eyebrow">SAVED + FIELD WORK</span><h3>Saved opportunities, routes and follow-up</h3><p>Jump back into the work you are actively tracking.</p><div class="button-row"><button class="secondary" data-nav="work">Saved work</button><button class="secondary" id="openRoutes">Routes</button></div></article>
+    <article class="glass more-card"><span class="eyebrow">WEATHER + WATCH</span><h3>Live weather intelligence</h3><p>Open the live map with radar and storm/signal layers ready.</p><button class="secondary" id="openWeatherMap">Weather map</button></article>
+    <article class="glass more-card"><span class="eyebrow">REPORTS + EVIDENCE</span><h3>Property evidence and source trust</h3><p>Review provenance, source health and customer-safe evidence surfaces.</p><div class="button-row"><a class="secondary link-btn" href="/enterprise/trust/">Source trust</a><a class="secondary link-btn" href="/sample/">Sample report</a></div></article>
+    <article class="glass more-card"><span class="eyebrow">TEAM</span><h3>Company workspace</h3><p>Shared opportunities, notes, routes and team visibility are controlled by the active package.</p><button class="secondary" id="teamWorkspace">Team access</button></article>
+    <article class="glass more-card"><span class="eyebrow">FEEDBACK</span><h3>Tell BridgePoint what needs fixing</h3><p>Use the feedback surface without leaving your session.</p><button class="secondary" id="feedbackBtn">Send feedback</button></article>
+    <article class="glass more-card owner-only" hidden><span class="eyebrow">OWNER</span><h3>Owner command center</h3><p>System health, acquisition, completion, AI, backups and global expansion.</p><div class="owner-links"><a href="/owner/">Command</a><a href="/owner/acquisition/">Acquisition</a><a href="/owner/completion/">Completion</a><a href="/owner/ai/">AI</a><a href="/owner/backup/">Backup</a><a href="/owner/global/">Global</a></div></article>
+    <article class="glass more-card"><span class="eyebrow">LEGAL + DATA USE</span><h3>Trust rules stay attached</h3><p>Your required legal acceptance is recorded before account creation. Material field, boundary, engineering and insurance decisions still require authoritative verification.</p><a href="/terms/" class="secondary link-btn">Legal + terms</a></article>
+    <article class="glass more-card"><span class="eyebrow">ENTERPRISE + API</span><h3>Controlled partner access</h3><p>Licensing, enterprise access and API partnerships remain approval-based.</p><a href="/enterprise.html" class="secondary link-btn">Enterprise access</a></article>
+  </div>
+  <div id="moreDrawer" class="more-drawer glass" hidden></div>
+</section>
+</main>
+
+<nav class="bottom-nav" aria-label="BridgePoint navigation"><button class="active" data-nav="home"><span>⌂</span><b>Home</b></button><button data-nav="map"><span>◇</span><b>Map</b></button><button data-nav="properties"><span>⌖</span><b>Properties</b></button><button data-nav="work"><span>ϟ</span><b>Work</b></button><button data-nav="plans"><span>▣</span><b>Plans</b></button><button data-nav="more"><span>•••</span><b>More</b></button></nav>
+<div id="toast" class="toast"></div>
+</div>
+<script type="module" src="./universe-v1993.js?v=1993"></script>
+</body>
+</html>
