@@ -52,10 +52,11 @@ jobs:
             try{
               const p=await browser.newPage();
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.goto(`https://bridgepointintelligence.online/app/manifest.json?origin=${Date.now()}`,{waitUntil:'domcontentloaded',timeout:30000});
               await p.setContent('<!doctype html><html><body><div class="map-shell"><canvas id="mapCanvas" width="390" height="700" style="width:390px;height:700px"></canvas></div><aside id="mapDrawer" hidden></aside></body></html>');
               await p.evaluate(()=>{
                 localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'test-token'}));
-                const EMPTY={type:'FeatureCollection',features:[]},sources=new Map(),layers=new Map(),events={};
+                const sources=new Map(),layers=new Map(),events={};
                 const canvas=document.getElementById('mapCanvas');
                 sources.set('bp2162-openmaptiles',{id:'bp2162-openmaptiles'});
                 layers.set('labels',{id:'labels',layout:{visibility:'visible'}});
@@ -64,21 +65,19 @@ jobs:
                 const building={type:'Feature',geometry:{type:'Polygon',coordinates:[[[-72.651,41.559],[-72.649,41.559],[-72.649,41.561],[-72.651,41.561],[-72.651,41.559]]]},properties:{height:12,property_id:'p-1'}};
                 const map={
                   getLayer:id=>layers.get(id)||null,
-                  addLayer:(l)=>layers.set(l.id,{...l,layout:{...(l.layout||{}),visibility:l.layout?.visibility||'visible'}}),
+                  addLayer:l=>layers.set(l.id,{...l,layout:{...(l.layout||{}),visibility:l.layout?.visibility||'visible'}}),
                   getSource:id=>sources.get(id)||null,
                   addSource:(id,s)=>sources.set(id,{...s,setData:d=>{sources.get(id).data=d}}),
                   setLayoutProperty:(id,k,v)=>{const l=layers.get(id)||{id,layout:{}};l.layout=l.layout||{};l.layout[k]=v;layers.set(id,l)},
                   getLayoutProperty:(id,k)=>layers.get(id)?.layout?.[k],
                   on:(n,fn)=>{(events[n]||(events[n]=[])).push(fn)},
-                  queryRenderedFeatures:()=>[building],
-                  getCanvas:()=>canvas,
+                  queryRenderedFeatures:()=>[building],getCanvas:()=>canvas,
                   getZoom:()=>17,getCenter:()=>({lng:-72.65,lat:41.56}),getBearing:()=>0,getPitch:()=>60,
                   setFadeDuration:()=>{},setMaxParallelImageRequests:()=>{},triggerRepaint:()=>{},
                   fitBounds:(b,o)=>window.__fit={b,o},flyTo:o=>window.__fly=o
                 };
-                window.__mock={sources,layers,events,building};
-                window.__bp97MapState={ready:true,map,measureMode:false};
-                window.fetch=async(url,opts)=>({ok:true,status:200,json:async()=>({
+                window.__mock={sources,layers,events,building};window.__bp97MapState={ready:true,map,measureMode:false};
+                window.fetch=async()=>({ok:true,status:200,json:async()=>({
                   property:{property_id:'p-1',full_address:'123 BridgePoint Way',municipality:'Middletown',county:'Middlesex',state_code:'CT',parcel_number:'ABC-123',parcel_area_m2:930,parcel_perimeter_m:125,year_built:2004,assessed_total_value:315000,parcel_geometry:{type:'Polygon',coordinates:[[[-72.652,41.558],[-72.648,41.558],[-72.648,41.562],[-72.652,41.562],[-72.652,41.558]]]}},
                   building:{geometry:building.geometry,height_m:12,floors:2,footprint_area_m2:180,footprint_perimeter_m:58,roof_shape:'gable',roof_material:'asphalt'},
                   opportunity:{opportunity_id:'o-1',title:'Roof opportunity',score:82,priority:'HIGH',reason:'Source-backed signals',recommended_action:'Review evidence'}
@@ -92,11 +91,8 @@ jobs:
               const out=await p.evaluate(async()=>{
                 const S=BridgePointBuildingExperienceV2212.getState(),src=window.__mock.sources.get('bp2212-selected-site'),drawer=document.getElementById('mapDrawer');
                 const before=window.__mock.layers.get('bp2212-building-sheen')?.layout?.visibility;
-                window.__mock.events.movestart?.forEach(fn=>fn());
-                const moving=window.__mock.layers.get('bp2212-building-sheen')?.layout?.visibility;
-                window.__mock.events.moveend?.forEach(fn=>fn());
-                await new Promise(r=>setTimeout(r,300));
-                const restored=window.__mock.layers.get('bp2212-building-sheen')?.layout?.visibility;
+                window.__mock.events.movestart?.forEach(fn=>fn());const moving=window.__mock.layers.get('bp2212-building-sheen')?.layout?.visibility;
+                window.__mock.events.moveend?.forEach(fn=>fn());await new Promise(r=>setTimeout(r,300));const restored=window.__mock.layers.get('bp2212-building-sheen')?.layout?.visibility;
                 document.getElementById('bp2212Open360').click();
                 return{S,count:src?.data?.features?.length||0,text:drawer.textContent,moving,restored,before,opened:window.__opened,hasDetail:!!window.__mock.layers.get('bp2212-building-sheen'),hasHighlight:!!window.__mock.layers.get('bp2212-selected-building')};
               });
