@@ -1,0 +1,122 @@
+name: Deploy BridgePoint V2200 Globe Atmosphere
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'release-v2200/atmosphere-v2200.js'
+      - '.github/workflows/deploy-globe-atmosphere-v2200.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build V2200 atmosphere on current live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          git show origin/main:release-v2200/atmosphere-v2200.js > app/atmosphere-v2200.js
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('app/index.html')
+          s=p.read_text()
+          s=re.sub(r'\s*<script[^>]+src=["\']\./atmosphere-v2200\.js[^"\']*["\'][^>]*></script>','',s,flags=re.I)
+          tag='<script defer src="./atmosphere-v2200.js?v=2200"></script>'
+          anchor='<script defer src="./map-v1997-weather-hotfix.js?v=2090"></script>'
+          if anchor in s:
+              s=s.replace(anchor,anchor+'\n'+tag)
+          else:
+              s=s.replace('</body>',tag+'\n</body>')
+          p.write_text(s)
+          PY
+          node --check app/atmosphere-v2200.js
+          grep -Fq 'BridgePointAtmosphereV2200' app/atmosphere-v2200.js
+          grep -Fq "setProjection({type:'globe'})" app/atmosphere-v2200.js
+          grep -Fq "map.setSky" app/atmosphere-v2200.js
+          grep -Fq 'visibilityMiles' app/atmosphere-v2200.js
+          grep -Fq 'cloudCoveragePct' app/atmosphere-v2200.js
+          grep -Fq 'bridgepoint:draw-distance' app/atmosphere-v2200.js
+          grep -Fq 'atmosphere-v2200.js?v=2200' app/index.html
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/index.html app/atmosphere-v2200.js
+          if ! git diff --cached --quiet; then
+            git commit -m 'Release V2200 globe fog sky cloud atmosphere'
+            git push origin HEAD:live-artifact
+          fi
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: github-pages-v2200
+          path: site
+      - name: Deploy V2200
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-v2200
+
+      - name: Verify live V2200 files
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for attempt in $(seq 1 36); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?surface=map&bpv=2200&verify=${salt}" -o /tmp/app.html || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/atmosphere-v2200.js?verify=${salt}" -o /tmp/a.js || true
+            if grep -Fq 'atmosphere-v2200.js?v=2200' /tmp/app.html \
+              && grep -Fq 'BridgePointAtmosphereV2200' /tmp/a.js \
+              && grep -Fq "setProjection({type:'globe'})" /tmp/a.js \
+              && grep -Fq 'cloudCoveragePct' /tmp/a.js; then ok=1; break; fi
+            sleep 5
+          done
+          test "$ok" = 1
+          echo V2200_LIVE_FILES_PASS
+
+      - name: Verify phone globe atmosphere runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const origin='https://bridgepointintelligence.online';
+          (async()=>{const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=swiftshader']});try{
+            const p=await browser.newPage();await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});await p.setRequestInterception(true);
+            p.on('request',req=>{const u=req.url();if(u.includes('supabase.co/auth/v1/user'))return req.respond({status:200,contentType:'application/json',body:JSON.stringify({id:'00000000-0000-4000-8000-000000000001',email:'v2200@bridgepoint.local'})});if(u.includes('supabase.co/rest/v1/rpc/')){const name=u.split('/rpc/')[1].split('?')[0];let body={complete:true};if(name==='bridgepoint_legal_state_v82')body={complete:true,required_acceptance_missing:false,missing_count:0,documents:[]};if(name==='bridgepoint_trial_access_v1055')body={complete:true,owner_override:true,subscriptions:[]};if(name==='bridgepoint_public_system_pulse_v1992')body={total_parcels:158000000,total_addresses:134000000,total_source_records:222000000,active_opportunities:12000,signals:50000,detected_patterns:10000,scored_properties:100000,registered_sources:778,states_present:51};if(name==='bridgepoint_live_map_boundary_scene_v1997')body={complete:true,exact_count:0,estimated_count:0,exact_geojson:{type:'FeatureCollection',features:[]},estimated_geojson:{type:'FeatureCollection',features:[]}};if(name==='bridgepoint_3d_world_viewport_v1997')body={complete:true,buildings:[]};if(name==='bridgepoint_live_map_weather_scene_v1997')body={complete:true,events:[]};if(name==='bridgepoint_flutter_property_map_viewport_v1035')body=[];if(name==='bridgepoint_flutter_intelligence_map_national_v1037')body={opportunities:[]};return req.respond({status:200,contentType:'application/json',body:JSON.stringify(body)})}req.continue()});
+            await p.goto(origin+'/?seed='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});await p.evaluate(()=>localStorage.setItem('sb-xdfsjztwgsbmabshzsjw-auth-token',JSON.stringify({access_token:'fake-v2200-token',refresh_token:'fake-v2200-refresh',expires_at:Math.floor(Date.now()/1000)+3600,user:{id:'00000000-0000-4000-8000-000000000001',email:'v2200@bridgepoint.local'}})));
+            await p.goto(origin+'/app/?surface=map&bpv=2200&mock='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});await p.waitForFunction(()=>document.querySelector('#app')?.hidden===false,{timeout:8000});await p.waitForFunction(()=>window.__bp97MapState?.ready===true,{timeout:18000});await p.waitForFunction(()=>window.BridgePointAtmosphereV2200?.version===2200,{timeout:12000});
+            const out=await p.evaluate(()=>{window.BridgePointAtmosphereV2200.setWeather({visibilityMiles:.6,cloudCoveragePct:92,stormActive:true,stormIntensity:.9,cloudAltitudeM:1800});const a=window.BridgePointAtmosphereV2200.getState(),m=window.__bp97MapState.map;return{a,projection:m.getProjection().type,cloud:!!document.querySelector('#bp2200CloudDeck')}});assert.equal(out.projection,'globe');assert(out.cloud);assert(out.a.visibilityMiles<1);assert(out.a.effectiveDrawDistanceMiles<2);assert(out.a.stormIntensity>.8);console.log('V2200_PHONE_ATMOSPHERE_PASS',out);
+          }finally{await browser.close()}})().catch(e=>{console.error(e);process.exit(1)});
+          NODE
