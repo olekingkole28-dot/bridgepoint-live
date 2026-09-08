@@ -17,6 +17,7 @@ function loadAll(){
   loadScript('./map-v2060-immersive-world.js?v=2060','__bridgepointImmersiveWorldV2060');
   loadScript('./map-v2070-weather-earth.js?v=2070','__bridgepointWeatherEarthV2070');
   loadScript('./map-v2080-cinematic-weather.js?v=2080','__bridgepointCinematicWeatherV2080');
+  loadScript('./map-v2081-gpu-weather-runtime.js?v=2081','__bridgepointGpuWeatherRuntimeV2081');
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{install();loadAll()},{once:true});else{install();loadAll()}
 })();
