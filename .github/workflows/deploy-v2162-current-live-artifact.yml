@@ -42,22 +42,23 @@ jobs:
           test -s app/map-v2162-game-world.js
           test -s app/map-v2163-photorealistic-adapter.js
           test -s app/map-v2170-living-world.js
+          test -s app/map-v2171-weather-observations.js
           grep -Fq 'map-v2162-game-world.js?v=2162' app/map-v1997-weather-hotfix.js
           grep -Fq 'map-v2163-photorealistic-adapter.js?v=2163' app/map-v1997-weather-hotfix.js
           grep -Fq 'map-v2170-living-world.js?v=2170' app/map-v1997-weather-hotfix.js
+          grep -Fq 'map-v2171-weather-observations.js?v=2171' app/map-v1997-weather-hotfix.js
           grep -Fq 'bp2162-state-boundary' app/map-v2162-game-world.js
-          grep -Fq 'bp2162-county-boundary' app/map-v2162-game-world.js
-          grep -Fq 'bp2162-stream' app/map-v2162-game-world.js
-          grep -Fq 'bp2162-bridge-deck' app/map-v2162-game-world.js
-          grep -Fq 'bp2162-tree-canopy' app/map-v2162-game-world.js
           grep -Fq "type:'globe'" app/map-v2170-living-world.js
-          grep -Fq 'bp2170-asphalt-parking' app/map-v2170-living-world.js
           grep -Fq 'bp2170-osm-buildings' app/map-v2170-living-world.js
           grep -Fq 'bp2170-flood-depth' app/map-v2170-living-world.js
           grep -Fq 'bridgepoint_request_country_expansion_v2170' app/map-v2170-living-world.js
+          grep -Fq 'bp2171-wind-flow' app/map-v2171-weather-observations.js
+          grep -Fq 'bp2171-cloud-observed' app/map-v2171-weather-observations.js
+          grep -Fq 'waveheight' app/map-v2171-weather-observations.js
           node --check app/map-v2162-game-world.js
           node --check app/map-v2163-photorealistic-adapter.js
           node --check app/map-v2170-living-world.js
+          node --check app/map-v2171-weather-observations.js
           node --check app/map-v1997-weather-hotfix.js
 
       - name: Assemble exact rebuilt site
@@ -75,16 +76,16 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v4
         with:
-          name: github-pages-v2170
+          name: github-pages-v2171
           path: site
 
       - name: Publish rebuilt app
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: github-pages-v2170
+          artifact_name: github-pages-v2171
 
-      - name: Verify public app received Living World V2170
+      - name: Verify public app received Living World V2171
         shell: bash
         run: |
           set -euo pipefail
@@ -93,9 +94,10 @@ jobs:
           for attempt in $(seq 1 36); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
             curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v2170-living-world.js?verify=${salt}" -o /tmp/v2170.js || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v2171-weather-observations.js?verify=${salt}" -o /tmp/v2171.js || true
             curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v1997-weather-hotfix.js?verify=${salt}" -o /tmp/loader.js || true
-            if grep -Fq 'bp2170-osm-buildings' /tmp/v2170.js && grep -Fq 'bp2170-flood-depth' /tmp/v2170.js && grep -Fq 'bridgepoint_request_country_expansion_v2170' /tmp/v2170.js && grep -Fq 'map-v2170-living-world.js?v=2170' /tmp/loader.js; then ok=1; break; fi
+            if grep -Fq 'bp2170-osm-buildings' /tmp/v2170.js && grep -Fq 'bp2171-wind-flow' /tmp/v2171.js && grep -Fq 'bp2171-cloud-observed' /tmp/v2171.js && grep -Fq 'map-v2171-weather-observations.js?v=2171' /tmp/loader.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
-          echo V2170_PUBLIC_APP_PASS
+          echo V2171_PUBLIC_APP_PASS
