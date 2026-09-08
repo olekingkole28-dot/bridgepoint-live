@@ -1,0 +1,93 @@
+name: Verify BridgePoint V2221 Building Geometry LOD
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-building-geometry-v2221.yml'
+      - 'release-v2221/building-geometry-lod-v2221.js'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify V2221 is public
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online/app'; ok=0
+          for attempt in $(seq 1 24); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 25 -H 'Cache-Control: no-cache' "$origin/building-geometry-lod-v2221.js?v=2221&verify=$salt" -o /tmp/v2221.js || true
+            if node --check /tmp/v2221.js \
+              && grep -Fq 'TILED_LOD_PLUS_EXACT_VISIBLE_OVERLAY' /tmp/v2221.js \
+              && grep -Fq 'roofCaps:true' /tmp/v2221.js \
+              && grep -Fq 'parcelBoundaryLines:true' /tmp/v2221.js \
+              && grep -Fq 'secondaryWebGL:false' /tmp/v2221.js; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
+          echo V2221_PUBLIC_FILE_PASS
+
+      - name: Render buildings roofs and outlines at Android viewport
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const O='https://bridgepointintelligence.online/app';
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader','--disable-gpu-sandbox']});
+            try{
+              const p=await browser.newPage();
+              await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; SM-S731U) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.setContent('<!doctype html><html><head><style>html,body,#map{margin:0;width:100%;height:100%;background:#071019}</style></head><body><section data-surface="map" class="active"><div id="map"></div></section></body></html>');
+              await p.addScriptTag({url:`${O}/vendor/maplibre-gl-v1995.js?v=1995`});
+              await p.waitForFunction(()=>!!window.maplibregl?.Map,{timeout:12000});
+              await p.evaluate(()=>{
+                const exact={type:'FeatureCollection',features:[{type:'Feature',properties:{building_id:'proof-1',render_height_m:42,roof_shape:'gabled',roof_material:'metal'},geometry:{type:'Polygon',coordinates:[[[-73.9860,40.7482],[-73.9857,40.7482],[-73.9857,40.74845],[-73.9860,40.74845],[-73.9860,40.7482]]]}}]};
+                const parcel={type:'FeatureCollection',features:[{type:'Feature',properties:{id:'parcel-proof'},geometry:{type:'Polygon',coordinates:[[[-73.9861,40.7481],[-73.98555,40.7481],[-73.98555,40.74855],[-73.9861,40.74855],[-73.9861,40.7481]]]}}]};
+                window.__testMap=new maplibregl.Map({container:'map',style:{version:8,sources:{street:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256},'bp97-buildings':{type:'geojson',data:exact},'bp97-exact':{type:'geojson',data:parcel},'bp97-est':{type:'geojson',data:{type:'FeatureCollection',features:[]}}},layers:[{id:'street',type:'raster',source:'street'},{id:'bp97-building',type:'fill-extrusion',source:'bp97-buildings',minzoom:12,paint:{'fill-extrusion-color':'#ff2fa8','fill-extrusion-height':['get','render_height_m'],'fill-extrusion-base':0,'fill-extrusion-opacity':.9}}]},center:[-73.9857,40.7484],zoom:15,pitch:40,bearing:-15,maxZoom:21,minZoom:2.5,antialias:true,fadeDuration:0});
+              });
+              await p.waitForFunction(()=>window.__testMap?.loaded?.(),{timeout:20000});
+              await p.evaluate(()=>{window.__bp97MapState={ready:true,map:window.__testMap,localTried:true,layers:{radar:false,buildings:true,boundaries:true}}});
+              await p.addScriptTag({url:`${O}/mobile-visual-world-v2220.js?v=2220&proof=${Date.now()}`});
+              await p.waitForFunction(()=>window.__bpMobileVisualWorldV2220?.version===2220,{timeout:15000});
+              await p.addScriptTag({url:`${O}/building-geometry-lod-v2221.js?v=2221&proof=${Date.now()}`});
+              await p.waitForFunction(()=>window.__bpBuildingGeometryLOD2221?.version===2221,{timeout:15000});
+              await p.waitForFunction(()=>window.__testMap.isSourceLoaded('bp2220-ofm-direct'),{timeout:30000});
+              await new Promise(r=>setTimeout(r,1700));
+              const out=await p.evaluate(()=>{
+                const m=window.__testMap;
+                const bodies=m.queryRenderedFeatures({layers:['bp2221-building-body']}).length;
+                const roofs=m.queryRenderedFeatures({layers:['bp2221-building-roof']}).length;
+                const outlines=m.queryRenderedFeatures({layers:['bp2221-building-outline']}).length;
+                const exactRoofs=m.queryRenderedFeatures({layers:['bp2221-exact-roof']}).length;
+                const parcels=m.queryRenderedFeatures({layers:['bp2221-parcel-line']}).length;
+                const exactColor=m.getPaintProperty('bp97-building','fill-extrusion-color');
+                return {bodies,roofs,outlines,exactRoofs,parcels,exactColor,canvases:document.querySelectorAll('canvas').length,state:window.__bpBuildingGeometryLOD2221.getState(),api:window.__bpBuildingGeometryLOD2221};
+              });
+              assert(out.bodies>400,`expected broad 3D building field, got ${out.bodies}`);
+              assert(out.roofs>100,`expected roof caps, got ${out.roofs}`);
+              assert(out.outlines>100,`expected building outlines, got ${out.outlines}`);
+              assert(out.exactRoofs>0,`expected exact BridgePoint roof overlay, got ${out.exactRoofs}`);
+              assert(out.parcels>0,`expected exact parcel boundary line, got ${out.parcels}`);
+              assert.equal(out.exactColor,'#ff2fa8','V2221 must not overwrite BridgePoint building intelligence color');
+              assert.equal(out.canvases,1,'V2221 must not create a second GPU canvas');
+              assert.equal(out.api.secondaryWebGL,false);assert.equal(out.api.continuousAnimation,false);
+              console.log('BRIDGEPOINT_V2221_ANDROID_BUILDING_PASS',JSON.stringify({bodies:out.bodies,roofs:out.roofs,outlines:out.outlines,exactRoofs:out.exactRoofs,parcels:out.parcels,tier:out.state.tier,canvases:out.canvases}));
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
