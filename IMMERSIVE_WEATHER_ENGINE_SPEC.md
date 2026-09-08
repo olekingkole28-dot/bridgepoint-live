@@ -1,48 +1,57 @@
-# BridgePoint Immersive Weather Engine — Execution Spec
+# BridgePoint Immersive Weather Engine — Production Direction
 
-## Core rendering rule
-The map is a living geospatial world. Weather is not represented as nationwide dots, badges, or opaque heatmaps. At broad zoom levels, render only source-backed footprints, tracks, cones, radar fields, wind fields, and subtle atmospheric context. High-fidelity physical weather effects are instantiated only inside the camera frustum and only after the camera crosses the event-specific zoom threshold.
+## North-star experience
+BridgePoint's map should feel like a living Earth simulation, not a dashboard covered in weather markers. The map remains readable at every zoom. Weather becomes physically present only where the source says the event exists, and the visual fidelity rises as the camera approaches it.
+
+## Non-negotiable visual rules
+- No nationwide carpet of weather dots.
+- At macro zoom, use thin source-backed boundaries, translucent interior shading, tracks/cones/fields and restrained atmospheric motion.
+- At regional zoom, add motion vectors, streamlines, storm-cell direction, wind fields and animated source geometry without hiding roads, labels, parcels or buildings.
+- At close zoom, instantiate localized cinematic 3D effects only inside source-supported event geometry.
+- At ground/near-building zoom, weather may interact visually with 3D terrain/buildings, but never imply damage unless separate evidence proves damage.
+- Weather effects must be clipped to the best available source geometry, camera-frustum culled, LOD controlled and GPU-budgeted.
 
 ## Truth model
-Every renderable event carries separate observed geometry, modeled/forecast geometry, measurement metadata, uncertainty, source timestamp, and render permission. Never upgrade a warning, forecast cone, probabilistic storm object, satellite lightning detection, or flood model into an observed physical fact. Exact-looking effects must stay inside the best source-supported geometry. Flood depth is shown only where a compatible elevation/inundation/depth source supports it. EF rating is never treated as live tornado intensity unless an authoritative observed/post-event source actually provides it.
+Every event carries distinct observed/current geometry, modeled/forecast geometry, source time, uncertainty and render permission. Never convert a warning, forecast polygon, probabilistic storm object, satellite lightning detection or flood model into observed physical truth.
+
+Important corrections to common weather-engine prompts:
+- A live tornado warning does not provide a live EF rating. Do not morph a tornado using EF unless an authoritative observed/post-event source actually provides it.
+- A DEM plus a river gauge does not by itself produce precise building-level flood depth. Render exact/quantified water depth only when a compatible inundation/depth/hydraulic product supports it.
+- NOAA GLM is satellite total-lightning detection, not an exact ground-strike network.
 
 ## Multi-scale LOD
-1. Continental/state view: no weather dots. Show thin luminous boundaries and low-opacity interior shading for source-backed hazard footprints. Hurricanes may show broad cloud/vortex context, eye/center, track and cone if source-backed. Radar remains translucent.
-2. Regional/county view: add motion vectors, storm-cell motion, wind streamlines, wildfire plume direction, hurricane inflow bands, flood extent surface, and event-specific motion paths. Keep geometry visible beneath the effect.
-3. City/property/street view: instantiate high-fidelity local effects only inside visible event geometry. Rain/hail/snow particles, lightning flashes, volumetric tornado funnel, smoke/fire, wind-borne particles and water surfaces scale with measured/source-backed values.
-4. Ground/near-building view: use building/terrain interaction only when geometry and elevation data exist. Effects must not create a false claim of property damage.
+### Continental/state
+Render only lightweight context: subtle hazard polygons, radar/precipitation fields, hurricane cloud/vortex context, current center/eye, track/cone and large-scale wind/precipitation fields when source-backed. No event markers unless required as a temporary fallback for data QA.
+
+### Regional/county
+Add storm-cell motion, wind streamlines, hurricane inflow/rain bands, wildfire plume direction, flood extent surface and source-supported projected paths. Keep all effects semi-transparent enough to preserve the underlying world.
+
+### City/property/street
+Instantiate high-fidelity particles/volumes inside visible event geometry: rain, hail, snow, lightning flashes, volumetric tornado funnel, wildfire smoke/fire/embers, wind-borne particles and water surfaces. Intensity comes from normalized source measurements where available.
+
+### Ground/near-building
+Enable building/terrain interaction only where 3D geometry and elevation exist. Rain/hail impact, water surface contact, smoke occlusion and wind interaction are visual simulations, not proof of physical damage.
 
 ## Weather asset protocols
-- Tornado: source footprint/path + motion vector; volumetric funnel only for observed/current tornado evidence. Forecast or warning polygons remain contextual boundaries and direction/path graphics. No fake live EF morphing.
-- Hurricane/tropical cyclone: source-backed center/eye, radius fields, track/cone, translation vector, spiral/inflow rendering. Keep current observed storm geometry distinct from forecast cone.
-- Wildfire: perimeter-constrained flame/smoke/ember system. Effects are clipped to mapped incident perimeter and visible only when zoomed close enough. Smoke direction may use source wind context when available.
-- Rain: radar-derived precipitation volume/particles clipped to radar/source field. Rate controls density/velocity where available.
-- Hail: radar/observed report geometry controls eligibility. Hail particles appear only after close zoom; MESH/probability values modulate visual intensity without being relabeled as ground truth.
-- Wind: vector field/streamline visualization with arrowless flow lines at regional zoom and local particles/foliage/building interaction only where data supports it.
-- Flood: source-backed inundation boundary with low-opacity water shading at macro zoom; displaced/rippled water surface at close zoom. Water height requires a compatible depth grid/gauge+hydraulic relation and must not be invented from DEM alone.
-- Lightning: satellite/radar lightning detections render flashes inside supported detection footprint; never as an exact ground strike unless the source actually is a ground-strike network.
-- Snow/ice: precipitation/surface effects tied to source-supported area and recency.
-- Power outage: utility/source-backed affected area or service territory shading; local emissive/flicker effects only where outage state is actually known.
+- Tornado: observed/current tornado evidence can instantiate a volumetric funnel tied to source position/path/motion. Warning/forecast geometry remains a contextual boundary/path, not proof of a tornado throughout the polygon.
+- Hurricane/tropical cyclone: source-backed current center/eye, wind radii, translation vector, track/cone and spiral/inflow rendering. Keep current observed storm state distinct from forecast cone.
+- Wildfire: perimeter-constrained flame/smoke/ember rendering; physical effects stay inside mapped current perimeter. Smoke drift may use source-backed wind context.
+- Rain: radar/source precipitation volume clipped to the precipitation field. Rain rate controls density/velocity when available.
+- Hail: observed/radar storm-object geometry gates the effect. MESH/probability can control visual size/intensity bands but never gets relabeled as ground truth at every point.
+- Wind: regional streamline/vector field first; local particles/foliage/building interaction only where data supports it.
+- Flood: low-opacity source-backed inundation footprint at macro/regional zoom; local water surface/displacement at close zoom. Z-height requires a valid depth/inundation product.
+- Lightning: render flashes inside the supported satellite/radar detection footprint. Exact ground-strike placement requires an actual strike-location source.
+- Snow/ice: effect density and surface state follow source-supported area, type and recency.
+- Power outage: source-backed affected area/service territory shading; local emissive/flicker effects only where outage state is actually known.
 
-## Rendering stack
-Use progressive enhancement:
-- WebGPU when available for compute/particle simulation and volumetric effects.
-- WebGL2 fallback for compatible shaders/instancing.
-- CPU/canvas fallback for thin geometry and minimal motion only.
-- Quadtree/tile-based world partitioning, camera-frustum culling, distance-based LOD, effect budgets, pooled GPU buffers, instancing, and temporal interpolation.
+## Rendering architecture
+Progressively enhance from WebGPU -> WebGL2 -> CPU/canvas fallback. Use quadtree/tile world partitioning, camera-frustum culling, distance-based LOD, pooled GPU buffers, instancing, adaptive particle budgets and temporal interpolation. Never allocate nationwide cinematic particles.
 
-## Performance budgets
-- Never allocate nationwide high-fidelity particles.
-- Maintain active effect tiles only for visible/near-visible cells.
-- Use strict per-frame GPU budgets, adaptive particle counts, pooled buffers and offscreen suspension.
-- Prefer source geometry simplification at low zoom and full geometry only near the camera.
-- Preserve map legibility: atmospheric effects must not obscure parcel/building geometry or labels.
+## Building/terrain requirements
+Continue nationwide source-backed 3D building coverage. Store each enrichment independently with provenance and null when unknown: footprint/geometry, height, minimum height, floors/levels, address count, roof shape, roof height, roof pitch/slope, roof direction/aspect, roof material, building class/use and source timestamp. Never infer an exact roof material/age/pitch only from a generic footprint. Terrain/elevation should remain source-backed (for example 3DEP where lawful/available).
 
-## Building/terrain integration
-BridgePoint's building coverage lane should continue toward nationwide source-backed 3D geometry. Required enrichment fields are stored independently with provenance and null when unknown: height, minimum height, floors/levels, address count, roof shape, roof height, roof pitch/slope, roof direction/aspect, roof material, building class/use, and source timestamp. Do not infer exact roof material/age/pitch solely from a generic footprint. Terrain/elevation should use source-backed DEM/3DEP or equivalent legal sources.
+## Environmental data translator
+Normalize provider-specific data into render parameters without changing semantics: wind speed/direction -> flow vector; rain rate -> particle density; hail MESH -> particle size/intensity band; flood depth -> water-surface Z only when valid; wildfire perimeter -> clipping mask; hurricane radii -> vortex/rain-band bounds. The renderer consumes the normalized scene contract, not raw provider payloads.
 
-## Data translator
-Normalize raw weather values into render parameters without changing semantics. Examples: wind speed/direction -> flow vector; rain rate -> particle density; hail MESH -> particle size/intensity band; flood depth -> water-surface Z only when a depth source is valid; wildfire perimeter -> clipping mask; hurricane radius -> vortex/rain-band radius. The renderer reads the normalized scene contract, not raw provider-specific payloads.
-
-## Product requirement
-The experience should feel like entering a high-end Earth/weather simulation, but every visible effect remains subordinate to source truth, provenance, uncertainty, and camera-level detail rules.
+## Performance target
+The visual goal is a high-end playable Earth/weather simulation, but every effect remains subordinate to source truth, provenance, uncertainty, camera distance and frame-time budgets.
