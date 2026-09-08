@@ -57,25 +57,21 @@ jobs:
                   v=m.group(1) if m else '2200'
                   files.append((int(v),f.name,v))
 
-          # Remove old copies of every managed V22xx script before reinserting them in order.
           for _,name,_ in files:
               s=re.sub(r'\s*<script[^>]+src=["\']\./'+re.escape(name)+r'[^"\']*["\'][^>]*></script>','',s,flags=re.I)
 
-          # V2190 is permanently superseded.
           s=re.sub(r'\s*<script[^>]+src=["\'][^"\']*map-v2190-world-effects\.js[^"\']*["\'][^>]*></script>','',s,flags=re.I)
           legacy=app/'map-v2190-world-effects.js'
           if legacy.exists(): legacy.unlink()
 
-          # Force a new fetch of the mobile bootstrap/hotfix itself.
-          s=re.sub(r'(\./map-v1997-weather-hotfix\.js\?v=)[0-9]+',r'\g<1>2219',s)
+          s=re.sub(r'(\./map-v1997-weather-hotfix\.js\?v=)[0-9]+',r'\g<1>2220',s)
 
-          # Replace any older cache-reset guard with the V2219 authority reset.
           s=re.sub(r'\s*<script id=["\']bp22[0-9]+-cache-reset["\'][^>]*>.*?</script>','',s,flags=re.I|re.S)
-          guard='''<script id="bp2219-cache-reset">(()=>{try{window.__bpAuthoritativeWorldRuntime=2219;if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.filter(r=>{try{return new URL(r.scope).pathname.startsWith("/app/")}catch(_){return true}}).map(r=>r.unregister()))).catch(()=>{})}if("caches" in window){caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).catch(()=>{})}}catch(_){}})();</script>'''
+          guard='''<script id="bp2220-cache-reset">(()=>{try{window.__bpAuthoritativeWorldRuntime=2220;if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.filter(r=>{try{return new URL(r.scope).pathname.startsWith("/app/")}catch(_){return true}}).map(r=>r.unregister()))).catch(()=>{})}if("caches" in window){caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).catch(()=>{})}}catch(_){}})();</script>'''
           s=s.replace('</head>',guard+'\n</head>')
 
           tags='\n'.join(f'<script defer src="./{name}?v={v}"></script>' for _,name,v in sorted(files))
-          anchor='<script defer src="./map-v1997-weather-hotfix.js?v=2219"></script>'
+          anchor='<script defer src="./map-v1997-weather-hotfix.js?v=2220"></script>'
           if anchor in s:
               pos=s.index(anchor)+len(anchor)
               s=s[:pos]+'\n'+tags+s[pos:]
@@ -83,31 +79,32 @@ jobs:
               s=s.replace('</body>',anchor+'\n'+tags+'\n</body>')
           idx.write_text(s)
 
-          # One-shot service worker purge for old installed/PWA shells.
-          (app/'flutter_service_worker.js').write_text('''const BP_CACHE_RESET=2219;\nself.addEventListener("install",()=>self.skipWaiting());\nself.addEventListener("activate",e=>{e.waitUntil((async()=>{try{for(const k of await caches.keys())await caches.delete(k)}catch(_){}try{await self.registration.unregister()}catch(_){}try{await self.clients.claim()}catch(_){}try{const cs=await self.clients.matchAll({type:"window",includeUncontrolled:true});for(const c of cs){const u=new URL(c.url);if(u.pathname.startsWith("/app/")){u.searchParams.set("bp-runtime","2219");c.navigate(u.href)}}}catch(_){}})())});\nself.addEventListener("fetch",()=>{});\n''')
+          (app/'flutter_service_worker.js').write_text('''const BP_CACHE_RESET=2220;\nself.addEventListener("install",()=>self.skipWaiting());\nself.addEventListener("activate",e=>{e.waitUntil((async()=>{try{for(const k of await caches.keys())await caches.delete(k)}catch(_){}try{await self.registration.unregister()}catch(_){}try{await self.clients.claim()}catch(_){}try{const cs=await self.clients.matchAll({type:"window",includeUncontrolled:true});for(const c of cs){const u=new URL(c.url);if(u.pathname.startsWith("/app/")){u.searchParams.set("bp-runtime","2220");c.navigate(u.href)}}}catch(_){}})())});\nself.addEventListener("fetch",()=>{});\n''')
           print('ORDERED_SCRIPTS',*[x[1] for x in sorted(files)])
           PY
 
           for f in app/*-v22*.js; do [ -f "$f" ] && node --check "$f"; done
           node --check app/flutter_service_worker.js
-          grep -Fq 'map-v1997-weather-hotfix.js?v=2219' app/index.html
+          grep -Fq 'map-v1997-weather-hotfix.js?v=2220' app/index.html
           grep -Fq 'mobile-map-authority-v2219.js?v=2219' app/index.html
-          grep -Fq 'bp2219-cache-reset' app/index.html
-          grep -Fq 'production:true' app/mobile-map-authority-v2219.js
-          grep -Fq 'satelliteBoot:false' app/mobile-map-authority-v2219.js
+          grep -Fq 'mobile-visual-world-v2220.js?v=2220' app/index.html
+          grep -Fq 'bp2220-cache-reset' app/index.html
           grep -Fq 'autoLocate:false' app/mobile-map-authority-v2219.js
           grep -Fq 'animatedWater:false' app/mobile-map-authority-v2219.js
-          grep -Fq 'whiteHorizon:false' app/mobile-map-authority-v2219.js
-          grep -Fq 'contextBuildingsMinZoom:9.9' app/mobile-map-authority-v2219.js
+          grep -Fq 'DIRECT_VECTOR_PHONE_WORLD' app/mobile-visual-world-v2220.js
+          grep -Fq 'planet/latest/{z}/{x}/{y}.pbf' app/mobile-visual-world-v2220.js
+          grep -Fq 'tileJsonBypassed:true' app/mobile-visual-world-v2220.js
+          grep -Fq 'buildings3d:true' app/mobile-visual-world-v2220.js
+          grep -Fq 'heavyGpu:false' app/mobile-visual-world-v2220.js
           ! grep -Fq 'map-v2190-world-effects.js' app/index.html
           test ! -f app/map-v2190-world-effects.js
-          grep -Fq 'BP_CACHE_RESET=2219' app/flutter_service_worker.js
+          grep -Fq 'BP_CACHE_RESET=2220' app/flutter_service_worker.js
 
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add -A app/ release-v22*/
           if ! git diff --cached --quiet; then
-            git commit -m 'Publish V2219 authoritative mobile map runtime'
+            git commit -m 'Publish V2220 mobile visual world'
             git push origin HEAD:live-artifact
           fi
 
@@ -130,7 +127,7 @@ jobs:
         with:
           artifact_name: github-pages-globe-world
 
-      - name: Verify V2219 on custom production domain
+      - name: Verify V2220 on custom production domain
         shell: bash
         run: |
           set -euo pipefail
@@ -138,21 +135,24 @@ jobs:
           ok=0
           for attempt in $(seq 1 36); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/?bp-runtime=2219&verify=${salt}" -o /tmp/app.html || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/mobile-map-authority-v2219.js?v=2219&verify=${salt}" -o /tmp/mobile.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/map-v1997-weather-hotfix.js?v=2219&verify=${salt}" -o /tmp/hotfix.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/?bp-runtime=2220&verify=${salt}" -o /tmp/app.html || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/mobile-map-authority-v2219.js?v=2219&verify=${salt}" -o /tmp/authority.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/mobile-visual-world-v2220.js?v=2220&verify=${salt}" -o /tmp/world.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/map-v1997-weather-hotfix.js?v=2220&verify=${salt}" -o /tmp/hotfix.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/flutter_service_worker.js?verify=${salt}" -o /tmp/sw.js || true
-            if grep -Fq 'map-v1997-weather-hotfix.js?v=2219' /tmp/app.html \
+            if grep -Fq 'map-v1997-weather-hotfix.js?v=2220' /tmp/app.html \
               && grep -Fq 'mobile-map-authority-v2219.js?v=2219' /tmp/app.html \
-              && grep -Fq 'bp2219-cache-reset' /tmp/app.html \
-              && grep -Fq 'production:true' /tmp/mobile.js \
-              && grep -Fq 'satelliteBoot:false' /tmp/mobile.js \
-              && grep -Fq 'autoLocate:false' /tmp/mobile.js \
-              && grep -Fq 'animatedWater:false' /tmp/mobile.js \
-              && grep -Fq 'whiteHorizon:false' /tmp/mobile.js \
-              && grep -Fq 'contextBuildingsMinZoom:9.9' /tmp/mobile.js \
+              && grep -Fq 'mobile-visual-world-v2220.js?v=2220' /tmp/app.html \
+              && grep -Fq 'bp2220-cache-reset' /tmp/app.html \
+              && grep -Fq 'autoLocate:false' /tmp/authority.js \
+              && grep -Fq 'animatedWater:false' /tmp/authority.js \
+              && grep -Fq 'DIRECT_VECTOR_PHONE_WORLD' /tmp/world.js \
+              && grep -Fq 'planet/latest/{z}/{x}/{y}.pbf' /tmp/world.js \
+              && grep -Fq 'tileJsonBypassed:true' /tmp/world.js \
+              && grep -Fq 'buildings3d:true' /tmp/world.js \
+              && grep -Fq 'heavyGpu:false' /tmp/world.js \
               && grep -Fq 'V2218' /tmp/hotfix.js \
-              && grep -Fq 'BP_CACHE_RESET=2219' /tmp/sw.js \
+              && grep -Fq 'BP_CACHE_RESET=2220' /tmp/sw.js \
               && ! grep -Fq 'map-v2190-world-effects.js' /tmp/app.html; then
               ok=1
               break
@@ -162,4 +162,4 @@ jobs:
           test "$ok" = 1
           code=$(curl -sS -o /tmp/legacy.js -w '%{http_code}' -H 'Cache-Control: no-cache' "${origin}/app/map-v2190-world-effects.js?verify=${GITHUB_SHA}")
           test "$code" = '404'
-          echo BRIDGEPOINT_V2219_CUSTOM_DOMAIN_LIVE_PASS
+          echo BRIDGEPOINT_V2220_CUSTOM_DOMAIN_LIVE_PASS
