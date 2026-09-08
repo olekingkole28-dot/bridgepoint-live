@@ -1,0 +1,92 @@
+name: Deploy BridgePoint Globe World Upgrades
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'release-v22**/*.js'
+      - '.github/workflows/deploy-globe-world-upgrades.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Build ordered globe runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          git checkout origin/main -- 'release-v2200' 'release-v2201' 2>/dev/null || true
+          for d in $(git ls-tree -d --name-only origin/main | grep -E '^release-v22[0-9][0-9]$' | sort -V); do
+            git checkout origin/main -- "$d"
+          done
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, shutil
+          app=Path('app'); idx=app/'index.html'; s=idx.read_text()
+          files=[]
+          for d in sorted(Path('.').glob('release-v22[0-9][0-9]'), key=lambda p:int(p.name.split('-v')[1])):
+              for f in sorted(d.glob('*.js')):
+                  dest=app/f.name
+                  shutil.copy2(f,dest)
+                  m=re.search(r'-v(\d+)\.js$',f.name)
+                  v=m.group(1) if m else '2200'
+                  files.append((int(v),f.name,v))
+          for _,name,_ in files:
+              s=re.sub(r'\s*<script[^>]+src=["\']\./'+re.escape(name)+r'[^"\']*["\'][^>]*></script>','',s,flags=re.I)
+          tags='\n'.join(f'<script defer src="./{name}?v={v}"></script>' for _,name,v in sorted(files))
+          anchor='<script defer src="./map-v1997-weather-hotfix.js?v=2090"></script>'
+          if anchor in s:
+              pos=s.index(anchor)+len(anchor)
+              s=s[:pos]+'\n'+tags+s[pos:]
+          else:
+              s=s.replace('</body>',tags+'\n</body>')
+          idx.write_text(s)
+          print('ORDERED_SCRIPTS',*[x[1] for x in sorted(files)])
+          PY
+          for f in app/*-v22*.js; do [ -f "$f" ] && node --check "$f"; done
+          grep -Fq 'atmosphere-v2200.js?v=2200' app/index.html
+          grep -Fq 'precipitation-v2201.js?v=2201' app/index.html
+          if [ -f app/extreme-storms-v2202.js ]; then grep -Fq 'extreme-storms-v2202.js?v=2202' app/index.html; fi
+          git config user.name 'BridgePoint Release Bot'; git config user.email 'actions@users.noreply.github.com'
+          git add app/ release-v22*/
+          if ! git diff --cached --quiet; then git commit -m 'Publish ordered globe world upgrades'; git push origin HEAD:live-artifact; fi
+          rm -rf site && mkdir site; git archive --format=tar HEAD | tar -xf - -C site; touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {name: github-pages-globe-world, path: site}
+      - name: Deploy globe world upgrades
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with: {artifact_name: github-pages-globe-world}
+      - name: Verify published upgrade files
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'; ok=0
+          for attempt in $(seq 1 36); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?globe-upgrade=1&verify=${salt}" -o /tmp/app.html || true
+            if grep -Fq 'atmosphere-v2200.js?v=2200' /tmp/app.html && grep -Fq 'precipitation-v2201.js?v=2201' /tmp/app.html; then ok=1; break; fi
+            sleep 5
+          done
+          test "$ok" = 1
+          echo GLOBE_WORLD_UPGRADES_LIVE_PASS
