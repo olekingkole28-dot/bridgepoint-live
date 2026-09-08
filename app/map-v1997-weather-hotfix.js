@@ -21,6 +21,7 @@ function loadAll(){
   loadScript('./map-v2090-opportunity-icons.js?v=2090','__bridgepointOpportunityIconsV2090');
   loadScript('./map-v2144-visibility-upgrade.js?v=2144','__bridgepointMapVisibilityV2144');
   loadScript('./map-v2162-game-world.js?v=2162','__bridgepointGameWorldV2162');
+  loadScript('./map-v2163-photorealistic-adapter.js?v=2163','__bridgepointPhotorealisticAdapterV2163');
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{install();loadAll()},{once:true});else{install();loadAll()}
 })();
