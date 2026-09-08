@@ -1,0 +1,21 @@
+(()=>{
+'use strict';
+if(window.__bridgepointSurfaceWeatherV2204)return;window.__bridgepointSurfaceWeatherV2204=true;
+const VERSION=2204,EMPTY={type:'FeatureCollection',features:[]},clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+let map=null,floodHeightFt=0,iceActive=false,manualFlood=null,backups=new Map();
+function live(){return window.BridgePointWorldEffects?.getState?.()?.data||{alerts:[],water_levels:[]}}
+function isFlood(a){const p=a?.properties||{},t=String(p.event||p.prod_type||p.headline||'').toLowerCase();return /flood|storm surge/.test(t)||p.phenom==='FF'}
+function isIce(a){const p=a?.properties||{},t=String(p.event||p.prod_type||p.headline||'').toLowerCase();return /freezing|ice storm|winter storm|snow/.test(t)}
+function install(){if(!map.getSource('bp2204-flood'))map.addSource('bp2204-flood',{type:'geojson',data:EMPTY});if(!map.getLayer('bp2204-flood-volume'))map.addLayer({id:'bp2204-flood-volume',type:'fill-extrusion',source:'bp2204-flood',paint:{'fill-extrusion-color':'#2f9fe9','fill-extrusion-base':0,'fill-extrusion-height':['get','height_m'],'fill-extrusion-opacity':.32,'fill-extrusion-vertical-gradient':true}},map.getLayer('labels')?'labels':undefined);if(!map.getLayer('bp2204-flood-surface'))map.addLayer({id:'bp2204-flood-surface',type:'fill',source:'bp2204-flood',paint:{'fill-color':'#64c9ff','fill-opacity':.2}},map.getLayer('labels')?'labels':undefined)}
+function gaugeFeet(){if(Number.isFinite(manualFlood))return manualFlood;const w=live().water_levels||[];let best=0;for(const x of w){const ft=Number(x.water_level_ft??(Number.isFinite(+x.water_level_m)?+x.water_level_m*3.28084:NaN));if(Number.isFinite(ft))best=Math.max(best,ft)}return best}
+function floodGeo(){const h=clamp(gaugeFeet(),0,80);floodHeightFt=h;const features=[];for(const a of live().alerts||[]){if(!isFlood(a)||!a.geometry)continue;features.push({type:'Feature',geometry:a.geometry,properties:{height_m:h*.3048,height_ft:h}})}return{type:'FeatureCollection',features}}
+function remember(id,prop){const k=id+'|'+prop;if(backups.has(k)||!map.getLayer(id))return;try{backups.set(k,map.getPaintProperty(id,prop))}catch(_){}}
+function setIce(on){iceActive=!!on;const roads=['bp2162-road-asphalt','bp2162-road-casing','bp2162-road-center'],roofs=['bp2060-roof','bp97-building','bp2174-context-buildings'];for(const id of roads){if(!map.getLayer(id))continue;remember(id,'line-color');remember(id,'line-blur');try{map.setPaintProperty(id,'line-color',on?'#d9f6ff':backups.get(id+'|line-color'));map.setPaintProperty(id,'line-blur',on?1.2:(backups.get(id+'|line-blur')??0))}catch(_){}}for(const id of roofs){if(!map.getLayer(id))continue;remember(id,'fill-extrusion-color');remember(id,'fill-extrusion-opacity');try{map.setPaintProperty(id,'fill-extrusion-color',on?'#d8f1fb':backups.get(id+'|fill-extrusion-color'));map.setPaintProperty(id,'fill-extrusion-opacity',on?.94:(backups.get(id+'|fill-extrusion-opacity')??.9))}catch(_){}}document.body.classList.toggle('bp2204-ice',on)}
+function refresh(){map.getSource('bp2204-flood')?.setData(floodGeo());const ice=(live().alerts||[]).some(isIce)||window.BridgePointPrecipitationV2201?.getState?.().type==='snow';if(ice!==iceActive)setIce(ice);return getState()}
+function setFloodHeightFeet(v){manualFlood=Number.isFinite(+v)?clamp(+v,0,80):null;refresh();return getState()}
+function getState(){return{version:VERSION,floodHeightFt,iceActive,manualFlood}}
+function init(){const s=window.__bp97MapState;map=s?.map;if(!s?.ready||!map){setTimeout(init,180);return}install();refresh();setInterval(refresh,5000);map.on('styledata',()=>{install();refresh()});console.info('BridgePoint Surface Weather V2204 ready')}
+window.BridgePointSurfaceWeatherV2204={version:VERSION,setFloodHeightFeet,setIceActive:setIce,refresh,getState};
+addEventListener('bridgepoint:flood-height',e=>setFloodHeightFeet(e.detail?.feet??e.detail));addEventListener('bridgepoint:ice',e=>setIce(!!(e.detail?.active??e.detail)));
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
