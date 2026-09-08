@@ -47,6 +47,13 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
+          # Repair two minification typos caught by Node syntax QA before publishing.
+          world=Path('app/map-v2060-immersive-world.js')
+          y=world.read_text()
+          y=y.replace("cap=rh>0?rh:(hasRoof?.38:0)","cap=rh>0?rh:(hasRoof?0.38:0)")
+          y=y.replace("V.last.boundaries=(V.exact.features?.length||0)}}}updateStatus()}catch","V.last.boundaries=(V.exact.features?.length||0)}}updateStatus();}catch")
+          world.write_text(y)
+
           p=Path('app/index.html')
           s=p.read_text()
           s=re.sub(r'\s*<script[^>]+src=["\']\./map-v1997-weather-hotfix\.js[^"\']*["\'][^>]*></script>','',s,flags=re.I)
@@ -56,7 +63,6 @@ jobs:
           sw=Path('app/flutter_service_worker.js')
           x=sw.read_text()
           x=re.sub(r"const CACHE='bridgepoint-universe-v\d+';","const CACHE='bridgepoint-universe-v2060';",x)
-          # Remove older duplicate versioned entries before adding the current set.
           x=re.sub(r",?'\./map-v1997-weather-hotfix\.js\?v=\d+'",'',x)
           x=re.sub(r",?'\./map-v2045-physical-world\.js\?v=\d+'",'',x)
           x=re.sub(r",?'\./map-v2060-immersive-world\.js\?v=\d+'",'',x)
