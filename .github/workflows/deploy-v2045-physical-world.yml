@@ -1,4 +1,4 @@
-name: Deploy V2045 Physical World onto V1997 Map
+name: Deploy V2060 Immersive World onto V1997 Map
 
 on:
   workflow_dispatch:
@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'release-v1997/map-v2045-physical-world.js'
+      - 'release-v1997/map-v2060-immersive-world.js'
       - 'release-v1997/map-v1997-weather-hotfix.js'
       - '.github/workflows/deploy-v2045-physical-world.yml'
 
@@ -30,7 +31,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Layer V2045 onto the existing V1997/V2002 live artifact
+      - name: Layer V2060 onto existing V1997 live artifact
         shell: bash
         run: |
           set -euo pipefail
@@ -41,6 +42,7 @@ jobs:
           test -s app/v1998-live-extras.js
           test -s app/owner-physical-world-v2020.js
           git show origin/main:release-v1997/map-v2045-physical-world.js > app/map-v2045-physical-world.js
+          git show origin/main:release-v1997/map-v2060-immersive-world.js > app/map-v2060-immersive-world.js
           git show origin/main:release-v1997/map-v1997-weather-hotfix.js > app/map-v1997-weather-hotfix.js
           python3 - <<'PY'
           from pathlib import Path
@@ -48,41 +50,51 @@ jobs:
           p=Path('app/index.html')
           s=p.read_text()
           s=re.sub(r'\s*<script[^>]+src=["\']\./map-v1997-weather-hotfix\.js[^"\']*["\'][^>]*></script>','',s,flags=re.I)
-          s=s.replace('</body>','<script defer src="./map-v1997-weather-hotfix.js?v=2045"></script>\n</body>')
+          s=s.replace('</body>','<script defer src="./map-v1997-weather-hotfix.js?v=2060"></script>\n</body>')
           p.write_text(s)
 
           sw=Path('app/flutter_service_worker.js')
           x=sw.read_text()
-          x=x.replace("const CACHE='bridgepoint-universe-v1997';","const CACHE='bridgepoint-universe-v2045';")
-          if "./map-v2045-physical-world.js?v=2045" not in x:
-              x=x.replace("'./map-v1997.js?v=1997',","'./map-v1997.js?v=1997','./map-v1997-weather-hotfix.js?v=2045','./map-v2045-physical-world.js?v=2045',")
+          x=re.sub(r"const CACHE='bridgepoint-universe-v\d+';","const CACHE='bridgepoint-universe-v2060';",x)
+          # Remove older duplicate versioned entries before adding the current set.
+          x=re.sub(r",?'\./map-v1997-weather-hotfix\.js\?v=\d+'",'',x)
+          x=re.sub(r",?'\./map-v2045-physical-world\.js\?v=\d+'",'',x)
+          x=re.sub(r",?'\./map-v2060-immersive-world\.js\?v=\d+'",'',x)
+          x=x.replace("'./map-v1997.js?v=1997',","'./map-v1997.js?v=1997','./map-v1997-weather-hotfix.js?v=2060','./map-v2045-physical-world.js?v=2055','./map-v2060-immersive-world.js?v=2060',")
           sw.write_text(x)
           PY
           node --check app/map-v1997.js
           node --check app/map-v1997-weather-hotfix.js
           node --check app/map-v2045-physical-world.js
+          node --check app/map-v2060-immersive-world.js
           node --check app/map-v2002-property-click.js
           node --check app/flutter_service_worker.js
           grep -Fq 'bridgepoint_3d_world_viewport_v1997' app/map-v1997.js
           grep -Fq 'bridgepoint_live_map_weather_scene_v1997' app/map-v1997.js
           grep -Fq 'map-v2002-property-click.js?v=2002' app/map-v1997-weather-hotfix.js
-          grep -Fq 'map-v2045-physical-world.js?v=2045' app/map-v1997-weather-hotfix.js
-          grep -Fq '__bridgepointPhysicalWorldV2045' app/map-v2045-physical-world.js
-          grep -Fq 'Grid outages' app/map-v2045-physical-world.js
-          grep -Fq 'Lightning' app/map-v2045-physical-world.js
-          grep -Fq 'Flood extent' app/map-v2045-physical-world.js
-          grep -Fq 'map-v1997-weather-hotfix.js?v=2045' app/index.html
-          grep -Fq "bridgepoint-universe-v2045" app/flutter_service_worker.js
+          grep -Fq 'map-v2045-physical-world.js?v=2055' app/map-v1997-weather-hotfix.js
+          grep -Fq 'map-v2060-immersive-world.js?v=2060' app/map-v1997-weather-hotfix.js
+          grep -Fq '__bridgepointImmersiveWorldV2060' app/map-v2060-immersive-world.js
+          grep -Fq 'bridgepoint_3d_world_viewport_v1997' app/map-v2060-immersive-world.js
+          grep -Fq 'bridgepoint_live_map_boundary_scene_v1997' app/map-v2060-immersive-world.js
+          grep -Fq 'drawHurricane' app/map-v2060-immersive-world.js
+          grep -Fq 'drawTornado' app/map-v2060-immersive-world.js
+          grep -Fq 'drawHail' app/map-v2060-immersive-world.js
+          grep -Fq 'drawRain' app/map-v2060-immersive-world.js
+          grep -Fq 'drawFire' app/map-v2060-immersive-world.js
+          grep -Fq 'map-v1997-weather-hotfix.js?v=2060' app/index.html
+          grep -Fq "bridgepoint-universe-v2060" app/flutter_service_worker.js
+          grep -Fq "map-v2060-immersive-world.js?v=2060" app/flutter_service_worker.js
 
-      - name: Persist upgraded live-artifact
+      - name: Persist upgraded live artifact
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
-          git add app/index.html app/flutter_service_worker.js app/map-v1997-weather-hotfix.js app/map-v2045-physical-world.js
+          git add app/index.html app/flutter_service_worker.js app/map-v1997-weather-hotfix.js app/map-v2045-physical-world.js app/map-v2060-immersive-world.js
           if ! git diff --cached --quiet; then
-            git commit -m 'Publish V2045 physical-world effects on V1997 immersive map'
+            git commit -m 'Publish V2060 immersive world on V1997 map'
             git push origin HEAD:live-artifact
           fi
           rm -rf site && mkdir site
@@ -94,15 +106,15 @@ jobs:
           enablement: true
       - uses: actions/upload-pages-artifact@v4
         with:
-          name: github-pages-v2045
+          name: github-pages-v2060
           path: site
-      - name: Deploy V1997 + V2045 current map
+      - name: Deploy V1997 + V2060 current map
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: github-pages-v2045
+          artifact_name: github-pages-v2060
 
-      - name: Verify production is serving the V1997 core plus V2045 physical-world layer
+      - name: Verify production V2060 immersive world
         shell: bash
         run: |
           set -euo pipefail
@@ -110,21 +122,22 @@ jobs:
           ok=0
           for attempt in $(seq 1 36); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "$origin/app/?bpv=2045&verify=$salt" -o /tmp/app.html || true
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "$origin/app/map-v1997.js?verify=$salt" -o /tmp/map97.js || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "$origin/app/?bpv=2060&verify=$salt" -o /tmp/app.html || true
             curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "$origin/app/map-v1997-weather-hotfix.js?verify=$salt" -o /tmp/hotfix.js || true
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "$origin/app/map-v2045-physical-world.js?verify=$salt" -o /tmp/physical.js || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "$origin/app/map-v2060-immersive-world.js?verify=$salt" -o /tmp/world.js || true
             curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "$origin/app/flutter_service_worker.js?verify=$salt" -o /tmp/sw.js || true
-            if grep -Fq 'map-v1997-weather-hotfix.js?v=2045' /tmp/app.html \
-              && grep -Fq 'bridgepoint_3d_world_viewport_v1997' /tmp/map97.js \
-              && grep -Fq 'map-v2002-property-click.js?v=2002' /tmp/hotfix.js \
-              && grep -Fq 'map-v2045-physical-world.js?v=2045' /tmp/hotfix.js \
-              && grep -Fq '__bridgepointPhysicalWorldV2045' /tmp/physical.js \
-              && grep -Fq 'Grid outages' /tmp/physical.js \
-              && grep -Fq 'Flood extent' /tmp/physical.js \
-              && grep -Fq 'bridgepoint-universe-v2045' /tmp/sw.js; then
+            if grep -Fq 'map-v1997-weather-hotfix.js?v=2060' /tmp/app.html \
+              && grep -Fq 'map-v2060-immersive-world.js?v=2060' /tmp/hotfix.js \
+              && grep -Fq '__bridgepointImmersiveWorldV2060' /tmp/world.js \
+              && grep -Fq 'bridgepoint_3d_world_viewport_v1997' /tmp/world.js \
+              && grep -Fq 'drawHurricane' /tmp/world.js \
+              && grep -Fq 'drawTornado' /tmp/world.js \
+              && grep -Fq 'drawHail' /tmp/world.js \
+              && grep -Fq 'drawRain' /tmp/world.js \
+              && grep -Fq 'drawFire' /tmp/world.js \
+              && grep -Fq 'bridgepoint-universe-v2060' /tmp/sw.js; then
               ok=1
-              echo 'V1997_CORE_PLUS_V2045_PHYSICAL_WORLD_LIVE'
+              echo 'V1997_CORE_PLUS_V2060_IMMERSIVE_WORLD_LIVE'
               break
             fi
             sleep 5
