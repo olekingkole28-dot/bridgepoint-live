@@ -14,7 +14,8 @@ function loadAll(){
   loadScript('/language-v2000.js?v=2000','__bridgepointLanguageV2000');
   loadScript('./map-v2002-property-click.js?v=2002','__bridgepointMapPropertyClickV2002');
   loadScript('./owner-physical-world-v2020.js?v=2020','__bridgepointOwnerPhysicalWorldV2020');
-  loadScript('./map-v2045-physical-world.js?v=2045','__bridgepointPhysicalWorldV2045');
+  loadScript('./map-v2045-physical-world.js?v=2055','__bridgepointPhysicalWorldV2045');
+  loadScript('./map-v2060-immersive-world.js?v=2060','__bridgepointImmersiveWorldV2060');
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{install();loadAll()},{once:true});else{install();loadAll()}
 })();
