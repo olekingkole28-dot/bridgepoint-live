@@ -30,7 +30,7 @@ jobs:
           ref: live-artifact
           fetch-depth: 1
 
-      - name: Verify living-world, structure-lab and Live Earth runtime
+      - name: Verify living-world, structure-lab, Live Earth and World Effects runtimes
         shell: bash
         run: |
           set -euo pipefail
@@ -42,10 +42,12 @@ jobs:
           test -s app/map-v2174-smooth-world.js
           test -s app/map-v2180-structure-lab.js
           test -s app/map-v2185-live-earth.js
+          test -s app/map-v2190-world-effects.js
           test -s app/trial-countdown-v1994.js
           grep -Fq 'map-v2174-smooth-world.js?v=2174' app/map-v1997-weather-hotfix.js
           grep -Fq 'map-v2180-structure-lab.js?v=2180' app/map-v1997-weather-hotfix.js
           grep -Fq 'map-v2185-live-earth.js?v=2185' app/map-v1997-weather-hotfix.js
+          grep -Fq 'map-v2190-world-effects.js?v=2190' app/map-v1997-weather-hotfix.js
           ! grep -Fq 'map-v2170-living-world.js?v=2170' app/map-v1997-weather-hotfix.js
           ! grep -Fq 'map-v2172-performance-world.js?v=2172' app/map-v1997-weather-hotfix.js
           ! grep -Fq 'map-v2081-gpu-weather-runtime.js?v=2081' app/map-v1997-weather-hotfix.js
@@ -60,12 +62,17 @@ jobs:
           grep -Fq 'bridgepoint-live-earth-v2185' app/map-v2185-live-earth.js
           grep -Fq 'Ocean currents' app/map-v2185-live-earth.js
           grep -Fq 'NOAA CO-OPS currents/water levels' app/map-v2185-live-earth.js
+          grep -Fq 'bridgepointWorldEffectsV2190' app/map-v2190-world-effects.js
+          grep -Fq 'bridgepoint-world-effects-v2190' app/map-v2190-world-effects.js
+          grep -Fq 'World Effects · V2190' app/map-v2190-world-effects.js
+          grep -Fq 'BridgePointWorldEffects' app/map-v2190-world-effects.js
           grep -Fq 'Your 7-day intelligence trial has ended' app/trial-countdown-v1994.js
           node --check app/map-v2162-game-world.js
           node --check app/map-v2163-photorealistic-adapter.js
           node --check app/map-v2174-smooth-world.js
           node --check app/map-v2180-structure-lab.js
           node --check app/map-v2185-live-earth.js
+          node --check app/map-v2190-world-effects.js
           node --check app/map-v1997-weather-hotfix.js
           node --check app/trial-countdown-v1994.js
 
@@ -84,16 +91,16 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v4
         with:
-          name: github-pages-v2185
+          name: github-pages-v2190
           path: site
 
       - name: Publish rebuilt app
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: github-pages-v2185
+          artifact_name: github-pages-v2190
 
-      - name: Verify public app received V2185
+      - name: Verify public app received V2190
         shell: bash
         run: |
           set -euo pipefail
@@ -101,11 +108,11 @@ jobs:
           ok=0
           for attempt in $(seq 1 36); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v2185-live-earth.js?verify=${salt}" -o /tmp/v2185.js || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v2190-world-effects.js?verify=${salt}" -o /tmp/v2190.js || true
             curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v1997-weather-hotfix.js?verify=${salt}" -o /tmp/loader.js || true
             curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v2180-structure-lab.js?verify=${salt}" -o /tmp/v2180.js || true
-            if grep -Fq 'bridgepoint-live-earth-v2185' /tmp/v2185.js && grep -Fq 'map-v2185-live-earth.js?v=2185' /tmp/loader.js && grep -Fq 'bridgepoint_structure_study_v2180' /tmp/v2180.js; then ok=1; break; fi
+            if grep -Fq 'bridgepointWorldEffectsV2190' /tmp/v2190.js && grep -Fq 'map-v2190-world-effects.js?v=2190' /tmp/loader.js && grep -Fq 'bridgepoint_structure_study_v2180' /tmp/v2180.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
-          echo V2185_PUBLIC_APP_PASS
+          echo V2190_PUBLIC_APP_PASS
