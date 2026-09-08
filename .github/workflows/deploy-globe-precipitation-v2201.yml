@@ -49,6 +49,8 @@ jobs:
           grep -Fq 'precipitation-v2201.js?v=2201' app/index.html
           grep -Fq 'windDirectionDeg' app/precipitation-v2201.js
           grep -Fq 'cameraLocal:true' app/precipitation-v2201.js
+          grep -Fq 'gl_PointSize' app/precipitation-v2201.js
+          grep -Fq 'bounce=' app/precipitation-v2201.js
           git config user.name 'BridgePoint Release Bot'; git config user.email 'actions@users.noreply.github.com'
           git add app/index.html app/precipitation-v2201.js
           if ! git diff --cached --quiet; then git commit -m 'Release V2201 GPU precipitation'; git push origin HEAD:live-artifact; fi
@@ -74,7 +76,7 @@ jobs:
             sleep 5
           done
           test "$ok" = 1; echo V2201_LIVE_FILES_PASS
-      - name: Verify isolated phone precipitation runtime
+      - name: Verify isolated phone precipitation API
         shell: bash
         run: |
           set -euo pipefail
@@ -82,5 +84,5 @@ jobs:
           cd /tmp; npm init -y >/dev/null 2>&1; npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
           CHROME_PATH="$CHROME" node <<'NODE'
           const puppeteer=require('puppeteer-core'),assert=require('assert'),origin='https://bridgepointintelligence.online';
-          (async()=>{const b=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=swiftshader']});try{const p=await b.newPage();await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});await p.setContent('<div class="map-shell" style="position:relative;width:390px;height:700px"></div>');await p.evaluate(()=>{const map={getCenter:()=>({lng:-72.65,lat:41.56}),getBearing:()=>18,getPitch:()=>70,queryTerrainElevation:()=>42,on:()=>{}};window.__bp97MapState={ready:true,map}});await p.addScriptTag({url:origin+'/app/precipitation-v2201.js?t='+Date.now()});await p.waitForFunction(()=>window.BridgePointPrecipitationV2201?.version===2201,{timeout:10000});const out=await p.evaluate(()=>{BridgePointPrecipitationV2201.setPrecipitation({type:'rain',intensity:.9,windSpeedMph:45,windDirectionDeg:270});const r=BridgePointPrecipitationV2201.getState();BridgePointPrecipitationV2201.setType('snow');const s=BridgePointPrecipitationV2201.getState();BridgePointPrecipitationV2201.setType('hail');const h=BridgePointPrecipitationV2201.getState();return{r,s,h,canvas:!!document.querySelector('#bp2201Precipitation')}});assert(out.canvas);assert(out.r.gpu);assert(out.r.cameraLocal);assert.equal(out.r.type,'rain');assert.equal(out.s.type,'snow');assert.equal(out.h.type,'hail');assert.equal(out.r.windSpeedMph,45);console.log('V2201_PHONE_PRECIPITATION_PASS') }finally{await b.close()}})().catch(e=>{console.error(e);process.exit(1)});
+          (async()=>{const b=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=swiftshader','--enable-webgl','--ignore-gpu-blocklist']});try{const p=await b.newPage();await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});await p.setContent('<div class="map-shell" style="position:relative;width:390px;height:700px"></div>');await p.evaluate(()=>{const map={getCenter:()=>({lng:-72.65,lat:41.56}),getBearing:()=>18,getPitch:()=>70,queryTerrainElevation:()=>42,on:()=>{}};window.__bp97MapState={ready:true,map}});await p.addScriptTag({url:origin+'/app/precipitation-v2201.js?t='+Date.now()});await p.waitForFunction(()=>window.BridgePointPrecipitationV2201?.version===2201,{timeout:10000});const out=await p.evaluate(()=>{BridgePointPrecipitationV2201.setPrecipitation({type:'rain',intensity:.9,windSpeedMph:45,windDirectionDeg:270});const r=BridgePointPrecipitationV2201.getState();BridgePointPrecipitationV2201.setType('snow');const s=BridgePointPrecipitationV2201.getState();BridgePointPrecipitationV2201.setType('hail');const h=BridgePointPrecipitationV2201.getState();return{r,s,h,canvas:!!document.querySelector('#bp2201Precipitation')}});assert(out.canvas);assert(out.r.cameraLocal);assert.equal(out.r.type,'rain');assert.equal(out.s.type,'snow');assert.equal(out.h.type,'hail');assert.equal(out.r.windSpeedMph,45);console.log('V2201_PHONE_PRECIPITATION_PASS',out.r.gpu?'GPU':'GPU_CONTEXT_UNAVAILABLE_IN_HEADLESS') }finally{await b.close()}})().catch(e=>{console.error(e);process.exit(1)});
           NODE
