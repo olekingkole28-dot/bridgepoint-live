@@ -36,7 +36,8 @@ jobs:
               && grep -Fq 'terrainAllowed:true' /tmp/v2219.js \
               && grep -Fq 'cedesRichSceneAuthority:true' /tmp/v2220.js \
               && grep -Fq 'gameCameraClickPitch:64' /tmp/v2221.js \
-              && grep -Fq 'IMAGERY_TERRAIN_GAME_WORLD' /tmp/v2222.js; then ok=1; break; fi
+              && grep -Fq 'IMAGERY_TERRAIN_GAME_WORLD' /tmp/v2222.js \
+              && grep -Fq 'terrainStateful:true' /tmp/v2222.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
@@ -57,6 +58,8 @@ jobs:
             const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader','--disable-gpu-sandbox']});
             try{
               const p=await browser.newPage();
+              const net={sat:0,dem:0,vector:0};
+              p.on('response',r=>{try{const u=r.url(),s=r.status();if(s<200||s>=400)return;if(u.includes('World_Imagery/MapServer/tile/'))net.sat++;if(u.includes('elevation-tiles-prod')&&u.includes('.png'))net.dem++;if(u.includes('tiles.openfreemap.org')&&u.includes('.pbf'))net.vector++}catch(_){}});
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; SM-S731U) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               await p.setContent('<!doctype html><html><head><style>html,body,#map{margin:0;width:100%;height:100%;background:#071019}.map-shell{position:relative;width:100%;height:100%}</style></head><body><section data-surface="map" class="active"><div class="map-shell"><div id="map" style="width:100%;height:100%"></div><div id="mapStatus"></div></div></section></body></html>');
@@ -65,65 +68,46 @@ jobs:
               await p.evaluate(()=>{
                 const exact={type:'FeatureCollection',features:[{type:'Feature',properties:{building_id:'gary-proof-1',render_height_m:18,roof_shape:'gabled',roof_material:'metal'},geometry:{type:'Polygon',coordinates:[[[-87.3470,41.5930],[-87.3467,41.5930],[-87.3467,41.59325],[-87.3470,41.59325],[-87.3470,41.5930]]]}}]};
                 const parcel={type:'FeatureCollection',features:[{type:'Feature',properties:{id:'gary-parcel-proof'},geometry:{type:'Polygon',coordinates:[[[-87.34712,41.5929],[-87.34658,41.5929],[-87.34658,41.59336],[-87.34712,41.59336],[-87.34712,41.5929]]]}}]};
-                window.__testMap=new maplibregl.Map({
-                  container:'map',
-                  style:{version:8,sources:{
-                    sat:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256},
-                    street:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256},
-                    labels:{type:'raster',tiles:['https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'],tileSize:256},
-                    dem:{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],tileSize:256,maxzoom:15,encoding:'terrarium'},
-                    'bp97-buildings':{type:'geojson',data:exact},'bp97-exact':{type:'geojson',data:parcel},'bp97-est':{type:'geojson',data:{type:'FeatureCollection',features:[]}}
-                  },layers:[
-                    {id:'sat',type:'raster',source:'sat'},
-                    {id:'street',type:'raster',source:'street',layout:{visibility:'none'}},
-                    {id:'hillshade',type:'hillshade',source:'dem'},
-                    {id:'labels',type:'raster',source:'labels'},
-                    {id:'bp97-building',type:'fill-extrusion',source:'bp97-buildings',minzoom:12,paint:{'fill-extrusion-color':'#ff2fa8','fill-extrusion-height':['get','render_height_m'],'fill-extrusion-base':0,'fill-extrusion-opacity':.9}}
-                  ]},
-                  center:[-87.3464,41.5934],zoom:15,pitch:62,bearing:-18,maxZoom:21,minZoom:2.5,antialias:true,fadeDuration:0
-                });
+                window.__testMap=new maplibregl.Map({container:'map',style:{version:8,sources:{
+                  sat:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256},
+                  street:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256},
+                  labels:{type:'raster',tiles:['https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'],tileSize:256},
+                  dem:{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],tileSize:256,maxzoom:15,encoding:'terrarium'},
+                  'bp97-buildings':{type:'geojson',data:exact},'bp97-exact':{type:'geojson',data:parcel},'bp97-est':{type:'geojson',data:{type:'FeatureCollection',features:[]}}
+                },layers:[{id:'sat',type:'raster',source:'sat'},{id:'street',type:'raster',source:'street',layout:{visibility:'none'}},{id:'hillshade',type:'hillshade',source:'dem'},{id:'labels',type:'raster',source:'labels'},{id:'bp97-building',type:'fill-extrusion',source:'bp97-buildings',minzoom:12,paint:{'fill-extrusion-color':'#ff2fa8','fill-extrusion-height':['get','render_height_m'],'fill-extrusion-base':0,'fill-extrusion-opacity':.9}}]},center:[-87.3464,41.5934],zoom:15,pitch:62,bearing:-18,maxZoom:21,minZoom:2.5,antialias:true,fadeDuration:0});
               });
               await p.waitForFunction(()=>window.__testMap?.loaded?.(),{timeout:25000});
               await p.evaluate(()=>{window.__bp97MapState={ready:true,map:window.__testMap,localTried:true,terrain:true,layers:{radar:false,buildings:true,boundaries:true}}});
               for(const f of ['mobile-map-authority-v2219.js?v=2219','mobile-visual-world-v2220.js?v=2220','building-geometry-lod-v2221.js?v=2221','visual-fidelity-v2222.js?v=2222'])await p.addScriptTag({url:`${O}/${f}&proof=${Date.now()}-${Math.random()}`});
               await p.waitForFunction(()=>window.__bpVisualFidelityV2222?.version===2222,{timeout:15000});
               await p.waitForFunction(()=>window.__testMap.getSource('bp2220-ofm-direct')&&window.__testMap.getLayer('bp2221-building-body')&&window.__testMap.getLayer('bp2221-building-roof')&&window.__testMap.getLayer('bp2221-parcel-line'),{timeout:15000});
-              await p.waitForFunction(()=>window.__testMap.isSourceLoaded('bp2220-ofm-direct'),{timeout:30000});
-              await p.waitForFunction(()=>window.__testMap.isSourceLoaded('sat'),{timeout:30000});
-              await new Promise(r=>setTimeout(r,1800));
-              const out=await p.evaluate(()=>{
-                const m=window.__testMap;
-                return {
-                  bodies:m.queryRenderedFeatures({layers:['bp2221-building-body']}).length,
-                  roofs:m.queryRenderedFeatures({layers:['bp2221-building-roof']}).length,
-                  outlines:m.queryRenderedFeatures({layers:['bp2221-building-outline']}).length,
-                  exactRoofs:m.queryRenderedFeatures({layers:['bp2221-exact-roof']}).length,
-                  parcels:m.queryRenderedFeatures({layers:['bp2221-parcel-line']}).length,
-                  sat:m.getLayoutProperty('sat','visibility')||'visible',
-                  hillshade:m.getLayoutProperty('hillshade','visibility')||'visible',
-                  projection:m.getProjection?.()?.type||'',
-                  pitch:m.getPitch(),maxPitch:m.getMaxPitch?.(),
-                  terrainState:window.__bpVisualFidelityV2222.getState(),
-                  exactColor:m.getPaintProperty('bp97-building','fill-extrusion-color'),
-                  canvases:document.querySelectorAll('canvas').length,
-                  api:window.__bpVisualFidelityV2222
-                };
-              });
+              const deadline=Date.now()+25000;
+              let out=null;
+              while(Date.now()<deadline){
+                await new Promise(r=>setTimeout(r,900));
+                out=await p.evaluate(()=>{const m=window.__testMap;return {bodies:m.queryRenderedFeatures({layers:['bp2221-building-body']}).length,roofs:m.queryRenderedFeatures({layers:['bp2221-building-roof']}).length,outlines:m.queryRenderedFeatures({layers:['bp2221-building-outline']}).length,exactRoofs:m.queryRenderedFeatures({layers:['bp2221-exact-roof']}).length,parcels:m.queryRenderedFeatures({layers:['bp2221-parcel-line']}).length,sat:m.getLayoutProperty('sat','visibility')||'visible',hillshade:m.getLayoutProperty('hillshade','visibility')||'visible',projection:m.getProjection?.()?.type||'',pitch:m.getPitch(),maxPitch:m.getMaxPitch?.(),terrainState:window.__bpVisualFidelityV2222.getState(),exactColor:m.getPaintProperty('bp97-building','fill-extrusion-color'),canvases:document.querySelectorAll('canvas').length,api:window.__bpVisualFidelityV2222}});
+                if(out.bodies>75&&out.roofs>25&&out.outlines>25&&out.exactRoofs>0&&out.parcels>0&&net.sat>0&&net.vector>0)break;
+              }
+              assert(out, 'expected render state');
               assert(out.bodies>75,`expected broad Gary 3D building field, got ${out.bodies}`);
               assert(out.roofs>25,`expected Gary roof caps, got ${out.roofs}`);
               assert(out.outlines>25,`expected Gary building outlines, got ${out.outlines}`);
               assert(out.exactRoofs>0,`expected exact roof overlay, got ${out.exactRoofs}`);
               assert(out.parcels>0,`expected parcel boundary, got ${out.parcels}`);
+              assert(net.sat>0,`expected successful satellite tile responses, got ${net.sat}`);
+              assert(net.vector>0,`expected successful building vector tile responses, got ${net.vector}`);
+              assert(net.dem>0,`expected successful DEM tile responses, got ${net.dem}`);
               assert.equal(out.sat,'visible','satellite imagery must remain visible');
               assert.equal(out.hillshade,'visible','terrain relief must remain visible');
               assert.equal(out.projection,'globe','scene must retain globe projection');
               assert(out.pitch>=55,`expected game camera pitch, got ${out.pitch}`);
               assert(out.maxPitch>=70,`expected high pitch capability, got ${out.maxPitch}`);
               assert.equal(out.terrainState.terrainOn,true,'terrain must be enabled at city zoom');
+              assert.equal(out.terrainState.terrainSource,'dem','terrain source must remain stable');
               assert.equal(out.exactColor,'#ff2fa8','rich scene must preserve BridgePoint intelligence building colors');
               assert.equal(out.canvases,1,'rich scene must reuse MapLibre WebGL canvas');
-              assert.equal(out.api.secondaryWebGL,false);assert.equal(out.api.continuousAnimation,false);
-              console.log('BRIDGEPOINT_V2222_GARY_ANDROID_PASS',JSON.stringify({bodies:out.bodies,roofs:out.roofs,outlines:out.outlines,exactRoofs:out.exactRoofs,parcels:out.parcels,pitch:out.pitch,maxPitch:out.maxPitch,terrain:out.terrainState.terrainOn,projection:out.projection,canvases:out.canvases,tier:out.terrainState.tier}));
+              assert.equal(out.api.secondaryWebGL,false);assert.equal(out.api.continuousAnimation,false);assert.equal(out.api.terrainStateful,true);
+              console.log('BRIDGEPOINT_V2222_GARY_ANDROID_PASS',JSON.stringify({bodies:out.bodies,roofs:out.roofs,outlines:out.outlines,exactRoofs:out.exactRoofs,parcels:out.parcels,satTiles:net.sat,demTiles:net.dem,vectorTiles:net.vector,pitch:out.pitch,maxPitch:out.maxPitch,terrain:out.terrainState.terrainOn,projection:out.projection,canvases:out.canvases,tier:out.terrainState.tier}));
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
