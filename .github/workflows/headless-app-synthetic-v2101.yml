@@ -1,0 +1,52 @@
+name: BridgePoint Headless App Watcher V2101
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/headless-app-synthetic-v2101.yml'
+      - 'ops/headless_app_synthetic_v2101.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bridgepoint-headless-app-watcher-v2101
+  cancel-in-progress: true
+
+jobs:
+  browser-synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run headless customer-path synthetic
+        env:
+          HEADLESS_TARGETS: https://www.bridgepointintelligence.com/,https://www.bridgepointintelligence.com/app/
+        run: node ops/headless_app_synthetic_v2101.mjs
+
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: headless-app-failure-${{ github.run_id }}
+          path: headless-artifacts/
+          retention-days: 7
+          if-no-files-found: ignore
