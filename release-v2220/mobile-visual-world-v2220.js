@@ -11,14 +11,13 @@ const ATTR='OpenFreeMap © OpenMapTiles · Data © OpenStreetMap contributors';
 let map=null,state=null,bound=false,fallbackTimer=0,restoreTimer=0;
 const legacyWorld=['bp2162-land','bp2162-water','bp2162-tree-canopy','bp2162-parks','bp2162-state-boundary-halo','bp2162-state-boundary','bp2162-county-boundary','bp2162-river','bp2162-stream','bp2162-road-casing','bp2162-road-asphalt','bp2162-road-center','bp2162-bridge-glow','bp2162-bridge-deck','bp2162-rail','bp2162-tree-points','bp2174-context-buildings','bp2174-tree-crown','bp2174-tree-shadow','bp2174-asphalt-areas'];
 const motionDetail=['bp2220-buildings','bp2220-local-road-casing','bp2220-local-road','bp2220-rail','bp97-floorbands'];
+const richAuthority=()=>!!window.__bpVisualFidelityV2222?.takesSceneAuthority;
 function has(id){try{return !!map?.getLayer(id)}catch(_){return false}}
 function vis(id,on){try{if(has(id))map.setLayoutProperty(id,'visibility',on?'visible':'none')}catch(_){}}
 function before(){for(const id of ['bp97-exact-rise','bp97-est-fill','bp97-building','labels'])if(has(id))return id;return undefined}
 function add(layer,b){try{if(!has(layer.id))map.addLayer(layer,b&&has(b)?b:undefined)}catch(e){console.warn('BP2220 layer',layer.id,e)}}
 function sourceReady(){try{return !!map?.isSourceLoaded?.(SOURCE)}catch(_){return false}}
 function ensureSource(){
- // OpenFreeMap planet data tops out at z14. Declaring maxzoom 14 makes MapLibre
- // overscale those real tiles for z15+ instead of requesting nonexistent z15+ PBFs.
  try{if(!map.getSource(SOURCE))map.addSource(SOURCE,{type:'vector',tiles:[DIRECT],minzoom:0,maxzoom:14,attribution:ATTR})}catch(e){console.warn('BP2220 source',e)}
 }
 function installVectorWorld(){
@@ -41,7 +40,7 @@ function installVectorWorld(){
  add({id:'bp2220-buildings',type:'fill-extrusion',source:SOURCE,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':['interpolate',['linear'],h,0,'#46545d',18,'#586b77',55,'#6e8390',120,'#7d93a0',260,'#94a7b0'],'fill-extrusion-height':h,'fill-extrusion-base':b,'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],13,.46,14,.64,16,.78,19,.86],'fill-extrusion-vertical-gradient':true}},'labels');
 }
 function styleWorld(){
- if(!map)return;
+ if(!map||richAuthority())return;
  for(const id of legacyWorld)vis(id,false);
  for(const id of ['sat','street','radar','hillshade'])vis(id,false);
  vis('bp97-exact-rise',false);vis('bp97-est-fill',false);
@@ -56,6 +55,7 @@ function styleWorld(){
  }catch(_){}
 }
 function ensureFallback(){
+ if(richAuthority()){vis('bp2220-street-fallback',false);return}
  if(sourceReady()){vis('bp2220-street-fallback',false);return}
  try{
   if(!has('bp2220-street-fallback'))add({id:'bp2220-street-fallback',type:'raster',source:'street',paint:{'raster-opacity':.82,'raster-saturation':-.72,'raster-contrast':.18,'raster-brightness-min':.02,'raster-brightness-max':.52}},before());
@@ -69,7 +69,7 @@ function bind(){
  state=window.__bp97MapState;map=state?.map;
  if(!state?.ready||!map){setTimeout(bind,100);return}
  if(bound)return;bound=true;
- state.localTried=true;state.weatherFx=false;state.terrain=false;if(state.layers)state.layers.radar=false;
+ state.localTried=true;state.weatherFx=false;if(state.layers)state.layers.radar=false;
  enforce();
  map.on('styledata',()=>setTimeout(enforce,0));
  map.on('zoomend',()=>{styleWorld();clearTimeout(fallbackTimer);fallbackTimer=setTimeout(ensureFallback,1200)});
@@ -78,7 +78,7 @@ function bind(){
  for(const ev of ['moveend','zoomend','rotateend','pitchend'])map.on(ev,restoreMotionDetail);
  for(const ms of [0,180,500,1200,2600,5200])setTimeout(enforce,ms);
  setInterval(()=>{if(document.querySelector('[data-surface="map"]')?.classList.contains('active'))styleWorld()},1800);
- window.__bpMobileVisualWorldV2220={version:VERSION,mode:'DIRECT_VECTOR_PHONE_WORLD',directVectorTemplate:DIRECT,sourceMaxZoom:14,tileJsonBypassed:true,land:true,water:true,majorRoads:true,localRoads:true,rail:true,boundaries:true,buildings3d:true,heavyGpu:false,fallback:'DIMMED_STREET_RASTER_ONLY_IF_DIRECT_VECTOR_UNAVAILABLE'};
+ window.__bpMobileVisualWorldV2220={version:VERSION,mode:'DIRECT_VECTOR_PHONE_WORLD',directVectorTemplate:DIRECT,sourceMaxZoom:14,tileJsonBypassed:true,land:true,water:true,majorRoads:true,localRoads:true,rail:true,boundaries:true,buildings3d:true,heavyGpu:false,fallback:'DIMMED_STREET_RASTER_ONLY_IF_DIRECT_VECTOR_UNAVAILABLE',cedesRichSceneAuthority:true};
  console.info('BridgePoint V2220 direct vector phone world ready');
 }
 bind();
