@@ -1,4 +1,4 @@
-name: Verify BridgePoint V2210 Globe World
+name: Verify BridgePoint V2211 Globe World
 
 on:
   workflow_dispatch:
@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/verify-globe-world-v2210.yml'
       - 'release-v2210/world-runtime-v2210.js'
+      - 'release-v2211/tree-models-v2211.js'
 
 permissions:
   contents: read
@@ -17,33 +18,35 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Verify published script inventory and syntax
+      - name: Verify published script inventory syntax and fidelity markers
         shell: bash
         run: |
           set -euo pipefail
           origin='https://bridgepointintelligence.online/app'
-          for v in $(seq 2200 2210); do
-            case "$v" in
-              2200) f=atmosphere-v2200.js;;
-              2201) f=precipitation-v2201.js;;
-              2202) f=extreme-storms-v2202.js;;
-              2203) f=hazard-events-v2203.js;;
-              2204) f=surface-weather-v2204.js;;
-              2205) f=wildfire-world-v2205.js;;
-              2206) f=dynamic-water-v2206.js;;
-              2207) f=vegetation-world-v2207.js;;
-              2208) f=infrastructure-world-v2208.js;;
-              2209) f=cinematic-postfx-v2209.js;;
-              2210) f=world-runtime-v2210.js;;
-            esac
-            curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "$origin/$f?audit=${GITHUB_SHA}-${v}" -o "/tmp/$f"
+          files=(
+            atmosphere-v2200.js precipitation-v2201.js extreme-storms-v2202.js hazard-events-v2203.js
+            surface-weather-v2204.js wildfire-world-v2205.js dynamic-water-v2206.js vegetation-world-v2207.js
+            infrastructure-world-v2208.js cinematic-postfx-v2209.js world-runtime-v2210.js tree-models-v2211.js
+          )
+          for f in "${files[@]}"; do
+            curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "$origin/$f?audit=${GITHUB_SHA}-${f}" -o "/tmp/$f"
             node --check "/tmp/$f"
           done
+          grep -Fq 'bp2202-hurricane-volume' /tmp/extreme-storms-v2202.js
+          grep -Fq 'hollowEye:true' /tmp/extreme-storms-v2202.js
+          grep -Fq 'elevationAware:true' /tmp/surface-weather-v2204.js
+          grep -Fq 'flatWaterSurface:true' /tmp/surface-weather-v2204.js
+          grep -Fq 'bp2205WildfireGpu' /tmp/wildfire-world-v2205.js
+          grep -Fq 'containmentExact:true' /tmp/wildfire-world-v2205.js
+          grep -Fq 'solidExtrusion:true' /tmp/infrastructure-world-v2208.js
+          grep -Fq 'bp2209PostFX' /tmp/cinematic-postfx-v2209.js
+          grep -Fq 'BridgePointTreeModelsV2211' /tmp/tree-models-v2211.js
+          grep -Fq 'globeTransitionAware:true' /tmp/tree-models-v2211.js
           curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "$origin/?audit=${GITHUB_SHA}" -o /tmp/app.html
-          for v in $(seq 2200 2210); do grep -Fq "v=$v" /tmp/app.html; done
-          echo PUBLISHED_INVENTORY_AND_SYNTAX_PASS
+          for v in $(seq 2200 2211); do grep -Fq "v=$v" /tmp/app.html; done
+          echo PUBLISHED_V2211_INVENTORY_SYNTAX_FIDELITY_PASS
 
-      - name: Exercise all published world modules in phone browser
+      - name: Exercise published world APIs in phone browser
         shell: bash
         run: |
           set -euo pipefail
@@ -54,42 +57,42 @@ jobs:
           CHROME_PATH="$CHROME" node <<'NODE'
           const puppeteer=require('puppeteer-core'),assert=require('assert');
           const O='https://bridgepointintelligence.online/app';
-          const files=['atmosphere-v2200.js','precipitation-v2201.js','extreme-storms-v2202.js','hazard-events-v2203.js','surface-weather-v2204.js','wildfire-world-v2205.js','dynamic-water-v2206.js','vegetation-world-v2207.js','infrastructure-world-v2208.js','cinematic-postfx-v2209.js','world-runtime-v2210.js'];
+          const files=['atmosphere-v2200.js','precipitation-v2201.js','extreme-storms-v2202.js','hazard-events-v2203.js','surface-weather-v2204.js','wildfire-world-v2205.js','dynamic-water-v2206.js','vegetation-world-v2207.js','infrastructure-world-v2208.js','cinematic-postfx-v2209.js','world-runtime-v2210.js','tree-models-v2211.js'];
           (async()=>{const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=swiftshader','--enable-webgl','--ignore-gpu-blocklist']});try{
             const p=await browser.newPage();await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
-            await p.setContent('<!doctype html><html><body><div class="map-shell" style="position:relative;width:390px;height:700px"><div id="mapCanvas"></div></div><button id="bp97WeatherFx"></button></body></html>');
+            await p.setContent('<!doctype html><html><body><div class="map-shell" style="position:relative;width:390px;height:700px"><canvas id="mapCanvas" width="390" height="700"></canvas></div><button id="bp97WeatherFx"></button></body></html>');
             await p.evaluate(()=>{
               const sources=new Map(),layers=new Map([['labels',{id:'labels'}],['bp2162-openmaptiles',{id:'bp2162-openmaptiles'}],['bp97-building',{id:'bp97-building'}],['bp2174-context-buildings',{id:'bp2174-context-buildings'}],['bp2162-water',{id:'bp2162-water'}],['bp2162-land',{id:'bp2162-land'}],['bp2162-parks',{id:'bp2162-parks'}]]),images=new Map(),events={};
               sources.set('bp2162-openmaptiles',{id:'bp2162-openmaptiles',setData:()=>{}});
-              const container=document.getElementById('mapCanvas');
+              const canvas=document.getElementById('mapCanvas');
               const map={
                 getCenter:()=>({lng:-72.65,lat:41.56}),getBounds:()=>({getWest:()=>-73,getSouth:()=>41,getEast:()=>-72,getNorth:()=>42}),getZoom:()=>15,getBearing:()=>18,getPitch:()=>70,getProjection:()=>({type:'globe'}),
                 setProjection:()=>{},setRenderWorldCopies:()=>{},setSky:x=>window.__sky=x,setLight:x=>window.__light=x,setMaxPitch:()=>{},triggerRepaint:()=>{},
-                getLayer:id=>layers.get(id)||null,addLayer:l=>layers.set(l.id,l),setLayoutProperty:(id,k,v)=>{const l=layers.get(id)||{id};l[k]=v;layers.set(id,l)},setLayerZoomRange:()=>{},
+                getLayer:id=>layers.get(id)||null,addLayer:l=>{layers.set(l.id,l)},setLayoutProperty:(id,k,v)=>{const l=layers.get(id)||{id};l[k]=v;layers.set(id,l)},setLayerZoomRange:()=>{},
                 getSource:id=>sources.get(id)||null,addSource:(id,s)=>sources.set(id,{...s,setData:d=>{sources.get(id).data=d}}),
                 getPaintProperty:()=>null,setPaintProperty:()=>{},
                 hasImage:id=>images.has(id),addImage:(id,x)=>images.set(id,x),updateImage:(id,x)=>images.set(id,x),
                 queryRenderedFeatures:()=>[],querySourceFeatures:()=>[],queryTerrainElevation:()=>42,project:([lng,lat])=>({x:195+(lng+72.65)*120,y:350-(lat-41.56)*120}),
-                getCanvasContainer:()=>container,on:(n,fn)=>{(events[n]||(events[n]=[])).push(fn)}
+                getCanvas:()=>canvas,getCanvasContainer:()=>canvas,on:(n,fn)=>{(events[n]||(events[n]=[])).push(fn)}
               };
               window.__mock={sources,layers,images,events};
               window.__bp97MapState={ready:true,map};
               window.BridgePointWorldEffects={version:2190,mode:'all',disable:()=>{window.__legacyDisabled=true},getState:()=>({enabled:true,mode:'all',data:{observations:[{lng:-72.65,lat:41.56,visibility_mi:.7,cloud_fraction:.9,wind_speed_kt:30,wind_dir_deg:270,weather:'rain'}],alerts:[],fires:[],earthquakes:[],storms:[],water_levels:[],thermal:[],source_status:{}}})};
             });
             for(const f of files){await p.addScriptTag({url:`${O}/${f}?runtime=${Date.now()}-${f}`});}
-            await p.waitForFunction(()=>window.BridgePointWorldRuntimeV2210?.version===2210,{timeout:12000});
-            await p.waitForTimeout(3200);
+            await p.waitForFunction(()=>window.BridgePointWorldRuntimeV2210?.version===2210&&window.BridgePointTreeModelsV2211?.version===2211,{timeout:12000});
+            await new Promise(r=>setTimeout(r,3200));
             const out=await p.evaluate(()=>{
               const A=BridgePointAtmosphereV2200.setWeather({visibilityMiles:.6,cloudCoveragePct:92,stormActive:true,stormIntensity:.9});
               BridgePointPrecipitationV2201.setPrecipitation({type:'rain',intensity:.8,windSpeedMph:40,windDirectionDeg:270});const rain=BridgePointPrecipitationV2201.getState();BridgePointPrecipitationV2201.setType('snow');const snow=BridgePointPrecipitationV2201.getState();BridgePointPrecipitationV2201.setType('hail');const hail=BridgePointPrecipitationV2201.getState();
-              const tid=BridgePointExtremeStormsV2202.upsertTornado({lng:-72.65,lat:41.56,heightM:900,radiusM:180});const hid=BridgePointExtremeStormsV2202.upsertHurricane({lng:-72.6,lat:41.5,windMph:100,eyeRadiusMiles:10,track:{type:'LineString',coordinates:[[-72.8,41.3],[-72.4,41.7]]}});
+              const tid=BridgePointExtremeStormsV2202.upsertTornado({lng:-72.65,lat:41.56,heightM:900,radiusM:180});const hid=BridgePointExtremeStormsV2202.upsertHurricane({lng:-72.6,lat:41.5,windMph:100,eyeRadiusMiles:10,track:{type:'LineString',coordinates:[[-72.8,41.3],[-72.4,41.7]]}});const extreme=BridgePointExtremeStormsV2202.getState();
               BridgePointHazardEventsV2203.emitLightning({lng:-72.65,lat:41.56,height:25});BridgePointHazardEventsV2203.emitEarthquake({lng:-72.65,lat:41.56,magnitude:4});
               const surf=BridgePointSurfaceWeatherV2204.setFloodHeightFeet(3.5);BridgePointSurfaceWeatherV2204.setIceActive(true);
-              const fire=BridgePointWildfireWorldV2205.upsertFire({lng:-72.7,lat:41.6,acres:250});
-              BridgePointDynamicWaterV2206.refresh();BridgePointVegetationWorldV2207.refresh();BridgePointInfrastructureWorldV2208.refresh();BridgePointCinematicPostFXV2209.refresh();
+              const fire=BridgePointWildfireWorldV2205.upsertFire({lng:-72.7,lat:41.6,acres:250});const wildfire=BridgePointWildfireWorldV2205.getState();
+              BridgePointDynamicWaterV2206.refresh();BridgePointVegetationWorldV2207.refresh();BridgePointInfrastructureWorldV2208.refresh();const infra=BridgePointInfrastructureWorldV2208.getState();BridgePointCinematicPostFXV2209.refresh();const post=BridgePointCinematicPostFXV2209.getState();BridgePointTreeModelsV2211.refresh();const tree=BridgePointTreeModelsV2211.getState();
               BridgePointWorldRuntimeV2210.activateCutover();const W=BridgePointWorldRuntimeV2210.getState();
-              return{A,rain,snow,hail,tid,hid,surf,fire,W,versions:[BridgePointAtmosphereV2200.version,BridgePointPrecipitationV2201.version,BridgePointExtremeStormsV2202.version,BridgePointHazardEventsV2203.version,BridgePointSurfaceWeatherV2204.version,BridgePointWildfireWorldV2205.version,BridgePointDynamicWaterV2206.version,BridgePointVegetationWorldV2207.version,BridgePointInfrastructureWorldV2208.version,BridgePointCinematicPostFXV2209.version,BridgePointWorldRuntimeV2210.version],legacyDisabled:!!window.__legacyDisabled,sky:!!window.__sky,light:!!window.__light};
+              return{A,rain,snow,hail,tid,hid,extreme,surf,fire,wildfire,infra,post,tree,W,versions:[BridgePointAtmosphereV2200.version,BridgePointPrecipitationV2201.version,BridgePointExtremeStormsV2202.version,BridgePointHazardEventsV2203.version,BridgePointSurfaceWeatherV2204.version,BridgePointWildfireWorldV2205.version,BridgePointDynamicWaterV2206.version,BridgePointVegetationWorldV2207.version,BridgePointInfrastructureWorldV2208.version,BridgePointCinematicPostFXV2209.version,BridgePointWorldRuntimeV2210.version,BridgePointTreeModelsV2211.version],legacyDisabled:!!window.__legacyDisabled,sky:!!window.__sky,light:!!window.__light};
             });
-            assert.deepEqual(out.versions,[2200,2201,2202,2203,2204,2205,2206,2207,2208,2209,2210]);assert(out.A.effectiveDrawDistanceMiles<2);assert.equal(out.rain.type,'rain');assert.equal(out.snow.type,'snow');assert.equal(out.hail.type,'hail');assert(out.tid&&out.hid&&out.fire);assert.equal(out.surf.floodHeightFt,3.5);assert(out.W.cutover&&out.W.modulesReady);assert(out.legacyDisabled);assert(out.sky&&out.light);console.log('V2210_ALL_MODULE_RUNTIME_PASS',JSON.stringify(out));
+            assert.deepEqual(out.versions,[2200,2201,2202,2203,2204,2205,2206,2207,2208,2209,2210,2211]);assert(out.A.effectiveDrawDistanceMiles<2);assert.equal(out.rain.type,'rain');assert.equal(out.snow.type,'snow');assert.equal(out.hail.type,'hail');assert(out.tid&&out.hid&&out.fire);assert(out.extreme.hollowEye&&out.extreme.hurricane3D);assert.equal(out.surf.floodHeightFt,3.5);assert(out.surf.elevationAware&&out.surf.flatWaterSurface&&out.surf.iceMaterialOverlay);assert(out.wildfire.containmentExact);assert(out.infra.solidExtrusion);assert(out.tree.globeTransitionAware);assert(out.W.cutover&&out.W.modulesReady);assert(out.legacyDisabled);assert(out.sky&&out.light);console.log('V2211_ALL_WORLD_APIS_PASS',JSON.stringify(out));
           }finally{await browser.close()}})().catch(e=>{console.error(e);process.exit(1)});
           NODE
