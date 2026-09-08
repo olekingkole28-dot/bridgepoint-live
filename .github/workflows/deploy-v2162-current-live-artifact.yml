@@ -51,7 +51,7 @@ jobs:
           ! grep -Fq 'map-v2080-cinematic-weather.js?v=2080' app/map-v1997-weather-hotfix.js
           grep -Fq "type:'globe'" app/map-v2170-living-world.js
           grep -Fq 'bp2172-tree-crown' app/map-v2172-performance-world.js
-          grep -Fq 'bp2172-grass-pattern' app/map-v2172-performance-world.js
+          grep -Fq "makePattern('bp2172-grass','grass')" app/map-v2172-performance-world.js
           grep -Fq 'MAP_LOCK_CARDS_REQUESTABLE' app/map-v2172-performance-world.js
           grep -Fq 'bridgepoint_request_country_expansion_v2170' app/map-v2172-performance-world.js
           grep -Fq 'bp2171-wind-flow' app/map-v2171-weather-observations.js
