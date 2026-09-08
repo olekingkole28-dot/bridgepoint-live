@@ -18,6 +18,7 @@ function loadAll(){
   loadScript('./map-v2070-weather-earth.js?v=2070','__bridgepointWeatherEarthV2070');
   loadScript('./map-v2080-cinematic-weather.js?v=2080','__bridgepointCinematicWeatherV2080');
   loadScript('./map-v2081-gpu-weather-runtime.js?v=2081','__bridgepointGpuWeatherRuntimeV2081');
+  loadScript('./map-v2090-opportunity-icons.js?v=2090','__bridgepointOpportunityIconsV2090');
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{install();loadAll()},{once:true});else{install();loadAll()}
 })();
