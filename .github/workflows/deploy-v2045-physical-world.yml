@@ -1,4 +1,4 @@
-name: Deploy V2080 Cinematic Weather onto V1997 Map
+name: Deploy V2081 GPU Weather onto V1997 Map
 
 on:
   workflow_dispatch:
@@ -9,6 +9,7 @@ on:
       - 'release-v1997/map-v2060-immersive-world.js'
       - 'release-v1997/map-v2070-weather-earth.js'
       - 'release-v1997/map-v2080-cinematic-weather.js'
+      - 'release-v1997/map-v2081-gpu-weather-runtime.js'
       - 'release-v1997/map-v1997-weather-hotfix.js'
       - '.github/workflows/deploy-v2045-physical-world.yml'
 
@@ -33,7 +34,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Layer V2080 cinematic weather onto existing V1997 world
+      - name: Layer V2081 GPU weather onto existing V1997 world
         shell: bash
         run: |
           set -euo pipefail
@@ -47,6 +48,7 @@ jobs:
           git show origin/main:release-v1997/map-v2060-immersive-world.js > app/map-v2060-immersive-world.js
           git show origin/main:release-v1997/map-v2070-weather-earth.js > app/map-v2070-weather-earth.js
           git show origin/main:release-v1997/map-v2080-cinematic-weather.js > app/map-v2080-cinematic-weather.js
+          git show origin/main:release-v1997/map-v2081-gpu-weather-runtime.js > app/map-v2081-gpu-weather-runtime.js
           git show origin/main:release-v1997/map-v1997-weather-hotfix.js > app/map-v1997-weather-hotfix.js
           python3 - <<'PY'
           from pathlib import Path
@@ -60,15 +62,15 @@ jobs:
           p=Path('app/index.html')
           s=p.read_text()
           s=re.sub(r'\s*<script[^>]+src=["\']\./map-v1997-weather-hotfix\.js[^"\']*["\'][^>]*></script>','',s,flags=re.I)
-          s=s.replace('</body>','<script defer src="./map-v1997-weather-hotfix.js?v=2080"></script>\n</body>')
+          s=s.replace('</body>','<script defer src="./map-v1997-weather-hotfix.js?v=2081"></script>\n</body>')
           p.write_text(s)
 
           sw=Path('app/flutter_service_worker.js')
           x=sw.read_text()
-          x=re.sub(r"const CACHE='bridgepoint-universe-v\d+';","const CACHE='bridgepoint-universe-v2080';",x)
-          for f in ['map-v1997-weather-hotfix','map-v2045-physical-world','map-v2060-immersive-world','map-v2070-weather-earth','map-v2080-cinematic-weather']:
+          x=re.sub(r"const CACHE='bridgepoint-universe-v\d+';","const CACHE='bridgepoint-universe-v2081';",x)
+          for f in ['map-v1997-weather-hotfix','map-v2045-physical-world','map-v2060-immersive-world','map-v2070-weather-earth','map-v2080-cinematic-weather','map-v2081-gpu-weather-runtime']:
               x=re.sub(r",?'\./"+re.escape(f)+r"\.js\?v=\d+'",'',x)
-          x=x.replace("'./map-v1997.js?v=1997',","'./map-v1997.js?v=1997','./map-v1997-weather-hotfix.js?v=2080','./map-v2045-physical-world.js?v=2055','./map-v2060-immersive-world.js?v=2060','./map-v2070-weather-earth.js?v=2070','./map-v2080-cinematic-weather.js?v=2080',")
+          x=x.replace("'./map-v1997.js?v=1997',","'./map-v1997.js?v=1997','./map-v1997-weather-hotfix.js?v=2081','./map-v2045-physical-world.js?v=2055','./map-v2060-immersive-world.js?v=2060','./map-v2070-weather-earth.js?v=2070','./map-v2080-cinematic-weather.js?v=2080','./map-v2081-gpu-weather-runtime.js?v=2081',")
           sw.write_text(x)
           PY
           node --check app/map-v1997.js
@@ -77,23 +79,21 @@ jobs:
           node --check app/map-v2060-immersive-world.js
           node --check app/map-v2070-weather-earth.js
           node --check app/map-v2080-cinematic-weather.js
+          node --check app/map-v2081-gpu-weather-runtime.js
           node --check app/map-v2002-property-click.js
           node --check app/flutter_service_worker.js
-          grep -Fq 'map-v2080-cinematic-weather.js?v=2080' app/map-v1997-weather-hotfix.js
+          grep -Fq 'map-v2081-gpu-weather-runtime.js?v=2081' app/map-v1997-weather-hotfix.js
           grep -Fq '__bridgepointCinematicWeatherV2080' app/map-v2080-cinematic-weather.js
-          grep -Fq "getContext('webgl2'" app/map-v2080-cinematic-weather.js
+          grep -Fq '__bridgepointGpuWeatherRuntimeV2081' app/map-v2081-gpu-weather-runtime.js
+          grep -Fq 'requestAdapter' app/map-v2081-gpu-weather-runtime.js
+          grep -Fq "getContext('webgl2'" app/map-v2081-gpu-weather-runtime.js
+          grep -Fq 'frustum_culling:true' app/map-v2081-gpu-weather-runtime.js
           grep -Fq 'bp2080-area-fill' app/map-v2080-cinematic-weather.js
-          grep -Fq 'bp2080-area-line' app/map-v2080-cinematic-weather.js
-          grep -Fq 'SHADER_KIND' app/map-v2080-cinematic-weather.js
-          grep -Fq 'uKind==9' app/map-v2080-cinematic-weather.js
-          grep -Fq 'uKind==10' app/map-v2080-cinematic-weather.js
           grep -Fq "['snow','Snow']" app/map-v2080-cinematic-weather.js
           grep -Fq "['ice','Ice']" app/map-v2080-cinematic-weather.js
-          grep -Fq "['fog','Fog']" app/map-v2080-cinematic-weather.js
-          grep -Fq "['dust','Dust']" app/map-v2080-cinematic-weather.js
-          grep -Fq 'map-v1997-weather-hotfix.js?v=2080' app/index.html
-          grep -Fq 'bridgepoint-universe-v2080' app/flutter_service_worker.js
-          grep -Fq 'map-v2080-cinematic-weather.js?v=2080' app/flutter_service_worker.js
+          grep -Fq 'map-v1997-weather-hotfix.js?v=2081' app/index.html
+          grep -Fq 'bridgepoint-universe-v2081' app/flutter_service_worker.js
+          grep -Fq 'map-v2081-gpu-weather-runtime.js?v=2081' app/flutter_service_worker.js
 
       - name: Persist upgraded live artifact
         shell: bash
@@ -101,9 +101,9 @@ jobs:
           set -euo pipefail
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
-          git add app/index.html app/flutter_service_worker.js app/map-v1997-weather-hotfix.js app/map-v2045-physical-world.js app/map-v2060-immersive-world.js app/map-v2070-weather-earth.js app/map-v2080-cinematic-weather.js
+          git add app/index.html app/flutter_service_worker.js app/map-v1997-weather-hotfix.js app/map-v2045-physical-world.js app/map-v2060-immersive-world.js app/map-v2070-weather-earth.js app/map-v2080-cinematic-weather.js app/map-v2081-gpu-weather-runtime.js
           if ! git diff --cached --quiet; then
-            git commit -m 'Publish V2080 cinematic GPU weather on V1997 map'
+            git commit -m 'Publish V2081 WebGPU cinematic weather on V1997 map'
             git push origin HEAD:live-artifact
           fi
           rm -rf site && mkdir site
@@ -115,15 +115,15 @@ jobs:
           enablement: true
       - uses: actions/upload-pages-artifact@v4
         with:
-          name: github-pages-v2080
+          name: github-pages-v2081
           path: site
-      - name: Deploy V1997 + V2080 current map
+      - name: Deploy V1997 + V2081 current map
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: github-pages-v2080
+          artifact_name: github-pages-v2081
 
-      - name: Verify production V2080 cinematic weather
+      - name: Verify production V2081 GPU weather
         shell: bash
         run: |
           set -euo pipefail
@@ -131,21 +131,20 @@ jobs:
           ok=0
           for attempt in $(seq 1 36); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "$origin/app/?bpv=2080&verify=$salt" -o /tmp/app.html || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "$origin/app/?bpv=2081&verify=$salt" -o /tmp/app.html || true
             curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "$origin/app/map-v1997-weather-hotfix.js?verify=$salt" -o /tmp/hotfix.js || true
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "$origin/app/map-v2080-cinematic-weather.js?verify=$salt" -o /tmp/weather.js || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "$origin/app/map-v2080-cinematic-weather.js?verify=$salt" -o /tmp/weather2080.js || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "$origin/app/map-v2081-gpu-weather-runtime.js?verify=$salt" -o /tmp/weather2081.js || true
             curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "$origin/app/flutter_service_worker.js?verify=$salt" -o /tmp/sw.js || true
-            if grep -Fq 'map-v1997-weather-hotfix.js?v=2080' /tmp/app.html \
-              && grep -Fq 'map-v2080-cinematic-weather.js?v=2080' /tmp/hotfix.js \
-              && grep -Fq '__bridgepointCinematicWeatherV2080' /tmp/weather.js \
-              && grep -Fq "getContext('webgl2'" /tmp/weather.js \
-              && grep -Fq 'bp2080-area-fill' /tmp/weather.js \
-              && grep -Fq 'SHADER_KIND' /tmp/weather.js \
-              && grep -Fq 'uKind==9' /tmp/weather.js \
-              && grep -Fq 'uKind==10' /tmp/weather.js \
-              && grep -Fq 'bridgepoint-universe-v2080' /tmp/sw.js; then
+            if grep -Fq 'map-v1997-weather-hotfix.js?v=2081' /tmp/app.html \
+              && grep -Fq 'map-v2081-gpu-weather-runtime.js?v=2081' /tmp/hotfix.js \
+              && grep -Fq '__bridgepointCinematicWeatherV2080' /tmp/weather2080.js \
+              && grep -Fq '__bridgepointGpuWeatherRuntimeV2081' /tmp/weather2081.js \
+              && grep -Fq 'requestAdapter' /tmp/weather2081.js \
+              && grep -Fq "getContext('webgl2'" /tmp/weather2081.js \
+              && grep -Fq 'bridgepoint-universe-v2081' /tmp/sw.js; then
               ok=1
-              echo 'V1997_CORE_PLUS_V2080_CINEMATIC_WEATHER_LIVE'
+              echo 'V1997_CORE_PLUS_V2081_GPU_CINEMATIC_WEATHER_LIVE'
               break
             fi
             sleep 5
