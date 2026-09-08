@@ -1,5 +1,5 @@
-const CACHE='bridgepoint-universe-v2060';
-const CORE=['./','./index.html','./universe-v1994.css?v=1994','./universe-v1994.js?v=1994','./vendor/maplibre-gl-v1995.css?v=1995','./vendor/maplibre-gl-v1995.js?v=1995','./map-v1997.css?v=1997','./map-v1997.js?v=1997','./map-v1997-weather-hotfix.js?v=2060','./map-v2045-physical-world.js?v=2055','./map-v2060-immersive-world.js?v=2060','./manifest.json?v=1994','./assets/assets/brand/bridgepoint-mark-v80.svg','./icons/Icon-192.png','./icons/Icon-512.png'];
+const CACHE='bridgepoint-universe-v2070';
+const CORE=['./','./index.html','./universe-v1994.css?v=1994','./universe-v1994.js?v=1994','./vendor/maplibre-gl-v1995.css?v=1995','./vendor/maplibre-gl-v1995.js?v=1995','./map-v1997.css?v=1997','./map-v1997.js?v=1997','./map-v1997-weather-hotfix.js?v=2070','./map-v2045-physical-world.js?v=2055','./map-v2060-immersive-world.js?v=2060','./map-v2070-weather-earth.js?v=2070','./manifest.json?v=1994','./assets/assets/brand/bridgepoint-mark-v80.svg','./icons/Icon-192.png','./icons/Icon-512.png'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE).catch(()=>{})))});
 self.addEventListener('activate',e=>{e.waitUntil((async()=>{for(const k of await caches.keys())if(k.startsWith('bridgepoint-universe-')&&k!==CACHE)await caches.delete(k);await self.clients.claim()})())});
 self.addEventListener('message',e=>{if(e.data==='skipWaiting'||e.data?.type==='SKIP_WAITING')self.skipWaiting()});
