@@ -44,8 +44,8 @@ jobs:
           grep -Fq 'map-v2163-photorealistic-adapter.js?v=2163' app/map-v1997-weather-hotfix.js
           grep -Fq 'bp2162-state-boundary' app/map-v2162-game-world.js
           grep -Fq 'bp2162-county-boundary' app/map-v2162-game-world.js
-          grep -Fq 'bp2162-streams' app/map-v2162-game-world.js
-          grep -Fq 'bp2162-bridges' app/map-v2162-game-world.js
+          grep -Fq 'bp2162-stream' app/map-v2162-game-world.js
+          grep -Fq 'bp2162-bridge-deck' app/map-v2162-game-world.js
           grep -Fq 'bp2162-tree-canopy' app/map-v2162-game-world.js
           grep -Fq 'Game 3D' app/map-v2162-game-world.js
           node --check app/map-v2162-game-world.js
@@ -86,7 +86,7 @@ jobs:
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
             curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v2162-game-world.js?verify=${salt}" -o /tmp/v2162.js || true
             curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v1997-weather-hotfix.js?verify=${salt}" -o /tmp/loader.js || true
-            if grep -Fq 'bp2162-state-boundary' /tmp/v2162.js && grep -Fq 'map-v2162-game-world.js?v=2162' /tmp/loader.js; then ok=1; break; fi
+            if grep -Fq 'bp2162-state-boundary' /tmp/v2162.js && grep -Fq 'bp2162-bridge-deck' /tmp/v2162.js && grep -Fq 'map-v2162-game-world.js?v=2162' /tmp/loader.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
