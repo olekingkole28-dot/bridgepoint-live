@@ -1,0 +1,92 @@
+name: Verify BridgePoint V2220 Android Visual World
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-mobile-visual-world-v2220.yml'
+      - 'release-v2220/mobile-visual-world-v2220.js'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify V2220 is public
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online/app'
+          ok=0
+          for attempt in $(seq 1 24); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 25 -H 'Cache-Control: no-cache' "$origin/mobile-visual-world-v2220.js?v=2220&verify=$salt" -o /tmp/v2220.js || true
+            if node --check /tmp/v2220.js \
+              && grep -Fq 'DIRECT_VECTOR_PHONE_WORLD' /tmp/v2220.js \
+              && grep -Fq 'planet/latest/{z}/{x}/{y}.pbf' /tmp/v2220.js \
+              && grep -Fq 'buildings3d:true' /tmp/v2220.js; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
+          echo V2220_PUBLIC_FILE_PASS
+
+      - name: Render direct vector world at Android viewport
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const ORIGIN='https://bridgepointintelligence.online/app';
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=swiftshader','--enable-webgl','--ignore-gpu-blocklist']});
+            try{
+              const p=await browser.newPage();
+              await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; SM-S731U) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.setContent('<!doctype html><html><head><style>html,body,#map{margin:0;width:100%;height:100%;background:#071019}</style></head><body><section data-surface="map" class="active"><div id="map"></div></section></body></html>');
+              await p.addScriptTag({url:`${ORIGIN}/vendor/maplibre-gl-v1995.js?v=1995`});
+              await p.waitForFunction(()=>!!window.maplibregl?.Map,{timeout:12000});
+              await p.evaluate(()=>{
+                window.__testMap=new maplibregl.Map({
+                  container:'map',
+                  style:{version:8,sources:{street:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap contributors'}},layers:[{id:'street',type:'raster',source:'street'}]},
+                  center:[-73.9857,40.7484],zoom:15,pitch:40,bearing:-15,maxZoom:21,minZoom:2.5,antialias:true,fadeDuration:0
+                });
+              });
+              await p.waitForFunction(()=>window.__testMap?.loaded?.(),{timeout:20000});
+              await p.evaluate(()=>{window.__bp97MapState={ready:true,map:window.__testMap,localTried:true,layers:{radar:false}}});
+              await p.addScriptTag({url:`${ORIGIN}/mobile-visual-world-v2220.js?v=2220&proof=${Date.now()}`});
+              await p.waitForFunction(()=>window.__bpMobileVisualWorldV2220?.version===2220,{timeout:15000});
+              await p.waitForFunction(()=>{
+                const m=window.__testMap;
+                return !!m.getSource('bp2220-ofm-direct')&&!!m.getLayer('bp2220-water')&&!!m.getLayer('bp2220-major-road')&&!!m.getLayer('bp2220-buildings');
+              },{timeout:15000});
+              await p.waitForFunction(()=>window.__testMap.isSourceLoaded('bp2220-ofm-direct'),{timeout:30000});
+              await new Promise(r=>setTimeout(r,1800));
+              const out=await p.evaluate(()=>{
+                const m=window.__testMap;
+                const roads=m.queryRenderedFeatures({layers:['bp2220-major-road','bp2220-local-road']}).length;
+                const buildings=m.queryRenderedFeatures({layers:['bp2220-buildings']}).length;
+                const sourceLoaded=m.isSourceLoaded('bp2220-ofm-direct');
+                const fallback=m.getLayer('bp2220-street-fallback')?m.getLayoutProperty('bp2220-street-fallback','visibility'):null;
+                return {roads,buildings,sourceLoaded,fallback,zoom:m.getZoom(),mode:window.__bpMobileVisualWorldV2220.mode};
+              });
+              assert.equal(out.mode,'DIRECT_VECTOR_PHONE_WORLD');
+              assert.equal(out.sourceLoaded,true);
+              assert(out.roads>0,`expected rendered roads, got ${out.roads}`);
+              assert(out.buildings>0,`expected rendered buildings, got ${out.buildings}`);
+              assert(out.fallback===null||out.fallback==='none',`direct vector should win over fallback: ${out.fallback}`);
+              console.log('BRIDGEPOINT_V2220_ANDROID_RENDER_PASS',JSON.stringify(out));
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
