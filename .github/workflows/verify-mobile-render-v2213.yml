@@ -1,0 +1,74 @@
+name: Verify BridgePoint V2213 Mobile Render Stability
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-mobile-render-v2213.yml'
+      - 'release-v2213/mobile-render-stability-v2213.js'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify live V2213 inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online/app'
+          ok=0
+          for attempt in $(seq 1 36); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            if curl --retry 3 --retry-all-errors --retry-delay 2 -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$origin/mobile-render-stability-v2213.js?verify=$salt" -o /tmp/v2213.js; then
+              if node --check /tmp/v2213.js && grep -Fq 'BridgePointMobileRenderStabilityV2213' /tmp/v2213.js && grep -Fq 'canvasFullWidth:true' /tmp/v2213.js && grep -Fq 'mobileGpuIsolation:MOBILE' /tmp/v2213.js && grep -Fq "bp2211-3d-trees" /tmp/v2213.js && grep -Fq "bp2209PostFX" /tmp/v2213.js; then
+                curl --retry 3 --retry-all-errors --retry-delay 2 -fsSL --max-time 30 -H 'Cache-Control: no-cache' "$origin/?verify=$salt" -o /tmp/app.html
+                if grep -Fq 'mobile-render-stability-v2213.js?v=2213' /tmp/app.html; then ok=1; break; fi
+              fi
+            fi
+            sleep 5
+          done
+          test "$ok" = 1
+          echo V2213_LIVE_INVENTORY_PASS
+
+      - name: Exercise phone GPU isolation and canvas repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const O='https://bridgepointintelligence.online/app/mobile-render-stability-v2213.js';
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=swiftshader','--enable-webgl','--ignore-gpu-blocklist']});
+            try{
+              const p=await browser.newPage();
+              await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; SM-S731U) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.setContent('<!doctype html><html><body><section data-surface="map"><div class="map-shell" style="position:relative;width:374px;height:560px"><div id="liveMap" style="position:absolute;inset:0"><div class="maplibregl-canvas-container"><canvas class="maplibregl-canvas"></canvas></div></div><canvas id="bp2209PostFX"></canvas></div></section></body></html>');
+              await p.evaluate(()=>{
+                const layers=new Map([['bp2211-3d-trees',{id:'bp2211-3d-trees'}],['bp97-building',{id:'bp97-building'}]]),events={};let resizeCount=0,repaintCount=0,removeCount=0;
+                const canvas=document.querySelector('.maplibregl-canvas');
+                const map={getLayer:id=>layers.get(id)||null,removeLayer:id=>{layers.delete(id);removeCount++},getCanvas:()=>canvas,resize:()=>resizeCount++,triggerRepaint:()=>repaintCount++,setPixelRatio:()=>{},on:(n,fn)=>{(events[n]||(events[n]=[])).push(fn)}};
+                window.__mock={layers,events,get resizeCount(){return resizeCount},get repaintCount(){return repaintCount},get removeCount(){return removeCount}};
+                window.__bp97MapState={ready:true,map};
+              });
+              let loaded=false,lastErr;for(let i=0;i<5&&!loaded;i++){try{await p.addScriptTag({url:`${O}?phone=${Date.now()}-${i}`});loaded=true}catch(e){lastErr=e;await new Promise(r=>setTimeout(r,1000))}}if(!loaded)throw lastErr;
+              await p.waitForFunction(()=>window.BridgePointMobileRenderStabilityV2213?.version===2213,{timeout:12000});
+              await new Promise(r=>setTimeout(r,1400));
+              const out=await p.evaluate(()=>{const s=BridgePointMobileRenderStabilityV2213.getState(),host=document.getElementById('liveMap').getBoundingClientRect(),canvas=document.querySelector('.maplibregl-canvas').getBoundingClientRect();return{s,post:!!document.getElementById('bp2209PostFX'),tree:!!window.__mock.layers.get('bp2211-3d-trees'),building:!!window.__mock.layers.get('bp97-building'),resize:window.__mock.resizeCount,repaint:window.__mock.repaintCount,hostW:Math.round(host.width),canvasW:Math.round(canvas.width)}});
+              assert(out.s.mobile&&out.s.mobileGpuIsolation&&out.s.canvasFullWidth&&out.s.buildingDetailPreserved&&out.s.intelligenceColorPreserved&&out.s.propertyCardPreserved);
+              assert.equal(out.post,false);assert.equal(out.tree,false);assert.equal(out.building,true);assert(out.resize>0);assert.equal(out.hostW,out.canvasW);
+              console.log('BRIDGEPOINT_V2213_PHONE_RENDER_PASS',JSON.stringify(out));
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
