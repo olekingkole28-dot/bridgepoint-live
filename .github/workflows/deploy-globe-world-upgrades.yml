@@ -51,6 +51,18 @@ jobs:
                   files.append((int(v),f.name,v))
           for _,name,_ in files:
               s=re.sub(r'\s*<script[^>]+src=["\']\./'+re.escape(name)+r'[^"\']*["\'][^>]*></script>','',s,flags=re.I)
+
+          # V2190 is superseded. Never let the legacy visual runtime enter startup again.
+          s=re.sub(r'\s*<script[^>]+src=["\'][^"\']*map-v2190-world-effects\.js[^"\']*["\'][^>]*></script>','',s,flags=re.I)
+          legacy=app/'map-v2190-world-effects.js'
+          if legacy.exists(): legacy.unlink()
+
+          # Kill the old installed Flutter/PWA cache before any map/world JS runs.
+          marker='bp2214-cache-reset'
+          s=re.sub(r'\s*<script id=["\']bp2214-cache-reset["\'][^>]*>.*?</script>','',s,flags=re.I|re.S)
+          guard='''<script id="bp2214-cache-reset">(()=>{try{if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.filter(r=>{try{return new URL(r.scope).pathname.startsWith("/app/")}catch(_){return true}}).map(r=>r.unregister()))).catch(()=>{})}if("caches" in window){caches.keys().then(ks=>Promise.all(ks.filter(k=>k.startsWith("bridgepoint-universe-")||k.includes("flutter-app")).map(k=>caches.delete(k)))).catch(()=>{})}window.__bpAuthoritativeWorldRuntime=2214}catch(_){}})();</script>'''
+          s=s.replace('</head>',guard+'\n</head>')
+
           tags='\n'.join(f'<script defer src="./{name}?v={v}"></script>' for _,name,v in sorted(files))
           anchor='<script defer src="./map-v1997-weather-hotfix.js?v=2090"></script>'
           if anchor in s:
@@ -59,15 +71,23 @@ jobs:
           else:
               s=s.replace('</body>',tags+'\n</body>')
           idx.write_text(s)
+
+          # Replace the historical Flutter service worker with a one-shot self-destruct worker.
+          (app/'flutter_service_worker.js').write_text('''const BP_CACHE_RESET=2214;\nself.addEventListener("install",e=>{self.skipWaiting()});\nself.addEventListener("activate",e=>{e.waitUntil((async()=>{try{for(const k of await caches.keys())await caches.delete(k)}catch(_){}try{await self.registration.unregister()}catch(_){}try{await self.clients.claim()}catch(_){}try{const cs=await self.clients.matchAll({type:"window",includeUncontrolled:true});for(const c of cs){const u=new URL(c.url);if(u.pathname.startsWith("/app/")){u.searchParams.set("bp-cache-reset","2214");c.navigate(u.href)}}}catch(_){}})())});\nself.addEventListener("fetch",()=>{});\n''')
           print('ORDERED_SCRIPTS',*[x[1] for x in sorted(files)])
           PY
           for f in app/*-v22*.js; do [ -f "$f" ] && node --check "$f"; done
+          node --check app/flutter_service_worker.js
           grep -Fq 'atmosphere-v2200.js?v=2200' app/index.html
           grep -Fq 'precipitation-v2201.js?v=2201' app/index.html
+          grep -Fq 'bp2214-cache-reset' app/index.html
+          ! grep -Fq 'map-v2190-world-effects.js' app/index.html
+          test ! -f app/map-v2190-world-effects.js
+          grep -Fq 'BP_CACHE_RESET=2214' app/flutter_service_worker.js
           if [ -f app/extreme-storms-v2202.js ]; then grep -Fq 'extreme-storms-v2202.js?v=2202' app/index.html; fi
           git config user.name 'BridgePoint Release Bot'; git config user.email 'actions@users.noreply.github.com'
-          git add app/ release-v22*/
-          if ! git diff --cached --quiet; then git commit -m 'Publish ordered globe world upgrades'; git push origin HEAD:live-artifact; fi
+          git add -A app/ release-v22*/
+          if ! git diff --cached --quiet; then git commit -m 'Purge legacy V2190 and stale PWA cache'; git push origin HEAD:live-artifact; fi
           rm -rf site && mkdir site; git archive --format=tar HEAD | tar -xf - -C site; touch site/.nojekyll site/app/.nojekyll
       - uses: actions/configure-pages@v5
         with: {enablement: true}
@@ -77,16 +97,24 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with: {artifact_name: github-pages-globe-world}
-      - name: Verify published upgrade files
+      - name: Verify published upgrade files and legacy purge
         shell: bash
         run: |
           set -euo pipefail
           origin='https://bridgepointintelligence.online'; ok=0
           for attempt in $(seq 1 36); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?globe-upgrade=1&verify=${salt}" -o /tmp/app.html || true
-            if grep -Fq 'atmosphere-v2200.js?v=2200' /tmp/app.html && grep -Fq 'precipitation-v2201.js?v=2201' /tmp/app.html; then ok=1; break; fi
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/?globe-upgrade=2214&verify=${salt}" -o /tmp/app.html || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/flutter_service_worker.js?verify=${salt}" -o /tmp/sw.js || true
+            if grep -Fq 'atmosphere-v2200.js?v=2200' /tmp/app.html \
+              && grep -Fq 'precipitation-v2201.js?v=2201' /tmp/app.html \
+              && grep -Fq 'mobile-render-stability-v2213.js?v=2213' /tmp/app.html \
+              && grep -Fq 'bp2214-cache-reset' /tmp/app.html \
+              && ! grep -Fq 'map-v2190-world-effects.js' /tmp/app.html \
+              && grep -Fq 'BP_CACHE_RESET=2214' /tmp/sw.js; then ok=1; break; fi
             sleep 5
           done
           test "$ok" = 1
-          echo GLOBE_WORLD_UPGRADES_LIVE_PASS
+          code=$(curl -sS -o /tmp/legacy.js -w '%{http_code}' -H 'Cache-Control: no-cache' "${origin}/app/map-v2190-world-effects.js?verify=${GITHUB_SHA}")
+          test "$code" = '404'
+          echo GLOBE_WORLD_V2214_LEGACY_PURGE_LIVE_PASS
