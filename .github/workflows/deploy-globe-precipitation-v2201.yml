@@ -1,0 +1,86 @@
+name: Deploy BridgePoint V2201 Globe Precipitation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'release-v2201/precipitation-v2201.js'
+      - '.github/workflows/deploy-globe-precipitation-v2201.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Build V2201 on current live artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          git show origin/main:release-v2201/precipitation-v2201.js > app/precipitation-v2201.js
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('app/index.html'); s=p.read_text()
+          s=re.sub(r'\s*<script[^>]+src=["\']\./precipitation-v2201\.js[^"\']*["\'][^>]*></script>','',s,flags=re.I)
+          tag='<script defer src="./precipitation-v2201.js?v=2201"></script>'
+          anchor='<script defer src="./atmosphere-v2200.js?v=2200"></script>'
+          s=s.replace(anchor,anchor+'\n'+tag) if anchor in s else s.replace('</body>',tag+'\n</body>')
+          p.write_text(s)
+          PY
+          node --check app/precipitation-v2201.js
+          grep -Fq 'BridgePointPrecipitationV2201' app/precipitation-v2201.js
+          grep -Fq 'precipitation-v2201.js?v=2201' app/index.html
+          grep -Fq 'windDirectionDeg' app/precipitation-v2201.js
+          grep -Fq 'cameraLocal:true' app/precipitation-v2201.js
+          git config user.name 'BridgePoint Release Bot'; git config user.email 'actions@users.noreply.github.com'
+          git add app/index.html app/precipitation-v2201.js
+          if ! git diff --cached --quiet; then git commit -m 'Release V2201 GPU precipitation'; git push origin HEAD:live-artifact; fi
+          rm -rf site && mkdir site; git archive --format=tar HEAD | tar -xf - -C site; touch site/.nojekyll site/app/.nojekyll
+      - uses: actions/configure-pages@v5
+        with: {enablement: true}
+      - uses: actions/upload-pages-artifact@v4
+        with: {name: github-pages-v2201, path: site}
+      - name: Deploy V2201
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with: {artifact_name: github-pages-v2201}
+      - name: Verify live V2201 files
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'; ok=0
+          for attempt in $(seq 1 36); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/?bpv=2201&verify=${salt}" -o /tmp/app.html || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/precipitation-v2201.js?verify=${salt}" -o /tmp/p.js || true
+            if grep -Fq 'precipitation-v2201.js?v=2201' /tmp/app.html && grep -Fq 'BridgePointPrecipitationV2201' /tmp/p.js; then ok=1; break; fi
+            sleep 5
+          done
+          test "$ok" = 1; echo V2201_LIVE_FILES_PASS
+      - name: Verify isolated phone precipitation runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp; npm init -y >/dev/null 2>&1; npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert'),origin='https://bridgepointintelligence.online';
+          (async()=>{const b=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=swiftshader']});try{const p=await b.newPage();await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});await p.setContent('<div class="map-shell" style="position:relative;width:390px;height:700px"></div>');await p.evaluate(()=>{const map={getCenter:()=>({lng:-72.65,lat:41.56}),getBearing:()=>18,getPitch:()=>70,queryTerrainElevation:()=>42,on:()=>{}};window.__bp97MapState={ready:true,map}});await p.addScriptTag({url:origin+'/app/precipitation-v2201.js?t='+Date.now()});await p.waitForFunction(()=>window.BridgePointPrecipitationV2201?.version===2201,{timeout:10000});const out=await p.evaluate(()=>{BridgePointPrecipitationV2201.setPrecipitation({type:'rain',intensity:.9,windSpeedMph:45,windDirectionDeg:270});const r=BridgePointPrecipitationV2201.getState();BridgePointPrecipitationV2201.setType('snow');const s=BridgePointPrecipitationV2201.getState();BridgePointPrecipitationV2201.setType('hail');const h=BridgePointPrecipitationV2201.getState();return{r,s,h,canvas:!!document.querySelector('#bp2201Precipitation')}});assert(out.canvas);assert(out.r.gpu);assert(out.r.cameraLocal);assert.equal(out.r.type,'rain');assert.equal(out.s.type,'snow');assert.equal(out.h.type,'hail');assert.equal(out.r.windSpeedMph,45);console.log('V2201_PHONE_PRECIPITATION_PASS') }finally{await b.close()}})().catch(e=>{console.error(e);process.exit(1)});
+          NODE
