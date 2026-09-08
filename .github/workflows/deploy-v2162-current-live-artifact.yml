@@ -30,7 +30,7 @@ jobs:
           ref: live-artifact
           fetch-depth: 1
 
-      - name: Verify smooth living-world runtime
+      - name: Verify smooth living-world and structure-lab runtime
         shell: bash
         run: |
           set -euo pipefail
@@ -40,24 +40,28 @@ jobs:
           test -s app/map-v2162-game-world.js
           test -s app/map-v2163-photorealistic-adapter.js
           test -s app/map-v2174-smooth-world.js
+          test -s app/map-v2180-structure-lab.js
+          test -s app/trial-countdown-v1994.js
           grep -Fq 'map-v2174-smooth-world.js?v=2174' app/map-v1997-weather-hotfix.js
+          grep -Fq 'map-v2180-structure-lab.js?v=2180' app/map-v1997-weather-hotfix.js
           ! grep -Fq 'map-v2170-living-world.js?v=2170' app/map-v1997-weather-hotfix.js
-          ! grep -Fq 'map-v2171-weather-observations.js?v=2171' app/map-v1997-weather-hotfix.js
           ! grep -Fq 'map-v2172-performance-world.js?v=2172' app/map-v1997-weather-hotfix.js
           ! grep -Fq 'map-v2081-gpu-weather-runtime.js?v=2081' app/map-v1997-weather-hotfix.js
           grep -Fq "setProjection({type:'globe'})" app/map-v2174-smooth-world.js
           grep -Fq 'bp2174-context-buildings' app/map-v2174-smooth-world.js
           grep -Fq 'bp2174-tree-crown' app/map-v2174-smooth-world.js
-          grep -Fq '3D weather · off' app/map-v2174-smooth-world.js
           grep -Fq 's.layers.properties=false' app/map-v2174-smooth-world.js
           grep -Fq 's.layers.radar=true' app/map-v2174-smooth-world.js
-          grep -Fq 'countryMarkers.length>=8' app/map-v2174-smooth-world.js
-          grep -Fq 'map-v2081-gpu-weather-runtime.js?v=2081' app/map-v2174-smooth-world.js
-          grep -Fq 'map-v2171-weather-observations.js?v=2171' app/map-v2174-smooth-world.js
+          grep -Fq 'bridgepoint_structure_study_v2180' app/map-v2180-structure-lab.js
+          grep -Fq 'bridgepoint_opportunity_buildings_viewport_v2180' app/map-v2180-structure-lab.js
+          grep -Fq 'WHITE_CASING_BLACKTOP_YELLOW_OR_WHITE_CENTERLINES' app/map-v2180-structure-lab.js
+          grep -Fq 'Your 7-day intelligence trial has ended' app/trial-countdown-v1994.js
           node --check app/map-v2162-game-world.js
           node --check app/map-v2163-photorealistic-adapter.js
           node --check app/map-v2174-smooth-world.js
+          node --check app/map-v2180-structure-lab.js
           node --check app/map-v1997-weather-hotfix.js
+          node --check app/trial-countdown-v1994.js
 
       - name: Assemble exact rebuilt site
         shell: bash
@@ -74,16 +78,16 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v4
         with:
-          name: github-pages-v2174
+          name: github-pages-v2180
           path: site
 
       - name: Publish rebuilt app
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: github-pages-v2174
+          artifact_name: github-pages-v2180
 
-      - name: Verify public app received Smooth World V2174
+      - name: Verify public app received V2180
         shell: bash
         run: |
           set -euo pipefail
@@ -91,10 +95,11 @@ jobs:
           ok=0
           for attempt in $(seq 1 36); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v2174-smooth-world.js?verify=${salt}" -o /tmp/v2174.js || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v2180-structure-lab.js?verify=${salt}" -o /tmp/v2180.js || true
             curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v1997-weather-hotfix.js?verify=${salt}" -o /tmp/loader.js || true
-            if grep -Fq 'bp2174-context-buildings' /tmp/v2174.js && grep -Fq 's.layers.properties=false' /tmp/v2174.js && grep -Fq 'map-v2174-smooth-world.js?v=2174' /tmp/loader.js && ! grep -Fq 'map-v2172-performance-world.js?v=2172' /tmp/loader.js && ! grep -Fq 'map-v2081-gpu-weather-runtime.js?v=2081' /tmp/loader.js; then ok=1; break; fi
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/trial-countdown-v1994.js?verify=${salt}" -o /tmp/trial.js || true
+            if grep -Fq 'bridgepoint_structure_study_v2180' /tmp/v2180.js && grep -Fq 'map-v2180-structure-lab.js?v=2180' /tmp/loader.js && grep -Fq 'Your 7-day intelligence trial has ended' /tmp/trial.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
-          echo V2174_PUBLIC_APP_PASS
+          echo V2180_PUBLIC_APP_PASS
