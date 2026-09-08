@@ -1,0 +1,93 @@
+name: Publish Current BridgePoint V2162 App
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-v2162-current-live-artifact.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout rebuilt app artifact
+        uses: actions/checkout@v4
+        with:
+          ref: live-artifact
+          fetch-depth: 1
+
+      - name: Verify current game-world runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s app/index.html
+          test -s app/map-v1997.js
+          test -s app/map-v1997-weather-hotfix.js
+          test -s app/map-v2060-immersive-world.js
+          test -s app/map-v2162-game-world.js
+          test -s app/map-v2163-photorealistic-adapter.js
+          grep -Fq 'map-v2162-game-world.js?v=2162' app/map-v1997-weather-hotfix.js
+          grep -Fq 'map-v2163-photorealistic-adapter.js?v=2163' app/map-v1997-weather-hotfix.js
+          grep -Fq 'bp2162-state-boundary' app/map-v2162-game-world.js
+          grep -Fq 'bp2162-county-boundary' app/map-v2162-game-world.js
+          grep -Fq 'bp2162-streams' app/map-v2162-game-world.js
+          grep -Fq 'bp2162-bridges' app/map-v2162-game-world.js
+          grep -Fq 'bp2162-tree-canopy' app/map-v2162-game-world.js
+          grep -Fq 'Game 3D' app/map-v2162-game-world.js
+          node --check app/map-v2162-game-world.js
+          node --check app/map-v2163-photorealistic-adapter.js
+          node --check app/map-v1997-weather-hotfix.js
+
+      - name: Assemble exact rebuilt site
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf site
+          mkdir site
+          tar --exclude=.git --exclude=site -cf - . | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: github-pages-v2162
+          path: site
+
+      - name: Publish rebuilt app
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-v2162
+
+      - name: Verify public app received V2162
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for attempt in $(seq 1 30); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v2162-game-world.js?verify=${salt}" -o /tmp/v2162.js || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/map-v1997-weather-hotfix.js?verify=${salt}" -o /tmp/loader.js || true
+            if grep -Fq 'bp2162-state-boundary' /tmp/v2162.js && grep -Fq 'map-v2162-game-world.js?v=2162' /tmp/loader.js; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
+          echo V2162_PUBLIC_APP_PASS
