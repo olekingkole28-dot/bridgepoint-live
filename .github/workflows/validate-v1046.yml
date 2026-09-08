@@ -1,4 +1,4 @@
-name: Validate BridgePoint Restoration
+name: Validate BridgePoint Live Runtime
 on:
   push:
     branches: [ui-v1046, ui-v1047, ui-v1048, ui-v1049, ui-v1050, ui-v1051, ui-v1052, ui-v1053, live-artifact]
@@ -11,50 +11,27 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check restoration JavaScript syntax
+      - name: Check current live JavaScript syntax
         run: |
-          node --check app/auth-restoration-v1046.js
-          node --check app/property-360-v1046.js
-          node --check app/workspace-restoration-v1046.js
-          node --check app/home-widgets-v1046.js
-          node --check app/capability-explorer-v1047.js
-          node --check app/operations-restoration-v1048.js
-          node --check app/advanced-workflows-v1049.js
-          node --check app/owner-product-admin-v1050.js
-          node --check app/navigation-owner-tools-v1051.js
-          node --check app/property-replay-v1052.js
-          node --check app/home-field-v1052.js
-          node --check app/weather-language-ai-v1052.js
-          node --check app/owner-command-center-v1053.js
-          node --check app/national-state-experience-v1053.js
-          node --check app/property-visual-first-v1053.js
-          node --check app/preapp-national-proof-v1053.js
-      - name: Verify runtime loader references
+          node --check app/universe-v1994.js
+          node --check app/map-v1997.js
+          node --check app/map-v1997-weather-hotfix.js
+          node --check app/map-v2045-physical-world.js
+          node --check app/map-v2060-immersive-world.js
+          node --check app/map-v2090-opportunity-icons.js
+          node --check app/map-v2144-visibility-upgrade.js
+          node --check owner/session-v624.js
+      - name: Verify current runtime loader references
         run: |
-          grep -q 'auth-restoration-v1046.js' app/index.html
-          grep -q 'property-360-v1046.js' app/index.html
-          grep -q 'workspace-restoration-v1046.js' app/index.html
-          grep -q 'home-widgets-v1046.js' app/index.html
-          grep -q 'capability-explorer-v1047.js' app/index.html
-          grep -q 'operations-restoration-v1048.js' app/index.html
-          grep -q 'advanced-workflows-v1049.js' app/index.html
-          grep -q 'owner-product-admin-v1050.js' app/index.html
-          grep -q 'navigation-owner-tools-v1051.js' app/index.html
-          grep -q 'property-replay-v1052.js' app/index.html
-          grep -q 'home-field-v1052.js' app/index.html
-          grep -q 'weather-language-ai-v1052.js' app/index.html
-          grep -q 'owner-command-center-v1053.js' app/index.html
-          grep -q 'national-state-experience-v1053.js' app/index.html
-          grep -q 'property-visual-first-v1053.js' app/index.html
-          grep -q 'preapp-national-proof-v1053.js' app/index.html
-          grep -q 'data-bridgepoint-runtime="v1053"' app/index.html
-          grep -q 'bridgepoint_owner_command_center_v1053' app/owner-command-center-v1053.js
-          grep -q 'gross_customer_churn_rate' app/owner-command-center-v1053.js
-          grep -q 'bridgepoint_state_experience_v1053' app/national-state-experience-v1053.js
-          grep -q 'bridgepoint_property_media_bundle_v169' app/national-state-experience-v1053.js
-          grep -q 'bridgepoint_property_source_3d_v855' app/property-visual-first-v1053.js
-          grep -q 'bridgepoint_property_geometry_v854' app/property-visual-first-v1053.js
-          grep -q 'bridgepoint_public_national_progress_v1053' app/preapp-national-proof-v1053.js
+          grep -q 'universe-v1994.js' app/index.html
+          grep -q 'map-v1997.js' app/index.html
+          grep -q 'map-v1997-weather-hotfix.js' app/index.html
+          grep -q 'map-v2045-physical-world.js' app/map-v1997-weather-hotfix.js
+          grep -q 'map-v2060-immersive-world.js' app/map-v1997-weather-hotfix.js
+          grep -q 'map-v2090-opportunity-icons.js' app/map-v1997-weather-hotfix.js
+          grep -q 'map-v2144-visibility-upgrade.js' app/map-v1997-weather-hotfix.js
+          grep -q 'bridgepoint_owner_home_command_v2110' owner/session-v624.js
+          grep -q 'PowerShell Full Export' owner/session-v624.js
       - name: Verify no merge markers
         run: |
-          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' app/*.js app/index.html
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' app/*.js app/index.html owner/*.js owner/index.html
