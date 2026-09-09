@@ -55,8 +55,10 @@ jobs:
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; SM-S731U) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               await p.setRequestInterception(true);
+              const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*','Access-Control-Allow-Methods':'POST, OPTIONS'};
               p.on('request',req=>{
-                const u=req.url();
+                const u=req.url(),isSupa=u.includes('xdfsjztwgsbmabshzsjw.supabase.co');
+                if(isSupa&&req.method()==='OPTIONS')return req.respond({status:204,headers:cors,body:''});
                 if(u.includes('/rest/v1/rpc/bridgepoint_building_detail_v2300')){
                   const body={
                     resolved:true,
@@ -65,10 +67,10 @@ jobs:
                     parcel_geometry:{type:'Polygon',coordinates:[[[-72.65035,41.55975],[-72.64968,41.55975],[-72.64968,41.56028],[-72.65035,41.56028],[-72.65035,41.55975]]]},
                     elevation:{elevation_m:21.4},measurement_notice:'CI proof fixture: geometry is deterministic test data for the inspector lifecycle.'
                   };
-                  return req.respond({status:200,contentType:'application/json',body:JSON.stringify(body)});
+                  return req.respond({status:200,contentType:'application/json',headers:cors,body:JSON.stringify(body)});
                 }
-                if(u.includes('xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/'))return req.respond({status:200,contentType:'application/json',body:JSON.stringify({type:'FeatureCollection',features:[]})});
-                if(u.includes('xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/'))return req.respond({status:200,contentType:'application/json',body:JSON.stringify({})});
+                if(u.includes('xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/'))return req.respond({status:200,contentType:'application/json',headers:cors,body:JSON.stringify({type:'FeatureCollection',features:[]})});
+                if(u.includes('xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/'))return req.respond({status:200,contentType:'application/json',headers:cors,body:JSON.stringify({})});
                 req.continue();
               });
               await p.goto('http://127.0.0.1:8768/',{waitUntil:'domcontentloaded',timeout:20000});
@@ -76,30 +78,23 @@ jobs:
               const before=await p.evaluate(()=>({main:document.querySelectorAll('#liveMap canvas').length,inspector:document.querySelectorAll('#bp2300Three').length,active:window.__bpInspectorV2300?.active||false,canvasActive:window.__bpInspectorV2300?.canvasActive||false}));
               console.log('INSPECTOR_BEFORE',JSON.stringify(before));
               if(before.main!==1||before.inspector!==0||before.active||before.canvasActive)throw new Error('Inspector precondition failed');
-
               await p.evaluate(()=>window.__bpInspectorV2300.open(-72.65,41.56));
               await p.waitForFunction(()=>window.__bpInspectorV2300?.active===true&&window.__bpInspectorV2300?.canvasActive===true&&document.querySelectorAll('#bp2300Three').length===1,{timeout:12000});
               await p.waitForFunction(()=>document.getElementById('bp2300Title')?.textContent?.includes('2300 Android Proof Street'),{timeout:5000});
               const opened=await p.evaluate(()=>({main:document.querySelectorAll('#liveMap canvas').length,inspector:document.querySelectorAll('#bp2300Three').length,title:document.getElementById('bp2300Title')?.textContent||'',facts:document.getElementById('bp2300Facts')?.textContent||'',openPropertyHidden:document.getElementById('bp2300OpenProperty')?.hidden,api:{active:window.__bpInspectorV2300?.active,canvasActive:window.__bpInspectorV2300?.canvasActive,lazy:window.__bpInspectorV2300?.lazyThreeCanvas,destroy:window.__bpInspectorV2300?.destroysThreeCanvasOnClose,measure:window.__bpInspectorV2300?.raycastMeasurement}}));
               console.log('INSPECTOR_OPEN',JSON.stringify(opened));
               if(opened.main!==1||opened.inspector!==1||!opened.api.active||!opened.api.canvasActive||!opened.api.lazy||!opened.api.destroy||!opened.api.measure||!opened.facts.includes('14.5 m')||opened.openPropertyHidden)throw new Error('Inspector open/render proof failed');
-
               await p.click('#bp2300Measure');
               await p.waitForFunction(()=>document.getElementById('bp2300MeasureReadout')?.textContent?.includes('Tap two points'),{timeout:3000});
-              const canvas=await p.$('#bp2300Three');
-              const box=await canvas.boundingBox();
+              const canvas=await p.$('#bp2300Three'),box=await canvas.boundingBox();
               if(!box||box.width<20||box.height<20)throw new Error('Inspector canvas has invalid size');
               const cx=box.x+box.width*.5,cy=box.y+box.height*.52;
-              await p.mouse.click(cx,cy);
-              await p.mouse.click(cx+Math.min(18,box.width*.05),cy+Math.min(8,box.height*.025));
+              await p.mouse.click(cx,cy);await p.mouse.click(cx+Math.min(18,box.width*.05),cy+Math.min(8,box.height*.025));
               await new Promise(r=>setTimeout(r,300));
               const measureText=await p.$eval('#bp2300MeasureReadout',el=>el.textContent||'');
               console.log('INSPECTOR_MEASURE',measureText);
-              // A headless raycast can miss when SwiftShader camera timing differs, but the control
-              // must at minimum enter measurement mode; when both hits land it must return metric/feet.
               if(!(measureText.includes('Tap two points')||/3D .* m .* ft/.test(measureText)))throw new Error('Measure control did not enter active mode');
               await p.click('#bp2300ResetView');
-
               await p.click('.bp2300-close');
               await p.waitForFunction(()=>window.__bpInspectorV2300?.active===false&&window.__bpInspectorV2300?.canvasActive===false&&document.querySelectorAll('#bp2300Three').length===0,{timeout:5000});
               await new Promise(r=>setTimeout(r,250));
