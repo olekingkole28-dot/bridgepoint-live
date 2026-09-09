@@ -1,5 +1,6 @@
 const mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let waterPrimitive=null;
 
 async function waitWorld(){
   const started=Date.now();
@@ -50,7 +51,7 @@ function configureQuality(viewer){
 }
 function styleBuildings(viewer){
   const buildings=viewer.dataSources.getByName('bp-buildings')[0],roofs=viewer.dataSources.getByName('bp-roofs')[0];
-  if(buildings?.entities)for(const e of buildings.entities.values){if(!e.polygon)continue;try{e.polygon.shadows=Cesium.ShadowMode.ENABLED;e.polygon.outlineWidth=1}catch(_){}}
+  if(buildings?.entities)for(const e of buildings.entities.values){if(!e.polygon)continue;try{e.polygon.shadows=Cesium.ShadowMode.ENABLED}catch(_){}}
   if(roofs?.entities)for(const e of roofs.entities.values){if(!e.polygon)continue;try{e.polygon.shadows=Cesium.ShadowMode.ENABLED}catch(_){}}
 }
 function buildRoadSurfaces(viewer){
@@ -68,16 +69,16 @@ function buildRailSurfaces(viewer){
   viewer.dataSources.add(ds);viewer.scene.requestRender();
 }
 function buildWater(viewer){
-  const old=viewer.scene.primitives._primitives?.find?.(p=>p&&p.__bpV2659Water);if(old){try{viewer.scene.primitives.remove(old);old.destroy?.()}catch(_){}}
+  if(waterPrimitive){try{viewer.scene.primitives.remove(waterPrimitive);waterPrimitive.destroy?.()}catch(_){ }waterPrimitive=null}
   const src=viewer.dataSources.getByName('bp-water')[0];if(!src)return;
   const instances=[];let n=0;
   for(const e of src.entities.values){if(n>180)break;const row=e.bridgepoint||{},g=rowGeometry(row);for(const ring of rings(g)){const d=flat(ring);if(!d||d.length<6)continue;instances.push(new Cesium.GeometryInstance({geometry:new Cesium.PolygonGeometry({polygonHierarchy:new Cesium.PolygonHierarchy(Cesium.Cartesian3.fromDegreesArray(d)),vertexFormat:Cesium.EllipsoidSurfaceAppearance.VERTEX_FORMAT})}));n++}}
-  if(!instances.length)return;
-  let normalMap;try{normalMap=Cesium.buildModuleUrl('Assets/Textures/waterNormals.jpg')}catch(_){normalMap=undefined}
+  if(!instances.length){src.show=true;return}
+  let normalMap;try{normalMap=Cesium.buildModuleUrl('Assets/Textures/waterNormalsSmall.jpg')}catch(_){normalMap=undefined}
   const uniforms={baseWaterColor:new Cesium.Color(.025,.19,.29,.86),blendColor:new Cesium.Color(.03,.25,.38,.72),frequency:700,animationSpeed:.018,amplitude:2.4,specularIntensity:.72};if(normalMap)uniforms.normalMap=normalMap;
   const material=new Cesium.Material({fabric:{type:'Water',uniforms}});
-  const primitive=new Cesium.Primitive({geometryInstances:instances,appearance:new Cesium.EllipsoidSurfaceAppearance({aboveGround:false,material}),asynchronous:true,show:true});primitive.__bpV2659Water=true;viewer.scene.primitives.add(primitive);
-  if(src)src.show=false;viewer.scene.requestRender();
+  waterPrimitive=new Cesium.Primitive({geometryInstances:instances,appearance:new Cesium.EllipsoidSurfaceAppearance({aboveGround:false,material}),asynchronous:true,show:true});
+  viewer.scene.primitives.add(waterPrimitive);src.show=false;viewer.scene.requestRender();
 }
 async function geolocate(){return new Promise((resolve,reject)=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>resolve({lon:p.coords.longitude,lat:p.coords.latitude}),reject,{enableHighAccuracy:true,timeout:7000,maximumAge:60000}):reject(new Error('Location unavailable')))}
 async function terrainHeight(viewer,lon,lat){
@@ -90,7 +91,15 @@ function nav(viewer){
   let lastLocation=null;
   document.getElementById('bp-my-location').onclick=async()=>{try{lastLocation=await geolocate();viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(lastLocation.lon,lastLocation.lat,12000),orientation:{heading:0,pitch:Cesium.Math.toRadians(-58),roll:0},duration:.8})}catch(e){const s=document.getElementById('status');if(s)s.textContent='Location permission is required for My Location.'}};
   document.getElementById('bp-full-us').onclick=()=>viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(-98.35,39.5,5600000),orientation:{heading:0,pitch:Cesium.Math.toRadians(-88),roll:0},duration:.75});
-  document.getElementById('bp-ground-view').onclick=async()=>{try{lastLocation=lastLocation||await geolocate();const h=await terrainHeight(viewer,lastLocation.lon,lastLocation.lat);viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(lastLocation.lon,lastLocation.lat,h+24),orientation:{heading:0,pitch:Cesium.Math.toRadians(-9),roll:0},duration:.9})}catch(e){const center=viewer.camera.pickEllipsoid(new Cesium.Cartesian2(viewer.canvas.clientWidth/2,viewer.canvas.clientHeight/2));if(center){const c=Cesium.Cartographic.fromCartesian(center),lon=Cesium.Math.toDegrees(c.longitude),lat=Cesium.Math.toDegrees(c.latitude),h=await terrainHeight(viewer,lon,lat);viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(lon,lat,h+24),orientation:{heading:viewer.camera.heading,pitch:Cesium.Math.toRadians(-9),roll:0},duration:.8})}};
+  document.getElementById('bp-ground-view').onclick=async()=>{
+    try{
+      lastLocation=lastLocation||await geolocate();const h=await terrainHeight(viewer,lastLocation.lon,lastLocation.lat);
+      viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(lastLocation.lon,lastLocation.lat,h+24),orientation:{heading:0,pitch:Cesium.Math.toRadians(-9),roll:0},duration:.9});
+    }catch(e){
+      const canvas=viewer.scene.canvas,center=viewer.camera.pickEllipsoid(new Cesium.Cartesian2(canvas.clientWidth/2,canvas.clientHeight/2));
+      if(center){const c=Cesium.Cartographic.fromCartesian(center),lon=Cesium.Math.toDegrees(c.longitude),lat=Cesium.Math.toDegrees(c.latitude),h=await terrainHeight(viewer,lon,lat);viewer.camera.flyTo({destination:Cesium.Cartesian3.fromDegrees(lon,lat,h+24),orientation:{heading:viewer.camera.heading,pitch:Cesium.Math.toRadians(-9),roll:0},duration:.8})}
+    }
+  };
 }
 function weatherKey(){const key=document.getElementById('bp-weather-key');if(!key)return;const title=key.querySelector('.keyTitle');if(title)title.textContent='LIVE WEATHER KEY · source-backed / forecast context · refresh ≤ 5 min'}
 async function boot(){
@@ -98,7 +107,7 @@ async function boot(){
   let timer=0;const rebuild=()=>{clearTimeout(timer);timer=setTimeout(()=>{styleBuildings(viewer);buildRoadSurfaces(viewer);buildRailSurfaces(viewer);buildWater(viewer);weatherKey()},160)};
   viewer.camera.moveEnd.addEventListener(rebuild);
   for(const name of ['bp-buildings','bp-roofs','bp-roads','bp-rails','bp-water']){const ds=viewer.dataSources.getByName(name)[0];if(ds?.entities)ds.entities.collectionChanged.addEventListener(rebuild)}
-  rebuild();setInterval(()=>{if(!document.hidden)rebuild()},12000);
+  rebuild();setInterval(()=>{if(!document.hidden)rebuild()},12000);setInterval(()=>{const h=viewer.camera.positionCartographic?.height||1e9;if(h<120000)viewer.scene.requestRender()},250);
   window.BridgePointHiFiV2659={viewer,rebuild,groundView:()=>document.getElementById('bp-ground-view')?.click()};document.documentElement.dataset.bridgepointHiFi='2659';
 }
 boot().catch(e=>console.error('BridgePoint V2659 high-fidelity renderer failed',e));
