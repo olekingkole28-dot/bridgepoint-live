@@ -7,6 +7,8 @@
   <title>BridgePoint World</title>
   <link rel="preconnect" href="https://cesium.com" />
   <link rel="preconnect" href="https://mapservices.weather.noaa.gov" />
+  <link rel="preload" href="./countries-50m.geojson" as="fetch" crossorigin="anonymous" />
+  <link rel="preload" href="./us-states.geojson" as="fetch" crossorigin="anonymous" />
   <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" />
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
   <link rel="stylesheet" href="./world-v2500.css" />
@@ -30,6 +32,8 @@
   <section id="studyLab" aria-label="Structure and parcel lab"><div id="studyCanvas"></div><div class="labChrome"><div id="labInfo" class="labInfo panel"></div><div class="labButtons panel"><button id="labReset" type="button"><span>Reset</span> ↺</button><button id="labMeasure" type="button"><span>Measure</span> ↔</button><button id="labXray" type="button"><span>X-ray</span> ◫</button><button id="labClose" class="danger" type="button"><span>Close</span> ×</button></div></div><div id="measurement" class="measurement panel">Measure: tap Measure, then choose two points on the source-backed structure.</div></section>
   <div id="status" class="panel" aria-live="polite">Loading BridgePoint Generated World…</div>
   <script type="module" src="./world-v2500.js"></script>
+  <script type="module" src="./world-v2661-first-frame.js"></script>
+  <script type="module" src="./world-v2661-surface-labels.js"></script>
   <script type="module" src="./world-v2653-surface.js"></script>
   <script type="module" src="./world-v2652-production.js"></script>
   <script type="module" src="./world-v2652-actions.js"></script>
