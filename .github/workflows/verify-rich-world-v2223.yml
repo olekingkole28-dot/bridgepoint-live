@@ -1,0 +1,120 @@
+name: Verify BridgePoint V2223 Rich World
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-rich-world-v2223.yml'
+      - 'release-v2222/visual-fidelity-v2222.js'
+      - 'release-v2223/rich-world-fusion-v2223.js'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify V2223 public runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online/app'; ok=0
+          for attempt in $(seq 1 36); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 25 -H 'Cache-Control: no-cache' "$origin/rich-world-fusion-v2223.js?v=2223&verify=$salt" -o /tmp/v2223.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 25 -H 'Cache-Control: no-cache' "$origin/visual-fidelity-v2222.js?v=2222&verify=$salt" -o /tmp/v2222.js || true
+            if node --check /tmp/v2223.js && node --check /tmp/v2222.js \
+              && grep -Fq 'BRIDGEPOINT_FIRST_3D_3DEP_SATELLITE_FUSION' /tmp/v2223.js \
+              && grep -Fq 'bridgePointGeometryPrimary:true' /tmp/v2223.js \
+              && grep -Fq 'neutralPhysicalBuildingMaterial:true' /tmp/v2223.js \
+              && grep -Fq '3DEPElevation%3AHillshade%20Multidirectional' /tmp/v2223.js \
+              && grep -Fq 'opaqueVectorGroundSuppressed:true' /tmp/v2222.js; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
+          echo V2223_PUBLIC_RUNTIME_PASS
+
+      - name: Render Gary BridgePoint geometry over satellite and 3DEP on Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const O='https://bridgepointintelligence.online/app';
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader','--disable-gpu-sandbox']});
+            try{
+              const p=await browser.newPage();
+              const net={sat:0,dem:0,vector:0,dep:0};
+              p.on('response',r=>{try{const u=r.url(),s=r.status();if(s<200||s>=400)return;if(u.includes('World_Imagery/MapServer/tile/'))net.sat++;if(u.includes('elevation-tiles-prod')&&u.includes('.png'))net.dem++;if(u.includes('tiles.openfreemap.org')&&u.includes('.pbf'))net.vector++;if(u.includes('3DEPElevation')&&u.includes('WMSServer'))net.dep++}catch(_){}});
+              await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; SM-S731U) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.setContent('<!doctype html><html><head><style>html,body,#map{margin:0;width:100%;height:100%;background:#071019}.map-shell{position:relative;width:100%;height:100%}</style></head><body><section data-surface="map" class="active"><div class="map-shell"><div id="map" style="width:100%;height:100%"></div><div id="mapStatus"></div></div></section></body></html>');
+              await p.addScriptTag({url:`${O}/vendor/maplibre-gl-v1995.js?v=1995`});
+              await p.waitForFunction(()=>!!window.maplibregl?.Map,{timeout:12000});
+              await p.evaluate(()=>{
+                const buildings=[],parcels=[];let id=0;
+                const cx=-87.3425,cy=41.5380,dx=.00042,dy=.00042,w=.00025,h=.00024;
+                for(let iy=0;iy<12;iy++)for(let ix=0;ix<17;ix++){
+                  const x=cx+(ix-8)*dx,y=cy+(iy-5.5)*dy,bid=`gary-${++id}`,height=7+(id%7)*2.1,shape=id%3===0?'gabled':id%3===1?'hipped':'flat',mat=id%4===0?'metal':'shingle';
+                  buildings.push({type:'Feature',id:bid,properties:{building_id:bid,render_height_m:height,base_height_m:0,height_truth:'SOURCE_BACKED',roof_shape:shape,roof_material:mat,roof_height_m:shape==='flat'?.24:.72},geometry:{type:'Polygon',coordinates:[[[x-w/2,y-h/2],[x+w/2,y-h/2],[x+w/2,y+h/2],[x-w/2,y+h/2],[x-w/2,y-h/2]]]}});
+                  parcels.push({type:'Feature',id:`p-${id}`,properties:{property_id:`p-${id}`,geometry_truth:'SOURCE_BACKED'},geometry:{type:'Polygon',coordinates:[[[x-w*.78,y-h*.9],[x+w*.78,y-h*.9],[x+w*.78,y+h*.9],[x-w*.78,y+h*.9],[x-w*.78,y-h*.9]]]}})
+                }
+                window.__fixtureCount=buildings.length;
+                window.__testMap=new maplibregl.Map({container:'map',style:{version:8,sources:{
+                  sat:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256},
+                  street:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256},
+                  dem:{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],tileSize:256,maxzoom:15,encoding:'terrarium'},
+                  'bp97-buildings':{type:'geojson',data:{type:'FeatureCollection',features:buildings}},
+                  'bp97-floorbands':{type:'geojson',data:{type:'FeatureCollection',features:[]}},
+                  'bp97-exact':{type:'geojson',data:{type:'FeatureCollection',features:parcels}},
+                  'bp97-est':{type:'geojson',data:{type:'FeatureCollection',features:[]}}
+                },layers:[
+                  {id:'sat',type:'raster',source:'sat'},
+                  {id:'street',type:'raster',source:'street',layout:{visibility:'none'}},
+                  {id:'hillshade',type:'hillshade',source:'dem'},
+                  {id:'bp97-building',type:'fill-extrusion',source:'bp97-buildings',minzoom:12,paint:{'fill-extrusion-color':'#63dfff','fill-extrusion-height':['get','render_height_m'],'fill-extrusion-base':0,'fill-extrusion-opacity':.76}},
+                  {id:'bp97-floorbands',type:'fill-extrusion',source:'bp97-floorbands',paint:{'fill-extrusion-color':'#dffcff','fill-extrusion-height':['get','band_top'],'fill-extrusion-base':['get','band_base'],'fill-extrusion-opacity':.3}}
+                ]},center:[cx,cy],zoom:16,pitch:64,bearing:-18,maxZoom:21,minZoom:2.5,antialias:true,fadeDuration:0});
+              });
+              await p.waitForFunction(()=>window.__testMap?.loaded?.(),{timeout:25000});
+              await p.evaluate(()=>{window.__bp97MapState={ready:true,map:window.__testMap,localTried:true,terrain:true,layers:{radar:false,buildings:true,boundaries:true}}});
+              for(const f of ['mobile-map-authority-v2219.js?v=2219','mobile-visual-world-v2220.js?v=2220','building-geometry-lod-v2221.js?v=2221','visual-fidelity-v2222.js?v=2222','rich-world-fusion-v2223.js?v=2223'])await p.addScriptTag({url:`${O}/${f}&proof=${Date.now()}-${Math.random()}`});
+              await p.waitForFunction(()=>window.__bpRichWorldFusionV2223?.version===2223,{timeout:15000});
+              await p.waitForFunction(()=>window.__testMap.getLayer('bp2223-exact-building-material')&&window.__testMap.getLayer('bp2221-exact-roof')&&window.__testMap.getLayer('bp2221-parcel-line')&&window.__testMap.getLayer('bp2223-usgs-3dep-relief'),{timeout:15000});
+              let out=null;const deadline=Date.now()+30000;
+              while(Date.now()<deadline){
+                await new Promise(r=>setTimeout(r,800));
+                out=await p.evaluate(()=>{const m=window.__testMap;return {physical:m.queryRenderedFeatures({layers:['bp2223-exact-building-material']}).length,roofs:m.queryRenderedFeatures({layers:['bp2221-exact-roof']}).length,parcels:m.queryRenderedFeatures({layers:['bp2221-parcel-line']}).length,contextLayer:!!m.getLayer('bp2221-building-body'),sat:m.getLayoutProperty('sat','visibility')||'visible',ground:m.getLayer('bp2220-ground')?(m.getLayoutProperty('bp2220-ground','visibility')||'visible'):'missing',relief:m.getLayoutProperty('bp2223-usgs-3dep-relief','visibility')||'visible',projection:m.getProjection?.()?.type||'',pitch:m.getPitch(),maxPitch:m.getMaxPitch?.(),terrain:m.getTerrain?.()||null,canvases:document.querySelectorAll('canvas').length,api:window.__bpRichWorldFusionV2223,state:window.__bpRichWorldFusionV2223.getState(),fixture:window.__fixtureCount}});
+                if(out.physical>150&&out.roofs>150&&out.parcels>150&&net.sat>0&&net.dem>0&&net.dep>0&&net.vector>0)break;
+              }
+              console.log('V2223_DIAGNOSTIC',JSON.stringify({out,net}));
+              assert(out,'expected render state');
+              assert.equal(out.fixture,204);
+              assert(out.physical>150,`expected >150 BridgePoint physical 3D buildings, got ${out.physical}`);
+              assert(out.roofs>150,`expected >150 exact roof caps, got ${out.roofs}`);
+              assert(out.parcels>150,`expected >150 exact parcel boundaries, got ${out.parcels}`);
+              assert.equal(out.contextLayer,true,'vector continuity building layer must exist');
+              assert(net.sat>0,`expected satellite tiles, got ${net.sat}`);
+              assert(net.dem>0,`expected DEM terrain tiles, got ${net.dem}`);
+              assert(net.dep>0,`expected USGS 3DEP relief tiles, got ${net.dep}`);
+              assert(net.vector>0,`expected vector continuity tiles, got ${net.vector}`);
+              assert.equal(out.sat,'visible');assert.equal(out.ground,'none');assert.equal(out.relief,'visible');
+              assert.equal(out.projection,'globe');assert(out.pitch>=55);assert(out.maxPitch>=70);assert(out.terrain?.source==='dem','terrain mesh should be active');
+              assert.equal(out.canvases,1,'must reuse one MapLibre GPU canvas');
+              assert.equal(out.api.bridgePointGeometryPrimary,true);assert.equal(out.api.vectorTilesContinuityOnly,true);assert.equal(out.api.secondaryWebGL,false);assert.equal(out.api.continuousAnimation,false);
+              assert(out.state.exactCount>=190,`expected BridgePoint source feature count near fixture size, got ${out.state.exactCount}`);
+              assert.equal(out.state.opaqueGroundHidden,true);
+              console.log('BRIDGEPOINT_V2223_GARY_ANDROID_PASS',JSON.stringify({physical:out.physical,roofs:out.roofs,parcels:out.parcels,exactCount:out.state.exactCount,satTiles:net.sat,demTiles:net.dem,depTiles:net.dep,vectorTiles:net.vector,pitch:out.pitch,terrain:out.terrain.source,projection:out.projection,canvases:out.canvases,tier:out.state.tier}));
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
