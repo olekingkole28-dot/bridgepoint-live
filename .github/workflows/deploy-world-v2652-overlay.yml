@@ -1,4 +1,4 @@
-name: Deploy BridgePoint High-Fidelity Generated World
+name: Deploy BridgePoint Continuous LOD World
 
 on:
   workflow_dispatch:
@@ -30,7 +30,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate staged V2659 world files
+      - name: Validate staged V2660 world files
         run: |
           set -euo pipefail
           for f in \
@@ -42,6 +42,7 @@ jobs:
             staging/world-v2652/world-v2657-inspector.js \
             staging/world-v2652/world-v2658-ground-labels.js \
             staging/world-v2652/world-v2659-hifi.js \
+            staging/world-v2652/world-v2660-continuous-lod.js \
             staging/world-v2652/world-v2652-production.js \
             staging/world-v2652/world-v2652-actions.js \
             staging/world-v2652/world-v2652.css \
@@ -53,20 +54,22 @@ jobs:
           node --check staging/world-v2652/world-v2657-inspector.js
           node --check staging/world-v2652/world-v2658-ground-labels.js
           node --check staging/world-v2652/world-v2659-hifi.js
+          node --check staging/world-v2652/world-v2660-continuous-lod.js
           node --check staging/world-v2652/world-v2652-production.js
           node --check staging/world-v2652/world-v2652-actions.js
-          grep -Fq 'world-v2659-hifi.js' staging/world-v2652/index.html
+          grep -Fq 'world-v2660-continuous-lod.js' staging/world-v2652/index.html
+          grep -Fq 'BridgePointContinuousLOD2660' staging/world-v2652/world-v2660-continuous-lod.js
+          grep -Fq 'bp-v2660-continuity-cache' staging/world-v2652/world-v2660-continuous-lod.js
+          grep -Fq 'world.streamViewport?.(true)' staging/world-v2652/world-v2660-continuous-lod.js
           grep -Fq 'My Location' staging/world-v2652/world-v2659-hifi.js
           grep -Fq 'Full U.S.' staging/world-v2652/world-v2659-hifi.js
           grep -Fq 'Ground View' staging/world-v2652/world-v2659-hifi.js
           grep -Fq "type:'Water'" staging/world-v2652/world-v2659-hifi.js
-          grep -Fq 'DERIVED_WIDTH_FROM_SOURCE_ROAD_CLASS' staging/world-v2652/world-v2659-hifi.js
-          grep -Fq 'HeightReference.CLAMP_TO_GROUND' staging/world-v2658-ground-labels.js 2>/dev/null || grep -Fq 'HeightReference.CLAMP_TO_GROUND' staging/world-v2652/world-v2658-ground-labels.js
-          grep -Fq 'hifi-generated-world-2659' staging/home-v2652/patch-live-app.py
+          grep -Fq 'continuous-lod-world-2660' staging/home-v2652/patch-live-app.py
           ! grep -Fq '<iframe' staging/home-v2652/patch-live-app.py
           ! grep -Fq 'WebMapServiceImageryProvider' staging/world-v2652/world-v2653-surface.js
 
-      - name: Assemble direct V2659 generated world
+      - name: Assemble direct V2660 continuous LOD world
         run: |
           set -euo pipefail
           git fetch origin live-artifact:refs/remotes/origin/live-artifact
@@ -85,6 +88,7 @@ jobs:
           cp staging/world-v2652/world-v2657-inspector.js site/app/bridgepoint-3d-world/world-v2500-inspector.js
           cp staging/world-v2652/world-v2658-ground-labels.js site/app/bridgepoint-3d-world/world-v2658-ground-labels.js
           cp staging/world-v2652/world-v2659-hifi.js site/app/bridgepoint-3d-world/world-v2659-hifi.js
+          cp staging/world-v2652/world-v2660-continuous-lod.js site/app/bridgepoint-3d-world/world-v2660-continuous-lod.js
           cp staging/world-v2652/world-v2652-production.js site/app/bridgepoint-3d-world/world-v2652-production.js
           cp staging/world-v2652/world-v2652-actions.js site/app/bridgepoint-3d-world/world-v2652-actions.js
           cp staging/world-v2652/world-v2652.css site/app/bridgepoint-3d-world/world-v2652.css
@@ -93,21 +97,19 @@ jobs:
           cp -a site/app/bridgepoint-3d-world site/app/bridgepoint-world-v2652
           python3 staging/home-v2652/patch-live-app.py
 
-          grep -Fq 'hifi-generated-world-2659' site/app/index.html
+          grep -Fq 'continuous-lod-world-2660' site/app/index.html
           ! grep -Fq '<iframe' site/app/index.html
           ! grep -Fq 'flutter_bootstrap.js' site/app/index.html
           ! grep -Fq 'main.dart.js' site/app/index.html
-          grep -Fq 'world-v2659-hifi.js' site/app/bridgepoint-world-v2652/index.html
+          grep -Fq 'world-v2660-continuous-lod.js' site/app/bridgepoint-world-v2652/index.html
+          grep -Fq 'BridgePointContinuousLOD2660' site/app/bridgepoint-world-v2652/world-v2660-continuous-lod.js
+          grep -Fq 'bp-v2660-continuity-cache' site/app/bridgepoint-world-v2652/world-v2660-continuous-lod.js
           grep -Fq 'BridgePointHiFiV2659' site/app/bridgepoint-world-v2652/world-v2659-hifi.js
-          grep -Fq 'My Location' site/app/bridgepoint-world-v2652/world-v2659-hifi.js
-          grep -Fq 'Full U.S.' site/app/bridgepoint-world-v2652/world-v2659-hifi.js
-          grep -Fq 'Ground View' site/app/bridgepoint-world-v2652/world-v2659-hifi.js
-          grep -Fq "type:'Water'" site/app/bridgepoint-world-v2652/world-v2659-hifi.js
           grep -Fq '3DEP sampled terrain' site/app/bridgepoint-world-v2652/world-v2500-inspector.js
           ! grep -Fq 'WebMapServiceImageryProvider' site/app/bridgepoint-world-v2652/world-v2653-surface.js
 
           cat > site/app/bridgepoint-world-overlay-v2652.json <<EOF
-          {"app_shell_version":2659,"map_only":true,"direct_map_navigation":true,"iframe":false,"flutter_ui_enabled":false,"us_first_camera":true,"us_jurisdictions_green":true,"foreign_countries_red_locked":true,"country_labels":"GROUND_ANCHORED_DISTANCE_GATED","state_labels":"GROUND_ANCHORED_DISTANCE_GATED","object_labels":"GROUND_RELATIVE_LOD","weather_key":true,"weather_refresh_seconds":300,"navigation_controls":["My Location","Full U.S.","Ground View"],"graphics":{"high_fidelity":true,"animated_source_water":true,"derived_road_surface_widths":true,"fxaa":true,"hdr":true,"dynamic_sun_lighting":true,"building_shadows":true},"population":{"camera_debounce_ms":75,"all_available_living_layers_auto_enabled":true,"world_feature_priority":"NY_CT_STORM_STATES_FIRST","world_feature_tile_limit":8},"property_card_bundle":2657,"property_lab":{"terrain":"3DEP_SAMPLE_WHEN_AVAILABLE","parcel_boundary":true,"measure_3d":true,"pinch_zoom":true,"xray":true,"interior_only_when_source_backed":true},"surface_mode":"BRIDGEPOINT_GENERATED_MATERIAL_WORLD","raw_landcover_visible":false,"satellite_default":false,"overlay_source_sha":"${GITHUB_SHA}","versioned_world_path":"/app/bridgepoint-world-v2652/"}
+          {"app_shell_version":2660,"map_only":true,"direct_map_navigation":true,"iframe":false,"flutter_ui_enabled":false,"us_first_camera":true,"continuous_lod":true,"coarse_geometry_persists_until_refined":true,"high_altitude_category_budgets":true,"predictive_camera_prefetch_ms":55,"persistent_lod_cache":true,"high_altitude_labels":true,"us_jurisdictions_green":true,"foreign_countries_red_locked":true,"weather_key":true,"weather_refresh_seconds":300,"navigation_controls":["My Location","Full U.S.","Ground View"],"graphics":{"high_fidelity":true,"animated_source_water":true,"derived_road_surface_widths":true,"fxaa":true,"hdr":true,"dynamic_sun_lighting":true,"building_shadows":true},"population":{"all_available_living_layers_auto_enabled":true,"world_feature_priority":"NYC_NY_CT_STORM_STATES_FIRST","world_feature_tile_limit":8},"backend_viewport_engine":2660,"surface_mode":"BRIDGEPOINT_GENERATED_MATERIAL_WORLD","raw_landcover_visible":false,"satellite_default":false,"overlay_source_sha":"${GITHUB_SHA}","versioned_world_path":"/app/bridgepoint-world-v2652/"}
           EOF
           touch site/.nojekyll site/app/.nojekyll
 
@@ -116,15 +118,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          rm -rf /tmp/hifi-world && mkdir /tmp/hifi-world
-          cp -a site/. /tmp/hifi-world/
-          cd /tmp/hifi-world
+          rm -rf /tmp/lod-world && mkdir /tmp/lod-world
+          cp -a site/. /tmp/lod-world/
+          cd /tmp/lod-world
           git init -q
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m "Publish BridgePoint V2659 high-fidelity world ${GITHUB_SHA}"
+          git commit -m "Publish BridgePoint V2660 continuous LOD world ${GITHUB_SHA}"
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -136,7 +138,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify production V2659 world
+      - name: Verify production V2660 world
         run: |
           set -euo pipefail
           ORIGIN='https://bridgepointintelligence.online'
@@ -145,10 +147,10 @@ jobs:
             marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-overlay-v2652.json?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
             app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
             world="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
-            hifi="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/world-v2659-hifi.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
-            if printf '%s' "$marker" | grep -Fq '"app_shell_version":2659' && printf '%s' "$marker" | grep -Fq '"animated_source_water":true' && printf '%s' "$marker" | grep -Fq 'NY_CT_STORM_STATES_FIRST' && printf '%s' "$app" | grep -Fq 'hifi-generated-world-2659' && ! printf '%s' "$app" | grep -Fq '<iframe' && printf '%s' "$world" | grep -Fq 'world-v2659-hifi.js' && printf '%s' "$hifi" | grep -Fq 'BridgePointHiFiV2659' && printf '%s' "$hifi" | grep -Fq 'My Location' && printf '%s' "$hifi" | grep -Fq 'Full U.S.' && printf '%s' "$hifi" | grep -Fq 'Ground View' && printf '%s' "$hifi" | grep -Fq "type:'Water'"; then
+            lod="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/world-v2660-continuous-lod.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$marker" | grep -Fq '"app_shell_version":2660' && printf '%s' "$marker" | grep -Fq '"continuous_lod":true' && printf '%s' "$marker" | grep -Fq '"backend_viewport_engine":2660' && printf '%s' "$app" | grep -Fq 'continuous-lod-world-2660' && ! printf '%s' "$app" | grep -Fq '<iframe' && printf '%s' "$world" | grep -Fq 'world-v2660-continuous-lod.js' && printf '%s' "$lod" | grep -Fq 'BridgePointContinuousLOD2660' && printf '%s' "$lod" | grep -Fq 'bp-v2660-continuity-cache'; then
               ok=1
-              echo "BRIDGEPOINT_HIGH_FIDELITY_GENERATED_WORLD_V2659_LIVE"
+              echo "BRIDGEPOINT_CONTINUOUS_LOD_WORLD_V2660_LIVE"
               break
             fi
             sleep 5
