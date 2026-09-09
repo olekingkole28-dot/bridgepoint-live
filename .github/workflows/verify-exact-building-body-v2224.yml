@@ -1,0 +1,82 @@
+name: Verify BridgePoint V2224 Exact Building Bodies
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-exact-building-body-v2224.yml'
+      - 'release-v2224/exact-building-body-v2224.js'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Render dense Gary exact building bodies on Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          const O='https://bridgepointintelligence.online/app';
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader','--disable-gpu-sandbox']});
+            try{
+              const p=await browser.newPage();
+              await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; SM-S731U) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.setContent('<!doctype html><html><head><style>html,body,#map{margin:0;width:100%;height:100%;background:#071019}.map-shell{position:relative;width:100%;height:100%}</style></head><body><section data-surface="map" class="active"><div class="map-shell"><div id="map"></div><div id="mapStatus"></div></div></section></body></html>');
+              await p.addScriptTag({url:`${O}/vendor/maplibre-gl-v1995.js?v=1995`});
+              await p.waitForFunction(()=>!!window.maplibregl?.Map,{timeout:12000});
+              await p.evaluate(()=>{
+                const buildings=[];let id=0,cx=-87.3425,cy=41.5380,dx=.00042,dy=.00042,w=.00025,h=.00024;
+                for(let iy=0;iy<12;iy++)for(let ix=0;ix<17;ix++){
+                  const x=cx+(ix-8)*dx,y=cy+(iy-5.5)*dy,bid=`gary-${++id}`;
+                  buildings.push({type:'Feature',properties:{building_id:bid,render_height_m:8+(id%8)*1.8,base_height_m:0,height_truth:'SOURCE_BACKED'},geometry:{type:'Polygon',coordinates:[[[x-w/2,y-h/2],[x+w/2,y-h/2],[x+w/2,y+h/2],[x-w/2,y+h/2],[x-w/2,y-h/2]]]}})
+                }
+                window.__fixtureCount=buildings.length;
+                window.__testMap=new maplibregl.Map({container:'map',style:{version:8,sources:{
+                  sat:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256},
+                  dem:{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],tileSize:256,maxzoom:15,encoding:'terrarium'},
+                  'bp97-buildings':{type:'geojson',data:{type:'FeatureCollection',features:buildings}}
+                },layers:[
+                  {id:'sat',type:'raster',source:'sat'},
+                  {id:'hillshade',type:'hillshade',source:'dem'},
+                  {id:'bp97-building',type:'fill-extrusion',source:'bp97-buildings',minzoom:12,paint:{'fill-extrusion-color':'#63dfff','fill-extrusion-height':['get','render_height_m'],'fill-extrusion-base':0,'fill-extrusion-opacity':.05}},
+                  {id:'labels',type:'background',paint:{'background-color':'rgba(0,0,0,0)'}}
+                ]},center:[cx,cy],zoom:16,pitch:64,bearing:-18,maxZoom:21,minZoom:2.5,antialias:true,fadeDuration:0});
+              });
+              await p.waitForFunction(()=>window.__testMap?.loaded?.(),{timeout:25000});
+              await p.evaluate(()=>{window.__bp97MapState={ready:true,map:window.__testMap,layers:{buildings:true,boundaries:true,radar:false},terrain:true};window.__testMap.setTerrain({source:'dem',exaggeration:1.05});});
+              await p.addScriptTag({url:`${O}/exact-building-body-v2224.js?v=2224&proof=${Date.now()}`});
+              await p.waitForFunction(()=>window.__bpExactBuildingBodyV2224?.version===2224,{timeout:15000});
+              await p.waitForFunction(()=>window.__testMap.getSource('bp2224-exact-buildings')&&window.__testMap.getLayer('bp2224-exact-building-body'),{timeout:12000});
+              let out=null;const deadline=Date.now()+15000;
+              while(Date.now()<deadline){
+                await new Promise(r=>setTimeout(r,500));
+                out=await p.evaluate(()=>{const m=window.__testMap;return {rendered:m.queryRenderedFeatures({layers:['bp2224-exact-building-body']}).length,sourceFeatures:m.querySourceFeatures('bp2224-exact-buildings').length,state:window.__bpExactBuildingBodyV2224.getState(),fixture:window.__fixtureCount,canvases:document.querySelectorAll('canvas').length,terrain:m.getTerrain?.()||null,pitch:m.getPitch()}});
+                if(out.rendered>150&&out.sourceFeatures>=200&&out.state.count>=200)break;
+              }
+              console.log('V2224_DIAGNOSTIC',JSON.stringify(out));
+              assert.equal(out.fixture,204);
+              assert(out.state.count>=200,`expected >=200 deduped exact bodies, got ${out.state.count}`);
+              assert(out.sourceFeatures>=200,`expected >=200 features in independent body source, got ${out.sourceFeatures}`);
+              assert(out.rendered>150,`expected >150 visible exact physical buildings, got ${out.rendered}`);
+              assert.equal(out.state.sourceReady,true);assert.equal(out.state.layerVisible,'visible');
+              assert.equal(out.canvases,1,'must reuse one MapLibre WebGL canvas');
+              assert.equal(out.terrain?.source,'dem');assert(out.pitch>=55);
+              assert.equal(window===window,true);
+              console.log('BRIDGEPOINT_V2224_GARY_ANDROID_PASS',JSON.stringify(out));
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
