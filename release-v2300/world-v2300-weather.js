@@ -1,10 +1,10 @@
-import{VERSION,EDGE,EMPTY,LOW,TIER,edge,bbox,fc}from'./world-v2300-config.js';
+import{VERSION,EMPTY,LOW,edge,bbox,fc}from'./world-v2300-config.js';
 
 const RADAR='https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity_time/ImageServer/WMSServer?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=1&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256';
 function add(map,l,before){try{if(!map.getLayer(l.id))map.addLayer(l,before&&map.getLayer(before)?before:undefined)}catch(e){console.warn('weather layer',l.id,e)}}
 function source(map,id){return map.getSource(id)}
 function ensure(map){
-  for(const [id] of [['wx-alerts'],['wx-fires'],['wx-quakes'],['wx-storms'],['wx-thermal'],['wx-obs']])if(!map.getSource(id))map.addSource(id,{type:'geojson',data:EMPTY});
+  for(const id of ['wx-alerts','wx-fires','wx-quakes','wx-storms','wx-thermal','wx-obs'])if(!map.getSource(id))map.addSource(id,{type:'geojson',data:EMPTY});
   if(!map.getSource('wx-radar'))try{map.addSource('wx-radar',{type:'raster',tiles:[RADAR],tileSize:256,minzoom:3,maxzoom:12,attribution:'NOAA/NWS MRMS'})}catch(_){}
   add(map,{id:'wx-radar',type:'raster',source:'wx-radar',layout:{visibility:'none'},paint:{'raster-opacity':LOW?.46:.58,'raster-fade-duration':0}},'gta-road-major-glow');
   add(map,{id:'wx-alert-fill',type:'fill',source:'wx-alerts',paint:{'fill-color':['match',['upcase',['coalesce',['get','phenom'],'']],'TO','#ff3c6e','SV','#ffb84a','FF','#34d7ff','FA','#34d7ff','HU','#d764ff','TR','#d764ff','#ff9a56'],'fill-opacity':.16}},'gta-road-major-glow');
@@ -27,8 +27,8 @@ export function initWeather(map){
   function setData(id,data){try{source(map,id)?.setData(data)}catch(_){}}
   function atmosphere(obs){
     if(!obs?.length)return;const c=map.getCenter();let best=null,dist=Infinity;for(const o of obs){const d=(o.lng-c.lng)**2+(o.lat-c.lat)**2;if(d<dist){dist=d;best=o}}if(!best)return;
-    const cloud=Math.max(0,Math.min(1,Number(best.cloud_fraction||0))),vis=Number(best.visibility_mi||10),storm=cloud>.8;
-    try{map.setSky({'sky-color':storm?'#26313b':'#102d3e','horizon-color':storm?'#53606a':'#31515e','fog-color':storm?'#69747d':'#718a92','sky-horizon-blend':vis<1?.04:.18,'horizon-fog-blend':vis<1?.18:.04,'fog-ground-blend':0,'atmosphere-blend':['interpolate',['linear'],['zoom'],0,.5+cloud*.25,6,.22+cloud*.18,10,0]});map.setLight({anchor:'map',color:storm?'#9faab2':'#e5f7ff',intensity:storm?.28:.48,position:[1.2,205,38]})}catch(_){}
+    const cloud=Math.max(0,Math.min(1,Number(best.cloud_fraction||0))),visibility=Number(best.visibility_mi||10),storm=cloud>.8;
+    try{map.setSky({'sky-color':storm?'#26313b':'#102d3e','horizon-color':storm?'#53606a':'#31515e','fog-color':storm?'#69747d':'#718a92','sky-horizon-blend':visibility<1?.04:.18,'horizon-fog-blend':visibility<1?.18:.04,'fog-ground-blend':0,'atmosphere-blend':['interpolate',['linear'],['zoom'],0,.5+cloud*.25,6,.22+cloud*.18,10,0]});map.setLight({anchor:'map',color:storm?'#9faab2':'#e5f7ff',intensity:storm?.28:.48,position:[1.2,205,38]})}catch(_){}
   }
   async function refresh(force=false){
     if(!active)return;const now=Date.now();if(!force&&now-last<45000)return;last=now;const id=++abort,b=bbox(map,.18),z=map.getZoom();
@@ -36,10 +36,10 @@ export function initWeather(map){
       const d=await edge('bridgepoint-world-effects-v2190',{west:b.west,south:b.south,east:b.east,north:b.north,zoom:z,modes:['all']},14500);if(id!==abort)return;
       setData('wx-alerts',fc((d.alerts||[]).map(x=>geomFeature(x.geometry,{...(x.properties||{}),source:'NOAA/NWS'}))));
       setData('wx-fires',fc((d.fires||[]).map(x=>geomFeature(x.geometry,{id:x.id,name:x.name,acres:x.acres,contained_pct:x.contained_pct,source:x.source}))));
-      setData('wx-quakes',fc((d.earthquakes||[]).map(x=>point(x.lng,x.lat,x)));
-      setData('wx-storms',fc((d.storms||[]).map(x=>point(x.lng,x.lat,x)));
-      setData('wx-thermal',fc((d.thermal||[]).map(x=>point(x.lng,x.lat,x)));
-      setData('wx-obs',fc((d.observations||[]).map(x=>point(x.lng,x.lat,x)));
+      setData('wx-quakes',fc((d.earthquakes||[]).map(x=>point(x.lng,x.lat,x))));
+      setData('wx-storms',fc((d.storms||[]).map(x=>point(x.lng,x.lat,x))));
+      setData('wx-thermal',fc((d.thermal||[]).map(x=>point(x.lng,x.lat,x))));
+      setData('wx-obs',fc((d.observations||[]).map(x=>point(x.lng,x.lat,x))));
       atmosphere(d.observations||[]);
       window.dispatchEvent(new CustomEvent('bp2300:weather-updated',{detail:{generated_at:d.generated_at,sources:d.sources||[],counts:{alerts:d.alerts?.length||0,fires:d.fires?.length||0,quakes:d.earthquakes?.length||0,storms:d.storms?.length||0}}}));
     }catch(e){console.warn('V2300 weather',e)}
@@ -49,6 +49,6 @@ export function initWeather(map){
   map.on('zoomend',()=>refresh(false));
   document.querySelector('[data-layer="radar"]')?.addEventListener('click',e=>setRadar(e.currentTarget.classList.contains('active')));
   document.querySelector('[data-layer="signals"]')?.addEventListener('click',e=>{active=e.currentTarget.classList.contains('active');for(const id of ['wx-alert-fill','wx-alert-line','wx-fire-fill','wx-fire-line','wx-thermal','wx-quake-glow','wx-quake','wx-storm-glow','wx-storm','wx-obs'])try{map.setLayoutProperty(id,'visibility',active?'visible':'none')}catch(_){}if(active)refresh(true)});
-  refresh(true);const poll=setInterval(()=>document.querySelector('[data-surface="map"]')?.classList.contains('active')&&refresh(false),60000);
+  refresh(true);setInterval(()=>document.querySelector('[data-surface="map"]')?.classList.contains('active')&&refresh(false),60000);
   const api={version:VERSION,refresh,setRadar,get state(){return{active,radar,last}}};window.__bpWeatherV2300=api;return api;
 }
