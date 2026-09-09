@@ -1,13 +1,14 @@
 import{VERSION}from'./world-v2300-config.js';
 import{initWorld}from'./world-v2300-map.js';
+import{initDetails}from'./world-v2300-details.js';
 import{initWeather}from'./world-v2300-weather.js';
 import{initInspector}from'./world-v2300-inspector.js';
 
-let booting=false,ready=false,world=null,weather=null,inspector=null,extensionsBound=false;
+let booting=false,ready=false,world=null,details=null,weather=null,inspector=null,extensionsBound=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function waitForMapShell(){for(let i=0;i<120;i++){if(window.maplibregl&&document.getElementById('liveMap'))return true;await sleep(50)}return false}
 function expose(){
-  window.BridgePointWorldV2300={version:VERSION,authoritative:true,cleanReplacement:true,architecture:'MAPLIBRE_SINGLE_CANVAS_TILE_LOD_PLUS_LAZY_THREE_INSPECTOR',boot,world,weather,inspector,get state(){return{version:VERSION,ready,booting,cleanReplacement:true,mainCanvases:document.querySelectorAll('#liveMap canvas').length,inspectorOpen:!document.getElementById('bp2300Inspector')?.hidden,world:world?.state||null,weather:weather?.state||null}}};
+  window.BridgePointWorldV2300={version:VERSION,authoritative:true,cleanReplacement:true,architecture:'MAPLIBRE_SINGLE_CANVAS_TILE_LOD_PLUS_SEMANTIC_DETAIL_PLUS_LAZY_THREE_INSPECTOR',boot,world,details,weather,inspector,get state(){return{version:VERSION,ready,booting,cleanReplacement:true,mainCanvases:document.querySelectorAll('#liveMap canvas').length,inspectorOpen:!document.getElementById('bp2300Inspector')?.hidden,world:world?.state||null,details:details?.state||null,weather:weather?.state||null}}};
   window.__bpAuthoritativeWorldRuntime=VERSION;
   return window.BridgePointWorldV2300;
 }
@@ -18,6 +19,7 @@ function bindExtensions(){
     let styleReady=false;try{styleReady=world.map.isStyleLoaded?.()===true||!!world.map.getSource?.('ofm')}catch(_){}
     if(!styleReady)return;
     extensionsBound=true;
+    try{details=initDetails(world.map)}catch(e){console.warn('V2300 details init',e)}
     try{inspector=initInspector(world.map)}catch(e){console.warn('V2300 inspector init',e)}
     try{weather=initWeather(world.map)}catch(e){console.warn('V2300 weather init',e)}
     expose();
