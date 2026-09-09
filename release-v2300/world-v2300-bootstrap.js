@@ -14,13 +14,14 @@ import{initLandmarks}from'./world-v2300-landmarks.js';
 import{initRail3D}from'./world-v2300-rail-3d.js';
 import{initAdminLabels}from'./world-v2300-admin-labels.js';
 import{initStreetLabels}from'./world-v2300-street-labels.js';
+import{initWaterLabels}from'./world-v2300-water-labels.js';
 import{initInspector}from'./world-v2300-inspector.js';
 
-let booting=false,ready=false,world=null,details=null,weather=null,presentWeather=null,weatherKey=null,weatherPersistence=null,flythrough=null,buildingFidelity=null,roadStyle=null,boundaryContinuity=null,lockedCountries=null,landmarks=null,rail3d=null,adminLabels=null,streetLabels=null,inspector=null,extensionsBound=false;
+let booting=false,ready=false,world=null,details=null,weather=null,presentWeather=null,weatherKey=null,weatherPersistence=null,flythrough=null,buildingFidelity=null,roadStyle=null,boundaryContinuity=null,lockedCountries=null,landmarks=null,rail3d=null,adminLabels=null,streetLabels=null,waterLabels=null,inspector=null,extensionsBound=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function waitForMapShell(){for(let i=0;i<120;i++){if(window.maplibregl&&document.getElementById('liveMap'))return true;await sleep(50)}return false}
 function expose(){
-  window.BridgePointWorldV2300={version:VERSION,authoritative:true,cleanReplacement:true,architecture:'MAPLIBRE_SINGLE_CANVAS_TILE_LOD_PLUS_SEMANTIC_DETAIL_PLUS_BOUNDED_WEATHER_PLUS_LAZY_THREE_INSPECTOR',boot,world,details,weather,presentWeather,weatherKey,weatherPersistence,flythrough,buildingFidelity,roadStyle,boundaryContinuity,lockedCountries,landmarks,rail3d,adminLabels,streetLabels,inspector,get state(){return{version:VERSION,ready,booting,cleanReplacement:true,mainCanvases:document.querySelectorAll('#liveMap canvas').length,inspectorOpen:!document.getElementById('bp2300Inspector')?.hidden,world:world?.state||null,details:details?.state||null,weather:weather?.state||null,presentWeather:presentWeather?.state||null,weatherKey:weatherKey?.state||null,weatherPersistence:weatherPersistence?.state||null,flythrough:flythrough?.state||null,buildingFidelity:buildingFidelity?.state||null,roadStyle:roadStyle?.state||null,boundaryContinuity:boundaryContinuity?.state||null,lockedCountries:lockedCountries?.state||null,landmarks:landmarks?.state||null,rail3d:rail3d?.state||null,adminLabels:adminLabels?.state||null,streetLabels:streetLabels?.state||null}}};
+  window.BridgePointWorldV2300={version:VERSION,authoritative:true,cleanReplacement:true,architecture:'MAPLIBRE_SINGLE_CANVAS_TILE_LOD_PLUS_SEMANTIC_DETAIL_PLUS_BOUNDED_WEATHER_PLUS_LAZY_THREE_INSPECTOR',boot,world,details,weather,presentWeather,weatherKey,weatherPersistence,flythrough,buildingFidelity,roadStyle,boundaryContinuity,lockedCountries,landmarks,rail3d,adminLabels,streetLabels,waterLabels,inspector,get state(){return{version:VERSION,ready,booting,cleanReplacement:true,mainCanvases:document.querySelectorAll('#liveMap canvas').length,inspectorOpen:!document.getElementById('bp2300Inspector')?.hidden,world:world?.state||null,details:details?.state||null,weather:weather?.state||null,presentWeather:presentWeather?.state||null,weatherKey:weatherKey?.state||null,weatherPersistence:weatherPersistence?.state||null,flythrough:flythrough?.state||null,buildingFidelity:buildingFidelity?.state||null,roadStyle:roadStyle?.state||null,boundaryContinuity:boundaryContinuity?.state||null,lockedCountries:lockedCountries?.state||null,landmarks:landmarks?.state||null,rail3d:rail3d?.state||null,adminLabels:adminLabels?.state||null,streetLabels:streetLabels?.state||null,waterLabels:waterLabels?.state||null}}};
   window.__bpAuthoritativeWorldRuntime=VERSION;
   return window.BridgePointWorldV2300;
 }
@@ -37,6 +38,7 @@ function bindExtensions(){
     try{rail3d=initRail3D(world.map)}catch(e){console.warn('V2300 rail 3D init',e)}
     try{adminLabels=initAdminLabels(world.map)}catch(e){console.warn('V2300 admin labels init',e)}
     try{streetLabels=initStreetLabels(world.map)}catch(e){console.warn('V2300 street labels init',e)}
+    try{waterLabels=initWaterLabels(world.map)}catch(e){console.warn('V2300 water labels init',e)}
     try{buildingFidelity=initBuildingFidelity(world.map)}catch(e){console.warn('V2300 building fidelity init',e)}
     try{boundaryContinuity=initBoundaryContinuity(world.map)}catch(e){console.warn('V2300 boundary continuity init',e)}
     try{lockedCountries=initLockedCountries(world.map)}catch(e){console.warn('V2300 locked countries init',e)}
