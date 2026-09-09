@@ -20,6 +20,7 @@ function bindExtensions(){
     let styleReady=false;try{styleReady=world.map.isStyleLoaded?.()===true||!!world.map.getSource?.('ofm')}catch(_){}
     if(!styleReady)return;
     extensionsBound=true;
+    try{world.map.setGlyphs?.('https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf')}catch(e){console.warn('V2300 glyph source',e)}
     try{details=initDetails(world.map)}catch(e){console.warn('V2300 details init',e)}
     try{inspector=initInspector(world.map)}catch(e){console.warn('V2300 inspector init',e)}
     try{weather=initWeather(world.map)}catch(e){console.warn('V2300 weather init',e)}
