@@ -4,8 +4,6 @@ root = Path('site/app')
 index = root / 'index.html'
 service_worker = root / 'flutter_service_worker.js'
 
-# Map-only means direct map navigation. Do not place Cesium inside another iframe because
-# mobile PWAs can route pinch/drag gestures to the outer document instead of the WebGL canvas.
 map_only = '''<!doctype html>
 <html lang="en">
 <head>
@@ -33,16 +31,16 @@ map_only = '''<!doctype html>
           await Promise.all(keys.map(key=>caches.delete(key)));
         }
       }catch(_){ }
-      location.replace('bridgepoint-world-v2652/?release=interactive-generated-world-2656');
+      location.replace('bridgepoint-world-v2652/?release=labeled-living-world-2657');
     })();
   </script>
-  <noscript><a href="bridgepoint-world-v2652/?release=interactive-generated-world-2656">Open BridgePoint World</a></noscript>
+  <noscript><a href="bridgepoint-world-v2652/?release=labeled-living-world-2657">Open BridgePoint World</a></noscript>
 </body>
 </html>
 '''
 
 index.write_text(map_only)
-service_worker.write_text('''const VERSION = "bridgepoint-direct-world-v2656";
+service_worker.write_text('''const VERSION = "bridgepoint-direct-world-v2657";
 self.addEventListener("install", event => { self.skipWaiting(); });
 self.addEventListener("activate", event => {
   event.waitUntil(
@@ -58,8 +56,8 @@ self.addEventListener("fetch", event => {
 
 s = index.read_text()
 assert 'location.replace' in s
-assert 'interactive-generated-world-2656' in s
+assert 'labeled-living-world-2657' in s
 assert '<iframe' not in s
 assert 'flutter_bootstrap.js' not in s
 assert 'main.dart.js' not in s
-print('DIRECT_GENERATED_WORLD_V2656')
+print('DIRECT_LABELED_WORLD_V2657')
