@@ -17,17 +17,27 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Run Android boot diagnostics against production V2300
+        with:
+          fetch-depth: 0
+      - name: Run Android candidate boot diagnostics for complete additive V2300 stack
         shell: bash
         run: |
           set -euo pipefail
           CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
           rm -rf /tmp/bp2300diag && mkdir -p /tmp/bp2300diag/vendor
-          origin='https://bridgepointintelligence.online/app'
-          for f in world-v2300-config.js world-v2300-map.js world-v2300-weather.js world-v2300-inspector.js world-v2300-bootstrap.js world-v2300-worker.js world-v2300.css vendor/maplibre-gl-v1995.js vendor/maplibre-gl-v1995.css vendor/three.module.min.js vendor/OrbitControls.js; do
-            mkdir -p "/tmp/bp2300diag/$(dirname "$f")"
-            curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL "$origin/$f?diag=${GITHUB_SHA}-$(date +%s)" -o "/tmp/bp2300diag/$f"
-          done
+
+          # Test every current additive V2300 module from this candidate commit. The deploy
+          # workflow separately verifies production after publishing; this diagnostic must not
+          # race production and must never go stale as new V2300 modules are added.
+          cp release-v2300/world-v2300-*.js /tmp/bp2300diag/
+          cp release-v2300/world-v2300.css /tmp/bp2300diag/
+          test -s /tmp/bp2300diag/world-v2300-bootstrap.js
+          git fetch origin live-artifact
+          git show origin/live-artifact:app/vendor/maplibre-gl-v1995.js > /tmp/bp2300diag/vendor/maplibre-gl-v1995.js
+          git show origin/live-artifact:app/vendor/maplibre-gl-v1995.css > /tmp/bp2300diag/vendor/maplibre-gl-v1995.css
+          git show origin/live-artifact:app/vendor/three.module.min.js > /tmp/bp2300diag/vendor/three.module.min.js
+          git show origin/live-artifact:app/vendor/OrbitControls.js > /tmp/bp2300diag/vendor/OrbitControls.js
+
           cat >/tmp/bp2300diag/index.html <<'HTML'
           <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./vendor/maplibre-gl-v1995.css"><link rel="stylesheet" href="./world-v2300.css"><style>html,body{margin:0;width:100%;height:100%;background:#071017}section,.map-shell,#liveMap{width:100%;height:100%}.map-shell{position:relative}</style></head><body><section data-surface="map" class="active"><form id="mapSearchForm"><input id="mapSearch"></form><button data-base="gta" class="active">GTA</button><button data-base="satellite">Satellite</button><button data-layer="parcels" class="active">Parcels</button><button data-layer="buildings" class="active">Buildings</button><button data-layer="signals" class="active">Signals</button><button data-layer="radar">Radar</button><button id="locateMe">locate</button><button id="resetMap">reset</button><div class="map-shell"><div id="liveMap"></div><div id="mapStatus"></div><div id="mapResults"></div></div></section><script src="./vendor/maplibre-gl-v1995.js"></script><script type="module" src="./world-v2300-bootstrap.js"></script></body></html>
           HTML
@@ -41,41 +51,38 @@ jobs:
             const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader','--disable-gpu-sandbox']});
             try{
               const p=await browser.newPage();
+              const pageErrors=[];
               p.on('console',m=>console.log('PAGE_CONSOLE',m.type(),m.text()));
-              p.on('pageerror',e=>console.log('PAGE_ERROR',e.stack||e.message||String(e)));
+              p.on('pageerror',e=>{pageErrors.push(String(e.message||e));console.log('PAGE_ERROR',e.stack||e.message||String(e))});
               p.on('requestfailed',r=>console.log('REQUEST_FAILED',r.url(),r.failure()?.errorText||''));
-              p.on('response',r=>{if(r.status()>=400)console.log('HTTP_ERROR',r.status(),r.url())});
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; SM-S731U) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               await p.goto('http://127.0.0.1:8766/',{waitUntil:'domcontentloaded',timeout:20000});
-              await new Promise(r=>setTimeout(r,3000));
+              await p.waitForFunction(()=>!!window.BridgePointWorldV2300&&!!window.__bpWorldV2300?.map,{timeout:20000});
               let diag=await p.evaluate(()=>({
                 maplibre:!!window.maplibregl,
-                maplibreVersion:window.maplibregl?.version||null,
                 liveMap:!!document.getElementById('liveMap'),
                 canvasCount:document.querySelectorAll('#liveMap canvas').length,
                 apiExists:!!window.BridgePointWorldV2300,
                 apiState:window.BridgePointWorldV2300?.state||null,
-                internalExists:!!window.__bpWorldV2300,
                 internalMap:!!window.__bpWorldV2300?.map,
                 author:window.__bpAuthoritativeWorldRuntime||null,
                 mapStatus:document.getElementById('mapStatus')?.textContent||'',
-                scripts:[...document.scripts].map(s=>({src:s.src,type:s.type})),
-                readyState:document.readyState
+                exactLayer:!!window.__bpWorldV2300?.map?.getLayer?.('gta-exact-building')
               }));
-              console.log('BOOT_DIAG_3S',JSON.stringify(diag));
-              if(window.BridgePointWorldV2300?.boot)await p.evaluate(()=>window.BridgePointWorldV2300.boot());
-              await new Promise(r=>setTimeout(r,5000));
+              console.log('BOOT_DIAG_INITIAL',JSON.stringify(diag));
+              if(diag.apiExists)await p.evaluate(()=>window.BridgePointWorldV2300.boot());
+              await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.ready===true&&document.querySelectorAll('#liveMap canvas').length===1,{timeout:15000});
               diag=await p.evaluate(()=>({
                 canvasCount:document.querySelectorAll('#liveMap canvas').length,
                 apiState:window.BridgePointWorldV2300?.state||null,
                 internalMap:!!window.__bpWorldV2300?.map,
-                styleLoaded:window.__bpWorldV2300?.map?.isStyleLoaded?.()??null,
                 projection:window.__bpWorldV2300?.map?.getProjection?.()?.type||null,
+                exactLayer:!!window.__bpWorldV2300?.map?.getLayer?.('gta-exact-building'),
                 status:document.getElementById('mapStatus')?.textContent||''
               }));
-              console.log('BOOT_DIAG_8S',JSON.stringify(diag));
-              if(!diag.internalMap||diag.canvasCount!==1||diag.apiState?.ready!==true)process.exitCode=2;
+              console.log('BOOT_DIAG_FINAL',JSON.stringify(diag));
+              if(pageErrors.length||!diag.internalMap||diag.canvasCount!==1||diag.apiState?.ready!==true||!diag.exactLayer)process.exitCode=2;
             }finally{await browser.close()}
           })().catch(e=>{console.error('DIAG_FATAL',e.stack||e);process.exit(1)});
           NODE
