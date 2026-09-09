@@ -1,0 +1,75 @@
+name: Verify V2300 Cinematic Weather FX V2
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-weather.js'
+      - '.github/workflows/verify-v2300-weather-fx-v2.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  weather-fx:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Android single-context weather FX verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          rm -rf /tmp/bp2300wx2 && mkdir -p /tmp/bp2300wx2/vendor
+          origin='https://bridgepointintelligence.online/app'
+          for f in world-v2300-config.js world-v2300-map.js world-v2300-weather.js world-v2300-inspector.js world-v2300-bootstrap.js world-v2300-worker.js world-v2300.css vendor/maplibre-gl-v1995.js vendor/maplibre-gl-v1995.css vendor/three.module.min.js vendor/OrbitControls.js; do
+            mkdir -p "/tmp/bp2300wx2/$(dirname "$f")"
+            curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL "$origin/$f?wx2=${GITHUB_SHA}-$(date +%s)" -o "/tmp/bp2300wx2/$f"
+          done
+          cat >/tmp/bp2300wx2/index.html <<'HTML'
+          <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./vendor/maplibre-gl-v1995.css"><link rel="stylesheet" href="./world-v2300.css"><style>html,body{margin:0;width:100%;height:100%;background:#071017}section,.map-shell,#liveMap{width:100%;height:100%}.map-shell{position:relative}#mapStatus,#mapResults{position:absolute;z-index:5}</style></head><body><section data-surface="map" class="active"><form id="mapSearchForm"><input id="mapSearch"></form><button data-base="gta" class="active">GTA</button><button data-base="satellite">Satellite</button><button data-layer="parcels" class="active">Parcels</button><button data-layer="buildings" class="active">Buildings</button><button data-layer="signals" class="active">Signals</button><button data-layer="radar">Radar</button><button id="locateMe">locate</button><button id="resetMap">reset</button><div class="map-shell"><div id="liveMap"></div><div id="mapStatus"></div><div id="mapResults"></div></div></section><script src="./vendor/maplibre-gl-v1995.js"></script><script type="module" src="./world-v2300-bootstrap.js"></script></body></html>
+          HTML
+          (cd /tmp/bp2300wx2 && python3 -m http.server 8771 >/tmp/bp2300wx2-http.log 2>&1 &)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader','--disable-gpu-sandbox']});
+            try{
+              const p=await browser.newPage(),errors=[];
+              p.on('pageerror',e=>{const x=String(e.stack||e.message||e);errors.push(x);console.log('PAGE_ERROR',x)});
+              p.on('console',m=>console.log('PAGE_CONSOLE',m.type(),m.text()));
+              await p.setRequestInterception(true);
+              p.on('request',req=>{
+                const u=req.url();
+                if(u.includes('/functions/v1/bridgepoint-world-effects-v2190')){
+                  const poly=(x,y,r)=>({type:'Polygon',coordinates:[[[x-r,y-r],[x+r,y-r],[x+r,y+r],[x-r,y+r],[x-r,y-r]]]});
+                  const now=new Date().toISOString();
+                  return req.respond({status:200,contentType:'application/json',body:JSON.stringify({generated_at:now,sources:['NOAA/NWS gate','NIFC/WFIGS gate','USGS gate'],alerts:[{geometry:poly(-87.3425,41.538,.025),properties:{phenom:'TO',event:'Tornado Warning'}},{geometry:poly(-87.40,41.50,.04),properties:{phenom:'FF',event:'Flash Flood Warning'}},{geometry:poly(-87.29,41.56,.035),properties:{event:'Ice Storm Warning'}}],fires:[{id:'gate-fire',name:'Gate Fire',acres:48000,contained_pct:37,source:'NIFC/WFIGS',geometry:poly(-87.325,41.53,.018)}],earthquakes:[{lng:-87.31,lat:41.55,magnitude:4.2}],storms:[{id:'gate-storm',name:'Gate Hurricane',lng:-87.37,lat:41.57,wind_mph:128,eye_radius_mi:11}],thermal:[{lng:-87.326,lat:41.531,frp:92}],observations:[{lng:-87.3425,lat:41.538,temperature_f:72,cloud_fraction:.92,visibility_mi:.65,weather:'Thunderstorms with heavy rain',wind_speed_mph:31,wind_dir_deg:235}],lightning:[{lng:-87.34,lat:41.541,timestamp:now}],burn_scars:[{source:'authoritative-gate',geometry:poly(-87.318,41.522,.012)}]})});
+                }
+                if(u.includes('/rpc/bridgepoint_building_viewport_v2300'))return req.respond({status:200,contentType:'application/json',body:'{"features":[]}'});
+                req.continue();
+              });
+              await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.goto('http://127.0.0.1:8771/',{waitUntil:'domcontentloaded',timeout:20000});
+              await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.ready===true,{timeout:25000});
+              await p.waitForFunction(()=>!!window.__bpWeatherV2300&&!!window.__bpWeatherFXV2300,{timeout:20000});
+              await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:10.5,pitch:58,bearing:-12}));
+              await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
+              await new Promise(r=>setTimeout(r,1200));
+              console.log('WX_STATE_1',JSON.stringify(await p.evaluate(()=>({weather:window.__bpWeatherV2300?.state,fx:window.__bpWeatherFXV2300?.state,layers:['bp2300-weather-fx-gpu','bp2300-fx-tornado','bp2300-fx-hurricane','bp2300-fx-flood-fill','bp2300-fx-ice-fill','bp2300-fx-burn','bp2300-fx-containment'].map(id=>[id,!!window.__bpWorldV2300.map.getLayer(id)]),canvases:document.querySelectorAll('#liveMap canvas').length}))));
+              await p.waitForFunction(()=>window.__bpWeatherFXV2300?.state?.shaderReady===true,{timeout:15000});
+              await p.waitForFunction(()=>window.__bpWeatherFXV2300?.state?.activeParticles>40,{timeout:15000});
+              await new Promise(r=>setTimeout(r,1800));
+              const out=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,fx=window.__bpWeatherFXV2300.state,w=window.__bpWeatherV2300.state;return{fx,w,mainCanvases:document.querySelectorAll('#liveMap canvas').length,directShellCanvases:document.querySelectorAll('.map-shell>canvas').length,totalCanvases:document.querySelectorAll('canvas').length,layers:['bp2300-weather-fx-gpu','bp2300-fx-tornado','bp2300-fx-hurricane','bp2300-fx-flood-fill','bp2300-fx-ice-fill','bp2300-fx-burn','bp2300-fx-containment'].every(id=>!!m.getLayer(id)),projectionConfigured:window.__bpWorldV2300?.state?.architecture?.includes('MAPLIBRE')===true}});
+              console.log('WX_STATE_FINAL',JSON.stringify(out));
+              assert.equal(out.mainCanvases,1);assert.equal(out.directShellCanvases,0);assert.equal(out.totalCanvases,1);assert(out.layers);assert(out.projectionConfigured);assert.equal(out.fx.sharedMapLibreWebGLContext,true);assert.equal(out.fx.secondaryCanvases,0);assert.equal(out.fx.shaderReady,true);assert(out.fx.activeParticles>40);assert(out.fx.budgets.maxPoints<=2300);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);assert(out.fx.capabilities.rainSnowHail&&out.fx.capabilities.wildfireFlameParticles&&out.fx.capabilities.smoke&&out.fx.capabilities.tornadoCone&&out.fx.capabilities.hurricaneSpiralEye&&out.fx.capabilities.floodIce&&out.fx.capabilities.dynamicWater);assert(out.w.counts.alerts===3&&out.w.counts.fires===1&&out.w.counts.storms===1);assert.equal(errors.length,0,errors.join('\n'));
+              console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({particles:out.fx.activeParticles,quality:out.fx.qualityScale,fps:out.fx.fps,budget:out.fx.budgets,maxCanvases:out.totalCanvases}));
+            }finally{await browser.close()}
+          })().catch(e=>{console.error('WX_GATE_FATAL',e.stack||e);process.exit(1)});
+          NODE
