@@ -38,20 +38,16 @@ jobs:
           git checkout origin/main -- release-v2300
           mkdir -p app/vendor
 
-          cp release-v2300/world-v2300-config.js app/
-          cp release-v2300/world-v2300-map.js app/
-          cp release-v2300/world-v2300-weather.js app/
-          cp release-v2300/world-v2300-inspector.js app/
-          cp release-v2300/world-v2300-bootstrap.js app/
-          cp release-v2300/world-v2300-worker.js app/
-          cp release-v2300/world-v2300.css app/
+          for f in world-v2300-config.js world-v2300-map.js world-v2300-details.js world-v2300-weather.js world-v2300-present-weather.js world-v2300-inspector.js world-v2300-bootstrap.js world-v2300-worker.js world-v2300.css; do
+            cp "release-v2300/$f" "app/$f"
+          done
 
           # Vendored at build time; runtime has no Three.js CDN dependency.
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.min.js -o app/vendor/three.module.min.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js -o app/vendor/OrbitControls.js
           sed -i "s/from 'three'/from '.\/three.module.min.js'/g; s/from \"three\"/from \".\/three.module.min.js\"/g" app/vendor/OrbitControls.js
 
-          # Old app-level map/effects runtimes cannot coexist with V2300.
+          # Old map/effects runtimes cannot coexist with V2300.
           rm -f app/map-v1997.js app/map-v1997-weather-hotfix.js
           find app -maxdepth 1 -type f -name 'map-v*.js' -delete
           find app -maxdepth 1 -type f -name '*-v22*.js' -delete
@@ -81,13 +77,17 @@ jobs:
           grep -Fq "projection:{type:'globe'}" app/world-v2300-map.js
           grep -Fq 'MAPLIBRE_MVT_QUADTREE_LOD_PLUS_EXACT_VIEWPORT_WORKER' app/world-v2300-map.js
           grep -Fq 'staleWhileRevalidateExact:true' app/world-v2300-map.js
-          grep -Fq 'bridgepoint_building_viewport_v2300' app/world-v2300-map.js
-          grep -Fq 'bridgepoint_building_detail_v2300' app/world-v2300-inspector.js
+          grep -Fq 'MAPLIBRE_TERRAIN_ATTACHED_SEMANTIC_DETAIL' app/world-v2300-details.js
+          grep -Fq 'stateLabelsSurfaceAligned:true' app/world-v2300-details.js
+          grep -Fq 'streetNamesRoadAligned:true' app/world-v2300-details.js
+          grep -Fq 'terrainDrapedRailStack:true' app/world-v2300-details.js
+          grep -Fq 'opportunityBuildingColorMatch:true' app/world-v2300-details.js
           grep -Fq 'sharedMapLibreWebGLContext:true' app/world-v2300-weather.js
           grep -Fq 'rainSnowHail:true' app/world-v2300-weather.js
           grep -Fq 'wildfireFlameParticles:true' app/world-v2300-weather.js
-          grep -Fq 'tornadoCone:true' app/world-v2300-weather.js
-          grep -Fq 'hurricaneSpiralEye:true' app/world-v2300-weather.js
+          grep -Fq 'drivesRainSnowHail:true' app/world-v2300-present-weather.js
+          grep -Fq 'exactLightningStrikesInvented:false' app/world-v2300-present-weather.js
+          grep -Fq 'bridgepoint_building_detail_v2300' app/world-v2300-inspector.js
           grep -Fq 'world-v2300-bootstrap.js?v=2300' app/index.html
           grep -Fq 'bp2300-cache-reset' app/index.html
 
@@ -101,7 +101,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git add -A app/ release-v2300/
           if ! git diff --cached --quiet; then
-            git commit -m 'Publish authoritative V2300 world runtime'
+            git commit -m 'Publish authoritative V2300 semantic world runtime'
             git push origin HEAD:live-artifact
           fi
 
@@ -131,11 +131,16 @@ jobs:
             q="${GITHUB_SHA}-${i}-$(date +%s)"
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/?bp-runtime=2300&verify=$q" -o /tmp/index.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-map.js?v=2300&verify=$q" -o /tmp/map.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-details.js?v=2300&verify=$q" -o /tmp/details.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-weather.js?v=2300&verify=$q" -o /tmp/weather.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-present-weather.js?v=2300&verify=$q" -o /tmp/present.js || true
             if grep -Fq 'world-v2300-bootstrap.js?v=2300' /tmp/index.html \
               && grep -Fq "projection:{type:'globe'}" /tmp/map.js \
+              && grep -Fq 'MAPLIBRE_TERRAIN_ATTACHED_SEMANTIC_DETAIL' /tmp/details.js \
+              && grep -Fq 'opportunityBuildingColorMatch:true' /tmp/details.js \
               && grep -Fq 'sharedMapLibreWebGLContext:true' /tmp/weather.js \
-              && grep -Fq 'wildfireFlameParticles:true' /tmp/weather.js; then ok=1; break; fi
+              && grep -Fq 'wildfireFlameParticles:true' /tmp/weather.js \
+              && grep -Fq 'drivesRainSnowHail:true' /tmp/present.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
@@ -149,14 +154,14 @@ jobs:
           done
           echo BRIDGEPOINT_V2300_PRODUCTION_CUTOVER_PASS
 
-      - name: Android core WebGL smoke gate
+      - name: Android semantic world WebGL gate
         shell: bash
         run: |
           set -euo pipefail
           CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
           rm -rf /tmp/bpcore && mkdir -p /tmp/bpcore/vendor
           O='https://bridgepointintelligence.online/app'
-          for f in world-v2300-config.js world-v2300-map.js world-v2300-weather.js world-v2300-inspector.js world-v2300-bootstrap.js world-v2300-worker.js world-v2300.css vendor/maplibre-gl-v1995.js vendor/maplibre-gl-v1995.css vendor/three.module.min.js vendor/OrbitControls.js; do
+          for f in world-v2300-config.js world-v2300-map.js world-v2300-details.js world-v2300-weather.js world-v2300-present-weather.js world-v2300-inspector.js world-v2300-bootstrap.js world-v2300-worker.js world-v2300.css vendor/maplibre-gl-v1995.js vendor/maplibre-gl-v1995.css vendor/three.module.min.js vendor/OrbitControls.js; do
             mkdir -p "/tmp/bpcore/$(dirname "$f")"; curl -fsSL "$O/$f?core=${GITHUB_SHA}" -o "/tmp/bpcore/$f"
           done
           cat >/tmp/bpcore/index.html <<'HTML'
@@ -166,5 +171,5 @@ jobs:
           cd /tmp; npm init -y >/dev/null 2>&1 || true; npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
           CHROME_PATH="$CHROME" node <<'NODE'
           const puppeteer=require('puppeteer-core'),assert=require('assert');
-          (async()=>{const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});try{const p=await browser.newPage();await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});await p.goto('http://127.0.0.1:8775/',{waitUntil:'domcontentloaded',timeout:20000});await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.ready===true,{timeout:25000});const o=await p.evaluate(()=>({canvases:document.querySelectorAll('#liveMap canvas').length,total:document.querySelectorAll('canvas').length,arch:window.__bpWorldV2300?.state?.architecture||'',map:!!window.__bpWorldV2300?.map,weather:!!window.__bpWeatherV2300,fx:window.__bpWeatherFXV2300?.state||null}));assert.equal(o.canvases,1);assert.equal(o.total,1);assert(o.map);assert(o.arch.includes('MAPLIBRE_MVT'));assert(o.weather);assert(o.fx?.sharedMapLibreWebGLContext===true);assert(o.fx?.secondaryCanvases===0);console.log('BRIDGEPOINT_V2300_ANDROID_CORE_PASS',JSON.stringify(o))}finally{await browser.close()}})().catch(e=>{console.error(e.stack||e);process.exit(1)});
+          (async()=>{const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});try{const p=await browser.newPage();await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});await p.goto('http://127.0.0.1:8775/',{waitUntil:'domcontentloaded',timeout:20000});await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.ready===true,{timeout:25000});await p.waitForFunction(()=>window.__bpWorldDetailsV2301&&window.__bpWeatherV2300&&window.__bpPresentWeatherV2301,{timeout:12000});const o=await p.evaluate(()=>{const m=window.__bpWorldV2300.map;return{canvases:document.querySelectorAll('#liveMap canvas').length,total:document.querySelectorAll('canvas').length,arch:window.BridgePointWorldV2300.architecture,map:!!m,details:window.__bpWorldDetailsV2301?.state,weather:window.__bpWeatherFXV2300?.state,present:window.__bpPresentWeatherV2301?.state,layers:['gta-state-label','gta-road-name','gta-water-label','gta-poi-label','gta-rail-ballast','gta-rail-ties','gta-bridge-deck','gta-opportunity-body','gta-opportunity-icon','gta-bp-roof'].every(id=>!!m.getLayer(id)),solid:m.getPaintProperty('gta-exact-building','fill-extrusion-opacity')}});assert.equal(o.canvases,1);assert.equal(o.total,1);assert(o.map);assert(o.arch.includes('SEMANTIC_DETAIL'));assert(o.details?.solidBuildings===true);assert(o.layers);assert(Number(o.solid)>=.99);assert(o.weather?.sharedMapLibreWebGLContext===true);assert(o.weather?.secondaryCanvases===0);assert(o.present?.secondaryCanvases===0);console.log('BRIDGEPOINT_V2300_ANDROID_SEMANTIC_WORLD_PASS',JSON.stringify(o))}finally{await browser.close()}})().catch(e=>{console.error(e.stack||e);process.exit(1)});
           NODE
