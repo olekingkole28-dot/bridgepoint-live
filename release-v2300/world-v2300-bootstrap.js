@@ -5,13 +5,14 @@ import{initWeather}from'./world-v2300-weather.js';
 import{initPresentWeather}from'./world-v2300-present-weather.js';
 import{initWeatherKey}from'./world-v2300-weather-key.js';
 import{initFlythrough}from'./world-v2300-flythrough.js';
+import{initBuildingFidelity}from'./world-v2300-building-fidelity.js';
 import{initInspector}from'./world-v2300-inspector.js';
 
-let booting=false,ready=false,world=null,details=null,weather=null,presentWeather=null,weatherKey=null,flythrough=null,inspector=null,extensionsBound=false;
+let booting=false,ready=false,world=null,details=null,weather=null,presentWeather=null,weatherKey=null,flythrough=null,buildingFidelity=null,inspector=null,extensionsBound=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function waitForMapShell(){for(let i=0;i<120;i++){if(window.maplibregl&&document.getElementById('liveMap'))return true;await sleep(50)}return false}
 function expose(){
-  window.BridgePointWorldV2300={version:VERSION,authoritative:true,cleanReplacement:true,architecture:'MAPLIBRE_SINGLE_CANVAS_TILE_LOD_PLUS_SEMANTIC_DETAIL_PLUS_BOUNDED_WEATHER_PLUS_LAZY_THREE_INSPECTOR',boot,world,details,weather,presentWeather,weatherKey,flythrough,inspector,get state(){return{version:VERSION,ready,booting,cleanReplacement:true,mainCanvases:document.querySelectorAll('#liveMap canvas').length,inspectorOpen:!document.getElementById('bp2300Inspector')?.hidden,world:world?.state||null,details:details?.state||null,weather:weather?.state||null,presentWeather:presentWeather?.state||null,weatherKey:weatherKey?.state||null,flythrough:flythrough?.state||null}}};
+  window.BridgePointWorldV2300={version:VERSION,authoritative:true,cleanReplacement:true,architecture:'MAPLIBRE_SINGLE_CANVAS_TILE_LOD_PLUS_SEMANTIC_DETAIL_PLUS_BOUNDED_WEATHER_PLUS_LAZY_THREE_INSPECTOR',boot,world,details,weather,presentWeather,weatherKey,flythrough,buildingFidelity,inspector,get state(){return{version:VERSION,ready,booting,cleanReplacement:true,mainCanvases:document.querySelectorAll('#liveMap canvas').length,inspectorOpen:!document.getElementById('bp2300Inspector')?.hidden,world:world?.state||null,details:details?.state||null,weather:weather?.state||null,presentWeather:presentWeather?.state||null,weatherKey:weatherKey?.state||null,flythrough:flythrough?.state||null,buildingFidelity:buildingFidelity?.state||null}}};
   window.__bpAuthoritativeWorldRuntime=VERSION;
   return window.BridgePointWorldV2300;
 }
@@ -24,6 +25,7 @@ function bindExtensions(){
     extensionsBound=true;
     try{world.map.setGlyphs?.('https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf')}catch(e){console.warn('V2300 glyph source',e)}
     try{details=initDetails(world.map)}catch(e){console.warn('V2300 details init',e)}
+    try{buildingFidelity=initBuildingFidelity(world.map)}catch(e){console.warn('V2300 building fidelity init',e)}
     try{inspector=initInspector(world.map)}catch(e){console.warn('V2300 inspector init',e)}
     try{weather=initWeather(world.map)}catch(e){console.warn('V2300 weather init',e)}
     try{presentWeather=initPresentWeather(world.map)}catch(e){console.warn('V2300 present weather init',e)}
