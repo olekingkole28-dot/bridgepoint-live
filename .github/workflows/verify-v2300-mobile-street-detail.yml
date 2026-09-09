@@ -1,0 +1,84 @@
+name: Verify V2300 Android Street Detail
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'release-v2300/**'
+      - '.github/workflows/verify-v2300-mobile-street-detail.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-street-detail:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build isolated mobile detail harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bpstreet/vendor
+          cp release-v2300/world-v2300-map.js release-v2300/world-v2300-config.js release-v2300/world-v2300-worker.js /tmp/bpstreet/
+          cp app/vendor/maplibre-gl-v1995.js app/vendor/maplibre-gl-v1995.css /tmp/bpstreet/vendor/
+          cat >/tmp/bpstreet/index.html <<'HTML'
+          <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./vendor/maplibre-gl-v1995.css"><style>html,body,#liveMap{margin:0;width:100%;height:100%;background:#071017}#mapStatus{position:fixed;left:8px;bottom:8px;z-index:20;background:#071017;color:white;padding:6px;font:12px sans-serif}</style></head><body><div id="liveMap"></div><div id="mapStatus"></div><button id="resetMap" hidden></button><button id="locateMe" hidden></button><div id="mapResults"></div><form id="mapSearchForm"><input id="mapSearch"></form><script src="./vendor/maplibre-gl-v1995.js"></script><script type="module">import{initWorld}from'./world-v2300-map.js';window.__streetHarness=initWorld();</script></body></html>
+          HTML
+          (cd /tmp/bpstreet && python3 -m http.server 8776 >/tmp/bpstreet-http.log 2>&1 &)
+
+      - name: Android zoom-18 exact-building proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          (async()=>{
+            let viewportBodies=[];
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});
+            try{
+              const p=await browser.newPage();
+              await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.setRequestInterception(true);
+              p.on('request',req=>{
+                const u=req.url();
+                if(u.includes('/rest/v1/rpc/bridgepoint_building_viewport_v2300')){
+                  let body={};try{body=JSON.parse(req.postData()||'{}')}catch(_){}
+                  viewportBodies.push(body);
+                  const feature={type:'Feature',id:9001,geometry:{type:'Polygon',coordinates:[[[-74.00625,40.71265],[-74.00595,40.71265],[-74.00595,40.7129],[-74.00625,40.7129],[-74.00625,40.71265]]]},properties:{building_id:9001,source_key:'CI_MOBILE_TEST_SOURCE',render_height_m:24,base_height_m:0,roof_height_m:1.2,roof_shape:'flat',roof_material:'metal',facade_material:'brick',source_confidence:.99,height_truth:'SOURCE_BACKED'}};
+                  return req.respond({status:200,contentType:'application/json',body:JSON.stringify({type:'FeatureCollection',version:2300,features:[feature]})});
+                }
+                req.continue();
+              });
+              await p.goto('http://127.0.0.1:8776/',{waitUntil:'domcontentloaded',timeout:20000});
+              await p.waitForFunction(()=>window.__bpWorldV2300?.map,{timeout:15000});
+              await p.waitForFunction(()=>window.__bpWorldV2300.map.isStyleLoaded?.()===true,{timeout:25000});
+              await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-74.0061,40.71278],zoom:18,pitch:68,bearing:-18}));
+              await p.evaluate(()=>window.__bpWorldV2300.refresh());
+              await p.waitForFunction(()=>window.__bpWorldV2300.state.exactCount>0,{timeout:15000});
+              const state=await p.evaluate(()=>({exactCount:window.__bpWorldV2300.state.exactCount,zoom:window.__bpWorldV2300.map.getZoom(),status:document.getElementById('mapStatus')?.textContent||'',canvases:document.querySelectorAll('#liveMap canvas').length,layers:window.__bpWorldV2300.map.getStyle().layers.map(x=>x.id)}));
+              assert(state.zoom>=17.9,`zoom ${state.zoom}`);
+              assert(state.exactCount>0,`exactCount ${state.exactCount}`);
+              assert.equal(state.canvases,1);
+              assert(state.layers.includes('gta-exact-building'));
+              assert(state.layers.includes('gta-bp-buildings'));
+              assert(state.layers.includes('gta-parcel'));
+              assert(!/retry/i.test(state.status),state.status);
+              assert(viewportBodies.length>0,'no building viewport RPC request observed');
+              const b=viewportBodies.at(-1);
+              for(const k of ['p_min_lat','p_max_lat','p_min_lng','p_max_lng','p_limit'])assert(Object.prototype.hasOwnProperty.call(b,k),`missing canonical ${k}: ${JSON.stringify(b)}`);
+              for(const k of ['p_west','p_south','p_east','p_north'])assert(!Object.prototype.hasOwnProperty.call(b,k),`legacy bbox key ${k} leaked: ${JSON.stringify(b)}`);
+              assert(b.p_min_lat<b.p_max_lat);
+              assert(b.p_min_lng<b.p_max_lng);
+              console.log('BRIDGEPOINT_V2300_ANDROID_STREET_DETAIL_PASS',JSON.stringify({state,body:b}));
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e.stack||e);process.exit(1)});
+          NODE
