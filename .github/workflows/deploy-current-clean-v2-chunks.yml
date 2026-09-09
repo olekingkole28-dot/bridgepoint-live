@@ -1,4 +1,4 @@
-name: Deploy Current BridgePoint Clean V2
+name: Deploy Validated BridgePoint World V2500
 
 on:
   workflow_dispatch:
@@ -24,12 +24,15 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      EXPECTED_SOURCE: c296b719d10aaca6e2772d4dabca46bbd11f1501
+      EXPECTED_ARCHIVE_SHA: 8870d7a447077150708e1b21b7aeaedb97f3bec4c9a8fd499dc479dcc4e43bc2
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Check handoff availability
+      - name: Check V2500 handoff availability
         id: handoff
         shell: bash
         run: |
@@ -37,10 +40,10 @@ jobs:
             echo 'ready=true' >> "$GITHUB_OUTPUT"
           else
             echo 'ready=false' >> "$GITHUB_OUTPUT"
-            echo 'No current handoff staged yet; workflow installed and waiting for manifest.'
+            echo 'Validated V2500 handoff has not been staged yet.'
           fi
 
-      - name: Reconstruct and verify current Clean V2
+      - name: Reconstruct and verify exact validated V2500 archive
         if: steps.handoff.outputs.ready == 'true'
         shell: bash
         run: |
@@ -50,30 +53,37 @@ jobs:
           import json
           p=Path('handoff/current-clean-v2/manifest.json')
           m=json.loads(p.read_text())
+          assert m.get('architecture') == 'clean-v2', m
+          assert m.get('source_sha') == '${{ env.EXPECTED_SOURCE }}', m
+          assert m.get('archive_sha256') == '${{ env.EXPECTED_ARCHIVE_SHA }}', m
+          assert m.get('world_version') == 2500, m
+          assert m.get('continuous_3d_world') is True, m
           chunks=int(m['chunk_count'])
           parts=[]
           for i in range(chunks):
               q=Path(f'handoff/current-clean-v2/chunk-{i:03d}')
               if not q.is_file(): raise SystemExit(f'missing {q}')
               parts.append(q.read_text().strip())
-          Path('/tmp/bp-current.b64').write_text(''.join(parts))
+          Path('/tmp/bp-v2500.b64').write_text(''.join(parts))
           print(json.dumps(m,indent=2))
           PY
-          base64 -d /tmp/bp-current.b64 > /tmp/bp-current.tar.gz
-          EXPECTED="$(python3 -c "import json;print(json.load(open('handoff/current-clean-v2/manifest.json'))['archive_sha256'])")"
-          ACTUAL="$(sha256sum /tmp/bp-current.tar.gz | awk '{print $1}')"
-          test "$ACTUAL" = "$EXPECTED"
-          rm -rf /tmp/bp-current && mkdir /tmp/bp-current
-          tar -xzf /tmp/bp-current.tar.gz -C /tmp/bp-current
-          test -s /tmp/bp-current/index.html
-          test -s /tmp/bp-current/main.dart.js
-          test -s /tmp/bp-current/flutter_bootstrap.js
-          test -s /tmp/bp-current/bridgepoint-v2-release.json
-          test -s /tmp/bp-current/bridgepoint-3d-world/index.html
-          grep -Fq 'clean-v2' /tmp/bp-current/bridgepoint-v2-release.json
-          grep -Fq 'live_weather_fx' /tmp/bp-current/bridgepoint-v2-release.json
+          base64 -d /tmp/bp-v2500.b64 > /tmp/bp-v2500.tar.gz
+          ACTUAL="$(sha256sum /tmp/bp-v2500.tar.gz | awk '{print $1}')"
+          test "$ACTUAL" = "$EXPECTED_ARCHIVE_SHA"
+          rm -rf /tmp/bp-v2500 && mkdir /tmp/bp-v2500
+          tar -xzf /tmp/bp-v2500.tar.gz -C /tmp/bp-v2500
+          test -s /tmp/bp-v2500/index.html
+          test -s /tmp/bp-v2500/main.dart.js
+          test -s /tmp/bp-v2500/flutter_bootstrap.js
+          test -s /tmp/bp-v2500/bridgepoint-v2-release.json
+          test -s /tmp/bp-v2500/bridgepoint-3d-world/index.html
+          test -s /tmp/bp-v2500/bridgepoint-3d-world/world-v2500.js
+          grep -Fq '"world_version":2500' /tmp/bp-v2500/bridgepoint-v2-release.json
+          grep -Fq '"continuous_3d_world":true' /tmp/bp-v2500/bridgepoint-v2-release.json
+          grep -Fq "$EXPECTED_SOURCE" /tmp/bp-v2500/bridgepoint-v2-release.json
+          grep -Fq 'BridgePointWorldV2500' /tmp/bp-v2500/bridgepoint-3d-world/world-v2500.js
 
-      - name: Assemble durable GitHub Pages site
+      - name: Assemble durable production site with V2500 replacing old map
         if: steps.handoff.outputs.ready == 'true'
         shell: bash
         run: |
@@ -82,22 +92,22 @@ jobs:
           rm -rf site && mkdir site
           git archive --format=tar origin/live-artifact | tar -xf - -C site
           mkdir -p site/app
-          cp -a /tmp/bp-current/. site/app/
+          rm -rf site/app/*
+          cp -a /tmp/bp-v2500/. site/app/
           touch site/.nojekyll site/app/.nojekyll
           test -s site/index.html
           test -s site/app/index.html
           test -s site/app/main.dart.js
           test -s site/app/bridgepoint-v2-release.json
-          test -s site/app/bridgepoint-3d-world/index.html
+          test -s site/app/bridgepoint-3d-world/world-v2500.js
 
-      - name: Persist exact live artifact
+      - name: Persist exact V2500 live artifact
         if: steps.handoff.outputs.ready == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
-          SOURCE="$(python3 -c "import json;print(json.load(open('handoff/current-clean-v2/manifest.json'))['source_sha'])")"
           rm -rf /tmp/final-live && mkdir /tmp/final-live
           cp -a site/. /tmp/final-live/
           cd /tmp/final-live
@@ -106,7 +116,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m "Publish current BridgePoint Clean V2 ${SOURCE}"
+          git commit -m "Publish BridgePoint World V2500 ${EXPECTED_SOURCE}"
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -116,26 +126,25 @@ jobs:
         if: steps.handoff.outputs.ready == 'true'
         with:
           path: site
-      - name: Deploy current Clean V2 to GitHub Pages
+      - name: Deploy World V2500 to GitHub Pages
         if: steps.handoff.outputs.ready == 'true'
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify production custom domain
+      - name: Verify V2500 on production custom domain
         if: steps.handoff.outputs.ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
           ORIGIN='https://bridgepointintelligence.online'
-          SOURCE="$(python3 -c "import json;print(json.load(open('handoff/current-clean-v2/manifest.json'))['source_sha'])")"
           ok=0
           for attempt in $(seq 1 36); do
-            marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-v2-release.json?verify=${SOURCE}-${attempt}" 2>/dev/null || true)"
-            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?verify=${SOURCE}-${attempt}" 2>/dev/null || true)"
-            world_code="$(curl -sS -o /tmp/world.html -w '%{http_code}' --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-3d-world/index.html?verify=${SOURCE}-${attempt}" 2>/dev/null || true)"
-            if printf '%s' "$marker" | grep -Fq "$SOURCE" && printf '%s' "$marker" | grep -Fq 'live_weather_fx' && printf '%s' "$app" | grep -Fq 'flutter_bootstrap.js' && [ "$world_code" = '200' ] && grep -Fq 'BridgePoint 3D World' /tmp/world.html; then
+            marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-v2-release.json?verify=${EXPECTED_SOURCE}-${attempt}" 2>/dev/null || true)"
+            world_code="$(curl -sS -o /tmp/world-v2500.js -w '%{http_code}' --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-3d-world/world-v2500.js?verify=${EXPECTED_SOURCE}-${attempt}" 2>/dev/null || true)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?verify=${EXPECTED_SOURCE}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$marker" | grep -Fq "$EXPECTED_SOURCE" && printf '%s' "$marker" | grep -Fq '"world_version":2500' && printf '%s' "$marker" | grep -Fq '"continuous_3d_world":true' && printf '%s' "$app" | grep -Fq 'flutter_bootstrap.js' && [ "$world_code" = '200' ] && grep -Fq 'BridgePointWorldV2500' /tmp/world-v2500.js; then
               ok=1
-              echo "CURRENT_CLEAN_V2_LIVE ${SOURCE}"
+              echo "WORLD_V2500_LIVE ${EXPECTED_SOURCE}"
               break
             fi
             sleep 5
