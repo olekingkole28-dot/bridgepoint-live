@@ -8,27 +8,22 @@ function kind(p){return text(p.class,p.subclass,p.amenity,p.shop,p.office,p.tour
 function wanted(p){const k=kind(p);return TARGET.has(k)||/fire.?station|hospital|clinic|police|court|town.?hall|government|municip|fuel|gas.?station|office|school|college|university|library|post.?office|pharmacy|supermarket|hotel/.test(k)}
 function center(g){const pts=[];const walk=v=>{if(!Array.isArray(v))return;if(v.length>=2&&typeof v[0]==='number'&&typeof v[1]==='number'){pts.push(v);return}for(const x of v)walk(x)};walk(g?.coordinates);if(!pts.length)return null;let x=0,y=0;for(const p of pts){x+=p[0];y+=p[1]}return[x/pts.length,y/pts.length]}
 function categoryColor(){return['match',['get','class'],'hospital','#ffb6c0','clinic','#ffb6c0','doctors','#ffb6c0','fire_station','#ff8d76','police','#9bcfff','fuel','#ffe07d','gas_station','#ffe07d','government','#d5c2ff','town_hall','#d5c2ff','courthouse','#d5c2ff','office','#d6e4e7','school','#bfe8ff','college','#bfe8ff','university','#bfe8ff','pharmacy','#c4ffc9','supermarket','#ffe4a5','hotel','#ffd6aa','#d7e8ea']}
-function addLabel(map,base){
-  if(has(map,base.id))return true;
-  try{map.addLayer(base);return true}catch(e){
-    if(base.layout?.['symbol-z-elevate']!=null){const fallback={...base,layout:{...base.layout}};delete fallback.layout['symbol-z-elevate'];try{map.addLayer(fallback);return true}catch(e2){console.warn('V2300 structure label fallback',e2)}}
-    console.warn('V2300 structure label layer',e);return false
-  }
-}
+function addLabel(map,base){if(has(map,base.id))return true;try{map.addLayer(base);return has(map,base.id)}catch(e){console.warn('V2300 structure label layer',e);return false}}
 
 export function initStructureLabels(map){
   if(!map)return null;if(window.__bpStructureLabelsV2300?.map===map)return window.__bpStructureLabelsV2300;
-  let installed=false,matched=0,elevated=false,timer=0;
+  let installed=false,matched=0,timer=0;
   function install(){
     let ready=false;try{ready=map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch(_){}if(!ready)return;
     try{if(!map.getSource('bp-structure-labels-v2300'))map.addSource('bp-structure-labels-v2300',{type:'geojson',data:EMPTY})}catch(e){console.warn('V2300 structure label source',e)}
+    // MapLibre v1995 does not support symbol-z-elevate. Keep each name anchored to the matched
+    // building footprint and map surface rather than emitting an unsupported style property.
     addLabel(map,{id:'gta-structure-label-v2300',type:'symbol',source:'bp-structure-labels-v2300',minzoom:LABEL_MIN,layout:{
       'text-field':['get','name'],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],LABEL_MIN,8.2,15,9.4,17,10.8,20,12.8],
       'text-pitch-alignment':'map','text-rotation-alignment':'map','text-keep-upright':true,'text-anchor':'center','text-offset':[0,-.35],
-      'text-allow-overlap':false,'text-ignore-placement':false,'text-padding':7,'symbol-z-elevate':true
+      'text-allow-overlap':false,'text-ignore-placement':false,'text-padding':7
     },paint:{'text-color':categoryColor(),'text-opacity':['interpolate',['linear'],['zoom'],LABEL_MIN,.22,15,.48,17,.82,19,.96],'text-halo-color':'#071017','text-halo-width':1.25,'text-halo-blur':.35}});
-    try{map.setLayerZoomRange('gta-structure-label-v2300',LABEL_MIN,24)}catch(_){}
-    try{elevated=map.getLayoutProperty('gta-structure-label-v2300','symbol-z-elevate')===true}catch(_){elevated=false}
+    if(has(map,'gta-structure-label-v2300'))try{map.setLayerZoomRange('gta-structure-label-v2300',LABEL_MIN,24)}catch(_){}
     installed=has(map,'gta-structure-label-v2300');
   }
   function rebuild(){
@@ -46,5 +41,5 @@ export function initStructureLabels(map){
     },MOBILE?210:145)
   }
   install();map.on?.('styledata',()=>{install();rebuild()});map.on?.('moveend',rebuild);map.on?.('zoomend',rebuild);for(const ms of [120,500,1400,3400])setTimeout(()=>{install();rebuild()},ms);
-  const api={version:2300,map,requirementKey:'v2300_structure_labels_v1',rebuild,get state(){return{installed,matchedStructures:matched,labelMinZoom:LABEL_MIN,buildingFootprintAnchored:true,sourcePOIMatched:true,roofElevationApplied:elevated,roofElevationFallbackSafe:true,collisionSafe:true,mapAligned:true,secondaryCanvases:0}}};window.__bpStructureLabelsV2300=api;return api;
+  const api={version:2300,map,requirementKey:'v2300_structure_labels_v1',rebuild,get state(){return{installed,matchedStructures:matched,labelMinZoom:LABEL_MIN,buildingFootprintAnchored:true,sourcePOIMatched:true,roofElevationApplied:false,roofElevationUnsupportedByBundledMapLibre:true,roofElevationFallbackSafe:true,collisionSafe:true,mapAligned:true,secondaryCanvases:0}}};window.__bpStructureLabelsV2300=api;return api;
 }
