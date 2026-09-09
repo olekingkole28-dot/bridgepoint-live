@@ -58,7 +58,7 @@ async function buildSurfaceMap(viewer){
 
   for(const feature of countries.features||[]){
     const props=feature.properties||{},code=countryCode(props),name=countryName(props),isUs=US_CODES.has(code);
-    for(const ring of rings(feature.geometry)){const d=flat(ring);if(!d)continue;const entity=boundaries.entities.add({polygon:{hierarchy:Cesium.Cartesian3.fromDegreesArray(d),material:Cesium.Color.fromCssColorString(isUs?'#1ca55a':'#d11931').withAlpha(isUs?.10:.105),outline:true,outlineColor:Cesium.Color.fromCssColorString(isUs?'#55f39a':'#ff334d').withAlpha(.96),height:0,distanceDisplayCondition:new Cesium.DistanceDisplayCondition(0,26000000)}});if(!isUs)entity.bridgepointCountry={code,name,locked:true}}
+    for(const ring of rings(feature.geometry)){const d=flat(ring);if(!d)continue;const entity=boundaries.entities.add({polygon:{hierarchy:Cesium.Cartesian3.fromDegreesArray(d),material:Cesium.Color.fromCssColorString(isUs?'#1ca55a':'#d11931').withAlpha(isUs ? 0.10 : 0.105),outline:true,outlineColor:Cesium.Color.fromCssColorString(isUs?'#55f39a':'#ff334d').withAlpha(.96),height:0,distanceDisplayCondition:new Cesium.DistanceDisplayCondition(0,26000000)}});if(!isUs)entity.bridgepointCountry={code,name,locked:true}}
     const r=largestRing(feature.geometry),c=r?center(r):null,b=r?bbox(r):null;if(!c||!b)continue;
     const width=Math.max(2.4,Math.min(16,(b[2]-b[0])*.6)),height=Math.max(.6,Math.min(3.2,(b[3]-b[1])*.17));
     if(isUs){if(code==='US'||code==='USA')surfaceText(labels,{lon:c[0],lat:c[1],text:'UNITED STATES',widthDeg:11,heightDeg:1.8,fill:'#d4ffe4',stroke:'#06371e',near:900000,far:18000000})}
@@ -77,7 +77,6 @@ async function buildSurfaceMap(viewer){
   handler.setInputAction(m=>{const picked=viewer.scene.pick(m.position),entity=picked?.id;if(entity?.bridgepointCountry?.locked)openCountry(entity.bridgepointCountry)},Cesium.ScreenSpaceEventType.LEFT_CLICK);
   viewer.camera.moveStart.addEventListener(()=>document.getElementById('lockCard')?.classList.remove('open'));
 
-  // Older modules can finish asynchronously after this one. Keep their screen-facing country/state labels disabled.
   let passes=0;const suppress=setInterval(()=>{suppressBillboardCountryLabels(viewer);if(++passes>24)clearInterval(suppress)},350);
   window.BridgePointSurfaceMapV2661={viewer,boundaries,labels,rebuild:()=>buildSurfaceMap(viewer)};
   document.documentElement.dataset.bridgepointSurfaceLabels='2661';
