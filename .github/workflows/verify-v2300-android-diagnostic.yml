@@ -64,15 +64,27 @@ jobs:
               if(diag.apiExists)await p.evaluate(()=>window.BridgePointWorldV2300.boot());
               await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.ready===true&&document.querySelectorAll('#liveMap canvas').length===1,{timeout:15000});
               await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.opportunitySync?.installed===true,{timeout:12000});
-              diag=await p.evaluate(()=>({
-                canvasCount:document.querySelectorAll('#liveMap canvas').length,apiState:window.BridgePointWorldV2300?.state||null,
-                internalMap:!!window.__bpWorldV2300?.map,projection:window.__bpWorldV2300?.map?.getProjection?.()?.type||null,
-                exactLayer:!!window.__bpWorldV2300?.map?.getLayer?.('gta-exact-building'),status:document.getElementById('mapStatus')?.textContent||'',
-                opportunitySync:window.BridgePointWorldV2300?.state?.opportunitySync||null
-              }));
+              await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.zoomContinuity?.installed===true,{timeout:12000});
+              await p.evaluate(()=>window.__bpWorldV2300?.map?.jumpTo?.({center:[-72.65,41.56],zoom:12,pitch:40}));
+              await new Promise(r=>setTimeout(r,700));
+              diag=await p.evaluate(()=>{
+                const m=window.__bpWorldV2300?.map;
+                const layer=id=>m?.getStyle?.()?.layers?.find(x=>x.id===id)||null;
+                return{
+                  canvasCount:document.querySelectorAll('#liveMap canvas').length,apiState:window.BridgePointWorldV2300?.state||null,
+                  internalMap:!!m,projection:m?.getProjection?.()?.type||null,exactLayer:!!m?.getLayer?.('gta-exact-building'),status:document.getElementById('mapStatus')?.textContent||'',
+                  opportunitySync:window.BridgePointWorldV2300?.state?.opportunitySync||null,zoomContinuity:window.BridgePointWorldV2300?.state?.zoomContinuity||null,
+                  ranges:{building:layer('gta-context-buildings')?.minzoom,localRoad:layer('gta-road-local')?.minzoom,rail:layer('gta-rail-ballast')?.minzoom,bridge:layer('gta-bridge-deck')?.minzoom,town:layer('gta-town-label-v2300')?.minzoom,localStreet:layer('gta-local-street-name-v2300')?.minzoom},
+                  layers:{shore:!!m?.getLayer?.('gta-shoreline-v2300'),parking:!!m?.getLayer?.('gta-parking-v2300'),tree:!!m?.getLayer?.('gta-tree-canopy-v2300'),streetlight:!!m?.getLayer?.('gta-streetlight-core-v2300'),roadCenter:!!m?.getLayer?.('gta-road-major-center-v2300')},
+                  waterColor:m?.getPaintProperty?.('gta-water','fill-color')||null
+                }
+              });
               console.log('BOOT_DIAG_FINAL',JSON.stringify(diag));
-              const o=diag.opportunitySync;
-              if(pageErrors.length||!diag.internalMap||diag.canvasCount!==1||diag.apiState?.ready!==true||!diag.exactLayer||!o?.installed||!o.bodySynced||!o.iconSynced||!o.outlineSynced||o.sameCategoryColor!==true||o.collisionSafe!==true||o.secondaryCanvases!==0)process.exitCode=2;
+              const o=diag.opportunitySync,z=diag.zoomContinuity,r=diag.ranges||{},l=diag.layers||{};
+              const continuityOk=z?.continuousMidZoom===true&&z.blueWater===true&&z.greenVegetation===true&&z.blackYellowWhiteRoads===true&&z.secondaryCanvases===0&&
+                Number(r.building)<=9.7&&Number(r.localRoad)<=9.2&&Number(r.rail)<=8.8&&Number(r.bridge)<=8.7&&Number(r.town)<=6.7&&Number(r.localStreet)<=12.3&&
+                l.shore&&l.parking&&l.tree&&l.streetlight&&l.roadCenter&&diag.waterColor==='#0b4f79';
+              if(pageErrors.length||!diag.internalMap||diag.canvasCount!==1||diag.apiState?.ready!==true||!diag.exactLayer||!o?.installed||!o.bodySynced||!o.iconSynced||!o.outlineSynced||o.sameCategoryColor!==true||o.collisionSafe!==true||o.secondaryCanvases!==0||!continuityOk)process.exitCode=2;
             }finally{await browser.close()}
           })().catch(e=>{console.error('DIAG_FATAL',e.stack||e);process.exit(1)});
           NODE
