@@ -46,12 +46,12 @@ jobs:
           cp release-v2300/world-v2300-worker.js app/
           cp release-v2300/world-v2300.css app/
 
-          # Vendor the exact MIT Three.js build locally. No runtime CDN dependency.
+          # Vendor pinned MIT Three.js locally. Runtime never depends on a CDN.
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.min.js -o app/vendor/three.module.min.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js -o app/vendor/OrbitControls.js
           sed -i "s/from 'three'/from '.\/three.module.min.js'/g; s/from \"three\"/from \".\/three.module.min.js\"/g" app/vendor/OrbitControls.js
 
-          # Physically remove the previous map/effects runtimes from the published artifact.
+          # Physically remove every previous map/effects runtime from the published artifact.
           rm -f app/map-v1997.js app/map-v1997-weather-hotfix.js
           find app -maxdepth 1 -type f -name 'map-v*.js' -delete
           find app -maxdepth 1 -type f -name '*-v22*.js' -delete
@@ -60,7 +60,6 @@ jobs:
           from pathlib import Path
           import re
           p=Path('app/index.html'); s=p.read_text()
-          # Remove every previous map/effects script and prior V2300 injection.
           s=re.sub(r'\s*<script[^>]+src=["\'][^"\']*(?:map-v[^"\']*\.js|[^"\']*-v22\d\d\.js|world-v2300-[^"\']*\.js)[^"\']*["\'][^>]*></script>','',s,flags=re.I)
           s=re.sub(r'\s*<link[^>]+href=["\'][^"\']*world-v2300\.css[^"\']*["\'][^>]*>','',s,flags=re.I)
           s=re.sub(r'\s*<script id=["\']bp\d+-cache-reset["\'][^>]*>.*?</script>','',s,flags=re.I|re.S)
@@ -71,6 +70,10 @@ jobs:
           s=s.replace('</body>',mod+'\n</body>')
           p.write_text(s)
           Path('app/flutter_service_worker.js').write_text('''const BP_CACHE_RESET=2300;\nself.addEventListener("install",()=>self.skipWaiting());\nself.addEventListener("activate",e=>e.waitUntil((async()=>{try{for(const k of await caches.keys())await caches.delete(k)}catch(_){}try{await self.registration.unregister()}catch(_){}try{await self.clients.claim()}catch(_){}try{const cs=await self.clients.matchAll({type:"window",includeUncontrolled:true});for(const c of cs){const u=new URL(c.url);if(u.pathname.startsWith("/app/")){u.searchParams.set("bp-runtime","2300");c.navigate(u.href)}}}catch(_){}})()));\nself.addEventListener("fetch",()=>{});\n''')
+          # Make the old runtime impossible to sneak back through HTML.
+          html=p.read_text()
+          bad=re.findall(r'<script[^>]+src=["\'][^"\']*(?:map-v|v22\d\d)[^"\']*["\']',html,re.I)
+          if bad: raise SystemExit('legacy map runtime references remain: '+repr(bad))
           PY
 
           for f in app/world-v2300-*.js; do node --check "$f"; done
@@ -93,10 +96,8 @@ jobs:
           grep -Fq 'bridgepoint-world-effects-v2190' app/world-v2300-weather.js
           grep -Fq 'BP_CACHE_RESET=2300' app/flutter_service_worker.js
 
-          # Runtime allowlist: no competitor SDK/tiles and no remote Three.js import.
+          # Runtime allowlist: no competitor SDK/data endpoints and no remote Three import.
           ! grep -Eiq 'mapbox|cesium|nearmap|regrid|reportall|server\.arcgisonline\.com|esm\.sh|unpkg\.com' app/world-v2300-*.js
-          ! grep -Eiq '<script[^>]+(?:map-v|v22)' app/index.html
-          ! grep -Eiq 'map-v[^"'"']*\.js|v22[0-9][0-9]\.js' app/index.html
           test ! -f app/map-v1997.js
           test ! -f app/map-v1997-weather-hotfix.js
           test -s app/vendor/three.module.min.js
@@ -139,6 +140,12 @@ jobs:
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 25 -H 'Cache-Control: no-cache' "$origin/world-v2300-inspector.js?v=2300&verify=$salt" -o /tmp/inspector.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 25 -H 'Cache-Control: no-cache' "$origin/world-v2300-weather.js?v=2300&verify=$salt" -o /tmp/weather.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 25 -H 'Cache-Control: no-cache' "$origin/vendor/three.module.min.js?v=2300&verify=$salt" -o /tmp/three.js || true
+            python3 - <<'PY' >/tmp/html-legacy-ok
+          import re
+          s=open('/tmp/app.html',encoding='utf-8').read()
+          assert not re.search(r'<script[^>]+src=["\'][^"\']*(?:map-v|v22\d\d)[^"\']*["\']',s,re.I)
+          print('OK')
+          PY
             if grep -Fq 'world-v2300-bootstrap.js?v=2300' /tmp/app.html \
               && grep -Fq 'bp2300-cache-reset' /tmp/app.html \
               && grep -Fq 'MAPLIBRE_MVT_QUADTREE_LOD_PLUS_EXACT_VIEWPORT_WORKER' /tmp/map.js \
@@ -146,9 +153,9 @@ jobs:
               && grep -Fq 'USGS The National Map' /tmp/map.js \
               && grep -Fq './vendor/three.module.min.js' /tmp/inspector.js \
               && grep -Fq 'bridgepoint-world-effects-v2190' /tmp/weather.js \
+              && grep -Fq 'OK' /tmp/html-legacy-ok \
               && test -s /tmp/three.js \
-              && ! grep -Eiq 'mapbox|cesium|nearmap|regrid|reportall|server\.arcgisonline\.com|esm\.sh|unpkg\.com' /tmp/map.js /tmp/inspector.js \
-              && ! grep -Eiq '<script[^>]+(?:map-v|v22)' /tmp/app.html; then ok=1; break; fi
+              && ! grep -Eiq 'mapbox|cesium|nearmap|regrid|reportall|server\.arcgisonline\.com|esm\.sh|unpkg\.com' /tmp/map.js /tmp/inspector.js; then ok=1; break; fi
             sleep 5
           done
           test "$ok" = 1
