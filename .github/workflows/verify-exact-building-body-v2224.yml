@@ -75,7 +75,6 @@ jobs:
               assert.equal(out.state.sourceReady,true);assert.equal(out.state.layerVisible,'visible');
               assert.equal(out.canvases,1,'must reuse one MapLibre WebGL canvas');
               assert.equal(out.terrain?.source,'dem');assert(out.pitch>=55);
-              assert.equal(window===window,true);
               console.log('BRIDGEPOINT_V2224_GARY_ANDROID_PASS',JSON.stringify(out));
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
