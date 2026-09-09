@@ -35,11 +35,9 @@ jobs:
           set -euo pipefail
           git fetch origin main live-artifact
           git checkout -B live-artifact origin/live-artifact
-
           for d in $(git ls-tree -d --name-only origin/main | grep -E '^release-v22[0-9][0-9]$' | sort -V); do
             git checkout origin/main -- "$d"
           done
-
           python3 - <<'PY'
           from pathlib import Path
           import re, shutil
@@ -54,47 +52,50 @@ jobs:
           s=re.sub(r'\s*<script[^>]+src=["\'][^"\']*map-v2190-world-effects\.js[^"\']*["\'][^>]*></script>','',s,flags=re.I)
           legacy=app/'map-v2190-world-effects.js'
           if legacy.exists(): legacy.unlink()
-          s=re.sub(r'(\./map-v1997-weather-hotfix\.js\?v=)[0-9]+',r'\g<1>2222',s)
+          s=re.sub(r'(\./map-v1997-weather-hotfix\.js\?v=)[0-9]+',r'\g<1>2223',s)
           s=re.sub(r'\s*<script id=["\']bp22[0-9]+-cache-reset["\'][^>]*>.*?</script>','',s,flags=re.I|re.S)
-          guard='''<script id="bp2222-cache-reset">(()=>{try{window.__bpAuthoritativeWorldRuntime=2222;if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.filter(r=>{try{return new URL(r.scope).pathname.startsWith("/app/")}catch(_){return true}}).map(r=>r.unregister()))).catch(()=>{})}if("caches" in window){caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).catch(()=>{})}}catch(_){}})();</script>'''
+          guard='''<script id="bp2223-cache-reset">(()=>{try{window.__bpAuthoritativeWorldRuntime=2223;if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.filter(r=>{try{return new URL(r.scope).pathname.startsWith("/app/")}catch(_){return true}}).map(r=>r.unregister()))).catch(()=>{})}if("caches" in window){caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).catch(()=>{})}}catch(_){}})();</script>'''
           s=s.replace('</head>',guard+'\n</head>')
           tags='\n'.join(f'<script defer src="./{name}?v={v}"></script>' for _,name,v in sorted(files))
-          anchor='<script defer src="./map-v1997-weather-hotfix.js?v=2222"></script>'
+          anchor='<script defer src="./map-v1997-weather-hotfix.js?v=2223"></script>'
           if anchor in s:
               pos=s.index(anchor)+len(anchor); s=s[:pos]+'\n'+tags+s[pos:]
           else:
               s=s.replace('</body>',anchor+'\n'+tags+'\n</body>')
           idx.write_text(s)
-          (app/'flutter_service_worker.js').write_text('''const BP_CACHE_RESET=2222;\nself.addEventListener("install",()=>self.skipWaiting());\nself.addEventListener("activate",e=>{e.waitUntil((async()=>{try{for(const k of await caches.keys())await caches.delete(k)}catch(_){}try{await self.registration.unregister()}catch(_){}try{await self.clients.claim()}catch(_){}try{const cs=await self.clients.matchAll({type:"window",includeUncontrolled:true});for(const c of cs){const u=new URL(c.url);if(u.pathname.startsWith("/app/")){u.searchParams.set("bp-runtime","2222");c.navigate(u.href)}}}catch(_){}})())});\nself.addEventListener("fetch",()=>{});\n''')
+          (app/'flutter_service_worker.js').write_text('''const BP_CACHE_RESET=2223;\nself.addEventListener("install",()=>self.skipWaiting());\nself.addEventListener("activate",e=>{e.waitUntil((async()=>{try{for(const k of await caches.keys())await caches.delete(k)}catch(_){}try{await self.registration.unregister()}catch(_){}try{await self.clients.claim()}catch(_){}try{const cs=await self.clients.matchAll({type:"window",includeUncontrolled:true});for(const c of cs){const u=new URL(c.url);if(u.pathname.startsWith("/app/")){u.searchParams.set("bp-runtime","2223");c.navigate(u.href)}}}catch(_){}})())});\nself.addEventListener("fetch",()=>{});\n''')
           print('ORDERED_SCRIPTS',*[x[1] for x in sorted(files)])
           PY
 
           for f in app/*-v22*.js; do [ -f "$f" ] && node --check "$f"; done
           node --check app/flutter_service_worker.js
-          grep -Fq 'map-v1997-weather-hotfix.js?v=2222' app/index.html
+          grep -Fq 'map-v1997-weather-hotfix.js?v=2223' app/index.html
           grep -Fq 'mobile-map-authority-v2219.js?v=2219' app/index.html
           grep -Fq 'mobile-visual-world-v2220.js?v=2220' app/index.html
           grep -Fq 'building-geometry-lod-v2221.js?v=2221' app/index.html
           grep -Fq 'visual-fidelity-v2222.js?v=2222' app/index.html
-          grep -Fq 'bp2222-cache-reset' app/index.html
-          grep -Fq 'terrainAllowed:true' app/mobile-map-authority-v2219.js
+          grep -Fq 'rich-world-fusion-v2223.js?v=2223' app/index.html
+          grep -Fq 'bp2223-cache-reset' app/index.html
           grep -Fq 'doesNotStripVisualFidelity:true' app/mobile-map-authority-v2219.js
           grep -Fq 'cedesRichSceneAuthority:true' app/mobile-visual-world-v2220.js
           grep -Fq 'TILED_LOD_PLUS_EXACT_VISIBLE_OVERLAY' app/building-geometry-lod-v2221.js
-          grep -Fq 'gameCameraClickPitch:64' app/building-geometry-lod-v2221.js
-          grep -Fq 'IMAGERY_TERRAIN_GAME_WORLD' app/visual-fidelity-v2222.js
-          grep -Fq 'SATELLITE_GROUND_PLUS_3D_TERRAIN_PLUS_TILED_BUILDINGS_PLUS_EXACT_ROOFS_AND_PARCELS' app/visual-fidelity-v2222.js
-          grep -Fq 'secondaryWebGL:false' app/visual-fidelity-v2222.js
-          grep -Fq 'continuousAnimation:false' app/visual-fidelity-v2222.js
+          grep -Fq 'opaqueVectorGroundSuppressed:true' app/visual-fidelity-v2222.js
+          grep -Fq 'BRIDGEPOINT_FIRST_3D_3DEP_SATELLITE_FUSION' app/rich-world-fusion-v2223.js
+          grep -Fq 'bridgePointGeometryPrimary:true' app/rich-world-fusion-v2223.js
+          grep -Fq 'neutralPhysicalBuildingMaterial:true' app/rich-world-fusion-v2223.js
+          grep -Fq 'vectorTilesContinuityOnly:true' app/rich-world-fusion-v2223.js
+          grep -Fq '3DEPElevation%3AHillshade%20Multidirectional' app/rich-world-fusion-v2223.js
+          grep -Fq 'secondaryWebGL:false' app/rich-world-fusion-v2223.js
+          grep -Fq 'continuousAnimation:false' app/rich-world-fusion-v2223.js
           ! grep -Fq 'map-v2190-world-effects.js' app/index.html
           test ! -f app/map-v2190-world-effects.js
-          grep -Fq 'BP_CACHE_RESET=2222' app/flutter_service_worker.js
+          grep -Fq 'BP_CACHE_RESET=2223' app/flutter_service_worker.js
 
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add -A app/ release-v22*/
           if ! git diff --cached --quiet; then
-            git commit -m 'Publish V2222 imagery terrain game world'
+            git commit -m 'Publish V2223 BridgePoint rich world fusion'
             git push origin HEAD:live-artifact
           fi
           rm -rf site && mkdir site
@@ -114,34 +115,31 @@ jobs:
         with:
           artifact_name: github-pages-globe-world
 
-      - name: Verify V2222 on custom production domain
+      - name: Verify V2223 on custom production domain
         shell: bash
         run: |
           set -euo pipefail
           origin='https://bridgepointintelligence.online'; ok=0
           for attempt in $(seq 1 36); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/?bp-runtime=2222&verify=${salt}" -o /tmp/app.html || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/mobile-map-authority-v2219.js?v=2219&verify=${salt}" -o /tmp/authority.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/mobile-visual-world-v2220.js?v=2220&verify=${salt}" -o /tmp/world.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/building-geometry-lod-v2221.js?v=2221&verify=${salt}" -o /tmp/buildings.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/?bp-runtime=2223&verify=${salt}" -o /tmp/app.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/visual-fidelity-v2222.js?v=2222&verify=${salt}" -o /tmp/fidelity.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/rich-world-fusion-v2223.js?v=2223&verify=${salt}" -o /tmp/fusion.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 20 -H 'Cache-Control: no-cache' "${origin}/app/flutter_service_worker.js?verify=${salt}" -o /tmp/sw.js || true
-            if grep -Fq 'visual-fidelity-v2222.js?v=2222' /tmp/app.html \
-              && grep -Fq 'bp2222-cache-reset' /tmp/app.html \
-              && grep -Fq 'terrainAllowed:true' /tmp/authority.js \
-              && grep -Fq 'doesNotStripVisualFidelity:true' /tmp/authority.js \
-              && grep -Fq 'cedesRichSceneAuthority:true' /tmp/world.js \
-              && grep -Fq 'TILED_LOD_PLUS_EXACT_VISIBLE_OVERLAY' /tmp/buildings.js \
-              && grep -Fq 'gameCameraClickPitch:64' /tmp/buildings.js \
-              && grep -Fq 'IMAGERY_TERRAIN_GAME_WORLD' /tmp/fidelity.js \
-              && grep -Fq 'SATELLITE_GROUND_PLUS_3D_TERRAIN_PLUS_TILED_BUILDINGS_PLUS_EXACT_ROOFS_AND_PARCELS' /tmp/fidelity.js \
-              && grep -Fq 'secondaryWebGL:false' /tmp/fidelity.js \
-              && grep -Fq 'BP_CACHE_RESET=2222' /tmp/sw.js \
+            if grep -Fq 'rich-world-fusion-v2223.js?v=2223' /tmp/app.html \
+              && grep -Fq 'bp2223-cache-reset' /tmp/app.html \
+              && grep -Fq 'opaqueVectorGroundSuppressed:true' /tmp/fidelity.js \
+              && grep -Fq 'BRIDGEPOINT_FIRST_3D_3DEP_SATELLITE_FUSION' /tmp/fusion.js \
+              && grep -Fq 'bridgePointGeometryPrimary:true' /tmp/fusion.js \
+              && grep -Fq 'neutralPhysicalBuildingMaterial:true' /tmp/fusion.js \
+              && grep -Fq 'vectorTilesContinuityOnly:true' /tmp/fusion.js \
+              && grep -Fq '3DEPElevation%3AHillshade%20Multidirectional' /tmp/fusion.js \
+              && grep -Fq 'secondaryWebGL:false' /tmp/fusion.js \
+              && grep -Fq 'BP_CACHE_RESET=2223' /tmp/sw.js \
               && ! grep -Fq 'map-v2190-world-effects.js' /tmp/app.html; then ok=1; break; fi
             sleep 5
           done
           test "$ok" = 1
           code=$(curl -sS -o /tmp/legacy.js -w '%{http_code}' -H 'Cache-Control: no-cache' "${origin}/app/map-v2190-world-effects.js?verify=${GITHUB_SHA}")
           test "$code" = '404'
-          echo BRIDGEPOINT_V2222_CUSTOM_DOMAIN_LIVE_PASS
+          echo BRIDGEPOINT_V2223_CUSTOM_DOMAIN_LIVE_PASS
