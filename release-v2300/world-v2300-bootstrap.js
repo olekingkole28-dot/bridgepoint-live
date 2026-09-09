@@ -11,13 +11,14 @@ import{initRoadStyle}from'./world-v2300-road-style.js';
 import{initBoundaryContinuity}from'./world-v2300-boundary-continuity.js';
 import{initLockedCountries}from'./world-v2300-locked-countries.js';
 import{initLandmarks}from'./world-v2300-landmarks.js';
+import{initRail3D}from'./world-v2300-rail-3d.js';
 import{initInspector}from'./world-v2300-inspector.js';
 
-let booting=false,ready=false,world=null,details=null,weather=null,presentWeather=null,weatherKey=null,weatherPersistence=null,flythrough=null,buildingFidelity=null,roadStyle=null,boundaryContinuity=null,lockedCountries=null,landmarks=null,inspector=null,extensionsBound=false;
+let booting=false,ready=false,world=null,details=null,weather=null,presentWeather=null,weatherKey=null,weatherPersistence=null,flythrough=null,buildingFidelity=null,roadStyle=null,boundaryContinuity=null,lockedCountries=null,landmarks=null,rail3d=null,inspector=null,extensionsBound=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function waitForMapShell(){for(let i=0;i<120;i++){if(window.maplibregl&&document.getElementById('liveMap'))return true;await sleep(50)}return false}
 function expose(){
-  window.BridgePointWorldV2300={version:VERSION,authoritative:true,cleanReplacement:true,architecture:'MAPLIBRE_SINGLE_CANVAS_TILE_LOD_PLUS_SEMANTIC_DETAIL_PLUS_BOUNDED_WEATHER_PLUS_LAZY_THREE_INSPECTOR',boot,world,details,weather,presentWeather,weatherKey,weatherPersistence,flythrough,buildingFidelity,roadStyle,boundaryContinuity,lockedCountries,landmarks,inspector,get state(){return{version:VERSION,ready,booting,cleanReplacement:true,mainCanvases:document.querySelectorAll('#liveMap canvas').length,inspectorOpen:!document.getElementById('bp2300Inspector')?.hidden,world:world?.state||null,details:details?.state||null,weather:weather?.state||null,presentWeather:presentWeather?.state||null,weatherKey:weatherKey?.state||null,weatherPersistence:weatherPersistence?.state||null,flythrough:flythrough?.state||null,buildingFidelity:buildingFidelity?.state||null,roadStyle:roadStyle?.state||null,boundaryContinuity:boundaryContinuity?.state||null,lockedCountries:lockedCountries?.state||null,landmarks:landmarks?.state||null}}};
+  window.BridgePointWorldV2300={version:VERSION,authoritative:true,cleanReplacement:true,architecture:'MAPLIBRE_SINGLE_CANVAS_TILE_LOD_PLUS_SEMANTIC_DETAIL_PLUS_BOUNDED_WEATHER_PLUS_LAZY_THREE_INSPECTOR',boot,world,details,weather,presentWeather,weatherKey,weatherPersistence,flythrough,buildingFidelity,roadStyle,boundaryContinuity,lockedCountries,landmarks,rail3d,inspector,get state(){return{version:VERSION,ready,booting,cleanReplacement:true,mainCanvases:document.querySelectorAll('#liveMap canvas').length,inspectorOpen:!document.getElementById('bp2300Inspector')?.hidden,world:world?.state||null,details:details?.state||null,weather:weather?.state||null,presentWeather:presentWeather?.state||null,weatherKey:weatherKey?.state||null,weatherPersistence:weatherPersistence?.state||null,flythrough:flythrough?.state||null,buildingFidelity:buildingFidelity?.state||null,roadStyle:roadStyle?.state||null,boundaryContinuity:boundaryContinuity?.state||null,lockedCountries:lockedCountries?.state||null,landmarks:landmarks?.state||null,rail3d:rail3d?.state||null}}};
   window.__bpAuthoritativeWorldRuntime=VERSION;
   return window.BridgePointWorldV2300;
 }
@@ -31,6 +32,7 @@ function bindExtensions(){
     try{world.map.setGlyphs?.('https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf')}catch(e){console.warn('V2300 glyph source',e)}
     try{details=initDetails(world.map)}catch(e){console.warn('V2300 details init',e)}
     try{roadStyle=initRoadStyle(world.map)}catch(e){console.warn('V2300 road style init',e)}
+    try{rail3d=initRail3D(world.map)}catch(e){console.warn('V2300 rail 3D init',e)}
     try{buildingFidelity=initBuildingFidelity(world.map)}catch(e){console.warn('V2300 building fidelity init',e)}
     try{boundaryContinuity=initBoundaryContinuity(world.map)}catch(e){console.warn('V2300 boundary continuity init',e)}
     try{lockedCountries=initLockedCountries(world.map)}catch(e){console.warn('V2300 locked countries init',e)}
