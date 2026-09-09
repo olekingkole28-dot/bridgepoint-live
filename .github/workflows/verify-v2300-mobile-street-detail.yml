@@ -17,6 +17,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Build isolated mobile detail harness
         shell: bash
@@ -24,7 +26,11 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/bpstreet/vendor
           cp release-v2300/world-v2300-map.js release-v2300/world-v2300-config.js release-v2300/world-v2300-worker.js /tmp/bpstreet/
-          cp app/vendor/maplibre-gl-v1995.js app/vendor/maplibre-gl-v1995.css /tmp/bpstreet/vendor/
+          git fetch origin live-artifact
+          git show origin/live-artifact:app/vendor/maplibre-gl-v1995.js > /tmp/bpstreet/vendor/maplibre-gl-v1995.js
+          git show origin/live-artifact:app/vendor/maplibre-gl-v1995.css > /tmp/bpstreet/vendor/maplibre-gl-v1995.css
+          test -s /tmp/bpstreet/vendor/maplibre-gl-v1995.js
+          test -s /tmp/bpstreet/vendor/maplibre-gl-v1995.css
           cat >/tmp/bpstreet/index.html <<'HTML'
           <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./vendor/maplibre-gl-v1995.css"><style>html,body,#liveMap{margin:0;width:100%;height:100%;background:#071017}#mapStatus{position:fixed;left:8px;bottom:8px;z-index:20;background:#071017;color:white;padding:6px;font:12px sans-serif}</style></head><body><div id="liveMap"></div><div id="mapStatus"></div><button id="resetMap" hidden></button><button id="locateMe" hidden></button><div id="mapResults"></div><form id="mapSearchForm"><input id="mapSearch"></form><script src="./vendor/maplibre-gl-v1995.js"></script><script type="module">import{initWorld}from'./world-v2300-map.js';window.__streetHarness=initWorld();</script></body></html>
           HTML
