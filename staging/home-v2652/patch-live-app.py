@@ -4,8 +4,6 @@ root = Path('site/app')
 index = root / 'index.html'
 service_worker = root / 'flutter_service_worker.js'
 
-# The production app is intentionally map-only while the UI is rebuilt page by page.
-# Nothing from the previous Flutter shell is loaded or visible here.
 map_only = '''<!doctype html>
 <html lang="en">
 <head>
@@ -26,13 +24,12 @@ map_only = '''<!doctype html>
 <body>
   <iframe
     id="bp-map-only"
-    src="bridgepoint-world-v2652/?release=2654-map-only"
-    title="BridgePoint World V2653"
+    src="bridgepoint-world-v2652/?release=generated-material-world-2655"
+    title="BridgePoint World"
     allow="geolocation; fullscreen"
     allowfullscreen
   ></iframe>
   <script>
-    // Retire stale Flutter/PWA caches so the removed UI cannot reappear.
     (async()=>{
       try{
         if('serviceWorker' in navigator){
@@ -51,10 +48,7 @@ map_only = '''<!doctype html>
 '''
 
 index.write_text(map_only)
-
-# Replace the old Flutter cache worker with a tiny map-only worker that immediately
-# takes control and clears legacy app caches. The map itself is network-backed/live.
-service_worker.write_text('''const VERSION = "bridgepoint-map-only-v2654";
+service_worker.write_text('''const VERSION = "bridgepoint-generated-world-v2655";
 self.addEventListener("install", event => { self.skipWaiting(); });
 self.addEventListener("activate", event => {
   event.waitUntil(
@@ -64,16 +58,14 @@ self.addEventListener("activate", event => {
   );
 });
 self.addEventListener("fetch", event => {
-  if (event.request.mode === "navigate") {
-    event.respondWith(fetch(event.request));
-  }
+  if (event.request.mode === "navigate") event.respondWith(fetch(event.request));
 });
 ''')
 
 s = index.read_text()
 assert 'id="bp-map-only"' in s
-assert 'bridgepoint-world-v2652/?release=2654-map-only' in s
+assert 'generated-material-world-2655' in s
 assert 'flutter_bootstrap.js' not in s
 assert 'main.dart.js' not in s
 assert 'bp-v2652-home' not in s
-print('MAP_ONLY_V2654')
+print('MAP_ONLY_GENERATED_WORLD_V2655')
