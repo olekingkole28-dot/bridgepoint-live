@@ -60,7 +60,7 @@ jobs:
                   let body={};try{body=JSON.parse(req.postData()||'{}')}catch(_){}
                   viewportBodies.push(body);
                   const feature={type:'Feature',id:9001,geometry:{type:'Polygon',coordinates:[[[-74.00625,40.71265],[-74.00595,40.71265],[-74.00595,40.7129],[-74.00625,40.7129],[-74.00625,40.71265]]]},properties:{building_id:9001,source_key:'CI_MOBILE_TEST_SOURCE',render_height_m:24,base_height_m:0,roof_height_m:1.2,roof_shape:'flat',roof_material:'metal',facade_material:'brick',source_confidence:.99,height_truth:'SOURCE_BACKED'}};
-                  return req.respond({status:200,contentType:'application/json',body:JSON.stringify({type:'FeatureCollection',version:2300,features:[feature]})});
+                  return req.respond({status:200,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*','Cache-Control':'no-store'},body:JSON.stringify({type:'FeatureCollection',version:2300,features:[feature]})});
                 }
                 req.continue();
               });
