@@ -34,12 +34,10 @@ function surfaceText(ds,{lon,lat,text,widthDeg,heightDeg,fill,stroke,near,far,co
   const e=ds.entities.add({rectangle:{coordinates:Cesium.Rectangle.fromDegrees(lon-halfLon,lat-halfLat,lon+halfLon,lat+halfLat),height:country?320:80,material:new Cesium.ImageMaterialProperty({image:textTexture(text,fill,stroke),transparent:true}),distanceDisplayCondition:new Cesium.DistanceDisplayCondition(near,far),outline:false}});
   if(country)e.bridgepointCountry=country;if(state)e.bridgepointState=state;return e;
 }
-function suppressBillboardCountryLabels(viewer){
-  for(const name of ['bp-v2658-surface-countries','bp-v2657-us-built','bp-v2657-foreign-locked']){
-    const ds=viewer.dataSources.getByName(name)[0];if(!ds)continue;
-    for(const e of ds.entities.values){if(e.label)e.label.show=false}
+function removeLegacyCountryGraphics(viewer){
+  for(const name of ['bp-v2658-surface-countries','bp-v2657-us-built','bp-v2657-foreign-locked','bp-country-locks']){
+    const ds=viewer.dataSources.getByName(name)[0];if(ds)viewer.dataSources.remove(ds,true);
   }
-  const baseLocks=viewer.dataSources.getByName('bp-country-locks')[0];if(baseLocks)for(const e of baseLocks.entities.values)if(e.label)e.label.show=false;
 }
 function openCountry(country){
   window.BridgePointSelectedCountry=country;
@@ -71,13 +69,14 @@ async function buildSurfaceMap(viewer){
     const width=Math.max(.75,Math.min(4.6,(b[2]-b[0])*.52)),height=Math.max(.22,Math.min(.9,(b[3]-b[1])*.15));
     surfaceText(labels,{lon:c[0],lat:c[1],text:name.toUpperCase(),widthDeg:width,heightDeg:height,fill:'#caffdc',stroke:'#07361f',near:120000,far:5200000,state:{name}});
   }
-  suppressBillboardCountryLabels(viewer);viewer.scene.requestRender();
+  removeLegacyCountryGraphics(viewer);viewer.scene.requestRender();
 
   const handler=new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
   handler.setInputAction(m=>{const picked=viewer.scene.pick(m.position),entity=picked?.id;if(entity?.bridgepointCountry?.locked)openCountry(entity.bridgepointCountry)},Cesium.ScreenSpaceEventType.LEFT_CLICK);
   viewer.camera.moveStart.addEventListener(()=>document.getElementById('lockCard')?.classList.remove('open'));
 
-  let passes=0;const suppress=setInterval(()=>{suppressBillboardCountryLabels(viewer);if(++passes>24)clearInterval(suppress)},350);
+  // V2658 can finish a slower remote bootstrap after V2661. Remove its screen-facing country/state layer if it appears later.
+  let passes=0;const suppress=setInterval(()=>{removeLegacyCountryGraphics(viewer);if(++passes>80)clearInterval(suppress)},500);
   window.BridgePointSurfaceMapV2661={viewer,boundaries,labels,rebuild:()=>buildSurfaceMap(viewer)};
   document.documentElement.dataset.bridgepointSurfaceLabels='2661';
 }
