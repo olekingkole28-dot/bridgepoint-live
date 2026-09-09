@@ -1,4 +1,4 @@
-name: Deploy BridgePoint Generated Map-Only World
+name: Deploy BridgePoint Direct Generated World
 
 on:
   workflow_dispatch:
@@ -30,24 +30,31 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate staged generated-world files
+      - name: Validate staged direct-world files
         run: |
           set -euo pipefail
           test -s staging/world-v2652/index.html
           test -s staging/world-v2652/world-v2653-surface.js
+          test -s staging/world-v2652/world-v2656-interaction.js
           test -s staging/world-v2652/world-v2652-production.js
           test -s staging/world-v2652/world-v2652-actions.js
           test -s staging/world-v2652/world-v2652.css
           test -s staging/home-v2652/patch-live-app.py
           node --check staging/world-v2652/world-v2653-surface.js
+          node --check staging/world-v2652/world-v2656-interaction.js
           node --check staging/world-v2652/world-v2652-production.js
           node --check staging/world-v2652/world-v2652-actions.js
           grep -Fq 'Land-cover classifications are inputs' staging/world-v2652/index.html
-          grep -Fq 'viewer.imageryLayers.removeAll(true)' staging/world-v2652/world-v2653-surface.js
-          grep -Fq 'bp-generated-natural-surface' staging/world-v2652/world-v2653-surface.js
+          grep -Fq 'world-v2656-interaction.js' staging/world-v2652/index.html
+          grep -Fq 'controller.enableZoom=true' staging/world-v2652/world-v2656-interaction.js
+          grep -Fq 'controller.enableTilt=true' staging/world-v2652/world-v2656-interaction.js
+          grep -Fq 'cameraHitsEarth' staging/world-v2652/world-v2656-interaction.js
+          grep -Fq 'bp-wide-us-generated-land' staging/world-v2652/world-v2656-interaction.js
+          grep -Fq 'location.replace' staging/home-v2652/patch-live-app.py
+          ! grep -Fq '<iframe' staging/home-v2652/patch-live-app.py
           ! grep -Fq 'WebMapServiceImageryProvider' staging/world-v2652/world-v2653-surface.js
 
-      - name: Assemble map-only generated world
+      - name: Assemble direct generated world
         run: |
           set -euo pipefail
           git fetch origin live-artifact:refs/remotes/origin/live-artifact
@@ -61,6 +68,7 @@ jobs:
 
           cp staging/world-v2652/index.html site/app/bridgepoint-3d-world/index.html
           cp staging/world-v2652/world-v2653-surface.js site/app/bridgepoint-3d-world/world-v2653-surface.js
+          cp staging/world-v2652/world-v2656-interaction.js site/app/bridgepoint-3d-world/world-v2656-interaction.js
           cp staging/world-v2652/world-v2652-production.js site/app/bridgepoint-3d-world/world-v2652-production.js
           cp staging/world-v2652/world-v2652-actions.js site/app/bridgepoint-3d-world/world-v2652-actions.js
           cp staging/world-v2652/world-v2652.css site/app/bridgepoint-3d-world/world-v2652.css
@@ -70,17 +78,19 @@ jobs:
 
           python3 staging/home-v2652/patch-live-app.py
 
-          grep -Fq 'id="bp-map-only"' site/app/index.html
-          grep -Fq 'generated-material-world-2655' site/app/index.html
+          grep -Fq 'location.replace' site/app/index.html
+          grep -Fq 'interactive-generated-world-2656' site/app/index.html
+          ! grep -Fq '<iframe' site/app/index.html
           ! grep -Fq 'flutter_bootstrap.js' site/app/index.html
           ! grep -Fq 'main.dart.js' site/app/index.html
-          ! grep -Fq 'bp-v2652-home' site/app/index.html
           grep -Fq 'BridgePoint Generated World' site/app/bridgepoint-world-v2652/index.html
-          grep -Fq 'world-v2653-surface.js' site/app/bridgepoint-world-v2652/index.html
+          grep -Fq 'world-v2656-interaction.js' site/app/bridgepoint-world-v2652/index.html
+          grep -Fq 'controller.enableInputs=true' site/app/bridgepoint-world-v2652/world-v2656-interaction.js
+          grep -Fq 'resetToUS' site/app/bridgepoint-world-v2652/world-v2656-interaction.js
           ! grep -Fq 'WebMapServiceImageryProvider' site/app/bridgepoint-world-v2652/world-v2653-surface.js
 
           cat > site/app/bridgepoint-world-overlay-v2652.json <<EOF
-          {"app_shell_version":2655,"map_only":true,"home_visible":false,"flutter_ui_enabled":false,"surface_mode":"BRIDGEPOINT_GENERATED_MATERIAL_WORLD","raw_landcover_visible":false,"satellite_default":false,"surface_inputs":["USGS_3DEP","USGS_ANNUAL_NLCD_CLASSIFICATION","BRIDGEPOINT_SOURCE_GEOMETRY"],"overlay_source_sha":"${GITHUB_SHA}","versioned_world_path":"/app/bridgepoint-world-v2652/"}
+          {"app_shell_version":2656,"map_only":true,"direct_map_navigation":true,"iframe":false,"flutter_ui_enabled":false,"touch_interaction_recovery":true,"earth_camera_recovery":true,"surface_mode":"BRIDGEPOINT_GENERATED_MATERIAL_WORLD","raw_landcover_visible":false,"satellite_default":false,"surface_inputs":["USGS_3DEP","USGS_ANNUAL_NLCD_CLASSIFICATION","BRIDGEPOINT_SOURCE_GEOMETRY"],"overlay_source_sha":"${GITHUB_SHA}","versioned_world_path":"/app/bridgepoint-world-v2652/"}
           EOF
           touch site/.nojekyll site/app/.nojekyll
 
@@ -89,16 +99,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          rm -rf /tmp/generated-world-live
-          mkdir /tmp/generated-world-live
-          cp -a site/. /tmp/generated-world-live/
-          cd /tmp/generated-world-live
+          rm -rf /tmp/direct-generated-world-live
+          mkdir /tmp/direct-generated-world-live
+          cp -a site/. /tmp/direct-generated-world-live/
+          cd /tmp/direct-generated-world-live
           git init -q
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m "Publish BridgePoint generated material world ${GITHUB_SHA}"
+          git commit -m "Publish BridgePoint direct generated world ${GITHUB_SHA}"
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -110,7 +120,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify production generated-world shell
+      - name: Verify production direct-world shell
         run: |
           set -euo pipefail
           ORIGIN='https://bridgepointintelligence.online'
@@ -119,10 +129,11 @@ jobs:
             marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-overlay-v2652.json?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
             app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
             world="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            interaction="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/world-v2656-interaction.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
             surface="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/world-v2653-surface.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
-            if printf '%s' "$marker" | grep -Fq '"map_only":true' && printf '%s' "$marker" | grep -Fq '"raw_landcover_visible":false' && printf '%s' "$app" | grep -Fq 'id="bp-map-only"' && ! printf '%s' "$app" | grep -Fq 'flutter_bootstrap.js' && printf '%s' "$world" | grep -Fq 'BridgePoint Generated World' && printf '%s' "$surface" | grep -Fq 'bp-generated-natural-surface' && ! printf '%s' "$surface" | grep -Fq 'WebMapServiceImageryProvider'; then
+            if printf '%s' "$marker" | grep -Fq '"direct_map_navigation":true' && printf '%s' "$marker" | grep -Fq '"touch_interaction_recovery":true' && printf '%s' "$app" | grep -Fq 'location.replace' && ! printf '%s' "$app" | grep -Fq '<iframe' && printf '%s' "$world" | grep -Fq 'world-v2656-interaction.js' && printf '%s' "$interaction" | grep -Fq 'controller.enableZoom=true' && printf '%s' "$interaction" | grep -Fq 'cameraHitsEarth' && printf '%s' "$surface" | grep -Fq 'bp-generated-natural-surface' && ! printf '%s' "$surface" | grep -Fq 'WebMapServiceImageryProvider'; then
               ok=1
-              echo "BRIDGEPOINT_GENERATED_MATERIAL_WORLD_LIVE"
+              echo "BRIDGEPOINT_DIRECT_INTERACTIVE_WORLD_LIVE"
               break
             fi
             sleep 5
