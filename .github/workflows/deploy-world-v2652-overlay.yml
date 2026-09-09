@@ -1,0 +1,113 @@
+name: Deploy BridgePoint World V2652 Overlay
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'staging/world-v2652/**'
+      - '.github/workflows/deploy-world-v2652-overlay.yml'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate V2652 overlay source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s staging/world-v2652/index.html
+          test -s staging/world-v2652/world-v2652-production.js
+          test -s staging/world-v2652/world-v2652-actions.js
+          test -s staging/world-v2652/world-v2652.css
+          node --check staging/world-v2652/world-v2652-production.js
+          node --check staging/world-v2652/world-v2652-actions.js
+          grep -Fq 'BridgePoint World V2652' staging/world-v2652/index.html
+          grep -Fq 'bridgepoint_3d_world_viewport_v1899' staging/world-v2652/index.html
+          grep -Fq 'world-v2652-production.js' staging/world-v2652/index.html
+          grep -Fq 'bridgepoint_living_world_catalog_v2652' staging/world-v2652/world-v2652-production.js
+          grep -Fq 'bridgepoint_living_world_scene_v2652' staging/world-v2652/world-v2652-production.js
+          grep -Fq 'bridgepoint_request_world_expansion_v2652' staging/world-v2652/world-v2652-actions.js
+
+      - name: Assemble V2652 over durable current app
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/index.html
+          test -s site/app/main.dart.js
+          test -s site/app/bridgepoint-3d-world/world-v2500.js
+          test -s site/app/bridgepoint-3d-world/world-v2500.css
+          cp staging/world-v2652/index.html site/app/bridgepoint-3d-world/index.html
+          cp staging/world-v2652/world-v2652-production.js site/app/bridgepoint-3d-world/world-v2652-production.js
+          cp staging/world-v2652/world-v2652-actions.js site/app/bridgepoint-3d-world/world-v2652-actions.js
+          cp staging/world-v2652/world-v2652.css site/app/bridgepoint-3d-world/world-v2652.css
+          cat > site/app/bridgepoint-world-overlay-v2652.json <<EOF
+          {"world_version":2652,"base_world_version":2500,"overlay_source_sha":"${GITHUB_SHA}","deployed_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","dynamic_catalog_rpc":"bridgepoint_living_world_catalog_v2652","dynamic_scene_rpc":"bridgepoint_living_world_scene_v2652","truth_clock":true,"xray_mode":true,"country_expansion_requests":true,"old_property_core_preserved":true}
+          EOF
+          touch site/.nojekyll site/app/.nojekyll
+
+      - name: Persist V2652 live artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v2652-live && mkdir /tmp/v2652-live
+          cp -a site/. /tmp/v2652-live/
+          cd /tmp/v2652-live
+          git init -q
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m "Publish BridgePoint World V2652 overlay ${GITHUB_SHA}"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy V2652 to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify V2652 on production custom domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          ok=0
+          for attempt in $(seq 1 36); do
+            marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-overlay-v2652.json?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            html="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-3d-world/?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            runtime_code="$(curl -sS -o /tmp/world-v2652.js -w '%{http_code}' --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-3d-world/world-v2652-production.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            base_code="$(curl -sS -o /tmp/world-v2500.js -w '%{http_code}' --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-3d-world/world-v2500.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$marker" | grep -Fq '"world_version":2652' && printf '%s' "$html" | grep -Fq 'BridgePoint World V2652' && [ "$runtime_code" = '200' ] && [ "$base_code" = '200' ] && grep -Fq 'BridgePointWorldV2652' /tmp/world-v2652.js && grep -Fq 'BridgePointWorldV2500' /tmp/world-v2500.js; then
+              ok=1
+              echo "WORLD_V2652_LIVE ${GITHUB_SHA}"
+              break
+            fi
+            sleep 5
+          done
+          test "$ok" = 1
