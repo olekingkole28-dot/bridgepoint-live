@@ -47,8 +47,8 @@ jobs:
             const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader','--disable-gpu-sandbox']});
             try{
               const p=await browser.newPage();
-              const pageErrors=[];
-              p.on('console',m=>console.log('PAGE_CONSOLE',m.type(),m.text()));
+              const pageErrors=[],styleErrors=[];
+              p.on('console',m=>{const t=m.text();console.log('PAGE_CONSOLE',m.type(),t);if(m.type()==='error'&&!/Failed to load resource/i.test(t))styleErrors.push(t)});
               p.on('pageerror',e=>{pageErrors.push(String(e.message||e));console.log('PAGE_ERROR',e.stack||e.message||String(e))});
               p.on('requestfailed',r=>console.log('REQUEST_FAILED',r.url(),r.failure()?.errorText||''));
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; SM-S731U) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
@@ -65,8 +65,12 @@ jobs:
               await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.ready===true&&document.querySelectorAll('#liveMap canvas').length===1,{timeout:15000});
               await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.opportunitySync?.installed===true,{timeout:12000});
               await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.zoomContinuity?.installed===true,{timeout:12000});
+              await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.streetscapeDetail?.installed===true,{timeout:12000});
+              await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.structureLabels?.installed===true,{timeout:12000});
+              await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.paletteLock?.installed===true,{timeout:12000});
               await p.evaluate(()=>window.__bpWorldV2300?.map?.jumpTo?.({center:[-72.65,41.56],zoom:12,pitch:40}));
-              await new Promise(r=>setTimeout(r,700));
+              await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.paletteLock?.blueWater===true&&window.BridgePointWorldV2300?.state?.paletteLock?.greenVegetation===true&&window.BridgePointWorldV2300?.state?.paletteLock?.blackMajorPavement===true,{timeout:7000});
+              await new Promise(r=>setTimeout(r,500));
               diag=await p.evaluate(()=>{
                 const m=window.__bpWorldV2300?.map;
                 const layer=id=>m?.getStyle?.()?.layers?.find(x=>x.id===id)||null;
@@ -74,17 +78,20 @@ jobs:
                   canvasCount:document.querySelectorAll('#liveMap canvas').length,apiState:window.BridgePointWorldV2300?.state||null,
                   internalMap:!!m,projection:m?.getProjection?.()?.type||null,exactLayer:!!m?.getLayer?.('gta-exact-building'),status:document.getElementById('mapStatus')?.textContent||'',
                   opportunitySync:window.BridgePointWorldV2300?.state?.opportunitySync||null,zoomContinuity:window.BridgePointWorldV2300?.state?.zoomContinuity||null,
+                  streetscape:window.BridgePointWorldV2300?.state?.streetscapeDetail||null,structureLabels:window.BridgePointWorldV2300?.state?.structureLabels||null,palette:window.BridgePointWorldV2300?.state?.paletteLock||null,
                   ranges:{building:layer('gta-context-buildings')?.minzoom,localRoad:layer('gta-road-local')?.minzoom,rail:layer('gta-rail-ballast')?.minzoom,bridge:layer('gta-bridge-deck')?.minzoom,town:layer('gta-town-label-v2300')?.minzoom,localStreet:layer('gta-local-street-name-v2300')?.minzoom},
-                  layers:{shore:!!m?.getLayer?.('gta-shoreline-v2300'),parking:!!m?.getLayer?.('gta-parking-v2300'),tree:!!m?.getLayer?.('gta-tree-canopy-v2300'),streetlight:!!m?.getLayer?.('gta-streetlight-core-v2300'),roadCenter:!!m?.getLayer?.('gta-road-major-center-v2300')},
-                  waterColor:m?.getPaintProperty?.('gta-water','fill-color')||null
+                  layers:{shore:!!m?.getLayer?.('gta-shoreline-v2300'),parking:!!m?.getLayer?.('gta-parking-v2300'),tree:!!m?.getLayer?.('gta-tree-canopy-v2300'),streetlight:!!m?.getLayer?.('gta-streetlight-core-v2300'),roadCenter:!!m?.getLayer?.('gta-road-major-center-v2300'),service:!!m?.getLayer?.('gta-service-drive-v2300'),pedestrian:!!m?.getLayer?.('gta-pedestrian-surface-v2300'),crossing:!!m?.getLayer?.('gta-crosswalk-v2300'),roadEdge:!!m?.getLayer?.('gta-road-edge-v2300'),structureLabel:!!m?.getLayer?.('gta-structure-label-v2300')},
+                  waterColor:m?.getPaintProperty?.('gta-water','fill-color')||null,majorRoadColor:m?.getPaintProperty?.('gta-road-major','line-color')||null
                 }
               });
               console.log('BOOT_DIAG_FINAL',JSON.stringify(diag));
-              const o=diag.opportunitySync,z=diag.zoomContinuity,r=diag.ranges||{},l=diag.layers||{};
+              const o=diag.opportunitySync,z=diag.zoomContinuity,s=diag.streetscape,sl=diag.structureLabels,pal=diag.palette,r=diag.ranges||{},l=diag.layers||{};
               const continuityOk=z?.continuousMidZoom===true&&z.blueWater===true&&z.greenVegetation===true&&z.blackYellowWhiteRoads===true&&z.secondaryCanvases===0&&
-                Number(r.building)<=9.7&&Number(r.localRoad)<=9.2&&Number(r.rail)<=8.8&&Number(r.bridge)<=8.7&&Number(r.town)<=6.7&&Number(r.localStreet)<=12.3&&
-                l.shore&&l.parking&&l.tree&&l.streetlight&&l.roadCenter&&diag.waterColor==='#0b4f79';
-              if(pageErrors.length||!diag.internalMap||diag.canvasCount!==1||diag.apiState?.ready!==true||!diag.exactLayer||!o?.installed||!o.bodySynced||!o.iconSynced||!o.outlineSynced||o.sameCategoryColor!==true||o.collisionSafe!==true||o.secondaryCanvases!==0||!continuityOk)process.exitCode=2;
+                Number(r.building)<=9.7&&Number(r.localRoad)<=9.2&&Number(r.rail)<=8.8&&Number(r.bridge)<=8.7&&Number(r.town)<=6.7&&Number(r.localStreet)<=12.3&&l.shore&&l.parking&&l.tree&&l.streetlight&&l.roadCenter;
+              const streetscapeOk=s?.installed===true&&s.sourceBackedServiceDrives===true&&s.sourceBackedPedestrianPaths===true&&s.sourceBackedCrossings===true&&s.parkingAisleGuidance===true&&s.majorRoadEdgeLines===true&&s.legacyMapLibreFilters===true&&s.secondaryCanvases===0&&l.service&&l.pedestrian&&l.crossing&&l.roadEdge;
+              const structureOk=sl?.installed===true&&sl.buildingFootprintAnchored===true&&sl.roofElevationUnsupportedByBundledMapLibre===true&&sl.roofElevationFallbackSafe===true&&sl.secondaryCanvases===0&&l.structureLabel;
+              const paletteOk=pal?.installed===true&&pal.blueWater===true&&pal.greenVegetation===true&&pal.blackMajorPavement===true&&pal.blackLocalPavement===true&&pal.secondaryCanvases===0&&diag.waterColor==='#0b4f79'&&diag.majorRoadColor==='#15191c';
+              if(pageErrors.length||styleErrors.length||!diag.internalMap||diag.canvasCount!==1||diag.apiState?.ready!==true||!diag.exactLayer||!o?.installed||!o.bodySynced||!o.iconSynced||!o.outlineSynced||o.sameCategoryColor!==true||o.collisionSafe!==true||o.secondaryCanvases!==0||!continuityOk||!streetscapeOk||!structureOk||!paletteOk)process.exitCode=2;
             }finally{await browser.close()}
           })().catch(e=>{console.error('DIAG_FATAL',e.stack||e);process.exit(1)});
           NODE
