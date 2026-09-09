@@ -1,4 +1,4 @@
-name: Deploy BridgePoint V2652 Home and World
+name: Deploy BridgePoint V2653 Generated World
 
 on:
   workflow_dispatch:
@@ -34,17 +34,21 @@ jobs:
         run: |
           set -euo pipefail
           test -s staging/world-v2652/index.html
+          test -s staging/world-v2652/world-v2653-surface.js
           test -s staging/world-v2652/world-v2652-production.js
           test -s staging/world-v2652/world-v2652-actions.js
           test -s staging/world-v2652/world-v2652.css
           test -s staging/home-v2652/bridgepoint-home-v2652.js
           test -s staging/home-v2652/bridgepoint-home-v2652.css
           test -s staging/home-v2652/patch-live-app.py
+          node --check staging/world-v2652/world-v2653-surface.js
           node --check staging/world-v2652/world-v2652-production.js
           node --check staging/world-v2652/world-v2652-actions.js
           node --check staging/home-v2652/bridgepoint-home-v2652.js
+          grep -Fq 'satellite default OFF' staging/world-v2652/index.html
+          grep -Fq 'viewer.imageryLayers.removeAll(true)' staging/world-v2652/world-v2653-surface.js
 
-      - name: Assemble current app plus V2652
+      - name: Assemble current app plus V2653 world
         run: |
           set -euo pipefail
           git fetch origin live-artifact:refs/remotes/origin/live-artifact
@@ -57,6 +61,7 @@ jobs:
           test -s site/app/bridgepoint-3d-world/world-v2500.js
           test -s site/app/bridgepoint-3d-world/world-v2500.css
           cp staging/world-v2652/index.html site/app/bridgepoint-3d-world/index.html
+          cp staging/world-v2652/world-v2653-surface.js site/app/bridgepoint-3d-world/world-v2653-surface.js
           cp staging/world-v2652/world-v2652-production.js site/app/bridgepoint-3d-world/world-v2652-production.js
           cp staging/world-v2652/world-v2652-actions.js site/app/bridgepoint-3d-world/world-v2652-actions.js
           cp staging/world-v2652/world-v2652.css site/app/bridgepoint-3d-world/world-v2652.css
@@ -67,9 +72,10 @@ jobs:
           python3 staging/home-v2652/patch-live-app.py
           grep -Fq 'id="bp-v2652-home"' site/app/index.html
           grep -Fq 'bridgepoint-world-v2652/' site/app/index.html
-          grep -Fq 'BridgePoint World V2652' site/app/bridgepoint-world-v2652/index.html
+          grep -Fq 'BridgePoint World V2653' site/app/bridgepoint-world-v2652/index.html
+          grep -Fq 'world-v2653-surface.js' site/app/bridgepoint-world-v2652/index.html
           cat > site/app/bridgepoint-world-overlay-v2652.json <<EOF
-          {"world_version":2652,"home_shell_version":2652,"base_world_version":2500,"overlay_source_sha":"${GITHUB_SHA}","home_visible":true,"pwa_cache_busted":true,"versioned_world_path":"/app/bridgepoint-world-v2652/","old_property_core_preserved":true}
+          {"world_version":2653,"home_shell_version":2652,"base_world_version":2500,"surface_mode":"BRIDGEPOINT_DERIVED_SURFACE","satellite_default":false,"surface_inputs":["USGS_3DEP","USGS_ANNUAL_NLCD_2025","BRIDGEPOINT_SOURCE_GEOMETRY"],"overlay_source_sha":"${GITHUB_SHA}","home_visible":true,"pwa_cache_busted":true,"versioned_world_path":"/app/bridgepoint-world-v2652/","old_property_core_preserved":true}
           EOF
           touch site/.nojekyll site/app/.nojekyll
 
@@ -78,16 +84,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          rm -rf /tmp/v2652-live
-          mkdir /tmp/v2652-live
-          cp -a site/. /tmp/v2652-live/
-          cd /tmp/v2652-live
+          rm -rf /tmp/v2653-live
+          mkdir /tmp/v2653-live
+          cp -a site/. /tmp/v2653-live/
+          cd /tmp/v2653-live
           git init -q
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m "Publish visible BridgePoint V2652 Home and World ${GITHUB_SHA}"
+          git commit -m "Publish BridgePoint generated surface V2653 ${GITHUB_SHA}"
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -108,9 +114,10 @@ jobs:
             marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-overlay-v2652.json?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
             app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
             world="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
-            if printf '%s' "$marker" | grep -Fq '"home_visible":true' && printf '%s' "$app" | grep -Fq 'id="bp-v2652-home"' && printf '%s' "$world" | grep -Fq 'BridgePoint World V2652'; then
+            surface="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/world-v2653-surface.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$marker" | grep -Fq '"world_version":2653' && printf '%s' "$marker" | grep -Fq '"satellite_default":false' && printf '%s' "$app" | grep -Fq 'id="bp-v2652-home"' && printf '%s' "$world" | grep -Fq 'BridgePoint World V2653' && printf '%s' "$surface" | grep -Fq 'imageryLayers.removeAll(true)'; then
               ok=1
-              echo "VISIBLE_V2652_HOME_AND_WORLD_LIVE"
+              echo "BRIDGEPOINT_GENERATED_WORLD_V2653_LIVE"
               break
             fi
             sleep 5
