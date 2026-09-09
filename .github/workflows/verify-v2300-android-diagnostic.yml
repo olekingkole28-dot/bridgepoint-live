@@ -25,10 +25,6 @@ jobs:
           set -euo pipefail
           CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
           rm -rf /tmp/bp2300diag && mkdir -p /tmp/bp2300diag/vendor
-
-          # Test every current additive V2300 module from this candidate commit. The deploy
-          # workflow separately verifies production after publishing; this diagnostic must not
-          # race production and must never go stale as new V2300 modules are added.
           cp release-v2300/world-v2300-*.js /tmp/bp2300diag/
           cp release-v2300/world-v2300.css /tmp/bp2300diag/
           test -s /tmp/bp2300diag/world-v2300-bootstrap.js
@@ -60,29 +56,23 @@ jobs:
               await p.goto('http://127.0.0.1:8766/',{waitUntil:'domcontentloaded',timeout:20000});
               await p.waitForFunction(()=>!!window.BridgePointWorldV2300&&!!window.__bpWorldV2300?.map,{timeout:20000});
               let diag=await p.evaluate(()=>({
-                maplibre:!!window.maplibregl,
-                liveMap:!!document.getElementById('liveMap'),
-                canvasCount:document.querySelectorAll('#liveMap canvas').length,
-                apiExists:!!window.BridgePointWorldV2300,
-                apiState:window.BridgePointWorldV2300?.state||null,
-                internalMap:!!window.__bpWorldV2300?.map,
-                author:window.__bpAuthoritativeWorldRuntime||null,
-                mapStatus:document.getElementById('mapStatus')?.textContent||'',
-                exactLayer:!!window.__bpWorldV2300?.map?.getLayer?.('gta-exact-building')
+                maplibre:!!window.maplibregl,liveMap:!!document.getElementById('liveMap'),canvasCount:document.querySelectorAll('#liveMap canvas').length,
+                apiExists:!!window.BridgePointWorldV2300,apiState:window.BridgePointWorldV2300?.state||null,internalMap:!!window.__bpWorldV2300?.map,
+                author:window.__bpAuthoritativeWorldRuntime||null,mapStatus:document.getElementById('mapStatus')?.textContent||'',exactLayer:!!window.__bpWorldV2300?.map?.getLayer?.('gta-exact-building')
               }));
               console.log('BOOT_DIAG_INITIAL',JSON.stringify(diag));
               if(diag.apiExists)await p.evaluate(()=>window.BridgePointWorldV2300.boot());
               await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.ready===true&&document.querySelectorAll('#liveMap canvas').length===1,{timeout:15000});
+              await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.opportunitySync?.installed===true,{timeout:12000});
               diag=await p.evaluate(()=>({
-                canvasCount:document.querySelectorAll('#liveMap canvas').length,
-                apiState:window.BridgePointWorldV2300?.state||null,
-                internalMap:!!window.__bpWorldV2300?.map,
-                projection:window.__bpWorldV2300?.map?.getProjection?.()?.type||null,
-                exactLayer:!!window.__bpWorldV2300?.map?.getLayer?.('gta-exact-building'),
-                status:document.getElementById('mapStatus')?.textContent||''
+                canvasCount:document.querySelectorAll('#liveMap canvas').length,apiState:window.BridgePointWorldV2300?.state||null,
+                internalMap:!!window.__bpWorldV2300?.map,projection:window.__bpWorldV2300?.map?.getProjection?.()?.type||null,
+                exactLayer:!!window.__bpWorldV2300?.map?.getLayer?.('gta-exact-building'),status:document.getElementById('mapStatus')?.textContent||'',
+                opportunitySync:window.BridgePointWorldV2300?.state?.opportunitySync||null
               }));
               console.log('BOOT_DIAG_FINAL',JSON.stringify(diag));
-              if(pageErrors.length||!diag.internalMap||diag.canvasCount!==1||diag.apiState?.ready!==true||!diag.exactLayer)process.exitCode=2;
+              const o=diag.opportunitySync;
+              if(pageErrors.length||!diag.internalMap||diag.canvasCount!==1||diag.apiState?.ready!==true||!diag.exactLayer||!o?.installed||!o.bodySynced||!o.iconSynced||!o.outlineSynced||o.sameCategoryColor!==true||o.collisionSafe!==true||o.secondaryCanvases!==0)process.exitCode=2;
             }finally{await browser.close()}
           })().catch(e=>{console.error('DIAG_FATAL',e.stack||e);process.exit(1)});
           NODE
