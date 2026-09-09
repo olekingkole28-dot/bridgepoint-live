@@ -31,16 +31,16 @@ map_only = '''<!doctype html>
           await Promise.all(keys.map(key=>caches.delete(key)));
         }
       }catch(_){ }
-      location.replace('bridgepoint-world-v2652/?release=ground-labels-population-2658');
+      location.replace('bridgepoint-world-v2652/?release=hifi-generated-world-2659');
     })();
   </script>
-  <noscript><a href="bridgepoint-world-v2652/?release=ground-labels-population-2658">Open BridgePoint World</a></noscript>
+  <noscript><a href="bridgepoint-world-v2652/?release=hifi-generated-world-2659">Open BridgePoint World</a></noscript>
 </body>
 </html>
 '''
 
 index.write_text(map_only)
-service_worker.write_text('''const VERSION = "bridgepoint-direct-world-v2658";
+service_worker.write_text('''const VERSION = "bridgepoint-direct-world-v2659";
 self.addEventListener("install", event => { self.skipWaiting(); });
 self.addEventListener("activate", event => {
   event.waitUntil(
@@ -56,8 +56,8 @@ self.addEventListener("fetch", event => {
 
 s = index.read_text()
 assert 'location.replace' in s
-assert 'ground-labels-population-2658' in s
+assert 'hifi-generated-world-2659' in s
 assert '<iframe' not in s
 assert 'flutter_bootstrap.js' not in s
 assert 'main.dart.js' not in s
-print('DIRECT_GROUND_LABEL_WORLD_V2658')
+print('DIRECT_HIFI_WORLD_V2659')
