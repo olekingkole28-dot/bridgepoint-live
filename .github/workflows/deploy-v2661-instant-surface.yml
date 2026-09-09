@@ -1,0 +1,147 @@
+name: Publish BridgePoint V2661 Instant Surface World
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-v2661-instant-surface.yml'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate V2661 source
+        run: |
+          set -euo pipefail
+          node --check staging/world-v2652/world-v2661-first-frame.js
+          node --check staging/world-v2652/world-v2661-surface-labels.js
+          grep -Fq 'world-v2661-first-frame.js' staging/world-v2652/index.html
+          grep -Fq 'world-v2661-surface-labels.js' staging/world-v2652/index.html
+          grep -Fq 'ImageMaterialProperty' staging/world-v2652/world-v2661-surface-labels.js
+          grep -Fq 'instant-surface-world-2661' staging/home-v2652/patch-live-app.py
+
+      - name: Assemble V2661 from current live artifact
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/bridgepoint-3d-world/world-v2500.js
+
+          cp staging/world-v2652/index.html site/app/bridgepoint-3d-world/index.html
+          cp staging/world-v2652/world-v2661-first-frame.js site/app/bridgepoint-3d-world/world-v2661-first-frame.js
+          cp staging/world-v2652/world-v2661-surface-labels.js site/app/bridgepoint-3d-world/world-v2661-surface-labels.js
+          cp staging/world-v2652/world-v2653-surface.js site/app/bridgepoint-3d-world/world-v2653-surface.js
+          cp staging/world-v2652/world-v2656-interaction.js site/app/bridgepoint-3d-world/world-v2656-interaction.js
+          cp staging/world-v2652/world-v2657-experience.js site/app/bridgepoint-3d-world/world-v2657-experience.js
+          cp staging/world-v2652/world-v2657-status.js site/app/bridgepoint-3d-world/world-v2657-status.js
+          cp staging/world-v2652/world-v2657-inspector.js site/app/bridgepoint-3d-world/world-v2500-inspector.js
+          cp staging/world-v2652/world-v2658-ground-labels.js site/app/bridgepoint-3d-world/world-v2658-ground-labels.js
+          cp staging/world-v2652/world-v2659-hifi.js site/app/bridgepoint-3d-world/world-v2659-hifi.js
+          cp staging/world-v2652/world-v2660-continuous-lod.js site/app/bridgepoint-3d-world/world-v2660-continuous-lod.js
+          cp staging/world-v2652/world-v2652-production.js site/app/bridgepoint-3d-world/world-v2652-production.js
+          cp staging/world-v2652/world-v2652-actions.js site/app/bridgepoint-3d-world/world-v2652-actions.js
+          cp staging/world-v2652/world-v2652.css site/app/bridgepoint-3d-world/world-v2652.css
+
+          curl -fsSL --retry 4 --retry-delay 1 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson' -o site/app/bridgepoint-3d-world/countries-50m.geojson
+          curl -fsSL --retry 4 --retry-delay 1 'https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json' -o site/app/bridgepoint-3d-world/us-states.geojson
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('site/app/bridgepoint-3d-world')
+          for name in ('countries-50m.geojson','us-states.geojson'):
+              data=json.loads((root/name).read_text())
+              assert data.get('type')=='FeatureCollection' and len(data.get('features',[]))>20
+          p=root/'world-v2500.js'
+          s=p.read_text()
+          s=s.replace('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson','./countries-50m.geojson')
+          needle='  await startAtUser();'
+          if needle in s:
+              s=s.replace(needle,"  viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(-98.35,39.35,5600000),orientation:{heading:0,pitch:Cesium.Math.toRadians(-88),roll:0}}); viewer.scene.requestRender();",1)
+          p.write_text(s)
+          assert 'await startAtUser();' not in s
+          assert './countries-50m.geojson' in s
+          PY
+          node --check site/app/bridgepoint-3d-world/world-v2500.js
+
+          rm -rf site/app/bridgepoint-world-v2652
+          cp -a site/app/bridgepoint-3d-world site/app/bridgepoint-world-v2652
+          python3 staging/home-v2652/patch-live-app.py
+
+          test -s site/app/bridgepoint-world-v2652/countries-50m.geojson
+          test -s site/app/bridgepoint-world-v2652/us-states.geojson
+          grep -Fq 'instant-surface-world-2661' site/app/index.html
+          grep -Fq 'BridgePointFirstFrameV2661' site/app/bridgepoint-world-v2652/world-v2661-first-frame.js
+          grep -Fq 'BridgePointSurfaceMapV2661' site/app/bridgepoint-world-v2652/world-v2661-surface-labels.js
+          grep -Fq 'ImageMaterialProperty' site/app/bridgepoint-world-v2652/world-v2661-surface-labels.js
+          ! grep -Fq 'await startAtUser();' site/app/bridgepoint-world-v2652/world-v2500.js
+
+          cat > site/app/bridgepoint-world-overlay-v2652.json <<EOF
+          {"app_shell_version":2661,"map_only":true,"direct_map_navigation":true,"first_frame":"US_CAMERA_IMMEDIATE","automatic_gps_on_boot":false,"boundary_bootstrap":"LOCAL_BUNDLED_GEOJSON","country_labels":"MAP_SURFACE_TEXTURES_NOT_SCREEN_BILLBOARDS","state_labels":"MAP_SURFACE_TEXTURES_NOT_SCREEN_BILLBOARDS","legacy_floating_country_graphics_removed":true,"us_jurisdictions_green":true,"foreign_countries_red_locked":true,"weather_start":"PARALLEL_FIRST_FRAME","weather_full_us_distance":26000000,"weather_refresh_seconds":300,"continuous_lod":true,"coarse_geometry_persists_until_refined":true,"predictive_camera_prefetch_ms":55,"navigation_controls":["My Location","Full U.S.","Ground View"],"backend_viewport_engine":2660,"surface_mode":"BRIDGEPOINT_GENERATED_MATERIAL_WORLD","satellite_default":false,"overlay_source_sha":"${GITHUB_SHA}"}
+          EOF
+          touch site/.nojekyll site/app/.nojekyll
+
+      - name: Persist V2661 live artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v2661 && mkdir /tmp/v2661
+          cp -a site/. /tmp/v2661/
+          cd /tmp/v2661
+          git init -q
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m "Publish BridgePoint V2661 instant surface world ${GITHUB_SHA}"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify production V2661
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          ok=0
+          for attempt in $(seq 1 36); do
+            marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-overlay-v2652.json?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            world="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            first="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/world-v2661-first-frame.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            surface="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/world-v2661-surface-labels.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            base="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/world-v2500.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            ccode="$(curl -sS -o /tmp/countries -w '%{http_code}' --max-time 15 "${ORIGIN}/app/bridgepoint-world-v2652/countries-50m.geojson?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            scode="$(curl -sS -o /tmp/states -w '%{http_code}' --max-time 15 "${ORIGIN}/app/bridgepoint-world-v2652/us-states.geojson?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$marker" | grep -Fq '"app_shell_version":2661' && printf '%s' "$marker" | grep -Fq 'MAP_SURFACE_TEXTURES_NOT_SCREEN_BILLBOARDS' && printf '%s' "$app" | grep -Fq 'instant-surface-world-2661' && printf '%s' "$world" | grep -Fq 'world-v2661-first-frame.js' && printf '%s' "$world" | grep -Fq 'world-v2661-surface-labels.js' && printf '%s' "$first" | grep -Fq 'BridgePointFirstFrameV2661' && printf '%s' "$surface" | grep -Fq 'BridgePointSurfaceMapV2661' && printf '%s' "$surface" | grep -Fq 'ImageMaterialProperty' && ! printf '%s' "$base" | grep -Fq 'await startAtUser();' && [ "$ccode" = 200 ] && [ "$scode" = 200 ]; then
+              ok=1;echo 'BRIDGEPOINT_V2661_INSTANT_SURFACE_WORLD_LIVE';break
+            fi
+            sleep 5
+          done
+          test "$ok" = 1
