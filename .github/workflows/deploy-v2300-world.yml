@@ -1,0 +1,202 @@
+name: Deploy BridgePoint V2300 Clean World
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'release-v2300/**'
+      - '.github/workflows/deploy-v2300-world.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build one authoritative V2300 map runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main live-artifact
+          git checkout -B live-artifact origin/live-artifact
+          git checkout origin/main -- release-v2300
+          mkdir -p app/vendor
+
+          cp release-v2300/world-v2300-config.js app/
+          cp release-v2300/world-v2300-map.js app/
+          cp release-v2300/world-v2300-weather.js app/
+          cp release-v2300/world-v2300-inspector.js app/
+          cp release-v2300/world-v2300-bootstrap.js app/
+          cp release-v2300/world-v2300-worker.js app/
+          cp release-v2300/world-v2300.css app/
+
+          # Vendor the exact MIT Three.js build locally. No runtime CDN dependency.
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.min.js -o app/vendor/three.module.min.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js -o app/vendor/OrbitControls.js
+          sed -i "s/from 'three'/from '.\/three.module.min.js'/g; s/from \"three\"/from \".\/three.module.min.js\"/g" app/vendor/OrbitControls.js
+
+          # Physically remove the previous map/effects runtimes from the published artifact.
+          rm -f app/map-v1997.js app/map-v1997-weather-hotfix.js
+          find app -maxdepth 1 -type f -name 'map-v*.js' -delete
+          find app -maxdepth 1 -type f -name '*-v22*.js' -delete
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('app/index.html'); s=p.read_text()
+          # Remove every previous map/effects script and prior V2300 injection.
+          s=re.sub(r'\s*<script[^>]+src=["\'][^"\']*(?:map-v[^"\']*\.js|[^"\']*-v22\d\d\.js|world-v2300-[^"\']*\.js)[^"\']*["\'][^>]*></script>','',s,flags=re.I)
+          s=re.sub(r'\s*<link[^>]+href=["\'][^"\']*world-v2300\.css[^"\']*["\'][^>]*>','',s,flags=re.I)
+          s=re.sub(r'\s*<script id=["\']bp\d+-cache-reset["\'][^>]*>.*?</script>','',s,flags=re.I|re.S)
+          guard='''<script id="bp2300-cache-reset">(()=>{try{window.__bpAuthoritativeWorldRuntime=2300;if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.filter(r=>{try{return new URL(r.scope).pathname.startsWith("/app/")}catch(_){return true}}).map(r=>r.unregister()))).catch(()=>{})}if("caches" in window){caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).catch(()=>{})}}catch(_){}})();</script>'''
+          css='<link rel="stylesheet" href="./world-v2300.css?v=2300">'
+          s=s.replace('</head>',css+'\n'+guard+'\n</head>')
+          mod='<script type="module" src="./world-v2300-bootstrap.js?v=2300"></script>'
+          s=s.replace('</body>',mod+'\n</body>')
+          p.write_text(s)
+          Path('app/flutter_service_worker.js').write_text('''const BP_CACHE_RESET=2300;\nself.addEventListener("install",()=>self.skipWaiting());\nself.addEventListener("activate",e=>e.waitUntil((async()=>{try{for(const k of await caches.keys())await caches.delete(k)}catch(_){}try{await self.registration.unregister()}catch(_){}try{await self.clients.claim()}catch(_){}try{const cs=await self.clients.matchAll({type:"window",includeUncontrolled:true});for(const c of cs){const u=new URL(c.url);if(u.pathname.startsWith("/app/")){u.searchParams.set("bp-runtime","2300");c.navigate(u.href)}}}catch(_){}})()));\nself.addEventListener("fetch",()=>{});\n''')
+          PY
+
+          for f in app/world-v2300-*.js; do node --check "$f"; done
+          node --check app/vendor/three.module.min.js
+          node --check app/vendor/OrbitControls.js
+          node --check app/flutter_service_worker.js
+
+          grep -Fq 'world-v2300.css?v=2300' app/index.html
+          grep -Fq 'world-v2300-bootstrap.js?v=2300' app/index.html
+          grep -Fq 'bp2300-cache-reset' app/index.html
+          grep -Fq 'MAPLIBRE_MVT_QUADTREE_LOD_PLUS_EXACT_VIEWPORT_WORKER' app/world-v2300-map.js
+          grep -Fq 'bridgepoint-spatial-tile-v1957?layer=buildings' app/world-v2300-map.js
+          grep -Fq 'bridgepoint_building_viewport_v2300' app/world-v2300-map.js
+          grep -Fq 'bridgepoint_building_detail_v2300' app/world-v2300-inspector.js
+          grep -Fq './vendor/three.module.min.js' app/world-v2300-inspector.js
+          grep -Fq 'NASA EOSDIS GIBS' app/world-v2300-map.js
+          grep -Fq 'USGS The National Map' app/world-v2300-map.js
+          grep -Fq 'OpenFreeMap' app/world-v2300-map.js
+          grep -Fq 'AWS Open Data' app/world-v2300-map.js
+          grep -Fq 'bridgepoint-world-effects-v2190' app/world-v2300-weather.js
+          grep -Fq 'BP_CACHE_RESET=2300' app/flutter_service_worker.js
+
+          # Runtime allowlist: no competitor SDK/tiles and no remote Three.js import.
+          ! grep -Eiq 'mapbox|cesium|nearmap|regrid|reportall|server\.arcgisonline\.com|esm\.sh|unpkg\.com' app/world-v2300-*.js
+          ! grep -Eiq '<script[^>]+(?:map-v|v22)' app/index.html
+          ! grep -Eiq 'map-v[^"'"']*\.js|v22[0-9][0-9]\.js' app/index.html
+          test ! -f app/map-v1997.js
+          test ! -f app/map-v1997-weather-hotfix.js
+          test -s app/vendor/three.module.min.js
+          test -s app/vendor/OrbitControls.js
+
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A app/ release-v2300/
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publish clean V2300 world replacement'
+            git push origin HEAD:live-artifact
+          fi
+
+          rm -rf site && mkdir site
+          git archive --format=tar HEAD | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: github-pages-v2300
+          path: site
+      - name: Deploy V2300
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-v2300
+
+      - name: Verify custom domain cutover
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online/app'; ok=0
+          for attempt in $(seq 1 40); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 25 -H 'Cache-Control: no-cache' "$origin/?bp-runtime=2300&verify=$salt" -o /tmp/app.html || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 25 -H 'Cache-Control: no-cache' "$origin/world-v2300-map.js?v=2300&verify=$salt" -o /tmp/map.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 25 -H 'Cache-Control: no-cache' "$origin/world-v2300-inspector.js?v=2300&verify=$salt" -o /tmp/inspector.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 25 -H 'Cache-Control: no-cache' "$origin/world-v2300-weather.js?v=2300&verify=$salt" -o /tmp/weather.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL --max-time 25 -H 'Cache-Control: no-cache' "$origin/vendor/three.module.min.js?v=2300&verify=$salt" -o /tmp/three.js || true
+            if grep -Fq 'world-v2300-bootstrap.js?v=2300' /tmp/app.html \
+              && grep -Fq 'bp2300-cache-reset' /tmp/app.html \
+              && grep -Fq 'MAPLIBRE_MVT_QUADTREE_LOD_PLUS_EXACT_VIEWPORT_WORKER' /tmp/map.js \
+              && grep -Fq 'NASA EOSDIS GIBS' /tmp/map.js \
+              && grep -Fq 'USGS The National Map' /tmp/map.js \
+              && grep -Fq './vendor/three.module.min.js' /tmp/inspector.js \
+              && grep -Fq 'bridgepoint-world-effects-v2190' /tmp/weather.js \
+              && test -s /tmp/three.js \
+              && ! grep -Eiq 'mapbox|cesium|nearmap|regrid|reportall|server\.arcgisonline\.com|esm\.sh|unpkg\.com' /tmp/map.js /tmp/inspector.js \
+              && ! grep -Eiq '<script[^>]+(?:map-v|v22)' /tmp/app.html; then ok=1; break; fi
+            sleep 5
+          done
+          test "$ok" = 1
+          for legacy in map-v1997.js map-v1997-weather-hotfix.js atmosphere-v2200.js rich-world-fusion-v2223.js; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -H 'Cache-Control: no-cache' "$origin/$legacy?verify=${GITHUB_SHA}")
+            test "$code" = '404'
+          done
+          echo BRIDGEPOINT_V2300_CLEAN_CUTOVER_PASS
+
+      - name: Android WebGL render gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          mkdir -p /tmp/bp2300/vendor
+          origin='https://bridgepointintelligence.online/app'
+          for f in world-v2300-config.js world-v2300-map.js world-v2300-weather.js world-v2300-inspector.js world-v2300-bootstrap.js world-v2300-worker.js world-v2300.css vendor/maplibre-gl-v1995.js vendor/maplibre-gl-v1995.css vendor/three.module.min.js vendor/OrbitControls.js; do
+            mkdir -p "/tmp/bp2300/$(dirname "$f")"
+            curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL "$origin/$f?gate=${GITHUB_SHA}" -o "/tmp/bp2300/$f"
+          done
+          cat >/tmp/bp2300/index.html <<'HTML'
+          <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./vendor/maplibre-gl-v1995.css"><link rel="stylesheet" href="./world-v2300.css"><style>html,body{margin:0;width:100%;height:100%;background:#071017}section,.map-shell,#liveMap{width:100%;height:100%}#mapResults,#mapStatus{position:absolute;z-index:5}.map-shell{position:relative}</style></head><body><section data-surface="map" class="active"><form id="mapSearchForm"><input id="mapSearch"></form><button data-base="gta" class="active">GTA</button><button data-base="satellite">Satellite</button><button data-layer="parcels" class="active">Parcels</button><button data-layer="buildings" class="active">Buildings</button><button data-layer="signals" class="active">Signals</button><button data-layer="radar">Radar</button><button id="locateMe">locate</button><button id="resetMap">reset</button><div class="map-shell"><div id="liveMap"></div><div id="mapStatus"></div><div id="mapResults"></div></div></section><script src="./vendor/maplibre-gl-v1995.js"></script><script type="module" src="./world-v2300-bootstrap.js"></script></body></html>
+          HTML
+          (cd /tmp/bp2300 && python3 -m http.server 8765 >/tmp/bp2300-http.log 2>&1 & echo $! >/tmp/bp2300-http.pid)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core'),assert=require('assert');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader','--disable-gpu-sandbox']});
+            try{
+              const p=await browser.newPage(),net={ofm:0,nasa:0,usgs:0,dem:0};
+              await p.setRequestInterception(true);
+              p.on('request',req=>{const u=req.url();if(u.includes('/rpc/bridgepoint_building_detail_v2300')){const body={complete:true,version:2300,resolved:true,building:{building_id:'gate-1',source_key:'GATE_SOURCE',source_record_id:'1',height_m:18,render_height_m:18,base_height_m:0,height_truth:'SOURCE_BACKED',roof_height_m:1.2,roof_shape:'gabled',roof_material:'metal',facade_material:'brick',source_confidence:.99,geometry:{type:'Polygon',coordinates:[[[-87.34272,41.53782],[-87.34228,41.53782],[-87.34228,41.53818],[-87.34272,41.53818],[-87.34272,41.53782]]] }},property:{property_id:'11111111-1111-1111-1111-111111111111',display_address:'V2300 Gate Building',municipality:'Gary',state_code:'IN',parcel_number:'GATE'},parcel_geometry:{type:'Polygon',coordinates:[[[-87.34285,41.53772],[-87.34215,41.53772],[-87.34215,41.53828],[-87.34285,41.53828],[-87.34285,41.53772]]]},elevation:{elevation_m:180},measurement_notice:'Gate fixture'};return req.respond({status:200,contentType:'application/json',body:JSON.stringify(body)})}req.continue()});
+              p.on('response',r=>{const u=r.url(),s=r.status();if(s<200||s>=400)return;if(u.includes('tiles.openfreemap.org'))net.ofm++;if(u.includes('BlueMarble_NextGeneration'))net.nasa++;if(u.includes('USGSImageryOnly'))net.usgs++;if(u.includes('elevation-tiles-prod'))net.dem++});
+              await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; SM-S731U) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded',timeout:20000});
+              await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.ready===true,{timeout:25000});
+              await p.evaluate(()=>{const a=window.__bpWorldV2300,m=a.map;a.setBase('satellite');m.jumpTo({center:[-87.3425,41.538],zoom:16.2,pitch:62,bearing:-18});const fs=[];for(let iy=0;iy<12;iy++)for(let ix=0;ix<17;ix++){const x=-87.3425+(ix-8)*.00042,y=41.538+(iy-5.5)*.00042,id=iy*17+ix+1,h=7+(id%7)*1.7;fs.push({type:'Feature',id:'g'+id,properties:{building_id:'g'+id,render_height_m:h,base_height_m:0,roof_height_m:.55,roof_shape:id%2?'gabled':'hipped',roof_material:id%4?'shingle':'metal',facade_material:id%3?'brick':'concrete'},geometry:{type:'Polygon',coordinates:[[[x-.00013,y-.00012],[x+.00013,y-.00012],[x+.00013,y+.00012],[x-.00013,y+.00012],[x-.00013,y-.00012]]]}})}m.getSource('exact').setData({type:'FeatureCollection',features:fs});m.getSource('exactRoof').setData({type:'FeatureCollection',features:fs.map(f=>({type:'Feature',id:f.id,geometry:f.geometry,properties:{...f.properties,roof_base_m:f.properties.render_height_m,roof_top_m:f.properties.render_height_m+.55}}))});});
+              await new Promise(r=>setTimeout(r,4500));
+              let out=await p.evaluate(()=>{const m=window.__bpWorldV2300.map;return{mainCanvases:document.querySelectorAll('#liveMap canvas').length,exact:m.queryRenderedFeatures({layers:['gta-exact-building']}).length,roofs:m.queryRenderedFeatures({layers:['gta-exact-roof']}).length,projection:m.getProjection?.()?.type||'',terrain:m.getTerrain?.()||null,sourceIds:['ofm','nasa','usgs','dem','bpBuildings','bpParcels'].every(x=>!!m.getSource(x)),runtime:window.BridgePointWorldV2300.architecture}});
+              assert.equal(out.mainCanvases,1);assert(out.exact>120,`exact buildings ${out.exact}`);assert(out.roofs>120,`roofs ${out.roofs}`);assert.equal(out.projection,'globe');assert(out.terrain?.source==='dem');assert.equal(out.sourceIds,true);assert(out.runtime.includes('MAPLIBRE_SINGLE_CANVAS'));
+              const pt=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,q=m.project([-87.3425,41.538]);return{x:q.x,y:q.y}});await p.mouse.click(pt.x,pt.y);await p.waitForFunction(()=>!document.getElementById('bp2300Inspector')?.hidden,{timeout:8000});await p.waitForFunction(()=>document.querySelectorAll('#bp2300Inspector canvas').length===1,{timeout:8000});await new Promise(r=>setTimeout(r,1800));
+              const modal=await p.evaluate(()=>({allCanvases:document.querySelectorAll('canvas').length,three:!!document.querySelector('#bp2300Three'),measure:!!document.querySelector('#bp2300Measure'),title:document.querySelector('#bp2300Title')?.textContent||'',localThree:window.__bpInspectorV2300?.localThree,raycast:window.__bpInspectorV2300?.raycastMeasurement}));
+              assert.equal(modal.allCanvases,2);assert(modal.three&&modal.measure);assert(modal.title.includes('V2300 Gate Building'));assert.equal(modal.localThree,true);assert.equal(modal.raycast,true);assert(net.ofm>0);assert(net.dem>0);assert(net.usgs>0);assert(net.nasa>0);
+              console.log('BRIDGEPOINT_V2300_ANDROID_RENDER_PASS',JSON.stringify({out,modal,net}));
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
