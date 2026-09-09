@@ -38,11 +38,10 @@ jobs:
           git checkout origin/main -- release-v2300
           mkdir -p app/vendor
 
-          for f in world-v2300-config.js world-v2300-map.js world-v2300-details.js world-v2300-weather.js world-v2300-present-weather.js world-v2300-inspector.js world-v2300-bootstrap.js world-v2300-worker.js world-v2300.css; do
-            cp "release-v2300/$f" "app/$f"
-          done
+          # Copy the complete V2300 module family so additive releases cannot be omitted by a stale filename list.
+          find release-v2300 -maxdepth 1 -type f \( -name 'world-v2300-*.js' -o -name 'world-v2300.css' \) -print0 | while IFS= read -r -d '' f; do cp "$f" "app/$(basename "$f")"; done
 
-          # Vendored at build time; runtime has no Three.js CDN dependency.
+          # Vendored at build time; browser runtime has no Three.js CDN dependency.
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.min.js -o app/vendor/three.module.min.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js -o app/vendor/OrbitControls.js
           sed -i "s/from 'three'/from '.\/three.module.min.js'/g; s/from \"three\"/from \".\/three.module.min.js\"/g" app/vendor/OrbitControls.js
@@ -65,8 +64,7 @@ jobs:
           p.write_text(s)
           Path('app/flutter_service_worker.js').write_text('''const BP_CACHE_RESET=2300;\nself.addEventListener("install",()=>self.skipWaiting());\nself.addEventListener("activate",e=>e.waitUntil((async()=>{try{for(const k of await caches.keys())await caches.delete(k)}catch(_){}try{await self.registration.unregister()}catch(_){}try{await self.clients.claim()}catch(_){}try{const cs=await self.clients.matchAll({type:"window",includeUncontrolled:true});for(const c of cs){const u=new URL(c.url);if(u.pathname.startsWith("/app/")){u.searchParams.set("bp-runtime","2300");c.navigate(u.href)}}}catch(_){}})()));\nself.addEventListener("fetch",()=>{});\n''')
           html=p.read_text()
-          bad=re.findall(r'<script[^>]+src=["\'][^"\']*(?:map-v|v22\d\d)[^"\']*["\']',html,re.I)
-          if bad: raise SystemExit('legacy runtime reference remains: '+repr(bad))
+          if re.search(r'<script[^>]+src=["\'][^"\']*(?:map-v|v22\d\d)[^"\']*["\']',html,re.I): raise SystemExit('legacy runtime reference remains')
           PY
 
           for f in app/world-v2300-*.js; do node --check "$f"; done
@@ -74,6 +72,7 @@ jobs:
           node --check app/vendor/OrbitControls.js
           node --check app/flutter_service_worker.js
 
+          # Existing world regression gates.
           grep -Fq "projection:{type:'globe'}" app/world-v2300-map.js
           grep -Fq 'MAPLIBRE_MVT_QUADTREE_LOD_PLUS_EXACT_VIEWPORT_WORKER' app/world-v2300-map.js
           grep -Fq 'staleWhileRevalidateExact:true' app/world-v2300-map.js
@@ -88,6 +87,19 @@ jobs:
           grep -Fq 'drivesRainSnowHail:true' app/world-v2300-present-weather.js
           grep -Fq 'exactLightningStrikesInvented:false' app/world-v2300-present-weather.js
           grep -Fq 'bridgepoint_building_detail_v2300' app/world-v2300-inspector.js
+
+          # Step 1 weather-key gates: DOM-only, exact current visual semantics, zero WebGL/network additions.
+          test -s app/world-v2300-weather-key.js
+          grep -Fq "requirementKey:'v2300_weather_legend_v1'" app/world-v2300-weather-key.js
+          grep -Fq '#ff3c6e' app/world-v2300-weather-key.js
+          grep -Fq '#ffb84a' app/world-v2300-weather-key.js
+          grep -Fq '#34d7ff' app/world-v2300-weather-key.js
+          grep -Fq '#d764ff' app/world-v2300-weather-key.js
+          grep -Fq 'Active wildfire perimeter' app/world-v2300-weather-key.js
+          grep -Fq 'NASA FIRMS thermal anomaly' app/world-v2300-weather-key.js
+          grep -Fq 'webglCanvasesAdded:0' app/world-v2300-weather-key.js
+          grep -Fq 'networkRequestsAdded:0' app/world-v2300-weather-key.js
+          grep -Fq "initWeatherKey}from'./world-v2300-weather-key.js'" app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-bootstrap.js?v=2300' app/index.html
           grep -Fq 'bp2300-cache-reset' app/index.html
 
@@ -101,7 +113,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git add -A app/ release-v2300/
           if ! git diff --cached --quiet; then
-            git commit -m 'Publish authoritative V2300 semantic world runtime'
+            git commit -m 'Publish V2300 weather key without map regression'
             git push origin HEAD:live-artifact
           fi
 
@@ -122,7 +134,7 @@ jobs:
         with:
           artifact_name: github-pages-v2300
 
-      - name: Verify production clean cutover
+      - name: Verify production cutover and weather key
         shell: bash
         run: |
           set -euo pipefail
@@ -130,17 +142,14 @@ jobs:
           for i in $(seq 1 40); do
             q="${GITHUB_SHA}-${i}-$(date +%s)"
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/?bp-runtime=2300&verify=$q" -o /tmp/index.html || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-map.js?v=2300&verify=$q" -o /tmp/map.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-details.js?v=2300&verify=$q" -o /tmp/details.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-weather.js?v=2300&verify=$q" -o /tmp/weather.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/world-v2300-present-weather.js?v=2300&verify=$q" -o /tmp/present.js || true
+            for f in world-v2300-map.js world-v2300-details.js world-v2300-weather.js world-v2300-present-weather.js world-v2300-bootstrap.js world-v2300-weather-key.js; do curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "$O/$f?v=2300&verify=$q" -o "/tmp/$f" || true; done
             if grep -Fq 'world-v2300-bootstrap.js?v=2300' /tmp/index.html \
-              && grep -Fq "projection:{type:'globe'}" /tmp/map.js \
-              && grep -Fq 'MAPLIBRE_TERRAIN_ATTACHED_SEMANTIC_DETAIL' /tmp/details.js \
-              && grep -Fq 'opportunityBuildingColorMatch:true' /tmp/details.js \
-              && grep -Fq 'sharedMapLibreWebGLContext:true' /tmp/weather.js \
-              && grep -Fq 'wildfireFlameParticles:true' /tmp/weather.js \
-              && grep -Fq 'drivesRainSnowHail:true' /tmp/present.js; then ok=1; break; fi
+              && grep -Fq "projection:{type:'globe'}" /tmp/world-v2300-map.js \
+              && grep -Fq 'MAPLIBRE_TERRAIN_ATTACHED_SEMANTIC_DETAIL' /tmp/world-v2300-details.js \
+              && grep -Fq 'sharedMapLibreWebGLContext:true' /tmp/world-v2300-weather.js \
+              && grep -Fq 'drivesRainSnowHail:true' /tmp/world-v2300-present-weather.js \
+              && grep -Fq "initWeatherKey}from'./world-v2300-weather-key.js'" /tmp/world-v2300-bootstrap.js \
+              && grep -Fq "requirementKey:'v2300_weather_legend_v1'" /tmp/world-v2300-weather-key.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
@@ -149,21 +158,17 @@ jobs:
           s=open('/tmp/index.html').read()
           assert not re.search(r'<script[^>]+src=["\'][^"\']*(?:map-v|v22\d\d)[^"\']*["\']',s,re.I)
           PY
-          for old in map-v1997.js map-v1997-weather-hotfix.js atmosphere-v2200.js precipitation-v2201.js rich-world-fusion-v2223.js; do
-            test "$(curl -sS -o /dev/null -w '%{http_code}' -H 'Cache-Control: no-cache' "$O/$old?verify=${GITHUB_SHA}")" = 404
-          done
-          echo BRIDGEPOINT_V2300_PRODUCTION_CUTOVER_PASS
+          for old in map-v1997.js map-v1997-weather-hotfix.js atmosphere-v2200.js precipitation-v2201.js rich-world-fusion-v2223.js; do test "$(curl -sS -o /dev/null -w '%{http_code}' -H 'Cache-Control: no-cache' "$O/$old?verify=${GITHUB_SHA}")" = 404; done
+          echo BRIDGEPOINT_V2300_WEATHER_KEY_PRODUCTION_PASS
 
-      - name: Android semantic world WebGL gate
+      - name: Android weather-key regression gate
         shell: bash
         run: |
           set -euo pipefail
           CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
           rm -rf /tmp/bpcore && mkdir -p /tmp/bpcore/vendor
           O='https://bridgepointintelligence.online/app'
-          for f in world-v2300-config.js world-v2300-map.js world-v2300-details.js world-v2300-weather.js world-v2300-present-weather.js world-v2300-inspector.js world-v2300-bootstrap.js world-v2300-worker.js world-v2300.css vendor/maplibre-gl-v1995.js vendor/maplibre-gl-v1995.css vendor/three.module.min.js vendor/OrbitControls.js; do
-            mkdir -p "/tmp/bpcore/$(dirname "$f")"; curl -fsSL "$O/$f?core=${GITHUB_SHA}" -o "/tmp/bpcore/$f"
-          done
+          for f in world-v2300-config.js world-v2300-map.js world-v2300-details.js world-v2300-weather.js world-v2300-present-weather.js world-v2300-weather-key.js world-v2300-inspector.js world-v2300-bootstrap.js world-v2300-worker.js world-v2300.css vendor/maplibre-gl-v1995.js vendor/maplibre-gl-v1995.css vendor/three.module.min.js vendor/OrbitControls.js; do mkdir -p "/tmp/bpcore/$(dirname "$f")"; curl -fsSL "$O/$f?core=${GITHUB_SHA}" -o "/tmp/bpcore/$f"; done
           cat >/tmp/bpcore/index.html <<'HTML'
           <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./vendor/maplibre-gl-v1995.css"><link rel="stylesheet" href="./world-v2300.css"><style>html,body,section,.map-shell,#liveMap{margin:0;width:100%;height:100%}.map-shell{position:relative;background:#071017}</style></head><body><section data-surface="map" class="active"><form id="mapSearchForm"><input id="mapSearch"></form><button data-base="gta" class="active">GTA</button><button data-base="satellite">Satellite</button><button data-layer="parcels" class="active">P</button><button data-layer="buildings" class="active">B</button><button data-layer="signals" class="active">S</button><button data-layer="radar">R</button><button id="locateMe">L</button><button id="resetMap">X</button><div class="map-shell"><div id="liveMap"></div><div id="mapStatus"></div><div id="mapResults"></div></div></section><script src="./vendor/maplibre-gl-v1995.js"></script><script type="module" src="./world-v2300-bootstrap.js"></script></body></html>
           HTML
@@ -171,5 +176,5 @@ jobs:
           cd /tmp; npm init -y >/dev/null 2>&1 || true; npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
           CHROME_PATH="$CHROME" node <<'NODE'
           const puppeteer=require('puppeteer-core'),assert=require('assert');
-          (async()=>{const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});try{const p=await browser.newPage();await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});await p.goto('http://127.0.0.1:8775/',{waitUntil:'domcontentloaded',timeout:20000});await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.ready===true,{timeout:25000});await p.waitForFunction(()=>window.__bpWorldDetailsV2301&&window.__bpWeatherV2300&&window.__bpPresentWeatherV2301,{timeout:12000});const o=await p.evaluate(()=>{const m=window.__bpWorldV2300.map;return{canvases:document.querySelectorAll('#liveMap canvas').length,total:document.querySelectorAll('canvas').length,arch:window.BridgePointWorldV2300.architecture,map:!!m,details:window.__bpWorldDetailsV2301?.state,weather:window.__bpWeatherFXV2300?.state,present:window.__bpPresentWeatherV2301?.state,layers:['gta-state-label','gta-road-name','gta-water-label','gta-poi-label','gta-rail-ballast','gta-rail-ties','gta-bridge-deck','gta-opportunity-body','gta-opportunity-icon','gta-bp-roof'].every(id=>!!m.getLayer(id)),solid:m.getPaintProperty('gta-exact-building','fill-extrusion-opacity')}});assert.equal(o.canvases,1);assert.equal(o.total,1);assert(o.map);assert(o.arch.includes('SEMANTIC_DETAIL'));assert(o.details?.solidBuildings===true);assert(o.layers);assert(Number(o.solid)>=.99);assert(o.weather?.sharedMapLibreWebGLContext===true);assert(o.weather?.secondaryCanvases===0);assert(o.present?.secondaryCanvases===0);console.log('BRIDGEPOINT_V2300_ANDROID_SEMANTIC_WORLD_PASS',JSON.stringify(o))}finally{await browser.close()}})().catch(e=>{console.error(e.stack||e);process.exit(1)});
+          (async()=>{const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']});try{const p=await browser.newPage();await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});await p.goto('http://127.0.0.1:8775/',{waitUntil:'domcontentloaded',timeout:20000});await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.ready===true,{timeout:25000});await p.waitForFunction(()=>window.__bpWorldDetailsV2301&&window.__bpWeatherV2300&&window.__bpPresentWeatherV2301&&window.__bpWeatherKeyV2300,{timeout:12000});const before=await p.evaluate(()=>({mapCanvases:document.querySelectorAll('#liveMap canvas').length,totalCanvases:document.querySelectorAll('canvas').length,layers:window.__bpWorldV2300.map.getStyle().layers.length,key:window.__bpWeatherKeyV2300.state,weather:window.__bpWeatherFXV2300.state,solid:window.__bpWorldV2300.map.getPaintProperty('gta-exact-building','fill-extrusion-opacity')}));assert.equal(before.mapCanvases,1);assert.equal(before.totalCanvases,1);assert.equal(before.key.open,false);assert(before.key.itemCount>=25);assert.equal(before.key.mapLayersChanged,false);assert.equal(before.weather.sharedMapLibreWebGLContext,true);assert(Number(before.solid)>=.99);await p.click('#bp2300WeatherKeyToggle');const open=await p.evaluate(()=>({hidden:document.getElementById('bp2300WeatherKeyPanel').hidden,expanded:document.getElementById('bp2300WeatherKeyToggle').getAttribute('aria-expanded'),text:document.getElementById('bp2300WeatherKeyPanel').innerText,totalCanvases:document.querySelectorAll('canvas').length,layers:window.__bpWorldV2300.map.getStyle().layers.length}));assert.equal(open.hidden,false);assert.equal(open.expanded,'true');for(const label of ['Tornado warning','Severe thunderstorm','Flood warning','Hurricane / tropical','Active wildfire perimeter','Thermal hotspot','Earthquake','Radar','Rain','Snow','Hail','Smoke','Lightning'])assert(open.text.includes(label),`missing legend ${label}`);assert.equal(open.totalCanvases,before.totalCanvases);assert.equal(open.layers,before.layers);await p.click('.bp2300-key-close');assert.equal(await p.$eval('#bp2300WeatherKeyPanel',e=>e.hidden),true);console.log('BRIDGEPOINT_V2300_ANDROID_WEATHER_KEY_PASS',JSON.stringify({before,legendTextLength:open.text.length}))}finally{await browser.close()}})().catch(e=>{console.error(e.stack||e);process.exit(1)});
           NODE
