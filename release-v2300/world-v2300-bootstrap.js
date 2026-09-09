@@ -19,13 +19,14 @@ import{initStructureLabels}from'./world-v2300-structure-labels.js';
 import{initOpportunitySync}from'./world-v2300-opportunity-sync.js';
 import{initZoomContinuity}from'./world-v2300-zoom-continuity.js';
 import{initStreetscapeDetail}from'./world-v2300-streetscape-detail.js';
+import{initPaletteLock}from'./world-v2300-palette-lock.js';
 import{initInspector}from'./world-v2300-inspector.js';
 
-let booting=false,ready=false,world=null,details=null,weather=null,presentWeather=null,weatherKey=null,weatherPersistence=null,flythrough=null,buildingFidelity=null,roadStyle=null,boundaryContinuity=null,lockedCountries=null,landmarks=null,rail3d=null,adminLabels=null,streetLabels=null,waterLabels=null,structureLabels=null,opportunitySync=null,zoomContinuity=null,streetscapeDetail=null,inspector=null,extensionsBound=false;
+let booting=false,ready=false,world=null,details=null,weather=null,presentWeather=null,weatherKey=null,weatherPersistence=null,flythrough=null,buildingFidelity=null,roadStyle=null,boundaryContinuity=null,lockedCountries=null,landmarks=null,rail3d=null,adminLabels=null,streetLabels=null,waterLabels=null,structureLabels=null,opportunitySync=null,zoomContinuity=null,streetscapeDetail=null,paletteLock=null,inspector=null,extensionsBound=false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function waitForMapShell(){for(let i=0;i<120;i++){if(window.maplibregl&&document.getElementById('liveMap'))return true;await sleep(50)}return false}
 function expose(){
-  window.BridgePointWorldV2300={version:VERSION,authoritative:true,cleanReplacement:true,architecture:'MAPLIBRE_SINGLE_CANVAS_TILE_LOD_PLUS_SEMANTIC_DETAIL_PLUS_BOUNDED_WEATHER_PLUS_LAZY_THREE_INSPECTOR',boot,world,details,weather,presentWeather,weatherKey,weatherPersistence,flythrough,buildingFidelity,roadStyle,boundaryContinuity,lockedCountries,landmarks,rail3d,adminLabels,streetLabels,waterLabels,structureLabels,opportunitySync,zoomContinuity,streetscapeDetail,inspector,get state(){return{version:VERSION,ready,booting,cleanReplacement:true,mainCanvases:document.querySelectorAll('#liveMap canvas').length,inspectorOpen:!document.getElementById('bp2300Inspector')?.hidden,world:world?.state||null,details:details?.state||null,weather:weather?.state||null,presentWeather:presentWeather?.state||null,weatherKey:weatherKey?.state||null,weatherPersistence:weatherPersistence?.state||null,flythrough:flythrough?.state||null,buildingFidelity:buildingFidelity?.state||null,roadStyle:roadStyle?.state||null,boundaryContinuity:boundaryContinuity?.state||null,lockedCountries:lockedCountries?.state||null,landmarks:landmarks?.state||null,rail3d:rail3d?.state||null,adminLabels:adminLabels?.state||null,streetLabels:streetLabels?.state||null,waterLabels:waterLabels?.state||null,structureLabels:structureLabels?.state||null,opportunitySync:opportunitySync?.state||null,zoomContinuity:zoomContinuity?.state||null,streetscapeDetail:streetscapeDetail?.state||null}}};
+  window.BridgePointWorldV2300={version:VERSION,authoritative:true,cleanReplacement:true,architecture:'MAPLIBRE_SINGLE_CANVAS_TILE_LOD_PLUS_SEMANTIC_DETAIL_PLUS_BOUNDED_WEATHER_PLUS_LAZY_THREE_INSPECTOR',boot,world,details,weather,presentWeather,weatherKey,weatherPersistence,flythrough,buildingFidelity,roadStyle,boundaryContinuity,lockedCountries,landmarks,rail3d,adminLabels,streetLabels,waterLabels,structureLabels,opportunitySync,zoomContinuity,streetscapeDetail,paletteLock,inspector,get state(){return{version:VERSION,ready,booting,cleanReplacement:true,mainCanvases:document.querySelectorAll('#liveMap canvas').length,inspectorOpen:!document.getElementById('bp2300Inspector')?.hidden,world:world?.state||null,details:details?.state||null,weather:weather?.state||null,presentWeather:presentWeather?.state||null,weatherKey:weatherKey?.state||null,weatherPersistence:weatherPersistence?.state||null,flythrough:flythrough?.state||null,buildingFidelity:buildingFidelity?.state||null,roadStyle:roadStyle?.state||null,boundaryContinuity:boundaryContinuity?.state||null,lockedCountries:lockedCountries?.state||null,landmarks:landmarks?.state||null,rail3d:rail3d?.state||null,adminLabels:adminLabels?.state||null,streetLabels:streetLabels?.state||null,waterLabels:waterLabels?.state||null,structureLabels:structureLabels?.state||null,opportunitySync:opportunitySync?.state||null,zoomContinuity:zoomContinuity?.state||null,streetscapeDetail:streetscapeDetail?.state||null,paletteLock:paletteLock?.state||null}}};
   window.__bpAuthoritativeWorldRuntime=VERSION;
   return window.BridgePointWorldV2300;
 }
@@ -57,6 +58,9 @@ function bindExtensions(){
     try{presentWeather=initPresentWeather(world.map)}catch(e){console.warn('V2300 present weather init',e)}
     try{weatherKey=initWeatherKey(world.map)}catch(e){console.warn('V2300 weather key init',e)}
     try{flythrough=initFlythrough(world.map)}catch(e){console.warn('V2300 flythrough init',e)}
+    // Palette is intentionally the final additive style owner so later runtime modules cannot
+    // quietly revert water, vegetation, pavement, or lane-language colors.
+    try{paletteLock=initPaletteLock(world.map)}catch(e){console.warn('V2300 palette lock init',e)}
     expose();
   };
   world.map.on?.('styledata',attach);
