@@ -373,12 +373,6 @@ def main():
     ]
     existing.sort(key=lambda x:int(x["part_index"]))
 
-    existing_item_ids=[
-        str((p.get("metadata") or {}).get("source_item_id") or "")
-        for p in existing
-        if str((p.get("metadata") or {}).get("source_item_id") or "")
-    ]
-    last_completed=max(existing_item_ids) if existing_item_ids else ""
     next_part=(max([int(p["part_index"]) for p in existing])+1) if existing else 0
 
     files={str(f["item_id"]):f for f in cat.get("files",[])}
@@ -386,12 +380,43 @@ def main():
     for g in rgcat.get("rowgroups",[]):
         groups_by_item.setdefault(str(g["item_id"]),[]).append(g)
 
-    remaining=[
-        item_id for item_id in sorted(files)
-        if not last_completed or item_id>last_completed
-    ]
+    # Resume truth:
+    # - older v2753 file-level parts have no row-group bounds, so that source
+    #   item is fully complete.
+    # - v2760+ parts carry row_group_first/row_group_last; only those exact
+    #   row groups are considered complete. A restart can never skip the
+    #   unfinished tail of a partially processed source file.
+    fully_complete_items=set()
+    covered_rowgroups={}
+    for p in existing:
+        meta=p.get("metadata") or {}
+        item_id=str(meta.get("source_item_id") or "")
+        if not item_id:
+            continue
+        first=meta.get("row_group_first")
+        last=meta.get("row_group_last")
+        if first is None or last is None:
+            fully_complete_items.add(item_id)
+        else:
+            covered_rowgroups.setdefault(item_id,set()).update(
+                range(int(first),int(last)+1)
+            )
+
+    remaining=[]
+    for item_id in sorted(files):
+        if item_id in fully_complete_items:
+            continue
+        all_groups=groups_by_item.get(item_id,[])
+        covered=covered_rowgroups.get(item_id,set())
+        if any(int(g["row_group_id"]) not in covered for g in all_groups):
+            remaining.append(item_id)
+
     if not remaining:
-        print(json.dumps({"stage":"no_remaining_source_files","last_completed":last_completed}))
+        print(json.dumps({
+            "stage":"no_remaining_source_files",
+            "fully_complete_items":sorted(fully_complete_items),
+            "covered_partial_items":{k:len(v) for k,v in covered_rowgroups.items()}
+        }))
 
     outdir=pathlib.Path("tx-building-v2760")
     outdir.mkdir(parents=True,exist_ok=True)
@@ -402,7 +427,10 @@ def main():
         total_new_rows=0
         for item_pos,item_id in enumerate(remaining):
             url=files[item_id]["url"]
-            groups=groups_by_item.get(item_id,[])
+            groups=[
+                g for g in groups_by_item.get(item_id,[])
+                if int(g["row_group_id"]) not in covered_rowgroups.get(item_id,set())
+            ]
             chunks=make_chunks(groups)
             item_rows=0
             item_parts=0
