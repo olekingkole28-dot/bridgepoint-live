@@ -59,15 +59,24 @@ def build(state,kind,out):
        {q(cat.get('license','ODbL-1.0'))}::VARCHAR _bp_source_license
       FROM clipped WHERE NOT ST_IsEmpty(_bp_clip)
     ) TO {q(str(out))} (FORMAT PARQUET,COMPRESSION ZSTD,ROW_GROUP_SIZE 100000)""")
-    desc=[r[0] for r in con.execute(f"DESCRIBE SELECT * FROM read_parquet({q(str(out))})").fetchall()]
+    desc_rows=con.execute(f"DESCRIBE SELECT * FROM read_parquet({q(str(out))})").fetchall()
+    desc=[r[0] for r in desc_rows]
+    types={r[0]:str(r[1]).upper() for r in desc_rows}
+    geom_type=types.get('geometry','')
+    if 'GEOMETRY' in geom_type:
+        geom_expr='geometry'
+    elif 'BLOB' in geom_type:
+        geom_expr='ST_GeomFromWKB(geometry)'
+    else:
+        raise RuntimeError(f'Unexpected archived geometry type {geom_type!r} for {state}/{kind}')
     a=f"read_parquet({q(str(out))})"
-    row=con.execute(f"""WITH x AS(SELECT *,CASE WHEN geometry IS NULL THEN NULL ELSE ST_GeomFromWKB(geometry) END g FROM {a}),b AS(SELECT geom FROM bp_boundary),d AS(SELECT x.*,CASE WHEN g IS NULL THEN NULL ELSE ST_Difference(g,b.geom) END outside_geom FROM x CROSS JOIN b)
+    row=con.execute(f"""WITH x AS(SELECT *,CASE WHEN geometry IS NULL THEN NULL ELSE {geom_expr} END g FROM {a}),b AS(SELECT geom FROM bp_boundary),d AS(SELECT x.*,CASE WHEN g IS NULL THEN NULL ELSE ST_Difference(g,b.geom) END outside_geom FROM x CROSS JOIN b)
     SELECT count(*)::BIGINT,count(*) FILTER(WHERE geometry IS NULL)::BIGINT,count(*) FILTER(WHERE g IS NOT NULL AND ST_IsEmpty(g))::BIGINT,
     count(*) FILTER(WHERE g IS NOT NULL AND NOT ST_IsEmpty(g) AND outside_geom IS NOT NULL AND NOT ST_IsEmpty(outside_geom) AND ST_Length(outside_geom)>{TOL})::BIGINT,
     (count(*)-count(DISTINCT id))::BIGINT,
     count(*) FILTER(WHERE g IS NOT NULL AND NOT ST_IsEmpty(g) AND outside_geom IS NOT NULL AND NOT ST_IsEmpty(outside_geom) AND ST_Length(outside_geom)<={TOL})::BIGINT,
     coalesce(max(ST_Length(outside_geom)) FILTER(WHERE outside_geom IS NOT NULL AND NOT ST_IsEmpty(outside_geom)),0)::DOUBLE FROM d""").fetchone()
-    validation={'null_geometry':int(row[1]),'empty_geometry':int(row[2]),'outside_geometry':int(row[3]),'duplicate_ids':int(row[4]),'precision_slivers':int(row[5]),'max_outside_length_degrees':float(row[6]),'boundary_validation_tolerance_degrees':TOL}
+    validation={'null_geometry':int(row[1]),'empty_geometry':int(row[2]),'outside_geometry':int(row[3]),'duplicate_ids':int(row[4]),'precision_slivers':int(row[5]),'max_outside_length_degrees':float(row[6]),'boundary_validation_tolerance_degrees':TOL,'archived_geometry_type':geom_type}
     if any(validation[k] for k in ('null_geometry','empty_geometry','outside_geometry','duplicate_ids')): raise RuntimeError(f'Validation failed {state}/{kind}: {validation}')
     stats={'rows':int(row[0])}
     for col in ('height','num_floors','min_height','min_floor'):
