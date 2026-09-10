@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BridgePoint V2713 Building Browser Smoke</title>
+  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Widgets/widgets.css" />
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.145/Build/Cesium/Cesium.js"></script>
+  <style>html,body,#viewer{width:100%;height:100%;margin:0;overflow:hidden;background:#020711}#status{position:fixed;z-index:20;left:10px;top:10px;max-width:calc(100% - 40px);padding:10px 12px;background:#061018;color:#d8fbff;border:1px solid #48e1ff;font:600 13px/1.35 system-ui;border-radius:8px}#status.pass{border-color:#63e6a5;color:#b8ffd8}#status.fail{border-color:#ff745e;color:#ffd0c8}</style>
+</head>
+<body>
+  <div id="viewer"></div><div id="status">V2713_BROWSER_SMOKE_STARTING</div>
+  <script type="module">
+    import { PMTiles } from 'https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/+esm';
+    import { VectorTile } from 'https://cdn.jsdelivr.net/npm/@mapbox/vector-tile@3.0.0/+esm';
+    import { PbfReader } from 'https://cdn.jsdelivr.net/npm/pbf@5.1.2/+esm';
+
+    const el=document.getElementById('status');
+    const fallback='2026-08-19.0';
+    const lon=-72.6506,lat=41.5623,z=14;
+    const x=Math.floor((lon+180)/360*2**z);
+    const p=lat*Math.PI/180;
+    const y=Math.floor((1-Math.asinh(Math.tan(p))/Math.PI)/2*2**z);
+    const viewer=new Cesium.Viewer('viewer',{animation:false,timeline:false,baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,fullscreenButton:false,infoBox:false,selectionIndicator:false,baseLayer:false,terrainProvider:new Cesium.EllipsoidTerrainProvider(),requestRenderMode:false});
+    viewer.scene.backgroundColor=Cesium.Color.fromCssColorString('#020711');
+    viewer.scene.globe.baseColor=Cesium.Color.fromCssColorString('#07111a');
+    viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(lon,lat,2600),orientation:{heading:0,pitch:Cesium.Math.toRadians(-58),roll:0}});
+    try{
+      let release=fallback;
+      try{const sr=await fetch('https://stac.overturemaps.org/catalog.json',{cache:'no-store'});const sj=await sr.json();if(/^\d{4}-\d{2}-\d{2}\.\d+$/.test(String(sj.latest||'')))release=String(sj.latest)}catch(_){}
+      const url=`https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/tiles/${release}/buildings.pmtiles`;
+      const pm=new PMTiles(url);const header=await pm.getHeader();
+      let rendered=0,sourceHeight=0,decoded=0;
+      for(let dy=-1;dy<=1&&rendered<600;dy++)for(let dx=-1;dx<=1&&rendered<600;dx++){
+        const tx=x+dx,ty=y+dy,rr=await pm.getZxy(z,tx,ty);if(!rr?.data)continue;
+        const vt=new VectorTile(new PbfReader(rr.data));
+        for(const kind of ['building','building_part']){
+          const layer=vt.layers?.[kind];if(!layer)continue;
+          decoded+=layer.length;
+          const step=Math.max(1,Math.ceil(layer.length/240));
+          for(let i=0;i<layer.length&&rendered<600;i+=step){
+            const f=layer.feature(i);if(f.type!==3)continue;const gj=f.toGeoJSON(tx,ty,z);const props=f.properties||{};const rings=gj.geometry?.type==='Polygon'?[gj.geometry.coordinates[0]]:gj.geometry?.type==='MultiPolygon'?gj.geometry.coordinates.map(v=>v[0]):[];
+            const h=Number(props.height);const height=Number.isFinite(h)&&h>0?h:2.8;if(Number.isFinite(h)&&h>0)sourceHeight++;
+            for(const ring of rings){const flat=[];for(const q of ring||[])if(Number.isFinite(+q[0])&&Number.isFinite(+q[1]))flat.push(+q[0],+q[1]);if(flat.length<6)continue;viewer.entities.add({polygon:{hierarchy:Cesium.Cartesian3.fromDegreesArray(flat),height:0,extrudedHeight:height,material:Cesium.Color.fromCssColorString(kind==='building_part'?'#9fd5df':'#7caeb8').withAlpha(.95),outline:true,outlineColor:Cesium.Color.WHITE.withAlpha(.25)}});rendered++;if(rendered>=600)break;}
+          }
+        }
+      }
+      if(rendered<1)throw new Error('No Cesium building entities rendered');
+      window.BP_V2713_SMOKE={ok:true,release,rendered,decoded,sourceHeight,minZoom:header.minZoom,maxZoom:header.maxZoom};
+      el.className='pass';el.textContent=`V2713_BROWSER_SMOKE_PASS release=${release} rendered=${rendered} decoded=${decoded} sourceHeight=${sourceHeight} zoom=${header.minZoom}-${header.maxZoom}`;
+    }catch(e){window.BP_V2713_SMOKE={ok:false,error:String(e?.stack||e)};el.className='fail';el.textContent=`V2713_BROWSER_SMOKE_FAIL ${e?.message||e}`;console.error(e)}
+  </script>
+</body>
+</html>
