@@ -1,19 +1,23 @@
 name: Building Archive v2714
+
+# Manual-only safety gate.
+# Bulk archive generation must not use public GitHub Actions as a substitute
+# for exhausted private Actions quota. BridgePoint's database-native FDW
+# materialization path is the active ingestion path.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/building-archive-v2714.yml'
-      - 'scripts/build-building-archive-v2714.py'
+
 permissions:
   contents: read
   id-token: write
+
 concurrency:
   group: bridgepoint-building-archive-v2714
   cancel-in-progress: true
+
 env:
   SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
+
 jobs:
   archive:
     strategy:
