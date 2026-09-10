@@ -266,8 +266,7 @@ def build_crosswalk(con,state,cat,local_path,out_path):
             ST_Area(ST_Intersection(l.geom,o.geom)) intersection_area
           FROM local l
           JOIN overture o
-            ON l.geom && o.geom
-           AND ST_Intersects(l.geom,o.geom)
+            ON ST_Intersects(l.geom,o.geom)
           WHERE l.geom IS NOT NULL
             AND o.geom IS NOT NULL
             AND NOT ST_IsEmpty(l.geom)
