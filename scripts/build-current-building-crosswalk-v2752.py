@@ -34,7 +34,7 @@ BROKER=f"{SUPABASE_URL}/functions/v1/bridgepoint-building-crosswalk-broker-v2752
 AUDIENCE="bridgepoint-building-crosswalk-v2752"
 TARGET_BYTES=28*1024*1024
 HARD_BYTES=42*1024*1024
-PAGE_SIZE=5000
+PAGE_SIZE=10000
 TOKEN_CACHE={"token":None,"exp":0}
 
 
@@ -235,6 +235,14 @@ def build_crosswalk(con,state,cat,local_path,out_path,archive_urls=None):
           FROM {remote}
           WHERE id IS NOT NULL
             AND geometry IS NOT NULL
+            AND (
+              bbox IS NULL OR (
+                bbox.xmin <= {east}
+                AND bbox.xmax >= {west}
+                AND bbox.ymin <= {north}
+                AND bbox.ymax >= {south}
+              )
+            )
         """)
     else:
         con.execute(f"""
@@ -399,7 +407,7 @@ def build_crosswalk(con,state,cat,local_path,out_path,archive_urls=None):
         "duplicate_confirmed_overture_ids":int(val[6]),
         "shared_overture_rows":int(val[7]),
         "truth_rule":"NO_FORCED_MERGE_BELOW_CONFIDENCE_GATE; SHARED_OVERTURE_DOWNGRADED_TO_CANDIDATE",
-        "matcher_version":2764,
+        "matcher_version":2768,
         "overture_input_mode":input_mode,
     }
     if validation["output_rows"]!=expected:
@@ -605,7 +613,7 @@ def main():
     broker("report",state,{
         "status":"BUILDING",
         "metadata":{
-            "builder_version":2764 if args.state_archive else 2752,
+            "builder_version":2768 if args.state_archive else 2752,
             "expected_local_rows":expected,
             "overture_files":source_files,
             "strategy":strategy,
