@@ -182,21 +182,24 @@ def setup_duckdb():
     return con
 
 
-def build_crosswalk(con,state,cat,local_path,out_path,archive_urls=None):
+def build_crosswalk(con,state,cat,local_path,out_path,archive_urls=None,source_runs=None):
     expected=int(cat["expected_local_rows"])
     west,south,east,north=map(float,cat["bbox"])
-    if archive_urls:
+    urls=[]
+    if source_runs:
+        input_mode="TARGETED_OVERTURE_ROWGROUP_RUNS"
+    elif archive_urls:
         urls=list(archive_urls)
         input_mode="STATE_CLIPPED_ARCHIVE"
     else:
         urls=[x["url"] for x in cat.get("files",[])]
         input_mode="GLOBAL_OVERTURE"
-    if not urls:
-        raise RuntimeError(f"No Overture files cataloged for {state}")
+    if not source_runs and not urls:
+        raise RuntimeError(f"No Overture source input cataloged for {state}")
 
     local_src=q(str(local_path))
     out=q(str(out_path))
-    remote=f"read_parquet([{','.join(q(u) for u in urls)}], union_by_name=true)"
+    remote=None if source_runs else f"read_parquet([{','.join(q(u) for u in urls)}], union_by_name=true)"
 
     local_validation=con.execute(f"""
       WITH x AS (
@@ -226,7 +229,29 @@ def build_crosswalk(con,state,cat,local_path,out_path,archive_urls=None):
       FROM read_parquet({local_src})
     """)
 
-    if input_mode=="STATE_CLIPPED_ARCHIVE":
+    if input_mode=="TARGETED_OVERTURE_ROWGROUP_RUNS":
+        pieces=[]
+        for run in source_runs:
+            row_start=int(run["row_start"])
+            row_end=int(run["row_end"])
+            if row_end<=row_start:
+                raise RuntimeError(f"Invalid Overture run range: {run}")
+            pieces.append(f"""
+              SELECT
+                id::VARCHAR id,
+                ST_MakeValid(geometry) geom
+              FROM read_parquet({q(run["url"])}, file_row_number=true)
+              WHERE file_row_number>={row_start}
+                AND file_row_number<{row_end}
+                AND id IS NOT NULL
+                AND geometry IS NOT NULL
+                AND bbox.xmin <= {east}
+                AND bbox.xmax >= {west}
+                AND bbox.ymin <= {north}
+                AND bbox.ymax >= {south}
+            """)
+        con.execute("CREATE TEMP TABLE overture AS " + " UNION ALL ".join(pieces))
+    elif input_mode=="STATE_CLIPPED_ARCHIVE":
         con.execute(f"""
           CREATE TEMP TABLE overture AS
           SELECT
@@ -407,7 +432,7 @@ def build_crosswalk(con,state,cat,local_path,out_path,archive_urls=None):
         "duplicate_confirmed_overture_ids":int(val[6]),
         "shared_overture_rows":int(val[7]),
         "truth_rule":"NO_FORCED_MERGE_BELOW_CONFIDENCE_GATE; SHARED_OVERTURE_DOWNGRADED_TO_CANDIDATE",
-        "matcher_version":2768,
+        "matcher_version":2769,
         "overture_input_mode":input_mode,
     }
     if validation["output_rows"]!=expected:
@@ -589,6 +614,7 @@ def main():
     ap.add_argument("--state",required=True,choices=["DC","LA","NY","PA"])
     ap.add_argument("--out-dir",default="crosswalk-v2752")
     ap.add_argument("--state-archive",action="store_true")
+    ap.add_argument("--source-runs",action="store_true")
     args=ap.parse_args()
     state=args.state.upper()
     outdir=pathlib.Path(args.out_dir)/state
@@ -602,20 +628,30 @@ def main():
     cat=broker("catalog",state)
     expected=int(cat["expected_local_rows"])
     archive_urls=None
-    if args.state_archive:
+    source_runs=None
+    if args.source_runs:
+        run_doc=broker("source_runs",state,timeout=240)
+        source_runs=list(run_doc.get("runs",[]))
+        source_files=len(set(str(r["item_id"]) for r in source_runs))
+        strategy="EXACT_STORED_WKB_PLUS_TARGETED_OVERTURE_ROWGROUP_RUNS"
+        source_raw_rows=int(run_doc.get("raw_rows",0))
+    elif args.state_archive:
         archive=broker("archive_parts",state,timeout=240)
         archive_urls=[str(p["signed_url"]) for p in archive.get("parts",[])]
         source_files=len(archive_urls)
         strategy="EXACT_STORED_WKB_PLUS_STATE_CLIPPED_OVERTURE_ARCHIVE"
+        source_raw_rows=None
     else:
         source_files=len(cat.get("files",[]))
         strategy="EXACT_STORED_WKB_PLUS_DIRECT_DUCKDB_OVERTURE"
+        source_raw_rows=None
     broker("report",state,{
         "status":"BUILDING",
         "metadata":{
-            "builder_version":2768 if args.state_archive else 2752,
+            "builder_version":2769 if args.source_runs else (2768 if args.state_archive else 2752),
             "expected_local_rows":expected,
             "overture_files":source_files,
+            "targeted_raw_rows":source_raw_rows,
             "strategy":strategy,
         },
     })
@@ -627,7 +663,7 @@ def main():
         con=setup_duckdb()
         try:
             started=time.time()
-            validation=build_crosswalk(con,state,cat,local_path,output_path,archive_urls=archive_urls)
+            validation=build_crosswalk(con,state,cat,local_path,output_path,archive_urls=archive_urls,source_runs=source_runs)
             print(json.dumps({
                 "stage":"crosswalk_built","state":state,
                 "elapsed_seconds":round(time.time()-started,2),
@@ -650,7 +686,7 @@ def main():
         try:
             broker("report",state,{
                 "status":"FAILED",
-                "metadata":{"builder_version":2752,"error":str(exc)[:1800]},
+                "metadata":{"builder_version":2769 if args.source_runs else (2768 if args.state_archive else 2752),"error":str(exc)[:1800]},
             })
         except Exception:
             pass
