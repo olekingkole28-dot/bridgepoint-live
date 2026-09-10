@@ -1,0 +1,26 @@
+name: Test Source-Native Buildings v2713
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/smoke-source-native-buildings-v2713.mjs'
+      - '.github/workflows/test-source-native-buildings-v2713.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pinned PMTiles smoke dependencies
+        run: npm install --no-save --no-audit --no-fund pmtiles@4.5.0 @mapbox/vector-tile@3.0.0 pbf@5.1.2
+      - name: Decode live Overture building tile
+        run: node scripts/smoke-source-native-buildings-v2713.mjs
