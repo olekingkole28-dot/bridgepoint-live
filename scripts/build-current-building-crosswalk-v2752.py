@@ -182,10 +182,15 @@ def setup_duckdb():
     return con
 
 
-def build_crosswalk(con,state,cat,local_path,out_path):
+def build_crosswalk(con,state,cat,local_path,out_path,archive_urls=None):
     expected=int(cat["expected_local_rows"])
     west,south,east,north=map(float,cat["bbox"])
-    urls=[x["url"] for x in cat.get("files",[])]
+    if archive_urls:
+        urls=list(archive_urls)
+        input_mode="STATE_CLIPPED_ARCHIVE"
+    else:
+        urls=[x["url"] for x in cat.get("files",[])]
+        input_mode="GLOBAL_OVERTURE"
     if not urls:
         raise RuntimeError(f"No Overture files cataloged for {state}")
 
@@ -221,19 +226,30 @@ def build_crosswalk(con,state,cat,local_path,out_path):
       FROM read_parquet({local_src})
     """)
 
-    con.execute(f"""
-      CREATE TEMP TABLE overture AS
-      SELECT
-        id::VARCHAR id,
-        ST_MakeValid(geometry) geom
-      FROM {remote}
-      WHERE id IS NOT NULL
-        AND geometry IS NOT NULL
-        AND bbox.xmin <= {east}
-        AND bbox.xmax >= {west}
-        AND bbox.ymin <= {north}
-        AND bbox.ymax >= {south}
-    """)
+    if input_mode=="STATE_CLIPPED_ARCHIVE":
+        con.execute(f"""
+          CREATE TEMP TABLE overture AS
+          SELECT
+            id::VARCHAR id,
+            ST_MakeValid(ST_GeomFromWKB(geometry)) geom
+          FROM {remote}
+          WHERE id IS NOT NULL
+            AND geometry IS NOT NULL
+        """)
+    else:
+        con.execute(f"""
+          CREATE TEMP TABLE overture AS
+          SELECT
+            id::VARCHAR id,
+            ST_MakeValid(geometry) geom
+          FROM {remote}
+          WHERE id IS NOT NULL
+            AND geometry IS NOT NULL
+            AND bbox.xmin <= {east}
+            AND bbox.xmax >= {west}
+            AND bbox.ymin <= {north}
+            AND bbox.ymax >= {south}
+        """)
     overture_rows=int(con.execute("SELECT count(*)::BIGINT FROM overture").fetchone()[0])
     overture_dups=int(con.execute(
         "SELECT count(*)-count(DISTINCT id) FROM overture"
@@ -383,7 +399,8 @@ def build_crosswalk(con,state,cat,local_path,out_path):
         "duplicate_confirmed_overture_ids":int(val[6]),
         "shared_overture_rows":int(val[7]),
         "truth_rule":"NO_FORCED_MERGE_BELOW_CONFIDENCE_GATE; SHARED_OVERTURE_DOWNGRADED_TO_CANDIDATE",
-        "matcher_version":2752,
+        "matcher_version":2764,
+        "overture_input_mode":input_mode,
     }
     if validation["output_rows"]!=expected:
         raise RuntimeError(f"Output row reconciliation failed {validation}")
@@ -563,6 +580,7 @@ def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--state",required=True,choices=["DC","LA","NY","PA"])
     ap.add_argument("--out-dir",default="crosswalk-v2752")
+    ap.add_argument("--state-archive",action="store_true")
     args=ap.parse_args()
     state=args.state.upper()
     outdir=pathlib.Path(args.out_dir)/state
@@ -575,14 +593,22 @@ def main():
 
     cat=broker("catalog",state)
     expected=int(cat["expected_local_rows"])
-    source_files=len(cat.get("files",[]))
+    archive_urls=None
+    if args.state_archive:
+        archive=broker("archive_parts",state,timeout=240)
+        archive_urls=[str(p["signed_url"]) for p in archive.get("parts",[])]
+        source_files=len(archive_urls)
+        strategy="EXACT_STORED_WKB_PLUS_STATE_CLIPPED_OVERTURE_ARCHIVE"
+    else:
+        source_files=len(cat.get("files",[]))
+        strategy="EXACT_STORED_WKB_PLUS_DIRECT_DUCKDB_OVERTURE"
     broker("report",state,{
         "status":"BUILDING",
         "metadata":{
-            "builder_version":2752,
+            "builder_version":2764 if args.state_archive else 2752,
             "expected_local_rows":expected,
             "overture_files":source_files,
-            "strategy":"EXACT_STORED_WKB_PLUS_DIRECT_DUCKDB_OVERTURE",
+            "strategy":strategy,
         },
     })
 
@@ -593,7 +619,7 @@ def main():
         con=setup_duckdb()
         try:
             started=time.time()
-            validation=build_crosswalk(con,state,cat,local_path,output_path)
+            validation=build_crosswalk(con,state,cat,local_path,output_path,archive_urls=archive_urls)
             print(json.dumps({
                 "stage":"crosswalk_built","state":state,
                 "elapsed_seconds":round(time.time()-started,2),
