@@ -1,0 +1,133 @@
+name: Publish BridgePoint V2663 Direct
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-v2663-direct.yml'
+      - 'staging/world-v2652/**'
+      - 'staging/home-v2652/**'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check V2663 runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check staging/world-v2652/world-v2663-first-map.js
+          node --check staging/world-v2652/world-v2662-weather-bootstrap.js
+          node --check staging/world-v2652/world-v2662-instant-map.js
+          grep -Fq 'world-v2663-first-map.js' staging/world-v2652/index.html
+          grep -Fq 'world-v2662-weather-bootstrap.js' staging/world-v2652/index.html
+          grep -Fq 'instant-map-world-2663' staging/home-v2652/patch-live-app.py
+
+      - name: Build live map package
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          test -s site/app/bridgepoint-3d-world/world-v2500.js
+          cp -a staging/world-v2652/. site/app/bridgepoint-3d-world/
+
+          curl -fsSL --retry 4 --retry-delay 1 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson' -o site/app/bridgepoint-3d-world/countries-50m.geojson
+          curl -fsSL --retry 4 --retry-delay 1 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson' -o site/app/bridgepoint-3d-world/countries-110m.geojson
+          curl -fsSL --retry 4 --retry-delay 1 'https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json' -o site/app/bridgepoint-3d-world/us-states.geojson
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('site/app/bridgepoint-3d-world')
+          for name in ('countries-50m.geojson','countries-110m.geojson','us-states.geojson'):
+              d=json.loads((root/name).read_text())
+              assert d.get('type')=='FeatureCollection' and len(d.get('features',[]))>20
+          p=root/'world-v2500.js'
+          s=p.read_text()
+          s=s.replace("viewer.imageryLayers.addImageryProvider(globalImagery);","// photographic global imagery disabled")
+          s=s.replace("viewer.imageryLayers.addImageryProvider(imagery);","// photographic U.S. imagery disabled")
+          s=s.replace("  await loadCountries();","  loadCountries().catch(e=>console.warn('country gating deferred',e));")
+          s=s.replace("  await startAtUser();","  viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(-98.35,39.35,5550000),orientation:{heading:0,pitch:Cesium.Math.toRadians(-88.5),roll:0}}); viewer.scene.requestRender();")
+          p.write_text(s)
+          assert 'viewer.imageryLayers.addImageryProvider(globalImagery);' not in s
+          assert 'viewer.imageryLayers.addImageryProvider(imagery);' not in s
+          assert 'await loadCountries();' not in s
+          assert 'await startAtUser();' not in s
+          PY
+          node --check site/app/bridgepoint-3d-world/world-v2500.js
+
+          rm -rf site/app/bridgepoint-world-v2652
+          cp -a site/app/bridgepoint-3d-world site/app/bridgepoint-world-v2652
+          python3 staging/home-v2652/patch-live-app.py
+          test -s site/app/bridgepoint-world-v2652/countries-110m.geojson
+          test -s site/app/bridgepoint-world-v2652/us-states.geojson
+
+          cat > site/app/bridgepoint-world-overlay-v2652.json <<EOF
+          {"app_shell_version":2663,"map_only":true,"first_frame":"US_CAMERA_SYNCHRONOUS","repeat_launch_cache":"CORE_MAP_CACHE_FIRST","state_map":"LOCAL_PRELOADED","foreign_map":"LOCAL_110M_FAST_THEN_50M_GATING","labels":"WORLD_FIXED_SURFACE_TEXTURES","legacy_billboard_labels":false,"weather":"5_MIN_SERVER_CACHE_PLUS_LOCAL_REPEAT_CACHE_PLUS_LIVE_REFRESH","weather_rpc":"bridgepoint_us_weather_bootstrap_v2662","weather_full_us":true,"weather_max_distance_m":26000000,"continuous_lod":true,"prefetch_ms":38,"satellite_default":false,"overlay_source_sha":"${GITHUB_SHA}"}
+          EOF
+          touch site/.nojekyll site/app/.nojekyll
+
+      - name: Save live artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v2663 && mkdir /tmp/v2663
+          cp -a site/. /tmp/v2663/
+          cd /tmp/v2663
+          git init -q
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m "Publish BridgePoint V2663 ${GITHUB_SHA}"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify custom domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          ok=0
+          for attempt in $(seq 1 36); do
+            marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-overlay-v2652.json?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            world="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            first="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/world-v2663-first-map.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            weather="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/world-v2662-weather-bootstrap.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$marker" | grep -Fq '"app_shell_version":2663' && printf '%s' "$app" | grep -Fq 'instant-map-world-2663' && printf '%s' "$world" | grep -Fq 'world-v2663-first-map.js' && printf '%s' "$first" | grep -Fq 'BridgePointFirstPoliticalV2663' && printf '%s' "$weather" | grep -Fq 'BridgePointWeatherBootstrapV2662'; then
+              ok=1; echo 'BRIDGEPOINT_V2663_LIVE'; break
+            fi
+            sleep 5
+          done
+          test "$ok" = 1
