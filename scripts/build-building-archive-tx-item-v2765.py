@@ -131,8 +131,14 @@ def upload(item_id,rg_first,path,rows,val):
     return part_index
 
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument("--item",required=True); args=ap.parse_args()
+    ap=argparse.ArgumentParser()
+    ap.add_argument("--item",required=True)
+    ap.add_argument("--lane",type=int,default=0)
+    ap.add_argument("--lanes",type=int,default=1)
+    args=ap.parse_args()
     item=args.item
+    if args.lanes<1 or args.lane<0 or args.lane>=args.lanes:
+        raise RuntimeError(f"invalid lane {args.lane}/{args.lanes}")
     cat=broker("catalog"); rgcat=broker("rowgroups"); parts=broker("parts")
     files={str(x["item_id"]):x for x in cat.get("files",[])}
     if item not in files: raise RuntimeError(f"item {item} not in TX catalog")
@@ -152,7 +158,9 @@ def main():
     bbox=list(map(float,cat["bbox"]))
     done_rows=0; done_parts=0
     try:
-        for ch in chunks(remain):
+        planned=chunks(remain)
+        lane_chunks=[ch for i,ch in enumerate(planned) if i % args.lanes == args.lane]
+        for ch in lane_chunks:
             first=int(ch[0]["row_group_id"]); last=int(ch[-1]["row_group_id"])
             path=outdir/f"{item}-rg{first:03d}-{last:03d}.parquet"; path.unlink(missing_ok=True)
             rows,val=clip(con,files[item]["url"],item,ch,bbox,path)
@@ -160,8 +168,8 @@ def main():
                 idx=upload(item,first,path,rows,val); done_rows+=rows; done_parts+=1
                 print(json.dumps({"stage":"verified_chunk","item":item,"part_index":idx,"rg_first":first,"rg_last":last,"rows":rows},separators=(",",":")))
             path.unlink(missing_ok=True)
-        broker("report",{"status":"BUILDING","stage":"TX_PARALLEL_ITEM_COMPLETE","metadata":{"builder_version":2765,"parallel_item":item,"item_rows_uploaded":done_rows,"item_parts_uploaded":done_parts}})
-        print(json.dumps({"complete":True,"item":item,"rows_uploaded":done_rows,"parts_uploaded":done_parts},separators=(",",":")))
+        broker("report",{"status":"BUILDING","stage":"TX_PARALLEL_ITEM_LANE_COMPLETE","metadata":{"builder_version":2765,"parallel_item":item,"parallel_lane":args.lane,"parallel_lanes":args.lanes,"item_rows_uploaded":done_rows,"item_parts_uploaded":done_parts}})
+        print(json.dumps({"complete":True,"item":item,"lane":args.lane,"lanes":args.lanes,"rows_uploaded":done_rows,"parts_uploaded":done_parts},separators=(",",":")))
     finally:
         con.close()
 if __name__=="__main__": main()
