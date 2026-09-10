@@ -182,8 +182,8 @@ def setup_duckdb():
     return con
 
 
-def build_crosswalk(con,state,cat,local_path,out_path,archive_urls=None,source_runs=None):
-    expected=int(cat["expected_local_rows"])
+def build_crosswalk(con,state,cat,local_path,out_path,archive_urls=None,source_runs=None,expected_override=None):
+    expected=int(expected_override if expected_override is not None else cat["expected_local_rows"])
     west,south,east,north=map(float,cat["bbox"])
     urls=[]
     if source_runs:
