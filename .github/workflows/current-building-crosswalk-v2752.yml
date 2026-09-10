@@ -41,4 +41,4 @@ jobs:
           test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
           test -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN"
       - name: Build exact authoritative crosswalk
-        run: python scripts/build-current-building-crosswalk-v2752.py --state "${{ matrix.state }}" --state-archive
+        run: python scripts/build-current-building-crosswalk-v2752.py --state "${{ matrix.state }}" --source-runs
