@@ -92,9 +92,12 @@ def clip(con,url,item_id,chunk,bbox,path):
       ) TO {out} (FORMAT PARQUET,COMPRESSION ZSTD,ROW_GROUP_SIZE 100000)
     """)
     if path.stat().st_size>HARD_BYTES: raise RuntimeError(f"chunk output too large: {path.stat().st_size}")
+    desc=con.execute(f"DESCRIBE SELECT * FROM read_parquet({out})").fetchall()
+    geom_type={r[0]:str(r[1]).upper() for r in desc}.get("geometry","")
+    geom_expr="geometry" if "GEOMETRY" in geom_type else "ST_GeomFromWKB(geometry)"
     row=con.execute(f"""
       WITH x AS (
-        SELECT *, ST_GeomFromWKB(geometry) g FROM read_parquet({out})
+        SELECT *, {geom_expr} g FROM read_parquet({out})
       ), b AS (SELECT geom FROM bp_boundary), d AS (
         SELECT x.*, ST_Difference(g,b.geom) outside_geom FROM x CROSS JOIN b
       )
