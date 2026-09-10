@@ -1,0 +1,73 @@
+name: Validate BridgePoint V984 Stage
+
+on:
+  push:
+    branches: [v984-stage]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate staged JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check landing-v984.js
+          node --check app/experience-v974.js
+          node --check app/map-radar-v974.js
+          node --check app/map-polish-v984.js
+          node --check app/owner-console-v984.js
+          node --check app/runtime-unifier-v984.js
+          node --check app/live-home-v984.js
+          node --check app/signals-activity-v984.js
+          node --check app/visual-polish-v984.js
+      - name: Validate canonical v984 app shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v984"' app/index.html
+          grep -q "__bridgepointCanonicalRuntime='v984'" app/index.html
+          grep -q 'runtime-unifier-v984.js?v=984' app/index.html
+          grep -q 'live-home-v984.js?v=984' app/index.html
+          grep -q 'owner-console-v984.js?v=984' app/index.html
+          grep -q 'map-polish-v984.js?v=984' app/index.html
+          grep -q 'signals-activity-v984.js?v=984' app/index.html
+          grep -q 'visual-polish-v984.js?v=984' app/index.html
+          grep -q 'map-radar-v974.js?v=984' app/index.html
+          grep -q 'flutter_bootstrap.js?v=984' app/index.html
+          ! grep -q 'runtime-unifier-v983.js' app/index.html
+          ! grep -q 'live-home-v981.js' app/index.html
+          ! grep -q 'map-radar-v963.js' app/index.html
+          ! grep -q 'id="bp-install"' app/index.html
+          grep -q '"start_url": "./?bpv=v984"' app/manifest.json
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v984'" app/flutter_service_worker.js
+      - name: Validate public nationwide landing
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'U.S. Property Intelligence' index.html
+          grep -q 'landing-v984.js?v=984' index.html
+          grep -q 'Live U.S. network' index.html
+          grep -q 'Nationwide expansion' index.html
+          grep -q 'id="language"' index.html
+          grep -q "\['ht','Kreyòl ayisyen'\]" landing-v984.js
+          grep -q "\['zh-Hans','简体中文'\]" landing-v984.js
+          ! grep -qi 'Connecticut opportunity intelligence' index.html
+          ! grep -qi 'free territory preview' index.html
+          ! grep -qi 'see your territory' index.html
+          ! grep -qi 'show me my Connecticut territory' index.html
+      - name: Validate staged backend release contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s release/v984-backend.sql
+          grep -q 'bridgepoint_public_pipeline_activity_v984' release/v984-backend.sql
+          grep -q 'bridgepoint_owner_commerce_v984' release/v984-backend.sql
+          grep -q 'Owner access required' release/v984-backend.sql
+          grep -q 'grant execute on function public.bridgepoint_public_pipeline_activity_v984() to anon, authenticated' release/v984-backend.sql
+          echo 'V984 staging validation passed. No deployment occurred.'

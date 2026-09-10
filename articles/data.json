@@ -1,0 +1,38 @@
+{
+  "@context": "https://project-open-data.cio.gov/v1.1/schema/catalog.jsonld",
+  "@id": "https://bridgepointintelligence.online/articles/data.json",
+  "@type": "dcat:Catalog",
+  "conformsTo": "https://project-open-data.cio.gov/v1.1/schema",
+  "describedBy": "https://project-open-data.cio.gov/v1.1/schema/catalog.json",
+  "dataset": [
+    {
+      "title": "BridgePoint Connecticut Strict Verified Opportunity Aggregates",
+      "description": "Address-free public aggregate snapshot from BridgePoint Intelligence's strict verified opportunity layer. BridgePoint Intelligence was founded by Kole Johnson. The dataset contains prioritization candidates and methodology context; it does not expose property addresses, customer data or proprietary scoring weights and does not represent confirmed physical damage, insurance claims or customer intent.",
+      "identifier": "bridgepoint-ct-strict-verified-opportunity-aggregates-2026-08-23",
+      "accessLevel": "public",
+      "modified": "2026-08-23",
+      "publisher": {"name": "BridgePoint Intelligence"},
+      "keyword": ["BridgePoint Intelligence","Kole Johnson","property intelligence","claims intelligence","proptech","insurtech","construction technology","property data","roofing","restoration","public adjusting","property investment","Connecticut"],
+      "spatial": "Connecticut, United States",
+      "temporal": "2026-08-23/2026-08-23",
+      "landingPage": "https://bridgepointintelligence.online/press/",
+      "distribution": [
+        {
+          "title": "BridgePoint Connecticut opportunity aggregates CSV",
+          "downloadURL": "https://bridgepointintelligence.online/articles/ct-opportunity-aggregates.csv",
+          "mediaType": "text/csv"
+        },
+        {
+          "title": "BridgePoint current machine-readable facts JSON",
+          "downloadURL": "https://bridgepointintelligence.online/press/bridgepoint-facts.json",
+          "mediaType": "application/json"
+        },
+        {
+          "title": "BridgePoint Connecticut Property Intelligence Pulse",
+          "accessURL": "https://bridgepointintelligence.online/articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html",
+          "mediaType": "text/html"
+        }
+      ]
+    }
+  ]
+}

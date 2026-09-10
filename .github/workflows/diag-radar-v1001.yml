@@ -1,0 +1,30 @@
+name: Diagnose NOAA radar catalog v1001
+
+on:
+  push:
+    branches: [staging-v1001-hardening]
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect current NOAA primary raster catalog
+        run: |
+          set -euo pipefail
+          base='https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer'
+          curl -fsSL --retry 2 --max-time 45 "$base/query?where=category%20%3D%201&outFields=objectid%2Cidp_validtime%2Cidp_validendtime%2Cidp_subset%2Cname%2Ccategory&returnGeometry=false&orderByFields=idp_validtime%20DESC&resultRecordCount=80&f=json" -o /tmp/catalog.json
+          python <<'PY'
+          import json, datetime
+          j=json.load(open('/tmp/catalog.json'))
+          rows=[]
+          for f in j.get('features',[]):
+              a=f.get('attributes') or {}
+              t=a.get('idp_validtime')
+              when=datetime.datetime.fromtimestamp(t/1000,datetime.timezone.utc).isoformat() if isinstance(t,(int,float)) else None
+              rows.append((a.get('objectid'),when,a.get('idp_subset'),a.get('name'),a.get('category')))
+          print('COUNT',len(rows))
+          for r in rows[:50]: print('ROW',r)
+          print('SUBSETS',sorted({str(r[2]) for r in rows}))
+          print('NAMES',sorted({str(r[3]) for r in rows})[:50])
+          PY

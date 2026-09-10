@@ -1,0 +1,65 @@
+{
+  "manifest_version": "1.0.0",
+  "platform": "BridgePoint Intelligence",
+  "public_status_source": "bridgepoint_public_deeptech_v534",
+  "public_status_endpoint_path": "/rest/v1/rpc/bridgepoint_public_deeptech_v534",
+  "status_semantics": {
+    "LIVE": "Operational capability with evidence gates.",
+    "LIVE_SCREENING": "Operational screening intelligence; not a deterministic engineering, legal or actuarial conclusion.",
+    "VALIDATION_PROGRAM": "Backend or partial capability exists and is being validated before stronger claims.",
+    "INTEGRATION_REQUIRED": "BridgePoint-side contract/design exists but requires an external provider, credential or approval.",
+    "BUILDING": "Architecture exists but is not presented as production-ready."
+  },
+  "capability_families": [
+    {
+      "key": "PROPERTY_INTELLIGENCE",
+      "purpose": "Evidence-linked property identity, signals, provenance and prioritization.",
+      "integration_mode": ["web_application", "managed_export", "api_contract"]
+    },
+    {
+      "key": "LIVE_STATE",
+      "purpose": "Weather, field evidence, authorized IoT/BAS observations and versioned property-state updates.",
+      "integration_mode": ["scheduled_ingest", "webhook_or_partner_connection", "api_contract"],
+      "important_limit": "Live sensor state exists only where an authorized device/building integration is connected."
+    },
+    {
+      "key": "DIGITAL_TWIN",
+      "purpose": "Versioned property/building twins upgraded as imagery, LiDAR, BIM, drone, blueprint and sensor evidence arrives.",
+      "important_limit": "A partial twin is not represented as an exact replica without sufficient validated source precision."
+    },
+    {
+      "key": "CLAIMS_INTERCHANGE",
+      "purpose": "Canonical claim timelines, evidence events, estimate comparisons and controlled export mappings.",
+      "integration_mode": ["json", "csv_bundle", "partner_mapping"]
+    },
+    {
+      "key": "SMART_SUPPLEMENT",
+      "purpose": "Evidence-backed estimate scope/quantity/price variance detection and human-review supplement-support assembly.",
+      "important_limit": "A variance is not proof of coverage owed or wrongful underpayment; submission remains subject to human review."
+    },
+    {
+      "key": "CLIMATE_AND_PERIL",
+      "purpose": "Property and portfolio screening for weather, peril and longer-horizon climate vulnerability.",
+      "important_limit": "Screening outputs are not deterministic actuarial or engineering conclusions."
+    },
+    {
+      "key": "PROPERTY_HEALTH",
+      "purpose": "Quiet-weather preventive inspection, maintenance prioritization, renewal readiness and property-health workflows."
+    },
+    {
+      "key": "DEEP_TECH_VALIDATION",
+      "purpose": "Governed validation programs for experimental sensing and deeper physical-property intelligence.",
+      "important_limit": "Experimental modalities remain explicitly validation-stage until calibration and professional-confirmation gates are met."
+    }
+  ],
+  "open_research": {
+    "estimate_variance_registry": "/research/national-estimate-variance/",
+    "methodology_repository": "https://github.com/olekingkole28-dot/bridgepoint-live/tree/main/research/national-estimate-variance"
+  },
+  "security": {
+    "secrets_in_manifest": false,
+    "raw_customer_claims_public": false,
+    "raw_policyholder_identifiers_public": false,
+    "proprietary_vendor_price_lists_public": false
+  }
+}

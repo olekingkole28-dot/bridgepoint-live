@@ -1,0 +1,58 @@
+name: Validate BridgePoint Live Runtime
+on:
+  push:
+    branches: [ui-v1046, ui-v1047, ui-v1048, ui-v1049, ui-v1050, ui-v1051, ui-v1052, ui-v1053, live-artifact]
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check current live JavaScript syntax
+        run: |
+          node --check app/universe-v1994.js
+          node --check app/map-v1997.js
+          node --check app/map-v1997-weather-hotfix.js
+          node --check app/map-v2045-physical-world.js
+          node --check app/map-v2090-opportunity-icons.js
+          node --check app/map-v2162-game-world.js
+          node --check app/map-v2163-photorealistic-adapter.js
+          node --check app/map-v2174-smooth-world.js
+          node --check app/map-v2180-structure-lab.js
+          node --check app/map-v2185-live-earth.js
+          node --check app/trial-countdown-v1994.js
+          node --check owner/session-v624.js
+      - name: Verify current runtime loader references
+        run: |
+          grep -q 'universe-v1994.js' app/index.html
+          grep -q 'map-v1997.js' app/index.html
+          grep -q 'map-v1997-weather-hotfix.js' app/index.html
+          grep -q 'map-v2045-physical-world.js' app/map-v1997-weather-hotfix.js
+          grep -q 'map-v2090-opportunity-icons.js' app/map-v1997-weather-hotfix.js
+          grep -q 'map-v2162-game-world.js' app/map-v1997-weather-hotfix.js
+          grep -q 'map-v2163-photorealistic-adapter.js' app/map-v1997-weather-hotfix.js
+          grep -q 'map-v2174-smooth-world.js?v=2174' app/map-v1997-weather-hotfix.js
+          grep -q 'map-v2180-structure-lab.js?v=2180' app/map-v1997-weather-hotfix.js
+          grep -q 'map-v2185-live-earth.js?v=2185' app/map-v1997-weather-hotfix.js
+          ! grep -q 'map-v2170-living-world.js?v=2170' app/map-v1997-weather-hotfix.js
+          ! grep -q 'map-v2171-weather-observations.js?v=2171' app/map-v1997-weather-hotfix.js
+          ! grep -q 'map-v2172-performance-world.js?v=2172' app/map-v1997-weather-hotfix.js
+          ! grep -q 'map-v2081-gpu-weather-runtime.js?v=2081' app/map-v1997-weather-hotfix.js
+          grep -q 'map-v2081-gpu-weather-runtime.js?v=2081' app/map-v2174-smooth-world.js
+          grep -q 'map-v2171-weather-observations.js?v=2171' app/map-v2174-smooth-world.js
+          grep -q 's.layers.properties=false' app/map-v2174-smooth-world.js
+          grep -q 's.layers.weather=false' app/map-v2174-smooth-world.js
+          grep -q 's.layers.radar=true' app/map-v2174-smooth-world.js
+          grep -q 'bridgepoint_structure_study_v2180' app/map-v2180-structure-lab.js
+          grep -q 'bridgepoint_opportunity_buildings_viewport_v2180' app/map-v2180-structure-lab.js
+          grep -q 'bridgepoint-live-earth-v2185' app/map-v2185-live-earth.js
+          grep -q 'NOAA CO-OPS currents/water levels' app/map-v2185-live-earth.js
+          grep -q 'Your 7-day intelligence trial has ended' app/trial-countdown-v1994.js
+          grep -q 'bridgepoint_owner_home_command_v2110' owner/session-v624.js
+          grep -q 'PowerShell Full Export' owner/session-v624.js
+      - name: Verify no merge markers
+        run: |
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' app/*.js app/index.html owner/*.js owner/index.html

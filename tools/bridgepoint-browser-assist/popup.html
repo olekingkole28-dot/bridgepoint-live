@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{width:360px;margin:0;padding:16px;background:#071017;color:#eff9ff;font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}.brand{font-size:11px;letter-spacing:.12em;font-weight:900;color:#49ddff}h1{font-size:19px;margin:7px 0}.muted{color:#9fb5c2}.card{margin-top:12px;border:1px solid #294354;background:#0e1b25;border-radius:12px;padding:12px}.kv{display:grid;grid-template-columns:105px 1fr;gap:6px 10px}.kv div:nth-child(odd){color:#9fb5c2}button,a{display:flex;justify-content:center;text-decoration:none;border:0;border-radius:9px;padding:10px 12px;font-weight:900;margin-top:10px;cursor:pointer}.primary{background:#49ddff;color:#041117}.secondary{background:#172d3a;color:#fff;border:1px solid #345365}.fine{font-size:10px;color:#8ba1ae;margin-top:12px}.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="brand">BRIDGEPOINT · USER-ACTIVATED</div>
+<h1>Property Context Assistant</h1>
+<div class="muted">Nothing is read until you press the button. The page text stays local to this extension.</div>
+<button id="scan" class="primary">Inspect this page locally</button>
+<div id="result" class="card hidden">
+  <div class="kv"><div>ZIP detected</div><div id="zip">—</div><div>Dollar values</div><div id="money">—</div><div>Estimate terms</div><div id="terms">—</div><div>Page title</div><div id="title">—</div></div>
+  <a class="secondary" id="open" href="#">Open secure BridgePoint workflow</a>
+</div>
+<div id="status" class="fine">Requires only Chrome's temporary <code>activeTab</code> permission.</div>
+<script src="popup.js"></script>
+</body>
+</html>

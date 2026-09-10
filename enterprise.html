@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#03070d">
+  <title>BridgePoint Enterprise & API Access</title>
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    .enterprise-shell{width:min(1120px,calc(100% - 28px));margin:0 auto;padding:34px 0 80px}.enterprise-nav{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:48px}.enterprise-nav a{color:#9deaff;text-decoration:none;font-size:11px}.enterprise-hero{display:grid;grid-template-columns:1.05fr .95fr;gap:42px;align-items:center}.enterprise-copy h1{font-size:clamp(3rem,7vw,6.5rem);line-height:.88;letter-spacing:-.065em;margin:10px 0 20px}.enterprise-copy h1 span{color:#8eefff}.enterprise-copy>p{color:#a5bac8;max-width:720px;font-size:1.06rem}.enterprise-truth{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:25px}.enterprise-truth article{padding:15px;border-radius:13px;background:rgba(8,22,36,.84);border:1px solid var(--line)}.enterprise-truth b{display:block;font-size:10px;color:#d9e8f0}.enterprise-truth small{display:block;color:#7791a2;margin-top:5px;font-size:9px}.request-card{border:1px solid rgba(72,225,255,.22);border-radius:22px;padding:24px;background:linear-gradient(155deg,rgba(10,29,47,.96),rgba(5,12,21,.97));box-shadow:var(--shadow)}.request-card h2{font-size:1.7rem;margin:6px 0}.request-card>p{color:#90a8b8;font-size:11px}.request-form{display:grid;gap:10px;margin-top:16px}.request-form label{display:grid;gap:5px;color:#b3c4cf;font-size:9px;font-weight:850;letter-spacing:.25px}.request-form input,.request-form textarea,.request-form select{width:100%;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:#06131f;color:#fff;padding:10px;outline:none}.request-form input,.request-form select{min-height:44px}.request-form textarea{min-height:90px;resize:vertical}.request-form input:focus,.request-form textarea:focus,.request-form select:focus{border-color:var(--cyan)}.request-row{display:grid;grid-template-columns:1fr 1fr;gap:9px}.request-submit{min-height:50px;border:0;border-radius:11px;background:linear-gradient(135deg,var(--cyan),#6c83ff);color:#031018;font-weight:950;cursor:pointer}.request-note{margin-top:12px;padding:11px;border:1px solid rgba(255,201,94,.17);background:rgba(255,201,94,.04);border-radius:10px;color:#a99563;font-size:9px}.request-status{min-height:18px;margin-top:7px;font-size:10px;color:#8da6b5}.request-status.good{color:var(--green)}.request-status.bad{color:var(--red)}.enterprise-process{margin-top:70px}.enterprise-process h2{font-size:clamp(2rem,4vw,3.6rem);letter-spacing:-.045em;margin:8px 0}.approval-track{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:20px}.approval-track article{padding:17px;border-radius:14px;border:1px solid var(--line);background:rgba(7,19,31,.82)}.approval-track span{color:var(--cyan);font-size:9px;font-weight:950}.approval-track b{display:block;margin:7px 0 4px}.approval-track p{margin:0;color:#849cac;font-size:10px}@media(max-width:880px){.enterprise-hero{grid-template-columns:1fr}.enterprise-truth{grid-template-columns:1fr}.approval-track{grid-template-columns:1fr 1fr}}@media(max-width:560px){.enterprise-shell{padding-top:18px}.request-card{padding:18px}.request-row{grid-template-columns:1fr}.approval-track{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <canvas id="cosmos" aria-hidden="true"></canvas>
+  <main class="enterprise-shell">
+    <nav class="enterprise-nav"><a href="./index.html">← BridgePoint Intelligence</a><a href="/app/?entry=1&mode=signin">Already a customer? Open app →</a></nav>
+    <section class="enterprise-hero">
+      <div class="enterprise-copy">
+        <span class="section-kicker">ENTERPRISE DATA · API · INSTITUTIONAL ACCESS</span>
+        <h1>High-volume access<br>should be <span>intentional.</span></h1>
+        <p>BridgePoint does not sell anonymous bulk system access with a public credit-card button. Tell us what you need, what geography and workflow it supports, and how you expect to use the data. The request becomes an owner-reviewed commercial conversation.</p>
+        <div class="enterprise-truth"><article><b>NO BLIND TOKEN ISSUANCE</b><small>API credentials are not created from this public page.</small></article><article><b>USE-CASE REVIEW</b><small>Scope, permitted use, geography and data depth are reviewed first.</small></article><article><b>CUSTOM COMMERCIAL FIT</b><small>Large-volume licensing, pilots and integrations are handled deliberately.</small></article></div>
+      </div>
+      <div class="request-card">
+        <span class="section-kicker">REQUEST ENTERPRISE / API ACCESS</span><h2>Describe the job BridgePoint needs to do.</h2><p>This sends a structured request into the existing BridgePoint owner inbox. It does not activate billing or issue credentials.</p>
+        <form id="enterprise-form" class="request-form">
+          <div class="request-row"><label>Name<input id="req-name" required maxlength="120"></label><label>Work email<input id="req-email" required type="email" maxlength="254"></label></div>
+          <label>Company / organization<input id="req-company" maxlength="180"></label>
+          <div class="request-row"><label>Access type<select id="req-type"><option>Enterprise platform</option><option>API / data integration</option><option>Licensing / bulk data</option><option>Pilot / strategic integration</option></select></label><label>Expected scale<select id="req-scale"><option>Under 10K properties / month</option><option>10K–100K properties / month</option><option>100K–1M properties / month</option><option>1M+ properties / month</option><option>Not sure yet</option></select></label></div>
+          <label>Geography<input id="req-geo" placeholder="Example: Texas + Florida, nationwide, selected metros"></label>
+          <label>Primary use case<textarea id="req-use" required maxlength="2500" placeholder="What are you trying to build, automate, evaluate or integrate?"></textarea></label>
+          <label>Systems / integrations involved<input id="req-integrations" maxlength="500" placeholder="CRM, claims platform, internal warehouse, field app, etc."></label>
+          <label>Anything else we should know?<textarea id="req-notes" maxlength="1200"></textarea></label>
+          <input id="req-website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+          <button class="request-submit" type="submit">Request Enterprise / API Access</button><div id="request-status" class="request-status"></div>
+        </form>
+        <div class="request-note">Submitting a request does not guarantee access, pricing, coverage or a particular data scope. Any approved use remains subject to BridgePoint contracts, source restrictions and applicable law.</div>
+      </div>
+    </section>
+    <section class="enterprise-process"><span class="section-kicker">WHAT HAPPENS NEXT</span><h2>A controlled path, not a vending machine.</h2><div class="approval-track"><article><span>01 · REQUEST</span><b>Tell us the use case</b><p>Business purpose, geography, scale and integration context.</p></article><article><span>02 · SCOPE</span><b>Confirm what can be delivered</b><p>Coverage, licensing constraints, source restrictions and technical fit.</p></article><article><span>03 · COMMERCIAL</span><b>Agree on pilot or contract</b><p>Pricing, usage boundaries, support, security and provisioning terms.</p></article><article><span>04 · PROVISION</span><b>Issue approved access</b><p>Only after the scope and contractual controls are in place.</p></article></div></section>
+  </main>
+  <script src="./enterprise-request.js"></script>
+</body>
+</html>

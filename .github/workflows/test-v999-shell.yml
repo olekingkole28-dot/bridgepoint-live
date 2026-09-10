@@ -1,0 +1,63 @@
+name: Test v999 shell navigation
+
+on:
+  push:
+    branches: [staging-v999-runtime-cleanup]
+
+permissions:
+  contents: read
+
+jobs:
+  shell-navigation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: staging-v999-runtime-cleanup
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install isolated DOM test dependency
+        run: npm install --no-save --package-lock=false jsdom@24
+      - name: Simulate BridgePoint navigation
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const {JSDOM}=require('jsdom');
+          const dom=new JSDOM('<!doctype html><html><head></head><body><flutter-view><flt-glass-pane></flt-glass-pane></flutter-view><section id="bp-live-home-v984"></section><canvas id="bp974-cosmos"></canvas></body></html>',{runScripts:'outside-only',url:'https://bridgepointintelligence.online/app/?bpv=v999',pretendToBeVisual:true});
+          const {window}=dom;
+          window.__bridgepointCanonicalRuntime='v999';
+          window.BridgePointNavigateFlutterTabV984=(tab)=>{window.__lastFlutterTab=tab;return true;};
+          window.BridgePointOpenMapV993=async()=>{window.__mapOpened=(window.__mapOpened||0)+1;return true;};
+          window.eval(fs.readFileSync('app/bridgepoint-shell-v999.js','utf8'));
+          const wait=ms=>new Promise(r=>setTimeout(r,ms));
+          const click=tab=>window.document.querySelector(`#bp999-nav [data-tab="${tab}"]`).click();
+          (async()=>{
+            if(!window.document.documentElement.classList.contains('bp999-home')) throw new Error('startup did not land on Home');
+            if(window.BridgePointShellV999.getMode()!=='home') throw new Error('startup mode mismatch');
+            if(window.document.querySelectorAll('#bp999-nav').length!==1) throw new Error('navigation duplicated');
+            if(/Search|Notifications/.test(window.document.getElementById('bp999-header').textContent)) throw new Error('dead header controls returned');
+
+            click('properties');
+            await wait(180);
+            if(window.__lastFlutterTab!=='properties') throw new Error('Properties did not command Flutter');
+            if(window.BridgePointShellV999.getMode()!=='properties') throw new Error('Properties mode not published');
+            if(!window.document.documentElement.classList.contains('bp999-flutter')) throw new Error('Flutter was not revealed for Properties');
+            if(window.document.documentElement.classList.contains('bp999-home')) throw new Error('Home remained active over Properties');
+
+            click('home');
+            await wait(20);
+            if(window.BridgePointShellV999.getMode()!=='home') throw new Error('Home did not restore');
+            if(!window.document.documentElement.classList.contains('bp999-home')) throw new Error('Home class missing after return');
+            if(window.document.documentElement.classList.contains('bp999-flutter')) throw new Error('Flutter remained visible under Home');
+
+            click('map');
+            await wait(30);
+            if(window.BridgePointShellV999.getMode()!=='map') throw new Error('Map mode not published');
+            if(window.__mapOpened!==1) throw new Error(`Map opened ${window.__mapOpened||0} times instead of once`);
+            if(!window.document.documentElement.classList.contains('bp999-map')) throw new Error('Map class missing');
+            if(window.document.documentElement.classList.contains('bp999-home')) throw new Error('Home remained active over Map');
+
+            console.log('v999 shell navigation simulation passed');
+          })().catch(e=>{console.error(e);process.exit(1);});
+          NODE

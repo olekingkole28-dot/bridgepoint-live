@@ -1,0 +1,74 @@
+name: Validate UI V1044
+
+on:
+  push:
+    branches: [ui-v1044]
+    paths:
+      - 'app/index.html'
+      - 'app/preapp-funnel-v1044.js'
+      - 'app/customer-home-v1044.js'
+      - 'app/single-shell-v1044.js'
+      - '.github/workflows/validate-ui-v1044.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JavaScript syntax checks
+        run: |
+          set -euo pipefail
+          node --check app/preapp-funnel-v1044.js
+          node --check app/customer-home-v1044.js
+          node --check app/single-shell-v1044.js
+          node --check app/customer-surfaces-v1042.js
+          node --check app/plans-primary-v1042.js
+      - name: Runtime wiring checks
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v1044"' app/index.html
+          grep -q 'preapp-funnel-v1044.js?v=1044' app/index.html
+          grep -q 'customer-home-v1044.js?v=1044' app/index.html
+          grep -q 'single-shell-v1044.js?v=1044' app/index.html
+          ! grep -q 'single-shell-v1043.js' app/index.html
+          ! grep -q 'customer-home-v1043.js' app/index.html
+      - name: Primary navigation regression checks
+        run: |
+          set -euo pipefail
+          grep -q 'data-tab="plans"' app/single-shell-v1044.js
+          grep -q '<span>Plans</span>' app/single-shell-v1044.js
+          grep -q 'BridgePointOpenPlansV1042' app/single-shell-v1044.js
+          grep -q 'BridgePointOpenPropertiesV1042' app/single-shell-v1044.js
+          grep -q 'BridgePointOpenMoreV1042' app/single-shell-v1044.js
+          grep -q 'BridgePointSingleShellV1042=api' app/single-shell-v1044.js
+          grep -q 'BridgePointSingleShellV1043=api' app/single-shell-v1044.js
+      - name: Customer workflow guards
+        run: |
+          set -euo pipefail
+          grep -q 'bridgepoint_saved_opportunities_v842' app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_claims_workspace_v833' app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_calendar_agenda_v835' app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_flutter_properties_v725' app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_flutter_property_detail_v344' app/customer-surfaces-v1042.js
+          grep -q 'bridgepoint_public_customer_plans_v1041' app/plans-primary-v1042.js
+      - name: Pre-app acquisition and backend surface checks
+        run: |
+          set -euo pipefail
+          grep -q 'See your territory free' app/preapp-funnel-v1044.js
+          grep -q '60-second tour' app/preapp-funnel-v1044.js
+          grep -q 'bridgepoint_public_system_pulse_v957' app/preapp-funnel-v1044.js
+          grep -q 'bridgepoint_public_capability_catalog_v550' app/preapp-funnel-v1044.js
+          grep -q 'bridgepoint_public_customer_plans_v1041' app/preapp-funnel-v1044.js
+          grep -q 'bridgepoint_public_launch_promotion_v1035' app/preapp-funnel-v1044.js
+          grep -q 'Recommended:' app/preapp-funnel-v1044.js
+          grep -q 'bp_preapp_recommendation_v1044' app/preapp-funnel-v1044.js
+      - name: Existing acquisition pages still present
+        run: |
+          set -euo pipefail
+          test -s sample/index.html
+          test -s start/index.html
+          grep -q 'Show me my territory' sample/index.html
+          grep -q '60-Second BridgePoint Tour' start/index.html
+      - name: Validation summary
+        run: echo 'V1044 static and customer-flow regression gates passed.'

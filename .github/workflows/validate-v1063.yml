@@ -1,0 +1,31 @@
+name: Validate BridgePoint V1063
+on:
+  push:
+    branches: [ui-v1063-clickability-formulas, live-artifact]
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check V1063 JavaScript syntax
+        run: |
+          node --check app/preapp-links-v1063.js
+          node --check app/preapp-buttons-v1060.js
+          node --check app/preapp-deeptech-v1055.js
+      - name: Verify V1063 runtime and links
+        run: |
+          grep -q 'data-bridgepoint-runtime="v1063"' app/index.html
+          grep -q 'preapp-links-v1063.js' app/index.html
+          grep -q 'Open Deep Tech workspace' app/preapp-links-v1063.js
+          grep -q "../terms/" app/preapp-links-v1063.js
+          grep -q "bp1054-trust" app/preapp-links-v1063.js
+      - name: Protect proprietary scoring moat
+        run: |
+          ! grep -Eqi 'model_weights|proprietary_feature_code|training_rows|coefficient|scoring formula' app/preapp-links-v1063.js
+      - name: Verify no merge markers
+        run: |
+          ! grep -R -n -E '^(<<<<<<<|=======|>>>>>>>)' app/*.js app/index.html
