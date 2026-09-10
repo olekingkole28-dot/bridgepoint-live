@@ -11,6 +11,7 @@ on:
     paths:
       - '.github/workflows/building-archive-v2714.yml'
       - 'scripts/build-building-archive-tx-v2753.py'
+      - 'scripts/build-building-archive-tx-v2760.py'
       - '.github/tx-building-archive-once-v2714.trigger'
 
 permissions:
@@ -43,5 +44,5 @@ jobs:
         run: |
           test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
           test -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN"
-      - name: Stream, validate, and upload Texas building archive
-        run: python scripts/build-building-archive-tx-v2753.py
+      - name: Resume, validate, and upload Texas building archive in row-group chunks
+        run: python scripts/build-building-archive-tx-v2760.py
