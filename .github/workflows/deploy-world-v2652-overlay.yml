@@ -30,90 +30,62 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate staged V2662 world files
+      - name: Validate V2663 source
+        shell: bash
         run: |
           set -euo pipefail
-          for f in \
-            staging/world-v2652/index.html \
-            staging/world-v2652/world-v2661-first-frame.js \
-            staging/world-v2652/world-v2662-instant-map.js \
-            staging/world-v2652/world-v2662-weather-bootstrap.js \
-            staging/world-v2652/world-v2653-surface.js \
-            staging/world-v2652/world-v2656-interaction.js \
-            staging/world-v2652/world-v2657-experience.js \
-            staging/world-v2652/world-v2657-status.js \
-            staging/world-v2652/world-v2657-inspector.js \
-            staging/world-v2652/world-v2659-hifi.js \
-            staging/world-v2652/world-v2660-continuous-lod.js \
-            staging/world-v2652/world-v2652-production.js \
-            staging/world-v2652/world-v2652-actions.js \
-            staging/world-v2652/world-v2652.css \
-            staging/home-v2652/patch-live-app.py; do test -s "$f"; done
-          node --check staging/world-v2652/world-v2661-first-frame.js
-          node --check staging/world-v2652/world-v2662-instant-map.js
-          node --check staging/world-v2652/world-v2662-weather-bootstrap.js
-          node --check staging/world-v2652/world-v2653-surface.js
-          node --check staging/world-v2652/world-v2656-interaction.js
-          node --check staging/world-v2652/world-v2657-experience.js
-          node --check staging/world-v2652/world-v2657-status.js
-          node --check staging/world-v2652/world-v2657-inspector.js
-          node --check staging/world-v2652/world-v2659-hifi.js
-          node --check staging/world-v2652/world-v2660-continuous-lod.js
-          node --check staging/world-v2652/world-v2652-production.js
-          node --check staging/world-v2652/world-v2652-actions.js
-          grep -Fq 'world-v2662-instant-map.js' staging/world-v2652/index.html
+          test -s staging/world-v2652/index.html
+          test -s staging/world-v2652/world-v2663-first-map.js
+          test -s staging/world-v2652/world-v2662-instant-map.js
+          test -s staging/world-v2652/world-v2662-weather-bootstrap.js
+          test -s staging/world-v2652/world-v2661-first-frame.js
+          test -s staging/world-v2652/world-v2653-surface.js
+          test -s staging/world-v2652/world-v2656-interaction.js
+          test -s staging/world-v2652/world-v2657-experience.js
+          test -s staging/world-v2652/world-v2657-status.js
+          test -s staging/world-v2652/world-v2657-inspector.js
+          test -s staging/world-v2652/world-v2659-hifi.js
+          test -s staging/world-v2652/world-v2660-continuous-lod.js
+          test -s staging/world-v2652/world-v2652-production.js
+          test -s staging/world-v2652/world-v2652-actions.js
+          test -s staging/home-v2652/patch-live-app.py
+          for f in world-v2663-first-map.js world-v2662-instant-map.js world-v2662-weather-bootstrap.js world-v2661-first-frame.js world-v2653-surface.js world-v2656-interaction.js world-v2657-experience.js world-v2657-status.js world-v2657-inspector.js world-v2659-hifi.js world-v2660-continuous-lod.js world-v2652-production.js world-v2652-actions.js; do node --check "staging/world-v2652/$f"; done
+          grep -Fq 'world-v2663-first-map.js' staging/world-v2652/index.html
           grep -Fq 'world-v2662-weather-bootstrap.js' staging/world-v2652/index.html
-          grep -Fq 'BridgePointInstantMapV2662' staging/world-v2652/world-v2662-instant-map.js
+          grep -Fq 'BridgePointFirstPoliticalV2663' staging/world-v2652/world-v2663-first-map.js
           grep -Fq 'BridgePointWeatherBootstrapV2662' staging/world-v2652/world-v2662-weather-bootstrap.js
-          grep -Fq 'bridgepoint_us_weather_bootstrap_v2662' staging/world-v2652/world-v2662-weather-bootstrap.js
+          grep -Fq 'instant-map-world-2663' staging/home-v2652/patch-live-app.py
           ! grep -Fq 'world-v2658-ground-labels.js' staging/world-v2652/index.html
           ! grep -Fq 'world-v2661-surface-labels.js' staging/world-v2652/index.html
-          grep -Fq 'world-v2660-continuous-lod.js' staging/world-v2652/index.html
-          grep -Fq 'instant-map-world-2662' staging/home-v2652/patch-live-app.py
-          ! grep -Fq '<iframe' staging/home-v2652/patch-live-app.py
-          ! grep -Fq 'WebMapServiceImageryProvider' staging/world-v2652/world-v2653-surface.js
+          ! grep -Fq 'caches.delete' staging/home-v2652/patch-live-app.py
 
-      - name: Assemble direct V2662 instant map world
+      - name: Assemble V2663 app
+        shell: bash
         run: |
           set -euo pipefail
           git fetch origin live-artifact:refs/remotes/origin/live-artifact
           rm -rf site && mkdir site
           git archive --format=tar origin/live-artifact | tar -xf - -C site
-          test -s site/app/index.html
-          test -s site/app/flutter_service_worker.js
           test -s site/app/bridgepoint-3d-world/world-v2500.js
-          test -s site/app/bridgepoint-3d-world/world-v2500.css
-
-          cp staging/world-v2652/index.html site/app/bridgepoint-3d-world/index.html
-          cp staging/world-v2652/world-v2661-first-frame.js site/app/bridgepoint-3d-world/world-v2661-first-frame.js
-          cp staging/world-v2652/world-v2662-instant-map.js site/app/bridgepoint-3d-world/world-v2662-instant-map.js
-          cp staging/world-v2652/world-v2662-weather-bootstrap.js site/app/bridgepoint-3d-world/world-v2662-weather-bootstrap.js
-          cp staging/world-v2652/world-v2653-surface.js site/app/bridgepoint-3d-world/world-v2653-surface.js
-          cp staging/world-v2652/world-v2656-interaction.js site/app/bridgepoint-3d-world/world-v2656-interaction.js
-          cp staging/world-v2652/world-v2657-experience.js site/app/bridgepoint-3d-world/world-v2657-experience.js
-          cp staging/world-v2652/world-v2657-status.js site/app/bridgepoint-3d-world/world-v2657-status.js
-          cp staging/world-v2652/world-v2657-inspector.js site/app/bridgepoint-3d-world/world-v2500-inspector.js
-          cp staging/world-v2652/world-v2659-hifi.js site/app/bridgepoint-3d-world/world-v2659-hifi.js
-          cp staging/world-v2652/world-v2660-continuous-lod.js site/app/bridgepoint-3d-world/world-v2660-continuous-lod.js
-          cp staging/world-v2652/world-v2652-production.js site/app/bridgepoint-3d-world/world-v2652-production.js
-          cp staging/world-v2652/world-v2652-actions.js site/app/bridgepoint-3d-world/world-v2652-actions.js
-          cp staging/world-v2652/world-v2652.css site/app/bridgepoint-3d-world/world-v2652.css
+          mkdir -p site/app/bridgepoint-3d-world
+          cp -a staging/world-v2652/. site/app/bridgepoint-3d-world/
 
           curl -fsSL --retry 4 --retry-delay 1 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson' -o site/app/bridgepoint-3d-world/countries-50m.geojson
+          curl -fsSL --retry 4 --retry-delay 1 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson' -o site/app/bridgepoint-3d-world/countries-110m.geojson
           curl -fsSL --retry 4 --retry-delay 1 'https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json' -o site/app/bridgepoint-3d-world/us-states.geojson
+
           python3 - <<'PY'
           import json
           from pathlib import Path
           root=Path('site/app/bridgepoint-3d-world')
-          for name in ('countries-50m.geojson','us-states.geojson'):
+          for name in ('countries-50m.geojson','countries-110m.geojson','us-states.geojson'):
               data=json.loads((root/name).read_text())
               assert data.get('type')=='FeatureCollection' and len(data.get('features',[]))>20, name
           p=root/'world-v2500.js'
           s=p.read_text()
-          s=s.replace("viewer.imageryLayers.addImageryProvider(globalImagery);","// V2662: photographic global imagery disabled by default")
-          s=s.replace("viewer.imageryLayers.addImageryProvider(imagery);","// V2662: photographic U.S. imagery disabled by default")
-          s=s.replace("  await loadCountries();\n  viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(-98.35,39.35,5600000),orientation:{heading:0,pitch:Cesium.Math.toRadians(-88),roll:0}}); viewer.scene.requestRender();",
-                      "  viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(-98.35,39.35,5550000),orientation:{heading:0,pitch:Cesium.Math.toRadians(-88.5),roll:0}}); viewer.scene.requestRender();\n  loadCountries().catch(e=>console.warn('country bootstrap deferred',e));")
+          s=s.replace("viewer.imageryLayers.addImageryProvider(globalImagery);","// V2663 photographic global imagery disabled by default")
+          s=s.replace("viewer.imageryLayers.addImageryProvider(imagery);","// V2663 photographic U.S. imagery disabled by default")
+          s=s.replace("  await loadCountries();","  loadCountries().catch(e=>console.warn('country gating geometry deferred',e));")
           s=s.replace("  await startAtUser();","  viewer.camera.setView({destination:Cesium.Cartesian3.fromDegrees(-98.35,39.35,5550000),orientation:{heading:0,pitch:Cesium.Math.toRadians(-88.5),roll:0}}); viewer.scene.requestRender();")
           p.write_text(s)
           assert 'viewer.imageryLayers.addImageryProvider(globalImagery);' not in s
@@ -127,39 +99,33 @@ jobs:
           cp -a site/app/bridgepoint-3d-world site/app/bridgepoint-world-v2652
           python3 staging/home-v2652/patch-live-app.py
 
-          grep -Fq 'instant-map-world-2662' site/app/index.html
-          ! grep -Fq '<iframe' site/app/index.html
-          ! grep -Fq 'flutter_bootstrap.js' site/app/index.html
-          ! grep -Fq 'main.dart.js' site/app/index.html
-          grep -Fq 'world-v2662-instant-map.js' site/app/bridgepoint-world-v2652/index.html
+          test -s site/app/bridgepoint-world-v2652/countries-110m.geojson
+          grep -Fq 'world-v2663-first-map.js' site/app/bridgepoint-world-v2652/index.html
           grep -Fq 'world-v2662-weather-bootstrap.js' site/app/bridgepoint-world-v2652/index.html
-          grep -Fq 'BridgePointInstantMapV2662' site/app/bridgepoint-world-v2652/world-v2662-instant-map.js
-          grep -Fq 'BridgePointWeatherBootstrapV2662' site/app/bridgepoint-world-v2652/world-v2662-weather-bootstrap.js
-          test -s site/app/bridgepoint-world-v2652/countries-50m.geojson
-          test -s site/app/bridgepoint-world-v2652/us-states.geojson
-          ! grep -Fq 'await loadCountries();' site/app/bridgepoint-world-v2652/world-v2500.js
-          ! grep -Fq 'viewer.imageryLayers.addImageryProvider(globalImagery);' site/app/bridgepoint-world-v2652/world-v2500.js
-          ! grep -Fq 'viewer.imageryLayers.addImageryProvider(imagery);' site/app/bridgepoint-world-v2652/world-v2500.js
+          grep -Fq 'instant-map-world-2663' site/app/index.html
+          ! grep -Fq '<iframe' site/app/index.html
+          ! grep -Fq 'main.dart.js' site/app/index.html
 
           cat > site/app/bridgepoint-world-overlay-v2652.json <<EOF
-          {"app_shell_version":2662,"map_only":true,"direct_map_navigation":true,"iframe":false,"flutter_ui_enabled":false,"first_frame":"US_CAMERA_SYNCHRONOUS","automatic_gps_on_boot":false,"us_state_bootstrap":"LOCAL_PRELOADED_FIRST","country_bootstrap":"DEFERRED_LOCAL_BUNDLED_GEOJSON","country_labels":"WORLD_FIXED_SURFACE_TEXTURES","state_labels":"WORLD_FIXED_SURFACE_TEXTURES","legacy_screen_country_labels":false,"us_jurisdictions_green":true,"foreign_countries_red_locked":true,"weather_start":"PUBLIC_COMPACT_CACHE_PLUS_PARALLEL_LIVE_REFRESH","weather_bootstrap_rpc":"bridgepoint_us_weather_bootstrap_v2662","weather_full_us_distance":26000000,"weather_cache_minutes":20,"weather_refresh_seconds":300,"continuous_lod":true,"coarse_geometry_persists_until_refined":true,"predictive_camera_prefetch_ms":38,"navigation_controls":["My Location","Full U.S.","Ground View"],"surface_mode":"BRIDGEPOINT_GENERATED_MATERIAL_WORLD","raw_landcover_visible":false,"satellite_default":false,"overlay_source_sha":"${GITHUB_SHA}","versioned_world_path":"/app/bridgepoint-world-v2652/"}
+          {"app_shell_version":2663,"map_only":true,"first_frame":"US_CAMERA_SYNCHRONOUS","repeat_launch_cache":"MAP_CORE_CACHE_FIRST","us_state_bootstrap":"PRELOADED_LOCAL_89KB","country_first_view":"PRELOADED_110M_COARSE_WORLD_FIXED","country_detail":"DEFERRED_50M_FOR_GATING","country_labels":"WORLD_FIXED_SURFACE_TEXTURES","legacy_screen_country_labels":false,"us_jurisdictions_green":true,"foreign_countries_red_locked":true,"weather_start":"SERVER_5_MIN_CACHE_PLUS_LOCAL_CACHE_PLUS_LIVE_REFRESH","weather_bootstrap_rpc":"bridgepoint_us_weather_bootstrap_v2662","weather_full_us_distance":26000000,"continuous_lod":true,"predictive_camera_prefetch_ms":38,"satellite_default":false,"raw_landcover_visible":false,"overlay_source_sha":"${GITHUB_SHA}"}
           EOF
           touch site/.nojekyll site/app/.nojekyll
 
       - name: Persist live artifact
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
           set -euo pipefail
-          rm -rf /tmp/instant-world && mkdir /tmp/instant-world
-          cp -a site/. /tmp/instant-world/
-          cd /tmp/instant-world
+          rm -rf /tmp/live && mkdir /tmp/live
+          cp -a site/. /tmp/live/
+          cd /tmp/live
           git init -q
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m "Publish BridgePoint V2662 instant map ${GITHUB_SHA}"
+          git commit -m "Publish BridgePoint instant map V2663 ${GITHUB_SHA}"
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -171,7 +137,8 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: Verify production V2662 world
+      - name: Verify production V2663
+        shell: bash
         run: |
           set -euo pipefail
           ORIGIN='https://bridgepointintelligence.online'
@@ -180,13 +147,13 @@ jobs:
             marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-overlay-v2652.json?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
             app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
             world="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
-            instant="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/world-v2662-instant-map.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            first="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/world-v2663-first-map.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
             weather="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/world-v2662-weather-bootstrap.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
-            base="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-world-v2652/world-v2500.js?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
-            states_code="$(curl -sS -o /tmp/states.geojson -w '%{http_code}' --max-time 15 "${ORIGIN}/app/bridgepoint-world-v2652/us-states.geojson?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
-            if printf '%s' "$marker" | grep -Fq '"app_shell_version":2662' && printf '%s' "$marker" | grep -Fq 'bridgepoint_us_weather_bootstrap_v2662' && printf '%s' "$app" | grep -Fq 'instant-map-world-2662' && printf '%s' "$world" | grep -Fq 'world-v2662-instant-map.js' && printf '%s' "$world" | grep -Fq 'world-v2662-weather-bootstrap.js' && printf '%s' "$instant" | grep -Fq 'BridgePointInstantMapV2662' && printf '%s' "$weather" | grep -Fq 'BridgePointWeatherBootstrapV2662' && ! printf '%s' "$base" | grep -Fq 'viewer.imageryLayers.addImageryProvider(globalImagery);' && ! printf '%s' "$base" | grep -Fq 'viewer.imageryLayers.addImageryProvider(imagery);' && [ "$states_code" = '200' ]; then
+            c110="$(curl -sS -o /tmp/c110.json -w '%{http_code}' --max-time 15 "${ORIGIN}/app/bridgepoint-world-v2652/countries-110m.geojson?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            states="$(curl -sS -o /tmp/states.json -w '%{http_code}' --max-time 15 "${ORIGIN}/app/bridgepoint-world-v2652/us-states.geojson?v=${GITHUB_SHA}-${attempt}" 2>/dev/null || true)"
+            if printf '%s' "$marker" | grep -Fq '"app_shell_version":2663' && printf '%s' "$app" | grep -Fq 'instant-map-world-2663' && printf '%s' "$world" | grep -Fq 'world-v2663-first-map.js' && printf '%s' "$first" | grep -Fq 'BridgePointFirstPoliticalV2663' && printf '%s' "$weather" | grep -Fq 'BridgePointWeatherBootstrapV2662' && [ "$c110" = 200 ] && [ "$states" = 200 ]; then
               ok=1
-              echo "BRIDGEPOINT_INSTANT_MAP_WORLD_V2662_LIVE"
+              echo "BRIDGEPOINT_INSTANT_MAP_V2663_LIVE"
               break
             fi
             sleep 5
