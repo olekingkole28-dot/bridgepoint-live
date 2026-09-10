@@ -405,7 +405,26 @@ def build_crosswalk(con,state,cat,local_path,out_path):
 def split_output(con,out_path,total_rows):
     size=out_path.stat().st_size
     if size<=HARD_BYTES:
-        return [(out_path,total_rows,size)]
+        row=con.execute(f"""
+          SELECT
+            count(*)::BIGINT,
+            count(*) FILTER(WHERE match_status='CONFIRMED')::BIGINT,
+            count(*) FILTER(WHERE match_status LIKE 'CANDIDATE%')::BIGINT,
+            count(*) FILTER(WHERE match_status='UNMATCHED')::BIGINT,
+            (count(*)-count(DISTINCT building_geometry_id))::BIGINT,
+            count(*) FILTER(WHERE match_status IS NULL OR match_status='')::BIGINT
+          FROM read_parquet({q(str(out_path))})
+        """).fetchone()
+        return [{
+            "path":out_path,
+            "rows":int(row[0]),
+            "confirmed":int(row[1]),
+            "candidate":int(row[2]),
+            "unmatched":int(row[3]),
+            "duplicate_output_local_ids":int(row[4]),
+            "missing_status":int(row[5]),
+            "bytes":size,
+        }]
     n=max(2,math.ceil(size/TARGET_BYTES))
     src=q(str(out_path))
     while True:
