@@ -26,9 +26,27 @@ jobs:
     timeout-minutes: 180
     strategy:
       fail-fast: false
-      max-parallel: 8
+      max-parallel: 16
       matrix:
-        item: ['00016','00027','00037','00038','00040','00041','00042','00043']
+        include:
+          - { item: '00016', lane: 0, lanes: 1 }
+          - { item: '00027', lane: 0, lanes: 3 }
+          - { item: '00027', lane: 1, lanes: 3 }
+          - { item: '00027', lane: 2, lanes: 3 }
+          - { item: '00037', lane: 0, lanes: 2 }
+          - { item: '00037', lane: 1, lanes: 2 }
+          - { item: '00038', lane: 0, lanes: 1 }
+          - { item: '00040', lane: 0, lanes: 4 }
+          - { item: '00040', lane: 1, lanes: 4 }
+          - { item: '00040', lane: 2, lanes: 4 }
+          - { item: '00040', lane: 3, lanes: 4 }
+          - { item: '00041', lane: 0, lanes: 4 }
+          - { item: '00041', lane: 1, lanes: 4 }
+          - { item: '00041', lane: 2, lanes: 4 }
+          - { item: '00041', lane: 3, lanes: 4 }
+          - { item: '00042', lane: 0, lanes: 2 }
+          - { item: '00042', lane: 1, lanes: 2 }
+          - { item: '00043', lane: 0, lanes: 1 }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -41,8 +59,8 @@ jobs:
         run: |
           test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
           test -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN"
-      - name: Build remaining Texas source item
-        run: python scripts/build-building-archive-tx-item-v2765.py --item "${{ matrix.item }}"
+      - name: Build remaining Texas source item lane
+        run: python scripts/build-building-archive-tx-item-v2765.py --item "${{ matrix.item }}" --lane "${{ matrix.lane }}" --lanes "${{ matrix.lanes }}"
 
   finalize-texas:
     needs: texas-item
