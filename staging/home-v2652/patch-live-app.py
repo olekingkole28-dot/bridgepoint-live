@@ -31,16 +31,16 @@ map_only = '''<!doctype html>
           await Promise.all(keys.map(key=>caches.delete(key)));
         }
       }catch(_){ }
-      location.replace('bridgepoint-world-v2652/?release=instant-surface-world-2661');
+      location.replace('bridgepoint-world-v2652/?release=instant-map-world-2662');
     })();
   </script>
-  <noscript><a href="bridgepoint-world-v2652/?release=instant-surface-world-2661">Open BridgePoint World</a></noscript>
+  <noscript><a href="bridgepoint-world-v2652/?release=instant-map-world-2662">Open BridgePoint World</a></noscript>
 </body>
 </html>
 '''
 
 index.write_text(map_only)
-service_worker.write_text('''const VERSION = "bridgepoint-direct-world-v2661";
+service_worker.write_text('''const VERSION = "bridgepoint-direct-world-v2662";
 self.addEventListener("install", event => { self.skipWaiting(); });
 self.addEventListener("activate", event => {
   event.waitUntil(
@@ -56,8 +56,8 @@ self.addEventListener("fetch", event => {
 
 s = index.read_text()
 assert 'location.replace' in s
-assert 'instant-surface-world-2661' in s
+assert 'instant-map-world-2662' in s
 assert '<iframe' not in s
 assert 'flutter_bootstrap.js' not in s
 assert 'main.dart.js' not in s
-print('DIRECT_INSTANT_SURFACE_WORLD_V2661')
+print('DIRECT_INSTANT_MAP_WORLD_V2662')
