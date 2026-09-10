@@ -6,7 +6,18 @@ const executablePath = candidates.find((p) => fs.existsSync(p));
 if (!executablePath) throw new Error(`No system Chromium/Chrome found. Tried: ${candidates.join(', ')}`);
 
 const url = `https://bridgepointintelligence.online/smoke-v2713/?ci=${Date.now()}`;
-const browser = await chromium.launch({executablePath,headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=swiftshader','--enable-webgl']});
+const browser = await chromium.launch({
+  executablePath,
+  headless:true,
+  args:[
+    '--no-sandbox',
+    '--disable-dev-shm-usage',
+    '--enable-webgl',
+    '--use-gl=angle',
+    '--use-angle=swiftshader-webgl',
+    '--enable-unsafe-swiftshader'
+  ]
+});
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const consoleMessages = [];
 const pageErrors = [];
@@ -40,6 +51,7 @@ try {
   }
   const result = await diagnostics();
   console.log(JSON.stringify({ executablePath, url, ...result, consoleMessages, pageErrors }, null, 2));
+  if (!result.webgl && !result.webgl2) throw new Error('Browser did not expose WebGL after SwiftShader opt-in');
   if (!result.smoke?.ok) throw new Error(`Browser smoke failed: ${result.smoke?.error || result.status}`);
   if (!(Number(result.smoke?.rendered) > 0)) throw new Error(`Cesium rendered count is not positive: ${result.smoke?.rendered}`);
   if (!String(result.status).startsWith('V2713_BROWSER_SMOKE_PASS')) throw new Error(`Unexpected status: ${result.status}`);
