@@ -1,6 +1,6 @@
 import { PMTiles } from 'pmtiles';
 import { VectorTile } from '@mapbox/vector-tile';
-import Pbf from 'pbf';
+import { PbfReader } from 'pbf';
 
 const FALLBACK_RELEASE = '2026-08-19.0';
 const STAC_URL = 'https://stac.overturemaps.org/catalog.json';
@@ -44,7 +44,7 @@ for (let dy = -1; dy <= 1 && !found; dy++) {
     const x = cx + dx, y = cy + dy;
     const rr = await pm.getZxy(z, x, y);
     if (!rr?.data) continue;
-    const vt = new VectorTile(new Pbf(rr.data));
+    const vt = new VectorTile(new PbfReader(rr.data));
     const building = vt.layers?.building;
     const part = vt.layers?.building_part;
     const total = Number(building?.length || 0) + Number(part?.length || 0);
