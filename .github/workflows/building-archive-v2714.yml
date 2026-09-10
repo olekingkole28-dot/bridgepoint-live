@@ -1,25 +1,47 @@
 name: Building Archive v2714
 
-# Safety gate: bulk archive generation is complete except the original TX/building
-# job still running from the earlier matrix. This workflow now exists only to
-# cancel the newer duplicate TX run through the same concurrency group.
+# Data-only completion lane for the single remaining archive: TX/building.
+# The prior whole-state job stalled before writing a part. This version streams
+# the 11 intersecting Overture source files one at a time and keeps the existing
+# v2710 manifest/part contract used by the other 111 verified archives.
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
+      - '.github/workflows/building-archive-v2714.yml'
+      - 'scripts/build-building-archive-tx-v2753.py'
       - '.github/tx-building-archive-once-v2714.trigger'
 
 permissions:
   contents: read
+  id-token: write
 
+# Use the same repo-wide group as the old matrix run. Starting this bounded
+# replacement cancels the one stale monolithic TX job but does not alter any
+# already-persisted verified archive.
 concurrency:
-  group: bridgepoint-building-archive-v2714-tx
+  group: bridgepoint-building-archive-v2714
   cancel-in-progress: true
 
+env:
+  SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
+
 jobs:
-  archive-safety-gate:
+  texas-building-stream:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 240
     steps:
-      - run: echo "TX duplicate archive runner cancelled; original matrix TX job remains authoritative."
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned data-build dependencies
+        run: python -m pip install --disable-pip-version-check duckdb==1.4.1 requests==2.32.5
+      - name: Verify renewable GitHub OIDC endpoint
+        shell: bash
+        run: |
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+      - name: Stream, validate, and upload Texas building archive
+        run: python scripts/build-building-archive-tx-v2753.py
