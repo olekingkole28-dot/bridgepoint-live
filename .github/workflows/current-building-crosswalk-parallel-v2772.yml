@@ -13,7 +13,7 @@ permissions:
 
 # Replaces the old one-runner-per-state crosswalk immediately.
 concurrency:
-  group: bridgepoint-current-building-crosswalk-v2752
+  group: bridgepoint-current-building-crosswalk-parallel-v2772
   cancel-in-progress: true
 
 env:
