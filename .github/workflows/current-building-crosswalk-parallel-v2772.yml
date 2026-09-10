@@ -1,99 +1,20 @@
 name: Current Building Crosswalk Parallel v2772
 
+# The active 16-lane sprint was launched from commit c134bf19.
+# New automatic copies are disabled so they cannot reset completed lane data.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/current-building-crosswalk-parallel-v2772.yml'
 
 permissions:
   contents: read
-  id-token: write
 
-# Replaces the old one-runner-per-state crosswalk immediately.
 concurrency:
   group: bridgepoint-current-building-crosswalk-parallel-v2772
   cancel-in-progress: true
 
-env:
-  SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
-
 jobs:
-  prepare:
+  duplicate-safety-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 2
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: python -m pip install --disable-pip-version-check requests==2.32.5
-      - run: python scripts/manage-current-building-crosswalk-parallel-v2772.py --mode prepare
-
-  match:
-    needs: prepare
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      max-parallel: 16
-      matrix:
-        include:
-          - { state: LA, lane: 0, lanes: 3 }
-          - { state: LA, lane: 1, lanes: 3 }
-          - { state: LA, lane: 2, lanes: 3 }
-          - { state: PA, lane: 0, lanes: 5 }
-          - { state: PA, lane: 1, lanes: 5 }
-          - { state: PA, lane: 2, lanes: 5 }
-          - { state: PA, lane: 3, lanes: 5 }
-          - { state: PA, lane: 4, lanes: 5 }
-          - { state: NY, lane: 0, lanes: 8 }
-          - { state: NY, lane: 1, lanes: 8 }
-          - { state: NY, lane: 2, lanes: 8 }
-          - { state: NY, lane: 3, lanes: 8 }
-          - { state: NY, lane: 4, lanes: 8 }
-          - { state: NY, lane: 5, lanes: 8 }
-          - { state: NY, lane: 6, lanes: 8 }
-          - { state: NY, lane: 7, lanes: 8 }
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: python -m pip install --disable-pip-version-check duckdb==1.4.1 pyarrow==21.0.0 requests==2.32.5
-      - name: Match fixed building lane
-        run: python scripts/build-current-building-crosswalk-lane-v2772.py --state "${{ matrix.state }}" --lane "${{ matrix.lane }}" --lanes "${{ matrix.lanes }}"
-
-  finalize-la:
-    needs: match
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
-      - run: python -m pip install --disable-pip-version-check requests==2.32.5
-      - run: python scripts/manage-current-building-crosswalk-parallel-v2772.py --mode finalize --state LA --lanes 3
-
-  finalize-pa:
-    needs: match
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
-      - run: python -m pip install --disable-pip-version-check requests==2.32.5
-      - run: python scripts/manage-current-building-crosswalk-parallel-v2772.py --mode finalize --state PA --lanes 5
-
-  finalize-ny:
-    needs: match
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
-      - run: python -m pip install --disable-pip-version-check requests==2.32.5
-      - run: python scripts/manage-current-building-crosswalk-parallel-v2772.py --mode finalize --state NY --lanes 8
+      - run: echo "Automatic duplicate suppressed; active v2772 sprint remains authoritative."
