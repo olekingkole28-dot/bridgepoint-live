@@ -3,14 +3,11 @@ import argparse, json, os
 import duckdb, requests
 
 U=os.environ['SUPABASE_URL'].rstrip('/')
-KEY=os.environ['SUPABASE_KEY']
 BROKER=f'{U}/functions/v1/bridgepoint-building-archive-broker-v2710'
-INV=f'{U}/rest/v1/rpc/bridgepoint_public_building_source_inventory_v2710'
 AUD='bridgepoint-building-v2710'
 
-def post(url,payload,headers=None,timeout=180):
-    h={'content-type':'application/json'}; h.update(headers or {})
-    r=requests.post(url,json=payload,headers=h,timeout=timeout)
+def post(url,payload,timeout=180):
+    r=requests.post(url,json=payload,headers={'content-type':'application/json'},timeout=timeout)
     if not r.ok: raise RuntimeError(f'{r.status_code}: {r.text[:1200]}')
     return r.json()
 
@@ -24,7 +21,7 @@ def q(s): return "'"+str(s).replace("'","''")+"'"
 
 ap=argparse.ArgumentParser(); ap.add_argument('--shard',type=int,required=True); ap.add_argument('--shards',type=int,default=4); a=ap.parse_args()
 if a.shard<0 or a.shard>=a.shards: raise SystemExit('invalid shard')
-inv=post(INV,{}, {'apikey':KEY,'authorization':f'Bearer {KEY}'})
+inv=post(BROKER,{'action':'inventory','oidc_token':oidc()})
 items=list(inv.get('items') or [])
 expected_global=int(inv.get('total_rows',0))
 if expected_global<=0 or not items: raise RuntimeError('empty building source inventory')
