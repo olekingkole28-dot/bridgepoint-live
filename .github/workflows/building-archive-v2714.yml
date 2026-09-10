@@ -1,26 +1,18 @@
 name: Building Archive v2714
 
-# Data-only completion lane for the single remaining archive: TX/building.
-# The prior whole-state job stalled before writing a part. This version streams
-# the 11 intersecting Overture source files one at a time and keeps the existing
-# v2710 manifest/part contract used by the other 111 verified archives.
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
       - '.github/workflows/building-archive-v2714.yml'
-      - 'scripts/build-building-archive-tx-v2753.py'
-      - 'scripts/build-building-archive-tx-v2760.py'
-      - '.github/tx-building-archive-once-v2714.trigger'
+      - 'scripts/build-building-archive-tx-item-v2765.py'
+      - 'scripts/finalize-building-archive-tx-v2765.py'
 
 permissions:
   contents: read
   id-token: write
 
-# Use the same repo-wide group as the old matrix run. Starting this bounded
-# replacement cancels the one stale monolithic TX job but does not alter any
-# already-persisted verified archive.
 concurrency:
   group: bridgepoint-building-archive-v2714
   cancel-in-progress: true
@@ -29,9 +21,14 @@ env:
   SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
 
 jobs:
-  texas-building-stream:
+  texas-item:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        item: ['00016','00027','00037','00038','00040','00041','00042','00043']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -44,5 +41,25 @@ jobs:
         run: |
           test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
           test -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN"
-      - name: Resume, validate, and upload Texas building archive in row-group chunks
-        run: python scripts/build-building-archive-tx-v2760.py
+      - name: Build remaining Texas source item
+        run: python scripts/build-building-archive-tx-item-v2765.py --item "${{ matrix.item }}"
+
+  finalize-texas:
+    needs: texas-item
+    if: ${{ always() && needs.texas-item.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned validation dependencies
+        run: python -m pip install --disable-pip-version-check duckdb==1.4.1 requests==2.32.5
+      - name: Verify renewable GitHub OIDC endpoint
+        shell: bash
+        run: |
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+      - name: Prove Texas archive complete and unique
+        run: python scripts/finalize-building-archive-tx-v2765.py
