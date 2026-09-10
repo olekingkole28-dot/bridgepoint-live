@@ -1,0 +1,26 @@
+name: Browser Test Source-Native Buildings v2713
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/browser-source-native-buildings-v2713.mjs'
+      - '.github/workflows/browser-test-source-native-buildings-v2713.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser driver
+        run: npm install --no-save --no-audit --no-fund playwright-core@1.55.0
+      - name: Verify live Cesium building render
+        run: node scripts/browser-source-native-buildings-v2713.mjs
