@@ -1,0 +1,65 @@
+name: Texas Building Gap Repair v2770
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/building-archive-tx-repair-v2770.yml'
+      - 'scripts/repair-building-archive-tx-v2770.py'
+      - 'scripts/finalize-building-archive-tx-v2770.py'
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: bridgepoint-building-archive-tx-repair-v2770
+  cancel-in-progress: true
+
+env:
+  SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 16
+      matrix:
+        lane: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned data dependencies
+        run: python -m pip install --disable-pip-version-check duckdb==1.4.1 requests==2.32.5
+      - name: Verify renewable GitHub OIDC endpoint
+        shell: bash
+        run: |
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+      - name: Repair deterministic Texas row-group gaps
+        run: python scripts/repair-building-archive-tx-v2770.py --lane "${{ matrix.lane }}" --lanes 16
+
+  finalize:
+    needs: repair
+    if: ${{ always() && needs.repair.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned validation dependencies
+        run: python -m pip install --disable-pip-version-check duckdb==1.4.1 requests==2.32.5
+      - name: Verify renewable GitHub OIDC endpoint
+        shell: bash
+        run: |
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+      - name: Finalize Texas only after zero gaps and unique IDs
+        run: python scripts/finalize-building-archive-tx-v2770.py
