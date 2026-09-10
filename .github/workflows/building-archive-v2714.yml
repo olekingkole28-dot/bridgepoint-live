@@ -1,0 +1,39 @@
+name: Building Archive v2714
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/building-archive-v2714.yml'
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: bridgepoint-building-archive-v2714
+  cancel-in-progress: false
+env:
+  SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
+jobs:
+  archive:
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        state: [DC]
+        kind: [building, building_part]
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned archive dependencies
+        run: python -m pip install --disable-pip-version-check duckdb==1.4.1 requests==2.32.5
+      - name: Verify renewable GitHub OIDC endpoint
+        shell: bash
+        run: |
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+      - name: Build validate and upload exact building archive
+        run: python scripts/build-building-archive-v2714.py --state ${{ matrix.state }} --kind ${{ matrix.kind }}
