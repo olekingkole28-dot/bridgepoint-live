@@ -1,0 +1,62 @@
+name: Deploy V2713 Browser Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tests/source-native-buildings-v2713/**'
+      - '.github/workflows/deploy-v2713-browser-smoke.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assemble current production plus isolated V2713 smoke page
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site && mkdir site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+          rm -rf site/smoke-v2713
+          mkdir -p site/smoke-v2713
+          cp -a tests/source-native-buildings-v2713/. site/smoke-v2713/
+          test -s site/index.html
+          test -s site/app/index.html
+          test -s site/smoke-v2713/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy isolated smoke path
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Verify smoke path published
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 24); do
+            body="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/smoke-v2713/?v=${GITHUB_SHA}-${i}" 2>/dev/null || true)"
+            if printf '%s' "$body" | grep -Fq 'V2713_BROWSER_SMOKE_STARTING' && printf '%s' "$body" | grep -Fq 'PbfReader'; then ok=1; break; fi
+            sleep 5
+          done
+          test "$ok" = 1
