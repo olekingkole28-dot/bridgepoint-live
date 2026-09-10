@@ -61,11 +61,11 @@ def build(state,kind,out):
     ) TO {q(str(out))} (FORMAT PARQUET,COMPRESSION ZSTD,ROW_GROUP_SIZE 100000)""")
     desc=[r[0] for r in con.execute(f"DESCRIBE SELECT * FROM read_parquet({q(str(out))})").fetchall()]
     a=f"read_parquet({q(str(out))})"
-    row=con.execute(f"""WITH x AS(SELECT *,geometry g FROM {a}),b AS(SELECT geom FROM bp_boundary),d AS(SELECT x.*,ST_Difference(g,b.geom) outside_geom FROM x CROSS JOIN b)
-    SELECT count(*)::BIGINT,count(*) FILTER(WHERE geometry IS NULL)::BIGINT,count(*) FILTER(WHERE geometry IS NOT NULL AND ST_IsEmpty(g))::BIGINT,
-    count(*) FILTER(WHERE geometry IS NOT NULL AND NOT ST_IsEmpty(g) AND NOT ST_IsEmpty(outside_geom) AND ST_Length(outside_geom)>{TOL})::BIGINT,
+    row=con.execute(f"""WITH x AS(SELECT *,CASE WHEN geometry IS NULL THEN NULL ELSE ST_GeomFromWKB(geometry) END g FROM {a}),b AS(SELECT geom FROM bp_boundary),d AS(SELECT x.*,CASE WHEN g IS NULL THEN NULL ELSE ST_Difference(g,b.geom) END outside_geom FROM x CROSS JOIN b)
+    SELECT count(*)::BIGINT,count(*) FILTER(WHERE geometry IS NULL)::BIGINT,count(*) FILTER(WHERE g IS NOT NULL AND ST_IsEmpty(g))::BIGINT,
+    count(*) FILTER(WHERE g IS NOT NULL AND NOT ST_IsEmpty(g) AND outside_geom IS NOT NULL AND NOT ST_IsEmpty(outside_geom) AND ST_Length(outside_geom)>{TOL})::BIGINT,
     (count(*)-count(DISTINCT id))::BIGINT,
-    count(*) FILTER(WHERE geometry IS NOT NULL AND NOT ST_IsEmpty(g) AND NOT ST_IsEmpty(outside_geom) AND ST_Length(outside_geom)<={TOL})::BIGINT,
+    count(*) FILTER(WHERE g IS NOT NULL AND NOT ST_IsEmpty(g) AND outside_geom IS NOT NULL AND NOT ST_IsEmpty(outside_geom) AND ST_Length(outside_geom)<={TOL})::BIGINT,
     coalesce(max(ST_Length(outside_geom)) FILTER(WHERE outside_geom IS NOT NULL AND NOT ST_IsEmpty(outside_geom)),0)::DOUBLE FROM d""").fetchone()
     validation={'null_geometry':int(row[1]),'empty_geometry':int(row[2]),'outside_geometry':int(row[3]),'duplicate_ids':int(row[4]),'precision_slivers':int(row[5]),'max_outside_length_degrees':float(row[6]),'boundary_validation_tolerance_degrees':TOL}
     if any(validation[k] for k in ('null_geometry','empty_geometry','outside_geometry','duplicate_ids')): raise RuntimeError(f'Validation failed {state}/{kind}: {validation}')
