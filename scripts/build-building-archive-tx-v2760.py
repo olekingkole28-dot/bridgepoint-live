@@ -373,8 +373,12 @@ def main():
     ]
     existing.sort(key=lambda x:int(x["part_index"]))
 
-    meta=manifest.get("metadata") or {}
-    last_completed=str(meta.get("last_source_item_id") or "")
+    existing_item_ids=[
+        str((p.get("metadata") or {}).get("source_item_id") or "")
+        for p in existing
+        if str((p.get("metadata") or {}).get("source_item_id") or "")
+    ]
+    last_completed=max(existing_item_ids) if existing_item_ids else ""
     next_part=(max([int(p["part_index"]) for p in existing])+1) if existing else 0
 
     files={str(f["item_id"]):f for f in cat.get("files",[])}
