@@ -1,18 +1,20 @@
 name: Building Archive v2714
 
-# Manual-only safety gate.
-# Bulk archive generation must not use public GitHub Actions as a substitute
-# for exhausted private Actions quota. BridgePoint's database-native FDW
-# materialization path is the active ingestion path.
+# One bounded completion run for the sole unresolved archive: TX/building.
+# This workflow remains data-only and does not touch the app or deployment artifact.
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/tx-building-archive-once-v2714.trigger'
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: bridgepoint-building-archive-v2714
+  group: bridgepoint-building-archive-v2714-tx
   cancel-in-progress: true
 
 env:
@@ -20,12 +22,6 @@ env:
 
 jobs:
   archive:
-    strategy:
-      fail-fast: false
-      max-parallel: 8
-      matrix:
-        state: [AK, AL, AR, AS, AZ, CA, CO, CT, DC, DE, FL, GA, GU, HI, IA, ID, IL, IN, KS, KY, LA, MA, MD, ME, MI, MN, MO, MP, MS, MT, NC, ND, NE, NH, NJ, NM, NV, NY, OH, OK, OR, PA, PR, RI, SC, SD, TN, TX, UT, VA, VI, VT, WA, WI, WV, WY]
-        kind: [building, building_part]
     runs-on: ubuntu-latest
     timeout-minutes: 240
     steps:
@@ -40,5 +36,5 @@ jobs:
         run: |
           test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
           test -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN"
-      - name: Build validate and upload exact building archive
-        run: python scripts/build-building-archive-v2714.py --state ${{ matrix.state }} --kind ${{ matrix.kind }}
+      - name: Build validate and upload exact Texas building archive
+        run: python scripts/build-building-archive-v2714.py --state TX --kind building
