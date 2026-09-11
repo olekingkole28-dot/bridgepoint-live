@@ -16,17 +16,30 @@ on:
         description: Existing parent total lane count
         required: true
         type: string
+      original_job_id:
+        description: Original parent GitHub check-run job id
+        required: false
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/current-building-crosswalk-rescue-subparts-v2780.yml'
 
 permissions:
   contents: read
   id-token: write
+  checks: read
 
 concurrency:
-  group: bridgepoint-current-building-crosswalk-rescue-subparts-${{ inputs.state }}-${{ inputs.lane }}
+  group: bridgepoint-current-building-crosswalk-rescue-subparts-${{ inputs.state || 'NY' }}-${{ inputs.lane || '4' }}
   cancel-in-progress: false
 
 env:
   SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
+  RESCUE_STATE: ${{ inputs.state || 'NY' }}
+  RESCUE_LANE: ${{ inputs.lane || '4' }}
+  RESCUE_LANES: ${{ inputs.lanes || '8' }}
+  ORIGINAL_JOB_ID: ${{ inputs.original_job_id || '103086423752' }}
 
 jobs:
   split:
@@ -46,14 +59,14 @@ jobs:
       - name: Reconcile exact rescue sublane
         run: >
           python scripts/build-current-building-crosswalk-spatial-sublane-v2780.py
-          --state "${{ inputs.state }}"
-          --lane "${{ inputs.lane }}"
-          --lanes "${{ inputs.lanes }}"
+          --state "$RESCUE_STATE"
+          --lane "$RESCUE_LANE"
+          --lanes "$RESCUE_LANES"
           --sublane "${{ matrix.sublane }}"
           --sublanes 4
       - uses: actions/upload-artifact@v4
         with:
-          name: rescue-${{ inputs.state }}-${{ inputs.lane }}-${{ matrix.sublane }}
+          name: rescue-${{ env.RESCUE_STATE }}-${{ env.RESCUE_LANE }}-${{ matrix.sublane }}
           path: rescue-v2780/
           if-no-files-found: error
           retention-days: 1
@@ -62,7 +75,7 @@ jobs:
     needs: split
     if: always() && needs.split.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -71,13 +84,28 @@ jobs:
       - run: python -m pip install --disable-pip-version-check duckdb==1.4.1 pyarrow==21.0.0 requests==2.32.5
       - uses: actions/download-artifact@v4
         with:
-          pattern: rescue-${{ inputs.state }}-${{ inputs.lane }}-*
+          pattern: rescue-${{ env.RESCUE_STATE }}-${{ env.RESCUE_LANE }}-*
           path: downloaded-rescue-v2780
           merge-multiple: true
+      - name: Do not race the original parent writer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$ORIGINAL_JOB_ID" ]]; then exit 0; fi
+          for _ in $(seq 1 280); do
+            body="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$GITHUB_REPOSITORY/check-runs/$ORIGINAL_JOB_ID")"
+            status="$(python -c 'import json,sys; print(json.load(sys.stdin).get("status",""))' <<<"$body")"
+            if [[ "$status" == "completed" ]]; then exit 0; fi
+            sleep 15
+          done
+          echo "Original writer did not conclude inside rescue gate" >&2
+          exit 1
       - name: Merge, collision-audit, upload and import parent lane
         run: >
           python scripts/merge-current-building-crosswalk-rescue-v2780.py
-          --state "${{ inputs.state }}"
-          --lane "${{ inputs.lane }}"
-          --lanes "${{ inputs.lanes }}"
+          --state "$RESCUE_STATE"
+          --lane "$RESCUE_LANE"
+          --lanes "$RESCUE_LANES"
           --sublanes 4
