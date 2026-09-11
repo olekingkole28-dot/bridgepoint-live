@@ -1,0 +1,133 @@
+name: BridgePoint Public Lockdown V2800
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-maintenance-lockdown-v2800.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: true
+
+jobs:
+  lockdown:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build sealed public surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf site
+          mkdir -p site
+
+          cat > site/index.html <<'HTML'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+            <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
+            <meta name="referrer" content="no-referrer">
+            <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+            <meta http-equiv="Pragma" content="no-cache">
+            <meta http-equiv="Expires" content="0">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; font-src 'none'; object-src 'none'; media-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'">
+            <title>BridgePoint Intelligence — Building the 3D Universe</title>
+            <style>
+              *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#02050a;color:#f4f8fb;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+              body{min-height:100vh;display:grid;place-items:center;overflow:hidden}
+              body:before{content:"";position:fixed;inset:-30%;background:radial-gradient(circle at 50% 45%,rgba(24,105,145,.22),transparent 30%),radial-gradient(circle at 60% 65%,rgba(123,80,180,.12),transparent 28%);filter:blur(20px);pointer-events:none}
+              main{position:relative;width:min(900px,92vw);padding:56px 24px;text-align:center}
+              .mark{width:58px;height:58px;margin:0 auto 22px;border-radius:50%;border:1px solid rgba(126,224,255,.5);box-shadow:0 0 45px rgba(67,196,255,.18),inset 0 0 28px rgba(67,196,255,.08);display:grid;place-items:center;font-weight:900;letter-spacing:-.08em;color:#a8efff}
+              .eyebrow{font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:#78d9ee;font-weight:800;margin-bottom:18px}
+              h1{font-size:clamp(34px,6vw,76px);line-height:.98;letter-spacing:-.045em;margin:0 auto 22px;max-width:850px}
+              p{font-size:clamp(15px,2.1vw,20px);line-height:1.65;color:#9eabb6;max-width:690px;margin:0 auto}
+              .countdown{margin:42px auto 16px;display:grid;grid-template-columns:repeat(4,minmax(72px,1fr));gap:10px;max-width:620px}
+              .unit{padding:18px 8px;border:1px solid rgba(130,211,236,.15);border-radius:16px;background:rgba(5,15,24,.54);backdrop-filter:blur(8px)}
+              .num{display:block;font-size:clamp(26px,5vw,46px);font-weight:900;letter-spacing:-.04em}
+              .label{display:block;margin-top:4px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#6f8593}
+              .target{margin-top:18px;font-size:12px;color:#61717d;letter-spacing:.04em}
+              .lock{margin-top:42px;font-size:11px;color:#455663;text-transform:uppercase;letter-spacing:.17em}
+              @media(max-width:520px){main{padding:34px 14px}.countdown{gap:6px}.unit{padding:14px 4px;border-radius:12px}.lock{margin-top:32px}}
+            </style>
+          </head>
+          <body>
+            <main>
+              <div class="mark">BP</div>
+              <div class="eyebrow">BridgePoint Intelligence</div>
+              <h1>We’re building our 3D universe.</h1>
+              <p>BridgePoint is rebuilding from the truth layer up: property intelligence, a proprietary spatial engine, and a living 3D representation of the built world. The platform is private while construction continues.</p>
+              <div class="countdown" aria-label="Estimated full release countdown">
+                <div class="unit"><span class="num" id="d">—</span><span class="label">Days</span></div>
+                <div class="unit"><span class="num" id="h">—</span><span class="label">Hours</span></div>
+                <div class="unit"><span class="num" id="m">—</span><span class="label">Minutes</span></div>
+                <div class="unit"><span class="num" id="s">—</span><span class="label">Seconds</span></div>
+              </div>
+              <div class="target">Estimated full-release target · December 31, 2026 · target adjusts as verification gates close</div>
+              <div class="lock">Public application access is temporarily disabled</div>
+            </main>
+            <script>
+              (()=>{const target=new Date('2026-12-31T23:59:59-05:00').getTime();const ids=['d','h','m','s'];function tick(){let x=Math.max(0,target-Date.now());const v=[Math.floor(x/86400000),Math.floor(x%86400000/3600000),Math.floor(x%3600000/60000),Math.floor(x%60000/1000)];ids.forEach((id,i)=>{document.getElementById(id).textContent=String(v[i]).padStart(i?2:1,'0')})}tick();setInterval(tick,1000)})();
+            </script>
+          </body>
+          </html>
+          HTML
+
+          cp site/index.html site/404.html
+
+          cat > site/robots.txt <<'TXT'
+          User-agent: *
+          Disallow: /
+          Noindex: /
+          TXT
+
+          touch site/.nojekyll
+
+          test "$(find site -type f | wc -l)" -eq 4
+          ! grep -Rqi 'supabase' site
+          ! grep -Rqi 'cesium' site
+          ! grep -Rqi 'login' site
+          ! grep -Rqi 'bridgepoint-world' site
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy sealed public surface
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify lockdown on custom domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          origin='https://bridgepointintelligence.online'
+          ok=0
+          for attempt in $(seq 1 36); do
+            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            root="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/?lockdown=${salt}" 2>/dev/null || true)"
+            app="$(curl -sSL --max-time 15 -o /tmp/app.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/?lockdown=${salt}" 2>/dev/null || true)"
+            if printf '%s' "$root" | grep -Fq 'We’re building our 3D universe.' \
+              && ! printf '%s' "$root" | grep -qi 'supabase' \
+              && grep -Fq 'We’re building our 3D universe.' /tmp/app.html; then
+              ok=1
+              echo "BRIDGEPOINT_PUBLIC_LOCKDOWN_ACTIVE root+app"
+              break
+            fi
+            sleep 5
+          done
+          test "$ok" = 1
