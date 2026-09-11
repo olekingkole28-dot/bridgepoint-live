@@ -1,0 +1,14 @@
+name: Cancel NY6 v2784 race
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cancel-ny6-v2784-race-v2788.yml'
+concurrency:
+  group: bridgepoint-current-building-rescue-ny6-v2784
+  cancel-in-progress: true
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Superseding heavier NY6 v2784 race with spatially narrowed v2787."
