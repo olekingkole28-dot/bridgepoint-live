@@ -1,0 +1,14 @@
+name: Cancel stale PA1 rescue v2781
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cancel-stale-pa1-rescue-v2785.yml'
+concurrency:
+  group: bridgepoint-current-building-rescue-pa1-v2781
+  cancel-in-progress: true
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Superseding stale PA1 rescue; PA is already verified and complete."
