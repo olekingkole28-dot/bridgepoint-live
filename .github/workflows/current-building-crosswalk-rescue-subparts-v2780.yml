@@ -31,15 +31,15 @@ permissions:
   checks: read
 
 concurrency:
-  group: bridgepoint-current-building-crosswalk-rescue-subparts-${{ inputs.state || 'NY' }}-${{ inputs.lane || '6' }}
+  group: bridgepoint-current-building-crosswalk-rescue-subparts-${{ inputs.state || 'LA' }}-${{ inputs.lane || '1' }}
   cancel-in-progress: false
 
 env:
   SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
-  RESCUE_STATE: ${{ inputs.state || 'NY' }}
-  RESCUE_LANE: ${{ inputs.lane || '6' }}
-  RESCUE_LANES: ${{ inputs.lanes || '8' }}
-  ORIGINAL_JOB_ID: ${{ inputs.original_job_id || '103086423654' }}
+  RESCUE_STATE: ${{ inputs.state || 'LA' }}
+  RESCUE_LANE: ${{ inputs.lane || '1' }}
+  RESCUE_LANES: ${{ inputs.lanes || '3' }}
+  ORIGINAL_JOB_ID: ${{ inputs.original_job_id || '103086423613' }}
 
 jobs:
   split:
