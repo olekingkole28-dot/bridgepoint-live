@@ -225,7 +225,8 @@ def build_crosswalk(con,state,cat,local_path,out_path,archive_urls=None,source_r
       SELECT
         building_geometry_id::BIGINT building_geometry_id,
         source_record_id::VARCHAR source_record_id,
-        ST_MakeValid(ST_GeomFromWKB(geometry_wkb)) geom
+        ST_GeomFromWKB(geometry_wkb) geom,
+        ST_Area(ST_GeomFromWKB(geometry_wkb)) local_area
       FROM read_parquet({local_src})
     """)
 
@@ -250,7 +251,8 @@ def build_crosswalk(con,state,cat,local_path,out_path,archive_urls=None,source_r
                 AND bbox.ymin <= {north}
                 AND bbox.ymax >= {south}
             """)
-        con.execute("CREATE TEMP TABLE overture AS " + " UNION ALL ".join(pieces))
+        con.execute("CREATE TEMP TABLE overture_raw AS " + " UNION ALL ".join(pieces))
+        con.execute("CREATE TEMP TABLE overture AS SELECT id, geom, ST_Area(geom) overture_area FROM overture_raw")
     elif input_mode=="STATE_CLIPPED_ARCHIVE":
         con.execute(f"""
           CREATE TEMP TABLE overture AS
@@ -310,8 +312,8 @@ def build_crosswalk(con,state,cat,local_path,out_path,archive_urls=None,source_r
             l.building_geometry_id,
             l.source_record_id local_source_record_id,
             o.id overture_building_id,
-            ST_Area(l.geom) local_area,
-            ST_Area(o.geom) overture_area,
+            l.local_area,
+            o.overture_area,
             ST_Area(ST_Intersection(l.geom,o.geom)) intersection_area
           FROM local l
           JOIN overture o
