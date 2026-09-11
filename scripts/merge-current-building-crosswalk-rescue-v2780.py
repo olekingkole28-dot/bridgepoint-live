@@ -99,7 +99,7 @@ def main():
           r.overture_coverage_ratio,
           r.match_score,
           CASE
-            WHEN s.local_count>1 THEN 'CANDIDATE_SHARED_OVERTURE'
+            WHEN s.local_count>1 THEN 'CANDIDATE'
             ELSE r.match_status
           END match_status,
           CASE
