@@ -84,6 +84,7 @@ def main():
       GROUP BY overture_building_id
       HAVING count(*)>1
     """)
+    shared_count=int(con.execute("SELECT count(*)::BIGINT FROM shared").fetchone()[0])
 
     con.execute(f"""
       COPY (
@@ -162,7 +163,7 @@ def main():
     print(json.dumps({
         "complete":True,"version":2780,"state":a.state,
         "lane":a.lane,"lanes":a.lanes,"sublanes":a.sublanes,
-        "rows":expected,"shared_overture_ids":int(con_shared_count if False else 0),
+        "rows":expected,"shared_overture_ids":shared_count,
         "receipt":receipt
     },separators=(",",":")))
 
