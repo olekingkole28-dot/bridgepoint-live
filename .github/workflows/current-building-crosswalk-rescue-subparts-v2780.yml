@@ -1,0 +1,83 @@
+name: Current Building Crosswalk Rescue Subparts v2780
+
+on:
+  workflow_dispatch:
+    inputs:
+      state:
+        description: State code
+        required: true
+        type: choice
+        options: [LA, NY, PA]
+      lane:
+        description: Existing parent geographic lane index
+        required: true
+        type: string
+      lanes:
+        description: Existing parent total lane count
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: bridgepoint-current-building-crosswalk-rescue-subparts-${{ inputs.state }}-${{ inputs.lane }}
+  cancel-in-progress: false
+
+env:
+  SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
+
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        sublane: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check duckdb==1.4.1 pyarrow==21.0.0 requests==2.32.5
+      - name: Reconcile exact rescue sublane
+        run: >
+          python scripts/build-current-building-crosswalk-spatial-sublane-v2780.py
+          --state "${{ inputs.state }}"
+          --lane "${{ inputs.lane }}"
+          --lanes "${{ inputs.lanes }}"
+          --sublane "${{ matrix.sublane }}"
+          --sublanes 4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rescue-${{ inputs.state }}-${{ inputs.lane }}-${{ matrix.sublane }}
+          path: rescue-v2780/
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    needs: split
+    if: always() && needs.split.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check duckdb==1.4.1 pyarrow==21.0.0 requests==2.32.5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rescue-${{ inputs.state }}-${{ inputs.lane }}-*
+          path: downloaded-rescue-v2780
+          merge-multiple: true
+      - name: Merge, collision-audit, upload and import parent lane
+        run: >
+          python scripts/merge-current-building-crosswalk-rescue-v2780.py
+          --state "${{ inputs.state }}"
+          --lane "${{ inputs.lane }}"
+          --lanes "${{ inputs.lanes }}"
+          --sublanes 4
