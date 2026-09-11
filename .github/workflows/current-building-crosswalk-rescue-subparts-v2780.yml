@@ -31,15 +31,15 @@ permissions:
   checks: read
 
 concurrency:
-  group: bridgepoint-current-building-crosswalk-rescue-subparts-${{ inputs.state || 'NY' }}-${{ inputs.lane || '5' }}
+  group: bridgepoint-current-building-crosswalk-rescue-subparts-${{ inputs.state || 'PA' }}-${{ inputs.lane || '1' }}
   cancel-in-progress: false
 
 env:
   SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
   RESCUE_STATE: ${{ inputs.state || 'NY' }}
   RESCUE_LANE: ${{ inputs.lane || '5' }}
-  RESCUE_LANES: ${{ inputs.lanes || '8' }}
-  ORIGINAL_JOB_ID: ${{ inputs.original_job_id || '103086423698' }}
+  RESCUE_LANES: ${{ inputs.lanes || '5' }}
+  ORIGINAL_JOB_ID: ${{ inputs.original_job_id || '103086423628' }}
 
 jobs:
   split:
@@ -49,7 +49,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        sublane: [0, 1, 2, 3]
+        sublane: [0, 1]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -63,7 +63,7 @@ jobs:
           --lane "$RESCUE_LANE"
           --lanes "$RESCUE_LANES"
           --sublane "${{ matrix.sublane }}"
-          --sublanes 4
+          --sublanes 2
       - uses: actions/upload-artifact@v4
         with:
           name: rescue-${{ env.RESCUE_STATE }}-${{ env.RESCUE_LANE }}-${{ matrix.sublane }}
@@ -108,4 +108,4 @@ jobs:
           --state "$RESCUE_STATE"
           --lane "$RESCUE_LANE"
           --lanes "$RESCUE_LANES"
-          --sublanes 4
+          --sublanes 2
