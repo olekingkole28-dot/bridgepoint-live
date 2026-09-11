@@ -258,7 +258,8 @@ def build_crosswalk(con,state,cat,local_path,out_path,archive_urls=None,source_r
           CREATE TEMP TABLE overture AS
           SELECT
             id::VARCHAR id,
-            ST_MakeValid(ST_GeomFromWKB(geometry)) geom
+            ST_MakeValid(ST_GeomFromWKB(geometry)) geom,
+            ST_Area(ST_MakeValid(ST_GeomFromWKB(geometry))) overture_area
           FROM {remote}
           WHERE id IS NOT NULL
             AND geometry IS NOT NULL
@@ -276,7 +277,8 @@ def build_crosswalk(con,state,cat,local_path,out_path,archive_urls=None,source_r
           CREATE TEMP TABLE overture AS
           SELECT
             id::VARCHAR id,
-            ST_MakeValid(geometry) geom
+            ST_MakeValid(geometry) geom,
+            ST_Area(ST_MakeValid(geometry)) overture_area
           FROM {remote}
           WHERE id IS NOT NULL
             AND geometry IS NOT NULL
