@@ -20,10 +20,6 @@ on:
         description: Original parent GitHub check-run job id
         required: false
         type: string
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/current-building-crosswalk-rescue-subparts-v2780.yml'
 
 permissions:
   contents: read
@@ -31,15 +27,15 @@ permissions:
   checks: read
 
 concurrency:
-  group: bridgepoint-current-building-crosswalk-rescue-subparts-${{ inputs.state || 'NY' }}-${{ inputs.lane || '6' }}-correct
+  group: bridgepoint-current-building-crosswalk-rescue-subparts-${{ inputs.state }}-${{ inputs.lane }}
   cancel-in-progress: false
 
 env:
   SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
-  RESCUE_STATE: ${{ inputs.state || 'NY' }}
-  RESCUE_LANE: ${{ inputs.lane || '6' }}
-  RESCUE_LANES: ${{ inputs.lanes || '8' }}
-  ORIGINAL_JOB_ID: ${{ inputs.original_job_id || '103086423654' }}
+  RESCUE_STATE: ${{ inputs.state }}
+  RESCUE_LANE: ${{ inputs.lane }}
+  RESCUE_LANES: ${{ inputs.lanes }}
+  ORIGINAL_JOB_ID: ${{ inputs.original_job_id }}
 
 jobs:
   split:
@@ -47,9 +43,9 @@ jobs:
     timeout-minutes: 180
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 4
       matrix:
-        sublane: [0, 1]
+        sublane: [0, 1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -63,7 +59,7 @@ jobs:
           --lane "$RESCUE_LANE"
           --lanes "$RESCUE_LANES"
           --sublane "${{ matrix.sublane }}"
-          --sublanes 2
+          --sublanes 4
       - uses: actions/upload-artifact@v4
         with:
           name: rescue-${{ env.RESCUE_STATE }}-${{ env.RESCUE_LANE }}-${{ matrix.sublane }}
@@ -100,6 +96,7 @@ jobs:
             if [[ "$status" == "completed" ]]; then exit 0; fi
             sleep 15
           done
+          echo "Original writer did not conclude inside rescue gate" >&2
           exit 1
       - name: Merge, collision-audit, upload and import parent lane
         run: >
@@ -107,4 +104,4 @@ jobs:
           --state "$RESCUE_STATE"
           --lane "$RESCUE_LANE"
           --lanes "$RESCUE_LANES"
-          --sublanes 2
+          --sublanes 4
