@@ -1,0 +1,42 @@
+name: Current Building Crosswalk Rescue v2779
+
+on:
+  workflow_dispatch:
+    inputs:
+      state:
+        description: State code
+        required: true
+        type: choice
+        options: [LA, NY, PA]
+      lane:
+        description: Existing geographic lane index
+        required: true
+        type: string
+      lanes:
+        description: Existing total lane count for the state
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: bridgepoint-current-building-crosswalk-rescue-${{ inputs.state }}-${{ inputs.lane }}
+  cancel-in-progress: false
+
+env:
+  SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
+
+jobs:
+  rescue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check duckdb==1.4.1 pyarrow==21.0.0 requests==2.32.5
+      - name: Reconcile one existing geographic building lane
+        run: python scripts/build-current-building-crosswalk-spatial-lane-v2775.py --state "${{ inputs.state }}" --lane "${{ inputs.lane }}" --lanes "${{ inputs.lanes }}"
