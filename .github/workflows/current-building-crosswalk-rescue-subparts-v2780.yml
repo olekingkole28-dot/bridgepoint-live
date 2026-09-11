@@ -31,7 +31,7 @@ permissions:
   checks: read
 
 concurrency:
-  group: bridgepoint-current-building-crosswalk-rescue-subparts-${{ inputs.state || 'NY' }}-${{ inputs.lane || '6' }}
+  group: bridgepoint-current-building-crosswalk-rescue-subparts-${{ inputs.state || 'NY' }}-${{ inputs.lane || '6' }}-correct
   cancel-in-progress: false
 
 env:
