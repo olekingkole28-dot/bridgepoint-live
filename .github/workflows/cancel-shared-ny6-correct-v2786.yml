@@ -1,0 +1,14 @@
+name: Cancel shared NY6 correct rescue
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cancel-shared-ny6-correct-v2786.yml'
+concurrency:
+  group: bridgepoint-current-building-crosswalk-rescue-subparts-NY-6-correct
+  cancel-in-progress: true
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Superseding redundant rescue capacity."
