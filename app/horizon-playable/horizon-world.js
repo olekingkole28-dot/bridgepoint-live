@@ -268,6 +268,52 @@ function buildBuildings(){
   }
   loadText.textContent='Geometry ready · '+sourceH.toLocaleString()+' source-height buildings · '+proxies.toLocaleString()+' visual-height proxies';
 }
+function buildFacadeDetails(){
+  const candidates=[...buildingCenters].filter(b=>b.height>9&&b.width>3&&b.depth>3).sort((a,b)=>b.height-a.height).slice(0,CELL==='manhattan'?650:220);
+  const maxWindows=CELL==='manhattan'?7600:2200;
+  const winGeo=new THREE.BoxGeometry(1,.07,.72);
+  const litMat=new THREE.MeshStandardMaterial({color:0xbfd6cf,emissive:0x6e8d77,emissiveIntensity:.55,roughness:.24,metalness:.12});
+  const darkMat=new THREE.MeshStandardMaterial({color:0x314349,emissive:0x101c1f,emissiveIntensity:.18,roughness:.32,metalness:.18});
+  const lit=new THREE.InstancedMesh(winGeo,litMat,maxWindows),dark=new THREE.InstancedMesh(winGeo,darkMat,maxWindows);
+  const d=new THREE.Object3D();let li=0,di=0,total=0;
+  const put=(b,x,y,z,side,litOn,scale)=>{
+    if(total>=maxWindows)return false;
+    d.position.set(x,y,z);d.rotation.set(0,0,side?Math.PI/2:0);d.scale.set(scale,1,1);d.updateMatrix();
+    const target=litOn?lit:dark,idx=litOn?li++:di++;target.setMatrixAt(idx,d.matrix);total++;return true;
+  };
+  for(const b of candidates){
+    const floors=Math.min(45,Math.max(2,Math.floor(b.height/3.05))),step=b.height>90?3:b.height>45?2:1;
+    const colsX=Math.min(5,Math.max(1,Math.floor(b.width/3.2))),colsY=Math.min(5,Math.max(1,Math.floor(b.depth/3.2)));
+    for(let f=1;f<floors&&total<maxWindows;f+=step){
+      const z=b.z+Math.min(b.height-.8,f*3.05+1.05);
+      for(let c=0;c<colsX&&total<maxWindows;c++){
+        const x=THREE.MathUtils.lerp(b.minx+.9,b.maxx-.9,(c+.5)/colsX);
+        const litOn=seeded(hash(b.id+':wx:'+f+':'+c))()>.54;
+        put(b,x,b.miny-.045,z,0,litOn,.82);put(b,x,b.maxy+.045,z,0,!litOn,.82);
+      }
+      for(let c=0;c<colsY&&total<maxWindows;c++){
+        const y=THREE.MathUtils.lerp(b.miny+.9,b.maxy-.9,(c+.5)/colsY);
+        const litOn=seeded(hash(b.id+':wy:'+f+':'+c))()>.58;
+        put(b,b.minx-.045,y,z,1,litOn,.82);put(b,b.maxx+.045,y,z,1,!litOn,.82);
+      }
+    }
+  }
+  lit.count=li;dark.count=di;lit.instanceMatrix.needsUpdate=true;dark.instanceMatrix.needsUpdate=true;
+  lit.castShadow=false;dark.castShadow=false;worldGroup.add(lit,dark);
+
+  const roofGeo=new THREE.BoxGeometry(1.25,1.05,.55),roofMat=new THREE.MeshStandardMaterial({color:0x686d69,roughness:.76,metalness:.34});
+  const maxRoof=Math.min(700,candidates.length*2),roof=new THREE.InstancedMesh(roofGeo,roofMat,maxRoof);let ri=0;
+  for(const b of candidates){
+    const count=b.width*b.depth>180?2:1;
+    for(let k=0;k<count&&ri<maxRoof;k++){
+      const r=seeded(hash(b.id+':roof:'+k));
+      d.position.set(b.x+(r()-.5)*b.width*.28,b.y+(r()-.5)*b.depth*.28,b.z+b.height+.28);
+      d.rotation.set(0,0,r()*Math.PI);d.scale.set(.7+r()*.9,.7+r()*.9,.7+r()*.7);d.updateMatrix();roof.setMatrixAt(ri++,d.matrix);
+    }
+  }
+  roof.count=ri;roof.instanceMatrix.needsUpdate=true;roof.castShadow=true;worldGroup.add(roof);
+  streetLifeStats.windows=total;streetLifeStats.rooftops=ri;
+}
 function nearestRoadForBuilding(b){
   let best=null,d=Infinity;
   const step=Math.max(1,Math.floor(roadAnchors.length/900));
@@ -784,6 +830,42 @@ function makeBike(seedValue){
   g.add(cylinderBetween(rear,seat,.035,bikeMats.frame),cylinderBetween(seat,crank,.035,bikeMats.frame),cylinderBetween(crank,rear,.035,bikeMats.frame),cylinderBetween(crank,front,.035,bikeMats.frame),cylinderBetween(seat,bar,.028,bikeMats.metal),cylinderBetween(bar,front,.028,bikeMats.metal));
   const seatMesh=new THREE.Mesh(new THREE.BoxGeometry(.24,.11,.06),bikeMats.tire);seatMesh.position.copy(seat);g.add(seatMesh);
   g.rotation.z=(r()-.5)*.08;return g;
+}
+function localRoadAnchors(radius=150){
+  const o=playerSpawn;return roadAnchors.filter(a=>Math.hypot(a.x-o.x,a.y-o.y)<radius);
+}
+function scatterRoadsideTemplateLocal(template,count,targetHeight,mode='sidewalk',radius=150){
+  const anchors=localRoadAnchors(radius);if(!template||!anchors.length)return 0;
+  let placed=0,attempts=0;
+  while(placed<count&&attempts<count*18){
+    attempts++;const a=anchors[Math.floor(rand()*anchors.length)],side=rand()>.5?1:-1;
+    const offset=mode==='parking'?Math.max(1.6,a.width*.36):a.width/2+1.5+rand()*1.5;
+    const p=roadSidePoint(a,offset,side);if(isBlockedExterior(p.x,p.y,mode==='parking'?.5:.32))continue;
+    const o=staticClone(template,targetHeight);if(!o)continue;
+    o.position.set(p.x,p.y,p.z+.015);o.rotation.z=a.heading+(side<0?Math.PI:0);artGroup.add(o);placed++;
+  }
+  return placed;
+}
+function scatterLocalProceduralLife(){
+  const anchors=localRoadAnchors(CELL==='manhattan'?170:130);if(!anchors.length)return{trees:0,bikes:0,benches:0,planters:0};
+  let trees=0,bikes=0,benches=0,planters=0;
+  const add=(kind,target)=>{
+    for(let attempts=0;attempts<target*20;attempts++){
+      if((kind==='tree'?trees:kind==='bike'?bikes:kind==='bench'?benches:planters)>=target)break;
+      const a=anchors[Math.floor(rand()*anchors.length)],side=rand()>.5?1:-1;
+      const offset=a.width/2+(kind==='bike'?1.35:kind==='bench'?1.9:2.45)+rand()*1.35,p=roadSidePoint(a,offset,side);
+      if(isBlockedExterior(p.x,p.y,kind==='tree'?.58:.38))continue;
+      let o;
+      if(kind==='tree')o=makeStreetTree(hash('localtree:'+attempts));
+      else if(kind==='bike')o=makeBike(hash('localbike:'+attempts));
+      else if(kind==='bench')o=makeBench();
+      else o=makePlanter(hash('localplanter:'+attempts));
+      o.position.set(p.x,p.y,p.z+.02);o.rotation.z=a.heading+(kind==='tree'||kind==='planter'?rand()*Math.PI:side<0?Math.PI:0);artGroup.add(o);
+      if(kind==='tree')trees++;else if(kind==='bike')bikes++;else if(kind==='bench')benches++;else planters++;
+    }
+  };
+  add('tree',CELL==='manhattan'?42:26);add('bike',CELL==='manhattan'?20:10);add('bench',CELL==='manhattan'?18:10);add('planter',CELL==='manhattan'?28:16);
+  return{trees,bikes,benches,planters};
 }
 function scatterProceduralStreetLife(){
   let trees=0,bikes=0;
