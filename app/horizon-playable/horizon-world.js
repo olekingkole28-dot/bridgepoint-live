@@ -1906,11 +1906,30 @@ function setAiming(v){
   aiming=Boolean(v)&&isFirearm(activeWeapon)&&!playerDead;
   updateInventory();
 }
+function pollGamepad(){
+  const pads=navigator.getGamepads?.()||[],p=[...pads].find(Boolean);
+  if(!p){gamepadMove.x=gamepadMove.y=gamepadLook.x=gamepadLook.y=0;return}
+  const dead=v=>Math.abs(v)<.14?0:v;
+  gamepadMove.x=dead(p.axes?.[0]||0);gamepadMove.y=-dead(p.axes?.[1]||0);
+  gamepadLook.x=dead(p.axes?.[2]||0);gamepadLook.y=dead(p.axes?.[3]||0);
+  const pressed=i=>Boolean(p.buttons?.[i]?.pressed),edge=i=>pressed(i)&&!gamepadPrev[i];
+  if(edge(0))playerJumpQueued=true;
+  if(edge(1))cycleStance();
+  if(edge(2))interact();
+  if(edge(3))cycleWeapon();
+  if(edge(5))useActiveWeapon();
+  if(edge(4))setAiming(!aiming);
+  mobileSprint=pressed(10)||pressed(7);
+  gamepadPrev=(p.buttons||[]).map(b=>Boolean(b.pressed));
+}
 function initInput(){
   addEventListener('keydown',e=>{
     keys.add(e.code);
     if(e.code==='KeyE')interact();
-    if(e.code==='Space'||e.code==='KeyF'){e.preventDefault();useActiveWeapon()}
+    if(e.code==='KeyF'){e.preventDefault();useActiveWeapon()}
+    if(e.code==='Space'){e.preventDefault();playerJumpQueued=true}
+    if(e.code==='KeyC')cycleStance();
+    if(e.code==='KeyX')setPlayerStance('prone');
     if(e.code==='KeyQ')cycleWeapon();
     if(e.code==='Digit1')selectSlot('melee');
     if(e.code==='Digit2')selectSlot('sidearm');
@@ -1949,6 +1968,8 @@ function initInput(){
   pad?.addEventListener('pointerup',padEnd);pad?.addEventListener('pointercancel',padEnd);
 
   $('respawnBtn')?.addEventListener('click',respawnPlayer);
+  $('jumpBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();playerJumpQueued=true});
+  $('stanceBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();cycleStance()});
   $('interactBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();interact()});
   $('attackBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();useActiveWeapon()});
   $('weaponBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();cycleWeapon()});
@@ -1980,31 +2001,43 @@ function movePlayerStable(dx,dy){
 }
 function updatePlayer(dt){
   if(!playerRoot||playerDead)return;
-  let ix=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+mobileMove.x;
-  let iy=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0)+mobileMove.y;
+  pollGamepad();
+  yaw-=gamepadLook.x*.032;
+  pitch=THREE.MathUtils.clamp(pitch+gamepadLook.y*.020,-.12,.48);
+
+  let ix=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+mobileMove.x+gamepadMove.x;
+  let iy=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0)+mobileMove.y+gamepadMove.y;
   const len=Math.hypot(ix,iy);if(len>1){ix/=len;iy/=len}
-  const moving=Math.hypot(ix,iy)>.06,sprint=(keys.has('ShiftLeft')||keys.has('ShiftRight')||mobileSprint)&&!aiming;
-  const speed=(interiorMode?3.05:3.35)*(sprint?1.62:1)*(aiming?.72:1);
+  const moving=Math.hypot(ix,iy)>.06,sprint=(keys.has('ShiftLeft')||keys.has('ShiftRight')||mobileSprint)&&!aiming&&playerStance==='stand';
+  const stanceSpeed=(STANCES[playerStance]||STANCES.stand).speed;
+  const speed=(interiorMode?3.05:3.45)*(sprint?1.68:1)*(aiming?.72:1)*stanceSpeed;
   const move=movementVector(ix,iy,yaw);
   const desiredX=moving?move.x*speed:0,desiredY=moving?move.y*speed:0;
-  const accel=1-Math.exp(-(moving?8.5:14)*dt);
+  const accel=1-Math.exp(-(moving?9.5:15)*dt);
   playerVelocity.x=THREE.MathUtils.lerp(playerVelocity.x,desiredX,accel);
   playerVelocity.y=THREE.MathUtils.lerp(playerVelocity.y,desiredY,accel);
-  movePlayerStable(playerVelocity.x*dt,playerVelocity.y*dt);
 
-  const targetGround=interiorMode?.015:surfaceZXY(playerRoot.position.x,playerRoot.position.y)+.015;
-  playerRoot.position.z=THREE.MathUtils.lerp(playerRoot.position.z,targetGround,1-Math.exp(-22*dt));
+  let usedRapier=false;
+  if(!interiorMode&&physicsReady&&playerPhysicsBody&&playerPhysicsCollider){
+    usedRapier=movePlayerRapier(playerVelocity.x*dt,playerVelocity.y*dt,dt);
+  }
+  if(!usedRapier){
+    movePlayerStable(playerVelocity.x*dt,playerVelocity.y*dt);
+    const targetGround=interiorMode?.015:surfaceZXY(playerRoot.position.x,playerRoot.position.y)+.015;
+    playerRoot.position.z=THREE.MathUtils.lerp(playerRoot.position.z,targetGround,1-Math.exp(-22*dt));
+  }
 
   if(aiming&&isFirearm(activeWeapon)){
     playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,yaw,1-Math.exp(-14*dt));
   }else if(moving){
     const targetRot=Math.atan2(playerVelocity.x,playerVelocity.y);
-    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-10*dt));
+    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-11*dt));
   }
   if(swingTime<=0)playPlayerAnimation(moving?(sprint?'run':'walk'):'idle');
   playerMixer?.update(dt);
 
   if(!interiorMode){
+    maybeNationalTravel();
     const revealDist=lastReveal?Math.hypot(playerRoot.position.x-lastReveal.x,playerRoot.position.y-lastReveal.y):999;
     if(revealDist>4.5){revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone()}
   }
