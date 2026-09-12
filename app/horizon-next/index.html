@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#070a08">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <title>BridgePoint Horizon — U.S. Survival World</title>
+  <meta name="description" content="BridgePoint Horizon nationwide survival-world preview using open U.S. terrain, roads, building geometry and CC0 game art.">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://xdfsjztwgsbmabshzsjw.supabase.co">
+  <link rel="stylesheet" href="./horizon-next.css?v=3020">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="world"></div>
+  <div class="cinemaVignette"></div>
+  <div class="filmGrain"></div>
+
+  <header class="topbar glass">
+    <a class="brand" href="/app/horizon/" aria-label="BridgePoint Horizon home">
+      <span class="sigil">H</span>
+      <span><b>BRIDGEPOINT HORIZON</b><small>U.S. SURVIVAL WORLD · OPEN-DATA STREAM</small></span>
+    </a>
+    <div class="travel">
+      <label for="jurisdictionSelect">WORLD</label>
+      <select id="jurisdictionSelect" aria-label="Jump to U.S. jurisdiction"></select>
+      <button id="travelBtn" type="button">JUMP</button>
+    </div>
+  </header>
+
+  <section class="status glass">
+    <div class="eyebrow" id="placeLabel">STREAMING WORLD CELL</div>
+    <h1 id="worldTitle">Horizon survivor</h1>
+    <p id="loadText">Starting physics, terrain, buildings and survival systems…</p>
+    <div class="stats">
+      <span><b id="healthStat">100</b> HP</span>
+      <span><b id="ammoStat">—</b> AMMO</span>
+      <span><b id="zombieStat">0</b> INFECTED</span>
+      <span><b id="killStat">0</b> KILLS</span>
+      <span><b id="floorStat">OUT</b> FLOOR</span>
+    </div>
+  </section>
+
+  <section class="minimap glass">
+    <canvas id="minimap" width="240" height="240"></canvas>
+    <div><b id="mapTitle">LOCAL CELL</b><span id="mapCoord">—</span></div>
+  </section>
+
+  <nav class="worldTools glass">
+    <button id="cameraBtn" type="button" title="Camera">◉</button>
+    <button id="dayBtn" type="button" title="Day/night">☀</button>
+    <button id="parcelBtn" type="button" title="Parcel outlines">◇</button>
+    <button id="qualityBtn" type="button" title="Graphics quality">◆</button>
+    <button id="fullscreenBtn" type="button" title="Fullscreen">⛶</button>
+  </nav>
+
+  <aside id="inventoryPanel" class="inventory glass open">
+    <div class="inventoryHead">
+      <div><b>INVENTORY</b><small id="packName">HIDDEN SURVIVOR PACK</small></div>
+      <span id="capacityStat">2 / 24</span>
+    </div>
+    <div class="loadout" id="loadout">
+      <button data-slot="melee" class="active"><small>HAND</small><b id="slotMelee">AXE</b></button>
+      <button data-slot="offhand"><small>OFFHAND</small><b id="slotOffhand">KNIFE</b></button>
+      <button data-slot="sidearm"><small>HIP</small><b id="slotSidearm">EMPTY</b></button>
+      <button data-slot="primary"><small>BACK</small><b id="slotPrimary">EMPTY</b></button>
+      <button data-slot="quick1"><small>QUICK 1</small><b id="slotQuick1">BANDAGE</b></button>
+      <button data-slot="quick2"><small>QUICK 2</small><b id="slotQuick2">WATER</b></button>
+    </div>
+    <div class="activeWeapon" id="activeWeapon">Axe equipped</div>
+    <div class="bagGrid" id="bagGrid"></div>
+  </aside>
+
+  <div id="interaction" class="interaction glass" hidden>
+    <b id="interactionLabel">USE</b><span>E / tap USE</span>
+  </div>
+
+  <div id="crosshair" class="crosshair" hidden>
+    <i></i><i></i><i></i><i></i><em></em>
+  </div>
+
+  <div class="mobile">
+    <div id="joystickZone" class="joystickZone" aria-label="Movement joystick"></div>
+    <div class="actions">
+      <button id="jumpBtn" class="round jump" type="button"><b>↑</b><small>JUMP</small></button>
+      <button id="crouchBtn" class="round crouch" type="button"><b>▾</b><small>CROUCH</small></button>
+      <button id="useBtn" class="round use" type="button"><b>E</b><small>USE</small></button>
+      <button id="aimBtn" class="round aim" type="button"><b>◎</b><small>AIM</small></button>
+      <button id="fireBtn" class="round fire" type="button"><b>✦</b><small id="fireLabel">SWING</small></button>
+      <button id="cycleBtn" class="round cycle" type="button"><b>↻</b><small>SLOT</small></button>
+      <button id="runBtn" class="round run" type="button"><b>⇧</b><small>RUN</small></button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <div id="landscapeGate" class="landscapeGate">
+    <div class="glass">
+      <span>↻</span>
+      <b>Horizon uses landscape</b>
+      <p>Rotate your phone sideways for the third-person survival world.</p>
+      <button id="landscapeBtn" type="button">ENTER WORLD</button>
+    </div>
+  </div>
+
+  <div id="deathBox" class="death" hidden>
+    <div class="glass">
+      <b>YOU WERE OVERRUN</b>
+      <span id="deathText">The infected got you.</span>
+      <button id="respawnBtn" type="button">RESPAWN</button>
+    </div>
+  </div>
+
+  <div id="errorBox" class="error" hidden>
+    <div class="glass">
+      <b>Horizon could not start.</b>
+      <span id="errorText"></span>
+      <button type="button" onclick="location.reload()">RETRY</button>
+    </div>
+  </div>
+
+  <script>
+    addEventListener('error',function(e){
+      var box=document.getElementById('errorBox'),txt=document.getElementById('errorText');
+      if(!box||!txt||!e.message)return; box.hidden=false;txt.textContent=e.message;
+    });
+  </script>
+  <script type="module" src="./horizon-next.js?v=3020"></script>
+</body>
+</html>
