@@ -583,11 +583,14 @@ function putEquipmentModel(slot,template,length,rot=[.15,.08,-.88],pos=[0,0,0]){
   obj.rotation.set(...rot);obj.position.set(...pos);m.add(obj);
 }
 function refreshEquipmentVisuals(){
-  putEquipmentModel('rightHand',weaponTemplates.axe,.68,[.18,.08,-.88],[.02,0,.02]);
+  const meleeKey=equipment.melee==='Barbed Bat'?'bat':equipment.melee==='Knife'?'knife':'axe';
+  const meleeLength=equipment.melee==='Barbed Bat'?.92:equipment.melee==='Knife'?.38:.68;
+  putEquipmentModel('rightHand',weaponTemplates[meleeKey],meleeLength,[.18,.08,-.88],[.02,0,.02]);
   putEquipmentModel('leftHand',weaponTemplates.knife,.34,[.08,-.1,.72],[-.01,0,.01]);
   putEquipmentModel('hip',equipment.sidearm==='Pistol'?weaponTemplates.pistol:null,.32,[.1,.15,-.3],[0,0,0]);
   const long=equipment.primary==='Rifle'?weaponTemplates.rifle:equipment.primary==='Shotgun'?weaponTemplates.shotgun:null;
   putEquipmentModel('back',long,equipment.primary==='Shotgun'?.9:1.02,[.18,.05,.1],[0,0,0]);
+  weaponPivot=equipmentMounts.rightHand;
 }
 async function buildPlayer(){
   const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,spawn.z+.025);
@@ -1361,6 +1364,7 @@ function initInput(){
   pad?.addEventListener('pointermove',e=>{if(e.pointerId===padId)padMove(e)});
   const padEnd=e=>{if(e.pointerId!==padId)return;padId=null;mobileMove.x=mobileMove.y=0;knob.style.transform='translate(0,0)'};pad?.addEventListener('pointerup',padEnd);pad?.addEventListener('pointercancel',padEnd);
 
+  $('respawnBtn')?.addEventListener('click',respawnPlayer);
   $('interactBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();interact()});
   $('attackBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();attack()});
   const sprint=$('sprintBtn');sprint?.addEventListener('pointerdown',e=>{e.preventDefault();mobileSprint=true});sprint?.addEventListener('pointerup',()=>mobileSprint=false);sprint?.addEventListener('pointercancel',()=>mobileSprint=false);
@@ -1376,7 +1380,7 @@ function movementVector(ix,iy,angle=yaw){
   return {x:fx*iy+rx*ix,y:fy*iy+ry*ix};
 }
 function updatePlayer(dt){
-  if(!playerRoot)return;
+  if(!playerRoot||playerDead)return;
   let ix=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+mobileMove.x;
   let iy=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0)+mobileMove.y;
   const len=Math.hypot(ix,iy);if(len>1){ix/=len;iy/=len}
@@ -1443,7 +1447,11 @@ async function boot(){
       player:Boolean(playerRoot),loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,
       packCapacity,weapon:equippedWeaponName,interiorAssets:Object.values(interiorTemplates).filter(Boolean).length,
       artChildren:artGroup.children.length,roadLayers:roadLayer?.children?.length||0,streetLife:{...streetLifeStats},
-      spawnBlocked:isBlockedExterior(playerRoot.position.x,playerRoot.position.y,.36)
+      spawnBlocked:isBlockedExterior(playerRoot.position.x,playerRoot.position.y,.36),
+      visiblePack:Boolean(packMesh),pickupCount:worldPickups.filter(p=>p.active&&p.mode==='exterior').length,
+      equipment:{...equipment},
+      playerSurfaceZ:surfaceZXY(playerRoot.position.x,playerRoot.position.y),
+      playerRootZ:playerRoot.position.z
     };
     window.BP_HORIZON_TEST={
       enterFirst:()=>{
@@ -1472,6 +1480,12 @@ async function boot(){
         const box=new THREE.Box3().setFromObject(weaponPivot.children[0]),size=new THREE.Vector3();box.getSize(size);
         return {x:size.x,y:size.y,z:size.z,longest:Math.max(size.x,size.y,size.z)};
       },
+      loosePickup:()=>{
+        const p=worldPickups.find(x=>x.active&&x.mode==='exterior');if(!p)return null;
+        const item=p.item;playerRoot.position.set(p.root.position.x,p.root.position.y,surfaceZXY(p.root.position.x,p.root.position.y)+.015);
+        pickupLoose(p);return {item,equipment:{...equipment},lootCount,active:p.active};
+      },
+      zombieWave:()=>({waveNumber,active:zombies.filter(z=>!z.dead).length,speeds:zombies.filter(z=>!z.dead).map(z=>z.speed)}),
       spawnMobility:()=>{
         const p=playerRoot.position,step=.8,dirs={
           forward:movementVector(0,1,0),backward:movementVector(0,-1,0),
@@ -1490,7 +1504,7 @@ async function boot(){
 let lastPrompt=0;
 function loop(now=performance.now()){
   const dt=Math.min(.05,clock.getDelta()||.016);
-  updateWeapon(dt);updatePlayer(dt);updateZombies(dt,now);updateCamera(dt);
+  updateWeapon(dt);updatePlayer(dt);updateZombieWaves(now);updateZombies(dt,now);animatePickups(dt,now);updateCamera(dt);
   if(now-lastPrompt>120){updateInteractionPrompt();lastPrompt=now}
   renderMinimap();renderer.render(scene,camera);requestAnimationFrame(loop);
 }
