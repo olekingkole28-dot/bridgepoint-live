@@ -983,10 +983,7 @@ function generateInterior(entry){
   if(zombieTemplate&&r()<.34)spawnInteriorZombie(zombieTemplate,r,w,h);
 }
 function spawnInteriorZombie(template,r,w,h){
-  const n=normalizedModel(template.scene,1.78,true);n.root.position.set((r()-.5)*w*.48,h*.28,.05);n.root.rotation.z=r()*Math.PI*2;interiorGroup.add(n.root);
-  const clip=(template.animations||[]).find(c=>/walk|run/i.test(c.name))||(template.animations||[])[0];
-  let mixer=null;if(clip){mixer=new THREE.AnimationMixer(n.model);mixer.clipAction(clip).play()}
-  interiorZombies.push({root:n.root,mixer,phase:r()*Math.PI*2,speed:.65+r()*.35,hp:100,dead:false});
+  spawnZombieAt(template,{x:(r()-.5)*w*.48,y:h*.28},true,r);
 }
 function enterInterior(entry){
   if(interiorMode||!playerRoot)return;
@@ -1045,19 +1042,62 @@ function interact(){
 function updateInteractionPrompt(){
   nearestInteract=findNearestInteraction();$('interactPrompt').hidden=!nearestInteract;if(nearestInteract)$('interactLabel').textContent=nearestInteract.label;
 }
+function dropFromZombie(z,mode){
+  if(rand()>.38)return;
+  const pool=['Bandage','Water','Batteries','Canned food','Pistol'];
+  const item=pool[Math.floor(rand()*pool.length)];
+  spawnVisiblePickup(item,z.root.position.x,z.root.position.y,z.root.position.z,mode,hash('zdrop:'+kills+':'+item));
+}
+function killZombie(z,mode){
+  if(!z||z.dead)return;
+  z.dead=true;kills++;dropFromZombie(z,mode);
+  z.root.parent?.remove(z.root);
+  updateInventory();updateZombieCount();
+}
+function damagePlayer(amount){
+  if(playerDead)return;
+  health=Math.max(0,health-amount);$('healthStat').textContent=String(health);
+  if(health<=0)killPlayer();
+}
+function killPlayer(){
+  if(playerDead)return;
+  playerDead=true;playerVelocity.set(0,0,0);mobileMove={x:0,y:0};mobileSprint=false;
+  const box=$('deathBox');if(box)box.hidden=false;
+  const t=$('deathText');if(t)t.textContent='Wave '+Math.max(1,waveNumber)+' overwhelmed you · '+kills+' infected eliminated.';
+  showToast('You were overrun');
+}
+function clearOutdoorZombies(){
+  for(const z of zombies)z.root?.parent?.remove(z.root);
+  zombies=[];
+}
+function respawnPlayer(){
+  if(!playerRoot)return;
+  if(interiorMode){
+    interiorMode=false;interiorGroup.visible=false;exteriorRoot.visible=true;clearInterior();
+  }
+  clearOutdoorZombies();
+  health=100;playerDead=false;$('healthStat').textContent='100';
+  const box=$('deathBox');if(box)box.hidden=true;
+  const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,surfaceZXY(spawn.x,spawn.y)+.015);
+  playerRoot.position.copy(playerSpawn);playerRoot.visible=true;playerVelocity.set(0,0,0);
+  yaw=0;pitch=.14;waveNumber=0;nextWaveAt=0;
+  if(zombieTemplate)spawnZombieWave(performance.now(),true);
+  showToast('Respawned');
+}
 function attack(){
-  if(attackCooldown>0||!playerRoot)return;
+  if(attackCooldown>0||!playerRoot||playerDead)return;
   attackCooldown=.48;swingTime=.38;playPlayerAnimation('attack');
   const targets=interiorMode?interiorZombies:zombies,fx=Math.sin(yaw),fy=Math.cos(yaw);let hit=false;
   for(const z of targets){
     if(z.dead)continue;
     const dx=z.root.position.x-playerRoot.position.x,dy=z.root.position.y-playerRoot.position.y,dist=Math.hypot(dx,dy);
-    if(dist>2.65)continue;
-    const dot=(dx*fx+dy*fy)/Math.max(dist,.001);if(dot<.08)continue;
-    z.hp-=equippedWeaponName==='Axe'?70:equippedWeaponName==='Barbed Bat'?58:48;hit=true;
-    if(z.hp<=0){z.dead=true;z.root.parent?.remove(z.root)}
+    if(dist>2.45)continue;
+    const dot=(dx*fx+dy*fy)/Math.max(dist,.001);if(dot<-.05)continue;
+    const damage=equippedWeaponName==='Axe'?72:equippedWeaponName==='Barbed Bat'?58:50;
+    z.hp-=damage;hit=true;
+    if(z.hp<=0)killZombie(z,interiorMode?'interior':'exterior');
   }
-  if(hit)showToast(equippedWeaponName+' connected');updateZombieCount();
+  if(hit)showToast(equippedWeaponName+' connected');
 }
 function updateZombieCount(){
   const list=interiorMode?interiorZombies:zombies;$('zombieStat').textContent=String(list.filter(z=>!z.dead).length);
@@ -1067,21 +1107,48 @@ function updateWeapon(dt){
   if(!weaponPivot)return;
   if(swingTime>0){
     const total=.38,t=1-swingTime/total;swingTime=Math.max(0,swingTime-dt);
-    weaponPivot.rotation.z=-.55-Math.sin(t*Math.PI)*1.55;weaponPivot.rotation.x=.15+Math.sin(t*Math.PI)*.45;
-  }else{weaponPivot.rotation.z=-.55;weaponPivot.rotation.x=.15}
+    weaponPivot.rotation.z=-.55-Math.sin(t*Math.PI)*1.15;weaponPivot.rotation.x=.08+Math.sin(t*Math.PI)*.32;
+  }else{weaponPivot.rotation.z=-.55;weaponPivot.rotation.x=.08}
 }
 
-async function buildZombies(template){
-  if(!template||!roadAnchors.length)return;
-  const count=CELL==='manhattan'?18:8,candidates=roadAnchors.filter(a=>{const d=Math.hypot(a.x-playerSpawn.x,a.y-playerSpawn.y);return d>28&&d<260});
-  const clip=(template.animations||[]).find(c=>/walk|run/i.test(c.name))||(template.animations||[])[0];
-  for(let i=0;i<count&&candidates.length;i++){
-    const a=candidates[Math.floor(rand()*candidates.length)],n=normalizedModel(template.scene,1.78,true);
-    n.root.position.set(a.x,a.y,a.z+.05);n.root.rotation.z=rand()*Math.PI*2;zombieGroup.add(n.root);
-    let mixer=null;if(clip){mixer=new THREE.AnimationMixer(n.model);mixer.clipAction(clip).play()}
-    zombies.push({root:n.root,mixer,home:new THREE.Vector2(a.x,a.y),phase:rand()*Math.PI*2,speed:.72+rand()*.55,hp:100,dead:false});
+function spawnZombieAt(template,a,interior=false,rng=rand){
+  if(!template)return null;
+  const n=normalizedModel(template.scene,1.78,true);
+  const root=n.root;
+  if(interior)root.position.set(a.x,a.y,.015);
+  else root.position.set(a.x,a.y,surfaceZXY(a.x,a.y)+.015);
+  root.rotation.z=rng()*Math.PI*2;
+  (interior?interiorGroup:zombieGroup).add(root);
+  const clip=(template.animations||[]).find(c=>/walk/i.test(c.name))||(template.animations||[]).find(c=>/idle/i.test(c.name))||(template.animations||[])[0];
+  let mixer=null;if(clip){mixer=new THREE.AnimationMixer(n.model);mixer.clipAction(clip).play()}
+  const z={root,mixer,speed:.28+rng()*.15,hp:100,dead:false,steer:rng()>.5?1:-1,lastTurn:0};
+  (interior?interiorZombies:zombies).push(z);return z;
+}
+function spawnZombieWave(now=performance.now(),force=false){
+  if(!zombieTemplate||!roadAnchors.length||playerDead||interiorMode)return 0;
+  const active=zombies.filter(z=>!z.dead).length;
+  if(!force&&(now<nextWaveAt||active>=maxActiveZombies))return 0;
+  const desired=Math.min(maxActiveZombies-active,3+(waveNumber%3));
+  if(desired<=0)return 0;
+  const origin=playerRoot?.position||playerSpawn;
+  let candidates=roadAnchors.filter(a=>{
+    const d=Math.hypot(a.x-origin.x,a.y-origin.y);
+    return d>55&&d<185&&!isBlockedExterior(a.x,a.y,.55);
+  });
+  if(!candidates.length)candidates=roadAnchors.filter(a=>!isBlockedExterior(a.x,a.y,.55));
+  let made=0;
+  for(let i=0;i<desired&&candidates.length;i++){
+    const a=candidates[Math.floor(rand()*candidates.length)];
+    if(spawnZombieAt(zombieTemplate,a,false))made++;
   }
-  updateZombieCount();
+  if(made){waveNumber++;showToast('Infected wave '+waveNumber+' approaching · '+made)}
+  nextWaveAt=now+19000+rand()*9000;
+  updateZombieCount();return made;
+}
+async function buildZombies(template){
+  zombieTemplate=template;
+  clearOutdoorZombies();waveNumber=0;nextWaveAt=0;
+  spawnZombieWave(performance.now(),true);
 }
 function isBlockedInterior(x,y){
   const r=.34;if(!interiorBounds)return false;
@@ -1096,28 +1163,40 @@ function isBlockedExterior(x,y,r=.33){
   }
   return false;
 }
+function moveZombieToward(z,tx,ty,dt,interior){
+  const dx=tx-z.root.position.x,dy=ty-z.root.position.y,dist=Math.hypot(dx,dy)||.001;
+  const vx=dx/dist,vy=dy/dist,step=z.speed*dt;
+  let nx=z.root.position.x+vx*step,ny=z.root.position.y+vy*step;
+  const blocked=(x,y)=>interior?isBlockedInterior(x,y):isBlockedExterior(x,y,.30);
+  if(!blocked(nx,ny)){
+    z.root.position.x=nx;z.root.position.y=ny;
+  }else{
+    const sx=-vy*z.steer,sy=vx*z.steer;
+    nx=z.root.position.x+(vx*.25+sx*.95)*step;
+    ny=z.root.position.y+(vy*.25+sy*.95)*step;
+    if(!blocked(nx,ny)){z.root.position.x=nx;z.root.position.y=ny}
+    else z.steer*=-1;
+  }
+  z.root.position.z=interior?.015:surfaceZXY(z.root.position.x,z.root.position.y)+.015;
+  z.root.rotation.z=Math.atan2(vx,vy);
+  return dist;
+}
+function updateZombieWaves(now){
+  if(!interiorMode&&!playerDead){
+    const active=zombies.filter(z=>!z.dead).length;
+    if(active<=1&&now+5000<nextWaveAt)nextWaveAt=now+5000;
+    spawnZombieWave(now,false);
+  }
+}
 function updateZombies(dt,now){
-  if(!playerRoot)return;
+  if(!playerRoot||playerDead)return;
   const list=interiorMode?interiorZombies:zombies;
   for(const z of list){
     if(z.dead)continue;z.mixer?.update(dt);
-    const dx=playerRoot.position.x-z.root.position.x,dy=playerRoot.position.y-z.root.position.y,dist=Math.hypot(dx,dy);
-    let vx,vy;
-    if(dist<28){vx=dx/Math.max(dist,.001);vy=dy/Math.max(dist,.001)}
-    else{z.phase+=dt*.18;vx=Math.cos(z.phase);vy=Math.sin(z.phase)}
-    const nx=z.root.position.x+vx*z.speed*dt,ny=z.root.position.y+vy*z.speed*dt;
-    if(interiorMode){
-      if(!isBlockedInterior(nx,z.root.position.y))z.root.position.x=nx;
-      if(!isBlockedInterior(z.root.position.x,ny))z.root.position.y=ny;
-      z.root.position.z=.05;
-    }else{
-      if(!isBlockedExterior(nx,z.root.position.y))z.root.position.x=nx;
-      if(!isBlockedExterior(z.root.position.x,ny))z.root.position.y=ny;
-      z.root.position.z=surfaceZXY(z.root.position.x,z.root.position.y)+.015;
-    }
-    z.root.rotation.z=Math.atan2(vx,vy);
-    if(dist<1.48&&now-lastDamageAt>850){
-      health=Math.max(0,health-7);lastDamageAt=now;$('healthStat').textContent=String(health);showToast('Hit — '+health+' health');
+    const dist=moveZombieToward(z,playerRoot.position.x,playerRoot.position.y,dt,interiorMode);
+    if(dist<1.28&&now-lastDamageAt>1050){
+      damagePlayer(8);lastDamageAt=now;
+      if(!playerDead)showToast('Infected hit · '+health+' health');
     }
   }
   updateZombieCount();
