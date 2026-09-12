@@ -128,7 +128,6 @@ function lineFeatures(g){if(g?.type==='LineString')return[g.coordinates||[]];if(
 function buildStrips(features,kind){
   const pos=[],idx=[];let vi=0;
   for(const f of features||[])for(const line of lineFeatures(f.geometry)){const width=f.kind==='ROAD_PRIMARY'?18:f.kind==='ROAD_SECONDARY'?12:f.kind==='ROAD_LOCAL'?7:f.kind==='RAIL'?4:6;for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],pa=project(a),pb=project(b),dx=pb.x-pa.x,dy=pb.y-pa.y,len=Math.hypot(dx,dy);if(len<.2)continue;const nx=-dy/len*width/2,ny=dx/len*width/2,za=terrainZ(a[0],a[1])+.22,zb=terrainZ(b[0],b[1])+.22;pos.push(pa.x+nx,pa.y+ny,za,pa.x-nx,pa.y-ny,za,pb.x+nx,pb.y+ny,zb,pb.x-nx,pb.y-ny,zb);idx.push(vi,vi+1,vi+2,vi+2,vi+1,vi+3);vi+=4}}
-  }
   if(!pos.length)return null;const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();return g;
 }
 function buildRoads(){
