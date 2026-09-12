@@ -537,9 +537,10 @@ async function boot(){
     loadText.textContent='Loading CC0 survivor, loot, vehicles and infected…';
     await buildSurvivalArt();
     loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' buildings · playable ground world ready';
+    window.BP_HORIZON_SMOKE={ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),player:Boolean(playerRoot),loot:lootSpawns.length,zombies:zombies.length,artChildren:artGroup.children.length};
     updateLootPrompt();resizeRenderer();
   }catch(e){
-    console.error(e);$('error').hidden=false;$('errorText').textContent=String(e?.message||e);loadText.textContent='Preview unavailable';
+    console.error(e);window.BP_HORIZON_SMOKE={ok:false,cell:CELL,error:String(e?.message||e)};$('error').hidden=false;$('errorText').textContent=String(e?.message||e);loadText.textContent='Preview unavailable';
   }
 }
 
