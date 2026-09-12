@@ -223,6 +223,7 @@ let RAPIER=null,physicsWorld=null,physicsReady=false,physicsMode='manual-fallbac
 let playerPhysicsBody=null,playerPhysicsCollider=null,characterController=null;
 let verticalVelocity=0,grounded=false,playerJumpQueued=false;
 let playerStance='stand',gamepadMove={x:0,y:0},gamepadLook={x:0,y:0},gamepadPrev=[];
+const PHYSICS_VISUAL_DROP=.07;
 const STANCES={
   stand:{half:.58,radius:.33,speed:1,center:1.11},
   crouch:{half:.34,radius:.33,speed:.68,center:.87},
@@ -1211,7 +1212,7 @@ async function buildPlayer(){
   weaponTemplates={axe,bat,knife,pistol,rifle,shotgun};
   if(gltf){
     const n=normalizedModel(gltf.scene,1.82,true);
-    playerRoot=n.root;playerVisualRoot=n.oriented;playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);
+    playerRoot=n.root;playerVisualRoot=n.oriented;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);
     captureCharacterWeaponTemplates(n.model);
     setupEquipmentMounts(n.model);
   }else{
