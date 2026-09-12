@@ -10,7 +10,7 @@ if(!ep||!arr)throw new Error('Unable to parse Horizon endpoint/map presets');
 const presets=Function('"use strict";return ['+arr[1]+'];')();
 fs.mkdirSync(outDir,{recursive:true});
 
-const timeoutMs=28000;
+const timeoutMs=9000;
 async function fetchOne(m){
   const u=new URL(ep);
   u.searchParams.set('state',m.state);u.searchParams.set('lat',String(m.lat));u.searchParams.set('lon',String(m.lon));
@@ -35,7 +35,7 @@ async function worker(){
     catch(e){results[i]={id:m.id,ok:false,error:String(e?.message||e)};console.warn('PREWARM_SKIP',m.id,results[i].error)}
   }
 }
-await Promise.all(Array.from({length:Math.min(8,presets.length)},()=>worker()));
+await Promise.all(Array.from({length:Math.min(16,presets.length)},()=>worker()));
 const summary={generated_at:new Date().toISOString(),total:presets.length,ok:results.filter(x=>x?.ok).length,failed:results.filter(x=>x&&!x.ok).length,results};
 fs.writeFileSync(path.join(outDir,'index.json'),JSON.stringify(summary));
 console.log('HORIZON_MAP_PREWARM',JSON.stringify({total:summary.total,ok:summary.ok,failed:summary.failed}));
