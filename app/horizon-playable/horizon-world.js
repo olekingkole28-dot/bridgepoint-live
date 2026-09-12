@@ -696,7 +696,16 @@ function refreshEquipmentVisuals(){
   }
   weaponPivot=equipmentMounts.rightHand;
 }
+function useQuickSlot(slot){
+  const item=equipment[slot];if(!item){showToast(slot.toUpperCase()+' EMPTY');return false}
+  if(!(inventory[item]>0)){showToast('No '+item+' left');return false}
+  if(item==='Bandage'){health=Math.min(100,health+28);$('healthStat').textContent=String(health)}
+  else if(item==='Water'){health=Math.min(100,health+8);$('healthStat').textContent=String(health)}
+  inventory[item]--;if(inventory[item]<=0){delete inventory[item];equipment[slot]=null}
+  lootCount=Math.max(0,lootCount-1);showToast('Used '+item);updateInventory();return true;
+}
 function selectSlot(slot,quiet=false){
+  if(slot==='quick1'||slot==='quick2')return useQuickSlot(slot);
   const item=activeItemForSlot(slot);
   if(!item){if(!quiet)showToast(slot.toUpperCase()+' SLOT EMPTY');return false}
   activeSlot=slot;activeWeapon=item;equippedWeaponName=item;aiming=false;
