@@ -4,6 +4,7 @@ import { chromium } from 'playwright-core';
 const base=(process.env.BASE_URL||'http://127.0.0.1:4173').replace(/\/$/,'');
 const candidates=[
   process.env.CHROME_PATH,
+  chromium.executablePath?.(),
   '/usr/bin/google-chrome',
   '/usr/bin/google-chrome-stable',
   '/usr/bin/chromium',
