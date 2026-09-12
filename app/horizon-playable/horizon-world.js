@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4211;
+const BUILD_VERSION=4212;
 const SAVE_KEY='bridgepoint-horizon-survivor-v3050';
 const LEGACY_SAVE_KEY='bridgepoint-horizon-survivor-v3040';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
@@ -24,7 +24,7 @@ const ASSETS={
   playerLis:FREE_BASE+'/Characters/glTF/Characters_Lis.gltf',
   playerSam:FREE_BASE+'/Characters/glTF/Characters_Sam.gltf',
   playerShaun:FREE_BASE+'/Characters/glTF/Characters_Shaun.gltf',
-  playerRealistic:'https://raw.githubusercontent.com/sceneview/sceneview/main/samples/android-demo/src/main/assets/models/threejs_soldier.glb',
+  playerRealistic:'https://threejs.org/examples/models/gltf/Soldier.glb',
   zombie:FREE_BASE+'/Characters/glTF/Zombie_Basic.gltf',
   zombieChubby:FREE_BASE+'/Characters/glTF/Zombie_Chubby.gltf',
   zombieRibcage:FREE_BASE+'/Characters/glTF/Zombie_Ribcage.gltf',
@@ -1421,8 +1421,10 @@ function sanitizeCharacterClips(clips){
 }
 async function buildPlayer(){
   const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,surfaceZXY(spawn.x,spawn.y)+.015);
+  let primaryPlayer=await loadAsset(PLAYER_ASSET),playerMode=CHARACTER_KEY;
+  if(!primaryPlayer&&CHARACTER_KEY==='realistic'){primaryPlayer=await loadAsset(ASSETS.player);playerMode='matt-fallback'}
   const [gltf,axe,bat,knife,pistol,rifle,shotgun,smg,spear,sawBat,guitar]=await Promise.all([
-    loadAsset(PLAYER_ASSET),
+    Promise.resolve(primaryPlayer),
     loadAsset(weaponCfg('Axe').model_url||ASSETS.axe),
     loadAsset(weaponCfg('Barbed Bat').model_url||ASSETS.bat),
     loadAsset(weaponCfg('Knife').model_url||ASSETS.knife),
@@ -1436,7 +1438,7 @@ async function buildPlayer(){
   ]);
   weaponTemplates={axe,bat,knife,pistol,rifle,shotgun,smg,spear,sawBat,guitar};
   if(gltf){
-    playerAssetLoaded=true;playerAssetMode=CHARACTER_KEY;
+    playerAssetLoaded=true;playerAssetMode=playerMode;
     const n=normalizedModel(gltf.scene,1.82,true);
     playerRoot=n.root;playerVisualRoot=n.oriented;n.model.rotation.y=Math.PI;n.model.updateMatrixWorld(true);playerModelYawOffset=0;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);
     captureCharacterWeaponTemplates(n.model);
