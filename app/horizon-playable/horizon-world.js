@@ -1782,7 +1782,7 @@ function enterInterior(entry){
 }
 function exitInterior(){
   if(!interiorMode)return;
-  interiorMode=false;interiorGroup.visible=false;exteriorRoot.visible=true;clearInterior();playerVelocity.set(0,0,0);playerRoot.position.copy(exteriorReturn);yaw=exteriorYaw;
+  interiorMode=false;interiorGroup.visible=false;exteriorRoot.visible=true;clearInterior();playerVelocity.set(0,0,0);playerRoot.position.copy(exteriorReturn);yaw=exteriorYaw;syncPhysicsToPlayer();
   $('cellLabel').textContent=worldCellLabel();
   $('worldTitle').textContent=worldCellTitle();
   loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · enter marked doorways';
@@ -1819,7 +1819,9 @@ function findNearestInteraction(){
 }
 function interact(){
   const hit=findNearestInteraction();if(!hit)return;
-  if(hit.kind==='pickup')pickupLoose(hit.pickup);
+  if(hit.kind==='vehicleExit')exitVehicle();
+  else if(hit.kind==='vehicle')enterVehicle(hit.vehicle);
+  else if(hit.kind==='pickup')pickupLoose(hit.pickup);
   else if(hit.kind==='floorUp'||hit.kind==='floorDown')changeInteriorFloor(hit.floor);
   else if(hit.kind==='entry')enterInterior(hit.entry);
   else if(hit.kind==='exit')exitInterior();
@@ -1866,6 +1868,7 @@ function respawnPlayer(){
   const box=$('deathBox');if(box)box.hidden=true;
   const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,surfaceZXY(spawn.x,spawn.y)+.015);
   playerRoot.position.copy(playerSpawn);playerRoot.visible=true;playerVelocity.set(0,0,0);
+  if(physicsReady){if(!playerPhysicsBody)createPlayerPhysics();else syncPhysicsToPlayer()}
   yaw=0;pitch=.14;waveNumber=0;nextWaveAt=0;
   if(zombieTemplate)spawnZombieWave(performance.now(),true);
   showToast('Respawned');
