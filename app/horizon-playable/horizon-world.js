@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4216;
+const BUILD_VERSION=4217;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -917,34 +917,133 @@ function facadeKey(row,height=8){
   if(densePreview()&&roll<58)return'brick';
   return'concrete';
 }
+function closestPointOnSegment2D(p,a,b){
+  const vx=b.x-a.x,vy=b.y-a.y,l2=vx*vx+vy*vy;
+  const t=l2>1e-9?THREE.MathUtils.clamp(((p.x-a.x)*vx+(p.y-a.y)*vy)/l2,0,1):0;
+  return{x:a.x+vx*t,y:a.y+vy*t,t};
+}
+function shellRoadAnchor(meta){
+  let best=null,d=Infinity,step=Math.max(1,Math.floor(roadAnchors.length/1200));
+  for(let i=0;i<roadAnchors.length;i+=step){
+    const a=roadAnchors[i],q=(a.x-meta.x)*(a.x-meta.x)+(a.y-meta.y)*(a.y-meta.y);
+    if(q<d){d=q;best=a}
+  }
+  return best||roadAnchors[0]||{x:meta.x,y:meta.y};
+}
+function addShellBox(group,cx,cy,cz,sx,sy,sz,rot,mat,label,physics=true){
+  const g=new THREE.BoxGeometry(Math.max(.02,sx),Math.max(.02,sy),Math.max(.02,sz));
+  const q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),rot||0);
+  const m=new THREE.Matrix4().compose(new THREE.Vector3(cx,cy,cz),q,new THREE.Vector3(1,1,1));g.applyMatrix4(m);
+  const mesh=new THREE.Mesh(g,mat);mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);
+  if(physics)addStaticPhysicsGeometry(g,label,.86);return mesh;
+}
+function addShellRamp(group,cx,cy,baseZ,run,rise,rot,label){
+  const len=Math.hypot(run,rise),angle=Math.atan2(rise,run),g=new THREE.BoxGeometry(1.42,len,.16);
+  const qYaw=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),rot||0);
+  const qPitch=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),angle);
+  const q=qYaw.multiply(qPitch),m=new THREE.Matrix4().compose(new THREE.Vector3(cx,cy,baseZ+rise/2),q,new THREE.Vector3(1,1,1));g.applyMatrix4(m);
+  const mat=new THREE.MeshStandardMaterial({color:0x474b48,roughness:.92,metalness:.05}),mesh=new THREE.Mesh(g,mat);mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);addStaticPhysicsGeometry(g,label,.92);
+  const stepMat=new THREE.MeshStandardMaterial({color:0x555954,roughness:.94});
+  for(let i=0;i<11;i++){
+    const t=(i+.5)/11,ly=-run/2+t*run,lz=baseZ+t*rise;
+    const px=cx-Math.sin(rot||0)*ly,py=cy+Math.cos(rot||0)*ly;
+    addShellBox(group,px,py,lz,1.48,.25,.075,rot||0,stepMat,label+'-step-'+i,false);
+  }
+}
+const shellGlassMaterial=new THREE.MeshPhysicalMaterial({color:0x9fcbd6,roughness:.04,metalness:0,transparent:true,opacity:.34,transmission:.62,depthWrite:false,side:THREE.DoubleSide});
+function buildExplorableShell(rec,meta){
+  const group=new THREE.Group();group.name='source-open-building-'+meta.id;buildingLayer.add(group);
+  const wallMat=buildingMaterials[rec.materialKey]||buildingMaterials.concrete;
+  const edges=[];
+  for(let i=1;i<meta.poly.length;i++){
+    const a=meta.poly[i-1],b=meta.poly[i],len=Math.hypot(b.x-a.x,b.y-a.y);if(len>.5)edges.push({a,b,len,angle:Math.atan2(b.y-a.y,b.x-a.x)});
+  }
+  if(meta.poly.length>2){
+    const a=meta.poly[meta.poly.length-1],b=meta.poly[0],len=Math.hypot(b.x-a.x,b.y-a.y);if(len>.5)edges.push({a,b,len,angle:Math.atan2(b.y-a.y,b.x-a.x)});
+  }
+  const road=shellRoadAnchor(meta);let doorEdge=0,doorPoint={x:meta.x,y:meta.y},doorDist=Infinity;
+  edges.forEach((e,idx)=>{const p=closestPointOnSegment2D(road,e.a,e.b),d=Math.hypot(p.x-road.x,p.y-road.y);if(d<doorDist){doorDist=d;doorEdge=idx;doorPoint=p}});
+  const de=edges[doorEdge];if(de){
+    const minT=Math.min(.78/de.len,.42),maxT=1-minT,t=THREE.MathUtils.clamp(doorPoint.t,minT,maxT);
+    doorPoint={x:THREE.MathUtils.lerp(de.a.x,de.b.x,t),y:THREE.MathUtils.lerp(de.a.y,de.b.y,t),t};
+  }
+  meta.doorEdgeIndex=doorEdge;meta.doorX=doorPoint.x;meta.doorY=doorPoint.y;meta.doorRot=de?.angle||0;meta.doorGap=1.65;meta.shellEdges=edges;
+  const floorH=3.05,floors=Math.min(28,Math.max(1,Math.floor(meta.height/floorH))),shape=shapeFromRing(rec.ring);
+  meta.openFloors=floors;
+  for(let f=0;f<floors;f++){
+    const base=meta.z+f*floorH;
+    if(shape){
+      const slabGeo=new THREE.ShapeGeometry(shape);slabGeo.translate(0,0,base+.035);
+      const slab=new THREE.Mesh(slabGeo,new THREE.MeshStandardMaterial({color:f%2?0x4b4b47:0x555049,roughness:.98,side:THREE.DoubleSide}));slab.receiveShadow=true;group.add(slab);addStaticPhysicsGeometry(slabGeo,'open-floor-'+meta.id+'-'+f,.94);
+    }
+    edges.forEach((e,ei)=>{
+      const bays=Math.max(1,Math.min(8,Math.floor(e.len/2.45))),bay=e.len/bays,ux=(e.b.x-e.a.x)/e.len,uy=(e.b.y-e.a.y)/e.len;
+      for(let bi=0;bi<bays;bi++){
+        const centerT=(bi+.5)/bays,cx=THREE.MathUtils.lerp(e.a.x,e.b.x,centerT),cy=THREE.MathUtils.lerp(e.a.y,e.b.y,centerT);
+        const doorBay=f===0&&ei===doorEdge&&Math.hypot(cx-meta.doorX,cy-meta.doorY)<bay*.7;
+        if(!doorBay)addShellBox(group,cx,cy,base+.34,bay+.025,.18,.68,e.angle,wallMat,'open-wall-low-'+meta.id,false);
+        addShellBox(group,cx,cy,base+2.68,bay+.025,.18,.74,e.angle,wallMat,'open-wall-high-'+meta.id,false);
+        const leftT=bi/bays,lx=THREE.MathUtils.lerp(e.a.x,e.b.x,leftT),ly=THREE.MathUtils.lerp(e.a.y,e.b.y,leftT);
+        addShellBox(group,lx,ly,base+1.52,.22,.22,2.34,e.angle,wallMat,'open-wall-post-'+meta.id,false);
+        if(!doorBay){
+          const glass=addShellBox(group,cx,cy,base+1.50,Math.max(.55,bay-.32),.035,1.54,e.angle,shellGlassMaterial,'glass-'+meta.id,false);
+          glass.userData.breakableGlass=true;glass.userData.sourceBuilding=meta.id;
+        }
+      }
+      // One collider per whole edge/floor for header/lower wall bands keeps the shell solid without thousands of colliders.
+      const mx=(e.a.x+e.b.x)/2,my=(e.a.y+e.b.y)/2;
+      if(!(f===0&&ei===doorEdge)){
+        addShellBox(group,mx,my,base+.34,e.len,.20,.68,e.angle,new THREE.MeshBasicMaterial({visible:false}),'open-collider-low-'+meta.id,true).visible=false;
+      }else{
+        const p=meta.doorGap/2,doorT=de?closestPointOnSegment2D(meta,de.a,de.b).t:.5,leftLen=Math.max(0,de.len*doorT-p),rightLen=Math.max(0,de.len*(1-doorT)-p);
+        if(leftLen>.3){const t=(leftLen/2)/de.len,cx=THREE.MathUtils.lerp(de.a.x,de.b.x,t),cy=THREE.MathUtils.lerp(de.a.y,de.b.y,t);addShellBox(group,cx,cy,base+.34,leftLen,.20,.68,e.angle,new THREE.MeshBasicMaterial({visible:false}),'door-side-l-'+meta.id,true).visible=false}
+        if(rightLen>.3){const t=1-(rightLen/2)/de.len,cx=THREE.MathUtils.lerp(de.a.x,de.b.x,t),cy=THREE.MathUtils.lerp(de.a.y,de.b.y,t);addShellBox(group,cx,cy,base+.34,rightLen,.20,.68,e.angle,new THREE.MeshBasicMaterial({visible:false}),'door-side-r-'+meta.id,true).visible=false}
+      }
+      addShellBox(group,mx,my,base+2.68,e.len,.20,.74,e.angle,new THREE.MeshBasicMaterial({visible:false}),'open-collider-high-'+meta.id,true).visible=false;
+    });
+    if(f<floors-1&&meta.width>6&&meta.depth>6){
+      const run=Math.min(4.8,Math.max(3.4,Math.min(meta.width,meta.depth)*.36)),rot=f%2?Math.PI:0;
+      addShellRamp(group,meta.x,meta.y,base+.08,run,floorH-.16,rot,'open-stair-'+meta.id+'-'+f);
+    }
+  }
+  if(shape){
+    const roofGeo=new THREE.ShapeGeometry(shape);roofGeo.translate(0,0,meta.z+floors*floorH);
+    const roof=new THREE.Mesh(roofGeo,new THREE.MeshStandardMaterial({color:0x3f4240,roughness:.96,side:THREE.DoubleSide}));roof.receiveShadow=true;group.add(roof);addStaticPhysicsGeometry(roofGeo,'open-roof-'+meta.id,.9);
+  }
+  return group;
+}
 function buildBuildings(){
-  buildingLayer=new THREE.Group();buildingLayer.name='source-buildings';worldGroup.add(buildingLayer);
-  const buckets={brick:[],concrete:[],glass:[],wood:[],metal:[]};let proxies=0,sourceH=0;
+  buildingLayer=new THREE.Group();buildingLayer.name='source-buildings';worldGroup.add(buildingLayer);buildingCenters=[];
+  const buckets={brick:[],concrete:[],glass:[],wood:[],metal:[]},records=[];let proxies=0,sourceH=0,ri=0;
   for(const row of data.buildings||[])for(const r of outerRings(row.geometry)){
     const shape=shapeFromRing(r);if(!shape)continue;
     const ht=heightFor(row);ht.proxy?proxies++:sourceH++;
-    const geo=new THREE.ExtrudeGeometry(shape,{depth:ht.h,bevelEnabled:false,steps:1});
-    const c=centerRing(r),q=project(c),z=terrainZ(c[0],c[1]);geo.translate(0,0,z+.16);geo.computeVertexNormals();
-    buckets[facadeKey(row,ht.h)].push(geo);
-    if(ringArea(r)>.0000000012){
-      const pts=r.map(project).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));
-      const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
-      const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
-      const width=maxx-minx,depth=maxy-miny;
-      if(width>2.8&&depth>2.8)buildingCenters.push({id:String(row.id||hash(JSON.stringify(c))),x:q.x,y:q.y,z,height:ht.h,minx,maxx,miny,maxy,width,depth,poly:pts});
-    }
+    const center=centerRing(r),q=project(center),z=terrainZ(center[0],center[1]),pts=r.map(project).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));
+    if(pts.length<3)continue;
+    const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys),width=maxx-minx,depth=maxy-miny;
+    const id=String(row.id||hash(JSON.stringify(center)))+':'+(ri++);
+    records.push({row,ring:r,shape,ht,center,q,z,pts,minx,maxx,miny,maxy,width,depth,id,materialKey:facadeKey(row,ht.h)});
+  }
+  const shellLimit=MAP_PRESET.size==='LARGE'?14:MAP_PRESET.size==='SMALL'?9:12;
+  const shellIds=new Set(records.filter(x=>x.width>6&&x.depth>6&&x.ht.h>5&&Math.hypot(x.q.x,x.q.y)<260).sort((a,b)=>(a.q.x*a.q.x+a.q.y*a.q.y)-(b.q.x*b.q.x+b.q.y*b.q.y)).slice(0,shellLimit).map(x=>x.id));
+  let openCount=0;
+  for(const rec of records){
+    const meta={id:rec.id,x:rec.q.x,y:rec.q.y,z:rec.z,height:rec.ht.h,minx:rec.minx,maxx:rec.maxx,miny:rec.miny,maxy:rec.maxy,width:rec.width,depth:rec.depth,poly:rec.pts,explorable:shellIds.has(rec.id)};
+    if(meta.width>2.8&&meta.depth>2.8)buildingCenters.push(meta);
+    if(meta.explorable){buildExplorableShell(rec,meta);openCount++;continue}
+    const geo=new THREE.ExtrudeGeometry(rec.shape,{depth:rec.ht.h,bevelEnabled:false,steps:1});geo.translate(0,0,rec.z+.16);geo.computeVertexNormals();buckets[rec.materialKey].push(geo);
   }
   for(const [k,geos] of Object.entries(buckets)){
     if(!geos.length)continue;
     const merged=mergeLocal(geos);if(!merged)continue;
     const mesh=new THREE.Mesh(merged,buildingMaterials[k]);mesh.castShadow=true;mesh.receiveShadow=true;buildingLayer.add(mesh);
-    addStaticPhysicsGeometry(merged,'buildings-'+k,.82);
-    for(const g of geos)g.dispose();
+    addStaticPhysicsGeometry(merged,'buildings-'+k,.82);for(const g of geos)g.dispose();
   }
-  loadText.textContent='Geometry ready · '+sourceH.toLocaleString()+' source-height buildings · '+proxies.toLocaleString()+' visual-height proxies';
+  streetLifeStats.openBuildings=openCount;
+  loadText.textContent='Geometry ready · '+sourceH.toLocaleString()+' source-height buildings · '+proxies.toLocaleString()+' visual-height proxies · '+openCount+' physically open buildings';
 }
 function buildFacadeDetails(){
-  const candidates=[...buildingCenters].filter(b=>b.height>9&&b.width>3&&b.depth>3).sort((a,b)=>b.height-a.height).slice(0,densePreview()?650:220);
+  const candidates=[...buildingCenters].filter(b=>!b.explorable&&b.height>9&&b.width>3&&b.depth>3).sort((a,b)=>b.height-a.height).slice(0,densePreview()?650:220);
   const maxWindows=densePreview()?14000:5200;
   const winGeo=new THREE.BoxGeometry(1,.07,.72);
   const litMat=new THREE.MeshPhysicalMaterial({color:0xa9c9d0,emissive:0x394f47,emissiveIntensity:.34,roughness:.08,metalness:.04,transparent:true,opacity:.48,transmission:.32,depthWrite:true});
@@ -1014,14 +1113,17 @@ function buildEntryPoints(){
   let visualCount=0;
   for(const b of candidates){
     const road=nearestRoadForBuilding(b);if(!road)continue;
-    const dx=road.x-b.x,dy=road.y-b.y;let x=b.x,y=b.y,rot=0;
-    if(Math.abs(dx)>Math.abs(dy)){
-      x=dx>0?b.maxx+.58:b.minx-.58;
-      y=THREE.MathUtils.clamp(road.y,b.miny+.7,b.maxy-.7);
-      rot=Math.PI/2;
-    }else{
-      y=dy>0?b.maxy+.58:b.miny-.58;
-      x=THREE.MathUtils.clamp(road.x,b.minx+.7,b.maxx-.7);
+    let x=b.x,y=b.y,rot=0;
+    if(b.explorable&&Number.isFinite(b.doorX)&&Number.isFinite(b.doorY)){x=b.doorX;y=b.doorY;rot=b.doorRot||0}
+    else{
+      const dx=road.x-b.x,dy=road.y-b.y;
+      if(Math.abs(dx)>Math.abs(dy)){
+        x=dx>0?b.maxx+.58:b.minx-.58;
+        y=THREE.MathUtils.clamp(road.y,b.miny+.7,b.maxy-.7);rot=Math.PI/2;
+      }else{
+        y=dy>0?b.maxy+.58:b.miny-.58;
+        x=THREE.MathUtils.clamp(road.x,b.minx+.7,b.maxx-.7);
+      }
     }
     let root=null;
     if(visualCount<visualLimit){
@@ -1049,12 +1151,22 @@ function installInteractiveDoors(){
     const pivot=new THREE.Group();pivot.position.set(-.54,-.02,0);
     const door=new THREE.Mesh(new THREE.BoxGeometry(1.08,.10,2.08),doorMat);door.position.set(.54,0,1.04);door.castShadow=true;
     const knob=new THREE.Mesh(new THREE.SphereGeometry(.055,7,5),new THREE.MeshStandardMaterial({color:0x9d8756,metalness:.5,roughness:.4}));knob.position.set(.92,-.075,1.05);door.add(knob);
-    pivot.add(door);e.doorRoot.add(pivot);e.doorPivot=pivot;e.doorOpen=false;e.doorTarget=0;doorAnimations.push(e);doorSystemCount++;
+    pivot.add(door);e.doorRoot.add(pivot);e.doorPivot=pivot;e.doorOpen=false;e.doorTarget=0;
+    if(e.explorable&&physicsReady&&RAPIER&&physicsWorld){
+      try{
+        const q={x:0,y:0,z:Math.sin((e.doorRot||0)/2),w:Math.cos((e.doorRot||0)/2)};
+        e.doorCollider=physicsWorld.createCollider(RAPIER.ColliderDesc.cuboid(.56,.08,1.04).setTranslation(e.entryX,e.entryY,e.entryZ+1.04).setRotation(q).setFriction(.65));
+        e.doorCollider.userData={label:'interactive-door-'+e.id};
+      }catch(err){console.warn('door collider skipped',e.id,err)}
+    }
+    doorAnimations.push(e);doorSystemCount++;
   }
   return doorSystemCount;
 }
 function openDoor(entry,kicked=false){
-  if(!entry?.doorPivot)return false;entry.doorOpen=true;entry.doorTarget=kicked?-1.48:-1.18;showToast(kicked?'Door kicked open':'Door opened');return true;
+  if(!entry?.doorPivot)return false;entry.doorOpen=true;entry.doorTarget=kicked?-1.48:-1.18;
+  if(entry.doorCollider&&physicsWorld){try{physicsWorld.removeCollider(entry.doorCollider,true)}catch(_){}entry.doorCollider=null}
+  showToast(kicked?'Door kicked open':'Door opened');return true;
 }
 function shatterFacadeGlass(mesh,instanceId){
   if(!mesh?.userData?.breakableFacade||instanceId==null)return false;
@@ -2691,7 +2803,12 @@ function findNearestInteraction(){
     for(const link of interiorFloorLinks){const d=Math.hypot(playerRoot.position.x-link.x,playerRoot.position.y-link.y);if(d<2.15&&d<bestD){best={kind:link.kind,label:link.label,floor:link.floor};bestD=d}}
     for(const c of interiorContainers)if(c.active){const d=Math.hypot(playerRoot.position.x-c.x,playerRoot.position.y-c.y);if(d<2.05&&d<bestD){best={kind:'loot',label:c.label,spot:c};bestD=d}}
   }else{
-    for(const e of buildingEntries){const d=Math.hypot(playerRoot.position.x-e.entryX,playerRoot.position.y-e.entryY);if(d<2.4&&d<bestD){best={kind:e.doorPivot&&!e.doorOpen?'door':'entry',label:e.doorPivot&&!e.doorOpen?'OPEN DOOR':'ENTER BUILDING',entry:e};bestD=d}}
+    for(const e of buildingEntries){
+      const d=Math.hypot(playerRoot.position.x-e.entryX,playerRoot.position.y-e.entryY);
+      if(d>=2.4||d>=bestD)continue;
+      if(e.doorPivot&&!e.doorOpen){best={kind:'door',label:'OPEN DOOR',entry:e};bestD=d}
+      else if(!e.explorable){best={kind:'entry',label:'ENTER BUILDING',entry:e};bestD=d}
+    }
   }
   return best;
 }
@@ -2710,7 +2827,7 @@ function interact(){
 function maybeWalkThroughOpenDoor(){
   if(interiorMode||activeVehicle||!playerRoot)return false;
   for(const e of buildingEntries){
-    if(!e.doorOpen)continue;
+    if(!e.doorOpen||e.explorable)continue;
     const d=Math.hypot(playerRoot.position.x-e.entryX,playerRoot.position.y-e.entryY);
     if(d<.82){enterInterior(e);return true}
   }
@@ -3059,6 +3176,20 @@ function isBlockedInterior(x,y){
 function isBlockedExterior(x,y,r=.33){
   for(const b of buildingCenters){
     if(x<b.minx-r||x>b.maxx+r||y<b.miny-r||y>b.maxy+r)continue;
+    if(b.explorable){
+      if(pointInPoly(x,y,b.poly))continue;
+      let nearWall=false,doorPass=false;
+      for(let i=0;i<(b.shellEdges||[]).length;i++){
+        const e=b.shellEdges[i],d=pointSegDist(x,y,e.a,e.b);if(d>=r)continue;
+        if(i===b.doorEdgeIndex&&Math.hypot(x-b.doorX,y-b.doorY)<(b.doorGap||1.65)*.62+r){
+          const entry=buildingEntries.find(q=>q.id===b.id);doorPass=Boolean(entry?.doorOpen);if(doorPass)break;
+        }
+        nearWall=true;
+      }
+      if(doorPass)continue;
+      if(nearWall)return true;
+      continue;
+    }
     if(polyBlocksPoint(x,y,b.poly,r))return true;
   }
   return false;
@@ -3784,7 +3915,7 @@ async function boot(){
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
       reloadActive:reloadState.active,aimFov:weaponCfg(activeWeapon).aim_fov,
-      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,walkableStairs:true,transparentFacadeWindows:true,
+      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),seamlessOpenBuildings:true,
       matchMode,matchRadius:Number.isFinite(matchRadius)?matchRadius:null,seasonDay:seasonDay(),xp,battleTier,livesRemaining,
       flashlightReady:Boolean(flashlight),vehicleRepair:true,factionClaimMode:'local-preview',spectatorMode
     };
