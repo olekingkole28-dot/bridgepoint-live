@@ -500,22 +500,14 @@ function attachDuffel(){
 function updatePackVisual(){/* pack capacity is UI-only; no backpack mesh on survivor */}
 function mountWeaponModel(template,name){
   if(!playerRoot)return;
-  if(!weaponPivot){weaponPivot=new THREE.Group();weaponPivot.position.set(.40,-.02,1.03);playerRoot.add(weaponPivot)}
-  while(weaponPivot.children.length)weaponPivot.remove(weaponPivot.children[0]);
-  if(template){
-    const length=name==='Knife'?.38:name==='Barbed Bat'?.92:.68;
-    const w=propCloneByLength(template,length);
-    if(w){
-      w.rotation.set(name==='Knife'?.05:.18,name==='Knife'?.15:.08,name==='Barbed Bat'?-1.02:-.88);
-      w.position.set(.03,0,name==='Knife'?.02:.04);
-      weaponPivot.add(w);
-    }
-  }else{
-    const fallback=new THREE.Mesh(new THREE.BoxGeometry(.08,.08,.7),new THREE.MeshStandardMaterial({color:0x6d6253,roughness:.72,metalness:.18}));fallback.position.z=.3;weaponPivot.add(fallback);
-  }
-  equippedWeaponName=name;updateInventory();
+  equippedWeaponName=name||'Axe';
+  equipment.melee=equippedWeaponName;
+  const key=name==='Barbed Bat'?'bat':name==='Knife'?'knife':'axe';
+  putEquipmentModel('rightHand',weaponTemplates[key]||template,name==='Barbed Bat'?.92:name==='Knife'?.38:.68,[.18,.08,-.88],[.02,0,.02]);
+  weaponPivot=equipmentMounts.rightHand;
+  updateInventory();
 }
-function equipWeapon(name){const key=name==='Barbed Bat'?'bat':name==='Knife'?'knife':'axe';mountWeaponModel(weaponTemplates[key],name)}
+function equipWeapon(name){mountWeaponModel(null,name)}
 function findBoneByHints(root,hints){
   let found=null;
   root?.traverse(o=>{
