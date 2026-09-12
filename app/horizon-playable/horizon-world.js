@@ -891,6 +891,20 @@ async function boot(){
     loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · enter marked doorways and search interiors';
     updateInventory();updateInteractionPrompt();resizeRenderer();
     window.BP_HORIZON_SMOKE={ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),player:Boolean(playerRoot),loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,packCapacity,weapon:equippedWeaponName,interiorAssets:Object.values(interiorTemplates).filter(Boolean).length,artChildren:artGroup.children.length};
+    window.BP_HORIZON_TEST={
+      enterFirst:()=>{
+        const e=buildingEntries[0];if(!e)return null;enterInterior(e);
+        return {interiorMode,layout:activeInterior?.layout||null,containers:interiorContainers.length,floor:activeInterior?.floor||null};
+      },
+      searchFirst:()=>{
+        const c=interiorContainers.find(x=>x.active);if(!c)return null;
+        playerRoot.position.set(c.x,c.y,.05);updateInteractionPrompt();interact();
+        return {lootCount,packCapacity,inventory:{...inventory}};
+      },
+      swing:()=>{attack();return {swingTime,equippedWeaponName}},
+      exit:()=>{exitInterior();return {interiorMode}},
+      state:()=>({interiorMode,entries:buildingEntries.length,containers:interiorContainers.length,lootCount,packCapacity,equippedWeaponName})
+    };
   }catch(e){
     console.error(e);window.BP_HORIZON_SMOKE={ok:false,cell:CELL,error:String(e?.message||e)};$('error').hidden=false;$('errorText').textContent=String(e?.message||e);loadText.textContent='Preview unavailable';
   }
