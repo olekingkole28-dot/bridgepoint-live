@@ -16,6 +16,8 @@ const ASSETS={
   streetlight:FREE_BASE+'/Environment/glTF/StreetLights.gltf',
   hydrant:FREE_BASE+'/Environment/glTF/FireHydrant.gltf',
   vehicle:FREE_BASE+'/Vehicles/glTF/Vehicle_Pickup.gltf',
+  sportsCar:FREE_BASE+'/Vehicles/glTF/Vehicle_Sports.gltf',
+  truck:FREE_BASE+'/Vehicles/glTF/Vehicle_Truck.gltf',
   axe:FREE_BASE+'/Weapons/glTF/Axe.gltf',
   bat:FREE_BASE+'/Weapons/glTF/WoodenBat_Barbed.gltf',
   knife:FREE_BASE+'/Weapons/glTF/Knife.gltf'
@@ -230,7 +232,7 @@ function buildBuildings(){
       const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
       const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
       const width=maxx-minx,depth=maxy-miny;
-      if(width>2.8&&depth>2.8)buildingCenters.push({id:String(row.id||hash(JSON.stringify(c))),x:q.x,y:q.y,z,height:ht.h,minx,maxx,miny,maxy,width,depth});
+      if(width>2.8&&depth>2.8)buildingCenters.push({id:String(row.id||hash(JSON.stringify(c))),x:q.x,y:q.y,z,height:ht.h,minx,maxx,miny,maxy,width,depth,poly:pts});
     }
   }
   for(const [k,geos] of Object.entries(buckets)){
