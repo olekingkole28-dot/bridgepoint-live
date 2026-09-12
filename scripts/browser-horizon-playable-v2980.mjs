@@ -34,12 +34,21 @@ async function testLanding(){
   const href=await page.locator('a.cta').first().getAttribute('href');
   console.log(JSON.stringify({landing:true,status:response?.status(),url,href},null,2));
   if(response?.status()!==200)throw new Error('landing HTTP '+response?.status());
-  if(href!=='/app/horizon-playable/?build=3050')throw new Error('landing CTA stale: '+href);
+  if(href!=='/app/horizon-playable/?build=3051')throw new Error('landing CTA stale: '+href);
+
+  // Regression for the exact route used by the top U.S. shortcut: no lat/lon in the URL.
+  const defaultUrl='https://bridgepointintelligence.online/app/horizon-playable/?cell=national&state=NY&ci='+Date.now();
+  const defaultResponse=await page.goto(defaultUrl,{waitUntil:'domcontentloaded',timeout:30000});
+  await page.waitForFunction(()=>Boolean(window.BP_HORIZON_SMOKE),null,{timeout:90000});
+  const d=await page.evaluate(()=>({smoke:window.BP_HORIZON_SMOKE,errorHidden:document.getElementById('error')?.hidden,errorText:document.getElementById('errorText')?.textContent}));
+  console.log(JSON.stringify({defaultNational:true,status:defaultResponse?.status(),defaultUrl,state:d},null,2));
+  if(defaultResponse?.status()!==200||!d.errorHidden||!d.smoke?.ok||d.smoke?.build!==3051)throw new Error('default NY national route failed: '+JSON.stringify(d));
+  if(!(d.smoke?.buildings>0)||!(d.smoke?.navNodes>5))throw new Error('default NY national route streamed empty cell: '+JSON.stringify(d.smoke));
 }
 
 async function testCell(cell,extra={}){
   const u=new URL('https://bridgepointintelligence.online/app/horizon-playable/');
-  u.searchParams.set('build','3050');u.searchParams.set('cell',cell);u.searchParams.set('ci',String(Date.now()));
+  u.searchParams.set('build','3051');u.searchParams.set('cell',cell);u.searchParams.set('ci',String(Date.now()));
   for(const [k,v] of Object.entries(extra))u.searchParams.set(k,String(v));
   const url=u.toString();
   const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
@@ -85,7 +94,7 @@ async function testCell(cell,extra={}){
   if(!d.webgl)throw new Error(cell+' WebGL unavailable');
   if(!d.errorHidden)throw new Error(cell+' error box visible');
   if(!d.smoke?.ok)throw new Error(cell+' smoke failed: '+d.smoke?.error);
-  if(d.smoke?.build!==3050)throw new Error(cell+' stale build: '+d.smoke?.build);
+  if(d.smoke?.build!==3051)throw new Error(cell+' stale build: '+d.smoke?.build);
   if(d.smoke?.sceneFetchError)throw new Error(cell+' scene fetch retry exhausted: '+d.smoke?.sceneFetchError);
   if(!(d.smoke?.decayPatchedMaterials>0))throw new Error(cell+' apocalypse decay shader missing');
   if(!(d.smoke?.doorSystemCount>0))throw new Error(cell+' interactive door system missing');
@@ -238,7 +247,7 @@ try{
   console.log(JSON.stringify({boundary},null,2));
   if(!boundary?.inside||boundary?.insideState!=='NY'||boundary?.outside!==false)
     throw new Error('national jurisdiction containment failed: '+JSON.stringify(boundary));
-  console.log('HORIZON_V3050_BROWSER_SMOKE_PASS');
+  console.log('HORIZON_V3051_BROWSER_SMOKE_PASS');
   if(errors.length)console.log('pageErrors',errors);
   const serious=messages.filter(x=>{
     if(/Rapier source failed/i.test(x)&&/Failed to fetch dynamically imported module/i.test(x))return false;
