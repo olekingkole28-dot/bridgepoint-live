@@ -8,6 +8,8 @@ const INTERIOR_BASE='https://cdn.jsdelivr.net/gh/sijun-kevin-hu/break-my-house@m
 const ASSETS={
   player:FREE_BASE+'/Characters/glTF/Characters_Matt.gltf',
   zombie:FREE_BASE+'/Characters/glTF/Zombie_Basic.gltf',
+  zombieChubby:FREE_BASE+'/Characters/glTF/Zombie_Chubby.gltf',
+  zombieRibcage:FREE_BASE+'/Characters/glTF/Zombie_Ribcage.gltf',
   barrel:FREE_BASE+'/Environment/glTF/Barrel.gltf',
   trash:FREE_BASE+'/Environment/glTF/TrashBag_1.gltf',
   pallet:FREE_BASE+'/Environment/glTF/Pallet_Broken.gltf',
@@ -109,13 +111,15 @@ let packName='Hidden Survivor Pack',packCapacity=24,packMesh=null;
 let weaponPivot=null,weaponTemplates={},equippedWeaponName='Axe',swingTime=0,attackCooldown=0;
 let equipment={melee:'Axe',offhand:'Knife',sidearm:null,primary:null,quick1:'Bandage',quick2:'Water'};
 let equipmentMounts={rightHand:null,leftHand:null,hip:null,back:null};
+let activeSlot='melee',activeWeapon='Axe',aiming=false,fireCooldown=0,muzzleFlash=0;
+let ammoState={Pistol:12,Rifle:20,Shotgun:6};
 let playerDead=false,kills=0;
 let worldPickups=[],pickupTemplates={},pickupSeq=0;
 let waveNumber=0,nextWaveAt=0,maxActiveZombies=7;
-let zombieTemplate=null;
+let zombieTemplate=null,zombieTemplates=[];
 let mobileMove={x:0,y:0},mobileSprint=false;
 let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),exteriorYaw=0;
-let interiorWalls=[],interiorContainers=[],interiorBounds=null,interiorExit=null,interiorTemplates={};
+let interiorWalls=[],interiorContainers=[],interiorBounds=null,interiorExit=null,interiorFloorLinks=[],interiorTemplates={},interiorLootedKeys=new Set();
 let streetLifeStats={trees:0,bikes:0,vehicles:0,props:0,grass:0,benches:0,planters:0};
 const keys=new Set();
 
