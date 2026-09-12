@@ -54,17 +54,22 @@ jobs:
           test -s site/app/intelligence-launch/index.html
           test -s site/app/horizon/index.html
           test -s site/app/horizon/preview.html
-          test -s site/app/horizon/horizon-preview.js
-          test -s site/app/horizon/horizon-preview.css
+          test -s site/app/horizon-playable/horizon-world.js
+          test -s site/app/horizon-playable/horizon-world.css
           grep -Fq 'BridgePoint Horizon - Founding Season' site/app/horizon/index.html
           grep -Fq 'FOUNDING SEASON' site/app/horizon/index.html
-          grep -Fq '/app/horizon/preview.html?build=4203' site/app/horizon/index.html
-          grep -Fq 'HORIZON TEST WORLD' site/app/horizon/preview.html
-          grep -Fq 'Dense City' site/app/horizon/preview.html
-          grep -Fq 'Mountain Town' site/app/horizon/preview.html
-          grep -Fq 'Waterfront Suburb' site/app/horizon/preview.html
-          grep -Fq 'bridgepoint-horizon-stream-v3020' site/app/horizon/horizon-preview.js
-          grep -Fq 'camera.rotation.x=Math.PI/2+pitch' site/app/horizon/horizon-preview.js
+          grep -Fq '/app/horizon/preview.html?preview=city' site/app/horizon/index.html
+          grep -Fq 'DENSE CITY' site/app/horizon/preview.html
+          grep -Fq 'MOUNTAIN TOWN' site/app/horizon/preview.html
+          grep -Fq 'WATERFRONT SUBURB' site/app/horizon/preview.html
+          grep -Fq 'CC0 SURVIVORS / INFECTED / VEHICLES / PROPS' site/app/horizon/preview.html
+          grep -Fq '../horizon-playable/horizon-world.js?v=4204' site/app/horizon/preview.html
+          grep -Fq 'bridgepoint-horizon-stream-v3020' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'Characters_Matt.gltf' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'Characters_Lis.gltf' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'Characters_Sam.gltf' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'Characters_Shaun.gltf' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'loadAsset(PLAYER_ASSET)' site/app/horizon-playable/horizon-world.js
           grep -Fq 'FOUNDING MEMBER ACCESS' site/app/intelligence-launch/index.html
 
       - uses: actions/configure-pages@v5
@@ -85,18 +90,20 @@ jobs:
           for attempt in $(seq 1 30); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
             code="$(curl -sSL --max-time 20 -o /tmp/horizon.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/?v=${salt}" || true)"
-            preview_code="$(curl -sSL --max-time 20 -o /tmp/horizon-preview.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/preview.html?v=${salt}" || true)"
-            js_code="$(curl -sSL --max-time 20 -o /tmp/horizon.js -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/horizon-preview.js?v=${salt}" || true)"
+            preview_code="$(curl -sSL --max-time 20 -o /tmp/horizon-preview.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=matt&build=4204&v=${salt}" || true)"
+            js_code="$(curl -sSL --max-time 20 -o /tmp/horizon-world.js -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon-playable/horizon-world.js?v=${salt}" || true)"
             if [ "$code" = "200" ] && [ "$preview_code" = "200" ] && [ "$js_code" = "200" ] \
               && grep -Fq 'BridgePoint Horizon - Founding Season' /tmp/horizon.html \
               && grep -Fq 'FOUNDING SEASON' /tmp/horizon.html \
-              && grep -Fq '/app/horizon/preview.html?build=4203' /tmp/horizon.html \
-              && grep -Fq 'HORIZON TEST WORLD' /tmp/horizon-preview.html \
-              && grep -Fq 'Dense City' /tmp/horizon-preview.html \
-              && grep -Fq 'Mountain Town' /tmp/horizon-preview.html \
-              && grep -Fq 'Waterfront Suburb' /tmp/horizon-preview.html \
-              && grep -Fq 'bridgepoint-horizon-stream-v3020' /tmp/horizon.js \
-              && grep -Fq 'camera.rotation.x=Math.PI/2+pitch' /tmp/horizon.js; then
+              && grep -Fq '/app/horizon/preview.html?preview=city' /tmp/horizon.html \
+              && grep -Fq 'DENSE CITY' /tmp/horizon-preview.html \
+              && grep -Fq 'MOUNTAIN TOWN' /tmp/horizon-preview.html \
+              && grep -Fq 'WATERFRONT SUBURB' /tmp/horizon-preview.html \
+              && grep -Fq 'CC0 SURVIVORS / INFECTED / VEHICLES / PROPS' /tmp/horizon-preview.html \
+              && grep -Fq 'Characters_Matt.gltf' /tmp/horizon-world.js \
+              && grep -Fq 'Characters_Lis.gltf' /tmp/horizon-world.js \
+              && grep -Fq 'Characters_Sam.gltf' /tmp/horizon-world.js \
+              && grep -Fq 'loadAsset(PLAYER_ASSET)' /tmp/horizon-world.js; then
               ok=1
               break
             fi
