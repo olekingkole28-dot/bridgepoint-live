@@ -325,7 +325,7 @@ scene.add(exteriorRoot,interiorGroup);
 interiorGroup.visible=false;
 
 let data,lon0,lat0,mx,my,baseElevation=0;
-let parcelLayer,partsLayer,buildingLayer,roadLayer,terrainLayer;
+let parcelLayer,partsLayer,buildingLayer,roadLayer,terrainLayer,instantMassingLayer=null;
 let hemi,sun,lightMode=0;
 let playerRoot=null,playerVisualRoot=null,playerMixer=null,playerClips=[],playerAction=null,playerVisualBaseScaleZ=1;
 let playerModelYawOffset=0,playerAssetLoaded=false,playerAssetMode='fallback';
@@ -1075,6 +1075,32 @@ function buildExplorableShell(rec,meta){
     const roof=new THREE.Mesh(roofGeo,new THREE.MeshStandardMaterial({color:0x3f4240,roughness:.96,side:THREE.DoubleSide}));roof.receiveShadow=true;group.add(roof);addStaticPhysicsGeometry(roofGeo,'open-roof-'+meta.id,.9);
   }
   return group;
+}
+function buildInstantBuildingMassing(){
+  if(instantMassingLayer){worldGroup.remove(instantMassingLayer);instantMassingLayer=null}
+  const rows=[];
+  for(const row of data.buildings||[])for(const ring of outerRings(row.geometry)){
+    const pts=ring.map(project).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));if(pts.length<3)continue;
+    const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
+    const center=centerRing(ring),q=project(center),ht=heightFor(row),z=terrainZ(center[0],center[1]);
+    rows.push({x:q.x,y:q.y,z,w:Math.max(1.2,maxx-minx),d:Math.max(1.2,maxy-miny),h:Math.max(2.4,ht.h),key:facadeKey(row,ht.h)});
+  }
+  if(!rows.length)return 0;
+  const geo=new THREE.BoxGeometry(1,1,1),mat=new THREE.MeshStandardMaterial({color:0x59615e,roughness:.94,metalness:.03,vertexColors:true});
+  const mesh=new THREE.InstancedMesh(geo,mat,rows.length),o=new THREE.Object3D();
+  const colors={brick:new THREE.Color(0x66514a),concrete:new THREE.Color(0x666a67),glass:new THREE.Color(0x4b6168),wood:new THREE.Color(0x63594a),metal:new THREE.Color(0x545b59)};
+  rows.forEach((b,i)=>{
+    o.position.set(b.x,b.y,b.z+b.h*.5);o.rotation.set(0,0,0);o.scale.set(b.w,b.d,b.h);o.updateMatrix();mesh.setMatrixAt(i,o.matrix);mesh.setColorAt(i,colors[b.key]||colors.concrete);
+  });
+  mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;mesh.castShadow=false;mesh.receiveShadow=true;mesh.frustumCulled=true;
+  instantMassingLayer=new THREE.Group();instantMassingLayer.name='instant-source-building-massing';instantMassingLayer.add(mesh);worldGroup.add(instantMassingLayer);
+  streetLifeStats.instantMassing=rows.length;return rows.length;
+}
+function clearInstantBuildingMassing(){
+  if(!instantMassingLayer)return;
+  worldGroup.remove(instantMassingLayer);
+  instantMassingLayer.traverse(o=>{if(o.geometry)o.geometry.dispose?.();if(o.material){const a=Array.isArray(o.material)?o.material:[o.material];for(const m of a)m.dispose?.()}});
+  instantMassingLayer=null;
 }
 function buildBuildings(){
   buildingLayer=new THREE.Group();buildingLayer.name='source-buildings';worldGroup.add(buildingLayer);buildingCenters=[];
@@ -4030,28 +4056,30 @@ async function boot(){
     $('worldTitle').textContent=worldCellTitle();
     restoreSurvivor();updateInventory();
     loadText.textContent='Streaming BridgePoint map…';
-    const weaponReady=loadWeaponRegistry();
-    const physicsReadyPromise=initRapierPhysics();
-    initPostProcessing();
+    // Do not hold the first playable frame behind weapon-registry, physics-module or
+    // post-processing network work. Defaults/manual collision are valid until those hydrate.
+    const weaponReady=loadWeaponRegistry().catch(()=>false);
+    const physicsReadyPromise=initRapierPhysics().catch(()=>false);
     const sceneReady=fetchSceneWithRetry(worldRequestUrl(),3);
-    const results=await Promise.all([weaponReady,physicsReadyPromise,sceneReady]);
-    data=results[2];if(!data?.complete)throw new Error(data?.error||'Horizon scene incomplete');
+    data=await sceneReady;if(!data?.complete)throw new Error(data?.error||'Horizon scene incomplete');
     lon0=Number(data.center.lon);lat0=Number(data.center.lat);mx=111320*Math.cos(lat0*Math.PI/180);my=110540;
     const meta=$('jurisdictionMeta');if(meta&&CELL==='national')meta.textContent=(JURISDICTIONS[SELECTED_STATE]?.[0]||SELECTED_STATE)+' · '+(data.counts?.buildings||0).toLocaleString()+' buildings · '+(data.counts?.parcels||0).toLocaleString()+' open parcel outlines · '+Number(data.span_km||STREAM_SPAN).toFixed(1)+' km streamed cell';
 
-    // Critical path: terrain, roads, source buildings, player, doors. Everything else
-    // streams in after the player can already move.
-    buildAtmosphere();buildTerrain();buildRoads();buildWater();buildWaterfrontPerimeter();
-    try{buildBuildings()}catch(err){console.error('building geometry recovered',err);streetLifeStats.buildingGeometryError=String(err?.message||err)}
+    // Critical path is intentionally tiny: source-backed terrain/roads plus a one-draw-call
+    // skyline massing, then the survivor. Exact footprints, doors, windows and props hydrate
+    // without blocking control.
+    buildAtmosphere();buildTerrain();buildRoads();buildWater();buildWaterfrontPerimeter();buildInstantBuildingMassing();
     addLights();setLighting(0);drawMinimapBase();initInput();
-    await buildPlayer();createPlayerPhysics();buildEntryPoints();installInteractiveDoors();renderFactionBanner();initFlashlight();
+    await buildPlayer();
+    if(physicsReady)createPlayerPhysics();else physicsReadyPromise.then(ok=>{if(ok&&playerRoot&&!playerPhysicsBody)createPlayerPhysics()});
+    renderFactionBanner();initFlashlight();
     revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone();
     updateInventory();updateInteractionPrompt();resizeRenderer();
-    window.BP_HORIZON_PLAYABLE={ok:true,build:BUILD_VERSION,readyMs:Math.round(performance.now()-bootStarted),stance:playerStance,weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,map:MAP_PRESET.id};
-    loadText.textContent='PLAYABLE · streaming windows, props and infected…';
+    window.BP_HORIZON_PLAYABLE={ok:true,build:BUILD_VERSION,readyMs:Math.round(performance.now()-bootStarted),stance:playerStance,weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,map:MAP_PRESET.id,instantBuildings:Number(streetLifeStats.instantMassing||0)};
+    loadText.textContent='PLAYABLE · exact buildings and apocalypse details streaming…';
 
-    // Progressive hydration keeps the first usable frame fast instead of making the
-    // player wait for every window, prop, zombie and interior asset.
+    await yieldToRenderer();
+    try{buildBuildings();clearInstantBuildingMassing();buildEntryPoints();installInteractiveDoors()}catch(err){console.error('building geometry recovered',err);streetLifeStats.buildingGeometryError=String(err?.message||err)}
     await yieldToRenderer();
     try{buildApocalypseGroundDressing()}catch(err){console.warn('ground dressing skipped',err)}
     await yieldToRenderer();
@@ -4060,9 +4088,11 @@ async function boot(){
     try{buildParts()}catch(err){console.warn('building parts skipped',err)}
     try{buildParcels()}catch(err){console.warn('parcel overlay skipped',err)}
     applyApocalypseDecay(worldGroup);
+    initPostProcessing();
     await yieldToRenderer();
     loadText.textContent='PLAYABLE · infected and interior assets streaming…';
     await buildSurvivalArt();
+    await weaponReady;
     initializeVehicleRepair();snapInfrastructureToRoadNodes();populateOpenSpace();configureMatchMode(matchMode);
     loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · '+buildingEntries.length+' true walk-through buildings · endless horde active';
     window.BP_HORIZON_SMOKE={
@@ -4078,7 +4108,7 @@ async function boot(){
       playerRootZ:playerRoot.position.z,
       activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
       physicsMode,physicsReady,physicsError,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
-      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,
+      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,instantMassing:Number(streetLifeStats.instantMassing||0),
       streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null,
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
