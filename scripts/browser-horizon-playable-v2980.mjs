@@ -28,20 +28,33 @@ async function testLanding(){
   const href=await page.locator('a.cta').first().getAttribute('href');
   console.log(JSON.stringify({landing:true,status:response?.status(),url,href},null,2));
   if(response?.status()!==200)throw new Error('landing HTTP '+response?.status());
-  if(href!=='/app/horizon-playable/?build=2990')throw new Error('landing CTA stale: '+href);
+  if(href!=='/app/horizon-playable/?build=2992')throw new Error('landing CTA stale: '+href);
 }
 
 async function testCell(cell){
-  const url='https://bridgepointintelligence.online/app/horizon-playable/?cell='+cell+'&ci='+Date.now();
+  const url='https://bridgepointintelligence.online/app/horizon-playable/?build=2992&cell='+cell+'&ci='+Date.now();
   const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
   await page.waitForFunction(()=>Boolean(window.BP_HORIZON_SMOKE),null,{timeout:90000});
-  const d=await page.evaluate(()=>({
-    smoke:window.BP_HORIZON_SMOKE,
-    errorHidden:document.getElementById('error')?.hidden,
-    text:document.getElementById('loadText')?.textContent,
-    canvases:document.querySelectorAll('canvas').length,
-    webgl:Boolean(document.createElement('canvas').getContext('webgl'))
-  }));
+  const d=await page.evaluate(()=>{
+    const rect=id=>{
+      const e=document.getElementById(id); if(!e) return null;
+      const r=e.getBoundingClientRect();
+      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};
+    };
+    return {
+      smoke:window.BP_HORIZON_SMOKE,
+      errorHidden:document.getElementById('error')?.hidden,
+      text:document.getElementById('loadText')?.textContent,
+      canvases:document.querySelectorAll('canvas').length,
+      webgl:Boolean(document.createElement('canvas').getContext('webgl')),
+      rects:{
+        use:rect('interactBtn'),
+        swing:rect('attackBtn'),
+        run:rect('sprintBtn'),
+        rail:rect('fullscreenBtn')
+      }
+    };
+  });
   console.log(JSON.stringify({cell,status:response?.status(),url,...d},null,2));
   if(response?.status()!==200)throw new Error(cell+' HTTP '+response?.status());
   if(!d.webgl)throw new Error(cell+' WebGL unavailable');
@@ -54,6 +67,11 @@ async function testCell(cell){
   if(!(d.smoke?.packCapacity>=24))throw new Error(cell+' starter pack missing');
   if(!d.smoke?.weapon)throw new Error(cell+' equipped weapon missing');
   if(!(d.canvases>=2))throw new Error(cell+' expected world + minimap canvases');
+  const overlap=(a,b)=>a&&b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
+  if(overlap(d.rects.use,d.rects.swing))throw new Error(cell+' USE overlaps SWING');
+  if(overlap(d.rects.swing,d.rects.run))throw new Error(cell+' SWING overlaps RUN');
+  if(overlap(d.rects.use,d.rects.rail)||overlap(d.rects.swing,d.rects.rail)||overlap(d.rects.run,d.rects.rail))
+    throw new Error(cell+' gameplay buttons overlap right control rail');
   const play=await page.evaluate(()=>{
     const t=window.BP_HORIZON_TEST;
     const entered=t?.enterFirst?.();
@@ -72,7 +90,7 @@ try{
   await testLanding();
   await testCell('middletown');
   await testCell('manhattan');
-  console.log('HORIZON_V2990_BROWSER_SMOKE_PASS');
+  console.log('HORIZON_V2992_BROWSER_SMOKE_PASS');
   if(errors.length)console.log('pageErrors',errors);
   const serious=messages.filter(x=>/syntaxerror|referenceerror|typeerror/i.test(x));
   if(serious.length)throw new Error('Serious console errors: '+serious.join(' | '));
