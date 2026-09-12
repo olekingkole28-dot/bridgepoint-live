@@ -310,3 +310,7 @@ body:not(.nationalMode) .jurisdictionPanel{display:none}
   .controls{max-height:calc(100vh - 60px);overflow:auto;scrollbar-width:none}
   .controls::-webkit-scrollbar{display:none}
 }
+
+.dropWeaponBtn{width:100%;margin:6px 0 2px;padding:9px 10px;border-radius:9px;border:1px solid rgba(255,210,120,.28);background:rgba(53,34,20,.76);color:#ffd68b;font:800 10px/1 system-ui;letter-spacing:.08em}.dropWeaponBtn:active{transform:scale(.98)}
+.actionButton.drop{right:118px;bottom:118px;border-color:rgba(255,204,120,.38);background:rgba(62,40,24,.80)}
+#inventoryList [data-item]{cursor:pointer}#inventoryList [data-item]:active{outline:1px solid rgba(126,240,179,.7)}
