@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=3050;
+const BUILD_VERSION=3051;
 const SAVE_KEY='bridgepoint-horizon-survivor-v3050';
 const LEGACY_SAVE_KEY='bridgepoint-horizon-survivor-v3040';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
@@ -104,8 +104,9 @@ const JURISDICTIONS={
 const stateParam=String(params.get('state')||'NY').toUpperCase();
 const SELECTED_STATE=JURISDICTIONS[stateParam]?stateParam:'NY';
 const selectedJurisdiction=JURISDICTIONS[SELECTED_STATE];
-const STREAM_LAT=Number.isFinite(Number(params.get('lat')))?Number(params.get('lat')):selectedJurisdiction[1];
-const STREAM_LON=Number.isFinite(Number(params.get('lon')))?Number(params.get('lon')):selectedJurisdiction[2];
+const latParam=params.get('lat'),lonParam=params.get('lon');
+const STREAM_LAT=latParam!==null&&latParam!==''&&Number.isFinite(Number(latParam))?Number(latParam):selectedJurisdiction[1];
+const STREAM_LON=lonParam!==null&&lonParam!==''&&Number.isFinite(Number(lonParam))?Number(lonParam):selectedJurisdiction[2];
 const STREAM_SPAN=Math.max(1,Math.min(5.5,Number(params.get('span_km')||3.4)));
 const densePreview=()=>CELL==='manhattan'||CELL==='national';
 
@@ -1564,6 +1565,7 @@ function initializeVehicleRepair(){
   }
 }
 function scatterProceduralStreetLife(){
+  if(!roadAnchors.length)return{trees:0,bikes:0};
   let trees=0,bikes=0;
   const treeTarget=densePreview()?150:82,bikeTarget=densePreview()?70:30;
   for(let i=0,attempts=0;i<treeTarget&&attempts<treeTarget*15;attempts++){
@@ -1598,6 +1600,7 @@ function makePlanter(seedValue){
   g.add(pot,bush);return g;
 }
 function scatterStreetFurniture(){
+  if(!roadAnchors.length)return{benches:0,planters:0};
   const benchTarget=densePreview()?58:28,planterTarget=densePreview()?96:46;
   let benches=0,planters=0;
   for(let attempts=0;benches<benchTarget&&attempts<benchTarget*14;attempts++){
@@ -1613,6 +1616,7 @@ function scatterStreetFurniture(){
   return{benches,planters};
 }
 function buildGrassDetails(){
+  if(!roadAnchors.length)return 0;
   const count=densePreview()?2600:1400;
   const geo=new THREE.ConeGeometry(.07,.44,3);
   const mat=new THREE.MeshStandardMaterial({color:0x4b7547,roughness:.96});
