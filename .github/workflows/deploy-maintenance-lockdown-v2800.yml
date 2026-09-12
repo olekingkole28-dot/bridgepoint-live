@@ -109,7 +109,7 @@ jobs:
           for attempt in $(seq 1 30); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
             code="$(curl -sSL --max-time 20 -o /tmp/horizon.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/?v=${salt}" || true)"
-            preview_code="$(curl -sSL --max-time 20 -o /tmp/horizon-preview.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=matt&build=4209&v=${salt}" || true)"
+            preview_code="$(curl -sSL --max-time 20 -o /tmp/horizon-preview.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=realistic&build=4209&v=${salt}" || true)"
             js_code="$(curl -sSL --max-time 20 -o /tmp/horizon-world.js -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon-playable/horizon-world.js?v=${salt}" || true)"
             if [ "$code" = "200" ] && [ "$preview_code" = "200" ] && [ "$js_code" = "200" ] \
               && grep -Fq 'BridgePoint Horizon - Founding Season' /tmp/horizon.html \
@@ -146,4 +146,4 @@ jobs:
           done
           test "$ok" = "1"
 
-# Horizon dynamic survival release 4209
+# Horizon grounded survival release 4209
