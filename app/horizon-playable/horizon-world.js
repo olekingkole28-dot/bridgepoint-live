@@ -327,7 +327,7 @@ interiorGroup.visible=false;
 let data,lon0,lat0,mx,my,baseElevation=0;
 let parcelLayer,partsLayer,buildingLayer,roadLayer,terrainLayer;
 let hemi,sun,lightMode=0;
-let playerRoot=null,playerVisualRoot=null,playerMixer=null,playerClips=[],playerAction=null;
+let playerRoot=null,playerVisualRoot=null,playerMixer=null,playerClips=[],playerAction=null,playerVisualBaseScaleZ=1;
 let playerModelYawOffset=0,playerAssetLoaded=false,playerAssetMode='fallback';
 let yaw=0,pitch=.14,cameraMode=0;
 let health=100,lastDamageAt=0;
@@ -770,8 +770,8 @@ function setPlayerStance(next){
   if(!STANCES[next]||next===playerStance||playerDead)return;
   playerStance=next;
   if(playerVisualRoot){
-    const zScale=next==='stand'?1:next==='crouch'?.78:.48;
-    playerVisualRoot.scale.z=zScale;
+    const stanceScale=next==='stand'?1:next==='crouch'?.78:.48;
+    playerVisualRoot.scale.z=playerVisualBaseScaleZ*stanceScale;
   }
   if(physicsReady&&!interiorMode)createPlayerPhysics();
   showToast(next==='stand'?'Standing':next==='crouch'?'Crouched':'Prone');
@@ -1823,7 +1823,7 @@ async function buildPlayer(){
   if(gltf){
     playerAssetLoaded=true;playerAssetMode=playerMode;
     const n=normalizedModel(gltf.scene,1.82,true);
-    playerRoot=n.root;playerVisualRoot=n.oriented;n.model.rotation.y=Math.PI;n.model.updateMatrixWorld(true);playerModelYawOffset=0;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerVisualRoot.scale.z=Math.abs(playerVisualRoot.scale.z);
+    playerRoot=n.root;playerVisualRoot=n.oriented;n.model.rotation.y=Math.PI;n.model.updateMatrixWorld(true);playerModelYawOffset=0;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerVisualBaseScaleZ=Math.abs(playerVisualRoot.scale.z);playerVisualRoot.scale.z=playerVisualBaseScaleZ;
     playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);
     captureCharacterWeaponTemplates(n.model);
     setupEquipmentMounts(n.model);
@@ -1831,7 +1831,7 @@ async function buildPlayer(){
     hydratePlayerAnimations(n.model).catch(e=>console.warn('player animation hydration',e));
     hydrateWeaponTemplates().catch(e=>console.warn('weapon hydration',e));
   }else{
-    playerAssetLoaded=false;playerAssetMode='fallback';playerRoot=fallbackPlayer();playerVisualRoot=playerRoot;playerModelYawOffset=0;
+    playerAssetLoaded=false;playerAssetMode='fallback';playerRoot=fallbackPlayer();playerVisualRoot=playerRoot;playerVisualBaseScaleZ=1;playerModelYawOffset=0;
     setupEquipmentMounts(playerRoot);
   }
   playerRoot.position.copy(playerSpawn);scene.add(playerRoot);
@@ -4009,34 +4009,49 @@ async function enterLandscape(){
 $('landscapeBtn')?.addEventListener('click',enterLandscape);
 $('fullscreenBtn')?.addEventListener('click',enterLandscape);
 
+const yieldToRenderer=()=>new Promise(resolve=>requestAnimationFrame(()=>resolve()));
 async function boot(){
+  const bootStarted=performance.now();
   try{
     $('cellLabel').textContent=worldCellLabel();
     $('worldTitle').textContent=worldCellTitle();
-    loadText.textContent='Loading weapon registry…';
-    await loadWeaponRegistry();
     restoreSurvivor();updateInventory();
-    loadText.textContent='Starting physics and renderer…';
-    await initRapierPhysics();
+    loadText.textContent='Streaming BridgePoint map…';
+    const weaponReady=loadWeaponRegistry();
+    const physicsReadyPromise=initRapierPhysics();
     initPostProcessing();
-    data=await fetchSceneWithRetry(worldRequestUrl(),4);if(!data?.complete)throw new Error(data?.error||'Horizon scene incomplete');
+    const sceneReady=fetchSceneWithRetry(worldRequestUrl(),3);
+    const results=await Promise.all([weaponReady,physicsReadyPromise,sceneReady]);
+    data=results[2];if(!data?.complete)throw new Error(data?.error||'Horizon scene incomplete');
     lon0=Number(data.center.lon);lat0=Number(data.center.lat);mx=111320*Math.cos(lat0*Math.PI/180);my=110540;
     const meta=$('jurisdictionMeta');if(meta&&CELL==='national')meta.textContent=(JURISDICTIONS[SELECTED_STATE]?.[0]||SELECTED_STATE)+' · '+(data.counts?.buildings||0).toLocaleString()+' buildings · '+(data.counts?.parcels||0).toLocaleString()+' open parcel outlines · '+Number(data.span_km||STREAM_SPAN).toFixed(1)+' km streamed cell';
 
-    buildAtmosphere();buildTerrain();buildRoads();buildApocalypseGroundDressing();buildWater();buildWaterfrontPerimeter();
+    // Critical path: terrain, roads, source buildings, player, doors. Everything else
+    // streams in after the player can already move.
+    buildAtmosphere();buildTerrain();buildRoads();buildWater();buildWaterfrontPerimeter();
     try{buildBuildings()}catch(err){console.error('building geometry recovered',err);streetLifeStats.buildingGeometryError=String(err?.message||err)}
-    try{buildFacadeDetails()}catch(err){console.warn('facade details skipped',err)}
-    try{buildParts()}catch(err){console.warn('building parts skipped',err)}
-    try{buildParcels()}catch(err){console.warn('parcel overlay skipped',err)}
     addLights();setLighting(0);drawMinimapBase();initInput();
-    applyApocalypseDecay(worldGroup);
     await buildPlayer();createPlayerPhysics();buildEntryPoints();installInteractiveDoors();renderFactionBanner();initFlashlight();
     revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone();
-    loadText.textContent='Loading interiors, city dressing and infected…';
+    updateInventory();updateInteractionPrompt();resizeRenderer();
+    window.BP_HORIZON_PLAYABLE={ok:true,build:BUILD_VERSION,readyMs:Math.round(performance.now()-bootStarted),stance:playerStance,weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,map:MAP_PRESET.id};
+    loadText.textContent='PLAYABLE · streaming windows, props and infected…';
+
+    // Progressive hydration keeps the first usable frame fast instead of making the
+    // player wait for every window, prop, zombie and interior asset.
+    await yieldToRenderer();
+    try{buildApocalypseGroundDressing()}catch(err){console.warn('ground dressing skipped',err)}
+    await yieldToRenderer();
+    try{buildFacadeDetails()}catch(err){console.warn('facade details skipped',err)}
+    await yieldToRenderer();
+    try{buildParts()}catch(err){console.warn('building parts skipped',err)}
+    try{buildParcels()}catch(err){console.warn('parcel overlay skipped',err)}
+    applyApocalypseDecay(worldGroup);
+    await yieldToRenderer();
+    loadText.textContent='PLAYABLE · infected and interior assets streaming…';
     await buildSurvivalArt();
     initializeVehicleRepair();snapInfrastructureToRoadNodes();populateOpenSpace();configureMatchMode(matchMode);
     loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · '+buildingEntries.length+' true walk-through buildings · endless horde active';
-    updateInventory();updateInteractionPrompt();resizeRenderer();
     window.BP_HORIZON_SMOKE={
       ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),
       player:Boolean(playerRoot),playerAssetLoaded,playerAssetMode,character:CHARACTER_KEY,preview:PREVIEW_KEY,mapPreset:MAP_PRESET.id,mapCount:MAP_PRESETS.length,mapSize:MAP_PRESET.size,endlessHorde:ENDLESS_HORDE,endlessCap:maxActiveZombies,loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,
@@ -4050,7 +4065,7 @@ async function boot(){
       playerRootZ:playerRoot.position.z,
       activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
       physicsMode,physicsReady,physicsError,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
-      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,
+      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,
       streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null,
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
@@ -4083,7 +4098,7 @@ async function boot(){
         return {dx:v.x,dy:v.y,heading:Math.atan2(v.x,v.y)};
       },
       visualFacingAlignment,
-      playerAssetProbe:()=>({loaded:playerAssetLoaded,mode:playerAssetMode,character:CHARACTER_KEY,bones:Object.fromEntries(Object.entries(aimBones).map(([k,v])=>[k,Boolean(v)]))}),
+      playerAssetProbe:()=>({loaded:playerAssetLoaded,mode:playerAssetMode,character:CHARACTER_KEY,stance:playerStance,visualScaleZ:playerVisualRoot?.scale?.z||null,baseScaleZ:playerVisualBaseScaleZ,weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,bones:Object.fromEntries(Object.entries(aimBones).map(([k,v])=>[k,Boolean(v)]))}),
       aimProbe:()=>{
         addInventoryItem('Pistol');selectSlot('sidearm',true);setAiming(false);camera.fov=66;camera.updateProjectionMatrix();
         const before=camera.fov,target=weaponCfg('Pistol').aim_fov;
