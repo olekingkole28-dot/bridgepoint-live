@@ -34,11 +34,11 @@ async function testLanding(){
   const href=await page.locator('a.cta').first().getAttribute('href');
   console.log(JSON.stringify({landing:true,status:response?.status(),url,href},null,2));
   if(response?.status()!==200)throw new Error('landing HTTP '+response?.status());
-  if(href!=='/app/horizon-playable/?build=2996')throw new Error('landing CTA stale: '+href);
+  if(href!=='/app/horizon-playable/?build=3000')throw new Error('landing CTA stale: '+href);
 }
 
 async function testCell(cell){
-  const url='https://bridgepointintelligence.online/app/horizon-playable/?build=2996&cell='+cell+'&ci='+Date.now();
+  const url='https://bridgepointintelligence.online/app/horizon-playable/?build=3000&cell='+cell+'&ci='+Date.now();
   const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
   await page.waitForFunction(()=>Boolean(window.BP_HORIZON_SMOKE),null,{timeout:90000});
   const d=await page.evaluate(()=>{
@@ -69,15 +69,21 @@ async function testCell(cell){
   if(!d.smoke?.player)throw new Error(cell+' player missing');
   if(!(d.smoke?.buildings>0))throw new Error(cell+' buildings missing');
   if(!(d.smoke?.entries>0))throw new Error(cell+' enterable buildings missing');
+  if(d.smoke?.visiblePack)throw new Error(cell+' backpack mesh should be hidden');
+  if(!(d.smoke?.pickupCount>=10))throw new Error(cell+' visible loot too sparse: '+d.smoke?.pickupCount);
   if(!(d.smoke?.interiorAssets>=6))throw new Error(cell+' interior asset set incomplete: '+d.smoke?.interiorAssets);
   if(!(d.smoke?.packCapacity>=24))throw new Error(cell+' starter pack missing');
   if(!d.smoke?.weapon)throw new Error(cell+' equipped weapon missing');
   if(d.smoke?.spawnBlocked)throw new Error(cell+' player spawned inside building collision');
   if(!(d.smoke?.roadLayers>=4))throw new Error(cell+' road/sidewalk layers missing: '+d.smoke?.roadLayers);
   if(cell==='manhattan'){
-    if(!(d.smoke?.streetLife?.trees>=30))throw new Error('manhattan trees too sparse: '+JSON.stringify(d.smoke?.streetLife));
-    if(!(d.smoke?.streetLife?.bikes>=12))throw new Error('manhattan bikes too sparse: '+JSON.stringify(d.smoke?.streetLife));
-    if(!(d.smoke?.streetLife?.vehicles>=20))throw new Error('manhattan vehicles too sparse: '+JSON.stringify(d.smoke?.streetLife));
+    if(!(d.smoke?.entries>=500))throw new Error('manhattan enterable-building coverage too low: '+d.smoke?.entries);
+    if(!(d.smoke?.streetLife?.trees>=100))throw new Error('manhattan trees too sparse: '+JSON.stringify(d.smoke?.streetLife));
+    if(!(d.smoke?.streetLife?.bikes>=45))throw new Error('manhattan bikes too sparse: '+JSON.stringify(d.smoke?.streetLife));
+    if(!(d.smoke?.streetLife?.vehicles>=60))throw new Error('manhattan vehicles too sparse: '+JSON.stringify(d.smoke?.streetLife));
+    if(!(d.smoke?.streetLife?.grass>=400))throw new Error('manhattan grass detail too sparse: '+JSON.stringify(d.smoke?.streetLife));
+    if(!(d.smoke?.streetLife?.benches>=25))throw new Error('manhattan benches too sparse: '+JSON.stringify(d.smoke?.streetLife));
+    if(!(d.smoke?.streetLife?.planters>=40))throw new Error('manhattan planters too sparse: '+JSON.stringify(d.smoke?.streetLife));
   }
   if(!(d.canvases>=2))throw new Error(cell+' expected world + minimap canvases');
   const overlap=(a,b)=>a&&b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
@@ -119,12 +125,37 @@ async function testCell(cell){
   if(controls.mobility?.blockedHere)throw new Error(cell+' spawn mobility says player is blocked');
   const openCount=Object.values(controls.mobility?.open||{}).filter(Boolean).length;
   if(openCount<2)throw new Error(cell+' spawn has fewer than 2 open movement directions: '+JSON.stringify(controls.mobility));
+  const systems=await page.evaluate(()=>{
+    const t=window.BP_HORIZON_TEST;
+    const feet=t?.feetProbe?.();
+    const wave=t?.zombieWave?.();
+    const equipment=t?.equipmentProbe?.();
+    const pickup=t?.loosePickup?.();
+    const death=t?.deathProbe?.();
+    return {feet,wave,equipment,pickup,death};
+  });
+  console.log(JSON.stringify({cell,systems},null,2));
+  if(!(systems.feet?.clearance>=-0.03&&systems.feet?.clearance<=0.08))
+    throw new Error(cell+' survivor feet not grounded: '+JSON.stringify(systems.feet));
+  if(systems.equipment?.visiblePack)throw new Error(cell+' visible backpack reappeared');
+  if(systems.equipment?.equipment?.sidearm!=='Pistol'||systems.equipment?.equipment?.primary!=='Rifle')
+    throw new Error(cell+' sidearm/back loadout failed: '+JSON.stringify(systems.equipment));
+  if(!(systems.equipment?.hipChildren>0&&systems.equipment?.backChildren>0))
+    throw new Error(cell+' holstered weapon visuals missing: '+JSON.stringify(systems.equipment));
+  if(!(systems.wave?.active>=2&&systems.wave?.active<=7))
+    throw new Error(cell+' zombie wave size invalid: '+JSON.stringify(systems.wave));
+  if((systems.wave?.speeds||[]).some(v=>v>.5||v<.2))
+    throw new Error(cell+' zombie walking speed invalid: '+JSON.stringify(systems.wave));
+  if(!systems.pickup||systems.pickup.active!==false)
+    throw new Error(cell+' visible loot pickup failed: '+JSON.stringify(systems.pickup));
+  if(!(systems.death?.deadBefore===true&&systems.death?.deadAfter===false&&systems.death?.health===100))
+    throw new Error(cell+' kill/respawn loop failed: '+JSON.stringify(systems.death));
 }
 try{
   await testLanding();
   await testCell('middletown');
   await testCell('manhattan');
-  console.log('HORIZON_V2996_BROWSER_SMOKE_PASS');
+  console.log('HORIZON_V3000_BROWSER_SMOKE_PASS');
   if(errors.length)console.log('pageErrors',errors);
   const serious=messages.filter(x=>/syntaxerror|referenceerror|typeerror/i.test(x));
   if(serious.length)throw new Error('Serious console errors: '+serious.join(' | '));
