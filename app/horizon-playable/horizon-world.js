@@ -3303,6 +3303,7 @@ function initInput(){
   $('modeBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();cycleMatchMode()});
   $('claimBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();claimNearestBase()});
   $('interactBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();interact()});
+  $('kickBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();kickNearestDoor()});
   const attackBtn=$('attackBtn');
   attackBtn?.addEventListener('pointerdown',e=>{e.preventDefault();fireHeld=true;useActiveWeapon()});
   attackBtn?.addEventListener('pointerup',()=>fireHeld=false);
@@ -3311,7 +3312,7 @@ function initInput(){
   $('reloadBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();requestReload()});
   $('dropBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();dropActiveWeapon()});
   $('dropMobileBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();dropActiveWeapon()});
-  $('inventoryList')?.addEventListener('pointerdown',e=>{const item=e.target?.dataset?.item;if(item)equipInventoryWeapon(item)});
+  $('inventoryList')?.addEventListener('pointerdown',e=>{const tile=e.target?.closest?.('[data-item]'),item=tile?.dataset?.item;if(item)equipInventoryWeapon(item)});
   const aimBtn=$('aimBtn');aimBtn?.addEventListener('pointerdown',e=>{e.preventDefault();setAiming(true)});aimBtn?.addEventListener('pointerup',()=>setAiming(false));aimBtn?.addEventListener('pointercancel',()=>setAiming(false));
   document.querySelectorAll('.loadoutSlot[data-slot]').forEach(btn=>btn.addEventListener('pointerdown',e=>{e.preventDefault();selectSlot(btn.dataset.slot)}));
   const sprint=$('sprintBtn');sprint?.addEventListener('pointerdown',e=>{e.preventDefault();mobileSprint=true});sprint?.addEventListener('pointerup',()=>mobileSprint=false);sprint?.addEventListener('pointercancel',()=>mobileSprint=false);
@@ -3567,7 +3568,8 @@ async function boot(){
         return{before,target,aimed,restored:camera.fov,crosshairVisible,buttonActive};
       },
       dropWeaponAvailable:()=>Boolean(activeItemForSlot(activeSlot)&&activeWeapon!=='Fists'),
-      enemyCatalog:()=>enemyArchetypes.map(x=>({id:x.id,label:x.label,speed:x.speed,hp:x.hp,damage:x.damage,behavior:x.behavior,realistic:Boolean(x.realisticInfected)})),
+      enemyCatalog:()=>enemyArchetypes.map(x=>({id:x.id,label:x.label,speed:x.speed,hp:x.hp,damage:x.damage,behavior:x.behavior,realistic:Boolean(x.realisticInfected),infected:Boolean(x.realisticInfected||x.infectedMonster)})),
+      pursuitProbe:()=>({maxHostileSpeed:MAX_HOSTILE_SPEED,playerSprintSpeed:PLAYER_MAX_SPEED,interiorPathing:true,doorwayCarry:true}),
       patrolProbe:()=>zombies.filter(z=>!z.dead&&z.kind!=='crow'&&!(z.kind==='spider'&&z.climb)).slice(0,8).map(z=>({kind:z.kind,route:z.patrolRoute?.length||0,index:z.patrolIndex,state:z.state,aggro:z.aggro,chaseMult:z.chaseMult})),
       climbingSpiderCount:()=>zombies.filter(z=>z.kind==='spider'&&z.climb).length,
       weaponCatalog:()=>[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],
@@ -3577,8 +3579,11 @@ async function boot(){
           forward:probe(0,1),backward:probe(0,-1),left:probe(-1,0),right:probe(1,0),
           forwardStickNoise:probe(.12,.9),rightStickNoise:probe(.9,.12),
           modelYawOffset:playerModelYawOffset,
-          locomotionAlwaysFacesTravel:true,
-          aimingBackpedalAllowed:false
+          locomotionAlwaysFacesTravel:false,
+          aimingBackpedalAllowed:true,
+          shooterAimFacesCamera:true,
+          maxHostileSpeed:MAX_HOSTILE_SPEED,
+          playerSprintSpeed:PLAYER_MAX_SPEED
         };
       },
       weaponSize:()=>{
