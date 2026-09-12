@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4225;
+const BUILD_VERSION=4226;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -365,7 +365,7 @@ let drivableVehicles=[],activeVehicle=null;
 let sceneFetchAttempts=0,sceneFetchError=null;
 let decayPatchedMaterials=0,smartSnappedProps=0,openSpaceProps=0;
 let flashlight=null,flashlightTarget=null,flashlightOn=false,autoDayNight=true,lastAtmosphereUpdate=0;
-let slideTime=0,leanAmount=0,leanTarget=0,lastVaultAt=0,reticleSpread=10,locomotionIntent='idle',lastGrounded=true;
+let slideTime=0,leanAmount=0,leanTarget=0,lastVaultAt=0,reticleSpread=10,locomotionIntent='idle',lastGrounded=true,ambientSmoke=[];
 let doorAnimations=[],doorSystemCount=0;
 let xp=0,battleTier=0,livesRemaining=3,spectatorMode=false,spectatorIndex=0,lastSpectatorSwitch=0;
 let claimedBaseId=null,factionId='SURVIVORS',factionColor='#47e285',factionBanner=null;
@@ -938,6 +938,88 @@ function buildApocalypseGroundDressing(){
   weeds.count=wc;weeds.instanceMatrix.needsUpdate=true;weeds.castShadow=false;group.add(weeds);
   streetLifeStats.groundDetails=rc+pc+qc+wc+crackPos.length/6;
   return streetLifeStats.groundDetails;
+}
+
+function makeSmokeTexture(){
+  const cv=document.createElement('canvas');cv.width=cv.height=128;const x=cv.getContext('2d'),g=x.createRadialGradient(64,64,8,64,64,62);
+  g.addColorStop(0,'rgba(90,92,88,.72)');g.addColorStop(.42,'rgba(65,68,65,.46)');g.addColorStop(1,'rgba(35,38,37,0)');
+  x.fillStyle=g;x.fillRect(0,0,128,128);const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;return t;
+}
+let smokeTexture=null;
+function spawnSmokePlumeAt(x,y,z,scale=1){
+  smokeTexture=smokeTexture||makeSmokeTexture();
+  const g=new THREE.Group();g.position.set(x,y,z);artGroup.add(g);
+  for(let i=0;i<5;i++){
+    const mat=new THREE.SpriteMaterial({map:smokeTexture,color:0x6d716c,transparent:true,opacity:.36-i*.035,depthWrite:false});
+    const s=new THREE.Sprite(mat);const size=(1.6+i*.8)*scale;s.scale.set(size,size,1);s.position.set((rand()-.5)*.35*scale,(rand()-.5)*.35*scale,i*.72*scale);s.userData.baseZ=s.position.z;s.userData.phase=rand()*Math.PI*2;s.userData.smokeScale=scale;g.add(s);
+    ambientSmoke.push(s);
+  }
+  return g;
+}
+function updateAmbientSmoke(dt,now){
+  for(const s of ambientSmoke){
+    if(!s?.parent)continue;
+    const sc=s.userData.smokeScale||1,phase=s.userData.phase||0,t=(now*.00018+phase)%1;
+    s.position.z=s.userData.baseZ+t*3.4*sc;s.position.x+=Math.sin(now*.0011+phase)*dt*.08*sc;s.position.y+=Math.cos(now*.0009+phase)*dt*.06*sc;
+    if(s.material)s.material.opacity=.34*(1-t);
+  }
+}
+function buildDenseApocalypseLayers(){
+  if(!roadAnchors.length)return 0;
+  const density=Math.max(1,MAP_DENSITY),group=new THREE.Group();group.name='dense-apocalypse-microdetail';artGroup.add(group),d=new THREE.Object3D();
+  const fenceCount=Math.min(520,Math.round((densePreview()?210:120)*density)),barCount=Math.min(420,Math.round((densePreview()?150:90)*density));
+  const fenceGeo=new THREE.BoxGeometry(2.35,.07,1.25),fenceMat=new THREE.MeshStandardMaterial({color:0x3d403d,roughness:.76,metalness:.34});
+  const fences=new THREE.InstancedMesh(fenceGeo,fenceMat,fenceCount);let fc=0;
+  for(let i=0;i<fenceCount*4&&fc<fenceCount;i++){
+    const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+2.5+rand()*4.5,side);
+    if(isBlockedExterior(p.x,p.y,.55))continue;
+    d.position.set(p.x,p.y,p.z+.64);d.rotation.set(0,0,a.heading+(rand()-.5)*.25);d.scale.set(.75+rand()*.8,1,.8+rand()*.55);d.updateMatrix();fences.setMatrixAt(fc++,d.matrix);
+  }
+  fences.count=fc;fences.instanceMatrix.needsUpdate=true;fences.castShadow=true;group.add(fences);
+  const barGeo=new THREE.BoxGeometry(1.8,.42,.72),barMat=new THREE.MeshStandardMaterial({color:0x5a5144,roughness:.93});
+  const bars=new THREE.InstancedMesh(barGeo,barMat,barCount);let bc=0;
+  for(let i=0;i<barCount*4&&bc<barCount;i++){
+    const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],p=roadSidePoint(a,(rand()-.5)*Math.max(2,a.width*.72),1);
+    if(isBlockedExterior(p.x,p.y,.55))continue;
+    d.position.set(p.x,p.y,p.z+.36);d.rotation.set(0,0,a.heading+(rand()-.5)*.7);d.scale.set(.65+rand()*.95,.75+rand()*.8,.75+rand()*.55);d.updateMatrix();bars.setMatrixAt(bc++,d.matrix);
+  }
+  bars.count=bc;bars.instanceMatrix.needsUpdate=true;bars.castShadow=true;group.add(bars);
+
+  let gazebos=0;const gazeboTarget=Math.max(4,Math.min(18,Math.round(7*density)));
+  for(let i=0;i<gazeboTarget*12&&gazebos<gazeboTarget;i++){
+    const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+7+rand()*12,side);
+    if(isBlockedExterior(p.x,p.y,2.5))continue;
+    const g=new THREE.Group(),postMat=new THREE.MeshStandardMaterial({color:0x50483d,roughness:.92}),roofMat=new THREE.MeshStandardMaterial({color:0x3e403d,roughness:.84,metalness:.08});
+    for(const sx of[-1,1])for(const sy of[-1,1]){const post=new THREE.Mesh(new THREE.BoxGeometry(.14,.14,2.55),postMat);post.position.set(sx*1.35,sy*1.35,1.28);g.add(post)}
+    const roof=new THREE.Mesh(new THREE.ConeGeometry(2.25,.82,4),roofMat);roof.position.z=2.92;roof.rotation.z=Math.PI/4;g.add(roof);g.position.set(p.x,p.y,p.z);g.rotation.z=rand()*Math.PI;group.add(g);gazebos++;
+  }
+
+  let ponds=0;const pondTarget=MAP_PRESET.waterRing?3:Math.max(4,Math.min(14,Math.round(5*density)));
+  const pondMat=new THREE.MeshPhysicalMaterial({color:0x214b52,roughness:.16,metalness:.02,transparent:true,opacity:.72,clearcoat:.7,clearcoatRoughness:.15});
+  for(let i=0;i<pondTarget*16&&ponds<pondTarget;i++){
+    const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+11+rand()*24,side);
+    if(isBlockedExterior(p.x,p.y,4.5))continue;
+    const m=new THREE.Mesh(new THREE.CircleGeometry(1,30),pondMat);m.position.set(p.x,p.y,p.z+.025);m.scale.set(2.8+rand()*6.8,1.7+rand()*4.2,1);m.rotation.z=rand()*Math.PI;group.add(m);ponds++;
+  }
+
+  let smoke=0;const smokeTarget=Math.max(7,Math.min(28,Math.round((densePreview()?13:8)*density)));
+  for(let i=0;i<smokeTarget*12&&smoke<smokeTarget;i++){
+    const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+1+rand()*5,side);
+    if(isBlockedExterior(p.x,p.y,.6))continue;spawnSmokePlumeAt(p.x,p.y,p.z+.35,.8+rand()*1.4);smoke++;
+  }
+
+  let gameInfill=0;
+  if(Number(data.counts?.buildings||0)<140){
+    const target=Math.min(180,140-Number(data.counts?.buildings||0)+45),geo=new THREE.BoxGeometry(1,1,1),mat=new THREE.MeshStandardMaterial({color:0x555953,roughness:.96}),mesh=new THREE.InstancedMesh(geo,mat,target);let n=0;
+    for(let i=0;i<target*8&&n<target;i++){
+      const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+5+rand()*14,side);
+      if(isBlockedExterior(p.x,p.y,2.2))continue;
+      const w=4+rand()*8,dep=4+rand()*8,h=3+rand()*12;d.position.set(p.x,p.y,p.z+h/2);d.rotation.set(0,0,a.heading+(rand()-.5)*.18);d.scale.set(w,dep,h);d.updateMatrix();mesh.setMatrixAt(n++,d.matrix);
+    }
+    mesh.count=n;mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=true;mesh.receiveShadow=true;group.add(mesh);gameInfill=n;
+  }
+  streetLifeStats.fences=fc;streetLifeStats.barricades=bc;streetLifeStats.gazebos=gazebos;streetLifeStats.ponds=ponds;streetLifeStats.smokePlumes=smoke;streetLifeStats.gameInfillStructures=gameInfill;
+  return fc+bc+gazebos+ponds+smoke+gameInfill;
 }
 
 const buildingMaterials={
@@ -4129,7 +4211,7 @@ async function boot(){
     await yieldToRenderer();
     try{buildEntryPoints();installInteractiveDoors()}catch(err){console.error('door system recovered',err);streetLifeStats.buildingGeometryError=String(err?.message||err)}
     await yieldToRenderer();
-    try{buildApocalypseGroundDressing()}catch(err){console.warn('ground dressing skipped',err)}
+    try{buildApocalypseGroundDressing();buildDenseApocalypseLayers()}catch(err){console.warn('ground dressing skipped',err)}
     await yieldToRenderer();
     try{buildFacadeDetails()}catch(err){console.warn('facade details skipped',err)}
     await yieldToRenderer();
@@ -4148,7 +4230,7 @@ async function boot(){
       player:Boolean(playerRoot),playerAssetLoaded,playerAssetMode,character:CHARACTER_KEY,preview:PREVIEW_KEY,mapPreset:MAP_PRESET.id,mapCount:MAP_PRESETS.length,mapSize:MAP_PRESET.size,endlessHorde:ENDLESS_HORDE,endlessCap:maxActiveZombies,loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,
       enemyArchetypes:enemyArchetypes.map(x=>x.id),realisticInfected:enemyArchetypes.filter(x=>x.realisticInfected).length,precomputedPatrols:zombies.filter(z=>z.patrolRoute?.length>1).length,mapMarkers:mapMarkers.length,groundDetails:Number(streetLifeStats.groundDetails||0),climbingSpiders:zombies.filter(z=>z.kind==='spider'&&z.climb).length,weaponCatalog:[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],dropWeapon:true,
       packCapacity,weapon:equippedWeaponName,interiorAssets:Object.values(interiorTemplates).filter(Boolean).length,
-      artChildren:artGroup.children.length,roadLayers:roadLayer?.children?.length||0,streetLife:{...streetLifeStats},
+      artChildren:artGroup.children.length,roadLayers:roadLayer?.children?.length||0,streetLife:{...streetLifeStats},denseApocalypse:true,
       spawnBlocked:isBlockedExterior(playerRoot.position.x,playerRoot.position.y,.36),
       visiblePack:Boolean(packMesh),pickupCount:worldPickups.filter(p=>p.active&&p.mode==='exterior').length,
       equipment:{...equipment},
@@ -4388,7 +4470,7 @@ async function boot(){
 let lastPrompt=0;
 function loop(now=performance.now()){
   const dt=Math.min(.05,clock.getDelta()||.016);
-  updateWeapon(dt);updatePlayer(dt);updateZombieWaves(now);updateZombies(dt,now);animatePickups(dt,now);updateDoors(dt);
+  updateWeapon(dt);updatePlayer(dt);updateZombieWaves(now);updateZombies(dt,now);animatePickups(dt,now);updateDoors(dt);updateAmbientSmoke(dt,now);
   if(spectatorMode)updateSpectator(now);else updateCamera(dt);
   updateFlashlight();updateDayNight(now);
   if(now-lastPrompt>120){updateInteractionPrompt();lastPrompt=now}
