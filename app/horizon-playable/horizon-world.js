@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4218;
+const BUILD_VERSION=4219;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -988,23 +988,39 @@ function buildExplorableShell(rec,meta){
         if(!doorBay)addShellBox(group,cx,cy,base+.34,bay+.025,.18,.68,e.angle,wallMat,'open-wall-low-'+meta.id,false);
         addShellBox(group,cx,cy,base+2.68,bay+.025,.18,.74,e.angle,wallMat,'open-wall-high-'+meta.id,false);
         const leftT=bi/bays,lx=THREE.MathUtils.lerp(e.a.x,e.b.x,leftT),ly=THREE.MathUtils.lerp(e.a.y,e.b.y,leftT);
-        addShellBox(group,lx,ly,base+1.52,.22,.22,2.34,e.angle,wallMat,'open-wall-post-'+meta.id,true);
+        addShellBox(group,lx,ly,base+1.52,.22,.22,2.34,e.angle,wallMat,'open-wall-post-'+meta.id,false);
         if(!doorBay){
           const glass=addShellBox(group,cx,cy,base+1.50,Math.max(.55,bay-.32),.035,1.54,e.angle,shellGlassMaterial,'glass-'+meta.id,false);
           glass.userData.breakableGlass=true;glass.userData.sourceBuilding=meta.id;
-          glass.userData.glassCollider=addStaticPhysicsGeometry(glass.geometry,'breakable-window-'+meta.id+'-'+f+'-'+ei+'-'+bi,.22);
+          glass.userData.edgeFloorKey=meta.id+':'+f+':'+ei;
         }
       }
-      // One collider per whole edge/floor for header/lower wall bands keeps the shell solid without thousands of colliders.
+      // One mid-height collision guard per edge/floor replaces thousands of pane/post colliders.
+      // Breaking any pane on that edge removes its guard, while the visible lower/header wall remains.
       const mx=(e.a.x+e.b.x)/2,my=(e.a.y+e.b.y)/2;
-      if(!(f===0&&ei===doorEdge)){
-        addShellBox(group,mx,my,base+.34,e.len,.20,.68,e.angle,new THREE.MeshBasicMaterial({visible:false}),'open-collider-low-'+meta.id,true).visible=false;
+      const panes=[];
+      group.traverse(o=>{if(o.userData?.edgeFloorKey===meta.id+':'+f+':'+ei)panes.push(o)});
+      if(f===0&&ei===doorEdge&&de){
+        const p=meta.doorGap/2,doorT=closestPointOnSegment2D({x:meta.doorX,y:meta.doorY},de.a,de.b).t;
+        const leftLen=Math.max(0,de.len*doorT-p),rightLen=Math.max(0,de.len*(1-doorT)-p),guards=[];
+        if(leftLen>.4){
+          const t=(leftLen/2)/de.len,gx=THREE.MathUtils.lerp(de.a.x,de.b.x,t),gy=THREE.MathUtils.lerp(de.a.y,de.b.y,t);
+          const gg=new THREE.BoxGeometry(leftLen,.085,1.62),qm=new THREE.Matrix4().compose(new THREE.Vector3(gx,gy,base+1.49),new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),e.angle),new THREE.Vector3(1,1,1));gg.applyMatrix4(qm);guards.push({side:-1,collider:addStaticPhysicsGeometry(gg,'window-guard-'+meta.id+'-'+f+'-'+ei+'-l',.2)});
+        }
+        if(rightLen>.4){
+          const t=1-(rightLen/2)/de.len,gx=THREE.MathUtils.lerp(de.a.x,de.b.x,t),gy=THREE.MathUtils.lerp(de.a.y,de.b.y,t);
+          const gg=new THREE.BoxGeometry(rightLen,.085,1.62),qm=new THREE.Matrix4().compose(new THREE.Vector3(gx,gy,base+1.49),new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),e.angle),new THREE.Vector3(1,1,1));gg.applyMatrix4(qm);guards.push({side:1,collider:addStaticPhysicsGeometry(gg,'window-guard-'+meta.id+'-'+f+'-'+ei+'-r',.2)});
+        }
+        for(const pane of panes){
+          const wp=new THREE.Vector3();pane.getWorldPosition(wp);
+          const side=((wp.x-meta.doorX)*(de.b.x-de.a.x)+(wp.y-meta.doorY)*(de.b.y-de.a.y))<0?-1:1;
+          pane.userData.glassCollider=guards.find(g=>g.side===side)?.collider||null;
+        }
       }else{
-        const p=meta.doorGap/2,doorT=de?closestPointOnSegment2D({x:meta.doorX,y:meta.doorY},de.a,de.b).t:.5,leftLen=Math.max(0,de.len*doorT-p),rightLen=Math.max(0,de.len*(1-doorT)-p);
-        if(leftLen>.3){const t=(leftLen/2)/de.len,cx=THREE.MathUtils.lerp(de.a.x,de.b.x,t),cy=THREE.MathUtils.lerp(de.a.y,de.b.y,t);addShellBox(group,cx,cy,base+.34,leftLen,.20,.68,e.angle,new THREE.MeshBasicMaterial({visible:false}),'door-side-l-'+meta.id,true).visible=false}
-        if(rightLen>.3){const t=1-(rightLen/2)/de.len,cx=THREE.MathUtils.lerp(de.a.x,de.b.x,t),cy=THREE.MathUtils.lerp(de.a.y,de.b.y,t);addShellBox(group,cx,cy,base+.34,rightLen,.20,.68,e.angle,new THREE.MeshBasicMaterial({visible:false}),'door-side-r-'+meta.id,true).visible=false}
+        const gg=new THREE.BoxGeometry(e.len,.085,1.62),qm=new THREE.Matrix4().compose(new THREE.Vector3(mx,my,base+1.49),new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),e.angle),new THREE.Vector3(1,1,1));gg.applyMatrix4(qm);
+        const guard=addStaticPhysicsGeometry(gg,'window-guard-'+meta.id+'-'+f+'-'+ei,.2);
+        for(const pane of panes)pane.userData.glassCollider=guard;
       }
-      addShellBox(group,mx,my,base+2.68,e.len,.20,.74,e.angle,new THREE.MeshBasicMaterial({visible:false}),'open-collider-high-'+meta.id,true).visible=false;
     });
     if(f<floors-1&&meta.width>6&&meta.depth>6){
       const rot=f%2?Math.PI:0;
@@ -1029,9 +1045,9 @@ function buildBuildings(){
     const id=String(row.id||hash(JSON.stringify(center)))+':'+(ri++);
     records.push({row,ring:r,shape,ht,center,q,z,pts,minx,maxx,miny,maxy,width,depth,id,materialKey:facadeKey(row,ht.h)});
   }
-  const shellLimit=MAP_PRESET.size==='LARGE'?14:MAP_PRESET.size==='SMALL'?9:12;
+  const shellLimit=MAP_PRESET.size==='LARGE'?7:MAP_PRESET.size==='SMALL'?4:5;
   const eligible=records.filter(x=>x.width>6&&x.depth>6&&x.ht.h>5&&Math.hypot(x.q.x,x.q.y)<320);
-  const towerSlots=MAP_PRESET.size==='LARGE'?4:MAP_PRESET.size==='SMALL'?2:3;
+  const towerSlots=MAP_PRESET.size==='LARGE'?3:2;
   const nearest=[...eligible].sort((a,b)=>(a.q.x*a.q.x+a.q.y*a.q.y)-(b.q.x*b.q.x+b.q.y*b.q.y)).slice(0,Math.max(1,shellLimit-towerSlots));
   const towers=[...eligible].sort((a,b)=>b.ht.h-a.ht.h).slice(0,towerSlots);
   const shellIds=new Set([...nearest,...towers].map(x=>x.id));
@@ -1185,7 +1201,13 @@ function shatterFacadeGlass(mesh,instanceId){
 function shatterGlass(mesh){
   if(!mesh?.userData?.breakableGlass)return false;
   const p=new THREE.Vector3();mesh.getWorldPosition(p);
-  if(mesh.userData.glassCollider&&physicsWorld){try{physicsWorld.removeCollider(mesh.userData.glassCollider,true)}catch(_){}mesh.userData.glassCollider=null}
+  if(mesh.userData.glassCollider&&physicsWorld){
+    const guard=mesh.userData.glassCollider;
+    try{physicsWorld.removeCollider(guard,true)}catch(_){}
+    const key=mesh.userData.edgeFloorKey;
+    if(key)scene.traverse(o=>{if(o.userData?.edgeFloorKey===key)o.userData.glassCollider=null});
+    mesh.userData.glassCollider=null;
+  }
   mesh.parent?.remove(mesh);
   ensureAudio();showToast('Glass shattered');
   return true;
@@ -3965,7 +3987,7 @@ async function boot(){
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
       reloadActive:reloadState.active,aimFov:weaponCfg(activeWeapon).aim_fov,
-      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),seamlessOpenBuildings:true,towerPriorityOpenBuildings:true,openInteriorProps:Number(streetLifeStats.openInteriorProps||0),
+      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),seamlessOpenBuildings:true,towerPriorityOpenBuildings:true,optimizedOpenBuildingPhysics:true,openInteriorProps:Number(streetLifeStats.openInteriorProps||0),
       matchMode,matchRadius:Number.isFinite(matchRadius)?matchRadius:null,seasonDay:seasonDay(),xp,battleTier,livesRemaining,
       flashlightReady:Boolean(flashlight),vehicleRepair:true,factionClaimMode:'local-preview',spectatorMode
     };
