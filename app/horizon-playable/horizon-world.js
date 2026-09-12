@@ -3303,8 +3303,8 @@ async function buildSurvivalArt(){
   let props=0,vehicles=0;
   props+=scatterRoadsideTemplate(streetlight,D(dense?132:52),4.8,'sidewalk')||0;
   props+=scatterRoadsideTemplate(hydrant,D(dense?66:26),.95,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(traffic1,D(D(dense?36:12)),3.4,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(traffic2,D(D(dense?28:10)),3.4,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(traffic1,D(dense?36:12),3.4,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(traffic2,D(dense?28:10),3.4,'sidewalk')||0;
   props+=scatterRoadsideTemplate(barrier,D(dense?54:22),1.1,'sidewalk')||0;
   props+=scatterRoadsideTemplate(plasticBarrier,D(dense?44:18),.95,'sidewalk')||0;
   props+=scatterRoadsideTemplate(cone,D(dense?82:30),.75,'sidewalk')||0;
@@ -3313,12 +3313,12 @@ async function buildSurvivalArt(){
   props+=scatterRoadsideTemplate(barrel,D(dense?46:20),1.15,'sidewalk')||0;
   props+=scatterRoadsideTemplate(cinder,D(dense?60:20),.28,'sidewalk')||0;
   props+=scatterRoadsideTemplate(pipes,D(dense?20:8),.70,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(wheelStack,D(D(dense?28:10)),.75,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(wheelStack,D(dense?28:10),.75,'sidewalk')||0;
   props+=scatterRoadsideTemplate(townSign,D(dense?18:8),1.8,'sidewalk')||0;
   props+=scatterRoadsideTemplate(containerGreen,D(dense?12:4),2.5,'sidewalk')||0;
   props+=scatterRoadsideTemplate(containerRed,D(dense?12:4),2.5,'sidewalk')||0;
 
-  vehicles+=scatterRoadsideTemplate(pickup,D(D(dense?36:12)),1.72,'parking')||0;
+  vehicles+=scatterRoadsideTemplate(pickup,D(dense?36:12),1.72,'parking')||0;
   vehicles+=scatterRoadsideTemplate(sports,D(dense?34:10),1.35,'parking')||0;
   vehicles+=scatterRoadsideTemplate(truck,D(dense?18:7),2.25,'parking')||0;
 
@@ -3341,14 +3341,14 @@ async function buildSurvivalArt(){
   }
 
   let localProps=0,localVehicles=0;
-  localProps+=scatterRoadsideTemplateLocal(streetlight,dense?42:20,4.8,'sidewalk')||0;
-  localProps+=scatterRoadsideTemplateLocal(hydrant,dense?20:10,.95,'sidewalk')||0;
-  localProps+=scatterRoadsideTemplateLocal(trash,dense?30:16,.72,'sidewalk')||0;
-  localProps+=scatterRoadsideTemplateLocal(cone,dense?24:12,.75,'sidewalk')||0;
+  localProps+=scatterRoadsideTemplateLocal(streetlight,D(dense?42:20),4.8,'sidewalk')||0;
+  localProps+=scatterRoadsideTemplateLocal(hydrant,D(dense?20:10),.95,'sidewalk')||0;
+  localProps+=scatterRoadsideTemplateLocal(trash,D(dense?30:16),.72,'sidewalk')||0;
+  localProps+=scatterRoadsideTemplateLocal(cone,D(dense?24:12),.75,'sidewalk')||0;
   localProps+=scatterRoadsideTemplateLocal(barrier,D(dense?18:8),1.1,'sidewalk')||0;
-  localVehicles+=scatterRoadsideTemplateLocal(pickup,dense?12:6,1.72,'parking')||0;
-  localVehicles+=scatterRoadsideTemplateLocal(sports,dense?14:5,1.35,'parking')||0;
-  localVehicles+=scatterRoadsideTemplateLocal(truck,dense?6:3,2.25,'parking')||0;
+  localVehicles+=scatterRoadsideTemplateLocal(pickup,D(dense?12:6),1.72,'parking')||0;
+  localVehicles+=scatterRoadsideTemplateLocal(sports,D(dense?14:5),1.35,'parking')||0;
+  localVehicles+=scatterRoadsideTemplateLocal(truck,D(dense?6:3),2.25,'parking')||0;
 
   const life=scatterProceduralStreetLife();
   const localLife=scatterLocalProceduralLife();
