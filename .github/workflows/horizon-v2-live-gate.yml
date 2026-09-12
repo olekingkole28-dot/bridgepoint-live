@@ -1,0 +1,23 @@
+name: Horizon V2 Live Gate
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/horizon-v2-live-gate.yml'
+      - 'scripts/browser-horizon-v2-live.mjs'
+      - 'app/horizon-playable/v2-entry.html'
+      - 'app/horizon-playable/horizon-v2.js'
+      - 'app/horizon-playable/horizon-v2.css'
+  workflow_dispatch:
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install playwright@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/browser-horizon-v2-live.mjs
