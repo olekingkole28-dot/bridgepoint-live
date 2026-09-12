@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4232;
+const BUILD_VERSION=4233;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -314,7 +314,7 @@ resizeRenderer();
 THREE.Cache.enabled=true;
 const loader=new GLTFLoader();
 const assetPromiseCache=new Map();
-let activeAssetLoads=0;const assetLoadWaiters=[];const ASSET_LOAD_LIMIT=MOBILE_GPU_SAFE?2:6;
+let activeAssetLoads=0;const assetLoadWaiters=[];const ASSET_LOAD_LIMIT=MOBILE_GPU_SAFE?3:6;
 async function acquireAssetSlot(){if(activeAssetLoads<ASSET_LOAD_LIMIT){activeAssetLoads++;return}await new Promise(resolve=>assetLoadWaiters.push(resolve));activeAssetLoads++}
 function releaseAssetSlot(){activeAssetLoads=Math.max(0,activeAssetLoads-1);const next=assetLoadWaiters.shift();if(next)next()}
 const clock=new THREE.Clock();
@@ -3714,6 +3714,9 @@ function scatterAmbientFires(count){
   return made;
 }
 async function buildSurvivalArt(){
+  const optional=async url=>MOBILE_GPU_SAFE?null:loadAsset(url);
+  const mobileInteriorKeys=new Set(['chair','couch','table','shelf','cabinet']);
+  window.BP_HORIZON_HYDRATION={phase:'essential-assets',startedAt:performance.now(),mobile:MOBILE_GPU_SAFE,complete:false};
   const [
     barrel,trash,pallet,barrier,cone,streetlight,hydrant,traffic1,traffic2,plasticBarrier,cinder,
     containerGreen,containerRed,pipes,wheelStack,townSign,pickup,sports,truck,
@@ -3722,17 +3725,18 @@ async function buildSurvivalArt(){
   ]=await Promise.all([
     loadAsset(ASSETS.barrel),loadAsset(ASSETS.trash),loadAsset(ASSETS.pallet),loadAsset(ASSETS.barrier),
     loadAsset(ASSETS.cone),loadAsset(ASSETS.streetlight),loadAsset(ASSETS.hydrant),
-    loadAsset(ASSETS.traffic1),loadAsset(ASSETS.traffic2),loadAsset(ASSETS.plasticBarrier),loadAsset(ASSETS.cinder),
-    loadAsset(ASSETS.containerGreen),loadAsset(ASSETS.containerRed),loadAsset(ASSETS.pipes),loadAsset(ASSETS.wheelStack),loadAsset(ASSETS.townSign),
-    loadAsset(ASSETS.vehicle),loadAsset(ASSETS.sportsCar),loadAsset(ASSETS.truck),
-    loadAsset(ASSETS.zombie),loadAsset(ASSETS.zombieChubby),loadAsset(ASSETS.zombieRibcage),
-    loadAsset(ASSETS.infectedHuman),loadAsset(ASSETS.infectedMan),loadAsset(ASSETS.infectedScreamer),
+    optional(ASSETS.traffic1),optional(ASSETS.traffic2),optional(ASSETS.plasticBarrier),optional(ASSETS.cinder),
+    optional(ASSETS.containerGreen),optional(ASSETS.containerRed),optional(ASSETS.pipes),optional(ASSETS.wheelStack),optional(ASSETS.townSign),
+    loadAsset(ASSETS.vehicle),optional(ASSETS.sportsCar),optional(ASSETS.truck),
+    optional(ASSETS.zombie),optional(ASSETS.zombieChubby),optional(ASSETS.zombieRibcage),
+    optional(ASSETS.infectedHuman),optional(ASSETS.infectedMan),optional(ASSETS.infectedScreamer),
     loadAsset(ASSETS.infectedM2MZombie),loadAsset(ASSETS.infectedM2MMonster3),loadAsset(ASSETS.infectedM2MMonster4),loadAsset(ASSETS.infectedM2MMonster5),
-    loadAsset(ASSETS.infectedShepherd),loadAsset(ASSETS.infectedPug),loadAsset(ASSETS.wolf),
-    loadAsset(ASSETS.orc),loadAsset(ASSETS.spider),loadAsset(ASSETS.yeti),loadAsset(ASSETS.bear),loadAsset(ASSETS.infectedCrow),loadAsset(ASSETS.infectedBearReal),loadAsset(ASSETS.infectedWolfReal),
+    loadAsset(ASSETS.infectedShepherd),optional(ASSETS.infectedPug),optional(ASSETS.wolf),
+    optional(ASSETS.orc),loadAsset(ASSETS.spider),optional(ASSETS.yeti),optional(ASSETS.bear),loadAsset(ASSETS.infectedCrow),optional(ASSETS.infectedBearReal),optional(ASSETS.infectedWolfReal),
     loadAsset(ASSETS.chest),loadAsset(ASSETS.chestSpecial),
-    ...Object.values(INTERIOR_ASSETS).map(loadAsset)
+    ...Object.entries(INTERIOR_ASSETS).map(([k,url])=>(!MOBILE_GPU_SAFE||mobileInteriorKeys.has(k))?loadAsset(url):Promise.resolve(null))
   ]);
+  window.BP_HORIZON_HYDRATION.phase='scene-build';
   const keys=Object.keys(INTERIOR_ASSETS);interiorTemplates={};keys.forEach((k,i)=>interiorTemplates[k]=interiors[i]);
   pickupTemplates={chest,chestSpecial};
   const sharedHumanAnimations=await loadAsset(ASSETS.playerAnimations);
@@ -3764,8 +3768,8 @@ async function buildSurvivalArt(){
   zombieTemplates=enemyArchetypes;
   zombieTemplate=enemyArchetypes[0]||null;
 
-  const dense=densePreview(),density=MAP_DENSITY;
-  const D=n=>Math.max(1,Math.round(n*density));
+  const dense=densePreview(),density=MAP_DENSITY,artScale=MOBILE_GPU_SAFE?.30:1;
+  const D=n=>Math.max(1,Math.round(n*density*artScale));
   let props=0,vehicles=0;
   props+=scatterRoadsideTemplate(streetlight,D(dense?132:52),4.8,'sidewalk')||0;
   props+=scatterRoadsideTemplate(hydrant,D(dense?66:26),.95,'sidewalk')||0;
@@ -3822,10 +3826,10 @@ async function buildSurvivalArt(){
   const grass=buildGrassDetails();
   const denseVeg=buildDenseVegetation();
   const drivable=
-    spawnDrivableVehicle(pickup,'pickup',dense?5:3,1.72)+
-    spawnDrivableVehicle(sports,'sports',dense?5:2,1.35)+
-    spawnDrivableVehicle(truck,'truck',dense?3:2,2.25)+
-    spawnDrivableBike(dense?5:3);
+    spawnDrivableVehicle(pickup,'pickup',MOBILE_GPU_SAFE?2:(dense?5:3),1.72)+
+    spawnDrivableVehicle(sports,'sports',MOBILE_GPU_SAFE?0:(dense?5:2),1.35)+
+    spawnDrivableVehicle(truck,'truck',MOBILE_GPU_SAFE?0:(dense?3:2),2.25)+
+    spawnDrivableBike(MOBILE_GPU_SAFE?2:(dense?5:3));
   streetLifeStats={
     ...streetLifeStats,
     trees:life.trees+localLife.trees+denseVeg.trees,
@@ -3842,10 +3846,11 @@ async function buildSurvivalArt(){
 
   spawnOutdoorLoot();
   dressOpenSourceBuildings(m2mZombie||zombie);
-  streetLifeStats.corpses=scatterStreetCorpses(m2mZombie||zombie,densePreview()?52:24);
-  streetLifeStats.fires=scatterAmbientFires(densePreview()?15:7);
+  streetLifeStats.corpses=scatterStreetCorpses(m2mZombie||zombie,MOBILE_GPU_SAFE?18:(densePreview()?52:24));
+  streetLifeStats.fires=scatterAmbientFires(MOBILE_GPU_SAFE?7:(densePreview()?15:7));
   await buildZombies(zombieTemplate);
-  spawnFacadeSpiders(densePreview()?5:3);
+  spawnFacadeSpiders(MOBILE_GPU_SAFE?2:(densePreview()?5:3));
+  window.BP_HORIZON_HYDRATION={...window.BP_HORIZON_HYDRATION,phase:'ready',complete:true,readyMs:Math.round(performance.now()-window.BP_HORIZON_HYDRATION.startedAt),enemyTypes:enemyArchetypes.length,assetCacheSize:assetPromiseCache.size};
 }
 function toMapXY(x,y){
   const west=project([data.bbox.west,lat0]).x,east=project([data.bbox.east,lat0]).x;
@@ -4319,7 +4324,7 @@ async function boot(){
       playerRootZ:playerRoot.position.z,
       activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
       physicsMode,physicsReady,physicsError,terrainPhysicsReady:Boolean(terrainPhysicsCollider),terrainSafetyRescues,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
-      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,mobileGpuSafe:MOBILE_GPU_SAFE,worldTickMs:MOBILE_GPU_SAFE?34:16,minimapTickMs:MOBILE_GPU_SAFE?140:70,instantMassing:Number(streetLifeStats.instantMassing||0),
+      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,mobileGpuSafe:MOBILE_GPU_SAFE,hydrationReadyMs:Number(window.BP_HORIZON_HYDRATION?.readyMs||0),hydrationComplete:Boolean(window.BP_HORIZON_HYDRATION?.complete),worldTickMs:MOBILE_GPU_SAFE?34:16,minimapTickMs:MOBILE_GPU_SAFE?140:70,instantMassing:Number(streetLifeStats.instantMassing||0),
       streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null,
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
