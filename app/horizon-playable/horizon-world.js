@@ -865,24 +865,29 @@ function spawnVisiblePickup(item,x,y,z,mode='exterior',seedValue=0){
   worldPickups.push(p);return p;
 }
 function spawnOutdoorLoot(){
-  const target=CELL==='manhattan'?56:24;
+  const target=CELL==='manhattan'?80:40;
   const table=['Bandage','Water','First aid kit','Batteries','Canned food','Pistol','Rifle','Shotgun','Axe','Hiking Backpack'];
   let placed=0,attempts=0;
-  while(placed<target&&attempts<target*18){
+  while(placed<target&&attempts<target*24){
     attempts++;
     const a=roadAnchors[Math.floor(rand()*roadAnchors.length)];if(!a)continue;
-    const d=Math.hypot(a.x-playerSpawn.x,a.y-playerSpawn.y);if(d<8||d>360)continue;
-    const side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+1.1+rand()*2.1,side);
-    if(isBlockedExterior(p.x,p.y,.5))continue;
-    const roll=rand();
-    let item=table[Math.floor(rand()*5)];
-    if(roll>.78&&roll<=.87)item='Pistol';
-    else if(roll>.87&&roll<=.93)item='Axe';
-    else if(roll>.93&&roll<=.97)item='Rifle';
-    else if(roll>.97&&roll<=.99)item='Shotgun';
-    else if(roll>.99)item='Hiking Backpack';
+    const d=Math.hypot(a.x-playerSpawn.x,a.y-playerSpawn.y);if(d<7||d>420)continue;
+    const side=rand()>.5?1:-1;
+    const insideEdge=Math.max(.75,a.width/2-(.65+rand()*1.15));
+    let p=roadSidePoint(a,insideEdge,side);
+    if(isBlockedExterior(p.x,p.y,.38)){
+      p={x:a.x,y:a.y,z:surfaceZXY(a.x,a.y)};
+      if(isBlockedExterior(p.x,p.y,.38))continue;
+    }
+    const roll=rand();let item=table[Math.floor(rand()*5)];
+    if(roll>.72&&roll<=.84)item='Pistol';
+    else if(roll>.84&&roll<=.91)item='Axe';
+    else if(roll>.91&&roll<=.96)item='Rifle';
+    else if(roll>.96&&roll<=.985)item='Shotgun';
+    else if(roll>.985)item='Hiking Backpack';
     spawnVisiblePickup(item,p.x,p.y,p.z,'exterior',hash(CELL+':loot:'+attempts));placed++;
   }
+  return placed;
 }
 function spawnInteriorVisibleLoot(w,h,seedValue){
   const r=seeded(seedValue+301),count=3+Math.floor(r()*4);
