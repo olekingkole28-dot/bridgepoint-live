@@ -2133,6 +2133,8 @@ function updateWeapon(dt,now=performance.now()){
   fireCooldown=Math.max(0,fireCooldown-dt);
   muzzleFlash=Math.max(0,muzzleFlash-dt);
   updateReload(now);
+  const cfg=weaponCfg(activeWeapon);
+  if(isFirearm(activeWeapon)&&cfg.fire_mode==='auto'&&fireHeld&&!reloadState.active&&fireCooldown<=0)shoot();
   const recover=1-Math.exp(-8.5*dt);
   recoilPitch=THREE.MathUtils.lerp(recoilPitch,0,recover);
   recoilYaw=THREE.MathUtils.lerp(recoilYaw,0,recover);
@@ -2396,6 +2398,8 @@ function pollGamepad(){
   if(edge(2))interact();
   if(edge(3))cycleWeapon();
   if(edge(5))useActiveWeapon();
+  fireHeld=pressed(5);
+  if(edge(9)&&isFirearm(activeWeapon))requestReload();
   if(edge(4))setAiming(!aiming);
   mobileSprint=pressed(10)||pressed(7);
   gamepadPrev=(p.buttons||[]).map(b=>Boolean(b.pressed));
@@ -2405,7 +2409,7 @@ function initInput(){
   addEventListener('keydown',e=>{
     keys.add(e.code);
     if(e.code==='KeyE')interact();
-    if(e.code==='KeyF'){e.preventDefault();useActiveWeapon()}
+    if(e.code==='KeyF'){e.preventDefault();fireHeld=true;useActiveWeapon()}
     if(e.code==='Space'){e.preventDefault();playerJumpQueued=true}
     if(e.code==='KeyC')cycleStance();
     if(e.code==='KeyX')setPlayerStance('prone');
@@ -2413,12 +2417,9 @@ function initInput(){
     if(e.code==='Digit1')selectSlot('melee');
     if(e.code==='Digit2')selectSlot('sidearm');
     if(e.code==='Digit3')selectSlot('primary');
-    if(e.code==='KeyR'&&isFirearm(activeWeapon)){
-      const mag=activeWeapon==='Rifle'?20:activeWeapon==='Shotgun'?6:12;
-      ammoState[activeWeapon]=Math.max(ammoState[activeWeapon]||0,mag);showToast(activeWeapon+' magazine ready');updateInventory();
-    }
+    if(e.code==='KeyR'&&isFirearm(activeWeapon)){e.preventDefault();requestReload()}
   });
-  addEventListener('keyup',e=>keys.delete(e.code));
+  addEventListener('keyup',e=>{keys.delete(e.code);if(e.code==='KeyF')fireHeld=false});
   renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 
   let lookId=null,lastX=0,lastY=0;
@@ -2450,8 +2451,12 @@ function initInput(){
   $('jumpBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();playerJumpQueued=true});
   $('stanceBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();cycleStance()});
   $('interactBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();interact()});
-  $('attackBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();useActiveWeapon()});
+  const attackBtn=$('attackBtn');
+  attackBtn?.addEventListener('pointerdown',e=>{e.preventDefault();fireHeld=true;useActiveWeapon()});
+  attackBtn?.addEventListener('pointerup',()=>fireHeld=false);
+  attackBtn?.addEventListener('pointercancel',()=>fireHeld=false);
   $('weaponBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();cycleWeapon()});
+  $('reloadBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();requestReload()});
   $('aimBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();setAiming(!aiming)});
   document.querySelectorAll('.loadoutSlot[data-slot]').forEach(btn=>btn.addEventListener('pointerdown',e=>{e.preventDefault();selectSlot(btn.dataset.slot)}));
   const sprint=$('sprintBtn');sprint?.addEventListener('pointerdown',e=>{e.preventDefault();mobileSprint=true});sprint?.addEventListener('pointerup',()=>mobileSprint=false);sprint?.addEventListener('pointercancel',()=>mobileSprint=false);
@@ -2554,24 +2559,29 @@ function safeCameraPosition(target,desired){
 }
 function updateCamera(dt){
   if(!playerRoot)return;
+  const fovTarget=aiming&&isFirearm(activeWeapon)?THREE.MathUtils.clamp(Number(weaponCfg(activeWeapon).aim_fov||52),38,62):66;
+  camera.fov=THREE.MathUtils.lerp(camera.fov,fovTarget,1-Math.exp(-10*dt));camera.updateProjectionMatrix();
   if(activeVehicle){
     const target=activeVehicle.root.position.clone().add(new THREE.Vector3(0,0,1.15));
-    const forward=new THREE.Vector3(Math.sin(yaw),Math.cos(yaw),0);
-    const desired=target.clone().addScaledVector(forward,-6.8);desired.z+=3.1;
-    const safe=safeCameraPosition(target,desired);camera.position.lerp(safe,1-Math.exp(-7*dt));camera.lookAt(target.clone().addScaledVector(forward,3.5));return;
+    const vy=yaw+recoilYaw,vp=THREE.MathUtils.clamp(pitch+recoilPitch,-.48,.70);
+    const lookDir=new THREE.Vector3(Math.sin(vy)*Math.cos(vp),Math.cos(vy)*Math.cos(vp),-Math.sin(vp)).normalize();
+    const desired=target.clone().addScaledVector(lookDir,-6.8);desired.z+=1.35;
+    const safe=safeCameraPosition(target,desired);camera.position.lerp(safe,1-Math.exp(-7*dt));camera.lookAt(target.clone().addScaledVector(lookDir,8));return;
   }
-  const target=playerRoot.position.clone().add(new THREE.Vector3(0,0,aiming?1.48:1.36));
-  const forward=new THREE.Vector3(Math.sin(yaw),Math.cos(yaw),0),right=new THREE.Vector3(Math.cos(yaw),-Math.sin(yaw),0);
-  const dist=aiming?1.75:interiorMode?(cameraMode===0?3.05:1.85):(cameraMode===0?4.0:2.1);
-  const shoulder=aiming?.58:cameraMode===0?.46:.30;
-  const desired=target.clone().addScaledVector(forward,-dist*Math.cos(pitch)).addScaledVector(right,shoulder);
-  desired.z+=aiming?.38:.82+dist*Math.sin(pitch);
+  const cfg=STANCES[playerStance]||STANCES.stand;
+  const target=playerRoot.position.clone().add(new THREE.Vector3(0,0,Math.max(.48,cfg.center+(aiming?.44:.34))));
+  const viewYaw=yaw+recoilYaw,viewPitch=THREE.MathUtils.clamp(pitch+recoilPitch,-.48,.70);
+  const lookDir=new THREE.Vector3(Math.sin(viewYaw)*Math.cos(viewPitch),Math.cos(viewYaw)*Math.cos(viewPitch),-Math.sin(viewPitch)).normalize();
+  const right=new THREE.Vector3(Math.cos(viewYaw),-Math.sin(viewYaw),0);
+  const dist=aiming?1.62:interiorMode?(cameraMode===0?2.85:1.72):(cameraMode===0?3.8:2.0);
+  const shoulder=aiming?.54:cameraMode===0?.42:.27;
+  const desired=target.clone().addScaledVector(lookDir,-dist).addScaledVector(right,shoulder);
+  if(!aiming)desired.z+=.18;
   const physicsSafe=!interiorMode?rapierCameraPosition(target,desired):null;
-  const safe=physicsSafe||safeCameraPosition(target,desired),alpha=1-Math.exp(-(aiming?14:9)*dt);
+  const safe=physicsSafe||safeCameraPosition(target,desired),alpha=1-Math.exp(-(aiming?15:10)*dt);
   camera.position.lerp(safe,alpha);
-  camera.lookAt(target.clone().addScaledVector(forward,aiming?8:cameraMode===0?2.2:3.0));
+  camera.lookAt(target.clone().addScaledVector(lookDir,aiming?12:5));
 }
-
 async function enterLandscape(){
   try{if(!document.fullscreenElement&&document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen({navigationUI:'hide'})}catch(_){}
   try{if(screen.orientation&&screen.orientation.lock)await screen.orientation.lock('landscape')}catch(_){}
