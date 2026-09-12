@@ -4266,6 +4266,22 @@ async function boot(){
     revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone();
     updateInventory();updateInteractionPrompt();resizeRenderer();
     window.BP_HORIZON_PLAYABLE={ok:true,build:BUILD_VERSION,readyMs:Math.round(performance.now()-bootStarted),stance:playerStance,weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,map:MAP_PRESET.id,instantBuildings:Number(streetLifeStats.instantMassing||0)};
+    window.BP_HORIZON_QUICK_TEST={
+      facing:()=>visualFacingAlignment(yaw),
+      activeWeapon:()=>({name:activeWeapon,visible:Boolean(equipmentMounts.activeGrip?.children?.some?.(hasRenderableWeapon)),children:equipmentMounts.activeGrip?.children?.length||0}),
+      switchAllWeapons:()=>{
+        const prior={equipment:{...equipment},slot:activeSlot,weapon:activeWeapon};
+        const out=[];
+        for(const cfg of DEFAULT_WEAPON_CONFIGS){
+          if(cfg.weapon_name==='Fists')continue;
+          equipment[cfg.equip_slot]=cfg.weapon_name;activeSlot=cfg.equip_slot;activeWeapon=cfg.weapon_name;equippedWeaponName=cfg.weapon_name;refreshEquipmentVisuals();
+          const child=equipmentMounts.activeGrip?.children?.[0]||null;
+          out.push({weapon:cfg.weapon_name,visible:hasRenderableWeapon(child),children:equipmentMounts.activeGrip?.children?.length||0});
+        }
+        equipment={...prior.equipment};activeSlot=prior.slot;activeWeapon=prior.weapon;equippedWeaponName=prior.weapon;refreshEquipmentVisuals();
+        return out;
+      }
+    };
     loadText.textContent='PLAYABLE · exact buildings and apocalypse details streaming…';
 
     await yieldToRenderer();
@@ -4351,6 +4367,7 @@ async function boot(){
       patrolProbe:()=>zombies.filter(z=>!z.dead&&z.kind!=='crow'&&!(z.kind==='spider'&&z.climb)).slice(0,8).map(z=>({kind:z.kind,route:z.patrolRoute?.length||0,index:z.patrolIndex,state:z.state,aggro:z.aggro,chaseMult:z.chaseMult})),
       climbingSpiderCount:()=>zombies.filter(z=>z.kind==='spider'&&z.climb).length,
       weaponCatalog:()=>[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],
+      allWeaponsVisibleProbe:()=>window.BP_HORIZON_QUICK_TEST?.switchAllWeapons?.()||[],
       cardinalControlsProbe:()=>{
         const probe=(x,y)=>{const n=normalizeMovementInput(x,y),v=movementVector(n.x,n.y,0),heading=Math.atan2(v.x,v.y);return{x:n.x,y:n.y,dx:v.x,dy:v.y,heading,playerYaw:playerFacingYaw(heading)}};
         return{
