@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4236;
+const BUILD_VERSION=4237;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -2067,8 +2067,9 @@ function applyProceduralAim(){
   if(aimBones.torso)aimBones.torso.rotateX(-elevation*.22);
 }
 function staticClone(template,targetHeight){
-  if(!template)return null;
-  const n=normalizedModel(template.scene,targetHeight,false);return n.root;
+  const scene=template?.scene||template?.template?.scene||null;
+  if(!scene?.clone)return null;
+  const n=normalizedModel(scene,targetHeight,false);return n?.root||null;
 }
 function propCloneByLength(template,targetLength){
   if(!template)return null;
@@ -3699,7 +3700,15 @@ function scatterStreetCorpses(template,count){
     if(isBlockedExterior(p.x,p.y,.45))continue;
     const body=staticClone(template,1.72);if(!body)continue;
     body.position.set(p.x,p.y,p.z+.07);body.rotation.set(0,Math.PI/2+(rand()-.5)*.22,a.heading+(rand()-.5)*1.7);
-    body.traverse(o=>{if(o.isMesh&&o.material){const arr=Array.isArray(o.material)?o.material:[o.material];o.material=arr.map(m=>{const q=m.clone();if(q.color)q.color.multiplyScalar(.46);q.roughness=Math.max(.9,Number(q.roughness||.8));return q});if(!Array.isArray(o.material))o.material=o.material[0]||o.material}});
+    body.traverse(o=>{
+      if(!o.isMesh||!o.material)return;
+      const wasArray=Array.isArray(o.material),arr=wasArray?o.material:[o.material];
+      const mats=arr.map(m=>{
+        if(!m?.clone)return m;
+        const q=m.clone();if(q.color)q.color.multiplyScalar(.46);q.roughness=Math.max(.9,Number(q.roughness||.8));return q;
+      }).filter(Boolean);
+      if(mats.length)o.material=wasArray?mats:mats[0];
+    });
     artGroup.add(body);made++;
   }
   return made;
@@ -3776,13 +3785,15 @@ async function buildSurvivalArtMobileFast(){
   const started=performance.now();
   window.BP_HORIZON_HYDRATION={phase:'instant-procedural',startedAt:started,mobile:true,complete:false,backgroundComplete:false};
   interiorTemplates={};pickupTemplates={};enemyArchetypes=fastEnemyArchetypes();zombieTemplates=enemyArchetypes;zombieTemplate=enemyArchetypes[0];
-  const life=scatterLocalProceduralLife(),furniture=scatterStreetFurniture();
-  streetLifeStats={...streetLifeStats,trees:(streetLifeStats.trees||0)+(life.trees||0),bikes:(streetLifeStats.bikes||0)+(life.bikes||0),benches:(streetLifeStats.benches||0)+(furniture.benches||0),planters:(streetLifeStats.planters||0)+(furniture.planters||0),proceduralEnemyFallback:true};
-  spawnOutdoorLoot();
-  streetLifeStats.corpses=scatterStreetCorpses(zombieTemplate,MOBILE_GPU_SAFE?18:24);
-  streetLifeStats.fires=Math.max(Number(streetLifeStats.fires||0),scatterAmbientFires(7));
-  await buildZombies(zombieTemplate);spawnFacadeSpiders(2);
-  window.BP_HORIZON_HYDRATION={...window.BP_HORIZON_HYDRATION,phase:'ready',complete:true,readyMs:Math.round(performance.now()-started),enemyTypes:enemyArchetypes.length,assetCacheSize:assetPromiseCache.size};
+  try{
+    const life=scatterLocalProceduralLife(),furniture=scatterStreetFurniture();
+    streetLifeStats={...streetLifeStats,trees:(streetLifeStats.trees||0)+(life.trees||0),bikes:(streetLifeStats.bikes||0)+(life.bikes||0),benches:(streetLifeStats.benches||0)+(furniture.benches||0),planters:(streetLifeStats.planters||0)+(furniture.planters||0),proceduralEnemyFallback:true};
+  }catch(err){streetLifeStats.mobileDecorRecovery=String(err?.message||err);console.warn('mobile decor recovered',err)}
+  try{spawnOutdoorLoot()}catch(err){streetLifeStats.mobileLootRecovery=String(err?.message||err);console.warn('mobile loot recovered',err)}
+  try{streetLifeStats.corpses=scatterStreetCorpses(zombieTemplate,MOBILE_GPU_SAFE?18:24)}catch(err){streetLifeStats.corpses=0;streetLifeStats.corpseRecovery=String(err?.message||err);console.warn('corpse dressing recovered',err)}
+  try{streetLifeStats.fires=Math.max(Number(streetLifeStats.fires||0),scatterAmbientFires(7))}catch(err){streetLifeStats.fireRecovery=String(err?.message||err);console.warn('fire dressing recovered',err)}
+  try{await buildZombies(zombieTemplate);spawnFacadeSpiders(2)}catch(err){streetLifeStats.enemyRecovery=String(err?.message||err);console.warn('enemy hydration recovered',err)}
+  window.BP_HORIZON_HYDRATION={...window.BP_HORIZON_HYDRATION,phase:'ready',complete:true,readyMs:Math.round(performance.now()-started),enemyTypes:enemyArchetypes.length,assetCacheSize:assetPromiseCache.size,recovered:Boolean(streetLifeStats.mobileDecorRecovery||streetLifeStats.mobileLootRecovery||streetLifeStats.corpseRecovery||streetLifeStats.fireRecovery||streetLifeStats.enemyRecovery)};
   setTimeout(()=>hydrateMobileEnemyTemplates().catch(e=>console.warn('mobile enemy hydration',e)),1600);
   return true;
 }
@@ -4389,7 +4400,7 @@ async function boot(){
       playerRootZ:playerRoot.position.z,
       activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
       physicsMode,physicsReady,physicsError,terrainPhysicsReady:Boolean(terrainPhysicsCollider),terrainSafetyRescues,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
-      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,assetTimeoutMs:ASSET_TIMEOUT_MS,mobileGpuSafe:MOBILE_GPU_SAFE,hydrationReadyMs:Number(window.BP_HORIZON_HYDRATION?.readyMs||0),proceduralFastHydration:Boolean(streetLifeStats.proceduralEnemyFallback),detailHydrationComplete:Boolean(streetLifeStats.detailHydrationComplete),hydrationComplete:Boolean(window.BP_HORIZON_HYDRATION?.complete),worldTickMs:MOBILE_GPU_SAFE?34:16,minimapTickMs:MOBILE_GPU_SAFE?140:70,instantMassing:Number(streetLifeStats.instantMassing||0),
+      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,assetTimeoutMs:ASSET_TIMEOUT_MS,mobileGpuSafe:MOBILE_GPU_SAFE,hydrationReadyMs:Number(window.BP_HORIZON_HYDRATION?.readyMs||0),proceduralFastHydration:Boolean(streetLifeStats.proceduralEnemyFallback),cloneRecovery4237:true,detailHydrationComplete:Boolean(streetLifeStats.detailHydrationComplete),hydrationComplete:Boolean(window.BP_HORIZON_HYDRATION?.complete),worldTickMs:MOBILE_GPU_SAFE?34:16,minimapTickMs:MOBILE_GPU_SAFE?140:70,instantMassing:Number(streetLifeStats.instantMassing||0),
       streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null,
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
