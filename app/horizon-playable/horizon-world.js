@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4217;
+const BUILD_VERSION=4218;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -1030,7 +1030,11 @@ function buildBuildings(){
     records.push({row,ring:r,shape,ht,center,q,z,pts,minx,maxx,miny,maxy,width,depth,id,materialKey:facadeKey(row,ht.h)});
   }
   const shellLimit=MAP_PRESET.size==='LARGE'?14:MAP_PRESET.size==='SMALL'?9:12;
-  const shellIds=new Set(records.filter(x=>x.width>6&&x.depth>6&&x.ht.h>5&&Math.hypot(x.q.x,x.q.y)<260).sort((a,b)=>(a.q.x*a.q.x+a.q.y*a.q.y)-(b.q.x*b.q.x+b.q.y*b.q.y)).slice(0,shellLimit).map(x=>x.id));
+  const eligible=records.filter(x=>x.width>6&&x.depth>6&&x.ht.h>5&&Math.hypot(x.q.x,x.q.y)<320);
+  const towerSlots=MAP_PRESET.size==='LARGE'?4:MAP_PRESET.size==='SMALL'?2:3;
+  const nearest=[...eligible].sort((a,b)=>(a.q.x*a.q.x+a.q.y*a.q.y)-(b.q.x*b.q.x+b.q.y*b.q.y)).slice(0,Math.max(1,shellLimit-towerSlots));
+  const towers=[...eligible].sort((a,b)=>b.ht.h-a.ht.h).slice(0,towerSlots);
+  const shellIds=new Set([...nearest,...towers].map(x=>x.id));
   let openCount=0;
   for(const rec of records){
     const meta={id:rec.id,x:rec.q.x,y:rec.q.y,z:rec.z,height:rec.ht.h,minx:rec.minx,maxx:rec.maxx,miny:rec.miny,maxy:rec.maxy,width:rec.width,depth:rec.depth,poly:rec.pts,explorable:shellIds.has(rec.id)};
@@ -3359,6 +3363,45 @@ function updateZombies(dt,now){
   updateZombieCount();
 }
 
+function dressOpenSourceBuildings(bodyTemplate){
+  const opens=buildingCenters.filter(b=>b.explorable),keys=['chair','couch','table','shelf','cabinet','bench','fridge','plant'],sizeByKey={chair:1.05,couch:1.0,table:.8,shelf:1.8,cabinet:1.1,bench:.9,fridge:1.8,plant:1.15};
+  if(!opens.length)return 0;
+  let made=0,bodies=0,lights=0;
+  for(const b of opens){
+    const floors=Math.max(1,Number(b.openFloors||Math.floor(b.height/3.05)||1));
+    const r=seeded(hash('open-dress:'+MAP_PRESET.id+':'+b.id));
+    const floorList=[];
+    for(let f=0;f<floors;f++)if(f<5||f===floors-1||f%3===0)floorList.push(f);
+    for(const floor of floorList){
+      const propCount=floor<3?5:floor===floors-1?6:3;
+      for(let p=0;p<propCount;p++){
+        let x=b.x,y=b.y,ok=false;
+        for(let tries=0;tries<14;tries++){
+          x=b.x+(r()-.5)*b.width*.68;y=b.y+(r()-.5)*b.depth*.68;
+          if(pointInPoly(x,y,b.poly)&&Math.hypot(x-b.x,y-b.y)>2.25){ok=true;break}
+        }
+        if(!ok)continue;
+        const key=keys[Math.floor(r()*keys.length)],template=interiorTemplates[key];if(!template)continue;
+        const obj=staticClone(template,sizeByKey[key]||1);if(!obj)continue;
+        obj.position.set(x,y,b.z+floor*3.05+.06);obj.rotation.z=r()*Math.PI*2;
+        if(r()<.38)obj.rotation.x=(r()-.5)*.22;
+        artGroup.add(obj);made++;
+      }
+      if(bodyTemplate&&r()<.24){
+        let x=b.x,y=b.y;
+        for(let tries=0;tries<10;tries++){const tx=b.x+(r()-.5)*b.width*.55,ty=b.y+(r()-.5)*b.depth*.55;if(pointInPoly(tx,ty,b.poly)&&Math.hypot(tx-b.x,ty-b.y)>2){x=tx;y=ty;break}}
+        const body=staticClone(bodyTemplate,1.72);
+        if(body){body.position.set(x,y,b.z+floor*3.05+.08);body.rotation.set(0,Math.PI/2,r()*Math.PI*2);applyInfectedLook(body,{tint:0x3e413c,tintMix:.62,emissive:0x080000},r);artGroup.add(body);bodies++}
+      }
+    }
+    const lightFloors=[0,Math.max(0,Math.floor((floors-1)*.55)),floors-1].filter((v,i,a)=>a.indexOf(v)===i);
+    for(const floor of lightFloors){
+      const light=new THREE.PointLight(r()>.45?0xffb36b:0xb7d1c2,2.6+r()*4.2,12,2);light.position.set(b.x+(r()-.5)*1.4,b.y+(r()-.5)*1.4,b.z+floor*3.05+2.25);artGroup.add(light);lights++;
+    }
+  }
+  streetLifeStats.openInteriorProps=made;streetLifeStats.openInteriorBodies=bodies;streetLifeStats.openInteriorLights=lights;
+  return made+bodies;
+}
 function scatterStreetCorpses(template,count){
   if(!template||!roadAnchors.length)return 0;let made=0,attempts=0;
   while(made<count&&attempts<count*20){
@@ -3512,6 +3555,7 @@ async function buildSurvivalArt(){
   };
 
   spawnOutdoorLoot();
+  dressOpenSourceBuildings(m2mZombie||zombie);
   streetLifeStats.corpses=scatterStreetCorpses(m2mZombie||zombie,densePreview()?34:14);
   streetLifeStats.fires=scatterAmbientFires(densePreview()?9:4);
   await buildZombies(zombieTemplate);
@@ -3921,7 +3965,7 @@ async function boot(){
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
       reloadActive:reloadState.active,aimFov:weaponCfg(activeWeapon).aim_fov,
-      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),seamlessOpenBuildings:true,
+      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),seamlessOpenBuildings:true,towerPriorityOpenBuildings:true,openInteriorProps:Number(streetLifeStats.openInteriorProps||0),
       matchMode,matchRadius:Number.isFinite(matchRadius)?matchRadius:null,seasonDay:seasonDay(),xp,battleTier,livesRemaining,
       flashlightReady:Boolean(flashlight),vehicleRepair:true,factionClaimMode:'local-preview',spectatorMode
     };
