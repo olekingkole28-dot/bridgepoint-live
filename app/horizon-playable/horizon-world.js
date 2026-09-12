@@ -200,7 +200,7 @@ let interiorWalls=[],interiorContainers=[],interiorBounds=null,interiorExit=null
 let streetLifeStats={trees:0,bikes:0,vehicles:0,props:0,grass:0,benches:0,planters:0,backgroundTrees:0,shrubs:0,drivable:0};
 let drivableVehicles=[],activeVehicle=null;
 
-let RAPIER=null,physicsWorld=null,physicsReady=false,physicsMode='manual-fallback';
+let RAPIER=null,physicsWorld=null,physicsReady=false,physicsMode='manual-fallback',physicsError=null;
 let playerPhysicsBody=null,playerPhysicsCollider=null,characterController=null;
 let verticalVelocity=0,grounded=false,playerJumpQueued=false;
 let playerStance='stand',gamepadMove={x:0,y:0},gamepadLook={x:0,y:0},gamepadPrev=[];
@@ -391,26 +391,41 @@ function worldRequestUrl(){
   return u.toString();
 }
 
+async function importWithTimeout(url,ms=18000){
+  return await Promise.race([
+    import(url),
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error('IMPORT_TIMEOUT '+url)),ms))
+  ]);
+}
 async function initRapierPhysics(){
-  try{
-    const mod=await import('https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.20.0/rapier.es.js');
-    RAPIER=mod.default||mod;
-    if(typeof RAPIER.init==='function')await RAPIER.init();
-    physicsWorld=new RAPIER.World({x:0,y:0,z:-9.81});
-    physicsWorld.timestep=1/60;
-    characterController=physicsWorld.createCharacterController(.025);
-    characterController.setUp({x:0,y:0,z:1});
-    characterController.enableAutostep(.38,.18,true);
-    characterController.enableSnapToGround(.42);
-    characterController.setMaxSlopeClimbAngle(Math.PI*.28);
-    characterController.setMinSlopeSlideAngle(Math.PI*.36);
-    characterController.setSlideEnabled(true);
-    physicsReady=true;physicsMode='rapier3d-kinematic';
-    return true;
-  }catch(e){
-    console.warn('Rapier init failed; retaining manual collision fallback',e);
-    physicsReady=false;physicsMode='manual-fallback';return false;
+  physicsError=null;
+  const urls=[
+    'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.20.0/rapier.es.js',
+    'https://unpkg.com/@dimforge/rapier3d-compat@0.20.0/rapier.es.js?module',
+    'https://esm.sh/@dimforge/rapier3d-compat@0.20.0'
+  ];
+  let lastErr=null;
+  for(const url of urls){
+    try{
+      const mod=await importWithTimeout(url);
+      RAPIER=mod.default||mod;
+      if(typeof RAPIER.init==='function')await RAPIER.init();
+      physicsWorld=new RAPIER.World({x:0,y:0,z:-9.81});
+      physicsWorld.timestep=1/60;
+      characterController=physicsWorld.createCharacterController(.025);
+      characterController.setUp({x:0,y:0,z:1});
+      characterController.enableAutostep(.38,.18,true);
+      characterController.enableSnapToGround(.42);
+      characterController.setMaxSlopeClimbAngle(Math.PI*.28);
+      characterController.setMinSlopeSlideAngle(Math.PI*.36);
+      characterController.setSlideEnabled(true);
+      physicsReady=true;physicsMode='rapier3d-kinematic';physicsError=null;
+      return true;
+    }catch(e){lastErr=e;console.warn('Rapier source failed',url,e)}
   }
+  physicsError=String(lastErr?.message||lastErr||'Rapier unavailable');
+  console.warn('Rapier init failed; retaining manual collision fallback',physicsError);
+  physicsReady=false;physicsMode='manual-fallback';return false;
 }
 function geometryForPhysics(geometry){
   if(!geometry?.attributes?.position)return null;
@@ -2448,7 +2463,7 @@ async function boot(){
       playerSurfaceZ:surfaceZXY(playerRoot.position.x,playerRoot.position.y),
       playerRootZ:playerRoot.position.z,
       activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
-      physicsMode,physicsReady,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
+      physicsMode,physicsReady,physicsError,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
       navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,
       streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null
     };
@@ -2541,7 +2556,7 @@ async function boot(){
         return {deadBefore,deadAfter:playerDead,health};
       },
       physicsProbe:()=>({
-        ready:physicsReady,mode:physicsMode,hasBody:Boolean(playerPhysicsBody),hasCollider:Boolean(playerPhysicsCollider),
+        ready:physicsReady,mode:physicsMode,error:physicsError,hasBody:Boolean(playerPhysicsBody),hasCollider:Boolean(playerPhysicsCollider),
         controller:Boolean(characterController),staticColliders:physicsStaticColliders.length,grounded
       }),
       stanceProbe:()=>{
