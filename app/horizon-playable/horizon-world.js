@@ -15,6 +15,15 @@ const ASSETS={
   cone:FREE_BASE+'/Environment/glTF/TrafficCone_1.gltf',
   streetlight:FREE_BASE+'/Environment/glTF/StreetLights.gltf',
   hydrant:FREE_BASE+'/Environment/glTF/FireHydrant.gltf',
+  traffic1:FREE_BASE+'/Environment/glTF/TrafficLight_1.gltf',
+  traffic2:FREE_BASE+'/Environment/glTF/TrafficLight_2.gltf',
+  plasticBarrier:FREE_BASE+'/Environment/glTF/PlasticBarrier.gltf',
+  cinder:FREE_BASE+'/Environment/glTF/CinderBlock.gltf',
+  containerGreen:FREE_BASE+'/Environment/glTF/Container_Green.gltf',
+  containerRed:FREE_BASE+'/Environment/glTF/Container_Red.gltf',
+  pipes:FREE_BASE+'/Environment/glTF/Pipes.gltf',
+  wheelStack:FREE_BASE+'/Environment/glTF/Wheels_Stack.gltf',
+  townSign:FREE_BASE+'/Environment/glTF/TownSign.gltf',
   vehicle:FREE_BASE+'/Vehicles/glTF/Vehicle_Pickup.gltf',
   sportsCar:FREE_BASE+'/Vehicles/glTF/Vehicle_Sports.gltf',
   truck:FREE_BASE+'/Vehicles/glTF/Vehicle_Truck.gltf',
@@ -1256,9 +1265,14 @@ function updateZombies(dt,now){
 }
 
 async function buildSurvivalArt(){
-  const [barrel,trash,pallet,barrier,cone,streetlight,hydrant,pickup,sports,truck,zombie,chest,chestSpecial,...interiors]=await Promise.all([
+  const [
+    barrel,trash,pallet,barrier,cone,streetlight,hydrant,traffic1,traffic2,plasticBarrier,cinder,
+    containerGreen,containerRed,pipes,wheelStack,townSign,pickup,sports,truck,zombie,chest,chestSpecial,...interiors
+  ]=await Promise.all([
     loadAsset(ASSETS.barrel),loadAsset(ASSETS.trash),loadAsset(ASSETS.pallet),loadAsset(ASSETS.barrier),
     loadAsset(ASSETS.cone),loadAsset(ASSETS.streetlight),loadAsset(ASSETS.hydrant),
+    loadAsset(ASSETS.traffic1),loadAsset(ASSETS.traffic2),loadAsset(ASSETS.plasticBarrier),loadAsset(ASSETS.cinder),
+    loadAsset(ASSETS.containerGreen),loadAsset(ASSETS.containerRed),loadAsset(ASSETS.pipes),loadAsset(ASSETS.wheelStack),loadAsset(ASSETS.townSign),
     loadAsset(ASSETS.vehicle),loadAsset(ASSETS.sportsCar),loadAsset(ASSETS.truck),loadAsset(ASSETS.zombie),
     loadAsset(ASSETS.chest),loadAsset(ASSETS.chestSpecial),
     ...Object.values(INTERIOR_ASSETS).map(loadAsset)
@@ -1271,11 +1285,20 @@ async function buildSurvivalArt(){
   let props=0,vehicles=0;
   props+=scatterRoadsideTemplate(streetlight,dense?132:52,4.8,'sidewalk')||0;
   props+=scatterRoadsideTemplate(hydrant,dense?66:26,.95,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(traffic1,dense?36:12,3.4,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(traffic2,dense?28:10,3.4,'sidewalk')||0;
   props+=scatterRoadsideTemplate(barrier,dense?54:22,1.1,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(plasticBarrier,dense?44:18,.95,'sidewalk')||0;
   props+=scatterRoadsideTemplate(cone,dense?82:30,.75,'sidewalk')||0;
   props+=scatterRoadsideTemplate(trash,dense?92:38,.72,'sidewalk')||0;
   props+=scatterRoadsideTemplate(pallet,dense?34:16,.32,'sidewalk')||0;
   props+=scatterRoadsideTemplate(barrel,dense?46:20,1.15,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(cinder,dense?60:20,.28,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(pipes,dense?20:8,.70,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(wheelStack,dense?28:10,.75,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(townSign,dense?18:8,1.8,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(containerGreen,dense?12:4,2.5,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(containerRed,dense?12:4,2.5,'sidewalk')||0;
 
   vehicles+=scatterRoadsideTemplate(pickup,dense?36:12,1.72,'parking')||0;
   vehicles+=scatterRoadsideTemplate(sports,dense?34:10,1.35,'parking')||0;
