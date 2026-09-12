@@ -400,11 +400,16 @@ function attachDuffel(){
 function updatePackVisual(){if(packMesh){const scale=packCapacity>=40?1.18:packCapacity>=34?1.08:1;packMesh.scale.setScalar(scale)}}
 function mountWeaponModel(template,name){
   if(!playerRoot)return;
-  if(!weaponPivot){weaponPivot=new THREE.Group();weaponPivot.position.set(.48,.02,1.15);playerRoot.add(weaponPivot)}
+  if(!weaponPivot){weaponPivot=new THREE.Group();weaponPivot.position.set(.40,-.02,1.03);playerRoot.add(weaponPivot)}
   while(weaponPivot.children.length)weaponPivot.remove(weaponPivot.children[0]);
   if(template){
-    const w=staticClone(template,name==='Knife'?.46:name==='Barbed Bat'?1.05:.72);
-    if(w){w.rotation.set(.15,.1,-.8);weaponPivot.add(w)}
+    const length=name==='Knife'?.38:name==='Barbed Bat'?.92:.68;
+    const w=propCloneByLength(template,length);
+    if(w){
+      w.rotation.set(name==='Knife'?.05:.18,name==='Knife'?.15:.08,name==='Barbed Bat'?-1.02:-.88);
+      w.position.set(.03,0,name==='Knife'?.02:.04);
+      weaponPivot.add(w);
+    }
   }else{
     const fallback=new THREE.Mesh(new THREE.BoxGeometry(.08,.08,.7),new THREE.MeshStandardMaterial({color:0x6d6253,roughness:.72,metalness:.18}));fallback.position.z=.3;weaponPivot.add(fallback);
   }
@@ -429,6 +434,20 @@ function playPlayerAnimation(state){
 function staticClone(template,targetHeight){
   if(!template)return null;
   const n=normalizedModel(template.scene,targetHeight,false);return n.root;
+}
+function propCloneByLength(template,targetLength){
+  if(!template)return null;
+  const model=template.scene.clone(true);
+  model.updateMatrixWorld(true);
+  const box=new THREE.Box3().setFromObject(model),size=new THREE.Vector3();box.getSize(size);
+  const longest=Math.max(size.x,size.y,size.z,.001);
+  model.scale.multiplyScalar(targetLength/longest);
+  model.updateMatrixWorld(true);
+  const box2=new THREE.Box3().setFromObject(model),center=new THREE.Vector3();box2.getCenter(center);
+  model.position.sub(center);
+  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+  const inner=new THREE.Group();inner.rotation.x=Math.PI/2;inner.add(model);
+  const root=new THREE.Group();root.add(inner);return root;
 }
 function scatterTemplate(template,count,targetHeight,spread=7){
   if(!template||!roadAnchors.length)return;
@@ -719,7 +738,7 @@ function updateZombies(dt,now){
       if(!isBlockedExterior(z.root.position.x,ny))z.root.position.y=ny;
       z.root.position.z=terrainZXY(z.root.position.x,z.root.position.y)+.05;
     }
-    z.root.rotation.z=Math.atan2(vx,vy)+Math.PI;
+    z.root.rotation.z=Math.atan2(vx,vy);
     if(dist<1.48&&now-lastDamageAt>850){
       health=Math.max(0,health-7);lastDamageAt=now;$('healthStat').textContent=String(health);showToast('Hit — '+health+' health');
     }
@@ -847,7 +866,7 @@ function updatePlayer(dt){
 
   playerRoot.position.z=interiorMode ? 0.05 : terrainZXY(playerRoot.position.x,playerRoot.position.y)+0.05;
   if(moving){
-    const targetRot=Math.atan2(playerVelocity.x,playerVelocity.y)+Math.PI;
+    const targetRot=Math.atan2(playerVelocity.x,playerVelocity.y);
     playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-12*dt));
   }
   if(swingTime<=0)playPlayerAnimation(moving?'move':'idle');playerMixer?.update(dt);
@@ -903,7 +922,24 @@ async function boot(){
       },
       swing:()=>{attack();return {swingTime,equippedWeaponName}},
       exit:()=>{exitInterior();return {interiorMode}},
-      state:()=>({interiorMode,entries:buildingEntries.length,containers:interiorContainers.length,lootCount,packCapacity,equippedWeaponName})
+      state:()=>({interiorMode,entries:buildingEntries.length,containers:interiorContainers.length,lootCount,packCapacity,equippedWeaponName}),
+      directionProbe:(dir)=>{
+        const start=playerRoot.position.clone(),oldYaw=yaw; yaw=0; playerVelocity.set(0,0,0);
+        mobileMove={x:0,y:0};
+        if(dir==='forward')mobileMove.y=1;
+        if(dir==='backward')mobileMove.y=-1;
+        if(dir==='left')mobileMove.x=-1;
+        if(dir==='right')mobileMove.x=1;
+        updatePlayer(.12);
+        const dx=playerRoot.position.x-start.x,dy=playerRoot.position.y-start.y;
+        playerRoot.position.copy(start);playerVelocity.set(0,0,0);mobileMove={x:0,y:0};yaw=oldYaw;
+        return {dx,dy};
+      },
+      weaponSize:()=>{
+        if(!weaponPivot?.children?.length)return null;
+        const box=new THREE.Box3().setFromObject(weaponPivot.children[0]),size=new THREE.Vector3();box.getSize(size);
+        return {x:size.x,y:size.y,z:size.z,longest:Math.max(size.x,size.y,size.z)};
+      }
     };
   }catch(e){
     console.error(e);window.BP_HORIZON_SMOKE={ok:false,cell:CELL,error:String(e?.message||e)};$('error').hidden=false;$('errorText').textContent=String(e?.message||e);loadText.textContent='Preview unavailable';
