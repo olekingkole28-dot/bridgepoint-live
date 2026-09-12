@@ -240,12 +240,55 @@ let travelPending=false,lastTravelCheck=0;
 const activeBoundaryEdges=new Set();
 const countryBarrierGroup=new THREE.Group();countryBarrierGroup.name='us-jurisdiction-barriers';exteriorRoot.add(countryBarrierGroup);
 
+function normalizeWeaponConfig(row){
+  const n=v=>Number.isFinite(Number(v))?Number(v):0;
+  return{
+    ...row,
+    damage:n(row.damage),range_m:n(row.range_m),magazine_size:n(row.magazine_size),reserve_default:n(row.reserve_default),
+    fire_interval_seconds:n(row.fire_interval_seconds),reload_time_seconds:n(row.reload_time_seconds),
+    recoil_pitch_deg:n(row.recoil_pitch_deg),recoil_yaw_deg:n(row.recoil_yaw_deg),spread_deg:n(row.spread_deg),aim_fov:n(row.aim_fov)||56,
+    two_handed:Boolean(row.two_handed),hitscan:row.hitscan!==false
+  };
+}
+function installWeaponRegistry(rows,mode='fallback'){
+  weaponRegistry=new Map();
+  for(const raw of rows||[]){
+    const row=normalizeWeaponConfig(raw),keys=[row.weapon_id,row.weapon_name,String(row.weapon_name||'').toLowerCase()];
+    for(const k of keys)if(k)weaponRegistry.set(String(k),row);
+  }
+  weaponRegistryMode=mode;
+}
+function weaponCfg(name=activeWeapon){
+  return weaponRegistry.get(name)||weaponRegistry.get(String(name||'').toLowerCase())||
+    DEFAULT_WEAPON_CONFIGS.find(x=>x.weapon_name===name||x.weapon_id===name)||DEFAULT_WEAPON_CONFIGS[0];
+}
+async function loadWeaponRegistry(){
+  installWeaponRegistry(DEFAULT_WEAPON_CONFIGS,'fallback');
+  weaponRegistryError=null;
+  try{
+    const r=await fetch(WEAPON_ENDPOINT,{headers:{accept:'application/json'},cache:'no-store'});
+    if(!r.ok)throw new Error('weapon registry HTTP '+r.status);
+    const payload=await r.json();
+    if(!payload?.ok||!Array.isArray(payload.weapons)||!payload.weapons.length)throw new Error(payload?.error||'empty weapon registry');
+    installWeaponRegistry(payload.weapons,'supabase');
+    for(const row of payload.weapons){
+      const w=row.weapon_name;
+      if(row.magazine_size>0&&reserveAmmo[w]==null)reserveAmmo[w]=Number(row.reserve_default||0);
+      if(row.magazine_size>0&&ammoState[w]==null)ammoState[w]=Number(row.magazine_size||0);
+    }
+    return true;
+  }catch(e){
+    weaponRegistryError=String(e?.message||e);
+    console.warn('Weapon registry fallback',e);
+    return false;
+  }
+}
 function persistSurvivor(){
   clearTimeout(persistSurvivor.t);
   persistSurvivor.t=setTimeout(()=>{
     try{
       localStorage.setItem(SAVE_KEY,JSON.stringify({
-        inventory,equipment,ammoState,lootCount,packName,packCapacity,kills
+        inventory,equipment,ammoState,reserveAmmo,activeSlot,lootCount,packName,packCapacity,kills
       }));
     }catch(_){}
   },80);
@@ -256,6 +299,8 @@ function restoreSurvivor(){
     if(v.inventory&&typeof v.inventory==='object')inventory=v.inventory;
     if(v.equipment&&typeof v.equipment==='object')equipment={...equipment,...v.equipment};
     if(v.ammoState&&typeof v.ammoState==='object')ammoState={...ammoState,...v.ammoState};
+    if(v.reserveAmmo&&typeof v.reserveAmmo==='object')reserveAmmo={...reserveAmmo,...v.reserveAmmo};
+    if(typeof v.activeSlot==='string')activeSlot=v.activeSlot;
     if(Number.isFinite(+v.lootCount))lootCount=Math.max(0,+v.lootCount);
     if(typeof v.packName==='string')packName=v.packName;
     if(Number.isFinite(+v.packCapacity))packCapacity=Math.max(12,+v.packCapacity);
