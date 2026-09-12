@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4221;
+const BUILD_VERSION=4222;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -309,7 +309,9 @@ addEventListener('resize',resizeRenderer,{passive:true});
 addEventListener('orientationchange',()=>setTimeout(resizeRenderer,180),{passive:true});
 resizeRenderer();
 
+THREE.Cache.enabled=true;
 const loader=new GLTFLoader();
+const assetPromiseCache=new Map();
 const clock=new THREE.Clock();
 const exteriorRoot=new THREE.Group();
 const worldGroup=new THREE.Group();
@@ -651,21 +653,36 @@ function worldRequestUrl(){
   }else u.searchParams.set('cell',CELL);
   return u.toString();
 }
-async function fetchSceneWithRetry(url,attempts=4){
+async function fetchSceneWithRetry(url,attempts=3){
   let last=null;
+  // Reopening or switching back to a map should not redownload the same BridgePoint cell.
+  if('caches'in globalThis){
+    try{
+      const cache=await caches.open('bp-horizon-scenes-v4222'),hit=await cache.match(url);
+      if(hit){
+        const body=await hit.clone().json();
+        if(body?.complete){sceneFetchAttempts=0;sceneFetchError=null;return body}
+      }
+    }catch(_){}
+  }
   for(let i=1;i<=attempts;i++){
     sceneFetchAttempts=i;
     try{
-      const r=await fetch(url,{headers:{accept:'application/json'},cache:'no-store'});
+      const r=await fetch(url,{headers:{accept:'application/json'},cache:'default'});
+      const copy=r.clone();
       let body=null;try{body=await r.json()}catch(_){}
-      if(r.ok&&body?.complete){sceneFetchError=null;return body}
+      if(r.ok&&body?.complete){
+        sceneFetchError=null;
+        if('caches'in globalThis)try{const cache=await caches.open('bp-horizon-scenes-v4222');await cache.put(url,copy)}catch(_){}
+        return body
+      }
       const detail=body?.error?': '+String(body.error).slice(0,240):'';
       throw new Error('Horizon scene endpoint returned '+r.status+detail);
     }catch(e){
       last=e;sceneFetchError=String(e?.message||e);
       if(i<attempts){
         loadText.textContent='World stream retry '+(i+1)+' / '+attempts+'…';
-        await new Promise(resolve=>setTimeout(resolve,350*i*i));
+        await new Promise(resolve=>setTimeout(resolve,220*i*i));
       }
     }
   }
@@ -1497,7 +1514,13 @@ function normalizedModel(source,targetHeight,animated=false){
   return{root,model,oriented};
 }
 async function loadAsset(url){
-  try{return await loader.loadAsync(url)}catch(e){console.warn('Asset load failed',url,e);return null}
+  if(!url)return null;
+  if(assetPromiseCache.has(url))return await assetPromiseCache.get(url);
+  const p=loader.loadAsync(url).catch(e=>{console.warn('Asset load failed',url,e);return null});
+  assetPromiseCache.set(url,p);
+  const out=await p;
+  if(!out)assetPromiseCache.delete(url);
+  return out;
 }
 function pointInPoly(x,y,poly){
   let inside=false;
@@ -1578,14 +1601,16 @@ function captureCharacterWeaponTemplates(modelRoot){
   }
 }
 function setupEquipmentMounts(modelRoot){
-  const right=modelRoot?.getObjectByName('Middle1.R')||modelRoot?.getObjectByName('mixamorigRightHand')||modelRoot?.getObjectByName('RightHand')||modelRoot?.getObjectByName('LowerArm.R')||findBoneByHints(modelRoot,['middle1.r','lowerarm.r','righthand','mixamorigright']);
-  const left=modelRoot?.getObjectByName('Middle1.L')||modelRoot?.getObjectByName('mixamorigLeftHand')||modelRoot?.getObjectByName('LeftHand')||modelRoot?.getObjectByName('LowerArm.L')||findBoneByHints(modelRoot,['middle1.l','lowerarm.l','lefthand','mixamorigleft']);
-  const hips=modelRoot?.getObjectByName('Hips')||modelRoot?.getObjectByName('mixamorigHips')||findBoneByHints(modelRoot,['hips','pelvis','mixamorighips']);
-  const torso=modelRoot?.getObjectByName('Torso')||modelRoot?.getObjectByName('Abdomen')||modelRoot?.getObjectByName('mixamorigSpine2')||modelRoot?.getObjectByName('Spine2')||findBoneByHints(modelRoot,['torso','abdomen','spine2','mixamorigspine']);
-  const upperR=modelRoot?.getObjectByName('UpperArm.R')||modelRoot?.getObjectByName('mixamorigRightArm')||findBoneByHints(modelRoot,['upperarm.r','rightarm','mixamorigrightarm']);
-  const upperL=modelRoot?.getObjectByName('UpperArm.L')||modelRoot?.getObjectByName('mixamorigLeftArm')||findBoneByHints(modelRoot,['upperarm.l','leftarm','mixamorigleftarm']);
-  const lowerR=modelRoot?.getObjectByName('LowerArm.R')||modelRoot?.getObjectByName('mixamorigRightForeArm')||findBoneByHints(modelRoot,['lowerarm.r','rightforearm','mixamorigrightforearm']);
-  const lowerL=modelRoot?.getObjectByName('LowerArm.L')||modelRoot?.getObjectByName('mixamorigLeftForeArm')||findBoneByHints(modelRoot,['lowerarm.l','leftforearm','mixamorigleftforearm']);
+  // Prefer the actual palm/wrist. Mesh2Motion uses hand_r/hand_l; the old code
+  // accidentally searched a middle-finger bone first and often fell back to playerRoot.
+  const right=modelRoot?.getObjectByName('hand_r')||modelRoot?.getObjectByName('Hand.R')||modelRoot?.getObjectByName('mixamorigRightHand')||modelRoot?.getObjectByName('RightHand')||modelRoot?.getObjectByName('lowerarm_r')||modelRoot?.getObjectByName('LowerArm.R')||findBoneByHints(modelRoot,['hand_r','hand.r','righthand','mixamorigright','lowerarm_r','lowerarm.r']);
+  const left=modelRoot?.getObjectByName('hand_l')||modelRoot?.getObjectByName('Hand.L')||modelRoot?.getObjectByName('mixamorigLeftHand')||modelRoot?.getObjectByName('LeftHand')||modelRoot?.getObjectByName('lowerarm_l')||modelRoot?.getObjectByName('LowerArm.L')||findBoneByHints(modelRoot,['hand_l','hand.l','lefthand','mixamorigleft','lowerarm_l','lowerarm.l']);
+  const hips=modelRoot?.getObjectByName('pelvis')||modelRoot?.getObjectByName('Hips')||modelRoot?.getObjectByName('mixamorigHips')||findBoneByHints(modelRoot,['pelvis','hips','mixamorighips']);
+  const torso=modelRoot?.getObjectByName('spine_03')||modelRoot?.getObjectByName('Torso')||modelRoot?.getObjectByName('Abdomen')||modelRoot?.getObjectByName('mixamorigSpine2')||modelRoot?.getObjectByName('Spine2')||findBoneByHints(modelRoot,['spine_03','torso','abdomen','spine2','mixamorigspine']);
+  const upperR=modelRoot?.getObjectByName('upperarm_r')||modelRoot?.getObjectByName('UpperArm.R')||modelRoot?.getObjectByName('mixamorigRightArm')||findBoneByHints(modelRoot,['upperarm_r','upperarm.r','rightarm','mixamorigrightarm']);
+  const upperL=modelRoot?.getObjectByName('upperarm_l')||modelRoot?.getObjectByName('UpperArm.L')||modelRoot?.getObjectByName('mixamorigLeftArm')||findBoneByHints(modelRoot,['upperarm_l','upperarm.l','leftarm','mixamorigleftarm']);
+  const lowerR=modelRoot?.getObjectByName('lowerarm_r')||modelRoot?.getObjectByName('LowerArm.R')||modelRoot?.getObjectByName('mixamorigRightForeArm')||findBoneByHints(modelRoot,['lowerarm_r','lowerarm.r','rightforearm','mixamorigrightforearm']);
+  const lowerL=modelRoot?.getObjectByName('lowerarm_l')||modelRoot?.getObjectByName('LowerArm.L')||modelRoot?.getObjectByName('mixamorigLeftForeArm')||findBoneByHints(modelRoot,['lowerarm_l','lowerarm.l','leftforearm','mixamorigleftforearm']);
 
   equipmentMounts.rightHand=makeMount(right||playerRoot);
   equipmentMounts.leftHand=makeMount(left||playerRoot);
@@ -1597,6 +1622,7 @@ function setupEquipmentMounts(modelRoot){
   // an equipped weapon is visibly DRAWN even on third-party rigs whose hand axes differ.
   equipmentMounts.activeGrip=makeMount(right||playerRoot);
   equipmentMounts.activeGrip.userData.handSocket=Boolean(right);
+  equipmentMounts.activeGrip.userData.socketBone=right?.name||'playerRoot';
 
   aimBones={torso,upperR,upperL,lowerR,lowerL};
 }
@@ -1752,18 +1778,27 @@ function dropActiveWeapon(){
 function sanitizeCharacterClips(clips){
   return (clips||[]).map(src=>{
     const clip=src.clone();
-    clip.tracks=clip.tracks.filter(t=>!/^(Root|CharacterArmature)\.(position|quaternion|scale)$/i.test(String(t.name||'')));
+    clip.tracks=clip.tracks.filter(t=>{
+      const n=String(t.name||'');
+      if(/^(Root|root|CharacterArmature)\.(position|quaternion|scale)$/i.test(n))return false;
+      // Mesh2Motion locomotion tracks pelvis translation for retargeting. In a third-person
+      // game that translation double-applies vertical motion and makes the survivor look
+      // permanently crouched/sunken. Keep pelvis rotation, strip only its translation.
+      if(/^(pelvis|hips|mixamorigHips)\.position$/i.test(n))return false;
+      return true;
+    });
     clip.resetDuration();return clip;
-  });
+  }).filter(c=>!/crouch|kneel|sit|crawl|prone/i.test(String(c.name||'')));
 }
-async function buildPlayer(){
-  const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,surfaceZXY(spawn.x,spawn.y)+.015);
-  let primaryPlayer=await loadAsset(PLAYER_ASSET),playerMode=CHARACTER_KEY;
-  if(!primaryPlayer&&(CHARACTER_KEY==='realistic'||CHARACTER_KEY==='survivor')){primaryPlayer=await loadAsset(ASSETS.playerRealistic);playerMode='realistic-fallback'}
-  if(!primaryPlayer){primaryPlayer=await loadAsset(ASSETS.player);playerMode='matt-fallback'}
-  const [gltf,playerAnimPack,axe,bat,knife,pistol,rifle,shotgun,smg,spear,sawBat,guitar]=await Promise.all([
-    Promise.resolve(primaryPlayer),
-    loadAsset(ASSETS.playerAnimations),
+async function hydratePlayerAnimations(modelRoot){
+  const pack=await loadAsset(ASSETS.playerAnimations);
+  if(!pack?.animations?.length||!modelRoot)return false;
+  playerClips=sanitizeCharacterClips(pack.animations);
+  playerMixer?.stopAllAction();playerMixer=new THREE.AnimationMixer(modelRoot);playerAction=null;
+  playPlayerAnimation('idle');return true;
+}
+async function hydrateWeaponTemplates(){
+  const [axe,bat,knife,pistol,rifle,shotgun,smg,spear,sawBat,guitar]=await Promise.all([
     loadAsset(weaponCfg('Axe').model_url||ASSETS.axe),
     loadAsset(weaponCfg('Barbed Bat').model_url||ASSETS.bat),
     loadAsset(weaponCfg('Knife').model_url||ASSETS.knife),
@@ -1776,14 +1811,25 @@ async function buildPlayer(){
     loadAsset(weaponCfg('Guitar').model_url||ASSETS.guitar)
   ]);
   weaponTemplates={axe,bat,knife,pistol,rifle,shotgun,smg,spear,sawBat,guitar};
+  if(playerRoot)refreshEquipmentVisuals();
+}
+async function buildPlayer(){
+  const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,surfaceZXY(spawn.x,spawn.y)+.015);
+  playerStance='stand';slideTime=0;
+  let gltf=await loadAsset(PLAYER_ASSET),playerMode=CHARACTER_KEY;
+  if(!gltf&&(CHARACTER_KEY==='realistic'||CHARACTER_KEY==='survivor')){gltf=await loadAsset(ASSETS.playerRealistic);playerMode='realistic-fallback'}
+  if(!gltf){gltf=await loadAsset(ASSETS.player);playerMode='matt-fallback'}
+  weaponTemplates={};
   if(gltf){
     playerAssetLoaded=true;playerAssetMode=playerMode;
     const n=normalizedModel(gltf.scene,1.82,true);
-    playerRoot=n.root;playerVisualRoot=n.oriented;n.model.rotation.y=Math.PI;n.model.updateMatrixWorld(true);playerModelYawOffset=0;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;
-    const sourceClips=(M2M_PLAYER_KEYS.has(CHARACTER_KEY)&&playerAnimPack?.animations?.length)?playerAnimPack.animations:gltf.animations;
-    playerClips=sanitizeCharacterClips(sourceClips);playerMixer=new THREE.AnimationMixer(n.model);
+    playerRoot=n.root;playerVisualRoot=n.oriented;n.model.rotation.y=Math.PI;n.model.updateMatrixWorld(true);playerModelYawOffset=0;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerVisualRoot.scale.z=Math.abs(playerVisualRoot.scale.z);
+    playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);
     captureCharacterWeaponTemplates(n.model);
     setupEquipmentMounts(n.model);
+    // The large animation bundle and detailed weapon models hydrate after the player is on screen.
+    hydratePlayerAnimations(n.model).catch(e=>console.warn('player animation hydration',e));
+    hydrateWeaponTemplates().catch(e=>console.warn('weapon hydration',e));
   }else{
     playerAssetLoaded=false;playerAssetMode='fallback';playerRoot=fallbackPlayer();playerVisualRoot=playerRoot;playerModelYawOffset=0;
     setupEquipmentMounts(playerRoot);
@@ -1811,7 +1857,8 @@ function playPlayerAnimation(state){
     const re=state==='run'?/^run$|run|sprint|jog/i:state==='walk'?/^walk$|walk|locomotion|move/i:/^idle$|idle|stand/i;
     desired=playerClips.find(c=>re.test(c.name));
   }
-  desired=desired||playerClips[0];
+  if(!desired)desired=playerClips.find(c=>/idle|stand|walk|run/i.test(String(c.name||''))&&!/crouch|kneel|sit|crawl|prone/i.test(String(c.name||'')));
+  if(!desired)return;
   if(playerAction?._clip===desired)return;
   const next=playerMixer.clipAction(desired);next.reset().fadeIn(.10).play();if(playerAction)playerAction.fadeOut(.10);playerAction=next;
 }
