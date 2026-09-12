@@ -88,19 +88,36 @@ jobs:
 
           cp site/index.html site/404.html
 
+          # V2880: keep the platform sealed while exposing only the two
+          # owner-approved founding launch microsites.
+          mkdir -p site/app/intelligence-launch site/app/horizon
+          cp -a app/intelligence-launch/. site/app/intelligence-launch/
+          cp -a app/horizon/. site/app/horizon/
+
           cat > site/robots.txt <<'TXT'
           User-agent: *
           Disallow: /
-          Noindex: /
+          Allow: /app/intelligence-launch/
+          Allow: /app/horizon/
           TXT
 
           touch site/.nojekyll
 
-          test "$(find site -type f | wc -l)" -eq 4
-          ! grep -Rqi 'supabase' site
-          ! grep -Rqi 'cesium' site
-          ! grep -Rqi 'login' site
-          ! grep -Rqi 'bridgepoint-world' site
+          test "$(find site -type f | wc -l)" -eq 12
+          test -s site/app/intelligence-launch/index.html
+          test -s site/app/intelligence-launch/manifest.webmanifest
+          test -s site/app/intelligence-launch/sw.js
+          test -s site/app/intelligence-launch/bridgepoint-mark.svg
+          test -s site/app/horizon/index.html
+          test -s site/app/horizon/manifest.webmanifest
+          test -s site/app/horizon/sw.js
+          test -s site/app/horizon/horizon-mark.svg
+          grep -Fq 'FOUNDING MEMBER ACCESS' site/app/intelligence-launch/index.html
+          grep -Fq 'RESERVE YOUR HOME BASE' site/app/horizon/index.html
+          ! grep -qi 'supabase' site/index.html site/404.html
+          ! grep -qi 'cesium' site/index.html site/404.html
+          ! grep -qi 'login' site/index.html site/404.html
+          ! grep -qi 'bridgepoint-world' site/index.html site/404.html
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
@@ -120,12 +137,20 @@ jobs:
           for attempt in $(seq 1 36); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
             root="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache, no-store' "${origin}/?lockdown=${salt}" 2>/dev/null || true)"
-            app="$(curl -sSL --max-time 15 -o /tmp/app.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/?lockdown=${salt}" 2>/dev/null || true)"
+            app_code="$(curl -sSL --max-time 15 -o /tmp/app.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/?lockdown=${salt}" 2>/dev/null || true)"
+            intelligence_code="$(curl -sSL --max-time 15 -o /tmp/intelligence.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/intelligence-launch/?launch=${salt}" 2>/dev/null || true)"
+            horizon_code="$(curl -sSL --max-time 15 -o /tmp/horizon.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/?launch=${salt}" 2>/dev/null || true)"
             if printf '%s' "$root" | grep -Fq 'We’re building our 3D universe.' \
               && ! printf '%s' "$root" | grep -qi 'supabase' \
-              && grep -Fq 'We’re building our 3D universe.' /tmp/app.html; then
+              && grep -Fq 'We’re building our 3D universe.' /tmp/app.html \
+              && [ "$intelligence_code" = "200" ] \
+              && [ "$horizon_code" = "200" ] \
+              && grep -Fq 'FOUNDING MEMBER ACCESS' /tmp/intelligence.html \
+              && grep -Fq 'RESERVE YOUR HOME BASE' /tmp/horizon.html \
+              && ! grep -Fq 'We’re building our 3D universe.' /tmp/intelligence.html \
+              && ! grep -Fq 'We’re building our 3D universe.' /tmp/horizon.html; then
               ok=1
-              echo "BRIDGEPOINT_PUBLIC_LOCKDOWN_ACTIVE root+app"
+              echo "BRIDGEPOINT_PUBLIC_LOCKDOWN_ACTIVE root+app; founding launch routes public"
               break
             fi
             sleep 5
