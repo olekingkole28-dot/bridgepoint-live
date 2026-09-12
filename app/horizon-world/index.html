@@ -10,6 +10,14 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="preconnect" href="https://xdfsjztwgsbmabshzsjw.supabase.co">
   <link rel="stylesheet" href="./horizon-world.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+      }
+    }
+  </script>
 </head>
 <body>
   <div id="world"></div>
@@ -47,6 +55,7 @@
     <button id="parcelBtn" class="active">◇ <span>Parcel grid</span></button>
     <button id="partsBtn" class="active">▥ <span>Building parts</span></button>
     <button id="artBtn" class="active">⚠ <span>Survival art</span></button>
+    <button id="fullscreenBtn">⛶ <span>Fullscreen</span></button>
   </nav>
 
   <aside class="hud infoPanel">
@@ -62,12 +71,33 @@
 
   <div class="hud hint">Drag to orbit · pinch / wheel to zoom · right-drag to pan</div>
 
+  <div id="landscapeGate" class="landscapeGate">
+    <div>
+      <span class="rotateIcon">↻</span>
+      <b>Horizon plays in landscape</b>
+      <p>Turn your phone sideways for the full 3D world. Tap below and BridgePoint will request fullscreen landscape when your browser allows it.</p>
+      <button id="landscapeBtn" type="button">ENTER LANDSCAPE WORLD</button>
+      <small>If it does not rotate automatically, rotate the phone sideways once.</small>
+    </div>
+  </div>
+
   <div id="error" class="errorBox" hidden>
     <b>World preview could not load.</b>
     <span id="errorText"></span>
     <button onclick="location.reload()">Retry</button>
   </div>
 
+  <script>
+    window.addEventListener('error', function (event) {
+      var box=document.getElementById('error'), text=document.getElementById('errorText'), load=document.getElementById('loadText');
+      if (!box || !text) return;
+      var msg=event && (event.message || (event.error && event.error.message));
+      if (!msg) return;
+      box.hidden=false;
+      text.textContent='Renderer startup error: '+msg;
+      if (load) load.textContent='Renderer startup failed';
+    });
+  </script>
   <script type="module" src="./horizon-world.js"></script>
 </body>
 </html>
