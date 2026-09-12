@@ -190,6 +190,7 @@ const weaponRaycaster=new THREE.Raycaster();
 let characterWeaponTemplates={};
 let ammoState={Pistol:12,Rifle:20,Shotgun:6};
 let playerDead=false,kills=0;
+let audioCtx=null,audioMaster=null,lastFootstepAt=0;
 let worldPickups=[],pickupTemplates={},pickupSeq=0;
 let waveNumber=0,nextWaveAt=0,maxActiveZombies=7;
 let zombieTemplate=null,zombieTemplates=[];
@@ -1420,6 +1421,43 @@ function buildAtmosphere(){
   });
   const sky=new THREE.Mesh(geo,mat);sky.renderOrder=-1000;scene.add(sky);return sky;
 }
+function ensureAudio(){
+  try{
+    if(!audioCtx){
+      audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      audioMaster=audioCtx.createGain();audioMaster.gain.value=.34;audioMaster.connect(audioCtx.destination);
+    }
+    if(audioCtx.state==='suspended')audioCtx.resume();
+  }catch(_){}
+}
+function audioPosition(pos){
+  if(!audioCtx||!pos)return null;
+  const p=audioCtx.createPanner();p.panningModel='HRTF';p.distanceModel='inverse';p.refDistance=2;p.maxDistance=80;p.rolloffFactor=1.15;
+  p.positionX.value=pos.x;p.positionY.value=pos.z;p.positionZ.value=-pos.y;return p;
+}
+function spatialTone(pos,type='groan'){
+  if(!audioCtx||!audioMaster)return;
+  const p=audioPosition(pos);if(!p)return;p.connect(audioMaster);
+  const g=audioCtx.createGain(),o=audioCtx.createOscillator();o.connect(g);g.connect(p);
+  const now=audioCtx.currentTime;
+  if(type==='groan'){o.type='sawtooth';o.frequency.setValueAtTime(92+rand()*28,now);o.frequency.exponentialRampToValueAtTime(58+rand()*15,now+.55);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.16,now+.05);g.gain.exponentialRampToValueAtTime(.0001,now+.62)}
+  else{o.type='triangle';o.frequency.setValueAtTime(type==='foot'?115:180,now);g.gain.setValueAtTime(.08,now);g.gain.exponentialRampToValueAtTime(.0001,now+.09)}
+  o.start(now);o.stop(now+(type==='groan'?.65:.11));
+}
+function gunshotAudio(pos,weapon){
+  if(!audioCtx||!audioMaster)return;
+  const p=audioPosition(pos);if(!p)return;p.connect(audioMaster);
+  const len=Math.floor(audioCtx.sampleRate*.16),buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate),d=buf.getChannelData(0);
+  for(let i=0;i<len;i++){const t=i/len;d[i]=(Math.random()*2-1)*Math.pow(1-t,weapon==='Shotgun'?1.2:2.1)}
+  const src=audioCtx.createBufferSource(),filter=audioCtx.createBiquadFilter(),g=audioCtx.createGain();src.buffer=buf;filter.type='lowpass';filter.frequency.value=weapon==='Rifle'?3200:weapon==='Pistol'?2600:1900;g.gain.value=weapon==='Shotgun'?.55:.36;
+  src.connect(filter);filter.connect(g);g.connect(p);src.start();
+}
+function updateAudioListener(){
+  if(!audioCtx||!playerRoot)return;
+  const listener=audioCtx.listener,dir=new THREE.Vector3();camera.getWorldDirection(dir);
+  const p=camera.position;
+  if(listener.positionX){listener.positionX.value=p.x;listener.positionY.value=p.z;listener.positionZ.value=-p.y;listener.forwardX.value=dir.x;listener.forwardY.value=dir.z;listener.forwardZ.value=-dir.y;listener.upX.value=0;listener.upY.value=1;listener.upZ.value=0}
+}
 function showToast(message){
   let el=document.getElementById('lootToast');
   if(!el){el=document.createElement('div');el.id='lootToast';document.body.appendChild(el)}
@@ -1899,7 +1937,7 @@ function shoot(){
   if(playerDead||fireCooldown>0||!isFirearm(activeWeapon))return;
   const ammo=ammoState[activeWeapon]||0;
   if(ammo<=0){showToast(activeWeapon+' empty — find more '+activeWeapon+' ammo');fireCooldown=.25;return}
-  ammoState[activeWeapon]=ammo-1;
+  ammoState[activeWeapon]=ammo-1;ensureAudio();gunshotAudio(playerRoot.position,activeWeapon);
   fireCooldown=activeWeapon==='Rifle'?.16:activeWeapon==='Pistol'?.30:.72;
   const hit=bestGunTarget(),from=camera.position.clone(),dir=new THREE.Vector3();camera.getWorldDirection(dir);
   const end=hit?hit.target:from.clone().addScaledVector(dir,activeWeapon==='Rifle'?90:activeWeapon==='Pistol'?55:26);
@@ -2044,6 +2082,7 @@ function updateZombies(dt,now){
   for(const z of list){
     if(z.dead)continue;z.mixer?.update(dt);
     const dist=moveZombieToward(z,playerRoot.position.x,playerRoot.position.y,dt,interiorMode,now);
+    if(dist<38&&audioCtx&&now>(z.nextGroan||0)){z.nextGroan=now+3200+rand()*4200;spatialTone(z.root.position,'groan')}
     if(dist<1.28&&now-lastDamageAt>1050){
       damagePlayer(8);lastDamageAt=now;
       if(!playerDead)showToast('Infected hit · '+health+' health');
@@ -2201,6 +2240,7 @@ function pollGamepad(){
   gamepadPrev=(p.buttons||[]).map(b=>Boolean(b.pressed));
 }
 function initInput(){
+  addEventListener('pointerdown',ensureAudio,{once:true});addEventListener('keydown',ensureAudio,{once:true});
   addEventListener('keydown',e=>{
     keys.add(e.code);
     if(e.code==='KeyE')interact();
@@ -2320,6 +2360,8 @@ function updatePlayer(dt){
   }
   if(swingTime<=0)playPlayerAnimation(moving?(sprint?'run':'walk'):'idle');
   playerMixer?.update(dt);
+  const nowAudio=performance.now();
+  if(moving&&grounded&&nowAudio-lastFootstepAt>(sprint?280:430)){lastFootstepAt=nowAudio;if(audioCtx)spatialTone(playerRoot.position,'foot')}
 
   if(!interiorMode){
     maybeNationalTravel();
@@ -2515,6 +2557,6 @@ function loop(now=performance.now()){
   const dt=Math.min(.05,clock.getDelta()||.016);
   updateWeapon(dt);updatePlayer(dt);updateZombieWaves(now);updateZombies(dt,now);animatePickups(dt,now);updateCamera(dt);
   if(now-lastPrompt>120){updateInteractionPrompt();lastPrompt=now}
-  renderMinimap();if(composer)composer.render();else renderer.render(scene,camera);requestAnimationFrame(loop);
+  updateAudioListener();renderMinimap();if(composer)composer.render();else renderer.render(scene,camera);requestAnimationFrame(loop);
 }
 loop();boot();
