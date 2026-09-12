@@ -2724,12 +2724,16 @@ async function boot(){
       zombieWave:()=>({waveNumber,active:zombies.filter(z=>!z.dead).length,speeds:zombies.filter(z=>!z.dead).map(z=>z.speed)}),
       equipmentProbe:()=>{
         addInventoryItem('Pistol');addInventoryItem('Rifle');
-        return {
+        const priorSlot=activeSlot;
+        if(equipment.melee)selectSlot('melee',true);
+        const result={
           equipment:{...equipment},
           hipChildren:equipmentMounts.hip?.children?.length||0,
           backChildren:equipmentMounts.backGun?.children?.length||0,
           visiblePack:Boolean(packMesh)
         };
+        if(priorSlot&&activeItemForSlot(priorSlot))selectSlot(priorSlot,true);
+        return result;
       },
       socketProbe:()=>{
         const localOf=o=>{
