@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4227;
+const BUILD_VERSION=4228;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -371,7 +371,7 @@ let sceneFetchAttempts=0,sceneFetchError=null;
 let decayPatchedMaterials=0,smartSnappedProps=0,openSpaceProps=0;
 let flashlight=null,flashlightTarget=null,flashlightOn=false,autoDayNight=true,lastAtmosphereUpdate=0;
 let slideTime=0,leanAmount=0,leanTarget=0,lastVaultAt=0,reticleSpread=10,locomotionIntent='idle',lastGrounded=true,ambientSmoke=[];
-let doorAnimations=[],doorSystemCount=0;
+let doorAnimations=[],doorSystemCount=0,lastDoorStreamAt=0;
 let xp=0,battleTier=0,livesRemaining=3,spectatorMode=false,spectatorIndex=0,lastSpectatorSwitch=0;
 let claimedBaseId=null,factionId='SURVIVORS',factionColor='#47e285',factionBanner=null;
 let matchMode=['survival','skirmish','year365'].includes(String(params.get('mode')||'survival').toLowerCase())?String(params.get('mode')||'survival').toLowerCase():'survival';
@@ -1302,64 +1302,60 @@ function nearestRoadForBuilding(b){
 }
 function buildEntryPoints(){
   entryGroup.clear();buildingEntries=[];
-  const candidates=[...buildingCenters].filter(b=>b.explorable)
-    .map(b=>prepareDoorMetadata(b))
+  const candidates=[...buildingCenters].filter(b=>b.explorable).map(b=>prepareDoorMetadata(b))
     .sort((a,b)=>(a.x*a.x+a.y*a.y)-(b.x*b.x+b.y*b.y));
-  const visualLimit=densePreview()?620:260;
-  let visualCount=0;
   for(const b of candidates){
     const road=nearestRoadForBuilding(b);if(!road)continue;
-    let x=b.x,y=b.y,rot=0;
-    if(b.explorable&&Number.isFinite(b.doorX)&&Number.isFinite(b.doorY)){x=b.doorX;y=b.doorY;rot=b.doorRot||0}
-    else{
-      const dx=road.x-b.x,dy=road.y-b.y;
-      if(Math.abs(dx)>Math.abs(dy)){
-        x=dx>0?b.maxx+.58:b.minx-.58;
-        y=THREE.MathUtils.clamp(road.y,b.miny+.7,b.maxy-.7);rot=Math.PI/2;
-      }else{
-        y=dy>0?b.maxy+.58:b.miny-.58;
-        x=THREE.MathUtils.clamp(road.x,b.minx+.7,b.maxx-.7);
-      }
-    }
-    let root=null;
-    if(visualCount<visualLimit){
-      root=new THREE.Group();
-      const frameMat=new THREE.MeshStandardMaterial({color:0x20231f,roughness:.88,metalness:.12});
-      const glowMat=new THREE.MeshStandardMaterial({color:0x281815,emissive:0x5a160c,emissiveIntensity:.28,roughness:.9});
-      const left=new THREE.Mesh(new THREE.BoxGeometry(.15,.18,2.35),frameMat),right=left.clone();
-      left.position.set(-.62,0,1.17);right.position.set(.62,0,1.17);
-      const top=new THREE.Mesh(new THREE.BoxGeometry(1.38,.18,.15),frameMat);top.position.set(0,0,2.28);
-      const opening=new THREE.Mesh(new THREE.BoxGeometry(1.12,.075,2.06),new THREE.MeshBasicMaterial({color:0x020303,transparent:true,opacity:.94}));
-      opening.position.set(0,.055,1.03);opening.userData.doorVoid=true;opening.visible=!b.explorable;
-      const lamp=new THREE.Mesh(new THREE.BoxGeometry(.18,.12,.18),glowMat);lamp.position.set(0,-.12,2.05);
-      root.add(opening,left,right,top,lamp);root.position.set(x,y,b.z);root.rotation.z=rot;entryGroup.add(root);visualCount++;
-    }
     buildingEntries.push({
-      ...b,entryX:x,entryY:y,entryZ:b.z,doorRoot:root,seed:hash(b.id+':interior'),
-      returnX:road.x,returnY:road.y,returnZ:road.z
+      ...b,entryX:b.doorX,entryY:b.doorY,entryZ:b.z,doorRoot:null,doorPivot:null,doorOpen:false,doorTarget:0,
+      seed:hash(b.id+':interior'),returnX:road.x,returnY:road.y,returnZ:road.z
     });
   }
+  streetLifeStats.doorableBuildings=buildingEntries.length;
+}
+function createDoorVisual(e){
+  if(!e||e.doorRoot)return Boolean(e?.doorRoot);
+  const root=new THREE.Group(),frameMat=new THREE.MeshStandardMaterial({color:0x20231f,roughness:.88,metalness:.12}),glowMat=new THREE.MeshStandardMaterial({color:0x281815,emissive:0x5a160c,emissiveIntensity:.28,roughness:.9});
+  const left=new THREE.Mesh(new THREE.BoxGeometry(.15,.18,2.35),frameMat),right=left.clone();left.position.set(-.62,0,1.17);right.position.set(.62,0,1.17);
+  const top=new THREE.Mesh(new THREE.BoxGeometry(1.38,.18,.15),frameMat);top.position.set(0,0,2.28);
+  const lamp=new THREE.Mesh(new THREE.BoxGeometry(.18,.12,.18),glowMat);lamp.position.set(0,-.12,2.05);root.add(left,right,top,lamp);
+  root.position.set(e.entryX,e.entryY,e.entryZ);root.rotation.z=e.doorRot||0;entryGroup.add(root);e.doorRoot=root;
+  const doorMat=new THREE.MeshStandardMaterial({color:0x4c4032,roughness:.88,metalness:.03}),pivot=new THREE.Group();pivot.position.set(-.54,-.02,0);
+  const door=new THREE.Mesh(new THREE.BoxGeometry(1.08,.10,2.08),doorMat);door.position.set(.54,0,1.04);door.castShadow=true;
+  const knob=new THREE.Mesh(new THREE.SphereGeometry(.055,7,5),new THREE.MeshStandardMaterial({color:0x9d8756,metalness:.5,roughness:.4}));knob.position.set(.92,-.075,1.05);door.add(knob);pivot.add(door);root.add(pivot);
+  e.doorPivot=pivot;pivot.rotation.z=e.doorTarget||0;
+  if(!e.doorOpen&&physicsReady&&RAPIER&&physicsWorld){
+    try{
+      const q={x:0,y:0,z:Math.sin((e.doorRot||0)/2),w:Math.cos((e.doorRot||0)/2)};
+      e.doorCollider=physicsWorld.createCollider(RAPIER.ColliderDesc.cuboid(.56,.08,1.04).setTranslation(e.entryX,e.entryY,e.entryZ+1.04).setRotation(q).setFriction(.65));
+      e.doorCollider.userData={label:'interactive-door-'+e.id};
+    }catch(err){console.warn('door collider skipped',e.id,err)}
+  }
+  if(!doorAnimations.includes(e))doorAnimations.push(e);return true;
+}
+function destroyDoorVisual(e){
+  if(!e?.doorRoot||e.doorOpen||String(e.id||e.seed)===String(claimedBaseId||''))return;
+  if(e.doorCollider&&physicsWorld){try{physicsWorld.removeCollider(e.doorCollider,true)}catch(_){}e.doorCollider=null}
+  e.doorRoot.parent?.remove(e.doorRoot);e.doorRoot=null;e.doorPivot=null;
+}
+function updateDoorStreaming(now=performance.now(),force=false){
+  if(!playerRoot||interiorMode)return;
+  if(!force&&now-lastDoorStreamAt<450)return;lastDoorStreamAt=now;
+  const near=[];
+  for(const e of buildingEntries){
+    const d=Math.hypot(playerRoot.position.x-e.entryX,playerRoot.position.y-e.entryY);
+    if(d<150)near.push([d,e]);else if(d>230)destroyDoorVisual(e);
+  }
+  near.sort((a,b)=>a[0]-b[0]);
+  for(let i=0;i<Math.min(150,near.length);i++)createDoorVisual(near[i][1]);
+  streetLifeStats.activeDoorVisuals=buildingEntries.filter(e=>e.doorRoot).length;
 }
 function installInteractiveDoors(){
-  doorAnimations=[];doorSystemCount=0;const doorMat=new THREE.MeshStandardMaterial({color:0x4c4032,roughness:.88,metalness:.03});
-  for(const e of buildingEntries){
-    if(!e.doorRoot)continue;
-    const pivot=new THREE.Group();pivot.position.set(-.54,-.02,0);
-    const door=new THREE.Mesh(new THREE.BoxGeometry(1.08,.10,2.08),doorMat);door.position.set(.54,0,1.04);door.castShadow=true;
-    const knob=new THREE.Mesh(new THREE.SphereGeometry(.055,7,5),new THREE.MeshStandardMaterial({color:0x9d8756,metalness:.5,roughness:.4}));knob.position.set(.92,-.075,1.05);door.add(knob);
-    pivot.add(door);e.doorRoot.add(pivot);e.doorPivot=pivot;e.doorOpen=false;e.doorTarget=0;
-    if(e.explorable&&physicsReady&&RAPIER&&physicsWorld){
-      try{
-        const q={x:0,y:0,z:Math.sin((e.doorRot||0)/2),w:Math.cos((e.doorRot||0)/2)};
-        e.doorCollider=physicsWorld.createCollider(RAPIER.ColliderDesc.cuboid(.56,.08,1.04).setTranslation(e.entryX,e.entryY,e.entryZ+1.04).setRotation(q).setFriction(.65));
-        e.doorCollider.userData={label:'interactive-door-'+e.id};
-      }catch(err){console.warn('door collider skipped',e.id,err)}
-    }
-    doorAnimations.push(e);doorSystemCount++;
-  }
-  return doorSystemCount;
+  doorAnimations=[];doorSystemCount=buildingEntries.length;updateDoorStreaming(performance.now(),true);return doorSystemCount;
 }
 function openDoor(entry,kicked=false){
+  if(!entry)return false;
+  if(!entry.doorPivot)createDoorVisual(entry);
   if(!entry?.doorPivot)return false;
   if(entry.explorable&&!ensureExplorableShell(entry)){showToast('Building interior still streaming');return false}
   entry.doorOpen=true;entry.doorTarget=kicked?-1.48:-1.18;
@@ -4253,7 +4249,7 @@ async function boot(){
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
       reloadActive:reloadState.active,aimFov:weaponCfg(activeWeapon).aim_fov,
-      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),doorableBuildings:Number(streetLifeStats.doorableBuildings||0),lazyOpenBuildings:true,seamlessOpenBuildings:true,towerPriorityOpenBuildings:true,optimizedOpenBuildingPhysics:true,shapeRecovery:true,staticMapCache:Boolean(streetLifeStats.staticMapCache),invalidShapes:Number(streetLifeStats.invalidShapes||0),shellFailures:Number(streetLifeStats.shellFailures||0),openInteriorProps:Number(streetLifeStats.openInteriorProps||0),
+      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,activeDoorVisuals:Number(streetLifeStats.activeDoorVisuals||0),doorStreaming:true,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),doorableBuildings:Number(streetLifeStats.doorableBuildings||0),lazyOpenBuildings:true,seamlessOpenBuildings:true,towerPriorityOpenBuildings:true,optimizedOpenBuildingPhysics:true,shapeRecovery:true,staticMapCache:Boolean(streetLifeStats.staticMapCache),invalidShapes:Number(streetLifeStats.invalidShapes||0),shellFailures:Number(streetLifeStats.shellFailures||0),openInteriorProps:Number(streetLifeStats.openInteriorProps||0),
       matchMode,matchRadius:Number.isFinite(matchRadius)?matchRadius:null,seasonDay:seasonDay(),xp,battleTier,livesRemaining,
       flashlightReady:Boolean(flashlight),vehicleRepair:true,factionClaimMode:'local-preview',spectatorMode
     };
@@ -4483,7 +4479,7 @@ function loop(now=performance.now()){
   updateWeapon(dt);updatePlayer(dt);updateZombieWaves(now);updateZombies(dt,now);animatePickups(dt,now);updateDoors(dt);updateAmbientSmoke(dt,now);
   if(spectatorMode)updateSpectator(now);else updateCamera(dt);
   updateFlashlight();updateDayNight(now);
-  if(now-lastPrompt>120){updateInteractionPrompt();lastPrompt=now}
+  updateDoorStreaming(now);if(now-lastPrompt>120){updateInteractionPrompt();lastPrompt=now}
   updateAudioListener();renderMinimap();if(composer)composer.render();else renderer.render(scene,camera);requestAnimationFrame(loop);
 }
 loop();boot();
