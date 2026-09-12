@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4226;
+const BUILD_VERSION=4227;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -261,6 +261,7 @@ $('jurisdictionGo')?.addEventListener('click',()=>{
   location.href=u.toString();
 });
 
+const MOBILE_GPU_SAFE=matchMedia?.('(pointer:coarse)')?.matches||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent||'');
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x68746e);
 scene.fog=new THREE.FogExp2(0x69736d,densePreview()?.00019:.00027);
@@ -268,7 +269,7 @@ scene.fog=new THREE.FogExp2(0x69736d,densePreview()?.00019:.00027);
 const camera=new THREE.PerspectiveCamera(66,innerWidth/innerHeight,.08,12000);
 camera.up.set(0,0,1);
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',stencil:false});
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.35));
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,MOBILE_GPU_SAFE?1.05:1.35));
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.03;
@@ -279,6 +280,7 @@ root.appendChild(renderer.domElement);
 
 let composer=null,gtaoPass=null,bloomPass=null,postFxMode='renderer';
 function initPostProcessing(){
+  if(MOBILE_GPU_SAFE){composer=null;gtaoPass=null;bloomPass=null;postFxMode='mobile-filmic';return false}
   try{
     composer=new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene,camera));
@@ -312,6 +314,9 @@ resizeRenderer();
 THREE.Cache.enabled=true;
 const loader=new GLTFLoader();
 const assetPromiseCache=new Map();
+let activeAssetLoads=0;const assetLoadWaiters=[];const ASSET_LOAD_LIMIT=MOBILE_GPU_SAFE?3:6;
+async function acquireAssetSlot(){if(activeAssetLoads<ASSET_LOAD_LIMIT){activeAssetLoads++;return}await new Promise(resolve=>assetLoadWaiters.push(resolve));activeAssetLoads++}
+function releaseAssetSlot(){activeAssetLoads=Math.max(0,activeAssetLoads-1);const next=assetLoadWaiters.shift();if(next)next()}
 const clock=new THREE.Clock();
 const exteriorRoot=new THREE.Group();
 const worldGroup=new THREE.Group();
@@ -1617,7 +1622,7 @@ function buildWaterfrontPerimeter(){
 }
 function addLights(){
   hemi=new THREE.HemisphereLight(0xdce9df,0x283125,1.15);scene.add(hemi);
-  sun=new THREE.DirectionalLight(0xffefd0,2.65);sun.position.set(-900,-650,1500);sun.castShadow=true;sun.shadow.mapSize.set(1536,1536);
+  sun=new THREE.DirectionalLight(0xffefd0,2.65);sun.position.set(-900,-650,1500);sun.castShadow=true;sun.shadow.mapSize.set(MOBILE_GPU_SAFE?1024:1536,MOBILE_GPU_SAFE?1024:1536);
   sun.shadow.camera.left=-800;sun.shadow.camera.right=800;sun.shadow.camera.top=800;sun.shadow.camera.bottom=-800;sun.shadow.camera.far=3500;scene.add(sun);
   const fill=new THREE.DirectionalLight(0xb7d1d7,.38);fill.position.set(500,900,700);scene.add(fill);
 }
@@ -1651,7 +1656,12 @@ function normalizedModel(source,targetHeight,animated=false){
 async function loadAsset(url){
   if(!url)return null;
   if(assetPromiseCache.has(url))return await assetPromiseCache.get(url);
-  const p=loader.loadAsync(url).catch(e=>{console.warn('Asset load failed',url,e);return null});
+  const p=(async()=>{
+    await acquireAssetSlot();
+    try{return await loader.loadAsync(url)}
+    catch(e){console.warn('Asset load failed',url,e);return null}
+    finally{releaseAssetSlot()}
+  })();
   assetPromiseCache.set(url,p);
   const out=await p;
   if(!out)assetPromiseCache.delete(url);
@@ -4238,7 +4248,7 @@ async function boot(){
       playerRootZ:playerRoot.position.z,
       activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
       physicsMode,physicsReady,physicsError,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
-      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,instantMassing:Number(streetLifeStats.instantMassing||0),
+      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,mobileGpuSafe:MOBILE_GPU_SAFE,instantMassing:Number(streetLifeStats.instantMassing||0),
       streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null,
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
