@@ -2001,31 +2001,34 @@ function respawnPlayer(){
   if(zombieTemplate)spawnZombieWave(performance.now(),true);
   showToast('Respawned');
 }
-function lineClearToTarget(tx,ty){
-  if(!playerRoot)return false;
-  const sx=playerRoot.position.x,sy=playerRoot.position.y,steps=18;
-  for(let i=2;i<steps-1;i++){
-    const t=i/steps,x=THREE.MathUtils.lerp(sx,tx,t),y=THREE.MathUtils.lerp(sy,ty,t);
-    if(interiorMode?isBlockedInterior(x,y):isBlockedExterior(x,y,.08))return false;
+function shotDirection(cfg){
+  const dir=new THREE.Vector3();camera.getWorldDirection(dir);
+  const spreadDeg=Number(cfg?.spread_deg||0)*(aiming?.42:1);
+  if(spreadDeg>0){
+    const right=new THREE.Vector3().crossVectors(dir,camera.up).normalize();
+    const up=new THREE.Vector3().crossVectors(right,dir).normalize();
+    const spread=Math.tan(THREE.MathUtils.degToRad(spreadDeg));
+    const a=(Math.random()*2-1)*spread,b=(Math.random()*2-1)*spread;
+    dir.addScaledVector(right,a).addScaledVector(up,b).normalize();
   }
-  return true;
+  return dir;
 }
-function bestGunTarget(){
-  const maxDist=activeWeapon==='Shotgun'?30:activeWeapon==='Pistol'?68:105;
-  weaponRaycaster.far=maxDist;weaponRaycaster.near=.12;
-  weaponRaycaster.setFromCamera(new THREE.Vector2(0,0),camera);
+function gunRaycast(cfg){
+  const origin=camera.position.clone(),dir=shotDirection(cfg),range=Math.max(2,Number(cfg?.range_m||60));
+  weaponRaycaster.near=.10;weaponRaycaster.far=range;weaponRaycaster.set(origin,dir);
   const list=(interiorMode?interiorZombies:zombies).filter(z=>!z.dead);
   const targetRoots=list.map(z=>z.root);
-  const blockers=interiorMode?[interiorGroup]:[buildingLayer,partsLayer].filter(Boolean);
+  const blockers=interiorMode
+    ?interiorGroup.children.filter(x=>!targetRoots.includes(x))
+    :[buildingLayer,partsLayer].filter(Boolean);
   const hits=weaponRaycaster.intersectObjects([...targetRoots,...blockers],true);
   for(const h of hits){
     let o=h.object,z=null;
     while(o){if(o.userData?.zombieRef){z=o.userData.zombieRef;break}o=o.parent}
-    if(z&&!z.dead)return{z,target:h.point.clone(),dist:h.distance,dot:1};
-    // First non-zombie solid hit blocks the shot.
-    if(h.object?.isMesh)return null;
+    if(z&&!z.dead)return{z,target:h.point.clone(),dist:h.distance,origin,dir,blocked:false};
+    if(h.object?.isMesh)return{z:null,target:h.point.clone(),dist:h.distance,origin,dir,blocked:true};
   }
-  return null;
+  return{z:null,target:origin.clone().addScaledVector(dir,range),dist:range,origin,dir,blocked:false};
 }
 function tracer(from,to,hit=false){
   const g=new THREE.BufferGeometry().setFromPoints([from,to]);
@@ -2034,53 +2037,94 @@ function tracer(from,to,hit=false){
   const light=new THREE.PointLight(0xffc06c,5,4,2);light.position.copy(from);scene.add(light);
   setTimeout(()=>{scene.remove(line,light);g.dispose();m.dispose()},75);
 }
+function cancelReload(announce=true){
+  if(!reloadState.active)return;
+  reloadState={active:false,weapon:null,startedAt:0,endsAt:0};
+  if(announce)showToast('Reload cancelled');
+  updateInventory();
+}
+function requestReload(){
+  if(playerDead||!isFirearm(activeWeapon))return false;
+  const cfg=weaponCfg(activeWeapon),mag=Math.max(1,Number(cfg.magazine_size||0));
+  const current=Number(ammoState[activeWeapon]||0),reserve=Number(reserveAmmo[activeWeapon]||0);
+  if(reloadState.active)return false;
+  if(current>=mag){showToast(activeWeapon+' magazine full');return false}
+  if(reserve<=0){showToast('No '+activeWeapon+' reserve ammo');return false}
+  const now=performance.now(),seconds=Math.max(.35,Number(cfg.reload_time_seconds||1.5));
+  reloadState={active:true,weapon:activeWeapon,startedAt:now,endsAt:now+seconds*1000};
+  fireCooldown=Math.max(fireCooldown,seconds);
+  playPlayerAnimation('reload');updateInventory();
+  showToast('Reloading '+activeWeapon+' · '+seconds.toFixed(1)+'s');
+  return true;
+}
+function updateReload(now=performance.now()){
+  if(!reloadState.active||now<reloadState.endsAt)return;
+  const weapon=reloadState.weapon,cfg=weaponCfg(weapon),mag=Math.max(1,Number(cfg.magazine_size||0));
+  const current=Number(ammoState[weapon]||0),reserve=Number(reserveAmmo[weapon]||0),need=Math.max(0,mag-current),take=Math.min(need,reserve);
+  ammoState[weapon]=current+take;reserveAmmo[weapon]=reserve-take;
+  reloadState={active:false,weapon:null,startedAt:0,endsAt:0};
+  showToast(weapon+' ready · '+ammoState[weapon]+'/'+reserveAmmo[weapon]);updateInventory();
+}
+function applyRecoil(cfg){
+  const pitchDeg=Number(cfg?.recoil_pitch_deg||0)*(aiming?.66:1);
+  const yawDeg=Number(cfg?.recoil_yaw_deg||0)*(aiming?.62:1);
+  recoilPitch=Math.min(THREE.MathUtils.degToRad(9),recoilPitch+THREE.MathUtils.degToRad(pitchDeg));
+  recoilYaw=THREE.MathUtils.clamp(recoilYaw+THREE.MathUtils.degToRad((Math.random()*2-1)*yawDeg),-.09,.09);
+}
 function shoot(){
-  if(playerDead||fireCooldown>0||!isFirearm(activeWeapon))return;
-  const ammo=ammoState[activeWeapon]||0;
-  if(ammo<=0){showToast(activeWeapon+' empty — find more '+activeWeapon+' ammo');fireCooldown=.25;return}
+  if(playerDead||fireCooldown>0||!isFirearm(activeWeapon)||reloadState.active)return;
+  const cfg=weaponCfg(activeWeapon),ammo=Number(ammoState[activeWeapon]||0);
+  if(ammo<=0){requestReload();return}
   ammoState[activeWeapon]=ammo-1;ensureAudio();gunshotAudio(playerRoot.position,activeWeapon);
-  fireCooldown=activeWeapon==='Rifle'?.16:activeWeapon==='Pistol'?.30:.72;
-  const hit=bestGunTarget(),from=camera.position.clone(),dir=new THREE.Vector3();camera.getWorldDirection(dir);
-  const end=hit?hit.target:from.clone().addScaledVector(dir,activeWeapon==='Rifle'?90:activeWeapon==='Pistol'?55:26);
-  tracer(from,end,Boolean(hit));
-  if(hit){
-    let damage=activeWeapon==='Rifle'?76:activeWeapon==='Pistol'?52:92;
-    if(activeWeapon==='Shotgun')damage=Math.max(35,damage-hit.dist*1.8);
+  fireCooldown=Math.max(.08,Number(cfg.fire_interval_seconds||.3));
+  const hit=gunRaycast(cfg);
+  tracer(hit.origin,hit.target,Boolean(hit.z));
+  if(hit.z){
+    let damage=Number(cfg.damage||50);
+    if(activeWeapon==='Shotgun')damage=Math.max(damage*.38,damage-hit.dist*1.8);
     hit.z.hp-=damage;
     if(hit.z.hp<=0)killZombie(hit.z,interiorMode?'interior':'exterior');
   }
-  muzzleFlash=.08;updateInventory();
+  applyRecoil(cfg);muzzleFlash=.08;updateInventory();
+  if((ammoState[activeWeapon]||0)<=0&&(reserveAmmo[activeWeapon]||0)>0)setTimeout(()=>{if(activeWeapon===cfg.weapon_name)requestReload()},180);
 }
 function attack(){
-  if(attackCooldown>0||!playerRoot||playerDead)return;
-  attackCooldown=.48;swingTime=.38;playPlayerAnimation('attack');
+  if(attackCooldown>0||!playerRoot||playerDead||reloadState.active)return;
+  const cfg=weaponCfg(activeWeapon);
+  attackCooldown=Math.max(.22,Number(cfg.fire_interval_seconds||.48));swingTime=Math.min(.55,attackCooldown);playPlayerAnimation('attack');
   const targets=interiorMode?interiorZombies:zombies,fx=Math.sin(yaw),fy=Math.cos(yaw);let hit=false;
+  const range=Math.max(1.4,Number(cfg.range_m||2.4));
   for(const z of targets){
     if(z.dead)continue;
     const dx=z.root.position.x-playerRoot.position.x,dy=z.root.position.y-playerRoot.position.y,dist=Math.hypot(dx,dy);
-    if(dist>2.45)continue;
+    if(dist>range)continue;
     const dot=(dx*fx+dy*fy)/Math.max(dist,.001);if(dot<-.05)continue;
-    const damage=activeWeapon==='Axe'?72:activeWeapon==='Barbed Bat'?58:50;
-    z.hp-=damage;hit=true;
+    z.hp-=Number(cfg.damage||50);hit=true;
     if(z.hp<=0)killZombie(z,interiorMode?'interior':'exterior');
   }
   if(hit)showToast(activeWeapon+' connected');
 }
-function useActiveWeapon(){if(activeVehicle){showToast('Exit vehicle to use weapons');return}if(isFirearm(activeWeapon))shoot();else attack()}
+function useActiveWeapon(){
+  if(activeVehicle){showToast('Exit vehicle to use weapons');return}
+  if(isFirearm(activeWeapon))shoot();else attack();
+}
 
 function updateZombieCount(){
   const list=interiorMode?interiorZombies:zombies;$('zombieStat').textContent=String(list.filter(z=>!z.dead).length);
 }
-function updateWeapon(dt){
+function updateWeapon(dt,now=performance.now()){
   attackCooldown=Math.max(0,attackCooldown-dt);
   fireCooldown=Math.max(0,fireCooldown-dt);
   muzzleFlash=Math.max(0,muzzleFlash-dt);
+  updateReload(now);
+  const recover=1-Math.exp(-8.5*dt);
+  recoilPitch=THREE.MathUtils.lerp(recoilPitch,0,recover);
+  recoilYaw=THREE.MathUtils.lerp(recoilYaw,0,recover);
   if(!weaponPivot)return;
-  if(isFirearm(activeWeapon)){
-    weaponPivot.rotation.set(0,0,0);return;
-  }
+  if(isFirearm(activeWeapon)){weaponPivot.rotation.set(0,0,0);return}
   if(swingTime>0){
-    const total=.38,t=1-swingTime/total;swingTime=Math.max(0,swingTime-dt);
+    const total=Math.max(.22,Math.min(.55,Number(weaponCfg(activeWeapon).fire_interval_seconds||.48))),t=1-swingTime/total;
+    swingTime=Math.max(0,swingTime-dt);
     weaponPivot.rotation.z=-Math.sin(t*Math.PI)*.75;weaponPivot.rotation.x=Math.sin(t*Math.PI)*.24;
   }else weaponPivot.rotation.set(0,0,0);
 }
