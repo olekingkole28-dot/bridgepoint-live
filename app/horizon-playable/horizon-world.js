@@ -956,8 +956,22 @@ function installInteractiveDoors(){
 function openDoor(entry,kicked=false){
   if(!entry?.doorPivot)return false;entry.doorOpen=true;entry.doorTarget=kicked?-1.48:-1.18;showToast(kicked?'Door kicked open':'Door opened');return true;
 }
+function shatterGlass(mesh){
+  if(!mesh?.userData?.breakableGlass)return false;
+  const p=new THREE.Vector3();mesh.getWorldPosition(p);
+  mesh.parent?.remove(mesh);
+  ensureAudio();showToast('Glass shattered');
+  return true;
+}
+function breakNearestGlass(){
+  if(!interiorMode||!playerRoot)return false;let best=null,d=2.25;
+  interiorGroup.traverse(o=>{if(!o.userData?.breakableGlass)return;const p=new THREE.Vector3();o.getWorldPosition(p);const q=Math.hypot(p.x-playerRoot.position.x,p.y-playerRoot.position.y);if(q<d){d=q;best=o}});
+  return best?shatterGlass(best):false;
+}
 function kickNearestDoor(){
-  if(!playerRoot||interiorMode)return false;let best=null,d=2.55;
+  if(!playerRoot)return false;
+  if(interiorMode)return breakNearestGlass();
+  let best=null,d=2.55;
   for(const e of buildingEntries){const q=Math.hypot(playerRoot.position.x-e.entryX,playerRoot.position.y-e.entryY);if(q<d){d=q;best=e}}
   if(!best)return false;return openDoor(best,true);
 }
@@ -2356,8 +2370,11 @@ function generateInterior(entry,requestedFloor=1){
   const warm=new THREE.PointLight(0xffd6a0,18,18,2);warm.position.set(-w*.2,-h*.1,2.25);interiorGroup.add(warm);
   const cool=new THREE.PointLight(0xbfd7ff,10,15,2);cool.position.set(w*.28,h*.20,2.2);interiorGroup.add(cool);
 
-  const windowMat=new THREE.MeshStandardMaterial({color:0x314650,emissive:0x182d36,emissiveIntensity:.52,roughness:.2,metalness:.12});
-  for(let x=-w/2+1.4;x<w/2-1;x+=2.2){const win=new THREE.Mesh(new THREE.BoxGeometry(1.25,.08,1.15),windowMat);win.position.set(x,h/2-.13,1.62);interiorGroup.add(win)}
+  const windowMat=new THREE.MeshPhysicalMaterial({color:0x9fc5cf,roughness:.08,metalness:0,transparent:true,opacity:.42,transmission:.42,depthWrite:false,side:THREE.DoubleSide});
+  for(let x=-w/2+1.4;x<w/2-1;x+=2.2){
+    const win=new THREE.Mesh(new THREE.BoxGeometry(1.25,.045,1.15),windowMat.clone());
+    win.position.set(x,h/2-.13,1.62);win.userData.breakableGlass=true;interiorGroup.add(win);
+  }
 
   placeInteriorTemplate('couch',-w*.22,h*.18,.02,1.0,Math.PI/2);
   placeInteriorTemplate('table',-w*.03,h*.18,.02,.78,0);
@@ -2615,6 +2632,10 @@ function gunRaycast(cfg){
     let o=h.object,z=null;
     while(o){if(o.userData?.zombieRef){z=o.userData.zombieRef;break}o=o.parent}
     if(z&&!z.dead)return{z,target:h.point.clone(),dist:h.distance,origin,dir,blocked:false};
+    if(h.object?.userData?.breakableGlass){
+      shatterGlass(h.object);
+      return{z:null,target:h.point.clone(),dist:h.distance,origin,dir,blocked:false,glass:true};
+    }
     if(h.object?.isMesh)return{z:null,target:h.point.clone(),dist:h.distance,origin,dir,blocked:true};
   }
   return{z:null,target:origin.clone().addScaledVector(dir,range),dist:range,origin,dir,blocked:false};
@@ -3060,8 +3081,8 @@ async function buildSurvivalArt(){
     yeti&&{id:'troll',label:'Rot troll',template:yeti,height:2.62,speed:[.42,.72],hp:380,damage:30,attackRange:1.92,attackMs:1580,behavior:'charge',burst:1.28,animSpeed:.78,aggroRadius:14,wanderRadius:5,infectedMonster:true,tint:0x4d5045,tintMix:.64,emissive:0x2d0202},
     realBear&&{id:'realbear',label:'Diseased bear',template:realBear,height:1.72,speed:[.78,1.18],patrolSpeed:.50,chaseMult:1.76,hp:360,damage:29,attackRange:1.9,attackMs:1380,behavior:'charge',burst:1.55,animSpeed:.92,aggroRadius:12,deaggroRadius:28,realisticInfected:true,tint:0x575b50,tintMix:.36,emissive:0x220303},
     realWolf&&{id:'realwolf',label:'Rabid wolf',template:realWolf,height:1.04,speed:[1.05,1.50],patrolSpeed:.62,chaseMult:1.96,hp:92,damage:14,attackRange:1.2,attackMs:720,behavior:'pounce',burst:1.72,animSpeed:1.42,aggroRadius:16,deaggroRadius:32,realisticInfected:true,tint:0x545b52,tintMix:.30,emissive:0x1c0202},
-    bear&&{id:'bear',label:'Infected bear',template:bear,height:1.78,speed:[.72,1.28],hp:380,damage:30,attackRange:1.9,attackMs:1450,behavior:'charge',burst:1.58,animSpeed:.9,aggroRadius:12,wanderRadius:6,tint:0x5f6656,tintMix:.3,emissive:0x250806},
-    crow&&{id:'crow',label:'Infected crow',template:crow,height:.58,speed:[3.2,4.7],hp:28,damage:9,attackRange:1.15,attackMs:620,behavior:'dive',flying:true,aggroRadius:21,deaggroRadius:34,wanderRadius:12,tint:0x2a2c28,tintMix:.55,emissive:0x1d0505}
+    bear&&{id:'bear',label:'Infected bear',template:bear,height:1.78,speed:[.72,1.28],hp:380,damage:30,attackRange:1.9,attackMs:1450,behavior:'charge',burst:1.42,animSpeed:.9,aggroRadius:12,wanderRadius:6,tint:0x4c5548,tintMix:.58,emissive:0x250303,infectedMonster:true},
+    crow&&{id:'crow',label:'Rot crow',template:crow,height:.58,speed:[2.8,4.2],hp:28,damage:9,attackRange:1.15,attackMs:620,behavior:'dive',flying:true,aggroRadius:21,deaggroRadius:34,wanderRadius:12,tint:0x252625,tintMix:.68,emissive:0x2b0202,infectedMonster:true}
   ].filter(Boolean);
   zombieTemplates=enemyArchetypes;
   zombieTemplate=enemyArchetypes[0]||null;
