@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4235;
+const BUILD_VERSION=4236;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -4366,28 +4366,16 @@ async function boot(){
     };
     loadText.textContent='PLAYABLE · exact buildings and apocalypse details streaming…';
 
+    // Immediate gameplay hydration: doors, apocalypse ground and hostile pressure are
+    // ready before any expensive facade/parts/parcel decoration. Those details stream later.
     await yieldToRenderer();
     try{buildEntryPoints();installInteractiveDoors()}catch(err){console.error('door system recovered',err);streetLifeStats.buildingGeometryError=String(err?.message||err)}
     await yieldToRenderer();
     try{buildApocalypseGroundDressing();buildDenseApocalypseLayers()}catch(err){console.warn('ground dressing skipped',err)}
-    await yieldToRenderer();
-    try{buildFacadeDetails()}catch(err){console.warn('facade details skipped',err)}
-    await yieldToRenderer();
-    try{buildParts()}catch(err){console.warn('building parts skipped',err)}
-    try{buildParcels()}catch(err){console.warn('parcel overlay skipped',err)}
-    applyApocalypseDecay(worldGroup);
-    initPostProcessing();
-    await yieldToRenderer();
-    loadText.textContent='PLAYABLE · infected and interior assets streaming in background…';
-    const idleDelay=MOBILE_GPU_SAFE?1800:250;
-    await new Promise(resolve=>{
-      if(typeof requestIdleCallback==='function')requestIdleCallback(()=>resolve(),{timeout:idleDelay});
-      else setTimeout(resolve,idleDelay);
-    });
+    loadText.textContent='PLAYABLE · infected entering world…';
     await buildSurvivalArt();
-    await weaponReady;
-    initializeVehicleRepair();snapInfrastructureToRoadNodes();populateOpenSpace();configureMatchMode(matchMode);
-    loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · '+buildingEntries.length+' true walk-through buildings · endless horde active';
+    configureMatchMode(matchMode);
+    loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · '+buildingEntries.length+' walk-through doorways · endless horde active';
     window.BP_HORIZON_SMOKE={
       ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),
       player:Boolean(playerRoot),playerAssetLoaded,playerAssetMode,character:CHARACTER_KEY,preview:PREVIEW_KEY,mapPreset:MAP_PRESET.id,mapCount:MAP_PRESETS.length,mapSize:MAP_PRESET.size,endlessHorde:ENDLESS_HORDE,endlessCap:maxActiveZombies,loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,
@@ -4401,7 +4389,7 @@ async function boot(){
       playerRootZ:playerRoot.position.z,
       activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
       physicsMode,physicsReady,physicsError,terrainPhysicsReady:Boolean(terrainPhysicsCollider),terrainSafetyRescues,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
-      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,assetTimeoutMs:ASSET_TIMEOUT_MS,mobileGpuSafe:MOBILE_GPU_SAFE,hydrationReadyMs:Number(window.BP_HORIZON_HYDRATION?.readyMs||0),proceduralFastHydration:Boolean(streetLifeStats.proceduralEnemyFallback),hydrationComplete:Boolean(window.BP_HORIZON_HYDRATION?.complete),worldTickMs:MOBILE_GPU_SAFE?34:16,minimapTickMs:MOBILE_GPU_SAFE?140:70,instantMassing:Number(streetLifeStats.instantMassing||0),
+      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,assetTimeoutMs:ASSET_TIMEOUT_MS,mobileGpuSafe:MOBILE_GPU_SAFE,hydrationReadyMs:Number(window.BP_HORIZON_HYDRATION?.readyMs||0),proceduralFastHydration:Boolean(streetLifeStats.proceduralEnemyFallback),detailHydrationComplete:Boolean(streetLifeStats.detailHydrationComplete),hydrationComplete:Boolean(window.BP_HORIZON_HYDRATION?.complete),worldTickMs:MOBILE_GPU_SAFE?34:16,minimapTickMs:MOBILE_GPU_SAFE?140:70,instantMassing:Number(streetLifeStats.instantMassing||0),
       streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null,
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
@@ -4636,6 +4624,22 @@ async function boot(){
         return {blockedHere:isBlockedExterior(p.x,p.y,.34),open};
       }
     };
+    const hydrateDeferredWorld=async()=>{
+      loadText.textContent='PLAYABLE · high-detail facades and interiors streaming…';
+      await yieldToRenderer();
+      try{buildFacadeDetails()}catch(err){console.warn('facade details skipped',err)}
+      await yieldToRenderer();
+      try{buildParts()}catch(err){console.warn('building parts skipped',err)}
+      await yieldToRenderer();
+      try{buildParcels()}catch(err){console.warn('parcel overlay skipped',err)}
+      applyApocalypseDecay(worldGroup);
+      if(!MOBILE_GPU_SAFE)initPostProcessing();
+      await weaponReady;
+      initializeVehicleRepair();snapInfrastructureToRoadNodes();populateOpenSpace();
+      streetLifeStats.detailHydrationComplete=true;
+      loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · '+buildingEntries.length+' walk-through doorways · endless horde active';
+    };
+    setTimeout(()=>hydrateDeferredWorld().catch(err=>console.warn('deferred world hydration',err)),MOBILE_GPU_SAFE?2200:250);
   }catch(e){
     console.error(e);window.BP_HORIZON_SMOKE={ok:false,cell:CELL,error:String(e?.message||e)};$('error').hidden=false;$('errorText').textContent=String(e?.message||e);loadText.textContent='Preview unavailable';
   }
