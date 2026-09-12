@@ -33,7 +33,6 @@ const INTERIOR_ASSETS={
 };
 
 const params=new URLSearchParams(location.search);
-const params=new URLSearchParams(location.search);
 const CELL=params.get('cell')==='middletown'?'middletown':'manhattan';
 const $=id=>document.getElementById(id);
 const root=$('world');
@@ -80,7 +79,6 @@ scene.add(exteriorRoot,interiorGroup);
 interiorGroup.visible=false;
 
 let data,lon0,lat0,mx,my,baseElevation=0;
-let data,lon0,lat0,mx,my,baseElevation=0;
 let parcelLayer,partsLayer,buildingLayer,roadLayer,terrainLayer;
 let hemi,sun,lightMode=0;
 let playerRoot=null,playerMixer=null,playerClips=[],playerAction=null;
@@ -97,7 +95,6 @@ let zombieTemplate=null;
 let mobileMove={x:0,y:0},mobileSprint=false;
 let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),exteriorYaw=0;
 let interiorWalls=[],interiorContainers=[],interiorBounds=null,interiorExit=null,interiorTemplates={};
-const keys=new Set();
 const keys=new Set();
 
 const minimap=$('minimap');
@@ -271,7 +268,6 @@ function buildEntryPoints(){
   }
 }
 function mergeLocal(geos){
-function mergeLocal(geos){
   if(!geos.length)return null;
   const first=geos[0],attrNames=Object.keys(first.attributes),indexArrays=[];
   let vertexOffset=0,totalVertices=0;
@@ -430,7 +426,6 @@ function playPlayerAnimation(state){
   if(playerAction?._clip===desired)return;
   const next=playerMixer.clipAction(desired);next.reset().fadeIn(.12).play();if(playerAction)playerAction.fadeOut(.12);playerAction=next;
 }
-function staticClone(template,targetHeight){
 function staticClone(template,targetHeight){
   if(!template)return null;
   const n=normalizedModel(template.scene,targetHeight,false);return n.root;
@@ -751,7 +746,6 @@ async function buildSurvivalArt(){
   await buildZombies(zombie);
 }
 function toMapXY(x,y){
-function toMapXY(x,y){
   const west=project([data.bbox.west,lat0]).x,east=project([data.bbox.east,lat0]).x;
   const south=project([lon0,data.bbox.south]).y,north=project([lon0,data.bbox.north]).y;
   return{x:(x-west)/(east-west)*mapBase.width,y:mapBase.height-(y-south)/(north-south)*mapBase.height};
@@ -864,7 +858,6 @@ function updatePlayer(dt){
   }
 }
 function updateCamera(dt){
-function updateCamera(dt){
   if(!playerRoot)return;
   const target=playerRoot.position.clone().add(new THREE.Vector3(0,0,1.38));
   const forward=new THREE.Vector3(Math.sin(yaw),Math.cos(yaw),0),right=new THREE.Vector3(Math.cos(yaw),-Math.sin(yaw),0);
@@ -872,7 +865,6 @@ function updateCamera(dt){
   const desired=target.clone().addScaledVector(forward,-dist*Math.cos(pitch)).addScaledVector(right,shoulder);desired.z+=.9+dist*Math.sin(pitch);
   const alpha=1-Math.exp(-9*dt);camera.position.lerp(desired,alpha);camera.lookAt(target.clone().addScaledVector(forward,cameraMode===0?2.2:3.0));
 }
-async function enterLandscape(){
 async function enterLandscape(){
   try{if(!document.fullscreenElement&&document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen({navigationUI:'hide'})}catch(_){}
   try{if(screen.orientation&&screen.orientation.lock)await screen.orientation.lock('landscape')}catch(_){}
