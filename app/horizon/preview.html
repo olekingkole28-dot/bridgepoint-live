@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#080a0d">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<title>BridgePoint Horizon — Test World</title>
+<link rel="stylesheet" href="./horizon-preview.css?v=4203">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}</script>
+</head>
+<body>
+<div id="world"></div>
+<div class="grain"></div>
+<header class="topbar">
+  <div class="brand"><span class="mark">H</span><div><b>BRIDGEPOINT</b><small>HORIZON TEST WORLD</small></div></div>
+  <div class="topActions"><button id="weatherBtn">STORM</button><button id="lightBtn">NIGHT</button></div>
+</header>
+<section class="scenePicker" aria-label="Preview locations">
+  <button class="scene active" data-scene="city"><b>Dense City</b><span>Times Square · NYC</span></button>
+  <button class="scene" data-scene="mountain"><b>Mountain Town</b><span>Aspen · Colorado</span></button>
+  <button class="scene" data-scene="coastal"><b>Waterfront Suburb</b><span>Seattle · Washington</span></button>
+</section>
+<section class="hud">
+  <div class="eyebrow" id="eyebrow">DENSE CITY TEST CELL</div>
+  <h1 id="title">Manhattan after collapse.</h1>
+  <p id="sub">Streaming real roads and building footprints, then layering survival-world art, decay, vegetation, debris and atmosphere.</p>
+  <div class="stats"><span><b id="buildingCount">—</b> buildings</span><span><b id="roadCount">—</b> road segments</span><span><b id="infectedCount">—</b> infected</span><span><b id="fps">—</b> FPS</span></div>
+</section>
+<div class="instructions">Drag to look · left pad to move · switch scenes above</div>
+<div class="reticle">+</div>
+<div id="movePad" class="movePad"><div id="moveKnob"></div></div>
+<button id="sprintBtn" class="sprint">SPRINT</button>
+<div id="loading" class="loading"><b>BUILDING TEST CELL</b><span id="loadText">Loading real-world geometry…</span></div>
+<div id="error" class="error" hidden><b>WORLD CELL FAILED</b><span id="errorText"></span><button id="retryBtn">Retry</button></div>
+<script type="module" src="./horizon-preview.js?v=4203"></script>
+</body>
+</html>
