@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {clone as cloneSkeleton} from 'three/addons/utils/SkeletonUtils.js';
 
-const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-preview-v2984';
+const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
 const INTERIOR_BASE='https://cdn.jsdelivr.net/gh/sijun-kevin-hu/break-my-house@main/public/models/house-interior';
 const ASSETS={
@@ -51,16 +51,60 @@ const INTERIOR_ASSETS={
 };
 
 const params=new URLSearchParams(location.search);
-const CELL=params.get('cell')==='middletown'?'middletown':'manhattan';
+const requestedCell=String(params.get('cell')||'national').toLowerCase();
+const CELL=requestedCell==='middletown'?'middletown':requestedCell==='manhattan'?'manhattan':'national';
 const $=id=>document.getElementById(id);
 const root=$('world');
 const loadText=$('loadText');
+
+const JURISDICTIONS={
+  AL:['Alabama',32.377716,-86.300568],AK:['Alaska',58.301598,-134.420212],AZ:['Arizona',33.448143,-112.096962],
+  AR:['Arkansas',34.746613,-92.288986],CA:['California',38.576668,-121.493629],CO:['Colorado',39.739227,-104.984856],
+  CT:['Connecticut',41.764046,-72.682198],DE:['Delaware',39.157307,-75.519722],FL:['Florida',30.438118,-84.281296],
+  GA:['Georgia',33.749027,-84.388229],HI:['Hawaii',21.307442,-157.857376],ID:['Idaho',43.617775,-116.199722],
+  IL:['Illinois',39.798363,-89.654961],IN:['Indiana',39.768623,-86.162643],IA:['Iowa',41.591087,-93.603729],
+  KS:['Kansas',39.048191,-95.677956],KY:['Kentucky',38.186722,-84.875374],LA:['Louisiana',30.457069,-91.187393],
+  ME:['Maine',44.307167,-69.781693],MD:['Maryland',38.978764,-76.490936],MA:['Massachusetts',42.358162,-71.063698],
+  MI:['Michigan',42.733635,-84.555328],MN:['Minnesota',44.955097,-93.102211],MS:['Mississippi',32.303848,-90.182106],
+  MO:['Missouri',38.579201,-92.172935],MT:['Montana',46.585709,-112.018417],NE:['Nebraska',40.808075,-96.699654],
+  NV:['Nevada',39.163914,-119.766121],NH:['New Hampshire',43.206898,-71.537994],NJ:['New Jersey',40.220596,-74.769913],
+  NM:['New Mexico',35.682240,-105.939728],NY:['New York',40.7128,-74.0060],NC:['North Carolina',35.780430,-78.639099],
+  ND:['North Dakota',46.820850,-100.783318],OH:['Ohio',39.961346,-82.999069],OK:['Oklahoma',35.492207,-97.503342],
+  OR:['Oregon',44.938461,-123.030403],PA:['Pennsylvania',40.264378,-76.883598],RI:['Rhode Island',41.830914,-71.414963],
+  SC:['South Carolina',34.000343,-81.033211],SD:['South Dakota',44.367031,-100.346405],TN:['Tennessee',36.165810,-86.784241],
+  TX:['Texas',30.274670,-97.740349],UT:['Utah',40.777477,-111.888237],VT:['Vermont',44.262436,-72.580536],
+  VA:['Virginia',37.538857,-77.433640],WA:['Washington',47.035805,-122.905014],WV:['West Virginia',38.336246,-81.612328],
+  WI:['Wisconsin',43.074684,-89.384445],WY:['Wyoming',41.140259,-104.820236],DC:['District of Columbia',38.9072,-77.0369],
+  PR:['Puerto Rico',18.4655,-66.1057],GU:['Guam',13.4443,144.7937],VI:['U.S. Virgin Islands',18.3419,-64.9307],
+  AS:['American Samoa',-14.2710,-170.1322],MP:['Northern Mariana Islands',15.1778,145.7509],UM:['U.S. Minor Outlying Islands',19.2823,166.6470]
+};
+const stateParam=String(params.get('state')||'NY').toUpperCase();
+const SELECTED_STATE=JURISDICTIONS[stateParam]?stateParam:'NY';
+const selectedJurisdiction=JURISDICTIONS[SELECTED_STATE];
+const STREAM_LAT=Number.isFinite(Number(params.get('lat')))?Number(params.get('lat')):selectedJurisdiction[1];
+const STREAM_LON=Number.isFinite(Number(params.get('lon')))?Number(params.get('lon')):selectedJurisdiction[2];
+const STREAM_SPAN=Math.max(1,Math.min(5.5,Number(params.get('span_km')||3.4)));
+const densePreview=()=>CELL==='manhattan'||CELL==='national'||Number(data?.counts?.buildings||0)>500;
+
+document.body.classList.toggle('nationalMode',CELL==='national');
+$('cellNational')?.classList.toggle('active',CELL==='national');
 $('cellMiddletown')?.classList.toggle('active',CELL==='middletown');
 $('cellManhattan')?.classList.toggle('active',CELL==='manhattan');
+const jurisdictionSelect=$('jurisdictionSelect');
+if(jurisdictionSelect){
+  jurisdictionSelect.innerHTML=Object.entries(JURISDICTIONS).map(([code,v])=>'<option value="'+code+'">'+v[0]+' ('+code+')</option>').join('');
+  jurisdictionSelect.value=SELECTED_STATE;
+}
+$('jurisdictionGo')?.addEventListener('click',()=>{
+  const code=jurisdictionSelect?.value||SELECTED_STATE,v=JURISDICTIONS[code]||selectedJurisdiction;
+  const u=new URL(location.href);u.searchParams.set('cell','national');u.searchParams.set('state',code);
+  u.searchParams.set('lat',String(v[1]));u.searchParams.set('lon',String(v[2]));u.searchParams.set('span_km','3.4');u.searchParams.set('build','3020');
+  location.href=u.toString();
+});
 
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x68746e);
-scene.fog=new THREE.FogExp2(0x69736d,CELL==='manhattan'?.00019:.00027);
+scene.fog=new THREE.FogExp2(0x69736d,densePreview()?.00019:.00027);
 
 const camera=new THREE.PerspectiveCamera(66,innerWidth/innerHeight,.08,12000);
 camera.up.set(0,0,1);
@@ -158,7 +202,7 @@ function heightFor(row){
   if(Number.isFinite(h)&&h>1)return{h:Math.min(h,500),proxy:false};
   const f=Number(row.floors);
   if(Number.isFinite(f)&&f>0)return{h:Math.min(f*3.15,420),proxy:true};
-  return{h:CELL==='manhattan'?13:7.5,proxy:true};
+  return{h:densePreview()?13:7.5,proxy:true};
 }
 function terrainZ(lon,lat){
   const t=data?.terrain;
@@ -238,9 +282,9 @@ function facadeKey(row,height=8){
   if(/wood|timber/.test(f))return'wood';
   if(/metal|steel/.test(f))return'metal';
   const roll=hash(String(row.id||'')+':'+Math.round(height))%100;
-  if(CELL==='manhattan'&&height>85)return roll<72?'glass':'metal';
-  if(CELL==='manhattan'&&height>35)return roll<35?'glass':roll<64?'brick':'concrete';
-  if(CELL==='manhattan'&&roll<58)return'brick';
+  if(densePreview()&&height>85)return roll<72?'glass':'metal';
+  if(densePreview()&&height>35)return roll<35?'glass':roll<64?'brick':'concrete';
+  if(densePreview()&&roll<58)return'brick';
   return'concrete';
 }
 function buildBuildings(){
@@ -269,8 +313,8 @@ function buildBuildings(){
   loadText.textContent='Geometry ready · '+sourceH.toLocaleString()+' source-height buildings · '+proxies.toLocaleString()+' visual-height proxies';
 }
 function buildFacadeDetails(){
-  const candidates=[...buildingCenters].filter(b=>b.height>9&&b.width>3&&b.depth>3).sort((a,b)=>b.height-a.height).slice(0,CELL==='manhattan'?650:220);
-  const maxWindows=CELL==='manhattan'?7600:2200;
+  const candidates=[...buildingCenters].filter(b=>b.height>9&&b.width>3&&b.depth>3).sort((a,b)=>b.height-a.height).slice(0,densePreview()?650:220);
+  const maxWindows=densePreview()?7600:2200;
   const winGeo=new THREE.BoxGeometry(1,.07,.72);
   const litMat=new THREE.MeshStandardMaterial({color:0xbfd6cf,emissive:0x6e8d77,emissiveIntensity:.55,roughness:.24,metalness:.12});
   const darkMat=new THREE.MeshStandardMaterial({color:0x314349,emissive:0x101c1f,emissiveIntensity:.18,roughness:.32,metalness:.18});
@@ -335,7 +379,7 @@ function buildEntryPoints(){
   entryGroup.clear();buildingEntries=[];
   const candidates=[...buildingCenters]
     .sort((a,b)=>(a.x*a.x+a.y*a.y)-(b.x*b.x+b.y*b.y));
-  const visualLimit=CELL==='manhattan'?260:120;
+  const visualLimit=densePreview()?260:120;
   let visualCount=0;
   for(const b of candidates){
     const road=nearestRoadForBuilding(b);if(!road)continue;
@@ -870,7 +914,7 @@ function scatterRoadsideTemplateLocal(template,count,targetHeight,mode='sidewalk
   return placed;
 }
 function scatterLocalProceduralLife(){
-  const anchors=localRoadAnchors(CELL==='manhattan'?170:130);if(!anchors.length)return{trees:0,bikes:0,benches:0,planters:0};
+  const anchors=localRoadAnchors(densePreview()?170:130);if(!anchors.length)return{trees:0,bikes:0,benches:0,planters:0};
   let trees=0,bikes=0,benches=0,planters=0;
   const add=(kind,target)=>{
     for(let attempts=0;attempts<target*20;attempts++){
@@ -887,12 +931,12 @@ function scatterLocalProceduralLife(){
       if(kind==='tree')trees++;else if(kind==='bike')bikes++;else if(kind==='bench')benches++;else planters++;
     }
   };
-  add('tree',CELL==='manhattan'?42:26);add('bike',CELL==='manhattan'?20:10);add('bench',CELL==='manhattan'?18:10);add('planter',CELL==='manhattan'?28:16);
+  add('tree',densePreview()?42:26);add('bike',densePreview()?20:10);add('bench',densePreview()?18:10);add('planter',densePreview()?28:16);
   return{trees,bikes,benches,planters};
 }
 function scatterProceduralStreetLife(){
   let trees=0,bikes=0;
-  const treeTarget=CELL==='manhattan'?150:82,bikeTarget=CELL==='manhattan'?70:30;
+  const treeTarget=densePreview()?150:82,bikeTarget=densePreview()?70:30;
   for(let i=0,attempts=0;i<treeTarget&&attempts<treeTarget*15;attempts++){
     const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+2.4+rand()*1.6,side);
     if(isBlockedExterior(p.x,p.y,.65))continue;
@@ -925,7 +969,7 @@ function makePlanter(seedValue){
   g.add(pot,bush);return g;
 }
 function scatterStreetFurniture(){
-  const benchTarget=CELL==='manhattan'?58:28,planterTarget=CELL==='manhattan'?96:46;
+  const benchTarget=densePreview()?58:28,planterTarget=densePreview()?96:46;
   let benches=0,planters=0;
   for(let attempts=0;benches<benchTarget&&attempts<benchTarget*14;attempts++){
     const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+2.0+rand()*1.2,side);
@@ -940,7 +984,7 @@ function scatterStreetFurniture(){
   return{benches,planters};
 }
 function buildGrassDetails(){
-  const count=CELL==='manhattan'?850:620;
+  const count=densePreview()?850:620;
   const geo=new THREE.ConeGeometry(.07,.44,3);
   const mat=new THREE.MeshStandardMaterial({color:0x4b7547,roughness:.96});
   const inst=new THREE.InstancedMesh(geo,mat,count),dummy=new THREE.Object3D();
@@ -1053,7 +1097,7 @@ function spawnVisiblePickup(item,x,y,z,mode='exterior',seedValue=0){
   worldPickups.push(p);return p;
 }
 function spawnOutdoorLoot(){
-  const target=CELL==='manhattan'?80:40;
+  const target=densePreview()?80:40;
   const table=['Bandage','Water','First aid kit','Batteries','Canned food','Pistol','Rifle','Shotgun','Axe','Hiking Backpack'];
   let placed=0,attempts=0;
   while(placed<target&&attempts<target*24){
@@ -1583,7 +1627,7 @@ async function buildSurvivalArt(){
   zombieTemplates=[zombie,zombieChubby,zombieRibcage].filter(Boolean);
   zombieTemplate=zombieTemplates[0]||zombie;
 
-  const dense=CELL==='manhattan';
+  const dense=densePreview();
   let props=0,vehicles=0;
   props+=scatterRoadsideTemplate(streetlight,dense?132:52,4.8,'sidewalk')||0;
   props+=scatterRoadsideTemplate(hydrant,dense?66:26,.95,'sidewalk')||0;
@@ -1653,7 +1697,7 @@ function drawMinimapBase(){
 }
 function revealMap(x,y,save=true){
   const m=toMapXY(x,y);fogCtx.globalCompositeOperation='destination-out';
-  const radius=CELL==='manhattan'?13:15,gr=fogCtx.createRadialGradient(m.x,m.y,2,m.x,m.y,radius);gr.addColorStop(0,'rgba(0,0,0,1)');gr.addColorStop(.72,'rgba(0,0,0,.96)');gr.addColorStop(1,'rgba(0,0,0,0)');
+  const radius=densePreview()?13:15,gr=fogCtx.createRadialGradient(m.x,m.y,2,m.x,m.y,radius);gr.addColorStop(0,'rgba(0,0,0,1)');gr.addColorStop(.72,'rgba(0,0,0,.96)');gr.addColorStop(1,'rgba(0,0,0,0)');
   fogCtx.fillStyle=gr;fogCtx.beginPath();fogCtx.arc(m.x,m.y,radius,0,Math.PI*2);fogCtx.fill();
   if(save){
     exploredPoints.push([Math.round(x),Math.round(y)]);if(exploredPoints.length>500)exploredPoints.shift();
