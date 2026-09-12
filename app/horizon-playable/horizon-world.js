@@ -569,44 +569,106 @@ function equipWeapon(name){mountWeaponModel(null,name)}
 function findBoneByHints(root,hints){
   let found=null;
   root?.traverse(o=>{
-    if(found||!o.isBone)return;
+    if(found)return;
     const n=String(o.name||'').toLowerCase();
-    if(hints.some(h=>n.includes(h)))found=o;
+    if(hints.some(h=>n===h||n.includes(h)))found=o;
   });
   return found;
 }
-function makeMount(parent,pos,rot){
+function makeMount(parent,pos=[0,0,0],rot=[0,0,0]){
   const g=new THREE.Group();
   g.position.set(...pos);g.rotation.set(...rot);
   (parent||playerRoot).add(g);return g;
 }
 function clearMount(m){if(!m)return;while(m.children.length)m.remove(m.children[0])}
-function setupEquipmentMounts(modelRoot){
-  const right=findBoneByHints(modelRoot,['righthand','hand.r','hand_r','right_hand','r_hand']);
-  const left=findBoneByHints(modelRoot,['lefthand','hand.l','hand_l','left_hand','l_hand']);
-  equipmentMounts.rightHand=makeMount(right||playerRoot,right?[0,0,0]:[.36,-.03,1.04],right?[0,0,0]:[0,0,0]);
-  equipmentMounts.leftHand=makeMount(left||playerRoot,left?[0,0,0]:[-.34,-.02,1.03],left?[0,0,0]:[0,0,0]);
-  equipmentMounts.hip=makeMount(playerRoot,[.30,.14,.76],[0,.2,-.18]);
-  equipmentMounts.back=makeMount(playerRoot,[0,.24,1.18],[0,.08,Math.PI/2]);
+function captureCharacterWeaponTemplates(modelRoot){
+  characterWeaponTemplates={};
+  for(const name of ['Axe','Knife','Pistol','Rifle','Shotgun','SMG','Spear','WoodenBat_Barbed','WoodenBat_Saw']){
+    const obj=modelRoot?.getObjectByName(name);
+    if(!obj)continue;
+    characterWeaponTemplates[name]=obj.clone(true);
+    obj.visible=false;
+  }
 }
-function putEquipmentModel(slot,template,length,rot=[.15,.08,-.88],pos=[0,0,0]){
-  const m=equipmentMounts[slot];if(!m)return;
-  clearMount(m);if(!template)return;
-  const obj=propCloneByLength(template,length);if(!obj)return;
-  obj.rotation.set(...rot);obj.position.set(...pos);m.add(obj);
+function setupEquipmentMounts(modelRoot){
+  const right=modelRoot?.getObjectByName('Middle1.R')||modelRoot?.getObjectByName('LowerArm.R')||findBoneByHints(modelRoot,['middle1.r','lowerarm.r']);
+  const left=modelRoot?.getObjectByName('Middle1.L')||modelRoot?.getObjectByName('LowerArm.L')||findBoneByHints(modelRoot,['middle1.l','lowerarm.l']);
+  const hips=modelRoot?.getObjectByName('Hips')||findBoneByHints(modelRoot,['hips','pelvis']);
+  const torso=modelRoot?.getObjectByName('Torso')||modelRoot?.getObjectByName('Abdomen')||findBoneByHints(modelRoot,['torso','abdomen','spine']);
+  equipmentMounts.rightHand=makeMount(right||playerRoot);
+  equipmentMounts.leftHand=makeMount(left||playerRoot);
+  equipmentMounts.hip=makeMount(hips||playerRoot,[.18,-.04,.055],[0,.05,-.18]);
+  equipmentMounts.backGun=makeMount(torso||playerRoot,[0,.035,-.17],[0,.03,Math.PI/2]);
+  equipmentMounts.backMelee=makeMount(torso||playerRoot,[-.12,.02,-.15],[0,.05,-.72]);
+}
+function cloneCharacterWeapon(name){
+  const t=characterWeaponTemplates[name];
+  if(!t)return null;
+  const obj=t.clone(true);obj.visible=true;
+  obj.traverse(o=>{o.visible=true;if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+  return obj;
+}
+function putCharacterWeapon(slot,name,mode='hand'){
+  const m=equipmentMounts[slot];if(!m)return null;
+  clearMount(m);if(!name)return null;
+  const obj=cloneCharacterWeapon(name);if(!obj)return null;
+  if(mode==='rightHand'){
+    // Weapon transforms in the CC0 character are authored on Middle1.L.
+    // The mirrored right-hand finger chain accepts the same local grip transform cleanly.
+    m.add(obj);
+  }else if(mode==='leftHand'){
+    m.add(obj);
+  }else if(mode==='hip'){
+    obj.position.set(0,0,0);obj.rotation.set(.05,.2,-1.48);obj.scale.multiplyScalar(.96);m.add(obj);
+  }else if(mode==='backGun'){
+    obj.position.set(0,0,0);obj.rotation.set(.15,1.48,.08);obj.scale.multiplyScalar(1.02);m.add(obj);
+  }else if(mode==='backMelee'){
+    obj.position.set(0,0,0);obj.rotation.set(.1,1.4,-.12);obj.scale.multiplyScalar(.98);m.add(obj);
+  }
+  return obj;
+}
+function activeItemForSlot(slot){
+  if(slot==='melee')return equipment.melee;
+  if(slot==='sidearm')return equipment.sidearm;
+  if(slot==='primary')return equipment.primary;
+  if(slot==='offhand')return equipment.offhand;
+  return null;
 }
 function refreshEquipmentVisuals(){
-  const meleeKey=equipment.melee==='Barbed Bat'?'bat':equipment.melee==='Knife'?'knife':'axe';
-  const meleeLength=equipment.melee==='Barbed Bat'?.92:equipment.melee==='Knife'?.38:.68;
-  putEquipmentModel('rightHand',weaponTemplates[meleeKey],meleeLength,[.18,.08,-.88],[.02,0,.02]);
-  putEquipmentModel('leftHand',weaponTemplates.knife,.34,[.08,-.1,.72],[-.01,0,.01]);
-  putEquipmentModel('hip',equipment.sidearm==='Pistol'?weaponTemplates.pistol:null,.32,[.1,.15,-.3],[0,0,0]);
-  const long=equipment.primary==='Rifle'?weaponTemplates.rifle:equipment.primary==='Shotgun'?weaponTemplates.shotgun:null;
-  putEquipmentModel('back',long,equipment.primary==='Shotgun'?.9:1.02,[.18,.05,.1],[0,0,0]);
+  for(const m of Object.values(equipmentMounts))clearMount(m);
+  const current=activeItemForSlot(activeSlot)||equipment.melee||'Axe';
+  activeWeapon=current;equippedWeaponName=current;
+
+  // Left-hand utility weapon remains visible unless the player is actively using it.
+  if(equipment.offhand&&!(activeSlot==='offhand'))putCharacterWeapon('leftHand',equipment.offhand,'leftHand');
+
+  const handName=current==='Barbed Bat'?'WoodenBat_Barbed':current;
+  putCharacterWeapon('rightHand',handName,'rightHand');
+
+  if(equipment.sidearm&&activeSlot!=='sidearm')putCharacterWeapon('hip',equipment.sidearm,'hip');
+  if(equipment.primary&&activeSlot!=='primary')putCharacterWeapon('backGun',equipment.primary,'backGun');
+  if(equipment.melee&&activeSlot!=='melee'){
+    const stow=equipment.melee==='Barbed Bat'?'WoodenBat_Barbed':equipment.melee;
+    putCharacterWeapon('backMelee',stow,'backMelee');
+  }
   weaponPivot=equipmentMounts.rightHand;
 }
+function selectSlot(slot,quiet=false){
+  const item=activeItemForSlot(slot);
+  if(!item){if(!quiet)showToast(slot.toUpperCase()+' SLOT EMPTY');return false}
+  activeSlot=slot;activeWeapon=item;equippedWeaponName=item;aiming=false;
+  refreshEquipmentVisuals();updateInventory();
+  if(!quiet)showToast('Equipped '+item);
+  return true;
+}
+function cycleWeapon(){
+  const slots=['melee','sidearm','primary','offhand'].filter(s=>activeItemForSlot(s));
+  if(!slots.length)return;
+  const i=Math.max(0,slots.indexOf(activeSlot));selectSlot(slots[(i+1)%slots.length]);
+}
+
 async function buildPlayer(){
-  const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,spawn.z+.025);
+  const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,surfaceZXY(spawn.x,spawn.y)+.015);
   const [gltf,axe,bat,knife,pistol,rifle,shotgun]=await Promise.all([
     loadAsset(ASSETS.player),loadAsset(ASSETS.axe),loadAsset(ASSETS.bat),loadAsset(ASSETS.knife),
     loadAsset(ASSETS.pistol),loadAsset(ASSETS.rifle),loadAsset(ASSETS.shotgun)
@@ -615,11 +677,14 @@ async function buildPlayer(){
   if(gltf){
     const n=normalizedModel(gltf.scene,1.82,true);
     playerRoot=n.root;playerVisualRoot=n.oriented;playerClips=gltf.animations||[];playerMixer=new THREE.AnimationMixer(n.model);
-  }else{playerRoot=fallbackPlayer();playerVisualRoot=playerRoot}
+    captureCharacterWeaponTemplates(n.model);
+    setupEquipmentMounts(n.model);
+  }else{
+    playerRoot=fallbackPlayer();playerVisualRoot=playerRoot;
+    setupEquipmentMounts(playerRoot);
+  }
   playerRoot.position.copy(playerSpawn);scene.add(playerRoot);
-  setupEquipmentMounts(playerRoot);
-  weaponPivot=equipmentMounts.rightHand;
-  refreshEquipmentVisuals();
+  activeSlot='melee';activeWeapon='Axe';refreshEquipmentVisuals();
   playPlayerAnimation('idle');
 }
 function playPlayerAnimation(state){
