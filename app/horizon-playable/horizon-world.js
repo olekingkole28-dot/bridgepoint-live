@@ -686,15 +686,19 @@ async function buildPlayer(){
 }
 function playPlayerAnimation(state){
   if(!playerMixer||!playerClips.length)return;
-  const re=state==='attack'?/attack|melee|swing|hit/i:
-    state==='run'?/run|sprint|jog/i:
-    state==='walk'?/walk|locomotion|move/i:
-    /idle|stand/i;
-  const desired=playerClips.find(c=>re.test(c.name))
-    ||(state==='run'?playerClips.find(c=>/walk|move/i.test(c.name)):null)
-    ||playerClips[0];
+  const gun=isFirearm(activeWeapon);
+  let desired=null;
+  if(state==='attack'&&!gun)desired=playerClips.find(c=>/slash|stab|punch|attack|melee/i.test(c.name));
+  else if(state==='run'&&gun)desired=playerClips.find(c=>/^run_gun$/i.test(c.name)||/run.*gun/i.test(c.name));
+  else if(state==='walk'&&gun)desired=playerClips.find(c=>/^walk_gun$/i.test(c.name)||/walk.*gun/i.test(c.name));
+  else if(state==='idle'&&gun)desired=playerClips.find(c=>/^idle_gun$/i.test(c.name)||/idle.*gun/i.test(c.name));
+  if(!desired){
+    const re=state==='run'?/^run$|run|sprint|jog/i:state==='walk'?/^walk$|walk|locomotion|move/i:/^idle$|idle|stand/i;
+    desired=playerClips.find(c=>re.test(c.name));
+  }
+  desired=desired||playerClips[0];
   if(playerAction?._clip===desired)return;
-  const next=playerMixer.clipAction(desired);next.reset().fadeIn(.12).play();if(playerAction)playerAction.fadeOut(.12);playerAction=next;
+  const next=playerMixer.clipAction(desired);next.reset().fadeIn(.10).play();if(playerAction)playerAction.fadeOut(.10);playerAction=next;
 }
 function staticClone(template,targetHeight){
   if(!template)return null;
