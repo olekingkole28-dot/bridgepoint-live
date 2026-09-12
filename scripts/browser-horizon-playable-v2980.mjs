@@ -34,7 +34,7 @@ async function testLanding(){
   const href=await page.locator('a.cta').first().getAttribute('href');
   console.log(JSON.stringify({landing:true,status:response?.status(),url,href},null,2));
   if(response?.status()!==200)throw new Error('landing HTTP '+response?.status());
-  if(href!=='/app/horizon-playable/?build=3040')throw new Error('landing CTA stale: '+href);
+  if(href!=='/app/horizon-playable/?build=3050')throw new Error('landing CTA stale: '+href);
 }
 
 async function testCell(cell,extra={}){
@@ -232,7 +232,7 @@ try{
   console.log(JSON.stringify({boundary},null,2));
   if(!boundary?.inside||boundary?.insideState!=='NY'||boundary?.outside!==false)
     throw new Error('national jurisdiction containment failed: '+JSON.stringify(boundary));
-  console.log('HORIZON_V3040_BROWSER_SMOKE_PASS');
+  console.log('HORIZON_V3050_BROWSER_SMOKE_PASS');
   if(errors.length)console.log('pageErrors',errors);
   const serious=messages.filter(x=>{
     if(/Rapier source failed/i.test(x)&&/Failed to fetch dynamically imported module/i.test(x))return false;
