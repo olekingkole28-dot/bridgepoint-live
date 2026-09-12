@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#05070a">
-  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
   <meta name="robots" content="noindex,nofollow,noarchive">
-  <title>BridgePoint Horizon — 3D World Preview</title>
-  <meta name="description" content="BridgePoint Horizon game-world prototype: source-backed terrain, buildings, building parts, parcel geometry and roads with a separate survival-game art layer.">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <title>BridgePoint Horizon — Playable World Preview</title>
+  <meta name="description" content="BridgePoint Horizon playable survival-world prototype using source-backed terrain and building geometry with separate CC0 game art.">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="preconnect" href="https://xdfsjztwgsbmabshzsjw.supabase.co">
-  <link rel="stylesheet" href="./horizon-world.css?v=2971">
+  <link rel="stylesheet" href="./horizon-world.css?v=2980">
   <script type="importmap">
     {
       "imports": {
@@ -30,55 +30,61 @@
       <span class="sigil">H</span>
       <span><b>BRIDGEPOINT HORIZON</b><small>WORLD PREVIEW · GAME ONLY</small></span>
     </a>
-    <div class="truthBadge"><i></i><span>REAL GEOMETRY + GAME ART</span></div>
+    <div class="cellSwitch" aria-label="Preview location">
+      <a id="cellMiddletown" href="?cell=middletown">NEIGHBORHOOD</a>
+      <a id="cellManhattan" href="?cell=manhattan">MANHATTAN</a>
+    </div>
   </header>
 
   <section class="hud statusPanel">
-    <div class="eyebrow">CONNECTICUT PROTOTYPE CELL</div>
-    <h1>Survival world preview</h1>
-    <p id="loadText">Loading source-backed terrain and structures…</p>
-    <div class="stats">
-      <div><b id="statBuildings">—</b><span>buildings</span></div>
-      <div><b id="statParts">—</b><span>parts</span></div>
-      <div><b id="statParcels">—</b><span>parcel outlines</span></div>
-      <div><b id="statRoads">—</b><span>roads / rail</span></div>
-    </div>
-    <div class="legend">
-      <span class="real"><i></i>source-backed geometry</span>
-      <span class="art"><i></i>decorative game art</span>
+    <div class="eyebrow" id="cellLabel">LOADING WORLD CELL</div>
+    <h1 id="worldTitle">Horizon survivor</h1>
+    <p id="loadText">Loading terrain, structures, player and survival art…</p>
+    <div class="statusRows">
+      <span><b id="healthStat">100</b> health</span>
+      <span><b id="lootStat">0</b> loot</span>
+      <span><b id="zombieStat">0</b> infected</span>
     </div>
   </section>
 
+  <div class="hud minimapPanel">
+    <canvas id="minimap" width="220" height="220" aria-label="Exploration minimap"></canvas>
+    <div class="mapLabel"><b>EXPLORED</b><span>fog clears as you travel</span></div>
+  </div>
+
   <nav class="hud controls" aria-label="World controls">
-    <button data-view="overview">◎ <span>Overview</span></button>
-    <button data-view="street">⌖ <span>Ground view</span></button>
+    <button id="cameraBtn">◉ <span>Camera</span></button>
     <button id="lightBtn">☀ <span>Day</span></button>
-    <button id="parcelBtn" class="active">◇ <span>Parcel grid</span></button>
-    <button id="partsBtn" class="active">▥ <span>Building parts</span></button>
+    <button id="parcelBtn">◇ <span>Parcels</span></button>
     <button id="artBtn" class="active">⚠ <span>Survival art</span></button>
     <button id="fullscreenBtn">⛶ <span>Fullscreen</span></button>
   </nav>
 
-  <aside class="hud infoPanel">
-    <strong>Different world from BridgePoint Intelligence.</strong>
-    <p>This preview receives render-only spatial geometry. It does not receive owners, claims, scores, opportunities, APNs, property IDs, customer data, or B2B controls.</p>
-    <p><b>Game art:</b> weathering, grass, debris, barricades, barrels and atmosphere are decorative preview graphics—not claims that those objects exist at those coordinates.</p>
-    <details>
-      <summary>Sources / attribution</summary>
-      <div id="attribution">Loading attribution…</div>
-    </details>
-    <a class="back" href="/app/horizon/">← Horizon founding page</a>
+  <aside class="hud inventoryPanel">
+    <div class="inventoryHead"><b>PACK</b><span id="inventoryCount">0 items</span></div>
+    <div id="inventoryList"><span class="empty">Find loot inside buildings.</span></div>
   </aside>
 
-  <div class="hud hint">Drag to orbit · pinch / wheel to zoom · right-drag to pan</div>
+  <div id="interactPrompt" class="hud interactPrompt" hidden>
+    <b id="interactLabel">LOOT</b>
+    <span>Press E or tap</span>
+  </div>
+
+  <div class="hud hint">WASD / left stick to move · drag world to look · Shift to sprint · E to loot</div>
+
+  <div class="mobileControls" aria-label="Mobile movement controls">
+    <div id="movePad" class="movePad"><div id="moveKnob"></div></div>
+    <button id="interactBtn" class="actionButton">E<br><small>LOOT</small></button>
+    <button id="sprintBtn" class="actionButton sprint">⇧<br><small>RUN</small></button>
+  </div>
 
   <div id="landscapeGate" class="landscapeGate">
     <div>
       <span class="rotateIcon">↻</span>
       <b>Horizon plays in landscape</b>
-      <p>Turn your phone sideways for the full 3D world. Tap below and BridgePoint will request fullscreen landscape when your browser allows it.</p>
+      <p>Turn your phone sideways for the playable ground-level world.</p>
       <button id="landscapeBtn" type="button">ENTER LANDSCAPE WORLD</button>
-      <small>If it does not rotate automatically, rotate the phone sideways once.</small>
+      <small>If your browser cannot lock orientation, rotate the phone sideways once.</small>
     </div>
   </div>
 
@@ -99,6 +105,6 @@
       if (load) load.textContent='Renderer startup failed';
     });
   </script>
-  <script type="module" src="./horizon-world.js?v=2971"></script>
+  <script type="module" src="./horizon-world.js?v=2980"></script>
 </body>
 </html>
