@@ -1,4 +1,4 @@
-name: Browser Test Horizon Playable v3050
+name: Browser Test Horizon Playable v3052
 
 on:
   workflow_dispatch:
@@ -8,19 +8,20 @@ on:
       - 'app/horizon-world/**'
       - 'app/horizon-playable/**'
       - 'scripts/browser-horizon-playable-v2980.mjs'
+      - 'scripts/browser-horizon-android-safe.mjs'
       - '.github/workflows/browser-test-horizon-playable-v2980.yml'
 
 permissions:
   contents: read
 
 concurrency:
-  group: horizon-playable-v3050
+  group: horizon-playable-v3052
   cancel-in-progress: true
 
 jobs:
   browser-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 14
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -30,3 +31,5 @@ jobs:
         run: npm install --no-save --no-audit --no-fund playwright-core@1.55.0
       - name: Verify live Horizon survivor world
         run: node scripts/browser-horizon-playable-v2980.mjs
+      - name: Verify Android direct renderer and touch controls
+        run: node scripts/browser-horizon-android-safe.mjs
