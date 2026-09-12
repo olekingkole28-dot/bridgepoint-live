@@ -33,6 +33,9 @@ player.add(camera);camera.position.set(0,0,1.72);
 let activeKey='city',active=presets.city,centerLat=active.lat,centerLon=active.lon;
 let yaw=.28,pitch=-.09,moveX=0,moveY=0,sprinting=false,storm=false,night=false,last=performance.now(),fpsFrames=0,fpsT=performance.now();
 let infected=[];
+let hasRenderedScene=false;
+const sceneCache=new Map();
+const retryTimers=new Map();
 const keyState=new Set();
 const randSeed=s=>{let n=s>>>0;return()=>((n=Math.imul(n,1664525)+1013904223>>>0)/4294967296)};
 const hash=s=>{let h=2166136261;for(const c of String(s)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
@@ -52,7 +55,90 @@ function addTrees(profile,r){const n=profile==='mountain'?620:profile==='coastal
 function addStreetDecay(profile,r){const vehicleN=profile==='city'?75:45;for(let i=0;i<vehicleN;i++){const g=new THREE.Group();const body=new THREE.Mesh(new THREE.BoxGeometry(3.8,1.7,.72),mat([0x55473f,0x38494a,0x65423b,0x4d5049][i%4],.84,.18));body.position.z=.5;g.add(body);const cab=new THREE.Mesh(new THREE.BoxGeometry(1.9,1.45,.62),mat(0x263436,.35,.22));cab.position.set(.1,0,1.04);g.add(cab);g.position.set((r()-.5)*620,(r()-.5)*620,.04);g.rotation.z=r()*Math.PI*2;world.add(g)}for(let i=0;i<260;i++){const debris=new THREE.Mesh(new THREE.BoxGeometry(.12+r()*.8,.12+r()*.8,.06+r()*.28),mat(0x50473e,1,.02));debris.position.set((r()-.5)*780,(r()-.5)*780,.1);debris.rotation.set(r()*3,r()*3,r()*6);world.add(debris)}}
 function addInfected(profile,r){infected=[];const n=profile==='city'?34:profile==='mountain'?18:24;for(let i=0;i<n;i++){const g=new THREE.Group();const body=new THREE.Mesh(new THREE.CapsuleGeometry(.27,.78,4,6),mat(0x343a34,.95,0));body.rotation.x=Math.PI/2;body.position.z=.92;g.add(body);const head=new THREE.Mesh(new THREE.SphereGeometry(.21,8,6),mat(0x737766,.92,0));head.position.z=1.68;g.add(head);g.position.set((r()-.5)*380,(r()-.5)*380,0);world.add(g);infected.push({g,phase:r()*6.28,s:.35+r()*.4})}$('infectedCount').textContent=n}
 function applyLighting(){if(night){scene.background.set(storm?0x111820:0x14202b);scene.fog.color.set(storm?0x171d22:0x1a2730);hemi.intensity=.36;sun.intensity=.22;renderer.toneMappingExposure=.72}else{scene.background.set(storm?0x485159:active.profile==='mountain'?0x849096:0x7b8790);scene.fog.color.set(storm?0x4d565b:active.profile==='mountain'?0x7b878a:0x738087);hemi.intensity=storm?.82:1.45;sun.intensity=storm?.75:2.15;renderer.toneMappingExposure=storm?.72:.9}}
-async function loadScene(key){activeKey=key;active=presets[key];centerLat=active.lat;centerLon=active.lon;document.querySelectorAll('.scene').forEach(b=>b.classList.toggle('active',b.dataset.scene===key));$('eyebrow').textContent=active.label;$('title').textContent=active.title;$('sub').textContent=active.sub;$('loading').classList.remove('hide');$('error').hidden=true;$('loadText').textContent='Streaming real-world roads and building footprints…';clearGroup(world);clearGroup(skyGroup);infected=[];player.position.set(0,0,0);const r=randSeed(hash(key+'4200'));addGround(active.profile,r);addMountains(active.profile,r);addClouds(r);applyLighting();try{const u=new URL(ENDPOINT);u.searchParams.set('lat',active.lat);u.searchParams.set('lon',active.lon);u.searchParams.set('span_km',active.span);u.searchParams.set('state',active.state);u.searchParams.set('cell_id','HORIZON_TEST_'+active.state+'_'+key.toUpperCase());const res=await fetch(u,{cache:'no-store'});const body=await res.json().catch(()=>null);if(!res.ok||!body)throw new Error(body?.error||`World stream ${res.status}`);const data=body.scene||body.data||body;const roads=addRoads(data);$('loadText').textContent='Building structures, survival dressing and atmosphere…';await new Promise(requestAnimationFrame);const buildings=addBuildings(data,active.profile);addTrees(active.profile,r);addStreetDecay(active.profile,r);addInfected(active.profile,r);$('buildingCount').textContent=buildings.toLocaleString();$('roadCount').textContent=roads.toLocaleString();$('loading').classList.add('hide')}catch(e){console.error(e);$('errorText').textContent=String(e?.message||e);$('error').hidden=false;$('loading').classList.add('hide')}}
+async function fetchSceneData(key,target){
+  if(sceneCache.has(key))return sceneCache.get(key);
+  let lastError=null;
+  for(let attempt=0;attempt<3;attempt++){
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),24000);
+    try{
+      const u=new URL(ENDPOINT);
+      u.searchParams.set('lat',target.lat);
+      u.searchParams.set('lon',target.lon);
+      u.searchParams.set('span_km',target.span);
+      u.searchParams.set('state',target.state);
+      u.searchParams.set('cell_id','HORIZON_TEST_'+target.state+'_'+key.toUpperCase());
+      const res=await fetch(u,{cache:'no-store',signal:ctrl.signal});
+      const text=await res.text();
+      let body=null;
+      try{body=text?JSON.parse(text):null}catch(_){throw new Error('World stream returned invalid data');}
+      if(!res.ok||!body)throw new Error(body?.error||`World stream ${res.status}`);
+      const data=body.scene||body.data||body;
+      if(!data||(!Array.isArray(data.buildings)&&!Array.isArray(data.transport)))throw new Error('World stream did not contain scene geometry');
+      sceneCache.set(key,data);
+      return data;
+    }catch(e){
+      lastError=e;
+      if(attempt<2)await new Promise(resolve=>setTimeout(resolve,650*(attempt+1)));
+    }finally{
+      clearTimeout(timer);
+    }
+  }
+  throw lastError||new Error('World stream unavailable');
+}
+function applySceneMeta(key,target){
+  activeKey=key;active=target;centerLat=target.lat;centerLon=target.lon;
+  document.querySelectorAll('.scene').forEach(b=>b.classList.toggle('active',b.dataset.scene===key));
+  $('eyebrow').textContent=target.label;$('title').textContent=target.title;$('sub').textContent=target.sub;
+}
+function buildSceneFromData(key,target,data){
+  applySceneMeta(key,target);
+  clearGroup(world);clearGroup(skyGroup);infected=[];player.position.set(0,0,0);
+  const r=randSeed(hash(key+'4201'));
+  addGround(target.profile,r);addMountains(target.profile,r);addClouds(r);applyLighting();
+  const roads=addRoads(data);
+  const buildings=addBuildings(data,target.profile);
+  addTrees(target.profile,r);addStreetDecay(target.profile,r);addInfected(target.profile,r);
+  $('buildingCount').textContent=buildings.toLocaleString();$('roadCount').textContent=roads.toLocaleString();
+  hasRenderedScene=true;
+}
+function buildOfflineFallback(key,target,reason){
+  applySceneMeta(key,target);
+  clearGroup(world);clearGroup(skyGroup);infected=[];player.position.set(0,0,0);
+  const r=randSeed(hash(key+'4201-fallback'));
+  addGround(target.profile,r);addMountains(target.profile,r);addClouds(r);applyLighting();
+  addTrees(target.profile,r);addStreetDecay(target.profile,r);addInfected(target.profile,r);
+  $('buildingCount').textContent='0';$('roadCount').textContent='0';
+  $('sub').textContent=target.sub+' Live source-backed geometry is reconnecting; temporary local fallback dressing is shown.';
+  hasRenderedScene=true;
+  console.warn('Horizon geometry fallback:',reason);
+}
+async function loadScene(key,{force=false}={}){
+  const target=presets[key]||presets.city;
+  if(force)sceneCache.delete(key);
+  $('loading').classList.remove('hide');$('error').hidden=true;
+  $('loadText').textContent='Streaming real-world roads and building footprints…';
+  try{
+    const data=await fetchSceneData(key,target);
+    $('loadText').textContent='Building structures, survival dressing and atmosphere…';
+    await new Promise(requestAnimationFrame);
+    buildSceneFromData(key,target,data);
+    $('loading').classList.add('hide');$('error').hidden=true;
+    const pending=retryTimers.get(key);if(pending){clearTimeout(pending);retryTimers.delete(key)}
+  }catch(e){
+    console.warn('Horizon scene load failed:',e);
+    $('loading').classList.add('hide');
+    if(!hasRenderedScene){
+      buildOfflineFallback(key,target,String(e?.message||e));
+      if(!retryTimers.has(key)){
+        const timer=setTimeout(()=>{retryTimers.delete(key);loadScene(key,{force:true})},3200);
+        retryTimers.set(key,timer);
+      }
+    }else{
+      $('error').hidden=true;
+    }
+  }
+}
 
 function updateMovement(dt,t){let x=moveX,y=moveY;if(keyState.has('KeyW'))y+=1;if(keyState.has('KeyS'))y-=1;if(keyState.has('KeyA'))x-=1;if(keyState.has('KeyD'))x+=1;const l=Math.hypot(x,y)||1;x/=l;y/=l;const speed=(sprinting||keyState.has('ShiftLeft')?13:6.5)*dt;const fwd=new THREE.Vector2(Math.sin(yaw),Math.cos(yaw)),right=new THREE.Vector2(Math.cos(yaw),-Math.sin(yaw));player.position.x+=(fwd.x*y+right.x*x)*speed;player.position.y+=(fwd.y*y+right.y*x)*speed;const max=active.span*620;player.position.x=Math.max(-max,Math.min(max,player.position.x));player.position.y=Math.max(-max,Math.min(max,player.position.y));player.rotation.z=-yaw;camera.rotation.x=pitch;for(const z of infected){z.g.position.x+=Math.sin(t*.00035+z.phase)*z.s*dt;z.g.position.y+=Math.cos(t*.00031+z.phase)*z.s*dt}}
 function loop(t){const dt=Math.min(.05,(t-last)/1000);last=t;updateMovement(dt,t);renderer.render(scene,camera);fpsFrames++;if(t-fpsT>700){$('fps').textContent=Math.round(fpsFrames*1000/(t-fpsT));fpsFrames=0;fpsT=t}requestAnimationFrame(loop)}
@@ -63,9 +149,9 @@ let looking=false,lastX=0,lastY=0;renderer.domElement.addEventListener('pointerd
 const pad=$('movePad'),knob=$('moveKnob');let padId=null;function padMove(e){const r=pad.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=e.clientX-cx,dy=e.clientY-cy,d=Math.min(40,Math.hypot(dx,dy)),a=Math.atan2(dy,dx);const kx=Math.cos(a)*d,ky=Math.sin(a)*d;knob.style.transform=`translate(${kx}px,${ky}px)`;moveX=kx/40;moveY=-ky/40}pad.addEventListener('pointerdown',e=>{padId=e.pointerId;pad.setPointerCapture(e.pointerId);padMove(e)});pad.addEventListener('pointermove',e=>{if(e.pointerId===padId)padMove(e)});function padEnd(e){if(e.pointerId!==padId)return;padId=null;moveX=moveY=0;knob.style.transform=''}pad.addEventListener('pointerup',padEnd);pad.addEventListener('pointercancel',padEnd);
 $('sprintBtn').addEventListener('pointerdown',()=>sprinting=true);$('sprintBtn').addEventListener('pointerup',()=>sprinting=false);$('sprintBtn').addEventListener('pointercancel',()=>sprinting=false);
 document.querySelectorAll('.scene').forEach(b=>b.addEventListener('click',()=>loadScene(b.dataset.scene)));
-$('weatherBtn').addEventListener('click',()=>{storm=!storm;$('weatherBtn').textContent=storm?'CLEAR':'STORM';loadScene(activeKey)});
+$('weatherBtn').addEventListener('click',()=>{storm=!storm;$('weatherBtn').textContent=storm?'CLEAR':'STORM';clearGroup(skyGroup);addClouds(randSeed(hash(activeKey+'weather'+storm)));applyLighting()});
 $('lightBtn').addEventListener('click',()=>{night=!night;$('lightBtn').textContent=night?'DAY':'NIGHT';applyLighting()});
-$('retryBtn').addEventListener('click',()=>loadScene(activeKey));
+$('retryBtn').addEventListener('click',()=>loadScene(activeKey,{force:true}));
 
 loadScene('city');requestAnimationFrame(loop);
-window.__BP_HORIZON_PREVIEW__=()=>({build:4200,scene:activeKey,profile:active.profile,lat:active.lat,lon:active.lon,storm,night,buildings:Number(($('buildingCount').textContent||'0').replaceAll(',',''))||0,roads:Number(($('roadCount').textContent||'0').replaceAll(',',''))||0,infected:infected.length,errorHidden:$('error').hidden});
+window.__BP_HORIZON_PREVIEW__=()=>({build:4201,scene:activeKey,profile:active.profile,lat:active.lat,lon:active.lon,storm,night,buildings:Number(($('buildingCount').textContent||'0').replaceAll(',',''))||0,roads:Number(($('roadCount').textContent||'0').replaceAll(',',''))||0,infected:infected.length,errorHidden:$('error').hidden});
