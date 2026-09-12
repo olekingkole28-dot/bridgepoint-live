@@ -521,8 +521,83 @@ function scatterTemplate(template,count,targetHeight,spread=7){
   if(!template||!roadAnchors.length)return;
   for(let i=0;i<count;i++){
     const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],o=staticClone(template,targetHeight);if(!o)continue;
-    const ang=rand()*Math.PI*2,dist=2+rand()*spread;o.position.set(a.x+Math.cos(ang)*dist,a.y+Math.sin(ang)*dist,terrainZXY(a.x,a.y)+.05);o.rotation.z=rand()*Math.PI*2;artGroup.add(o);
+    const ang=rand()*Math.PI*2,dist=2+rand()*spread,x=a.x+Math.cos(ang)*dist,y=a.y+Math.sin(ang)*dist;
+    if(isBlockedExterior(x,y,.25))continue;
+    o.position.set(x,y,terrainZXY(x,y)+.05);o.rotation.z=rand()*Math.PI*2;artGroup.add(o);
   }
+}
+function roadSidePoint(a,offset,side){
+  const sx=Math.cos(a.heading),sy=-Math.sin(a.heading);
+  const x=a.x+sx*offset*side,y=a.y+sy*offset*side;
+  return{x,y,z:terrainZXY(x,y)};
+}
+function scatterRoadsideTemplate(template,count,targetHeight,mode='sidewalk',rotationOffset=0){
+  if(!template||!roadAnchors.length)return 0;
+  let placed=0,attempts=0;
+  while(placed<count&&attempts<count*12){
+    attempts++;
+    const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],side=rand()>.5?1:-1;
+    const offset=mode==='parking'?Math.max(1.7,a.width*.34):a.width/2+1.7+rand()*1.2;
+    const p=roadSidePoint(a,offset,side);
+    if(isBlockedExterior(p.x,p.y,mode==='parking'?.55:.34))continue;
+    const o=staticClone(template,targetHeight);if(!o)continue;
+    o.position.set(p.x,p.y,p.z+.05);
+    o.rotation.z=a.heading+rotationOffset+(side<0?Math.PI:0);
+    artGroup.add(o);placed++;
+  }
+  return placed;
+}
+const treeMats={
+  trunk:new THREE.MeshStandardMaterial({color:0x59412d,roughness:.96}),
+  leaf1:new THREE.MeshStandardMaterial({color:0x496d43,roughness:.92}),
+  leaf2:new THREE.MeshStandardMaterial({color:0x345b38,roughness:.94})
+};
+const treeGeo={
+  trunk:new THREE.CylinderGeometry(.13,.18,2.05,7),
+  crown1:new THREE.IcosahedronGeometry(1.05,1),
+  crown2:new THREE.IcosahedronGeometry(.78,1)
+};
+function makeStreetTree(seedValue){
+  const r=seeded(seedValue),g=new THREE.Group();
+  const trunk=new THREE.Mesh(treeGeo.trunk,treeMats.trunk);trunk.rotation.x=Math.PI/2;trunk.position.z=1.02;
+  const c1=new THREE.Mesh(treeGeo.crown1,treeMats.leaf1);c1.scale.set(.8+r()*.3,.75+r()*.3,1.0+r()*.35);c1.position.z=2.45;
+  const c2=new THREE.Mesh(treeGeo.crown2,treeMats.leaf2);c2.position.set((r()-.5)*.35,(r()-.5)*.35,3.25);
+  c1.castShadow=c2.castShadow=true;trunk.castShadow=true;g.add(trunk,c1,c2);return g;
+}
+const bikeMats={
+  frame:new THREE.MeshStandardMaterial({color:0x632b24,roughness:.56,metalness:.22}),
+  metal:new THREE.MeshStandardMaterial({color:0x3b4142,roughness:.42,metalness:.58}),
+  tire:new THREE.MeshStandardMaterial({color:0x141615,roughness:.9})
+};
+function cylinderBetween(a,b,radius,mat){
+  const d=new THREE.Vector3().subVectors(b,a),len=d.length(),m=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,len,6),mat);
+  m.position.copy(a).add(b).multiplyScalar(.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().normalize());
+  return m;
+}
+function makeBike(seedValue){
+  const r=seeded(seedValue),g=new THREE.Group(),wheelGeo=new THREE.TorusGeometry(.34,.035,6,14);
+  const w1=new THREE.Mesh(wheelGeo,bikeMats.tire),w2=w1.clone();w1.rotation.x=Math.PI/2;w2.rotation.x=Math.PI/2;
+  w1.position.set(-.55,0,.38);w2.position.set(.55,0,.38);g.add(w1,w2);
+  const rear=new THREE.Vector3(-.55,0,.38),front=new THREE.Vector3(.55,0,.38),seat=new THREE.Vector3(-.12,0,.82),crank=new THREE.Vector3(0,0,.43),bar=new THREE.Vector3(.39,0,.90);
+  g.add(cylinderBetween(rear,seat,.035,bikeMats.frame),cylinderBetween(seat,crank,.035,bikeMats.frame),cylinderBetween(crank,rear,.035,bikeMats.frame),cylinderBetween(crank,front,.035,bikeMats.frame),cylinderBetween(seat,bar,.028,bikeMats.metal),cylinderBetween(bar,front,.028,bikeMats.metal));
+  const seatMesh=new THREE.Mesh(new THREE.BoxGeometry(.24,.11,.06),bikeMats.tire);seatMesh.position.copy(seat);g.add(seatMesh);
+  g.rotation.z=(r()-.5)*.08;return g;
+}
+function scatterProceduralStreetLife(){
+  let trees=0,bikes=0;
+  const treeTarget=CELL==='manhattan'?72:42,bikeTarget=CELL==='manhattan'?34:14;
+  for(let i=0,attempts=0;i<treeTarget&&attempts<treeTarget*15;attempts++){
+    const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+2.4+rand()*1.6,side);
+    if(isBlockedExterior(p.x,p.y,.65))continue;
+    const o=makeStreetTree(hash(CELL+':tree:'+attempts));o.position.set(p.x,p.y,p.z+.03);artGroup.add(o);i++;trees++;
+  }
+  for(let i=0,attempts=0;i<bikeTarget&&attempts<bikeTarget*15;attempts++){
+    const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+1.45+rand()*.7,side);
+    if(isBlockedExterior(p.x,p.y,.42))continue;
+    const o=makeBike(hash(CELL+':bike:'+attempts));o.position.set(p.x,p.y,p.z+.04);o.rotation.z=a.heading+(rand()-.5)*.16;artGroup.add(o);i++;bikes++;
+  }
+  return{trees,bikes};
 }
 function showToast(message){
   let el=document.getElementById('lootToast');
