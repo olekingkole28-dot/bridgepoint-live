@@ -30,7 +30,7 @@ Game-art placement is fictional decorative dressing. It must not be represented 
 
 ## Additional runtime creatures (4208)
 - Infected German Shepherd + Pug: Quaternius Zombie Apocalypse Kit — CC0; runtime tint differentiates infected dogs.
-- Wolf, Orc, Spider: Quaternius models mirrored by Aurisar — CC0 1.0 per its attribution ledger.
+- Wolf + Spider: Quaternius models mirrored by Quaternius Showcase — CC0 1.0.\n- Orc + Yeti: Quaternius Ultimate Monsters mirrored by Constellation Defense — CC0 1.0 per source credits.
 - Yeti: Quaternius Ultimate Monsters mirrored by Constellation Defense — CC0 1.0 per source credits.
 - Bear: Poly Pizza source mirrored by Dereth — CC-BY; attribution must remain with distributions using it.
 - Giant spiders use a façade locomotion state and crawl vertically up and down source-backed building faces.
