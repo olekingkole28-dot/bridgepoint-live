@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4228;
+const BUILD_VERSION=4229;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -1109,7 +1109,7 @@ function buildExplorableShell(rec,meta){
   const wallMat=buildingMaterials[rec.materialKey]||buildingMaterials.concrete;
   prepareDoorMetadata(meta);
   const edges=meta.shellEdges||[],doorEdge=meta.doorEdgeIndex||0,de=edges[doorEdge];
-  const floorH=3.05,floors=Math.min(28,Math.max(1,Math.floor(meta.height/floorH))),stairRun=Math.min(4.8,Math.max(3.4,Math.min(meta.width,meta.depth)*.36));
+  const floorH=3.05,floors=Math.min(60,Math.max(1,Math.floor(meta.height/floorH))),stairRun=Math.min(4.8,Math.max(3.4,Math.min(meta.width,meta.depth)*.36));
   meta.openFloors=floors;
   for(let f=0;f<floors;f++){
     const base=meta.z+f*floorH,slabShape=shapeFromRing(rec.ring);
@@ -1180,7 +1180,7 @@ function buildInstantBuildingMassing(){
     const pts=ring.map(project).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));if(pts.length<3)continue;
     const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
     const center=centerRing(ring),q=project(center),ht=heightFor(row),z=terrainZ(center[0],center[1]),w=Math.max(1.2,maxx-minx),d=Math.max(1.2,maxy-miny),h=Math.max(2.4,ht.h),key=facadeKey(row,ht.h);
-    const meta={id:String(row.id||hash(JSON.stringify(center)))+':'+(ri++),x:q.x,y:q.y,z,height:h,minx,maxx,miny,maxy,width:w,depth:d,poly:pts,explorable:w>4.2&&d>4.2&&h>3.1,shellBuilt:false,sourceRing:ring,sourceMaterialKey:key,massingIndex:rows.length};
+    const meta={id:String(row.id||hash(JSON.stringify(center)))+':'+(ri++),x:q.x,y:q.y,z,height:h,minx,maxx,miny,maxy,width:w,depth:d,poly:pts,explorable:w>3.0&&d>3.0&&h>2.6,shellBuilt:false,sourceRing:ring,sourceMaterialKey:key,massingIndex:rows.length};
     rows.push({x:q.x,y:q.y,z,w,d,h,key,meta});buildingCenters.push(meta);
   }
   if(!rows.length)return 0;
@@ -3797,8 +3797,8 @@ async function buildSurvivalArt(){
 
   spawnOutdoorLoot();
   dressOpenSourceBuildings(m2mZombie||zombie);
-  streetLifeStats.corpses=scatterStreetCorpses(m2mZombie||zombie,densePreview()?34:14);
-  streetLifeStats.fires=scatterAmbientFires(densePreview()?9:4);
+  streetLifeStats.corpses=scatterStreetCorpses(m2mZombie||zombie,densePreview()?52:24);
+  streetLifeStats.fires=scatterAmbientFires(densePreview()?15:7);
   await buildZombies(zombieTemplate);
   spawnFacadeSpiders(densePreview()?5:3);
 }
@@ -4249,7 +4249,7 @@ async function boot(){
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
       reloadActive:reloadState.active,aimFov:weaponCfg(activeWeapon).aim_fov,
-      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,activeDoorVisuals:Number(streetLifeStats.activeDoorVisuals||0),doorStreaming:true,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),doorableBuildings:Number(streetLifeStats.doorableBuildings||0),lazyOpenBuildings:true,seamlessOpenBuildings:true,towerPriorityOpenBuildings:true,optimizedOpenBuildingPhysics:true,shapeRecovery:true,staticMapCache:Boolean(streetLifeStats.staticMapCache),invalidShapes:Number(streetLifeStats.invalidShapes||0),shellFailures:Number(streetLifeStats.shellFailures||0),openInteriorProps:Number(streetLifeStats.openInteriorProps||0),
+      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,activeDoorVisuals:Number(streetLifeStats.activeDoorVisuals||0),doorStreaming:true,fullHeightLazyTowers:true,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),doorableBuildings:Number(streetLifeStats.doorableBuildings||0),lazyOpenBuildings:true,seamlessOpenBuildings:true,towerPriorityOpenBuildings:true,optimizedOpenBuildingPhysics:true,shapeRecovery:true,staticMapCache:Boolean(streetLifeStats.staticMapCache),invalidShapes:Number(streetLifeStats.invalidShapes||0),shellFailures:Number(streetLifeStats.shellFailures||0),openInteriorProps:Number(streetLifeStats.openInteriorProps||0),
       matchMode,matchRadius:Number.isFinite(matchRadius)?matchRadius:null,seasonDay:seasonDay(),xp,battleTier,livesRemaining,
       flashlightReady:Boolean(flashlight),vehicleRepair:true,factionClaimMode:'local-preview',spectatorMode
     };
