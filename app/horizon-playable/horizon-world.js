@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4233;
+const BUILD_VERSION=4234;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -314,7 +314,7 @@ resizeRenderer();
 THREE.Cache.enabled=true;
 const loader=new GLTFLoader();
 const assetPromiseCache=new Map();
-let activeAssetLoads=0;const assetLoadWaiters=[];const ASSET_LOAD_LIMIT=MOBILE_GPU_SAFE?3:6;
+let activeAssetLoads=0;const assetLoadWaiters=[];const ASSET_LOAD_LIMIT=MOBILE_GPU_SAFE?3:6;const ASSET_TIMEOUT_MS=MOBILE_GPU_SAFE?7000:20000;
 async function acquireAssetSlot(){if(activeAssetLoads<ASSET_LOAD_LIMIT){activeAssetLoads++;return}await new Promise(resolve=>assetLoadWaiters.push(resolve));activeAssetLoads++}
 function releaseAssetSlot(){activeAssetLoads=Math.max(0,activeAssetLoads-1);const next=assetLoadWaiters.shift();if(next)next()}
 const clock=new THREE.Clock();
@@ -1673,8 +1673,12 @@ async function loadAsset(url){
   if(assetPromiseCache.has(url))return await assetPromiseCache.get(url);
   const p=(async()=>{
     await acquireAssetSlot();
-    try{return await loader.loadAsync(url)}
-    catch(e){console.warn('Asset load failed',url,e);return null}
+    try{
+      const timeout=new Promise(resolve=>setTimeout(()=>resolve(null),ASSET_TIMEOUT_MS));
+      const loaded=await Promise.race([loader.loadAsync(url).catch(()=>null),timeout]);
+      if(!loaded)console.warn('Asset load timed out/failed',url);
+      return loaded;
+    }catch(e){console.warn('Asset load failed',url,e);return null}
     finally{releaseAssetSlot()}
   })();
   assetPromiseCache.set(url,p);
@@ -4324,7 +4328,7 @@ async function boot(){
       playerRootZ:playerRoot.position.z,
       activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
       physicsMode,physicsReady,physicsError,terrainPhysicsReady:Boolean(terrainPhysicsCollider),terrainSafetyRescues,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
-      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,mobileGpuSafe:MOBILE_GPU_SAFE,hydrationReadyMs:Number(window.BP_HORIZON_HYDRATION?.readyMs||0),hydrationComplete:Boolean(window.BP_HORIZON_HYDRATION?.complete),worldTickMs:MOBILE_GPU_SAFE?34:16,minimapTickMs:MOBILE_GPU_SAFE?140:70,instantMassing:Number(streetLifeStats.instantMassing||0),
+      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,assetTimeoutMs:ASSET_TIMEOUT_MS,mobileGpuSafe:MOBILE_GPU_SAFE,hydrationReadyMs:Number(window.BP_HORIZON_HYDRATION?.readyMs||0),hydrationComplete:Boolean(window.BP_HORIZON_HYDRATION?.complete),worldTickMs:MOBILE_GPU_SAFE?34:16,minimapTickMs:MOBILE_GPU_SAFE?140:70,instantMassing:Number(streetLifeStats.instantMassing||0),
       streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null,
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
