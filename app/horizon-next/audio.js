@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 export class HorizonAudio{
   constructor(){
     this.ctx=null;this.master=null;this.enabled=false;this.lastStep=0;this.groanTimers=new Map();
