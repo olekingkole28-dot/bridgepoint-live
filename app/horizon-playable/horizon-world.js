@@ -9,12 +9,15 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4206;
+const BUILD_VERSION=4207;
 const SAVE_KEY='bridgepoint-horizon-survivor-v3050';
 const LEGACY_SAVE_KEY='bridgepoint-horizon-survivor-v3040';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
 const SUSHI_ENV='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Sushi%20Restaurant%20Kit%20-%20May%202023/Environment/glTF';
 const SUSHI_DECOR='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Sushi%20Restaurant%20Kit%20-%20May%202023/Decoration/glTF';
+const AURISAR_MOBS='https://cdn.jsdelivr.net/gh/brandon-aurgames/aurisar-app@main/public/assets/mobs';
+const CONSTELLATION_MODELS='https://cdn.jsdelivr.net/gh/Hakhyun-Kim/constellation-defense@main/assets/models';
+const DERETH_MOBS='https://cdn.jsdelivr.net/gh/w5ohr/Dereth@main/assets/models/monsters';
 const ASSETS={
   player:FREE_BASE+'/Characters/glTF/Characters_Matt.gltf',
   playerLis:FREE_BASE+'/Characters/glTF/Characters_Lis.gltf',
@@ -23,6 +26,13 @@ const ASSETS={
   zombie:FREE_BASE+'/Characters/glTF/Zombie_Basic.gltf',
   zombieChubby:FREE_BASE+'/Characters/glTF/Zombie_Chubby.gltf',
   zombieRibcage:FREE_BASE+'/Characters/glTF/Zombie_Ribcage.gltf',
+  infectedShepherd:FREE_BASE+'/Characters/glTF/Characters_GermanShepherd.gltf',
+  infectedPug:FREE_BASE+'/Characters/glTF/Characters_Pug.gltf',
+  wolf:AURISAR_MOBS+'/wolf.glb',
+  orc:AURISAR_MOBS+'/orcenemy.glb',
+  spider:AURISAR_MOBS+'/spider.glb',
+  yeti:CONSTELLATION_MODELS+'/quaternius-yeti.glb',
+  bear:DERETH_MOBS+'/Bear.glb',
   barrel:FREE_BASE+'/Environment/glTF/Barrel.gltf',
   trash:FREE_BASE+'/Environment/glTF/TrashBag_1.gltf',
   pallet:FREE_BASE+'/Environment/glTF/Pallet_Broken.gltf',
@@ -48,6 +58,10 @@ const ASSETS={
   pistol:FREE_BASE+'/Weapons/glTF/Pistol.gltf',
   rifle:FREE_BASE+'/Weapons/glTF/Rifle.gltf',
   shotgun:FREE_BASE+'/Weapons/glTF/Shotgun.gltf',
+  smg:FREE_BASE+'/Weapons/glTF/SMG.gltf',
+  spear:FREE_BASE+'/Weapons/glTF/Spear.gltf',
+  sawBat:FREE_BASE+'/Weapons/glTF/WoodenBat_Saw.gltf',
+  guitar:FREE_BASE+'/Weapons/glTF/Guitar.gltf',
   chest:FREE_BASE+'/Environment/glTF/Chest.gltf',
   chestSpecial:FREE_BASE+'/Environment/glTF/Chest_Special.gltf'
 };
@@ -73,7 +87,12 @@ const DEFAULT_WEAPON_CONFIGS=[
   {weapon_id:'barbed_bat',weapon_name:'Barbed Bat',weapon_type:'melee',equip_slot:'melee',stance_type:'two_handed_melee',fire_mode:'melee',damage:58,range_m:2.65,magazine_size:0,reserve_default:0,fire_interval_seconds:.56,reload_time_seconds:0,recoil_pitch_deg:0,recoil_yaw_deg:0,spread_deg:0,aim_fov:62,two_handed:true,hitscan:true,model_url:ASSETS.bat,license_code:'CC0'},
   {weapon_id:'pistol',weapon_name:'Pistol',weapon_type:'sidearm',equip_slot:'sidearm',stance_type:'one_handed_pistol',fire_mode:'semi',damage:52,range_m:60,magazine_size:12,reserve_default:48,fire_interval_seconds:.30,reload_time_seconds:1.35,recoil_pitch_deg:2.1,recoil_yaw_deg:.75,spread_deg:.65,aim_fov:52,two_handed:false,hitscan:true,model_url:ASSETS.pistol,license_code:'CC0'},
   {weapon_id:'rifle',weapon_name:'Rifle',weapon_type:'primary',equip_slot:'primary',stance_type:'two_handed_rifle',fire_mode:'auto',damage:76,range_m:95,magazine_size:20,reserve_default:100,fire_interval_seconds:.16,reload_time_seconds:2.10,recoil_pitch_deg:1.35,recoil_yaw_deg:.55,spread_deg:.45,aim_fov:48,two_handed:true,hitscan:true,model_url:ASSETS.rifle,license_code:'CC0'},
-  {weapon_id:'shotgun',weapon_name:'Shotgun',weapon_type:'primary',equip_slot:'primary',stance_type:'two_handed_rifle',fire_mode:'pump',damage:92,range_m:28,magazine_size:6,reserve_default:30,fire_interval_seconds:.72,reload_time_seconds:2.75,recoil_pitch_deg:3,recoil_yaw_deg:1.1,spread_deg:2.4,aim_fov:50,two_handed:true,hitscan:true,model_url:ASSETS.shotgun,license_code:'CC0'}
+  {weapon_id:'shotgun',weapon_name:'Shotgun',weapon_type:'primary',equip_slot:'primary',stance_type:'two_handed_rifle',fire_mode:'pump',damage:92,range_m:28,magazine_size:6,reserve_default:30,fire_interval_seconds:.72,reload_time_seconds:2.75,recoil_pitch_deg:3,recoil_yaw_deg:1.1,spread_deg:2.4,aim_fov:50,two_handed:true,hitscan:true,model_url:ASSETS.shotgun,license_code:'CC0'},
+  {weapon_id:'smg',weapon_name:'SMG',weapon_type:'primary',equip_slot:'primary',stance_type:'two_handed_rifle',fire_mode:'auto',damage:34,range_m:62,magazine_size:32,reserve_default:160,fire_interval_seconds:.085,reload_time_seconds:1.8,recoil_pitch_deg:.8,recoil_yaw_deg:.72,spread_deg:.8,aim_fov:50,two_handed:true,hitscan:true,model_url:ASSETS.smg,license_code:'CC0'},
+  {weapon_id:'spear',weapon_name:'Spear',weapon_type:'melee',equip_slot:'melee',stance_type:'two_handed_melee',fire_mode:'melee',damage:68,range_m:3.15,magazine_size:0,reserve_default:0,fire_interval_seconds:.62,reload_time_seconds:0,recoil_pitch_deg:0,recoil_yaw_deg:0,spread_deg:0,aim_fov:62,two_handed:true,hitscan:true,model_url:ASSETS.spear,license_code:'CC0'},
+  {weapon_id:'saw_bat',weapon_name:'Saw Bat',weapon_type:'melee',equip_slot:'melee',stance_type:'two_handed_melee',fire_mode:'melee',damage:66,range_m:2.7,magazine_size:0,reserve_default:0,fire_interval_seconds:.52,reload_time_seconds:0,recoil_pitch_deg:0,recoil_yaw_deg:0,spread_deg:0,aim_fov:62,two_handed:true,hitscan:true,model_url:ASSETS.sawBat,license_code:'CC0'},
+  {weapon_id:'guitar',weapon_name:'Guitar',weapon_type:'melee',equip_slot:'melee',stance_type:'two_handed_melee',fire_mode:'melee',damage:46,range_m:2.55,magazine_size:0,reserve_default:0,fire_interval_seconds:.48,reload_time_seconds:0,recoil_pitch_deg:0,recoil_yaw_deg:0,spread_deg:0,aim_fov:62,two_handed:true,hitscan:true,model_url:ASSETS.guitar,license_code:'CC0'},
+  {weapon_id:'fists',weapon_name:'Fists',weapon_type:'melee',equip_slot:'melee',stance_type:'unarmed',fire_mode:'melee',damage:24,range_m:1.55,magazine_size:0,reserve_default:0,fire_interval_seconds:.38,reload_time_seconds:0,recoil_pitch_deg:0,recoil_yaw_deg:0,spread_deg:0,aim_fov:62,two_handed:false,hitscan:true,model_url:null,license_code:'internal'}
 ];
 
 const params=new URLSearchParams(location.search);
@@ -221,8 +240,8 @@ let recoilPitch=0,recoilYaw=0,fireHeld=false;
 let playerDead=false,kills=0;
 let audioCtx=null,audioMaster=null,lastFootstepAt=0;
 let worldPickups=[],pickupTemplates={},pickupSeq=0;
-let waveNumber=0,nextWaveAt=0,maxActiveZombies=7;
-let zombieTemplate=null,zombieTemplates=[];
+let waveNumber=0,nextWaveAt=0,maxActiveZombies=12;
+let zombieTemplate=null,zombieTemplates=[],enemyArchetypes=[];
 let mobileMove={x:0,y:0},mobileSprint=false,mobileInputMode='pointer-fallback',nippleManager=null;
 let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),exteriorYaw=0;
 let interiorWalls=[],interiorContainers=[],interiorBounds=null,interiorExit=null,interiorFloorLinks=[],interiorTemplates={},interiorLootedKeys=new Set();
@@ -303,7 +322,7 @@ async function loadWeaponRegistry(){
     if(!r.ok)throw new Error('weapon registry HTTP '+r.status);
     const payload=await r.json();
     if(!payload?.ok||!Array.isArray(payload.weapons)||!payload.weapons.length)throw new Error(payload?.error||'empty weapon registry');
-    installWeaponRegistry(payload.weapons,'supabase');
+    installWeaponRegistry([...DEFAULT_WEAPON_CONFIGS,...payload.weapons],'supabase');
     for(const row of payload.weapons){
       const w=row.weapon_name;
       if(row.magazine_size>0&&reserveAmmo[w]==null)reserveAmmo[w]=Number(row.reserve_default||0);
@@ -380,7 +399,8 @@ function buildBoundaryVisual(edge){
     const z=surfaceZXY(x,y);
     const post=new THREE.Mesh(postGeo,mat);post.position.set(x,y,z+1.12);countryBarrierGroup.add(post);
     if(zombieTemplate&&i%2===0){
-      const n=normalizedModel(zombieTemplate.scene,1.76,true);n.root.position.set(x+(horizontal?0:(edge==='east'?-1:1)),y+(horizontal?(edge==='north'?-1:1):0),z+.02);
+      const boundaryTemplate=zombieTemplate?.template||zombieTemplate;
+      const n=normalizedModel(boundaryTemplate.scene,1.76,true);n.root.position.set(x+(horizontal?0:(edge==='east'?-1:1)),y+(horizontal?(edge==='north'?-1:1):0),z+.02);
       n.root.rotation.z=horizontal?(edge==='north'?Math.PI:0):(edge==='east'?-Math.PI/2:Math.PI/2);
       countryBarrierGroup.add(n.root);
     }
@@ -1253,8 +1273,8 @@ function putCharacterWeapon(slot,name,mode='leftHand'){
     m.add(obj);return obj;
   }
   const authored=cloneCharacterWeapon(name);
-  const key=name==='WoodenBat_Barbed'?'bat':name==='Axe'?'axe':name==='Knife'?'knife':name==='Pistol'?'pistol':name==='Rifle'?'rifle':name==='Shotgun'?'shotgun':null;
-  const len=name==='Pistol'?.33:name==='Rifle'?1.02:name==='Shotgun'?.92:name==='Axe'?.66:name==='Knife'?.34:.88;
+  const key=name==='WoodenBat_Barbed'?'bat':name==='WoodenBat_Saw'?'sawBat':name==='Axe'?'axe':name==='Knife'?'knife':name==='Pistol'?'pistol':name==='Rifle'?'rifle':name==='Shotgun'?'shotgun':name==='SMG'?'smg':name==='Spear'?'spear':name==='Guitar'?'guitar':null;
+  const len=name==='Pistol'?.33:name==='Rifle'?1.02:name==='Shotgun'?.92:name==='SMG'?.72:name==='Spear'?1.35:name==='Guitar'?.82:name==='Axe'?.66:name==='Knife'?.34:.88;
   const obj=authored||(key?propCloneByLength(weaponTemplates[key],len):null);if(!obj)return null;
   obj.position.set(0,0,0);
   if(mode==='hip')obj.rotation.set(.12,.08,-1.18);
@@ -1271,20 +1291,20 @@ function activeItemForSlot(slot){
 }
 function refreshEquipmentVisuals(){
   for(const m of Object.values(equipmentMounts))clearMount(m);
-  const current=activeItemForSlot(activeSlot)||equipment.melee||'Axe';
+  const current=activeItemForSlot(activeSlot)||equipment.melee||equipment.offhand||equipment.sidearm||equipment.primary||'Fists';
   activeWeapon=current;equippedWeaponName=current;
 
   if(isFirearm(current)){
     putCharacterWeapon('leftHand',current,'leftHand');
     if(equipment.melee){
-      const stow=equipment.melee==='Barbed Bat'?'WoodenBat_Barbed':equipment.melee;
+      const stow=equipment.melee==='Barbed Bat'?'WoodenBat_Barbed':equipment.melee==='Saw Bat'?'WoodenBat_Saw':equipment.melee==='Saw Bat'?'WoodenBat_Saw':equipment.melee;
       putCharacterWeapon('backMelee',stow,'backMelee');
     }
   }else if(activeSlot==='offhand'){
     putCharacterWeapon('leftHand',equipment.offhand||'Knife','leftHand');
-    if(equipment.melee)putCharacterWeapon('backMelee',equipment.melee==='Barbed Bat'?'WoodenBat_Barbed':equipment.melee,'backMelee');
+    if(equipment.melee)putCharacterWeapon('backMelee',equipment.melee==='Barbed Bat'?'WoodenBat_Barbed':equipment.melee==='Saw Bat'?'WoodenBat_Saw':equipment.melee,'backMelee');
   }else{
-    const handName=current==='Barbed Bat'?'WoodenBat_Barbed':current;
+    const handName=current==='Barbed Bat'?'WoodenBat_Barbed':current==='Saw Bat'?'WoodenBat_Saw':current;
     putCharacterWeapon('rightHand',handName,'rightHand');
     if(equipment.offhand)putCharacterWeapon('leftHand',equipment.offhand,'leftHand');
   }
@@ -1305,8 +1325,33 @@ function selectSlot(slot,quiet=false){
 }
 function cycleWeapon(){
   const slots=['melee','sidearm','primary','offhand'].filter(s=>activeItemForSlot(s));
-  if(!slots.length)return;
+  if(!slots.length){activeSlot='melee';activeWeapon='Fists';equippedWeaponName='Fists';refreshEquipmentVisuals();updateInventory();return}
   const i=Math.max(0,slots.indexOf(activeSlot));selectSlot(slots[(i+1)%slots.length]);
+}
+function equipInventoryWeapon(item){
+  const cfg=weaponRegistry.get(item)||weaponRegistry.get(String(item||'').toLowerCase());
+  if(!cfg||!inventory[item])return false;
+  const slot=cfg.equip_slot;
+  if(!['melee','offhand','sidearm','primary'].includes(slot))return false;
+  equipment[slot]=item;activeSlot=slot;activeWeapon=item;equippedWeaponName=item;aiming=false;
+  refreshEquipmentVisuals();updateInventory();showToast('Equipped '+item);return true;
+}
+function dropActiveWeapon(){
+  const item=activeItemForSlot(activeSlot);
+  if(!item||item==='Fists'){showToast('Nothing equipped to drop');return false}
+  const cfg=weaponCfg(item),slot=activeSlot;
+  const heading=(playerRoot?.rotation.z||0)-playerModelYawOffset;
+  const x=(playerRoot?.position.x||0)+Math.sin(heading)*1.35;
+  const y=(playerRoot?.position.y||0)+Math.cos(heading)*1.35;
+  const z=interiorMode?.04:surfaceZXY(x,y)+.04;
+  spawnVisiblePickup(item,x,y,z,interiorMode?'interior':'exterior',hash('drop:'+item+':'+performance.now()));
+  equipment[slot]=null;
+  if((inventory[item]||0)>0){inventory[item]--;lootCount=Math.max(0,lootCount-1);if(inventory[item]<=0)delete inventory[item]}
+  cancelReload(false);aiming=false;
+  const next=['primary','sidearm','melee','offhand'].find(s=>activeItemForSlot(s));
+  if(next){activeSlot=next;activeWeapon=activeItemForSlot(next);equippedWeaponName=activeWeapon}
+  else{activeSlot='melee';activeWeapon='Fists';equippedWeaponName='Fists'}
+  refreshEquipmentVisuals();updateInventory();showToast('Dropped '+item);return true;
 }
 
 function sanitizeCharacterClips(clips){
@@ -1318,16 +1363,20 @@ function sanitizeCharacterClips(clips){
 }
 async function buildPlayer(){
   const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,surfaceZXY(spawn.x,spawn.y)+.015);
-  const [gltf,axe,bat,knife,pistol,rifle,shotgun]=await Promise.all([
+  const [gltf,axe,bat,knife,pistol,rifle,shotgun,smg,spear,sawBat,guitar]=await Promise.all([
     loadAsset(PLAYER_ASSET),
     loadAsset(weaponCfg('Axe').model_url||ASSETS.axe),
     loadAsset(weaponCfg('Barbed Bat').model_url||ASSETS.bat),
     loadAsset(weaponCfg('Knife').model_url||ASSETS.knife),
     loadAsset(weaponCfg('Pistol').model_url||ASSETS.pistol),
     loadAsset(weaponCfg('Rifle').model_url||ASSETS.rifle),
-    loadAsset(weaponCfg('Shotgun').model_url||ASSETS.shotgun)
+    loadAsset(weaponCfg('Shotgun').model_url||ASSETS.shotgun),
+    loadAsset(weaponCfg('SMG').model_url||ASSETS.smg),
+    loadAsset(weaponCfg('Spear').model_url||ASSETS.spear),
+    loadAsset(weaponCfg('Saw Bat').model_url||ASSETS.sawBat),
+    loadAsset(weaponCfg('Guitar').model_url||ASSETS.guitar)
   ]);
-  weaponTemplates={axe,bat,knife,pistol,rifle,shotgun};
+  weaponTemplates={axe,bat,knife,pistol,rifle,shotgun,smg,spear,sawBat,guitar};
   if(gltf){
     const n=normalizedModel(gltf.scene,1.82,true);
     playerRoot=n.root;playerVisualRoot=n.oriented;playerModelYawOffset=Math.PI;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);
@@ -1905,7 +1954,8 @@ function addInventoryItem(item){
   const ammoPickup={
     'Pistol Ammo':{weapon:'Pistol',rounds:12},
     'Rifle Ammo':{weapon:'Rifle',rounds:20},
-    'Shotgun Shells':{weapon:'Shotgun',rounds:6}
+    'Shotgun Shells':{weapon:'Shotgun',rounds:6},
+    'SMG Ammo':{weapon:'SMG',rounds:32}
   }[item];
   if(ammoPickup){
     if(lootCount>=packCapacity){showToast('PACK FULL — free a slot for ammo');return false}
@@ -1949,6 +1999,10 @@ function pickupTemplateFor(item){
   if(item==='Shotgun')return{template:weaponTemplates.shotgun,length:.92};
   if(item==='Axe')return{template:weaponTemplates.axe,length:.66};
   if(item==='Knife')return{template:weaponTemplates.knife,length:.34};
+  if(item==='SMG')return{template:weaponTemplates.smg,length:.72};
+  if(item==='Spear')return{template:weaponTemplates.spear,length:1.35};
+  if(item==='Saw Bat')return{template:weaponTemplates.sawBat,length:.88};
+  if(item==='Guitar')return{template:weaponTemplates.guitar,length:.82};
   return null;
 }
 function makePickupVisual(item,seedValue){
@@ -1964,7 +2018,7 @@ function makePickupVisual(item,seedValue){
     model=new THREE.Mesh(new THREE.BoxGeometry(.42,.30,.24),new THREE.MeshStandardMaterial({color:0x77664f,roughness:.78}));
     model.position.z=.2;root.add(model);
   }
-  const rare=/Pistol|Rifle|Shotgun|Axe|Backpack|Duffel/.test(item);
+  const rare=/Pistol|Rifle|Shotgun|SMG|Spear|Saw Bat|Axe|Backpack|Duffel/.test(item);
   const ring=new THREE.Mesh(new THREE.TorusGeometry(.48,.035,8,22),rare?pickupRareMat:pickupGlowMat);
   ring.rotation.x=Math.PI/2;ring.position.z=.08;root.add(ring);
   const stem=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.72,5),rare?pickupRareMat:pickupGlowMat);
@@ -1981,7 +2035,7 @@ function spawnVisiblePickup(item,x,y,z,mode='exterior',seedValue=0){
 }
 function spawnOutdoorLoot(){
   const target=densePreview()?80:40;
-  const table=['Bandage','Water','First aid kit','Batteries','Canned food','Pistol Ammo','Rifle Ammo','Shotgun Shells','Pistol','Rifle','Shotgun','Axe','Hiking Backpack'];
+  const table=['Bandage','Water','First aid kit','Batteries','Canned food','Pistol Ammo','Rifle Ammo','Shotgun Shells','SMG Ammo','Pistol','Rifle','Shotgun','SMG','Axe','Spear','Saw Bat','Guitar','Hiking Backpack'];
   let placed=0,attempts=0;
   while(placed<target&&attempts<target*24){
     attempts++;
@@ -2000,15 +2054,18 @@ function spawnOutdoorLoot(){
     else if(roll>.87&&roll<=.91)item='Pistol';
     else if(roll>.91&&roll<=.945)item='Axe';
     else if(roll>.945&&roll<=.975)item='Rifle';
-    else if(roll>.975&&roll<=.992)item='Shotgun';
-    else if(roll>.992)item='Hiking Backpack';
+    else if(roll>.975&&roll<=.984)item='Shotgun';
+    else if(roll>.984&&roll<=.990)item='SMG';
+    else if(roll>.990&&roll<=.994)item=rand()>.5?'Spear':'Saw Bat';
+    else if(roll>.994&&roll<=.997)item='Guitar';
+    else if(roll>.997)item='Hiking Backpack';
     spawnVisiblePickup(item,p.x,p.y,p.z,'exterior',hash(CELL+':loot:'+attempts));placed++;
   }
   return placed;
 }
 function spawnInteriorVisibleLoot(w,h,seedValue){
   const r=seeded(seedValue+301),count=3+Math.floor(r()*4);
-  const items=['Bandage','Water','Batteries','Pistol Ammo','Rifle Ammo','Shotgun Shells','Pistol','First aid kit','Rifle','Shotgun','Hiking Backpack'];
+  const items=['Bandage','Water','Batteries','Pistol Ammo','Rifle Ammo','Shotgun Shells','SMG Ammo','Pistol','First aid kit','Rifle','Shotgun','SMG','Spear','Saw Bat','Hiking Backpack'];
   for(let i=0;i<count;i++){
     const x=(r()-.5)*w*.65,y=(r()-.5)*h*.55;
     if(isBlockedInterior(x,y))continue;
@@ -2304,7 +2361,7 @@ function dropFromZombie(z,mode){
 }
 function killZombie(z,mode){
   if(!z||z.dead)return;
-  z.dead=true;kills++;awardXP(25,'infected');dropFromZombie(z,mode);
+  z.dead=true;kills++;awardXP(25,'hostile');dropFromZombie(z,mode);
   z.root.parent?.remove(z.root);
   updateInventory();updateZombieCount();
 }
@@ -2319,7 +2376,7 @@ function killPlayer(){
   const livesEl=$('livesStat');if(livesEl)livesEl.textContent=String(livesRemaining);
   if(livesRemaining<=0){enterSpectator();return}
   const box=$('deathBox');if(box)box.hidden=false;
-  const t=$('deathText');if(t)t.textContent='Wave '+Math.max(1,waveNumber)+' overwhelmed you · '+kills+' infected eliminated · '+livesRemaining+' lives remain.';
+  const t=$('deathText');if(t)t.textContent='Wave '+Math.max(1,waveNumber)+' overwhelmed you · '+kills+' hostiles eliminated · '+livesRemaining+' lives remain.';
   showToast('You were overrun');
 }
 function enterSpectator(){
@@ -2482,18 +2539,26 @@ function updateWeapon(dt,now=performance.now()){
   }else weaponPivot.rotation.set(0,0,0);
 }
 
-function spawnZombieAt(template,a,interior=false,rng=rand){
-  if(!template)return null;
-  const n=normalizedModel(template.scene,1.78,true);
+function spawnZombieAt(source,a,interior=false,rng=rand){
+  if(!source)return null;
+  const archetype=source?.template?source:{id:'walker',label:'Walker',template:source,height:1.78,speed:[.28,.43],hp:100,damage:8,attackRange:1.28,attackMs:1050,behavior:'stalk',yawOffset:0};
+  const template=archetype.template;if(!template?.scene)return null;
+  const n=normalizedModel(template.scene,archetype.height||1.78,true);
   const root=n.root;
   if(interior)root.position.set(a.x,a.y,.015);
   else root.position.set(a.x,a.y,surfaceZXY(a.x,a.y)+.015);
   root.rotation.z=rng()*Math.PI*2;
   (interior?interiorGroup:zombieGroup).add(root);
   const clips=sanitizeCharacterClips(template.animations);
-  const clip=clips.find(c=>/walk/i.test(c.name))||clips.find(c=>/idle/i.test(c.name))||clips[0];
-  let mixer=null;if(clip){mixer=new THREE.AnimationMixer(n.model);mixer.clipAction(clip).play()}
-  const z={root,mixer,speed:.28+rng()*.15,hp:100,dead:false,steer:rng()>.5?1:-1,lastTurn:0,state:'stalk',path:[],pathIndex:0,nextPathAt:0};
+  const fast=(archetype.speed?.[1]||0)>1;
+  const clip=(fast?clips.find(c=>/run|gallop|sprint/i.test(c.name)):null)||clips.find(c=>/walk|run|move/i.test(c.name))||clips.find(c=>/idle/i.test(c.name))||clips[0];
+  let mixer=null,action=null;if(clip){mixer=new THREE.AnimationMixer(n.model);action=mixer.clipAction(clip);action.setEffectiveTimeScale(Math.max(.65,Math.min(2.2,(archetype.animSpeed||1))));action.play()}
+  const s=archetype.speed||[.28,.43];
+  const z={root,mixer,action,kind:archetype.id||'walker',label:archetype.label||'Hostile',behavior:archetype.behavior||'stalk',
+    speed:s[0]+rng()*Math.max(0,s[1]-s[0]),hp:archetype.hp||100,damage:archetype.damage||8,
+    attackRange:archetype.attackRange||1.28,attackMs:archetype.attackMs||1050,yawOffset:archetype.yawOffset||0,
+    burst:archetype.burst||1,nextBurstAt:performance.now()+900+rng()*2500,burstUntil:0,
+    dead:false,steer:rng()>.5?1:-1,lastTurn:0,state:'stalk',path:[],pathIndex:0,nextPathAt:0,nextAttackAt:0};
   root.userData.zombieRef=z;
   root.traverse(o=>{o.userData.zombieRef=z});
   (interior?interiorZombies:zombies).push(z);return z;
@@ -2516,7 +2581,7 @@ function spawnZombieWave(now=performance.now(),force=false){
     const variant=zombieTemplates.length?zombieTemplates[Math.floor(rand()*zombieTemplates.length)]:zombieTemplate;
     if(spawnZombieAt(variant,a,false))made++;
   }
-  if(made){waveNumber++;showToast('Infected wave '+waveNumber+' approaching · '+made)}
+  if(made){waveNumber++;showToast('Hostile wave '+waveNumber+' approaching · '+made)}
   nextWaveAt=now+19000+rand()*9000;
   updateZombieCount();return made;
 }
@@ -2551,8 +2616,12 @@ function moveZombieToward(z,tx,ty,dt,interior,now){
       if(Math.hypot(targetX-z.root.position.x,targetY-z.root.position.y)<1.2)z.pathIndex++;
     }
   }
+  if(z.behavior==='weave'&&rawDist>2.5){const phase=now*.003+(z.root.id%17);targetX+=Math.sin(phase)*2.1;targetY+=Math.cos(phase*.83)*2.1}
+  if((z.behavior==='pounce'||z.behavior==='charge')&&rawDist>2.2&&rawDist<16&&now>=z.nextBurstAt){
+    z.burstUntil=now+(z.behavior==='pounce'?520:850);z.nextBurstAt=now+2200+rand()*3200;
+  }
   const dx=targetX-z.root.position.x,dy=targetY-z.root.position.y,dist=Math.hypot(dx,dy)||.001;
-  const vx=dx/dist,vy=dy/dist,step=z.speed*dt;
+  const vx=dx/dist,vy=dy/dist,dynamicSpeed=z.speed*(now<z.burstUntil?z.burst:1),step=dynamicSpeed*dt;
   let nx=z.root.position.x+vx*step,ny=z.root.position.y+vy*step;
   const blocked=(x,y)=>interior?isBlockedInterior(x,y):isBlockedExterior(x,y,.30);
   if(!blocked(nx,ny)){
@@ -2563,7 +2632,7 @@ function moveZombieToward(z,tx,ty,dt,interior,now){
     if(!blocked(nx,ny)){z.root.position.x=nx;z.root.position.y=ny}else{z.steer*=-1;z.nextPathAt=0}
   }
   z.root.position.z=interior?.015:surfaceZXY(z.root.position.x,z.root.position.y)+.015;
-  z.root.rotation.z=Math.atan2(vx,vy);
+  z.root.rotation.z=Math.atan2(vx,vy)+(z.yawOffset||0);
   z.state=rawDist<1.35?'attack':rawDist<22?'chase':'stalk';
   return rawDist;
 }
@@ -2581,9 +2650,9 @@ function updateZombies(dt,now){
     if(z.dead)continue;z.mixer?.update(dt);
     const dist=moveZombieToward(z,playerRoot.position.x,playerRoot.position.y,dt,interiorMode,now);
     if(dist<38&&audioCtx&&now>(z.nextGroan||0)){z.nextGroan=now+3200+rand()*4200;spatialTone(z.root.position,'groan')}
-    if(dist<1.28&&now-lastDamageAt>1050){
-      damagePlayer(8);lastDamageAt=now;
-      if(!playerDead)showToast('Infected hit · '+health+' health');
+    if(dist<(z.attackRange||1.28)&&now>=(z.nextAttackAt||0)){
+      damagePlayer(z.damage||8);z.nextAttackAt=now+(z.attackMs||1050);lastDamageAt=now;
+      if(!playerDead)showToast((z.label||'Hostile')+' hit · '+health+' health');
     }
   }
   updateZombieCount();
@@ -2592,7 +2661,9 @@ function updateZombies(dt,now){
 async function buildSurvivalArt(){
   const [
     barrel,trash,pallet,barrier,cone,streetlight,hydrant,traffic1,traffic2,plasticBarrier,cinder,
-    containerGreen,containerRed,pipes,wheelStack,townSign,pickup,sports,truck,zombie,zombieChubby,zombieRibcage,chest,chestSpecial,...interiors
+    containerGreen,containerRed,pipes,wheelStack,townSign,pickup,sports,truck,
+    zombie,zombieChubby,zombieRibcage,dogShepherd,dogPug,wolf,orc,spider,yeti,bear,
+    chest,chestSpecial,...interiors
   ]=await Promise.all([
     loadAsset(ASSETS.barrel),loadAsset(ASSETS.trash),loadAsset(ASSETS.pallet),loadAsset(ASSETS.barrier),
     loadAsset(ASSETS.cone),loadAsset(ASSETS.streetlight),loadAsset(ASSETS.hydrant),
@@ -2600,13 +2671,27 @@ async function buildSurvivalArt(){
     loadAsset(ASSETS.containerGreen),loadAsset(ASSETS.containerRed),loadAsset(ASSETS.pipes),loadAsset(ASSETS.wheelStack),loadAsset(ASSETS.townSign),
     loadAsset(ASSETS.vehicle),loadAsset(ASSETS.sportsCar),loadAsset(ASSETS.truck),
     loadAsset(ASSETS.zombie),loadAsset(ASSETS.zombieChubby),loadAsset(ASSETS.zombieRibcage),
+    loadAsset(ASSETS.infectedShepherd),loadAsset(ASSETS.infectedPug),loadAsset(ASSETS.wolf),
+    loadAsset(ASSETS.orc),loadAsset(ASSETS.spider),loadAsset(ASSETS.yeti),loadAsset(ASSETS.bear),
     loadAsset(ASSETS.chest),loadAsset(ASSETS.chestSpecial),
     ...Object.values(INTERIOR_ASSETS).map(loadAsset)
   ]);
   const keys=Object.keys(INTERIOR_ASSETS);interiorTemplates={};keys.forEach((k,i)=>interiorTemplates[k]=interiors[i]);
   pickupTemplates={chest,chestSpecial};
-  zombieTemplates=[zombie,zombieChubby,zombieRibcage].filter(Boolean);
-  zombieTemplate=zombieTemplates[0]||zombie;
+  enemyArchetypes=[
+    zombie&&{id:'walker',label:'Walker',template:zombie,height:1.78,speed:[.28,.46],hp:90,damage:7,attackRange:1.25,attackMs:1150,behavior:'stalk',animSpeed:.75},
+    zombieChubby&&{id:'bruiser',label:'Chubby infected',template:zombieChubby,height:1.88,speed:[.20,.32],hp:180,damage:14,attackRange:1.42,attackMs:1450,behavior:'stalk',animSpeed:.68},
+    zombieRibcage&&{id:'runner',label:'Ribcage runner',template:zombieRibcage,height:1.80,speed:[.48,.76],hp:78,damage:9,attackRange:1.30,attackMs:900,behavior:'charge',burst:1.5,animSpeed:1.05},
+    dogShepherd&&{id:'hound',label:'Infected shepherd',template:dogShepherd,height:1.05,speed:[1.45,2.05],hp:62,damage:11,attackRange:1.15,attackMs:720,behavior:'pounce',burst:1.75,animSpeed:1.65},
+    dogPug&&{id:'pug',label:'Infected pug',template:dogPug,height:.62,speed:[1.05,1.55],hp:42,damage:7,attackRange:.92,attackMs:640,behavior:'weave',animSpeed:1.55},
+    wolf&&{id:'wolf',label:'Feral wolf',template:wolf,height:1.02,speed:[1.55,2.25],hp:82,damage:13,attackRange:1.18,attackMs:780,behavior:'pounce',burst:1.62,animSpeed:1.7},
+    spider&&{id:'spider',label:'Giant spider',template:spider,height:.72,speed:[1.10,1.75],hp:72,damage:10,attackRange:1.08,attackMs:680,behavior:'weave',burst:1.35,animSpeed:1.5},
+    orc&&{id:'orc',label:'Orc raider',template:orc,height:2.02,speed:[.62,.98],hp:220,damage:18,attackRange:1.52,attackMs:1250,behavior:'charge',burst:1.55,animSpeed:1.05},
+    yeti&&{id:'yeti',label:'Yeti brute',template:yeti,height:2.35,speed:[.48,.82],hp:300,damage:23,attackRange:1.72,attackMs:1500,behavior:'charge',burst:1.42,animSpeed:.9},
+    bear&&{id:'bear',label:'Feral bear',template:bear,height:1.65,speed:[.78,1.25],hp:340,damage:27,attackRange:1.82,attackMs:1450,behavior:'charge',burst:1.55,animSpeed:.9}
+  ].filter(Boolean);
+  zombieTemplates=enemyArchetypes;
+  zombieTemplate=enemyArchetypes[0]||null;
 
   const dense=densePreview();
   let props=0,vehicles=0;
@@ -2756,6 +2841,7 @@ function initInput(){
     if(e.code==='KeyG')claimNearestBase();
     if(e.code==='KeyX')setPlayerStance('prone');
     if(e.code==='KeyQ')cycleWeapon();
+    if(e.code==='KeyH')dropActiveWeapon();
     if(e.code==='Digit1')selectSlot('melee');
     if(e.code==='Digit2')selectSlot('sidearm');
     if(e.code==='Digit3')selectSlot('primary');
@@ -2822,6 +2908,9 @@ function initInput(){
   attackBtn?.addEventListener('pointercancel',()=>fireHeld=false);
   $('weaponBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();cycleWeapon()});
   $('reloadBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();requestReload()});
+  $('dropBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();dropActiveWeapon()});
+  $('dropMobileBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();dropActiveWeapon()});
+  $('inventoryList')?.addEventListener('pointerdown',e=>{const item=e.target?.dataset?.item;if(item)equipInventoryWeapon(item)});
   $('aimBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();setAiming(!aiming)});
   document.querySelectorAll('.loadoutSlot[data-slot]').forEach(btn=>btn.addEventListener('pointerdown',e=>{e.preventDefault();selectSlot(btn.dataset.slot)}));
   const sprint=$('sprintBtn');sprint?.addEventListener('pointerdown',e=>{e.preventDefault();mobileSprint=true});sprint?.addEventListener('pointerup',()=>mobileSprint=false);sprint?.addEventListener('pointercancel',()=>mobileSprint=false);
@@ -2833,6 +2922,18 @@ function initInput(){
 }
 function lerpAngle(a,b,t){let d=(b-a+Math.PI)%(Math.PI*2)-Math.PI;return a+d*t}
 function playerFacingYaw(worldHeading){return worldHeading+playerModelYawOffset}
+function visualFacingAlignment(worldHeading=0){
+  if(!playerRoot||!playerVisualRoot)return null;
+  const saved=playerRoot.rotation.z;
+  playerRoot.rotation.z=playerFacingYaw(worldHeading);playerRoot.updateMatrixWorld(true);
+  const a=playerVisualRoot.localToWorld(new THREE.Vector3(0,0,0));
+  const b=playerVisualRoot.localToWorld(new THREE.Vector3(0,0,1));
+  const visual=new THREE.Vector2(b.x-a.x,b.y-a.y).normalize();
+  const expected=new THREE.Vector2(Math.sin(worldHeading),Math.cos(worldHeading)).normalize();
+  const dot=visual.dot(expected);
+  playerRoot.rotation.z=saved;playerRoot.updateMatrixWorld(true);
+  return{dot,visual:{x:visual.x,y:visual.y},expected:{x:expected.x,y:expected.y},modelYawOffset:playerModelYawOffset};
+}
 function normalizeMovementInput(ix,iy){
   ix=Number.isFinite(ix)?ix:0;iy=Number.isFinite(iy)?iy:0;
   const ax=Math.abs(ix),ay=Math.abs(iy);
@@ -3006,6 +3107,7 @@ async function boot(){
     window.BP_HORIZON_SMOKE={
       ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),
       player:Boolean(playerRoot),character:CHARACTER_KEY,preview:PREVIEW_KEY,loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,
+      enemyArchetypes:enemyArchetypes.map(x=>x.id),weaponCatalog:[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],dropWeapon:true,
       packCapacity,weapon:equippedWeaponName,interiorAssets:Object.values(interiorTemplates).filter(Boolean).length,
       artChildren:artGroup.children.length,roadLayers:roadLayer?.children?.length||0,streetLife:{...streetLifeStats},
       spawnBlocked:isBlockedExterior(playerRoot.position.x,playerRoot.position.y,.36),
@@ -3047,6 +3149,10 @@ async function boot(){
         const v=movementVector(ix,iy,0);
         return {dx:v.x,dy:v.y,heading:Math.atan2(v.x,v.y)};
       },
+      visualFacingAlignment,
+      dropWeaponAvailable:()=>Boolean(activeItemForSlot(activeSlot)&&activeWeapon!=='Fists'),
+      enemyCatalog:()=>enemyArchetypes.map(x=>({id:x.id,label:x.label,speed:x.speed,hp:x.hp,damage:x.damage,behavior:x.behavior})),
+      weaponCatalog:()=>[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],
       cardinalControlsProbe:()=>{
         const probe=(x,y)=>{const n=normalizeMovementInput(x,y),v=movementVector(n.x,n.y,0),heading=Math.atan2(v.x,v.y);return{x:n.x,y:n.y,dx:v.x,dy:v.y,heading,playerYaw:playerFacingYaw(heading)}};
         return{
