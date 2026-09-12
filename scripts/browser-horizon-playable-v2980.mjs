@@ -34,11 +34,11 @@ async function testLanding(){
   const href=await page.locator('a.cta').first().getAttribute('href');
   console.log(JSON.stringify({landing:true,status:response?.status(),url,href},null,2));
   if(response?.status()!==200)throw new Error('landing HTTP '+response?.status());
-  if(href!=='/app/horizon-playable/?build=3002')throw new Error('landing CTA stale: '+href);
+  if(href!=='/app/horizon-playable/?build=3010')throw new Error('landing CTA stale: '+href);
 }
 
 async function testCell(cell){
-  const url='https://bridgepointintelligence.online/app/horizon-playable/?build=3002&cell='+cell+'&ci='+Date.now();
+  const url='https://bridgepointintelligence.online/app/horizon-playable/?build=3010&cell='+cell+'&ci='+Date.now();
   const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
   await page.waitForFunction(()=>Boolean(window.BP_HORIZON_SMOKE),null,{timeout:90000});
   const d=await page.evaluate(()=>{
@@ -57,7 +57,9 @@ async function testCell(cell){
         use:rect('interactBtn'),
         swing:rect('attackBtn'),
         run:rect('sprintBtn'),
-        rail:rect('fullscreenBtn')
+        rail:rect('fullscreenBtn'),
+        aim:rect('aimBtn'),
+        weapon:rect('weaponBtn')
       }
     };
   });
@@ -84,13 +86,17 @@ async function testCell(cell){
     if(!(d.smoke?.streetLife?.grass>=400))throw new Error('manhattan grass detail too sparse: '+JSON.stringify(d.smoke?.streetLife));
     if(!(d.smoke?.streetLife?.benches>=25))throw new Error('manhattan benches too sparse: '+JSON.stringify(d.smoke?.streetLife));
     if(!(d.smoke?.streetLife?.planters>=40))throw new Error('manhattan planters too sparse: '+JSON.stringify(d.smoke?.streetLife));
+    if(!(d.smoke?.streetLife?.windows>=1500))throw new Error('manhattan facade detail too sparse: '+JSON.stringify(d.smoke?.streetLife));
+    if(!(d.smoke?.zombieVariants>=2))throw new Error('manhattan zombie variation missing: '+d.smoke?.zombieVariants);
   }
   if(!(d.canvases>=2))throw new Error(cell+' expected world + minimap canvases');
   const overlap=(a,b)=>a&&b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
   if(overlap(d.rects.use,d.rects.swing))throw new Error(cell+' USE overlaps SWING');
   if(overlap(d.rects.swing,d.rects.run))throw new Error(cell+' SWING overlaps RUN');
-  if(overlap(d.rects.use,d.rects.rail)||overlap(d.rects.swing,d.rects.rail)||overlap(d.rects.run,d.rects.rail))
+  if(overlap(d.rects.use,d.rects.rail)||overlap(d.rects.swing,d.rects.rail)||overlap(d.rects.run,d.rects.rail)||overlap(d.rects.aim,d.rects.rail)||overlap(d.rects.weapon,d.rects.rail))
     throw new Error(cell+' gameplay buttons overlap right control rail');
+  if(overlap(d.rects.aim,d.rects.weapon)||overlap(d.rects.aim,d.rects.swing)||overlap(d.rects.weapon,d.rects.use))
+    throw new Error(cell+' aim/weapon controls overlap action controls');
   const play=await page.evaluate(()=>{
     const t=window.BP_HORIZON_TEST;
     const entered=t?.enterFirst?.();
@@ -112,7 +118,11 @@ async function testCell(cell){
       left:t?.directionProbe?.('left'),
       right:t?.directionProbe?.('right'),
       weapon:t?.weaponSize?.(),
-      mobility:t?.spawnMobility?.()
+      mobility:t?.spawnMobility?.(),
+      sockets:t?.socketProbe?.(),
+      gun:t?.gunProbe?.(),
+      floors:t?.multiFloorProbe?.(),
+      camera:t?.cameraProbe?.()
     };
   });
   console.log(JSON.stringify({cell,controls},null,2));
@@ -125,6 +135,18 @@ async function testCell(cell){
   if(controls.mobility?.blockedHere)throw new Error(cell+' spawn mobility says player is blocked');
   const openCount=Object.values(controls.mobility?.open||{}).filter(Boolean).length;
   if(openCount<2)throw new Error(cell+' spawn has fewer than 2 open movement directions: '+JSON.stringify(controls.mobility));
+  if(!(controls.sockets?.rightHand&&controls.sockets?.leftHand&&controls.sockets?.handChildren>0))
+    throw new Error(cell+' skeleton weapon sockets missing: '+JSON.stringify(controls.sockets));
+  if(!(controls.gun?.side?.activeWeapon==='Pistol'&&controls.gun?.side?.after===controls.gun?.side?.before-1))
+    throw new Error(cell+' pistol aim/fire failed: '+JSON.stringify(controls.gun));
+  if(!(controls.gun?.primary?.activeWeapon==='Rifle'))
+    throw new Error(cell+' rifle slot switching failed: '+JSON.stringify(controls.gun));
+  if(controls.camera?.blocked)throw new Error(cell+' camera resolved inside collision: '+JSON.stringify(controls.camera));
+  if(cell==='manhattan'){
+    if(!(controls.floors?.first?.floors>=5))throw new Error('manhattan tall-building floors missing: '+JSON.stringify(controls.floors));
+    if(!(controls.floors?.second?.floor===2&&controls.floors?.second?.pickups>0))
+      throw new Error('manhattan floor traversal/loot failed: '+JSON.stringify(controls.floors));
+  }
   const systems=await page.evaluate(()=>{
     const t=window.BP_HORIZON_TEST;
     const feet=t?.feetProbe?.();
@@ -155,7 +177,7 @@ try{
   await testLanding();
   await testCell('middletown');
   await testCell('manhattan');
-  console.log('HORIZON_V3002_BROWSER_SMOKE_PASS');
+  console.log('HORIZON_V3010_BROWSER_SMOKE_PASS');
   if(errors.length)console.log('pageErrors',errors);
   const serious=messages.filter(x=>/syntaxerror|referenceerror|typeerror/i.test(x));
   if(serious.length)throw new Error('Serious console errors: '+serious.join(' | '));
