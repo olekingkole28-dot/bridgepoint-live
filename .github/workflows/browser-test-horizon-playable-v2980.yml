@@ -1,4 +1,4 @@
-name: Browser Test Horizon Playable v2980
+name: Browser Test Horizon Playable v2990
 
 on:
   workflow_dispatch:
@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'app/horizon-world/**'
+      - 'app/horizon-playable/**'
       - 'scripts/browser-horizon-playable-v2980.mjs'
       - '.github/workflows/browser-test-horizon-playable-v2980.yml'
 
@@ -13,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: horizon-playable-v2980
+  group: horizon-playable-v2990
   cancel-in-progress: true
 
 jobs:
