@@ -273,18 +273,33 @@ function nearestRoadForBuilding(b){
 }
 function buildEntryPoints(){
   entryGroup.clear();buildingEntries=[];
-  const candidates=[...buildingCenters].filter(b=>b.width>4&&b.depth>4&&b.height>5).sort((a,b)=>(a.x*a.x+a.y*a.y)-(b.x*b.x+b.y*b.y));
-  const maxEntries=CELL==='manhattan'?46:28,stride=Math.max(1,Math.floor(candidates.length/maxEntries));
-  for(let i=2;i<candidates.length&&buildingEntries.length<maxEntries;i+=stride){
-    const b=candidates[i],road=nearestRoadForBuilding(b);if(!road)continue;
+  const candidates=[...buildingCenters]
+    .filter(b=>b.width>3.4&&b.depth>3.4&&b.height>4.2)
+    .sort((a,b)=>(a.x*a.x+a.y*a.y)-(b.x*b.x+b.y*b.y));
+  const visualLimit=CELL==='manhattan'?260:120;
+  let visualCount=0;
+  for(const b of candidates){
+    const road=nearestRoadForBuilding(b);if(!road)continue;
     const dx=road.x-b.x,dy=road.y-b.y;let x=b.x,y=b.y,rot=0;
-    if(Math.abs(dx)>Math.abs(dy)){x=dx>0?b.maxx+.55:b.minx-.55;y=THREE.MathUtils.clamp(road.y,b.miny+.7,b.maxy-.7);rot=Math.PI/2}
-    else{y=dy>0?b.maxy+.55:b.miny-.55;x=THREE.MathUtils.clamp(road.x,b.minx+.7,b.maxx-.7)}
-    const root=new THREE.Group(),frameMat=new THREE.MeshStandardMaterial({color:0x242922,roughness:.68,metalness:.22}),glowMat=new THREE.MeshStandardMaterial({color:0x506c57,emissive:0x2a7b49,emissiveIntensity:.65,roughness:.55});
-    const left=new THREE.Mesh(new THREE.BoxGeometry(.15,.18,2.35),frameMat),right=left.clone();left.position.set(-.62,0,1.17);right.position.set(.62,0,1.17);
-    const top=new THREE.Mesh(new THREE.BoxGeometry(1.38,.18,.15),frameMat);top.position.set(0,0,2.28);
-    const lamp=new THREE.Mesh(new THREE.BoxGeometry(.18,.12,.18),glowMat);lamp.position.set(0,-.12,2.05);
-    root.add(left,right,top,lamp);root.position.set(x,y,b.z);root.rotation.z=rot;entryGroup.add(root);
+    if(Math.abs(dx)>Math.abs(dy)){
+      x=dx>0?b.maxx+.58:b.minx-.58;
+      y=THREE.MathUtils.clamp(road.y,b.miny+.7,b.maxy-.7);
+      rot=Math.PI/2;
+    }else{
+      y=dy>0?b.maxy+.58:b.miny-.58;
+      x=THREE.MathUtils.clamp(road.x,b.minx+.7,b.maxx-.7);
+    }
+    let root=null;
+    if(visualCount<visualLimit){
+      root=new THREE.Group();
+      const frameMat=new THREE.MeshStandardMaterial({color:0x242922,roughness:.68,metalness:.22});
+      const glowMat=new THREE.MeshStandardMaterial({color:0x506c57,emissive:0x2a7b49,emissiveIntensity:.68,roughness:.55});
+      const left=new THREE.Mesh(new THREE.BoxGeometry(.15,.18,2.35),frameMat),right=left.clone();
+      left.position.set(-.62,0,1.17);right.position.set(.62,0,1.17);
+      const top=new THREE.Mesh(new THREE.BoxGeometry(1.38,.18,.15),frameMat);top.position.set(0,0,2.28);
+      const lamp=new THREE.Mesh(new THREE.BoxGeometry(.18,.12,.18),glowMat);lamp.position.set(0,-.12,2.05);
+      root.add(left,right,top,lamp);root.position.set(x,y,b.z);root.rotation.z=rot;entryGroup.add(root);visualCount++;
+    }
     buildingEntries.push({
       ...b,entryX:x,entryY:y,entryZ:b.z,doorRoot:root,seed:hash(b.id+':interior'),
       returnX:road.x,returnY:road.y,returnZ:road.z
