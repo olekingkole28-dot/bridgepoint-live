@@ -1508,32 +1508,58 @@ function renderMinimap(){
   mapCtx.save();mapCtx.translate(p.x,p.y);mapCtx.rotate(-yaw);mapCtx.fillStyle='#8effb5';mapCtx.beginPath();mapCtx.moveTo(0,-7);mapCtx.lineTo(5,6);mapCtx.lineTo(-5,6);mapCtx.closePath();mapCtx.fill();mapCtx.restore();
 }
 
+function setAiming(v){
+  aiming=Boolean(v)&&isFirearm(activeWeapon)&&!playerDead;
+  updateInventory();
+}
 function initInput(){
   addEventListener('keydown',e=>{
     keys.add(e.code);
     if(e.code==='KeyE')interact();
-    if(e.code==='Space'||e.code==='KeyF'){e.preventDefault();attack()}
+    if(e.code==='Space'||e.code==='KeyF'){e.preventDefault();useActiveWeapon()}
+    if(e.code==='KeyQ')cycleWeapon();
+    if(e.code==='Digit1')selectSlot('melee');
+    if(e.code==='Digit2')selectSlot('sidearm');
+    if(e.code==='Digit3')selectSlot('primary');
+    if(e.code==='KeyR'&&isFirearm(activeWeapon)){
+      const mag=activeWeapon==='Rifle'?20:activeWeapon==='Shotgun'?6:12;
+      ammoState[activeWeapon]=Math.max(ammoState[activeWeapon]||0,mag);showToast(activeWeapon+' magazine ready');updateInventory();
+    }
   });
   addEventListener('keyup',e=>keys.delete(e.code));
+  renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 
   let lookId=null,lastX=0,lastY=0;
-  renderer.domElement.addEventListener('pointerdown',e=>{lookId=e.pointerId;lastX=e.clientX;lastY=e.clientY;renderer.domElement.setPointerCapture?.(e.pointerId)});
-  renderer.domElement.addEventListener('pointermove',e=>{if(e.pointerId!==lookId)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;yaw-=dx*.0047;pitch=THREE.MathUtils.clamp(pitch+dy*.0032,-.12,.50)});
-  const stopLook=e=>{if(e.pointerId===lookId)lookId=null};renderer.domElement.addEventListener('pointerup',stopLook);renderer.domElement.addEventListener('pointercancel',stopLook);
+  renderer.domElement.addEventListener('pointerdown',e=>{
+    if(e.button===2){setAiming(true);return}
+    lookId=e.pointerId;lastX=e.clientX;lastY=e.clientY;renderer.domElement.setPointerCapture?.(e.pointerId);
+  });
+  renderer.domElement.addEventListener('pointermove',e=>{
+    if(e.pointerId!==lookId)return;
+    const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
+    yaw-=dx*.00425;pitch=THREE.MathUtils.clamp(pitch+dy*.0028,-.08,.44);
+  });
+  const stopLook=e=>{if(e.button===2)setAiming(false);if(e.pointerId===lookId)lookId=null};
+  renderer.domElement.addEventListener('pointerup',stopLook);renderer.domElement.addEventListener('pointercancel',stopLook);
 
   const pad=$('movePad'),knob=$('moveKnob');let padId=null;
   function padMove(e){
-    const r=pad.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=e.clientX-cx,dy=e.clientY-cy,max=r.width*.34,len=Math.hypot(dx,dy)||1,s=Math.min(1,max/len),px=dx*s,py=dy*s;
+    const r=pad.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=e.clientX-cx,dy=e.clientY-cy,max=r.width*.34,len=Math.hypot(dx,dy)||1,scl=Math.min(1,max/len),px=dx*scl,py=dy*scl;
     knob.style.transform='translate('+px+'px,'+py+'px)';
-    const nx=px/max,ny=-py/max,mag=Math.hypot(nx,ny);mobileMove.x=mag<.13?0:nx;mobileMove.y=mag<.13?0:ny;
+    const nx=px/max,ny=-py/max,mag=Math.hypot(nx,ny);
+    mobileMove.x=mag<.16?0:nx;mobileMove.y=mag<.16?0:ny;
   }
   pad?.addEventListener('pointerdown',e=>{padId=e.pointerId;pad.setPointerCapture?.(e.pointerId);padMove(e)});
   pad?.addEventListener('pointermove',e=>{if(e.pointerId===padId)padMove(e)});
-  const padEnd=e=>{if(e.pointerId!==padId)return;padId=null;mobileMove.x=mobileMove.y=0;knob.style.transform='translate(0,0)'};pad?.addEventListener('pointerup',padEnd);pad?.addEventListener('pointercancel',padEnd);
+  const padEnd=e=>{if(e.pointerId!==padId)return;padId=null;mobileMove.x=mobileMove.y=0;knob.style.transform='translate(0,0)'};
+  pad?.addEventListener('pointerup',padEnd);pad?.addEventListener('pointercancel',padEnd);
 
   $('respawnBtn')?.addEventListener('click',respawnPlayer);
   $('interactBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();interact()});
-  $('attackBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();attack()});
+  $('attackBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();useActiveWeapon()});
+  $('weaponBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();cycleWeapon()});
+  $('aimBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();setAiming(!aiming)});
+  document.querySelectorAll('.loadoutSlot[data-slot]').forEach(btn=>btn.addEventListener('pointerdown',e=>{e.preventDefault();selectSlot(btn.dataset.slot)}));
   const sprint=$('sprintBtn');sprint?.addEventListener('pointerdown',e=>{e.preventDefault();mobileSprint=true});sprint?.addEventListener('pointerup',()=>mobileSprint=false);sprint?.addEventListener('pointercancel',()=>mobileSprint=false);
 
   $('cameraBtn').onclick=()=>cameraMode=(cameraMode+1)%2;
@@ -1546,44 +1572,81 @@ function movementVector(ix,iy,angle=yaw){
   const fx=Math.sin(angle),fy=Math.cos(angle),rx=Math.cos(angle),ry=-Math.sin(angle);
   return {x:fx*iy+rx*ix,y:fy*iy+ry*ix};
 }
+function playerBlocked(x,y){
+  return interiorMode?isBlockedInterior(x,y):isBlockedExterior(x,y,.31);
+}
+function movePlayerStable(dx,dy){
+  const dist=Math.hypot(dx,dy),steps=Math.max(1,Math.ceil(dist/.16)),sx=dx/steps,sy=dy/steps;
+  for(let i=0;i<steps;i++){
+    const nx=playerRoot.position.x+sx;
+    if(!playerBlocked(nx,playerRoot.position.y))playerRoot.position.x=nx;else playerVelocity.x=0;
+    const ny=playerRoot.position.y+sy;
+    if(!playerBlocked(playerRoot.position.x,ny))playerRoot.position.y=ny;else playerVelocity.y=0;
+  }
+}
 function updatePlayer(dt){
   if(!playerRoot||playerDead)return;
   let ix=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+mobileMove.x;
   let iy=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0)+mobileMove.y;
   const len=Math.hypot(ix,iy);if(len>1){ix/=len;iy/=len}
-  const inputMag=Math.hypot(ix,iy),moving=inputMag>.05,sprint=keys.has('ShiftLeft')||keys.has('ShiftRight')||mobileSprint;
-  const speed=(interiorMode?3.6:4.35)*(sprint?1.55:1);
+  const moving=Math.hypot(ix,iy)>.06,sprint=(keys.has('ShiftLeft')||keys.has('ShiftRight')||mobileSprint)&&!aiming;
+  const speed=(interiorMode?3.05:3.35)*(sprint?1.62:1)*(aiming?.72:1);
   const move=movementVector(ix,iy,yaw);
   const desiredX=moving?move.x*speed:0,desiredY=moving?move.y*speed:0;
-  const response=1-Math.exp(-(moving?11:15)*dt);
-  playerVelocity.x=THREE.MathUtils.lerp(playerVelocity.x,desiredX,response);playerVelocity.y=THREE.MathUtils.lerp(playerVelocity.y,desiredY,response);
+  const accel=1-Math.exp(-(moving?8.5:14)*dt);
+  playerVelocity.x=THREE.MathUtils.lerp(playerVelocity.x,desiredX,accel);
+  playerVelocity.y=THREE.MathUtils.lerp(playerVelocity.y,desiredY,accel);
+  movePlayerStable(playerVelocity.x*dt,playerVelocity.y*dt);
 
-  const nx=playerRoot.position.x+playerVelocity.x*dt,ny=playerRoot.position.y+playerVelocity.y*dt;
-  const blockedX=interiorMode?isBlockedInterior(nx,playerRoot.position.y):isBlockedExterior(nx,playerRoot.position.y);
-  if(!blockedX)playerRoot.position.x=nx;else playerVelocity.x=0;
-  const blockedY=interiorMode?isBlockedInterior(playerRoot.position.x,ny):isBlockedExterior(playerRoot.position.x,ny);
-  if(!blockedY)playerRoot.position.y=ny;else playerVelocity.y=0;
+  const targetGround=interiorMode?.015:surfaceZXY(playerRoot.position.x,playerRoot.position.y)+.015;
+  playerRoot.position.z=THREE.MathUtils.lerp(playerRoot.position.z,targetGround,1-Math.exp(-22*dt));
 
-  playerRoot.position.z=interiorMode ? 0.015 : surfaceZXY(playerRoot.position.x,playerRoot.position.y)+0.015;
-  if(moving){
+  if(aiming&&isFirearm(activeWeapon)){
+    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,yaw,1-Math.exp(-14*dt));
+  }else if(moving){
     const targetRot=Math.atan2(playerVelocity.x,playerVelocity.y);
-    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-12*dt));
+    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-10*dt));
   }
-  if(swingTime<=0)playPlayerAnimation(moving?(sprint?'run':'walk'):'idle');playerMixer?.update(dt);
+  if(swingTime<=0)playPlayerAnimation(moving?(sprint?'run':'walk'):'idle');
+  playerMixer?.update(dt);
 
   if(!interiorMode){
     const revealDist=lastReveal?Math.hypot(playerRoot.position.x-lastReveal.x,playerRoot.position.y-lastReveal.y):999;
     if(revealDist>4.5){revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone()}
   }
 }
+function cameraPointBlocked(p){
+  if(interiorMode){
+    if(!interiorBounds)return false;
+    if(p.x<interiorBounds.minx+.12||p.x>interiorBounds.maxx-.12||p.y<interiorBounds.miny+.12||p.y>interiorBounds.maxy-.12)return true;
+    return interiorWalls.some(w=>p.x>w.minx-.08&&p.x<w.maxx+.08&&p.y>w.miny-.08&&p.y<w.maxy+.08);
+  }
+  return isBlockedExterior(p.x,p.y,.12);
+}
+function safeCameraPosition(target,desired){
+  const safe=target.clone(),steps=18;
+  for(let i=1;i<=steps;i++){
+    const t=i/steps,p=target.clone().lerp(desired,t);
+    if(cameraPointBlocked(p))break;
+    safe.copy(p);
+  }
+  if(interiorMode)safe.z=THREE.MathUtils.clamp(safe.z,.72,2.72);
+  else safe.z=Math.max(safe.z,surfaceZXY(safe.x,safe.y)+.72);
+  return safe;
+}
 function updateCamera(dt){
   if(!playerRoot)return;
-  const target=playerRoot.position.clone().add(new THREE.Vector3(0,0,1.38));
+  const target=playerRoot.position.clone().add(new THREE.Vector3(0,0,aiming?1.48:1.36));
   const forward=new THREE.Vector3(Math.sin(yaw),Math.cos(yaw),0),right=new THREE.Vector3(Math.cos(yaw),-Math.sin(yaw),0);
-  const dist=interiorMode?(cameraMode===0?3.35:1.95):(cameraMode===0?4.25:2.15),shoulder=cameraMode===0?.52:.32;
-  const desired=target.clone().addScaledVector(forward,-dist*Math.cos(pitch)).addScaledVector(right,shoulder);desired.z+=.9+dist*Math.sin(pitch);
-  const alpha=1-Math.exp(-9*dt);camera.position.lerp(desired,alpha);camera.lookAt(target.clone().addScaledVector(forward,cameraMode===0?2.2:3.0));
+  const dist=aiming?1.75:interiorMode?(cameraMode===0?3.05:1.85):(cameraMode===0?4.0:2.1);
+  const shoulder=aiming?.58:cameraMode===0?.46:.30;
+  const desired=target.clone().addScaledVector(forward,-dist*Math.cos(pitch)).addScaledVector(right,shoulder);
+  desired.z+=aiming?.38:.82+dist*Math.sin(pitch);
+  const safe=safeCameraPosition(target,desired),alpha=1-Math.exp(-(aiming?14:9)*dt);
+  camera.position.lerp(safe,alpha);
+  camera.lookAt(target.clone().addScaledVector(forward,aiming?8:cameraMode===0?2.2:3.0));
 }
+
 async function enterLandscape(){
   try{if(!document.fullscreenElement&&document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen({navigationUI:'hide'})}catch(_){}
   try{if(screen.orientation&&screen.orientation.lock)await screen.orientation.lock('landscape')}catch(_){}
