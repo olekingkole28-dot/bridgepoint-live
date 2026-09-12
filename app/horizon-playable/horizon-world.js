@@ -2,21 +2,39 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {clone as cloneSkeleton} from 'three/addons/utils/SkeletonUtils.js';
 
-const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-preview-v2972';
+const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-preview-v2984';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
+const INTERIOR_BASE='https://cdn.jsdelivr.net/gh/sijun-kevin-hu/break-my-house@main/public/models/house-interior';
 const ASSETS={
   player:FREE_BASE+'/Characters/glTF/Characters_Matt_SingleWeapon.gltf',
   zombie:FREE_BASE+'/Characters/glTF/Zombie_Basic.gltf',
-  chest:FREE_BASE+'/Environment/glTF/Chest.gltf',
   barrel:FREE_BASE+'/Environment/glTF/Barrel.gltf',
   trash:FREE_BASE+'/Environment/glTF/TrashBag_1.gltf',
   pallet:FREE_BASE+'/Environment/glTF/Pallet_Broken.gltf',
   barrier:FREE_BASE+'/Environment/glTF/TrafficBarrier_1.gltf',
-  vehicle:FREE_BASE+'/Vehicles/glTF/Vehicle_Pickup.gltf'
+  cone:FREE_BASE+'/Environment/glTF/TrafficCone_1.gltf',
+  streetlight:FREE_BASE+'/Environment/glTF/StreetLights.gltf',
+  hydrant:FREE_BASE+'/Environment/glTF/FireHydrant.gltf',
+  vehicle:FREE_BASE+'/Vehicles/glTF/Vehicle_Pickup.gltf',
+  axe:FREE_BASE+'/Weapons/glTF/Axe.gltf',
+  bat:FREE_BASE+'/Weapons/glTF/WoodenBat_Barbed.gltf',
+  knife:FREE_BASE+'/Weapons/glTF/Knife.gltf'
+};
+const INTERIOR_ASSETS={
+  chair:INTERIOR_BASE+'/Chair.glb',
+  couch:INTERIOR_BASE+'/Couch%20Small-X9msj0gtb5.glb',
+  plant:INTERIOR_BASE+'/Houseplant.glb',
+  fridge:INTERIOR_BASE+'/Kitchen%20Fridge.glb',
+  sink:INTERIOR_BASE+'/Kitchen%20Sink.glb',
+  lamp:INTERIOR_BASE+'/Lamp.glb',
+  oven:INTERIOR_BASE+'/Oven.glb',
+  shelf:INTERIOR_BASE+'/Shelf%20Large.glb',
+  table:INTERIOR_BASE+'/Table%20Round%20Small.glb'
 };
 
 const params=new URLSearchParams(location.search);
-const CELL=params.get('cell')==='manhattan'?'manhattan':'middletown';
+const params=new URLSearchParams(location.search);
+const CELL=params.get('cell')==='middletown'?'middletown':'manhattan';
 const $=id=>document.getElementById(id);
 const root=$('world');
 const loadText=$('loadText');
@@ -50,23 +68,36 @@ resizeRenderer();
 
 const loader=new GLTFLoader();
 const clock=new THREE.Clock();
+const exteriorRoot=new THREE.Group();
 const worldGroup=new THREE.Group();
 const artGroup=new THREE.Group();
 const lootGroup=new THREE.Group();
 const zombieGroup=new THREE.Group();
-scene.add(worldGroup,artGroup,lootGroup,zombieGroup);
+const entryGroup=new THREE.Group();
+const interiorGroup=new THREE.Group();
+exteriorRoot.add(worldGroup,artGroup,lootGroup,zombieGroup,entryGroup);
+scene.add(exteriorRoot,interiorGroup);
+interiorGroup.visible=false;
 
+let data,lon0,lat0,mx,my,baseElevation=0;
 let data,lon0,lat0,mx,my,baseElevation=0;
 let parcelLayer,partsLayer,buildingLayer,roadLayer,terrainLayer;
 let hemi,sun,lightMode=0;
 let playerRoot=null,playerMixer=null,playerClips=[],playerAction=null;
-let yaw=0,pitch=.16,cameraMode=0;
+let yaw=0,pitch=.14,cameraMode=0;
 let health=100,lastDamageAt=0;
 let playerSpawn=new THREE.Vector3();
-let roadAnchors=[],buildingCenters=[],lootSpawns=[],zombies=[];
-let nearestLoot=null,lootCount=0;
-let inventory={};
+const playerVelocity=new THREE.Vector3();
+let roadAnchors=[],buildingCenters=[],buildingEntries=[],zombies=[],interiorZombies=[];
+let nearestInteract=null,lootCount=2;
+let inventory={Bandage:1,Water:1};
+let packName='Starter Duffel',packCapacity=24,packMesh=null;
+let weaponPivot=null,weaponTemplates={},equippedWeaponName='Axe',swingTime=0,attackCooldown=0;
+let zombieTemplate=null;
 let mobileMove={x:0,y:0},mobileSprint=false;
+let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),exteriorYaw=0;
+let interiorWalls=[],interiorContainers=[],interiorBounds=null,interiorExit=null,interiorTemplates={};
+const keys=new Set();
 const keys=new Set();
 
 const minimap=$('minimap');
