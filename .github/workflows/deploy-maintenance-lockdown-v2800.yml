@@ -125,7 +125,7 @@ jobs:
               && grep -Fq 'DENSE CITY' /tmp/horizon-preview.html \
               && grep -Fq 'MOUNTAIN TOWN' /tmp/horizon-preview.html \
               && grep -Fq 'WATERFRONT SUBURB' /tmp/horizon-preview.html \
-              && grep -Fq 'GROUNDED SURVIVOR · ZOMBIE DOGS · ORCS · SPIDERS · BEASTS · CROWS · WEAPONS' /tmp/horizon-preview.html \
+              && grep -Fq 'MAKEHUMAN SURVIVOR · PRECOMPUTED PATROLS · CREEPY INFECTED · BEASTS · CROWS · DRAWN WEAPONS' /tmp/horizon-preview.html \
               && grep -Fq 'Characters_Matt.gltf' /tmp/horizon-world.js \
               && grep -Fq 'Characters_Lis.gltf' /tmp/horizon-world.js \
               && grep -Fq 'Characters_Sam.gltf' /tmp/horizon-world.js \
@@ -134,7 +134,7 @@ jobs:
               && grep -Fq 'playerVelocity.x=desiredX' /tmp/horizon-world.js \
               && grep -Fq 'playerFacingYaw' /tmp/horizon-world.js \
               && grep -Fq 'n.model.rotation.y=Math.PI' /tmp/horizon-world.js \
-              && grep -Fq 'playerRoot.rotation.z=targetRot' /tmp/horizon-world.js \
+              && grep -Fq 'playerRoot.rotation.z=lerpAngle' /tmp/horizon-world.js \
               && grep -Fq "id:'hound'" /tmp/horizon-world.js \
               && grep -Fq "id:'orc'" /tmp/horizon-world.js \
               && grep -Fq "id:'spider'" /tmp/horizon-world.js \
@@ -146,6 +146,10 @@ jobs:
               && grep -Fq 'function maybeWalkOutOpenDoor' /tmp/horizon-world.js \
               && grep -Fq 'playerRealistic' /tmp/horizon-world.js \
               && grep -Fq 'aimProbe' /tmp/horizon-world.js \
+              && grep -Fq 'function buildPatrolRoute' /tmp/horizon-world.js \
+              && grep -Fq 'function setEnemyAnimation' /tmp/horizon-world.js \
+              && grep -Fq 'putActiveGripWeapon' /tmp/horizon-world.js \
+              && grep -Fq "id:'screamer'" /tmp/horizon-world.js \
               && grep -Fq "id:'crow'" /tmp/horizon-world.js \
               && grep -Fq 'function rustifyVehicle' /tmp/horizon-world.js \
               && grep -Fq 'DROP ACTIVE WEAPON' /tmp/horizon-preview.html; then
