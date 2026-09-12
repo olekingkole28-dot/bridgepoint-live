@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4223;
+const BUILD_VERSION=4224;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -365,7 +365,7 @@ let drivableVehicles=[],activeVehicle=null;
 let sceneFetchAttempts=0,sceneFetchError=null;
 let decayPatchedMaterials=0,smartSnappedProps=0,openSpaceProps=0;
 let flashlight=null,flashlightTarget=null,flashlightOn=false,autoDayNight=true,lastAtmosphereUpdate=0;
-let slideTime=0,leanAmount=0,leanTarget=0,lastVaultAt=0;
+let slideTime=0,leanAmount=0,leanTarget=0,lastVaultAt=0,reticleSpread=10,locomotionIntent='idle',lastGrounded=true;
 let doorAnimations=[],doorSystemCount=0;
 let xp=0,battleTier=0,livesRemaining=3,spectatorMode=false,spectatorIndex=0,lastSpectatorSwitch=0;
 let claimedBaseId=null,factionId='SURVIVORS',factionColor='#47e285',factionBanner=null;
@@ -781,10 +781,7 @@ function createPlayerPhysics(){
 function setPlayerStance(next){
   if(!STANCES[next]||next===playerStance||playerDead)return;
   playerStance=next;
-  if(playerVisualRoot){
-    const stanceScale=next==='stand'?1:next==='crouch'?.78:.48;
-    playerVisualRoot.scale.z=playerVisualBaseScaleZ*stanceScale;
-  }
+  if(playerVisualRoot)playerVisualRoot.scale.z=playerVisualBaseScaleZ;
   if(physicsReady&&!interiorMode)createPlayerPhysics();
   showToast(next==='stand'?'Standing':next==='crouch'?'Crouched':'Prone');
 }
@@ -1827,7 +1824,7 @@ function sanitizeCharacterClips(clips){
       return true;
     });
     clip.resetDuration();return clip;
-  }).filter(c=>!/crouch|kneel|sit|crawl|prone/i.test(String(c.name||'')));
+  });
 }
 async function hydratePlayerAnimations(modelRoot){
   const pack=await loadAsset(ASSETS.playerAnimations);
@@ -1881,25 +1878,32 @@ async function buildPlayer(){
   refreshEquipmentVisuals();
   playPlayerAnimation('idle');
 }
+function clipBy(...patterns){
+  for(const re of patterns){const x=playerClips.find(c=>re.test(String(c.name||'')));if(x)return x}
+  return null;
+}
 function playPlayerAnimation(state){
   if(!playerMixer||!playerClips.length)return;
-  const cfg=weaponCfg(activeWeapon),gun=isFirearm(activeWeapon),stance=String(cfg.stance_type||'');
-  let desired=null;
-  if(state==='reload'&&gun)desired=playerClips.find(c=>/reload/i.test(c.name));
-  else if(state==='attack'&&!gun)desired=playerClips.find(c=>/slash|stab|punch|attack|melee/i.test(c.name));
-  else if(state==='aim'&&gun)desired=playerClips.find(c=>/aim|shoot|idle.*gun|gun.*idle/i.test(c.name));
-  else if(state==='run'&&gun)desired=playerClips.find(c=>/^run_gun$/i.test(c.name)||/run.*gun/i.test(c.name));
-  else if(state==='walk'&&gun)desired=playerClips.find(c=>/^walk_gun$/i.test(c.name)||/walk.*gun/i.test(c.name));
-  else if(state==='idle'&&gun)desired=playerClips.find(c=>/^idle_gun$/i.test(c.name)||/idle.*gun/i.test(c.name));
-  if(!desired&&stance.includes('two_handed'))desired=playerClips.find(c=>new RegExp(state+'.*(gun|rifle)|(?:gun|rifle).*'+state,'i').test(c.name));
-  if(!desired){
-    const re=state==='run'?/^run$|run|sprint|jog/i:state==='walk'?/^walk$|walk|locomotion|move/i:/^idle$|idle|stand/i;
-    desired=playerClips.find(c=>re.test(c.name));
-  }
-  if(!desired)desired=playerClips.find(c=>/idle|stand|walk|run/i.test(String(c.name||''))&&!/crouch|kneel|sit|crawl|prone/i.test(String(c.name||'')));
+  const gun=isFirearm(activeWeapon);let desired=null;
+  if(state==='reload'&&gun)desired=clipBy(/^Pistol_Reload$/i,/reload/i);
+  else if(state==='fire'&&gun)desired=clipBy(/^Pistol_Shoot$/i,/shoot|fire/i);
+  else if(state==='aim'&&gun)desired=clipBy(/^Pistol_Aim_Neutral$/i,/aim.*neutral|aim/i,/^Pistol_Idle$/i);
+  else if(state==='gunIdle'&&gun)desired=clipBy(/^Pistol_Idle$/i,/fighting idle/i,/idle_subtle/i,/^idle/i);
+  else if(state==='sprint')desired=clipBy(/^Sprint$/i,/^Jog$/i,/sprint|jog|run/i);
+  else if(state==='strafeL')desired=clipBy(/^Strafe_left$/i,/strafe.*left/i,/walk/i);
+  else if(state==='strafeR')desired=clipBy(/^Strafe_right$/i,/strafe.*right/i,/walk/i);
+  else if(state==='back')desired=clipBy(/^Walk_Backwards$/i,/walk.*back/i,/backward/i,/walk/i);
+  else if(state==='crouchIdle')desired=clipBy(/^Crouch_Idle$/i,/crouch.*idle/i,/idle/i);
+  else if(state==='crouchWalk')desired=clipBy(/^Crouch_Walk$/i,/crouch.*walk/i,/walk/i);
+  else if(state==='prone')desired=clipBy(/^Crawl$/i,/crawl/i,/prone/i);
+  else if(state==='attack'&&!gun)desired=clipBy(/sword_attack|melee_hook|slash|stab|punch|attack|melee/i);
+  else if(state==='run')desired=clipBy(/^Jog$/i,/sprint|jog|run/i);
+  else if(state==='walk')desired=clipBy(/^Walk$/i,/walk/i);
+  else if(state==='idle')desired=clipBy(/^Idle_A$/i,/idle_subtle/i,/^idle$/i,/idle/i,/stand/i);
+  if(!desired)desired=clipBy(/idle|stand|walk|jog|run/i);
   if(!desired)return;
   if(playerAction?._clip===desired)return;
-  const next=playerMixer.clipAction(desired);next.reset().fadeIn(.10).play();if(playerAction)playerAction.fadeOut(.10);playerAction=next;
+  const next=playerMixer.clipAction(desired);next.reset().fadeIn(.075).play();if(playerAction)playerAction.fadeOut(.075);playerAction=next;
 }
 function applyProceduralAim(){
   if(!aiming||!isFirearm(activeWeapon)||!playerRoot)return;
@@ -3124,7 +3128,7 @@ function shoot(){
     hit.z.hp-=damage;
     if(hit.z.hp<=0)killZombie(hit.z,interiorMode?'interior':'exterior');
   }
-  applyRecoil(cfg);muzzleFlash=.08;updateInventory();
+  applyRecoil(cfg);muzzleFlash=.08;playPlayerAnimation('fire');updateReticleUi(true,false);updateInventory();
   if((ammoState[activeWeapon]||0)<=0&&(reserveAmmo[activeWeapon]||0)>0)setTimeout(()=>{if(activeWeapon===cfg.weapon_name)requestReload()},180);
 }
 function attack(){
@@ -3158,11 +3162,18 @@ function updateWeapon(dt,now=performance.now()){
   updateReload(now);
   const cfg=weaponCfg(activeWeapon);
   if(isFirearm(activeWeapon)&&cfg.fire_mode==='auto'&&(fireHeld||keys.has('KeyF'))&&!reloadState.active&&fireCooldown<=0)shoot();
-  const recover=1-Math.exp(-8.5*dt);
+  const recover=1-Math.exp(-9.5*dt);
   recoilPitch=THREE.MathUtils.lerp(recoilPitch,0,recover);
   recoilYaw=THREE.MathUtils.lerp(recoilYaw,0,recover);
+  const moving=Math.hypot(playerVelocity.x,playerVelocity.y)>.15,sprint=locomotionIntent==='sprint';
+  const targetSpread=isFirearm(activeWeapon)?(aiming?2.2:moving?(sprint?15:10):6)+THREE.MathUtils.radToDeg(Math.abs(recoilPitch))*1.05:0;
+  reticleSpread=THREE.MathUtils.lerp(reticleSpread,targetSpread,1-Math.exp(-15*dt));updateReticleUi(moving,sprint);
   if(!weaponPivot)return;
-  if(isFirearm(activeWeapon)){weaponPivot.rotation.set(0,0,0);return}
+  if(isFirearm(activeWeapon)){
+    const bob=moving?Math.sin(performance.now()*.010)*(sprint?.035:.016):0;
+    weaponPivot.rotation.set(aiming?-pitch*.055+bob:Math.abs(bob)*.8,0,aiming?-leanAmount*.045:bob*.7);
+    return
+  }
   if(swingTime>0){
     const total=Math.max(.22,Math.min(.55,Number(weaponCfg(activeWeapon).fire_interval_seconds||.48))),t=1-swingTime/total;
     swingTime=Math.max(0,swingTime-dt);
@@ -3761,9 +3772,16 @@ function renderMinimap(){
   mapCtx.save();mapCtx.translate(p.x,p.y);mapCtx.rotate(-yaw);mapCtx.fillStyle='#8effb5';mapCtx.beginPath();mapCtx.moveTo(0,-7);mapCtx.lineTo(5,6);mapCtx.lineTo(-5,6);mapCtx.closePath();mapCtx.fill();mapCtx.restore();
 }
 
+function updateReticleUi(moving=false,sprint=false){
+  const cross=$('crosshair'),sight=$('weaponSight'),gun=isFirearm(activeWeapon);
+  if(cross){cross.hidden=!gun||playerDead;cross.classList.toggle('ads',aiming);cross.style.setProperty('--spread',reticleSpread.toFixed(1)+'px')}
+  if(sight){sight.hidden=!(gun&&aiming&&!playerDead);sight.classList.toggle('firing',muzzleFlash>0)}
+  document.body.classList.toggle('adsMode',gun&&aiming);
+}
 function setAiming(v){
   aiming=Boolean(v)&&isFirearm(activeWeapon)&&!playerDead;
   $('aimBtn')?.classList.toggle('active',aiming);
+  updateReticleUi();
   updateInventory();
 }
 function pollGamepad(){
@@ -3941,7 +3959,7 @@ function updatePlayer(dt){
   let ix=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+mobileMove.x+gamepadMove.x;
   let iy=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0)+mobileMove.y+gamepadMove.y;
   ({x:ix,y:iy}=normalizeMovementInput(ix,iy));
-  const moving=Math.hypot(ix,iy)>.06,sprint=(keys.has('ShiftLeft')||keys.has('ShiftRight')||mobileSprint)&&!aiming&&playerStance==='stand';
+  const moving=Math.hypot(ix,iy)>.06,sprint=(keys.has('ShiftLeft')||keys.has('ShiftRight')||mobileSprint)&&!aiming&&playerStance==='stand'&&iy>.18;
   if(activeVehicle){
     updateVehicle(dt,ix,iy);maybeNationalTravel();return;
   }
@@ -3956,10 +3974,11 @@ function updatePlayer(dt){
     if(CELL==='national'&&boundaryBlocks(playerRoot.position.x,playerRoot.position.y+desiredY*dt))desiredY=0;
     if(matchBlocks(playerRoot.position.x+desiredX*dt,playerRoot.position.y+desiredY*dt)){desiredX=0;desiredY=0}
   }
-  // No directional carry-over: releasing/changing a direction changes travel immediately.
-  // This prevents "forward" from drifting sideways because of the previous frame's velocity.
-  playerVelocity.x=desiredX;
-  playerVelocity.y=desiredY;
+  // Shooter locomotion: immediate direction changes but eased speed changes, giving a
+  // planted acceleration/deceleration response without the old sideways drift.
+  const accel=moving||slideTime>0?24:38,blend=1-Math.exp(-accel*dt);
+  playerVelocity.x=THREE.MathUtils.lerp(playerVelocity.x,desiredX,blend);
+  playerVelocity.y=THREE.MathUtils.lerp(playerVelocity.y,desiredY,blend);
 
   let usedRapier=false;
   if(!interiorMode&&physicsReady&&playerPhysicsBody&&playerPhysicsCollider){
@@ -3971,16 +3990,25 @@ function updatePlayer(dt){
     playerRoot.position.z=THREE.MathUtils.lerp(playerRoot.position.z,targetGround,1-Math.exp(-22*dt));
   }
 
-  if(aiming&&isFirearm(activeWeapon)){
-    // Shooter-style locomotion: body/weapon stay on crosshair while legs move independently.
-    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,yaw,1-Math.exp(-16*dt));
+  const firearm=isFirearm(activeWeapon);
+  if(firearm){
+    // With a gun drawn the torso stays camera-relative, so forward/back/strafe input never
+    // corkscrews the survivor. Melee still turns into travel.
+    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,yaw,1-Math.exp(-(aiming?20:15)*dt));
   }else if(moving||slideTime>0){
     const targetRot=Math.atan2(move.x,move.y);
-    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-12*dt));
+    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-14*dt));
   }
-  if(reloadState.active)playPlayerAnimation('reload');
-  else if(aiming&&isFirearm(activeWeapon)&&!moving)playPlayerAnimation('aim');
-  else if(swingTime<=0)playPlayerAnimation(moving?(sprint?'run':'walk'):'idle');
+  if(playerStance==='prone')locomotionIntent='prone';
+  else if(playerStance==='crouch')locomotionIntent=moving?'crouchWalk':'crouchIdle';
+  else if(reloadState.active)locomotionIntent='reload';
+  else if(aiming&&firearm&&!moving)locomotionIntent='aim';
+  else if(firearm&&!moving)locomotionIntent='gunIdle';
+  else if(moving&&sprint)locomotionIntent='sprint';
+  else if(moving&&firearm&&iy<-.28)locomotionIntent='back';
+  else if(moving&&firearm&&Math.abs(ix)>Math.max(.34,Math.abs(iy)*.72))locomotionIntent=ix<0?'strafeL':'strafeR';
+  else locomotionIntent=moving?'walk':firearm?'gunIdle':'idle';
+  if(swingTime<=0||reloadState.active)playPlayerAnimation(locomotionIntent);
   if(playerAction)playerAction.setEffectiveTimeScale(sprint?1.18:moving?1.0:.92);
   playerMixer?.update(dt);
   applyProceduralAim();
@@ -4031,8 +4059,8 @@ function updateCamera(dt){
   const lookDir=new THREE.Vector3(Math.sin(viewYaw)*Math.cos(viewPitch),Math.cos(viewYaw)*Math.cos(viewPitch),-Math.sin(viewPitch)).normalize();
   leanAmount=THREE.MathUtils.lerp(leanAmount,leanTarget,1-Math.exp(-13*dt));
   const right=new THREE.Vector3(Math.cos(viewYaw),-Math.sin(viewYaw),0);
-  const dist=aiming?1.62:interiorMode?(cameraMode===0?2.85:1.72):(cameraMode===0?3.8:2.0);
-  const shoulder=(aiming?.54:cameraMode===0?.42:.27)+leanAmount*.48;
+  const dist=aiming?.92:interiorMode?(cameraMode===0?2.85:1.72):(cameraMode===0?3.8:2.0);
+  const shoulder=(aiming?.20:cameraMode===0?.42:.27)+leanAmount*.48;
   const desired=target.clone().addScaledVector(lookDir,-dist).addScaledVector(right,shoulder);
   if(!aiming)desired.z+=.18;
   const physicsSafe=!interiorMode?rapierCameraPosition(target,desired):null;
@@ -4104,7 +4132,7 @@ async function boot(){
       spawnBlocked:isBlockedExterior(playerRoot.position.x,playerRoot.position.y,.36),
       visiblePack:Boolean(packMesh),pickupCount:worldPickups.filter(p=>p.active&&p.mode==='exterior').length,
       equipment:{...equipment},
-      playerSurfaceZ:surfaceZXY(playerRoot.position.x,playerRoot.position.y),
+      playerSurfaceZ:surfaceZXY(playerRoot.position.x,playerRoot.position.y),locomotionIntent,reticleSpread,
       playerRootZ:playerRoot.position.z,
       activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
       physicsMode,physicsReady,physicsError,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
