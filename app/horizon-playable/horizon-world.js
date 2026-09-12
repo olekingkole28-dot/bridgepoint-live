@@ -1068,33 +1068,57 @@ function addWallWithDoor(axis,pos,start,end,doorCenter,gap=1.45){
   if(a2>a1){if(axis==='h')addWallRect((a1+a2)/2,pos,a2-a1,.16);else addWallRect(pos,(a1+a2)/2,.16,a2-a1)}
   if(b2>b1){if(axis==='h')addWallRect((b1+b2)/2,pos,b2-b1,.16);else addWallRect(pos,(b1+b2)/2,.16,b2-b1)}
 }
-function createSearchSpot(label,x,y,type,seed){const spot={label,x,y,type,seed,active:true};interiorContainers.push(spot);return spot}
+function createSearchSpot(label,x,y,type,seed,key){
+  const spot={label,x,y,type,seed,key:key||String(seed),active:!interiorLootedKeys.has(key||String(seed))};
+  interiorContainers.push(spot);return spot;
+}
 function clearInterior(){
   while(interiorGroup.children.length)interiorGroup.remove(interiorGroup.children[0]);
   worldPickups=worldPickups.filter(p=>p.mode!=='interior');
-  interiorWalls=[];interiorContainers=[];interiorZombies=[];interiorBounds=null;interiorExit=null;
+  interiorWalls=[];interiorContainers=[];interiorZombies=[];interiorFloorLinks=[];interiorBounds=null;interiorExit=null;
 }
-function generateInterior(entry){
+function makeFloorPortal(label,x,y,direction){
+  const g=new THREE.Group();
+  const mat=new THREE.MeshStandardMaterial({color:0x4b5150,roughness:.64,metalness:.25});
+  const glow=new THREE.MeshStandardMaterial({color:direction>0?0x64e594:0xe3b861,emissive:direction>0?0x2a7d4a:0x8a5420,emissiveIntensity:.9});
+  const frame=new THREE.Mesh(new THREE.BoxGeometry(1.25,.12,2.35),mat);frame.position.z=1.18;
+  const panel=new THREE.Mesh(new THREE.BoxGeometry(.82,.14,.22),glow);panel.position.set(0,-.08,1.45);
+  const step1=new THREE.Mesh(new THREE.BoxGeometry(1.25,.8,.16),mat);step1.position.set(0,.35,.08);
+  const step2=new THREE.Mesh(new THREE.BoxGeometry(1.05,.65,.16),mat);step2.position.set(0,.72,.24);
+  g.add(frame,panel,step1,step2);g.position.set(x,y,0);interiorGroup.add(g);
+  return g;
+}
+function generateInterior(entry,requestedFloor=1){
   clearInterior();
-  const r=seeded(entry.seed),w=THREE.MathUtils.clamp(entry.width*1.15,13,25),h=THREE.MathUtils.clamp(entry.depth*1.15,11,22);
+  const floors=Math.max(1,Math.floor(entry.height/3.05));
+  const floorNumber=THREE.MathUtils.clamp(Math.round(requestedFloor||1),1,floors);
+  const floorSeed=entry.seed+floorNumber*9973;
+  const r=seeded(floorSeed),w=THREE.MathUtils.clamp(entry.width*1.15,13,25),h=THREE.MathUtils.clamp(entry.depth*1.15,11,22);
   interiorBounds={minx:-w/2+.42,maxx:w/2-.42,miny:-h/2+.42,maxy:h/2-.42};
   const floorMat=new THREE.MeshStandardMaterial({color:r()>.5?0x665647:0x5c5e57,roughness:.88});
   const floorMesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,.18),floorMat);floorMesh.position.z=-.09;floorMesh.receiveShadow=true;interiorGroup.add(floorMesh);
-  const ceiling=new THREE.Mesh(new THREE.BoxGeometry(w,h,.12),new THREE.MeshStandardMaterial({color:0x6e6f68,roughness:.98,side:THREE.DoubleSide}));ceiling.position.z=2.95;interiorGroup.add(ceiling);
+  const ceiling=new THREE.Mesh(new THREE.BoxGeometry(w,h,.12),new THREE.MeshStandardMaterial({color:0x77766f,roughness:.96,side:THREE.DoubleSide}));ceiling.position.z=2.95;interiorGroup.add(ceiling);
   addWallRect(0,h/2,w,.18);addWallRect(-w/2,0,.18,h);addWallRect(w/2,0,.18,h);
   addWallWithDoor('h',-h/2,-w/2,w/2,0,1.75);
   interiorExit={x:0,y:-h/2+.9};
 
-  const layoutRoll=r(),layout=layoutRoll<.28?'Two-bedroom apartment':layoutRoll<.52?'Loft apartment':layoutRoll<.74?'Office conversion':'Hotel-style floor';
+  const layoutRoll=r(),layout=layoutRoll<.24?'Two-bedroom apartment':layoutRoll<.48?'Loft apartment':layoutRoll<.72?'Office conversion':layoutRoll<.9?'Hotel-style floor':'Penthouse floor';
   if(layout==='Two-bedroom apartment'){
     addWallWithDoor('v',-w*.13,-h*.10,h/2,h*.17,1.35);
     addWallWithDoor('h',h*.08,-w/2,-w*.13,-w*.30,1.25);
+    addWallWithDoor('h',-h*.18,-w*.13,w/2,w*.24,1.25);
   }else if(layout==='Office conversion'){
     addWallWithDoor('h',0,-w/2,w/2,w*.18,1.45);
     addWallWithDoor('v',w*.18,0,h/2,h*.24,1.35);
+    addWallWithDoor('v',-w*.24,0,h/2,h*.24,1.35);
   }else if(layout==='Hotel-style floor'){
     addWallWithDoor('h',h*.06,-w/2,w/2,-w*.18,1.35);
     addWallWithDoor('v',0,h*.06,h/2,h*.28,1.25);
+    addWallWithDoor('v',w*.28,h*.06,h/2,h*.28,1.25);
+    addWallWithDoor('v',-w*.28,h*.06,h/2,h*.28,1.25);
+  }else if(layout==='Penthouse floor'){
+    addWallWithDoor('v',w*.22,-h*.10,h/2,h*.20,1.55);
+    addWallWithDoor('h',h*.18,-w/2,w*.22,-w*.15,1.45);
   }else addWallWithDoor('v',w*.27,-h*.02,h/2,h*.19,1.4);
 
   const warm=new THREE.PointLight(0xffd6a0,18,18,2);warm.position.set(-w*.2,-h*.1,2.25);interiorGroup.add(warm);
@@ -1118,20 +1142,43 @@ function generateInterior(entry){
   const cabinet=makePrimitive('cabinet');cabinet.position.set(-w*.34,-h*.36,.02);interiorGroup.add(cabinet);
   const picture=makePrimitive('picture');picture.position.set(w*.20,h/2-.22,1.15);interiorGroup.add(picture);
 
-  createSearchSpot('Search kitchen cabinet',-w*.34,-h*.36,'kitchen',entry.seed+11);
-  createSearchSpot('Search refrigerator',-w*.38,-h*.25,'fridge',entry.seed+23);
-  createSearchSpot('Search dresser drawers',w*.40,h*.02,'dresser',entry.seed+37);
-  createSearchSpot('Check under the bed',w*.28,h*.25,'bed',entry.seed+51);
-  createSearchSpot('Search shelf',w*.39,-h*.15,'shelf',entry.seed+67);
-  createSearchSpot('Look behind the picture',w*.20,h/2-.85,'picture',entry.seed+79);
-  if(r()>.42)createSearchSpot('Search bathroom cabinet',w*.06,-h*.02,'medicine',entry.seed+91);
-  if(r()>.58)createSearchSpot('Search closet',-w*.39,h*.12,'dresser',entry.seed+107);
+  const keyBase=entry.id+':F'+floorNumber+':';
+  createSearchSpot('Search kitchen cabinet',-w*.34,-h*.36,'kitchen',floorSeed+11,keyBase+'kitchen');
+  createSearchSpot('Search refrigerator',-w*.38,-h*.25,'fridge',floorSeed+23,keyBase+'fridge');
+  createSearchSpot('Search dresser drawers',w*.40,h*.02,'dresser',floorSeed+37,keyBase+'dresser');
+  createSearchSpot('Check under the bed',w*.28,h*.25,'bed',floorSeed+51,keyBase+'bed');
+  createSearchSpot('Search shelf',w*.39,-h*.15,'shelf',floorSeed+67,keyBase+'shelf');
+  createSearchSpot('Look behind the picture',w*.20,h/2-.85,'picture',floorSeed+79,keyBase+'picture');
+  if(r()>.34)createSearchSpot('Search bathroom cabinet',w*.06,-h*.02,'medicine',floorSeed+91,keyBase+'medicine');
+  if(r()>.42)createSearchSpot('Search closet',-w*.39,h*.12,'dresser',floorSeed+107,keyBase+'closet');
 
-  const floors=Math.max(1,Math.floor(entry.height/3.05)),floorNumber=Math.min(floors,1+Math.floor(r()*Math.min(floors,18)));
+  const upX=w/2-1.45,upY=-h/2+1.65,downX=w/2-1.45,downY=-h/2+3.45;
+  if(floorNumber<floors){
+    makeFloorPortal('UP',upX,upY,1);
+    interiorFloorLinks.push({kind:'floorUp',x:upX,y:upY,label:'GO UP · FLOOR '+(floorNumber+1),floor:floorNumber+1});
+  }
+  if(floorNumber>1){
+    makeFloorPortal('DOWN',downX,downY,-1);
+    interiorFloorLinks.push({kind:'floorDown',x:downX,y:downY,label:'GO DOWN · FLOOR '+(floorNumber-1),floor:floorNumber-1});
+  }
+
   activeInterior={entry,width:w,depth:h,layout,floor:floorNumber,floors};
-  spawnInteriorVisibleLoot(w,h,entry.seed);
-  if(zombieTemplate&&r()<.34)spawnInteriorZombie(zombieTemplate,r,w,h);
+  spawnInteriorVisibleLoot(w,h,floorSeed);
+  const zCount=floorNumber>1&&r()<.44?1:0;
+  for(let i=0;i<zCount;i++)spawnInteriorZombie(zombieTemplates.length?zombieTemplates[Math.floor(r()*zombieTemplates.length)]:zombieTemplate,r,w,h);
 }
+function changeInteriorFloor(nextFloor){
+  if(!interiorMode||!activeInterior)return;
+  const entry=activeInterior.entry,floors=activeInterior.floors;
+  nextFloor=THREE.MathUtils.clamp(Math.round(nextFloor),1,floors);
+  if(nextFloor===activeInterior.floor)return;
+  generateInterior(entry,nextFloor);
+  playerRoot.position.set(0,-activeInterior.depth/2+2.15,.015);playerVelocity.set(0,0,0);
+  $('worldTitle').textContent=activeInterior.layout+' · Floor '+activeInterior.floor+' / '+activeInterior.floors;
+  loadText.textContent='Floor '+activeInterior.floor+' of '+activeInterior.floors+' · search rooms, visible loot and stashes.';
+  showToast('Floor '+activeInterior.floor+' / '+activeInterior.floors);
+}
+
 function spawnInteriorZombie(template,r,w,h){
   spawnZombieAt(template,{x:(r()-.5)*w*.48,y:h*.28},true,r);
 }
@@ -1141,11 +1188,11 @@ function enterInterior(entry){
     Number.isFinite(entry.returnX)?entry.returnX:entry.entryX,
     Number.isFinite(entry.returnY)?entry.returnY:entry.entryY,
     (Number.isFinite(entry.returnZ)?entry.returnZ:entry.entryZ)+.05
-  );exteriorYaw=yaw;generateInterior(entry);
+  );exteriorYaw=yaw;generateInterior(entry,1);
   exteriorRoot.visible=false;interiorGroup.visible=true;interiorMode=true;playerVelocity.set(0,0,0);
   playerRoot.position.set(0,-activeInterior.depth/2+2.0,.05);yaw=0;pitch=.12;
   $('cellLabel').textContent='PROCEDURAL INTERIOR · GAME ART';
-  $('worldTitle').textContent=activeInterior.layout+' · Floor '+activeInterior.floor;
+  $('worldTitle').textContent=activeInterior.layout+' · Floor '+activeInterior.floor+' / '+activeInterior.floors;
   loadText.textContent='Search furniture, drawers, cabinets and hidden stashes.';
   const mapLabel=document.querySelector('.mapLabel b');if(mapLabel)mapLabel.textContent='FLOOR PLAN';
   const mapSub=document.querySelector('.mapLabel span');if(mapSub)mapSub.textContent='search every room';
@@ -1163,7 +1210,7 @@ function exitInterior(){
 }
 function searchContainer(spot){
   if(!spot?.active)return;
-  spot.active=false;const items=lootForContainer(spot.type,spot.seed),added=[];
+  spot.active=false;interiorLootedKeys.add(spot.key);const items=lootForContainer(spot.type,spot.seed),added=[];
   for(const item of items)if(addInventoryItem(item))added.push(item);
   updateInventory();showToast(added.length?'Found: '+added.join(' · '):'Nothing useful here');
 }
@@ -1176,6 +1223,7 @@ function findNearestInteraction(){
   }
   if(interiorMode){
     if(interiorExit){const d=Math.hypot(playerRoot.position.x-interiorExit.x,playerRoot.position.y-interiorExit.y);if(d<2.05){best={kind:'exit',label:'EXIT BUILDING'};bestD=d}}
+    for(const link of interiorFloorLinks){const d=Math.hypot(playerRoot.position.x-link.x,playerRoot.position.y-link.y);if(d<2.15&&d<bestD){best={kind:link.kind,label:link.label,floor:link.floor};bestD=d}}
     for(const c of interiorContainers)if(c.active){const d=Math.hypot(playerRoot.position.x-c.x,playerRoot.position.y-c.y);if(d<2.05&&d<bestD){best={kind:'loot',label:c.label,spot:c};bestD=d}}
   }else{
     for(const e of buildingEntries){const d=Math.hypot(playerRoot.position.x-e.entryX,playerRoot.position.y-e.entryY);if(d<2.4&&d<bestD){best={kind:'entry',label:'ENTER BUILDING',entry:e};bestD=d}}
@@ -1185,6 +1233,7 @@ function findNearestInteraction(){
 function interact(){
   const hit=findNearestInteraction();if(!hit)return;
   if(hit.kind==='pickup')pickupLoose(hit.pickup);
+  else if(hit.kind==='floorUp'||hit.kind==='floorDown')changeInteriorFloor(hit.floor);
   else if(hit.kind==='entry')enterInterior(hit.entry);
   else if(hit.kind==='exit')exitInterior();
   else if(hit.kind==='loot')searchContainer(hit.spot);
