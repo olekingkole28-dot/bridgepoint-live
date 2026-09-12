@@ -1040,6 +1040,13 @@ function cloneCharacterWeapon(name){
   if(!t)return null;
   const obj=t.clone(true);obj.visible=true;
   obj.traverse(o=>{o.visible=true;if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+  const target={Axe:.68,Knife:.34,Pistol:.32,Rifle:1.02,Shotgun:.92,SMG:.72,Spear:1.35,WoodenBat_Barbed:.88,WoodenBat_Saw:.88}[name];
+  if(target){
+    obj.updateMatrixWorld(true);
+    const box=new THREE.Box3().setFromObject(obj),size=new THREE.Vector3();box.getSize(size);
+    const longest=Math.max(size.x,size.y,size.z,.001);
+    obj.scale.multiplyScalar(target/longest);
+  }
   return obj;
 }
 function putCharacterWeapon(slot,name,mode='leftHand'){
