@@ -74,7 +74,7 @@ jobs:
           grep -Fq 'playerVelocity.x=desiredX' site/app/horizon-playable/horizon-world.js
           grep -Fq 'playerFacingYaw' site/app/horizon-playable/horizon-world.js
           grep -Fq 'n.model.rotation.y=Math.PI' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'playerRoot.rotation.z=targetRot' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'playerRoot.rotation.z=lerpAngle' site/app/horizon-playable/horizon-world.js
           grep -Fq "id:'hound'" site/app/horizon-playable/horizon-world.js
           grep -Fq "id:'orc'" site/app/horizon-playable/horizon-world.js
           grep -Fq "id:'spider'" site/app/horizon-playable/horizon-world.js
