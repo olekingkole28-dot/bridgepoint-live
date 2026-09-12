@@ -11,7 +11,7 @@ License: CC0 1.0 Universal. The official pack page states that the kit is free f
 BridgePoint Horizon uses only the decorative/gameplay layer from this pack. The real-world terrain/building/road geometry remains separate and source-backed.
 
 Runtime models currently referenced by the Horizon preview:
-- playable survivor: Characters_Matt.gltf
+- playable survivors: Characters_Matt.gltf, Characters_Lis.gltf, Characters_Sam.gltf, Characters_Shaun.gltf
 - infected: Zombie_Basic.gltf
 - melee / carried weapons: Axe.gltf, Knife.gltf, WoodenBat_Barbed.gltf
 - holstered firearms / loot: Pistol.gltf, Rifle.gltf, Shotgun.gltf
