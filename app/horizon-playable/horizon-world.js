@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4209;
+const BUILD_VERSION=4210;
 const SAVE_KEY='bridgepoint-horizon-survivor-v3050';
 const LEGACY_SAVE_KEY='bridgepoint-horizon-survivor-v3040';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
@@ -220,7 +220,7 @@ let data,lon0,lat0,mx,my,baseElevation=0;
 let parcelLayer,partsLayer,buildingLayer,roadLayer,terrainLayer;
 let hemi,sun,lightMode=0;
 let playerRoot=null,playerVisualRoot=null,playerMixer=null,playerClips=[],playerAction=null;
-let playerModelYawOffset=0;
+let playerModelYawOffset=0,playerAssetLoaded=false,playerAssetMode='fallback';
 let yaw=0,pitch=.14,cameraMode=0;
 let health=100,lastDamageAt=0;
 let playerSpawn=new THREE.Vector3();
@@ -778,7 +778,15 @@ function buildApocalypseGroundDressing(){
   }
   const cg=new THREE.BufferGeometry();cg.setAttribute('position',new THREE.Float32BufferAttribute(crackPos,3));
   group.add(new THREE.LineSegments(cg,new THREE.LineBasicMaterial({color:0x111513,transparent:true,opacity:.48})));
-  streetLifeStats.groundDetails=rc+pc+qc+crackPos.length/6;
+  const weedTarget=dense?720:320,weedGeo=new THREE.ConeGeometry(.055,.48,3),weedMat=new THREE.MeshStandardMaterial({color:0x40583a,roughness:.96});
+  const weeds=new THREE.InstancedMesh(weedGeo,weedMat,weedTarget);let wc=0;
+  for(let i=0;i<weedTarget*4&&wc<weedTarget;i++){
+    const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+.25+rand()*2.5,side);
+    if(isBlockedExterior(p.x,p.y,.09))continue;
+    dummy.position.set(p.x,p.y,p.z+.22);dummy.rotation.set(Math.PI/2+(rand()-.5)*.12,(rand()-.5)*.16,rand()*Math.PI);dummy.scale.set(.55+rand()*.8,.6+rand()*1.2,.55+rand()*.8);dummy.updateMatrix();weeds.setMatrixAt(wc++,dummy.matrix);
+  }
+  weeds.count=wc;weeds.instanceMatrix.needsUpdate=true;weeds.castShadow=false;group.add(weeds);
+  streetLifeStats.groundDetails=rc+pc+qc+wc+crackPos.length/6;
   return streetLifeStats.groundDetails;
 }
 
@@ -1428,12 +1436,13 @@ async function buildPlayer(){
   ]);
   weaponTemplates={axe,bat,knife,pistol,rifle,shotgun,smg,spear,sawBat,guitar};
   if(gltf){
+    playerAssetLoaded=true;playerAssetMode=CHARACTER_KEY;
     const n=normalizedModel(gltf.scene,1.82,true);
     playerRoot=n.root;playerVisualRoot=n.oriented;n.model.rotation.y=Math.PI;n.model.updateMatrixWorld(true);playerModelYawOffset=0;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);
     captureCharacterWeaponTemplates(n.model);
     setupEquipmentMounts(n.model);
   }else{
-    playerRoot=fallbackPlayer();playerVisualRoot=playerRoot;playerModelYawOffset=0;
+    playerAssetLoaded=false;playerAssetMode='fallback';playerRoot=fallbackPlayer();playerVisualRoot=playerRoot;playerModelYawOffset=0;
     setupEquipmentMounts(playerRoot);
   }
   playerRoot.position.copy(playerSpawn);scene.add(playerRoot);
@@ -2424,6 +2433,12 @@ function maybeWalkThroughOpenDoor(){
   }
   return false;
 }
+function maybeWalkOutOpenDoor(){
+  if(!interiorMode||!interiorExit||!playerRoot)return false;
+  const d=Math.hypot(playerRoot.position.x-interiorExit.x,playerRoot.position.y-interiorExit.y);
+  if(d<.62){exitInterior();return true}
+  return false;
+}
 function updateInteractionPrompt(){
   nearestInteract=findNearestInteraction();$('interactPrompt').hidden=!nearestInteract;if(nearestInteract)$('interactLabel').textContent=nearestInteract.label;
 }
@@ -3213,6 +3228,7 @@ function updatePlayer(dt){
   const nowAudio=performance.now();
   if(moving&&grounded&&nowAudio-lastFootstepAt>(sprint?280:430)){lastFootstepAt=nowAudio;if(audioCtx)spatialTone(playerRoot.position,'foot')}
 
+  if(interiorMode){if(maybeWalkOutOpenDoor())return}
   if(!interiorMode){
     if(maybeWalkThroughOpenDoor())return;
     maybeNationalTravel();
@@ -3298,7 +3314,7 @@ async function boot(){
     updateInventory();updateInteractionPrompt();resizeRenderer();
     window.BP_HORIZON_SMOKE={
       ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),
-      player:Boolean(playerRoot),character:CHARACTER_KEY,preview:PREVIEW_KEY,loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,
+      player:Boolean(playerRoot),playerAssetLoaded,playerAssetMode,character:CHARACTER_KEY,preview:PREVIEW_KEY,loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,
       enemyArchetypes:enemyArchetypes.map(x=>x.id),mapMarkers:mapMarkers.length,groundDetails:Number(streetLifeStats.groundDetails||0),climbingSpiders:zombies.filter(z=>z.kind==='spider'&&z.climb).length,weaponCatalog:[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],dropWeapon:true,
       packCapacity,weapon:equippedWeaponName,interiorAssets:Object.values(interiorTemplates).filter(Boolean).length,
       artChildren:artGroup.children.length,roadLayers:roadLayer?.children?.length||0,streetLife:{...streetLifeStats},
@@ -3342,6 +3358,15 @@ async function boot(){
         return {dx:v.x,dy:v.y,heading:Math.atan2(v.x,v.y)};
       },
       visualFacingAlignment,
+      playerAssetProbe:()=>({loaded:playerAssetLoaded,mode:playerAssetMode,character:CHARACTER_KEY,bones:Object.fromEntries(Object.entries(aimBones).map(([k,v])=>[k,Boolean(v)]))}),
+      aimProbe:()=>{
+        addInventoryItem('Pistol');selectSlot('sidearm',true);setAiming(false);camera.fov=66;camera.updateProjectionMatrix();
+        const before=camera.fov,target=weaponCfg('Pistol').aim_fov;
+        setAiming(true);for(let i=0;i<50;i++)updateCamera(1/60);
+        const aimed=camera.fov,crosshairVisible=!$('crosshair')?.hidden,buttonActive=$('aimBtn')?.classList.contains('active')||false;
+        setAiming(false);for(let i=0;i<30;i++)updateCamera(1/60);
+        return{before,target,aimed,restored:camera.fov,crosshairVisible,buttonActive};
+      },
       dropWeaponAvailable:()=>Boolean(activeItemForSlot(activeSlot)&&activeWeapon!=='Fists'),
       enemyCatalog:()=>enemyArchetypes.map(x=>({id:x.id,label:x.label,speed:x.speed,hp:x.hp,damage:x.damage,behavior:x.behavior})),
       climbingSpiderCount:()=>zombies.filter(z=>z.kind==='spider'&&z.climb).length,
