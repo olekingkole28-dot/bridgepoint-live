@@ -655,6 +655,11 @@ function putCharacterWeapon(slot,name,mode='hand'){
   const m=equipmentMounts[slot];if(!m)return null;
   clearMount(m);if(!name)return null;
   const obj=cloneCharacterWeapon(name);if(!obj)return null;
+  const scaleByName={
+    Axe:.52,Knife:.74,Pistol:.78,Rifle:.80,Shotgun:.78,SMG:.80,Spear:.70,
+    WoodenBat_Barbed:.78,WoodenBat_Saw:.78
+  };
+  obj.scale.multiplyScalar(scaleByName[name]||.82);
   if(mode==='rightHand'){
     // Weapon transforms in the CC0 character are authored on Middle1.L.
     // The mirrored right-hand finger chain accepts the same local grip transform cleanly.
@@ -1904,7 +1909,11 @@ async function boot(){
           leftHand:localOf(equipmentMounts.leftHand),
           hip:localOf(equipmentMounts.hip),
           back:localOf(equipmentMounts.backGun),
-          handChildren:equipmentMounts.rightHand?.children?.length||0
+          handChildren:equipmentMounts.rightHand?.children?.length||0,
+          rightParent:equipmentMounts.rightHand?.parent?.name||null,
+          leftParent:equipmentMounts.leftHand?.parent?.name||null,
+          hipParent:equipmentMounts.hip?.parent?.name||null,
+          backParent:equipmentMounts.backGun?.parent?.name||null
         };
       },
       gunProbe:()=>{
