@@ -1139,7 +1139,7 @@ function buildEntryPoints(){
       left.position.set(-.62,0,1.17);right.position.set(.62,0,1.17);
       const top=new THREE.Mesh(new THREE.BoxGeometry(1.38,.18,.15),frameMat);top.position.set(0,0,2.28);
       const opening=new THREE.Mesh(new THREE.BoxGeometry(1.12,.075,2.06),new THREE.MeshBasicMaterial({color:0x020303,transparent:true,opacity:.94}));
-      opening.position.set(0,.055,1.03);opening.userData.doorVoid=true;
+      opening.position.set(0,.055,1.03);opening.userData.doorVoid=true;opening.visible=!b.explorable;
       const lamp=new THREE.Mesh(new THREE.BoxGeometry(.18,.12,.18),glowMat);lamp.position.set(0,-.12,2.05);
       root.add(opening,left,right,top,lamp);root.position.set(x,y,b.z);root.rotation.z=rot;entryGroup.add(root);visualCount++;
     }
