@@ -34,3 +34,6 @@ Before merging a Horizon release:
 | Quaternius Showcase mirror | Wolf, Spider hostile variants | CC0 1.0 | https://github.com/trebeljahr/quaternius-showcase | Runtime GLB mirror used for animated wolf/spider models. |
 | Constellation Defense Quaternius mirror | Orc, Yeti hostile variants | CC0 1.0 | https://github.com/Hakhyun-Kim/constellation-defense/blob/main/CREDITS.md | Runtime GLB repacks of Quaternius Ultimate Monsters; credits record CC0. |
 | Dereth / Poly Pizza Bear | Feral bear hostile variant | CC BY | https://github.com/w5ohr/Dereth/blob/main/assets/README.md | Free model; attribution is retained because it is not CC0. |
+
+| SceneView mirror / three.js Soldier | More grounded default survivor model | CC0-1.0 per SceneView asset credits | https://github.com/sceneview/sceneview/blob/main/assets/CREDITS.md | Runtime GLB comes from SceneView's checked-in threejs_soldier.glb; Quaternius survivors remain available as fallbacks/alternates. |
+| Kenney Cube Pets via local-agents mirror | Infected crow/vulture flight enemy | CC0 | https://github.com/adammikulis/local-agents/blob/main/addons/local_agents/assets/models/ATTRIBUTION.md | Vulture mesh is tinted/animated at runtime as the infected crow archetype. |
