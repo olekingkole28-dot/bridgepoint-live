@@ -283,7 +283,6 @@ function nearestRoadForBuilding(b){
 function buildEntryPoints(){
   entryGroup.clear();buildingEntries=[];
   const candidates=[...buildingCenters]
-    .filter(b=>b.width>3.4&&b.depth>3.4&&b.height>4.2)
     .sort((a,b)=>(a.x*a.x+a.y*a.y)-(b.x*b.x+b.y*b.y));
   const visualLimit=CELL==='manhattan'?260:120;
   let visualCount=0;
@@ -620,8 +619,13 @@ async function buildPlayer(){
 }
 function playPlayerAnimation(state){
   if(!playerMixer||!playerClips.length)return;
-  const re=state==='attack'?/attack|melee|swing|hit/i:state==='move'?/run|walk|move/i:/idle|stand/i;
-  const desired=playerClips.find(c=>re.test(c.name))||playerClips[0];
+  const re=state==='attack'?/attack|melee|swing|hit/i:
+    state==='run'?/run|sprint|jog/i:
+    state==='walk'?/walk|locomotion|move/i:
+    /idle|stand/i;
+  const desired=playerClips.find(c=>re.test(c.name))
+    ||(state==='run'?playerClips.find(c=>/walk|move/i.test(c.name)):null)
+    ||playerClips[0];
   if(playerAction?._clip===desired)return;
   const next=playerMixer.clipAction(desired);next.reset().fadeIn(.12).play();if(playerAction)playerAction.fadeOut(.12);playerAction=next;
 }
@@ -1430,7 +1434,7 @@ function updatePlayer(dt){
     const targetRot=Math.atan2(playerVelocity.x,playerVelocity.y);
     playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-12*dt));
   }
-  if(swingTime<=0)playPlayerAnimation(moving?'move':'idle');playerMixer?.update(dt);
+  if(swingTime<=0)playPlayerAnimation(moving?(sprint?'run':'walk'):'idle');playerMixer?.update(dt);
 
   if(!interiorMode){
     const revealDist=lastReveal?Math.hypot(playerRoot.position.x-lastReveal.x,playerRoot.position.y-lastReveal.y):999;
