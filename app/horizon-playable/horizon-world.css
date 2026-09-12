@@ -192,12 +192,33 @@ body{touch-action:none}
 .actionButton.aim{right:max(146px,calc(env(safe-area-inset-right) + 146px));bottom:max(92px,calc(env(safe-area-inset-bottom) + 92px))}
 .actionButton.weapon{right:max(88px,calc(env(safe-area-inset-right) + 88px));bottom:max(92px,calc(env(safe-area-inset-bottom) + 92px))}
 .crosshair{
-  position:fixed;left:50%;top:50%;width:28px;height:28px;transform:translate(-50%,-50%);
-  z-index:18;pointer-events:none;filter:drop-shadow(0 0 5px rgba(0,0,0,.9));
+  --spread:10px;
+  position:fixed;left:50%;top:50%;width:46px;height:46px;transform:translate(-50%,-50%);
+  z-index:18;pointer-events:none;filter:drop-shadow(0 0 5px rgba(0,0,0,.92));transition:opacity .08s ease,transform .08s ease;
 }
-.crosshair span{position:absolute;background:rgba(244,247,237,.95);border-radius:2px}
-.crosshair span:first-child{width:18px;height:2px;left:5px;top:13px}
-.crosshair span:last-child{width:2px;height:18px;left:13px;top:5px}
+.reticleDot{position:absolute;left:50%;top:50%;width:3px;height:3px;margin:-1.5px;border-radius:50%;background:rgba(245,249,241,.98);box-shadow:0 0 0 1px rgba(0,0,0,.72)}
+.reticleTick{position:absolute;left:50%;top:50%;display:block;background:rgba(245,249,241,.96);border-radius:2px;transform-origin:center}
+.reticleTick.top,.reticleTick.bottom{width:2px;height:7px;margin-left:-1px}
+.reticleTick.left,.reticleTick.right{width:7px;height:2px;margin-top:-1px}
+.reticleTick.top{transform:translateY(calc(-1 * var(--spread) - 7px))}
+.reticleTick.bottom{transform:translateY(var(--spread))}
+.reticleTick.left{transform:translateX(calc(-1 * var(--spread) - 7px))}
+.reticleTick.right{transform:translateX(var(--spread))}
+.crosshair.ads .reticleTick{opacity:.28}
+.crosshair.ads .reticleDot{width:2px;height:2px;margin:-1px}
+.weaponSight{
+  position:fixed;left:50%;top:50%;width:78px;height:78px;transform:translate(-50%,-50%);
+  z-index:17;pointer-events:none;border:3px solid rgba(14,18,16,.72);border-radius:50%;
+  box-shadow:0 0 0 2px rgba(225,235,226,.14),0 0 24px rgba(0,0,0,.74) inset,0 0 22px rgba(0,0,0,.58);
+  background:radial-gradient(circle,rgba(255,255,255,.025) 0 48%,rgba(6,9,8,.22) 52% 100%);
+}
+.weaponSight:before,.weaponSight:after{content:"";position:absolute;left:50%;top:50%;background:rgba(228,239,231,.52)}
+.weaponSight:before{width:22px;height:1px;transform:translate(-50%,-50%)}
+.weaponSight:after{width:1px;height:22px;transform:translate(-50%,-50%)}
+.weaponSight i{position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;border-radius:50%;background:#e9f5ec;box-shadow:0 0 4px rgba(255,255,255,.72)}
+.weaponSight b{position:absolute;left:50%;bottom:-9px;width:16px;height:8px;transform:translateX(-50%);border-radius:2px;background:rgba(17,21,19,.82)}
+.weaponSight.firing{transform:translate(-50%,-50%) scale(1.025)}
+body.adsMode .hud.hint{opacity:.16}
 @media (pointer:coarse) and (orientation:landscape){
   .actionButton.aim{right:max(132px,calc(env(safe-area-inset-right) + 132px));bottom:max(80px,calc(env(safe-area-inset-bottom) + 80px));width:44px;height:44px}
   .actionButton.weapon{right:max(78px,calc(env(safe-area-inset-right) + 78px));bottom:max(80px,calc(env(safe-area-inset-bottom) + 80px));width:44px;height:44px}
@@ -205,9 +226,8 @@ body{touch-action:none}
 @media (pointer:coarse) and (orientation:landscape) and (max-height:430px){
   .actionButton.aim{right:max(128px,calc(env(safe-area-inset-right) + 128px));bottom:max(72px,calc(env(safe-area-inset-bottom) + 72px));width:40px;height:40px}
   .actionButton.weapon{right:max(78px,calc(env(safe-area-inset-right) + 78px));bottom:max(72px,calc(env(safe-area-inset-bottom) + 72px));width:40px;height:40px}
-  .crosshair{width:22px;height:22px}
-  .crosshair span:first-child{width:14px;left:4px;top:10px}
-  .crosshair span:last-child{height:14px;left:10px;top:4px}
+  .crosshair{width:38px;height:38px}
+  .weaponSight{width:66px;height:66px}
 }
 
 
