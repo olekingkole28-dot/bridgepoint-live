@@ -4408,6 +4408,16 @@ async function boot(){
         const surface=interiorMode?0:surfaceZXY(playerRoot.position.x,playerRoot.position.y);
         return {minZ:box.min.z,surface,rootZ:playerRoot.position.z,clearance:box.min.z-surface};
       },
+      terrainGuardProbe:()=>{
+        if(!playerRoot)return null;
+        const surface=surfaceZXY(playerRoot.position.x,playerRoot.position.y)+.015,prior=playerRoot.position.clone();
+        playerRoot.position.z=surface-4;
+        if(physicsReady&&playerPhysicsBody)syncPhysicsToPlayer();
+        updatePlayer(1/60);
+        const after=playerRoot.position.z,ok=after>=surface-.04;
+        playerRoot.position.copy(prior);if(physicsReady&&playerPhysicsBody)syncPhysicsToPlayer();
+        return{surface,after,ok,physicsReady,terrainPhysicsReady:Boolean(terrainPhysicsCollider),terrainSafetyRescues};
+      },
       deathProbe:()=>{
         damagePlayer(200);const deadBefore=playerDead;respawnPlayer();
         return {deadBefore,deadAfter:playerDead,health};
