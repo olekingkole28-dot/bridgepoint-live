@@ -14,7 +14,7 @@ This file is the release source ledger for the staged Horizon game build. The ga
 
 | Pack | Use in Horizon | Source / mirror | License |
 |---|---|---|---|
-| Quaternius Zombie Apocalypse Kit | Survivor, infected, melee/firearms, vehicles, survival street props, chests | Quaternius; mirrored as glTF in `agentkaerf/FreeModels/Zombie Apocalypse Kit - March 2024` | CC0 1.0 |
+| Quaternius Zombie Apocalypse Kit | Multiple rigged survivors (Matt, Lis, Sam, Shaun), infected variants, melee/firearms, vehicles, survival street props, chests | Quaternius; mirrored as glTF in `agentkaerf/FreeModels/Zombie Apocalypse Kit - March 2024` | CC0 1.0 |
 | Quaternius Sushi Restaurant Kit | Interior chairs, sofa, plants, kitchen fixtures, cabinets, tables, paintings and lights | Quaternius; mirrored as glTF in `agentkaerf/FreeModels/Sushi Restaurant Kit - May 2023` | CC0 1.0 |
 
 The mirror repository README identifies the mirrored Quaternius models as CC0 1.0. Release code intentionally does not use the former `break-my-house` interior source because that repository exposes no declared license.
