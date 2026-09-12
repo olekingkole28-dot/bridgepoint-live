@@ -17,6 +17,9 @@ const SUSHI_ENV='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Sushi%20
 const SUSHI_DECOR='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Sushi%20Restaurant%20Kit%20-%20May%202023/Decoration/glTF';
 const ASSETS={
   player:FREE_BASE+'/Characters/glTF/Characters_Matt.gltf',
+  playerLis:FREE_BASE+'/Characters/glTF/Characters_Lis.gltf',
+  playerSam:FREE_BASE+'/Characters/glTF/Characters_Sam.gltf',
+  playerShaun:FREE_BASE+'/Characters/glTF/Characters_Shaun.gltf',
   zombie:FREE_BASE+'/Characters/glTF/Zombie_Basic.gltf',
   zombieChubby:FREE_BASE+'/Characters/glTF/Zombie_Chubby.gltf',
   zombieRibcage:FREE_BASE+'/Characters/glTF/Zombie_Ribcage.gltf',
@@ -74,6 +77,10 @@ const DEFAULT_WEAPON_CONFIGS=[
 ];
 
 const params=new URLSearchParams(location.search);
+const PREVIEW_KEY=['city','mountain','coastal'].includes(String(params.get('preview')||'').toLowerCase())?String(params.get('preview')).toLowerCase():null;
+const PLAYER_VARIANTS={matt:ASSETS.player,lis:ASSETS.playerLis,sam:ASSETS.playerSam,shaun:ASSETS.playerShaun};
+const CHARACTER_KEY=String(params.get('character')||({city:'matt',mountain:'lis',coastal:'sam'}[PREVIEW_KEY]||'matt')).toLowerCase();
+const PLAYER_ASSET=PLAYER_VARIANTS[CHARACTER_KEY]||ASSETS.player;
 const requestedCell=String(params.get('cell')||'national').toLowerCase();
 const CELL=requestedCell==='middletown'?'middletown':requestedCell==='manhattan'?'manhattan':'national';
 const $=id=>document.getElementById(id);
@@ -108,7 +115,7 @@ const latParam=params.get('lat'),lonParam=params.get('lon');
 const STREAM_LAT=latParam!==null&&latParam!==''&&Number.isFinite(Number(latParam))?Number(latParam):selectedJurisdiction[1];
 const STREAM_LON=lonParam!==null&&lonParam!==''&&Number.isFinite(Number(lonParam))?Number(lonParam):selectedJurisdiction[2];
 const STREAM_SPAN=Math.max(1,Math.min(5.5,Number(params.get('span_km')||3.4)));
-const densePreview=()=>CELL==='manhattan'||CELL==='national';
+const densePreview=()=>PREVIEW_KEY?PREVIEW_KEY==='city':(CELL==='manhattan'||CELL==='national');
 
 document.body.classList.toggle('nationalMode',CELL==='national');
 $('cellNational')?.classList.toggle('active',CELL==='national');
@@ -473,11 +480,17 @@ function terrainZ(lon,lat){
 function terrainZXY(x,y){const p=unproject(x,y);return terrainZ(p[0],p[1])}
 
 function worldCellLabel(){
+  if(PREVIEW_KEY==='city')return'DENSE CITY · MANHATTAN SURVIVAL CELL';
+  if(PREVIEW_KEY==='mountain')return'MOUNTAIN TOWN · ASPEN SURVIVAL CELL';
+  if(PREVIEW_KEY==='coastal')return'WATERFRONT SUBURB · SEATTLE SURVIVAL CELL';
   if(CELL==='manhattan')return'DOWNTOWN MANHATTAN · SURVIVAL CELL';
   if(CELL==='middletown')return'MIDDLETOWN · NEIGHBORHOOD CELL';
   return (JURISDICTIONS[SELECTED_STATE]?.[0]||SELECTED_STATE).toUpperCase()+' · NATIONAL STREAM CELL';
 }
 function worldCellTitle(){
+  if(PREVIEW_KEY==='city')return'Manhattan after collapse';
+  if(PREVIEW_KEY==='mountain')return'Aspen after collapse';
+  if(PREVIEW_KEY==='coastal')return'Waterfront suburb after collapse';
   if(CELL==='manhattan')return'Downtown Manhattan survivor';
   if(CELL==='middletown')return'Neighborhood survivor';
   return (JURISDICTIONS[SELECTED_STATE]?.[0]||SELECTED_STATE)+' survivor';
@@ -1305,7 +1318,7 @@ function sanitizeCharacterClips(clips){
 async function buildPlayer(){
   const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,surfaceZXY(spawn.x,spawn.y)+.015);
   const [gltf,axe,bat,knife,pistol,rifle,shotgun]=await Promise.all([
-    loadAsset(ASSETS.player),
+    loadAsset(PLAYER_ASSET),
     loadAsset(weaponCfg('Axe').model_url||ASSETS.axe),
     loadAsset(weaponCfg('Barbed Bat').model_url||ASSETS.bat),
     loadAsset(weaponCfg('Knife').model_url||ASSETS.knife),
@@ -2970,7 +2983,7 @@ async function boot(){
     updateInventory();updateInteractionPrompt();resizeRenderer();
     window.BP_HORIZON_SMOKE={
       ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),
-      player:Boolean(playerRoot),loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,
+      player:Boolean(playerRoot),character:CHARACTER_KEY,preview:PREVIEW_KEY,loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,
       packCapacity,weapon:equippedWeaponName,interiorAssets:Object.values(interiorTemplates).filter(Boolean).length,
       artChildren:artGroup.children.length,roadLayers:roadLayer?.children?.length||0,streetLife:{...streetLifeStats},
       spawnBlocked:isBlockedExterior(playerRoot.position.x,playerRoot.position.y,.36),
