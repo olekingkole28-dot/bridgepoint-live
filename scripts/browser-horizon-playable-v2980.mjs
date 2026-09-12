@@ -16,7 +16,13 @@ const browser=await chromium.launch({
   headless:true,
   args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--use-gl=angle','--use-angle=swiftshader-webgl','--enable-unsafe-swiftshader']
 });
-const page=await browser.newPage({viewport:{width:1280,height:720}});
+const context=await browser.newContext({
+  viewport:{width:915,height:412},
+  isMobile:true,
+  hasTouch:true,
+  deviceScaleFactor:1
+});
+const page=await context.newPage();
 const messages=[],errors=[];
 page.on('console',m=>messages.push(m.type()+': '+m.text()));
 page.on('pageerror',e=>errors.push(String(e?.stack||e)));
@@ -28,11 +34,11 @@ async function testLanding(){
   const href=await page.locator('a.cta').first().getAttribute('href');
   console.log(JSON.stringify({landing:true,status:response?.status(),url,href},null,2));
   if(response?.status()!==200)throw new Error('landing HTTP '+response?.status());
-  if(href!=='/app/horizon-playable/?build=2994')throw new Error('landing CTA stale: '+href);
+  if(href!=='/app/horizon-playable/?build=2995')throw new Error('landing CTA stale: '+href);
 }
 
 async function testCell(cell){
-  const url='https://bridgepointintelligence.online/app/horizon-playable/?build=2994&cell='+cell+'&ci='+Date.now();
+  const url='https://bridgepointintelligence.online/app/horizon-playable/?build=2995&cell='+cell+'&ci='+Date.now();
   const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
   await page.waitForFunction(()=>Boolean(window.BP_HORIZON_SMOKE),null,{timeout:90000});
   const d=await page.evaluate(()=>{
@@ -66,6 +72,13 @@ async function testCell(cell){
   if(!(d.smoke?.interiorAssets>=6))throw new Error(cell+' interior asset set incomplete: '+d.smoke?.interiorAssets);
   if(!(d.smoke?.packCapacity>=24))throw new Error(cell+' starter pack missing');
   if(!d.smoke?.weapon)throw new Error(cell+' equipped weapon missing');
+  if(d.smoke?.spawnBlocked)throw new Error(cell+' player spawned inside building collision');
+  if(!(d.smoke?.roadLayers>=4))throw new Error(cell+' road/sidewalk layers missing: '+d.smoke?.roadLayers);
+  if(cell==='manhattan'){
+    if(!(d.smoke?.streetLife?.trees>=30))throw new Error('manhattan trees too sparse: '+JSON.stringify(d.smoke?.streetLife));
+    if(!(d.smoke?.streetLife?.bikes>=12))throw new Error('manhattan bikes too sparse: '+JSON.stringify(d.smoke?.streetLife));
+    if(!(d.smoke?.streetLife?.vehicles>=20))throw new Error('manhattan vehicles too sparse: '+JSON.stringify(d.smoke?.streetLife));
+  }
   if(!(d.canvases>=2))throw new Error(cell+' expected world + minimap canvases');
   const overlap=(a,b)=>a&&b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
   if(overlap(d.rects.use,d.rects.swing))throw new Error(cell+' USE overlaps SWING');
@@ -92,7 +105,8 @@ async function testCell(cell){
       backward:t?.directionProbe?.('backward'),
       left:t?.directionProbe?.('left'),
       right:t?.directionProbe?.('right'),
-      weapon:t?.weaponSize?.()
+      weapon:t?.weaponSize?.(),
+      mobility:t?.spawnMobility?.()
     };
   });
   console.log(JSON.stringify({cell,controls},null,2));
@@ -102,15 +116,19 @@ async function testCell(cell){
   if(!(controls.right?.dx>0))throw new Error(cell+' right does not move right');
   if(!(controls.weapon?.longest>0.15&&controls.weapon?.longest<1.15))
     throw new Error(cell+' weapon scale unreasonable: '+JSON.stringify(controls.weapon));
+  if(controls.mobility?.blockedHere)throw new Error(cell+' spawn mobility says player is blocked');
+  const openCount=Object.values(controls.mobility?.open||{}).filter(Boolean).length;
+  if(openCount<2)throw new Error(cell+' spawn has fewer than 2 open movement directions: '+JSON.stringify(controls.mobility));
 }
 try{
   await testLanding();
   await testCell('middletown');
   await testCell('manhattan');
-  console.log('HORIZON_V2994_BROWSER_SMOKE_PASS');
+  console.log('HORIZON_V2995_BROWSER_SMOKE_PASS');
   if(errors.length)console.log('pageErrors',errors);
   const serious=messages.filter(x=>/syntaxerror|referenceerror|typeerror/i.test(x));
   if(serious.length)throw new Error('Serious console errors: '+serious.join(' | '));
 }finally{
+  await context.close();
   await browser.close();
 }
