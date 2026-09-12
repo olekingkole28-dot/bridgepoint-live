@@ -2710,7 +2710,7 @@ function applyInfectedLook(model,archetype,rng=rand){
   model?.traverse(o=>{
     if(o.morphTargetDictionary&&o.morphTargetInfluences){
       const idx=o.morphTargetDictionary.mouthOpen??o.morphTargetDictionary.MouthOpen;
-      if(idx!=null)o.morphTargetInfluences[idx]=archetype.screamer?.78:.18+rng()*.18;
+      if(idx!=null)o.morphTargetInfluences[idx]=archetype.screamer ? .78 : .18+rng()*.18;
     }
     if(!o.isMesh||!o.material)return;
     const src=Array.isArray(o.material)?o.material:[o.material];
@@ -2718,7 +2718,7 @@ function applyInfectedLook(model,archetype,rng=rand){
       const m=base.clone(),tint=new THREE.Color(archetype.tint||0x68705f);
       if(m.color)m.color.lerp(tint,archetype.tintMix??.34);
       m.roughness=Math.max(.74,Number(m.roughness??.6));
-      if(m.emissive){m.emissive.set(archetype.emissive||0x1b0303);m.emissiveIntensity=archetype.screamer?.16:.07}
+      if(m.emissive){m.emissive.set(archetype.emissive||0x1b0303);m.emissiveIntensity=archetype.screamer ? .16 : .07}
       const prior=m.onBeforeCompile;
       m.onBeforeCompile=shader=>{
         prior?.(shader);
@@ -2940,7 +2940,7 @@ function updateZombies(dt,now){
     if(dist<38&&audioCtx&&now>(z.nextGroan||0)){z.nextGroan=now+3200+rand()*4200;spatialTone(z.root.position,'groan')}
     if(dist<(z.attackRange||1.28)&&now>=(z.nextAttackAt||0)){
       setEnemyAnimation(z,'attack',true);
-      const lunge=z.behavior==='pounce'?1.15:z.behavior==='charge'?.62:.28;
+      const lunge=z.behavior==='pounce'?1.15:(z.behavior==='charge'?.62:.28);
       if(lunge>0&&!interiorMode){const dx=playerRoot.position.x-z.root.position.x,dy=playerRoot.position.y-z.root.position.y,d=Math.hypot(dx,dy)||1;z.root.position.x+=(dx/d)*lunge;z.root.position.y+=(dy/d)*lunge}
       damagePlayer(z.damage||8);z.nextAttackAt=now+(z.attackMs||1050);lastDamageAt=now;
       if(!playerDead)showToast((z.label||'Hostile')+' hit · '+health+' health');
