@@ -2821,20 +2821,26 @@ async function boot(){
         input:mobileInputMode
       }),
       reloadProbe:()=>{
+        const previousSlot=activeSlot;
         addInventoryItem('Pistol');selectSlot('sidearm',true);
         const cfg=weaponCfg('Pistol');
         ammoState.Pistol=1;reserveAmmo.Pistol=Math.max(12,reserveAmmo.Pistol||0);
         const started=requestReload();
         const end=reloadState.endsAt;
         if(started){reloadState.endsAt=performance.now()-1;updateReload(performance.now())}
-        return {started,end,mag:ammoState.Pistol,reserve:reserveAmmo.Pistol,expected:Number(cfg.magazine_size||12),active:reloadState.active};
+        const result={started,end,mag:ammoState.Pistol,reserve:reserveAmmo.Pistol,expected:Number(cfg.magazine_size||12),active:reloadState.active};
+        if(activeItemForSlot(previousSlot))selectSlot(previousSlot,true);
+        return result;
       },
       recoilProbe:()=>{
+        const previousSlot=activeSlot,previousAiming=aiming;
         addInventoryItem('Rifle');selectSlot('primary',true);aiming=true;
         const before={pitch:recoilPitch,yaw:recoilYaw};
         const cfg=weaponCfg('Rifle');applyRecoil(cfg);
         const after={pitch:recoilPitch,yaw:recoilYaw,cfgPitch:cfg.recoil_pitch_deg,cfgYaw:cfg.recoil_yaw_deg};
-        aiming=false;return {before,after};
+        aiming=previousAiming;
+        if(activeItemForSlot(previousSlot))selectSlot(previousSlot,true);
+        return {before,after};
       },
       spawnMobility:()=>{
         const p=playerRoot.position,step=.8,dirs={
