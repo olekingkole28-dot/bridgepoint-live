@@ -102,3 +102,74 @@ body{touch-action:none}
   .actionButton.attack{right:max(128px,calc(env(safe-area-inset-right) + 128px));width:50px;height:50px}
   .actionButton.sprint{right:max(186px,calc(env(safe-area-inset-right) + 186px));width:44px;height:44px}
 }
+
+
+/* V3000 survival inventory / death / denser HUD */
+.inventoryPanel.open{
+  width:min(300px,34vw);
+  max-height:46vh;
+  overflow:auto;
+}
+.loadoutGrid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:4px;
+  margin:5px 0 6px;
+}
+.loadoutSlot{
+  min-width:0;
+  border:1px solid rgba(148,178,151,.20);
+  border-radius:7px;
+  background:rgba(20,27,22,.72);
+  padding:5px 6px;
+}
+.loadoutSlot small{
+  display:block;
+  font-size:5px;
+  letter-spacing:.08em;
+  color:#8e9d91;
+  margin-bottom:2px;
+}
+.loadoutSlot b{
+  display:block;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-size:7px;
+  color:#e5d09b;
+}
+.deathBox{
+  position:fixed;
+  z-index:50;
+  inset:0;
+  margin:auto;
+  width:min(420px,76vw);
+  height:max-content;
+  padding:22px 24px;
+  border-radius:18px;
+  background:rgba(38,7,7,.94);
+  border:1px solid rgba(240,93,83,.64);
+  box-shadow:0 30px 90px rgba(0,0,0,.72);
+  color:#fff;
+  text-align:center;
+}
+.deathBox b{display:block;font-size:20px;letter-spacing:.08em;margin-bottom:8px}
+.deathBox span{display:block;font-size:11px;color:#e6c3bd;margin-bottom:14px}
+.deathBox button{
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:10px;
+  padding:10px 18px;
+  font-weight:900;
+  background:#f1eee7;
+  color:#251616;
+}
+@media (pointer:coarse) and (orientation:landscape) and (max-height:500px){
+  .inventoryPanel.open{
+    width:250px;
+    max-height:42vh;
+  }
+  .loadoutGrid{grid-template-columns:repeat(3,1fr);gap:3px;margin:3px 0}
+  .loadoutSlot{padding:3px 4px;border-radius:5px}
+  .loadoutSlot small{font-size:4px}
+  .loadoutSlot b{font-size:6px}
+}
