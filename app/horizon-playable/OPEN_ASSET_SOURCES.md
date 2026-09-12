@@ -30,3 +30,7 @@ Before merging a Horizon release:
 2. Production deploy verification must find the exact build number and required systems.
 3. The public browser smoke test must pass against the deployed URL.
 4. No undeclared-license model host may appear in `horizon-world.js`.
+
+| Aurisar CC0 creature mirror (Quaternius models) | Wolf, Orc, Spider hostile variants | CC0 1.0 | https://github.com/brandon-aurgames/aurisar-app/blob/main/public/assets/ATTRIBUTION.md | Runtime GLB mirror; attribution records these mob models as Quaternius CC0. |
+| Constellation Defense Quaternius mirror | Yeti hostile variant | CC0 1.0 | https://github.com/Hakhyun-Kim/constellation-defense/blob/main/CREDITS.md | Runtime GLB repack of Quaternius Ultimate Monsters; credits record CC0. |
+| Dereth / Poly Pizza Bear | Feral bear hostile variant | CC BY | https://github.com/w5ohr/Dereth/blob/main/assets/README.md | Free model; attribution is retained because it is not CC0. |
