@@ -1,39 +1,170 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#080a0d">
-<meta name="robots" content="noindex,nofollow,noarchive">
-<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
-<title>BridgePoint Horizon — Test World</title>
-<link rel="stylesheet" href="./horizon-preview.css?v=4203">
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}</script>
-</head>
-<body>
-<div id="world"></div>
-<div class="grain"></div>
-<header class="topbar">
-  <div class="brand"><span class="mark">H</span><div><b>BRIDGEPOINT</b><small>HORIZON TEST WORLD</small></div></div>
-  <div class="topActions"><button id="weatherBtn">STORM</button><button id="lightBtn">NIGHT</button></div>
-</header>
-<section class="scenePicker" aria-label="Preview locations">
-  <button class="scene active" data-scene="city"><b>Dense City</b><span>Times Square · NYC</span></button>
-  <button class="scene" data-scene="mountain"><b>Mountain Town</b><span>Aspen · Colorado</span></button>
-  <button class="scene" data-scene="coastal"><b>Waterfront Suburb</b><span>Seattle · Washington</span></button>
-</section>
-<section class="hud">
-  <div class="eyebrow" id="eyebrow">DENSE CITY TEST CELL</div>
-  <h1 id="title">Manhattan after collapse.</h1>
-  <p id="sub">Streaming real roads and building footprints, then layering survival-world art, decay, vegetation, debris and atmosphere.</p>
-  <div class="stats"><span><b id="buildingCount">—</b> buildings</span><span><b id="roadCount">—</b> road segments</span><span><b id="infectedCount">—</b> infected</span><span><b id="fps">—</b> FPS</span></div>
-</section>
-<div class="instructions">Drag to look · left pad to move · switch scenes above</div>
-<div class="reticle">+</div>
-<div id="movePad" class="movePad"><div id="moveKnob"></div></div>
-<button id="sprintBtn" class="sprint">SPRINT</button>
-<div id="loading" class="loading"><b>BUILDING TEST CELL</b><span id="loadText">Loading real-world geometry…</span></div>
-<div id="error" class="error" hidden><b>WORLD CELL FAILED</b><span id="errorText"></span><button id="retryBtn">Retry</button></div>
-<script type="module" src="./horizon-preview.js?v=4203"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#05070a">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <title>BridgePoint Horizon — Playable World Preview</title>
+  <meta name="description" content="BridgePoint Horizon playable survival-world prototype using source-backed terrain and building geometry with separate CC0 game art.">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://xdfsjztwgsbmabshzsjw.supabase.co">
+  <link rel="stylesheet" href="../horizon-playable/horizon-world.css?v=3052">
+  <script defer src="https://cdn.jsdelivr.net/npm/nipplejs@0.10.2/dist/nipplejs.min.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+      }
+    }
+  </script>
+<style>
+  .showcase .jurisdictionPanel{display:none!important}
+  .showcase .cellSwitch{gap:6px}
+  .showcase .cellSwitch a{white-space:nowrap}
+  .previewRibbon{position:fixed;left:50%;top:74px;transform:translateX(-50%);z-index:24;display:flex;gap:8px;align-items:center;padding:7px 11px;border:1px solid rgba(255,255,255,.13);border-radius:999px;background:rgba(5,8,10,.78);backdrop-filter:blur(12px);font:700 10px/1.2 system-ui;color:#d8e2dc;letter-spacing:.08em;pointer-events:none}
+  .previewRibbon b{color:#7ff0b3}
+  @media(max-width:800px){.previewRibbon{top:68px;max-width:92vw;font-size:8px}.showcase .cellSwitch a{font-size:8px;padding:7px 8px}}
+  </style></head>
+<body class="showcase">
+  <div id="world"></div>
+  <div class="vignette"></div>
+  <div class="grain"></div>
+
+  <header class="hud topbar">
+    <a class="brand" href="/app/horizon/" aria-label="Back to BridgePoint Horizon">
+      <span class="sigil">H</span>
+      <span><b>BRIDGEPOINT HORIZON</b><small>WORLD PREVIEW · GAME ONLY</small></span>
+    </a>
+    <div class="cellSwitch" aria-label="Preview location">
+      <a id="sceneCity" data-preview="city" href="/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=matt&build=4204">DENSE CITY</a>
+      <a id="sceneMountain" data-preview="mountain" href="/app/horizon/preview.html?preview=mountain&cell=national&state=CO&lat=39.1911&lon=-106.8175&span_km=1.65&character=lis&build=4204">MOUNTAIN TOWN</a>
+      <a id="sceneCoastal" data-preview="coastal" href="/app/horizon/preview.html?preview=coastal&cell=national&state=WA&lat=47.6686&lon=-122.3869&span_km=1.8&character=sam&build=4204">WATERFRONT SUBURB</a>
+      <a id="cellNational" href="/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=matt&build=4204" hidden></a>
+      <a id="cellMiddletown" href="#" hidden></a>
+      <a id="cellManhattan" href="#" hidden></a>
+    </div>
+  </header>
+
+  <div class="previewRibbon">REAL WORLD GEOMETRY · <b>CC0 SURVIVORS / INFECTED / VEHICLES / PROPS</b></div>
+  <section class="hud jurisdictionPanel" id="jurisdictionPanel">
+    <div class="jurisdictionHead"><b>NATIONAL STREAM</b><span>free/open source-backed cell</span></div>
+    <div class="jurisdictionControls">
+      <select id="jurisdictionSelect" aria-label="Choose U.S. state or jurisdiction"></select>
+      <button id="jurisdictionGo" type="button">STREAM CELL</button>
+    </div>
+    <small id="jurisdictionMeta">Stream any U.S. state or jurisdiction. Crossing valid jurisdiction edges streams the next cell; foreign borders become infected containment lines.</small>
+  </section>
+
+  <section class="hud statusPanel">
+    <div class="eyebrow" id="cellLabel">LOADING WORLD CELL</div>
+    <h1 id="worldTitle">Horizon survivor</h1>
+    <p id="loadText">Loading terrain, structures, player and survival art…</p>
+    <div class="statusRows">
+      <span><b id="healthStat">100</b> health</span>
+      <span><b id="lootStat">0</b> loot</span>
+      <span><b id="zombieStat">0</b> infected</span>
+      <span><b id="packStat">2/24</b> pack</span>
+      <span><b id="killStat">0</b> kills</span>
+      <span><b id="xpStat">0</b> xp</span>
+      <span><b id="livesStat">3</b> lives</span>
+      <span><b id="modeStat">SURVIVAL</b> mode</span>
+      <span><b id="characterStat">MATT</b> survivor</span>
+    </div>
+  </section>
+
+  <div class="hud minimapPanel">
+    <canvas id="minimap" width="220" height="220" aria-label="Exploration minimap"></canvas>
+    <div class="mapLabel"><b>EXPLORED</b><span>fog clears as you travel</span></div>
+  </div>
+
+  <nav class="hud controls" aria-label="World controls">
+    <button id="cameraBtn">◉ <span>Camera</span></button>
+    <button id="lightBtn">☀ <span>Day</span></button>
+    <button id="parcelBtn">◇ <span>Parcels</span></button>
+    <button id="artBtn" class="active">⚠ <span>Survival art</span></button>
+    <button id="flashlightBtn">⌁ <span>Flashlight</span></button>
+    <button id="modeBtn">◎ <span>Mode</span></button>
+    <button id="claimBtn">⚑ <span>Claim base</span></button>
+    <button id="fullscreenBtn">⛶ <span>Fullscreen</span></button>
+  </nav>
+
+  <aside class="hud inventoryPanel open" id="inventoryPanel">
+    <div class="inventoryHead"><b id="packName">HIDDEN SURVIVOR PACK</b><span id="inventoryCount">2 / 24 slots</span></div>
+    <div class="loadoutGrid" id="loadoutGrid">
+      <button class="loadoutSlot active" data-slot="melee"><small>RIGHT HAND</small><b id="slotMelee">AXE</b></button>
+      <button class="loadoutSlot" data-slot="offhand"><small>LEFT HAND</small><b id="slotOffhand">KNIFE</b></button>
+      <button class="loadoutSlot" data-slot="sidearm"><small>SIDEARM</small><b id="slotSidearm">EMPTY</b></button>
+      <button class="loadoutSlot" data-slot="primary"><small>BACK</small><b id="slotPrimary">EMPTY</b></button>
+      <button class="loadoutSlot" data-slot="quick1"><small>QUICK 1</small><b id="slotQuick1">BANDAGE</b></button>
+      <button class="loadoutSlot" data-slot="quick2"><small>QUICK 2</small><b id="slotQuick2">WATER</b></button>
+    </div>
+    <div id="equippedWeapon" class="equippedWeapon">Melee: Axe · Open pack</div>
+    <div id="inventoryList"><span class="empty">Search rooms, cabinets, furniture and visible street loot.</span></div>
+  </aside>
+
+  <div id="interactPrompt" class="hud interactPrompt" hidden>
+    <b id="interactLabel">LOOT</b>
+    <span>Press E / tap</span>
+  </div>
+
+  <div class="hud hint">WASD move · Shift sprint · Space jump/hurdle · C stance · Z slide · V/B lean · E use · K kick door · T flashlight · G claim base · M mode · F fire · R reload</div>
+
+  <div class="mobileControls" aria-label="Mobile movement controls">
+    <div id="movePad" class="movePad"><div id="moveKnob"></div></div>
+    <button id="interactBtn" class="actionButton interact">E<br><small>USE</small></button>
+    <button id="attackBtn" class="actionButton attack">⚔<br><small id="attackLabel">SWING</small></button>
+    <button id="aimBtn" class="actionButton aim">◎<br><small>AIM</small></button>
+    <button id="weaponBtn" class="actionButton weapon">↻<br><small>SLOT</small></button>
+    <button id="reloadBtn" class="actionButton reload">⟳<br><small id="reloadLabel">RELOAD</small></button>
+    <button id="jumpBtn" class="actionButton jump">↑<br><small>JUMP</small></button>
+    <button id="stanceBtn" class="actionButton stance">▾<br><small>STANCE</small></button>
+    <button id="sprintBtn" class="actionButton sprint">⇧<br><small>RUN</small></button>
+  </div>
+
+  <div id="crosshair" class="crosshair" hidden><span></span><span></span></div>
+
+  <div id="landscapeGate" class="landscapeGate">
+    <div>
+      <span class="rotateIcon">↻</span>
+      <b>Horizon plays in landscape</b>
+      <p>Turn your phone sideways for the playable ground-level world.</p>
+      <button id="landscapeBtn" type="button">ENTER LANDSCAPE WORLD</button>
+      <small>If your browser cannot lock orientation, rotate the phone sideways once.</small>
+    </div>
+  </div>
+
+  <div id="deathBox" class="deathBox" hidden>
+    <b>YOU WERE OVERRUN</b>
+    <span id="deathText">The infected got you.</span>
+    <button id="respawnBtn" type="button">RESPAWN</button>
+  </div>
+
+  <div id="error" class="errorBox" hidden>
+    <b>World preview could not load.</b>
+    <span id="errorText"></span>
+    <button onclick="location.reload()">Retry</button>
+  </div>
+
+  <script>
+    (function(){
+      var q=new URLSearchParams(location.search), scene=(q.get('preview')||'city').toLowerCase(), character=(q.get('character')||({city:'matt',mountain:'lis',coastal:'sam'}[scene]||'matt')).toUpperCase();
+      document.querySelectorAll('[data-preview]').forEach(function(a){a.classList.toggle('active',a.getAttribute('data-preview')===scene)});
+      var stat=document.getElementById('characterStat'); if(stat)stat.textContent=character;
+    })();
+    window.addEventListener('error', function (event) {
+      var box=document.getElementById('error'), text=document.getElementById('errorText'), load=document.getElementById('loadText');
+      if (!box || !text) return;
+      var msg=event && (event.message || (event.error && event.error.message));
+      if (!msg) return;
+      box.hidden=false;
+      text.textContent='Renderer startup error: '+msg;
+      if (load) load.textContent='Renderer startup failed';
+    });
+  </script>
+  <script type="module" src="../horizon-playable/horizon-mobile-safe.js?v=3052"></script>
+  <script type="module" src="../horizon-playable/horizon-world.js?v=4204"></script>
 </body>
 </html>
