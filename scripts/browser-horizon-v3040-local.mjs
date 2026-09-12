@@ -133,6 +133,11 @@ try{
   if(probes.camera?.blocked)throw new Error('camera collision protection failed');
   if(!(probes.nav?.nodes>5))throw new Error('pathfinding graph probe failed');
   if(!probes.drive?.entered||!probes.drive?.exited)throw new Error('vehicle interaction failed');
+  if(probes.horizon3050?.build!==3050||probes.horizon3050?.sceneFetchError)throw new Error('3050 systems probe failed: '+JSON.stringify(probes.horizon3050));
+  if(!(probes.horizon3050?.decayPatchedMaterials>0)||!(probes.horizon3050?.doorSystemCount>0)||!probes.horizon3050?.flashlightReady)throw new Error('3050 world systems incomplete: '+JSON.stringify(probes.horizon3050));
+  if(!probes.doors?.after||!(Math.abs(probes.doors?.angle||0)>.1))throw new Error('interactive door probe failed: '+JSON.stringify(probes.doors));
+  if(!probes.repair?.repaired||!probes.repair?.ready)throw new Error('vehicle repair probe failed: '+JSON.stringify(probes.repair));
+  if(!probes.match?.mode)throw new Error('match mode probe failed: '+JSON.stringify(probes.match));
   if(probes.stance?.crouch?.stance!=='crouch'||probes.stance?.after!=='stand')throw new Error('stance controller failed');
   if(!(probes.feet?.clearance>=-0.03&&probes.feet?.clearance<=0.12))throw new Error('survivor feet not grounded: '+JSON.stringify(probes.feet));
   if(!(probes.floors?.first?.floors>=2&&probes.floors?.second?.floor===2))throw new Error('multi-floor interior traversal failed: '+JSON.stringify(probes.floors));
