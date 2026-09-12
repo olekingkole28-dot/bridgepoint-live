@@ -8,8 +8,9 @@ import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
-const BUILD_VERSION=3030;
-const SAVE_KEY='bridgepoint-horizon-survivor-v3030';
+const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
+const BUILD_VERSION=3040;
+const SAVE_KEY='bridgepoint-horizon-survivor-v3040';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
 const INTERIOR_BASE='https://cdn.jsdelivr.net/gh/sijun-kevin-hu/break-my-house@main/public/models/house-interior';
 const ASSETS={
@@ -56,6 +57,14 @@ const INTERIOR_ASSETS={
   shelf:INTERIOR_BASE+'/Shelf%20Large.glb',
   table:INTERIOR_BASE+'/Table%20Round%20Small.glb'
 };
+const DEFAULT_WEAPON_CONFIGS=[
+  {weapon_id:'axe',weapon_name:'Axe',weapon_type:'melee',equip_slot:'melee',stance_type:'one_handed_melee',fire_mode:'melee',damage:72,range_m:2.45,magazine_size:0,reserve_default:0,fire_interval_seconds:.48,reload_time_seconds:0,recoil_pitch_deg:0,recoil_yaw_deg:0,spread_deg:0,aim_fov:62,two_handed:false,hitscan:true,model_url:ASSETS.axe,license_code:'CC0'},
+  {weapon_id:'knife',weapon_name:'Knife',weapon_type:'melee',equip_slot:'offhand',stance_type:'one_handed_melee',fire_mode:'melee',damage:50,range_m:2.05,magazine_size:0,reserve_default:0,fire_interval_seconds:.36,reload_time_seconds:0,recoil_pitch_deg:0,recoil_yaw_deg:0,spread_deg:0,aim_fov:62,two_handed:false,hitscan:true,model_url:ASSETS.knife,license_code:'CC0'},
+  {weapon_id:'barbed_bat',weapon_name:'Barbed Bat',weapon_type:'melee',equip_slot:'melee',stance_type:'two_handed_melee',fire_mode:'melee',damage:58,range_m:2.65,magazine_size:0,reserve_default:0,fire_interval_seconds:.56,reload_time_seconds:0,recoil_pitch_deg:0,recoil_yaw_deg:0,spread_deg:0,aim_fov:62,two_handed:true,hitscan:true,model_url:ASSETS.bat,license_code:'CC0'},
+  {weapon_id:'pistol',weapon_name:'Pistol',weapon_type:'sidearm',equip_slot:'sidearm',stance_type:'one_handed_pistol',fire_mode:'semi',damage:52,range_m:60,magazine_size:12,reserve_default:48,fire_interval_seconds:.30,reload_time_seconds:1.35,recoil_pitch_deg:2.1,recoil_yaw_deg:.75,spread_deg:.65,aim_fov:52,two_handed:false,hitscan:true,model_url:ASSETS.pistol,license_code:'CC0'},
+  {weapon_id:'rifle',weapon_name:'Rifle',weapon_type:'primary',equip_slot:'primary',stance_type:'two_handed_rifle',fire_mode:'auto',damage:76,range_m:95,magazine_size:20,reserve_default:100,fire_interval_seconds:.16,reload_time_seconds:2.10,recoil_pitch_deg:1.35,recoil_yaw_deg:.55,spread_deg:.45,aim_fov:48,two_handed:true,hitscan:true,model_url:ASSETS.rifle,license_code:'CC0'},
+  {weapon_id:'shotgun',weapon_name:'Shotgun',weapon_type:'primary',equip_slot:'primary',stance_type:'two_handed_rifle',fire_mode:'pump',damage:92,range_m:28,magazine_size:6,reserve_default:30,fire_interval_seconds:.72,reload_time_seconds:2.75,recoil_pitch_deg:3,recoil_yaw_deg:1.1,spread_deg:2.4,aim_fov:50,two_handed:true,hitscan:true,model_url:ASSETS.shotgun,license_code:'CC0'}
+];
 
 const params=new URLSearchParams(location.search);
 const requestedCell=String(params.get('cell')||'national').toLowerCase();
@@ -187,8 +196,12 @@ let equipment={melee:'Axe',offhand:'Knife',sidearm:null,primary:null,quick1:'Ban
 let equipmentMounts={rightHand:null,leftHand:null,hip:null,backGun:null,backMelee:null};
 let activeSlot='melee',activeWeapon='Axe',aiming=false,fireCooldown=0,muzzleFlash=0;
 const weaponRaycaster=new THREE.Raycaster();
-let characterWeaponTemplates={};
+let weaponRegistry=new Map(),weaponRegistryMode='fallback',weaponRegistryError=null;
+let characterWeaponTemplates={},aimBones={};
 let ammoState={Pistol:12,Rifle:20,Shotgun:6};
+let reserveAmmo={Pistol:48,Rifle:100,Shotgun:30};
+let reloadState={active:false,weapon:null,startedAt:0,endsAt:0};
+let recoilPitch=0,recoilYaw=0;
 let playerDead=false,kills=0;
 let audioCtx=null,audioMaster=null,lastFootstepAt=0;
 let worldPickups=[],pickupTemplates={},pickupSeq=0;
