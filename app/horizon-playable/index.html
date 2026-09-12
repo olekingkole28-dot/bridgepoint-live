@@ -31,10 +31,20 @@
       <span><b>BRIDGEPOINT HORIZON</b><small>WORLD PREVIEW · GAME ONLY</small></span>
     </a>
     <div class="cellSwitch" aria-label="Preview location">
+      <a id="cellNational" href="?cell=national&state=NY">U.S. + JURISDICTIONS</a>
       <a id="cellMiddletown" href="?cell=middletown">NEIGHBORHOOD</a>
       <a id="cellManhattan" href="?cell=manhattan">MANHATTAN</a>
     </div>
   </header>
+
+  <section class="hud jurisdictionPanel" id="jurisdictionPanel">
+    <div class="jurisdictionHead"><b>NATIONAL STREAM</b><span>free/open source-backed cell</span></div>
+    <div class="jurisdictionControls">
+      <select id="jurisdictionSelect" aria-label="Choose U.S. state or jurisdiction"></select>
+      <button id="jurisdictionGo" type="button">STREAM CELL</button>
+    </div>
+    <small id="jurisdictionMeta">Choose any state, D.C., Puerto Rico, Guam, U.S. Virgin Islands, American Samoa or Northern Mariana Islands.</small>
+  </section>
 
   <section class="hud statusPanel">
     <div class="eyebrow" id="cellLabel">LOADING WORLD CELL</div>
