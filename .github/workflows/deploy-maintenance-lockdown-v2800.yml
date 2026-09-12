@@ -62,8 +62,8 @@ jobs:
           grep -Fq 'DENSE CITY' site/app/horizon/preview.html
           grep -Fq 'MOUNTAIN TOWN' site/app/horizon/preview.html
           grep -Fq 'WATERFRONT SUBURB' site/app/horizon/preview.html
-          grep -Fq 'CC0 SURVIVORS / INFECTED / VEHICLES / PROPS' site/app/horizon/preview.html
-          grep -Fq '../horizon-playable/horizon-world.js?v=4206' site/app/horizon/preview.html
+          grep -Fq 'FREE SURVIVORS · ZOMBIE DOGS · ORCS · SPIDERS · BEASTS · WEAPONS' site/app/horizon/preview.html
+          grep -Fq '../horizon-playable/horizon-world.js?v=4208' site/app/horizon/preview.html
           grep -Fq 'bridgepoint-horizon-stream-v3020' site/app/horizon-playable/horizon-world.js
           grep -Fq 'Characters_Matt.gltf' site/app/horizon-playable/horizon-world.js
           grep -Fq 'Characters_Lis.gltf' site/app/horizon-playable/horizon-world.js
@@ -73,8 +73,17 @@ jobs:
           grep -Fq 'normalizeMovementInput' site/app/horizon-playable/horizon-world.js
           grep -Fq 'playerVelocity.x=desiredX' site/app/horizon-playable/horizon-world.js
           grep -Fq 'playerFacingYaw' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'playerModelYawOffset=Math.PI' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'playerRoot.rotation.z=playerFacingYaw(targetRot)' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'n.model.rotation.y=Math.PI' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'playerRoot.rotation.z=targetRot' site/app/horizon-playable/horizon-world.js
+          grep -Fq "id:'hound'" site/app/horizon-playable/horizon-world.js
+          grep -Fq "id:'orc'" site/app/horizon-playable/horizon-world.js
+          grep -Fq "id:'spider'" site/app/horizon-playable/horizon-world.js
+          grep -Fq "id:'bear'" site/app/horizon-playable/horizon-world.js
+          grep -Fq "weapon_name:'SMG'" site/app/horizon-playable/horizon-world.js
+          grep -Fq 'function dropActiveWeapon' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'function spawnFacadeSpiders' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'function updateClimbingSpider' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'DROP ACTIVE WEAPON' site/app/horizon/preview.html
           grep -Fq 'FOUNDING MEMBER ACCESS' site/app/intelligence-launch/index.html
 
       - uses: actions/configure-pages@v5
@@ -95,7 +104,7 @@ jobs:
           for attempt in $(seq 1 30); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
             code="$(curl -sSL --max-time 20 -o /tmp/horizon.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/?v=${salt}" || true)"
-            preview_code="$(curl -sSL --max-time 20 -o /tmp/horizon-preview.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=matt&build=4206&v=${salt}" || true)"
+            preview_code="$(curl -sSL --max-time 20 -o /tmp/horizon-preview.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=matt&build=4208&v=${salt}" || true)"
             js_code="$(curl -sSL --max-time 20 -o /tmp/horizon-world.js -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon-playable/horizon-world.js?v=${salt}" || true)"
             if [ "$code" = "200" ] && [ "$preview_code" = "200" ] && [ "$js_code" = "200" ] \
               && grep -Fq 'BridgePoint Horizon - Founding Season' /tmp/horizon.html \
@@ -104,7 +113,7 @@ jobs:
               && grep -Fq 'DENSE CITY' /tmp/horizon-preview.html \
               && grep -Fq 'MOUNTAIN TOWN' /tmp/horizon-preview.html \
               && grep -Fq 'WATERFRONT SUBURB' /tmp/horizon-preview.html \
-              && grep -Fq 'CC0 SURVIVORS / INFECTED / VEHICLES / PROPS' /tmp/horizon-preview.html \
+              && grep -Fq 'FREE SURVIVORS · ZOMBIE DOGS · ORCS · SPIDERS · BEASTS · WEAPONS' /tmp/horizon-preview.html \
               && grep -Fq 'Characters_Matt.gltf' /tmp/horizon-world.js \
               && grep -Fq 'Characters_Lis.gltf' /tmp/horizon-world.js \
               && grep -Fq 'Characters_Sam.gltf' /tmp/horizon-world.js \
@@ -112,8 +121,16 @@ jobs:
               && grep -Fq 'normalizeMovementInput' /tmp/horizon-world.js \
               && grep -Fq 'playerVelocity.x=desiredX' /tmp/horizon-world.js \
               && grep -Fq 'playerFacingYaw' /tmp/horizon-world.js \
-              && grep -Fq 'playerModelYawOffset=Math.PI' /tmp/horizon-world.js \
-              && grep -Fq 'playerRoot.rotation.z=playerFacingYaw(targetRot)' /tmp/horizon-world.js; then
+              && grep -Fq 'n.model.rotation.y=Math.PI' /tmp/horizon-world.js \
+              && grep -Fq 'playerRoot.rotation.z=targetRot' /tmp/horizon-world.js \
+              && grep -Fq "id:'hound'" /tmp/horizon-world.js \
+              && grep -Fq "id:'orc'" /tmp/horizon-world.js \
+              && grep -Fq "id:'spider'" /tmp/horizon-world.js \
+              && grep -Fq "id:'bear'" /tmp/horizon-world.js \
+              && grep -Fq "weapon_name:'SMG'" /tmp/horizon-world.js \
+              && grep -Fq 'function dropActiveWeapon' /tmp/horizon-world.js \
+              && grep -Fq 'function spawnFacadeSpiders' /tmp/horizon-world.js \
+              && grep -Fq 'DROP ACTIVE WEAPON' /tmp/horizon-preview.html; then
               ok=1
               break
             fi
@@ -121,4 +138,4 @@ jobs:
           done
           test "$ok" = "1"
 
-# Horizon controls release 4206
+# Horizon dynamic survival release 4208
