@@ -201,15 +201,23 @@ function buildTerrain(){
 }
 
 const buildingMaterials={
-  brick:new THREE.MeshStandardMaterial({map:brickTex,color:0xa49186,roughness:.88}),
-  concrete:new THREE.MeshStandardMaterial({map:wallTex,color:0xa6aaa4,roughness:.86}),
-  glass:new THREE.MeshStandardMaterial({map:glassTex,color:0x8b9c99,roughness:.28,metalness:.16,emissive:0x101a18,emissiveIntensity:.32}),
-  wood:new THREE.MeshStandardMaterial({map:wallTex,color:0x8a755f,roughness:.9}),
-  metal:new THREE.MeshStandardMaterial({map:wallTex,color:0x8b9491,roughness:.48,metalness:.28})
+  brick:new THREE.MeshStandardMaterial({map:brickTex,color:0xb29b8e,roughness:.84,emissive:0x100b07,emissiveIntensity:.10}),
+  concrete:new THREE.MeshStandardMaterial({map:wallTex,color:0xaeb1aa,roughness:.82,emissive:0x0d100c,emissiveIntensity:.08}),
+  glass:new THREE.MeshStandardMaterial({map:glassTex,color:0x8fa7aa,roughness:.22,metalness:.20,emissive:0x172522,emissiveIntensity:.42}),
+  wood:new THREE.MeshStandardMaterial({map:wallTex,color:0x8a755f,roughness:.90}),
+  metal:new THREE.MeshStandardMaterial({map:wallTex,color:0x8e999a,roughness:.42,metalness:.34,emissive:0x111515,emissiveIntensity:.10})
 };
-function facadeKey(row){
+function facadeKey(row,height=8){
   const f=String(row.facade_material||'').toLowerCase();
-  if(f.includes('brick'))return'brick';if(/glass/.test(f))return'glass';if(/wood|timber/.test(f))return'wood';if(/metal|steel/.test(f))return'metal';return'concrete';
+  if(f.includes('brick'))return'brick';
+  if(/glass/.test(f))return'glass';
+  if(/wood|timber/.test(f))return'wood';
+  if(/metal|steel/.test(f))return'metal';
+  const roll=hash(String(row.id||'')+':'+Math.round(height))%100;
+  if(CELL==='manhattan'&&height>85)return roll<72?'glass':'metal';
+  if(CELL==='manhattan'&&height>35)return roll<35?'glass':roll<64?'brick':'concrete';
+  if(CELL==='manhattan'&&roll<58)return'brick';
+  return'concrete';
 }
 function buildBuildings(){
   buildingLayer=new THREE.Group();buildingLayer.name='source-buildings';worldGroup.add(buildingLayer);
@@ -218,9 +226,15 @@ function buildBuildings(){
     const shape=shapeFromRing(r);if(!shape)continue;
     const ht=heightFor(row);ht.proxy?proxies++:sourceH++;
     const geo=new THREE.ExtrudeGeometry(shape,{depth:ht.h,bevelEnabled:false,steps:1});
-    const c=centerRing(r),q=project(c);geo.translate(0,0,terrainZ(c[0],c[1])+.16);geo.computeVertexNormals();
-    buckets[facadeKey(row)].push(geo);
-    if(ringArea(r)>.000000002)buildingCenters.push({x:q.x,y:q.y,z:terrainZ(c[0],c[1]),height:ht.h});
+    const c=centerRing(r),q=project(c),z=terrainZ(c[0],c[1]);geo.translate(0,0,z+.16);geo.computeVertexNormals();
+    buckets[facadeKey(row,ht.h)].push(geo);
+    if(ringArea(r)>.0000000012){
+      const pts=r.map(project).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));
+      const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+      const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
+      const width=maxx-minx,depth=maxy-miny;
+      if(width>2.8&&depth>2.8)buildingCenters.push({id:String(row.id||hash(JSON.stringify(c))),x:q.x,y:q.y,z,height:ht.h,minx,maxx,miny,maxy,width,depth});
+    }
   }
   for(const [k,geos] of Object.entries(buckets)){
     if(!geos.length)continue;
@@ -230,6 +244,33 @@ function buildBuildings(){
   }
   loadText.textContent='Geometry ready · '+sourceH.toLocaleString()+' source-height buildings · '+proxies.toLocaleString()+' visual-height proxies';
 }
+function nearestRoadForBuilding(b){
+  let best=null,d=Infinity;
+  const step=Math.max(1,Math.floor(roadAnchors.length/700));
+  for(let i=0;i<roadAnchors.length;i+=step){
+    const a=roadAnchors[i],q=(a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y);
+    if(q<d){d=q;best=a}
+  }
+  return best;
+}
+function buildEntryPoints(){
+  entryGroup.clear();buildingEntries=[];
+  const candidates=[...buildingCenters].filter(b=>b.width>4&&b.depth>4&&b.height>5).sort((a,b)=>(a.x*a.x+a.y*a.y)-(b.x*b.x+b.y*b.y));
+  const maxEntries=CELL==='manhattan'?46:28,stride=Math.max(1,Math.floor(candidates.length/maxEntries));
+  for(let i=2;i<candidates.length&&buildingEntries.length<maxEntries;i+=stride){
+    const b=candidates[i],road=nearestRoadForBuilding(b);if(!road)continue;
+    const dx=road.x-b.x,dy=road.y-b.y;let x=b.x,y=b.y,rot=0;
+    if(Math.abs(dx)>Math.abs(dy)){x=dx>0?b.maxx+.55:b.minx-.55;y=THREE.MathUtils.clamp(road.y,b.miny+.7,b.maxy-.7);rot=Math.PI/2}
+    else{y=dy>0?b.maxy+.55:b.miny-.55;x=THREE.MathUtils.clamp(road.x,b.minx+.7,b.maxx-.7)}
+    const root=new THREE.Group(),frameMat=new THREE.MeshStandardMaterial({color:0x242922,roughness:.68,metalness:.22}),glowMat=new THREE.MeshStandardMaterial({color:0x506c57,emissive:0x2a7b49,emissiveIntensity:.65,roughness:.55});
+    const left=new THREE.Mesh(new THREE.BoxGeometry(.15,.18,2.35),frameMat),right=left.clone();left.position.set(-.62,0,1.17);right.position.set(.62,0,1.17);
+    const top=new THREE.Mesh(new THREE.BoxGeometry(1.38,.18,.15),frameMat);top.position.set(0,0,2.28);
+    const lamp=new THREE.Mesh(new THREE.BoxGeometry(.18,.12,.18),glowMat);lamp.position.set(0,-.12,2.05);
+    root.add(left,right,top,lamp);root.position.set(x,y,b.z);root.rotation.z=rot;entryGroup.add(root);
+    buildingEntries.push({...b,entryX:x,entryY:y,entryZ:b.z,doorRoot:root,seed:hash(b.id+':interior')});
+  }
+}
+function mergeLocal(geos){
 function mergeLocal(geos){
   if(!geos.length)return null;
   const first=geos[0],attrNames=Object.keys(first.attributes),indexArrays=[];
