@@ -1230,6 +1230,55 @@ function respawnPlayer(){
   if(zombieTemplate)spawnZombieWave(performance.now(),true);
   showToast('Respawned');
 }
+function lineClearToTarget(tx,ty){
+  if(!playerRoot)return false;
+  const sx=playerRoot.position.x,sy=playerRoot.position.y,steps=18;
+  for(let i=2;i<steps-1;i++){
+    const t=i/steps,x=THREE.MathUtils.lerp(sx,tx,t),y=THREE.MathUtils.lerp(sy,ty,t);
+    if(interiorMode?isBlockedInterior(x,y):isBlockedExterior(x,y,.08))return false;
+  }
+  return true;
+}
+function bestGunTarget(){
+  const list=interiorMode?interiorZombies:zombies;
+  const origin=camera.position.clone(),dir=new THREE.Vector3();camera.getWorldDirection(dir);
+  let best=null,bestScore=-Infinity;
+  const maxDist=activeWeapon==='Shotgun'?28:activeWeapon==='Pistol'?60:95;
+  const minDot=activeWeapon==='Shotgun'?.91:aiming?.975:.94;
+  for(const z of list){
+    if(z.dead)continue;
+    const target=z.root.position.clone().add(new THREE.Vector3(0,0,1.02));
+    const v=target.clone().sub(origin),dist=v.length();if(dist>maxDist||dist<.01)continue;
+    const dot=v.normalize().dot(dir);if(dot<minDot)continue;
+    if(!lineClearToTarget(z.root.position.x,z.root.position.y))continue;
+    const score=dot*3-dist/maxDist;if(score>bestScore){bestScore=score;best={z,target,dist,dot}}
+  }
+  return best;
+}
+function tracer(from,to,hit=false){
+  const g=new THREE.BufferGeometry().setFromPoints([from,to]);
+  const m=new THREE.LineBasicMaterial({color:hit?0xffd98a:0xf1efe5,transparent:true,opacity:.9});
+  const line=new THREE.Line(g,m);scene.add(line);
+  const light=new THREE.PointLight(0xffc06c,5,4,2);light.position.copy(from);scene.add(light);
+  setTimeout(()=>{scene.remove(line,light);g.dispose();m.dispose()},75);
+}
+function shoot(){
+  if(playerDead||fireCooldown>0||!isFirearm(activeWeapon))return;
+  const ammo=ammoState[activeWeapon]||0;
+  if(ammo<=0){showToast(activeWeapon+' empty — find more '+activeWeapon+' ammo');fireCooldown=.25;return}
+  ammoState[activeWeapon]=ammo-1;
+  fireCooldown=activeWeapon==='Rifle'?.16:activeWeapon==='Pistol'?.30:.72;
+  const hit=bestGunTarget(),from=camera.position.clone(),dir=new THREE.Vector3();camera.getWorldDirection(dir);
+  const end=hit?hit.target:from.clone().addScaledVector(dir,activeWeapon==='Rifle'?90:activeWeapon==='Pistol'?55:26);
+  tracer(from,end,Boolean(hit));
+  if(hit){
+    let damage=activeWeapon==='Rifle'?76:activeWeapon==='Pistol'?52:92;
+    if(activeWeapon==='Shotgun')damage=Math.max(35,damage-hit.dist*1.8);
+    hit.z.hp-=damage;
+    if(hit.z.hp<=0)killZombie(hit.z,interiorMode?'interior':'exterior');
+  }
+  muzzleFlash=.08;updateInventory();
+}
 function attack(){
   if(attackCooldown>0||!playerRoot||playerDead)return;
   attackCooldown=.48;swingTime=.38;playPlayerAnimation('attack');
@@ -1239,22 +1288,29 @@ function attack(){
     const dx=z.root.position.x-playerRoot.position.x,dy=z.root.position.y-playerRoot.position.y,dist=Math.hypot(dx,dy);
     if(dist>2.45)continue;
     const dot=(dx*fx+dy*fy)/Math.max(dist,.001);if(dot<-.05)continue;
-    const damage=equippedWeaponName==='Axe'?72:equippedWeaponName==='Barbed Bat'?58:50;
+    const damage=activeWeapon==='Axe'?72:activeWeapon==='Barbed Bat'?58:50;
     z.hp-=damage;hit=true;
     if(z.hp<=0)killZombie(z,interiorMode?'interior':'exterior');
   }
-  if(hit)showToast(equippedWeaponName+' connected');
+  if(hit)showToast(activeWeapon+' connected');
 }
+function useActiveWeapon(){if(isFirearm(activeWeapon))shoot();else attack()}
+
 function updateZombieCount(){
   const list=interiorMode?interiorZombies:zombies;$('zombieStat').textContent=String(list.filter(z=>!z.dead).length);
 }
 function updateWeapon(dt){
   attackCooldown=Math.max(0,attackCooldown-dt);
+  fireCooldown=Math.max(0,fireCooldown-dt);
+  muzzleFlash=Math.max(0,muzzleFlash-dt);
   if(!weaponPivot)return;
+  if(isFirearm(activeWeapon)){
+    weaponPivot.rotation.set(0,0,0);return;
+  }
   if(swingTime>0){
     const total=.38,t=1-swingTime/total;swingTime=Math.max(0,swingTime-dt);
-    weaponPivot.rotation.z=-.55-Math.sin(t*Math.PI)*1.15;weaponPivot.rotation.x=.08+Math.sin(t*Math.PI)*.32;
-  }else{weaponPivot.rotation.z=-.55;weaponPivot.rotation.x=.08}
+    weaponPivot.rotation.z=-Math.sin(t*Math.PI)*.75;weaponPivot.rotation.x=Math.sin(t*Math.PI)*.24;
+  }else weaponPivot.rotation.set(0,0,0);
 }
 
 function spawnZombieAt(template,a,interior=false,rng=rand){
