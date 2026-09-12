@@ -1,8 +1,15 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {clone as cloneSkeleton} from 'three/addons/utils/SkeletonUtils.js';
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {GTAOPass} from 'three/addons/postprocessing/GTAOPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
+const BUILD_VERSION=3030;
+const SAVE_KEY='bridgepoint-horizon-survivor-v3030';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
 const INTERIOR_BASE='https://cdn.jsdelivr.net/gh/sijun-kevin-hu/break-my-house@main/public/models/house-interior';
 const ASSETS={
@@ -98,7 +105,7 @@ if(jurisdictionSelect){
 $('jurisdictionGo')?.addEventListener('click',()=>{
   const code=jurisdictionSelect?.value||SELECTED_STATE,v=JURISDICTIONS[code]||selectedJurisdiction;
   const u=new URL(location.href);u.searchParams.set('cell','national');u.searchParams.set('state',code);
-  u.searchParams.set('lat',String(v[1]));u.searchParams.set('lon',String(v[2]));u.searchParams.set('span_km','3.4');u.searchParams.set('build','3020');
+  u.searchParams.set('lat',String(v[1]));u.searchParams.set('lon',String(v[2]));u.searchParams.set('span_km','3.4');u.searchParams.set('build',String(BUILD_VERSION));
   location.href=u.toString();
 });
 
@@ -108,20 +115,43 @@ scene.fog=new THREE.FogExp2(0x69736d,densePreview()?.00019:.00027);
 
 const camera=new THREE.PerspectiveCamera(66,innerWidth/innerHeight,.08,12000);
 camera.up.set(0,0,1);
-const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',stencil:false});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.35));
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.03;
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.physicallyCorrectLights=true;
 root.appendChild(renderer.domElement);
+
+let composer=null,gtaoPass=null,bloomPass=null,postFxMode='renderer';
+function initPostProcessing(){
+  try{
+    composer=new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene,camera));
+    gtaoPass=new GTAOPass(scene,camera,Math.max(1,root.clientWidth||innerWidth),Math.max(1,root.clientHeight||innerHeight));
+    gtaoPass.output=GTAOPass.OUTPUT.Denoise;
+    gtaoPass.blendIntensity=.72;
+    composer.addPass(gtaoPass);
+    bloomPass=new UnrealBloomPass(new THREE.Vector2(Math.max(1,root.clientWidth||innerWidth),Math.max(1,root.clientHeight||innerHeight)),.22,.45,.94);
+    composer.addPass(bloomPass);
+    composer.addPass(new OutputPass());
+    postFxMode='gtao+bloom+filmic';
+    return true;
+  }catch(e){
+    console.warn('Post FX unavailable; renderer fallback',e);
+    composer=null;gtaoPass=null;bloomPass=null;postFxMode='renderer';
+    return false;
+  }
+}
 
 function resizeRenderer(){
   const w=Math.max(1,root.clientWidth||innerWidth),h=Math.max(1,root.clientHeight||innerHeight);
   camera.aspect=w/h;
   camera.updateProjectionMatrix();
   renderer.setSize(w,h,false);
+  composer?.setSize(w,h);
 }
 addEventListener('resize',resizeRenderer,{passive:true});
 addEventListener('orientationchange',()=>setTimeout(resizeRenderer,180),{passive:true});
