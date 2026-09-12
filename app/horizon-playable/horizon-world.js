@@ -641,8 +641,10 @@ function setupEquipmentMounts(modelRoot){
   equipmentMounts.rightHand=makeMount(right||playerRoot);
   equipmentMounts.leftHand=makeMount(left||playerRoot);
   equipmentMounts.hip=makeMount(hips||playerRoot,[.18,-.04,.055],[0,.05,-.18]);
-  equipmentMounts.backGun=makeMount(torso||playerRoot,[0,.035,-.17],[0,.03,Math.PI/2]);
-  equipmentMounts.backMelee=makeMount(torso||playerRoot,[-.12,.02,-.15],[0,.05,-.72]);
+  // Character source is Y-up/Z-forward before the world orientation transform.
+  // Positive source-Z becomes the survivor's physical back after the +90° X orientation.
+  equipmentMounts.backGun=makeMount(torso||playerRoot,[0,.035,.18],[0,.03,Math.PI/2]);
+  equipmentMounts.backMelee=makeMount(torso||playerRoot,[-.12,.015,.16],[0,.05,-.72]);
 }
 function cloneCharacterWeapon(name){
   const t=characterWeaponTemplates[name];
