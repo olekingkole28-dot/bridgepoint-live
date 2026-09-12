@@ -66,3 +66,39 @@ body{touch-action:none}
   .actionButton.sprint{right:max(122px,calc(env(safe-area-inset-right) + 122px));bottom:max(16px,env(safe-area-inset-bottom));width:42px;height:42px}
   #lootToast{top:13%;font-size:7px;padding:7px 10px}
 }
+
+
+/* V2992 phone control separation */
+@media (pointer:coarse) and (orientation:landscape){
+  .actionButton.interact{
+    right:max(76px,calc(env(safe-area-inset-right) + 76px));
+    bottom:max(22px,env(safe-area-inset-bottom));
+  }
+  .actionButton.attack{
+    right:max(146px,calc(env(safe-area-inset-right) + 146px));
+    bottom:max(22px,env(safe-area-inset-bottom));
+  }
+  .actionButton.sprint{
+    right:max(212px,calc(env(safe-area-inset-right) + 212px));
+    bottom:max(18px,env(safe-area-inset-bottom));
+  }
+  .controls{
+    right:max(8px,env(safe-area-inset-right));
+    top:52px;
+    gap:2px;
+  }
+  .controls button{
+    width:31px;
+    min-width:31px;
+    height:25px;
+  }
+}
+@media (pointer:coarse) and (orientation:landscape) and (max-height:430px){
+  .minimapPanel{width:104px}
+  .minimapPanel canvas{width:94px;height:94px}
+  .controls{top:156px}
+  .controls button{height:23px}
+  .actionButton.interact{right:max(70px,calc(env(safe-area-inset-right) + 70px));width:50px;height:50px}
+  .actionButton.attack{right:max(128px,calc(env(safe-area-inset-right) + 128px));width:50px;height:50px}
+  .actionButton.sprint{right:max(186px,calc(env(safe-area-inset-right) + 186px));width:44px;height:44px}
+}
