@@ -679,46 +679,78 @@ function updateWeapon(dt){
   }else{weaponPivot.rotation.z=-.55;weaponPivot.rotation.x=.15}
 }
 
-async function buildZombies(zombieTemplate){
-async function buildZombies(zombieTemplate){
-  if(!zombieTemplate||!roadAnchors.length)return;
-  const count=CELL==='manhattan'?8:6,candidates=roadAnchors.filter(a=>{const d=Math.hypot(a.x-playerSpawn.x,a.y-playerSpawn.y);return d>35&&d<220});
-  const clip=(zombieTemplate.animations||[]).find(c=>/walk|run/i.test(c.name))||(zombieTemplate.animations||[])[0];
+async function buildZombies(template){
+  if(!template||!roadAnchors.length)return;
+  const count=CELL==='manhattan'?18:8,candidates=roadAnchors.filter(a=>{const d=Math.hypot(a.x-playerSpawn.x,a.y-playerSpawn.y);return d>28&&d<260});
+  const clip=(template.animations||[]).find(c=>/walk|run/i.test(c.name))||(template.animations||[])[0];
   for(let i=0;i<count&&candidates.length;i++){
-    const a=candidates[Math.floor(rand()*candidates.length)],n=normalizedModel(zombieTemplate.scene,1.78,true);
+    const a=candidates[Math.floor(rand()*candidates.length)],n=normalizedModel(template.scene,1.78,true);
     n.root.position.set(a.x,a.y,a.z+.05);n.root.rotation.z=rand()*Math.PI*2;zombieGroup.add(n.root);
     let mixer=null;if(clip){mixer=new THREE.AnimationMixer(n.model);mixer.clipAction(clip).play()}
-    zombies.push({root:n.root,mixer,home:new THREE.Vector2(a.x,a.y),phase:rand()*Math.PI*2,speed:.75+rand()*.45});
+    zombies.push({root:n.root,mixer,home:new THREE.Vector2(a.x,a.y),phase:rand()*Math.PI*2,speed:.72+rand()*.55,hp:100,dead:false});
   }
-  $('zombieStat').textContent=String(zombies.length);
+  updateZombieCount();
+}
+function isBlockedInterior(x,y){
+  const r=.34;if(!interiorBounds)return false;
+  if(x-r<interiorBounds.minx||x+r>interiorBounds.maxx||y-r<interiorBounds.miny||y+r>interiorBounds.maxy)return true;
+  for(const w of interiorWalls)if(x+r>w.minx&&x-r<w.maxx&&y+r>w.miny&&y-r<w.maxy)return true;
+  return false;
+}
+function isBlockedExterior(x,y){
+  const r=.33;
+  for(const b of buildingCenters){
+    if(Math.abs(x-b.x)>b.width/2+1.5||Math.abs(y-b.y)>b.depth/2+1.5)continue;
+    if(x+r>b.minx&&x-r<b.maxx&&y+r>b.miny&&y-r<b.maxy)return true;
+  }
+  return false;
 }
 function updateZombies(dt,now){
   if(!playerRoot)return;
-  for(const z of zombies){
-    z.mixer?.update(dt);
+  const list=interiorMode?interiorZombies:zombies;
+  for(const z of list){
+    if(z.dead)continue;z.mixer?.update(dt);
     const dx=playerRoot.position.x-z.root.position.x,dy=playerRoot.position.y-z.root.position.y,dist=Math.hypot(dx,dy);
     let vx,vy;
-    if(dist<32){vx=dx/Math.max(dist,.001);vy=dy/Math.max(dist,.001)}
-    else{z.phase+=dt*.16;vx=Math.cos(z.phase);vy=Math.sin(z.phase)}
-    z.root.position.x+=vx*z.speed*dt;z.root.position.y+=vy*z.speed*dt;z.root.position.z=terrainZXY(z.root.position.x,z.root.position.y)+.05;
+    if(dist<28){vx=dx/Math.max(dist,.001);vy=dy/Math.max(dist,.001)}
+    else{z.phase+=dt*.18;vx=Math.cos(z.phase);vy=Math.sin(z.phase)}
+    const nx=z.root.position.x+vx*z.speed*dt,ny=z.root.position.y+vy*z.speed*dt;
+    if(interiorMode){
+      if(!isBlockedInterior(nx,z.root.position.y))z.root.position.x=nx;
+      if(!isBlockedInterior(z.root.position.x,ny))z.root.position.y=ny;
+      z.root.position.z=.05;
+    }else{
+      if(!isBlockedExterior(nx,z.root.position.y))z.root.position.x=nx;
+      if(!isBlockedExterior(z.root.position.x,ny))z.root.position.y=ny;
+      z.root.position.z=terrainZXY(z.root.position.x,z.root.position.y)+.05;
+    }
     z.root.rotation.z=Math.atan2(vx,vy)+Math.PI;
-    if(dist<1.55&&now-lastDamageAt>900){health=Math.max(0,health-8);lastDamageAt=now;$('healthStat').textContent=String(health)}
+    if(dist<1.48&&now-lastDamageAt>850){
+      health=Math.max(0,health-7);lastDamageAt=now;$('healthStat').textContent=String(health);showToast('Hit — '+health+' health');
+    }
   }
+  updateZombieCount();
 }
 
 async function buildSurvivalArt(){
-  const [chest,barrel,trash,pallet,barrier,vehicle,zombie]=await Promise.all([
-    loadAsset(ASSETS.chest),loadAsset(ASSETS.barrel),loadAsset(ASSETS.trash),loadAsset(ASSETS.pallet),
-    loadAsset(ASSETS.barrier),loadAsset(ASSETS.vehicle),loadAsset(ASSETS.zombie)
+  const [barrel,trash,pallet,barrier,cone,streetlight,hydrant,vehicle,zombie,...interiors]=await Promise.all([
+    loadAsset(ASSETS.barrel),loadAsset(ASSETS.trash),loadAsset(ASSETS.pallet),loadAsset(ASSETS.barrier),
+    loadAsset(ASSETS.cone),loadAsset(ASSETS.streetlight),loadAsset(ASSETS.hydrant),loadAsset(ASSETS.vehicle),loadAsset(ASSETS.zombie),
+    ...Object.values(INTERIOR_ASSETS).map(loadAsset)
   ]);
-  scatterTemplate(barrel,CELL==='manhattan'?22:16,1.15,8);
-  scatterTemplate(trash,CELL==='manhattan'?28:20,.72,8);
-  scatterTemplate(pallet,12,.32,7);
-  scatterTemplate(barrier,CELL==='manhattan'?16:10,1.1,5);
-  scatterTemplate(vehicle,CELL==='manhattan'?12:6,1.75,10);
-  buildLoot(chest);await buildZombies(zombie);
+  const keys=Object.keys(INTERIOR_ASSETS);interiorTemplates={};keys.forEach((k,i)=>interiorTemplates[k]=interiors[i]);
+  zombieTemplate=zombie;
+  scatterTemplate(barrel,CELL==='manhattan'?38:16,1.15,9);
+  scatterTemplate(trash,CELL==='manhattan'?54:20,.72,9);
+  scatterTemplate(pallet,CELL==='manhattan'?22:12,.32,8);
+  scatterTemplate(barrier,CELL==='manhattan'?30:10,1.1,6);
+  scatterTemplate(cone,CELL==='manhattan'?26:8,.75,5);
+  scatterTemplate(streetlight,CELL==='manhattan'?42:16,4.8,6);
+  scatterTemplate(hydrant,CELL==='manhattan'?24:10,.95,5);
+  scatterTemplate(vehicle,CELL==='manhattan'?24:6,1.75,10);
+  await buildZombies(zombie);
 }
-
+function toMapXY(x,y){
 function toMapXY(x,y){
   const west=project([data.bbox.west,lat0]).x,east=project([data.bbox.east,lat0]).x;
   const south=project([lon0,data.bbox.south]).y,north=project([lon0,data.bbox.north]).y;
