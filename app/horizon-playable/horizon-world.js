@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=3051;
+const BUILD_VERSION=4205;
 const SAVE_KEY='bridgepoint-horizon-survivor-v3050';
 const LEGACY_SAVE_KEY='bridgepoint-horizon-survivor-v3040';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
@@ -2831,7 +2831,21 @@ function initInput(){
   $('artBtn').onclick=()=>{if(!interiorMode){artGroup.visible=!artGroup.visible;zombieGroup.visible=artGroup.visible;entryGroup.visible=artGroup.visible;$('artBtn').classList.toggle('active',artGroup.visible)}};
 }
 function lerpAngle(a,b,t){let d=(b-a+Math.PI)%(Math.PI*2)-Math.PI;return a+d*t}
+function normalizeMovementInput(ix,iy){
+  ix=Number.isFinite(ix)?ix:0;iy=Number.isFinite(iy)?iy:0;
+  const ax=Math.abs(ix),ay=Math.abs(iy);
+  // Strong cardinal lock for sticks/pads: pushing mostly forward/back never leaks sideways,
+  // and pushing mostly left/right never leaks forward/back.
+  if(ay>.06&&ax<ay*.30)ix=0;
+  else if(ax>.06&&ay<ax*.30)iy=0;
+  const len=Math.hypot(ix,iy);
+  if(len>1){ix/=len;iy/=len}
+  if(Math.hypot(ix,iy)<.06)return{x:0,y:0};
+  return{x:ix,y:iy};
+}
 function movementVector(ix,iy,angle=yaw){
+  // Controls are camera-relative and literal:
+  // +Y = forward, -Y = backward, -X = left, +X = right.
   const fx=Math.sin(angle),fy=Math.cos(angle),rx=Math.cos(angle),ry=-Math.sin(angle);
   return {x:fx*iy+rx*ix,y:fy*iy+ry*ix};
 }
@@ -2855,7 +2869,7 @@ function updatePlayer(dt){
 
   let ix=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+mobileMove.x+gamepadMove.x;
   let iy=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0)+mobileMove.y+gamepadMove.y;
-  const len=Math.hypot(ix,iy);if(len>1){ix/=len;iy/=len}
+  ({x:ix,y:iy}=normalizeMovementInput(ix,iy));
   const moving=Math.hypot(ix,iy)>.06,sprint=(keys.has('ShiftLeft')||keys.has('ShiftRight')||mobileSprint)&&!aiming&&playerStance==='stand';
   if(activeVehicle){
     updateVehicle(dt,ix,iy);maybeNationalTravel();return;
@@ -2871,9 +2885,10 @@ function updatePlayer(dt){
     if(CELL==='national'&&boundaryBlocks(playerRoot.position.x,playerRoot.position.y+desiredY*dt))desiredY=0;
     if(matchBlocks(playerRoot.position.x+desiredX*dt,playerRoot.position.y+desiredY*dt)){desiredX=0;desiredY=0}
   }
-  const accel=1-Math.exp(-(moving?9.5:15)*dt);
-  playerVelocity.x=THREE.MathUtils.lerp(playerVelocity.x,desiredX,accel);
-  playerVelocity.y=THREE.MathUtils.lerp(playerVelocity.y,desiredY,accel);
+  // No directional carry-over: releasing/changing a direction changes travel immediately.
+  // This prevents "forward" from drifting sideways because of the previous frame's velocity.
+  playerVelocity.x=desiredX;
+  playerVelocity.y=desiredY;
 
   let usedRapier=false;
   if(!interiorMode&&physicsReady&&playerPhysicsBody&&playerPhysicsCollider){
@@ -2887,9 +2902,10 @@ function updatePlayer(dt){
 
   if(aiming&&isFirearm(activeWeapon)){
     playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,yaw,1-Math.exp(-14*dt));
-  }else if(moving){
-    const targetRot=Math.atan2(playerVelocity.x,playerVelocity.y);
-    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-11*dt));
+  }else if(moving||slideTime>0){
+    // Face the intended travel direction itself, not lagging smoothed velocity.
+    const targetRot=Math.atan2(move.x,move.y);
+    playerRoot.rotation.z=targetRot;
   }
   if(reloadState.active)playPlayerAnimation('reload');
   else if(aiming&&isFirearm(activeWeapon)&&!moving)playPlayerAnimation('aim');
@@ -3021,8 +3037,16 @@ async function boot(){
         if(dir==='backward')iy=-1;
         if(dir==='left')ix=-1;
         if(dir==='right')ix=1;
+        ({x:ix,y:iy}=normalizeMovementInput(ix,iy));
         const v=movementVector(ix,iy,0);
-        return {dx:v.x,dy:v.y};
+        return {dx:v.x,dy:v.y,heading:Math.atan2(v.x,v.y)};
+      },
+      cardinalControlsProbe:()=>{
+        const probe=(x,y)=>{const n=normalizeMovementInput(x,y),v=movementVector(n.x,n.y,0);return{x:n.x,y:n.y,dx:v.x,dy:v.y,heading:Math.atan2(v.x,v.y)}};
+        return{
+          forward:probe(0,1),backward:probe(0,-1),left:probe(-1,0),right:probe(1,0),
+          forwardStickNoise:probe(.12,.9),rightStickNoise:probe(.9,.12)
+        };
       },
       weaponSize:()=>{
         if(!weaponPivot?.children?.length)return null;
