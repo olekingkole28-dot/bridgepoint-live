@@ -10,7 +10,7 @@
   <meta name="description" content="BridgePoint Horizon playable survival-world prototype using source-backed terrain and building geometry with separate CC0 game art.">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="preconnect" href="https://xdfsjztwgsbmabshzsjw.supabase.co">
-  <link rel="stylesheet" href="../horizon-playable/horizon-world.css?v=4215">
+  <link rel="stylesheet" href="../horizon-playable/horizon-world.css?v=4216">
   <script defer src="https://cdn.jsdelivr.net/npm/nipplejs@0.10.2/dist/nipplejs.min.js"></script>
   <script type="importmap">
     {
@@ -22,10 +22,11 @@
   </script>
 <style>
   .showcase .jurisdictionPanel{display:none!important}
-  .showcase .cellSwitch{gap:6px}
-  .showcase .cellSwitch a{white-space:nowrap}
+  .mapPicker{display:flex;align-items:center;gap:6px;min-width:0}
+  #mapSelect{max-width:250px;background:rgba(5,8,10,.90);color:#f1f4f2;border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:8px 9px;font:850 9px/1 system-ui;letter-spacing:.035em}
+  #mapSizeBadge{padding:6px 8px;border-radius:999px;background:rgba(11,18,14,.78);border:1px solid rgba(125,240,179,.22);color:#82efb5;font:900 7px/1 system-ui;white-space:nowrap}
   .characterSelect{max-width:118px;background:rgba(5,8,10,.82);color:#e7ece8;border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:7px 8px;font:800 9px/1 system-ui;letter-spacing:.04em}
-  @media(max-width:800px){.showcase .cellSwitch a{font-size:8px;padding:7px 8px}.characterSelect{max-width:92px;padding:6px 5px;font-size:8px}}
+  @media(max-width:800px){#mapSelect{max-width:142px;padding:6px 5px;font-size:8px}#mapSizeBadge{display:none}.characterSelect{max-width:84px;padding:6px 5px;font-size:8px}}
   </style></head>
 <body class="showcase">
   <div id="world"></div>
@@ -37,11 +38,10 @@
       <span class="sigil">H</span>
       <span><b>BRIDGEPOINT HORIZON</b><small>WORLD PREVIEW · GAME ONLY</small></span>
     </a>
-    <div class="cellSwitch" aria-label="Preview location">
-      <a id="sceneCity" data-preview="city" href="/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=survivor&build=4215">DENSE CITY</a>
-      <a id="sceneMountain" data-preview="mountain" href="/app/horizon/preview.html?preview=mountain&cell=national&state=CO&lat=39.1911&lon=-106.8175&span_km=1.65&character=survivor&build=4215">MOUNTAIN TOWN</a>
-      <a id="sceneCoastal" data-preview="coastal" href="/app/horizon/preview.html?preview=coastal&cell=national&state=WA&lat=47.6686&lon=-122.3869&span_km=1.8&character=survivor&build=4215">WATERFRONT SUBURB</a>
-      <a id="cellNational" href="/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=survivor&build=4215" hidden></a>
+    <div class="mapPicker" aria-label="Choose BridgePoint map">
+      <select id="mapSelect" aria-label="Choose one of 50 BridgePoint survival maps"></select>
+      <span id="mapSizeBadge">LOADING MAP</span>
+      <a id="cellNational" href="/app/horizon/preview.html?map=times_square&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.0&character=survivor&build=4216" hidden></a>
       <a id="cellMiddletown" href="#" hidden></a>
       <a id="cellManhattan" href="#" hidden></a>
     </div>
@@ -191,6 +191,6 @@
     });
   </script>
   <script type="module" src="../horizon-playable/horizon-mobile-safe.js?v=3052"></script>
-  <script type="module" src="../horizon-playable/horizon-world.js?v=4215"></script>
+  <script type="module" src="../horizon-playable/horizon-world.js?v=4216"></script>
 </body>
 </html>
