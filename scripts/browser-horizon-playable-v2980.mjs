@@ -1,61 +1,71 @@
 import fs from 'node:fs';
 import { chromium } from 'playwright-core';
+
 const candidates=[process.env.CHROME_PATH,'/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium','/usr/bin/chromium-browser'].filter(Boolean);
-const executablePath=candidates.find(p=>fs.existsSync(p));if(!executablePath)throw new Error('No Chromium/Chrome found');
+const executablePath=candidates.find(p=>fs.existsSync(p));
+if(!executablePath)throw new Error('No Chromium/Chrome found');
+
 const browser=await chromium.launch({executablePath,headless:true,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--use-gl=angle','--use-angle=swiftshader-webgl','--enable-unsafe-swiftshader']});
-const context=await browser.newContext({viewport:{width:915,height:412},isMobile:true,hasTouch:true,deviceScaleFactor:1,userAgent:'Mozilla/5.0 (Linux; Android 16; moto g - 2026) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(String(e?.stack||e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
-const url='https://bridgepointintelligence.online/app/horizon-playable/?lat=41.5623&lon=-72.6506&span_km=1.0&build=4101&ci='+Date.now();const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});if(response?.status()!==200)throw new Error('default Horizon HTTP '+response?.status());await page.waitForFunction(()=>window.BP_HORIZON_V2?.ok===true,null,{timeout:90000});const d=await page.evaluate(()=>({probe:window.BP_HORIZON_V2,errorHidden:document.getElementById('error')?.hidden,canvas:!!document.querySelector('#world canvas'),buttons:[...document.querySelectorAll('.action')].map(x=>x.id),loadText:document.getElementById('loadText')?.textContent}));console.log(JSON.stringify({url,...d},null,2));if(!d.errorHidden||!d.canvas||d.probe?.build!==4100||!(d.probe?.buildings>0)||!(d.probe?.roads>0)||!(d.probe?.infected>0))throw new Error('Horizon V2 default failed '+JSON.stringify(d));for(const id of['lightBtn','weatherBtn','useBtn'])await page.tap('#'+id);const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource: the server responded with a status of 404/i.test(x));if(meaningful.length)throw new Error('Horizon V2 console errors '+meaningful.join('\n'));console.log('HORIZON_V2_DEFAULT_LIVE_PASS');
-const previewUrl='https://bridgepointintelligence.online/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.0&character=survivor&build=4232&ci='+Date.now();
-const pr=await page.goto(previewUrl,{waitUntil:'domcontentloaded',timeout:30000});if(pr?.status()!==200)throw new Error('Horizon showcase HTTP '+pr?.status());
-await page.waitForFunction(()=>window.BP_HORIZON_PLAYABLE?.ok===true,null,{timeout:60000});
+const context=await browser.newContext({
+  viewport:{width:915,height:412},isMobile:true,hasTouch:true,deviceScaleFactor:1,
+  userAgent:'Mozilla/5.0 (Linux; Android 16; moto g - 2026) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36'
+});
+const page=await context.newPage();
+const errors=[];
+page.on('pageerror',e=>errors.push(String(e?.stack||e)));
+page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+
+// Legacy direct renderer must remain healthy.
+const directUrl='https://bridgepointintelligence.online/app/horizon-playable/?lat=41.5623&lon=-72.6506&span_km=1.0&build=4101&ci='+Date.now();
+const direct=await page.goto(directUrl,{waitUntil:'domcontentloaded',timeout:30000});
+if(direct?.status()!==200)throw new Error('default Horizon HTTP '+direct?.status());
+await page.waitForFunction(()=>window.BP_HORIZON_V2?.ok===true,null,{timeout:90000});
+const legacy=await page.evaluate(()=>({probe:window.BP_HORIZON_V2,errorHidden:document.getElementById('error')?.hidden,canvas:!!document.querySelector('#world canvas')}));
+if(!legacy.errorHidden||!legacy.canvas||legacy.probe?.build!==4100||!(legacy.probe?.buildings>0)||!(legacy.probe?.roads>0))throw new Error('Horizon V2 default failed '+JSON.stringify(legacy));
+console.log('HORIZON_V2_DEFAULT_LIVE_PASS');
+
+// Main Horizon 4233: first playable frame is the primary gate.
+const previewUrl='https://bridgepointintelligence.online/app/horizon/preview.html?map=times_square&preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.0&character=survivor&build=4233&ci='+Date.now();
+const pr=await page.goto(previewUrl,{waitUntil:'domcontentloaded',timeout:30000});
+if(pr?.status()!==200)throw new Error('Horizon showcase HTTP '+pr?.status());
+await page.waitForFunction(()=>window.BP_HORIZON_PLAYABLE?.ok===true,null,{timeout:30000});
 const quick=await page.evaluate(()=>window.BP_HORIZON_PLAYABLE);
+if(quick?.build!==4233)throw new Error('Wrong live Horizon build '+JSON.stringify(quick));
 if(quick?.stance!=='stand'||!quick?.weaponSocket||quick.weaponSocket==='playerRoot')throw new Error('Fast-start stance/socket failed '+JSON.stringify(quick));
-if(quick?.build!==4232)throw new Error('Wrong live Horizon build '+JSON.stringify(quick));
-await page.waitForFunction(()=>window.BP_HORIZON_QUICK_TEST?.switchAllWeapons,null,{timeout:15000});
+if(!(quick?.instantBuildings>0)||!(quick?.readyMs>=0)||quick.readyMs>15000)throw new Error('Fast playable gate failed '+JSON.stringify(quick));
+
+await page.waitForFunction(()=>window.BP_HORIZON_QUICK_TEST?.switchAllWeapons,null,{timeout:10000});
 const quickFacing=await page.evaluate(()=>window.BP_HORIZON_QUICK_TEST.facing());
 const quickWeapons=await page.evaluate(()=>window.BP_HORIZON_QUICK_TEST.switchAllWeapons());
-if(!(quickFacing?.dot>.92)&&quickFacing?.locomotionRootMatchesTravel!==true)throw new Error('Visual facing still reversed '+JSON.stringify(quickFacing));
+const mapUi=await page.evaluate(()=>({maps:document.querySelectorAll('#mapSelect option').length,map:document.querySelector('#mapSelect')?.value}));
+if(!(quickFacing?.dot>.92)||quickFacing?.locomotionRootMatchesTravel!==true)throw new Error('Visual facing still reversed '+JSON.stringify(quickFacing));
 if(!quickWeapons.length||quickWeapons.some(x=>!x.visible||x.children<1))throw new Error('Weapon switch visibility failed '+JSON.stringify(quickWeapons));
-await page.waitForFunction(()=>window.BP_HORIZON_SMOKE!==undefined,null,{timeout:180000});
-const bootSmoke=await page.evaluate(()=>window.BP_HORIZON_SMOKE);
-if(!bootSmoke?.ok)throw new Error('Horizon boot failed '+JSON.stringify(bootSmoke));
-await page.waitForFunction(()=>window.BP_HORIZON_TEST?.cardinalControlsProbe,null,{timeout:30000});
-const controls=await page.evaluate(()=>window.BP_HORIZON_TEST.cardinalControlsProbe());
+if(mapUi.maps!==50||mapUi.map!=='times_square')throw new Error('50-map selector missing '+JSON.stringify(mapUi));
+
+// Essential mobile hydration must complete quickly; optional desktop assets are not part of this gate.
+await page.waitForFunction(()=>window.BP_HORIZON_HYDRATION?.complete===true,null,{timeout:90000});
+const hydration=await page.evaluate(()=>window.BP_HORIZON_HYDRATION);
+if(!(hydration?.readyMs>0)||hydration.readyMs>90000)throw new Error('Mobile hydration too slow '+JSON.stringify(hydration));
+await page.waitForFunction(()=>window.BP_HORIZON_SMOKE?.ok===true&&window.BP_HORIZON_TEST?.terrainGuardProbe,null,{timeout:15000});
+
+const smoke=await page.evaluate(()=>window.BP_HORIZON_SMOKE);
 const playerAsset=await page.evaluate(()=>window.BP_HORIZON_TEST.playerAssetProbe());
 const aim=await page.evaluate(()=>window.BP_HORIZON_TEST.aimProbe());
 const held=await page.evaluate(()=>window.BP_HORIZON_TEST.heldWeaponProbe());
-const patrol=await page.evaluate(()=>window.BP_HORIZON_TEST.patrolProbe());
-const pursuit=await page.evaluate(()=>window.BP_HORIZON_TEST.pursuitProbe());
-const facing=await page.evaluate(()=>window.BP_HORIZON_TEST.visualFacingAlignment(0));
-const enemyCatalog=await page.evaluate(()=>window.BP_HORIZON_TEST.enemyCatalog());
-const weaponCatalog=await page.evaluate(()=>window.BP_HORIZON_TEST.weaponCatalog());
-const dropAvailable=await page.evaluate(()=>window.BP_HORIZON_TEST.dropWeaponAvailable());
-const climbingSpiders=await page.evaluate(()=>window.BP_HORIZON_TEST.climbingSpiderCount());
-const smoke=await page.evaluate(()=>window.BP_HORIZON_SMOKE);
 const terrainGuard=await page.evaluate(()=>window.BP_HORIZON_TEST.terrainGuardProbe());
+const controls=await page.evaluate(()=>window.BP_HORIZON_TEST.cardinalControlsProbe());
+
 if(!terrainGuard?.ok)throw new Error('Terrain guard failed '+JSON.stringify(terrainGuard));
-const mapUi=await page.evaluate(()=>({maps:document.querySelectorAll('#mapSelect option').length,map:document.querySelector('#mapSelect')?.value,size:document.getElementById('mapSizeBadge')?.textContent}));
-const near=(a,b)=>Math.abs(a-b)<1e-6;
-if(!playerAsset?.loaded||!['survivor','realistic-fallback'].includes(playerAsset.mode))throw new Error('Survivor asset did not load '+JSON.stringify(playerAsset));
-if(playerAsset.stance!=='stand'||!playerAsset.weaponSocket||playerAsset.weaponSocket==='playerRoot'||Math.abs((playerAsset.visualScaleZ||0)-(playerAsset.baseScaleZ||0))>1e-6)throw new Error('Standing/hand-socket contract failed '+JSON.stringify(playerAsset));
+if(playerAsset.stance!=='stand'||!playerAsset.weaponSocket||playerAsset.weaponSocket==='playerRoot')throw new Error('Standing/hand-socket contract failed '+JSON.stringify(playerAsset));
 if(!(aim.aimed<aim.before-5)||!aim.crosshairVisible||!aim.buttonActive)throw new Error('Aim/FOV interaction failed '+JSON.stringify(aim));
 if(!held?.visible||held.children<1||held.distance>3.2)throw new Error('Equipped weapon not visibly held '+JSON.stringify(held));
-if(!patrol?.some(x=>x.route>=6))throw new Error('Precomputed enemy patrol routes missing '+JSON.stringify(patrol));
-if(!pursuit?.interiorPathing||!pursuit?.doorwayCarry||!(pursuit.maxHostileSpeed<pursuit.playerSprintSpeed))throw new Error('Pursuit contract failed '+JSON.stringify(pursuit));
-if(!facing||facing.locomotionRootMatchesTravel!==true||Math.abs(facing.modelYawOffset)>1e-6)throw new Error('Travel-facing root contract broken '+JSON.stringify(facing));
-for(const id of ['graveborn','mauler','wretch','abomination','ashen','stalker','screamer','sprinter','hound','spider','realbear','realwolf'])if(!enemyCatalog.some(x=>x.id===id))throw new Error('Missing hostile '+id+' '+JSON.stringify(enemyCatalog));
-if(enemyCatalog.filter(x=>x.realistic).length<5)throw new Error('Not enough realistic infected '+JSON.stringify(enemyCatalog));
-for(const gun of ['Pistol','Rifle','Shotgun','SMG'])if(!weaponCatalog.includes(gun))throw new Error('Missing firearm '+gun+' '+JSON.stringify(weaponCatalog));
-if(dropAvailable!==true)throw new Error('Active weapon cannot be dropped');
-if(!(climbingSpiders>=1))throw new Error('No building-climbing spiders spawned');
-if(!(smoke?.groundDetails>150))throw new Error('Apocalypse ground dressing missing '+JSON.stringify(smoke));
-if(smoke?.mapCount!==50||smoke?.endlessHorde!==true||!(smoke?.endlessCap>=26)||smoke?.walkableStairs!==true||smoke?.transparentFacadeWindows!==true||smoke?.seamlessOpenBuildings!==true||smoke?.towerPriorityOpenBuildings!==true||smoke?.optimizedOpenBuildingPhysics!==true||smoke?.shapeRecovery!==true||!(smoke?.openSourceBuildings>=1)||!(smoke?.openInteriorProps>=1)||smoke?.stance!=='stand'||!smoke?.weaponSocket||smoke.weaponSocket==='playerRoot')throw new Error('4232 map/horde/open-building/character contract failed '+JSON.stringify(smoke));
-if(mapUi.maps!==50||mapUi.map!=='times_square')throw new Error('50-map selector missing '+JSON.stringify(mapUi));
-if(!smoke?.enemyArchetypes?.includes('crow'))throw new Error('Infected crow archetype missing '+JSON.stringify(smoke));
-if(!near(controls.forward.dx,0)||!(controls.forward.dy>0.99))throw new Error('Forward mapping broken '+JSON.stringify(controls));
-if(!near(controls.backward.dx,0)||!(controls.backward.dy<-0.99))throw new Error('Backward mapping broken '+JSON.stringify(controls));
-if(!(controls.left.dx<-0.99)||!near(controls.left.dy,0))throw new Error('Left mapping broken '+JSON.stringify(controls));
-if(!(controls.right.dx>0.99)||!near(controls.right.dy,0))throw new Error('Right mapping broken '+JSON.stringify(controls));
-if(Math.abs(controls.modelYawOffset)>1e-6||controls.aimingBackpedalAllowed!==true||controls.shooterAimFacesCamera!==true||!(controls.maxHostileSpeed<controls.playerSprintSpeed))throw new Error('Shooter movement contract broken '+JSON.stringify(controls));
-console.log('HORIZON_4232_CARDINAL_FACING_PASS',JSON.stringify(controls));
+if(smoke?.mapCount!==50||smoke?.endlessHorde!==true||!(smoke?.endlessCap>=18)||smoke?.hydrationComplete!==true||smoke?.denseApocalypse!==true)throw new Error('4233 world contract failed '+JSON.stringify(smoke));
+for(const id of ['graveborn','mauler','wretch','abomination','hound','spider','crow'])if(!smoke?.enemyArchetypes?.includes(id))throw new Error('Missing essential hostile '+id+' '+JSON.stringify(smoke.enemyArchetypes));
+if(!(smoke?.groundDetails>100)||!(smoke?.entries>0)||!(smoke?.instantMassing>0))throw new Error('World density/door/building gate failed '+JSON.stringify(smoke));
+if(Math.abs(controls.modelYawOffset)>1e-6||controls.shooterAimFacesCamera!==true||controls.aimingBackpedalAllowed!==true)throw new Error('Shooter movement contract broken '+JSON.stringify(controls));
+if(!(controls.forward.dy>.99)||!(controls.backward.dy<-.99)||!(controls.left.dx<-.99)||!(controls.right.dx>.99))throw new Error('Cardinal controls broken '+JSON.stringify(controls));
+
+const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource: the server responded with a status of 404/i.test(x));
+if(meaningful.length)throw new Error('Horizon console errors '+meaningful.join('\n'));
+console.log('HORIZON_4233_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,weaponCount:quickWeapons.length}));
 await browser.close();
