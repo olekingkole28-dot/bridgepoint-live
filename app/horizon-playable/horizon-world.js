@@ -558,12 +558,9 @@ function attachDuffel(){
 function updatePackVisual(){/* pack capacity is UI-only; no backpack mesh on survivor */}
 function mountWeaponModel(template,name){
   if(!playerRoot)return;
-  equippedWeaponName=name||'Axe';
-  equipment.melee=equippedWeaponName;
-  const key=name==='Barbed Bat'?'bat':name==='Knife'?'knife':'axe';
-  putEquipmentModel('rightHand',weaponTemplates[key]||template,name==='Barbed Bat'?.92:name==='Knife'?.38:.68,[.18,.08,-.88],[.02,0,.02]);
-  weaponPivot=equipmentMounts.rightHand;
-  updateInventory();
+  equipment.melee=name||'Axe';
+  if(activeSlot==='melee'){activeWeapon=equipment.melee;equippedWeaponName=equipment.melee}
+  refreshEquipmentVisuals();updateInventory();
 }
 function equipWeapon(name){mountWeaponModel(null,name)}
 function findBoneByHints(root,hints){
