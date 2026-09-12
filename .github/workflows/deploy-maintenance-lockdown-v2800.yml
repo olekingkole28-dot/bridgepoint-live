@@ -213,7 +213,7 @@ jobs:
               && grep -Fq 'infected containment line' /tmp/horizon-playable.js \
               && grep -Fq 'spatialTone' /tmp/horizon-playable.js \
               && grep -Fq 'buildFacadeDetails' /tmp/horizon-playable.js \
-              && grep -Fq 'Quaternius' /tmp/horizon-playable.js \
+              && grep -Fq 'FREE_BASE' /tmp/horizon-playable.js \
               && ! grep -Fq 'CONNECTICUT PROTOTYPE CELL' /tmp/horizon-playable.html \
               && ! grep -Fq 'We’re building our 3D universe.' /tmp/intelligence.html \
               && ! grep -Fq 'We’re building our 3D universe.' /tmp/horizon.html; then
