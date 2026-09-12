@@ -223,10 +223,11 @@ let RAPIER=null,physicsWorld=null,physicsReady=false,physicsMode='manual-fallbac
 let playerPhysicsBody=null,playerPhysicsCollider=null,characterController=null;
 let verticalVelocity=0,grounded=false,playerJumpQueued=false;
 let playerStance='stand',gamepadMove={x:0,y:0},gamepadLook={x:0,y:0},gamepadPrev=[];
+const PHYSICS_VISUAL_DROP=.20;
 const STANCES={
-  stand:{half:.58,radius:.33,speed:1,center:.91},
-  crouch:{half:.34,radius:.33,speed:.68,center:.67},
-  prone:{half:.13,radius:.28,speed:.34,center:.41}
+  stand:{half:.58,radius:.33,speed:1,center:1.11},
+  crouch:{half:.34,radius:.33,speed:.68,center:.87},
+  prone:{half:.13,radius:.28,speed:.34,center:.61}
 };
 let PHYSICS_PLAYER_CENTER=STANCES.stand.center;
 const physicsStaticColliders=[];
@@ -1113,6 +1114,13 @@ function cloneCharacterWeapon(name){
   if(!t)return null;
   const obj=t.clone(true);obj.visible=true;
   obj.traverse(o=>{o.visible=true;if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+  const target={Axe:.68,Knife:.34,Pistol:.32,Rifle:1.02,Shotgun:.92,SMG:.72,Spear:1.35,WoodenBat_Barbed:.88,WoodenBat_Saw:.88}[name];
+  if(target){
+    obj.updateMatrixWorld(true);
+    const box=new THREE.Box3().setFromObject(obj),size=new THREE.Vector3();box.getSize(size);
+    const longest=Math.max(size.x,size.y,size.z,.001);
+    obj.scale.multiplyScalar(target/longest);
+  }
   return obj;
 }
 function putCharacterWeapon(slot,name,mode='leftHand'){
