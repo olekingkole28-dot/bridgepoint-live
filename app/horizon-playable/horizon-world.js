@@ -1569,7 +1569,11 @@ function showToast(message){
   if(!el){el=document.createElement('div');el.id='lootToast';document.body.appendChild(el)}
   el.textContent=message;el.classList.add('show');clearTimeout(showToast.t);showToast.t=setTimeout(()=>el.classList.remove('show'),2200);
 }
-function isFirearm(item){return item==='Pistol'||item==='Rifle'||item==='Shotgun'}
+function isFirearm(item){
+  const cfg=weaponRegistry.get(item)||weaponRegistry.get(String(item||'').toLowerCase())||
+    DEFAULT_WEAPON_CONFIGS.find(x=>x.weapon_name===item||x.weapon_id===item);
+  return Boolean(cfg&&(cfg.weapon_type==='sidearm'||cfg.weapon_type==='primary'));
+}
 function updateInventory(){
   const entries=Object.entries(inventory).filter(([,v])=>v>0);
   $('inventoryCount').textContent=lootCount+' / '+packCapacity+' slots';
@@ -1626,20 +1630,18 @@ function addInventoryItem(item){
   }
   if(lootCount>=packCapacity){showToast('PACK FULL — find a larger bag');return false}
   inventory[item]=(inventory[item]||0)+1;lootCount++;
-  if(item==='Axe'||item==='Barbed Bat'||item==='Knife'){
-    equipment.melee=item;equipWeapon(item);
-  }
-  if(item==='Pistol'){
-    const cfg=weaponCfg('Pistol');equipment.sidearm='Pistol';
-    ammoState.Pistol=Math.max(ammoState.Pistol||0,cfg.magazine_size||12);
-    reserveAmmo.Pistol=Math.max(reserveAmmo.Pistol||0,Math.ceil((cfg.reserve_default||48)*.35));
+  const cfg=weaponRegistry.get(item)||weaponRegistry.get(String(item||'').toLowerCase());
+  if(cfg){
+    if(cfg.equip_slot==='melee')equipment.melee=item;
+    else if(cfg.equip_slot==='offhand')equipment.offhand=item;
+    else if(cfg.equip_slot==='sidearm')equipment.sidearm=item;
+    else if(cfg.equip_slot==='primary')equipment.primary=item;
+    if(cfg.magazine_size>0){
+      ammoState[item]=Math.max(ammoState[item]||0,Number(cfg.magazine_size||0));
+      reserveAmmo[item]=Math.max(reserveAmmo[item]||0,Math.ceil(Number(cfg.reserve_default||0)*.30));
+    }
     refreshEquipmentVisuals();
-  }
-  if(item==='Rifle'||item==='Shotgun'){
-    const cfg=weaponCfg(item);equipment.primary=item;
-    ammoState[item]=Math.max(ammoState[item]||0,cfg.magazine_size||(item==='Rifle'?20:6));
-    reserveAmmo[item]=Math.max(reserveAmmo[item]||0,Math.ceil((cfg.reserve_default||30)*.30));
-    refreshEquipmentVisuals();
+    if(cfg.equip_slot==='melee'&&activeSlot==='melee'){activeWeapon=item;equippedWeaponName=item}
   }
   if(item==='Bandage'&&!equipment.quick1)equipment.quick1='Bandage';
   if(item==='Water'&&!equipment.quick2)equipment.quick2='Water';
