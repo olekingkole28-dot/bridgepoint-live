@@ -39,10 +39,10 @@
       <span><b>BRIDGEPOINT HORIZON</b><small>WORLD PREVIEW · GAME ONLY</small></span>
     </a>
     <div class="cellSwitch" aria-label="Preview location">
-      <a id="sceneCity" data-preview="city" href="/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=matt&build=4208">DENSE CITY</a>
-      <a id="sceneMountain" data-preview="mountain" href="/app/horizon/preview.html?preview=mountain&cell=national&state=CO&lat=39.1911&lon=-106.8175&span_km=1.65&character=lis&build=4208">MOUNTAIN TOWN</a>
-      <a id="sceneCoastal" data-preview="coastal" href="/app/horizon/preview.html?preview=coastal&cell=national&state=WA&lat=47.6686&lon=-122.3869&span_km=1.8&character=sam&build=4208">WATERFRONT SUBURB</a>
-      <a id="cellNational" href="/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=matt&build=4208" hidden></a>
+      <a id="sceneCity" data-preview="city" href="/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=realistic&build=4209">DENSE CITY</a>
+      <a id="sceneMountain" data-preview="mountain" href="/app/horizon/preview.html?preview=mountain&cell=national&state=CO&lat=39.1911&lon=-106.8175&span_km=1.65&character=realistic&build=4209">MOUNTAIN TOWN</a>
+      <a id="sceneCoastal" data-preview="coastal" href="/app/horizon/preview.html?preview=coastal&cell=national&state=WA&lat=47.6686&lon=-122.3869&span_km=1.8&character=realistic&build=4209">WATERFRONT SUBURB</a>
+      <a id="cellNational" href="/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=realistic&build=4209" hidden></a>
       <a id="cellMiddletown" href="#" hidden></a>
       <a id="cellManhattan" href="#" hidden></a>
     </div>
@@ -71,13 +71,13 @@
       <span><b id="xpStat">0</b> xp</span>
       <span><b id="livesStat">3</b> lives</span>
       <span><b id="modeStat">SURVIVAL</b> mode</span>
-      <span><b id="characterStat">MATT</b> survivor</span>
+      <span><b id="characterStat">REALISTIC</b> survivor</span>
     </div>
   </section>
 
-  <div class="hud minimapPanel">
+  <div class="hud minimapPanel" title="Tap to open full map">
     <canvas id="minimap" width="220" height="220" aria-label="Exploration minimap"></canvas>
-    <div class="mapLabel"><b>EXPLORED</b><span>fog clears as you travel</span></div>
+    <div class="mapLabel"><b>EXPLORED</b><span>tap map · mark loot / danger / cleared</span></div>
   </div>
 
   <nav class="hud controls" aria-label="World controls">
@@ -118,15 +118,35 @@
     <button id="interactBtn" class="actionButton interact">E<br><small>USE</small></button>
     <button id="attackBtn" class="actionButton attack">⚔<br><small id="attackLabel">SWING</small></button>
     <button id="aimBtn" class="actionButton aim">◎<br><small>AIM</small></button>
-    <button id="weaponBtn" class="actionButton weapon">↻<br><small>SLOT</small></button>
-    <button id="reloadBtn" class="actionButton reload">⟳<br><small id="reloadLabel">RELOAD</small></button>
-    <button id="dropMobileBtn" class="actionButton drop">↓<br><small>DROP</small></button>
-    <button id="jumpBtn" class="actionButton jump">↑<br><small>JUMP</small></button>
-    <button id="stanceBtn" class="actionButton stance">▾<br><small>STANCE</small></button>
+    <button id="moreBtn" class="actionButton more">•••<br><small>MORE</small></button>
     <button id="sprintBtn" class="actionButton sprint">⇧<br><small>RUN</small></button>
+    <div id="mobileActionTray" class="mobileActionTray">
+      <button id="weaponBtn" class="trayButton">↻<small>SLOT</small></button>
+      <button id="reloadBtn" class="trayButton">⟳<small id="reloadLabel">RELOAD</small></button>
+      <button id="dropMobileBtn" class="trayButton">↓<small>DROP</small></button>
+      <button id="jumpBtn" class="trayButton">↑<small>JUMP</small></button>
+      <button id="stanceBtn" class="trayButton">▾<small>STANCE</small></button>
+      <button id="flashMobileBtn" class="trayButton">⌁<small>LIGHT</small></button>
+      <button id="mapMobileBtn" class="trayButton">⌖<small>MAP</small></button>
+    </div>
   </div>
 
   <div id="crosshair" class="crosshair" hidden><span></span><span></span></div>
+  <section id="worldMapOverlay" class="worldMapOverlay" hidden>
+    <div class="worldMapCard">
+      <div class="worldMapHead"><b>HORIZON EXPLORATION MAP</b><span id="mapZoomLabel">100%</span><button id="mapCloseBtn">✕</button></div>
+      <canvas id="worldMapCanvas" width="760" height="760" aria-label="Full exploration map"></canvas>
+      <div class="mapTools">
+        <button id="mapZoomOut">−</button><button id="mapZoomIn">＋</button>
+        <button data-map-marker="loot" class="active">LOOT</button>
+        <button data-map-marker="searched">CLEARED</button>
+        <button data-map-marker="danger">DANGER</button>
+        <button data-map-marker="vehicle">VEHICLE</button>
+        <button data-map-marker="base">BASE</button>
+      </div>
+      <small>Tap the map to place the selected marker. Searched buildings are marked automatically.</small>
+    </div>
+  </section>
 
   <div id="landscapeGate" class="landscapeGate">
     <div>
@@ -152,7 +172,7 @@
 
   <script>
     (function(){
-      var q=new URLSearchParams(location.search), scene=(q.get('preview')||'city').toLowerCase(), character=(q.get('character')||({city:'matt',mountain:'lis',coastal:'sam'}[scene]||'matt')).toUpperCase();
+      var q=new URLSearchParams(location.search), scene=(q.get('preview')||'city').toLowerCase(), character=(q.get('character')||'realistic').toUpperCase();
       document.querySelectorAll('[data-preview]').forEach(function(a){a.classList.toggle('active',a.getAttribute('data-preview')===scene)});
       var stat=document.getElementById('characterStat'); if(stat)stat.textContent=character;
     })();
@@ -167,6 +187,6 @@
     });
   </script>
   <script type="module" src="../horizon-playable/horizon-mobile-safe.js?v=3052"></script>
-  <script type="module" src="../horizon-playable/horizon-world.js?v=4208"></script>
+  <script type="module" src="../horizon-playable/horizon-world.js?v=4209"></script>
 </body>
 </html>
