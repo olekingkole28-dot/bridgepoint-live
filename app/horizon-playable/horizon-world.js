@@ -201,7 +201,7 @@ let characterWeaponTemplates={},aimBones={};
 let ammoState={Pistol:12,Rifle:20,Shotgun:6};
 let reserveAmmo={Pistol:48,Rifle:100,Shotgun:30};
 let reloadState={active:false,weapon:null,startedAt:0,endsAt:0};
-let recoilPitch=0,recoilYaw=0;
+let recoilPitch=0,recoilYaw=0,fireHeld=false;
 let playerDead=false,kills=0;
 let audioCtx=null,audioMaster=null,lastFootstepAt=0;
 let worldPickups=[],pickupTemplates={},pickupSeq=0;
@@ -1211,12 +1211,15 @@ async function buildPlayer(){
 }
 function playPlayerAnimation(state){
   if(!playerMixer||!playerClips.length)return;
-  const gun=isFirearm(activeWeapon);
+  const cfg=weaponCfg(activeWeapon),gun=isFirearm(activeWeapon),stance=String(cfg.stance_type||'');
   let desired=null;
-  if(state==='attack'&&!gun)desired=playerClips.find(c=>/slash|stab|punch|attack|melee/i.test(c.name));
+  if(state==='reload'&&gun)desired=playerClips.find(c=>/reload/i.test(c.name));
+  else if(state==='attack'&&!gun)desired=playerClips.find(c=>/slash|stab|punch|attack|melee/i.test(c.name));
+  else if(state==='aim'&&gun)desired=playerClips.find(c=>/aim|shoot|idle.*gun|gun.*idle/i.test(c.name));
   else if(state==='run'&&gun)desired=playerClips.find(c=>/^run_gun$/i.test(c.name)||/run.*gun/i.test(c.name));
   else if(state==='walk'&&gun)desired=playerClips.find(c=>/^walk_gun$/i.test(c.name)||/walk.*gun/i.test(c.name));
   else if(state==='idle'&&gun)desired=playerClips.find(c=>/^idle_gun$/i.test(c.name)||/idle.*gun/i.test(c.name));
+  if(!desired&&stance.includes('two_handed'))desired=playerClips.find(c=>new RegExp(state+'.*(gun|rifle)|(?:gun|rifle).*'+state,'i').test(c.name));
   if(!desired){
     const re=state==='run'?/^run$|run|sprint|jog/i:state==='walk'?/^walk$|walk|locomotion|move/i:/^idle$|idle|stand/i;
     desired=playerClips.find(c=>re.test(c.name));
@@ -1224,6 +1227,19 @@ function playPlayerAnimation(state){
   desired=desired||playerClips[0];
   if(playerAction?._clip===desired)return;
   const next=playerMixer.clipAction(desired);next.reset().fadeIn(.10).play();if(playerAction)playerAction.fadeOut(.10);playerAction=next;
+}
+function applyProceduralAim(){
+  if(!aiming||!isFirearm(activeWeapon)||!playerRoot)return;
+  const dir=new THREE.Vector3();camera.getWorldDirection(dir);
+  const elevation=Math.asin(THREE.MathUtils.clamp(dir.z,-1,1));
+  const cfg=weaponCfg(activeWeapon),two=Boolean(cfg.two_handed);
+  // Additive pass after AnimationMixer: animation provides locomotion/stance,
+  // these small rotations keep the upper body following the crosshair.
+  if(aimBones.torso)aimBones.torso.rotateX(-elevation*.34);
+  if(aimBones.upperL)aimBones.upperL.rotateX(-elevation*(two?.44:.30));
+  if(aimBones.upperR)aimBones.upperR.rotateX(-elevation*(two?.34:.18));
+  if(two&&aimBones.lowerR)aimBones.lowerR.rotateZ(-.08);
+  if(two&&aimBones.lowerL)aimBones.lowerL.rotateZ(.06);
 }
 function staticClone(template,targetHeight){
   if(!template)return null;
@@ -2413,7 +2429,7 @@ function initInput(){
   renderer.domElement.addEventListener('pointermove',e=>{
     if(e.pointerId!==lookId)return;
     const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
-    yaw-=dx*.00425;pitch=THREE.MathUtils.clamp(pitch+dy*.0028,-.08,.44);
+    yaw-=dx*.00425;pitch=THREE.MathUtils.clamp(pitch+dy*.0028,-.48,.70);
   });
   const stopLook=e=>{if(e.button===2)setAiming(false);if(e.pointerId===lookId)lookId=null};
   renderer.domElement.addEventListener('pointerup',stopLook);renderer.domElement.addEventListener('pointercancel',stopLook);
@@ -2466,7 +2482,7 @@ function updatePlayer(dt){
   if(!playerRoot||playerDead)return;
   pollGamepad();
   yaw-=gamepadLook.x*.032;
-  pitch=THREE.MathUtils.clamp(pitch+gamepadLook.y*.020,-.12,.48);
+  pitch=THREE.MathUtils.clamp(pitch+gamepadLook.y*.020,-.48,.70);
 
   let ix=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+mobileMove.x+gamepadMove.x;
   let iy=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0)+mobileMove.y+gamepadMove.y;
@@ -2503,8 +2519,11 @@ function updatePlayer(dt){
     const targetRot=Math.atan2(playerVelocity.x,playerVelocity.y);
     playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-11*dt));
   }
-  if(swingTime<=0)playPlayerAnimation(moving?(sprint?'run':'walk'):'idle');
+  if(reloadState.active)playPlayerAnimation('reload');
+  else if(aiming&&isFirearm(activeWeapon)&&!moving)playPlayerAnimation('aim');
+  else if(swingTime<=0)playPlayerAnimation(moving?(sprint?'run':'walk'):'idle');
   playerMixer?.update(dt);
+  applyProceduralAim();
   const nowAudio=performance.now();
   if(moving&&grounded&&nowAudio-lastFootstepAt>(sprint?280:430)){lastFootstepAt=nowAudio;if(audioCtx)spatialTone(playerRoot.position,'foot')}
 
