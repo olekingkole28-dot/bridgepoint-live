@@ -1,0 +1,17 @@
+name: Horizon V2 Build Gate
+on:
+  push:
+    branches: [horizon-v2-build]
+  workflow_dispatch:
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install playwright@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/browser-horizon-v2-local.mjs
