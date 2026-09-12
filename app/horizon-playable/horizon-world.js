@@ -1206,7 +1206,11 @@ async function buildPlayer(){
     setupEquipmentMounts(playerRoot);
   }
   playerRoot.position.copy(playerSpawn);scene.add(playerRoot);
-  activeSlot='melee';activeWeapon='Axe';refreshEquipmentVisuals();
+  const restoredItem=activeItemForSlot(activeSlot);
+  if(!restoredItem)activeSlot=equipment.melee?'melee':equipment.sidearm?'sidearm':equipment.primary?'primary':'offhand';
+  activeWeapon=activeItemForSlot(activeSlot)||equipment.melee||'Axe';
+  equippedWeaponName=activeWeapon;
+  refreshEquipmentVisuals();
   playPlayerAnimation('idle');
 }
 function playPlayerAnimation(state){
@@ -2661,7 +2665,10 @@ async function boot(){
       activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
       physicsMode,physicsReady,physicsError,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
       navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,
-      streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null
+      streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null,
+      weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
+      weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
+      reloadActive:reloadState.active,aimFov:weaponCfg(activeWeapon).aim_fov
     };
     window.BP_HORIZON_TEST={
       enterFirst:()=>{
@@ -2786,6 +2793,29 @@ async function boot(){
         };
       },
       postFxProbe:()=>({mode:postFxMode,composer:Boolean(composer),gtao:Boolean(gtaoPass),bloom:Boolean(bloomPass)}),
+      registryProbe:()=>({
+        mode:weaponRegistryMode,
+        unique:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
+        pistol:weaponCfg('Pistol'),
+        rifle:weaponCfg('Rifle'),
+        input:mobileInputMode
+      }),
+      reloadProbe:()=>{
+        addInventoryItem('Pistol');selectSlot('sidearm',true);
+        const cfg=weaponCfg('Pistol');
+        ammoState.Pistol=1;reserveAmmo.Pistol=Math.max(12,reserveAmmo.Pistol||0);
+        const started=requestReload();
+        const end=reloadState.endsAt;
+        if(started){reloadState.endsAt=performance.now()-1;updateReload(performance.now())}
+        return {started,end,mag:ammoState.Pistol,reserve:reserveAmmo.Pistol,expected:Number(cfg.magazine_size||12),active:reloadState.active};
+      },
+      recoilProbe:()=>{
+        addInventoryItem('Rifle');selectSlot('primary',true);aiming=true;
+        const before={pitch:recoilPitch,yaw:recoilYaw};
+        const cfg=weaponCfg('Rifle');applyRecoil(cfg);
+        const after={pitch:recoilPitch,yaw:recoilYaw,cfgPitch:cfg.recoil_pitch_deg,cfgYaw:cfg.recoil_yaw_deg};
+        aiming=false;return {before,after};
+      },
       spawnMobility:()=>{
         const p=playerRoot.position,step=.8,dirs={
           forward:movementVector(0,1,0),backward:movementVector(0,-1,0),
