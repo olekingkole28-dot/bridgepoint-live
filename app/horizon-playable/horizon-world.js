@@ -17,6 +17,7 @@ const SUSHI_ENV='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Sushi%20
 const SUSHI_DECOR='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Sushi%20Restaurant%20Kit%20-%20May%202023/Decoration/glTF';
 const AURISAR_MOBS='https://cdn.jsdelivr.net/gh/brandon-aurgames/aurisar-app@main/public/assets/mobs';
 const CONSTELLATION_MODELS='https://cdn.jsdelivr.net/gh/Hakhyun-Kim/constellation-defense@main/assets/models';
+const QUATERNIUS_SHOWCASE='https://cdn.jsdelivr.net/gh/trebeljahr/quaternius-showcase@main/public/glb';
 const DERETH_MOBS='https://cdn.jsdelivr.net/gh/w5ohr/Dereth@main/assets/models/monsters';
 const ASSETS={
   player:FREE_BASE+'/Characters/glTF/Characters_Matt.gltf',
@@ -28,9 +29,9 @@ const ASSETS={
   zombieRibcage:FREE_BASE+'/Characters/glTF/Zombie_Ribcage.gltf',
   infectedShepherd:FREE_BASE+'/Characters/glTF/Characters_GermanShepherd.gltf',
   infectedPug:FREE_BASE+'/Characters/glTF/Characters_Pug.gltf',
-  wolf:AURISAR_MOBS+'/wolf.glb',
-  orc:AURISAR_MOBS+'/orcenemy.glb',
-  spider:AURISAR_MOBS+'/spider.glb',
+  wolf:QUATERNIUS_SHOWCASE+'/animals_pack/Wolf.glb',
+  orc:CONSTELLATION_MODELS+'/quaternius-orc.glb',
+  spider:QUATERNIUS_SHOWCASE+'/easy_enemies_pack/Spider.glb',
   yeti:CONSTELLATION_MODELS+'/quaternius-yeti.glb',
   bear:DERETH_MOBS+'/Bear.glb',
   barrel:FREE_BASE+'/Environment/glTF/Barrel.gltf',
