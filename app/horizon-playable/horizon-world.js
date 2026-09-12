@@ -377,11 +377,33 @@ function normalizedModel(source,targetHeight,animated=false){
 async function loadAsset(url){
   try{return await loader.loadAsync(url)}catch(e){console.warn('Asset load failed',url,e);return null}
 }
+function pointInPoly(x,y,poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;
+    const hit=((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/((yj-yi)||1e-9)+xi);
+    if(hit)inside=!inside;
+  }
+  return inside;
+}
+function pointSegDist(x,y,a,b){
+  const vx=b.x-a.x,vy=b.y-a.y,wx=x-a.x,wy=y-a.y,l2=vx*vx+vy*vy;
+  const t=l2>1e-9?THREE.MathUtils.clamp((wx*vx+wy*vy)/l2,0,1):0;
+  return Math.hypot(x-(a.x+vx*t),y-(a.y+vy*t));
+}
+function polyBlocksPoint(x,y,poly,radius=.33){
+  if(!poly?.length)return false;
+  if(pointInPoly(x,y,poly))return true;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++)if(pointSegDist(x,y,poly[j],poly[i])<radius)return true;
+  return false;
+}
 function nearestRoadToCenter(){
   if(!roadAnchors.length)return{x:0,y:0,z:terrainZ(lon0,lat0)};
-  let best=roadAnchors[0],d=Infinity;
-  for(const a of roadAnchors){const q=a.x*a.x+a.y*a.y;if(q<d){d=q;best=a}}
-  return best;
+  const ordered=[...roadAnchors].sort((a,b)=>(a.x*a.x+a.y*a.y)-(b.x*b.x+b.y*b.y));
+  for(const a of ordered){
+    if(!isBlockedExterior(a.x,a.y,.82))return a;
+  }
+  return ordered[0];
 }
 function fallbackPlayer(){
   const root=new THREE.Group(),mat=new THREE.MeshStandardMaterial({color:0x39473d,roughness:.82});
@@ -713,11 +735,10 @@ function isBlockedInterior(x,y){
   for(const w of interiorWalls)if(x+r>w.minx&&x-r<w.maxx&&y+r>w.miny&&y-r<w.maxy)return true;
   return false;
 }
-function isBlockedExterior(x,y){
-  const r=.33;
+function isBlockedExterior(x,y,r=.33){
   for(const b of buildingCenters){
-    if(Math.abs(x-b.x)>b.width/2+1.5||Math.abs(y-b.y)>b.depth/2+1.5)continue;
-    if(x+r>b.minx&&x-r<b.maxx&&y+r>b.miny&&y-r<b.maxy)return true;
+    if(x<b.minx-r||x>b.maxx+r||y<b.miny-r||y>b.maxy+r)continue;
+    if(polyBlocksPoint(x,y,b.poly,r))return true;
   }
   return false;
 }
