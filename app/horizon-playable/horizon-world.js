@@ -851,11 +851,16 @@ function showToast(message){
   if(!el){el=document.createElement('div');el.id='lootToast';document.body.appendChild(el)}
   el.textContent=message;el.classList.add('show');clearTimeout(showToast.t);showToast.t=setTimeout(()=>el.classList.remove('show'),2200);
 }
+function isFirearm(item){return item==='Pistol'||item==='Rifle'||item==='Shotgun'}
 function updateInventory(){
   const entries=Object.entries(inventory).filter(([,v])=>v>0);
   $('inventoryCount').textContent=lootCount+' / '+packCapacity+' slots';
   const pack=$('packName');if(pack)pack.textContent=packName.toUpperCase();
-  const weapon=$('equippedWeapon');if(weapon)weapon.textContent='Melee: '+equippedWeaponName+' · Open pack';
+  const weapon=$('equippedWeapon');
+  if(weapon){
+    const ammo=isFirearm(activeWeapon)?' · '+(ammoState[activeWeapon]??0)+' rounds':'';
+    weapon.textContent='Active: '+activeWeapon+ammo+' · tap a loadout slot to switch';
+  }
   const packStat=$('packStat');if(packStat)packStat.textContent=lootCount+'/'+packCapacity;
   const killStat=$('killStat');if(killStat)killStat.textContent=String(kills);
   $('lootStat').textContent=String(lootCount);
@@ -868,8 +873,11 @@ function updateInventory(){
     slotQuick2:equipment.quick2||'EMPTY'
   };
   for(const [id,val] of Object.entries(slots)){const el=$(id);if(el)el.textContent=String(val).toUpperCase()}
+  document.querySelectorAll('.loadoutSlot[data-slot]').forEach(el=>el.classList.toggle('active',el.dataset.slot===activeSlot));
+  const label=$('attackLabel');if(label)label.textContent=isFirearm(activeWeapon)?'FIRE':'SWING';
+  const cross=$('crosshair');if(cross)cross.hidden=!(aiming&&isFirearm(activeWeapon));
   $('inventoryList').innerHTML=entries.length
-    ?entries.slice(0,14).map(([k,v])=>'<span>'+k+' ×'+v+'</span>').join('')
+    ?entries.slice(0,16).map(([k,v])=>'<span data-item="'+k+'">'+k+' ×'+v+'</span>').join('')
     :'<span class="empty">Search rooms, cabinets, furniture and visible loot.</span>';
 }
 function addInventoryItem(item){
@@ -887,10 +895,10 @@ function addInventoryItem(item){
     equipment.melee=item;equipWeapon(item);
   }
   if(item==='Pistol'){
-    equipment.sidearm='Pistol';refreshEquipmentVisuals();
+    equipment.sidearm='Pistol';ammoState.Pistol=Math.max(ammoState.Pistol||0,12);refreshEquipmentVisuals();
   }
   if(item==='Rifle'||item==='Shotgun'){
-    equipment.primary=item;refreshEquipmentVisuals();
+    equipment.primary=item;ammoState[item]=Math.max(ammoState[item]||0,item==='Rifle'?20:6);refreshEquipmentVisuals();
   }
   if(item==='Bandage'&&!equipment.quick1)equipment.quick1='Bandage';
   if(item==='Water'&&!equipment.quick2)equipment.quick2='Water';
