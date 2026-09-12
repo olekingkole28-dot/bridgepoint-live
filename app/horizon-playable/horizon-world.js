@@ -1394,7 +1394,8 @@ function spawnZombieWave(now=performance.now(),force=false){
   let made=0;
   for(let i=0;i<desired&&candidates.length;i++){
     const a=candidates[Math.floor(rand()*candidates.length)];
-    if(spawnZombieAt(zombieTemplate,a,false))made++;
+    const variant=zombieTemplates.length?zombieTemplates[Math.floor(rand()*zombieTemplates.length)]:zombieTemplate;
+    if(spawnZombieAt(variant,a,false))made++;
   }
   if(made){waveNumber++;showToast('Infected wave '+waveNumber+' approaching · '+made)}
   nextWaveAt=now+19000+rand()*9000;
@@ -1460,19 +1461,21 @@ function updateZombies(dt,now){
 async function buildSurvivalArt(){
   const [
     barrel,trash,pallet,barrier,cone,streetlight,hydrant,traffic1,traffic2,plasticBarrier,cinder,
-    containerGreen,containerRed,pipes,wheelStack,townSign,pickup,sports,truck,zombie,chest,chestSpecial,...interiors
+    containerGreen,containerRed,pipes,wheelStack,townSign,pickup,sports,truck,zombie,zombieChubby,zombieRibcage,chest,chestSpecial,...interiors
   ]=await Promise.all([
     loadAsset(ASSETS.barrel),loadAsset(ASSETS.trash),loadAsset(ASSETS.pallet),loadAsset(ASSETS.barrier),
     loadAsset(ASSETS.cone),loadAsset(ASSETS.streetlight),loadAsset(ASSETS.hydrant),
     loadAsset(ASSETS.traffic1),loadAsset(ASSETS.traffic2),loadAsset(ASSETS.plasticBarrier),loadAsset(ASSETS.cinder),
     loadAsset(ASSETS.containerGreen),loadAsset(ASSETS.containerRed),loadAsset(ASSETS.pipes),loadAsset(ASSETS.wheelStack),loadAsset(ASSETS.townSign),
-    loadAsset(ASSETS.vehicle),loadAsset(ASSETS.sportsCar),loadAsset(ASSETS.truck),loadAsset(ASSETS.zombie),
+    loadAsset(ASSETS.vehicle),loadAsset(ASSETS.sportsCar),loadAsset(ASSETS.truck),
+    loadAsset(ASSETS.zombie),loadAsset(ASSETS.zombieChubby),loadAsset(ASSETS.zombieRibcage),
     loadAsset(ASSETS.chest),loadAsset(ASSETS.chestSpecial),
     ...Object.values(INTERIOR_ASSETS).map(loadAsset)
   ]);
   const keys=Object.keys(INTERIOR_ASSETS);interiorTemplates={};keys.forEach((k,i)=>interiorTemplates[k]=interiors[i]);
   pickupTemplates={chest,chestSpecial};
-  zombieTemplate=zombie;
+  zombieTemplates=[zombie,zombieChubby,zombieRibcage].filter(Boolean);
+  zombieTemplate=zombieTemplates[0]||zombie;
 
   const dense=CELL==='manhattan';
   let props=0,vehicles=0;
@@ -1506,7 +1509,7 @@ async function buildSurvivalArt(){
   };
 
   spawnOutdoorLoot();
-  await buildZombies(zombie);
+  await buildZombies(zombieTemplate);
 }
 function toMapXY(x,y){
   const west=project([data.bbox.west,lat0]).x,east=project([data.bbox.east,lat0]).x;
