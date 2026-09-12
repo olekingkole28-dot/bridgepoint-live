@@ -430,15 +430,23 @@ function setLighting(mode){
 
 function normalizedModel(source,targetHeight,animated=false){
   const model=animated?cloneSkeleton(source):source.clone(true);
-  const box=new THREE.Box3().setFromObject(model),size=new THREE.Vector3();box.getSize(size);
-  const scale=targetHeight/Math.max(.01,size.y);
-  model.scale.multiplyScalar(scale);
-  const box2=new THREE.Box3().setFromObject(model),center=new THREE.Vector3();box2.getCenter(center);
-  model.position.x-=center.x;model.position.z-=center.z;model.position.y-=box2.min.y;
   model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
-  const inner=new THREE.Group();inner.rotation.x=Math.PI/2;inner.add(model);
-  const root=new THREE.Group();root.add(inner);
-  return{root,model};
+  const oriented=new THREE.Group();
+  oriented.rotation.x=Math.PI/2;
+  oriented.add(model);
+  oriented.updateMatrixWorld(true);
+  let box=new THREE.Box3().setFromObject(oriented),size=new THREE.Vector3();box.getSize(size);
+  const scale=targetHeight/Math.max(.01,size.z);
+  oriented.scale.setScalar(scale);
+  oriented.updateMatrixWorld(true);
+  box=new THREE.Box3().setFromObject(oriented);
+  const center=new THREE.Vector3();box.getCenter(center);
+  oriented.position.x-=center.x;
+  oriented.position.y-=center.y;
+  oriented.position.z-=box.min.z;
+  oriented.updateMatrixWorld(true);
+  const root=new THREE.Group();root.add(oriented);
+  return{root,model,oriented};
 }
 async function loadAsset(url){
   try{return await loader.loadAsync(url)}catch(e){console.warn('Asset load failed',url,e);return null}
@@ -478,6 +486,8 @@ function fallbackPlayer(){
   root.add(body,head);return root;
 }
 function attachDuffel(){
+  return; // inventory is intentionally hidden on the character
+
   if(!playerRoot)return;
   const bag=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(.62,.28,.72),new THREE.MeshStandardMaterial({color:0x4b3a27,roughness:.94}));
   body.position.z=1.05;
@@ -487,7 +497,7 @@ function attachDuffel(){
   const strap2=strap1.clone();strap2.position.x=.2;
   bag.add(body,flap,strap1,strap2);bag.position.set(0,.27,.12);playerRoot.add(bag);packMesh=bag;
 }
-function updatePackVisual(){if(packMesh){const scale=packCapacity>=40?1.18:packCapacity>=34?1.08:1;packMesh.scale.setScalar(scale)}}
+function updatePackVisual(){/* pack capacity is UI-only; no backpack mesh on survivor */}
 function mountWeaponModel(template,name){
   if(!playerRoot)return;
   if(!weaponPivot){weaponPivot=new THREE.Group();weaponPivot.position.set(.40,-.02,1.03);playerRoot.add(weaponPivot)}
@@ -506,13 +516,58 @@ function mountWeaponModel(template,name){
   equippedWeaponName=name;updateInventory();
 }
 function equipWeapon(name){const key=name==='Barbed Bat'?'bat':name==='Knife'?'knife':'axe';mountWeaponModel(weaponTemplates[key],name)}
+function findBoneByHints(root,hints){
+  let found=null;
+  root?.traverse(o=>{
+    if(found||!o.isBone)return;
+    const n=String(o.name||'').toLowerCase();
+    if(hints.some(h=>n.includes(h)))found=o;
+  });
+  return found;
+}
+function makeMount(parent,pos,rot){
+  const g=new THREE.Group();
+  g.position.set(...pos);g.rotation.set(...rot);
+  (parent||playerRoot).add(g);return g;
+}
+function clearMount(m){if(!m)return;while(m.children.length)m.remove(m.children[0])}
+function setupEquipmentMounts(modelRoot){
+  const right=findBoneByHints(modelRoot,['righthand','hand.r','hand_r','right_hand','r_hand']);
+  const left=findBoneByHints(modelRoot,['lefthand','hand.l','hand_l','left_hand','l_hand']);
+  equipmentMounts.rightHand=makeMount(right||playerRoot,right?[0,0,0]:[.36,-.03,1.04],right?[0,0,0]:[0,0,0]);
+  equipmentMounts.leftHand=makeMount(left||playerRoot,left?[0,0,0]:[-.34,-.02,1.03],left?[0,0,0]:[0,0,0]);
+  equipmentMounts.hip=makeMount(playerRoot,[.30,.14,.76],[0,.2,-.18]);
+  equipmentMounts.back=makeMount(playerRoot,[0,.24,1.18],[0,.08,Math.PI/2]);
+}
+function putEquipmentModel(slot,template,length,rot=[.15,.08,-.88],pos=[0,0,0]){
+  const m=equipmentMounts[slot];if(!m)return;
+  clearMount(m);if(!template)return;
+  const obj=propCloneByLength(template,length);if(!obj)return;
+  obj.rotation.set(...rot);obj.position.set(...pos);m.add(obj);
+}
+function refreshEquipmentVisuals(){
+  putEquipmentModel('rightHand',weaponTemplates.axe,.68,[.18,.08,-.88],[.02,0,.02]);
+  putEquipmentModel('leftHand',weaponTemplates.knife,.34,[.08,-.1,.72],[-.01,0,.01]);
+  putEquipmentModel('hip',equipment.sidearm==='Pistol'?weaponTemplates.pistol:null,.32,[.1,.15,-.3],[0,0,0]);
+  const long=equipment.primary==='Rifle'?weaponTemplates.rifle:equipment.primary==='Shotgun'?weaponTemplates.shotgun:null;
+  putEquipmentModel('back',long,equipment.primary==='Shotgun'?.9:1.02,[.18,.05,.1],[0,0,0]);
+}
 async function buildPlayer(){
-  const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,spawn.z+.05);
-  const [gltf,axe,bat,knife]=await Promise.all([loadAsset(ASSETS.player),loadAsset(ASSETS.axe),loadAsset(ASSETS.bat),loadAsset(ASSETS.knife)]);
-  weaponTemplates={axe,bat,knife};
-  if(gltf){const n=normalizedModel(gltf.scene,1.82,true);playerRoot=n.root;playerClips=gltf.animations||[];playerMixer=new THREE.AnimationMixer(n.model)}
-  else playerRoot=fallbackPlayer();
-  playerRoot.position.copy(playerSpawn);scene.add(playerRoot);attachDuffel();mountWeaponModel(axe,'Axe');playPlayerAnimation('idle');
+  const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,spawn.z+.025);
+  const [gltf,axe,bat,knife,pistol,rifle,shotgun]=await Promise.all([
+    loadAsset(ASSETS.player),loadAsset(ASSETS.axe),loadAsset(ASSETS.bat),loadAsset(ASSETS.knife),
+    loadAsset(ASSETS.pistol),loadAsset(ASSETS.rifle),loadAsset(ASSETS.shotgun)
+  ]);
+  weaponTemplates={axe,bat,knife,pistol,rifle,shotgun};
+  if(gltf){
+    const n=normalizedModel(gltf.scene,1.82,true);
+    playerRoot=n.root;playerClips=gltf.animations||[];playerMixer=new THREE.AnimationMixer(n.model);
+  }else playerRoot=fallbackPlayer();
+  playerRoot.position.copy(playerSpawn);scene.add(playerRoot);
+  setupEquipmentMounts(playerRoot);
+  weaponPivot=equipmentMounts.rightHand;
+  refreshEquipmentVisuals();
+  playPlayerAnimation('idle');
 }
 function playPlayerAnimation(state){
   if(!playerMixer||!playerClips.length)return;
