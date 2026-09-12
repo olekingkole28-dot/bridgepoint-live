@@ -442,50 +442,244 @@ function scatterTemplate(template,count,targetHeight,spread=7){
     const ang=rand()*Math.PI*2,dist=2+rand()*spread;o.position.set(a.x+Math.cos(ang)*dist,a.y+Math.sin(ang)*dist,terrainZXY(a.x,a.y)+.05);o.rotation.z=rand()*Math.PI*2;artGroup.add(o);
   }
 }
-function makeFallbackChest(){
-  const g=new THREE.Group(),base=new THREE.Mesh(new THREE.BoxGeometry(.9,.55,.42),new THREE.MeshStandardMaterial({color:0x69502f,roughness:.86}));base.position.z=.25;
-  const band=new THREE.Mesh(new THREE.BoxGeometry(.94,.08,.46),new THREE.MeshStandardMaterial({color:0xb9985f,metalness:.2,roughness:.55}));band.position.z=.27;g.add(base,band);return g;
-}
-function chooseLootBuildings(){
-  const sorted=[...buildingCenters].sort((a,b)=>(a.x*a.x+a.y*a.y)-(b.x*b.x+b.y*b.y));
-  const out=[];const gap=CELL==='manhattan'?13:9;
-  for(let i=5;i<sorted.length&&out.length<(CELL==='manhattan'?28:20);i+=gap)out.push(sorted[i]);
-  return out;
-}
-function buildLoot(chestTemplate){
-  const candidates=chooseLootBuildings();
-  for(let i=0;i<candidates.length;i++){
-    const c=candidates[i],root=chestTemplate?staticClone(chestTemplate,.78):makeFallbackChest();
-    root.position.set(c.x,c.y,c.z+.08);root.rotation.z=rand()*Math.PI*2;lootGroup.add(root);
-    lootSpawns.push({root,x:c.x,y:c.y,z:c.z,active:true,seed:i});
-  }
-}
-function randomLoot(seed){
-  const table=['Bandage','Water','Canned food','Scrap','Batteries','9mm ammo','Rifle rounds','Painkillers','Cloth','Tool parts'];
-  const r=seeded(seed*991+hash(CELL));
-  const n=1+Math.floor(r()*3),out=[];
-  for(let i=0;i<n;i++)out.push(table[Math.floor(r()*table.length)]);
-  return out;
-}
-function collectNearestLoot(){
-  if(!nearestLoot||!nearestLoot.active)return;
-  nearestLoot.active=false;lootGroup.remove(nearestLoot.root);
-  for(const item of randomLoot(nearestLoot.seed+lootCount*17)){inventory[item]=(inventory[item]||0)+1;lootCount++}
-  $('lootStat').textContent=String(lootCount);updateInventory();nearestLoot=null;$('interactPrompt').hidden=true;
+function showToast(message){
+  let el=document.getElementById('lootToast');
+  if(!el){el=document.createElement('div');el.id='lootToast';document.body.appendChild(el)}
+  el.textContent=message;el.classList.add('show');clearTimeout(showToast.t);showToast.t=setTimeout(()=>el.classList.remove('show'),2200);
 }
 function updateInventory(){
-  const entries=Object.entries(inventory);$('inventoryCount').textContent=lootCount+' items';
-  $('inventoryList').innerHTML=entries.length?entries.slice(0,8).map(([k,v])=>'<span>'+k+' ×'+v+'</span>').join(''):'<span class="empty">Find loot inside buildings.</span>';
+  const entries=Object.entries(inventory).filter(([,v])=>v>0);
+  $('inventoryCount').textContent=lootCount+' / '+packCapacity+' slots';
+  const pack=$('packName');if(pack)pack.textContent=packName.toUpperCase();
+  const weapon=$('equippedWeapon');if(weapon)weapon.textContent='Equipped: '+equippedWeaponName;
+  const packStat=$('packStat');if(packStat)packStat.textContent=lootCount+'/'+packCapacity;
+  $('lootStat').textContent=String(lootCount);
+  $('inventoryList').innerHTML=entries.length?entries.slice(0,10).map(([k,v])=>'<span>'+k+' ×'+v+'</span>').join(''):'<span class="empty">Search rooms, cabinets and furniture.</span>';
 }
-function updateLootPrompt(){
-  if(!playerRoot)return;
-  let best=null,d=Infinity;
-  for(const l of lootSpawns)if(l.active){const dx=l.x-playerRoot.position.x,dy=l.y-playerRoot.position.y,q=Math.hypot(dx,dy);if(q<d){d=q;best=l}}
-  nearestLoot=d<3.4?best:null;
-  $('interactPrompt').hidden=!nearestLoot;
-  if(nearestLoot)$('interactLabel').textContent='LOOT BUILDING CACHE';
+function addInventoryItem(item){
+  if(item==='Hiking Backpack'){
+    if(packCapacity<36){packCapacity=36;packName='Hiking Backpack';updatePackVisual();showToast('Pack upgraded: Hiking Backpack · 36 slots')}
+    return true;
+  }
+  if(item==='Large Duffel'){
+    if(packCapacity<42){packCapacity=42;packName='Large Duffel';updatePackVisual();showToast('Pack upgraded: Large Duffel · 42 slots')}
+    return true;
+  }
+  if(lootCount>=packCapacity){showToast('PACK FULL — find a larger bag');return false}
+  inventory[item]=(inventory[item]||0)+1;lootCount++;
+  if(item==='Axe'||item==='Barbed Bat'||item==='Knife')equipWeapon(item);
+  return true;
+}
+function lootForContainer(type,seed){
+  const r=seeded(seed+lootCount*131);
+  const common={
+    kitchen:['Water','Canned food','Energy bar','Batteries','Kitchen knife','Cloth'],
+    dresser:['Cloth','Bandage','Work gloves','Flashlight','Batteries','Painkillers'],
+    medicine:['Bandage','Painkillers','First aid kit','Alcohol wipes','Water'],
+    shelf:['Batteries','Scrap','Tool parts','Flashlight','Radio','Cloth'],
+    fridge:['Water','Canned food','Energy drink','Food ration'],
+    bed:['Bandage','Pocket knife','Cloth','Water','Flashlight'],
+    picture:['Axe','Barbed Bat','Knife','First aid kit','Batteries','Tool parts'],
+    cabinet:['Water','Bandage','Batteries','Canned food','Tool parts']
+  };
+  const source=common[type]||common.cabinet;
+  const count=1+Math.floor(r()*3),out=[];
+  for(let i=0;i<count;i++)out.push(source[Math.floor(r()*source.length)]);
+  const rare=r();
+  if(rare<.06)out.push('Large Duffel');
+  else if(rare<.14)out.push('Hiking Backpack');
+  if((type==='picture'||type==='bed')&&r()<.28){
+    const loadouts=[
+      ['Axe','Bandage','Water','Work gloves'],
+      ['Barbed Bat','First aid kit','Energy bar','Flashlight'],
+      ['Knife','Batteries','Radio','Canned food'],
+      ['First aid kit','Bandage','Painkillers','Water']
+    ];
+    out.push(...loadouts[Math.floor(r()*loadouts.length)]);
+  }
+  return out;
+}
+function makePrimitive(type,matColor=0x6c6256){
+  const mat=new THREE.MeshStandardMaterial({color:matColor,roughness:.86});
+  if(type==='bed'){
+    const g=new THREE.Group();
+    const base=new THREE.Mesh(new THREE.BoxGeometry(2.1,3.7,.38),mat);base.position.z=.28;
+    const mattress=new THREE.Mesh(new THREE.BoxGeometry(1.95,3.45,.28),new THREE.MeshStandardMaterial({color:0xb8b1a3,roughness:.95}));mattress.position.z=.57;
+    const pillow=new THREE.Mesh(new THREE.BoxGeometry(.8,.62,.18),new THREE.MeshStandardMaterial({color:0xd3d0c7,roughness:.94}));pillow.position.set(0,1.12,.80);
+    const head=new THREE.Mesh(new THREE.BoxGeometry(2.15,.14,1.0),new THREE.MeshStandardMaterial({color:0x4b3829,roughness:.9}));head.position.set(0,1.79,.72);
+    g.add(base,mattress,pillow,head);return g;
+  }
+  if(type==='dresser'){
+    const g=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(1.55,.62,1.12),mat);body.position.z=.56;g.add(body);
+    for(let z=.25;z<1;z+=.28){const h=new THREE.Mesh(new THREE.BoxGeometry(.7,.05,.07),new THREE.MeshStandardMaterial({color:0x2c2822,metalness:.22,roughness:.5}));h.position.set(0,-.34,z);g.add(h)}
+    return g;
+  }
+  if(type==='cabinet'){
+    const g=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(1.2,.55,1.0),mat);body.position.z=.5;g.add(body);
+    const seam=new THREE.Mesh(new THREE.BoxGeometry(.035,.03,.82),new THREE.MeshStandardMaterial({color:0x26231f}));seam.position.set(0,-.295,.52);g.add(seam);return g;
+  }
+  if(type==='picture'){
+    const g=new THREE.Group(),frame=new THREE.Mesh(new THREE.BoxGeometry(1.2,.07,.82),new THREE.MeshStandardMaterial({color:0x34291e,roughness:.75}));frame.position.z=.45;
+    const art=new THREE.Mesh(new THREE.BoxGeometry(1.02,.075,.64),new THREE.MeshStandardMaterial({color:0x725c49,roughness:.88}));art.position.set(0,-.01,.45);g.add(frame,art);return g;
+  }
+  return new THREE.Group();
+}
+function placeInteriorTemplate(key,x,y,z,height,rot=0){
+  const template=interiorTemplates[key];if(!template)return null;
+  const obj=staticClone(template,height);if(!obj)return null;
+  obj.position.set(x,y,z);obj.rotation.z=rot;interiorGroup.add(obj);return obj;
+}
+function addWallRect(cx,cy,sx,sy,height=2.8,color=0xc1beb2,collision=true){
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,height),new THREE.MeshStandardMaterial({color,roughness:.92}));
+  mesh.position.set(cx,cy,height/2);mesh.castShadow=true;mesh.receiveShadow=true;interiorGroup.add(mesh);
+  if(collision)interiorWalls.push({minx:cx-sx/2,maxx:cx+sx/2,miny:cy-sy/2,maxy:cy+sy/2});
+  return mesh;
+}
+function addWallWithDoor(axis,pos,start,end,doorCenter,gap=1.45){
+  const a1=start,a2=doorCenter-gap/2,b1=doorCenter+gap/2,b2=end;
+  if(a2>a1){if(axis==='h')addWallRect((a1+a2)/2,pos,a2-a1,.16);else addWallRect(pos,(a1+a2)/2,.16,a2-a1)}
+  if(b2>b1){if(axis==='h')addWallRect((b1+b2)/2,pos,b2-b1,.16);else addWallRect(pos,(b1+b2)/2,.16,b2-b1)}
+}
+function createSearchSpot(label,x,y,type,seed){const spot={label,x,y,type,seed,active:true};interiorContainers.push(spot);return spot}
+function clearInterior(){
+  while(interiorGroup.children.length)interiorGroup.remove(interiorGroup.children[0]);
+  interiorWalls=[];interiorContainers=[];interiorZombies=[];interiorBounds=null;interiorExit=null;
+}
+function generateInterior(entry){
+  clearInterior();
+  const r=seeded(entry.seed),w=THREE.MathUtils.clamp(entry.width*1.15,13,25),h=THREE.MathUtils.clamp(entry.depth*1.15,11,22);
+  interiorBounds={minx:-w/2+.42,maxx:w/2-.42,miny:-h/2+.42,maxy:h/2-.42};
+  const floorMat=new THREE.MeshStandardMaterial({color:r()>.5?0x665647:0x5c5e57,roughness:.88});
+  const floor=new THREE.Mesh(new THREE.BoxGeometry(w,h,.18),floorMat);floor.position.z=-.09;floor.receiveShadow=true;interiorGroup.add(floor);
+  const ceiling=new THREE.Mesh(new THREE.BoxGeometry(w,h,.12),new THREE.MeshStandardMaterial({color:0x6e6f68,roughness:.98,side:THREE.DoubleSide}));ceiling.position.z=2.95;interiorGroup.add(ceiling);
+  addWallRect(0,h/2,w,.18);addWallRect(-w/2,0,.18,h);addWallRect(w/2,0,.18,h);
+  addWallWithDoor('h',-h/2,-w/2,w/2,0,1.75);
+  interiorExit={x:0,y:-h/2+.9};
+
+  const layoutRoll=r(),layout=layoutRoll<.28?'Two-bedroom apartment':layoutRoll<.52?'Loft apartment':layoutRoll<.74?'Office conversion':'Hotel-style floor';
+  if(layout==='Two-bedroom apartment'){
+    addWallWithDoor('v',-w*.13,-h*.10,h/2,h*.17,1.35);
+    addWallWithDoor('h',h*.08,-w/2,-w*.13,-w*.30,1.25);
+  }else if(layout==='Office conversion'){
+    addWallWithDoor('h',0,-w/2,w/2,w*.18,1.45);
+    addWallWithDoor('v',w*.18,0,h/2,h*.24,1.35);
+  }else if(layout==='Hotel-style floor'){
+    addWallWithDoor('h',h*.06,-w/2,w/2,-w*.18,1.35);
+    addWallWithDoor('v',0,h*.06,h/2,h*.28,1.25);
+  }else addWallWithDoor('v',w*.27,-h*.02,h/2,h*.19,1.4);
+
+  const warm=new THREE.PointLight(0xffd6a0,18,18,2);warm.position.set(-w*.2,-h*.1,2.25);interiorGroup.add(warm);
+  const cool=new THREE.PointLight(0xbfd7ff,10,15,2);cool.position.set(w*.28,h*.20,2.2);interiorGroup.add(cool);
+
+  const windowMat=new THREE.MeshStandardMaterial({color:0x314650,emissive:0x182d36,emissiveIntensity:.52,roughness:.2,metalness:.12});
+  for(let x=-w/2+1.4;x<w/2-1;x+=2.2){const win=new THREE.Mesh(new THREE.BoxGeometry(1.25,.08,1.15),windowMat);win.position.set(x,h/2-.13,1.62);interiorGroup.add(win)}
+
+  placeInteriorTemplate('couch',-w*.22,h*.18,.02,1.0,Math.PI/2);
+  placeInteriorTemplate('table',-w*.03,h*.18,.02,.78,0);
+  placeInteriorTemplate('chair',w*.11,h*.18,.02,1.05,-Math.PI/2);
+  placeInteriorTemplate('plant',w*.38,h*.32,.02,1.25,0);
+  placeInteriorTemplate('fridge',-w*.38,-h*.25,.02,1.85,0);
+  placeInteriorTemplate('sink',-w*.20,-h*.31,.02,1.0,0);
+  placeInteriorTemplate('oven',-w*.04,-h*.31,.02,1.0,0);
+  placeInteriorTemplate('shelf',w*.39,-h*.15,.02,1.9,-Math.PI/2);
+  placeInteriorTemplate('lamp',w*.22,h*.25,.02,1.35,0);
+
+  const bed=makePrimitive('bed');bed.position.set(w*.28,h*.25,.02);bed.rotation.z=Math.PI/2;interiorGroup.add(bed);
+  const dresser=makePrimitive('dresser');dresser.position.set(w*.40,h*.02,.02);dresser.rotation.z=-Math.PI/2;interiorGroup.add(dresser);
+  const cabinet=makePrimitive('cabinet');cabinet.position.set(-w*.34,-h*.36,.02);interiorGroup.add(cabinet);
+  const picture=makePrimitive('picture');picture.position.set(w*.20,h/2-.22,1.15);interiorGroup.add(picture);
+
+  createSearchSpot('Search kitchen cabinet',-w*.34,-h*.36,'kitchen',entry.seed+11);
+  createSearchSpot('Search refrigerator',-w*.38,-h*.25,'fridge',entry.seed+23);
+  createSearchSpot('Search dresser drawers',w*.40,h*.02,'dresser',entry.seed+37);
+  createSearchSpot('Check under the bed',w*.28,h*.25,'bed',entry.seed+51);
+  createSearchSpot('Search shelf',w*.39,-h*.15,'shelf',entry.seed+67);
+  createSearchSpot('Look behind the picture',w*.20,h/2-.85,'picture',entry.seed+79);
+  if(r()>.42)createSearchSpot('Search bathroom cabinet',w*.06,-h*.02,'medicine',entry.seed+91);
+  if(r()>.58)createSearchSpot('Search closet',-w*.39,h*.12,'dresser',entry.seed+107);
+
+  const floors=Math.max(1,Math.floor(entry.height/3.05)),floor=Math.min(floors,1+Math.floor(r()*Math.min(floors,18)));
+  activeInterior={entry,width:w,depth:h,layout,floor,floors};
+  if(zombieTemplate&&r()<.38)spawnInteriorZombie(zombieTemplate,r,w,h);
+}
+function spawnInteriorZombie(template,r,w,h){
+  const n=normalizedModel(template.scene,1.78,true);n.root.position.set((r()-.5)*w*.48,h*.28,.05);n.root.rotation.z=r()*Math.PI*2;interiorGroup.add(n.root);
+  const clip=(template.animations||[]).find(c=>/walk|run/i.test(c.name))||(template.animations||[])[0];
+  let mixer=null;if(clip){mixer=new THREE.AnimationMixer(n.model);mixer.clipAction(clip).play()}
+  interiorZombies.push({root:n.root,mixer,phase:r()*Math.PI*2,speed:.65+r()*.35,hp:100,dead:false});
+}
+function enterInterior(entry){
+  if(interiorMode||!playerRoot)return;
+  exteriorReturn.set(entry.entryX,entry.entryY,entry.entryZ+.05);exteriorYaw=yaw;generateInterior(entry);
+  exteriorRoot.visible=false;interiorGroup.visible=true;interiorMode=true;playerVelocity.set(0,0,0);
+  playerRoot.position.set(0,-activeInterior.depth/2+2.0,.05);yaw=0;pitch=.12;
+  $('cellLabel').textContent='PROCEDURAL INTERIOR · GAME ART';
+  $('worldTitle').textContent=activeInterior.layout+' · Floor '+activeInterior.floor;
+  loadText.textContent='Search furniture, drawers, cabinets and hidden stashes.';
+  const mapLabel=document.querySelector('.mapLabel b');if(mapLabel)mapLabel.textContent='FLOOR PLAN';
+  const mapSub=document.querySelector('.mapLabel span');if(mapSub)mapSub.textContent='search every room';
+  updateZombieCount();
+}
+function exitInterior(){
+  if(!interiorMode)return;
+  interiorMode=false;interiorGroup.visible=false;exteriorRoot.visible=true;clearInterior();playerVelocity.set(0,0,0);playerRoot.position.copy(exteriorReturn);yaw=exteriorYaw;
+  $('cellLabel').textContent=CELL==='manhattan'?'DOWNTOWN MANHATTAN · SURVIVAL CELL':'MIDDLETOWN · NEIGHBORHOOD CELL';
+  $('worldTitle').textContent=CELL==='manhattan'?'Downtown Manhattan survivor':'Neighborhood survivor';
+  loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · enter marked doorways';
+  const mapLabel=document.querySelector('.mapLabel b');if(mapLabel)mapLabel.textContent='EXPLORED';
+  const mapSub=document.querySelector('.mapLabel span');if(mapSub)mapSub.textContent='fog clears as you travel';
+  updateZombieCount();
+}
+function searchContainer(spot){
+  if(!spot?.active)return;
+  spot.active=false;const items=lootForContainer(spot.type,spot.seed),added=[];
+  for(const item of items)if(addInventoryItem(item))added.push(item);
+  updateInventory();showToast(added.length?'Found: '+added.join(' · '):'Nothing useful here');
+}
+function findNearestInteraction(){
+  if(!playerRoot)return null;let best=null,bestD=Infinity;
+  if(interiorMode){
+    if(interiorExit){const d=Math.hypot(playerRoot.position.x-interiorExit.x,playerRoot.position.y-interiorExit.y);if(d<2.05){best={kind:'exit',label:'EXIT BUILDING'};bestD=d}}
+    for(const c of interiorContainers)if(c.active){const d=Math.hypot(playerRoot.position.x-c.x,playerRoot.position.y-c.y);if(d<2.05&&d<bestD){best={kind:'loot',label:c.label,spot:c};bestD=d}}
+  }else{
+    for(const e of buildingEntries){const d=Math.hypot(playerRoot.position.x-e.entryX,playerRoot.position.y-e.entryY);if(d<2.4&&d<bestD){best={kind:'entry',label:'ENTER BUILDING',entry:e};bestD=d}}
+  }
+  return best;
+}
+function interact(){
+  const hit=findNearestInteraction();if(!hit)return;
+  if(hit.kind==='entry')enterInterior(hit.entry);else if(hit.kind==='exit')exitInterior();else if(hit.kind==='loot')searchContainer(hit.spot);
+}
+function updateInteractionPrompt(){
+  nearestInteract=findNearestInteraction();$('interactPrompt').hidden=!nearestInteract;if(nearestInteract)$('interactLabel').textContent=nearestInteract.label;
+}
+function attack(){
+  if(attackCooldown>0||!playerRoot)return;
+  attackCooldown=.48;swingTime=.38;playPlayerAnimation('attack');
+  const targets=interiorMode?interiorZombies:zombies,fx=Math.sin(yaw),fy=Math.cos(yaw);let hit=false;
+  for(const z of targets){
+    if(z.dead)continue;
+    const dx=z.root.position.x-playerRoot.position.x,dy=z.root.position.y-playerRoot.position.y,dist=Math.hypot(dx,dy);
+    if(dist>2.65)continue;
+    const dot=(dx*fx+dy*fy)/Math.max(dist,.001);if(dot<.08)continue;
+    z.hp-=equippedWeaponName==='Axe'?70:equippedWeaponName==='Barbed Bat'?58:48;hit=true;
+    if(z.hp<=0){z.dead=true;z.root.parent?.remove(z.root)}
+  }
+  if(hit)showToast(equippedWeaponName+' connected');updateZombieCount();
+}
+function updateZombieCount(){
+  const list=interiorMode?interiorZombies:zombies;$('zombieStat').textContent=String(list.filter(z=>!z.dead).length);
+}
+function updateWeapon(dt){
+  attackCooldown=Math.max(0,attackCooldown-dt);
+  if(!weaponPivot)return;
+  if(swingTime>0){
+    const total=.38,t=1-swingTime/total;swingTime=Math.max(0,swingTime-dt);
+    weaponPivot.rotation.z=-.55-Math.sin(t*Math.PI)*1.55;weaponPivot.rotation.x=.15+Math.sin(t*Math.PI)*.45;
+  }else{weaponPivot.rotation.z=-.55;weaponPivot.rotation.x=.15}
 }
 
+async function buildZombies(zombieTemplate){
 async function buildZombies(zombieTemplate){
   if(!zombieTemplate||!roadAnchors.length)return;
   const count=CELL==='manhattan'?8:6,candidates=roadAnchors.filter(a=>{const d=Math.hypot(a.x-playerSpawn.x,a.y-playerSpawn.y);return d>35&&d<220});
