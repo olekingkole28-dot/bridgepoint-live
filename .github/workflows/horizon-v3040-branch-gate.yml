@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - horizon-mega-rebuild-v3040-r2
+      - horizon-mega-rebuild-v3040-r3
     paths:
       - 'app/horizon/**'
       - 'app/horizon-playable/**'
