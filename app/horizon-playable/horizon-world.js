@@ -217,6 +217,24 @@ function terrainZ(lon,lat){
 }
 function terrainZXY(x,y){const p=unproject(x,y);return terrainZ(p[0],p[1])}
 
+function worldCellLabel(){
+  if(CELL==='manhattan')return'DOWNTOWN MANHATTAN · SURVIVAL CELL';
+  if(CELL==='middletown')return'MIDDLETOWN · NEIGHBORHOOD CELL';
+  return (JURISDICTIONS[SELECTED_STATE]?.[0]||SELECTED_STATE).toUpperCase()+' · NATIONAL STREAM CELL';
+}
+function worldCellTitle(){
+  if(CELL==='manhattan')return'Downtown Manhattan survivor';
+  if(CELL==='middletown')return'Neighborhood survivor';
+  return (JURISDICTIONS[SELECTED_STATE]?.[0]||SELECTED_STATE)+' survivor';
+}
+function worldRequestUrl(){
+  const u=new URL(ENDPOINT);
+  if(CELL==='national'){
+    u.searchParams.set('state',SELECTED_STATE);u.searchParams.set('lat',String(STREAM_LAT));u.searchParams.set('lon',String(STREAM_LON));u.searchParams.set('span_km',String(STREAM_SPAN));u.searchParams.set('cell_id','HORIZON_'+SELECTED_STATE+'_'+STREAM_LAT.toFixed(4)+'_'+STREAM_LON.toFixed(4));
+  }else u.searchParams.set('cell',CELL);
+  return u.toString();
+}
+
 function seeded(seed){let x=seed||1234567;return()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return((x>>>0)%1000000)/1000000}}
 function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
 const rand=seeded(hash(CELL+'-horizon-2980'));
@@ -1350,8 +1368,8 @@ function enterInterior(entry){
 function exitInterior(){
   if(!interiorMode)return;
   interiorMode=false;interiorGroup.visible=false;exteriorRoot.visible=true;clearInterior();playerVelocity.set(0,0,0);playerRoot.position.copy(exteriorReturn);yaw=exteriorYaw;
-  $('cellLabel').textContent=CELL==='manhattan'?'DOWNTOWN MANHATTAN · SURVIVAL CELL':'MIDDLETOWN · NEIGHBORHOOD CELL';
-  $('worldTitle').textContent=CELL==='manhattan'?'Downtown Manhattan survivor':'Neighborhood survivor';
+  $('cellLabel').textContent=worldCellLabel();
+  $('worldTitle').textContent=worldCellTitle();
   loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · enter marked doorways';
   const mapLabel=document.querySelector('.mapLabel b');if(mapLabel)mapLabel.textContent='EXPLORED';
   const mapSub=document.querySelector('.mapLabel span');if(mapSub)mapSub.textContent='fog clears as you travel';
@@ -1876,13 +1894,14 @@ $('fullscreenBtn')?.addEventListener('click',enterLandscape);
 
 async function boot(){
   try{
-    $('cellLabel').textContent=CELL==='manhattan'?'DOWNTOWN MANHATTAN · SURVIVAL CELL':'MIDDLETOWN · NEIGHBORHOOD CELL';
-    $('worldTitle').textContent=CELL==='manhattan'?'Downtown Manhattan survivor':'Neighborhood survivor';
+    $('cellLabel').textContent=worldCellLabel();
+    $('worldTitle').textContent=worldCellTitle();
     updateInventory();
-    const r=await fetch(ENDPOINT+'?cell='+CELL,{headers:{accept:'application/json'},cache:'no-store'});
+    const r=await fetch(worldRequestUrl(),{headers:{accept:'application/json'},cache:'no-store'});
     if(!r.ok)throw new Error('Horizon scene endpoint returned '+r.status);
     data=await r.json();if(!data?.complete)throw new Error(data?.error||'Horizon scene incomplete');
     lon0=Number(data.center.lon);lat0=Number(data.center.lat);mx=111320*Math.cos(lat0*Math.PI/180);my=110540;
+    const meta=$('jurisdictionMeta');if(meta&&CELL==='national')meta.textContent=(JURISDICTIONS[SELECTED_STATE]?.[0]||SELECTED_STATE)+' · '+(data.counts?.buildings||0).toLocaleString()+' buildings · '+(data.counts?.parcels||0).toLocaleString()+' open parcel outlines · '+Number(data.span_km||STREAM_SPAN).toFixed(1)+' km streamed cell';
 
     buildTerrain();buildRoads();buildWater();buildBuildings();buildFacadeDetails();buildParts();buildParcels();addLights();setLighting(0);drawMinimapBase();initInput();
     await buildPlayer();buildEntryPoints();
