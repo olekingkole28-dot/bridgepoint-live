@@ -370,7 +370,7 @@ function buildTerrain(){
   if(!t?.heights_m?.length){
     const w=(data.bbox.east-data.bbox.west)*mx,h=(data.bbox.north-data.bbox.south)*my;
     const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h,1,1),new THREE.MeshStandardMaterial({map:groundTex,color:0x7d846d,roughness:1}));
-    mesh.receiveShadow=true;terrainLayer=mesh;worldGroup.add(mesh);return;
+    mesh.receiveShadow=true;terrainLayer=mesh;worldGroup.add(mesh);addStaticPhysicsGeometry(mesh.geometry,'terrain-flat',.92);return;
   }
   const center=Math.floor(t.height/2)*t.width+Math.floor(t.width/2);
   baseElevation=Number(t.heights_m[center]||0);
@@ -383,7 +383,7 @@ function buildTerrain(){
   for(let y=0;y<t.height-1;y++)for(let x=0;x<t.width-1;x++){const a=y*t.width+x,b=a+1,c=a+t.width,d=c+1;idx.push(a,c,b,b,c,d)}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();
   terrainLayer=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:groundTex,color:0x8a8f78,roughness:1}));
-  terrainLayer.receiveShadow=true;worldGroup.add(terrainLayer);
+  terrainLayer.receiveShadow=true;worldGroup.add(terrainLayer);addStaticPhysicsGeometry(g,'terrain-3dep',.94);
 }
 
 const buildingMaterials={
@@ -426,6 +426,7 @@ function buildBuildings(){
     if(!geos.length)continue;
     const merged=mergeLocal(geos);if(!merged)continue;
     const mesh=new THREE.Mesh(merged,buildingMaterials[k]);mesh.castShadow=true;mesh.receiveShadow=true;buildingLayer.add(mesh);
+    addStaticPhysicsGeometry(merged,'buildings-'+k,.82);
     for(const g of geos)g.dispose();
   }
   loadText.textContent='Geometry ready · '+sourceH.toLocaleString()+' source-height buildings · '+proxies.toLocaleString()+' visual-height proxies';
@@ -643,7 +644,7 @@ function buildRoads(){
   const sidewalkGeo=buildStrips(roads,5.2,.135);
   if(sidewalkGeo){
     const sidewalk=new THREE.Mesh(sidewalkGeo,new THREE.MeshStandardMaterial({color:0xb7b3aa,roughness:.96}));
-    sidewalk.receiveShadow=true;roadLayer.add(sidewalk);
+    sidewalk.receiveShadow=true;roadLayer.add(sidewalk);addStaticPhysicsGeometry(sidewalkGeo,'sidewalks',.96);
   }
   const curbGeo=buildStrips(roads,2.3,.155);
   if(curbGeo){
@@ -653,7 +654,7 @@ function buildRoads(){
   const rg=buildStrips(roads,0,.19);
   if(rg){
     const mesh=new THREE.Mesh(rg,new THREE.MeshStandardMaterial({map:asphaltTex,color:0x3c4140,roughness:.94,metalness:.02}));
-    mesh.receiveShadow=true;roadLayer.add(mesh);
+    mesh.receiveShadow=true;roadLayer.add(mesh);addStaticPhysicsGeometry(rg,'roads',.88);
   }
   const centerLines=buildRoadCenterLines(roads);if(centerLines)roadLayer.add(centerLines);
 
