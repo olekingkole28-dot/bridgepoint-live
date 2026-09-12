@@ -65,12 +65,12 @@
   <aside class="hud inventoryPanel open" id="inventoryPanel">
     <div class="inventoryHead"><b id="packName">HIDDEN SURVIVOR PACK</b><span id="inventoryCount">2 / 24 slots</span></div>
     <div class="loadoutGrid" id="loadoutGrid">
-      <div class="loadoutSlot"><small>RIGHT HAND</small><b id="slotMelee">AXE</b></div>
-      <div class="loadoutSlot"><small>LEFT HAND</small><b id="slotOffhand">KNIFE</b></div>
-      <div class="loadoutSlot"><small>SIDEARM</small><b id="slotSidearm">EMPTY</b></div>
-      <div class="loadoutSlot"><small>BACK</small><b id="slotPrimary">EMPTY</b></div>
-      <div class="loadoutSlot"><small>QUICK 1</small><b id="slotQuick1">BANDAGE</b></div>
-      <div class="loadoutSlot"><small>QUICK 2</small><b id="slotQuick2">WATER</b></div>
+      <button class="loadoutSlot active" data-slot="melee"><small>RIGHT HAND</small><b id="slotMelee">AXE</b></button>
+      <button class="loadoutSlot" data-slot="offhand"><small>LEFT HAND</small><b id="slotOffhand">KNIFE</b></button>
+      <button class="loadoutSlot" data-slot="sidearm"><small>SIDEARM</small><b id="slotSidearm">EMPTY</b></button>
+      <button class="loadoutSlot" data-slot="primary"><small>BACK</small><b id="slotPrimary">EMPTY</b></button>
+      <button class="loadoutSlot" data-slot="quick1"><small>QUICK 1</small><b id="slotQuick1">BANDAGE</b></button>
+      <button class="loadoutSlot" data-slot="quick2"><small>QUICK 2</small><b id="slotQuick2">WATER</b></button>
     </div>
     <div id="equippedWeapon" class="equippedWeapon">Melee: Axe · Open pack</div>
     <div id="inventoryList"><span class="empty">Search rooms, cabinets, furniture and visible street loot.</span></div>
@@ -86,9 +86,13 @@
   <div class="mobileControls" aria-label="Mobile movement controls">
     <div id="movePad" class="movePad"><div id="moveKnob"></div></div>
     <button id="interactBtn" class="actionButton interact">E<br><small>USE</small></button>
-    <button id="attackBtn" class="actionButton attack">⚔<br><small>SWING</small></button>
+    <button id="attackBtn" class="actionButton attack">⚔<br><small id="attackLabel">SWING</small></button>
+    <button id="aimBtn" class="actionButton aim">◎<br><small>AIM</small></button>
+    <button id="weaponBtn" class="actionButton weapon">↻<br><small>SLOT</small></button>
     <button id="sprintBtn" class="actionButton sprint">⇧<br><small>RUN</small></button>
   </div>
+
+  <div id="crosshair" class="crosshair" hidden><span></span><span></span></div>
 
   <div id="landscapeGate" class="landscapeGate">
     <div>
