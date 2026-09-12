@@ -196,7 +196,8 @@ let zombieTemplate=null,zombieTemplates=[];
 let mobileMove={x:0,y:0},mobileSprint=false;
 let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),exteriorYaw=0;
 let interiorWalls=[],interiorContainers=[],interiorBounds=null,interiorExit=null,interiorFloorLinks=[],interiorTemplates={},interiorLootedKeys=new Set();
-let streetLifeStats={trees:0,bikes:0,vehicles:0,props:0,grass:0,benches:0,planters:0};
+let streetLifeStats={trees:0,bikes:0,vehicles:0,props:0,grass:0,benches:0,planters:0,backgroundTrees:0,shrubs:0,drivable:0};
+let drivableVehicles=[],activeVehicle=null;
 
 let RAPIER=null,physicsWorld=null,physicsReady=false,physicsMode='manual-fallback';
 let playerPhysicsBody=null,playerPhysicsCollider=null,characterController=null;
@@ -1265,6 +1266,66 @@ function scatterLocalProceduralLife(){
   add('tree',densePreview()?42:26);add('bike',densePreview()?20:10);add('bench',densePreview()?18:10);add('planter',densePreview()?28:16);
   return{trees,bikes,benches,planters};
 }
+function spawnDrivableVehicle(template,type,count,targetHeight){
+  const anchors=localRoadAnchors(densePreview()?260:190);if(!template||!anchors.length)return 0;
+  let made=0,attempts=0;
+  while(made<count&&attempts<count*25){
+    attempts++;
+    const a=anchors[Math.floor(rand()*anchors.length)],side=rand()>.5?1:-1;
+    const p=roadSidePoint(a,Math.max(1.5,a.width*.34),side);
+    if(isBlockedExterior(p.x,p.y,.72))continue;
+    const root=staticClone(template,targetHeight);if(!root)continue;
+    root.position.set(p.x,p.y,p.z+.02);root.rotation.z=a.heading+(side<0?Math.PI:0);artGroup.add(root);
+    drivableVehicles.push({root,type,heading:root.rotation.z,speed:0,maxSpeed:type==='bike'?8:type==='truck'?16:type==='sports'?25:19,accel:type==='bike'?5:type==='truck'?5.2:7.2});
+    made++;
+  }
+  return made;
+}
+function spawnDrivableBike(count=5){
+  const anchors=localRoadAnchors(180);let made=0,attempts=0;
+  while(made<count&&attempts<count*20){
+    attempts++;const a=anchors[Math.floor(rand()*anchors.length)];if(!a)continue;
+    const p=roadSidePoint(a,a.width/2+1.15,rand()>.5?1:-1);if(isBlockedExterior(p.x,p.y,.42))continue;
+    const root=makeBike(hash('drivebike:'+attempts));root.position.set(p.x,p.y,p.z+.03);root.rotation.z=a.heading;artGroup.add(root);
+    drivableVehicles.push({root,type:'bike',heading:a.heading,speed:0,maxSpeed:8,accel:4.2});made++;
+  }
+  return made;
+}
+function nearestDrivable(){
+  if(!playerRoot||activeVehicle)return null;let best=null,d=Infinity;
+  for(const v of drivableVehicles){
+    const q=Math.hypot(v.root.position.x-playerRoot.position.x,v.root.position.y-playerRoot.position.y);
+    if(q<3.2&&q<d){d=q;best=v}
+  }
+  return best;
+}
+function enterVehicle(v){
+  if(!v||activeVehicle||interiorMode)return;
+  activeVehicle=v;playerRoot.visible=false;playerVelocity.set(0,0,0);
+  if(playerPhysicsBody){try{physicsWorld.removeRigidBody(playerPhysicsBody)}catch(_){}playerPhysicsBody=null;playerPhysicsCollider=null}
+  showToast('Driving '+v.type+' · E to exit');
+}
+function exitVehicle(){
+  if(!activeVehicle||!playerRoot)return;
+  const v=activeVehicle,sideX=Math.cos(v.heading)*1.7,sideY=-Math.sin(v.heading)*1.7;
+  let x=v.root.position.x+sideX,y=v.root.position.y+sideY;
+  if(isBlockedExterior(x,y,.36)){x=v.root.position.x-sideX;y=v.root.position.y-sideY}
+  playerRoot.position.set(x,y,surfaceZXY(x,y)+.02);playerRoot.visible=true;activeVehicle=null;createPlayerPhysics();showToast('Exited vehicle');
+}
+function updateVehicle(dt,ix,iy){
+  const v=activeVehicle;if(!v)return;
+  const throttle=THREE.MathUtils.clamp(iy,-1,1),steer=THREE.MathUtils.clamp(ix,-1,1);
+  const target=throttle*v.maxSpeed;
+  v.speed=THREE.MathUtils.lerp(v.speed,target,1-Math.exp(-v.accel*dt));
+  if(Math.abs(v.speed)<.03)v.speed=0;
+  v.heading-=steer*(.65+Math.min(1,Math.abs(v.speed)/8))*dt*Math.sign(v.speed||1);
+  const dx=Math.sin(v.heading)*v.speed*dt,dy=Math.cos(v.heading)*v.speed*dt;
+  const nx=v.root.position.x+dx,ny=v.root.position.y+dy;
+  if(!isBlockedExterior(nx,ny,.72)&&!boundaryBlocks(nx,ny)){v.root.position.x=nx;v.root.position.y=ny}else v.speed*=.18;
+  v.root.position.z=surfaceZXY(v.root.position.x,v.root.position.y)+.02;v.root.rotation.z=v.heading;
+  playerRoot.position.copy(v.root.position);
+  yaw=lerpAngle(yaw,v.heading,1-Math.exp(-3.5*dt));
+}
 function scatterProceduralStreetLife(){
   let trees=0,bikes=0;
   const treeTarget=densePreview()?150:82,bikeTarget=densePreview()?70:30;
@@ -1696,7 +1757,12 @@ function searchContainer(spot){
   updateInventory();showToast(added.length?'Found: '+added.join(' · '):'Nothing useful here');
 }
 function findNearestInteraction(){
-  if(!playerRoot||playerDead)return null;let best=null,bestD=Infinity;
+  if(!playerRoot||playerDead)return null;
+  if(activeVehicle)return{kind:'vehicleExit',label:'EXIT '+activeVehicle.type.toUpperCase()};
+  let best=null,bestD=Infinity;
+  if(!interiorMode){
+    const v=nearestDrivable();if(v){best={kind:'vehicle',label:'DRIVE '+v.type.toUpperCase(),vehicle:v};bestD=Math.hypot(v.root.position.x-playerRoot.position.x,v.root.position.y-playerRoot.position.y)}
+  }
   for(const p of worldPickups){
     if(!p.active||p.mode!==(interiorMode?'interior':'exterior'))continue;
     const d=Math.hypot(playerRoot.position.x-p.root.position.x,playerRoot.position.y-p.root.position.y);
@@ -1829,7 +1895,7 @@ function attack(){
   }
   if(hit)showToast(activeWeapon+' connected');
 }
-function useActiveWeapon(){if(isFirearm(activeWeapon))shoot();else attack()}
+function useActiveWeapon(){if(activeVehicle){showToast('Exit vehicle to use weapons');return}if(isFirearm(activeWeapon))shoot();else attack()}
 
 function updateZombieCount(){
   const list=interiorMode?interiorZombies:zombies;$('zombieStat').textContent=String(list.filter(z=>!z.dead).length);
@@ -2180,6 +2246,9 @@ function updatePlayer(dt){
   let iy=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0)+mobileMove.y+gamepadMove.y;
   const len=Math.hypot(ix,iy);if(len>1){ix/=len;iy/=len}
   const moving=Math.hypot(ix,iy)>.06,sprint=(keys.has('ShiftLeft')||keys.has('ShiftRight')||mobileSprint)&&!aiming&&playerStance==='stand';
+  if(activeVehicle){
+    updateVehicle(dt,ix,iy);maybeNationalTravel();return;
+  }
   const stanceSpeed=(STANCES[playerStance]||STANCES.stand).speed;
   const speed=(interiorMode?3.05:3.45)*(sprint?1.68:1)*(aiming?.72:1)*stanceSpeed;
   const move=movementVector(ix,iy,yaw);
@@ -2238,6 +2307,12 @@ function safeCameraPosition(target,desired){
 }
 function updateCamera(dt){
   if(!playerRoot)return;
+  if(activeVehicle){
+    const target=activeVehicle.root.position.clone().add(new THREE.Vector3(0,0,1.15));
+    const forward=new THREE.Vector3(Math.sin(yaw),Math.cos(yaw),0);
+    const desired=target.clone().addScaledVector(forward,-6.8);desired.z+=3.1;
+    const safe=safeCameraPosition(target,desired);camera.position.lerp(safe,1-Math.exp(-7*dt));camera.lookAt(target.clone().addScaledVector(forward,3.5));return;
+  }
   const target=playerRoot.position.clone().add(new THREE.Vector3(0,0,aiming?1.48:1.36));
   const forward=new THREE.Vector3(Math.sin(yaw),Math.cos(yaw),0),right=new THREE.Vector3(Math.cos(yaw),-Math.sin(yaw),0);
   const dist=aiming?1.75:interiorMode?(cameraMode===0?3.05:1.85):(cameraMode===0?4.0:2.1);
