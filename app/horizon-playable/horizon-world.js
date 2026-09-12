@@ -846,6 +846,10 @@ function initInput(){
   $('artBtn').onclick=()=>{if(!interiorMode){artGroup.visible=!artGroup.visible;zombieGroup.visible=artGroup.visible;entryGroup.visible=artGroup.visible;$('artBtn').classList.toggle('active',artGroup.visible)}};
 }
 function lerpAngle(a,b,t){let d=(b-a+Math.PI)%(Math.PI*2)-Math.PI;return a+d*t}
+function movementVector(ix,iy,angle=yaw){
+  const fx=Math.sin(angle),fy=Math.cos(angle),rx=Math.cos(angle),ry=-Math.sin(angle);
+  return {x:fx*iy+rx*ix,y:fy*iy+ry*ix};
+}
 function updatePlayer(dt){
   if(!playerRoot)return;
   let ix=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+mobileMove.x;
@@ -853,8 +857,8 @@ function updatePlayer(dt){
   const len=Math.hypot(ix,iy);if(len>1){ix/=len;iy/=len}
   const inputMag=Math.hypot(ix,iy),moving=inputMag>.05,sprint=keys.has('ShiftLeft')||keys.has('ShiftRight')||mobileSprint;
   const speed=(interiorMode?3.6:4.35)*(sprint?1.55:1);
-  const fx=Math.sin(yaw),fy=Math.cos(yaw),rx=Math.cos(yaw),ry=-Math.sin(yaw);
-  const desiredX=moving?(fx*iy+rx*ix)*speed:0,desiredY=moving?(fy*iy+ry*ix)*speed:0;
+  const move=movementVector(ix,iy,yaw);
+  const desiredX=moving?move.x*speed:0,desiredY=moving?move.y*speed:0;
   const response=1-Math.exp(-(moving?11:15)*dt);
   playerVelocity.x=THREE.MathUtils.lerp(playerVelocity.x,desiredX,response);playerVelocity.y=THREE.MathUtils.lerp(playerVelocity.y,desiredY,response);
 
@@ -924,16 +928,13 @@ async function boot(){
       exit:()=>{exitInterior();return {interiorMode}},
       state:()=>({interiorMode,entries:buildingEntries.length,containers:interiorContainers.length,lootCount,packCapacity,equippedWeaponName}),
       directionProbe:(dir)=>{
-        const start=playerRoot.position.clone(),oldYaw=yaw; yaw=0; playerVelocity.set(0,0,0);
-        mobileMove={x:0,y:0};
-        if(dir==='forward')mobileMove.y=1;
-        if(dir==='backward')mobileMove.y=-1;
-        if(dir==='left')mobileMove.x=-1;
-        if(dir==='right')mobileMove.x=1;
-        updatePlayer(.12);
-        const dx=playerRoot.position.x-start.x,dy=playerRoot.position.y-start.y;
-        playerRoot.position.copy(start);playerVelocity.set(0,0,0);mobileMove={x:0,y:0};yaw=oldYaw;
-        return {dx,dy};
+        let ix=0,iy=0;
+        if(dir==='forward')iy=1;
+        if(dir==='backward')iy=-1;
+        if(dir==='left')ix=-1;
+        if(dir==='right')ix=1;
+        const v=movementVector(ix,iy,0);
+        return {dx:v.x,dy:v.y};
       },
       weaponSize:()=>{
         if(!weaponPivot?.children?.length)return null;
