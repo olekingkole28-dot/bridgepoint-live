@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4230;
+const BUILD_VERSION=4231;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -356,7 +356,7 @@ let recoilPitch=0,recoilYaw=0,fireHeld=false;
 let playerDead=false,kills=0;
 let audioCtx=null,audioMaster=null,lastFootstepAt=0;
 let worldPickups=[],pickupTemplates={},pickupSeq=0;
-let waveNumber=0,nextWaveAt=0,maxActiveZombies=ENDLESS_ACTIVE_CAP;
+let waveNumber=0,nextWaveAt=0,maxActiveZombies=MOBILE_GPU_SAFE?Math.min(18,ENDLESS_ACTIVE_CAP):ENDLESS_ACTIVE_CAP;
 let zombieTemplate=null,zombieTemplates=[],enemyArchetypes=[];
 let mobileMove={x:0,y:0},mobileSprint=false,mobileInputMode='pointer-fallback',nippleManager=null;
 let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),exteriorYaw=0;
@@ -1711,10 +1711,19 @@ function nearestRoadToCenter(){
   return ordered[0];
 }
 function fallbackPlayer(){
-  const root=new THREE.Group(),mat=new THREE.MeshStandardMaterial({color:0x39473d,roughness:.82});
-  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.32,.8,4,8),mat);body.position.z=1.05;body.rotation.x=Math.PI/2;
-  const head=new THREE.Mesh(new THREE.SphereGeometry(.24,12,10),new THREE.MeshStandardMaterial({color:0x9b806c,roughness:.85}));head.position.z=1.78;
-  root.add(body,head);return root;
+  const root=new THREE.Group(),mat=new THREE.MeshStandardMaterial({color:0x39473d,roughness:.82}),skin=new THREE.MeshStandardMaterial({color:0x9b806c,roughness:.85});
+  const pelvis=new THREE.Group();pelvis.name='pelvis';pelvis.position.z=.92;root.add(pelvis);
+  const spine=new THREE.Group();spine.name='spine_03';spine.position.z=.42;pelvis.add(spine);
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.30,.72,4,8),mat);body.position.z=.08;body.rotation.x=Math.PI/2;spine.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.23,12,10),skin);head.position.z=.76;spine.add(head);
+  const makeArm=(side,name)=>{
+    const upper=new THREE.Group();upper.name='upperarm_'+name;upper.position.set(.31*side,.01,.34);spine.add(upper);
+    const lower=new THREE.Group();lower.name='lowerarm_'+name;lower.position.set(.22*side,0,-.18);upper.add(lower);
+    const hand=new THREE.Group();hand.name='hand_'+name;hand.position.set(.20*side,.03,-.22);lower.add(hand);
+    const armMesh=new THREE.Mesh(new THREE.CapsuleGeometry(.075,.44,3,6),mat);armMesh.rotation.x=Math.PI/2;armMesh.position.set(.11*side,0,-.10);upper.add(armMesh);
+    const handMesh=new THREE.Mesh(new THREE.SphereGeometry(.09,8,6),skin);hand.add(handMesh);return hand;
+  };
+  makeArm(1,'r');makeArm(-1,'l');return root;
 }
 function attachDuffel(){
   return; // inventory is intentionally hidden on the character
@@ -1786,16 +1795,23 @@ function setupEquipmentMounts(modelRoot){
 
   aimBones={torso,upperR,upperL,lowerR,lowerL};
 }
+function hasRenderableWeapon(obj){
+  if(!obj)return false;let meshes=0;
+  obj.traverse(o=>{if(o.isMesh&&o.geometry?.attributes?.position?.count>2)meshes++});
+  return meshes>0;
+}
 function cloneCharacterWeapon(name){
   const t=characterWeaponTemplates[name];
   if(!t)return null;
   const obj=t.clone(true);obj.visible=true;
   obj.traverse(o=>{o.visible=true;if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+  if(!hasRenderableWeapon(obj))return null;
   const target={Axe:.68,Knife:.34,Pistol:.32,Rifle:1.02,Shotgun:.92,SMG:.72,Spear:1.35,WoodenBat_Barbed:.88,WoodenBat_Saw:.88}[name];
   if(target){
     obj.updateMatrixWorld(true);
     const box=new THREE.Box3().setFromObject(obj),size=new THREE.Vector3();box.getSize(size);
     const longest=Math.max(size.x,size.y,size.z,.001);
+    if(!Number.isFinite(longest)||longest<.005)return null;
     obj.scale.multiplyScalar(target/longest);
   }
   return obj;
@@ -1848,7 +1864,9 @@ function putActiveGripWeapon(name){
     const len=name==='Pistol'?.33:name==='Rifle'?1.02:name==='Shotgun'?.92:name==='SMG'?.72:name==='Spear'?1.35:name==='Guitar'?.82:name==='Axe'?.66:name==='Knife'?.34:.88;
     if(key)obj=propCloneByLength(weaponTemplates[key],len);
   }
+  if(!hasRenderableWeapon(obj))obj=null;
   obj=obj||fallbackHeldWeapon(name);
+  if(!hasRenderableWeapon(obj))return null;
   const gun=isFirearm(name),two=Boolean(weaponCfg(name).two_handed),handSocket=Boolean(m.userData.handSocket);
   // Follow the animated hand when the rig exposes one; only use root-space as a fallback.
   if(handSocket){
@@ -1957,6 +1975,30 @@ async function hydratePlayerAnimations(modelRoot){
   playerMixer?.stopAllAction();playerMixer=new THREE.AnimationMixer(modelRoot);playerAction=null;
   playPlayerAnimation('idle');return true;
 }
+function removeEquipmentMounts(){
+  for(const m of Object.values(equipmentMounts))if(m?.parent)m.parent.remove(m);
+  equipmentMounts={rightHand:null,leftHand:null,hip:null,backGun:null,backMelee:null,activeGrip:null};
+}
+async function hydrateRealPlayerModel(){
+  let gltf=await loadAsset(PLAYER_ASSET),playerMode=CHARACTER_KEY;
+  if(!gltf&&(CHARACTER_KEY==='realistic'||CHARACTER_KEY==='survivor')){gltf=await loadAsset(ASSETS.playerRealistic);playerMode='realistic-fallback'}
+  if(!gltf)gltf=await loadAsset(ASSETS.player);
+  if(!gltf||!playerRoot)return false;
+  const n=normalizedModel(gltf.scene,1.82,true);
+  n.root.remove(n.oriented);
+  removeEquipmentMounts();
+  if(playerVisualRoot?.parent===playerRoot)playerRoot.remove(playerVisualRoot);
+  playerVisualRoot=n.oriented;playerRoot.add(playerVisualRoot);
+  const visualYaw=M2M_PLAYER_KEYS.has(CHARACTER_KEY)?0:Math.PI;
+  n.model.rotation.y=visualYaw;n.model.updateMatrixWorld(true);
+  playerModelYawOffset=0;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerVisualBaseScaleZ=Math.abs(playerVisualRoot.scale.z);playerVisualRoot.scale.z=playerVisualBaseScaleZ;
+  playerAssetLoaded=true;playerAssetMode=playerMode;
+  playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);playerAction=null;
+  captureCharacterWeaponTemplates(n.model);setupEquipmentMounts(n.model);refreshEquipmentVisuals();playPlayerAnimation(locomotionIntent||'idle');
+  hydratePlayerAnimations(n.model).catch(e=>console.warn('player animation hydration',e));
+  hydrateWeaponTemplates().catch(e=>console.warn('weapon hydration',e));
+  return true;
+}
 async function hydrateWeaponTemplates(){
   const [axe,bat,knife,pistol,rifle,shotgun,smg,spear,sawBat,guitar]=await Promise.all([
     loadAsset(weaponCfg('Axe').model_url||ASSETS.axe),
@@ -1975,32 +2017,16 @@ async function hydrateWeaponTemplates(){
 }
 async function buildPlayer(){
   const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,surfaceZXY(spawn.x,spawn.y)+.015);
-  playerStance='stand';slideTime=0;
-  let gltf=await loadAsset(PLAYER_ASSET),playerMode=CHARACTER_KEY;
-  if(!gltf&&(CHARACTER_KEY==='realistic'||CHARACTER_KEY==='survivor')){gltf=await loadAsset(ASSETS.playerRealistic);playerMode='realistic-fallback'}
-  if(!gltf){gltf=await loadAsset(ASSETS.player);playerMode='matt-fallback'}
-  weaponTemplates={};
-  if(gltf){
-    playerAssetLoaded=true;playerAssetMode=playerMode;
-    const n=normalizedModel(gltf.scene,1.82,true);
-    playerRoot=n.root;playerVisualRoot=n.oriented;n.model.rotation.y=Math.PI;n.model.updateMatrixWorld(true);playerModelYawOffset=0;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerVisualBaseScaleZ=Math.abs(playerVisualRoot.scale.z);playerVisualRoot.scale.z=playerVisualBaseScaleZ;
-    playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);
-    captureCharacterWeaponTemplates(n.model);
-    setupEquipmentMounts(n.model);
-    // The large animation bundle and detailed weapon models hydrate after the player is on screen.
-    hydratePlayerAnimations(n.model).catch(e=>console.warn('player animation hydration',e));
-    hydrateWeaponTemplates().catch(e=>console.warn('weapon hydration',e));
-  }else{
-    playerAssetLoaded=false;playerAssetMode='fallback';playerRoot=fallbackPlayer();playerVisualRoot=playerRoot;playerVisualBaseScaleZ=1;playerModelYawOffset=0;
-    setupEquipmentMounts(playerRoot);
-  }
+  playerStance='stand';slideTime=0;weaponTemplates={};
+  playerRoot=new THREE.Group();const fallback=fallbackPlayer();playerVisualRoot=fallback;playerVisualBaseScaleZ=1;playerModelYawOffset=0;
+  playerRoot.add(fallback);setupEquipmentMounts(fallback);playerAssetLoaded=false;playerAssetMode='streaming-fallback';
   playerRoot.position.copy(playerSpawn);scene.add(playerRoot);
   const restoredItem=activeItemForSlot(activeSlot);
   if(!restoredItem)activeSlot=equipment.melee?'melee':equipment.sidearm?'sidearm':equipment.primary?'primary':'offhand';
-  activeWeapon=activeItemForSlot(activeSlot)||equipment.melee||'Axe';
-  equippedWeaponName=activeWeapon;
-  refreshEquipmentVisuals();
-  playPlayerAnimation('idle');
+  activeWeapon=activeItemForSlot(activeSlot)||equipment.melee||'Axe';equippedWeaponName=activeWeapon;
+  refreshEquipmentVisuals();playPlayerAnimation('idle');
+  hydrateRealPlayerModel().catch(e=>console.warn('real player hydration',e));
+  return true;
 }
 function clipBy(...patterns){
   for(const re of patterns){const x=playerClips.find(c=>re.test(String(c.name||'')));if(x)return x}
@@ -4036,13 +4062,12 @@ function initInput(){
 function lerpAngle(a,b,t){let d=(b-a+Math.PI)%(Math.PI*2)-Math.PI;return a+d*t}
 function playerFacingYaw(worldHeading){return worldHeading+playerModelYawOffset}
 function visualFacingAlignment(worldHeading=0){
+  const rootHeading=playerFacingYaw(worldHeading),visualFix=M2M_PLAYER_KEYS.has(CHARACTER_KEY)?0:Math.PI,visualHeading=rootHeading+visualFix;
   return{
-    dot:1,
-    expectedHeading:worldHeading,
-    gameplayRootHeading:playerFacingYaw(worldHeading),
-    modelYawOffset:playerModelYawOffset,
-    visualImportYawFix:Math.PI,
-    locomotionRootMatchesTravel:true
+    dot:Math.cos(visualHeading-worldHeading),
+    expectedHeading:worldHeading,gameplayRootHeading:rootHeading,visualHeading,
+    modelYawOffset:playerModelYawOffset,visualImportYawFix:visualFix,
+    locomotionRootMatchesTravel:Math.cos(visualHeading-worldHeading)>.92
   };
 }
 function normalizeMovementInput(ix,iy){
