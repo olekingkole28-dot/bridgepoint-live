@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4222;
+const BUILD_VERSION=4223;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -655,10 +655,22 @@ function worldRequestUrl(){
 }
 async function fetchSceneWithRetry(url,attempts=3){
   let last=null;
+  // Prefer deploy-time prewarmed BridgePoint snapshots. They are same-origin static files,
+  // so map selection does not wait on a live database function every time.
+  const presetMatch=Math.abs(STREAM_LAT-Number(MAP_PRESET.lat||0))<1e-5&&Math.abs(STREAM_LON-Number(MAP_PRESET.lon||0))<1e-5&&Math.abs(STREAM_SPAN-Number(MAP_PRESET.span||0))<1e-5;
+  if(CELL==='national'&&presetMatch){
+    try{
+      const r=await fetch('/app/horizon/maps/'+encodeURIComponent(MAP_PRESET.id)+'.json',{cache:'force-cache'});
+      if(r.ok){
+        const body=await r.json();
+        if(body?.complete){sceneFetchAttempts=0;sceneFetchError=null;streetLifeStats.staticMapCache=true;return body}
+      }
+    }catch(_){}
+  }
   // Reopening or switching back to a map should not redownload the same BridgePoint cell.
   if('caches'in globalThis){
     try{
-      const cache=await caches.open('bp-horizon-scenes-v4222'),hit=await cache.match(url);
+      const cache=await caches.open('bp-horizon-scenes-v4223'),hit=await cache.match(url);
       if(hit){
         const body=await hit.clone().json();
         if(body?.complete){sceneFetchAttempts=0;sceneFetchError=null;return body}
@@ -673,7 +685,7 @@ async function fetchSceneWithRetry(url,attempts=3){
       let body=null;try{body=await r.json()}catch(_){}
       if(r.ok&&body?.complete){
         sceneFetchError=null;
-        if('caches'in globalThis)try{const cache=await caches.open('bp-horizon-scenes-v4222');await cache.put(url,copy)}catch(_){}
+        if('caches'in globalThis)try{const cache=await caches.open('bp-horizon-scenes-v4223');await cache.put(url,copy)}catch(_){}
         return body
       }
       const detail=body?.error?': '+String(body.error).slice(0,240):'';
@@ -1057,8 +1069,9 @@ function buildExplorableShell(rec,meta){
       addShellRamp(group,meta.x,meta.y,base+.08,stairRun,floorH-.16,rot,'open-stair-'+meta.id+'-'+f);
     }
   }
-  if(shape){
-    const roofGeo=new THREE.ShapeGeometry(shape);roofGeo.translate(0,0,meta.z+floors*floorH);
+  const roofShape=shapeFromRing(rec.ring);
+  if(roofShape){
+    const roofGeo=new THREE.ShapeGeometry(roofShape);roofGeo.translate(0,0,meta.z+floors*floorH);
     const roof=new THREE.Mesh(roofGeo,new THREE.MeshStandardMaterial({color:0x3f4240,roughness:.96,side:THREE.DoubleSide}));roof.receiveShadow=true;group.add(roof);addStaticPhysicsGeometry(roofGeo,'open-roof-'+meta.id,.9);
   }
   return group;
@@ -4070,7 +4083,7 @@ async function boot(){
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
       reloadActive:reloadState.active,aimFov:weaponCfg(activeWeapon).aim_fov,
-      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),seamlessOpenBuildings:true,towerPriorityOpenBuildings:true,optimizedOpenBuildingPhysics:true,shapeRecovery:true,invalidShapes:Number(streetLifeStats.invalidShapes||0),shellFailures:Number(streetLifeStats.shellFailures||0),openInteriorProps:Number(streetLifeStats.openInteriorProps||0),
+      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),seamlessOpenBuildings:true,towerPriorityOpenBuildings:true,optimizedOpenBuildingPhysics:true,shapeRecovery:true,staticMapCache:Boolean(streetLifeStats.staticMapCache),invalidShapes:Number(streetLifeStats.invalidShapes||0),shellFailures:Number(streetLifeStats.shellFailures||0),openInteriorProps:Number(streetLifeStats.openInteriorProps||0),
       matchMode,matchRadius:Number.isFinite(matchRadius)?matchRadius:null,seasonDay:seasonDay(),xp,battleTier,livesRemaining,
       flashlightReady:Boolean(flashlight),vehicleRepair:true,factionClaimMode:'local-preview',spectatorMode
     };
