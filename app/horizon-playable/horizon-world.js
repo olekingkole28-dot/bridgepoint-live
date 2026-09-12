@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4210;
+const BUILD_VERSION=4211;
 const SAVE_KEY='bridgepoint-horizon-survivor-v3050';
 const LEGACY_SAVE_KEY='bridgepoint-horizon-survivor-v3040';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
@@ -24,7 +24,7 @@ const ASSETS={
   playerLis:FREE_BASE+'/Characters/glTF/Characters_Lis.gltf',
   playerSam:FREE_BASE+'/Characters/glTF/Characters_Sam.gltf',
   playerShaun:FREE_BASE+'/Characters/glTF/Characters_Shaun.gltf',
-  playerRealistic:'https://cdn.jsdelivr.net/gh/sceneview/sceneview@main/samples/android-demo/src/main/assets/models/threejs_soldier.glb',
+  playerRealistic:'https://raw.githubusercontent.com/sceneview/sceneview/main/samples/android-demo/src/main/assets/models/threejs_soldier.glb',
   zombie:FREE_BASE+'/Characters/glTF/Zombie_Basic.gltf',
   zombieChubby:FREE_BASE+'/Characters/glTF/Zombie_Chubby.gltf',
   zombieRibcage:FREE_BASE+'/Characters/glTF/Zombie_Ribcage.gltf',
