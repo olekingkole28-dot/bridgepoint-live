@@ -173,3 +173,39 @@ body{touch-action:none}
   .loadoutSlot small{font-size:4px}
   .loadoutSlot b{font-size:6px}
 }
+
+
+/* V3010 controller / weapon UI */
+.loadoutSlot{color:inherit;text-align:left;cursor:pointer;font-family:inherit}
+.loadoutSlot.active{
+  border-color:rgba(116,240,164,.60);
+  background:rgba(44,105,69,.36);
+  box-shadow:inset 0 0 14px rgba(116,240,164,.08);
+}
+.actionButton.aim,
+.actionButton.weapon{
+  width:48px;height:48px;
+  background:rgba(20,29,28,.68);
+  border-color:rgba(130,184,181,.34);
+  color:#d9eeee;
+}
+.actionButton.aim{right:max(146px,calc(env(safe-area-inset-right) + 146px));bottom:max(92px,calc(env(safe-area-inset-bottom) + 92px))}
+.actionButton.weapon{right:max(88px,calc(env(safe-area-inset-right) + 88px));bottom:max(92px,calc(env(safe-area-inset-bottom) + 92px))}
+.crosshair{
+  position:fixed;left:50%;top:50%;width:28px;height:28px;transform:translate(-50%,-50%);
+  z-index:18;pointer-events:none;filter:drop-shadow(0 0 5px rgba(0,0,0,.9));
+}
+.crosshair span{position:absolute;background:rgba(244,247,237,.95);border-radius:2px}
+.crosshair span:first-child{width:18px;height:2px;left:5px;top:13px}
+.crosshair span:last-child{width:2px;height:18px;left:13px;top:5px}
+@media (pointer:coarse) and (orientation:landscape){
+  .actionButton.aim{right:max(132px,calc(env(safe-area-inset-right) + 132px));bottom:max(80px,calc(env(safe-area-inset-bottom) + 80px));width:44px;height:44px}
+  .actionButton.weapon{right:max(78px,calc(env(safe-area-inset-right) + 78px));bottom:max(80px,calc(env(safe-area-inset-bottom) + 80px));width:44px;height:44px}
+}
+@media (pointer:coarse) and (orientation:landscape) and (max-height:430px){
+  .actionButton.aim{right:max(128px,calc(env(safe-area-inset-right) + 128px));bottom:max(72px,calc(env(safe-area-inset-bottom) + 72px));width:40px;height:40px}
+  .actionButton.weapon{right:max(78px,calc(env(safe-area-inset-right) + 78px));bottom:max(72px,calc(env(safe-area-inset-bottom) + 72px));width:40px;height:40px}
+  .crosshair{width:22px;height:22px}
+  .crosshair span:first-child{width:14px;left:4px;top:10px}
+  .crosshair span:last-child{height:14px;left:10px;top:4px}
+}
