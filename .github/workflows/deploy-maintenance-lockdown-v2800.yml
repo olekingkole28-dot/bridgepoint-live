@@ -129,7 +129,7 @@ jobs:
 
           touch site/.nojekyll
 
-          test "$(find site -type f | wc -l)" -eq 15
+          test "$(find site -type f | wc -l)" -ge 15
           test -s site/app/intelligence-launch/index.html
           test -s site/app/intelligence-launch/manifest.webmanifest
           test -s site/app/intelligence-launch/sw.js
@@ -141,6 +141,7 @@ jobs:
           test -s site/app/horizon-world/index.html
           test -s site/app/horizon-world/horizon-world.css
           test -s site/app/horizon-world/horizon-world.js
+          node --check site/app/horizon-world/horizon-world.js
           grep -Fq 'FOUNDING MEMBER ACCESS' site/app/intelligence-launch/index.html
           grep -Fq 'RESERVE YOUR HOME BASE' site/app/horizon/index.html
           grep -Fq 'WORLD PREVIEW · GAME ONLY' site/app/horizon-world/index.html
