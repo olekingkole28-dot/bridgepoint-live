@@ -39,7 +39,7 @@ async function testLanding(){
 
 async function testCell(cell,extra={}){
   const u=new URL('https://bridgepointintelligence.online/app/horizon-playable/');
-  u.searchParams.set('build','3030');u.searchParams.set('cell',cell);u.searchParams.set('ci',String(Date.now()));
+  u.searchParams.set('build','3050');u.searchParams.set('cell',cell);u.searchParams.set('ci',String(Date.now()));
   for(const [k,v] of Object.entries(extra))u.searchParams.set(k,String(v));
   const url=u.toString();
   const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
@@ -85,6 +85,12 @@ async function testCell(cell,extra={}){
   if(!d.webgl)throw new Error(cell+' WebGL unavailable');
   if(!d.errorHidden)throw new Error(cell+' error box visible');
   if(!d.smoke?.ok)throw new Error(cell+' smoke failed: '+d.smoke?.error);
+  if(d.smoke?.build!==3050)throw new Error(cell+' stale build: '+d.smoke?.build);
+  if(d.smoke?.sceneFetchError)throw new Error(cell+' scene fetch retry exhausted: '+d.smoke?.sceneFetchError);
+  if(!(d.smoke?.decayPatchedMaterials>0))throw new Error(cell+' apocalypse decay shader missing');
+  if(!(d.smoke?.doorSystemCount>0))throw new Error(cell+' interactive door system missing');
+  if(!d.smoke?.flashlightReady)throw new Error(cell+' flashlight system missing');
+  if(!d.smoke?.vehicleRepair)throw new Error(cell+' repair system missing');
   if(!d.smoke?.player)throw new Error(cell+' player missing');
   if(!(d.smoke?.buildings>0))throw new Error(cell+' buildings missing');
   if(!(d.smoke?.entries>0))throw new Error(cell+' enterable buildings missing');
