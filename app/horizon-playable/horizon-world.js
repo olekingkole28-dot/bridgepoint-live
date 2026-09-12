@@ -1012,15 +1012,12 @@ function captureCharacterWeaponTemplates(modelRoot){
 function setupEquipmentMounts(modelRoot){
   const right=modelRoot?.getObjectByName('Middle1.R')||modelRoot?.getObjectByName('LowerArm.R')||findBoneByHints(modelRoot,['middle1.r','lowerarm.r']);
   const left=modelRoot?.getObjectByName('Middle1.L')||modelRoot?.getObjectByName('LowerArm.L')||findBoneByHints(modelRoot,['middle1.l','lowerarm.l']);
-  const hips=modelRoot?.getObjectByName('Hips')||findBoneByHints(modelRoot,['hips','pelvis']);
-  const torso=modelRoot?.getObjectByName('Torso')||modelRoot?.getObjectByName('Abdomen')||findBoneByHints(modelRoot,['torso','abdomen','spine']);
   equipmentMounts.rightHand=makeMount(right||playerRoot);
   equipmentMounts.leftHand=makeMount(left||playerRoot);
-  equipmentMounts.hip=makeMount(hips||playerRoot,[.18,-.04,.055],[0,.05,-.18]);
-  // Character source is Y-up/Z-forward before the world orientation transform.
-  // Positive source-Z becomes the survivor's physical back after the +90° X orientation.
-  equipmentMounts.backGun=makeMount(torso||playerRoot,[0,.035,.18],[0,.03,Math.PI/2]);
-  equipmentMounts.backMelee=makeMount(torso||playerRoot,[-.12,.015,.16],[0,.05,-.72]);
+  // Holsters use centered standalone meshes in stable player-root coordinates.
+  equipmentMounts.hip=makeMount(playerRoot,[.34,.04,.76],[0,0,-.20]);
+  equipmentMounts.backGun=makeMount(playerRoot,[0,.24,1.22],[.18,0,.10]);
+  equipmentMounts.backMelee=makeMount(playerRoot,[-.15,.20,1.18],[.08,0,-.65]);
 }
 function cloneCharacterWeapon(name){
   const t=characterWeaponTemplates[name];
@@ -1029,29 +1026,24 @@ function cloneCharacterWeapon(name){
   obj.traverse(o=>{o.visible=true;if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
   return obj;
 }
-function putCharacterWeapon(slot,name,mode='hand'){
+function putCharacterWeapon(slot,name,mode='leftHand'){
   const m=equipmentMounts[slot];if(!m)return null;
   clearMount(m);if(!name)return null;
-  const obj=cloneCharacterWeapon(name);if(!obj)return null;
-  const scaleByName={
-    Axe:.52,Knife:.74,Pistol:.78,Rifle:.80,Shotgun:.78,SMG:.80,Spear:.70,
-    WoodenBat_Barbed:.78,WoodenBat_Saw:.78
-  };
-  obj.scale.multiplyScalar(scaleByName[name]||.82);
-  if(mode==='rightHand'){
-    // Weapon transforms in the CC0 character are authored on Middle1.L.
-    // The mirrored right-hand finger chain accepts the same local grip transform cleanly.
-    m.add(obj);
-  }else if(mode==='leftHand'){
-    m.add(obj);
-  }else if(mode==='hip'){
-    obj.position.set(0,0,0);obj.rotation.set(.05,.2,-1.48);obj.scale.multiplyScalar(.96);m.add(obj);
-  }else if(mode==='backGun'){
-    obj.position.set(0,0,0);obj.rotation.set(.15,1.48,.08);obj.scale.multiplyScalar(1.02);m.add(obj);
-  }else if(mode==='backMelee'){
-    obj.position.set(0,0,0);obj.rotation.set(.1,1.4,-.12);obj.scale.multiplyScalar(.98);m.add(obj);
+  if(mode==='leftHand'||mode==='rightHand'){
+    const obj=cloneCharacterWeapon(name);if(!obj)return null;
+    if(mode==='rightHand'){
+      obj.position.x*=-1;
+      const q=obj.quaternion.clone();obj.quaternion.set(q.x,-q.y,-q.z,q.w);
+    }
+    m.add(obj);return obj;
   }
-  return obj;
+  const key=name==='WoodenBat_Barbed'?'bat':name==='Axe'?'axe':name==='Knife'?'knife':name==='Pistol'?'pistol':name==='Rifle'?'rifle':name==='Shotgun'?'shotgun':null;
+  const len=name==='Pistol'?.33:name==='Rifle'?1.02:name==='Shotgun'?.92:name==='Axe'?.66:name==='Knife'?.34:.88;
+  const obj=key?propCloneByLength(weaponTemplates[key],len):null;if(!obj)return null;
+  if(mode==='hip')obj.rotation.set(.15,.15,-1.20);
+  if(mode==='backGun')obj.rotation.set(.10,.05,1.52);
+  if(mode==='backMelee')obj.rotation.set(.10,.08,-.72);
+  m.add(obj);return obj;
 }
 function activeItemForSlot(slot){
   if(slot==='melee')return equipment.melee;
@@ -1065,27 +1057,24 @@ function refreshEquipmentVisuals(){
   const current=activeItemForSlot(activeSlot)||equipment.melee||'Axe';
   activeWeapon=current;equippedWeaponName=current;
 
-  // Left-hand utility weapon remains visible unless the player is actively using it.
-  if(equipment.offhand&&!(activeSlot==='offhand'))putCharacterWeapon('leftHand',equipment.offhand,'leftHand');
-
-  const handName=current==='Barbed Bat'?'WoodenBat_Barbed':current;
-  putCharacterWeapon('rightHand',handName,'rightHand');
+  if(isFirearm(current)){
+    putCharacterWeapon('leftHand',current,'leftHand');
+    if(equipment.melee){
+      const stow=equipment.melee==='Barbed Bat'?'WoodenBat_Barbed':equipment.melee;
+      putCharacterWeapon('backMelee',stow,'backMelee');
+    }
+  }else if(activeSlot==='offhand'){
+    putCharacterWeapon('leftHand',equipment.offhand||'Knife','leftHand');
+    if(equipment.melee)putCharacterWeapon('backMelee',equipment.melee==='Barbed Bat'?'WoodenBat_Barbed':equipment.melee,'backMelee');
+  }else{
+    const handName=current==='Barbed Bat'?'WoodenBat_Barbed':current;
+    putCharacterWeapon('rightHand',handName,'rightHand');
+    if(equipment.offhand)putCharacterWeapon('leftHand',equipment.offhand,'leftHand');
+  }
 
   if(equipment.sidearm&&activeSlot!=='sidearm')putCharacterWeapon('hip',equipment.sidearm,'hip');
   if(equipment.primary&&activeSlot!=='primary')putCharacterWeapon('backGun',equipment.primary,'backGun');
-  if(equipment.melee&&activeSlot!=='melee'){
-    const stow=equipment.melee==='Barbed Bat'?'WoodenBat_Barbed':equipment.melee;
-    putCharacterWeapon('backMelee',stow,'backMelee');
-  }
-  weaponPivot=equipmentMounts.rightHand;
-}
-function useQuickSlot(slot){
-  const item=equipment[slot];if(!item){showToast(slot.toUpperCase()+' EMPTY');return false}
-  if(!(inventory[item]>0)){showToast('No '+item+' left');return false}
-  if(item==='Bandage'){health=Math.min(100,health+28);$('healthStat').textContent=String(health)}
-  else if(item==='Water'){health=Math.min(100,health+8);$('healthStat').textContent=String(health)}
-  inventory[item]--;if(inventory[item]<=0){delete inventory[item];equipment[slot]=null}
-  lootCount=Math.max(0,lootCount-1);showToast('Used '+item);updateInventory();return true;
+  weaponPivot=isFirearm(current)?equipmentMounts.leftHand:equipmentMounts.rightHand;
 }
 function selectSlot(slot,quiet=false){
   if(slot==='quick1'||slot==='quick2')return useQuickSlot(slot);
