@@ -178,7 +178,7 @@ let yaw=0,pitch=.14,cameraMode=0;
 let health=100,lastDamageAt=0;
 let playerSpawn=new THREE.Vector3();
 const playerVelocity=new THREE.Vector3();
-let roadAnchors=[],roadSegments=[],roadSurfaceGrid=new Map(),buildingCenters=[],buildingEntries=[],zombies=[],interiorZombies=[];
+let roadAnchors=[],roadSegments=[],roadSurfaceGrid=new Map(),navNodes=[],navNodeMap=new Map(),buildingCenters=[],buildingEntries=[],zombies=[],interiorZombies=[];
 let nearestInteract=null,lootCount=2;
 let inventory={Bandage:1,Water:1};
 let packName='Hidden Survivor Pack',packCapacity=24,packMesh=null;
@@ -804,6 +804,50 @@ function surfaceZXY(x,y){
   if(best<=bestWidth/2+2.7)return base+.155;
   return base+.025;
 }
+function navKey(x,y){return Math.round(x/8)+':'+Math.round(y/8)}
+function navNode(x,y,z){
+  const k=navKey(x,y);let n=navNodeMap.get(k);
+  if(!n){n={id:navNodes.length,x,y,z,links:new Set()};navNodes.push(n);navNodeMap.set(k,n)}
+  return n;
+}
+function linkNav(a,b){if(!a||!b||a===b)return;a.links.add(b.id);b.links.add(a.id)}
+function buildNavGraph(roads){
+  navNodes=[];navNodeMap=new Map();
+  for(const f of roads||[])for(const line of lineFeatures(f.geometry)){
+    let prev=null;
+    for(let i=1;i<line.length;i++){
+      const a=project(line[i-1]),b=project(line[i]),len=Math.hypot(b.x-a.x,b.y-a.y);if(len<1)continue;
+      const steps=Math.max(1,Math.ceil(len/16));
+      for(let k=0;k<=steps;k++){
+        if(i>1&&k===0)continue;
+        const t=k/steps,x=THREE.MathUtils.lerp(a.x,b.x,t),y=THREE.MathUtils.lerp(a.y,b.y,t),n=navNode(x,y,surfaceZXY(x,y));
+        if(prev)linkNav(prev,n);prev=n;
+      }
+    }
+  }
+}
+function nearestNavNode(x,y){
+  let best=null,d=Infinity;
+  for(const n of navNodes){const q=(n.x-x)*(n.x-x)+(n.y-y)*(n.y-y);if(q<d){d=q;best=n}}
+  return best;
+}
+function findNavPath(sx,sy,tx,ty){
+  const start=nearestNavNode(sx,sy),goal=nearestNavNode(tx,ty);if(!start||!goal)return[];
+  if(start===goal)return[goal];
+  const open=[start.id],came=new Map(),g=new Map([[start.id,0]]),f=new Map([[start.id,Math.hypot(goal.x-start.x,goal.y-start.y)]]);
+  const seen=new Set();let loops=0;
+  while(open.length&&loops++<2200){
+    open.sort((a,b)=>(f.get(a)??Infinity)-(f.get(b)??Infinity));
+    const id=open.shift();if(id===goal.id)break;if(seen.has(id))continue;seen.add(id);
+    const n=navNodes[id];for(const nbId of n.links){
+      const nb=navNodes[nbId],tent=(g.get(id)??Infinity)+Math.hypot(nb.x-n.x,nb.y-n.y);
+      if(tent<(g.get(nbId)??Infinity)){came.set(nbId,id);g.set(nbId,tent);f.set(nbId,tent+Math.hypot(goal.x-nb.x,goal.y-nb.y));if(!seen.has(nbId))open.push(nbId)}
+    }
+  }
+  if(!came.has(goal.id))return[goal];
+  const ids=[goal.id];let cur=goal.id;while(cur!==start.id&&came.has(cur)){cur=came.get(cur);ids.push(cur)}ids.reverse();
+  return ids.slice(1).map(id=>navNodes[id]);
+}
 function buildRoads(){
   const roads=(data.transport||[]).filter(x=>x.kind!=='RAIL'),rails=(data.transport||[]).filter(x=>x.kind==='RAIL');
   roadLayer=new THREE.Group();worldGroup.add(roadLayer);
@@ -841,6 +885,7 @@ function buildRoads(){
       roadAnchors.push({x,y,z:terrainZ(lon,lat),heading:Math.atan2(dx,dy),width:roadWidth(f.kind),kind:f.kind});
     }
   }
+  buildNavGraph(roads);
 }
 function buildWater(){
   const geos=[];
@@ -1859,8 +1904,20 @@ function isBlockedExterior(x,y,r=.33){
   }
   return false;
 }
-function moveZombieToward(z,tx,ty,dt,interior){
-  const dx=tx-z.root.position.x,dy=ty-z.root.position.y,dist=Math.hypot(dx,dy)||.001;
+function moveZombieToward(z,tx,ty,dt,interior,now){
+  let targetX=tx,targetY=ty;
+  const rawDist=Math.hypot(tx-z.root.position.x,ty-z.root.position.y);
+  if(!interior&&rawDist>9&&navNodes.length){
+    if(now>=z.nextPathAt||!z.path?.length||z.pathIndex>=z.path.length){
+      z.path=findNavPath(z.root.position.x,z.root.position.y,tx,ty);z.pathIndex=0;z.nextPathAt=now+1700+rand()*900;
+    }
+    const wp=z.path?.[z.pathIndex];
+    if(wp){
+      targetX=wp.x;targetY=wp.y;
+      if(Math.hypot(targetX-z.root.position.x,targetY-z.root.position.y)<1.2)z.pathIndex++;
+    }
+  }
+  const dx=targetX-z.root.position.x,dy=targetY-z.root.position.y,dist=Math.hypot(dx,dy)||.001;
   const vx=dx/dist,vy=dy/dist,step=z.speed*dt;
   let nx=z.root.position.x+vx*step,ny=z.root.position.y+vy*step;
   const blocked=(x,y)=>interior?isBlockedInterior(x,y):isBlockedExterior(x,y,.30);
@@ -1868,14 +1925,13 @@ function moveZombieToward(z,tx,ty,dt,interior){
     z.root.position.x=nx;z.root.position.y=ny;
   }else{
     const sx=-vy*z.steer,sy=vx*z.steer;
-    nx=z.root.position.x+(vx*.25+sx*.95)*step;
-    ny=z.root.position.y+(vy*.25+sy*.95)*step;
-    if(!blocked(nx,ny)){z.root.position.x=nx;z.root.position.y=ny}
-    else z.steer*=-1;
+    nx=z.root.position.x+(vx*.18+sx*.98)*step;ny=z.root.position.y+(vy*.18+sy*.98)*step;
+    if(!blocked(nx,ny)){z.root.position.x=nx;z.root.position.y=ny}else{z.steer*=-1;z.nextPathAt=0}
   }
   z.root.position.z=interior?.015:surfaceZXY(z.root.position.x,z.root.position.y)+.015;
   z.root.rotation.z=Math.atan2(vx,vy);
-  return dist;
+  z.state=rawDist<1.35?'attack':rawDist<22?'chase':'stalk';
+  return rawDist;
 }
 function updateZombieWaves(now){
   if(!interiorMode&&!playerDead){
@@ -1889,7 +1945,7 @@ function updateZombies(dt,now){
   const list=interiorMode?interiorZombies:zombies;
   for(const z of list){
     if(z.dead)continue;z.mixer?.update(dt);
-    const dist=moveZombieToward(z,playerRoot.position.x,playerRoot.position.y,dt,interiorMode);
+    const dist=moveZombieToward(z,playerRoot.position.x,playerRoot.position.y,dt,interiorMode,now);
     if(dist<1.28&&now-lastDamageAt>1050){
       damagePlayer(8);lastDamageAt=now;
       if(!playerDead)showToast('Infected hit · '+health+' health');
