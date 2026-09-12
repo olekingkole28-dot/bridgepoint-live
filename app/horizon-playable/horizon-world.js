@@ -6,7 +6,7 @@ const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoin
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
 const INTERIOR_BASE='https://cdn.jsdelivr.net/gh/sijun-kevin-hu/break-my-house@main/public/models/house-interior';
 const ASSETS={
-  player:FREE_BASE+'/Characters/glTF/Characters_Matt_SingleWeapon.gltf',
+  player:FREE_BASE+'/Characters/glTF/Characters_Matt.gltf',
   zombie:FREE_BASE+'/Characters/glTF/Zombie_Basic.gltf',
   barrel:FREE_BASE+'/Environment/glTF/Barrel.gltf',
   trash:FREE_BASE+'/Environment/glTF/TrashBag_1.gltf',
@@ -20,7 +20,12 @@ const ASSETS={
   truck:FREE_BASE+'/Vehicles/glTF/Vehicle_Truck.gltf',
   axe:FREE_BASE+'/Weapons/glTF/Axe.gltf',
   bat:FREE_BASE+'/Weapons/glTF/WoodenBat_Barbed.gltf',
-  knife:FREE_BASE+'/Weapons/glTF/Knife.gltf'
+  knife:FREE_BASE+'/Weapons/glTF/Knife.gltf',
+  pistol:FREE_BASE+'/Weapons/glTF/Pistol.gltf',
+  rifle:FREE_BASE+'/Weapons/glTF/Rifle.gltf',
+  shotgun:FREE_BASE+'/Weapons/glTF/Shotgun.gltf',
+  chest:FREE_BASE+'/Environment/glTF/Chest.gltf',
+  chestSpecial:FREE_BASE+'/Environment/glTF/Chest_Special.gltf'
 };
 const INTERIOR_ASSETS={
   chair:INTERIOR_BASE+'/Chair.glb',
@@ -91,8 +96,13 @@ const playerVelocity=new THREE.Vector3();
 let roadAnchors=[],buildingCenters=[],buildingEntries=[],zombies=[],interiorZombies=[];
 let nearestInteract=null,lootCount=2;
 let inventory={Bandage:1,Water:1};
-let packName='Starter Duffel',packCapacity=24,packMesh=null;
+let packName='Hidden Survivor Pack',packCapacity=24,packMesh=null;
 let weaponPivot=null,weaponTemplates={},equippedWeaponName='Axe',swingTime=0,attackCooldown=0;
+let equipment={melee:'Axe',offhand:'Knife',sidearm:null,primary:null,quick1:'Bandage',quick2:'Water'};
+let equipmentMounts={rightHand:null,leftHand:null,hip:null,back:null};
+let playerDead=false,kills=0;
+let worldPickups=[],pickupTemplates={},pickupSeq=0;
+let waveNumber=0,nextWaveAt=0,maxActiveZombies=7;
 let zombieTemplate=null;
 let mobileMove={x:0,y:0},mobileSprint=false;
 let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),exteriorYaw=0;
