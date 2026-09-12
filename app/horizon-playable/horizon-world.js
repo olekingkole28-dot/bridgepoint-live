@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4220;
+const BUILD_VERSION=4221;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -580,10 +580,26 @@ function centerRing(r){
   for(const p of r||[])if(Number.isFinite(+p?.[0])&&Number.isFinite(+p?.[1])){x+=+p[0];y+=+p[1];n++}
   return n?[x/n,y/n]:[lon0,lat0];
 }
+function normalizeProjectedRing(r){
+  const pts=[];
+  for(const p of r||[]){
+    if(!Array.isArray(p)||p.length<2||!Number.isFinite(+p[0])||!Number.isFinite(+p[1]))continue;
+    const q=project(p);if(!Number.isFinite(q.x)||!Number.isFinite(q.y))continue;
+    const prev=pts[pts.length-1];
+    if(prev&&Math.hypot(prev.x-q.x,prev.y-q.y)<.01)continue;
+    pts.push(q);
+  }
+  if(pts.length>2&&Math.hypot(pts[0].x-pts[pts.length-1].x,pts[0].y-pts[pts.length-1].y)<.01)pts.pop();
+  if(pts.length<3)return null;
+  let area=0;for(let i=0,j=pts.length-1;i<pts.length;j=i++)area+=pts[j].x*pts[i].y-pts[i].x*pts[j].y;
+  if(!Number.isFinite(area)||Math.abs(area)<.08)return null;
+  return pts;
+}
 function shapeFromRing(r){
-  const s=new THREE.Shape();let first=true;
-  for(const p of r||[]){const q=project(p);if(first){s.moveTo(q.x,q.y);first=false}else s.lineTo(q.x,q.y)}
-  return first?null:s;
+  const pts=normalizeProjectedRing(r);if(!pts)return null;
+  const s=new THREE.Shape();s.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++)s.lineTo(pts[i].x,pts[i].y);
+  s.closePath();return s;
 }
 function ringArea(r){
   let a=0;
@@ -1032,9 +1048,9 @@ function buildExplorableShell(rec,meta){
 }
 function buildBuildings(){
   buildingLayer=new THREE.Group();buildingLayer.name='source-buildings';worldGroup.add(buildingLayer);buildingCenters=[];
-  const buckets={brick:[],concrete:[],glass:[],wood:[],metal:[]},records=[];let proxies=0,sourceH=0,ri=0;
+  const buckets={brick:[],concrete:[],glass:[],wood:[],metal:[]},records=[];let proxies=0,sourceH=0,ri=0,invalidShapes=0,shellFailures=0;
   for(const row of data.buildings||[])for(const r of outerRings(row.geometry)){
-    const shape=shapeFromRing(r);if(!shape)continue;
+    const shape=shapeFromRing(r);if(!shape){invalidShapes++;continue;}
     const ht=heightFor(row);ht.proxy?proxies++:sourceH++;
     const center=centerRing(r),q=project(center),z=terrainZ(center[0],center[1]),pts=r.map(project).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));
     if(pts.length<3)continue;
@@ -1052,7 +1068,10 @@ function buildBuildings(){
   for(const rec of records){
     const meta={id:rec.id,x:rec.q.x,y:rec.q.y,z:rec.z,height:rec.ht.h,minx:rec.minx,maxx:rec.maxx,miny:rec.miny,maxy:rec.maxy,width:rec.width,depth:rec.depth,poly:rec.pts,explorable:shellIds.has(rec.id)};
     if(meta.width>2.8&&meta.depth>2.8)buildingCenters.push(meta);
-    if(meta.explorable){buildExplorableShell(rec,meta);openCount++;continue}
+    if(meta.explorable){
+      try{buildExplorableShell(rec,meta);openCount++;continue}
+      catch(err){shellFailures++;meta.explorable=false;console.warn('open building shell skipped',meta.id,err)}
+    }
     const geo=new THREE.ExtrudeGeometry(rec.shape,{depth:rec.ht.h,bevelEnabled:false,steps:1});geo.translate(0,0,rec.z+.16);geo.computeVertexNormals();buckets[rec.materialKey].push(geo);
   }
   for(const [k,geos] of Object.entries(buckets)){
@@ -1061,8 +1080,8 @@ function buildBuildings(){
     const mesh=new THREE.Mesh(merged,buildingMaterials[k]);mesh.castShadow=true;mesh.receiveShadow=true;buildingLayer.add(mesh);
     addStaticPhysicsGeometry(merged,'buildings-'+k,.82);for(const g of geos)g.dispose();
   }
-  streetLifeStats.openBuildings=openCount;
-  loadText.textContent='Geometry ready · '+sourceH.toLocaleString()+' source-height buildings · '+proxies.toLocaleString()+' visual-height proxies · '+openCount+' physically open buildings';
+  streetLifeStats.openBuildings=openCount;streetLifeStats.invalidShapes=invalidShapes;streetLifeStats.shellFailures=shellFailures;
+  loadText.textContent='Geometry ready · '+records.length.toLocaleString()+' valid building shapes · '+openCount+' physically open buildings';
 }
 function buildFacadeDetails(){
   const candidates=[...buildingCenters].filter(b=>!b.explorable&&b.height>9&&b.width>3&&b.depth>3).sort((a,b)=>b.height-a.height).slice(0,densePreview()?650:220);
@@ -3957,7 +3976,12 @@ async function boot(){
     lon0=Number(data.center.lon);lat0=Number(data.center.lat);mx=111320*Math.cos(lat0*Math.PI/180);my=110540;
     const meta=$('jurisdictionMeta');if(meta&&CELL==='national')meta.textContent=(JURISDICTIONS[SELECTED_STATE]?.[0]||SELECTED_STATE)+' · '+(data.counts?.buildings||0).toLocaleString()+' buildings · '+(data.counts?.parcels||0).toLocaleString()+' open parcel outlines · '+Number(data.span_km||STREAM_SPAN).toFixed(1)+' km streamed cell';
 
-    buildAtmosphere();buildTerrain();buildRoads();buildApocalypseGroundDressing();buildWater();buildWaterfrontPerimeter();buildBuildings();buildFacadeDetails();buildParts();buildParcels();addLights();setLighting(0);drawMinimapBase();initInput();
+    buildAtmosphere();buildTerrain();buildRoads();buildApocalypseGroundDressing();buildWater();buildWaterfrontPerimeter();
+    try{buildBuildings()}catch(err){console.error('building geometry recovered',err);streetLifeStats.buildingGeometryError=String(err?.message||err)}
+    try{buildFacadeDetails()}catch(err){console.warn('facade details skipped',err)}
+    try{buildParts()}catch(err){console.warn('building parts skipped',err)}
+    try{buildParcels()}catch(err){console.warn('parcel overlay skipped',err)}
+    addLights();setLighting(0);drawMinimapBase();initInput();
     applyApocalypseDecay(worldGroup);
     await buildPlayer();createPlayerPhysics();buildEntryPoints();installInteractiveDoors();renderFactionBanner();initFlashlight();
     revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone();
@@ -3984,7 +4008,7 @@ async function boot(){
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
       reloadActive:reloadState.active,aimFov:weaponCfg(activeWeapon).aim_fov,
-      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),seamlessOpenBuildings:true,towerPriorityOpenBuildings:true,optimizedOpenBuildingPhysics:true,openInteriorProps:Number(streetLifeStats.openInteriorProps||0),
+      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),seamlessOpenBuildings:true,towerPriorityOpenBuildings:true,optimizedOpenBuildingPhysics:true,shapeRecovery:true,invalidShapes:Number(streetLifeStats.invalidShapes||0),shellFailures:Number(streetLifeStats.shellFailures||0),openInteriorProps:Number(streetLifeStats.openInteriorProps||0),
       matchMode,matchRadius:Number.isFinite(matchRadius)?matchRadius:null,seasonDay:seasonDay(),xp,battleTier,livesRemaining,
       flashlightReady:Boolean(flashlight),vehicleRepair:true,factionClaimMode:'local-preview',spectatorMode
     };
