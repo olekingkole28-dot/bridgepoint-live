@@ -173,13 +173,23 @@ jobs:
             intelligence_code="$(curl -sSL --max-time 15 -o /tmp/intelligence.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/intelligence-launch/?launch=${salt}" 2>/dev/null || true)"
             horizon_code="$(curl -sSL --max-time 15 -o /tmp/horizon.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/?launch=${salt}" 2>/dev/null || true)"
             horizon_world_code="$(curl -sSL --max-time 15 -o /tmp/horizon-world.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon-world/?world=${salt}" 2>/dev/null || true)"
+            horizon_world_js_code="$(curl -sSL --max-time 20 -o /tmp/horizon-world.js -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon-world/horizon-world.js?world=${salt}" 2>/dev/null || true)"
             if printf '%s' "$root" | grep -Fq '/app/intelligence-launch/' \
               && ! printf '%s' "$root" | grep -qi 'supabase' \
               && grep -Fq 'We’re building our 3D universe.' /tmp/app.html \
               && [ "$intelligence_code" = "200" ] \
               && [ "$horizon_code" = "200" ] \
+              && [ "$horizon_world_code" = "200" ] \
+              && [ "$horizon_world_js_code" = "200" ] \
               && grep -Fq 'FOUNDING MEMBER ACCESS' /tmp/intelligence.html \
               && grep -Fq 'RESERVE YOUR HOME BASE' /tmp/horizon.html \
+              && grep -Fq '/app/horizon-world/?build=2982' /tmp/horizon.html \
+              && grep -Fq 'Horizon survivor' /tmp/horizon-world.html \
+              && grep -Fq 'horizon-world.js?v=2982' /tmp/horizon-world.html \
+              && grep -Fq 'mobileControls' /tmp/horizon-world.html \
+              && grep -Fq 'BP_HORIZON_SMOKE' /tmp/horizon-world.js \
+              && grep -Fq 'Quaternius' /tmp/horizon-world.js \
+              && ! grep -Fq 'CONNECTICUT PROTOTYPE CELL' /tmp/horizon-world.html \
               && ! grep -Fq 'We’re building our 3D universe.' /tmp/intelligence.html \
               && ! grep -Fq 'We’re building our 3D universe.' /tmp/horizon.html; then
               ok=1
