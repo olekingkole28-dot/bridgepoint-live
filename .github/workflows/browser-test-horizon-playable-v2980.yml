@@ -1,4 +1,4 @@
-name: Browser Test Horizon Playable v3040
+name: Browser Test Horizon Playable v3050
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: horizon-playable-v3040
+  group: horizon-playable-v3050
   cancel-in-progress: true
 
 jobs:
