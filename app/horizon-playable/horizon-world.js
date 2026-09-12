@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4214;
+const BUILD_VERSION=4215;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -23,13 +23,23 @@ const AURISAR_MOBS='https://cdn.jsdelivr.net/gh/brandon-aurgames/aurisar-app@mai
 const CONSTELLATION_MODELS='https://cdn.jsdelivr.net/gh/Hakhyun-Kim/constellation-defense@main/assets/models';
 const QUATERNIUS_SHOWCASE='https://cdn.jsdelivr.net/gh/trebeljahr/quaternius-showcase@main/public/glb';
 const DERETH_MOBS='https://cdn.jsdelivr.net/gh/w5ohr/Dereth@main/assets/models/monsters';
+const M2M_BASE='https://raw.githubusercontent.com/Mesh2Motion/mesh2motion-app/main/static';
 const ASSETS={
   player:FREE_BASE+'/Characters/glTF/Characters_Matt.gltf',
   playerLis:FREE_BASE+'/Characters/glTF/Characters_Lis.gltf',
   playerSam:FREE_BASE+'/Characters/glTF/Characters_Sam.gltf',
   playerShaun:FREE_BASE+'/Characters/glTF/Characters_Shaun.gltf',
   playerRealistic:'https://threejs.org/examples/models/gltf/Soldier.glb',
-  playerSurvivor:'https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/suited.glb',
+  playerSurvivor:M2M_BASE+'/models-variation/human/male_32.glb',
+  playerFemale:M2M_BASE+'/models-variation/human/female_31.glb',
+  playerSwat:M2M_BASE+'/models-variation/human/swat_male.glb',
+  playerPolice:M2M_BASE+'/models-variation/human/police_male.glb',
+  playerHazmat:M2M_BASE+'/models-variation/human/hazmat_suit_male.glb',
+  playerAnimations:M2M_BASE+'/animations/human-base-animations.glb',
+  infectedM2MZombie:M2M_BASE+'/models-variation/human/zombie.glb',
+  infectedM2MMonster3:M2M_BASE+'/models-variation/human/monster_3.glb',
+  infectedM2MMonster4:M2M_BASE+'/models-variation/human/monster_4.glb',
+  infectedM2MMonster5:M2M_BASE+'/models-variation/human/monster_5.glb',
   infectedHuman:'https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/human.glb',
   infectedMan:'https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/man.glb',
   infectedScreamer:'https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/speaker.glb',
@@ -110,7 +120,16 @@ const DEFAULT_WEAPON_CONFIGS=[
 
 const params=new URLSearchParams(location.search);
 const PREVIEW_KEY=['city','mountain','coastal'].includes(String(params.get('preview')||'').toLowerCase())?String(params.get('preview')).toLowerCase():null;
-const PLAYER_VARIANTS={survivor:ASSETS.playerSurvivor,realistic:ASSETS.playerRealistic,matt:ASSETS.player,lis:ASSETS.playerLis,sam:ASSETS.playerSam,shaun:ASSETS.playerShaun};
+const PLAYER_VARIANTS={
+  survivor:ASSETS.playerSurvivor,
+  female:ASSETS.playerFemale,
+  swat:ASSETS.playerSwat,
+  police:ASSETS.playerPolice,
+  hazmat:ASSETS.playerHazmat,
+  realistic:ASSETS.playerRealistic,
+  matt:ASSETS.player,lis:ASSETS.playerLis,sam:ASSETS.playerSam,shaun:ASSETS.playerShaun
+};
+const M2M_PLAYER_KEYS=new Set(['survivor','female','swat','police','hazmat']);
 const CHARACTER_KEY=String(params.get('character')||({city:'survivor',mountain:'survivor',coastal:'survivor'}[PREVIEW_KEY]||'survivor')).toLowerCase();
 const PLAYER_ASSET=PLAYER_VARIANTS[CHARACTER_KEY]||ASSETS.player;
 const requestedCell=String(params.get('cell')||'national').toLowerCase();
@@ -157,6 +176,13 @@ const jurisdictionSelect=$('jurisdictionSelect');
 if(jurisdictionSelect){
   jurisdictionSelect.innerHTML=Object.entries(JURISDICTIONS).map(([code,v])=>'<option value="'+code+'">'+v[0]+' ('+code+')</option>').join('');
   jurisdictionSelect.value=SELECTED_STATE;
+}
+const characterSelect=$('characterSelect');
+if(characterSelect){
+  characterSelect.value=PLAYER_VARIANTS[CHARACTER_KEY]?CHARACTER_KEY:'survivor';
+  characterSelect.addEventListener('change',()=>{
+    const u=new URL(location.href);u.searchParams.set('character',characterSelect.value);u.searchParams.set('build',String(BUILD_VERSION));location.href=u.toString();
+  });
 }
 $('jurisdictionGo')?.addEventListener('click',()=>{
   const code=jurisdictionSelect?.value||SELECTED_STATE,v=JURISDICTIONS[code]||selectedJurisdiction;
@@ -1150,12 +1176,12 @@ function buildRoads(){
 
   const sidewalkGeo=buildStrips(roads,5.2,.135);
   if(sidewalkGeo){
-    const sidewalk=new THREE.Mesh(sidewalkGeo,new THREE.MeshStandardMaterial({color:0xb7b3aa,roughness:.96}));
+    const sidewalk=new THREE.Mesh(sidewalkGeo,new THREE.MeshStandardMaterial({map:wallTex,color:0x77766f,roughness:1,metalness:0}));
     sidewalk.receiveShadow=true;roadLayer.add(sidewalk);addStaticPhysicsGeometry(sidewalkGeo,'sidewalks',.96);
   }
   const curbGeo=buildStrips(roads,2.3,.155);
   if(curbGeo){
-    const curb=new THREE.Mesh(curbGeo,new THREE.MeshStandardMaterial({color:0x8c8b84,roughness:.92}));
+    const curb=new THREE.Mesh(curbGeo,new THREE.MeshStandardMaterial({map:wallTex,color:0x5f625e,roughness:.98}));
     curb.receiveShadow=true;roadLayer.add(curb);
   }
   const rg=buildStrips(roads,0,.19);
@@ -1488,8 +1514,9 @@ async function buildPlayer(){
   let primaryPlayer=await loadAsset(PLAYER_ASSET),playerMode=CHARACTER_KEY;
   if(!primaryPlayer&&(CHARACTER_KEY==='realistic'||CHARACTER_KEY==='survivor')){primaryPlayer=await loadAsset(ASSETS.playerRealistic);playerMode='realistic-fallback'}
   if(!primaryPlayer){primaryPlayer=await loadAsset(ASSETS.player);playerMode='matt-fallback'}
-  const [gltf,axe,bat,knife,pistol,rifle,shotgun,smg,spear,sawBat,guitar]=await Promise.all([
+  const [gltf,playerAnimPack,axe,bat,knife,pistol,rifle,shotgun,smg,spear,sawBat,guitar]=await Promise.all([
     Promise.resolve(primaryPlayer),
+    loadAsset(ASSETS.playerAnimations),
     loadAsset(weaponCfg('Axe').model_url||ASSETS.axe),
     loadAsset(weaponCfg('Barbed Bat').model_url||ASSETS.bat),
     loadAsset(weaponCfg('Knife').model_url||ASSETS.knife),
@@ -1505,7 +1532,9 @@ async function buildPlayer(){
   if(gltf){
     playerAssetLoaded=true;playerAssetMode=playerMode;
     const n=normalizedModel(gltf.scene,1.82,true);
-    playerRoot=n.root;playerVisualRoot=n.oriented;n.model.rotation.y=Math.PI;n.model.updateMatrixWorld(true);playerModelYawOffset=0;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);
+    playerRoot=n.root;playerVisualRoot=n.oriented;n.model.rotation.y=Math.PI;n.model.updateMatrixWorld(true);playerModelYawOffset=0;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;
+    const sourceClips=(M2M_PLAYER_KEYS.has(CHARACTER_KEY)&&playerAnimPack?.animations?.length)?playerAnimPack.animations:gltf.animations;
+    playerClips=sanitizeCharacterClips(sourceClips);playerMixer=new THREE.AnimationMixer(n.model);
     captureCharacterWeaponTemplates(n.model);
     setupEquipmentMounts(n.model);
   }else{
@@ -1594,22 +1623,45 @@ function scatterRoadsideTemplate(template,count,targetHeight,mode='sidewalk',rot
   }
   return placed;
 }
+function makeFoliageTexture(){
+  const cv=document.createElement('canvas');cv.width=cv.height=128;const x=cv.getContext('2d'),r=seeded(728551);
+  x.clearRect(0,0,128,128);
+  for(let i=0;i<95;i++){
+    const px=20+r()*88,py=18+r()*92,rx=5+r()*12,ry=3+r()*8,a=.18+r()*.42;
+    x.fillStyle='rgba('+(35+Math.floor(r()*35))+','+(58+Math.floor(r()*50))+','+(28+Math.floor(r()*28))+','+a+')';
+    x.beginPath();x.ellipse(px,py,rx,ry,r()*Math.PI,0,Math.PI*2);x.fill();
+  }
+  const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return t;
+}
+const foliageTex=makeFoliageTexture();
 const treeMats={
-  trunk:new THREE.MeshStandardMaterial({color:0x59412d,roughness:.96}),
-  leaf1:new THREE.MeshStandardMaterial({color:0x496d43,roughness:.92}),
-  leaf2:new THREE.MeshStandardMaterial({color:0x345b38,roughness:.94})
+  trunk:new THREE.MeshStandardMaterial({color:0x4b3425,roughness:1}),
+  leaf1:new THREE.MeshStandardMaterial({map:foliageTex,color:0x607858,roughness:1,transparent:true,alphaTest:.18,side:THREE.DoubleSide}),
+  leaf2:new THREE.MeshStandardMaterial({map:foliageTex,color:0x3e5d43,roughness:1,transparent:true,alphaTest:.18,side:THREE.DoubleSide})
 };
 const treeGeo={
-  trunk:new THREE.CylinderGeometry(.13,.18,2.05,7),
-  crown1:new THREE.IcosahedronGeometry(1.05,1),
-  crown2:new THREE.IcosahedronGeometry(.78,1)
+  trunk:new THREE.CylinderGeometry(.12,.23,2.55,10),
+  leaf:new THREE.PlaneGeometry(1.55,1.08)
 };
 function makeStreetTree(seedValue){
   const r=seeded(seedValue),g=new THREE.Group();
-  const trunk=new THREE.Mesh(treeGeo.trunk,treeMats.trunk);trunk.rotation.x=Math.PI/2;trunk.position.z=1.02;
-  const c1=new THREE.Mesh(treeGeo.crown1,treeMats.leaf1);c1.scale.set(.8+r()*.3,.75+r()*.3,1.0+r()*.35);c1.position.z=2.45;
-  const c2=new THREE.Mesh(treeGeo.crown2,treeMats.leaf2);c2.position.set((r()-.5)*.35,(r()-.5)*.35,3.25);
-  c1.castShadow=c2.castShadow=true;trunk.castShadow=true;g.add(trunk,c1,c2);return g;
+  const trunk=new THREE.Mesh(treeGeo.trunk,treeMats.trunk);trunk.rotation.x=Math.PI/2;trunk.position.z=1.27;trunk.castShadow=true;g.add(trunk);
+  const branchPoints=[];
+  for(let i=0;i<7;i++){
+    const a=(i/7)*Math.PI*2+r()*.45,z=1.55+r()*1.35,len=.65+r()*.7;
+    const base=new THREE.Vector3(0,0,z),tip=new THREE.Vector3(Math.cos(a)*len,Math.sin(a)*len,z+.35+r()*.45);
+    const br=cylinderBetween(base,tip,.045+r()*.035,treeMats.trunk);br.castShadow=true;g.add(br);branchPoints.push(tip);
+  }
+  branchPoints.push(new THREE.Vector3(0,0,3.15+r()*.4));
+  branchPoints.forEach((p,i)=>{
+    const count=2+(i%2);
+    for(let j=0;j<count;j++){
+      const leaf=new THREE.Mesh(treeGeo.leaf,(i+j)%2?treeMats.leaf1:treeMats.leaf2);
+      leaf.position.copy(p).add(new THREE.Vector3((r()-.5)*.55,(r()-.5)*.55,(r()-.5)*.45));
+      leaf.rotation.set(Math.PI/2+(r()-.5)*.4,(r()-.5)*.35,r()*Math.PI);leaf.scale.set(.75+r()*.55,.72+r()*.5,1);leaf.castShadow=true;g.add(leaf);
+    }
+  });
+  return g;
 }
 const bikeMats={
   frame:new THREE.MeshStandardMaterial({color:0x632b24,roughness:.56,metalness:.22}),
@@ -3043,11 +3095,36 @@ function updateZombies(dt,now){
   updateZombieCount();
 }
 
+function scatterStreetCorpses(template,count){
+  if(!template||!roadAnchors.length)return 0;let made=0,attempts=0;
+  while(made<count&&attempts<count*20){
+    attempts++;const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],p=roadSidePoint(a,(rand()-.5)*Math.max(1.5,a.width*.42),1);
+    if(isBlockedExterior(p.x,p.y,.45))continue;
+    const body=staticClone(template,1.72);if(!body)continue;
+    body.position.set(p.x,p.y,p.z+.07);body.rotation.set(0,Math.PI/2+(rand()-.5)*.22,a.heading+(rand()-.5)*1.7);
+    body.traverse(o=>{if(o.isMesh&&o.material){const arr=Array.isArray(o.material)?o.material:[o.material];o.material=arr.map(m=>{const q=m.clone();if(q.color)q.color.multiplyScalar(.46);q.roughness=Math.max(.9,Number(q.roughness||.8));return q});if(!Array.isArray(o.material))o.material=o.material[0]||o.material}});
+    artGroup.add(body);made++;
+  }
+  return made;
+}
+function scatterAmbientFires(count){
+  if(!roadAnchors.length)return 0;let made=0,attempts=0;
+  const ember=new THREE.MeshStandardMaterial({color:0x33110b,emissive:0xff4a16,emissiveIntensity:3.2,roughness:.8,transparent:true,opacity:.92});
+  const flame=new THREE.MeshStandardMaterial({color:0xffa02c,emissive:0xff5a0b,emissiveIntensity:4.6,roughness:.55,transparent:true,opacity:.78});
+  while(made<count&&attempts<count*25){
+    attempts++;const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+.5+rand()*2.2,side);
+    if(isBlockedExterior(p.x,p.y,.45))continue;
+    const g=new THREE.Group(),base=new THREE.Mesh(new THREE.CylinderGeometry(.28,.42,.18,9),ember),f1=new THREE.Mesh(new THREE.ConeGeometry(.22,.82,8),flame),f2=f1.clone();
+    base.rotation.x=Math.PI/2;base.position.z=.10;f1.rotation.x=Math.PI/2;f1.position.set(-.12,.02,.46);f2.rotation.x=Math.PI/2;f2.scale.set(.72,.72,.72);f2.position.set(.16,-.06,.34);
+    const light=new THREE.PointLight(0xff5a18,7,8,2);light.position.z=.75;g.add(base,f1,f2,light);g.position.set(p.x,p.y,p.z+.02);g.userData.fire=true;artGroup.add(g);made++;
+  }
+  return made;
+}
 async function buildSurvivalArt(){
   const [
     barrel,trash,pallet,barrier,cone,streetlight,hydrant,traffic1,traffic2,plasticBarrier,cinder,
     containerGreen,containerRed,pipes,wheelStack,townSign,pickup,sports,truck,
-    zombie,zombieChubby,zombieRibcage,realHuman,realMan,realScreamer,dogShepherd,dogPug,wolf,orc,spider,yeti,bear,crow,realBear,realWolf,
+    zombie,zombieChubby,zombieRibcage,realHuman,realMan,realScreamer,m2mZombie,m2mMonster3,m2mMonster4,m2mMonster5,dogShepherd,dogPug,wolf,orc,spider,yeti,bear,crow,realBear,realWolf,
     chest,chestSpecial,...interiors
   ]=await Promise.all([
     loadAsset(ASSETS.barrel),loadAsset(ASSETS.trash),loadAsset(ASSETS.pallet),loadAsset(ASSETS.barrier),
@@ -3057,6 +3134,7 @@ async function buildSurvivalArt(){
     loadAsset(ASSETS.vehicle),loadAsset(ASSETS.sportsCar),loadAsset(ASSETS.truck),
     loadAsset(ASSETS.zombie),loadAsset(ASSETS.zombieChubby),loadAsset(ASSETS.zombieRibcage),
     loadAsset(ASSETS.infectedHuman),loadAsset(ASSETS.infectedMan),loadAsset(ASSETS.infectedScreamer),
+    loadAsset(ASSETS.infectedM2MZombie),loadAsset(ASSETS.infectedM2MMonster3),loadAsset(ASSETS.infectedM2MMonster4),loadAsset(ASSETS.infectedM2MMonster5),
     loadAsset(ASSETS.infectedShepherd),loadAsset(ASSETS.infectedPug),loadAsset(ASSETS.wolf),
     loadAsset(ASSETS.orc),loadAsset(ASSETS.spider),loadAsset(ASSETS.yeti),loadAsset(ASSETS.bear),loadAsset(ASSETS.infectedCrow),loadAsset(ASSETS.infectedBearReal),loadAsset(ASSETS.infectedWolfReal),
     loadAsset(ASSETS.chest),loadAsset(ASSETS.chestSpecial),
@@ -3064,7 +3142,13 @@ async function buildSurvivalArt(){
   ]);
   const keys=Object.keys(INTERIOR_ASSETS);interiorTemplates={};keys.forEach((k,i)=>interiorTemplates[k]=interiors[i]);
   pickupTemplates={chest,chestSpecial};
+  const sharedHumanAnimations=await loadAsset(ASSETS.playerAnimations);
+  for(const t of [m2mZombie,m2mMonster3,m2mMonster4,m2mMonster5])if(t&&(!t.animations||!t.animations.length)&&sharedHumanAnimations?.animations?.length)t.animations=sharedHumanAnimations.animations;
   enemyArchetypes=[
+    m2mZombie&&{id:'graveborn',label:'Graveborn infected',template:m2mZombie,height:1.80,speed:[.40,.72],patrolSpeed:.38,chaseMult:1.68,hp:125,damage:12,attackRange:1.30,attackMs:980,behavior:'stalk',animSpeed:.86,aggroRadius:14,deaggroRadius:30,realisticInfected:true,tint:0x53584e,tintMix:.42,emissive:0x2b0202},
+    m2mMonster3&&{id:'mauler',label:'Rot mauler',template:m2mMonster3,height:2.05,speed:[.48,.82],patrolSpeed:.34,chaseMult:1.60,hp:260,damage:22,attackRange:1.62,attackMs:1180,behavior:'charge',animSpeed:.9,aggroRadius:15,deaggroRadius:32,realisticInfected:true,tint:0x4c5148,tintMix:.52,emissive:0x300202},
+    m2mMonster4&&{id:'wretch',label:'Wretch',template:m2mMonster4,height:1.92,speed:[.62,.98],patrolSpeed:.40,chaseMult:1.72,hp:170,damage:17,attackRange:1.42,attackMs:900,behavior:'weave',animSpeed:1.02,aggroRadius:17,deaggroRadius:34,realisticInfected:true,tint:0x565047,tintMix:.48,emissive:0x2d0202},
+    m2mMonster5&&{id:'abomination',label:'Abomination',template:m2mMonster5,height:2.38,speed:[.36,.62],patrolSpeed:.30,chaseMult:1.48,hp:420,damage:34,attackRange:1.94,attackMs:1520,behavior:'charge',animSpeed:.78,aggroRadius:13,deaggroRadius:28,realisticInfected:true,tint:0x474944,tintMix:.58,emissive:0x390202},
     realHuman&&{id:'ashen',label:'Ashen infected',template:realHuman,height:1.72,speed:[.48,.72],patrolSpeed:.48,chaseMult:1.55,hp:112,damage:9,attackRange:1.28,attackMs:1080,behavior:'stalk',animSpeed:.88,aggroRadius:11,deaggroRadius:25,realisticInfected:true,tint:0x6c7465,tintMix:.42,emissive:0x160202},
     realMan&&{id:'stalker',label:'Stalker infected',template:realMan,height:1.86,speed:[.60,.92],patrolSpeed:.46,chaseMult:1.82,hp:128,damage:12,attackRange:1.34,attackMs:930,behavior:'weave',animSpeed:.96,aggroRadius:15,deaggroRadius:31,realisticInfected:true,tint:0x596257,tintMix:.46,emissive:0x210303},
     realScreamer&&{id:'screamer',label:'Screamer',template:realScreamer,height:1.77,speed:[.72,1.08],patrolSpeed:.40,chaseMult:1.92,hp:96,damage:10,attackRange:1.30,attackMs:760,behavior:'charge',burst:1.48,animSpeed:1.12,aggroRadius:20,deaggroRadius:38,realisticInfected:true,screamer:true,tint:0x747260,tintMix:.38,emissive:0x2b0303},
@@ -3145,6 +3229,8 @@ async function buildSurvivalArt(){
   };
 
   spawnOutdoorLoot();
+  streetLifeStats.corpses=scatterStreetCorpses(m2mZombie||zombie,densePreview()?34:14);
+  streetLifeStats.fires=scatterAmbientFires(densePreview()?9:4);
   await buildZombies(zombieTemplate);
   spawnFacadeSpiders(densePreview()?5:3);
 }
