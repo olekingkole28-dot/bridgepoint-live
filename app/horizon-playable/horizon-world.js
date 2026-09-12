@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4215;
+const BUILD_VERSION=4216;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -119,7 +119,62 @@ const DEFAULT_WEAPON_CONFIGS=[
 ];
 
 const params=new URLSearchParams(location.search);
-const PREVIEW_KEY=['city','mountain','coastal'].includes(String(params.get('preview')||'').toLowerCase())?String(params.get('preview')).toLowerCase():null;
+const MAP_PRESETS=[
+  {id:'times_square',name:'Times Square Collapse',state:'NY',lat:40.7580,lon:-73.9855,span:1.0,size:'SMALL',preview:'city',theme:'downtown',density:2.15},
+  {id:'lower_manhattan',name:'Lower Manhattan Siege',state:'NY',lat:40.7075,lon:-74.0113,span:1.7,size:'MEDIUM',preview:'city',theme:'downtown',density:2.10},
+  {id:'brooklyn_docks',name:'Brooklyn Dockyards',state:'NY',lat:40.6782,lon:-74.0165,span:2.4,size:'LARGE',preview:'coastal',theme:'harbor',density:1.95,waterRing:true},
+  {id:'bronx_ruins',name:'Bronx Ruins',state:'NY',lat:40.8448,lon:-73.8648,span:1.5,size:'MEDIUM',preview:'city',theme:'urban',density:2.0},
+  {id:'boston_harbor',name:'Boston Harbor',state:'MA',lat:42.3601,lon:-71.0522,span:1.8,size:'MEDIUM',preview:'coastal',theme:'harbor',density:1.95,waterRing:true},
+  {id:'philadelphia_center',name:'Philadelphia Center City',state:'PA',lat:39.9526,lon:-75.1652,span:1.8,size:'MEDIUM',preview:'city',theme:'downtown',density:2.05},
+  {id:'baltimore_inner_harbor',name:'Baltimore Inner Harbor',state:'MD',lat:39.2847,lon:-76.6132,span:1.6,size:'MEDIUM',preview:'coastal',theme:'harbor',density:2.0,waterRing:true},
+  {id:'dc_mall',name:'D.C. Containment Zone',state:'DC',lat:38.8951,lon:-77.0364,span:2.2,size:'LARGE',preview:'city',theme:'government',density:1.9},
+  {id:'pittsburgh_river',name:'Pittsburgh River Siege',state:'PA',lat:40.4406,lon:-79.9959,span:2.0,size:'MEDIUM',preview:'coastal',theme:'industrial',density:1.95},
+  {id:'cleveland_flats',name:'Cleveland Flats',state:'OH',lat:41.4974,lon:-81.7048,span:1.7,size:'MEDIUM',preview:'city',theme:'industrial',density:2.0},
+  {id:'detroit_downtown',name:'Detroit Blackout',state:'MI',lat:42.3314,lon:-83.0458,span:2.0,size:'MEDIUM',preview:'city',theme:'industrial',density:2.05},
+  {id:'chicago_loop',name:'Chicago Loop',state:'IL',lat:41.8837,lon:-87.6325,span:2.2,size:'LARGE',preview:'city',theme:'downtown',density:2.1},
+  {id:'milwaukee_river',name:'Milwaukee Riverfront',state:'WI',lat:43.0389,lon:-87.9065,span:1.7,size:'MEDIUM',preview:'coastal',theme:'industrial',density:1.95},
+  {id:'minneapolis_mill',name:'Minneapolis Mill District',state:'MN',lat:44.9788,lon:-93.2570,span:1.8,size:'MEDIUM',preview:'city',theme:'industrial',density:1.95},
+  {id:'st_louis_gateway',name:'St. Louis Gateway',state:'MO',lat:38.6270,lon:-90.1994,span:2.0,size:'MEDIUM',preview:'city',theme:'urban',density:1.9},
+  {id:'nashville_core',name:'Nashville Core',state:'TN',lat:36.1627,lon:-86.7816,span:1.7,size:'MEDIUM',preview:'city',theme:'downtown',density:2.0},
+  {id:'memphis_river',name:'Memphis Riverfront',state:'TN',lat:35.1495,lon:-90.0490,span:1.8,size:'MEDIUM',preview:'coastal',theme:'industrial',density:1.9},
+  {id:'atlanta_midtown',name:'Atlanta Midtown',state:'GA',lat:33.7811,lon:-84.3866,span:1.9,size:'MEDIUM',preview:'city',theme:'urban',density:2.05},
+  {id:'charleston_port',name:'Charleston Port',state:'SC',lat:32.7765,lon:-79.9311,span:1.8,size:'MEDIUM',preview:'coastal',theme:'harbor',density:1.95,waterRing:true},
+  {id:'savannah_river',name:'Savannah River District',state:'GA',lat:32.0809,lon:-81.0912,span:1.6,size:'MEDIUM',preview:'coastal',theme:'historic',density:1.9},
+  {id:'miami_beach',name:'Miami Beach Isolation',state:'FL',lat:25.7907,lon:-80.1300,span:2.0,size:'MEDIUM',preview:'coastal',theme:'resort',density:2.0,waterRing:true},
+  {id:'tampa_channelside',name:'Tampa Channelside',state:'FL',lat:27.9446,lon:-82.4450,span:1.8,size:'MEDIUM',preview:'coastal',theme:'harbor',density:1.95,waterRing:true},
+  {id:'orlando_core',name:'Orlando Evacuation Grid',state:'FL',lat:28.5383,lon:-81.3792,span:1.5,size:'MEDIUM',preview:'city',theme:'urban',density:2.0},
+  {id:'jacksonville_river',name:'Jacksonville Riverfront',state:'FL',lat:30.3322,lon:-81.6557,span:2.1,size:'LARGE',preview:'coastal',theme:'harbor',density:1.9},
+  {id:'new_orleans_french',name:'New Orleans Floodline',state:'LA',lat:29.9584,lon:-90.0644,span:1.7,size:'MEDIUM',preview:'coastal',theme:'historic',density:2.05},
+  {id:'houston_downtown',name:'Houston Downtown',state:'TX',lat:29.7604,lon:-95.3698,span:2.3,size:'LARGE',preview:'city',theme:'urban',density:2.0},
+  {id:'dallas_core',name:'Dallas Core',state:'TX',lat:32.7767,lon:-96.7970,span:2.0,size:'MEDIUM',preview:'city',theme:'downtown',density:2.0},
+  {id:'austin_river',name:'Austin River District',state:'TX',lat:30.2672,lon:-97.7431,span:1.8,size:'MEDIUM',preview:'coastal',theme:'urban',density:1.95},
+  {id:'san_antonio_riverwalk',name:'San Antonio Riverwalk',state:'TX',lat:29.4241,lon:-98.4936,span:1.6,size:'MEDIUM',preview:'city',theme:'historic',density:1.95},
+  {id:'el_paso_core',name:'El Paso Dust Zone',state:'TX',lat:31.7619,lon:-106.4850,span:1.8,size:'MEDIUM',preview:'city',theme:'desert',density:1.9},
+  {id:'denver_core',name:'Denver Core',state:'CO',lat:39.7392,lon:-104.9903,span:1.9,size:'MEDIUM',preview:'city',theme:'urban',density:2.0},
+  {id:'colorado_mountain',name:'Rocky Mountain Outbreak',state:'CO',lat:39.1911,lon:-106.8175,span:2.5,size:'LARGE',preview:'mountain',theme:'mountain',density:1.85},
+  {id:'salt_lake',name:'Salt Lake Collapse',state:'UT',lat:40.7608,lon:-111.8910,span:1.9,size:'MEDIUM',preview:'city',theme:'urban',density:1.95},
+  {id:'phoenix_core',name:'Phoenix Heat Zone',state:'AZ',lat:33.4484,lon:-112.0740,span:2.2,size:'LARGE',preview:'city',theme:'desert',density:1.95},
+  {id:'las_vegas_strip',name:'Las Vegas Strip',state:'NV',lat:36.1147,lon:-115.1728,span:2.0,size:'MEDIUM',preview:'city',theme:'resort',density:2.15},
+  {id:'albuquerque',name:'Albuquerque Dead Zone',state:'NM',lat:35.0844,lon:-106.6504,span:1.8,size:'MEDIUM',preview:'city',theme:'desert',density:1.9},
+  {id:'los_angeles_dt',name:'Los Angeles Downtown',state:'CA',lat:34.0522,lon:-118.2437,span:2.4,size:'LARGE',preview:'city',theme:'downtown',density:2.1},
+  {id:'long_beach_port',name:'Long Beach Port',state:'CA',lat:33.7542,lon:-118.2165,span:2.5,size:'LARGE',preview:'coastal',theme:'harbor',density:2.0,waterRing:true},
+  {id:'san_diego_harbor',name:'San Diego Harbor',state:'CA',lat:32.7157,lon:-117.1730,span:2.0,size:'MEDIUM',preview:'coastal',theme:'harbor',density:1.95,waterRing:true},
+  {id:'san_francisco_downtown',name:'San Francisco Downtown',state:'CA',lat:37.7890,lon:-122.4010,span:1.9,size:'MEDIUM',preview:'city',theme:'downtown',density:2.1},
+  {id:'oakland_port',name:'Oakland Port',state:'CA',lat:37.7955,lon:-122.2783,span:2.1,size:'LARGE',preview:'coastal',theme:'industrial',density:2.0,waterRing:true},
+  {id:'sacramento_core',name:'Sacramento Core',state:'CA',lat:38.5816,lon:-121.4944,span:1.8,size:'MEDIUM',preview:'city',theme:'urban',density:1.95},
+  {id:'portland_river',name:'Portland Riverfront',state:'OR',lat:45.5152,lon:-122.6784,span:1.9,size:'MEDIUM',preview:'coastal',theme:'industrial',density:1.95},
+  {id:'seattle_waterfront',name:'Seattle Waterfront',state:'WA',lat:47.6062,lon:-122.3425,span:2.1,size:'LARGE',preview:'coastal',theme:'harbor',density:2.05,waterRing:true},
+  {id:'tacoma_port',name:'Tacoma Port',state:'WA',lat:47.2529,lon:-122.4443,span:2.0,size:'MEDIUM',preview:'coastal',theme:'industrial',density:1.95,waterRing:true},
+  {id:'honolulu_waikiki',name:'Honolulu Waikiki',state:'HI',lat:21.2793,lon:-157.8292,span:1.8,size:'MEDIUM',preview:'coastal',theme:'resort',density:2.0,waterRing:true},
+  {id:'anchorage_port',name:'Anchorage Port',state:'AK',lat:61.2181,lon:-149.9003,span:2.4,size:'LARGE',preview:'coastal',theme:'industrial',density:1.85,waterRing:true},
+  {id:'san_juan_old',name:'Old San Juan',state:'PR',lat:18.4655,lon:-66.1057,span:1.5,size:'MEDIUM',preview:'coastal',theme:'historic',density:2.0,waterRing:true},
+  {id:'guam_hagatna',name:'Hagåtña Outbreak',state:'GU',lat:13.4757,lon:144.7489,span:1.8,size:'MEDIUM',preview:'coastal',theme:'island',density:1.9,waterRing:true},
+  {id:'st_thomas',name:'Charlotte Amalie Last Stand',state:'VI',lat:18.3419,lon:-64.9307,span:1.5,size:'MEDIUM',preview:'coastal',theme:'island',density:1.9,waterRing:true}
+];
+const MAP_BY_ID=new Map(MAP_PRESETS.map(x=>[x.id,x]));
+const MAP_KEY=String(params.get('map')||'times_square').toLowerCase();
+const MAP_PRESET=MAP_BY_ID.get(MAP_KEY)||MAP_PRESETS[0];
+const PREVIEW_KEY=['city','mountain','coastal'].includes(String(params.get('preview')||MAP_PRESET.preview||'').toLowerCase())?String(params.get('preview')||MAP_PRESET.preview).toLowerCase():null;
 const PLAYER_VARIANTS={
   survivor:ASSETS.playerSurvivor,
   female:ASSETS.playerFemale,
@@ -159,13 +214,16 @@ const JURISDICTIONS={
   PR:['Puerto Rico',18.4655,-66.1057],GU:['Guam',13.4443,144.7937],VI:['U.S. Virgin Islands',18.3419,-64.9307],
   AS:['American Samoa',-14.2710,-170.1322],MP:['Northern Mariana Islands',15.1778,145.7509],UM:['U.S. Minor Outlying Islands',19.2823,166.6470]
 };
-const stateParam=String(params.get('state')||'NY').toUpperCase();
-const SELECTED_STATE=JURISDICTIONS[stateParam]?stateParam:'NY';
+const stateParam=String(params.get('state')||MAP_PRESET.state||'NY').toUpperCase();
+const SELECTED_STATE=JURISDICTIONS[stateParam]?stateParam:(JURISDICTIONS[MAP_PRESET.state]?MAP_PRESET.state:'NY');
 const selectedJurisdiction=JURISDICTIONS[SELECTED_STATE];
 const latParam=params.get('lat'),lonParam=params.get('lon');
-const STREAM_LAT=latParam!==null&&latParam!==''&&Number.isFinite(Number(latParam))?Number(latParam):selectedJurisdiction[1];
-const STREAM_LON=lonParam!==null&&lonParam!==''&&Number.isFinite(Number(lonParam))?Number(lonParam):selectedJurisdiction[2];
-const STREAM_SPAN=Math.max(1,Math.min(5.5,Number(params.get('span_km')||3.4)));
+const STREAM_LAT=latParam!==null&&latParam!==''&&Number.isFinite(Number(latParam))?Number(latParam):Number(MAP_PRESET.lat||selectedJurisdiction[1]);
+const STREAM_LON=lonParam!==null&&lonParam!==''&&Number.isFinite(Number(lonParam))?Number(lonParam):Number(MAP_PRESET.lon||selectedJurisdiction[2]);
+const STREAM_SPAN=Math.max(.75,Math.min(5.5,Number(params.get('span_km')||MAP_PRESET.span||3.4)));
+const MAP_DENSITY=Math.max(1,Number(MAP_PRESET.density||1.7));
+const ENDLESS_HORDE=true;
+const ENDLESS_ACTIVE_CAP=MAP_PRESET.size==='LARGE'?44:MAP_PRESET.size==='SMALL'?26:34;
 const densePreview=()=>PREVIEW_KEY?PREVIEW_KEY==='city':(CELL==='manhattan'||CELL==='national');
 
 document.body.classList.toggle('nationalMode',CELL==='national');
@@ -177,6 +235,18 @@ if(jurisdictionSelect){
   jurisdictionSelect.innerHTML=Object.entries(JURISDICTIONS).map(([code,v])=>'<option value="'+code+'">'+v[0]+' ('+code+')</option>').join('');
   jurisdictionSelect.value=SELECTED_STATE;
 }
+const mapSelect=$('mapSelect');
+if(mapSelect){
+  mapSelect.innerHTML=MAP_PRESETS.map(m=>'<option value="'+m.id+'">'+m.name+' · '+m.size+'</option>').join('');
+  mapSelect.value=MAP_PRESET.id;
+  mapSelect.addEventListener('change',()=>{
+    const m=MAP_BY_ID.get(mapSelect.value)||MAP_PRESETS[0],u=new URL(location.href);
+    u.searchParams.set('map',m.id);u.searchParams.set('cell','national');u.searchParams.set('state',m.state);
+    u.searchParams.set('lat',String(m.lat));u.searchParams.set('lon',String(m.lon));u.searchParams.set('span_km',String(m.span));u.searchParams.set('preview',m.preview);u.searchParams.set('build',String(BUILD_VERSION));
+    location.href=u.toString();
+  });
+}
+const mapSizeBadge=$('mapSizeBadge');if(mapSizeBadge)mapSizeBadge.textContent=MAP_PRESET.size+' · '+MAP_PRESET.theme.toUpperCase();
 const characterSelect=$('characterSelect');
 if(characterSelect){
   characterSelect.value=PLAYER_VARIANTS[CHARACTER_KEY]?CHARACTER_KEY:'survivor';
@@ -279,11 +349,11 @@ let recoilPitch=0,recoilYaw=0,fireHeld=false;
 let playerDead=false,kills=0;
 let audioCtx=null,audioMaster=null,lastFootstepAt=0;
 let worldPickups=[],pickupTemplates={},pickupSeq=0;
-let waveNumber=0,nextWaveAt=0,maxActiveZombies=16;
+let waveNumber=0,nextWaveAt=0,maxActiveZombies=ENDLESS_ACTIVE_CAP;
 let zombieTemplate=null,zombieTemplates=[],enemyArchetypes=[];
 let mobileMove={x:0,y:0},mobileSprint=false,mobileInputMode='pointer-fallback',nippleManager=null;
 let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),exteriorYaw=0;
-let interiorWalls=[],interiorContainers=[],interiorBounds=null,interiorExit=null,interiorFloorLinks=[],interiorTemplates={},interiorLootedKeys=new Set();
+let interiorWalls=[],interiorContainers=[],interiorBounds=null,interiorExit=null,interiorFloorLinks=[],interiorStairs=[],interiorTemplates={},interiorLootedKeys=new Set();
 let streetLifeStats={trees:0,bikes:0,vehicles:0,props:0,grass:0,benches:0,planters:0,backgroundTrees:0,shrubs:0,drivable:0};
 let drivableVehicles=[],activeVehicle=null;
 
@@ -541,6 +611,7 @@ function terrainZ(lon,lat){
 function terrainZXY(x,y){const p=unproject(x,y);return terrainZ(p[0],p[1])}
 
 function worldCellLabel(){
+  if(MAP_PRESET)return MAP_PRESET.name.toUpperCase()+' · '+MAP_PRESET.size+' BRIDGEPOINT MAP';
   if(PREVIEW_KEY==='city')return'DENSE CITY · MANHATTAN SURVIVAL CELL';
   if(PREVIEW_KEY==='mountain')return'MOUNTAIN TOWN · ASPEN SURVIVAL CELL';
   if(PREVIEW_KEY==='coastal')return'WATERFRONT SUBURB · SEATTLE SURVIVAL CELL';
@@ -549,6 +620,7 @@ function worldCellLabel(){
   return (JURISDICTIONS[SELECTED_STATE]?.[0]||SELECTED_STATE).toUpperCase()+' · NATIONAL STREAM CELL';
 }
 function worldCellTitle(){
+  if(MAP_PRESET)return MAP_PRESET.name+' · endless horde';
   if(PREVIEW_KEY==='city')return'Manhattan after collapse';
   if(PREVIEW_KEY==='mountain')return'Aspen after collapse';
   if(PREVIEW_KEY==='coastal')return'Waterfront suburb after collapse';
@@ -559,7 +631,7 @@ function worldCellTitle(){
 function worldRequestUrl(){
   const u=new URL(ENDPOINT);
   if(CELL==='national'){
-    u.searchParams.set('state',SELECTED_STATE);u.searchParams.set('lat',String(STREAM_LAT));u.searchParams.set('lon',String(STREAM_LON));u.searchParams.set('span_km',String(STREAM_SPAN));u.searchParams.set('cell_id','HORIZON_'+SELECTED_STATE+'_'+STREAM_LAT.toFixed(4)+'_'+STREAM_LON.toFixed(4));
+    u.searchParams.set('state',SELECTED_STATE);u.searchParams.set('lat',String(STREAM_LAT));u.searchParams.set('lon',String(STREAM_LON));u.searchParams.set('span_km',String(STREAM_SPAN));u.searchParams.set('cell_id','HORIZON_MAP_'+MAP_PRESET.id.toUpperCase());
   }else u.searchParams.set('cell',CELL);
   return u.toString();
 }
@@ -873,10 +945,10 @@ function buildBuildings(){
 }
 function buildFacadeDetails(){
   const candidates=[...buildingCenters].filter(b=>b.height>9&&b.width>3&&b.depth>3).sort((a,b)=>b.height-a.height).slice(0,densePreview()?650:220);
-  const maxWindows=densePreview()?7600:2200;
+  const maxWindows=densePreview()?14000:5200;
   const winGeo=new THREE.BoxGeometry(1,.07,.72);
-  const litMat=new THREE.MeshStandardMaterial({color:0xbfd6cf,emissive:0x6e8d77,emissiveIntensity:.55,roughness:.24,metalness:.12});
-  const darkMat=new THREE.MeshStandardMaterial({color:0x314349,emissive:0x101c1f,emissiveIntensity:.18,roughness:.32,metalness:.18});
+  const litMat=new THREE.MeshPhysicalMaterial({color:0xa9c9d0,emissive:0x394f47,emissiveIntensity:.34,roughness:.08,metalness:.04,transparent:true,opacity:.48,transmission:.32,depthWrite:true});
+  const darkMat=new THREE.MeshPhysicalMaterial({color:0x486069,emissive:0x0c1415,emissiveIntensity:.10,roughness:.10,metalness:.06,transparent:true,opacity:.36,transmission:.42,depthWrite:true});
   const lit=new THREE.InstancedMesh(winGeo,litMat,maxWindows),dark=new THREE.InstancedMesh(winGeo,darkMat,maxWindows);
   const d=new THREE.Object3D();let li=0,di=0,total=0;
   const put=(b,x,y,z,side,litOn,scale)=>{
@@ -885,7 +957,7 @@ function buildFacadeDetails(){
     const target=litOn?lit:dark,idx=litOn?li++:di++;target.setMatrixAt(idx,d.matrix);total++;return true;
   };
   for(const b of candidates){
-    const floors=Math.min(45,Math.max(2,Math.floor(b.height/3.05))),step=b.height>90?3:b.height>45?2:1;
+    const floors=Math.min(60,Math.max(2,Math.floor(b.height/3.05))),step=1;
     const colsX=Math.min(5,Math.max(1,Math.floor(b.width/3.2))),colsY=Math.min(5,Math.max(1,Math.floor(b.depth/3.2)));
     for(let f=1;f<floors&&total<maxWindows;f+=step){
       const z=b.z+Math.min(b.height-.8,f*3.05+1.05);
@@ -902,7 +974,7 @@ function buildFacadeDetails(){
     }
   }
   lit.count=li;dark.count=di;lit.instanceMatrix.needsUpdate=true;dark.instanceMatrix.needsUpdate=true;
-  lit.castShadow=false;dark.castShadow=false;worldGroup.add(lit,dark);
+  lit.castShadow=false;dark.castShadow=false;lit.userData.breakableFacade=true;dark.userData.breakableFacade=true;worldGroup.add(lit,dark);
 
   const roofGeo=new THREE.BoxGeometry(1.25,1.05,.55),roofMat=new THREE.MeshStandardMaterial({color:0x686d69,roughness:.76,metalness:.34});
   const maxRoof=Math.min(700,candidates.length*2),roof=new THREE.InstancedMesh(roofGeo,roofMat,maxRoof);let ri=0;
@@ -954,13 +1026,15 @@ function buildEntryPoints(){
     let root=null;
     if(visualCount<visualLimit){
       root=new THREE.Group();
-      const frameMat=new THREE.MeshStandardMaterial({color:0x242922,roughness:.68,metalness:.22});
-      const glowMat=new THREE.MeshStandardMaterial({color:0x506c57,emissive:0x2a7b49,emissiveIntensity:.68,roughness:.55});
+      const frameMat=new THREE.MeshStandardMaterial({color:0x20231f,roughness:.88,metalness:.12});
+      const glowMat=new THREE.MeshStandardMaterial({color:0x281815,emissive:0x5a160c,emissiveIntensity:.28,roughness:.9});
       const left=new THREE.Mesh(new THREE.BoxGeometry(.15,.18,2.35),frameMat),right=left.clone();
       left.position.set(-.62,0,1.17);right.position.set(.62,0,1.17);
       const top=new THREE.Mesh(new THREE.BoxGeometry(1.38,.18,.15),frameMat);top.position.set(0,0,2.28);
+      const opening=new THREE.Mesh(new THREE.BoxGeometry(1.12,.075,2.06),new THREE.MeshBasicMaterial({color:0x020303,transparent:true,opacity:.94}));
+      opening.position.set(0,.055,1.03);opening.userData.doorVoid=true;
       const lamp=new THREE.Mesh(new THREE.BoxGeometry(.18,.12,.18),glowMat);lamp.position.set(0,-.12,2.05);
-      root.add(left,right,top,lamp);root.position.set(x,y,b.z);root.rotation.z=rot;entryGroup.add(root);visualCount++;
+      root.add(opening,left,right,top,lamp);root.position.set(x,y,b.z);root.rotation.z=rot;entryGroup.add(root);visualCount++;
     }
     buildingEntries.push({
       ...b,entryX:x,entryY:y,entryZ:b.z,doorRoot:root,seed:hash(b.id+':interior'),
@@ -981,6 +1055,11 @@ function installInteractiveDoors(){
 }
 function openDoor(entry,kicked=false){
   if(!entry?.doorPivot)return false;entry.doorOpen=true;entry.doorTarget=kicked?-1.48:-1.18;showToast(kicked?'Door kicked open':'Door opened');return true;
+}
+function shatterFacadeGlass(mesh,instanceId){
+  if(!mesh?.userData?.breakableFacade||instanceId==null)return false;
+  const zero=new THREE.Matrix4().makeScale(.0001,.0001,.0001);mesh.setMatrixAt(instanceId,zero);mesh.instanceMatrix.needsUpdate=true;
+  showToast('Window shattered');return true;
 }
 function shatterGlass(mesh){
   if(!mesh?.userData?.breakableGlass)return false;
@@ -1215,6 +1294,14 @@ function buildWater(){
   const g=mergeLocal(geos);
   if(g)worldGroup.add(new THREE.Mesh(g,new THREE.MeshPhysicalMaterial({color:0x315e66,roughness:.18,metalness:.03,transparent:true,opacity:.78})));
   for(const x of geos)x.dispose();
+}
+function buildWaterfrontPerimeter(){
+  if(!MAP_PRESET?.waterRing)return 0;
+  const inner=Math.max(150,STREAM_SPAN*1000*.34),outer=Math.max(inner+450,STREAM_SPAN*1000*.95);
+  const g=new THREE.RingGeometry(inner,outer,128,3);
+  const mat=new THREE.MeshPhysicalMaterial({color:0x214f5b,roughness:.16,metalness:.02,transparent:true,opacity:.86,clearcoat:.45,clearcoatRoughness:.2});
+  const mesh=new THREE.Mesh(g,mat);mesh.position.z=baseElevation?-.12:.08;mesh.receiveShadow=true;worldGroup.add(mesh);
+  streetLifeStats.waterPerimeter=1;return 1;
 }
 function addLights(){
   hemi=new THREE.HemisphereLight(0xdce9df,0x283125,1.15);scene.add(hemi);
@@ -2373,7 +2460,40 @@ let doorwayPursuerKinds=[];
 function clearInterior(){
   while(interiorGroup.children.length)interiorGroup.remove(interiorGroup.children[0]);
   worldPickups=worldPickups.filter(p=>p.mode!=='interior');
-  interiorWalls=[];interiorContainers=[];interiorZombies=[];interiorFloorLinks=[];interiorBounds=null;interiorExit=null;
+  interiorWalls=[];interiorContainers=[];interiorZombies=[];interiorFloorLinks=[];interiorStairs=[];interiorBounds=null;interiorExit=null;
+}
+function makeWalkableStairs(label,x,y,direction){
+  const g=new THREE.Group(),steps=12,run=3.6,rise=2.72,mat=new THREE.MeshStandardMaterial({color:0x4b4e49,roughness:.92,metalness:.06});
+  for(let i=0;i<steps;i++){
+    const t=(i+.5)/steps,step=new THREE.Mesh(new THREE.BoxGeometry(1.5,run/steps+.035,rise/steps),mat);
+    step.position.set(0,(t-.5)*run,(i+.5)*(rise/steps)/2);step.position.z=(i+.5)*(rise/steps);step.castShadow=true;step.receiveShadow=true;g.add(step);
+  }
+  const railMat=new THREE.MeshStandardMaterial({color:0x2d302e,roughness:.6,metalness:.42});
+  for(const side of [-1,1]){
+    const rail=new THREE.Mesh(new THREE.BoxGeometry(.055,run,1.0),railMat);rail.position.set(side*.79,0,1.32);g.add(rail);
+  }
+  g.position.set(x,y,0);g.rotation.z=direction<0?Math.PI:0;interiorGroup.add(g);
+  const s={kind:direction>0?'floorUp':'floorDown',label,x,y,run,rise,direction,floor:direction>0?(activeInterior?.floor||1)+1:(activeInterior?.floor||1)-1};
+  interiorStairs.push(s);return s;
+}
+function interiorGroundZ(x,y){
+  let z=.015;
+  for(const s of interiorStairs){
+    const dx=x-s.x,dy=y-s.y,ly=s.direction>0?dy:-dy;
+    if(Math.abs(dx)>.92||ly<-s.run/2-.25||ly>s.run/2+.25)continue;
+    const t=THREE.MathUtils.clamp((ly+s.run/2)/s.run,0,1);z=Math.max(z,t*s.rise+.015);
+  }
+  return z;
+}
+function maybeUseWalkableStairs(){
+  if(!interiorMode||!activeInterior||!playerRoot)return false;
+  for(const s of interiorStairs){
+    const dx=playerRoot.position.x-s.x,dy=playerRoot.position.y-s.y,ly=s.direction>0?dy:-dy;
+    if(Math.abs(dx)>.88||ly<s.run/2-.22)continue;
+    if(s.direction>0&&activeInterior.floor<activeInterior.floors){changeInteriorFloor(activeInterior.floor+1,'stairs');return true}
+    if(s.direction<0&&activeInterior.floor>1){changeInteriorFloor(activeInterior.floor-1,'stairs');return true}
+  }
+  return false;
 }
 function makeFloorPortal(label,x,y,direction){
   const g=new THREE.Group();
@@ -2459,27 +2579,29 @@ function generateInterior(entry,requestedFloor=1){
   if(r()>.42)createSearchSpot('Search closet',-w*.39,h*.12,'dresser',floorSeed+107,keyBase+'closet');
 
   const upX=w/2-1.45,upY=-h/2+1.65,downX=w/2-1.45,downY=-h/2+3.45;
+  activeInterior={entry,width:w,depth:h,layout,floor:floorNumber,floors};
   if(floorNumber<floors){
-    makeFloorPortal('UP',upX,upY,1);
-    interiorFloorLinks.push({kind:'floorUp',x:upX,y:upY,label:'GO UP · FLOOR '+(floorNumber+1),floor:floorNumber+1});
+    const s=makeWalkableStairs('UP',upX,upY,1);s.floor=floorNumber+1;
   }
   if(floorNumber>1){
-    makeFloorPortal('DOWN',downX,downY,-1);
-    interiorFloorLinks.push({kind:'floorDown',x:downX,y:downY,label:'GO DOWN · FLOOR '+(floorNumber-1),floor:floorNumber-1});
+    const s=makeWalkableStairs('DOWN',downX,downY,-1);s.floor=floorNumber-1;
   }
-
-  activeInterior={entry,width:w,depth:h,layout,floor:floorNumber,floors};
   spawnInteriorVisibleLoot(w,h,floorSeed);
   const zCount=floorNumber>1&&r()<.44?1:0;
   for(let i=0;i<zCount;i++)spawnInteriorZombie(zombieTemplates.length?zombieTemplates[Math.floor(r()*zombieTemplates.length)]:zombieTemplate,r,w,h);
 }
-function changeInteriorFloor(nextFloor){
+function changeInteriorFloor(nextFloor,via='interaction'){
   if(!interiorMode||!activeInterior)return;
   const entry=activeInterior.entry,floors=activeInterior.floors;
   nextFloor=THREE.MathUtils.clamp(Math.round(nextFloor),1,floors);
   if(nextFloor===activeInterior.floor)return;
   generateInterior(entry,nextFloor);
-  playerRoot.position.set(0,-activeInterior.depth/2+2.15,.015);playerVelocity.set(0,0,0);
+  if(via==='stairs'){
+    const arrivingFromBelow=nextFloor>1;
+    const x=activeInterior.width/2-1.45,y=-activeInterior.depth/2+(arrivingFromBelow?3.72:1.95);
+    playerRoot.position.set(x,y,.015);
+  }else playerRoot.position.set(0,-activeInterior.depth/2+2.15,.015);
+  playerVelocity.set(0,0,0);
   $('worldTitle').textContent=activeInterior.layout+' · Floor '+activeInterior.floor+' / '+activeInterior.floors;
   loadText.textContent='Floor '+activeInterior.floor+' of '+activeInterior.floors+' · search rooms, visible loot and stashes.';
   showToast('Floor '+activeInterior.floor+' / '+activeInterior.floors);
@@ -2686,6 +2808,10 @@ function gunRaycast(cfg){
     if(z&&!z.dead)return{z,target:h.point.clone(),dist:h.distance,origin,dir,blocked:false};
     if(h.object?.userData?.breakableGlass){
       shatterGlass(h.object);
+      return{z:null,target:h.point.clone(),dist:h.distance,origin,dir,blocked:false,glass:true};
+    }
+    if(h.object?.userData?.breakableFacade){
+      shatterFacadeGlass(h.object,h.instanceId);
       return{z:null,target:h.point.clone(),dist:h.distance,origin,dir,blocked:false,glass:true};
     }
     if(h.object?.isMesh)return{z:null,target:h.point.clone(),dist:h.distance,origin,dir,blocked:true};
@@ -2899,7 +3025,8 @@ function spawnZombieWave(now=performance.now(),force=false){
   if(!zombieTemplate||!roadAnchors.length||playerDead||interiorMode)return 0;
   const active=zombies.filter(z=>!z.dead).length;
   if(!force&&(now<nextWaveAt||active>=maxActiveZombies))return 0;
-  const desired=Math.min(maxActiveZombies-active,3+(waveNumber%3));
+  const pressure=Math.min(7,2+Math.floor(kills/18));
+  const desired=Math.min(maxActiveZombies-active,force?Math.min(12,maxActiveZombies):pressure);
   if(desired<=0)return 0;
   const origin=playerRoot?.position||playerSpawn;
   let candidates=roadAnchors.filter(a=>{
@@ -2914,8 +3041,8 @@ function spawnZombieWave(now=performance.now(),force=false){
     const variant=pool.length?pool[Math.floor(rand()*pool.length)]:zombieTemplate;
     if(spawnZombieAt(variant,a,false))made++;
   }
-  if(made){waveNumber++;showToast('Hostile wave '+waveNumber+' approaching · '+made)}
-  nextWaveAt=now+19000+rand()*9000;
+  if(made){waveNumber++;if(force||waveNumber%5===0)showToast('ENDLESS HORDE · '+active+'+'+made+' active')}
+  nextWaveAt=now+(active<maxActiveZombies*.45?1250:2400)+rand()*1600;
   updateZombieCount();return made;
 }
 async function buildZombies(template){
@@ -3171,35 +3298,54 @@ async function buildSurvivalArt(){
   zombieTemplates=enemyArchetypes;
   zombieTemplate=enemyArchetypes[0]||null;
 
-  const dense=densePreview();
+  const dense=densePreview(),density=MAP_DENSITY;
+  const D=n=>Math.max(1,Math.round(n*density));
   let props=0,vehicles=0;
-  props+=scatterRoadsideTemplate(streetlight,dense?132:52,4.8,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(hydrant,dense?66:26,.95,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(traffic1,dense?36:12,3.4,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(traffic2,dense?28:10,3.4,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(barrier,dense?54:22,1.1,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(plasticBarrier,dense?44:18,.95,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(cone,dense?82:30,.75,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(trash,dense?92:38,.72,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(pallet,dense?34:16,.32,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(barrel,dense?46:20,1.15,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(cinder,dense?60:20,.28,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(pipes,dense?20:8,.70,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(wheelStack,dense?28:10,.75,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(townSign,dense?18:8,1.8,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(containerGreen,dense?12:4,2.5,'sidewalk')||0;
-  props+=scatterRoadsideTemplate(containerRed,dense?12:4,2.5,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(streetlight,D(dense?132:52),4.8,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(hydrant,D(dense?66:26),.95,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(traffic1,D(D(dense?36:12)),3.4,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(traffic2,D(D(dense?28:10)),3.4,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(barrier,D(dense?54:22),1.1,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(plasticBarrier,D(dense?44:18),.95,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(cone,D(dense?82:30),.75,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(trash,D(dense?92:38),.72,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(pallet,D(dense?34:16),.32,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(barrel,D(dense?46:20),1.15,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(cinder,D(dense?60:20),.28,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(pipes,D(dense?20:8),.70,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(wheelStack,D(D(dense?28:10)),.75,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(townSign,D(dense?18:8),1.8,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(containerGreen,D(dense?12:4),2.5,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(containerRed,D(dense?12:4),2.5,'sidewalk')||0;
 
-  vehicles+=scatterRoadsideTemplate(pickup,dense?36:12,1.72,'parking')||0;
-  vehicles+=scatterRoadsideTemplate(sports,dense?34:10,1.35,'parking')||0;
-  vehicles+=scatterRoadsideTemplate(truck,dense?18:7,2.25,'parking')||0;
+  vehicles+=scatterRoadsideTemplate(pickup,D(D(dense?36:12)),1.72,'parking')||0;
+  vehicles+=scatterRoadsideTemplate(sports,D(dense?34:10),1.35,'parking')||0;
+  vehicles+=scatterRoadsideTemplate(truck,D(dense?18:7),2.25,'parking')||0;
+
+  // Every preset gets a different visual signature while all geometry still comes from the BridgePoint stream.
+  if(MAP_PRESET.theme==='harbor'||MAP_PRESET.theme==='industrial'){
+    props+=scatterRoadsideTemplate(containerGreen,D(dense?28:14),2.5,'sidewalk')||0;
+    props+=scatterRoadsideTemplate(containerRed,D(dense?24:12),2.5,'sidewalk')||0;
+    props+=scatterRoadsideTemplate(barrel,D(dense?48:24),1.15,'sidewalk')||0;
+    props+=scatterRoadsideTemplate(pipes,D(dense?22:12),.70,'sidewalk')||0;
+  }else if(MAP_PRESET.theme==='mountain'){
+    props+=scatterRoadsideTemplate(pallet,D(dense?26:18),.32,'sidewalk')||0;
+    props+=scatterRoadsideTemplate(barrier,D(dense?34:20),1.1,'sidewalk')||0;
+  }else if(MAP_PRESET.theme==='desert'){
+    props+=scatterRoadsideTemplate(wheelStack,D(dense?36:20),.75,'sidewalk')||0;
+    props+=scatterRoadsideTemplate(cinder,D(dense?52:28),.28,'sidewalk')||0;
+  }else{
+    props+=scatterRoadsideTemplate(trash,D(dense?70:34),.72,'sidewalk')||0;
+    props+=scatterRoadsideTemplate(cone,D(dense?52:28),.75,'sidewalk')||0;
+    props+=scatterRoadsideTemplate(barrier,D(dense?38:22),1.1,'sidewalk')||0;
+  }
 
   let localProps=0,localVehicles=0;
   localProps+=scatterRoadsideTemplateLocal(streetlight,dense?42:20,4.8,'sidewalk')||0;
   localProps+=scatterRoadsideTemplateLocal(hydrant,dense?20:10,.95,'sidewalk')||0;
   localProps+=scatterRoadsideTemplateLocal(trash,dense?30:16,.72,'sidewalk')||0;
   localProps+=scatterRoadsideTemplateLocal(cone,dense?24:12,.75,'sidewalk')||0;
-  localProps+=scatterRoadsideTemplateLocal(barrier,dense?18:8,1.1,'sidewalk')||0;
+  localProps+=scatterRoadsideTemplateLocal(barrier,D(dense?18:8),1.1,'sidewalk')||0;
   localVehicles+=scatterRoadsideTemplateLocal(pickup,dense?12:6,1.72,'parking')||0;
   localVehicles+=scatterRoadsideTemplateLocal(sports,dense?14:5,1.35,'parking')||0;
   localVehicles+=scatterRoadsideTemplateLocal(truck,dense?6:3,2.25,'parking')||0;
@@ -3257,13 +3403,14 @@ function revealMap(x,y,save=true){
   fogCtx.fillStyle=gr;fogCtx.beginPath();fogCtx.arc(m.x,m.y,radius,0,Math.PI*2);fogCtx.fill();
   if(save){
     exploredPoints.push([Math.round(x),Math.round(y)]);if(exploredPoints.length>500)exploredPoints.shift();
-    try{localStorage.setItem('horizon-explore-'+CELL,JSON.stringify(exploredPoints))}catch(_){}
+    try{localStorage.setItem(mapStorageKey('horizon-explore'),JSON.stringify(exploredPoints))}catch(_){}
   }
 }
 function loadExploration(){
-  try{const a=JSON.parse(localStorage.getItem('horizon-explore-'+CELL)||'[]');if(Array.isArray(a)){exploredPoints=a.slice(-500);for(const p of exploredPoints)revealMap(+p[0],+p[1],false)}}catch(_){}
+  try{const a=JSON.parse(localStorage.getItem(mapStorageKey('horizon-explore'))||'[]');if(Array.isArray(a)){exploredPoints=a.slice(-500);for(const p of exploredPoints)revealMap(+p[0],+p[1],false)}}catch(_){}
 }
-function mapMarkerKey(){return'horizon-map-markers-'+CELL}
+function mapStorageKey(prefix){return prefix+'-'+CELL+'-'+MAP_PRESET.id}
+function mapMarkerKey(){return mapStorageKey('horizon-map-markers')}
 function loadMapMarkers(){try{const v=JSON.parse(localStorage.getItem(mapMarkerKey())||'[]');mapMarkers=Array.isArray(v)?v.slice(-250):[]}catch(_){mapMarkers=[]}}
 function saveMapMarkers(){try{localStorage.setItem(mapMarkerKey(),JSON.stringify(mapMarkers.slice(-250)))}catch(_){}}
 function mapPixelToWorld(px,py){
@@ -3515,7 +3662,7 @@ function updatePlayer(dt){
   }
   if(!usedRapier){
     movePlayerStable(playerVelocity.x*dt,playerVelocity.y*dt);
-    const targetGround=interiorMode?.015:surfaceZXY(playerRoot.position.x,playerRoot.position.y)+.015;
+    const targetGround=interiorMode?interiorGroundZ(playerRoot.position.x,playerRoot.position.y):surfaceZXY(playerRoot.position.x,playerRoot.position.y)+.015;
     playerRoot.position.z=THREE.MathUtils.lerp(playerRoot.position.z,targetGround,1-Math.exp(-22*dt));
   }
 
@@ -3535,7 +3682,7 @@ function updatePlayer(dt){
   const nowAudio=performance.now();
   if(moving&&grounded&&nowAudio-lastFootstepAt>(sprint?280:430)){lastFootstepAt=nowAudio;if(audioCtx)spatialTone(playerRoot.position,'foot')}
 
-  if(interiorMode){if(maybeWalkOutOpenDoor())return}
+  if(interiorMode){if(maybeUseWalkableStairs())return;if(maybeWalkOutOpenDoor())return}
   if(!interiorMode){
     if(maybeWalkThroughOpenDoor())return;
     maybeNationalTravel();
@@ -3610,7 +3757,7 @@ async function boot(){
     lon0=Number(data.center.lon);lat0=Number(data.center.lat);mx=111320*Math.cos(lat0*Math.PI/180);my=110540;
     const meta=$('jurisdictionMeta');if(meta&&CELL==='national')meta.textContent=(JURISDICTIONS[SELECTED_STATE]?.[0]||SELECTED_STATE)+' · '+(data.counts?.buildings||0).toLocaleString()+' buildings · '+(data.counts?.parcels||0).toLocaleString()+' open parcel outlines · '+Number(data.span_km||STREAM_SPAN).toFixed(1)+' km streamed cell';
 
-    buildAtmosphere();buildTerrain();buildRoads();buildApocalypseGroundDressing();buildWater();buildBuildings();buildFacadeDetails();buildParts();buildParcels();addLights();setLighting(0);drawMinimapBase();initInput();
+    buildAtmosphere();buildTerrain();buildRoads();buildApocalypseGroundDressing();buildWater();buildWaterfrontPerimeter();buildBuildings();buildFacadeDetails();buildParts();buildParcels();addLights();setLighting(0);drawMinimapBase();initInput();
     applyApocalypseDecay(worldGroup);
     await buildPlayer();createPlayerPhysics();buildEntryPoints();installInteractiveDoors();renderFactionBanner();initFlashlight();
     revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone();
@@ -3621,7 +3768,7 @@ async function boot(){
     updateInventory();updateInteractionPrompt();resizeRenderer();
     window.BP_HORIZON_SMOKE={
       ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),
-      player:Boolean(playerRoot),playerAssetLoaded,playerAssetMode,character:CHARACTER_KEY,preview:PREVIEW_KEY,loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,
+      player:Boolean(playerRoot),playerAssetLoaded,playerAssetMode,character:CHARACTER_KEY,preview:PREVIEW_KEY,mapPreset:MAP_PRESET.id,mapCount:MAP_PRESETS.length,mapSize:MAP_PRESET.size,endlessHorde:ENDLESS_HORDE,endlessCap:maxActiveZombies,loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,
       enemyArchetypes:enemyArchetypes.map(x=>x.id),realisticInfected:enemyArchetypes.filter(x=>x.realisticInfected).length,precomputedPatrols:zombies.filter(z=>z.patrolRoute?.length>1).length,mapMarkers:mapMarkers.length,groundDetails:Number(streetLifeStats.groundDetails||0),climbingSpiders:zombies.filter(z=>z.kind==='spider'&&z.climb).length,weaponCatalog:[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],dropWeapon:true,
       packCapacity,weapon:equippedWeaponName,interiorAssets:Object.values(interiorTemplates).filter(Boolean).length,
       artChildren:artGroup.children.length,roadLayers:roadLayer?.children?.length||0,streetLife:{...streetLifeStats},
@@ -3637,7 +3784,7 @@ async function boot(){
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
       reloadActive:reloadState.active,aimFov:weaponCfg(activeWeapon).aim_fov,
-      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,
+      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,walkableStairs:true,transparentFacadeWindows:true,
       matchMode,matchRadius:Number.isFinite(matchRadius)?matchRadius:null,seasonDay:seasonDay(),xp,battleTier,livesRemaining,
       flashlightReady:Boolean(flashlight),vehicleRepair:true,factionClaimMode:'local-preview',spectatorMode
     };
