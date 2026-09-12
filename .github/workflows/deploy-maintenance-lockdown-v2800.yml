@@ -40,6 +40,7 @@ jobs:
           cp -a app/horizon/. site/app/horizon/
           cp -a app/horizon-world/. site/app/horizon-world/
           cp -a app/horizon-playable/. site/app/horizon-playable/
+          node scripts/prewarm-horizon-maps.mjs app/horizon-playable/horizon-world.js site/app/horizon/maps
           cat > site/index.html <<'HTML'
           <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-store"><meta http-equiv="refresh" content="0; url=/app/intelligence-launch/"><title>BridgePoint Intelligence</title><script>location.replace('/app/intelligence-launch/'+location.search+location.hash)</script></head><body><a href="/app/intelligence-launch/">BridgePoint Intelligence</a></body></html>
           HTML
@@ -56,6 +57,7 @@ jobs:
           test -s site/app/horizon/preview.html
           test -s site/app/horizon-playable/horizon-world.js
           test -s site/app/horizon-playable/horizon-world.css
+          test -s site/app/horizon/maps/index.json
           grep -Fq 'BridgePoint Horizon - Founding Season' site/app/horizon/index.html
           grep -Fq 'FOUNDING SEASON' site/app/horizon/index.html
           grep -Fq '/app/horizon/preview.html?map=times_square' site/app/horizon/index.html
@@ -63,7 +65,7 @@ jobs:
           grep -Fq 'mapSelect' site/app/horizon/preview.html
           grep -Fq 'characterSelect' site/app/horizon/preview.html
           grep -Fq 'Choose one of 50 BridgePoint survival maps' site/app/horizon/preview.html
-          grep -Fq '../horizon-playable/horizon-world.js?v=4222' site/app/horizon/preview.html
+          grep -Fq '../horizon-playable/horizon-world.js?v=4226' site/app/horizon/preview.html
           grep -Fq 'bridgepoint-horizon-stream-v3020' site/app/horizon-playable/horizon-world.js
           grep -Fq 'Characters_Matt.gltf' site/app/horizon-playable/horizon-world.js
           grep -Fq 'Characters_Lis.gltf' site/app/horizon-playable/horizon-world.js
@@ -71,7 +73,7 @@ jobs:
           grep -Fq 'Characters_Shaun.gltf' site/app/horizon-playable/horizon-world.js
           grep -Fq 'loadAsset(PLAYER_ASSET)' site/app/horizon-playable/horizon-world.js
           grep -Fq 'normalizeMovementInput' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'playerVelocity.x=desiredX' site/app/horizon-playable/horizon-world.js
+          grep -Fq "locomotionIntent='sprint'" site/app/horizon-playable/horizon-world.js
           grep -Fq 'playerFacingYaw' site/app/horizon-playable/horizon-world.js
           grep -Fq 'n.model.rotation.y=Math.PI' site/app/horizon-playable/horizon-world.js
           grep -Fq 'playerRoot.rotation.z=lerpAngle' site/app/horizon-playable/horizon-world.js
@@ -93,6 +95,10 @@ jobs:
           grep -Fq 'assetPromiseCache' site/app/horizon-playable/horizon-world.js
           grep -Fq "getObjectByName('hand_r')" site/app/horizon-playable/horizon-world.js
           grep -Fq 'BP_HORIZON_PLAYABLE' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'function buildInstantBuildingMassing' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'function ensureExplorableShell' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'function buildDenseApocalypseLayers' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'function updateReticleUi' site/app/horizon-playable/horizon-world.js
           grep -Fq 'function dressOpenSourceBuildings' site/app/horizon-playable/horizon-world.js
           grep -Fq 'playerRealistic' site/app/horizon-playable/horizon-world.js
           grep -Fq 'aimProbe' site/app/horizon-playable/horizon-world.js
@@ -125,7 +131,7 @@ jobs:
           for attempt in $(seq 1 30); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
             code="$(curl -sSL --max-time 20 -o /tmp/horizon.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/?v=${salt}" || true)"
-            preview_code="$(curl -sSL --max-time 20 -o /tmp/horizon-preview.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=survivor&build=4222&v=${salt}" || true)"
+            preview_code="$(curl -sSL --max-time 20 -o /tmp/horizon-preview.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=survivor&build=4226&v=${salt}" || true)"
             js_code="$(curl -sSL --max-time 20 -o /tmp/horizon-world.js -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon-playable/horizon-world.js?v=${salt}" || true)"
             if [ "$code" = "200" ] && [ "$preview_code" = "200" ] && [ "$js_code" = "200" ] \
               && grep -Fq 'BridgePoint Horizon - Founding Season' /tmp/horizon.html \
@@ -139,7 +145,7 @@ jobs:
               && grep -Fq 'Characters_Sam.gltf' /tmp/horizon-world.js \
               && grep -Fq 'loadAsset(PLAYER_ASSET)' /tmp/horizon-world.js \
               && grep -Fq 'normalizeMovementInput' /tmp/horizon-world.js \
-              && grep -Fq 'playerVelocity.x=desiredX' /tmp/horizon-world.js \
+              && grep -Fq "locomotionIntent='sprint'" /tmp/horizon-world.js \
               && grep -Fq 'playerFacingYaw' /tmp/horizon-world.js \
               && grep -Fq 'n.model.rotation.y=Math.PI' /tmp/horizon-world.js \
               && grep -Fq 'playerRoot.rotation.z=lerpAngle' /tmp/horizon-world.js \
@@ -160,6 +166,10 @@ jobs:
               && grep -Fq 'assetPromiseCache' /tmp/horizon-world.js \
               && grep -Fq "getObjectByName('hand_r')" /tmp/horizon-world.js \
               && grep -Fq 'BP_HORIZON_PLAYABLE' /tmp/horizon-world.js \
+              && grep -Fq 'function buildInstantBuildingMassing' /tmp/horizon-world.js \
+              && grep -Fq 'function ensureExplorableShell' /tmp/horizon-world.js \
+              && grep -Fq 'function buildDenseApocalypseLayers' /tmp/horizon-world.js \
+              && grep -Fq 'function updateReticleUi' /tmp/horizon-world.js \
               && grep -Fq 'function dressOpenSourceBuildings' /tmp/horizon-world.js \
               && grep -Fq 'playerRealistic' /tmp/horizon-world.js \
               && grep -Fq 'aimProbe' /tmp/horizon-world.js \
@@ -177,4 +187,4 @@ jobs:
           done
           test "$ok" = "1"
 
-# Horizon grounded survival release 4222
+# Horizon grounded survival release 4226
