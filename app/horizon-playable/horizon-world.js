@@ -220,7 +220,117 @@ mapBase.height=mapFog.height=minimap.height;
 const baseCtx=mapBase.getContext('2d');
 const fogCtx=mapFog.getContext('2d');
 let lastReveal=null,exploredPoints=[];
+let travelPending=false,lastTravelCheck=0;
+const activeBoundaryEdges=new Set();
+const countryBarrierGroup=new THREE.Group();countryBarrierGroup.name='us-jurisdiction-barriers';exteriorRoot.add(countryBarrierGroup);
 
+function persistSurvivor(){
+  clearTimeout(persistSurvivor.t);
+  persistSurvivor.t=setTimeout(()=>{
+    try{
+      localStorage.setItem(SAVE_KEY,JSON.stringify({
+        inventory,equipment,ammoState,lootCount,packName,packCapacity,kills
+      }));
+    }catch(_){}
+  },80);
+}
+function restoreSurvivor(){
+  try{
+    const v=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(!v||typeof v!=='object')return;
+    if(v.inventory&&typeof v.inventory==='object')inventory=v.inventory;
+    if(v.equipment&&typeof v.equipment==='object')equipment={...equipment,...v.equipment};
+    if(v.ammoState&&typeof v.ammoState==='object')ammoState={...ammoState,...v.ammoState};
+    if(Number.isFinite(+v.lootCount))lootCount=Math.max(0,+v.lootCount);
+    if(typeof v.packName==='string')packName=v.packName;
+    if(Number.isFinite(+v.packCapacity))packCapacity=Math.max(12,+v.packCapacity);
+    if(Number.isFinite(+v.kills))kills=Math.max(0,+v.kills);
+  }catch(_){}
+}
+function streamXYBounds(){
+  if(!data?.bbox)return null;
+  const west=project([data.bbox.west,lat0]).x,east=project([data.bbox.east,lat0]).x;
+  const south=project([lon0,data.bbox.south]).y,north=project([lon0,data.bbox.north]).y;
+  return{west,east,south,north,width:east-west,height:north-south};
+}
+function boundaryBlocks(x,y){
+  const b=streamXYBounds();if(!b)return false;const pad=4;
+  if(activeBoundaryEdges.has('east')&&x>b.east-pad)return true;
+  if(activeBoundaryEdges.has('west')&&x<b.west+pad)return true;
+  if(activeBoundaryEdges.has('north')&&y>b.north-pad)return true;
+  if(activeBoundaryEdges.has('south')&&y<b.south+pad)return true;
+  return false;
+}
+function buildBoundaryVisual(edge){
+  if(activeBoundaryEdges.has(edge))return;
+  activeBoundaryEdges.add(edge);
+  const b=streamXYBounds();if(!b)return;
+  const horizontal=edge==='north'||edge==='south';
+  const len=horizontal?b.width:b.height;
+  const fixed=edge==='north'?b.north-3:edge==='south'?b.south+3:edge==='east'?b.east-3:b.west+3;
+  const mat=new THREE.MeshStandardMaterial({color:0x7d1f1f,emissive:0x5e0808,emissiveIntensity:.9,roughness:.62});
+  const postGeo=new THREE.BoxGeometry(horizontal?2.2:.36,horizontal?.36:2.2,2.25);
+  const count=Math.max(24,Math.min(80,Math.floor(len/38)));
+  for(let i=0;i<count;i++){
+    const t=count<=1?.5:i/(count-1),x=horizontal?THREE.MathUtils.lerp(b.west,b.east,t):fixed,y=horizontal?fixed:THREE.MathUtils.lerp(b.south,b.north,t);
+    const z=surfaceZXY(x,y);
+    const post=new THREE.Mesh(postGeo,mat);post.position.set(x,y,z+1.12);countryBarrierGroup.add(post);
+    if(zombieTemplate&&i%2===0){
+      const n=normalizedModel(zombieTemplate.scene,1.76,true);n.root.position.set(x+(horizontal?0:(edge==='east'?-1:1)),y+(horizontal?(edge==='north'?-1:1):0),z+.02);
+      n.root.rotation.z=horizontal?(edge==='north'?Math.PI:0):(edge==='east'?-Math.PI/2:Math.PI/2);
+      countryBarrierGroup.add(n.root);
+    }
+  }
+  showToast('U.S. JURISDICTION BOUNDARY · infected containment line');
+}
+async function resolveUniverse(lat,lon){
+  const u=new URL(ENDPOINT);u.searchParams.set('mode','resolve');u.searchParams.set('lat',String(lat));u.searchParams.set('lon',String(lon));u.searchParams.set('_',String(Date.now()));
+  const r=await fetch(u,{cache:'no-store'});if(!r.ok)return null;return await r.json();
+}
+function clampAtBoundary(edge){
+  const b=streamXYBounds();if(!b||!playerRoot)return;
+  if(edge==='east')playerRoot.position.x=Math.min(playerRoot.position.x,b.east-7);
+  if(edge==='west')playerRoot.position.x=Math.max(playerRoot.position.x,b.west+7);
+  if(edge==='north')playerRoot.position.y=Math.min(playerRoot.position.y,b.north-7);
+  if(edge==='south')playerRoot.position.y=Math.max(playerRoot.position.y,b.south+7);
+  syncPhysicsToPlayer();
+}
+async function checkNationalEdge(edge){
+  if(travelPending||CELL!=='national')return;
+  travelPending=true;
+  try{
+    const b=streamXYBounds();if(!b||!playerRoot)return;
+    const dx=edge==='east'?b.width*.52:edge==='west'?-b.width*.52:0;
+    const dy=edge==='north'?b.height*.52:edge==='south'?-b.height*.52:0;
+    const [lon,lat]=unproject(playerRoot.position.x+dx,playerRoot.position.y+dy);
+    const resolved=await resolveUniverse(lat,lon);
+    if(resolved?.inside_us_universe&&resolved?.resolved_jurisdiction?.state){
+      persistSurvivor();
+      const u=new URL(location.href);
+      u.searchParams.set('cell','national');u.searchParams.set('state',resolved.resolved_jurisdiction.state);
+      u.searchParams.set('lat',String(lat));u.searchParams.set('lon',String(lon));u.searchParams.set('span_km',String(STREAM_SPAN));u.searchParams.set('build',String(BUILD_VERSION));
+      showToast('Streaming '+resolved.resolved_jurisdiction.name+'…');
+      setTimeout(()=>location.href=u.toString(),160);
+      return;
+    }
+    buildBoundaryVisual(edge);clampAtBoundary(edge);
+  }catch(e){console.warn('national edge resolve failed',e)}
+  finally{travelPending=false}
+}
+function maybeNationalTravel(){
+  if(CELL!=='national'||interiorMode||travelPending||!playerRoot)return;
+  const now=performance.now();if(now-lastTravelCheck<650)return;lastTravelCheck=now;
+  const b=streamXYBounds();if(!b)return;
+  const margin=Math.max(34,Math.min(90,Math.min(b.width,b.height)*.08));
+  const vx=playerVelocity.x,vy=playerVelocity.y;
+  let edge=null;
+  if(playerRoot.position.x>b.east-margin&&vx>.08)edge='east';
+  else if(playerRoot.position.x<b.west+margin&&vx<-.08)edge='west';
+  else if(playerRoot.position.y>b.north-margin&&vy>.08)edge='north';
+  else if(playerRoot.position.y<b.south+margin&&vy<-.08)edge='south';
+  if(!edge)return;
+  if(activeBoundaryEdges.has(edge)){clampAtBoundary(edge);return}
+  checkNationalEdge(edge);
+}
 const outerRings=g=>g?.type==='Polygon'?(g.coordinates?.[0]?[g.coordinates[0]]:[]):g?.type==='MultiPolygon'?(g.coordinates||[]).map(p=>p?.[0]).filter(Boolean):[];
 const allLines=g=>g?.type==='LineString'?[g.coordinates||[]]:g?.type==='MultiLineString'?(g.coordinates||[]):g?.type==='Polygon'?(g.coordinates||[]):g?.type==='MultiPolygon'?(g.coordinates||[]).flat():[];
 function project(p){return{x:(+p[0]-lon0)*mx,y:(+p[1]-lat0)*my}}
