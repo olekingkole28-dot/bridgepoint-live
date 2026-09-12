@@ -97,6 +97,7 @@ let zombieTemplate=null;
 let mobileMove={x:0,y:0},mobileSprint=false;
 let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),exteriorYaw=0;
 let interiorWalls=[],interiorContainers=[],interiorBounds=null,interiorExit=null,interiorTemplates={};
+let streetLifeStats={trees:0,bikes:0,vehicles:0,props:0};
 const keys=new Set();
 
 const minimap=$('minimap');
@@ -889,21 +890,32 @@ function updateZombies(dt,now){
 }
 
 async function buildSurvivalArt(){
-  const [barrel,trash,pallet,barrier,cone,streetlight,hydrant,vehicle,zombie,...interiors]=await Promise.all([
+  const [barrel,trash,pallet,barrier,cone,streetlight,hydrant,pickup,sports,truck,zombie,...interiors]=await Promise.all([
     loadAsset(ASSETS.barrel),loadAsset(ASSETS.trash),loadAsset(ASSETS.pallet),loadAsset(ASSETS.barrier),
-    loadAsset(ASSETS.cone),loadAsset(ASSETS.streetlight),loadAsset(ASSETS.hydrant),loadAsset(ASSETS.vehicle),loadAsset(ASSETS.zombie),
+    loadAsset(ASSETS.cone),loadAsset(ASSETS.streetlight),loadAsset(ASSETS.hydrant),
+    loadAsset(ASSETS.vehicle),loadAsset(ASSETS.sportsCar),loadAsset(ASSETS.truck),loadAsset(ASSETS.zombie),
     ...Object.values(INTERIOR_ASSETS).map(loadAsset)
   ]);
   const keys=Object.keys(INTERIOR_ASSETS);interiorTemplates={};keys.forEach((k,i)=>interiorTemplates[k]=interiors[i]);
   zombieTemplate=zombie;
-  scatterTemplate(barrel,CELL==='manhattan'?38:16,1.15,9);
-  scatterTemplate(trash,CELL==='manhattan'?54:20,.72,9);
-  scatterTemplate(pallet,CELL==='manhattan'?22:12,.32,8);
-  scatterTemplate(barrier,CELL==='manhattan'?30:10,1.1,6);
-  scatterTemplate(cone,CELL==='manhattan'?26:8,.75,5);
-  scatterTemplate(streetlight,CELL==='manhattan'?42:16,4.8,6);
-  scatterTemplate(hydrant,CELL==='manhattan'?24:10,.95,5);
-  scatterTemplate(vehicle,CELL==='manhattan'?24:6,1.75,10);
+
+  const dense=CELL==='manhattan';
+  let props=0,vehicles=0;
+  props+=scatterRoadsideTemplate(streetlight,dense?78:28,4.8,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(hydrant,dense?42:16,.95,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(barrier,dense?34:12,1.1,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(cone,dense?46:14,.75,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(trash,dense?58:22,.72,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(pallet,dense?20:10,.32,'sidewalk')||0;
+  props+=scatterRoadsideTemplate(barrel,dense?26:12,1.15,'sidewalk')||0;
+
+  vehicles+=scatterRoadsideTemplate(pickup,dense?24:8,1.72,'parking')||0;
+  vehicles+=scatterRoadsideTemplate(sports,dense?28:6,1.35,'parking')||0;
+  vehicles+=scatterRoadsideTemplate(truck,dense?16:5,2.25,'parking')||0;
+
+  const life=scatterProceduralStreetLife();
+  streetLifeStats={trees:life.trees,bikes:life.bikes,vehicles,props};
+
   await buildZombies(zombie);
 }
 function toMapXY(x,y){
