@@ -1,0 +1,31 @@
+name: Browser Test Horizon Playable v2980
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app/horizon-world/**'
+      - 'scripts/browser-horizon-playable-v2980.mjs'
+      - '.github/workflows/browser-test-horizon-playable-v2980.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: horizon-playable-v2980
+  cancel-in-progress: true
+
+jobs:
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser driver
+        run: npm install --no-save --no-audit --no-fund playwright-core@1.55.0
+      - name: Verify live Horizon survivor world
+        run: node scripts/browser-horizon-playable-v2980.mjs
