@@ -22,6 +22,15 @@ page.on('console',m=>messages.push(m.type()+': '+m.text()));
 page.on('pageerror',e=>errors.push(String(e?.stack||e)));
 page.on('requestfailed',r=>messages.push('requestfailed: '+r.url()+' :: '+(r.failure()?.errorText||'unknown')));
 
+async function testLanding(){
+  const url='https://bridgepointintelligence.online/app/horizon/?ci='+Date.now();
+  const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
+  const href=await page.locator('a.cta').first().getAttribute('href');
+  console.log(JSON.stringify({landing:true,status:response?.status(),url,href},null,2));
+  if(response?.status()!==200)throw new Error('landing HTTP '+response?.status());
+  if(href!=='/app/horizon-playable/?build=2983')throw new Error('landing CTA stale: '+href);
+}
+
 async function testCell(cell){
   const url='https://bridgepointintelligence.online/app/horizon-playable/?cell='+cell+'&ci='+Date.now();
   const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
@@ -44,6 +53,7 @@ async function testCell(cell){
   if(!(d.canvases>=2))throw new Error(cell+' expected world + minimap canvases');
 }
 try{
+  await testLanding();
   await testCell('middletown');
   await testCell('manhattan');
   console.log('HORIZON_V2980_BROWSER_SMOKE_PASS');
