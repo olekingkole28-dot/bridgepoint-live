@@ -30,7 +30,7 @@ function overlap(a,b){
 
 async function openWorld(extra={}){
   const u=new URL(base+'/app/horizon-playable/');
-  u.searchParams.set('build','3040');
+  u.searchParams.set('build','3050');
   u.searchParams.set('cell','national');
   u.searchParams.set('state',extra.state||'NY');
   u.searchParams.set('lat',String(extra.lat??40.7128));
@@ -59,7 +59,7 @@ try{
   const landing=await page.goto(base+'/app/horizon/?ci='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
   if(landing?.status()!==200)throw new Error('landing HTTP '+landing?.status());
   const href=await page.locator('a.cta').first().getAttribute('href');
-  if(href!=='/app/horizon-playable/?build=3040')throw new Error('staged landing CTA stale: '+href);
+  if(href!=='/app/horizon-playable/?build=3050')throw new Error('staged landing CTA stale: '+href);
 
   const url=await openWorld();
   const state=await page.evaluate(()=>{
@@ -80,7 +80,7 @@ try{
   });
   console.log(JSON.stringify({url,state},null,2));
   if(!state.errorHidden)throw new Error('error box visible');
-  if(!state.smoke?.ok||state.smoke?.build!==3040)throw new Error('3040 smoke missing');
+  if(!state.smoke?.ok||state.smoke?.build!==3050)throw new Error('3050 smoke missing');
   if(!state.smoke?.player)throw new Error('player missing');
   if(!state.smoke?.physicsReady||state.smoke?.physicsMode!=='rapier3d-kinematic')throw new Error('Rapier kinematic controller inactive: '+JSON.stringify(state.smoke));
   if(!String(state.smoke?.postFxMode||'').includes('gtao'))throw new Error('GTAO/post processing inactive: '+state.smoke?.postFxMode);
@@ -113,7 +113,12 @@ try{
       drive:t?.driveProbe?.(),
       floors:t?.multiFloorProbe?.(),
       stance:t?.stanceProbe?.(),
-      feet:t?.feetProbe?.()
+      feet:t?.feetProbe?.(),
+      horizon3050:t?.horizon3050Probe?.(),
+      doors:t?.doorProbe?.(),
+      repair:t?.repairProbe?.(),
+      progression:t?.progressionProbe?.(),
+      match:t?.matchProbe?.()
     };
   });
   console.log(JSON.stringify({probes},null,2));
@@ -139,7 +144,7 @@ try{
   });
   if(errors.length||serious.length)throw new Error('serious browser errors: '+[...errors,...serious].join(' | '));
 
-  console.log('HORIZON_V3040_BRANCH_GATE_PASS');
+  console.log('HORIZON_V3050_BRANCH_GATE_PASS');
 }finally{
   await context.close();
   await browser.close();
