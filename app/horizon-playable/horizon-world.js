@@ -207,7 +207,7 @@ let audioCtx=null,audioMaster=null,lastFootstepAt=0;
 let worldPickups=[],pickupTemplates={},pickupSeq=0;
 let waveNumber=0,nextWaveAt=0,maxActiveZombies=7;
 let zombieTemplate=null,zombieTemplates=[];
-let mobileMove={x:0,y:0},mobileSprint=false;
+let mobileMove={x:0,y:0},mobileSprint=false,mobileInputMode='pointer-fallback',nippleManager=null;
 let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),exteriorYaw=0;
 let interiorWalls=[],interiorContainers=[],interiorBounds=null,interiorExit=null,interiorFloorLinks=[],interiorTemplates={},interiorLootedKeys=new Set();
 let streetLifeStats={trees:0,bikes:0,vehicles:0,props:0,grass:0,benches:0,planters:0,backgroundTrees:0,shrubs:0,drivable:0};
@@ -2147,7 +2147,7 @@ function updateWeapon(dt,now=performance.now()){
   muzzleFlash=Math.max(0,muzzleFlash-dt);
   updateReload(now);
   const cfg=weaponCfg(activeWeapon);
-  if(isFirearm(activeWeapon)&&cfg.fire_mode==='auto'&&fireHeld&&!reloadState.active&&fireCooldown<=0)shoot();
+  if(isFirearm(activeWeapon)&&cfg.fire_mode==='auto'&&(fireHeld||keys.has('KeyF'))&&!reloadState.active&&fireCooldown<=0)shoot();
   const recover=1-Math.exp(-8.5*dt);
   recoilPitch=THREE.MathUtils.lerp(recoilPitch,0,recover);
   recoilYaw=THREE.MathUtils.lerp(recoilYaw,0,recover);
@@ -2449,16 +2449,36 @@ function initInput(){
   renderer.domElement.addEventListener('pointerup',stopLook);renderer.domElement.addEventListener('pointercancel',stopLook);
 
   const pad=$('movePad'),knob=$('moveKnob');let padId=null;
-  function padMove(e){
-    const r=pad.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=e.clientX-cx,dy=e.clientY-cy,max=r.width*.34,len=Math.hypot(dx,dy)||1,scl=Math.min(1,max/len),px=dx*scl,py=dy*scl;
-    knob.style.transform='translate('+px+'px,'+py+'px)';
-    const nx=px/max,ny=-py/max,mag=Math.hypot(nx,ny);
-    mobileMove.x=mag<.16?0:nx;mobileMove.y=mag<.16?0:ny;
+  if(pad&&window.nipplejs?.create){
+    try{
+      knob && (knob.style.display='none');
+      nippleManager=window.nipplejs.create({
+        zone:pad,mode:'static',position:{left:'50%',top:'50%'},size:112,
+        color:{front:'rgba(71,226,133,.92)',back:'rgba(119,151,129,.26)'},
+        restJoystick:true,threshold:.08
+      });
+      nippleManager.on('move',(_evt,data)=>{
+        const v=data?.vector||{x:0,y:0},force=THREE.MathUtils.clamp(Number(data?.force||0),0,1);
+        const mag=Math.max(.18,force);
+        mobileMove.x=THREE.MathUtils.clamp((v.x||0)*mag,-1,1);
+        mobileMove.y=THREE.MathUtils.clamp((v.y||0)*mag,-1,1);
+      });
+      nippleManager.on('end',()=>{mobileMove.x=0;mobileMove.y=0});
+      mobileInputMode='nipplejs';
+    }catch(e){console.warn('NippleJS fallback',e)}
   }
-  pad?.addEventListener('pointerdown',e=>{padId=e.pointerId;pad.setPointerCapture?.(e.pointerId);padMove(e)});
-  pad?.addEventListener('pointermove',e=>{if(e.pointerId===padId)padMove(e)});
-  const padEnd=e=>{if(e.pointerId!==padId)return;padId=null;mobileMove.x=mobileMove.y=0;knob.style.transform='translate(0,0)'};
-  pad?.addEventListener('pointerup',padEnd);pad?.addEventListener('pointercancel',padEnd);
+  if(mobileInputMode!=='nipplejs'){
+    function padMove(e){
+      const r=pad.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=e.clientX-cx,dy=e.clientY-cy,max=r.width*.34,len=Math.hypot(dx,dy)||1,scl=Math.min(1,max/len),px=dx*scl,py=dy*scl;
+      knob.style.transform='translate('+px+'px,'+py+'px)';
+      const nx=px/max,ny=-py/max,mag=Math.hypot(nx,ny);
+      mobileMove.x=mag<.16?0:nx;mobileMove.y=mag<.16?0:ny;
+    }
+    pad?.addEventListener('pointerdown',e=>{padId=e.pointerId;pad.setPointerCapture?.(e.pointerId);padMove(e)});
+    pad?.addEventListener('pointermove',e=>{if(e.pointerId===padId)padMove(e)});
+    const padEnd=e=>{if(e.pointerId!==padId)return;padId=null;mobileMove.x=mobileMove.y=0;knob.style.transform='translate(0,0)'};
+    pad?.addEventListener('pointerup',padEnd);pad?.addEventListener('pointercancel',padEnd);
+  }
 
   $('respawnBtn')?.addEventListener('click',respawnPlayer);
   $('jumpBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();playerJumpQueued=true});
