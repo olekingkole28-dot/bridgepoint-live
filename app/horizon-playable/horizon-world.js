@@ -1086,12 +1086,21 @@ function captureCharacterWeaponTemplates(modelRoot){
 function setupEquipmentMounts(modelRoot){
   const right=modelRoot?.getObjectByName('Middle1.R')||modelRoot?.getObjectByName('LowerArm.R')||findBoneByHints(modelRoot,['middle1.r','lowerarm.r']);
   const left=modelRoot?.getObjectByName('Middle1.L')||modelRoot?.getObjectByName('LowerArm.L')||findBoneByHints(modelRoot,['middle1.l','lowerarm.l']);
+  const hips=modelRoot?.getObjectByName('Hips')||findBoneByHints(modelRoot,['hips','pelvis']);
+  const torso=modelRoot?.getObjectByName('Torso')||modelRoot?.getObjectByName('Abdomen')||findBoneByHints(modelRoot,['torso','abdomen','spine']);
+  const upperR=modelRoot?.getObjectByName('UpperArm.R')||findBoneByHints(modelRoot,['upperarm.r']);
+  const upperL=modelRoot?.getObjectByName('UpperArm.L')||findBoneByHints(modelRoot,['upperarm.l']);
+  const lowerR=modelRoot?.getObjectByName('LowerArm.R')||findBoneByHints(modelRoot,['lowerarm.r']);
+  const lowerL=modelRoot?.getObjectByName('LowerArm.L')||findBoneByHints(modelRoot,['lowerarm.l']);
+
   equipmentMounts.rightHand=makeMount(right||playerRoot);
   equipmentMounts.leftHand=makeMount(left||playerRoot);
-  // Holsters use centered standalone meshes in stable player-root coordinates.
-  equipmentMounts.hip=makeMount(playerRoot,[.34,.04,.76],[0,0,-.20]);
-  equipmentMounts.backGun=makeMount(playerRoot,[0,.24,1.22],[.18,0,.10]);
-  equipmentMounts.backMelee=makeMount(playerRoot,[-.15,.20,1.18],[.08,0,-.65]);
+  // Holsters now follow the animated skeleton instead of floating in player-root/chest space.
+  equipmentMounts.hip=makeMount(hips||playerRoot,[.17,.035,-.02],[0,.18,-1.10]);
+  equipmentMounts.backGun=makeMount(torso||playerRoot,[0,-.055,-.13],[.18,1.42,.12]);
+  equipmentMounts.backMelee=makeMount(torso||playerRoot,[-.09,-.045,-.11],[.10,1.35,-.55]);
+
+  aimBones={torso,upperR,upperL,lowerR,lowerL};
 }
 function cloneCharacterWeapon(name){
   const t=characterWeaponTemplates[name];
@@ -1111,12 +1120,14 @@ function putCharacterWeapon(slot,name,mode='leftHand'){
     }
     m.add(obj);return obj;
   }
+  const authored=cloneCharacterWeapon(name);
   const key=name==='WoodenBat_Barbed'?'bat':name==='Axe'?'axe':name==='Knife'?'knife':name==='Pistol'?'pistol':name==='Rifle'?'rifle':name==='Shotgun'?'shotgun':null;
   const len=name==='Pistol'?.33:name==='Rifle'?1.02:name==='Shotgun'?.92:name==='Axe'?.66:name==='Knife'?.34:.88;
-  const obj=key?propCloneByLength(weaponTemplates[key],len):null;if(!obj)return null;
-  if(mode==='hip')obj.rotation.set(.15,.15,-1.20);
-  if(mode==='backGun')obj.rotation.set(.10,.05,1.52);
-  if(mode==='backMelee')obj.rotation.set(.10,.08,-.72);
+  const obj=authored||(key?propCloneByLength(weaponTemplates[key],len):null);if(!obj)return null;
+  obj.position.set(0,0,0);
+  if(mode==='hip')obj.rotation.set(.12,.08,-1.18);
+  if(mode==='backGun')obj.rotation.set(.12,.03,1.50);
+  if(mode==='backMelee')obj.rotation.set(.10,.05,-.70);
   m.add(obj);return obj;
 }
 function activeItemForSlot(slot){
@@ -1175,8 +1186,13 @@ function sanitizeCharacterClips(clips){
 async function buildPlayer(){
   const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,surfaceZXY(spawn.x,spawn.y)+.015);
   const [gltf,axe,bat,knife,pistol,rifle,shotgun]=await Promise.all([
-    loadAsset(ASSETS.player),loadAsset(ASSETS.axe),loadAsset(ASSETS.bat),loadAsset(ASSETS.knife),
-    loadAsset(ASSETS.pistol),loadAsset(ASSETS.rifle),loadAsset(ASSETS.shotgun)
+    loadAsset(ASSETS.player),
+    loadAsset(weaponCfg('Axe').model_url||ASSETS.axe),
+    loadAsset(weaponCfg('Barbed Bat').model_url||ASSETS.bat),
+    loadAsset(weaponCfg('Knife').model_url||ASSETS.knife),
+    loadAsset(weaponCfg('Pistol').model_url||ASSETS.pistol),
+    loadAsset(weaponCfg('Rifle').model_url||ASSETS.rifle),
+    loadAsset(weaponCfg('Shotgun').model_url||ASSETS.shotgun)
   ]);
   weaponTemplates={axe,bat,knife,pistol,rifle,shotgun};
   if(gltf){
