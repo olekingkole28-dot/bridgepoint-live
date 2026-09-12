@@ -246,9 +246,17 @@ function buildBuildings(){
 }
 function nearestRoadForBuilding(b){
   let best=null,d=Infinity;
-  const step=Math.max(1,Math.floor(roadAnchors.length/700));
+  const step=Math.max(1,Math.floor(roadAnchors.length/900));
   for(let i=0;i<roadAnchors.length;i+=step){
-    const a=roadAnchors[i],q=(a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y);
+    const a=roadAnchors[i];
+    if(isBlockedExterior(a.x,a.y,.68))continue;
+    const q=(a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y);
+    if(q<d){d=q;best=a}
+  }
+  if(best)return best;
+  for(const a of roadAnchors){
+    if(isBlockedExterior(a.x,a.y,.42))continue;
+    const q=(a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y);
     if(q<d){d=q;best=a}
   }
   return best;
@@ -267,7 +275,10 @@ function buildEntryPoints(){
     const top=new THREE.Mesh(new THREE.BoxGeometry(1.38,.18,.15),frameMat);top.position.set(0,0,2.28);
     const lamp=new THREE.Mesh(new THREE.BoxGeometry(.18,.12,.18),glowMat);lamp.position.set(0,-.12,2.05);
     root.add(left,right,top,lamp);root.position.set(x,y,b.z);root.rotation.z=rot;entryGroup.add(root);
-    buildingEntries.push({...b,entryX:x,entryY:y,entryZ:b.z,doorRoot:root,seed:hash(b.id+':interior')});
+    buildingEntries.push({
+      ...b,entryX:x,entryY:y,entryZ:b.z,doorRoot:root,seed:hash(b.id+':interior'),
+      returnX:road.x,returnY:road.y,returnZ:road.z
+    });
   }
 }
 function mergeLocal(geos){
@@ -768,7 +779,11 @@ function spawnInteriorZombie(template,r,w,h){
 }
 function enterInterior(entry){
   if(interiorMode||!playerRoot)return;
-  exteriorReturn.set(entry.entryX,entry.entryY,entry.entryZ+.05);exteriorYaw=yaw;generateInterior(entry);
+  exteriorReturn.set(
+    Number.isFinite(entry.returnX)?entry.returnX:entry.entryX,
+    Number.isFinite(entry.returnY)?entry.returnY:entry.entryY,
+    (Number.isFinite(entry.returnZ)?entry.returnZ:entry.entryZ)+.05
+  );exteriorYaw=yaw;generateInterior(entry);
   exteriorRoot.visible=false;interiorGroup.visible=true;interiorMode=true;playerVelocity.set(0,0,0);
   playerRoot.position.set(0,-activeInterior.depth/2+2.0,.05);yaw=0;pitch=.12;
   $('cellLabel').textContent='PROCEDURAL INTERIOR · GAME ART';
