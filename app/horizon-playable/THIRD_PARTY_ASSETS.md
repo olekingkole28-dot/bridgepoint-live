@@ -39,3 +39,8 @@ Game-art placement is fictional decorative dressing. It must not be represented 
 - Firearms: Pistol, Rifle, Shotgun, SMG — Quaternius Zombie Apocalypse Kit, CC0.
 - Melee: Axe, Knife, Barbed Bat, Saw Bat, Spear, Guitar — Quaternius Zombie Apocalypse Kit, CC0.
 - Players can pick up weapons, tap stored weapons to equip them, switch slots, and drop the active weapon back into the world.
+
+## Grounded survivor / crow pass (4209)
+- Default preview survivor: SceneView's mirrored three.js Soldier GLB, listed as CC0-1.0 in SceneView's asset credits. Existing Quaternius survivors remain selectable.
+- Infected crow/vulture: Kenney Cube Pets model from the local-agents CC0 mirror, recolored and given dive/circle AI at runtime.
+- No Resident Evil, Call of Duty, World War Z, or Lord of the Rings proprietary character assets are included. The game uses original/generic horror archetypes and legally cleared free assets instead.
