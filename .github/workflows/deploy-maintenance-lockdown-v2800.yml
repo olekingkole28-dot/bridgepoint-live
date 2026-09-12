@@ -148,6 +148,7 @@ jobs:
           test -s site/app/horizon-playable/horizon-world.css
           test -s site/app/horizon-playable/horizon-world.js
           node --check site/app/horizon-world/horizon-world.js
+          node --check site/app/horizon-playable/horizon-world.js
           grep -Fq 'FOUNDING MEMBER ACCESS' site/app/intelligence-launch/index.html
           grep -Fq 'RESERVE YOUR HOME BASE' site/app/horizon/index.html
           grep -Fq 'WORLD PREVIEW · GAME ONLY' site/app/horizon-world/index.html
@@ -189,11 +190,14 @@ jobs:
               && [ "$horizon_playable_js_code" = "200" ] \
               && grep -Fq 'FOUNDING MEMBER ACCESS' /tmp/intelligence.html \
               && grep -Fq 'RESERVE YOUR HOME BASE' /tmp/horizon.html \
-              && grep -Fq '/app/horizon-playable/?build=2983' /tmp/horizon.html \
+              && grep -Fq '/app/horizon-playable/?build=2990' /tmp/horizon.html \
               && grep -Fq 'Horizon survivor' /tmp/horizon-playable.html \
-              && grep -Fq 'horizon-world.js?v=2983' /tmp/horizon-playable.html \
+              && grep -Fq 'horizon-world.js?v=2990' /tmp/horizon-playable.html \
               && grep -Fq 'mobileControls' /tmp/horizon-playable.html \
               && grep -Fq 'BP_HORIZON_SMOKE' /tmp/horizon-playable.js \
+              && grep -Fq 'generateInterior' /tmp/horizon-playable.js \
+              && grep -Fq 'attack()' /tmp/horizon-playable.js \
+              && grep -Fq 'Starter Duffel' /tmp/horizon-playable.js \
               && grep -Fq 'Quaternius' /tmp/horizon-playable.js \
               && ! grep -Fq 'CONNECTICUT PROTOTYPE CELL' /tmp/horizon-playable.html \
               && ! grep -Fq 'We’re building our 3D universe.' /tmp/intelligence.html \
