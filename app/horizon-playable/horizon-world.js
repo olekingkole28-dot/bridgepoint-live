@@ -1472,7 +1472,8 @@ function spawnZombieAt(template,a,interior=false,rng=rand){
   else root.position.set(a.x,a.y,surfaceZXY(a.x,a.y)+.015);
   root.rotation.z=rng()*Math.PI*2;
   (interior?interiorGroup:zombieGroup).add(root);
-  const clip=(template.animations||[]).find(c=>/walk/i.test(c.name))||(template.animations||[]).find(c=>/idle/i.test(c.name))||(template.animations||[])[0];
+  const clips=sanitizeCharacterClips(template.animations);
+  const clip=clips.find(c=>/walk/i.test(c.name))||clips.find(c=>/idle/i.test(c.name))||clips[0];
   let mixer=null;if(clip){mixer=new THREE.AnimationMixer(n.model);mixer.clipAction(clip).play()}
   const z={root,mixer,speed:.28+rng()*.15,hp:100,dead:false,steer:rng()>.5?1:-1,lastTurn:0};
   (interior?interiorZombies:zombies).push(z);return z;
