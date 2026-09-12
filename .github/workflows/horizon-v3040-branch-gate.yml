@@ -33,6 +33,8 @@ jobs:
         run: |
           set -euo pipefail
           node --check app/horizon-playable/horizon-world.js
+          node --check scripts/browser-horizon-v3040-local.mjs
+          node --check scripts/browser-horizon-playable-v2980.mjs
           grep -Fq "BUILD_VERSION=3040" app/horizon-playable/horizon-world.js
           grep -Fq "bridgepoint-horizon-weapons-v3040" app/horizon-playable/horizon-world.js
           grep -Fq "requestReload" app/horizon-playable/horizon-world.js
@@ -40,6 +42,9 @@ jobs:
           grep -Fq "rapier3d-kinematic" app/horizon-playable/horizon-world.js
           grep -Fq "GTAOPass" app/horizon-playable/horizon-world.js
           grep -Fq "nipplejs@0.10.2" app/horizon-playable/index.html
+          grep -Fq "Sushi%20Restaurant%20Kit" app/horizon-playable/horizon-world.js
+          test -s app/horizon-playable/OPEN_ASSET_SOURCES.md
+          ! grep -Fq "break-my-house" app/horizon-playable/horizon-world.js
 
       - name: Install browser gate
         run: |
