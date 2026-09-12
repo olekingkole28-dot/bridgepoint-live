@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4229;
+const BUILD_VERSION=4230;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -381,7 +381,7 @@ const MODERATION_BLOCKLIST=['slur_placeholder_disabled'];
 const cosmeticUnlocks=new Set();
 
 let RAPIER=null,physicsWorld=null,physicsReady=false,physicsMode='manual-fallback',physicsError=null;
-let playerPhysicsBody=null,playerPhysicsCollider=null,characterController=null;
+let playerPhysicsBody=null,playerPhysicsCollider=null,characterController=null,terrainPhysicsCollider=null,terrainSafetyRescues=0;
 let verticalVelocity=0,grounded=false,playerJumpQueued=false;
 let playerStance='stand',gamepadMove={x:0,y:0},gamepadLook={x:0,y:0},gamepadPrev=[];
 const PHYSICS_VISUAL_DROP=.07;
@@ -764,8 +764,15 @@ function addStaticPhysicsGeometry(geometry,label='static',friction=.85){
     const collider=physicsWorld.createCollider(desc);collider.userData={label};physicsStaticColliders.push(collider);return collider;
   }catch(e){console.warn('physics collider skipped',label,e);return null}
 }
+function ensureTerrainPhysicsCollider(){
+  if(!physicsReady||!terrainLayer?.geometry)return false;
+  if(terrainPhysicsCollider)return true;
+  terrainPhysicsCollider=addStaticPhysicsGeometry(terrainLayer.geometry,'terrain-runtime-safety',.96);
+  return Boolean(terrainPhysicsCollider);
+}
 function createPlayerPhysics(){
   if(!physicsReady||!playerRoot)return false;
+  ensureTerrainPhysicsCollider();
   if(playerPhysicsBody){
     try{physicsWorld.removeRigidBody(playerPhysicsBody)}catch(_){}
     playerPhysicsBody=null;playerPhysicsCollider=null;
@@ -831,7 +838,19 @@ function movePlayerRapier(dx,dy,dt){
   const next=playerPhysicsBody.translation();
   grounded=Boolean(characterController.computedGrounded?.());
   if(grounded&&verticalVelocity<0)verticalVelocity=-.16;
-  playerRoot.position.set(next.x,next.y,next.z-PHYSICS_PLAYER_CENTER);
+  const minSurface=surfaceZXY(next.x,next.y)+.015;
+  let rootZ=next.z-PHYSICS_PLAYER_CENTER;
+  // Hard invariant: outside, the survivor can never resolve below the BridgePoint
+  // terrain/road surface. This remains active even if Rapier finishes loading after
+  // terrain construction or a trimesh collider misses a frame.
+  if(!Number.isFinite(rootZ)||rootZ<minSurface-.035){
+    rootZ=minSurface;verticalVelocity=-.12;grounded=true;terrainSafetyRescues++;
+    const safe={x:next.x,y:next.y,z:rootZ+PHYSICS_PLAYER_CENTER};
+    playerPhysicsBody.setNextKinematicTranslation(safe);
+    playerPhysicsBody.setTranslation(safe,true);
+    try{physicsWorld.propagateModifiedBodyPositionsToColliders()}catch(_){}
+  }
+  playerRoot.position.set(next.x,next.y,Math.max(rootZ,minSurface));
   return true;
 }
 function rapierCameraPosition(target,desired){
@@ -881,7 +900,7 @@ function buildTerrain(){
   if(!t?.heights_m?.length){
     const w=(data.bbox.east-data.bbox.west)*mx,h=(data.bbox.north-data.bbox.south)*my;
     const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h,1,1),new THREE.MeshStandardMaterial({map:groundTex,color:0x7d846d,roughness:1}));
-    mesh.receiveShadow=true;terrainLayer=mesh;worldGroup.add(mesh);addStaticPhysicsGeometry(mesh.geometry,'terrain-flat',.92);return;
+    mesh.receiveShadow=true;terrainLayer=mesh;worldGroup.add(mesh);terrainPhysicsCollider=addStaticPhysicsGeometry(mesh.geometry,'terrain-flat',.96)||terrainPhysicsCollider;return;
   }
   const center=Math.floor(t.height/2)*t.width+Math.floor(t.width/2);
   baseElevation=Number(t.heights_m[center]||0);
@@ -894,7 +913,7 @@ function buildTerrain(){
   for(let y=0;y<t.height-1;y++)for(let x=0;x<t.width-1;x++){const a=y*t.width+x,b=a+1,c=a+t.width,d=c+1;idx.push(a,c,b,b,c,d)}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();
   terrainLayer=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:groundTex,color:0x8a8f78,roughness:1}));
-  terrainLayer.receiveShadow=true;worldGroup.add(terrainLayer);addStaticPhysicsGeometry(g,'terrain-3dep',.94);
+  terrainLayer.receiveShadow=true;worldGroup.add(terrainLayer);terrainPhysicsCollider=addStaticPhysicsGeometry(g,'terrain-3dep',.96)||terrainPhysicsCollider;
 }
 
 function buildApocalypseGroundDressing(){
@@ -4207,7 +4226,17 @@ async function boot(){
     buildAtmosphere();buildTerrain();buildRoads();buildWater();buildWaterfrontPerimeter();buildInstantBuildingMassing();
     addLights();setLighting(0);drawMinimapBase();initInput();
     await buildPlayer();
-    if(physicsReady)createPlayerPhysics();else physicsReadyPromise.then(ok=>{if(ok&&playerRoot&&!playerPhysicsBody)createPlayerPhysics()});
+    if(physicsReady){ensureTerrainPhysicsCollider();createPlayerPhysics()}
+    else physicsReadyPromise.then(ok=>{
+      if(!ok)return;
+      ensureTerrainPhysicsCollider();
+      // Snap to the current BridgePoint surface before turning Rapier on so the
+      // delayed physics module can never inherit a below-ground transform.
+      if(playerRoot&&!interiorMode){
+        playerRoot.position.z=Math.max(playerRoot.position.z,surfaceZXY(playerRoot.position.x,playerRoot.position.y)+.015);
+      }
+      if(playerRoot&&!playerPhysicsBody)createPlayerPhysics();
+    });
     renderFactionBanner();initFlashlight();
     revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone();
     updateInventory();updateInteractionPrompt();resizeRenderer();
@@ -4243,7 +4272,7 @@ async function boot(){
       playerSurfaceZ:surfaceZXY(playerRoot.position.x,playerRoot.position.y),locomotionIntent,reticleSpread,
       playerRootZ:playerRoot.position.z,
       activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
-      physicsMode,physicsReady,physicsError,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
+      physicsMode,physicsReady,physicsError,terrainPhysicsReady:Boolean(terrainPhysicsCollider),terrainSafetyRescues,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
       navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,mobileGpuSafe:MOBILE_GPU_SAFE,instantMassing:Number(streetLifeStats.instantMassing||0),
       streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null,
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
