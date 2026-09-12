@@ -23,3 +23,36 @@
   .infoPanel{max-height:132px;overflow:auto;padding:10px 12px;width:calc(100vw - 24px);font-size:8px}.infoPanel p:nth-of-type(2){display:none}
   .hint{bottom:150px;font-size:7px}
 }
+
+
+/* Horizon mobile game viewport: landscape-first, world stays full-screen. */
+.landscapeGate{display:none}
+@media (orientation:portrait) and (pointer:coarse) and (max-width:900px){
+  .landscapeGate{
+    position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:24px;
+    background:
+      radial-gradient(circle at 50% 25%,rgba(43,110,82,.28),transparent 35%),
+      linear-gradient(180deg,rgba(2,5,8,.96),rgba(3,7,10,.985));
+    text-align:center;
+  }
+  .landscapeGate>div{width:min(390px,100%);padding:24px 20px;border:1px solid rgba(100,240,167,.24);border-radius:22px;background:rgba(7,13,17,.88);box-shadow:0 24px 90px rgba(0,0,0,.55)}
+  .rotateIcon{display:grid;place-items:center;width:58px;height:58px;margin:0 auto 12px;border-radius:18px;border:1px solid rgba(100,240,167,.35);color:var(--mint);font-size:30px;background:rgba(100,240,167,.08)}
+  .landscapeGate b{display:block;font-size:24px;letter-spacing:-.03em}
+  .landscapeGate p{margin:9px auto 16px;max-width:330px;color:#aeb9bf;font-size:12px;line-height:1.5}
+  .landscapeGate button{border:1px solid rgba(100,240,167,.55);border-radius:13px;padding:12px 16px;background:linear-gradient(135deg,#2d8c61,#143e31);color:#fff;font-weight:950;letter-spacing:.06em}
+  .landscapeGate small{display:block;margin-top:11px;color:#74868c;font-size:9px}
+}
+@media (orientation:landscape) and (max-height:600px){
+  .vignette{background:radial-gradient(circle at 50% 50%,transparent 62%,rgba(0,0,0,.25) 86%,rgba(0,0,0,.55) 100%)}
+  .grain{opacity:.02}
+  .topbar{left:max(7px,env(safe-area-inset-left));right:max(7px,env(safe-area-inset-right));top:max(6px,env(safe-area-inset-top));height:44px;border-radius:13px;padding:4px 7px}
+  .brand{gap:7px}.brand b{font-size:9px}.brand small{font-size:6px}.sigil{width:32px;height:32px;border-radius:9px;font-size:14px}.truthBadge{display:none}
+  .statusPanel{left:max(7px,env(safe-area-inset-left));top:57px;width:235px;padding:8px 9px;border-radius:13px;background:linear-gradient(180deg,rgba(8,14,18,.77),rgba(3,6,9,.62))}
+  .eyebrow{font-size:6px}.statusPanel h1{font-size:15px;margin:3px 0}.statusPanel p{font-size:7px;margin:0 0 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stats{grid-template-columns:repeat(4,1fr);gap:3px}.stats div{padding:3px 2px;border-radius:6px}.stats b{font-size:10px}.stats span{font-size:5px}.legend{display:none}
+  .controls{right:max(7px,env(safe-area-inset-right));top:57px;padding:4px;border-radius:12px;gap:3px;background:rgba(4,8,11,.66)}
+  .controls button{min-width:37px;width:37px;height:31px;border-radius:8px;text-align:center;padding:0;font-size:13px}.controls button span{display:none}
+  .infoPanel{display:none}
+  .hint{bottom:max(6px,env(safe-area-inset-bottom));padding:5px 8px;font-size:6px;background:rgba(3,6,9,.58)}
+  .errorBox{width:min(440px,calc(100% - 90px));padding:14px}
+}
