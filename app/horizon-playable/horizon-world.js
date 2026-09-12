@@ -317,14 +317,17 @@ function buildParcels(){
   parcelLayer.visible=false;worldGroup.add(parcelLayer);
 }
 function lineFeatures(g){if(g?.type==='LineString')return[g.coordinates||[]];if(g?.type==='MultiLineString')return g.coordinates||[];if(g?.type==='Polygon')return g.coordinates||[];if(g?.type==='MultiPolygon')return(g.coordinates||[]).flat();return[]}
-function buildStrips(features){
+function roadWidth(kind){
+  return kind==='ROAD_PRIMARY'?16:kind==='ROAD_SECONDARY'?11:kind==='ROAD_LOCAL'?7:kind==='RAIL'?3.5:6;
+}
+function buildStrips(features,extraWidth=0,zOffset=.18){
   const pos=[],idx=[];let vi=0;
   for(const f of features||[])for(const line of lineFeatures(f.geometry)){
-    const width=f.kind==='ROAD_PRIMARY'?15:f.kind==='ROAD_SECONDARY'?10:f.kind==='ROAD_LOCAL'?6:f.kind==='RAIL'?3.5:5;
+    const width=roadWidth(f.kind)+extraWidth;
     for(let i=1;i<line.length;i++){
       const a=line[i-1],b=line[i],pa=project(a),pb=project(b),dx=pb.x-pa.x,dy=pb.y-pa.y,len=Math.hypot(dx,dy);
       if(len<.2)continue;
-      const nx=-dy/len*width/2,ny=dx/len*width/2,za=terrainZ(a[0],a[1])+.18,zb=terrainZ(b[0],b[1])+.18;
+      const nx=-dy/len*width/2,ny=dx/len*width/2,za=terrainZ(a[0],a[1])+zOffset,zb=terrainZ(b[0],b[1])+zOffset;
       pos.push(pa.x+nx,pa.y+ny,za,pa.x-nx,pa.y-ny,za,pb.x+nx,pb.y+ny,zb,pb.x-nx,pb.y-ny,zb);
       idx.push(vi,vi+1,vi+2,vi+2,vi+1,vi+3);vi+=4;
     }
@@ -332,14 +335,55 @@ function buildStrips(features){
   if(!pos.length)return null;
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();return g;
 }
+function buildRoadCenterLines(roads){
+  const pos=[];
+  for(const f of roads){
+    if(f.kind==='ROAD_LOCAL')continue;
+    for(const line of lineFeatures(f.geometry))for(let i=1;i<line.length;i++){
+      const a=line[i-1],b=line[i],pa=project(a),pb=project(b);
+      const za=terrainZ(a[0],a[1])+.225,zb=terrainZ(b[0],b[1])+.225;
+      pos.push(pa.x,pa.y,za,pb.x,pb.y,zb);
+    }
+  }
+  if(!pos.length)return null;
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  const m=new THREE.LineBasicMaterial({color:0xe9d58a,transparent:true,opacity:.72,depthWrite:false});
+  return new THREE.LineSegments(g,m);
+}
 function buildRoads(){
   const roads=(data.transport||[]).filter(x=>x.kind!=='RAIL'),rails=(data.transport||[]).filter(x=>x.kind==='RAIL');
   roadLayer=new THREE.Group();worldGroup.add(roadLayer);
-  const rg=buildStrips(roads);if(rg){const mesh=new THREE.Mesh(rg,new THREE.MeshStandardMaterial({map:asphaltTex,color:0x777b78,roughness:.96}));mesh.receiveShadow=true;roadLayer.add(mesh)}
-  const rail=buildStrips(rails);if(rail)roadLayer.add(new THREE.Mesh(rail,new THREE.MeshStandardMaterial({color:0x474744,roughness:.78,metalness:.25})));
+
+  const sidewalkGeo=buildStrips(roads,5.2,.135);
+  if(sidewalkGeo){
+    const sidewalk=new THREE.Mesh(sidewalkGeo,new THREE.MeshStandardMaterial({color:0xb7b3aa,roughness:.96}));
+    sidewalk.receiveShadow=true;roadLayer.add(sidewalk);
+  }
+  const curbGeo=buildStrips(roads,2.3,.155);
+  if(curbGeo){
+    const curb=new THREE.Mesh(curbGeo,new THREE.MeshStandardMaterial({color:0x8c8b84,roughness:.92}));
+    curb.receiveShadow=true;roadLayer.add(curb);
+  }
+  const rg=buildStrips(roads,0,.19);
+  if(rg){
+    const mesh=new THREE.Mesh(rg,new THREE.MeshStandardMaterial({map:asphaltTex,color:0x3c4140,roughness:.94,metalness:.02}));
+    mesh.receiveShadow=true;roadLayer.add(mesh);
+  }
+  const centerLines=buildRoadCenterLines(roads);if(centerLines)roadLayer.add(centerLines);
+
+  const rail=buildStrips(rails,0,.20);
+  if(rail)roadLayer.add(new THREE.Mesh(rail,new THREE.MeshStandardMaterial({color:0x3e403e,roughness:.72,metalness:.32})));
+
   roadAnchors=[];
-  for(const f of roads)for(const line of lineFeatures(f.geometry))for(let i=0;i<line.length;i+=Math.max(1,Math.floor(line.length/8))){
-    const p=line[i];if(!p)continue;const q=project(p);roadAnchors.push({x:q.x,y:q.y,z:terrainZ(p[0],p[1])});
+  for(const f of roads)for(const line of lineFeatures(f.geometry))for(let i=1;i<line.length;i++){
+    const a=line[i-1],b=line[i],pa=project(a),pb=project(b),dx=pb.x-pa.x,dy=pb.y-pa.y,len=Math.hypot(dx,dy);
+    if(len<1)continue;
+    const samples=Math.max(1,Math.min(5,Math.floor(len/24)+1));
+    for(let k=0;k<samples;k++){
+      const t=(k+.5)/samples,x=THREE.MathUtils.lerp(pa.x,pb.x,t),y=THREE.MathUtils.lerp(pa.y,pb.y,t);
+      const lon=THREE.MathUtils.lerp(a[0],b[0],t),lat=THREE.MathUtils.lerp(a[1],b[1],t);
+      roadAnchors.push({x,y,z:terrainZ(lon,lat),heading:Math.atan2(dx,dy),width:roadWidth(f.kind),kind:f.kind});
+    }
   }
 }
 function buildWater(){
