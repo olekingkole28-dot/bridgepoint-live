@@ -190,9 +190,9 @@ jobs:
               && [ "$horizon_playable_js_code" = "200" ] \
               && grep -Fq 'FOUNDING MEMBER ACCESS' /tmp/intelligence.html \
               && grep -Fq 'RESERVE YOUR HOME BASE' /tmp/horizon.html \
-              && grep -Fq '/app/horizon-playable/?build=2992' /tmp/horizon.html \
+              && grep -Fq '/app/horizon-playable/?build=2993' /tmp/horizon.html \
               && grep -Fq 'Horizon survivor' /tmp/horizon-playable.html \
-              && grep -Fq 'horizon-world.js?v=2992' /tmp/horizon-playable.html \
+              && grep -Fq 'horizon-world.js?v=2993' /tmp/horizon-playable.html \
               && grep -Fq 'mobileControls' /tmp/horizon-playable.html \
               && grep -Fq 'BP_HORIZON_SMOKE' /tmp/horizon-playable.js \
               && grep -Fq 'generateInterior' /tmp/horizon-playable.js \
