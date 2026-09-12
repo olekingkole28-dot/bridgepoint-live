@@ -2769,6 +2769,7 @@ async function boot(){
         updateCamera(.5);return{blocked:cameraPointBlocked(camera.position),z:camera.position.z};
       },
       feetProbe:()=>{
+        playerRoot?.updateMatrixWorld(true);
         const box=new THREE.Box3().setFromObject(playerVisualRoot||playerRoot);
         const surface=interiorMode?0:surfaceZXY(playerRoot.position.x,playerRoot.position.y);
         return {minZ:box.min.z,surface,rootZ:playerRoot.position.z,clearance:box.min.z-surface};
