@@ -97,7 +97,7 @@ interiorGroup.visible=false;
 let data,lon0,lat0,mx,my,baseElevation=0;
 let parcelLayer,partsLayer,buildingLayer,roadLayer,terrainLayer;
 let hemi,sun,lightMode=0;
-let playerRoot=null,playerMixer=null,playerClips=[],playerAction=null;
+let playerRoot=null,playerVisualRoot=null,playerMixer=null,playerClips=[],playerAction=null;
 let yaw=0,pitch=.14,cameraMode=0;
 let health=100,lastDamageAt=0;
 let playerSpawn=new THREE.Vector3();
@@ -610,8 +610,8 @@ async function buildPlayer(){
   weaponTemplates={axe,bat,knife,pistol,rifle,shotgun};
   if(gltf){
     const n=normalizedModel(gltf.scene,1.82,true);
-    playerRoot=n.root;playerClips=gltf.animations||[];playerMixer=new THREE.AnimationMixer(n.model);
-  }else playerRoot=fallbackPlayer();
+    playerRoot=n.root;playerVisualRoot=n.oriented;playerClips=gltf.animations||[];playerMixer=new THREE.AnimationMixer(n.model);
+  }else{playerRoot=fallbackPlayer();playerVisualRoot=playerRoot}
   playerRoot.position.copy(playerSpawn);scene.add(playerRoot);
   setupEquipmentMounts(playerRoot);
   weaponPivot=equipmentMounts.rightHand;
@@ -1509,6 +1509,24 @@ async function boot(){
         pickupLoose(p);return {item,equipment:{...equipment},lootCount,active:p.active};
       },
       zombieWave:()=>({waveNumber,active:zombies.filter(z=>!z.dead).length,speeds:zombies.filter(z=>!z.dead).map(z=>z.speed)}),
+      equipmentProbe:()=>{
+        addInventoryItem('Pistol');addInventoryItem('Rifle');
+        return {
+          equipment:{...equipment},
+          hipChildren:equipmentMounts.hip?.children?.length||0,
+          backChildren:equipmentMounts.back?.children?.length||0,
+          visiblePack:Boolean(packMesh)
+        };
+      },
+      feetProbe:()=>{
+        const box=new THREE.Box3().setFromObject(playerVisualRoot||playerRoot);
+        const surface=interiorMode?0:surfaceZXY(playerRoot.position.x,playerRoot.position.y);
+        return {minZ:box.min.z,surface,rootZ:playerRoot.position.z,clearance:box.min.z-surface};
+      },
+      deathProbe:()=>{
+        damagePlayer(200);const deadBefore=playerDead;respawnPlayer();
+        return {deadBefore,deadAfter:playerDead,health};
+      },
       spawnMobility:()=>{
         const p=playerRoot.position,step=.8,dirs={
           forward:movementVector(0,1,0),backward:movementVector(0,-1,0),
