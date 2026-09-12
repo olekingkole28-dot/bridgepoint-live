@@ -1,10 +1,11 @@
-name: Horizon V3040 Branch Gate
+name: Horizon V3050 Branch Gate
 
 on:
   push:
     branches:
       - horizon-mega-rebuild-v3040-r2
       - horizon-mega-rebuild-v3040-r3
+      - horizon-mega-rebuild-v3050
     paths:
       - 'app/horizon/**'
       - 'app/horizon-playable/**'
@@ -36,9 +37,14 @@ jobs:
           node --check app/horizon-playable/horizon-world.js
           node --check scripts/browser-horizon-v3040-local.mjs
           node --check scripts/browser-horizon-playable-v2980.mjs
-          grep -Fq "BUILD_VERSION=3040" app/horizon-playable/horizon-world.js
+          grep -Fq "BUILD_VERSION=3050" app/horizon-playable/horizon-world.js
           grep -Fq "bridgepoint-horizon-weapons-v3040" app/horizon-playable/horizon-world.js
           grep -Fq "requestReload" app/horizon-playable/horizon-world.js
+          grep -Fq "fetchSceneWithRetry" app/horizon-playable/horizon-world.js
+          grep -Fq "applyApocalypseDecay" app/horizon-playable/horizon-world.js
+          grep -Fq "installInteractiveDoors" app/horizon-playable/horizon-world.js
+          grep -Fq "repairVehicle" app/horizon-playable/horizon-world.js
+          grep -Fq "configureMatchMode" app/horizon-playable/horizon-world.js
           grep -Fq "applyRecoil" app/horizon-playable/horizon-world.js
           grep -Fq "rapier3d-kinematic" app/horizon-playable/horizon-world.js
           grep -Fq "GTAOPass" app/horizon-playable/horizon-world.js
