@@ -389,24 +389,48 @@ function fallbackPlayer(){
   const root=new THREE.Group(),mat=new THREE.MeshStandardMaterial({color:0x39473d,roughness:.82});
   const body=new THREE.Mesh(new THREE.CapsuleGeometry(.32,.8,4,8),mat);body.position.z=1.05;body.rotation.x=Math.PI/2;
   const head=new THREE.Mesh(new THREE.SphereGeometry(.24,12,10),new THREE.MeshStandardMaterial({color:0x9b806c,roughness:.85}));head.position.z=1.78;
-  const pack=new THREE.Mesh(new THREE.BoxGeometry(.5,.23,.65),new THREE.MeshStandardMaterial({color:0x4c3b2c,roughness:.95}));pack.position.set(0,-.27,1.2);
-  root.add(body,head,pack);return root;
+  root.add(body,head);return root;
 }
+function attachDuffel(){
+  if(!playerRoot)return;
+  const bag=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(.62,.28,.72),new THREE.MeshStandardMaterial({color:0x4b3a27,roughness:.94}));
+  body.position.z=1.05;
+  const flap=new THREE.Mesh(new THREE.BoxGeometry(.64,.30,.18),new THREE.MeshStandardMaterial({color:0x34291e,roughness:.92}));flap.position.set(0,-.03,1.37);
+  const strapMat=new THREE.MeshStandardMaterial({color:0x25231e,roughness:.9});
+  const strap1=new THREE.Mesh(new THREE.BoxGeometry(.07,.05,.85),strapMat);strap1.position.set(-.2,-.18,1.08);strap1.rotation.x=.18;
+  const strap2=strap1.clone();strap2.position.x=.2;
+  bag.add(body,flap,strap1,strap2);bag.position.set(0,.27,.12);playerRoot.add(bag);packMesh=bag;
+}
+function updatePackVisual(){if(packMesh){const scale=packCapacity>=40?1.18:packCapacity>=34?1.08:1;packMesh.scale.setScalar(scale)}}
+function mountWeaponModel(template,name){
+  if(!playerRoot)return;
+  if(!weaponPivot){weaponPivot=new THREE.Group();weaponPivot.position.set(.48,.02,1.15);playerRoot.add(weaponPivot)}
+  while(weaponPivot.children.length)weaponPivot.remove(weaponPivot.children[0]);
+  if(template){
+    const w=staticClone(template,name==='Knife'?.46:name==='Barbed Bat'?1.05:.72);
+    if(w){w.rotation.set(.15,.1,-.8);weaponPivot.add(w)}
+  }else{
+    const fallback=new THREE.Mesh(new THREE.BoxGeometry(.08,.08,.7),new THREE.MeshStandardMaterial({color:0x6d6253,roughness:.72,metalness:.18}));fallback.position.z=.3;weaponPivot.add(fallback);
+  }
+  equippedWeaponName=name;updateInventory();
+}
+function equipWeapon(name){const key=name==='Barbed Bat'?'bat':name==='Knife'?'knife':'axe';mountWeaponModel(weaponTemplates[key],name)}
 async function buildPlayer(){
   const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,spawn.z+.05);
-  const gltf=await loadAsset(ASSETS.player);
-  if(gltf){
-    const n=normalizedModel(gltf.scene,1.82,true);playerRoot=n.root;playerClips=gltf.animations||[];playerMixer=new THREE.AnimationMixer(n.model);
-    playPlayerAnimation(false);
-  }else playerRoot=fallbackPlayer();
-  playerRoot.position.copy(playerSpawn);scene.add(playerRoot);
+  const [gltf,axe,bat,knife]=await Promise.all([loadAsset(ASSETS.player),loadAsset(ASSETS.axe),loadAsset(ASSETS.bat),loadAsset(ASSETS.knife)]);
+  weaponTemplates={axe,bat,knife};
+  if(gltf){const n=normalizedModel(gltf.scene,1.82,true);playerRoot=n.root;playerClips=gltf.animations||[];playerMixer=new THREE.AnimationMixer(n.model)}
+  else playerRoot=fallbackPlayer();
+  playerRoot.position.copy(playerSpawn);scene.add(playerRoot);attachDuffel();mountWeaponModel(axe,'Axe');playPlayerAnimation('idle');
 }
-function playPlayerAnimation(moving){
+function playPlayerAnimation(state){
   if(!playerMixer||!playerClips.length)return;
-  const desired=playerClips.find(c=>moving?/run|walk/i.test(c.name):/idle/i.test(c.name))||playerClips[0];
+  const re=state==='attack'?/attack|melee|swing|hit/i:state==='move'?/run|walk|move/i:/idle|stand/i;
+  const desired=playerClips.find(c=>re.test(c.name))||playerClips[0];
   if(playerAction?._clip===desired)return;
-  const next=playerMixer.clipAction(desired);next.reset().fadeIn(.16).play();if(playerAction)playerAction.fadeOut(.16);playerAction=next;
+  const next=playerMixer.clipAction(desired);next.reset().fadeIn(.12).play();if(playerAction)playerAction.fadeOut(.12);playerAction=next;
 }
+function staticClone(template,targetHeight){
 function staticClone(template,targetHeight){
   if(!template)return null;
   const n=normalizedModel(template.scene,targetHeight,false);return n.root;
