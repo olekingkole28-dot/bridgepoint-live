@@ -1582,12 +1582,29 @@ async function buildSurvivalArt(){
   vehicles+=scatterRoadsideTemplate(sports,dense?34:10,1.35,'parking')||0;
   vehicles+=scatterRoadsideTemplate(truck,dense?18:7,2.25,'parking')||0;
 
+  let localProps=0,localVehicles=0;
+  localProps+=scatterRoadsideTemplateLocal(streetlight,dense?42:20,4.8,'sidewalk')||0;
+  localProps+=scatterRoadsideTemplateLocal(hydrant,dense?20:10,.95,'sidewalk')||0;
+  localProps+=scatterRoadsideTemplateLocal(trash,dense?30:16,.72,'sidewalk')||0;
+  localProps+=scatterRoadsideTemplateLocal(cone,dense?24:12,.75,'sidewalk')||0;
+  localProps+=scatterRoadsideTemplateLocal(barrier,dense?18:8,1.1,'sidewalk')||0;
+  localVehicles+=scatterRoadsideTemplateLocal(pickup,dense?12:6,1.72,'parking')||0;
+  localVehicles+=scatterRoadsideTemplateLocal(sports,dense?14:5,1.35,'parking')||0;
+  localVehicles+=scatterRoadsideTemplateLocal(truck,dense?6:3,2.25,'parking')||0;
+
   const life=scatterProceduralStreetLife();
+  const localLife=scatterLocalProceduralLife();
   const furniture=scatterStreetFurniture();
   const grass=buildGrassDetails();
   streetLifeStats={
-    trees:life.trees,bikes:life.bikes,vehicles,props,grass,
-    benches:furniture.benches,planters:furniture.planters
+    ...streetLifeStats,
+    trees:life.trees+localLife.trees,
+    bikes:life.bikes+localLife.bikes,
+    vehicles:vehicles+localVehicles,
+    props:props+localProps,
+    grass,
+    benches:furniture.benches+localLife.benches,
+    planters:furniture.planters+localLife.planters
   };
 
   spawnOutdoorLoot();
@@ -1799,7 +1816,7 @@ async function boot(){
     data=await r.json();if(!data?.complete)throw new Error(data?.error||'Horizon scene incomplete');
     lon0=Number(data.center.lon);lat0=Number(data.center.lat);mx=111320*Math.cos(lat0*Math.PI/180);my=110540;
 
-    buildTerrain();buildRoads();buildWater();buildBuildings();buildParts();buildParcels();addLights();setLighting(0);drawMinimapBase();initInput();
+    buildTerrain();buildRoads();buildWater();buildBuildings();buildFacadeDetails();buildParts();buildParcels();addLights();setLighting(0);drawMinimapBase();initInput();
     await buildPlayer();buildEntryPoints();
     revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone();
     loadText.textContent='Loading interiors, city dressing and infected…';
