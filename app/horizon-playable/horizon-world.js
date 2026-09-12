@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4212;
+const BUILD_VERSION=4213;
 const SAVE_KEY='bridgepoint-horizon-survivor-v3050';
 const LEGACY_SAVE_KEY='bridgepoint-horizon-survivor-v3040';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
@@ -25,6 +25,12 @@ const ASSETS={
   playerSam:FREE_BASE+'/Characters/glTF/Characters_Sam.gltf',
   playerShaun:FREE_BASE+'/Characters/glTF/Characters_Shaun.gltf',
   playerRealistic:'https://threejs.org/examples/models/gltf/Soldier.glb',
+  playerSurvivor:'https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/suited.glb',
+  infectedHuman:'https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/human.glb',
+  infectedMan:'https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/man.glb',
+  infectedScreamer:'https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/speaker.glb',
+  infectedBearReal:'https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/bear.glb',
+  infectedWolfReal:'https://raw.githubusercontent.com/kunalkushwaha/vsim/main/packages/assets/library/wolf.glb',
   zombie:FREE_BASE+'/Characters/glTF/Zombie_Basic.gltf',
   zombieChubby:FREE_BASE+'/Characters/glTF/Zombie_Chubby.gltf',
   zombieRibcage:FREE_BASE+'/Characters/glTF/Zombie_Ribcage.gltf',
@@ -100,8 +106,8 @@ const DEFAULT_WEAPON_CONFIGS=[
 
 const params=new URLSearchParams(location.search);
 const PREVIEW_KEY=['city','mountain','coastal'].includes(String(params.get('preview')||'').toLowerCase())?String(params.get('preview')).toLowerCase():null;
-const PLAYER_VARIANTS={realistic:ASSETS.playerRealistic,matt:ASSETS.player,lis:ASSETS.playerLis,sam:ASSETS.playerSam,shaun:ASSETS.playerShaun};
-const CHARACTER_KEY=String(params.get('character')||({city:'realistic',mountain:'realistic',coastal:'realistic'}[PREVIEW_KEY]||'realistic')).toLowerCase();
+const PLAYER_VARIANTS={survivor:ASSETS.playerSurvivor,realistic:ASSETS.playerRealistic,matt:ASSETS.player,lis:ASSETS.playerLis,sam:ASSETS.playerSam,shaun:ASSETS.playerShaun};
+const CHARACTER_KEY=String(params.get('character')||({city:'survivor',mountain:'survivor',coastal:'survivor'}[PREVIEW_KEY]||'survivor')).toLowerCase();
 const PLAYER_ASSET=PLAYER_VARIANTS[CHARACTER_KEY]||ASSETS.player;
 const requestedCell=String(params.get('cell')||'national').toLowerCase();
 const CELL=requestedCell==='middletown'?'middletown':requestedCell==='manhattan'?'manhattan':'national';
@@ -231,7 +237,7 @@ let inventory={Bandage:1,Water:1};
 let packName='Hidden Survivor Pack',packCapacity=24,packMesh=null;
 let weaponPivot=null,weaponTemplates={},equippedWeaponName='Axe',swingTime=0,attackCooldown=0;
 let equipment={melee:'Axe',offhand:'Knife',sidearm:null,primary:null,quick1:'Bandage',quick2:'Water'};
-let equipmentMounts={rightHand:null,leftHand:null,hip:null,backGun:null,backMelee:null};
+let equipmentMounts={rightHand:null,leftHand:null,hip:null,backGun:null,backMelee:null,activeGrip:null};
 let activeSlot='melee',activeWeapon='Axe',aiming=false,fireCooldown=0,muzzleFlash=0;
 const weaponRaycaster=new THREE.Raycaster();
 let weaponRegistry=new Map(),weaponRegistryMode='fallback',weaponRegistryError=null;
@@ -1296,6 +1302,9 @@ function setupEquipmentMounts(modelRoot){
   equipmentMounts.hip=makeMount(hips||playerRoot,[.17,.035,-.02],[0,.18,-1.10]);
   equipmentMounts.backGun=makeMount(torso||playerRoot,[0,-.055,-.13],[.18,1.42,.12]);
   equipmentMounts.backMelee=makeMount(torso||playerRoot,[-.09,-.045,-.11],[.10,1.35,-.55]);
+  // A root-level grip is deliberately kept in addition to bone sockets. It guarantees that
+  // an equipped weapon is visibly DRAWN even on third-party rigs whose hand axes differ.
+  equipmentMounts.activeGrip=makeMount(playerRoot,[.22,.18,1.18],[0,0,0]);
 
   aimBones={torso,upperR,upperL,lowerR,lowerL};
 }
@@ -1340,6 +1349,40 @@ function putCharacterWeapon(slot,name,mode='leftHand'){
   if(mode==='backMelee')obj.rotation.set(.10,.05,-.70);
   m.add(obj);return obj;
 }
+function fallbackHeldWeapon(name){
+  const g=new THREE.Group(),dark=new THREE.MeshStandardMaterial({color:0x202522,roughness:.48,metalness:.35}),wood=new THREE.MeshStandardMaterial({color:0x4f3424,roughness:.82});
+  if(isFirearm(name)){
+    const len=name==='Pistol'?.34:name==='Shotgun'?.92:name==='Rifle'?1.04:.72;
+    const body=new THREE.Mesh(new THREE.BoxGeometry(.12,len,.12),dark);body.position.y=len*.44;
+    const grip=new THREE.Mesh(new THREE.BoxGeometry(.10,.18,.14),dark);grip.position.set(.02,.12,-.11);grip.rotation.x=-.35;g.add(body,grip);
+  }else{
+    const len=name==='Knife'?.34:name==='Spear'?1.35:.72;
+    const handle=new THREE.Mesh(new THREE.CylinderGeometry(.035,.04,len*.62,8),wood);handle.rotation.x=Math.PI/2;handle.position.y=len*.22;
+    const head=new THREE.Mesh(name==='Knife'?new THREE.BoxGeometry(.045,len*.38,.012):new THREE.BoxGeometry(.24,.13,.055),dark);head.position.y=len*.57;g.add(handle,head);
+  }
+  g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});return g;
+}
+function putActiveGripWeapon(name){
+  const m=equipmentMounts.activeGrip;if(!m)return null;clearMount(m);if(!name||name==='Fists')return null;
+  let obj=cloneCharacterWeapon(name);
+  if(!obj){
+    const key=name==='Barbed Bat'?'bat':name==='Saw Bat'?'sawBat':name==='Axe'?'axe':name==='Knife'?'knife':name==='Pistol'?'pistol':name==='Rifle'?'rifle':name==='Shotgun'?'shotgun':name==='SMG'?'smg':name==='Spear'?'spear':name==='Guitar'?'guitar':null;
+    const len=name==='Pistol'?.33:name==='Rifle'?1.02:name==='Shotgun'?.92:name==='SMG'?.72:name==='Spear'?1.35:name==='Guitar'?.82:name==='Axe'?.66:name==='Knife'?.34:.88;
+    if(key)obj=propCloneByLength(weaponTemplates[key],len);
+  }
+  obj=obj||fallbackHeldWeapon(name);
+  const gun=isFirearm(name),two=Boolean(weaponCfg(name).two_handed);
+  // Stable hand-space pose: barrel/blade points forward instead of disappearing inside the rig.
+  if(gun){
+    m.position.set(two?.10:.25,.22,two?1.28:1.22);
+    m.rotation.set(.02,0,two?-.04:-.10);
+    obj.rotation.set(two?-.06:.02,0,two?.02:.06);
+  }else{
+    m.position.set(.30,.12,1.08);m.rotation.set(.04,0,-.10);
+    obj.rotation.set(.04,0,-.04);
+  }
+  obj.position.set(0,0,0);m.add(obj);return obj;
+}
 function activeItemForSlot(slot){
   if(slot==='melee')return equipment.melee;
   if(slot==='sidearm')return equipment.sidearm;
@@ -1352,24 +1395,23 @@ function refreshEquipmentVisuals(){
   const current=activeItemForSlot(activeSlot)||equipment.melee||equipment.offhand||equipment.sidearm||equipment.primary||'Fists';
   activeWeapon=current;equippedWeaponName=current;
 
+  // Draw the active weapon every time a slot is selected. Bone sockets still carry
+  // holstered items, while activeGrip guarantees a clearly visible held weapon.
+  putActiveGripWeapon(current);
   if(isFirearm(current)){
-    putCharacterWeapon('leftHand',current,'leftHand');
     if(equipment.melee){
       const stow=equipment.melee==='Barbed Bat'?'WoodenBat_Barbed':equipment.melee==='Saw Bat'?'WoodenBat_Saw':equipment.melee==='Saw Bat'?'WoodenBat_Saw':equipment.melee;
       putCharacterWeapon('backMelee',stow,'backMelee');
     }
   }else if(activeSlot==='offhand'){
-    putCharacterWeapon('leftHand',equipment.offhand||'Knife','leftHand');
     if(equipment.melee)putCharacterWeapon('backMelee',equipment.melee==='Barbed Bat'?'WoodenBat_Barbed':equipment.melee==='Saw Bat'?'WoodenBat_Saw':equipment.melee,'backMelee');
   }else{
-    const handName=current==='Barbed Bat'?'WoodenBat_Barbed':current==='Saw Bat'?'WoodenBat_Saw':current;
-    putCharacterWeapon('rightHand',handName,'rightHand');
-    if(equipment.offhand)putCharacterWeapon('leftHand',equipment.offhand,'leftHand');
+    if(equipment.offhand&&activeSlot!=='offhand')putCharacterWeapon('leftHand',equipment.offhand,'leftHand');
   }
 
   if(equipment.sidearm&&activeSlot!=='sidearm')putCharacterWeapon('hip',equipment.sidearm,'hip');
   if(equipment.primary&&activeSlot!=='primary')putCharacterWeapon('backGun',equipment.primary,'backGun');
-  weaponPivot=isFirearm(current)?equipmentMounts.leftHand:equipmentMounts.rightHand;
+  weaponPivot=equipmentMounts.activeGrip|| (isFirearm(current)?equipmentMounts.leftHand:equipmentMounts.rightHand);
 }
 function selectSlot(slot,quiet=false){
   if(slot==='quick1'||slot==='quick2')return useQuickSlot(slot);
@@ -1422,7 +1464,8 @@ function sanitizeCharacterClips(clips){
 async function buildPlayer(){
   const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,surfaceZXY(spawn.x,spawn.y)+.015);
   let primaryPlayer=await loadAsset(PLAYER_ASSET),playerMode=CHARACTER_KEY;
-  if(!primaryPlayer&&CHARACTER_KEY==='realistic'){primaryPlayer=await loadAsset(ASSETS.player);playerMode='matt-fallback'}
+  if(!primaryPlayer&&(CHARACTER_KEY==='realistic'||CHARACTER_KEY==='survivor')){primaryPlayer=await loadAsset(ASSETS.playerRealistic);playerMode='realistic-fallback'}
+  if(!primaryPlayer){primaryPlayer=await loadAsset(ASSETS.player);playerMode='matt-fallback'}
   const [gltf,axe,bat,knife,pistol,rifle,shotgun,smg,spear,sawBat,guitar]=await Promise.all([
     Promise.resolve(primaryPlayer),
     loadAsset(weaponCfg('Axe').model_url||ASSETS.axe),
@@ -2630,6 +2673,69 @@ function updateWeapon(dt,now=performance.now()){
   }else weaponPivot.rotation.set(0,0,0);
 }
 
+function buildPatrolRoute(x,y,rng=rand,count=16){
+  const start=nearestNavNode(x,y);if(!start||!navNodes.length)return[{x,y,z:surfaceZXY(x,y)}];
+  const route=[];let cur=start,prev=-1;
+  const max=Math.max(8,Math.min(30,count));
+  for(let i=0;i<max;i++){
+    route.push({x:cur.x,y:cur.y,z:cur.z});
+    const choices=[...cur.links].filter(id=>id!==prev);
+    const pool=choices.length?choices:[...cur.links];
+    if(!pool.length)break;
+    const nextId=pool[Math.floor(rng()*pool.length)];prev=cur.id;cur=navNodes[nextId]||cur;
+  }
+  return route.length>1?route:[{x,y,z:surfaceZXY(x,y)}];
+}
+function enemyClipSet(clips){
+  const find=(re)=>clips.find(x=>re.test(String(x.name||'')));
+  return{
+    idle:find(/idle|stand|breath|survey/i),
+    walk:find(/walk|shamble|crawl|move/i),
+    run:find(/run|sprint|charge|trot|gallop/i),
+    attack:find(/attack|bite|slash|punch|hit|wave|roar/i),
+    death:find(/death|die|fall/i),
+    raw:clips
+  };
+}
+function setEnemyAnimation(z,state,force=false){
+  if(!z?.mixer||!z.clipSet)return;
+  const desired=z.clipSet[state]||z.clipSet.walk||z.clipSet.idle||z.clipSet.raw?.[0];if(!desired)return;
+  if(!force&&z.actionState===state&&z.action?._clip===desired)return;
+  const next=z.mixer.clipAction(desired);next.reset().fadeIn(.12).play();
+  const scale=state==='run'?(z.animSpeed||1)*1.18:state==='attack'?(z.animSpeed||1)*1.32:(z.animSpeed||1);
+  next.setEffectiveTimeScale(Math.max(.45,Math.min(2.5,scale)));
+  if(z.action&&z.action!==next)z.action.fadeOut(.12);z.action=next;z.actionState=state;
+}
+function applyInfectedLook(model,archetype,rng=rand){
+  model?.traverse(o=>{
+    if(o.morphTargetDictionary&&o.morphTargetInfluences){
+      const idx=o.morphTargetDictionary.mouthOpen??o.morphTargetDictionary.MouthOpen;
+      if(idx!=null)o.morphTargetInfluences[idx]=archetype.screamer?.78:.18+rng()*.18;
+    }
+    if(!o.isMesh||!o.material)return;
+    const src=Array.isArray(o.material)?o.material:[o.material];
+    const mats=src.map(base=>{
+      const m=base.clone(),tint=new THREE.Color(archetype.tint||0x68705f);
+      if(m.color)m.color.lerp(tint,archetype.tintMix??.34);
+      m.roughness=Math.max(.74,Number(m.roughness??.6));
+      if(m.emissive){m.emissive.set(archetype.emissive||0x1b0303);m.emissiveIntensity=archetype.screamer?.16:.07}
+      const prior=m.onBeforeCompile;
+      m.onBeforeCompile=shader=>{
+        prior?.(shader);
+        shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vInfPos;');
+        shader.vertexShader=shader.vertexShader.replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nvInfPos=(modelMatrix*vec4(transformed,1.0)).xyz;');
+        shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vInfPos;');
+        shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+          float bruise=smoothstep(.80,.98,sin(vInfPos.x*1.73+vInfPos.z*.61)*sin(vInfPos.y*1.19-vInfPos.z*.77));
+          float dried=smoothstep(.88,.995,sin(vInfPos.x*.93-vInfPos.y*1.47+vInfPos.z*.51)*.5+.5);
+          diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(.38,.43,.34),bruise*.34);
+          diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.21,.035,.025),dried*.22);`);
+      };
+      m.needsUpdate=true;return m;
+    });
+    o.material=Array.isArray(o.material)?mats:mats[0];
+  });
+}
 function spawnZombieAt(source,a,interior=false,rng=rand){
   if(!source)return null;
   const archetype=source?.template?source:{id:'walker',label:'Walker',template:source,height:1.78,speed:[.28,.43],hp:100,damage:8,attackRange:1.28,attackMs:1050,behavior:'stalk',yawOffset:0};
@@ -2653,18 +2759,18 @@ function spawnZombieAt(source,a,interior=false,rng=rand){
   else root.position.set(a.x,a.y,surfaceZXY(a.x,a.y)+.015);
   root.rotation.z=rng()*Math.PI*2;
   (interior?interiorGroup:zombieGroup).add(root);
-  const clips=sanitizeCharacterClips(template.animations);
-  const fast=(archetype.speed?.[1]||0)>1;
-  const clip=(fast?clips.find(c=>/run|gallop|sprint/i.test(c.name)):null)||clips.find(c=>/walk|run|move/i.test(c.name))||clips.find(c=>/idle/i.test(c.name))||clips[0];
-  let mixer=null,action=null;if(clip){mixer=new THREE.AnimationMixer(n.model);action=mixer.clipAction(clip);action.setEffectiveTimeScale(Math.max(.65,Math.min(2.2,(archetype.animSpeed||1))));action.play()}
-  const s=archetype.speed||[.28,.43];
-  const z={root,mixer,action,kind:archetype.id||'walker',label:archetype.label||'Hostile',behavior:archetype.behavior||'stalk',
-    speed:s[0]+rng()*Math.max(0,s[1]-s[0]),hp:archetype.hp||100,damage:archetype.damage||8,
+  const clips=sanitizeCharacterClips(template.animations),clipSet=enemyClipSet(clips);
+  let mixer=null,action=null;if(clips.length)mixer=new THREE.AnimationMixer(n.model);
+  if(archetype.realisticInfected)applyInfectedLook(n.model,archetype,rng);
+  const s=archetype.speed||[.28,.43],patrolRoute=interior?[]:buildPatrolRoute(root.position.x,root.position.y,rng,12+Math.floor(rng()*14));
+  const z={root,mixer,action,clipSet,actionState:null,animSpeed:archetype.animSpeed||1,kind:archetype.id||'walker',label:archetype.label||'Hostile',behavior:archetype.behavior||'stalk',
+    speed:s[0]+rng()*Math.max(0,s[1]-s[0]),patrolSpeed:(archetype.patrolSpeed||.55)*(0.86+rng()*.25),chaseMult:archetype.chaseMult||1.65,hp:archetype.hp||100,damage:archetype.damage||8,
     attackRange:archetype.attackRange||1.28,attackMs:archetype.attackMs||1050,yawOffset:archetype.yawOffset||0,
     burst:archetype.burst||1,nextBurstAt:performance.now()+900+rng()*2500,burstUntil:0,
-    aggro:false,aggroRadius:archetype.aggroRadius||14,deaggroRadius:archetype.deaggroRadius||Math.max(24,(archetype.aggroRadius||14)*1.9),wanderRadius:archetype.wanderRadius||6,
-    home:new THREE.Vector3(root.position.x,root.position.y,root.position.z),wanderX:root.position.x,wanderY:root.position.y,nextWanderAt:0,
-    dead:false,steer:rng()>.5?1:-1,lastTurn:0,state:'graze',path:[],pathIndex:0,nextPathAt:0,nextAttackAt:0};
+    aggro:false,aggroRadius:archetype.aggroRadius||14,deaggroRadius:archetype.deaggroRadius||Math.max(24,(archetype.aggroRadius||14)*1.9),
+    home:new THREE.Vector3(root.position.x,root.position.y,root.position.z),patrolRoute,patrolIndex:0,patrolDir:1,patrolPauseUntil:0,
+    dead:false,steer:rng()>.5?1:-1,lastTurn:0,state:'patrol',path:[],pathIndex:0,nextPathAt:0,nextAttackAt:0};
+  if(mixer)setEnemyAnimation(z,'walk',true);
   root.userData.zombieRef=z;
   root.traverse(o=>{o.userData.zombieRef=z});
   (interior?interiorZombies:zombies).push(z);return z;
@@ -2684,7 +2790,8 @@ function spawnZombieWave(now=performance.now(),force=false){
   let made=0;
   for(let i=0;i<desired&&candidates.length;i++){
     const a=candidates[Math.floor(rand()*candidates.length)];
-    const variant=zombieTemplates.length?zombieTemplates[Math.floor(rand()*zombieTemplates.length)]:zombieTemplate;
+    const realistic=zombieTemplates.filter(x=>x.realisticInfected);const pool=(realistic.length&&rand()<.72)?realistic:zombieTemplates;
+    const variant=pool.length?pool[Math.floor(rand()*pool.length)]:zombieTemplate;
     if(spawnZombieAt(variant,a,false))made++;
   }
   if(made){waveNumber++;showToast('Hostile wave '+waveNumber+' approaching · '+made)}
@@ -2715,10 +2822,16 @@ function moveZombieToward(z,tx,ty,dt,interior,now){
   if(!z.aggro&&rawDist<=z.aggroRadius)z.aggro=true;
   if(z.aggro&&rawDist>=z.deaggroRadius)z.aggro=false;
   if(!z.aggro){
-    if(now>=z.nextWanderAt||Math.hypot(z.wanderX-z.root.position.x,z.wanderY-z.root.position.y)<.7){
-      const a=rand()*Math.PI*2,d=1.2+rand()*z.wanderRadius;z.wanderX=z.home.x+Math.cos(a)*d;z.wanderY=z.home.y+Math.sin(a)*d;z.nextWanderAt=now+1800+rand()*4200;
-    }
-    targetX=z.wanderX;targetY=z.wanderY;
+    const route=z.patrolRoute||[];
+    if(route.length){
+      const wp=route[z.patrolIndex%route.length];targetX=wp.x;targetY=wp.y;
+      const pd=Math.hypot(targetX-z.root.position.x,targetY-z.root.position.y);
+      if(pd<.72&&now>=z.patrolPauseUntil){
+        z.patrolIndex=(z.patrolIndex+z.patrolDir+route.length)%route.length;
+        if(z.patrolIndex===0||z.patrolIndex===route.length-1)z.patrolDir*=-1;
+        z.patrolPauseUntil=now+250+rand()*950;
+      }
+    }else{targetX=z.home.x;targetY=z.home.y}
   }
   if(z.aggro&&!interior&&rawDist>9&&navNodes.length){
     if(now>=z.nextPathAt||!z.path?.length||z.pathIndex>=z.path.length){
@@ -2735,7 +2848,9 @@ function moveZombieToward(z,tx,ty,dt,interior,now){
     z.burstUntil=now+(z.behavior==='pounce'?520:850);z.nextBurstAt=now+2200+rand()*3200;
   }
   const dx=targetX-z.root.position.x,dy=targetY-z.root.position.y,dist=Math.hypot(dx,dy)||.001;
-  const vx=dx/dist,vy=dy/dist,dynamicSpeed=z.speed*(now<z.burstUntil?z.burst:1),step=dynamicSpeed*dt;
+  const vx=dx/dist,vy=dy/dist;
+  const baseMove=z.aggro?z.speed*z.chaseMult:z.speed*z.patrolSpeed;
+  const dynamicSpeed=baseMove*(now<z.burstUntil?z.burst:1),step=dynamicSpeed*dt;
   let nx=z.root.position.x+vx*step,ny=z.root.position.y+vy*step;
   const blocked=(x,y)=>interior?isBlockedInterior(x,y):isBlockedExterior(x,y,.30);
   if(!blocked(nx,ny)){
@@ -2747,7 +2862,8 @@ function moveZombieToward(z,tx,ty,dt,interior,now){
   }
   z.root.position.z=interior?.015:surfaceZXY(z.root.position.x,z.root.position.y)+.015;
   z.root.rotation.z=Math.atan2(vx,vy)+(z.yawOffset||0);
-  z.state=z.aggro?(rawDist<1.35?'attack':'chase'):(Math.hypot(z.wanderX-z.root.position.x,z.wanderY-z.root.position.y)<.8?'graze':'wander');
+  z.state=z.aggro?(rawDist<(z.attackRange||1.3)?'attack':'chase'):(now<z.patrolPauseUntil?'idle':'patrol');
+  setEnemyAnimation(z,z.state==='chase'?'run':z.state==='attack'?'attack':z.state==='idle'?'idle':'walk');
   return rawDist;
 }
 function updateFlyingCrow(z,dt,now){
@@ -2823,6 +2939,9 @@ function updateZombies(dt,now){
     const dist=(!interiorMode&&z.kind==='crow')?updateFlyingCrow(z,dt,now):(!interiorMode&&z.kind==='spider'&&z.climb)?updateClimbingSpider(z,dt,now):moveZombieToward(z,playerRoot.position.x,playerRoot.position.y,dt,interiorMode,now);
     if(dist<38&&audioCtx&&now>(z.nextGroan||0)){z.nextGroan=now+3200+rand()*4200;spatialTone(z.root.position,'groan')}
     if(dist<(z.attackRange||1.28)&&now>=(z.nextAttackAt||0)){
+      setEnemyAnimation(z,'attack',true);
+      const lunge=z.behavior==='pounce'?1.15:z.behavior==='charge'?.62:.28;
+      if(lunge>0&&!interiorMode){const dx=playerRoot.position.x-z.root.position.x,dy=playerRoot.position.y-z.root.position.y,d=Math.hypot(dx,dy)||1;z.root.position.x+=(dx/d)*lunge;z.root.position.y+=(dy/d)*lunge}
       damagePlayer(z.damage||8);z.nextAttackAt=now+(z.attackMs||1050);lastDamageAt=now;
       if(!playerDead)showToast((z.label||'Hostile')+' hit · '+health+' health');
     }
@@ -2834,7 +2953,7 @@ async function buildSurvivalArt(){
   const [
     barrel,trash,pallet,barrier,cone,streetlight,hydrant,traffic1,traffic2,plasticBarrier,cinder,
     containerGreen,containerRed,pipes,wheelStack,townSign,pickup,sports,truck,
-    zombie,zombieChubby,zombieRibcage,dogShepherd,dogPug,wolf,orc,spider,yeti,bear,crow,
+    zombie,zombieChubby,zombieRibcage,realHuman,realMan,realScreamer,dogShepherd,dogPug,wolf,orc,spider,yeti,bear,crow,realBear,realWolf,
     chest,chestSpecial,...interiors
   ]=await Promise.all([
     loadAsset(ASSETS.barrel),loadAsset(ASSETS.trash),loadAsset(ASSETS.pallet),loadAsset(ASSETS.barrier),
@@ -2843,14 +2962,20 @@ async function buildSurvivalArt(){
     loadAsset(ASSETS.containerGreen),loadAsset(ASSETS.containerRed),loadAsset(ASSETS.pipes),loadAsset(ASSETS.wheelStack),loadAsset(ASSETS.townSign),
     loadAsset(ASSETS.vehicle),loadAsset(ASSETS.sportsCar),loadAsset(ASSETS.truck),
     loadAsset(ASSETS.zombie),loadAsset(ASSETS.zombieChubby),loadAsset(ASSETS.zombieRibcage),
+    loadAsset(ASSETS.infectedHuman),loadAsset(ASSETS.infectedMan),loadAsset(ASSETS.infectedScreamer),
     loadAsset(ASSETS.infectedShepherd),loadAsset(ASSETS.infectedPug),loadAsset(ASSETS.wolf),
-    loadAsset(ASSETS.orc),loadAsset(ASSETS.spider),loadAsset(ASSETS.yeti),loadAsset(ASSETS.bear),loadAsset(ASSETS.infectedCrow),
+    loadAsset(ASSETS.orc),loadAsset(ASSETS.spider),loadAsset(ASSETS.yeti),loadAsset(ASSETS.bear),loadAsset(ASSETS.infectedCrow),loadAsset(ASSETS.infectedBearReal),loadAsset(ASSETS.infectedWolfReal),
     loadAsset(ASSETS.chest),loadAsset(ASSETS.chestSpecial),
     ...Object.values(INTERIOR_ASSETS).map(loadAsset)
   ]);
   const keys=Object.keys(INTERIOR_ASSETS);interiorTemplates={};keys.forEach((k,i)=>interiorTemplates[k]=interiors[i]);
   pickupTemplates={chest,chestSpecial};
   enemyArchetypes=[
+    realHuman&&{id:'ashen',label:'Ashen infected',template:realHuman,height:1.72,speed:[.48,.72],patrolSpeed:.48,chaseMult:1.55,hp:112,damage:9,attackRange:1.28,attackMs:1080,behavior:'stalk',animSpeed:.88,aggroRadius:11,deaggroRadius:25,realisticInfected:true,tint:0x6c7465,tintMix:.42,emissive:0x160202},
+    realMan&&{id:'stalker',label:'Stalker infected',template:realMan,height:1.86,speed:[.60,.92],patrolSpeed:.46,chaseMult:1.82,hp:128,damage:12,attackRange:1.34,attackMs:930,behavior:'weave',animSpeed:.96,aggroRadius:15,deaggroRadius:31,realisticInfected:true,tint:0x596257,tintMix:.46,emissive:0x210303},
+    realScreamer&&{id:'screamer',label:'Screamer',template:realScreamer,height:1.77,speed:[.72,1.08],patrolSpeed:.40,chaseMult:1.92,hp:96,damage:10,attackRange:1.30,attackMs:760,behavior:'charge',burst:1.48,animSpeed:1.12,aggroRadius:20,deaggroRadius:38,realisticInfected:true,screamer:true,tint:0x747260,tintMix:.38,emissive:0x2b0303},
+    realMan&&{id:'sprinter',label:'Fresh sprinter',template:realMan,height:1.82,speed:[.92,1.30],patrolSpeed:.38,chaseMult:2.05,hp:82,damage:8,attackRange:1.24,attackMs:650,behavior:'charge',burst:1.72,animSpeed:1.32,aggroRadius:18,deaggroRadius:36,realisticInfected:true,tint:0x75665f,tintMix:.30,emissive:0x240202},
+    realHuman&&{id:'lurker',label:'Lurker',template:realHuman,height:1.68,speed:[.34,.54],patrolSpeed:.34,chaseMult:1.48,hp:145,damage:15,attackRange:1.38,attackMs:1320,behavior:'stalk',animSpeed:.72,aggroRadius:8,deaggroRadius:20,realisticInfected:true,tint:0x4f5d51,tintMix:.52,emissive:0x120101},
     zombie&&{id:'walker',label:'Walker',template:zombie,height:1.78,speed:[.28,.46],hp:90,damage:7,attackRange:1.25,attackMs:1150,behavior:'stalk',animSpeed:.75,aggroRadius:12,wanderRadius:5},
     zombieChubby&&{id:'bruiser',label:'Chubby infected',template:zombieChubby,height:1.88,speed:[.20,.32],hp:180,damage:14,attackRange:1.42,attackMs:1450,behavior:'stalk',animSpeed:.68,aggroRadius:10,wanderRadius:4},
     zombieRibcage&&{id:'runner',label:'Ribcage runner',template:zombieRibcage,height:1.80,speed:[.48,.76],hp:78,damage:9,attackRange:1.30,attackMs:900,behavior:'charge',burst:1.5,animSpeed:1.05,aggroRadius:19,wanderRadius:7},
@@ -2860,6 +2985,8 @@ async function buildSurvivalArt(){
     spider&&{id:'spider',label:'Giant spider',template:spider,height:.72,speed:[1.10,1.75],hp:72,damage:10,attackRange:1.08,attackMs:680,behavior:'weave',burst:1.35,animSpeed:1.5,aggroRadius:14,wanderRadius:7},
     orc&&{id:'orc',label:'Orc raider',template:orc,height:2.02,speed:[.62,.98],hp:220,damage:18,attackRange:1.52,attackMs:1250,behavior:'charge',burst:1.55,animSpeed:1.05,aggroRadius:16,wanderRadius:7},
     yeti&&{id:'yeti',label:'Yeti brute',template:yeti,height:2.35,speed:[.48,.82],hp:300,damage:23,attackRange:1.72,attackMs:1500,behavior:'charge',burst:1.42,animSpeed:.9,aggroRadius:14,wanderRadius:5},
+    realBear&&{id:'realbear',label:'Diseased bear',template:realBear,height:1.72,speed:[.78,1.18],patrolSpeed:.50,chaseMult:1.76,hp:360,damage:29,attackRange:1.9,attackMs:1380,behavior:'charge',burst:1.55,animSpeed:.92,aggroRadius:12,deaggroRadius:28,realisticInfected:true,tint:0x575b50,tintMix:.36,emissive:0x220303},
+    realWolf&&{id:'realwolf',label:'Rabid wolf',template:realWolf,height:1.04,speed:[1.05,1.50],patrolSpeed:.62,chaseMult:1.96,hp:92,damage:14,attackRange:1.2,attackMs:720,behavior:'pounce',burst:1.72,animSpeed:1.42,aggroRadius:16,deaggroRadius:32,realisticInfected:true,tint:0x545b52,tintMix:.30,emissive:0x1c0202},
     bear&&{id:'bear',label:'Infected bear',template:bear,height:1.78,speed:[.72,1.28],hp:380,damage:30,attackRange:1.9,attackMs:1450,behavior:'charge',burst:1.58,animSpeed:.9,aggroRadius:12,wanderRadius:6,tint:0x5f6656,tintMix:.3,emissive:0x250806},
     crow&&{id:'crow',label:'Infected crow',template:crow,height:.58,speed:[3.2,4.7],hp:28,damage:9,attackRange:1.15,attackMs:620,behavior:'dive',flying:true,aggroRadius:21,deaggroRadius:34,wanderRadius:12,tint:0x2a2c28,tintMix:.55,emissive:0x1d0505}
   ].filter(Boolean);
@@ -3215,7 +3342,7 @@ function updatePlayer(dt){
     // Locomotion always wins: the survivor turns into the travel vector and then runs/walks FORWARD.
     // No strafing/backpedaling animation is allowed, including while aiming.
     const targetRot=Math.atan2(move.x,move.y);
-    playerRoot.rotation.z=targetRot;
+    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-11*dt));
   }else if(aiming&&isFirearm(activeWeapon)){
     // When stationary, face the aim direction. Quaternius survivors are authored facing -Y,
     // so the model yaw offset converts the world heading into the model's actual forward.
@@ -3225,6 +3352,7 @@ function updatePlayer(dt){
   if(reloadState.active)playPlayerAnimation('reload');
   else if(aiming&&isFirearm(activeWeapon)&&!moving)playPlayerAnimation('aim');
   else if(swingTime<=0)playPlayerAnimation(moving?(sprint?'run':'walk'):'idle');
+  if(playerAction)playerAction.setEffectiveTimeScale(sprint?1.18:moving?1.0:.92);
   playerMixer?.update(dt);
   applyProceduralAim();
   const nowAudio=performance.now();
@@ -3317,7 +3445,7 @@ async function boot(){
     window.BP_HORIZON_SMOKE={
       ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),
       player:Boolean(playerRoot),playerAssetLoaded,playerAssetMode,character:CHARACTER_KEY,preview:PREVIEW_KEY,loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,
-      enemyArchetypes:enemyArchetypes.map(x=>x.id),mapMarkers:mapMarkers.length,groundDetails:Number(streetLifeStats.groundDetails||0),climbingSpiders:zombies.filter(z=>z.kind==='spider'&&z.climb).length,weaponCatalog:[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],dropWeapon:true,
+      enemyArchetypes:enemyArchetypes.map(x=>x.id),realisticInfected:enemyArchetypes.filter(x=>x.realisticInfected).length,precomputedPatrols:zombies.filter(z=>z.patrolRoute?.length>1).length,mapMarkers:mapMarkers.length,groundDetails:Number(streetLifeStats.groundDetails||0),climbingSpiders:zombies.filter(z=>z.kind==='spider'&&z.climb).length,weaponCatalog:[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],dropWeapon:true,
       packCapacity,weapon:equippedWeaponName,interiorAssets:Object.values(interiorTemplates).filter(Boolean).length,
       artChildren:artGroup.children.length,roadLayers:roadLayer?.children?.length||0,streetLife:{...streetLifeStats},
       spawnBlocked:isBlockedExterior(playerRoot.position.x,playerRoot.position.y,.36),
@@ -3370,7 +3498,8 @@ async function boot(){
         return{before,target,aimed,restored:camera.fov,crosshairVisible,buttonActive};
       },
       dropWeaponAvailable:()=>Boolean(activeItemForSlot(activeSlot)&&activeWeapon!=='Fists'),
-      enemyCatalog:()=>enemyArchetypes.map(x=>({id:x.id,label:x.label,speed:x.speed,hp:x.hp,damage:x.damage,behavior:x.behavior})),
+      enemyCatalog:()=>enemyArchetypes.map(x=>({id:x.id,label:x.label,speed:x.speed,hp:x.hp,damage:x.damage,behavior:x.behavior,realistic:Boolean(x.realisticInfected)})),
+      patrolProbe:()=>zombies.filter(z=>!z.dead&&z.kind!=='crow'&&!(z.kind==='spider'&&z.climb)).slice(0,8).map(z=>({kind:z.kind,route:z.patrolRoute?.length||0,index:z.patrolIndex,state:z.state,aggro:z.aggro,chaseMult:z.chaseMult})),
       climbingSpiderCount:()=>zombies.filter(z=>z.kind==='spider'&&z.climb).length,
       weaponCatalog:()=>[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],
       cardinalControlsProbe:()=>{
@@ -3423,6 +3552,13 @@ async function boot(){
           hipParent:equipmentMounts.hip?.parent?.name||null,
           backParent:equipmentMounts.backGun?.parent?.name||null
         };
+      },
+      heldWeaponProbe:()=>{
+        addInventoryItem('Pistol');selectSlot('sidearm',true);refreshEquipmentVisuals();
+        const m=equipmentMounts.activeGrip,child=m?.children?.[0]||null;
+        if(!child)return{visible:false,children:m?.children?.length||0};
+        child.updateWorldMatrix(true,true);const box=new THREE.Box3().setFromObject(child),size=new THREE.Vector3(),center=new THREE.Vector3();box.getSize(size);box.getCenter(center);
+        const p=playerRoot.position;return{visible:true,children:m.children.length,size:{x:size.x,y:size.y,z:size.z},distance:Math.hypot(center.x-p.x,center.y-p.y,center.z-(p.z+1.1)),weapon:activeWeapon};
       },
       gunProbe:()=>{
         addInventoryItem('Pistol');selectSlot('sidearm',true);setAiming(true);
