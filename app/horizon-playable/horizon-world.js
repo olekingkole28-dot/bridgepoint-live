@@ -845,7 +845,7 @@ function updatePlayer(dt){
   const blockedY=interiorMode?isBlockedInterior(playerRoot.position.x,ny):isBlockedExterior(playerRoot.position.x,ny);
   if(!blockedY)playerRoot.position.y=ny;else playerVelocity.y=0;
 
-  playerRoot.position.z=interiorMode?.05:terrainZXY(playerRoot.position.x,playerRoot.position.y)+.05;
+  playerRoot.position.z=interiorMode ? 0.05 : terrainZXY(playerRoot.position.x,playerRoot.position.y)+0.05;
   if(moving){
     const targetRot=Math.atan2(playerVelocity.x,playerVelocity.y)+Math.PI;
     playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-12*dt));
