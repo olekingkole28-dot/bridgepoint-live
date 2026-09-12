@@ -1376,7 +1376,7 @@ function scatterStreetFurniture(){
   return{benches,planters};
 }
 function buildGrassDetails(){
-  const count=densePreview()?850:620;
+  const count=densePreview()?2600:1400;
   const geo=new THREE.ConeGeometry(.07,.44,3);
   const mat=new THREE.MeshStandardMaterial({color:0x4b7547,roughness:.96});
   const inst=new THREE.InstancedMesh(geo,mat,count),dummy=new THREE.Object3D();
@@ -1390,6 +1390,46 @@ function buildGrassDetails(){
     const sc=.65+rand()*.85;dummy.scale.set(sc,sc,sc);dummy.updateMatrix();inst.setMatrixAt(placed,dummy.matrix);placed++;
   }
   inst.count=placed;inst.instanceMatrix.needsUpdate=true;inst.receiveShadow=false;inst.castShadow=false;artGroup.add(inst);return placed;
+}
+function buildDenseVegetation(){
+  const b=streamXYBounds();if(!b)return{trees:0,shrubs:0};
+  const treeTarget=densePreview()?420:220,shrubTarget=densePreview()?850:420;
+  const trunkGeo=new THREE.CylinderGeometry(.10,.15,1.9,6),crownGeo=new THREE.IcosahedronGeometry(.82,1),shrubGeo=new THREE.IcosahedronGeometry(.42,1);
+  const trunkMat=new THREE.MeshStandardMaterial({color:0x59432f,roughness:.97});
+  const leafMat=new THREE.MeshStandardMaterial({color:0x3d6d42,roughness:.96});
+  const shrubMat=new THREE.MeshStandardMaterial({color:0x4f7c4a,roughness:.97});
+  const trunks=new THREE.InstancedMesh(trunkGeo,trunkMat,treeTarget),crowns=new THREE.InstancedMesh(crownGeo,leafMat,treeTarget),shrubs=new THREE.InstancedMesh(shrubGeo,shrubMat,shrubTarget);
+  const d=new THREE.Object3D();let tc=0,sc=0,attempts=0;
+  const roadGap=(x,y)=>{
+    let best=Infinity;
+    for(const seg of nearbyRoadSegments(x,y)){const q=pointSegDist(x,y,seg.a,seg.b)-seg.width/2;if(q<best)best=q}
+    return best;
+  };
+  while(tc<treeTarget&&attempts<treeTarget*18){
+    attempts++;const x=THREE.MathUtils.lerp(b.west,b.east,rand()),y=THREE.MathUtils.lerp(b.south,b.north,rand());
+    if(isBlockedExterior(x,y,.55)||roadGap(x,y)<5.5)continue;
+    const z=surfaceZXY(x,y),scal=.75+rand()*1.45;
+    d.position.set(x,y,z+.95*scal);d.rotation.set(Math.PI/2,0,rand()*Math.PI*2);d.scale.set(scal,scal,scal);d.updateMatrix();trunks.setMatrixAt(tc,d.matrix);
+    d.position.set(x+(rand()-.5)*.22,y+(rand()-.5)*.22,z+2.05*scal);d.rotation.set(rand()*.2,rand()*.2,rand()*Math.PI*2);d.scale.set(1.1*scal,.95*scal,1.25*scal);d.updateMatrix();crowns.setMatrixAt(tc,d.matrix);tc++;
+  }
+  attempts=0;
+  while(sc<shrubTarget&&attempts<shrubTarget*16){
+    attempts++;const x=THREE.MathUtils.lerp(b.west,b.east,rand()),y=THREE.MathUtils.lerp(b.south,b.north,rand());
+    if(isBlockedExterior(x,y,.28)||roadGap(x,y)<3.8)continue;
+    const z=surfaceZXY(x,y),sz=.55+rand()*1.1;d.position.set(x,y,z+.28);d.rotation.set(rand()*.2,rand()*.2,rand()*Math.PI*2);d.scale.set(sz,sz*(.7+rand()*.45),sz);d.updateMatrix();shrubs.setMatrixAt(sc++,d.matrix);
+  }
+  trunks.count=crowns.count=tc;shrubs.count=sc;trunks.instanceMatrix.needsUpdate=crowns.instanceMatrix.needsUpdate=shrubs.instanceMatrix.needsUpdate=true;
+  trunks.castShadow=crowns.castShadow=true;shrubs.castShadow=false;artGroup.add(trunks,crowns,shrubs);return{trees:tc,shrubs:sc};
+}
+function buildAtmosphere(){
+  const geo=new THREE.SphereGeometry(5200,28,16);
+  const mat=new THREE.ShaderMaterial({
+    side:THREE.BackSide,depthWrite:false,
+    uniforms:{top:{value:new THREE.Color(0x203b46)},horizon:{value:new THREE.Color(0xb6c6b4)},bottom:{value:new THREE.Color(0x6f786d)}},
+    vertexShader:'varying vec3 vPos; void main(){vPos=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+    fragmentShader:'varying vec3 vPos; uniform vec3 top; uniform vec3 horizon; uniform vec3 bottom; void main(){float h=normalize(vPos).z; vec3 c=h>0.0?mix(horizon,top,pow(clamp(h,0.0,1.0),0.55)):mix(horizon,bottom,clamp(-h,0.0,1.0)); gl_FragColor=vec4(c,1.0);}'
+  });
+  const sky=new THREE.Mesh(geo,mat);sky.renderOrder=-1000;scene.add(sky);return sky;
 }
 function showToast(message){
   let el=document.getElementById('lootToast');
@@ -2076,11 +2116,20 @@ async function buildSurvivalArt(){
   const localLife=scatterLocalProceduralLife();
   const furniture=scatterStreetFurniture();
   const grass=buildGrassDetails();
+  const denseVeg=buildDenseVegetation();
+  const drivable=
+    spawnDrivableVehicle(pickup,'pickup',dense?5:3,1.72)+
+    spawnDrivableVehicle(sports,'sports',dense?5:2,1.35)+
+    spawnDrivableVehicle(truck,'truck',dense?3:2,2.25)+
+    spawnDrivableBike(dense?5:3);
   streetLifeStats={
     ...streetLifeStats,
-    trees:life.trees+localLife.trees,
+    trees:life.trees+localLife.trees+denseVeg.trees,
+    backgroundTrees:denseVeg.trees,
+    shrubs:denseVeg.shrubs,
     bikes:life.bikes+localLife.bikes,
-    vehicles:vehicles+localVehicles,
+    vehicles:vehicles+localVehicles+drivable,
+    drivable,
     props:props+localProps,
     grass,
     benches:furniture.benches+localLife.benches,
@@ -2346,7 +2395,7 @@ async function boot(){
     lon0=Number(data.center.lon);lat0=Number(data.center.lat);mx=111320*Math.cos(lat0*Math.PI/180);my=110540;
     const meta=$('jurisdictionMeta');if(meta&&CELL==='national')meta.textContent=(JURISDICTIONS[SELECTED_STATE]?.[0]||SELECTED_STATE)+' · '+(data.counts?.buildings||0).toLocaleString()+' buildings · '+(data.counts?.parcels||0).toLocaleString()+' open parcel outlines · '+Number(data.span_km||STREAM_SPAN).toFixed(1)+' km streamed cell';
 
-    buildTerrain();buildRoads();buildWater();buildBuildings();buildFacadeDetails();buildParts();buildParcels();addLights();setLighting(0);drawMinimapBase();initInput();
+    buildAtmosphere();buildTerrain();buildRoads();buildWater();buildBuildings();buildFacadeDetails();buildParts();buildParcels();addLights();setLighting(0);drawMinimapBase();initInput();
     await buildPlayer();createPlayerPhysics();buildEntryPoints();
     revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone();
     loadText.textContent='Loading interiors, city dressing and infected…';
