@@ -44,3 +44,9 @@ Game-art placement is fictional decorative dressing. It must not be represented 
 - Default preview survivor: SceneView's mirrored three.js Soldier GLB, listed as CC0-1.0 in SceneView's asset credits. Existing Quaternius survivors remain selectable.
 - Infected crow/vulture: Kenney Cube Pets model from the local-agents CC0 mirror, recolored and given dive/circle AI at runtime.
 - No Resident Evil, Call of Duty, World War Z, or Lord of the Rings proprietary character assets are included. The game uses original/generic horror archetypes and legally cleared free assets instead.
+
+## 4213 precomputed patrol / MakeHuman pass
+- Default player is now the CC0 MakeHuman/MPFB suited.glb from vsim, replacing the previous Soldier default. It carries walk/run/idle/wave animation clips.
+- New realistic infected variants use vsim's CC0 MakeHuman human.glb, man.glb, and speaker.glb, with runtime decay/bruising/blood shader treatment and per-archetype speed/attack behavior.
+- Outdoor ground enemies receive a precomputed road/nav patrol route at spawn and follow that route until the player enters their aggro radius. Chase paths are then recalculated toward the player.
+- Active weapons use a dedicated visible grip mount plus a generated fallback weapon mesh so selecting a weapon cannot silently leave the survivor empty-handed.
