@@ -1849,7 +1849,8 @@ async function boot(){
       visiblePack:Boolean(packMesh),pickupCount:worldPickups.filter(p=>p.active&&p.mode==='exterior').length,
       equipment:{...equipment},
       playerSurfaceZ:surfaceZXY(playerRoot.position.x,playerRoot.position.y),
-      playerRootZ:playerRoot.position.z
+      playerRootZ:playerRoot.position.z,
+      activeWeapon,activeSlot,zombieVariants:zombieTemplates.length
     };
     window.BP_HORIZON_TEST={
       enterFirst:()=>{
@@ -1889,9 +1890,42 @@ async function boot(){
         return {
           equipment:{...equipment},
           hipChildren:equipmentMounts.hip?.children?.length||0,
-          backChildren:equipmentMounts.back?.children?.length||0,
+          backChildren:equipmentMounts.backGun?.children?.length||0,
           visiblePack:Boolean(packMesh)
         };
+      },
+      socketProbe:()=>{
+        const localOf=o=>{
+          if(!o)return null;o.updateWorldMatrix(true,false);
+          const v=new THREE.Vector3();o.getWorldPosition(v);playerRoot.worldToLocal(v);return{x:v.x,y:v.y,z:v.z};
+        };
+        return {
+          rightHand:localOf(equipmentMounts.rightHand),
+          leftHand:localOf(equipmentMounts.leftHand),
+          hip:localOf(equipmentMounts.hip),
+          back:localOf(equipmentMounts.backGun),
+          handChildren:equipmentMounts.rightHand?.children?.length||0
+        };
+      },
+      gunProbe:()=>{
+        addInventoryItem('Pistol');selectSlot('sidearm',true);setAiming(true);
+        const before=ammoState.Pistol;shoot();const after=ammoState.Pistol;
+        const side={activeSlot,activeWeapon,before,after,aiming};
+        addInventoryItem('Rifle');selectSlot('primary',true);
+        const primary={activeSlot,activeWeapon,backChildren:equipmentMounts.backGun?.children?.length||0};
+        selectSlot('melee',true);setAiming(false);
+        return{side,primary};
+      },
+      multiFloorProbe:()=>{
+        if(interiorMode)exitInterior();
+        const e=[...buildingEntries].sort((a,b)=>b.height-a.height)[0];if(!e)return null;
+        enterInterior(e);const first={floor:activeInterior.floor,floors:activeInterior.floors};
+        if(activeInterior.floors>1)changeInteriorFloor(2);
+        const second={floor:activeInterior.floor,floors:activeInterior.floors,links:interiorFloorLinks.length,pickups:worldPickups.filter(p=>p.active&&p.mode==='interior').length};
+        exitInterior();return{first,second};
+      },
+      cameraProbe:()=>{
+        updateCamera(.5);return{blocked:cameraPointBlocked(camera.position),z:camera.position.z};
       },
       feetProbe:()=>{
         const box=new THREE.Box3().setFromObject(playerVisualRoot||playerRoot);
