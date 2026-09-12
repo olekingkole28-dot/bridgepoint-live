@@ -9,7 +9,11 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4213;
+const BUILD_VERSION=4214;
+const PLAYER_BASE_SPEED=3.45;
+const PLAYER_SPRINT_MULT=1.68;
+const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
+const MAX_HOSTILE_SPEED=PLAYER_MAX_SPEED*.91;
 const SAVE_KEY='bridgepoint-horizon-survivor-v3050';
 const LEGACY_SAVE_KEY='bridgepoint-horizon-survivor-v3040';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
@@ -1304,7 +1308,8 @@ function setupEquipmentMounts(modelRoot){
   equipmentMounts.backMelee=makeMount(torso||playerRoot,[-.09,-.045,-.11],[.10,1.35,-.55]);
   // A root-level grip is deliberately kept in addition to bone sockets. It guarantees that
   // an equipped weapon is visibly DRAWN even on third-party rigs whose hand axes differ.
-  equipmentMounts.activeGrip=makeMount(playerRoot,[.22,.18,1.18],[0,0,0]);
+  equipmentMounts.activeGrip=makeMount(right||playerRoot);
+  equipmentMounts.activeGrip.userData.handSocket=Boolean(right);
 
   aimBones={torso,upperR,upperL,lowerR,lowerL};
 }
@@ -1371,17 +1376,20 @@ function putActiveGripWeapon(name){
     if(key)obj=propCloneByLength(weaponTemplates[key],len);
   }
   obj=obj||fallbackHeldWeapon(name);
-  const gun=isFirearm(name),two=Boolean(weaponCfg(name).two_handed);
-  // Stable hand-space pose: barrel/blade points forward instead of disappearing inside the rig.
-  if(gun){
-    m.position.set(two?.10:.25,.22,two?1.28:1.22);
-    m.rotation.set(.02,0,two?-.04:-.10);
-    obj.rotation.set(two?-.06:.02,0,two?.02:.06);
+  const gun=isFirearm(name),two=Boolean(weaponCfg(name).two_handed),handSocket=Boolean(m.userData.handSocket);
+  // Follow the animated hand when the rig exposes one; only use root-space as a fallback.
+  if(handSocket){
+    m.position.set(0,0,0);m.rotation.set(0,0,0);
+    obj.position.set(gun?.02:.015,gun?.035:.02,gun?.02:0);
+    obj.rotation.set(gun?(two?-.10:-.05):.04,gun?0:.04,gun?(two?-.06:-.10):-.12);
+  }else if(gun){
+    m.position.set(two?.10:.25,.22,two?1.28:1.22);m.rotation.set(.02,0,two?-.04:-.10);
+    obj.position.set(0,0,0);obj.rotation.set(two?-.06:.02,0,two?.02:.06);
   }else{
     m.position.set(.30,.12,1.08);m.rotation.set(.04,0,-.10);
-    obj.rotation.set(.04,0,-.04);
+    obj.position.set(0,0,0);obj.rotation.set(.04,0,-.04);
   }
-  obj.position.set(0,0,0);m.add(obj);return obj;
+  m.add(obj);return obj;
 }
 function activeItemForSlot(slot){
   if(slot==='melee')return equipment.melee;
@@ -1521,14 +1529,8 @@ function applyProceduralAim(){
   if(!aiming||!isFirearm(activeWeapon)||!playerRoot)return;
   const dir=new THREE.Vector3();camera.getWorldDirection(dir);
   const elevation=Math.asin(THREE.MathUtils.clamp(dir.z,-1,1));
-  const cfg=weaponCfg(activeWeapon),two=Boolean(cfg.two_handed);
-  // Additive pass after AnimationMixer: animation provides locomotion/stance,
-  // these small rotations keep the upper body following the crosshair.
-  if(aimBones.torso)aimBones.torso.rotateX(-elevation*.34);
-  if(aimBones.upperL)aimBones.upperL.rotateX(-elevation*(two?.44:.30));
-  if(aimBones.upperR)aimBones.upperR.rotateX(-elevation*(two?.34:.18));
-  if(two&&aimBones.lowerR)aimBones.lowerR.rotateZ(-.08);
-  if(two&&aimBones.lowerL)aimBones.lowerL.rotateZ(.06);
+  // Let authored animation own shoulders/elbows; only add restrained spine pitch.
+  if(aimBones.torso)aimBones.torso.rotateX(-elevation*.22);
 }
 function staticClone(template,targetHeight){
   if(!template)return null;
@@ -2063,7 +2065,7 @@ function updateInventory(){
   const reloadLabel=$('reloadLabel');if(reloadLabel)reloadLabel.textContent=reloadState.active?'...':'RELOAD';
   const cross=$('crosshair');if(cross)cross.hidden=!(aiming&&isFirearm(activeWeapon));
   $('inventoryList').innerHTML=entries.length
-    ?entries.slice(0,16).map(([k,v])=>'<span data-item="'+k+'">'+k+' ×'+v+'</span>').join('')
+    ?entries.slice(0,16).map(([k,v])=>'<span class="packTile" data-item="'+k+'" title="'+k+'"><i>'+inventoryIcon(k)+'</i><b>'+k+'</b><em>'+v+'</em></span>').join('')
     :'<span class="empty">Search rooms, cabinets, furniture and visible loot.</span>';
   persistSurvivor();
 }
@@ -2122,16 +2124,34 @@ function pickupTemplateFor(item){
   if(item==='Guitar')return{template:weaponTemplates.guitar,length:.82};
   return null;
 }
+function makeGenericLootVisual(item){
+  const g=new THREE.Group(),dark=new THREE.MeshStandardMaterial({color:0x252a28,roughness:.76}),cloth=new THREE.MeshStandardMaterial({color:0xd8d2c2,roughness:.96}),med=new THREE.MeshStandardMaterial({color:0xb8c8bc,roughness:.82}),metal=new THREE.MeshStandardMaterial({color:0x565d5c,roughness:.48,metalness:.38});let o=null;
+  if(/Water|Energy drink|Alcohol/i.test(item)){o=new THREE.Mesh(new THREE.CylinderGeometry(.10,.12,.42,10),new THREE.MeshStandardMaterial({color:/Water/i.test(item)?0x7fa9b1:0x695848,roughness:.36,transparent:/Water/i.test(item),opacity:.84}));o.rotation.x=Math.PI/2}
+  else if(/Bandage|wipes|Cloth|gloves/i.test(item))o=new THREE.Mesh(new THREE.BoxGeometry(.34,.24,.13),cloth);
+  else if(/First aid|Painkillers/i.test(item)){const box=new THREE.Mesh(new THREE.BoxGeometry(.42,.30,.18),med),h=new THREE.Mesh(new THREE.BoxGeometry(.18,.035,.06),dark),v=new THREE.Mesh(new THREE.BoxGeometry(.035,.18,.06),dark);h.position.z=v.position.z=.11;g.add(box,h,v)}
+  else if(/Ammo|Shells/i.test(item))o=new THREE.Mesh(new THREE.BoxGeometry(.34,.24,.18),metal);
+  else if(/Battery|Spark plug|Radio|Flashlight/i.test(item))o=new THREE.Mesh(new THREE.BoxGeometry(.18,.38,.16),dark);
+  else if(/Tire/i.test(item)){o=new THREE.Mesh(new THREE.TorusGeometry(.22,.07,8,18),dark);o.rotation.x=Math.PI/2}
+  else if(/Fuel can/i.test(item))o=new THREE.Mesh(new THREE.BoxGeometry(.34,.20,.46),new THREE.MeshStandardMaterial({color:0x774139,roughness:.74}));
+  else if(/Canned food|Food ration|Energy bar/i.test(item)){o=new THREE.Mesh(new THREE.CylinderGeometry(.14,.14,.24,10),metal);o.rotation.x=Math.PI/2}
+  else if(/Backpack|Duffel/i.test(item))o=new THREE.Mesh(new THREE.BoxGeometry(.48,.25,.56),new THREE.MeshStandardMaterial({color:0x4b5146,roughness:.94}));
+  else o=new THREE.Mesh(new THREE.BoxGeometry(.34,.28,.22),dark);
+  if(o)g.add(o);g.traverse(x=>{if(x.isMesh){x.castShadow=true;x.receiveShadow=true}});return g;
+}
+function inventoryIcon(item){
+  if(/Pistol|Rifle|Shotgun|SMG/i.test(item))return'▰';if(/Axe|Knife|Spear|Bat|Guitar/i.test(item))return'⚔';if(/Ammo|Shell/i.test(item))return'▥';if(/Water|drink/i.test(item))return'◒';if(/Bandage|First aid|Painkiller/i.test(item))return'✚';if(/Backpack|Duffel/i.test(item))return'▣';if(/Battery|Spark|Tire|Fuel|hose|chain/i.test(item))return'⚙';if(/Food|Canned|bar/i.test(item))return'◫';return'◆';
+}
 function makePickupVisual(item,seedValue){
   const root=new THREE.Group(),weapon=pickupTemplateFor(item);
   let model=null;
   if(weapon?.template){
     model=propCloneByLength(weapon.template,weapon.length);
     if(model){model.rotation.set(.12,.08,-.2);model.position.z=.28;root.add(model)}
-  }else if(pickupTemplates.chestSpecial||pickupTemplates.chest){
-    model=staticClone(pickupTemplates.chestSpecial||pickupTemplates.chest,.42);
-    if(model){model.position.z=.12;root.add(model)}
   }else{
+    model=makeGenericLootVisual(item);
+    if(model){model.position.z=.12;root.add(model)}
+  }
+  if(!model){
     model=new THREE.Mesh(new THREE.BoxGeometry(.42,.30,.24),new THREE.MeshStandardMaterial({color:0x77664f,roughness:.78}));
     model.position.z=.2;root.add(model);
   }
@@ -2283,6 +2303,7 @@ function createSearchSpot(label,x,y,type,seed,key){
   const spot={label,x,y,type,seed,key:key||String(seed),active:!interiorLootedKeys.has(key||String(seed))};
   interiorContainers.push(spot);return spot;
 }
+let doorwayPursuerKinds=[];
 function clearInterior(){
   while(interiorGroup.children.length)interiorGroup.remove(interiorGroup.children[0]);
   worldPickups=worldPickups.filter(p=>p.mode!=='interior');
@@ -2398,15 +2419,34 @@ function changeInteriorFloor(nextFloor){
 function spawnInteriorZombie(template,r,w,h){
   spawnZombieAt(template,{x:(r()-.5)*w*.48,y:h*.28},true,r);
 }
+function captureExteriorPursuers(entry){
+  doorwayPursuerKinds=[];
+  const near=zombies.filter(z=>!z.dead&&(z.aggro||Math.hypot(z.root.position.x-entry.entryX,z.root.position.y-entry.entryY)<16))
+    .sort((a,b)=>Math.hypot(a.root.position.x-entry.entryX,a.root.position.y-entry.entryY)-Math.hypot(b.root.position.x-entry.entryX,b.root.position.y-entry.entryY))
+    .slice(0,8);
+  for(const z of near){
+    doorwayPursuerKinds.push(z.kind);z.root.parent?.remove(z.root);
+    const i=zombies.indexOf(z);if(i>=0)zombies.splice(i,1);
+  }
+}
+function injectDoorwayPursuers(){
+  if(!activeInterior||!doorwayPursuerKinds.length)return;
+  const y=-activeInterior.depth/2+1.05;
+  doorwayPursuerKinds.forEach((kind,i)=>{
+    const a=enemyArchetypes.find(x=>x.id===kind)||zombieTemplate;if(!a)return;
+    const z=spawnZombieAt(a,{x:(i%3-1)*.72,y:y+Math.floor(i/3)*.62},true,rand);
+    if(z){z.aggro=true;z.doorPursuer=true;z.deaggroRadius=999}
+  });
+}
 function enterInterior(entry){
   if(interiorMode||!playerRoot)return;
   exteriorReturn.set(
     Number.isFinite(entry.returnX)?entry.returnX:entry.entryX,
     Number.isFinite(entry.returnY)?entry.returnY:entry.entryY,
     (Number.isFinite(entry.returnZ)?entry.returnZ:entry.entryZ)+.05
-  );exteriorYaw=yaw;generateInterior(entry,1);
+  );exteriorYaw=yaw;captureExteriorPursuers(entry);generateInterior(entry,1);
   exteriorRoot.visible=false;interiorGroup.visible=true;interiorMode=true;playerVelocity.set(0,0,0);
-  playerRoot.position.set(0,-activeInterior.depth/2+2.0,.05);yaw=0;pitch=.12;
+  playerRoot.position.set(0,-activeInterior.depth/2+2.0,.05);yaw=0;pitch=.12;injectDoorwayPursuers();
   $('cellLabel').textContent='PROCEDURAL INTERIOR · GAME ART';
   $('worldTitle').textContent=activeInterior.layout+' · Floor '+activeInterior.floor+' / '+activeInterior.floors;
   loadText.textContent='Search furniture, drawers, cabinets and hidden stashes.';
@@ -2417,7 +2457,14 @@ function enterInterior(entry){
 function exitInterior(){
   if(!interiorMode)return;
   const searchedEntry=activeInterior?.entry||null;
+  const escapedKinds=interiorZombies.filter(z=>!z.dead&&z.doorPursuer).map(z=>z.kind).slice(0,8);
   interiorMode=false;interiorGroup.visible=false;exteriorRoot.visible=true;clearInterior();playerVelocity.set(0,0,0);playerRoot.position.copy(exteriorReturn);playerRoot.position.z=surfaceZXY(playerRoot.position.x,playerRoot.position.y)+.04;yaw=exteriorYaw;syncPhysicsToPlayer();
+  escapedKinds.forEach((kind,i)=>{
+    const a=enemyArchetypes.find(x=>x.id===kind)||zombieTemplate;if(!a)return;
+    const ang=(i/Math.max(1,escapedKinds.length))*Math.PI*2,rad=2.4+(i%3)*.45;
+    const x=playerRoot.position.x+Math.cos(ang)*rad,y=playerRoot.position.y+Math.sin(ang)*rad;
+    const z=spawnZombieAt(a,{x,y},false,rand);if(z){z.aggro=true;z.deaggroRadius=999}
+  });
   $('cellLabel').textContent=worldCellLabel();
   $('worldTitle').textContent=worldCellTitle();
   loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · enter marked doorways';
@@ -2761,7 +2808,7 @@ function spawnZombieAt(source,a,interior=false,rng=rand){
   (interior?interiorGroup:zombieGroup).add(root);
   const clips=sanitizeCharacterClips(template.animations),clipSet=enemyClipSet(clips);
   let mixer=null,action=null;if(clips.length)mixer=new THREE.AnimationMixer(n.model);
-  if(archetype.realisticInfected)applyInfectedLook(n.model,archetype,rng);
+  if(archetype.realisticInfected||archetype.infectedMonster)applyInfectedLook(n.model,archetype,rng);
   const s=archetype.speed||[.28,.43],patrolRoute=interior?[]:buildPatrolRoute(root.position.x,root.position.y,rng,12+Math.floor(rng()*14));
   const z={root,mixer,action,clipSet,actionState:null,animSpeed:archetype.animSpeed||1,kind:archetype.id||'walker',label:archetype.label||'Hostile',behavior:archetype.behavior||'stalk',
     speed:s[0]+rng()*Math.max(0,s[1]-s[0]),patrolSpeed:(archetype.patrolSpeed||.55)*(0.86+rng()*.25),chaseMult:archetype.chaseMult||1.65,hp:archetype.hp||100,damage:archetype.damage||8,
@@ -2816,6 +2863,26 @@ function isBlockedExterior(x,y,r=.33){
   }
   return false;
 }
+function findInteriorPath(sx,sy,tx,ty){
+  if(!interiorBounds)return[];
+  const cell=.72,b=interiorBounds,key=(x,y)=>x+','+y;
+  const toGrid=(x,y)=>({x:Math.round((x-b.minx)/cell),y:Math.round((y-b.miny)/cell)});
+  const toWorld=(x,y)=>({x:b.minx+x*cell,y:b.miny+y*cell});
+  const s=toGrid(sx,sy),g=toGrid(tx,ty),open=[s],came=new Map(),seen=new Set([key(s.x,s.y)]);
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];let found=null,guard=0;
+  while(open.length&&guard++<2600){
+    open.sort((a,b2)=>Math.hypot(a.x-g.x,a.y-g.y)-Math.hypot(b2.x-g.x,b2.y-g.y));
+    const q=open.shift();if(Math.abs(q.x-g.x)<=1&&Math.abs(q.y-g.y)<=1){found=q;break}
+    for(const d of dirs){
+      const n={x:q.x+d[0],y:q.y+d[1]},w=toWorld(n.x,n.y),k=key(n.x,n.y);
+      if(w.x<b.minx||w.x>b.maxx||w.y<b.miny||w.y>b.maxy||seen.has(k)||isBlockedInterior(w.x,w.y))continue;
+      seen.add(k);came.set(k,q);open.push(n);
+    }
+  }
+  if(!found)return[];
+  const out=[];let q=found;while(q&&out.length<120){out.push(toWorld(q.x,q.y));q=came.get(key(q.x,q.y))}
+  return out.reverse();
+}
 function moveZombieToward(z,tx,ty,dt,interior,now){
   let targetX=tx,targetY=ty;
   const rawDist=Math.hypot(tx-z.root.position.x,ty-z.root.position.y);
@@ -2833,14 +2900,20 @@ function moveZombieToward(z,tx,ty,dt,interior,now){
       }
     }else{targetX=z.home.x;targetY=z.home.y}
   }
-  if(z.aggro&&!interior&&rawDist>9&&navNodes.length){
-    if(now>=z.nextPathAt||!z.path?.length||z.pathIndex>=z.path.length){
-      z.path=findNavPath(z.root.position.x,z.root.position.y,tx,ty);z.pathIndex=0;z.nextPathAt=now+1700+rand()*900;
+  if(z.aggro&&rawDist>1.6){
+    if(interior){
+      if(now>=z.nextPathAt||!z.path?.length||z.pathIndex>=z.path.length){
+        z.path=findInteriorPath(z.root.position.x,z.root.position.y,tx,ty);z.pathIndex=0;z.nextPathAt=now+520+rand()*260;
+      }
+    }else if(rawDist>5.5&&navNodes.length){
+      if(now>=z.nextPathAt||!z.path?.length||z.pathIndex>=z.path.length){
+        z.path=findNavPath(z.root.position.x,z.root.position.y,tx,ty);z.pathIndex=0;z.nextPathAt=now+900+rand()*500;
+      }
     }
     const wp=z.path?.[z.pathIndex];
     if(wp){
       targetX=wp.x;targetY=wp.y;
-      if(Math.hypot(targetX-z.root.position.x,targetY-z.root.position.y)<1.2)z.pathIndex++;
+      if(Math.hypot(targetX-z.root.position.x,targetY-z.root.position.y)<(interior?.58:1.05))z.pathIndex++;
     }
   }
   if(z.aggro&&z.behavior==='weave'&&rawDist>2.5){const phase=now*.003+(z.root.id%17);targetX+=Math.sin(phase)*2.1;targetY+=Math.cos(phase*.83)*2.1}
@@ -2850,7 +2923,7 @@ function moveZombieToward(z,tx,ty,dt,interior,now){
   const dx=targetX-z.root.position.x,dy=targetY-z.root.position.y,dist=Math.hypot(dx,dy)||.001;
   const vx=dx/dist,vy=dy/dist;
   const baseMove=z.aggro?z.speed*z.chaseMult:z.speed*z.patrolSpeed;
-  const dynamicSpeed=baseMove*(now<z.burstUntil?z.burst:1),step=dynamicSpeed*dt;
+  const dynamicSpeed=Math.min(MAX_HOSTILE_SPEED,baseMove*(now<z.burstUntil?z.burst:1)),step=dynamicSpeed*dt;
   let nx=z.root.position.x+vx*step,ny=z.root.position.y+vy*step;
   const blocked=(x,y)=>interior?isBlockedInterior(x,y):isBlockedExterior(x,y,.30);
   if(!blocked(nx,ny)){
@@ -2879,7 +2952,7 @@ function updateFlyingCrow(z,dt,now){
   }else{
     const dive=(Math.sin(now*.006+z.flightPhase)>.05),tz=dive?p.z+1.0:p.z+6.5;
     const target=new THREE.Vector3(p.x,p.y,tz),dir=target.sub(z.root.position),dist=dir.length()||1;dir.normalize();
-    z.root.position.addScaledVector(dir,z.speed*(dive?1.8:1)*dt);z.state=dive?'dive':'climb';
+    z.root.position.addScaledVector(dir,Math.min(MAX_HOSTILE_SPEED,z.speed*(dive?1.10:1))*dt);z.state=dive?'dive':'climb';
   }
   const face=new THREE.Vector3(p.x-z.root.position.x,p.y-z.root.position.y,0);if(face.lengthSq()>.001)z.root.rotation.z=Math.atan2(face.x,face.y);
   return playerDist;
@@ -2979,12 +3052,12 @@ async function buildSurvivalArt(){
     zombie&&{id:'walker',label:'Walker',template:zombie,height:1.78,speed:[.28,.46],hp:90,damage:7,attackRange:1.25,attackMs:1150,behavior:'stalk',animSpeed:.75,aggroRadius:12,wanderRadius:5},
     zombieChubby&&{id:'bruiser',label:'Chubby infected',template:zombieChubby,height:1.88,speed:[.20,.32],hp:180,damage:14,attackRange:1.42,attackMs:1450,behavior:'stalk',animSpeed:.68,aggroRadius:10,wanderRadius:4},
     zombieRibcage&&{id:'runner',label:'Ribcage runner',template:zombieRibcage,height:1.80,speed:[.48,.76],hp:78,damage:9,attackRange:1.30,attackMs:900,behavior:'charge',burst:1.5,animSpeed:1.05,aggroRadius:19,wanderRadius:7},
-    dogShepherd&&{id:'hound',label:'Infected shepherd',template:dogShepherd,height:1.05,speed:[1.45,2.05],hp:62,damage:11,attackRange:1.15,attackMs:720,behavior:'pounce',burst:1.75,animSpeed:1.65,tint:0x66745f,tintMix:.38,emissive:0x240a08,aggroRadius:16,wanderRadius:8},
+    dogShepherd&&{id:'hound',label:'Rot hound',template:dogShepherd,height:1.05,speed:[1.15,1.70],hp:62,damage:11,attackRange:1.15,attackMs:720,behavior:'pounce',burst:1.42,animSpeed:1.48,tint:0x4f5a4a,tintMix:.58,emissive:0x300303,aggroRadius:16,wanderRadius:8,infectedMonster:true},
     dogPug&&{id:'pug',label:'Infected pug',template:dogPug,height:.62,speed:[1.05,1.55],hp:42,damage:7,attackRange:.92,attackMs:640,behavior:'weave',animSpeed:1.55,tint:0x6b745f,tintMix:.36,emissive:0x240a08,aggroRadius:12,wanderRadius:6},
-    wolf&&{id:'wolf',label:'Feral wolf',template:wolf,height:1.02,speed:[1.55,2.25],hp:82,damage:13,attackRange:1.18,attackMs:780,behavior:'pounce',burst:1.62,animSpeed:1.7,aggroRadius:18,wanderRadius:10},
-    spider&&{id:'spider',label:'Giant spider',template:spider,height:.72,speed:[1.10,1.75],hp:72,damage:10,attackRange:1.08,attackMs:680,behavior:'weave',burst:1.35,animSpeed:1.5,aggroRadius:14,wanderRadius:7},
-    orc&&{id:'orc',label:'Orc raider',template:orc,height:2.02,speed:[.62,.98],hp:220,damage:18,attackRange:1.52,attackMs:1250,behavior:'charge',burst:1.55,animSpeed:1.05,aggroRadius:16,wanderRadius:7},
-    yeti&&{id:'yeti',label:'Yeti brute',template:yeti,height:2.35,speed:[.48,.82],hp:300,damage:23,attackRange:1.72,attackMs:1500,behavior:'charge',burst:1.42,animSpeed:.9,aggroRadius:14,wanderRadius:5},
+    
+    spider&&{id:'spider',label:'Carrion spider',template:spider,height:.82,speed:[.95,1.48],hp:82,damage:12,attackRange:1.08,attackMs:680,behavior:'pounce',burst:1.35,animSpeed:1.4,aggroRadius:14,wanderRadius:7,infectedMonster:true,tint:0x382f32,tintMix:.66,emissive:0x360303},
+    orc&&{id:'orc',label:'Plague orc',template:orc,height:2.10,speed:[.58,.90],hp:245,damage:21,attackRange:1.62,attackMs:1250,behavior:'charge',burst:1.38,animSpeed:.98,aggroRadius:16,wanderRadius:7,infectedMonster:true,tint:0x465044,tintMix:.60,emissive:0x330303},
+    yeti&&{id:'troll',label:'Rot troll',template:yeti,height:2.62,speed:[.42,.72],hp:380,damage:30,attackRange:1.92,attackMs:1580,behavior:'charge',burst:1.28,animSpeed:.78,aggroRadius:14,wanderRadius:5,infectedMonster:true,tint:0x4d5045,tintMix:.64,emissive:0x2d0202},
     realBear&&{id:'realbear',label:'Diseased bear',template:realBear,height:1.72,speed:[.78,1.18],patrolSpeed:.50,chaseMult:1.76,hp:360,damage:29,attackRange:1.9,attackMs:1380,behavior:'charge',burst:1.55,animSpeed:.92,aggroRadius:12,deaggroRadius:28,realisticInfected:true,tint:0x575b50,tintMix:.36,emissive:0x220303},
     realWolf&&{id:'realwolf',label:'Rabid wolf',template:realWolf,height:1.04,speed:[1.05,1.50],patrolSpeed:.62,chaseMult:1.96,hp:92,damage:14,attackRange:1.2,attackMs:720,behavior:'pounce',burst:1.72,animSpeed:1.42,aggroRadius:16,deaggroRadius:32,realisticInfected:true,tint:0x545b52,tintMix:.30,emissive:0x1c0202},
     bear&&{id:'bear',label:'Infected bear',template:bear,height:1.78,speed:[.72,1.28],hp:380,damage:30,attackRange:1.9,attackMs:1450,behavior:'charge',burst:1.58,animSpeed:.9,aggroRadius:12,wanderRadius:6,tint:0x5f6656,tintMix:.3,emissive:0x250806},
@@ -3314,7 +3387,7 @@ function updatePlayer(dt){
   }
   if(slideTime>0){slideTime=Math.max(0,slideTime-dt);if(slideTime===0&&playerStance==='crouch')setPlayerStance('stand')}
   const stanceSpeed=(STANCES[playerStance]||STANCES.stand).speed,slideBoost=slideTime>0?1.85:1;
-  const speed=(interiorMode?3.05:3.45)*(sprint?1.68:1)*(aiming?.72:1)*stanceSpeed*slideBoost;
+  const speed=(interiorMode?3.05:PLAYER_BASE_SPEED)*(sprint?PLAYER_SPRINT_MULT:1)*(aiming?.72:1)*stanceSpeed*slideBoost;
   if(slideTime>0&&Math.hypot(ix,iy)<.2)iy=1;
   const move=movementVector(ix,iy,yaw);
   let desiredX=moving||slideTime>0?move.x*speed:0,desiredY=moving||slideTime>0?move.y*speed:0;
@@ -3338,16 +3411,12 @@ function updatePlayer(dt){
     playerRoot.position.z=THREE.MathUtils.lerp(playerRoot.position.z,targetGround,1-Math.exp(-22*dt));
   }
 
-  if(moving||slideTime>0){
-    // Locomotion always wins: the survivor turns into the travel vector and then runs/walks FORWARD.
-    // No strafing/backpedaling animation is allowed, including while aiming.
+  if(aiming&&isFirearm(activeWeapon)){
+    // Shooter-style locomotion: body/weapon stay on crosshair while legs move independently.
+    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,yaw,1-Math.exp(-16*dt));
+  }else if(moving||slideTime>0){
     const targetRot=Math.atan2(move.x,move.y);
-    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-11*dt));
-  }else if(aiming&&isFirearm(activeWeapon)){
-    // When stationary, face the aim direction. Quaternius survivors are authored facing -Y,
-    // so the model yaw offset converts the world heading into the model's actual forward.
-    const targetAimYaw=yaw;
-    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetAimYaw,1-Math.exp(-14*dt));
+    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-12*dt));
   }
   if(reloadState.active)playPlayerAnimation('reload');
   else if(aiming&&isFirearm(activeWeapon)&&!moving)playPlayerAnimation('aim');
