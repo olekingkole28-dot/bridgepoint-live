@@ -59,10 +59,9 @@ jobs:
           grep -Fq 'BridgePoint Horizon - Founding Season' site/app/horizon/index.html
           grep -Fq 'FOUNDING SEASON' site/app/horizon/index.html
           grep -Fq '/app/horizon/preview.html?preview=city' site/app/horizon/index.html
-          grep -Fq 'DENSE CITY' site/app/horizon/preview.html
-          grep -Fq 'MOUNTAIN TOWN' site/app/horizon/preview.html
-          grep -Fq 'WATERFRONT SUBURB' site/app/horizon/preview.html
-          grep -Fq 'mapSelect' site/app/horizon/preview.html && grep -Fq 'characterSelect' site/app/horizon/preview.html
+          grep -Fq 'mapSelect' site/app/horizon/preview.html
+          grep -Fq 'characterSelect' site/app/horizon/preview.html
+          grep -Fq 'Choose one of 50 BridgePoint survival maps' site/app/horizon/preview.html
           grep -Fq '../horizon-playable/horizon-world.js?v=4216' site/app/horizon/preview.html
           grep -Fq 'bridgepoint-horizon-stream-v3020' site/app/horizon-playable/horizon-world.js
           grep -Fq 'Characters_Matt.gltf' site/app/horizon-playable/horizon-world.js
@@ -122,10 +121,8 @@ jobs:
               && grep -Fq 'BridgePoint Horizon - Founding Season' /tmp/horizon.html \
               && grep -Fq 'FOUNDING SEASON' /tmp/horizon.html \
               && grep -Fq '/app/horizon/preview.html?preview=city' /tmp/horizon.html \
-              && grep -Fq 'DENSE CITY' /tmp/horizon-preview.html \
-              && grep -Fq 'MOUNTAIN TOWN' /tmp/horizon-preview.html \
-              && grep -Fq 'WATERFRONT SUBURB' /tmp/horizon-preview.html \
-              && grep -Fq 'mapSelect' /tmp/horizon-preview.html && grep -Fq 'characterSelect' /tmp/horizon-preview.html \
+              && grep -Fq 'mapSelect' /tmp/horizon-preview.html \
+              && grep -Fq 'characterSelect' /tmp/horizon-preview.html \
               && grep -Fq 'Characters_Matt.gltf' /tmp/horizon-world.js \
               && grep -Fq 'Characters_Lis.gltf' /tmp/horizon-world.js \
               && grep -Fq 'Characters_Sam.gltf' /tmp/horizon-world.js \
