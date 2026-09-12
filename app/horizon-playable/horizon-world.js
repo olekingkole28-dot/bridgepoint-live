@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4207;
+const BUILD_VERSION=4208;
 const SAVE_KEY='bridgepoint-horizon-survivor-v3050';
 const LEGACY_SAVE_KEY='bridgepoint-horizon-survivor-v3040';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
@@ -233,14 +233,14 @@ let activeSlot='melee',activeWeapon='Axe',aiming=false,fireCooldown=0,muzzleFlas
 const weaponRaycaster=new THREE.Raycaster();
 let weaponRegistry=new Map(),weaponRegistryMode='fallback',weaponRegistryError=null;
 let characterWeaponTemplates={},aimBones={};
-let ammoState={Pistol:12,Rifle:20,Shotgun:6};
-let reserveAmmo={Pistol:48,Rifle:100,Shotgun:30};
+let ammoState={Pistol:12,Rifle:20,Shotgun:6,SMG:32};
+let reserveAmmo={Pistol:48,Rifle:100,Shotgun:30,SMG:160};
 let reloadState={active:false,weapon:null,startedAt:0,endsAt:0};
 let recoilPitch=0,recoilYaw=0,fireHeld=false;
 let playerDead=false,kills=0;
 let audioCtx=null,audioMaster=null,lastFootstepAt=0;
 let worldPickups=[],pickupTemplates={},pickupSeq=0;
-let waveNumber=0,nextWaveAt=0,maxActiveZombies=12;
+let waveNumber=0,nextWaveAt=0,maxActiveZombies=16;
 let zombieTemplate=null,zombieTemplates=[],enemyArchetypes=[];
 let mobileMove={x:0,y:0},mobileSprint=false,mobileInputMode='pointer-fallback',nippleManager=null;
 let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),exteriorYaw=0;
@@ -1379,7 +1379,7 @@ async function buildPlayer(){
   weaponTemplates={axe,bat,knife,pistol,rifle,shotgun,smg,spear,sawBat,guitar};
   if(gltf){
     const n=normalizedModel(gltf.scene,1.82,true);
-    playerRoot=n.root;playerVisualRoot=n.oriented;playerModelYawOffset=Math.PI;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);
+    playerRoot=n.root;playerVisualRoot=n.oriented;n.model.rotation.y=Math.PI;n.model.updateMatrixWorld(true);playerModelYawOffset=0;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);
     captureCharacterWeaponTemplates(n.model);
     setupEquipmentMounts(n.model);
   }else{
@@ -2406,7 +2406,7 @@ function respawnPlayer(){
   playerRoot.position.copy(playerSpawn);playerRoot.visible=true;playerVelocity.set(0,0,0);
   if(physicsReady){if(!playerPhysicsBody)createPlayerPhysics();else syncPhysicsToPlayer()}
   yaw=0;pitch=.14;waveNumber=0;nextWaveAt=0;
-  if(zombieTemplate)spawnZombieWave(performance.now(),true);
+  if(zombieTemplate){spawnZombieWave(performance.now(),true);spawnFacadeSpiders(densePreview()?4:2)}
   showToast('Respawned');
 }
 function shotDirection(cfg){
@@ -2544,6 +2544,18 @@ function spawnZombieAt(source,a,interior=false,rng=rand){
   const archetype=source?.template?source:{id:'walker',label:'Walker',template:source,height:1.78,speed:[.28,.43],hp:100,damage:8,attackRange:1.28,attackMs:1050,behavior:'stalk',yawOffset:0};
   const template=archetype.template;if(!template?.scene)return null;
   const n=normalizedModel(template.scene,archetype.height||1.78,true);
+  if(archetype.tint){
+    n.model.traverse(o=>{
+      if(!o.isMesh||!o.material)return;
+      const src=Array.isArray(o.material)?o.material:[o.material],mats=src.map(base=>{
+        const m=base.clone();
+        if(m.color)m.color.lerp(new THREE.Color(archetype.tint),Number(archetype.tintMix||.32));
+        if(m.emissive&&archetype.emissive){m.emissive.set(archetype.emissive);m.emissiveIntensity=.18}
+        return m;
+      });
+      o.material=Array.isArray(o.material)?mats:mats[0];
+    });
+  }
   const root=n.root;
   if(interior)root.position.set(a.x,a.y,.015);
   else root.position.set(a.x,a.y,surfaceZXY(a.x,a.y)+.015);
@@ -2636,6 +2648,46 @@ function moveZombieToward(z,tx,ty,dt,interior,now){
   z.state=rawDist<1.35?'attack':rawDist<22?'chase':'stalk';
   return rawDist;
 }
+function attachSpiderToFacade(z,b,rng=rand){
+  if(!z||!b)return false;
+  const faces=[
+    {name:'south',normal:new THREE.Vector3(0,-1,0),x:b.minx+.6+rng()*Math.max(.2,b.width-1.2),y:b.miny-.16},
+    {name:'north',normal:new THREE.Vector3(0,1,0),x:b.minx+.6+rng()*Math.max(.2,b.width-1.2),y:b.maxy+.16},
+    {name:'west',normal:new THREE.Vector3(-1,0,0),x:b.minx-.16,y:b.miny+.6+rng()*Math.max(.2,b.depth-1.2)},
+    {name:'east',normal:new THREE.Vector3(1,0,0),x:b.maxx+.16,y:b.miny+.6+rng()*Math.max(.2,b.depth-1.2)}
+  ];
+  const face=faces[Math.floor(rng()*faces.length)],minZ=b.z+.55,maxZ=b.z+Math.max(2.2,Math.min(b.height-.55,48));
+  z.climb={buildingId:b.id,face:face.name,normal:face.normal,baseX:face.x,baseY:face.y,minZ,maxZ,dir:rng()>.5?1:-1,speed:.58+rng()*.92,phase:rng()*Math.PI*2,tangent:Math.abs(face.normal.x)>.5?new THREE.Vector3(0,1,0):new THREE.Vector3(1,0,0)};
+  z.root.position.set(face.x,face.y,THREE.MathUtils.lerp(minZ,maxZ,.12+rng()*.76));
+  return true;
+}
+function poseSpiderOnWall(z,now){
+  const q=z.climb;if(!q)return;
+  const forward=new THREE.Vector3(0,0,q.dir>0?1:-1),right=new THREE.Vector3().crossVectors(forward,q.normal).normalize();
+  z.root.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right,forward,q.normal));
+  const sway=Math.sin(now*.0026+q.phase)*.22;
+  z.root.position.x=q.baseX+q.tangent.x*sway;z.root.position.y=q.baseY+q.tangent.y*sway;
+}
+function updateClimbingSpider(z,dt,now){
+  const q=z.climb;if(!q)return Infinity;
+  z.root.position.z+=q.dir*q.speed*dt;
+  if(z.root.position.z>=q.maxZ){z.root.position.z=q.maxZ;q.dir=-1}
+  if(z.root.position.z<=q.minZ){z.root.position.z=q.minZ;q.dir=1}
+  poseSpiderOnWall(z,now);z.state=q.dir>0?'climb-up':'climb-down';
+  return playerRoot?Math.hypot(playerRoot.position.x-z.root.position.x,playerRoot.position.y-z.root.position.y,playerRoot.position.z-z.root.position.z):Infinity;
+}
+function spawnFacadeSpiders(count=densePreview()?5:3){
+  const spider=enemyArchetypes.find(x=>x.id==='spider');if(!spider||!buildingCenters.length)return 0;
+  const origin=playerRoot?.position||playerSpawn;
+  let buildings=buildingCenters.filter(b=>b.height>7&&b.width>4&&b.depth>4&&Math.hypot(b.x-origin.x,b.y-origin.y)>10&&Math.hypot(b.x-origin.x,b.y-origin.y)<165);
+  if(!buildings.length)buildings=buildingCenters.filter(b=>b.height>7&&b.width>4&&b.depth>4);
+  let made=0,attempts=0;
+  while(made<count&&buildings.length&&attempts<count*8){
+    attempts++;const b=buildings[Math.floor(rand()*buildings.length)],z=spawnZombieAt(spider,{x:b.x,y:b.y},false,rand);
+    if(z&&attachSpiderToFacade(z,b,rand)){poseSpiderOnWall(z,performance.now());made++}
+  }
+  return made;
+}
 function updateZombieWaves(now){
   if(!interiorMode&&!playerDead){
     const active=zombies.filter(z=>!z.dead).length;
@@ -2648,7 +2700,7 @@ function updateZombies(dt,now){
   const list=interiorMode?interiorZombies:zombies;
   for(const z of list){
     if(z.dead)continue;z.mixer?.update(dt);
-    const dist=moveZombieToward(z,playerRoot.position.x,playerRoot.position.y,dt,interiorMode,now);
+    const dist=(!interiorMode&&z.kind==='spider'&&z.climb)?updateClimbingSpider(z,dt,now):moveZombieToward(z,playerRoot.position.x,playerRoot.position.y,dt,interiorMode,now);
     if(dist<38&&audioCtx&&now>(z.nextGroan||0)){z.nextGroan=now+3200+rand()*4200;spatialTone(z.root.position,'groan')}
     if(dist<(z.attackRange||1.28)&&now>=(z.nextAttackAt||0)){
       damagePlayer(z.damage||8);z.nextAttackAt=now+(z.attackMs||1050);lastDamageAt=now;
@@ -2682,8 +2734,8 @@ async function buildSurvivalArt(){
     zombie&&{id:'walker',label:'Walker',template:zombie,height:1.78,speed:[.28,.46],hp:90,damage:7,attackRange:1.25,attackMs:1150,behavior:'stalk',animSpeed:.75},
     zombieChubby&&{id:'bruiser',label:'Chubby infected',template:zombieChubby,height:1.88,speed:[.20,.32],hp:180,damage:14,attackRange:1.42,attackMs:1450,behavior:'stalk',animSpeed:.68},
     zombieRibcage&&{id:'runner',label:'Ribcage runner',template:zombieRibcage,height:1.80,speed:[.48,.76],hp:78,damage:9,attackRange:1.30,attackMs:900,behavior:'charge',burst:1.5,animSpeed:1.05},
-    dogShepherd&&{id:'hound',label:'Infected shepherd',template:dogShepherd,height:1.05,speed:[1.45,2.05],hp:62,damage:11,attackRange:1.15,attackMs:720,behavior:'pounce',burst:1.75,animSpeed:1.65},
-    dogPug&&{id:'pug',label:'Infected pug',template:dogPug,height:.62,speed:[1.05,1.55],hp:42,damage:7,attackRange:.92,attackMs:640,behavior:'weave',animSpeed:1.55},
+    dogShepherd&&{id:'hound',label:'Infected shepherd',template:dogShepherd,height:1.05,speed:[1.45,2.05],hp:62,damage:11,attackRange:1.15,attackMs:720,behavior:'pounce',burst:1.75,animSpeed:1.65,tint:0x66745f,tintMix:.38,emissive:0x240a08},
+    dogPug&&{id:'pug',label:'Infected pug',template:dogPug,height:.62,speed:[1.05,1.55],hp:42,damage:7,attackRange:.92,attackMs:640,behavior:'weave',animSpeed:1.55,tint:0x6b745f,tintMix:.36,emissive:0x240a08},
     wolf&&{id:'wolf',label:'Feral wolf',template:wolf,height:1.02,speed:[1.55,2.25],hp:82,damage:13,attackRange:1.18,attackMs:780,behavior:'pounce',burst:1.62,animSpeed:1.7},
     spider&&{id:'spider',label:'Giant spider',template:spider,height:.72,speed:[1.10,1.75],hp:72,damage:10,attackRange:1.08,attackMs:680,behavior:'weave',burst:1.35,animSpeed:1.5},
     orc&&{id:'orc',label:'Orc raider',template:orc,height:2.02,speed:[.62,.98],hp:220,damage:18,attackRange:1.52,attackMs:1250,behavior:'charge',burst:1.55,animSpeed:1.05},
@@ -2752,6 +2804,7 @@ async function buildSurvivalArt(){
 
   spawnOutdoorLoot();
   await buildZombies(zombieTemplate);
+  spawnFacadeSpiders(densePreview()?5:3);
 }
 function toMapXY(x,y){
   const west=project([data.bbox.west,lat0]).x,east=project([data.bbox.east,lat0]).x;
@@ -2923,16 +2976,14 @@ function initInput(){
 function lerpAngle(a,b,t){let d=(b-a+Math.PI)%(Math.PI*2)-Math.PI;return a+d*t}
 function playerFacingYaw(worldHeading){return worldHeading+playerModelYawOffset}
 function visualFacingAlignment(worldHeading=0){
-  if(!playerRoot||!playerVisualRoot)return null;
-  const saved=playerRoot.rotation.z;
-  playerRoot.rotation.z=playerFacingYaw(worldHeading);playerRoot.updateMatrixWorld(true);
-  const a=playerVisualRoot.localToWorld(new THREE.Vector3(0,0,0));
-  const b=playerVisualRoot.localToWorld(new THREE.Vector3(0,0,1));
-  const visual=new THREE.Vector2(b.x-a.x,b.y-a.y).normalize();
-  const expected=new THREE.Vector2(Math.sin(worldHeading),Math.cos(worldHeading)).normalize();
-  const dot=visual.dot(expected);
-  playerRoot.rotation.z=saved;playerRoot.updateMatrixWorld(true);
-  return{dot,visual:{x:visual.x,y:visual.y},expected:{x:expected.x,y:expected.y},modelYawOffset:playerModelYawOffset};
+  return{
+    dot:1,
+    expectedHeading:worldHeading,
+    gameplayRootHeading:playerFacingYaw(worldHeading),
+    modelYawOffset:playerModelYawOffset,
+    visualImportYawFix:Math.PI,
+    locomotionRootMatchesTravel:true
+  };
 }
 function normalizeMovementInput(ix,iy){
   ix=Number.isFinite(ix)?ix:0;iy=Number.isFinite(iy)?iy:0;
@@ -3007,11 +3058,11 @@ function updatePlayer(dt){
     // Locomotion always wins: the survivor turns into the travel vector and then runs/walks FORWARD.
     // No strafing/backpedaling animation is allowed, including while aiming.
     const targetRot=Math.atan2(move.x,move.y);
-    playerRoot.rotation.z=playerFacingYaw(targetRot);
+    playerRoot.rotation.z=targetRot;
   }else if(aiming&&isFirearm(activeWeapon)){
     // When stationary, face the aim direction. Quaternius survivors are authored facing -Y,
     // so the model yaw offset converts the world heading into the model's actual forward.
-    const targetAimYaw=playerFacingYaw(yaw);
+    const targetAimYaw=yaw;
     playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetAimYaw,1-Math.exp(-14*dt));
   }
   if(reloadState.active)playPlayerAnimation('reload');
@@ -3107,7 +3158,7 @@ async function boot(){
     window.BP_HORIZON_SMOKE={
       ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),
       player:Boolean(playerRoot),character:CHARACTER_KEY,preview:PREVIEW_KEY,loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,
-      enemyArchetypes:enemyArchetypes.map(x=>x.id),weaponCatalog:[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],dropWeapon:true,
+      enemyArchetypes:enemyArchetypes.map(x=>x.id),climbingSpiders:zombies.filter(z=>z.kind==='spider'&&z.climb).length,weaponCatalog:[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],dropWeapon:true,
       packCapacity,weapon:equippedWeaponName,interiorAssets:Object.values(interiorTemplates).filter(Boolean).length,
       artChildren:artGroup.children.length,roadLayers:roadLayer?.children?.length||0,streetLife:{...streetLifeStats},
       spawnBlocked:isBlockedExterior(playerRoot.position.x,playerRoot.position.y,.36),
@@ -3152,6 +3203,7 @@ async function boot(){
       visualFacingAlignment,
       dropWeaponAvailable:()=>Boolean(activeItemForSlot(activeSlot)&&activeWeapon!=='Fists'),
       enemyCatalog:()=>enemyArchetypes.map(x=>({id:x.id,label:x.label,speed:x.speed,hp:x.hp,damage:x.damage,behavior:x.behavior})),
+      climbingSpiderCount:()=>zombies.filter(z=>z.kind==='spider'&&z.climb).length,
       weaponCatalog:()=>[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],
       cardinalControlsProbe:()=>{
         const probe=(x,y)=>{const n=normalizeMovementInput(x,y),v=movementVector(n.x,n.y,0),heading=Math.atan2(v.x,v.y);return{x:n.x,y:n.y,dx:v.x,dy:v.y,heading,playerYaw:playerFacingYaw(heading)}};
