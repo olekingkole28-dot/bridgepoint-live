@@ -53,13 +53,18 @@ jobs:
           touch site/.nojekyll
           test -s site/app/intelligence-launch/index.html
           test -s site/app/horizon/index.html
+          test -s site/app/horizon/preview.html
           test -s site/app/horizon/horizon-preview.js
           test -s site/app/horizon/horizon-preview.css
-          grep -Fq 'HORIZON TEST WORLD' site/app/horizon/index.html
-          grep -Fq 'Dense City' site/app/horizon/index.html
-          grep -Fq 'Mountain Town' site/app/horizon/index.html
-          grep -Fq 'Waterfront Suburb' site/app/horizon/index.html
+          grep -Fq 'BridgePoint Horizon - Founding Season' site/app/horizon/index.html
+          grep -Fq 'FOUNDING SEASON' site/app/horizon/index.html
+          grep -Fq '/app/horizon/preview.html?build=4203' site/app/horizon/index.html
+          grep -Fq 'HORIZON TEST WORLD' site/app/horizon/preview.html
+          grep -Fq 'Dense City' site/app/horizon/preview.html
+          grep -Fq 'Mountain Town' site/app/horizon/preview.html
+          grep -Fq 'Waterfront Suburb' site/app/horizon/preview.html
           grep -Fq 'bridgepoint-horizon-stream-v3020' site/app/horizon/horizon-preview.js
+          grep -Fq 'camera.rotation.x=Math.PI/2+pitch' site/app/horizon/horizon-preview.js
           grep -Fq 'FOUNDING MEMBER ACCESS' site/app/intelligence-launch/index.html
 
       - uses: actions/configure-pages@v5
@@ -80,14 +85,18 @@ jobs:
           for attempt in $(seq 1 30); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
             code="$(curl -sSL --max-time 20 -o /tmp/horizon.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/?v=${salt}" || true)"
+            preview_code="$(curl -sSL --max-time 20 -o /tmp/horizon-preview.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/preview.html?v=${salt}" || true)"
             js_code="$(curl -sSL --max-time 20 -o /tmp/horizon.js -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/horizon-preview.js?v=${salt}" || true)"
-            if [ "$code" = "200" ] && [ "$js_code" = "200" ] \
-              && grep -Fq 'HORIZON TEST WORLD' /tmp/horizon.html \
-              && grep -Fq 'Dense City' /tmp/horizon.html \
-              && grep -Fq 'Mountain Town' /tmp/horizon.html \
-              && grep -Fq 'Waterfront Suburb' /tmp/horizon.html \
-              && ! grep -Fq 'ENTER 3D WORLD PREVIEW' /tmp/horizon.html \
-              && grep -Fq 'bridgepoint-horizon-stream-v3020' /tmp/horizon.js; then
+            if [ "$code" = "200" ] && [ "$preview_code" = "200" ] && [ "$js_code" = "200" ] \
+              && grep -Fq 'BridgePoint Horizon - Founding Season' /tmp/horizon.html \
+              && grep -Fq 'FOUNDING SEASON' /tmp/horizon.html \
+              && grep -Fq '/app/horizon/preview.html?build=4203' /tmp/horizon.html \
+              && grep -Fq 'HORIZON TEST WORLD' /tmp/horizon-preview.html \
+              && grep -Fq 'Dense City' /tmp/horizon-preview.html \
+              && grep -Fq 'Mountain Town' /tmp/horizon-preview.html \
+              && grep -Fq 'Waterfront Suburb' /tmp/horizon-preview.html \
+              && grep -Fq 'bridgepoint-horizon-stream-v3020' /tmp/horizon.js \
+              && grep -Fq 'camera.rotation.x=Math.PI/2+pitch' /tmp/horizon.js; then
               ok=1
               break
             fi
