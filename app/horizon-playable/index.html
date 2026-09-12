@@ -45,6 +45,7 @@
       <span><b id="lootStat">0</b> loot</span>
       <span><b id="zombieStat">0</b> infected</span>
       <span><b id="packStat">2/24</b> pack</span>
+      <span><b id="killStat">0</b> kills</span>
     </div>
   </section>
 
@@ -61,10 +62,18 @@
     <button id="fullscreenBtn">⛶ <span>Fullscreen</span></button>
   </nav>
 
-  <aside class="hud inventoryPanel">
-    <div class="inventoryHead"><b id="packName">STARTER DUFFEL</b><span id="inventoryCount">2 / 24 slots</span></div>
-    <div id="equippedWeapon" class="equippedWeapon">Equipped: Axe</div>
-    <div id="inventoryList"><span class="empty">Search rooms, cabinets and furniture.</span></div>
+  <aside class="hud inventoryPanel open" id="inventoryPanel">
+    <div class="inventoryHead"><b id="packName">HIDDEN SURVIVOR PACK</b><span id="inventoryCount">2 / 24 slots</span></div>
+    <div class="loadoutGrid" id="loadoutGrid">
+      <div class="loadoutSlot"><small>RIGHT HAND</small><b id="slotMelee">AXE</b></div>
+      <div class="loadoutSlot"><small>LEFT HAND</small><b id="slotOffhand">KNIFE</b></div>
+      <div class="loadoutSlot"><small>SIDEARM</small><b id="slotSidearm">EMPTY</b></div>
+      <div class="loadoutSlot"><small>BACK</small><b id="slotPrimary">EMPTY</b></div>
+      <div class="loadoutSlot"><small>QUICK 1</small><b id="slotQuick1">BANDAGE</b></div>
+      <div class="loadoutSlot"><small>QUICK 2</small><b id="slotQuick2">WATER</b></div>
+    </div>
+    <div id="equippedWeapon" class="equippedWeapon">Melee: Axe · Open pack</div>
+    <div id="inventoryList"><span class="empty">Search rooms, cabinets, furniture and visible street loot.</span></div>
   </aside>
 
   <div id="interactPrompt" class="hud interactPrompt" hidden>
@@ -89,6 +98,12 @@
       <button id="landscapeBtn" type="button">ENTER LANDSCAPE WORLD</button>
       <small>If your browser cannot lock orientation, rotate the phone sideways once.</small>
     </div>
+  </div>
+
+  <div id="deathBox" class="deathBox" hidden>
+    <b>YOU WERE OVERRUN</b>
+    <span id="deathText">The infected got you.</span>
+    <button id="respawnBtn" type="button">RESPAWN</button>
   </div>
 
   <div id="error" class="errorBox" hidden>
