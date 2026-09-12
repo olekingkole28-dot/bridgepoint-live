@@ -10,7 +10,7 @@
   <meta name="description" content="BridgePoint Horizon playable survival-world prototype using source-backed terrain and building geometry with separate CC0 game art.">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="preconnect" href="https://xdfsjztwgsbmabshzsjw.supabase.co">
-  <link rel="stylesheet" href="./horizon-world.css?v=3040">
+  <link rel="stylesheet" href="./horizon-world.css?v=3050">
   <script defer src="https://cdn.jsdelivr.net/npm/nipplejs@0.10.2/dist/nipplejs.min.js"></script>
   <script type="importmap">
     {
@@ -57,6 +57,9 @@
       <span><b id="zombieStat">0</b> infected</span>
       <span><b id="packStat">2/24</b> pack</span>
       <span><b id="killStat">0</b> kills</span>
+      <span><b id="xpStat">0</b> xp</span>
+      <span><b id="livesStat">3</b> lives</span>
+      <span><b id="modeStat">SURVIVAL</b> mode</span>
     </div>
   </section>
 
@@ -70,6 +73,9 @@
     <button id="lightBtn">☀ <span>Day</span></button>
     <button id="parcelBtn">◇ <span>Parcels</span></button>
     <button id="artBtn" class="active">⚠ <span>Survival art</span></button>
+    <button id="flashlightBtn">⌁ <span>Flashlight</span></button>
+    <button id="modeBtn">◎ <span>Mode</span></button>
+    <button id="claimBtn">⚑ <span>Claim base</span></button>
     <button id="fullscreenBtn">⛶ <span>Fullscreen</span></button>
   </nav>
 
@@ -92,7 +98,7 @@
     <span>Press E / tap</span>
   </div>
 
-  <div class="hud hint">WASD / left stick move · drag/right stick look · Shift sprint · Space jump · C stance · E use · F fire/swing · R reload · Q switch weapon</div>
+  <div class="hud hint">WASD move · Shift sprint · Space jump/hurdle · C stance · Z slide · V/B lean · E use · K kick door · T flashlight · G claim base · M mode · F fire · R reload</div>
 
   <div class="mobileControls" aria-label="Mobile movement controls">
     <div id="movePad" class="movePad"><div id="moveKnob"></div></div>
@@ -141,6 +147,6 @@
       if (load) load.textContent='Renderer startup failed';
     });
   </script>
-  <script type="module" src="./horizon-world.js?v=3040"></script>
+  <script type="module" src="./horizon-world.js?v=3050"></script>
 </body>
 </html>
