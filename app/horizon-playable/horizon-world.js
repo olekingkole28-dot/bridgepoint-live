@@ -1317,6 +1317,7 @@ function updateInventory(){
   $('inventoryList').innerHTML=entries.length
     ?entries.slice(0,16).map(([k,v])=>'<span data-item="'+k+'">'+k+' ×'+v+'</span>').join('')
     :'<span class="empty">Search rooms, cabinets, furniture and visible loot.</span>';
+  persistSurvivor();
 }
 function addInventoryItem(item){
   if(item==='Hiking Backpack'){
@@ -2122,7 +2123,11 @@ function updatePlayer(dt){
   const stanceSpeed=(STANCES[playerStance]||STANCES.stand).speed;
   const speed=(interiorMode?3.05:3.45)*(sprint?1.68:1)*(aiming?.72:1)*stanceSpeed;
   const move=movementVector(ix,iy,yaw);
-  const desiredX=moving?move.x*speed:0,desiredY=moving?move.y*speed:0;
+  let desiredX=moving?move.x*speed:0,desiredY=moving?move.y*speed:0;
+  if(CELL==='national'&&!interiorMode&&playerRoot){
+    if(boundaryBlocks(playerRoot.position.x+desiredX*dt,playerRoot.position.y))desiredX=0;
+    if(boundaryBlocks(playerRoot.position.x,playerRoot.position.y+desiredY*dt))desiredY=0;
+  }
   const accel=1-Math.exp(-(moving?9.5:15)*dt);
   playerVelocity.x=THREE.MathUtils.lerp(playerVelocity.x,desiredX,accel);
   playerVelocity.y=THREE.MathUtils.lerp(playerVelocity.y,desiredY,accel);
@@ -2196,7 +2201,10 @@ async function boot(){
   try{
     $('cellLabel').textContent=worldCellLabel();
     $('worldTitle').textContent=worldCellTitle();
-    updateInventory();
+    restoreSurvivor();updateInventory();
+    loadText.textContent='Starting physics and renderer…';
+    await initRapierPhysics();
+    initPostProcessing();
     const r=await fetch(worldRequestUrl(),{headers:{accept:'application/json'},cache:'no-store'});
     if(!r.ok)throw new Error('Horizon scene endpoint returned '+r.status);
     data=await r.json();if(!data?.complete)throw new Error(data?.error||'Horizon scene incomplete');
@@ -2204,7 +2212,7 @@ async function boot(){
     const meta=$('jurisdictionMeta');if(meta&&CELL==='national')meta.textContent=(JURISDICTIONS[SELECTED_STATE]?.[0]||SELECTED_STATE)+' · '+(data.counts?.buildings||0).toLocaleString()+' buildings · '+(data.counts?.parcels||0).toLocaleString()+' open parcel outlines · '+Number(data.span_km||STREAM_SPAN).toFixed(1)+' km streamed cell';
 
     buildTerrain();buildRoads();buildWater();buildBuildings();buildFacadeDetails();buildParts();buildParcels();addLights();setLighting(0);drawMinimapBase();initInput();
-    await buildPlayer();buildEntryPoints();
+    await buildPlayer();createPlayerPhysics();buildEntryPoints();
     revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone();
     loadText.textContent='Loading interiors, city dressing and infected…';
     await buildSurvivalArt();
@@ -2220,7 +2228,8 @@ async function boot(){
       equipment:{...equipment},
       playerSurfaceZ:surfaceZXY(playerRoot.position.x,playerRoot.position.y),
       playerRootZ:playerRoot.position.z,
-      activeWeapon,activeSlot,zombieVariants:zombieTemplates.length
+      activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
+      physicsMode,physicsReady,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION
     };
     window.BP_HORIZON_TEST={
       enterFirst:()=>{
@@ -2330,6 +2339,6 @@ function loop(now=performance.now()){
   const dt=Math.min(.05,clock.getDelta()||.016);
   updateWeapon(dt);updatePlayer(dt);updateZombieWaves(now);updateZombies(dt,now);animatePickups(dt,now);updateCamera(dt);
   if(now-lastPrompt>120){updateInteractionPrompt();lastPrompt=now}
-  renderMinimap();renderer.render(scene,camera);requestAnimationFrame(loop);
+  renderMinimap();if(composer)composer.render();else renderer.render(scene,camera);requestAnimationFrame(loop);
 }
 loop();boot();
