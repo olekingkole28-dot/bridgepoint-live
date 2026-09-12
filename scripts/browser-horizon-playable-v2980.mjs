@@ -24,6 +24,6 @@ if(!near(controls.forward.dx,0)||!(controls.forward.dy>0.99))throw new Error('Fo
 if(!near(controls.backward.dx,0)||!(controls.backward.dy<-0.99))throw new Error('Backward mapping broken '+JSON.stringify(controls));
 if(!(controls.left.dx<-0.99)||!near(controls.left.dy,0))throw new Error('Left mapping broken '+JSON.stringify(controls));
 if(!(controls.right.dx>0.99)||!near(controls.right.dy,0))throw new Error('Right mapping broken '+JSON.stringify(controls));
-if(!near(Math.abs(controls.modelYawOffset),Math.PI)||controls.aimingBackpedalAllowed!==false||controls.locomotionAlwaysFacesTravel!==true)throw new Error('Facing/no-backpedal contract broken '+JSON.stringify(controls));
+if(Math.abs(controls.modelYawOffset)>1e-6||controls.aimingBackpedalAllowed!==false||controls.locomotionAlwaysFacesTravel!==true)throw new Error('Facing/no-backpedal contract broken '+JSON.stringify(controls));
 console.log('HORIZON_4208_CARDINAL_FACING_PASS',JSON.stringify(controls));
 await browser.close();
