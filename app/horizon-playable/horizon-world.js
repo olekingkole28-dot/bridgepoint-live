@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4205;
+const BUILD_VERSION=4206;
 const SAVE_KEY='bridgepoint-horizon-survivor-v3050';
 const LEGACY_SAVE_KEY='bridgepoint-horizon-survivor-v3040';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
@@ -198,6 +198,7 @@ let data,lon0,lat0,mx,my,baseElevation=0;
 let parcelLayer,partsLayer,buildingLayer,roadLayer,terrainLayer;
 let hemi,sun,lightMode=0;
 let playerRoot=null,playerVisualRoot=null,playerMixer=null,playerClips=[],playerAction=null;
+let playerModelYawOffset=0;
 let yaw=0,pitch=.14,cameraMode=0;
 let health=100,lastDamageAt=0;
 let playerSpawn=new THREE.Vector3();
@@ -1329,11 +1330,11 @@ async function buildPlayer(){
   weaponTemplates={axe,bat,knife,pistol,rifle,shotgun};
   if(gltf){
     const n=normalizedModel(gltf.scene,1.82,true);
-    playerRoot=n.root;playerVisualRoot=n.oriented;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);
+    playerRoot=n.root;playerVisualRoot=n.oriented;playerModelYawOffset=Math.PI;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);
     captureCharacterWeaponTemplates(n.model);
     setupEquipmentMounts(n.model);
   }else{
-    playerRoot=fallbackPlayer();playerVisualRoot=playerRoot;
+    playerRoot=fallbackPlayer();playerVisualRoot=playerRoot;playerModelYawOffset=0;
     setupEquipmentMounts(playerRoot);
   }
   playerRoot.position.copy(playerSpawn);scene.add(playerRoot);
@@ -2831,6 +2832,7 @@ function initInput(){
   $('artBtn').onclick=()=>{if(!interiorMode){artGroup.visible=!artGroup.visible;zombieGroup.visible=artGroup.visible;entryGroup.visible=artGroup.visible;$('artBtn').classList.toggle('active',artGroup.visible)}};
 }
 function lerpAngle(a,b,t){let d=(b-a+Math.PI)%(Math.PI*2)-Math.PI;return a+d*t}
+function playerFacingYaw(worldHeading){return worldHeading+playerModelYawOffset}
 function normalizeMovementInput(ix,iy){
   ix=Number.isFinite(ix)?ix:0;iy=Number.isFinite(iy)?iy:0;
   const ax=Math.abs(ix),ay=Math.abs(iy);
@@ -2900,12 +2902,16 @@ function updatePlayer(dt){
     playerRoot.position.z=THREE.MathUtils.lerp(playerRoot.position.z,targetGround,1-Math.exp(-22*dt));
   }
 
-  if(aiming&&isFirearm(activeWeapon)){
-    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,yaw,1-Math.exp(-14*dt));
-  }else if(moving||slideTime>0){
-    // Face the intended travel direction itself, not lagging smoothed velocity.
+  if(moving||slideTime>0){
+    // Locomotion always wins: the survivor turns into the travel vector and then runs/walks FORWARD.
+    // No strafing/backpedaling animation is allowed, including while aiming.
     const targetRot=Math.atan2(move.x,move.y);
-    playerRoot.rotation.z=targetRot;
+    playerRoot.rotation.z=playerFacingYaw(targetRot);
+  }else if(aiming&&isFirearm(activeWeapon)){
+    // When stationary, face the aim direction. Quaternius survivors are authored facing -Y,
+    // so the model yaw offset converts the world heading into the model's actual forward.
+    const targetAimYaw=playerFacingYaw(yaw);
+    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetAimYaw,1-Math.exp(-14*dt));
   }
   if(reloadState.active)playPlayerAnimation('reload');
   else if(aiming&&isFirearm(activeWeapon)&&!moving)playPlayerAnimation('aim');
@@ -3042,10 +3048,13 @@ async function boot(){
         return {dx:v.x,dy:v.y,heading:Math.atan2(v.x,v.y)};
       },
       cardinalControlsProbe:()=>{
-        const probe=(x,y)=>{const n=normalizeMovementInput(x,y),v=movementVector(n.x,n.y,0);return{x:n.x,y:n.y,dx:v.x,dy:v.y,heading:Math.atan2(v.x,v.y)}};
+        const probe=(x,y)=>{const n=normalizeMovementInput(x,y),v=movementVector(n.x,n.y,0),heading=Math.atan2(v.x,v.y);return{x:n.x,y:n.y,dx:v.x,dy:v.y,heading,playerYaw:playerFacingYaw(heading)}};
         return{
           forward:probe(0,1),backward:probe(0,-1),left:probe(-1,0),right:probe(1,0),
-          forwardStickNoise:probe(.12,.9),rightStickNoise:probe(.9,.12)
+          forwardStickNoise:probe(.12,.9),rightStickNoise:probe(.9,.12),
+          modelYawOffset:playerModelYawOffset,
+          locomotionAlwaysFacesTravel:true,
+          aimingBackpedalAllowed:false
         };
       },
       weaponSize:()=>{
