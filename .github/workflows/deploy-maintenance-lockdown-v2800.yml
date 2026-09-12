@@ -1,5 +1,5 @@
 name: BridgePoint Public Lockdown V2800
-# Horizon 4234 bounded-asset release retry
+# Horizon 4234 bounded-asset release retry + static-map prewarm recovery
 
 on:
   push:
