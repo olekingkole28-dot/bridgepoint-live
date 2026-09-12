@@ -200,8 +200,15 @@ let streetLifeStats={trees:0,bikes:0,vehicles:0,props:0,grass:0,benches:0,plante
 let RAPIER=null,physicsWorld=null,physicsReady=false,physicsMode='manual-fallback';
 let playerPhysicsBody=null,playerPhysicsCollider=null,characterController=null;
 let verticalVelocity=0,grounded=false,playerJumpQueued=false;
-const PHYSICS_PLAYER_CENTER=.91;
+let playerStance='stand',gamepadMove={x:0,y:0},gamepadLook={x:0,y:0},gamepadPrev=[];
+const STANCES={
+  stand:{half:.58,radius:.33,speed:1,center:.91},
+  crouch:{half:.34,radius:.33,speed:.68,center:.67},
+  prone:{half:.13,radius:.28,speed:.34,center:.41}
+};
+let PHYSICS_PLAYER_CENTER=STANCES.stand.center;
 const physicsStaticColliders=[];
+const boundaryPhysicsColliders=[];
 const keys=new Set();
 
 const minimap=$('minimap');
@@ -315,17 +322,36 @@ function addStaticPhysicsGeometry(geometry,label='static',friction=.85){
   }catch(e){console.warn('physics collider skipped',label,e);return null}
 }
 function createPlayerPhysics(){
-  if(!physicsReady||!playerRoot||playerPhysicsBody)return false;
+  if(!physicsReady||!playerRoot)return false;
+  if(playerPhysicsBody){
+    try{physicsWorld.removeRigidBody(playerPhysicsBody)}catch(_){}
+    playerPhysicsBody=null;playerPhysicsCollider=null;
+  }
+  const cfg=STANCES[playerStance]||STANCES.stand;
+  PHYSICS_PLAYER_CENTER=cfg.center;
   const z=playerRoot.position.z+PHYSICS_PLAYER_CENTER;
   playerPhysicsBody=physicsWorld.createRigidBody(
     RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(playerRoot.position.x,playerRoot.position.y,z)
   );
   const q={x:Math.sin(Math.PI/4),y:0,z:0,w:Math.cos(Math.PI/4)};
   playerPhysicsCollider=physicsWorld.createCollider(
-    RAPIER.ColliderDesc.capsule(.58,.33).setRotation(q).setFriction(.4),
+    RAPIER.ColliderDesc.capsule(cfg.half,cfg.radius).setRotation(q).setFriction(.42),
     playerPhysicsBody
   );
-  verticalVelocity=-.1;grounded=true;return true;
+  verticalVelocity=-.12;grounded=true;return true;
+}
+function setPlayerStance(next){
+  if(!STANCES[next]||next===playerStance||playerDead)return;
+  playerStance=next;
+  if(playerVisualRoot){
+    const zScale=next==='stand'?1:next==='crouch'?.78:.48;
+    playerVisualRoot.scale.z=zScale;
+  }
+  if(physicsReady&&!interiorMode)createPlayerPhysics();
+  showToast(next==='stand'?'Standing':next==='crouch'?'Crouched':'Prone');
+}
+function cycleStance(){
+  setPlayerStance(playerStance==='stand'?'crouch':playerStance==='crouch'?'prone':'stand');
 }
 function syncPhysicsToPlayer(){
   if(!physicsReady||!playerPhysicsBody||!playerRoot)return;
