@@ -143,7 +143,7 @@ jobs:
           test -s site/app/horizon-world/horizon-world.js
           grep -Fq 'FOUNDING MEMBER ACCESS' site/app/intelligence-launch/index.html
           grep -Fq 'RESERVE YOUR HOME BASE' site/app/horizon/index.html
-          grep -Fq 'HORIZON WORLD PREVIEW' site/app/horizon-world/index.html
+          grep -Fq 'WORLD PREVIEW · GAME ONLY' site/app/horizon-world/index.html
           grep -Fq 'ENTER 3D WORLD PREVIEW' site/app/horizon/index.html
           ! grep -qi 'supabase' site/index.html site/404.html
           ! grep -qi 'cesium' site/index.html site/404.html
