@@ -1605,6 +1605,17 @@ function updateInventory(){
   persistSurvivor();
 }
 function addInventoryItem(item){
+  const ammoPickup={
+    'Pistol Ammo':{weapon:'Pistol',rounds:12},
+    'Rifle Ammo':{weapon:'Rifle',rounds:20},
+    'Shotgun Shells':{weapon:'Shotgun',rounds:6}
+  }[item];
+  if(ammoPickup){
+    if(lootCount>=packCapacity){showToast('PACK FULL — free a slot for ammo');return false}
+    inventory[item]=(inventory[item]||0)+1;lootCount++;
+    reserveAmmo[ammoPickup.weapon]=(reserveAmmo[ammoPickup.weapon]||0)+ammoPickup.rounds;
+    updateInventory();showToast('+'+ammoPickup.rounds+' '+ammoPickup.weapon+' reserve');return true;
+  }
   if(item==='Hiking Backpack'){
     if(packCapacity<36){packCapacity=36;packName='Hidden Hiking Pack';showToast('Capacity upgraded: 36 slots')}
     updateInventory();return true;
@@ -1675,7 +1686,7 @@ function spawnVisiblePickup(item,x,y,z,mode='exterior',seedValue=0){
 }
 function spawnOutdoorLoot(){
   const target=densePreview()?80:40;
-  const table=['Bandage','Water','First aid kit','Batteries','Canned food','Pistol','Rifle','Shotgun','Axe','Hiking Backpack'];
+  const table=['Bandage','Water','First aid kit','Batteries','Canned food','Pistol Ammo','Rifle Ammo','Shotgun Shells','Pistol','Rifle','Shotgun','Axe','Hiking Backpack'];
   let placed=0,attempts=0;
   while(placed<target&&attempts<target*24){
     attempts++;
@@ -1688,19 +1699,21 @@ function spawnOutdoorLoot(){
       p={x:a.x,y:a.y,z:surfaceZXY(a.x,a.y)};
       if(isBlockedExterior(p.x,p.y,.38))continue;
     }
-    const roll=rand();let item=table[Math.floor(rand()*5)];
-    if(roll>.72&&roll<=.84)item='Pistol';
-    else if(roll>.84&&roll<=.91)item='Axe';
-    else if(roll>.91&&roll<=.96)item='Rifle';
-    else if(roll>.96&&roll<=.985)item='Shotgun';
-    else if(roll>.985)item='Hiking Backpack';
+    const roll=rand();let item=table[Math.floor(rand()*8)];
+    if(roll>.68&&roll<=.80)item='Pistol Ammo';
+    else if(roll>.80&&roll<=.87)item='Rifle Ammo';
+    else if(roll>.87&&roll<=.91)item='Pistol';
+    else if(roll>.91&&roll<=.945)item='Axe';
+    else if(roll>.945&&roll<=.975)item='Rifle';
+    else if(roll>.975&&roll<=.992)item='Shotgun';
+    else if(roll>.992)item='Hiking Backpack';
     spawnVisiblePickup(item,p.x,p.y,p.z,'exterior',hash(CELL+':loot:'+attempts));placed++;
   }
   return placed;
 }
 function spawnInteriorVisibleLoot(w,h,seedValue){
   const r=seeded(seedValue+301),count=3+Math.floor(r()*4);
-  const items=['Bandage','Water','Batteries','Pistol','First aid kit','Rifle','Shotgun','Hiking Backpack'];
+  const items=['Bandage','Water','Batteries','Pistol Ammo','Rifle Ammo','Shotgun Shells','Pistol','First aid kit','Rifle','Shotgun','Hiking Backpack'];
   for(let i=0;i<count;i++){
     const x=(r()-.5)*w*.65,y=(r()-.5)*h*.55;
     if(isBlockedInterior(x,y))continue;
@@ -1727,12 +1740,12 @@ function lootForContainer(type,seed){
   const r=seeded(seed+lootCount*131);
   const common={
     kitchen:['Water','Canned food','Energy bar','Batteries','Kitchen knife','Cloth'],
-    dresser:['Cloth','Bandage','Work gloves','Flashlight','Batteries','Painkillers'],
+    dresser:['Cloth','Bandage','Work gloves','Flashlight','Batteries','Painkillers','Pistol Ammo'],
     medicine:['Bandage','Painkillers','First aid kit','Alcohol wipes','Water'],
-    shelf:['Batteries','Scrap','Tool parts','Flashlight','Radio','Cloth'],
+    shelf:['Batteries','Scrap','Tool parts','Flashlight','Radio','Cloth','Pistol Ammo','Rifle Ammo'],
     fridge:['Water','Canned food','Energy drink','Food ration'],
     bed:['Bandage','Pocket knife','Cloth','Water','Flashlight'],
-    picture:['Axe','Barbed Bat','Knife','Pistol','Rifle','First aid kit','Batteries','Tool parts'],
+    picture:['Axe','Barbed Bat','Knife','Pistol','Rifle','First aid kit','Batteries','Tool parts','Pistol Ammo','Rifle Ammo'],
     cabinet:['Water','Bandage','Batteries','Canned food','Tool parts','Pistol']
   };
   const source=common[type]||common.cabinet;
