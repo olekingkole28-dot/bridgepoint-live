@@ -677,23 +677,46 @@ function updateInventory(){
   const entries=Object.entries(inventory).filter(([,v])=>v>0);
   $('inventoryCount').textContent=lootCount+' / '+packCapacity+' slots';
   const pack=$('packName');if(pack)pack.textContent=packName.toUpperCase();
-  const weapon=$('equippedWeapon');if(weapon)weapon.textContent='Equipped: '+equippedWeaponName;
+  const weapon=$('equippedWeapon');if(weapon)weapon.textContent='Melee: '+equippedWeaponName+' · Open pack';
   const packStat=$('packStat');if(packStat)packStat.textContent=lootCount+'/'+packCapacity;
+  const killStat=$('killStat');if(killStat)killStat.textContent=String(kills);
   $('lootStat').textContent=String(lootCount);
-  $('inventoryList').innerHTML=entries.length?entries.slice(0,10).map(([k,v])=>'<span>'+k+' ×'+v+'</span>').join(''):'<span class="empty">Search rooms, cabinets and furniture.</span>';
+  const slots={
+    slotMelee:equipment.melee||'EMPTY',
+    slotOffhand:equipment.offhand||'EMPTY',
+    slotSidearm:equipment.sidearm||'EMPTY',
+    slotPrimary:equipment.primary||'EMPTY',
+    slotQuick1:equipment.quick1||'EMPTY',
+    slotQuick2:equipment.quick2||'EMPTY'
+  };
+  for(const [id,val] of Object.entries(slots)){const el=$(id);if(el)el.textContent=String(val).toUpperCase()}
+  $('inventoryList').innerHTML=entries.length
+    ?entries.slice(0,14).map(([k,v])=>'<span>'+k+' ×'+v+'</span>').join('')
+    :'<span class="empty">Search rooms, cabinets, furniture and visible loot.</span>';
 }
 function addInventoryItem(item){
   if(item==='Hiking Backpack'){
-    if(packCapacity<36){packCapacity=36;packName='Hiking Backpack';updatePackVisual();showToast('Pack upgraded: Hiking Backpack · 36 slots')}
-    return true;
+    if(packCapacity<36){packCapacity=36;packName='Hidden Hiking Pack';showToast('Capacity upgraded: 36 slots')}
+    updateInventory();return true;
   }
   if(item==='Large Duffel'){
-    if(packCapacity<42){packCapacity=42;packName='Large Duffel';updatePackVisual();showToast('Pack upgraded: Large Duffel · 42 slots')}
-    return true;
+    if(packCapacity<42){packCapacity=42;packName='Hidden Large Pack';showToast('Capacity upgraded: 42 slots')}
+    updateInventory();return true;
   }
   if(lootCount>=packCapacity){showToast('PACK FULL — find a larger bag');return false}
   inventory[item]=(inventory[item]||0)+1;lootCount++;
-  if(item==='Axe'||item==='Barbed Bat'||item==='Knife')equipWeapon(item);
+  if(item==='Axe'||item==='Barbed Bat'||item==='Knife'){
+    equipment.melee=item;equipWeapon(item);
+  }
+  if(item==='Pistol'){
+    equipment.sidearm='Pistol';refreshEquipmentVisuals();
+  }
+  if(item==='Rifle'||item==='Shotgun'){
+    equipment.primary=item;refreshEquipmentVisuals();
+  }
+  if(item==='Bandage'&&!equipment.quick1)equipment.quick1='Bandage';
+  if(item==='Water'&&!equipment.quick2)equipment.quick2='Water';
+  updateInventory();
   return true;
 }
 function lootForContainer(type,seed){
@@ -705,8 +728,8 @@ function lootForContainer(type,seed){
     shelf:['Batteries','Scrap','Tool parts','Flashlight','Radio','Cloth'],
     fridge:['Water','Canned food','Energy drink','Food ration'],
     bed:['Bandage','Pocket knife','Cloth','Water','Flashlight'],
-    picture:['Axe','Barbed Bat','Knife','First aid kit','Batteries','Tool parts'],
-    cabinet:['Water','Bandage','Batteries','Canned food','Tool parts']
+    picture:['Axe','Barbed Bat','Knife','Pistol','Rifle','First aid kit','Batteries','Tool parts'],
+    cabinet:['Water','Bandage','Batteries','Canned food','Tool parts','Pistol']
   };
   const source=common[type]||common.cabinet;
   const count=1+Math.floor(r()*3),out=[];
@@ -718,7 +741,8 @@ function lootForContainer(type,seed){
     const loadouts=[
       ['Axe','Bandage','Water','Work gloves'],
       ['Barbed Bat','First aid kit','Energy bar','Flashlight'],
-      ['Knife','Batteries','Radio','Canned food'],
+      ['Knife','Pistol','Batteries','Radio','Canned food'],
+      ['Rifle','Bandage','Water','Batteries'],
       ['First aid kit','Bandage','Painkillers','Water']
     ];
     out.push(...loadouts[Math.floor(r()*loadouts.length)]);
