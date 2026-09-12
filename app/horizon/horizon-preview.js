@@ -94,7 +94,7 @@ function applySceneMeta(key,target){
 function buildSceneFromData(key,target,data){
   applySceneMeta(key,target);
   clearGroup(world);clearGroup(skyGroup);infected=[];player.position.set(0,0,0);
-  const r=randSeed(hash(key+'4201'));
+  const r=randSeed(hash(key+'4202'));
   addGround(target.profile,r);addMountains(target.profile,r);addClouds(r);applyLighting();
   const roads=addRoads(data);
   const buildings=addBuildings(data,target.profile);
@@ -105,7 +105,7 @@ function buildSceneFromData(key,target,data){
 function buildOfflineFallback(key,target,reason){
   applySceneMeta(key,target);
   clearGroup(world);clearGroup(skyGroup);infected=[];player.position.set(0,0,0);
-  const r=randSeed(hash(key+'4201-fallback'));
+  const r=randSeed(hash(key+'4202-fallback'));
   addGround(target.profile,r);addMountains(target.profile,r);addClouds(r);applyLighting();
   addTrees(target.profile,r);addStreetDecay(target.profile,r);addInfected(target.profile,r);
   $('buildingCount').textContent='0';$('roadCount').textContent='0';
@@ -154,4 +154,4 @@ $('lightBtn').addEventListener('click',()=>{night=!night;$('lightBtn').textConte
 $('retryBtn').addEventListener('click',()=>loadScene(activeKey,{force:true}));
 
 loadScene('city');requestAnimationFrame(loop);
-window.__BP_HORIZON_PREVIEW__=()=>({build:4201,scene:activeKey,profile:active.profile,lat:active.lat,lon:active.lon,storm,night,buildings:Number(($('buildingCount').textContent||'0').replaceAll(',',''))||0,roads:Number(($('roadCount').textContent||'0').replaceAll(',',''))||0,infected:infected.length,errorHidden:$('error').hidden});
+window.__BP_HORIZON_PREVIEW__=()=>({build:4202,scene:activeKey,profile:active.profile,lat:active.lat,lon:active.lon,storm,night,buildings:Number(($('buildingCount').textContent||'0').replaceAll(',',''))||0,roads:Number(($('roadCount').textContent||'0').replaceAll(',',''))||0,infected:infected.length,errorHidden:$('error').hidden});
