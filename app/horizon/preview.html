@@ -39,10 +39,10 @@
       <span><b>BRIDGEPOINT HORIZON</b><small>WORLD PREVIEW · GAME ONLY</small></span>
     </a>
     <div class="cellSwitch" aria-label="Preview location">
-      <a id="sceneCity" data-preview="city" href="/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=matt&build=4206">DENSE CITY</a>
-      <a id="sceneMountain" data-preview="mountain" href="/app/horizon/preview.html?preview=mountain&cell=national&state=CO&lat=39.1911&lon=-106.8175&span_km=1.65&character=lis&build=4206">MOUNTAIN TOWN</a>
-      <a id="sceneCoastal" data-preview="coastal" href="/app/horizon/preview.html?preview=coastal&cell=national&state=WA&lat=47.6686&lon=-122.3869&span_km=1.8&character=sam&build=4206">WATERFRONT SUBURB</a>
-      <a id="cellNational" href="/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=matt&build=4206" hidden></a>
+      <a id="sceneCity" data-preview="city" href="/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=matt&build=4207">DENSE CITY</a>
+      <a id="sceneMountain" data-preview="mountain" href="/app/horizon/preview.html?preview=mountain&cell=national&state=CO&lat=39.1911&lon=-106.8175&span_km=1.65&character=lis&build=4207">MOUNTAIN TOWN</a>
+      <a id="sceneCoastal" data-preview="coastal" href="/app/horizon/preview.html?preview=coastal&cell=national&state=WA&lat=47.6686&lon=-122.3869&span_km=1.8&character=sam&build=4207">WATERFRONT SUBURB</a>
+      <a id="cellNational" href="/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=matt&build=4207" hidden></a>
       <a id="cellMiddletown" href="#" hidden></a>
       <a id="cellManhattan" href="#" hidden></a>
     </div>
@@ -65,7 +65,7 @@
     <div class="statusRows">
       <span><b id="healthStat">100</b> health</span>
       <span><b id="lootStat">0</b> loot</span>
-      <span><b id="zombieStat">0</b> infected</span>
+      <span><b id="zombieStat">0</b> hostiles</span>
       <span><b id="packStat">2/24</b> pack</span>
       <span><b id="killStat">0</b> kills</span>
       <span><b id="xpStat">0</b> xp</span>
@@ -102,6 +102,7 @@
       <button class="loadoutSlot" data-slot="quick2"><small>QUICK 2</small><b id="slotQuick2">WATER</b></button>
     </div>
     <div id="equippedWeapon" class="equippedWeapon">Melee: Axe · Open pack</div>
+    <button id="dropBtn" class="dropWeaponBtn" type="button">DROP ACTIVE WEAPON</button>
     <div id="inventoryList"><span class="empty">Search rooms, cabinets, furniture and visible street loot.</span></div>
   </aside>
 
@@ -110,7 +111,7 @@
     <span>Press E / tap</span>
   </div>
 
-  <div class="hud hint">WASD move · Shift sprint · Space jump/hurdle · C stance · Z slide · V/B lean · E use · K kick door · T flashlight · G claim base · M mode · F fire · R reload</div>
+  <div class="hud hint">WASD move · Shift sprint · Space jump/hurdle · E use · F fire · R reload · Q switch · H drop weapon</div>
 
   <div class="mobileControls" aria-label="Mobile movement controls">
     <div id="movePad" class="movePad"><div id="moveKnob"></div></div>
@@ -119,6 +120,7 @@
     <button id="aimBtn" class="actionButton aim">◎<br><small>AIM</small></button>
     <button id="weaponBtn" class="actionButton weapon">↻<br><small>SLOT</small></button>
     <button id="reloadBtn" class="actionButton reload">⟳<br><small id="reloadLabel">RELOAD</small></button>
+    <button id="dropMobileBtn" class="actionButton drop">↓<br><small>DROP</small></button>
     <button id="jumpBtn" class="actionButton jump">↑<br><small>JUMP</small></button>
     <button id="stanceBtn" class="actionButton stance">▾<br><small>STANCE</small></button>
     <button id="sprintBtn" class="actionButton sprint">⇧<br><small>RUN</small></button>
@@ -165,6 +167,6 @@
     });
   </script>
   <script type="module" src="../horizon-playable/horizon-mobile-safe.js?v=3052"></script>
-  <script type="module" src="../horizon-playable/horizon-world.js?v=4206"></script>
+  <script type="module" src="../horizon-playable/horizon-world.js?v=4207"></script>
 </body>
 </html>
