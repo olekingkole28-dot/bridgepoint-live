@@ -28,11 +28,11 @@ async function testLanding(){
   const href=await page.locator('a.cta').first().getAttribute('href');
   console.log(JSON.stringify({landing:true,status:response?.status(),url,href},null,2));
   if(response?.status()!==200)throw new Error('landing HTTP '+response?.status());
-  if(href!=='/app/horizon-playable/?build=2992')throw new Error('landing CTA stale: '+href);
+  if(href!=='/app/horizon-playable/?build=2993')throw new Error('landing CTA stale: '+href);
 }
 
 async function testCell(cell){
-  const url='https://bridgepointintelligence.online/app/horizon-playable/?build=2992&cell='+cell+'&ci='+Date.now();
+  const url='https://bridgepointintelligence.online/app/horizon-playable/?build=2993&cell='+cell+'&ci='+Date.now();
   const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
   await page.waitForFunction(()=>Boolean(window.BP_HORIZON_SMOKE),null,{timeout:90000});
   const d=await page.evaluate(()=>{
@@ -85,12 +85,29 @@ async function testCell(cell){
   if(!(play.searched?.lootCount>2))throw new Error(cell+' interior search did not add loot');
   if(!(play.swing?.swingTime>0))throw new Error(cell+' melee swing did not start');
   if(play.exited?.interiorMode!==false)throw new Error(cell+' interior exit failed');
+  const controls=await page.evaluate(()=>{
+    const t=window.BP_HORIZON_TEST;
+    return {
+      forward:t?.directionProbe?.('forward'),
+      backward:t?.directionProbe?.('backward'),
+      left:t?.directionProbe?.('left'),
+      right:t?.directionProbe?.('right'),
+      weapon:t?.weaponSize?.()
+    };
+  });
+  console.log(JSON.stringify({cell,controls},null,2));
+  if(!(controls.forward?.dy>0))throw new Error(cell+' forward does not move forward');
+  if(!(controls.backward?.dy<0))throw new Error(cell+' backward does not move backward');
+  if(!(controls.left?.dx<0))throw new Error(cell+' left does not move left');
+  if(!(controls.right?.dx>0))throw new Error(cell+' right does not move right');
+  if(!(controls.weapon?.longest>0.15&&controls.weapon?.longest<1.15))
+    throw new Error(cell+' weapon scale unreasonable: '+JSON.stringify(controls.weapon));
 }
 try{
   await testLanding();
   await testCell('middletown');
   await testCell('manhattan');
-  console.log('HORIZON_V2992_BROWSER_SMOKE_PASS');
+  console.log('HORIZON_V2993_BROWSER_SMOKE_PASS');
   if(errors.length)console.log('pageErrors',errors);
   const serious=messages.filter(x=>/syntaxerror|referenceerror|typeerror/i.test(x));
   if(serious.length)throw new Error('Serious console errors: '+serious.join(' | '));
