@@ -34,11 +34,11 @@ async function testLanding(){
   const href=await page.locator('a.cta').first().getAttribute('href');
   console.log(JSON.stringify({landing:true,status:response?.status(),url,href},null,2));
   if(response?.status()!==200)throw new Error('landing HTTP '+response?.status());
-  if(href!=='/app/horizon-playable/?build=3001')throw new Error('landing CTA stale: '+href);
+  if(href!=='/app/horizon-playable/?build=3002')throw new Error('landing CTA stale: '+href);
 }
 
 async function testCell(cell){
-  const url='https://bridgepointintelligence.online/app/horizon-playable/?build=3001&cell='+cell+'&ci='+Date.now();
+  const url='https://bridgepointintelligence.online/app/horizon-playable/?build=3002&cell='+cell+'&ci='+Date.now();
   const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
   await page.waitForFunction(()=>Boolean(window.BP_HORIZON_SMOKE),null,{timeout:90000});
   const d=await page.evaluate(()=>{
@@ -77,7 +77,7 @@ async function testCell(cell){
   if(d.smoke?.spawnBlocked)throw new Error(cell+' player spawned inside building collision');
   if(!(d.smoke?.roadLayers>=4))throw new Error(cell+' road/sidewalk layers missing: '+d.smoke?.roadLayers);
   if(cell==='manhattan'){
-    if(!(d.smoke?.entries>=500))throw new Error('manhattan enterable-building coverage too low: '+d.smoke?.entries);
+    if(!(d.smoke?.entries>=1590))throw new Error('manhattan enterable-building coverage too low: '+d.smoke?.entries);
     if(!(d.smoke?.streetLife?.trees>=100))throw new Error('manhattan trees too sparse: '+JSON.stringify(d.smoke?.streetLife));
     if(!(d.smoke?.streetLife?.bikes>=45))throw new Error('manhattan bikes too sparse: '+JSON.stringify(d.smoke?.streetLife));
     if(!(d.smoke?.streetLife?.vehicles>=60))throw new Error('manhattan vehicles too sparse: '+JSON.stringify(d.smoke?.streetLife));
@@ -155,7 +155,7 @@ try{
   await testLanding();
   await testCell('middletown');
   await testCell('manhattan');
-  console.log('HORIZON_V3001_BROWSER_SMOKE_PASS');
+  console.log('HORIZON_V3002_BROWSER_SMOKE_PASS');
   if(errors.length)console.log('pageErrors',errors);
   const serious=messages.filter(x=>/syntaxerror|referenceerror|typeerror/i.test(x));
   if(serious.length)throw new Error('Serious console errors: '+serious.join(' | '));
