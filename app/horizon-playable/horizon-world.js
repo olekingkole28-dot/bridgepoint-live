@@ -91,7 +91,7 @@ const selectedJurisdiction=JURISDICTIONS[SELECTED_STATE];
 const STREAM_LAT=Number.isFinite(Number(params.get('lat')))?Number(params.get('lat')):selectedJurisdiction[1];
 const STREAM_LON=Number.isFinite(Number(params.get('lon')))?Number(params.get('lon')):selectedJurisdiction[2];
 const STREAM_SPAN=Math.max(1,Math.min(5.5,Number(params.get('span_km')||3.4)));
-const densePreview=()=>CELL==='manhattan'||CELL==='national'||Number(data?.counts?.buildings||0)>500;
+const densePreview=()=>CELL==='manhattan'||CELL==='national';
 
 document.body.classList.toggle('nationalMode',CELL==='national');
 $('cellNational')?.classList.toggle('active',CELL==='national');
