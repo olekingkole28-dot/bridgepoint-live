@@ -545,7 +545,7 @@ function generateInterior(entry){
   const r=seeded(entry.seed),w=THREE.MathUtils.clamp(entry.width*1.15,13,25),h=THREE.MathUtils.clamp(entry.depth*1.15,11,22);
   interiorBounds={minx:-w/2+.42,maxx:w/2-.42,miny:-h/2+.42,maxy:h/2-.42};
   const floorMat=new THREE.MeshStandardMaterial({color:r()>.5?0x665647:0x5c5e57,roughness:.88});
-  const floor=new THREE.Mesh(new THREE.BoxGeometry(w,h,.18),floorMat);floor.position.z=-.09;floor.receiveShadow=true;interiorGroup.add(floor);
+  const floorMesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,.18),floorMat);floorMesh.position.z=-.09;floorMesh.receiveShadow=true;interiorGroup.add(floorMesh);
   const ceiling=new THREE.Mesh(new THREE.BoxGeometry(w,h,.12),new THREE.MeshStandardMaterial({color:0x6e6f68,roughness:.98,side:THREE.DoubleSide}));ceiling.position.z=2.95;interiorGroup.add(ceiling);
   addWallRect(0,h/2,w,.18);addWallRect(-w/2,0,.18,h);addWallRect(w/2,0,.18,h);
   addWallWithDoor('h',-h/2,-w/2,w/2,0,1.75);
@@ -593,8 +593,8 @@ function generateInterior(entry){
   if(r()>.42)createSearchSpot('Search bathroom cabinet',w*.06,-h*.02,'medicine',entry.seed+91);
   if(r()>.58)createSearchSpot('Search closet',-w*.39,h*.12,'dresser',entry.seed+107);
 
-  const floors=Math.max(1,Math.floor(entry.height/3.05)),floor=Math.min(floors,1+Math.floor(r()*Math.min(floors,18)));
-  activeInterior={entry,width:w,depth:h,layout,floor,floors};
+  const floors=Math.max(1,Math.floor(entry.height/3.05)),floorNumber=Math.min(floors,1+Math.floor(r()*Math.min(floors,18)));
+  activeInterior={entry,width:w,depth:h,layout,floor:floorNumber,floors};
   if(zombieTemplate&&r()<.38)spawnInteriorZombie(zombieTemplate,r,w,h);
 }
 function spawnInteriorZombie(template,r,w,h){
