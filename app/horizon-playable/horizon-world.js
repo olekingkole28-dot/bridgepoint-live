@@ -1067,7 +1067,13 @@ async function boot(){
     await buildSurvivalArt();
     loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · enter marked doorways and search interiors';
     updateInventory();updateInteractionPrompt();resizeRenderer();
-    window.BP_HORIZON_SMOKE={ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),player:Boolean(playerRoot),loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,packCapacity,weapon:equippedWeaponName,interiorAssets:Object.values(interiorTemplates).filter(Boolean).length,artChildren:artGroup.children.length};
+    window.BP_HORIZON_SMOKE={
+      ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),
+      player:Boolean(playerRoot),loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,
+      packCapacity,weapon:equippedWeaponName,interiorAssets:Object.values(interiorTemplates).filter(Boolean).length,
+      artChildren:artGroup.children.length,roadLayers:roadLayer?.children?.length||0,streetLife:{...streetLifeStats},
+      spawnBlocked:isBlockedExterior(playerRoot.position.x,playerRoot.position.y,.36)
+    };
     window.BP_HORIZON_TEST={
       enterFirst:()=>{
         const e=buildingEntries[0];if(!e)return null;enterInterior(e);
@@ -1094,6 +1100,15 @@ async function boot(){
         if(!weaponPivot?.children?.length)return null;
         const box=new THREE.Box3().setFromObject(weaponPivot.children[0]),size=new THREE.Vector3();box.getSize(size);
         return {x:size.x,y:size.y,z:size.z,longest:Math.max(size.x,size.y,size.z)};
+      },
+      spawnMobility:()=>{
+        const p=playerRoot.position,step=.8,dirs={
+          forward:movementVector(0,1,0),backward:movementVector(0,-1,0),
+          left:movementVector(-1,0,0),right:movementVector(1,0,0)
+        };
+        const open={};
+        for(const [k,v] of Object.entries(dirs))open[k]=!isBlockedExterior(p.x+v.x*step,p.y+v.y*step,.34);
+        return {blockedHere:isBlockedExterior(p.x,p.y,.34),open};
       }
     };
   }catch(e){
