@@ -93,7 +93,7 @@ let yaw=0,pitch=.14,cameraMode=0;
 let health=100,lastDamageAt=0;
 let playerSpawn=new THREE.Vector3();
 const playerVelocity=new THREE.Vector3();
-let roadAnchors=[],buildingCenters=[],buildingEntries=[],zombies=[],interiorZombies=[];
+let roadAnchors=[],roadSegments=[],roadSurfaceGrid=new Map(),buildingCenters=[],buildingEntries=[],zombies=[],interiorZombies=[];
 let nearestInteract=null,lootCount=2;
 let inventory={Bandage:1,Water:1};
 let packName='Hidden Survivor Pack',packCapacity=24,packMesh=null;
@@ -372,6 +372,34 @@ function buildRoadCenterLines(roads){
   const m=new THREE.LineBasicMaterial({color:0xe9d58a,transparent:true,opacity:.72,depthWrite:false});
   return new THREE.LineSegments(g,m);
 }
+function roadGridKey(ix,iy){return ix+':'+iy}
+function indexRoadSegment(seg){
+  const cell=36,pad=seg.width/2+3;
+  const minx=Math.floor((Math.min(seg.a.x,seg.b.x)-pad)/cell),maxx=Math.floor((Math.max(seg.a.x,seg.b.x)+pad)/cell);
+  const miny=Math.floor((Math.min(seg.a.y,seg.b.y)-pad)/cell),maxy=Math.floor((Math.max(seg.a.y,seg.b.y)+pad)/cell);
+  for(let ix=minx;ix<=maxx;ix++)for(let iy=miny;iy<=maxy;iy++){
+    const k=roadGridKey(ix,iy);if(!roadSurfaceGrid.has(k))roadSurfaceGrid.set(k,[]);
+    roadSurfaceGrid.get(k).push(seg);
+  }
+}
+function nearbyRoadSegments(x,y){
+  const cell=36,ix=Math.floor(x/cell),iy=Math.floor(y/cell),out=[];
+  for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+    const a=roadSurfaceGrid.get(roadGridKey(ix+dx,iy+dy));if(a)out.push(...a);
+  }
+  return out;
+}
+function surfaceZXY(x,y){
+  const base=terrainZXY(x,y);
+  let best=Infinity,bestWidth=0;
+  for(const seg of nearbyRoadSegments(x,y)){
+    const d=pointSegDist(x,y,seg.a,seg.b);
+    if(d<best){best=d;bestWidth=seg.width}
+  }
+  if(best<=bestWidth/2+.1)return base+.205;
+  if(best<=bestWidth/2+2.7)return base+.155;
+  return base+.025;
+}
 function buildRoads(){
   const roads=(data.transport||[]).filter(x=>x.kind!=='RAIL'),rails=(data.transport||[]).filter(x=>x.kind==='RAIL');
   roadLayer=new THREE.Group();worldGroup.add(roadLayer);
@@ -396,10 +424,12 @@ function buildRoads(){
   const rail=buildStrips(rails,0,.20);
   if(rail)roadLayer.add(new THREE.Mesh(rail,new THREE.MeshStandardMaterial({color:0x3e403e,roughness:.72,metalness:.32})));
 
-  roadAnchors=[];
+  roadAnchors=[];roadSegments=[];roadSurfaceGrid=new Map();
   for(const f of roads)for(const line of lineFeatures(f.geometry))for(let i=1;i<line.length;i++){
     const a=line[i-1],b=line[i],pa=project(a),pb=project(b),dx=pb.x-pa.x,dy=pb.y-pa.y,len=Math.hypot(dx,dy);
     if(len<1)continue;
+    const seg={a:{x:pa.x,y:pa.y},b:{x:pb.x,y:pb.y},width:roadWidth(f.kind),kind:f.kind};
+    roadSegments.push(seg);indexRoadSegment(seg);
     const samples=Math.max(1,Math.min(5,Math.floor(len/24)+1));
     for(let k=0;k<samples;k++){
       const t=(k+.5)/samples,x=THREE.MathUtils.lerp(pa.x,pb.x,t),y=THREE.MathUtils.lerp(pa.y,pb.y,t);
@@ -592,13 +622,13 @@ function scatterTemplate(template,count,targetHeight,spread=7){
     const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],o=staticClone(template,targetHeight);if(!o)continue;
     const ang=rand()*Math.PI*2,dist=2+rand()*spread,x=a.x+Math.cos(ang)*dist,y=a.y+Math.sin(ang)*dist;
     if(isBlockedExterior(x,y,.25))continue;
-    o.position.set(x,y,terrainZXY(x,y)+.05);o.rotation.z=rand()*Math.PI*2;artGroup.add(o);
+    o.position.set(x,y,surfaceZXY(x,y)+.015);o.rotation.z=rand()*Math.PI*2;artGroup.add(o);
   }
 }
 function roadSidePoint(a,offset,side){
   const sx=Math.cos(a.heading),sy=-Math.sin(a.heading);
   const x=a.x+sx*offset*side,y=a.y+sy*offset*side;
-  return{x,y,z:terrainZXY(x,y)};
+  return{x,y,z:surfaceZXY(x,y)};
 }
 function scatterRoadsideTemplate(template,count,targetHeight,mode='sidewalk',rotationOffset=0){
   if(!template||!roadAnchors.length)return 0;
@@ -975,7 +1005,7 @@ function updateZombies(dt,now){
     }else{
       if(!isBlockedExterior(nx,z.root.position.y))z.root.position.x=nx;
       if(!isBlockedExterior(z.root.position.x,ny))z.root.position.y=ny;
-      z.root.position.z=terrainZXY(z.root.position.x,z.root.position.y)+.05;
+      z.root.position.z=surfaceZXY(z.root.position.x,z.root.position.y)+.015;
     }
     z.root.rotation.z=Math.atan2(vx,vy);
     if(dist<1.48&&now-lastDamageAt>850){
@@ -1118,7 +1148,7 @@ function updatePlayer(dt){
   const blockedY=interiorMode?isBlockedInterior(playerRoot.position.x,ny):isBlockedExterior(playerRoot.position.x,ny);
   if(!blockedY)playerRoot.position.y=ny;else playerVelocity.y=0;
 
-  playerRoot.position.z=interiorMode ? 0.05 : terrainZXY(playerRoot.position.x,playerRoot.position.y)+0.05;
+  playerRoot.position.z=interiorMode ? 0.015 : surfaceZXY(playerRoot.position.x,playerRoot.position.y)+0.015;
   if(moving){
     const targetRot=Math.atan2(playerVelocity.x,playerVelocity.y);
     playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-12*dt));
