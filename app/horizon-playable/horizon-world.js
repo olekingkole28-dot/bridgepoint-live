@@ -166,6 +166,12 @@ let mobileMove={x:0,y:0},mobileSprint=false;
 let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),exteriorYaw=0;
 let interiorWalls=[],interiorContainers=[],interiorBounds=null,interiorExit=null,interiorFloorLinks=[],interiorTemplates={},interiorLootedKeys=new Set();
 let streetLifeStats={trees:0,bikes:0,vehicles:0,props:0,grass:0,benches:0,planters:0};
+
+let RAPIER=null,physicsWorld=null,physicsReady=false,physicsMode='manual-fallback';
+let playerPhysicsBody=null,playerPhysicsCollider=null,characterController=null;
+let verticalVelocity=0,grounded=false,playerJumpQueued=false;
+const PHYSICS_PLAYER_CENTER=.91;
+const physicsStaticColliders=[];
 const keys=new Set();
 
 const minimap=$('minimap');
@@ -233,6 +239,100 @@ function worldRequestUrl(){
     u.searchParams.set('state',SELECTED_STATE);u.searchParams.set('lat',String(STREAM_LAT));u.searchParams.set('lon',String(STREAM_LON));u.searchParams.set('span_km',String(STREAM_SPAN));u.searchParams.set('cell_id','HORIZON_'+SELECTED_STATE+'_'+STREAM_LAT.toFixed(4)+'_'+STREAM_LON.toFixed(4));
   }else u.searchParams.set('cell',CELL);
   return u.toString();
+}
+
+async function initRapierPhysics(){
+  try{
+    const mod=await import('https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.20.0/rapier.es.js');
+    RAPIER=mod.default||mod;
+    if(typeof RAPIER.init==='function')await RAPIER.init();
+    physicsWorld=new RAPIER.World({x:0,y:0,z:-9.81});
+    physicsWorld.timestep=1/60;
+    characterController=physicsWorld.createCharacterController(.025);
+    characterController.setUp({x:0,y:0,z:1});
+    characterController.enableAutostep(.38,.18,true);
+    characterController.enableSnapToGround(.42);
+    characterController.setMaxSlopeClimbAngle(Math.PI*.28);
+    characterController.setMinSlopeSlideAngle(Math.PI*.36);
+    characterController.setSlideEnabled(true);
+    physicsReady=true;physicsMode='rapier3d-kinematic';
+    return true;
+  }catch(e){
+    console.warn('Rapier init failed; retaining manual collision fallback',e);
+    physicsReady=false;physicsMode='manual-fallback';return false;
+  }
+}
+function geometryForPhysics(geometry){
+  if(!geometry?.attributes?.position)return null;
+  const g=geometry.index?geometry:geometry.toNonIndexed();
+  const pos=g.attributes.position.array;
+  const vertices=new Float32Array(pos.length);vertices.set(pos);
+  let indices;
+  if(g.index){
+    const src=g.index.array;indices=new Uint32Array(src.length);for(let i=0;i<src.length;i++)indices[i]=src[i];
+  }else{
+    const n=vertices.length/3;indices=new Uint32Array(n);for(let i=0;i<n;i++)indices[i]=i;
+  }
+  return{vertices,indices};
+}
+function addStaticPhysicsGeometry(geometry,label='static',friction=.85){
+  if(!physicsReady||!RAPIER||!physicsWorld||!geometry)return null;
+  try{
+    const p=geometryForPhysics(geometry);if(!p)return null;
+    const flags=RAPIER.TriMeshFlags?.FIX_INTERNAL_EDGES;
+    const desc=RAPIER.ColliderDesc.trimesh(p.vertices,p.indices,flags).setFriction(friction);
+    const collider=physicsWorld.createCollider(desc);collider.userData={label};physicsStaticColliders.push(collider);return collider;
+  }catch(e){console.warn('physics collider skipped',label,e);return null}
+}
+function createPlayerPhysics(){
+  if(!physicsReady||!playerRoot||playerPhysicsBody)return false;
+  const z=playerRoot.position.z+PHYSICS_PLAYER_CENTER;
+  playerPhysicsBody=physicsWorld.createRigidBody(
+    RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(playerRoot.position.x,playerRoot.position.y,z)
+  );
+  const q={x:Math.sin(Math.PI/4),y:0,z:0,w:Math.cos(Math.PI/4)};
+  playerPhysicsCollider=physicsWorld.createCollider(
+    RAPIER.ColliderDesc.capsule(.58,.33).setRotation(q).setFriction(.4),
+    playerPhysicsBody
+  );
+  verticalVelocity=-.1;grounded=true;return true;
+}
+function syncPhysicsToPlayer(){
+  if(!physicsReady||!playerPhysicsBody||!playerRoot)return;
+  playerPhysicsBody.setNextKinematicTranslation({
+    x:playerRoot.position.x,y:playerRoot.position.y,z:playerRoot.position.z+PHYSICS_PLAYER_CENTER
+  });
+  playerPhysicsBody.setTranslation({
+    x:playerRoot.position.x,y:playerRoot.position.y,z:playerRoot.position.z+PHYSICS_PLAYER_CENTER
+  },true);
+  physicsWorld.propagateModifiedBodyPositionsToColliders();
+}
+function movePlayerRapier(dx,dy,dt){
+  if(!physicsReady||!playerPhysicsBody||!playerPhysicsCollider||!characterController)return false;
+  if(playerJumpQueued&&grounded){verticalVelocity=5.1;grounded=false}
+  playerJumpQueued=false;
+  verticalVelocity=Math.max(-18,verticalVelocity-18.5*dt);
+  const desired={x:dx,y:dy,z:verticalVelocity*dt};
+  characterController.computeColliderMovement(playerPhysicsCollider,desired);
+  const mv=characterController.computedMovement(),p=playerPhysicsBody.translation();
+  playerPhysicsBody.setNextKinematicTranslation({x:p.x+mv.x,y:p.y+mv.y,z:p.z+mv.z});
+  physicsWorld.step();
+  const next=playerPhysicsBody.translation();
+  grounded=Boolean(characterController.computedGrounded?.());
+  if(grounded&&verticalVelocity<0)verticalVelocity=-.16;
+  playerRoot.position.set(next.x,next.y,next.z-PHYSICS_PLAYER_CENTER);
+  return true;
+}
+function rapierCameraPosition(target,desired){
+  if(!physicsReady||!physicsWorld||interiorMode)return null;
+  const d=desired.clone().sub(target),len=d.length();if(len<.01)return desired.clone();
+  const dir=d.clone().multiplyScalar(1/len),ray=new RAPIER.Ray(
+    {x:target.x,y:target.y,z:target.z},{x:dir.x,y:dir.y,z:dir.z}
+  );
+  const hit=physicsWorld.castRay(ray,len,true,undefined,undefined,playerPhysicsCollider||undefined);
+  if(!hit)return desired.clone();
+  const safe=Math.max(.18,hit.timeOfImpact-.24);
+  return target.clone().addScaledVector(dir,safe);
 }
 
 function seeded(seed){let x=seed||1234567;return()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return((x>>>0)%1000000)/1000000}}
