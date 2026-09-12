@@ -336,3 +336,13 @@ body:not(.nationalMode) .jurisdictionPanel{display:none}
  .actionButton.more{right:max(130px,calc(env(safe-area-inset-right) + 130px));width:42px;height:42px}.actionButton.sprint{right:max(72px,calc(env(safe-area-inset-right) + 72px))}
  .worldMapCard{height:96vh;padding:7px}.mapTools button{padding:5px 7px;font-size:6px}
 }
+
+
+/* V4214 visual inventory / shooter rebuild */
+.inventoryPanel{left:50%;transform:translateX(-50%);bottom:max(8px,env(safe-area-inset-bottom));width:min(700px,58vw);padding:7px 9px}
+.inventoryPanel #inventoryList{display:grid;grid-template-columns:repeat(8,minmax(50px,1fr));gap:5px;overflow:hidden}
+.inventoryPanel #inventoryList .packTile{position:relative;display:grid;grid-template-rows:32px auto;align-items:center;justify-items:center;min-height:54px;padding:4px;border:1px solid rgba(255,255,255,.13);border-radius:8px;background:linear-gradient(180deg,rgba(39,49,43,.9),rgba(10,15,12,.94));color:#e8eee8;cursor:pointer}
+.inventoryPanel #inventoryList .packTile i{font-style:normal;font-size:23px;line-height:28px;color:#d7e4d9;text-shadow:0 2px 8px rgba(0,0,0,.7)}
+.inventoryPanel #inventoryList .packTile b{display:block;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;font-size:6px;letter-spacing:.02em;color:#bfc9c0}
+.inventoryPanel #inventoryList .packTile em{position:absolute;right:3px;bottom:3px;min-width:15px;height:15px;padding:0 3px;border-radius:5px;background:rgba(0,0,0,.86);border:1px solid rgba(255,255,255,.18);font-style:normal;font-size:8px;font-weight:950;line-height:14px;text-align:center;color:#fff}
+@media(pointer:coarse) and (orientation:landscape){.inventoryPanel{left:50%;bottom:4px;width:min(490px,54vw);padding:4px 6px}.inventoryHead,.loadoutGrid,.equippedWeapon,.dropWeaponBtn{display:none}.inventoryPanel #inventoryList{grid-template-columns:repeat(8,minmax(38px,1fr));gap:3px}.inventoryPanel #inventoryList .packTile{min-height:42px;grid-template-rows:24px auto;padding:2px}.inventoryPanel #inventoryList .packTile i{font-size:18px;line-height:22px}.inventoryPanel #inventoryList .packTile b{font-size:5px}.inventoryPanel #inventoryList .packTile em{right:2px;bottom:2px;height:13px;min-width:13px;font-size:7px;line-height:12px}}
