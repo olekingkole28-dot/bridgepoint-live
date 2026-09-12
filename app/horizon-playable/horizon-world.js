@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4237;
+const BUILD_VERSION=4238;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -715,9 +715,8 @@ async function importWithTimeout(url,ms=18000){
 async function initRapierPhysics(){
   physicsError=null;
   const urls=[
-    'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.20.0/rapier.es.js',
-    'https://unpkg.com/@dimforge/rapier3d-compat@0.20.0/rapier.es.js?module',
-    'https://esm.sh/@dimforge/rapier3d-compat@0.20.0'
+    'https://esm.sh/@dimforge/rapier3d-compat@0.20.0',
+    'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.20.0/rapier.es.js'
   ];
   let lastErr=null;
   for(const url of urls){
@@ -4232,7 +4231,11 @@ function updatePlayer(dt){
   if(!usedRapier){
     movePlayerStable(playerVelocity.x*dt,playerVelocity.y*dt);
     const targetGround=interiorMode?interiorGroundZ(playerRoot.position.x,playerRoot.position.y):surfaceZXY(playerRoot.position.x,playerRoot.position.y)+.015;
-    playerRoot.position.z=THREE.MathUtils.lerp(playerRoot.position.z,targetGround,1-Math.exp(-22*dt));
+    if(!Number.isFinite(playerRoot.position.z)||playerRoot.position.z<targetGround-.035){
+      playerRoot.position.z=targetGround;verticalVelocity=-.12;grounded=true;terrainSafetyRescues++;
+    }else{
+      playerRoot.position.z=Math.max(targetGround,THREE.MathUtils.lerp(playerRoot.position.z,targetGround,1-Math.exp(-22*dt)));
+    }
   }
 
   const firearm=isFirearm(activeWeapon);
@@ -4400,7 +4403,7 @@ async function boot(){
       playerRootZ:playerRoot.position.z,
       activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
       physicsMode,physicsReady,physicsError,terrainPhysicsReady:Boolean(terrainPhysicsCollider),terrainSafetyRescues,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
-      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,assetTimeoutMs:ASSET_TIMEOUT_MS,mobileGpuSafe:MOBILE_GPU_SAFE,hydrationReadyMs:Number(window.BP_HORIZON_HYDRATION?.readyMs||0),proceduralFastHydration:Boolean(streetLifeStats.proceduralEnemyFallback),cloneRecovery4237:true,detailHydrationComplete:Boolean(streetLifeStats.detailHydrationComplete),hydrationComplete:Boolean(window.BP_HORIZON_HYDRATION?.complete),worldTickMs:MOBILE_GPU_SAFE?34:16,minimapTickMs:MOBILE_GPU_SAFE?140:70,instantMassing:Number(streetLifeStats.instantMassing||0),
+      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,assetTimeoutMs:ASSET_TIMEOUT_MS,mobileGpuSafe:MOBILE_GPU_SAFE,hydrationReadyMs:Number(window.BP_HORIZON_HYDRATION?.readyMs||0),proceduralFastHydration:Boolean(streetLifeStats.proceduralEnemyFallback),cloneRecovery4237:true,rapierCorsSafe4238:true,manualFloorInvariant4238:true,detailHydrationComplete:Boolean(streetLifeStats.detailHydrationComplete),hydrationComplete:Boolean(window.BP_HORIZON_HYDRATION?.complete),worldTickMs:MOBILE_GPU_SAFE?34:16,minimapTickMs:MOBILE_GPU_SAFE?140:70,instantMassing:Number(streetLifeStats.instantMassing||0),
       streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null,
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
