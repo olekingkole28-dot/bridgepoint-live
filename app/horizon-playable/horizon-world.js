@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4234;
+const BUILD_VERSION=4235;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -314,7 +314,7 @@ resizeRenderer();
 THREE.Cache.enabled=true;
 const loader=new GLTFLoader();
 const assetPromiseCache=new Map();
-let activeAssetLoads=0;const assetLoadWaiters=[];const ASSET_LOAD_LIMIT=MOBILE_GPU_SAFE?3:6;const ASSET_TIMEOUT_MS=MOBILE_GPU_SAFE?7000:20000;
+let activeAssetLoads=0;const assetLoadWaiters=[];const ASSET_LOAD_LIMIT=MOBILE_GPU_SAFE?2:6;const ASSET_TIMEOUT_MS=MOBILE_GPU_SAFE?5000:20000;
 async function acquireAssetSlot(){if(activeAssetLoads<ASSET_LOAD_LIMIT){activeAssetLoads++;return}await new Promise(resolve=>assetLoadWaiters.push(resolve));activeAssetLoads++}
 function releaseAssetSlot(){activeAssetLoads=Math.max(0,activeAssetLoads-1);const next=assetLoadWaiters.shift();if(next)next()}
 const clock=new THREE.Clock();
@@ -2000,7 +2000,7 @@ async function hydrateRealPlayerModel(){
   playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);playerAction=null;
   captureCharacterWeaponTemplates(n.model);setupEquipmentMounts(n.model);refreshEquipmentVisuals();playPlayerAnimation(locomotionIntent||'idle');
   hydratePlayerAnimations(n.model).catch(e=>console.warn('player animation hydration',e));
-  hydrateWeaponTemplates().catch(e=>console.warn('weapon hydration',e));
+  if(!MOBILE_GPU_SAFE)hydrateWeaponTemplates().catch(e=>console.warn('weapon hydration',e));
   return true;
 }
 async function hydrateWeaponTemplates(){
@@ -3717,7 +3717,80 @@ function scatterAmbientFires(count){
   }
   return made;
 }
+function proceduralInfectedTemplate(kind='walker'){
+  const root=new THREE.Group();
+  const brute=kind==='brute',hound=kind==='hound',spiderKind=kind==='spider',bird=kind==='crow';
+  const skin=new THREE.MeshStandardMaterial({color:brute?0x4c5148:spiderKind?0x302b2d:bird?0x232523:0x596058,roughness:.92,emissive:0x170101,emissiveIntensity:.2});
+  const dark=new THREE.MeshStandardMaterial({color:0x252823,roughness:.97});
+  if(spiderKind){
+    const body=new THREE.Mesh(new THREE.SphereGeometry(.28,8,6),skin);body.scale.set(1.2,.8,.55);body.position.z=.3;root.add(body);
+    for(let i=0;i<8;i++){const a=(i/8)*Math.PI*2,leg=new THREE.Mesh(new THREE.CylinderGeometry(.022,.03,.55,5),dark);leg.position.set(Math.cos(a)*.26,Math.sin(a)*.26,.28);leg.rotation.set(Math.PI/2,0,a);root.add(leg)}
+  }else if(bird){
+    const body=new THREE.Mesh(new THREE.SphereGeometry(.18,8,6),skin);body.scale.set(1.4,.7,.7);root.add(body);
+    for(const s of[-1,1]){const wing=new THREE.Mesh(new THREE.BoxGeometry(.52,.16,.025),dark);wing.position.x=.28*s;wing.rotation.z=.28*s;root.add(wing)}
+  }else if(hound){
+    const body=new THREE.Mesh(new THREE.CapsuleGeometry(.16,.7,4,6),dark);body.rotation.y=Math.PI/2;body.position.z=.42;root.add(body);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(.17,8,6),skin);head.position.set(0,.42,.52);root.add(head);
+    for(const sx of[-1,1])for(const sy of[-1,1]){const leg=new THREE.Mesh(new THREE.CylinderGeometry(.035,.045,.46,5),dark);leg.position.set(.12*sx,.22*sy,.22);leg.rotation.x=Math.PI/2;root.add(leg)}
+  }else{
+    const torso=new THREE.Mesh(new THREE.CapsuleGeometry(brute?.35:.25,brute?.86:.66,4,7),dark);torso.position.z=1.05;torso.rotation.x=Math.PI/2;root.add(torso);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(brute?.25:.19,10,8),skin);head.position.set(kind==='lurker'?.12:0,kind==='lurker'?.08:0,1.72);root.add(head);
+    for(const side of[-1,1]){
+      const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.07,.58,3,6),skin);arm.position.set(.29*side,.02,.98);arm.rotation.set(.15*side,kind==='lurker'?.55:.18,Math.PI/2+(kind==='lurker'?.28*side:0));root.add(arm);
+      const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.085,.66,3,6),dark);leg.position.set(.14*side,0,.38);leg.rotation.x=Math.PI/2;root.add(leg);
+    }
+  }
+  return{scene:root,animations:[]};
+}
+function fastEnemyArchetypes(){
+  const human=proceduralInfectedTemplate('walker'),brute=proceduralInfectedTemplate('brute'),lurker=proceduralInfectedTemplate('lurker'),hound=proceduralInfectedTemplate('hound'),spider=proceduralInfectedTemplate('spider'),crow=proceduralInfectedTemplate('crow');
+  return[
+    {id:'graveborn',label:'Graveborn infected',template:human,height:1.80,speed:[.40,.72],patrolSpeed:.38,chaseMult:1.68,hp:125,damage:12,attackRange:1.30,attackMs:980,behavior:'stalk',aggroRadius:14,deaggroRadius:30,realisticInfected:true,tint:0x53584e,tintMix:.42,emissive:0x2b0202},
+    {id:'mauler',label:'Rot mauler',template:brute,height:2.05,speed:[.48,.82],patrolSpeed:.34,chaseMult:1.60,hp:260,damage:22,attackRange:1.62,attackMs:1180,behavior:'charge',aggroRadius:15,deaggroRadius:32,realisticInfected:true,tint:0x4c5148,tintMix:.52,emissive:0x300202},
+    {id:'wretch',label:'Wretch',template:lurker,height:1.92,speed:[.62,.98],patrolSpeed:.40,chaseMult:1.72,hp:170,damage:17,attackRange:1.42,attackMs:900,behavior:'weave',aggroRadius:17,deaggroRadius:34,realisticInfected:true,tint:0x565047,tintMix:.48,emissive:0x2d0202},
+    {id:'abomination',label:'Abomination',template:brute,height:2.38,speed:[.36,.62],patrolSpeed:.30,chaseMult:1.48,hp:420,damage:34,attackRange:1.94,attackMs:1520,behavior:'charge',aggroRadius:13,deaggroRadius:28,realisticInfected:true,tint:0x474944,tintMix:.58,emissive:0x390202},
+    {id:'ashen',label:'Ashen infected',template:human,height:1.72,speed:[.48,.72],patrolSpeed:.48,chaseMult:1.55,hp:112,damage:9,attackRange:1.28,attackMs:1080,behavior:'stalk',aggroRadius:11,deaggroRadius:25,realisticInfected:true},
+    {id:'stalker',label:'Stalker infected',template:lurker,height:1.86,speed:[.60,.92],patrolSpeed:.46,chaseMult:1.82,hp:128,damage:12,attackRange:1.34,attackMs:930,behavior:'weave',aggroRadius:15,deaggroRadius:31,realisticInfected:true},
+    {id:'screamer',label:'Screamer',template:human,height:1.77,speed:[.72,1.08],patrolSpeed:.40,chaseMult:1.92,hp:96,damage:10,attackRange:1.30,attackMs:760,behavior:'charge',burst:1.48,aggroRadius:20,deaggroRadius:38,realisticInfected:true,screamer:true},
+    {id:'sprinter',label:'Fresh sprinter',template:human,height:1.82,speed:[.92,1.30],patrolSpeed:.38,chaseMult:2.05,hp:82,damage:8,attackRange:1.24,attackMs:650,behavior:'charge',burst:1.72,aggroRadius:18,deaggroRadius:36,realisticInfected:true},
+    {id:'hound',label:'Rot hound',template:hound,height:1.05,speed:[1.15,1.70],patrolSpeed:.6,chaseMult:1.72,hp:62,damage:11,attackRange:1.15,attackMs:720,behavior:'pounce',burst:1.42,aggroRadius:16,deaggroRadius:32,infectedMonster:true},
+    {id:'spider',label:'Carrion spider',template:spider,height:.82,speed:[.95,1.48],patrolSpeed:.62,chaseMult:1.74,hp:82,damage:12,attackRange:1.08,attackMs:680,behavior:'pounce',burst:1.35,aggroRadius:14,deaggroRadius:30,infectedMonster:true},
+    {id:'realbear',label:'Diseased bear',template:brute,height:1.72,speed:[.78,1.18],patrolSpeed:.5,chaseMult:1.76,hp:360,damage:29,attackRange:1.9,attackMs:1380,behavior:'charge',burst:1.55,aggroRadius:12,deaggroRadius:28,realisticInfected:true},
+    {id:'realwolf',label:'Rabid wolf',template:hound,height:1.04,speed:[1.05,1.50],patrolSpeed:.62,chaseMult:1.96,hp:92,damage:14,attackRange:1.2,attackMs:720,behavior:'pounce',burst:1.72,aggroRadius:16,deaggroRadius:32,realisticInfected:true},
+    {id:'crow',label:'Rot crow',template:crow,height:.58,speed:[2.8,4.2],patrolSpeed:.8,chaseMult:1.1,hp:28,damage:9,attackRange:1.15,attackMs:620,behavior:'dive',flying:true,aggroRadius:21,deaggroRadius:34,infectedMonster:true}
+  ];
+}
+async function hydrateMobileEnemyTemplates(){
+  const specs=[
+    ['graveborn',ASSETS.infectedM2MZombie],['mauler',ASSETS.infectedM2MMonster3],['wretch',ASSETS.infectedM2MMonster4],['abomination',ASSETS.infectedM2MMonster5],
+    ['hound',ASSETS.infectedShepherd],['spider',ASSETS.spider],['crow',ASSETS.infectedCrow]
+  ];
+  for(const [id,url] of specs){
+    const loaded=await loadAsset(url);if(!loaded)continue;
+    const a=enemyArchetypes.find(x=>x.id===id);if(a)a.template=loaded;
+    await yieldToRenderer();
+  }
+  window.BP_HORIZON_HYDRATION.backgroundComplete=true;
+}
+async function buildSurvivalArtMobileFast(){
+  const started=performance.now();
+  window.BP_HORIZON_HYDRATION={phase:'instant-procedural',startedAt:started,mobile:true,complete:false,backgroundComplete:false};
+  interiorTemplates={};pickupTemplates={};enemyArchetypes=fastEnemyArchetypes();zombieTemplates=enemyArchetypes;zombieTemplate=enemyArchetypes[0];
+  const life=scatterLocalProceduralLife(),furniture=scatterStreetFurniture();
+  streetLifeStats={...streetLifeStats,trees:(streetLifeStats.trees||0)+(life.trees||0),bikes:(streetLifeStats.bikes||0)+(life.bikes||0),benches:(streetLifeStats.benches||0)+(furniture.benches||0),planters:(streetLifeStats.planters||0)+(furniture.planters||0),proceduralEnemyFallback:true};
+  spawnOutdoorLoot();
+  streetLifeStats.corpses=scatterStreetCorpses(zombieTemplate,MOBILE_GPU_SAFE?18:24);
+  streetLifeStats.fires=Math.max(Number(streetLifeStats.fires||0),scatterAmbientFires(7));
+  await buildZombies(zombieTemplate);spawnFacadeSpiders(2);
+  window.BP_HORIZON_HYDRATION={...window.BP_HORIZON_HYDRATION,phase:'ready',complete:true,readyMs:Math.round(performance.now()-started),enemyTypes:enemyArchetypes.length,assetCacheSize:assetPromiseCache.size};
+  setTimeout(()=>hydrateMobileEnemyTemplates().catch(e=>console.warn('mobile enemy hydration',e)),1600);
+  return true;
+}
 async function buildSurvivalArt(){
+  if(MOBILE_GPU_SAFE)return buildSurvivalArtMobileFast();
+  return buildSurvivalArtFull();
+}
+async function buildSurvivalArtFull(){
   const optional=async url=>MOBILE_GPU_SAFE?null:loadAsset(url);
   const mobileInteriorKeys=new Set(['chair','couch','table','shelf','cabinet']);
   window.BP_HORIZON_HYDRATION={phase:'essential-assets',startedAt:performance.now(),mobile:MOBILE_GPU_SAFE,complete:false};
@@ -4328,7 +4401,7 @@ async function boot(){
       playerRootZ:playerRoot.position.z,
       activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
       physicsMode,physicsReady,physicsError,terrainPhysicsReady:Boolean(terrainPhysicsCollider),terrainSafetyRescues,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
-      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,assetTimeoutMs:ASSET_TIMEOUT_MS,mobileGpuSafe:MOBILE_GPU_SAFE,hydrationReadyMs:Number(window.BP_HORIZON_HYDRATION?.readyMs||0),hydrationComplete:Boolean(window.BP_HORIZON_HYDRATION?.complete),worldTickMs:MOBILE_GPU_SAFE?34:16,minimapTickMs:MOBILE_GPU_SAFE?140:70,instantMassing:Number(streetLifeStats.instantMassing||0),
+      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,assetTimeoutMs:ASSET_TIMEOUT_MS,mobileGpuSafe:MOBILE_GPU_SAFE,hydrationReadyMs:Number(window.BP_HORIZON_HYDRATION?.readyMs||0),proceduralFastHydration:Boolean(streetLifeStats.proceduralEnemyFallback),hydrationComplete:Boolean(window.BP_HORIZON_HYDRATION?.complete),worldTickMs:MOBILE_GPU_SAFE?34:16,minimapTickMs:MOBILE_GPU_SAFE?140:70,instantMassing:Number(streetLifeStats.instantMassing||0),
       streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null,
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
