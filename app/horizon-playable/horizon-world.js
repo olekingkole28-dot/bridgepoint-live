@@ -1112,7 +1112,7 @@ function nearestRoadForBuilding(b){
 }
 function buildEntryPoints(){
   entryGroup.clear();buildingEntries=[];
-  const candidates=[...buildingCenters]
+  const candidates=[...buildingCenters].filter(b=>b.explorable)
     .sort((a,b)=>(a.x*a.x+a.y*a.y)-(b.x*b.x+b.y*b.y));
   const visualLimit=densePreview()?620:260;
   let visualCount=0;
@@ -2776,7 +2776,7 @@ function exitInterior(){
   });
   $('cellLabel').textContent=worldCellLabel();
   $('worldTitle').textContent=worldCellTitle();
-  loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · enter marked doorways';
+  loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · true walk-through doors only';
   const mapLabel=document.querySelector('.mapLabel b');if(mapLabel)mapLabel.textContent='EXPLORED';
   const mapSub=document.querySelector('.mapLabel span');if(mapSub)mapSub.textContent='fog clears as you travel';
   if(searchedEntry)addMapMarkerWorld(searchedEntry.entryX,searchedEntry.entryY,'searched','Searched building');
@@ -3901,7 +3901,7 @@ async function boot(){
     loadText.textContent='Loading interiors, city dressing and infected…';
     await buildSurvivalArt();
     initializeVehicleRepair();snapInfrastructureToRoadNodes();populateOpenSpace();configureMatchMode(matchMode);
-    loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · enter marked doorways and search interiors';
+    loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · '+buildingEntries.length+' true walk-through buildings · endless horde active';
     updateInventory();updateInteractionPrompt();resizeRenderer();
     window.BP_HORIZON_SMOKE={
       ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),
