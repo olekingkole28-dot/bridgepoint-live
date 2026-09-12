@@ -186,6 +186,7 @@ let weaponPivot=null,weaponTemplates={},equippedWeaponName='Axe',swingTime=0,att
 let equipment={melee:'Axe',offhand:'Knife',sidearm:null,primary:null,quick1:'Bandage',quick2:'Water'};
 let equipmentMounts={rightHand:null,leftHand:null,hip:null,backGun:null,backMelee:null};
 let activeSlot='melee',activeWeapon='Axe',aiming=false,fireCooldown=0,muzzleFlash=0;
+const weaponRaycaster=new THREE.Raycaster();
 let characterWeaponTemplates={};
 let ammoState={Pistol:12,Rifle:20,Shotgun:6};
 let playerDead=false,kills=0;
@@ -1728,20 +1729,21 @@ function lineClearToTarget(tx,ty){
   return true;
 }
 function bestGunTarget(){
-  const list=interiorMode?interiorZombies:zombies;
-  const origin=camera.position.clone(),dir=new THREE.Vector3();camera.getWorldDirection(dir);
-  let best=null,bestScore=-Infinity;
-  const maxDist=activeWeapon==='Shotgun'?28:activeWeapon==='Pistol'?60:95;
-  const minDot=activeWeapon==='Shotgun'?.91:aiming?.975:.94;
-  for(const z of list){
-    if(z.dead)continue;
-    const target=z.root.position.clone().add(new THREE.Vector3(0,0,1.02));
-    const v=target.clone().sub(origin),dist=v.length();if(dist>maxDist||dist<.01)continue;
-    const dot=v.normalize().dot(dir);if(dot<minDot)continue;
-    if(!lineClearToTarget(z.root.position.x,z.root.position.y))continue;
-    const score=dot*3-dist/maxDist;if(score>bestScore){bestScore=score;best={z,target,dist,dot}}
+  const maxDist=activeWeapon==='Shotgun'?30:activeWeapon==='Pistol'?68:105;
+  weaponRaycaster.far=maxDist;weaponRaycaster.near=.12;
+  weaponRaycaster.setFromCamera(new THREE.Vector2(0,0),camera);
+  const list=(interiorMode?interiorZombies:zombies).filter(z=>!z.dead);
+  const targetRoots=list.map(z=>z.root);
+  const blockers=interiorMode?[interiorGroup]:[buildingLayer,partsLayer].filter(Boolean);
+  const hits=weaponRaycaster.intersectObjects([...targetRoots,...blockers],true);
+  for(const h of hits){
+    let o=h.object,z=null;
+    while(o){if(o.userData?.zombieRef){z=o.userData.zombieRef;break}o=o.parent}
+    if(z&&!z.dead)return{z,target:h.point.clone(),dist:h.distance,dot:1};
+    // First non-zombie solid hit blocks the shot.
+    if(h.object?.isMesh)return null;
   }
-  return best;
+  return null;
 }
 function tracer(from,to,hit=false){
   const g=new THREE.BufferGeometry().setFromPoints([from,to]);
@@ -1812,7 +1814,9 @@ function spawnZombieAt(template,a,interior=false,rng=rand){
   const clips=sanitizeCharacterClips(template.animations);
   const clip=clips.find(c=>/walk/i.test(c.name))||clips.find(c=>/idle/i.test(c.name))||clips[0];
   let mixer=null;if(clip){mixer=new THREE.AnimationMixer(n.model);mixer.clipAction(clip).play()}
-  const z={root,mixer,speed:.28+rng()*.15,hp:100,dead:false,steer:rng()>.5?1:-1,lastTurn:0};
+  const z={root,mixer,speed:.28+rng()*.15,hp:100,dead:false,steer:rng()>.5?1:-1,lastTurn:0,state:'stalk',path:[],pathIndex:0,nextPathAt:0};
+  root.userData.zombieRef=z;
+  root.traverse(o=>{o.userData.zombieRef=z});
   (interior?interiorZombies:zombies).push(z);return z;
 }
 function spawnZombieWave(now=performance.now(),force=false){
