@@ -5,6 +5,7 @@ on:
     branches:
       - horizon-mega-rebuild-v3040-r2
       - horizon-mega-rebuild-v3040-r3
+      - horizon-mega-rebuild-v3040-r4
     paths:
       - 'app/horizon/**'
       - 'app/horizon-playable/**'
