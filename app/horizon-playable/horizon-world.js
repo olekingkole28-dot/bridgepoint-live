@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4219;
+const BUILD_VERSION=4220;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -981,7 +981,7 @@ function buildExplorableShell(rec,meta){
       const slab=new THREE.Mesh(slabGeo,new THREE.MeshStandardMaterial({color:f%2?0x4b4b47:0x555049,roughness:.98,side:THREE.DoubleSide}));slab.receiveShadow=true;group.add(slab);addStaticPhysicsGeometry(slabGeo,'open-floor-'+meta.id+'-'+f,.94);
     }
     edges.forEach((e,ei)=>{
-      const bays=Math.max(1,Math.min(8,Math.floor(e.len/2.45))),bay=e.len/bays,ux=(e.b.x-e.a.x)/e.len,uy=(e.b.y-e.a.y)/e.len;
+      const bays=Math.max(1,Math.min(8,Math.floor(e.len/2.45))),bay=e.len/bays,ux=(e.b.x-e.a.x)/e.len,uy=(e.b.y-e.a.y)/e.len,panes=[];
       for(let bi=0;bi<bays;bi++){
         const centerT=(bi+.5)/bays,cx=THREE.MathUtils.lerp(e.a.x,e.b.x,centerT),cy=THREE.MathUtils.lerp(e.a.y,e.b.y,centerT);
         const doorBay=f===0&&ei===doorEdge&&Math.hypot(cx-meta.doorX,cy-meta.doorY)<bay*.7;
@@ -992,14 +992,12 @@ function buildExplorableShell(rec,meta){
         if(!doorBay){
           const glass=addShellBox(group,cx,cy,base+1.50,Math.max(.55,bay-.32),.035,1.54,e.angle,shellGlassMaterial,'glass-'+meta.id,false);
           glass.userData.breakableGlass=true;glass.userData.sourceBuilding=meta.id;
-          glass.userData.edgeFloorKey=meta.id+':'+f+':'+ei;
+          glass.userData.edgeFloorKey=meta.id+':'+f+':'+ei;glass.userData.centerX=cx;glass.userData.centerY=cy;panes.push(glass);
         }
       }
       // One mid-height collision guard per edge/floor replaces thousands of pane/post colliders.
       // Breaking any pane on that edge removes its guard, while the visible lower/header wall remains.
       const mx=(e.a.x+e.b.x)/2,my=(e.a.y+e.b.y)/2;
-      const panes=[];
-      group.traverse(o=>{if(o.userData?.edgeFloorKey===meta.id+':'+f+':'+ei)panes.push(o)});
       if(f===0&&ei===doorEdge&&de){
         const p=meta.doorGap/2,doorT=closestPointOnSegment2D({x:meta.doorX,y:meta.doorY},de.a,de.b).t;
         const leftLen=Math.max(0,de.len*doorT-p),rightLen=Math.max(0,de.len*(1-doorT)-p),guards=[];
@@ -1012,8 +1010,7 @@ function buildExplorableShell(rec,meta){
           const gg=new THREE.BoxGeometry(rightLen,.085,1.62),qm=new THREE.Matrix4().compose(new THREE.Vector3(gx,gy,base+1.49),new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),e.angle),new THREE.Vector3(1,1,1));gg.applyMatrix4(qm);guards.push({side:1,collider:addStaticPhysicsGeometry(gg,'window-guard-'+meta.id+'-'+f+'-'+ei+'-r',.2)});
         }
         for(const pane of panes){
-          const wp=new THREE.Vector3();pane.getWorldPosition(wp);
-          const side=((wp.x-meta.doorX)*(de.b.x-de.a.x)+(wp.y-meta.doorY)*(de.b.y-de.a.y))<0?-1:1;
+          const side=(((pane.userData.centerX||0)-meta.doorX)*(de.b.x-de.a.x)+((pane.userData.centerY||0)-meta.doorY)*(de.b.y-de.a.y))<0?-1:1;
           pane.userData.glassCollider=guards.find(g=>g.side===side)?.collider||null;
         }
       }else{
