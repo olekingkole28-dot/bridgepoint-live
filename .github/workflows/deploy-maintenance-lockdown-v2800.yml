@@ -1,5 +1,5 @@
 name: BridgePoint Public Lockdown V2800
-# Horizon 4236 playable-first deferred-detail release · fresh publish 2
+# Horizon 4237 clone-crash recovery release
 
 on:
   push:
@@ -66,7 +66,7 @@ jobs:
           grep -Fq 'mapSelect' site/app/horizon/preview.html
           grep -Fq 'characterSelect' site/app/horizon/preview.html
           grep -Fq 'Choose one of 50 BridgePoint survival maps' site/app/horizon/preview.html
-          grep -Fq '../horizon-playable/horizon-world.js?v=4236' site/app/horizon/preview.html
+          grep -Fq '../horizon-playable/horizon-world.js?v=4237' site/app/horizon/preview.html
           grep -Fq 'bridgepoint-horizon-stream-v3020' site/app/horizon-playable/horizon-world.js
           grep -Fq 'Characters_Matt.gltf' site/app/horizon-playable/horizon-world.js
           grep -Fq 'Characters_Lis.gltf' site/app/horizon-playable/horizon-world.js
@@ -97,6 +97,7 @@ jobs:
           grep -Fq 'BP_HORIZON_HYDRATION' site/app/horizon-playable/horizon-world.js
           grep -Fq 'buildSurvivalArtMobileFast' site/app/horizon-playable/horizon-world.js
           grep -Fq 'fastEnemyArchetypes' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'cloneRecovery4237:true' site/app/horizon-playable/horizon-world.js
           grep -Fq 'hydrateDeferredWorld' site/app/horizon-playable/horizon-world.js
           grep -Fq 'ASSET_TIMEOUT_MS' site/app/horizon-playable/horizon-world.js
           grep -Fq "getObjectByName('hand_r')" site/app/horizon-playable/horizon-world.js
@@ -144,7 +145,7 @@ jobs:
           for attempt in $(seq 1 30); do
             salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
             code="$(curl -sSL --max-time 20 -o /tmp/horizon.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/?v=${salt}" || true)"
-            preview_code="$(curl -sSL --max-time 20 -o /tmp/horizon-preview.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=survivor&build=4236&v=${salt}" || true)"
+            preview_code="$(curl -sSL --max-time 20 -o /tmp/horizon-preview.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=survivor&build=4237&v=${salt}" || true)"
             js_code="$(curl -sSL --max-time 20 -o /tmp/horizon-world.js -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon-playable/horizon-world.js?v=${salt}" || true)"
             if [ "$code" = "200" ] && [ "$preview_code" = "200" ] && [ "$js_code" = "200" ] \
               && grep -Fq 'BridgePoint Horizon - Founding Season' /tmp/horizon.html \
@@ -180,6 +181,7 @@ jobs:
               && grep -Fq 'BP_HORIZON_HYDRATION' /tmp/horizon-world.js \
               && grep -Fq 'buildSurvivalArtMobileFast' /tmp/horizon-world.js \
               && grep -Fq 'fastEnemyArchetypes' /tmp/horizon-world.js \
+              && grep -Fq 'cloneRecovery4237:true' /tmp/horizon-world.js \
               && grep -Fq 'hydrateDeferredWorld' /tmp/horizon-world.js \
               && grep -Fq 'ASSET_TIMEOUT_MS' /tmp/horizon-world.js \
               && grep -Fq "getObjectByName('hand_r')" /tmp/horizon-world.js \
@@ -212,4 +214,4 @@ jobs:
           done
           test "$ok" = "1"
 
-# Horizon grounded survival release 4236
+# Horizon grounded survival release 4237
