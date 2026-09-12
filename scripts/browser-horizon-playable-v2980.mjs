@@ -34,11 +34,14 @@ async function testLanding(){
   const href=await page.locator('a.cta').first().getAttribute('href');
   console.log(JSON.stringify({landing:true,status:response?.status(),url,href},null,2));
   if(response?.status()!==200)throw new Error('landing HTTP '+response?.status());
-  if(href!=='/app/horizon-playable/?build=3010')throw new Error('landing CTA stale: '+href);
+  if(href!=='/app/horizon-playable/?build=3030')throw new Error('landing CTA stale: '+href);
 }
 
-async function testCell(cell){
-  const url='https://bridgepointintelligence.online/app/horizon-playable/?build=3010&cell='+cell+'&ci='+Date.now();
+async function testCell(cell,extra={}){
+  const u=new URL('https://bridgepointintelligence.online/app/horizon-playable/');
+  u.searchParams.set('build','3030');u.searchParams.set('cell',cell);u.searchParams.set('ci',String(Date.now()));
+  for(const [k,v] of Object.entries(extra))u.searchParams.set(k,String(v));
+  const url=u.toString();
   const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
   await page.waitForFunction(()=>Boolean(window.BP_HORIZON_SMOKE),null,{timeout:90000});
   const d=await page.evaluate(()=>{
@@ -78,6 +81,12 @@ async function testCell(cell){
   if(!d.smoke?.weapon)throw new Error(cell+' equipped weapon missing');
   if(d.smoke?.spawnBlocked)throw new Error(cell+' player spawned inside building collision');
   if(!(d.smoke?.roadLayers>=4))throw new Error(cell+' road/sidewalk layers missing: '+d.smoke?.roadLayers);
+  if(!d.smoke?.physicsReady||d.smoke?.physicsMode!=='rapier3d-kinematic')
+    throw new Error(cell+' Rapier controller not active: '+JSON.stringify(d.smoke));
+  if(!(d.smoke?.navNodes>5))throw new Error(cell+' navigation graph missing: '+d.smoke?.navNodes);
+  if(!(d.smoke?.drivableVehicles>0))throw new Error(cell+' drivable vehicles missing');
+  if(!String(d.smoke?.postFxMode||'').includes('gtao'))
+    throw new Error(cell+' high-end post FX inactive: '+d.smoke?.postFxMode);
   if(cell==='manhattan'){
     if(!(d.smoke?.entries>=1590))throw new Error('manhattan enterable-building coverage too low: '+d.smoke?.entries);
     if(!(d.smoke?.streetLife?.trees>=100))throw new Error('manhattan trees too sparse: '+JSON.stringify(d.smoke?.streetLife));
@@ -122,7 +131,12 @@ async function testCell(cell){
       sockets:t?.socketProbe?.(),
       gun:t?.gunProbe?.(),
       floors:t?.multiFloorProbe?.(),
-      camera:t?.cameraProbe?.()
+      camera:t?.cameraProbe?.(),
+      physics:t?.physicsProbe?.(),
+      stance:t?.stanceProbe?.(),
+      nav:t?.navProbe?.(),
+      drive:t?.driveProbe?.(),
+      postFx:t?.postFxProbe?.()
     };
   });
   console.log(JSON.stringify({cell,controls},null,2));
@@ -142,6 +156,16 @@ async function testCell(cell){
   if(!(controls.gun?.primary?.activeWeapon==='Rifle'))
     throw new Error(cell+' rifle slot switching failed: '+JSON.stringify(controls.gun));
   if(controls.camera?.blocked)throw new Error(cell+' camera resolved inside collision: '+JSON.stringify(controls.camera));
+  if(!controls.physics?.ready||!controls.physics?.hasBody||!controls.physics?.hasCollider||!controls.physics?.controller)
+    throw new Error(cell+' Rapier runtime incomplete: '+JSON.stringify(controls.physics));
+  if(!(controls.physics?.staticColliders>=3))throw new Error(cell+' static physics world too sparse: '+JSON.stringify(controls.physics));
+  if(controls.stance?.crouch?.stance!=='crouch'||controls.stance?.after!=='stand'||!controls.stance?.jumpQueued)
+    throw new Error(cell+' stance/jump controller failed: '+JSON.stringify(controls.stance));
+  if(!(controls.nav?.nodes>5))throw new Error(cell+' nav graph unavailable: '+JSON.stringify(controls.nav));
+  if(!controls.drive?.entered||!controls.drive?.exited||!(controls.drive?.moved>=0))
+    throw new Error(cell+' drivable vehicle interaction failed: '+JSON.stringify(controls.drive));
+  if(!(controls.postFx?.composer&&controls.postFx?.gtao&&controls.postFx?.bloom))
+    throw new Error(cell+' composer passes missing: '+JSON.stringify(controls.postFx));
   if(cell==='manhattan'){
     if(!(controls.floors?.first?.floors>=5))throw new Error('manhattan tall-building floors missing: '+JSON.stringify(controls.floors));
     if(!(controls.floors?.second?.floor===2&&controls.floors?.second?.pickups>0))
@@ -177,7 +201,12 @@ try{
   await testLanding();
   await testCell('middletown');
   await testCell('manhattan');
-  console.log('HORIZON_V3010_BROWSER_SMOKE_PASS');
+  await testCell('national',{state:'NY',lat:40.7128,lon:-74.0060,span_km:2.2});
+  const boundary=await page.evaluate(()=>window.BP_HORIZON_TEST?.boundaryProbe?.());
+  console.log(JSON.stringify({boundary},null,2));
+  if(!boundary?.inside||boundary?.insideState!=='NY'||boundary?.outside!==false)
+    throw new Error('national jurisdiction containment failed: '+JSON.stringify(boundary));
+  console.log('HORIZON_V3030_BROWSER_SMOKE_PASS');
   if(errors.length)console.log('pageErrors',errors);
   const serious=messages.filter(x=>/syntaxerror|referenceerror|typeerror/i.test(x));
   if(serious.length)throw new Error('Serious console errors: '+serious.join(' | '));
