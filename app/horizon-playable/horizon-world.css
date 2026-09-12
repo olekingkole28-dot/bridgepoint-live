@@ -299,3 +299,14 @@ body:not(.nationalMode) .jurisdictionPanel{display:none}
     width:38px;height:38px;
   }
 }
+
+
+/* V3050 survival systems */
+#modeStat{color:#f0c56d}
+#xpStat{color:#8effb5}
+#livesStat{color:#ffd2a2}
+.controls button#flashlightBtn.active{border-color:rgba(255,226,163,.55);background:rgba(255,205,104,.12);color:#ffe3a6}
+@media (pointer:coarse) and (orientation:landscape){
+  .controls{max-height:calc(100vh - 60px);overflow:auto;scrollbar-width:none}
+  .controls::-webkit-scrollbar{display:none}
+}
