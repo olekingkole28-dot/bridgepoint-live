@@ -782,60 +782,97 @@ function loadExploration(){
 }
 function renderMinimap(){
   if(!playerRoot)return;
-  mapCtx.clearRect(0,0,minimap.width,minimap.height);mapCtx.drawImage(mapBase,0,0);mapCtx.drawImage(mapFog,0,0);
+  mapCtx.clearRect(0,0,minimap.width,minimap.height);
+  if(interiorMode&&activeInterior){
+    mapCtx.fillStyle='#5f625e';mapCtx.fillRect(0,0,minimap.width,minimap.height);
+    const sx=minimap.width/activeInterior.width,sy=minimap.height/activeInterior.depth;
+    mapCtx.fillStyle='#30332f';
+    for(const w of interiorWalls){
+      const x=(w.minx+activeInterior.width/2)*sx,y=minimap.height-(w.maxy+activeInterior.depth/2)*sy;
+      mapCtx.fillRect(x,y,Math.max(2,(w.maxx-w.minx)*sx),Math.max(2,(w.maxy-w.miny)*sy));
+    }
+    const px=(playerRoot.position.x+activeInterior.width/2)*sx,py=minimap.height-(playerRoot.position.y+activeInterior.depth/2)*sy;
+    mapCtx.save();mapCtx.translate(px,py);mapCtx.rotate(-yaw);mapCtx.fillStyle='#8effb5';mapCtx.beginPath();mapCtx.moveTo(0,-7);mapCtx.lineTo(5,6);mapCtx.lineTo(-5,6);mapCtx.closePath();mapCtx.fill();mapCtx.restore();
+    return;
+  }
+  mapCtx.drawImage(mapBase,0,0);mapCtx.drawImage(mapFog,0,0);
   const p=toMapXY(playerRoot.position.x,playerRoot.position.y);
   mapCtx.save();mapCtx.translate(p.x,p.y);mapCtx.rotate(-yaw);mapCtx.fillStyle='#8effb5';mapCtx.beginPath();mapCtx.moveTo(0,-7);mapCtx.lineTo(5,6);mapCtx.lineTo(-5,6);mapCtx.closePath();mapCtx.fill();mapCtx.restore();
 }
 
 function initInput(){
-  addEventListener('keydown',e=>{keys.add(e.code);if(e.code==='KeyE')collectNearestLoot()});
+  addEventListener('keydown',e=>{
+    keys.add(e.code);
+    if(e.code==='KeyE')interact();
+    if(e.code==='Space'||e.code==='KeyF'){e.preventDefault();attack()}
+  });
   addEventListener('keyup',e=>keys.delete(e.code));
 
   let lookId=null,lastX=0,lastY=0;
   renderer.domElement.addEventListener('pointerdown',e=>{lookId=e.pointerId;lastX=e.clientX;lastY=e.clientY;renderer.domElement.setPointerCapture?.(e.pointerId)});
-  renderer.domElement.addEventListener('pointermove',e=>{if(e.pointerId!==lookId)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;yaw-=dx*.0055;pitch=THREE.MathUtils.clamp(pitch+dy*.0038,-.18,.58)});
+  renderer.domElement.addEventListener('pointermove',e=>{if(e.pointerId!==lookId)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;yaw-=dx*.0047;pitch=THREE.MathUtils.clamp(pitch+dy*.0032,-.12,.50)});
   const stopLook=e=>{if(e.pointerId===lookId)lookId=null};renderer.domElement.addEventListener('pointerup',stopLook);renderer.domElement.addEventListener('pointercancel',stopLook);
 
   const pad=$('movePad'),knob=$('moveKnob');let padId=null;
   function padMove(e){
     const r=pad.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=e.clientX-cx,dy=e.clientY-cy,max=r.width*.34,len=Math.hypot(dx,dy)||1,s=Math.min(1,max/len),px=dx*s,py=dy*s;
-    knob.style.transform='translate('+px+'px,'+py+'px)';mobileMove.x=px/max;mobileMove.y=-py/max;
+    knob.style.transform='translate('+px+'px,'+py+'px)';
+    const nx=px/max,ny=-py/max,mag=Math.hypot(nx,ny);mobileMove.x=mag<.13?0:nx;mobileMove.y=mag<.13?0:ny;
   }
   pad?.addEventListener('pointerdown',e=>{padId=e.pointerId;pad.setPointerCapture?.(e.pointerId);padMove(e)});
   pad?.addEventListener('pointermove',e=>{if(e.pointerId===padId)padMove(e)});
   const padEnd=e=>{if(e.pointerId!==padId)return;padId=null;mobileMove.x=mobileMove.y=0;knob.style.transform='translate(0,0)'};pad?.addEventListener('pointerup',padEnd);pad?.addEventListener('pointercancel',padEnd);
 
-  $('interactBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();collectNearestLoot()});
+  $('interactBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();interact()});
+  $('attackBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();attack()});
   const sprint=$('sprintBtn');sprint?.addEventListener('pointerdown',e=>{e.preventDefault();mobileSprint=true});sprint?.addEventListener('pointerup',()=>mobileSprint=false);sprint?.addEventListener('pointercancel',()=>mobileSprint=false);
 
   $('cameraBtn').onclick=()=>cameraMode=(cameraMode+1)%2;
   $('lightBtn').onclick=()=>setLighting(lightMode+1);
-  $('parcelBtn').onclick=()=>{parcelLayer.visible=!parcelLayer.visible;$('parcelBtn').classList.toggle('active',parcelLayer.visible)};
-  $('artBtn').onclick=()=>{artGroup.visible=!artGroup.visible;lootGroup.visible=artGroup.visible;zombieGroup.visible=artGroup.visible;$('artBtn').classList.toggle('active',artGroup.visible)};
+  $('parcelBtn').onclick=()=>{if(!interiorMode){parcelLayer.visible=!parcelLayer.visible;$('parcelBtn').classList.toggle('active',parcelLayer.visible)}};
+  $('artBtn').onclick=()=>{if(!interiorMode){artGroup.visible=!artGroup.visible;zombieGroup.visible=artGroup.visible;entryGroup.visible=artGroup.visible;$('artBtn').classList.toggle('active',artGroup.visible)}};
 }
+function lerpAngle(a,b,t){let d=(b-a+Math.PI)%(Math.PI*2)-Math.PI;return a+d*t}
 function updatePlayer(dt){
   if(!playerRoot)return;
   let ix=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+mobileMove.x;
   let iy=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0)+mobileMove.y;
   const len=Math.hypot(ix,iy);if(len>1){ix/=len;iy/=len}
-  const moving=Math.hypot(ix,iy)>.06,sprint=keys.has('ShiftLeft')||keys.has('ShiftRight')||mobileSprint,speed=sprint?7.2:4.25;
+  const inputMag=Math.hypot(ix,iy),moving=inputMag>.05,sprint=keys.has('ShiftLeft')||keys.has('ShiftRight')||mobileSprint;
+  const speed=(interiorMode?3.6:4.35)*(sprint?1.55:1);
+  const fx=Math.sin(yaw),fy=Math.cos(yaw),rx=Math.cos(yaw),ry=-Math.sin(yaw);
+  const desiredX=moving?(fx*iy+rx*ix)*speed:0,desiredY=moving?(fy*iy+ry*ix)*speed:0;
+  const response=1-Math.exp(-(moving?11:15)*dt);
+  playerVelocity.x=THREE.MathUtils.lerp(playerVelocity.x,desiredX,response);playerVelocity.y=THREE.MathUtils.lerp(playerVelocity.y,desiredY,response);
+
+  const nx=playerRoot.position.x+playerVelocity.x*dt,ny=playerRoot.position.y+playerVelocity.y*dt;
+  const blockedX=interiorMode?isBlockedInterior(nx,playerRoot.position.y):isBlockedExterior(nx,playerRoot.position.y);
+  if(!blockedX)playerRoot.position.x=nx;else playerVelocity.x=0;
+  const blockedY=interiorMode?isBlockedInterior(playerRoot.position.x,ny):isBlockedExterior(playerRoot.position.x,ny);
+  if(!blockedY)playerRoot.position.y=ny;else playerVelocity.y=0;
+
+  playerRoot.position.z=interiorMode?.05:terrainZXY(playerRoot.position.x,playerRoot.position.y)+.05;
   if(moving){
-    const fx=Math.sin(yaw),fy=Math.cos(yaw),rx=Math.cos(yaw),ry=-Math.sin(yaw);
-    playerRoot.position.x+=(fx*iy+rx*ix)*speed*dt;playerRoot.position.y+=(fy*iy+ry*ix)*speed*dt;
-    playerRoot.rotation.z=Math.atan2(fx*iy+rx*ix,fy*iy+ry*ix)+Math.PI;
+    const targetRot=Math.atan2(playerVelocity.x,playerVelocity.y)+Math.PI;
+    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-12*dt));
   }
-  playerRoot.position.z=terrainZXY(playerRoot.position.x,playerRoot.position.y)+.05;
-  playPlayerAnimation(moving);playerMixer?.update(dt);
-  const revealDist=lastReveal?Math.hypot(playerRoot.position.x-lastReveal.x,playerRoot.position.y-lastReveal.y):999;
-  if(revealDist>5){revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone()}
+  if(swingTime<=0)playPlayerAnimation(moving?'move':'idle');playerMixer?.update(dt);
+
+  if(!interiorMode){
+    const revealDist=lastReveal?Math.hypot(playerRoot.position.x-lastReveal.x,playerRoot.position.y-lastReveal.y):999;
+    if(revealDist>4.5){revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone()}
+  }
 }
-function updateCamera(){
+function updateCamera(dt){
+function updateCamera(dt){
   if(!playerRoot)return;
-  const target=playerRoot.position.clone().add(new THREE.Vector3(0,0,1.35)),forward=new THREE.Vector3(Math.sin(yaw),Math.cos(yaw),0),right=new THREE.Vector3(Math.cos(yaw),-Math.sin(yaw),0);
-  const dist=cameraMode===0?4.6:2.15,shoulder=cameraMode===0?.45:.34;
-  const desired=target.clone().addScaledVector(forward,-dist*Math.cos(pitch)).addScaledVector(right,shoulder);desired.z+=1.0+dist*Math.sin(pitch);
-  camera.position.lerp(desired,.18);camera.lookAt(target.clone().addScaledVector(forward,cameraMode===0?2.0:3.2));
+  const target=playerRoot.position.clone().add(new THREE.Vector3(0,0,1.38));
+  const forward=new THREE.Vector3(Math.sin(yaw),Math.cos(yaw),0),right=new THREE.Vector3(Math.cos(yaw),-Math.sin(yaw),0);
+  const dist=interiorMode?(cameraMode===0?3.35:1.95):(cameraMode===0?4.25:2.15),shoulder=cameraMode===0?.52:.32;
+  const desired=target.clone().addScaledVector(forward,-dist*Math.cos(pitch)).addScaledVector(right,shoulder);desired.z+=.9+dist*Math.sin(pitch);
+  const alpha=1-Math.exp(-9*dt);camera.position.lerp(desired,alpha);camera.lookAt(target.clone().addScaledVector(forward,cameraMode===0?2.2:3.0));
 }
+async function enterLandscape(){
 async function enterLandscape(){
   try{if(!document.fullscreenElement&&document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen({navigationUI:'hide'})}catch(_){}
   try{if(screen.orientation&&screen.orientation.lock)await screen.orientation.lock('landscape')}catch(_){}
@@ -846,21 +883,22 @@ $('fullscreenBtn')?.addEventListener('click',enterLandscape);
 
 async function boot(){
   try{
-    $('cellLabel').textContent=CELL==='manhattan'?'MANHATTAN · DENSE CITY CELL':'MIDDLETOWN · NEIGHBORHOOD CELL';
-    $('worldTitle').textContent=CELL==='manhattan'?'Manhattan survivor':'Neighborhood survivor';
+    $('cellLabel').textContent=CELL==='manhattan'?'DOWNTOWN MANHATTAN · SURVIVAL CELL':'MIDDLETOWN · NEIGHBORHOOD CELL';
+    $('worldTitle').textContent=CELL==='manhattan'?'Downtown Manhattan survivor':'Neighborhood survivor';
+    updateInventory();
     const r=await fetch(ENDPOINT+'?cell='+CELL,{headers:{accept:'application/json'},cache:'no-store'});
     if(!r.ok)throw new Error('Horizon scene endpoint returned '+r.status);
     data=await r.json();if(!data?.complete)throw new Error(data?.error||'Horizon scene incomplete');
     lon0=Number(data.center.lon);lat0=Number(data.center.lat);mx=111320*Math.cos(lat0*Math.PI/180);my=110540;
 
     buildTerrain();buildRoads();buildWater();buildBuildings();buildParts();buildParcels();addLights();setLighting(0);drawMinimapBase();initInput();
-    await buildPlayer();
+    await buildPlayer();buildEntryPoints();
     revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone();
-    loadText.textContent='Loading CC0 survivor, loot, vehicles and infected…';
+    loadText.textContent='Loading interiors, city dressing and infected…';
     await buildSurvivalArt();
-    loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' buildings · playable ground world ready';
-    window.BP_HORIZON_SMOKE={ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),player:Boolean(playerRoot),loot:lootSpawns.length,zombies:zombies.length,artChildren:artGroup.children.length};
-    updateLootPrompt();resizeRenderer();
+    loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · enter marked doorways and search interiors';
+    updateInventory();updateInteractionPrompt();resizeRenderer();
+    window.BP_HORIZON_SMOKE={ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),player:Boolean(playerRoot),loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,packCapacity,weapon:equippedWeaponName,interiorAssets:Object.values(interiorTemplates).filter(Boolean).length,artChildren:artGroup.children.length};
   }catch(e){
     console.error(e);window.BP_HORIZON_SMOKE={ok:false,cell:CELL,error:String(e?.message||e)};$('error').hidden=false;$('errorText').textContent=String(e?.message||e);loadText.textContent='Preview unavailable';
   }
@@ -869,8 +907,8 @@ async function boot(){
 let lastPrompt=0;
 function loop(now=performance.now()){
   const dt=Math.min(.05,clock.getDelta()||.016);
-  updatePlayer(dt);updateZombies(dt,now);updateCamera();
-  if(now-lastPrompt>180){updateLootPrompt();lastPrompt=now}
+  updateWeapon(dt);updatePlayer(dt);updateZombies(dt,now);updateCamera(dt);
+  if(now-lastPrompt>120){updateInteractionPrompt();lastPrompt=now}
   renderMinimap();renderer.render(scene,camera);requestAnimationFrame(loop);
 }
 loop();boot();
