@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4208;
+const BUILD_VERSION=4209;
 const SAVE_KEY='bridgepoint-horizon-survivor-v3050';
 const LEGACY_SAVE_KEY='bridgepoint-horizon-survivor-v3040';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
@@ -24,6 +24,7 @@ const ASSETS={
   playerLis:FREE_BASE+'/Characters/glTF/Characters_Lis.gltf',
   playerSam:FREE_BASE+'/Characters/glTF/Characters_Sam.gltf',
   playerShaun:FREE_BASE+'/Characters/glTF/Characters_Shaun.gltf',
+  playerRealistic:'https://cdn.jsdelivr.net/gh/sceneview/sceneview@main/samples/android-demo/src/main/assets/models/threejs_soldier.glb',
   zombie:FREE_BASE+'/Characters/glTF/Zombie_Basic.gltf',
   zombieChubby:FREE_BASE+'/Characters/glTF/Zombie_Chubby.gltf',
   zombieRibcage:FREE_BASE+'/Characters/glTF/Zombie_Ribcage.gltf',
@@ -34,6 +35,7 @@ const ASSETS={
   spider:QUATERNIUS_SHOWCASE+'/easy_enemies_pack/Spider.glb',
   yeti:CONSTELLATION_MODELS+'/quaternius-yeti.glb',
   bear:DERETH_MOBS+'/Bear.glb',
+  infectedCrow:'https://cdn.jsdelivr.net/gh/adammikulis/local-agents@main/addons/local_agents/assets/models/fauna/vulture.glb',
   barrel:FREE_BASE+'/Environment/glTF/Barrel.gltf',
   trash:FREE_BASE+'/Environment/glTF/TrashBag_1.gltf',
   pallet:FREE_BASE+'/Environment/glTF/Pallet_Broken.gltf',
@@ -98,8 +100,8 @@ const DEFAULT_WEAPON_CONFIGS=[
 
 const params=new URLSearchParams(location.search);
 const PREVIEW_KEY=['city','mountain','coastal'].includes(String(params.get('preview')||'').toLowerCase())?String(params.get('preview')).toLowerCase():null;
-const PLAYER_VARIANTS={matt:ASSETS.player,lis:ASSETS.playerLis,sam:ASSETS.playerSam,shaun:ASSETS.playerShaun};
-const CHARACTER_KEY=String(params.get('character')||({city:'matt',mountain:'lis',coastal:'sam'}[PREVIEW_KEY]||'matt')).toLowerCase();
+const PLAYER_VARIANTS={realistic:ASSETS.playerRealistic,matt:ASSETS.player,lis:ASSETS.playerLis,sam:ASSETS.playerSam,shaun:ASSETS.playerShaun};
+const CHARACTER_KEY=String(params.get('character')||({city:'realistic',mountain:'realistic',coastal:'realistic'}[PREVIEW_KEY]||'realistic')).toLowerCase();
 const PLAYER_ASSET=PLAYER_VARIANTS[CHARACTER_KEY]||ASSETS.player;
 const requestedCell=String(params.get('cell')||'national').toLowerCase();
 const CELL=requestedCell==='middletown'?'middletown':requestedCell==='manhattan'?'manhattan':'national';
@@ -289,6 +291,7 @@ mapBase.height=mapFog.height=minimap.height;
 const baseCtx=mapBase.getContext('2d');
 const fogCtx=mapFog.getContext('2d');
 let lastReveal=null,exploredPoints=[];
+let worldMapOpen=false,worldMapZoom=1,mapMarkerType='loot',mapMarkers=[];
 let travelPending=false,lastTravelCheck=0;
 const activeBoundaryEdges=new Set();
 const countryBarrierGroup=new THREE.Group();countryBarrierGroup.name='us-jurisdiction-barriers';exteriorRoot.add(countryBarrierGroup);
@@ -739,6 +742,46 @@ function buildTerrain(){
   terrainLayer.receiveShadow=true;worldGroup.add(terrainLayer);addStaticPhysicsGeometry(g,'terrain-3dep',.94);
 }
 
+function buildApocalypseGroundDressing(){
+  if(!roadAnchors.length)return 0;
+  const group=new THREE.Group();group.name='apocalypse-ground-dressing';artGroup.add(group);
+  const dense=densePreview(),rubbleTarget=dense?360:170,puddleTarget=dense?85:38,paperTarget=dense?190:85;
+  const rubbleGeo=new THREE.BoxGeometry(1,1,1),rubbleMat=new THREE.MeshStandardMaterial({color:0x55524b,roughness:.96,metalness:.02});
+  const rubble=new THREE.InstancedMesh(rubbleGeo,rubbleMat,rubbleTarget),dummy=new THREE.Object3D();let rc=0;
+  for(let i=0;i<rubbleTarget*3&&rc<rubbleTarget;i++){
+    const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+(.3+rand()*2.4),side);
+    if(isBlockedExterior(p.x,p.y,.18))continue;
+    const sx=.10+rand()*.65,sy=.08+rand()*.52,sz=.035+rand()*.22;
+    dummy.position.set(p.x,p.y,p.z+sz*.5+.015);dummy.rotation.set((rand()-.5)*.22,(rand()-.5)*.22,rand()*Math.PI);dummy.scale.set(sx,sy,sz);dummy.updateMatrix();rubble.setMatrixAt(rc++,dummy.matrix);
+  }
+  rubble.count=rc;rubble.instanceMatrix.needsUpdate=true;rubble.castShadow=true;rubble.receiveShadow=true;group.add(rubble);
+  const puddleGeo=new THREE.CircleGeometry(1,22),puddleMat=new THREE.MeshPhysicalMaterial({color:0x1d2929,roughness:.12,metalness:.05,transparent:true,opacity:.56,clearcoat:.55,clearcoatRoughness:.18});
+  const puddles=new THREE.InstancedMesh(puddleGeo,puddleMat,puddleTarget);let pc=0;
+  for(let i=0;i<puddleTarget*3&&pc<puddleTarget;i++){
+    const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],p=roadSidePoint(a,(rand()-.5)*Math.max(2,a.width*.32),1);
+    if(isBlockedExterior(p.x,p.y,.35))continue;
+    dummy.position.set(p.x,p.y,p.z+.035);dummy.rotation.set(0,0,rand()*Math.PI);dummy.scale.set(.35+rand()*1.7,.18+rand()*.85,1);dummy.updateMatrix();puddles.setMatrixAt(pc++,dummy.matrix);
+  }
+  puddles.count=pc;puddles.instanceMatrix.needsUpdate=true;group.add(puddles);
+  const paperGeo=new THREE.PlaneGeometry(.34,.24),paperMat=new THREE.MeshStandardMaterial({color:0xb8b0a0,roughness:.9,side:THREE.DoubleSide});
+  const papers=new THREE.InstancedMesh(paperGeo,paperMat,paperTarget);let qc=0;
+  for(let i=0;i<paperTarget*3&&qc<paperTarget;i++){
+    const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],p=roadSidePoint(a,a.width/2+rand()*2.1,rand()>.5?1:-1);
+    if(isBlockedExterior(p.x,p.y,.1))continue;
+    dummy.position.set(p.x,p.y,p.z+.025);dummy.rotation.set((rand()-.5)*.08,(rand()-.5)*.08,rand()*Math.PI*2);dummy.scale.set(.65+rand()*.9,.65+rand()*.9,1);dummy.updateMatrix();papers.setMatrixAt(qc++,dummy.matrix);
+  }
+  papers.count=qc;papers.instanceMatrix.needsUpdate=true;group.add(papers);
+  const crackPos=[];
+  for(let i=0;i<(dense?320:140);i++){
+    const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],x=a.x+(rand()-.5)*a.width*.7,y=a.y+(rand()-.5)*a.width*.7,z=surfaceZXY(x,y)+.045;
+    const ang=rand()*Math.PI*2,len=.4+rand()*2.5;crackPos.push(x,y,z,x+Math.cos(ang)*len,y+Math.sin(ang)*len,z+.002);
+  }
+  const cg=new THREE.BufferGeometry();cg.setAttribute('position',new THREE.Float32BufferAttribute(crackPos,3));
+  group.add(new THREE.LineSegments(cg,new THREE.LineBasicMaterial({color:0x111513,transparent:true,opacity:.48})));
+  streetLifeStats.groundDetails=rc+pc+qc+crackPos.length/6;
+  return streetLifeStats.groundDetails;
+}
+
 const buildingMaterials={
   brick:new THREE.MeshStandardMaterial({map:brickTex,color:0xb29b8e,roughness:.84,emissive:0x100b07,emissiveIntensity:.10}),
   concrete:new THREE.MeshStandardMaterial({map:wallTex,color:0xaeb1aa,roughness:.82,emissive:0x0d100c,emissiveIntensity:.08}),
@@ -851,7 +894,7 @@ function buildEntryPoints(){
   entryGroup.clear();buildingEntries=[];
   const candidates=[...buildingCenters]
     .sort((a,b)=>(a.x*a.x+a.y*a.y)-(b.x*b.x+b.y*b.y));
-  const visualLimit=densePreview()?260:120;
+  const visualLimit=densePreview()?620:260;
   let visualCount=0;
   for(const b of candidates){
     const road=nearestRoadForBuilding(b);if(!road)continue;
@@ -1230,14 +1273,14 @@ function captureCharacterWeaponTemplates(modelRoot){
   }
 }
 function setupEquipmentMounts(modelRoot){
-  const right=modelRoot?.getObjectByName('Middle1.R')||modelRoot?.getObjectByName('LowerArm.R')||findBoneByHints(modelRoot,['middle1.r','lowerarm.r']);
-  const left=modelRoot?.getObjectByName('Middle1.L')||modelRoot?.getObjectByName('LowerArm.L')||findBoneByHints(modelRoot,['middle1.l','lowerarm.l']);
-  const hips=modelRoot?.getObjectByName('Hips')||findBoneByHints(modelRoot,['hips','pelvis']);
-  const torso=modelRoot?.getObjectByName('Torso')||modelRoot?.getObjectByName('Abdomen')||findBoneByHints(modelRoot,['torso','abdomen','spine']);
-  const upperR=modelRoot?.getObjectByName('UpperArm.R')||findBoneByHints(modelRoot,['upperarm.r']);
-  const upperL=modelRoot?.getObjectByName('UpperArm.L')||findBoneByHints(modelRoot,['upperarm.l']);
-  const lowerR=modelRoot?.getObjectByName('LowerArm.R')||findBoneByHints(modelRoot,['lowerarm.r']);
-  const lowerL=modelRoot?.getObjectByName('LowerArm.L')||findBoneByHints(modelRoot,['lowerarm.l']);
+  const right=modelRoot?.getObjectByName('Middle1.R')||modelRoot?.getObjectByName('mixamorigRightHand')||modelRoot?.getObjectByName('RightHand')||modelRoot?.getObjectByName('LowerArm.R')||findBoneByHints(modelRoot,['middle1.r','lowerarm.r','righthand','mixamorigright']);
+  const left=modelRoot?.getObjectByName('Middle1.L')||modelRoot?.getObjectByName('mixamorigLeftHand')||modelRoot?.getObjectByName('LeftHand')||modelRoot?.getObjectByName('LowerArm.L')||findBoneByHints(modelRoot,['middle1.l','lowerarm.l','lefthand','mixamorigleft']);
+  const hips=modelRoot?.getObjectByName('Hips')||modelRoot?.getObjectByName('mixamorigHips')||findBoneByHints(modelRoot,['hips','pelvis','mixamorighips']);
+  const torso=modelRoot?.getObjectByName('Torso')||modelRoot?.getObjectByName('Abdomen')||modelRoot?.getObjectByName('mixamorigSpine2')||modelRoot?.getObjectByName('Spine2')||findBoneByHints(modelRoot,['torso','abdomen','spine2','mixamorigspine']);
+  const upperR=modelRoot?.getObjectByName('UpperArm.R')||modelRoot?.getObjectByName('mixamorigRightArm')||findBoneByHints(modelRoot,['upperarm.r','rightarm','mixamorigrightarm']);
+  const upperL=modelRoot?.getObjectByName('UpperArm.L')||modelRoot?.getObjectByName('mixamorigLeftArm')||findBoneByHints(modelRoot,['upperarm.l','leftarm','mixamorigleftarm']);
+  const lowerR=modelRoot?.getObjectByName('LowerArm.R')||modelRoot?.getObjectByName('mixamorigRightForeArm')||findBoneByHints(modelRoot,['lowerarm.r','rightforearm','mixamorigrightforearm']);
+  const lowerL=modelRoot?.getObjectByName('LowerArm.L')||modelRoot?.getObjectByName('mixamorigLeftForeArm')||findBoneByHints(modelRoot,['lowerarm.l','leftforearm','mixamorigleftforearm']);
 
   equipmentMounts.rightHand=makeMount(right||playerRoot);
   equipmentMounts.leftHand=makeMount(left||playerRoot);
@@ -1266,7 +1309,13 @@ function putCharacterWeapon(slot,name,mode='leftHand'){
   const m=equipmentMounts[slot];if(!m)return null;
   clearMount(m);if(!name)return null;
   if(mode==='leftHand'||mode==='rightHand'){
-    const obj=cloneCharacterWeapon(name);if(!obj)return null;
+    let obj=cloneCharacterWeapon(name);
+    if(!obj){
+      const key=name==='WoodenBat_Barbed'?'bat':name==='WoodenBat_Saw'?'sawBat':name==='Axe'?'axe':name==='Knife'?'knife':name==='Pistol'?'pistol':name==='Rifle'?'rifle':name==='Shotgun'?'shotgun':name==='SMG'?'smg':name==='Spear'?'spear':name==='Guitar'?'guitar':null;
+      const len=name==='Pistol'?.33:name==='Rifle'?1.02:name==='Shotgun'?.92:name==='SMG'?.72:name==='Spear'?1.35:name==='Guitar'?.82:name==='Axe'?.66:name==='Knife'?.34:.88;
+      if(key)obj=propCloneByLength(weaponTemplates[key],len);
+    }
+    if(!obj)return null;
     if(mode==='rightHand'){
       obj.position.x*=-1;
       const q=obj.quaternion.clone();obj.quaternion.set(q.x,-q.y,-q.z,q.w);
@@ -1548,6 +1597,13 @@ function scatterLocalProceduralLife(){
   add('tree',densePreview()?42:26);add('bike',densePreview()?20:10);add('bench',densePreview()?18:10);add('planter',densePreview()?28:16);
   return{trees,bikes,benches,planters};
 }
+function rustifyVehicle(root,seedValue){
+  const r=seeded(seedValue);root?.traverse(o=>{
+    if(!o.isMesh||!o.material)return;const src=Array.isArray(o.material)?o.material:[o.material];
+    const mats=src.map(base=>{const m=base.clone();if(m.color)m.color.lerp(new THREE.Color(r()>.5?0x6f4931:0x4b3d31),.22+r()*.28);m.roughness=Math.max(.72,Number(m.roughness||.5));m.metalness=Math.max(.05,Number(m.metalness||0)-.1);return m});
+    o.material=Array.isArray(o.material)?mats:mats[0];
+  });
+}
 function spawnDrivableVehicle(template,type,count,targetHeight){
   const anchors=localRoadAnchors(densePreview()?260:190);if(!template||!anchors.length)return 0;
   let made=0,attempts=0;
@@ -1557,8 +1613,9 @@ function spawnDrivableVehicle(template,type,count,targetHeight){
     const p=roadSidePoint(a,Math.max(1.5,a.width*.34),side);
     if(isBlockedExterior(p.x,p.y,.72))continue;
     const root=staticClone(template,targetHeight);if(!root)continue;
-    root.position.set(p.x,p.y,p.z+.02);root.rotation.z=a.heading+(side<0?Math.PI:0);artGroup.add(root);
-    drivableVehicles.push({root,type,heading:root.rotation.z,speed:0,maxSpeed:type==='bike'?8:type==='truck'?16:type==='sports'?25:19,accel:type==='bike'?5:type==='truck'?5.2:7.2,requiredParts:type==='bike'?[]:['Car battery','Spark plug'],installedParts:[]});
+    root.position.set(p.x,p.y,p.z+.02);root.rotation.z=a.heading+(side<0?Math.PI:0);rustifyVehicle(root,hash('rust:'+type+':'+made+':'+attempts));artGroup.add(root);
+    const requiredParts=type==='truck'?['Car battery','Tire','Radiator hose']:type==='sports'?['Car battery','Spark plug','Tire']:['Car battery','Spark plug','Tire'];
+    drivableVehicles.push({root,type,heading:root.rotation.z,speed:0,maxSpeed:type==='bike'?8:type==='truck'?16:type==='sports'?25:19,accel:type==='bike'?5:type==='truck'?5.2:7.2,requiredParts,installedParts:[],fuel:0,stalled:false});
     made++;
   }
   return made;
@@ -1569,17 +1626,19 @@ function spawnDrivableBike(count=5){
     attempts++;const a=anchors[Math.floor(rand()*anchors.length)];if(!a)continue;
     const p=roadSidePoint(a,a.width/2+1.15,rand()>.5?1:-1);if(isBlockedExterior(p.x,p.y,.42))continue;
     const root=makeBike(hash('drivebike:'+attempts));root.position.set(p.x,p.y,p.z+.03);root.rotation.z=a.heading;artGroup.add(root);
-    drivableVehicles.push({root,type:'bike',heading:a.heading,speed:0,maxSpeed:8,accel:4.2,requiredParts:[],installedParts:[]});made++;
+    drivableVehicles.push({root,type:'bike',heading:a.heading,speed:0,maxSpeed:8,accel:4.2,requiredParts:['Bike chain','Tire'],installedParts:[],fuel:100,stalled:false});made++;
   }
   return made;
 }
-function vehicleReady(v){return !v?.requiredParts?.some(p=>!v.installedParts?.includes(p))}
+function vehicleReady(v){return !v?.requiredParts?.some(p=>!v.installedParts?.includes(p))&&Number(v?.fuel||0)>0}
 function repairVehicle(v){
-  if(!v)return false;const missing=(v.requiredParts||[]).filter(p=>!v.installedParts.includes(p));if(!missing.length)return true;let installed=0;
+  if(!v)return false;const missing=(v.requiredParts||[]).filter(p=>!v.installedParts.includes(p));let installed=0;
   for(const part of missing)if((inventory[part]||0)>0){inventory[part]--;lootCount=Math.max(0,lootCount-1);v.installedParts.push(part);installed++}
+  let fueled=false;if(Number(v.fuel||0)<=0&&(inventory['Fuel can']||0)>0){inventory['Fuel can']--;lootCount=Math.max(0,lootCount-1);v.fuel=70+rand()*30;fueled=true}
   updateInventory();
-  if(vehicleReady(v)){awardXP(75,'vehicle repair');showToast(v.type+' repaired — driveable');return true}
-  showToast(installed?'Installed '+installed+' part'+(installed===1?'':'s')+' · still need '+v.requiredParts.filter(p=>!v.installedParts.includes(p)).join(' + '):'Need '+missing.join(' + '));return false;
+  if(vehicleReady(v)){awardXP(75,'vehicle repair');showToast(v.type+' running · '+Math.round(v.fuel)+'% fuel');return true}
+  const still=v.requiredParts.filter(p=>!v.installedParts.includes(p));const need=[...still,...(v.fuel>0?[]:['Fuel can'])];
+  showToast((installed||fueled)?'Worked on '+v.type+' · still need '+need.join(' + '):'Need '+need.join(' + '));return false;
 }
 function nearestDrivable(){
   if(!playerRoot||activeVehicle)return null;let best=null,d=Infinity;
@@ -1606,6 +1665,8 @@ function exitVehicle(){
 function updateVehicle(dt,ix,iy){
   const v=activeVehicle;if(!v)return;
   const throttle=THREE.MathUtils.clamp(iy,-1,1),steer=THREE.MathUtils.clamp(ix,-1,1);
+  if(v.fuel<=0){v.speed=THREE.MathUtils.lerp(v.speed,0,1-Math.exp(-7*dt));if(!v.stalled){v.stalled=true;showToast('Out of fuel · find a Fuel can')}return}
+  v.stalled=false;v.fuel=Math.max(0,v.fuel-Math.abs(throttle)*dt*.42);
   const target=throttle*v.maxSpeed;
   v.speed=THREE.MathUtils.lerp(v.speed,target,1-Math.exp(-v.accel*dt));
   if(Math.abs(v.speed)<.03)v.speed=0;
@@ -1620,12 +1681,13 @@ function updateVehicle(dt,ix,iy){
 function initializeVehicleRepair(){
   for(let i=0;i<drivableVehicles.length;i++){
     const v=drivableVehicles[i];v.installedParts=v.installedParts||[];
-    if(i===0||v.type==='bike'||i%4===0)v.installedParts=[...(v.requiredParts||[])];
+    if(i===0||i%5===0){v.installedParts=[...(v.requiredParts||[])];v.fuel=35+rand()*55}
   }
   const anchors=localRoadAnchors(180);
-  for(let i=0;i<Math.min(10,anchors.length);i++){
+  const parts=['Spark plug','Car battery','Fuel can','Tire','Radiator hose','Bike chain'];
+  for(let i=0;i<Math.min(24,anchors.length);i++){
     const a=anchors[(i*7)%anchors.length],p=roadSidePoint(a,a.width/2+1.1,i%2?1:-1);
-    if(!isBlockedExterior(p.x,p.y,.3))spawnVisiblePickup(i%2?'Spark plug':'Car battery',p.x,p.y,p.z,'exterior',hash('vehicle-part:'+i));
+    if(!isBlockedExterior(p.x,p.y,.3))spawnVisiblePickup(parts[i%parts.length],p.x,p.y,p.z,'exterior',hash('vehicle-part:'+i));
   }
 }
 function scatterProceduralStreetLife(){
@@ -2300,12 +2362,14 @@ function enterInterior(entry){
 }
 function exitInterior(){
   if(!interiorMode)return;
+  const searchedEntry=activeInterior?.entry||null;
   interiorMode=false;interiorGroup.visible=false;exteriorRoot.visible=true;clearInterior();playerVelocity.set(0,0,0);playerRoot.position.copy(exteriorReturn);playerRoot.position.z=surfaceZXY(playerRoot.position.x,playerRoot.position.y)+.04;yaw=exteriorYaw;syncPhysicsToPlayer();
   $('cellLabel').textContent=worldCellLabel();
   $('worldTitle').textContent=worldCellTitle();
   loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · enter marked doorways';
   const mapLabel=document.querySelector('.mapLabel b');if(mapLabel)mapLabel.textContent='EXPLORED';
   const mapSub=document.querySelector('.mapLabel span');if(mapSub)mapSub.textContent='fog clears as you travel';
+  if(searchedEntry)addMapMarkerWorld(searchedEntry.entryX,searchedEntry.entryY,'searched','Searched building');
   updateZombieCount();
 }
 function searchContainer(spot){
@@ -2321,7 +2385,7 @@ function findNearestInteraction(){
   if(!interiorMode){
     const v=nearestDrivable();if(v){
       const ready=vehicleReady(v);
-      best={kind:ready?'vehicle':'vehicleRepair',label:ready?'DRIVE '+v.type.toUpperCase():'REPAIR '+v.type.toUpperCase()+' · '+v.requiredParts.filter(p=>!v.installedParts.includes(p)).join(' + '),vehicle:v};
+      const missing=[...v.requiredParts.filter(p=>!v.installedParts.includes(p)),...(v.fuel>0?[]:['Fuel can'])];best={kind:ready?'vehicle':'vehicleRepair',label:ready?'DRIVE '+v.type.toUpperCase()+' · '+Math.round(v.fuel)+'% FUEL':'REPAIR '+v.type.toUpperCase()+' · '+missing.join(' + '),vehicle:v};
       bestD=Math.hypot(v.root.position.x-playerRoot.position.x,v.root.position.y-playerRoot.position.y);
     }
   }
@@ -2350,6 +2414,15 @@ function interact(){
   else if(hit.kind==='entry')enterInterior(hit.entry);
   else if(hit.kind==='exit')exitInterior();
   else if(hit.kind==='loot')searchContainer(hit.spot);
+}
+function maybeWalkThroughOpenDoor(){
+  if(interiorMode||activeVehicle||!playerRoot)return false;
+  for(const e of buildingEntries){
+    if(!e.doorOpen)continue;
+    const d=Math.hypot(playerRoot.position.x-e.entryX,playerRoot.position.y-e.entryY);
+    if(d<.82){enterInterior(e);return true}
+  }
+  return false;
 }
 function updateInteractionPrompt(){
   nearestInteract=findNearestInteraction();$('interactPrompt').hidden=!nearestInteract;if(nearestInteract)$('interactLabel').textContent=nearestInteract.label;
@@ -2559,6 +2632,7 @@ function spawnZombieAt(source,a,interior=false,rng=rand){
   }
   const root=n.root;
   if(interior)root.position.set(a.x,a.y,.015);
+  else if(archetype.flying)root.position.set(a.x,a.y,surfaceZXY(a.x,a.y)+7+rng()*7);
   else root.position.set(a.x,a.y,surfaceZXY(a.x,a.y)+.015);
   root.rotation.z=rng()*Math.PI*2;
   (interior?interiorGroup:zombieGroup).add(root);
@@ -2571,7 +2645,9 @@ function spawnZombieAt(source,a,interior=false,rng=rand){
     speed:s[0]+rng()*Math.max(0,s[1]-s[0]),hp:archetype.hp||100,damage:archetype.damage||8,
     attackRange:archetype.attackRange||1.28,attackMs:archetype.attackMs||1050,yawOffset:archetype.yawOffset||0,
     burst:archetype.burst||1,nextBurstAt:performance.now()+900+rng()*2500,burstUntil:0,
-    dead:false,steer:rng()>.5?1:-1,lastTurn:0,state:'stalk',path:[],pathIndex:0,nextPathAt:0,nextAttackAt:0};
+    aggro:false,aggroRadius:archetype.aggroRadius||14,deaggroRadius:archetype.deaggroRadius||Math.max(24,(archetype.aggroRadius||14)*1.9),wanderRadius:archetype.wanderRadius||6,
+    home:new THREE.Vector3(root.position.x,root.position.y,root.position.z),wanderX:root.position.x,wanderY:root.position.y,nextWanderAt:0,
+    dead:false,steer:rng()>.5?1:-1,lastTurn:0,state:'graze',path:[],pathIndex:0,nextPathAt:0,nextAttackAt:0};
   root.userData.zombieRef=z;
   root.traverse(o=>{o.userData.zombieRef=z});
   (interior?interiorZombies:zombies).push(z);return z;
@@ -2619,7 +2695,15 @@ function isBlockedExterior(x,y,r=.33){
 function moveZombieToward(z,tx,ty,dt,interior,now){
   let targetX=tx,targetY=ty;
   const rawDist=Math.hypot(tx-z.root.position.x,ty-z.root.position.y);
-  if(!interior&&rawDist>9&&navNodes.length){
+  if(!z.aggro&&rawDist<=z.aggroRadius)z.aggro=true;
+  if(z.aggro&&rawDist>=z.deaggroRadius)z.aggro=false;
+  if(!z.aggro){
+    if(now>=z.nextWanderAt||Math.hypot(z.wanderX-z.root.position.x,z.wanderY-z.root.position.y)<.7){
+      const a=rand()*Math.PI*2,d=1.2+rand()*z.wanderRadius;z.wanderX=z.home.x+Math.cos(a)*d;z.wanderY=z.home.y+Math.sin(a)*d;z.nextWanderAt=now+1800+rand()*4200;
+    }
+    targetX=z.wanderX;targetY=z.wanderY;
+  }
+  if(z.aggro&&!interior&&rawDist>9&&navNodes.length){
     if(now>=z.nextPathAt||!z.path?.length||z.pathIndex>=z.path.length){
       z.path=findNavPath(z.root.position.x,z.root.position.y,tx,ty);z.pathIndex=0;z.nextPathAt=now+1700+rand()*900;
     }
@@ -2629,8 +2713,8 @@ function moveZombieToward(z,tx,ty,dt,interior,now){
       if(Math.hypot(targetX-z.root.position.x,targetY-z.root.position.y)<1.2)z.pathIndex++;
     }
   }
-  if(z.behavior==='weave'&&rawDist>2.5){const phase=now*.003+(z.root.id%17);targetX+=Math.sin(phase)*2.1;targetY+=Math.cos(phase*.83)*2.1}
-  if((z.behavior==='pounce'||z.behavior==='charge')&&rawDist>2.2&&rawDist<16&&now>=z.nextBurstAt){
+  if(z.aggro&&z.behavior==='weave'&&rawDist>2.5){const phase=now*.003+(z.root.id%17);targetX+=Math.sin(phase)*2.1;targetY+=Math.cos(phase*.83)*2.1}
+  if(z.aggro&&(z.behavior==='pounce'||z.behavior==='charge')&&rawDist>2.2&&rawDist<16&&now>=z.nextBurstAt){
     z.burstUntil=now+(z.behavior==='pounce'?520:850);z.nextBurstAt=now+2200+rand()*3200;
   }
   const dx=targetX-z.root.position.x,dy=targetY-z.root.position.y,dist=Math.hypot(dx,dy)||.001;
@@ -2646,8 +2730,26 @@ function moveZombieToward(z,tx,ty,dt,interior,now){
   }
   z.root.position.z=interior?.015:surfaceZXY(z.root.position.x,z.root.position.y)+.015;
   z.root.rotation.z=Math.atan2(vx,vy)+(z.yawOffset||0);
-  z.state=rawDist<1.35?'attack':rawDist<22?'chase':'stalk';
+  z.state=z.aggro?(rawDist<1.35?'attack':'chase'):(Math.hypot(z.wanderX-z.root.position.x,z.wanderY-z.root.position.y)<.8?'graze':'wander');
   return rawDist;
+}
+function updateFlyingCrow(z,dt,now){
+  const p=playerRoot?.position;if(!p)return Infinity;
+  const dx=p.x-z.root.position.x,dy=p.y-z.root.position.y,dz=(p.z+1.15)-z.root.position.z,playerDist=Math.hypot(dx,dy,dz);
+  if(!z.aggro&&playerDist<=z.aggroRadius)z.aggro=true;
+  if(z.aggro&&playerDist>=z.deaggroRadius)z.aggro=false;
+  if(!z.flightPhase)z.flightPhase=rand()*Math.PI*2;
+  if(!z.aggro){
+    z.flightPhase+=dt*(.45+z.speed*.12);
+    const rad=5+(z.root.id%5),tx=z.home.x+Math.cos(z.flightPhase)*rad,ty=z.home.y+Math.sin(z.flightPhase)*rad,tz=z.home.z+Math.sin(z.flightPhase*1.7)*1.5;
+    z.root.position.lerp(new THREE.Vector3(tx,ty,tz),1-Math.exp(-1.7*dt));z.state='circle';
+  }else{
+    const dive=(Math.sin(now*.006+z.flightPhase)>.05),tz=dive?p.z+1.0:p.z+6.5;
+    const target=new THREE.Vector3(p.x,p.y,tz),dir=target.sub(z.root.position),dist=dir.length()||1;dir.normalize();
+    z.root.position.addScaledVector(dir,z.speed*(dive?1.8:1)*dt);z.state=dive?'dive':'climb';
+  }
+  const face=new THREE.Vector3(p.x-z.root.position.x,p.y-z.root.position.y,0);if(face.lengthSq()>.001)z.root.rotation.z=Math.atan2(face.x,face.y);
+  return playerDist;
 }
 function attachSpiderToFacade(z,b,rng=rand){
   if(!z||!b)return false;
@@ -2701,7 +2803,7 @@ function updateZombies(dt,now){
   const list=interiorMode?interiorZombies:zombies;
   for(const z of list){
     if(z.dead)continue;z.mixer?.update(dt);
-    const dist=(!interiorMode&&z.kind==='spider'&&z.climb)?updateClimbingSpider(z,dt,now):moveZombieToward(z,playerRoot.position.x,playerRoot.position.y,dt,interiorMode,now);
+    const dist=(!interiorMode&&z.kind==='crow')?updateFlyingCrow(z,dt,now):(!interiorMode&&z.kind==='spider'&&z.climb)?updateClimbingSpider(z,dt,now):moveZombieToward(z,playerRoot.position.x,playerRoot.position.y,dt,interiorMode,now);
     if(dist<38&&audioCtx&&now>(z.nextGroan||0)){z.nextGroan=now+3200+rand()*4200;spatialTone(z.root.position,'groan')}
     if(dist<(z.attackRange||1.28)&&now>=(z.nextAttackAt||0)){
       damagePlayer(z.damage||8);z.nextAttackAt=now+(z.attackMs||1050);lastDamageAt=now;
@@ -2715,7 +2817,7 @@ async function buildSurvivalArt(){
   const [
     barrel,trash,pallet,barrier,cone,streetlight,hydrant,traffic1,traffic2,plasticBarrier,cinder,
     containerGreen,containerRed,pipes,wheelStack,townSign,pickup,sports,truck,
-    zombie,zombieChubby,zombieRibcage,dogShepherd,dogPug,wolf,orc,spider,yeti,bear,
+    zombie,zombieChubby,zombieRibcage,dogShepherd,dogPug,wolf,orc,spider,yeti,bear,crow,
     chest,chestSpecial,...interiors
   ]=await Promise.all([
     loadAsset(ASSETS.barrel),loadAsset(ASSETS.trash),loadAsset(ASSETS.pallet),loadAsset(ASSETS.barrier),
@@ -2725,23 +2827,24 @@ async function buildSurvivalArt(){
     loadAsset(ASSETS.vehicle),loadAsset(ASSETS.sportsCar),loadAsset(ASSETS.truck),
     loadAsset(ASSETS.zombie),loadAsset(ASSETS.zombieChubby),loadAsset(ASSETS.zombieRibcage),
     loadAsset(ASSETS.infectedShepherd),loadAsset(ASSETS.infectedPug),loadAsset(ASSETS.wolf),
-    loadAsset(ASSETS.orc),loadAsset(ASSETS.spider),loadAsset(ASSETS.yeti),loadAsset(ASSETS.bear),
+    loadAsset(ASSETS.orc),loadAsset(ASSETS.spider),loadAsset(ASSETS.yeti),loadAsset(ASSETS.bear),loadAsset(ASSETS.infectedCrow),
     loadAsset(ASSETS.chest),loadAsset(ASSETS.chestSpecial),
     ...Object.values(INTERIOR_ASSETS).map(loadAsset)
   ]);
   const keys=Object.keys(INTERIOR_ASSETS);interiorTemplates={};keys.forEach((k,i)=>interiorTemplates[k]=interiors[i]);
   pickupTemplates={chest,chestSpecial};
   enemyArchetypes=[
-    zombie&&{id:'walker',label:'Walker',template:zombie,height:1.78,speed:[.28,.46],hp:90,damage:7,attackRange:1.25,attackMs:1150,behavior:'stalk',animSpeed:.75},
-    zombieChubby&&{id:'bruiser',label:'Chubby infected',template:zombieChubby,height:1.88,speed:[.20,.32],hp:180,damage:14,attackRange:1.42,attackMs:1450,behavior:'stalk',animSpeed:.68},
-    zombieRibcage&&{id:'runner',label:'Ribcage runner',template:zombieRibcage,height:1.80,speed:[.48,.76],hp:78,damage:9,attackRange:1.30,attackMs:900,behavior:'charge',burst:1.5,animSpeed:1.05},
-    dogShepherd&&{id:'hound',label:'Infected shepherd',template:dogShepherd,height:1.05,speed:[1.45,2.05],hp:62,damage:11,attackRange:1.15,attackMs:720,behavior:'pounce',burst:1.75,animSpeed:1.65,tint:0x66745f,tintMix:.38,emissive:0x240a08},
-    dogPug&&{id:'pug',label:'Infected pug',template:dogPug,height:.62,speed:[1.05,1.55],hp:42,damage:7,attackRange:.92,attackMs:640,behavior:'weave',animSpeed:1.55,tint:0x6b745f,tintMix:.36,emissive:0x240a08},
-    wolf&&{id:'wolf',label:'Feral wolf',template:wolf,height:1.02,speed:[1.55,2.25],hp:82,damage:13,attackRange:1.18,attackMs:780,behavior:'pounce',burst:1.62,animSpeed:1.7},
-    spider&&{id:'spider',label:'Giant spider',template:spider,height:.72,speed:[1.10,1.75],hp:72,damage:10,attackRange:1.08,attackMs:680,behavior:'weave',burst:1.35,animSpeed:1.5},
-    orc&&{id:'orc',label:'Orc raider',template:orc,height:2.02,speed:[.62,.98],hp:220,damage:18,attackRange:1.52,attackMs:1250,behavior:'charge',burst:1.55,animSpeed:1.05},
-    yeti&&{id:'yeti',label:'Yeti brute',template:yeti,height:2.35,speed:[.48,.82],hp:300,damage:23,attackRange:1.72,attackMs:1500,behavior:'charge',burst:1.42,animSpeed:.9},
-    bear&&{id:'bear',label:'Feral bear',template:bear,height:1.65,speed:[.78,1.25],hp:340,damage:27,attackRange:1.82,attackMs:1450,behavior:'charge',burst:1.55,animSpeed:.9}
+    zombie&&{id:'walker',label:'Walker',template:zombie,height:1.78,speed:[.28,.46],hp:90,damage:7,attackRange:1.25,attackMs:1150,behavior:'stalk',animSpeed:.75,aggroRadius:12,wanderRadius:5},
+    zombieChubby&&{id:'bruiser',label:'Chubby infected',template:zombieChubby,height:1.88,speed:[.20,.32],hp:180,damage:14,attackRange:1.42,attackMs:1450,behavior:'stalk',animSpeed:.68,aggroRadius:10,wanderRadius:4},
+    zombieRibcage&&{id:'runner',label:'Ribcage runner',template:zombieRibcage,height:1.80,speed:[.48,.76],hp:78,damage:9,attackRange:1.30,attackMs:900,behavior:'charge',burst:1.5,animSpeed:1.05,aggroRadius:19,wanderRadius:7},
+    dogShepherd&&{id:'hound',label:'Infected shepherd',template:dogShepherd,height:1.05,speed:[1.45,2.05],hp:62,damage:11,attackRange:1.15,attackMs:720,behavior:'pounce',burst:1.75,animSpeed:1.65,tint:0x66745f,tintMix:.38,emissive:0x240a08,aggroRadius:16,wanderRadius:8},
+    dogPug&&{id:'pug',label:'Infected pug',template:dogPug,height:.62,speed:[1.05,1.55],hp:42,damage:7,attackRange:.92,attackMs:640,behavior:'weave',animSpeed:1.55,tint:0x6b745f,tintMix:.36,emissive:0x240a08,aggroRadius:12,wanderRadius:6},
+    wolf&&{id:'wolf',label:'Feral wolf',template:wolf,height:1.02,speed:[1.55,2.25],hp:82,damage:13,attackRange:1.18,attackMs:780,behavior:'pounce',burst:1.62,animSpeed:1.7,aggroRadius:18,wanderRadius:10},
+    spider&&{id:'spider',label:'Giant spider',template:spider,height:.72,speed:[1.10,1.75],hp:72,damage:10,attackRange:1.08,attackMs:680,behavior:'weave',burst:1.35,animSpeed:1.5,aggroRadius:14,wanderRadius:7},
+    orc&&{id:'orc',label:'Orc raider',template:orc,height:2.02,speed:[.62,.98],hp:220,damage:18,attackRange:1.52,attackMs:1250,behavior:'charge',burst:1.55,animSpeed:1.05,aggroRadius:16,wanderRadius:7},
+    yeti&&{id:'yeti',label:'Yeti brute',template:yeti,height:2.35,speed:[.48,.82],hp:300,damage:23,attackRange:1.72,attackMs:1500,behavior:'charge',burst:1.42,animSpeed:.9,aggroRadius:14,wanderRadius:5},
+    bear&&{id:'bear',label:'Infected bear',template:bear,height:1.78,speed:[.72,1.28],hp:380,damage:30,attackRange:1.9,attackMs:1450,behavior:'charge',burst:1.58,animSpeed:.9,aggroRadius:12,wanderRadius:6,tint:0x5f6656,tintMix:.3,emissive:0x250806},
+    crow&&{id:'crow',label:'Infected crow',template:crow,height:.58,speed:[3.2,4.7],hp:28,damage:9,attackRange:1.15,attackMs:620,behavior:'dive',flying:true,aggroRadius:21,deaggroRadius:34,wanderRadius:12,tint:0x2a2c28,tintMix:.55,emissive:0x1d0505}
   ].filter(Boolean);
   zombieTemplates=enemyArchetypes;
   zombieTemplate=enemyArchetypes[0]||null;
@@ -2822,7 +2925,7 @@ function drawMinimapBase(){
   baseCtx.fillStyle='#b2aea0';
   for(const row of data.buildings||[])for(const ring of outerRings(row.geometry)){baseCtx.beginPath();let first=true;for(const p of ring){const q=project(p),m=toMapXY(q.x,q.y);if(first){baseCtx.moveTo(m.x,m.y);first=false}else baseCtx.lineTo(m.x,m.y)}baseCtx.closePath();baseCtx.fill()}
   fogCtx.globalCompositeOperation='source-over';fogCtx.fillStyle='#696d68';fogCtx.fillRect(0,0,mapFog.width,mapFog.height);
-  loadExploration();
+  loadExploration();loadMapMarkers();
 }
 function revealMap(x,y,save=true){
   const m=toMapXY(x,y);fogCtx.globalCompositeOperation='destination-out';
@@ -2836,6 +2939,32 @@ function revealMap(x,y,save=true){
 function loadExploration(){
   try{const a=JSON.parse(localStorage.getItem('horizon-explore-'+CELL)||'[]');if(Array.isArray(a)){exploredPoints=a.slice(-500);for(const p of exploredPoints)revealMap(+p[0],+p[1],false)}}catch(_){}
 }
+function mapMarkerKey(){return'horizon-map-markers-'+CELL}
+function loadMapMarkers(){try{const v=JSON.parse(localStorage.getItem(mapMarkerKey())||'[]');mapMarkers=Array.isArray(v)?v.slice(-250):[]}catch(_){mapMarkers=[]}}
+function saveMapMarkers(){try{localStorage.setItem(mapMarkerKey(),JSON.stringify(mapMarkers.slice(-250)))}catch(_){}}
+function mapPixelToWorld(px,py){
+  const west=project([data.bbox.west,lat0]).x,east=project([data.bbox.east,lat0]).x,south=project([lon0,data.bbox.south]).y,north=project([lon0,data.bbox.north]).y;
+  return{x:west+(px/mapBase.width)*(east-west),y:south+((mapBase.height-py)/mapBase.height)*(north-south)};
+}
+function markerColor(type){return({loot:'#e8b85f',searched:'#73e6a0',danger:'#e75d55',vehicle:'#73b9e6',base:'#d79cff'}[type]||'#fff')}
+function drawMapMarkers(ctx,scale=1){
+  for(const m of mapMarkers){const p=toMapXY(m.x,m.y);ctx.fillStyle=markerColor(m.type);ctx.beginPath();ctx.arc(p.x,p.y,Math.max(2.2,3.4/scale),0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(0,0,0,.75)';ctx.lineWidth=Math.max(.7,1/scale);ctx.stroke()}
+}
+function addMapMarkerWorld(x,y,type=mapMarkerType,label=''){
+  const nearby=mapMarkers.find(m=>m.type===type&&Math.hypot(m.x-x,m.y-y)<4);
+  if(nearby){nearby.x=x;nearby.y=y;nearby.label=label||nearby.label}else mapMarkers.push({x,y,type,label,at:Date.now()});
+  saveMapMarkers();renderWorldMapOverlay();
+}
+function renderWorldMapOverlay(){
+  const canvas=$('worldMapCanvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);ctx.save();
+  const z=worldMapZoom,cx=w/2,cy=h/2;ctx.translate(cx,cy);ctx.scale(z,z);ctx.translate(-mapBase.width/2,-mapBase.height/2);
+  ctx.drawImage(mapBase,0,0);ctx.drawImage(mapFog,0,0);drawMapMarkers(ctx,z);
+  if(playerRoot){const p=toMapXY(playerRoot.position.x,playerRoot.position.y);ctx.fillStyle='#8effb5';ctx.beginPath();ctx.arc(p.x,p.y,4/z,0,Math.PI*2);ctx.fill()}
+  ctx.restore();$('mapZoomLabel').textContent=Math.round(z*100)+'%';
+}
+function openWorldMap(){worldMapOpen=true;$('worldMapOverlay').hidden=false;renderWorldMapOverlay()}
+function closeWorldMap(){worldMapOpen=false;$('worldMapOverlay').hidden=true}
 function renderMinimap(){
   if(!playerRoot)return;
   mapCtx.clearRect(0,0,minimap.width,minimap.height);
@@ -2851,13 +2980,14 @@ function renderMinimap(){
     mapCtx.save();mapCtx.translate(px,py);mapCtx.rotate(-yaw);mapCtx.fillStyle='#8effb5';mapCtx.beginPath();mapCtx.moveTo(0,-7);mapCtx.lineTo(5,6);mapCtx.lineTo(-5,6);mapCtx.closePath();mapCtx.fill();mapCtx.restore();
     return;
   }
-  mapCtx.drawImage(mapBase,0,0);mapCtx.drawImage(mapFog,0,0);
+  mapCtx.drawImage(mapBase,0,0);mapCtx.drawImage(mapFog,0,0);drawMapMarkers(mapCtx,1);
   const p=toMapXY(playerRoot.position.x,playerRoot.position.y);
   mapCtx.save();mapCtx.translate(p.x,p.y);mapCtx.rotate(-yaw);mapCtx.fillStyle='#8effb5';mapCtx.beginPath();mapCtx.moveTo(0,-7);mapCtx.lineTo(5,6);mapCtx.lineTo(-5,6);mapCtx.closePath();mapCtx.fill();mapCtx.restore();
 }
 
 function setAiming(v){
   aiming=Boolean(v)&&isFirearm(activeWeapon)&&!playerDead;
+  $('aimBtn')?.classList.toggle('active',aiming);
   updateInventory();
 }
 function pollGamepad(){
@@ -2965,10 +3095,19 @@ function initInput(){
   $('dropBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();dropActiveWeapon()});
   $('dropMobileBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();dropActiveWeapon()});
   $('inventoryList')?.addEventListener('pointerdown',e=>{const item=e.target?.dataset?.item;if(item)equipInventoryWeapon(item)});
-  $('aimBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();setAiming(!aiming)});
+  const aimBtn=$('aimBtn');aimBtn?.addEventListener('pointerdown',e=>{e.preventDefault();setAiming(true)});aimBtn?.addEventListener('pointerup',()=>setAiming(false));aimBtn?.addEventListener('pointercancel',()=>setAiming(false));
   document.querySelectorAll('.loadoutSlot[data-slot]').forEach(btn=>btn.addEventListener('pointerdown',e=>{e.preventDefault();selectSlot(btn.dataset.slot)}));
   const sprint=$('sprintBtn');sprint?.addEventListener('pointerdown',e=>{e.preventDefault();mobileSprint=true});sprint?.addEventListener('pointerup',()=>mobileSprint=false);sprint?.addEventListener('pointercancel',()=>mobileSprint=false);
 
+  $('moreBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();$('mobileActionTray')?.classList.toggle('open')});
+  $('flashMobileBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();toggleFlashlight()});
+  $('mapMobileBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();openWorldMap()});
+  $('minimap')?.addEventListener('pointerdown',e=>{e.preventDefault();openWorldMap()});
+  $('mapCloseBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();closeWorldMap()});
+  $('mapZoomIn')?.addEventListener('pointerdown',e=>{e.preventDefault();worldMapZoom=Math.min(3.2,worldMapZoom*1.25);renderWorldMapOverlay()});
+  $('mapZoomOut')?.addEventListener('pointerdown',e=>{e.preventDefault();worldMapZoom=Math.max(.75,worldMapZoom/1.25);renderWorldMapOverlay()});
+  document.querySelectorAll('[data-map-marker]').forEach(b=>b.addEventListener('pointerdown',e=>{e.preventDefault();mapMarkerType=b.dataset.mapMarker;document.querySelectorAll('[data-map-marker]').forEach(x=>x.classList.toggle('active',x===b))}));
+  $('worldMapCanvas')?.addEventListener('pointerdown',e=>{const canvas=e.currentTarget,rect=canvas.getBoundingClientRect(),sx=(e.clientX-rect.left)/rect.width*canvas.width,sy=(e.clientY-rect.top)/rect.height*canvas.height,cx=canvas.width/2,cy=canvas.height/2,px=(sx-cx)/worldMapZoom+mapBase.width/2,py=(sy-cy)/worldMapZoom+mapBase.height/2,w=mapPixelToWorld(px,py);addMapMarkerWorld(w.x,w.y,mapMarkerType,mapMarkerType)});
   $('cameraBtn').onclick=()=>cameraMode=(cameraMode+1)%2;
   $('lightBtn').onclick=()=>{autoDayNight=false;setLighting(lightMode+1);showToast('Manual lighting enabled')};
   $('parcelBtn').onclick=()=>{if(!interiorMode){parcelLayer.visible=!parcelLayer.visible;$('parcelBtn').classList.toggle('active',parcelLayer.visible)}};
@@ -3075,6 +3214,7 @@ function updatePlayer(dt){
   if(moving&&grounded&&nowAudio-lastFootstepAt>(sprint?280:430)){lastFootstepAt=nowAudio;if(audioCtx)spatialTone(playerRoot.position,'foot')}
 
   if(!interiorMode){
+    if(maybeWalkThroughOpenDoor())return;
     maybeNationalTravel();
     const revealDist=lastReveal?Math.hypot(playerRoot.position.x-lastReveal.x,playerRoot.position.y-lastReveal.y):999;
     if(revealDist>4.5){revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone()}
@@ -3147,7 +3287,7 @@ async function boot(){
     lon0=Number(data.center.lon);lat0=Number(data.center.lat);mx=111320*Math.cos(lat0*Math.PI/180);my=110540;
     const meta=$('jurisdictionMeta');if(meta&&CELL==='national')meta.textContent=(JURISDICTIONS[SELECTED_STATE]?.[0]||SELECTED_STATE)+' · '+(data.counts?.buildings||0).toLocaleString()+' buildings · '+(data.counts?.parcels||0).toLocaleString()+' open parcel outlines · '+Number(data.span_km||STREAM_SPAN).toFixed(1)+' km streamed cell';
 
-    buildAtmosphere();buildTerrain();buildRoads();buildWater();buildBuildings();buildFacadeDetails();buildParts();buildParcels();addLights();setLighting(0);drawMinimapBase();initInput();
+    buildAtmosphere();buildTerrain();buildRoads();buildApocalypseGroundDressing();buildWater();buildBuildings();buildFacadeDetails();buildParts();buildParcels();addLights();setLighting(0);drawMinimapBase();initInput();
     applyApocalypseDecay(worldGroup);
     await buildPlayer();createPlayerPhysics();buildEntryPoints();installInteractiveDoors();renderFactionBanner();initFlashlight();
     revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone();
@@ -3159,7 +3299,7 @@ async function boot(){
     window.BP_HORIZON_SMOKE={
       ok:true,cell:CELL,buildings:Number(data.counts?.buildings||0),parts:Number(data.counts?.building_parts||0),
       player:Boolean(playerRoot),character:CHARACTER_KEY,preview:PREVIEW_KEY,loot:buildingEntries.length,zombies:zombies.length,entries:buildingEntries.length,
-      enemyArchetypes:enemyArchetypes.map(x=>x.id),climbingSpiders:zombies.filter(z=>z.kind==='spider'&&z.climb).length,weaponCatalog:[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],dropWeapon:true,
+      enemyArchetypes:enemyArchetypes.map(x=>x.id),mapMarkers:mapMarkers.length,groundDetails:Number(streetLifeStats.groundDetails||0),climbingSpiders:zombies.filter(z=>z.kind==='spider'&&z.climb).length,weaponCatalog:[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],dropWeapon:true,
       packCapacity,weapon:equippedWeaponName,interiorAssets:Object.values(interiorTemplates).filter(Boolean).length,
       artChildren:artGroup.children.length,roadLayers:roadLayer?.children?.length||0,streetLife:{...streetLifeStats},
       spawnBlocked:isBlockedExterior(playerRoot.position.x,playerRoot.position.y,.36),
