@@ -27,3 +27,15 @@ BridgePoint also creates procedural game-only trees, bicycles, benches, planters
 The files are loaded from a public GitHub mirror of the original CC0 release through jsDelivr. If the assets are later vendored into BridgePoint storage, retain this notice and the upstream CC0 license evidence.
 
 Game-art placement is fictional decorative dressing. It must not be represented as evidence that a zombie, vehicle, loot cache, barricade, debris item or other game object exists at the corresponding real-world coordinate.
+
+## Additional runtime creatures (4208)
+- Infected German Shepherd + Pug: Quaternius Zombie Apocalypse Kit — CC0; runtime tint differentiates infected dogs.
+- Wolf, Orc, Spider: Quaternius models mirrored by Aurisar — CC0 1.0 per its attribution ledger.
+- Yeti: Quaternius Ultimate Monsters mirrored by Constellation Defense — CC0 1.0 per source credits.
+- Bear: Poly Pizza source mirrored by Dereth — CC-BY; attribution must remain with distributions using it.
+- Giant spiders use a façade locomotion state and crawl vertically up and down source-backed building faces.
+
+## Additional runtime weapons (4208)
+- Firearms: Pistol, Rifle, Shotgun, SMG — Quaternius Zombie Apocalypse Kit, CC0.
+- Melee: Axe, Knife, Barbed Bat, Saw Bat, Spear, Guitar — Quaternius Zombie Apocalypse Kit, CC0.
+- Players can pick up weapons, tap stored weapons to equip them, switch slots, and drop the active weapon back into the world.
