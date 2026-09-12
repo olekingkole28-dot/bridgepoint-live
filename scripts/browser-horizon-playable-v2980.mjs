@@ -43,7 +43,20 @@ async function testCell(cell,extra={}){
   for(const [k,v] of Object.entries(extra))u.searchParams.set(k,String(v));
   const url=u.toString();
   const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
-  await page.waitForFunction(()=>Boolean(window.BP_HORIZON_SMOKE),null,{timeout:90000});
+  try{
+    await page.waitForFunction(()=>Boolean(window.BP_HORIZON_SMOKE),null,{timeout:90000});
+  }catch(e){
+    const diag=await page.evaluate(()=>({
+      readyState:document.readyState,
+      loadText:document.getElementById('loadText')?.textContent,
+      errorHidden:document.getElementById('error')?.hidden,
+      errorText:document.getElementById('errorText')?.textContent,
+      smoke:window.BP_HORIZON_SMOKE||null,
+      scripts:[...document.scripts].map(x=>x.src||'inline')
+    })).catch(()=>null);
+    console.log(JSON.stringify({cell,startupTimeout:true,diag,messages:messages.slice(-80),errors:errors.slice(-40)},null,2));
+    throw e;
+  }
   const d=await page.evaluate(()=>{
     const rect=id=>{
       const e=document.getElementById(id); if(!e) return null;
