@@ -88,6 +88,27 @@ jobs:
 
           cp site/index.html site/404.html
 
+          # V2883: the main domain is now the approved Intelligence founding
+          # entrance. The application itself remains sealed under /app/.
+          cat > site/index.html <<'HTML'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <meta name="robots" content="index,follow">
+            <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+            <meta http-equiv="refresh" content="0; url=/app/intelligence-launch/">
+            <link rel="canonical" href="https://bridgepointintelligence.online/app/intelligence-launch/">
+            <title>BridgePoint Intelligence — Founding Access</title>
+            <script>location.replace('/app/intelligence-launch/'+location.search+location.hash)</script>
+          </head>
+          <body>
+            <p><a href="/app/intelligence-launch/">Open BridgePoint Intelligence founding access</a></p>
+          </body>
+          </html>
+          HTML
+
           # V2880: keep the platform sealed while exposing only the two
           # owner-approved founding launch microsites.
           mkdir -p site/app/intelligence-launch site/app/horizon
@@ -140,7 +161,7 @@ jobs:
             app_code="$(curl -sSL --max-time 15 -o /tmp/app.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/?lockdown=${salt}" 2>/dev/null || true)"
             intelligence_code="$(curl -sSL --max-time 15 -o /tmp/intelligence.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/intelligence-launch/?launch=${salt}" 2>/dev/null || true)"
             horizon_code="$(curl -sSL --max-time 15 -o /tmp/horizon.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/?launch=${salt}" 2>/dev/null || true)"
-            if printf '%s' "$root" | grep -Fq 'We’re building our 3D universe.' \
+            if printf '%s' "$root" | grep -Fq '/app/intelligence-launch/' \
               && ! printf '%s' "$root" | grep -qi 'supabase' \
               && grep -Fq 'We’re building our 3D universe.' /tmp/app.html \
               && [ "$intelligence_code" = "200" ] \
@@ -150,7 +171,7 @@ jobs:
               && ! grep -Fq 'We’re building our 3D universe.' /tmp/intelligence.html \
               && ! grep -Fq 'We’re building our 3D universe.' /tmp/horizon.html; then
               ok=1
-              echo "BRIDGEPOINT_PUBLIC_LOCKDOWN_ACTIVE root+app; founding launch routes public"
+              echo "BRIDGEPOINT_FOUNDING_ENTRY_ACTIVE root=>intelligence; /app sealed; intelligence+horizon public"
               break
             fi
             sleep 5
