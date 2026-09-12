@@ -764,6 +764,89 @@ function addInventoryItem(item){
   updateInventory();
   return true;
 }
+const pickupGlowMat=new THREE.MeshStandardMaterial({color:0x7cff9c,emissive:0x2ee56c,emissiveIntensity:1.25,roughness:.35,transparent:true,opacity:.84});
+const pickupRareMat=new THREE.MeshStandardMaterial({color:0xe8b85f,emissive:0xc8781e,emissiveIntensity:1.2,roughness:.35,transparent:true,opacity:.88});
+function pickupTemplateFor(item){
+  if(item==='Pistol')return{template:weaponTemplates.pistol,length:.34};
+  if(item==='Rifle')return{template:weaponTemplates.rifle,length:1.02};
+  if(item==='Shotgun')return{template:weaponTemplates.shotgun,length:.92};
+  if(item==='Axe')return{template:weaponTemplates.axe,length:.66};
+  if(item==='Knife')return{template:weaponTemplates.knife,length:.34};
+  return null;
+}
+function makePickupVisual(item,seedValue){
+  const root=new THREE.Group(),weapon=pickupTemplateFor(item);
+  let model=null;
+  if(weapon?.template){
+    model=propCloneByLength(weapon.template,weapon.length);
+    if(model){model.rotation.set(.12,.08,-.2);model.position.z=.28;root.add(model)}
+  }else if(pickupTemplates.chestSpecial||pickupTemplates.chest){
+    model=staticClone(pickupTemplates.chestSpecial||pickupTemplates.chest,.42);
+    if(model){model.position.z=.12;root.add(model)}
+  }else{
+    model=new THREE.Mesh(new THREE.BoxGeometry(.42,.30,.24),new THREE.MeshStandardMaterial({color:0x77664f,roughness:.78}));
+    model.position.z=.2;root.add(model);
+  }
+  const rare=/Pistol|Rifle|Shotgun|Axe|Backpack|Duffel/.test(item);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.48,.035,8,22),rare?pickupRareMat:pickupGlowMat);
+  ring.rotation.x=Math.PI/2;ring.position.z=.08;root.add(ring);
+  const stem=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.72,5),rare?pickupRareMat:pickupGlowMat);
+  stem.position.set(0,0,.48);root.add(stem);
+  root.userData.pickupItem=item;root.userData.seed=seedValue;
+  return root;
+}
+function spawnVisiblePickup(item,x,y,z,mode='exterior',seedValue=0){
+  const root=makePickupVisual(item,seedValue||++pickupSeq);
+  root.position.set(x,y,z+.03);
+  (mode==='interior'?interiorGroup:lootGroup).add(root);
+  const p={id:++pickupSeq,item,root,mode,active:true,x,y,z,phase:(seedValue%997)/997*Math.PI*2};
+  worldPickups.push(p);return p;
+}
+function spawnOutdoorLoot(){
+  const target=CELL==='manhattan'?56:24;
+  const table=['Bandage','Water','First aid kit','Batteries','Canned food','Pistol','Rifle','Shotgun','Axe','Hiking Backpack'];
+  let placed=0,attempts=0;
+  while(placed<target&&attempts<target*18){
+    attempts++;
+    const a=roadAnchors[Math.floor(rand()*roadAnchors.length)];if(!a)continue;
+    const d=Math.hypot(a.x-playerSpawn.x,a.y-playerSpawn.y);if(d<8||d>360)continue;
+    const side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+1.1+rand()*2.1,side);
+    if(isBlockedExterior(p.x,p.y,.5))continue;
+    const roll=rand();
+    let item=table[Math.floor(rand()*5)];
+    if(roll>.78&&roll<=.87)item='Pistol';
+    else if(roll>.87&&roll<=.93)item='Axe';
+    else if(roll>.93&&roll<=.97)item='Rifle';
+    else if(roll>.97&&roll<=.99)item='Shotgun';
+    else if(roll>.99)item='Hiking Backpack';
+    spawnVisiblePickup(item,p.x,p.y,p.z,'exterior',hash(CELL+':loot:'+attempts));placed++;
+  }
+}
+function spawnInteriorVisibleLoot(w,h,seedValue){
+  const r=seeded(seedValue+301),count=3+Math.floor(r()*4);
+  const items=['Bandage','Water','Batteries','Pistol','First aid kit','Rifle','Shotgun','Hiking Backpack'];
+  for(let i=0;i<count;i++){
+    const x=(r()-.5)*w*.65,y=(r()-.5)*h*.55;
+    if(isBlockedInterior(x,y))continue;
+    const roll=r(),item=roll>.88?items[5+Math.floor(r()*3)]:items[Math.floor(r()*5)];
+    spawnVisiblePickup(item,x,y,.04,'interior',seedValue+i*17);
+  }
+}
+function pickupLoose(p){
+  if(!p?.active)return;
+  if(!addInventoryItem(p.item))return;
+  p.active=false;p.root.parent?.remove(p.root);
+  showToast('Picked up: '+p.item);
+  updateInventory();
+}
+function animatePickups(dt,now){
+  for(const p of worldPickups){
+    if(!p.active||!p.root?.parent)continue;
+    p.root.rotation.z+=dt*.45;
+    p.root.position.z=p.z+.03+Math.sin(now*.002+p.phase)*.055;
+  }
+}
+
 function lootForContainer(type,seed){
   const r=seeded(seed+lootCount*131);
   const common={
@@ -838,6 +921,7 @@ function addWallWithDoor(axis,pos,start,end,doorCenter,gap=1.45){
 function createSearchSpot(label,x,y,type,seed){const spot={label,x,y,type,seed,active:true};interiorContainers.push(spot);return spot}
 function clearInterior(){
   while(interiorGroup.children.length)interiorGroup.remove(interiorGroup.children[0]);
+  worldPickups=worldPickups.filter(p=>p.mode!=='interior');
   interiorWalls=[];interiorContainers=[];interiorZombies=[];interiorBounds=null;interiorExit=null;
 }
 function generateInterior(entry){
@@ -895,7 +979,8 @@ function generateInterior(entry){
 
   const floors=Math.max(1,Math.floor(entry.height/3.05)),floorNumber=Math.min(floors,1+Math.floor(r()*Math.min(floors,18)));
   activeInterior={entry,width:w,depth:h,layout,floor:floorNumber,floors};
-  if(zombieTemplate&&r()<.38)spawnInteriorZombie(zombieTemplate,r,w,h);
+  spawnInteriorVisibleLoot(w,h,entry.seed);
+  if(zombieTemplate&&r()<.34)spawnInteriorZombie(zombieTemplate,r,w,h);
 }
 function spawnInteriorZombie(template,r,w,h){
   const n=normalizedModel(template.scene,1.78,true);n.root.position.set((r()-.5)*w*.48,h*.28,.05);n.root.rotation.z=r()*Math.PI*2;interiorGroup.add(n.root);
@@ -936,7 +1021,12 @@ function searchContainer(spot){
   updateInventory();showToast(added.length?'Found: '+added.join(' · '):'Nothing useful here');
 }
 function findNearestInteraction(){
-  if(!playerRoot)return null;let best=null,bestD=Infinity;
+  if(!playerRoot||playerDead)return null;let best=null,bestD=Infinity;
+  for(const p of worldPickups){
+    if(!p.active||p.mode!==(interiorMode?'interior':'exterior'))continue;
+    const d=Math.hypot(playerRoot.position.x-p.root.position.x,playerRoot.position.y-p.root.position.y);
+    if(d<2.7&&d<bestD){best={kind:'pickup',label:'PICK UP '+p.item.toUpperCase(),pickup:p};bestD=d}
+  }
   if(interiorMode){
     if(interiorExit){const d=Math.hypot(playerRoot.position.x-interiorExit.x,playerRoot.position.y-interiorExit.y);if(d<2.05){best={kind:'exit',label:'EXIT BUILDING'};bestD=d}}
     for(const c of interiorContainers)if(c.active){const d=Math.hypot(playerRoot.position.x-c.x,playerRoot.position.y-c.y);if(d<2.05&&d<bestD){best={kind:'loot',label:c.label,spot:c};bestD=d}}
@@ -947,7 +1037,10 @@ function findNearestInteraction(){
 }
 function interact(){
   const hit=findNearestInteraction();if(!hit)return;
-  if(hit.kind==='entry')enterInterior(hit.entry);else if(hit.kind==='exit')exitInterior();else if(hit.kind==='loot')searchContainer(hit.spot);
+  if(hit.kind==='pickup')pickupLoose(hit.pickup);
+  else if(hit.kind==='entry')enterInterior(hit.entry);
+  else if(hit.kind==='exit')exitInterior();
+  else if(hit.kind==='loot')searchContainer(hit.spot);
 }
 function updateInteractionPrompt(){
   nearestInteract=findNearestInteraction();$('interactPrompt').hidden=!nearestInteract;if(nearestInteract)$('interactLabel').textContent=nearestInteract.label;
