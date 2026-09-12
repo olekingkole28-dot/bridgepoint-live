@@ -12,7 +12,8 @@ const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bri
 const BUILD_VERSION=3040;
 const SAVE_KEY='bridgepoint-horizon-survivor-v3040';
 const FREE_BASE='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Zombie%20Apocalypse%20Kit%20-%20March%202024';
-const INTERIOR_BASE='https://cdn.jsdelivr.net/gh/sijun-kevin-hu/break-my-house@main/public/models/house-interior';
+const SUSHI_ENV='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Sushi%20Restaurant%20Kit%20-%20May%202023/Environment/glTF';
+const SUSHI_DECOR='https://cdn.jsdelivr.net/gh/agentkaerf/FreeModels@main/Sushi%20Restaurant%20Kit%20-%20May%202023/Decoration/glTF';
 const ASSETS={
   player:FREE_BASE+'/Characters/glTF/Characters_Matt.gltf',
   zombie:FREE_BASE+'/Characters/glTF/Zombie_Basic.gltf',
@@ -47,15 +48,20 @@ const ASSETS={
   chestSpecial:FREE_BASE+'/Environment/glTF/Chest_Special.gltf'
 };
 const INTERIOR_ASSETS={
-  chair:INTERIOR_BASE+'/Chair.glb',
-  couch:INTERIOR_BASE+'/Couch%20Small-X9msj0gtb5.glb',
-  plant:INTERIOR_BASE+'/Houseplant.glb',
-  fridge:INTERIOR_BASE+'/Kitchen%20Fridge.glb',
-  sink:INTERIOR_BASE+'/Kitchen%20Sink.glb',
-  lamp:INTERIOR_BASE+'/Lamp.glb',
-  oven:INTERIOR_BASE+'/Oven.glb',
-  shelf:INTERIOR_BASE+'/Shelf%20Large.glb',
-  table:INTERIOR_BASE+'/Table%20Round%20Small.glb'
+  chair:SUSHI_ENV+'/Environment_Chair1.gltf',
+  couch:SUSHI_ENV+'/Environment_Sofa.gltf',
+  plant:SUSHI_DECOR+'/Decoration_Plant1.gltf',
+  fridge:SUSHI_ENV+'/Environment_Fridge.gltf',
+  sink:SUSHI_ENV+'/Environment_Counter_Sink.gltf',
+  lamp:SUSHI_DECOR+'/Decoration_Light.gltf',
+  oven:SUSHI_ENV+'/Environment_Oven.gltf',
+  shelf:SUSHI_ENV+'/Environment_Cabinet_Shelves.gltf',
+  table:SUSHI_ENV+'/Environment_Table.gltf',
+  cabinet:SUSHI_ENV+'/Environment_Cabinet_Doors.gltf',
+  cuttingTable:SUSHI_ENV+'/Environment_CuttingTable.gltf',
+  bench:SUSHI_ENV+'/Environment_Bench.gltf',
+  painting:SUSHI_DECOR+'/Decoration_Painting.gltf',
+  wallLight:SUSHI_DECOR+'/Decoration_WallLight.gltf'
 };
 const DEFAULT_WEAPON_CONFIGS=[
   {weapon_id:'axe',weapon_name:'Axe',weapon_type:'melee',equip_slot:'melee',stance_type:'one_handed_melee',fire_mode:'melee',damage:72,range_m:2.45,magazine_size:0,reserve_default:0,fire_interval_seconds:.48,reload_time_seconds:0,recoil_pitch_deg:0,recoil_yaw_deg:0,spread_deg:0,aim_fov:62,two_handed:false,hitscan:true,model_url:ASSETS.axe,license_code:'CC0'},
@@ -1881,6 +1887,11 @@ function generateInterior(entry,requestedFloor=1){
   placeInteriorTemplate('oven',-w*.04,-h*.31,.02,1.0,0);
   placeInteriorTemplate('shelf',w*.39,-h*.15,.02,1.9,-Math.PI/2);
   placeInteriorTemplate('lamp',w*.22,h*.25,.02,1.35,0);
+  placeInteriorTemplate('cabinet',-w*.31,-h*.06,.02,1.15,Math.PI/2);
+  placeInteriorTemplate('cuttingTable',-w*.12,-h*.22,.02,1.05,0);
+  placeInteriorTemplate('bench',w*.08,h*.36,.02,.92,0);
+  placeInteriorTemplate('painting',-w*.18,h/2-.18,1.05,.85,0);
+  placeInteriorTemplate('wallLight',w*.32,h/2-.16,1.55,.72,0);
 
   const bed=makePrimitive('bed');bed.position.set(w*.28,h*.25,.02);bed.rotation.z=Math.PI/2;interiorGroup.add(bed);
   const dresser=makePrimitive('dresser');dresser.position.set(w*.40,h*.02,.02);dresser.rotation.z=-Math.PI/2;interiorGroup.add(dresser);
