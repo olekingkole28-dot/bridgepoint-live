@@ -34,7 +34,7 @@ async function testLanding(){
   const href=await page.locator('a.cta').first().getAttribute('href');
   console.log(JSON.stringify({landing:true,status:response?.status(),url,href},null,2));
   if(response?.status()!==200)throw new Error('landing HTTP '+response?.status());
-  if(href!=='/app/horizon-playable/?build=3030')throw new Error('landing CTA stale: '+href);
+  if(href!=='/app/horizon-playable/?build=3040')throw new Error('landing CTA stale: '+href);
 }
 
 async function testCell(cell,extra={}){
@@ -75,7 +75,8 @@ async function testCell(cell,extra={}){
         run:rect('sprintBtn'),
         rail:rect('fullscreenBtn'),
         aim:rect('aimBtn'),
-        weapon:rect('weaponBtn')
+        weapon:rect('weaponBtn'),
+        reload:rect('reloadBtn')
       }
     };
   });
@@ -98,6 +99,9 @@ async function testCell(cell,extra={}){
     throw new Error(cell+' Rapier controller not active: '+JSON.stringify(d.smoke));
   if(!(d.smoke?.navNodes>5))throw new Error(cell+' navigation graph missing: '+d.smoke?.navNodes);
   if(!(d.smoke?.drivableVehicles>0))throw new Error(cell+' drivable vehicles missing');
+  if(d.smoke?.weaponRegistryMode!=='supabase'||d.smoke?.weaponRegistrySize<6)
+    throw new Error(cell+' weapon registry inactive: '+JSON.stringify(d.smoke));
+  if(d.smoke?.mobileInputMode!=='nipplejs')throw new Error(cell+' NippleJS mobile input inactive: '+d.smoke?.mobileInputMode);
   if(!String(d.smoke?.postFxMode||'').includes('gtao'))
     throw new Error(cell+' high-end post FX inactive: '+d.smoke?.postFxMode);
   if(cell==='manhattan'){
@@ -117,8 +121,8 @@ async function testCell(cell,extra={}){
   if(overlap(d.rects.swing,d.rects.run))throw new Error(cell+' SWING overlaps RUN');
   if(overlap(d.rects.use,d.rects.rail)||overlap(d.rects.swing,d.rects.rail)||overlap(d.rects.run,d.rects.rail)||overlap(d.rects.aim,d.rects.rail)||overlap(d.rects.weapon,d.rects.rail))
     throw new Error(cell+' gameplay buttons overlap right control rail');
-  if(overlap(d.rects.aim,d.rects.weapon)||overlap(d.rects.aim,d.rects.swing)||overlap(d.rects.weapon,d.rects.use))
-    throw new Error(cell+' aim/weapon controls overlap action controls');
+  if(overlap(d.rects.aim,d.rects.weapon)||overlap(d.rects.aim,d.rects.swing)||overlap(d.rects.weapon,d.rects.use)||overlap(d.rects.reload,d.rects.aim)||overlap(d.rects.reload,d.rects.weapon)||overlap(d.rects.reload,d.rects.rail))
+    throw new Error(cell+' aim/weapon/reload controls overlap action controls');
   const play=await page.evaluate(()=>{
     const t=window.BP_HORIZON_TEST;
     const entered=t?.enterFirst?.();
@@ -149,7 +153,10 @@ async function testCell(cell,extra={}){
       stance:t?.stanceProbe?.(),
       nav:t?.navProbe?.(),
       drive:t?.driveProbe?.(),
-      postFx:t?.postFxProbe?.()
+      postFx:t?.postFxProbe?.(),
+      registry:t?.registryProbe?.(),
+      reload:t?.reloadProbe?.(),
+      recoil:t?.recoilProbe?.()
     };
   });
   console.log(JSON.stringify({cell,controls},null,2));
@@ -179,6 +186,12 @@ async function testCell(cell,extra={}){
     throw new Error(cell+' drivable vehicle interaction failed: '+JSON.stringify(controls.drive));
   if(!(controls.postFx?.composer&&controls.postFx?.gtao&&controls.postFx?.bloom))
     throw new Error(cell+' composer passes missing: '+JSON.stringify(controls.postFx));
+  if(controls.registry?.mode!=='supabase'||controls.registry?.unique<6)
+    throw new Error(cell+' registry probe failed: '+JSON.stringify(controls.registry));
+  if(!controls.reload?.started||controls.reload?.active||controls.reload?.mag!==controls.reload?.expected)
+    throw new Error(cell+' timed reload failed: '+JSON.stringify(controls.reload));
+  if(!(controls.recoil?.after?.pitch>controls.recoil?.before?.pitch))
+    throw new Error(cell+' recoil probe failed: '+JSON.stringify(controls.recoil));
   if(cell==='manhattan'){
     if(!(controls.floors?.first?.floors>=5))throw new Error('manhattan tall-building floors missing: '+JSON.stringify(controls.floors));
     if(!(controls.floors?.second?.floor===2&&controls.floors?.second?.pickups>0))
@@ -219,7 +232,7 @@ try{
   console.log(JSON.stringify({boundary},null,2));
   if(!boundary?.inside||boundary?.insideState!=='NY'||boundary?.outside!==false)
     throw new Error('national jurisdiction containment failed: '+JSON.stringify(boundary));
-  console.log('HORIZON_V3030_BROWSER_SMOKE_PASS');
+  console.log('HORIZON_V3040_BROWSER_SMOKE_PASS');
   if(errors.length)console.log('pageErrors',errors);
   const serious=messages.filter(x=>/syntaxerror|referenceerror|typeerror/i.test(x));
   if(serious.length)throw new Error('Serious console errors: '+serious.join(' | '));
