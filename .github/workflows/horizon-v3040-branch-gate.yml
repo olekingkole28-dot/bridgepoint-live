@@ -1,0 +1,72 @@
+name: Horizon V3040 Branch Gate
+
+on:
+  push:
+    branches:
+      - horizon-mega-rebuild-v3040
+    paths:
+      - 'app/horizon/**'
+      - 'app/horizon-playable/**'
+      - 'scripts/browser-horizon-v3040-local.mjs'
+      - '.github/workflows/horizon-v3040-branch-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: horizon-v3040-branch-gate
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Syntax gate
+        run: |
+          set -euo pipefail
+          node --check app/horizon-playable/horizon-world.js
+          node --check scripts/browser-horizon-v3040-local.mjs
+          node --check scripts/browser-horizon-playable-v2980.mjs
+          grep -Fq "BUILD_VERSION=3040" app/horizon-playable/horizon-world.js
+          grep -Fq "bridgepoint-horizon-weapons-v3040" app/horizon-playable/horizon-world.js
+          grep -Fq "requestReload" app/horizon-playable/horizon-world.js
+          grep -Fq "applyRecoil" app/horizon-playable/horizon-world.js
+          grep -Fq "rapier3d-kinematic" app/horizon-playable/horizon-world.js
+          grep -Fq "GTAOPass" app/horizon-playable/horizon-world.js
+          grep -Fq "nipplejs@0.10.2" app/horizon-playable/index.html
+          grep -Fq "Sushi%20Restaurant%20Kit" app/horizon-playable/horizon-world.js
+          test -s app/horizon-playable/OPEN_ASSET_SOURCES.md
+          ! grep -Fq "break-my-house" app/horizon-playable/horizon-world.js
+
+      - name: Install browser gate
+        run: |
+          npm install --no-save playwright-core@1.55.0
+          npx playwright-core install --with-deps chromium
+
+      - name: Serve staged branch
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/horizon-v3040-server.log 2>&1 &
+          echo $! >/tmp/horizon-v3040-server.pid
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173/app/horizon-playable/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/horizon-v3040-server.log
+          exit 1
+
+      - name: Browser systems gate
+        env:
+          BASE_URL: http://127.0.0.1:4173
+        run: node scripts/browser-horizon-v3040-local.mjs
+
+      - name: Server diagnostics
+        if: failure()
+        run: cat /tmp/horizon-v3040-server.log || true
