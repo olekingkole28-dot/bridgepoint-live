@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#05070a">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>BridgePoint Horizon — 3D World Preview</title>
+  <meta name="description" content="BridgePoint Horizon game-world prototype: source-backed terrain, buildings, building parts, parcel geometry and roads with a separate survival-game art layer.">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://xdfsjztwgsbmabshzsjw.supabase.co">
+  <link rel="stylesheet" href="./horizon-world.css">
+</head>
+<body>
+  <div id="world"></div>
+  <div class="vignette"></div>
+  <div class="grain"></div>
+
+  <header class="hud topbar">
+    <a class="brand" href="/app/horizon/" aria-label="Back to BridgePoint Horizon">
+      <span class="sigil">H</span>
+      <span><b>BRIDGEPOINT HORIZON</b><small>WORLD PREVIEW · GAME ONLY</small></span>
+    </a>
+    <div class="truthBadge"><i></i><span>REAL GEOMETRY + GAME ART</span></div>
+  </header>
+
+  <section class="hud statusPanel">
+    <div class="eyebrow">CONNECTICUT PROTOTYPE CELL</div>
+    <h1>Survival world preview</h1>
+    <p id="loadText">Loading source-backed terrain and structures…</p>
+    <div class="stats">
+      <div><b id="statBuildings">—</b><span>buildings</span></div>
+      <div><b id="statParts">—</b><span>parts</span></div>
+      <div><b id="statParcels">—</b><span>parcel outlines</span></div>
+      <div><b id="statRoads">—</b><span>roads / rail</span></div>
+    </div>
+    <div class="legend">
+      <span class="real"><i></i>source-backed geometry</span>
+      <span class="art"><i></i>decorative game art</span>
+    </div>
+  </section>
+
+  <nav class="hud controls" aria-label="World controls">
+    <button data-view="overview">◎ <span>Overview</span></button>
+    <button data-view="street">⌖ <span>Ground view</span></button>
+    <button id="lightBtn">☀ <span>Day</span></button>
+    <button id="parcelBtn" class="active">◇ <span>Parcel grid</span></button>
+    <button id="partsBtn" class="active">▥ <span>Building parts</span></button>
+    <button id="artBtn" class="active">⚠ <span>Survival art</span></button>
+  </nav>
+
+  <aside class="hud infoPanel">
+    <strong>Different world from BridgePoint Intelligence.</strong>
+    <p>This preview receives render-only spatial geometry. It does not receive owners, claims, scores, opportunities, APNs, property IDs, customer data, or B2B controls.</p>
+    <p><b>Game art:</b> weathering, grass, debris, barricades, barrels and atmosphere are decorative preview graphics—not claims that those objects exist at those coordinates.</p>
+    <details>
+      <summary>Sources / attribution</summary>
+      <div id="attribution">Loading attribution…</div>
+    </details>
+    <a class="back" href="/app/horizon/">← Horizon founding page</a>
+  </aside>
+
+  <div class="hud hint">Drag to orbit · pinch / wheel to zoom · right-drag to pan</div>
+
+  <div id="error" class="errorBox" hidden>
+    <b>World preview could not load.</b>
+    <span id="errorText"></span>
+    <button onclick="location.reload()">Retry</button>
+  </div>
+
+  <script type="module" src="./horizon-world.js"></script>
+</body>
+</html>
