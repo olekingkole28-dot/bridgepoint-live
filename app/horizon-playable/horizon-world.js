@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4231;
+const BUILD_VERSION=4232;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -314,7 +314,7 @@ resizeRenderer();
 THREE.Cache.enabled=true;
 const loader=new GLTFLoader();
 const assetPromiseCache=new Map();
-let activeAssetLoads=0;const assetLoadWaiters=[];const ASSET_LOAD_LIMIT=MOBILE_GPU_SAFE?3:6;
+let activeAssetLoads=0;const assetLoadWaiters=[];const ASSET_LOAD_LIMIT=MOBILE_GPU_SAFE?2:6;
 async function acquireAssetSlot(){if(activeAssetLoads<ASSET_LOAD_LIMIT){activeAssetLoads++;return}await new Promise(resolve=>assetLoadWaiters.push(resolve));activeAssetLoads++}
 function releaseAssetSlot(){activeAssetLoads=Math.max(0,activeAssetLoads-1);const next=assetLoadWaiters.shift();if(next)next()}
 const clock=new THREE.Clock();
@@ -4280,7 +4280,12 @@ async function boot(){
     applyApocalypseDecay(worldGroup);
     initPostProcessing();
     await yieldToRenderer();
-    loadText.textContent='PLAYABLE · infected and interior assets streaming…';
+    loadText.textContent='PLAYABLE · infected and interior assets streaming in background…';
+    const idleDelay=MOBILE_GPU_SAFE?1800:250;
+    await new Promise(resolve=>{
+      if(typeof requestIdleCallback==='function')requestIdleCallback(()=>resolve(),{timeout:idleDelay});
+      else setTimeout(resolve,idleDelay);
+    });
     await buildSurvivalArt();
     await weaponReady;
     initializeVehicleRepair();snapInfrastructureToRoadNodes();populateOpenSpace();configureMatchMode(matchMode);
@@ -4298,7 +4303,7 @@ async function boot(){
       playerRootZ:playerRoot.position.z,
       activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
       physicsMode,physicsReady,physicsError,terrainPhysicsReady:Boolean(terrainPhysicsCollider),terrainSafetyRescues,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
-      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,mobileGpuSafe:MOBILE_GPU_SAFE,instantMassing:Number(streetLifeStats.instantMassing||0),
+      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,mobileGpuSafe:MOBILE_GPU_SAFE,worldTickMs:MOBILE_GPU_SAFE?34:16,minimapTickMs:MOBILE_GPU_SAFE?140:70,instantMassing:Number(streetLifeStats.instantMassing||0),
       streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null,
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
@@ -4537,13 +4542,21 @@ async function boot(){
   }
 }
 
-let lastPrompt=0;
+let lastPrompt=0,lastWorldTick=0,lastSmokeTick=0,lastMiniTick=0;
 function loop(now=performance.now()){
   const dt=Math.min(.05,clock.getDelta()||.016);
-  updateWeapon(dt);updatePlayer(dt);updateZombieWaves(now);updateZombies(dt,now);animatePickups(dt,now);updateDoors(dt);updateAmbientSmoke(dt,now);
+  updateWeapon(dt);updatePlayer(dt);
+  const worldCadence=MOBILE_GPU_SAFE?34:16;
+  if(now-lastWorldTick>=worldCadence){
+    const wdt=Math.min(.07,lastWorldTick?Math.max(.012,(now-lastWorldTick)/1000):dt);
+    updateZombieWaves(now);updateZombies(wdt,now);animatePickups(wdt,now);updateDoors(wdt);lastWorldTick=now;
+  }
+  if(now-lastSmokeTick>=(MOBILE_GPU_SAFE?80:32)){updateAmbientSmoke(Math.min(.09,(now-lastSmokeTick)/1000||dt),now);lastSmokeTick=now}
   if(spectatorMode)updateSpectator(now);else updateCamera(dt);
   updateFlashlight();updateDayNight(now);
   updateDoorStreaming(now);if(now-lastPrompt>120){updateInteractionPrompt();lastPrompt=now}
-  updateAudioListener();renderMinimap();if(composer)composer.render();else renderer.render(scene,camera);requestAnimationFrame(loop);
+  updateAudioListener();
+  if(now-lastMiniTick>=(MOBILE_GPU_SAFE?140:70)){renderMinimap();lastMiniTick=now}
+  if(composer)composer.render();else renderer.render(scene,camera);requestAnimationFrame(loop);
 }
 loop();boot();
