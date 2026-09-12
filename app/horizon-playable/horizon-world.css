@@ -274,3 +274,28 @@ body:not(.nationalMode) .jurisdictionPanel{display:none}
   .actionButton.jump{right:max(178px,calc(env(safe-area-inset-right) + 178px));bottom:max(70px,calc(env(safe-area-inset-bottom) + 70px));width:38px;height:38px}
   .actionButton.stance{right:max(224px,calc(env(safe-area-inset-right) + 224px));bottom:max(70px,calc(env(safe-area-inset-bottom) + 70px));width:38px;height:38px}
 }
+
+
+/* V3040 weapon registry / reload control */
+.actionButton.reload{
+  width:44px;height:44px;
+  background:rgba(37,31,20,.78);
+  border-color:rgba(232,192,105,.36);
+  color:#f6e0a7;
+  right:max(88px,calc(env(safe-area-inset-right) + 88px));
+  bottom:max(142px,calc(env(safe-area-inset-bottom) + 142px));
+}
+@media (pointer:coarse) and (orientation:landscape){
+  .actionButton.reload{
+    right:max(78px,calc(env(safe-area-inset-right) + 78px));
+    bottom:max(130px,calc(env(safe-area-inset-bottom) + 130px));
+    width:42px;height:42px;
+  }
+}
+@media (pointer:coarse) and (orientation:landscape) and (max-height:430px){
+  .actionButton.reload{
+    right:max(78px,calc(env(safe-area-inset-right) + 78px));
+    bottom:max(118px,calc(env(safe-area-inset-bottom) + 118px));
+    width:38px;height:38px;
+  }
+}
