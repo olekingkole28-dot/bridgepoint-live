@@ -4,7 +4,7 @@ import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
 const ua=navigator.userAgent||'';
 const android=/Android/i.test(ua);
 const coarse=matchMedia?.('(pointer:coarse)')?.matches===true;
-const enabled=android||coarse&&Math.min(innerWidth,innerHeight)<700;
+const enabled=android;
 window.BP_MOBILE_SAFE={enabled,android,coarse,version:3052,sceneTrimmed:false};
 
 if(enabled){
