@@ -204,10 +204,11 @@ let RAPIER=null,physicsWorld=null,physicsReady=false,physicsMode='manual-fallbac
 let playerPhysicsBody=null,playerPhysicsCollider=null,characterController=null;
 let verticalVelocity=0,grounded=false,playerJumpQueued=false;
 let playerStance='stand',gamepadMove={x:0,y:0},gamepadLook={x:0,y:0},gamepadPrev=[];
+const PHYSICS_VISUAL_DROP=.20;
 const STANCES={
-  stand:{half:.58,radius:.33,speed:1,center:.91},
-  crouch:{half:.34,radius:.33,speed:.68,center:.67},
-  prone:{half:.13,radius:.28,speed:.34,center:.41}
+  stand:{half:.58,radius:.33,speed:1,center:1.11},
+  crouch:{half:.34,radius:.33,speed:.68,center:.87},
+  prone:{half:.13,radius:.28,speed:.34,center:.61}
 };
 let PHYSICS_PLAYER_CENTER=STANCES.stand.center;
 const physicsStaticColliders=[];
