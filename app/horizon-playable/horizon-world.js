@@ -968,12 +968,16 @@ function buildExplorableShell(rec,meta){
     doorPoint={x:THREE.MathUtils.lerp(de.a.x,de.b.x,t),y:THREE.MathUtils.lerp(de.a.y,de.b.y,t),t};
   }
   meta.doorEdgeIndex=doorEdge;meta.doorX=doorPoint.x;meta.doorY=doorPoint.y;meta.doorRot=de?.angle||0;meta.doorGap=1.65;meta.shellEdges=edges;
-  const floorH=3.05,floors=Math.min(28,Math.max(1,Math.floor(meta.height/floorH))),shape=shapeFromRing(rec.ring);
+  const floorH=3.05,floors=Math.min(28,Math.max(1,Math.floor(meta.height/floorH))),stairRun=Math.min(4.8,Math.max(3.4,Math.min(meta.width,meta.depth)*.36));
   meta.openFloors=floors;
   for(let f=0;f<floors;f++){
-    const base=meta.z+f*floorH;
-    if(shape){
-      const slabGeo=new THREE.ShapeGeometry(shape);slabGeo.translate(0,0,base+.035);
+    const base=meta.z+f*floorH,slabShape=shapeFromRing(rec.ring);
+    if(slabShape){
+      if(f>0&&floors>1){
+        const hw=.92,hy=stairRun*.58,hole=new THREE.Path();
+        hole.moveTo(meta.x-hw,meta.y-hy);hole.lineTo(meta.x+hw,meta.y-hy);hole.lineTo(meta.x+hw,meta.y+hy);hole.lineTo(meta.x-hw,meta.y+hy);hole.closePath();slabShape.holes.push(hole);
+      }
+      const slabGeo=new THREE.ShapeGeometry(slabShape);slabGeo.translate(0,0,base+.035);
       const slab=new THREE.Mesh(slabGeo,new THREE.MeshStandardMaterial({color:f%2?0x4b4b47:0x555049,roughness:.98,side:THREE.DoubleSide}));slab.receiveShadow=true;group.add(slab);addStaticPhysicsGeometry(slabGeo,'open-floor-'+meta.id+'-'+f,.94);
     }
     edges.forEach((e,ei)=>{
@@ -984,10 +988,11 @@ function buildExplorableShell(rec,meta){
         if(!doorBay)addShellBox(group,cx,cy,base+.34,bay+.025,.18,.68,e.angle,wallMat,'open-wall-low-'+meta.id,false);
         addShellBox(group,cx,cy,base+2.68,bay+.025,.18,.74,e.angle,wallMat,'open-wall-high-'+meta.id,false);
         const leftT=bi/bays,lx=THREE.MathUtils.lerp(e.a.x,e.b.x,leftT),ly=THREE.MathUtils.lerp(e.a.y,e.b.y,leftT);
-        addShellBox(group,lx,ly,base+1.52,.22,.22,2.34,e.angle,wallMat,'open-wall-post-'+meta.id,false);
+        addShellBox(group,lx,ly,base+1.52,.22,.22,2.34,e.angle,wallMat,'open-wall-post-'+meta.id,true);
         if(!doorBay){
           const glass=addShellBox(group,cx,cy,base+1.50,Math.max(.55,bay-.32),.035,1.54,e.angle,shellGlassMaterial,'glass-'+meta.id,false);
           glass.userData.breakableGlass=true;glass.userData.sourceBuilding=meta.id;
+          glass.userData.glassCollider=addStaticPhysicsGeometry(glass.geometry,'breakable-window-'+meta.id+'-'+f+'-'+ei+'-'+bi,.22);
         }
       }
       // One collider per whole edge/floor for header/lower wall bands keeps the shell solid without thousands of colliders.
@@ -995,15 +1000,15 @@ function buildExplorableShell(rec,meta){
       if(!(f===0&&ei===doorEdge)){
         addShellBox(group,mx,my,base+.34,e.len,.20,.68,e.angle,new THREE.MeshBasicMaterial({visible:false}),'open-collider-low-'+meta.id,true).visible=false;
       }else{
-        const p=meta.doorGap/2,doorT=de?closestPointOnSegment2D(meta,de.a,de.b).t:.5,leftLen=Math.max(0,de.len*doorT-p),rightLen=Math.max(0,de.len*(1-doorT)-p);
+        const p=meta.doorGap/2,doorT=de?closestPointOnSegment2D({x:meta.doorX,y:meta.doorY},de.a,de.b).t:.5,leftLen=Math.max(0,de.len*doorT-p),rightLen=Math.max(0,de.len*(1-doorT)-p);
         if(leftLen>.3){const t=(leftLen/2)/de.len,cx=THREE.MathUtils.lerp(de.a.x,de.b.x,t),cy=THREE.MathUtils.lerp(de.a.y,de.b.y,t);addShellBox(group,cx,cy,base+.34,leftLen,.20,.68,e.angle,new THREE.MeshBasicMaterial({visible:false}),'door-side-l-'+meta.id,true).visible=false}
         if(rightLen>.3){const t=1-(rightLen/2)/de.len,cx=THREE.MathUtils.lerp(de.a.x,de.b.x,t),cy=THREE.MathUtils.lerp(de.a.y,de.b.y,t);addShellBox(group,cx,cy,base+.34,rightLen,.20,.68,e.angle,new THREE.MeshBasicMaterial({visible:false}),'door-side-r-'+meta.id,true).visible=false}
       }
       addShellBox(group,mx,my,base+2.68,e.len,.20,.74,e.angle,new THREE.MeshBasicMaterial({visible:false}),'open-collider-high-'+meta.id,true).visible=false;
     });
     if(f<floors-1&&meta.width>6&&meta.depth>6){
-      const run=Math.min(4.8,Math.max(3.4,Math.min(meta.width,meta.depth)*.36)),rot=f%2?Math.PI:0;
-      addShellRamp(group,meta.x,meta.y,base+.08,run,floorH-.16,rot,'open-stair-'+meta.id+'-'+f);
+      const rot=f%2?Math.PI:0;
+      addShellRamp(group,meta.x,meta.y,base+.08,stairRun,floorH-.16,rot,'open-stair-'+meta.id+'-'+f);
     }
   }
   if(shape){
@@ -1176,6 +1181,7 @@ function shatterFacadeGlass(mesh,instanceId){
 function shatterGlass(mesh){
   if(!mesh?.userData?.breakableGlass)return false;
   const p=new THREE.Vector3();mesh.getWorldPosition(p);
+  if(mesh.userData.glassCollider&&physicsWorld){try{physicsWorld.removeCollider(mesh.userData.glassCollider,true)}catch(_){}mesh.userData.glassCollider=null}
   mesh.parent?.remove(mesh);
   ensureAudio();showToast('Glass shattered');
   return true;
