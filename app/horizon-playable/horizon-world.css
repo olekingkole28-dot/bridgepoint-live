@@ -209,3 +209,49 @@ body{touch-action:none}
   .crosshair span:first-child{width:14px;left:4px;top:10px}
   .crosshair span:last-child{height:14px;left:10px;top:4px}
 }
+
+
+/* V3020 nationwide streamed-world controls */
+.jurisdictionPanel{
+  position:fixed;
+  z-index:12;
+  left:18px;
+  top:122px;
+  width:min(330px,36vw);
+  padding:10px 12px;
+  border:1px solid rgba(148,178,151,.18);
+  border-radius:12px;
+  background:rgba(8,13,10,.78);
+  backdrop-filter:blur(14px);
+  box-shadow:0 14px 44px rgba(0,0,0,.28);
+}
+.jurisdictionHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+.jurisdictionHead b{font-size:8px;letter-spacing:.09em;color:#c9e9ca}
+.jurisdictionHead span{font-size:6px;color:#8e9d91}
+.jurisdictionControls{display:flex;gap:6px}
+.jurisdictionControls select{
+  flex:1;min-width:0;
+  background:#111813;color:#e9f1e7;
+  border:1px solid rgba(145,185,149,.24);
+  border-radius:8px;padding:7px 8px;
+  font-size:8px;font-weight:800;
+}
+.jurisdictionControls button{
+  border:1px solid rgba(104,224,139,.35);
+  border-radius:8px;padding:7px 9px;
+  background:rgba(35,105,57,.72);color:#effff3;
+  font-size:7px;font-weight:900;letter-spacing:.04em;
+}
+.jurisdictionPanel>small{display:block;margin-top:6px;font-size:5px;line-height:1.35;color:#89938c}
+body:not(.nationalMode) .jurisdictionPanel{display:none}
+@media (pointer:coarse) and (orientation:landscape){
+  .jurisdictionPanel{
+    left:max(8px,env(safe-area-inset-left));
+    top:94px;width:236px;padding:6px 7px;border-radius:8px;
+  }
+  .jurisdictionHead{margin-bottom:4px}
+  .jurisdictionHead b{font-size:5px}
+  .jurisdictionHead span,.jurisdictionPanel>small{font-size:4px}
+  .jurisdictionControls select{font-size:6px;padding:4px 5px}
+  .jurisdictionControls button{font-size:5px;padding:4px 6px}
+}
