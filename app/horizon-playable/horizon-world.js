@@ -719,6 +719,13 @@ function cycleWeapon(){
   const i=Math.max(0,slots.indexOf(activeSlot));selectSlot(slots[(i+1)%slots.length]);
 }
 
+function sanitizeCharacterClips(clips){
+  return (clips||[]).map(src=>{
+    const clip=src.clone();
+    clip.tracks=clip.tracks.filter(t=>!/^(Root|CharacterArmature)\.(position|quaternion|scale)$/i.test(String(t.name||'')));
+    clip.resetDuration();return clip;
+  });
+}
 async function buildPlayer(){
   const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,surfaceZXY(spawn.x,spawn.y)+.015);
   const [gltf,axe,bat,knife,pistol,rifle,shotgun]=await Promise.all([
@@ -728,7 +735,7 @@ async function buildPlayer(){
   weaponTemplates={axe,bat,knife,pistol,rifle,shotgun};
   if(gltf){
     const n=normalizedModel(gltf.scene,1.82,true);
-    playerRoot=n.root;playerVisualRoot=n.oriented;playerClips=gltf.animations||[];playerMixer=new THREE.AnimationMixer(n.model);
+    playerRoot=n.root;playerVisualRoot=n.oriented;playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);
     captureCharacterWeaponTemplates(n.model);
     setupEquipmentMounts(n.model);
   }else{
