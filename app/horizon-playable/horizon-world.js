@@ -2402,7 +2402,8 @@ function updateCamera(dt){
   const shoulder=aiming?.58:cameraMode===0?.46:.30;
   const desired=target.clone().addScaledVector(forward,-dist*Math.cos(pitch)).addScaledVector(right,shoulder);
   desired.z+=aiming?.38:.82+dist*Math.sin(pitch);
-  const safe=safeCameraPosition(target,desired),alpha=1-Math.exp(-(aiming?14:9)*dt);
+  const physicsSafe=!interiorMode?rapierCameraPosition(target,desired):null;
+  const safe=physicsSafe||safeCameraPosition(target,desired),alpha=1-Math.exp(-(aiming?14:9)*dt);
   camera.position.lerp(safe,alpha);
   camera.lookAt(target.clone().addScaledVector(forward,aiming?8:cameraMode===0?2.2:3.0));
 }
@@ -2447,7 +2448,9 @@ async function boot(){
       playerSurfaceZ:surfaceZXY(playerRoot.position.x,playerRoot.position.y),
       playerRootZ:playerRoot.position.z,
       activeWeapon,activeSlot,zombieVariants:zombieTemplates.length,
-      physicsMode,physicsReady,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION
+      physicsMode,physicsReady,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
+      navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,
+      streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null
     };
     window.BP_HORIZON_TEST={
       enterFirst:()=>{
@@ -2537,6 +2540,41 @@ async function boot(){
         damagePlayer(200);const deadBefore=playerDead;respawnPlayer();
         return {deadBefore,deadAfter:playerDead,health};
       },
+      physicsProbe:()=>({
+        ready:physicsReady,mode:physicsMode,hasBody:Boolean(playerPhysicsBody),hasCollider:Boolean(playerPhysicsCollider),
+        controller:Boolean(characterController),staticColliders:physicsStaticColliders.length,grounded
+      }),
+      stanceProbe:()=>{
+        const before=playerStance;setPlayerStance('crouch');
+        const crouch={stance:playerStance,center:PHYSICS_PLAYER_CENTER,hasCollider:Boolean(playerPhysicsCollider)};
+        setPlayerStance('stand');
+        playerJumpQueued=true;
+        const jumpQueued=playerJumpQueued;
+        return{before,crouch,after:playerStance,jumpQueued};
+      },
+      navProbe:()=>({
+        nodes:navNodes.length,
+        active:zombies.filter(z=>!z.dead).map(z=>({state:z.state,speed:z.speed,pathLength:z.path?.length||0}))
+      }),
+      driveProbe:()=>{
+        const v=drivableVehicles[0];if(!v)return null;
+        const oldPos=v.root.position.clone();playerRoot.position.copy(v.root.position).add(new THREE.Vector3(.4,.4,0));syncPhysicsToPlayer();
+        enterVehicle(v);const entered=Boolean(activeVehicle);
+        updateVehicle(.25,.25,1);
+        const moved=v.root.position.distanceTo(oldPos);
+        exitVehicle();
+        return{entered,moved,exited:!activeVehicle,type:v.type};
+      },
+      boundaryProbe:async()=>{
+        const inside=await resolveUniverse(40.7128,-74.0060);
+        const outside=await resolveUniverse(51.5074,-0.1278);
+        return{
+          inside:Boolean(inside?.inside_us_universe),
+          insideState:inside?.resolved_jurisdiction?.state||null,
+          outside:Boolean(outside?.inside_us_universe)
+        };
+      },
+      postFxProbe:()=>({mode:postFxMode,composer:Boolean(composer),gtao:Boolean(gtaoPass),bloom:Boolean(bloomPass)}),
       spawnMobility:()=>{
         const p=playerRoot.position,step=.8,dirs={
           forward:movementVector(0,1,0),backward:movementVector(0,-1,0),
