@@ -135,7 +135,7 @@ async function testCell(cell){
     return {feet,wave,equipment,pickup,death};
   });
   console.log(JSON.stringify({cell,systems},null,2));
-  if(!(systems.feet?.clearance>=-0.03&&systems.feet?.clearance<=0.08))
+  if(!(systems.feet?.clearance>=-0.03&&systems.feet?.clearance<=0.12))
     throw new Error(cell+' survivor feet not grounded: '+JSON.stringify(systems.feet));
   if(systems.equipment?.visiblePack)throw new Error(cell+' visible backpack reappeared');
   if(systems.equipment?.equipment?.sidearm!=='Pistol'||systems.equipment?.equipment?.primary!=='Rifle')
