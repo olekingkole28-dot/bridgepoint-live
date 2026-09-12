@@ -112,7 +112,8 @@ try{
       nav:t?.navProbe?.(),
       drive:t?.driveProbe?.(),
       floors:t?.multiFloorProbe?.(),
-      stance:t?.stanceProbe?.()
+      stance:t?.stanceProbe?.(),
+      feet:t?.feetProbe?.()
     };
   });
   console.log(JSON.stringify({probes},null,2));
@@ -128,6 +129,7 @@ try{
   if(!(probes.nav?.nodes>5))throw new Error('pathfinding graph probe failed');
   if(!probes.drive?.entered||!probes.drive?.exited)throw new Error('vehicle interaction failed');
   if(probes.stance?.crouch?.stance!=='crouch'||probes.stance?.after!=='stand')throw new Error('stance controller failed');
+  if(!(probes.feet?.clearance>=-0.03&&probes.feet?.clearance<=0.12))throw new Error('survivor feet not grounded: '+JSON.stringify(probes.feet));
   if(!(probes.floors?.first?.floors>=2&&probes.floors?.second?.floor===2))throw new Error('multi-floor interior traversal failed: '+JSON.stringify(probes.floors));
 
   const errors=pageErrors.filter(x=>/SyntaxError|ReferenceError|TypeError/i.test(x));
