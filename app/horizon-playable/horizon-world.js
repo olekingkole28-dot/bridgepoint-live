@@ -1165,6 +1165,7 @@ function selectSlot(slot,quiet=false){
   if(slot==='quick1'||slot==='quick2')return useQuickSlot(slot);
   const item=activeItemForSlot(slot);
   if(!item){if(!quiet)showToast(slot.toUpperCase()+' SLOT EMPTY');return false}
+  if(reloadState.active)cancelReload(false);
   activeSlot=slot;activeWeapon=item;equippedWeaponName=item;aiming=false;
   refreshEquipmentVisuals();updateInventory();
   if(!quiet)showToast('Equipped '+item);
@@ -1559,8 +1560,12 @@ function updateInventory(){
   const pack=$('packName');if(pack)pack.textContent=packName.toUpperCase();
   const weapon=$('equippedWeapon');
   if(weapon){
-    const ammo=isFirearm(activeWeapon)?' · '+(ammoState[activeWeapon]??0)+' rounds':'';
-    weapon.textContent='Active: '+activeWeapon+ammo+' · tap a loadout slot to switch';
+    const cfg=weaponCfg(activeWeapon);
+    const ammo=isFirearm(activeWeapon)
+      ?' · '+(ammoState[activeWeapon]??0)+' / '+(reserveAmmo[activeWeapon]??0)+' ammo'
+      :'';
+    const reload=reloadState.active&&reloadState.weapon===activeWeapon?' · RELOADING':'';
+    weapon.textContent='Active: '+activeWeapon+ammo+reload+' · '+cfg.stance_type.replaceAll('_',' ');
   }
   const packStat=$('packStat');if(packStat)packStat.textContent=lootCount+'/'+packCapacity;
   const killStat=$('killStat');if(killStat)killStat.textContent=String(kills);
@@ -1575,7 +1580,8 @@ function updateInventory(){
   };
   for(const [id,val] of Object.entries(slots)){const el=$(id);if(el)el.textContent=String(val).toUpperCase()}
   document.querySelectorAll('.loadoutSlot[data-slot]').forEach(el=>el.classList.toggle('active',el.dataset.slot===activeSlot));
-  const label=$('attackLabel');if(label)label.textContent=isFirearm(activeWeapon)?'FIRE':'SWING';
+  const label=$('attackLabel');if(label)label.textContent=isFirearm(activeWeapon)?(reloadState.active?'WAIT':'FIRE'):'SWING';
+  const reloadLabel=$('reloadLabel');if(reloadLabel)reloadLabel.textContent=reloadState.active?'...':'RELOAD';
   const cross=$('crosshair');if(cross)cross.hidden=!(aiming&&isFirearm(activeWeapon));
   $('inventoryList').innerHTML=entries.length
     ?entries.slice(0,16).map(([k,v])=>'<span data-item="'+k+'">'+k+' ×'+v+'</span>').join('')
@@ -1597,10 +1603,16 @@ function addInventoryItem(item){
     equipment.melee=item;equipWeapon(item);
   }
   if(item==='Pistol'){
-    equipment.sidearm='Pistol';ammoState.Pistol=Math.max(ammoState.Pistol||0,12);refreshEquipmentVisuals();
+    const cfg=weaponCfg('Pistol');equipment.sidearm='Pistol';
+    ammoState.Pistol=Math.max(ammoState.Pistol||0,cfg.magazine_size||12);
+    reserveAmmo.Pistol=Math.max(reserveAmmo.Pistol||0,Math.ceil((cfg.reserve_default||48)*.35));
+    refreshEquipmentVisuals();
   }
   if(item==='Rifle'||item==='Shotgun'){
-    equipment.primary=item;ammoState[item]=Math.max(ammoState[item]||0,item==='Rifle'?20:6);refreshEquipmentVisuals();
+    const cfg=weaponCfg(item);equipment.primary=item;
+    ammoState[item]=Math.max(ammoState[item]||0,cfg.magazine_size||(item==='Rifle'?20:6));
+    reserveAmmo[item]=Math.max(reserveAmmo[item]||0,Math.ceil((cfg.reserve_default||30)*.30));
+    refreshEquipmentVisuals();
   }
   if(item==='Bandage'&&!equipment.quick1)equipment.quick1='Bandage';
   if(item==='Water'&&!equipment.quick2)equipment.quick2='Water';
@@ -2509,6 +2521,8 @@ async function boot(){
   try{
     $('cellLabel').textContent=worldCellLabel();
     $('worldTitle').textContent=worldCellTitle();
+    loadText.textContent='Loading weapon registry…';
+    await loadWeaponRegistry();
     restoreSurvivor();updateInventory();
     loadText.textContent='Starting physics and renderer…';
     await initRapierPhysics();
