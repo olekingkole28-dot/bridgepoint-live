@@ -1,11 +1,30 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
-import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js';
-import {mergeGeometries} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/utils/BufferGeometryUtils.js';
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-preview-v2969';
 const root=document.getElementById('world');
 const loadText=document.getElementById('loadText');
 const $=id=>document.getElementById(id);
+const landscapeBtn=$('landscapeBtn');
+const fullscreenBtn=$('fullscreenBtn');
+
+async function enterLandscape(){
+  try{
+    if(!document.fullscreenElement&&document.documentElement.requestFullscreen){
+      await document.documentElement.requestFullscreen({navigationUI:'hide'});
+    }
+  }catch(_){}
+  try{
+    if(screen.orientation&&screen.orientation.lock){
+      await screen.orientation.lock('landscape');
+    }
+  }catch(_){}
+  setTimeout(()=>window.dispatchEvent(new Event('resize')),160);
+}
+landscapeBtn?.addEventListener('click',enterLandscape);
+fullscreenBtn?.addEventListener('click',enterLandscape);
+
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x77838a);
 scene.fog=new THREE.FogExp2(0x79858a,.00030);
@@ -16,6 +35,14 @@ renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(deviceP
 renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;root.appendChild(renderer.domElement);
 const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.07;controls.screenSpacePanning=false;controls.minDistance=10;controls.maxDistance=9000;controls.maxPolarAngle=Math.PI*.49;
+
+function resizeRenderer(){
+  const w=Math.max(1,root.clientWidth||innerWidth),h=Math.max(1,root.clientHeight||innerHeight);
+  camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h,false);
+}
+addEventListener('resize',resizeRenderer,{passive:true});
+addEventListener('orientationchange',()=>setTimeout(resizeRenderer,180),{passive:true});
+resizeRenderer();
 
 let data,lon0,lat0,mx,my,baseElevation=0,terrainSampler=()=>0;
 let parcelLayer,partsLayer,artLayer,buildingLayer,roadLayer,terrainLayer;
@@ -147,7 +174,7 @@ async function boot(){
     $('attribution').innerHTML=(data.attribution||[]).map(x=>'• '+x).join('<br>')+'<br>• Survival dressing is BridgePoint Horizon game art.';
     document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>view(b.dataset.view)));
     $('lightBtn').onclick=()=>setLighting(lightMode+1);$('parcelBtn').onclick=()=>{parcelLayer.visible=!parcelLayer.visible;$('parcelBtn').classList.toggle('active',parcelLayer.visible)};$('partsBtn').onclick=()=>{partsLayer.visible=!partsLayer.visible;$('partsBtn').classList.toggle('active',partsLayer.visible)};$('artBtn').onclick=()=>{artLayer.visible=!artLayer.visible;$('artBtn').classList.toggle('active',artLayer.visible)};
-    addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+    resizeRenderer();
   }catch(e){console.error(e);$('error').hidden=false;$('errorText').textContent=String(e?.message||e);loadText.textContent='Preview unavailable';}
 }
 function loop(){controls.update();renderer.render(scene,camera);requestAnimationFrame(loop)}loop();boot();
