@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4224;
+const BUILD_VERSION=4225;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -325,7 +325,7 @@ scene.add(exteriorRoot,interiorGroup);
 interiorGroup.visible=false;
 
 let data,lon0,lat0,mx,my,baseElevation=0;
-let parcelLayer,partsLayer,buildingLayer,roadLayer,terrainLayer,instantMassingLayer=null;
+let parcelLayer,partsLayer,buildingLayer,roadLayer,terrainLayer,instantMassingLayer=null,instantMassingMesh=null;
 let hemi,sun,lightMode=0;
 let playerRoot=null,playerVisualRoot=null,playerMixer=null,playerClips=[],playerAction=null,playerVisualBaseScaleZ=1;
 let playerModelYawOffset=0,playerAssetLoaded=false,playerAssetMode='fallback';
@@ -993,23 +993,35 @@ function addShellRamp(group,cx,cy,baseZ,run,rise,rot,label){
   }
 }
 const shellGlassMaterial=new THREE.MeshPhysicalMaterial({color:0x9fcbd6,roughness:.04,metalness:0,transparent:true,opacity:.34,transmission:.62,depthWrite:false,side:THREE.DoubleSide});
+function prepareDoorMetadata(meta){
+  if(meta?.shellEdges?.length&&Number.isFinite(meta.doorX)&&Number.isFinite(meta.doorY))return meta;
+  const edges=[];
+  for(let i=1;i<(meta.poly||[]).length;i++){const a=meta.poly[i-1],b=meta.poly[i],len=Math.hypot(b.x-a.x,b.y-a.y);if(len>.5)edges.push({a,b,len,angle:Math.atan2(b.y-a.y,b.x-a.x)})}
+  if((meta.poly||[]).length>2){const a=meta.poly[meta.poly.length-1],b=meta.poly[0],len=Math.hypot(b.x-a.x,b.y-a.y);if(len>.5)edges.push({a,b,len,angle:Math.atan2(b.y-a.y,b.x-a.x)})}
+  const road=shellRoadAnchor(meta);let doorEdge=0,doorPoint={x:meta.x,y:meta.y,t:.5},doorDist=Infinity;
+  edges.forEach((e,idx)=>{const p=closestPointOnSegment2D(road,e.a,e.b),d=Math.hypot(p.x-road.x,p.y-road.y);if(d<doorDist){doorDist=d;doorEdge=idx;doorPoint=p}});
+  const de=edges[doorEdge];
+  if(de){const minT=Math.min(.78/de.len,.42),maxT=1-minT,t=THREE.MathUtils.clamp(doorPoint.t,minT,maxT);doorPoint={x:THREE.MathUtils.lerp(de.a.x,de.b.x,t),y:THREE.MathUtils.lerp(de.a.y,de.b.y,t),t}}
+  meta.doorEdgeIndex=doorEdge;meta.doorX=doorPoint.x;meta.doorY=doorPoint.y;meta.doorRot=de?.angle||0;meta.doorGap=1.65;meta.shellEdges=edges;return meta;
+}
+function hideMassingBuilding(meta){
+  if(!instantMassingMesh||!Number.isInteger(meta?.massingIndex))return;
+  const z=new THREE.Matrix4().makeScale(.0001,.0001,.0001);instantMassingMesh.setMatrixAt(meta.massingIndex,z);instantMassingMesh.instanceMatrix.needsUpdate=true;
+}
+function ensureExplorableShell(entry){
+  if(!entry?.explorable)return false;
+  const meta=buildingCenters.find(b=>b.id===entry.id)||entry;if(meta.shellBuilt){Object.assign(entry,meta);return true}
+  prepareDoorMetadata(meta);
+  try{
+    buildExplorableShell({ring:meta.sourceRing,materialKey:meta.sourceMaterialKey},meta);meta.shellBuilt=true;hideMassingBuilding(meta);Object.assign(entry,meta);
+    streetLifeStats.openBuildings=buildingCenters.filter(b=>b.shellBuilt).length;return true;
+  }catch(err){meta.shellError=String(err?.message||err);console.warn('lazy open building skipped',meta.id,err);return false}
+}
 function buildExplorableShell(rec,meta){
   const group=new THREE.Group();group.name='source-open-building-'+meta.id;buildingLayer.add(group);
   const wallMat=buildingMaterials[rec.materialKey]||buildingMaterials.concrete;
-  const edges=[];
-  for(let i=1;i<meta.poly.length;i++){
-    const a=meta.poly[i-1],b=meta.poly[i],len=Math.hypot(b.x-a.x,b.y-a.y);if(len>.5)edges.push({a,b,len,angle:Math.atan2(b.y-a.y,b.x-a.x)});
-  }
-  if(meta.poly.length>2){
-    const a=meta.poly[meta.poly.length-1],b=meta.poly[0],len=Math.hypot(b.x-a.x,b.y-a.y);if(len>.5)edges.push({a,b,len,angle:Math.atan2(b.y-a.y,b.x-a.x)});
-  }
-  const road=shellRoadAnchor(meta);let doorEdge=0,doorPoint={x:meta.x,y:meta.y},doorDist=Infinity;
-  edges.forEach((e,idx)=>{const p=closestPointOnSegment2D(road,e.a,e.b),d=Math.hypot(p.x-road.x,p.y-road.y);if(d<doorDist){doorDist=d;doorEdge=idx;doorPoint=p}});
-  const de=edges[doorEdge];if(de){
-    const minT=Math.min(.78/de.len,.42),maxT=1-minT,t=THREE.MathUtils.clamp(doorPoint.t,minT,maxT);
-    doorPoint={x:THREE.MathUtils.lerp(de.a.x,de.b.x,t),y:THREE.MathUtils.lerp(de.a.y,de.b.y,t),t};
-  }
-  meta.doorEdgeIndex=doorEdge;meta.doorX=doorPoint.x;meta.doorY=doorPoint.y;meta.doorRot=de?.angle||0;meta.doorGap=1.65;meta.shellEdges=edges;
+  prepareDoorMetadata(meta);
+  const edges=meta.shellEdges||[],doorEdge=meta.doorEdgeIndex||0,de=edges[doorEdge];
   const floorH=3.05,floors=Math.min(28,Math.max(1,Math.floor(meta.height/floorH))),stairRun=Math.min(4.8,Math.max(3.4,Math.min(meta.width,meta.depth)*.36));
   meta.openFloors=floors;
   for(let f=0;f<floors;f++){
@@ -1071,16 +1083,18 @@ function buildExplorableShell(rec,meta){
     const roofGeo=new THREE.ShapeGeometry(roofShape);roofGeo.translate(0,0,meta.z+floors*floorH);
     const roof=new THREE.Mesh(roofGeo,new THREE.MeshStandardMaterial({color:0x3f4240,roughness:.96,side:THREE.DoubleSide}));roof.receiveShadow=true;group.add(roof);addStaticPhysicsGeometry(roofGeo,'open-roof-'+meta.id,.9);
   }
-  return group;
+  meta.shellBuilt=true;meta.shellGroup=group;return group;
 }
 function buildInstantBuildingMassing(){
-  if(instantMassingLayer){worldGroup.remove(instantMassingLayer);instantMassingLayer=null}
-  const rows=[];
+  if(instantMassingLayer){worldGroup.remove(instantMassingLayer);instantMassingLayer=null;instantMassingMesh=null}
+  if(!buildingLayer){buildingLayer=new THREE.Group();buildingLayer.name='lazy-source-open-buildings';worldGroup.add(buildingLayer)}
+  buildingCenters=[];const rows=[];let ri=0;
   for(const row of data.buildings||[])for(const ring of outerRings(row.geometry)){
     const pts=ring.map(project).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));if(pts.length<3)continue;
     const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
-    const center=centerRing(ring),q=project(center),ht=heightFor(row),z=terrainZ(center[0],center[1]);
-    rows.push({x:q.x,y:q.y,z,w:Math.max(1.2,maxx-minx),d:Math.max(1.2,maxy-miny),h:Math.max(2.4,ht.h),key:facadeKey(row,ht.h)});
+    const center=centerRing(ring),q=project(center),ht=heightFor(row),z=terrainZ(center[0],center[1]),w=Math.max(1.2,maxx-minx),d=Math.max(1.2,maxy-miny),h=Math.max(2.4,ht.h),key=facadeKey(row,ht.h);
+    const meta={id:String(row.id||hash(JSON.stringify(center)))+':'+(ri++),x:q.x,y:q.y,z,height:h,minx,maxx,miny,maxy,width:w,depth:d,poly:pts,explorable:w>4.2&&d>4.2&&h>3.1,shellBuilt:false,sourceRing:ring,sourceMaterialKey:key,massingIndex:rows.length};
+    rows.push({x:q.x,y:q.y,z,w,d,h,key,meta});buildingCenters.push(meta);
   }
   if(!rows.length)return 0;
   const geo=new THREE.BoxGeometry(1,1,1),mat=new THREE.MeshStandardMaterial({color:0x59615e,roughness:.94,metalness:.03,vertexColors:true});
@@ -1090,8 +1104,8 @@ function buildInstantBuildingMassing(){
     o.position.set(b.x,b.y,b.z+b.h*.5);o.rotation.set(0,0,0);o.scale.set(b.w,b.d,b.h);o.updateMatrix();mesh.setMatrixAt(i,o.matrix);mesh.setColorAt(i,colors[b.key]||colors.concrete);
   });
   mesh.instanceMatrix.needsUpdate=true;if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;mesh.castShadow=false;mesh.receiveShadow=true;mesh.frustumCulled=true;
-  instantMassingLayer=new THREE.Group();instantMassingLayer.name='instant-source-building-massing';instantMassingLayer.add(mesh);worldGroup.add(instantMassingLayer);
-  streetLifeStats.instantMassing=rows.length;return rows.length;
+  instantMassingLayer=new THREE.Group();instantMassingLayer.name='instant-source-building-massing';instantMassingMesh=mesh;instantMassingLayer.add(mesh);worldGroup.add(instantMassingLayer);
+  streetLifeStats.instantMassing=rows.length;streetLifeStats.doorableBuildings=buildingCenters.filter(b=>b.explorable).length;return rows.length;
 }
 function clearInstantBuildingMassing(){
   if(!instantMassingLayer)return;
@@ -1137,7 +1151,7 @@ function buildBuildings(){
   loadText.textContent='Geometry ready · '+records.length.toLocaleString()+' valid building shapes · '+openCount+' physically open buildings';
 }
 function buildFacadeDetails(){
-  const candidates=[...buildingCenters].filter(b=>!b.explorable&&b.height>9&&b.width>3&&b.depth>3).sort((a,b)=>b.height-a.height).slice(0,densePreview()?650:220);
+  const candidates=[...buildingCenters].filter(b=>!b.shellBuilt&&b.height>9&&b.width>3&&b.depth>3).sort((a,b)=>b.height-a.height).slice(0,densePreview()?650:220);
   const maxWindows=densePreview()?14000:5200;
   const winGeo=new THREE.BoxGeometry(1,.07,.72);
   const litMat=new THREE.MeshPhysicalMaterial({color:0xa9c9d0,emissive:0x394f47,emissiveIntensity:.34,roughness:.08,metalness:.04,transparent:true,opacity:.48,transmission:.32,depthWrite:true});
@@ -1202,6 +1216,7 @@ function nearestRoadForBuilding(b){
 function buildEntryPoints(){
   entryGroup.clear();buildingEntries=[];
   const candidates=[...buildingCenters].filter(b=>b.explorable)
+    .map(b=>prepareDoorMetadata(b))
     .sort((a,b)=>(a.x*a.x+a.y*a.y)-(b.x*b.x+b.y*b.y));
   const visualLimit=densePreview()?620:260;
   let visualCount=0;
@@ -1258,7 +1273,9 @@ function installInteractiveDoors(){
   return doorSystemCount;
 }
 function openDoor(entry,kicked=false){
-  if(!entry?.doorPivot)return false;entry.doorOpen=true;entry.doorTarget=kicked?-1.48:-1.18;
+  if(!entry?.doorPivot)return false;
+  if(entry.explorable&&!ensureExplorableShell(entry)){showToast('Building interior still streaming');return false}
+  entry.doorOpen=true;entry.doorTarget=kicked?-1.48:-1.18;
   if(entry.doorCollider&&physicsWorld){try{physicsWorld.removeCollider(entry.doorCollider,true)}catch(_){}entry.doorCollider=null}
   showToast(kicked?'Door kicked open':'Door opened');return true;
 }
@@ -3322,6 +3339,7 @@ function isBlockedExterior(x,y,r=.33){
   for(const b of buildingCenters){
     if(x<b.minx-r||x>b.maxx+r||y<b.miny-r||y>b.maxy+r)continue;
     if(b.explorable){
+      if(!b.shellBuilt){if(polyBlocksPoint(x,y,b.poly,r))return true;continue}
       if(pointInPoly(x,y,b.poly))continue;
       let nearWall=false,doorPass=false;
       for(let i=0;i<(b.shellEdges||[]).length;i++){
@@ -3499,7 +3517,7 @@ function updateZombies(dt,now){
 }
 
 function dressOpenSourceBuildings(bodyTemplate){
-  const opens=buildingCenters.filter(b=>b.explorable),keys=['chair','couch','table','shelf','cabinet','bench','fridge','plant'],sizeByKey={chair:1.05,couch:1.0,table:.8,shelf:1.8,cabinet:1.1,bench:.9,fridge:1.8,plant:1.15};
+  const opens=buildingCenters.filter(b=>b.shellBuilt),keys=['chair','couch','table','shelf','cabinet','bench','fridge','plant'],sizeByKey={chair:1.05,couch:1.0,table:.8,shelf:1.8,cabinet:1.1,bench:.9,fridge:1.8,plant:1.15};
   if(!opens.length)return 0;
   let made=0,bodies=0,lights=0;
   for(const b of opens){
@@ -3970,6 +3988,8 @@ function updatePlayer(dt){
   const move=movementVector(ix,iy,yaw);
   let desiredX=moving||slideTime>0?move.x*speed:0,desiredY=moving||slideTime>0?move.y*speed:0;
   if(!interiorMode&&playerRoot){
+    if(playerBlocked(playerRoot.position.x+desiredX*dt,playerRoot.position.y))desiredX=0;
+    if(playerBlocked(playerRoot.position.x,playerRoot.position.y+desiredY*dt))desiredY=0;
     if(CELL==='national'&&boundaryBlocks(playerRoot.position.x+desiredX*dt,playerRoot.position.y))desiredX=0;
     if(CELL==='national'&&boundaryBlocks(playerRoot.position.x,playerRoot.position.y+desiredY*dt))desiredY=0;
     if(matchBlocks(playerRoot.position.x+desiredX*dt,playerRoot.position.y+desiredY*dt)){desiredX=0;desiredY=0}
@@ -4107,7 +4127,7 @@ async function boot(){
     loadText.textContent='PLAYABLE · exact buildings and apocalypse details streaming…';
 
     await yieldToRenderer();
-    try{buildBuildings();clearInstantBuildingMassing();buildEntryPoints();installInteractiveDoors()}catch(err){console.error('building geometry recovered',err);streetLifeStats.buildingGeometryError=String(err?.message||err)}
+    try{buildEntryPoints();installInteractiveDoors()}catch(err){console.error('door system recovered',err);streetLifeStats.buildingGeometryError=String(err?.message||err)}
     await yieldToRenderer();
     try{buildApocalypseGroundDressing()}catch(err){console.warn('ground dressing skipped',err)}
     await yieldToRenderer();
@@ -4141,7 +4161,7 @@ async function boot(){
       weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
       reloadActive:reloadState.active,aimFov:weaponCfg(activeWeapon).aim_fov,
-      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),seamlessOpenBuildings:true,towerPriorityOpenBuildings:true,optimizedOpenBuildingPhysics:true,shapeRecovery:true,staticMapCache:Boolean(streetLifeStats.staticMapCache),invalidShapes:Number(streetLifeStats.invalidShapes||0),shellFailures:Number(streetLifeStats.shellFailures||0),openInteriorProps:Number(streetLifeStats.openInteriorProps||0),
+      sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),doorableBuildings:Number(streetLifeStats.doorableBuildings||0),lazyOpenBuildings:true,seamlessOpenBuildings:true,towerPriorityOpenBuildings:true,optimizedOpenBuildingPhysics:true,shapeRecovery:true,staticMapCache:Boolean(streetLifeStats.staticMapCache),invalidShapes:Number(streetLifeStats.invalidShapes||0),shellFailures:Number(streetLifeStats.shellFailures||0),openInteriorProps:Number(streetLifeStats.openInteriorProps||0),
       matchMode,matchRadius:Number.isFinite(matchRadius)?matchRadius:null,seasonDay:seasonDay(),xp,battleTier,livesRemaining,
       flashlightReady:Boolean(flashlight),vehicleRepair:true,factionClaimMode:'local-preview',spectatorMode
     };
