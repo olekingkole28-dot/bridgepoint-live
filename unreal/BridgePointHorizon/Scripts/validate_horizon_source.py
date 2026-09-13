@@ -68,15 +68,17 @@ for stem in required_source:
 game_state = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGameStateSubsystem.cpp")
 require("YearOne.DurationDays = 365" in game_state, "Year One must remain 365 days")
 require("FMath::Clamp(Lives, 0, 3)" in game_state, "Year One lives must remain capped at three")
-require("Mode == EHorizonGameMode::YearOneSurvival" in game_state, "Year One mode rules missing")
+require("case EHorizonGameMode::YearOneSurvival" in game_state and "Rules.MaxPartySize = 1" in game_state and "Rules.bConsumesYearOneLives = YearOne.bStarted" in game_state, "Year One mode rules missing")
 
 social = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonSocialSubsystem.cpp")
 require("YearOne Survival is solo-only" in social, "Year One party rejection missing")
 require("bUseLobbiesVoiceChatIfAvailable = true" in social, "lobby voice auto-join is not enabled")
 
+streaming_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldStreamSubsystem.h")
 streaming = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldStreamSubsystem.cpp")
+stream_contract = streaming_header + "\n" + streaming
 for token in ["bridgepoint-horizon-stream-v3020", "state=%s&lat=%.8f&lon=%.8f", "resolved_jurisdiction"]:
-    require(token in streaming, f"world stream contract missing: {token}")
+    require(token in stream_contract, f"world stream contract missing: {token}")
 
 renderer = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldCellRenderer.cpp")
 for token in [
