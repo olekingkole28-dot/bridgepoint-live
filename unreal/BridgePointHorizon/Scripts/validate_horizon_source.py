@@ -175,11 +175,18 @@ for token in ["MovementSampleRateHz", "ReportCameraSpeedMps", "TryEnableWorldGra
     require(token in player, f"native adaptive player feature missing: {token}")
 for token in [
     "EquippedWeaponVisual", "EquipWeaponVisual", "WeaponHandSocketName",
+    "FirstPersonArms", "FirstPersonWeaponVisual", "SetFirstPersonArmsMesh",
+    "FirstPersonWeaponSocketName", "HasFirstPersonArms",
     "EHorizonCameraMode", "SetCameraMode", "ToggleCameraMode", "CachedMoveInput"
 ]:
     require(token in player_header, f"native weapon visual contract missing: {token}")
-for token in ["AttachWeaponVisualToBestSocket", "bUseControllerRotationYaw = bControllerFacing", "FVector SafeStart = GetActorLocation()"]:
-    require(token in player, f"native player facing/spawn/weapon implementation missing: {token}")
+for token in [
+    "AttachWeaponVisualToBestSocket", "AttachFirstPersonWeaponToBestSocket",
+    "RefreshFirstPersonVisualState", "SetLeaderPoseComponent",
+    "FirstPersonWeaponVisual->SetStaticMesh", "bUseControllerRotationYaw = bControllerFacing",
+    "FVector SafeStart = GetActorLocation()"
+]:
+    require(token in player, f"native player facing/spawn/weapon/first-person implementation missing: {token}")
 for token in ["LineTraceComponent", "GroundedLocation", "MOVE_Walking"]:
     require(token in player, f"streamed terrain grounding safeguard missing: {token}")
 
@@ -212,8 +219,50 @@ if mode_contract_path.exists():
     require(year.get("party", {}).get("invites_allowed") is False, "Year One invites must be disabled")
 
 importer = read("unreal/BridgePointHorizon/Scripts/horizon_batch_import.py")
-for token in ["/Game/Horizon/Weapons/Imported", 'return "weapons"']:
-    require(token in importer, f"native weapon asset intake missing: {token}")
+for token in [
+    "/Game/Horizon/Weapons/Imported", 'return "weapons"',
+    "/Game/Horizon/Characters/FirstPerson/Hands/Imported", 'return "hands"',
+    "/Game/Horizon/Characters/Grooms/Imported", 'return "grooms"',
+    "/Game/Horizon/Characters/Clothing/Imported", 'return "clothing"',
+    "/Game/Horizon/VFX/Imported", 'return "vfx"',
+    "/Game/Horizon/Visual/Decals/Imported", 'return "decals"',
+    "/Game/Horizon/Environment/Foliage/Imported", 'return "foliage"'
+]:
+    require(token in importer, f"native AAA asset intake missing: {token}")
+
+scalability = read("unreal/BridgePointHorizon/Config/DefaultScalability.ini")
+for token in [
+    "r.ViewDistanceScale=1.35", "r.TSR.History.ScreenPercentage=200",
+    "r.Shadow.Virtual.SMRT.RayCountDirectional=8", "r.Lumen.DiffuseIndirect.Allow=1",
+    "r.Lumen.Reflections.Allow=1", "r.MaxAnisotropy=16",
+    "fx.Niagara.QualityLevel=3", "foliage.DensityScale=1.0",
+    "r.HairStrands.SkyLighting.IntegrationType=1"
+]:
+    require(token in scalability, f"AAA scalability quality floor missing: {token}")
+
+for token in [
+    "r.Nanite.ProjectEnabled=True", "r.Shadow.Virtual.Enable=1",
+    "r.AntiAliasingMethod=4", "r.SkinCache.CompileShaders=True",
+    "r.HairStrands.Strands=1", "r.VolumetricFog=1",
+    "r.Lumen.Reflections.Allow=1", "r.Lumen.DiffuseIndirect.Allow=1"
+]:
+    require(token in engine_config, f"native AAA renderer baseline missing: {token}")
+
+visual_target_path = ROOT / "app" / "horizon-playable" / "HORIZON_AAA_VISUAL_TARGET_V4260.json"
+require(visual_target_path.exists(), "AAA visual target contract missing")
+if visual_target_path.exists():
+    visual_target = json.loads(visual_target_path.read_text(encoding="utf-8"))
+    floor = visual_target.get("production_quality_floor", {})
+    require(visual_target.get("target") == "native_unreal_modern_aaa_realism",
+            "AAA visual target identifier changed")
+    require("MetaHuman" in floor.get("characters", {}).get("target", ""),
+            "MetaHuman-quality character target missing")
+    require(floor.get("characters", {}).get("first_person") ==
+            "dedicated skeletal arms/hands plus separate first-person weapon mount",
+            "first-person arms/hands quality contract missing")
+    require(floor.get("fallback_policy", {}).get("native_unreal") ==
+            "low-poly packs fallback-only, never primary production look",
+            "low-poly native fallback-only rule missing")
 
 try:
     py_compile.compile(
