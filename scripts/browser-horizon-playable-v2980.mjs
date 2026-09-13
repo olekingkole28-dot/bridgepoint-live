@@ -79,6 +79,7 @@ const navAi=await page.evaluate(()=>{
   const probe=window.BP_HORIZON_TEST?.navProbe?.();
   return probe||null;
 });
+const multiFloor=await page.evaluate(()=>window.BP_HORIZON_TEST?.multiFloorProbe?.());
 
 if(!terrainGuard?.ok)throw new Error('Terrain guard failed '+JSON.stringify(terrainGuard));
 if(playerAsset.stance!=='stand'||!playerAsset.weaponSocket||playerAsset.weaponSocket==='playerRoot')throw new Error('Standing/hand-socket contract failed '+JSON.stringify(playerAsset));
@@ -102,6 +103,11 @@ if(loadingLod?.mobile===true){
 if(!navAi||!(navAi.nodes>0)||!(navAi.patrolRoutes>0))throw new Error('Infected patrol/nav graph missing '+JSON.stringify(navAi));
 if(navAi.routeCacheSize>320)throw new Error('Infected route cache exceeded budget '+JSON.stringify(navAi));
 if(navAi.stats?.fullNodeScans>navAi.stats?.localNodeHits+20)throw new Error('Infected nav lookup regressed to graph-wide scans '+JSON.stringify(navAi));
+if(!multiFloor?.first)throw new Error('Multi-floor interior probe unavailable '+JSON.stringify(multiFloor));
+if((multiFloor.first.floors||0)>1){
+  if(!multiFloor.stairMid?.ok)throw new Error('Interior stairs do not produce physical vertical rise '+JSON.stringify(multiFloor));
+  if(!multiFloor.second?.stackedZ||Math.abs((multiFloor.second?.playerZ||0)-(multiFloor.second?.expectedBase||0)-.015)>.08)throw new Error('Interior floor transition snapped to wrong elevation '+JSON.stringify(multiFloor));
+}
 if(!movementFacing?.all||movementFacing.samples?.some(x=>!x.ok))throw new Error('Rendered movement-facing regression '+JSON.stringify(movementFacing));
 if(!(controls.forward.dy>.99)||!(controls.backward.dy<-.99)||!(controls.left.dx<-.99)||!(controls.right.dx>.99))throw new Error('Cardinal controls broken '+JSON.stringify(controls));
 
@@ -135,5 +141,5 @@ if(!gestureIsolation?.ok)throw new Error('Movement/look gesture changed weapon '
 const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource: the server responded with a status of (404|500)/i.test(x));
 if(badResponses.length)throw new Error('Horizon HTTP 5xx '+JSON.stringify(badResponses));
 if(meaningful.length)throw new Error('Horizon console errors '+meaningful.join('\n'));
-console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,loadingLod,navAi,gestureIsolation,worldUi}));
+console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,loadingLod,navAi,multiFloor,gestureIsolation,worldUi}));
 await browser.close();
