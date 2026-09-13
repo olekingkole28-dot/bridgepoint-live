@@ -81,6 +81,7 @@
 
   <nav class="hud controls" aria-label="World controls">
     <button id="cameraBtn">◉ <span>Camera</span></button>
+    <button id="settingsBtn">⚙ <span>Controls</span></button>
     <button id="lightBtn">☀ <span>Day</span></button>
     <button id="parcelBtn">◇ <span>Parcels</span></button>
     <button id="artBtn" class="active">⚠ <span>Survival art</span></button>
@@ -112,6 +113,39 @@
   </div>
 
   <div class="hud hint">WASD move · Shift sprint · Space jump/hurdle · E use · K kick door · F fire · R reload · Q switch · H drop</div>
+
+  <section id="controlSettings" class="controlSettings" hidden aria-label="Horizon control settings">
+    <div class="controlSettingsHead">
+      <div><b>PLAYER CONTROLS</b><span>Saved on this device</span></div>
+      <button id="controlSettingsClose" type="button">✕</button>
+    </div>
+    <label>View
+      <select id="cameraModeSetting">
+        <option value="firstPerson">First person · arms / hands / weapon</option>
+        <option value="thirdPersonClose">Third person · close</option>
+        <option value="thirdPersonFar">Third person · far</option>
+      </select>
+    </label>
+    <label>Device profile
+      <select id="inputProfileSetting">
+        <option value="auto">Auto detect</option>
+        <option value="touch">Phone / tablet touch</option>
+        <option value="keyboardMouse">Keyboard + mouse</option>
+        <option value="gamepad">Gamepad / Xbox-style controller</option>
+      </select>
+    </label>
+    <label>Touch look sensitivity <output id="touchSensitivityValue">45</output>
+      <input id="touchSensitivitySetting" type="range" min="15" max="90" step="1" value="45">
+    </label>
+    <label>Mouse look sensitivity <output id="mouseSensitivityValue">32</output>
+      <input id="mouseSensitivitySetting" type="range" min="15" max="90" step="1" value="32">
+    </label>
+    <label>Gamepad look sensitivity <output id="gamepadSensitivityValue">32</output>
+      <input id="gamepadSensitivitySetting" type="range" min="12" max="80" step="1" value="32">
+    </label>
+    <label class="toggleRow"><input id="invertYSetting" type="checkbox"><span>Invert vertical look</span></label>
+    <small>Movement/look pointers stay isolated from weapon and action buttons. Changes apply immediately.</small>
+  </section>
 
   <div class="mobileControls" aria-label="Mobile movement controls">
     <div id="movePad" class="movePad"><div id="moveKnob"></div></div>
