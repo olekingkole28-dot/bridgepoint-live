@@ -59,6 +59,14 @@ $GameArgs = @(
 )
 
 $Game = Start-Process -FilePath $GameExe -ArgumentList $GameArgs -WorkingDirectory (Split-Path $GameExe -Parent) -PassThru
+$PidFile = Join-Path $ArchiveDir "pixelstream-processes.json"
+@{
+    supervisor_pid = $PID
+    game_pid = $Game.Id
+    signalling_pid = $Signalling.Id
+    started_at_utc = (Get-Date).ToUniversalTime().ToString("o")
+} | ConvertTo-Json | Set-Content -Encoding UTF8 $PidFile
+
 $StatusEndpoint = "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-native-stream-v4248"
 
 function Publish-Heartbeat([string]$Status, [string]$Message) {
@@ -110,6 +118,7 @@ try {
     if (!$Signalling.HasExited) {
         Stop-Process -Id $Signalling.Id -Force -ErrorAction SilentlyContinue
     }
+    Remove-Item -Force -ErrorAction SilentlyContinue $PidFile
 }
 
 exit $Game.ExitCode
