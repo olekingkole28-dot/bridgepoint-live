@@ -40,6 +40,7 @@ for dep in {
     require(f'"{dep}"' in build, f"missing module dependency: {dep}")
 
 required_source = [
+    "HorizonAutopilotSubsystem",
     "HorizonGameStateSubsystem",
     "HorizonArenaDirectorSubsystem",
     "HorizonGeneratedInterior",
@@ -84,8 +85,13 @@ for token in [
 ]:
     require(token in renderer, f"streamed UE renderer feature missing: {token}")
 
+
+autopilot = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonAutopilotSubsystem.cpp")
+for token in ["r.ScreenPercentage", "r.ViewDistanceScale", "r.Nanite.MaxPixelsPerEdge", "RecommendedCellSpanKm", "MovementSampleRateHz", "MaxActiveInfected"]:
+    require(token in autopilot, f"adaptive Horizon autopilot feature missing: {token}")
+
 runtime = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldRuntime.cpp")
-for token in ["RequestWorldCell", "RenderCellJson", "TravelToCell"]:
+for token in ["RequestWorldCell", "RenderCellJson", "TravelToCell", "UHorizonAutopilotSubsystem", "MaxBuildingsPerCell", "ReportStreamingPressure"]:
     require(token in runtime, f"end-to-end world runtime feature missing: {token}")
 
 interior = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGeneratedInterior.cpp")
