@@ -33,3 +33,21 @@ Do not import proprietary Call of Duty, Resident Evil, World War Z, GTA, The Sim
 10. 150-tier monthly season system.
 11. Performance gate: HLOD/Nanite/instancing/AI significance/network relevancy.
 12. Pixel Streaming deployment only after a GPU budget exists.
+
+
+## Automated content intake
+
+The Unreal project has the built-in Python Editor Script and Editor Scripting Utilities plugins enabled for asset-pipeline automation.
+
+For legally acquired engine-agnostic source files:
+
+1. Put source files in a staging folder outside the Unreal Content directory.
+2. Set the environment variable `HORIZON_ASSET_STAGING` to that folder.
+3. Run `Scripts/horizon_batch_import.py` from the Unreal Editor Python environment.
+4. The importer routes files into isolated `/Game/Horizon/.../Imported` folders and never overwrites existing content.
+5. Review visuals, collisions, materials, animation compatibility, memory, draw calls and runtime cost before promotion.
+6. Only after review should assets be moved into production Horizon folders using Unreal asset-management APIs.
+
+Epic/Fab UE-only packs do not go through this raw-file importer. Acquire them through Epic/Fab, retain the acquisition/license evidence, then evaluate their Unreal content in isolated project folders before promotion.
+
+Current promotion order is recorded in `app/horizon-playable/HORIZON_AUTOPILOT_PLAN.md` and provenance rules are recorded in `AAA_SOURCE_LEDGER_V4244.md`.
