@@ -85,6 +85,9 @@ public:
     UFUNCTION(BlueprintPure, Category="Horizon|World")
     FVector ProjectCoordinate(double Longitude, double Latitude, double HeightMeters = 0.0) const;
 
+    UFUNCTION(BlueprintPure, Category="Horizon|World")
+    bool HasTerrain() const { return TerrainWidth >= 2 && TerrainHeight >= 2; }
+
 private:
     double CenterLatitude = 0.0;
     double CenterLongitude = 0.0;
