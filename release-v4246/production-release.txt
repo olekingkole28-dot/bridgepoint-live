@@ -1,0 +1,8 @@
+BridgePoint V4246 production release trigger
+- restored separate B2B and Horizon public pages
+- B2B world embedded launcher
+- Cesium dateline guard
+- three Horizon mode cards
+- UE5.8 native track page
+- owner-started Year One event state
+- preseason lives protected
