@@ -1,0 +1,20 @@
+name: Probe Epic UE5.8 Container Access
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/probe-ue58-container.yml'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Probe official UE5.8 development container
+        run: |
+          set -euo pipefail
+          docker pull ghcr.io/epicgames/unreal-engine:dev-slim-5.8.0
+          docker image inspect ghcr.io/epicgames/unreal-engine:dev-slim-5.8.0 --format '{{.Id}}'
+          echo "UE58_CONTAINER_ACCESS_OK"
