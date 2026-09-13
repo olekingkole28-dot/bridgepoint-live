@@ -277,8 +277,9 @@ const artGroup=new THREE.Group();
 const lootGroup=new THREE.Group();
 const zombieGroup=new THREE.Group();
 const entryGroup=new THREE.Group();
+const ziplineGroup=new THREE.Group();ziplineGroup.name='roof-ziplines';
 const interiorGroup=new THREE.Group();
-exteriorRoot.add(worldGroup,artGroup,lootGroup,zombieGroup,entryGroup);
+exteriorRoot.add(worldGroup,artGroup,lootGroup,zombieGroup,entryGroup,ziplineGroup);
 scene.add(exteriorRoot,interiorGroup);
 interiorGroup.visible=false;
 
@@ -348,6 +349,7 @@ let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),ex
 let interiorWalls=[],interiorContainers=[],interiorWeaponCases=[],interiorBounds=null,interiorExit=null,interiorFloorLinks=[],interiorStairs=[],interiorTemplates={},interiorLootedKeys=new Set(),weaponCasePurchases=new Set();
 let streetLifeStats={trees:0,bikes:0,vehicles:0,props:0,grass:0,benches:0,planters:0,backgroundTrees:0,shrubs:0,drivable:0};
 let drivableVehicles=[],activeVehicle=null;
+let rooftopState=null,ziplines=[],activeZipline=null;
 
 // Horizon 3050 systems inspired by the expanded survival design:
 // source-aligned dressing, decay shaders, tactical movement, doors, repair,
@@ -1369,6 +1371,121 @@ function nearestRoadForBuilding(b){
   }
   return best;
 }
+function sourceRoofZ(entry){
+  const floors=Math.max(1,Math.floor(Number(entry?.height||INTERIOR_FLOOR_H)/INTERIOR_FLOOR_H));
+  return Number(entry?.z||0)+floors*INTERIOR_FLOOR_H+.08;
+}
+function exteriorSupportZ(x,y){
+  if(rooftopState?.entry&&pointInPoly(x,y,rooftopState.entry.poly||[]))return sourceRoofZ(rooftopState.entry)+.015;
+  return safeSurfaceAt(x,y);
+}
+function roofAnchorPoint(entry){
+  return new THREE.Vector3(entry.x,entry.y,sourceRoofZ(entry)+1.05);
+}
+function ziplinePoint(line,t){
+  t=THREE.MathUtils.clamp(t,0,1);
+  const p=line.start.clone().lerp(line.end,t);
+  p.z-=Math.sin(Math.PI*t)*Math.min(2.4,Math.max(.55,line.length*.018));
+  return p;
+}
+function buildRoofTraversalNetwork(){
+  while(ziplineGroup.children.length)ziplineGroup.remove(ziplineGroup.children[0]);
+  ziplines=[];
+  const origin=playerRoot?.position||playerSpawn,maxLines=MOBILE_GPU_SAFE?7:14;
+  const candidates=[...buildingEntries]
+    .filter(e=>e.height>8&&e.width>4&&e.depth>4)
+    .sort((a,b)=>((a.x-origin.x)**2+(a.y-origin.y)**2)-((b.x-origin.x)**2+(b.y-origin.y)**2))
+    .slice(0,MOBILE_GPU_SAFE?34:70);
+  const used=new Set(),cableMat=new THREE.LineBasicMaterial({color:0x292d2b,transparent:true,opacity:.95});
+  const anchorMat=new THREE.MeshStandardMaterial({color:0x4c514e,roughness:.72,metalness:.45});
+  for(const a of candidates){
+    if(ziplines.length>=maxLines||used.has(a.id))continue;
+    let best=null,bestD=Infinity;
+    for(const b of candidates){
+      if(a===b||used.has(b.id))continue;
+      const d=Math.hypot(a.x-b.x,a.y-b.y),hd=Math.abs(sourceRoofZ(a)-sourceRoofZ(b));
+      if(d<14||d>92||hd>24||d>=bestD)continue;
+      best=b;bestD=d;
+    }
+    if(!best)continue;
+    used.add(a.id);used.add(best.id);
+    const start=roofAnchorPoint(a),end=roofAnchorPoint(best),length=start.distanceTo(end),points=[];
+    for(let i=0;i<=18;i++)points.push(ziplinePoint({start,end,length},i/18));
+    const geom=new THREE.BufferGeometry().setFromPoints(points),lineMesh=new THREE.Line(geom,cableMat.clone());
+    const aPost=new THREE.Mesh(new THREE.CylinderGeometry(.07,.09,1.25,7),anchorMat),bPost=aPost.clone();
+    aPost.position.copy(start).add(new THREE.Vector3(0,0,-.62));bPost.position.copy(end).add(new THREE.Vector3(0,0,-.62));
+    ziplineGroup.add(lineMesh,aPost,bPost);
+    ziplines.push({id:'zip-'+a.id+'-'+best.id,a,b,start,end,length,lineMesh});
+  }
+  streetLifeStats.roofZiplines=ziplines.length;
+  return ziplines.length;
+}
+function enterRooftop(entry){
+  if(!entry||!playerRoot)return false;
+  ensureExplorableShell(entry);
+  interiorMode=false;interiorGroup.visible=false;exteriorRoot.visible=true;clearInterior();
+  const z=sourceRoofZ(entry)+.02;
+  playerRoot.position.set(entry.x,entry.y,z);playerVelocity.set(0,0,0);verticalVelocity=-.12;grounded=true;
+  rooftopState={entry,roofZ:z,hatchX:entry.x,hatchY:entry.y};
+  lastSafeGround.set(entry.x,entry.y,z);lastSafeGroundAt=performance.now();lastTerrainRescueReason='rooftop';
+  if(physicsReady){if(!playerPhysicsBody)createPlayerPhysics();syncPhysicsToPlayer()}
+  $('cellLabel').textContent='ROOFTOP · SOURCE-BACKED EXTERIOR';
+  $('worldTitle').textContent='Rooftop traversal · '+Math.round(sourceRoofZ(entry))+'m local elevation';
+  loadText.textContent='Roof access active · use nearby cable anchors to cross between buildings.';
+  showToast('Rooftop access');
+  return true;
+}
+function descendFromRooftop(){
+  const entry=rooftopState?.entry;if(!entry)return false;
+  rooftopState=null;
+  enterInterior(entry);
+  if(!interiorMode)return false;
+  const top=Math.max(1,Math.floor(entry.height/INTERIOR_FLOOR_H));
+  if(top>1)changeInteriorFloor(top,'interaction');
+  const x=activeInterior.width/2-1.45,y=-activeInterior.depth/2+1.95;
+  playerRoot.position.set(x,y,(activeInterior.baseZ||0)+.015);playerVelocity.set(0,0,0);
+  showToast('Back inside · top floor');
+  return true;
+}
+function startZipline(line,direction=1){
+  if(!line||!playerRoot||interiorMode)return false;
+  const dest=direction>0?line.b:line.a;
+  ensureExplorableShell(dest);
+  activeZipline={line,direction:direction>0?1:-1,t:direction>0?0:1,destination:dest};
+  rooftopState=null;playerVelocity.set(0,0,0);verticalVelocity=0;grounded=false;
+  showToast('Zipline · '+Math.round(line.length)+'m');
+  return true;
+}
+function updateZiplineRide(dt){
+  if(!activeZipline||!playerRoot)return false;
+  const q=activeZipline,line=q.line;
+  q.t+=q.direction*(12.5*dt/Math.max(1,line.length));
+  const done=q.direction>0?q.t>=1:q.t<=0;
+  q.t=THREE.MathUtils.clamp(q.t,0,1);
+  const p=ziplinePoint(line,q.t),nextT=THREE.MathUtils.clamp(q.t+q.direction*.01,0,1),n=ziplinePoint(line,nextT);
+  playerRoot.position.set(p.x,p.y,p.z-.88);
+  playerRoot.rotation.z=Math.atan2(n.x-p.x,n.y-p.y);
+  if(physicsReady&&playerPhysicsBody)syncPhysicsToPlayer();
+  if(done){
+    const dest=q.destination,z=sourceRoofZ(dest)+.02;
+    activeZipline=null;rooftopState={entry:dest,roofZ:z,hatchX:dest.x,hatchY:dest.y};
+    playerRoot.position.set(dest.x,dest.y,z);playerVelocity.set(0,0,0);verticalVelocity=-.12;grounded=true;
+    lastSafeGround.set(dest.x,dest.y,z);lastSafeGroundAt=performance.now();lastTerrainRescueReason='zipline_landing';
+    if(physicsReady&&playerPhysicsBody)syncPhysicsToPlayer();
+    showToast('Zipline landing');
+  }
+  return true;
+}
+function nearestRoofZiplineInteraction(){
+  if(!rooftopState||!playerRoot||!ziplines.length)return null;
+  let best=null,bestD=2.8;
+  for(const line of ziplines){
+    const ds=playerRoot.position.distanceTo(line.start),de=playerRoot.position.distanceTo(line.end);
+    if(ds<bestD){bestD=ds;best={kind:'zipline',label:'RIDE ZIPLINE',line,direction:1}}
+    if(de<bestD){bestD=de;best={kind:'zipline',label:'RIDE ZIPLINE',line,direction:-1}}
+  }
+  return best;
+}
 function buildEntryPoints(){
   entryGroup.clear();buildingEntries=[];
   const candidates=[...buildingCenters].filter(b=>b.explorable).map(b=>prepareDoorMetadata(b))
@@ -1628,7 +1745,7 @@ function safeSurfaceAt(x,y){
 function rememberSafeGround(force=false){
   if(!playerRoot||interiorMode)return false;
   const {x,y,z}=playerRoot.position;
-  const surface=safeSurfaceAt(x,y);
+  const surface=exteriorSupportZ(x,y);
   if(surface==null||!finiteWorldPoint(x,y,z))return false;
   const groundedEnough=grounded||Math.abs(z-surface)<.65;
   if(!force&&!groundedEnough)return false;
@@ -1643,7 +1760,7 @@ function rescuePlayerToSafeGround(reason='terrain_guard'){
   if(!Number.isFinite(x)||!Number.isFinite(y)){
     const spawn=nearestRoadToCenter();x=spawn.x;y=spawn.y;
   }
-  let z=safeSurfaceAt(x,y);
+  let z=exteriorSupportZ(x,y);
   if(z==null){
     const spawn=nearestRoadToCenter();x=spawn.x;y=spawn.y;z=safeSurfaceAt(x,y);
   }
@@ -3317,6 +3434,9 @@ function maybeUseWalkableStairs(){
   for(const s of interiorStairs){
     const dx=playerRoot.position.x-s.x,dy=playerRoot.position.y-s.y,ly=s.direction>0?dy:-dy;
     if(Math.abs(dx)>.88||ly<s.run/2-.20)continue;
+    if(s.roofExit&&s.direction>0&&activeInterior.floor===activeInterior.floors){
+      enterRooftop(activeInterior.entry);return true;
+    }
     if(s.direction>0&&activeInterior.floor<activeInterior.floors){
       changeInteriorFloor(activeInterior.floor+1,'stairs',s.direction);return true;
     }
@@ -3475,6 +3595,8 @@ function generateInterior(entry,requestedFloor=1){
   activeInterior={entry,width:w,depth:h,layout,floor:floorNumber,floors,baseZ:floorBaseZ,floorHeight:INTERIOR_FLOOR_H};
   if(floorNumber<floors){
     const s=makeWalkableStairs('UP',upX,upY,1);s.floor=floorNumber+1;
+  }else{
+    const s=makeWalkableStairs('ROOF',upX,upY,1);s.floor=floors+1;s.roofExit=true;s.label='ROOF ACCESS';
   }
   if(floorNumber>1){
     const s=makeWalkableStairs('DOWN',downX,downY,-1);s.floor=floorNumber-1;
@@ -3571,10 +3693,19 @@ function findNearestInteraction(){
   if(activeVehicle)return{kind:'vehicleExit',label:'EXIT '+activeVehicle.type.toUpperCase()};
   let best=null,bestD=Infinity;
   if(!interiorMode){
+    if(rooftopState){
+      const hatchD=Math.hypot(playerRoot.position.x-rooftopState.hatchX,playerRoot.position.y-rooftopState.hatchY);
+      if(hatchD<2.5){best={kind:'roofDescend',label:'DESCEND INTO BUILDING'};bestD=hatchD}
+      const zip=nearestRoofZiplineInteraction();
+      if(zip){
+        const anchor=zip.direction>0?zip.line.start:zip.line.end,d=playerRoot.position.distanceTo(anchor);
+        if(d<bestD){best=zip;bestD=d}
+      }
+    }
     const v=nearestDrivable();if(v){
       const ready=vehicleReady(v);
-      const missing=[...v.requiredParts.filter(p=>!v.installedParts.includes(p)),...(v.fuel>0?[]:['Fuel can'])];best={kind:ready?'vehicle':'vehicleRepair',label:ready?'DRIVE '+v.type.toUpperCase()+' · '+Math.round(v.fuel)+'% FUEL':'REPAIR '+v.type.toUpperCase()+' · '+missing.join(' + '),vehicle:v};
-      bestD=Math.hypot(v.root.position.x-playerRoot.position.x,v.root.position.y-playerRoot.position.y);
+      const missing=[...v.requiredParts.filter(p=>!v.installedParts.includes(p)),...(v.fuel>0?[]:['Fuel can'])],vd=Math.hypot(v.root.position.x-playerRoot.position.x,v.root.position.y-playerRoot.position.y);
+      if(vd<bestD){best={kind:ready?'vehicle':'vehicleRepair',label:ready?'DRIVE '+v.type.toUpperCase()+' · '+Math.round(v.fuel)+'% FUEL':'REPAIR '+v.type.toUpperCase()+' · '+missing.join(' + '),vehicle:v};bestD=vd}
     }
   }
   for(const p of worldPickups){
@@ -3599,7 +3730,9 @@ function findNearestInteraction(){
 }
 function interact(){
   const hit=findNearestInteraction();if(!hit)return;
-  if(hit.kind==='vehicleExit')exitVehicle();
+  if(hit.kind==='roofDescend')descendFromRooftop();
+  else if(hit.kind==='zipline')startZipline(hit.line,hit.direction);
+  else if(hit.kind==='vehicleExit')exitVehicle();
   else if(hit.kind==='vehicle')enterVehicle(hit.vehicle);
   else if(hit.kind==='vehicleRepair')repairVehicle(hit.vehicle);
   else if(hit.kind==='door')openDoor(hit.entry,false);
@@ -4939,6 +5072,7 @@ function updatePlayer(dt){
   let iy=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0)+mobileMove.y+gamepadMove.y;
   ({x:ix,y:iy}=normalizeMovementInput(ix,iy));
   const moving=Math.hypot(ix,iy)>.06,sprint=(keys.has('ShiftLeft')||keys.has('ShiftRight')||mobileSprint)&&!aiming&&playerStance==='stand'&&iy>.18;
+  if(activeZipline){updateZiplineRide(dt);return}
   if(activeVehicle){
     updateVehicle(dt,ix,iy);maybeNationalTravel();return;
   }
@@ -4970,7 +5104,7 @@ function updatePlayer(dt){
     if(!finiteWorldPoint(playerRoot.position.x,playerRoot.position.y,playerRoot.position.z)){
       rescuePlayerToSafeGround('fallback_nonfinite');
     }else{
-      const targetGround=interiorMode?interiorGroundZ(playerRoot.position.x,playerRoot.position.y):safeSurfaceAt(playerRoot.position.x,playerRoot.position.y);
+      const targetGround=interiorMode?interiorGroundZ(playerRoot.position.x,playerRoot.position.y):exteriorSupportZ(playerRoot.position.x,playerRoot.position.y);
       if(targetGround==null&&!interiorMode){
         rescuePlayerToSafeGround('fallback_invalid_surface');
       }else if(!Number.isFinite(playerRoot.position.z)||playerRoot.position.z<targetGround-.035){
@@ -5155,7 +5289,7 @@ async function boot(){
     // Immediate gameplay hydration: doors, apocalypse ground and hostile pressure are
     // ready before any expensive facade/parts/parcel decoration. Those details stream later.
     await yieldToRenderer();
-    try{buildEntryPoints();installInteractiveDoors()}catch(err){console.error('door system recovered',err);streetLifeStats.buildingGeometryError=String(err?.message||err)}
+    try{buildEntryPoints();installInteractiveDoors();buildRoofTraversalNetwork()}catch(err){console.error('door/roof traversal system recovered',err);streetLifeStats.buildingGeometryError=String(err?.message||err)}
     await yieldToRenderer();
     try{buildApocalypseGroundDressing();buildDenseApocalypseLayers()}catch(err){console.warn('ground dressing skipped',err)}
     loadText.textContent='PLAYABLE · infected entering world…';
@@ -5471,6 +5605,30 @@ async function boot(){
         patrolRoutes:zombies.filter(z=>!z.dead).filter(z=>(z.patrolRoute?.length||0)>1).length,
         active:zombies.filter(z=>!z.dead).map(z=>({state:z.state,speed:z.speed,pathLength:z.path?.length||0,patrolRoute:z.patrolRoute?.length||0,aggro:Boolean(z.aggro)}))
       }),
+      roofZiplineProbe:()=>{
+        if(interiorMode)exitInterior();
+        rooftopState=null;activeZipline=null;
+        const e=[...buildingEntries].filter(x=>x.height>8).sort((a,b)=>b.height-a.height)[0];if(!e)return null;
+        enterInterior(e);
+        const top=Math.max(1,Math.floor(e.height/INTERIOR_FLOOR_H));
+        if(top>1)changeInteriorFloor(top,'interaction');
+        const roofStair=interiorStairs.find(x=>x.roofExit);
+        const topBase=activeInterior?.baseZ||0;
+        const enteredRoof=Boolean(roofStair&&enterRooftop(e));
+        const rooftop={entered:enteredRoof,z:playerRoot.position.z,expected:sourceRoofZ(e),support:exteriorSupportZ(playerRoot.position.x,playerRoot.position.y),entryId:rooftopState?.entry?.id||null};
+        let ride=null;
+        const line=ziplines.find(z=>z.a.id===e.id||z.b.id===e.id)||ziplines[0];
+        if(line){
+          const dir=line.a.id===e.id?1:-1;
+          playerRoot.position.copy(dir>0?line.start:line.end);playerRoot.position.z-=.88;rooftopState={entry:dir>0?line.a:line.b,hatchX:(dir>0?line.a:line.b).x,hatchY:(dir>0?line.a:line.b).y};
+          const started=startZipline(line,dir);
+          let guard=0;while(activeZipline&&guard++<800)updateZiplineRide(1/60);
+          ride={started,finished:!activeZipline,guard,landedEntry:rooftopState?.entry?.id||null,z:playerRoot.position.z};
+        }
+        if(rooftopState)descendFromRooftop();
+        if(interiorMode)exitInterior();
+        return{ziplineCount:ziplines.length,roofStair:Boolean(roofStair),topBase,rooftop,ride};
+      },
       driveProbe:()=>{
         const v=drivableVehicles[0];if(!v)return null;
         const oldPos=v.root.position.clone();playerRoot.position.copy(v.root.position).add(new THREE.Vector3(.4,.4,0));syncPhysicsToPlayer();
