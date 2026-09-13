@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#220b07">
+<title>BridgePoint Horizon Lobby</title>
+<meta name="description" content="BridgePoint Horizon shared game lobby. Select your survivor and deploy into Year One Survival, Infinite Team Deathmatch, or Outbreak Raid.">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./horizon-mark.svg" type="image/svg+xml">
+<style>
+:root{color-scheme:dark;--bg:#070605;--panel:#0f0c0b;--panel2:#17100e;--line:rgba(255,255,255,.1);--text:#f2ece7;--muted:#a99b93;--red:#e43c17;--orange:#ff7a2f}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:radial-gradient(circle at 70% 15%,rgba(161,35,16,.24),transparent 34%),linear-gradient(#070605,#030303);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+body{min-height:100vh}button,a,select{font:inherit}.shell{width:min(1180px,calc(100% - 28px));margin:0 auto;padding:18px 0 34px}
+.top{display:flex;align-items:center;gap:12px;padding:10px 0 18px}.brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:#fff}.brand img{width:48px;height:48px;border-radius:13px}.brand strong{display:block;letter-spacing:.11em;font-size:13px}.brand small{display:block;color:#b99b8e;letter-spacing:.17em;font-weight:800;font-size:9px;margin-top:3px}.back{margin-left:auto;text-decoration:none;color:#eee;border:1px solid var(--line);padding:9px 12px;border-radius:11px;background:rgba(255,255,255,.04);font-size:11px;font-weight:850}
+.hero{display:grid;grid-template-columns:1.35fr .85fr;gap:16px}.panel{border:1px solid var(--line);border-radius:22px;background:linear-gradient(160deg,rgba(17,13,12,.96),rgba(7,7,7,.96));box-shadow:0 24px 70px rgba(0,0,0,.38)}.modePane{overflow:hidden}.modeArt{height:300px;position:relative;overflow:hidden;background:#170a07}.modeArt svg{width:100%;height:100%;display:block}.modeCopy{padding:22px}.tag{display:inline-flex;padding:6px 9px;border:1px solid rgba(255,111,63,.35);border-radius:999px;color:#ff9870;font-weight:900;font-size:9px;letter-spacing:.12em}.modeCopy h1{font-size:clamp(30px,5vw,58px);line-height:.94;letter-spacing:-.055em;margin:13px 0 11px}.modeCopy p{color:#c8bbb4;line-height:1.55;font-size:14px;margin:0}.stats{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px}.stats span{padding:7px 8px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);font-size:9px;font-weight:900;letter-spacing:.07em}
+.side{padding:18px}.side h2{margin:0 0 4px;font-size:20px}.side>p{margin:0 0 15px;color:var(--muted);font-size:12px;line-height:1.45}.sectionLabel{font-size:9px;font-weight:950;letter-spacing:.13em;color:#ff8b5d;margin:16px 0 8px}.chars{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.char{border:1px solid var(--line);background:#0b0a09;border-radius:12px;padding:10px 5px;color:#bdb1aa;cursor:pointer}.char.active{border-color:#ff6232;color:#fff;background:linear-gradient(180deg,#2b110c,#100b09);box-shadow:0 0 0 1px rgba(255,85,40,.13)}.charFace{height:48px;display:grid;place-items:center;font-size:28px}.char b{display:block;font-size:8px;letter-spacing:.06em;margin-top:5px}.party{display:grid;grid-template-columns:1fr 1fr;gap:7px}.slot{border:1px solid var(--line);border-radius:11px;padding:10px;background:rgba(255,255,255,.03);min-height:54px}.slot b{display:block;font-size:10px}.slot small{color:#887c75;font-size:8px}.slot.you{border-color:rgba(255,91,44,.42);background:rgba(255,70,25,.07)}
+.profile{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.stat{padding:10px;border-radius:11px;background:rgba(255,255,255,.035);border:1px solid var(--line)}.stat b{display:block;font-size:17px}.stat small{color:#887d76;font-size:8px;letter-spacing:.06em}
+.actions{display:grid;gap:8px;margin-top:16px}.play{border:0;border-radius:13px;padding:14px 15px;color:#fff;background:linear-gradient(135deg,#ef481a,#9a1b0c);font-weight:950;letter-spacing:.08em;cursor:pointer;box-shadow:0 14px 32px rgba(167,38,13,.3)}.secondary{border:1px solid var(--line);border-radius:12px;padding:11px 13px;color:#eee;background:rgba(255,255,255,.045);font-weight:850;cursor:pointer}.notice{padding:10px 11px;border:1px solid rgba(255,123,52,.18);border-radius:11px;background:rgba(255,86,25,.05);color:#bdaba2;font-size:10px;line-height:1.45;margin-top:12px}.modeSwitcher{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}.modeSwitch{padding:8px 9px;border-radius:9px;border:1px solid var(--line);background:#0c0b0a;color:#aaa;font-size:9px;font-weight:900;cursor:pointer}.modeSwitch.active{color:#fff;border-color:#f15b31;background:#26100b}
+@media(max-width:850px){.hero{grid-template-columns:1fr}.modeArt{height:220px}.chars{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:520px){.shell{width:min(100% - 18px,1180px)}.modeCopy{padding:16px}.side{padding:14px}.chars{grid-template-columns:repeat(2,1fr)}.profile{grid-template-columns:1fr 1fr}.modeCopy h1{font-size:36px}}
+</style>
+</head>
+<body>
+<main class="shell">
+  <header class="top">
+    <a class="brand" href="./"><img src="./horizon-mark.svg" alt="Horizon"><span><strong>BRIDGEPOINT</strong><small>HORIZON LOBBY</small></span></a>
+    <a class="back" href="./#game-modes">← CHANGE MODE</a>
+  </header>
+
+  <div class="modeSwitcher" id="modeSwitcher">
+    <button class="modeSwitch" data-mode="year_one_survival">YEAR ONE</button>
+    <button class="modeSwitch" data-mode="infinite_tdm">INFINITE TDM</button>
+    <button class="modeSwitch" data-mode="outbreak_raid">OUTBREAK RAID</button>
+  </div>
+
+  <section class="hero">
+    <article class="panel modePane">
+      <div class="modeArt" id="modeArt"></div>
+      <div class="modeCopy">
+        <span class="tag" id="modeTag"></span>
+        <h1 id="modeName"></h1>
+        <p id="modeDescription"></p>
+        <div class="stats" id="modeStats"></div>
+        <div class="notice" id="modeNotice"></div>
+      </div>
+    </article>
+
+    <aside class="panel side">
+      <h2>READY ROOM</h2>
+      <p>Select your survivor, check your profile, then deploy. This lobby passes the selected mode directly into the playable runtime.</p>
+
+      <div class="sectionLabel">SURVIVOR</div>
+      <div class="chars" id="characters">
+        <button class="char active" data-character="survivor"><span class="charFace">🧍</span><b>SURVIVOR</b></button>
+        <button class="char" data-character="female"><span class="charFace">🧍‍♀️</span><b>SCOUT</b></button>
+        <button class="char" data-character="swat"><span class="charFace">🛡️</span><b>SWAT</b></button>
+        <button class="char" data-character="police"><span class="charFace">👮</span><b>POLICE</b></button>
+        <button class="char" data-character="hazmat"><span class="charFace">☣️</span><b>HAZMAT</b></button>
+      </div>
+
+      <div class="sectionLabel">PROFILE</div>
+      <div class="profile">
+        <div class="stat"><b id="profileKills">0</b><small>KILLS</small></div>
+        <div class="stat"><b id="profileTier">0</b><small>SEASON LVL</small></div>
+        <div class="stat"><b id="profileXP">0</b><small>XP</small></div>
+        <div class="stat"><b id="profileSalvage">0</b><small>SALVAGE</small></div>
+      </div>
+
+      <div class="sectionLabel">PARTY / DEPLOYMENT</div>
+      <div class="party" id="party"></div>
+
+      <div class="actions">
+        <button class="play" id="playBtn">DEPLOY</button>
+        <button class="secondary" id="shareBtn">SHARE THIS LOBBY</button>
+      </div>
+    </aside>
+  </section>
+</main>
+
+<script>
+const MODES={
+  year_one_survival:{
+    name:'YEAR ONE SURVIVAL',tag:'SOLO · PERSISTENT',stats:['1 PLAYER','365 DAYS','3 LIVES','PRESEASON'],
+    description:'One survivor. Three lives. The 365-day survival event grows harder over time while infected pressure closes the surviving population toward major-city endgames.',
+    notice:'Year One remains in PRESEASON until the owner explicitly starts the 365-day event. Preseason testing does not consume Year One lives.',
+    art:'year',span:'3.4',preview:'city',party:1
+  },
+  infinite_tdm:{
+    name:'INFINITE TEAM DEATHMATCH',tag:'TEAM PvP',stats:['2–4 PARTY','RESPAWNS','SKILL MATCHING TARGET','VERTICAL ARENAS'],
+    description:'Fast team combat across rooftops, bridges, alleys, waterfronts, interiors and other high-interest streamed Horizon cells.',
+    notice:'Browser alpha deployment enters the real TDM runtime mode. Full network party/matchmaking services continue to be built behind this lobby.',
+    art:'tdm',span:'1.4',preview:'city',party:4
+  },
+  outbreak_raid:{
+    name:'OUTBREAK RAID',tag:'CO-OP PvE',stats:['1–4 PLAYERS','MISSIONS','ELITES + BOSSES','EXTRACTION'],
+    description:'Enter a dense outbreak zone, complete multi-stage objectives, survive elite infected and boss pressure, secure rare loot and reach extraction.',
+    notice:'Browser alpha deployment enters the real Raid runtime mode. Network party/fill services continue to be built behind this lobby.',
+    art:'raid',span:'1.8',preview:'city',party:4
+  }
+};
+
+const q=new URLSearchParams(location.search);
+let mode=MODES[q.get('mode')]?q.get('mode'):'year_one_survival';
+let character=localStorage.getItem('horizon-lobby-character')||'survivor';
+
+function art(kind){
+  if(kind==='tdm')return `
+  <svg viewBox="0 0 900 420" aria-hidden="true"><defs><linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071321"/><stop offset="1" stop-color="#4c0d08"/></linearGradient></defs><rect width="900" height="420" fill="url(#a)"/><path d="M0 280h160V176h120v86h98V120h150v145h104V166h138v98h130v156H0Z" fill="#080b10"/><circle cx="448" cy="202" r="58" fill="none" stroke="#ff4f2d" stroke-width="4"/><path d="M448 78v250M318 202h260" stroke="#ff4f2d" stroke-width="2" opacity=".65"/><g transform="translate(210 245)" fill="#7db8ff"><circle cx="22" cy="20" r="14"/><path d="M8 37 0 89h44L35 37Z"/><path d="M36 52 88 33" stroke="#7db8ff" stroke-width="9"/></g><g transform="translate(644 240)" fill="#ff8068"><circle cx="22" cy="20" r="14"/><path d="M8 37 0 89h44L35 37Z"/><path d="M7 53-48 34" stroke="#ff8068" stroke-width="9"/></g><text x="28" y="48" fill="#ff8f73" font-size="20" font-weight="900" letter-spacing="4">VERTICAL TEAM COMBAT</text></svg>`;
+  if(kind==='raid')return `
+  <svg viewBox="0 0 900 420" aria-hidden="true"><defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#1c100c"/><stop offset="1" stop-color="#050505"/></linearGradient><radialGradient id="g"><stop stop-color="#ff7e24"/><stop offset="1" stop-color="#ff2d14" stop-opacity="0"/></radialGradient></defs><rect width="900" height="420" fill="url(#b)"/><circle cx="675" cy="200" r="160" fill="url(#g)" opacity=".55"/><path d="M0 330V108h88v222h70V70h102v260h64V140h95v190h481v90H0Z" fill="#080808"/><g transform="translate(180 270)" fill="#ded4ca"><circle cx="18" cy="16" r="12"/><path d="M7 30 0 75h37L29 30Z"/><path d="M31 43 73 27" stroke="#ded4ca" stroke-width="8"/></g><g transform="translate(255 279)" fill="#ded4ca"><circle cx="17" cy="15" r="11"/><path d="M7 29 1 70h34L28 29Z"/></g><g transform="translate(646 146)" fill="#160706"><circle cx="55" cy="41" r="37"/><path d="M27 74 0 190h116L86 74Z"/></g><circle cx="686" cy="187" r="7" fill="#ff3c18"/><circle cx="720" cy="187" r="7" fill="#ff3c18"/><path d="M470 342 515 286 560 342Z" fill="#ff7428"/><path d="M515 286v-62" stroke="#ffd1a3" stroke-width="6"/><text x="28" y="48" fill="#ffb06a" font-size="20" font-weight="900" letter-spacing="4">OBJECTIVE · BOSS · EXTRACTION</text></svg>`;
+  return `
+  <svg viewBox="0 0 900 420" aria-hidden="true"><defs><linearGradient id="c" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#34100c"/><stop offset=".52" stop-color="#912713"/><stop offset="1" stop-color="#070707"/></linearGradient><radialGradient id="f"><stop stop-color="#ff9a33"/><stop offset="1" stop-color="#c51b0b" stop-opacity="0"/></radialGradient></defs><rect width="900" height="420" fill="url(#c)"/><circle cx="675" cy="122" r="104" fill="url(#f)"/><path d="M0 286 68 270V210h46v54l58-13v-76h54v72l70-16V127h61v111l68-16v-61h58v65l70-17V110h67v105l68-15v-66h59v76l73-19v229H0Z" fill="#080808"/><path d="M0 366Q175 300 360 352T900 346" fill="none" stroke="#ff431a" stroke-width="9"/><g fill="#180806"><circle cx="90" cy="337" r="18"/><path d="M72 357 55 420h72l-18-63Z"/><circle cx="805" cy="336" r="18"/><path d="M788 356 771 420h70l-17-64Z"/></g><g transform="translate(420 285)" fill="#ded4ca"><circle cx="20" cy="18" r="13"/><path d="M8 33 0 84h41L32 33Z"/><path d="M34 47 83 28" stroke="#ded4ca" stroke-width="9"/></g><text x="28" y="48" fill="#ff9b74" font-size="20" font-weight="900" letter-spacing="4">365 DAYS · 3 LIVES</text></svg>`;
+}
+
+function profile(){
+  try{
+    const save=JSON.parse(localStorage.getItem('bridgepoint-horizon-survivor-v3050')||'{}');
+    document.getElementById('profileKills').textContent=Number(save.kills||0).toLocaleString();
+    document.getElementById('profileTier').textContent=Number(save.battleTier||0);
+    document.getElementById('profileXP').textContent=Number(save.xp||0).toLocaleString();
+    document.getElementById('profileSalvage').textContent=Number(save.salvage||0).toLocaleString();
+  }catch(_){}
+}
+
+function renderParty(m){
+  const root=document.getElementById('party');root.innerHTML='';
+  for(let i=0;i<m.party;i++){
+    const slot=document.createElement('div');slot.className='slot '+(i===0?'you':'');
+    slot.innerHTML=i===0?'<b>YOU</b><small>READY ROOM</small>':'<b>OPEN SLOT</b><small>party services pending</small>';
+    root.appendChild(slot);
+  }
+}
+
+async function refreshYearOne(){
+  if(mode!=='year_one_survival')return;
+  try{
+    const r=await fetch('https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-event-v4242',{cache:'no-store'});
+    const j=await r.json();
+    if(j?.event?.active){
+      MODES.year_one_survival.notice='YEAR ONE IS LIVE · Day '+j.event.day+' / 365 · '+j.event.max_lives+' lives maximum.';
+      render();
+    }
+  }catch(_){}
+}
+
+function render(){
+  const m=MODES[mode];
+  document.title=m.name+' · Horizon Lobby';
+  document.getElementById('modeArt').innerHTML=art(m.art);
+  document.getElementById('modeTag').textContent=m.tag;
+  document.getElementById('modeName').textContent=m.name;
+  document.getElementById('modeDescription').textContent=m.description;
+  document.getElementById('modeStats').innerHTML=m.stats.map(x=>'<span>'+x+'</span>').join('');
+  document.getElementById('modeNotice').textContent=m.notice;
+  renderParty(m);
+  document.querySelectorAll('.modeSwitch').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+  document.querySelectorAll('.char').forEach(b=>b.classList.toggle('active',b.dataset.character===character));
+  document.getElementById('playBtn').textContent=mode==='year_one_survival'?'DEPLOY YEAR ONE / PRESEASON':mode==='infinite_tdm'?'DEPLOY INFINITE TDM':'DEPLOY OUTBREAK RAID';
+  history.replaceState(null,'','?mode='+encodeURIComponent(mode));
+}
+
+document.getElementById('modeSwitcher').addEventListener('click',e=>{
+  const b=e.target.closest('[data-mode]');if(!b||!MODES[b.dataset.mode])return;
+  mode=b.dataset.mode;render();refreshYearOne();
+});
+document.getElementById('characters').addEventListener('click',e=>{
+  const b=e.target.closest('[data-character]');if(!b)return;
+  character=b.dataset.character;localStorage.setItem('horizon-lobby-character',character);render();
+});
+document.getElementById('playBtn').addEventListener('click',()=>{
+  const m=MODES[mode];
+  const u=new URL('./preview.html',location.href);
+  u.searchParams.set('cell','national');
+  u.searchParams.set('state','CT');
+  u.searchParams.set('lat','41.5623');
+  u.searchParams.set('lon','-72.6506');
+  u.searchParams.set('span_km',m.span);
+  u.searchParams.set('preview',m.preview);
+  u.searchParams.set('character',character);
+  u.searchParams.set('mode',mode);
+  u.searchParams.set('build','4246');
+  location.href=u.toString();
+});
+document.getElementById('shareBtn').addEventListener('click',async()=>{
+  const url=location.origin+location.pathname+'?mode='+encodeURIComponent(mode);
+  try{if(navigator.share)await navigator.share({title:MODES[mode].name+' · Horizon Lobby',text:'Join my BridgePoint Horizon lobby.',url});else{await navigator.clipboard.writeText(url);alert('Lobby link copied.')}}catch(_){}
+});
+
+profile();render();refreshYearOne();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>
