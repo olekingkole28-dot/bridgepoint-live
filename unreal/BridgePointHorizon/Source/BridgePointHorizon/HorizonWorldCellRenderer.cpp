@@ -556,6 +556,10 @@ bool AHorizonWorldCellRenderer::BuildTerrain(const TSharedPtr<FJsonObject>& Root
         Colors,
         Tangents,
         bCreateTerrainCollision);
+    if (TerrainMaterial)
+    {
+        TerrainMesh->SetMaterial(0, TerrainMaterial);
+    }
 
     return true;
 }
@@ -653,6 +657,10 @@ void AHorizonWorldCellRenderer::BuildTransport(const TSharedPtr<FJsonObject>& Ro
             Colors,
             Tangents,
             false);
+        if (RoadMaterial)
+        {
+            RoadMesh->SetMaterial(0, RoadMaterial);
+        }
     }
 }
 
@@ -783,6 +791,10 @@ void AHorizonWorldCellRenderer::BuildWater(const TSharedPtr<FJsonObject>& Root)
             Colors,
             Tangents,
             false);
+        if (WaterMaterial)
+        {
+            WaterMesh->SetMaterial(0, WaterMaterial);
+        }
     }
 }
 
@@ -971,6 +983,10 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
             Colors,
             Tangents,
             bCreateBuildingCollision);
+        if (BuildingMaterial)
+        {
+            BuildingMesh->SetMaterial(0, BuildingMaterial);
+        }
     }
 
     if (!PartVertices.IsEmpty())
@@ -989,5 +1005,9 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
             Colors,
             Tangents,
             false);
+        if (BuildingPartMaterial)
+        {
+            BuildingMesh->SetMaterial(1, BuildingPartMaterial);
+        }
     }
 }
