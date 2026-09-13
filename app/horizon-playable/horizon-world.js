@@ -10,7 +10,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4246;
+const BUILD_VERSION=4247;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -5473,41 +5473,54 @@ function initInput(){
   renderer.domElement.addEventListener('pointercancel',stopLook,{passive:false});
 
   const pad=$('movePad'),knob=$('moveKnob');let padId=null;
-  if(pad&&window.nipplejs?.create){
+  // Native pointer-captured movement pad. Keep movement independent of CDN joystick
+  // libraries so Android touch cannot freeze when an external script loads late,
+  // loses a gesture, or competes with the canvas.
+  mobileInputMode='native-pointer';
+  if(pad){
     pad.style.touchAction='none';
-    pad.addEventListener('pointerdown',e=>{if(claimPointer(e,'move'))lastMoveDragAt=performance.now()},{capture:true,passive:false});
-    pad.addEventListener('pointermove',e=>{if(pointerOwner(e.pointerId)==='move'){lastMoveDragAt=performance.now();e.preventDefault();e.stopPropagation()}},{capture:true,passive:false});
-    const releaseMovePointer=e=>{if(pointerOwner(e.pointerId)==='move'){lastMoveDragAt=performance.now();releasePointer(e,'move')}};
-    pad.addEventListener('pointerup',releaseMovePointer,{capture:true,passive:false});
-    pad.addEventListener('pointercancel',releaseMovePointer,{capture:true,passive:false});
-    try{
-      knob && (knob.style.display='none');
-      nippleManager=window.nipplejs.create({
-        zone:pad,mode:'static',position:{left:'50%',top:'50%'},size:112,
-        color:{front:'rgba(71,226,133,.92)',back:'rgba(119,151,129,.26)'},
-        restJoystick:true,threshold:.08
-      });
-      nippleManager.on('move',(_evt,data)=>{
-        const v=data?.vector||{x:0,y:0},force=THREE.MathUtils.clamp(Number(data?.force||0),0,1);
-        const mag=Math.max(.18,force);
-        mobileMove.x=THREE.MathUtils.clamp((v.x||0)*mag,-1,1);
-        mobileMove.y=THREE.MathUtils.clamp((v.y||0)*mag,-1,1);
-      });
-      nippleManager.on('end',()=>{mobileMove.x=0;mobileMove.y=0});
-      mobileInputMode='nipplejs';
-    }catch(e){console.warn('NippleJS fallback',e)}
-  }
-  if(mobileInputMode!=='nipplejs'){
-    function padMove(e){
-      const r=pad.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=e.clientX-cx,dy=e.clientY-cy,max=r.width*.34,len=Math.hypot(dx,dy)||1,scl=Math.min(1,max/len),px=dx*scl,py=dy*scl;
+    const resetPad=()=>{
+      padId=null;mobileMove.x=0;mobileMove.y=0;
+      if(knob)knob.style.transform='translate(0,0)';
+    };
+    const padMove=e=>{
+      if(!knob)return;
+      const r=pad.getBoundingClientRect();
+      const cx=r.left+r.width/2,cy=r.top+r.height/2;
+      const dx=e.clientX-cx,dy=e.clientY-cy;
+      const max=Math.max(28,Math.min(r.width,r.height)*.34);
+      const len=Math.hypot(dx,dy)||1,scl=Math.min(1,max/len);
+      const px=dx*scl,py=dy*scl;
+      knob.style.display='';
       knob.style.transform='translate('+px+'px,'+py+'px)';
       const nx=px/max,ny=-py/max,mag=Math.hypot(nx,ny);
-      mobileMove.x=mag<.16?0:nx;mobileMove.y=mag<.16?0:ny;
-    }
-    pad?.addEventListener('pointerdown',e=>{if(!claimPointer(e,'move'))return;padId=e.pointerId;lastMoveDragAt=performance.now();padMove(e)},{passive:false});
-    pad?.addEventListener('pointermove',e=>{if(e.pointerId===padId&&pointerOwner(e.pointerId)==='move'){lastMoveDragAt=performance.now();padMove(e);e.preventDefault();e.stopPropagation()}},{passive:false});
-    const padEnd=e=>{if(e.pointerId!==padId)return;lastMoveDragAt=performance.now();padId=null;mobileMove.x=mobileMove.y=0;knob.style.transform='translate(0,0)';releasePointer(e,'move')};
-    pad?.addEventListener('pointerup',padEnd,{passive:false});pad?.addEventListener('pointercancel',padEnd,{passive:false});
+      mobileMove.x=mag<.10?0:THREE.MathUtils.clamp(nx,-1,1);
+      mobileMove.y=mag<.10?0:THREE.MathUtils.clamp(ny,-1,1);
+      lastMoveDragAt=performance.now();
+    };
+    pad.addEventListener('pointerdown',e=>{
+      if(padId!==null&&padId!==e.pointerId)return;
+      if(!claimPointer(e,'move'))return;
+      padId=e.pointerId;
+      try{pad.setPointerCapture?.(padId)}catch(_){}
+      padMove(e);
+    },{passive:false});
+    pad.addEventListener('pointermove',e=>{
+      if(e.pointerId!==padId||pointerOwner(e.pointerId)!=='move')return;
+      padMove(e);e.preventDefault();e.stopPropagation();
+    },{passive:false});
+    const padEnd=e=>{
+      if(e.pointerId!==padId)return;
+      lastMoveDragAt=performance.now();
+      resetPad();releasePointer(e,'move');
+    };
+    pad.addEventListener('pointerup',padEnd,{passive:false});
+    pad.addEventListener('pointercancel',padEnd,{passive:false});
+    pad.addEventListener('lostpointercapture',e=>{
+      if(e.pointerId===padId){inputPointerOwners.delete(e.pointerId);resetPad()}
+    },{passive:true});
+    addEventListener('blur',resetPad,{passive:true});
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)resetPad()},{passive:true});
   }
 
   const bindActionPointer=(id,handler)=>{
