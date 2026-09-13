@@ -71,6 +71,14 @@ const held=await page.evaluate(()=>window.BP_HORIZON_TEST.heldWeaponProbe());
 const terrainGuard=await page.evaluate(()=>window.BP_HORIZON_TEST.terrainGuardProbe());
 const controls=await page.evaluate(()=>window.BP_HORIZON_TEST.cardinalControlsProbe());
 const movementFacing=await page.evaluate(()=>window.BP_HORIZON_TEST.movementFacingProbe?.());
+
+// Fast playable is allowed to begin on the emergency silhouette, but the quality
+// layer must hot-swap to the same-origin CC0 survivor and real skinned arms.
+await page.waitForFunction(()=>{
+  const h=window.BP_HORIZON_TEST?.playerHydrationProbe?.();
+  return h?.loaded===true&&h?.source==='same-origin-cc0'&&h?.actualArms===true;
+},null,{timeout:20000});
+const playerHydration=await page.evaluate(()=>window.BP_HORIZON_TEST.playerHydrationProbe?.());
 const cameraModes=await page.evaluate(()=>window.BP_HORIZON_TEST.cameraModesProbe?.());
 const inputIsolation=await page.evaluate(()=>window.BP_HORIZON_TEST.inputIsolationProbe?.());
 await page.waitForFunction(()=>window.BP_HORIZON_TEST?.loadingLodProbe?.()?.detailHydrationComplete===true,null,{timeout:30000});
@@ -98,6 +106,7 @@ if(!held?.visible||held.children<1||held.distance>3.2)throw new Error('Equipped 
 if(smoke?.mapCount!==1||smoke?.mapPreset!=='unified_us'||smoke?.endlessHorde!==true||!(smoke?.endlessCap>=18)||smoke?.hydrationComplete!==true||smoke?.proceduralFastHydration!==true||smoke?.cloneRecovery4238!==true||smoke?.denseApocalypse!==true)throw new Error('Continuous Horizon world contract failed '+JSON.stringify(smoke));
 for(const id of ['graveborn','mauler','wretch','abomination','hound','spider','crow'])if(!smoke?.enemyArchetypes?.includes(id))throw new Error('Missing essential hostile '+id+' '+JSON.stringify(smoke.enemyArchetypes));
 if(!(smoke?.groundDetails>100)||!(smoke?.entries>0)||!(smoke?.instantMassing>0))throw new Error('World density/door/building gate failed '+JSON.stringify(smoke));
+if(playerHydration?.loaded!==true||playerHydration?.source!=='same-origin-cc0'||playerHydration?.actualArms!==true||!(playerHydration?.armBoneCount>=6)||!(playerHydration?.armTriangles>=20))throw new Error('Same-origin realistic survivor/hands hydration failed '+JSON.stringify(playerHydration));
 if(controls.locomotionAlwaysFacesTravel!==true||controls.nonAimingFirearmFacesTravel!==true||controls.shooterAimFacesCamera!==true||controls.aimingBackpedalAllowed!==true)throw new Error('Shooter movement contract broken '+JSON.stringify(controls));
 if(!Array.isArray(controls.cameraModes)||controls.cameraModes.join('|')!=='firstPerson|thirdPersonClose|thirdPersonFar')throw new Error('Camera mode contract missing '+JSON.stringify(controls));
 if(!Array.isArray(cameraModes)||cameraModes.length!==3)throw new Error('Camera mode probe missing '+JSON.stringify(cameraModes));
@@ -197,5 +206,5 @@ if(modeLaunch?.explicit!==true||modeLaunch?.requested!=='infinite_tdm'||modeLaun
 if(modeErrors.length)throw new Error('Horizon explicit-mode page errors '+modeErrors.join('\n'));
 await modePage.close();
 
-console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,pbrSurfaces,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,loadingLod,navAi,multiFloor,windowVista,roofZipline,interiorDoor,audioArchitecture,renderQuality,gestureIsolation,worldUi,modeLaunch}));
+console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,pbrSurfaces,hydration,quickFacing,movementFacing,playerHydration,weaponCount:quickWeapons.length,cameraModes,inputIsolation,loadingLod,navAi,multiFloor,windowVista,roofZipline,interiorDoor,audioArchitecture,renderQuality,gestureIsolation,worldUi,modeLaunch}));
 await browser.close();
