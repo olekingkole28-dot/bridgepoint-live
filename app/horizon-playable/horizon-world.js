@@ -316,6 +316,8 @@ let firstPersonRig=null,firstPersonWeapon=null;
 let health=100,lastDamageAt=0;
 let playerSpawn=new THREE.Vector3();
 const playerVelocity=new THREE.Vector3();
+const lastSafeGround=new THREE.Vector3();
+let lastSafeGroundAt=0,lastTerrainRescueReason='none';
 let roadAnchors=[],roadSegments=[],roadSurfaceGrid=new Map(),navNodes=[],navNodeMap=new Map(),buildingCenters=[],buildingEntries=[],zombies=[],interiorZombies=[];
 let nearestInteract=null,lootCount=3;
 let inventory={Bandage:1,Water:1,Flashlight:1};
@@ -793,6 +795,13 @@ function createPlayerPhysics(){
   }
   const cfg=STANCES[playerStance]||STANCES.stand;
   PHYSICS_PLAYER_CENTER=cfg.center;
+  const safeGround=safeSurfaceAt(playerRoot.position.x,playerRoot.position.y);
+  if(!finiteWorldPoint(playerRoot.position.x,playerRoot.position.y,playerRoot.position.z)||safeGround==null){
+    rescuePlayerToSafeGround('physics_create_invalid_position');
+  }else if(playerRoot.position.z<safeGround-.04){
+    playerRoot.position.z=safeGround;terrainSafetyRescues++;lastTerrainRescueReason='physics_create_below_surface';
+  }
+  rememberSafeGround(true);
   const z=playerRoot.position.z+PHYSICS_PLAYER_CENTER;
   playerPhysicsBody=physicsWorld.createRigidBody(
     RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(playerRoot.position.x,playerRoot.position.y,z)
@@ -847,24 +856,39 @@ function movePlayerRapier(dx,dy,dt){
   const desired={x:dx,y:dy,z:verticalVelocity*dt};
   characterController.computeColliderMovement(playerPhysicsCollider,desired);
   const mv=characterController.computedMovement(),p=playerPhysicsBody.translation();
-  playerPhysicsBody.setNextKinematicTranslation({x:p.x+mv.x,y:p.y+mv.y,z:p.z+mv.z});
+  const proposed={x:p.x+mv.x,y:p.y+mv.y,z:p.z+mv.z};
+  const horizontalStep=Math.hypot(proposed.x-p.x,proposed.y-p.y);
+  if(!finiteWorldPoint(proposed.x,proposed.y,proposed.z)||horizontalStep>3.5){
+    rescuePlayerToSafeGround(!finiteWorldPoint(proposed.x,proposed.y,proposed.z)?'rapier_nonfinite':'rapier_step_spike');
+    return true;
+  }
+  playerPhysicsBody.setNextKinematicTranslation(proposed);
   physicsWorld.step();
   const next=playerPhysicsBody.translation();
+  if(!finiteWorldPoint(next.x,next.y,next.z)){
+    rescuePlayerToSafeGround('rapier_poststep_nonfinite');
+    return true;
+  }
   grounded=Boolean(characterController.computedGrounded?.());
   if(grounded&&verticalVelocity<0)verticalVelocity=-.16;
-  const minSurface=surfaceZXY(next.x,next.y)+.015;
+  const minSurface=safeSurfaceAt(next.x,next.y);
+  if(minSurface==null){
+    rescuePlayerToSafeGround('invalid_surface_sample');
+    return true;
+  }
   let rootZ=next.z-PHYSICS_PLAYER_CENTER;
   // Hard invariant: outside, the survivor can never resolve below the BridgePoint
   // terrain/road surface. This remains active even if Rapier finishes loading after
   // terrain construction or a trimesh collider misses a frame.
   if(!Number.isFinite(rootZ)||rootZ<minSurface-.035){
-    rootZ=minSurface;verticalVelocity=-.12;grounded=true;terrainSafetyRescues++;
+    rootZ=minSurface;verticalVelocity=-.12;grounded=true;terrainSafetyRescues++;lastTerrainRescueReason='below_surface';
     const safe={x:next.x,y:next.y,z:rootZ+PHYSICS_PLAYER_CENTER};
     playerPhysicsBody.setNextKinematicTranslation(safe);
     playerPhysicsBody.setTranslation(safe,true);
     try{physicsWorld.propagateModifiedBodyPositionsToColliders()}catch(_){}
   }
   playerRoot.position.set(next.x,next.y,Math.max(rootZ,minSurface));
+  rememberSafeGround(false);
   return true;
 }
 function rapierCameraPosition(target,desired){
@@ -1551,6 +1575,46 @@ function surfaceZXY(x,y){
   if(best<=bestWidth/2+2.7)return base+.155;
   return base+.025;
 }
+function finiteWorldPoint(x,y,z=0){
+  return Number.isFinite(x)&&Number.isFinite(y)&&Number.isFinite(z)&&Math.abs(x)<1e7&&Math.abs(y)<1e7&&Math.abs(z)<1e6;
+}
+function safeSurfaceAt(x,y){
+  if(!Number.isFinite(x)||!Number.isFinite(y))return null;
+  const z=surfaceZXY(x,y)+.015;
+  return Number.isFinite(z)&&Math.abs(z)<1e5?z:null;
+}
+function rememberSafeGround(force=false){
+  if(!playerRoot||interiorMode)return false;
+  const {x,y,z}=playerRoot.position;
+  const surface=safeSurfaceAt(x,y);
+  if(surface==null||!finiteWorldPoint(x,y,z))return false;
+  const groundedEnough=grounded||Math.abs(z-surface)<.65;
+  if(!force&&!groundedEnough)return false;
+  lastSafeGround.set(x,y,Math.max(surface,z));
+  lastSafeGroundAt=performance.now();
+  return true;
+}
+function rescuePlayerToSafeGround(reason='terrain_guard'){
+  if(!playerRoot||interiorMode)return false;
+  let x=lastSafeGroundAt?lastSafeGround.x:playerSpawn.x;
+  let y=lastSafeGroundAt?lastSafeGround.y:playerSpawn.y;
+  if(!Number.isFinite(x)||!Number.isFinite(y)){
+    const spawn=nearestRoadToCenter();x=spawn.x;y=spawn.y;
+  }
+  let z=safeSurfaceAt(x,y);
+  if(z==null){
+    const spawn=nearestRoadToCenter();x=spawn.x;y=spawn.y;z=safeSurfaceAt(x,y);
+  }
+  if(z==null)z=0;
+  playerRoot.position.set(x,y,z);
+  playerVelocity.set(0,0,0);
+  verticalVelocity=-.12;grounded=true;
+  terrainSafetyRescues++;
+  lastTerrainRescueReason=String(reason||'terrain_guard');
+  lastSafeGround.set(x,y,z);lastSafeGroundAt=performance.now();
+  if(physicsReady&&playerPhysicsBody)syncPhysicsToPlayer();
+  return true;
+}
 function navKey(x,y){return Math.round(x/8)+':'+Math.round(y/8)}
 function navNode(x,y,z){
   const k=navKey(x,y);let n=navNodeMap.get(k);
@@ -2156,6 +2220,7 @@ async function buildPlayer(){
   playerRoot=new THREE.Group();const fallback=fallbackPlayer();playerVisualRoot=fallback;playerVisualBaseScaleZ=1;playerModelYawOffset=0;
   playerRoot.add(fallback);setupEquipmentMounts(fallback);playerAssetLoaded=false;playerAssetMode='streaming-fallback';
   playerRoot.position.copy(playerSpawn);scene.add(playerRoot);
+  lastSafeGround.copy(playerSpawn);lastSafeGroundAt=performance.now();lastTerrainRescueReason='spawn';
   const restoredItem=activeItemForSlot(activeSlot);
   if(!restoredItem)activeSlot=equipment.melee?'melee':equipment.sidearm?'sidearm':equipment.primary?'primary':'offhand';
   activeWeapon=activeItemForSlot(activeSlot)||equipment.melee||'Axe';equippedWeaponName=activeWeapon;
@@ -3436,6 +3501,7 @@ function respawnPlayer(){
   const box=$('deathBox');if(box)box.hidden=true;
   const spawn=nearestRoadToCenter();playerSpawn.set(spawn.x,spawn.y,surfaceZXY(spawn.x,spawn.y)+.015);
   playerRoot.position.copy(playerSpawn);playerRoot.visible=true;playerVelocity.set(0,0,0);
+  lastSafeGround.copy(playerSpawn);lastSafeGroundAt=performance.now();lastTerrainRescueReason='respawn';
   if(physicsReady){if(!playerPhysicsBody)createPlayerPhysics();else syncPhysicsToPlayer()}
   yaw=0;pitch=.14;waveNumber=0;nextWaveAt=0;
   if(zombieTemplate){spawnZombieWave(performance.now(),true);spawnFacadeSpiders(densePreview()?4:2)}
@@ -4691,12 +4757,19 @@ function updatePlayer(dt){
   }
   if(!usedRapier){
     movePlayerStable(playerVelocity.x*dt,playerVelocity.y*dt);
-    const targetGround=interiorMode?interiorGroundZ(playerRoot.position.x,playerRoot.position.y):surfaceZXY(playerRoot.position.x,playerRoot.position.y)+.015;
-    if(!Number.isFinite(playerRoot.position.z)||playerRoot.position.z<targetGround-.035){
-      playerRoot.position.z=targetGround;verticalVelocity=-.12;grounded=true;terrainSafetyRescues++;
+    if(!finiteWorldPoint(playerRoot.position.x,playerRoot.position.y,playerRoot.position.z)){
+      rescuePlayerToSafeGround('fallback_nonfinite');
     }else{
-      playerRoot.position.z=Math.max(targetGround,THREE.MathUtils.lerp(playerRoot.position.z,targetGround,1-Math.exp(-22*dt)));
+      const targetGround=interiorMode?interiorGroundZ(playerRoot.position.x,playerRoot.position.y):safeSurfaceAt(playerRoot.position.x,playerRoot.position.y);
+      if(targetGround==null&&!interiorMode){
+        rescuePlayerToSafeGround('fallback_invalid_surface');
+      }else if(!Number.isFinite(playerRoot.position.z)||playerRoot.position.z<targetGround-.035){
+        playerRoot.position.z=targetGround;verticalVelocity=-.12;grounded=true;terrainSafetyRescues++;lastTerrainRescueReason='fallback_below_surface';
+      }else{
+        playerRoot.position.z=Math.max(targetGround,THREE.MathUtils.lerp(playerRoot.position.z,targetGround,1-Math.exp(-22*dt)));
+      }
     }
+    if(!interiorMode)rememberSafeGround(false);
   }
 
   const firearm=isFirearm(activeWeapon);
@@ -5090,13 +5163,33 @@ async function boot(){
       },
       terrainGuardProbe:()=>{
         if(!playerRoot)return null;
-        const surface=surfaceZXY(playerRoot.position.x,playerRoot.position.y)+.015,prior=playerRoot.position.clone();
-        playerRoot.position.z=surface-4;
+        const prior=playerRoot.position.clone(),priorSafe=lastSafeGround.clone(),priorSafeAt=lastSafeGroundAt;
+        const surface=safeSurfaceAt(prior.x,prior.y);
+        rememberSafeGround(true);
+
+        playerRoot.position.z=(surface??prior.z)-4;
         if(physicsReady&&playerPhysicsBody)syncPhysicsToPlayer();
         updatePlayer(1/60);
-        const after=playerRoot.position.z,ok=after>=surface-.04;
-        playerRoot.position.copy(prior);if(physicsReady&&playerPhysicsBody)syncPhysicsToPlayer();
-        return{surface,after,ok,physicsReady,terrainPhysicsReady:Boolean(terrainPhysicsCollider),terrainSafetyRescues};
+        const belowAfter=playerRoot.position.clone();
+        const belowOk=surface!=null&&belowAfter.z>=surface-.04;
+
+        playerRoot.position.set(Number.NaN,Number.POSITIVE_INFINITY,-99999);
+        if(physicsReady&&playerPhysicsBody){
+          try{playerPhysicsBody.setTranslation({x:Number.NaN,y:0,z:-99999},true)}catch(_){}
+        }
+        updatePlayer(1/60);
+        const corruptAfter=playerRoot.position.clone();
+        const corruptOk=finiteWorldPoint(corruptAfter.x,corruptAfter.y,corruptAfter.z)&&safeSurfaceAt(corruptAfter.x,corruptAfter.y)!=null;
+
+        playerRoot.position.copy(prior);lastSafeGround.copy(priorSafe);lastSafeGroundAt=priorSafeAt;
+        if(physicsReady&&playerPhysicsBody)syncPhysicsToPlayer();
+        return{
+          surface,belowAfter:{x:belowAfter.x,y:belowAfter.y,z:belowAfter.z},belowOk,
+          corruptAfter:{x:corruptAfter.x,y:corruptAfter.y,z:corruptAfter.z},corruptOk,
+          ok:belowOk&&corruptOk,
+          physicsReady,terrainPhysicsReady:Boolean(terrainPhysicsCollider),
+          terrainSafetyRescues,lastTerrainRescueReason
+        };
       },
       deathProbe:()=>{
         damagePlayer(200);const deadBefore=playerDead;respawnPlayer();
