@@ -9,6 +9,13 @@ class USpringArmComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
 
+UENUM(BlueprintType)
+enum class EHorizonCameraMode : uint8
+{
+    FirstPerson,
+    ThirdPerson
+};
+
 UCLASS()
 class BRIDGEPOINTHORIZON_API AHorizonPlayerCharacter : public ACharacter
 {
@@ -48,6 +55,15 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera")
     float AimArmLength = 185.0f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera")
+    float FirstPersonFieldOfView = 82.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera")
+    float ThirdPersonFieldOfView = 86.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
+    float FacingInterpolationSpeed = 24.0f;
+
     UFUNCTION(BlueprintCallable, Category="Horizon|Weapon")
     bool EquipWeaponVisual(UStaticMesh* WeaponMesh, FName PreferredSocket = NAME_None);
 
@@ -57,14 +73,29 @@ public:
     UFUNCTION(BlueprintPure, Category="Horizon|Weapon")
     bool IsWeaponVisualEquipped() const;
 
+    UFUNCTION(BlueprintCallable, Category="Horizon|Camera")
+    void SetCameraMode(EHorizonCameraMode NewMode);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Camera")
+    void ToggleCameraMode();
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Camera")
+    EHorizonCameraMode GetCameraMode() const { return CameraMode; }
+
 private:
     bool bSprinting = false;
     bool bAiming = false;
     bool bWaitingForStreamedTerrain = true;
     float TerrainProbeAccumulator = 0.0f;
+    FVector2D CachedMoveInput = FVector2D::ZeroVector;
+
+    UPROPERTY()
+    EHorizonCameraMode CameraMode = EHorizonCameraMode::ThirdPerson;
 
     void MoveForward(float Value);
     void MoveRight(float Value);
+    void ApplyMovementInput(float DeltaSeconds);
+    void UpdateCameraPresentation(float DeltaSeconds);
     void StartSprint();
     void StopSprint();
     void ToggleCrouch();
