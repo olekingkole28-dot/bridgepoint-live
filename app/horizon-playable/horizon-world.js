@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4238;
+const BUILD_VERSION=4239;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -120,60 +120,12 @@ const DEFAULT_WEAPON_CONFIGS=[
 
 const params=new URLSearchParams(location.search);
 const MAP_PRESETS=[
-  {id:'times_square',name:'Times Square Collapse',state:'NY',lat:40.7580,lon:-73.9855,span:1.0,size:'SMALL',preview:'city',theme:'downtown',density:2.15},
-  {id:'lower_manhattan',name:'Lower Manhattan Siege',state:'NY',lat:40.7075,lon:-74.0113,span:1.7,size:'MEDIUM',preview:'city',theme:'downtown',density:2.10},
-  {id:'brooklyn_docks',name:'Brooklyn Dockyards',state:'NY',lat:40.6782,lon:-74.0165,span:2.4,size:'LARGE',preview:'coastal',theme:'harbor',density:1.95,waterRing:true},
-  {id:'bronx_ruins',name:'Bronx Ruins',state:'NY',lat:40.8448,lon:-73.8648,span:1.5,size:'MEDIUM',preview:'city',theme:'urban',density:2.0},
-  {id:'boston_harbor',name:'Boston Harbor',state:'MA',lat:42.3601,lon:-71.0522,span:1.8,size:'MEDIUM',preview:'coastal',theme:'harbor',density:1.95,waterRing:true},
-  {id:'philadelphia_center',name:'Philadelphia Center City',state:'PA',lat:39.9526,lon:-75.1652,span:1.8,size:'MEDIUM',preview:'city',theme:'downtown',density:2.05},
-  {id:'baltimore_inner_harbor',name:'Baltimore Inner Harbor',state:'MD',lat:39.2847,lon:-76.6132,span:1.6,size:'MEDIUM',preview:'coastal',theme:'harbor',density:2.0,waterRing:true},
-  {id:'dc_mall',name:'D.C. Containment Zone',state:'DC',lat:38.8951,lon:-77.0364,span:2.2,size:'LARGE',preview:'city',theme:'government',density:1.9},
-  {id:'pittsburgh_river',name:'Pittsburgh River Siege',state:'PA',lat:40.4406,lon:-79.9959,span:2.0,size:'MEDIUM',preview:'coastal',theme:'industrial',density:1.95},
-  {id:'cleveland_flats',name:'Cleveland Flats',state:'OH',lat:41.4974,lon:-81.7048,span:1.7,size:'MEDIUM',preview:'city',theme:'industrial',density:2.0},
-  {id:'detroit_downtown',name:'Detroit Blackout',state:'MI',lat:42.3314,lon:-83.0458,span:2.0,size:'MEDIUM',preview:'city',theme:'industrial',density:2.05},
-  {id:'chicago_loop',name:'Chicago Loop',state:'IL',lat:41.8837,lon:-87.6325,span:2.2,size:'LARGE',preview:'city',theme:'downtown',density:2.1},
-  {id:'milwaukee_river',name:'Milwaukee Riverfront',state:'WI',lat:43.0389,lon:-87.9065,span:1.7,size:'MEDIUM',preview:'coastal',theme:'industrial',density:1.95},
-  {id:'minneapolis_mill',name:'Minneapolis Mill District',state:'MN',lat:44.9788,lon:-93.2570,span:1.8,size:'MEDIUM',preview:'city',theme:'industrial',density:1.95},
-  {id:'st_louis_gateway',name:'St. Louis Gateway',state:'MO',lat:38.6270,lon:-90.1994,span:2.0,size:'MEDIUM',preview:'city',theme:'urban',density:1.9},
-  {id:'nashville_core',name:'Nashville Core',state:'TN',lat:36.1627,lon:-86.7816,span:1.7,size:'MEDIUM',preview:'city',theme:'downtown',density:2.0},
-  {id:'memphis_river',name:'Memphis Riverfront',state:'TN',lat:35.1495,lon:-90.0490,span:1.8,size:'MEDIUM',preview:'coastal',theme:'industrial',density:1.9},
-  {id:'atlanta_midtown',name:'Atlanta Midtown',state:'GA',lat:33.7811,lon:-84.3866,span:1.9,size:'MEDIUM',preview:'city',theme:'urban',density:2.05},
-  {id:'charleston_port',name:'Charleston Port',state:'SC',lat:32.7765,lon:-79.9311,span:1.8,size:'MEDIUM',preview:'coastal',theme:'harbor',density:1.95,waterRing:true},
-  {id:'savannah_river',name:'Savannah River District',state:'GA',lat:32.0809,lon:-81.0912,span:1.6,size:'MEDIUM',preview:'coastal',theme:'historic',density:1.9},
-  {id:'miami_beach',name:'Miami Beach Isolation',state:'FL',lat:25.7907,lon:-80.1300,span:2.0,size:'MEDIUM',preview:'coastal',theme:'resort',density:2.0,waterRing:true},
-  {id:'tampa_channelside',name:'Tampa Channelside',state:'FL',lat:27.9446,lon:-82.4450,span:1.8,size:'MEDIUM',preview:'coastal',theme:'harbor',density:1.95,waterRing:true},
-  {id:'orlando_core',name:'Orlando Evacuation Grid',state:'FL',lat:28.5383,lon:-81.3792,span:1.5,size:'MEDIUM',preview:'city',theme:'urban',density:2.0},
-  {id:'jacksonville_river',name:'Jacksonville Riverfront',state:'FL',lat:30.3322,lon:-81.6557,span:2.1,size:'LARGE',preview:'coastal',theme:'harbor',density:1.9},
-  {id:'new_orleans_french',name:'New Orleans Floodline',state:'LA',lat:29.9584,lon:-90.0644,span:1.7,size:'MEDIUM',preview:'coastal',theme:'historic',density:2.05},
-  {id:'houston_downtown',name:'Houston Downtown',state:'TX',lat:29.7604,lon:-95.3698,span:2.3,size:'LARGE',preview:'city',theme:'urban',density:2.0},
-  {id:'dallas_core',name:'Dallas Core',state:'TX',lat:32.7767,lon:-96.7970,span:2.0,size:'MEDIUM',preview:'city',theme:'downtown',density:2.0},
-  {id:'austin_river',name:'Austin River District',state:'TX',lat:30.2672,lon:-97.7431,span:1.8,size:'MEDIUM',preview:'coastal',theme:'urban',density:1.95},
-  {id:'san_antonio_riverwalk',name:'San Antonio Riverwalk',state:'TX',lat:29.4241,lon:-98.4936,span:1.6,size:'MEDIUM',preview:'city',theme:'historic',density:1.95},
-  {id:'el_paso_core',name:'El Paso Dust Zone',state:'TX',lat:31.7619,lon:-106.4850,span:1.8,size:'MEDIUM',preview:'city',theme:'desert',density:1.9},
-  {id:'denver_core',name:'Denver Core',state:'CO',lat:39.7392,lon:-104.9903,span:1.9,size:'MEDIUM',preview:'city',theme:'urban',density:2.0},
-  {id:'colorado_mountain',name:'Rocky Mountain Outbreak',state:'CO',lat:39.1911,lon:-106.8175,span:2.5,size:'LARGE',preview:'mountain',theme:'mountain',density:1.85},
-  {id:'salt_lake',name:'Salt Lake Collapse',state:'UT',lat:40.7608,lon:-111.8910,span:1.9,size:'MEDIUM',preview:'city',theme:'urban',density:1.95},
-  {id:'phoenix_core',name:'Phoenix Heat Zone',state:'AZ',lat:33.4484,lon:-112.0740,span:2.2,size:'LARGE',preview:'city',theme:'desert',density:1.95},
-  {id:'las_vegas_strip',name:'Las Vegas Strip',state:'NV',lat:36.1147,lon:-115.1728,span:2.0,size:'MEDIUM',preview:'city',theme:'resort',density:2.15},
-  {id:'albuquerque',name:'Albuquerque Dead Zone',state:'NM',lat:35.0844,lon:-106.6504,span:1.8,size:'MEDIUM',preview:'city',theme:'desert',density:1.9},
-  {id:'los_angeles_dt',name:'Los Angeles Downtown',state:'CA',lat:34.0522,lon:-118.2437,span:2.4,size:'LARGE',preview:'city',theme:'downtown',density:2.1},
-  {id:'long_beach_port',name:'Long Beach Port',state:'CA',lat:33.7542,lon:-118.2165,span:2.5,size:'LARGE',preview:'coastal',theme:'harbor',density:2.0,waterRing:true},
-  {id:'san_diego_harbor',name:'San Diego Harbor',state:'CA',lat:32.7157,lon:-117.1730,span:2.0,size:'MEDIUM',preview:'coastal',theme:'harbor',density:1.95,waterRing:true},
-  {id:'san_francisco_downtown',name:'San Francisco Downtown',state:'CA',lat:37.7890,lon:-122.4010,span:1.9,size:'MEDIUM',preview:'city',theme:'downtown',density:2.1},
-  {id:'oakland_port',name:'Oakland Port',state:'CA',lat:37.7955,lon:-122.2783,span:2.1,size:'LARGE',preview:'coastal',theme:'industrial',density:2.0,waterRing:true},
-  {id:'sacramento_core',name:'Sacramento Core',state:'CA',lat:38.5816,lon:-121.4944,span:1.8,size:'MEDIUM',preview:'city',theme:'urban',density:1.95},
-  {id:'portland_river',name:'Portland Riverfront',state:'OR',lat:45.5152,lon:-122.6784,span:1.9,size:'MEDIUM',preview:'coastal',theme:'industrial',density:1.95},
-  {id:'seattle_waterfront',name:'Seattle Waterfront',state:'WA',lat:47.6062,lon:-122.3425,span:2.1,size:'LARGE',preview:'coastal',theme:'harbor',density:2.05,waterRing:true},
-  {id:'tacoma_port',name:'Tacoma Port',state:'WA',lat:47.2529,lon:-122.4443,span:2.0,size:'MEDIUM',preview:'coastal',theme:'industrial',density:1.95,waterRing:true},
-  {id:'honolulu_waikiki',name:'Honolulu Waikiki',state:'HI',lat:21.2793,lon:-157.8292,span:1.8,size:'MEDIUM',preview:'coastal',theme:'resort',density:2.0,waterRing:true},
-  {id:'anchorage_port',name:'Anchorage Port',state:'AK',lat:61.2181,lon:-149.9003,span:2.4,size:'LARGE',preview:'coastal',theme:'industrial',density:1.85,waterRing:true},
-  {id:'san_juan_old',name:'Old San Juan',state:'PR',lat:18.4655,lon:-66.1057,span:1.5,size:'MEDIUM',preview:'coastal',theme:'historic',density:2.0,waterRing:true},
-  {id:'guam_hagatna',name:'Hagåtña Outbreak',state:'GU',lat:13.4757,lon:144.7489,span:1.8,size:'MEDIUM',preview:'coastal',theme:'island',density:1.9,waterRing:true},
-  {id:'st_thomas',name:'Charlotte Amalie Last Stand',state:'VI',lat:18.3419,lon:-64.9307,span:1.5,size:'MEDIUM',preview:'coastal',theme:'island',density:1.9,waterRing:true}
+  {id:'unified_us',name:'BridgePoint Horizon — Continuous U.S. World',state:'CT',lat:41.5623,lon:-72.6506,span:3.4,size:'CONTINUOUS',preview:'city',theme:'adaptive',density:2.0}
 ];
 const MAP_BY_ID=new Map(MAP_PRESETS.map(x=>[x.id,x]));
-const MAP_KEY=String(params.get('map')||'times_square').toLowerCase();
-const MAP_PRESET=MAP_BY_ID.get(MAP_KEY)||MAP_PRESETS[0];
+const MAP_KEY='unified_us';
+const MAP_PRESET=MAP_PRESETS[0];
+window.BP_HORIZON_WORLD_MODE='continuous_us';
 const PREVIEW_KEY=['city','mountain','coastal'].includes(String(params.get('preview')||MAP_PRESET.preview||'').toLowerCase())?String(params.get('preview')||MAP_PRESET.preview).toLowerCase():null;
 const PLAYER_VARIANTS={
   survivor:ASSETS.playerSurvivor,
