@@ -7,14 +7,23 @@ import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
 import {GTAOPass} from 'three/addons/postprocessing/GTAOPass.js';
 import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
-import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2/+esm';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
 const HORIZON_SUPABASE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const HORIZON_SUPABASE_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
-const horizonSupabase=createClient(HORIZON_SUPABASE_URL,HORIZON_SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-const BUILD_VERSION=4251;
+let horizonSupabase=null;
+let horizonSupabaseInit=null;
+async function getHorizonSupabase(){
+  if(horizonSupabase)return horizonSupabase;
+  if(!horizonSupabaseInit)horizonSupabaseInit=(async()=>{
+    const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2/+esm');
+    horizonSupabase=createClient(HORIZON_SUPABASE_URL,HORIZON_SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    return horizonSupabase;
+  })();
+  return await horizonSupabaseInit;
+}
+const BUILD_VERSION=4252;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -5971,19 +5980,20 @@ function receiveOnlineState(payload){
 }
 async function initOnlineSession(){
   try{
-    const {data:{session}}=await horizonSupabase.auth.getSession();
+    const supabase=await getHorizonSupabase();
+    const {data:{session}}=await supabase.auth.getSession();
     onlineUser=session?.user||null;
     if(!onlineUser){
       onlineSubscribed=false;
       streetLifeStats.onlineMode='guest-local';
       return false;
     }
-    if(session?.access_token)horizonSupabase.realtime.setAuth(session.access_token);
+    if(session?.access_token)supabase.realtime.setAuth(session.access_token);
     const cellLat=Math.round(Number(params.get('lat')||lat0||0)*100);
     const cellLon=Math.round(Number(params.get('lon')||lon0||0)*100);
     onlineRoom='horizon-play-'+matchMode+'-'+SELECTED_STATE+'-'+cellLat+'-'+cellLon;
-    if(onlineChannel)try{await horizonSupabase.removeChannel(onlineChannel)}catch(_){}
-    onlineChannel=horizonSupabase.channel(onlineRoom,{config:{presence:{key:onlineUser.id},broadcast:{self:false,ack:false}}});
+    if(onlineChannel)try{await supabase.removeChannel(onlineChannel)}catch(_){}
+    onlineChannel=supabase.channel(onlineRoom,{config:{presence:{key:onlineUser.id},broadcast:{self:false,ack:false}}});
     onlineChannel
       .on('broadcast',{event:'player_state'},({payload})=>receiveOnlineState(payload))
       .on('presence',{event:'leave'},({leftPresences})=>{
