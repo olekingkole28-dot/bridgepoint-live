@@ -116,6 +116,23 @@ private:
 
     TSharedPtr<class IHttpRequest, ESPMode::ThreadSafe> ActiveRequest;
 
+    FString ActiveCacheKey;
+    TMap<FString, FHorizonWorldCellSummary> CellCache;
+    TMap<FString, FDateTime> CellCacheStoredUtc;
+    TArray<FString> CellCacheOrder;
+    int32 MaxCachedCells = 8;
+    double CacheTtlSeconds = 30.0;
+
+    FString MakeCacheKey(
+        const FString& StateCode,
+        double Latitude,
+        double Longitude,
+        double SpanKm,
+        const FString& CellId) const;
+
+    bool TryServeCachedCell(const FString& CacheKey);
+    void StoreCachedCell(const FString& CacheKey, const FHorizonWorldCellSummary& Cell);
+
     void HandleResponse(
         FHttpRequestPtr Request,
         FHttpResponsePtr Response,
