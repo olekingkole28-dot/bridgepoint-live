@@ -17,7 +17,10 @@ public class BridgePointHorizon : ModuleRules
             "GameplayAbilities",
             "GameplayTasks",
             "AIModule",
-            "NavigationSystem"
+            "NavigationSystem",
+            "OnlineSubsystem",
+            "OnlineSubsystemUtils",
+            "VoiceChat"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[]
