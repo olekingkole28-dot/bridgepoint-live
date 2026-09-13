@@ -1,6 +1,9 @@
 #include "HorizonPlayerCharacter.h"
 
 #include "Camera/CameraComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -20,6 +23,7 @@ AHorizonPlayerCharacter::AHorizonPlayerCharacter()
 
     UCharacterMovementComponent* Move = GetCharacterMovement();
     Move->bOrientRotationToMovement = true;
+    Move->bUseControllerDesiredRotation = false;
     Move->RotationRate = FRotator(0.0f, 720.0f, 0.0f);
     Move->MaxAcceleration = 2200.0f;
     Move->BrakingDecelerationWalking = 1800.0f;
@@ -46,12 +50,31 @@ AHorizonPlayerCharacter::AHorizonPlayerCharacter()
     FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
     FollowCamera->bUsePawnControlRotation = false;
     FollowCamera->SetFieldOfView(86.0f);
+
+    EquippedWeaponVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EquippedWeaponVisual"));
+    EquippedWeaponVisual->SetupAttachment(GetMesh());
+    EquippedWeaponVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    EquippedWeaponVisual->SetGenerateOverlapEvents(false);
+    EquippedWeaponVisual->SetCastShadow(true);
+    EquippedWeaponVisual->SetVisibility(false, true);
 }
 
 void AHorizonPlayerCharacter::BeginPlay()
 {
     Super::BeginPlay();
-    SetActorLocation(FVector(0.0f, 0.0f, FMath::Max(500.0f, GetActorLocation().Z)));
+
+    // Preserve the streamed spawn's X/Y. Only keep the pawn safely above terrain until
+    // the first real terrain cell reports ready.
+    FVector SafeStart = GetActorLocation();
+    SafeStart.Z = FMath::Max(500.0f, SafeStart.Z);
+    SetActorLocation(SafeStart, false, nullptr, ETeleportType::TeleportPhysics);
+
+    AttachWeaponVisualToBestSocket(WeaponHandSocketName);
+    if (EquippedWeaponVisual && EquippedWeaponVisual->GetStaticMesh())
+    {
+        EquippedWeaponVisual->SetVisibility(true, true);
+    }
+
     RefreshMovementProfile();
 }
 
@@ -121,6 +144,7 @@ void AHorizonPlayerCharacter::MoveRight(float Value)
 void AHorizonPlayerCharacter::StartSprint()
 {
     bSprinting = true;
+    bAiming = false;
     UnCrouch();
     RefreshMovementProfile();
 }
@@ -142,17 +166,107 @@ void AHorizonPlayerCharacter::ToggleCrouch()
         bSprinting = false;
         Crouch();
     }
+
     RefreshMovementProfile();
 }
 
 void AHorizonPlayerCharacter::StartAim()
 {
     bAiming = true;
+    bSprinting = false;
+    RefreshMovementProfile();
 }
 
 void AHorizonPlayerCharacter::StopAim()
 {
     bAiming = false;
+    RefreshMovementProfile();
+}
+
+bool AHorizonPlayerCharacter::AttachWeaponVisualToBestSocket(FName PreferredSocket)
+{
+    if (!EquippedWeaponVisual || !GetMesh())
+    {
+        return false;
+    }
+
+    USkeletalMeshComponent* CharacterMesh = GetMesh();
+
+    const auto IsUsableSocket = [CharacterMesh](FName Candidate)
+    {
+        return Candidate != NAME_None &&
+            (CharacterMesh->DoesSocketExist(Candidate) ||
+             CharacterMesh->GetBoneIndex(Candidate) != INDEX_NONE);
+    };
+
+    const TArray<FName> Candidates = {
+        PreferredSocket,
+        WeaponHandSocketName,
+        TEXT("weapon_r"),
+        TEXT("hand_r"),
+        TEXT("RightHand"),
+        TEXT("r_hand")
+    };
+
+    FName ChosenSocket = NAME_None;
+    for (FName Candidate : Candidates)
+    {
+        if (IsUsableSocket(Candidate))
+        {
+            ChosenSocket = Candidate;
+            break;
+        }
+    }
+
+    if (ChosenSocket == NAME_None)
+    {
+        EquippedWeaponVisual->SetVisibility(false, true);
+        return false;
+    }
+
+    EquippedWeaponVisual->AttachToComponent(
+        CharacterMesh,
+        FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+        ChosenSocket);
+    EquippedWeaponVisual->SetRelativeTransform(WeaponGripOffset);
+    return true;
+}
+
+bool AHorizonPlayerCharacter::EquipWeaponVisual(UStaticMesh* WeaponMesh, FName PreferredSocket)
+{
+    if (!EquippedWeaponVisual || !WeaponMesh)
+    {
+        return false;
+    }
+
+    EquippedWeaponVisual->SetStaticMesh(WeaponMesh);
+
+    if (!AttachWeaponVisualToBestSocket(PreferredSocket))
+    {
+        EquippedWeaponVisual->SetVisibility(false, true);
+        return false;
+    }
+
+    EquippedWeaponVisual->SetVisibility(true, true);
+    return true;
+}
+
+void AHorizonPlayerCharacter::HolsterWeaponVisual()
+{
+    if (!EquippedWeaponVisual)
+    {
+        return;
+    }
+
+    EquippedWeaponVisual->SetVisibility(false, true);
+    EquippedWeaponVisual->SetStaticMesh(nullptr);
+}
+
+bool AHorizonPlayerCharacter::IsWeaponVisualEquipped() const
+{
+    return EquippedWeaponVisual &&
+        EquippedWeaponVisual->IsVisible() &&
+        EquippedWeaponVisual->GetStaticMesh() != nullptr;
 }
 
 void AHorizonPlayerCharacter::RefreshMovementProfile()
@@ -177,6 +291,14 @@ void AHorizonPlayerCharacter::RefreshMovementProfile()
     UCharacterMovementComponent* Move = GetCharacterMovement();
     Move->MaxWalkSpeed = bSprinting ? SprintSpeed : WalkSpeed;
     Move->RotationRate.Yaw = FMath::Clamp(InterpSpeed * 48.0f, 480.0f, 860.0f);
+
+    // Hip movement follows travel direction. ADS switches to controller-facing strafe,
+    // so the torso/weapon and reticle do not fight the movement rotation.
+    const bool bControllerFacing = bAiming && Controller != nullptr;
+    bUseControllerRotationYaw = bControllerFacing;
+    Move->bOrientRotationToMovement = !bControllerFacing;
+    Move->bUseControllerDesiredRotation = false;
+
     CameraBoom->CameraLagSpeed = FMath::Clamp(InterpSpeed, 9.0f, 18.0f);
     CameraBoom->CameraRotationLagSpeed = FMath::Clamp(InterpSpeed * 1.15f, 10.0f, 21.0f);
 }
