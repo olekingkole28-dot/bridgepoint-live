@@ -51,6 +51,8 @@ required_source = [
     "HorizonSocialSubsystem",
     "HorizonRaidDirectorSubsystem",
     "HorizonLoadoutSubsystem",
+    "HorizonWorldStreamSubsystem",
+    "HorizonWorldCellRenderer",
 ]
 for stem in required_source:
     h = f"unreal/BridgePointHorizon/Source/BridgePointHorizon/{stem}.h"
@@ -68,6 +70,14 @@ require("Mode == EHorizonGameMode::YearOneSurvival" in game_state, "Year One mod
 social = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonSocialSubsystem.cpp")
 require("YearOne Survival is solo-only" in social, "Year One party rejection missing")
 require("bUseLobbiesVoiceChatIfAvailable = true" in social, "lobby voice auto-join is not enabled")
+
+streaming = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldStreamSubsystem.cpp")
+for token in ["bridgepoint-horizon-stream-v3020", "state=%s&lat=%.8f&lon=%.8f", "resolved_jurisdiction"]:
+    require(token in streaming, f"world stream contract missing: {token}")
+
+renderer = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldCellRenderer.cpp")
+for token in ["BuildTerrain", "BuildTransport", "BuildBuildings", "TriangulateSimplePolygon"]:
+    require(token in renderer, f"streamed UE renderer feature missing: {token}")
 
 interior = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGeneratedInterior.cpp")
 for token in ["AddStairRun", "AddDoor", "AddWindowBayX", "ToggleNearestDoor"]:
