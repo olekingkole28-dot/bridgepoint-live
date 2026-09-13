@@ -23,7 +23,7 @@ async function getHorizonSupabase(){
   })();
   return await horizonSupabaseInit;
 }
-const BUILD_VERSION=4256;
+const BUILD_VERSION=4257;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -6191,7 +6191,17 @@ async function boot(){
     await yieldToRenderer();
     try{buildEntryPoints();installInteractiveDoors();buildRoofTraversalNetwork()}catch(err){console.error('door/roof traversal system recovered',err);streetLifeStats.buildingGeometryError=String(err?.message||err)}
     await yieldToRenderer();
-    try{buildApocalypseGroundDressing();buildDenseApocalypseLayers()}catch(err){console.warn('ground dressing skipped',err)}
+    try{buildApocalypseGroundDressing()}catch(err){console.warn('ground dressing skipped',err)}
+    try{buildDenseApocalypseLayers()}catch(err){console.warn('dense apocalypse layers recovered',err)}
+    if(!ambientSmoke.some(x=>x?.parent)&&roadAnchors.length){
+      let made=0;
+      for(let i=0;i<roadAnchors.length&&made<3;i+=Math.max(1,Math.floor(roadAnchors.length/7))){
+        const a=roadAnchors[i],p=roadSidePoint(a,a.width/2+1.5+(made*.6),made%2?1:-1);
+        if(isBlockedExterior(p.x,p.y,.5))continue;
+        spawnSmokePlumeAt(p.x,p.y,p.z+.35,.85+made*.18);made++;
+      }
+      streetLifeStats.mobileSmokeRecovery=made;
+    }
     loadText.textContent='PLAYABLE · infected entering world…';
     await buildSurvivalArt();
     await eventReady;
