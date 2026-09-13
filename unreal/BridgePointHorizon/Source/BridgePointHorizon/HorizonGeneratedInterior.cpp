@@ -1,0 +1,448 @@
+#include "HorizonGeneratedInterior.h"
+
+#include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "UObject/ConstructorHelpers.h"
+
+AHorizonGeneratedInterior::AHorizonGeneratedInterior()
+{
+    PrimaryActorTick.bCanEverTick = true;
+
+    SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+    SetRootComponent(SceneRoot);
+
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
+    if (CubeFinder.Succeeded())
+    {
+        CubeMesh = CubeFinder.Object;
+    }
+}
+
+void AHorizonGeneratedInterior::BeginPlay()
+{
+    Super::BeginPlay();
+
+    if (GeneratedMeshes.IsEmpty())
+    {
+        GenerateInterior(1337);
+    }
+}
+
+void AHorizonGeneratedInterior::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    for (FDoorRuntime& Door : Doors)
+    {
+        USceneComponent* Pivot = Door.Pivot.Get();
+        if (!Pivot)
+        {
+            continue;
+        }
+
+        FRotator Rotation = Pivot->GetRelativeRotation();
+        const float NewYaw = FMath::FInterpTo(Rotation.Yaw, Door.TargetYaw, DeltaSeconds, 7.5f);
+        Rotation.Yaw = NewYaw;
+        Pivot->SetRelativeRotation(Rotation);
+    }
+}
+
+UStaticMeshComponent* AHorizonGeneratedInterior::AddBox(
+    const FString& Label,
+    const FVector& RelativeCenter,
+    const FVector& SizeCm,
+    bool bMovable,
+    USceneComponent* Parent)
+{
+    if (!CubeMesh)
+    {
+        return nullptr;
+    }
+
+    UStaticMeshComponent* Mesh = NewObject<UStaticMeshComponent>(this, *Label);
+    Mesh->SetStaticMesh(CubeMesh);
+    Mesh->SetupAttachment(Parent ? Parent : SceneRoot);
+    Mesh->SetMobility(bMovable ? EComponentMobility::Movable : EComponentMobility::Static);
+    Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    Mesh->SetCollisionResponseToAllChannels(ECR_Block);
+    Mesh->SetRelativeLocation(RelativeCenter);
+    Mesh->SetRelativeScale3D(SizeCm / 100.0f);
+    Mesh->SetCastShadow(true);
+    Mesh->RegisterComponent();
+
+    GeneratedMeshes.Add(Mesh);
+    return Mesh;
+}
+
+void AHorizonGeneratedInterior::ClearInterior()
+{
+    Doors.Reset();
+
+    for (UStaticMeshComponent* Mesh : GeneratedMeshes)
+    {
+        if (IsValid(Mesh))
+        {
+            Mesh->DestroyComponent();
+        }
+    }
+    GeneratedMeshes.Reset();
+
+    for (USceneComponent* Component : GeneratedSceneComponents)
+    {
+        if (IsValid(Component))
+        {
+            Component->DestroyComponent();
+        }
+    }
+    GeneratedSceneComponents.Reset();
+}
+
+void AHorizonGeneratedInterior::GenerateInterior(int32 Seed)
+{
+    ClearInterior();
+
+    FRandomStream Random(Seed);
+    FloorCount = FMath::Clamp(FloorCount, 1, 40);
+    RoomsPerSide = FMath::Clamp(RoomsPerSide, 2, 8);
+    BuildingWidthCm = FMath::Max(BuildingWidthCm, 900.0f);
+    BuildingDepthCm = FMath::Max(BuildingDepthCm, 800.0f);
+
+    // Tiny deterministic variation prevents every generated building from feeling identical.
+    const float WidthVariation = Random.FRandRange(-0.035f, 0.035f);
+    const float DepthVariation = Random.FRandRange(-0.035f, 0.035f);
+    BuildingWidthCm *= (1.0f + WidthVariation);
+    BuildingDepthCm *= (1.0f + DepthVariation);
+
+    for (int32 Floor = 0; Floor < FloorCount; ++Floor)
+    {
+        AddFloorPlate(Floor);
+        AddOuterShell(Floor);
+        AddRoomPartitions(Floor);
+
+        if (Floor < FloorCount - 1)
+        {
+            AddStairRun(Floor);
+        }
+    }
+
+    // Roof cap. The floor below already contains the final walkable slab.
+    const float RoofZ = FloorCount * FloorHeightCm + 10.0f;
+    AddBox(TEXT("Roof"), FVector(0.0f, 0.0f, RoofZ), FVector(BuildingWidthCm, BuildingDepthCm, 20.0f));
+}
+
+void AHorizonGeneratedInterior::AddFloorPlate(int32 FloorIndex)
+{
+    const float SlabThickness = 20.0f;
+    const float Z = FloorIndex * FloorHeightCm - SlabThickness * 0.5f;
+
+    if (FloorIndex == 0)
+    {
+        AddBox(
+            FString::Printf(TEXT("Floor_%d"), FloorIndex),
+            FVector(0.0f, 0.0f, Z),
+            FVector(BuildingWidthCm, BuildingDepthCm, SlabThickness));
+        return;
+    }
+
+    // Real hole through every elevated floor for the walkable stairwell.
+    const float HoleLength = FMath::Min(620.0f, BuildingWidthCm * 0.32f);
+    const float HoleWidth = FMath::Min(240.0f, BuildingDepthCm * 0.22f);
+    const float HoleCenterX = -BuildingWidthCm * 0.5f + HoleLength * 0.5f + 80.0f;
+    const float LeftEdge = -BuildingWidthCm * 0.5f;
+    const float RightEdge = BuildingWidthCm * 0.5f;
+    const float HoleMinX = HoleCenterX - HoleLength * 0.5f;
+    const float HoleMaxX = HoleCenterX + HoleLength * 0.5f;
+
+    const float LeftWidth = HoleMinX - LeftEdge;
+    const float RightWidth = RightEdge - HoleMaxX;
+
+    if (LeftWidth > 1.0f)
+    {
+        AddBox(FString::Printf(TEXT("FloorLeft_%d"), FloorIndex),
+            FVector(LeftEdge + LeftWidth * 0.5f, 0.0f, Z),
+            FVector(LeftWidth, BuildingDepthCm, SlabThickness));
+    }
+
+    if (RightWidth > 1.0f)
+    {
+        AddBox(FString::Printf(TEXT("FloorRight_%d"), FloorIndex),
+            FVector(HoleMaxX + RightWidth * 0.5f, 0.0f, Z),
+            FVector(RightWidth, BuildingDepthCm, SlabThickness));
+    }
+
+    const float SideDepth = (BuildingDepthCm - HoleWidth) * 0.5f;
+    AddBox(FString::Printf(TEXT("FloorNorth_%d"), FloorIndex),
+        FVector(HoleCenterX, HoleWidth * 0.5f + SideDepth * 0.5f, Z),
+        FVector(HoleLength, SideDepth, SlabThickness));
+    AddBox(FString::Printf(TEXT("FloorSouth_%d"), FloorIndex),
+        FVector(HoleCenterX, -HoleWidth * 0.5f - SideDepth * 0.5f, Z),
+        FVector(HoleLength, SideDepth, SlabThickness));
+}
+
+void AHorizonGeneratedInterior::AddWindowBayX(
+    float XMin,
+    float XMax,
+    float Y,
+    float FloorZ,
+    const FString& Prefix)
+{
+    const float Thickness = 18.0f;
+    const float WindowBottom = 95.0f;
+    const float WindowHeight = 135.0f;
+    const float TopHeight = FloorHeightCm - WindowBottom - WindowHeight;
+    const float Width = XMax - XMin;
+    const float X = (XMin + XMax) * 0.5f;
+
+    AddBox(Prefix + TEXT("_Sill"),
+        FVector(X, Y, FloorZ + WindowBottom * 0.5f),
+        FVector(Width, Thickness, WindowBottom));
+
+    if (TopHeight > 1.0f)
+    {
+        AddBox(Prefix + TEXT("_Header"),
+            FVector(X, Y, FloorZ + WindowBottom + WindowHeight + TopHeight * 0.5f),
+            FVector(Width, Thickness, TopHeight));
+    }
+
+    // No glass mesh when bOpenWindows is true: this is an actual line-of-sight/projectile hole.
+    if (!bOpenWindows)
+    {
+        // Keep a thin collision-free placeholder plane-sized box for later transparent-glass material assignment.
+        UStaticMeshComponent* Pane = AddBox(
+            Prefix + TEXT("_Pane"),
+            FVector(X, Y, FloorZ + WindowBottom + WindowHeight * 0.5f),
+            FVector(Width * 0.72f, 2.0f, WindowHeight * 0.82f));
+        if (Pane)
+        {
+            Pane->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        }
+    }
+}
+
+void AHorizonGeneratedInterior::AddOuterShell(int32 FloorIndex)
+{
+    const float FloorZ = FloorIndex * FloorHeightCm;
+    const float WallThickness = 18.0f;
+    const float HalfW = BuildingWidthCm * 0.5f;
+    const float HalfD = BuildingDepthCm * 0.5f;
+    const float BayWidth = BuildingWidthCm / RoomsPerSide;
+
+    // North wall: every room gets a genuine open/transparent window opening.
+    for (int32 Bay = 0; Bay < RoomsPerSide; ++Bay)
+    {
+        const float X0 = -HalfW + Bay * BayWidth + 18.0f;
+        const float X1 = -HalfW + (Bay + 1) * BayWidth - 18.0f;
+        AddWindowBayX(X0, X1, HalfD, FloorZ, FString::Printf(TEXT("NorthWindow_%d_%d"), FloorIndex, Bay));
+    }
+
+    // South wall has windows except the ground-floor main entrance.
+    if (FloorIndex == 0)
+    {
+        const float DoorWidth = 150.0f;
+        const float SegmentWidth = HalfW - DoorWidth * 0.5f;
+        AddBox(TEXT("SouthEntranceLeft"),
+            FVector(-DoorWidth * 0.5f - SegmentWidth * 0.5f, -HalfD, FloorZ + FloorHeightCm * 0.5f),
+            FVector(SegmentWidth, WallThickness, FloorHeightCm));
+        AddBox(TEXT("SouthEntranceRight"),
+            FVector(DoorWidth * 0.5f + SegmentWidth * 0.5f, -HalfD, FloorZ + FloorHeightCm * 0.5f),
+            FVector(SegmentWidth, WallThickness, FloorHeightCm));
+
+        AddDoor(0.0f, -HalfD, FloorZ, true, Doors.Num());
+    }
+    else
+    {
+        for (int32 Bay = 0; Bay < RoomsPerSide; ++Bay)
+        {
+            const float X0 = -HalfW + Bay * BayWidth + 18.0f;
+            const float X1 = -HalfW + (Bay + 1) * BayWidth - 18.0f;
+            AddWindowBayX(X0, X1, -HalfD, FloorZ, FString::Printf(TEXT("SouthWindow_%d_%d"), FloorIndex, Bay));
+        }
+    }
+
+    // Side walls include repeated full-height openings between structural columns.
+    const float SideBay = BuildingDepthCm / 4.0f;
+    for (int32 Side = -1; Side <= 1; Side += 2)
+    {
+        const float X = Side * HalfW;
+        for (int32 Bay = 0; Bay < 4; ++Bay)
+        {
+            const float YCenter = -HalfD + (Bay + 0.5f) * SideBay;
+            const float ColumnWidth = 44.0f;
+            AddBox(FString::Printf(TEXT("SideColA_%d_%d_%d"), Side, FloorIndex, Bay),
+                FVector(X, YCenter - SideBay * 0.5f + ColumnWidth * 0.5f, FloorZ + FloorHeightCm * 0.5f),
+                FVector(WallThickness, ColumnWidth, FloorHeightCm));
+            AddBox(FString::Printf(TEXT("SideColB_%d_%d_%d"), Side, FloorIndex, Bay),
+                FVector(X, YCenter + SideBay * 0.5f - ColumnWidth * 0.5f, FloorZ + FloorHeightCm * 0.5f),
+                FVector(WallThickness, ColumnWidth, FloorHeightCm));
+
+            AddBox(FString::Printf(TEXT("SideSill_%d_%d_%d"), Side, FloorIndex, Bay),
+                FVector(X, YCenter, FloorZ + 47.5f),
+                FVector(WallThickness, SideBay - ColumnWidth * 2.0f, 95.0f));
+            AddBox(FString::Printf(TEXT("SideHeader_%d_%d_%d"), Side, FloorIndex, Bay),
+                FVector(X, YCenter, FloorZ + FloorHeightCm - 45.0f),
+                FVector(WallThickness, SideBay - ColumnWidth * 2.0f, 90.0f));
+        }
+    }
+}
+
+void AHorizonGeneratedInterior::AddRoomPartitions(int32 FloorIndex)
+{
+    const float FloorZ = FloorIndex * FloorHeightCm;
+    const float HalfW = BuildingWidthCm * 0.5f;
+    const float HalfD = BuildingDepthCm * 0.5f;
+    const float CorridorWidth = 270.0f;
+    const float PartitionThickness = 14.0f;
+    const float RoomBayWidth = BuildingWidthCm / RoomsPerSide;
+    const float DoorWidth = 100.0f;
+    const float DoorHeight = 220.0f;
+
+    for (int32 Side = -1; Side <= 1; Side += 2)
+    {
+        const float CorridorY = Side * CorridorWidth * 0.5f;
+
+        for (int32 Room = 0; Room < RoomsPerSide; ++Room)
+        {
+            const float X0 = -HalfW + Room * RoomBayWidth;
+            const float X1 = X0 + RoomBayWidth;
+            const float DoorCenterX = (X0 + X1) * 0.5f;
+            const float LeftLength = DoorCenterX - DoorWidth * 0.5f - X0;
+            const float RightLength = X1 - (DoorCenterX + DoorWidth * 0.5f);
+
+            if (LeftLength > 1.0f)
+            {
+                AddBox(FString::Printf(TEXT("RoomWallL_%d_%d_%d"), FloorIndex, Side, Room),
+                    FVector(X0 + LeftLength * 0.5f, CorridorY, FloorZ + FloorHeightCm * 0.5f),
+                    FVector(LeftLength, PartitionThickness, FloorHeightCm));
+            }
+            if (RightLength > 1.0f)
+            {
+                AddBox(FString::Printf(TEXT("RoomWallR_%d_%d_%d"), FloorIndex, Side, Room),
+                    FVector(DoorCenterX + DoorWidth * 0.5f + RightLength * 0.5f, CorridorY, FloorZ + FloorHeightCm * 0.5f),
+                    FVector(RightLength, PartitionThickness, FloorHeightCm));
+            }
+
+            const float HeaderHeight = FloorHeightCm - DoorHeight;
+            if (HeaderHeight > 1.0f)
+            {
+                AddBox(FString::Printf(TEXT("DoorHeader_%d_%d_%d"), FloorIndex, Side, Room),
+                    FVector(DoorCenterX, CorridorY, FloorZ + DoorHeight + HeaderHeight * 0.5f),
+                    FVector(DoorWidth, PartitionThickness, HeaderHeight));
+            }
+
+            AddDoor(DoorCenterX, CorridorY, FloorZ, Side > 0, Doors.Num());
+
+            if (Room > 0)
+            {
+                const float PartitionX = X0;
+                const float RoomDepth = HalfD - CorridorWidth * 0.5f;
+                const float Y = Side * (CorridorWidth * 0.5f + RoomDepth * 0.5f);
+                AddBox(FString::Printf(TEXT("RoomDivider_%d_%d_%d"), FloorIndex, Side, Room),
+                    FVector(PartitionX, Y, FloorZ + FloorHeightCm * 0.5f),
+                    FVector(PartitionThickness, RoomDepth, FloorHeightCm));
+            }
+        }
+    }
+}
+
+void AHorizonGeneratedInterior::AddDoor(
+    float X,
+    float Y,
+    float FloorZ,
+    bool bNorthSide,
+    int32 DoorIndex)
+{
+    const float DoorWidth = 96.0f;
+    const float DoorHeight = 216.0f;
+    const float DoorThickness = 7.0f;
+
+    USceneComponent* Pivot = NewObject<USceneComponent>(this, *FString::Printf(TEXT("DoorPivot_%d"), DoorIndex));
+    Pivot->SetupAttachment(SceneRoot);
+    Pivot->SetRelativeLocation(FVector(X - DoorWidth * 0.5f, Y, FloorZ));
+    Pivot->RegisterComponent();
+    GeneratedSceneComponents.Add(Pivot);
+
+    UStaticMeshComponent* Door = AddBox(
+        FString::Printf(TEXT("DoorLeaf_%d"), DoorIndex),
+        FVector(DoorWidth * 0.5f, 0.0f, DoorHeight * 0.5f),
+        FVector(DoorWidth, DoorThickness, DoorHeight),
+        true,
+        Pivot);
+
+    if (Door)
+    {
+        Door->SetMobility(EComponentMobility::Movable);
+    }
+
+    FDoorRuntime Runtime;
+    Runtime.Pivot = Pivot;
+    Runtime.ClosedYaw = 0.0f;
+    Runtime.OpenYaw = bNorthSide ? 95.0f : -95.0f;
+    Runtime.TargetYaw = 0.0f;
+    Runtime.bOpen = false;
+    Doors.Add(Runtime);
+}
+
+void AHorizonGeneratedInterior::AddStairRun(int32 FromFloorIndex)
+{
+    const int32 Steps = 16;
+    const float HoleLength = FMath::Min(620.0f, BuildingWidthCm * 0.32f);
+    const float HoleCenterX = -BuildingWidthCm * 0.5f + HoleLength * 0.5f + 80.0f;
+    const float Run = HoleLength - 70.0f;
+    const float Tread = Run / Steps;
+    const float Rise = FloorHeightCm / Steps;
+    const float Width = FMath::Min(180.0f, BuildingDepthCm * 0.18f);
+    const float StartX = HoleCenterX - Run * 0.5f;
+    const float BaseZ = FromFloorIndex * FloorHeightCm;
+
+    for (int32 Step = 0; Step < Steps; ++Step)
+    {
+        const float StepHeight = Rise * (Step + 1);
+        const float X = StartX + Tread * (Step + 0.5f);
+
+        AddBox(
+            FString::Printf(TEXT("Stair_%d_%d"), FromFloorIndex, Step),
+            FVector(X, 0.0f, BaseZ + StepHeight * 0.5f),
+            FVector(Tread + 2.0f, Width, StepHeight));
+    }
+
+    // Landing at the upper edge of the stairwell.
+    AddBox(
+        FString::Printf(TEXT("Landing_%d"), FromFloorIndex),
+        FVector(HoleCenterX + Run * 0.5f - 45.0f, 0.0f, BaseZ + FloorHeightCm - 9.0f),
+        FVector(90.0f, Width + 40.0f, 18.0f));
+}
+
+bool AHorizonGeneratedInterior::ToggleNearestDoor(FVector WorldLocation, float RadiusCm)
+{
+    const FVector LocalLocation = GetActorTransform().InverseTransformPosition(WorldLocation);
+
+    int32 BestIndex = INDEX_NONE;
+    float BestDistanceSq = FMath::Square(FMath::Max(1.0f, RadiusCm));
+
+    for (int32 Index = 0; Index < Doors.Num(); ++Index)
+    {
+        USceneComponent* Pivot = Doors[Index].Pivot.Get();
+        if (!Pivot)
+        {
+            continue;
+        }
+
+        const float DistanceSq = FVector::DistSquared(LocalLocation, Pivot->GetRelativeLocation());
+        if (DistanceSq < BestDistanceSq)
+        {
+            BestDistanceSq = DistanceSq;
+            BestIndex = Index;
+        }
+    }
+
+    if (BestIndex == INDEX_NONE)
+    {
+        return false;
+    }
+
+    FDoorRuntime& Door = Doors[BestIndex];
+    Door.bOpen = !Door.bOpen;
+    Door.TargetYaw = Door.bOpen ? Door.OpenYaw : Door.ClosedYaw;
+    return true;
+}
