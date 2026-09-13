@@ -1,6 +1,11 @@
 import fs from 'node:fs';
 import { chromium } from 'playwright-core';
 
+const horizonSource=fs.readFileSync('app/horizon-playable/horizon-world.js','utf8');
+const buildMatch=horizonSource.match(/const BUILD_VERSION=(\d+)/);
+if(!buildMatch)throw new Error('Could not resolve Horizon BUILD_VERSION from source');
+const EXPECTED_BUILD=Number(buildMatch[1]);
+
 const candidates=[process.env.CHROME_PATH,'/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium','/usr/bin/chromium-browser'].filter(Boolean);
 const executablePath=candidates.find(p=>fs.existsSync(p));
 if(!executablePath)throw new Error('No Chromium/Chrome found');
@@ -24,13 +29,13 @@ const legacy=await page.evaluate(()=>({probe:window.BP_HORIZON_V2,errorHidden:do
 if(!legacy.errorHidden||!legacy.canvas||legacy.probe?.build!==4100||!(legacy.probe?.buildings>0)||!(legacy.probe?.roads>0))throw new Error('Horizon V2 default failed '+JSON.stringify(legacy));
 console.log('HORIZON_V2_DEFAULT_LIVE_PASS');
 
-// Main Horizon 4238: first playable frame is the primary gate.
-const previewUrl='https://bridgepointintelligence.online/app/horizon/preview.html?map=times_square&preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.0&character=survivor&build=4238&ci='+Date.now();
+// Main Horizon: first playable frame is the primary gate.
+const previewUrl='https://bridgepointintelligence.online/app/horizon/preview.html?map=times_square&preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.0&character=survivor&build='+EXPECTED_BUILD+'&ci='+Date.now();
 const pr=await page.goto(previewUrl,{waitUntil:'domcontentloaded',timeout:30000});
 if(pr?.status()!==200)throw new Error('Horizon showcase HTTP '+pr?.status());
 await page.waitForFunction(()=>window.BP_HORIZON_PLAYABLE?.ok===true,null,{timeout:30000});
 const quick=await page.evaluate(()=>window.BP_HORIZON_PLAYABLE);
-if(quick?.build!==4238)throw new Error('Wrong live Horizon build '+JSON.stringify(quick));
+if(quick?.build!==EXPECTED_BUILD)throw new Error('Wrong live Horizon build; expected '+EXPECTED_BUILD+' '+JSON.stringify(quick));
 if(quick?.stance!=='stand'||!quick?.weaponSocket||quick.weaponSocket==='playerRoot')throw new Error('Fast-start stance/socket failed '+JSON.stringify(quick));
 if(!(quick?.instantBuildings>0)||!(quick?.readyMs>=0)||quick.readyMs>15000)throw new Error('Fast playable gate failed '+JSON.stringify(quick));
 
@@ -56,6 +61,8 @@ const aim=await page.evaluate(()=>window.BP_HORIZON_TEST.aimProbe());
 const held=await page.evaluate(()=>window.BP_HORIZON_TEST.heldWeaponProbe());
 const terrainGuard=await page.evaluate(()=>window.BP_HORIZON_TEST.terrainGuardProbe());
 const controls=await page.evaluate(()=>window.BP_HORIZON_TEST.cardinalControlsProbe());
+const cameraModes=await page.evaluate(()=>window.BP_HORIZON_TEST.cameraModesProbe?.());
+const inputIsolation=await page.evaluate(()=>window.BP_HORIZON_TEST.inputIsolationProbe?.());
 
 if(!terrainGuard?.ok)throw new Error('Terrain guard failed '+JSON.stringify(terrainGuard));
 if(playerAsset.stance!=='stand'||!playerAsset.weaponSocket||playerAsset.weaponSocket==='playerRoot')throw new Error('Standing/hand-socket contract failed '+JSON.stringify(playerAsset));
@@ -64,10 +71,16 @@ if(!held?.visible||held.children<1||held.distance>3.2)throw new Error('Equipped 
 if(smoke?.mapCount!==50||smoke?.endlessHorde!==true||!(smoke?.endlessCap>=18)||smoke?.hydrationComplete!==true||smoke?.proceduralFastHydration!==true||smoke?.cloneRecovery4238!==true||smoke?.denseApocalypse!==true)throw new Error('4238 world contract failed '+JSON.stringify(smoke));
 for(const id of ['graveborn','mauler','wretch','abomination','hound','spider','crow'])if(!smoke?.enemyArchetypes?.includes(id))throw new Error('Missing essential hostile '+id+' '+JSON.stringify(smoke.enemyArchetypes));
 if(!(smoke?.groundDetails>100)||!(smoke?.entries>0)||!(smoke?.instantMassing>0))throw new Error('World density/door/building gate failed '+JSON.stringify(smoke));
-if(Math.abs(controls.modelYawOffset)>1e-6||controls.shooterAimFacesCamera!==true||controls.aimingBackpedalAllowed!==true)throw new Error('Shooter movement contract broken '+JSON.stringify(controls));
+if(controls.locomotionAlwaysFacesTravel!==true||controls.nonAimingFirearmFacesTravel!==true||controls.shooterAimFacesCamera!==true||controls.aimingBackpedalAllowed!==true)throw new Error('Shooter movement contract broken '+JSON.stringify(controls));
+if(!Array.isArray(controls.cameraModes)||controls.cameraModes.join('|')!=='firstPerson|thirdPersonClose|thirdPersonFar')throw new Error('Camera mode contract missing '+JSON.stringify(controls));
+if(!Array.isArray(cameraModes)||cameraModes.length!==3)throw new Error('Camera mode probe missing '+JSON.stringify(cameraModes));
+const fp=cameraModes.find(x=>x.mode==='firstPerson'),tp=cameraModes.find(x=>x.mode==='thirdPersonClose');
+if(!fp||fp.bodyVisible!==false||fp.rigVisible!==true||fp.weaponVisible!==true)throw new Error('First-person presentation failed '+JSON.stringify(cameraModes));
+if(!tp||tp.bodyVisible!==true||tp.rigVisible!==false)throw new Error('Third-person presentation failed '+JSON.stringify(cameraModes));
+if(inputIsolation?.pointerOwnership!==true||inputIsolation?.canvasTouchAction!=='none')throw new Error('Touch pointer isolation missing '+JSON.stringify(inputIsolation));
 if(!(controls.forward.dy>.99)||!(controls.backward.dy<-.99)||!(controls.left.dx<-.99)||!(controls.right.dx>.99))throw new Error('Cardinal controls broken '+JSON.stringify(controls));
 
 const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource: the server responded with a status of 404/i.test(x));
 if(meaningful.length)throw new Error('Horizon console errors '+meaningful.join('\n'));
-console.log('HORIZON_4238_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,weaponCount:quickWeapons.length}));
+console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation}));
 await browser.close();
