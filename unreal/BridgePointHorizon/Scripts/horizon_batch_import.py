@@ -13,6 +13,12 @@ STAGING = Path(os.environ.get("HORIZON_ASSET_STAGING", "")).expanduser()
 EXTENSIONS = {".fbx", ".obj", ".gltf", ".glb", ".usd", ".usda", ".usdc", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".exr", ".hdr", ".wav", ".flac"}
 
 DESTINATIONS = {
+    "audio_weapons": "/Game/Horizon/Audio/Weapons/Imported",
+    "audio_footsteps": "/Game/Horizon/Audio/Footsteps/Imported",
+    "audio_creatures": "/Game/Horizon/Audio/Creatures/Imported",
+    "audio_ambience": "/Game/Horizon/Audio/Ambience/Imported",
+    "audio_music": "/Game/Horizon/Audio/Music/Imported",
+    "audio_ui": "/Game/Horizon/Audio/UI/Imported",
     "audio": "/Game/Horizon/Audio/Imported",
     "hdri": "/Game/Horizon/Environment/HDRI",
     "materials": "/Game/Horizon/Materials/Imported",
@@ -26,6 +32,18 @@ def classify(path: Path) -> str:
     low = str(path).lower()
     ext = path.suffix.lower()
     if ext in {".wav", ".flac"}:
+        if any(k in low for k in ("gun", "rifle", "pistol", "shotgun", "smg", "firearm", "reload", "shell", "bullet", "muzzle", "weapon")):
+            return "audio_weapons"
+        if any(k in low for k in ("footstep", "step", "walk", "run", "shoe", "boot")):
+            return "audio_footsteps"
+        if any(k in low for k in ("zombie", "infected", "creature", "monster", "bear", "dog", "spider", "growl", "roar", "scream")):
+            return "audio_creatures"
+        if any(k in low for k in ("music", "score", "theme", "stinger", "combat_music", "ambient_music")):
+            return "audio_music"
+        if any(k in low for k in ("ui", "menu", "click", "select", "notify", "notification")):
+            return "audio_ui"
+        if any(k in low for k in ("wind", "rain", "storm", "thunder", "fire", "water", "city", "forest", "roomtone", "ambience", "ambient")):
+            return "audio_ambience"
         return "audio"
     if ext in {".hdr", ".exr"}:
         return "hdri"
