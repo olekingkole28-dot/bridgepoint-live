@@ -97,6 +97,10 @@
     {
       "Name": "EOSVoiceChat",
       "Enabled": true
+    },
+    {
+      "Name": "ProceduralMeshComponent",
+      "Enabled": true
     }
   ],
   "Modules": [
