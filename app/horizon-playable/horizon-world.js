@@ -289,10 +289,24 @@ let playerRoot=null,playerVisualRoot=null,playerMixer=null,playerClips=[],player
 let playerModelYawOffset=0,playerAssetLoaded=false,playerAssetMode='fallback';
 const CONTROL_PREFS_KEY='bridgepoint-horizon-controls-v1';
 const CAMERA_MODES=Object.freeze(['firstPerson','thirdPersonClose','thirdPersonFar']);
-let controlPrefs={cameraMode:'thirdPersonClose',lookSensitivity:.00425,gamepadLookSensitivity:.032,invertY:false};
+let controlPrefs={
+  cameraMode:'thirdPersonClose',
+  inputProfile:'auto',
+  touchLookSensitivity:.0045,
+  mouseLookSensitivity:.0032,
+  gamepadLookSensitivity:.032,
+  invertY:false
+};
 try{
   const saved=JSON.parse(localStorage.getItem(CONTROL_PREFS_KEY)||'null');
-  if(saved&&typeof saved==='object')controlPrefs={...controlPrefs,...saved};
+  if(saved&&typeof saved==='object'){
+    controlPrefs={...controlPrefs,...saved};
+    if(Number.isFinite(Number(saved.lookSensitivity))){
+      const legacy=Number(saved.lookSensitivity);
+      if(!Number.isFinite(Number(saved.touchLookSensitivity)))controlPrefs.touchLookSensitivity=legacy;
+      if(!Number.isFinite(Number(saved.mouseLookSensitivity)))controlPrefs.mouseLookSensitivity=legacy*.76;
+    }
+  }
 }catch(_){}
 let yaw=0,pitch=.14,cameraMode=Math.max(0,CAMERA_MODES.indexOf(controlPrefs.cameraMode));
 if(cameraMode<0)cameraMode=1;
@@ -4316,10 +4330,46 @@ function persistControlPrefs(){
   controlPrefs.cameraMode=CAMERA_MODES[cameraMode]||'thirdPersonClose';
   try{localStorage.setItem(CONTROL_PREFS_KEY,JSON.stringify(controlPrefs))}catch(_){}
 }
+function sensitivityPercent(value,base=.001){
+  return Math.round(Math.max(0,Number(value)||0)*10000);
+}
+function applyControlProfileDefaults(profile){
+  if(profile==='touch'){
+    controlPrefs.touchLookSensitivity=.0047;
+    controlPrefs.mouseLookSensitivity=.0032;
+    controlPrefs.gamepadLookSensitivity=.032;
+  }else if(profile==='keyboardMouse'){
+    controlPrefs.mouseLookSensitivity=.0031;
+  }else if(profile==='gamepad'){
+    controlPrefs.gamepadLookSensitivity=.030;
+  }
+  controlPrefs.inputProfile=profile||'auto';
+  persistControlPrefs();
+  syncControlSettingsUi();
+}
+function syncControlSettingsUi(){
+  const cam=$('cameraModeSetting'),profile=$('inputProfileSetting'),touch=$('touchSensitivitySetting'),mouse=$('mouseSensitivitySetting'),pad=$('gamepadSensitivitySetting'),invert=$('invertYSetting');
+  if(cam)cam.value=CAMERA_MODES[cameraMode]||'thirdPersonClose';
+  if(profile)profile.value=controlPrefs.inputProfile||'auto';
+  if(touch)touch.value=String(sensitivityPercent(controlPrefs.touchLookSensitivity));
+  if(mouse)mouse.value=String(sensitivityPercent(controlPrefs.mouseLookSensitivity));
+  if(pad)pad.value=String(Math.round((Number(controlPrefs.gamepadLookSensitivity)||.032)*1000));
+  if(invert)invert.checked=Boolean(controlPrefs.invertY);
+  const tv=$('touchSensitivityValue'),mv=$('mouseSensitivityValue'),gv=$('gamepadSensitivityValue');
+  if(tv)tv.textContent=String(touch?.value||sensitivityPercent(controlPrefs.touchLookSensitivity));
+  if(mv)mv.textContent=String(mouse?.value||sensitivityPercent(controlPrefs.mouseLookSensitivity));
+  if(gv)gv.textContent=String(pad?.value||Math.round((Number(controlPrefs.gamepadLookSensitivity)||.032)*1000));
+}
+function openControlSettings(){
+  const panel=$('controlSettings');if(!panel)return;
+  syncControlSettingsUi();panel.hidden=false;
+}
+function closeControlSettings(){const panel=$('controlSettings');if(panel)panel.hidden=true}
 function cycleCameraMode(){
   cameraMode=(cameraMode+1)%CAMERA_MODES.length;
   persistControlPrefs();
   refreshFirstPersonRig();
+  syncControlSettingsUi();
   const label=CAMERA_MODES[cameraMode]==='firstPerson'?'FIRST PERSON':CAMERA_MODES[cameraMode]==='thirdPersonFar'?'THIRD PERSON · FAR':'THIRD PERSON · CLOSE';
   showToast(label);
 }
@@ -4360,7 +4410,8 @@ function initInput(){
     if(e.pointerId!==lookId||pointerOwner(e.pointerId)!=='look')return;
     const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
     if(Math.hypot(dx,dy)>1.5){lookMoved=true;lastLookDragAt=performance.now()}
-    const sens=Math.max(.0015,Math.min(.012,Number(controlPrefs.lookSensitivity)||.00425));
+    const rawSens=e.pointerType==='touch'?controlPrefs.touchLookSensitivity:controlPrefs.mouseLookSensitivity;
+    const sens=Math.max(.0015,Math.min(.009,Number(rawSens)||(e.pointerType==='touch'?.0045:.0032)));
     const inv=controlPrefs.invertY?-1:1;
     yaw-=dx*sens;pitch=THREE.MathUtils.clamp(pitch+dy*sens*.66*inv,-.48,.70);
     e.preventDefault();e.stopPropagation();
@@ -4459,6 +4510,28 @@ function initInput(){
   document.querySelectorAll('[data-map-marker]').forEach(b=>b.addEventListener('pointerdown',e=>{e.preventDefault();mapMarkerType=b.dataset.mapMarker;document.querySelectorAll('[data-map-marker]').forEach(x=>x.classList.toggle('active',x===b))}));
   $('worldMapCanvas')?.addEventListener('pointerdown',e=>{const canvas=e.currentTarget,rect=canvas.getBoundingClientRect(),sx=(e.clientX-rect.left)/rect.width*canvas.width,sy=(e.clientY-rect.top)/rect.height*canvas.height,cx=canvas.width/2,cy=canvas.height/2,px=(sx-cx)/worldMapZoom+mapBase.width/2,py=(sy-cy)/worldMapZoom+mapBase.height/2,w=mapPixelToWorld(px,py);addMapMarkerWorld(w.x,w.y,mapMarkerType,mapMarkerType)});
   $('cameraBtn').onclick=e=>{e?.preventDefault?.();cycleCameraMode()};
+  $('settingsBtn').onclick=e=>{e?.preventDefault?.();openControlSettings()};
+  $('controlSettingsClose').onclick=e=>{e?.preventDefault?.();closeControlSettings()};
+  $('cameraModeSetting')?.addEventListener('change',e=>{
+    const next=CAMERA_MODES.indexOf(String(e.target.value));
+    if(next>=0){cameraMode=next;persistControlPrefs();refreshFirstPersonRig();setCameraPresentation();syncControlSettingsUi()}
+  });
+  $('inputProfileSetting')?.addEventListener('change',e=>applyControlProfileDefaults(String(e.target.value||'auto')));
+  $('touchSensitivitySetting')?.addEventListener('input',e=>{
+    controlPrefs.touchLookSensitivity=THREE.MathUtils.clamp(Number(e.target.value||45)/10000,.0015,.009);
+    persistControlPrefs();syncControlSettingsUi();
+  });
+  $('mouseSensitivitySetting')?.addEventListener('input',e=>{
+    controlPrefs.mouseLookSensitivity=THREE.MathUtils.clamp(Number(e.target.value||32)/10000,.0015,.009);
+    persistControlPrefs();syncControlSettingsUi();
+  });
+  $('gamepadSensitivitySetting')?.addEventListener('input',e=>{
+    controlPrefs.gamepadLookSensitivity=THREE.MathUtils.clamp(Number(e.target.value||32)/1000,.012,.08);
+    persistControlPrefs();syncControlSettingsUi();
+  });
+  $('invertYSetting')?.addEventListener('change',e=>{controlPrefs.invertY=Boolean(e.target.checked);persistControlPrefs();syncControlSettingsUi()});
+  addEventListener('keydown',e=>{if(e.code==='Escape')closeControlSettings()});
+  syncControlSettingsUi();
   $('lightBtn').onclick=()=>{autoDayNight=false;setLighting(lightMode+1);showToast('Manual lighting enabled')};
   $('parcelBtn').onclick=()=>{if(!interiorMode){parcelLayer.visible=!parcelLayer.visible;$('parcelBtn').classList.toggle('active',parcelLayer.visible)}};
   $('artBtn').onclick=()=>{if(!interiorMode){artGroup.visible=!artGroup.visible;zombieGroup.visible=artGroup.visible;entryGroup.visible=artGroup.visible;$('artBtn').classList.toggle('active',artGroup.visible)}};
@@ -4890,7 +4963,12 @@ async function boot(){
         activePointers:inputPointerOwners.size,
         canvasTouchAction:renderer.domElement.style.touchAction,
         movePadTouchAction:$('movePad')?.style?.touchAction||'',
-        cameraModes:[...CAMERA_MODES]
+        cameraModes:[...CAMERA_MODES],
+        inputProfile:controlPrefs.inputProfile,
+        touchLookSensitivity:controlPrefs.touchLookSensitivity,
+        mouseLookSensitivity:controlPrefs.mouseLookSensitivity,
+        gamepadLookSensitivity:controlPrefs.gamepadLookSensitivity,
+        settingsPanel:Boolean($('controlSettings'))
       }),
       feetProbe:()=>{
         playerRoot?.updateMatrixWorld(true);
