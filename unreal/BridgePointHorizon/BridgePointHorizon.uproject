@@ -4,20 +4,79 @@
   "Category": "Games",
   "Description": "BridgePoint Horizon continuous U.S. survival world client.",
   "Plugins": [
-    {"Name":"EnhancedInput","Enabled":true},
-    {"Name":"PCG","Enabled":true},
-    {"Name":"StateTree","Enabled":true},
-    {"Name":"GameplayStateTree","Enabled":true},
-    {"Name":"GameplayAbilities","Enabled":true},
-    {"Name":"MassEntity","Enabled":true},
-    {"Name":"MassGameplay","Enabled":true},
-    {"Name":"MassAI","Enabled":true},
-    {"Name":"MassCrowd","Enabled":true},
-    {"Name":"ZoneGraph","Enabled":true},
-    {"Name":"SmartObjects","Enabled":true},
-    {"Name":"Water","Enabled":true},
-    {"Name":"Niagara","Enabled":true},
-    {"Name":"ChaosVehiclesPlugin","Enabled":true},
-    {"Name":"PixelStreaming2","Enabled":true}
+    {
+      "Name": "EnhancedInput",
+      "Enabled": true
+    },
+    {
+      "Name": "PCG",
+      "Enabled": true
+    },
+    {
+      "Name": "StateTree",
+      "Enabled": true
+    },
+    {
+      "Name": "GameplayStateTree",
+      "Enabled": true
+    },
+    {
+      "Name": "GameplayAbilities",
+      "Enabled": true
+    },
+    {
+      "Name": "MassEntity",
+      "Enabled": true
+    },
+    {
+      "Name": "MassGameplay",
+      "Enabled": true
+    },
+    {
+      "Name": "MassAI",
+      "Enabled": true
+    },
+    {
+      "Name": "MassCrowd",
+      "Enabled": true
+    },
+    {
+      "Name": "ZoneGraph",
+      "Enabled": true
+    },
+    {
+      "Name": "SmartObjects",
+      "Enabled": true
+    },
+    {
+      "Name": "Water",
+      "Enabled": true
+    },
+    {
+      "Name": "Niagara",
+      "Enabled": true
+    },
+    {
+      "Name": "ChaosVehiclesPlugin",
+      "Enabled": true
+    },
+    {
+      "Name": "PixelStreaming2",
+      "Enabled": true
+    },
+    {
+      "Name": "PythonScriptPlugin",
+      "Enabled": true,
+      "TargetAllowList": [
+        "Editor"
+      ]
+    },
+    {
+      "Name": "EditorScriptingUtilities",
+      "Enabled": true,
+      "TargetAllowList": [
+        "Editor"
+      ]
+    }
   ]
 }
