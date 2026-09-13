@@ -327,9 +327,18 @@ let slideTime=0,leanAmount=0,leanTarget=0,lastVaultAt=0,reticleSpread=10,locomot
 let doorAnimations=[],doorSystemCount=0,lastDoorStreamAt=0;
 let xp=0,battleTier=0,livesRemaining=3,spectatorMode=false,spectatorIndex=0,lastSpectatorSwitch=0;
 let claimedBaseId=null,factionId='SURVIVORS',factionColor='#47e285',factionBanner=null;
-let matchMode=['survival','skirmish','year365'].includes(String(params.get('mode')||'survival').toLowerCase())?String(params.get('mode')||'survival').toLowerCase():'survival';
+const MODE_ALIASES=Object.freeze({
+  survival:'year_one_survival',
+  year365:'year_one_survival',
+  year_one_survival:'year_one_survival',
+  skirmish:'infinite_tdm',
+  infinite_tdm:'infinite_tdm',
+  outbreak_raid:'outbreak_raid'
+});
+let matchMode=MODE_ALIASES[String(params.get('mode')||'year_one_survival').toLowerCase()]||'year_one_survival';
 let matchRadius=Infinity,matchCenter=new THREE.Vector2(),matchRing=null;
-const MATCH_SEASON_START=Date.UTC(2026,8,12);
+const HORIZON_EVENT_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-event-v4242';
+let yearOneEvent={active:false,configured_active:false,start_at:null,duration_days:365,day:0,progress:0,max_lives:3};
 const CURRENT_BATTLE_SEASON=new Date().toISOString().slice(0,7);
 const BATTLE_PASS_LEVELS=150;
 let battleSeason=CURRENT_BATTLE_SEASON;
@@ -456,11 +465,11 @@ function restoreSurvivor(){
     if(Number.isFinite(+v.battleTier))battleTier=Math.min(BATTLE_PASS_LEVELS,Math.max(0,+v.battleTier));
     if(typeof v.battleSeason==='string')battleSeason=v.battleSeason;
     if(battleSeason!==CURRENT_BATTLE_SEASON){xp=0;battleTier=0;battleSeason=CURRENT_BATTLE_SEASON}
-    if(Number.isFinite(+v.livesRemaining))livesRemaining=Math.max(0,+v.livesRemaining);
+    if(Number.isFinite(+v.livesRemaining))livesRemaining=Math.max(0,Math.min(3,+v.livesRemaining));
     if(typeof v.claimedBaseId==='string')claimedBaseId=v.claimedBaseId;
     if(typeof v.factionId==='string')factionId=v.factionId.slice(0,24);
     if(/^#[0-9a-f]{6}$/i.test(String(v.factionColor||'')))factionColor=v.factionColor;
-    if(['survival','skirmish','year365'].includes(v.matchMode))matchMode=v.matchMode;
+    if(typeof v.matchMode==='string'&&MODE_ALIASES[v.matchMode])matchMode=MODE_ALIASES[v.matchMode];
     if(Array.isArray(v.cosmeticUnlocks))for(const x of v.cosmeticUnlocks)cosmeticUnlocks.add(String(x));
     if(Array.isArray(v.weaponCasePurchases))weaponCasePurchases=new Set(v.weaponCasePurchases.map(String));
     if(v.starterFlashlightGranted===true)starterFlashlightGranted=true;
@@ -2545,21 +2554,67 @@ function updateDayNight(now){
   else if(day<.30){scene.background.set(0x403d3a);scene.fog.color.set(0x494743)}
   else{scene.background.set(0x68746e);scene.fog.color.set(0x69736d)}
 }
-function seasonDay(){return Math.max(1,Math.min(365,Math.floor((Date.now()-MATCH_SEASON_START)/86400000)+1))}
+async function hydrateYearOneEvent(){
+  try{
+    const r=await fetch(HORIZON_EVENT_ENDPOINT+'?_='+Date.now(),{cache:'no-store'});
+    if(!r.ok)throw new Error('event config '+r.status);
+    const payload=await r.json();
+    if(!payload?.ok||!payload?.event)throw new Error(payload?.error||'event config unavailable');
+    yearOneEvent={
+      ...yearOneEvent,
+      ...payload.event,
+      active:Boolean(payload.event.active),
+      configured_active:Boolean(payload.event.configured_active),
+      day:Math.max(0,Number(payload.event.day||0)),
+      progress:THREE.MathUtils.clamp(Number(payload.event.progress||0),0,1),
+      max_lives:Math.max(1,Number(payload.event.max_lives||3))
+    };
+    if(!yearOneEvent.active){
+      livesRemaining=yearOneEvent.max_lives;
+      spectatorMode=false;
+      const btn=$('respawnBtn');if(btn)btn.hidden=false;
+    }else{
+      livesRemaining=Math.max(0,Math.min(yearOneEvent.max_lives,livesRemaining));
+    }
+    const livesEl=$('livesStat');if(livesEl)livesEl.textContent=(matchMode==='year_one_survival'&&yearOneEvent.active)?String(livesRemaining):'∞';
+    return true;
+  }catch(e){
+    console.warn('Year One event config fallback',e);
+    yearOneEvent={...yearOneEvent,active:false,day:0,progress:0};
+    livesRemaining=3;
+    return false;
+  }
+}
+function seasonDay(){return yearOneEvent.active?Math.max(1,Math.min(365,Number(yearOneEvent.day)||1)):0}
+function modeDisplayName(){
+  if(matchMode==='year_one_survival')return yearOneEvent.active?'YEAR '+seasonDay()+'/365':'YEAR ONE · PRESEASON';
+  if(matchMode==='infinite_tdm')return'INFINITE TDM';
+  return'OUTBREAK RAID';
+}
 function configureMatchMode(mode=matchMode){
-  matchMode=['survival','skirmish','year365'].includes(mode)?mode:'survival';const b=streamXYBounds();if(!b)return;
+  matchMode=MODE_ALIASES[String(mode||'').toLowerCase()]||'year_one_survival';const b=streamXYBounds();if(!b)return;
   matchCenter.set(playerSpawn.x,playerSpawn.y);
-  if(matchMode==='survival')matchRadius=Infinity;
-  else if(matchMode==='skirmish')matchRadius=Math.max(90,Math.min(b.width,b.height)*.33);
-  else{const day=seasonDay(),start=Math.min(b.width,b.height)*.47,end=Math.max(55,Math.min(b.width,b.height)*.07);matchRadius=THREE.MathUtils.lerp(start,end,(day-1)/364)}
+  if(matchMode==='year_one_survival'){
+    if(!yearOneEvent.active)matchRadius=Infinity;
+    else{
+      const day=seasonDay(),start=Math.min(b.width,b.height)*.47,end=Math.max(55,Math.min(b.width,b.height)*.07);
+      matchRadius=THREE.MathUtils.lerp(start,end,(day-1)/364);
+    }
+  }else if(matchMode==='infinite_tdm'){
+    matchRadius=Math.max(90,Math.min(b.width,b.height)*.33);
+  }else{
+    matchRadius=Math.max(110,Math.min(b.width,b.height)*.41);
+  }
   if(matchRing){matchRing.parent?.remove(matchRing);matchRing.geometry?.dispose();matchRing=null}
   if(Number.isFinite(matchRadius)){
     matchRing=new THREE.Mesh(new THREE.RingGeometry(Math.max(1,matchRadius-.65),matchRadius+.65,128),new THREE.MeshBasicMaterial({color:0xe95656,transparent:true,opacity:.48,side:THREE.DoubleSide,depthWrite:false}));
     matchRing.position.set(matchCenter.x,matchCenter.y,surfaceZXY(matchCenter.x,matchCenter.y)+.48);artGroup.add(matchRing);
   }
-  const el=$('modeStat');if(el)el.textContent=matchMode==='year365'?'YEAR '+seasonDay()+'/365':matchMode.toUpperCase();persistSurvivor();
+  const el=$('modeStat');if(el)el.textContent=modeDisplayName();
+  const livesEl=$('livesStat');if(livesEl)livesEl.textContent=(matchMode==='year_one_survival'&&yearOneEvent.active)?String(livesRemaining):'∞';
+  persistSurvivor();
 }
-function cycleMatchMode(){const modes=['survival','skirmish','year365'],i=modes.indexOf(matchMode);configureMatchMode(modes[(i+1)%modes.length]);showToast('Mode: '+matchMode)}
+function cycleMatchMode(){const modes=['year_one_survival','infinite_tdm','outbreak_raid'],i=modes.indexOf(matchMode);configureMatchMode(modes[(i+1)%modes.length]);showToast('Mode: '+modeDisplayName())}
 function matchBlocks(x,y){return Number.isFinite(matchRadius)&&Math.hypot(x-matchCenter.x,y-matchCenter.y)>matchRadius}
 function awardXP(amount,reason='survival'){
   const previousTier=battleTier;
@@ -2651,8 +2706,8 @@ function updateInventory(){
   const xpEl=$('xpStat');if(xpEl)xpEl.textContent=xp.toLocaleString();
   const salvageEl=$('salvageStat');if(salvageEl)salvageEl.textContent=salvage.toLocaleString();
   const tierEl=$('tierStat');if(tierEl)tierEl.textContent=String(battleTier)+'/'+BATTLE_PASS_LEVELS;
-  const livesEl=$('livesStat');if(livesEl)livesEl.textContent=String(livesRemaining);
-  const modeEl=$('modeStat');if(modeEl)modeEl.textContent=matchMode==='year365'?'YEAR '+seasonDay()+'/365':matchMode.toUpperCase();
+  const livesEl=$('livesStat');if(livesEl)livesEl.textContent=(matchMode==='year_one_survival'&&yearOneEvent.active)?String(livesRemaining):'∞';
+  const modeEl=$('modeStat');if(modeEl)modeEl.textContent=modeDisplayName();
   $('lootStat').textContent=String(lootCount);
   const slots={
     slotMelee:equipment.melee||'EMPTY',
@@ -3229,12 +3284,18 @@ function damagePlayer(amount){
 }
 function killPlayer(){
   if(playerDead)return;
-  playerDead=true;livesRemaining=Math.max(0,livesRemaining-1);playerVelocity.set(0,0,0);mobileMove={x:0,y:0};mobileSprint=false;persistSurvivor();
-  const livesEl=$('livesStat');if(livesEl)livesEl.textContent=String(livesRemaining);
-  if(livesRemaining<=0){enterSpectator();return}
+  const consumesYearOneLife=matchMode==='year_one_survival'&&yearOneEvent.active;
+  playerDead=true;
+  if(consumesYearOneLife)livesRemaining=Math.max(0,livesRemaining-1);
+  playerVelocity.set(0,0,0);mobileMove={x:0,y:0};mobileSprint=false;persistSurvivor();
+  const livesEl=$('livesStat');if(livesEl)livesEl.textContent=consumesYearOneLife?String(livesRemaining):'∞';
+  if(consumesYearOneLife&&livesRemaining<=0){enterSpectator();return}
   const box=$('deathBox');if(box)box.hidden=false;
-  const t=$('deathText');if(t)t.textContent='Wave '+Math.max(1,waveNumber)+' overwhelmed you · '+kills+' hostiles eliminated · '+livesRemaining+' lives remain.';
-  showToast('You were overrun');
+  const t=$('deathText');
+  if(t)t.textContent=consumesYearOneLife
+    ?'Wave '+Math.max(1,waveNumber)+' overwhelmed you · '+kills+' hostiles eliminated · '+livesRemaining+' Year One lives remain.'
+    :'Wave '+Math.max(1,waveNumber)+' overwhelmed you · '+kills+' hostiles eliminated · preseason/team-mode death — no Year One life consumed.';
+  showToast(consumesYearOneLife?'You were overrun · Year One life consumed':'You were overrun · Year One lives protected');
 }
 function enterSpectator(){
   spectatorMode=true;playerDead=true;if(playerRoot)playerRoot.visible=false;
@@ -3252,7 +3313,7 @@ function clearOutdoorZombies(){
   zombies=[];
 }
 function respawnPlayer(){
-  if(!playerRoot||livesRemaining<=0)return;
+  if(!playerRoot||(matchMode==='year_one_survival'&&yearOneEvent.active&&livesRemaining<=0))return;
   if(interiorMode){
     interiorMode=false;interiorGroup.visible=false;exteriorRoot.visible=true;clearInterior();
   }
@@ -4414,6 +4475,7 @@ async function boot(){
     $('cellLabel').textContent=worldCellLabel();
     $('worldTitle').textContent=worldCellTitle();
     restoreSurvivor();updateInventory();
+    const eventReady=hydrateYearOneEvent().catch(()=>false);
     loadText.textContent='Streaming BridgePoint map…';
     // Do not hold the first playable frame behind weapon-registry, physics-module or
     // post-processing network work. Defaults/manual collision are valid until those hydrate.
@@ -4471,6 +4533,7 @@ async function boot(){
     try{buildApocalypseGroundDressing();buildDenseApocalypseLayers()}catch(err){console.warn('ground dressing skipped',err)}
     loadText.textContent='PLAYABLE · infected entering world…';
     await buildSurvivalArt();
+    await eventReady;
     configureMatchMode(matchMode);
     loadText.textContent=(data.counts?.buildings||0).toLocaleString()+' source-backed buildings · '+buildingEntries.length+' walk-through doorways · endless horde active';
     window.BP_HORIZON_SMOKE={
