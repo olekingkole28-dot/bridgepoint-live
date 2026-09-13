@@ -55,6 +55,5 @@ with open(path,"w",encoding="utf-8") as f:
 PY
 
 rm -rf "$WORK_DIR"
-echo "$ARCHIVE_DIR" > "$BUILD_ROOT/current.txt"
 echo "HORIZON_UE58_CONTAINER_PACKAGE_OK"
 echo "$ARCHIVE_DIR"
