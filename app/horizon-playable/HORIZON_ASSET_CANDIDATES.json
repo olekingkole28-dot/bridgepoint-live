@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-09-12",
+  "updated_at": "2026-09-13",
   "world_mode": "continuous_us_streamed_world",
   "policy": {
     "auto_discover": true,
@@ -21,7 +21,11 @@
       "Grand Theft Auto",
       "The Sims",
       "The Lord of the Rings"
-    ]
+    ],
+    "zero_budget_owner": true,
+    "paid_assets_allowed": false,
+    "billable_services_allowed": false,
+    "browser_client_continues_without_native_gpu": true
   },
   "candidates": [
     {
@@ -112,6 +116,84 @@
       ],
       "license_note": "Fab page explicitly says UE-Only Content",
       "source": "https://www.fab.com/listings/d79688f5-29be-4fb2-a650-2d4a813f5306"
+    },
+    {
+      "name": "Poly Haven",
+      "publisher": "Poly Haven",
+      "price": "Free",
+      "engine": "Engine-agnostic",
+      "status": "qualified_cc0",
+      "use": [
+        "photoreal HDRIs",
+        "PBR ground",
+        "concrete",
+        "wood",
+        "metal",
+        "roofing",
+        "abandoned/ruins assets",
+        "environment models"
+      ],
+      "license_note": "All Poly Haven assets are CC0; commercial use allowed; no attribution required.",
+      "source": "https://polyhaven.com/",
+      "license_source": "https://polyhaven.com/license"
+    },
+    {
+      "name": "ambientCG",
+      "publisher": "ambientCG",
+      "price": "Free",
+      "engine": "Engine-agnostic",
+      "status": "qualified_cc0",
+      "use": [
+        "photoreal PBR surfaces",
+        "ground",
+        "siding",
+        "roofing",
+        "concrete",
+        "asphalt",
+        "wood",
+        "metal",
+        "decay materials"
+      ],
+      "license_note": "ambientCG states its assets are CC0 and usable commercially without attribution.",
+      "source": "https://ambientcg.com/",
+      "license_source": "https://ambientcg.com/"
+    },
+    {
+      "name": "Sonniss GDC 2026 Game Audio Bundle",
+      "publisher": "Sonniss",
+      "price": "Free",
+      "engine": "Engine-agnostic",
+      "status": "qualified_for_project_sync_use",
+      "use": [
+        "weapons",
+        "foley",
+        "footsteps",
+        "impacts",
+        "weather",
+        "creatures",
+        "infected",
+        "interior/exterior ambience",
+        "horror sound design"
+      ],
+      "license_note": "Royalty-free commercial project use with modification and no attribution; do not redistribute source sounds standalone; AI/ML training prohibited by current bundle terms.",
+      "source": "https://gdc.sonniss.com/",
+      "license_source": "https://sonniss.com/gdc-bundle-license/"
+    },
+    {
+      "name": "Lyra Starter Game",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "qualified_ue_only_reference_and_components",
+      "use": [
+        "multiplayer architecture",
+        "team deathmatch patterns",
+        "scalable input/gameplay framework",
+        "EOS patterns",
+        "animation integration"
+      ],
+      "license_note": "Fab listing identifies UE-Only Content; keep inside Unreal-based products.",
+      "source": "https://www.fab.com/listings/93faede1-4434-47c0-85f1-bf27c0820ad0"
     }
   ]
 }
