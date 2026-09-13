@@ -16,7 +16,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-live-pages
+  group: bridgepoint-v4246-pages
   cancel-in-progress: false
 
 jobs:
