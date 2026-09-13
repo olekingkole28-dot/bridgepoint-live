@@ -2103,8 +2103,9 @@ function buildWaterfrontPerimeter(){
 }
 function addLights(){
   hemi=new THREE.HemisphereLight(0xdce9df,0x283125,1.15);scene.add(hemi);
-  sun=new THREE.DirectionalLight(0xffefd0,2.65);sun.position.set(-900,-650,1500);sun.castShadow=true;sun.shadow.mapSize.set(MOBILE_GPU_SAFE?1024:1536,MOBILE_GPU_SAFE?1024:1536);
-  sun.shadow.camera.left=-800;sun.shadow.camera.right=800;sun.shadow.camera.top=800;sun.shadow.camera.bottom=-800;sun.shadow.camera.far=3500;scene.add(sun);
+  sun=new THREE.DirectionalLight(0xffefd0,2.65);sun.position.set(-900,-650,1500);sun.castShadow=true;sun.shadow.mapSize.set(MOBILE_GPU_SAFE?1024:2048,MOBILE_GPU_SAFE?1024:2048);
+  sun.shadow.camera.left=-800;sun.shadow.camera.right=800;sun.shadow.camera.top=800;sun.shadow.camera.bottom=-800;sun.shadow.camera.far=3500;
+  sun.shadow.bias=-.00008;sun.shadow.normalBias=.028;sun.shadow.radius=MOBILE_GPU_SAFE?1.2:1.8;scene.add(sun);
   const fill=new THREE.DirectionalLight(0xb7d1d7,.38);fill.position.set(500,900,700);scene.add(fill);
 }
 function setLighting(mode){
@@ -2114,9 +2115,33 @@ function setLighting(mode){
   if(lightMode===2){scene.background.set(0x07100d);scene.fog.color.set(0x0b1511);hemi.intensity=.23;sun.intensity=.28;sun.color.set(0x91b8c4);renderer.toneMappingExposure=.64}
 }
 
+function enhanceModelRenderQuality(root){
+  const maxAniso=Math.min(renderer.capabilities.getMaxAnisotropy?.()||8,MOBILE_GPU_SAFE?8:16);
+  root?.traverse?.(o=>{
+    if(!o.isMesh)return;
+    o.castShadow=true;o.receiveShadow=true;
+    const mats=Array.isArray(o.material)?o.material:[o.material];
+    for(const mat of mats){
+      if(!mat)continue;
+      for(const key of ['map','normalMap','roughnessMap','metalnessMap','aoMap','emissiveMap']){
+        const tex=mat[key];
+        if(tex){
+          tex.anisotropy=Math.max(tex.anisotropy||1,maxAniso);
+          if(key==='map'||key==='emissiveMap')tex.colorSpace=THREE.SRGBColorSpace;
+          tex.needsUpdate=true;
+        }
+      }
+      if('envMapIntensity'in mat)mat.envMapIntensity=Math.max(.75,Number(mat.envMapIntensity||0),MOBILE_GPU_SAFE?.85:1.12);
+      if('roughness'in mat&&Number.isFinite(mat.roughness))mat.roughness=THREE.MathUtils.clamp(mat.roughness,.12,1);
+      if('metalness'in mat&&Number.isFinite(mat.metalness))mat.metalness=THREE.MathUtils.clamp(mat.metalness,0,1);
+      mat.needsUpdate=true;
+    }
+  });
+  return root;
+}
 function normalizedModel(source,targetHeight,animated=false){
   const model=animated?cloneSkeleton(source):source.clone(true);
-  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+  enhanceModelRenderQuality(model);
   const oriented=new THREE.Group();
   oriented.rotation.x=Math.PI/2;
   oriented.add(model);
