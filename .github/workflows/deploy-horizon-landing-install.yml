@@ -45,6 +45,7 @@ jobs:
 
           mkdir -p site/app/horizon
           cp app/horizon/index.html site/app/horizon/index.html
+          cp app/horizon/lobby.html site/app/horizon/lobby.html
           cp app/horizon/manifest.webmanifest site/app/horizon/manifest.webmanifest
           cp app/horizon/horizon-mark.svg site/app/horizon/horizon-mark.svg
           cp app/horizon/sw.js site/app/horizon/sw.js
@@ -55,6 +56,7 @@ jobs:
         run: |
           set -euo pipefail
           test -s site/app/horizon/index.html
+          test -s site/app/horizon/lobby.html
           test -s site/app/horizon/manifest.webmanifest
           test -s site/app/horizon/horizon-mark.svg
           test -s site/app/horizon/sw.js
@@ -63,9 +65,15 @@ jobs:
           grep -Fq 'id="installAppPrompt"' site/app/horizon/index.html
           grep -Fq 'beforeinstallprompt' site/app/horizon/index.html
           grep -Fq 'id="game-modes"' site/app/horizon/index.html
+          grep -Fq './lobby.html?mode=year_one_survival' site/app/horizon/index.html
+          grep -Fq './lobby.html?mode=infinite_tdm' site/app/horizon/index.html
+          grep -Fq './lobby.html?mode=outbreak_raid' site/app/horizon/index.html
           grep -Fq 'YEAR ONE SURVIVAL' site/app/horizon/index.html
           grep -Fq 'INFINITE TEAM DEATHMATCH' site/app/horizon/index.html
           grep -Fq 'OUTBREAK RAID' site/app/horizon/index.html
+          ! grep -Fq 'ENTER THE CONTINUOUS HORIZON WORLD' site/app/horizon/index.html
+          grep -Fq "u.searchParams.set('mode',mode)" site/app/horizon/lobby.html
+          grep -Fq 'bridgepoint-horizon-survivor-v3050' site/app/horizon/lobby.html
           grep -Fq '"display": "standalone"' site/app/horizon/manifest.webmanifest
           grep -Fq '"id": "/app/horizon/"' site/app/horizon/manifest.webmanifest
           grep -Fq '"sizes": "192x192"' site/app/horizon/manifest.webmanifest
@@ -119,9 +127,13 @@ jobs:
             if grep -Fq 'id="installAppPrompt"' /tmp/h 2>/dev/null \
               && grep -Fq 'beforeinstallprompt' /tmp/h 2>/dev/null \
               && grep -Fq 'id="game-modes"' /tmp/h 2>/dev/null \
+              && grep -Fq './lobby.html?mode=year_one_survival' /tmp/h 2>/dev/null \
+              && grep -Fq './lobby.html?mode=infinite_tdm' /tmp/h 2>/dev/null \
+              && grep -Fq './lobby.html?mode=outbreak_raid' /tmp/h 2>/dev/null \
               && grep -Fq 'YEAR ONE SURVIVAL' /tmp/h 2>/dev/null \
               && grep -Fq 'INFINITE TEAM DEATHMATCH' /tmp/h 2>/dev/null \
               && grep -Fq 'OUTBREAK RAID' /tmp/h 2>/dev/null \
+              && ! grep -Fq 'ENTER THE CONTINUOUS HORIZON WORLD' /tmp/h 2>/dev/null \
               && ! grep -Fq '/app/intelligence-launch/' /tmp/h 2>/dev/null; then
               ok=1
               echo 'HORIZON_LANDING_INSTALL_LIVE'
