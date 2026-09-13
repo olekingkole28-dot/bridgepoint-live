@@ -57,7 +57,7 @@ def patch_root():
       </div>
     </section>
 '''
-    s=inject_once(s,"id="bridgepoint-world"",section,'    <section class="media section-shell" id="proof">')
+    s=inject_once(s,'id="bridgepoint-world"',section,'    <section class="media section-shell" id="proof">')
 
     cross=r'''
     <div class="b2b-horizon-cross">
