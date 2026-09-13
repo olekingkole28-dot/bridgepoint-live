@@ -350,7 +350,7 @@ try{
 }catch(_){}
 let yaw=0,pitch=.14,cameraMode=Math.max(0,CAMERA_MODES.indexOf(controlPrefs.cameraMode));
 if(cameraMode<0)cameraMode=1;
-let firstPersonRig=null,firstPersonWeapon=null;
+let firstPersonRig=null,firstPersonWeapon=null,firstPersonFallbackArms=null,firstPersonActualArms=null,firstPersonArmsSource=null;
 let health=100,lastDamageAt=0;
 let playerSpawn=new THREE.Vector3();
 const playerVelocity=new THREE.Vector3();
@@ -2216,6 +2216,61 @@ function putCharacterWeapon(slot,name,mode='leftHand'){
   if(mode==='backMelee')obj.rotation.set(.10,.05,-.70);
   m.add(obj);return obj;
 }
+function clearActualFirstPersonArms(){
+  if(firstPersonActualArms?.parent)firstPersonActualArms.parent.remove(firstPersonActualArms);
+  try{firstPersonActualArms?.geometry?.dispose?.()}catch(_){}
+  firstPersonActualArms=null;firstPersonArmsSource=null;
+}
+function selectedArmInfluence(skinIndex,skinWeight,vertex,selected){
+  let total=0;
+  for(let c=0;c<4;c++){
+    const bone=skinIndex.getComponent(vertex,c),weight=skinWeight.getComponent(vertex,c);
+    if(selected.has(bone))total+=weight;
+  }
+  return total;
+}
+function buildActualFirstPersonArms(modelRoot){
+  clearActualFirstPersonArms();
+  let source=null;
+  modelRoot?.traverse?.(o=>{
+    if(!source&&o.isSkinnedMesh&&o.geometry?.attributes?.skinIndex&&o.geometry?.attributes?.skinWeight&&o.skeleton?.bones?.length)source=o;
+    if(o.isMesh)o.userData.horizonThirdPersonBody=true;
+  });
+  if(!source)return false;
+  const selected=new Set();
+  source.skeleton.bones.forEach((bone,i)=>{
+    const n=String(bone.name||'').toLowerCase();
+    if(/clavicle|upperarm|lowerarm|forearm|hand_|hand$|thumb|index_|middle_|ring_|pinky_|finger/.test(n))selected.add(i);
+  });
+  if(selected.size<8)return false;
+
+  const geo=source.geometry.clone(),skinIndex=geo.attributes.skinIndex,skinWeight=geo.attributes.skinWeight;
+  const srcIndex=source.geometry.index;
+  const triCount=srcIndex?Math.floor(srcIndex.count/3):Math.floor(geo.attributes.position.count/3),kept=[];
+  const idxAt=i=>srcIndex?srcIndex.getX(i):i;
+  for(let t=0;t<triCount;t++){
+    const a=idxAt(t*3),b=idxAt(t*3+1),c=idxAt(t*3+2);
+    const wa=selectedArmInfluence(skinIndex,skinWeight,a,selected);
+    const wb=selectedArmInfluence(skinIndex,skinWeight,b,selected);
+    const wc=selectedArmInfluence(skinIndex,skinWeight,c,selected);
+    const avg=(wa+wb+wc)/3;
+    if(avg>.42&&Math.max(wa,wb,wc)>.72&&Math.min(wa,wb,wc)>.08)kept.push(a,b,c);
+  }
+  if(kept.length<90){geo.dispose();return false}
+  geo.setIndex(kept);geo.computeBoundingBox();geo.computeBoundingSphere();
+
+  const material=Array.isArray(source.material)?source.material.map(m=>m.clone()):source.material.clone();
+  const arms=new THREE.SkinnedMesh(geo,material);
+  arms.name='horizon-actual-first-person-arms';
+  arms.bindMode=source.bindMode;
+  arms.bind(source.skeleton,source.bindMatrix);
+  arms.position.copy(source.position);arms.quaternion.copy(source.quaternion);arms.scale.copy(source.scale);
+  arms.castShadow=false;arms.receiveShadow=false;arms.frustumCulled=false;arms.renderOrder=905;
+  arms.userData.firstPersonActualArms=true;
+  source.parent.add(arms);
+  firstPersonActualArms=arms;firstPersonArmsSource=source;
+  return true;
+}
 function fallbackHeldWeapon(name){
   const g=new THREE.Group(),dark=new THREE.MeshStandardMaterial({color:0x202522,roughness:.48,metalness:.35}),wood=new THREE.MeshStandardMaterial({color:0x4f3424,roughness:.82});
   if(isFirearm(name)){
@@ -2236,6 +2291,9 @@ function buildFirstPersonRig(){
   firstPersonRig.visible=false;
   camera.add(firstPersonRig);
 
+  firstPersonFallbackArms=new THREE.Group();
+  firstPersonFallbackArms.name='first-person-fallback-capsule-arms';
+  firstPersonRig.add(firstPersonFallbackArms);
   const skin=new THREE.MeshStandardMaterial({color:0xb98568,roughness:.82,metalness:0});
   const sleeve=new THREE.MeshStandardMaterial({color:0x25302b,roughness:.9,metalness:0});
   const makeArm=(side)=>{
@@ -2255,7 +2313,7 @@ function buildFirstPersonRig(){
     root.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;o.renderOrder=900}});
     return root;
   };
-  firstPersonRig.add(makeArm(-1),makeArm(1));
+  firstPersonFallbackArms.add(makeArm(-1),makeArm(1));
   return firstPersonRig;
 }
 function firstPersonWeaponModel(name){
@@ -2285,10 +2343,21 @@ function refreshFirstPersonRig(){
   rig.visible=CAMERA_MODES[cameraMode]==='firstPerson'&&!playerDead&&!spectatorMode;
 }
 function setCameraPresentation(){
-  const fp=CAMERA_MODES[cameraMode]==='firstPerson';
-  if(playerVisualRoot)playerVisualRoot.visible=!fp&&!playerDead&&!spectatorMode;
-  for(const m of Object.values(equipmentMounts))if(m)m.visible=!fp;
-  if(firstPersonRig)firstPersonRig.visible=fp&&!playerDead&&!spectatorMode;
+  const fp=CAMERA_MODES[cameraMode]==='firstPerson',alive=!playerDead&&!spectatorMode;
+  const hasActual=Boolean(firstPersonActualArms?.parent);
+  if(playerVisualRoot){
+    playerVisualRoot.visible=alive&&(hasActual||!fp);
+    if(hasActual){
+      playerVisualRoot.traverse(o=>{
+        if(!o.isMesh)return;
+        if(o===firstPersonActualArms)o.visible=fp&&alive;
+        else if(o.userData?.horizonThirdPersonBody)o.visible=!fp&&alive;
+      });
+    }
+  }
+  for(const m of Object.values(equipmentMounts))if(m)m.visible=!fp&&alive;
+  if(firstPersonFallbackArms)firstPersonFallbackArms.visible=fp&&alive&&!hasActual;
+  if(firstPersonRig)firstPersonRig.visible=fp&&alive;
 }
 function updateFirstPersonViewmodel(dt,moving,sprint){
   if(!firstPersonRig||CAMERA_MODES[cameraMode]!=='firstPerson')return;
@@ -2484,6 +2553,8 @@ async function hydrateRealPlayerModel(){
   playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerVisualBaseScaleZ=Math.abs(playerVisualRoot.scale.z);playerVisualRoot.scale.z=playerVisualBaseScaleZ;
   playerAssetLoaded=true;playerAssetMode=playerMode;
   playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);playerAction=null;
+  const actualArmsReady=buildActualFirstPersonArms(n.model);
+  streetLifeStats.firstPersonActualArms=actualArmsReady;
   captureCharacterWeaponTemplates(n.model);setupEquipmentMounts(n.model);refreshEquipmentVisuals();playPlayerAnimation(locomotionIntent||'idle');
   hydratePlayerAnimations(n.model).catch(e=>console.warn('player animation hydration',e));
   if(!MOBILE_GPU_SAFE)hydrateWeaponTemplates().catch(e=>console.warn('weapon hydration',e));
@@ -5773,7 +5844,15 @@ async function boot(){
         const prior=cameraMode,out=[];
         for(let i=0;i<CAMERA_MODES.length;i++){
           cameraMode=i;refreshFirstPersonRig();setCameraPresentation();updateCamera(.25);
-          out.push({mode:CAMERA_MODES[i],bodyVisible:Boolean(playerVisualRoot?.visible),rigVisible:Boolean(firstPersonRig?.visible),weaponVisible:Boolean(firstPersonWeapon)});
+          out.push({
+            mode:CAMERA_MODES[i],
+            bodyVisible:Boolean(playerVisualRoot?.visible),
+            rigVisible:Boolean(firstPersonRig?.visible),
+            weaponVisible:Boolean(firstPersonWeapon),
+            actualArms:Boolean(firstPersonActualArms?.parent),
+            actualArmsVisible:Boolean(firstPersonActualArms?.visible),
+            fallbackArmsVisible:Boolean(firstPersonFallbackArms?.visible)
+          });
         }
         cameraMode=prior;refreshFirstPersonRig();setCameraPresentation();
         return out;
