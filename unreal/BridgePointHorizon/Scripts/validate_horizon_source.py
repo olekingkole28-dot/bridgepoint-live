@@ -41,6 +41,8 @@ for dep in {
 
 required_source = [
     "HorizonAutopilotSubsystem",
+    "HorizonGameMode",
+    "HorizonPlayerCharacter",
     "HorizonGameStateSubsystem",
     "HorizonArenaDirectorSubsystem",
     "HorizonGeneratedInterior",
@@ -99,6 +101,23 @@ for token in ["RequestWorldCell", "RenderCellJson", "TravelToCell", "UHorizonAut
 interior = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGeneratedInterior.cpp")
 for token in ["AddStairRun", "AddDoor", "AddWindowBayX", "ToggleNearestDoor"]:
     require(token in interior, f"generated interior traversal feature missing: {token}")
+
+
+engine_config = read("unreal/BridgePointHorizon/Config/DefaultEngine.ini")
+for token in ["/Engine/Maps/Entry", "GlobalDefaultGameMode=/Script/BridgePointHorizon.HorizonGameMode"]:
+    require(token in engine_config, f"native bootstrap config missing: {token}")
+
+input_config = read("unreal/BridgePointHorizon/Config/DefaultInput.ini")
+for token in ['AxisName="MoveForward"', 'AxisName="MoveRight"', 'ActionName="Sprint"', 'ActionName="Crouch"', 'ActionName="Aim"']:
+    require(token in input_config, f"native movement input missing: {token}")
+
+player = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonPlayerCharacter.cpp")
+for token in ["MovementSampleRateHz", "ReportCameraSpeedMps", "TryEnableWorldGravity", "StartSprint", "StartAim"]:
+    require(token in player, f"native adaptive player feature missing: {token}")
+
+game_mode = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGameMode.cpp")
+for token in ["AHorizonPlayerCharacter::StaticClass", "AHorizonWorldRuntime::StaticClass", "ChoosePlayerStart_Implementation"]:
+    require(token in game_mode, f"native bootstrap game mode feature missing: {token}")
 
 mode_contract_path = ROOT / "app" / "horizon-playable" / "HORIZON_GAME_MODES_V4243.json"
 require(mode_contract_path.exists(), "authoritative three-mode contract missing")
