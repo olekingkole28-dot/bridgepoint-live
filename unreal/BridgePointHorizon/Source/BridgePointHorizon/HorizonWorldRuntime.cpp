@@ -2,6 +2,7 @@
 
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "HorizonAutopilotSubsystem.h"
 #include "HorizonWorldCellRenderer.h"
 
 AHorizonWorldRuntime::AHorizonWorldRuntime()
@@ -67,11 +68,21 @@ bool AHorizonWorldRuntime::RequestCurrentCell()
         return false;
     }
 
+    double EffectiveSpanKm = SpanKm;
+    if (UWorld* World = GetWorld())
+    {
+        if (UHorizonAutopilotSubsystem* Autopilot = World->GetSubsystem<UHorizonAutopilotSubsystem>())
+        {
+            const FHorizonAutopilotProfile Profile = Autopilot->GetProfile();
+            EffectiveSpanKm = FMath::Min(SpanKm, static_cast<double>(Profile.RecommendedCellSpanKm));
+        }
+    }
+
     return StreamSubsystem->RequestWorldCell(
         StateCode,
         Latitude,
         Longitude,
-        SpanKm,
+        EffectiveSpanKm,
         CellId);
 }
 
@@ -112,6 +123,24 @@ void AHorizonWorldRuntime::HandleWorldCellLoaded(
     {
         OnWorldRuntimeReady.Broadcast(false, TEXT("Horizon world renderer is unavailable."));
         return;
+    }
+
+    if (UWorld* World = GetWorld())
+    {
+        if (UHorizonAutopilotSubsystem* Autopilot = World->GetSubsystem<UHorizonAutopilotSubsystem>())
+        {
+            const FHorizonAutopilotProfile Profile = Autopilot->GetProfile();
+            Renderer->MaxBuildingsPerCell = Profile.MaxBuildingsPerCell;
+            Renderer->MaxBuildingPartsPerCell = Profile.MaxBuildingPartsPerCell;
+            const float StreamPressure = Cell.SpanKm > 0.0
+                ? FMath::Clamp(
+                    static_cast<float>(Cell.BuildingCount) /
+                    FMath::Max(1.0f, static_cast<float>(Profile.MaxBuildingsPerCell) * 1.35f),
+                    0.0f,
+                    1.0f)
+                : 0.0f;
+            Autopilot->ReportStreamingPressure(StreamPressure);
+        }
     }
 
     if (!Renderer->RenderCellJson(Cell.RawJson))
