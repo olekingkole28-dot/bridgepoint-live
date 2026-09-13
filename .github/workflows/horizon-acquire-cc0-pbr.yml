@@ -1,0 +1,110 @@
+name: Horizon Acquire CC0 PBR
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/horizon-acquire-cc0-pbr.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: horizon-cc0-pbr-acquisition
+  cancel-in-progress: false
+
+jobs:
+  acquire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Acquire verified Poly Haven CC0 browser PBR maps
+        shell: bash
+        run: |
+          set -euo pipefail
+          UA='BridgePoint-Horizon-AssetPipeline/1.0 (+https://bridgepointintelligence.online/app/horizon/)'
+          OUT='app/horizon-playable/assets/pbr/polyhaven'
+          mkdir -p "${OUT}"
+
+          acquire_asset() {
+            id="$1"
+            meta="/tmp/${id}.json"
+            curl --fail --retry 4 --retry-delay 2 -A "${UA}"               "https://api.polyhaven.com/files/${id}" -o "${meta}"
+
+            for map in Diffuse nor_gl Rough; do
+              url="$(jq -r --arg m "${map}" '.[$m]["1k"]["jpg"]["url"] // empty' "${meta}")"
+              md5="$(jq -r --arg m "${map}" '.[$m]["1k"]["jpg"]["md5"] // empty' "${meta}")"
+              if [ -z "${url}" ]; then
+                echo "Missing ${id} ${map} 1k jpg" >&2
+                exit 1
+              fi
+
+              case "${map}" in
+                Diffuse) suffix='diff' ;;
+                nor_gl) suffix='nor_gl' ;;
+                Rough) suffix='rough' ;;
+              esac
+
+              dest="${OUT}/${id}_${suffix}_1k.jpg"
+              curl --fail --retry 4 --retry-delay 2 -L -A "${UA}" "${url}" -o "${dest}"
+
+              if [ -n "${md5}" ]; then
+                echo "${md5}  ${dest}" | md5sum -c -
+              fi
+            done
+          }
+
+          acquire_asset asphalt_03
+          acquire_asset dirt
+          acquire_asset brick_wall_001
+          acquire_asset concrete_wall_005
+
+          python3 - <<'PY'
+          import json, pathlib, hashlib
+          root=pathlib.Path("app/horizon-playable/assets/pbr/polyhaven")
+          assets={
+              "asphalt_03":"https://polyhaven.com/a/asphalt_03",
+              "dirt":"https://polyhaven.com/a/dirt",
+              "brick_wall_001":"https://polyhaven.com/a/brick_wall_001",
+              "concrete_wall_005":"https://polyhaven.com/a/concrete_wall_005",
+          }
+          files=[]
+          for p in sorted(root.glob("*.jpg")):
+              files.append({
+                  "path":p.name,
+                  "bytes":p.stat().st_size,
+                  "sha256":hashlib.sha256(p.read_bytes()).hexdigest(),
+              })
+          (root/"PROVENANCE.json").write_text(json.dumps({
+              "schema_version":1,
+              "source":"Poly Haven",
+              "license":"CC0",
+              "acquisition":"Poly Haven public API with BridgePoint unique User-Agent",
+              "runtime_api_dependency":False,
+              "resolution":"1k",
+              "format":"jpg",
+              "assets":assets,
+              "files":files,
+          },indent=2)+"\n",encoding="utf-8")
+          PY
+
+      - name: Commit CC0 PBR bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'BridgePoint Asset Pipeline'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/horizon-playable/assets/pbr/polyhaven
+          if git diff --cached --quiet; then
+            echo 'PBR bundle already current'
+            exit 0
+          fi
+          git commit -m 'Horizon: vendor verified CC0 PBR surfaces for web renderer'
+          git pull --rebase origin main
+          git push origin HEAD:main
