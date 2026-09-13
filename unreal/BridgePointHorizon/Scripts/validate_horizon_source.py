@@ -71,7 +71,7 @@ require("FMath::Clamp(Lives, 0, 3)" in game_state, "Year One lives must remain c
 require("case EHorizonGameMode::YearOneSurvival" in game_state and "Rules.MaxPartySize = 1" in game_state and "Rules.bConsumesYearOneLives = YearOne.bStarted" in game_state, "Year One mode rules missing")
 
 social = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonSocialSubsystem.cpp")
-require("YearOne Survival is solo-only" in social, "Year One party rejection missing")
+require("Year One Survival is solo-only." in social, "Year One party rejection missing")
 require("bUseLobbiesVoiceChatIfAvailable = true" in social, "lobby voice auto-join is not enabled")
 
 streaming_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldStreamSubsystem.h")
