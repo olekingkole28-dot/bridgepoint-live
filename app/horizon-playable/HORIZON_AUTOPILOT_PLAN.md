@@ -132,3 +132,40 @@ Additional free evaluation candidates:
 - MC Sample Animation Pack — 120+ mocap animations on UE5 mannequin; evaluate against Game Animation Sample before adding duplicate animation weight.
 - TEUTHISAN Alien Predator — cinematic-quality free rigged creature; evaluate only as an original Horizon creature/boss role, not as a core infected replacement.
 - Weapon Pack 03 animated revolver — high-quality free weapon/animations; useful as a rare/period weapon candidate, not a core modern firearm replacement.
+
+
+## Autonomous zero-budget workers (V4250)
+
+The automated Horizon side MUST now treat `HORIZON_YEAR_ONE_V4250.json` as the latest owner-locked Year One contract, extending the three-mode V4243 contract.
+
+Five persistent worker lanes are registered in the BridgePoint backend:
+
+- `horizon_world_interiors`: fictional generated interiors, true openings, physical stairs/doors/windows, rooftops, zip lines, state/jurisdiction horror identity.
+- `horizon_infected_event`: Year One difficulty curve, regional creatures, challenge NPCs/free rewards, zombie-wall contraction and endgame.
+- `horizon_gameplay`: movement, aiming, weapons, traversal, interaction, vehicles and mode-specific combat feel.
+- `horizon_assets_audio`: free/legal AAA-quality assets, animation, PBR materials, VFX and premium audio with provenance.
+- `horizon_qa_release`: browser/native-source validation, mobile/performance regression, safe publishing and release verification.
+
+Backend state:
+- policy: `automation.horizon_runtime_policy_v4250`
+- requirements: `automation.horizon_design_requirements_v4250`
+- workers: `automation.horizon_worker_registry_v4250`
+- queue: `automation.horizon_work_queue_v4250`
+- receipts: `automation.horizon_worker_receipts_v4250`
+
+Hard rules for every automated run:
+- owner-funded spend stays $0; no billable cloud/GPU/service provisioning and no paid assets
+- protect cadastral #5 capacity; prefer GitHub/client/source/test work and low-pressure backend work
+- the browser/PWA build keeps improving even while native UE5.8 GPU hosting is unavailable
+- Year One remains preseason/Day 0 until the owner explicitly starts it
+- exactly three persistent Year One lives; preseason deaths never consume them
+- real-world building interiors are never reconstructed; generated interiors are fictional
+- generated interiors use physical stairs, functional doors and true window/door wall openings rather than fake teleport/card portals
+- rooftop/building-to-building ziplines are part of the core traversal target
+- infected begin easier and progressively harden by event day/region/density/survivor pressure/endgame phase
+- NPC challenges give free items/rewards in strategic contextual locations
+- the late-event contraction mechanic is a massive infected wall moving inward from the playable perimeter toward major-city showdowns
+- free daily rewards stay enabled for all 365 days
+- battle pass remains 150 levels at $9.99 in design, but Stripe is NOT connected until the owner explicitly gives the final go-ahead
+- never ship ripped content or unclear-license content
+- every worker must leave measurable code/data/test progress or record the exact blocker in the receipt ledger
