@@ -66,6 +66,7 @@ const aim=await page.evaluate(()=>window.BP_HORIZON_TEST.aimProbe());
 const held=await page.evaluate(()=>window.BP_HORIZON_TEST.heldWeaponProbe());
 const terrainGuard=await page.evaluate(()=>window.BP_HORIZON_TEST.terrainGuardProbe());
 const controls=await page.evaluate(()=>window.BP_HORIZON_TEST.cardinalControlsProbe());
+const movementFacing=await page.evaluate(()=>window.BP_HORIZON_TEST.movementFacingProbe?.());
 const cameraModes=await page.evaluate(()=>window.BP_HORIZON_TEST.cameraModesProbe?.());
 const inputIsolation=await page.evaluate(()=>window.BP_HORIZON_TEST.inputIsolationProbe?.());
 
@@ -82,10 +83,38 @@ if(!Array.isArray(cameraModes)||cameraModes.length!==3)throw new Error('Camera m
 const fp=cameraModes.find(x=>x.mode==='firstPerson'),tp=cameraModes.find(x=>x.mode==='thirdPersonClose');
 if(!fp||fp.bodyVisible!==false||fp.rigVisible!==true||fp.weaponVisible!==true)throw new Error('First-person presentation failed '+JSON.stringify(cameraModes));
 if(!tp||tp.bodyVisible!==true||tp.rigVisible!==false)throw new Error('Third-person presentation failed '+JSON.stringify(cameraModes));
-if(inputIsolation?.pointerOwnership!==true||inputIsolation?.canvasTouchAction!=='none')throw new Error('Touch pointer isolation missing '+JSON.stringify(inputIsolation));
+if(inputIsolation?.pointerOwnership!==true||inputIsolation?.canvasTouchAction!=='none'||inputIsolation?.settingsPanel!==true)throw new Error('Touch pointer isolation/settings missing '+JSON.stringify(inputIsolation));
+if(!movementFacing?.all||movementFacing.samples?.some(x=>!x.ok))throw new Error('Rendered movement-facing regression '+JSON.stringify(movementFacing));
 if(!(controls.forward.dy>.99)||!(controls.backward.dy<-.99)||!(controls.left.dx<-.99)||!(controls.right.dx>.99))throw new Error('Cardinal controls broken '+JSON.stringify(controls));
+
+const gestureIsolation=await page.evaluate(async()=>{
+  const weaponBefore=window.BP_HORIZON_TEST?.heldWeaponProbe?.()?.weapon||null;
+  const pad=document.getElementById('movePad');
+  const canvas=document.querySelector('#world canvas');
+  if(!pad||!canvas)return{ok:false,reason:'missing pad/canvas',weaponBefore};
+
+  const emit=(el,type,id,x,y)=>el.dispatchEvent(new PointerEvent(type,{
+    bubbles:true,cancelable:true,composed:true,pointerId:id,pointerType:'touch',
+    isPrimary:id===701,clientX:x,clientY:y,buttons:type==='pointerup'?0:1
+  }));
+  const pr=pad.getBoundingClientRect();
+  emit(pad,'pointerdown',701,pr.left+pr.width*.5,pr.top+pr.height*.5);
+  emit(pad,'pointermove',701,pr.left+pr.width*.5,pr.top+pr.height*.18);
+  emit(pad,'pointerup',701,pr.left+pr.width*.5,pr.top+pr.height*.18);
+
+  const cr=canvas.getBoundingClientRect();
+  emit(canvas,'pointerdown',702,cr.left+cr.width*.68,cr.top+cr.height*.50);
+  emit(canvas,'pointermove',702,cr.left+cr.width*.56,cr.top+cr.height*.43);
+  emit(canvas,'pointerup',702,cr.left+cr.width*.56,cr.top+cr.height*.43);
+
+  await new Promise(r=>setTimeout(r,80));
+  const weaponAfter=window.BP_HORIZON_TEST?.heldWeaponProbe?.()?.weapon||null;
+  const isolation=window.BP_HORIZON_TEST?.inputIsolationProbe?.();
+  return{ok:weaponBefore===weaponAfter,weaponBefore,weaponAfter,isolation};
+});
+if(!gestureIsolation?.ok)throw new Error('Movement/look gesture changed weapon '+JSON.stringify(gestureIsolation));
 
 const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource: the server responded with a status of 404/i.test(x));
 if(meaningful.length)throw new Error('Horizon console errors '+meaningful.join('\n'));
-console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,worldUi}));
+console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,gestureIsolation,worldUi}));
 await browser.close();
