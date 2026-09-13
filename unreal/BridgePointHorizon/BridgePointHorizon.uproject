@@ -85,6 +85,18 @@
     {
       "Name": "AudioModulation",
       "Enabled": true
+    },
+    {
+      "Name": "OnlineSubsystem",
+      "Enabled": true
+    },
+    {
+      "Name": "OnlineSubsystemEOS",
+      "Enabled": true
+    },
+    {
+      "Name": "EOSVoiceChat",
+      "Enabled": true
     }
   ],
   "Modules": [
