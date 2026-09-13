@@ -6,6 +6,8 @@
 
 class UCameraComponent;
 class USpringArmComponent;
+class UStaticMesh;
+class UStaticMeshComponent;
 
 UCLASS()
 class BRIDGEPOINTHORIZON_API AHorizonPlayerCharacter : public ACharacter
@@ -25,6 +27,15 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|Camera")
     TObjectPtr<UCameraComponent> FollowCamera;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|Weapon")
+    TObjectPtr<UStaticMeshComponent> EquippedWeaponVisual;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Weapon")
+    FName WeaponHandSocketName = TEXT("hand_r");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Weapon")
+    FTransform WeaponGripOffset = FTransform::Identity;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
     float WalkSpeed = 430.0f;
 
@@ -36,6 +47,15 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera")
     float AimArmLength = 185.0f;
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Weapon")
+    bool EquipWeaponVisual(UStaticMesh* WeaponMesh, FName PreferredSocket = NAME_None);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Weapon")
+    void HolsterWeaponVisual();
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Weapon")
+    bool IsWeaponVisualEquipped() const;
 
 private:
     bool bSprinting = false;
@@ -52,4 +72,5 @@ private:
     void StopAim();
     void RefreshMovementProfile();
     void TryEnableWorldGravity(float DeltaSeconds);
+    bool AttachWeaponVisualToBestSocket(FName PreferredSocket);
 };
