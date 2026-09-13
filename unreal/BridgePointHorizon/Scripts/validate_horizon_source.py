@@ -49,6 +49,7 @@ required_source = [
     "HorizonZipline",
     "HorizonInfectedDirectorSubsystem",
     "HorizonChallengeDirectorSubsystem",
+    "HorizonChallengeNPC",
     "HorizonAudioDirectorSubsystem",
     "HorizonZombieWallController",
     "HorizonProgressionSubsystem",
@@ -129,6 +130,10 @@ for token in ["OfferChallenge", "AddChallengeProgress", "ClaimChallengeReward", 
     require(token in challenge, f"NPC challenge execution missing: {token}")
 for token in ["GrantFreeSalvage", "GrantFreeUnlock"]:
     require(token in challenge, f"free NPC reward handoff missing: {token}")
+
+challenge_npc = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonChallengeNPC.cpp")
+for token in ["InteractionSphere", "OfferChallenge", "ReportChallengeProgress", "ClaimChallengeReward", "GetChallengeDirector"]:
+    require(token in challenge_npc, f"strategic challenge NPC runtime missing: {token}")
 
 
 engine_config = read("unreal/BridgePointHorizon/Config/DefaultEngine.ini")
