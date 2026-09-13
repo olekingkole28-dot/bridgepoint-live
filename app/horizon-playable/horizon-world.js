@@ -23,7 +23,7 @@ async function getHorizonSupabase(){
   })();
   return await horizonSupabaseInit;
 }
-const BUILD_VERSION=4255;
+const BUILD_VERSION=4256;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -611,6 +611,7 @@ async function loadWeaponRegistry(){
       if(row.magazine_size>0&&reserveAmmo[w]==null)reserveAmmo[w]=Number(row.reserve_default||0);
       if(row.magazine_size>0&&ammoState[w]==null)ammoState[w]=Number(row.magazine_size||0);
     }
+    if(playerRoot&&roadAnchors.length)setTimeout(()=>spawnRegistryWeaponDrops(),150);
     return true;
   }catch(e){
     weaponRegistryError=String(e?.message||e);
@@ -3825,9 +3826,39 @@ function spawnVisiblePickup(item,x,y,z,mode='exterior',seedValue=0){
   const p={id:++pickupSeq,item,root,mode,active:true,x,y,z,phase:(seedValue%997)/997*Math.PI*2};
   worldPickups.push(p);return p;
 }
+function registryLootWeaponNames(){
+  const out=[],seen=new Set();
+  for(const row of weaponRegistry.values()){
+    const id=String(row?.weapon_id||'');
+    if(!id||seen.has(id))continue;seen.add(id);
+    if(row?.model_url&&['primary','sidearm'].includes(String(row.weapon_type||row.equip_slot||'')))out.push(String(row.weapon_name||id));
+  }
+  return [...new Set(out)];
+}
+function spawnRegistryWeaponDrops(limit=MOBILE_GPU_SAFE?8:16){
+  if(!playerRoot||!roadAnchors.length)return 0;
+  const existing=new Set(worldPickups.filter(p=>p?.active).map(p=>p.item));
+  const names=registryLootWeaponNames().filter(n=>!existing.has(n));
+  let placed=0;
+  for(const item of names){
+    if(placed>=limit)break;
+    let chosen=null;
+    for(let tries=0;tries<40;tries++){
+      const a=roadAnchors[Math.floor(rand()*roadAnchors.length)];if(!a)continue;
+      const d=Math.hypot(a.x-playerSpawn.x,a.y-playerSpawn.y);if(d<10||d>380)continue;
+      const side=rand()>.5?1:-1,p=roadSidePoint(a,Math.max(.8,a.width/2-1.0),side);
+      if(!isBlockedExterior(p.x,p.y,.38)){chosen=p;break}
+    }
+    if(!chosen)continue;
+    spawnVisiblePickup(item,chosen.x,chosen.y,surfaceZXY(chosen.x,chosen.y)+.04,'exterior',hash('registry:'+item));
+    placed++;
+  }
+  streetLifeStats.registryWeaponDrops=Number(streetLifeStats.registryWeaponDrops||0)+placed;
+  return placed;
+}
 function spawnOutdoorLoot(){
   const target=densePreview()?80:40;
-  const table=['Bandage','Water','First aid kit','Batteries','Canned food','Pistol Ammo','Rifle Ammo','Shotgun Shells','SMG Ammo','Pistol','Rifle','Shotgun','SMG','Axe','Spear','Pitchfork','Saw Bat','Guitar','Hiking Backpack'];
+  const table=['Bandage','Water','First aid kit','Batteries','Canned food','Pistol Ammo','Rifle Ammo','Shotgun Shells','SMG Ammo','Pistol','Rifle','Shotgun','SMG','Axe','Spear','Pitchfork','Saw Bat','Guitar','Hiking Backpack',...registryLootWeaponNames()];
   let placed=0,attempts=0;
   while(placed<target&&attempts<target*24){
     attempts++;
@@ -5186,7 +5217,7 @@ async function buildSurvivalArtMobileFast(){
     buildNightStreetLights(MOBILE_GPU_SAFE?8:14);
     streetLifeStats={...streetLifeStats,trees:(streetLifeStats.trees||0)+(life.trees||0),bikes:(streetLifeStats.bikes||0)+(life.bikes||0),benches:(streetLifeStats.benches||0)+(furniture.benches||0),planters:(streetLifeStats.planters||0)+(furniture.planters||0),proceduralEnemyFallback:true};
   }catch(err){streetLifeStats.mobileDecorRecovery=String(err?.message||err);console.warn('mobile decor recovered',err)}
-  try{spawnOutdoorLoot()}catch(err){streetLifeStats.mobileLootRecovery=String(err?.message||err);console.warn('mobile loot recovered',err)}
+  try{spawnOutdoorLoot();spawnRegistryWeaponDrops()}catch(err){streetLifeStats.mobileLootRecovery=String(err?.message||err);console.warn('mobile loot recovered',err)}
   try{streetLifeStats.corpses=scatterStreetCorpses(zombieTemplate,MOBILE_GPU_SAFE?18:24)}catch(err){streetLifeStats.corpses=0;streetLifeStats.corpseRecovery=String(err?.message||err);console.warn('corpse dressing recovered',err)}
   try{streetLifeStats.fires=Math.max(Number(streetLifeStats.fires||0),scatterAmbientFires(7))}catch(err){streetLifeStats.fireRecovery=String(err?.message||err);console.warn('fire dressing recovered',err)}
   try{await buildZombies(zombieTemplate);spawnFacadeSpiders(2)}catch(err){streetLifeStats.enemyRecovery=String(err?.message||err);console.warn('enemy hydration recovered',err)}
@@ -5332,7 +5363,7 @@ async function buildSurvivalArtFull(){
     planters:furniture.planters+localLife.planters
   };
 
-  spawnOutdoorLoot();
+  spawnOutdoorLoot();spawnRegistryWeaponDrops();
   dressOpenSourceBuildings(m2mZombie||zombie);
   streetLifeStats.corpses=scatterStreetCorpses(m2mZombie||zombie,MOBILE_GPU_SAFE?18:(densePreview()?52:24));
   streetLifeStats.fires=scatterAmbientFires(MOBILE_GPU_SAFE?7:(densePreview()?15:7));
