@@ -62,7 +62,15 @@ jobs:
           test -s site/app/horizon-playable/horizon-world.js
           grep -Fq 'id="installAppPrompt"' site/app/horizon/index.html
           grep -Fq 'beforeinstallprompt' site/app/horizon/index.html
-          grep -Fq '"display":"standalone"' site/app/horizon/manifest.webmanifest
+          grep -Fq 'id="game-modes"' site/app/horizon/index.html
+          grep -Fq 'YEAR ONE SURVIVAL' site/app/horizon/index.html
+          grep -Fq 'INFINITE TEAM DEATHMATCH' site/app/horizon/index.html
+          grep -Fq 'OUTBREAK RAID' site/app/horizon/index.html
+          grep -Fq '"display": "standalone"' site/app/horizon/manifest.webmanifest
+          grep -Fq '"id": "/app/horizon/"' site/app/horizon/manifest.webmanifest
+          grep -Fq '"sizes": "192x192"' site/app/horizon/manifest.webmanifest
+          grep -Fq '"sizes": "512x512"' site/app/horizon/manifest.webmanifest
+          grep -Fq '"prefer_related_applications": false' site/app/horizon/manifest.webmanifest
           ! grep -Fq '/app/intelligence-launch/' site/app/horizon/index.html
 
       - name: Save durable live artifact
@@ -110,7 +118,10 @@ jobs:
             curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}?v=${q}" -o /tmp/h 2>/dev/null || true
             if grep -Fq 'id="installAppPrompt"' /tmp/h 2>/dev/null \
               && grep -Fq 'beforeinstallprompt' /tmp/h 2>/dev/null \
-              && grep -Fq 'BRIDGEPOINT' /tmp/h 2>/dev/null \
+              && grep -Fq 'id="game-modes"' /tmp/h 2>/dev/null \
+              && grep -Fq 'YEAR ONE SURVIVAL' /tmp/h 2>/dev/null \
+              && grep -Fq 'INFINITE TEAM DEATHMATCH' /tmp/h 2>/dev/null \
+              && grep -Fq 'OUTBREAK RAID' /tmp/h 2>/dev/null \
               && ! grep -Fq '/app/intelligence-launch/' /tmp/h 2>/dev/null; then
               ok=1
               echo 'HORIZON_LANDING_INSTALL_LIVE'
