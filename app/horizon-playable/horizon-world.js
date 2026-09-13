@@ -1004,8 +1004,8 @@ function pbrSet(id,repeat){
     roughnessMap:localPbrTexture(id+'_rough_1k.jpg',{repeat})
   };
 }
-const dirtPbr=pbrSet('dirt',[22,22]);
-const asphaltPbr=pbrSet('asphalt_03',[10,10]);
+const dirtPbr=pbrSet('dirt',[1,1]);
+const asphaltPbr=pbrSet('asphalt_03',[1,1]);
 const brickPbr=pbrSet('brick_wall_001',[.34,.34]);
 const concretePbr=pbrSet('concrete_wall_005',[.42,.42]);
 const terrainPbrMaterial=new THREE.MeshStandardMaterial({
@@ -1021,10 +1021,17 @@ streetLifeStats.pbrSource='Poly Haven CC0';
 streetLifeStats.pbrResolution='1k';
 streetLifeStats.pbrRuntimeApiDependency=false;
 
+function setPbrRepeat(set,x,y){
+  for(const tex of [set.map,set.normalMap,set.roughnessMap])tex?.repeat?.set(Math.max(1,x),Math.max(1,y));
+}
 function buildTerrain(){
+  const worldW=Math.max(1,(data.bbox.east-data.bbox.west)*mx),worldH=Math.max(1,(data.bbox.north-data.bbox.south)*my);
+  const terrainMetersPerTile=MOBILE_GPU_SAFE?4:2;
+  setPbrRepeat(dirtPbr,worldW/terrainMetersPerTile,worldH/terrainMetersPerTile);
+  streetLifeStats.terrainPbrMetersPerTile=terrainMetersPerTile;
   const t=data.terrain;
   if(!t?.heights_m?.length){
-    const w=(data.bbox.east-data.bbox.west)*mx,h=(data.bbox.north-data.bbox.south)*my;
+    const w=worldW,h=worldH;
     const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h,1,1),terrainPbrMaterial);
     mesh.receiveShadow=true;terrainLayer=mesh;worldGroup.add(mesh);terrainPhysicsCollider=addStaticPhysicsGeometry(mesh.geometry,'terrain-flat',.96)||terrainPhysicsCollider;return;
   }
@@ -1341,7 +1348,9 @@ function buildInstantBuildingMassing(){
     rows.push({x:q.x,y:q.y,z,w,d,h,key,meta});buildingCenters.push(meta);
   }
   if(!rows.length)return 0;
-  const geo=new THREE.BoxGeometry(1,1,1),mat=new THREE.MeshStandardMaterial({color:0x59615e,roughness:.94,metalness:.03,vertexColors:true});
+  const geo=new THREE.BoxGeometry(1,1,1),mat=new THREE.MeshStandardMaterial({
+    ...concretePbr,color:0xffffff,roughness:1,metalness:0,normalScale:new THREE.Vector2(.42,.42),vertexColors:true
+  });
   const mesh=new THREE.InstancedMesh(geo,mat,rows.length),o=new THREE.Object3D();
   const colors={brick:new THREE.Color(0x66514a),concrete:new THREE.Color(0x666a67),glass:new THREE.Color(0x4b6168),wood:new THREE.Color(0x63594a),metal:new THREE.Color(0x545b59)};
   rows.forEach((b,i)=>{
@@ -1795,19 +1804,28 @@ function roadWidth(kind){
   return kind==='ROAD_PRIMARY'?16:kind==='ROAD_SECONDARY'?11:kind==='ROAD_LOCAL'?7:kind==='RAIL'?3.5:6;
 }
 function buildStrips(features,extraWidth=0,zOffset=.18){
-  const pos=[],idx=[];let vi=0;
+  const pos=[],uv=[],idx=[];let vi=0;
+  const metersPerTile=2.0;
   for(const f of features||[])for(const line of lineFeatures(f.geometry)){
     const width=roadWidth(f.kind)+extraWidth;
+    let vCursor=0;
     for(let i=1;i<line.length;i++){
       const a=line[i-1],b=line[i],pa=project(a),pb=project(b),dx=pb.x-pa.x,dy=pb.y-pa.y,len=Math.hypot(dx,dy);
       if(len<.2)continue;
       const nx=-dy/len*width/2,ny=dx/len*width/2,za=terrainZ(a[0],a[1])+zOffset,zb=terrainZ(b[0],b[1])+zOffset;
       pos.push(pa.x+nx,pa.y+ny,za,pa.x-nx,pa.y-ny,za,pb.x+nx,pb.y+ny,zb,pb.x-nx,pb.y-ny,zb);
-      idx.push(vi,vi+1,vi+2,vi+2,vi+1,vi+3);vi+=4;
+      const uMax=width/metersPerTile,v0=vCursor/metersPerTile,v1=(vCursor+len)/metersPerTile;
+      uv.push(0,v0,uMax,v0,0,v1,uMax,v1);
+      idx.push(vi,vi+1,vi+2,vi+2,vi+1,vi+3);vi+=4;vCursor+=len;
     }
   }
   if(!pos.length)return null;
-  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();return g;
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  g.setIndex(idx);g.computeVertexNormals();
+  g.userData.horizonPbrUvMetersPerTile=metersPerTile;
+  return g;
 }
 function buildRoadCenterLines(roads){
   const pos=[];
@@ -5952,6 +5970,8 @@ async function boot(){
         requested:horizonPbrStatus.requested,
         loaded:horizonPbrStatus.loaded,
         failed:horizonPbrStatus.failed,
+        terrainMetersPerTile:Number(streetLifeStats.terrainPbrMetersPerTile||0),
+        roadUvMetersPerTile:Number(roadLayer?.children?.find?.(x=>x.geometry?.userData?.horizonPbrUvMetersPerTile)?.geometry?.userData?.horizonPbrUvMetersPerTile||0),
         terrain:{
           diffuse:Boolean(terrainPbrMaterial.map?.image),
           normal:Boolean(terrainPbrMaterial.normalMap?.image),
