@@ -1,4 +1,4 @@
-const CACHE='bridgepoint-horizon-install-v11';
+const CACHE='bridgepoint-horizon-install-v12';
 const SHELL=['./','./index.html','./lobby.html','./manifest.webmanifest','./horizon-mark.svg'];
 
 self.addEventListener('install',event=>{
