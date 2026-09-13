@@ -1,0 +1,136 @@
+name: Deploy Verified Horizon V4246
+
+on:
+  workflow_run:
+    workflows: ["Browser Test Horizon Playable v3052"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: verified-horizon-v4246-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+    steps:
+      - name: Checkout exact verified Horizon source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+
+      - name: Assemble Horizon over current production
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site
+          mkdir -p site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+
+          # Preserve every non-Horizon production file exactly as it is.
+          rm -rf site/app/horizon site/app/horizon-playable
+          git archive --format=tar HEAD app/horizon app/horizon-playable | tar -xf - -C site
+
+          cat > site/app/horizon/horizon-live-v4246.json <<EOF
+          {"build":4246,"status":"HORIZON_VERIFIED_LIVE","source_sha":"${SOURCE_SHA}","surface":"/app/horizon/preview.html"}
+          EOF
+
+          touch site/.nojekyll site/app/.nojekyll
+
+      - name: Validate exact control build before deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check site/app/horizon-playable/horizon-world.js
+          test -s site/app/horizon/preview.html
+          test -s site/app/horizon-playable/horizon-world.js
+          test -s site/app/horizon-playable/horizon-world.css
+
+          grep -Fq 'const BUILD_VERSION=4246;' site/app/horizon-playable/horizon-world.js
+          grep -Fq "const CAMERA_MODES=Object.freeze(['firstPerson','thirdPersonClose','thirdPersonFar'])" site/app/horizon-playable/horizon-world.js
+          grep -Fq 'const inputPointerOwners=new Map()' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'movementFacingProbe' site/app/horizon-playable/horizon-world.js
+          grep -Fq "gamepadLayout:'standard'" site/app/horizon-playable/horizon-world.js
+          grep -Fq 'id="controlSettings"' site/app/horizon/preview.html
+          grep -Fq 'id="gamepadLayoutSetting"' site/app/horizon/preview.html
+
+      - name: Save durable live artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/horizon-verified-live
+          mkdir -p /tmp/horizon-verified-live
+          cp -a site/. /tmp/horizon-verified-live/
+          cd /tmp/horizon-verified-live
+          git init -q
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m "Publish verified Horizon V4246 ${SOURCE_SHA}"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify exact Horizon SHA on custom domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          ok=0
+
+          for attempt in $(seq 1 40); do
+            q="${SOURCE_SHA}-${attempt}-$(date +%s)"
+            rm -f /tmp/h-marker /tmp/h-preview /tmp/h-world
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/horizon/horizon-live-v4246.json?v=${q}" -o /tmp/h-marker 2>/dev/null || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/horizon/preview.html?v=${q}" -o /tmp/h-preview 2>/dev/null || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/horizon-playable/horizon-world.js?v=${q}" -o /tmp/h-world 2>/dev/null || true
+
+            if grep -Fq "\"source_sha\":\"${SOURCE_SHA}\"" /tmp/h-marker 2>/dev/null \
+              && grep -Fq '"status":"HORIZON_VERIFIED_LIVE"' /tmp/h-marker 2>/dev/null \
+              && grep -Fq 'id="controlSettings"' /tmp/h-preview 2>/dev/null \
+              && grep -Fq 'movementFacingProbe' /tmp/h-world 2>/dev/null \
+              && grep -Fq 'inputPointerOwners' /tmp/h-world 2>/dev/null \
+              && grep -Fq 'gamepadLayout' /tmp/h-world 2>/dev/null; then
+              ok=1
+              echo "HORIZON_VERIFIED_SHA_LIVE ${SOURCE_SHA}"
+              break
+            fi
+
+            sleep 5
+          done
+
+          test "${ok}" = 1
