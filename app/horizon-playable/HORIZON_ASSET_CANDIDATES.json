@@ -25,9 +25,31 @@
     "zero_budget_owner": true,
     "paid_assets_allowed": false,
     "billable_services_allowed": false,
-    "browser_client_continues_without_native_gpu": true
+    "browser_client_continues_without_native_gpu": true,
+    "native_production_requires_photoreal_primary": true,
+    "low_poly_native_primary_forbidden": true,
+    "low_poly_fallback_allowed_for_browser_mobile": true
   },
   "candidates": [
+    {
+      "name": "MetaHuman Creator 5.6+",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "primary_native_visual_target",
+      "production_priority": "primary",
+      "use": [
+        "photoreal survivors",
+        "photoreal hands and arms",
+        "faces",
+        "skin",
+        "hair and grooms",
+        "human-derived infected bases",
+        "LOD-ready digital humans"
+      ],
+      "license_note": "Unreal Engine EULA / MetaHuman terms; keep in the native Unreal pipeline and verify current terms at acquisition.",
+      "source": "https://dev.epicgames.com/documentation/metahuman/metahuman-creator-in-unreal-engine"
+    },
     {
       "name": "Game Animation Sample",
       "publisher": "Epic Games",
@@ -41,7 +63,8 @@
         "500+ animations"
       ],
       "license_note": "Epic sample/Fab listing; verify acquisition EULA before production import",
-      "source": "https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016"
+      "source": "https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016",
+      "production_priority": "primary"
     },
     {
       "name": "City Sample",
@@ -57,7 +80,8 @@
         "city PCG"
       ],
       "license_note": "Epic sample; UE client only unless specific license says otherwise",
-      "source": "https://www.fab.com/listings/4898e707-7855-404b-af0e-a505ee690e68"
+      "source": "https://www.fab.com/listings/4898e707-7855-404b-af0e-a505ee690e68",
+      "production_priority": "primary"
     },
     {
       "name": "City Sample Buildings",
@@ -71,7 +95,8 @@
         "multi-level modules"
       ],
       "license_note": "Fab page explicitly says UE-Only Content",
-      "source": "https://www.fab.com/listings/008fe959-5511-428e-93bd-f99b1179f6d5"
+      "source": "https://www.fab.com/listings/008fe959-5511-428e-93bd-f99b1179f6d5",
+      "production_priority": "primary"
     },
     {
       "name": "City Sample Vehicles",
@@ -115,7 +140,8 @@
         "Nanite environment reference"
       ],
       "license_note": "Fab page explicitly says UE-Only Content",
-      "source": "https://www.fab.com/listings/d79688f5-29be-4fb2-a650-2d4a813f5306"
+      "source": "https://www.fab.com/listings/d79688f5-29be-4fb2-a650-2d4a813f5306",
+      "production_priority": "primary"
     },
     {
       "name": "Poly Haven",
@@ -135,7 +161,8 @@
       ],
       "license_note": "All Poly Haven assets are CC0; commercial use allowed; no attribution required.",
       "source": "https://polyhaven.com/",
-      "license_source": "https://polyhaven.com/license"
+      "license_source": "https://polyhaven.com/license",
+      "production_priority": "primary"
     },
     {
       "name": "ambientCG",
@@ -156,7 +183,8 @@
       ],
       "license_note": "ambientCG states its assets are CC0 and usable commercially without attribution.",
       "source": "https://ambientcg.com/",
-      "license_source": "https://ambientcg.com/"
+      "license_source": "https://ambientcg.com/",
+      "production_priority": "primary"
     },
     {
       "name": "Sonniss GDC 2026 Game Audio Bundle",
