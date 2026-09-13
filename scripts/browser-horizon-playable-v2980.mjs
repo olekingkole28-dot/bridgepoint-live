@@ -82,6 +82,7 @@ const navAi=await page.evaluate(()=>{
 const multiFloor=await page.evaluate(()=>window.BP_HORIZON_TEST?.multiFloorProbe?.());
 const windowVista=await page.evaluate(()=>window.BP_HORIZON_TEST?.windowVistaProbe?.());
 const roofZipline=await page.evaluate(()=>window.BP_HORIZON_TEST?.roofZiplineProbe?.());
+const interiorDoor=await page.evaluate(()=>window.BP_HORIZON_TEST?.interiorDoorProbe?.());
 
 if(!terrainGuard?.ok)throw new Error('Terrain guard failed '+JSON.stringify(terrainGuard));
 if(playerAsset.stance!=='stand'||!playerAsset.weaponSocket||playerAsset.weaponSocket==='playerRoot')throw new Error('Standing/hand-socket contract failed '+JSON.stringify(playerAsset));
@@ -117,6 +118,10 @@ if(!(windowVista.vistaBuildings>0))throw new Error('Interior windows have no sou
 if(!roofZipline?.roofStair||roofZipline?.rooftop?.entered!==true)throw new Error('Top-floor rooftop access missing '+JSON.stringify(roofZipline));
 if(Math.abs((roofZipline.rooftop?.z||0)-(roofZipline.rooftop?.expected||0))>.15)throw new Error('Rooftop elevation mismatch '+JSON.stringify(roofZipline));
 if(!(roofZipline.ziplineCount>0)||roofZipline.ride?.started!==true||roofZipline.ride?.finished!==true||!roofZipline.ride?.landedEntry)throw new Error('Rideable rooftop zipline contract failed '+JSON.stringify(roofZipline));
+if(!interiorDoor||!(interiorDoor.count>0))throw new Error('Interior room door missing '+JSON.stringify(interiorDoor));
+if(interiorDoor.closedBlocked!==true||interiorDoor.openBlocked!==false)throw new Error('Interior room door collision state failed '+JSON.stringify(interiorDoor));
+if(!(Math.abs(interiorDoor.openAngle)>0.55)||Math.abs(interiorDoor.closedAngle)>.20)throw new Error('Interior room door hinge animation failed '+JSON.stringify(interiorDoor));
+if(interiorDoor.stateSaved!==true||interiorDoor.persisted!==true)throw new Error('Interior room door state did not survive floor regeneration '+JSON.stringify(interiorDoor));
 if(!movementFacing?.all||movementFacing.samples?.some(x=>!x.ok))throw new Error('Rendered movement-facing regression '+JSON.stringify(movementFacing));
 if(!(controls.forward.dy>.99)||!(controls.backward.dy<-.99)||!(controls.left.dx<-.99)||!(controls.right.dx>.99))throw new Error('Cardinal controls broken '+JSON.stringify(controls));
 
@@ -150,5 +155,5 @@ if(!gestureIsolation?.ok)throw new Error('Movement/look gesture changed weapon '
 const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource: the server responded with a status of (404|500)/i.test(x));
 if(badResponses.length)throw new Error('Horizon HTTP 5xx '+JSON.stringify(badResponses));
 if(meaningful.length)throw new Error('Horizon console errors '+meaningful.join('\n'));
-console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,loadingLod,navAi,multiFloor,windowVista,roofZipline,gestureIsolation,worldUi}));
+console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,loadingLod,navAi,multiFloor,windowVista,roofZipline,interiorDoor,gestureIsolation,worldUi}));
 await browser.close();
