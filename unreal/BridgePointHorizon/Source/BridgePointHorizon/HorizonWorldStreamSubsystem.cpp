@@ -29,7 +29,7 @@ namespace HorizonWorldStream
         const TCHAR* Field,
         int64 Fallback = 0)
     {
-        return static_cast<int64>(FMath::RoundToDouble(NumberFieldOr(Object, Field, static_cast<double>(Fallback))));
+        return static_cast<int64>(FMath::RoundToInt(NumberFieldOr(Object, Field, static_cast<double>(Fallback))));
     }
 }
 
