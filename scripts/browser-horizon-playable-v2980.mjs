@@ -18,8 +18,12 @@ const context=await browser.newContext({
 });
 const page=await context.newPage();
 const errors=[];
+const badResponses=[];
 page.on('pageerror',e=>errors.push(String(e?.stack||e)));
 page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+page.on('response',response=>{
+  if(response.status()>=500)badResponses.push({status:response.status(),url:response.url()});
+});
 
 // Legacy direct renderer must remain healthy.
 const directUrl=BASE_URL+'/app/horizon-playable/?lat=41.5623&lon=-72.6506&span_km=1.0&build=4101&ci='+Date.now();
@@ -114,7 +118,8 @@ const gestureIsolation=await page.evaluate(async()=>{
 });
 if(!gestureIsolation?.ok)throw new Error('Movement/look gesture changed weapon '+JSON.stringify(gestureIsolation));
 
-const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource: the server responded with a status of 404/i.test(x));
+const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource: the server responded with a status of (404|500)/i.test(x));
+if(badResponses.length)throw new Error('Horizon HTTP 5xx '+JSON.stringify(badResponses));
 if(meaningful.length)throw new Error('Horizon console errors '+meaningful.join('\n'));
 console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,gestureIsolation,worldUi}));
 await browser.close();
