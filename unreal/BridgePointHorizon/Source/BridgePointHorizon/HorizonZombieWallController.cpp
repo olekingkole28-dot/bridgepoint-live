@@ -139,7 +139,7 @@ bool AHorizonZombieWallController::IsPointInsideLoop(
         const bool bCrosses =
             ((A.Y > Point.Y) != (B.Y > Point.Y)) &&
             (Point.X < (B.X - A.X) * (Point.Y - A.Y) /
-                FMath::Max(KINDA_SMALL_NUMBER, B.Y - A.Y) + A.X);
+                (B.Y - A.Y) + A.X);
 
         if (bCrosses)
         {
