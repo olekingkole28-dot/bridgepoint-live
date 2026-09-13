@@ -120,6 +120,7 @@ if(Math.abs((roofZipline.rooftop?.z||0)-(roofZipline.rooftop?.expected||0))>.15)
 if(!(roofZipline.ziplineCount>0)||roofZipline.ride?.started!==true||roofZipline.ride?.finished!==true||!roofZipline.ride?.landedEntry)throw new Error('Rideable rooftop zipline contract failed '+JSON.stringify(roofZipline));
 if(!interiorDoor||!(interiorDoor.count>0))throw new Error('Interior room door missing '+JSON.stringify(interiorDoor));
 if(interiorDoor.closedBlocked!==true||interiorDoor.openBlocked!==false)throw new Error('Interior room door collision state failed '+JSON.stringify(interiorDoor));
+if(interiorDoor.closedCameraBlocked!==true||interiorDoor.openCameraBlocked!==false)throw new Error('Third-person camera ignores interior room door state '+JSON.stringify(interiorDoor));
 if(!(Math.abs(interiorDoor.openAngle)>0.55)||Math.abs(interiorDoor.closedAngle)>.20)throw new Error('Interior room door hinge animation failed '+JSON.stringify(interiorDoor));
 if(interiorDoor.stateSaved!==true||interiorDoor.persisted!==true)throw new Error('Interior room door state did not survive floor regeneration '+JSON.stringify(interiorDoor));
 if(!movementFacing?.all||movementFacing.samples?.some(x=>!x.ok))throw new Error('Rendered movement-facing regression '+JSON.stringify(movementFacing));
