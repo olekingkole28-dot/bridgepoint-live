@@ -5172,6 +5172,7 @@ async function boot(){
       }),
       loadingLodProbe:()=>({
         mobile:MOBILE_GPU_SAFE,
+        detailHydrationComplete:streetLifeStats.detailHydrationComplete===true,
         facadeCandidatesRendered:Number(streetLifeStats.facadeCandidatesRendered||0),
         facadeWindows:Number(streetLifeStats.windows||0),
         facadeLod:streetLifeStats.facadeLod||null,
