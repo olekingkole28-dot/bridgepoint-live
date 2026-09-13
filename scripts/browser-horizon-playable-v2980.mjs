@@ -83,6 +83,7 @@ const multiFloor=await page.evaluate(()=>window.BP_HORIZON_TEST?.multiFloorProbe
 const windowVista=await page.evaluate(()=>window.BP_HORIZON_TEST?.windowVistaProbe?.());
 const roofZipline=await page.evaluate(()=>window.BP_HORIZON_TEST?.roofZiplineProbe?.());
 const interiorDoor=await page.evaluate(()=>window.BP_HORIZON_TEST?.interiorDoorProbe?.());
+const audioArchitecture=await page.evaluate(()=>window.BP_HORIZON_TEST?.audioProbe?.());
 
 if(!terrainGuard?.ok)throw new Error('Terrain guard failed '+JSON.stringify(terrainGuard));
 if(playerAsset.stance!=='stand'||!playerAsset.weaponSocket||playerAsset.weaponSocket==='playerRoot')throw new Error('Standing/hand-socket contract failed '+JSON.stringify(playerAsset));
@@ -123,6 +124,9 @@ if(interiorDoor.closedBlocked!==true||interiorDoor.openBlocked!==false)throw new
 if(interiorDoor.closedCameraBlocked!==true||interiorDoor.openCameraBlocked!==false)throw new Error('Third-person camera ignores interior room door state '+JSON.stringify(interiorDoor));
 if(!(Math.abs(interiorDoor.openAngle)>0.55)||Math.abs(interiorDoor.closedAngle)>.20)throw new Error('Interior room door hinge animation failed '+JSON.stringify(interiorDoor));
 if(interiorDoor.stateSaved!==true||interiorDoor.persisted!==true)throw new Error('Interior room door state did not survive floor regeneration '+JSON.stringify(interiorDoor));
+if(!audioArchitecture?.context||!audioArchitecture?.compressor||!audioArchitecture?.reverb)throw new Error('Horizon spatial audio engine unavailable '+JSON.stringify(audioArchitecture));
+for(const bus of ['ambience','creatures','foley','ui','weapons'])if(!audioArchitecture.buses?.includes(bus))throw new Error('Horizon audio bus missing '+bus+' '+JSON.stringify(audioArchitecture));
+if(audioArchitecture.weaponLayering!==true||audioArchitecture.creatureLayering!==true||audioArchitecture.surfaceFootsteps!==true)throw new Error('Horizon layered audio contract missing '+JSON.stringify(audioArchitecture));
 if(!movementFacing?.all||movementFacing.samples?.some(x=>!x.ok))throw new Error('Rendered movement-facing regression '+JSON.stringify(movementFacing));
 if(!(controls.forward.dy>.99)||!(controls.backward.dy<-.99)||!(controls.left.dx<-.99)||!(controls.right.dx>.99))throw new Error('Cardinal controls broken '+JSON.stringify(controls));
 
@@ -156,5 +160,5 @@ if(!gestureIsolation?.ok)throw new Error('Movement/look gesture changed weapon '
 const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource: the server responded with a status of (404|500)/i.test(x));
 if(badResponses.length)throw new Error('Horizon HTTP 5xx '+JSON.stringify(badResponses));
 if(meaningful.length)throw new Error('Horizon console errors '+meaningful.join('\n'));
-console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,loadingLod,navAi,multiFloor,windowVista,roofZipline,interiorDoor,gestureIsolation,worldUi}));
+console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,loadingLod,navAi,multiFloor,windowVista,roofZipline,interiorDoor,audioArchitecture,gestureIsolation,worldUi}));
 await browser.close();
