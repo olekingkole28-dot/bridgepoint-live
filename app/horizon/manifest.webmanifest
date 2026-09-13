@@ -43,7 +43,7 @@
     {
       "name": "Year One Survival",
       "short_name": "Year One",
-      "url": "/app/horizon/#mode-year-one",
+      "url": "/app/horizon/lobby.html?mode=year_one_survival",
       "icons": [
         {
           "src": "./horizon-mark.svg",
@@ -55,7 +55,7 @@
     {
       "name": "Infinite Team Deathmatch",
       "short_name": "TDM",
-      "url": "/app/horizon/#mode-tdm",
+      "url": "/app/horizon/lobby.html?mode=infinite_tdm",
       "icons": [
         {
           "src": "./horizon-mark.svg",
@@ -67,7 +67,7 @@
     {
       "name": "Outbreak Raid",
       "short_name": "Raid",
-      "url": "/app/horizon/#mode-raid",
+      "url": "/app/horizon/lobby.html?mode=outbreak_raid",
       "icons": [
         {
           "src": "./horizon-mark.svg",
