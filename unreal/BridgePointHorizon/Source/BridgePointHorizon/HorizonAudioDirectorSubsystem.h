@@ -65,6 +65,15 @@ struct FHorizonAudioMixState
     float VoiceProximityMaxDistanceCm = 0.0f;
 
     UPROPERTY(BlueprintReadOnly)
+    float DetailScale = 1.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 SuggestedMaxWorldVoices = 96;
+
+    UPROPERTY(BlueprintReadOnly)
+    float DistantVirtualizationDistanceCm = 18000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
     bool bProximityVoiceEnabled = false;
 
     UPROPERTY(BlueprintReadOnly)
