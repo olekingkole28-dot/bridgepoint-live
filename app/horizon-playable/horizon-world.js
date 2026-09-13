@@ -14,7 +14,7 @@ const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bri
 const HORIZON_SUPABASE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const HORIZON_SUPABASE_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const horizonSupabase=createClient(HORIZON_SUPABASE_URL,HORIZON_SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-const BUILD_VERSION=4249;
+const BUILD_VERSION=4250;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -520,6 +520,70 @@ function installWeaponRegistry(rows,mode='fallback'){
 function weaponCfg(name=activeWeapon){
   return weaponRegistry.get(name)||weaponRegistry.get(String(name||'').toLowerCase())||
     DEFAULT_WEAPON_CONFIGS.find(x=>x.weapon_name===name||x.weapon_id===name)||DEFAULT_WEAPON_CONFIGS[0];
+}
+const dynamicWeaponTemplates=new Map();
+function staticWeaponTemplate(name){
+  const key=String(name||'').toLowerCase();
+  const aliases={
+    'woodenbat_barbed':'bat','barbed bat':'bat','barbed_bat':'bat',
+    'woodenbat_saw':'sawBat','saw bat':'sawBat','saw_bat':'sawBat',
+    'axe':'axe','knife':'knife','pistol':'pistol','rifle':'rifle','shotgun':'shotgun',
+    'smg':'smg','spear':'spear','guitar':'guitar'
+  };
+  const slot=aliases[key];
+  return slot?weaponTemplates?.[slot]||null:null;
+}
+function weaponVisualLength(name){
+  const cfg=weaponCfg(name),meta=cfg?.metadata||{};
+  const authored=Number(meta.visual_length_m);
+  if(Number.isFinite(authored)&&authored>.1)return authored;
+  const n=String(name||'').toLowerCase();
+  if(n.includes('pistol')||n.includes('glock')||n.includes('revolver'))return .34;
+  if(n.includes('smg'))return .72;
+  if(n.includes('shotgun'))return .92;
+  if(n.includes('rifle')||n.includes('sniper'))return 1.02;
+  if(n.includes('spear')||n.includes('pitchfork')||n.includes('pole'))return 1.35;
+  if(n.includes('knife')||n.includes('dagger'))return .34;
+  if(n.includes('axe')||n.includes('crowbar'))return .66;
+  if(cfg?.weapon_type==='primary')return .94;
+  if(cfg?.weapon_type==='sidearm')return .36;
+  return .82;
+}
+function weaponTemplateFor(name){
+  const cfg=weaponCfg(name);
+  return staticWeaponTemplate(name)||
+    dynamicWeaponTemplates.get(String(cfg?.weapon_id||''))||
+    dynamicWeaponTemplates.get(String(cfg?.weapon_name||name||'').toLowerCase())||null;
+}
+async function ensureWeaponTemplate(name){
+  const cfg=weaponCfg(name);
+  const existing=weaponTemplateFor(name);if(existing)return existing;
+  if(!cfg?.model_url)return null;
+  const key=String(cfg.weapon_id||cfg.weapon_name||name||'').toLowerCase();
+  if(dynamicWeaponTemplates.has('pending:'+key))return await dynamicWeaponTemplates.get('pending:'+key);
+  const pending=(async()=>{
+    const loaded=await loadAsset(cfg.model_url);
+    if(loaded){
+      dynamicWeaponTemplates.set(key,loaded);
+      dynamicWeaponTemplates.set(String(cfg.weapon_name||name||'').toLowerCase(),loaded);
+    }
+    dynamicWeaponTemplates.delete('pending:'+key);
+    return loaded;
+  })();
+  dynamicWeaponTemplates.set('pending:'+key,pending);
+  return await pending;
+}
+function weaponPoseProfile(name){
+  const cfg=weaponCfg(name),n=String(name||'').toLowerCase(),stance=String(cfg?.stance_type||'');
+  if(n.includes('shotgun'))return{kind:'shotgun',first:[.13,-.18,-.90],firstAim:[0,-.115,-.70],rot:[-Math.PI/2+.01,0,-.025],grip:[.01,.035,.02,-.12,0,-.045]};
+  if(n.includes('smg'))return{kind:'smg',first:[.14,-.16,-.78],firstAim:[0,-.105,-.64],rot:[-Math.PI/2+.03,0,-.055],grip:[.015,.03,.015,-.08,0,-.08]};
+  if(stance.includes('rifle')||cfg?.weapon_type==='primary')return{kind:'rifle',first:[.15,-.18,-.88],firstAim:[0,-.12,-.69],rot:[-Math.PI/2+.02,0,-.04],grip:[.02,.035,.02,-.10,0,-.06]};
+  if(stance.includes('pistol')||cfg?.weapon_type==='sidearm')return{kind:'pistol',first:[.19,-.14,-.72],firstAim:[0,-.095,-.58],rot:[-Math.PI/2+.05,0,-.075],grip:[.025,.02,.015,-.04,0,-.12]};
+  if(n.includes('spear')||n.includes('pitchfork')||n.includes('pole'))return{kind:'polearm',first:[.10,-.20,-.88],firstAim:[.08,-.18,-.84],rot:[-Math.PI/2+.18,.03,-.10],grip:[.02,.015,0,.13,.05,-.08]};
+  if(n.includes('knife')||n.includes('dagger'))return{kind:'knife',first:[.20,-.12,-.62],firstAim:[.18,-.12,-.61],rot:[-Math.PI/2+.30,.08,-.32],grip:[.02,.01,0,.20,.10,-.20]};
+  if(n.includes('axe'))return{kind:'axe',first:[.15,-.19,-.78],firstAim:[.14,-.18,-.76],rot:[-Math.PI/2+.20,.02,-.16],grip:[.015,.02,0,.14,.04,-.12]};
+  if(n.includes('crowbar'))return{kind:'crowbar',first:[.13,-.18,-.80],firstAim:[.12,-.17,-.78],rot:[-Math.PI/2+.16,.02,-.14],grip:[.015,.02,0,.12,.03,-.10]};
+  return{kind:cfg?.two_handed?'two-handed-melee':'melee',first:[.12,-.17,-.74],firstAim:[.11,-.16,-.72],rot:[-Math.PI/2+.12,0,-.18],grip:[.015,.02,0,.04,.04,-.12]};
 }
 async function loadWeaponRegistry(){
   installWeaponRegistry(DEFAULT_WEAPON_CONFIGS,'fallback');
@@ -2379,9 +2443,8 @@ function putCharacterWeapon(slot,name,mode='leftHand'){
   if(mode==='leftHand'||mode==='rightHand'){
     let obj=cloneCharacterWeapon(name);
     if(!obj){
-      const key=name==='WoodenBat_Barbed'?'bat':name==='WoodenBat_Saw'?'sawBat':name==='Axe'?'axe':name==='Knife'?'knife':name==='Pistol'?'pistol':name==='Rifle'?'rifle':name==='Shotgun'?'shotgun':name==='SMG'?'smg':name==='Spear'?'spear':name==='Guitar'?'guitar':null;
-      const len=name==='Pistol'?.33:name==='Rifle'?1.02:name==='Shotgun'?.92:name==='SMG'?.72:name==='Spear'?1.35:name==='Guitar'?.82:name==='Axe'?.66:name==='Knife'?.34:.88;
-      if(key)obj=propCloneByLength(weaponTemplates[key],len);
+      const template=weaponTemplateFor(name),len=weaponVisualLength(name);
+      if(template)obj=propCloneByLength(template,len);else ensureWeaponTemplate(name).then(()=>{if(activeWeapon===name)refreshEquipmentVisuals()}).catch(()=>{});
     }
     if(!obj)return null;
     if(mode==='rightHand'){
@@ -2390,10 +2453,9 @@ function putCharacterWeapon(slot,name,mode='leftHand'){
     }
     m.add(obj);return obj;
   }
-  const authored=cloneCharacterWeapon(name);
-  const key=name==='WoodenBat_Barbed'?'bat':name==='WoodenBat_Saw'?'sawBat':name==='Axe'?'axe':name==='Knife'?'knife':name==='Pistol'?'pistol':name==='Rifle'?'rifle':name==='Shotgun'?'shotgun':name==='SMG'?'smg':name==='Spear'?'spear':name==='Guitar'?'guitar':null;
-  const len=name==='Pistol'?.33:name==='Rifle'?1.02:name==='Shotgun'?.92:name==='SMG'?.72:name==='Spear'?1.35:name==='Guitar'?.82:name==='Axe'?.66:name==='Knife'?.34:.88;
-  const obj=authored||(key?propCloneByLength(weaponTemplates[key],len):null);if(!obj)return null;
+  const authored=cloneCharacterWeapon(name),template=weaponTemplateFor(name),len=weaponVisualLength(name);
+  const obj=authored||(template?propCloneByLength(template,len):null);
+  if(!obj){ensureWeaponTemplate(name).then(()=>{if(activeWeapon===name)refreshEquipmentVisuals()}).catch(()=>{});return null}
   obj.position.set(0,0,0);
   if(mode==='hip')obj.rotation.set(.12,.08,-1.18);
   if(mode==='backGun')obj.rotation.set(.12,.03,1.50);
@@ -2519,9 +2581,9 @@ function firstPersonWeaponModel(name){
   if(!name||name==='Fists')return null;
   let obj=cloneCharacterWeapon(name);
   if(!obj){
-    const key=name==='Barbed Bat'?'bat':name==='Saw Bat'?'sawBat':name==='Axe'?'axe':name==='Knife'?'knife':name==='Pistol'?'pistol':name==='Rifle'?'rifle':name==='Shotgun'?'shotgun':name==='SMG'?'smg':name==='Spear'?'spear':name==='Guitar'?'guitar':null;
-    const len=name==='Pistol'?.33:name==='Rifle'?1.02:name==='Shotgun'?.92:name==='SMG'?.72:name==='Spear'?1.35:name==='Guitar'?.82:name==='Axe'?.66:name==='Knife'?.34:.88;
-    if(key)obj=propCloneByLength(weaponTemplates[key],len);
+    const template=weaponTemplateFor(name),len=weaponVisualLength(name);
+    if(template)obj=propCloneByLength(template,len);
+    else ensureWeaponTemplate(name).then(()=>{if(activeWeapon===name)refreshFirstPersonRig()}).catch(()=>{});
   }
   if(!hasRenderableWeapon(obj))obj=fallbackHeldWeapon(name);
   if(!hasRenderableWeapon(obj))return null;
@@ -2535,8 +2597,8 @@ function refreshFirstPersonRig(){
   const current=activeItemForSlot(activeSlot)||activeWeapon||'Fists';
   const weapon=firstPersonWeaponModel(current);
   if(weapon){
-    weapon.position.set(isFirearm(current)?.16:.12,-.17,isFirearm(current)?-.83:-.72);
-    weapon.rotation.set(-Math.PI/2+(isFirearm(current)?.02:.12),0,isFirearm(current)?-.04:-.18);
+    const pose=weaponPoseProfile(current);
+    weapon.position.set(...pose.first);weapon.rotation.set(...pose.rot);
     rig.add(weapon);firstPersonWeapon=weapon;
   }
   rig.visible=CAMERA_MODES[cameraMode]==='firstPerson'&&!playerDead&&!spectatorMode;
@@ -2571,32 +2633,30 @@ function updateFirstPersonViewmodel(dt,moving,sprint){
   firstPersonRig.rotation.y=THREE.MathUtils.lerp(firstPersonRig.rotation.y,-recoilYaw*.42,1-Math.exp(-18*dt));
   firstPersonRig.rotation.z=THREE.MathUtils.lerp(firstPersonRig.rotation.z,-leanAmount*.035,1-Math.exp(-18*dt));
   if(firstPersonWeapon){
-    const gun=isFirearm(activeWeapon);
-    const targetX=aiming&&gun?0:.16;
-    const targetY=aiming&&gun?-.12:-.17;
-    const targetZ=aiming&&gun?-.68:-.83;
-    firstPersonWeapon.position.x=THREE.MathUtils.lerp(firstPersonWeapon.position.x,targetX,1-Math.exp(-18*dt));
-    firstPersonWeapon.position.y=THREE.MathUtils.lerp(firstPersonWeapon.position.y,targetY,1-Math.exp(-18*dt));
-    firstPersonWeapon.position.z=THREE.MathUtils.lerp(firstPersonWeapon.position.z,targetZ,1-Math.exp(-18*dt));
+    const gun=isFirearm(activeWeapon),pose=weaponPoseProfile(activeWeapon),target=(aiming&&gun)?pose.firstAim:pose.first;
+    firstPersonWeapon.position.x=THREE.MathUtils.lerp(firstPersonWeapon.position.x,target[0],1-Math.exp(-18*dt));
+    firstPersonWeapon.position.y=THREE.MathUtils.lerp(firstPersonWeapon.position.y,target[1],1-Math.exp(-18*dt));
+    firstPersonWeapon.position.z=THREE.MathUtils.lerp(firstPersonWeapon.position.z,target[2],1-Math.exp(-18*dt));
   }
 }
 function putActiveGripWeapon(name){
   const m=equipmentMounts.activeGrip;if(!m)return null;clearMount(m);if(!name||name==='Fists')return null;
   let obj=cloneCharacterWeapon(name);
   if(!obj){
-    const key=name==='Barbed Bat'?'bat':name==='Saw Bat'?'sawBat':name==='Axe'?'axe':name==='Knife'?'knife':name==='Pistol'?'pistol':name==='Rifle'?'rifle':name==='Shotgun'?'shotgun':name==='SMG'?'smg':name==='Spear'?'spear':name==='Guitar'?'guitar':null;
-    const len=name==='Pistol'?.33:name==='Rifle'?1.02:name==='Shotgun'?.92:name==='SMG'?.72:name==='Spear'?1.35:name==='Guitar'?.82:name==='Axe'?.66:name==='Knife'?.34:.88;
-    if(key)obj=propCloneByLength(weaponTemplates[key],len);
+    const template=weaponTemplateFor(name),len=weaponVisualLength(name);
+    if(template)obj=propCloneByLength(template,len);
+    else ensureWeaponTemplate(name).then(()=>{if(activeWeapon===name)refreshEquipmentVisuals()}).catch(()=>{});
   }
   if(!hasRenderableWeapon(obj))obj=null;
   obj=obj||fallbackHeldWeapon(name);
   if(!hasRenderableWeapon(obj))return null;
-  const gun=isFirearm(name),two=Boolean(weaponCfg(name).two_handed),handSocket=Boolean(m.userData.handSocket);
-  // Follow the animated hand when the rig exposes one; only use root-space as a fallback.
+  const gun=isFirearm(name),two=Boolean(weaponCfg(name).two_handed),handSocket=Boolean(m.userData.handSocket),pose=weaponPoseProfile(name);
+  // Follow the animated hand when the rig exposes one; use a per-weapon grip profile
+  // so pistols, long guns, polearms, blades and heavy improvised weapons are not held alike.
   if(handSocket){
     m.position.set(0,0,0);m.rotation.set(0,0,0);
-    obj.position.set(gun?.02:.015,gun?.035:.02,gun?.02:0);
-    obj.rotation.set(gun?(two?-.10:-.05):.04,gun?0:.04,gun?(two?-.06:-.10):-.12);
+    obj.position.set(pose.grip[0],pose.grip[1],pose.grip[2]);
+    obj.rotation.set(pose.grip[3],pose.grip[4],pose.grip[5]);
   }else if(gun){
     m.position.set(two?.10:.25,.22,two?1.28:1.22);m.rotation.set(.02,0,two?-.04:-.10);
     obj.position.set(0,0,0);obj.rotation.set(two?-.06:.02,0,two?.02:.06);
@@ -2799,10 +2859,10 @@ function clipBy(...patterns){
 }
 function playPlayerAnimation(state){
   if(!playerMixer||!playerClips.length)return;
-  const gun=isFirearm(activeWeapon);let desired=null;
-  if(state==='reload'&&gun)desired=clipBy(/^Pistol_Reload$/i,/reload/i);
-  else if(state==='fire'&&gun)desired=clipBy(/^Pistol_Shoot$/i,/shoot|fire/i);
-  else if(state==='aim'&&gun)desired=clipBy(/^Pistol_Aim_Neutral$/i,/aim.*neutral|aim/i,/^Pistol_Idle$/i);
+  const gun=isFirearm(activeWeapon),pose=weaponPoseProfile(activeWeapon),wn=String(activeWeapon||'');let desired=null;
+  if(state==='reload'&&gun)desired=pose.kind==='pistol'?clipBy(/^Pistol_Reload$/i,/pistol.*reload/i,/reload/i):clipBy(/rifle.*reload|shotgun.*reload|smg.*reload/i,/reload/i,/^Pistol_Reload$/i);
+  else if(state==='fire'&&gun)desired=pose.kind==='pistol'?clipBy(/^Pistol_Shoot$/i,/pistol.*shoot/i,/shoot|fire/i):clipBy(/rifle.*shoot|shotgun.*shoot|smg.*shoot|fire/i,/shoot/i,/^Pistol_Shoot$/i);
+  else if(state==='aim'&&gun)desired=pose.kind==='pistol'?clipBy(/^Pistol_Aim_Neutral$/i,/pistol.*aim/i,/aim/i):clipBy(/rifle.*aim|shotgun.*aim|smg.*aim/i,/aim/i,/^Pistol_Aim_Neutral$/i);
   else if(state==='gunIdle'&&gun)desired=clipBy(/^Pistol_Idle$/i,/fighting idle/i,/idle_subtle/i,/^idle/i);
   else if(state==='sprint')desired=clipBy(/^Sprint$/i,/^Jog$/i,/sprint|jog|run/i);
   else if(state==='strafeL')desired=clipBy(/^Strafe_left$/i,/strafe.*left/i,/walk/i);
@@ -2811,7 +2871,12 @@ function playPlayerAnimation(state){
   else if(state==='crouchIdle')desired=clipBy(/^Crouch_Idle$/i,/crouch.*idle/i,/idle/i);
   else if(state==='crouchWalk')desired=clipBy(/^Crouch_Walk$/i,/crouch.*walk/i,/walk/i);
   else if(state==='prone')desired=clipBy(/^Crawl$/i,/crawl/i,/prone/i);
-  else if(state==='attack'&&!gun)desired=clipBy(/sword_attack|melee_hook|slash|stab|punch|attack|melee/i);
+  else if(state==='attack'&&!gun){
+    if(pose.kind==='polearm')desired=clipBy(/spear|thrust|lunge|stab/i,/melee_hook|attack|melee/i);
+    else if(pose.kind==='knife')desired=clipBy(/knife|dagger|stab|slash/i,/punch|attack|melee/i);
+    else if(pose.kind==='axe')desired=clipBy(/axe|chop|overhead|swing/i,/sword_attack|attack|melee/i);
+    else desired=clipBy(/sword_attack|melee_hook|slash|swing|attack|melee/i);
+  }
   else if(state==='run')desired=clipBy(/^Jog$/i,/sprint|jog|run/i);
   else if(state==='walk')desired=clipBy(/^Walk$/i,/walk/i);
   else if(state==='idle')desired=clipBy(/^Idle_A$/i,/idle_subtle/i,/^idle$/i,/idle/i,/stand/i);
@@ -3633,16 +3698,10 @@ function addInventoryItem(item){
 const pickupGlowMat=new THREE.MeshStandardMaterial({color:0x7cff9c,emissive:0x2ee56c,emissiveIntensity:1.25,roughness:.35,transparent:true,opacity:.84});
 const pickupRareMat=new THREE.MeshStandardMaterial({color:0xe8b85f,emissive:0xc8781e,emissiveIntensity:1.2,roughness:.35,transparent:true,opacity:.88});
 function pickupTemplateFor(item){
-  if(item==='Pistol')return{template:weaponTemplates.pistol,length:.34};
-  if(item==='Rifle')return{template:weaponTemplates.rifle,length:1.02};
-  if(item==='Shotgun')return{template:weaponTemplates.shotgun,length:.92};
-  if(item==='Axe')return{template:weaponTemplates.axe,length:.66};
-  if(item==='Knife')return{template:weaponTemplates.knife,length:.34};
-  if(item==='SMG')return{template:weaponTemplates.smg,length:.72};
-  if(item==='Spear')return{template:weaponTemplates.spear,length:1.35};
-  if(item==='Saw Bat')return{template:weaponTemplates.sawBat,length:.88};
-  if(item==='Guitar')return{template:weaponTemplates.guitar,length:.82};
-  return null;
+  const cfg=weaponRegistry.get(item)||weaponRegistry.get(String(item||'').toLowerCase())||
+    DEFAULT_WEAPON_CONFIGS.find(x=>x.weapon_name===item||x.weapon_id===item);
+  if(!cfg)return null;
+  return{template:weaponTemplateFor(item),length:weaponVisualLength(item),config:cfg};
 }
 function makeGenericLootVisual(item){
   const g=new THREE.Group(),dark=new THREE.MeshStandardMaterial({color:0x252a28,roughness:.76}),cloth=new THREE.MeshStandardMaterial({color:0xd8d2c2,roughness:.96}),med=new THREE.MeshStandardMaterial({color:0xb8c8bc,roughness:.82}),metal=new THREE.MeshStandardMaterial({color:0x565d5c,roughness:.48,metalness:.38});let o=null;
@@ -3666,7 +3725,7 @@ function makePickupVisual(item,seedValue){
   let model=null;
   if(weapon?.template){
     model=propCloneByLength(weapon.template,weapon.length);
-    if(model){model.rotation.set(.12,.08,-.2);model.position.z=.28;root.add(model)}
+    if(model){model.rotation.set(.12,.08,-.2);model.position.z=.28;model.userData.pickupWeaponModel=true;root.add(model)}
   }else{
     model=makeGenericLootVisual(item);
     if(model){model.position.z=.12;root.add(model)}
@@ -3680,13 +3739,22 @@ function makePickupVisual(item,seedValue){
   ring.rotation.x=Math.PI/2;ring.position.z=.08;root.add(ring);
   const stem=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.72,5),rare?pickupRareMat:pickupGlowMat);
   stem.position.set(0,0,.48);root.add(stem);
-  root.userData.pickupItem=item;root.userData.seed=seedValue;
+  root.userData.pickupItem=item;root.userData.seed=seedValue;root.userData.pickupModel=model;
   return root;
+}
+async function hydratePickupWeaponModel(root,item){
+  const info=pickupTemplateFor(item);if(!info?.config?.model_url||info.template)return false;
+  const loaded=await ensureWeaponTemplate(item);if(!loaded||!root?.parent)return false;
+  const old=root.userData.pickupModel;if(old?.parent===root)root.remove(old);
+  const model=propCloneByLength(loaded,weaponVisualLength(item));if(!model)return false;
+  model.rotation.set(.12,.08,-.2);model.position.z=.28;model.userData.pickupWeaponModel=true;
+  root.add(model);root.userData.pickupModel=model;return true;
 }
 function spawnVisiblePickup(item,x,y,z,mode='exterior',seedValue=0){
   const root=makePickupVisual(item,seedValue||++pickupSeq);
   root.position.set(x,y,z+.03);
   (mode==='interior'?interiorGroup:lootGroup).add(root);
+  hydratePickupWeaponModel(root,item).catch(()=>{});
   const p={id:++pickupSeq,item,root,mode,active:true,x,y,z,phase:(seedValue%997)/997*Math.PI*2};
   worldPickups.push(p);return p;
 }
@@ -6045,7 +6113,7 @@ async function boot(){
       physicsMode,physicsReady,physicsError,terrainPhysicsReady:Boolean(terrainPhysicsCollider),terrainSafetyRescues,postFxMode,boundaryEdges:[...activeBoundaryEdges],build:BUILD_VERSION,
       navNodes:navNodes.length,drivableVehicles:drivableVehicles.length,stance:playerStance,fastPlayableMs:Number(window.BP_HORIZON_PLAYABLE?.readyMs||0),weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,assetCacheSize:assetPromiseCache.size,assetLoadLimit:ASSET_LOAD_LIMIT,assetTimeoutMs:ASSET_TIMEOUT_MS,mobileGpuSafe:MOBILE_GPU_SAFE,hydrationReadyMs:Number(window.BP_HORIZON_HYDRATION?.readyMs||0),proceduralFastHydration:Boolean(streetLifeStats.proceduralEnemyFallback),cloneRecovery4238:true,rapierCorsSafe4238:true,manualFloorInvariant4238:true,detailHydrationComplete:Boolean(streetLifeStats.detailHydrationComplete),hydrationComplete:Boolean(window.BP_HORIZON_HYDRATION?.complete),worldTickMs:MOBILE_GPU_SAFE?34:16,minimapTickMs:MOBILE_GPU_SAFE?140:70,instantMassing:Number(streetLifeStats.instantMassing||0),
       streamed:Boolean(data?.streamed),resolvedJurisdiction:data?.resolved_jurisdiction||null,
-      weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
+      weaponRegistryMode,weaponRegistrySize:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,dynamicWeaponTemplates:[...dynamicWeaponTemplates.keys()].filter(x=>!x.startsWith('pending:')).length,
       weaponRegistryError,mobileInputMode,reserveAmmo:{...reserveAmmo},
       reloadActive:reloadState.active,aimFov:weaponCfg(activeWeapon).aim_fov,
       sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,activeDoorVisuals:Number(streetLifeStats.activeDoorVisuals||0),doorStreaming:true,fullHeightLazyTowers:true,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),doorableBuildings:Number(streetLifeStats.doorableBuildings||0),lazyOpenBuildings:true,seamlessOpenBuildings:true,towerPriorityOpenBuildings:true,optimizedOpenBuildingPhysics:true,shapeRecovery:true,staticMapCache:Boolean(streetLifeStats.staticMapCache),invalidShapes:Number(streetLifeStats.invalidShapes||0),shellFailures:Number(streetLifeStats.shellFailures||0),openInteriorProps:Number(streetLifeStats.openInteriorProps||0),
