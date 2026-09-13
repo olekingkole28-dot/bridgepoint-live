@@ -76,9 +76,11 @@ const movementFacing=await page.evaluate(()=>window.BP_HORIZON_TEST.movementFaci
 // layer must hot-swap to the same-origin CC0 survivor and real skinned arms.
 await page.waitForFunction(()=>{
   const h=window.BP_HORIZON_TEST?.playerHydrationProbe?.();
-  return h?.loaded===true&&h?.source==='same-origin-cc0'&&h?.actualArms===true;
+  return h?.loaded===true;
 },null,{timeout:20000});
 const playerHydration=await page.evaluate(()=>window.BP_HORIZON_TEST.playerHydrationProbe?.());
+if(playerHydration?.source!=='same-origin-cc0')throw new Error('Survivor did not hydrate from same-origin CC0 bundle '+JSON.stringify(playerHydration));
+if(playerHydration?.actualArms!==true)throw new Error('Same-origin survivor loaded but real arm extraction failed '+JSON.stringify(playerHydration));
 const cameraModes=await page.evaluate(()=>window.BP_HORIZON_TEST.cameraModesProbe?.());
 const inputIsolation=await page.evaluate(()=>window.BP_HORIZON_TEST.inputIsolationProbe?.());
 await page.waitForFunction(()=>window.BP_HORIZON_TEST?.loadingLodProbe?.()?.detailHydrationComplete===true,null,{timeout:30000});
