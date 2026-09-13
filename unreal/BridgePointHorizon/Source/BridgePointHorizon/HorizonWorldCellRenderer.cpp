@@ -1,5 +1,7 @@
 #include "HorizonWorldCellRenderer.h"
 
+#include "Algo/Reverse.h"
+
 #include "Components/SceneComponent.h"
 #include "Dom/JsonObject.h"
 #include "ProceduralMeshComponent.h"
