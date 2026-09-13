@@ -2221,12 +2221,18 @@ function clearActualFirstPersonArms(){
   try{firstPersonActualArms?.geometry?.dispose?.()}catch(_){}
   firstPersonActualArms=null;firstPersonArmsSource=null;
 }
+function attributeVec4(attribute,vertex){
+  return[
+    attribute.getX(vertex),
+    attribute.getY(vertex),
+    attribute.getZ(vertex),
+    attribute.getW(vertex)
+  ];
+}
 function selectedArmInfluence(skinIndex,skinWeight,vertex,selected){
   let total=0;
-  for(let c=0;c<4;c++){
-    const bone=skinIndex.getComponent(vertex,c),weight=skinWeight.getComponent(vertex,c);
-    if(selected.has(bone))total+=weight;
-  }
+  const joints=attributeVec4(skinIndex,vertex),weights=attributeVec4(skinWeight,vertex);
+  for(let c=0;c<4;c++)if(selected.has(joints[c]))total+=weights[c];
   return total;
 }
 function buildActualFirstPersonArms(modelRoot){
