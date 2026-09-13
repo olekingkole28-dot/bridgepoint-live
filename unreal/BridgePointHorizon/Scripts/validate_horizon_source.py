@@ -90,6 +90,8 @@ streaming = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWor
 stream_contract = streaming_header + "\n" + streaming
 for token in ["bridgepoint-horizon-stream-v3020", "state=%s&lat=%.8f&lon=%.8f", "resolved_jurisdiction"]:
     require(token in stream_contract, f"world stream contract missing: {token}")
+for token in ["CellCache", "CacheTtlSeconds", "TryServeCachedCell", "StoreCachedCell", "MaxCachedCells"]:
+    require(token in stream_contract, f"short-lived world cell cache missing: {token}")
 
 renderer = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldCellRenderer.cpp")
 for token in [
