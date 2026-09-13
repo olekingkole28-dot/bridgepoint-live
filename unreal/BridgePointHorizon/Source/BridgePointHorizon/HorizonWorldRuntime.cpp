@@ -14,9 +14,12 @@ void AHorizonWorldRuntime::BeginPlay()
 {
     Super::BeginPlay();
 
-    if (UGameInstance* GameInstance = GetGameInstance())
+    if (UWorld* World = GetWorld())
     {
-        StreamSubsystem = GameInstance->GetSubsystem<UHorizonWorldStreamSubsystem>();
+        if (UGameInstance* GameInstance = World->GetGameInstance())
+        {
+            StreamSubsystem = GameInstance->GetSubsystem<UHorizonWorldStreamSubsystem>();
+        }
     }
 
     if (StreamSubsystem)
