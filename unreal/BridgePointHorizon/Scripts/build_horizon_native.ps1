@@ -52,12 +52,17 @@ $Exe = Get-ChildItem -Path $ArchiveDir -Recurse -Filter "*.exe" |
 if (!$Exe) { throw "Packaging completed but the Horizon executable was not found." }
 
 $SourceSha = "unknown"
-try { $SourceSha = (& git -C $RepoRoot rev-parse HEAD).Trim() } catch {}
+$SourceTreeSha = "unknown"
+try {
+    $SourceSha = (& git -C $RepoRoot rev-parse HEAD).Trim()
+    $SourceTreeSha = (& git -C $RepoRoot rev-parse "HEAD:unreal/BridgePointHorizon").Trim()
+} catch {}
 
 $Manifest = [ordered]@{
     engine_version = "5.8"
     configuration = $Configuration
     source_sha = $SourceSha
+    source_tree_sha = $SourceTreeSha
     built_at_utc = (Get-Date).ToUniversalTime().ToString("o")
     archive_dir = $ArchiveDir
     executable = $Exe.FullName
