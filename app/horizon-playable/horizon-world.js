@@ -339,7 +339,8 @@ let reserveAmmo={Pistol:48,Rifle:100,Shotgun:30,SMG:160};
 let reloadState={active:false,weapon:null,startedAt:0,endsAt:0};
 let recoilPitch=0,recoilYaw=0,fireHeld=false;
 let playerDead=false,kills=0,salvage=0;
-let audioCtx=null,audioMaster=null,lastFootstepAt=0;
+let audioCtx=null,audioMaster=null,audioCompressor=null,audioReverb=null,audioReverbGain=null,audioBuses={},lastFootstepAt=0,lastAudioEnvAt=0;
+const audioBufferCache=new Map();
 let worldPickups=[],pickupTemplates={},pickupSeq=0;
 let waveNumber=0,nextWaveAt=0,maxActiveZombies=MOBILE_GPU_SAFE?Math.min(18,ENDLESS_ACTIVE_CAP):ENDLESS_ACTIVE_CAP;
 let zombieTemplate=null,zombieTemplates=[],enemyArchetypes=[];
@@ -3072,39 +3073,155 @@ function buildAtmosphere(){
   });
   const sky=new THREE.Mesh(geo,mat);sky.renderOrder=-1000;scene.add(sky);return sky;
 }
+function createAudioNoiseBuffer(key,duration=.16,decay=2.0){
+  if(!audioCtx)return null;
+  const cacheKey=key+':'+audioCtx.sampleRate+':'+duration+':'+decay;
+  if(audioBufferCache.has(cacheKey))return audioBufferCache.get(cacheKey);
+  const len=Math.max(64,Math.floor(audioCtx.sampleRate*duration)),buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate),d=buf.getChannelData(0);
+  let prev=0;
+  for(let i=0;i<len;i++){
+    const t=i/len,white=Math.random()*2-1;
+    prev=prev*.18+white*.82;
+    d[i]=prev*Math.pow(1-t,decay);
+  }
+  audioBufferCache.set(cacheKey,buf);return buf;
+}
+function createProceduralImpulse(duration=1.35,decay=2.8){
+  if(!audioCtx)return null;
+  const len=Math.floor(audioCtx.sampleRate*duration),buf=audioCtx.createBuffer(2,len,audioCtx.sampleRate);
+  for(let ch=0;ch<2;ch++){
+    const d=buf.getChannelData(ch);
+    for(let i=0;i<len;i++){
+      const t=i/len,early=i<Math.floor(audioCtx.sampleRate*.08)?1.2:1;
+      d[i]=(Math.random()*2-1)*Math.pow(1-t,decay)*early*(ch?0.94:1);
+    }
+  }
+  return buf;
+}
 function ensureAudio(){
   try{
     if(!audioCtx){
       audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-      audioMaster=audioCtx.createGain();audioMaster.gain.value=.34;audioMaster.connect(audioCtx.destination);
+
+      audioMaster=audioCtx.createGain();audioMaster.gain.value=.52;
+      audioCompressor=audioCtx.createDynamicsCompressor();
+      audioCompressor.threshold.value=-18;audioCompressor.knee.value=18;audioCompressor.ratio.value=4.2;
+      audioCompressor.attack.value=.003;audioCompressor.release.value=.24;
+      audioMaster.connect(audioCompressor);audioCompressor.connect(audioCtx.destination);
+
+      const levels={weapons:.92,foley:.62,creatures:.72,ambience:.38,ui:.55};
+      for(const [name,level] of Object.entries(levels)){
+        const g=audioCtx.createGain();g.gain.value=level;g.connect(audioMaster);audioBuses[name]=g;
+      }
+
+      audioReverb=audioCtx.createConvolver();audioReverb.buffer=createProceduralImpulse();
+      audioReverbGain=audioCtx.createGain();audioReverbGain.gain.value=.09;
+      audioReverb.connect(audioReverbGain);audioReverbGain.connect(audioMaster);
     }
     if(audioCtx.state==='suspended')audioCtx.resume();
+    updateAudioEnvironment(true);
   }catch(_){}
 }
 function audioPosition(pos){
   if(!audioCtx||!pos)return null;
-  const p=audioCtx.createPanner();p.panningModel='HRTF';p.distanceModel='inverse';p.refDistance=2;p.maxDistance=80;p.rolloffFactor=1.15;
+  const p=audioCtx.createPanner();p.panningModel='HRTF';p.distanceModel='inverse';p.refDistance=2;p.maxDistance=110;p.rolloffFactor=1.08;
   p.positionX.value=pos.x;p.positionY.value=pos.z;p.positionZ.value=-pos.y;return p;
+}
+function routeSpatialAudio(node,pos,bus='ambience',wet=.08){
+  if(!audioCtx||!node)return null;
+  const p=audioPosition(pos);if(!p)return null;
+  node.connect(p);p.connect(audioBuses[bus]||audioMaster);
+  if(audioReverb&&wet>0){
+    const send=audioCtx.createGain();send.gain.value=THREE.MathUtils.clamp(wet,0,.75);
+    p.connect(send);send.connect(audioReverb);
+  }
+  return p;
+}
+function footstepSurface(pos=playerRoot?.position){
+  if(interiorMode)return 'interior';
+  if(rooftopState)return 'roof';
+  if(!pos)return 'dirt';
+  let best=Infinity,width=0;
+  for(const seg of nearbyRoadSegments(pos.x,pos.y)){
+    const d=pointSegDist(pos.x,pos.y,seg.a,seg.b);
+    if(d<best){best=d;width=Number(seg.width||0)}
+  }
+  if(best<=width/2+.65)return 'asphalt';
+  return 'dirt';
+}
+function footstepAudio(pos,surface=footstepSurface(pos),sprint=false){
+  if(!audioCtx||!audioMaster)return;
+  const profile={
+    interior:{hp:170,lp:3200,thump:92,gain:.115,wet:.30},
+    roof:{hp:220,lp:4100,thump:108,gain:.105,wet:.16},
+    asphalt:{hp:260,lp:5000,thump:118,gain:.095,wet:.055},
+    dirt:{hp:115,lp:2400,thump:74,gain:.12,wet:.075}
+  }[surface]||{hp:140,lp:2800,thump:82,gain:.10,wet:.07};
+
+  const src=audioCtx.createBufferSource();src.buffer=createAudioNoiseBuffer('step-'+surface,.075,surface==='dirt'?1.2:2.0);
+  const hp=audioCtx.createBiquadFilter();hp.type='highpass';hp.frequency.value=profile.hp;
+  const lp=audioCtx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=profile.lp;
+  const g=audioCtx.createGain(),now=audioCtx.currentTime;
+  g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(profile.gain*(sprint?1.18:1),now+.009);g.gain.exponentialRampToValueAtTime(.0001,now+.082);
+  src.connect(hp);hp.connect(lp);lp.connect(g);routeSpatialAudio(g,pos,'foley',profile.wet);src.start(now);
+
+  const thump=audioCtx.createOscillator(),tg=audioCtx.createGain();thump.type='sine';thump.frequency.setValueAtTime(profile.thump*(sprint?1.08:1),now);
+  tg.gain.setValueAtTime(.022,now);tg.gain.exponentialRampToValueAtTime(.0001,now+.065);thump.connect(tg);routeSpatialAudio(tg,pos,'foley',profile.wet*.45);thump.start(now);thump.stop(now+.075);
+}
+function creatureVocalAudio(pos,intensity=1){
+  if(!audioCtx||!audioMaster)return;
+  const now=audioCtx.currentTime;
+  const o1=audioCtx.createOscillator(),o2=audioCtx.createOscillator(),g=audioCtx.createGain(),filter=audioCtx.createBiquadFilter();
+  o1.type='sawtooth';o2.type='triangle';
+  o1.frequency.setValueAtTime(78+rand()*28,now);o1.frequency.exponentialRampToValueAtTime(48+rand()*16,now+.68);
+  o2.frequency.setValueAtTime(126+rand()*35,now);o2.frequency.exponentialRampToValueAtTime(72+rand()*18,now+.58);
+  filter.type='lowpass';filter.frequency.value=1300+rand()*800;filter.Q.value=.7;
+  g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.105*intensity,now+.055);g.gain.exponentialRampToValueAtTime(.0001,now+.74);
+  o1.connect(filter);o2.connect(filter);filter.connect(g);routeSpatialAudio(g,pos,'creatures',interiorMode?.34:.14);
+  o1.start(now);o2.start(now);o1.stop(now+.76);o2.stop(now+.76);
 }
 function spatialTone(pos,type='groan'){
   if(!audioCtx||!audioMaster)return;
-  const p=audioPosition(pos);if(!p)return;p.connect(audioMaster);
-  const g=audioCtx.createGain(),o=audioCtx.createOscillator();o.connect(g);g.connect(p);
-  const now=audioCtx.currentTime;
-  if(type==='groan'){o.type='sawtooth';o.frequency.setValueAtTime(92+rand()*28,now);o.frequency.exponentialRampToValueAtTime(58+rand()*15,now+.55);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.16,now+.05);g.gain.exponentialRampToValueAtTime(.0001,now+.62)}
-  else{o.type='triangle';o.frequency.setValueAtTime(type==='foot'?115:180,now);g.gain.setValueAtTime(.08,now);g.gain.exponentialRampToValueAtTime(.0001,now+.09)}
-  o.start(now);o.stop(now+(type==='groan'?.65:.11));
+  if(type==='foot'){footstepAudio(pos,footstepSurface(pos),locomotionIntent==='sprint');return}
+  if(type==='groan'){creatureVocalAudio(pos,1);return}
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain(),now=audioCtx.currentTime;
+  o.type='triangle';o.frequency.value=180;g.gain.setValueAtTime(.06,now);g.gain.exponentialRampToValueAtTime(.0001,now+.10);
+  o.connect(g);routeSpatialAudio(g,pos,'foley',.05);o.start(now);o.stop(now+.11);
 }
 function gunshotAudio(pos,weapon){
   if(!audioCtx||!audioMaster)return;
-  const p=audioPosition(pos);if(!p)return;p.connect(audioMaster);
-  const len=Math.floor(audioCtx.sampleRate*.16),buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate),d=buf.getChannelData(0);
-  for(let i=0;i<len;i++){const t=i/len;d[i]=(Math.random()*2-1)*Math.pow(1-t,weapon==='Shotgun'?1.2:2.1)}
-  const src=audioCtx.createBufferSource(),filter=audioCtx.createBiquadFilter(),g=audioCtx.createGain();src.buffer=buf;filter.type='lowpass';filter.frequency.value=weapon==='Rifle'?3200:weapon==='Pistol'?2600:1900;g.gain.value=weapon==='Shotgun'?.55:.36;
-  src.connect(filter);filter.connect(g);g.connect(p);src.start();
+  const profile={
+    Shotgun:{dur:.24,decay:1.15,hp:75,lp:2100,gain:.72,body:82,tail:.34},
+    Rifle:{dur:.145,decay:1.8,hp:130,lp:4300,gain:.52,body:118,tail:.24},
+    SMG:{dur:.10,decay:2.1,hp:170,lp:4700,gain:.39,body:142,tail:.18},
+    Pistol:{dur:.13,decay:1.9,hp:150,lp:3600,gain:.47,body:132,tail:.22}
+  }[weapon]||{dur:.13,decay:1.9,hp:140,lp:3400,gain:.44,body:120,tail:.20};
+  const now=audioCtx.currentTime,wet=interiorMode?.42:rooftopState?.15:.10;
+
+  const src=audioCtx.createBufferSource();src.buffer=createAudioNoiseBuffer('gun-'+weapon,profile.dur,profile.decay);
+  const hp=audioCtx.createBiquadFilter(),lp=audioCtx.createBiquadFilter(),g=audioCtx.createGain();
+  hp.type='highpass';hp.frequency.value=profile.hp;lp.type='lowpass';lp.frequency.value=profile.lp;
+  g.gain.setValueAtTime(profile.gain,now);g.gain.exponentialRampToValueAtTime(.0001,now+profile.dur);
+  src.connect(hp);hp.connect(lp);lp.connect(g);routeSpatialAudio(g,pos,'weapons',wet);src.start(now);
+
+  const body=audioCtx.createOscillator(),bg=audioCtx.createGain();body.type='triangle';body.frequency.setValueAtTime(profile.body,now);body.frequency.exponentialRampToValueAtTime(Math.max(40,profile.body*.48),now+.075);
+  bg.gain.setValueAtTime(profile.gain*.15,now);bg.gain.exponentialRampToValueAtTime(.0001,now+.10);body.connect(bg);routeSpatialAudio(bg,pos,'weapons',wet*.5);body.start(now);body.stop(now+.11);
+
+  const tail=audioCtx.createBufferSource();tail.buffer=createAudioNoiseBuffer('tail-'+weapon,.42,2.7);
+  const tailFilter=audioCtx.createBiquadFilter(),tailGain=audioCtx.createGain();tailFilter.type='bandpass';tailFilter.frequency.value=650;tailFilter.Q.value=.45;
+  tailGain.gain.setValueAtTime(profile.tail*(interiorMode?1.3:.75),now+.025);tailGain.gain.exponentialRampToValueAtTime(.0001,now+.43);
+  tail.connect(tailFilter);tailFilter.connect(tailGain);routeSpatialAudio(tailGain,pos,'weapons',Math.min(.65,wet+.18));tail.start(now+.018);
+}
+function updateAudioEnvironment(force=false){
+  if(!audioCtx||!audioReverbGain)return;
+  const now=performance.now();if(!force&&now-lastAudioEnvAt<140)return;lastAudioEnvAt=now;
+  const target=interiorMode?.28:rooftopState?.105:.055;
+  audioReverbGain.gain.setTargetAtTime(target,audioCtx.currentTime,.10);
+  if(audioBuses.ambience)audioBuses.ambience.gain.setTargetAtTime(interiorMode?.26:.38,audioCtx.currentTime,.12);
 }
 function updateAudioListener(){
   if(!audioCtx||!playerRoot)return;
+  updateAudioEnvironment(false);
   const listener=audioCtx.listener,dir=new THREE.Vector3();camera.getWorldDirection(dir);
   const p=camera.position;
   if(listener.positionX){listener.positionX.value=p.x;listener.positionY.value=p.z;listener.positionZ.value=-p.y;listener.forwardX.value=dir.x;listener.forwardY.value=dir.z;listener.forwardZ.value=-dir.y;listener.upX.value=0;listener.upY.value=1;listener.upZ.value=0}
@@ -5839,6 +5956,16 @@ async function boot(){
         const repaired=repairVehicle(v),result={repaired,ready:vehicleReady(v),installed:[...v.installedParts],required:[...v.requiredParts]};v.installedParts=prior;return result;
       },
       progressionProbe:()=>({xp,battleTier,livesRemaining,unlocks:[...cosmeticUnlocks]}),
+      audioProbe:()=>{
+        ensureAudio();
+        return{
+          context:Boolean(audioCtx),compressor:Boolean(audioCompressor),reverb:Boolean(audioReverb&&audioReverbGain),
+          buses:Object.keys(audioBuses).sort(),
+          surface:footstepSurface(playerRoot?.position),
+          interiorWet:interiorMode?.28:.055,
+          weaponLayering:true,creatureLayering:true,surfaceFootsteps:true
+        };
+      },
       moderationProbe:(msg)=>moderateChatMessage(msg),
       matchProbe:()=>({mode:matchMode,radius:Number.isFinite(matchRadius)?matchRadius:null,day:seasonDay()}),
       spawnMobility:()=>{
