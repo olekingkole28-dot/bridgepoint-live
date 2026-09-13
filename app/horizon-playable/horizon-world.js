@@ -1867,6 +1867,23 @@ function refreshEquipmentVisuals(){
   if(equipment.primary&&activeSlot!=='primary')putCharacterWeapon('backGun',equipment.primary,'backGun');
   weaponPivot=equipmentMounts.activeGrip|| (isFirearm(current)?equipmentMounts.leftHand:equipmentMounts.rightHand);
 }
+function useQuickSlot(slot){
+  const item=equipment[slot];
+  if(!item){showToast(slot.toUpperCase()+' SLOT EMPTY');return false}
+  if((inventory[item]||0)<=0){equipment[slot]=null;updateInventory();showToast(item+' is no longer in your pack');return false}
+  if(item==='Bandage'||item==='First aid kit'){
+    if(health>=100){showToast('Health already full');return false}
+    const heal=item==='First aid kit'?70:35;
+    inventory[item]--;lootCount=Math.max(0,lootCount-1);if(inventory[item]<=0){delete inventory[item];equipment[slot]=null}
+    health=Math.min(100,health+heal);const hs=$('healthStat');if(hs)hs.textContent=String(Math.round(health));
+    updateInventory();showToast(item+' used · '+Math.round(health)+' health');return true
+  }
+  if(item==='Water'||item==='Energy drink'||item==='Canned food'||item==='Food ration'||item==='Energy bar'){
+    inventory[item]--;lootCount=Math.max(0,lootCount-1);if(inventory[item]<=0){delete inventory[item];equipment[slot]=null}
+    awardXP(2,'survival use');updateInventory();showToast('Used '+item);return true
+  }
+  showToast(item+' cannot be quick-used yet');return false
+}
 function selectSlot(slot,quiet=false){
   if(slot==='quick1'||slot==='quick2')return useQuickSlot(slot);
   const item=activeItemForSlot(slot);
