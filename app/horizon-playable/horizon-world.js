@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4241;
+const BUILD_VERSION=4245;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -159,7 +159,7 @@ const JURISDICTIONS={
   NM:['New Mexico',35.682240,-105.939728],NY:['New York',40.7128,-74.0060],NC:['North Carolina',35.780430,-78.639099],
   ND:['North Dakota',46.820850,-100.783318],OH:['Ohio',39.961346,-82.999069],OK:['Oklahoma',35.492207,-97.503342],
   OR:['Oregon',44.938461,-123.030403],PA:['Pennsylvania',40.264378,-76.883598],RI:['Rhode Island',41.830914,-71.414963],
-  SC:['South Carolina',34.000343,-81.033211],SD:['South Dakota',44.367031,-100.346405],TN:['Tennessee',36.165810,-86.784241],
+  SC:['South Carolina',34.000343,-81.033211],SD:['South Dakota',44.367031,-100.346405],TN:['Tennessee',36.165810,-86.784245],
   TX:['Texas',30.274670,-97.740349],UT:['Utah',40.777477,-111.888237],VT:['Vermont',44.262436,-72.580536],
   VA:['Virginia',37.538857,-77.433640],WA:['Washington',47.035805,-122.905014],WV:['West Virginia',38.336246,-81.612328],
   WI:['Wisconsin',43.074684,-89.384445],WY:['Wyoming',41.140259,-104.820236],DC:['District of Columbia',38.9072,-77.0369],
