@@ -322,7 +322,7 @@ let drivableVehicles=[],activeVehicle=null;
 // match rules, progression, local faction claims and spectator play.
 let sceneFetchAttempts=0,sceneFetchError=null;
 let decayPatchedMaterials=0,smartSnappedProps=0,openSpaceProps=0;
-let flashlight=null,flashlightTarget=null,flashlightOn=false,autoDayNight=true,lastAtmosphereUpdate=0;
+let flashlight=null,flashlightTarget=null,flashlightOn=false,autoDayNight=true,lastAtmosphereUpdate=0,nightCityLights=[];
 let slideTime=0,leanAmount=0,leanTarget=0,lastVaultAt=0,reticleSpread=10,locomotionIntent='idle',lastGrounded=true,ambientSmoke=[];
 let doorAnimations=[],doorSystemCount=0,lastDoorStreamAt=0;
 let xp=0,battleTier=0,livesRemaining=3,spectatorMode=false,spectatorIndex=0,lastSpectatorSwitch=0;
@@ -2468,6 +2468,32 @@ function populateOpenSpace(){
   }
   openSpaceProps=placed;return placed;
 }
+function addRuntimeArmor(root,profile,height=1.78){
+  if(!root||!profile)return null;
+  const h=Math.max(1.5,height),g=new THREE.Group();
+  const dark=new THREE.MeshStandardMaterial({color:profile==='swat'?0x111820:0x252b2d,roughness:.62,metalness:.18});
+  const helmet=new THREE.Mesh(new THREE.SphereGeometry(.23,12,8,0,Math.PI*2,0,Math.PI*.68),dark);
+  helmet.scale.set(1,.9,.72);helmet.position.set(0,0,h*.89);helmet.castShadow=true;g.add(helmet);
+  if(profile==='swat'){
+    const vest=new THREE.Mesh(new THREE.BoxGeometry(.48,.23,.54),dark);vest.position.set(0,0,h*.62);vest.castShadow=true;g.add(vest);
+    const shoulderGeo=new THREE.BoxGeometry(.16,.25,.16);
+    for(const x of [-.31,.31]){const p=new THREE.Mesh(shoulderGeo,dark);p.position.set(x,0,h*.70);p.castShadow=true;g.add(p)}
+  }
+  root.add(g);root.userData.armorProfile=profile;return g;
+}
+function buildNightStreetLights(count=MOBILE_GPU_SAFE?8:24){
+  nightCityLights.forEach(l=>l.parent?.remove(l));nightCityLights=[];
+  const anchors=localRoadAnchors(MOBILE_GPU_SAFE?130:230);if(!anchors.length)return 0;
+  const used=new Set();let made=0;
+  for(let i=0;i<count*4&&made<count;i++){
+    const index=Math.floor((i*7+3)%anchors.length);if(used.has(index))continue;used.add(index);
+    const a=anchors[index],side=i%2?1:-1,p=roadSidePoint(a,a.width/2+1.15,side);
+    if(isBlockedExterior(p.x,p.y,.25))continue;
+    const light=new THREE.PointLight(0xffd9a6,0,16,2);
+    light.position.set(p.x,p.y,p.z+3.7);light.castShadow=false;artGroup.add(light);nightCityLights.push(light);made++;
+  }
+  return made;
+}
 function initFlashlight(){
   flashlight=new THREE.SpotLight(0xfff1cc,0,28,Math.PI/7,.42,1.25);flashlightTarget=new THREE.Object3D();
   scene.add(flashlight,flashlightTarget);flashlight.target=flashlightTarget;
@@ -2488,6 +2514,8 @@ function updateDayNight(now){
   const day=Math.max(0,Math.sin(angle)),twilight=Math.max(.12,Math.min(1,day*1.18+.10));
   sun.position.set(Math.cos(angle)*1200,-Math.sin(angle*.73)*780,Math.max(80,Math.sin(angle)*1500));
   sun.intensity=.18+2.45*twilight;hemi.intensity=.18+.98*twilight;renderer.toneMappingExposure=.58+.48*twilight;
+  const night=THREE.MathUtils.clamp(1-day*7,0,1);
+  nightCityLights.forEach((l,i)=>{l.intensity=night*(MOBILE_GPU_SAFE?8:18)*(.88+.12*Math.sin(now*.003+i))});
   if(day<.08){scene.background.set(0x07100d);scene.fog.color.set(0x0b1511)}
   else if(day<.30){scene.background.set(0x403d3a);scene.fog.color.set(0x494743)}
   else{scene.background.set(0x68746e);scene.fog.color.set(0x69736d)}
@@ -3404,6 +3432,7 @@ function spawnZombieAt(source,a,interior=false,rng=rand){
     });
   }
   const root=n.root;
+  if(archetype.armorProfile)addRuntimeArmor(root,archetype.armorProfile,archetype.height||1.78);
   if(interior)root.position.set(a.x,a.y,.015);
   else if(archetype.flying)root.position.set(a.x,a.y,surfaceZXY(a.x,a.y)+7+rng()*7);
   else root.position.set(a.x,a.y,surfaceZXY(a.x,a.y)+.015);
@@ -3749,6 +3778,8 @@ function fastEnemyArchetypes(){
     {id:'stalker',label:'Stalker infected',template:lurker,height:1.86,speed:[.60,.92],patrolSpeed:.46,chaseMult:1.82,hp:128,damage:12,attackRange:1.34,attackMs:930,behavior:'weave',aggroRadius:15,deaggroRadius:31,realisticInfected:true},
     {id:'screamer',label:'Screamer',template:human,height:1.77,speed:[.72,1.08],patrolSpeed:.40,chaseMult:1.92,hp:96,damage:10,attackRange:1.30,attackMs:760,behavior:'charge',burst:1.48,aggroRadius:20,deaggroRadius:38,realisticInfected:true,screamer:true},
     {id:'sprinter',label:'Fresh sprinter',template:human,height:1.82,speed:[.92,1.30],patrolSpeed:.38,chaseMult:2.05,hp:82,damage:8,attackRange:1.24,attackMs:650,behavior:'charge',burst:1.72,aggroRadius:18,deaggroRadius:36,realisticInfected:true},
+    {id:'helmeted',label:'Helmeted infected',template:human,height:1.82,speed:[.48,.76],patrolSpeed:.42,chaseMult:1.68,hp:165,damage:12,attackRange:1.3,attackMs:980,behavior:'stalk',aggroRadius:15,deaggroRadius:31,realisticInfected:true,armorProfile:'helmet'},
+    {id:'swat_armor',label:'SWAT armored infected',template:human,height:1.86,speed:[.40,.68],patrolSpeed:.36,chaseMult:1.55,hp:285,damage:18,attackRange:1.38,attackMs:1080,behavior:'charge',aggroRadius:16,deaggroRadius:32,realisticInfected:true,armorProfile:'swat'},
     {id:'hound',label:'Rot hound',template:hound,height:1.05,speed:[1.15,1.70],patrolSpeed:.6,chaseMult:1.72,hp:62,damage:11,attackRange:1.15,attackMs:720,behavior:'pounce',burst:1.42,aggroRadius:16,deaggroRadius:32,infectedMonster:true},
     {id:'spider',label:'Carrion spider',template:spider,height:.82,speed:[.95,1.48],patrolSpeed:.62,chaseMult:1.74,hp:82,damage:12,attackRange:1.08,attackMs:680,behavior:'pounce',burst:1.35,aggroRadius:14,deaggroRadius:30,infectedMonster:true},
     {id:'realbear',label:'Diseased bear',template:brute,height:1.72,speed:[.78,1.18],patrolSpeed:.5,chaseMult:1.76,hp:360,damage:29,attackRange:1.9,attackMs:1380,behavior:'charge',burst:1.55,aggroRadius:12,deaggroRadius:28,realisticInfected:true},
@@ -3774,6 +3805,7 @@ async function buildSurvivalArtMobileFast(){
   interiorTemplates={};pickupTemplates={};enemyArchetypes=fastEnemyArchetypes();zombieTemplates=enemyArchetypes;zombieTemplate=enemyArchetypes[0];
   try{
     const life=scatterLocalProceduralLife(),furniture=scatterStreetFurniture();
+    buildNightStreetLights(MOBILE_GPU_SAFE?8:14);
     streetLifeStats={...streetLifeStats,trees:(streetLifeStats.trees||0)+(life.trees||0),bikes:(streetLifeStats.bikes||0)+(life.bikes||0),benches:(streetLifeStats.benches||0)+(furniture.benches||0),planters:(streetLifeStats.planters||0)+(furniture.planters||0),proceduralEnemyFallback:true};
   }catch(err){streetLifeStats.mobileDecorRecovery=String(err?.message||err);console.warn('mobile decor recovered',err)}
   try{spawnOutdoorLoot()}catch(err){streetLifeStats.mobileLootRecovery=String(err?.message||err);console.warn('mobile loot recovered',err)}
@@ -3829,6 +3861,8 @@ async function buildSurvivalArtFull(){
     zombie&&{id:'walker',label:'Walker',template:zombie,height:1.78,speed:[.28,.46],hp:90,damage:7,attackRange:1.25,attackMs:1150,behavior:'stalk',animSpeed:.75,aggroRadius:12,wanderRadius:5},
     zombieChubby&&{id:'bruiser',label:'Chubby infected',template:zombieChubby,height:1.88,speed:[.20,.32],hp:180,damage:14,attackRange:1.42,attackMs:1450,behavior:'stalk',animSpeed:.68,aggroRadius:10,wanderRadius:4},
     zombieRibcage&&{id:'runner',label:'Ribcage runner',template:zombieRibcage,height:1.80,speed:[.48,.76],hp:78,damage:9,attackRange:1.30,attackMs:900,behavior:'charge',burst:1.5,animSpeed:1.05,aggroRadius:19,wanderRadius:7},
+    zombie&&{id:'helmeted',label:'Helmeted infected',template:zombie,height:1.80,speed:[.40,.68],patrolSpeed:.40,chaseMult:1.62,hp:165,damage:12,attackRange:1.30,attackMs:1020,behavior:'stalk',aggroRadius:15,deaggroRadius:31,realisticInfected:true,armorProfile:'helmet'},
+    zombie&&{id:'swat_armor',label:'SWAT armored infected',template:zombie,height:1.84,speed:[.34,.58],patrolSpeed:.34,chaseMult:1.50,hp:285,damage:18,attackRange:1.38,attackMs:1120,behavior:'charge',aggroRadius:16,deaggroRadius:32,realisticInfected:true,armorProfile:'swat'},
     dogShepherd&&{id:'hound',label:'Rot hound',template:dogShepherd,height:1.05,speed:[1.15,1.70],hp:62,damage:11,attackRange:1.15,attackMs:720,behavior:'pounce',burst:1.42,animSpeed:1.48,tint:0x4f5a4a,tintMix:.58,emissive:0x300303,aggroRadius:16,wanderRadius:8,infectedMonster:true},
     dogPug&&{id:'pug',label:'Infected pug',template:dogPug,height:.62,speed:[1.05,1.55],hp:42,damage:7,attackRange:.92,attackMs:640,behavior:'weave',animSpeed:1.55,tint:0x6b745f,tintMix:.36,emissive:0x240a08,aggroRadius:12,wanderRadius:6},
     
@@ -3897,6 +3931,7 @@ async function buildSurvivalArtFull(){
 
   const life=scatterProceduralStreetLife();
   const localLife=scatterLocalProceduralLife();
+  buildNightStreetLights(MOBILE_GPU_SAFE?8:(dense?28:20));
   const furniture=scatterStreetFurniture();
   const grass=buildGrassDetails();
   const denseVeg=buildDenseVegetation();
