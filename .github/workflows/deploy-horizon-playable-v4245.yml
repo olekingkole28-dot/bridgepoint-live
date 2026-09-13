@@ -110,11 +110,19 @@ jobs:
 
           for attempt in $(seq 1 40); do
             q="${GITHUB_SHA}-${attempt}-$(date +%s)"
-            marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/horizon/horizon-live-v4245.json?v=${q}" 2>/dev/null || true)"
-            preview="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/horizon/preview.html?v=${q}" 2>/dev/null || true)"
-            runtime="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/horizon-playable/horizon-world.js?v=${q}" 2>/dev/null || true)"
+            rm -f /tmp/horizon-marker.json /tmp/horizon-preview.html /tmp/horizon-world.js
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/horizon/horizon-live-v4245.json?v=${q}" -o /tmp/horizon-marker.json 2>/dev/null || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/horizon/preview.html?v=${q}" -o /tmp/horizon-preview.html 2>/dev/null || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/horizon-playable/horizon-world.js?v=${q}" -o /tmp/horizon-world.js 2>/dev/null || true
 
-            if printf '%s' "$marker" | grep -Fq '"build":4245'               && printf '%s' "$marker" | grep -Fq '"status":"HORIZON_PLAYABLE_LIVE"'               && printf '%s' "$preview" | grep -Fq 'horizon-world.js?v=4245'               && printf '%s' "$preview" | grep -Fq 'slotQuick3'               && printf '%s' "$runtime" | grep -Fq 'const BUILD_VERSION=4245;'               && printf '%s' "$runtime" | grep -Fq 'nightCityLights'               && printf '%s' "$runtime" | grep -Fq 'weaponCasePurchases'               && printf '%s' "$runtime" | grep -Fq 'battleRewardForLevel'; then
+            if grep -Fq '"build":4245' /tmp/horizon-marker.json 2>/dev/null \
+              && grep -Fq '"status":"HORIZON_PLAYABLE_LIVE"' /tmp/horizon-marker.json 2>/dev/null \
+              && grep -Fq 'horizon-world.js?v=4245' /tmp/horizon-preview.html 2>/dev/null \
+              && grep -Fq 'slotQuick3' /tmp/horizon-preview.html 2>/dev/null \
+              && grep -Fq 'const BUILD_VERSION=4245;' /tmp/horizon-world.js 2>/dev/null \
+              && grep -Fq 'nightCityLights' /tmp/horizon-world.js 2>/dev/null \
+              && grep -Fq 'weaponCasePurchases' /tmp/horizon-world.js 2>/dev/null \
+              && grep -Fq 'battleRewardForLevel' /tmp/horizon-world.js 2>/dev/null; then
               ok=1
               echo 'HORIZON_V4245_CUSTOM_DOMAIN_LIVE'
               break
