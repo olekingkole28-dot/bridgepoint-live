@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-09-12",
+  "world_mode": "continuous_us_streamed_world",
+  "policy": {
+    "auto_discover": true,
+    "auto_promote": false,
+    "required_gates": [
+      "explicit reusable license",
+      "commercial project compatibility",
+      "engine compatibility",
+      "performance budget",
+      "visual improvement",
+      "regression test",
+      "release verification"
+    ],
+    "blocked_ip": [
+      "Call of Duty",
+      "Resident Evil",
+      "World War Z",
+      "Grand Theft Auto",
+      "The Sims",
+      "The Lord of the Rings"
+    ]
+  },
+  "candidates": [
+    {
+      "name": "Game Animation Sample",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "qualified_for_evaluation",
+      "use": [
+        "motion matching",
+        "walk/run/jump/fall",
+        "traversal",
+        "500+ animations"
+      ],
+      "license_note": "Epic sample/Fab listing; verify acquisition EULA before production import",
+      "source": "https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016"
+    },
+    {
+      "name": "City Sample",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "qualified_for_evaluation",
+      "use": [
+        "World Partition patterns",
+        "Nanite/Lumen",
+        "Mass AI",
+        "Niagara",
+        "city PCG"
+      ],
+      "license_note": "Epic sample; UE client only unless specific license says otherwise",
+      "source": "https://www.fab.com/listings/4898e707-7855-404b-af0e-a505ee690e68"
+    },
+    {
+      "name": "City Sample Buildings",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "qualified_ue_only",
+      "use": [
+        "high-quality modular city buildings",
+        "entrances",
+        "multi-level modules"
+      ],
+      "license_note": "Fab page explicitly says UE-Only Content",
+      "source": "https://www.fab.com/listings/008fe959-5511-428e-93bd-f99b1179f6d5"
+    },
+    {
+      "name": "City Sample Vehicles",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "qualified_ue_only",
+      "use": [
+        "13 driveable vehicle types",
+        "cars",
+        "pickup",
+        "semi",
+        "bus",
+        "van"
+      ],
+      "license_note": "Fab page explicitly says UE-Only Content",
+      "source": "https://www.fab.com/listings/2909157b-ddfa-4cef-a925-69dc2467021f"
+    },
+    {
+      "name": "City Sample Crowds",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "qualified_for_evaluation",
+      "use": [
+        "crowd simulation patterns",
+        "human population systems"
+      ],
+      "license_note": "Epic sample; verify item EULA before production import",
+      "source": "https://www.fab.com/listings/903037e9-e1ac-4f41-96e8-1683c6fa7ad4"
+    },
+    {
+      "name": "Electric Dreams Env",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "qualified_ue_only",
+      "use": [
+        "photorealistic foliage",
+        "PCG environment",
+        "Nanite environment reference"
+      ],
+      "license_note": "Fab page explicitly says UE-Only Content",
+      "source": "https://www.fab.com/listings/d79688f5-29be-4fb2-a650-2d4a813f5306"
+    }
+  ]
+}
