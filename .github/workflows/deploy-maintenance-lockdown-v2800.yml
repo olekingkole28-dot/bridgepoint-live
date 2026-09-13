@@ -1,208 +1,22 @@
-name: BridgePoint Public Lockdown V2800
-# Horizon 4238 terrain-lock and CORS-safe physics release
+name: BridgePoint Legacy Pages Lane Neutralizer
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-maintenance-lockdown-v2800.yml'
   workflow_dispatch:
+
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: bridgepoint-live-pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  neutralize:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    timeout-minutes: 2
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Build public surface
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf site
-          mkdir -p site/app/intelligence-launch site/app/horizon site/app/horizon-world site/app/horizon-playable
-          cp -a app/intelligence-launch/. site/app/intelligence-launch/
-          cp -a app/horizon/. site/app/horizon/
-          cp -a app/horizon-world/. site/app/horizon-world/
-          cp -a app/horizon-playable/. site/app/horizon-playable/
-          node scripts/prewarm-horizon-maps.mjs app/horizon-playable/horizon-world.js site/app/horizon/maps
-          cat > site/index.html <<'HTML'
-          <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-store"><meta http-equiv="refresh" content="0; url=/app/intelligence-launch/"><title>BridgePoint Intelligence</title><script>location.replace('/app/intelligence-launch/'+location.search+location.hash)</script></head><body><a href="/app/intelligence-launch/">BridgePoint Intelligence</a></body></html>
-          HTML
-          cp site/index.html site/404.html
-          cat > site/robots.txt <<'TXT'
-          User-agent: *
-          Disallow: /
-          Allow: /app/intelligence-launch/
-          Allow: /app/horizon/
-          TXT
-          touch site/.nojekyll
-          test -s site/app/intelligence-launch/index.html
-          test -s site/app/horizon/index.html
-          test -s site/app/horizon/preview.html
-          test -s site/app/horizon-playable/horizon-world.js
-          test -s site/app/horizon-playable/horizon-world.css
-          test -s site/app/horizon/maps/index.json
-          grep -Fq 'BridgePoint Horizon - Founding Season' site/app/horizon/index.html
-          grep -Fq 'FOUNDING SEASON' site/app/horizon/index.html
-          grep -Fq '/app/horizon/preview.html?map=times_square' site/app/horizon/index.html
-          grep -Fq 'CHOOSE FROM 50 BRIDGEPOINT MAPS' site/app/horizon/index.html
-          grep -Fq 'mapSelect' site/app/horizon/preview.html
-          grep -Fq 'characterSelect' site/app/horizon/preview.html
-          grep -Fq 'Choose one of 50 BridgePoint survival maps' site/app/horizon/preview.html
-          grep -Fq '../horizon-playable/horizon-world.js?v=4238' site/app/horizon/preview.html
-          grep -Fq 'bridgepoint-horizon-stream-v3020' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'Characters_Matt.gltf' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'Characters_Lis.gltf' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'Characters_Sam.gltf' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'Characters_Shaun.gltf' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'loadAsset(PLAYER_ASSET)' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'normalizeMovementInput' site/app/horizon-playable/horizon-world.js
-          grep -Fq "locomotionIntent='sprint'" site/app/horizon-playable/horizon-world.js
-          grep -Fq 'playerFacingYaw' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'M2M_PLAYER_KEYS.has(CHARACTER_KEY)?0:Math.PI' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'playerRoot.rotation.z=lerpAngle' site/app/horizon-playable/horizon-world.js
-          grep -Fq "id:'hound'" site/app/horizon-playable/horizon-world.js
-          grep -Fq "id:'orc'" site/app/horizon-playable/horizon-world.js
-          grep -Fq "id:'spider'" site/app/horizon-playable/horizon-world.js
-          grep -Fq "id:'bear'" site/app/horizon-playable/horizon-world.js
-          grep -Fq "weapon_name:'SMG'" site/app/horizon-playable/horizon-world.js
-          grep -Fq 'function dropActiveWeapon' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'function spawnFacadeSpiders' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'function updateClimbingSpider' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'function buildApocalypseGroundDressing' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'function maybeWalkOutOpenDoor' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'function buildExplorableShell' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'seamlessOpenBuildings:true' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'towerPriorityOpenBuildings:true' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'optimizedOpenBuildingPhysics:true' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'shapeRecovery:true' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'assetPromiseCache' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'BP_HORIZON_HYDRATION' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'buildSurvivalArtMobileFast' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'fastEnemyArchetypes' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'cloneRecovery4238:true' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'hydrateDeferredWorld' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'ASSET_TIMEOUT_MS' site/app/horizon-playable/horizon-world.js
-          grep -Fq "getObjectByName('hand_r')" site/app/horizon-playable/horizon-world.js
-          grep -Fq 'BP_HORIZON_PLAYABLE' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'BP_HORIZON_QUICK_TEST' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'hasRenderableWeapon' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'worldTickMs:MOBILE_GPU_SAFE?34:16' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'terrainGuardProbe' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'ensureTerrainPhysicsCollider' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'function buildInstantBuildingMassing' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'function ensureExplorableShell' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'function buildDenseApocalypseLayers' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'function updateReticleUi' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'function updateDoorStreaming' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'fullHeightLazyTowers:true' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'function dressOpenSourceBuildings' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'playerRealistic' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'aimProbe' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'function buildPatrolRoute' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'function setEnemyAnimation' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'putActiveGripWeapon' site/app/horizon-playable/horizon-world.js
-          grep -Fq "id:'screamer'" site/app/horizon-playable/horizon-world.js
-          grep -Fq "id:'crow'" site/app/horizon-playable/horizon-world.js
-          grep -Fq 'function rustifyVehicle' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'worldMapOverlay' site/app/horizon/preview.html
-          grep -Fq 'mobileActionTray' site/app/horizon/preview.html
-          grep -Fq 'DROP ACTIVE WEAPON' site/app/horizon/preview.html
-          grep -Fq 'FOUNDING MEMBER ACCESS' site/app/intelligence-launch/index.html
-
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v4
-        with:
-          path: site
-
-      - name: Deploy public surface
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Verify live custom domain
-        shell: bash
-        run: |
-          set -euo pipefail
-          origin='https://bridgepointintelligence.online'
-          ok=0
-          for attempt in $(seq 1 30); do
-            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
-            code="$(curl -sSL --max-time 20 -o /tmp/horizon.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/?v=${salt}" || true)"
-            preview_code="$(curl -sSL --max-time 20 -o /tmp/horizon-preview.html -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.45&character=survivor&build=4238&v=${salt}" || true)"
-            js_code="$(curl -sSL --max-time 20 -o /tmp/horizon-world.js -w '%{http_code}' -H 'Cache-Control: no-cache, no-store' "${origin}/app/horizon-playable/horizon-world.js?v=${salt}" || true)"
-            if [ "$code" = "200" ] && [ "$preview_code" = "200" ] && [ "$js_code" = "200" ] \
-              && grep -Fq 'BridgePoint Horizon - Founding Season' /tmp/horizon.html \
-              && grep -Fq 'FOUNDING SEASON' /tmp/horizon.html \
-              && grep -Fq '/app/horizon/preview.html?map=times_square' /tmp/horizon.html \
-              && grep -Fq 'CHOOSE FROM 50 BRIDGEPOINT MAPS' /tmp/horizon.html \
-              && grep -Fq 'mapSelect' /tmp/horizon-preview.html \
-              && grep -Fq 'characterSelect' /tmp/horizon-preview.html \
-              && grep -Fq 'Characters_Matt.gltf' /tmp/horizon-world.js \
-              && grep -Fq 'Characters_Lis.gltf' /tmp/horizon-world.js \
-              && grep -Fq 'Characters_Sam.gltf' /tmp/horizon-world.js \
-              && grep -Fq 'loadAsset(PLAYER_ASSET)' /tmp/horizon-world.js \
-              && grep -Fq 'normalizeMovementInput' /tmp/horizon-world.js \
-              && grep -Fq "locomotionIntent='sprint'" /tmp/horizon-world.js \
-              && grep -Fq 'playerFacingYaw' /tmp/horizon-world.js \
-              && grep -Fq 'M2M_PLAYER_KEYS.has(CHARACTER_KEY)?0:Math.PI' /tmp/horizon-world.js \
-              && grep -Fq 'playerRoot.rotation.z=lerpAngle' /tmp/horizon-world.js \
-              && grep -Fq "id:'hound'" /tmp/horizon-world.js \
-              && grep -Fq "id:'orc'" /tmp/horizon-world.js \
-              && grep -Fq "id:'spider'" /tmp/horizon-world.js \
-              && grep -Fq "id:'bear'" /tmp/horizon-world.js \
-              && grep -Fq "weapon_name:'SMG'" /tmp/horizon-world.js \
-              && grep -Fq 'function dropActiveWeapon' /tmp/horizon-world.js \
-              && grep -Fq 'function spawnFacadeSpiders' /tmp/horizon-world.js \
-              && grep -Fq 'function buildApocalypseGroundDressing' /tmp/horizon-world.js \
-              && grep -Fq 'function maybeWalkOutOpenDoor' /tmp/horizon-world.js \
-              && grep -Fq 'function buildExplorableShell' /tmp/horizon-world.js \
-              && grep -Fq 'seamlessOpenBuildings:true' /tmp/horizon-world.js \
-              && grep -Fq 'towerPriorityOpenBuildings:true' /tmp/horizon-world.js \
-              && grep -Fq 'optimizedOpenBuildingPhysics:true' /tmp/horizon-world.js \
-              && grep -Fq 'shapeRecovery:true' /tmp/horizon-world.js \
-              && grep -Fq 'assetPromiseCache' /tmp/horizon-world.js \
-              && grep -Fq 'BP_HORIZON_HYDRATION' /tmp/horizon-world.js \
-              && grep -Fq 'buildSurvivalArtMobileFast' /tmp/horizon-world.js \
-              && grep -Fq 'fastEnemyArchetypes' /tmp/horizon-world.js \
-              && grep -Fq 'cloneRecovery4238:true' /tmp/horizon-world.js \
-              && grep -Fq 'hydrateDeferredWorld' /tmp/horizon-world.js \
-              && grep -Fq 'ASSET_TIMEOUT_MS' /tmp/horizon-world.js \
-              && grep -Fq "getObjectByName('hand_r')" /tmp/horizon-world.js \
-              && grep -Fq 'BP_HORIZON_PLAYABLE' /tmp/horizon-world.js \
-              && grep -Fq 'BP_HORIZON_QUICK_TEST' /tmp/horizon-world.js \
-              && grep -Fq 'hasRenderableWeapon' /tmp/horizon-world.js \
-              && grep -Fq 'worldTickMs:MOBILE_GPU_SAFE?34:16' /tmp/horizon-world.js \
-              && grep -Fq 'terrainGuardProbe' /tmp/horizon-world.js \
-              && grep -Fq 'ensureTerrainPhysicsCollider' /tmp/horizon-world.js \
-              && grep -Fq 'function buildInstantBuildingMassing' /tmp/horizon-world.js \
-              && grep -Fq 'function ensureExplorableShell' /tmp/horizon-world.js \
-              && grep -Fq 'function buildDenseApocalypseLayers' /tmp/horizon-world.js \
-              && grep -Fq 'function updateReticleUi' /tmp/horizon-world.js \
-              && grep -Fq 'function updateDoorStreaming' /tmp/horizon-world.js \
-              && grep -Fq 'fullHeightLazyTowers:true' /tmp/horizon-world.js \
-              && grep -Fq 'function dressOpenSourceBuildings' /tmp/horizon-world.js \
-              && grep -Fq 'playerRealistic' /tmp/horizon-world.js \
-              && grep -Fq 'aimProbe' /tmp/horizon-world.js \
-              && grep -Fq 'function buildPatrolRoute' /tmp/horizon-world.js \
-              && grep -Fq 'function setEnemyAnimation' /tmp/horizon-world.js \
-              && grep -Fq 'putActiveGripWeapon' /tmp/horizon-world.js \
-              && grep -Fq "id:'screamer'" /tmp/horizon-world.js \
-              && grep -Fq "id:'crow'" /tmp/horizon-world.js \
-              && grep -Fq 'function rustifyVehicle' /tmp/horizon-world.js \
-              && grep -Fq 'DROP ACTIVE WEAPON' /tmp/horizon-preview.html; then
-              ok=1
-              break
-            fi
-            sleep 5
-          done
-          test "$ok" = "1"
-
-# Horizon grounded survival release 4238
+      - run: echo "Legacy BridgePoint Pages lane neutralized; no deployment performed."
