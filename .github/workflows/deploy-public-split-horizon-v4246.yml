@@ -1,15 +1,7 @@
 name: Deploy Public Split + Horizon V4246
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'release-v4246/**'
-      - 'app/horizon/**'
-      - 'app/horizon-playable/**'
-      - '.github/workflows/deploy-public-split-horizon-v4246.yml'
   workflow_dispatch:
-
 permissions:
   contents: write
   pages: write
