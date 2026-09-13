@@ -73,6 +73,8 @@ const controls=await page.evaluate(()=>window.BP_HORIZON_TEST.cardinalControlsPr
 const movementFacing=await page.evaluate(()=>window.BP_HORIZON_TEST.movementFacingProbe?.());
 const cameraModes=await page.evaluate(()=>window.BP_HORIZON_TEST.cameraModesProbe?.());
 const inputIsolation=await page.evaluate(()=>window.BP_HORIZON_TEST.inputIsolationProbe?.());
+await page.waitForFunction(()=>window.BP_HORIZON_TEST?.loadingLodProbe?.()?.detailHydrationComplete===true,null,{timeout:30000}).catch(()=>{});
+const loadingLod=await page.evaluate(()=>window.BP_HORIZON_TEST.loadingLodProbe?.());
 
 if(!terrainGuard?.ok)throw new Error('Terrain guard failed '+JSON.stringify(terrainGuard));
 if(playerAsset.stance!=='stand'||!playerAsset.weaponSocket||playerAsset.weaponSocket==='playerRoot')throw new Error('Standing/hand-socket contract failed '+JSON.stringify(playerAsset));
@@ -88,6 +90,11 @@ const fp=cameraModes.find(x=>x.mode==='firstPerson'),tp=cameraModes.find(x=>x.mo
 if(!fp||fp.bodyVisible!==false||fp.rigVisible!==true||fp.weaponVisible!==true)throw new Error('First-person presentation failed '+JSON.stringify(cameraModes));
 if(!tp||tp.bodyVisible!==true||tp.rigVisible!==false)throw new Error('Third-person presentation failed '+JSON.stringify(cameraModes));
 if(inputIsolation?.pointerOwnership!==true||inputIsolation?.canvasTouchAction!=='none'||inputIsolation?.settingsPanel!==true)throw new Error('Touch pointer isolation/settings missing '+JSON.stringify(inputIsolation));
+if(loadingLod?.mobile===true){
+  if((loadingLod.facadeCandidatesRendered||0)>160||(loadingLod.facadeWindows||0)>2800)throw new Error('Mobile facade LOD budget regressed '+JSON.stringify(loadingLod));
+  if((loadingLod.buildingPartRingsRendered||0)>180)throw new Error('Mobile building-part LOD budget regressed '+JSON.stringify(loadingLod));
+  if(loadingLod.parcelLayerBuilt===true||loadingLod.parcelBuildPending===true)throw new Error('Hidden parcel layer built during boot '+JSON.stringify(loadingLod));
+}
 if(!movementFacing?.all||movementFacing.samples?.some(x=>!x.ok))throw new Error('Rendered movement-facing regression '+JSON.stringify(movementFacing));
 if(!(controls.forward.dy>.99)||!(controls.backward.dy<-.99)||!(controls.left.dx<-.99)||!(controls.right.dx>.99))throw new Error('Cardinal controls broken '+JSON.stringify(controls));
 
@@ -121,5 +128,5 @@ if(!gestureIsolation?.ok)throw new Error('Movement/look gesture changed weapon '
 const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource: the server responded with a status of (404|500)/i.test(x));
 if(badResponses.length)throw new Error('Horizon HTTP 5xx '+JSON.stringify(badResponses));
 if(meaningful.length)throw new Error('Horizon console errors '+meaningful.join('\n'));
-console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,gestureIsolation,worldUi}));
+console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,loadingLod,gestureIsolation,worldUi}));
 await browser.close();
