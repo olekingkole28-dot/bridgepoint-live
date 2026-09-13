@@ -1,0 +1,70 @@
+name: Horizon UE5.8 Native GPU Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'unreal/BridgePointHorizon/**'
+      - '.github/workflows/horizon-ue58-native-gpu.yml'
+
+concurrency:
+  group: horizon-ue58-native-gpu
+  cancel-in-progress: true
+
+jobs:
+  build-and-stream:
+    runs-on: [self-hosted, windows, x64, horizon-ue58, gpu]
+    timeout-minutes: 120
+    env:
+      UE_ROOT: ${{ vars.HORIZON_UE_ROOT }}
+      HORIZON_PUBLIC_STREAM_URL: ${{ vars.HORIZON_PUBLIC_STREAM_URL }}
+      HORIZON_STREAM_REGION: ${{ vars.HORIZON_STREAM_REGION }}
+      SUPABASE_SECRET_KEY: ${{ secrets.HORIZON_SUPABASE_SECRET_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate UE5.8 host prerequisites
+        shell: pwsh
+        run: |
+          if (-not $env:UE_ROOT) { throw "Repository variable HORIZON_UE_ROOT is required." }
+          $uat = Join-Path $env:UE_ROOT "Engine\Build\BatchFiles\RunUAT.bat"
+          if (-not (Test-Path $uat)) { throw "UE5.8 RunUAT.bat missing at $uat" }
+          python unreal/BridgePointHorizon/Scripts/validate_horizon_source.py
+          try { nvidia-smi } catch { Write-Host "NVIDIA CLI unavailable; AMF/other supported encoder host may still be valid." }
+
+      - name: Package Horizon UE5.8
+        shell: pwsh
+        run: |
+          ./unreal/BridgePointHorizon/Scripts/build_horizon_native.ps1 -Configuration Shipping -ArchiveDir "C:\BridgePoint\HorizonBuilds\current"
+
+      - name: Stop previous Horizon native supervisor
+        shell: pwsh
+        run: |
+          Get-CimInstance Win32_Process |
+            Where-Object { $_.CommandLine -like "*run_horizon_pixelstream.ps1*" -and $_.ProcessId -ne $PID } |
+            ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+
+      - name: Start durable Pixel Streaming supervisor
+        shell: pwsh
+        run: |
+          $env:RUNNER_TRACKING_ID = ""
+          $script = (Resolve-Path "./unreal/BridgePointHorizon/Scripts/run_horizon_pixelstream.ps1").Path
+          $args = @(
+            "-NoProfile",
+            "-ExecutionPolicy","Bypass",
+            "-File",$script,
+            "-ArchiveDir","C:\BridgePoint\HorizonBuilds\current"
+          )
+          Start-Process -FilePath "powershell.exe" -ArgumentList $args -WindowStyle Hidden
+          Start-Sleep -Seconds 12
+
+      - name: Verify native status control plane
+        shell: pwsh
+        run: |
+          $endpoint = "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-native-stream-v4248?ts=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"
+          $r = Invoke-RestMethod -Uri $endpoint -Headers @{"Cache-Control"="no-cache"}
+          $r | ConvertTo-Json -Depth 6
+          if (-not $r.ok) { throw "Native status endpoint did not respond." }
+          if ($env:HORIZON_PUBLIC_STREAM_URL -and -not $r.online) { throw "GPU host started but native stream is not online." }
