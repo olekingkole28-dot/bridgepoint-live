@@ -1,6 +1,10 @@
 name: Deploy Intelligence Launch Install
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/intelligence-launch/**'
   workflow_dispatch:
 
 permissions:
