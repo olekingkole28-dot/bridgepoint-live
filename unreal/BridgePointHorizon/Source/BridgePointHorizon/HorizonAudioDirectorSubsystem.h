@@ -35,6 +35,74 @@ enum class EHorizonWeatherAudioState : uint8
     Wind
 };
 
+UENUM(BlueprintType)
+enum class EHorizonSpatialCueClass : uint8
+{
+    Weapon,
+    Footstep,
+    Creature,
+    Weather,
+    Fire,
+    Water,
+    Music,
+    UI
+};
+
+UENUM(BlueprintType)
+enum class EHorizonFootstepSurface : uint8
+{
+    Concrete,
+    Asphalt,
+    Dirt,
+    Grass,
+    Metal,
+    Wood,
+    ShallowWater,
+    Snow
+};
+
+USTRUCT(BlueprintType)
+struct FHorizonSpatialCueMix
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    float DistanceGain = 1.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float ReverbSend = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float LowPassCutoffHz = 20000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float MaxDistanceCm = 12000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bVirtualizeWhenSilent = true;
+};
+
+USTRUCT(BlueprintType)
+struct FHorizonFootstepMix
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    float Volume = 1.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float Pitch = 1.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float LowFrequencyGain = 0.25f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float DebrisGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float SplashGain = 0.0f;
+};
+
 USTRUCT(BlueprintType)
 struct FHorizonAudioMixState
 {
@@ -110,6 +178,18 @@ public:
 
     UFUNCTION(BlueprintPure, Category="Horizon|Audio")
     FHorizonAudioMixState GetMixState(EHorizonGameMode Mode) const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Audio")
+    FHorizonSpatialCueMix GetSpatialCueMix(
+        EHorizonSpatialCueClass CueClass,
+        float DistanceCm,
+        bool bOccluded) const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Audio")
+    FHorizonFootstepMix GetFootstepMix(
+        EHorizonFootstepSurface Surface,
+        float MovementSpeed01,
+        bool bCrouched) const;
 
     UFUNCTION(BlueprintPure, Category="Horizon|Audio")
     EHorizonAcousticSpace GetAcousticSpace() const { return AcousticSpace; }
