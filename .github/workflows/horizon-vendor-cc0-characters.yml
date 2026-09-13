@@ -1,0 +1,75 @@
+name: Horizon Vendor CC0 Characters
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/horizon-vendor-cc0-characters.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: horizon-cc0-character-vendor
+  cancel-in-progress: false
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Vendor Mesh2Motion CC0 survivors and animation pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://raw.githubusercontent.com/Mesh2Motion/mesh2motion-app/main/static'
+          OUT='app/horizon-playable/assets/characters/mesh2motion'
+          mkdir -p "${OUT}/models" "${OUT}/animations"
+
+          curl --fail --retry 4 -L "${BASE}/models-variation/human/male_32.glb" -o "${OUT}/models/male_32.glb"
+          curl --fail --retry 4 -L "${BASE}/models-variation/human/female_31.glb" -o "${OUT}/models/female_31.glb"
+          curl --fail --retry 4 -L "${BASE}/models-variation/human/swat_male.glb" -o "${OUT}/models/swat_male.glb"
+          curl --fail --retry 4 -L "${BASE}/models-variation/human/police_male.glb" -o "${OUT}/models/police_male.glb"
+          curl --fail --retry 4 -L "${BASE}/models-variation/human/hazmat_suit_male.glb" -o "${OUT}/models/hazmat_suit_male.glb"
+          curl --fail --retry 4 -L "${BASE}/animations/human-base-animations.glb" -o "${OUT}/animations/human-base-animations.glb"
+
+          python3 - <<'PY'
+          import hashlib, json, pathlib
+          root=pathlib.Path('app/horizon-playable/assets/characters/mesh2motion')
+          files=[]
+          for p in sorted(root.rglob('*.glb')):
+              files.append({
+                  'path':str(p.relative_to(root)),
+                  'bytes':p.stat().st_size,
+                  'sha256':hashlib.sha256(p.read_bytes()).hexdigest()
+              })
+          (root/'PROVENANCE.json').write_text(json.dumps({
+              'schema_version':1,
+              'source':'Mesh2Motion/mesh2motion-app',
+              'source_url':'https://github.com/Mesh2Motion/mesh2motion-app',
+              'license':'CC0 for art assets (models, rigs, animations), per upstream README',
+              'runtime_external_dependency':False,
+              'files':files
+          },indent=2)+'\n',encoding='utf-8')
+          PY
+
+      - name: Commit same-origin character bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'BridgePoint Asset Pipeline'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/horizon-playable/assets/characters/mesh2motion
+          if git diff --cached --quiet; then
+            echo 'Character bundle already current'
+            exit 0
+          fi
+          git commit -m 'Horizon: vendor CC0 survivor rigs and animation pack'
+          git pull --rebase origin main
+          git push origin HEAD:main
