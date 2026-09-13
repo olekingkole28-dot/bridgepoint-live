@@ -14,7 +14,7 @@ const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bri
 const HORIZON_SUPABASE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const HORIZON_SUPABASE_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const horizonSupabase=createClient(HORIZON_SUPABASE_URL,HORIZON_SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-const BUILD_VERSION=4248;
+const BUILD_VERSION=4249;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -2205,6 +2205,22 @@ function normalizedModel(source,targetHeight,animated=false){
   const root=new THREE.Group();root.add(oriented);
   return{root,model,oriented};
 }
+async function loadCriticalAsset(url,timeoutMs=12000){
+  if(!url)return null;
+  if(assetPromiseCache.has(url))return await assetPromiseCache.get(url);
+  const p=(async()=>{
+    try{
+      const timeout=new Promise(resolve=>setTimeout(()=>resolve(null),timeoutMs));
+      const loaded=await Promise.race([loader.loadAsync(url).catch(()=>null),timeout]);
+      if(!loaded)console.warn('Critical asset load timed out/failed',url);
+      return loaded;
+    }catch(e){console.warn('Critical asset load failed',url,e);return null}
+  })();
+  assetPromiseCache.set(url,p);
+  const out=await p;
+  if(!out)assetPromiseCache.delete(url);
+  return out;
+}
 async function loadAsset(url){
   if(!url)return null;
   if(assetPromiseCache.has(url))return await assetPromiseCache.get(url);
@@ -2719,7 +2735,9 @@ function removeEquipmentMounts(){
   equipmentMounts={rightHand:null,leftHand:null,hip:null,backGun:null,backMelee:null,activeGrip:null};
 }
 async function hydrateRealPlayerModel(){
-  let gltf=await loadAsset(PLAYER_ASSET),playerMode=CHARACTER_KEY;
+  // The local survivor is gameplay-critical and must never wait behind PBR/prop queues.
+  // It has its own bounded same-origin lane so real body/hands hydrate promptly on mobile.
+  let gltf=await loadCriticalAsset(PLAYER_ASSET,12000),playerMode=CHARACTER_KEY;
   if(!gltf&&(CHARACTER_KEY==='realistic'||CHARACTER_KEY==='survivor')){gltf=await loadAsset(ASSETS.playerRealistic);playerMode='realistic-fallback'}
   if(!gltf)gltf=await loadAsset(ASSETS.player);
   if(!gltf||!playerRoot)return false;
