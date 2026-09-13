@@ -123,6 +123,21 @@ interior_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/Hori
 require("bGenerateRoofAccess = true" in interior_header,
         "procedural interiors must default to physical roof access")
 
+audio_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonAudioDirectorSubsystem.h")
+audio = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonAudioDirectorSubsystem.cpp")
+for token in [
+    "EHorizonSpatialCueClass", "EHorizonFootstepSurface",
+    "FHorizonSpatialCueMix", "FHorizonFootstepMix",
+    "GetSpatialCueMix", "GetFootstepMix"
+]:
+    require(token in audio_header, f"AAA audio runtime contract missing: {token}")
+for token in [
+    "MaxDistanceCm = 45000.0f", "bOccluded ? 0.78f",
+    "EHorizonFootstepSurface::Metal", "EHorizonFootstepSurface::ShallowWater",
+    "Mix.Volume *= 0.42f", "AcousticSpace == EHorizonAcousticSpace::Tunnel"
+]:
+    require(token in audio, f"AAA audio behavior missing: {token}")
+
 zombie_wall_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonZombieWallController.h")
 zombie_wall = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonZombieWallController.cpp")
 for token in ["UHorizonGameStateSubsystem", "GetZombieWallProgress01", "bHideUntilYearOneStarts"]:
