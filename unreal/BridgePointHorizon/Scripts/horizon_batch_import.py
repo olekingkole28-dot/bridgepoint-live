@@ -23,6 +23,7 @@ DESTINATIONS = {
     "hdri": "/Game/Horizon/Environment/HDRI",
     "materials": "/Game/Horizon/Materials/Imported",
     "vehicles": "/Game/Horizon/Vehicles/Imported",
+    "weapons": "/Game/Horizon/Weapons/Imported",
     "characters": "/Game/Horizon/Characters/Imported",
     "creatures": "/Game/Horizon/Creatures/Imported",
     "environment": "/Game/Horizon/Environment/Imported",
@@ -51,6 +52,8 @@ def classify(path: Path) -> str:
         return "materials"
     if any(k in low for k in ("vehicle", "car", "truck", "bus", "van")):
         return "vehicles"
+    if any(k in low for k in ("pistol", "rifle", "shotgun", "smg", "firearm", "weapon", "axe", "knife", "bat", "spear")):
+        return "weapons"
     if any(k in low for k in ("character", "human", "survivor")):
         return "characters"
     if any(k in low for k in ("creature", "monster", "infected", "zombie", "animal")):
