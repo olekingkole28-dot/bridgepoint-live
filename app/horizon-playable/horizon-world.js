@@ -295,6 +295,7 @@ let controlPrefs={
   touchLookSensitivity:.0045,
   mouseLookSensitivity:.0032,
   gamepadLookSensitivity:.032,
+  gamepadDeadzone:.14,
   invertY:false
 };
 try{
@@ -4287,7 +4288,13 @@ function setAiming(v){
 function pollGamepad(){
   const pads=navigator.getGamepads?.()||[],p=[...pads].find(Boolean);
   if(!p){gamepadMove.x=gamepadMove.y=gamepadLook.x=gamepadLook.y=0;return}
-  const dead=v=>Math.abs(v)<.14?0:v;
+  const dz=THREE.MathUtils.clamp(Number(controlPrefs.gamepadDeadzone)||.14,.05,.30);
+  const dead=v=>{
+    const a=Math.abs(v);
+    if(a<=dz)return 0;
+    const scaled=(a-dz)/(1-dz);
+    return Math.sign(v)*THREE.MathUtils.clamp(scaled,0,1);
+  };
   gamepadMove.x=dead(p.axes?.[0]||0);gamepadMove.y=-dead(p.axes?.[1]||0);
   gamepadLook.x=dead(p.axes?.[2]||0);gamepadLook.y=dead(p.axes?.[3]||0);
   const pressed=i=>Boolean(p.buttons?.[i]?.pressed),edge=i=>pressed(i)&&!gamepadPrev[i];
@@ -4338,30 +4345,35 @@ function applyControlProfileDefaults(profile){
     controlPrefs.touchLookSensitivity=.0047;
     controlPrefs.mouseLookSensitivity=.0032;
     controlPrefs.gamepadLookSensitivity=.032;
+    controlPrefs.gamepadDeadzone=.14;
   }else if(profile==='keyboardMouse'){
     controlPrefs.mouseLookSensitivity=.0031;
   }else if(profile==='gamepad'){
     controlPrefs.gamepadLookSensitivity=.030;
+    controlPrefs.gamepadDeadzone=.12;
   }
   controlPrefs.inputProfile=profile||'auto';
   persistControlPrefs();
   syncControlSettingsUi();
 }
 function syncControlSettingsUi(){
-  const cam=$('cameraModeSetting'),profile=$('inputProfileSetting'),touch=$('touchSensitivitySetting'),mouse=$('mouseSensitivitySetting'),pad=$('gamepadSensitivitySetting'),invert=$('invertYSetting');
+  const cam=$('cameraModeSetting'),profile=$('inputProfileSetting'),touch=$('touchSensitivitySetting'),mouse=$('mouseSensitivitySetting'),pad=$('gamepadSensitivitySetting'),deadzone=$('gamepadDeadzoneSetting'),invert=$('invertYSetting');
   if(cam)cam.value=CAMERA_MODES[cameraMode]||'thirdPersonClose';
   if(profile)profile.value=controlPrefs.inputProfile||'auto';
   if(touch)touch.value=String(sensitivityPercent(controlPrefs.touchLookSensitivity));
   if(mouse)mouse.value=String(sensitivityPercent(controlPrefs.mouseLookSensitivity));
   if(pad)pad.value=String(Math.round((Number(controlPrefs.gamepadLookSensitivity)||.032)*1000));
+  if(deadzone)deadzone.value=String(Math.round((Number(controlPrefs.gamepadDeadzone)||.14)*100));
   if(invert)invert.checked=Boolean(controlPrefs.invertY);
-  const tv=$('touchSensitivityValue'),mv=$('mouseSensitivityValue'),gv=$('gamepadSensitivityValue');
+  const tv=$('touchSensitivityValue'),mv=$('mouseSensitivityValue'),gv=$('gamepadSensitivityValue'),dv=$('gamepadDeadzoneValue');
   if(tv)tv.textContent=String(touch?.value||sensitivityPercent(controlPrefs.touchLookSensitivity));
   if(mv)mv.textContent=String(mouse?.value||sensitivityPercent(controlPrefs.mouseLookSensitivity));
   if(gv)gv.textContent=String(pad?.value||Math.round((Number(controlPrefs.gamepadLookSensitivity)||.032)*1000));
+  if(dv)dv.textContent=String(deadzone?.value||Math.round((Number(controlPrefs.gamepadDeadzone)||.14)*100));
 }
 function openControlSettings(){
   const panel=$('controlSettings');if(!panel)return;
+  if(document.pointerLockElement===renderer.domElement)document.exitPointerLock?.();
   syncControlSettingsUi();panel.hidden=false;
 }
 function closeControlSettings(){const panel=$('controlSettings');if(panel)panel.hidden=true}
@@ -4372,6 +4384,12 @@ function cycleCameraMode(){
   syncControlSettingsUi();
   const label=CAMERA_MODES[cameraMode]==='firstPerson'?'FIRST PERSON':CAMERA_MODES[cameraMode]==='thirdPersonFar'?'THIRD PERSON · FAR':'THIRD PERSON · CLOSE';
   showToast(label);
+}
+let mouseLookLocked=false;
+function wantsMousePointerLock(e){
+  if(e?.pointerType!=='mouse'||e.button!==0)return false;
+  const profile=controlPrefs.inputProfile||'auto';
+  return profile==='keyboardMouse'||(profile==='auto'&&!MOBILE_GPU_SAFE);
 }
 function initInput(){
   addEventListener('pointerdown',ensureAudio,{once:true});addEventListener('keydown',ensureAudio,{once:true});
@@ -4401,12 +4419,30 @@ function initInput(){
 
   let lookId=null,lastX=0,lastY=0,lookMoved=false;
   renderer.domElement.style.touchAction='none';
+
+  document.addEventListener('pointerlockchange',()=>{
+    mouseLookLocked=document.pointerLockElement===renderer.domElement;
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!mouseLookLocked)return;
+    const sens=Math.max(.0015,Math.min(.009,Number(controlPrefs.mouseLookSensitivity)||.0032));
+    const inv=controlPrefs.invertY?-1:1;
+    yaw-=Number(e.movementX||0)*sens;
+    pitch=THREE.MathUtils.clamp(pitch+Number(e.movementY||0)*sens*.66*inv,-.48,.70);
+  },{passive:true});
+
   renderer.domElement.addEventListener('pointerdown',e=>{
+    if(e.button===2){if(claimPointer(e,'look'))setAiming(true);return}
+    if(wantsMousePointerLock(e)){
+      e.preventDefault();e.stopPropagation();
+      renderer.domElement.requestPointerLock?.();
+      return;
+    }
     if(!claimPointer(e,'look'))return;
-    if(e.button===2){setAiming(true);return}
     lookId=e.pointerId;lastX=e.clientX;lastY=e.clientY;lookMoved=false;
   },{passive:false});
   renderer.domElement.addEventListener('pointermove',e=>{
+    if(mouseLookLocked&&e.pointerType==='mouse')return;
     if(e.pointerId!==lookId||pointerOwner(e.pointerId)!=='look')return;
     const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
     if(Math.hypot(dx,dy)>1.5){lookMoved=true;lastLookDragAt=performance.now()}
@@ -4527,6 +4563,10 @@ function initInput(){
   });
   $('gamepadSensitivitySetting')?.addEventListener('input',e=>{
     controlPrefs.gamepadLookSensitivity=THREE.MathUtils.clamp(Number(e.target.value||32)/1000,.012,.08);
+    persistControlPrefs();syncControlSettingsUi();
+  });
+  $('gamepadDeadzoneSetting')?.addEventListener('input',e=>{
+    controlPrefs.gamepadDeadzone=THREE.MathUtils.clamp(Number(e.target.value||14)/100,.05,.30);
     persistControlPrefs();syncControlSettingsUi();
   });
   $('invertYSetting')?.addEventListener('change',e=>{controlPrefs.invertY=Boolean(e.target.checked);persistControlPrefs();syncControlSettingsUi()});
@@ -4968,6 +5008,9 @@ async function boot(){
         touchLookSensitivity:controlPrefs.touchLookSensitivity,
         mouseLookSensitivity:controlPrefs.mouseLookSensitivity,
         gamepadLookSensitivity:controlPrefs.gamepadLookSensitivity,
+        gamepadDeadzone:controlPrefs.gamepadDeadzone,
+        pointerLockSupported:Boolean(renderer.domElement.requestPointerLock),
+        pointerLocked:mouseLookLocked,
         settingsPanel:Boolean($('controlSettings'))
       }),
       movementFacingProbe:()=>{
