@@ -20,7 +20,10 @@ public class BridgePointHorizon : ModuleRules
             "NavigationSystem",
             "OnlineSubsystem",
             "OnlineSubsystemUtils",
-            "VoiceChat"
+            "VoiceChat",
+            "HTTP",
+            "Json",
+            "JsonUtilities"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[]
