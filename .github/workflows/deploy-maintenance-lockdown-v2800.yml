@@ -2,16 +2,7 @@ name: BridgePoint Public Lockdown V2800
 # Horizon 4238 terrain-lock and CORS-safe physics release
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/deploy-maintenance-lockdown-v2800.yml'
-      - 'app/intelligence-launch/**'
-      - 'app/horizon/**'
-      - 'app/horizon-world/**'
-      - 'app/horizon-playable/**'
   workflow_dispatch:
-
 permissions:
   contents: read
   pages: write
