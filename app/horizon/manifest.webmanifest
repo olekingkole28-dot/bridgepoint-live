@@ -1,12 +1,12 @@
 {
   "name":"BridgePoint Horizon",
   "short_name":"Horizon",
-  "description":"BridgePoint Horizon founding season and home-base reservation.",
+  "description":"BridgePoint Horizon survival world: infected, factions, progression, and persistent exploration.",
   "start_url":"/app/horizon/",
   "scope":"/app/horizon/",
   "display":"standalone",
-  "background_color":"#05010b",
-  "theme_color":"#100723",
+  "background_color":"#080706",
+  "theme_color":"#2A0A05",
   "orientation":"any",
   "icons":[
     {
