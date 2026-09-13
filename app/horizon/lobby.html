@@ -16,6 +16,11 @@ body{min-height:100vh}button,a,select{font:inherit}.shell{width:min(1180px,calc(
 .hero{display:grid;grid-template-columns:1.35fr .85fr;gap:16px}.panel{border:1px solid var(--line);border-radius:22px;background:linear-gradient(160deg,rgba(17,13,12,.96),rgba(7,7,7,.96));box-shadow:0 24px 70px rgba(0,0,0,.38)}.modePane{overflow:hidden}.modeArt{height:300px;position:relative;overflow:hidden;background:#170a07}.modeArt svg{width:100%;height:100%;display:block}.modeCopy{padding:22px}.tag{display:inline-flex;padding:6px 9px;border:1px solid rgba(255,111,63,.35);border-radius:999px;color:#ff9870;font-weight:900;font-size:9px;letter-spacing:.12em}.modeCopy h1{font-size:clamp(30px,5vw,58px);line-height:.94;letter-spacing:-.055em;margin:13px 0 11px}.modeCopy p{color:#c8bbb4;line-height:1.55;font-size:14px;margin:0}.stats{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px}.stats span{padding:7px 8px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);font-size:9px;font-weight:900;letter-spacing:.07em}
 .side{padding:18px}.side h2{margin:0 0 4px;font-size:20px}.side>p{margin:0 0 15px;color:var(--muted);font-size:12px;line-height:1.45}.sectionLabel{font-size:9px;font-weight:950;letter-spacing:.13em;color:#ff8b5d;margin:16px 0 8px}.chars{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.char{border:1px solid var(--line);background:#0b0a09;border-radius:12px;padding:10px 5px;color:#bdb1aa;cursor:pointer}.char.active{border-color:#ff6232;color:#fff;background:linear-gradient(180deg,#2b110c,#100b09);box-shadow:0 0 0 1px rgba(255,85,40,.13)}.charFace{height:48px;display:grid;place-items:center;font-size:28px}.char b{display:block;font-size:8px;letter-spacing:.06em;margin-top:5px}.party{display:grid;grid-template-columns:1fr 1fr;gap:7px}.slot{border:1px solid var(--line);border-radius:11px;padding:10px;background:rgba(255,255,255,.03);min-height:54px}.slot b{display:block;font-size:10px}.slot small{color:#887c75;font-size:8px}.slot.you{border-color:rgba(255,91,44,.42);background:rgba(255,70,25,.07)}
 .profile{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.stat{padding:10px;border-radius:11px;background:rgba(255,255,255,.035);border:1px solid var(--line)}.stat b{display:block;font-size:17px}.stat small{color:#887d76;font-size:8px;letter-spacing:.06em}
+.accountBox{display:grid;gap:8px;padding:11px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.025)}
+.accountBox input{width:100%;border:1px solid var(--line);border-radius:10px;background:#090807;color:#fff;padding:10px 11px;outline:none}.accountBox input:focus{border-color:#f15b31}
+.authActions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.authBtn{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:rgba(255,255,255,.05);color:#fff;font-weight:850;cursor:pointer}.authBtn.primary{background:#b52f14;border-color:#e54b24}
+.authStatus{font-size:9px;color:#9f9189;line-height:1.4;min-height:13px}.authStatus.good{color:#7ee6aa}.authStatus.bad{color:#ff8d82}.signedInRow{display:flex;align-items:center;gap:8px}.signedInRow>div{min-width:0;flex:1}.signedInRow b,.signedInRow small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.signedInRow small{color:#8e817b;font-size:9px}
+.onlineDot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#44df8a;box-shadow:0 0 12px rgba(68,223,138,.6);margin-right:5px}.play:disabled{cursor:not-allowed;filter:grayscale(.7);opacity:.5}
 .actions{display:grid;gap:8px;margin-top:16px}.play{border:0;border-radius:13px;padding:14px 15px;color:#fff;background:linear-gradient(135deg,#ef481a,#9a1b0c);font-weight:950;letter-spacing:.08em;cursor:pointer;box-shadow:0 14px 32px rgba(167,38,13,.3)}.secondary{border:1px solid var(--line);border-radius:12px;padding:11px 13px;color:#eee;background:rgba(255,255,255,.045);font-weight:850;cursor:pointer}.notice{padding:10px 11px;border:1px solid rgba(255,123,52,.18);border-radius:11px;background:rgba(255,86,25,.05);color:#bdaba2;font-size:10px;line-height:1.45;margin-top:12px}.modeSwitcher{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}.modeSwitch{padding:8px 9px;border-radius:9px;border:1px solid var(--line);background:#0c0b0a;color:#aaa;font-size:9px;font-weight:900;cursor:pointer}.modeSwitch.active{color:#fff;border-color:#f15b31;background:#26100b}
 @media(max-width:850px){.hero{grid-template-columns:1fr}.modeArt{height:220px}.chars{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:520px){.shell{width:min(100% - 18px,1180px)}.modeCopy{padding:16px}.side{padding:14px}.chars{grid-template-columns:repeat(2,1fr)}.profile{grid-template-columns:1fr 1fr}.modeCopy h1{font-size:36px}}
@@ -51,6 +56,24 @@ body{min-height:100vh}button,a,select{font:inherit}.shell{width:min(1180px,calc(
       <h2>READY ROOM</h2>
       <p>Select your survivor, check your profile, then deploy. This lobby passes the selected mode directly into the playable runtime.</p>
 
+      <div class="sectionLabel">ACCOUNT · ONLINE</div>
+      <div class="accountBox">
+        <div id="accountSignedOut">
+          <input id="authEmail" type="email" autocomplete="email" placeholder="Email">
+          <input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="Password · 6+ characters" style="margin-top:7px">
+          <div class="authActions" style="margin-top:7px">
+            <button class="authBtn primary" id="signInBtn" type="button">SIGN IN</button>
+            <button class="authBtn" id="signUpBtn" type="button">CREATE ACCOUNT</button>
+          </div>
+        </div>
+        <div id="accountSignedIn" class="signedInRow" hidden>
+          <span class="onlineDot" aria-hidden="true"></span>
+          <div><b id="authIdentity">SIGNED IN</b><small id="onlineCount">online lobby connecting…</small></div>
+          <button class="authBtn" id="signOutBtn" type="button">SIGN OUT</button>
+        </div>
+        <div id="authStatus" class="authStatus">Sign in or create an account, then choose a mode and deploy.</div>
+      </div>
+
       <div class="sectionLabel">SURVIVOR</div>
       <div class="chars" id="characters">
         <button class="char active" data-character="survivor"><span class="charFace">🧍</span><b>SURVIVOR</b></button>
@@ -79,7 +102,12 @@ body{min-height:100vh}button,a,select{font:inherit}.shell{width:min(1180px,calc(
   </section>
 </main>
 
-<script>
+<script type="module">
+import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2/+esm';
+const SUPABASE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co';
+const SUPABASE_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+const supabase=createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+let currentUser=null,lobbyChannel=null,lobbyPeers=[];
 const MODES={
   year_one_survival:{
     name:'YEAR ONE SURVIVAL',tag:'SOLO · PERSISTENT',stats:['1 PLAYER','365 DAYS','3 LIVES','PRESEASON'],
@@ -90,13 +118,13 @@ const MODES={
   infinite_tdm:{
     name:'INFINITE TEAM DEATHMATCH',tag:'TEAM PvP',stats:['2–4 PARTY','RESPAWNS','SKILL MATCHING TARGET','VERTICAL ARENAS'],
     description:'Fast team combat across rooftops, bridges, alleys, waterfronts, interiors and other high-interest streamed Horizon cells.',
-    notice:'Browser alpha deployment enters the real TDM runtime mode. Full network party/matchmaking services continue to be built behind this lobby.',
+    notice:'Online lobby presence is live. Deployment enters the shared TDM browser-alpha session; authoritative competitive servers remain a later production hardening step.',
     art:'tdm',span:'1.4',preview:'city',party:4
   },
   outbreak_raid:{
     name:'OUTBREAK RAID',tag:'CO-OP PvE',stats:['1–4 PLAYERS','MISSIONS','ELITES + BOSSES','EXTRACTION'],
     description:'Enter a dense outbreak zone, complete multi-stage objectives, survive elite infected and boss pressure, secure rare loot and reach extraction.',
-    notice:'Browser alpha deployment enters the real Raid runtime mode. Network party/fill services continue to be built behind this lobby.',
+    notice:'Online lobby presence is live. Deployment enters the shared co-op browser-alpha session; production matchmaking/fill hardening continues behind it.',
     art:'raid',span:'1.8',preview:'city',party:4
   }
 };
@@ -124,14 +152,93 @@ function profile(){
   }catch(_){}
 }
 
+function playerLabel(p){
+  const raw=p?.display_name||p?.email||'SURVIVOR';
+  return String(raw).slice(0,28);
+}
 function renderParty(m){
   const root=document.getElementById('party');root.innerHTML='';
+  const peers=currentUser?[{id:currentUser.id,display_name:currentUser.user_metadata?.display_name,email:currentUser.email,you:true},...lobbyPeers.filter(p=>p.id!==currentUser.id)]:[];
   for(let i=0;i<m.party;i++){
-    const slot=document.createElement('div');slot.className='slot '+(i===0?'you':'');
-    slot.innerHTML=i===0?'<b>YOU</b><small>READY ROOM</small>':'<b>OPEN SLOT</b><small>party services pending</small>';
-    root.appendChild(slot);
+    const p=peers[i]||null;
+    const slot=document.createElement('div');slot.className='slot '+(p?.you?'you':'');
+    const b=document.createElement('b'),small=document.createElement('small');
+    if(p){b.textContent=p.you?'YOU · '+playerLabel(p):playerLabel(p);small.textContent=p.you?'SIGNED IN · READY':'ONLINE · READY ROOM'}
+    else{b.textContent='OPEN SLOT';small.textContent=currentUser?'waiting for player':'sign in to join'}
+    slot.append(b,small);root.appendChild(slot);
   }
 }
+
+function setAuthStatus(message,state=''){
+  const el=document.getElementById('authStatus');if(!el)return;
+  el.textContent=message;el.className='authStatus '+state;
+}
+function renderAccount(){
+  const signed=Boolean(currentUser);
+  document.getElementById('accountSignedOut').hidden=signed;
+  document.getElementById('accountSignedIn').hidden=!signed;
+  document.getElementById('playBtn').disabled=!signed;
+  if(signed){
+    document.getElementById('authIdentity').textContent=currentUser.email||'Horizon survivor';
+    setAuthStatus('Account ready. Choose a mode, survivor and deploy.','good');
+  }
+  renderParty(MODES[mode]);
+}
+function flattenPresence(state){
+  const out=[];
+  for(const arr of Object.values(state||{}))for(const p of (Array.isArray(arr)?arr:[]))if(p?.id)out.push(p);
+  const seen=new Set();return out.filter(p=>!seen.has(p.id)&&seen.add(p.id));
+}
+async function disconnectLobbyPresence(){
+  if(lobbyChannel){try{await supabase.removeChannel(lobbyChannel)}catch(_){}lobbyChannel=null}
+  lobbyPeers=[];
+}
+async function connectLobbyPresence(){
+  await disconnectLobbyPresence();
+  if(!currentUser){renderAccount();return}
+  const topic='horizon-lobby-'+mode;
+  lobbyChannel=supabase.channel(topic,{config:{presence:{key:currentUser.id}}});
+  lobbyChannel.on('presence',{event:'sync'},()=>{
+    lobbyPeers=flattenPresence(lobbyChannel.presenceState());
+    const n=lobbyPeers.length;
+    document.getElementById('onlineCount').textContent=n+' player'+(n===1?'':'s')+' online in '+MODES[mode].name;
+    renderParty(MODES[mode]);
+  });
+  lobbyChannel.subscribe(async status=>{
+    if(status==='SUBSCRIBED'){
+      await lobbyChannel.track({id:currentUser.id,email:currentUser.email||'',display_name:currentUser.user_metadata?.display_name||'',character,mode,online_at:new Date().toISOString()});
+    }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+      document.getElementById('onlineCount').textContent='online presence reconnecting…';
+    }
+  });
+}
+async function applySession(session){
+  currentUser=session?.user||null;
+  renderAccount();
+  await connectLobbyPresence();
+}
+document.getElementById('signInBtn').addEventListener('click',async()=>{
+  const email=document.getElementById('authEmail').value.trim(),password=document.getElementById('authPassword').value;
+  if(!email||password.length<6){setAuthStatus('Enter your email and a password with at least 6 characters.','bad');return}
+  setAuthStatus('Signing in…');
+  const {data,error}=await supabase.auth.signInWithPassword({email,password});
+  if(error){setAuthStatus(error.message,'bad');return}
+  await applySession(data.session);setAuthStatus('Signed in and online.','good');
+});
+document.getElementById('signUpBtn').addEventListener('click',async()=>{
+  const email=document.getElementById('authEmail').value.trim(),password=document.getElementById('authPassword').value;
+  if(!email||password.length<6){setAuthStatus('Enter your email and a password with at least 6 characters.','bad');return}
+  setAuthStatus('Creating account…');
+  const display_name=email.split('@')[0].slice(0,24);
+  const {data,error}=await supabase.auth.signUp({email,password,options:{data:{display_name},emailRedirectTo:location.origin+'/app/horizon/lobby.html?mode='+encodeURIComponent(mode)}});
+  if(error){setAuthStatus(error.message,'bad');return}
+  if(data.session){await applySession(data.session);setAuthStatus('Account created. You are signed in and online.','good')}
+  else setAuthStatus('Account created. Check your email to confirm it, then sign in.','good');
+});
+document.getElementById('signOutBtn').addEventListener('click',async()=>{
+  await disconnectLobbyPresence();await supabase.auth.signOut();currentUser=null;renderAccount();setAuthStatus('Signed out. Sign in to deploy.','');
+});
+supabase.auth.onAuthStateChange((_event,session)=>{if(session?.user?.id!==currentUser?.id)applySession(session).catch(()=>{})});
 
 async function refreshYearOne(){
   if(mode!=='year_one_survival')return;
@@ -163,13 +270,14 @@ function render(){
 
 document.getElementById('modeSwitcher').addEventListener('click',e=>{
   const b=e.target.closest('[data-mode]');if(!b||!MODES[b.dataset.mode])return;
-  mode=b.dataset.mode;render();refreshYearOne();
+  mode=b.dataset.mode;render();refreshYearOne();connectLobbyPresence().catch(()=>{});
 });
 document.getElementById('characters').addEventListener('click',e=>{
   const b=e.target.closest('[data-character]');if(!b)return;
-  character=b.dataset.character;localStorage.setItem('horizon-lobby-character',character);render();
+  character=b.dataset.character;localStorage.setItem('horizon-lobby-character',character);render();connectLobbyPresence().catch(()=>{});
 });
 document.getElementById('playBtn').addEventListener('click',()=>{
+  if(!currentUser){setAuthStatus('Sign in or create an account before deploying.','bad');document.getElementById('authEmail').focus();return}
   const m=MODES[mode];
   const u=new URL('./preview.html',location.href);
   u.searchParams.set('cell','national');
@@ -180,7 +288,7 @@ document.getElementById('playBtn').addEventListener('click',()=>{
   u.searchParams.set('preview',m.preview);
   u.searchParams.set('character',character);
   u.searchParams.set('mode',mode);
-  u.searchParams.set('build','4246');
+  u.searchParams.set('build','4247');
   location.href=u.toString();
 });
 document.getElementById('shareBtn').addEventListener('click',async()=>{
@@ -189,6 +297,7 @@ document.getElementById('shareBtn').addEventListener('click',async()=>{
 });
 
 profile();render();refreshYearOne();
+const {data:{session}}=await supabase.auth.getSession();await applySession(session);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script>
 </body>
