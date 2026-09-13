@@ -19,10 +19,14 @@ const context=await browser.newContext({
 const page=await context.newPage();
 const errors=[];
 const badResponses=[];
+const failedRequests=[];
 page.on('pageerror',e=>errors.push(String(e?.stack||e)));
 page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
 page.on('response',response=>{
-  if(response.status()>=500)badResponses.push({status:response.status(),url:response.url()});
+  if(response.status()>=400)badResponses.push({status:response.status(),url:response.url()});
+});
+page.on('requestfailed',request=>{
+  failedRequests.push({url:request.url(),failure:request.failure()?.errorText||'request failed'});
 });
 
 // Legacy direct renderer must remain healthy.
@@ -86,7 +90,7 @@ try{
     playable:window.BP_HORIZON_PLAYABLE||null,
     href:location.href
   })).catch(()=>null);
-  console.error('HORIZON_PLAYER_HYDRATION_DIAG',JSON.stringify({hydrationDiag,errors,badResponses}));
+  console.error('HORIZON_PLAYER_HYDRATION_DIAG',JSON.stringify({hydrationDiag,errors,badResponses,failedRequests}));
   throw err;
 }
 const playerHydration=await page.evaluate(()=>window.BP_HORIZON_TEST.playerHydrationProbe?.());
