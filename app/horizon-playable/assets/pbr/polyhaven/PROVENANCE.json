@@ -10,7 +10,8 @@
     "asphalt_03": "https://polyhaven.com/a/asphalt_03",
     "dirt": "https://polyhaven.com/a/dirt",
     "brick_wall_001": "https://polyhaven.com/a/brick_wall_001",
-    "concrete_wall_005": "https://polyhaven.com/a/concrete_wall_005"
+    "concrete_wall_005": "https://polyhaven.com/a/concrete_wall_005",
+    "urban_street_03": "https://polyhaven.com/a/urban_street_03"
   },
   "files": [
     {
@@ -72,6 +73,11 @@
       "path": "dirt_rough_1k.jpg",
       "bytes": 253549,
       "sha256": "eff62d5ae7bf0c46b84173bc46f07528dd164aa39f5d550c93a805b36f54b704"
+    },
+    {
+      "path": "urban_street_03_1k.hdr",
+      "bytes": 1633950,
+      "sha256": "145c1e911e763c43a28ba5800888606b79acd1830f43fe9793f24da3478b5d8b"
     }
   ]
 }
