@@ -2107,7 +2107,10 @@ async function hydrateRealPlayerModel(){
   playerVisualRoot=n.oriented;playerRoot.add(playerVisualRoot);
   const visualYaw=M2M_PLAYER_KEYS.has(CHARACTER_KEY)?0:Math.PI;
   n.model.rotation.y=visualYaw;n.model.updateMatrixWorld(true);
-  playerModelYawOffset=0;playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerVisualBaseScaleZ=Math.abs(playerVisualRoot.scale.z);playerVisualRoot.scale.z=playerVisualBaseScaleZ;
+  // Older/alternate rigs face 180 degrees opposite after import. Compensate at the
+  // gameplay root so all selectable survivors obey the same movement heading.
+  playerModelYawOffset=M2M_PLAYER_KEYS.has(CHARACTER_KEY)?0:-Math.PI;
+  playerVisualRoot.position.z-=PHYSICS_VISUAL_DROP;playerVisualBaseScaleZ=Math.abs(playerVisualRoot.scale.z);playerVisualRoot.scale.z=playerVisualBaseScaleZ;
   playerAssetLoaded=true;playerAssetMode=playerMode;
   playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);playerAction=null;
   captureCharacterWeaponTemplates(n.model);setupEquipmentMounts(n.model);refreshEquipmentVisuals();playPlayerAnimation(locomotionIntent||'idle');
@@ -4551,12 +4554,12 @@ function updatePlayer(dt){
   const firearm=isFirearm(activeWeapon);
   if(aiming&&firearm){
     // ADS is the one deliberate exception: body/weapon stay aligned with the sight.
-    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,yaw,1-Math.exp(-20*dt));
+    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,playerFacingYaw(yaw),1-Math.exp(-20*dt));
   }else if(moving||slideTime>0){
     // Outside ADS the character always faces the ACTUAL requested travel vector.
     // No weapon state is allowed to leave the survivor facing sideways/backwards.
     const targetRot=Math.atan2(move.x,move.y);
-    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-20*dt));
+    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,playerFacingYaw(targetRot),1-Math.exp(-20*dt));
   }
   if(playerStance==='prone')locomotionIntent='prone';
   else if(playerStance==='crouch')locomotionIntent=moving?'crouchWalk':'crouchIdle';
@@ -4795,9 +4798,12 @@ async function boot(){
           forward:probe(0,1),backward:probe(0,-1),left:probe(-1,0),right:probe(1,0),
           forwardStickNoise:probe(.12,.9),rightStickNoise:probe(.9,.12),
           modelYawOffset:playerModelYawOffset,
-          locomotionAlwaysFacesTravel:false,
+          locomotionAlwaysFacesTravel:true,
           aimingBackpedalAllowed:true,
           shooterAimFacesCamera:true,
+          nonAimingFirearmFacesTravel:true,
+          cameraModes:[...CAMERA_MODES],
+          pointerOwnership:true,
           maxHostileSpeed:MAX_HOSTILE_SPEED,
           playerSprintSpeed:PLAYER_MAX_SPEED
         };
@@ -4868,8 +4874,24 @@ async function boot(){
         exitInterior();return{first,second};
       },
       cameraProbe:()=>{
-        updateCamera(.5);return{blocked:cameraPointBlocked(camera.position),z:camera.position.z};
+        updateCamera(.5);return{blocked:cameraPointBlocked(camera.position),z:camera.position.z,mode:CAMERA_MODES[cameraMode],firstPersonRig:Boolean(firstPersonRig),firstPersonWeapon:Boolean(firstPersonWeapon)};
       },
+      cameraModesProbe:()=>{
+        const prior=cameraMode,out=[];
+        for(let i=0;i<CAMERA_MODES.length;i++){
+          cameraMode=i;refreshFirstPersonRig();setCameraPresentation();updateCamera(.25);
+          out.push({mode:CAMERA_MODES[i],bodyVisible:Boolean(playerVisualRoot?.visible),rigVisible:Boolean(firstPersonRig?.visible),weaponVisible:Boolean(firstPersonWeapon)});
+        }
+        cameraMode=prior;refreshFirstPersonRig();setCameraPresentation();
+        return out;
+      },
+      inputIsolationProbe:()=>({
+        pointerOwnership:true,
+        activePointers:inputPointerOwners.size,
+        canvasTouchAction:renderer.domElement.style.touchAction,
+        movePadTouchAction:$('movePad')?.style?.touchAction||'',
+        cameraModes:[...CAMERA_MODES]
+      }),
       feetProbe:()=>{
         playerRoot?.updateMatrixWorld(true);
         const box=new THREE.Box3().setFromObject(playerVisualRoot||playerRoot);
