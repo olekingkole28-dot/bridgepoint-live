@@ -3533,6 +3533,31 @@ function buildInteriorExteriorVista(entry,floorBaseZ=0){
   return{buildings:candidates.length,roads:Math.floor(roadPos.length/6)};
 }
 
+function addInteriorSlabWithHole(width,depth,z,thickness,material,hole=null,label='slab'){
+  const group=new THREE.Group();group.name=label;interiorGroup.add(group);
+  const add=(cx,cy,sx,sy)=>{
+    if(sx<=.04||sy<=.04)return;
+    const m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,thickness),material);
+    m.position.set(cx,cy,z);m.receiveShadow=true;group.add(m);
+  };
+  if(!hole){
+    add(0,0,width,depth);
+    return group;
+  }
+  const hw=Math.min(width*.42,Math.max(.68,(hole.w||1.9)/2));
+  const hd=Math.min(depth*.42,Math.max(1.1,(hole.d||4.4)/2));
+  const hx=THREE.MathUtils.clamp(Number(hole.x||0),-width/2+hw+.12,width/2-hw-.12);
+  const hy=THREE.MathUtils.clamp(Number(hole.y||0),-depth/2+hd+.12,depth/2-hd-.12);
+  const leftW=(hx-hw)-(-width/2),rightW=(width/2)-(hx+hw);
+  add(-width/2+leftW/2,0,leftW,depth);
+  add(hx+hw+rightW/2,0,rightW,depth);
+  const centerW=hw*2,bottomD=(hy-hd)-(-depth/2),topD=(depth/2)-(hy+hd);
+  add(hx,-depth/2+bottomD/2,centerW,bottomD);
+  add(hx,hy+hd+topD/2,centerW,topD);
+  group.userData.stairwellHole={x:hx,y:hy,w:hw*2,d:hd*2};
+  return group;
+}
+
 function generateInterior(entry,requestedFloor=1){
   clearInterior();
   const floors=Math.max(1,Math.floor(entry.height/3.05));
@@ -3542,9 +3567,18 @@ function generateInterior(entry,requestedFloor=1){
   const floorSeed=entry.seed+floorNumber*9973;
   const r=seeded(floorSeed),w=THREE.MathUtils.clamp(entry.width*1.15,13,25),h=THREE.MathUtils.clamp(entry.depth*1.15,11,22);
   interiorBounds={minx:-w/2+.42,maxx:w/2-.42,miny:-h/2+.42,maxy:h/2-.42};
+  const upX=w/2-1.45,upY=-h/2+1.65,downX=w/2-1.45,downY=-h/2+3.45;
+  const stairHoleW=1.95,stairHoleD=4.45;
   const floorMat=new THREE.MeshStandardMaterial({color:r()>.5?0x665647:0x5c5e57,roughness:.88});
-  const floorMesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,.18),floorMat);floorMesh.position.z=-.09;floorMesh.receiveShadow=true;interiorGroup.add(floorMesh);
-  const ceiling=new THREE.Mesh(new THREE.BoxGeometry(w,h,.12),new THREE.MeshStandardMaterial({color:0x77766f,roughness:.96,side:THREE.DoubleSide}));ceiling.position.z=2.95;interiorGroup.add(ceiling);
+  const ceilMat=new THREE.MeshStandardMaterial({color:0x77766f,roughness:.96,side:THREE.DoubleSide});
+  const floorHole=floorNumber>1?{x:downX,y:downY,w:stairHoleW,d:stairHoleD}:null;
+  const ceilingHole={x:upX,y:upY,w:stairHoleW,d:stairHoleD};
+  addInteriorSlabWithHole(w,h,-.09,.18,floorMat,floorHole,'floor-slab-F'+floorNumber);
+  addInteriorSlabWithHole(w,h,2.95,.12,ceilMat,ceilingHole,'ceiling-slab-F'+floorNumber);
+  streetLifeStats.interiorFloorHole=Boolean(floorHole);
+  streetLifeStats.interiorCeilingHole=true;
+  streetLifeStats.interiorStairwellHoleWidth=stairHoleW;
+  streetLifeStats.interiorStairwellHoleDepth=stairHoleD;
   addWindowedExteriorWall(h/2,w,entry.id+':F'+floorNumber);addWallRect(-w/2,0,.18,h);addWallRect(w/2,0,.18,h);
   addWallWithDoor('h',-h/2,-w/2,w/2,0,1.75);
   interiorExit={x:0,y:-h/2+.9};
@@ -3608,7 +3642,6 @@ function generateInterior(entry,requestedFloor=1){
     const offer=offers[caseRoll];makeWeaponWallCase(offer[0],offer[1],w/2-1.55,h/2-1.15,keyBase+'weapon-case:'+offer[0]);
   }
 
-  const upX=w/2-1.45,upY=-h/2+1.65,downX=w/2-1.45,downY=-h/2+3.45;
   activeInterior={entry,width:w,depth:h,layout,floor:floorNumber,floors,baseZ:floorBaseZ,floorHeight:INTERIOR_FLOOR_H};
   if(floorNumber<floors){
     const s=makeWalkableStairs('UP',upX,upY,1);s.floor=floorNumber+1;
@@ -5453,7 +5486,14 @@ async function boot(){
         if(interiorMode)exitInterior();
         const e=[...buildingEntries].sort((a,b)=>b.height-a.height)[0];if(!e)return null;
         enterInterior(e);
-        const first={floor:activeInterior.floor,floors:activeInterior.floors,baseZ:activeInterior.baseZ,playerZ:playerRoot.position.z};
+        const floorGroup1=interiorGroup.getObjectByName('floor-slab-F'+activeInterior.floor);
+        const ceilGroup1=interiorGroup.getObjectByName('ceiling-slab-F'+activeInterior.floor);
+        const first={
+          floor:activeInterior.floor,floors:activeInterior.floors,baseZ:activeInterior.baseZ,playerZ:playerRoot.position.z,
+          floorHole:floorGroup1?.userData?.stairwellHole||null,
+          ceilingHole:ceilGroup1?.userData?.stairwellHole||null,
+          ceilingPieces:ceilGroup1?.children?.length||0
+        };
         let stairMid=null;
         const up=interiorStairs.find(x=>x.direction>0);
         if(up){
@@ -5464,9 +5504,15 @@ async function boot(){
           stairMid={before,mid,rise:up.rise,ok:mid>before+.25};
         }
         if(activeInterior.floors>1)changeInteriorFloor(2,'stairs',1);
+        const floorGroup2=interiorGroup.getObjectByName('floor-slab-F'+activeInterior.floor);
+        const ceilGroup2=interiorGroup.getObjectByName('ceiling-slab-F'+activeInterior.floor);
         const second={
           floor:activeInterior.floor,floors:activeInterior.floors,baseZ:activeInterior.baseZ,playerZ:playerRoot.position.z,
           expectedBase:INTERIOR_FLOOR_H,stackedZ:Boolean(activeInterior.floor===1||Math.abs(activeInterior.baseZ-INTERIOR_FLOOR_H)<.01),
+          floorHole:floorGroup2?.userData?.stairwellHole||null,
+          ceilingHole:ceilGroup2?.userData?.stairwellHole||null,
+          floorPieces:floorGroup2?.children?.length||0,
+          ceilingPieces:ceilGroup2?.children?.length||0,
           links:interiorFloorLinks.length,pickups:worldPickups.filter(p=>p.active&&p.mode==='interior').length
         };
         exitInterior();return{first,stairMid,second};
