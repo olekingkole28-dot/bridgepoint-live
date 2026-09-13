@@ -2,6 +2,8 @@
 
 #include "Components/SceneComponent.h"
 #include "Components/SplineComponent.h"
+#include "Engine/GameInstance.h"
+#include "HorizonGameStateSubsystem.h"
 
 AHorizonZombieWallController::AHorizonZombieWallController()
 {
@@ -24,6 +26,26 @@ void AHorizonZombieWallController::OnConstruction(const FTransform& Transform)
 void AHorizonZombieWallController::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+
+    if (bFollowYearOneClock)
+    {
+        bool bStarted = false;
+
+        if (UGameInstance* GameInstance = GetGameInstance())
+        {
+            if (UHorizonGameStateSubsystem* GameState = GameInstance->GetSubsystem<UHorizonGameStateSubsystem>())
+            {
+                const FYearOneState State = GameState->GetYearOneState();
+                bStarted = State.bStarted;
+                WallProgress01 = GameState->GetZombieWallProgress01(FDateTime::UtcNow());
+            }
+        }
+
+        if (WallSpline)
+        {
+            WallSpline->SetVisibility(!bHideUntilYearOneStarts || bStarted, true);
+        }
+    }
 
     const float Radius = GetCurrentRadiusCm();
     if (!FMath::IsNearlyEqual(Radius, LastBuiltRadius, 25.0f))
