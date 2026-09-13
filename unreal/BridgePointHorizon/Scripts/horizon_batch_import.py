@@ -22,6 +22,14 @@ DESTINATIONS = {
     "audio": "/Game/Horizon/Audio/Imported",
     "hdri": "/Game/Horizon/Environment/HDRI",
     "materials": "/Game/Horizon/Materials/Imported",
+    "skin": "/Game/Horizon/Characters/Skin/Imported",
+    "hands": "/Game/Horizon/Characters/FirstPerson/Hands/Imported",
+    "grooms": "/Game/Horizon/Characters/Grooms/Imported",
+    "clothing": "/Game/Horizon/Characters/Clothing/Imported",
+    "decals": "/Game/Horizon/Visual/Decals/Imported",
+    "vfx": "/Game/Horizon/VFX/Imported",
+    "foliage": "/Game/Horizon/Environment/Foliage/Imported",
+    "props": "/Game/Horizon/Environment/Props/Imported",
     "vehicles": "/Game/Horizon/Vehicles/Imported",
     "weapons": "/Game/Horizon/Weapons/Imported",
     "characters": "/Game/Horizon/Characters/Imported",
@@ -48,7 +56,21 @@ def classify(path: Path) -> str:
         return "audio"
     if ext in {".hdr", ".exr"}:
         return "hdri"
-    if any(k in low for k in ("material", "texture", "surface", "concrete", "wood", "metal", "roof", "siding", "ground", "asphalt")):
+    if any(k in low for k in ("niagara", "vfx", "particle", "muzzleflash", "muzzle_flash", "smoke", "fire_fx", "blood_fx", "impact_fx", "explosion")):
+        return "vfx"
+    if any(k in low for k in ("decal", "blood_decal", "grime", "graffiti", "bullet_hole", "scorch", "stain")):
+        return "decals"
+    if any(k in low for k in ("groom", "hair", "beard", "eyebrow", "eyelash")):
+        return "grooms"
+    if any(k in low for k in ("hand", "hands", "forearm", "arms_firstperson", "first_person_arms", "fp_arms")):
+        return "hands"
+    if any(k in low for k in ("skin", "epidermis", "face_texture", "body_texture", "subsurface")):
+        return "skin"
+    if any(k in low for k in ("shirt", "jacket", "pants", "trousers", "boots", "shoes", "gloves", "helmet", "vest", "clothing", "outfit", "wardrobe")):
+        return "clothing"
+    if any(k in low for k in ("tree", "bush", "shrub", "grass", "fern", "leaf", "leaves", "foliage", "plant")):
+        return "foliage"
+    if any(k in low for k in ("material", "texture", "surface", "concrete", "wood", "metal", "roof", "siding", "ground", "asphalt", "brick", "stone", "mud", "snow")):
         return "materials"
     if any(k in low for k in ("vehicle", "car", "truck", "bus", "van")):
         return "vehicles"
@@ -58,6 +80,8 @@ def classify(path: Path) -> str:
         return "characters"
     if any(k in low for k in ("creature", "monster", "infected", "zombie", "animal")):
         return "creatures"
+    if any(k in low for k in ("prop", "debris", "barrel", "crate", "chair", "table", "bench", "trash", "furniture", "sign", "lamp", "hydrant")):
+        return "props"
     return "environment"
 
 def task_for(path: Path) -> unreal.AssetImportTask:
