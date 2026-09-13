@@ -110,3 +110,25 @@ Promotion gates for every source:
 - gameplay or visual improvement demonstrated
 - browser/client separation respected
 - smoke test passes before production promotion
+
+
+## Time-sensitive Fab acquisition watch (2026-09-12)
+
+Current Fab Limited-Time Free page shows these packs free until September 22:
+- Sharur's Normandy Village + PCG Plants
+  - Strong fit for ruined rural/village cells, broken stone structures, grass/trees/bushes and PCG vegetation.
+  - Status: CLAIM/EVALUATE ONLY until the exact selected Fab license/acquisition evidence is retained.
+- Industrial Infrastructure by Sierra Division
+  - Strong fit for factories, warehouses, transit hubs, construction sites, catwalks, ladders, railings, pipes, stairs, doors and industrial interiors.
+  - Status: CLAIM/EVALUATE ONLY until the exact selected Fab license/acquisition evidence is retained.
+- RPG - Crafting & Environment VFX by VRhinoFX
+  - Strong fit for forge/crafting effects, heat distortion and environment Niagara effects.
+  - Status: CLAIM/EVALUATE ONLY until the exact selected Fab license/acquisition evidence is retained.
+
+Do not auto-promote any limited-time pack merely because its price is temporarily zero. The acquisition/license snapshot must be preserved first, then normal performance and regression gates apply.
+
+Additional free evaluation candidates:
+- Zombie Animation Pack: Standard — 50 horror/zombie animations; evaluate retarget quality and license snapshot before use.
+- MC Sample Animation Pack — 120+ mocap animations on UE5 mannequin; evaluate against Game Animation Sample before adding duplicate animation weight.
+- TEUTHISAN Alien Predator — cinematic-quality free rigged creature; evaluate only as an original Horizon creature/boss role, not as a core infected replacement.
+- Weapon Pack 03 animated revolver — high-quality free weapon/animations; useful as a rare/period weapon candidate, not a core modern firearm replacement.
