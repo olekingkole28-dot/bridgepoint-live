@@ -1,5 +1,8 @@
 #include "HorizonInfectedDirectorSubsystem.h"
 
+#include "Engine/GameInstance.h"
+#include "HorizonAutopilotSubsystem.h"
+
 FHorizonInfectedTuning UHorizonInfectedDirectorSubsystem::GetTuning(
     int32 EventDay,
     float LocalUrbanDensity01,
@@ -26,8 +29,10 @@ FHorizonInfectedTuning UHorizonInfectedDirectorSubsystem::GetTuning(
     Tuning.HealthMultiplier = 0.78f + CoreRamp * 0.95f + LateRamp * 0.42f;
     Tuning.DamageMultiplier = 0.72f + CoreRamp * 0.82f + LateRamp * 0.36f;
     Tuning.SpeedMultiplier = 0.82f + CoreRamp * 0.34f + LateRamp * 0.18f;
+    const float PerformanceBudget = GetAdaptiveSimulationBudget01();
     Tuning.SpawnDensityMultiplier =
-        0.62f + Day01 * 0.78f + Density * 0.48f + Horde * 0.75f;
+        (0.62f + Day01 * 0.78f + Density * 0.48f + Horde * 0.75f) *
+        FMath::Lerp(0.58f, 1.08f, PerformanceBudget);
     Tuning.AggroRangeMultiplier =
         0.86f + Day01 * 0.28f + Density * 0.12f + Region * 0.08f;
 
@@ -126,4 +131,30 @@ float UHorizonInfectedDirectorSubsystem::GetCityConvergencePressure(int32 EventD
         Day01);
 
     return FMath::Clamp(LongRamp * 0.72f + FinalQuarter * 0.28f, 0.0f, 1.0f);
+}
+
+
+int32 UHorizonInfectedDirectorSubsystem::GetAdaptiveSpawnCap() const
+{
+    if (const UGameInstance* GameInstance = GetGameInstance())
+    {
+        if (UWorld* World = GameInstance->GetWorld())
+        {
+            if (const UHorizonAutopilotSubsystem* Autopilot = World->GetSubsystem<UHorizonAutopilotSubsystem>())
+            {
+                return Autopilot->GetProfile().MaxActiveInfected;
+            }
+        }
+    }
+
+    return 100;
+}
+
+float UHorizonInfectedDirectorSubsystem::GetAdaptiveSimulationBudget01() const
+{
+    const int32 Cap = GetAdaptiveSpawnCap();
+    return FMath::GetMappedRangeValueClamped(
+        FVector2D(30.0f, 175.0f),
+        FVector2D(0.0f, 1.0f),
+        static_cast<float>(Cap));
 }
