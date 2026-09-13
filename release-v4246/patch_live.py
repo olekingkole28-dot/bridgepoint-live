@@ -65,7 +65,7 @@ def patch_root():
       <a href="/app/horizon/">Open the separate BridgePoint Horizon page →</a>
     </div>
 '''
-    s=inject_once(s,"b2b-horizon-cross",cross,"  </footer>")
+    s=inject_once(s,'<div class="b2b-horizon-cross">',cross,"  </footer>")
 
     js=r'''
 <script id="bp-b2b-world-loader-v4246">
