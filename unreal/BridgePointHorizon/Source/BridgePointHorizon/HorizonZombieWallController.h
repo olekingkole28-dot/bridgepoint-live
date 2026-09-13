@@ -39,6 +39,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|YearOne", meta=(ClampMin="0.0", ClampMax="1.0"))
     float WallProgress01 = 0.0f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|YearOne")
+    bool bFollowYearOneClock = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|YearOne")
+    bool bHideUntilYearOneStarts = true;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|YearOne", meta=(ClampMin="100.0"))
     float DamageBandWidthCm = 6500.0f;
 
