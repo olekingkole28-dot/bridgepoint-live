@@ -119,6 +119,15 @@ for token in ["FHorizonWallPerimeterLoop", "PlayablePerimeterLoops", "CollapseTa
 for token in ["GetContractedLoopPoints", "IsPointInsideLoop", "DistanceToLoopBoundary", "EnsureSplineCount"]:
     require(token in zombie_wall, f"playable-perimeter wall geometry missing: {token}")
 
+challenge_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonChallengeDirectorSubsystem.h")
+challenge = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonChallengeDirectorSubsystem.cpp")
+for token in ["UHorizonChallengeSaveGame", "FHorizonChallengeRuntimeState", "FreeItemInventory"]:
+    require(token in challenge_header, f"persistent NPC challenge contract missing: {token}")
+for token in ["OfferChallenge", "AddChallengeProgress", "ClaimChallengeReward", "LoadGameFromSlot", "SaveGameToSlot"]:
+    require(token in challenge, f"NPC challenge execution missing: {token}")
+for token in ["GrantFreeSalvage", "GrantFreeUnlock"]:
+    require(token in challenge, f"free NPC reward handoff missing: {token}")
+
 
 engine_config = read("unreal/BridgePointHorizon/Config/DefaultEngine.ini")
 for token in ["/Engine/Maps/Entry", "GlobalDefaultGameMode=/Script/BridgePointHorizon.HorizonGameMode"]:
