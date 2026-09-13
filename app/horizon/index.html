@@ -26,6 +26,16 @@ form{display:grid;gap:10px;margin-top:16px}input,textarea{width:100%;background:
 .cross{margin-top:52px;text-align:center;padding:24px;border:1px solid rgba(255,255,255,.09);border-radius:20px;background:rgba(0,0,0,.28)}.cross a{color:var(--mint);font-weight:900;text-decoration:none}.langmenu{display:none;position:absolute;right:52px;top:48px;width:210px;padding:8px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:#0d071b;box-shadow:0 18px 50px rgba(0,0,0,.5)}.langmenu.show{display:block}.langmenu button{display:block;width:100%;text-align:left;border:0;background:transparent;color:#fff;padding:9px 10px;border-radius:9px;cursor:pointer}.langmenu button:hover{background:rgba(65,242,192,.08)}
 @media(max-width:800px){.shell{width:min(100% - 24px,1180px)}.hero{grid-template-columns:1fr;padding-top:38px}.hero h1{font-size:44px}.featuregrid{grid-template-columns:1fr}.btn span{display:none}.brand strong{font-size:14px}.brand small{font-size:8px}.panel{padding:18px}.langmenu{right:50px}}
 
+
+.modegrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:17px}
+.modeCard{position:relative;overflow:hidden;min-height:245px;padding:20px;border:1px solid rgba(255,92,44,.25);border-radius:20px;background:linear-gradient(160deg,rgba(34,10,8,.92),rgba(10,7,12,.92));box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.modeCard:before{content:"";position:absolute;inset:auto -20% -44% 20%;height:72%;background:radial-gradient(circle,rgba(255,66,18,.22),transparent 65%);pointer-events:none}
+.modeTag{display:inline-flex;padding:6px 9px;border-radius:999px;border:1px solid rgba(255,105,52,.34);color:#ff8a58;background:rgba(255,72,20,.08);font:900 9px/1 system-ui;letter-spacing:.12em}
+.modeCard h3{font-size:21px;margin:15px 0 8px;letter-spacing:-.02em}.modeCard p{color:#c5b9b4;font-size:13px;line-height:1.5;margin:0}
+.modeStats{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}.modeStats span{font-size:9px;font-weight:900;letter-spacing:.06em;padding:7px 8px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07)}
+.modeLock{margin-top:14px;font-size:10px;color:#ffb08d}.modeCard.solo{border-color:rgba(255,75,27,.34)}.modeCard.pvp{border-color:rgba(240,53,53,.28)}.modeCard.raid{border-color:rgba(255,155,44,.30)}
+@media(max-width:860px){.modegrid{grid-template-columns:1fr}.modeCard{min-height:0}}
+
 .installAppBtn{border:1px solid rgba(255,255,255,.17);background:linear-gradient(135deg,#7654ff,rgba(255,255,255,.08));color:#fff;border-radius:12px;padding:10px 13px;font-weight:900;cursor:pointer;white-space:nowrap}
 .installAppPrompt{position:fixed;z-index:9999;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(560px,calc(100% - 24px));padding:14px;border-radius:18px;background:rgba(4,10,14,.97);border:1px solid rgba(255,255,255,.18);box-shadow:0 24px 80px rgba(0,0,0,.6);backdrop-filter:blur(18px);display:flex;gap:12px;align-items:center}
 .installAppPrompt[hidden]{display:none!important}.installAppPrompt .installIcon{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;background:rgba(255,255,255,.08);font-size:23px;flex:0 0 auto}.installAppPrompt .installCopy{min-width:0;flex:1}.installAppPrompt b{display:block;font-size:13px}.installAppPrompt small{display:block;margin-top:3px;color:#aab7bf;line-height:1.35}.installAppPrompt .installActions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.installAppPrompt button{border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:9px 11px;background:rgba(255,255,255,.06);color:#fff;font-weight:850;cursor:pointer}.installAppPrompt .primaryInstall{background:#7654ff;color:#fff;border-color:transparent}
@@ -92,8 +102,8 @@ form{display:grid;gap:10px;margin-top:16px}input,textarea{width:100%;background:
 </section>
 
 <section class="panel section">
-  <h2 data-i18n="worldTitle">50 selectable maps inside one persistent survival world</h2>
-  <p class="muted" data-i18n="worldSub">BridgePoint's real spatial substrate becomes the foundation; the game systems sit on top of it.</p>
+  <h2 data-i18n="worldTitle">One continuous U.S. survival world</h2>
+  <p class="muted" data-i18n="worldSub">Horizon streams the world continuously across U.S. states and jurisdictions; the game systems, fictional interiors, infected pressure, missions and progression live on top of that source-backed exterior geography.</p>
   <div class="featuregrid">
     <article class="feature"><div class="icon">🗺️</div><strong>Real spatial substrate</strong><p>Real-world scale, parcel geography, roads, buildings and terrain form the underlying world structure.</p></article>
     <article class="feature"><div class="icon">🌩️</div><strong>Living environment</strong><p>Weather, local time, hazards and world-state systems can change how survival plays out.</p></article>
@@ -101,6 +111,33 @@ form{display:grid;gap:10px;margin-top:16px}input,textarea{width:100%;background:
     <article class="feature"><div class="icon">🏠</div><strong>Home-base identity</strong><p>Reserve a game home base tied to the property layer without creating or implying real property rights.</p></article>
     <article class="feature"><div class="icon">🎮</div><strong>Cross-platform target</strong><p>Designed toward phone, desktop, controller input and scalable world streaming.</p></article>
     <article class="feature"><div class="icon">♾️</div><strong>Persistent survival</strong><p>Long-form PvE progression, recovery missions, seasonal objectives and large-scale cooperative events.</p></article>
+  </div>
+</section>
+
+<section class="panel section" id="game-modes">
+  <div class="kicker">THREE CORE MODES</div>
+  <h2>Choose how you survive Horizon.</h2>
+  <p class="muted">The three core modes are separate experiences inside the same Horizon ecosystem. Year One stays locked until the owner explicitly starts it.</p>
+  <div class="modegrid">
+    <article class="modeCard solo" id="mode-year-one">
+      <span class="modeTag">SOLO · PERSISTENT</span>
+      <h3>YEAR ONE SURVIVAL</h3>
+      <p>A 365-day solo survival event across the continuous U.S. world. You get exactly three lives. Infected pressure escalates over the year and the perimeter horde gradually drives surviving players toward major-city endgame showdowns.</p>
+      <div class="modeStats"><span>1 PLAYER</span><span>365 DAYS</span><span>3 LIVES</span><span>NO PARTY</span></div>
+      <div class="modeLock">PRESEASON NOW · owner-controlled start · testing does not consume lives</div>
+    </article>
+    <article class="modeCard pvp" id="mode-tdm">
+      <span class="modeTag">2–4 PLAYER · PvP</span>
+      <h3>INFINITE TEAM DEATHMATCH</h3>
+      <p>Fast team PvP that rotates through high-interest streamed world cells: rooftops, vertical cities, alleys, bridges, waterfronts, mountain terrain and multi-level combat spaces. Respawns stay on and matchmaking accounts for party and skill.</p>
+      <div class="modeStats"><span>2–4 PARTY</span><span>RESPAWNS</span><span>SKILL MATCHING</span><span>TEAM + PROXIMITY VOICE</span></div>
+    </article>
+    <article class="modeCard raid" id="mode-raid">
+      <span class="modeTag">1–4 PLAYER · CO-OP PvE</span>
+      <h3>OUTBREAK RAID</h3>
+      <p>Drop into a dense horror zone, complete multi-stage objectives, survive elite infected and creatures, fight a boss or siege, secure rare loot and extract. Play solo, bring friends, or fill the remaining squad slots.</p>
+      <div class="modeStats"><span>1–4 PLAYERS</span><span>MISSIONS</span><span>BOSSES</span><span>EXTRACTION</span></div>
+    </article>
   </div>
 </section>
 
