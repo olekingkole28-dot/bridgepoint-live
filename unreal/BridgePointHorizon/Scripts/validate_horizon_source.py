@@ -27,14 +27,15 @@ require("BridgePointHorizon" in module_names, "BridgePointHorizon runtime module
 for plugin in {
     "EnhancedInput", "PCG", "StateTree", "GameplayAbilities", "MassAI",
     "ChaosVehiclesPlugin", "Water", "Niagara", "Metasound", "AudioModulation",
-    "OnlineSubsystemEOS", "EOSVoiceChat", "PythonScriptPlugin"
+    "OnlineSubsystemEOS", "EOSVoiceChat", "PythonScriptPlugin", "ProceduralMeshComponent"
 }:
     require(plugin in plugin_names, f"required plugin not enabled: {plugin}")
 
 build = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/BridgePointHorizon.Build.cs")
 for dep in {
     "EnhancedInput", "GameplayTags", "GameplayAbilities", "AIModule",
-    "NavigationSystem", "OnlineSubsystem", "OnlineSubsystemUtils", "VoiceChat"
+    "NavigationSystem", "OnlineSubsystem", "OnlineSubsystemUtils", "VoiceChat",
+    "HTTP", "Json", "JsonUtilities", "ProceduralMeshComponent"
 }:
     require(f'"{dep}"' in build, f"missing module dependency: {dep}")
 
@@ -53,6 +54,7 @@ required_source = [
     "HorizonLoadoutSubsystem",
     "HorizonWorldStreamSubsystem",
     "HorizonWorldCellRenderer",
+    "HorizonWorldRuntime",
 ]
 for stem in required_source:
     h = f"unreal/BridgePointHorizon/Source/BridgePointHorizon/{stem}.h"
@@ -76,8 +78,15 @@ for token in ["bridgepoint-horizon-stream-v3020", "state=%s&lat=%.8f&lon=%.8f", 
     require(token in streaming, f"world stream contract missing: {token}")
 
 renderer = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldCellRenderer.cpp")
-for token in ["BuildTerrain", "BuildTransport", "BuildBuildings", "TriangulateSimplePolygon"]:
+for token in [
+    "BuildTerrain", "BuildTransport", "BuildWater", "BuildBuildings",
+    "TriangulateSimplePolygon", "BuildingPartMaterial", "WaterMaterial"
+]:
     require(token in renderer, f"streamed UE renderer feature missing: {token}")
+
+runtime = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldRuntime.cpp")
+for token in ["RequestWorldCell", "RenderCellJson", "TravelToCell"]:
+    require(token in runtime, f"end-to-end world runtime feature missing: {token}")
 
 interior = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGeneratedInterior.cpp")
 for token in ["AddStairRun", "AddDoor", "AddWindowBayX", "ToggleNearestDoor"]:
