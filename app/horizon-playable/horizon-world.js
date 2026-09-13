@@ -296,6 +296,7 @@ let controlPrefs={
   mouseLookSensitivity:.0032,
   gamepadLookSensitivity:.032,
   gamepadDeadzone:.14,
+  gamepadLayout:'standard',
   invertY:false
 };
 try{
@@ -4287,7 +4288,7 @@ function setAiming(v){
 }
 function pollGamepad(){
   const pads=navigator.getGamepads?.()||[],p=[...pads].find(Boolean);
-  if(!p){gamepadMove.x=gamepadMove.y=gamepadLook.x=gamepadLook.y=0;return}
+  if(!p){gamepadMove.x=gamepadMove.y=gamepadLook.x=gamepadLook.y=0;fireHeld=false;return}
   const dz=THREE.MathUtils.clamp(Number(controlPrefs.gamepadDeadzone)||.14,.05,.30);
   const dead=v=>{
     const a=Math.abs(v);
@@ -4295,18 +4296,46 @@ function pollGamepad(){
     const scaled=(a-dz)/(1-dz);
     return Math.sign(v)*THREE.MathUtils.clamp(scaled,0,1);
   };
-  gamepadMove.x=dead(p.axes?.[0]||0);gamepadMove.y=-dead(p.axes?.[1]||0);
-  gamepadLook.x=dead(p.axes?.[2]||0);gamepadLook.y=dead(p.axes?.[3]||0);
-  const pressed=i=>Boolean(p.buttons?.[i]?.pressed),edge=i=>pressed(i)&&!gamepadPrev[i];
+  const layout=String(controlPrefs.gamepadLayout||'standard');
+  const leftX=dead(p.axes?.[0]||0),leftY=dead(p.axes?.[1]||0),rightX=dead(p.axes?.[2]||0),rightY=dead(p.axes?.[3]||0);
+  if(layout==='southpaw'){
+    gamepadMove.x=rightX;gamepadMove.y=-rightY;
+    gamepadLook.x=leftX;gamepadLook.y=leftY;
+  }else{
+    gamepadMove.x=leftX;gamepadMove.y=-leftY;
+    gamepadLook.x=rightX;gamepadLook.y=rightY;
+  }
+
+  const pressed=i=>Boolean(p.buttons?.[i]?.pressed);
+  const value=i=>Number(p.buttons?.[i]?.value||0);
+  const edge=i=>pressed(i)&&!gamepadPrev[i];
+
+  // Xbox-style standard: A jump, X contextual reload/use, Y weapon swap,
+  // LT hold aim, RT hold fire, L3 sprint. Tactical swaps B/R3 crouch/melee behavior.
   if(edge(0))playerJumpQueued=true;
-  if(edge(1))cycleStance();
-  if(edge(2))interact();
+
+  if(layout==='tactical'){
+    if(edge(11))cycleStance();
+    if(edge(1))useActiveWeapon();
+  }else{
+    if(edge(1))cycleStance();
+    if(edge(11))useActiveWeapon();
+  }
+
+  if(edge(2)){
+    if(isFirearm(activeWeapon)&&ammoState[activeWeapon]<(weaponCfg(activeWeapon).magazine_size||0))requestReload();
+    else interact();
+  }
   if(edge(3))cycleWeapon();
-  if(edge(5))useActiveWeapon();
-  fireHeld=pressed(5);
-  if(edge(9)&&isFirearm(activeWeapon))requestReload();
-  if(edge(4))setAiming(!aiming);
-  mobileSprint=pressed(10)||pressed(7);
+
+  const aimHeld=value(6)>.20||pressed(6);
+  setAiming(aimHeld);
+
+  const triggerFire=value(7)>.20||pressed(7);
+  if(triggerFire&&!fireHeld)useActiveWeapon();
+  fireHeld=triggerFire;
+
+  mobileSprint=pressed(10);
   gamepadPrev=(p.buttons||[]).map(b=>Boolean(b.pressed));
 }
 const inputPointerOwners=new Map();
@@ -4357,9 +4386,10 @@ function applyControlProfileDefaults(profile){
   syncControlSettingsUi();
 }
 function syncControlSettingsUi(){
-  const cam=$('cameraModeSetting'),profile=$('inputProfileSetting'),touch=$('touchSensitivitySetting'),mouse=$('mouseSensitivitySetting'),pad=$('gamepadSensitivitySetting'),deadzone=$('gamepadDeadzoneSetting'),invert=$('invertYSetting');
+  const cam=$('cameraModeSetting'),profile=$('inputProfileSetting'),layout=$('gamepadLayoutSetting'),touch=$('touchSensitivitySetting'),mouse=$('mouseSensitivitySetting'),pad=$('gamepadSensitivitySetting'),deadzone=$('gamepadDeadzoneSetting'),invert=$('invertYSetting');
   if(cam)cam.value=CAMERA_MODES[cameraMode]||'thirdPersonClose';
   if(profile)profile.value=controlPrefs.inputProfile||'auto';
+  if(layout)layout.value=controlPrefs.gamepadLayout||'standard';
   if(touch)touch.value=String(sensitivityPercent(controlPrefs.touchLookSensitivity));
   if(mouse)mouse.value=String(sensitivityPercent(controlPrefs.mouseLookSensitivity));
   if(pad)pad.value=String(Math.round((Number(controlPrefs.gamepadLookSensitivity)||.032)*1000));
@@ -4553,6 +4583,11 @@ function initInput(){
     if(next>=0){cameraMode=next;persistControlPrefs();refreshFirstPersonRig();setCameraPresentation();syncControlSettingsUi()}
   });
   $('inputProfileSetting')?.addEventListener('change',e=>applyControlProfileDefaults(String(e.target.value||'auto')));
+  $('gamepadLayoutSetting')?.addEventListener('change',e=>{
+    const v=String(e.target.value||'standard');
+    controlPrefs.gamepadLayout=['standard','tactical','southpaw'].includes(v)?v:'standard';
+    persistControlPrefs();syncControlSettingsUi();
+  });
   $('touchSensitivitySetting')?.addEventListener('input',e=>{
     controlPrefs.touchLookSensitivity=THREE.MathUtils.clamp(Number(e.target.value||45)/10000,.0015,.009);
     persistControlPrefs();syncControlSettingsUi();
@@ -5009,6 +5044,7 @@ async function boot(){
         mouseLookSensitivity:controlPrefs.mouseLookSensitivity,
         gamepadLookSensitivity:controlPrefs.gamepadLookSensitivity,
         gamepadDeadzone:controlPrefs.gamepadDeadzone,
+        gamepadLayout:controlPrefs.gamepadLayout,
         pointerLockSupported:Boolean(renderer.domElement.requestPointerLock),
         pointerLocked:mouseLookLocked,
         settingsPanel:Boolean($('controlSettings'))
