@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4245;
+const BUILD_VERSION=4246;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
