@@ -7,8 +7,10 @@ on:
     paths:
       - 'app/horizon-world/**'
       - 'app/horizon-playable/**'
+      - 'app/horizon/lobby.html'
       - 'scripts/browser-horizon-playable-v2980.mjs'
       - 'scripts/browser-horizon-android-safe.mjs'
+      - 'scripts/browser-horizon-lobby.mjs'
       - '.github/workflows/browser-test-horizon-playable-v2980.yml'
 
 permissions:
@@ -19,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  browser-smoke:
+  survivor-world:
     runs-on: ubuntu-latest
     timeout-minutes: 14
     steps:
@@ -39,7 +41,45 @@ jobs:
         env:
           HORIZON_TEST_BASE: http://127.0.0.1:4173
         run: node scripts/browser-horizon-playable-v2980.mjs
-      - name: Verify checked-out Android renderer and touch controls
+
+  android-joystick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser driver
+        run: npm install --no-save --no-audit --no-fund playwright-core@1.55.0
+      - name: Start checked-out Horizon static server
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/horizon-http.log 2>&1 &
+          echo $! >/tmp/horizon-http.pid
+          sleep 1
+          curl --fail --silent http://127.0.0.1:4173/app/horizon-playable/ >/dev/null
+      - name: Verify checked-out Android renderer and joystick movement
         env:
           HORIZON_TEST_BASE: http://127.0.0.1:4173
         run: node scripts/browser-horizon-android-safe.mjs
+
+  account-mode-lobby:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser driver
+        run: npm install --no-save --no-audit --no-fund playwright-core@1.55.0
+      - name: Start checked-out Horizon static server
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/horizon-http.log 2>&1 &
+          echo $! >/tmp/horizon-http.pid
+          sleep 1
+          curl --fail --silent http://127.0.0.1:4173/app/horizon/lobby.html >/dev/null
+      - name: Verify account and three-mode lobby
+        env:
+          HORIZON_TEST_BASE: http://127.0.0.1:4173
+        run: node scripts/browser-horizon-lobby.mjs
