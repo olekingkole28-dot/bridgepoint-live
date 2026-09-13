@@ -137,9 +137,14 @@ input_config = read("unreal/BridgePointHorizon/Config/DefaultInput.ini")
 for token in ['AxisName="MoveForward"', 'AxisName="MoveRight"', 'ActionName="Sprint"', 'ActionName="Crouch"', 'ActionName="Aim"']:
     require(token in input_config, f"native movement input missing: {token}")
 
+player_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonPlayerCharacter.h")
 player = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonPlayerCharacter.cpp")
 for token in ["MovementSampleRateHz", "ReportCameraSpeedMps", "TryEnableWorldGravity", "StartSprint", "StartAim"]:
     require(token in player, f"native adaptive player feature missing: {token}")
+for token in ["EquippedWeaponVisual", "EquipWeaponVisual", "WeaponHandSocketName"]:
+    require(token in player_header, f"native weapon visual contract missing: {token}")
+for token in ["AttachWeaponVisualToBestSocket", "bUseControllerRotationYaw = bControllerFacing", "FVector SafeStart = GetActorLocation()"]:
+    require(token in player, f"native player facing/spawn/weapon implementation missing: {token}")
 
 game_mode = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGameMode.cpp")
 for token in ["AHorizonPlayerCharacter::StaticClass", "AHorizonWorldRuntime::StaticClass", "ChoosePlayerStart_Implementation"]:
