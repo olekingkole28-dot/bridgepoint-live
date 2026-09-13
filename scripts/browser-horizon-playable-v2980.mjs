@@ -111,6 +111,8 @@ for(const surface of ['terrain','asphalt','brick','concrete']){
   const p=pbrSurfaces[surface];
   if(!p?.diffuse||!p?.normal||!p?.roughness)throw new Error('PBR surface maps missing for '+surface+' '+JSON.stringify(pbrSurfaces));
 }
+if(![2,4].includes(pbrSurfaces.terrainMetersPerTile))throw new Error('Terrain PBR physical scale invalid '+JSON.stringify(pbrSurfaces));
+if(Math.abs((pbrSurfaces.roadUvMetersPerTile||0)-2)>.01)throw new Error('Road asphalt PBR lacks physical UV scale '+JSON.stringify(pbrSurfaces));
 if(loadingLod?.mobile===true){
   if((loadingLod.facadeCandidatesRendered||0)>160||(loadingLod.facadeWindows||0)>2800)throw new Error('Mobile facade LOD budget regressed '+JSON.stringify(loadingLod));
   if((loadingLod.buildingPartRingsRendered||0)>180)throw new Error('Mobile building-part LOD budget regressed '+JSON.stringify(loadingLod));
