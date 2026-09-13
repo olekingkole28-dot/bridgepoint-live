@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4240;
+const BUILD_VERSION=4241;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -306,14 +306,14 @@ let ammoState={Pistol:12,Rifle:20,Shotgun:6,SMG:32};
 let reserveAmmo={Pistol:48,Rifle:100,Shotgun:30,SMG:160};
 let reloadState={active:false,weapon:null,startedAt:0,endsAt:0};
 let recoilPitch=0,recoilYaw=0,fireHeld=false;
-let playerDead=false,kills=0;
+let playerDead=false,kills=0,salvage=0;
 let audioCtx=null,audioMaster=null,lastFootstepAt=0;
 let worldPickups=[],pickupTemplates={},pickupSeq=0;
 let waveNumber=0,nextWaveAt=0,maxActiveZombies=MOBILE_GPU_SAFE?Math.min(18,ENDLESS_ACTIVE_CAP):ENDLESS_ACTIVE_CAP;
 let zombieTemplate=null,zombieTemplates=[],enemyArchetypes=[];
 let mobileMove={x:0,y:0},mobileSprint=false,mobileInputMode='pointer-fallback',nippleManager=null;
 let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),exteriorYaw=0;
-let interiorWalls=[],interiorContainers=[],interiorBounds=null,interiorExit=null,interiorFloorLinks=[],interiorStairs=[],interiorTemplates={},interiorLootedKeys=new Set();
+let interiorWalls=[],interiorContainers=[],interiorWeaponCases=[],interiorBounds=null,interiorExit=null,interiorFloorLinks=[],interiorStairs=[],interiorTemplates={},interiorLootedKeys=new Set(),weaponCasePurchases=new Set();
 let streetLifeStats={trees:0,bikes:0,vehicles:0,props:0,grass:0,benches:0,planters:0,backgroundTrees:0,shrubs:0,drivable:0};
 let drivableVehicles=[],activeVehicle=null;
 
@@ -330,6 +330,9 @@ let claimedBaseId=null,factionId='SURVIVORS',factionColor='#47e285',factionBanne
 let matchMode=['survival','skirmish','year365'].includes(String(params.get('mode')||'survival').toLowerCase())?String(params.get('mode')||'survival').toLowerCase():'survival';
 let matchRadius=Infinity,matchCenter=new THREE.Vector2(),matchRing=null;
 const MATCH_SEASON_START=Date.UTC(2026,8,12);
+const CURRENT_BATTLE_SEASON=new Date().toISOString().slice(0,7);
+const BATTLE_PASS_LEVELS=150;
+let battleSeason=CURRENT_BATTLE_SEASON;
 const MODERATION_BLOCKLIST=['slur_placeholder_disabled'];
 const cosmeticUnlocks=new Set();
 
@@ -411,7 +414,8 @@ function persistSurvivor(){
     try{
       localStorage.setItem(SAVE_KEY,JSON.stringify({
         inventory,equipment,ammoState,reserveAmmo,activeSlot,lootCount,packName,packCapacity,kills,
-        xp,battleTier,livesRemaining,claimedBaseId,factionId,factionColor,matchMode,starterFlashlightGranted,
+        xp,battleTier,battleSeason,salvage,livesRemaining,claimedBaseId,factionId,factionColor,matchMode,starterFlashlightGranted,
+        weaponCasePurchases:[...weaponCasePurchases],
         cosmeticUnlocks:[...cosmeticUnlocks]
       }));
     }catch(_){}
@@ -430,14 +434,18 @@ function restoreSurvivor(){
     if(typeof v.packName==='string')packName=v.packName;
     if(Number.isFinite(+v.packCapacity))packCapacity=Math.max(12,+v.packCapacity);
     if(Number.isFinite(+v.kills))kills=Math.max(0,+v.kills);
+    if(Number.isFinite(+v.salvage))salvage=Math.max(0,+v.salvage);
     if(Number.isFinite(+v.xp))xp=Math.max(0,+v.xp);
-    if(Number.isFinite(+v.battleTier))battleTier=Math.max(0,+v.battleTier);
+    if(Number.isFinite(+v.battleTier))battleTier=Math.min(BATTLE_PASS_LEVELS,Math.max(0,+v.battleTier));
+    if(typeof v.battleSeason==='string')battleSeason=v.battleSeason;
+    if(battleSeason!==CURRENT_BATTLE_SEASON){xp=0;battleTier=0;battleSeason=CURRENT_BATTLE_SEASON}
     if(Number.isFinite(+v.livesRemaining))livesRemaining=Math.max(0,+v.livesRemaining);
     if(typeof v.claimedBaseId==='string')claimedBaseId=v.claimedBaseId;
     if(typeof v.factionId==='string')factionId=v.factionId.slice(0,24);
     if(/^#[0-9a-f]{6}$/i.test(String(v.factionColor||'')))factionColor=v.factionColor;
     if(['survival','skirmish','year365'].includes(v.matchMode))matchMode=v.matchMode;
     if(Array.isArray(v.cosmeticUnlocks))for(const x of v.cosmeticUnlocks)cosmeticUnlocks.add(String(x));
+    if(Array.isArray(v.weaponCasePurchases))weaponCasePurchases=new Set(v.weaponCasePurchases.map(String));
     if(v.starterFlashlightGranted===true)starterFlashlightGranted=true;
     else{inventory.Flashlight=(inventory.Flashlight||0)+1;lootCount++;if(!equipment.quick3)equipment.quick3='Flashlight';starterFlashlightGranted=true}
   }catch(_){}
@@ -2537,8 +2545,8 @@ function configureMatchMode(mode=matchMode){
 function cycleMatchMode(){const modes=['survival','skirmish','year365'],i=modes.indexOf(matchMode);configureMatchMode(modes[(i+1)%modes.length]);showToast('Mode: '+matchMode)}
 function matchBlocks(x,y){return Number.isFinite(matchRadius)&&Math.hypot(x-matchCenter.x,y-matchCenter.y)>matchRadius}
 function awardXP(amount,reason='survival'){
-  xp=Math.max(0,xp+Math.max(0,Math.floor(amount)));battleTier=Math.floor(xp/500);
-  for(const [tier,item] of [[2,'ASH CAMO'],[5,'RUST WRAP'],[10,'HORIZON SKIN'],[20,'SURVIVOR EMOTE']])if(battleTier>=tier)cosmeticUnlocks.add(item);
+  xp=Math.max(0,xp+Math.max(0,Math.floor(amount)));battleTier=Math.min(BATTLE_PASS_LEVELS,Math.floor(xp/500));
+  for(const [tier,item] of [[2,'ASH CAMO'],[5,'RUST WRAP'],[10,'HORIZON SKIN'],[20,'SURVIVOR EMOTE'],[50,'NIGHTFALL WRAP'],[75,'RAIDER EMOTE'],[100,'VETERAN SURVIVOR'],[125,'BLACKOUT CHARACTER'],[140,'APEX FINISHER'],[150,'HORIZON LEGEND']])if(battleTier>=tier)cosmeticUnlocks.add(item);
   const el=$('xpStat');if(el)el.textContent=xp.toLocaleString();persistSurvivor();return{xp,battleTier,reason,unlocks:[...cosmeticUnlocks]};
 }
 function moderateChatMessage(message){
@@ -2619,6 +2627,8 @@ function updateInventory(){
   const packStat=$('packStat');if(packStat)packStat.textContent=lootCount+'/'+packCapacity;
   const killStat=$('killStat');if(killStat)killStat.textContent=String(kills);
   const xpEl=$('xpStat');if(xpEl)xpEl.textContent=xp.toLocaleString();
+  const salvageEl=$('salvageStat');if(salvageEl)salvageEl.textContent=salvage.toLocaleString();
+  const tierEl=$('tierStat');if(tierEl)tierEl.textContent=String(battleTier)+'/'+BATTLE_PASS_LEVELS;
   const livesEl=$('livesStat');if(livesEl)livesEl.textContent=String(livesRemaining);
   const modeEl=$('modeStat');if(modeEl)modeEl.textContent=matchMode==='year365'?'YEAR '+seasonDay()+'/365':matchMode.toUpperCase();
   $('lootStat').textContent=String(lootCount);
@@ -2880,7 +2890,7 @@ let doorwayPursuerKinds=[];
 function clearInterior(){
   while(interiorGroup.children.length)interiorGroup.remove(interiorGroup.children[0]);
   worldPickups=worldPickups.filter(p=>p.mode!=='interior');
-  interiorWalls=[];interiorContainers=[];interiorZombies=[];interiorFloorLinks=[];interiorStairs=[];interiorBounds=null;interiorExit=null;
+  interiorWalls=[];interiorContainers=[];interiorWeaponCases=[];interiorZombies=[];interiorFloorLinks=[];interiorStairs=[];interiorBounds=null;interiorExit=null;
 }
 function makeWalkableStairs(label,x,y,direction){
   const g=new THREE.Group(),steps=12,run=3.6,rise=2.72,mat=new THREE.MeshStandardMaterial({color:0x4b4e49,roughness:.92,metalness:.06});
@@ -2914,6 +2924,25 @@ function maybeUseWalkableStairs(){
     if(s.direction<0&&activeInterior.floor>1){changeInteriorFloor(activeInterior.floor-1,'stairs');return true}
   }
   return false;
+}
+function makeWeaponWallCase(weapon,price,x,y,key){
+  const g=new THREE.Group();
+  const frameMat=new THREE.MeshStandardMaterial({color:0x252b2b,roughness:.42,metalness:.55});
+  const glassMat=new THREE.MeshPhysicalMaterial({color:0xbcecff,roughness:.06,metalness:0,transparent:true,opacity:.22,transmission:.72,depthWrite:false});
+  const back=new THREE.Mesh(new THREE.BoxGeometry(1.55,.18,1.15),frameMat);back.position.z=1.12;g.add(back);
+  const glass=new THREE.Mesh(new THREE.BoxGeometry(1.48,.44,1.06),glassMat);glass.position.set(0,-.18,1.12);g.add(glass);
+  const glow=new THREE.PointLight(0xa9e8ff,9,4,2);glow.position.set(0,-.42,1.18);g.add(glow);
+  const spec=pickupTemplateFor(weapon);let display=null;
+  if(spec?.template){display=propCloneByLength(spec.template,spec.length*.82);if(display){display.position.set(0,-.43,1.12);display.rotation.set(0,Math.PI/2,0);g.add(display)}}
+  if(!display){display=new THREE.Mesh(new THREE.BoxGeometry(.8,.10,.18),frameMat);display.position.set(0,-.42,1.1);g.add(display)}
+  g.position.set(x,y,0);interiorGroup.add(g);
+  const c={weapon,price,x,y,key,root:g,active:!weaponCasePurchases.has(key)};interiorWeaponCases.push(c);return c;
+}
+function purchaseWeaponCase(c){
+  if(!c?.active)return false;
+  if(salvage<c.price){showToast('Need '+(c.price-salvage)+' more salvage');return false}
+  salvage-=c.price;if(!addInventoryItem(c.weapon)){salvage+=c.price;return false}
+  c.active=false;weaponCasePurchases.add(c.key);awardXP(75,'weapon case');updateInventory();showToast('Purchased '+c.weapon+' · '+salvage+' salvage left');return true;
 }
 function makeFloorPortal(label,x,y,direction){
   const g=new THREE.Group();
@@ -2997,6 +3026,11 @@ function generateInterior(entry,requestedFloor=1){
   createSearchSpot('Look behind the picture',w*.20,h/2-.85,'picture',floorSeed+79,keyBase+'picture');
   if(r()>.34)createSearchSpot('Search bathroom cabinet',w*.06,-h*.02,'medicine',floorSeed+91,keyBase+'medicine');
   if(r()>.42)createSearchSpot('Search closet',-w*.39,h*.12,'dresser',floorSeed+107,keyBase+'closet');
+  if(floorNumber===1){
+    const caseRoll=hash(entry.id+':weapon-case')%4;
+    const offers=[['Pistol',325],['SMG',750],['Rifle',950],['Shotgun',1100]];
+    const offer=offers[caseRoll];makeWeaponWallCase(offer[0],offer[1],w/2-1.55,h/2-1.15,keyBase+'weapon-case:'+offer[0]);
+  }
 
   const upX=w/2-1.45,upY=-h/2+1.65,downX=w/2-1.45,downY=-h/2+3.45;
   activeInterior={entry,width:w,depth:h,layout,floor:floorNumber,floors};
@@ -3110,6 +3144,7 @@ function findNearestInteraction(){
     if(interiorExit){const d=Math.hypot(playerRoot.position.x-interiorExit.x,playerRoot.position.y-interiorExit.y);if(d<2.05){best={kind:'exit',label:'EXIT BUILDING'};bestD=d}}
     for(const link of interiorFloorLinks){const d=Math.hypot(playerRoot.position.x-link.x,playerRoot.position.y-link.y);if(d<2.15&&d<bestD){best={kind:link.kind,label:link.label,floor:link.floor};bestD=d}}
     for(const c of interiorContainers)if(c.active){const d=Math.hypot(playerRoot.position.x-c.x,playerRoot.position.y-c.y);if(d<2.05&&d<bestD){best={kind:'loot',label:c.label,spot:c};bestD=d}}
+    for(const c of interiorWeaponCases)if(c.active){const d=Math.hypot(playerRoot.position.x-c.x,playerRoot.position.y-c.y);if(d<2.35&&d<bestD){best={kind:'weaponCase',label:'BUY '+c.weapon.toUpperCase()+' · '+c.price+' SALVAGE',caseRef:c};bestD=d}}
   }else{
     for(const e of buildingEntries){
       const d=Math.hypot(playerRoot.position.x-e.entryX,playerRoot.position.y-e.entryY);
@@ -3131,6 +3166,7 @@ function interact(){
   else if(hit.kind==='entry')enterInterior(hit.entry);
   else if(hit.kind==='exit')exitInterior();
   else if(hit.kind==='loot')searchContainer(hit.spot);
+  else if(hit.kind==='weaponCase')purchaseWeaponCase(hit.caseRef);
 }
 function maybeWalkThroughOpenDoor(){
   if(interiorMode||activeVehicle||!playerRoot)return false;
@@ -3158,7 +3194,9 @@ function dropFromZombie(z,mode){
 }
 function killZombie(z,mode){
   if(!z||z.dead)return;
-  z.dead=true;kills++;awardXP(25,'hostile');dropFromZombie(z,mode);
+  z.dead=true;kills++;
+  const earned=z.kind==='swat_armor'?55:z.kind==='helmeted'?32:z.kind==='abomination'?45:12+Math.floor(rand()*10);
+  salvage+=earned;awardXP(25,'hostile');dropFromZombie(z,mode);
   z.root.parent?.remove(z.root);
   updateInventory();updateZombieCount();
 }
