@@ -6160,6 +6160,7 @@ async function boot(){
       swing:()=>{attack();return {swingTime,equippedWeaponName}},
       exit:()=>{exitInterior();return {interiorMode}},
       state:()=>({interiorMode,entries:buildingEntries.length,containers:interiorContainers.length,lootCount,packCapacity,equippedWeaponName}),
+      playerPositionProbe:()=>playerRoot?({x:playerRoot.position.x,y:playerRoot.position.y,z:playerRoot.position.z,mobileX:mobileMove.x,mobileY:mobileMove.y,inputMode:mobileInputMode}):null,
       directionProbe:(dir)=>{
         let ix=0,iy=0;
         if(dir==='forward')iy=1;
