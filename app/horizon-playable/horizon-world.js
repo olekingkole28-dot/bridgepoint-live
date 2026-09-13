@@ -423,7 +423,7 @@ let rooftopState=null,ziplines=[],activeZipline=null;
 let sceneFetchAttempts=0,sceneFetchError=null;
 let decayPatchedMaterials=0,smartSnappedProps=0,openSpaceProps=0;
 let flashlight=null,flashlightTarget=null,flashlightOn=false,autoDayNight=true,lastAtmosphereUpdate=0,nightCityLights=[];
-let slideTime=0,leanAmount=0,leanTarget=0,lastVaultAt=0,reticleSpread=10,locomotionIntent='idle',lastGrounded=true,ambientSmoke=[];
+let slideTime=0,leanAmount=0,leanTarget=0,lastVaultAt=0,reticleSpread=10,locomotionIntent='idle',lastGrounded=true,ambientSmoke=[],ambientFires=[];
 let doorAnimations=[],doorSystemCount=0,lastDoorStreamAt=0;
 let xp=0,battleTier=0,livesRemaining=3,spectatorMode=false,spectatorIndex=0,lastSpectatorSwitch=0;
 let claimedBaseId=null,factionId='SURVIVORS',factionColor='#47e285',factionBanner=null;
@@ -1123,28 +1123,67 @@ function buildApocalypseGroundDressing(){
   return streetLifeStats.groundDetails;
 }
 
-function makeSmokeTexture(){
-  const cv=document.createElement('canvas');cv.width=cv.height=128;const x=cv.getContext('2d'),g=x.createRadialGradient(64,64,8,64,64,62);
-  g.addColorStop(0,'rgba(90,92,88,.72)');g.addColorStop(.42,'rgba(65,68,65,.46)');g.addColorStop(1,'rgba(35,38,37,0)');
-  x.fillStyle=g;x.fillRect(0,0,128,128);const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;return t;
+function makeSmokeTexture(seed=1741){
+  const cv=document.createElement('canvas');cv.width=cv.height=256;
+  const x=cv.getContext('2d'),r=seeded(seed);
+  x.clearRect(0,0,256,256);
+  // Layer many soft turbulent lobes instead of one perfect radial circle.
+  for(let i=0;i<86;i++){
+    const px=52+r()*152,py=48+r()*156,rx=14+r()*44,ry=12+r()*38;
+    const g=x.createRadialGradient(px,py,0,px,py,Math.max(rx,ry));
+    const a=.035+r()*.085;
+    g.addColorStop(0,'rgba(245,245,238,'+a+')');
+    g.addColorStop(.32,'rgba(165,168,163,'+(a*.82)+')');
+    g.addColorStop(.72,'rgba(72,77,74,'+(a*.38)+')');
+    g.addColorStop(1,'rgba(30,34,32,0)');
+    x.fillStyle=g;x.beginPath();x.ellipse(px,py,rx,ry,r()*Math.PI,0,Math.PI*2);x.fill();
+  }
+  // Break the silhouette with darker voids.
+  x.globalCompositeOperation='destination-out';
+  for(let i=0;i<20;i++){
+    const px=42+r()*172,py=42+r()*172,rad=8+r()*24,g=x.createRadialGradient(px,py,0,px,py,rad);
+    g.addColorStop(0,'rgba(0,0,0,'+(.08+r()*.15)+')');g.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=g;x.fillRect(px-rad,py-rad,rad*2,rad*2);
+  }
+  x.globalCompositeOperation='source-over';
+  const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy?.()||8,8);return t;
 }
 let smokeTexture=null;
 function spawnSmokePlumeAt(x,y,z,scale=1){
   smokeTexture=smokeTexture||makeSmokeTexture();
   const g=new THREE.Group();g.position.set(x,y,z);artGroup.add(g);
-  for(let i=0;i<5;i++){
-    const mat=new THREE.SpriteMaterial({map:smokeTexture,color:0x6d716c,transparent:true,opacity:.36-i*.035,depthWrite:false});
-    const s=new THREE.Sprite(mat);const size=(1.6+i*.8)*scale;s.scale.set(size,size,1);s.position.set((rand()-.5)*.35*scale,(rand()-.5)*.35*scale,i*.72*scale);s.userData.baseZ=s.position.z;s.userData.phase=rand()*Math.PI*2;s.userData.smokeScale=scale;g.add(s);
-    ambientSmoke.push(s);
+  const layers=MOBILE_GPU_SAFE?5:8;
+  for(let i=0;i<layers;i++){
+    const mat=new THREE.SpriteMaterial({
+      map:smokeTexture,color:i<2?0x545854:0x747874,transparent:true,
+      opacity:.23-i*.012,depthWrite:false,blending:THREE.NormalBlending
+    });
+    const puff=new THREE.Sprite(mat),size=(1.35+i*.62)*scale,phase=rand()*Math.PI*2;
+    puff.scale.set(size*(.82+rand()*.42),size*(.9+rand()*.58),1);
+    puff.position.set((rand()-.5)*.48*scale,(rand()-.5)*.48*scale,i*.52*scale);
+    puff.material.rotation=rand()*Math.PI*2;
+    puff.userData.baseX=puff.position.x;puff.userData.baseY=puff.position.y;puff.userData.baseZ=puff.position.z;
+    puff.userData.phase=phase;puff.userData.smokeScale=scale;puff.userData.baseSize=size;
+    g.add(puff);ambientSmoke.push(puff);
   }
+  streetLifeStats.smokeFxMode='layered-turbulent-alpha';
   return g;
 }
 function updateAmbientSmoke(dt,now){
-  for(const s of ambientSmoke){
-    if(!s?.parent)continue;
-    const sc=s.userData.smokeScale||1,phase=s.userData.phase||0,t=(now*.00018+phase)%1;
-    s.position.z=s.userData.baseZ+t*3.4*sc;s.position.x+=Math.sin(now*.0011+phase)*dt*.08*sc;s.position.y+=Math.cos(now*.0009+phase)*dt*.06*sc;
-    if(s.material)s.material.opacity=.34*(1-t);
+  for(const puff of ambientSmoke){
+    if(!puff?.parent)continue;
+    const sc=puff.userData.smokeScale||1,phase=puff.userData.phase||0;
+    const life=((now*.000105+phase*.127)%1+1)%1;
+    const swirl=Math.sin(now*.00072+phase)*.22*sc;
+    puff.position.x=puff.userData.baseX+swirl+Math.sin(now*.00112+phase*2.3)*.09*sc;
+    puff.position.y=puff.userData.baseY+Math.cos(now*.00083+phase)*.15*sc;
+    puff.position.z=puff.userData.baseZ+life*4.8*sc;
+    const grow=1+life*.62,base=puff.userData.baseSize||1;
+    puff.scale.set(base*grow*(.9+Math.sin(phase)*.08),base*grow*(1.02+Math.cos(phase)*.08),1);
+    if(puff.material){
+      puff.material.opacity=(.24*(1-life))*(.72+.28*Math.sin(now*.0017+phase));
+      puff.material.rotation+=dt*(.045+Math.sin(phase)*.025);
+    }
   }
 }
 function buildDenseApocalypseLayers(){
@@ -4848,18 +4887,78 @@ function scatterStreetCorpses(template,count){
   }
   return made;
 }
+let flameTexture=null;
+function makeFlameTexture(){
+  const cv=document.createElement('canvas');cv.width=cv.height=192;const x=cv.getContext('2d');
+  x.clearRect(0,0,192,192);
+  const g=x.createRadialGradient(96,126,5,96,104,82);
+  g.addColorStop(0,'rgba(255,248,180,.98)');
+  g.addColorStop(.16,'rgba(255,196,42,.98)');
+  g.addColorStop(.44,'rgba(255,78,9,.82)');
+  g.addColorStop(.74,'rgba(142,15,2,.38)');
+  g.addColorStop(1,'rgba(45,0,0,0)');
+  x.fillStyle=g;x.beginPath();
+  x.moveTo(96,12);x.bezierCurveTo(145,58,156,122,124,170);x.bezierCurveTo(106,187,77,187,58,168);x.bezierCurveTo(31,140,45,74,96,12);x.fill();
+  // Irregular transparent cuts keep the flame from reading like a simple cone/teardrop.
+  x.globalCompositeOperation='destination-out';
+  const r=seeded(91917);
+  for(let i=0;i<14;i++){
+    const px=52+r()*88,py=58+r()*94,rad=4+r()*15,cut=x.createRadialGradient(px,py,0,px,py,rad);
+    cut.addColorStop(0,'rgba(0,0,0,'+(.14+r()*.25)+')');cut.addColorStop(1,'rgba(0,0,0,0)');
+    x.fillStyle=cut;x.fillRect(px-rad,py-rad,rad*2,rad*2);
+  }
+  x.globalCompositeOperation='source-over';
+  const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;return t;
+}
 function scatterAmbientFires(count){
   if(!roadAnchors.length)return 0;let made=0,attempts=0;
-  const ember=new THREE.MeshStandardMaterial({color:0x33110b,emissive:0xff4a16,emissiveIntensity:3.2,roughness:.8,transparent:true,opacity:.92});
-  const flame=new THREE.MeshStandardMaterial({color:0xffa02c,emissive:0xff5a0b,emissiveIntensity:4.6,roughness:.55,transparent:true,opacity:.78});
+  flameTexture=flameTexture||makeFlameTexture();
+  const emberMat=new THREE.MeshStandardMaterial({
+    color:0x2a110c,emissive:0xff4b12,emissiveIntensity:2.5,roughness:.94
+  });
   while(made<count&&attempts<count*25){
-    attempts++;const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+.5+rand()*2.2,side);
+    attempts++;
+    const a=roadAnchors[Math.floor(rand()*roadAnchors.length)],side=rand()>.5?1:-1,p=roadSidePoint(a,a.width/2+.5+rand()*2.2,side);
     if(isBlockedExterior(p.x,p.y,.45))continue;
-    const g=new THREE.Group(),base=new THREE.Mesh(new THREE.CylinderGeometry(.28,.42,.18,9),ember),f1=new THREE.Mesh(new THREE.ConeGeometry(.22,.82,8),flame),f2=f1.clone();
-    base.rotation.x=Math.PI/2;base.position.z=.10;f1.rotation.x=Math.PI/2;f1.position.set(-.12,.02,.46);f2.rotation.x=Math.PI/2;f2.scale.set(.72,.72,.72);f2.position.set(.16,-.06,.34);
-    const light=new THREE.PointLight(0xff5a18,7,8,2);light.position.z=.75;g.add(base,f1,f2,light);g.position.set(p.x,p.y,p.z+.02);g.userData.fire=true;artGroup.add(g);made++;
+    const g=new THREE.Group();
+    const ember=new THREE.Mesh(new THREE.IcosahedronGeometry(.34,1),emberMat);ember.scale.set(1,.72,.38);ember.position.z=.12;g.add(ember);
+    const flameCount=MOBILE_GPU_SAFE?3:5,flames=[];
+    for(let i=0;i<flameCount;i++){
+      const mat=new THREE.SpriteMaterial({
+        map:flameTexture,color:i%2?0xff8b2c:0xffc04a,transparent:true,
+        opacity:.82-i*.07,depthWrite:false,blending:THREE.AdditiveBlending
+      });
+      const flame=new THREE.Sprite(mat),base=.68+rand()*.55;
+      flame.position.set((rand()-.5)*.34,(rand()-.5)*.28,.28+rand()*.25);
+      flame.scale.set(base*.72,base*(1.45+rand()*.5),1);
+      flame.userData.baseX=flame.position.x;flame.userData.baseY=flame.position.y;
+      flame.userData.baseScale=base;flame.userData.phase=rand()*Math.PI*2;
+      g.add(flame);flames.push(flame);
+    }
+    const light=new THREE.PointLight(0xff5b19,MOBILE_GPU_SAFE?3.8:6.5,MOBILE_GPU_SAFE?6:9,2);
+    light.position.z=.72;g.add(light);
+    g.position.set(p.x,p.y,p.z+.02);g.userData.fire=true;g.userData.flames=flames;g.userData.light=light;g.userData.phase=rand()*Math.PI*2;
+    artGroup.add(g);ambientFires.push(g);made++;
   }
+  streetLifeStats.fireFxMode='layered-alpha-embers-flicker';
   return made;
+}
+function updateAmbientFires(now){
+  for(const g of ambientFires){
+    if(!g?.parent)continue;
+    const phase=g.userData.phase||0,pulse=.78+.22*Math.sin(now*.011+phase*7)+.10*Math.sin(now*.021+phase*3);
+    if(g.userData.light)g.userData.light.intensity=(MOBILE_GPU_SAFE?3.8:6.5)*Math.max(.55,pulse);
+    for(const flame of g.userData.flames||[]){
+      const p=flame.userData.phase||0,b=flame.userData.baseScale||.8;
+      flame.position.x=flame.userData.baseX+Math.sin(now*.007+p)*.055;
+      flame.position.y=flame.userData.baseY+Math.cos(now*.0055+p)*.045;
+      const stretch=.88+.18*Math.sin(now*.014+p*4);
+      flame.scale.x=b*(.64+.10*Math.sin(now*.017+p));
+      flame.scale.y=b*(1.55*stretch);
+      flame.material.opacity=.66+.22*Math.sin(now*.019+p*5);
+      flame.material.rotation=Math.sin(now*.004+p)*.08;
+    }
+  }
 }
 function proceduralInfectedTemplate(kind='walker'){
   const root=new THREE.Group();
@@ -6026,6 +6125,14 @@ async function boot(){
         pointerLocked:mouseLookLocked,
         settingsPanel:Boolean($('controlSettings'))
       }),
+      apocalypseFxProbe:()=>({
+        smokeMode:streetLifeStats.smokeFxMode||null,
+        fireMode:streetLifeStats.fireFxMode||null,
+        smokeParticles:ambientSmoke.filter(x=>x?.parent).length,
+        fires:ambientFires.filter(x=>x?.parent).length,
+        fireSprites:ambientFires.reduce((n,g)=>n+(g.userData?.flames?.length||0),0),
+        legacyConeFlames:ambientFires.reduce((n,g)=>n+g.children.filter?.(x=>x.geometry?.type==='ConeGeometry').length||0,0)
+      }),
       pbrSurfaceProbe:()=>({
         source:streetLifeStats.pbrSource||null,
         resolution:streetLifeStats.pbrResolution||null,
@@ -6327,7 +6434,7 @@ function loop(now=performance.now()){
     const wdt=Math.min(.07,lastWorldTick?Math.max(.012,(now-lastWorldTick)/1000):dt);
     updateZombieWaves(now);updateZombies(wdt,now);animatePickups(wdt,now);updateDoors(wdt);lastWorldTick=now;
   }
-  if(now-lastSmokeTick>=(MOBILE_GPU_SAFE?80:32)){updateAmbientSmoke(Math.min(.09,(now-lastSmokeTick)/1000||dt),now);lastSmokeTick=now}
+  if(now-lastSmokeTick>=(MOBILE_GPU_SAFE?80:32)){updateAmbientSmoke(Math.min(.09,(now-lastSmokeTick)/1000||dt),now);updateAmbientFires(now);lastSmokeTick=now}
   if(spectatorMode)updateSpectator(now);else updateCamera(dt);
   updateFlashlight();updateDayNight(now);
   updateDoorStreaming(now);if(now-lastPrompt>120){updateInteractionPrompt();lastPrompt=now}
