@@ -21,6 +21,7 @@ Status terms:
 | Epic Vehicle Game | Reference · UE-only | Unreal Engine-based products only | Vehicle physics/Blueprint/audio reference |
 | Poly Haven | Promote first · engine-agnostic | CC0 | HDRIs, 8K+ PBR textures, photoreal models/props |
 | ambientCG | Promote first · engine-agnostic | CC0 | Ground, concrete, wood, metal, roofs, siding, interior PBR surfaces |
+| Quaternius Zombie Apocalypse Kit | Promote first · engine-agnostic | CC0 1.0 | Native survivor/infected evaluation plus pistol, rifle, shotgun, SMG, melee weapons, vehicles and survival props already cleared on the browser side |
 | Sonniss #GameAudioGDC 2026 | Promote first · engine-agnostic audio | Royalty-free project use; source SFX may not be redistributed standalone | Layered weapons, foley, impacts, ambience, creatures, horror sound design |
 
 ## Acquisition and promotion rules
