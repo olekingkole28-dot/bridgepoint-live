@@ -86,7 +86,8 @@ jobs:
               && grep -Fq 'Infinite Team Deathmatch' /tmp/h 2>/dev/null \
               && grep -Fq 'Outbreak Raid' /tmp/h 2>/dev/null \
               && grep -Fq 'horizon-world.js?v=4246' /tmp/p 2>/dev/null \
-              && grep -Fq 'UE5.8 NATIVE TRACK · V4246' /tmp/n 2>/dev/null \
+              && grep -Fq 'REAL NATIVE STREAM GATE' /tmp/n 2>/dev/null \
+              && grep -Fq 'bridgepoint-horizon-native-stream-v4248' /tmp/n 2>/dev/null \
               && grep -Fq 'world-v4246-dateline-guard.js?v=4246' /tmp/w 2>/dev/null \
               && grep -Fq '__bpDatelineGuardV4246' /tmp/g 2>/dev/null; then
               echo 'DIRECT_V4246_MACOS_CUSTOM_DOMAIN_LIVE'
