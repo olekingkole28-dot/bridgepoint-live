@@ -40,6 +40,20 @@ form{display:grid;gap:10px;margin-top:16px}input,textarea{width:100%;background:
 .installAppPrompt{position:fixed;z-index:9999;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(560px,calc(100% - 24px));padding:14px;border-radius:18px;background:rgba(4,10,14,.97);border:1px solid rgba(255,255,255,.18);box-shadow:0 24px 80px rgba(0,0,0,.6);backdrop-filter:blur(18px);display:flex;gap:12px;align-items:center}
 .installAppPrompt[hidden]{display:none!important}.installAppPrompt .installIcon{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;background:rgba(255,255,255,.08);font-size:23px;flex:0 0 auto}.installAppPrompt .installCopy{min-width:0;flex:1}.installAppPrompt b{display:block;font-size:13px}.installAppPrompt small{display:block;margin-top:3px;color:#aab7bf;line-height:1.35}.installAppPrompt .installActions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.installAppPrompt button{border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:9px 11px;background:rgba(255,255,255,.06);color:#fff;font-weight:850;cursor:pointer}.installAppPrompt .primaryInstall{background:#7654ff;color:#fff;border-color:transparent}
 @media(max-width:620px){.installAppPrompt{align-items:flex-start}.installAppPrompt .installActions{width:100%;justify-content:flex-start;margin-top:8px}.installAppPrompt{flex-wrap:wrap}.installAppPrompt .installCopy{width:calc(100% - 62px)}}
+
+.modeHero{margin:18px 0 22px;padding:22px;border:1px solid rgba(255,74,24,.22);border-radius:26px;background:linear-gradient(160deg,rgba(17,7,8,.93),rgba(6,7,10,.94));box-shadow:0 30px 90px rgba(0,0,0,.42)}
+.modeHeroHead{text-align:center;max-width:860px;margin:0 auto 18px}.modeHeroHead .eyebrow{color:#ff6c3d}.modeHeroHead h1{font-size:clamp(32px,5.5vw,68px);line-height:.94;margin:10px 0 12px;letter-spacing:-.055em}.modeHeroHead p{max-width:760px;margin:0 auto;color:#cbbcb6;font-size:14px;line-height:1.55}
+.modeHero .modegrid{margin-top:20px}
+.modeHero .modeCard{display:block;text-decoration:none;color:#fff;padding:0;min-height:0;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;cursor:pointer}
+.modeHero .modeCard:hover,.modeHero .modeCard:focus-visible{transform:translateY(-4px);border-color:rgba(255,110,62,.62);box-shadow:0 20px 48px rgba(0,0,0,.46),0 0 0 1px rgba(255,86,34,.14)}
+.modeArt{position:relative;height:188px;overflow:hidden;border-radius:18px 18px 0 0;background:#110807;border-bottom:1px solid rgba(255,255,255,.07)}
+.modeArt svg{width:100%;height:100%;display:block}
+.modeBody{padding:18px 18px 20px}.modeBody h3{margin:12px 0 8px}.modeBody p{min-height:98px}
+.modeLaunch{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;padding:11px 12px;border-radius:11px;background:linear-gradient(135deg,#d52d11,#8e160c);font-weight:950;font-size:11px;letter-spacing:.08em}
+.modeLaunch span:last-child{font-size:18px;line-height:1}
+.foundingHero{margin-top:20px}
+@media(max-width:860px){.modeBody p{min-height:0}.modeArt{height:164px}.modeHero{padding:14px}.modeHeroHead{text-align:left}.modeHeroHead h1{font-size:38px}}
+
 </style>
 <!-- HORIZON_INSTALL_AND_MODES_V3 -->
 </head>
@@ -56,19 +70,87 @@ form{display:grid;gap:10px;margin-top:16px}input,textarea{width:100%;background:
   </div>
 </header>
 
-<section class="hero">
+<section class="modeHero" id="game-modes">
+  <div class="modeHeroHead">
+    <span class="eyebrow">HORIZON GAME MODES</span>
+    <h1>Pick a mode. Enter the lobby. Deploy.</h1>
+    <p>No extra “continuous world” mode. These are the three Horizon experiences. Each card opens its real mode lobby, and the lobby launches the playable with that mode selected.</p>
+  </div>
+
+  <div class="modegrid">
+    <a class="modeCard solo" id="mode-year-one" data-mode="year_one_survival" href="./lobby.html?mode=year_one_survival">
+      <div class="modeArt" aria-label="Year One Survival concept scene">
+        <svg viewBox="0 0 640 360" role="img" aria-hidden="true">
+          <defs><linearGradient id="ySky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#35100d"/><stop offset=".55" stop-color="#8c2412"/><stop offset="1" stop-color="#080808"/></linearGradient><radialGradient id="yFire"><stop stop-color="#ff9a32"/><stop offset="1" stop-color="#c51b0b" stop-opacity="0"/></radialGradient></defs>
+          <rect width="640" height="360" fill="url(#ySky)"/><circle cx="495" cy="102" r="84" fill="url(#yFire)" opacity=".9"/>
+          <path d="M0 238 52 226 52 188 78 188 78 222 116 212 116 162 156 162 156 220 190 208 190 126 232 126 232 212 284 198 284 150 322 150 322 210 365 196 365 112 414 112 414 203 460 190 460 145 501 145 501 205 544 192 544 132 589 132 589 210 640 195 640 360 0 360Z" fill="#0a0a0a"/>
+          <g fill="#160707"><circle cx="66" cy="286" r="17"/><path d="M49 306 32 350h68l-17-44Z"/><circle cx="126" cy="278" r="15"/><path d="M112 296 98 350h58l-14-54Z"/><circle cx="572" cy="282" r="17"/><path d="M555 303 538 350h68l-17-47Z"/><circle cx="518" cy="292" r="14"/><path d="M505 308 493 350h52l-13-42Z"/></g>
+          <g stroke="#ff3f18" stroke-width="6" opacity=".88"><path d="M0 314 Q145 265 268 310 T640 302"/><path d="M0 330 Q165 284 300 325 T640 320" opacity=".45"/></g>
+          <g transform="translate(303 230)"><circle cx="18" cy="18" r="12" fill="#ddd4cb"/><path d="M9 31 0 78h38L29 31Z" fill="#b8ada3"/><path d="M5 46-18 68M34 46 58 64M12 77 4 113M28 77 38 113" stroke="#b8ada3" stroke-width="8" stroke-linecap="round"/><path d="M33 49 72 33" stroke="#151515" stroke-width="7"/></g>
+          <text x="22" y="38" fill="#ff9b74" font-size="17" font-weight="900" letter-spacing="3">365 DAYS · 3 LIVES</text>
+        </svg>
+      </div>
+      <div class="modeBody">
+        <span class="modeTag">SOLO · PERSISTENT</span>
+        <h3>YEAR ONE SURVIVAL</h3>
+        <p>One survivor. Three lives. A full 365-day event where infected pressure grows, regions get harder, and the outer horde closes toward major-city endgames.</p>
+        <div class="modeStats"><span>1 PLAYER</span><span>365 DAYS</span><span>3 LIVES</span><span>PRESEASON NOW</span></div>
+        <div class="modeLaunch"><span>ENTER YEAR ONE LOBBY</span><span>→</span></div>
+      </div>
+    </a>
+
+    <a class="modeCard pvp" id="mode-tdm" data-mode="infinite_tdm" href="./lobby.html?mode=infinite_tdm">
+      <div class="modeArt" aria-label="Infinite Team Deathmatch concept scene">
+        <svg viewBox="0 0 640 360" role="img" aria-hidden="true">
+          <defs><linearGradient id="tSky" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#08111a"/><stop offset=".52" stop-color="#19121a"/><stop offset="1" stop-color="#3b0907"/></linearGradient></defs>
+          <rect width="640" height="360" fill="url(#tSky)"/><path d="M0 236h122v-78h92v56h77v-102h112v116h71v-72h94v92h72v112H0Z" fill="#0a0c10"/>
+          <path d="M0 252h640" stroke="#413e43" stroke-width="6"/><path d="M308 85v190M214 180h190" stroke="#ff4a26" stroke-width="2" opacity=".6"/><circle cx="309" cy="181" r="42" fill="none" stroke="#ff4a26" stroke-width="3" opacity=".75"/>
+          <g transform="translate(152 216)" fill="#b8d7ff"><circle cx="20" cy="18" r="12"/><path d="M9 31 1 74h39L31 31Z"/><path d="M34 43 78 29" stroke="#b8d7ff" stroke-width="8"/></g>
+          <g transform="translate(430 211)" fill="#ff8a72"><circle cx="20" cy="18" r="12"/><path d="M9 31 1 74h39L31 31Z"/><path d="M7 45-37 28" stroke="#ff8a72" stroke-width="8"/></g>
+          <path d="M96 303h178M368 303h180" stroke="#59616c" stroke-width="10"/><circle cx="118" cy="303" r="6" fill="#61a5ff"/><circle cx="524" cy="303" r="6" fill="#ff4b38"/>
+          <text x="22" y="38" fill="#ff7d61" font-size="17" font-weight="900" letter-spacing="3">ROOFTOPS · TEAMS · RESPAWNS</text>
+        </svg>
+      </div>
+      <div class="modeBody">
+        <span class="modeTag">TEAM PvP</span>
+        <h3>INFINITE TEAM DEATHMATCH</h3>
+        <p>Fast PvP across rooftop-heavy cities, bridges, waterfronts, alleys and vertical interiors. Respawns stay on and the arena shifts through high-interest world cells.</p>
+        <div class="modeStats"><span>2–4 PARTY</span><span>RESPAWNS</span><span>SKILL MATCHING</span><span>TEAM VOICE TARGET</span></div>
+        <div class="modeLaunch"><span>ENTER TDM LOBBY</span><span>→</span></div>
+      </div>
+    </a>
+
+    <a class="modeCard raid" id="mode-raid" data-mode="outbreak_raid" href="./lobby.html?mode=outbreak_raid">
+      <div class="modeArt" aria-label="Outbreak Raid concept scene">
+        <svg viewBox="0 0 640 360" role="img" aria-hidden="true">
+          <defs><linearGradient id="rBg" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#130e0b"/><stop offset=".55" stop-color="#2c160d"/><stop offset="1" stop-color="#050505"/></linearGradient><radialGradient id="rGlow"><stop stop-color="#ff7c22"/><stop offset="1" stop-color="#ff2a12" stop-opacity="0"/></radialGradient></defs>
+          <rect width="640" height="360" fill="url(#rBg)"/><circle cx="498" cy="170" r="120" fill="url(#rGlow)" opacity=".5"/>
+          <path d="M0 274V92h66v182h54V66h74v208h50V112h72v162h324v86H0Z" fill="#090909"/>
+          <g transform="translate(118 229)" fill="#d7d0c7"><circle cx="18" cy="16" r="11"/><path d="M8 29 2 66h34L29 29Z"/><path d="M31 39 61 27" stroke="#d7d0c7" stroke-width="7"/></g>
+          <g transform="translate(190 238)" fill="#d7d0c7"><circle cx="16" cy="14" r="10"/><path d="M7 27 1 62h31L25 27Z"/></g>
+          <g transform="translate(450 138)" fill="#160706"><circle cx="44" cy="32" r="30"/><path d="M20 57 0 148h92L69 57Z"/></g>
+          <circle cx="478" cy="164" r="6" fill="#ff3b18"/><circle cx="510" cy="164" r="6" fill="#ff3b18"/>
+          <path d="M327 280 364 234 401 280Z" fill="#ff7926"/><path d="M364 234v-48" stroke="#ffd2a5" stroke-width="5"/><circle cx="364" cy="177" r="8" fill="#ffd2a5"/>
+          <text x="22" y="38" fill="#ffad63" font-size="17" font-weight="900" letter-spacing="3">SQUAD · OBJECTIVES · EXTRACTION</text>
+        </svg>
+      </div>
+      <div class="modeBody">
+        <span class="modeTag">CO-OP PvE</span>
+        <h3>OUTBREAK RAID</h3>
+        <p>Drop into a horror zone, complete multi-stage objectives, fight elite infected and bosses, secure rare loot and survive the extraction.</p>
+        <div class="modeStats"><span>1–4 PLAYERS</span><span>MISSIONS</span><span>BOSSES</span><span>EXTRACTION</span></div>
+        <div class="modeLaunch"><span>ENTER RAID LOBBY</span><span>→</span></div>
+      </div>
+    </a>
+  </div>
+</section>
+
+<section class="hero foundingHero">
   <div>
-    <span class="eyebrow" data-i18n="eyebrow">FOUNDING SEASON · REAL-WORLD SURVIVAL SANDBOX</span>
-    <h1 id="headline">Your real-world map becomes the survival world.</h1>
-    <p class="lead" id="subheadline">Reserve a home base, build your faction momentum, and earn founding rewards before the first access window opens.</p>
-    <div class="chips">
-      <span class="chip">📱 <span data-i18n="phone">Phone target</span></span>
-      <span class="chip">🖥️ <span data-i18n="desktop">Desktop target</span></span>
-      <span class="chip">🎮 <span data-i18n="controller">Controller input</span></span>
-      <span class="chip">🌎 <b id="worldCount">—</b> <span data-i18n="worldAnchors">property anchors</span></span>
-    </div>
-    <a class="cta" href="/app/horizon/preview.html?cell=national&state=CT&lat=41.5623&lon=-72.6506&span_km=3.4&character=survivor&build=4245" style="display:inline-flex;align-items:center;gap:9px;text-decoration:none;margin:0 0 18px;padding:13px 17px;box-shadow:0 0 34px rgba(65,242,192,.16)">🌎 ENTER THE CONTINUOUS HORIZON WORLD <span style="font-size:11px;opacity:.72">game only →</span></a>
-    <div class="panel countdown">
+    <span class="eyebrow">FOUNDING ACCESS</span>
+    <h1 id="headline">Claim your identity before you deploy.</h1>
+    <p class="lead" id="subheadline">Reserve a Horizon home base and founding identity. Your game mode is chosen above and launches through the shared lobby.</p>
+<div class="panel countdown">
       <div class="countlabel" id="countLabel">FOUNDING ACCESS OPENS</div>
       <div class="countgrid">
         <div class="countcell"><b id="days">--</b><span>DAYS</span></div>
@@ -102,45 +184,9 @@ form{display:grid;gap:10px;margin-top:16px}input,textarea{width:100%;background:
   </aside>
 </section>
 
-<section class="panel section">
-  <h2 data-i18n="worldTitle">One continuous U.S. survival world</h2>
-  <p class="muted" data-i18n="worldSub">Horizon streams the world continuously across U.S. states and jurisdictions; the game systems, fictional interiors, infected pressure, missions and progression live on top of that source-backed exterior geography.</p>
-  <div class="featuregrid">
-    <article class="feature"><div class="icon">🗺️</div><strong>Real spatial substrate</strong><p>Real-world scale, parcel geography, roads, buildings and terrain form the underlying world structure.</p></article>
-    <article class="feature"><div class="icon">🌩️</div><strong>Living environment</strong><p>Weather, local time, hazards and world-state systems can change how survival plays out.</p></article>
-    <article class="feature"><div class="icon">🛡️</div><strong>Faction territory</strong><p>Players cooperate to reclaim game territory, build strongholds and coordinate regional survival.</p></article>
-    <article class="feature"><div class="icon">🏠</div><strong>Home-base identity</strong><p>Reserve a game home base tied to the property layer without creating or implying real property rights.</p></article>
-    <article class="feature"><div class="icon">🎮</div><strong>Cross-platform target</strong><p>Designed toward phone, desktop, controller input and scalable world streaming.</p></article>
-    <article class="feature"><div class="icon">♾️</div><strong>Persistent survival</strong><p>Long-form PvE progression, recovery missions, seasonal objectives and large-scale cooperative events.</p></article>
-  </div>
-</section>
 
-<section class="panel section" id="game-modes">
-  <div class="kicker">THREE CORE MODES</div>
-  <h2>Choose how you survive Horizon.</h2>
-  <p class="muted">The three core modes are separate experiences inside the same Horizon ecosystem. Year One stays locked until the owner explicitly starts it.</p>
-  <div class="modegrid">
-    <article class="modeCard solo" id="mode-year-one">
-      <span class="modeTag">SOLO · PERSISTENT</span>
-      <h3>YEAR ONE SURVIVAL</h3>
-      <p>A 365-day solo survival event across the continuous U.S. world. You get exactly three lives. Infected pressure escalates over the year and the perimeter horde gradually drives surviving players toward major-city endgame showdowns.</p>
-      <div class="modeStats"><span>1 PLAYER</span><span>365 DAYS</span><span>3 LIVES</span><span>NO PARTY</span></div>
-      <div class="modeLock">PRESEASON NOW · owner-controlled start · testing does not consume lives</div>
-    </article>
-    <article class="modeCard pvp" id="mode-tdm">
-      <span class="modeTag">2–4 PLAYER · PvP</span>
-      <h3>INFINITE TEAM DEATHMATCH</h3>
-      <p>Fast team PvP that rotates through high-interest streamed world cells: rooftops, vertical cities, alleys, bridges, waterfronts, mountain terrain and multi-level combat spaces. Respawns stay on and matchmaking accounts for party and skill.</p>
-      <div class="modeStats"><span>2–4 PARTY</span><span>RESPAWNS</span><span>SKILL MATCHING</span><span>TEAM + PROXIMITY VOICE</span></div>
-    </article>
-    <article class="modeCard raid" id="mode-raid">
-      <span class="modeTag">1–4 PLAYER · CO-OP PvE</span>
-      <h3>OUTBREAK RAID</h3>
-      <p>Drop into a dense horror zone, complete multi-stage objectives, survive elite infected and creatures, fight a boss or siege, secure rare loot and extract. Play solo, bring friends, or fill the remaining squad slots.</p>
-      <div class="modeStats"><span>1–4 PLAYERS</span><span>MISSIONS</span><span>BOSSES</span><span>EXTRACTION</span></div>
-    </article>
-  </div>
-</section>
+
+
 
 <section class="panel mint section">
   <h2 data-i18n="rewardsTitle">Founding faction rewards</h2>
