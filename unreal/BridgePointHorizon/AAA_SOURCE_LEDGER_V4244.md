@@ -21,8 +21,18 @@ Status terms:
 | Epic Vehicle Game | Reference · UE-only | Unreal Engine-based products only | Vehicle physics/Blueprint/audio reference |
 | Poly Haven | Promote first · engine-agnostic | CC0 | HDRIs, 8K+ PBR textures, photoreal models/props |
 | ambientCG | Promote first · engine-agnostic | CC0 | Ground, concrete, wood, metal, roofs, siding, interior PBR surfaces |
-| Quaternius Zombie Apocalypse Kit | Promote first · engine-agnostic | CC0 1.0 | Native survivor/infected evaluation plus pistol, rifle, shotgun, SMG, melee weapons, vehicles and survival props already cleared on the browser side |
+| Quaternius Zombie Apocalypse Kit | Fallback only · engine-agnostic | CC0 1.0 | Browser/mobile/emergency fallback props, weapons and placeholder hostile rigs only. Never the native AAA character/creature quality target. |
 | Sonniss #GameAudioGDC 2026 | Promote first · engine-agnostic audio | Royalty-free project use; source SFX may not be redistributed standalone | Layered weapons, foley, impacts, ambience, creatures, horror sound design |
+
+## Production visual hierarchy
+
+1. **Shipping native characters/hands/faces:** MetaHuman 5.6+ / City Sample Crowd-derived high-fidelity rigs, with Horizon-authored infected materials, wounds, clothing damage and LODs.
+2. **Shipping native buildings/vehicles/environment:** City Sample, Electric Dreams, high-quality Fab free assets when their current license is compatible, plus source-backed BridgePoint geometry.
+3. **Shipping materials/lighting/props:** Poly Haven CC0 and ambientCG CC0 photoreal PBR sources first.
+4. **Shipping motion:** Epic Game Animation Sample / native motion-matching and Horizon-authored combat layers.
+5. **Quaternius / MakeHuman / older generic GLB packs:** browser/mobile/emergency fallback only. They may keep a prototype alive but must not define the native visual identity.
+6. **No production fallback cubes/capsules for characters, hands, weapons, creatures, furniture or world dressing** when a qualified high-fidelity asset lane exists.
+7. The visual target is modern AAA realism and responsiveness inspired by contemporary shooters, without copying proprietary Call of Duty, Resident Evil, World War Z or other game assets/code/UI.
 
 ## Acquisition and promotion rules
 
@@ -35,3 +45,6 @@ Status terms:
 7. Promotion requires a visual comparison, performance profile, gameplay check, and release smoke test.
 8. BridgePoint source-backed geometry remains authoritative. Purchased/free art may dress or render the game world but must not become false real-world evidence.
 9. Stripe/payment systems are unrelated to asset acquisition and remain untouched until the owner explicitly authorizes that final integration.
+10. First-person view must use dedicated high-detail arms/hands plus a first-person weapon representation. A floating world weapon with hidden body is not an acceptable production first-person view.
+11. Production-quality assets must retain physically based materials, normal/roughness/metallic/AO detail, valid LOD/Nanite strategy, and appropriate collision. Do not flatten photoreal sources into prototype single-color materials.
+12. Renderer defaults must preserve Lumen/Nanite/Virtual Shadow Maps/TSR on capable native hardware; Horizon Autopilot may scale down dynamically for constrained devices rather than lowering the production baseline globally.
