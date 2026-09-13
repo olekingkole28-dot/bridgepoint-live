@@ -1,6 +1,7 @@
 #include "HorizonPlayerCharacter.h"
 
 #include "Camera/CameraComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -9,6 +10,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "HorizonAutopilotSubsystem.h"
 #include "HorizonWorldCellRenderer.h"
+#include "ProceduralMeshComponent.h"
 
 AHorizonPlayerCharacter::AHorizonPlayerCharacter()
 {
@@ -319,14 +321,43 @@ void AHorizonPlayerCharacter::TryEnableWorldGravity(float DeltaSeconds)
 
     for (TActorIterator<AHorizonWorldCellRenderer> It(GetWorld()); It; ++It)
     {
-        if (It->HasTerrain())
+        if (!It->HasTerrain() || !It->TerrainMesh)
         {
-            FVector Location = GetActorLocation();
-            Location.Z = FMath::Max(Location.Z, 500.0f);
-            SetActorLocation(Location, false, nullptr, ETeleportType::TeleportPhysics);
-            GetCharacterMovement()->GravityScale = 1.0f;
-            bWaitingForStreamedTerrain = false;
-            return;
+            continue;
         }
+
+        // Terrain data existing is not enough: procedural collision may still be cooking.
+        // Do not enable gravity until the actual terrain component can answer a trace.
+        const FVector Location = GetActorLocation();
+        const FVector TraceStart(Location.X, Location.Y, Location.Z + 200000.0f);
+        const FVector TraceEnd(Location.X, Location.Y, Location.Z - 200000.0f);
+
+        FCollisionQueryParams Params(SCENE_QUERY_STAT(HorizonTerrainGrounding), false, this);
+        FHitResult TerrainHit;
+
+        if (!It->TerrainMesh->LineTraceComponent(TerrainHit, TraceStart, TraceEnd, Params) ||
+            !TerrainHit.bBlockingHit)
+        {
+            continue;
+        }
+
+        const float CapsuleHalfHeight = GetCapsuleComponent()
+            ? GetCapsuleComponent()->GetScaledCapsuleHalfHeight()
+            : 96.0f;
+
+        const FVector GroundedLocation =
+            TerrainHit.ImpactPoint + FVector::UpVector * (CapsuleHalfHeight + 4.0f);
+
+        SetActorLocation(
+            GroundedLocation,
+            false,
+            nullptr,
+            ETeleportType::TeleportPhysics);
+
+        UCharacterMovementComponent* Movement = GetCharacterMovement();
+        Movement->GravityScale = 1.0f;
+        Movement->SetMovementMode(MOVE_Walking);
+        bWaitingForStreamedTerrain = false;
+        return;
     }
 }
