@@ -319,6 +319,9 @@ const playerVelocity=new THREE.Vector3();
 const lastSafeGround=new THREE.Vector3();
 let lastSafeGroundAt=0,lastTerrainRescueReason='none';
 let roadAnchors=[],roadSegments=[],roadSurfaceGrid=new Map(),navNodes=[],navNodeMap=new Map(),buildingCenters=[],buildingEntries=[],zombies=[],interiorZombies=[];
+const zombieNavRouteCache=new Map();
+let zombiePathBudget=0;
+let zombieNavStats={searches:0,cacheHits:0,deferred:0,localNodeHits:0,fullNodeScans:0,cacheEvictions:0};
 let nearestInteract=null,lootCount=3;
 let inventory={Bandage:1,Water:1,Flashlight:1};
 let packName='Hidden Survivor Pack',packCapacity=24,packMesh=null;
@@ -1661,7 +1664,8 @@ function navNode(x,y,z){
 }
 function linkNav(a,b){if(!a||!b||a===b)return;a.links.add(b.id);b.links.add(a.id)}
 function buildNavGraph(roads){
-  navNodes=[];navNodeMap=new Map();
+  navNodes=[];navNodeMap=new Map();zombieNavRouteCache.clear();
+  zombieNavStats={searches:0,cacheHits:0,deferred:0,localNodeHits:0,fullNodeScans:0,cacheEvictions:0};
   for(const f of roads||[])for(const line of lineFeatures(f.geometry)){
     let prev=null;
     for(let i=1;i<line.length;i++){
@@ -1676,26 +1680,92 @@ function buildNavGraph(roads){
   }
 }
 function nearestNavNode(x,y){
+  if(!navNodes.length)return null;
+  const cx=Math.round(x/8),cy=Math.round(y/8);
   let best=null,d=Infinity;
-  for(const n of navNodes){const q=(n.x-x)*(n.x-x)+(n.y-y)*(n.y-y);if(q<d){d=q;best=n}}
+  // Most actors are already on/near the road graph. Search a small spatial
+  // neighborhood first instead of scanning every nav node on every replan.
+  for(let radius=0;radius<=4;radius++){
+    for(let dx=-radius;dx<=radius;dx++)for(let dy=-radius;dy<=radius;dy++){
+      if(radius>0&&Math.abs(dx)!==radius&&Math.abs(dy)!==radius)continue;
+      const n=navNodeMap.get((cx+dx)+':'+(cy+dy));if(!n)continue;
+      const q=(n.x-x)*(n.x-x)+(n.y-y)*(n.y-y);
+      if(q<d){d=q;best=n}
+    }
+    if(best&&d<=Math.max(72,(radius*8+5)*(radius*8+5))){
+      zombieNavStats.localNodeHits++;return best;
+    }
+  }
+  zombieNavStats.fullNodeScans++;
+  for(const n of navNodes){
+    const q=(n.x-x)*(n.x-x)+(n.y-y)*(n.y-y);
+    if(q<d){d=q;best=n}
+  }
   return best;
 }
-function findNavPath(sx,sy,tx,ty){
-  const start=nearestNavNode(sx,sy),goal=nearestNavNode(tx,ty);if(!start||!goal)return[];
+function findNavPathBetween(start,goal){
+  if(!start||!goal)return[];
   if(start===goal)return[goal];
   const open=[start.id],came=new Map(),g=new Map([[start.id,0]]),f=new Map([[start.id,Math.hypot(goal.x-start.x,goal.y-start.y)]]);
   const seen=new Set();let loops=0;
   while(open.length&&loops++<2200){
-    open.sort((a,b)=>(f.get(a)??Infinity)-(f.get(b)??Infinity));
-    const id=open.shift();if(id===goal.id)break;if(seen.has(id))continue;seen.add(id);
-    const n=navNodes[id];for(const nbId of n.links){
-      const nb=navNodes[nbId],tent=(g.get(id)??Infinity)+Math.hypot(nb.x-n.x,nb.y-n.y);
-      if(tent<(g.get(nbId)??Infinity)){came.set(nbId,id);g.set(nbId,tent);f.set(nbId,tent+Math.hypot(goal.x-nb.x,goal.y-nb.y));if(!seen.has(nbId))open.push(nbId)}
+    let bestIndex=0,bestScore=f.get(open[0])??Infinity;
+    // Finding the current minimum avoids allocating/sorting the whole open set every loop.
+    for(let i=1;i<open.length;i++){const score=f.get(open[i])??Infinity;if(score<bestScore){bestScore=score;bestIndex=i}}
+    const id=open.splice(bestIndex,1)[0];if(id===goal.id)break;if(seen.has(id))continue;seen.add(id);
+    const n=navNodes[id];if(!n)continue;
+    for(const nbId of n.links){
+      const nb=navNodes[nbId];if(!nb)continue;
+      const tent=(g.get(id)??Infinity)+Math.hypot(nb.x-n.x,nb.y-n.y);
+      if(tent<(g.get(nbId)??Infinity)){
+        came.set(nbId,id);g.set(nbId,tent);
+        f.set(nbId,tent+Math.hypot(goal.x-nb.x,goal.y-nb.y));
+        if(!seen.has(nbId)&&!open.includes(nbId))open.push(nbId);
+      }
     }
   }
   if(!came.has(goal.id))return[goal];
-  const ids=[goal.id];let cur=goal.id;while(cur!==start.id&&came.has(cur)){cur=came.get(cur);ids.push(cur)}ids.reverse();
-  return ids.slice(1).map(id=>navNodes[id]);
+  const ids=[goal.id];let cur=goal.id;
+  while(cur!==start.id&&came.has(cur)){cur=came.get(cur);ids.push(cur)}
+  ids.reverse();
+  return ids.slice(1).map(id=>navNodes[id]).filter(Boolean);
+}
+function pruneZombieRouteCache(now=performance.now()){
+  if(zombieNavRouteCache.size<320)return;
+  for(const [key,v] of zombieNavRouteCache){
+    if(now-v.at>2600){zombieNavRouteCache.delete(key);zombieNavStats.cacheEvictions++}
+  }
+  if(zombieNavRouteCache.size<=320)return;
+  const ordered=[...zombieNavRouteCache.entries()].sort((a,b)=>a[1].at-b[1].at);
+  for(let i=0;i<Math.min(96,ordered.length);i++){zombieNavRouteCache.delete(ordered[i][0]);zombieNavStats.cacheEvictions++}
+}
+function cacheZombieRoute(start,goal,path,now){
+  const full=[start,...path].filter(Boolean);
+  // Cache route suffixes so infected joining the same road corridor reuse the
+  // already-solved path toward the current player goal.
+  for(let i=0;i<full.length-1;i+=Math.max(1,Math.floor(full.length/24))){
+    const from=full[i],suffix=full.slice(i+1);
+    if(from&&suffix.length)zombieNavRouteCache.set(from.id+':'+goal.id,{at:now,path:suffix});
+  }
+  zombieNavRouteCache.set(start.id+':'+goal.id,{at:now,path});
+  pruneZombieRouteCache(now);
+}
+function findNavPathCached(sx,sy,tx,ty,now=performance.now()){
+  const start=nearestNavNode(sx,sy),goal=nearestNavNode(tx,ty);if(!start||!goal)return[];
+  const key=start.id+':'+goal.id,cached=zombieNavRouteCache.get(key);
+  if(cached&&now-cached.at<2200){
+    zombieNavStats.cacheHits++;
+    return cached.path;
+  }
+  if(zombiePathBudget<=0){zombieNavStats.deferred++;return null}
+  zombiePathBudget--;zombieNavStats.searches++;
+  const path=findNavPathBetween(start,goal);
+  cacheZombieRoute(start,goal,path,now);
+  return path;
+}
+function findNavPath(sx,sy,tx,ty){
+  const start=nearestNavNode(sx,sy),goal=nearestNavNode(tx,ty);
+  return findNavPathBetween(start,goal);
 }
 function buildRoads(){
   const roads=(data.transport||[]).filter(x=>x.kind!=='RAIL'),rails=(data.transport||[]).filter(x=>x.kind==='RAIL');
@@ -3788,7 +3858,7 @@ function spawnZombieAt(source,a,interior=false,rng=rand){
     burst:archetype.burst||1,nextBurstAt:performance.now()+900+rng()*2500,burstUntil:0,
     aggro:false,aggroRadius:archetype.aggroRadius||14,deaggroRadius:archetype.deaggroRadius||Math.max(24,(archetype.aggroRadius||14)*1.9),
     home:new THREE.Vector3(root.position.x,root.position.y,root.position.z),patrolRoute,patrolIndex:0,patrolDir:1,patrolPauseUntil:0,
-    dead:false,steer:rng()>.5?1:-1,lastTurn:0,state:'patrol',path:[],pathIndex:0,nextPathAt:0,nextAttackAt:0};
+    dead:false,steer:rng()>.5?1:-1,lastTurn:0,state:'patrol',path:[],pathIndex:0,nextPathAt:performance.now()+rng()*480,nextAttackAt:0};
   if(mixer)setEnemyAnimation(z,'walk',true);
   root.userData.zombieRef=z;
   root.traverse(o=>{o.userData.zombieRef=z});
@@ -3891,11 +3961,21 @@ function moveZombieToward(z,tx,ty,dt,interior,now){
   if(z.aggro&&rawDist>1.6){
     if(interior){
       if(now>=z.nextPathAt||!z.path?.length||z.pathIndex>=z.path.length){
-        z.path=findInteriorPath(z.root.position.x,z.root.position.y,tx,ty);z.pathIndex=0;z.nextPathAt=now+520+rand()*260;
+        if(zombiePathBudget>0){
+          zombiePathBudget--;zombieNavStats.searches++;
+          z.path=findInteriorPath(z.root.position.x,z.root.position.y,tx,ty);z.pathIndex=0;z.nextPathAt=now+620+rand()*320;
+        }else{
+          zombieNavStats.deferred++;z.nextPathAt=now+70+rand()*90;
+        }
       }
     }else if(rawDist>5.5&&navNodes.length){
       if(now>=z.nextPathAt||!z.path?.length||z.pathIndex>=z.path.length){
-        z.path=findNavPath(z.root.position.x,z.root.position.y,tx,ty);z.pathIndex=0;z.nextPathAt=now+900+rand()*500;
+        const solved=findNavPathCached(z.root.position.x,z.root.position.y,tx,ty,now);
+        if(solved){
+          z.path=solved;z.pathIndex=0;z.nextPathAt=now+1050+rand()*650;
+        }else{
+          z.nextPathAt=now+70+rand()*90;
+        }
       }
     }
     const wp=z.path?.[z.pathIndex];
@@ -3994,6 +4074,10 @@ function updateZombieWaves(now){
 }
 function updateZombies(dt,now){
   if(!playerRoot||playerDead)return;
+  // One expensive path solve per mobile world tick prevents horde AI from arriving
+  // as a single CPU spike. Cached corridor routes do not consume this budget.
+  zombiePathBudget=MOBILE_GPU_SAFE?1:3;
+  pruneZombieRouteCache(now);
   const list=interiorMode?interiorZombies:zombies;
   for(const z of list){
     if(z.dead)continue;z.mixer?.update(dt);
@@ -5270,7 +5354,11 @@ async function boot(){
       },
       navProbe:()=>({
         nodes:navNodes.length,
-        active:zombies.filter(z=>!z.dead).map(z=>({state:z.state,speed:z.speed,pathLength:z.path?.length||0}))
+        pathBudget:zombiePathBudget,
+        routeCacheSize:zombieNavRouteCache.size,
+        stats:{...zombieNavStats},
+        patrolRoutes:zombies.filter(z=>!z.dead).filter(z=>(z.patrolRoute?.length||0)>1).length,
+        active:zombies.filter(z=>!z.dead).map(z=>({state:z.state,speed:z.speed,pathLength:z.path?.length||0,patrolRoute:z.patrolRoute?.length||0,aggro:Boolean(z.aggro)}))
       }),
       driveProbe:()=>{
         const v=drivableVehicles[0];if(!v)return null;
