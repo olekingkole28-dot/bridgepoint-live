@@ -92,6 +92,12 @@ public:
     FHorizonReward GetLevelReward(int32 Level, bool bPremiumTrack) const;
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Progression")
+    void GrantFreeSalvage(int32 Amount);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Progression")
+    bool GrantFreeUnlock(const FString& RewardKey);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Progression")
     void SetPremiumPassEntitled(bool bEntitled);
 
     UFUNCTION(BlueprintPure, Category="Horizon|Progression")
