@@ -1,6 +1,23 @@
 import fs from 'node:fs';
 import { chromium } from 'playwright-core';
 
+function inspectLocalGlb(file){
+  try{
+    const b=fs.readFileSync(file);
+    if(b.toString('utf8',0,4)!=='glTF')return{ok:false,error:'not-glb'};
+    const jsonLen=b.readUInt32LE(12),jsonType=b.readUInt32LE(16);
+    if(jsonType!==0x4E4F534A)return{ok:false,error:'missing-json-chunk'};
+    const json=JSON.parse(b.toString('utf8',20,20+jsonLen).replace(/\u0000+$/,'').trim());
+    return{
+      ok:true,bytes:b.length,
+      extensionsUsed:json.extensionsUsed||[],extensionsRequired:json.extensionsRequired||[],
+      images:(json.images||[]).map(x=>({uri:x.uri||null,mimeType:x.mimeType||null})),
+      buffers:(json.buffers||[]).map(x=>({uri:x.uri||null,byteLength:x.byteLength||0})),
+      meshes:(json.meshes||[]).length,skins:(json.skins||[]).length,animations:(json.animations||[]).length
+    };
+  }catch(e){return{ok:false,error:String(e?.stack||e)}}
+}
+const localSurvivorGlb=inspectLocalGlb('app/horizon-playable/assets/characters/mesh2motion/models/male_32.glb');
 const horizonSource=fs.readFileSync('app/horizon-playable/horizon-world.js','utf8');
 const buildMatch=horizonSource.match(/const BUILD_VERSION=(\d+)/);
 if(!buildMatch)throw new Error('Could not resolve Horizon BUILD_VERSION from source');
@@ -90,7 +107,7 @@ try{
     playable:window.BP_HORIZON_PLAYABLE||null,
     href:location.href
   })).catch(()=>null);
-  console.error('HORIZON_PLAYER_HYDRATION_DIAG',JSON.stringify({hydrationDiag,errors,badResponses,failedRequests}));
+  console.error('HORIZON_PLAYER_HYDRATION_DIAG',JSON.stringify({hydrationDiag,localSurvivorGlb,errors,badResponses,failedRequests}));
   throw err;
 }
 const playerHydration=await page.evaluate(()=>window.BP_HORIZON_TEST.playerHydrationProbe?.());
