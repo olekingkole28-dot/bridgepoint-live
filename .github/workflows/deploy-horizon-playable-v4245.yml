@@ -1,14 +1,7 @@
 name: Deploy Horizon Playable V4245
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'app/horizon/**'
-      - 'app/horizon-playable/**'
-      - '.github/workflows/deploy-horizon-playable-v4245.yml'
   workflow_dispatch:
-
 permissions:
   contents: write
   pages: write
