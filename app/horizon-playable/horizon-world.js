@@ -343,6 +343,7 @@ let worldPickups=[],pickupTemplates={},pickupSeq=0;
 let waveNumber=0,nextWaveAt=0,maxActiveZombies=MOBILE_GPU_SAFE?Math.min(18,ENDLESS_ACTIVE_CAP):ENDLESS_ACTIVE_CAP;
 let zombieTemplate=null,zombieTemplates=[],enemyArchetypes=[];
 let mobileMove={x:0,y:0},mobileSprint=false,mobileInputMode='pointer-fallback',nippleManager=null;
+const INTERIOR_FLOOR_H=3.05;
 let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),exteriorYaw=0;
 let interiorWalls=[],interiorContainers=[],interiorWeaponCases=[],interiorBounds=null,interiorExit=null,interiorFloorLinks=[],interiorStairs=[],interiorTemplates={},interiorLootedKeys=new Set(),weaponCasePurchases=new Set();
 let streetLifeStats={trees:0,bikes:0,vehicles:0,props:0,grass:0,benches:0,planters:0,backgroundTrees:0,shrubs:0,drivable:0};
@@ -3253,39 +3254,51 @@ function createSearchSpot(label,x,y,type,seed,key){
 let doorwayPursuerKinds=[];
 function clearInterior(){
   while(interiorGroup.children.length)interiorGroup.remove(interiorGroup.children[0]);
+  interiorGroup.position.z=0;
   worldPickups=worldPickups.filter(p=>p.mode!=='interior');
   interiorWalls=[];interiorContainers=[];interiorWeaponCases=[];interiorZombies=[];interiorFloorLinks=[];interiorStairs=[];interiorBounds=null;interiorExit=null;
 }
 function makeWalkableStairs(label,x,y,direction){
-  const g=new THREE.Group(),steps=12,run=3.6,rise=2.72,mat=new THREE.MeshStandardMaterial({color:0x4b4e49,roughness:.92,metalness:.06});
+  const g=new THREE.Group(),steps=14,run=4.1,rise=INTERIOR_FLOOR_H,mat=new THREE.MeshStandardMaterial({color:0x4b4e49,roughness:.92,metalness:.06});
   for(let i=0;i<steps;i++){
     const t=(i+.5)/steps,step=new THREE.Mesh(new THREE.BoxGeometry(1.5,run/steps+.035,rise/steps),mat);
-    step.position.set(0,(t-.5)*run,(i+.5)*(rise/steps)/2);step.position.z=(i+.5)*(rise/steps);step.castShadow=true;step.receiveShadow=true;g.add(step);
+    step.position.set(0,(t-.5)*run,(direction>0?1:-1)*(i+.5)*(rise/steps));
+    step.castShadow=true;step.receiveShadow=true;g.add(step);
   }
   const railMat=new THREE.MeshStandardMaterial({color:0x2d302e,roughness:.6,metalness:.42});
   for(const side of [-1,1]){
-    const rail=new THREE.Mesh(new THREE.BoxGeometry(.055,run,1.0),railMat);rail.position.set(side*.79,0,1.32);g.add(rail);
+    const rail=new THREE.Mesh(new THREE.BoxGeometry(.055,run,1.0),railMat);
+    rail.position.set(side*.79,0,(direction>0?1:-1)*rise*.5+.52);g.add(rail);
   }
   g.position.set(x,y,0);g.rotation.z=direction<0?Math.PI:0;interiorGroup.add(g);
-  const s={kind:direction>0?'floorUp':'floorDown',label,x,y,run,rise,direction,floor:direction>0?(activeInterior?.floor||1)+1:(activeInterior?.floor||1)-1};
+  const s={
+    kind:direction>0?'floorUp':'floorDown',label,x,y,run,rise,direction,
+    fromFloor:activeInterior?.floor||1,
+    floor:direction>0?(activeInterior?.floor||1)+1:(activeInterior?.floor||1)-1
+  };
   interiorStairs.push(s);return s;
 }
 function interiorGroundZ(x,y){
-  let z=.015;
+  const base=Number(activeInterior?.baseZ??interiorGroup.position.z??0);
   for(const s of interiorStairs){
     const dx=x-s.x,dy=y-s.y,ly=s.direction>0?dy:-dy;
     if(Math.abs(dx)>.92||ly<-s.run/2-.25||ly>s.run/2+.25)continue;
-    const t=THREE.MathUtils.clamp((ly+s.run/2)/s.run,0,1);z=Math.max(z,t*s.rise+.015);
+    const t=THREE.MathUtils.clamp((ly+s.run/2)/s.run,0,1);
+    return base+(s.direction>0?1:-1)*t*s.rise+.015;
   }
-  return z;
+  return base+.015;
 }
 function maybeUseWalkableStairs(){
   if(!interiorMode||!activeInterior||!playerRoot)return false;
   for(const s of interiorStairs){
     const dx=playerRoot.position.x-s.x,dy=playerRoot.position.y-s.y,ly=s.direction>0?dy:-dy;
-    if(Math.abs(dx)>.88||ly<s.run/2-.22)continue;
-    if(s.direction>0&&activeInterior.floor<activeInterior.floors){changeInteriorFloor(activeInterior.floor+1,'stairs');return true}
-    if(s.direction<0&&activeInterior.floor>1){changeInteriorFloor(activeInterior.floor-1,'stairs');return true}
+    if(Math.abs(dx)>.88||ly<s.run/2-.20)continue;
+    if(s.direction>0&&activeInterior.floor<activeInterior.floors){
+      changeInteriorFloor(activeInterior.floor+1,'stairs',s.direction);return true;
+    }
+    if(s.direction<0&&activeInterior.floor>1){
+      changeInteriorFloor(activeInterior.floor-1,'stairs',s.direction);return true;
+    }
   }
   return false;
 }
@@ -3323,6 +3336,8 @@ function generateInterior(entry,requestedFloor=1){
   clearInterior();
   const floors=Math.max(1,Math.floor(entry.height/3.05));
   const floorNumber=THREE.MathUtils.clamp(Math.round(requestedFloor||1),1,floors);
+  const floorBaseZ=(floorNumber-1)*INTERIOR_FLOOR_H;
+  interiorGroup.position.z=floorBaseZ;
   const floorSeed=entry.seed+floorNumber*9973;
   const r=seeded(floorSeed),w=THREE.MathUtils.clamp(entry.width*1.15,13,25),h=THREE.MathUtils.clamp(entry.depth*1.15,11,22);
   interiorBounds={minx:-w/2+.42,maxx:w/2-.42,miny:-h/2+.42,maxy:h/2-.42};
@@ -3397,7 +3412,7 @@ function generateInterior(entry,requestedFloor=1){
   }
 
   const upX=w/2-1.45,upY=-h/2+1.65,downX=w/2-1.45,downY=-h/2+3.45;
-  activeInterior={entry,width:w,depth:h,layout,floor:floorNumber,floors};
+  activeInterior={entry,width:w,depth:h,layout,floor:floorNumber,floors,baseZ:floorBaseZ,floorHeight:INTERIOR_FLOOR_H};
   if(floorNumber<floors){
     const s=makeWalkableStairs('UP',upX,upY,1);s.floor=floorNumber+1;
   }
@@ -3408,23 +3423,26 @@ function generateInterior(entry,requestedFloor=1){
   const zCount=floorNumber>1&&r()<.44?1:0;
   for(let i=0;i<zCount;i++)spawnInteriorZombie(zombieTemplates.length?zombieTemplates[Math.floor(r()*zombieTemplates.length)]:zombieTemplate,r,w,h);
 }
-function changeInteriorFloor(nextFloor,via='interaction'){
+function changeInteriorFloor(nextFloor,via='interaction',stairDirection=0){
   if(!interiorMode||!activeInterior)return;
-  const entry=activeInterior.entry,floors=activeInterior.floors;
+  const entry=activeInterior.entry,floors=activeInterior.floors,fromFloor=activeInterior.floor;
   nextFloor=THREE.MathUtils.clamp(Math.round(nextFloor),1,floors);
-  if(nextFloor===activeInterior.floor)return;
+  if(nextFloor===fromFloor)return;
   generateInterior(entry,nextFloor);
+  const base=activeInterior.baseZ||0;
   if(via==='stairs'){
-    const arrivingFromBelow=nextFloor>1;
-    const x=activeInterior.width/2-1.45,y=-activeInterior.depth/2+(arrivingFromBelow?3.72:1.95);
-    playerRoot.position.set(x,y,.015);
-  }else playerRoot.position.set(0,-activeInterior.depth/2+2.15,.015);
+    const x=activeInterior.width/2-1.45;
+    // Arrive on the matching landing instead of teleporting back to ground level.
+    const y=-activeInterior.depth/2+(stairDirection>0?3.72:1.95);
+    playerRoot.position.set(x,y,base+.015);
+  }else{
+    playerRoot.position.set(0,-activeInterior.depth/2+2.15,base+.015);
+  }
   playerVelocity.set(0,0,0);
   $('worldTitle').textContent=activeInterior.layout+' · Floor '+activeInterior.floor+' / '+activeInterior.floors;
-  loadText.textContent='Floor '+activeInterior.floor+' of '+activeInterior.floors+' · search rooms, visible loot and stashes.';
+  loadText.textContent='Floor '+activeInterior.floor+' of '+activeInterior.floors+' · physical stair elevation '+base.toFixed(2)+'m.';
   showToast('Floor '+activeInterior.floor+' / '+activeInterior.floors);
 }
-
 function spawnInteriorZombie(template,r,w,h){
   spawnZombieAt(template,{x:(r()-.5)*w*.48,y:h*.28},true,r);
 }
@@ -3455,7 +3473,7 @@ function enterInterior(entry){
     (Number.isFinite(entry.returnZ)?entry.returnZ:entry.entryZ)+.05
   );exteriorYaw=yaw;captureExteriorPursuers(entry);generateInterior(entry,1);
   exteriorRoot.visible=false;interiorGroup.visible=true;interiorMode=true;playerVelocity.set(0,0,0);
-  playerRoot.position.set(0,-activeInterior.depth/2+2.0,.05);yaw=0;pitch=.12;injectDoorwayPursuers();
+  playerRoot.position.set(0,-activeInterior.depth/2+2.0,(activeInterior.baseZ||0)+.05);yaw=0;pitch=.12;injectDoorwayPursuers();
   $('cellLabel').textContent='PROCEDURAL INTERIOR · GAME ART';
   $('worldTitle').textContent=activeInterior.layout+' · Floor '+activeInterior.floor+' / '+activeInterior.floors;
   loadText.textContent='Search furniture, drawers, cabinets and hidden stashes.';
@@ -4953,8 +4971,10 @@ function safeCameraPosition(target,desired){
     if(cameraPointBlocked(p))break;
     safe.copy(p);
   }
-  if(interiorMode)safe.z=THREE.MathUtils.clamp(safe.z,.72,2.72);
-  else safe.z=Math.max(safe.z,surfaceZXY(safe.x,safe.y)+.72);
+  if(interiorMode){
+    const base=Number(activeInterior?.baseZ??interiorGroup.position.z??0);
+    safe.z=THREE.MathUtils.clamp(safe.z,base+.72,base+2.72);
+  }else safe.z=Math.max(safe.z,surfaceZXY(safe.x,safe.y)+.72);
   return safe;
 }
 function updateCamera(dt){
@@ -5221,10 +5241,24 @@ async function boot(){
       multiFloorProbe:()=>{
         if(interiorMode)exitInterior();
         const e=[...buildingEntries].sort((a,b)=>b.height-a.height)[0];if(!e)return null;
-        enterInterior(e);const first={floor:activeInterior.floor,floors:activeInterior.floors};
-        if(activeInterior.floors>1)changeInteriorFloor(2);
-        const second={floor:activeInterior.floor,floors:activeInterior.floors,links:interiorFloorLinks.length,pickups:worldPickups.filter(p=>p.active&&p.mode==='interior').length};
-        exitInterior();return{first,second};
+        enterInterior(e);
+        const first={floor:activeInterior.floor,floors:activeInterior.floors,baseZ:activeInterior.baseZ,playerZ:playerRoot.position.z};
+        let stairMid=null;
+        const up=interiorStairs.find(x=>x.direction>0);
+        if(up){
+          playerRoot.position.set(up.x,up.y,activeInterior.baseZ+.015);
+          const before=playerRoot.position.z;
+          playerRoot.position.y=up.y+up.run*.25;
+          const mid=interiorGroundZ(playerRoot.position.x,playerRoot.position.y);
+          stairMid={before,mid,rise:up.rise,ok:mid>before+.25};
+        }
+        if(activeInterior.floors>1)changeInteriorFloor(2,'stairs',1);
+        const second={
+          floor:activeInterior.floor,floors:activeInterior.floors,baseZ:activeInterior.baseZ,playerZ:playerRoot.position.z,
+          expectedBase:INTERIOR_FLOOR_H,stackedZ:Boolean(activeInterior.floor===1||Math.abs(activeInterior.baseZ-INTERIOR_FLOOR_H)<.01),
+          links:interiorFloorLinks.length,pickups:worldPickups.filter(p=>p.active&&p.mode==='interior').length
+        };
+        exitInterior();return{first,stairMid,second};
       },
       cameraProbe:()=>{
         updateCamera(.5);return{blocked:cameraPointBlocked(camera.position),z:camera.position.z,mode:CAMERA_MODES[cameraMode],firstPersonRig:Boolean(firstPersonRig),firstPersonWeapon:Boolean(firstPersonWeapon)};
