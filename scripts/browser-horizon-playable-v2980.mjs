@@ -74,6 +74,11 @@ const movementFacing=await page.evaluate(()=>window.BP_HORIZON_TEST.movementFaci
 const cameraModes=await page.evaluate(()=>window.BP_HORIZON_TEST.cameraModesProbe?.());
 const inputIsolation=await page.evaluate(()=>window.BP_HORIZON_TEST.inputIsolationProbe?.());
 await page.waitForFunction(()=>window.BP_HORIZON_TEST?.loadingLodProbe?.()?.detailHydrationComplete===true,null,{timeout:30000});
+await page.waitForFunction(()=>{
+  const p=window.BP_HORIZON_TEST?.pbrSurfaceProbe?.();
+  return p&&p.requested>=12&&p.loaded===p.requested&&p.failed===0;
+},null,{timeout:30000});
+const pbrSurfaces=await page.evaluate(()=>window.BP_HORIZON_TEST.pbrSurfaceProbe?.());
 const loadingLod=await page.evaluate(()=>window.BP_HORIZON_TEST.loadingLodProbe?.());
 const navAi=await page.evaluate(()=>{
   const probe=window.BP_HORIZON_TEST?.navProbe?.();
@@ -101,6 +106,11 @@ if(!fp||fp.rigVisible!==true||fp.weaponVisible!==true)throw new Error('First-per
 if(fp.actualArms!==true||fp.actualArmsVisible!==true||fp.fallbackArmsVisible!==false)throw new Error('Default survivor first-person did not use real skinned hands/arms '+JSON.stringify(cameraModes));
 if(!tp||tp.bodyVisible!==true||tp.rigVisible!==false||tp.actualArmsVisible!==false)throw new Error('Third-person presentation failed '+JSON.stringify(cameraModes));
 if(inputIsolation?.pointerOwnership!==true||inputIsolation?.canvasTouchAction!=='none'||inputIsolation?.settingsPanel!==true)throw new Error('Touch pointer isolation/settings missing '+JSON.stringify(inputIsolation));
+if(!pbrSurfaces||pbrSurfaces.source!=='Poly Haven CC0'||pbrSurfaces.runtimeApiDependency!==false||pbrSurfaces.failed!==0)throw new Error('Photoreal CC0 PBR contract failed '+JSON.stringify(pbrSurfaces));
+for(const surface of ['terrain','asphalt','brick','concrete']){
+  const p=pbrSurfaces[surface];
+  if(!p?.diffuse||!p?.normal||!p?.roughness)throw new Error('PBR surface maps missing for '+surface+' '+JSON.stringify(pbrSurfaces));
+}
 if(loadingLod?.mobile===true){
   if((loadingLod.facadeCandidatesRendered||0)>160||(loadingLod.facadeWindows||0)>2800)throw new Error('Mobile facade LOD budget regressed '+JSON.stringify(loadingLod));
   if((loadingLod.buildingPartRingsRendered||0)>180)throw new Error('Mobile building-part LOD budget regressed '+JSON.stringify(loadingLod));
@@ -185,5 +195,5 @@ if(modeLaunch?.explicit!==true||modeLaunch?.requested!=='infinite_tdm'||modeLaun
 if(modeErrors.length)throw new Error('Horizon explicit-mode page errors '+modeErrors.join('\n'));
 await modePage.close();
 
-console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,loadingLod,navAi,multiFloor,windowVista,roofZipline,interiorDoor,audioArchitecture,renderQuality,gestureIsolation,worldUi,modeLaunch}));
+console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,pbrSurfaces,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,loadingLod,navAi,multiFloor,windowVista,roofZipline,interiorDoor,audioArchitecture,renderQuality,gestureIsolation,worldUi,modeLaunch}));
 await browser.close();
