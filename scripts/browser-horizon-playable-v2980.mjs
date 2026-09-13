@@ -75,6 +75,10 @@ const cameraModes=await page.evaluate(()=>window.BP_HORIZON_TEST.cameraModesProb
 const inputIsolation=await page.evaluate(()=>window.BP_HORIZON_TEST.inputIsolationProbe?.());
 await page.waitForFunction(()=>window.BP_HORIZON_TEST?.loadingLodProbe?.()?.detailHydrationComplete===true,null,{timeout:30000});
 const loadingLod=await page.evaluate(()=>window.BP_HORIZON_TEST.loadingLodProbe?.());
+const navAi=await page.evaluate(()=>{
+  const probe=window.BP_HORIZON_TEST?.navProbe?.();
+  return probe||null;
+});
 
 if(!terrainGuard?.ok)throw new Error('Terrain guard failed '+JSON.stringify(terrainGuard));
 if(playerAsset.stance!=='stand'||!playerAsset.weaponSocket||playerAsset.weaponSocket==='playerRoot')throw new Error('Standing/hand-socket contract failed '+JSON.stringify(playerAsset));
@@ -95,6 +99,9 @@ if(loadingLod?.mobile===true){
   if((loadingLod.buildingPartRingsRendered||0)>180)throw new Error('Mobile building-part LOD budget regressed '+JSON.stringify(loadingLod));
   if(loadingLod.parcelLayerBuilt===true||loadingLod.parcelBuildPending===true)throw new Error('Hidden parcel layer built during boot '+JSON.stringify(loadingLod));
 }
+if(!navAi||!(navAi.nodes>0)||!(navAi.patrolRoutes>0))throw new Error('Infected patrol/nav graph missing '+JSON.stringify(navAi));
+if(navAi.routeCacheSize>320)throw new Error('Infected route cache exceeded budget '+JSON.stringify(navAi));
+if(navAi.stats?.fullNodeScans>navAi.stats?.localNodeHits+20)throw new Error('Infected nav lookup regressed to graph-wide scans '+JSON.stringify(navAi));
 if(!movementFacing?.all||movementFacing.samples?.some(x=>!x.ok))throw new Error('Rendered movement-facing regression '+JSON.stringify(movementFacing));
 if(!(controls.forward.dy>.99)||!(controls.backward.dy<-.99)||!(controls.left.dx<-.99)||!(controls.right.dx>.99))throw new Error('Cardinal controls broken '+JSON.stringify(controls));
 
@@ -128,5 +135,5 @@ if(!gestureIsolation?.ok)throw new Error('Movement/look gesture changed weapon '
 const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource: the server responded with a status of (404|500)/i.test(x));
 if(badResponses.length)throw new Error('Horizon HTTP 5xx '+JSON.stringify(badResponses));
 if(meaningful.length)throw new Error('Horizon console errors '+meaningful.join('\n'));
-console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,loadingLod,gestureIsolation,worldUi}));
+console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,loadingLod,navAi,gestureIsolation,worldUi}));
 await browser.close();
