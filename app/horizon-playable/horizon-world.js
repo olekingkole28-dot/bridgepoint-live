@@ -23,7 +23,7 @@ async function getHorizonSupabase(){
   })();
   return await horizonSupabaseInit;
 }
-const BUILD_VERSION=4252;
+const BUILD_VERSION=4253;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -2281,14 +2281,18 @@ function normalizedModel(source,targetHeight,animated=false){
 }
 async function loadCriticalAsset(url,timeoutMs=12000){
   if(!url)return null;
-  if(assetPromiseCache.has(url))return await assetPromiseCache.get(url);
+  // Critical character/viewmodel assets bypass the shared load queue completely.
+  // A normal cached promise may still be waiting for an asset slot; awaiting that
+  // promise here would defeat the priority lane and can leave the survivor on the
+  // streaming silhouette indefinitely.
   const p=(async()=>{
     streetLifeStats.criticalAssetUrl=String(url);
     streetLifeStats.criticalAssetStartedAt=performance.now();
     let parseError=null,timedOut=false;
     try{
+      const criticalLoader=new GLTFLoader();
       const timeout=new Promise(resolve=>setTimeout(()=>{timedOut=true;resolve(null)},timeoutMs));
-      const loadPromise=loader.loadAsync(url).catch(err=>{
+      const loadPromise=criticalLoader.loadAsync(url).catch(err=>{
         parseError=String(err?.stack||err?.message||err||'unknown GLTF error');
         return null;
       });
@@ -2297,6 +2301,7 @@ async function loadCriticalAsset(url,timeoutMs=12000){
       streetLifeStats.criticalAssetTimedOut=timedOut;
       streetLifeStats.criticalAssetError=parseError;
       streetLifeStats.criticalAssetLoaded=Boolean(loaded);
+      if(loaded)assetPromiseCache.set(url,Promise.resolve(loaded));
       if(!loaded)console.warn('Critical asset load timed out/failed',url,parseError||'timeout');
       return loaded;
     }catch(e){
@@ -2305,10 +2310,7 @@ async function loadCriticalAsset(url,timeoutMs=12000){
       console.warn('Critical asset load failed',url,e);return null
     }
   })();
-  assetPromiseCache.set(url,p);
-  const out=await p;
-  if(!out)assetPromiseCache.delete(url);
-  return out;
+  return await p;
 }
 async function loadAsset(url){
   if(!url)return null;
