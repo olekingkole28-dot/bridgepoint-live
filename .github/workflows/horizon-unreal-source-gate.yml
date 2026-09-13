@@ -1,0 +1,26 @@
+name: Horizon Unreal Source Gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'unreal/BridgePointHorizon/**'
+      - 'app/horizon-playable/HORIZON_GAME_MODES_V4243.json'
+      - '.github/workflows/horizon-unreal-source-gate.yml'
+  pull_request:
+    paths:
+      - 'unreal/BridgePointHorizon/**'
+      - 'app/horizon-playable/HORIZON_GAME_MODES_V4243.json'
+      - '.github/workflows/horizon-unreal-source-gate.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate Horizon Unreal source
+        run: python unreal/BridgePointHorizon/Scripts/validate_horizon_source.py
