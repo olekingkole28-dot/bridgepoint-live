@@ -1,0 +1,24 @@
+# BridgePoint Horizon Unreal local/generated content
+unreal/BridgePointHorizon/Binaries/
+unreal/BridgePointHorizon/DerivedDataCache/
+unreal/BridgePointHorizon/Intermediate/
+unreal/BridgePointHorizon/Saved/
+
+# Never commit acquired third-party source archives or local staging.
+unreal/BridgePointHorizon/ExternalAssets/
+unreal/BridgePointHorizon/Staging/
+unreal/BridgePointHorizon/SourceDownloads/
+
+# Imported third-party Unreal content remains local unless it is BridgePoint-authored
+# or separately reviewed for repository redistribution rights.
+unreal/BridgePointHorizon/Content/Horizon/**/Imported/
+
+# Common asset archives
+*.zip
+*.7z
+*.rar
+*.tar
+*.tar.gz
+
+# Local asset provenance/acquisition receipts may contain account-specific information.
+*.asset-receipt.local.json
