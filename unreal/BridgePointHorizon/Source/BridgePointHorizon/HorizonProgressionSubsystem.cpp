@@ -19,6 +19,7 @@ void UHorizonProgressionSubsystem::Initialize(FSubsystemCollectionBase& Collecti
             UGameplayStatics::CreateSaveGameObject(UHorizonProgressionSaveGame::StaticClass()));
     }
 
+    SanitizeCareerState();
     EnsureSeason(FDateTime::UtcNow());
 }
 
@@ -56,6 +57,19 @@ void UHorizonProgressionSubsystem::EnsureSeason(FDateTime NowUtc)
     SaveState();
 }
 
+void UHorizonProgressionSubsystem::SanitizeCareerState()
+{
+    if (!State)
+    {
+        return;
+    }
+
+    State->CareerXP = FMath::Clamp(State->CareerXP, 0, (MaxCareerLevel - 1) * CareerXPPerLevel);
+    State->CareerLevel = FMath::Clamp(1 + State->CareerXP / CareerXPPerLevel, 1, MaxCareerLevel);
+    State->Prestige = FMath::Clamp(State->Prestige, 0, MaxPrestige);
+    State->LifetimeKills = FMath::Max(0, State->LifetimeKills);
+}
+
 void UHorizonProgressionSubsystem::SaveState()
 {
     if (State)
@@ -89,6 +103,58 @@ void UHorizonProgressionSubsystem::AddXP(int32 Amount, FDateTime NowUtc)
 
     SaveState();
     OnProgressionChanged.Broadcast(State->SeasonLevel, State->SeasonXP);
+}
+
+void UHorizonProgressionSubsystem::AddCareerXP(int32 Amount)
+{
+    if (!State || Amount <= 0 || State->CareerLevel >= MaxCareerLevel)
+    {
+        return;
+    }
+
+    const int64 CareerCap = static_cast<int64>(MaxCareerLevel - 1) * CareerXPPerLevel;
+    const int64 NewXP = static_cast<int64>(State->CareerXP) + Amount;
+    State->CareerXP = static_cast<int32>(FMath::Min(NewXP, CareerCap));
+    State->CareerLevel = FMath::Clamp(1 + State->CareerXP / CareerXPPerLevel, 1, MaxCareerLevel);
+    SaveState();
+    OnCareerChanged.Broadcast(State->CareerLevel, State->Prestige);
+}
+
+void UHorizonProgressionSubsystem::RecordKill(int32 Count)
+{
+    if (!State || Count <= 0)
+    {
+        return;
+    }
+
+    const int64 NewKills = static_cast<int64>(State->LifetimeKills) + Count;
+    State->LifetimeKills = static_cast<int32>(FMath::Min(NewKills, static_cast<int64>(MAX_int32)));
+    SaveState();
+}
+
+bool UHorizonProgressionSubsystem::TryPrestige(FHorizonReward& OutReward)
+{
+    if (!CanPrestige())
+    {
+        return false;
+    }
+
+    ++State->Prestige;
+    State->CareerXP = 0;
+    State->CareerLevel = 1;
+
+    OutReward.Type = (State->Prestige % 10 == 0)
+        ? EHorizonRewardType::Banner
+        : EHorizonRewardType::Badge;
+    OutReward.RewardKey = FString::Printf(TEXT("PRESTIGE_COSMETIC_%03d"), State->Prestige);
+    OutReward.Amount = 1;
+    OutReward.bFree = true;
+    OutReward.bPremium = false;
+
+    GrantReward(OutReward);
+    SaveState();
+    OnCareerChanged.Broadcast(State->CareerLevel, State->Prestige);
+    return true;
 }
 
 FHorizonReward UHorizonProgressionSubsystem::PreviewDailyFreeReward(FDateTime NowUtc) const
@@ -280,6 +346,33 @@ int32 UHorizonProgressionSubsystem::GetLevel() const
 int32 UHorizonProgressionSubsystem::GetXP() const
 {
     return State ? State->SeasonXP : 0;
+}
+
+int32 UHorizonProgressionSubsystem::GetCareerLevel() const
+{
+    return State ? State->CareerLevel : 1;
+}
+
+int32 UHorizonProgressionSubsystem::GetCareerXP() const
+{
+    return State ? State->CareerXP : 0;
+}
+
+int32 UHorizonProgressionSubsystem::GetPrestige() const
+{
+    return State ? State->Prestige : 0;
+}
+
+int32 UHorizonProgressionSubsystem::GetLifetimeKills() const
+{
+    return State ? State->LifetimeKills : 0;
+}
+
+bool UHorizonProgressionSubsystem::CanPrestige() const
+{
+    return State
+        && State->CareerLevel >= MaxCareerLevel
+        && State->Prestige < MaxPrestige;
 }
 
 int32 UHorizonProgressionSubsystem::GetSalvage() const
