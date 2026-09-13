@@ -230,6 +230,36 @@ void UHorizonProgressionSubsystem::GrantReward(const FHorizonReward& Reward)
     }
 }
 
+void UHorizonProgressionSubsystem::GrantFreeSalvage(int32 Amount)
+{
+    if (!State || Amount <= 0)
+    {
+        return;
+    }
+
+    State->Salvage += Amount;
+    SaveState();
+}
+
+bool UHorizonProgressionSubsystem::GrantFreeUnlock(const FString& RewardKey)
+{
+    if (!State || RewardKey.IsEmpty())
+    {
+        return false;
+    }
+
+    const int32 PreviousCount = State->CosmeticUnlocks.Num();
+    State->CosmeticUnlocks.AddUnique(RewardKey);
+
+    if (State->CosmeticUnlocks.Num() != PreviousCount)
+    {
+        SaveState();
+        return true;
+    }
+
+    return false;
+}
+
 void UHorizonProgressionSubsystem::SetPremiumPassEntitled(bool bEntitled)
 {
     if (!State)
