@@ -27,6 +27,9 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|World")
     TObjectPtr<UProceduralMeshComponent> BuildingMesh;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|World")
+    TObjectPtr<UProceduralMeshComponent> WaterMesh;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|World")
     float VerticalExaggeration = 1.0f;
 
@@ -42,6 +45,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|World")
     int32 MaxBuildingsPerCell = 1800;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|World")
+    int32 MaxBuildingPartsPerCell = 1400;
+
     UFUNCTION(BlueprintCallable, Category="Horizon|World")
     bool RenderCellJson(const FString& CellJson);
 
@@ -53,6 +59,12 @@ public:
 
     UFUNCTION(BlueprintPure, Category="Horizon|World")
     int32 GetRenderedRoadSegmentCount() const { return RenderedRoadSegmentCount; }
+
+    UFUNCTION(BlueprintPure, Category="Horizon|World")
+    int32 GetRenderedBuildingPartCount() const { return RenderedBuildingPartCount; }
+
+    UFUNCTION(BlueprintPure, Category="Horizon|World")
+    int32 GetRenderedWaterFeatureCount() const { return RenderedWaterFeatureCount; }
 
     UFUNCTION(BlueprintPure, Category="Horizon|World")
     FVector ProjectCoordinate(double Longitude, double Latitude, double HeightMeters = 0.0) const;
@@ -71,11 +83,14 @@ private:
     TArray<double> TerrainHeightsMeters;
 
     int32 RenderedBuildingCount = 0;
+    int32 RenderedBuildingPartCount = 0;
     int32 RenderedRoadSegmentCount = 0;
+    int32 RenderedWaterFeatureCount = 0;
 
     bool ParseCellHeader(const TSharedPtr<class FJsonObject>& Root);
     bool BuildTerrain(const TSharedPtr<class FJsonObject>& Root);
     void BuildTransport(const TSharedPtr<class FJsonObject>& Root);
+    void BuildWater(const TSharedPtr<class FJsonObject>& Root);
     void BuildBuildings(const TSharedPtr<class FJsonObject>& Root);
 
     double SampleTerrainMeters(double Longitude, double Latitude) const;
