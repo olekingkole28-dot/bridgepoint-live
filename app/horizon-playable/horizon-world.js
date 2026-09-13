@@ -4970,6 +4970,39 @@ async function boot(){
         gamepadLookSensitivity:controlPrefs.gamepadLookSensitivity,
         settingsPanel:Boolean($('controlSettings'))
       }),
+      movementFacingProbe:()=>{
+        if(!playerRoot)return null;
+        const prior={
+          pos:playerRoot.position.clone(),
+          rot:playerRoot.rotation.z,
+          yaw,pitch,
+          move:{...mobileMove},
+          velocity:playerVelocity.clone(),
+          aiming,
+          slot:activeSlot,
+          weapon:activeWeapon
+        };
+        const samples=[];
+        const test=(label,x,y)=>{
+          yaw=0;aiming=false;mobileMove.x=x;mobileMove.y=y;
+          playerVelocity.set(0,0,0);
+          for(let i=0;i<45;i++)updatePlayer(1/60);
+          const n=normalizeMovementInput(x,y),v=movementVector(n.x,n.y,0);
+          const expected=Math.atan2(v.x,v.y);
+          const visualFix=M2M_PLAYER_KEYS.has(CHARACTER_KEY)?0:Math.PI;
+          const actualVisual=playerRoot.rotation.z+visualFix;
+          const delta=Math.abs(((actualVisual-expected+Math.PI*3)%(Math.PI*2))-Math.PI);
+          samples.push({label,expected,actualVisual,delta,ok:delta<.12});
+          playerRoot.position.copy(prior.pos);
+          if(physicsReady&&playerPhysicsBody)syncPhysicsToPlayer();
+        };
+        test('forward',0,1);test('right',1,0);test('back',0,-1);test('left',-1,0);
+        playerRoot.position.copy(prior.pos);playerRoot.rotation.z=prior.rot;
+        yaw=prior.yaw;pitch=prior.pitch;mobileMove.x=prior.move.x;mobileMove.y=prior.move.y;
+        playerVelocity.copy(prior.velocity);aiming=prior.aiming;activeSlot=prior.slot;activeWeapon=prior.weapon;
+        if(physicsReady&&playerPhysicsBody)syncPhysicsToPlayer();
+        return{samples,all:samples.every(x=>x.ok)};
+      },
       feetProbe:()=>{
         playerRoot?.updateMatrixWorld(true);
         const box=new THREE.Box3().setFromObject(playerVisualRoot||playerRoot);
