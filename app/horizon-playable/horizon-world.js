@@ -2274,12 +2274,27 @@ async function loadCriticalAsset(url,timeoutMs=12000){
   if(!url)return null;
   if(assetPromiseCache.has(url))return await assetPromiseCache.get(url);
   const p=(async()=>{
+    streetLifeStats.criticalAssetUrl=String(url);
+    streetLifeStats.criticalAssetStartedAt=performance.now();
+    let parseError=null,timedOut=false;
     try{
-      const timeout=new Promise(resolve=>setTimeout(()=>resolve(null),timeoutMs));
-      const loaded=await Promise.race([loader.loadAsync(url).catch(()=>null),timeout]);
-      if(!loaded)console.warn('Critical asset load timed out/failed',url);
+      const timeout=new Promise(resolve=>setTimeout(()=>{timedOut=true;resolve(null)},timeoutMs));
+      const loadPromise=loader.loadAsync(url).catch(err=>{
+        parseError=String(err?.stack||err?.message||err||'unknown GLTF error');
+        return null;
+      });
+      const loaded=await Promise.race([loadPromise,timeout]);
+      streetLifeStats.criticalAssetElapsedMs=Math.round(performance.now()-streetLifeStats.criticalAssetStartedAt);
+      streetLifeStats.criticalAssetTimedOut=timedOut;
+      streetLifeStats.criticalAssetError=parseError;
+      streetLifeStats.criticalAssetLoaded=Boolean(loaded);
+      if(!loaded)console.warn('Critical asset load timed out/failed',url,parseError||'timeout');
       return loaded;
-    }catch(e){console.warn('Critical asset load failed',url,e);return null}
+    }catch(e){
+      streetLifeStats.criticalAssetError=String(e?.stack||e?.message||e);
+      streetLifeStats.criticalAssetLoaded=false;
+      console.warn('Critical asset load failed',url,e);return null
+    }
   })();
   assetPromiseCache.set(url,p);
   const out=await p;
