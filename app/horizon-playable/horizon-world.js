@@ -24,18 +24,18 @@ const AURISAR_MOBS='https://cdn.jsdelivr.net/gh/brandon-aurgames/aurisar-app@mai
 const CONSTELLATION_MODELS='https://cdn.jsdelivr.net/gh/Hakhyun-Kim/constellation-defense@main/assets/models';
 const QUATERNIUS_SHOWCASE='https://cdn.jsdelivr.net/gh/trebeljahr/quaternius-showcase@main/public/glb';
 const DERETH_MOBS='https://cdn.jsdelivr.net/gh/w5ohr/Dereth@main/assets/models/monsters';
-const M2M_BASE='https://raw.githubusercontent.com/Mesh2Motion/mesh2motion-app/main/static';
+const M2M_BASE=new URL('./assets/characters/mesh2motion/',import.meta.url).href.replace(/\/$/,'');
 const ASSETS={
   player:FREE_BASE+'/Characters/glTF/Characters_Matt.gltf',
   playerLis:FREE_BASE+'/Characters/glTF/Characters_Lis.gltf',
   playerSam:FREE_BASE+'/Characters/glTF/Characters_Sam.gltf',
   playerShaun:FREE_BASE+'/Characters/glTF/Characters_Shaun.gltf',
   playerRealistic:'https://threejs.org/examples/models/gltf/Soldier.glb',
-  playerSurvivor:M2M_BASE+'/models-variation/human/male_32.glb',
-  playerFemale:M2M_BASE+'/models-variation/human/female_31.glb',
-  playerSwat:M2M_BASE+'/models-variation/human/swat_male.glb',
-  playerPolice:M2M_BASE+'/models-variation/human/police_male.glb',
-  playerHazmat:M2M_BASE+'/models-variation/human/hazmat_suit_male.glb',
+  playerSurvivor:M2M_BASE+'/models/male_32.glb',
+  playerFemale:M2M_BASE+'/models/female_31.glb',
+  playerSwat:M2M_BASE+'/models/swat_male.glb',
+  playerPolice:M2M_BASE+'/models/police_male.glb',
+  playerHazmat:M2M_BASE+'/models/hazmat_suit_male.glb',
   playerAnimations:M2M_BASE+'/animations/human-base-animations.glb',
   infectedM2MZombie:M2M_BASE+'/models-variation/human/zombie.glb',
   infectedM2MMonster3:M2M_BASE+'/models-variation/human/monster_3.glb',
@@ -2692,6 +2692,8 @@ async function hydrateRealPlayerModel(){
   playerClips=sanitizeCharacterClips(gltf.animations);playerMixer=new THREE.AnimationMixer(n.model);playerAction=null;
   const actualArmsReady=buildActualFirstPersonArms(n.model);
   streetLifeStats.firstPersonActualArms=actualArmsReady;
+  streetLifeStats.playerVisualHydratedAt=performance.now();
+  streetLifeStats.playerVisualSource=String(PLAYER_ASSET).startsWith(location.origin)?'same-origin-cc0':'external-fallback';
   captureCharacterWeaponTemplates(n.model);setupEquipmentMounts(n.model);refreshEquipmentVisuals();playPlayerAnimation(locomotionIntent||'idle');
   hydratePlayerAnimations(n.model).catch(e=>console.warn('player animation hydration',e));
   if(!MOBILE_GPU_SAFE)hydrateWeaponTemplates().catch(e=>console.warn('weapon hydration',e));
@@ -5978,6 +5980,15 @@ async function boot(){
       cameraProbe:()=>{
         updateCamera(.5);return{blocked:cameraPointBlocked(camera.position),z:camera.position.z,mode:CAMERA_MODES[cameraMode],firstPersonRig:Boolean(firstPersonRig),firstPersonWeapon:Boolean(firstPersonWeapon)};
       },
+      playerHydrationProbe:()=>({
+        loaded:playerAssetLoaded,
+        mode:playerAssetMode,
+        source:streetLifeStats.playerVisualSource||null,
+        actualArms:Boolean(firstPersonActualArms?.parent),
+        armBoneCount:Number(streetLifeStats.firstPersonArmBoneCount||0),
+        armTriangles:Number(streetLifeStats.firstPersonArmTriangles||0),
+        failure:streetLifeStats.firstPersonArmsFailure||null
+      }),
       cameraModesProbe:()=>{
         const prior=cameraMode,out=[];
         for(let i=0;i<CAMERA_MODES.length;i++){
