@@ -23,7 +23,8 @@ public class BridgePointHorizon : ModuleRules
             "VoiceChat",
             "HTTP",
             "Json",
-            "JsonUtilities"
+            "JsonUtilities",
+            "ProceduralMeshComponent"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[]
