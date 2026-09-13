@@ -1,5 +1,5 @@
-const CACHE='bridgepoint-intelligence-launch-v2877';
-const SHELL=['./','./index.html','./manifest.webmanifest'];
+const CACHE='bridgepoint-intelligence-launch-v3';
+const SHELL=['./','./index.html','./manifest.webmanifest','./bridgepoint-mark.svg'];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
 });
