@@ -1,0 +1,185 @@
+{
+  "schema_version": 2,
+  "build_target": 4251,
+  "updated_at": "2026-09-13",
+  "extends": [
+    "HORIZON_GAME_MODES_V4243.json",
+    "HORIZON_YEAR_ONE_V4250.json"
+  ],
+  "authority": "OWNER_LOCKED",
+  "owner_directives": {
+    "year_one_start": "owner_explicit_only",
+    "duration_days": 365,
+    "lives_total_per_player": 3,
+    "owner_funded_fixed_spend_usd": 0,
+    "repurpose_five_chatgpt_workers_to_horizon": true,
+    "stripe_existing_bridgepoint_account_authorized": true
+  },
+  "zero_budget_policy": {
+    "paid_assets": false,
+    "paid_plugins": false,
+    "billable_cloud_compute": false,
+    "paid_gpu_hosting": false,
+    "digitalocean_billable_resources": false,
+    "browser_pwa": "primary public playable path while no genuinely zero-cost native GPU route exists",
+    "unreal": "development/AAA target; local or genuinely zero-cost execution only unless owner later changes the zero-spend rule",
+    "free_sources_only": "original, public-domain, CC0, or otherwise explicitly verified for the intended commercial use"
+  },
+  "year_one_survival": {
+    "status": "PRESEASON_DAY_0_UNTIL_OWNER_START_COMMAND",
+    "solo_only": true,
+    "duration_days": 365,
+    "lives": {
+      "total": 3,
+      "preseason_deaths_consume_life": false,
+      "server_authoritative": true,
+      "reset_during_live_year": false
+    },
+    "world": {
+      "scope": "continuous_us_and_jurisdictions",
+      "regional_goal": "recognizable real-world exterior geography and regional feel, transformed into an original zombified/horrorified survival world",
+      "exterior_truth": "source-backed where lawful and technically available",
+      "interiors": {
+        "real_world_floorplans_allowed": false,
+        "generated_layouts": "fictional_only",
+        "requirements": [
+          "actual floor geometry",
+          "physical stairs between floors",
+          "functional room doors",
+          "true doorway openings in walls",
+          "transparent or open windows that are actual wall openings",
+          "outside world visible through windows",
+          "roof access where gameplay-safe",
+          "multi-floor navigation without teleport-card doors"
+        ]
+      }
+    },
+    "traversal": {
+      "rooftop_ziplines": true,
+      "building_to_building_ziplines": true,
+      "zipline_validation": [
+        "anchor integrity",
+        "distance",
+        "slope",
+        "clearance",
+        "collision",
+        "landing",
+        "fall safety"
+      ]
+    },
+    "infected_progression": {
+      "early_event": "easier/slower infected majority with lower density and simpler coordination",
+      "mid_event": "mixed runners, armored infected, screamers, regional variants and larger groups",
+      "late_event": "higher density, faster specialized threats, stronger horde coordination and city pressure",
+      "scales_with": [
+        "event_day",
+        "region",
+        "population_density",
+        "survivor_pressure",
+        "endgame_phase"
+      ],
+      "never_uniform_hard_everywhere": true
+    },
+    "creatures": {
+      "enabled": true,
+      "distribution": "biome_and_geography_aware",
+      "examples": [
+        "infected dogs",
+        "infected bears",
+        "spiders",
+        "regional wildlife",
+        "original dark-fantasy creatures",
+        "elite infected"
+      ],
+      "ip_rule": "original or properly licensed only"
+    },
+    "npc_challenges": {
+      "enabled": true,
+      "strategic_placement": true,
+      "contextual_to_region_and_survival_state": true,
+      "free_rewards": [
+        "survival items",
+        "ammo/resources",
+        "cosmetics",
+        "emotes/sprays",
+        "crafting materials",
+        "limited challenge gear"
+      ]
+    },
+    "endgame": {
+      "mechanic": "massive infected zombie wall",
+      "origin": "outer playable perimeter of the U.S. and its jurisdictions",
+      "behavior": "progressively contracts inward across the event",
+      "pressure_goal": "force remaining survivors toward larger cities over time",
+      "finale": "major-city showdown among remaining survivors near the end of Year One",
+      "presentation": "original Horizon infected-wall system; no copied Fortnite art/UI/assets"
+    }
+  },
+  "retention_and_progression": {
+    "daily_free_rewards": true,
+    "daily_reward_days": 365,
+    "free_track": true,
+    "pay_to_win": false,
+    "battle_pass_levels": 150
+  },
+  "commerce": {
+    "stripe": {
+      "authorized": true,
+      "account": "existing_bridgepoint_stripe_account",
+      "namespace": "horizon",
+      "protect_b2b_catalog": true,
+      "fixed_owner_spend_permission": false
+    },
+    "battle_pass": {
+      "price_usd": 9.99,
+      "currency": "usd",
+      "billing": "one_time_per_pass",
+      "levels": 150,
+      "free_track_always_available": true,
+      "pay_to_win": false
+    },
+    "store": {
+      "categories": [
+        "characters",
+        "character_skins",
+        "weapon_wraps",
+        "balance_safe_weapon_variants",
+        "emotes",
+        "sprays",
+        "dances",
+        "finishers",
+        "profile_cosmetics",
+        "bundles"
+      ],
+      "pricing_guidance_usd": {
+        "sprays_and_small_cosmetics": "0.99-2.99",
+        "emotes_and_dances": "1.99-4.99",
+        "weapon_wraps": "1.99-4.99",
+        "character_skins": "4.99-9.99",
+        "bundles": "6.99-14.99"
+      },
+      "weapon_rule": "paid weapon variants must be cosmetic or balance-safe sidegrades; meaningful combat power must remain obtainable through free gameplay",
+      "daily_free_items": true
+    }
+  },
+  "five_worker_runtime": {
+    "repurposed_from_bridgepoint_b2b_workers": true,
+    "lanes": [
+      "Horizon World & Interiors",
+      "Horizon Year-One Director",
+      "Horizon Gameplay & Combat",
+      "Horizon Content & Economy",
+      "Horizon QA & Release Governor"
+    ],
+    "cadence": "hourly_staggered",
+    "rules": [
+      "each run must make measurable progress when tools permit or record the exact blocker",
+      "never spend owner money",
+      "never provision billable DigitalOcean or GPU resources",
+      "never ship ripped or unclear-license assets",
+      "never start Year One without the owner start command",
+      "never weaken release gates to force publication",
+      "keep Horizon commerce and entitlements namespace-separated from B2B"
+    ]
+  }
+}
