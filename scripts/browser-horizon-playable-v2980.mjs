@@ -109,6 +109,8 @@ if(!multiFloor?.first)throw new Error('Multi-floor interior probe unavailable '+
 if((multiFloor.first.floors||0)>1){
   if(!multiFloor.stairMid?.ok)throw new Error('Interior stairs do not produce physical vertical rise '+JSON.stringify(multiFloor));
   if(!multiFloor.second?.stackedZ||Math.abs((multiFloor.second?.playerZ||0)-(multiFloor.second?.expectedBase||0)-.015)>.08)throw new Error('Interior floor transition snapped to wrong elevation '+JSON.stringify(multiFloor));
+  if(!multiFloor.first?.ceilingHole||!(multiFloor.first?.ceilingPieces>=4))throw new Error('Floor 1 ceiling still blocks physical stairwell '+JSON.stringify(multiFloor));
+  if(!multiFloor.second?.floorHole||!multiFloor.second?.ceilingHole||!(multiFloor.second?.floorPieces>=4)||!(multiFloor.second?.ceilingPieces>=4))throw new Error('Upper-floor stairwell slabs are not physically open '+JSON.stringify(multiFloor));
 }
 if(!windowVista||windowVista.mode!=='real-openings'||!(windowVista.openings>0)||!(windowVista.openWindows>0)||!(windowVista.realGlass>0))throw new Error('Interior real-window opening contract missing '+JSON.stringify(windowVista));
 if(!(windowVista.vistaBuildings>0))throw new Error('Interior windows have no source-backed exterior vista '+JSON.stringify(windowVista));
