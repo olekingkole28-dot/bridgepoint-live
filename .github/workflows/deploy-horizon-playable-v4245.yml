@@ -1,0 +1,127 @@
+name: Deploy Horizon Playable V4245
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/horizon/**'
+      - 'app/horizon-playable/**'
+      - '.github/workflows/deploy-horizon-playable-v4245.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Assemble production plus Horizon V4245
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+
+          rm -rf site
+          mkdir -p site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+
+          rm -rf site/app/horizon site/app/horizon-playable
+          git archive --format=tar HEAD app/horizon app/horizon-playable | tar -xf - -C site
+
+          mkdir -p site/app/horizon
+          cat > site/app/horizon/horizon-live-v4245.json <<EOF
+          {"build":4245,"status":"HORIZON_PLAYABLE_LIVE","source_sha":"${GITHUB_SHA}","surface":"/app/horizon/preview.html","world_runtime":"bridgepoint-horizon-stream-v3020","native_track":"UE5.8"}
+          EOF
+
+          touch site/.nojekyll
+          touch site/app/.nojekyll
+
+          test -s site/app/horizon/preview.html
+          test -s site/app/horizon/index.html
+          test -s site/app/horizon-playable/horizon-world.js
+          test -s site/app/horizon-playable/horizon-world.css
+
+          grep -Fq 'horizon-world.js?v=4245' site/app/horizon/preview.html
+          grep -Fq 'const BUILD_VERSION=4245;' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'nightCityLights' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'weaponCasePurchases' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'battleRewardForLevel' site/app/horizon-playable/horizon-world.js
+          grep -Fq 'slotQuick3' site/app/horizon/preview.html
+          node --check site/app/horizon-playable/horizon-world.js
+
+      - name: Save updated durable live artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/horizon-v4245-live
+          mkdir -p /tmp/horizon-v4245-live
+          cp -a site/. /tmp/horizon-v4245-live/
+
+          cd /tmp/horizon-v4245-live
+          git init -q
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m "Publish Horizon playable V4245 ${GITHUB_SHA}"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify Horizon on custom domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          ok=0
+
+          for attempt in $(seq 1 40); do
+            q="${GITHUB_SHA}-${attempt}-$(date +%s)"
+            marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/horizon/horizon-live-v4245.json?v=${q}" 2>/dev/null || true)"
+            preview="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/horizon/preview.html?v=${q}" 2>/dev/null || true)"
+            runtime="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/horizon-playable/horizon-world.js?v=${q}" 2>/dev/null || true)"
+
+            if printf '%s' "$marker" | grep -Fq '"build":4245'               && printf '%s' "$marker" | grep -Fq '"status":"HORIZON_PLAYABLE_LIVE"'               && printf '%s' "$preview" | grep -Fq 'horizon-world.js?v=4245'               && printf '%s' "$preview" | grep -Fq 'slotQuick3'               && printf '%s' "$runtime" | grep -Fq 'const BUILD_VERSION=4245;'               && printf '%s' "$runtime" | grep -Fq 'nightCityLights'               && printf '%s' "$runtime" | grep -Fq 'weaponCasePurchases'               && printf '%s' "$runtime" | grep -Fq 'battleRewardForLevel'; then
+              ok=1
+              echo 'HORIZON_V4245_CUSTOM_DOMAIN_LIVE'
+              break
+            fi
+
+            echo "Horizon live verification attempt ${attempt}"
+            sleep 5
+          done
+
+          test "$ok" = 1
