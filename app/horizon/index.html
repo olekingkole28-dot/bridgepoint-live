@@ -231,57 +231,137 @@ document.querySelectorAll('[data-lang]').forEach(b=>b.addEventListener('click',(
 setLang(localStorage.getItem('bp-launch-lang')||'en');setInterval(tick,1000);setInterval(pollProgress,30000);loadStatus().catch(err=>$('formError').textContent=err.message);pollProgress();
 
 let deferredInstallPrompt=null;
+let installRequestedEarly=false;
 const installPromptEl=document.getElementById('installAppPrompt');
 const installActionEl=document.getElementById('installAppAction');
 const installTextEl=document.getElementById('installAppText');
+const installTopEl=document.getElementById('installAppTop');
 const isStandalone=()=>window.matchMedia?.('(display-mode: standalone)').matches===true||window.navigator.standalone===true;
 const isAppleMobile=()=>/iphone|ipad|ipod/i.test(navigator.userAgent||'');
-function showInstallAppPrompt(force=false){
-  if(isStandalone()){installPromptEl.hidden=true;return}
-  if(!force&&sessionStorage.getItem('bp-install-dismissed')==='1')return;
-  if(isAppleMobile()){
-    installTextEl.textContent='On iPhone/iPad: tap Share, then choose “Add to Home Screen”.';
-    installActionEl.textContent='Show How';
-  }else if(!deferredInstallPrompt){
-    installTextEl.textContent='Install this page as an app. If your browser does not show a prompt, use its menu and choose “Install app” or “Add to Home screen”.';
-    installActionEl.textContent='Install App';
+const isChromiumFamily=()=>/android/i.test(navigator.userAgent||'')&&/(chrome|chromium|crios|edg|samsungbrowser|opera|opr)/i.test(navigator.userAgent||'');
+
+function setInstallUi(state,message){
+  if(installTopEl){
+    installTopEl.dataset.installState=state;
+    const span=installTopEl.querySelector('span');
+    if(span)span.textContent=
+      state==='installed'?'Installed':
+      state==='ready'?'Install App':
+      state==='preparing'?'Preparing Install…':
+      'Install App';
+    installTopEl.disabled=state==='installed';
   }
-  installPromptEl.hidden=false;
+  if(installActionEl){
+    installActionEl.disabled=state==='preparing'||state==='installed';
+    installActionEl.textContent=
+      state==='installed'?'Installed':
+      state==='ready'?'Install App':
+      state==='preparing'?'Preparing…':
+      isAppleMobile()?'Show How':'Install App';
+  }
+  if(message&&installTextEl)installTextEl.textContent=message;
 }
-window.addEventListener('beforeinstallprompt',event=>{
-  event.preventDefault();
-  deferredInstallPrompt=event;
-  showInstallAppPrompt(true);
-});
-window.addEventListener('appinstalled',()=>{
-  deferredInstallPrompt=null;
-  installPromptEl.hidden=true;
-  sessionStorage.removeItem('bp-install-dismissed');
-});
-document.getElementById('installAppDismiss')?.addEventListener('click',()=>{
-  installPromptEl.hidden=true;sessionStorage.setItem('bp-install-dismissed','1');
-});
-async function requestInstallApp(){
-  if(isStandalone()){installPromptEl.hidden=true;return}
-  if(deferredInstallPrompt){
-    const prompt=deferredInstallPrompt;deferredInstallPrompt=null;
-    await prompt.prompt();
-    await prompt.userChoice.catch(()=>null);
+
+function showInstallAppPrompt(force=false){
+  if(isStandalone()){
+    setInstallUi('installed','BridgePoint Horizon is already installed on this device.');
     installPromptEl.hidden=true;
     return;
   }
-  if(isAppleMobile()){
-    installTextEl.textContent='Tap the Share button in Safari, scroll if needed, then tap “Add to Home Screen” and confirm Add.';
-    installActionEl.textContent='Got It';
-    installPromptEl.hidden=false;
-    return;
+  if(!force&&sessionStorage.getItem('bp-install-dismissed')==='1')return;
+
+  if(deferredInstallPrompt){
+    setInstallUi('ready','BridgePoint Horizon is ready to install. Tap Install App to open the system install confirmation.');
+  }else if(isAppleMobile()){
+    setInstallUi('manual','On iPhone/iPad: open this page in Safari, tap Share, then choose “Add to Home Screen”.');
+  }else if(isChromiumFamily()){
+    setInstallUi('waiting','Tap Install App. If Chrome is still completing its installability checks, Horizon will hold your request and open the real install dialog as soon as Chrome makes it available.');
+  }else{
+    setInstallUi('manual','Use your browser menu and choose “Install app” or “Add to Home screen”.');
   }
-  installTextEl.textContent='Open your browser menu and choose “Install app” or “Add to Home screen”.';
-  installActionEl.textContent='Got It';
   installPromptEl.hidden=false;
 }
-document.getElementById('installAppTop')?.addEventListener('click',()=>{showInstallAppPrompt(true);requestInstallApp()});
-installActionEl?.addEventListener('click',requestInstallApp);
+
+window.addEventListener('beforeinstallprompt',event=>{
+  event.preventDefault();
+  deferredInstallPrompt=event;
+  setInstallUi('ready','BridgePoint Horizon is ready to install. Tap Install App to open the system install confirmation.');
+  installPromptEl.hidden=false;
+
+  if(installRequestedEarly){
+    installRequestedEarly=false;
+    setTimeout(()=>{
+      requestInstallApp().catch(()=>{
+        setInstallUi('ready','BridgePoint Horizon is ready. Tap Install App once more to open the system installer.');
+      });
+    },0);
+  }
+});
+
+window.addEventListener('appinstalled',()=>{
+  deferredInstallPrompt=null;
+  installRequestedEarly=false;
+  sessionStorage.removeItem('bp-install-dismissed');
+  setInstallUi('installed','BridgePoint Horizon is installed. Open it from your home screen or app launcher.');
+  setTimeout(()=>{installPromptEl.hidden=true},900);
+});
+
+document.getElementById('installAppDismiss')?.addEventListener('click',()=>{
+  installPromptEl.hidden=true;
+  sessionStorage.setItem('bp-install-dismissed','1');
+});
+
+async function requestInstallApp(){
+  if(isStandalone()){
+    setInstallUi('installed','BridgePoint Horizon is already installed on this device.');
+    installPromptEl.hidden=true;
+    return;
+  }
+
+  if(deferredInstallPrompt){
+    const prompt=deferredInstallPrompt;
+    deferredInstallPrompt=null;
+    setInstallUi('preparing','Opening the system install confirmation…');
+    await prompt.prompt();
+    const choice=await prompt.userChoice.catch(()=>null);
+    if(choice?.outcome==='accepted'){
+      setInstallUi('preparing','Finishing installation…');
+    }else{
+      setInstallUi('waiting','Installation was not completed. Tap Install App whenever you want to try again.');
+    }
+    return;
+  }
+
+  if(isAppleMobile()){
+    installPromptEl.hidden=false;
+    setInstallUi('manual','Safari does not expose a one-tap web install API. Tap Share → Add to Home Screen → Add.');
+    return;
+  }
+
+  if(isChromiumFamily()){
+    installRequestedEarly=true;
+    installPromptEl.hidden=false;
+    setInstallUi('preparing','Preparing the real Android install dialog. Keep this page open; Chrome will make installation available after its install checks finish.');
+    try{await navigator.serviceWorker?.ready}catch(_){}
+    return;
+  }
+
+  installPromptEl.hidden=false;
+  setInstallUi('manual','This browser does not expose the in-page install prompt. Open its menu and choose “Install app” or “Add to Home screen”.');
+}
+
+installTopEl?.addEventListener('click',event=>{
+  event.preventDefault();
+  sessionStorage.removeItem('bp-install-dismissed');
+  showInstallAppPrompt(true);
+  requestInstallApp();
+});
+installActionEl?.addEventListener('click',event=>{
+  event.preventDefault();
+  requestInstallApp();
+});
+
+window.matchMedia?.('(display-mode: standalone)')?.addEventListener?.('change',()=>showInstallAppPrompt(true));
 setTimeout(()=>showInstallAppPrompt(false),1200);
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
