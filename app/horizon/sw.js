@@ -1,5 +1,5 @@
 const CACHE='bridgepoint-horizon-install-v3';
-const SHELL=['./','./index.html','./manifest.webmanifest','./horizon-mark.svg'];
+const SHELL=['./','./index.html','./lobby.html','./manifest.webmanifest','./horizon-mark.svg'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(
@@ -22,6 +22,7 @@ self.addEventListener('fetch',event=>{
 
   const isLanding=url.pathname==='/app/horizon/'||
     url.pathname==='/app/horizon/index.html'||
+    url.pathname==='/app/horizon/lobby.html'||
     url.pathname.endsWith('/app/horizon/manifest.webmanifest')||
     url.pathname.endsWith('/app/horizon/horizon-mark.svg');
 
