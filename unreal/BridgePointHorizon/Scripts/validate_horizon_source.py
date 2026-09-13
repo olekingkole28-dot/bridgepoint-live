@@ -174,6 +174,10 @@ if mode_contract_path.exists():
     require(year.get("party", {}).get("max") == 1, "Year One must be solo")
     require(year.get("party", {}).get("invites_allowed") is False, "Year One invites must be disabled")
 
+importer = read("unreal/BridgePointHorizon/Scripts/horizon_batch_import.py")
+for token in ["/Game/Horizon/Weapons/Imported", 'return "weapons"']:
+    require(token in importer, f"native weapon asset intake missing: {token}")
+
 try:
     py_compile.compile(
         str(UE / "Scripts" / "horizon_batch_import.py"),
