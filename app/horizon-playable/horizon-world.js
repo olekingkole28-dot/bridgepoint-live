@@ -23,7 +23,7 @@ async function getHorizonSupabase(){
   })();
   return await horizonSupabaseInit;
 }
-const BUILD_VERSION=4254;
+const BUILD_VERSION=4255;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -70,6 +70,7 @@ const ASSETS={
   yeti:CONSTELLATION_MODELS+'/quaternius-yeti.glb',
   bear:DERETH_MOBS+'/Bear.glb',
   infectedCrow:'https://cdn.jsdelivr.net/gh/adammikulis/local-agents@main/addons/local_agents/assets/models/fauna/vulture.glb',
+  flashlight:'https://cdn.jsdelivr.net/gh/rinz0x0cruz/rinz0x0cruz.github.io@b468129f0f3431e9820c2065874e057c4230d530/public/models/signal_flashlight/signal_flashlight.glb',
   barrel:FREE_BASE+'/Environment/glTF/Barrel.gltf',
   trash:FREE_BASE+'/Environment/glTF/TrashBag_1.gltf',
   pallet:FREE_BASE+'/Environment/glTF/Pallet_Broken.gltf',
@@ -410,6 +411,7 @@ let weaponPivot=null,weaponTemplates={},equippedWeaponName='Axe',swingTime=0,att
 let equipment={melee:'Axe',offhand:'Knife',sidearm:null,primary:null,quick1:'Bandage',quick2:'Water',quick3:'Flashlight'};
 let starterFlashlightGranted=true;
 let equipmentMounts={rightHand:null,leftHand:null,hip:null,backGun:null,backMelee:null,activeGrip:null};
+let utilityTemplates={flashlight:null},flashlightVisualMount=null,flashlightVisual=null;
 let activeSlot='melee',activeWeapon='Axe',aiming=false,fireCooldown=0,muzzleFlash=0;
 const weaponRaycaster=new THREE.Raycaster();
 let weaponRegistry=new Map(),weaponRegistryMode='fallback',weaponRegistryError=null;
@@ -2440,6 +2442,9 @@ function setupEquipmentMounts(modelRoot){
   equipmentMounts.activeGrip=makeMount(right||playerRoot);
   equipmentMounts.activeGrip.userData.handSocket=Boolean(right);
   equipmentMounts.activeGrip.userData.socketBone=right?.name||'playerRoot';
+  flashlightVisualMount=makeMount(left||playerRoot);
+  flashlightVisualMount.userData.handSocket=Boolean(left);
+  flashlightVisualMount.userData.socketBone=left?.name||'playerRoot';
 
   aimBones={torso,upperR,upperL,lowerR,lowerL};
 }
@@ -2819,6 +2824,8 @@ async function hydratePlayerAnimations(modelRoot){
 }
 function removeEquipmentMounts(){
   for(const m of Object.values(equipmentMounts))if(m?.parent)m.parent.remove(m);
+  if(flashlightVisualMount?.parent)flashlightVisualMount.parent.remove(flashlightVisualMount);
+  flashlightVisualMount=null;flashlightVisual=null;
   equipmentMounts={rightHand:null,leftHand:null,hip:null,backGun:null,backMelee:null,activeGrip:null};
 }
 async function hydrateRealPlayerModel(){
@@ -2845,8 +2852,9 @@ async function hydrateRealPlayerModel(){
   streetLifeStats.firstPersonActualArms=actualArmsReady;
   streetLifeStats.playerVisualHydratedAt=performance.now();
   streetLifeStats.playerVisualSource=String(PLAYER_ASSET).startsWith(location.origin)?'same-origin-cc0':'external-fallback';
-  captureCharacterWeaponTemplates(n.model);setupEquipmentMounts(n.model);refreshEquipmentVisuals();playPlayerAnimation(locomotionIntent||'idle');
+  captureCharacterWeaponTemplates(n.model);setupEquipmentMounts(n.model);refreshEquipmentVisuals();refreshFlashlightVisual();playPlayerAnimation(locomotionIntent||'idle');
   hydratePlayerAnimations(n.model).catch(e=>console.warn('player animation hydration',e));
+  hydrateUtilityTemplates().catch(e=>console.warn('utility hydration',e));
   if(!MOBILE_GPU_SAFE)hydrateWeaponTemplates().catch(e=>console.warn('weapon hydration',e));
   return true;
 }
@@ -3364,19 +3372,50 @@ function buildNightStreetLights(count=MOBILE_GPU_SAFE?8:24){
   }
   return made;
 }
+function refreshFlashlightVisual(){
+  if(!flashlightVisualMount)return false;
+  clearMount(flashlightVisualMount);flashlightVisual=null;
+  if(equipmentMounts.leftHand)equipmentMounts.leftHand.visible=!flashlightOn;
+  if(!flashlightOn||!flashlightAvailable())return false;
+  const template=utilityTemplates.flashlight;
+  if(!template)return false;
+  const obj=propCloneByLength(template,.24);if(!obj)return false;
+  obj.position.set(.02,.035,.015);obj.rotation.set(-.08,.02,-.06);
+  obj.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+  flashlightVisualMount.add(obj);flashlightVisual=obj;return true;
+}
+function replaceFlashlightPickupVisual(root){
+  if(!root||root.userData?.pickupItem!=='Flashlight'||!utilityTemplates.flashlight)return false;
+  const old=root.userData.pickupModel;if(old?.parent===root)root.remove(old);
+  const model=propCloneByLength(utilityTemplates.flashlight,.24);if(!model)return false;
+  model.rotation.set(.12,.08,-.2);model.position.z=.18;model.userData.pickupUtilityModel=true;
+  root.add(model);root.userData.pickupModel=model;return true;
+}
+async function hydrateUtilityTemplates(){
+  const flashlightAsset=await loadAsset(ASSETS.flashlight);
+  if(flashlightAsset){
+    utilityTemplates.flashlight=flashlightAsset;
+    refreshFlashlightVisual();
+    for(const p of worldPickups)if(p?.active&&p.item==='Flashlight')replaceFlashlightPickupVisual(p.root);
+  }
+  return Boolean(flashlightAsset);
+}
 function initFlashlight(){
   flashlight=new THREE.SpotLight(0xfff1cc,0,28,Math.PI/7,.42,1.25);flashlightTarget=new THREE.Object3D();
   scene.add(flashlight,flashlightTarget);flashlight.target=flashlightTarget;
 }
 function flashlightAvailable(){return (inventory.Flashlight||0)>0&&['quick1','quick2','quick3'].some(k=>equipment[k]==='Flashlight')}
 function toggleFlashlight(force){
-  if(force!==false&&!flashlightAvailable()){flashlightOn=false;if(flashlight)flashlight.intensity=0;showToast('Put the Flashlight in a quick slot first');return false}
+  if(force!==false&&!flashlightAvailable()){flashlightOn=false;if(flashlight)flashlight.intensity=0;refreshFlashlightVisual();showToast('Put the Flashlight in a quick slot first');return false}
   flashlightOn=typeof force==='boolean'?force:!flashlightOn;if(flashlight)flashlight.intensity=flashlightOn?48:0;
+  refreshFlashlightVisual();
+  if(flashlightOn&&!utilityTemplates.flashlight)hydrateUtilityTemplates().catch(()=>{});
   showToast(flashlightOn?'Flashlight on':'Flashlight off');return flashlightOn;
 }
 function updateFlashlight(){
   if(!flashlight||!playerRoot)return;const d=new THREE.Vector3();camera.getWorldDirection(d);
-  flashlight.position.copy(camera.position);flashlightTarget.position.copy(camera.position).addScaledVector(d,12);
+  if(flashlightOn&&flashlightVisual){flashlightVisual.getWorldPosition(flashlight.position)}else flashlight.position.copy(camera.position);
+  flashlightTarget.position.copy(flashlight.position).addScaledVector(d,12);
 }
 function updateDayNight(now){
   if(!autoDayNight||!sun||now-lastAtmosphereUpdate<900)return;lastAtmosphereUpdate=now;
@@ -3748,7 +3787,7 @@ function inventoryIcon(item){
   if(/Flashlight/i.test(item))return'⌁';if(/Pistol|Rifle|Shotgun|SMG/i.test(item))return'▰';if(/Axe|Knife|Spear|Pitchfork|Crowbar|Saw|Bat|Guitar/i.test(item))return'⚔';if(/Ammo|Shell/i.test(item))return'▥';if(/Water|drink/i.test(item))return'◒';if(/Bandage|First aid|Painkiller/i.test(item))return'✚';if(/Backpack|Duffel/i.test(item))return'▣';if(/Battery|Spark|Tire|Fuel|hose|chain/i.test(item))return'⚙';if(/Food|Canned|bar/i.test(item))return'◫';return'◆';
 }
 function makePickupVisual(item,seedValue){
-  const root=new THREE.Group(),weapon=pickupTemplateFor(item);
+  const root=new THREE.Group(),weapon=pickupTemplateFor(item)||(item==='Flashlight'&&utilityTemplates.flashlight?{template:utilityTemplates.flashlight,length:.24}:null);
   let model=null;
   if(weapon?.template){
     model=propCloneByLength(weapon.template,weapon.length);
@@ -3767,6 +3806,7 @@ function makePickupVisual(item,seedValue){
   const stem=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.72,5),rare?pickupRareMat:pickupGlowMat);
   stem.position.set(0,0,.48);root.add(stem);
   root.userData.pickupItem=item;root.userData.seed=seedValue;root.userData.pickupModel=model;
+  if(item==='Flashlight'&&utilityTemplates.flashlight)replaceFlashlightPickupVisual(root);
   return root;
 }
 async function hydratePickupWeaponModel(root,item){
