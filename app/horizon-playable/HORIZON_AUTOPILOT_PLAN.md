@@ -73,3 +73,40 @@ The automated Horizon side MUST treat `HORIZON_GAME_MODES_V4243.json` as authori
 - One shared lobby owns mode selection, characters, skins, loadouts, emotes, sprays, friends/invites, ready state, voice settings, and audio settings.
 - Premium audio is a release gate: spatial audio, occlusion, reverb zones, material footsteps, layered weapon audio, infected/creature vocals, dynamic ambience, and mode-correct voice chat.
 - Do not connect Stripe until the owner explicitly gives the final go-ahead.
+
+
+## AAA source promotion order (V4244)
+
+Use this order when the automated asset side has available capacity. Do not replace a working system merely because a pack is newer.
+
+1. Game Animation Sample + MetaHuman 5.8
+   - Target: responsive locomotion, traversal, high-fidelity survivors, retargeting.
+   - Unreal-only pipeline.
+2. City Sample Buildings + City Sample Crowds
+   - Target: dense city visual quality, entrances, modular multi-level city dressing, crowd reference.
+   - Unreal-only pipeline; BridgePoint remains the authority for real-world placement/geometry.
+3. City Sample Vehicles
+   - Target: realistic cars/trucks/bus/van foundations and driving behavior.
+   - Unreal-only pipeline.
+4. Poly Haven + ambientCG
+   - Target: photoreal HDRIs, PBR surfaces, ground, concrete, wood, metal, roofing, siding and environment props.
+   - Prefer these CC0 sources for engine-agnostic material upgrades.
+5. Sonniss GDC 2026 audio
+   - Target: layered weapons, footsteps, foley, impacts, infected/creatures, weather, interiors/exteriors and horror ambience.
+   - Never redistribute standalone source audio.
+6. Valley of the Ancient
+   - Reference/selective reuse for mountain terrain, ruins, Nanite/Lumen and World Partition patterns.
+7. Paragon Minions / Rampage
+   - Evaluate only for original Horizon hostile/boss implementations inside Unreal; never use PARAGON naming/branding.
+8. Shooter Game + Vehicle Game
+   - Architecture/reference lanes for combat, AI, physics and audio patterns, not visual identity.
+
+Promotion gates for every source:
+- explicit license recorded
+- correct engine restriction recorded
+- source provenance retained
+- no ripped/proprietary third-party game assets
+- performance profile completed
+- gameplay or visual improvement demonstrated
+- browser/client separation respected
+- smoke test passes before production promotion
