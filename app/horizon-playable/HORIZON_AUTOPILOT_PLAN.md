@@ -60,3 +60,16 @@ See `HORIZON_ASSET_CANDIDATES.json`. Epic's free Game Animation Sample, City Sam
 ## IP rule
 
 Call of Duty, Resident Evil, World War Z, GTA, The Sims and The Lord of the Rings are references for feel only. Horizon must use original or properly licensed content and must never ship ripped models, animations, audio, logos or characters from those games/films.
+
+
+## Authoritative game-mode contract (V4243)
+
+The automated Horizon side MUST treat `HORIZON_GAME_MODES_V4243.json` as authoritative.
+
+- Exactly three modes: YEAR ONE SURVIVAL, INFINITE TEAM DEATHMATCH, OUTBREAK RAID.
+- YEAR ONE SURVIVAL is solo-only. Players may customize in the shared lobby, but no party enters Year One together.
+- INFINITE TEAM DEATHMATCH supports duo, trio, and squad parties and uses the infinite dense-arena switcher.
+- OUTBREAK RAID supports one-to-four-player cooperative PvE missions with objectives, elite creatures, bosses, rare loot, and extraction.
+- One shared lobby owns mode selection, characters, skins, loadouts, emotes, sprays, friends/invites, ready state, voice settings, and audio settings.
+- Premium audio is a release gate: spatial audio, occlusion, reverb zones, material footsteps, layered weapon audio, infected/creature vocals, dynamic ambience, and mode-correct voice chat.
+- Do not connect Stripe until the owner explicitly gives the final go-ahead.
