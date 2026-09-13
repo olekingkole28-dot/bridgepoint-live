@@ -222,7 +222,19 @@ const camera=new THREE.PerspectiveCamera(66,innerWidth/innerHeight,.08,12000);
 camera.up.set(0,0,1);
 scene.add(camera);
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',stencil:false});
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,MOBILE_GPU_SAFE?1.05:1.35));
+const MAX_RENDER_PIXEL_RATIO=Math.min(devicePixelRatio||1,MOBILE_GPU_SAFE?1.05:1.35);
+const MIN_RENDER_PIXEL_RATIO=Math.min(MAX_RENDER_PIXEL_RATIO,MOBILE_GPU_SAFE?.72:.92);
+let adaptivePixelRatio=MAX_RENDER_PIXEL_RATIO;
+let renderPerformance={
+  mode:'adaptive',
+  emaMs:MOBILE_GPU_SAFE?22:16.7,
+  targetMs:MOBILE_GPU_SAFE?22.5:17.5,
+  lastAdjustAt:performance.now(),
+  adjustments:0,
+  downshifts:0,
+  upshifts:0
+};
+renderer.setPixelRatio(adaptivePixelRatio);
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.03;
@@ -236,6 +248,7 @@ function initPostProcessing(){
   if(MOBILE_GPU_SAFE){composer=null;gtaoPass=null;bloomPass=null;postFxMode='mobile-filmic';return false}
   try{
     composer=new EffectComposer(renderer);
+    composer.setPixelRatio?.(adaptivePixelRatio);
     composer.addPass(new RenderPass(scene,camera));
     gtaoPass=new GTAOPass(scene,camera,Math.max(1,root.clientWidth||innerWidth),Math.max(1,root.clientHeight||innerHeight));
     gtaoPass.output=GTAOPass.OUTPUT.Denoise;
@@ -259,6 +272,30 @@ function resizeRenderer(){
   camera.updateProjectionMatrix();
   renderer.setSize(w,h,false);
   composer?.setSize(w,h);
+}
+function setAdaptivePixelRatio(next,reason='auto'){
+  next=THREE.MathUtils.clamp(Number(next)||MAX_RENDER_PIXEL_RATIO,MIN_RENDER_PIXEL_RATIO,MAX_RENDER_PIXEL_RATIO);
+  next=Math.round(next*100)/100;
+  if(Math.abs(next-adaptivePixelRatio)<.035)return false;
+  adaptivePixelRatio=next;renderer.setPixelRatio(adaptivePixelRatio);
+  composer?.setPixelRatio?.(adaptivePixelRatio);resizeRenderer();
+  renderPerformance.adjustments++;
+  if(reason==='down')renderPerformance.downshifts++;
+  if(reason==='up')renderPerformance.upshifts++;
+  return true;
+}
+function updateAdaptiveRenderQuality(dt,now=performance.now()){
+  if(document.hidden||!Number.isFinite(dt)||dt<=0)return;
+  const ms=THREE.MathUtils.clamp(dt*1000,5,55);
+  renderPerformance.emaMs=THREE.MathUtils.lerp(renderPerformance.emaMs,ms,.055);
+  if(now-renderPerformance.lastAdjustAt<2200)return;
+  renderPerformance.lastAdjustAt=now;
+  const target=renderPerformance.targetMs,ema=renderPerformance.emaMs;
+  if(ema>target*1.17&&adaptivePixelRatio>MIN_RENDER_PIXEL_RATIO+.02){
+    const step=MOBILE_GPU_SAFE?.08:.07;setAdaptivePixelRatio(adaptivePixelRatio-step,'down');
+  }else if(ema<target*.82&&adaptivePixelRatio<MAX_RENDER_PIXEL_RATIO-.02){
+    const step=MOBILE_GPU_SAFE?.04:.05;setAdaptivePixelRatio(adaptivePixelRatio+step,'up');
+  }
 }
 addEventListener('resize',resizeRenderer,{passive:true});
 addEventListener('orientationchange',()=>setTimeout(resizeRenderer,180),{passive:true});
@@ -5956,6 +5993,13 @@ async function boot(){
         const repaired=repairVehicle(v),result={repaired,ready:vehicleReady(v),installed:[...v.installedParts],required:[...v.requiredParts]};v.installedParts=prior;return result;
       },
       progressionProbe:()=>({xp,battleTier,livesRemaining,unlocks:[...cosmeticUnlocks]}),
+      renderQualityProbe:()=>({
+        adaptive:true,mobile:MOBILE_GPU_SAFE,
+        pixelRatio:adaptivePixelRatio,minPixelRatio:MIN_RENDER_PIXEL_RATIO,maxPixelRatio:MAX_RENDER_PIXEL_RATIO,
+        emaMs:renderPerformance.emaMs,targetMs:renderPerformance.targetMs,
+        adjustments:renderPerformance.adjustments,downshifts:renderPerformance.downshifts,upshifts:renderPerformance.upshifts,
+        worldTickMs:MOBILE_GPU_SAFE?34:16
+      }),
       audioProbe:()=>{
         ensureAudio();
         return{
@@ -6004,6 +6048,7 @@ async function boot(){
 let lastPrompt=0,lastWorldTick=0,lastSmokeTick=0,lastMiniTick=0;
 function loop(now=performance.now()){
   const dt=Math.min(.05,clock.getDelta()||.016);
+  updateAdaptiveRenderQuality(dt,now);
   updateWeapon(dt);updatePlayer(dt);
   const worldCadence=MOBILE_GPU_SAFE?34:16;
   if(now-lastWorldTick>=worldCadence){
