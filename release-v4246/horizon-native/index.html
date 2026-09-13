@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#060811">
+<title>BridgePoint Horizon — UE5.8 Native Track</title>
+<style>
+:root{--bg:#05070c;--panel:#0b1119;--line:rgba(255,255,255,.11);--mint:#55f2ba;--violet:#9876ff;--muted:#9fb0bd}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,rgba(152,118,255,.16),transparent 30%),radial-gradient(circle at 0 70%,rgba(85,242,186,.11),transparent 28%),var(--bg);color:#f4fbff;font-family:Inter,system-ui,sans-serif}
+main{width:min(1100px,calc(100% - 28px));margin:auto;padding:24px 0 60px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center}.top a{color:#fff;text-decoration:none;font-weight:900}.pill{border:1px solid rgba(85,242,186,.28);color:var(--mint);border-radius:999px;padding:8px 10px;font-size:10px;font-weight:950;letter-spacing:.1em}
+.hero{padding:64px 0 26px}.hero h1{font-size:clamp(40px,7vw,78px);line-height:.94;letter-spacing:-.05em;margin:12px 0}.hero p{max-width:800px;color:var(--muted);line-height:1.6;font-size:17px}
+.notice{padding:16px;border-radius:16px;border:1px solid rgba(255,193,93,.25);background:rgba(255,193,93,.06);color:#f5d7a4;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:22px 0}.card,.systems{border:1px solid var(--line);background:rgba(11,17,25,.88);border-radius:20px;padding:18px}.card h2{margin:8px 0;font-size:23px}.card p{color:var(--muted);font-size:13px;line-height:1.5}.card b{color:var(--mint);font-size:10px;letter-spacing:.1em}
+.systems h2{font-size:28px;margin:0 0 14px}.system-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.system{padding:13px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07)}.system strong{display:block;margin-bottom:5px}.system small{color:var(--muted);line-height:1.4}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.actions a{padding:12px 14px;border-radius:11px;text-decoration:none;font-weight:900}.primary{background:linear-gradient(135deg,var(--violet),var(--mint));color:#04100c}.secondary{border:1px solid var(--line);color:#fff}
+@media(max-width:800px){.grid,.system-grid{grid-template-columns:1fr}.hero{padding-top:42px}}
+</style>
+</head>
+<body>
+<main>
+<div class="top"><a href="/app/horizon/">← BridgePoint Horizon</a><span class="pill">UE5.8 NATIVE TRACK · V4246</span></div>
+<section class="hero"><span class="pill">SOURCE + RUNTIME ARCHITECTURE PUBLISHED</span><h1>Horizon’s native engine track.</h1><p>This page exposes the UE5.8 systems now committed to BridgePoint Horizon. The immediately playable web preview remains a Three.js/WebGL client; Unreal Engine 5.8 does not publish directly to browsers. A true interactive UE view requires a packaged native build running on a GPU host through Pixel Streaming.</p></section>
+<div class="notice"><b>Current publish state:</b> the native source is public in the Horizon repository and production site manifest. It is not being represented here as a compiled Unreal executable until an actual UE5.8 packaging + GPU streaming runner is available and verified.</div>
+<section class="grid">
+<article class="card"><b>MODE 01 · SOLO</b><h2>Year One Survival</h2><p>365-day rules, three activated-event lives, infected progression, zombie-wall endgame and persistent survival progression.</p></article>
+<article class="card"><b>MODE 02 · TEAM</b><h2>Infinite TDM</h2><p>Arena director scores streamed BridgePoint locations for density, verticality, elevation, rooftops, bridges, waterfronts and combat cover.</p></article>
+<article class="card"><b>MODE 03 · CO-OP</b><h2>Outbreak Raid</h2><p>1–4 player mission director with staged objectives, elites, bosses, extraction and party/depth scaling.</p></article>
+</section>
+<section class="systems"><h2>Native systems now in the project</h2><div class="system-grid">
+<div class="system"><strong>BridgePoint world streaming</strong><small>HTTP client consumes the live BridgePoint cell endpoint.</small></div>
+<div class="system"><strong>Procedural real-world renderer</strong><small>USGS terrain, roads/rail, water, real building footprints/heights and Overture building parts.</small></div>
+<div class="system"><strong>Generated interiors</strong><small>Fictional game-only rooms, actual door openings, windows, stairs and traversal structure.</small></div>
+<div class="system"><strong>Rooftop ziplines</strong><small>Rideable spline traversal with attach/release behavior.</small></div>
+<div class="system"><strong>Infected + zombie wall</strong><small>Difficulty progression and contracting endgame pressure.</small></div>
+<div class="system"><strong>Challenge NPC director</strong><small>Strategic archetypes and free challenge rewards.</small></div>
+<div class="system"><strong>Shared loadout persistence</strong><small>Character, skin, firearms, melee, emotes and sprays.</small></div>
+<div class="system"><strong>EOS lobby/voice track</strong><small>Team-mode lobby and voice architecture; credentials remain unconfigured until deployment.</small></div>
+<div class="system"><strong>Premium audio director</strong><small>Indoor/outdoor states, threat intensity, occlusion/reverb and mode-aware voice behavior.</small></div>
+<div class="system"><strong>PBR material slots</strong><small>Separate terrain, road, building, building-part and water material channels.</small></div>
+</div></section>
+<div class="actions"><a class="primary" href="/app/horizon/preview.html?build=4246&preseason=1">Open playable browser world</a><a class="secondary" href="https://github.com/olekingkole28-dot/bridgepoint-live/tree/main/unreal/BridgePointHorizon" target="_blank" rel="noopener">Inspect UE5.8 source ↗</a></div>
+</main>
+</body>
+</html>
