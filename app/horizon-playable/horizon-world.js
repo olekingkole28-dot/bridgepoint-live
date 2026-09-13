@@ -335,6 +335,23 @@ const BATTLE_PASS_LEVELS=150;
 let battleSeason=CURRENT_BATTLE_SEASON;
 const MODERATION_BLOCKLIST=['slur_placeholder_disabled'];
 const cosmeticUnlocks=new Set();
+function battleRewardForLevel(level){
+  level=Math.max(1,Math.min(BATTLE_PASS_LEVELS,Math.floor(level)));
+  if(level===150)return{kind:'character',label:'HORIZON LEGEND CHARACTER',rarity:'legendary'};
+  if(level>=145)return{kind:'legendary',label:'LEGENDARY SEASON RELIC '+level,rarity:'legendary'};
+  if(level>=140)return{kind:'finisher',label:'APEX FINISHER '+level,rarity:'legendary'};
+  if(level%25===0)return{kind:'character',label:'SURVIVOR CHARACTER '+level,rarity:level>=100?'epic':'rare'};
+  if(level%15===0)return{kind:'emote',label:'SURVIVOR EMOTE '+level,rarity:level>=90?'epic':'rare'};
+  if(level%10===0)return{kind:'blueprint',label:'SURVIVAL BLUEPRINT '+level,rarity:level>=80?'epic':'rare'};
+  if(level%5===0)return{kind:'wrap',label:'WEAPON WRAP '+level,rarity:level>=75?'epic':'uncommon'};
+  return{kind:'salvage',label:'SALVAGE CACHE '+level,rarity:level>=100?'rare':'common',amount:30+level*2};
+}
+function grantBattleReward(level){
+  const reward=battleRewardForLevel(level);
+  if(reward.kind==='salvage')salvage+=reward.amount;
+  else cosmeticUnlocks.add(reward.label);
+  return reward;
+}
 
 let RAPIER=null,physicsWorld=null,physicsReady=false,physicsMode='manual-fallback',physicsError=null;
 let playerPhysicsBody=null,playerPhysicsCollider=null,characterController=null,terrainPhysicsCollider=null,terrainSafetyRescues=0;
@@ -2545,9 +2562,14 @@ function configureMatchMode(mode=matchMode){
 function cycleMatchMode(){const modes=['survival','skirmish','year365'],i=modes.indexOf(matchMode);configureMatchMode(modes[(i+1)%modes.length]);showToast('Mode: '+matchMode)}
 function matchBlocks(x,y){return Number.isFinite(matchRadius)&&Math.hypot(x-matchCenter.x,y-matchCenter.y)>matchRadius}
 function awardXP(amount,reason='survival'){
+  const previousTier=battleTier;
   xp=Math.max(0,xp+Math.max(0,Math.floor(amount)));battleTier=Math.min(BATTLE_PASS_LEVELS,Math.floor(xp/500));
-  for(const [tier,item] of [[2,'ASH CAMO'],[5,'RUST WRAP'],[10,'HORIZON SKIN'],[20,'SURVIVOR EMOTE'],[50,'NIGHTFALL WRAP'],[75,'RAIDER EMOTE'],[100,'VETERAN SURVIVOR'],[125,'BLACKOUT CHARACTER'],[140,'APEX FINISHER'],[150,'HORIZON LEGEND']])if(battleTier>=tier)cosmeticUnlocks.add(item);
-  const el=$('xpStat');if(el)el.textContent=xp.toLocaleString();persistSurvivor();return{xp,battleTier,reason,unlocks:[...cosmeticUnlocks]};
+  const granted=[];for(let tier=previousTier+1;tier<=battleTier;tier++)granted.push(grantBattleReward(tier));
+  const el=$('xpStat');if(el)el.textContent=xp.toLocaleString();
+  const tierEl=$('tierStat');if(tierEl)tierEl.textContent=String(battleTier)+'/'+BATTLE_PASS_LEVELS;
+  const salvageEl=$('salvageStat');if(salvageEl)salvageEl.textContent=salvage.toLocaleString();
+  if(granted.length){const last=granted[granted.length-1];showToast('Season '+battleTier+'/'+BATTLE_PASS_LEVELS+' · '+last.label)}
+  persistSurvivor();return{xp,battleTier,reason,rewards:granted,unlocks:[...cosmeticUnlocks]};
 }
 function moderateChatMessage(message){
   let text=String(message||'').trim().slice(0,240);
