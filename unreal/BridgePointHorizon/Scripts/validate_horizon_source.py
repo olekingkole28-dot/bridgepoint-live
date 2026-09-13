@@ -110,6 +110,10 @@ interior = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGene
 for token in ["AddStairRun", "AddDoor", "AddWindowBayX", "ToggleNearestDoor"]:
     require(token in interior, f"generated interior traversal feature missing: {token}")
 
+zombie_wall = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonZombieWallController.cpp")
+for token in ["UHorizonGameStateSubsystem", "GetZombieWallProgress01", "bHideUntilYearOneStarts"]:
+    require(token in zombie_wall, f"Year One zombie-wall clock integration missing: {token}")
+
 
 engine_config = read("unreal/BridgePointHorizon/Config/DefaultEngine.ini")
 for token in ["/Engine/Maps/Entry", "GlobalDefaultGameMode=/Script/BridgePointHorizon.HorizonGameMode"]:
