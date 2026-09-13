@@ -23,7 +23,7 @@ async function getHorizonSupabase(){
   })();
   return await horizonSupabaseInit;
 }
-const BUILD_VERSION=4253;
+const BUILD_VERSION=4254;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -44,11 +44,11 @@ const ASSETS={
   playerSam:FREE_BASE+'/Characters/glTF/Characters_Sam.gltf',
   playerShaun:FREE_BASE+'/Characters/glTF/Characters_Shaun.gltf',
   playerRealistic:'https://threejs.org/examples/models/gltf/Soldier.glb',
-  playerSurvivor:M2M_BASE+'/models/male_32.glb',
-  playerFemale:M2M_BASE+'/models/female_31.glb',
-  playerSwat:M2M_BASE+'/models/swat_male.glb',
-  playerPolice:M2M_BASE+'/models/police_male.glb',
-  playerHazmat:M2M_BASE+'/models/hazmat_suit_male.glb',
+  playerSurvivor:M2M_BASE+'/models/male_32_runtime.gltf',
+  playerFemale:M2M_BASE+'/models/female_31_runtime.gltf',
+  playerSwat:M2M_BASE+'/models/swat_male_runtime.gltf',
+  playerPolice:M2M_BASE+'/models/police_male_runtime.gltf',
+  playerHazmat:M2M_BASE+'/models/hazmat_suit_male_runtime.gltf',
   playerAnimations:M2M_BASE+'/animations/human-base-animations.glb',
   infectedM2MZombie:M2M_BASE+'/models-variation/human/zombie.glb',
   infectedM2MMonster3:M2M_BASE+'/models-variation/human/monster_3.glb',
@@ -6332,7 +6332,12 @@ async function boot(){
         actualArms:Boolean(firstPersonActualArms?.parent),
         armBoneCount:Number(streetLifeStats.firstPersonArmBoneCount||0),
         armTriangles:Number(streetLifeStats.firstPersonArmTriangles||0),
-        failure:streetLifeStats.firstPersonArmsFailure||null
+        failure:streetLifeStats.firstPersonArmsFailure||null,
+        criticalUrl:streetLifeStats.criticalAssetUrl||null,
+        criticalLoaded:streetLifeStats.criticalAssetLoaded??null,
+        criticalTimedOut:streetLifeStats.criticalAssetTimedOut??null,
+        criticalElapsedMs:streetLifeStats.criticalAssetElapsedMs??null,
+        criticalError:streetLifeStats.criticalAssetError||null
       }),
       cameraModesProbe:()=>{
         const prior=cameraMode,out=[];
