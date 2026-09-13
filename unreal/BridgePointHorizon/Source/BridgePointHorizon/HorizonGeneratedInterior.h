@@ -36,6 +36,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Interior")
     bool bOpenWindows = true;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Interior")
+    bool bGenerateRoofAccess = true;
+
     UFUNCTION(BlueprintCallable, Category="Horizon|Interior")
     void GenerateInterior(int32 Seed = 1337);
 
@@ -90,5 +93,6 @@ private:
     void AddRoomPartitions(int32 FloorIndex);
     void AddDoor(float X, float Y, float FloorZ, bool bNorthSide, int32 DoorIndex);
     void AddStairRun(int32 FromFloorIndex);
+    void AddRoofAccess();
     void AddWindowBayX(float XMin, float XMax, float Y, float FloorZ, const FString& Prefix);
 };
