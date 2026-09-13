@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'app/horizon/index.html'
+      - 'app/horizon/lobby.html'
       - 'app/horizon/manifest.webmanifest'
       - 'app/horizon/horizon-mark.svg'
       - 'app/horizon/sw.js'
@@ -142,3 +143,14 @@ jobs:
             sleep 4
           done
           test "${ok}" = 1
+
+          lobby_ok=0
+          for mode in year_one_survival infinite_tdm outbreak_raid; do
+            rm -f /tmp/lobby
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/app/horizon/lobby.html?mode=${mode}&v=${GITHUB_SHA}" -o /tmp/lobby
+            grep -Fq 'HORIZON LOBBY' /tmp/lobby
+            grep -Fq "u.searchParams.set('mode',mode)" /tmp/lobby
+            grep -Fq "${mode}" site/app/horizon/index.html
+          done
+          lobby_ok=1
+          test "${lobby_ok}" = 1
