@@ -29,7 +29,17 @@ jobs:
           node-version: '22'
       - name: Install pinned browser driver
         run: npm install --no-save --no-audit --no-fund playwright-core@1.55.0
-      - name: Verify live Horizon survivor world
+      - name: Start checked-out Horizon static server
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/horizon-http.log 2>&1 &
+          echo $! >/tmp/horizon-http.pid
+          sleep 1
+          curl --fail --silent http://127.0.0.1:4173/app/horizon-playable/ >/dev/null
+      - name: Verify checked-out Horizon survivor world
+        env:
+          HORIZON_TEST_BASE: http://127.0.0.1:4173
         run: node scripts/browser-horizon-playable-v2980.mjs
-      - name: Verify Android direct renderer and touch controls
+      - name: Verify checked-out Android renderer and touch controls
+        env:
+          HORIZON_TEST_BASE: http://127.0.0.1:4173
         run: node scripts/browser-horizon-android-safe.mjs
