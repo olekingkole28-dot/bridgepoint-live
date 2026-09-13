@@ -1,0 +1,82 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "HorizonWorldCellRenderer.generated.h"
+
+class UProceduralMeshComponent;
+class USceneComponent;
+
+UCLASS(BlueprintType)
+class BRIDGEPOINTHORIZON_API AHorizonWorldCellRenderer : public AActor
+{
+    GENERATED_BODY()
+
+public:
+    AHorizonWorldCellRenderer();
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|World")
+    TObjectPtr<USceneComponent> SceneRoot;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|World")
+    TObjectPtr<UProceduralMeshComponent> TerrainMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|World")
+    TObjectPtr<UProceduralMeshComponent> RoadMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|World")
+    TObjectPtr<UProceduralMeshComponent> BuildingMesh;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|World")
+    float VerticalExaggeration = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|World")
+    float DefaultBuildingHeightMeters = 9.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|World")
+    bool bCreateTerrainCollision = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|World")
+    bool bCreateBuildingCollision = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|World")
+    int32 MaxBuildingsPerCell = 1800;
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|World")
+    bool RenderCellJson(const FString& CellJson);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|World")
+    void ClearCell();
+
+    UFUNCTION(BlueprintPure, Category="Horizon|World")
+    int32 GetRenderedBuildingCount() const { return RenderedBuildingCount; }
+
+    UFUNCTION(BlueprintPure, Category="Horizon|World")
+    int32 GetRenderedRoadSegmentCount() const { return RenderedRoadSegmentCount; }
+
+    UFUNCTION(BlueprintPure, Category="Horizon|World")
+    FVector ProjectCoordinate(double Longitude, double Latitude, double HeightMeters = 0.0) const;
+
+private:
+    double CenterLatitude = 0.0;
+    double CenterLongitude = 0.0;
+    double West = 0.0;
+    double South = 0.0;
+    double East = 0.0;
+    double North = 0.0;
+
+    int32 TerrainWidth = 0;
+    int32 TerrainHeight = 0;
+    double BaseElevationMeters = 0.0;
+    TArray<double> TerrainHeightsMeters;
+
+    int32 RenderedBuildingCount = 0;
+    int32 RenderedRoadSegmentCount = 0;
+
+    bool ParseCellHeader(const TSharedPtr<class FJsonObject>& Root);
+    bool BuildTerrain(const TSharedPtr<class FJsonObject>& Root);
+    void BuildTransport(const TSharedPtr<class FJsonObject>& Root);
+    void BuildBuildings(const TSharedPtr<class FJsonObject>& Root);
+
+    double SampleTerrainMeters(double Longitude, double Latitude) const;
+};
