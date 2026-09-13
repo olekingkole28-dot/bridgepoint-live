@@ -112,8 +112,16 @@ for token in ["RequestWorldCell", "RenderCellJson", "TravelToCell", "UHorizonAut
     require(token in runtime, f"end-to-end world runtime feature missing: {token}")
 
 interior = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGeneratedInterior.cpp")
-for token in ["AddStairRun", "AddDoor", "AddWindowBayX", "ToggleNearestDoor"]:
+for token in [
+    "AddStairRun", "AddDoor", "AddWindowBayX", "ToggleNearestDoor",
+    "AddFloorPlate(FloorCount)", "AddStairRun(FloorCount - 1)", "AddRoofAccess",
+    "RoofBulkhead", "RoofDoorHeader", "RoofParapet"
+]:
     require(token in interior, f"generated interior traversal feature missing: {token}")
+
+interior_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGeneratedInterior.h")
+require("bGenerateRoofAccess = true" in interior_header,
+        "procedural interiors must default to physical roof access")
 
 zombie_wall_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonZombieWallController.h")
 zombie_wall = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonZombieWallController.cpp")
