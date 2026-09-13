@@ -5,6 +5,7 @@ const horizonSource=fs.readFileSync('app/horizon-playable/horizon-world.js','utf
 const buildMatch=horizonSource.match(/const BUILD_VERSION=(\d+)/);
 if(!buildMatch)throw new Error('Could not resolve Horizon BUILD_VERSION from source');
 const EXPECTED_BUILD=Number(buildMatch[1]);
+const BASE_URL=String(process.env.HORIZON_TEST_BASE||'https://bridgepointintelligence.online').replace(/\/$/,'');
 
 const candidates=[process.env.CHROME_PATH,'/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium','/usr/bin/chromium-browser'].filter(Boolean);
 const executablePath=candidates.find(p=>fs.existsSync(p));
@@ -21,7 +22,7 @@ page.on('pageerror',e=>errors.push(String(e?.stack||e)));
 page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
 
 // Legacy direct renderer must remain healthy.
-const directUrl='https://bridgepointintelligence.online/app/horizon-playable/?lat=41.5623&lon=-72.6506&span_km=1.0&build=4101&ci='+Date.now();
+const directUrl=BASE_URL+'/app/horizon-playable/?lat=41.5623&lon=-72.6506&span_km=1.0&build=4101&ci='+Date.now();
 const direct=await page.goto(directUrl,{waitUntil:'domcontentloaded',timeout:30000});
 if(direct?.status()!==200)throw new Error('default Horizon HTTP '+direct?.status());
 await page.waitForFunction(()=>window.BP_HORIZON_V2?.ok===true,null,{timeout:90000});
@@ -30,7 +31,7 @@ if(!legacy.errorHidden||!legacy.canvas||legacy.probe?.build!==4100||!(legacy.pro
 console.log('HORIZON_V2_DEFAULT_LIVE_PASS');
 
 // Main Horizon: first playable frame is the primary gate.
-const previewUrl='https://bridgepointintelligence.online/app/horizon/preview.html?map=times_square&preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.0&character=survivor&build='+EXPECTED_BUILD+'&ci='+Date.now();
+const previewUrl=BASE_URL+'/app/horizon/preview.html?map=times_square&preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.0&character=survivor&build='+EXPECTED_BUILD+'&ci='+Date.now();
 const pr=await page.goto(previewUrl,{waitUntil:'domcontentloaded',timeout:30000});
 if(pr?.status()!==200)throw new Error('Horizon showcase HTTP '+pr?.status());
 await page.waitForFunction(()=>window.BP_HORIZON_PLAYABLE?.ok===true,null,{timeout:30000});
