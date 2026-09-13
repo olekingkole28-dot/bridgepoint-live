@@ -65,6 +65,19 @@ jobs:
           acquire_asset brick_wall_001
           acquire_asset concrete_wall_005
 
+          # Neutral overcast urban HDRI for realistic reflections/IBL on capable clients.
+          HDR_META='/tmp/urban_street_03.json'
+          curl --fail --retry 4 --retry-delay 2 -A "${UA}" \
+            'https://api.polyhaven.com/files/urban_street_03' -o "${HDR_META}"
+          HDR_URL="$(jq -r '.hdri["1k"]["hdr"]["url"] // empty' "${HDR_META}")"
+          HDR_MD5="$(jq -r '.hdri["1k"]["hdr"]["md5"] // empty' "${HDR_META}")"
+          test -n "${HDR_URL}"
+          curl --fail --retry 4 --retry-delay 2 -L -A "${UA}" "${HDR_URL}" \
+            -o "${OUT}/urban_street_03_1k.hdr"
+          if [ -n "${HDR_MD5}" ]; then
+            echo "${HDR_MD5}  ${OUT}/urban_street_03_1k.hdr" | md5sum -c -
+          fi
+
           python3 - <<'PY'
           import json, pathlib, hashlib
           root=pathlib.Path("app/horizon-playable/assets/pbr/polyhaven")
@@ -73,9 +86,10 @@ jobs:
               "dirt":"https://polyhaven.com/a/dirt",
               "brick_wall_001":"https://polyhaven.com/a/brick_wall_001",
               "concrete_wall_005":"https://polyhaven.com/a/concrete_wall_005",
+              "urban_street_03":"https://polyhaven.com/a/urban_street_03",
           }
           files=[]
-          for p in sorted(root.glob("*.jpg")):
+          for p in sorted([*root.glob("*.jpg"),*root.glob("*.hdr")]):
               files.append({
                   "path":p.name,
                   "bytes":p.stat().st_size,
