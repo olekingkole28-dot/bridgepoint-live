@@ -78,4 +78,10 @@ public:
 
     UFUNCTION(BlueprintPure, Category="Horizon|Infected")
     float GetCityConvergencePressure(int32 EventDay) const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Infected")
+    int32 GetAdaptiveSpawnCap() const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Infected")
+    float GetAdaptiveSimulationBudget01() const;
 };
