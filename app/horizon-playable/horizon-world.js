@@ -346,7 +346,9 @@ let zombieTemplate=null,zombieTemplates=[],enemyArchetypes=[];
 let mobileMove={x:0,y:0},mobileSprint=false,mobileInputMode='pointer-fallback',nippleManager=null;
 const INTERIOR_FLOOR_H=3.05;
 let interiorMode=false,activeInterior=null,exteriorReturn=new THREE.Vector3(),exteriorYaw=0;
-let interiorWalls=[],interiorContainers=[],interiorWeaponCases=[],interiorBounds=null,interiorExit=null,interiorFloorLinks=[],interiorStairs=[],interiorTemplates={},interiorLootedKeys=new Set(),weaponCasePurchases=new Set();
+let interiorWalls=[],interiorDoors=[],interiorContainers=[],interiorWeaponCases=[],interiorBounds=null,interiorExit=null,interiorFloorLinks=[],interiorStairs=[],interiorTemplates={},interiorLootedKeys=new Set(),weaponCasePurchases=new Set();
+const interiorDoorStates=new Map();
+let interiorDoorBuildPrefix='',interiorDoorBuildIndex=0;
 let streetLifeStats={trees:0,bikes:0,vehicles:0,props:0,grass:0,benches:0,planters:0,backgroundTrees:0,shrubs:0,drivable:0};
 let drivableVehicles=[],activeVehicle=null;
 let rooftopState=null,ziplines=[],activeZipline=null;
@@ -1591,12 +1593,19 @@ function breakNearestGlass(){
 }
 function kickNearestDoor(){
   if(!playerRoot)return false;
-  if(interiorMode)return breakNearestGlass();
+  if(interiorMode){
+    const roomDoor=nearestInteriorDoor(2.55);
+    if(roomDoor)return toggleInteriorDoor(roomDoor,true,true);
+    return breakNearestGlass();
+  }
   let best=null,d=2.55;
   for(const e of buildingEntries){const q=Math.hypot(playerRoot.position.x-e.entryX,playerRoot.position.y-e.entryY);if(q<d){d=q;best=e}}
   if(!best)return false;return openDoor(best,true);
 }
-function updateDoors(dt){for(const e of doorAnimations)if(e.doorPivot)e.doorPivot.rotation.z=THREE.MathUtils.lerp(e.doorPivot.rotation.z,e.doorTarget||0,1-Math.exp(-10*dt))}
+function updateDoors(dt){
+  for(const e of doorAnimations)if(e.doorPivot)e.doorPivot.rotation.z=THREE.MathUtils.lerp(e.doorPivot.rotation.z,e.doorTarget||0,1-Math.exp(-10*dt));
+  for(const d of interiorDoors)if(d.pivot)d.pivot.rotation.z=THREE.MathUtils.lerp(d.pivot.rotation.z,d.target||0,1-Math.exp(-12*dt));
+}
 function claimNearestBase(){
   if(!playerRoot||interiorMode)return false;let best=null,d=4.5;
   for(const e of buildingEntries){const q=Math.hypot(playerRoot.position.x-e.entryX,playerRoot.position.y-e.entryY);if(q<d){d=q;best=e}}
@@ -3376,10 +3385,57 @@ function addWallRect(cx,cy,sx,sy,height=2.8,color=0xc1beb2,collision=true){
   if(collision)interiorWalls.push({minx:cx-sx/2,maxx:cx+sx/2,miny:cy-sy/2,maxy:cy+sy/2});
   return mesh;
 }
-function addWallWithDoor(axis,pos,start,end,doorCenter,gap=1.45){
+function createInteriorRoomDoor(axis,pos,doorCenter,gap=1.45,key='room-door'){
+  const width=Math.max(.82,gap-.14),height=2.08,thickness=.075;
+  const pivot=new THREE.Group();pivot.name='interior-door-'+key;
+  const mat=new THREE.MeshStandardMaterial({color:0x554636,roughness:.86,metalness:.02});
+  const panel=new THREE.Mesh(new THREE.BoxGeometry(axis==='h'?width:thickness,axis==='h'?thickness:width,height),mat);
+  const knobMat=new THREE.MeshStandardMaterial({color:0xa48b55,roughness:.42,metalness:.55});
+  const knob=new THREE.Mesh(new THREE.SphereGeometry(.045,7,5),knobMat);
+  let x,y;
+  if(axis==='h'){
+    x=doorCenter;y=pos;
+    pivot.position.set(doorCenter-gap/2+.07,pos,0);
+    panel.position.set(width/2,0,height/2);
+    knob.position.set(width*.84,-.065,height*.52);
+  }else{
+    x=pos;y=doorCenter;
+    pivot.position.set(pos,doorCenter-gap/2+.07,0);
+    panel.position.set(0,width/2,height/2);
+    knob.position.set(.065,width*.84,height*.52);
+  }
+  panel.add(knob);panel.castShadow=true;panel.receiveShadow=true;pivot.add(panel);interiorGroup.add(pivot);
+  const stored=interiorDoorStates.get(key),initialOpen=stored==null?(Math.abs(hash(key+':initial'))%7===0):Boolean(stored);
+  const swing=(Math.abs(hash(key+':swing'))%2===0?1:-1);
+  const d={key,axis,x,y,pos,doorCenter,gap,width,height,pivot,panel,open:initialOpen,target:initialOpen?swing*1.34:0,swing};
+  pivot.rotation.z=d.target;interiorDoors.push(d);interiorDoorStates.set(key,initialOpen);
+  return d;
+}
+function addWallWithDoor(axis,pos,start,end,doorCenter,gap=1.45,options={}){
   const a1=start,a2=doorCenter-gap/2,b1=doorCenter+gap/2,b2=end;
   if(a2>a1){if(axis==='h')addWallRect((a1+a2)/2,pos,a2-a1,.16);else addWallRect(pos,(a1+a2)/2,.16,a2-a1)}
   if(b2>b1){if(axis==='h')addWallRect((b1+b2)/2,pos,b2-b1,.16);else addWallRect(pos,(b1+b2)/2,.16,b2-b1)}
+  if(options?.door===false)return null;
+  const key=String(options?.key||((interiorDoorBuildPrefix||'interior')+':D'+(interiorDoorBuildIndex++)));
+  return createInteriorRoomDoor(axis,pos,doorCenter,gap,key);
+}
+function toggleInteriorDoor(door,forceOpen=null,kicked=false){
+  if(!door)return false;
+  const next=forceOpen==null?!door.open:Boolean(forceOpen);
+  door.open=next;door.target=next?door.swing*(kicked?1.50:1.34):0;
+  interiorDoorStates.set(door.key,next);
+  if(kicked&&next)showToast('Room door kicked open');
+  else showToast(next?'Room door opened':'Room door closed');
+  return true;
+}
+function nearestInteriorDoor(maxDist=2.25){
+  if(!interiorMode||!playerRoot)return null;
+  let best=null,d=maxDist;
+  for(const door of interiorDoors){
+    const q=Math.hypot(playerRoot.position.x-door.x,playerRoot.position.y-door.y);
+    if(q<d){d=q;best=door}
+  }
+  return best;
 }
 function addWindowedExteriorWall(y,width,seedValue=1){
   const wallMat=new THREE.MeshStandardMaterial({color:0xb9b7ad,roughness:.94});
@@ -3414,7 +3470,8 @@ function clearInterior(){
   while(interiorGroup.children.length)interiorGroup.remove(interiorGroup.children[0]);
   interiorGroup.position.z=0;
   worldPickups=worldPickups.filter(p=>p.mode!=='interior');
-  interiorWalls=[];interiorContainers=[];interiorWeaponCases=[];interiorZombies=[];interiorFloorLinks=[];interiorStairs=[];interiorBounds=null;interiorExit=null;
+  interiorWalls=[];interiorDoors=[];interiorContainers=[];interiorWeaponCases=[];interiorZombies=[];interiorFloorLinks=[];interiorStairs=[];interiorBounds=null;interiorExit=null;
+  interiorDoorBuildPrefix='';interiorDoorBuildIndex=0;
 }
 function makeWalkableStairs(label,x,y,direction){
   const g=new THREE.Group(),steps=14,run=4.1,rise=INTERIOR_FLOOR_H,mat=new THREE.MeshStandardMaterial({color:0x4b4e49,roughness:.92,metalness:.06});
@@ -3565,6 +3622,7 @@ function generateInterior(entry,requestedFloor=1){
   const floorBaseZ=(floorNumber-1)*INTERIOR_FLOOR_H;
   interiorGroup.position.z=floorBaseZ;
   const floorSeed=entry.seed+floorNumber*9973;
+  interiorDoorBuildPrefix=entry.id+':F'+floorNumber;interiorDoorBuildIndex=0;
   const r=seeded(floorSeed),w=THREE.MathUtils.clamp(entry.width*1.15,13,25),h=THREE.MathUtils.clamp(entry.depth*1.15,11,22);
   interiorBounds={minx:-w/2+.42,maxx:w/2-.42,miny:-h/2+.42,maxy:h/2-.42};
   const upX=w/2-1.45,upY=-h/2+1.65,downX=w/2-1.45,downY=-h/2+3.45;
@@ -3580,7 +3638,7 @@ function generateInterior(entry,requestedFloor=1){
   streetLifeStats.interiorStairwellHoleWidth=stairHoleW;
   streetLifeStats.interiorStairwellHoleDepth=stairHoleD;
   addWindowedExteriorWall(h/2,w,entry.id+':F'+floorNumber);addWallRect(-w/2,0,.18,h);addWallRect(w/2,0,.18,h);
-  addWallWithDoor('h',-h/2,-w/2,w/2,0,1.75);
+  addWallWithDoor('h',-h/2,-w/2,w/2,0,1.75,{door:false});
   interiorExit={x:0,y:-h/2+.9};
 
   const layoutRoll=r(),layout=layoutRoll<.24?'Two-bedroom apartment':layoutRoll<.48?'Loft apartment':layoutRoll<.72?'Office conversion':layoutRoll<.9?'Hotel-style floor':'Penthouse floor';
@@ -3765,6 +3823,10 @@ function findNearestInteraction(){
   }
   if(interiorMode){
     if(interiorExit){const d=Math.hypot(playerRoot.position.x-interiorExit.x,playerRoot.position.y-interiorExit.y);if(d<2.05){best={kind:'exit',label:'EXIT BUILDING'};bestD=d}}
+    for(const door of interiorDoors){
+      const d=Math.hypot(playerRoot.position.x-door.x,playerRoot.position.y-door.y);
+      if(d<2.25&&d<bestD){best={kind:'interiorDoor',label:door.open?'CLOSE ROOM DOOR':'OPEN ROOM DOOR',door};bestD=d}
+    }
     for(const link of interiorFloorLinks){const d=Math.hypot(playerRoot.position.x-link.x,playerRoot.position.y-link.y);if(d<2.15&&d<bestD){best={kind:link.kind,label:link.label,floor:link.floor};bestD=d}}
     for(const c of interiorContainers)if(c.active){const d=Math.hypot(playerRoot.position.x-c.x,playerRoot.position.y-c.y);if(d<2.05&&d<bestD){best={kind:'loot',label:c.label,spot:c};bestD=d}}
     for(const c of interiorWeaponCases)if(c.active){const d=Math.hypot(playerRoot.position.x-c.x,playerRoot.position.y-c.y);if(d<2.35&&d<bestD){best={kind:'weaponCase',label:'BUY '+c.weapon.toUpperCase()+' · '+c.price+' SALVAGE',caseRef:c};bestD=d}}
@@ -3786,6 +3848,7 @@ function interact(){
   else if(hit.kind==='vehicle')enterVehicle(hit.vehicle);
   else if(hit.kind==='vehicleRepair')repairVehicle(hit.vehicle);
   else if(hit.kind==='door')openDoor(hit.entry,false);
+  else if(hit.kind==='interiorDoor')toggleInteriorDoor(hit.door);
   else if(hit.kind==='pickup')pickupLoose(hit.pickup);
   else if(hit.kind==='floorUp'||hit.kind==='floorDown')changeInteriorFloor(hit.floor);
   else if(hit.kind==='entry')enterInterior(hit.entry);
@@ -4158,6 +4221,14 @@ function isBlockedInterior(x,y){
   const r=.34;if(!interiorBounds)return false;
   if(x-r<interiorBounds.minx||x+r>interiorBounds.maxx||y-r<interiorBounds.miny||y+r>interiorBounds.maxy)return true;
   for(const w of interiorWalls)if(x+r>w.minx&&x-r<w.maxx&&y+r>w.miny&&y-r<w.maxy)return true;
+  for(const d of interiorDoors){
+    if(d.open)continue;
+    if(d.axis==='h'){
+      if(x+r>d.x-d.width/2&&x-r<d.x+d.width/2&&y+r>d.y-.10&&y-r<d.y+.10)return true;
+    }else{
+      if(x+r>d.x-.10&&x-r<d.x+.10&&y+r>d.y-d.width/2&&y-r<d.y+d.width/2)return true;
+    }
+  }
   return false;
 }
 function isBlockedExterior(x,y,r=.33){
@@ -5739,6 +5810,26 @@ async function boot(){
         matchMode,matchRadius:Number.isFinite(matchRadius)?matchRadius:null,seasonDay:seasonDay(),xp,battleTier,livesRemaining,
         flashlightReady:Boolean(flashlight),vehicleRepair:drivableVehicles.some(v=>(v.requiredParts||[]).length>0)
       }),
+      interiorDoorProbe:()=>{
+        if(interiorMode)exitInterior();
+        const e=[...buildingEntries].sort((a,b)=>b.height-a.height)[0];if(!e)return null;
+        enterInterior(e);
+        const door=interiorDoors[0]||null;
+        if(!door){exitInterior();return{count:0}}
+        toggleInteriorDoor(door,false);
+        updateDoors(.6);
+        const closedBlocked=isBlockedInterior(door.x,door.y),closedAngle=door.pivot.rotation.z;
+        toggleInteriorDoor(door,true);
+        updateDoors(.6);
+        const openBlocked=isBlockedInterior(door.x,door.y),openAngle=door.pivot.rotation.z,key=door.key;
+        const stateSaved=interiorDoorStates.get(key)===true;
+        const floor=activeInterior.floor;
+        generateInterior(e,floor);
+        const regenerated=interiorDoors.find(x=>x.key===key);
+        const persisted=Boolean(regenerated?.open);
+        exitInterior();
+        return{count:interiorDoors.length||1,key,closedBlocked,openBlocked,closedAngle,openAngle,stateSaved,persisted};
+      },
       doorProbe:()=>{
         const e=buildingEntries.find(x=>x.doorPivot);if(!e)return null;const before=e.doorOpen;openDoor(e,true);updateDoors(.5);
         return{before,after:e.doorOpen,angle:e.doorPivot.rotation.z,count:doorSystemCount};
