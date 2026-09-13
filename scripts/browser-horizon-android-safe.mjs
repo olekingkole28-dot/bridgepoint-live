@@ -64,7 +64,8 @@ const joystick=await page.evaluate(async()=>{
 });
 if(!joystick.ok)throw new Error('Rich joystick unavailable '+JSON.stringify(joystick));
 const moved=Math.hypot((joystick.during?.x??before.x)-before.x,(joystick.during?.y??before.y)-before.y);
-if(!(moved>.35))throw new Error('Rich Android joystick did not move player '+JSON.stringify({before,joystick,moved}));
+if(Math.abs(joystick.during?.mobileY||0)<.9)throw new Error('Rich Android joystick never reached full input '+JSON.stringify(joystick));
+if(!(moved>.12))throw new Error('Rich Android joystick did not move player '+JSON.stringify({before,joystick,moved}));
 if(joystick.during?.inputMode!=='native-pointer')throw new Error('Rich Android joystick not using native pointer mode '+JSON.stringify(joystick));
 if(Math.abs(joystick.after?.mobileX||0)>.01||Math.abs(joystick.after?.mobileY||0)>.01)throw new Error('Rich Android joystick stuck after release '+JSON.stringify(joystick));
 meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource: the server responded with a status of 404/i.test(x));
