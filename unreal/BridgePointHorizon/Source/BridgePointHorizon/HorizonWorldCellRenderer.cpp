@@ -338,6 +338,8 @@ AHorizonWorldCellRenderer::AHorizonWorldCellRenderer()
     TerrainMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("TerrainMesh"));
     TerrainMesh->SetupAttachment(SceneRoot);
     TerrainMesh->bUseComplexAsSimpleCollision = true;
+    TerrainMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    TerrainMesh->SetCollisionResponseToAllChannels(ECR_Block);
 
     RoadMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("RoadMesh"));
     RoadMesh->SetupAttachment(SceneRoot);
