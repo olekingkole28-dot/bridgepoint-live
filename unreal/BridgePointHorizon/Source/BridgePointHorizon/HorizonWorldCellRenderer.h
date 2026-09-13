@@ -6,6 +6,7 @@
 
 class UProceduralMeshComponent;
 class USceneComponent;
+class UMaterialInterface;
 
 UCLASS(BlueprintType)
 class BRIDGEPOINTHORIZON_API AHorizonWorldCellRenderer : public AActor
@@ -29,6 +30,21 @@ public:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|World")
     TObjectPtr<UProceduralMeshComponent> WaterMesh;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Materials")
+    TObjectPtr<UMaterialInterface> TerrainMaterial;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Materials")
+    TObjectPtr<UMaterialInterface> RoadMaterial;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Materials")
+    TObjectPtr<UMaterialInterface> BuildingMaterial;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Materials")
+    TObjectPtr<UMaterialInterface> BuildingPartMaterial;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Materials")
+    TObjectPtr<UMaterialInterface> WaterMaterial;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|World")
     float VerticalExaggeration = 1.0f;
