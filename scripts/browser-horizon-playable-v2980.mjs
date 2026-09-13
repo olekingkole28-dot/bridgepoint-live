@@ -73,7 +73,7 @@ const controls=await page.evaluate(()=>window.BP_HORIZON_TEST.cardinalControlsPr
 const movementFacing=await page.evaluate(()=>window.BP_HORIZON_TEST.movementFacingProbe?.());
 const cameraModes=await page.evaluate(()=>window.BP_HORIZON_TEST.cameraModesProbe?.());
 const inputIsolation=await page.evaluate(()=>window.BP_HORIZON_TEST.inputIsolationProbe?.());
-await page.waitForFunction(()=>window.BP_HORIZON_TEST?.loadingLodProbe?.()?.detailHydrationComplete===true,null,{timeout:30000}).catch(()=>{});
+await page.waitForFunction(()=>window.BP_HORIZON_TEST?.loadingLodProbe?.()?.detailHydrationComplete===true,null,{timeout:30000});
 const loadingLod=await page.evaluate(()=>window.BP_HORIZON_TEST.loadingLodProbe?.());
 
 if(!terrainGuard?.ok)throw new Error('Terrain guard failed '+JSON.stringify(terrainGuard));
