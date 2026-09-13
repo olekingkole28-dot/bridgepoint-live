@@ -1,0 +1,33 @@
+name: Probe Authenticated Epic UE5.8 Container Access
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/probe-ue58-container-auth.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Authenticate GitHub Container Registry
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Pull official UE5.8 development container
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull ghcr.io/epicgames/unreal-engine:dev-slim-5.8.0
+          docker image inspect ghcr.io/epicgames/unreal-engine:dev-slim-5.8.0 --format '{{.Id}}'
+          echo "UE58_AUTH_CONTAINER_ACCESS_OK"
