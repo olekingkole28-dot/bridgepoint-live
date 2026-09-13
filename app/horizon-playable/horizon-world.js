@@ -9,7 +9,7 @@ import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4239;
+const BUILD_VERSION=4240;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -291,11 +291,12 @@ let health=100,lastDamageAt=0;
 let playerSpawn=new THREE.Vector3();
 const playerVelocity=new THREE.Vector3();
 let roadAnchors=[],roadSegments=[],roadSurfaceGrid=new Map(),navNodes=[],navNodeMap=new Map(),buildingCenters=[],buildingEntries=[],zombies=[],interiorZombies=[];
-let nearestInteract=null,lootCount=2;
-let inventory={Bandage:1,Water:1};
+let nearestInteract=null,lootCount=3;
+let inventory={Bandage:1,Water:1,Flashlight:1};
 let packName='Hidden Survivor Pack',packCapacity=24,packMesh=null;
 let weaponPivot=null,weaponTemplates={},equippedWeaponName='Axe',swingTime=0,attackCooldown=0;
-let equipment={melee:'Axe',offhand:'Knife',sidearm:null,primary:null,quick1:'Bandage',quick2:'Water'};
+let equipment={melee:'Axe',offhand:'Knife',sidearm:null,primary:null,quick1:'Bandage',quick2:'Water',quick3:'Flashlight'};
+let starterFlashlightGranted=true;
 let equipmentMounts={rightHand:null,leftHand:null,hip:null,backGun:null,backMelee:null,activeGrip:null};
 let activeSlot='melee',activeWeapon='Axe',aiming=false,fireCooldown=0,muzzleFlash=0;
 const weaponRaycaster=new THREE.Raycaster();
@@ -410,7 +411,7 @@ function persistSurvivor(){
     try{
       localStorage.setItem(SAVE_KEY,JSON.stringify({
         inventory,equipment,ammoState,reserveAmmo,activeSlot,lootCount,packName,packCapacity,kills,
-        xp,battleTier,livesRemaining,claimedBaseId,factionId,factionColor,matchMode,
+        xp,battleTier,livesRemaining,claimedBaseId,factionId,factionColor,matchMode,starterFlashlightGranted,
         cosmeticUnlocks:[...cosmeticUnlocks]
       }));
     }catch(_){}
@@ -437,6 +438,8 @@ function restoreSurvivor(){
     if(/^#[0-9a-f]{6}$/i.test(String(v.factionColor||'')))factionColor=v.factionColor;
     if(['survival','skirmish','year365'].includes(v.matchMode))matchMode=v.matchMode;
     if(Array.isArray(v.cosmeticUnlocks))for(const x of v.cosmeticUnlocks)cosmeticUnlocks.add(String(x));
+    if(v.starterFlashlightGranted===true)starterFlashlightGranted=true;
+    else{inventory.Flashlight=(inventory.Flashlight||0)+1;lootCount++;if(!equipment.quick3)equipment.quick3='Flashlight';starterFlashlightGranted=true}
   }catch(_){}
 }
 function streamXYBounds(){
@@ -1885,7 +1888,7 @@ function useQuickSlot(slot){
   showToast(item+' cannot be quick-used yet');return false
 }
 function selectSlot(slot,quiet=false){
-  if(slot==='quick1'||slot==='quick2')return useQuickSlot(slot);
+  if(slot==='quick1'||slot==='quick2'||slot==='quick3')return useQuickSlot(slot);
   const item=activeItemForSlot(slot);
   if(!item){if(!quiet)showToast(slot.toUpperCase()+' SLOT EMPTY');return false}
   if(reloadState.active)cancelReload(false);
@@ -1899,9 +1902,21 @@ function cycleWeapon(){
   if(!slots.length){activeSlot='melee';activeWeapon='Fists';equippedWeaponName='Fists';refreshEquipmentVisuals();updateInventory();return}
   const i=Math.max(0,slots.indexOf(activeSlot));selectSlot(slots[(i+1)%slots.length]);
 }
+function assignQuickItem(item){
+  if(!inventory[item])return false;
+  const slots=['quick1','quick2','quick3'],existing=slots.find(s=>equipment[s]===item);
+  if(existing){showToast(item+' already in '+existing.toUpperCase());return true}
+  const slot=slots.find(s=>!equipment[s])||'quick3';
+  if(equipment[slot]==='Flashlight'&&item!=='Flashlight')toggleFlashlight(false);
+  equipment[slot]=item;updateInventory();showToast(item+' assigned to '+slot.toUpperCase());return true;
+}
 function equipInventoryWeapon(item){
   const cfg=weaponRegistry.get(item)||weaponRegistry.get(String(item||'').toLowerCase());
-  if(!cfg||!inventory[item])return false;
+  if(!cfg){
+    if(/Bandage|Water|Flashlight|First aid kit|Energy drink|Canned food|Food ration|Energy bar/i.test(item))return assignQuickItem(item);
+    return false;
+  }
+  if(!inventory[item])return false;
   const slot=cfg.equip_slot;
   if(!['melee','offhand','sidearm','primary'].includes(slot))return false;
   equipment[slot]=item;activeSlot=slot;activeWeapon=item;equippedWeaponName=item;aiming=false;
@@ -2457,7 +2472,9 @@ function initFlashlight(){
   flashlight=new THREE.SpotLight(0xfff1cc,0,28,Math.PI/7,.42,1.25);flashlightTarget=new THREE.Object3D();
   scene.add(flashlight,flashlightTarget);flashlight.target=flashlightTarget;
 }
+function flashlightAvailable(){return (inventory.Flashlight||0)>0&&['quick1','quick2','quick3'].some(k=>equipment[k]==='Flashlight')}
 function toggleFlashlight(force){
+  if(force!==false&&!flashlightAvailable()){flashlightOn=false;if(flashlight)flashlight.intensity=0;showToast('Put the Flashlight in a quick slot first');return false}
   flashlightOn=typeof force==='boolean'?force:!flashlightOn;if(flashlight)flashlight.intensity=flashlightOn?48:0;
   showToast(flashlightOn?'Flashlight on':'Flashlight off');return flashlightOn;
 }
@@ -2583,7 +2600,8 @@ function updateInventory(){
     slotSidearm:equipment.sidearm||'EMPTY',
     slotPrimary:equipment.primary||'EMPTY',
     slotQuick1:equipment.quick1||'EMPTY',
-    slotQuick2:equipment.quick2||'EMPTY'
+    slotQuick2:equipment.quick2||'EMPTY',
+    slotQuick3:equipment.quick3||'EMPTY'
   };
   for(const [id,val] of Object.entries(slots)){const el=$(id);if(el)el.textContent=String(val).toUpperCase()}
   document.querySelectorAll('.loadoutSlot[data-slot]').forEach(el=>el.classList.toggle('active',el.dataset.slot===activeSlot));
@@ -2633,6 +2651,7 @@ function addInventoryItem(item){
   }
   if(item==='Bandage'&&!equipment.quick1)equipment.quick1='Bandage';
   if(item==='Water'&&!equipment.quick2)equipment.quick2='Water';
+  if(item==='Flashlight'&&!equipment.quick3)equipment.quick3='Flashlight';
   updateInventory();
   return true;
 }
@@ -2665,7 +2684,7 @@ function makeGenericLootVisual(item){
   if(o)g.add(o);g.traverse(x=>{if(x.isMesh){x.castShadow=true;x.receiveShadow=true}});return g;
 }
 function inventoryIcon(item){
-  if(/Pistol|Rifle|Shotgun|SMG/i.test(item))return'▰';if(/Axe|Knife|Spear|Bat|Guitar/i.test(item))return'⚔';if(/Ammo|Shell/i.test(item))return'▥';if(/Water|drink/i.test(item))return'◒';if(/Bandage|First aid|Painkiller/i.test(item))return'✚';if(/Backpack|Duffel/i.test(item))return'▣';if(/Battery|Spark|Tire|Fuel|hose|chain/i.test(item))return'⚙';if(/Food|Canned|bar/i.test(item))return'◫';return'◆';
+  if(/Flashlight/i.test(item))return'⌁';if(/Pistol|Rifle|Shotgun|SMG/i.test(item))return'▰';if(/Axe|Knife|Spear|Bat|Guitar/i.test(item))return'⚔';if(/Ammo|Shell/i.test(item))return'▥';if(/Water|drink/i.test(item))return'◒';if(/Bandage|First aid|Painkiller/i.test(item))return'✚';if(/Backpack|Duffel/i.test(item))return'▣';if(/Battery|Spark|Tire|Fuel|hose|chain/i.test(item))return'⚙';if(/Food|Canned|bar/i.test(item))return'◫';return'◆';
 }
 function makePickupVisual(item,seedValue){
   const root=new THREE.Group(),weapon=pickupTemplateFor(item);

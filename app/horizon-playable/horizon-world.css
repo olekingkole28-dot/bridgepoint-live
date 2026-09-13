@@ -366,3 +366,10 @@ body:not(.nationalMode) .jurisdictionPanel{display:none}
 .inventoryPanel #inventoryList .packTile b{display:block;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;font-size:6px;letter-spacing:.02em;color:#bfc9c0}
 .inventoryPanel #inventoryList .packTile em{position:absolute;right:3px;bottom:3px;min-width:15px;height:15px;padding:0 3px;border-radius:5px;background:rgba(0,0,0,.86);border:1px solid rgba(255,255,255,.18);font-style:normal;font-size:8px;font-weight:950;line-height:14px;text-align:center;color:#fff}
 @media(pointer:coarse) and (orientation:landscape){.inventoryPanel{left:50%;bottom:4px;width:min(490px,54vw);padding:4px 6px}.inventoryHead,.loadoutGrid,.equippedWeapon,.dropWeaponBtn{display:none}.inventoryPanel #inventoryList{grid-template-columns:repeat(8,minmax(38px,1fr));gap:3px}.inventoryPanel #inventoryList .packTile{min-height:42px;grid-template-rows:24px auto;padding:2px}.inventoryPanel #inventoryList .packTile i{font-size:18px;line-height:22px}.inventoryPanel #inventoryList .packTile b{font-size:5px}.inventoryPanel #inventoryList .packTile em{right:2px;bottom:2px;height:13px;min-width:13px;font-size:7px;line-height:12px}}
+
+/* V4240 seven-slot survival hotbar */
+.loadoutGrid{grid-template-columns:repeat(7,minmax(0,1fr))}
+.loadoutSlot{position:relative;min-height:44px;text-align:center}
+.loadoutSlot.utilitySlot{border-color:rgba(111,196,255,.36);background:linear-gradient(180deg,rgba(29,60,79,.7),rgba(10,18,24,.86))}
+.loadoutSlot.utilitySlot b{color:#bfe9ff}
+@media(pointer:coarse) and (orientation:landscape){.loadoutGrid{grid-template-columns:repeat(7,minmax(36px,1fr))}.loadoutSlot{min-height:34px;padding:3px}.loadoutSlot small{font-size:4px}.loadoutSlot b{font-size:5px}}
