@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "build_target": 4251,
+  "updated_at": "2026-09-13",
+  "authority": "OWNER_LOCKED",
+  "zero_budget": true,
+  "repository": "olekingkole28-dot/bridgepoint-live",
+  "workers": [
+    {
+      "lane": "horizon_world_interiors",
+      "title": "Horizon World & Interiors",
+      "automation_id": "6a862530eea08191afa3e801c79ecba5",
+      "schedule_minute_each_hour": 5,
+      "owns": [
+        "continuous world streaming",
+        "real exterior geography/building envelopes",
+        "fictional interiors",
+        "physical stairs/doors/window openings",
+        "rooftop access and ziplines",
+        "regional apocalypse dressing"
+      ]
+    },
+    {
+      "lane": "horizon_year_one",
+      "title": "Horizon Year-One Director",
+      "automation_id": "6a862545cb188191b3be5834f0ef611b",
+      "schedule_minute_each_hour": 17,
+      "owns": [
+        "365-day event clock",
+        "three lives",
+        "infected difficulty progression",
+        "regional creatures",
+        "NPC challenges/free rewards",
+        "zombie-wall endgame"
+      ]
+    },
+    {
+      "lane": "horizon_gameplay",
+      "title": "Horizon Gameplay & Combat",
+      "automation_id": "6a8625837b3c81918702e345271ce6a9",
+      "schedule_minute_each_hour": 29,
+      "owns": [
+        "movement/facing",
+        "ADS/reticle/weapons",
+        "inventory/loot",
+        "enemy pathing/attacks",
+        "vehicles and traversal",
+        "performance-sensitive gameplay fixes"
+      ]
+    },
+    {
+      "lane": "horizon_content_economy",
+      "title": "Horizon Content & Economy",
+      "automation_id": "6a8630e7ad1c8191afaf8f43a84a1f9d",
+      "schedule_minute_each_hour": 41,
+      "owns": [
+        "free/legal asset intake",
+        "daily rewards",
+        "150-level battle pass",
+        "Horizon Stripe catalog",
+        "cosmetic store",
+        "entitlements and non-pay-to-win rules"
+      ]
+    },
+    {
+      "lane": "horizon_qa_release",
+      "title": "Horizon QA & Release Governor",
+      "automation_id": "6a86255464a481918979cb5cf66fe5aa",
+      "schedule_minute_each_hour": 53,
+      "owns": [
+        "browser smoke",
+        "Unreal source validation",
+        "mobile/desktop regression",
+        "performance/collision checks",
+        "release verification",
+        "known-good rollback protection"
+      ]
+    }
+  ],
+  "global_rules": [
+    "owner-funded fixed spend must remain $0",
+    "do not provision billable DigitalOcean resources",
+    "do not provision paid GPU hosting",
+    "do not buy assets or paid plugins",
+    "use only original or license-verified content",
+    "keep B2B and Horizon commerce/entitlements isolated",
+    "Year One stays Day 0 until explicit owner start command",
+    "do not call a build published until the live route is verified"
+  ]
+}
