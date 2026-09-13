@@ -4217,18 +4217,16 @@ async function buildZombies(template){
   clearOutdoorZombies();waveNumber=0;nextWaveAt=0;
   spawnZombieWave(performance.now(),true);
 }
+function interiorDoorBlocksPoint(door,x,y,r=.08){
+  if(!door||door.open)return false;
+  if(door.axis==='h')return x+r>door.x-door.width/2&&x-r<door.x+door.width/2&&y+r>door.y-.10&&y-r<door.y+.10;
+  return x+r>door.x-.10&&x-r<door.x+.10&&y+r>door.y-door.width/2&&y-r<door.y+door.width/2;
+}
 function isBlockedInterior(x,y){
   const r=.34;if(!interiorBounds)return false;
   if(x-r<interiorBounds.minx||x+r>interiorBounds.maxx||y-r<interiorBounds.miny||y+r>interiorBounds.maxy)return true;
   for(const w of interiorWalls)if(x+r>w.minx&&x-r<w.maxx&&y+r>w.miny&&y-r<w.maxy)return true;
-  for(const d of interiorDoors){
-    if(d.open)continue;
-    if(d.axis==='h'){
-      if(x+r>d.x-d.width/2&&x-r<d.x+d.width/2&&y+r>d.y-.10&&y-r<d.y+.10)return true;
-    }else{
-      if(x+r>d.x-.10&&x-r<d.x+.10&&y+r>d.y-d.width/2&&y-r<d.y+d.width/2)return true;
-    }
-  }
+  for(const d of interiorDoors)if(interiorDoorBlocksPoint(d,x,y,r))return true;
   return false;
 }
 function isBlockedExterior(x,y,r=.33){
@@ -5275,7 +5273,8 @@ function cameraPointBlocked(p){
   if(interiorMode){
     if(!interiorBounds)return false;
     if(p.x<interiorBounds.minx+.12||p.x>interiorBounds.maxx-.12||p.y<interiorBounds.miny+.12||p.y>interiorBounds.maxy-.12)return true;
-    return interiorWalls.some(w=>p.x>w.minx-.08&&p.x<w.maxx+.08&&p.y>w.miny-.08&&p.y<w.maxy+.08);
+    if(interiorWalls.some(w=>p.x>w.minx-.08&&p.x<w.maxx+.08&&p.y>w.miny-.08&&p.y<w.maxy+.08))return true;
+    return interiorDoors.some(d=>interiorDoorBlocksPoint(d,p.x,p.y,.06));
   }
   return isBlockedExterior(p.x,p.y,.12);
 }
@@ -5818,17 +5817,17 @@ async function boot(){
         if(!door){exitInterior();return{count:0}}
         toggleInteriorDoor(door,false);
         updateDoors(.6);
-        const closedBlocked=isBlockedInterior(door.x,door.y),closedAngle=door.pivot.rotation.z;
+        const closedBlocked=isBlockedInterior(door.x,door.y),closedCameraBlocked=cameraPointBlocked(new THREE.Vector3(door.x,door.y,(activeInterior.baseZ||0)+1.45)),closedAngle=door.pivot.rotation.z;
         toggleInteriorDoor(door,true);
         updateDoors(.6);
-        const openBlocked=isBlockedInterior(door.x,door.y),openAngle=door.pivot.rotation.z,key=door.key;
+        const openBlocked=isBlockedInterior(door.x,door.y),openCameraBlocked=cameraPointBlocked(new THREE.Vector3(door.x,door.y,(activeInterior.baseZ||0)+1.45)),openAngle=door.pivot.rotation.z,key=door.key;
         const stateSaved=interiorDoorStates.get(key)===true;
         const floor=activeInterior.floor;
         generateInterior(e,floor);
         const regenerated=interiorDoors.find(x=>x.key===key);
         const persisted=Boolean(regenerated?.open);
         exitInterior();
-        return{count:interiorDoors.length||1,key,closedBlocked,openBlocked,closedAngle,openAngle,stateSaved,persisted};
+        return{count:interiorDoors.length||1,key,closedBlocked,openBlocked,closedCameraBlocked,openCameraBlocked,closedAngle,openAngle,stateSaved,persisted};
       },
       doorProbe:()=>{
         const e=buildingEntries.find(x=>x.doorPivot);if(!e)return null;const before=e.doorOpen;openDoor(e,true);updateDoors(.5);
