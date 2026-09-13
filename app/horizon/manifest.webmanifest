@@ -1,19 +1,80 @@
 {
-  "name":"BridgePoint Horizon",
-  "short_name":"Horizon",
-  "description":"BridgePoint Horizon survival world: infected, factions, progression, and persistent exploration.",
-  "start_url":"/app/horizon/",
-  "scope":"/app/horizon/",
-  "display":"standalone",
-  "background_color":"#080706",
-  "theme_color":"#2A0A05",
-  "orientation":"any",
-  "icons":[
+  "name": "BridgePoint Horizon",
+  "short_name": "Horizon",
+  "description": "BridgePoint Horizon survival world: infected, factions, progression, and persistent exploration.",
+  "start_url": "/app/horizon/",
+  "scope": "/app/horizon/",
+  "display": "standalone",
+  "background_color": "#080706",
+  "theme_color": "#2A0A05",
+  "orientation": "any",
+  "icons": [
     {
-      "src":"./horizon-mark.svg",
-      "sizes":"any",
-      "type":"image/svg+xml",
-      "purpose":"any maskable"
+      "src": "./horizon-mark.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./horizon-mark.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./horizon-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "id": "/app/horizon/",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "prefer_related_applications": false,
+  "categories": [
+    "games",
+    "entertainment",
+    "action"
+  ],
+  "shortcuts": [
+    {
+      "name": "Year One Survival",
+      "short_name": "Year One",
+      "url": "/app/horizon/#mode-year-one",
+      "icons": [
+        {
+          "src": "./horizon-mark.svg",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Infinite Team Deathmatch",
+      "short_name": "TDM",
+      "url": "/app/horizon/#mode-tdm",
+      "icons": [
+        {
+          "src": "./horizon-mark.svg",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Outbreak Raid",
+      "short_name": "Raid",
+      "url": "/app/horizon/#mode-raid",
+      "icons": [
+        {
+          "src": "./horizon-mark.svg",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
     }
   ]
 }
