@@ -164,5 +164,25 @@ if(!gestureIsolation?.ok)throw new Error('Movement/look gesture changed weapon '
 const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource: the server responded with a status of (404|500)/i.test(x));
 if(badResponses.length)throw new Error('Horizon HTTP 5xx '+JSON.stringify(badResponses));
 if(meaningful.length)throw new Error('Horizon console errors '+meaningful.join('\n'));
-console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,loadingLod,navAi,multiFloor,windowVista,roofZipline,interiorDoor,audioArchitecture,renderQuality,gestureIsolation,worldUi}));
+
+// Lobby launch regression: an explicit mode from the lobby must beat a saved prior mode.
+const modePage=await context.newPage();
+const modeErrors=[];
+modePage.on('pageerror',e=>modeErrors.push(String(e?.stack||e)));
+await modePage.goto(BASE_URL+'/app/horizon/',{waitUntil:'domcontentloaded',timeout:30000});
+await modePage.evaluate(()=>{
+  localStorage.setItem('bridgepoint-horizon-survivor-v3050',JSON.stringify({matchMode:'year_one_survival'}));
+});
+const tdmUrl=BASE_URL+'/app/horizon/preview.html?preview=city&cell=national&state=NY&lat=40.7580&lon=-73.9855&span_km=1.0&character=survivor&mode=infinite_tdm&build='+EXPECTED_BUILD+'&mode_ci='+Date.now();
+const tdmResponse=await modePage.goto(tdmUrl,{waitUntil:'domcontentloaded',timeout:30000});
+if(tdmResponse?.status()!==200)throw new Error('Horizon TDM lobby launch HTTP '+tdmResponse?.status());
+await modePage.waitForFunction(()=>window.BP_HORIZON_PLAYABLE?.ok===true&&window.BP_HORIZON_TEST?.modeLaunchProbe,null,{timeout:30000});
+const modeLaunch=await modePage.evaluate(()=>window.BP_HORIZON_TEST.modeLaunchProbe());
+if(modeLaunch?.explicit!==true||modeLaunch?.requested!=='infinite_tdm'||modeLaunch?.matchMode!=='infinite_tdm'||modeLaunch?.valid!==true){
+  throw new Error('Lobby mode did not override saved previous mode '+JSON.stringify(modeLaunch));
+}
+if(modeErrors.length)throw new Error('Horizon explicit-mode page errors '+modeErrors.join('\n'));
+await modePage.close();
+
+console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,movementFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,loadingLod,navAi,multiFloor,windowVista,roofZipline,interiorDoor,audioArchitecture,renderQuality,gestureIsolation,worldUi,modeLaunch}));
 await browser.close();
