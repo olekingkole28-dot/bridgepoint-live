@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {RGBELoader} from 'three/addons/loaders/RGBELoader.js';
 import {clone as cloneSkeleton} from 'three/addons/utils/SkeletonUtils.js';
 import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
 import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
@@ -242,6 +243,31 @@ renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.physicallyCorrectLights=true;
 root.appendChild(renderer.domElement);
+
+let horizonEnvironmentTexture=null;
+let horizonEnvironmentStatus=MOBILE_GPU_SAFE?'skipped-mobile':'pending';
+async function initPhotorealEnvironment(){
+  if(MOBILE_GPU_SAFE){horizonEnvironmentStatus='skipped-mobile';return false}
+  try{
+    const hdrUrl=new URL('./assets/pbr/polyhaven/urban_street_03_1k.hdr',import.meta.url).href;
+    const hdr=await new RGBELoader().loadAsync(hdrUrl);
+    hdr.mapping=THREE.EquirectangularReflectionMapping;
+    const pmrem=new THREE.PMREMGenerator(renderer);
+    pmrem.compileEquirectangularShader();
+    const env=pmrem.fromEquirectangular(hdr).texture;
+    hdr.dispose();pmrem.dispose();
+    if(horizonEnvironmentTexture)horizonEnvironmentTexture.dispose?.();
+    horizonEnvironmentTexture=env;
+    scene.environment=env;
+    scene.environmentIntensity=MOBILE_GPU_SAFE?0:.78;
+    horizonEnvironmentStatus='loaded-polyhaven-urban-street-03';
+    return true;
+  }catch(err){
+    horizonEnvironmentStatus='fallback-dynamic-lights';
+    console.warn('Photoreal HDR environment unavailable; keeping dynamic light fallback',err);
+    return false;
+  }
+}
 
 let composer=null,gtaoPass=null,bloomPass=null,postFxMode='renderer';
 function initPostProcessing(){
@@ -5667,6 +5693,7 @@ async function boot(){
     $('worldTitle').textContent=worldCellTitle();
     restoreSurvivor();updateInventory();
     const eventReady=hydrateYearOneEvent().catch(()=>false);
+    const environmentReady=initPhotorealEnvironment().catch(()=>false);
     loadText.textContent='Streaming BridgePoint map…';
     // Do not hold the first playable frame behind weapon-registry, physics-module or
     // post-processing network work. Defaults/manual collision are valid until those hydrate.
@@ -5966,6 +5993,8 @@ async function boot(){
       pbrSurfaceProbe:()=>({
         source:streetLifeStats.pbrSource||null,
         resolution:streetLifeStats.pbrResolution||null,
+        environmentStatus:horizonEnvironmentStatus,
+        environmentActive:Boolean(scene.environment),
         runtimeApiDependency:streetLifeStats.pbrRuntimeApiDependency,
         requested:horizonPbrStatus.requested,
         loaded:horizonPbrStatus.loaded,
