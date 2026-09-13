@@ -2237,18 +2237,25 @@ function selectedArmInfluence(skinIndex,skinWeight,vertex,selected){
 }
 function buildActualFirstPersonArms(modelRoot){
   clearActualFirstPersonArms();
+  streetLifeStats.firstPersonArmsFailure='searching';
   let source=null;
   modelRoot?.traverse?.(o=>{
     if(!source&&o.isSkinnedMesh&&o.geometry?.attributes?.skinIndex&&o.geometry?.attributes?.skinWeight&&o.skeleton?.bones?.length)source=o;
     if(o.isMesh)o.userData.horizonThirdPersonBody=true;
   });
-  if(!source)return false;
+  if(!source){streetLifeStats.firstPersonArmsFailure='no-skinned-mesh';return false}
   const selected=new Set();
   source.skeleton.bones.forEach((bone,i)=>{
     const n=String(bone.name||'').toLowerCase();
-    if(/clavicle|upperarm|lowerarm|forearm|hand_|hand$|thumb|index_|middle_|ring_|pinky_|finger/.test(n))selected.add(i);
+    if(
+      /clavicle|upperarm|lowerarm|forearm|hand_|hand$|thumb|index_|middle_|ring_|pinky_|finger/.test(n) ||
+      /mixamorig.*(leftarm|rightarm|leftforearm|rightforearm|lefthand|righthand|handthumb|handindex|handmiddle|handring|handpinky)/.test(n) ||
+      /(^|[_\s])(left|right)(arm|forearm|hand|finger|thumb)/.test(n)
+    )selected.add(i);
   });
-  if(selected.size<8)return false;
+  streetLifeStats.firstPersonArmBoneCount=selected.size;
+  streetLifeStats.firstPersonArmSkeletonSample=source.skeleton.bones.slice(0,80).map(b=>String(b.name||'')).join('|');
+  if(selected.size<6){streetLifeStats.firstPersonArmsFailure='arm-bones-not-recognized';return false}
 
   const geo=source.geometry.clone(),skinIndex=geo.attributes.skinIndex,skinWeight=geo.attributes.skinWeight;
   const srcIndex=source.geometry.index;
@@ -2262,7 +2269,8 @@ function buildActualFirstPersonArms(modelRoot){
     const avg=(wa+wb+wc)/3;
     if(avg>.42&&Math.max(wa,wb,wc)>.72&&Math.min(wa,wb,wc)>.08)kept.push(a,b,c);
   }
-  if(kept.length<90){geo.dispose();return false}
+  streetLifeStats.firstPersonArmTriangles=Math.floor(kept.length/3);
+  if(kept.length<60){streetLifeStats.firstPersonArmsFailure='too-few-arm-triangles';geo.dispose();return false}
   geo.setIndex(kept);geo.computeBoundingBox();geo.computeBoundingSphere();
 
   const material=Array.isArray(source.material)?source.material.map(m=>m.clone()):source.material.clone();
@@ -2275,6 +2283,7 @@ function buildActualFirstPersonArms(modelRoot){
   arms.userData.firstPersonActualArms=true;
   source.parent.add(arms);
   firstPersonActualArms=arms;firstPersonArmsSource=source;
+  streetLifeStats.firstPersonArmsFailure=null;
   return true;
 }
 function fallbackHeldWeapon(name){
@@ -5857,7 +5866,11 @@ async function boot(){
             weaponVisible:Boolean(firstPersonWeapon),
             actualArms:Boolean(firstPersonActualArms?.parent),
             actualArmsVisible:Boolean(firstPersonActualArms?.visible),
-            fallbackArmsVisible:Boolean(firstPersonFallbackArms?.visible)
+            fallbackArmsVisible:Boolean(firstPersonFallbackArms?.visible),
+            playerAssetMode,
+            armBoneCount:Number(streetLifeStats.firstPersonArmBoneCount||0),
+            armTriangles:Number(streetLifeStats.firstPersonArmTriangles||0),
+            armsFailure:streetLifeStats.firstPersonArmsFailure||null
           });
         }
         cameraMode=prior;refreshFirstPersonRig();setCameraPresentation();
