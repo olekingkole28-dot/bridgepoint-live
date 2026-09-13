@@ -220,6 +220,7 @@ scene.fog=new THREE.FogExp2(0x69736d,densePreview()?.00019:.00027);
 
 const camera=new THREE.PerspectiveCamera(66,innerWidth/innerHeight,.08,12000);
 camera.up.set(0,0,1);
+scene.add(camera);
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',stencil:false});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,MOBILE_GPU_SAFE?1.05:1.35));
 renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -1857,6 +1858,89 @@ function fallbackHeldWeapon(name){
   }
   g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});return g;
 }
+function buildFirstPersonRig(){
+  if(firstPersonRig)return firstPersonRig;
+  firstPersonRig=new THREE.Group();
+  firstPersonRig.name='first-person-viewmodel';
+  firstPersonRig.visible=false;
+  camera.add(firstPersonRig);
+
+  const skin=new THREE.MeshStandardMaterial({color:0xb98568,roughness:.82,metalness:0});
+  const sleeve=new THREE.MeshStandardMaterial({color:0x25302b,roughness:.9,metalness:0});
+  const makeArm=(side)=>{
+    const root=new THREE.Group();
+    const upper=new THREE.Mesh(new THREE.CapsuleGeometry(.055,.36,4,8),sleeve);
+    upper.rotation.x=Math.PI/2;
+    upper.position.set(.18*side,-.23,-.48);
+    upper.rotation.z=-.12*side;
+    const fore=new THREE.Mesh(new THREE.CapsuleGeometry(.047,.32,4,8),skin);
+    fore.rotation.x=Math.PI/2;
+    fore.position.set(.13*side,-.18,-.73);
+    fore.rotation.z=-.08*side;
+    const hand=new THREE.Mesh(new THREE.SphereGeometry(.07,10,8),skin);
+    hand.scale.set(.82,1.15,.72);
+    hand.position.set(.10*side,-.15,-.91);
+    root.add(upper,fore,hand);
+    root.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;o.renderOrder=900}});
+    return root;
+  };
+  firstPersonRig.add(makeArm(-1),makeArm(1));
+  return firstPersonRig;
+}
+function firstPersonWeaponModel(name){
+  if(!name||name==='Fists')return null;
+  let obj=cloneCharacterWeapon(name);
+  if(!obj){
+    const key=name==='Barbed Bat'?'bat':name==='Saw Bat'?'sawBat':name==='Axe'?'axe':name==='Knife'?'knife':name==='Pistol'?'pistol':name==='Rifle'?'rifle':name==='Shotgun'?'shotgun':name==='SMG'?'smg':name==='Spear'?'spear':name==='Guitar'?'guitar':null;
+    const len=name==='Pistol'?.33:name==='Rifle'?1.02:name==='Shotgun'?.92:name==='SMG'?.72:name==='Spear'?1.35:name==='Guitar'?.82:name==='Axe'?.66:name==='Knife'?.34:.88;
+    if(key)obj=propCloneByLength(weaponTemplates[key],len);
+  }
+  if(!hasRenderableWeapon(obj))obj=fallbackHeldWeapon(name);
+  if(!hasRenderableWeapon(obj))return null;
+  obj.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;o.renderOrder=910}});
+  return obj;
+}
+function refreshFirstPersonRig(){
+  const rig=buildFirstPersonRig();
+  if(firstPersonWeapon?.parent)firstPersonWeapon.parent.remove(firstPersonWeapon);
+  firstPersonWeapon=null;
+  const current=activeItemForSlot(activeSlot)||activeWeapon||'Fists';
+  const weapon=firstPersonWeaponModel(current);
+  if(weapon){
+    weapon.position.set(isFirearm(current)?.16:.12,-.17,isFirearm(current)?-.83:-.72);
+    weapon.rotation.set(-Math.PI/2+(isFirearm(current)?.02:.12),0,isFirearm(current)?-.04:-.18);
+    rig.add(weapon);firstPersonWeapon=weapon;
+  }
+  rig.visible=CAMERA_MODES[cameraMode]==='firstPerson'&&!playerDead&&!spectatorMode;
+}
+function setCameraPresentation(){
+  const fp=CAMERA_MODES[cameraMode]==='firstPerson';
+  if(playerVisualRoot)playerVisualRoot.visible=!fp&&!playerDead&&!spectatorMode;
+  for(const m of Object.values(equipmentMounts))if(m)m.visible=!fp;
+  if(firstPersonRig)firstPersonRig.visible=fp&&!playerDead&&!spectatorMode;
+}
+function updateFirstPersonViewmodel(dt,moving,sprint){
+  if(!firstPersonRig||CAMERA_MODES[cameraMode]!=='firstPerson')return;
+  const t=performance.now()*.001;
+  const bob=moving?(sprint?.018:.009):0;
+  const x=aiming?0:.018+Math.sin(t*(sprint?13:9))*bob;
+  const y=aiming?-.015:-.025+Math.abs(Math.cos(t*(sprint?13:9)))*bob*.7;
+  firstPersonRig.position.x=THREE.MathUtils.lerp(firstPersonRig.position.x,x,1-Math.exp(-15*dt));
+  firstPersonRig.position.y=THREE.MathUtils.lerp(firstPersonRig.position.y,y,1-Math.exp(-15*dt));
+  firstPersonRig.position.z=THREE.MathUtils.lerp(firstPersonRig.position.z,aiming?.035:0,1-Math.exp(-15*dt));
+  firstPersonRig.rotation.x=THREE.MathUtils.lerp(firstPersonRig.rotation.x,-recoilPitch*.38,1-Math.exp(-18*dt));
+  firstPersonRig.rotation.y=THREE.MathUtils.lerp(firstPersonRig.rotation.y,-recoilYaw*.42,1-Math.exp(-18*dt));
+  firstPersonRig.rotation.z=THREE.MathUtils.lerp(firstPersonRig.rotation.z,-leanAmount*.035,1-Math.exp(-18*dt));
+  if(firstPersonWeapon){
+    const gun=isFirearm(activeWeapon);
+    const targetX=aiming&&gun?0:.16;
+    const targetY=aiming&&gun?-.12:-.17;
+    const targetZ=aiming&&gun?-.68:-.83;
+    firstPersonWeapon.position.x=THREE.MathUtils.lerp(firstPersonWeapon.position.x,targetX,1-Math.exp(-18*dt));
+    firstPersonWeapon.position.y=THREE.MathUtils.lerp(firstPersonWeapon.position.y,targetY,1-Math.exp(-18*dt));
+    firstPersonWeapon.position.z=THREE.MathUtils.lerp(firstPersonWeapon.position.z,targetZ,1-Math.exp(-18*dt));
+  }
+}
 function putActiveGripWeapon(name){
   const m=equipmentMounts.activeGrip;if(!m)return null;clearMount(m);if(!name||name==='Fists')return null;
   let obj=cloneCharacterWeapon(name);
@@ -1912,6 +1996,8 @@ function refreshEquipmentVisuals(){
   if(equipment.sidearm&&activeSlot!=='sidearm')putCharacterWeapon('hip',equipment.sidearm,'hip');
   if(equipment.primary&&activeSlot!=='primary')putCharacterWeapon('backGun',equipment.primary,'backGun');
   weaponPivot=equipmentMounts.activeGrip|| (isFirearm(current)?equipmentMounts.leftHand:equipmentMounts.rightHand);
+  refreshFirstPersonRig();
+  setCameraPresentation();
 }
 function useQuickSlot(slot){
   const item=equipment[slot];
@@ -3468,6 +3554,7 @@ function updateWeapon(dt,now=performance.now()){
   const moving=Math.hypot(playerVelocity.x,playerVelocity.y)>.15,sprint=locomotionIntent==='sprint';
   const targetSpread=isFirearm(activeWeapon)?(aiming?2.2:moving?(sprint?15:10):6)+THREE.MathUtils.radToDeg(Math.abs(recoilPitch))*1.05:0;
   reticleSpread=THREE.MathUtils.lerp(reticleSpread,targetSpread,1-Math.exp(-15*dt));updateReticleUi(moving,sprint);
+  updateFirstPersonViewmodel(dt,moving,sprint);
   if(!weaponPivot)return;
   if(isFirearm(activeWeapon)){
     const bob=moving?Math.sin(performance.now()*.010)*(sprint?.035:.016):0;
@@ -4516,23 +4603,45 @@ function safeCameraPosition(target,desired){
 }
 function updateCamera(dt){
   if(!playerRoot)return;
-  const fovTarget=aiming&&isFirearm(activeWeapon)?THREE.MathUtils.clamp(Number(weaponCfg(activeWeapon).aim_fov||52),38,62):66;
+  const mode=CAMERA_MODES[cameraMode]||'thirdPersonClose';
+  const fp=mode==='firstPerson';
+  setCameraPresentation();
+
+  const baseFov=fp?74:66;
+  const fovTarget=aiming&&isFirearm(activeWeapon)
+    ?THREE.MathUtils.clamp(Number(weaponCfg(activeWeapon).aim_fov||52),38,62)
+    :baseFov;
   camera.fov=THREE.MathUtils.lerp(camera.fov,fovTarget,1-Math.exp(-10*dt));camera.updateProjectionMatrix();
+
   if(activeVehicle){
+    if(firstPersonRig)firstPersonRig.visible=false;
+    if(playerVisualRoot)playerVisualRoot.visible=true;
     const target=activeVehicle.root.position.clone().add(new THREE.Vector3(0,0,1.15));
     const vy=yaw+recoilYaw,vp=THREE.MathUtils.clamp(pitch+recoilPitch,-.48,.70);
     const lookDir=new THREE.Vector3(Math.sin(vy)*Math.cos(vp),Math.cos(vy)*Math.cos(vp),-Math.sin(vp)).normalize();
     const desired=target.clone().addScaledVector(lookDir,-6.8);desired.z+=1.35;
     const safe=safeCameraPosition(target,desired);camera.position.lerp(safe,1-Math.exp(-7*dt));camera.lookAt(target.clone().addScaledVector(lookDir,8));return;
   }
+
   const cfg=STANCES[playerStance]||STANCES.stand;
-  const target=playerRoot.position.clone().add(new THREE.Vector3(0,0,Math.max(.48,cfg.center+(aiming?.44:.34))));
   const viewYaw=yaw+recoilYaw,viewPitch=THREE.MathUtils.clamp(pitch+recoilPitch,-.48,.70);
   const lookDir=new THREE.Vector3(Math.sin(viewYaw)*Math.cos(viewPitch),Math.cos(viewYaw)*Math.cos(viewPitch),-Math.sin(viewPitch)).normalize();
   leanAmount=THREE.MathUtils.lerp(leanAmount,leanTarget,1-Math.exp(-13*dt));
   const right=new THREE.Vector3(Math.cos(viewYaw),-Math.sin(viewYaw),0);
-  const dist=aiming?.92:interiorMode?(cameraMode===0?2.85:1.72):(cameraMode===0?3.8:2.0);
-  const shoulder=(aiming?.20:cameraMode===0?.42:.27)+leanAmount*.48;
+
+  if(fp){
+    const eye=playerRoot.position.clone().add(new THREE.Vector3(0,0,Math.max(.86,cfg.center+.46)));
+    eye.addScaledVector(right,leanAmount*.12);
+    camera.position.lerp(eye,1-Math.exp(-24*dt));
+    camera.lookAt(camera.position.clone().addScaledVector(lookDir,12));
+    if(firstPersonRig)firstPersonRig.visible=!playerDead&&!spectatorMode;
+    return;
+  }
+
+  const target=playerRoot.position.clone().add(new THREE.Vector3(0,0,Math.max(.48,cfg.center+(aiming?.44:.34))));
+  const far=mode==='thirdPersonFar';
+  const dist=aiming?.92:interiorMode?(far?2.85:1.72):(far?4.25:2.35);
+  const shoulder=(aiming?.20:far?.42:.30)+leanAmount*.48;
   const desired=target.clone().addScaledVector(lookDir,-dist).addScaledVector(right,shoulder);
   if(!aiming)desired.z+=.18;
   const physicsSafe=!interiorMode?rapierCameraPosition(target,desired):null;
@@ -4572,6 +4681,8 @@ async function boot(){
     buildAtmosphere();buildTerrain();buildRoads();buildWater();buildWaterfrontPerimeter();buildInstantBuildingMassing();
     addLights();setLighting(0);drawMinimapBase();initInput();
     await buildPlayer();
+    refreshFirstPersonRig();
+    setCameraPresentation();
     if(physicsReady){ensureTerrainPhysicsCollider();createPlayerPhysics()}
     else physicsReadyPromise.then(ok=>{
       if(!ok)return;
