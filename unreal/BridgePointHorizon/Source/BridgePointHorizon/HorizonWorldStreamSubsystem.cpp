@@ -33,6 +33,71 @@ namespace HorizonWorldStream
     }
 }
 
+FString UHorizonWorldStreamSubsystem::MakeCacheKey(
+    const FString& StateCode,
+    double Latitude,
+    double Longitude,
+    double SpanKm,
+    const FString& CellId) const
+{
+    return FString::Printf(
+        TEXT("%s|%.5f|%.5f|%.3f|%s"),
+        *StateCode.ToUpper(),
+        Latitude,
+        Longitude,
+        SpanKm,
+        *CellId);
+}
+
+bool UHorizonWorldStreamSubsystem::TryServeCachedCell(const FString& CacheKey)
+{
+    const FHorizonWorldCellSummary* Cached = CellCache.Find(CacheKey);
+    const FDateTime* StoredUtc = CellCacheStoredUtc.Find(CacheKey);
+
+    if (!Cached || !StoredUtc)
+    {
+        return false;
+    }
+
+    const double AgeSeconds = (FDateTime::UtcNow() - *StoredUtc).GetTotalSeconds();
+    if (AgeSeconds < 0.0 || AgeSeconds > CacheTtlSeconds)
+    {
+        CellCache.Remove(CacheKey);
+        CellCacheStoredUtc.Remove(CacheKey);
+        CellCacheOrder.Remove(CacheKey);
+        return false;
+    }
+
+    LastCell = *Cached;
+    CellCacheOrder.Remove(CacheKey);
+    CellCacheOrder.Add(CacheKey);
+    OnWorldCellLoaded.Broadcast(true, LastCell, FString());
+    return true;
+}
+
+void UHorizonWorldStreamSubsystem::StoreCachedCell(
+    const FString& CacheKey,
+    const FHorizonWorldCellSummary& Cell)
+{
+    if (CacheKey.IsEmpty() || !Cell.bComplete)
+    {
+        return;
+    }
+
+    CellCache.Add(CacheKey, Cell);
+    CellCacheStoredUtc.Add(CacheKey, FDateTime::UtcNow());
+    CellCacheOrder.Remove(CacheKey);
+    CellCacheOrder.Add(CacheKey);
+
+    while (CellCacheOrder.Num() > FMath::Max(1, MaxCachedCells))
+    {
+        const FString OldestKey = CellCacheOrder[0];
+        CellCacheOrder.RemoveAt(0);
+        CellCache.Remove(OldestKey);
+        CellCacheStoredUtc.Remove(OldestKey);
+    }
+}
+
 bool UHorizonWorldStreamSubsystem::RequestWorldCell(
     const FString& StateCode,
     double Latitude,
@@ -47,6 +112,17 @@ bool UHorizonWorldStreamSubsystem::RequestWorldCell(
 
     const FString SafeState = StateCode.ToUpper();
     const double SafeSpan = FMath::Clamp(SpanKm, 0.75, 5.5);
+    const FString CacheKey = MakeCacheKey(
+        SafeState,
+        Latitude,
+        Longitude,
+        SafeSpan,
+        CellId);
+
+    if (TryServeCachedCell(CacheKey))
+    {
+        return true;
+    }
 
     const FString Url = FString::Printf(
         TEXT("%s?state=%s&lat=%.8f&lon=%.8f&span_km=%.3f&cell_id=%s"),
@@ -66,9 +142,11 @@ bool UHorizonWorldStreamSubsystem::RequestWorldCell(
         this,
         &UHorizonWorldStreamSubsystem::HandleResponse);
 
+    ActiveCacheKey = CacheKey;
     bRequestActive = ActiveRequest->ProcessRequest();
     if (!bRequestActive)
     {
+        ActiveCacheKey.Reset();
         ActiveRequest.Reset();
         OnWorldCellLoaded.Broadcast(
             false,
@@ -87,6 +165,7 @@ void UHorizonWorldStreamSubsystem::CancelActiveRequest()
         ActiveRequest.Reset();
     }
 
+    ActiveCacheKey.Reset();
     bRequestActive = false;
 }
 
@@ -95,6 +174,8 @@ void UHorizonWorldStreamSubsystem::HandleResponse(
     FHttpResponsePtr Response,
     bool bConnectedSuccessfully)
 {
+    const FString CompletedCacheKey = ActiveCacheKey;
+    ActiveCacheKey.Reset();
     bRequestActive = false;
     ActiveRequest.Reset();
 
@@ -189,5 +270,6 @@ void UHorizonWorldStreamSubsystem::HandleResponse(
         return;
     }
 
+    StoreCachedCell(CompletedCacheKey, Summary);
     OnWorldCellLoaded.Broadcast(true, Summary, FString());
 }
