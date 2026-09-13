@@ -54,7 +54,12 @@ jobs:
           grep -Fq 'id="installAppPrompt"' site/app/intelligence-launch/index.html
           grep -Fq 'id="installAppTop"' site/app/intelligence-launch/index.html
           grep -Fq 'beforeinstallprompt' site/app/intelligence-launch/index.html
-          grep -Fq '"display":"standalone"' site/app/intelligence-launch/manifest.webmanifest
+          grep -Fq '"display": "standalone"' site/app/intelligence-launch/manifest.webmanifest
+          grep -Fq '"id": "/app/intelligence-launch/"' site/app/intelligence-launch/manifest.webmanifest
+          grep -Fq '"sizes": "192x192"' site/app/intelligence-launch/manifest.webmanifest
+          grep -Fq '"sizes": "512x512"' site/app/intelligence-launch/manifest.webmanifest
+          grep -Fq '"prefer_related_applications": false' site/app/intelligence-launch/manifest.webmanifest
+          grep -Fq './bridgepoint-mark.svg' site/app/intelligence-launch/manifest.webmanifest
 
       - name: Save durable live artifact
         env:
