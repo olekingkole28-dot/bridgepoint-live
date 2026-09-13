@@ -27,6 +27,11 @@ form{display:grid;gap:10px;margin-top:16px}input,select,textarea{width:100%;back
 .cross{margin-top:50px;text-align:center;padding:24px;border:1px solid rgba(255,255,255,.09);border-radius:20px;background:rgba(0,0,0,.28)}.cross a{color:var(--cyan);font-weight:900;text-decoration:none}
 .langmenu{display:none;position:absolute;right:52px;top:48px;width:210px;padding:8px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:#08121b;box-shadow:0 18px 50px rgba(0,0,0,.4)}.langmenu.show{display:block}.langmenu button{display:block;width:100%;text-align:left;border:0;background:transparent;color:#fff;padding:9px 10px;border-radius:9px;cursor:pointer}.langmenu button:hover{background:rgba(39,217,255,.09)}
 @media(max-width:800px){.shell{width:min(100% - 24px,1180px)}.hero{grid-template-columns:1fr;padding-top:38px}.hero h1{font-size:43px}.featuregrid{grid-template-columns:1fr}.btn span{display:none}.top{gap:7px}.brand strong{font-size:14px}.brand small{font-size:8px}.langmenu{right:50px}.panel{padding:18px}}
+
+.installAppBtn{border:1px solid rgba(255,255,255,.17);background:linear-gradient(135deg,#167ee8,rgba(255,255,255,.08));color:#fff;border-radius:12px;padding:10px 13px;font-weight:900;cursor:pointer;white-space:nowrap}
+.installAppPrompt{position:fixed;z-index:9999;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(560px,calc(100% - 24px));padding:14px;border-radius:18px;background:rgba(4,10,14,.97);border:1px solid rgba(255,255,255,.18);box-shadow:0 24px 80px rgba(0,0,0,.6);backdrop-filter:blur(18px);display:flex;gap:12px;align-items:center}
+.installAppPrompt[hidden]{display:none!important}.installAppPrompt .installIcon{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;background:rgba(255,255,255,.08);font-size:23px;flex:0 0 auto}.installAppPrompt .installCopy{min-width:0;flex:1}.installAppPrompt b{display:block;font-size:13px}.installAppPrompt small{display:block;margin-top:3px;color:#aab7bf;line-height:1.35}.installAppPrompt .installActions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.installAppPrompt button{border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:9px 11px;background:rgba(255,255,255,.06);color:#fff;font-weight:850;cursor:pointer}.installAppPrompt .primaryInstall{background:#167ee8;color:#fff;border-color:transparent}
+@media(max-width:620px){.installAppPrompt{align-items:flex-start}.installAppPrompt .installActions{width:100%;justify-content:flex-start;margin-top:8px}.installAppPrompt{flex-wrap:wrap}.installAppPrompt .installCopy{width:calc(100% - 62px)}}
 </style>
 </head>
 <body>
@@ -37,6 +42,7 @@ form{display:grid;gap:10px;margin-top:16px}input,select,textarea{width:100%;back
       <img src="./bridgepoint-mark.svg" alt="BridgePoint Intelligence">
       <div><strong>BRIDGEPOINT</strong><small>INTELLIGENCE</small></div>
     </div>
+    <button class="installAppBtn" id="installAppTop" type="button">⬇ <span>Install App</span></button>
     <button class="btn" id="languageBtn" type="button">🌐 <span data-i18n="language">Language</span></button>
     <button class="iconbtn" id="shareBtn" type="button" aria-label="Share">↗</button>
     <div class="langmenu" id="langMenu">
@@ -128,6 +134,19 @@ form{display:grid;gap:10px;margin-top:16px}input,select,textarea{width:100%;back
   </footer>
 </main>
 
+
+<div id="installAppPrompt" class="installAppPrompt" hidden role="dialog" aria-live="polite" aria-label="Install BridgePoint Intelligence">
+  <div class="installIcon">B</div>
+  <div class="installCopy">
+    <b>Install BridgePoint Intelligence</b>
+    <small id="installAppText">Add it to your phone, tablet, or computer for an app-like full-screen experience.</small>
+  </div>
+  <div class="installActions">
+    <button id="installAppDismiss" type="button">Not now</button>
+    <button id="installAppAction" class="primaryInstall" type="button">Install App</button>
+  </div>
+</div>
+
 <script>
 const SUPABASE='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
@@ -189,6 +208,61 @@ $('shareReferral').addEventListener('click',()=>share('BridgePoint Founding Acce
 $('languageBtn').addEventListener('click',()=> $('langMenu').classList.toggle('show'));
 document.querySelectorAll('[data-lang]').forEach(b=>b.addEventListener('click',()=>{setLang(b.dataset.lang);$('langMenu').classList.remove('show')}));
 setLang(localStorage.getItem('bp-launch-lang')||'en');setInterval(tick,1000);loadStatus().then(tick).catch(err=>$('formError').textContent=err.message);
+
+let deferredInstallPrompt=null;
+const installPromptEl=document.getElementById('installAppPrompt');
+const installActionEl=document.getElementById('installAppAction');
+const installTextEl=document.getElementById('installAppText');
+const isStandalone=()=>window.matchMedia?.('(display-mode: standalone)').matches===true||window.navigator.standalone===true;
+const isAppleMobile=()=>/iphone|ipad|ipod/i.test(navigator.userAgent||'');
+function showInstallAppPrompt(force=false){
+  if(isStandalone()){installPromptEl.hidden=true;return}
+  if(!force&&sessionStorage.getItem('bp-install-dismissed')==='1')return;
+  if(isAppleMobile()){
+    installTextEl.textContent='On iPhone/iPad: tap Share, then choose “Add to Home Screen”.';
+    installActionEl.textContent='Show How';
+  }else if(!deferredInstallPrompt){
+    installTextEl.textContent='Install this page as an app. If your browser does not show a prompt, use its menu and choose “Install app” or “Add to Home screen”.';
+    installActionEl.textContent='Install App';
+  }
+  installPromptEl.hidden=false;
+}
+window.addEventListener('beforeinstallprompt',event=>{
+  event.preventDefault();
+  deferredInstallPrompt=event;
+  showInstallAppPrompt(true);
+});
+window.addEventListener('appinstalled',()=>{
+  deferredInstallPrompt=null;
+  installPromptEl.hidden=true;
+  sessionStorage.removeItem('bp-install-dismissed');
+});
+document.getElementById('installAppDismiss')?.addEventListener('click',()=>{
+  installPromptEl.hidden=true;sessionStorage.setItem('bp-install-dismissed','1');
+});
+async function requestInstallApp(){
+  if(isStandalone()){installPromptEl.hidden=true;return}
+  if(deferredInstallPrompt){
+    const prompt=deferredInstallPrompt;deferredInstallPrompt=null;
+    await prompt.prompt();
+    await prompt.userChoice.catch(()=>null);
+    installPromptEl.hidden=true;
+    return;
+  }
+  if(isAppleMobile()){
+    installTextEl.textContent='Tap the Share button in Safari, scroll if needed, then tap “Add to Home Screen” and confirm Add.';
+    installActionEl.textContent='Got It';
+    installPromptEl.hidden=false;
+    return;
+  }
+  installTextEl.textContent='Open your browser menu and choose “Install app” or “Add to Home screen”.';
+  installActionEl.textContent='Got It';
+  installPromptEl.hidden=false;
+}
+document.getElementById('installAppTop')?.addEventListener('click',()=>{showInstallAppPrompt(true);requestInstallApp()});
+installActionEl?.addEventListener('click',requestInstallApp);
+setTimeout(()=>showInstallAppPrompt(false),1200);
+
 if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script>
 </body>
