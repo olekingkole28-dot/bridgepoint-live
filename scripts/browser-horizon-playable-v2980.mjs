@@ -87,6 +87,7 @@ await page.waitForFunction(()=>{
   return p&&p.requested>=12&&p.loaded===p.requested&&p.failed===0;
 },null,{timeout:30000});
 const pbrSurfaces=await page.evaluate(()=>window.BP_HORIZON_TEST.pbrSurfaceProbe?.());
+const apocalypseFx=await page.evaluate(()=>window.BP_HORIZON_TEST.apocalypseFxProbe?.());
 const loadingLod=await page.evaluate(()=>window.BP_HORIZON_TEST.loadingLodProbe?.());
 const navAi=await page.evaluate(()=>{
   const probe=window.BP_HORIZON_TEST?.navProbe?.();
@@ -116,6 +117,7 @@ if(fp.actualArms!==true||fp.actualArmsVisible!==true||fp.fallbackArmsVisible!==f
 if(!tp||tp.bodyVisible!==true||tp.rigVisible!==false||tp.actualArmsVisible!==false)throw new Error('Third-person presentation failed '+JSON.stringify(cameraModes));
 if(inputIsolation?.pointerOwnership!==true||inputIsolation?.canvasTouchAction!=='none'||inputIsolation?.settingsPanel!==true)throw new Error('Touch pointer isolation/settings missing '+JSON.stringify(inputIsolation));
 if(!pbrSurfaces||pbrSurfaces.source!=='Poly Haven CC0'||pbrSurfaces.runtimeApiDependency!==false||pbrSurfaces.failed!==0)throw new Error('Photoreal CC0 PBR contract failed '+JSON.stringify(pbrSurfaces));
+if(!apocalypseFx||apocalypseFx.smokeMode!=='layered-turbulent-alpha'||apocalypseFx.fireMode!=='layered-alpha-embers-flicker'||!(apocalypseFx.smokeParticles>0)||!(apocalypseFx.fires>0)||!(apocalypseFx.fireSprites>0)||apocalypseFx.legacyConeFlames!==0)throw new Error('Apocalypse VFX regressed to prototype geometry '+JSON.stringify(apocalypseFx));
 for(const surface of ['terrain','asphalt','brick','concrete']){
   const p=pbrSurfaces[surface];
   if(!p?.diffuse||!p?.normal||!p?.roughness)throw new Error('PBR surface maps missing for '+surface+' '+JSON.stringify(pbrSurfaces));
