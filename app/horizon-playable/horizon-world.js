@@ -7,10 +7,14 @@ import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
 import {GTAOPass} from 'three/addons/postprocessing/GTAOPass.js';
 import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
+import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.2/+esm';
 
 const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-stream-v3020';
 const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-weapons-v3040';
-const BUILD_VERSION=4247;
+const HORIZON_SUPABASE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co';
+const HORIZON_SUPABASE_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+const horizonSupabase=createClient(HORIZON_SUPABASE_URL,HORIZON_SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const BUILD_VERSION=4248;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -341,8 +345,9 @@ const lootGroup=new THREE.Group();
 const zombieGroup=new THREE.Group();
 const entryGroup=new THREE.Group();
 const ziplineGroup=new THREE.Group();ziplineGroup.name='roof-ziplines';
+const networkPlayerGroup=new THREE.Group();networkPlayerGroup.name='online-players';
 const interiorGroup=new THREE.Group();
-exteriorRoot.add(worldGroup,artGroup,lootGroup,zombieGroup,entryGroup,ziplineGroup);
+exteriorRoot.add(worldGroup,artGroup,lootGroup,zombieGroup,entryGroup,ziplineGroup,networkPlayerGroup);
 scene.add(exteriorRoot,interiorGroup);
 interiorGroup.visible=false;
 
@@ -350,6 +355,8 @@ let data,lon0,lat0,mx,my,baseElevation=0;
 let parcelLayer,partsLayer,buildingLayer,roadLayer,terrainLayer,instantMassingLayer=null,instantMassingMesh=null,parcelBuildPromise=null;
 let hemi,sun,lightMode=0;
 let playerRoot=null,playerVisualRoot=null,playerMixer=null,playerClips=[],playerAction=null,playerVisualBaseScaleZ=1;
+let onlineChannel=null,onlineUser=null,onlineSubscribed=false,onlineLastSend=0,onlineRoom='';
+const remoteOnlinePlayers=new Map();
 let playerModelYawOffset=0,playerAssetLoaded=false,playerAssetMode='fallback';
 const CONTROL_PREFS_KEY='bridgepoint-horizon-controls-v1';
 const CAMERA_MODES=Object.freeze(['firstPerson','thirdPersonClose','thirdPersonFar']);
@@ -5816,6 +5823,115 @@ function updateCamera(dt){
   camera.position.lerp(safe,alpha);
   camera.lookAt(target.clone().addScaledVector(lookDir,aiming?12:5));
 }
+function remoteOnlineAvatar(id){
+  let remote=remoteOnlinePlayers.get(id);
+  if(remote)return remote;
+  const root=new THREE.Group();root.name='online-player-'+String(id).slice(0,8);
+  let visual=null;
+  if(playerVisualRoot){
+    try{
+      visual=cloneSkeleton(playerVisualRoot);
+      visual.traverse(o=>{
+        if(o.isMesh){
+          o.frustumCulled=true;
+          if(o.material?.clone)o.material=o.material.clone();
+        }
+      });
+      root.add(visual);
+    }catch(err){console.warn('online avatar clone fallback',err)}
+  }
+  if(!visual){
+    const fallback=new THREE.Group();
+    const body=new THREE.Mesh(new THREE.CapsuleGeometry(.28,.9,4,8),new THREE.MeshStandardMaterial({color:0x5c6670,roughness:.8}));
+    body.position.z=.82;fallback.add(body);root.add(fallback);
+  }
+  networkPlayerGroup.add(root);
+  remote={id,root,visual,targetPos:new THREE.Vector3(),targetYaw:0,lastSeen:performance.now(),weapon:'Fists',health:100};
+  remoteOnlinePlayers.set(id,remote);
+  return remote;
+}
+function removeRemoteOnlinePlayer(id){
+  const remote=remoteOnlinePlayers.get(id);if(!remote)return;
+  networkPlayerGroup.remove(remote.root);
+  remote.root.traverse(o=>{if(o.geometry?.dispose&&o.userData?.networkOwnedGeometry)o.geometry.dispose()});
+  remoteOnlinePlayers.delete(id);
+}
+function receiveOnlineState(payload){
+  if(!payload?.id||payload.id===onlineUser?.id)return;
+  const x=Number(payload.x),y=Number(payload.y),z=Number(payload.z),ry=Number(payload.yaw);
+  if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))return;
+  const remote=remoteOnlineAvatar(payload.id);
+  remote.targetPos.set(x,y,z);
+  remote.targetYaw=Number.isFinite(ry)?ry:remote.targetYaw;
+  remote.weapon=String(payload.weapon||remote.weapon||'Fists');
+  remote.health=Number(payload.health||100);
+  remote.lastSeen=performance.now();
+}
+async function initOnlineSession(){
+  try{
+    const {data:{session}}=await horizonSupabase.auth.getSession();
+    onlineUser=session?.user||null;
+    if(!onlineUser){
+      onlineSubscribed=false;
+      streetLifeStats.onlineMode='guest-local';
+      return false;
+    }
+    if(session?.access_token)horizonSupabase.realtime.setAuth(session.access_token);
+    const cellLat=Math.round(Number(params.get('lat')||lat0||0)*100);
+    const cellLon=Math.round(Number(params.get('lon')||lon0||0)*100);
+    onlineRoom='horizon-play-'+matchMode+'-'+SELECTED_STATE+'-'+cellLat+'-'+cellLon;
+    if(onlineChannel)try{await horizonSupabase.removeChannel(onlineChannel)}catch(_){}
+    onlineChannel=horizonSupabase.channel(onlineRoom,{config:{presence:{key:onlineUser.id},broadcast:{self:false,ack:false}}});
+    onlineChannel
+      .on('broadcast',{event:'player_state'},({payload})=>receiveOnlineState(payload))
+      .on('presence',{event:'leave'},({leftPresences})=>{
+        for(const p of (leftPresences||[]))if(p?.id)removeRemoteOnlinePlayer(p.id);
+      })
+      .on('presence',{event:'sync'},()=>{
+        const state=onlineChannel.presenceState()||{};
+        streetLifeStats.onlinePlayers=Object.values(state).reduce((n,a)=>n+(Array.isArray(a)?a.length:0),0);
+      });
+    onlineChannel.subscribe(async status=>{
+      onlineSubscribed=status==='SUBSCRIBED';
+      streetLifeStats.onlineMode=onlineSubscribed?'realtime-browser-alpha':String(status||'connecting').toLowerCase();
+      if(onlineSubscribed){
+        await onlineChannel.track({
+          id:onlineUser.id,
+          display_name:onlineUser.user_metadata?.display_name||'',
+          character:CHARACTER_KEY,mode:matchMode,state:SELECTED_STATE,online_at:new Date().toISOString()
+        });
+        const badge=$('worldBadge')||document.querySelector('.worldBadge');
+        if(badge)badge.textContent='ONE CONTINUOUS U.S. WORLD · ONLINE';
+      }
+    });
+    return true;
+  }catch(err){
+    streetLifeStats.onlineMode='offline-recovery';
+    streetLifeStats.onlineError=String(err?.message||err);
+    console.warn('Horizon online session unavailable',err);
+    return false;
+  }
+}
+function updateOnlineSession(dt,now){
+  if(onlineSubscribed&&onlineChannel&&onlineUser&&playerRoot&&now-onlineLastSend>=125){
+    onlineLastSend=now;
+    onlineChannel.send({
+      type:'broadcast',event:'player_state',
+      payload:{
+        id:onlineUser.id,
+        x:Number(playerRoot.position.x.toFixed(3)),y:Number(playerRoot.position.y.toFixed(3)),z:Number(playerRoot.position.z.toFixed(3)),
+        yaw:Number(playerRoot.rotation.z.toFixed(4)),health,weapon:activeWeapon,stance:playerStance,character:CHARACTER_KEY,t:Date.now()
+      }
+    }).catch(()=>{});
+  }
+  for(const [id,remote] of remoteOnlinePlayers){
+    if(now-remote.lastSeen>15000){removeRemoteOnlinePlayer(id);continue}
+    const alpha=1-Math.exp(-Math.max(1,12)*dt);
+    remote.root.position.lerp(remote.targetPos,alpha);
+    remote.root.rotation.z=lerpAngle(remote.root.rotation.z,remote.targetYaw,alpha);
+  }
+}
+
 async function enterLandscape(){
   try{if(!document.fullscreenElement&&document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen({navigationUI:'hide'})}catch(_){}
   try{if(screen.orientation&&screen.orientation.lock)await screen.orientation.lock('landscape')}catch(_){}
@@ -5863,6 +5979,7 @@ async function boot(){
       if(playerRoot&&!playerPhysicsBody)createPlayerPhysics();
     });
     renderFactionBanner();initFlashlight();
+    initOnlineSession().catch(()=>false);
     revealMap(playerRoot.position.x,playerRoot.position.y,true);lastReveal=playerRoot.position.clone();
     updateInventory();updateInteractionPrompt();resizeRenderer();
     window.BP_HORIZON_PLAYABLE={ok:true,build:BUILD_VERSION,readyMs:Math.round(performance.now()-bootStarted),stance:playerStance,weaponSocket:equipmentMounts.activeGrip?.userData?.socketBone||null,map:MAP_PRESET.id,instantBuildings:Number(streetLifeStats.instantMassing||0)};
@@ -5915,7 +6032,8 @@ async function boot(){
       reloadActive:reloadState.active,aimFov:weaponCfg(activeWeapon).aim_fov,
       sceneFetchAttempts,sceneFetchError,decayPatchedMaterials,smartSnappedProps,openSpaceProps,doorSystemCount,activeDoorVisuals:Number(streetLifeStats.activeDoorVisuals||0),doorStreaming:true,fullHeightLazyTowers:true,walkableStairs:true,transparentFacadeWindows:true,openSourceBuildings:Number(streetLifeStats.openBuildings||0),doorableBuildings:Number(streetLifeStats.doorableBuildings||0),lazyOpenBuildings:true,seamlessOpenBuildings:true,towerPriorityOpenBuildings:true,optimizedOpenBuildingPhysics:true,shapeRecovery:true,staticMapCache:Boolean(streetLifeStats.staticMapCache),invalidShapes:Number(streetLifeStats.invalidShapes||0),shellFailures:Number(streetLifeStats.shellFailures||0),openInteriorProps:Number(streetLifeStats.openInteriorProps||0),
       matchMode,matchRadius:Number.isFinite(matchRadius)?matchRadius:null,seasonDay:seasonDay(),xp,battleTier,livesRemaining,
-      flashlightReady:Boolean(flashlight),vehicleRepair:true,factionClaimMode:'local-preview',spectatorMode
+      flashlightReady:Boolean(flashlight),vehicleRepair:true,factionClaimMode:'local-preview',spectatorMode,
+      online:{room:onlineRoom,subscribed:onlineSubscribed,user:Boolean(onlineUser),remotePlayers:remoteOnlinePlayers.size,mode:streetLifeStats.onlineMode||'local'}
     };
     window.BP_HORIZON_TEST={
       enterFirst:()=>{
@@ -6327,6 +6445,7 @@ async function boot(){
         };
       },
       postFxProbe:()=>({mode:postFxMode,composer:Boolean(composer),gtao:Boolean(gtaoPass),bloom:Boolean(bloomPass)}),
+      onlineProbe:()=>({room:onlineRoom,subscribed:onlineSubscribed,signedIn:Boolean(onlineUser),remotePlayers:remoteOnlinePlayers.size,mode:streetLifeStats.onlineMode||'local'}),
       registryProbe:()=>({
         mode:weaponRegistryMode,
         unique:new Set([...weaponRegistry.values()].map(x=>x.weapon_id)).size,
@@ -6441,7 +6560,7 @@ let lastPrompt=0,lastWorldTick=0,lastSmokeTick=0,lastMiniTick=0;
 function loop(now=performance.now()){
   const dt=Math.min(.05,clock.getDelta()||.016);
   updateAdaptiveRenderQuality(dt,now);
-  updateWeapon(dt);updatePlayer(dt);
+  updateWeapon(dt);updatePlayer(dt);updateOnlineSession(dt,now);
   const worldCadence=MOBILE_GPU_SAFE?34:16;
   if(now-lastWorldTick>=worldCadence){
     const wdt=Math.min(.07,lastWorldTick?Math.max(.012,(now-lastWorldTick)/1000):dt);
