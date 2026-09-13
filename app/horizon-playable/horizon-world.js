@@ -14,7 +14,7 @@ const WEAPON_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bri
 const HORIZON_SUPABASE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const HORIZON_SUPABASE_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const horizonSupabase=createClient(HORIZON_SUPABASE_URL,HORIZON_SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-const BUILD_VERSION=4250;
+const BUILD_VERSION=4251;
 const PLAYER_BASE_SPEED=3.45;
 const PLAYER_SPRINT_MULT=1.68;
 const PLAYER_MAX_SPEED=PLAYER_BASE_SPEED*PLAYER_SPRINT_MULT;
@@ -119,6 +119,7 @@ const DEFAULT_WEAPON_CONFIGS=[
   {weapon_id:'smg',weapon_name:'SMG',weapon_type:'primary',equip_slot:'primary',stance_type:'two_handed_rifle',fire_mode:'auto',damage:34,range_m:62,magazine_size:32,reserve_default:160,fire_interval_seconds:.085,reload_time_seconds:1.8,recoil_pitch_deg:.8,recoil_yaw_deg:.72,spread_deg:.8,aim_fov:50,two_handed:true,hitscan:true,model_url:ASSETS.smg,license_code:'CC0'},
   {weapon_id:'spear',weapon_name:'Spear',weapon_type:'melee',equip_slot:'melee',stance_type:'two_handed_melee',fire_mode:'melee',damage:68,range_m:3.15,magazine_size:0,reserve_default:0,fire_interval_seconds:.62,reload_time_seconds:0,recoil_pitch_deg:0,recoil_yaw_deg:0,spread_deg:0,aim_fov:62,two_handed:true,hitscan:true,model_url:ASSETS.spear,license_code:'CC0'},
   {weapon_id:'saw_bat',weapon_name:'Saw Bat',weapon_type:'melee',equip_slot:'melee',stance_type:'two_handed_melee',fire_mode:'melee',damage:66,range_m:2.7,magazine_size:0,reserve_default:0,fire_interval_seconds:.52,reload_time_seconds:0,recoil_pitch_deg:0,recoil_yaw_deg:0,spread_deg:0,aim_fov:62,two_handed:true,hitscan:true,model_url:ASSETS.sawBat,license_code:'CC0'},
+  {weapon_id:'pitchfork',weapon_name:'Pitchfork',weapon_type:'melee',equip_slot:'melee',stance_type:'two_handed_melee',fire_mode:'melee',damage:64,range_m:3.05,magazine_size:0,reserve_default:0,fire_interval_seconds:.60,reload_time_seconds:0,recoil_pitch_deg:0,recoil_yaw_deg:0,spread_deg:0,aim_fov:62,two_handed:true,hitscan:true,model_url:'https://cdn.jsdelivr.net/gh/shionn/Echoes-of-the-Forgotten-Depths@c75891ea3b4e90676eee7599f0fa83169c1523d8/Assets/Halloween/pitchfork.gltf',license_code:'CC0',metadata:{browser_art:'cc0_fallback',visual_ground_loot:true,visual_length_m:1.35}},
   {weapon_id:'guitar',weapon_name:'Guitar',weapon_type:'melee',equip_slot:'melee',stance_type:'two_handed_melee',fire_mode:'melee',damage:46,range_m:2.55,magazine_size:0,reserve_default:0,fire_interval_seconds:.48,reload_time_seconds:0,recoil_pitch_deg:0,recoil_yaw_deg:0,spread_deg:0,aim_fov:62,two_handed:true,hitscan:true,model_url:ASSETS.guitar,license_code:'CC0'},
   {weapon_id:'fists',weapon_name:'Fists',weapon_type:'melee',equip_slot:'melee',stance_type:'unarmed',fire_mode:'melee',damage:24,range_m:1.55,magazine_size:0,reserve_default:0,fire_interval_seconds:.38,reload_time_seconds:0,recoil_pitch_deg:0,recoil_yaw_deg:0,spread_deg:0,aim_fov:62,two_handed:false,hitscan:true,model_url:null,license_code:'internal'}
 ];
@@ -3718,7 +3719,7 @@ function makeGenericLootVisual(item){
   if(o)g.add(o);g.traverse(x=>{if(x.isMesh){x.castShadow=true;x.receiveShadow=true}});return g;
 }
 function inventoryIcon(item){
-  if(/Flashlight/i.test(item))return'⌁';if(/Pistol|Rifle|Shotgun|SMG/i.test(item))return'▰';if(/Axe|Knife|Spear|Bat|Guitar/i.test(item))return'⚔';if(/Ammo|Shell/i.test(item))return'▥';if(/Water|drink/i.test(item))return'◒';if(/Bandage|First aid|Painkiller/i.test(item))return'✚';if(/Backpack|Duffel/i.test(item))return'▣';if(/Battery|Spark|Tire|Fuel|hose|chain/i.test(item))return'⚙';if(/Food|Canned|bar/i.test(item))return'◫';return'◆';
+  if(/Flashlight/i.test(item))return'⌁';if(/Pistol|Rifle|Shotgun|SMG/i.test(item))return'▰';if(/Axe|Knife|Spear|Pitchfork|Crowbar|Saw|Bat|Guitar/i.test(item))return'⚔';if(/Ammo|Shell/i.test(item))return'▥';if(/Water|drink/i.test(item))return'◒';if(/Bandage|First aid|Painkiller/i.test(item))return'✚';if(/Backpack|Duffel/i.test(item))return'▣';if(/Battery|Spark|Tire|Fuel|hose|chain/i.test(item))return'⚙';if(/Food|Canned|bar/i.test(item))return'◫';return'◆';
 }
 function makePickupVisual(item,seedValue){
   const root=new THREE.Group(),weapon=pickupTemplateFor(item);
@@ -3734,7 +3735,7 @@ function makePickupVisual(item,seedValue){
     model=new THREE.Mesh(new THREE.BoxGeometry(.42,.30,.24),new THREE.MeshStandardMaterial({color:0x77664f,roughness:.78}));
     model.position.z=.2;root.add(model);
   }
-  const rare=/Pistol|Rifle|Shotgun|SMG|Spear|Saw Bat|Axe|Backpack|Duffel/.test(item);
+  const rare=/Pistol|Rifle|Shotgun|SMG|Spear|Pitchfork|Saw Bat|Axe|Backpack|Duffel/.test(item);
   const ring=new THREE.Mesh(new THREE.TorusGeometry(.48,.035,8,22),rare?pickupRareMat:pickupGlowMat);
   ring.rotation.x=Math.PI/2;ring.position.z=.08;root.add(ring);
   const stem=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.72,5),rare?pickupRareMat:pickupGlowMat);
@@ -3760,7 +3761,7 @@ function spawnVisiblePickup(item,x,y,z,mode='exterior',seedValue=0){
 }
 function spawnOutdoorLoot(){
   const target=densePreview()?80:40;
-  const table=['Bandage','Water','First aid kit','Batteries','Canned food','Pistol Ammo','Rifle Ammo','Shotgun Shells','SMG Ammo','Pistol','Rifle','Shotgun','SMG','Axe','Spear','Saw Bat','Guitar','Hiking Backpack'];
+  const table=['Bandage','Water','First aid kit','Batteries','Canned food','Pistol Ammo','Rifle Ammo','Shotgun Shells','SMG Ammo','Pistol','Rifle','Shotgun','SMG','Axe','Spear','Pitchfork','Saw Bat','Guitar','Hiking Backpack'];
   let placed=0,attempts=0;
   while(placed<target&&attempts<target*24){
     attempts++;
