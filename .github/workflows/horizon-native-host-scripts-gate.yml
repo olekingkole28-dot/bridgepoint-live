@@ -1,0 +1,55 @@
+name: Horizon Native Host Script Gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'unreal/BridgePointHorizon/Scripts/*.ps1'
+      - '.github/workflows/horizon-native-host-scripts-gate.yml'
+  workflow_dispatch:
+
+jobs:
+  validate-powershell:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse Horizon PowerShell scripts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $failed = $false
+          Get-ChildItem "unreal/BridgePointHorizon/Scripts" -Filter "*.ps1" | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $failed = $true
+              Write-Host "::error file=$($_.FullName)::$($errors | ForEach-Object { $_.Message } | Out-String)"
+            } else {
+              Write-Host "POWERSHELL_PARSE_OK $($_.Name)"
+            }
+          }
+          if ($failed) { exit 1 }
+
+      - name: Validate host automation contract
+        shell: pwsh
+        run: |
+          $agent = Get-Content "unreal/BridgePointHorizon/Scripts/horizon_host_agent.ps1" -Raw
+          $bootstrap = Get-Content "unreal/BridgePointHorizon/Scripts/bootstrap_horizon_windows_gpu.ps1" -Raw
+          $stream = Get-Content "unreal/BridgePointHorizon/Scripts/run_horizon_pixelstream.ps1" -Raw
+          $https = Get-Content "unreal/BridgePointHorizon/Scripts/configure_horizon_https.ps1" -Raw
+          foreach ($token in @("source_tree_sha","Build-NewTree","Stop-StreamingStack","Start-StreamingStack")) {
+            if (-not $agent.Contains($token)) { throw "Host agent contract missing $token" }
+          }
+          foreach ($token in @("RunUAT.bat","Register-ScheduledTask","SUPABASE_SECRET_KEY")) {
+            if (-not $bootstrap.Contains($token)) { throw "Bootstrap contract missing $token" }
+          }
+          foreach ($token in @("PixelStreamingURL","pixelstream-processes.json","bridgepoint-horizon-native-stream-v4248")) {
+            if (-not $stream.Contains($token)) { throw "Pixel Streaming supervisor contract missing $token" }
+          }
+          foreach ($token in @("reverse_proxy 127.0.0.1:8080","HORIZON_PUBLIC_STREAM_URL","New-NetFirewallRule")) {
+            if (-not $https.Contains($token)) { throw "HTTPS gateway contract missing $token" }
+          }
+          Write-Host "HORIZON_NATIVE_HOST_AUTOMATION_GATE_OK"
