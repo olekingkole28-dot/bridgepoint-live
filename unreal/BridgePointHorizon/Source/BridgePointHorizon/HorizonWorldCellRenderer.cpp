@@ -798,16 +798,21 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
         return;
     }
 
-    TArray<FVector> Vertices;
-    TArray<int32> Triangles;
-    TArray<FVector2D> UV0;
-    TArray<FLinearColor> Colors;
-    TArray<FProcMeshTangent> Tangents;
+    TArray<FVector> BuildingVertices;
+    TArray<int32> BuildingTriangles;
+    TArray<FVector2D> BuildingUV0;
 
-    auto AppendFeatures = [this, &Vertices, &Triangles, &UV0](
+    TArray<FVector> PartVertices;
+    TArray<int32> PartTriangles;
+    TArray<FVector2D> PartUV0;
+
+    auto AppendFeatures = [this](
         const TArray<TSharedPtr<FJsonValue>>* Features,
         int32 Limit,
-        bool bBuildingPart)
+        bool bBuildingPart,
+        TArray<FVector>& Vertices,
+        TArray<int32>& Triangles,
+        TArray<FVector2D>& UV0)
     {
         if (!Features)
         {
@@ -933,22 +938,56 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
         }
     };
 
-    AppendFeatures(Buildings, MaxBuildingsPerCell, false);
-    AppendFeatures(BuildingParts, MaxBuildingPartsPerCell, true);
+    AppendFeatures(
+        Buildings,
+        MaxBuildingsPerCell,
+        false,
+        BuildingVertices,
+        BuildingTriangles,
+        BuildingUV0);
 
-    if (!Vertices.IsEmpty())
+    AppendFeatures(
+        BuildingParts,
+        MaxBuildingPartsPerCell,
+        true,
+        PartVertices,
+        PartTriangles,
+        PartUV0);
+
+    TArray<FLinearColor> Colors;
+    TArray<FProcMeshTangent> Tangents;
+
+    if (!BuildingVertices.IsEmpty())
     {
         TArray<FVector> Normals;
-        HorizonCellRender::ComputeNormals(Vertices, Triangles, Normals);
+        HorizonCellRender::ComputeNormals(BuildingVertices, BuildingTriangles, Normals);
 
         BuildingMesh->CreateMeshSection_LinearColor(
             0,
-            Vertices,
-            Triangles,
+            BuildingVertices,
+            BuildingTriangles,
             Normals,
-            UV0,
+            BuildingUV0,
             Colors,
             Tangents,
             bCreateBuildingCollision);
+    }
+
+    if (!PartVertices.IsEmpty())
+    {
+        TArray<FVector> PartNormals;
+        HorizonCellRender::ComputeNormals(PartVertices, PartTriangles, PartNormals);
+
+        // Detailed Overture building parts are visual-only. Whole-building geometry
+        // owns collision so rooftop equipment/parts do not explode physics cost.
+        BuildingMesh->CreateMeshSection_LinearColor(
+            1,
+            PartVertices,
+            PartTriangles,
+            PartNormals,
+            PartUV0,
+            Colors,
+            Tangents,
+            false);
     }
 }
