@@ -1,13 +1,73 @@
 #include "HorizonGameStateSubsystem.h"
 
+#include "Kismet/GameplayStatics.h"
+
+const TCHAR* UHorizonGameStateSubsystem::YearOneSaveSlot = TEXT("BridgePointHorizonYearOne");
+
 void UHorizonGameStateSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
+
     CurrentMode = EHorizonGameMode::YearOneSurvival;
     YearOne.bStarted = false;
     YearOne.DurationDays = 365;
     YearOne.LivesRemaining = 3;
     YearOne.bEliminated = false;
+
+    LoadYearOneState();
+}
+
+void UHorizonGameStateSubsystem::LoadYearOneState()
+{
+    PersistedYearOne = nullptr;
+
+    if (USaveGame* Loaded = UGameplayStatics::LoadGameFromSlot(YearOneSaveSlot, 0))
+    {
+        PersistedYearOne = Cast<UHorizonYearOneSaveGame>(Loaded);
+    }
+
+    if (!PersistedYearOne)
+    {
+        PersistedYearOne = Cast<UHorizonYearOneSaveGame>(
+            UGameplayStatics::CreateSaveGameObject(UHorizonYearOneSaveGame::StaticClass()));
+        return;
+    }
+
+    YearOne.bStarted = PersistedYearOne->bStarted;
+    YearOne.StartUtc = PersistedYearOne->StartUtc;
+    YearOne.DurationDays = 365;
+    YearOne.LivesRemaining = FMath::Clamp(PersistedYearOne->LivesRemaining, 0, 3);
+    YearOne.bEliminated = PersistedYearOne->bEliminated || YearOne.LivesRemaining <= 0;
+
+    if (YearOne.bStarted && !YearOne.StartUtc.GetTicks())
+    {
+        // Refuse to revive a malformed event-start record.
+        YearOne.bStarted = false;
+        YearOne.LivesRemaining = 3;
+        YearOne.bEliminated = false;
+    }
+}
+
+void UHorizonGameStateSubsystem::SaveYearOneState()
+{
+    if (!PersistedYearOne)
+    {
+        PersistedYearOne = Cast<UHorizonYearOneSaveGame>(
+            UGameplayStatics::CreateSaveGameObject(UHorizonYearOneSaveGame::StaticClass()));
+    }
+
+    if (!PersistedYearOne)
+    {
+        return;
+    }
+
+    PersistedYearOne->bStarted = YearOne.bStarted;
+    PersistedYearOne->StartUtc = YearOne.StartUtc;
+    PersistedYearOne->DurationDays = 365;
+    PersistedYearOne->LivesRemaining = FMath::Clamp(YearOne.LivesRemaining, 0, 3);
+    PersistedYearOne->bEliminated = YearOne.bEliminated;
+
+    UGameplayStatics::SaveGameToSlot(PersistedYearOne, YearOneSaveSlot, 0);
 }
 
 FHorizonModeRules UHorizonGameStateSubsystem::GetModeRules(EHorizonGameMode Mode) const
@@ -79,7 +139,8 @@ int32 UHorizonGameStateSubsystem::GetMaxPartySize() const
 
 bool UHorizonGameStateSubsystem::StartYearOneEvent(FDateTime StartUtc)
 {
-    if (YearOne.bStarted || !StartUtc.GetTicks())
+    // Hard owner gate: the live year cannot start merely because UI/gameplay code calls this.
+    if (!bOwnerAuthorizedYearOneStart || YearOne.bStarted || !StartUtc.GetTicks())
     {
         return false;
     }
@@ -89,15 +150,23 @@ bool UHorizonGameStateSubsystem::StartYearOneEvent(FDateTime StartUtc)
     YearOne.DurationDays = 365;
     YearOne.LivesRemaining = 3;
     YearOne.bEliminated = false;
+    SaveYearOneState();
     OnYearOneLivesChanged.Broadcast(YearOne.LivesRemaining, false);
     return true;
 }
 
 void UHorizonGameStateSubsystem::ResetYearOneForPreseason()
 {
+    // Once the real event begins, gameplay code cannot silently reset the three-life state.
+    if (YearOne.bStarted)
+    {
+        return;
+    }
+
     YearOne = FYearOneState();
     YearOne.DurationDays = 365;
     YearOne.LivesRemaining = 3;
+    SaveYearOneState();
     OnYearOneLivesChanged.Broadcast(YearOne.LivesRemaining, false);
 }
 
@@ -163,13 +232,21 @@ bool UHorizonGameStateSubsystem::RegisterPlayerDeath()
 
     YearOne.LivesRemaining = FMath::Max(0, YearOne.LivesRemaining - 1);
     YearOne.bEliminated = YearOne.LivesRemaining <= 0;
+    SaveYearOneState();
     OnYearOneLivesChanged.Broadcast(YearOne.LivesRemaining, YearOne.bEliminated);
     return YearOne.bEliminated;
 }
 
 void UHorizonGameStateSubsystem::RestoreYearOneLives(int32 Lives)
 {
+    // Preseason/dev-only reset. The live event never gives spent lives back.
+    if (YearOne.bStarted)
+    {
+        return;
+    }
+
     YearOne.LivesRemaining = FMath::Clamp(Lives, 0, 3);
     YearOne.bEliminated = YearOne.LivesRemaining <= 0;
+    SaveYearOneState();
     OnYearOneLivesChanged.Broadcast(YearOne.LivesRemaining, YearOne.bEliminated);
 }
