@@ -686,6 +686,10 @@ void AHorizonWorldCellRenderer::BuildWater(const TSharedPtr<FJsonObject>& Root)
         TArray<FVector2D> Ring;
         if (Kind == TEXT("WATER_AREA") && HorizonCellRender::ExtractExteriorRing(Geometry, Ring))
         {
+            if (HorizonCellRender::SignedArea(Ring) < 0.0f)
+            {
+                Algo::Reverse(Ring);
+            }
             double AverageLongitude = 0.0;
             double AverageLatitude = 0.0;
             for (const FVector2D& Point : Ring)
@@ -827,6 +831,11 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
             if (!HorizonCellRender::ExtractExteriorRing(Feature->GetObjectField(TEXT("geometry")), Ring))
             {
                 continue;
+            }
+
+            if (HorizonCellRender::SignedArea(Ring) < 0.0f)
+            {
+                Algo::Reverse(Ring);
             }
 
             double HeightMeters = DefaultBuildingHeightMeters;
