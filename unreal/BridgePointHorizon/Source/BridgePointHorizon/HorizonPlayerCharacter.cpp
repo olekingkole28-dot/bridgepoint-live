@@ -59,6 +59,23 @@ AHorizonPlayerCharacter::AHorizonPlayerCharacter()
     EquippedWeaponVisual->SetGenerateOverlapEvents(false);
     EquippedWeaponVisual->SetCastShadow(true);
     EquippedWeaponVisual->SetVisibility(false, true);
+
+    FirstPersonArms = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FirstPersonArms"));
+    FirstPersonArms->SetupAttachment(FollowCamera);
+    FirstPersonArms->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    FirstPersonArms->SetGenerateOverlapEvents(false);
+    FirstPersonArms->SetOnlyOwnerSee(true);
+    FirstPersonArms->SetCastShadow(false);
+    FirstPersonArms->SetVisibility(false, true);
+    FirstPersonArms->SetRelativeTransform(FirstPersonArmsOffset);
+
+    FirstPersonWeaponVisual = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("FirstPersonWeaponVisual"));
+    FirstPersonWeaponVisual->SetupAttachment(FirstPersonArms);
+    FirstPersonWeaponVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    FirstPersonWeaponVisual->SetGenerateOverlapEvents(false);
+    FirstPersonWeaponVisual->SetOnlyOwnerSee(true);
+    FirstPersonWeaponVisual->SetCastShadow(false);
+    FirstPersonWeaponVisual->SetVisibility(false, true);
 }
 
 void AHorizonPlayerCharacter::BeginPlay()
@@ -78,6 +95,7 @@ void AHorizonPlayerCharacter::BeginPlay()
     }
 
     RefreshMovementProfile();
+    RefreshFirstPersonVisualState();
 }
 
 void AHorizonPlayerCharacter::Tick(float DeltaSeconds)
@@ -195,10 +213,7 @@ void AHorizonPlayerCharacter::SetCameraMode(EHorizonCameraMode NewMode)
     {
         CharacterMesh->SetOwnerNoSee(bFirstPerson);
     }
-    if (EquippedWeaponVisual)
-    {
-        EquippedWeaponVisual->SetOwnerNoSee(false);
-    }
+    RefreshFirstPersonVisualState();
 }
 
 void AHorizonPlayerCharacter::ToggleCameraMode()
@@ -299,6 +314,110 @@ bool AHorizonPlayerCharacter::AttachWeaponVisualToBestSocket(FName PreferredSock
     return true;
 }
 
+bool AHorizonPlayerCharacter::AttachFirstPersonWeaponToBestSocket(FName PreferredSocket)
+{
+    if (!FirstPersonWeaponVisual || !FirstPersonArms)
+    {
+        return false;
+    }
+
+    const auto IsUsableSocket = [this](FName Candidate)
+    {
+        return Candidate != NAME_None &&
+            (FirstPersonArms->DoesSocketExist(Candidate) ||
+             FirstPersonArms->GetBoneIndex(Candidate) != INDEX_NONE);
+    };
+
+    const TArray<FName> Candidates = {
+        PreferredSocket,
+        FirstPersonWeaponSocketName,
+        TEXT("weapon_r"),
+        TEXT("hand_r"),
+        TEXT("RightHand"),
+        TEXT("r_hand")
+    };
+
+    FName ChosenSocket = NAME_None;
+    for (FName Candidate : Candidates)
+    {
+        if (IsUsableSocket(Candidate))
+        {
+            ChosenSocket = Candidate;
+            break;
+        }
+    }
+
+    if (ChosenSocket == NAME_None)
+    {
+        FirstPersonWeaponVisual->SetVisibility(false, true);
+        return false;
+    }
+
+    FirstPersonWeaponVisual->AttachToComponent(
+        FirstPersonArms,
+        FAttachmentTransformRules::SnapToTargetNotIncludingScale,
+        ChosenSocket);
+    FirstPersonWeaponVisual->SetRelativeTransform(FirstPersonWeaponGripOffset);
+    return true;
+}
+
+bool AHorizonPlayerCharacter::SetFirstPersonArmsMesh(USkeletalMesh* ArmsMesh)
+{
+    if (!FirstPersonArms || !ArmsMesh)
+    {
+        return false;
+    }
+
+    FirstPersonArms->SetSkeletalMesh(ArmsMesh);
+    FirstPersonArms->SetRelativeTransform(FirstPersonArmsOffset);
+
+    if (GetMesh() && FirstPersonArms->GetSkeletalMeshAsset() &&
+        GetMesh()->GetSkeletalMeshAsset() &&
+        FirstPersonArms->GetSkeletalMeshAsset()->GetSkeleton() ==
+        GetMesh()->GetSkeletalMeshAsset()->GetSkeleton())
+    {
+        FirstPersonArms->SetLeaderPoseComponent(GetMesh());
+    }
+
+    AttachFirstPersonWeaponToBestSocket(FirstPersonWeaponSocketName);
+    RefreshFirstPersonVisualState();
+    return true;
+}
+
+bool AHorizonPlayerCharacter::HasFirstPersonArms() const
+{
+    return FirstPersonArms && FirstPersonArms->GetSkeletalMeshAsset() != nullptr;
+}
+
+void AHorizonPlayerCharacter::RefreshFirstPersonVisualState()
+{
+    const bool bFirstPerson = CameraMode == EHorizonCameraMode::FirstPerson;
+    const bool bHasArms = HasFirstPersonArms();
+    const bool bHasWeapon = EquippedWeaponVisual &&
+        EquippedWeaponVisual->GetStaticMesh() != nullptr;
+
+    if (FirstPersonArms)
+    {
+        FirstPersonArms->SetVisibility(bFirstPerson && bHasArms, true);
+        FirstPersonArms->SetOnlyOwnerSee(true);
+    }
+
+    if (EquippedWeaponVisual)
+    {
+        // Third-person/world representation stays visible outside FP and for other clients.
+        EquippedWeaponVisual->SetOwnerNoSee(bFirstPerson);
+        EquippedWeaponVisual->SetVisibility(bHasWeapon, true);
+    }
+
+    if (FirstPersonWeaponVisual)
+    {
+        FirstPersonWeaponVisual->SetVisibility(
+            bFirstPerson && bHasArms && bHasWeapon,
+            true);
+        FirstPersonWeaponVisual->SetOnlyOwnerSee(true);
+    }
+}
+
 bool AHorizonPlayerCharacter::EquipWeaponVisual(UStaticMesh* WeaponMesh, FName PreferredSocket)
 {
     if (!EquippedWeaponVisual || !WeaponMesh)
@@ -307,15 +426,27 @@ bool AHorizonPlayerCharacter::EquipWeaponVisual(UStaticMesh* WeaponMesh, FName P
     }
 
     EquippedWeaponVisual->SetStaticMesh(WeaponMesh);
-
-    if (!AttachWeaponVisualToBestSocket(PreferredSocket))
+    if (FirstPersonWeaponVisual)
     {
-        EquippedWeaponVisual->SetVisibility(false, true);
-        return false;
+        FirstPersonWeaponVisual->SetStaticMesh(WeaponMesh);
     }
 
-    EquippedWeaponVisual->SetVisibility(true, true);
-    return true;
+    const bool bThirdPersonAttached = AttachWeaponVisualToBestSocket(PreferredSocket);
+    const bool bFirstPersonAttached = AttachFirstPersonWeaponToBestSocket(
+        PreferredSocket == NAME_None ? FirstPersonWeaponSocketName : PreferredSocket);
+
+    if (!bThirdPersonAttached)
+    {
+        EquippedWeaponVisual->SetVisibility(false, true);
+    }
+
+    if (!bFirstPersonAttached && FirstPersonWeaponVisual)
+    {
+        FirstPersonWeaponVisual->SetVisibility(false, true);
+    }
+
+    RefreshFirstPersonVisualState();
+    return bThirdPersonAttached || bFirstPersonAttached;
 }
 
 void AHorizonPlayerCharacter::HolsterWeaponVisual()
@@ -327,6 +458,11 @@ void AHorizonPlayerCharacter::HolsterWeaponVisual()
 
     EquippedWeaponVisual->SetVisibility(false, true);
     EquippedWeaponVisual->SetStaticMesh(nullptr);
+    if (FirstPersonWeaponVisual)
+    {
+        FirstPersonWeaponVisual->SetVisibility(false, true);
+        FirstPersonWeaponVisual->SetStaticMesh(nullptr);
+    }
 }
 
 bool AHorizonPlayerCharacter::IsWeaponVisualEquipped() const
