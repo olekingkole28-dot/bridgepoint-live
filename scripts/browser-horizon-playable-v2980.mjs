@@ -43,10 +43,14 @@ if(!(quick?.instantBuildings>0)||!(quick?.readyMs>=0)||quick.readyMs>15000)throw
 await page.waitForFunction(()=>window.BP_HORIZON_QUICK_TEST?.switchAllWeapons,null,{timeout:10000});
 const quickFacing=await page.evaluate(()=>window.BP_HORIZON_QUICK_TEST.facing());
 const quickWeapons=await page.evaluate(()=>window.BP_HORIZON_QUICK_TEST.switchAllWeapons());
-const mapUi=await page.evaluate(()=>({maps:document.querySelectorAll('#mapSelect option').length,map:document.querySelector('#mapSelect')?.value}));
+const worldUi=await page.evaluate(()=>({
+  worldMode:window.BP_HORIZON_WORLD_MODE||null,
+  jurisdictionOptions:document.querySelectorAll('#jurisdictionSelect option').length,
+  mapPreset:window.BP_HORIZON_PLAYABLE?.map||null
+}));
 if(!(quickFacing?.dot>.92)||quickFacing?.locomotionRootMatchesTravel!==true)throw new Error('Visual facing still reversed '+JSON.stringify(quickFacing));
 if(!quickWeapons.length||quickWeapons.some(x=>!x.visible||x.children<1))throw new Error('Weapon switch visibility failed '+JSON.stringify(quickWeapons));
-if(mapUi.maps!==50||mapUi.map!=='times_square')throw new Error('50-map selector missing '+JSON.stringify(mapUi));
+if(worldUi.worldMode!=='continuous_us'||worldUi.mapPreset!=='unified_us'||worldUi.jurisdictionOptions<50)throw new Error('Continuous U.S. world contract missing '+JSON.stringify(worldUi));
 
 // Essential mobile hydration must complete quickly; optional desktop assets are not part of this gate.
 await page.waitForFunction(()=>window.BP_HORIZON_HYDRATION?.complete===true||window.BP_HORIZON_SMOKE?.ok===false,null,{timeout:20000});
@@ -69,7 +73,7 @@ if(!terrainGuard?.ok)throw new Error('Terrain guard failed '+JSON.stringify(terr
 if(playerAsset.stance!=='stand'||!playerAsset.weaponSocket||playerAsset.weaponSocket==='playerRoot')throw new Error('Standing/hand-socket contract failed '+JSON.stringify(playerAsset));
 if(!(aim.aimed<aim.before-5)||!aim.crosshairVisible||!aim.buttonActive)throw new Error('Aim/FOV interaction failed '+JSON.stringify(aim));
 if(!held?.visible||held.children<1||held.distance>3.2)throw new Error('Equipped weapon not visibly held '+JSON.stringify(held));
-if(smoke?.mapCount!==50||smoke?.endlessHorde!==true||!(smoke?.endlessCap>=18)||smoke?.hydrationComplete!==true||smoke?.proceduralFastHydration!==true||smoke?.cloneRecovery4238!==true||smoke?.denseApocalypse!==true)throw new Error('4238 world contract failed '+JSON.stringify(smoke));
+if(smoke?.mapCount!==1||smoke?.mapPreset!=='unified_us'||smoke?.endlessHorde!==true||!(smoke?.endlessCap>=18)||smoke?.hydrationComplete!==true||smoke?.proceduralFastHydration!==true||smoke?.cloneRecovery4238!==true||smoke?.denseApocalypse!==true)throw new Error('Continuous Horizon world contract failed '+JSON.stringify(smoke));
 for(const id of ['graveborn','mauler','wretch','abomination','hound','spider','crow'])if(!smoke?.enemyArchetypes?.includes(id))throw new Error('Missing essential hostile '+id+' '+JSON.stringify(smoke.enemyArchetypes));
 if(!(smoke?.groundDetails>100)||!(smoke?.entries>0)||!(smoke?.instantMassing>0))throw new Error('World density/door/building gate failed '+JSON.stringify(smoke));
 if(controls.locomotionAlwaysFacesTravel!==true||controls.nonAimingFirearmFacesTravel!==true||controls.shooterAimFacesCamera!==true||controls.aimingBackpedalAllowed!==true)throw new Error('Shooter movement contract broken '+JSON.stringify(controls));
@@ -83,5 +87,5 @@ if(!(controls.forward.dy>.99)||!(controls.backward.dy<-.99)||!(controls.left.dx<
 
 const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource: the server responded with a status of 404/i.test(x));
 if(meaningful.length)throw new Error('Horizon console errors '+meaningful.join('\n'));
-console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation}));
+console.log('HORIZON_FAST_MOBILE_PASS',JSON.stringify({quick,hydration,quickFacing,weaponCount:quickWeapons.length,cameraModes,inputIsolation,worldUi}));
 await browser.close();
