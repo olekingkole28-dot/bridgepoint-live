@@ -409,6 +409,7 @@ const MODE_ALIASES=Object.freeze({
   infinite_tdm:'infinite_tdm',
   outbreak_raid:'outbreak_raid'
 });
+const MODE_REQUESTED_EXPLICITLY=params.has('mode');
 let matchMode=MODE_ALIASES[String(params.get('mode')||'year_one_survival').toLowerCase()]||'year_one_survival';
 let matchRadius=Infinity,matchCenter=new THREE.Vector2(),matchRing=null;
 const HORIZON_EVENT_ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-event-v4242';
@@ -543,7 +544,7 @@ function restoreSurvivor(){
     if(typeof v.claimedBaseId==='string')claimedBaseId=v.claimedBaseId;
     if(typeof v.factionId==='string')factionId=v.factionId.slice(0,24);
     if(/^#[0-9a-f]{6}$/i.test(String(v.factionColor||'')))factionColor=v.factionColor;
-    if(typeof v.matchMode==='string'&&MODE_ALIASES[v.matchMode])matchMode=MODE_ALIASES[v.matchMode];
+    if(!MODE_REQUESTED_EXPLICITLY&&typeof v.matchMode==='string'&&MODE_ALIASES[v.matchMode])matchMode=MODE_ALIASES[v.matchMode];
     if(Array.isArray(v.cosmeticUnlocks))for(const x of v.cosmeticUnlocks)cosmeticUnlocks.add(String(x));
     if(Array.isArray(v.weaponCasePurchases))weaponCasePurchases=new Set(v.weaponCasePurchases.map(String));
     if(v.starterFlashlightGranted===true)starterFlashlightGranted=true;
@@ -5633,6 +5634,13 @@ async function boot(){
       climbingSpiderCount:()=>zombies.filter(z=>z.kind==='spider'&&z.climb).length,
       weaponCatalog:()=>[...new Set([...DEFAULT_WEAPON_CONFIGS.map(x=>x.weapon_name),...weaponRegistry.values()].map(x=>x.weapon_name).filter(Boolean))],
       allWeaponsVisibleProbe:()=>window.BP_HORIZON_QUICK_TEST?.switchAllWeapons?.()||[],
+      modeLaunchProbe:()=>({
+        requested:String(params.get('mode')||''),
+        explicit:MODE_REQUESTED_EXPLICITLY,
+        matchMode,
+        display:modeDisplayName(),
+        valid:['year_one_survival','infinite_tdm','outbreak_raid'].includes(matchMode)
+      }),
       cardinalControlsProbe:()=>{
         const probe=(x,y)=>{const n=normalizeMovementInput(x,y),v=movementVector(n.x,n.y,0),heading=Math.atan2(v.x,v.y);return{x:n.x,y:n.y,dx:v.x,dy:v.y,heading,playerYaw:playerFacingYaw(heading)}};
         return{
