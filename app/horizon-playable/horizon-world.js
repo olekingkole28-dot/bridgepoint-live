@@ -286,7 +286,16 @@ let parcelLayer,partsLayer,buildingLayer,roadLayer,terrainLayer,instantMassingLa
 let hemi,sun,lightMode=0;
 let playerRoot=null,playerVisualRoot=null,playerMixer=null,playerClips=[],playerAction=null,playerVisualBaseScaleZ=1;
 let playerModelYawOffset=0,playerAssetLoaded=false,playerAssetMode='fallback';
-let yaw=0,pitch=.14,cameraMode=0;
+const CONTROL_PREFS_KEY='bridgepoint-horizon-controls-v1';
+const CAMERA_MODES=Object.freeze(['firstPerson','thirdPersonClose','thirdPersonFar']);
+let controlPrefs={cameraMode:'thirdPersonClose',lookSensitivity:.00425,gamepadLookSensitivity:.032,invertY:false};
+try{
+  const saved=JSON.parse(localStorage.getItem(CONTROL_PREFS_KEY)||'null');
+  if(saved&&typeof saved==='object')controlPrefs={...controlPrefs,...saved};
+}catch(_){}
+let yaw=0,pitch=.14,cameraMode=Math.max(0,CAMERA_MODES.indexOf(controlPrefs.cameraMode));
+if(cameraMode<0)cameraMode=1;
+let firstPersonRig=null,firstPersonWeapon=null;
 let health=100,lastDamageAt=0;
 let playerSpawn=new THREE.Vector3();
 const playerVelocity=new THREE.Vector3();
@@ -4189,6 +4198,41 @@ function pollGamepad(){
   mobileSprint=pressed(10)||pressed(7);
   gamepadPrev=(p.buttons||[]).map(b=>Boolean(b.pressed));
 }
+const inputPointerOwners=new Map();
+let lastLookDragAt=0,lastMoveDragAt=0;
+function pointerOwner(id){return inputPointerOwners.get(id)||null}
+function claimPointer(e,owner){
+  if(e?.pointerId==null)return false;
+  const current=pointerOwner(e.pointerId);
+  if(current&&current!==owner)return false;
+  inputPointerOwners.set(e.pointerId,owner);
+  try{e.currentTarget?.setPointerCapture?.(e.pointerId)}catch(_){}
+  e.preventDefault?.();
+  e.stopPropagation?.();
+  return true;
+}
+function releasePointer(e,owner){
+  if(e?.pointerId==null)return;
+  if(pointerOwner(e.pointerId)===owner)inputPointerOwners.delete(e.pointerId);
+  try{e.currentTarget?.releasePointerCapture?.(e.pointerId)}catch(_){}
+  e.preventDefault?.();
+  e.stopPropagation?.();
+}
+function actionPointerAllowed(e){
+  const owner=pointerOwner(e.pointerId);
+  return !owner||owner==='action';
+}
+function persistControlPrefs(){
+  controlPrefs.cameraMode=CAMERA_MODES[cameraMode]||'thirdPersonClose';
+  try{localStorage.setItem(CONTROL_PREFS_KEY,JSON.stringify(controlPrefs))}catch(_){}
+}
+function cycleCameraMode(){
+  cameraMode=(cameraMode+1)%CAMERA_MODES.length;
+  persistControlPrefs();
+  refreshFirstPersonRig();
+  const label=CAMERA_MODES[cameraMode]==='firstPerson'?'FIRST PERSON':CAMERA_MODES[cameraMode]==='thirdPersonFar'?'THIRD PERSON · FAR':'THIRD PERSON · CLOSE';
+  showToast(label);
+}
 function initInput(){
   addEventListener('pointerdown',ensureAudio,{once:true});addEventListener('keydown',ensureAudio,{once:true});
   addEventListener('keydown',e=>{
@@ -4215,21 +4259,38 @@ function initInput(){
   addEventListener('keyup',e=>{keys.delete(e.code);if(e.code==='KeyF')fireHeld=false;if(e.code==='KeyV'||e.code==='KeyB')setLean(0)});
   renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 
-  let lookId=null,lastX=0,lastY=0;
+  let lookId=null,lastX=0,lastY=0,lookMoved=false;
+  renderer.domElement.style.touchAction='none';
   renderer.domElement.addEventListener('pointerdown',e=>{
+    if(!claimPointer(e,'look'))return;
     if(e.button===2){setAiming(true);return}
-    lookId=e.pointerId;lastX=e.clientX;lastY=e.clientY;renderer.domElement.setPointerCapture?.(e.pointerId);
-  });
+    lookId=e.pointerId;lastX=e.clientX;lastY=e.clientY;lookMoved=false;
+  },{passive:false});
   renderer.domElement.addEventListener('pointermove',e=>{
-    if(e.pointerId!==lookId)return;
+    if(e.pointerId!==lookId||pointerOwner(e.pointerId)!=='look')return;
     const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
-    yaw-=dx*.00425;pitch=THREE.MathUtils.clamp(pitch+dy*.0028,-.48,.70);
-  });
-  const stopLook=e=>{if(e.button===2)setAiming(false);if(e.pointerId===lookId)lookId=null};
-  renderer.domElement.addEventListener('pointerup',stopLook);renderer.domElement.addEventListener('pointercancel',stopLook);
+    if(Math.hypot(dx,dy)>1.5){lookMoved=true;lastLookDragAt=performance.now()}
+    const sens=Math.max(.0015,Math.min(.012,Number(controlPrefs.lookSensitivity)||.00425));
+    const inv=controlPrefs.invertY?-1:1;
+    yaw-=dx*sens;pitch=THREE.MathUtils.clamp(pitch+dy*sens*.66*inv,-.48,.70);
+    e.preventDefault();e.stopPropagation();
+  },{passive:false});
+  const stopLook=e=>{
+    if(e.button===2)setAiming(false);
+    if(e.pointerId===lookId){if(lookMoved)lastLookDragAt=performance.now();lookId=null;lookMoved=false}
+    releasePointer(e,'look');
+  };
+  renderer.domElement.addEventListener('pointerup',stopLook,{passive:false});
+  renderer.domElement.addEventListener('pointercancel',stopLook,{passive:false});
 
   const pad=$('movePad'),knob=$('moveKnob');let padId=null;
   if(pad&&window.nipplejs?.create){
+    pad.style.touchAction='none';
+    pad.addEventListener('pointerdown',e=>{if(claimPointer(e,'move'))lastMoveDragAt=performance.now()},{capture:true,passive:false});
+    pad.addEventListener('pointermove',e=>{if(pointerOwner(e.pointerId)==='move'){lastMoveDragAt=performance.now();e.preventDefault();e.stopPropagation()}},{capture:true,passive:false});
+    const releaseMovePointer=e=>{if(pointerOwner(e.pointerId)==='move'){lastMoveDragAt=performance.now();releasePointer(e,'move')}};
+    pad.addEventListener('pointerup',releaseMovePointer,{capture:true,passive:false});
+    pad.addEventListener('pointercancel',releaseMovePointer,{capture:true,passive:false});
     try{
       knob && (knob.style.display='none');
       nippleManager=window.nipplejs.create({
@@ -4254,34 +4315,51 @@ function initInput(){
       const nx=px/max,ny=-py/max,mag=Math.hypot(nx,ny);
       mobileMove.x=mag<.16?0:nx;mobileMove.y=mag<.16?0:ny;
     }
-    pad?.addEventListener('pointerdown',e=>{padId=e.pointerId;pad.setPointerCapture?.(e.pointerId);padMove(e)});
-    pad?.addEventListener('pointermove',e=>{if(e.pointerId===padId)padMove(e)});
-    const padEnd=e=>{if(e.pointerId!==padId)return;padId=null;mobileMove.x=mobileMove.y=0;knob.style.transform='translate(0,0)'};
-    pad?.addEventListener('pointerup',padEnd);pad?.addEventListener('pointercancel',padEnd);
+    pad?.addEventListener('pointerdown',e=>{if(!claimPointer(e,'move'))return;padId=e.pointerId;lastMoveDragAt=performance.now();padMove(e)},{passive:false});
+    pad?.addEventListener('pointermove',e=>{if(e.pointerId===padId&&pointerOwner(e.pointerId)==='move'){lastMoveDragAt=performance.now();padMove(e);e.preventDefault();e.stopPropagation()}},{passive:false});
+    const padEnd=e=>{if(e.pointerId!==padId)return;lastMoveDragAt=performance.now();padId=null;mobileMove.x=mobileMove.y=0;knob.style.transform='translate(0,0)';releasePointer(e,'move')};
+    pad?.addEventListener('pointerup',padEnd,{passive:false});pad?.addEventListener('pointercancel',padEnd,{passive:false});
   }
 
+  const bindActionPointer=(id,handler)=>{
+    const el=$(id);if(!el)return;
+    el.style.touchAction='manipulation';
+    el.addEventListener('pointerdown',e=>{
+      if(!actionPointerAllowed(e))return;
+      claimPointer(e,'action');
+      handler(e);
+    },{passive:false});
+    const done=e=>releasePointer(e,'action');
+    el.addEventListener('pointerup',done,{passive:false});
+    el.addEventListener('pointercancel',done,{passive:false});
+  };
   $('respawnBtn')?.addEventListener('click',respawnPlayer);
-  $('jumpBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();playerJumpQueued=true});
-  $('stanceBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();cycleStance()});
+  bindActionPointer('jumpBtn',()=>{playerJumpQueued=true});
+  bindActionPointer('stanceBtn',()=>cycleStance());
   $('flashlightBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();toggleFlashlight()});
   $('modeBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();cycleMatchMode()});
   $('claimBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();claimNearestBase()});
-  $('interactBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();interact()});
+  bindActionPointer('interactBtn',()=>interact());
   $('kickBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();kickNearestDoor()});
   const attackBtn=$('attackBtn');
-  attackBtn?.addEventListener('pointerdown',e=>{e.preventDefault();fireHeld=true;useActiveWeapon()});
-  attackBtn?.addEventListener('pointerup',()=>fireHeld=false);
-  attackBtn?.addEventListener('pointercancel',()=>fireHeld=false);
-  $('weaponBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();cycleWeapon()});
-  $('reloadBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();requestReload()});
-  $('dropBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();dropActiveWeapon()});
-  $('dropMobileBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();dropActiveWeapon()});
+  attackBtn?.addEventListener('pointerdown',e=>{if(!actionPointerAllowed(e)||!claimPointer(e,'action'))return;fireHeld=true;useActiveWeapon()},{passive:false});
+  const stopAttack=e=>{fireHeld=false;releasePointer(e,'action')};
+  attackBtn?.addEventListener('pointerup',stopAttack,{passive:false});
+  attackBtn?.addEventListener('pointercancel',stopAttack,{passive:false});
+  bindActionPointer('weaponBtn',()=>cycleWeapon());
+  bindActionPointer('reloadBtn',()=>requestReload());
+  bindActionPointer('dropBtn',()=>dropActiveWeapon());
+  bindActionPointer('dropMobileBtn',()=>dropActiveWeapon());
   $('inventoryList')?.addEventListener('pointerdown',e=>{const tile=e.target?.closest?.('[data-item]'),item=tile?.dataset?.item;if(item)equipInventoryWeapon(item)});
-  const aimBtn=$('aimBtn');aimBtn?.addEventListener('pointerdown',e=>{e.preventDefault();setAiming(true)});aimBtn?.addEventListener('pointerup',()=>setAiming(false));aimBtn?.addEventListener('pointercancel',()=>setAiming(false));
+  const aimBtn=$('aimBtn');
+  aimBtn?.addEventListener('pointerdown',e=>{if(!actionPointerAllowed(e)||!claimPointer(e,'action'))return;setAiming(true)},{passive:false});
+  const stopAimPointer=e=>{setAiming(false);releasePointer(e,'action')};
+  aimBtn?.addEventListener('pointerup',stopAimPointer,{passive:false});
+  aimBtn?.addEventListener('pointercancel',stopAimPointer,{passive:false});
   document.querySelectorAll('.loadoutSlot[data-slot]').forEach(btn=>btn.addEventListener('pointerdown',e=>{e.preventDefault();selectSlot(btn.dataset.slot)}));
   const sprint=$('sprintBtn');sprint?.addEventListener('pointerdown',e=>{e.preventDefault();mobileSprint=true});sprint?.addEventListener('pointerup',()=>mobileSprint=false);sprint?.addEventListener('pointercancel',()=>mobileSprint=false);
 
-  $('moreBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();$('mobileActionTray')?.classList.toggle('open')});
+  bindActionPointer('moreBtn',()=>$('mobileActionTray')?.classList.toggle('open'));
   $('flashMobileBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();toggleFlashlight()});
   $('mapMobileBtn')?.addEventListener('pointerdown',e=>{e.preventDefault();openWorldMap()});
   $('minimap')?.addEventListener('pointerdown',e=>{e.preventDefault();openWorldMap()});
@@ -4290,7 +4368,7 @@ function initInput(){
   $('mapZoomOut')?.addEventListener('pointerdown',e=>{e.preventDefault();worldMapZoom=Math.max(.75,worldMapZoom/1.25);renderWorldMapOverlay()});
   document.querySelectorAll('[data-map-marker]').forEach(b=>b.addEventListener('pointerdown',e=>{e.preventDefault();mapMarkerType=b.dataset.mapMarker;document.querySelectorAll('[data-map-marker]').forEach(x=>x.classList.toggle('active',x===b))}));
   $('worldMapCanvas')?.addEventListener('pointerdown',e=>{const canvas=e.currentTarget,rect=canvas.getBoundingClientRect(),sx=(e.clientX-rect.left)/rect.width*canvas.width,sy=(e.clientY-rect.top)/rect.height*canvas.height,cx=canvas.width/2,cy=canvas.height/2,px=(sx-cx)/worldMapZoom+mapBase.width/2,py=(sy-cy)/worldMapZoom+mapBase.height/2,w=mapPixelToWorld(px,py);addMapMarkerWorld(w.x,w.y,mapMarkerType,mapMarkerType)});
-  $('cameraBtn').onclick=()=>cameraMode=(cameraMode+1)%2;
+  $('cameraBtn').onclick=e=>{e?.preventDefault?.();cycleCameraMode()};
   $('lightBtn').onclick=()=>{autoDayNight=false;setLighting(lightMode+1);showToast('Manual lighting enabled')};
   $('parcelBtn').onclick=()=>{if(!interiorMode){parcelLayer.visible=!parcelLayer.visible;$('parcelBtn').classList.toggle('active',parcelLayer.visible)}};
   $('artBtn').onclick=()=>{if(!interiorMode){artGroup.visible=!artGroup.visible;zombieGroup.visible=artGroup.visible;entryGroup.visible=artGroup.visible;$('artBtn').classList.toggle('active',artGroup.visible)}};
@@ -4339,8 +4417,9 @@ function movePlayerStable(dx,dy){
 function updatePlayer(dt){
   if(!playerRoot||playerDead||spectatorMode)return;
   pollGamepad();
-  yaw-=gamepadLook.x*.032;
-  pitch=THREE.MathUtils.clamp(pitch+gamepadLook.y*.020,-.48,.70);
+  const gpSens=Math.max(.012,Math.min(.08,Number(controlPrefs.gamepadLookSensitivity)||.032));
+  yaw-=gamepadLook.x*gpSens;
+  pitch=THREE.MathUtils.clamp(pitch+gamepadLook.y*gpSens*.625*(controlPrefs.invertY?-1:1),-.48,.70);
 
   let ix=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+mobileMove.x+gamepadMove.x;
   let iy=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0)+mobileMove.y+gamepadMove.y;
@@ -4383,13 +4462,14 @@ function updatePlayer(dt){
   }
 
   const firearm=isFirearm(activeWeapon);
-  if(firearm){
-    // With a gun drawn the torso stays camera-relative, so forward/back/strafe input never
-    // corkscrews the survivor. Melee still turns into travel.
-    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,yaw,1-Math.exp(-(aiming?20:15)*dt));
+  if(aiming&&firearm){
+    // ADS is the one deliberate exception: body/weapon stay aligned with the sight.
+    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,yaw,1-Math.exp(-20*dt));
   }else if(moving||slideTime>0){
+    // Outside ADS the character always faces the ACTUAL requested travel vector.
+    // No weapon state is allowed to leave the survivor facing sideways/backwards.
     const targetRot=Math.atan2(move.x,move.y);
-    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-14*dt));
+    playerRoot.rotation.z=lerpAngle(playerRoot.rotation.z,targetRot,1-Math.exp(-20*dt));
   }
   if(playerStance==='prone')locomotionIntent='prone';
   else if(playerStance==='crouch')locomotionIntent=moving?'crouchWalk':'crouchIdle';
