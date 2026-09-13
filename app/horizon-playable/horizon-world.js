@@ -283,7 +283,7 @@ scene.add(exteriorRoot,interiorGroup);
 interiorGroup.visible=false;
 
 let data,lon0,lat0,mx,my,baseElevation=0;
-let parcelLayer,partsLayer,buildingLayer,roadLayer,terrainLayer,instantMassingLayer=null,instantMassingMesh=null;
+let parcelLayer,partsLayer,buildingLayer,roadLayer,terrainLayer,instantMassingLayer=null,instantMassingMesh=null,parcelBuildPromise=null;
 let hemi,sun,lightMode=0;
 let playerRoot=null,playerVisualRoot=null,playerMixer=null,playerClips=[],playerAction=null,playerVisualBaseScaleZ=1;
 let playerModelYawOffset=0,playerAssetLoaded=false,playerAssetMode='fallback';
@@ -1295,8 +1295,14 @@ function buildBuildings(){
   loadText.textContent='Geometry ready · '+records.length.toLocaleString()+' valid building shapes · '+openCount+' physically open buildings';
 }
 function buildFacadeDetails(){
-  const candidates=[...buildingCenters].filter(b=>!b.shellBuilt&&b.height>9&&b.width>3&&b.depth>3).sort((a,b)=>b.height-a.height).slice(0,densePreview()?650:220);
-  const maxWindows=densePreview()?14000:5200;
+  const px=playerRoot?.position?.x||0,py=playerRoot?.position?.y||0;
+  const candidates=[...buildingCenters]
+    .filter(b=>!b.shellBuilt&&b.height>9&&b.width>3&&b.depth>3)
+    .sort((a,b)=>MOBILE_GPU_SAFE
+      ?((a.x-px)*(a.x-px)+(a.y-py)*(a.y-py))-((b.x-px)*(b.x-px)+(b.y-py)*(b.y-py))
+      :b.height-a.height)
+    .slice(0,MOBILE_GPU_SAFE?160:(densePreview()?650:220));
+  const maxWindows=MOBILE_GPU_SAFE?2800:(densePreview()?14000:5200);
   const winGeo=new THREE.BoxGeometry(1,.07,.72);
   const litMat=new THREE.MeshPhysicalMaterial({color:0xa9c9d0,emissive:0x394f47,emissiveIntensity:.34,roughness:.08,metalness:.04,transparent:true,opacity:.48,transmission:.32,depthWrite:true});
   const darkMat=new THREE.MeshPhysicalMaterial({color:0x486069,emissive:0x0c1415,emissiveIntensity:.10,roughness:.10,metalness:.06,transparent:true,opacity:.36,transmission:.42,depthWrite:true});
@@ -1339,6 +1345,8 @@ function buildFacadeDetails(){
   }
   roof.count=ri;roof.instanceMatrix.needsUpdate=true;roof.castShadow=true;worldGroup.add(roof);
   streetLifeStats.windows=total;streetLifeStats.rooftops=ri;
+  streetLifeStats.facadeCandidatesRendered=candidates.length;
+  streetLifeStats.facadeLod=MOBILE_GPU_SAFE?'near-player-mobile':'full-detail';
 }
 function nearestRoadForBuilding(b){
   let best=null,d=Infinity;
@@ -1492,26 +1500,56 @@ function mergeLocal(geos){
   out.computeBoundingSphere();return out;
 }
 function buildParts(){
-  partsLayer=new THREE.Group();partsLayer.name='building-parts';worldGroup.add(partsLayer);const geos=[];
+  if(partsLayer)return partsLayer;
+  partsLayer=new THREE.Group();partsLayer.name='building-parts';worldGroup.add(partsLayer);
+  const entries=[],px=playerRoot?.position?.x||0,py=playerRoot?.position?.y||0;
   for(const row of data.building_parts||[])for(const r of outerRings(row.geometry)){
-    const shape=shapeFromRing(r);if(!shape)continue;
+    const c=centerRing(r),p=project(c);
+    entries.push({row,ring:r,center:c,d2:(p.x-px)*(p.x-px)+(p.y-py)*(p.y-py)});
+  }
+  const selected=MOBILE_GPU_SAFE
+    ?entries.sort((a,b)=>a.d2-b.d2).slice(0,180)
+    :entries;
+  const geos=[];
+  for(const item of selected){
+    const row=item.row,r=item.ring,shape=shapeFromRing(r);if(!shape)continue;
     const top=Math.max(Number(row.height_m)||4,2),min=Math.max(Number(row.min_height_m)||0,0);
-    const geo=new THREE.ExtrudeGeometry(shape,{depth:Math.max(1,top-min),bevelEnabled:false,steps:1}),c=centerRing(r);
-    geo.translate(0,0,terrainZ(c[0],c[1])+min+.22);geos.push(geo);
+    const geo=new THREE.ExtrudeGeometry(shape,{depth:Math.max(1,top-min),bevelEnabled:false,steps:1});
+    geo.translate(0,0,terrainZ(item.center[0],item.center[1])+min+.22);geos.push(geo);
   }
   const g=mergeLocal(geos);
-  if(g){const m=new THREE.MeshStandardMaterial({color:0x63716d,roughness:.62,metalness:.06});const mesh=new THREE.Mesh(g,m);mesh.castShadow=true;partsLayer.add(mesh)}
-  for(const x of geos)x.dispose();
-}
-function buildParcels(){
-  const pos=[];
-  for(const row of data.parcels||[])for(const ring of allLines(row.geometry))for(let i=1;i<ring.length;i++){
-    const a=ring[i-1],b=ring[i],pa=project(a),pb=project(b);
-    pos.push(pa.x,pa.y,terrainZ(a[0],a[1])+.36,pb.x,pb.y,terrainZ(b[0],b[1])+.36);
+  if(g){
+    const m=new THREE.MeshStandardMaterial({color:0x63716d,roughness:.62,metalness:.06});
+    const mesh=new THREE.Mesh(g,m);mesh.castShadow=!MOBILE_GPU_SAFE;partsLayer.add(mesh);
   }
-  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
-  parcelLayer=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0x71d99a,transparent:true,opacity:.30,depthWrite:false}));
-  parcelLayer.visible=false;worldGroup.add(parcelLayer);
+  for(const x of geos)x.dispose();
+  streetLifeStats.buildingPartRingsTotal=entries.length;
+  streetLifeStats.buildingPartRingsRendered=selected.length;
+  streetLifeStats.buildingPartLod=MOBILE_GPU_SAFE?'near-player-mobile':'full-detail';
+  return partsLayer;
+}
+async function buildParcels(){
+  if(parcelLayer)return parcelLayer;
+  if(parcelBuildPromise)return await parcelBuildPromise;
+  parcelBuildPromise=(async()=>{
+    const pos=[],rows=data.parcels||[],yieldEvery=MOBILE_GPU_SAFE?55:180;
+    for(let ri=0;ri<rows.length;ri++){
+      const row=rows[ri];
+      for(const ring of allLines(row.geometry))for(let i=1;i<ring.length;i++){
+        const a=ring[i-1],b=ring[i],pa=project(a),pb=project(b);
+        pos.push(pa.x,pa.y,terrainZ(a[0],a[1])+.36,pb.x,pb.y,terrainZ(b[0],b[1])+.36);
+      }
+      if(ri>0&&ri%yieldEvery===0)await yieldToRenderer();
+    }
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    parcelLayer=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0x71d99a,transparent:true,opacity:.30,depthWrite:false}));
+    parcelLayer.visible=false;worldGroup.add(parcelLayer);
+    streetLifeStats.parcelSegments=Math.floor(pos.length/6);
+    streetLifeStats.parcelsDeferred=false;
+    return parcelLayer;
+  })();
+  try{return await parcelBuildPromise}
+  finally{parcelBuildPromise=null}
 }
 function lineFeatures(g){if(g?.type==='LineString')return[g.coordinates||[]];if(g?.type==='MultiLineString')return g.coordinates||[];if(g?.type==='Polygon')return g.coordinates||[];if(g?.type==='MultiPolygon')return(g.coordinates||[]).flat();return[]}
 function roadWidth(kind){
@@ -4674,7 +4712,17 @@ function initInput(){
   addEventListener('keydown',e=>{if(e.code==='Escape')closeControlSettings()});
   syncControlSettingsUi();
   $('lightBtn').onclick=()=>{autoDayNight=false;setLighting(lightMode+1);showToast('Manual lighting enabled')};
-  $('parcelBtn').onclick=()=>{if(!interiorMode){parcelLayer.visible=!parcelLayer.visible;$('parcelBtn').classList.toggle('active',parcelLayer.visible)}};
+  $('parcelBtn').onclick=async()=>{
+    if(interiorMode)return;
+    const btn=$('parcelBtn');
+    if(!parcelLayer){
+      btn?.classList.add('loading');showToast('Streaming parcel outlines…');
+      try{await buildParcels()}catch(err){console.warn('parcel overlay skipped',err);showToast('Parcel overlay unavailable');return}
+      finally{btn?.classList.remove('loading')}
+    }
+    parcelLayer.visible=!parcelLayer.visible;
+    btn?.classList.toggle('active',parcelLayer.visible);
+  };
   $('artBtn').onclick=()=>{if(!interiorMode){artGroup.visible=!artGroup.visible;zombieGroup.visible=artGroup.visible;entryGroup.visible=artGroup.visible;$('artBtn').classList.toggle('active',artGroup.visible)}};
 }
 function lerpAngle(a,b,t){let d=(b-a+Math.PI)%(Math.PI*2)-Math.PI;return a+d*t}
@@ -5122,6 +5170,18 @@ async function boot(){
         pointerLocked:mouseLookLocked,
         settingsPanel:Boolean($('controlSettings'))
       }),
+      loadingLodProbe:()=>({
+        mobile:MOBILE_GPU_SAFE,
+        facadeCandidatesRendered:Number(streetLifeStats.facadeCandidatesRendered||0),
+        facadeWindows:Number(streetLifeStats.windows||0),
+        facadeLod:streetLifeStats.facadeLod||null,
+        buildingPartRingsTotal:Number(streetLifeStats.buildingPartRingsTotal||0),
+        buildingPartRingsRendered:Number(streetLifeStats.buildingPartRingsRendered||0),
+        buildingPartLod:streetLifeStats.buildingPartLod||null,
+        parcelsDeferred:streetLifeStats.parcelsDeferred===true,
+        parcelLayerBuilt:Boolean(parcelLayer),
+        parcelBuildPending:Boolean(parcelBuildPromise)
+      }),
       movementFacingProbe:()=>{
         if(!playerRoot)return null;
         const prior={
@@ -5287,7 +5347,9 @@ async function boot(){
       await yieldToRenderer();
       try{buildParts()}catch(err){console.warn('building parts skipped',err)}
       await yieldToRenderer();
-      try{buildParcels()}catch(err){console.warn('parcel overlay skipped',err)}
+      // Parcel outlines are hidden by default. Build them only when the player asks
+      // for the overlay so they never steal frames from first-playable world hydration.
+      streetLifeStats.parcelsDeferred=true;
       applyApocalypseDecay(worldGroup);
       if(!MOBILE_GPU_SAFE)initPostProcessing();
       await weaponReady;
