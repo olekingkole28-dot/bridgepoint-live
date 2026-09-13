@@ -74,10 +74,21 @@ const movementFacing=await page.evaluate(()=>window.BP_HORIZON_TEST.movementFaci
 
 // Fast playable is allowed to begin on the emergency silhouette, but the quality
 // layer must hot-swap to the same-origin CC0 survivor and real skinned arms.
-await page.waitForFunction(()=>{
-  const h=window.BP_HORIZON_TEST?.playerHydrationProbe?.();
-  return h?.loaded===true;
-},null,{timeout:20000});
+try{
+  await page.waitForFunction(()=>{
+    const h=window.BP_HORIZON_TEST?.playerHydrationProbe?.();
+    return h?.loaded===true;
+  },null,{timeout:20000});
+}catch(err){
+  const hydrationDiag=await page.evaluate(()=>({
+    probe:window.BP_HORIZON_TEST?.playerHydrationProbe?.()||null,
+    smoke:window.BP_HORIZON_SMOKE||null,
+    playable:window.BP_HORIZON_PLAYABLE||null,
+    href:location.href
+  })).catch(()=>null);
+  console.error('HORIZON_PLAYER_HYDRATION_DIAG',JSON.stringify({hydrationDiag,errors,badResponses}));
+  throw err;
+}
 const playerHydration=await page.evaluate(()=>window.BP_HORIZON_TEST.playerHydrationProbe?.());
 if(playerHydration?.source!=='same-origin-cc0')throw new Error('Survivor did not hydrate from same-origin CC0 bundle '+JSON.stringify(playerHydration));
 if(playerHydration?.actualArms!==true)throw new Error('Same-origin survivor loaded but real arm extraction failed '+JSON.stringify(playerHydration));
