@@ -1,34 +1,43 @@
 # Horizon Upgrade Autopilot
 
-BridgePoint Horizon is now defined as **one continuous streamed U.S./jurisdiction survival world**, not a set of 50 demo maps.
+BridgePoint Horizon is **one continuous streamed U.S./jurisdiction survival world**, not a set of 50 demo maps.
 
 ## Runtime architecture
 
 - BridgePoint remains the geospatial authority for parcels, boundaries, buildings, building parts, roads, terrain and verified/open real-world layers.
-- The browser Three.js client is the immediate low-cost playable client.
+- The browser Three.js/PWA client is the immediate zero-fixed-cost playable client.
 - The Unreal Engine 5.8 client is the AAA rendering/gameplay target using the same BridgePoint world APIs.
-- Unreal browser delivery is Pixel Streaming 2 when a GPU host is available; do not pretend a static GitHub Pages site can run the full UE renderer.
+- Unreal browser delivery may use Pixel Streaming 2 only if a genuinely zero-cost GPU route exists. Do not provision a paid GPU host or paid DigitalOcean resource.
 - Never load the national dataset into memory at once. The nation is one logical universe made of streamed cells, LOD/HLOD and persistent player/world state.
+- Horizon systems and commerce must remain namespace-separated from BridgePoint B2B systems so game work cannot corrupt the business app.
 
-## Automatic asset scouting
+## Owner-locked zero-budget rule
 
-The background governor has a low-resource Horizon lane that scouts Fab/Epic and other reputable sources without starving cadastral #5.
+Owner-funded fixed spend is **$0**.
 
-Candidate categories:
-- motion matching, locomotion, traversal and combat animation
-- realistic survivors, infected/horror creatures, animals and original dark-fantasy raiders
-- weapons, scopes, recoil/reload systems and VFX
-- city/building/interior kits and procedural generation
-- repairable vehicles, boats and aircraft
-- survival crafting/building, hunting/fishing and camp systems
-- audio, UI/inventory/backpack, lighting, weather and performance systems
+Do not:
+- buy assets
+- buy plugins
+- provision billable DigitalOcean droplets/services
+- provision paid GPU hosting
+- add paid SaaS dependencies
+- treat a paid service as required for completion
+
+Prefer:
+- existing GitHub/static/PWA delivery
+- local development/runtime when available
+- free/open/public-domain/CC0 sources
+- Epic/Fab content only when its license is verified for the intended Unreal use and acquisition itself costs $0
+- deterministic automation, tests, source generation, asset preparation, and streamed clients that can run without fixed hosting spend
+
+Stripe transaction fees that occur only when a player voluntarily makes a purchase do not authorize any fixed owner-funded infrastructure.
 
 ## Promotion gates
 
-A candidate is never promoted just because it looks better. It must pass:
+A candidate is never promoted merely because it looks better. It must pass:
 1. explicit reusable license
 2. commercial-project compatibility
-3. engine/content restriction review (including UE-only)
+3. engine/content restriction review
 4. no ripped/proprietary IP
 5. visual-quality improvement
 6. memory/GPU/network budget
@@ -43,129 +52,139 @@ A candidate is never promoted just because it looks better. It must pass:
 - walk, sprint, crouch, prone/army crawl, slide, vault, jump, lean, swim and underwater traversal
 - ADS, scopes/snipers, recoil, reloads, weapon switching, melee and armor hit zones
 - walker/runner/sprinter/screamer plus helmeted and police/SWAT armored infected
-- original orc-like highway raider packs, spiders, hounds, bears and regional wildlife
+- original dark-fantasy raiders/creatures, spiders, hounds, bears and regional wildlife
 - drivable/repairable cars and trucks, then boats/aircraft
 - dense no-boring-space traversal dressing while keeping fictional props separate from property evidence
-- real building envelopes with generated full layouts, floors, stairs and elevators
+- real exterior building envelopes with fictional generated full layouts, floors, stairs and elevators
+- physical room doors and true doorway openings instead of teleport/card doors
+- transparent/open windows that are real wall openings and expose the outside streamed world
+- roof access and building-to-building ziplines
 - hunting, food, campfires and survival resources
 - base construction using wood, fences, barbed wire, brick barricades, generators and electric fencing
 - local day/night lighting with city streetlights switching on at night
-- 150-level monthly rotating season with strongest game rewards late in the track
 - clear weapon wall cases that show the weapon, stats and in-game cost before purchase
-
-## Current legal AAA seeds
-
-See `HORIZON_ASSET_CANDIDATES.json`. Epic's free Game Animation Sample, City Sample family and Electric Dreams are evaluation seeds for the Unreal client. UE-only content stays UE-only.
 
 ## IP rule
 
-Call of Duty, Resident Evil, World War Z, GTA, The Sims and The Lord of the Rings are references for feel only. Horizon must use original or properly licensed content and must never ship ripped models, animations, audio, logos or characters from those games/films.
+Call of Duty, Resident Evil, World War Z, GTA, The Sims, Fortnite and The Lord of the Rings are references for feel/mechanical expectations only. Horizon must use original or properly licensed content and must never ship ripped models, animations, audio, code, logos, characters, UI or copied branded presentation.
 
+## Authoritative game modes
 
-## Authoritative game-mode contract (V4243)
+HORIZON_GAME_MODES_V4243.json remains the base mode contract:
 
-The automated Horizon side MUST treat `HORIZON_GAME_MODES_V4243.json` as authoritative.
+- YEAR ONE SURVIVAL — solo-only persistent survival event
+- INFINITE TEAM DEATHMATCH — duo/trio/squad dense-arena combat
+- OUTBREAK RAID — one-to-four-player cooperative PvE objectives, elite creatures, bosses, rare loot and extraction
+- shared lobby for mode selection, characters, skins, loadouts, emotes, sprays, friends/invites, ready state, voice and audio settings
+- premium audio remains a release gate: spatial audio, occlusion, reverb zones, material footsteps, layered weapon audio, infected/creature vocals, dynamic ambience and mode-correct voice chat
 
-- Exactly three modes: YEAR ONE SURVIVAL, INFINITE TEAM DEATHMATCH, OUTBREAK RAID.
-- YEAR ONE SURVIVAL is solo-only. Players may customize in the shared lobby, but no party enters Year One together.
-- INFINITE TEAM DEATHMATCH supports duo, trio, and squad parties and uses the infinite dense-arena switcher.
-- OUTBREAK RAID supports one-to-four-player cooperative PvE missions with objectives, elite creatures, bosses, rare loot, and extraction.
-- One shared lobby owns mode selection, characters, skins, loadouts, emotes, sprays, friends/invites, ready state, voice settings, and audio settings.
-- Premium audio is a release gate: spatial audio, occlusion, reverb zones, material footsteps, layered weapon audio, infected/creature vocals, dynamic ambience, and mode-correct voice chat.
-- Do not connect Stripe until the owner explicitly gives the final go-ahead.
+Commerce authorization in V4251 supersedes the older V4243/V4250 "do not connect Stripe" hold.
 
+## Current legal AAA seeds
 
-## AAA source promotion order (V4244)
+See HORIZON_ASSET_CANDIDATES.json and unreal/BridgePointHorizon/AAA_SOURCE_LEDGER_V4244.md.
 
-Use this order when the automated asset side has available capacity. Do not replace a working system merely because a pack is newer.
-
-1. Game Animation Sample + MetaHuman 5.8
-   - Target: responsive locomotion, traversal, high-fidelity survivors, retargeting.
-   - Unreal-only pipeline.
+Priority evaluation order:
+1. Epic Game Animation Sample + MetaHuman 5.8
 2. City Sample Buildings + City Sample Crowds
-   - Target: dense city visual quality, entrances, modular multi-level city dressing, crowd reference.
-   - Unreal-only pipeline; BridgePoint remains the authority for real-world placement/geometry.
 3. City Sample Vehicles
-   - Target: realistic cars/trucks/bus/van foundations and driving behavior.
-   - Unreal-only pipeline.
 4. Poly Haven + ambientCG
-   - Target: photoreal HDRIs, PBR surfaces, ground, concrete, wood, metal, roofing, siding and environment props.
-   - Prefer these CC0 sources for engine-agnostic material upgrades.
-5. Sonniss GDC 2026 audio
-   - Target: layered weapons, footsteps, foley, impacts, infected/creatures, weather, interiors/exteriors and horror ambience.
-   - Never redistribute standalone source audio.
-6. Valley of the Ancient
-   - Reference/selective reuse for mountain terrain, ruins, Nanite/Lumen and World Partition patterns.
-7. Paragon Minions / Rampage
-   - Evaluate only for original Horizon hostile/boss implementations inside Unreal; never use PARAGON naming/branding.
-8. Shooter Game + Vehicle Game
-   - Architecture/reference lanes for combat, AI, physics and audio patterns, not visual identity.
+5. Sonniss GameAudioGDC material
+6. Valley of the Ancient as selective Unreal reference/reuse where license permits
+7. Paragon Minions/Rampage only as Unreal evaluation seeds for original Horizon hostile roles; never use PARAGON branding
+8. Shooter Game + Vehicle Game as architecture/reference lanes, not Horizon visual identity
 
-Promotion gates for every source:
-- explicit license recorded
-- correct engine restriction recorded
-- source provenance retained
-- no ripped/proprietary third-party game assets
-- performance profile completed
-- gameplay or visual improvement demonstrated
-- browser/client separation respected
-- smoke test passes before production promotion
+Every asset must retain provenance and license evidence. No unclear-license package may be auto-promoted.
 
+## Year One owner contract — V4251
 
-## Time-sensitive Fab acquisition watch (2026-09-12)
+The automated Horizon side MUST treat HORIZON_YEAR_ONE_V4251.json as the latest owner-locked Year One contract.
 
-Current Fab Limited-Time Free page shows these packs free until September 22:
-- Sharur's Normandy Village + PCG Plants
-  - Strong fit for ruined rural/village cells, broken stone structures, grass/trees/bushes and PCG vegetation.
-  - Status: CLAIM/EVALUATE ONLY until the exact selected Fab license/acquisition evidence is retained.
-- Industrial Infrastructure by Sierra Division
-  - Strong fit for factories, warehouses, transit hubs, construction sites, catwalks, ladders, railings, pipes, stairs, doors and industrial interiors.
-  - Status: CLAIM/EVALUATE ONLY until the exact selected Fab license/acquisition evidence is retained.
-- RPG - Crafting & Environment VFX by VRhinoFX
-  - Strong fit for forge/crafting effects, heat distortion and environment Niagara effects.
-  - Status: CLAIM/EVALUATE ONLY until the exact selected Fab license/acquisition evidence is retained.
+Core rules:
+- Year One lasts 365 days.
+- It starts only when Kole explicitly gives the live start command.
+- Preseason remains Day 0 and does not consume event lives.
+- Every player has exactly 3 Year One lives.
+- The world is continuous across the U.S. and its jurisdictions.
+- Exterior geography/building placement should feel locally recognizable where source-backed data allows.
+- Real interior floor plans are prohibited.
+- Interior layouts are fictional and procedural but physically traversable.
+- Interiors require actual floors, stairs, functional room doors, true doorway/window holes, outside visibility through windows, roof access and multi-floor navigation.
+- Rooftop/building-to-building ziplines are core traversal.
+- Zombies begin easier/slower overall and become progressively denser, faster, more specialized, armored and coordinated over the year.
+- Difficulty varies by event day, geography, population density, survivor pressure and endgame phase.
+- Other creatures/infected animals are distributed by biome/geography and must be original or properly licensed.
+- Strategic NPCs offer contextual challenges that can reward free items, cosmetics and survival resources.
+- A massive infected/zombie wall begins around the outer playable perimeter and progressively contracts inward, pushing remaining survivors toward larger cities for the final Year One showdown.
+- The zombie wall is an original Horizon mechanic/presentation, not copied Fortnite content.
 
-Do not auto-promote any limited-time pack merely because its price is temporarily zero. The acquisition/license snapshot must be preserved first, then normal performance and regression gates apply.
+## Retention, battle pass and store
 
-Additional free evaluation candidates:
-- Zombie Animation Pack: Standard — 50 horror/zombie animations; evaluate retarget quality and license snapshot before use.
-- MC Sample Animation Pack — 120+ mocap animations on UE5 mannequin; evaluate against Game Animation Sample before adding duplicate animation weight.
-- TEUTHISAN Alien Predator — cinematic-quality free rigged creature; evaluate only as an original Horizon creature/boss role, not as a core infected replacement.
-- Weapon Pack 03 animated revolver — high-quality free weapon/animations; useful as a rare/period weapon candidate, not a core modern firearm replacement.
+- Daily free rewards are enabled throughout all 365 days.
+- Free progression remains meaningful and the game must not be pay-to-win.
+- Battle pass: 150 levels, USD $9.99, one-time purchase per pass.
+- The owner explicitly authorizes use of the **existing BridgePoint Stripe account** for Horizon commerce.
+- Horizon products, prices and entitlements must use a separate Horizon namespace and must not alter B2B packages.
+- Store categories may include characters, character skins, weapon wraps, balance-safe weapon variants, emotes, sprays, dances, finishers, profile cosmetics and bundles.
+- Reasonable target bands:
+  - sprays/small cosmetics: $0.99–$2.99
+  - emotes/dances: $1.99–$4.99
+  - weapon wraps: $1.99–$4.99
+  - character skins: $4.99–$9.99
+  - bundles: $6.99–$14.99
+- Any paid weapon variant must be cosmetic or a balance-safe sidegrade. Meaningful combat power must remain obtainable through free gameplay.
+- Free daily items stay available even when the premium store is active.
 
+## Five live Horizon workers — V4251
 
-## Autonomous zero-budget workers (V4250)
+The previous five hourly BridgePoint worker tasks have been repurposed to Horizon and are recorded in HORIZON_FIVE_WORKERS_V4251.json.
 
-The automated Horizon side MUST now treat `HORIZON_YEAR_ONE_V4250.json` as the latest owner-locked Year One contract, extending the three-mode V4243 contract.
+1. **Horizon World & Interiors** — minute :05 each hour
+   - world streaming
+   - source-backed exteriors
+   - fictional physical interiors
+   - stairs/doors/window openings
+   - rooftops/ziplines
+   - regional apocalypse dressing
 
-Five persistent worker lanes are registered in the BridgePoint backend:
+2. **Horizon Year-One Director** — minute :17 each hour
+   - 365-day event state
+   - three lives
+   - infected progression
+   - regional creatures
+   - challenge NPC/free rewards
+   - zombie-wall endgame
 
-- `horizon_world_interiors`: fictional generated interiors, true openings, physical stairs/doors/windows, rooftops, zip lines, state/jurisdiction horror identity.
-- `horizon_infected_event`: Year One difficulty curve, regional creatures, challenge NPCs/free rewards, zombie-wall contraction and endgame.
-- `horizon_gameplay`: movement, aiming, weapons, traversal, interaction, vehicles and mode-specific combat feel.
-- `horizon_assets_audio`: free/legal AAA-quality assets, animation, PBR materials, VFX and premium audio with provenance.
-- `horizon_qa_release`: browser/native-source validation, mobile/performance regression, safe publishing and release verification.
+3. **Horizon Gameplay & Combat** — minute :29 each hour
+   - locomotion/facing
+   - ADS/reticle/weapons
+   - inventory/loot
+   - enemy pathing/attacks
+   - vehicles/traversal
+   - gameplay performance/regression fixes
 
-Backend state:
-- policy: `automation.horizon_runtime_policy_v4250`
-- requirements: `automation.horizon_design_requirements_v4250`
-- workers: `automation.horizon_worker_registry_v4250`
-- queue: `automation.horizon_work_queue_v4250`
-- receipts: `automation.horizon_worker_receipts_v4250`
+4. **Horizon Content & Economy** — minute :41 each hour
+   - free/legal asset intake
+   - daily rewards
+   - battle pass/store
+   - Stripe catalog/entitlements
+   - non-pay-to-win enforcement
 
-Hard rules for every automated run:
-- owner-funded spend stays $0; no billable cloud/GPU/service provisioning and no paid assets
-- protect cadastral #5 capacity; prefer GitHub/client/source/test work and low-pressure backend work
-- the browser/PWA build keeps improving even while native UE5.8 GPU hosting is unavailable
-- Year One remains preseason/Day 0 until the owner explicitly starts it
-- exactly three persistent Year One lives; preseason deaths never consume them
-- real-world building interiors are never reconstructed; generated interiors are fictional
-- generated interiors use physical stairs, functional doors and true window/door wall openings rather than fake teleport/card portals
-- rooftop/building-to-building ziplines are part of the core traversal target
-- infected begin easier and progressively harden by event day/region/density/survivor pressure/endgame phase
-- NPC challenges give free items/rewards in strategic contextual locations
-- the late-event contraction mechanic is a massive infected wall moving inward from the playable perimeter toward major-city showdowns
-- free daily rewards stay enabled for all 365 days
-- battle pass remains 150 levels at $9.99 in design, but Stripe is NOT connected until the owner explicitly gives the final go-ahead
-- never ship ripped content or unclear-license content
-- every worker must leave measurable code/data/test progress or record the exact blocker in the receipt ledger
+5. **Horizon QA & Release Governor** — minute :53 each hour
+   - browser smoke
+   - Unreal source validation
+   - mobile/desktop regression
+   - performance/collision checks
+   - release verification
+   - known-good rollback protection
+
+Hard rules for every worker run:
+- make measurable implementation/data/test progress when connected tools permit or record the exact blocker
+- owner-funded fixed spend stays $0
+- do not provision billable DigitalOcean/GPU services
+- do not buy assets/plugins
+- never ship ripped or unclear-license content
+- keep B2B and Horizon state/commerce isolated
+- do not start Year One without Kole's explicit live start command
+- do not weaken release gates to force a build green
+- do not call a build published until the same commit is verified on the live route
