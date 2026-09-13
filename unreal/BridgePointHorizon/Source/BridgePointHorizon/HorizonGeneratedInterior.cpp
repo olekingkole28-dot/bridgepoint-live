@@ -126,9 +126,19 @@ void AHorizonGeneratedInterior::GenerateInterior(int32 Seed)
         }
     }
 
-    // Roof cap. The floor below already contains the final walkable slab.
-    const float RoofZ = FloorCount * FloorHeightCm + 10.0f;
-    AddBox(TEXT("Roof"), FVector(0.0f, 0.0f, RoofZ), FVector(BuildingWidthCm, BuildingDepthCm, 20.0f));
+    if (bGenerateRoofAccess)
+    {
+        // Build the roof as four collision slabs around a real stairwell opening.
+        // The final stair flight reaches the roof instead of terminating beneath a solid cap.
+        AddFloorPlate(FloorCount);
+        AddStairRun(FloorCount - 1);
+        AddRoofAccess();
+    }
+    else
+    {
+        const float RoofZ = FloorCount * FloorHeightCm + 10.0f;
+        AddBox(TEXT("Roof"), FVector(0.0f, 0.0f, RoofZ), FVector(BuildingWidthCm, BuildingDepthCm, 20.0f));
+    }
 }
 
 void AHorizonGeneratedInterior::AddFloorPlate(int32 FloorIndex)
@@ -411,6 +421,64 @@ void AHorizonGeneratedInterior::AddStairRun(int32 FromFloorIndex)
         FString::Printf(TEXT("Landing_%d"), FromFloorIndex),
         FVector(HoleCenterX + Run * 0.5f - 45.0f, 0.0f, BaseZ + FloorHeightCm - 9.0f),
         FVector(90.0f, Width + 40.0f, 18.0f));
+}
+
+void AHorizonGeneratedInterior::AddRoofAccess()
+{
+    const float RoofZ = FloorCount * FloorHeightCm;
+    const float WallThickness = 18.0f;
+    const float BulkheadHeight = 260.0f;
+    const float DoorWidth = 110.0f;
+    const float DoorHeight = 220.0f;
+    const float HoleLength = FMath::Min(620.0f, BuildingWidthCm * 0.32f);
+    const float HoleWidth = FMath::Min(240.0f, BuildingDepthCm * 0.22f);
+    const float HoleCenterX = -BuildingWidthCm * 0.5f + HoleLength * 0.5f + 80.0f;
+    const float BulkheadMinX = HoleCenterX - HoleLength * 0.5f - 45.0f;
+    const float BulkheadMaxX = HoleCenterX + HoleLength * 0.5f + 120.0f;
+    const float BulkheadWidth = BulkheadMaxX - BulkheadMinX;
+    const float BulkheadCenterX = (BulkheadMinX + BulkheadMaxX) * 0.5f;
+    const float BulkheadHalfDepth = HoleWidth * 0.5f + 75.0f;
+    const float WallCenterZ = RoofZ + BulkheadHeight * 0.5f;
+
+    AddBox(TEXT("RoofBulkheadWest"),
+        FVector(BulkheadMinX, 0.0f, WallCenterZ),
+        FVector(WallThickness, BulkheadHalfDepth * 2.0f, BulkheadHeight));
+    AddBox(TEXT("RoofBulkheadEast"),
+        FVector(BulkheadMaxX, 0.0f, WallCenterZ),
+        FVector(WallThickness, BulkheadHalfDepth * 2.0f, BulkheadHeight));
+    AddBox(TEXT("RoofBulkheadSouth"),
+        FVector(BulkheadCenterX, -BulkheadHalfDepth, WallCenterZ),
+        FVector(BulkheadWidth, WallThickness, BulkheadHeight));
+
+    // Split the north wall around a physical doorway and add a working hinged leaf.
+    const float LeftWidth = HoleCenterX - DoorWidth * 0.5f - BulkheadMinX;
+    const float RightWidth = BulkheadMaxX - (HoleCenterX + DoorWidth * 0.5f);
+    AddBox(TEXT("RoofDoorWallLeft"),
+        FVector(BulkheadMinX + LeftWidth * 0.5f, BulkheadHalfDepth, WallCenterZ),
+        FVector(LeftWidth, WallThickness, BulkheadHeight));
+    AddBox(TEXT("RoofDoorWallRight"),
+        FVector(HoleCenterX + DoorWidth * 0.5f + RightWidth * 0.5f, BulkheadHalfDepth, WallCenterZ),
+        FVector(RightWidth, WallThickness, BulkheadHeight));
+
+    const float HeaderHeight = BulkheadHeight - DoorHeight;
+    AddBox(TEXT("RoofDoorHeader"),
+        FVector(HoleCenterX, BulkheadHalfDepth, RoofZ + DoorHeight + HeaderHeight * 0.5f),
+        FVector(DoorWidth, WallThickness, HeaderHeight));
+    AddDoor(HoleCenterX, BulkheadHalfDepth, RoofZ, true, Doors.Num());
+
+    // A low physical parapet keeps the roof traversable while preserving open sightlines.
+    const float HalfW = BuildingWidthCm * 0.5f;
+    const float HalfD = BuildingDepthCm * 0.5f;
+    const float ParapetHeight = 110.0f;
+    const float ParapetZ = RoofZ + ParapetHeight * 0.5f;
+    AddBox(TEXT("RoofParapetNorth"), FVector(0.0f, HalfD, ParapetZ),
+        FVector(BuildingWidthCm, WallThickness, ParapetHeight));
+    AddBox(TEXT("RoofParapetSouth"), FVector(0.0f, -HalfD, ParapetZ),
+        FVector(BuildingWidthCm, WallThickness, ParapetHeight));
+    AddBox(TEXT("RoofParapetWest"), FVector(-HalfW, 0.0f, ParapetZ),
+        FVector(WallThickness, BuildingDepthCm, ParapetHeight));
+    AddBox(TEXT("RoofParapetEast"), FVector(HalfW, 0.0f, ParapetZ),
+        FVector(WallThickness, BuildingDepthCm, ParapetHeight));
 }
 
 bool AHorizonGeneratedInterior::ToggleNearestDoor(FVector WorldLocation, float RadiusCm)
