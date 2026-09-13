@@ -346,6 +346,10 @@ AHorizonWorldCellRenderer::AHorizonWorldCellRenderer()
     BuildingMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("BuildingMesh"));
     BuildingMesh->SetupAttachment(SceneRoot);
     BuildingMesh->bUseComplexAsSimpleCollision = true;
+
+    WaterMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("WaterMesh"));
+    WaterMesh->SetupAttachment(SceneRoot);
+    WaterMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AHorizonWorldCellRenderer::ClearCell()
@@ -353,13 +357,16 @@ void AHorizonWorldCellRenderer::ClearCell()
     TerrainMesh->ClearAllMeshSections();
     RoadMesh->ClearAllMeshSections();
     BuildingMesh->ClearAllMeshSections();
+    WaterMesh->ClearAllMeshSections();
 
     TerrainHeightsMeters.Reset();
     TerrainWidth = 0;
     TerrainHeight = 0;
     BaseElevationMeters = 0.0;
     RenderedBuildingCount = 0;
+    RenderedBuildingPartCount = 0;
     RenderedRoadSegmentCount = 0;
+    RenderedWaterFeatureCount = 0;
 }
 
 bool AHorizonWorldCellRenderer::RenderCellJson(const FString& CellJson)
@@ -382,6 +389,7 @@ bool AHorizonWorldCellRenderer::RenderCellJson(const FString& CellJson)
 
     BuildTerrain(Root);
     BuildTransport(Root);
+    BuildWater(Root);
     BuildBuildings(Root);
     return true;
 }
@@ -648,10 +656,11 @@ void AHorizonWorldCellRenderer::BuildTransport(const TSharedPtr<FJsonObject>& Ro
     }
 }
 
-void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Root)
+
+void AHorizonWorldCellRenderer::BuildWater(const TSharedPtr<FJsonObject>& Root)
 {
-    const TArray<TSharedPtr<FJsonValue>>* Buildings = nullptr;
-    if (!Root->TryGetArrayField(TEXT("buildings"), Buildings) || !Buildings)
+    const TArray<TSharedPtr<FJsonValue>>* Water = nullptr;
+    if (!Root->TryGetArrayField(TEXT("water"), Water) || !Water)
     {
         return;
     }
@@ -662,113 +671,261 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
     TArray<FLinearColor> Colors;
     TArray<FProcMeshTangent> Tangents;
 
-    const int32 Limit = FMath::Min(FMath::Max(0, MaxBuildingsPerCell), Buildings->Num());
-
-    for (int32 BuildingIndex = 0; BuildingIndex < Limit; ++BuildingIndex)
+    for (const TSharedPtr<FJsonValue>& FeatureValue : *Water)
     {
-        const TSharedPtr<FJsonObject> Feature = (*Buildings)[BuildingIndex].IsValid()
-            ? (*Buildings)[BuildingIndex]->AsObject()
-            : nullptr;
-
+        const TSharedPtr<FJsonObject> Feature = FeatureValue.IsValid() ? FeatureValue->AsObject() : nullptr;
         if (!Feature.IsValid() || !Feature->HasTypedField<EJson::Object>(TEXT("geometry")))
         {
             continue;
         }
 
+        FString Kind;
+        Feature->TryGetStringField(TEXT("kind"), Kind);
+        const TSharedPtr<FJsonObject> Geometry = Feature->GetObjectField(TEXT("geometry"));
+
         TArray<FVector2D> Ring;
-        if (!HorizonCellRender::ExtractExteriorRing(Feature->GetObjectField(TEXT("geometry")), Ring))
+        if (Kind == TEXT("WATER_AREA") && HorizonCellRender::ExtractExteriorRing(Geometry, Ring))
         {
+            double AverageLongitude = 0.0;
+            double AverageLatitude = 0.0;
+            for (const FVector2D& Point : Ring)
+            {
+                AverageLongitude += Point.X;
+                AverageLatitude += Point.Y;
+            }
+            AverageLongitude /= Ring.Num();
+            AverageLatitude /= Ring.Num();
+
+            const double SurfaceMeters = SampleTerrainMeters(AverageLongitude, AverageLatitude) + 0.04;
+            TArray<FVector2D> LocalPolygon;
+            LocalPolygon.Reserve(Ring.Num());
+            const int32 Base = Vertices.Num();
+
+            for (const FVector2D& Point : Ring)
+            {
+                const FVector Position = ProjectCoordinate(Point.X, Point.Y, SurfaceMeters);
+                Vertices.Add(Position);
+                LocalPolygon.Add(FVector2D(Position.X, Position.Y));
+                UV0.Add(FVector2D(Position.X * 0.00035f, Position.Y * 0.00035f));
+            }
+
+            const TArray<int32> PolygonTriangles = HorizonCellRender::TriangulateSimplePolygon(LocalPolygon);
+            for (const int32 Index : PolygonTriangles)
+            {
+                Triangles.Add(Base + Index);
+            }
+
+            ++RenderedWaterFeatureCount;
             continue;
         }
 
-        double HeightMeters = DefaultBuildingHeightMeters;
-        if (!Feature->TryGetNumberField(TEXT("height_m"), HeightMeters) || HeightMeters <= 0.1)
+        TArray<TArray<FVector2D>> Paths;
+        HorizonCellRender::ExtractLineStrings(Geometry, Paths);
+        for (const TArray<FVector2D>& Path : Paths)
         {
-            double Floors = 0.0;
-            if (Feature->TryGetNumberField(TEXT("floors"), Floors) && Floors > 0.0)
+            for (int32 Index = 0; Index < Path.Num() - 1; ++Index)
             {
-                HeightMeters = Floors * 3.1;
+                const FVector2D& AGeo = Path[Index];
+                const FVector2D& BGeo = Path[Index + 1];
+
+                FVector A = ProjectCoordinate(AGeo.X, AGeo.Y, SampleTerrainMeters(AGeo.X, AGeo.Y) + 0.03);
+                FVector B = ProjectCoordinate(BGeo.X, BGeo.Y, SampleTerrainMeters(BGeo.X, BGeo.Y) + 0.03);
+
+                FVector Direction = B - A;
+                Direction.Z = 0.0f;
+                if (!Direction.Normalize())
+                {
+                    continue;
+                }
+
+                const float WidthCm = 260.0f;
+                const FVector Right(-Direction.Y, Direction.X, 0.0f);
+                const FVector Offset = Right * (WidthCm * 0.5f);
+
+                const int32 Base = Vertices.Num();
+                Vertices.Add(A - Offset);
+                Vertices.Add(A + Offset);
+                Vertices.Add(B - Offset);
+                Vertices.Add(B + Offset);
+
+                UV0.Add(FVector2D(0.0f, 0.0f));
+                UV0.Add(FVector2D(1.0f, 0.0f));
+                UV0.Add(FVector2D(0.0f, 1.0f));
+                UV0.Add(FVector2D(1.0f, 1.0f));
+
+                Triangles.Add(Base + 0);
+                Triangles.Add(Base + 2);
+                Triangles.Add(Base + 1);
+                Triangles.Add(Base + 1);
+                Triangles.Add(Base + 2);
+                Triangles.Add(Base + 3);
+            }
+
+            ++RenderedWaterFeatureCount;
+        }
+    }
+
+    if (!Vertices.IsEmpty())
+    {
+        TArray<FVector> Normals;
+        HorizonCellRender::ComputeNormals(Vertices, Triangles, Normals);
+
+        WaterMesh->CreateMeshSection_LinearColor(
+            0,
+            Vertices,
+            Triangles,
+            Normals,
+            UV0,
+            Colors,
+            Tangents,
+            false);
+    }
+}
+
+void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Root)
+{
+    const TArray<TSharedPtr<FJsonValue>>* Buildings = nullptr;
+    const TArray<TSharedPtr<FJsonValue>>* BuildingParts = nullptr;
+    Root->TryGetArrayField(TEXT("buildings"), Buildings);
+    Root->TryGetArrayField(TEXT("building_parts"), BuildingParts);
+
+    if ((!Buildings || Buildings->IsEmpty()) && (!BuildingParts || BuildingParts->IsEmpty()))
+    {
+        return;
+    }
+
+    TArray<FVector> Vertices;
+    TArray<int32> Triangles;
+    TArray<FVector2D> UV0;
+    TArray<FLinearColor> Colors;
+    TArray<FProcMeshTangent> Tangents;
+
+    auto AppendFeatures = [this, &Vertices, &Triangles, &UV0](
+        const TArray<TSharedPtr<FJsonValue>>* Features,
+        int32 Limit,
+        bool bBuildingPart)
+    {
+        if (!Features)
+        {
+            return;
+        }
+
+        const int32 SafeLimit = FMath::Min(FMath::Max(0, Limit), Features->Num());
+
+        for (int32 FeatureIndex = 0; FeatureIndex < SafeLimit; ++FeatureIndex)
+        {
+            const TSharedPtr<FJsonObject> Feature = (*Features)[FeatureIndex].IsValid()
+                ? (*Features)[FeatureIndex]->AsObject()
+                : nullptr;
+
+            if (!Feature.IsValid() || !Feature->HasTypedField<EJson::Object>(TEXT("geometry")))
+            {
+                continue;
+            }
+
+            TArray<FVector2D> Ring;
+            if (!HorizonCellRender::ExtractExteriorRing(Feature->GetObjectField(TEXT("geometry")), Ring))
+            {
+                continue;
+            }
+
+            double HeightMeters = DefaultBuildingHeightMeters;
+            if (!Feature->TryGetNumberField(TEXT("height_m"), HeightMeters) || HeightMeters <= 0.1)
+            {
+                double Floors = 0.0;
+                if (Feature->TryGetNumberField(TEXT("floors"), Floors) && Floors > 0.0)
+                {
+                    HeightMeters = Floors * 3.1;
+                }
+                else
+                {
+                    HeightMeters = bBuildingPart ? 3.2 : DefaultBuildingHeightMeters;
+                }
+            }
+
+            double MinHeightMeters = 0.0;
+            Feature->TryGetNumberField(TEXT("min_height_m"), MinHeightMeters);
+
+            double AverageLongitude = 0.0;
+            double AverageLatitude = 0.0;
+            for (const FVector2D& Point : Ring)
+            {
+                AverageLongitude += Point.X;
+                AverageLatitude += Point.Y;
+            }
+            AverageLongitude /= Ring.Num();
+            AverageLatitude /= Ring.Num();
+
+            const double TerrainBaseMeters = SampleTerrainMeters(AverageLongitude, AverageLatitude);
+            const double BottomMeters = TerrainBaseMeters + FMath::Max(0.0, MinHeightMeters);
+            const double TopMeters = TerrainBaseMeters + FMath::Max(MinHeightMeters + 0.5, HeightMeters);
+
+            TArray<FVector2D> LocalPolygon;
+            LocalPolygon.Reserve(Ring.Num());
+            TArray<FVector> Bottom;
+            TArray<FVector> Top;
+            Bottom.Reserve(Ring.Num());
+            Top.Reserve(Ring.Num());
+
+            for (const FVector2D& Point : Ring)
+            {
+                const FVector BottomPoint = ProjectCoordinate(Point.X, Point.Y, BottomMeters);
+                const FVector TopPoint = ProjectCoordinate(Point.X, Point.Y, TopMeters);
+                Bottom.Add(BottomPoint);
+                Top.Add(TopPoint);
+                LocalPolygon.Add(FVector2D(BottomPoint.X, BottomPoint.Y));
+            }
+
+            for (int32 Index = 0; Index < Ring.Num(); ++Index)
+            {
+                const int32 Next = (Index + 1) % Ring.Num();
+                const int32 Base = Vertices.Num();
+
+                Vertices.Add(Bottom[Index]);
+                Vertices.Add(Bottom[Next]);
+                Vertices.Add(Top[Index]);
+                Vertices.Add(Top[Next]);
+
+                UV0.Add(FVector2D(0.0f, 0.0f));
+                UV0.Add(FVector2D(1.0f, 0.0f));
+                UV0.Add(FVector2D(0.0f, 1.0f));
+                UV0.Add(FVector2D(1.0f, 1.0f));
+
+                Triangles.Add(Base + 0);
+                Triangles.Add(Base + 1);
+                Triangles.Add(Base + 2);
+                Triangles.Add(Base + 2);
+                Triangles.Add(Base + 1);
+                Triangles.Add(Base + 3);
+            }
+
+            const TArray<int32> RoofIndices = HorizonCellRender::TriangulateSimplePolygon(LocalPolygon);
+            const int32 RoofBase = Vertices.Num();
+
+            for (const FVector& Point : Top)
+            {
+                Vertices.Add(Point);
+                UV0.Add(FVector2D(Point.X * 0.001f, Point.Y * 0.001f));
+            }
+
+            for (const int32 Index : RoofIndices)
+            {
+                Triangles.Add(RoofBase + Index);
+            }
+
+            if (bBuildingPart)
+            {
+                ++RenderedBuildingPartCount;
             }
             else
             {
-                HeightMeters = DefaultBuildingHeightMeters;
+                ++RenderedBuildingCount;
             }
         }
+    };
 
-        double MinHeightMeters = 0.0;
-        Feature->TryGetNumberField(TEXT("min_height_m"), MinHeightMeters);
-
-        double AverageLongitude = 0.0;
-        double AverageLatitude = 0.0;
-        for (const FVector2D& Point : Ring)
-        {
-            AverageLongitude += Point.X;
-            AverageLatitude += Point.Y;
-        }
-        AverageLongitude /= Ring.Num();
-        AverageLatitude /= Ring.Num();
-
-        const double TerrainBaseMeters = SampleTerrainMeters(AverageLongitude, AverageLatitude);
-        const double BottomMeters = TerrainBaseMeters + FMath::Max(0.0, MinHeightMeters);
-        const double TopMeters = TerrainBaseMeters + FMath::Max(MinHeightMeters + 0.5, HeightMeters);
-
-        TArray<FVector2D> LocalPolygon;
-        LocalPolygon.Reserve(Ring.Num());
-        TArray<FVector> Bottom;
-        TArray<FVector> Top;
-        Bottom.Reserve(Ring.Num());
-        Top.Reserve(Ring.Num());
-
-        for (const FVector2D& Point : Ring)
-        {
-            const FVector BottomPoint = ProjectCoordinate(Point.X, Point.Y, BottomMeters);
-            const FVector TopPoint = ProjectCoordinate(Point.X, Point.Y, TopMeters);
-            Bottom.Add(BottomPoint);
-            Top.Add(TopPoint);
-            LocalPolygon.Add(FVector2D(BottomPoint.X, BottomPoint.Y));
-        }
-
-        // Walls.
-        for (int32 Index = 0; Index < Ring.Num(); ++Index)
-        {
-            const int32 Next = (Index + 1) % Ring.Num();
-            const int32 Base = Vertices.Num();
-
-            Vertices.Add(Bottom[Index]);
-            Vertices.Add(Bottom[Next]);
-            Vertices.Add(Top[Index]);
-            Vertices.Add(Top[Next]);
-
-            UV0.Add(FVector2D(0.0f, 0.0f));
-            UV0.Add(FVector2D(1.0f, 0.0f));
-            UV0.Add(FVector2D(0.0f, 1.0f));
-            UV0.Add(FVector2D(1.0f, 1.0f));
-
-            Triangles.Add(Base + 0);
-            Triangles.Add(Base + 1);
-            Triangles.Add(Base + 2);
-            Triangles.Add(Base + 2);
-            Triangles.Add(Base + 1);
-            Triangles.Add(Base + 3);
-        }
-
-        // Roof, using ear clipping so concave real footprints do not collapse into a fan.
-        const TArray<int32> RoofIndices = HorizonCellRender::TriangulateSimplePolygon(LocalPolygon);
-        const int32 RoofBase = Vertices.Num();
-
-        for (const FVector& Point : Top)
-        {
-            Vertices.Add(Point);
-            UV0.Add(FVector2D(Point.X * 0.001f, Point.Y * 0.001f));
-        }
-
-        for (int32 Index : RoofIndices)
-        {
-            Triangles.Add(RoofBase + Index);
-        }
-
-        ++RenderedBuildingCount;
-    }
+    AppendFeatures(Buildings, MaxBuildingsPerCell, false);
+    AppendFeatures(BuildingParts, MaxBuildingPartsPerCell, true);
 
     if (!Vertices.IsEmpty())
     {
