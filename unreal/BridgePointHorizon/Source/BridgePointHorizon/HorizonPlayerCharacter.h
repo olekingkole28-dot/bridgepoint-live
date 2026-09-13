@@ -8,6 +8,7 @@ class UCameraComponent;
 class USpringArmComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
+class USkeletalMesh;
 
 UENUM(BlueprintType)
 enum class EHorizonCameraMode : uint8
@@ -37,11 +38,29 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|Weapon")
     TObjectPtr<UStaticMeshComponent> EquippedWeaponVisual;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|Camera")
+    TObjectPtr<USkeletalMeshComponent> FirstPersonArms;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|Weapon")
+    TObjectPtr<UStaticMeshComponent> FirstPersonWeaponVisual;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Weapon")
     FName WeaponHandSocketName = TEXT("hand_r");
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Weapon")
     FTransform WeaponGripOffset = FTransform::Identity;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Weapon")
+    FName FirstPersonWeaponSocketName = TEXT("hand_r");
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Weapon")
+    FTransform FirstPersonWeaponGripOffset = FTransform::Identity;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera")
+    FTransform FirstPersonArmsOffset = FTransform(
+        FRotator::ZeroRotator,
+        FVector(18.0f, 0.0f, -18.0f),
+        FVector::OneVector);
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
     float WalkSpeed = 430.0f;
@@ -69,6 +88,12 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Weapon")
     void HolsterWeaponVisual();
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Camera")
+    bool SetFirstPersonArmsMesh(USkeletalMesh* ArmsMesh);
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Camera")
+    bool HasFirstPersonArms() const;
 
     UFUNCTION(BlueprintPure, Category="Horizon|Weapon")
     bool IsWeaponVisualEquipped() const;
@@ -104,4 +129,6 @@ private:
     void RefreshMovementProfile();
     void TryEnableWorldGravity(float DeltaSeconds);
     bool AttachWeaponVisualToBestSocket(FName PreferredSocket);
+    bool AttachFirstPersonWeaponToBestSocket(FName PreferredSocket);
+    void RefreshFirstPersonVisualState();
 };
