@@ -97,8 +97,9 @@ if(controls.locomotionAlwaysFacesTravel!==true||controls.nonAimingFirearmFacesTr
 if(!Array.isArray(controls.cameraModes)||controls.cameraModes.join('|')!=='firstPerson|thirdPersonClose|thirdPersonFar')throw new Error('Camera mode contract missing '+JSON.stringify(controls));
 if(!Array.isArray(cameraModes)||cameraModes.length!==3)throw new Error('Camera mode probe missing '+JSON.stringify(cameraModes));
 const fp=cameraModes.find(x=>x.mode==='firstPerson'),tp=cameraModes.find(x=>x.mode==='thirdPersonClose');
-if(!fp||fp.bodyVisible!==false||fp.rigVisible!==true||fp.weaponVisible!==true)throw new Error('First-person presentation failed '+JSON.stringify(cameraModes));
-if(!tp||tp.bodyVisible!==true||tp.rigVisible!==false)throw new Error('Third-person presentation failed '+JSON.stringify(cameraModes));
+if(!fp||fp.rigVisible!==true||fp.weaponVisible!==true)throw new Error('First-person presentation failed '+JSON.stringify(cameraModes));
+if(fp.actualArms!==true||fp.actualArmsVisible!==true||fp.fallbackArmsVisible!==false)throw new Error('Default survivor first-person did not use real skinned hands/arms '+JSON.stringify(cameraModes));
+if(!tp||tp.bodyVisible!==true||tp.rigVisible!==false||tp.actualArmsVisible!==false)throw new Error('Third-person presentation failed '+JSON.stringify(cameraModes));
 if(inputIsolation?.pointerOwnership!==true||inputIsolation?.canvasTouchAction!=='none'||inputIsolation?.settingsPanel!==true)throw new Error('Touch pointer isolation/settings missing '+JSON.stringify(inputIsolation));
 if(loadingLod?.mobile===true){
   if((loadingLod.facadeCandidatesRendered||0)>160||(loadingLod.facadeWindows||0)>2800)throw new Error('Mobile facade LOD budget regressed '+JSON.stringify(loadingLod));
