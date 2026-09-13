@@ -24,7 +24,7 @@ AHorizonPlayerCharacter::AHorizonPlayerCharacter()
     bUseControllerRotationRoll = false;
 
     UCharacterMovementComponent* Move = GetCharacterMovement();
-    Move->bOrientRotationToMovement = true;
+    Move->bOrientRotationToMovement = false;
     Move->bUseControllerDesiredRotation = false;
     Move->RotationRate = FRotator(0.0f, 720.0f, 0.0f);
     Move->MaxAcceleration = 2200.0f;
@@ -85,21 +85,9 @@ void AHorizonPlayerCharacter::Tick(float DeltaSeconds)
     Super::Tick(DeltaSeconds);
 
     TryEnableWorldGravity(DeltaSeconds);
+    ApplyMovementInput(DeltaSeconds);
     RefreshMovementProfile();
-
-    const float TargetArm = bAiming ? AimArmLength : ThirdPersonArmLength;
-    CameraBoom->TargetArmLength = FMath::FInterpTo(
-        CameraBoom->TargetArmLength,
-        TargetArm,
-        DeltaSeconds,
-        bAiming ? 16.0f : 11.0f);
-
-    const float TargetFov = bAiming ? 68.0f : 86.0f;
-    FollowCamera->SetFieldOfView(FMath::FInterpTo(
-        FollowCamera->FieldOfView,
-        TargetFov,
-        DeltaSeconds,
-        bAiming ? 18.0f : 12.0f));
+    UpdateCameraPresentation(DeltaSeconds);
 }
 
 void AHorizonPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -119,28 +107,105 @@ void AHorizonPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerI
     PlayerInputComponent->BindAction(TEXT("Crouch"), IE_Pressed, this, &AHorizonPlayerCharacter::ToggleCrouch);
     PlayerInputComponent->BindAction(TEXT("Aim"), IE_Pressed, this, &AHorizonPlayerCharacter::StartAim);
     PlayerInputComponent->BindAction(TEXT("Aim"), IE_Released, this, &AHorizonPlayerCharacter::StopAim);
+    PlayerInputComponent->BindAction(TEXT("ToggleCamera"), IE_Pressed, this, &AHorizonPlayerCharacter::ToggleCameraMode);
 }
 
 void AHorizonPlayerCharacter::MoveForward(float Value)
 {
-    if (FMath::IsNearlyZero(Value) || !Controller)
-    {
-        return;
-    }
-
-    const FRotator YawRotation(0.0f, Controller->GetControlRotation().Yaw, 0.0f);
-    AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X), Value);
+    CachedMoveInput.Y = FMath::Clamp(Value, -1.0f, 1.0f);
 }
 
 void AHorizonPlayerCharacter::MoveRight(float Value)
 {
-    if (FMath::IsNearlyZero(Value) || !Controller)
+    CachedMoveInput.X = FMath::Clamp(Value, -1.0f, 1.0f);
+}
+
+void AHorizonPlayerCharacter::ApplyMovementInput(float DeltaSeconds)
+{
+    if (!Controller)
     {
         return;
     }
 
-    const FRotator YawRotation(0.0f, Controller->GetControlRotation().Yaw, 0.0f);
-    AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y), Value);
+    const FVector2D Input = CachedMoveInput.GetClampedToMaxSize(1.0f);
+    if (Input.IsNearlyZero())
+    {
+        return;
+    }
+
+    const FRotator ControlYaw(0.0f, Controller->GetControlRotation().Yaw, 0.0f);
+    const FVector Forward = FRotationMatrix(ControlYaw).GetUnitAxis(EAxis::X);
+    const FVector Right = FRotationMatrix(ControlYaw).GetUnitAxis(EAxis::Y);
+    const FVector DesiredDirection = (Forward * Input.Y + Right * Input.X).GetSafeNormal();
+
+    AddMovementInput(DesiredDirection, Input.Size());
+
+    if (!bAiming && !DesiredDirection.IsNearlyZero())
+    {
+        // Hip movement faces the exact combined stick/WASD vector. Applying this once per
+        // frame avoids axis callback ordering and eliminates sideways/backwards facing.
+        const FRotator TargetFacing(0.0f, DesiredDirection.Rotation().Yaw, 0.0f);
+        SetActorRotation(
+            FMath::RInterpTo(GetActorRotation(), TargetFacing, DeltaSeconds, FacingInterpolationSpeed),
+            ETeleportType::None);
+    }
+}
+
+void AHorizonPlayerCharacter::UpdateCameraPresentation(float DeltaSeconds)
+{
+    const bool bFirstPerson = CameraMode == EHorizonCameraMode::FirstPerson;
+    const float TargetArm = bFirstPerson ? 0.0f : (bAiming ? AimArmLength : ThirdPersonArmLength);
+    const float TargetFov = bAiming ? 68.0f :
+        (bFirstPerson ? FirstPersonFieldOfView : ThirdPersonFieldOfView);
+    const FVector TargetOffset = bFirstPerson
+        ? FVector(12.0f, 0.0f, 70.0f)
+        : FVector(0.0f, 54.0f, 62.0f);
+
+    CameraBoom->TargetArmLength = FMath::FInterpTo(
+        CameraBoom->TargetArmLength,
+        TargetArm,
+        DeltaSeconds,
+        bFirstPerson ? 24.0f : (bAiming ? 16.0f : 11.0f));
+    CameraBoom->SocketOffset = FMath::VInterpTo(
+        CameraBoom->SocketOffset,
+        TargetOffset,
+        DeltaSeconds,
+        18.0f);
+    FollowCamera->SetFieldOfView(FMath::FInterpTo(
+        FollowCamera->FieldOfView,
+        TargetFov,
+        DeltaSeconds,
+        bAiming ? 18.0f : 12.0f));
+}
+
+void AHorizonPlayerCharacter::SetCameraMode(EHorizonCameraMode NewMode)
+{
+    if (CameraMode == NewMode)
+    {
+        return;
+    }
+
+    CameraMode = NewMode;
+    const bool bFirstPerson = CameraMode == EHorizonCameraMode::FirstPerson;
+    CameraBoom->bDoCollisionTest = !bFirstPerson;
+    CameraBoom->bEnableCameraLag = !bFirstPerson;
+    CameraBoom->bEnableCameraRotationLag = !bFirstPerson;
+
+    if (USkeletalMeshComponent* CharacterMesh = GetMesh())
+    {
+        CharacterMesh->SetOwnerNoSee(bFirstPerson);
+    }
+    if (EquippedWeaponVisual)
+    {
+        EquippedWeaponVisual->SetOwnerNoSee(false);
+    }
+}
+
+void AHorizonPlayerCharacter::ToggleCameraMode()
+{
+    SetCameraMode(CameraMode == EHorizonCameraMode::FirstPerson
+        ? EHorizonCameraMode::ThirdPerson
+        : EHorizonCameraMode::FirstPerson);
 }
 
 void AHorizonPlayerCharacter::StartSprint()
@@ -298,7 +363,7 @@ void AHorizonPlayerCharacter::RefreshMovementProfile()
     // so the torso/weapon and reticle do not fight the movement rotation.
     const bool bControllerFacing = bAiming && Controller != nullptr;
     bUseControllerRotationYaw = bControllerFacing;
-    Move->bOrientRotationToMovement = !bControllerFacing;
+    Move->bOrientRotationToMovement = false;
     Move->bUseControllerDesiredRotation = false;
 
     CameraBoom->CameraLagSpeed = FMath::Clamp(InterpSpeed, 9.0f, 18.0f);
