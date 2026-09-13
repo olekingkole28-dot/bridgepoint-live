@@ -1,0 +1,107 @@
+name: Deploy Intelligence Launch Install
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: intelligence-launch-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Overlay only Intelligence launch onto current production
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact
+          rm -rf site
+          mkdir -p site
+          git archive --format=tar origin/live-artifact | tar -xf - -C site
+
+          rm -rf site/app/intelligence-launch
+          git archive --format=tar HEAD app/intelligence-launch | tar -xf - -C site
+          touch site/.nojekyll site/app/.nojekyll
+
+      - name: Validate installable B2B launch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s site/app/intelligence-launch/index.html
+          test -s site/app/intelligence-launch/manifest.webmanifest
+          test -s site/app/intelligence-launch/sw.js
+          grep -Fq 'id="installAppPrompt"' site/app/intelligence-launch/index.html
+          grep -Fq 'id="installAppTop"' site/app/intelligence-launch/index.html
+          grep -Fq 'beforeinstallprompt' site/app/intelligence-launch/index.html
+          grep -Fq '"display":"standalone"' site/app/intelligence-launch/manifest.webmanifest
+
+      - name: Save durable live artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/bp-intelligence-launch-live
+          mkdir -p /tmp/bp-intelligence-launch-live
+          cp -a site/. /tmp/bp-intelligence-launch-live/
+          cd /tmp/bp-intelligence-launch-live
+          git init -q
+          git config user.name 'BridgePoint Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m "Publish Intelligence launch install surface ${GITHUB_SHA}"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify custom domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online/app/intelligence-launch/'
+          ok=0
+          for i in $(seq 1 30); do
+            q="${GITHUB_SHA}-${i}-$(date +%s)"
+            rm -f /tmp/b2b
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}?v=${q}" -o /tmp/b2b 2>/dev/null || true
+            if grep -Fq 'id="installAppPrompt"' /tmp/b2b 2>/dev/null \
+              && grep -Fq 'beforeinstallprompt' /tmp/b2b 2>/dev/null \
+              && grep -Fq 'FOUNDING ACCESS' /tmp/b2b 2>/dev/null; then
+              ok=1
+              echo 'INTELLIGENCE_LAUNCH_INSTALL_LIVE'
+              break
+            fi
+            sleep 4
+          done
+          test "${ok}" = 1
