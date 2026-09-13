@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameFramework/SaveGame.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "HorizonGameStateSubsystem.generated.h"
 
@@ -63,10 +64,32 @@ struct FYearOneState
     bool bEliminated = false;
 };
 
+UCLASS()
+class BRIDGEPOINTHORIZON_API UHorizonYearOneSaveGame : public USaveGame
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY()
+    bool bStarted = false;
+
+    UPROPERTY()
+    FDateTime StartUtc;
+
+    UPROPERTY()
+    int32 DurationDays = 365;
+
+    UPROPERTY()
+    int32 LivesRemaining = 3;
+
+    UPROPERTY()
+    bool bEliminated = false;
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHorizonModeChanged, EHorizonGameMode, NewMode);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FHorizonYearOneLivesChanged, int32, LivesRemaining, bool, bEliminated);
 
-UCLASS()
+UCLASS(Config=Game)
 class BRIDGEPOINTHORIZON_API UHorizonGameStateSubsystem : public UGameInstanceSubsystem
 {
     GENERATED_BODY()
@@ -108,6 +131,9 @@ public:
     FYearOneState GetYearOneState() const { return YearOne; }
 
     UFUNCTION(BlueprintPure, Category="Horizon|YearOne")
+    bool IsYearOneStartAuthorized() const { return bOwnerAuthorizedYearOneStart; }
+
+    UFUNCTION(BlueprintPure, Category="Horizon|YearOne")
     int32 GetYearOneDay(FDateTime NowUtc) const;
 
     UFUNCTION(BlueprintPure, Category="Horizon|YearOne")
@@ -126,9 +152,20 @@ public:
     void RestoreYearOneLives(int32 Lives = 3);
 
 private:
+    static const TCHAR* YearOneSaveSlot;
+
+    UPROPERTY(Config)
+    bool bOwnerAuthorizedYearOneStart = false;
+
     UPROPERTY()
     EHorizonGameMode CurrentMode = EHorizonGameMode::YearOneSurvival;
 
     UPROPERTY()
     FYearOneState YearOne;
+
+    UPROPERTY()
+    TObjectPtr<UHorizonYearOneSaveGame> PersistedYearOne;
+
+    void LoadYearOneState();
+    void SaveYearOneState();
 };
