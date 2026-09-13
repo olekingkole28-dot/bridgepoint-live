@@ -223,7 +223,7 @@ camera.up.set(0,0,1);
 scene.add(camera);
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',stencil:false});
 const MAX_RENDER_PIXEL_RATIO=Math.min(devicePixelRatio||1,MOBILE_GPU_SAFE?1.05:1.35);
-const MIN_RENDER_PIXEL_RATIO=Math.min(MAX_RENDER_PIXEL_RATIO,MOBILE_GPU_SAFE?.72:.92);
+const MIN_RENDER_PIXEL_RATIO=Math.min(MAX_RENDER_PIXEL_RATIO,MOBILE_GPU_SAFE ? .72 : .92);
 let adaptivePixelRatio=MAX_RENDER_PIXEL_RATIO;
 let renderPerformance={
   mode:'adaptive',
@@ -292,9 +292,9 @@ function updateAdaptiveRenderQuality(dt,now=performance.now()){
   renderPerformance.lastAdjustAt=now;
   const target=renderPerformance.targetMs,ema=renderPerformance.emaMs;
   if(ema>target*1.17&&adaptivePixelRatio>MIN_RENDER_PIXEL_RATIO+.02){
-    const step=MOBILE_GPU_SAFE?.08:.07;setAdaptivePixelRatio(adaptivePixelRatio-step,'down');
+    const step=MOBILE_GPU_SAFE ? .08 : .07;setAdaptivePixelRatio(adaptivePixelRatio-step,'down');
   }else if(ema<target*.82&&adaptivePixelRatio<MAX_RENDER_PIXEL_RATIO-.02){
-    const step=MOBILE_GPU_SAFE?.04:.05;setAdaptivePixelRatio(adaptivePixelRatio+step,'up');
+    const step=MOBILE_GPU_SAFE ? .04 : .05;setAdaptivePixelRatio(adaptivePixelRatio+step,'up');
   }
 }
 addEventListener('resize',resizeRenderer,{passive:true});
