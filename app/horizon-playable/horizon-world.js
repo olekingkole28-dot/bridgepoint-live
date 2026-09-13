@@ -980,11 +980,52 @@ function canvasTexture(kind){
 }
 const groundTex=canvasTexture('ground'),asphaltTex=canvasTexture('asphalt'),wallTex=canvasTexture('wall'),brickTex=canvasTexture('brick'),glassTex=canvasTexture('glass');
 
+const horizonTextureLoader=new THREE.TextureLoader();
+const HORIZON_PBR_BASE=new URL('./assets/pbr/polyhaven/',import.meta.url).href;
+const horizonPbrStatus={requested:0,loaded:0,failed:0,source:'Poly Haven CC0',resolution:'1k'};
+function localPbrTexture(file,{color=false,repeat=[1,1]}={}){
+  horizonPbrStatus.requested++;
+  const t=horizonTextureLoader.load(
+    HORIZON_PBR_BASE+file,
+    tex=>{horizonPbrStatus.loaded++;tex.needsUpdate=true},
+    undefined,
+    ()=>{horizonPbrStatus.failed++}
+  );
+  if(color)t.colorSpace=THREE.SRGBColorSpace;
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  t.repeat.set(repeat[0],repeat[1]);
+  t.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy?.()||8,MOBILE_GPU_SAFE?8:16);
+  return t;
+}
+function pbrSet(id,repeat){
+  return{
+    map:localPbrTexture(id+'_diff_1k.jpg',{color:true,repeat}),
+    normalMap:localPbrTexture(id+'_nor_gl_1k.jpg',{repeat}),
+    roughnessMap:localPbrTexture(id+'_rough_1k.jpg',{repeat})
+  };
+}
+const dirtPbr=pbrSet('dirt',[22,22]);
+const asphaltPbr=pbrSet('asphalt_03',[10,10]);
+const brickPbr=pbrSet('brick_wall_001',[.34,.34]);
+const concretePbr=pbrSet('concrete_wall_005',[.42,.42]);
+const terrainPbrMaterial=new THREE.MeshStandardMaterial({
+  ...dirtPbr,color:0xffffff,roughness:1,metalness:0,normalScale:new THREE.Vector2(.72,.72)
+});
+const asphaltPbrMaterial=new THREE.MeshStandardMaterial({
+  ...asphaltPbr,color:0xffffff,roughness:1,metalness:.015,normalScale:new THREE.Vector2(.62,.62)
+});
+const concretePbrMaterial=new THREE.MeshStandardMaterial({
+  ...concretePbr,color:0xffffff,roughness:1,metalness:0,normalScale:new THREE.Vector2(.55,.55)
+});
+streetLifeStats.pbrSource='Poly Haven CC0';
+streetLifeStats.pbrResolution='1k';
+streetLifeStats.pbrRuntimeApiDependency=false;
+
 function buildTerrain(){
   const t=data.terrain;
   if(!t?.heights_m?.length){
     const w=(data.bbox.east-data.bbox.west)*mx,h=(data.bbox.north-data.bbox.south)*my;
-    const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h,1,1),new THREE.MeshStandardMaterial({map:groundTex,color:0x7d846d,roughness:1}));
+    const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h,1,1),terrainPbrMaterial);
     mesh.receiveShadow=true;terrainLayer=mesh;worldGroup.add(mesh);terrainPhysicsCollider=addStaticPhysicsGeometry(mesh.geometry,'terrain-flat',.96)||terrainPhysicsCollider;return;
   }
   const center=Math.floor(t.height/2)*t.width+Math.floor(t.width/2);
@@ -997,7 +1038,7 @@ function buildTerrain(){
   }
   for(let y=0;y<t.height-1;y++)for(let x=0;x<t.width-1;x++){const a=y*t.width+x,b=a+1,c=a+t.width,d=c+1;idx.push(a,c,b,b,c,d)}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();
-  terrainLayer=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:groundTex,color:0x8a8f78,roughness:1}));
+  terrainLayer=new THREE.Mesh(g,terrainPbrMaterial);
   terrainLayer.receiveShadow=true;worldGroup.add(terrainLayer);terrainPhysicsCollider=addStaticPhysicsGeometry(g,'terrain-3dep',.96)||terrainPhysicsCollider;
 }
 
@@ -1132,12 +1173,24 @@ function buildDenseApocalypseLayers(){
 }
 
 const buildingMaterials={
-  brick:new THREE.MeshStandardMaterial({map:brickTex,color:0xb29b8e,roughness:.84,emissive:0x100b07,emissiveIntensity:.10}),
-  concrete:new THREE.MeshStandardMaterial({map:wallTex,color:0xaeb1aa,roughness:.82,emissive:0x0d100c,emissiveIntensity:.08}),
-  glass:new THREE.MeshStandardMaterial({map:glassTex,color:0x8fa7aa,roughness:.22,metalness:.20,emissive:0x172522,emissiveIntensity:.42}),
+  brick:new THREE.MeshStandardMaterial({
+    ...brickPbr,color:0xffffff,roughness:1,metalness:0,normalScale:new THREE.Vector2(.62,.62),
+    emissive:0x080302,emissiveIntensity:.035
+  }),
+  concrete:new THREE.MeshStandardMaterial({
+    ...concretePbr,color:0xffffff,roughness:1,metalness:0,normalScale:new THREE.Vector2(.58,.58),
+    emissive:0x030403,emissiveIntensity:.025
+  }),
+  glass:new THREE.MeshPhysicalMaterial({
+    map:glassTex,color:0x91abb1,roughness:.08,metalness:.05,transparent:true,opacity:.72,
+    transmission:.24,clearcoat:.72,clearcoatRoughness:.08,emissive:0x101b1b,emissiveIntensity:.18
+  }),
   wood:new THREE.MeshStandardMaterial({map:wallTex,color:0x8a755f,roughness:.90}),
   metal:new THREE.MeshStandardMaterial({map:wallTex,color:0x8e999a,roughness:.42,metalness:.34,emissive:0x111515,emissiveIntensity:.10})
 };
+for(const [key,mat] of Object.entries(buildingMaterials))mat.userData.horizonSurface=key;
+buildingMaterials.brick.userData.pbrSource='Poly Haven brick_wall_001 CC0';
+buildingMaterials.concrete.userData.pbrSource='Poly Haven concrete_wall_005 CC0';
 function facadeKey(row,height=8){
   const f=String(row.facade_material||'').toLowerCase();
   if(f.includes('brick'))return'brick';
@@ -1223,7 +1276,7 @@ function buildExplorableShell(rec,meta){
         hole.moveTo(meta.x-hw,meta.y-hy);hole.lineTo(meta.x+hw,meta.y-hy);hole.lineTo(meta.x+hw,meta.y+hy);hole.lineTo(meta.x-hw,meta.y+hy);hole.closePath();slabShape.holes.push(hole);
       }
       const slabGeo=new THREE.ShapeGeometry(slabShape);slabGeo.translate(0,0,base+.035);
-      const slab=new THREE.Mesh(slabGeo,new THREE.MeshStandardMaterial({color:f%2?0x4b4b47:0x555049,roughness:.98,side:THREE.DoubleSide}));slab.receiveShadow=true;group.add(slab);addStaticPhysicsGeometry(slabGeo,'open-floor-'+meta.id+'-'+f,.94);
+      const slab=new THREE.Mesh(slabGeo,concretePbrMaterial.clone());slab.receiveShadow=true;group.add(slab);addStaticPhysicsGeometry(slabGeo,'open-floor-'+meta.id+'-'+f,.94);
     }
     edges.forEach((e,ei)=>{
       const bays=Math.max(1,Math.min(8,Math.floor(e.len/2.45))),bay=e.len/bays,ux=(e.b.x-e.a.x)/e.len,uy=(e.b.y-e.a.y)/e.len,panes=[];
@@ -1956,17 +2009,17 @@ function buildRoads(){
 
   const sidewalkGeo=buildStrips(roads,5.2,.135);
   if(sidewalkGeo){
-    const sidewalk=new THREE.Mesh(sidewalkGeo,new THREE.MeshStandardMaterial({map:wallTex,color:0x77766f,roughness:1,metalness:0}));
+    const sidewalk=new THREE.Mesh(sidewalkGeo,concretePbrMaterial);
     sidewalk.receiveShadow=true;roadLayer.add(sidewalk);addStaticPhysicsGeometry(sidewalkGeo,'sidewalks',.96);
   }
   const curbGeo=buildStrips(roads,2.3,.155);
   if(curbGeo){
-    const curb=new THREE.Mesh(curbGeo,new THREE.MeshStandardMaterial({map:wallTex,color:0x5f625e,roughness:.98}));
+    const curb=new THREE.Mesh(curbGeo,concretePbrMaterial);
     curb.receiveShadow=true;roadLayer.add(curb);
   }
   const rg=buildStrips(roads,0,.19);
   if(rg){
-    const mesh=new THREE.Mesh(rg,new THREE.MeshStandardMaterial({map:asphaltTex,color:0x3c4140,roughness:.94,metalness:.02}));
+    const mesh=new THREE.Mesh(rg,asphaltPbrMaterial);
     mesh.receiveShadow=true;roadLayer.add(mesh);addStaticPhysicsGeometry(rg,'roads',.88);
   }
   const centerLines=buildRoadCenterLines(roads);if(centerLines)roadLayer.add(centerLines);
@@ -5891,6 +5944,34 @@ async function boot(){
         pointerLockSupported:Boolean(renderer.domElement.requestPointerLock),
         pointerLocked:mouseLookLocked,
         settingsPanel:Boolean($('controlSettings'))
+      }),
+      pbrSurfaceProbe:()=>({
+        source:streetLifeStats.pbrSource||null,
+        resolution:streetLifeStats.pbrResolution||null,
+        runtimeApiDependency:streetLifeStats.pbrRuntimeApiDependency,
+        requested:horizonPbrStatus.requested,
+        loaded:horizonPbrStatus.loaded,
+        failed:horizonPbrStatus.failed,
+        terrain:{
+          diffuse:Boolean(terrainPbrMaterial.map?.image),
+          normal:Boolean(terrainPbrMaterial.normalMap?.image),
+          roughness:Boolean(terrainPbrMaterial.roughnessMap?.image)
+        },
+        asphalt:{
+          diffuse:Boolean(asphaltPbrMaterial.map?.image),
+          normal:Boolean(asphaltPbrMaterial.normalMap?.image),
+          roughness:Boolean(asphaltPbrMaterial.roughnessMap?.image)
+        },
+        brick:{
+          diffuse:Boolean(buildingMaterials.brick.map?.image),
+          normal:Boolean(buildingMaterials.brick.normalMap?.image),
+          roughness:Boolean(buildingMaterials.brick.roughnessMap?.image)
+        },
+        concrete:{
+          diffuse:Boolean(buildingMaterials.concrete.map?.image),
+          normal:Boolean(buildingMaterials.concrete.normalMap?.image),
+          roughness:Boolean(buildingMaterials.concrete.roughnessMap?.image)
+        }
       }),
       loadingLodProbe:()=>({
         mobile:MOBILE_GPU_SAFE,
