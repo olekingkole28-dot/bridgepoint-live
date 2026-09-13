@@ -1393,31 +1393,48 @@ function buildRoofTraversalNetwork(){
   ziplines=[];
   const origin=playerRoot?.position||playerSpawn,maxLines=MOBILE_GPU_SAFE?7:14;
   const candidates=[...buildingEntries]
-    .filter(e=>e.height>8&&e.width>4&&e.depth>4)
+    .filter(e=>e.height>7&&e.width>3.5&&e.depth>3.5)
     .sort((a,b)=>((a.x-origin.x)**2+(a.y-origin.y)**2)-((b.x-origin.x)**2+(b.y-origin.y)**2))
-    .slice(0,MOBILE_GPU_SAFE?34:70);
-  const used=new Set(),cableMat=new THREE.LineBasicMaterial({color:0x292d2b,transparent:true,opacity:.95});
+    .slice(0,MOBILE_GPU_SAFE?60:110);
+  const cableMat=new THREE.LineBasicMaterial({color:0x292d2b,transparent:true,opacity:.95});
   const anchorMat=new THREE.MeshStandardMaterial({color:0x4c514e,roughness:.72,metalness:.45});
-  for(const a of candidates){
-    if(ziplines.length>=maxLines||used.has(a.id))continue;
-    let best=null,bestD=Infinity;
-    for(const b of candidates){
-      if(a===b||used.has(b.id))continue;
-      const d=Math.hypot(a.x-b.x,a.y-b.y),hd=Math.abs(sourceRoofZ(a)-sourceRoofZ(b));
-      if(d<14||d>92||hd>24||d>=bestD)continue;
-      best=b;bestD=d;
-    }
-    if(!best)continue;
-    used.add(a.id);used.add(best.id);
-    const start=roofAnchorPoint(a),end=roofAnchorPoint(best),length=start.distanceTo(end),points=[];
-    for(let i=0;i<=18;i++)points.push(ziplinePoint({start,end,length},i/18));
+  const pairKeys=new Set();
+  const addPair=(a,b)=>{
+    if(!a||!b||a===b||ziplines.length>=maxLines)return false;
+    const key=[a.id,b.id].sort().join('|');if(pairKeys.has(key))return false;
+    const start=roofAnchorPoint(a),end=roofAnchorPoint(b),length=start.distanceTo(end);
+    if(length<7||length>190)return false;
+    const points=[];for(let i=0;i<=18;i++)points.push(ziplinePoint({start,end,length},i/18));
     const geom=new THREE.BufferGeometry().setFromPoints(points),lineMesh=new THREE.Line(geom,cableMat.clone());
     const aPost=new THREE.Mesh(new THREE.CylinderGeometry(.07,.09,1.25,7),anchorMat),bPost=aPost.clone();
     aPost.position.copy(start).add(new THREE.Vector3(0,0,-.62));bPost.position.copy(end).add(new THREE.Vector3(0,0,-.62));
     ziplineGroup.add(lineMesh,aPost,bPost);
-    ziplines.push({id:'zip-'+a.id+'-'+best.id,a,b,start,end,length,lineMesh});
+    ziplines.push({id:'zip-'+a.id+'-'+b.id,a,b,start,end,length,lineMesh});pairKeys.add(key);return true;
+  };
+  const used=new Set();
+  // Preferred network: close-ish rooftops with a moderate vertical difference.
+  for(const a of candidates){
+    if(ziplines.length>=maxLines||used.has(a.id))continue;
+    let best=null,bestScore=Infinity;
+    for(const b of candidates){
+      if(a===b||used.has(b.id))continue;
+      const d=Math.hypot(a.x-b.x,a.y-b.y),hd=Math.abs(sourceRoofZ(a)-sourceRoofZ(b));
+      if(d<10||d>125||hd>48)continue;
+      const score=d+hd*.7;if(score<bestScore){best=b;bestScore=score}
+    }
+    if(best&&addPair(a,best)){used.add(a.id);used.add(best.id)}
+  }
+  // Deterministic fallback: never leave a valid streamed urban cell with rooftop
+  // access but no traversal cable simply because nearby roofs have very different heights.
+  if(!ziplines.length&&candidates.length>1){
+    for(let i=0;i<Math.min(candidates.length,18)&&ziplines.length<Math.min(4,maxLines);i++){
+      const a=candidates[i];
+      const options=candidates.filter(b=>b!==a).map(b=>({b,d:Math.hypot(a.x-b.x,a.y-b.y)})).filter(x=>x.d>=7&&x.d<=180).sort((x,y)=>x.d-y.d);
+      if(options.length)addPair(a,options[0].b);
+    }
   }
   streetLifeStats.roofZiplines=ziplines.length;
+  streetLifeStats.roofZiplineFallback=Boolean(ziplines.length&&used.size===0);
   return ziplines.length;
 }
 function enterRooftop(entry){
