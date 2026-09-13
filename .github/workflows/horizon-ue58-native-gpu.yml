@@ -2,11 +2,6 @@ name: Horizon UE5.8 Native GPU Build
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'unreal/BridgePointHorizon/**'
-      - '.github/workflows/horizon-ue58-native-gpu.yml'
 
 concurrency:
   group: horizon-ue58-native-gpu
