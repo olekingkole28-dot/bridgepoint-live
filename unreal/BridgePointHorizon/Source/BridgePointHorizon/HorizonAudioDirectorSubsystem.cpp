@@ -1,5 +1,8 @@
 #include "HorizonAudioDirectorSubsystem.h"
 
+#include "Engine/GameInstance.h"
+#include "HorizonAutopilotSubsystem.h"
+
 void UHorizonAudioDirectorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
@@ -129,6 +132,29 @@ FHorizonAudioMixState UHorizonAudioDirectorSubsystem::GetMixState(EHorizonGameMo
         Mix.bProximityVoiceEnabled = true;
         Mix.bPartyOrTeamVoiceEnabled = true;
         Mix.VoiceProximityMaxDistanceCm = Mode == EHorizonGameMode::InfiniteTDM ? 2800.0f : 3600.0f;
+    }
+
+    if (const UGameInstance* GameInstance = GetGameInstance())
+    {
+        if (UWorld* World = GameInstance->GetWorld())
+        {
+            if (const UHorizonAutopilotSubsystem* Autopilot = World->GetSubsystem<UHorizonAutopilotSubsystem>())
+            {
+                const FHorizonAutopilotProfile Profile = Autopilot->GetProfile();
+                Mix.DetailScale = FMath::Clamp(Profile.WorldDetailScale, 0.45f, 1.0f);
+                Mix.SuggestedMaxWorldVoices = FMath::RoundToInt(
+                    FMath::Lerp(40.0f, 128.0f, Mix.DetailScale));
+                Mix.DistantVirtualizationDistanceCm = FMath::Lerp(
+                    8500.0f,
+                    26000.0f,
+                    Mix.DetailScale);
+
+                // Preserve gameplay-critical voice, weapon and threat cues first.
+                // Only ambient/horde bed richness is reduced under performance pressure.
+                Mix.HordeBedGain *= FMath::Lerp(0.72f, 1.0f, Mix.DetailScale);
+                Mix.WeatherGain *= FMath::Lerp(0.78f, 1.0f, Mix.DetailScale);
+            }
+        }
     }
 
     return Mix;
