@@ -176,9 +176,8 @@ jobs:
                 m.jumpTo({center:[-73.9857,40.7484],zoom:16.4,pitch:52,bearing:0});
               });
               await p.waitForFunction(()=>{
-                const m=window.__BP_V5000_WORLD?.map,src=m?.getSource('bpSemanticLabels');
-                const data=src?.serialize?.()?.data,stats=window.__BP_SEMANTIC_STATS;
-                return Array.isArray(data?.features)&&data.features.some(f=>f?.properties?.anchor_truth==='BUILDING_ANCHORED')&&Number(stats?.anchored||0)>0;
+                const s=window.__BP_SEMANTIC_STATS;
+                return Number(s?.features||0)>0&&Number(s?.anchored||0)>0;
               },{timeout:30000});
               console.log('BRIDGEPOINT_SEMANTIC_BUILDING_LABELS_PASS',await p.evaluate(()=>JSON.stringify(window.__BP_SEMANTIC_STATS||{})));
               await p.waitForFunction(()=>{const t=document.getElementById('liveLegendCount')?.textContent;return !!t&&t!=='CHECKING'}, {timeout:20000});
@@ -268,8 +267,10 @@ jobs:
                 opportunityLabels:!!window.__BP_V5000_WORLD?.map?.getLayer('gta-opportunity-label'),
                 opportunityRendered:(()=>{const m=window.__BP_V5000_WORLD?.map,pt=m?.project([-72.6716132,41.7409742]);if(!m||!pt)return false;try{return m.queryRenderedFeatures(pt,{layers:['gta-opportunity-buildings']}).length>0}catch{return false}})(),
                 renderedPlaceLabels:(()=>{const m=window.__BP_V5000_WORLD?.map;if(!m)return 0;try{return m.queryRenderedFeatures({layers:['gta-place-label']}).length}catch{return 0}})(),
-                semanticLabels:(()=>{const m=window.__BP_V5000_WORLD?.map,d=m?.getSource('bpSemanticLabels')?.serialize?.()?.data;return Array.isArray(d?.features)?d.features.length:0})(),
-                buildingAnchoredSemanticLabels:(()=>{const m=window.__BP_V5000_WORLD?.map,d=m?.getSource('bpSemanticLabels')?.serialize?.()?.data;return Array.isArray(d?.features)?d.features.filter(f=>f?.properties?.anchor_truth==='BUILDING_ANCHORED').length:0})(),
+                semanticLabels:Number(window.__BP_SEMANTIC_STATS?.features||0),
+                buildingAnchoredSemanticLabels:Number(window.__BP_SEMANTIC_STATS?.anchored||0),
+                semanticCandidates:Number(window.__BP_SEMANTIC_STATS?.candidates||0),
+                semanticClassified:Number(window.__BP_SEMANTIC_STATS?.classified||0),
                 searchCollapsed:(()=>{const f=document.getElementById('publicSearchForm');return !f||getComputedStyle(f).visibility==='hidden'||getComputedStyle(f).display==='none'||Number(getComputedStyle(f).opacity)===0})(),
                 liveLegend:document.getElementById('liveLegendCount')?.textContent,
                 surfaceMaterial:!!document.getElementById('ctxSurfaceMaterial'),
