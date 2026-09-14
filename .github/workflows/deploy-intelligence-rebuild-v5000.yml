@@ -285,8 +285,8 @@ jobs:
                 m.fire('click',{lngLat:{lng:c.lng+.0015,lat:c.lat}});
               });
               await p.waitForFunction(()=>{
-                const d=window.__BP_V5000_WORLD?.map?.getSource('bpMeasure')?.serialize?.()?.data;
-                return Array.isArray(d?.features)&&d.features.some(f=>f?.geometry?.type==='LineString')&&d.features.some(f=>f?.geometry?.type==='Polygon');
+                const s=window.__BP_MEASURE_STATE__;
+                return Number(s?.pointCount)>=3&&s?.hasLine===true&&s?.hasPolygon===true&&Number(s?.areaM2)>0&&Number(s?.totalDistanceM)>0;
               },{timeout:5000});
               console.log('BRIDGEPOINT_MEASURE_PASS');
 
@@ -312,7 +312,7 @@ jobs:
                 semanticCandidates:Number(window.__BP_SEMANTIC_STATS?.candidates||0),
                 semanticClassified:Number(window.__BP_SEMANTIC_STATS?.classified||0),
                 xrayFloorCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('bpV5041XrayFloors')?.serialize?.()?.data;return d?.features?.length||0})(),
-                measureFeatureCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('bpMeasure')?.serialize?.()?.data;return d?.features?.length||0})(),
+                measureFeatureCount:Number(window.__BP_MEASURE_STATE__?.featureCount||0),
                 touchZoomEnabled:!!window.__BP_V5000_WORLD?.map?.touchZoomRotate?.isEnabled?.(),
                 dragPanEnabled:!!window.__BP_V5000_WORLD?.map?.dragPan?.isEnabled?.(),
                 searchCollapsed:(()=>{const f=document.getElementById('publicSearchForm');return !f||getComputedStyle(f).visibility==='hidden'||getComputedStyle(f).display==='none'||Number(getComputedStyle(f).opacity)===0})(),
