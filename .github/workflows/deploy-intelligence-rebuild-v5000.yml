@@ -163,6 +163,12 @@ jobs:
                 const m=window.__BP_V5000_WORLD?.map;
                 return !!m?.getLayer('gta-place-label')&&!!m?.getLayer('gta-road-label-major')&&!!m?.getLayer('gta-poi-label')&&!!m?.getLayer('gta-opportunity-buildings')&&!!m?.getLayer('gta-opportunity-label');
               },{timeout:15000});
+              await p.waitForFunction(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                if(!m)return false;
+                try{return m.queryRenderedFeatures({layers:['gta-place-label']}).length>0}catch{return false}
+              },{timeout:15000});
+              console.log('BRIDGEPOINT_TEXT_LABELS_RENDERED');
               await p.waitForFunction(()=>{const t=document.getElementById('liveLegendCount')?.textContent;return !!t&&t!=='CHECKING'}, {timeout:20000});
               await p.waitForFunction(()=>getComputedStyle(document.getElementById('systemPanel')).display==='none',{timeout:5000});
               console.log('BRIDGEPOINT_MOBILE_STATUS_PANEL_CLOSED');
@@ -170,18 +176,18 @@ jobs:
               await p.evaluate(()=>{
                 const map=window.__BP_V5000_WORLD?.map;
                 if(!map)throw new Error('map unavailable');
-                map.jumpTo({center:[-72.6496132448291,41.5608854939201],zoom:18,pitch:58,bearing:0});
+                map.jumpTo({center:[-72.6716132,41.7409742],zoom:18,pitch:58,bearing:0});
               });
               await p.waitForFunction(()=>{
                 const map=window.__BP_V5000_WORLD?.map;
                 if(!map)return false;
-                const pt=map.project([-72.6496132448291,41.5608854939201]);
-                const layers=['gta-exact-building','gta-bp-buildings'].filter(id=>map.getLayer(id));
+                const pt=map.project([-72.6716132,41.7409742]);
+                const layers=['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings'].filter(id=>map.getLayer(id));
                 if(!layers.length)return false;
                 try{return map.queryRenderedFeatures(pt,{layers}).length>0}catch{return false}
               },{timeout:25000});
               const clickPoint=await p.evaluate(()=>{
-                const pt=window.__BP_V5000_WORLD.map.project([-72.6496132448291,41.5608854939201]);
+                const pt=window.__BP_V5000_WORLD.map.project([-72.6716132,41.7409742]);
                 return {x:pt.x,y:pt.y};
               });
               const canvas=await p.$('#liveMap canvas');
@@ -197,7 +203,7 @@ jobs:
                 await p.evaluate(()=>{
                   const w=window.__BP_V5000_WORLD,map=w?.map;
                   if(!map)throw new Error('PROGRAMMATIC_MAP_MISSING');
-                  const layers=['gta-exact-building','gta-bp-buildings'].filter(id=>map.getLayer(id));
+                  const layers=['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings'].filter(id=>map.getLayer(id));
                   const canvas=map.getCanvas(),r=canvas.getBoundingClientRect();
                   let chosen=null;
                   for(let y=Math.round(r.height*.25);y<=Math.round(r.height*.78)&&!chosen;y+=24){
@@ -206,7 +212,13 @@ jobs:
                     }
                   }
                   if(!chosen)throw new Error('NO_RENDERED_BRIDGEPOINT_BUILDING_FOR_FALLBACK');
-                  if(!w.selectBuildingAtPoint(chosen))throw new Error('PROGRAMMATIC_BUILDING_HIT_TEST_FAILED');
+                  const hits=map.queryRenderedFeatures(chosen,{layers});
+                  const hit=hits[0];
+                  if(!hit)throw new Error('PROGRAMMATIC_BUILDING_FEATURE_MISSING');
+                  const lngLat=map.unproject(chosen);
+                  const feature={type:'Feature',geometry:hit.geometry,properties:{...(hit.properties||{})},id:hit.id,layer:{id:hit.layer?.id||''}};
+                  if(typeof window.__BP_V5000_SELECT_BUILDING__!=='function')throw new Error('PUBLIC_BUILDING_SELECTOR_MISSING');
+                  window.__BP_V5000_SELECT_BUILDING__({lngLat,feature});
                 });
                 await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===false,{timeout:5000});
               }
@@ -238,6 +250,8 @@ jobs:
                 poiLabels:!!window.__BP_V5000_WORLD?.map?.getLayer('gta-poi-label'),
                 opportunityBuildings:!!window.__BP_V5000_WORLD?.map?.getLayer('gta-opportunity-buildings'),
                 opportunityLabels:!!window.__BP_V5000_WORLD?.map?.getLayer('gta-opportunity-label'),
+                opportunityRendered:(()=>{const m=window.__BP_V5000_WORLD?.map,pt=m?.project([-72.6716132,41.7409742]);if(!m||!pt)return false;try{return m.queryRenderedFeatures(pt,{layers:['gta-opportunity-buildings']}).length>0}catch{return false}})(),
+                renderedPlaceLabels:(()=>{const m=window.__BP_V5000_WORLD?.map;if(!m)return 0;try{return m.queryRenderedFeatures({layers:['gta-place-label']}).length}catch{return 0}})(),
                 searchCollapsed:(()=>{const f=document.getElementById('publicSearchForm');return !f||getComputedStyle(f).visibility==='hidden'||getComputedStyle(f).display==='none'||Number(getComputedStyle(f).opacity)===0})(),
                 liveLegend:document.getElementById('liveLegendCount')?.textContent,
                 surfaceMaterial:!!document.getElementById('ctxSurfaceMaterial'),
@@ -257,7 +271,7 @@ jobs:
                 buildingResolutionMethod:document.getElementById('bProvPolicy')?.textContent,
                 buildingTruthBadge:document.getElementById('buildingTruthBadge')?.textContent
               }));
-              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.placeLabels||!out.roadLabels||!out.poiLabels||!out.opportunityBuildings||!out.opportunityLabels||!out.searchCollapsed||!out.liveLegend||out.liveLegend==='CHECKING'||!out.surfaceMaterial||!out.surfaceSource||!out.transportArchive||out.transportArchive==='—'||!out.transportRuntime||out.transportRuntime==='—'||!out.buildingPanelVisible||!out.buildingHeight||out.buildingHeight==='—'||!out.buildingFloors||out.buildingFloors==='—'||!out.buildingSource||out.buildingSource==='—'||!out.buildingFootprint||!out.buildingDataset||out.selectedBuildingCount!==1||out.selectedParcelCount!==0||out.legacySelectedCount!==0)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
+              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.placeLabels||!out.roadLabels||!out.poiLabels||!out.opportunityBuildings||!out.opportunityLabels||!out.opportunityRendered||out.renderedPlaceLabels<1||!out.searchCollapsed||!out.liveLegend||out.liveLegend==='CHECKING'||!out.surfaceMaterial||!out.surfaceSource||!out.transportArchive||out.transportArchive==='—'||!out.transportRuntime||out.transportRuntime==='—'||!out.buildingPanelVisible||!out.buildingHeight||out.buildingHeight==='—'||!out.buildingFloors||out.buildingFloors==='—'||!out.buildingSource||out.buildingSource==='—'||!out.buildingFootprint||!out.buildingDataset||out.selectedBuildingCount!==1||out.selectedParcelCount!==0||out.legacySelectedCount!==0)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
               console.log('BRIDGEPOINT_V5000_ANDROID_PASS',JSON.stringify(out));
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
