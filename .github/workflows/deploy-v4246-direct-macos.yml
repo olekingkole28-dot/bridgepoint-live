@@ -1,98 +1,14 @@
-# native-stream-gate-v4248
-name: Direct Publish V4246 Durable Artifact macOS
+name: BridgePoint V5000 Legacy Frontend Neutralizer
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/deploy-v4246-direct-macos.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: bridgepoint-v4246-direct-pages
-  cancel-in-progress: true
 
 jobs:
-  publish:
-    runs-on: macos-14
-    timeout-minutes: 15
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  neutralized:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
     steps:
-      - name: Checkout durable production artifact
-        uses: actions/checkout@v4
-        with:
-          ref: live-artifact
-          fetch-depth: 1
-
-      - name: Validate durable V4246
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s index.html
-          test -s app/horizon/index.html
-          test -s app/horizon/preview.html
-          test -s app/horizon/native/index.html
-          test -s app/horizon-playable/horizon-world.js
-          test -s app/bridgepoint-world-v2652/index.html
-          test -s app/bridgepoint-world-v2652/world-v4246-dateline-guard.js
-          grep -Fq 'id="bridgepoint-world"' index.html
-          grep -Fq '<div class="b2b-horizon-cross">' index.html
-          grep -Fq 'id="game-modes"' app/horizon/index.html
-          grep -Fq 'Infinite Team Deathmatch' app/horizon/index.html
-          grep -Fq 'Outbreak Raid' app/horizon/index.html
-          grep -Fq 'horizon-world.js?v=4246' app/horizon/preview.html
-          grep -Fq 'const BUILD_VERSION=4246;' app/horizon-playable/horizon-world.js
-          grep -Fq 'HORIZON_EVENT_ENDPOINT' app/horizon-playable/horizon-world.js
-          grep -Fq 'world-v4246-dateline-guard.js?v=4246' app/bridgepoint-world-v2652/index.html
-          grep -Fq '__bpDatelineGuardV4246' app/bridgepoint-world-v2652/world-v4246-dateline-guard.js
-
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
-      - uses: actions/upload-pages-artifact@v4
-        with:
-          path: .
-
-      - name: Deploy durable V4246
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Verify V4246 on custom domain
-        shell: bash
-        run: |
-          set -euo pipefail
-          O='https://bridgepointintelligence.online'
-          ok=0
-          for i in $(seq 1 40); do
-            q="${GITHUB_SHA}-${i}-$(date +%s)"
-            rm -f /tmp/root /tmp/h /tmp/p /tmp/n /tmp/w /tmp/g
-            curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "$O/?v=$q" -o /tmp/root 2>/dev/null || true
-            curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "$O/app/horizon/?v=$q" -o /tmp/h 2>/dev/null || true
-            curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "$O/app/horizon/preview.html?v=$q" -o /tmp/p 2>/dev/null || true
-            curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "$O/app/horizon/native/?v=$q" -o /tmp/n 2>/dev/null || true
-            curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "$O/app/bridgepoint-world-v2652/?v=$q" -o /tmp/w 2>/dev/null || true
-            curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "$O/app/bridgepoint-world-v2652/world-v4246-dateline-guard.js?v=$q" -o /tmp/g 2>/dev/null || true
-            if grep -Fq 'id="bridgepoint-world"' /tmp/root 2>/dev/null \
-              && grep -Fq '<div class="b2b-horizon-cross">' /tmp/root 2>/dev/null \
-              && grep -Fq 'id="game-modes"' /tmp/h 2>/dev/null \
-              && grep -Fq 'Infinite Team Deathmatch' /tmp/h 2>/dev/null \
-              && grep -Fq 'Outbreak Raid' /tmp/h 2>/dev/null \
-              && grep -Fq 'horizon-world.js?v=4246' /tmp/p 2>/dev/null \
-              && grep -Fq 'REAL NATIVE STREAM GATE' /tmp/n 2>/dev/null \
-              && grep -Fq 'bridgepoint-horizon-native-stream-v4248' /tmp/n 2>/dev/null \
-              && grep -Fq 'world-v4246-dateline-guard.js?v=4246' /tmp/w 2>/dev/null \
-              && grep -Fq '__bpDatelineGuardV4246' /tmp/g 2>/dev/null; then
-              echo 'DIRECT_V4246_MACOS_CUSTOM_DOMAIN_LIVE'
-              exit 0
-            fi
-            sleep 5
-          done
-          exit 1
+      - run: echo "Public frontend deployment retired. BridgePoint Intelligence V5000 owns GitHub Pages."
