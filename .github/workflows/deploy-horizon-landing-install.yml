@@ -1,14 +1,11 @@
-name: Deploy Horizon Landing Install
+name: Deploy Horizon Single Surface
 
 on:
   push:
     branches: [main]
     paths:
-      - 'app/horizon/index.html'
-      - 'app/horizon/lobby.html'
-      - 'app/horizon/manifest.webmanifest'
-      - 'app/horizon/horizon-mark.svg'
-      - 'app/horizon/sw.js'
+      - 'app/horizon/**'
+      - '.github/workflows/deploy-horizon-landing-install.yml'
   workflow_dispatch:
 
 permissions:
@@ -35,7 +32,7 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Overlay only Horizon landing assets onto current production
+      - name: Overlay canonical Horizon surface onto current production
         shell: bash
         run: |
           set -euo pipefail
@@ -45,41 +42,37 @@ jobs:
           git archive --format=tar origin/live-artifact | tar -xf - -C site
 
           mkdir -p site/app/horizon
-          cp app/horizon/index.html site/app/horizon/index.html
-          cp app/horizon/lobby.html site/app/horizon/lobby.html
-          cp app/horizon/manifest.webmanifest site/app/horizon/manifest.webmanifest
-          cp app/horizon/horizon-mark.svg site/app/horizon/horizon-mark.svg
-          cp app/horizon/sw.js site/app/horizon/sw.js
+          cp -a app/horizon/. site/app/horizon/
           touch site/.nojekyll site/app/.nojekyll
 
-      - name: Validate Horizon install landing without touching playable
+      - name: Validate single-surface Horizon package
         shell: bash
         run: |
           set -euo pipefail
-          test -s site/app/horizon/index.html
-          test -s site/app/horizon/lobby.html
-          test -s site/app/horizon/manifest.webmanifest
-          test -s site/app/horizon/horizon-mark.svg
-          test -s site/app/horizon/sw.js
-          test -s site/app/horizon/preview.html
-          test -s site/app/horizon-playable/horizon-world.js
-          grep -Fq 'id="installAppPrompt"' site/app/horizon/index.html
-          grep -Fq 'beforeinstallprompt' site/app/horizon/index.html
-          grep -Fq 'id="game-modes"' site/app/horizon/index.html
-          grep -Fq './lobby.html?mode=year_one_survival' site/app/horizon/index.html
-          grep -Fq './lobby.html?mode=infinite_tdm' site/app/horizon/index.html
-          grep -Fq './lobby.html?mode=outbreak_raid' site/app/horizon/index.html
-          grep -Fq 'YEAR ONE SURVIVAL' site/app/horizon/index.html
-          grep -Fq 'INFINITE TEAM DEATHMATCH' site/app/horizon/index.html
-          grep -Fq 'OUTBREAK RAID' site/app/horizon/index.html
-          ! grep -Fq 'ENTER THE CONTINUOUS HORIZON WORLD' site/app/horizon/index.html
-          grep -Fq "u.searchParams.set('mode',mode)" site/app/horizon/lobby.html
-          grep -Fq 'bridgepoint-horizon-survivor-v3050' site/app/horizon/lobby.html
-          grep -Fq '"display": "standalone"' site/app/horizon/manifest.webmanifest
-          grep -Fq '"id": "/app/horizon/"' site/app/horizon/manifest.webmanifest
-          grep -Fq '"sizes": "192x192"' site/app/horizon/manifest.webmanifest
-          grep -Fq '"sizes": "512x512"' site/app/horizon/manifest.webmanifest
-          grep -Fq '"prefer_related_applications": false' site/app/horizon/manifest.webmanifest
+          for f in index.html styles.css app.js runtime-contract.js lobby-scene.js model-preview.js manifest.webmanifest horizon-mark.svg sw.js; do
+            test -s "site/app/horizon/${f}"
+          done
+          test -s site/app/horizon-playable/horizon-v2.js
+
+          grep -Fq 'id="lobby3d"' site/app/horizon/index.html
+          grep -Fq 'id="installBanner"' site/app/horizon/index.html
+          grep -Fq 'data-mode="YEAR_ONE"' site/app/horizon/index.html
+          grep -Fq 'data-mode="TDM"' site/app/horizon/index.html
+          grep -Fq 'data-mode="EXTRACTION"' site/app/horizon/index.html
+          grep -Fq 'data-mode="ISLAND_SOLO_8"' site/app/horizon/index.html
+          grep -Fq 'WATCH LIVE' site/app/horizon/index.html
+          grep -Fq 'BATTLE PASS' site/app/horizon/index.html
+          grep -Fq 'bridgepoint_horizon_catalog_v4310' site/app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_year_one_status_v4310' site/app/horizon/app.js
+          grep -Fq 'createLobbyScene' site/app/horizon/app.js
+          grep -Fq 'beforeinstallprompt' site/app/horizon/app.js
+          grep -Fq 'horizon-installed-v4311' site/app/horizon/app.js
+          grep -Fq '"id":"/app/horizon/"' site/app/horizon/manifest.webmanifest
+          grep -Fq '"start_url":"/app/horizon/?source=pwa"' site/app/horizon/manifest.webmanifest
+          grep -Fq '"scope":"/app/horizon/"' site/app/horizon/manifest.webmanifest
+          grep -Fq '"display":"standalone"' site/app/horizon/manifest.webmanifest
+          grep -Fq '"sizes":"192x192"' site/app/horizon/manifest.webmanifest
+          grep -Fq '"sizes":"512x512"' site/app/horizon/manifest.webmanifest
           ! grep -Fq '/app/intelligence-launch/' site/app/horizon/index.html
 
       - name: Save durable live artifact
@@ -88,16 +81,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf /tmp/bp-horizon-landing-live
-          mkdir -p /tmp/bp-horizon-landing-live
-          cp -a site/. /tmp/bp-horizon-landing-live/
-          cd /tmp/bp-horizon-landing-live
+          rm -rf /tmp/bp-horizon-live
+          mkdir -p /tmp/bp-horizon-live
+          cp -a site/. /tmp/bp-horizon-live/
+          cd /tmp/bp-horizon-live
           git init -q
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m "Publish Horizon landing install surface ${GITHUB_SHA}"
+          git commit -m "Publish canonical Horizon surface ${GITHUB_SHA}"
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -123,34 +116,16 @@ jobs:
           ok=0
           for i in $(seq 1 30); do
             q="${GITHUB_SHA}-${i}-$(date +%s)"
-            rm -f /tmp/h
             curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}?v=${q}" -o /tmp/h 2>/dev/null || true
-            if grep -Fq 'id="installAppPrompt"' /tmp/h 2>/dev/null \
-              && grep -Fq 'beforeinstallprompt' /tmp/h 2>/dev/null \
-              && grep -Fq 'id="game-modes"' /tmp/h 2>/dev/null \
-              && grep -Fq './lobby.html?mode=year_one_survival' /tmp/h 2>/dev/null \
-              && grep -Fq './lobby.html?mode=infinite_tdm' /tmp/h 2>/dev/null \
-              && grep -Fq './lobby.html?mode=outbreak_raid' /tmp/h 2>/dev/null \
-              && grep -Fq 'YEAR ONE SURVIVAL' /tmp/h 2>/dev/null \
-              && grep -Fq 'INFINITE TEAM DEATHMATCH' /tmp/h 2>/dev/null \
-              && grep -Fq 'OUTBREAK RAID' /tmp/h 2>/dev/null \
-              && ! grep -Fq 'ENTER THE CONTINUOUS HORIZON WORLD' /tmp/h 2>/dev/null \
-              && ! grep -Fq '/app/intelligence-launch/' /tmp/h 2>/dev/null; then
-              ok=1
-              echo 'HORIZON_LANDING_INSTALL_LIVE'
-              break
+            if grep -Fq 'id="lobby3d"' /tmp/h               && grep -Fq 'data-mode="ISLAND_SOLO_8"' /tmp/h               && grep -Fq 'id="installBanner"' /tmp/h               && grep -Fq 'WATCH LIVE' /tmp/h; then
+              curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}app.js?v=${q}" -o /tmp/a 2>/dev/null || true
+              curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}lobby-scene.js?v=${q}" -o /tmp/s 2>/dev/null || true
+              if grep -Fq 'bridgepoint_horizon_catalog_v4310' /tmp/a                 && grep -Fq 'createLobbyScene' /tmp/a                 && grep -Fq 'ensureZombies' /tmp/s; then
+                ok=1
+                echo 'HORIZON_SINGLE_SURFACE_LIVE'
+                break
+              fi
             fi
             sleep 4
           done
           test "${ok}" = 1
-
-          lobby_ok=0
-          for mode in year_one_survival infinite_tdm outbreak_raid; do
-            rm -f /tmp/lobby
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "https://bridgepointintelligence.online/app/horizon/lobby.html?mode=${mode}&v=${GITHUB_SHA}" -o /tmp/lobby
-            grep -Fq 'HORIZON LOBBY' /tmp/lobby
-            grep -Fq "u.searchParams.set('mode',mode)" /tmp/lobby
-            grep -Fq "${mode}" site/app/horizon/index.html
-          done
-          lobby_ok=1
-          test "${lobby_ok}" = 1
