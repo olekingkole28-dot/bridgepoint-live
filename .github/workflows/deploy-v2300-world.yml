@@ -43,6 +43,7 @@ jobs:
 
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o app/vendor/maplibre-gl-v1995.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o app/vendor/maplibre-gl-v1995.css
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.core.min.js -o app/vendor/three.core.min.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.min.js -o app/vendor/three.module.min.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js -o app/vendor/OrbitControls.js
           sed -i "s/from 'three'/from '.\/three.module.min.js'/g; s/from \"three\"/from \".\/three.module.min.js\"/g" app/vendor/OrbitControls.js
@@ -99,6 +100,7 @@ jobs:
           test ! -f app/map-v1997-weather-hotfix.js
           test -s app/vendor/maplibre-gl-v1995.js
           test -s app/vendor/maplibre-gl-v1995.css
+          test -s app/vendor/three.core.min.js
           test -s app/vendor/three.module.min.js
           test -s app/vendor/OrbitControls.js
 
@@ -161,7 +163,7 @@ jobs:
           CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
           rm -rf /tmp/bpcore && mkdir -p /tmp/bpcore/vendor
           cp app/world-v2300-*.js app/world-v2300.css /tmp/bpcore/
-          cp app/vendor/maplibre-gl-v1995.js app/vendor/maplibre-gl-v1995.css app/vendor/three.module.min.js app/vendor/OrbitControls.js /tmp/bpcore/vendor/
+          cp app/vendor/maplibre-gl-v1995.js app/vendor/maplibre-gl-v1995.css app/vendor/three.core.min.js app/vendor/three.module.min.js app/vendor/OrbitControls.js /tmp/bpcore/vendor/
           cat >/tmp/bpcore/index.html <<'HTML'
           <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./vendor/maplibre-gl-v1995.css"><link rel="stylesheet" href="./world-v2300.css"><style>html,body,section,.map-shell,#liveMap{margin:0;width:100%;height:100%}.map-shell{position:relative;background:#071017}</style></head><body><section data-surface="map" class="active"><form id="mapSearchForm"><input id="mapSearch"></form><button data-base="gta" class="active">GTA</button><button data-base="satellite">Satellite</button><button data-layer="parcels" class="active">P</button><button data-layer="buildings" class="active">B</button><button data-layer="signals" class="active">S</button><button data-layer="radar">R</button><button id="locateMe">L</button><button id="resetMap">X</button><div class="map-shell"><div id="liveMap"></div><div id="mapStatus"></div><div id="mapResults"></div></div></section><script src="./vendor/maplibre-gl-v1995.js"></script><script type="module" src="./world-v2300-bootstrap.js"></script></body></html>
           HTML
