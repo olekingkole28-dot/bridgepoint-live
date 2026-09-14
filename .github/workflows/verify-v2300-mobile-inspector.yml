@@ -52,6 +52,8 @@ jobs:
               const errors=[];
               p.on('pageerror',e=>errors.push(String(e.message||e)));
               p.on('console',m=>console.log('PAGE_CONSOLE',m.type(),m.text()));
+              p.on('response',res=>{if(res.status()===404)console.log('HTTP_404',res.url())});
+              p.on('requestfailed',req=>console.log('REQUEST_FAILED',req.url(),req.failure()?.errorText||''));
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; SM-S731U) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               await p.setRequestInterception(true);
