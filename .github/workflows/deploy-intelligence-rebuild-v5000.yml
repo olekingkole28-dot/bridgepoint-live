@@ -73,6 +73,11 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' site/app.js
           grep -Fq 'bridgepoint_public_building_parts_v5000' site/app.js
           grep -Fq 'bridgepoint_public_foundation_sample_v5011' site/app.js
+          grep -Fq 'prefillBuildingFromFeature' site/app.js
+          grep -Fq 'bFootprintArea' site/app.js
+          grep -Fq 'bProvDataset' site/app.js
+          grep -Fq "11.4,.86,13,.92,15,.97,18,.99" site/world-v2300-map.js
+          ! grep -Fq "map.getSource('selected')?.setData" site/world-v2300-map.js
           grep -Fq 'transportArchive' site/app.js
           grep -Fq 'transportRuntime' site/app.js
           grep -Fq 'bridgepoint-transport-runtime-broker-v2716' site/app.js
@@ -141,6 +146,26 @@ jobs:
               await p.waitForFunction(()=>!!document.getElementById('bpTabContext')&&!!document.getElementById('bXrayUnderground')&&!!document.getElementById('toggleLiveContext')&&!!document.getElementById('ctxSurfaceMaterial')&&!!document.getElementById('ctxSurfaceSource')&&!!document.getElementById('transportArchive')&&!!document.getElementById('transportRuntime'),{timeout:10000});
               await p.waitForFunction(()=>!!window.__BP_V5000_WORLD?.map?.getLayer('bp-v5004-weather-points'),{timeout:25000});
               await p.waitForFunction(()=>{const t=document.getElementById('liveLegendCount')?.textContent;return !!t&&t!=='CHECKING'}, {timeout:20000});
+
+              const clickPoint=await p.evaluate(async()=>{
+                const map=window.__BP_V5000_WORLD?.map;
+                if(!map)throw new Error('map unavailable');
+                map.jumpTo({center:[-65.93490,18.23430],zoom:18,pitch:58,bearing:0});
+                await new Promise(resolve=>map.once('idle',resolve));
+                const pt=map.project([-65.93490,18.23430]);
+                return {x:pt.x,y:pt.y};
+              });
+              const canvas=await p.$('#liveMap canvas');
+              const box=await canvas.boundingBox();
+              await p.mouse.click(box.x+clickPoint.x,box.y+clickPoint.y);
+              await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===false,{timeout:12000});
+              await p.waitForFunction(()=>{
+                const h=document.getElementById('bHeight')?.textContent;
+                const f=document.getElementById('bFloors')?.textContent;
+                const s=document.getElementById('bSource')?.textContent;
+                return h&&h!=='—'&&f&&f!=='—'&&s&&s!=='—';
+              },{timeout:12000});
+
               const out=await p.evaluate(()=>({
                 version:window.__BP_FRONTEND_VERSION,
                 canvases:document.querySelectorAll('#liveMap canvas').length,
@@ -155,9 +180,19 @@ jobs:
                 surfaceMaterial:!!document.getElementById('ctxSurfaceMaterial'),
                 surfaceSource:!!document.getElementById('ctxSurfaceSource'),
                 transportArchive:document.getElementById('transportArchive')?.textContent,
-                transportRuntime:document.getElementById('transportRuntime')?.textContent
+                transportRuntime:document.getElementById('transportRuntime')?.textContent,
+                buildingPanelVisible:document.getElementById('buildingPanel')?.hidden===false,
+                buildingTitle:document.getElementById('buildingTitle')?.textContent,
+                buildingHeight:document.getElementById('bHeight')?.textContent,
+                buildingFloors:document.getElementById('bFloors')?.textContent,
+                buildingSource:document.getElementById('bSource')?.textContent,
+                buildingFootprint:document.getElementById('bFootprintArea')?.textContent,
+                buildingDataset:document.getElementById('bProvDataset')?.textContent,
+                selectedBuildingCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('bpV5000SelectedBuilding')?.serialize?.()?.data;return d?.features?.length||0})(),
+                selectedParcelCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('bpV5001SelectedParcel')?.serialize?.()?.data;return d?.features?.length||0})(),
+                legacySelectedCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('selected')?.serialize?.()?.data;return d?.features?.length||0})()
               }));
-              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.liveLegend||out.liveLegend==='CHECKING'||!out.surfaceMaterial||!out.surfaceSource||!out.transportArchive||out.transportArchive==='—'||!out.transportRuntime||out.transportRuntime==='—')throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
+              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.liveLegend||out.liveLegend==='CHECKING'||!out.surfaceMaterial||!out.surfaceSource||!out.transportArchive||out.transportArchive==='—'||!out.transportRuntime||out.transportRuntime==='—'||!out.buildingPanelVisible||!out.buildingHeight||out.buildingHeight==='—'||!out.buildingFloors||out.buildingFloors==='—'||!out.buildingSource||out.buildingSource==='—'||!out.buildingFootprint||!out.buildingDataset||out.selectedBuildingCount!==1||out.selectedParcelCount!==0||out.legacySelectedCount!==0)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
               console.log('BRIDGEPOINT_V5000_ANDROID_PASS',JSON.stringify(out));
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
