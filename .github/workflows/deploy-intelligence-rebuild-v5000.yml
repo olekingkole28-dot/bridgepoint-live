@@ -70,6 +70,8 @@ jobs:
           grep -Fq 'bridgepoint_frontend_status_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_by_id_v5024' site/app.js
+          grep -Fq 'onBuildingSelect' site/app.js
+          grep -Fq 'onBuildingSelect' site/world-v2300-map.js
           grep -Fq 'bridgepoint_public_context_v5003' site/app.js
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' site/app.js
           grep -Fq 'bridgepoint_public_building_parts_v5000' site/app.js
