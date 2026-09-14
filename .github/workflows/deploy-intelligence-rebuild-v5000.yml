@@ -168,7 +168,7 @@ jobs:
               });
               const canvas=await p.$('#liveMap canvas');
               const box=await canvas.boundingBox();
-              await p.mouse.click(box.x+clickPoint.x,box.y+clickPoint.y);
+              await p.touchscreen.tap(box.x+clickPoint.x,box.y+clickPoint.y);
               await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===false,{timeout:8000});
               console.log('BRIDGEPOINT_BUILDING_CLICK_PANEL_OPEN');
               await p.waitForFunction(()=>{
