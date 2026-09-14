@@ -64,15 +64,19 @@ def sql_list(paths):
 
 def write_geojsonseq(con,paths,kind,out_path):
     src=sql_list(paths)
-    cols={r[0] for r in con.execute(f"DESCRIBE SELECT * FROM read_parquet({src},union_by_name=true)").fetchall()}
+    desc=con.execute(f"DESCRIBE SELECT * FROM read_parquet({src},union_by_name=true)").fetchall()
+    col_types={r[0]:str(r[1]).upper() for r in desc}
+    cols=set(col_types)
     extra=[]
     for name in ("subtype","class"):
         if name in cols:
             extra.append((name,f'cast("{name}" as varchar)'))
     select_extra="".join(","+expr for _,expr in extra)
+    geom_type=col_types.get("geometry","")
+    geom_expr="geometry" if geom_type.startswith("GEOMETRY") else "ST_GeomFromWKB(geometry)"
     cur=con.execute(f"""
       select cast(id as varchar) id,
-             ST_AsGeoJSON(ST_GeomFromWKB(geometry)) geom
+             ST_AsGeoJSON({geom_expr}) geom
              {select_extra}
       from read_parquet({src},union_by_name=true)
       where geometry is not null
