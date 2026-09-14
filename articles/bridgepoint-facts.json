@@ -1,0 +1,35 @@
+{
+  "snapshot_date": "2026-08-21",
+  "company": "BridgePoint Intelligence",
+  "public_origin": "https://bridgepointintelligence.online/",
+  "connecticut": {
+    "market_status": "LIVE",
+    "canonical_property_count": 1282833,
+    "verified_ranked_opportunity_rows": 940,
+    "verticals": {
+      "general_contracting": 456,
+      "property_investment": 342,
+      "restoration": 48,
+      "roofing": 48,
+      "public_adjusting": 45,
+      "development": 1
+    },
+    "roofing_municipality_counts": {
+      "Torrington": 19,
+      "Vernon": 15,
+      "Burlington": 6,
+      "New Britain": 4,
+      "Killingly": 2,
+      "Middlebury": 1,
+      "Tolland": 1
+    }
+  },
+  "limitations": [
+    "Verified opportunity does not mean confirmed physical damage.",
+    "Verified opportunity does not mean a confirmed insurance claim.",
+    "Field verification still has the last word.",
+    "Counts can change as evidence refreshes and verification gates rerun."
+  ],
+  "methodology": "https://bridgepointintelligence.online/articles/",
+  "data_desk": "https://bridgepointintelligence.online/articles/data-desk.html"
+}

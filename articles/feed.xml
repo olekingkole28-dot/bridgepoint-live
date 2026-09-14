@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>BridgePoint Intelligence Research</title>
+    <link>https://bridgepointintelligence.online/articles/</link>
+    <atom:link rel="self" type="application/rss+xml" href="https://bridgepointintelligence.online/articles/feed.xml" />
+    <atom:link rel="hub" href="https://pubsubhubbub.appspot.com/" />
+    <description>Property intelligence research, methodology and public aggregate data from BridgePoint Intelligence, founded by Kole Johnson.</description>
+    <language>en-us</language>
+    <lastBuildDate>Mon, 24 Aug 2026 00:16:00 GMT</lastBuildDate>
+    <item>
+      <title>Connecticut Property Intelligence Pulse — August 23, 2026</title>
+      <link>https://bridgepointintelligence.online/articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html</link>
+      <guid isPermaLink="true">https://bridgepointintelligence.online/articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html</guid>
+      <pubDate>Mon, 24 Aug 2026 00:16:00 GMT</pubDate>
+      <description>BridgePoint Intelligence publishes an address-free strict-layer snapshot: 773 verified opportunity rows across 534 distinct Connecticut properties, with current contracting, investment, restoration, roofing and public-adjusting aggregates.</description>
+    </item>
+    <item>
+      <title>BridgePoint Intelligence Data Desk — Connecticut Aggregate Snapshot</title>
+      <link>https://bridgepointintelligence.online/articles/data-desk.html</link>
+      <guid isPermaLink="true">https://bridgepointintelligence.online/articles/data-desk.html</guid>
+      <pubDate>Fri, 21 Aug 2026 18:30:00 GMT</pubDate>
+      <description>Journalist- and partner-ready aggregate Connecticut property-intelligence facts with downloadable CSV and JSON. No property addresses, customer data or proprietary scoring weights are exposed.</description>
+    </item>
+    <item>
+      <title>California BridgePoint Market-Readiness Update — August 21, 2026</title>
+      <link>https://bridgepointintelligence.online/articles/#california-readiness-2026-08-21</link>
+      <guid isPermaLink="true">https://bridgepointintelligence.online/articles/#california-readiness-2026-08-21</guid>
+      <pubDate>Fri, 21 Aug 2026 17:40:00 GMT</pubDate>
+      <description>California is BUILDING in BridgePoint's national expansion pipeline. This is a platform readiness status, not a property-damage or claim determination.</description>
+    </item>
+    <item>
+      <title>Connecticut Roofing Opportunity Brief — August 21, 2026</title>
+      <link>https://bridgepointintelligence.online/articles/connecticut-roofing-opportunity-brief-2026-08-21.md</link>
+      <guid isPermaLink="true">https://bridgepointintelligence.online/articles/connecticut-roofing-opportunity-brief-2026-08-21.md</guid>
+      <pubDate>Fri, 21 Aug 2026 16:56:00 GMT</pubDate>
+      <description>BridgePoint's current strict Connecticut roofing-opportunity distribution by municipality, with evidence-freshness and methodology limitations.</description>
+    </item>
+    <item>
+      <title>Why a Storm Map Is Not a Damage Map</title>
+      <link>https://bridgepointintelligence.online/articles/why-a-storm-map-is-not-a-damage-map.md</link>
+      <guid isPermaLink="true">https://bridgepointintelligence.online/articles/why-a-storm-map-is-not-a-damage-map.md</guid>
+      <pubDate>Fri, 21 Aug 2026 16:06:04 GMT</pubDate>
+      <description>A BridgePoint Intelligence research note on the difference between weather exposure evidence and confirmed property damage.</description>
+    </item>
+    <item>
+      <title>Why Property Matching Is the Hidden Failure Point in Property AI</title>
+      <link>https://bridgepointintelligence.online/articles/why-property-matching-is-the-hidden-failure-point-in-property-ai.md</link>
+      <guid isPermaLink="true">https://bridgepointintelligence.online/articles/why-property-matching-is-the-hidden-failure-point-in-property-ai.md</guid>
+      <pubDate>Fri, 21 Aug 2026 16:00:21 GMT</pubDate>
+      <description>A BridgePoint Intelligence research note on address normalization, parcel identity, provenance and why matching quality determines whether property intelligence can be trusted.</description>
+    </item>
+  </channel>
+</rss>

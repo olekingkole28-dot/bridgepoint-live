@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Private Estimate Preflight | BridgePoint Intelligence</title>
+  <meta name="description" content="A local-only first-pass file preflight for insurance estimate PDF, XML, and ESX files. Your file stays in your browser until you choose the secure BridgePoint workflow." />
+  <meta name="robots" content="index,follow" />
+  <script src="/acquisition_tracker.js" defer></script>
+  <style>
+    :root{color-scheme:dark;--bg:#061018;--panel:#0d1a24;--line:#294253;--text:#eff9ff;--muted:#9fb4c1;--cyan:#4bdfff;--amber:#ffd06e;--green:#7ee7ad}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#15394c 0,#061018 50%);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}.wrap{max-width:920px;margin:auto;padding:34px 18px 72px}.brand{font-size:12px;letter-spacing:.15em;font-weight:900;color:var(--cyan)}h1{font-size:clamp(38px,7vw,66px);line-height:1.02;margin:12px 0}.lead{color:var(--muted);font-size:18px;line-height:1.65;max-width:760px}.drop{margin-top:28px;border:2px dashed #35566a;border-radius:22px;background:rgba(13,26,36,.94);padding:42px 24px;text-align:center;cursor:pointer}.drop.drag{border-color:var(--cyan);background:#102b3a}.drop h2{margin:0 0 8px}.drop p{color:var(--muted);margin:6px 0}.pill{display:inline-block;margin-top:14px;padding:8px 11px;border-radius:999px;background:#102a38;border:1px solid #315164;color:var(--green);font-size:12px;font-weight:900}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}.card{border:1px solid var(--line);background:rgba(13,26,36,.96);border-radius:18px;padding:20px}.card h3{margin-top:0}.kv{display:grid;grid-template-columns:150px 1fr;gap:8px 14px;font-size:14px;line-height:1.5}.kv div:nth-child(odd){color:var(--muted)}.warn{color:var(--amber);font-size:13px;line-height:1.55}.cta{margin-top:22px;border:1px solid #2d5267;background:linear-gradient(135deg,#102a39,#0c1a23);border-radius:18px;padding:22px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.btn,button{border:0;border-radius:11px;padding:13px 17px;font-weight:900;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}.primary{background:var(--cyan);color:#041117}.secondary{background:#192e3c;color:white;border:1px solid #365366}.hidden{display:none}.fine{font-size:12px;color:var(--muted);line-height:1.55;margin-top:24px}@media(max-width:720px){.grid{grid-template-columns:1fr}.kv{grid-template-columns:120px 1fr}}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <div class="brand">BRIDGEPOINT INTELLIGENCE · LOCAL-ONLY PREFLIGHT</div>
+  <h1>Drop an estimate before you create an account.</h1>
+  <p class="lead">This first step runs entirely in your browser. BridgePoint does not upload the file from this page. It checks the file type, size, fingerprint, and—when the source is readable XML—basic structural clues so you can decide whether to continue into the secure claim workflow.</p>
+
+  <input id="file" type="file" accept=".pdf,.xml,.esx,application/pdf,text/xml,application/xml" class="hidden" />
+  <section id="drop" class="drop" data-bp-value="estimate_preflight_dropzone">
+    <h2>Drop PDF, XML, or ESX estimate file</h2>
+    <p>or click here to choose a file</p>
+    <span class="pill">FILE STAYS LOCAL ON THIS PAGE</span>
+  </section>
+
+  <section id="results" class="grid hidden">
+    <div class="card">
+      <h3>Local file check</h3>
+      <div class="kv">
+        <div>Name</div><div id="name"></div>
+        <div>Type</div><div id="type"></div>
+        <div>Size</div><div id="size"></div>
+        <div>SHA-256</div><div id="hash" style="word-break:break-all"></div>
+        <div>Upload status</div><div style="color:var(--green);font-weight:900">NOT UPLOADED</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Preflight observations</h3>
+      <div id="observations" class="warn">Choose a file to begin.</div>
+    </div>
+  </section>
+
+  <section id="cta" class="cta hidden" data-bp-value="estimate_preflight_to_secure_workflow">
+    <div class="brand">NEXT STEP · SECURE WORKFLOW</div>
+    <h2>Want BridgePoint to actually compare the estimate?</h2>
+    <p class="lead" style="font-size:16px">The full Smart Supplement workflow requires an authenticated workspace because claim files can contain names, addresses, policy/claim numbers and other sensitive information. BridgePoint can then normalize authorized estimate lines and flag missing scope, quantity differences and price variance for human review.</p>
+    <div class="actions">
+      <a class="btn primary" href="/app/?utm_source=estimate_preflight&utm_medium=frictionless_entry&utm_campaign=start_trial_secure_estimate">Continue securely in BridgePoint</a>
+      <a class="btn secondary" href="/start/?utm_source=estimate_preflight&utm_medium=self_guided&utm_campaign=distribution_v547">See the 60-second tour</a>
+    </div>
+  </section>
+
+  <p class="fine">This page does not calculate insurance coverage, legal underpayment, recoverable damages, or a guaranteed supplement amount. A local preflight is not a claim decision. Do not use the results as a substitute for professional estimating, adjusting, engineering or legal review.</p>
+</main>
+<script>
+const input=document.getElementById('file'),drop=document.getElementById('drop'),results=document.getElementById('results'),cta=document.getElementById('cta');
+const set=(id,v)=>document.getElementById(id).textContent=v;
+const fmt=n=>n<1024?`${n} B`:n<1048576?`${(n/1024).toFixed(1)} KB`:`${(n/1048576).toFixed(2)} MB`;
+const hex=buf=>[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+async function inspect(file){
+  if(!file)return;
+  results.classList.remove('hidden');cta.classList.remove('hidden');
+  set('name',file.name);set('type',file.type||'Unknown / extension-based');set('size',fmt(file.size));set('hash','Calculating…');
+  const bytes=await file.arrayBuffer();set('hash',hex(await crypto.subtle.digest('SHA-256',bytes)));
+  const ext=(file.name.split('.').pop()||'').toLowerCase();let notes=[];
+  if(file.size>25*1024*1024)notes.push('Large file: secure processing may require a larger-file upload path.');
+  if(ext==='xml'){
+    const text=new TextDecoder().decode(bytes);let doc;
+    try{doc=new DOMParser().parseFromString(text,'application/xml');if(doc.querySelector('parsererror'))throw new Error('XML parse error');
+      const names=['LineItem','Item','EstimateItem','Line'];let best=0,bestName='';for(const name of names){const count=doc.getElementsByTagName(name).length;if(count>best){best=count;bestName=name;}}
+      notes.push(best?`Readable XML structure detected. Approximate ${bestName} node count: ${best}.`:'Readable XML detected, but no common estimate line-item node names were recognized.');
+      const raw=text.toLowerCase();if(/claim|estimate|coverage|replacement|repair/.test(raw))notes.push('Insurance/repair-estimate terminology detected locally.');
+    }catch(_){notes.push('The file has an XML extension but could not be parsed as clean XML in-browser.');}
+  }else if(ext==='pdf'){
+    notes.push('PDF detected. This local preflight intentionally does not extract the document text or upload it. Full document parsing occurs only in the secure workflow.');
+  }else if(ext==='esx'){
+    notes.push('ESX container detected. This local preflight identifies the file but does not unpack proprietary/structured contents in the browser.');
+  }else{
+    notes.push('Unsupported extension for the current estimate preflight. Use PDF, XML, or ESX.');
+  }
+  notes.push('No carrier/payment conclusion has been calculated on this page.');
+  document.getElementById('observations').innerHTML=notes.map(x=>`<div style="margin-bottom:10px">• ${x}</div>`).join('');
+}
+drop.onclick=()=>input.click();input.onchange=()=>inspect(input.files[0]);
+for(const ev of ['dragenter','dragover'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag')});
+for(const ev of ['dragleave','drop'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag')});
+drop.addEventListener('drop',e=>inspect(e.dataTransfer.files[0]));
+</script>
+</body>
+</html>

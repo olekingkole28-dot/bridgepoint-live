@@ -1,0 +1,40 @@
+{
+  "name": "BridgePoint Intelligence Founding Access",
+  "short_name": "BridgePoint",
+  "description": "BridgePoint Intelligence founding access and live national property intelligence.",
+  "start_url": "/app/intelligence-launch/",
+  "scope": "/app/intelligence-launch/",
+  "display": "standalone",
+  "background_color": "#02070a",
+  "theme_color": "#06131b",
+  "icons": [
+    {
+      "src": "./bridgepoint-mark.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./bridgepoint-mark.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./bridgepoint-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "id": "/app/intelligence-launch/",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "prefer_related_applications": false,
+  "categories": [
+    "business",
+    "productivity"
+  ]
+}

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#020711">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>BridgePoint World</title>
+  <link rel="manifest" href="manifest.json">
+  <style>html,body{width:100%;height:100%;margin:0;background:#020711;color:#dff7ff;font-family:system-ui,sans-serif;display:grid;place-items:center}small{opacity:.7}</style>
+</head>
+<body>
+  <small>Opening BridgePoint World…</small>
+  <script>
+    if('serviceWorker' in navigator){navigator.serviceWorker.register('./flutter_service_worker.js').catch(()=>{});}
+    location.replace('bridgepoint-world-v2652/?release=instant-map-world-2663');
+  </script>
+  <noscript><a href="bridgepoint-world-v2652/?release=instant-map-world-2663">Open BridgePoint World</a></noscript>
+</body>
+</html>

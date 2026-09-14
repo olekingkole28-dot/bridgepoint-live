@@ -1,0 +1,139 @@
+name: Stage v999 runtime cleanup
+
+on:
+  push:
+    branches: [staging-v999-runtime-cleanup]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: staging-v999-runtime-cleanup
+          fetch-depth: 0
+
+      - name: Consolidate Home and disable legacy navigation polling
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('app/live-home-v984.js')
+          s = p.read_text()
+          replacements = [
+            ('.bp984h-activity{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}',
+             '.bp984h-activity{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}'),
+            ('<div class="bp984h-activity"><div class="bp984h-glass bp984h-act" data-act="matching">',
+             '<div class="bp984h-activity"><div class="bp984h-glass bp984h-act" data-act="signals"><div class="bp984h-acttop"><span class="bp984h-acticon">📡</span><div><div class="bp984h-actname">SIGNALS</div><div class="bp984h-actstatus" data-status>checking…</div></div></div><div class="bp984h-actvalue" data-value>—</div><div class="bp984h-actsub" data-sub>—</div></div><div class="bp984h-glass bp984h-act" data-act="matching">'),
+            ("for(const k of ['matching','scoring','patterns','opportunities'])",
+             "for(const k of ['signals','matching','scoring','patterns','opportunities'])"),
+            ('await ownerCheck();await refresh();',
+             'await refresh();void ownerCheck();')
+          ]
+          for old, new in replacements:
+            count = s.count(old)
+            if count not in (0, 1):
+              raise SystemExit(f'unexpected Home replacement count {count}: {old[:80]}')
+            if count == 1:
+              s = s.replace(old, new)
+
+          base_listener = "addEventListener('bridgepoint-tab-v984',()=>{sync();if(visible())refresh();});"
+          shell_listener = "addEventListener('bridgepoint-shell-tab-v999',()=>{sync();if(visible())refresh();});"
+          s = s.replace(shell_listener, '')
+          if s.count(base_listener) != 1:
+            raise SystemExit(f'expected exactly one base Home tab listener, got {s.count(base_listener)}')
+          s = s.replace(base_listener, base_listener + shell_listener, 1)
+          if s.count(shell_listener) != 1:
+            raise SystemExit(f'expected exactly one v999 Home listener, got {s.count(shell_listener)}')
+
+          required = [
+            "data-act=\"signals\"",
+            "['signals','matching','scoring','patterns','opportunities']",
+            'await refresh();void ownerCheck();',
+            "bridgepoint-shell-tab-v999"
+          ]
+          for marker in required:
+            if marker not in s:
+              raise SystemExit(f'missing Home marker: {marker}')
+          p.write_text(s)
+
+          idx = Path('app/index.html')
+          html = idx.read_text().replace('  <script defer src="signals-activity-v984.js?v=999"></script>\n', '')
+          if 'signals-activity-v984.js' in html:
+            raise SystemExit('duplicate signals runtime still loaded')
+          idx.write_text(html)
+
+          u = Path('app/runtime-unifier-v984.js')
+          us = u.read_text()
+          old = "async function boot(){const tok=findToken(),ok=await valid(tok);if(!ok){renderEntry();entry.classList.add('show');}else entry.classList.remove('show');sync();new MutationObserver(sync).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['aria-selected','aria-current','class','style']});addEventListener('resize',sync,{passive:true});setInterval(sync,1200);}boot();"
+          new = "async function boot(){const tok=findToken(),ok=await valid(tok);if(!ok){renderEntry();entry.classList.add('show');}else entry.classList.remove('show');if(window.__bridgepointCanonicalRuntime==='v999')return;sync();new MutationObserver(sync).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['aria-selected','aria-current','class','style']});addEventListener('resize',sync,{passive:true});setInterval(sync,1200);}boot();"
+          count = us.count(old)
+          if count not in (0, 1):
+            raise SystemExit(f'unexpected unifier boot replacement count: {count}')
+          if count == 1:
+            us = us.replace(old, new)
+          if "if(window.__bridgepointCanonicalRuntime==='v999')return;" not in us:
+            raise SystemExit('v999 unifier nav-polling bypass missing')
+          u.write_text(us)
+
+      - name: Validate JavaScript syntax
+        run: |
+          set -euo pipefail
+          for f in \
+            app/bridgepoint-shell-v999.js \
+            app/runtime-unifier-v984.js \
+            app/lazy-runtime-v993.js \
+            app/live-home-v984.js \
+            app/owner-business-pulse-v993.js \
+            app/map-radar-v974.js \
+            app/map-polish-v984.js \
+            app/experience-v974.js \
+            app/startup-recovery-v986.js; do
+            node --check "$f"
+          done
+
+      - name: Validate single-controller architecture
+        run: |
+          set -euo pipefail
+          grep -q 'data-bridgepoint-runtime="v999"' app/index.html
+          grep -q 'flutter_bootstrap.js?v=999' app/index.html
+          grep -q 'bridgepoint-shell-v999.js?v=999' app/index.html
+          grep -q 'owner-business-pulse-v993.js?v=999' app/index.html
+          grep -q 'const V=.999.' app/lazy-runtime-v993.js
+          grep -q 'bp999-home flutter-view' app/bridgepoint-shell-v999.js
+          grep -q 'pointer-events:none!important' app/bridgepoint-shell-v999.js
+          grep -q 'bp999-flutter flutter-view' app/bridgepoint-shell-v999.js
+          grep -q "for(const k of \['signals','matching','scoring','patterns','opportunities'\])" app/live-home-v984.js
+          grep -q 'await refresh();void ownerCheck();' app/live-home-v984.js
+          test "$(grep -o "bridgepoint-shell-tab-v999" app/live-home-v984.js | wc -l)" -eq 1
+          grep -q "if(window.__bridgepointCanonicalRuntime==='v999')return;" app/runtime-unifier-v984.js
+          grep -q '"start_url": "./?bpv=v999"' app/manifest.json
+          grep -q "BRIDGEPOINT_CACHE_RETIREMENT = 'v999'" app/flutter_service_worker.js
+          ! grep -q 'home-hard-cover-v988.js' app/index.html
+          ! grep -q 'tab-handoff-v990.js' app/index.html
+          ! grep -q 'nav-clearance-v991.js' app/index.html
+          ! grep -q 'home-flutter-separation-v998.js' app/index.html
+          ! grep -q 'signals-activity-v984.js' app/index.html
+          ! grep -q 'setInterval' app/bridgepoint-shell-v999.js
+          ! grep -q 'preventDefault' app/bridgepoint-shell-v999.js
+          ! grep -q 'stopPropagation' app/bridgepoint-shell-v999.js
+          ! grep -q "addEventListener('bridgepoint-tab-v990'.*openMap" app/lazy-runtime-v993.js
+          ! grep -q "addEventListener('bridgepoint-shell-tab-v999'.*openMap" app/lazy-runtime-v993.js
+          test "$(grep -n 'flutter_bootstrap.js?v=999' app/index.html | cut -d: -f1)" -lt "$(grep -n 'experience-v974.js?v=999' app/index.html | cut -d: -f1)"
+          git diff --check
+
+      - name: Commit deterministic staging cleanup
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'Staging already clean.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/live-home-v984.js app/index.html app/runtime-unifier-v984.js
+          git commit -m 'Finalize idempotent v999 runtime cleanup'
+          git push origin HEAD:staging-v999-runtime-cleanup
