@@ -68,6 +68,9 @@ jobs:
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
           grep -Fq 'bridgepoint_frontend_status_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_v5000' site/app.js
+          grep -Fq 'bridgepoint_public_context_v5003' site/app.js
+          grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' site/app.js
+          grep -Fq 'toggleLiveContext' site/index.html
           ! find site -type f | grep -E '/horizon|horizon-' || false
           test ! -e site/app/horizon
           test ! -e site/app/horizon-playable
@@ -98,7 +101,7 @@ jobs:
             q="${GITHUB_SHA}-${i}-$(date +%s)"
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?v5000=${q}" -o /tmp/root.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5000=${q}" -o /tmp/app.js || true
-            if grep -Fq 'BP_FRONTEND_V5000' /tmp/root.html && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js; then ok=1; break; fi
+            if grep -Fq 'BP_FRONTEND_V5000' /tmp/root.html && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'toggleLiveContext' /tmp/root.html && grep -Fq 'bridgepoint_public_context_v5003' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
@@ -127,14 +130,22 @@ jobs:
               await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000,{timeout:10000});
               await p.waitForFunction(()=>document.getElementById('canonicalProperties')?.textContent?.includes(','),{timeout:15000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
+              await p.waitForFunction(()=>!!document.getElementById('bpTabContext')&&!!document.getElementById('bXrayUnderground')&&!!document.getElementById('toggleLiveContext'),{timeout:10000});
+              await p.waitForFunction(()=>!!window.__BP_V5000_WORLD?.map?.getLayer('bp-v5004-weather-points'),{timeout:25000});
+              await p.waitForFunction(()=>{const t=document.getElementById('liveLegendCount')?.textContent;return !!t&&t!=='CHECKING'}, {timeout:20000});
               const out=await p.evaluate(()=>({
                 version:window.__BP_FRONTEND_VERSION,
                 canvases:document.querySelectorAll('#liveMap canvas').length,
                 canonical:document.getElementById('canonicalProperties')?.textContent,
                 horizonLinks:[...document.querySelectorAll('a')].filter(a=>/horizon/i.test(a.href+a.textContent)).length,
-                panel:!!document.getElementById('systemPanel')
+                panel:!!document.getElementById('systemPanel'),
+                contextTab:!!document.getElementById('bpTabContext'),
+                xrayEvidence:!!document.getElementById('bXrayUnderground'),
+                liveButton:!!document.getElementById('toggleLiveContext'),
+                liveLayer:!!window.__BP_V5000_WORLD?.map?.getLayer('bp-v5004-weather-points'),
+                liveLegend:document.getElementById('liveLegendCount')?.textContent
               }));
-              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
+              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.liveLegend||out.liveLegend==='CHECKING')throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
               console.log('BRIDGEPOINT_V5000_ANDROID_PASS',JSON.stringify(out));
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
