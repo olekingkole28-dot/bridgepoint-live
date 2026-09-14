@@ -111,7 +111,7 @@ function roadLights(map){if(map.getZoom()<LIGHT_MIN)return EMPTY;let fs=[];try{f
 export function initWorld(){
  const container=document.getElementById('liveMap');if(!container||!window.maplibregl)return null;if(window.__bpWorldV2300?.map)return window.__bpWorldV2300;container.innerHTML='';
  const map=new maplibregl.Map({container,style:style(),center:[-98.5,39.5],zoom:3.2,pitch:0,bearing:0,minZoom:2.2,maxZoom:21,projection:{type:'globe'},antialias:!LOW,fadeDuration:0,renderWorldCopies:false,transformRequest:tileTransform,maxTileCacheSize:TIER==='LOW'?64:TIER==='HIGH'?210:120});
- try{map.touchZoomRotate?.enable();map.dragPan?.enable();map.scrollZoom?.enable();map.doubleClickZoom?.enable();map.keyboard?.enable()}catch(_){};
+ try{map.touchZoomRotate?.enable();map.touchZoomRotate?.enableRotation?.();map.dragPan?.enable();map.scrollZoom?.enable();map.doubleClickZoom?.enable();map.keyboard?.enable();map.boxZoom?.enable()}catch(_){};
  map.addControl(new maplibregl.NavigationControl({visualizePitch:true,showCompass:true}),'top-right');
  let detailSeq=0,lightTimer=0,exactCount=0,base='gta',moving=false,terrainOn=false,workerReq=0,lastTouchBuildingAt=0,touchPointer=null,touchNative=null,buildingSelectHandler=null,activeTouchPointers=new Set();const worker=new Worker('./world-v2300-worker.js?v=2300',{type:'module'}),workerWait=new Map();
  worker.onmessage=e=>{const m=e.data||{},r=workerWait.get(m.requestId);if(r){workerWait.delete(m.requestId);r(m)}};

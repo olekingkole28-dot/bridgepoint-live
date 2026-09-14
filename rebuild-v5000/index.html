@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05090d">
 <meta name="description" content="BridgePoint Intelligence — live national property, parcel, building and spatial intelligence.">
 <title>BridgePoint Intelligence</title>
 <link rel="icon" href="./bridgepoint-mark.svg" type="image/svg+xml">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="stylesheet" href="./vendor/maplibre-gl.css">
-<link rel="stylesheet" href="./styles.css?v=5041">
+<link rel="stylesheet" href="./styles.css?v=5043">
 <script id="BP_FRONTEND_V5000">(()=>{try{window.__BP_FRONTEND_VERSION=5000;if('serviceWorker'in navigator)navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).catch(()=>{});if('caches'in window)caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).catch(()=>{})}catch(_){}})();</script>
 </head>
 <body>
@@ -40,6 +40,7 @@
       </form>
 
       <div class="map-tools">
+        <button id="openPagesNav" type="button" title="Open BridgePoint pages">PAGES</button>
         <button id="toggleSearch" type="button" title="Open address search">SEARCH</button>
         <button data-base="gta" class="active" type="button">MAP</button>
         <button data-base="satellite" type="button">SAT</button>
@@ -116,10 +117,49 @@
         <p id="bTruthNote" class="truth-note"></p>
       </aside>
     </section>
+
+    <section class="app-page" data-surface="packages" hidden>
+      <div class="page-scroll">
+        <div class="page-head"><span class="eyebrow">INTELLIGENCE ACCESS</span><h1>Packages</h1><p>Unlock the intelligence you need without exposing restricted data on the public map.</p></div>
+        <div id="packagesGrid" class="page-card-grid">
+          <article class="page-card"><span>PROPERTY CORE</span><h3>Property Intelligence</h3><p>Canonical property identity, parcel context, structural detail and source provenance.</p><button type="button" data-package="property">VIEW PACKAGE</button></article>
+          <article class="page-card"><span>STRUCTURE</span><h3>Building + X-Ray</h3><p>Vertical structure, roof intelligence, building parts, floor evidence and eligible exact plans.</p><button type="button" data-package="structure">VIEW PACKAGE</button></article>
+          <article class="page-card"><span>RISK</span><h3>Weather + Claims</h3><p>Live hazards, event context, claims lifecycle intelligence and resilience workflows.</p><button type="button" data-package="risk">VIEW PACKAGE</button></article>
+          <article class="page-card"><span>OPPORTUNITY</span><h3>Opportunity Intelligence</h3><p>Opportunity buildings, scoring, saved opportunities and workflow tools.</p><button type="button" data-package="opportunity">VIEW PACKAGE</button></article>
+          <article class="page-card"><span>ALL INTELLIGENCE</span><h3>Full Platform</h3><p>All eligible BridgePoint intelligence modules in one workspace.</p><button type="button" data-package="all">VIEW PACKAGE</button></article>
+        </div>
+        <p class="page-disclaimer">Checkout remains disabled until final commercial approval. Package buttons currently explain access and route users to the correct gated capability.</p>
+      </div>
+    </section>
+
+    <section class="app-page" data-surface="saved" hidden>
+      <div class="page-scroll"><div class="page-head"><span class="eyebrow">MY WORKSPACE</span><h1>Saved</h1><p>Saved properties, opportunities, searches, watchlists and tracked locations will live here.</p></div><div id="savedWorkspace" class="empty-state">Sign in to load your saved BridgePoint workspace.</div></div>
+    </section>
+
+    <section class="app-page" data-surface="claims" hidden>
+      <div class="page-scroll"><div class="page-head"><span class="eyebrow">CLAIMS INTELLIGENCE</span><h1>Claims</h1><p>Event evidence, timelines, property context and claims lifecycle workflows.</p></div><div id="claimsWorkspace" class="empty-state">Claims workspace is access-gated. Choose a claims-enabled package to unlock it.</div></div>
+    </section>
+
+    <section class="app-page" data-surface="workflow" hidden>
+      <div class="page-scroll"><div class="page-head"><span class="eyebrow">OPERATIONS</span><h1>Workflow</h1><p>Move saved properties and opportunities through BridgePoint actions, notes, routes and case workflows.</p></div><div id="workflowWorkspace" class="empty-state">Workflow tools will populate from your BridgePoint account and saved intelligence.</div></div>
+    </section>
+
+    <section class="app-page" data-surface="more" hidden>
+      <div class="page-scroll"><div class="page-head"><span class="eyebrow">BRIDGEPOINT</span><h1>More</h1><p>Backend status, global expansion, account access and additional intelligence modules.</p></div><div class="page-card-grid"><article class="page-card"><span>BACKEND</span><h3>System status</h3><p>Live national materialization and source coverage.</p><button id="moreOpenStatus" type="button">OPEN STATUS</button></article><article class="page-card"><span>EXPANSION</span><h3>Global expansion</h3><p>BridgePoint’s country and world expansion controls remain owner-gated.</p><button id="moreExpansion" type="button">OWNER ACCESS</button></article></div></div>
+    </section>
   </main>
+
+  <nav id="bottomNav" class="bottom-nav" aria-label="BridgePoint pages">
+    <button type="button" data-nav="map" class="active"><b>MAP</b><small>Explore</small></button>
+    <button type="button" data-nav="packages"><b>PACKAGES</b><small>Access</small></button>
+    <button type="button" data-nav="saved"><b>SAVED</b><small>Workspace</small></button>
+    <button type="button" data-nav="claims"><b>CLAIMS</b><small>Cases</small></button>
+    <button type="button" data-nav="workflow"><b>WORKFLOW</b><small>Actions</small></button>
+    <button type="button" data-nav="more"><b>MORE</b><small>System</small></button>
+  </nav>
 </div>
 <script src="./vendor/maplibre-gl.js"></script>
 <script src="./vendor/pmtiles.js"></script>
-<script type="module" src="./app.js?v=5042"></script>
+<script type="module" src="./app.js?v=5043"></script>
 </body>
 </html>
