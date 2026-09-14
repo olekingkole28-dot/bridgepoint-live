@@ -1,0 +1,141 @@
+name: Deploy BridgePoint Intelligence V5000 Rebuild
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'rebuild-v5000/**'
+      - 'release-v2300/world-v2300-config.js'
+      - 'release-v2300/world-v2300-map.js'
+      - 'release-v2300/world-v2300-worker.js'
+      - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build clean Intelligence-only artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf site
+          mkdir -p site/vendor site/app
+          cp rebuild-v5000/index.html site/index.html
+          cp rebuild-v5000/styles.css site/styles.css
+          cp rebuild-v5000/app.js site/app.js
+          cp rebuild-v5000/manifest.webmanifest site/manifest.webmanifest
+          cp rebuild-v5000/sw.js site/sw.js
+          cp rebuild-v5000/404.html site/404.html
+          cp rebuild-v5000/bridgepoint-mark.svg site/bridgepoint-mark.svg
+
+          # /app is retired as a separate interface: keep only a redirect into the single Intelligence surface.
+          cat > site/app/index.html <<'HTML'
+          <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>location.replace('/?from=app')</script></head><body></body></html>
+          HTML
+
+          # Carry forward only the proven map engine pieces used by the new shell.
+          cp release-v2300/world-v2300-config.js site/world-v2300-config.js
+          cp release-v2300/world-v2300-map.js site/world-v2300-map.js
+          cp release-v2300/world-v2300-worker.js site/world-v2300-worker.js
+
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
+
+          printf '%s\n' 'bridgepointintelligence.online' > site/CNAME
+          touch site/.nojekyll site/app/.nojekyll
+
+          node --check site/app.js
+          node --check site/world-v2300-config.js
+          node --check site/world-v2300-map.js
+          node --check site/world-v2300-worker.js
+
+          grep -Fq 'BP_FRONTEND_V5000' site/index.html
+          grep -Fq 'bridgepoint_frontend_status_v5000' site/app.js
+          grep -Fq 'bridgepoint_public_building_detail_v5000' site/app.js
+          ! find site -type f | grep -E '/horizon|horizon-' || false
+          test ! -e site/app/horizon
+          test ! -e site/app/horizon-playable
+          echo "V5000 CLEAN INTELLIGENCE ARTIFACT READY"
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000
+          path: site
+
+      - name: Deploy clean V5000 surface
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-v5000
+
+      - name: Verify production cutover
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 45); do
+            q="${GITHUB_SHA}-${i}-$(date +%s)"
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?v5000=${q}" -o /tmp/root.html || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5000=${q}" -o /tmp/app.js || true
+            if grep -Fq 'BP_FRONTEND_V5000' /tmp/root.html && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js; then ok=1; break; fi
+            sleep 4
+          done
+          test "$ok" = 1
+          grep -Fq 'BRIDGEPOINT' /tmp/root.html
+          ! grep -Eiq 'HORIZON|battle pass|zombie|game mode' /tmp/root.html
+          echo BRIDGEPOINT_V5000_PRODUCTION_CUTOVER_PASS
+
+      - name: Android smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
+            try{
+              const p=await browser.newPage();
+              await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              const errors=[];p.on('pageerror',e=>errors.push(String(e.message||e)));
+              await p.goto('https://bridgepointintelligence.online/?qa=v5000-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000,{timeout:10000});
+              await p.waitForFunction(()=>document.getElementById('canonicalProperties')?.textContent?.includes(','),{timeout:15000});
+              await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
+              const out=await p.evaluate(()=>({
+                version:window.__BP_FRONTEND_VERSION,
+                canvases:document.querySelectorAll('#liveMap canvas').length,
+                canonical:document.getElementById('canonicalProperties')?.textContent,
+                horizonLinks:[...document.querySelectorAll('a')].filter(a=>/horizon/i.test(a.href+a.textContent)).length,
+                panel:!!document.getElementById('systemPanel')
+              }));
+              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
+              console.log('BRIDGEPOINT_V5000_ANDROID_PASS',JSON.stringify(out));
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e.stack||e);process.exit(1)});
+          NODE
