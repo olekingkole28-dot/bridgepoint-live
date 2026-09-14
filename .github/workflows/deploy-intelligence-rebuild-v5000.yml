@@ -169,6 +169,17 @@ jobs:
                 try{return m.queryRenderedFeatures({layers:['gta-place-label']}).length>0}catch{return false}
               },{timeout:15000});
               console.log('BRIDGEPOINT_TEXT_LABELS_RENDERED');
+              await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                if(!m)throw new Error('semantic map unavailable');
+                m.jumpTo({center:[-73.9857,40.7484],zoom:16.4,pitch:52,bearing:0});
+              });
+              await p.waitForFunction(()=>{
+                const m=window.__BP_V5000_WORLD?.map,src=m?.getSource('bpSemanticLabels');
+                const data=src?.serialize?.()?.data;
+                return Array.isArray(data?.features)&&data.features.some(f=>f?.properties?.anchor_truth==='BUILDING_ANCHORED');
+              },{timeout:30000});
+              console.log('BRIDGEPOINT_SEMANTIC_BUILDING_LABELS_PASS');
               await p.waitForFunction(()=>{const t=document.getElementById('liveLegendCount')?.textContent;return !!t&&t!=='CHECKING'}, {timeout:20000});
               await p.waitForFunction(()=>getComputedStyle(document.getElementById('systemPanel')).display==='none',{timeout:5000});
               console.log('BRIDGEPOINT_MOBILE_STATUS_PANEL_CLOSED');
@@ -218,9 +229,13 @@ jobs:
                   const lngLat=map.unproject(chosen);
                   const feature={type:'Feature',geometry:hit.geometry,properties:{...(hit.properties||{})},id:hit.id,layer:{id:hit.layer?.id||''}};
                   if(typeof window.__BP_V5000_SELECT_BUILDING__!=='function')throw new Error('PUBLIC_BUILDING_SELECTOR_MISSING');
-                  window.__BP_V5000_SELECT_BUILDING__({lngLat,feature});
+                  const selectorReturn=window.__BP_V5000_SELECT_BUILDING__({lngLat,feature});
+                  const panel=document.getElementById('buildingPanel');
+                  return {selectorReturn,hidden:panel?.hidden,display:panel?getComputedStyle(panel).display:null,title:document.getElementById('buildingTitle')?.textContent};
+                }).then(state=>{
+                  console.log('BRIDGEPOINT_FALLBACK_SELECTOR_STATE',JSON.stringify(state));
+                  if(state?.selectorReturn!==true||state?.hidden!==false)throw new Error('PUBLIC_BUILDING_SELECTOR_DID_NOT_OPEN '+JSON.stringify(state));
                 });
-                await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===false,{timeout:5000});
               }
               console.log('BRIDGEPOINT_BUILDING_CLICK_PANEL_OPEN',touchOpened?'TOUCH':'MAP_HIT_TEST');
               await p.waitForFunction(()=>{
@@ -252,6 +267,8 @@ jobs:
                 opportunityLabels:!!window.__BP_V5000_WORLD?.map?.getLayer('gta-opportunity-label'),
                 opportunityRendered:(()=>{const m=window.__BP_V5000_WORLD?.map,pt=m?.project([-72.6716132,41.7409742]);if(!m||!pt)return false;try{return m.queryRenderedFeatures(pt,{layers:['gta-opportunity-buildings']}).length>0}catch{return false}})(),
                 renderedPlaceLabels:(()=>{const m=window.__BP_V5000_WORLD?.map;if(!m)return 0;try{return m.queryRenderedFeatures({layers:['gta-place-label']}).length}catch{return 0}})(),
+                semanticLabels:(()=>{const m=window.__BP_V5000_WORLD?.map,d=m?.getSource('bpSemanticLabels')?.serialize?.()?.data;return Array.isArray(d?.features)?d.features.length:0})(),
+                buildingAnchoredSemanticLabels:(()=>{const m=window.__BP_V5000_WORLD?.map,d=m?.getSource('bpSemanticLabels')?.serialize?.()?.data;return Array.isArray(d?.features)?d.features.filter(f=>f?.properties?.anchor_truth==='BUILDING_ANCHORED').length:0})(),
                 searchCollapsed:(()=>{const f=document.getElementById('publicSearchForm');return !f||getComputedStyle(f).visibility==='hidden'||getComputedStyle(f).display==='none'||Number(getComputedStyle(f).opacity)===0})(),
                 liveLegend:document.getElementById('liveLegendCount')?.textContent,
                 surfaceMaterial:!!document.getElementById('ctxSurfaceMaterial'),
@@ -271,7 +288,7 @@ jobs:
                 buildingResolutionMethod:document.getElementById('bProvPolicy')?.textContent,
                 buildingTruthBadge:document.getElementById('buildingTruthBadge')?.textContent
               }));
-              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.placeLabels||!out.roadLabels||!out.poiLabels||!out.opportunityBuildings||!out.opportunityLabels||!out.opportunityRendered||out.renderedPlaceLabels<1||!out.searchCollapsed||!out.liveLegend||out.liveLegend==='CHECKING'||!out.surfaceMaterial||!out.surfaceSource||!out.transportArchive||out.transportArchive==='—'||!out.transportRuntime||out.transportRuntime==='—'||!out.buildingPanelVisible||!out.buildingHeight||out.buildingHeight==='—'||!out.buildingFloors||out.buildingFloors==='—'||!out.buildingSource||out.buildingSource==='—'||!out.buildingFootprint||!out.buildingDataset||out.selectedBuildingCount!==1||out.selectedParcelCount!==0||out.legacySelectedCount!==0)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
+              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.placeLabels||!out.roadLabels||!out.poiLabels||!out.opportunityBuildings||!out.opportunityLabels||!out.opportunityRendered||out.renderedPlaceLabels<1||out.semanticLabels<1||out.buildingAnchoredSemanticLabels<1||!out.searchCollapsed||!out.liveLegend||out.liveLegend==='CHECKING'||!out.surfaceMaterial||!out.surfaceSource||!out.transportArchive||out.transportArchive==='—'||!out.transportRuntime||out.transportRuntime==='—'||!out.buildingPanelVisible||!out.buildingHeight||out.buildingHeight==='—'||!out.buildingFloors||out.buildingFloors==='—'||!out.buildingSource||out.buildingSource==='—'||!out.buildingFootprint||!out.buildingDataset||out.selectedBuildingCount!==1||out.selectedParcelCount!==0||out.legacySelectedCount!==0)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
               console.log('BRIDGEPOINT_V5000_ANDROID_PASS',JSON.stringify(out));
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
