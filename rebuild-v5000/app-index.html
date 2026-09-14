@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05090d">
+<meta name="description" content="BridgePoint Intelligence — live national property, parcel, building and spatial intelligence.">
+<title>BridgePoint Intelligence</title>
+<link rel="icon" href="../bridgepoint-mark.svg" type="image/svg+xml">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="stylesheet" href="../vendor/maplibre-gl.css">
+<link rel="stylesheet" href="../styles.css?v=5050">
+<script id="BP_FRONTEND_V5000">window.__BP_FRONTEND_VERSION=5000;window.__BP_FRONTEND_BUILD=5050;</script>
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="BridgePoint Intelligence">
+      <img src="../bridgepoint-mark.svg" alt="">
+      <span><b>BRIDGEPOINT</b><small>INTELLIGENCE</small></span>
+    </a>
+    <div class="live-state"><i></i><span id="liveStateText">CONNECTING TO BACKEND</span></div>
+    <div class="topbar-actions"><button class="icon-button" id="accountButton" type="button" aria-label="Account">ACCOUNT</button><button class="icon-button" id="togglePanel" type="button" aria-label="System status">STATUS</button></div>
+  </header>
+
+  <main class="workspace">
+    <section class="map-surface active" data-surface="map" aria-label="BridgePoint Intelligence live map">
+      <div id="liveMap"></div>
+
+      <div class="map-brand-card">
+        <div class="map-kicker">LIVE NATIONAL SPATIAL INDEX</div>
+        <h1>One map. The backend underneath it.</h1>
+        <p>Buildings, parcels and structural truth stream from BridgePoint as the national materialization finishes.</p>
+      </div>
+
+      <form id="publicSearchForm" class="search-box" autocomplete="off">
+        <input id="publicSearchInput" type="search" placeholder="Search an exact street address" aria-label="Search an address">
+        <button type="submit">GO</button>
+        <div id="publicSearchResults" class="search-results" hidden></div>
+      </form>
+
+      <div class="map-tools">
+        <button id="openPagesNav" type="button" title="Open BridgePoint pages">PAGES</button>
+        <button id="toggleSearch" type="button" title="Open address search">SEARCH</button>
+        <button data-base="gta" class="active" type="button">MAP</button>
+        <button data-base="satellite" type="button">SAT</button>
+        <button data-layer="buildings" class="active" type="button">3D</button>
+        <button data-layer="parcels" class="active" type="button">PARCELS</button>
+        <button id="toggleTransport" type="button" title="BridgePoint runtime transport" hidden>BP ROADS</button>
+        <button id="toggleLiveContext" class="active" type="button" title="Fresh public weather and hazard context">LIVE</button>
+        <button id="measureMap" type="button" title="Measure distance and area">MEASURE</button>
+        <button id="clearMeasure" type="button" hidden>CLEAR</button>
+        <button id="locateMe" type="button">LOCATE</button>
+        <button id="resetMap" type="button">RESET</button>
+      </div>
+
+      <div id="mapStatus" class="map-status">Starting BridgePoint live map…</div>
+      <div id="measureReadout" class="measure-readout" hidden></div>
+      <div id="mapResults" hidden></div>
+
+      <aside id="systemPanel" class="system-panel">
+        <div class="panel-head">
+          <div><span class="eyebrow">BACKEND → FRONTEND</span><h2>Live materialization</h2></div>
+          <button id="closePanel" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="hero-number"><span>Canonical properties</span><strong id="canonicalProperties">—</strong></div>
+        <div class="metric-grid">
+          <article><span>Unique addresses</span><b id="uniqueAddresses">—</b></article>
+          <article><span>Building archive</span><b id="archivedBuildings">—</b></article>
+          <article><span>Map-ready buildings</span><b id="mapReadyBuildings">—</b></article>
+          <article><span>Layout indexed</span><b id="layoutIndexed">—</b></article>
+        </div>
+        <div class="progress-block">
+          <div class="progress-label"><span>Archive → live map</span><b id="archiveMapPct">—</b></div>
+          <div class="bar"><i id="archiveMapBar"></i></div>
+        </div>
+        <div class="progress-block">
+          <div class="progress-label"><span>Map → structural layout index</span><b id="layoutMapPct">—</b></div>
+          <div class="bar accent"><i id="layoutMapBar"></i></div>
+        </div>
+        <div class="truth-list">
+          <div><span>Parcel coverage</span><b id="parcelCoverage">—</b></div>
+          <div><span>#5 remaining tail</span><b id="parcelTail">—</b></div>
+          <div><span>Building parts</span><b id="buildingParts">—</b></div>
+          <div><span>Terrain foundation</span><b id="terrainCoverage">—</b></div>
+          <div><span>Surface materials</span><b id="surfaceCoverage">—</b></div>
+          <div><span>Transport archive</span><b id="transportArchive">—</b></div>
+          <div><span>Transport runtime</span><b id="transportRuntime">—</b></div>
+          <div><span>Exact public plan matches</span><b id="exactPlans">—</b></div>
+          <div><span>Live context feeds</span><b id="liveContextFeeds">—</b></div>
+          <div><span>Current live events</span><b id="liveContextEvents">—</b></div>
+        </div>
+        <p class="truth-note">Exact plans are only labeled exact when a lawful public plan is confidently matched. Derived floors stay labeled as derived.</p>
+        <div class="updated">Backend pulse <span id="backendUpdated">—</span></div>
+      </aside>
+
+      <aside id="buildingPanel" class="building-panel" hidden>
+        <div class="panel-head">
+          <div><span class="eyebrow">SELECTED BUILDING</span><h2 id="buildingTitle">Building</h2></div>
+          <button id="closeBuilding" type="button" aria-label="Close">×</button>
+        </div>
+        <div id="buildingTruthBadge" class="truth-badge">LOADING</div>
+        <div class="building-grid">
+          <div><span>Height</span><b id="bHeight">—</b></div>
+          <div><span>Floors</span><b id="bFloors">—</b></div>
+          <div><span>Floor truth</span><b id="bFloorTruth">—</b></div>
+          <div><span>Parts</span><b id="bParts">—</b></div>
+          <div><span>Underground</span><b id="bUnderground">—</b></div>
+          <div><span>Confidence</span><b id="bConfidence">—</b></div>
+          <div><span>Roof</span><b id="bRoof">—</b></div>
+          <div><span>Facade</span><b id="bFacade">—</b></div>
+        </div>
+        <div class="source-card">
+          <span>Source</span><b id="bSource">—</b>
+          <small id="bSourceDate">—</small>
+        </div>
+        <p id="bTruthNote" class="truth-note"></p>
+      </aside>
+    </section>
+
+    <section class="app-page" data-surface="packages" hidden>
+      <div class="page-scroll">
+        <div class="page-head"><span class="eyebrow">INTELLIGENCE ACCESS</span><h1>Packages</h1><p>Unlock the intelligence you need without exposing restricted data on the public map.</p></div>
+        <div id="packagesGrid" class="page-card-grid"><div class="empty-state">Loading live BridgePoint package catalog…</div></div><div id="packageActionStatus" class="page-disclaimer"></div>
+        <p class="page-disclaimer">Checkout remains disabled until final commercial approval. Package buttons currently explain access and route users to the correct gated capability.</p>
+      </div>
+    </section>
+
+    <section class="app-page" data-surface="saved" hidden>
+      <div class="page-scroll"><div class="page-head"><span class="eyebrow">MY WORKSPACE</span><h1>Saved</h1><p>Saved properties, opportunities, searches, watchlists and tracked locations will live here.</p></div><div id="savedWorkspace" class="empty-state">Sign in to load your saved BridgePoint workspace.</div></div>
+    </section>
+
+    <section class="app-page" data-surface="claims" hidden>
+      <div class="page-scroll"><div class="page-head"><span class="eyebrow">CLAIMS INTELLIGENCE</span><h1>Claims</h1><p>Event evidence, timelines, property context and claims lifecycle workflows.</p></div><div id="claimsWorkspace" class="empty-state">Claims workspace is access-gated. Choose a claims-enabled package to unlock it.</div></div>
+    </section>
+
+    <section class="app-page" data-surface="workflow" hidden>
+      <div class="page-scroll"><div class="page-head"><span class="eyebrow">OPERATIONS</span><h1>Workflow</h1><p>Move saved properties and opportunities through BridgePoint actions, notes, routes and case workflows.</p></div><div id="workflowWorkspace" class="empty-state">Workflow tools will populate from your BridgePoint account and saved intelligence.</div></div>
+    </section>
+
+    <section class="app-page" data-surface="more" hidden>
+      <div class="page-scroll"><div class="page-head"><span class="eyebrow">BRIDGEPOINT</span><h1>More</h1><p>Backend status, global expansion, account access and additional intelligence modules.</p></div><div class="page-card-grid"><article class="page-card"><span>BACKEND</span><h3>System status</h3><p>Live national materialization and source coverage.</p><button id="moreOpenStatus" type="button">OPEN STATUS</button></article><article class="page-card"><span>EXPANSION</span><h3>Global expansion</h3><p>BridgePoint’s country and world expansion controls remain owner-gated.</p><button id="moreExpansion" type="button">OWNER ACCESS</button></article></div></div>
+    </section>
+  </main>
+
+  <nav id="bottomNav" class="bottom-nav" aria-label="BridgePoint pages">
+    <button type="button" data-nav="map" class="active"><b>MAP</b><small>Explore</small></button>
+    <button type="button" data-nav="packages"><b>PACKAGES</b><small>Access</small></button>
+    <button type="button" data-nav="saved"><b>SAVED</b><small>Workspace</small></button>
+    <button type="button" data-nav="claims"><b>CLAIMS</b><small>Cases</small></button>
+    <button type="button" data-nav="workflow"><b>WORKFLOW</b><small>Actions</small></button>
+    <button type="button" data-nav="more"><b>MORE</b><small>System</small></button>
+  </nav>
+</div>
+  <aside id="authPanel" class="auth-panel" hidden aria-label="BridgePoint account"><div class="panel-head"><div><span class="eyebrow">BRIDGEPOINT ACCOUNT</span><h2>Account</h2></div><button id="closeAuth" type="button" aria-label="Close">×</button></div><div id="authSignedOut"><p class="truth-note">Sign in to use Saved, Claims, package access, trials, media and workflow tools.</p><form id="authForm" class="auth-form" autocomplete="on"><label>Email<input id="authEmail" type="email" autocomplete="email" required></label><label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="6" required></label><button id="authSignIn" type="submit">SIGN IN</button><button id="authCreate" class="secondary" type="button">CREATE ACCOUNT</button></form><div id="authMessage" class="auth-message"></div></div><div id="authSignedIn" hidden><div class="account-card"><span>SIGNED IN</span><b id="authUserEmail">—</b><small id="authAccessSummary">Loading package access…</small></div><button id="authSignOut" class="wide-secondary" type="button">SIGN OUT</button></div></aside><div id="accessToast" class="access-toast" hidden></div>
+<script src="../vendor/maplibre-gl.js"></script>
+<script src="../vendor/pmtiles.js"></script>
+<script type="module" src="../app.js?v=5050"></script>
+</body>
+</html>
