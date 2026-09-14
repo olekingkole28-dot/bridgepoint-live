@@ -41,6 +41,8 @@ jobs:
           # Copy every V2300 runtime module so one-step additions cannot be omitted by stale file lists.
           find release-v2300 -maxdepth 1 -type f \( -name 'world-v2300-*.js' -o -name 'world-v2300.css' \) -print0 | while IFS= read -r -d '' f; do cp "$f" "app/$(basename "$f")"; done
 
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o app/vendor/maplibre-gl-v1995.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o app/vendor/maplibre-gl-v1995.css
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.min.js -o app/vendor/three.module.min.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js -o app/vendor/OrbitControls.js
           sed -i "s/from 'three'/from '.\/three.module.min.js'/g; s/from \"three\"/from \".\/three.module.min.js\"/g" app/vendor/OrbitControls.js
@@ -95,6 +97,8 @@ jobs:
           ! grep -Eiq 'mapbox|cesium|nearmap|regrid|reportall|server\.arcgisonline\.com|esm\.sh|unpkg\.com' app/world-v2300-*.js
           test ! -f app/map-v1997.js
           test ! -f app/map-v1997-weather-hotfix.js
+          test -s app/vendor/maplibre-gl-v1995.js
+          test -s app/vendor/maplibre-gl-v1995.css
           test -s app/vendor/three.module.min.js
           test -s app/vendor/OrbitControls.js
 
