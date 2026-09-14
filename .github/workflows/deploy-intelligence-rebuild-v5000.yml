@@ -212,18 +212,19 @@ jobs:
                 if(!map)throw new Error('map unavailable');
                 map.jumpTo({center:[-72.6716132,41.7409742],zoom:18,pitch:58,bearing:0});
               });
-              await p.waitForFunction(()=>{
+              const clickPoint=await p.waitForFunction(()=>{
                 const map=window.__BP_V5000_WORLD?.map;
                 if(!map)return false;
-                const pt=map.project([-72.6716132,41.7409742]);
                 const layers=['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings'].filter(id=>map.getLayer(id));
                 if(!layers.length)return false;
-                try{return map.queryRenderedFeatures(pt,{layers}).length>0}catch{return false}
-              },{timeout:25000});
-              const clickPoint=await p.evaluate(()=>{
-                const pt=window.__BP_V5000_WORLD.map.project([-72.6716132,41.7409742]);
-                return {x:pt.x,y:pt.y};
-              });
+                const r=map.getCanvas().getBoundingClientRect();
+                for(let y=Math.round(r.height*.22);y<=Math.round(r.height*.82);y+=18){
+                  for(let x=Math.round(r.width*.08);x<=Math.round(r.width*.92);x+=18){
+                    try{if(map.queryRenderedFeatures({x,y},{layers}).length)return {x,y}}catch(_){}
+                  }
+                }
+                return false
+              },{timeout:25000}).then(h=>h.jsonValue());
               const canvas=await p.$('#liveMap canvas');
               const box=await canvas.boundingBox();
               await p.touchscreen.tap(box.x+clickPoint.x,box.y+clickPoint.y);
