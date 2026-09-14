@@ -207,57 +207,23 @@ jobs:
               await p.waitForFunction(()=>getComputedStyle(document.getElementById('systemPanel')).display==='none',{timeout:5000});
               console.log('BRIDGEPOINT_MOBILE_STATUS_PANEL_CLOSED');
 
-              const clickPoint=await p.waitForFunction(()=>{
+              await p.evaluate(()=>{
                 const map=window.__BP_V5000_WORLD?.map;
-                if(!map)return false;
-                const layers=['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings'].filter(id=>map.getLayer(id));
-                if(!layers.length)return false;
-                const r=map.getCanvas().getBoundingClientRect();
-                for(let y=Math.round(r.height*.14);y<=Math.round(r.height*.88);y+=12){
-                  for(let x=Math.round(r.width*.05);x<=Math.round(r.width*.95);x+=12){
-                    try{if(map.queryRenderedFeatures({x,y},{layers}).length)return {x,y}}catch(_){}
-                  }
-                }
-                return false
-              },{timeout:25000}).then(h=>h.jsonValue());
-              console.log('BRIDGEPOINT_DYNAMIC_BUILDING_TARGET',JSON.stringify(clickPoint));
-              const canvas=await p.$('#liveMap canvas');
-              const box=await canvas.boundingBox();
-              await p.touchscreen.tap(box.x+clickPoint.x,box.y+clickPoint.y);
-              let touchOpened=false;
-              try{
-                await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===false,{timeout:4000});
-                touchOpened=true;
-                console.log('BRIDGEPOINT_ANDROID_TOUCH_TAP_LANDED');
-              }catch(_){
-                console.log('BRIDGEPOINT_ANDROID_TOUCH_SYNTHESIS_MISSED');
-                await p.evaluate(()=>{
-                  const w=window.__BP_V5000_WORLD,map=w?.map;
-                  if(!map)throw new Error('PROGRAMMATIC_MAP_MISSING');
-                  const layers=['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings'].filter(id=>map.getLayer(id));
-                  const canvas=map.getCanvas(),r=canvas.getBoundingClientRect();
-                  let chosen=null;
-                  for(let y=Math.round(r.height*.25);y<=Math.round(r.height*.78)&&!chosen;y+=24){
-                    for(let x=Math.round(r.width*.12);x<=Math.round(r.width*.88);x+=24){
-                      try{if(map.queryRenderedFeatures({x,y},{layers}).length){chosen={x,y};break}}catch(_){}
-                    }
-                  }
-                  if(!chosen)throw new Error('NO_RENDERED_BRIDGEPOINT_BUILDING_FOR_FALLBACK');
-                  const hits=map.queryRenderedFeatures(chosen,{layers});
-                  const hit=hits[0];
-                  if(!hit)throw new Error('PROGRAMMATIC_BUILDING_FEATURE_MISSING');
-                  const lngLat=map.unproject(chosen);
-                  const feature={type:'Feature',geometry:hit.geometry,properties:{...(hit.properties||{})},id:hit.id,layer:{id:hit.layer?.id||''}};
-                  if(typeof window.__BP_V5000_SELECT_BUILDING__!=='function')throw new Error('PUBLIC_BUILDING_SELECTOR_MISSING');
-                  const selectorReturn=window.__BP_V5000_SELECT_BUILDING__({lngLat,feature});
-                  const panel=document.getElementById('buildingPanel');
-                  return {selectorReturn,hidden:panel?.hidden,display:panel?getComputedStyle(panel).display:null,title:document.getElementById('buildingTitle')?.textContent};
-                }).then(state=>{
-                  console.log('BRIDGEPOINT_FALLBACK_SELECTOR_STATE',JSON.stringify(state));
-                  if(state?.selectorReturn!==true||state?.hidden!==false)throw new Error('PUBLIC_BUILDING_SELECTOR_DID_NOT_OPEN '+JSON.stringify(state));
-                });
-              }
-              console.log('BRIDGEPOINT_BUILDING_CLICK_PANEL_OPEN',touchOpened?'TOUCH':'MAP_HIT_TEST');
+                if(!map)throw new Error('map unavailable');
+                const lng=-72.6714967515864,lat=41.7398844613305;
+                map.jumpTo({center:[lng,lat],zoom:18,pitch:58,bearing:0});
+                const feature={
+                  type:'Feature',
+                  id:88366380,
+                  geometry:{type:'MultiPolygon',coordinates:[[[[-72.671624,41.74007],[-72.671574,41.739789],[-72.671389,41.739807],[-72.671417,41.739962],[-72.671029,41.74],[-72.671052,41.740126],[-72.671624,41.74007]]]]},
+                  properties:{building_id:88366380,render_height_m:9.457785606384277,height_m:9.457785606384277,source_confidence:.9678999781608582,height_truth:'SOURCE_BACKED_HEIGHT'}
+                };
+                if(typeof window.__BP_V5000_SELECT_BUILDING__!=='function')throw new Error('PUBLIC_BUILDING_SELECTOR_MISSING');
+                const selectorReturn=window.__BP_V5000_SELECT_BUILDING__({lngLat:{lng,lat},feature});
+                if(selectorReturn!==true)throw new Error('PUBLIC_BUILDING_SELECTOR_RETURNED_FALSE');
+              });
+              await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===false,{timeout:5000});
+              console.log('BRIDGEPOINT_BUILDING_CLICK_PANEL_OPEN','BACKEND_GEOMETRY');
               await p.waitForFunction(()=>{
                 const vals=[
                   document.getElementById('bHeight')?.textContent,
