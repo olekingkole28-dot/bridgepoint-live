@@ -73,6 +73,8 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' site/app.js
           grep -Fq 'bridgepoint_public_building_parts_v5000' site/app.js
           grep -Fq 'bridgepoint_public_foundation_sample_v5011' site/app.js
+          grep -Fq 'bridgepoint-public-building-tile-v5019' site/app.js
+          grep -Fq 'bridgepoint-public-building-tile-v5019' site/world-v2300-map.js
           grep -Fq 'prefillBuildingFromFeature' site/app.js
           grep -Fq 'bFootprintArea' site/app.js
           grep -Fq 'bProvDataset' site/app.js
