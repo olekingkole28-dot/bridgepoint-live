@@ -75,6 +75,7 @@ async function bootstrap(){
   $('displayName').value=savedName;
   state.config=await rpc('bridgepoint_horizon_bootstrap_v4300',{p_player_id:ident.id,p_player_secret:ident.secret,p_display_name:savedName});
   state.player=state.config.player;
+  localStorage.setItem('horizon-player-profile',JSON.stringify(state.player));
   const [catalog,yearOne]=await Promise.all([
     rpc('bridgepoint_horizon_catalog_v4310',{p_player_id:ident.id,p_player_secret:ident.secret}),
     rpc('bridgepoint_horizon_year_one_status_v4310',{p_player_id:ident.id,p_player_secret:ident.secret})
@@ -108,6 +109,8 @@ async function bootstrap(){
   status('Lobby ready · invite friends or choose a mode');
   connectPartySignal();
   setInterval(refreshParty,1800);
+  const initialTab=(qs.get('tab')||'').trim().toUpperCase();
+  if(initialTab&&['BATTLE_PASS','LOCKER','LOADOUTS','STORE','ARENA','WATCH'].includes(initialTab))setTimeout(()=>openModal(initialTab),250);
 }
 async function refreshParty(){
   try{
@@ -132,7 +135,7 @@ $('displayName').addEventListener('change',async e=>{
   localStorage.setItem('horizon-display-name',name);
   try{
     const out=await rpc('bridgepoint_horizon_bootstrap_v4300',{p_player_id:ident.id,p_player_secret:ident.secret,p_display_name:name});
-    state.player=out.player;await refreshParty();
+    state.player=out.player;localStorage.setItem('horizon-player-profile',JSON.stringify(state.player));await refreshParty();
   }catch(err){status(err.message)}
 });
 
@@ -377,7 +380,7 @@ $('modalContent').addEventListener('click',async e=>{
       const out=await rpc('bridgepoint_horizon_set_profile_v4302',{
         p_player_id:ident.id,p_player_secret:ident.secret,p_avatar_key:null,p_wrap_key:null,p_loadout:slot
       });
-      state.player=out.player;localStorage.setItem('horizon-loadout',String(slot));
+      state.player=out.player;localStorage.setItem('horizon-player-profile',JSON.stringify(state.player));localStorage.setItem('horizon-loadout',String(slot));
       $('loadoutName').textContent=state.config.loadouts.find(x=>x.slot===slot)?.name||'Ranger';
       document.querySelectorAll('[data-loadout]').forEach(x=>x.classList.toggle('selected',Number(x.dataset.loadout)===slot));
     }catch(err){status(err.message)}
@@ -389,7 +392,7 @@ $('modalContent').addEventListener('click',async e=>{
       const out=await rpc('bridgepoint_horizon_set_profile_v4302',{
         p_player_id:ident.id,p_player_secret:ident.secret,p_avatar_key:avatar.dataset.avatar,p_wrap_key:null,p_loadout:null
       });
-      state.player=out.player;await refreshParty();
+      state.player=out.player;localStorage.setItem('horizon-player-profile',JSON.stringify(state.player));await refreshParty();
       document.querySelectorAll('[data-avatar]').forEach(x=>x.classList.toggle('selected',x.dataset.avatar===state.player.avatar_key));
     }catch(err){status(err.message)}
   }

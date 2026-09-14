@@ -1,4 +1,5 @@
-name: Horizon V2 Live Gate
+name: Horizon V4313 Source Gate
+
 on:
   push:
     branches: [main]
@@ -6,18 +7,35 @@ on:
       - '.github/workflows/horizon-v2-live-gate.yml'
       - 'scripts/browser-horizon-v2-live.mjs'
       - 'app/horizon-playable/v2-entry.html'
+      - 'app/horizon-playable/index.html'
       - 'app/horizon-playable/horizon-v2.js'
       - 'app/horizon-playable/horizon-v2.css'
   workflow_dispatch:
+
 jobs:
-  live:
+  source-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - run: npm install playwright@1.55.0
-      - run: npx playwright install --with-deps chromium
-      - run: node scripts/browser-horizon-v2-live.mjs
+          node-version: '22'
+      - run: npm install --no-save --no-audit --no-fund playwright-core@1.55.0
+      - name: Static checks
+        run: |
+          set -euo pipefail
+          node --check app/horizon-playable/horizon-v2.js
+          grep -Fq 'build:4313' app/horizon-playable/horizon-v2.js
+          grep -Fq 'actualCharacterModel:true' app/horizon-playable/horizon-v2.js
+          grep -Fq 'solidCollision:true' app/horizon-playable/horizon-v2.js
+          grep -Fq 'id="aimBtn"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="buildBtn"' app/horizon-playable/v2-entry.html
+      - name: Start local source server
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/horizon-v4313-http.log 2>&1 &
+          sleep 1
+      - name: Browser source gate
+        env:
+          HORIZON_TEST_BASE: http://127.0.0.1:4173
+        run: node scripts/browser-horizon-v2-live.mjs

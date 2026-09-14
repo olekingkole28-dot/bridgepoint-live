@@ -1,29 +1,29 @@
-name: Browser Test Horizon Playable v3052
+name: Browser Test Horizon Playable v4313
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - 'app/horizon-world/**'
-      - 'app/horizon-playable/**'
-      - 'app/horizon/lobby.html'
-      - 'scripts/browser-horizon-playable-v2980.mjs'
-      - 'scripts/browser-horizon-android-safe.mjs'
-      - 'scripts/browser-horizon-lobby.mjs'
+      - 'app/horizon-playable/v2-entry.html'
+      - 'app/horizon-playable/index.html'
+      - 'app/horizon-playable/horizon-v2.js'
+      - 'app/horizon-playable/horizon-v2.css'
+      - 'app/horizon-playable/assets/characters/**'
+      - 'scripts/browser-horizon-v2-live.mjs'
       - '.github/workflows/browser-test-horizon-playable-v2980.yml'
 
 permissions:
   contents: read
 
 concurrency:
-  group: horizon-playable-v3052
+  group: horizon-playable-v4313
   cancel-in-progress: true
 
 jobs:
-  survivor-world:
+  match-client:
     runs-on: ubuntu-latest
-    timeout-minutes: 14
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,55 +31,31 @@ jobs:
           node-version: '22'
       - name: Install pinned browser driver
         run: npm install --no-save --no-audit --no-fund playwright-core@1.55.0
-      - name: Start checked-out Horizon static server
+      - name: Static syntax and asset gates
+        run: |
+          set -euo pipefail
+          node --check app/horizon-playable/horizon-v2.js
+          test -s app/horizon-playable/v2-entry.html
+          test -s app/horizon-playable/horizon-v2.css
+          for f in female_31.glb male_32.glb police_male.glb swat_male.glb hazmat_suit_male.glb; do
+            test -s "app/horizon-playable/assets/characters/mesh2motion/models/$f"
+          done
+          grep -Fq 'id="aimBtn"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="shootBtn"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="runBtn"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="buildBtn"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="killFeed"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="killCam"' app/horizon-playable/v2-entry.html
+          ! grep -Fq 'id="useBtn"' app/horizon-playable/v2-entry.html
+          ! grep -Fq 'id="lightBtn"' app/horizon-playable/v2-entry.html
+          ! grep -Fq 'id="weatherBtn"' app/horizon-playable/v2-entry.html
+      - name: Start checked-out Horizon server
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/horizon-http.log 2>&1 &
           echo $! >/tmp/horizon-http.pid
           sleep 1
-          curl --fail --silent http://127.0.0.1:4173/app/horizon-playable/ >/dev/null
-      - name: Verify checked-out Horizon survivor world
+          curl --fail --silent http://127.0.0.1:4173/app/horizon-playable/v2-entry.html >/dev/null
+      - name: Verify V4313 Android match client
         env:
           HORIZON_TEST_BASE: http://127.0.0.1:4173
-        run: node scripts/browser-horizon-playable-v2980.mjs
-
-  android-joystick:
-    runs-on: ubuntu-latest
-    timeout-minutes: 14
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Install pinned browser driver
-        run: npm install --no-save --no-audit --no-fund playwright-core@1.55.0
-      - name: Start checked-out Horizon static server
-        run: |
-          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/horizon-http.log 2>&1 &
-          echo $! >/tmp/horizon-http.pid
-          sleep 1
-          curl --fail --silent http://127.0.0.1:4173/app/horizon-playable/ >/dev/null
-      - name: Verify checked-out Android renderer and joystick movement
-        env:
-          HORIZON_TEST_BASE: http://127.0.0.1:4173
-        run: node scripts/browser-horizon-android-safe.mjs
-
-  account-mode-lobby:
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Install pinned browser driver
-        run: npm install --no-save --no-audit --no-fund playwright-core@1.55.0
-      - name: Start checked-out Horizon static server
-        run: |
-          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/horizon-http.log 2>&1 &
-          echo $! >/tmp/horizon-http.pid
-          sleep 1
-          curl --fail --silent http://127.0.0.1:4173/app/horizon/lobby.html >/dev/null
-      - name: Verify account and three-mode lobby
-        env:
-          HORIZON_TEST_BASE: http://127.0.0.1:4173
-        run: node scripts/browser-horizon-lobby.mjs
+        run: node scripts/browser-horizon-v2-live.mjs

@@ -1,8 +1,8 @@
-name: Deploy Verified Horizon V4246
+name: Deploy Verified Horizon v4313
 
 on:
   workflow_run:
-    workflows: ["Browser Test Horizon Playable v3052"]
+    workflows: ["Browser Test Horizon Playable v4313"]
     types: [completed]
   workflow_dispatch:
 
@@ -12,7 +12,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: verified-horizon-v4246-pages
+  group: verified-horizon-v4313-pages
   cancel-in-progress: true
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 22
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -36,7 +36,7 @@ jobs:
           ref: ${{ env.SOURCE_SHA }}
           fetch-depth: 0
 
-      - name: Assemble Horizon over current production
+      - name: Assemble verified Horizon over current production
         shell: bash
         run: |
           set -euo pipefail
@@ -44,33 +44,36 @@ jobs:
           rm -rf site
           mkdir -p site
           git archive --format=tar origin/live-artifact | tar -xf - -C site
-
-          # Preserve every non-Horizon production file exactly as it is.
           rm -rf site/app/horizon site/app/horizon-playable
           git archive --format=tar HEAD app/horizon app/horizon-playable | tar -xf - -C site
-
-          cat > site/app/horizon/horizon-live-v4246.json <<EOF
-          {"build":4246,"status":"HORIZON_VERIFIED_LIVE","source_sha":"${SOURCE_SHA}","surface":"/app/horizon/preview.html"}
+          cat > site/app/horizon/horizon-live-v4313.json <<EOF
+          {"build":4313,"status":"HORIZON_VERIFIED_LIVE","source_sha":"${SOURCE_SHA}","lobby":"/app/horizon/","playable":"/app/horizon-playable/v2-entry.html","year_one_started":false}
           EOF
-
           touch site/.nojekyll site/app/.nojekyll
 
-      - name: Validate exact control build before deployment
+      - name: Validate exact verified package
         shell: bash
         run: |
           set -euo pipefail
-          node --check site/app/horizon-playable/horizon-world.js
-          test -s site/app/horizon/preview.html
-          test -s site/app/horizon-playable/horizon-world.js
-          test -s site/app/horizon-playable/horizon-world.css
-
-          grep -Fq 'const BUILD_VERSION=4246;' site/app/horizon-playable/horizon-world.js
-          grep -Fq "const CAMERA_MODES=Object.freeze(['firstPerson','thirdPersonClose','thirdPersonFar'])" site/app/horizon-playable/horizon-world.js
-          grep -Fq 'const inputPointerOwners=new Map()' site/app/horizon-playable/horizon-world.js
-          grep -Fq 'movementFacingProbe' site/app/horizon-playable/horizon-world.js
-          grep -Fq "gamepadLayout:'standard'" site/app/horizon-playable/horizon-world.js
-          grep -Fq 'id="controlSettings"' site/app/horizon/preview.html
-          grep -Fq 'id="gamepadLayoutSetting"' site/app/horizon/preview.html
+          node --check site/app/horizon-playable/horizon-v2.js
+          test -s site/app/horizon/index.html
+          test -s site/app/horizon/app.js
+          test -s site/app/horizon/lobby-scene.js
+          test -s site/app/horizon-playable/v2-entry.html
+          test -s site/app/horizon-playable/horizon-v2.css
+          grep -Fq 'id="lobby3d"' site/app/horizon/index.html
+          grep -Fq 'data-mode="ISLAND_SOLO_8"' site/app/horizon/index.html
+          grep -Fq 'bridgepoint_horizon_catalog_v4310' site/app/horizon/app.js
+          grep -Fq 'build:4313' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'actualCharacterModel:true' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'solidCollision:true' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'dwellPickup:true' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'killFeed:true' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'killcam:true' site/app/horizon-playable/horizon-v2.js
+          for id in aimBtn shootBtn runBtn buildBtn killFeed killCam pickupPrompt; do grep -Fq "id=\"${id}\"" site/app/horizon-playable/v2-entry.html; done
+          ! grep -Fq 'id="useBtn"' site/app/horizon-playable/v2-entry.html
+          ! grep -Fq 'id="lightBtn"' site/app/horizon-playable/v2-entry.html
+          ! grep -Fq 'id="weatherBtn"' site/app/horizon-playable/v2-entry.html
 
       - name: Save durable live artifact
         env:
@@ -78,16 +81,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf /tmp/horizon-verified-live
-          mkdir -p /tmp/horizon-verified-live
-          cp -a site/. /tmp/horizon-verified-live/
-          cd /tmp/horizon-verified-live
+          rm -rf /tmp/horizon-v4313-live
+          mkdir -p /tmp/horizon-v4313-live
+          cp -a site/. /tmp/horizon-v4313-live/
+          cd /tmp/horizon-v4313-live
           git init -q
           git config user.name 'BridgePoint Release Bot'
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m "Publish verified Horizon V4246 ${SOURCE_SHA}"
+          git commit -m "Publish verified Horizon V4313 ${SOURCE_SHA}"
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -109,28 +112,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ORIGIN='https://bridgepointintelligence.online'
+          O='https://bridgepointintelligence.online'
           ok=0
-
-          for attempt in $(seq 1 40); do
-            q="${SOURCE_SHA}-${attempt}-$(date +%s)"
-            rm -f /tmp/h-marker /tmp/h-preview /tmp/h-world
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/horizon/horizon-live-v4246.json?v=${q}" -o /tmp/h-marker 2>/dev/null || true
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/horizon/preview.html?v=${q}" -o /tmp/h-preview 2>/dev/null || true
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/horizon-playable/horizon-world.js?v=${q}" -o /tmp/h-world 2>/dev/null || true
-
-            if grep -Fq "\"source_sha\":\"${SOURCE_SHA}\"" /tmp/h-marker 2>/dev/null \
-              && grep -Fq '"status":"HORIZON_VERIFIED_LIVE"' /tmp/h-marker 2>/dev/null \
-              && grep -Fq 'id="controlSettings"' /tmp/h-preview 2>/dev/null \
-              && grep -Fq 'movementFacingProbe' /tmp/h-world 2>/dev/null \
-              && grep -Fq 'inputPointerOwners' /tmp/h-world 2>/dev/null \
-              && grep -Fq 'gamepadLayout' /tmp/h-world 2>/dev/null; then
-              ok=1
-              echo "HORIZON_VERIFIED_SHA_LIVE ${SOURCE_SHA}"
-              break
+          for i in $(seq 1 35); do
+            q="${SOURCE_SHA}-${i}-$(date +%s)"
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}/app/horizon/horizon-live-v4313.json?v=${q}" -o /tmp/m 2>/dev/null || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}/app/horizon/?v=${q}" -o /tmp/h 2>/dev/null || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}/app/horizon-playable/v2-entry.html?v=${q}" -o /tmp/e 2>/dev/null || true
+            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}/app/horizon-playable/horizon-v2.js?v=${q}" -o /tmp/j 2>/dev/null || true
+            if grep -Fq "\"source_sha\":\"${SOURCE_SHA}\"" /tmp/m               && grep -Fq 'id="lobby3d"' /tmp/h               && grep -Fq 'id="aimBtn"' /tmp/e               && grep -Fq 'id="buildBtn"' /tmp/e               && grep -Fq 'build:4313' /tmp/j               && grep -Fq 'actualCharacterModel:true' /tmp/j; then
+              ok=1;echo "HORIZON_V4313_VERIFIED_LIVE ${SOURCE_SHA}";break
             fi
-
-            sleep 5
+            sleep 4
           done
-
           test "${ok}" = 1
