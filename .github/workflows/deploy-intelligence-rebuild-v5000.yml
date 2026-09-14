@@ -174,6 +174,7 @@ jobs:
                 const m=window.__BP_V5000_WORLD?.map;
                 if(!m)throw new Error('semantic map unavailable');
                 m.jumpTo({center:[-73.9857,40.7484],zoom:16.4,pitch:52,bearing:0});
+                setTimeout(()=>window.__BP_REFRESH_SEMANTIC_LABELS__?.(),700);
               });
               await p.waitForFunction(()=>{
                 const s=window.__BP_SEMANTIC_STATS;
@@ -250,6 +251,26 @@ jobs:
               },{timeout:15000});
               console.log('BRIDGEPOINT_BUILDING_CARD_POPULATED');
 
+              await p.waitForFunction(()=>{
+                const m=window.__BP_V5000_WORLD?.map,d=m?.getSource('bpV5041XrayFloors')?.serialize?.()?.data;
+                return !!m?.getLayer('bp-v5041-xray-floors')&&Array.isArray(d?.features)&&d.features.length>0;
+              },{timeout:12000});
+              console.log('BRIDGEPOINT_XRAY_FLOORS_RENDERED');
+
+              await p.click('#measureMap');
+              await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('measure map missing');
+                const c=m.getCenter();
+                m.fire('click',{lngLat:{lng:c.lng,lat:c.lat}});
+                m.fire('click',{lngLat:{lng:c.lng+.001,lat:c.lat+.001}});
+                m.fire('click',{lngLat:{lng:c.lng+.0015,lat:c.lat}});
+              });
+              await p.waitForFunction(()=>{
+                const d=window.__BP_V5000_WORLD?.map?.getSource('bpMeasure')?.serialize?.()?.data;
+                return Array.isArray(d?.features)&&d.features.some(f=>f?.geometry?.type==='LineString')&&d.features.some(f=>f?.geometry?.type==='Polygon');
+              },{timeout:5000});
+              console.log('BRIDGEPOINT_MEASURE_PASS');
+
               const out=await p.evaluate(()=>({
                 version:window.__BP_FRONTEND_VERSION,
                 canvases:document.querySelectorAll('#liveMap canvas').length,
@@ -271,6 +292,10 @@ jobs:
                 buildingAnchoredSemanticLabels:Number(window.__BP_SEMANTIC_STATS?.anchored||0),
                 semanticCandidates:Number(window.__BP_SEMANTIC_STATS?.candidates||0),
                 semanticClassified:Number(window.__BP_SEMANTIC_STATS?.classified||0),
+                xrayFloorCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('bpV5041XrayFloors')?.serialize?.()?.data;return d?.features?.length||0})(),
+                measureFeatureCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('bpMeasure')?.serialize?.()?.data;return d?.features?.length||0})(),
+                touchZoomEnabled:!!window.__BP_V5000_WORLD?.map?.touchZoomRotate?.isEnabled?.(),
+                dragPanEnabled:!!window.__BP_V5000_WORLD?.map?.dragPan?.isEnabled?.(),
                 searchCollapsed:(()=>{const f=document.getElementById('publicSearchForm');return !f||getComputedStyle(f).visibility==='hidden'||getComputedStyle(f).display==='none'||Number(getComputedStyle(f).opacity)===0})(),
                 liveLegend:document.getElementById('liveLegendCount')?.textContent,
                 surfaceMaterial:!!document.getElementById('ctxSurfaceMaterial'),
@@ -290,7 +315,7 @@ jobs:
                 buildingResolutionMethod:document.getElementById('bProvPolicy')?.textContent,
                 buildingTruthBadge:document.getElementById('buildingTruthBadge')?.textContent
               }));
-              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.placeLabels||!out.roadLabels||!out.poiLabels||!out.opportunityBuildings||!out.opportunityLabels||!out.opportunityRendered||out.renderedPlaceLabels<1||out.semanticLabels<1||out.buildingAnchoredSemanticLabels<1||!out.searchCollapsed||!out.liveLegend||out.liveLegend==='CHECKING'||!out.surfaceMaterial||!out.surfaceSource||!out.transportArchive||out.transportArchive==='—'||!out.transportRuntime||out.transportRuntime==='—'||!out.buildingPanelVisible||!out.buildingHeight||out.buildingHeight==='—'||!out.buildingFloors||out.buildingFloors==='—'||!out.buildingSource||out.buildingSource==='—'||!out.buildingFootprint||!out.buildingDataset||out.selectedBuildingCount!==1||out.selectedParcelCount!==0||out.legacySelectedCount!==0)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
+              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.placeLabels||!out.roadLabels||!out.poiLabels||!out.opportunityBuildings||!out.opportunityLabels||!out.opportunityRendered||out.renderedPlaceLabels<1||out.semanticLabels<1||out.buildingAnchoredSemanticLabels<1||out.xrayFloorCount<1||out.measureFeatureCount<3||!out.touchZoomEnabled||!out.dragPanEnabled||!out.searchCollapsed||!out.liveLegend||out.liveLegend==='CHECKING'||!out.surfaceMaterial||!out.surfaceSource||!out.transportArchive||out.transportArchive==='—'||!out.transportRuntime||out.transportRuntime==='—'||!out.buildingPanelVisible||!out.buildingHeight||out.buildingHeight==='—'||!out.buildingFloors||out.buildingFloors==='—'||!out.buildingSource||out.buildingSource==='—'||!out.buildingFootprint||!out.buildingDataset||out.selectedBuildingCount!==1||out.selectedParcelCount!==0||out.legacySelectedCount!==0)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
               console.log('BRIDGEPOINT_V5000_ANDROID_PASS',JSON.stringify(out));
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
