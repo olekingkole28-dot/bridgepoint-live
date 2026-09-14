@@ -51,7 +51,7 @@ function clearSelectedGeometry(){const map=world?.map;for(const id of ['bpV5000S
 function clearSelectedBuilding(){selectedPoint=null;selectedFeature=null;selectedMode='building';clearInterval(selectedTimer);selectedTimer=null;$('buildingPanel').hidden=true;clearMapXray();clearSelectedGeometry()}
 $('closeBuilding').onclick=clearSelectedBuilding;
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5058');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5059');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -192,7 +192,7 @@ function setActiveSurface(name,{showNav=false}={}){
  const nav=$('bottomNav');
  if(nav){nav.classList.toggle('map-hidden',name==='map'&&!showNav);nav.classList.toggle('peek',name==='map'&&showNav)}
  document.body.classList.toggle('map-page-active',name==='map');
- if(name==='map'){requestAnimationFrame(()=>{world?.map?.resize?.();setMapSearchOpen(false)})}
+ if(name==='map'){closeSystem();requestAnimationFrame(()=>{world?.map?.resize?.();setMapSearchOpen(false)})}
  else if(name==='packages')void loadPackageCatalog();
  else if(name==='saved'||name==='claims'||name==='workflow')void loadWorkspace();
 }
@@ -321,6 +321,6 @@ function refreshSemanticLabels(){
 function startSemanticLabels(){const map=world?.map;if(!map||map.__bpSemanticBound)return;map.__bpSemanticBound=true;window.__BP_REFRESH_SEMANTIC_LABELS__=refreshSemanticLabels;map.on('moveend',refreshSemanticLabels);map.on('zoomend',refreshSemanticLabels);setTimeout(refreshSemanticLabels,1400)}
 
 function refreshTiles(){if(mapInteracting){deferredWork.set('tile-pulse',refreshTiles);return}const map=world?.map;if(!map)return;const pulse=Math.floor(Date.now()/30000),fn=SUPA+'/functions/v1/';try{const b=map.getSource('bpBuildings');if(b?.setTiles)b.setTiles([fn+'bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000&pulse='+pulse]);const p=map.getSource('bpParcels');if(p?.setTiles)p.setTiles([fn+'bridgepoint-spatial-tile-v1957?layer=parcels&z={z}&x={x}&y={y}&limit=9000&pulse='+pulse]);map.triggerRepaint();refreshSelected()}catch(e){console.warn('tile pulse',e)}}
-async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();await loadStatus();try{await bootMap();bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();startSemanticLabels()}catch(e){setText('mapStatus','Map start retry · '+e.message)}statusTimer=setInterval(loadStatus,5000);tileTimer=setInterval(refreshTiles,30000);setTimeout(refreshTiles,6000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5058').catch(()=>{})}
+async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();await loadStatus();try{await bootMap();bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();startSemanticLabels()}catch(e){setText('mapStatus','Map start retry · '+e.message)}statusTimer=setInterval(loadStatus,5000);tileTimer=setInterval(refreshTiles,30000);setTimeout(refreshTiles,6000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5059').catch(()=>{})}
 start();
 window.addEventListener('beforeunload',()=>{clearInterval(statusTimer);clearInterval(tileTimer);clearInterval(selectedTimer);clearInterval(liveContextTimer);clearInterval(transportTimer);clearInterval(opportunityTimer);clearTimeout(semanticTimer)});
