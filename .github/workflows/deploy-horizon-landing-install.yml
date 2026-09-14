@@ -1,131 +1,14 @@
-name: Deploy Horizon Single Surface
+name: BridgePoint V5000 Legacy Frontend Neutralizer
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'app/horizon/**'
-      - '.github/workflows/deploy-horizon-landing-install.yml'
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pages: write
-  id-token: write
-
-concurrency:
-  group: bridgepoint-landing-pages
-  cancel-in-progress: true
+  contents: read
 
 jobs:
-  deploy:
+  neutralized:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
+    timeout-minutes: 2
     steps:
-      - name: Checkout main
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - name: Overlay canonical Horizon surface onto current production
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin live-artifact:refs/remotes/origin/live-artifact
-          rm -rf site
-          mkdir -p site
-          git archive --format=tar origin/live-artifact | tar -xf - -C site
-
-          mkdir -p site/app/horizon
-          cp -a app/horizon/. site/app/horizon/
-          touch site/.nojekyll site/app/.nojekyll
-
-      - name: Validate single-surface Horizon package
-        shell: bash
-        run: |
-          set -euo pipefail
-          for f in index.html styles.css app.js runtime-contract.js lobby-scene.js model-preview.js manifest.webmanifest horizon-mark.svg sw.js; do
-            test -s "site/app/horizon/${f}"
-          done
-          test -s site/app/horizon-playable/horizon-v2.js
-
-          grep -Fq 'id="lobby3d"' site/app/horizon/index.html
-          grep -Fq 'id="installBanner"' site/app/horizon/index.html
-          grep -Fq 'data-mode="YEAR_ONE"' site/app/horizon/index.html
-          grep -Fq 'data-mode="TDM"' site/app/horizon/index.html
-          grep -Fq 'data-mode="EXTRACTION"' site/app/horizon/index.html
-          grep -Fq 'data-mode="ISLAND_SOLO_8"' site/app/horizon/index.html
-          grep -Fq 'WATCH LIVE' site/app/horizon/index.html
-          grep -Fq 'BATTLE PASS' site/app/horizon/index.html
-          grep -Fq 'bridgepoint_horizon_catalog_v4310' site/app/horizon/app.js
-          grep -Fq 'bridgepoint_horizon_year_one_status_v4310' site/app/horizon/app.js
-          grep -Fq 'createLobbyScene' site/app/horizon/app.js
-          grep -Fq 'beforeinstallprompt' site/app/horizon/app.js
-          grep -Fq 'horizon-installed-v4311' site/app/horizon/app.js
-          grep -Fq '"id":"/app/horizon/"' site/app/horizon/manifest.webmanifest
-          grep -Fq '"start_url":"/app/horizon/?source=pwa"' site/app/horizon/manifest.webmanifest
-          grep -Fq '"scope":"/app/horizon/"' site/app/horizon/manifest.webmanifest
-          grep -Fq '"display":"standalone"' site/app/horizon/manifest.webmanifest
-          grep -Fq '"sizes":"192x192"' site/app/horizon/manifest.webmanifest
-          grep -Fq '"sizes":"512x512"' site/app/horizon/manifest.webmanifest
-          ! grep -Fq '/app/intelligence-launch/' site/app/horizon/index.html
-
-      - name: Save durable live artifact
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf /tmp/bp-horizon-live
-          mkdir -p /tmp/bp-horizon-live
-          cp -a site/. /tmp/bp-horizon-live/
-          cd /tmp/bp-horizon-live
-          git init -q
-          git config user.name 'BridgePoint Release Bot'
-          git config user.email 'actions@users.noreply.github.com'
-          git checkout -b live-artifact
-          git add -A
-          git commit -m "Publish canonical Horizon surface ${GITHUB_SHA}"
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push --force origin live-artifact
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: site
-
-      - name: Deploy Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Verify custom domain
-        shell: bash
-        run: |
-          set -euo pipefail
-          O='https://bridgepointintelligence.online/app/horizon/'
-          ok=0
-          for i in $(seq 1 30); do
-            q="${GITHUB_SHA}-${i}-$(date +%s)"
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}?v=${q}" -o /tmp/h 2>/dev/null || true
-            if grep -Fq 'id="lobby3d"' /tmp/h               && grep -Fq 'data-mode="ISLAND_SOLO_8"' /tmp/h               && grep -Fq 'id="installBanner"' /tmp/h               && grep -Fq 'WATCH LIVE' /tmp/h; then
-              curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}app.js?v=${q}" -o /tmp/a 2>/dev/null || true
-              curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}lobby-scene.js?v=${q}" -o /tmp/s 2>/dev/null || true
-              if grep -Fq 'bridgepoint_horizon_catalog_v4310' /tmp/a                 && grep -Fq 'createLobbyScene' /tmp/a                 && grep -Fq 'ensureZombies' /tmp/s; then
-                ok=1
-                echo 'HORIZON_SINGLE_SURFACE_LIVE'
-                break
-              fi
-            fi
-            sleep 4
-          done
-          test "${ok}" = 1
+      - run: echo "Public frontend deployment retired. BridgePoint Intelligence V5000 owns GitHub Pages."
