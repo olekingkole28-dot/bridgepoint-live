@@ -92,9 +92,14 @@ jobs:
               await p.evaluate(()=>window.__bpInspectorV2300.open(-72.65,41.56));
               await p.waitForFunction(()=>window.__bpInspectorV2300?.active===true&&window.__bpInspectorV2300?.canvasActive===true&&document.querySelectorAll('#bp2300Three').length===1,{timeout:12000});
               await p.waitForFunction(()=>document.getElementById('bp2300Title')?.textContent?.includes('2300 Android Proof Street'),{timeout:5000});
-              const opened=await p.evaluate(()=>({main:document.querySelectorAll('#liveMap canvas').length,inspector:document.querySelectorAll('#bp2300Three').length,title:document.getElementById('bp2300Title')?.textContent||'',facts:document.getElementById('bp2300Facts')?.textContent||'',openPropertyHidden:document.getElementById('bp2300OpenProperty')?.hidden,api:{active:window.__bpInspectorV2300?.active,canvasActive:window.__bpInspectorV2300?.canvasActive,lazy:window.__bpInspectorV2300?.lazyThreeCanvas,destroy:window.__bpInspectorV2300?.destroysThreeCanvasOnClose,measure:window.__bpInspectorV2300?.raycastMeasurement,parts:window.__bpInspectorV2300?.buildingPartVisualization}}));
+              const opened=await p.evaluate(()=>({main:document.querySelectorAll('#liveMap canvas').length,inspector:document.querySelectorAll('#bp2300Three').length,title:document.getElementById('bp2300Title')?.textContent||'',facts:document.getElementById('bp2300Facts')?.textContent||'',openPropertyHidden:document.getElementById('bp2300OpenProperty')?.hidden,api:{active:window.__bpInspectorV2300?.active,canvasActive:window.__bpInspectorV2300?.canvasActive,lazy:window.__bpInspectorV2300?.lazyThreeCanvas,destroy:window.__bpInspectorV2300?.destroysThreeCanvasOnClose,measure:window.__bpInspectorV2300?.raycastMeasurement,parts:window.__bpInspectorV2300?.buildingPartVisualization,xrayFeature:window.__bpInspectorV2300?.xrayFloorPlates}}));
               console.log('INSPECTOR_OPEN',JSON.stringify(opened));
-              if(opened.main!==1||opened.inspector!==1||!opened.api.active||!opened.api.canvasActive||!opened.api.lazy||!opened.api.destroy||!opened.api.measure||!opened.api.parts||!opened.facts.includes('14.5 m')||!opened.facts.includes('Parts rendered2')||opened.openPropertyHidden)throw new Error('Inspector open/render/part proof failed');
+              if(opened.main!==1||opened.inspector!==1||!opened.api.active||!opened.api.canvasActive||!opened.api.lazy||!opened.api.destroy||!opened.api.measure||!opened.api.parts||!opened.api.xrayFeature||!opened.facts.includes('14.5 m')||!opened.facts.includes('Parts rendered2')||opened.openPropertyHidden)throw new Error('Inspector open/render/part/xray contract proof failed');
+              await p.click('#bp2300Xray');
+              await p.waitForFunction(()=>window.__bpInspectorV2300?.xrayActive===true&&document.getElementById('bp2300Xray')?.classList.contains('active'),{timeout:3000});
+              const xrayState=await p.evaluate(()=>({active:window.__bpInspectorV2300?.xrayActive,button:document.getElementById('bp2300Xray')?.classList.contains('active'),readout:document.getElementById('bp2300MeasureReadout')?.textContent||'',canvases:document.querySelectorAll('canvas').length}));
+              console.log('INSPECTOR_XRAY',JSON.stringify(xrayState));
+              if(!xrayState.active||!xrayState.button||!xrayState.readout.includes('X-ray floor plates')||xrayState.canvases!==2)throw new Error('X-ray floor-plate proof failed');
               await p.click('#bp2300Measure');
               await p.waitForFunction(()=>document.getElementById('bp2300MeasureReadout')?.textContent?.includes('Tap two points'),{timeout:3000});
               const canvas=await p.$('#bp2300Three'),box=await canvas.boundingBox();
@@ -109,9 +114,9 @@ jobs:
               await p.click('.bp2300-close');
               await p.waitForFunction(()=>window.__bpInspectorV2300?.active===false&&window.__bpInspectorV2300?.canvasActive===false&&document.querySelectorAll('#bp2300Three').length===0,{timeout:5000});
               await new Promise(r=>setTimeout(r,250));
-              const after=await p.evaluate(()=>({main:document.querySelectorAll('#liveMap canvas').length,inspector:document.querySelectorAll('#bp2300Three').length,active:window.__bpInspectorV2300?.active||false,canvasActive:window.__bpInspectorV2300?.canvasActive||false,status:document.getElementById('mapStatus')?.textContent||''}));
+              const after=await p.evaluate(()=>({main:document.querySelectorAll('#liveMap canvas').length,inspector:document.querySelectorAll('#bp2300Three').length,active:window.__bpInspectorV2300?.active||false,canvasActive:window.__bpInspectorV2300?.canvasActive||false,xrayActive:window.__bpInspectorV2300?.xrayActive||false,status:document.getElementById('mapStatus')?.textContent||''}));
               console.log('INSPECTOR_AFTER',JSON.stringify(after));
-              if(errors.length||after.main!==1||after.inspector!==0||after.active||after.canvasActive)throw new Error('Inspector teardown or MapLibre preservation failed');
+              if(errors.length||after.main!==1||after.inspector!==0||after.active||after.canvasActive||after.xrayActive)throw new Error('Inspector teardown or MapLibre preservation failed');
             }finally{await browser.close()}
           })().catch(e=>{console.error('INSPECTOR_FATAL',e.stack||e);process.exit(1)});
           NODE
