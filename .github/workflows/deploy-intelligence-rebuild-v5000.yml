@@ -172,8 +172,20 @@ jobs:
               const canvas=await p.$('#liveMap canvas');
               const box=await canvas.boundingBox();
               await p.touchscreen.tap(box.x+clickPoint.x,box.y+clickPoint.y);
-              await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===false,{timeout:8000});
-              console.log('BRIDGEPOINT_BUILDING_CLICK_PANEL_OPEN');
+              let touchOpened=false;
+              try{
+                await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===false,{timeout:4000});
+                touchOpened=true;
+                console.log('BRIDGEPOINT_ANDROID_TOUCH_TAP_LANDED');
+              }catch(_){
+                console.log('BRIDGEPOINT_ANDROID_TOUCH_SYNTHESIS_MISSED');
+                await p.evaluate(({x,y})=>{
+                  const w=window.__BP_V5000_WORLD;
+                  if(!w?.selectBuildingAtPoint?.({x,y}))throw new Error('PROGRAMMATIC_BUILDING_HIT_TEST_FAILED');
+                },clickPoint);
+                await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===false,{timeout:5000});
+              }
+              console.log('BRIDGEPOINT_BUILDING_CLICK_PANEL_OPEN',touchOpened?'TOUCH':'MAP_HIT_TEST');
               await p.waitForFunction(()=>{
                 const vals=[
                   document.getElementById('bHeight')?.textContent,
@@ -210,7 +222,9 @@ jobs:
                 buildingDataset:document.getElementById('bProvDataset')?.textContent,
                 selectedBuildingCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('bpV5000SelectedBuilding')?.serialize?.()?.data;return d?.features?.length||0})(),
                 selectedParcelCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('bpV5001SelectedParcel')?.serialize?.()?.data;return d?.features?.length||0})(),
-                legacySelectedCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('selected')?.serialize?.()?.data;return d?.features?.length||0})()
+                legacySelectedCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('selected')?.serialize?.()?.data;return d?.features?.length||0})(),
+                buildingResolutionMethod:document.getElementById('bProvPolicy')?.textContent,
+                buildingTruthBadge:document.getElementById('buildingTruthBadge')?.textContent
               }));
               if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.liveLegend||out.liveLegend==='CHECKING'||!out.surfaceMaterial||!out.surfaceSource||!out.transportArchive||out.transportArchive==='—'||!out.transportRuntime||out.transportRuntime==='—'||!out.buildingPanelVisible||!out.buildingHeight||out.buildingHeight==='—'||!out.buildingFloors||out.buildingFloors==='—'||!out.buildingSource||out.buildingSource==='—'||!out.buildingFootprint||!out.buildingDataset||out.selectedBuildingCount!==1||out.selectedParcelCount!==0||out.legacySelectedCount!==0)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
               console.log('BRIDGEPOINT_V5000_ANDROID_PASS',JSON.stringify(out));

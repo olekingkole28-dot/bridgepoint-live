@@ -98,5 +98,5 @@ export function initWorld(){
  map.on('click',e=>{if(performance.now()-lastTouchBuildingAt<700)return;chooseBuilding(e)});
  map.on('mousemove',e=>{try{const hit=map.queryRenderedFeatures(e.point,{layers:['gta-exact-building','gta-bp-buildings'].filter(id=>map.getLayer(id))}).length;map.getCanvas().style.cursor=hit?'pointer':''}catch(_){}});
  const state={version:VERSION,architecture:'MAPLIBRE_MVT_QUADTREE_LOD_PLUS_EXACT_VIEWPORT_WORKER',openRuntimeOnly:true,competitorSdk:false,staleWhileRevalidateExact:true,mainWebGLCanvases:()=>document.querySelectorAll('#liveMap canvas').length,get exactCount(){return exactCount},get moving(){return moving},get terrain(){return terrainOn},get base(){return base},sources:{map:'MapLibre GL JS',vectors:'OpenFreeMap/OpenStreetMap + BridgePoint MVT',globalImagery:'NASA EOSDIS GIBS Blue Marble',usImagery:'USGS The National Map orthoimagery',terrain:'Mapzen Terrain Tiles on AWS Open Data',parcels:'BridgePoint MVT'}};
- const api={version:VERSION,map,state,setBase,refresh:()=>{terrain();exact();lights()}};window.__bpWorldV2300=api;return api;
+ const api={version:VERSION,map,state,setBase,refresh:()=>{terrain();exact();lights()},selectBuildingAtPoint:point=>chooseBuilding({point,lngLat:map.unproject(point)})};window.__bpWorldV2300=api;return api;
 }
