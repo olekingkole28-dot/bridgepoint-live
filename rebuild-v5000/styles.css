@@ -18,3 +18,11 @@
 @media(max-width:760px){
  .map-surface.map-engaged .map-brand-card{opacity:.88;transform:scale(.92);transform-origin:top left;max-width:290px}
 }
+
+/* V5041 interaction + X-ray + measurement */
+#liveMap,.maplibregl-map,.maplibregl-canvas-container,.maplibregl-canvas{touch-action:none}
+.map-tools{left:50%;right:auto;bottom:18px;transform:translateX(-50%);display:flex;flex-wrap:nowrap;overflow-x:auto;max-width:min(900px,calc(100vw - 24px));width:max-content;padding:5px;border-radius:14px;background:rgba(3,9,14,.56);backdrop-filter:blur(14px);scrollbar-width:none}
+.map-tools::-webkit-scrollbar{display:none}.map-tools button{flex:0 0 auto;white-space:nowrap}
+.map-status{bottom:72px;left:18px;max-width:min(70vw,760px)}
+.measure-readout{position:absolute;z-index:12;left:50%;bottom:78px;transform:translateX(-50%);padding:8px 11px;border:1px solid rgba(98,230,255,.22);border-radius:10px;background:rgba(4,11,16,.92);color:#dffcff;font-size:10px;font-weight:850;letter-spacing:.04em;pointer-events:none;white-space:nowrap}
+@media(max-width:760px){.map-tools{bottom:10px;max-width:calc(100vw - 14px);padding:4px}.map-tools button{padding:8px 9px}.map-status{bottom:62px;left:10px;max-width:84vw}.measure-readout{bottom:62px}}

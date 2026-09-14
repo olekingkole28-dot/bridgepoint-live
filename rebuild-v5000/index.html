@@ -9,7 +9,7 @@
 <link rel="icon" href="./bridgepoint-mark.svg" type="image/svg+xml">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="stylesheet" href="./vendor/maplibre-gl.css">
-<link rel="stylesheet" href="./styles.css?v=5033">
+<link rel="stylesheet" href="./styles.css?v=5041">
 <script id="BP_FRONTEND_V5000">(()=>{try{window.__BP_FRONTEND_VERSION=5000;if('serviceWorker'in navigator)navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).catch(()=>{});if('caches'in window)caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).catch(()=>{})}catch(_){}})();</script>
 </head>
 <body>
@@ -47,11 +47,14 @@
         <button data-layer="parcels" class="active" type="button">PARCELS</button>
         <button id="toggleTransport" type="button" title="BridgePoint runtime transport" hidden>BP ROADS</button>
         <button id="toggleLiveContext" class="active" type="button" title="Fresh public weather and hazard context">LIVE</button>
+        <button id="measureMap" type="button" title="Measure distance and area">MEASURE</button>
+        <button id="clearMeasure" type="button" hidden>CLEAR</button>
         <button id="locateMe" type="button">LOCATE</button>
         <button id="resetMap" type="button">RESET</button>
       </div>
 
       <div id="mapStatus" class="map-status">Starting BridgePoint live map…</div>
+      <div id="measureReadout" class="measure-readout" hidden></div>
       <div id="mapResults" hidden></div>
 
       <aside id="systemPanel" class="system-panel">
@@ -117,6 +120,6 @@
 </div>
 <script src="./vendor/maplibre-gl.js"></script>
 <script src="./vendor/pmtiles.js"></script>
-<script type="module" src="./app.js?v=5038"></script>
+<script type="module" src="./app.js?v=5041"></script>
 </body>
 </html>
