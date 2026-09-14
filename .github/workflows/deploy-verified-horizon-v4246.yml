@@ -1,128 +1,14 @@
-name: Deploy Verified Horizon v4313
+name: BridgePoint V5000 Legacy Frontend Neutralizer
 
 on:
-  workflow_run:
-    workflows: ["Browser Test Horizon Playable v4313"]
-    types: [completed]
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pages: write
-  id-token: write
-
-concurrency:
-  group: verified-horizon-v4313-pages
-  cancel-in-progress: true
+  contents: read
 
 jobs:
-  deploy:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main')
+  neutralized:
     runs-on: ubuntu-latest
-    timeout-minutes: 22
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    env:
-      SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
-
+    timeout-minutes: 2
     steps:
-      - name: Checkout exact verified Horizon source
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.SOURCE_SHA }}
-          fetch-depth: 0
-
-      - name: Assemble verified Horizon over current production
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin live-artifact:refs/remotes/origin/live-artifact
-          rm -rf site
-          mkdir -p site
-          git archive --format=tar origin/live-artifact | tar -xf - -C site
-          rm -rf site/app/horizon site/app/horizon-playable
-          git archive --format=tar HEAD app/horizon app/horizon-playable | tar -xf - -C site
-          cat > site/app/horizon/horizon-live-v4313.json <<EOF
-          {"build":4313,"status":"HORIZON_VERIFIED_LIVE","source_sha":"${SOURCE_SHA}","lobby":"/app/horizon/","playable":"/app/horizon-playable/v2-entry.html","year_one_started":false}
-          EOF
-          touch site/.nojekyll site/app/.nojekyll
-
-      - name: Validate exact verified package
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --check site/app/horizon-playable/horizon-v2.js
-          test -s site/app/horizon/index.html
-          test -s site/app/horizon/app.js
-          test -s site/app/horizon/lobby-scene.js
-          test -s site/app/horizon-playable/v2-entry.html
-          test -s site/app/horizon-playable/horizon-v2.css
-          grep -Fq 'id="lobby3d"' site/app/horizon/index.html
-          grep -Fq 'data-mode="ISLAND_SOLO_8"' site/app/horizon/index.html
-          grep -Fq 'bridgepoint_horizon_catalog_v4310' site/app/horizon/app.js
-          grep -Fq 'build:4313' site/app/horizon-playable/horizon-v2.js
-          grep -Fq 'actualCharacterModel:true' site/app/horizon-playable/horizon-v2.js
-          grep -Fq 'solidCollision:true' site/app/horizon-playable/horizon-v2.js
-          grep -Fq 'dwellPickup:true' site/app/horizon-playable/horizon-v2.js
-          grep -Fq 'killFeed:true' site/app/horizon-playable/horizon-v2.js
-          grep -Fq 'killcam:true' site/app/horizon-playable/horizon-v2.js
-          for id in aimBtn shootBtn runBtn buildBtn killFeed killCam pickupPrompt; do grep -Fq "id=\"${id}\"" site/app/horizon-playable/v2-entry.html; done
-          ! grep -Fq 'id="useBtn"' site/app/horizon-playable/v2-entry.html
-          ! grep -Fq 'id="lightBtn"' site/app/horizon-playable/v2-entry.html
-          ! grep -Fq 'id="weatherBtn"' site/app/horizon-playable/v2-entry.html
-
-      - name: Save durable live artifact
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf /tmp/horizon-v4313-live
-          mkdir -p /tmp/horizon-v4313-live
-          cp -a site/. /tmp/horizon-v4313-live/
-          cd /tmp/horizon-v4313-live
-          git init -q
-          git config user.name 'BridgePoint Release Bot'
-          git config user.email 'actions@users.noreply.github.com'
-          git checkout -b live-artifact
-          git add -A
-          git commit -m "Publish verified Horizon V4313 ${SOURCE_SHA}"
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push --force origin live-artifact
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: site
-
-      - name: Deploy Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Verify exact Horizon SHA on custom domain
-        shell: bash
-        run: |
-          set -euo pipefail
-          O='https://bridgepointintelligence.online'
-          ok=0
-          for i in $(seq 1 35); do
-            q="${SOURCE_SHA}-${i}-$(date +%s)"
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}/app/horizon/horizon-live-v4313.json?v=${q}" -o /tmp/m 2>/dev/null || true
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}/app/horizon/?v=${q}" -o /tmp/h 2>/dev/null || true
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}/app/horizon-playable/v2-entry.html?v=${q}" -o /tmp/e 2>/dev/null || true
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${O}/app/horizon-playable/horizon-v2.js?v=${q}" -o /tmp/j 2>/dev/null || true
-            if grep -Fq "\"source_sha\":\"${SOURCE_SHA}\"" /tmp/m               && grep -Fq 'id="lobby3d"' /tmp/h               && grep -Fq 'id="aimBtn"' /tmp/e               && grep -Fq 'id="buildBtn"' /tmp/e               && grep -Fq 'build:4313' /tmp/j               && grep -Fq 'actualCharacterModel:true' /tmp/j; then
-              ok=1;echo "HORIZON_V4313_VERIFIED_LIVE ${SOURCE_SHA}";break
-            fi
-            sleep 4
-          done
-          test "${ok}" = 1
+      - run: echo "Public frontend deployment retired. BridgePoint Intelligence V5000 owns GitHub Pages."
