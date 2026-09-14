@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05090d">
+<meta name="description" content="BridgePoint Intelligence — live national property, parcel, building and spatial intelligence.">
+<title>BridgePoint Intelligence</title>
+<link rel="icon" href="./bridgepoint-mark.svg" type="image/svg+xml">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="stylesheet" href="./vendor/maplibre-gl.css">
+<link rel="stylesheet" href="./styles.css">
+<script id="BP_FRONTEND_V5000">(()=>{try{window.__BP_FRONTEND_VERSION=5000;if('serviceWorker'in navigator)navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).catch(()=>{});if('caches'in window)caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).catch(()=>{})}catch(_){}})();</script>
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="BridgePoint Intelligence">
+      <img src="./bridgepoint-mark.svg" alt="">
+      <span><b>BRIDGEPOINT</b><small>INTELLIGENCE</small></span>
+    </a>
+    <div class="live-state"><i></i><span id="liveStateText">CONNECTING TO BACKEND</span></div>
+    <button class="icon-button" id="togglePanel" type="button" aria-label="System status">STATUS</button>
+  </header>
+
+  <main class="workspace">
+    <section class="map-surface active" data-surface="map" aria-label="BridgePoint Intelligence live map">
+      <div id="liveMap"></div>
+
+      <div class="map-brand-card">
+        <div class="map-kicker">LIVE NATIONAL SPATIAL INDEX</div>
+        <h1>One map. The backend underneath it.</h1>
+        <p>Buildings, parcels and structural truth stream from BridgePoint as the national materialization finishes.</p>
+      </div>
+
+      <form id="publicSearchForm" class="search-box" autocomplete="off">
+        <input id="publicSearchInput" type="search" placeholder="Search an exact street address" aria-label="Search an address">
+        <button type="submit">GO</button>
+        <div id="publicSearchResults" class="search-results" hidden></div>
+      </form>
+
+      <div class="map-tools">
+        <button data-base="gta" class="active" type="button">MAP</button>
+        <button data-base="satellite" type="button">SAT</button>
+        <button data-layer="buildings" class="active" type="button">3D</button>
+        <button data-layer="parcels" class="active" type="button">PARCELS</button>
+        <button id="locateMe" type="button">LOCATE</button>
+        <button id="resetMap" type="button">RESET</button>
+      </div>
+
+      <div id="mapStatus" class="map-status">Starting BridgePoint live map…</div>
+      <div id="mapResults" hidden></div>
+
+      <aside id="systemPanel" class="system-panel">
+        <div class="panel-head">
+          <div><span class="eyebrow">BACKEND → FRONTEND</span><h2>Live materialization</h2></div>
+          <button id="closePanel" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="hero-number"><span>Canonical properties</span><strong id="canonicalProperties">—</strong></div>
+        <div class="metric-grid">
+          <article><span>Unique addresses</span><b id="uniqueAddresses">—</b></article>
+          <article><span>Building archive</span><b id="archivedBuildings">—</b></article>
+          <article><span>Map-ready buildings</span><b id="mapReadyBuildings">—</b></article>
+          <article><span>Layout indexed</span><b id="layoutIndexed">—</b></article>
+        </div>
+        <div class="progress-block">
+          <div class="progress-label"><span>Archive → live map</span><b id="archiveMapPct">—</b></div>
+          <div class="bar"><i id="archiveMapBar"></i></div>
+        </div>
+        <div class="progress-block">
+          <div class="progress-label"><span>Map → structural layout index</span><b id="layoutMapPct">—</b></div>
+          <div class="bar accent"><i id="layoutMapBar"></i></div>
+        </div>
+        <div class="truth-list">
+          <div><span>Parcel coverage</span><b id="parcelCoverage">—</b></div>
+          <div><span>#5 remaining tail</span><b id="parcelTail">—</b></div>
+          <div><span>Building parts</span><b id="buildingParts">—</b></div>
+          <div><span>Exact public plan matches</span><b id="exactPlans">—</b></div>
+        </div>
+        <p class="truth-note">Exact plans are only labeled exact when a lawful public plan is confidently matched. Derived floors stay labeled as derived.</p>
+        <div class="updated">Backend pulse <span id="backendUpdated">—</span></div>
+      </aside>
+
+      <aside id="buildingPanel" class="building-panel" hidden>
+        <div class="panel-head">
+          <div><span class="eyebrow">SELECTED BUILDING</span><h2 id="buildingTitle">Building</h2></div>
+          <button id="closeBuilding" type="button" aria-label="Close">×</button>
+        </div>
+        <div id="buildingTruthBadge" class="truth-badge">LOADING</div>
+        <div class="building-grid">
+          <div><span>Height</span><b id="bHeight">—</b></div>
+          <div><span>Floors</span><b id="bFloors">—</b></div>
+          <div><span>Floor truth</span><b id="bFloorTruth">—</b></div>
+          <div><span>Parts</span><b id="bParts">—</b></div>
+          <div><span>Underground</span><b id="bUnderground">—</b></div>
+          <div><span>Confidence</span><b id="bConfidence">—</b></div>
+          <div><span>Roof</span><b id="bRoof">—</b></div>
+          <div><span>Facade</span><b id="bFacade">—</b></div>
+        </div>
+        <div class="source-card">
+          <span>Source</span><b id="bSource">—</b>
+          <small id="bSourceDate">—</small>
+        </div>
+        <p id="bTruthNote" class="truth-note"></p>
+      </aside>
+    </section>
+  </main>
+</div>
+<script src="./vendor/maplibre-gl.js"></script>
+<script type="module" src="./app.js?v=5000"></script>
+</body>
+</html>
