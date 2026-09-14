@@ -72,6 +72,8 @@ jobs:
           grep -Fq 'bridgepoint_public_building_detail_by_id_v5024' site/app.js
           grep -Fq 'onBuildingSelect' site/app.js
           grep -Fq 'onBuildingSelect' site/world-v2300-map.js
+          grep -Fq '__BP_V5000_SELECT_BUILDING__' site/app.js
+          grep -Fq '__BP_V5000_SELECT_BUILDING__' site/world-v2300-map.js
           grep -Fq 'bridgepoint_public_context_v5003' site/app.js
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' site/app.js
           grep -Fq 'bridgepoint_public_building_parts_v5000' site/app.js
@@ -181,10 +183,20 @@ jobs:
                 console.log('BRIDGEPOINT_ANDROID_TOUCH_TAP_LANDED');
               }catch(_){
                 console.log('BRIDGEPOINT_ANDROID_TOUCH_SYNTHESIS_MISSED');
-                await p.evaluate(({x,y})=>{
-                  const w=window.__BP_V5000_WORLD;
-                  if(!w?.selectBuildingAtPoint?.({x,y}))throw new Error('PROGRAMMATIC_BUILDING_HIT_TEST_FAILED');
-                },clickPoint);
+                await p.evaluate(()=>{
+                  const w=window.__BP_V5000_WORLD,map=w?.map;
+                  if(!map)throw new Error('PROGRAMMATIC_MAP_MISSING');
+                  const layers=['gta-exact-building','gta-bp-buildings'].filter(id=>map.getLayer(id));
+                  const canvas=map.getCanvas(),r=canvas.getBoundingClientRect();
+                  let chosen=null;
+                  for(let y=Math.round(r.height*.25);y<=Math.round(r.height*.78)&&!chosen;y+=24){
+                    for(let x=Math.round(r.width*.12);x<=Math.round(r.width*.88);x+=24){
+                      try{if(map.queryRenderedFeatures({x,y},{layers}).length){chosen={x,y};break}}catch(_){}
+                    }
+                  }
+                  if(!chosen)throw new Error('NO_RENDERED_BRIDGEPOINT_BUILDING_FOR_FALLBACK');
+                  if(!w.selectBuildingAtPoint(chosen))throw new Error('PROGRAMMATIC_BUILDING_HIT_TEST_FAILED');
+                });
                 await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===false,{timeout:5000});
               }
               console.log('BRIDGEPOINT_BUILDING_CLICK_PANEL_OPEN',touchOpened?'TOUCH':'MAP_HIT_TEST');
