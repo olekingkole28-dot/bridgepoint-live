@@ -81,6 +81,7 @@ jobs:
           grep -Fq 'bridgepoint_public_opportunity_viewport_v5025' site/app.js
           grep -Fq 'gta-place-label' site/world-v2300-map.js
           grep -Fq 'gta-road-label-major' site/world-v2300-map.js
+          grep -Fq 'gta-poi-probe' site/world-v2300-map.js
           grep -Fq 'gta-poi-label' site/world-v2300-map.js
           grep -Fq 'gta-opportunity-buildings' site/world-v2300-map.js
           grep -Fq 'gta-opportunity-label' site/world-v2300-map.js
@@ -176,10 +177,10 @@ jobs:
               });
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map,src=m?.getSource('bpSemanticLabels');
-                const data=src?.serialize?.()?.data;
-                return Array.isArray(data?.features)&&data.features.some(f=>f?.properties?.anchor_truth==='BUILDING_ANCHORED');
+                const data=src?.serialize?.()?.data,stats=window.__BP_SEMANTIC_STATS;
+                return Array.isArray(data?.features)&&data.features.some(f=>f?.properties?.anchor_truth==='BUILDING_ANCHORED')&&Number(stats?.anchored||0)>0;
               },{timeout:30000});
-              console.log('BRIDGEPOINT_SEMANTIC_BUILDING_LABELS_PASS');
+              console.log('BRIDGEPOINT_SEMANTIC_BUILDING_LABELS_PASS',await p.evaluate(()=>JSON.stringify(window.__BP_SEMANTIC_STATS||{})));
               await p.waitForFunction(()=>{const t=document.getElementById('liveLegendCount')?.textContent;return !!t&&t!=='CHECKING'}, {timeout:20000});
               await p.waitForFunction(()=>getComputedStyle(document.getElementById('systemPanel')).display==='none',{timeout:5000});
               console.log('BRIDGEPOINT_MOBILE_STATUS_PANEL_CLOSED');
