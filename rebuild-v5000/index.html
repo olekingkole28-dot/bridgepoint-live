@@ -9,7 +9,7 @@
 <link rel="icon" href="./bridgepoint-mark.svg" type="image/svg+xml">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="stylesheet" href="./vendor/maplibre-gl.css">
-<link rel="stylesheet" href="./styles.css?v=5023">
+<link rel="stylesheet" href="./styles.css?v=5030">
 <script id="BP_FRONTEND_V5000">(()=>{try{window.__BP_FRONTEND_VERSION=5000;if('serviceWorker'in navigator)navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).catch(()=>{});if('caches'in window)caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).catch(()=>{})}catch(_){}})();</script>
 </head>
 <body>
@@ -40,6 +40,7 @@
       </form>
 
       <div class="map-tools">
+        <button id="toggleSearch" type="button" title="Open address search">SEARCH</button>
         <button data-base="gta" class="active" type="button">MAP</button>
         <button data-base="satellite" type="button">SAT</button>
         <button data-layer="buildings" class="active" type="button">3D</button>
@@ -116,6 +117,6 @@
 </div>
 <script src="./vendor/maplibre-gl.js"></script>
 <script src="./vendor/pmtiles.js"></script>
-<script type="module" src="./app.js?v=5028"></script>
+<script type="module" src="./app.js?v=5030"></script>
 </body>
 </html>
