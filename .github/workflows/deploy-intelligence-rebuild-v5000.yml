@@ -106,6 +106,10 @@ jobs:
           grep -Fq 'toggleLiveContext' site/app/index.html
           grep -Fq 'bottomNav' site/app/index.html
           grep -Fq 'bindPerformanceGovernor' site/app.js
+          grep -Fq 'BP_MOBILE' site/app.js
+          grep -Fq 'scheduleOpportunityBuildings' site/app.js
+          grep -Fq 'MOBILE?650' site/world-v2300-map.js
+          grep -Fq 'mobileMotion' site/world-v2300-map.js
           ! find site -type f | grep -E '/horizon|horizon-' || false
           test ! -e site/app/horizon
           test ! -e site/app/horizon-playable
@@ -202,7 +206,26 @@ jobs:
                 return {before,during,after}
               });
               console.log('BRIDGEPOINT_PERFORMANCE_GOVERNOR',JSON.stringify(perfState));
-              if(perfState.during.interacting!==true||perfState.after.interacting!==false)throw new Error('PERFORMANCE_GOVERNOR_FAILED '+JSON.stringify(perfState));
+              if(perfState.during.interacting!==true)throw new Error('PERFORMANCE_GOVERNOR_DID_NOT_ENTER '+JSON.stringify(perfState));
+              await p.waitForFunction(()=>window.__BP_PERFORMANCE_GOVERNOR__?.interacting===false,{timeout:2500});
+              const frameProbe=await p.evaluate(async()=>{
+                const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('frame probe map missing');
+                const gaps=[];let active=true,last=performance.now();
+                const tick=t=>{gaps.push(t-last);last=t;if(active)requestAnimationFrame(tick)};
+                requestAnimationFrame(tick);
+                const moves=[
+                  {center:[-72.90,41.30],zoom:15.7,pitch:56,bearing:-14},
+                  {center:[-72.89,41.305],zoom:16.1,pitch:62,bearing:12},
+                  {center:[-72.91,41.298],zoom:15.5,pitch:48,bearing:-26}
+                ];
+                for(const x of moves){m.easeTo({...x,duration:520});await new Promise(r=>setTimeout(r,650))}
+                await new Promise(r=>setTimeout(r,700));active=false;
+                const sorted=gaps.filter(x=>Number.isFinite(x)&&x>0).sort((a,b)=>a-b);
+                const p95=sorted.length?sorted[Math.min(sorted.length-1,Math.floor(sorted.length*.95))]:0;
+                return {frames:sorted.length,maxGapMs:sorted.length?sorted[sorted.length-1]:0,p95GapMs:p95}
+              });
+              console.log('BRIDGEPOINT_MOTION_FRAME_PROBE',JSON.stringify(frameProbe));
+              if(frameProbe.frames<30||frameProbe.maxGapMs>450)throw new Error('MAP_FRAME_STALL '+JSON.stringify(frameProbe));
               await p.waitForFunction(()=>{const t=document.getElementById('liveLegendCount')?.textContent;return !!t&&t!=='CHECKING'}, {timeout:20000});
               await p.waitForFunction(()=>getComputedStyle(document.getElementById('systemPanel')).display==='none',{timeout:5000});
               console.log('BRIDGEPOINT_MOBILE_STATUS_PANEL_CLOSED');
