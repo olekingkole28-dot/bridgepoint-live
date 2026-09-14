@@ -56,6 +56,7 @@ jobs:
 
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/dist/pmtiles.js -o site/vendor/pmtiles.js
 
           printf '%s\n' 'bridgepointintelligence.online' > site/CNAME
           touch site/.nojekyll site/app/.nojekyll
@@ -74,6 +75,9 @@ jobs:
           grep -Fq 'bridgepoint_public_foundation_sample_v5011' site/app.js
           grep -Fq 'transportArchive' site/app.js
           grep -Fq 'transportRuntime' site/app.js
+          grep -Fq 'bridgepoint-transport-runtime-broker-v2716' site/app.js
+          grep -Fq 'bp-v2716-transport-segments' site/app.js
+          test -s site/vendor/pmtiles.js
           grep -Fq 'toggleLiveContext' site/index.html
           ! find site -type f | grep -E '/horizon|horizon-' || false
           test ! -e site/app/horizon

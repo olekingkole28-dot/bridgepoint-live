@@ -44,6 +44,7 @@
         <button data-base="satellite" type="button">SAT</button>
         <button data-layer="buildings" class="active" type="button">3D</button>
         <button data-layer="parcels" class="active" type="button">PARCELS</button>
+        <button id="toggleTransport" type="button" title="BridgePoint runtime transport" hidden>BP ROADS</button>
         <button id="toggleLiveContext" class="active" type="button" title="Fresh public weather and hazard context">LIVE</button>
         <button id="locateMe" type="button">LOCATE</button>
         <button id="resetMap" type="button">RESET</button>
@@ -114,6 +115,7 @@
   </main>
 </div>
 <script src="./vendor/maplibre-gl.js"></script>
-<script type="module" src="./app.js?v=5014"></script>
+<script src="./vendor/pmtiles.js"></script>
+<script type="module" src="./app.js?v=5015"></script>
 </body>
 </html>
