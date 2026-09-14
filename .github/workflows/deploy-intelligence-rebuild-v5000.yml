@@ -164,6 +164,20 @@ jobs:
               await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000,{timeout:10000});
               await p.waitForFunction(()=>document.getElementById('canonicalProperties')?.textContent?.includes(','),{timeout:15000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
+              await p.waitForFunction(()=>!!window.__BP_PERFORMANCE_GOVERNOR__,{timeout:10000});
+              const perfState=await p.evaluate(async()=>{
+                const m=window.__BP_V5000_WORLD?.map,g=window.__BP_PERFORMANCE_GOVERNOR__;
+                if(!m||!g)throw new Error('performance governor unavailable');
+                const before={interacting:g.interacting,queued:g.queued};
+                m.easeTo({center:[-72.92,41.31],zoom:15.2,duration:420});
+                await new Promise(r=>setTimeout(r,100));
+                const during={interacting:g.interacting,queued:g.queued};
+                await new Promise(r=>setTimeout(r,520));
+                const after={interacting:g.interacting,queued:g.queued};
+                return {before,during,after}
+              });
+              console.log('BRIDGEPOINT_PERFORMANCE_GOVERNOR',JSON.stringify(perfState));
+              if(perfState.during.interacting!==true||perfState.after.interacting!==false)throw new Error('PERFORMANCE_GOVERNOR_FAILED '+JSON.stringify(perfState));
               await p.waitForFunction(()=>!!document.getElementById('bpTabContext')&&!!document.getElementById('bXrayUnderground')&&!!document.getElementById('toggleLiveContext')&&!!document.getElementById('ctxSurfaceMaterial')&&!!document.getElementById('ctxSurfaceSource')&&!!document.getElementById('transportArchive')&&!!document.getElementById('transportRuntime'),{timeout:10000});
               await p.waitForFunction(()=>!!window.__BP_V5000_WORLD?.map?.getLayer('bp-v5004-weather-points'),{timeout:25000});
               await p.waitForFunction(()=>{
