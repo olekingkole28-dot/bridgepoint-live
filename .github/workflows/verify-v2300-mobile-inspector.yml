@@ -26,11 +26,11 @@ jobs:
           rm -rf /tmp/bp2300inspector && mkdir -p /tmp/bp2300inspector/vendor
           cp release-v2300/world-v2300-*.js /tmp/bp2300inspector/
           cp release-v2300/world-v2300.css /tmp/bp2300inspector/
-          git fetch origin live-artifact
-          git show origin/live-artifact:app/vendor/maplibre-gl-v1995.js > /tmp/bp2300inspector/vendor/maplibre-gl-v1995.js
-          git show origin/live-artifact:app/vendor/maplibre-gl-v1995.css > /tmp/bp2300inspector/vendor/maplibre-gl-v1995.css
-          git show origin/live-artifact:app/vendor/three.module.min.js > /tmp/bp2300inspector/vendor/three.module.min.js
-          git show origin/live-artifact:app/vendor/OrbitControls.js > /tmp/bp2300inspector/vendor/OrbitControls.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o /tmp/bp2300inspector/vendor/maplibre-gl-v1995.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o /tmp/bp2300inspector/vendor/maplibre-gl-v1995.css
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.min.js -o /tmp/bp2300inspector/vendor/three.module.min.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js -o /tmp/bp2300inspector/vendor/OrbitControls.js
+          sed -i "s/from 'three'/from '.\/three.module.min.js'/g; s/from \"three\"/from \".\/three.module.min.js\"/g" /tmp/bp2300inspector/vendor/OrbitControls.js
           cat >/tmp/bp2300inspector/index.html <<'HTML'
           <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./vendor/maplibre-gl-v1995.css"><link rel="stylesheet" href="./world-v2300.css"><style>html,body{margin:0;width:100%;height:100%;background:#071017}section,.map-shell,#liveMap{width:100%;height:100%}.map-shell{position:relative}</style></head><body><section data-surface="map" class="active"><form id="mapSearchForm"><input id="mapSearch"></form><button data-base="gta" class="active">GTA</button><button data-base="satellite">Satellite</button><button data-layer="parcels" class="active">Parcels</button><button data-layer="buildings" class="active">Buildings</button><button data-layer="signals" class="active">Signals</button><button data-layer="radar">Radar</button><button id="locateMe">locate</button><button id="resetMap">reset</button><div class="map-shell"><div id="liveMap"></div><div id="mapStatus"></div><div id="mapResults"></div></div></section><script src="./vendor/maplibre-gl-v1995.js"></script><script type="module" src="./world-v2300-bootstrap.js"></script></body></html>
           HTML
