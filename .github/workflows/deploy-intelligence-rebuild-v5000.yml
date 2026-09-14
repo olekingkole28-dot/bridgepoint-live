@@ -69,6 +69,7 @@ jobs:
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
           grep -Fq 'bridgepoint_frontend_status_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_v5000' site/app.js
+          grep -Fq 'bridgepoint_public_building_detail_by_id_v5024' site/app.js
           grep -Fq 'bridgepoint_public_context_v5003' site/app.js
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' site/app.js
           grep -Fq 'bridgepoint_public_building_parts_v5000' site/app.js
@@ -174,10 +175,14 @@ jobs:
               await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===false,{timeout:8000});
               console.log('BRIDGEPOINT_BUILDING_CLICK_PANEL_OPEN');
               await p.waitForFunction(()=>{
-                const h=document.getElementById('bHeight')?.textContent;
-                const f=document.getElementById('bFloors')?.textContent;
-                const s=document.getElementById('bSource')?.textContent;
-                return h&&h!=='—'&&f&&f!=='—'&&s&&s!=='—';
+                const vals=[
+                  document.getElementById('bHeight')?.textContent,
+                  document.getElementById('bFloors')?.textContent,
+                  document.getElementById('bSource')?.textContent,
+                  document.getElementById('bFootprintArea')?.textContent,
+                  document.getElementById('bProvDataset')?.textContent
+                ];
+                return vals.every(v=>v&&v!=='—'&&!/^Resolving/i.test(v));
               },{timeout:15000});
               console.log('BRIDGEPOINT_BUILDING_CARD_POPULATED');
 
