@@ -13,3 +13,8 @@
 #toggleSearch.active{color:#071118;background:var(--cyan);border-color:var(--cyan)}
 .maplibregl-popup-content{border:1px solid rgba(98,230,255,.2);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.3)}
 @media(max-width:760px){.map-surface.map-engaged .search-box:not(.search-open){display:none}}
+
+/* V5033 semantic building labels */
+@media(max-width:760px){
+ .map-surface.map-engaged .map-brand-card{opacity:.88;transform:scale(.92);transform-origin:top left;max-width:290px}
+}
