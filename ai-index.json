@@ -553,7 +553,7 @@
     "Weather exposure is not proof of damage.",
     "Roof shell coverage is not source-backed material/pitch/shape coverage."
   ],
-  "updated_at": "2026-09-15T20:10:19Z",
+  "updated_at": "2026-09-15T20:21:51Z",
   "claims_lifecycle_terminal": {
     "name": "BridgePoint Claims Lifecycle Terminal",
     "url": "https://bridgepointintelligence.online/claims-terminal/",
@@ -603,6 +603,37 @@
       "Property identity counts are separate from materialized parcel-boundary counts.",
       "Public machine feeds are separate from authorized partner integrations.",
       "Source availability does not imply unrestricted reuse rights."
+    ]
+  },
+  "bridgepoint_integrity_index": {
+    "name": "BridgePoint Integrity Index",
+    "short_name": "BII",
+    "url": "https://bridgepointintelligence.online/integrity-index/",
+    "contract": "https://bridgepointintelligence.online/integrity-index/contract.json",
+    "status": "SHADOW_CALIBRATION",
+    "intended_range": [
+      0,
+      100
+    ],
+    "intended_direction": "Higher is intended to mean stronger evidence-supported integrity/resilience context after validation.",
+    "publication_gate": {
+      "minimum_confidence": 0.5,
+      "minimum_observed_component_families": 3,
+      "requires_non_insufficient_health_band": true
+    },
+    "current_snapshot": {
+      "health_assessments": 5041,
+      "publication_grade_properties": 0,
+      "max_current_health_confidence": 0.153,
+      "max_observed_component_families": 1,
+      "dynamic_property_intelligence_scores": 5369598
+    },
+    "safeguards": [
+      "No structural-survival probability claim.",
+      "Missing data is not treated as healthy data.",
+      "Public numeric BII is withheld until publication gates pass.",
+      "Dynamic property opportunity/intelligence score is a separate model.",
+      "High-impact insurance, lending or investment use requires separate validation and jurisdiction review."
     ]
   }
 }
