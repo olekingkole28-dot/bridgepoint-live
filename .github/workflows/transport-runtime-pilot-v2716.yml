@@ -1,19 +1,19 @@
-name: Transport Runtime Pilot v2716
+name: Transport Runtime Nationwide v2716
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
       - '.github/workflows/transport-runtime-pilot-v2716.yml'
       - 'scripts/build_transport_runtime_v2716.py'
-  workflow_dispatch:
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: bridgepoint-transport-runtime-pilot-v2716
+  group: bridgepoint-transport-runtime-v2716
   cancel-in-progress: false
 
 env:
@@ -21,10 +21,15 @@ env:
   TIPPECANOE_SHA: 4f2621186acfec33b63ddf636f665623c0fef2dd
 
 jobs:
-  dc-pilot:
-    name: DC BridgePoint transport PMTiles
+  runtime:
+    name: ${{ matrix.state }} BridgePoint transport PMTiles
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        state: [AK, AL, AR, AS, AZ, CA, CO, CT, DE, FL, GA, GU, HI, IA, ID, IL, IN, KS, KY, LA, MA, MD, ME, MI, MN, MO, MP, MS, MT, NC, ND, NE, NH, NJ, NM, NV, NY, OH, OK, OR, PA, PR, RI, SC, SD, TN, TX, UT, VA, VI, VT, WA, WI, WV, WY]
     steps:
       - uses: actions/checkout@v4
 
@@ -56,16 +61,16 @@ jobs:
           echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
 
-      - name: Build, verify, and upload DC runtime PMTiles
+      - name: Build, verify, and upload runtime PMTiles
         env:
           TRANSPORT_RUNTIME_OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
-        run: python scripts/build_transport_runtime_v2716.py --state DC
+        run: python scripts/build_transport_runtime_v2716.py --state "${{ matrix.state }}"
 
-      - name: Preserve pilot diagnostics
+      - name: Preserve diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: transport-runtime-v2716-dc
+          name: transport-runtime-v2716-${{ matrix.state }}
           path: transport-runtime-output/
           if-no-files-found: ignore
-          retention-days: 3
+          retention-days: 1
