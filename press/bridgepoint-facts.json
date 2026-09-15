@@ -1,5 +1,5 @@
 {
-  "snapshot_generated_at": "2026-09-15T19:12:47.905246+00:00",
+  "snapshot_generated_at": "2026-09-15T19:38:00Z",
   "company": "BridgePoint Intelligence",
   "founder": "Kole Johnson",
   "public_origin": "https://bridgepointintelligence.online/",
@@ -14,9 +14,9 @@
   "current_national_metrics": {
     "map_ready_buildings": 90908368,
     "roof_shell_buildings": 90908368,
-    "roof_shell_coverage_pct": 100.0,
+    "roof_shell_coverage_pct": 100,
     "canonical_property_records": 169634995,
-    "normalized_address_records": 142798163,
+    "normalized_address_records": 142849508,
     "source_backed_roof_records": 667528,
     "lidar_refined_roof_buildings": 2724,
     "materialized_boundary_estimate": 83858024,
@@ -50,7 +50,7 @@
   },
   "limitations": [
     "169.6M-scale canonical property/parcel identity records are not the same as 169.6M materialized boundary polygons.",
-    "Boundary and property\u2194boundary link counts are separate live measures.",
+    "Boundary and property↔boundary link counts are separate live measures.",
     "Roof shell coverage is not the same as source-backed roof material/pitch/shape coverage.",
     "Weather exposure is context, not proof of physical damage or an insurance outcome."
   ],
