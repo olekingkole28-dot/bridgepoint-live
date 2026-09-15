@@ -45,7 +45,7 @@
         <button data-base="gta" class="active" type="button">MAP</button>
         <button data-base="satellite" type="button">SAT</button>
         <button data-layer="buildings" class="active" type="button">3D</button>
-        <button data-layer="parcels" class="active" type="button">PARCELS</button>
+        <button data-layer="parcels" type="button" title="Show exact BridgePoint parcel-boundary lines">PARCELS</button>
         <button id="toggleTransport" type="button" title="BridgePoint runtime transport" hidden>BP ROADS</button>
         <button id="toggleLiveContext" class="active" type="button" title="Fresh public weather and hazard context">LIVE</button>
         <button id="measureMap" type="button" title="Measure distance and area">MEASURE</button>
@@ -65,7 +65,7 @@
         </div>
         <div class="hero-number"><span>Canonical properties</span><strong id="canonicalProperties">—</strong></div>
         <div class="metric-grid">
-          <article><span>Unique addresses</span><b id="uniqueAddresses">—</b></article>
+          <article><span>Address records</span><b id="uniqueAddresses">—</b></article><article><span>Stored parcel boundaries</span><b id="storedBoundaries">—</b></article><article><span>Property ↔ address links</span><b id="addressLinks">—</b></article><article><span>NAD ingested</span><b id="nadIngested">—</b></article>
           <article><span>Building archive</span><b id="archivedBuildings">—</b></article>
           <article><span>Map-ready buildings</span><b id="mapReadyBuildings">—</b></article>
           <article><span>Layout indexed</span><b id="layoutIndexed">—</b></article>
