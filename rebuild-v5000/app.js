@@ -51,7 +51,7 @@ $('closePanel').onclick=()=>{$('systemPanel').style.display='none'};
 function clearSelectedGeometry(){const map=world?.map;for(const id of ['bpV5000SelectedBuilding','bpV5001SelectedParcel','bpV5010SelectedParts']){const src=map?.getSource(id);if(src?.setData)src.setData({type:'FeatureCollection',features:[]})}}
 function ensureBuildingPanelOpen(){const p=$('buildingPanel');if(!p)return;p.hidden=false;p.removeAttribute('hidden');p.style.setProperty('display','block','important');window.__BP_BUILDING_PANEL_OPEN__=true}
 function clearSelectedBuilding(){selectedPoint=null;selectedFeature=null;selectedMode='building';clearInterval(selectedTimer);selectedTimer=null;window.__BP_BUILDING_PANEL_OPEN__=false;const p=$('buildingPanel');if(p){p.hidden=true;p.style.removeProperty('display')}clearMapXray();clearSelectedGeometry()}
-$('closeBuilding').onclick=clearSelectedBuilding;
+$('closeBuilding').onclick=clearSelectedBuilding;window.__BP_V5000_CLEAR_BUILDING__=clearSelectedBuilding;
 (()=>{const p=$('buildingPanel');if(!p)return;new MutationObserver(()=>{if(window.__BP_BUILDING_PANEL_OPEN__&&selectedPoint&&selectedMode==='building'&&p.hidden)ensureBuildingPanelOpen()}).observe(p,{attributes:true,attributeFilter:['hidden','style']})})();
 async function bootMap(){
  const mod=await import('./world-v2300-map.js?v=5208');world=mod.initWorld();window.__BP_V5000_WORLD=world;
@@ -272,7 +272,7 @@ function bindMeasureTool(){
  map.on('click',e=>{if(!measureActive)return;measurePoints.push([e.lngLat.lng,e.lngLat.lat]);updateMeasure()});
  const btn=$('measureMap'),clear=$('clearMeasure');
  window.__BP_MEASURE_STATE__={active:false,pointCount:0,totalDistanceM:0,areaM2:0,hasLine:false,hasPolygon:false,featureCount:0,updatedAt:Date.now()};
- if(btn)btn.onclick=()=>{measureActive=!measureActive;window.__BP_MEASURE_ACTIVE__=measureActive;btn.classList.toggle('active',measureActive);btn.textContent=measureActive?'MEASURE ON':'MEASURE';if(measureActive){setMapSearchOpen(false);try{map.doubleClickZoom?.disable()}catch(_){}}else{try{map.doubleClickZoom?.enable()}catch(_){}}};
+ const setMeasureActive=on=>{measureActive=!!on;window.__BP_MEASURE_ACTIVE__=measureActive;btn?.classList.toggle('active',measureActive);if(btn)btn.textContent=measureActive?'MEASURE ON':'MEASURE';if(measureActive){setMapSearchOpen(false);try{map.doubleClickZoom?.disable()}catch(_){}}else{try{map.doubleClickZoom?.enable()}catch(_){}};window.__BP_MEASURE_STATE__={...(window.__BP_MEASURE_STATE__||{}),active:measureActive,updatedAt:Date.now()};return measureActive};if(btn)btn.onclick=()=>setMeasureActive(!measureActive);window.__BP_V5000_SET_MEASURE__=setMeasureActive;
  if(clear)clear.onclick=()=>{measurePoints=[];updateMeasure()};
  window.__BP_MEASURE_ACTIVE__=false
 }
