@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js';
 import {clone as skeletonClone} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/utils/SkeletonUtils.js';
+import {makeHorizonRifle,avatarModelForKey,avatarVariantForKey} from '/app/horizon/cosmetics-v4320.js';
 const SUPABASE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const PUBLISHABLE_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const ENDPOINT=SUPABASE_URL+'/functions/v1/bridgepoint-horizon-stream-v3020';
@@ -36,7 +37,7 @@ const DETAIL_BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?115:58):220;
 const BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?650:480):900;
 const PART_LIMIT=MOBILE?(HIGH_DEVICE?420:260):700;
 const PARCEL_LIMIT=MOBILE?(HIGH_DEVICE?1250:850):1800;
-let ammoMag=30,ammoReserve=120,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0;
+let ammoMag=30,ammoReserve=120,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,muzzleFlash=null;
 const interactables=[],infected=[],roadAnchors=[],buildingCenters=[],solidRects=[],lootPickups=[],builtCover=[];
 const gltfLoader=new GLTFLoader(),assetCache=new Map(),killSnapshots=[];
 const CHAR_MODELS={
@@ -339,9 +340,12 @@ async function spawnInfected(){
   $('infected').textContent=count;
 }
 async function addSurvivor(){
-  const key=savedProfile?.avatar_key||'free_03',url=CHAR_MODELS[key]||CHAR_MODELS.free_03;
-  const source=await loadAsset(url),g=skeletonClone(source.scene);prepHumanoid(g,{variant:Number(String(key).match(/\d+/)?.[0]||1)%2?1:2});orientHumanoid(g,1.82);
+  const key=savedProfile?.avatar_key||'free_03',url=avatarModelForKey(key,CHAR_MODELS)||CHAR_MODELS.free_03;
+  const source=await loadAsset(url),g=skeletonClone(source.scene);prepHumanoid(g,{variant:avatarVariantForKey(key)});orientHumanoid(g,1.82);
   player.add(g);player.add(makeNameSprite(savedProfile?.display_name||'SURVIVOR','#dffff4'));
+  weaponRig=makeHorizonRifle(THREE,savedProfile?.wrap_key||'wrap_ash');
+  weaponRig.scale.setScalar(.28);weaponRig.rotation.set(.04,-.18,-Math.PI/2);weaponRig.position.set(.38,.08,1.28);player.add(weaponRig);
+  muzzleFlash=new THREE.PointLight(0xffc06c,0,4,2);muzzleFlash.position.set(.38,.86,1.32);player.add(muzzleFlash);
 }
 const flashlight=new THREE.SpotLight(0xfff0ca,0,38,.42,.55,1.5);camera.add(flashlight);flashlight.target.position.set(0,0,-4);camera.add(flashlight.target);scene.add(camera);
 function nearest(){let best=null,dist=4.1;for(const q of interactables){const d=Math.hypot(player.position.x-q.x,player.position.y-q.y);if(d<dist){dist=d;best=q}}return best}
@@ -364,7 +368,7 @@ function shootOnce(){
   if(dead||reloading)return;
   const now=performance.now();if(now-lastFireAt<92)return;lastFireAt=now;
   if(ammoMag<=0){reload();return}
-  ammoMag--;updateAmmo();
+  ammoMag--;updateAmmo();if(muzzleFlash){muzzleFlash.intensity=7;setTimeout(()=>{if(muzzleFlash)muzzleFlash.intensity=0},34)}
   const dir=new THREE.Vector3();camera.getWorldDirection(dir);const origin=camera.position.clone();
   let hit=null,best=Infinity,headshot=false;
   for(const z of infected){
@@ -476,6 +480,11 @@ function updateCamera(dt){
   const back=new THREE.Vector3(Math.sin(yaw)*arm,-Math.cos(yaw)*arm,camZ);
   camera.position.lerp(target.clone().add(back),Math.min(1,dt*(aiming?13:8)));
   camera.lookAt(target.clone().add(new THREE.Vector3(-Math.sin(yaw)*8,Math.cos(yaw)*8,pitch*7)));
+  if(weaponRig){
+    const targetWeapon=aiming?new THREE.Vector3(.18,.16,1.38):new THREE.Vector3(.38,.08,1.28);
+    weaponRig.position.lerp(targetWeapon,Math.min(1,dt*10));
+    weaponRig.rotation.z=THREE.MathUtils.lerp(weaponRig.rotation.z,aiming?-1.38:-Math.PI/2,Math.min(1,dt*10));
+  }
   const targetFov=aiming?50:68;
   camera.fov=THREE.MathUtils.lerp(camera.fov,targetFov,Math.min(1,dt*12));camera.updateProjectionMatrix();
   $('reticle')?.classList.toggle('aiming',aiming);
