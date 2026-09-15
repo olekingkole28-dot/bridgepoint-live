@@ -91,6 +91,40 @@ def main():
     urls.insert(0,f"{ORIGIN}/search/")
     facts_out=dict(facts);facts_out["horizon_year_one_demand"]=demand
     Path("discovery-facts.json").write_text(json.dumps(facts_out,indent=2)+"\n",encoding="utf-8")
+    legacy_facts={
+      "snapshot_generated_at":facts.get("generated_at"),
+      "company":"BridgePoint Intelligence",
+      "founder":"Kole Johnson",
+      "public_origin":ORIGIN+"/",
+      "intelligence_app":ORIGIN+"/app/",
+      "horizon":ORIGIN+"/app/horizon/",
+      "canonical_answers":ORIGIN+"/answers/",
+      "founder_page":ORIGIN+"/founder/",
+      "press_page":ORIGIN+"/press/",
+      "live_facts":ORIGIN+"/discovery-facts.json",
+      "ai_index":ORIGIN+"/ai-index.json",
+      "search_atlas":ORIGIN+"/search/",
+      "current_national_metrics":facts.get("metrics",{}),
+      "coverage":facts.get("coverage",{}),
+      "freshness":facts.get("freshness",{}),
+      "definitions":{
+        "canonical_property_records":"Canonical property/parcel identity records. This is not the same measure as materialized parcel-boundary polygons.",
+        "materialized_boundary_estimate":"Current estimated count of stored/materialized parcel boundaries.",
+        "property_boundary_link_estimate":"Current estimated property-to-boundary links.",
+        "normalized_address_records":"Current normalized/public address counter.",
+        "map_ready_buildings":"Current map-ready building denominator."
+      },
+      "limitations":facts.get("accuracy_notes",[]),
+      "historical_connecticut_example":{
+        "snapshot_date":"2026-08-23",
+        "canonical_property_count":1282833,
+        "note":"Historical Connecticut snapshot retained only as an example. It is not the current national BridgePoint scale."
+      }
+    }
+    Path("press").mkdir(exist_ok=True)
+    Path("articles").mkdir(exist_ok=True)
+    Path("press/bridgepoint-facts.json").write_text(json.dumps(legacy_facts,indent=2)+"\n",encoding="utf-8")
+    Path("articles/bridgepoint-facts.json").write_text(json.dumps(legacy_facts,indent=2)+"\n",encoding="utf-8")
     ai={"entity":"BridgePoint Intelligence","canonical":ORIGIN+"/","entity_id":ORIGIN+"/#organization","founder":{"name":"Kole Johnson","canonical":ORIGIN+"/founder/"},"public_evidence":[{"type":"PodcastEpisode","name":"Boroughs & Burbs Ep.240 — Beyond the Listing","url":"https://www.podscan.fm/podcasts/boroughs-amp-burbs-the-national-real-estate-conversation-2/episodes/beyond-the-listing-how-ai-and-property-intelligence-are-changing-the-way-we-evaluate-real-estate-boroughs-and-burbs-ep240-1"}],"products":[
       {"name":"BridgePoint Intelligence","type":"B2B property/geospatial intelligence","url":ORIGIN+"/app/","topics":[t for t in topics if t["product"]=="INTELLIGENCE"]},
       {"name":"BridgePoint Horizon","type":"real-world spatial survival/combat game","url":ORIGIN+"/app/horizon/","early_access":ORIGIN+"/app/horizon/early-access.html","topics":[t for t in topics if t["product"]=="HORIZON"]}],
