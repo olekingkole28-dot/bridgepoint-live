@@ -311,7 +311,10 @@ async function showLoading(match){
       localStorage.setItem('horizon-active-match',JSON.stringify({
         match_id:synchronized.match_id,mode:synchronized.mode,seed:synchronized.seed,
         host_player_id:synchronized.host_player_id,cell_seed:synchronized.cell_seed,
-        network_topic:synchronized.network_topic,started_at:new Date().toISOString()
+        network_topic:synchronized.network_topic,started_at:new Date().toISOString(),
+        human_players:synchronized.human_players,bot_players:synchronized.bot_players,
+        target_players:synchronized.target_players,team_size:synchronized.team_size,
+        members:synchronized.members||[],map_label:synchronized.map_label,map_palette:synchronized.map_palette
       }));
       const u=new URL('/app/horizon-playable/v2-entry.html',location.origin);
       if(meta.world_state)u.searchParams.set('state',meta.world_state);
