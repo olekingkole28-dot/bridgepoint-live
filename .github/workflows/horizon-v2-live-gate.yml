@@ -1,4 +1,4 @@
-name: Horizon V4330 Source Gate
+name: Horizon V4331 Source Gate
 
 on:
   push:
@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           node --check app/horizon-playable/horizon-v2.js
-          grep -Fq 'build:4330' app/horizon-playable/horizon-v2.js
+          grep -Fq 'build:4331' app/horizon-playable/horizon-v2.js
           grep -Fq 'actualCharacterModel:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'sourceBackedTwin:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'exactFootprintCollision:true' app/horizon-playable/horizon-v2.js
@@ -40,6 +40,9 @@ jobs:
           grep -Fq 'drivableVehicles:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'weaponInventory:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'infectedPatrols:true' app/horizon-playable/horizon-v2.js
+          grep -Fq 'adaptivePerformanceGovernor:true' app/horizon-playable/horizon-v2.js
+          grep -Fq 'function updatePerformanceGovernor' app/horizon-playable/horizon-v2.js
+          grep -Fq 'function perfCadence' app/horizon-playable/horizon-v2.js
           grep -Fq 'id="miniMap"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="viewBtn"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="contextBtn"' app/horizon-playable/v2-entry.html
@@ -47,7 +50,7 @@ jobs:
           grep -Fq 'id="buildBtn"' app/horizon-playable/v2-entry.html
       - name: Start local source server
         run: |
-          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/horizon-v4330-http.log 2>&1 &
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/horizon-v4331-http.log 2>&1 &
           sleep 1
       - name: Browser source gate
         env:
