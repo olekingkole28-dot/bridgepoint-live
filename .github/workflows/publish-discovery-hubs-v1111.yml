@@ -15,8 +15,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: bridgepoint-discovery-hubs-v1111
-  cancel-in-progress: true
+  group: bridgepoint-seo-publish-v5100
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -69,6 +69,7 @@ jobs:
           git add -- discover
           git diff --cached --check
           git commit -m 'Refresh BridgePoint nationwide discovery hubs [v1113]'
+          git pull --rebase origin main
           git push origin HEAD:main
           echo 'changed=true' >> "$GITHUB_OUTPUT"
 
