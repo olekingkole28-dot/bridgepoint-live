@@ -5,8 +5,48 @@
   "feed_url": "https://bridgepointintelligence.online/articles/feed.json",
   "description": "Evidence-first property intelligence research and public aggregate data from BridgePoint Intelligence, founded by Kole Johnson.",
   "language": "en-US",
-  "authors": [{"name":"BridgePoint Intelligence","url":"https://bridgepointintelligence.online/"}],
+  "authors": [
+    {
+      "name": "BridgePoint Intelligence",
+      "url": "https://bridgepointintelligence.online/"
+    }
+  ],
   "items": [
+    {
+      "id": "https://bridgepointintelligence.online/articles/bridgepoint-169634995-canonical-property-identities-2026-09-15.html",
+      "url": "https://bridgepointintelligence.online/articles/bridgepoint-169634995-canonical-property-identities-2026-09-15.html",
+      "title": "BridgePoint Intelligence Reaches 169,634,995 Canonical U.S. Property Identities",
+      "date_published": "2026-09-15T19:38:00Z",
+      "summary": "Fresh national BridgePoint scale snapshot separating 169,634,995 canonical property identities from address, parcel-boundary and property-to-boundary link measures."
+    },
+    {
+      "id": "https://bridgepointintelligence.online/articles/us-weather-risk-brief-2026-09-15.html",
+      "url": "https://bridgepointintelligence.online/articles/us-weather-risk-brief-2026-09-15.html",
+      "title": "U.S. Weather Risk Brief: Flood Watches, Dangerous Heat and Tropical Activity — September 15, 2026",
+      "date_published": "2026-09-15T19:38:00Z",
+      "summary": "Source-backed September 15 NWS/NHC weather brief connecting flood, heat and tropical activity to property-intelligence workflows."
+    },
+    {
+      "id": "https://bridgepointintelligence.online/articles/atlantic-tropical-outlook-property-intelligence-2026-09-15.html",
+      "url": "https://bridgepointintelligence.online/articles/atlantic-tropical-outlook-property-intelligence-2026-09-15.html",
+      "title": "Atlantic Disturbance Has 40% Seven-Day Development Chance",
+      "date_published": "2026-09-15T19:38:00Z",
+      "summary": "NHC Atlantic outlook context for property, insurance and restoration teams without treating forecast exposure as verified damage."
+    },
+    {
+      "id": "https://bridgepointintelligence.online/articles/central-plains-flood-watch-property-intelligence-2026-09-15.html",
+      "url": "https://bridgepointintelligence.online/articles/central-plains-flood-watch-property-intelligence-2026-09-15.html",
+      "title": "Central Plains Flood Watches: Why Parcel-Level Context Matters Before Field Operations",
+      "date_published": "2026-09-15T19:38:00Z",
+      "summary": "A source-backed flood-watch brief explaining why regional weather polygons need parcel, structure, address and evidence context."
+    },
+    {
+      "id": "https://bridgepointintelligence.online/articles/bridgepoint-parcel-boundary-progress-2026-09-15.html",
+      "url": "https://bridgepointintelligence.online/articles/bridgepoint-parcel-boundary-progress-2026-09-15.html",
+      "title": "BridgePoint Parcel Boundary Build: 83.9M Stored Boundary Rows and 31.3M Property Links",
+      "date_published": "2026-09-15T19:38:00Z",
+      "summary": "Transparent September 15 parcel-build snapshot separating canonical identity count from stored boundary rows and property-to-boundary links."
+    },
     {
       "id": "https://bridgepointintelligence.online/articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html",
       "url": "https://bridgepointintelligence.online/articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html",
