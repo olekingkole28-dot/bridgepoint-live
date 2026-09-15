@@ -32,17 +32,28 @@ function render(host){
   <div class="bp-founder-hp"><input name="website" tabindex="-1" autocomplete="off"></div>
   <button type="submit">REQUEST FOUNDER ACCESS</button><div class="bp-founder-status"></div>
   <p class="bp-founder-fine">Submitting is a business-access request, not a purchase. BridgePoint uses public-source intelligence for decision support; field verification is still required.</p></form></div>`;
-  const form=host.querySelector('form'),vsel=form.elements.vertical;if(vertical&&[...vsel.options].some(o=>o.value===vertical))vsel.value=vertical;
+  const form=host.querySelector('form'),vsel=form.elements.vertical;if(vertical&&vsel){if(vsel.options&&[...vsel.options].some(o=>o.value===vertical))vsel.value=vertical;else if(vsel.type==='hidden')vsel.value=vertical}
   const applyPrefill=()=>{for(const [k,v] of Object.entries(globalPrefill||{})){if(v!=null&&form.elements[k])form.elements[k].value=String(v)}};applyPrefill();
   let started=false;form.addEventListener('input',()=>{if(started)return;started=true;window.BridgePointAcquisition?.send?.('CONTACT_REQUEST',{action:'founder_access_form_start',product,vertical:form.elements.vertical.value})},{once:true});
   form.addEventListener('submit',async e=>{e.preventDefault();const b=form.querySelector('button[type=submit]'),status=form.querySelector('.bp-founder-status'),fd=new FormData(form);b.disabled=true;b.textContent='SENDING…';status.className='bp-founder-status';status.textContent='';
     const body={p_email:fd.get('email'),p_full_name:fd.get('full_name'),p_company_name:fd.get('company_name'),p_role_title:fd.get('role_title'),p_vertical:fd.get('vertical'),p_use_case:fd.get('use_case'),p_state_code:fd.get('state_code'),p_territory:fd.get('territory'),p_team_size:fd.get('team_size'),p_urgency:fd.get('urgency'),p_budget_range:fd.get('budget_range'),p_product_key:product,p_visitor_id:visitor,p_session_id:session,p_page_path:location.pathname,p_utm_source:qs.get('utm_source'),p_utm_medium:qs.get('utm_medium'),p_utm_campaign:qs.get('utm_campaign'),p_referral_code:qs.get('ref')||qs.get('referral_code'),p_website:fd.get('website')};
     try{const r=await fetch(RPC,{method:'POST',credentials:'omit',headers:{apikey:KEY,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(body)}),d=await r.json();if(!r.ok||!d?.ok)throw new Error(d?.message||'Request failed');status.className='bp-founder-status ok';status.textContent=d.priority==='HOT'?'Request received and prioritized. No payment was attempted.':'Request received. No payment was attempted.';b.textContent='REQUEST RECEIVED';window.BridgePointAcquisition?.send?.('CONTACT_REQUEST',{action:'founder_access_success',product,vertical:fd.get('vertical'),priority:d.priority||null})}
-    catch(err){status.className='bp-founder-status err';status.textContent='Could not save your request. Please try again.';b.disabled=false;b.textContent='REQUEST FOUNDER ACCESS'}
+    catch(err){status.className='bp-founder-status err';status.textContent='Could not save your request. Please try again.';b.disabled=false;b.textContent=horizon?'JOIN HORIZON EARLY ACCESS':'REQUEST FOUNDER ACCESS'}
   });
   host._bpApplyPrefill=applyPrefill;
+  if(!document.querySelector('[data-bp-founder-float]')){
+    const float=document.createElement('button');float.type='button';float.className='bp-founder-float';float.dataset.bpFounderFloat='1';
+    float.textContent=horizon?'JOIN HORIZON EARLY ACCESS':'REQUEST ACCESS · NO CHARGE';
+    float.setAttribute('aria-label',float.textContent);
+    float.addEventListener('click',()=>{
+      window.BridgePointAcquisition?.send?.('CONTACT_REQUEST',{action:horizon?'horizon_early_access_sticky':'founder_access_sticky',product,vertical:form.elements.vertical?.value||vertical||null});
+      host.scrollIntoView({behavior:'smooth',block:'start'});
+      setTimeout(()=>form.elements.email?.focus({preventScroll:true}),550);
+    });
+    document.body.appendChild(float);
+  }
 }
 function mount(){document.querySelectorAll('[data-founder-access]').forEach(render)}
-window.BPFounderAccess={version:5100,prefill(v={}){globalPrefill={...globalPrefill,...v};document.querySelectorAll('[data-founder-access]').forEach(h=>h._bpApplyPrefill?.())},mount};
+window.BPFounderAccess={version:5101,prefill(v={}){globalPrefill={...globalPrefill,...v};document.querySelectorAll('[data-founder-access]').forEach(h=>h._bpApplyPrefill?.())},mount};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();
 })();
