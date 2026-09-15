@@ -144,3 +144,13 @@ button,input{font:inherit}button{cursor:pointer;color:inherit}
 .player-slot.empty{opacity:1}
 .player-slot.empty .pedestal{opacity:.45}
 .player-slot.empty .nameplate{border-style:dashed;color:#d9fff2}
+
+/* HORIZON MAP CATALOG V4330 */
+.map-catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:11px;margin-top:16px}
+.map-card{border:1px solid var(--line);border-radius:15px;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.018));transition:.18s}
+.map-card.selected{border-color:var(--mint);box-shadow:0 0 0 2px rgba(68,243,189,.08),0 12px 32px rgba(0,0,0,.22)}
+.map-mini{display:block;width:100%;aspect-ratio:2/1;background:#08110f;border-bottom:1px solid rgba(255,255,255,.07)}
+.map-card-body{padding:10px}.map-card-body h3{margin:5px 0 3px;font-size:13px}.map-card-body small{color:var(--muted);font-size:8px}
+.map-card-body button{width:100%;margin-top:9px;border:1px solid rgba(68,243,189,.32);border-radius:9px;padding:8px;background:rgba(68,243,189,.11);color:var(--mint);font-size:8px;font-weight:950}
+.map-card-body button:disabled{opacity:.4}
+@media(max-width:560px){.map-catalog{grid-template-columns:1fr 1fr;gap:7px}.map-card-body{padding:8px}.map-card-body h3{font-size:10px}.map-card-body .eyebrow{font-size:6px}}
