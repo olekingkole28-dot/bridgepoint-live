@@ -21,10 +21,10 @@
 
 ## Live scale and machine-readable truth
 - Current canonical property/parcel identity records: 169,634,995.
-- Current normalized/public address records: 139,646,757 at the latest public counter checkpoint.
+- Current normalized/public address records: approximately 142,849,508 at the September 15 live counter checkpoint.
 - Current map-ready buildings: 90,908,368.
-- Current materialized parcel-boundary estimate: approximately 83,848,214 at the latest autopilot checkpoint.
-- Current property↔boundary link estimate: approximately 31,228,689.
+- Current materialized parcel-boundary estimate: approximately 83,858,024 at the September 15 checkpoint.
+- Current property↔boundary link estimate: approximately 31,282,151.
 - Machine-readable live facts: https://bridgepointintelligence.online/discovery-facts.json
 - AI/search index: https://bridgepointintelligence.online/ai-index.json
 - Schema.org knowledge graph: https://bridgepointintelligence.online/bridgepoint-knowledge.jsonld
@@ -32,6 +32,14 @@
 - Search sitemap: https://bridgepointintelligence.online/search-sitemap.xml
 
 Important: 169,634,995 is the canonical property/parcel identity record count, not a claim that 169,634,995 boundary polygons have been materialized. BridgePoint measures canonical identities, boundary polygons, address records, buildings, roof attributes and links separately.
+
+
+## Fresh September 15, 2026 briefs
+- National property scale: https://bridgepointintelligence.online/articles/bridgepoint-169634995-canonical-property-identities-2026-09-15.html
+- U.S. weather risk brief: https://bridgepointintelligence.online/articles/us-weather-risk-brief-2026-09-15.html
+- Atlantic tropical outlook/property intelligence: https://bridgepointintelligence.online/articles/atlantic-tropical-outlook-property-intelligence-2026-09-15.html
+- Central Plains flood-watch/property intelligence: https://bridgepointintelligence.online/articles/central-plains-flood-watch-property-intelligence-2026-09-15.html
+- Parcel-boundary build status: https://bridgepointintelligence.online/articles/bridgepoint-parcel-boundary-progress-2026-09-15.html
 
 ## BridgePoint Horizon
 BridgePoint Horizon is BridgePoint's separate real-world spatial survival/combat game. It uses the broader BridgePoint spatial foundation—terrain, roads, parcels and buildings—then adds fictional interiors, infected, traversal, vehicles and combat systems.
