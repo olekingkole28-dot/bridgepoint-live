@@ -11,6 +11,7 @@ on:
       - 'release-v2300/world-v2300-worker.js'
       - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
       - 'app/horizon/**'
+      - 'app/horizon-playable/**'
       - 'discover/**'
       - 'newsroom/**'
       - 'articles/auto/**'
@@ -47,8 +48,8 @@ jobs:
           git archive refs/remotes/origin/live-artifact | tar -xf - -C site
           mkdir -p site/vendor
 
-          # Keep only the current Intelligence workspace and current Horizon under /app/.
-          # Any historical /app/... URL now falls through the V5000 404 back to the live map.
+          # Keep only the current Intelligence workspace plus the current Horizon lobby and playable runtime.
+          # Other historical /app/... URLs fall through the V5000 404 back to the live map.
           rm -rf site/app site/discover site/newsroom site/articles/auto
           mkdir -p site/app site/articles
           cp -a discover site/discover
@@ -56,6 +57,7 @@ jobs:
           cp -a newsroom site/newsroom
           cp -a articles/auto site/articles/auto
           cp -a app/horizon site/app/horizon
+          cp -a app/horizon-playable site/app/horizon-playable
           cp current-map-entry.js site/current-map-entry.js
           cp acquisition_tracker.js site/acquisition_tracker.js
           cp rebuild-v5000/index.html site/index.html
@@ -107,6 +109,10 @@ jobs:
           node --check site/world-v2300-config.js
           node --check site/world-v2300-map.js
           node --check site/world-v2300-worker.js
+          node --check site/app/horizon/app.js
+          node --check site/app/horizon/lobby-scene.js
+          node --check site/app/horizon/model-preview.js
+          node --check site/app/horizon-playable/horizon-v2.js
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
           grep -Fq 'bridgepoint_frontend_status_v5000' site/app.js
@@ -157,7 +163,9 @@ jobs:
           test -s site/newsroom/index.html
           test -s site/newsroom/manifest.json
           grep -Fq '/current-map-entry.js?v=5100' site/discover/index.html
-          test ! -e site/app/horizon-playable
+          test -s site/app/horizon-playable/v2-entry.html
+          test -s site/app/horizon-playable/horizon-v2.js
+          test -s site/app/horizon-playable/assets/characters/mesh2motion/models/swat_male.glb
           echo "V5000 CLEAN INTELLIGENCE ARTIFACT READY"
 
       - uses: actions/configure-pages@v5
@@ -194,9 +202,12 @@ jobs:
           ! grep -Eiq 'HORIZON|battle pass|zombie|game mode' /tmp/root.html
           q="${GITHUB_SHA}-surface-check-$(date +%s)"
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/?v5100=${q}" -o /tmp/horizon.html
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon-playable/v2-entry.html?v5100=${q}" -o /tmp/horizon-playable.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/discover/?v5100=${q}" -o /tmp/discover.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/newsroom/?v5100=${q}" -o /tmp/newsroom.html
           test -s /tmp/horizon.html
+          test -s /tmp/horizon-playable.html
+          grep -Fq 'Live Match' /tmp/horizon-playable.html
           test -s /tmp/discover.html
           test -s /tmp/newsroom.html
           grep -Fq 'GROWTH NEWSROOM' /tmp/newsroom.html
