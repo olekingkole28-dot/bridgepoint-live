@@ -267,14 +267,14 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v4
         with:
-          name: bridgepoint-v5000
+          name: bridgepoint-v5000-${{ github.run_attempt }}
           path: site
 
       - name: Deploy clean V5000 surface
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: bridgepoint-v5000
+          artifact_name: bridgepoint-v5000-${{ github.run_attempt }}
 
       - name: Verify production cutover
         shell: bash
