@@ -26,6 +26,14 @@
       "body": {
         "p_property_id": "uuid"
       }
+    },
+    "search": {
+      "method": "POST",
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_search_v5200",
+      "body": {
+        "p_query": "exact street address",
+        "p_limit": 4
+      }
     }
   },
   "output_fields": [
@@ -55,5 +63,15 @@
     "A public numeric value is withheld until evidence and confidence gates pass.",
     "Dynamic property-opportunity/intelligence scoring is kept separate from BII.",
     "Any regulated or high-impact deployment requires use-specific validation and jurisdiction review."
-  ]
+  ],
+  "embed": {
+    "script": "https://bridgepointintelligence.online/integrity-index/embed.js",
+    "examples": "https://bridgepointintelligence.online/integrity-index/embed-example.html",
+    "behavior": "Opt-in badge; returns WITHHELD when the publication gate fails."
+  },
+  "browser_extension": {
+    "status": "SOURCE_PREVIEW",
+    "repository_path": "distribution/bii-browser-extension",
+    "behavior": "User-initiated address lookup; no automatic third-party portal scraping or injection."
+  }
 }
