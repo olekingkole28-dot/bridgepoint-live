@@ -47,14 +47,20 @@
         {
           "@type": "PropertyValue",
           "name": "Normalized/public address records",
-          "value": 142798163
+          "value": 142849508
         },
         {
           "@type": "PropertyValue",
           "name": "Map-ready buildings",
           "value": 90908368
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Property-to-boundary link estimate",
+          "value": 31282151
         }
-      ]
+      ],
+      "dateModified": "2026-09-15T19:38:00Z"
     },
     {
       "@type": "VideoGame",
