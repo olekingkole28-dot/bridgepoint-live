@@ -31,7 +31,6 @@ jobs:
           set -euo pipefail
           # Pull the full quality-gated nationwide feed while keeping every
           # existing privacy, unsupported-claim, and proprietary-data guard.
-          sed -i 's/fetch_feed(25)/fetch_feed(75)/g' scripts/publish_discovery_hubs.py
           python scripts/publish_discovery_hubs.py
           python scripts/publish_intent_hubs_v1113.py
           test -s discover/index.html
