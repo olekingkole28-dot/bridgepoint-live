@@ -21,3 +21,6 @@
   .killFeed{top:58px}
   .pickupPrompt{bottom:64px;width:76px;height:76px}
 }
+
+/* HORIZON LIVE SOURCE CONTEXT V4320 */
+.status em{display:block;margin:2px 0 1px;color:#61e8ff;font-size:6px;font-style:normal;font-weight:900;letter-spacing:.08em;max-width:210px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.status em.alert{color:#ffd36a;text-shadow:0 0 10px rgba(255,190,60,.32)}
