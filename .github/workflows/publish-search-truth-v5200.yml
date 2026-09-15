@@ -1,0 +1,115 @@
+name: Publish BridgePoint Search Truth V5200
+
+on:
+  schedule:
+    - cron: '2,17,32,47 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/publish_search_truth_v5200.py'
+      - '.github/workflows/publish-search-truth-v5200.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bridgepoint-seo-publish-v5100
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build live search and AI truth atlas
+        run: |
+          set -euo pipefail
+          python scripts/publish_search_truth_v5200.py
+          test -s search/index.html
+          test -s discovery-facts.json
+          test -s ai-index.json
+          test -s bridgepoint-knowledge.jsonld
+          test -s search-sitemap.xml
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          f=json.loads(Path('discovery-facts.json').read_text())
+          a=json.loads(Path('ai-index.json').read_text())
+          m=f['metrics']
+          assert int(m['canonical_property_records']) >= 100_000_000
+          assert int(m['normalized_address_records']) >= 1
+          assert int(m['map_ready_buildings']) >= 1
+          assert len(a.get('products',[])) == 2
+          assert len(list(Path('search').glob('*/index.html'))) >= 25
+          print('SEARCH_TRUTH_GUARD_PASS',m['canonical_property_records'],m['materialized_boundary_estimate'],len(list(Path('search').glob('*/index.html'))))
+          PY
+          if grep -R -E -i 'service_role|sb_secret|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY' search discovery-facts.json ai-index.json bridgepoint-knowledge.jsonld; then
+            echo 'Forbidden privileged credential marker found in search truth output.' >&2
+            exit 1
+          fi
+
+      - name: Commit changed search truth
+        id: commit
+        run: |
+          set -euo pipefail
+          git config user.name 'BridgePoint Search Truth'
+          git config user.email 'actions@users.noreply.github.com'
+          changed=false
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            python scripts/publish_search_truth_v5200.py
+            git add -- search discovery-facts.json ai-index.json bridgepoint-knowledge.jsonld search-sitemap.xml
+            git diff --cached --check
+            if git diff --cached --quiet; then
+              echo 'changed=false' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            git commit -m 'Refresh BridgePoint search and AI truth [v5200]'
+            if git push origin HEAD:main; then
+              changed=true
+              break
+            fi
+            sleep $((attempt * 3))
+          done
+          if [ "$changed" != true ]; then
+            echo 'Search truth could not publish after three clean regenerations.' >&2
+            exit 1
+          fi
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Notify IndexNow
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          sleep 45
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path('ai-index.json').read_text())
+          urls=[
+            'https://bridgepointintelligence.online/search/',
+            'https://bridgepointintelligence.online/search-sitemap.xml',
+            'https://bridgepointintelligence.online/discovery-facts.json',
+            'https://bridgepointintelligence.online/ai-index.json',
+            'https://bridgepointintelligence.online/bridgepoint-knowledge.jsonld',
+            'https://bridgepointintelligence.online/app/horizon/',
+            'https://bridgepointintelligence.online/app/horizon/early-access.html',
+          ]
+          for product in a.get('products',[]):
+            urls += [t.get('url') for t in product.get('topics',[]) if t.get('url')]
+          payload={
+            'host':'bridgepointintelligence.online',
+            'key':'dc8a83e4caade76fd824cf929dca48d6',
+            'keyLocation':'https://bridgepointintelligence.online/dc8a83e4caade76fd824cf929dca48d6.txt',
+            'urlList':list(dict.fromkeys(urls))[:100],
+          }
+          Path('/tmp/indexnow-search-truth.json').write_text(json.dumps(payload),encoding='utf-8')
+          PY
+          code="$(curl -sS -o /tmp/indexnow-search-truth-response.txt -w '%{http_code}' -X POST 'https://api.indexnow.org/indexnow' -H 'Content-Type: application/json; charset=utf-8' --data-binary @/tmp/indexnow-search-truth.json || true)"
+          echo "IndexNow search truth HTTP $code"
