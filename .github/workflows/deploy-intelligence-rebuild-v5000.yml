@@ -1,5 +1,5 @@
 name: Deploy BridgePoint Intelligence V5000 Rebuild
-# combined surface republish: growth-newsroom-v5102
+# combined surface republish: distribution-network-v5202
 
 on:
   push:
