@@ -33,40 +33,4 @@
   <url><loc>https://bridgepointintelligence.online/bridgepoint-knowledge.jsonld</loc><changefreq>daily</changefreq><priority>0.85</priority></url>
   <url><loc>https://bridgepointintelligence.online/app/horizon/</loc><changefreq>daily</changefreq><priority>0.85</priority></url>
   <url><loc>https://bridgepointintelligence.online/app/horizon/early-access.html</loc><changefreq>daily</changefreq><priority>0.85</priority></url>
-  <url><loc>https://bridgepointintelligence.online/articles/bridgepoint-169634995-canonical-property-identities-2026-09-15.html</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.95</priority></url>
-  <url><loc>https://bridgepointintelligence.online/articles/us-weather-risk-brief-2026-09-15.html</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.95</priority></url>
-  <url><loc>https://bridgepointintelligence.online/articles/atlantic-tropical-outlook-property-intelligence-2026-09-15.html</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.95</priority></url>
-  <url><loc>https://bridgepointintelligence.online/articles/central-plains-flood-watch-property-intelligence-2026-09-15.html</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.95</priority></url>
-  <url><loc>https://bridgepointintelligence.online/articles/bridgepoint-parcel-boundary-progress-2026-09-15.html</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.95</priority></url>
-  <url><loc>https://bridgepointintelligence.online/claims-terminal/</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.97</priority></url>
-  <url><loc>https://bridgepointintelligence.online/claims-terminal/claims-lifecycle.json</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.97</priority></url>
-  <url><loc>https://bridgepointintelligence.online/claims-terminal/feed.xml</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.97</priority></url>
-  <url><loc>https://bridgepointintelligence.online/claims-terminal/openapi.json</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.97</priority></url>
-  <url><loc>https://bridgepointintelligence.online/articles/claims-lifecycle-intelligence-platform-2026-09-15.html</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.97</priority></url>
-  <url><loc>https://bridgepointintelligence.online/articles/catastrophe-exposure-data-feed-authorized-integration-2026-09-15.html</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.97</priority></url>
-  <url><loc>https://bridgepointintelligence.online/terminal/</loc><lastmod>2026-09-15</lastmod><changefreq>hourly</changefreq><priority>0.99</priority></url>
-  <url><loc>https://bridgepointintelligence.online/integrity-index/</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.98</priority></url>
-  <url><loc>https://bridgepointintelligence.online/integrity-index/contract.json</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.98</priority></url>
-  <url><loc>https://bridgepointintelligence.online/articles/bridgepoint-integrity-index-bii-shadow-calibration-2026-09-15.html</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.96</priority></url>
-  <url><loc>https://bridgepointintelligence.online/integrity-index/embed-example.html</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.96</priority></url>
-  <url><loc>https://bridgepointintelligence.online/integrity-index/embed.js</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.96</priority></url>
-  <url><loc>https://bridgepointintelligence.online/settlement-lab/</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.97</priority></url>
-  <url><loc>https://bridgepointintelligence.online/settlement-lab/contract.json</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.97</priority></url>
-  <url><loc>https://bridgepointintelligence.online/distribution/</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.98</priority></url>
-  <url><loc>https://bridgepointintelligence.online/distribution/gis-widget/</loc><lastmod>2026-09-15</lastmod><changefreq>weekly</changefreq><priority>0.91</priority></url>
-  <url><loc>https://bridgepointintelligence.online/distribution/gis-widget/embed-example.html</loc><lastmod>2026-09-15</lastmod><changefreq>weekly</changefreq><priority>0.91</priority></url>
-  <url><loc>https://bridgepointintelligence.online/distribution/gis-widget/embed.js</loc><lastmod>2026-09-15</lastmod><changefreq>weekly</changefreq><priority>0.91</priority></url>
-  <url><loc>https://bridgepointintelligence.online/distribution/openapi.json</loc><lastmod>2026-09-15</lastmod><changefreq>weekly</changefreq><priority>0.91</priority></url>
-  <url><loc>https://bridgepointintelligence.online/distribution/bii-browser-extension.zip</loc><lastmod>2026-09-15</lastmod><changefreq>weekly</changefreq><priority>0.91</priority></url>
-  <url><loc>https://bridgepointintelligence.online/distribution/feeds/</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.96</priority></url>
-  <url><loc>https://bridgepointintelligence.online/articles/bridgepoint-property-intelligence-distribution-gis-bii-exposure-feeds-2026-09-15.html</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.96</priority></url>
-  <url><loc>https://bridgepointintelligence.online/public-audit/</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.99</priority></url>
-  <url><loc>https://bridgepointintelligence.online/public-audit/contract.json</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.94</priority></url>
-  <url><loc>https://bridgepointintelligence.online/portfolio-evidence/</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.94</priority></url>
-  <url><loc>https://bridgepointintelligence.online/portfolio-evidence/contract.json</loc><lastmod>2026-09-15</lastmod><changefreq>weekly</changefreq><priority>0.94</priority></url>
-  <url><loc>https://bridgepointintelligence.online/distribution/institutional-ingestion.html</loc><lastmod>2026-09-15</lastmod><changefreq>weekly</changefreq><priority>0.94</priority></url>
-  <url><loc>https://bridgepointintelligence.online/articles/bridgepoint-public-evidence-audit-hazard-latency-property-exposure-2026-09-15.html</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.97</priority></url>
-  <url><loc>https://bridgepointintelligence.online/distribution/partner-delivery-contract.json</loc><lastmod>2026-09-15</lastmod><changefreq>weekly</changefreq><priority>0.90</priority></url>
-  <url><loc>https://bridgepointintelligence.online/data-discrepancy/</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.98</priority></url>
-  <url><loc>https://bridgepointintelligence.online/data-discrepancy/contract.json</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.92</priority></url>
 </urlset>

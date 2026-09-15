@@ -9,7 +9,7 @@
   "public_evidence": [
     {
       "type": "PodcastEpisode",
-      "name": "Boroughs & Burbs Ep.240 — Beyond the Listing",
+      "name": "Boroughs & Burbs Ep.240 \u2014 Beyond the Listing",
       "url": "https://www.podscan.fm/podcasts/boroughs-amp-burbs-the-national-real-estate-conversation-2/episodes/beyond-the-listing-how-ai-and-property-intelligence-are-changing-the-way-we-evaluate-real-estate-boroughs-and-burbs-ep240-1"
     }
   ],
@@ -224,11 +224,11 @@
     "metrics": {
       "map_ready_buildings": 90908368,
       "roof_shell_buildings": 90908368,
-      "roof_shell_coverage_pct": 100,
+      "roof_shell_coverage_pct": 100.0,
       "canonical_property_records": 169634995,
-      "normalized_address_records": 142849508,
-      "source_backed_roof_records": 667528,
-      "lidar_refined_roof_buildings": 2724,
+      "normalized_address_records": 143173662,
+      "source_backed_roof_records": 668732,
+      "lidar_refined_roof_buildings": 2830,
       "materialized_boundary_estimate": 83858024,
       "public_parcel_identity_records": 169634995,
       "canonical_property_record_label": "canonical property/parcel identity records",
@@ -244,15 +244,15 @@
       "public_counter_jurisdictions": 55
     },
     "freshness": {
-      "roof_updated_at": "2026-09-15T19:12:44.369835+00:00",
-      "lidar_last_success_at": "2026-09-15T19:12:23.522768+00:00",
+      "roof_updated_at": "2026-09-15T22:13:25.520797+00:00",
+      "lidar_last_success_at": "2026-09-15T22:13:25.520797+00:00",
       "parcel_counter_updated_at": "2026-09-13T00:07:55.298817+00:00",
-      "address_counter_updated_at": "2026-09-15T19:12:36.778497+00:00",
-      "parcel_scoreboard_updated_at": "2026-09-15T19:12:33.126798+00:00",
-      "parcel_autopilot_last_tick_at": "2026-09-15T19:12:33.126798+00:00"
+      "address_counter_updated_at": "2026-09-15T22:13:27.960616+00:00",
+      "parcel_scoreboard_updated_at": "2026-09-15T22:13:10.399557+00:00",
+      "parcel_autopilot_last_tick_at": "2026-09-15T22:13:10.399557+00:00"
     },
     "horizon_url": "https://bridgepointintelligence.online/app/horizon/",
-    "generated_at": "2026-09-15T19:12:47.905246+00:00",
+    "generated_at": "2026-09-15T22:13:28.279897+00:00",
     "canonical_url": "https://bridgepointintelligence.online/",
     "jurisdictions": [
       {
@@ -533,7 +533,7 @@
     ],
     "accuracy_notes": [
       "169.6M-scale canonical property/parcel identity records are not the same as 169.6M materialized boundary polygons.",
-      "Boundary and property↔boundary link counts are separate live measures.",
+      "Boundary and property\u2194boundary link counts are separate live measures.",
       "Roof shell coverage is not the same as source-backed roof material/pitch/shape coverage.",
       "Weather exposure is context, not proof of physical damage or an insurance outcome."
     ],
@@ -541,7 +541,7 @@
     "horizon_year_one_demand": {
       "ok": true,
       "mode": "365_DAY_YEAR_ONE_SURVIVAL",
-      "updated_at": "2026-09-15T19:12:48.095712+00:00",
+      "updated_at": "2026-09-15T22:13:28.342157+00:00",
       "event_started": false,
       "unique_requests": 0,
       "billing_connected": false,
@@ -552,237 +552,5 @@
     "Canonical property/parcel identities are not the same as materialized boundary polygons.",
     "Weather exposure is not proof of damage.",
     "Roof shell coverage is not source-backed material/pitch/shape coverage."
-  ],
-  "updated_at": "2026-09-15T21:14:00Z",
-  "claims_lifecycle_terminal": {
-    "name": "BridgePoint Claims Lifecycle Terminal",
-    "url": "https://bridgepointintelligence.online/claims-terminal/",
-    "json": "https://bridgepointintelligence.online/claims-terminal/claims-lifecycle.json",
-    "rss": "https://bridgepointintelligence.online/claims-terminal/feed.xml",
-    "openapi": "https://bridgepointintelligence.online/claims-terminal/openapi.json",
-    "snapshot": {
-      "generated_at": "2026-09-15T20:00:50Z",
-      "tracked_source_families": 32,
-      "lifecycle_stage_labels": 15,
-      "family_state_rows": 1792,
-      "current_source_slots": 2119,
-      "enabled_source_slots": 1828
-    },
-    "scope": [
-      "pre-loss",
-      "loss",
-      "claim",
-      "recovery",
-      "repair/rebuild",
-      "property context",
-      "property financial context"
-    ],
-    "representation_rules": [
-      "Enabled or discovered sources are not equivalent to unrestricted legal rights.",
-      "Weather exposure is context, not proof of property damage.",
-      "Public terminal excludes private customer claim records.",
-      "Direct third-party delivery requires an authorized integration; BridgePoint does not impersonate internal alerts or submit unsolicited payloads to private systems."
-    ]
-  },
-  "institutional_terminal": {
-    "name": "BridgePoint Institutional Terminal",
-    "url": "https://bridgepointintelligence.online/terminal/",
-    "purpose": "High-density public command center for property, catastrophe exposure and claims-lifecycle intelligence.",
-    "live_map": "https://bridgepointintelligence.online/app/",
-    "claims_terminal": "https://bridgepointintelligence.online/claims-terminal/",
-    "audiences": [
-      "insurance carriers",
-      "reinsurance",
-      "insurance-linked securities",
-      "restoration",
-      "property platforms",
-      "enterprise data teams"
-    ],
-    "representation_rules": [
-      "Exposure does not prove physical damage.",
-      "Property identity counts are separate from materialized parcel-boundary counts.",
-      "Public machine feeds are separate from authorized partner integrations.",
-      "Source availability does not imply unrestricted reuse rights."
-    ]
-  },
-  "bridgepoint_integrity_index": {
-    "name": "BridgePoint Integrity Index",
-    "short_name": "BII",
-    "url": "https://bridgepointintelligence.online/integrity-index/",
-    "contract": "https://bridgepointintelligence.online/integrity-index/contract.json",
-    "status": "SHADOW_CALIBRATION",
-    "intended_range": [
-      0,
-      100
-    ],
-    "intended_direction": "Higher is intended to mean stronger evidence-supported integrity/resilience context after validation.",
-    "publication_gate": {
-      "minimum_confidence": 0.5,
-      "minimum_observed_component_families": 3,
-      "requires_non_insufficient_health_band": true
-    },
-    "current_snapshot": {
-      "health_assessments": 5041,
-      "publication_grade_properties": 0,
-      "max_current_health_confidence": 0.153,
-      "max_observed_component_families": 1,
-      "dynamic_property_intelligence_scores": 5369598
-    },
-    "safeguards": [
-      "No structural-survival probability claim.",
-      "Missing data is not treated as healthy data.",
-      "Public numeric BII is withheld until publication gates pass.",
-      "Dynamic property opportunity/intelligence score is a separate model.",
-      "High-impact insurance, lending or investment use requires separate validation and jurisdiction review."
-    ]
-  },
-  "settlement_lab": {
-    "name": "BridgePoint Settlement Lab",
-    "url": "https://bridgepointintelligence.online/settlement-lab/",
-    "contract": "https://bridgepointintelligence.online/settlement-lab/contract.json",
-    "status": "SHADOW_ONLY",
-    "purpose": "Evaluate verified hazard exposure and parametric contract-condition readiness without autonomous financial execution.",
-    "capabilities": [
-      "property-event exposure stream",
-      "event exposure snapshot",
-      "parametric trigger simulation",
-      "authorization-gated settlement workflow design"
-    ],
-    "hard_blocks": [
-      "capital movement",
-      "automatic claim approval/denial",
-      "brokerage order placement",
-      "automatic securities trading"
-    ],
-    "interpretation_rules": [
-      "Exposure is not damage proof.",
-      "Trigger simulation is not authorization to pay.",
-      "Dynamic property intelligence is not a trading signal."
-    ]
-  },
-  "distribution_network": {
-    "name": "BridgePoint Distribution Network",
-    "url": "https://bridgepointintelligence.online/distribution/",
-    "status": "PUBLIC",
-    "channels": [
-      {
-        "type": "BII_EMBED",
-        "url": "https://bridgepointintelligence.online/integrity-index/embed-example.html",
-        "mode": "SITE_OWNER_OPT_IN"
-      },
-      {
-        "type": "GIS_WIDGET",
-        "url": "https://bridgepointintelligence.online/distribution/gis-widget/",
-        "mode": "SITE_OWNER_OPT_IN"
-      },
-      {
-        "type": "BROWSER_LOOKUP",
-        "url": "https://bridgepointintelligence.online/distribution/bii-browser-extension.zip",
-        "mode": "USER_INITIATED"
-      },
-      {
-        "type": "EXPOSURE_FEED_JSON",
-        "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=json&limit=20",
-        "mode": "READ_ONLY_RESEARCH_CONTEXT"
-      },
-      {
-        "type": "EXPOSURE_FEED_XML",
-        "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=xml&limit=20",
-        "mode": "READ_ONLY_RESEARCH_CONTEXT"
-      },
-      {
-        "type": "EXPOSURE_FEED_RSS",
-        "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=rss&limit=20",
-        "mode": "READ_ONLY_RESEARCH_CONTEXT"
-      }
-    ],
-    "app_deep_links": {
-      "example": "https://bridgepointintelligence.online/app/?embed=1&address=123%20Main%20St&z=17",
-      "accepted": [
-        "address",
-        "q",
-        "lat",
-        "lng",
-        "z",
-        "embed",
-        "select"
-      ]
-    },
-    "safeguards": [
-      "No silent third-party page injection in the published browser preview.",
-      "No claim of endorsement by a host website or institution.",
-      "Exposure feed is not proof of physical damage.",
-      "Exposure feed is not a securities trading instruction.",
-      "BII numeric values remain subject to the evidence/confidence publication gate."
-    ],
-    "telemetry_endpoint": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_distribution_metrics_v5207",
-    "partner_delivery_contract": "https://bridgepointintelligence.online/distribution/partner-delivery-contract.json"
-  },
-  "public_evidence_audit": {
-    "name": "BridgePoint Public Evidence Audit",
-    "url": "https://bridgepointintelligence.online/public-audit/",
-    "contract": "https://bridgepointintelligence.online/public-audit/contract.json",
-    "status": "PUBLIC_OBSERVATIONAL",
-    "methodology": {
-      "source_timestamp": "hazard source_updated_at",
-      "bridgepoint_timestamp": "BridgePoint first_seen_at",
-      "headline_window": "24 hours",
-      "inclusion": [
-        "timestamps present",
-        "first_seen_at >= source_updated_at",
-        "delta <= 1 hour"
-      ],
-      "measures": "BridgePoint ingestion visibility only"
-    },
-    "exports": {
-      "json": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-audit-export-v5203?mode=latency&format=json&limit=100",
-      "csv": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-audit-export-v5203?mode=latency&format=csv&limit=500"
-    },
-    "exclusions": [
-      "no security/ticker targeting",
-      "no market-mispricing claim",
-      "no competitor-latency claim",
-      "no damage determination",
-      "no anonymous third-party system injection"
-    ],
-    "proof_packet_example": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-proof-packet-v5205?event_id=8496f278-19ed-4b3e-ad35-0c03c4b443b0"
-  },
-  "portfolio_evidence_lab": {
-    "name": "BridgePoint Portfolio Evidence Lab",
-    "url": "https://bridgepointintelligence.online/portfolio-evidence/",
-    "contract": "https://bridgepointintelligence.online/portfolio-evidence/contract.json",
-    "status": "PUBLIC",
-    "mode": "USER_SUPPLIED_PROPERTY_SET",
-    "max_properties": 500,
-    "output": [
-      "event provenance",
-      "matched property count",
-      "exposure-match count",
-      "exposure confidence",
-      "source URLs"
-    ],
-    "exclusions": [
-      "no security/ticker mapping",
-      "no valuation call",
-      "no buy/sell instruction",
-      "no claim of physical damage"
-    ]
-  },
-  "data_discrepancy_ledger": {
-    "name": "BridgePoint Data Discrepancy Ledger",
-    "url": "https://bridgepointintelligence.online/data-discrepancy/",
-    "contract": "https://bridgepointintelligence.online/data-discrepancy/contract.json",
-    "status": "PUBLIC",
-    "scope": "BRIDGEPOINT_INTERNAL_DATA_QUALITY",
-    "measures": [
-      "sampled spatial-anchor gaps",
-      "address parity rows scanned",
-      "addresses recovered/normalized",
-      "canonical identity collision audit groups"
-    ],
-    "interpretation": [
-      "Sample percentages are diagnostics from the published sample rate, not full-state missing-property rates.",
-      "The ledger does not make external-vendor quality claims or market valuation claims."
-    ]
-  }
+  ]
 }
