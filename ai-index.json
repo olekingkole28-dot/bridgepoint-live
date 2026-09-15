@@ -553,7 +553,7 @@
     "Weather exposure is not proof of damage.",
     "Roof shell coverage is not source-backed material/pitch/shape coverage."
   ],
-  "updated_at": "2026-09-15T20:21:51Z",
+  "updated_at": "2026-09-15T20:36:08Z",
   "claims_lifecycle_terminal": {
     "name": "BridgePoint Claims Lifecycle Terminal",
     "url": "https://bridgepointintelligence.online/claims-terminal/",
@@ -634,6 +634,30 @@
       "Public numeric BII is withheld until publication gates pass.",
       "Dynamic property opportunity/intelligence score is a separate model.",
       "High-impact insurance, lending or investment use requires separate validation and jurisdiction review."
+    ]
+  },
+  "settlement_lab": {
+    "name": "BridgePoint Settlement Lab",
+    "url": "https://bridgepointintelligence.online/settlement-lab/",
+    "contract": "https://bridgepointintelligence.online/settlement-lab/contract.json",
+    "status": "SHADOW_ONLY",
+    "purpose": "Evaluate verified hazard exposure and parametric contract-condition readiness without autonomous financial execution.",
+    "capabilities": [
+      "property-event exposure stream",
+      "event exposure snapshot",
+      "parametric trigger simulation",
+      "authorization-gated settlement workflow design"
+    ],
+    "hard_blocks": [
+      "capital movement",
+      "automatic claim approval/denial",
+      "brokerage order placement",
+      "automatic securities trading"
+    ],
+    "interpretation_rules": [
+      "Exposure is not damage proof.",
+      "Trigger simulation is not authorization to pay.",
+      "Dynamic property intelligence is not a trading signal."
     ]
   }
 }
