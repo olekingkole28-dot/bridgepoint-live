@@ -42,12 +42,12 @@
         {
           "@type": "PropertyValue",
           "name": "Materialized boundary estimate",
-          "value": 83848684
+          "value": 83848704
         },
         {
           "@type": "PropertyValue",
           "name": "Normalized/public address records",
-          "value": 139790980
+          "value": 139793430
         },
         {
           "@type": "PropertyValue",
