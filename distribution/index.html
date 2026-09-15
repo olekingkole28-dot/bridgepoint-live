@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BridgePoint Distribution Network | BII, GIS Embeds & Exposure Feeds</title>
+<meta name="description" content="BridgePoint distribution infrastructure: embeddable BII, municipal/GIS map widgets, browser lookup tools and machine-readable catastrophe exposure feeds.">
+<meta name="keywords" content="BridgePoint distribution, property intelligence API, GIS widget, property score embed, catastrophe exposure API, BII API, municipal GIS integration">
+<link rel="canonical" href="https://bridgepointintelligence.online/distribution/">
+<style>
+:root{--bg:#04090e;--panel:#091722;--line:#1b4055;--text:#f1faff;--muted:#91a9b6;--cyan:#62e7ff;--blue:#178df0;--green:#70e6a7;--amber:#ffd36b}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 18% 0,#0c2c41 0,#061019 38%,#04090e 76%);color:var(--text);font:15px/1.62 Inter,system-ui,Arial,sans-serif}main{max-width:1120px;margin:auto;padding:26px 18px 70px}a{color:var(--cyan)}nav{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}nav a{text-decoration:none;color:#fff;font-weight:900}.eyebrow{display:inline-block;margin-top:38px;border:1px solid #2d6078;border-radius:999px;padding:6px 10px;color:#b3efff;font-size:.72rem;font-weight:900;letter-spacing:.08em}h1{font-size:clamp(2.7rem,7vw,5.4rem);line-height:.95;letter-spacing:-.05em;margin:14px 0}.lead{max-width:900px;color:var(--muted);font-size:1.12rem}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:24px}.card{background:rgba(9,23,34,.96);border:1px solid var(--line);border-radius:14px;padding:18px}.card h2{margin:0 0 8px}.card p,.card li{color:#9db4bf}.tag{display:inline-block;border:1px solid #2d5e75;border-radius:999px;padding:3px 7px;color:#98e9fb;font-size:.68rem;font-weight:900;letter-spacing:.06em}.ready{color:var(--green)}.shadow{color:var(--amber)}pre{background:#061019;border:1px solid #17394b;border-radius:10px;padding:13px;overflow:auto;color:#d7f7ff;font-size:.76rem}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.btn{display:inline-block;text-decoration:none;border-radius:9px;padding:10px 12px;font-weight:900;background:var(--blue);color:white}.secondary{background:transparent;border:1px solid #315f76}.truth{margin-top:22px;border-left:4px solid var(--amber);background:#0b1d29;padding:14px 16px}.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:22px}.flow div{border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center;background:#07131c;font-weight:800}.flow span{display:block;color:#7794a2;font-size:.68rem;margin-bottom:3px}footer{margin-top:40px;padding-top:18px;border-top:1px solid #153448;color:#718895;font-size:.82rem}@media(max-width:760px){.grid{grid-template-columns:1fr}.flow{grid-template-columns:1fr}}</style></head><body><main>
+<nav><a href="/">BRIDGEPOINT INTELLIGENCE</a><div><a href="/terminal/">TERMINAL</a> · <a href="/integrity-index/">BII</a> · <a href="/settlement-lab/">SETTLEMENT LAB</a></div></nav>
+<span class="eyebrow">DISTRIBUTION INFRASTRUCTURE</span>
+<h1>Put BridgePoint where people already work.</h1>
+<p class="lead">A strong backend still needs distribution. BridgePoint now has separate, explicit channels for consumers, GIS/municipal partners and machine users—without pretending that a third-party website, government, insurer or financial terminal has endorsed the data.</p>
+
+<div class="flow"><div><span>01</span>PROPERTY IDENTITY</div><div><span>02</span>BII / CONTEXT</div><div><span>03</span>GIS EMBEDS</div><div><span>04</span>PUBLIC FEEDS</div><div><span>05</span>PARTNER APIS</div></div>
+
+<section class="grid">
+<article class="card"><span class="tag ready">READY · OPT-IN</span><h2>BII embed badge</h2><p>Site owners can add a lightweight property-integrity badge by exact address or BridgePoint property ID. Numeric BII stays withheld until evidence gates pass.</p><pre>&lt;div class="bridgepoint-bii" data-address="123 Main St"&gt;&lt;/div&gt;
+&lt;script src="https://bridgepointintelligence.online/integrity-index/embed.js" async&gt;&lt;/script&gt;</pre><div class="actions"><a class="btn" href="/integrity-index/embed-example.html">EMBED DOCS</a></div></article>
+
+<article class="card"><span class="tag ready">READY · SITE-OWNER EMBED</span><h2>GIS / municipal map widget</h2><p>A public iframe widget resolves an address or coordinate into BridgePoint's live 3D map and property context. It is designed for websites that deliberately choose to embed BridgePoint.</p><pre>&lt;iframe
+  src="https://bridgepointintelligence.online/distribution/gis-widget/?address=123%20Main%20St"
+  width="100%" height="520" loading="lazy"&gt;
+&lt;/iframe&gt;</pre><div class="actions"><a class="btn" href="/distribution/gis-widget/">OPEN WIDGET</a><a class="btn secondary" href="/distribution/gis-widget/embed-example.html">INTEGRATION DOCS</a></div></article>
+
+<article class="card"><span class="tag ready">READY · USER-INITIATED</span><h2>Browser lookup extension</h2><p>The current Manifest V3 preview is intentionally permission-minimal: users enter an address and BridgePoint returns BII status. It does not silently crawl or modify property portals.</p><div class="actions"><a class="btn" href="/distribution/bii-browser-extension.zip">DOWNLOAD SOURCE ZIP</a><a class="btn secondary" href="/distribution/bii-browser-extension/README.md">README</a></div></article>
+
+<article class="card"><span class="tag ready">ACTIVE · READ-ONLY</span><h2>Exposure feeds: JSON / XML / RSS</h2><p>Machine-readable source-backed catastrophe/property exposure context for analytics and research. The feed explicitly marks itself as non-trading, non-damage-determination context.</p><div class="actions"><a class="btn" href="https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=json&limit=20">JSON</a><a class="btn secondary" href="https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=xml&limit=20">XML</a><a class="btn secondary" href="https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=rss&limit=20">RSS</a></div></article>
+
+<article class="card"><span class="tag shadow">SHADOW · NOT A TRADING SIGNAL</span><h2>Institutional event/exposure API</h2><p>Event snapshots, exposure confidence and parametric trigger simulations are available through the Settlement Lab contract. These endpoints do not place orders, approve claims or move capital.</p><div class="actions"><a class="btn" href="/settlement-lab/contract.json">SETTLEMENT CONTRACT</a><a class="btn secondary" href="/distribution/openapi.json">OPENAPI INDEX</a></div></article>
+
+<article class="card"><span class="tag ready">READY · DEEP LINKS</span><h2>Embeddable live map deep links</h2><p>The main 3D map now accepts address, coordinate and embed parameters. Search and partner links can land users directly on the relevant physical location instead of the generic homepage.</p><pre>https://bridgepointintelligence.online/app/
+  ?embed=1
+  &amp;address=123%20Main%20St
+  &amp;z=17</pre><div class="actions"><a class="btn" href="/app/?embed=1&address=123%20Main%20St&z=17">TRY EMBED MODE</a></div></article>
+</section>
+
+<div class="truth"><strong>Distribution is not the same as forced injection.</strong> BridgePoint's public distribution surfaces are opt-in, user-initiated or machine-readable. Partner-native placement on county, MLS, insurer, portal or financial-terminal screens should happen through permissioned integration or an explicitly installed user tool.</div>
+<footer>BridgePoint Distribution Network · Public surfaces may be cached and indexed. Source licensing, attribution and downstream-use obligations remain source-specific.</footer>
+</main><script defer src="/acquisition_tracker.js"></script></body></html>
