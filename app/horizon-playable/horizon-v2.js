@@ -452,7 +452,11 @@ function interiorBox(x,y,z,w,d,h,material,collide=true){
   const m=new THREE.Mesh(new THREE.BoxGeometry(w,d,h),material);m.position.set(x,y,z+h/2);m.castShadow=renderer.shadowMap.enabled;m.receiveShadow=true;interiorGroup.add(m);
   if(collide)interiorRects.push({minx:x-w/2,maxx:x+w/2,miny:y-d/2,maxy:y+d/2});return m;
 }
-function clearInteriorRuntime(){while(interiorGroup.children.length)interiorGroup.remove(interiorGroup.children[0]);interiorRects.length=0;activeInterior=null}
+function clearInteriorRuntime(){
+  while(interiorGroup.children.length)interiorGroup.remove(interiorGroup.children[0]);
+  for(let i=lootPickups.length-1;i>=0;i--)if(lootPickups[i].space==='interior')lootPickups.splice(i,1);
+  interiorRects.length=0;activeInterior=null;
+}
 function interiorFloorSlab(z,w,d,hx,hy,hw,hd,material){
   const left=(w-hw)/2,right=left,top=(d-hd)/2,bottom=top;
   interiorBox(-hw/2-left/2,0,z,left,d,.14,material,false);interiorBox(hw/2+right/2,0,z,right,d,.14,material,false);
@@ -495,6 +499,12 @@ function buildInterior(entry){
     }
     const bed=new THREE.Mesh(new THREE.BoxGeometry(2.0,.95,.42),mat(0x655f55,.95,.01));bed.position.set(w*.22,d*.22,z+.23);interiorGroup.add(bed);
     const table=new THREE.Mesh(new THREE.BoxGeometry(1.3,.8,.08),mat(0x5f4937,.88,.02));table.position.set(-w*.28,d*.18,z+.78);interiorGroup.add(table);
+    const lootType=['ammo','medkit','armor','weapon'][(hash(entry.id+':loot:'+f)%4)];
+    const lootColor=lootType==='ammo'?0xd1b05e:lootType==='medkit'?0xd85858:lootType==='armor'?0x5aa7c9:0x73e1b2;
+    const lx=(f%2?-.28:.27)*w,ly=(f%3-1)*d*.17,lz=z+.24;
+    const lootMesh=new THREE.Mesh(lootType==='weapon'?new THREE.BoxGeometry(.9,.12,.12):new THREE.BoxGeometry(.34,.34,.22),new THREE.MeshStandardMaterial({color:lootColor,emissive:lootColor,emissiveIntensity:.25,roughness:.5}));
+    lootMesh.position.set(lx,ly,lz);interiorGroup.add(lootMesh);
+    lootPickups.push({id:'interior-'+entry.id+'-'+f,type:lootType,x:lx,y:ly,z:lz,space:'interior',mesh:lootMesh,picked:false});
   }
   const ceil=new THREE.Mesh(new THREE.BoxGeometry(w,d,.12),wallMat);ceil.position.set(0,0,floors*floorH+.08);interiorGroup.add(ceil);
   interiorGroup.visible=true;world.visible=false;
@@ -542,14 +552,18 @@ function updateZipline(dt){
 function makeVehicle(a,i){
   const g=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(3.9,1.75,.72),mat(i%2?0x4d5652:0x65483d,.74,.25)),cab=new THREE.Mesh(new THREE.BoxGeometry(1.9,1.5,.7),mat(0x263438,.28,.35));
   body.position.z=.52;cab.position.set(.15,0,1.13);g.add(body,cab);g.position.set(a.x,a.y,terrainZ(a.x,a.y)+.02);g.rotation.z=a.a;world.add(g);
-  const v={root:g,x:a.x,y:a.y,heading:a.a,speed:0,maxSpeed:i%3===0?22:17,fuel:100,type:i%3===0?'sport':'pickup'};vehicles.push(v);interactables.push({type:'vehicle',x:a.x,y:a.y,z:g.position.z,label:'DRIVE',vehicle:v});return v;
+  const v={root:g,x:a.x,y:a.y,heading:a.a,speed:0,maxSpeed:i%3===0?22:17,fuel:68+rand()*32,condition:72+rand()*28,type:i%3===0?'sport':'pickup',warnFuel:false,warnCondition:false};vehicles.push(v);interactables.push({type:'vehicle',x:a.x,y:a.y,z:g.position.z,label:'DRIVE',vehicle:v});return v;
 }
 function spawnVehicles(){for(let i=0;i<Math.min(MOBILE?3:6,roadAnchors.length);i++){const a=roadAnchors[(i*17+9)%roadAnchors.length];if(a)makeVehicle(a,i)}return vehicles.length}
-function enterVehicle(v){if(!v||interiorMode)return;activeVehicle=v;player.visible=false;toast('DRIVING · USE TO EXIT')}
+function enterVehicle(v){if(!v||interiorMode)return;if(v.condition<=0){toast('VEHICLE DISABLED · FIND REPAIR KIT');return}activeVehicle=v;player.visible=false;toast('DRIVING · '+Math.round(v.fuel)+'% FUEL · '+Math.round(v.condition)+'% CONDITION')}
 function exitVehicle(){if(!activeVehicle)return;const v=activeVehicle,x=v.root.position.x+Math.cos(v.heading)*1.8,y=v.root.position.y-Math.sin(v.heading)*1.8;activeVehicle=null;player.visible=true;player.position.set(x,y,terrainZ(x,y));toast('EXITED VEHICLE')}
 function updateVehicle(dt){
-  if(!activeVehicle)return false;const v=activeVehicle,target=moveY*v.maxSpeed;v.speed=THREE.MathUtils.lerp(v.speed,target,1-Math.exp(-4.5*dt));v.heading-=moveX*(.75+Math.min(1,Math.abs(v.speed)/8))*dt*Math.sign(v.speed||1);
-  const nx=v.root.position.x+Math.sin(v.heading)*v.speed*dt,ny=v.root.position.y+Math.cos(v.heading)*v.speed*dt;if(!blocked(nx,ny,.8)){v.root.position.x=nx;v.root.position.y=ny}else v.speed*=.15;
+  if(!activeVehicle)return false;const v=activeVehicle,input=moveY;
+  if(v.fuel<=0||v.condition<=0){v.speed=THREE.MathUtils.lerp(v.speed,0,1-Math.exp(-5*dt));if(v.fuel<=0&&!v.warnFuel){v.warnFuel=true;toast('OUT OF FUEL')}if(v.condition<=0&&!v.warnCondition){v.warnCondition=true;toast('VEHICLE DISABLED')}return true}
+  const healthFactor=.45+.55*(v.condition/100),target=input*v.maxSpeed*healthFactor;v.speed=THREE.MathUtils.lerp(v.speed,target,1-Math.exp(-4.5*dt));v.heading-=moveX*(.75+Math.min(1,Math.abs(v.speed)/8))*dt*Math.sign(v.speed||1);
+  const nx=v.root.position.x+Math.sin(v.heading)*v.speed*dt,ny=v.root.position.y+Math.cos(v.heading)*v.speed*dt;
+  if(!blocked(nx,ny,.8)){v.root.position.x=nx;v.root.position.y=ny;if(Math.abs(v.speed)>.4)v.fuel=Math.max(0,v.fuel-Math.abs(v.speed)*dt*.018)}
+  else{if(Math.abs(v.speed)>4){v.condition=Math.max(0,v.condition-Math.min(24,Math.abs(v.speed)*.9));tone(48,.09,.035,'sawtooth')}v.speed*=.12}
   v.root.position.z=terrainZ(v.root.position.x,v.root.position.y)+.02;v.root.rotation.z=v.heading;player.position.copy(v.root.position);yaw=THREE.MathUtils.lerp(yaw,v.heading,.14);return true;
 }
 function updateContext(){
@@ -631,27 +645,36 @@ function addAbandonment(){
   for(let i=0;i<44;i++){
     const a=roadAnchors[(i*3)%Math.max(1,roadAnchors.length)]||{x:(rand()-.5)*350,y:(rand()-.5)*350};
     const x=a.x+(rand()-.5)*22,y=a.y+(rand()-.5)*22;if(blocked(x,y,.45))continue;
-    const type=i%4===0?'ammo':i%4===1?'medkit':i%4===2?'armor':'weapon';
-    const color=type==='ammo'?0xd1b05e:type==='medkit'?0xd85858:type==='armor'?0x5aa7c9:0x73e1b2;
-    const mesh=new THREE.Mesh(type==='weapon'?new THREE.BoxGeometry(.9,.12,.12):new THREE.BoxGeometry(.34,.34,.22),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.25,roughness:.5}));
-    mesh.position.set(x,y,.22);mesh.rotation.z=rand()*Math.PI;world.add(mesh);
-    lootPickups.push({id:'loot-'+i,type,x,y,mesh,picked:false});
+    const types=['ammo','medkit','armor','weapon','fuel','repair'],type=types[i%types.length];
+    const color=type==='ammo'?0xd1b05e:type==='medkit'?0xd85858:type==='armor'?0x5aa7c9:type==='fuel'?0xe0a13f:type==='repair'?0x90a4aa:0x73e1b2;
+    const mesh=new THREE.Mesh(type==='weapon'?new THREE.BoxGeometry(.9,.12,.12):type==='fuel'?new THREE.BoxGeometry(.38,.28,.58):new THREE.BoxGeometry(.34,.34,.22),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.25,roughness:.5}));
+    const lz=terrainZ(x,y)+.22;mesh.position.set(x,y,lz);mesh.rotation.z=rand()*Math.PI;world.add(mesh);
+    lootPickups.push({id:'loot-'+i,type,x,y,z:lz,space:'world',mesh,picked:false});
   }
   for(let i=0;i<(MOBILE?90:220);i++){
     const d=new THREE.Mesh(new THREE.BoxGeometry(.15+rand()*.7,.15+rand()*.7,.08+rand()*.28),mat(0x51463b,1,.03));
-    d.position.set((rand()-.5)*span*900,(rand()-.5)*span*900,.08);d.rotation.set(rand()*2,rand()*2,rand()*6);world.add(d);
+    {const dx=(rand()-.5)*span*900,dy=(rand()-.5)*span*900;d.position.set(dx,dy,terrainZ(dx,dy)+.08)}d.rotation.set(rand()*2,rand()*2,rand()*6);world.add(d);
   }
 }
 function nearestLoot(){
-  let best=null,dist=1.75;
-  for(const q of lootPickups){if(q.picked)continue;const d=Math.hypot(player.position.x-q.x,player.position.y-q.y);if(d<dist){dist=d;best=q}}
+  let best=null,dist=1.75;const wanted=interiorMode?'interior':'world';
+  for(const q of lootPickups){
+    if(q.picked||q.space!==wanted)continue;
+    const dz=Math.abs(player.position.z-(q.z??player.position.z));if(dz>1.25)continue;
+    const d=Math.hypot(player.position.x-q.x,player.position.y-q.y);if(d<dist){dist=d;best=q}
+  }
   return best;
+}
+function nearestVehicle(max=18){
+  let best=null,dist=max;for(const v of vehicles){const d=Math.hypot(player.position.x-v.root.position.x,player.position.y-v.root.position.y);if(d<dist){dist=d;best=v}}return best;
 }
 function collectLoot(q){
   if(!q||q.picked)return;q.picked=true;q.mesh.visible=false;lootCount++;$('loot').textContent=lootCount;
   if(q.type==='ammo'){for(const w of WEAPONS)if(w.mag&&weaponState[w.key]?.owned)weaponState[w.key].reserve=Math.min(w.reserve*3,weaponState[w.key].reserve+Math.max(12,Math.floor(w.reserve*.35)));updateAmmo();toast('Ammo acquired')}
   else if(q.type==='medkit'){health=Math.min(100,health+35);$('health').textContent=Math.round(health);toast('Med kit acquired')}
   else if(q.type==='armor')toast('Armor plate acquired');
+  else if(q.type==='fuel'){const v=activeVehicle||nearestVehicle();if(v){v.fuel=Math.min(100,v.fuel+45);toast('Vehicle fuel '+Math.round(v.fuel)+'%')}else toast('Fuel can acquired')}
+  else if(q.type==='repair'){const v=activeVehicle||nearestVehicle();if(v){v.condition=Math.min(100,v.condition+38);toast('Vehicle repaired '+Math.round(v.condition)+'%')}else toast('Repair kit acquired')}
   else {const locked=WEAPONS.find(w=>!weaponState[w.key]?.owned);if(locked){weaponState[locked.key].owned=true;weaponState[locked.key].mag=locked.mag;weaponState[locked.key].reserve=locked.reserve;toast(locked.name+' acquired')}else toast('Weapon salvage acquired');renderWeaponBar()}
 }
 function updateDwellPickup(now){
@@ -1061,7 +1084,7 @@ async function load(){
   await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
   updateAmmo();renderWeaponBar();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();
   loadText.textContent=`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · ${ziplineCount} ziplines · ${vehicleCount} vehicles · restored traversal active`;
-  window.BP_HORIZON_V2={ok:true,build:4330,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,prone:true,slide:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,roofTraversal:true,drivableVehicles:true,infectedPatrols:true,ambientDisasterFx:true};
+  window.BP_HORIZON_V2={ok:true,build:4330,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,prone:true,slide:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,interiorLoot:true,roofTraversal:true,drivableVehicles:true,vehicleFuelRepair:true,infectedPatrols:true,ambientDisasterFx:true};
 }
 function animate(){
   requestAnimationFrame(animate);
