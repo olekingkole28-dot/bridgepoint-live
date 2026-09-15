@@ -46,7 +46,7 @@ jobs:
           mkdir -p site/vendor site/app
 
           # Preserve and refresh every public discovery surface plus the separate Horizon app.
-          rm -rf site/discover site/articles/auto site/app/horizon
+          rm -rf site/discover site/articles/auto site/app/horizon site/app/horizon-playable site/app/horizon-next site/app/horizon-world
           cp -a discover site/discover
           mkdir -p site/articles
           cp -a articles/auto site/articles/auto
