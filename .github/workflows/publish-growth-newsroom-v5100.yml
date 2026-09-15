@@ -55,18 +55,33 @@ jobs:
         id: commit
         run: |
           set -euo pipefail
-          if git diff --quiet -- newsroom && git ls-files --error-unmatch newsroom/index.html >/dev/null 2>&1; then
-            echo 'changed=false' >> "$GITHUB_OUTPUT"
-            echo 'No newsroom change.'
-            exit 0
-          fi
           git config user.name 'BridgePoint Growth Newsroom'
           git config user.email 'actions@users.noreply.github.com'
-          git add -- newsroom
-          git diff --cached --check
-          git commit -m 'Publish live BridgePoint growth newsroom [v5100]'
-          git pull --rebase origin main
-          git push origin HEAD:main
+          changed=false
+          for attempt in 1 2 3; do
+            echo "Newsroom publish attempt $attempt"
+            git fetch origin main
+            git reset --hard origin/main
+            python scripts/publish_growth_newsroom_v5100.py
+            git add -- newsroom
+            git diff --cached --check
+            if git diff --cached --quiet; then
+              echo 'No newsroom change.'
+              echo 'changed=false' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            git commit -m 'Publish live BridgePoint growth newsroom [v5100]'
+            if git push origin HEAD:main; then
+              changed=true
+              break
+            fi
+            echo "Main advanced during newsroom publish; regenerating on newest main."
+            sleep $((attempt * 3))
+          done
+          if [ "$changed" != true ]; then
+            echo 'Could not publish newsroom after three clean regenerations.' >&2
+            exit 1
+          fi
           echo 'changed=true' >> "$GITHUB_OUTPUT"
 
 
