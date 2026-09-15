@@ -26,7 +26,7 @@ const camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,.08,2800);cam
 const renderer=new THREE.WebGLRenderer({antialias:HIGH_DEVICE,powerPreference:'high-performance',stencil:false,depth:true});
 renderer.setPixelRatio(renderScale);renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
 renderer.shadowMap.enabled=HIGH_DEVICE;renderer.shadowMap.type=THREE.PCFSoftShadowMap;root.appendChild(renderer.domElement);
-const world=new THREE.Group();scene.add(world);
+const world=new THREE.Group();scene.add(world);const interiorGroup=new THREE.Group();interiorGroup.visible=false;scene.add(interiorGroup);
 const hemi=new THREE.HemisphereLight(0xcad5c1,0x263126,1.5);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xffd69a,2.0);sun.position.set(-180,-110,240);sun.castShadow=HIGH_DEVICE;sun.shadow.mapSize.set(MOBILE?512:1024,MOBILE?512:1024);scene.add(sun);
 const player=new THREE.Group();scene.add(player);player.position.set(0,0,0);
@@ -39,9 +39,9 @@ const BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?650:480):900;
 const PART_LIMIT=MOBILE?(HIGH_DEVICE?420:260):700;
 const PARCEL_LIMIT=MOBILE?(HIGH_DEVICE?1250:850):1800;
 let ammoMag=30,ammoReserve=120,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,fpWeaponRig=null,muzzleFlash=null;
-let cameraMode=localStorage.getItem('horizon-camera-mode')||'third',crouched=false,verticalVelocity=0,airborne=false;
+let cameraMode=localStorage.getItem('horizon-camera-mode')||'third',crouched=false,verticalVelocity=0,airborne=false,interiorMode=false,activeInterior=null,rooftopState=null;
 let activeZipline=null,activeVehicle=null,audioCtx=null,lastFootstepAt=0,contextTarget=null;
-const buildingEntries=[],ziplines=[],vehicles=[],ambientFx=[];
+const buildingEntries=[],ziplines=[],vehicles=[],ambientFx=[],interiorRects=[];const exteriorReturn=new THREE.Vector3();let exteriorYaw=0;
 const WEAPONS=[
   {key:'rifle',name:'AR-12',kind:'rifle',mag:30,reserve:120,damage:42,head:100,interval:92,range:145,spread:.006},
   {key:'smg',name:'Viper SMG',kind:'smg',mag:36,reserve:180,damage:28,head:70,interval:70,range:92,spread:.012},
