@@ -72,6 +72,10 @@ function bind(){
     if(!t)return;
     const text=normalize(t.textContent||t.getAttribute('aria-label')||'');
     const href=t instanceof HTMLAnchorElement?(t.getAttribute('href')||''):'';
+    if(href==='#founder-access'||text.includes('request founder access')){
+      send('CONTACT_REQUEST',{action:'founder_access_cta',control_id:t.id||null});
+      return;
+    }
     if(t.matches('[data-start-account],.auth-open[data-mode="signup"],#authCreate')||/create (free )?account|start free|start 7-day|activate free account/.test(text)){
       send('CREATE_ACCOUNT_CLICK',{action:'create_account_click',control_id:t.id||null});
       return;
