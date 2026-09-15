@@ -27,6 +27,10 @@ const renderer=new THREE.WebGLRenderer({antialias:HIGH_DEVICE,powerPreference:'h
 renderer.setPixelRatio(renderScale);renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
 renderer.shadowMap.enabled=HIGH_DEVICE;renderer.shadowMap.type=THREE.PCFSoftShadowMap;root.appendChild(renderer.domElement);
 const world=new THREE.Group();scene.add(world);const exteriorDetailGroup=new THREE.Group();world.add(exteriorDetailGroup);const mapLineGroup=new THREE.Group();world.add(mapLineGroup);const interiorGroup=new THREE.Group();interiorGroup.visible=false;scene.add(interiorGroup);
+const actorProxyGroup=new THREE.Group();world.add(actorProxyGroup);
+const PROXY_MAX=32,PROXY_GEOM=new THREE.BoxGeometry(.52,.52,1.62);
+const makeProxy=(color)=>{const m=new THREE.InstancedMesh(PROXY_GEOM,new THREE.MeshBasicMaterial({color}),PROXY_MAX);m.count=0;m.visible=false;m.frustumCulled=true;m.userData.perfProxy=true;actorProxyGroup.add(m);return m};
+const allyProxy=makeProxy(0x5fdcc6),enemyProxy=makeProxy(0xd36859),infectedProxy=makeProxy(0x68765b);
 const hemi=new THREE.HemisphereLight(0xcad5c1,0x263126,1.5);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xffd69a,2.0);sun.position.set(-180,-110,240);sun.castShadow=HIGH_DEVICE;sun.shadow.mapSize.set(MOBILE?512:1024,MOBILE?512:1024);scene.add(sun);
 const player=new THREE.Group();scene.add(player);player.position.set(0,0,0);
@@ -1037,6 +1041,21 @@ function perfCadence(){
     {ai:1/18,fx:1/15,light:1/12,minimap:20}
   ][perfTier];
 }
+function fillActorProxy(mesh,rows){
+  const d=new THREE.Object3D();let n=0;
+  for(const q of rows){
+    if(n>=PROXY_MAX)break;
+    d.position.set(q.g.position.x,q.g.position.y,q.g.position.z+.81);
+    d.rotation.set(0,0,q.g.rotation.z||0);d.scale.set(1,1,1);d.updateMatrix();mesh.setMatrixAt(n++,d.matrix);
+  }
+  mesh.count=n;mesh.visible=perfTier>=3&&n>0;mesh.instanceMatrix.needsUpdate=true;
+}
+function updateActorProxies(){
+  if(perfTier<3){allyProxy.visible=enemyProxy.visible=infectedProxy.visible=false;return}
+  fillActorProxy(allyProxy,combatants.filter(q=>q.alive&&q.friendly&&!q.g.visible));
+  fillActorProxy(enemyProxy,combatants.filter(q=>q.alive&&!q.friendly&&!q.g.visible));
+  fillActorProxy(infectedProxy,infected.filter(q=>q.alive&&!q.g.visible));
+}
 function updatePerfVisualBudget(){
   const maxFx=[ambientFx.length,Math.min(6,ambientFx.length),Math.min(3,ambientFx.length),Math.min(2,ambientFx.length)][perfTier];
   ambientFx.forEach((q,i)=>{
@@ -1044,7 +1063,7 @@ function updatePerfVisualBudget(){
     const on=i<maxFx&&d<(perfTier>=2?90:150);
     if(q.fire)q.fire.visible=on;if(q.smoke)q.smoke.visible=on;if(q.light)q.light.visible=on;
   });
-  const radius=perfSimRadius(),actorCap=[30,14,8,4][perfTier];
+  const radius=perfSimRadius(),actorCap=[30,14,8,1][perfTier];
   const rank=(arr)=>arr.filter(q=>q.alive).map(q=>({q,d:Math.hypot(q.g.position.x-player.position.x,q.g.position.y-player.position.y)})).sort((a,b)=>a.d-b.d);
   const infectRank=rank(infected),combatRank=rank(combatants);
   const visibleSet=(rows)=>new Set(rows.filter((x,i)=>x.d<radius&&i<actorCap).map(x=>x.q));
@@ -1065,6 +1084,7 @@ function updatePerfVisualBudget(){
   };
   for(const z of infected)if(z.alive)tuneActor(z,vi.has(z),'infected');
   for(const b of combatants)if(b.alive)tuneActor(b,vc.has(b),b.friendly?'friendly':'enemy');
+  updateActorProxies();
 }
 function lowCostMaterial(m){
   if(!m||(!m.isMeshStandardMaterial&&!m.isMeshPhysicalMaterial))return m;
@@ -1078,7 +1098,7 @@ function lowCostMaterial(m){
 }
 function applyWorldShaderBudget(low){
   world.traverse(o=>{
-    if(!o.isMesh||o.userData?.playerBody)return;
+    if(!o.isMesh||o.userData?.playerBody||o.userData?.perfProxy)return;
     if(low){
       if(!o.userData.bpHqMaterial)o.userData.bpHqMaterial=o.material;
       const src=o.userData.bpHqMaterial;
@@ -1121,7 +1141,7 @@ function updatePerformanceGovernor(rawDt,now){
     pixel_ratio:Number(renderScale.toFixed(2)),shadows:renderer.shadowMap.enabled,sim_radius_m:perfSimRadius(),
     draw_calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,lines:renderer.info.render.lines,points:renderer.info.render.points,
     programs:renderer.info.programs?.length||0,
-    exterior_detail_visible:exteriorDetailGroup.visible,map_lines_visible:mapLineGroup.visible
+    exterior_detail_visible:exteriorDetailGroup.visible,map_lines_visible:mapLineGroup.visible,proxy_actors:allyProxy.count+enemyProxy.count+infectedProxy.count
   };
 }
 function updateWeatherFx(dt,now){
@@ -1250,10 +1270,10 @@ function animate(){
   const cadence=perfCadence();aiAccumulator+=dt;fxAccumulator+=dt;lightAccumulator+=dt;
   if(!dead){
     updateCamera(dt);updateDwellPickup(now);if(shooting)shootOnce();
-    if(aiAccumulator>=cadence.ai){const step=Math.min(.08,aiAccumulator);if(mode==='TDM')updateCombatants(step,now);else updateInfected(step,now);aiAccumulator=0}
+    if(aiAccumulator>=cadence.ai){const step=Math.min(.08,aiAccumulator);if(mode==='TDM')updateCombatants(step,now);else updateInfected(step,now);if(perfTier>=3)updateActorProxies();aiAccumulator=0}
     if(now-(killSnapshots.at(-1)?.t||0)>80)snapshotKillcam(now);
   }else if(aiAccumulator>=cadence.ai){
-    const step=Math.min(.08,aiAccumulator);if(mode==='TDM')updateCombatants(step,now);else updateInfected(step,now);aiAccumulator=0;
+    const step=Math.min(.08,aiAccumulator);if(mode==='TDM')updateCombatants(step,now);else updateInfected(step,now);if(perfTier>=3)updateActorProxies();aiAccumulator=0;
   }
   if(fxAccumulator>=cadence.fx){const step=Math.min(.1,fxAccumulator);updateWeatherFx(step,now);updateAmbientDisasterFx(now);fxAccumulator=0}
   if(lightAccumulator>=cadence.light){updateWorldLight(now);lightAccumulator=0}
