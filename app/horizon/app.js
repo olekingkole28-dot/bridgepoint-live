@@ -350,6 +350,7 @@ function yearClockHtml(y){
   return `<div class="year-clock"><div><b>${c.days}</b><small>DAYS</small></div><div><b>${c.hours}</b><small>HOURS</small></div><div><b>${c.minutes}</b><small>MINUTES</small></div><div><b>${c.seconds}</b><small>SECONDS</small></div></div>`;
 }
 async function openModal(tab){
+  $('installBanner')?.classList.add('hidden');
   const c=$('modalContent');
   if(tab==='LOADOUTS'){
     c.innerHTML=`<div class="eyebrow">PRE-MATCH LOADOUTS</div><h1>Choose one of five Horizon kits</h1><p style="color:#95aaa0">TDM, Raid/Extraction and Island Last Stand lock this choice when the match starts.</p><div class="catalog-grid">${state.config.loadouts.map(l=>`<article class="catalog-card ${l.slot===state.player.selected_loadout?'selected':''}" data-loadout="${l.slot}"><span class="eyebrow">LOADOUT ${l.slot}</span><h3>${l.name}</h3>${['primary','secondary','tactical','lethal','melee','field'].map(k=>`<div class="item-row"><div class="weapon-svg">${weaponSvg(l[k])}</div><div><small style="color:#95aaa0">${k.toUpperCase()}</small><br><b>${l[k]}</b></div></div>`).join('')}</article>`).join('')}</div>`;
@@ -381,8 +382,11 @@ async function openModal(tab){
   mountModelPreviews(c);
   $('modal').classList.add('show');$('modal').setAttribute('aria-hidden','false');
 }
-$('closeModal').onclick=()=>$('modal').classList.remove('show');
-$('modal').addEventListener('click',e=>{if(e.target===$('modal'))$('modal').classList.remove('show')});
+function closeHorizonModal(){
+  $('modal').classList.remove('show');$('modal').setAttribute('aria-hidden','true');refreshInstallUi();
+}
+$('closeModal').onclick=closeHorizonModal;
+$('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeHorizonModal()});
 $('settingsBtn').onclick=()=>openModal('SETTINGS');$('editLocker').onclick=()=>openModal('LOCKER');
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('active',x===b));
