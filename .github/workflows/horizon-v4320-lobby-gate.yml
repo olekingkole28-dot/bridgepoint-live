@@ -1,4 +1,4 @@
-name: Horizon V4320 Lobby Gate
+name: Horizon V4330 Lobby Gate
 
 on:
   workflow_dispatch:
@@ -7,14 +7,14 @@ on:
     paths:
       - 'app/horizon/**'
       - 'app/horizon-playable/assets/characters/**'
-      - 'scripts/browser-horizon-v4320-lobby.mjs'
-      - '.github/workflows/horizon-v4320-lobby-gate.yml'
+      - 'scripts/browser-horizon-v4330-lobby.mjs'
+      - '.github/workflows/horizon-v4330-lobby-gate.yml'
 
 permissions:
   contents: read
 
 concurrency:
-  group: horizon-v4320-lobby
+  group: horizon-v4330-lobby
   cancel-in-progress: true
 
 jobs:
@@ -33,7 +33,10 @@ jobs:
           node --check app/horizon/lobby-scene.js
           node --check app/horizon/model-preview.js
           node --check app/horizon/cosmetics-v4320.js
-          grep -Fq 'BP_HORIZON_LOBBY_V4320' app/horizon/app.js
+          grep -Fq 'BP_HORIZON_LOBBY_V4330' app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_map_catalog_v4330' app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_select_map_v4330' app/horizon/app.js
+          grep -Fq 'map_count:state.maps.length' app/horizon/app.js
           grep -Fq 'PREVIEW READY · CHECKOUT OWNER-LOCKED' app/horizon/app.js
           grep -Fq 'bridgepoint_horizon_set_profile_v4320' app/horizon/app.js
           test -s app/horizon-playable/assets/characters/mesh2motion/models/swat_male.glb
@@ -46,4 +49,4 @@ jobs:
       - name: Verify current Android lobby
         env:
           HORIZON_TEST_BASE: http://127.0.0.1:4173
-        run: node scripts/browser-horizon-v4320-lobby.mjs
+        run: node scripts/browser-horizon-v4330-lobby.mjs
