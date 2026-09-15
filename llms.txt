@@ -42,6 +42,14 @@ Important: 169,634,995 is the canonical property/parcel identity record count, n
 - Parcel-boundary build status: https://bridgepointintelligence.online/articles/bridgepoint-parcel-boundary-progress-2026-09-15.html
 
 
+
+## Institutional Terminal
+- Public command center: https://bridgepointintelligence.online/terminal/
+- Live 3D app: https://bridgepointintelligence.online/app/
+- Claims Lifecycle Terminal: https://bridgepointintelligence.online/claims-terminal/
+
+The Institutional Terminal is BridgePoint's public high-density operating view for property identity, parcel/building state, source-labelled hazards, catastrophe exposure workflows and claims-lifecycle intelligence. It deliberately separates exposure from verified damage and machine-readable public feeds from authorized private integrations.
+
 ## Claims Lifecycle Terminal
 - Human-readable terminal: https://bridgepointintelligence.online/claims-terminal/
 - Public aggregate JSON: https://bridgepointintelligence.online/claims-terminal/claims-lifecycle.json
