@@ -9,7 +9,7 @@ if(!executablePath)throw new Error('No Chromium/Chrome found');
 const source=fs.readFileSync('app/horizon-playable/horizon-v2.js','utf8');
 for(const marker of [
   'build:4331','actualCharacterModel:true','sourceBackedTwin:true','exactFootprintCollision:true','solidCollision:true','dwellPickup:true','killFeed:true','killcam:true',
-  'firstPerson:true','crouch:true','prone:true','slide:true','jumpVault:true','gamepad:true','weaponInventory:true','minimap:true','proceduralInteriors:true','interiorLoot:true','roofTraversal:true','drivableVehicles:true','vehicleFuelRepair:true','infectedPatrols:true','ambientDisasterFx:true','adaptivePerformanceGovernor:true',
+  'firstPerson:true','crouch:true','prone:true','slide:true','jumpVault:true','gamepad:true','weaponInventory:true','minimap:true','proceduralInteriors:true','interiorLoot:true','roofTraversal:true','drivableVehicles:true','vehicleFuelRepair:true','infectedPatrols:true','ambientDisasterFx:true','spatialAudio:true','adaptivePerformanceGovernor:true',
   'buildInterior(entry)','buildZiplines()','spawnVehicles()','buildInfectedPatrol','state:stateCode',"bridgepoint_horizon_record_kill_v4310","bridgepoint_horizon_year_one_death_v4310"
 ]) if(!source.includes(marker))throw new Error('Missing source contract '+marker);
 
@@ -52,7 +52,7 @@ const probe=await page.evaluate(()=>({
 }));
 if(!probe.canvas||!probe.errorHidden)throw new Error('Canvas/runtime failed '+JSON.stringify(probe));
 if(probe.runtime?.build!==4331||probe.runtime?.state!=='NY'||probe.runtime?.mode!=='TDM')throw new Error('Wrong runtime contract '+JSON.stringify(probe.runtime));
-if(!probe.runtime?.actualCharacterModel||!probe.runtime?.sourceBackedTwin||!probe.runtime?.exactFootprintCollision||!probe.runtime?.terrainSource||Number(probe.runtime?.buildings||0)<1||Number(probe.runtime?.roads||0)<1||!probe.runtime?.solidCollision||!probe.runtime?.dwellPickup||!probe.runtime?.killFeed||!probe.runtime?.killcam||!probe.runtime?.firstPerson||!probe.runtime?.crouch||!probe.runtime?.jumpVault||!probe.runtime?.gamepad||!probe.runtime?.weaponInventory||!probe.runtime?.minimap||!probe.runtime?.proceduralInteriors||!probe.runtime?.roofTraversal||!probe.runtime?.drivableVehicles||!probe.runtime?.infectedPatrols||!probe.runtime?.ambientDisasterFx||!probe.runtime?.adaptivePerformanceGovernor)throw new Error('Required V4331 systems missing '+JSON.stringify(probe.runtime));
+if(!probe.runtime?.actualCharacterModel||!probe.runtime?.sourceBackedTwin||!probe.runtime?.exactFootprintCollision||!probe.runtime?.terrainSource||Number(probe.runtime?.buildings||0)<1||Number(probe.runtime?.roads||0)<1||!probe.runtime?.solidCollision||!probe.runtime?.dwellPickup||!probe.runtime?.killFeed||!probe.runtime?.killcam||!probe.runtime?.firstPerson||!probe.runtime?.crouch||!probe.runtime?.jumpVault||!probe.runtime?.gamepad||!probe.runtime?.weaponInventory||!probe.runtime?.minimap||!probe.runtime?.proceduralInteriors||!probe.runtime?.roofTraversal||!probe.runtime?.drivableVehicles||!probe.runtime?.infectedPatrols||!probe.runtime?.ambientDisasterFx||!probe.runtime?.spatialAudio||!probe.runtime?.adaptivePerformanceGovernor)throw new Error('Required V4331 systems missing '+JSON.stringify(probe.runtime));
 if(probe.buttons.some(x=>!x.exists)||!probe.miniMap||!probe.weaponBar||!probe.contextBtn||!probe.removed||!probe.killFeed||!probe.killCam||!probe.pickup)throw new Error('Restored HUD contract failed '+JSON.stringify(probe));
 
 await page.tap('#aimBtn');
