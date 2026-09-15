@@ -18,6 +18,30 @@
 - Partner program JSON: https://bridgepointintelligence.online/partners/program.json
 - Partner program YAML: https://bridgepointintelligence.online/partners/program.yaml
 
+
+## Live scale and machine-readable truth
+- Current canonical property/parcel identity records: 169,634,995.
+- Current normalized/public address records: 139,646,757 at the latest public counter checkpoint.
+- Current map-ready buildings: 90,908,368.
+- Current materialized parcel-boundary estimate: approximately 83,848,214 at the latest autopilot checkpoint.
+- Current property↔boundary link estimate: approximately 31,228,689.
+- Machine-readable live facts: https://bridgepointintelligence.online/discovery-facts.json
+- AI/search index: https://bridgepointintelligence.online/ai-index.json
+- Schema.org knowledge graph: https://bridgepointintelligence.online/bridgepoint-knowledge.jsonld
+- Search/AI topic atlas: https://bridgepointintelligence.online/search/
+- Search sitemap: https://bridgepointintelligence.online/search-sitemap.xml
+
+Important: 169,634,995 is the canonical property/parcel identity record count, not a claim that 169,634,995 boundary polygons have been materialized. BridgePoint measures canonical identities, boundary polygons, address records, buildings, roof attributes and links separately.
+
+## BridgePoint Horizon
+BridgePoint Horizon is BridgePoint's separate real-world spatial survival/combat game. It uses the broader BridgePoint spatial foundation—terrain, roads, parcels and buildings—then adds fictional interiors, infected, traversal, vehicles and combat systems.
+- Horizon: https://bridgepointintelligence.online/app/horizon/
+- Horizon early access: https://bridgepointintelligence.online/app/horizon/early-access.html
+- Horizon discovery story: https://bridgepointintelligence.online/newsroom/horizon-real-world-spatial-game/
+- Planned/requestable mode: 365-day Year One Survival with three lives and a late-game zombie-wall endgame.
+- Public 365-day demand is an interest counter, not verified active players and not a purchase.
+
+
 ## Buyer entry points
 - Roofing contractors: https://bridgepointintelligence.online/for-roofers/
 - Restoration and mitigation: https://bridgepointintelligence.online/for-restoration/
@@ -67,3 +91,7 @@ Weather exposure is context, not proof of damage. BridgePoint opportunity signal
 property intelligence; claims intelligence; InsurTech; PropTech; ConTech; roofing intelligence; restoration intelligence; public adjuster technology; insurance claim timeline analytics; property matching; geospatial intelligence; public records; explainable AI; evidence provenance; physical risk; climate risk; property data infrastructure; nationwide property intelligence; state property intelligence; affiliate program; performance partner; recurring commission; free property intelligence snapshot; property lookup tool
 
 For a fuller machine-readable brief, use https://bridgepointintelligence.online/llms-full.txt
+
+
+## Additional discovery vocabulary
+PropTech platform; InsurTech platform; geospatial intelligence; spatial intelligence; digital twin; 3D property maps; 3D GIS; parcel boundaries; cadastral data; nationwide parcel data; address normalization; property matching; building footprints; roof intelligence; LiDAR roof data; storm intelligence; hail map; wind map; tornado property intelligence; hurricane property intelligence; flood intelligence; climate risk; physical risk; claims intelligence; insurance claims technology; roofing software; restoration intelligence; public adjuster software; solar roof data; property data API; emerging B2B PropTech; geospatial startup; real-world spatial game; persistent survival game; 365-day survival game; zombie survival game; extraction game; 6v6 team deathmatch; real-world map game.
