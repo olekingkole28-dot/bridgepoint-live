@@ -1,0 +1,95 @@
+name: Publish BridgePoint Growth Newsroom V5100
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/publish_growth_newsroom_v5100.py'
+      - '.github/workflows/publish-growth-newsroom-v5100.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bridgepoint-growth-newsroom-v5100
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate live acquisition newsroom
+        run: |
+          set -euo pipefail
+          python scripts/publish_growth_newsroom_v5100.py
+          test -s newsroom/index.html
+          test -s newsroom/sitemap.xml
+          test -s newsroom/feed.xml
+          test -s newsroom/manifest.json
+          test -s newsroom/share-copy.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('newsroom/manifest.json').read_text(encoding='utf-8'))
+          assert int(m.get('canonical_properties',0)) >= 100_000_000
+          assert int(m.get('map_ready_buildings',0)) >= 1
+          assert len(m.get('pages',[])) >= 6
+          assert Path('newsroom/live-storm-intelligence/index.html').exists() or int(m.get('active_hazard_records',0)) == 0
+          print('GROWTH_NEWSROOM_GUARD_PASS',m['canonical_properties'],m['active_hazard_records'],len(m['pages']))
+          PY
+          if grep -R -E -i 'service_role|sb_secret|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY' newsroom; then
+            echo 'Forbidden privileged credential marker found in newsroom output.' >&2
+            exit 1
+          fi
+
+      - name: Commit refreshed newsroom
+        id: commit
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- newsroom && git ls-files --error-unmatch newsroom/index.html >/dev/null 2>&1; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'No newsroom change.'
+            exit 0
+          fi
+          git config user.name 'BridgePoint Growth Newsroom'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -- newsroom
+          git diff --cached --check
+          git commit -m 'Publish live BridgePoint growth newsroom [v5100]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Notify search discovery
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          sleep 45
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('newsroom/manifest.json').read_text(encoding='utf-8'))
+          urls=['https://bridgepointintelligence.online/newsroom/','https://bridgepointintelligence.online/newsroom/sitemap.xml','https://bridgepointintelligence.online/newsroom/feed.xml']
+          urls += [p['url'] for p in m.get('pages',[]) if p.get('url')]
+          payload={
+            'host':'bridgepointintelligence.online',
+            'key':'dc8a83e4caade76fd824cf929dca48d6',
+            'keyLocation':'https://bridgepointintelligence.online/dc8a83e4caade76fd824cf929dca48d6.txt',
+            'urlList':list(dict.fromkeys(urls))[:100],
+          }
+          Path('/tmp/indexnow-growth.json').write_text(json.dumps(payload),encoding='utf-8')
+          print('Prepared',len(payload['urlList']),'growth discovery URLs')
+          PY
+          code="$(curl -sS -o /tmp/indexnow-growth-response.txt -w '%{http_code}' -X POST 'https://api.indexnow.org/indexnow' -H 'Content-Type: application/json; charset=utf-8' --data-binary @/tmp/indexnow-growth.json || true)"
+          echo "IndexNow growth HTTP $code"
+          cat /tmp/indexnow-growth-response.txt || true
+          websub="$(curl -sS -o /tmp/websub-growth-response.txt -w '%{http_code}' -X POST 'https://pubsubhubbub.appspot.com/' -H 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'hub.mode=publish' --data-urlencode 'hub.url=https://bridgepointintelligence.online/newsroom/feed.xml' || true)"
+          echo "WebSub growth HTTP $websub"
