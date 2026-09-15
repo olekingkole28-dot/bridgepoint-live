@@ -29,17 +29,17 @@
 .miniMap{position:fixed;z-index:10;left:max(12px,env(safe-area-inset-left));top:142px;width:126px;height:126px;border-radius:14px;border:1px solid rgba(111,232,255,.28);background:rgba(3,9,10,.78);box-shadow:0 16px 40px rgba(0,0,0,.28);backdrop-filter:blur(8px);pointer-events:none}
 .weaponBar{position:fixed;z-index:12;left:50%;bottom:max(10px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:5px;padding:5px;border-radius:11px;background:rgba(4,9,7,.72);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(9px)}
 .weaponSlot{min-width:54px;padding:5px 7px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#b8c5be;font-size:6px;font-weight:900;text-align:center}.weaponSlot b{display:block;color:#f8fbf9;font-size:8px}.weaponSlot.active{border-color:#62efc6;background:rgba(73,238,191,.15);box-shadow:0 0 18px rgba(73,238,191,.14)}.weaponSlot.empty{opacity:.4}
-.utilityRail{position:fixed;z-index:12;right:max(112px,calc(env(safe-area-inset-right) + 112px));bottom:max(16px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:6px}
+.utilityRail{position:fixed;z-index:13;right:max(158px,calc(env(safe-area-inset-right) + 158px));bottom:max(18px,env(safe-area-inset-bottom));display:flex;flex-direction:column-reverse;align-items:center;gap:6px}
 .utilityRail button,.contextBtn{border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(7,12,9,.68);color:#eef8f3;font-size:6px;font-weight:950;letter-spacing:.05em;backdrop-filter:blur(8px);touch-action:none}
-.utilityRail button{width:48px;height:27px}.utilityRail button.active{border-color:#6ff0c9;color:#8fffdc;background:rgba(68,243,189,.16)}
+.utilityRail button{width:48px;height:27px}.utilityRail button:not(#utilityToggle){display:none}.utilityRail.open button:not(#utilityToggle){display:block}.utilityRail button.active{border-color:#6ff0c9;color:#8fffdc;background:rgba(68,243,189,.16)}#utilityToggle{display:block!important;width:42px;font-size:11px;color:#8fffdc;border-color:rgba(111,240,201,.35)}.utilityRail.open #utilityToggle{background:rgba(68,243,189,.18)}
 .contextBtn{position:fixed;z-index:14;left:50%;bottom:88px;transform:translateX(-50%);min-width:92px;height:36px;padding:0 13px;color:#ffe3a7;border-color:rgba(216,175,99,.45)}.contextBtn[hidden]{display:none}
 @media(max-height:560px){
  .miniMap{top:74px;width:92px;height:92px}
  .weaponBar{bottom:3px}.weaponSlot{min-width:43px;padding:3px 4px;font-size:5px}.weaponSlot b{font-size:7px}
- .utilityRail{right:max(96px,calc(env(safe-area-inset-right) + 96px));bottom:6px;gap:3px}.utilityRail button{width:42px;height:23px;font-size:5px}
+ .utilityRail{right:max(145px,calc(env(safe-area-inset-right) + 145px));bottom:6px;gap:3px}.utilityRail button{width:42px;height:23px;font-size:5px}
  .contextBtn{bottom:59px;height:30px}
 }
 @media(max-width:700px) and (orientation:portrait){
  .miniMap{top:150px;width:100px;height:100px}.weaponBar{left:50%;max-width:55vw;overflow:hidden}.weaponSlot{min-width:42px}
 }
-@media(pointer:fine){.utilityRail{right:18px;bottom:178px}.utilityRail button{display:block}.weaponBar{bottom:12px}}
+@media(pointer:fine){.utilityRail{right:18px;bottom:178px}.utilityRail button:not(#utilityToggle){display:block}#utilityToggle{display:none!important}.weaponBar{bottom:12px}}
