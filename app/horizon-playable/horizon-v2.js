@@ -26,7 +26,7 @@ const camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,.08,2800);cam
 const renderer=new THREE.WebGLRenderer({antialias:HIGH_DEVICE,powerPreference:'high-performance',stencil:false,depth:true});
 renderer.setPixelRatio(renderScale);renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
 renderer.shadowMap.enabled=HIGH_DEVICE;renderer.shadowMap.type=THREE.PCFSoftShadowMap;root.appendChild(renderer.domElement);
-const world=new THREE.Group();scene.add(world);const interiorGroup=new THREE.Group();interiorGroup.visible=false;scene.add(interiorGroup);
+const world=new THREE.Group();scene.add(world);const exteriorDetailGroup=new THREE.Group();world.add(exteriorDetailGroup);const mapLineGroup=new THREE.Group();world.add(mapLineGroup);const interiorGroup=new THREE.Group();interiorGroup.visible=false;scene.add(interiorGroup);
 const hemi=new THREE.HemisphereLight(0xcad5c1,0x263126,1.5);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xffd69a,2.0);sun.position.set(-180,-110,240);sun.castShadow=HIGH_DEVICE;sun.shadow.mapSize.set(MOBILE?512:1024,MOBILE?512:1024);scene.add(sun);
 const player=new THREE.Group();scene.add(player);player.position.set(0,0,0);
@@ -376,7 +376,7 @@ function addRoads(){
     inst.instanceMatrix.needsUpdate=true;inst.receiveShadow=true;inst.frustumCulled=true;world.add(inst);
   };
   addInstancedStrips(roadInstances,ROAD_MAT);addInstancedStrips(sidewalkInstances,SIDEWALK_MAT);
-  const build=(pts,matl)=>{if(!pts.length)return;const arr=[];for(let i=0;i<pts.length;i+=2){const a=pts[i],b=pts[i+1];arr.push(a.x,a.y,terrainZ(a.x,a.y)+.075,b.x,b.y,terrainZ(b.x,b.y)+.075)}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(arr,3));const l=new THREE.LineSegments(g,matl);l.frustumCulled=true;world.add(l)};
+  const build=(pts,matl)=>{if(!pts.length)return;const arr=[];for(let i=0;i<pts.length;i+=2){const a=pts[i],b=pts[i+1];arr.push(a.x,a.y,terrainZ(a.x,a.y)+.075,b.x,b.y,terrainZ(b.x,b.y)+.075)}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(arr,3));const l=new THREE.LineSegments(g,matl);l.frustumCulled=true;mapLineGroup.add(l)};
   build(cyan,ROAD_CYAN);build(yellow,ROAD_YELLOW);build(rail,RAIL_MAT);WORLD_COUNTS.roads=n;return n;
 }
 function addParcels(){
@@ -384,7 +384,7 @@ function addParcels(){
   for(const row of (data.parcels||[]).slice(0,PARCEL_LIMIT)){
     for(const ring of rings(row.geometry)){if(ring.length<3)continue;const pts=ring.map(project);for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i];arr.push(a.x,a.y,terrainZ(a.x,a.y)+.11,b.x,b.y,terrainZ(b.x,b.y)+.11)}count++}
   }
-  if(arr.length){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(arr,3));const l=new THREE.LineSegments(g,PARCEL_MAT);l.renderOrder=4;world.add(l)}
+  if(arr.length){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(arr,3));const l=new THREE.LineSegments(g,PARCEL_MAT);l.renderOrder=4;mapLineGroup.add(l)}
   WORLD_COUNTS.parcels=count;return count;
 }
 function addWater(){
@@ -396,7 +396,7 @@ function addWater(){
       const g=new THREE.ShapeGeometry(shape),mesh=new THREE.Mesh(g,WATER_MAT);const cx=pts.reduce((s,p)=>s+p.x,0)/pts.length,cy=pts.reduce((s,p)=>s+p.y,0)/pts.length;mesh.position.z=terrainZ(cx,cy)+.055;mesh.renderOrder=2;world.add(mesh);count++;
     }
   }
-  if(linePts.length){const arr=[];for(let i=0;i<linePts.length;i+=2){const a=linePts[i],b=linePts[i+1];arr.push(a.x,a.y,terrainZ(a.x,a.y)+.08,b.x,b.y,terrainZ(b.x,b.y)+.08)}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(arr,3));world.add(new THREE.LineSegments(g,WATER_LINE_MAT))}
+  if(linePts.length){const arr=[];for(let i=0;i<linePts.length;i+=2){const a=linePts[i],b=linePts[i+1];arr.push(a.x,a.y,terrainZ(a.x,a.y)+.08,b.x,b.y,terrainZ(b.x,b.y)+.08)}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(arr,3));mapLineGroup.add(new THREE.LineSegments(g,WATER_LINE_MAT))}
   WORLD_COUNTS.water=count;return count;
 }
 function roofMaterial(row){
@@ -410,14 +410,14 @@ function roofMaterial(row){
 function addBuildingDetails(cx,cy,w,d,h,id,row,baseZ){
   const roofShape=String(row?.roof_shape||'').toLowerCase(),roofH=Math.max(.18,Math.min(5,Number(row?.roof_height_m||0)||.22)),rmat=roofMaterial(row);
   if(/gable|hip|pyramid|pyramidal/.test(roofShape)){
-    const roof=new THREE.Mesh(new THREE.ConeGeometry(Math.max(w,d)*.68,Math.max(1.1,roofH),4),rmat);roof.position.set(cx,cy,baseZ+h+Math.max(.55,roofH/2));roof.rotation.z=Math.PI/4;world.add(roof);
+    const roof=new THREE.Mesh(new THREE.ConeGeometry(Math.max(w,d)*.68,Math.max(1.1,roofH),4),rmat);roof.position.set(cx,cy,baseZ+h+Math.max(.55,roofH/2));roof.rotation.z=Math.PI/4;exteriorDetailGroup.add(roof);
   }else{
-    const roof=new THREE.Mesh(UNIT_BOX,rmat);roof.scale.set(w*.97,d*.97,Math.max(.14,roofH));roof.position.set(cx,cy,baseZ+h+Math.max(.08,roofH/2));world.add(roof);
+    const roof=new THREE.Mesh(UNIT_BOX,rmat);roof.scale.set(w*.97,d*.97,Math.max(.14,roofH));roof.position.set(cx,cy,baseZ+h+Math.max(.08,roofH/2));exteriorDetailGroup.add(roof);
   }
   const floors=Math.max(1,Math.floor(h/3.05));
   if(MOBILE&&!HIGH_DEVICE)return;
   const dark=mat(0x26383a,.28,.18),cols=Math.min(7,Math.max(2,Math.floor(w/4)));
-  for(let f=0;f<floors;f+=Math.max(1,Math.floor(floors/4)))for(let i=0;i<cols;i++){if(hash(id+':'+f+':'+i)%100<42)continue;const win=new THREE.Mesh(new THREE.PlaneGeometry(Math.min(1.2,w/(cols+1)*.56),.7),dark);win.position.set(cx-w/2+(i+1)*w/(cols+1),cy-d/2-.012,baseZ+1.5+f*3);win.rotation.x=Math.PI/2;world.add(win)}
+  for(let f=0;f<floors;f+=Math.max(1,Math.floor(floors/4)))for(let i=0;i<cols;i++){if(hash(id+':'+f+':'+i)%100<42)continue;const win=new THREE.Mesh(new THREE.PlaneGeometry(Math.min(1.2,w/(cols+1)*.56),.7),dark);win.position.set(cx-w/2+(i+1)*w/(cols+1),cy-d/2-.012,baseZ+1.5+f*3);win.rotation.x=Math.PI/2;exteriorDetailGroup.add(win)}
 
 }
 function addBuildings(){
@@ -451,8 +451,8 @@ function addBuildings(){
     if(r.pts?.length>=4){
       const shape=new THREE.Shape();shape.moveTo(r.pts[0].x-r.cx,r.pts[0].y-r.cy);for(let i=1;i<r.pts.length;i++)shape.lineTo(r.pts[i].x-r.cx,r.pts[i].y-r.cy);
       const eg=new THREE.ExtrudeGeometry(shape,{depth:r.h,bevelEnabled:false,steps:1}),em=new THREE.Mesh(eg,exactWallMat);
-      em.position.set(r.cx,r.cy,r.baseZ+.09);em.castShadow=renderer.shadowMap.enabled;em.receiveShadow=true;world.add(em);
-      const ep=r.pts.map(p=>new THREE.Vector3(p.x,p.y,terrainZ(p.x,p.y)+r.h+.13));if(ep.length){const edge=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(ep),exactEdgeMat);world.add(edge)}
+      em.position.set(r.cx,r.cy,r.baseZ+.09);em.castShadow=renderer.shadowMap.enabled;em.receiveShadow=true;exteriorDetailGroup.add(em);
+      const ep=r.pts.map(p=>new THREE.Vector3(p.x,p.y,terrainZ(p.x,p.y)+r.h+.13));if(ep.length){const edge=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(ep),exactEdgeMat);exteriorDetailGroup.add(edge)}
     }
     addBuildingDetails(r.cx,r.cy,r.w,r.d,r.h,r.id,r.row,r.baseZ)
   });WORLD_COUNTS.buildings=count;return count;
@@ -1081,6 +1081,8 @@ function setPerfTier(next,reason='auto'){
   if(perfTier>=2&&renderer.shadowMap.enabled){renderer.shadowMap.enabled=false;sun.castShadow=false}
   if(perfTier===0&&HIGH_DEVICE&&!renderer.shadowMap.enabled){renderer.shadowMap.enabled=true;sun.castShadow=true}
   applyWorldShaderBudget(perfTier>=2);
+  exteriorDetailGroup.visible=perfTier<2;
+  mapLineGroup.visible=perfTier<3;
   updatePerfVisualBudget();
   const perf=window.BP_HORIZON_PERF||{};perf.last_reason=reason;perf.last_tier_change_at=performance.now();window.BP_HORIZON_PERF=perf;
 }
@@ -1100,7 +1102,8 @@ function updatePerformanceGovernor(rawDt,now){
     ema_ms:Number(perfEmaMs.toFixed(2)),worst_ms:Number(perfWorstMs.toFixed(2)),fps:lastMeasuredFps,
     pixel_ratio:Number(renderScale.toFixed(2)),shadows:renderer.shadowMap.enabled,sim_radius_m:perfSimRadius(),
     draw_calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,lines:renderer.info.render.lines,points:renderer.info.render.points,
-    programs:renderer.info.programs?.length||0
+    programs:renderer.info.programs?.length||0,
+    exterior_detail_visible:exteriorDetailGroup.visible,map_lines_visible:mapLineGroup.visible
   };
 }
 function updateWeatherFx(dt,now){
@@ -1221,7 +1224,7 @@ async function load(){
   await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
   updateAmmo();renderWeaponBar();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();
   loadText.textContent=`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · ${ziplineCount} ziplines · ${vehicleCount} vehicles · restored traversal active`;
-  window.BP_HORIZON_V2={ok:true,build:4331,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,prone:true,slide:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,interiorLoot:true,roofTraversal:true,drivableVehicles:true,vehicleFuelRepair:true,infectedPatrols:true,ambientDisasterFx:true,adaptivePerformanceGovernor:true,instancedWorldProps:true,instancedRoadSurfaces:true,adaptiveShaderBudget:true};
+  window.BP_HORIZON_V2={ok:true,build:4331,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,prone:true,slide:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,interiorLoot:true,roofTraversal:true,drivableVehicles:true,vehicleFuelRepair:true,infectedPatrols:true,ambientDisasterFx:true,adaptivePerformanceGovernor:true,instancedWorldProps:true,instancedRoadSurfaces:true,adaptiveShaderBudget:true,adaptiveExteriorDetailBudget:true};
 }
 function animate(){
   requestAnimationFrame(animate);
