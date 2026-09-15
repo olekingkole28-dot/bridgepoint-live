@@ -537,20 +537,21 @@ jobs:
                 else document.getElementById('closeBuilding')?.click();
               });
               await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===true||window.__BP_BUILDING_PANEL_OPEN__===false,{timeout:5000});
-              await p.evaluate(()=>{
+              const measureState=await p.evaluate(()=>{
                 if(typeof window.__BP_V5000_SET_MEASURE__!=='function')throw new Error('measure setter missing');
-                window.__BP_V5000_SET_MEASURE__(true);
+                const activated=window.__BP_V5000_SET_MEASURE__(true);
                 const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('measure map missing');
                 if(typeof window.__BP_V5000_MEASURE_POINT__!=='function')throw new Error('measure point hook missing');
                 const c=m.getCenter();
-                window.__BP_V5000_MEASURE_POINT__(c.lng,c.lat);
-                window.__BP_V5000_MEASURE_POINT__(c.lng+.001,c.lat+.001);
-                window.__BP_V5000_MEASURE_POINT__(c.lng+.0015,c.lat);
+                const accepted=[
+                  window.__BP_V5000_MEASURE_POINT__(c.lng,c.lat),
+                  window.__BP_V5000_MEASURE_POINT__(c.lng+.001,c.lat+.001),
+                  window.__BP_V5000_MEASURE_POINT__(c.lng+.0015,c.lat)
+                ];
+                return {activated,accepted,state:window.__BP_MEASURE_STATE__};
               });
-              await p.waitForFunction(()=>{
-                const s=window.__BP_MEASURE_STATE__;
-                return Number(s?.pointCount)>=3&&s?.hasLine===true&&s?.hasPolygon===true&&Number(s?.areaM2)>0&&Number(s?.totalDistanceM)>0;
-              },{timeout:5000});
+              console.log('BRIDGEPOINT_MEASURE_STATE',JSON.stringify(measureState));
+              if(measureState.activated!==true||measureState.accepted.some(x=>x!==true)||Number(measureState.state?.pointCount)<3||measureState.state?.hasLine!==true||measureState.state?.hasPolygon!==true||Number(measureState.state?.areaM2)<=0||Number(measureState.state?.totalDistanceM)<=0)throw new Error('MEASURE_STATE_INVALID '+JSON.stringify(measureState));
               console.log('BRIDGEPOINT_MEASURE_PASS');
 
               const out=await p.evaluate(()=>({
