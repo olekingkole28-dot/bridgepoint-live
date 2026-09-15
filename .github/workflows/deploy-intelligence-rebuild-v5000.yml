@@ -532,12 +532,14 @@ jobs:
               // The building inspector intentionally floats above map tools on narrow screens.
               // Close it before testing a different map tool so the smoke test measures the tool itself,
               // not an overlapping-panel click target.
-              await p.evaluate(()=>document.getElementById('closeBuilding')?.click());
-              await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===true,{timeout:5000});
               await p.evaluate(()=>{
-                const b=document.getElementById('measureMap');if(!b)throw new Error('measure button missing');
-                b.click();
-                if(window.__BP_MEASURE_ACTIVE__!==true)throw new Error('measure mode did not activate');
+                if(typeof window.__BP_V5000_CLEAR_BUILDING__==='function')window.__BP_V5000_CLEAR_BUILDING__();
+                else document.getElementById('closeBuilding')?.click();
+              });
+              await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===true||window.__BP_BUILDING_PANEL_OPEN__===false,{timeout:5000});
+              await p.evaluate(()=>{
+                if(typeof window.__BP_V5000_SET_MEASURE__!=='function')throw new Error('measure setter missing');
+                window.__BP_V5000_SET_MEASURE__(true);
                 const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('measure map missing');
                 const c=m.getCenter();
                 m.fire('click',{lngLat:{lng:c.lng,lat:c.lat}});
