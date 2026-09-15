@@ -54,3 +54,12 @@ Native shipping priority:
 - Dedicated first-person arms/hands and first-person weapon meshes; never a floating weapon as the final view.
 
 Quaternius, MakeHuman and other simplified GLB sources remain browser/mobile/emergency fallback only unless a specific asset passes a high-fidelity review.
+
+## V4320 current production web assets
+
+| Pack | Use in V4320 | Local provenance | License |
+|---|---|---|---|
+| Mesh2Motion art assets | Current lobby/playable survivor GLBs, police/SWAT/hazmat variants, shared human animations | `assets/characters/mesh2motion/PROVENANCE.json` includes upstream repository, per-file SHA-256 and sizes | CC0 for art assets per upstream README/provenance |
+| Poly Haven 1K PBR set | Asphalt, dirt, concrete, brick and urban HDRI used by the source-backed spatial twin renderer | `assets/pbr/polyhaven/PROVENANCE.json` includes source asset pages, per-file SHA-256 and sizes | CC0 |
+
+V4320 checkout remains owner-locked. These assets are used for game presentation; source-backed BridgePoint parcels/buildings/terrain remain separately provenance-gated and are not replaced by game art.
