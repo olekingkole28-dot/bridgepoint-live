@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import html, json, re, urllib.request
+import html, json, re, shutil, urllib.request
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,6 +34,21 @@ def slug(v):
 
 def now_iso():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
+
+def hazard_family(h):
+    name=str(h.get("name") or h.get("type") or "Live hazard").strip()
+    low=name.lower()
+    if low.startswith("probsevere storm"): return "ProbSevere convective storm signals"
+    if low.startswith("day 1 hail outlook"): return "Day 1 hail outlook"
+    if low.startswith("day 1 tornado outlook"): return "Day 1 tornado outlook"
+    if low.startswith("day 1 wind outlook"): return "Day 1 severe wind outlook"
+    if "flash flood warning" in low: return "Flash Flood Warning"
+    if "flood warning" in low: return "Flood Warning"
+    if "flood advisory" in low: return "Flood Advisory"
+    if "tornado warning" in low: return "Tornado Warning"
+    if "severe thunderstorm warning" in low: return "Severe Thunderstorm Warning"
+    if "wildfire" in low or "fire warning" in low: return "Wildfire / fire weather"
+    return name
 
 def active_hazards(weather):
     now=datetime.now(timezone.utc)
@@ -91,6 +106,8 @@ def write(rel,text):
     p.write_text(text,encoding="utf-8")
 
 def main():
+    if OUT.exists(): shutil.rmtree(OUT)
+    OUT.mkdir(parents=True,exist_ok=True)
     status=rpc("bridgepoint_frontend_status_v5000")
     roof=rpc("bridgepoint_public_roof_status_v5100") or {}
     weather=rpc("bridgepoint_public_weather_bootstrap_v5004")
@@ -100,7 +117,10 @@ def main():
     buildings=int(status.get("map_ready_buildings") or 0)
     remaining=status.get("parcel_remaining") or {}
     hazards=active_hazards(weather)
-    hazard_counts=Counter(str(h.get("name") or h.get("type") or "Live hazard") for h in hazards)
+    hazard_groups={}
+    for h in hazards:
+        hazard_groups.setdefault(hazard_family(h),[]).append(h)
+    hazard_counts=Counter({k:len(v) for k,v in hazard_groups.items()})
 
     items=[]
 
@@ -147,27 +167,22 @@ def main():
 <div class="note">Renderable roof shells and source-backed roof attributes are separate truth classes. Missing attributes remain unknown instead of being marketed as exact.</div>{actions("roof_mega_sprint")}''',"roof")
 
     if hazards:
-        top=hazards[:12]
-        rows="".join(f'<article class="card"><small>{esc(h.get("type","HAZARD"))} · {esc(h.get("source","SOURCE"))}</small><h2>{esc(h.get("name","Live hazard"))}</h2><p>{esc(h.get("severity") or "Source-labelled event")} · {esc(h.get("certainty") or "")} · {esc(h.get("urgency") or "")}</p><a href="/app/?{urlencode({"lat":h.get("lat"),"lng":h.get("lon"),"z":11,"live":1,"utm_source":"newsroom","utm_medium":"storm_live","utm_campaign":slug(h.get("name","hazard"))})}">Open this area on the map →</a></article>' for h in top)
+        top=[(name,rows[0],len(rows)) for name,rows in sorted(hazard_groups.items(), key=lambda kv:(-len(kv[1]),kv[0]))[:12]]
+        rows="".join(f'<article class="card"><small>{esc(h.get("type","HAZARD"))} · {esc(h.get("source","SOURCE"))}</small><h2>{esc(name)}</h2><p>{count} current record{"s" if count!=1 else ""} · {esc(h.get("severity") or "Source-labelled event")} · {esc(h.get("certainty") or "")}</p><a href="/app/?{urlencode({"lat":h.get("lat"),"lng":h.get("lon"),"z":11,"live":1,"utm_source":"newsroom","utm_medium":"storm_live","utm_campaign":slug(name)})}">Open this area on the map →</a></article>' for name,h,count in top)
         add("live-storm-intelligence",
             f"Live U.S. storm intelligence: {len(hazards)} active source-labelled hazard records",
             "Current BridgePoint storm and hazard context generated from live source-labelled weather data.",
             f'''<span class="badge">LIVE STORM INTELLIGENCE</span><h1>{len(hazards)} active source-labelled hazard records in the current public feed.</h1>
 <p class="lead">BridgePoint is ingesting live weather context and tying it to the same spatial system used for properties, structures and roofs. These are alerts/observations—not automatic proof of property damage.</p><div class="grid">{rows}</div>{actions("live_storm_intelligence")}''',"storm")
 
-        seen=set()
-        for h in hazards:
-            name=str(h.get("name") or h.get("type") or "Live hazard")
-            k=slug(name)
-            if k in seen: continue
-            seen.add(k)
-            count=hazard_counts[name]
+        for name,group in sorted(hazard_groups.items(), key=lambda kv:(-len(kv[1]),kv[0]))[:16]:
+            h=group[0]; k=slug(name); count=len(group)
             lat=h.get("lat"); lon=h.get("lon")
             add(f"live-{k}",
                 f"{name}: {count} current BridgePoint map record{'s' if count!=1 else ''}",
                 f"Live source-labelled {name.lower()} context on the BridgePoint Intelligence map.",
                 f'''<span class="badge">LIVE WEATHER · SOURCE-LABELLED</span><h1>{esc(name)} is active in BridgePoint’s live weather feed.</h1>
-<p class="lead">The current public feed contains <strong>{count}</strong> active record{'s' if count!=1 else ''} with this event name. Open the live map to inspect the spatial context around the source event.</p>
+<p class="lead">The current public feed contains <strong>{count}</strong> active record{'s' if count!=1 else ''} in this event family. Open the live map to inspect the spatial context around a current source event.</p>
 <div class="note">Weather alerts and observations do not prove a specific property was damaged. BridgePoint keeps the event source, severity, certainty and timing separate from property conclusions.</div>{actions("live_"+k,lat,lon)}''',"storm")
 
     # Current parcel completion page, intentionally avoiding unsupported “largest parcel database” wording.
