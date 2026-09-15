@@ -8,7 +8,7 @@ if(!executablePath)throw new Error('No Chromium/Chrome found');
 
 const source=fs.readFileSync('app/horizon-playable/horizon-v2.js','utf8');
 for(const marker of [
-  'build:4313','actualCharacterModel:true','solidCollision:true','dwellPickup:true','killFeed:true','killcam:true',
+  'build:4320','actualCharacterModel:true','sourceBackedTwin:true','solidCollision:true','dwellPickup:true','killFeed:true','killcam:true',
   'state:stateCode',"Math.min(5","bridgepoint_horizon_record_kill_v4310","bridgepoint_horizon_year_one_death_v4310"
 ]) if(!source.includes(marker))throw new Error('Missing source contract '+marker);
 
@@ -22,14 +22,14 @@ const page=await browser.newPage({
 const errors=[];page.on('pageerror',e=>errors.push(String(e?.stack||e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
 
 await page.addInitScript(()=>{
-  localStorage.setItem('horizon-player-id','00000000-0000-4000-8000-000000004313');
-  localStorage.setItem('horizon-player-secret','test-client-secret-v4313-abcdefghijklmnop');
+  localStorage.setItem('horizon-player-id','00000000-0000-4000-8000-000000004320');
+  localStorage.setItem('horizon-player-secret','test-client-secret-v4320-abcdefghijklmnop');
   localStorage.setItem('horizon-player-profile',JSON.stringify({display_name:'CI Survivor',avatar_key:'free_07',selected_loadout:1}));
 });
 
-const url=BASE+'/app/horizon-playable/v2-entry.html?state=NY&lat=40.7580&lon=-73.9855&span_km=3.1&mode=TDM&seed=4313&ci='+Date.now();
+const url=BASE+'/app/horizon-playable/v2-entry.html?state=NY&lat=40.7580&lon=-73.9855&span_km=3.1&mode=TDM&seed=4320&ci='+Date.now();
 const res=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
-if(res?.status()!==200)throw new Error('Horizon V4313 HTTP '+res?.status());
+if(res?.status()!==200)throw new Error('Horizon V4320 HTTP '+res?.status());
 await page.waitForFunction(()=>window.BP_HORIZON_V2?.ok===true,null,{timeout:90000});
 
 const probe=await page.evaluate(()=>({
@@ -45,8 +45,8 @@ const probe=await page.evaluate(()=>({
   zone:document.getElementById('zone')?.textContent
 }));
 if(!probe.canvas||!probe.errorHidden)throw new Error('Canvas/runtime failed '+JSON.stringify(probe));
-if(probe.runtime?.build!==4313||probe.runtime?.state!=='NY'||probe.runtime?.mode!=='TDM')throw new Error('Wrong runtime contract '+JSON.stringify(probe.runtime));
-if(!probe.runtime?.actualCharacterModel||!probe.runtime?.solidCollision||!probe.runtime?.dwellPickup||!probe.runtime?.killFeed||!probe.runtime?.killcam)throw new Error('Required V4313 systems missing '+JSON.stringify(probe.runtime));
+if(probe.runtime?.build!==4320||probe.runtime?.state!=='NY'||probe.runtime?.mode!=='TDM')throw new Error('Wrong runtime contract '+JSON.stringify(probe.runtime));
+if(!probe.runtime?.actualCharacterModel||!probe.runtime?.sourceBackedTwin||!probe.runtime?.solidCollision||!probe.runtime?.dwellPickup||!probe.runtime?.killFeed||!probe.runtime?.killcam)throw new Error('Required V4320 systems missing '+JSON.stringify(probe.runtime));
 if(probe.buttons.some(x=>!x.exists)||!probe.removed||!probe.killFeed||!probe.killCam||!probe.pickup)throw new Error('Four-button HUD contract failed '+JSON.stringify(probe));
 
 await page.tap('#aimBtn');
@@ -62,7 +62,7 @@ await page.tap('#shootBtn');
 await page.waitForTimeout(250);
 
 const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource.*404|ResizeObserver loop/i.test(x));
-if(meaningful.length)throw new Error('Horizon V4313 browser errors '+meaningful.join('\n'));
+if(meaningful.length)throw new Error('Horizon V4320 browser errors '+meaningful.join('\n'));
 
-console.log('HORIZON_V4313_MATCH_CLIENT_PASS',JSON.stringify(probe));
+console.log('HORIZON_V4320_MATCH_CLIENT_PASS',JSON.stringify(probe));
 await browser.close();
