@@ -63,6 +63,49 @@
       "dateModified": "2026-09-15T19:38:00Z"
     },
     {
+      "@type": "SoftwareApplication",
+      "@id": "https://bridgepointintelligence.online/#claims-terminal",
+      "name": "BridgePoint Claims Lifecycle Terminal",
+      "applicationCategory": "BusinessApplication",
+      "url": "https://bridgepointintelligence.online/claims-terminal/",
+      "description": "Public source-labelled claims lifecycle intelligence spanning pre-loss, loss, claim, recovery, repair/rebuild and property context."
+    },
+    {
+      "@type": "Dataset",
+      "@id": "https://bridgepointintelligence.online/#claims-lifecycle-public-snapshot",
+      "name": "BridgePoint Claims Lifecycle Public Snapshot",
+      "url": "https://bridgepointintelligence.online/claims-terminal/claims-lifecycle.json",
+      "dateModified": "2026-09-15T20:00:50Z",
+      "description": "Aggregate public snapshot of BridgePoint claims-lifecycle source-family coverage with explicit rights/privacy gates.",
+      "variableMeasured": [
+        {
+          "@type": "PropertyValue",
+          "name": "Tracked source families",
+          "value": 32
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Lifecycle stage labels",
+          "value": 15
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Family/state rows",
+          "value": 1792
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Current source slots",
+          "value": 2119
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Enabled source slots",
+          "value": 1828
+        }
+      ]
+    },
+    {
       "@type": "VideoGame",
       "@id": "https://bridgepointintelligence.online/#horizon",
       "name": "BridgePoint Horizon",
