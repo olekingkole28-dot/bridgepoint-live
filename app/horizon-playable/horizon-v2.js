@@ -39,7 +39,9 @@ const BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?650:480):900;
 const PART_LIMIT=MOBILE?(HIGH_DEVICE?420:260):700;
 const PARCEL_LIMIT=MOBILE?(HIGH_DEVICE?1250:850):1800;
 let ammoMag=30,ammoReserve=120,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,muzzleFlash=null;
-const interactables=[],infected=[],roadAnchors=[],buildingCenters=[],solidRects=[],lootPickups=[],builtCover=[];
+const interactables=[],infected=[],combatants=[],roadAnchors=[],buildingCenters=[],solidRects=[],lootPickups=[],builtCover=[];
+const activeMembers=Array.isArray(activeMatch?.members)?activeMatch.members:[];
+const playerTeam=Number(activeMembers.find(m=>m.player_id===playerId)?.team_no||1);
 const gltfLoader=new GLTFLoader(),assetCache=new Map(),killSnapshots=[];
 const CHAR_MODELS={
   free_01:'/app/horizon-playable/assets/characters/mesh2motion/models/female_31.glb',
@@ -340,6 +342,100 @@ function updateDwellPickup(now){
   if(label)label.textContent='PICKING UP '+q.type.toUpperCase();
   if(progress>=1){collectLoot(q);pickupTarget=null;pickupStarted=0;if(prompt)prompt.hidden=true}
 }
+function clearSpawn(x,y,r=1.1){
+  if(Math.hypot(x-player.position.x,y-player.position.y)<8)return false;
+  return !blocked(x,y,r);
+}
+function chooseCombatSpawn(team,index){
+  const pool=roadAnchors.length?roadAnchors:buildingCenters;
+  for(let tries=0;tries<80;tries++){
+    const seed=(index+1)*97+team*131+tries*17;
+    const q=pool.length?pool[seed%pool.length]:{x:(rand()-.5)*220,y:(rand()-.5)*220};
+    const ang=(seed%628)/100,dist=8+(seed%23);
+    const x=q.x+Math.cos(ang)*dist,y=q.y+Math.sin(ang)*dist;
+    if(clearSpawn(x,y))return{x,y};
+  }
+  return{x:(team===1?-1:1)*(35+index*3),y:(index%5-2)*8};
+}
+function canSee(a,b){
+  const dx=b.x-a.x,dy=b.y-a.y;
+  for(let i=1;i<8;i++){const t=i/8;if(blocked(a.x+dx*t,a.y+dy*t,.18))return false}
+  return true;
+}
+async function spawnTdmBots(){
+  const requested=Math.max(0,Math.min(11,Number(activeMatch?.bot_players||0)));
+  if(mode!=='TDM'||requested<=0){if($('enemyLabel'))$('enemyLabel').textContent=mode==='TDM'?'players':'infected';return 0}
+  const source=await loadAsset(CHAR_MODELS.free_07);
+  const humanTeamCounts={1:0,2:0};for(const m of activeMembers){const t=Number(m.team_no||1);if(t===1||t===2)humanTeamCounts[t]++}
+  const desired={1:Math.max(0,6-humanTeamCounts[1]),2:Math.max(0,6-humanTeamCounts[2])};
+  let remaining=requested,index=0;
+  for(const team of [1,2]){
+    const n=Math.min(remaining,desired[team]);
+    for(let j=0;j<n;j++,index++){
+      const g=skeletonClone(source.scene);prepHumanoid(g,{variant:(j+team)%2+1});orientHumanoid(g,1.8);
+      const pos=chooseCombatSpawn(team,index);g.position.set(pos.x,pos.y,terrainZ(pos.x,pos.y));g.rotation.z=rand()*Math.PI*2;
+      const rifle=makeHorizonRifle(THREE,j%3===0?'wrap_toxic_rain':j%3===1?'wrap_blood_rust':'wrap_ash');
+      rifle.scale.setScalar(.25);rifle.rotation.set(.04,-.18,-Math.PI/2);rifle.position.set(.36,.08,1.25);g.add(rifle);
+      const friendly=team===playerTeam,name=(friendly?'ALLY ':'ENEMY ')+String(j+1).padStart(2,'0');
+      g.add(makeNameSprite(name,friendly?'#7dffe0':'#ff927d'));world.add(g);
+      combatants.push({g,team,friendly,name,health:100,alive:true,speed:3.2+rand()*.8,phase:rand()*6.28,lastShot:performance.now()+rand()*900,index});
+    }
+    remaining-=n;
+  }
+  while(remaining>0){
+    const team=2,index2=combatants.length,pos=chooseCombatSpawn(team,index2),g=skeletonClone(source.scene);
+    prepHumanoid(g,{variant:index2%2+1});orientHumanoid(g,1.8);g.position.set(pos.x,pos.y,terrainZ(pos.x,pos.y));g.add(makeNameSprite('ENEMY '+String(index2+1).padStart(2,'0'),'#ff927d'));world.add(g);
+    combatants.push({g,team,friendly:team===playerTeam,name:'ENEMY '+String(index2+1).padStart(2,'0'),health:100,alive:true,speed:3.3,phase:rand()*6.28,lastShot:performance.now()+rand()*900,index:index2});remaining--;
+  }
+  if($('enemyLabel'))$('enemyLabel').textContent='combatants';
+  $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;
+  return combatants.length;
+}
+function respawnCombatant(b){
+  const p=chooseCombatSpawn(b.team,b.index+17);b.g.position.set(p.x,p.y,terrainZ(p.x,p.y));b.g.visible=true;b.health=100;b.alive=true;b.lastShot=performance.now()+700;
+  $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;
+}
+function eliminateCombatant(b,killer='YOU'){
+  if(!b.alive)return;b.alive=false;b.g.visible=false;
+  addKillFeed(killer,b.name,'AR-12',false);
+  $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;
+  setTimeout(()=>{if(mode==='TDM')respawnCombatant(b)},2200);
+}
+function updateCombatants(dt,t){
+  if(mode!=='TDM')return;
+  const liveEnemies=combatants.filter(x=>x.alive);
+  for(const b of liveEnemies){
+    let target=null,targetPos=null;
+    if(b.team!==playerTeam&&!dead){target={player:true,name:savedProfile?.display_name||'YOU'};targetPos=player.position}
+    const rivals=liveEnemies.filter(x=>x.team!==b.team);
+    if(rivals.length){
+      const nearest=rivals.reduce((best,q)=>{const d=Math.hypot(q.g.position.x-b.g.position.x,q.g.position.y-b.g.position.y);return !best||d<best.d?{q,d}:best},null);
+      const pd=targetPos?Math.hypot(targetPos.x-b.g.position.x,targetPos.y-b.g.position.y):Infinity;
+      if(nearest&&nearest.d<pd){target=nearest.q;targetPos=nearest.q.g.position}
+    }
+    if(!targetPos)continue;
+    const dx=targetPos.x-b.g.position.x,dy=targetPos.y-b.g.position.y,d=Math.max(.001,Math.hypot(dx,dy)),visible=canSee(b.g.position,targetPos);
+    if(d>13||!visible){
+      const nx=b.g.position.x+dx/d*b.speed*dt,ny=b.g.position.y+dy/d*b.speed*dt;
+      if(!blocked(nx,ny,.36)){b.g.position.x=nx;b.g.position.y=ny;b.g.position.z=terrainZ(nx,ny)}
+    }else{
+      const strafe=Math.sin(t*.002+b.phase)*b.speed*.36*dt,nx=b.g.position.x-dy/d*strafe,ny=b.g.position.y+dx/d*strafe;
+      if(!blocked(nx,ny,.34)){b.g.position.x=nx;b.g.position.y=ny;b.g.position.z=terrainZ(nx,ny)}
+    }
+    b.g.rotation.z=Math.atan2(dy,dx)-Math.PI/2;
+    if(visible&&d<52&&t-b.lastShot>620+((b.index*113)%380)){
+      b.lastShot=t;
+      const accuracy=Math.max(.18,.72-d/105);
+      if(rand()<accuracy){
+        if(target?.player){
+          health=Math.max(0,health-(5+Math.floor(rand()*7)));$('health').textContent=Math.round(health);if(health<=0)triggerDeath(b);
+        }else if(target?.alive){
+          target.health-=12+Math.floor(rand()*11);if(target.health<=0)eliminateCombatant(target,b.name);
+        }
+      }
+    }
+  }
+}
 async function spawnInfected(){
   const source=await loadAsset(CHAR_MODELS.free_03);
   const count=/Android|iPhone|iPad/i.test(navigator.userAgent)?12:18;
@@ -381,21 +477,29 @@ function shootOnce(){
   if(ammoMag<=0){reload();return}
   ammoMag--;updateAmmo();if(muzzleFlash){muzzleFlash.intensity=7;setTimeout(()=>{if(muzzleFlash)muzzleFlash.intensity=0},34)}
   const dir=new THREE.Vector3();camera.getWorldDirection(dir);const origin=camera.position.clone();
-  let hit=null,best=Infinity,headshot=false;
-  for(const z of infected){
-    if(!z.alive)continue;
-    const target=z.g.position.clone().add(new THREE.Vector3(0,0,1.15)),to=target.clone().sub(origin),along=to.dot(dir);
-    if(along<0||along>115)continue;
-    const closest=origin.clone().addScaledVector(dir,along),lateral=closest.distanceTo(target);
-    if(lateral<.72&&along<best){hit=z;best=along;headshot=lateral<.24}
+  let hit=null,best=Infinity,headshot=false,hitKind='';
+  if(mode==='TDM'){
+    for(const z of combatants){
+      if(!z.alive||z.team===playerTeam)continue;
+      const target=z.g.position.clone().add(new THREE.Vector3(0,0,1.2)),to=target.clone().sub(origin),along=to.dot(dir);
+      if(along<0||along>145)continue;
+      const closest=origin.clone().addScaledVector(dir,along),lateral=closest.distanceTo(target);
+      if(lateral<.7&&along<best){hit=z;best=along;headshot=lateral<.22;hitKind='combatant'}
+    }
+  }else{
+    for(const z of infected){
+      if(!z.alive)continue;
+      const target=z.g.position.clone().add(new THREE.Vector3(0,0,1.15)),to=target.clone().sub(origin),along=to.dot(dir);
+      if(along<0||along>115)continue;
+      const closest=origin.clone().addScaledVector(dir,along),lateral=closest.distanceTo(target);
+      if(lateral<.72&&along<best){hit=z;best=along;headshot=lateral<.24;hitKind='infected'}
+    }
   }
   if(hit){
-    hit.health-=headshot?100:42;
-    hit.g.position.addScaledVector(dir,.08);
+    hit.health-=headshot?100:42;hit.g.position.addScaledVector(dir,.08);
     if(hit.health<=0){
-      hit.alive=false;hit.g.visible=false;
-      $('infected').textContent=infected.filter(z=>z.alive).length;
-      recordKill(hit.name,headshot);
+      if(hitKind==='combatant')eliminateCombatant(hit,savedProfile?.display_name||'YOU');
+      else{hit.alive=false;hit.g.visible=false;$('infected').textContent=infected.filter(z=>z.alive).length;recordKill(hit.name,headshot)}
     }
   }
   if(ammoMag===0)reload();
@@ -581,19 +685,19 @@ async function load(){
   addSky();addGround();
   const roads=addRoads(),parcels=addParcels(),water=addWater(),buildings=addBuildings(),buildingParts=addBuildingParts();
   addVegetation();addStreetLife();addAbandonment();
-  await Promise.all([addSurvivor(),spawnInfected()]);
+  await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
   updateAmmo();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);
   loadText.textContent=`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · playable live twin active`;
-  window.BP_HORIZON_V2={ok:true,build:4320,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,terrainSource:terrainInfo?.source||null,infected:infected.length,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true};
+  window.BP_HORIZON_V2={ok:true,build:4320,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true};
 }
 function animate(){
   requestAnimationFrame(animate);
   const now=performance.now(),dt=Math.min(.05,(now-last)/1000);last=now;dtGlobal=dt;
   if(!dead){
-    updateCamera(dt);updateDwellPickup(now);if(shooting)shootOnce();updateInfected(dt,now);
+    updateCamera(dt);updateDwellPickup(now);if(shooting)shootOnce();if(mode==='TDM')updateCombatants(dt,now);else updateInfected(dt,now);
     if(now-(killSnapshots.at(-1)?.t||0)>80)snapshotKillcam(now);
   }else{
-    updateInfected(dt,now);
+    if(mode==='TDM')updateCombatants(dt,now);else updateInfected(dt,now);
   }
   updateWeatherFx(dt,now);updateWorldLight(now);renderer.render(scene,camera);
   frames++;if(now-fpsT>1200){
