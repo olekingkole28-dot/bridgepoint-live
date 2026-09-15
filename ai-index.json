@@ -553,7 +553,7 @@
     "Weather exposure is not proof of damage.",
     "Roof shell coverage is not source-backed material/pitch/shape coverage."
   ],
-  "updated_at": "2026-09-15T20:45:00Z",
+  "updated_at": "2026-09-15T21:04:00Z",
   "claims_lifecycle_terminal": {
     "name": "BridgePoint Claims Lifecycle Terminal",
     "url": "https://bridgepointintelligence.online/claims-terminal/",
@@ -714,6 +714,55 @@
       "Exposure feed is not proof of physical damage.",
       "Exposure feed is not a securities trading instruction.",
       "BII numeric values remain subject to the evidence/confidence publication gate."
+    ]
+  },
+  "public_evidence_audit": {
+    "name": "BridgePoint Public Evidence Audit",
+    "url": "https://bridgepointintelligence.online/public-audit/",
+    "contract": "https://bridgepointintelligence.online/public-audit/contract.json",
+    "status": "PUBLIC_OBSERVATIONAL",
+    "methodology": {
+      "source_timestamp": "hazard source_updated_at",
+      "bridgepoint_timestamp": "BridgePoint first_seen_at",
+      "headline_window": "24 hours",
+      "inclusion": [
+        "timestamps present",
+        "first_seen_at >= source_updated_at",
+        "delta <= 1 hour"
+      ],
+      "measures": "BridgePoint ingestion visibility only"
+    },
+    "exports": {
+      "json": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-audit-export-v5203?mode=latency&format=json&limit=100",
+      "csv": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-audit-export-v5203?mode=latency&format=csv&limit=500"
+    },
+    "exclusions": [
+      "no security/ticker targeting",
+      "no market-mispricing claim",
+      "no competitor-latency claim",
+      "no damage determination",
+      "no anonymous third-party system injection"
+    ]
+  },
+  "portfolio_evidence_lab": {
+    "name": "BridgePoint Portfolio Evidence Lab",
+    "url": "https://bridgepointintelligence.online/portfolio-evidence/",
+    "contract": "https://bridgepointintelligence.online/portfolio-evidence/contract.json",
+    "status": "PUBLIC",
+    "mode": "USER_SUPPLIED_PROPERTY_SET",
+    "max_properties": 500,
+    "output": [
+      "event provenance",
+      "matched property count",
+      "exposure-match count",
+      "exposure confidence",
+      "source URLs"
+    ],
+    "exclusions": [
+      "no security/ticker mapping",
+      "no valuation call",
+      "no buy/sell instruction",
+      "no claim of physical damage"
     ]
   }
 }
