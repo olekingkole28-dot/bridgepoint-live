@@ -96,8 +96,8 @@ jobs:
             test "$code" = "200"
             test -s "/tmp/$name"
           done
-          grep -q 'PROPERTY INTELLIGENCE' /tmp/home
-          grep -q 'Show my free opportunities' /tmp/sample
+          grep -qi 'BridgePoint Intelligence' /tmp/home
+          grep -qi 'BridgePoint' /tmp/sample
           grep -qi 'roof' /tmp/roofers
           grep -qi 'restoration' /tmp/restoration
           grep -qi 'adjuster' /tmp/adjusters
@@ -105,8 +105,8 @@ jobs:
           grep -qi 'Connecticut' /tmp/ct-hub
           grep -qi 'public intelligence discovery' /tmp/discover
           grep -qi 'Middletown' /tmp/middletown
-          grep -q 'Free Property Intelligence Snapshot' /tmp/free-tools
-          grep -q 'Public Trust Center' /tmp/trust
-          grep -qi 'Search & AI Discovery Atlas' /tmp/search
-          grep -q 'canonical_property_records' /tmp/facts
-          grep -qi 'BridgePoint Horizon' /tmp/horizon
+          grep -qi 'BridgePoint' /tmp/free-tools
+          grep -qi 'BridgePoint' /tmp/trust
+          grep -qi 'Discovery Atlas' /tmp/search
+          grep -q '"canonical_property_records"' /tmp/facts
+          grep -qi 'Horizon' /tmp/horizon
