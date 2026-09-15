@@ -179,6 +179,25 @@
       "description": "Audits a user-supplied property set against source-linked event exposure evidence without mapping results to a security or ticker."
     },
     {
+      "@type": "Dataset",
+      "@id": "https://bridgepointintelligence.online/#data-discrepancy-ledger",
+      "name": "BridgePoint Data Discrepancy Ledger",
+      "url": "https://bridgepointintelligence.online/data-discrepancy/",
+      "description": "BridgePoint internal data-quality transparency dataset containing sampled spatial-anchor diagnostics, address parity repair counters and canonical identity audit status. Sample diagnostics are not full-jurisdiction missing-property rates.",
+      "distribution": [
+        {
+          "@type": "DataDownload",
+          "contentUrl": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-discrepancy-export-v5208?format=json",
+          "encodingFormat": "application/json"
+        },
+        {
+          "@type": "DataDownload",
+          "contentUrl": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-discrepancy-export-v5208?format=csv",
+          "encodingFormat": "text/csv"
+        }
+      ]
+    },
+    {
       "@type": "VideoGame",
       "@id": "https://bridgepointintelligence.online/#horizon",
       "name": "BridgePoint Horizon",
