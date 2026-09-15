@@ -254,6 +254,7 @@ jobs:
           test -s site/distribution/bii-browser-extension.zip
           node --check site/distribution/gis-widget/widget.js
           node --check site/distribution/gis-widget/embed.js
+          node --check site/distribution/bii-browser-extension/popup.js
           grep -Fq '/current-map-entry.js?v=5100' site/discover/index.html
           test -s site/app/horizon-playable/v2-entry.html
           test -s site/app/horizon-playable/horizon-v2.js
@@ -303,6 +304,8 @@ jobs:
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/settlement-lab/?v5100=${q}" -o /tmp/settlement-lab.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/distribution/?v5202=${q}" -o /tmp/distribution.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/distribution/gis-widget/?v5202=${q}" -o /tmp/gis-widget.html
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=json&limit=3" -o /tmp/bridgepoint-exposure-feed.json
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=rss&limit=3" -o /tmp/bridgepoint-exposure-feed.rss
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/founder-access/?v5100=${q}" -o /tmp/founder.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/for-solar/?v5100=${q}" -o /tmp/solar.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sample/?v5100=${q}" -o /tmp/sample.html
@@ -317,6 +320,8 @@ jobs:
           test -s /tmp/settlement-lab.html
           test -s /tmp/distribution.html
           test -s /tmp/gis-widget.html
+          test -s /tmp/bridgepoint-exposure-feed.json
+          test -s /tmp/bridgepoint-exposure-feed.rss
           test -s /tmp/founder.html
           test -s /tmp/solar.html
           test -s /tmp/sample.html
@@ -330,6 +335,9 @@ jobs:
           grep -Fq 'BridgePoint Settlement Lab' /tmp/settlement-lab.html
           grep -Fq 'Distribution Network' /tmp/distribution.html
           grep -Fq 'BridgePoint GIS Property Widget' /tmp/gis-widget.html
+          grep -Fq 'BridgePoint Exposure Stream' /tmp/bridgepoint-exposure-feed.json
+          grep -Fq '"trade_instruction": false' /tmp/bridgepoint-exposure-feed.json
+          grep -Fq '<title>BridgePoint Exposure Stream</title>' /tmp/bridgepoint-exposure-feed.rss
           grep -Fq 'BRIDGEPOINT' /tmp/horizon.html
           grep -Fq 'current-map-entry.js?v=5100' /tmp/discover.html
           echo BRIDGEPOINT_V5100_COMBINED_SURFACES_PASS
