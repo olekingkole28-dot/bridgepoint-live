@@ -1,0 +1,107 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BridgePoint Public Distribution API",
+    "version": "5202",
+    "description": "Read-only public discovery surfaces for BII, property resolution and event-exposure research context. No endpoint authorizes financial execution."
+  },
+  "servers": [
+    {
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc",
+      "description": "BridgePoint public RPC"
+    },
+    {
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1",
+      "description": "BridgePoint public feed"
+    }
+  ],
+  "paths": {
+    "/bridgepoint_public_search_v5200": {
+      "post": {
+        "summary": "Resolve exact property address",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "p_query": {
+                    "type": "string"
+                  },
+                  "p_limit": {
+                    "type": "integer",
+                    "maximum": 12
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Property candidates"
+          }
+        }
+      }
+    },
+    "/bridgepoint_public_integrity_index_v5200": {
+      "post": {
+        "summary": "Read BII publication status for a property",
+        "responses": {
+          "200": {
+            "description": "BII status/value/confidence"
+          }
+        }
+      }
+    },
+    "/bridgepoint_public_event_exposure_snapshot_v5201": {
+      "post": {
+        "summary": "Read event exposure snapshot",
+        "responses": {
+          "200": {
+            "description": "Research/context exposure snapshot"
+          }
+        }
+      }
+    },
+    "/bridgepoint-public-exposure-feed-v5202": {
+      "get": {
+        "summary": "Read exposure feed",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "xml",
+                "rss"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Exposure research feed"
+          }
+        }
+      }
+    }
+  },
+  "x-bridgepoint-rules": [
+    "Exposure is not proof of physical damage.",
+    "BII is not a survival probability.",
+    "Public exposure feeds are research/context only and not trading instructions.",
+    "No public distribution endpoint moves money, places trades or approves/denies claims."
+  ]
+}
