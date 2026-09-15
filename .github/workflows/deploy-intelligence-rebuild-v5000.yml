@@ -9,6 +9,11 @@ on:
       - 'release-v2300/world-v2300-map.js'
       - 'release-v2300/world-v2300-worker.js'
       - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
+      - 'app/horizon/**'
+      - 'discover/**'
+      - 'articles/auto/**'
+      - 'current-map-entry.js'
+      - 'acquisition_tracker.js'
   workflow_dispatch:
 
 permissions:
@@ -35,7 +40,19 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf site
+          mkdir -p site
+          git fetch origin live-artifact:refs/remotes/origin/live-artifact --depth=1
+          git archive refs/remotes/origin/live-artifact | tar -xf - -C site
           mkdir -p site/vendor site/app
+
+          # Preserve and refresh every public discovery surface plus the separate Horizon app.
+          rm -rf site/discover site/articles/auto site/app/horizon
+          cp -a discover site/discover
+          mkdir -p site/articles
+          cp -a articles/auto site/articles/auto
+          cp -a app/horizon site/app/horizon
+          cp current-map-entry.js site/current-map-entry.js
+          cp acquisition_tracker.js site/acquisition_tracker.js
           cp rebuild-v5000/index.html site/index.html
           cp rebuild-v5000/app-index.html site/app/index.html
           cp rebuild-v5000/landing.css site/landing.css
@@ -46,6 +63,25 @@ jobs:
           cp rebuild-v5000/sw.js site/sw.js
           cp rebuild-v5000/404.html site/404.html
           cp rebuild-v5000/bridgepoint-mark.svg site/bridgepoint-mark.svg
+
+          # Make every legacy/public content page funnel into the current map without
+          # destroying its crawlable research content. Product/app and owner surfaces are excluded.
+          python - <<'PY'
+          from pathlib import Path
+          tag='<script defer src="/current-map-entry.js?v=5100"></script>'
+          for p in Path('site').rglob('*.html'):
+              rel=p.relative_to('site').as_posix()
+              if rel in {'index.html','app/index.html'} or rel.startswith(('app/','owner/','admin/')):
+                  continue
+              text=p.read_text(encoding='utf-8',errors='ignore')
+              if tag in text:
+                  continue
+              if '</body>' in text:
+                  text=text.replace('</body>',tag+'</body>',1)
+              else:
+                  text+=tag
+              p.write_text(text,encoding='utf-8')
+          PY
 
           # /app is the full workspace; root is the public BridgePoint product surface.
 
@@ -110,8 +146,10 @@ jobs:
           grep -Fq 'scheduleOpportunityBuildings' site/app.js
           grep -Fq 'MOBILE?650' site/world-v2300-map.js
           grep -Fq 'mobileMotion' site/world-v2300-map.js
-          ! find site -type f | grep -E '/horizon|horizon-' || false
-          test ! -e site/app/horizon
+          test -s site/app/horizon/index.html
+          test -s site/current-map-entry.js
+          test -s site/discover/index.html
+          grep -Fq '/current-map-entry.js?v=5100' site/discover/index.html
           test ! -e site/app/horizon-playable
           echo "V5000 CLEAN INTELLIGENCE ARTIFACT READY"
 
@@ -147,7 +185,14 @@ jobs:
           test "$ok" = 1
           grep -Fq 'BRIDGEPOINT' /tmp/root.html
           ! grep -Eiq 'HORIZON|battle pass|zombie|game mode' /tmp/root.html
-          echo BRIDGEPOINT_V5000_PRODUCTION_CUTOVER_PASS
+          q="${GITHUB_SHA}-surface-check-$(date +%s)"
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/?v5100=${q}" -o /tmp/horizon.html
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/discover/?v5100=${q}" -o /tmp/discover.html
+          test -s /tmp/horizon.html
+          test -s /tmp/discover.html
+          grep -Fq 'BRIDGEPOINT' /tmp/horizon.html
+          grep -Fq 'current-map-entry.js?v=5100' /tmp/discover.html
+          echo BRIDGEPOINT_V5100_COMBINED_SURFACES_PASS
 
       - name: Android smoke
         shell: bash
