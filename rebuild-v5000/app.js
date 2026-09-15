@@ -311,6 +311,7 @@ function refreshSemanticLabels(){
   const buildingLayers=['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings'].filter(id=>map.getLayer(id));
   let buildings=[];try{buildings=buildingLayers.length?(map.queryRenderedFeatures({layers:buildingLayers})||[]).slice(0,BP_MOBILE?120:220):[]}catch(_){}
   const buildingAnchors=buildings.map(hit=>{const a=geometryAnchor(hit.geometry);if(!a)return null;const p=map.project(a);return{hit,anchor:a,x:p.x,y:p.y}}).filter(Boolean);
+  if(BP_MOBILE&&(!rows.length||!buildingAnchors.length)){window.__BP_SEMANTIC_STATS={zoom:map.getZoom(),candidates:rows.length,anchored:0,features:0,pending:true,updatedAt:Date.now()};setTimeout(()=>{if(!mapInteracting&&!map.isMoving?.())refreshSemanticLabels()},700);return}
   let anchoredCount=0,classifiedCount=0;
   for(const f of scan){
    if(features.length>=max)break;const g=f.geometry,p=f.properties||{};if(g?.type!=='Point'||!Array.isArray(g.coordinates))continue;
