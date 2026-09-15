@@ -510,13 +510,13 @@ async function startSpectatorHeartbeat(){
 }
 async function load(){
   const west=lon-span/111.32/2,east=lon+span/111.32/2,south=lat-span/110.54/2,north=lat+span/110.54/2,u=new URL(ENDPOINT);
-  for(const [k,v] of Object.entries({west,east,south,north,state:stateCode,span_km:span,cell_id:'HORIZON_MATCH_'+(matchId||matchSeed)}))u.searchParams.set(k,String(v));
+  for(const [k,v] of Object.entries({lat,lon,west,east,south,north,state:stateCode,span_km:span,cell_id:'HORIZON_MATCH_'+(matchId||matchSeed)}))u.searchParams.set(k,String(v));
   const r=await fetch(u,{cache:'no-store',headers:{apikey:PUBLISHABLE_KEY}});
   if(!r.ok)throw new Error('world stream '+r.status);
   data=await r.json();if(!data?.complete)throw new Error(data?.error||'incomplete world stream');
   centerLon=(data.bbox.west+data.bbox.east)/2;centerLat=(data.bbox.south+data.bbox.north)/2;
   $('modeName').textContent=mode.replaceAll('_',' ');
-  $('zone').textContent=(data?.resolved_jurisdiction?.state||stateCode)+' · '+(data?.resolved_jurisdiction?.label||'WORLD CELL');
+  $('zone').textContent=(data?.resolved_jurisdiction?.state||stateCode)+' · '+(data?.resolved_jurisdiction?.name||data?.resolved_jurisdiction?.label||'WORLD CELL');
   addSky();addGround();
   const roads=addRoads(),parcels=addParcels(),water=addWater(),buildings=addBuildings(),buildingParts=addBuildingParts();
   addVegetation();addStreetLife();addAbandonment();
