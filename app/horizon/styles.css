@@ -132,3 +132,15 @@ button,input{font:inherit}button{cursor:pointer;color:inherit}
   .mode{padding:9px 10px}
   .year-clock b{font-size:17px}
 }
+
+/* HORIZON COMMERCE 3D PREVIEW V4320 */
+.reward-card .preview canvas.preview3d,.store-card .preview canvas.preview3d{
+  display:block;width:100%;height:100%;min-height:118px;border-radius:11px;
+  background:radial-gradient(circle at 50% 30%,rgba(91,255,208,.16),rgba(4,8,7,.9) 68%)
+}
+.store-card .preview{height:180px;border-radius:12px;overflow:hidden;background:radial-gradient(circle at 50% 35%,rgba(141,107,255,.18),rgba(0,0,0,.75))}
+.store-card .preview canvas.preview3d{min-height:180px}
+.player-slot.occupied .pedestal{opacity:.16}
+.player-slot.empty{opacity:1}
+.player-slot.empty .pedestal{opacity:.45}
+.player-slot.empty .nameplate{border-style:dashed;color:#d9fff2}
