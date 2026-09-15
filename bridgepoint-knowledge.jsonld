@@ -114,6 +114,44 @@
       "description": "Live institutional command center for U.S. property identity, parcel and building state, source-labelled hazards, catastrophe exposure and claims-lifecycle intelligence."
     },
     {
+      "@type": "SoftwareApplication",
+      "@id": "https://bridgepointintelligence.online/#gis-widget",
+      "name": "BridgePoint GIS Property Widget",
+      "applicationCategory": "BusinessApplication",
+      "url": "https://bridgepointintelligence.online/distribution/gis-widget/",
+      "description": "Opt-in embeddable BridgePoint property and 3D GIS context widget for site owners and partners."
+    },
+    {
+      "@type": "WebAPI",
+      "@id": "https://bridgepointintelligence.online/#distribution-api",
+      "name": "BridgePoint Public Distribution API",
+      "url": "https://bridgepointintelligence.online/distribution/openapi.json",
+      "description": "Read-only property resolution, BII and event-exposure context surfaces."
+    },
+    {
+      "@type": "Dataset",
+      "@id": "https://bridgepointintelligence.online/#exposure-feed",
+      "name": "BridgePoint Exposure Stream",
+      "description": "Source-backed property-event exposure context for research and analytics; not a damage determination or securities trading instruction.",
+      "distribution": [
+        {
+          "@type": "DataDownload",
+          "contentUrl": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=json&limit=20",
+          "encodingFormat": "application/json"
+        },
+        {
+          "@type": "DataDownload",
+          "contentUrl": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=xml&limit=20",
+          "encodingFormat": "application/xml"
+        },
+        {
+          "@type": "DataDownload",
+          "contentUrl": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=rss&limit=20",
+          "encodingFormat": "application/rss+xml"
+        }
+      ]
+    },
+    {
       "@type": "VideoGame",
       "@id": "https://bridgepointintelligence.online/#horizon",
       "name": "BridgePoint Horizon",
