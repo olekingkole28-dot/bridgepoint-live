@@ -41,6 +41,7 @@ function bindAuthUI(){$('accountButton')?.addEventListener('click',()=>openAuth(
 function setText(id,v){const e=$(id);if(e)e.textContent=v}
 function setBar(id,v){const e=$(id);if(e)e.style.width=pct(v)+'%'}
 let statusLast=null,world=null,statusTimer=null,tileTimer=null,selectedTimer=null,liveContextTimer=null,transportTimer=null,opportunityTimer=null,opportunitySeq=0,semanticTimer=null,semanticSeq=0,measureActive=false,measurePoints=[],xrayRestore=null,mapInteracting=false,performanceDrainTimer=null,performanceRestoreTimer=null,deferredWork=new Map(),transportRuntimeLastAt=0,transportVisible=true,transportSourceUrl=null,liveContextVisible=true,selectedPoint=null,selectedFeature=null,selectedMode='building',buildingRequestSeq=0;
+window.__BP_PERFORMANCE_GOVERNOR__={get interacting(){return mapInteracting},get queued(){return deferredWork.size}};window.__BP_PERFORMANCE_GOVERNOR_BOOTSTRAP__=true;
 function statusLabel(s){if(s.layout_status==='COMPLETE')return 'BACKEND LIVE · LAYOUT INDEX CAUGHT UP';return 'BACKEND LIVE · MATERIALIZING';}
 async function loadTransportRuntimeStatus(){if(Date.now()-transportRuntimeLastAt<30000)return null;transportRuntimeLastAt=Date.now();try{const r=await rpc('bridgepoint_public_transport_runtime_status_v2716',{},2500);const n=Number(r.states_verified||0),failed=Number(r.states_failed||0),building=Number(r.states_building||0),rows=Number(r.runtime_rows||0);const label=n>=56?'RUNTIME COMPLETE · 56/56':n>0?'RUNTIME MATERIALIZING · '+n+'/56 · '+fmt(rows)+' rows'+(failed?' · '+failed+' retrying':''):building>0?'RUNTIME PILOT BUILDING · '+building+' active':failed>0?'RUNTIME PILOT RETRYING · '+failed+' failed':'ARCHIVE READY · MAP BUILD NEXT';setText('transportRuntime',label);return r}catch(e){console.warn('transport runtime status',e);return null}}
 async function loadDataSprintStatus(){try{const d=await rpc('bridgepoint_data_sprint_status_v5106',{},4500);setText('storedBoundaries',fmt(d.stored_boundary_rows_estimate));setText('addressLinks',fmt(d.property_address_links_estimate));setText('nadIngested',fmt(d.nad_ingested_records_estimate));return d}catch(e){console.warn('data sprint status',e);return null}}
@@ -58,6 +59,7 @@ async function bootMap(){
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
+ bindPerformanceGovernor();
  try{world.map.jumpTo({center:[-98.5,39.5],zoom:BP_MOBILE?2.75:3.35,pitch:0,bearing:0});window.__BP_NATIONAL_START__={center:[-98.5,39.5],zoom:world.map.getZoom(),at:Date.now()}}catch(_){}
  window.__BP_INITIAL_WEATHER_PRIORITY__=true;
  world?.onBuildingSelect?.(({lngLat,feature})=>{if(lngLat){lastDirectBuildingEvent=performance.now();showBuilding(lngLat.lng,lngLat.lat,{feature})}});
