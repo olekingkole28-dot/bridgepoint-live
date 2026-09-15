@@ -14,8 +14,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: bridgepoint-owned-media-publish-v435
-  cancel-in-progress: true
+  group: bridgepoint-seo-publish-v5100
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -64,6 +64,7 @@ jobs:
           git add -- articles/auto
           git diff --cached --check
           git commit -m 'Publish quality-gated BridgePoint research [owned-media-v435]'
+          git pull --rebase origin main
           git push origin HEAD:main
           echo 'changed=true' >> "$GITHUB_OUTPUT"
 
