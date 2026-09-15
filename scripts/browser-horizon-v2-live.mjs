@@ -48,7 +48,7 @@ const probe=await page.evaluate(()=>({
 }));
 if(!probe.canvas||!probe.errorHidden)throw new Error('Canvas/runtime failed '+JSON.stringify(probe));
 if(probe.runtime?.build!==4320||probe.runtime?.state!=='NY'||probe.runtime?.mode!=='TDM')throw new Error('Wrong runtime contract '+JSON.stringify(probe.runtime));
-if(!probe.runtime?.actualCharacterModel||!probe.runtime?.sourceBackedTwin||!probe.runtime?.terrainSource||Number(probe.runtime?.buildings||0)<1||Number(probe.runtime?.roads||0)<1||!probe.runtime?.solidCollision||!probe.runtime?.dwellPickup||!probe.runtime?.killFeed||!probe.runtime?.killcam)throw new Error('Required V4320 systems missing '+JSON.stringify(probe.runtime));
+if(!probe.runtime?.actualCharacterModel||!probe.runtime?.sourceBackedTwin||!probe.runtime?.exactFootprintCollision||!probe.runtime?.terrainSource||Number(probe.runtime?.buildings||0)<1||Number(probe.runtime?.roads||0)<1||!probe.runtime?.solidCollision||!probe.runtime?.dwellPickup||!probe.runtime?.killFeed||!probe.runtime?.killcam)throw new Error('Required V4320 systems missing '+JSON.stringify(probe.runtime));
 if(probe.buttons.some(x=>!x.exists)||!probe.removed||!probe.killFeed||!probe.killCam||!probe.pickup)throw new Error('Four-button HUD contract failed '+JSON.stringify(probe));
 
 await page.tap('#aimBtn');
