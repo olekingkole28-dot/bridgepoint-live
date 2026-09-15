@@ -1044,13 +1044,27 @@ function updatePerfVisualBudget(){
     const on=i<maxFx&&d<(perfTier>=2?90:150);
     if(q.fire)q.fire.visible=on;if(q.smoke)q.smoke.visible=on;if(q.light)q.light.visible=on;
   });
-  const radius=perfSimRadius(),actorCap=[30,16,10,6][perfTier];
+  const radius=perfSimRadius(),actorCap=[30,14,8,4][perfTier];
   const rank=(arr)=>arr.filter(q=>q.alive).map(q=>({q,d:Math.hypot(q.g.position.x-player.position.x,q.g.position.y-player.position.y)})).sort((a,b)=>a.d-b.d);
   const infectRank=rank(infected),combatRank=rank(combatants);
-  const visibleSet=(rows)=>new Set(rows.filter((x,i)=>x.d<24||(x.d<radius&&i<actorCap)).map(x=>x.q));
+  const visibleSet=(rows)=>new Set(rows.filter((x,i)=>x.d<radius&&i<actorCap).map(x=>x.q));
   const vi=visibleSet(infectRank),vc=visibleSet(combatRank);
-  for(const z of infected)if(z.alive)z.g.visible=vi.has(z);
-  for(const b of combatants)if(b.alive)b.g.visible=vc.has(b);
+  const tuneActor=(q,on,kind)=>{
+    q.g.visible=on;
+    q.g.traverse?.(o=>{
+      if(o.isSprite)o.visible=on&&perfTier<2;
+      if(!o.isMesh)return;
+      if(perfTier>=3&&on){
+        if(!o.userData.bpActorHqMaterial)o.userData.bpActorHqMaterial=o.material;
+        if(!o.userData.bpActorLowMaterial)o.userData.bpActorLowMaterial=new THREE.MeshLambertMaterial({color:kind==='infected'?0x65735b:kind==='friendly'?0x58798b:0x7a5d58});
+        o.material=o.userData.bpActorLowMaterial;
+      }else if(o.userData.bpActorHqMaterial){
+        o.material=o.userData.bpActorHqMaterial;
+      }
+    });
+  };
+  for(const z of infected)if(z.alive)tuneActor(z,vi.has(z),'infected');
+  for(const b of combatants)if(b.alive)tuneActor(b,vc.has(b),b.friendly?'friendly':'enemy');
 }
 function lowCostMaterial(m){
   if(!m||(!m.isMeshStandardMaterial&&!m.isMeshPhysicalMaterial))return m;
