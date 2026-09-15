@@ -1,4 +1,4 @@
-name: Horizon V4320 Source Gate
+name: Horizon V4330 Source Gate
 
 on:
   push:
@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           node --check app/horizon-playable/horizon-v2.js
-          grep -Fq 'build:4320' app/horizon-playable/horizon-v2.js
+          grep -Fq 'build:4330' app/horizon-playable/horizon-v2.js
           grep -Fq 'actualCharacterModel:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'sourceBackedTwin:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'exactFootprintCollision:true' app/horizon-playable/horizon-v2.js
@@ -34,11 +34,20 @@ jobs:
           grep -Fq 'addParcels()' app/horizon-playable/horizon-v2.js
           grep -Fq 'addBuildingParts()' app/horizon-playable/horizon-v2.js
           grep -Fq 'solidCollision:true' app/horizon-playable/horizon-v2.js
+          grep -Fq 'firstPerson:true' app/horizon-playable/horizon-v2.js
+          grep -Fq 'proceduralInteriors:true' app/horizon-playable/horizon-v2.js
+          grep -Fq 'roofTraversal:true' app/horizon-playable/horizon-v2.js
+          grep -Fq 'drivableVehicles:true' app/horizon-playable/horizon-v2.js
+          grep -Fq 'weaponInventory:true' app/horizon-playable/horizon-v2.js
+          grep -Fq 'infectedPatrols:true' app/horizon-playable/horizon-v2.js
+          grep -Fq 'id="miniMap"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="viewBtn"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="contextBtn"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="aimBtn"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="buildBtn"' app/horizon-playable/v2-entry.html
       - name: Start local source server
         run: |
-          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/horizon-v4320-http.log 2>&1 &
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/horizon-v4330-http.log 2>&1 &
           sleep 1
       - name: Browser source gate
         env:
