@@ -52,6 +52,7 @@ jobs:
           rm -rf site/app site/discover site/newsroom site/articles/auto
           mkdir -p site/app site/articles
           cp -a discover site/discover
+          if [ ! -d newsroom ]; then python scripts/publish_growth_newsroom_v5100.py; fi
           cp -a newsroom site/newsroom
           cp -a articles/auto site/articles/auto
           cp -a app/horizon site/app/horizon
