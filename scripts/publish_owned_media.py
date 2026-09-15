@@ -24,7 +24,7 @@ PUBLIC_ORIGIN = "https://bridgepointintelligence.online"
 OUT = Path("articles/auto")
 
 
-def fetch_feed(limit: int = 12) -> dict:
+def fetch_feed(limit: int = 75) -> dict:
     request = urllib.request.Request(
         RPC_URL,
         data=json.dumps({"p_limit": limit}).encode("utf-8"),
@@ -151,7 +151,7 @@ def build_sitemap(items: list[dict]) -> str:
 
 
 def main() -> None:
-    feed = fetch_feed(12)
+    feed = fetch_feed(75)
     stories = feed.get("stories") or []
     if not isinstance(stories, list):
         raise RuntimeError("stories is not a list")
