@@ -68,6 +68,12 @@ function renderParty(){
   }
 }
 function escapeHtml(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function paidCharacterOptions(){
+  return (state.catalog?.store||[]).filter(s=>s.category==='CHARACTER_SKIN'&&s.preview_kind==='MODEL_RENDER').map(s=>({
+    character_key:s.entitlement_key,display_name:s.display_name,model_path:s.preview_ref,outfit_variant:2,base_model_key:'STORE_SKIN',owned:!!s.owned,paid:true
+  }));
+}
+function completeCharacterCatalog(){return [...(state.catalog?.characters||[]),...paidCharacterOptions()]}
 
 async function bootstrap(){
   setNet('BOOTING','#f4c45e');
@@ -81,7 +87,7 @@ async function bootstrap(){
     rpc('bridgepoint_horizon_year_one_status_v4310',{p_player_id:ident.id,p_player_secret:ident.secret})
   ]);
   state.catalog=catalog;state.yearOne=yearOne;
-  if(lobbyScene)lobbyScene.setCatalog(catalog.characters||[]);
+  if(lobbyScene)lobbyScene.setCatalog(completeCharacterCatalog());
   $('loadoutName').textContent=state.config.loadouts.find(x=>x.slot===state.player.selected_loadout)?.name||'Ranger';
 
   const invite=(qs.get('party')||'').trim().toUpperCase();
@@ -336,15 +342,15 @@ async function openModal(tab){
   if(tab==='LOADOUTS'){
     c.innerHTML=`<div class="eyebrow">PRE-MATCH LOADOUTS</div><h1>Choose one of five Horizon kits</h1><p style="color:#95aaa0">TDM, Raid/Extraction and Island Last Stand lock this choice when the match starts.</p><div class="catalog-grid">${state.config.loadouts.map(l=>`<article class="catalog-card ${l.slot===state.player.selected_loadout?'selected':''}" data-loadout="${l.slot}"><span class="eyebrow">LOADOUT ${l.slot}</span><h3>${l.name}</h3>${['primary','secondary','tactical','lethal','melee','field'].map(k=>`<div class="item-row"><div class="weapon-svg">${weaponSvg(l[k])}</div><div><small style="color:#95aaa0">${k.toUpperCase()}</small><br><b>${l[k]}</b></div></div>`).join('')}</article>`).join('')}</div>`;
   }else if(tab==='LOCKER'){
-    const chars=state.catalog?.characters||[];
-    c.innerHTML=`<div class="eyebrow">LOCKER</div><h1>Actual Horizon starter survivors</h1><p style="color:#95aaa0">These are the same GLB character assets used by the current playable web runtime. Native production still targets MetaHuman/City-Sample-level characters.</p><div class="catalog-grid">${chars.map(ch=>{const t=avatarTheme(ch.character_key);return `<article class="catalog-card ${ch.character_key===state.player.avatar_key?'selected':''}" data-avatar="${ch.character_key}"><canvas class="preview3d" data-model="${escapeHtml(ch.model_path)}" data-variant="${ch.outfit_variant||1}"></canvas><h3>${escapeHtml(ch.display_name)}</h3><small>${escapeHtml(ch.base_model_key)} · FREE</small></article>`}).join('')}</div>`;
+    const chars=completeCharacterCatalog().filter(ch=>!ch.paid||ch.owned);
+    c.innerHTML=`<div class="eyebrow">LOCKER</div><h1>Your 3D Horizon survivors</h1><p style="color:#95aaa0">The model shown here is the same GLB definition used on the lobby stage and in the playable match. Paid skins only appear here after their entitlement exists.</p><div class="catalog-grid">${chars.map(ch=>`<article class="catalog-card ${ch.character_key===state.player.avatar_key?'selected':''}" data-avatar="${ch.character_key}"><canvas class="preview3d" data-model="${escapeHtml(ch.model_path)}" data-variant="${ch.outfit_variant||1}"></canvas><h3>${escapeHtml(ch.display_name)}</h3><small>${escapeHtml(ch.base_model_key||'SURVIVOR')} · ${ch.paid?'OWNED':'FREE'}</small></article>`).join('')}</div>`;
   }else if(tab==='BATTLE_PASS'){
     const rewards=state.catalog?.battle_pass||[];
     const p=state.catalog?.progression||{};
     c.innerHTML=`<div class="eyebrow">BATTLE PASS · PRESEASON ZERO</div><h1>All 150 rewards</h1><p style="color:#95aaa0">Level ${p.level||1} · Prestige ${p.prestige||0}. Rewards that are unlocked are granted into your Horizon entitlement inventory automatically.</p><div class="reward-scroll">${rewards.map(r=>`<article class="reward-card ${r.owned?'owned':''}">${rewardArt(r)}<span class="eyebrow">LEVEL ${r.level} · ${r.rarity}</span><h3>${escapeHtml(r.reward_name)}</h3><small>${r.reward_type}${r.premium?' · PREMIUM':' · FREE'}</small><div style="margin-top:8px;font-size:10px;color:${r.owned?'#44f3bd':'#95aaa0'}">${r.owned?'OWNED':r.unlocked?'UNLOCKED':'LOCKED'}</div></article>`).join('')}</div>`;
   }else if(tab==='STORE'){
     const items=state.catalog?.store||[];
-    c.innerHTML=`<div class="eyebrow">HORIZON STORE</div><h1>Cosmetics and loadout style</h1><p style="color:#95aaa0">Every card below is the actual Horizon entitlement/SKU preview. Checkout remains intentionally disabled until you approve Stripe.</p><div class="store-grid">${items.map(s=>`<article class="store-card">${rewardArt(s)}<span class="eyebrow">${s.rarity} · ${s.category}</span><h3>${escapeHtml(s.display_name)}</h3><div class="price">${money(s.price_cents,s.currency)}</div><button disabled>${s.owned?'OWNED':'PREVIEW READY · CHECKOUT OWNER-LOCKED'}</button></article>`).join('')}</div>`;
+    c.innerHTML=`<div class="eyebrow">HORIZON STORE</div><h1>3D cosmetics and loadout style</h1><p style="color:#95aaa0">Preview, entitlement and equipped runtime use the same cosmetic keys. Stripe remains disconnected until owner approval.</p><div class="store-grid">${items.map(s=>{const equipable=s.owned&&['CHARACTER_SKIN','WEAPON_WRAP'].includes(s.category);const selected=(s.category==='CHARACTER_SKIN'&&state.player.avatar_key===s.entitlement_key)||(s.category==='WEAPON_WRAP'&&state.player.wrap_key===s.entitlement_key);return `<article class="store-card ${selected?'selected':''}">${rewardArt(s)}<span class="eyebrow">${s.rarity} · ${s.category}</span><h3>${escapeHtml(s.display_name)}</h3><div class="price">${money(s.price_cents,s.currency)}</div><button ${equipable?`data-store-equip="${escapeHtml(s.entitlement_key)}" data-store-kind="${escapeHtml(s.category)}"`:'disabled'}>${selected?'EQUIPPED':equipable?'EQUIP':s.owned?'OWNED':'PREVIEW READY · CHECKOUT OWNER-LOCKED'}</button></article>`}).join('')}</div>`;
   }else if(tab==='ARENA'){
     c.innerHTML=`<div class="eyebrow">ARENA</div><h1>Competitive Horizon</h1><p style="color:#95aaa0">Ranked matchmaking is tracked in the master backlog. The current live competitive queues are Team Deathmatch and the new strict 8-player Island Last Stand.</p>`;
   }else if(tab==='WATCH'){
@@ -371,11 +377,27 @@ document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
   if(b.dataset.tab!=='PLAY')openModal(b.dataset.tab);
 });
 $('modalContent').addEventListener('click',async e=>{
+  const storeEquip=e.target.closest('[data-store-equip]');
+  if(storeEquip){
+    const key=storeEquip.dataset.storeEquip,kind=storeEquip.dataset.storeKind;
+    try{
+      const out=await rpc('bridgepoint_horizon_set_profile_v4320',{
+        p_player_id:ident.id,p_player_secret:ident.secret,
+        p_avatar_key:kind==='CHARACTER_SKIN'?key:null,
+        p_wrap_key:kind==='WEAPON_WRAP'?key:null,
+        p_loadout:null
+      });
+      state.player=out.player;localStorage.setItem('horizon-player-profile',JSON.stringify(state.player));
+      if(lobbyScene)lobbyScene.setCatalog(completeCharacterCatalog());
+      await refreshParty();status(kind==='WEAPON_WRAP'?'Weapon wrap equipped':'Character skin equipped');openModal('STORE');
+    }catch(err){status(err.message)}
+    return;
+  }
   const loadout=e.target.closest('[data-loadout]');
   if(loadout){
     const slot=Number(loadout.dataset.loadout);
     try{
-      const out=await rpc('bridgepoint_horizon_set_profile_v4302',{
+      const out=await rpc('bridgepoint_horizon_set_profile_v4320',{
         p_player_id:ident.id,p_player_secret:ident.secret,p_avatar_key:null,p_wrap_key:null,p_loadout:slot
       });
       state.player=out.player;localStorage.setItem('horizon-player-profile',JSON.stringify(state.player));localStorage.setItem('horizon-loadout',String(slot));
@@ -387,7 +409,7 @@ $('modalContent').addEventListener('click',async e=>{
   const avatar=e.target.closest('[data-avatar]');
   if(avatar){
     try{
-      const out=await rpc('bridgepoint_horizon_set_profile_v4302',{
+      const out=await rpc('bridgepoint_horizon_set_profile_v4320',{
         p_player_id:ident.id,p_player_secret:ident.secret,p_avatar_key:avatar.dataset.avatar,p_wrap_key:null,p_loadout:null
       });
       state.player=out.player;localStorage.setItem('horizon-player-profile',JSON.stringify(state.player));await refreshParty();
