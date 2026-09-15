@@ -50,12 +50,12 @@ function renderParty(){
   const row=$('partyRow');row.innerHTML='';
   for(let slot=1;slot<=4;slot++){
     const m=members.find(x=>Number(x.slot)===slot);
-    const box=document.createElement('div');box.className='player-slot'+(m?'':' empty');
+    const box=document.createElement('div');box.className='player-slot '+(m?'occupied':'empty');
     if(m){
       const t=avatarTheme(m.avatar_key);
-      box.innerHTML=`<div class="pedestal"></div><div class="figure" style="--skin:${t.skin};--armor:${t.armor}"></div><div class="nameplate">${escapeHtml(m.display_name)}<small>${m.host?'PARTY LEADER':'READY'}</small></div>`;
+      box.innerHTML=`<div class="pedestal"></div><div class="nameplate">${escapeHtml(m.display_name)}<small>${m.host?'PARTY LEADER':'READY'}</small></div>`;
     }else{
-      box.innerHTML=`<div class="pedestal"></div><div class="figure" style="--skin:#41524b;--armor:#15231e"></div><div class="nameplate">OPEN SLOT<small>INVITE FRIEND</small></div>`;
+      box.innerHTML=`<div class="pedestal"></div><div class="nameplate">＋ OPEN SLOT<small>TAP TO INVITE FRIEND</small></div>`;
       box.addEventListener('click',inviteFriend);
     }
     row.appendChild(box);
