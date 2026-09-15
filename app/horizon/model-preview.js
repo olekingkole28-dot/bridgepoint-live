@@ -71,6 +71,26 @@ function banner(ref){
   for(let i=0;i<5;i++){const bar=new THREE.Mesh(new THREE.BoxGeometry(.08,.08,.8+i*.08),material(i%2?0x7c69ff:0x53e9be,.3,.35,i%2?0x1b1455:0x0c4a38));bar.position.set(-1.05+i*.52,-.12,0);bar.rotation.x=Math.PI/2;group.add(bar)}
   group.rotation.x=.12;return group;
 }
+function cacheCrate(ref){
+  const g=new THREE.Group(),body=material(0x35443e,.45,.48),edge=material(0x72f0c4,.25,.28,0x123d31);
+  const box=new THREE.Mesh(new THREE.BoxGeometry(1.7,1.05,.95),body);g.add(box);
+  for(const z of[-.5,.5]){const rail=new THREE.Mesh(new THREE.BoxGeometry(1.82,.09,.12),edge);rail.position.z=z*.82;g.add(rail)}
+  for(const x of[-.72,.72]){const rail=new THREE.Mesh(new THREE.BoxGeometry(.1,1.12,.12),edge);rail.position.x=x;g.add(rail)}
+  const lock=new THREE.Mesh(new THREE.BoxGeometry(.32,.12,.28),material(0xf0bd58,.55,.25));lock.position.set(0,-.57,0);g.add(lock);
+  g.rotation.set(.28,-.42,.08);return g;
+}
+function sprayCan(ref){
+  const g=new THREE.Group(),body=material(0x2f4542,.42,.32),accent=material(0x8b6cff,.3,.32,0x211958);
+  const can=new THREE.Mesh(new THREE.CylinderGeometry(.38,.38,1.5,24),body);g.add(can);
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(.26,.3,.26,20),accent);cap.position.y=.86;g.add(cap);
+  const mark=new THREE.Mesh(new THREE.TorusGeometry(.22,.055,10,28),accent);mark.rotation.x=Math.PI/2;mark.position.set(0,-.385,.12);g.add(mark);
+  g.rotation.set(.12,.2,-.15);return g;
+}
+function skinDisplay(ref){
+  const g=mannequin(ref);
+  const plate=new THREE.Mesh(new THREE.TorusGeometry(.82,.045,12,42),material(0x53e9be,.3,.3,0x0b4b38));plate.rotation.x=Math.PI/2;plate.position.z=.1;g.add(plate);
+  return g;
+}
 function genericReward(ref){
   const group=new THREE.Group();
   const core=new THREE.Mesh(new THREE.IcosahedronGeometry(.9,2),material(0x54dcb5,.35,.3,0x0a4232));group.add(core);
@@ -80,9 +100,12 @@ function genericReward(ref){
 }
 function runtimeObject(ref){
   const low=String(ref||'').toLowerCase();
-  if(low.includes('/wrap/')||low.includes('weapon')||low.includes('wrap_'))return makeHorizonRifle(THREE,low);
+  if(low.includes('/weapon_wrap/')||low.includes('/wrap/')||low.includes('weapon')||low.includes('wrap_'))return makeHorizonRifle(THREE,low);
   if(low.includes('/emote/')||low.includes('/finisher/')||low.includes('emote')||low.includes('finisher'))return mannequin(low);
   if(low.includes('/profile/')||low.includes('banner'))return banner(low);
+  if(low.includes('/cache/'))return cacheCrate(low);
+  if(low.includes('/spray/'))return sprayCan(low);
+  if(low.includes('/skin/'))return skinDisplay(low);
   return genericReward(low);
 }
 function fitCamera(root,w,h){
