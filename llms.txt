@@ -43,6 +43,13 @@ Important: 169,634,995 is the canonical property/parcel identity record count, n
 
 
 
+
+## BridgePoint Integrity Index (BII)
+- Public methodology + live status: https://bridgepointintelligence.online/integrity-index/
+- Machine contract: https://bridgepointintelligence.online/integrity-index/contract.json
+
+BII is currently in SHADOW_CALIBRATION. It is intended as a 0–100 evidence-supported property integrity/resilience context index, but public numeric values are withheld until evidence-coverage and confidence gates pass. It is not a structural-survival probability or regulated insurance, lending, investment, claim, engineering or legal determination.
+
 ## Institutional Terminal
 - Public command center: https://bridgepointintelligence.online/terminal/
 - Live 3D app: https://bridgepointintelligence.online/app/
