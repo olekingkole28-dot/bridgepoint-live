@@ -92,8 +92,8 @@ def page(title,desc,body,canonical):
 <script defer src="/acquisition_tracker.js?v=5001"></script><script defer src="/founder-access.js?v=5101"></script><script defer src="/current-map-entry.js?v=5100"></script>
 </main></body></html>"""
 
-def founder_access(vertical="OTHER",state=""):
-    attrs=f'data-founder-access data-product="INTELLIGENCE" data-vertical="{esc(vertical)}"'
+def founder_access(vertical="OTHER",state="",product="INTELLIGENCE"):
+    attrs=f'data-founder-access data-product="{esc(product)}" data-vertical="{esc(vertical)}"'
     if state: attrs+=f' data-state="{esc(state)}"'
     return f'<div id="founder-access" {attrs}></div>'
 
@@ -108,7 +108,7 @@ def actions(campaign,lat=None,lon=None,vertical="OTHER",state=""):
 def horizon_actions(campaign):
     play="/app/horizon/?"+urlencode({"utm_source":"newsroom","utm_medium":"horizon_owned","utm_campaign":campaign})
     early="/app/horizon/early-access.html?"+urlencode({"utm_source":"newsroom","utm_medium":"horizon_owned","utm_campaign":campaign})
-    return f'<div class="ctas"><a class="btn primary" href="{esc(play)}">OPEN HORIZON</a><a class="btn secondary" href="{esc(early)}">JOIN EARLY ACCESS</a></div>'+founder_access("OTHER")
+    return f'<div class="ctas"><a class="btn primary" href="{esc(play)}">OPEN HORIZON</a><a class="btn secondary" href="{esc(early)}">JOIN EARLY ACCESS</a></div>'+founder_access("OTHER",product="HORIZON")
 
 def write(rel,text):
     p=OUT/rel
