@@ -16,6 +16,7 @@ on:
       - discover/**
       - articles/auto/**
       - claims-terminal/**
+      - terminal/**
       - search-sitemap.xml
       - bridgepoint-knowledge.jsonld
       - ai-index.json
@@ -49,7 +50,7 @@ jobs:
             '/for-public-adjusters/', '/for-property-managers/', '/for-solar/', '/connecticut/', '/capabilities/',
             '/enterprise/trust/', '/about/', '/contact/', '/articles/', '/founder/', '/answers/',
             '/press/', '/partners/', '/commerce/', '/developers/', '/investors/', '/llms.txt', '/llms-full.txt',
-            '/discover/', '/discover/sitemap.xml', '/claims-terminal/', '/claims-terminal/claims-lifecycle.json', '/claims-terminal/feed.xml', '/claims-terminal/openapi.json', '/search/', '/search-sitemap.xml', '/discovery-facts.json', '/ai-index.json', '/bridgepoint-knowledge.jsonld', '/app/horizon/', '/app/horizon/early-access.html', '/articles/auto/', '/articles/auto/feed.xml', '/articles/auto/sitemap.xml'
+            '/discover/', '/discover/sitemap.xml', '/claims-terminal/', '/claims-terminal/claims-lifecycle.json', '/claims-terminal/feed.xml', '/claims-terminal/openapi.json', '/terminal/', '/search/', '/search-sitemap.xml', '/discovery-facts.json', '/ai-index.json', '/bridgepoint-knowledge.jsonld', '/app/horizon/', '/app/horizon/early-access.html', '/articles/auto/', '/articles/auto/feed.xml', '/articles/auto/sitemap.xml'
           ]
           urls=[origin+p for p in base]
           urls += [origin+'/discover/states/'+code.lower()+'/' for code in states]
