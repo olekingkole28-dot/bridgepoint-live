@@ -32,6 +32,9 @@ const sun=new THREE.DirectionalLight(0xffd69a,2.0);sun.position.set(-180,-110,24
 const player=new THREE.Group();scene.add(player);player.position.set(0,0,0);
 let data=null,centerLon=lon,centerLat=lat,yaw=0,pitch=-.08,moveX=0,moveY=0,touchMoveX=0,touchMoveY=0,keyMoveX=0,keyMoveY=0,sprint=false,aiming=false,shooting=false,last=performance.now(),frames=0,fpsT=performance.now(),lootCount=0,health=100,flash=false,storm=false,dayPhase=.62;
 let terrainInfo=null,perfLowStreak=0,perfHighStreak=0,lastMeasuredFps=60;
+let perfTier=0,perfEmaMs=16.7,perfWorstMs=16.7,lastPerfAdjustAt=0,fastSince=performance.now(),longFrames=0;
+let aiAccumulator=0,fxAccumulator=0,lightAccumulator=0;
+const PERF_TIER_NAMES=['FULL','BALANCED','SAFE','SURVIVAL'];
 let liveWeather={feed:false,event:null,distance_km:null,last_at:null},rainFx=null;
 const WORLD_COUNTS={buildings:0,buildingParts:0,parcels:0,roads:0,water:0};
 const DETAIL_BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?115:58):220;
@@ -833,7 +836,7 @@ async function recordKill(victimName,headshot=false){
   rpc('bridgepoint_horizon_record_kill_v4310',{
     p_host_player_id:playerId,p_host_secret:playerSecret,p_match_id:matchId,
     p_event_type:'INFECTED_KILL',p_killer_player_id:playerId,p_victim_player_id:null,
-    p_weapon_key:activeWeapon().key,p_headshot:headshot,p_distance_m:null,p_metadata:{mode,client_build:4330}
+    p_weapon_key:activeWeapon().key,p_headshot:headshot,p_distance_m:null,p_metadata:{mode,client_build:4331}
   }).catch(()=>{});
 }
 function shootOnce(){
@@ -934,6 +937,7 @@ function updateInfected(dt,t){
   for(const z of infected){
     if(!z.alive)continue;
     const dx=player.position.x-z.g.position.x,dy=player.position.y-z.g.position.y,d=Math.hypot(dx,dy),aggro=!dead&&(d<z.detect||z.alertUntil>t);
+    if(d>perfSimRadius()&&!aggro){z.g.visible=false;continue}else z.g.visible=true;
     if(z.kind==='screamer'&&aggro&&d<28&&t>z.nextScream){
       z.nextScream=t+7000;tone(330,.18,.025,'sawtooth');
       for(const q of infected)if(q.alive&&Math.hypot(q.g.position.x-z.g.position.x,q.g.position.y-z.g.position.y)<70)q.alertUntil=t+9000;
@@ -965,6 +969,61 @@ function ensureRainFx(){
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(positions,3));
   const m=new THREE.PointsMaterial({color:0xa7dcff,size:MOBILE?.045:.055,transparent:true,opacity:.62,depthWrite:false});
   rainFx=new THREE.Points(g,m);rainFx.visible=false;rainFx.frustumCulled=false;scene.add(rainFx);return rainFx;
+}
+function perfSimRadius(){return [230,180,135,95][perfTier]||95}
+function perfCadence(){
+  if(MOBILE)return [
+    {ai:1/30,fx:1/30,light:1/20,minimap:8},
+    {ai:1/24,fx:1/20,light:1/15,minimap:12},
+    {ai:1/18,fx:1/15,light:1/12,minimap:18},
+    {ai:1/12,fx:1/10,light:1/8,minimap:26}
+  ][perfTier];
+  return [
+    {ai:1/60,fx:1/45,light:1/30,minimap:6},
+    {ai:1/40,fx:1/30,light:1/24,minimap:9},
+    {ai:1/28,fx:1/22,light:1/18,minimap:14},
+    {ai:1/18,fx:1/15,light:1/12,minimap:20}
+  ][perfTier];
+}
+function updatePerfVisualBudget(){
+  const maxFx=[ambientFx.length,Math.min(6,ambientFx.length),Math.min(3,ambientFx.length),Math.min(2,ambientFx.length)][perfTier];
+  ambientFx.forEach((q,i)=>{
+    const d=Math.hypot((q.fire?.position.x||0)-player.position.x,(q.fire?.position.y||0)-player.position.y);
+    const on=i<maxFx&&d<(perfTier>=2?90:150);
+    if(q.fire)q.fire.visible=on;if(q.smoke)q.smoke.visible=on;if(q.light)q.light.visible=on;
+  });
+  const radius=perfSimRadius();
+  for(const z of infected)if(z.alive)z.g.visible=Math.hypot(z.g.position.x-player.position.x,z.g.position.y-player.position.y)<radius;
+  for(const b of combatants)if(b.alive)b.g.visible=b.friendly||Math.hypot(b.g.position.x-player.position.x,b.g.position.y-player.position.y)<radius;
+}
+function setPerfTier(next,reason='auto'){
+  next=Math.max(0,Math.min(3,next|0));if(next===perfTier)return;
+  perfTier=next;
+  const floor=MOBILE?.56:.72,deviceCeiling=Math.min(devicePixelRatio||1,HIGH_DEVICE?1.25:(MOBILE?.88:1.05));
+  const cap=MOBILE?[deviceCeiling,.78,.67,.56][perfTier]:[deviceCeiling,1,.88,.74][perfTier];
+  const desired=Math.max(floor,Math.min(renderScale,cap));
+  if(Math.abs(desired-renderScale)>.015){renderScale=desired;renderer.setPixelRatio(renderScale);renderer.setSize(innerWidth,innerHeight,false)}
+  if(perfTier>=2&&renderer.shadowMap.enabled){renderer.shadowMap.enabled=false;sun.castShadow=false}
+  if(perfTier===0&&HIGH_DEVICE&&!renderer.shadowMap.enabled){renderer.shadowMap.enabled=true;sun.castShadow=true}
+  updatePerfVisualBudget();
+  const perf=window.BP_HORIZON_PERF||{};perf.last_reason=reason;perf.last_tier_change_at=performance.now();window.BP_HORIZON_PERF=perf;
+}
+function updatePerformanceGovernor(dt,now){
+  if(document.hidden||!Number.isFinite(dt)||dt<=0)return;
+  const ms=Math.max(4,Math.min(120,dt*1000));perfEmaMs=THREE.MathUtils.lerp(perfEmaMs,ms,.065);perfWorstMs=Math.max(ms,perfWorstMs*.985);
+  if(ms>42)longFrames++;else longFrames=Math.max(0,longFrames-.12);
+  if(ms<18.2){if(!fastSince)fastSince=now}else fastSince=now;
+  if(now-lastPerfAdjustAt>1800){
+    lastPerfAdjustAt=now;
+    if((perfEmaMs>27||longFrames>=4)&&perfTier<3){setPerfTier(perfTier+1,'frame_pressure');longFrames=0;fastSince=now}
+    else if(perfEmaMs>21.5&&perfTier<3){setPerfTier(perfTier+1,'sustained_pressure');fastSince=now}
+    else if(perfEmaMs<17.4&&now-fastSince>7000&&perfTier>0){setPerfTier(perfTier-1,'stable_recovery');fastSince=now}
+  }
+  window.BP_HORIZON_PERF={
+    ...(window.BP_HORIZON_PERF||{}),build:4331,tier:perfTier,tier_name:PERF_TIER_NAMES[perfTier],
+    ema_ms:Number(perfEmaMs.toFixed(2)),worst_ms:Number(perfWorstMs.toFixed(2)),fps:lastMeasuredFps,
+    pixel_ratio:Number(renderScale.toFixed(2)),shadows:renderer.shadowMap.enabled,sim_radius_m:perfSimRadius()
+  };
 }
 function updateWeatherFx(dt,now){
   const fx=rainFx;if(!fx||!fx.visible)return;
@@ -1084,28 +1143,26 @@ async function load(){
   await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
   updateAmmo();renderWeaponBar();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();
   loadText.textContent=`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · ${ziplineCount} ziplines · ${vehicleCount} vehicles · restored traversal active`;
-  window.BP_HORIZON_V2={ok:true,build:4330,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,prone:true,slide:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,interiorLoot:true,roofTraversal:true,drivableVehicles:true,vehicleFuelRepair:true,infectedPatrols:true,ambientDisasterFx:true};
+  window.BP_HORIZON_V2={ok:true,build:4331,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,prone:true,slide:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,interiorLoot:true,roofTraversal:true,drivableVehicles:true,vehicleFuelRepair:true,infectedPatrols:true,ambientDisasterFx:true,adaptivePerformanceGovernor:true};
 }
 function animate(){
   requestAnimationFrame(animate);
   const now=performance.now(),dt=Math.min(.05,(now-last)/1000);last=now;dtGlobal=dt;
+  const cadence=perfCadence();aiAccumulator+=dt;fxAccumulator+=dt;lightAccumulator+=dt;
   if(!dead){
-    updateCamera(dt);updateDwellPickup(now);if(shooting)shootOnce();if(mode==='TDM')updateCombatants(dt,now);else updateInfected(dt,now);
+    updateCamera(dt);updateDwellPickup(now);if(shooting)shootOnce();
+    if(aiAccumulator>=cadence.ai){const step=Math.min(.08,aiAccumulator);if(mode==='TDM')updateCombatants(step,now);else updateInfected(step,now);aiAccumulator=0}
     if(now-(killSnapshots.at(-1)?.t||0)>80)snapshotKillcam(now);
-  }else{
-    if(mode==='TDM')updateCombatants(dt,now);else updateInfected(dt,now);
+  }else if(aiAccumulator>=cadence.ai){
+    const step=Math.min(.08,aiAccumulator);if(mode==='TDM')updateCombatants(step,now);else updateInfected(step,now);aiAccumulator=0;
   }
-  updateWeatherFx(dt,now);updateAmbientDisasterFx(now);updateWorldLight(now);if((frames%6)===0)renderMinimap();renderer.render(scene,camera);
-  frames++;if(now-fpsT>1200){
-    const fps=Math.round(frames*1000/(now-fpsT));lastMeasuredFps=fps;$('fps').textContent=fps+' FPS';
-    const floor=MOBILE?.58:.75,ceiling=Math.min(devicePixelRatio||1,HIGH_DEVICE?1.25:(MOBILE?.88:1.05));
-    if(fps<46){perfLowStreak++;perfHighStreak=0}else if(fps>57){perfHighStreak++;perfLowStreak=0}else{perfLowStreak=Math.max(0,perfLowStreak-1);perfHighStreak=0}
-    let next=renderScale;
-    if(perfLowStreak>=1)next=Math.max(floor,renderScale-.1);
-    else if(perfHighStreak>=3)next=Math.min(ceiling,renderScale+.05);
-    if(Math.abs(next-renderScale)>.02){renderScale=next;renderer.setPixelRatio(renderScale);renderer.setSize(innerWidth,innerHeight,false)}
-    if(fps<39&&renderer.shadowMap.enabled){renderer.shadowMap.enabled=false;sun.castShadow=false}
-    else if(fps>58&&HIGH_DEVICE&&!renderer.shadowMap.enabled){renderer.shadowMap.enabled=true;sun.castShadow=true}
+  if(fxAccumulator>=cadence.fx){const step=Math.min(.1,fxAccumulator);updateWeatherFx(step,now);updateAmbientDisasterFx(now);fxAccumulator=0}
+  if(lightAccumulator>=cadence.light){updateWorldLight(now);lightAccumulator=0}
+  if((frames%cadence.minimap)===0)renderMinimap();
+  renderer.render(scene,camera);updatePerformanceGovernor(dt,now);
+  frames++;
+  if(now-fpsT>1200){
+    const fps=Math.round(frames*1000/(now-fpsT));lastMeasuredFps=fps;$('fps').textContent=fps+' FPS · '+PERF_TIER_NAMES[perfTier];
     frames=0;fpsT=now;
   }
 }
