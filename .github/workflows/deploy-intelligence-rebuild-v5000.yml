@@ -541,10 +541,11 @@ jobs:
                 if(typeof window.__BP_V5000_SET_MEASURE__!=='function')throw new Error('measure setter missing');
                 window.__BP_V5000_SET_MEASURE__(true);
                 const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('measure map missing');
+                if(typeof window.__BP_V5000_MEASURE_POINT__!=='function')throw new Error('measure point hook missing');
                 const c=m.getCenter();
-                m.fire('click',{lngLat:{lng:c.lng,lat:c.lat}});
-                m.fire('click',{lngLat:{lng:c.lng+.001,lat:c.lat+.001}});
-                m.fire('click',{lngLat:{lng:c.lng+.0015,lat:c.lat}});
+                window.__BP_V5000_MEASURE_POINT__(c.lng,c.lat);
+                window.__BP_V5000_MEASURE_POINT__(c.lng+.001,c.lat+.001);
+                window.__BP_V5000_MEASURE_POINT__(c.lng+.0015,c.lat);
               });
               await p.waitForFunction(()=>{
                 const s=window.__BP_MEASURE_STATE__;
