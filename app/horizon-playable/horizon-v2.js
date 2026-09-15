@@ -35,6 +35,7 @@ let terrainInfo=null,perfLowStreak=0,perfHighStreak=0,lastMeasuredFps=60;
 let perfTier=0,perfEmaMs=16.7,perfWorstMs=16.7,lastPerfAdjustAt=0,fastSince=performance.now(),longFrames=0;
 let aiAccumulator=0,fxAccumulator=0,lightAccumulator=0;
 const PERF_TIER_NAMES=['FULL','BALANCED','SAFE','SURVIVAL'];
+const lowMaterialCache=new WeakMap();
 let liveWeather={feed:false,event:null,distance_km:null,last_at:null},rainFx=null;
 const WORLD_COUNTS={buildings:0,buildingParts:0,parcels:0,roads:0,water:0};
 const DETAIL_BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?52:22):120;
@@ -271,7 +272,12 @@ function project(c){return new THREE.Vector2((c[0]-centerLon)*111320*Math.cos(ce
 function rings(g){if(!g)return[];if(g.type==='Polygon')return[g.coordinates?.[0]||[]];if(g.type==='MultiPolygon')return(g.coordinates||[]).map(x=>x?.[0]||[]);return[]}
 function lines(g){if(!g)return[];if(g.type==='LineString')return[g.coordinates||[]];if(g.type==='MultiLineString')return g.coordinates||[];return[]}
 function mat(color,rough=.85,metal=.02){return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal})}
-function addSky(){const sky=new THREE.Mesh(new THREE.SphereGeometry(2200,18,10),new THREE.MeshBasicMaterial({color:0x869184,side:THREE.BackSide}));scene.add(sky);const cm=new THREE.MeshStandardMaterial({color:0xa5a69e,transparent:true,opacity:.37,roughness:1});for(let i=0;i<20;i++){const c=new THREE.Mesh(new THREE.SphereGeometry(18+rand()*30,8,5),cm);c.scale.z=.18;c.position.set((rand()-.5)*900,(rand()-.5)*800,120+rand()*100);scene.add(c)}}
+function addSky(){
+  const sky=new THREE.Mesh(new THREE.SphereGeometry(2200,18,10),new THREE.MeshBasicMaterial({color:0x869184,side:THREE.BackSide}));scene.add(sky);
+  const count=MOBILE?8:16,clouds=new THREE.InstancedMesh(new THREE.SphereGeometry(1,8,5),new THREE.MeshLambertMaterial({color:0xa5a69e,transparent:true,opacity:.34}),count),d=new THREE.Object3D();
+  for(let i=0;i<count;i++){const s=18+rand()*30;d.position.set((rand()-.5)*900,(rand()-.5)*800,120+rand()*100);d.scale.set(s,s,s*.18);d.rotation.set(0,0,rand()*Math.PI);d.updateMatrix();clouds.setMatrixAt(i,d.matrix)}
+  clouds.instanceMatrix.needsUpdate=true;scene.add(clouds);
+}
 const textureLoader=new THREE.TextureLoader();
 function repeatTexture(url,x=12,y=12){
   const t=textureLoader.load(url);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(x,y);t.colorSpace=THREE.SRGBColorSpace;return t;
@@ -1042,6 +1048,29 @@ function updatePerfVisualBudget(){
   for(const z of infected)if(z.alive)z.g.visible=Math.hypot(z.g.position.x-player.position.x,z.g.position.y-player.position.y)<radius;
   for(const b of combatants)if(b.alive)b.g.visible=b.friendly||Math.hypot(b.g.position.x-player.position.x,b.g.position.y-player.position.y)<radius;
 }
+function lowCostMaterial(m){
+  if(!m||(!m.isMeshStandardMaterial&&!m.isMeshPhysicalMaterial))return m;
+  if(lowMaterialCache.has(m))return lowMaterialCache.get(m);
+  const q=new THREE.MeshLambertMaterial({
+    color:m.color?.clone?.()||new THREE.Color(0xffffff),map:m.map||null,
+    transparent:!!m.transparent,opacity:m.opacity??1,side:m.side,depthWrite:m.depthWrite!==false,
+    alphaTest:m.alphaTest||0,vertexColors:!!m.vertexColors
+  });
+  lowMaterialCache.set(m,q);return q;
+}
+function applyWorldShaderBudget(low){
+  world.traverse(o=>{
+    if(!o.isMesh||o.userData?.playerBody)return;
+    if(low){
+      if(!o.userData.bpHqMaterial)o.userData.bpHqMaterial=o.material;
+      const src=o.userData.bpHqMaterial;
+      o.material=Array.isArray(src)?src.map(lowCostMaterial):lowCostMaterial(src);
+    }else if(o.userData.bpHqMaterial){
+      o.material=o.userData.bpHqMaterial;delete o.userData.bpHqMaterial;
+    }
+  });
+  renderer.toneMapping=low?THREE.NoToneMapping:THREE.ACESFilmicToneMapping;
+}
 function setPerfTier(next,reason='auto'){
   next=Math.max(0,Math.min(3,next|0));if(next===perfTier)return;
   perfTier=next;
@@ -1051,12 +1080,13 @@ function setPerfTier(next,reason='auto'){
   if(Math.abs(desired-renderScale)>.015){renderScale=desired;renderer.setPixelRatio(renderScale);renderer.setSize(innerWidth,innerHeight,false)}
   if(perfTier>=2&&renderer.shadowMap.enabled){renderer.shadowMap.enabled=false;sun.castShadow=false}
   if(perfTier===0&&HIGH_DEVICE&&!renderer.shadowMap.enabled){renderer.shadowMap.enabled=true;sun.castShadow=true}
+  applyWorldShaderBudget(perfTier>=2);
   updatePerfVisualBudget();
   const perf=window.BP_HORIZON_PERF||{};perf.last_reason=reason;perf.last_tier_change_at=performance.now();window.BP_HORIZON_PERF=perf;
 }
-function updatePerformanceGovernor(dt,now){
-  if(document.hidden||!Number.isFinite(dt)||dt<=0)return;
-  const ms=Math.max(4,Math.min(120,dt*1000));perfEmaMs=THREE.MathUtils.lerp(perfEmaMs,ms,.065);perfWorstMs=Math.max(ms,perfWorstMs*.985);
+function updatePerformanceGovernor(rawDt,now){
+  if(document.hidden||!Number.isFinite(rawDt)||rawDt<=0)return;
+  const ms=Math.max(4,Math.min(250,rawDt*1000));perfEmaMs=THREE.MathUtils.lerp(perfEmaMs,ms,.065);perfWorstMs=Math.max(ms,perfWorstMs*.985);
   if(ms>42)longFrames++;else longFrames=Math.max(0,longFrames-.12);
   if(ms<18.2){if(!fastSince)fastSince=now}else fastSince=now;
   if(now-lastPerfAdjustAt>1800){
@@ -1068,7 +1098,9 @@ function updatePerformanceGovernor(dt,now){
   window.BP_HORIZON_PERF={
     ...(window.BP_HORIZON_PERF||{}),build:4331,tier:perfTier,tier_name:PERF_TIER_NAMES[perfTier],
     ema_ms:Number(perfEmaMs.toFixed(2)),worst_ms:Number(perfWorstMs.toFixed(2)),fps:lastMeasuredFps,
-    pixel_ratio:Number(renderScale.toFixed(2)),shadows:renderer.shadowMap.enabled,sim_radius_m:perfSimRadius()
+    pixel_ratio:Number(renderScale.toFixed(2)),shadows:renderer.shadowMap.enabled,sim_radius_m:perfSimRadius(),
+    draw_calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,lines:renderer.info.render.lines,points:renderer.info.render.points,
+    programs:renderer.info.programs?.length||0
   };
 }
 function updateWeatherFx(dt,now){
@@ -1189,11 +1221,11 @@ async function load(){
   await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
   updateAmmo();renderWeaponBar();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();
   loadText.textContent=`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · ${ziplineCount} ziplines · ${vehicleCount} vehicles · restored traversal active`;
-  window.BP_HORIZON_V2={ok:true,build:4331,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,prone:true,slide:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,interiorLoot:true,roofTraversal:true,drivableVehicles:true,vehicleFuelRepair:true,infectedPatrols:true,ambientDisasterFx:true,adaptivePerformanceGovernor:true,instancedWorldProps:true,instancedRoadSurfaces:true};
+  window.BP_HORIZON_V2={ok:true,build:4331,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,prone:true,slide:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,interiorLoot:true,roofTraversal:true,drivableVehicles:true,vehicleFuelRepair:true,infectedPatrols:true,ambientDisasterFx:true,adaptivePerformanceGovernor:true,instancedWorldProps:true,instancedRoadSurfaces:true,adaptiveShaderBudget:true};
 }
 function animate(){
   requestAnimationFrame(animate);
-  const now=performance.now(),dt=Math.min(.05,(now-last)/1000);last=now;dtGlobal=dt;
+  const now=performance.now(),rawDt=Math.max(.001,(now-last)/1000),dt=Math.min(.05,rawDt);last=now;dtGlobal=dt;
   const cadence=perfCadence();aiAccumulator+=dt;fxAccumulator+=dt;lightAccumulator+=dt;
   if(!dead){
     updateCamera(dt);updateDwellPickup(now);if(shooting)shootOnce();
@@ -1205,7 +1237,7 @@ function animate(){
   if(fxAccumulator>=cadence.fx){const step=Math.min(.1,fxAccumulator);updateWeatherFx(step,now);updateAmbientDisasterFx(now);fxAccumulator=0}
   if(lightAccumulator>=cadence.light){updateWorldLight(now);lightAccumulator=0}
   if((frames%cadence.minimap)===0)renderMinimap();
-  renderer.render(scene,camera);updatePerformanceGovernor(dt,now);
+  renderer.render(scene,camera);updatePerformanceGovernor(rawDt,now);
   frames++;
   if(now-fpsT>1200){
     const fps=Math.round(frames*1000/(now-fpsT));lastMeasuredFps=fps;$('fps').textContent=fps+' FPS · '+PERF_TIER_NAMES[perfTier];
