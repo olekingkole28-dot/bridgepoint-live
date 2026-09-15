@@ -1,6 +1,7 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
 import {GLTFLoader} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js';
 import {clone as skeletonClone} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/utils/SkeletonUtils.js';
+import {makeHorizonRifle} from './cosmetics-v4320.js';
 
 const loader=new GLTFLoader();
 const cache=new Map();
@@ -79,7 +80,7 @@ function genericReward(ref){
 }
 function runtimeObject(ref){
   const low=String(ref||'').toLowerCase();
-  if(low.includes('/wrap/')||low.includes('weapon')||low.includes('wrap_'))return rifle(low);
+  if(low.includes('/wrap/')||low.includes('weapon')||low.includes('wrap_'))return makeHorizonRifle(THREE,low);
   if(low.includes('/emote/')||low.includes('/finisher/')||low.includes('emote')||low.includes('finisher'))return mannequin(low);
   if(low.includes('/profile/')||low.includes('banner'))return banner(low);
   return genericReward(low);
