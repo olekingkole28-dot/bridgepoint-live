@@ -553,7 +553,7 @@
     "Weather exposure is not proof of damage.",
     "Roof shell coverage is not source-backed material/pitch/shape coverage."
   ],
-  "updated_at": "2026-09-15T21:09:00Z",
+  "updated_at": "2026-09-15T21:14:00Z",
   "claims_lifecycle_terminal": {
     "name": "BridgePoint Claims Lifecycle Terminal",
     "url": "https://bridgepointintelligence.online/claims-terminal/",
@@ -766,6 +766,23 @@
       "no valuation call",
       "no buy/sell instruction",
       "no claim of physical damage"
+    ]
+  },
+  "data_discrepancy_ledger": {
+    "name": "BridgePoint Data Discrepancy Ledger",
+    "url": "https://bridgepointintelligence.online/data-discrepancy/",
+    "contract": "https://bridgepointintelligence.online/data-discrepancy/contract.json",
+    "status": "PUBLIC",
+    "scope": "BRIDGEPOINT_INTERNAL_DATA_QUALITY",
+    "measures": [
+      "sampled spatial-anchor gaps",
+      "address parity rows scanned",
+      "addresses recovered/normalized",
+      "canonical identity collision audit groups"
+    ],
+    "interpretation": [
+      "Sample percentages are diagnostics from the published sample rate, not full-state missing-property rates.",
+      "The ledger does not make external-vendor quality claims or market valuation claims."
     ]
   }
 }
