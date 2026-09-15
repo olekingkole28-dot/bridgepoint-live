@@ -15,7 +15,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: bridgepoint-growth-newsroom-v5100
+  group: bridgepoint-seo-publish-v5100
   cancel-in-progress: false
 
 jobs:
