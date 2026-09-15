@@ -1,4 +1,4 @@
-name: Browser Test Horizon Playable v4313
+name: Browser Test Horizon Playable v4320
 
 on:
   workflow_dispatch:
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: horizon-playable-v4313
+  group: horizon-playable-v4320
   cancel-in-progress: true
 
 jobs:
@@ -55,7 +55,7 @@ jobs:
           echo $! >/tmp/horizon-http.pid
           sleep 1
           curl --fail --silent http://127.0.0.1:4173/app/horizon-playable/v2-entry.html >/dev/null
-      - name: Verify V4313 Android match client
+      - name: Verify V4320 Android match client
         env:
           HORIZON_TEST_BASE: http://127.0.0.1:4173
         run: node scripts/browser-horizon-v2-live.mjs
