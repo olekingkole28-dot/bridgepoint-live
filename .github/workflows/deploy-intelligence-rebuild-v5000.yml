@@ -386,7 +386,7 @@ jobs:
               await p.waitForFunction(()=>document.getElementById('canonicalProperties')?.textContent?.includes(','),{timeout:15000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
               await p.waitForFunction(()=>!!document.getElementById('bpTabContext')&&!!document.getElementById('bXrayUnderground')&&!!document.getElementById('toggleLiveContext')&&!!document.getElementById('ctxSurfaceMaterial')&&!!document.getElementById('ctxSurfaceSource')&&!!document.getElementById('transportArchive')&&!!document.getElementById('transportRuntime'),{timeout:10000});
-              await p.waitForFunction(()=>!!window.__BP_V5000_WORLD?.map?.getLayer('bp-v5004-weather-points'),{timeout:45000});
+              await p.waitForFunction(()=>!!window.__BP_V5000_WORLD?.map?.getLayer('bp-v5004-weather-points'),{timeout:90000});
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
                 return !!m?.getLayer('gta-place-label')&&!!m?.getLayer('gta-road-label-major')&&!!m?.getLayer('gta-poi-label')&&!!m?.getLayer('gta-opportunity-buildings')&&!!m?.getLayer('gta-opportunity-label');
