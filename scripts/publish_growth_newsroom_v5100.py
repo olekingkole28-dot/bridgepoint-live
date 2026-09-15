@@ -133,8 +133,8 @@ def main():
         f"BridgePoint now reports {canonical/1_000_000:.1f}M canonical U.S. property records",
         "A live proptech map combining canonical property identity, buildings, roofs and source-labelled hazards.",
         f'''<span class="badge">LIVE PRODUCT MILESTONE</span><h1>{num(canonical)} canonical properties.<br>One live spatial system.</h1>
-<p class="lead">BridgePoint Intelligence currently reports <strong>{num(canonical)}</strong> canonical properties, <strong>{num(addresses)}</strong> unique addresses and <strong>{num(buildings)}</strong> map-ready buildings. The product is live and the counts update from the backend—not from a static marketing counter.</p>
-<div class="metrics"><div class="metric"><b>{num(canonical)}</b><span>canonical properties</span></div><div class="metric"><b>{num(addresses)}</b><span>unique addresses</span></div><div class="metric"><b>{num(buildings)}</b><span>map-ready buildings</span></div></div>
+<p class="lead">BridgePoint Intelligence currently reports <strong>{num(canonical)}</strong> canonical properties, <strong>{num(addresses)}</strong> address records and <strong>{num(buildings)}</strong> map-ready buildings. The product is live and the counts update from the backend—not from a static marketing counter.</p>
+<div class="metrics"><div class="metric"><b>{num(canonical)}</b><span>canonical properties</span></div><div class="metric"><b>{num(addresses)}</b><span>address records</span></div><div class="metric"><b>{num(buildings)}</b><span>map-ready buildings</span></div></div>
 <div class="note">BridgePoint uses “canonical property” as its identity layer. That is not automatically identical to a competitor’s parcel count. Current parcel reconciliation remains separately measured.</div>{actions("canonical_169m")}''',"milestone")
 
     add("solo-builder-proptech",
@@ -205,7 +205,7 @@ def main():
     write("sitemap.xml",sitemap)
     rss_items="".join(f'<item><title>{esc(i["title"])}</title><link>{esc(i["url"])}</link><guid>{esc(i["url"])}</guid><description>{esc(i["description"])}</description></item>' for i in items[:30])
     write("feed.xml",f'<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>BridgePoint Intelligence Live Newsroom</title><link>{ORIGIN}/newsroom/</link><description>Live BridgePoint product and storm intelligence updates.</description>{rss_items}</channel></rss>')
-    manifest={"version":5100,"generated_at":generated,"canonical_properties":canonical,"unique_addresses":addresses,"map_ready_buildings":buildings,"active_hazard_records":len(hazards),"pages":items}
+    manifest={"version":5100,"generated_at":generated,"canonical_properties":canonical,"address_records":addresses,"map_ready_buildings":buildings,"active_hazard_records":len(hazards),"pages":items}
     write("manifest.json",json.dumps(manifest,indent=2))
     share=[
       f"BridgePoint just crossed {canonical/1_000_000:.1f}M canonical U.S. property records. The map is live: {ORIGIN}/?utm_source=share_copy&utm_medium=organic&utm_campaign=canonical",
