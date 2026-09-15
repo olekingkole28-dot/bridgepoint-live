@@ -47,6 +47,15 @@ Important: 169,634,995 is the canonical property/parcel identity record count, n
 
 
 
+
+## Data Discrepancy Ledger
+- Public ledger: https://bridgepointintelligence.online/data-discrepancy/
+- Contract: https://bridgepointintelligence.online/data-discrepancy/contract.json
+- JSON export: https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-discrepancy-export-v5208?format=json
+- CSV export: https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-discrepancy-export-v5208?format=csv
+
+The Data Discrepancy Ledger reports BridgePoint's own sampled spatial-anchor diagnostics, address parity repair/normalization counters and canonical identity audit status. Spatial-anchor percentages are sample diagnostics with sample sizes/rates/timestamps, not full-jurisdiction missing-property rates and not claims about another vendor.
+
 ## Public Evidence Audit
 - Audit dashboard: https://bridgepointintelligence.online/public-audit/
 - Machine contract: https://bridgepointintelligence.online/public-audit/contract.json
