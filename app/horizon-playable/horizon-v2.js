@@ -37,7 +37,7 @@ let aiAccumulator=0,fxAccumulator=0,lightAccumulator=0;
 const PERF_TIER_NAMES=['FULL','BALANCED','SAFE','SURVIVAL'];
 let liveWeather={feed:false,event:null,distance_km:null,last_at:null},rainFx=null;
 const WORLD_COUNTS={buildings:0,buildingParts:0,parcels:0,roads:0,water:0};
-const DETAIL_BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?115:58):220;
+const DETAIL_BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?52:22):120;
 const BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?650:480):900;
 const PART_LIMIT=MOBILE?(HIGH_DEVICE?420:260):700;
 const PARCEL_LIMIT=MOBILE?(HIGH_DEVICE?1250:850):1800;
@@ -340,12 +340,8 @@ function lineSegmentsFrom(points,material,zOffset=.08){
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(a,3));
   const l=new THREE.LineSegments(g,material);l.frustumCulled=true;world.add(l);return l;
 }
-function roadStrip(a,b,w,material=ROAD_MAT,z=.025){
-  const len=a.distanceTo(b);if(len<1)return;
-  const m=new THREE.Mesh(UNIT_PLANE,material);m.position.set((a.x+b.x)/2,(a.y+b.y)/2,terrainZ((a.x+b.x)/2,(a.y+b.y)/2)+z);m.scale.set(w,len,1);m.rotation.z=Math.atan2(b.y-a.y,b.x-a.x)-Math.PI/2;m.receiveShadow=true;world.add(m);
-}
 function addRoads(){
-  let n=0,surfaces=0;const cyan=[],yellow=[],rail=[];
+  let n=0,surfaces=0;const cyan=[],yellow=[],rail=[],roadInstances=[],sidewalkInstances=[];
   const surfaceLimit=MOBILE?(HIGH_DEVICE?780:520):1300;
   for(const row of data.transport||[]){
     const kind=String(row.kind||'ROAD_LOCAL').toUpperCase();
@@ -353,15 +349,28 @@ function addRoads(){
       for(let i=1;i<line.length;i++){
         const a=project(line[i-1]),b=project(line[i]),len=a.distanceTo(b);if(len<2||len>900)continue;
         const primary=kind.includes('PRIMARY'),secondary=kind.includes('SECONDARY'),isRail=kind.includes('RAIL');
-        const w=isRail?2.5:primary?10.5:secondary?8:5.5;
-        if(!isRail&&surfaces<surfaceLimit){roadStrip(a,b,w,ROAD_MAT,.035);surfaces++;if((primary||secondary)&&!MOBILE){const ang=Math.atan2(b.y-a.y,b.x-a.x),nx=-Math.sin(ang),ny=Math.cos(ang);roadStrip(a.clone().add(new THREE.Vector2(nx*(w/2+.7),ny*(w/2+.7))),b.clone().add(new THREE.Vector2(nx*(w/2+.7),ny*(w/2+.7))),.9,SIDEWALK_MAT,.045);roadStrip(a.clone().add(new THREE.Vector2(-nx*(w/2+.7),-ny*(w/2+.7))),b.clone().add(new THREE.Vector2(-nx*(w/2+.7),-ny*(w/2+.7))),.9,SIDEWALK_MAT,.045)}}
+        const w=isRail?2.5:primary?10.5:secondary?8:5.5,ang=Math.atan2(b.y-a.y,b.x-a.x)-Math.PI/2;
+        if(!isRail&&surfaces<surfaceLimit){
+          roadInstances.push({x:(a.x+b.x)/2,y:(a.y+b.y)/2,z:terrainZ((a.x+b.x)/2,(a.y+b.y)/2)+.035,w,len,ang});surfaces++;
+          if((primary||secondary)&&!MOBILE){
+            const rawAng=Math.atan2(b.y-a.y,b.x-a.x),nx=-Math.sin(rawAng),ny=Math.cos(rawAng),off=w/2+.7;
+            sidewalkInstances.push({x:(a.x+b.x)/2+nx*off,y:(a.y+b.y)/2+ny*off,z:terrainZ((a.x+b.x)/2+nx*off,(a.y+b.y)/2+ny*off)+.045,w:.9,len,ang});
+            sidewalkInstances.push({x:(a.x+b.x)/2-nx*off,y:(a.y+b.y)/2-ny*off,z:terrainZ((a.x+b.x)/2-nx*off,(a.y+b.y)/2-ny*off)+.045,w:.9,len,ang});
+          }
+        }
         const target=isRail?rail:primary?yellow:cyan;target.push(a,b);
         if(len>20&&!isRail&&n%2===0)roadAnchors.push({x:(a.x+b.x)/2,y:(a.y+b.y)/2,a:Math.atan2(b.y-a.y,b.x-a.x),w});
         n++;
       }
     }
   }
-  const build=(pts,matl)=>{if(!pts.length)return;const arr=[];for(let i=0;i<pts.length;i+=2){const a=pts[i],b=pts[i+1];arr.push(a.x,a.y,terrainZ(a.x,a.y)+.075,b.x,b.y,terrainZ(b.x,b.y)+.075)}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(arr,3));world.add(new THREE.LineSegments(g,matl))};
+  const addInstancedStrips=(rows,material)=>{
+    if(!rows.length)return;const inst=new THREE.InstancedMesh(UNIT_PLANE,material,rows.length),d=new THREE.Object3D();
+    rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z);d.rotation.set(0,0,r.ang);d.scale.set(r.w,r.len,1);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});
+    inst.instanceMatrix.needsUpdate=true;inst.receiveShadow=true;inst.frustumCulled=true;world.add(inst);
+  };
+  addInstancedStrips(roadInstances,ROAD_MAT);addInstancedStrips(sidewalkInstances,SIDEWALK_MAT);
+  const build=(pts,matl)=>{if(!pts.length)return;const arr=[];for(let i=0;i<pts.length;i+=2){const a=pts[i],b=pts[i+1];arr.push(a.x,a.y,terrainZ(a.x,a.y)+.075,b.x,b.y,terrainZ(b.x,b.y)+.075)}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(arr,3));const l=new THREE.LineSegments(g,matl);l.frustumCulled=true;world.add(l)};
   build(cyan,ROAD_CYAN);build(yellow,ROAD_YELLOW);build(rail,RAIL_MAT);WORLD_COUNTS.roads=n;return n;
 }
 function addParcels(){
@@ -591,8 +600,30 @@ function contextUse(){
   const q=contextTarget;if(!q)return;if(q.type==='door')enterInterior(q.building);else if(q.type==='zipline')startZipline(q);else if(q.type==='vehicle')enterVehicle(q.vehicle);else if(q.type==='vehicle_exit')exitVehicle();else if(q.type==='interior_exit')exitInterior();else if(q.type==='roof')enterRooftop(q.building);
 }
 
-function addVegetation(){const size=span*1250,tr=mat(0x4d3928,1,0),leaves=[mat(0x344d32,1,0),mat(0x405b38,1,0),mat(0x50633e,1,0)],treeN=MOBILE?(HIGH_DEVICE?240:135):430,bushN=MOBILE?(HIGH_DEVICE?100:55):180;for(let i=0;i<treeN;i++){const x=(rand()-.5)*size,y=(rand()-.5)*size;if(Math.hypot(x,y)<15)continue;const h=3+rand()*7,t=new THREE.Mesh(new THREE.CylinderGeometry(.1,.22,h,6),tr);t.rotation.x=Math.PI/2;t.position.set(x,y,terrainZ(x,y)+h/2);world.add(t);const c=new THREE.Mesh(new THREE.ConeGeometry(.8+rand()*1.6,2.2+rand()*3.2,7),leaves[i%3]);c.position.set(x,y,terrainZ(x,y)+h+1.1);world.add(c)}for(let i=0;i<bushN;i++){const b=new THREE.Mesh(new THREE.DodecahedronGeometry(.35+rand()*.65,0),leaves[(i+1)%3]);{const bx=(rand()-.5)*size,by=(rand()-.5)*size;b.position.set(bx,by,terrainZ(bx,by)+.4)}world.add(b)}}
-function addStreetLife(){const poleMat=mat(0x303a35,.6,.4),signMat=mat(0x6e2b24,.65,.12);for(let i=0;i<Math.min(110,roadAnchors.length);i+=2){const a=roadAnchors[i],side=i%4<2?1:-1,nx=-Math.sin(a.a),ny=Math.cos(a.a),x=a.x+nx*side*(a.w/2+2.2),y=a.y+ny*side*(a.w/2+2.2);const pole=new THREE.Mesh(new THREE.CylinderGeometry(.06,.08,4.5,6),poleMat);pole.rotation.x=Math.PI/2;pole.position.set(x,y,2.25);world.add(pole);const lamp=new THREE.Mesh(new THREE.BoxGeometry(.65,.22,.18),mat(0x49534e,.45,.45));lamp.position.set(x,y,4.45);world.add(lamp);if(i%6===0){const sign=new THREE.Mesh(new THREE.BoxGeometry(.7,.08,.7),signMat);sign.position.set(x+.35,y,2.25);world.add(sign)}}}
+function addVegetation(){
+  const size=span*1250,trMat=mat(0x4d3928,1,0),leafMats=[mat(0x344d32,1,0),mat(0x405b38,1,0),mat(0x50633e,1,0)];
+  const treeN=MOBILE?(HIGH_DEVICE?240:135):430,bushN=MOBILE?(HIGH_DEVICE?100:55):180,trunks=[],leafGroups=[[],[],[]],bushGroups=[[],[],[]];
+  for(let i=0;i<treeN;i++){
+    const x=(rand()-.5)*size,y=(rand()-.5)*size;if(Math.hypot(x,y)<15)continue;const h=3+rand()*7,z=terrainZ(x,y);
+    trunks.push({x,y,z:z+h/2,h});leafGroups[i%3].push({x,y,z:z+h+1.1,sx:.8+rand()*1.6,sy:.8+rand()*1.6,sz:2.2+rand()*3.2});
+  }
+  for(let i=0;i<bushN;i++){const x=(rand()-.5)*size,y=(rand()-.5)*size,s=.35+rand()*.65;bushGroups[(i+1)%3].push({x,y,z:terrainZ(x,y)+.4,s})}
+  const d=new THREE.Object3D();
+  if(trunks.length){const inst=new THREE.InstancedMesh(new THREE.CylinderGeometry(.16,.22,1,6),trMat,trunks.length);trunks.forEach((r,i)=>{d.position.set(r.x,r.y,r.z);d.rotation.set(Math.PI/2,0,0);d.scale.set(1,1,r.h);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)}
+  leafGroups.forEach((rows,k)=>{if(!rows.length)return;const inst=new THREE.InstancedMesh(new THREE.ConeGeometry(1,1,7),leafMats[k],rows.length);rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z);d.rotation.set(0,0,0);d.scale.set(r.sx,r.sy,r.sz);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)});
+  bushGroups.forEach((rows,k)=>{if(!rows.length)return;const inst=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1,0),leafMats[k],rows.length);rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z);d.rotation.set(0,0,0);d.scale.setScalar(r.s);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)});
+}
+function addStreetLife(){
+  const rows=[],signRows=[];for(let i=0;i<Math.min(110,roadAnchors.length);i+=2){const a=roadAnchors[i],side=i%4<2?1:-1,nx=-Math.sin(a.a),ny=Math.cos(a.a),x=a.x+nx*side*(a.w/2+2.2),y=a.y+ny*side*(a.w/2+2.2),z=terrainZ(x,y);rows.push({x,y,z});if(i%6===0)signRows.push({x:x+.35,y,z})}
+  const d=new THREE.Object3D();
+  if(rows.length){
+    const poles=new THREE.InstancedMesh(new THREE.CylinderGeometry(.07,.09,1,6),mat(0x303a35,.6,.4),rows.length);
+    const lamps=new THREE.InstancedMesh(UNIT_BOX,mat(0x49534e,.45,.45),rows.length);
+    rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z+2.25);d.rotation.set(Math.PI/2,0,0);d.scale.set(1,1,4.5);d.updateMatrix();poles.setMatrixAt(i,d.matrix);d.position.set(r.x,r.y,r.z+4.45);d.rotation.set(0,0,0);d.scale.set(.65,.22,.18);d.updateMatrix();lamps.setMatrixAt(i,d.matrix)});
+    poles.instanceMatrix.needsUpdate=lamps.instanceMatrix.needsUpdate=true;world.add(poles,lamps);
+  }
+  if(signRows.length){const signs=new THREE.InstancedMesh(UNIT_BOX,mat(0x6e2b24,.65,.12),signRows.length);signRows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z+2.25);d.rotation.set(0,0,0);d.scale.set(.7,.08,.7);d.updateMatrix();signs.setMatrixAt(i,d.matrix)});signs.instanceMatrix.needsUpdate=true;world.add(signs)}
+}
 function makeSmokeTexture(){
   const cv=document.createElement('canvas');cv.width=cv.height=64;const g=cv.getContext('2d'),r=g.createRadialGradient(32,32,3,32,32,31);
   r.addColorStop(0,'rgba(120,126,120,.72)');r.addColorStop(.45,'rgba(70,76,72,.42)');r.addColorStop(1,'rgba(20,24,22,0)');g.fillStyle=r;g.fillRect(0,0,64,64);
@@ -625,39 +656,51 @@ function updateAmbientDisasterFx(now){
 }
 
 function addAbandonment(){
-  const colors=[0x58473a,0x45514e,0x69433a,0x4c4d45];
-  for(let i=0;i<(MOBILE?24:50);i++){
+  const colors=[0x58473a,0x45514e,0x69433a,0x4c4d45],carGroups=[[],[],[],[]],cabRows=[];
+  const carN=MOBILE?24:50;
+  for(let i=0;i<carN;i++){
     const a=roadAnchors[i%Math.max(1,roadAnchors.length)]||{x:(rand()-.5)*400,y:(rand()-.5)*400,a:rand()*6.28,w:7};
-    const car=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(3.8,1.72,.72),mat(colors[i%colors.length],.82,.22));
-    body.position.z=.52;car.add(body);
-    const cab=new THREE.Mesh(new THREE.BoxGeometry(1.8,1.48,.66),mat(0x283536,.34,.3));cab.position.set(.15,0,1.12);car.add(cab);
-    car.position.set(a.x+(rand()-.5)*18,a.y+(rand()-.5)*18,.02);car.rotation.z=a.a+(rand()-.5)*.45;world.add(car);
-    const rr=2.05;solidRects.push({type:'car',minx:car.position.x-rr,maxx:car.position.x+rr,miny:car.position.y-1.12,maxy:car.position.y+1.12});
+    const x=a.x+(rand()-.5)*18,y=a.y+(rand()-.5)*18,ang=a.a+(rand()-.5)*.45,z=terrainZ(x,y);
+    carGroups[i%4].push({x,y,z,ang});cabRows.push({x,y,z,ang});
+    const rr=2.05;solidRects.push({type:'car',minx:x-rr,maxx:x+rr,miny:y-1.12,maxy:y+1.12});
   }
-  const coverMat=[mat(0x69513c,1,0),mat(0x565b57,.8,.12),mat(0x4a4038,.95,.02),mat(0x6c6657,.9,.04)];
-  for(let i=0;i<(MOBILE?70:130);i++){
+  const d=new THREE.Object3D();
+  carGroups.forEach((rows,k)=>{if(!rows.length)return;const inst=new THREE.InstancedMesh(UNIT_BOX,mat(colors[k],.82,.22),rows.length);rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z+.52);d.rotation.set(0,0,r.ang);d.scale.set(3.8,1.72,.72);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)});
+  if(cabRows.length){const inst=new THREE.InstancedMesh(UNIT_BOX,mat(0x283536,.34,.3),cabRows.length);cabRows.forEach((r,i)=>{const ox=Math.cos(r.ang)*.15,oy=Math.sin(r.ang)*.15;d.position.set(r.x+ox,r.y+oy,r.z+1.12);d.rotation.set(0,0,r.ang);d.scale.set(1.8,1.48,.66);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)}
+
+  const coverRows=[[],[],[],[]],coverN=MOBILE?70:130;
+  for(let i=0;i<coverN;i++){
     const a=roadAnchors[i%Math.max(1,roadAnchors.length)]||{x:(rand()-.5)*500,y:(rand()-.5)*500,a:rand()*6.28,w:7};
     const side=rand()<.5?-1:1,nx=-Math.sin(a.a),ny=Math.cos(a.a);
     const x=a.x+nx*side*(a.w/2+2+rand()*8)+(rand()-.5)*14,y=a.y+ny*side*(a.w/2+2+rand()*8)+(rand()-.5)*14;
-    if(blocked(x,y,.9))continue;
-    const kind=i%4;
-    const geom=kind===0?new THREE.BoxGeometry(1.25,.55,.85):kind===1?new THREE.CylinderGeometry(.34,.36,1.05,12):kind===2?new THREE.BoxGeometry(1.7,.45,.72):new THREE.BoxGeometry(.8,.8,1.45);
-    const cover=new THREE.Mesh(geom,coverMat[kind]);cover.position.set(x,y,kind===1?.52:kind===3?.72:.42);if(kind===1)cover.rotation.x=Math.PI/2;cover.rotation.z=rand()*Math.PI;cover.castShadow=cover.receiveShadow=true;world.add(cover);
-    solidRects.push({type:'cover',minx:x-.82,maxx:x+.82,miny:y-.65,maxy:y+.65});
+    if(blocked(x,y,.9))continue;const kind=i%4;coverRows[kind].push({x,y,z:terrainZ(x,y),ang:rand()*Math.PI});solidRects.push({type:'cover',minx:x-.82,maxx:x+.82,miny:y-.65,maxy:y+.65});
   }
+  const coverDefs=[
+    {g:new THREE.BoxGeometry(1.25,.55,.85),m:mat(0x69513c,1,0),z:.42},
+    {g:new THREE.CylinderGeometry(.34,.36,1.05,12),m:mat(0x565b57,.8,.12),z:.52,rx:Math.PI/2},
+    {g:new THREE.BoxGeometry(1.7,.45,.72),m:mat(0x4a4038,.95,.02),z:.42},
+    {g:new THREE.BoxGeometry(.8,.8,1.45),m:mat(0x6c6657,.9,.04),z:.72}
+  ];
+  coverRows.forEach((rows,k)=>{if(!rows.length)return;const def=coverDefs[k],inst=new THREE.InstancedMesh(def.g,def.m,rows.length);rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z+def.z);d.rotation.set(def.rx||0,0,r.ang);d.scale.set(1,1,1);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)});
+
+  const types=['ammo','medkit','armor','weapon','fuel','repair'],lootGroups=new Map(types.map(t=>[t,[]]));
   for(let i=0;i<44;i++){
     const a=roadAnchors[(i*3)%Math.max(1,roadAnchors.length)]||{x:(rand()-.5)*350,y:(rand()-.5)*350};
     const x=a.x+(rand()-.5)*22,y=a.y+(rand()-.5)*22;if(blocked(x,y,.45))continue;
-    const types=['ammo','medkit','armor','weapon','fuel','repair'],type=types[i%types.length];
-    const color=type==='ammo'?0xd1b05e:type==='medkit'?0xd85858:type==='armor'?0x5aa7c9:type==='fuel'?0xe0a13f:type==='repair'?0x90a4aa:0x73e1b2;
-    const mesh=new THREE.Mesh(type==='weapon'?new THREE.BoxGeometry(.9,.12,.12):type==='fuel'?new THREE.BoxGeometry(.38,.28,.58):new THREE.BoxGeometry(.34,.34,.22),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.25,roughness:.5}));
-    const lz=terrainZ(x,y)+.22;mesh.position.set(x,y,lz);mesh.rotation.z=rand()*Math.PI;world.add(mesh);
-    lootPickups.push({id:'loot-'+i,type,x,y,z:lz,space:'world',mesh,picked:false});
+    const type=types[i%types.length],lz=terrainZ(x,y)+.22;lootGroups.get(type).push({id:'loot-'+i,type,x,y,z:lz,ang:rand()*Math.PI});
   }
-  for(let i=0;i<(MOBILE?90:220);i++){
-    const d=new THREE.Mesh(new THREE.BoxGeometry(.15+rand()*.7,.15+rand()*.7,.08+rand()*.28),mat(0x51463b,1,.03));
-    {const dx=(rand()-.5)*span*900,dy=(rand()-.5)*span*900;d.position.set(dx,dy,terrainZ(dx,dy)+.08)}d.rotation.set(rand()*2,rand()*2,rand()*6);world.add(d);
+  const lootColor={ammo:0xd1b05e,medkit:0xd85858,armor:0x5aa7c9,weapon:0x73e1b2,fuel:0xe0a13f,repair:0x90a4aa};
+  for(const type of types){
+    const rows=lootGroups.get(type);if(!rows.length)continue;
+    const geom=type==='weapon'?new THREE.BoxGeometry(.9,.12,.12):type==='fuel'?new THREE.BoxGeometry(.38,.28,.58):new THREE.BoxGeometry(.34,.34,.22);
+    const color=lootColor[type],inst=new THREE.InstancedMesh(geom,new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.25,roughness:.5}),rows.length);
+    rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z);d.rotation.set(0,0,r.ang);d.scale.set(1,1,1);d.updateMatrix();inst.setMatrixAt(i,d.matrix);lootPickups.push({...r,space:'world',mesh:inst,instanceIndex:i})});
+    inst.instanceMatrix.needsUpdate=true;world.add(inst);
   }
+
+  const debrisN=MOBILE?90:220,debris=new THREE.InstancedMesh(UNIT_BOX,mat(0x51463b,1,.03),debrisN);
+  for(let i=0;i<debrisN;i++){const x=(rand()-.5)*span*900,y=(rand()-.5)*span*900;d.position.set(x,y,terrainZ(x,y)+.08);d.rotation.set(rand()*2,rand()*2,rand()*6);d.scale.set(.15+rand()*.7,.15+rand()*.7,.08+rand()*.28);d.updateMatrix();debris.setMatrixAt(i,d.matrix)}
+  debris.instanceMatrix.needsUpdate=true;world.add(debris);
 }
 function nearestLoot(){
   let best=null,dist=1.75;const wanted=interiorMode?'interior':'world';
@@ -672,7 +715,10 @@ function nearestVehicle(max=18){
   let best=null,dist=max;for(const v of vehicles){const d=Math.hypot(player.position.x-v.root.position.x,player.position.y-v.root.position.y);if(d<dist){dist=d;best=v}}return best;
 }
 function collectLoot(q){
-  if(!q||q.picked)return;q.picked=true;q.mesh.visible=false;lootCount++;$('loot').textContent=lootCount;
+  if(!q||q.picked)return;q.picked=true;
+  if(Number.isInteger(q.instanceIndex)&&q.mesh?.isInstancedMesh){const gone=new THREE.Matrix4().makeScale(0,0,0);q.mesh.setMatrixAt(q.instanceIndex,gone);q.mesh.instanceMatrix.needsUpdate=true}
+  else if(q.mesh)q.mesh.visible=false;
+  lootCount++;$('loot').textContent=lootCount;
   if(q.type==='ammo'){for(const w of WEAPONS)if(w.mag&&weaponState[w.key]?.owned)weaponState[w.key].reserve=Math.min(w.reserve*3,weaponState[w.key].reserve+Math.max(12,Math.floor(w.reserve*.35)));updateAmmo();toast('Ammo acquired')}
   else if(q.type==='medkit'){health=Math.min(100,health+35);$('health').textContent=Math.round(health);toast('Med kit acquired')}
   else if(q.type==='armor')toast('Armor plate acquired');
@@ -1143,7 +1189,7 @@ async function load(){
   await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
   updateAmmo();renderWeaponBar();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();
   loadText.textContent=`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · ${ziplineCount} ziplines · ${vehicleCount} vehicles · restored traversal active`;
-  window.BP_HORIZON_V2={ok:true,build:4331,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,prone:true,slide:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,interiorLoot:true,roofTraversal:true,drivableVehicles:true,vehicleFuelRepair:true,infectedPatrols:true,ambientDisasterFx:true,adaptivePerformanceGovernor:true};
+  window.BP_HORIZON_V2={ok:true,build:4331,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,prone:true,slide:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,interiorLoot:true,roofTraversal:true,drivableVehicles:true,vehicleFuelRepair:true,infectedPatrols:true,ambientDisasterFx:true,adaptivePerformanceGovernor:true,instancedWorldProps:true,instancedRoadSurfaces:true};
 }
 function animate(){
   requestAnimationFrame(animate);
