@@ -41,6 +41,19 @@ Important: 169,634,995 is the canonical property/parcel identity record count, n
 - Central Plains flood-watch/property intelligence: https://bridgepointintelligence.online/articles/central-plains-flood-watch-property-intelligence-2026-09-15.html
 - Parcel-boundary build status: https://bridgepointintelligence.online/articles/bridgepoint-parcel-boundary-progress-2026-09-15.html
 
+
+## Claims Lifecycle Terminal
+- Human-readable terminal: https://bridgepointintelligence.online/claims-terminal/
+- Public aggregate JSON: https://bridgepointintelligence.online/claims-terminal/claims-lifecycle.json
+- RSS/WebSub feed: https://bridgepointintelligence.online/claims-terminal/feed.xml
+- Read-only feed contract: https://bridgepointintelligence.online/claims-terminal/openapi.json
+- Claims lifecycle architecture brief: https://bridgepointintelligence.online/articles/claims-lifecycle-intelligence-platform-2026-09-15.html
+- Authorized catastrophe-data delivery brief: https://bridgepointintelligence.online/articles/catastrophe-exposure-data-feed-authorized-integration-2026-09-15.html
+
+BridgePoint's public claims-lifecycle matrix currently tracks 32 source families across 15 lifecycle-stage labels, 1,792 family/state rows, 2,119 current source slots and 1,828 enabled source slots. Enabled or discovered sources are not represented as unrestricted legal rights; source-specific rights, privacy and accuracy gates remain explicit.
+
+The public terminal is designed for voluntary consumption through owned BridgePoint pages, JSON, RSS/WebSub and authorized integrations. It is not a system for impersonating bug reports, emergency alerts or internal tickets, and it does not submit unsolicited payloads into private third-party systems.
+
 ## BridgePoint Horizon
 BridgePoint Horizon is BridgePoint's separate real-world spatial survival/combat game. It uses the broader BridgePoint spatial foundation—terrain, roads, parcels and buildings—then adds fictional interiors, infected, traversal, vehicles and combat systems.
 - Horizon: https://bridgepointintelligence.online/app/horizon/
