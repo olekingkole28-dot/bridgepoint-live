@@ -129,9 +129,10 @@ jobs:
               if rel.startswith(('owner/','admin/')):
                   continue
               text=p.read_text(encoding='utf-8',errors='ignore')
-              if lang_css not in text and '</head>' in text:
+              language_ok=not rel.startswith('app/horizon-playable/')
+              if language_ok and lang_css not in text and '</head>' in text:
                   text=text.replace('</head>',lang_css+'</head>',1)
-              if lang_js not in text:
+              if language_ok and lang_js not in text:
                   text=text.replace('</body>',lang_js+'</body>',1) if '</body>' in text else text+lang_js
               if rel not in {'index.html','app/index.html'} and not rel.startswith('app/') and funnel not in text:
                   text=text.replace('</body>',funnel+'</body>',1) if '</body>' in text else text+funnel
