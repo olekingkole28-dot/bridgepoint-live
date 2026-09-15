@@ -28,6 +28,10 @@ on:
       - 'sample/**'
       - 'owner/acquisition/**'
       - 'language-selector-v5200.css'
+      - 'llms-full.txt'
+      - 'llms.txt'
+      - 'sitemap.xml'
+      - 'robots.txt'
       - 'language-selector-v5200.js'
       - 'search-sitemap.xml'
       - 'bridgepoint-knowledge.jsonld'
@@ -102,6 +106,7 @@ jobs:
           cp rebuild-v5000/sw.js site/sw.js
           cp rebuild-v5000/404.html site/404.html
           cp rebuild-v5000/bridgepoint-mark.svg site/bridgepoint-mark.svg
+          cp robots.txt sitemap.xml llms.txt llms-full.txt site/
 
           # Funnel legacy public content to the current map and attach the language selector.
           python - <<'PY'
