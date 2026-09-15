@@ -17,6 +17,7 @@ on:
       - 'claims-terminal/**'
       - 'terminal/**'
       - 'integrity-index/**'
+      - 'settlement-lab/**'
       - 'articles/**'
       - 'articles/bridgepoint-facts.json'
       - 'current-map-entry.js'
@@ -80,7 +81,7 @@ jobs:
 
           # Keep only the current Intelligence workspace plus the current Horizon lobby and playable runtime.
           # Other historical /app/... URLs fall through the V5000 404 back to the live map.
-          rm -rf site/app site/discover site/search site/newsroom site/claims-terminal site/terminal site/integrity-index site/articles/auto site/founder-access site/for-roofers site/for-solar site/for-restoration site/for-public-adjusters site/for-property-managers site/sample site/founder site/answers site/press site/investors site/enterprise site/owner/acquisition
+          rm -rf site/app site/discover site/search site/newsroom site/claims-terminal site/terminal site/integrity-index site/settlement-lab site/articles/auto site/founder-access site/for-roofers site/for-solar site/for-restoration site/for-public-adjusters site/for-property-managers site/sample site/founder site/answers site/press site/investors site/enterprise site/owner/acquisition
           mkdir -p site/app site/articles
           cp -a discover site/discover
           if [ -d search ]; then cp -a search site/search; fi
@@ -89,6 +90,7 @@ jobs:
           cp -a claims-terminal site/claims-terminal
           cp -a terminal site/terminal
           cp -a integrity-index site/integrity-index
+          cp -a settlement-lab site/settlement-lab
           cp -a articles/auto site/articles/auto
           find articles -maxdepth 1 -type f -exec cp -f {} site/articles/ \;
           cp articles/bridgepoint-facts.json site/articles/bridgepoint-facts.json
@@ -237,6 +239,9 @@ jobs:
           test -s site/integrity-index/index.html
           test -s site/integrity-index/integrity.js
           test -s site/integrity-index/contract.json
+          test -s site/settlement-lab/index.html
+          test -s site/settlement-lab/settlement.js
+          test -s site/settlement-lab/contract.json
           grep -Fq '/current-map-entry.js?v=5100' site/discover/index.html
           test -s site/app/horizon-playable/v2-entry.html
           test -s site/app/horizon-playable/horizon-v2.js
@@ -283,6 +288,7 @@ jobs:
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/claims-terminal/?v5100=${q}" -o /tmp/claims-terminal.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/terminal/?v5100=${q}" -o /tmp/terminal.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/integrity-index/?v5100=${q}" -o /tmp/integrity-index.html
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/settlement-lab/?v5100=${q}" -o /tmp/settlement-lab.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/founder-access/?v5100=${q}" -o /tmp/founder.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/for-solar/?v5100=${q}" -o /tmp/solar.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sample/?v5100=${q}" -o /tmp/sample.html
@@ -294,6 +300,7 @@ jobs:
           test -s /tmp/claims-terminal.html
           test -s /tmp/terminal.html
           test -s /tmp/integrity-index.html
+          test -s /tmp/settlement-lab.html
           test -s /tmp/founder.html
           test -s /tmp/solar.html
           test -s /tmp/sample.html
@@ -304,6 +311,7 @@ jobs:
           grep -Fq 'Claims Lifecycle Terminal' /tmp/claims-terminal.html
           grep -Fq 'Institutional Terminal' /tmp/terminal.html
           grep -Fq 'BridgePoint Integrity Index' /tmp/integrity-index.html
+          grep -Fq 'BridgePoint Settlement Lab' /tmp/settlement-lab.html
           grep -Fq 'BRIDGEPOINT' /tmp/horizon.html
           grep -Fq 'current-map-entry.js?v=5100' /tmp/discover.html
           echo BRIDGEPOINT_V5100_COMBINED_SURFACES_PASS
