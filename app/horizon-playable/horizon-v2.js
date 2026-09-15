@@ -85,7 +85,7 @@ function loadAsset(url){
 function prepHumanoid(root,{infectedTint=false,variant=1}={}){
   root.traverse(o=>{
     if(!o.isMesh)return;
-    o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false;
+    o.castShadow=true;o.receiveShadow=true;o.frustumCulled=MOBILE;
     const mats=(Array.isArray(o.material)?o.material:[o.material]).filter(Boolean);
     if(mats.length){
       const out=mats.map(m=>{const n=m.clone();if(n.color){if(infectedTint)n.color.multiply(new THREE.Color(.42,.55,.38));else if(variant===2)n.color.multiply(new THREE.Color(.74,.78,.96))}n.roughness=Math.min(1,(n.roughness??.72)+.05);return n});
@@ -1044,9 +1044,13 @@ function updatePerfVisualBudget(){
     const on=i<maxFx&&d<(perfTier>=2?90:150);
     if(q.fire)q.fire.visible=on;if(q.smoke)q.smoke.visible=on;if(q.light)q.light.visible=on;
   });
-  const radius=perfSimRadius();
-  for(const z of infected)if(z.alive)z.g.visible=Math.hypot(z.g.position.x-player.position.x,z.g.position.y-player.position.y)<radius;
-  for(const b of combatants)if(b.alive)b.g.visible=b.friendly||Math.hypot(b.g.position.x-player.position.x,b.g.position.y-player.position.y)<radius;
+  const radius=perfSimRadius(),actorCap=[30,16,10,6][perfTier];
+  const rank=(arr)=>arr.filter(q=>q.alive).map(q=>({q,d:Math.hypot(q.g.position.x-player.position.x,q.g.position.y-player.position.y)})).sort((a,b)=>a.d-b.d);
+  const infectRank=rank(infected),combatRank=rank(combatants);
+  const visibleSet=(rows)=>new Set(rows.filter((x,i)=>x.d<24||(x.d<radius&&i<actorCap)).map(x=>x.q));
+  const vi=visibleSet(infectRank),vc=visibleSet(combatRank);
+  for(const z of infected)if(z.alive)z.g.visible=vi.has(z);
+  for(const b of combatants)if(b.alive)b.g.visible=vc.has(b);
 }
 function lowCostMaterial(m){
   if(!m||(!m.isMeshStandardMaterial&&!m.isMeshPhysicalMaterial))return m;
