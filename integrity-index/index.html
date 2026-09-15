@@ -32,13 +32,13 @@
 <article class="card"><h2>Separate the score from confidence</h2><p>A 78 with 0.92 confidence and a 78 with 0.18 confidence are not equivalent. BridgePoint keeps the index value, confidence, observed component count, source freshness and reason codes separate. If confidence is too low, the public value is withheld.</p></article>
 </section>
 
-<section class="card lookup"><h2>Inspect a BridgePoint property ID</h2><p>Use a BridgePoint canonical property UUID. This public preview returns the current evidence status and only returns a numeric BII if the publication gate passes.</p><form id="lookupForm"><input id="propertyId" placeholder="BridgePoint property UUID" autocomplete="off"><button type="submit">LOOK UP BII</button></form><div id="result" class="result" hidden></div></section>
+<section class="card lookup"><h2>Inspect a BridgePoint property ID</h2><p>Enter an exact street address or a BridgePoint canonical property UUID. The preview resolves the property and only returns a numeric BII if the publication gate passes.</p><form id="lookupForm"><input id="propertyId" placeholder="Exact street address or BridgePoint property UUID" autocomplete="off"><button type="submit">LOOK UP BII</button></form><div id="result" class="result" hidden></div></section>
 
 <section class="grid" style="margin-top:12px">
 <article class="card"><h2>Distribution strategy</h2><p>The score can become infrastructure through voluntary, documented integrations: BridgePoint’s own terminal, a public read API, partner APIs, QGIS/ArcGIS plugins, enterprise dashboards, and browser tools that users explicitly install. Third-party property portals should be integrated by permission or user-controlled extension behavior—not deceptive injection.</p></article>
 <article class="card"><h2>Financial / insurance use</h2><p>BridgePoint can support research, triage and portfolio context now. Any underwriting, pricing, lending or trading use that materially affects decisions needs calibration, validation, jurisdiction review, reason codes, drift monitoring and governance appropriate to that use.</p></article>
 </section>
 
-<div class="actions"><a class="btn" href="/terminal/">OPEN INSTITUTIONAL TERMINAL</a><a class="btn secondary" href="/claims-terminal/">CLAIMS LIFECYCLE TERMINAL</a><a class="btn secondary" href="/integrity-index/contract.json">MACHINE CONTRACT</a></div>
+<div class="actions"><a class="btn" href="/terminal/">OPEN INSTITUTIONAL TERMINAL</a><a class="btn secondary" href="/claims-terminal/">CLAIMS LIFECYCLE TERMINAL</a><a class="btn secondary" href="/integrity-index/contract.json">MACHINE CONTRACT</a><a class="btn secondary" href="/integrity-index/embed-example.html">EMBED BII BADGE</a></div>
 <footer>BridgePoint Integrity Index v0.1-shadow. Public numeric values are deliberately withheld when current evidence does not satisfy the publication gate. BII is informational and experimental until validation/calibration requirements are met.</footer>
 </main><script src="/integrity-index/integrity.js" defer></script><script src="/acquisition_tracker.js" defer></script></body></html>
