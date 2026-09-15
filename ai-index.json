@@ -553,7 +553,7 @@
     "Weather exposure is not proof of damage.",
     "Roof shell coverage is not source-backed material/pitch/shape coverage."
   ],
-  "updated_at": "2026-09-15T21:04:00Z",
+  "updated_at": "2026-09-15T21:09:00Z",
   "claims_lifecycle_terminal": {
     "name": "BridgePoint Claims Lifecycle Terminal",
     "url": "https://bridgepointintelligence.online/claims-terminal/",
@@ -714,7 +714,9 @@
       "Exposure feed is not proof of physical damage.",
       "Exposure feed is not a securities trading instruction.",
       "BII numeric values remain subject to the evidence/confidence publication gate."
-    ]
+    ],
+    "telemetry_endpoint": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_distribution_metrics_v5207",
+    "partner_delivery_contract": "https://bridgepointintelligence.online/distribution/partner-delivery-contract.json"
   },
   "public_evidence_audit": {
     "name": "BridgePoint Public Evidence Audit",
@@ -742,7 +744,8 @@
       "no competitor-latency claim",
       "no damage determination",
       "no anonymous third-party system injection"
-    ]
+    ],
+    "proof_packet_example": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-proof-packet-v5205?event_id=8496f278-19ed-4b3e-ad35-0c03c4b443b0"
   },
   "portfolio_evidence_lab": {
     "name": "BridgePoint Portfolio Evidence Lab",
