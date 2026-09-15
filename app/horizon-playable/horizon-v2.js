@@ -531,7 +531,13 @@ function updateContext(){
     const top=(activeInterior.floors-1)*activeInterior.floorH;if(player.position.z>top-.3&&Math.abs(player.position.x-activeInterior.stairX)<1.5){contextTarget={type:'roof',building:activeInterior.entry};btn.hidden=false;btn.textContent='ROOF';return}
     btn.hidden=true;return;
   }
-  for(const q of interactables){const dz=Math.abs((q.z??player.position.z)-player.position.z);if(dz>2.4)continue;const d=Math.hypot(player.position.x-q.x,player.position.y-q.y);if(d<best){best=d;contextTarget=q}}
+  for(const q of interactables){
+    const qx=q.type==='vehicle'&&q.vehicle?.root?q.vehicle.root.position.x:q.x;
+    const qy=q.type==='vehicle'&&q.vehicle?.root?q.vehicle.root.position.y:q.y;
+    const qz=q.type==='vehicle'&&q.vehicle?.root?q.vehicle.root.position.z:(q.z??player.position.z);
+    const dz=Math.abs(qz-player.position.z);if(dz>2.4)continue;const d=Math.hypot(player.position.x-qx,player.position.y-qy);
+    if(d<best){best=d;contextTarget=q}
+  }
   if(contextTarget){btn.hidden=false;btn.textContent=contextTarget.label||'USE'}else btn.hidden=true;
 }
 function contextUse(){
@@ -540,6 +546,37 @@ function contextUse(){
 
 function addVegetation(){const size=span*1250,tr=mat(0x4d3928,1,0),leaves=[mat(0x344d32,1,0),mat(0x405b38,1,0),mat(0x50633e,1,0)],treeN=MOBILE?(HIGH_DEVICE?240:135):430,bushN=MOBILE?(HIGH_DEVICE?100:55):180;for(let i=0;i<treeN;i++){const x=(rand()-.5)*size,y=(rand()-.5)*size;if(Math.hypot(x,y)<15)continue;const h=3+rand()*7,t=new THREE.Mesh(new THREE.CylinderGeometry(.1,.22,h,6),tr);t.rotation.x=Math.PI/2;t.position.set(x,y,terrainZ(x,y)+h/2);world.add(t);const c=new THREE.Mesh(new THREE.ConeGeometry(.8+rand()*1.6,2.2+rand()*3.2,7),leaves[i%3]);c.position.set(x,y,terrainZ(x,y)+h+1.1);world.add(c)}for(let i=0;i<bushN;i++){const b=new THREE.Mesh(new THREE.DodecahedronGeometry(.35+rand()*.65,0),leaves[(i+1)%3]);{const bx=(rand()-.5)*size,by=(rand()-.5)*size;b.position.set(bx,by,terrainZ(bx,by)+.4)}world.add(b)}}
 function addStreetLife(){const poleMat=mat(0x303a35,.6,.4),signMat=mat(0x6e2b24,.65,.12);for(let i=0;i<Math.min(110,roadAnchors.length);i+=2){const a=roadAnchors[i],side=i%4<2?1:-1,nx=-Math.sin(a.a),ny=Math.cos(a.a),x=a.x+nx*side*(a.w/2+2.2),y=a.y+ny*side*(a.w/2+2.2);const pole=new THREE.Mesh(new THREE.CylinderGeometry(.06,.08,4.5,6),poleMat);pole.rotation.x=Math.PI/2;pole.position.set(x,y,2.25);world.add(pole);const lamp=new THREE.Mesh(new THREE.BoxGeometry(.65,.22,.18),mat(0x49534e,.45,.45));lamp.position.set(x,y,4.45);world.add(lamp);if(i%6===0){const sign=new THREE.Mesh(new THREE.BoxGeometry(.7,.08,.7),signMat);sign.position.set(x+.35,y,2.25);world.add(sign)}}}
+function makeSmokeTexture(){
+  const cv=document.createElement('canvas');cv.width=cv.height=64;const g=cv.getContext('2d'),r=g.createRadialGradient(32,32,3,32,32,31);
+  r.addColorStop(0,'rgba(120,126,120,.72)');r.addColorStop(.45,'rgba(70,76,72,.42)');r.addColorStop(1,'rgba(20,24,22,0)');g.fillStyle=r;g.fillRect(0,0,64,64);
+  return new THREE.CanvasTexture(cv);
+}
+const SMOKE_TEX=makeSmokeTexture();
+function addAmbientDisasterFx(){
+  const count=MOBILE?(HIGH_DEVICE?5:3):9;
+  for(let i=0;i<count;i++){
+    const a=roadAnchors[(i*23+7)%Math.max(1,roadAnchors.length)]||{x:(rand()-.5)*250,y:(rand()-.5)*250};
+    const x=a.x+(rand()-.5)*18,y=a.y+(rand()-.5)*18,z=terrainZ(x,y);
+    const light=new THREE.PointLight(0xff6b2a,MOBILE?4:7,10,2);light.position.set(x,y,z+1.1);world.add(light);
+    const fire=new THREE.Mesh(new THREE.ConeGeometry(.32+.18*rand(),1.1+.6*rand(),8),new THREE.MeshBasicMaterial({color:0xff6a2c,transparent:true,opacity:.82}));
+    fire.position.set(x,y,z+.55);world.add(fire);
+    const smoke=new THREE.Sprite(new THREE.SpriteMaterial({map:SMOKE_TEX,color:0x59615d,transparent:true,opacity:.52,depthWrite:false}));
+    smoke.position.set(x,y,z+2.1);smoke.scale.set(2.4,3.4,1);world.add(smoke);
+    ambientFx.push({fire,smoke,light,phase:rand()*6.28,baseZ:z});
+  }
+  return ambientFx.length;
+}
+function updateAmbientDisasterFx(now){
+  if(interiorMode)return;
+  const t=now*.001;
+  for(const q of ambientFx){
+    q.fire.scale.y=.82+.25*Math.sin(t*7+q.phase);q.fire.rotation.z=t*.35+q.phase;
+    q.light.intensity=(MOBILE?3.2:5.5)+(1.4*Math.sin(t*11+q.phase));
+    q.smoke.position.z=q.baseZ+2.0+(Math.sin(t*.7+q.phase)+1)*.7;q.smoke.material.opacity=.38+.16*Math.sin(t*.8+q.phase);
+    q.smoke.scale.setScalar(2.4+.45*Math.sin(t*.6+q.phase));
+  }
+}
+
 function addAbandonment(){
   const colors=[0x58473a,0x45514e,0x69433a,0x4c4d45];
   for(let i=0;i<(MOBILE?24:50);i++){
@@ -730,7 +767,7 @@ async function addSurvivor(){
 }
 const flashlight=new THREE.SpotLight(0xfff0ca,0,38,.42,.55,1.5);camera.add(flashlight);flashlight.target.position.set(0,0,-4);camera.add(flashlight.target);scene.add(camera);
 function nearest(){let best=null,dist=4.1;for(const q of interactables){const d=Math.hypot(player.position.x-q.x,player.position.y-q.y);if(d<dist){dist=d;best=q}}return best}
-function use(){toast('Loot is automatic now — stand over an item to pick it up')}
+function use(){if(contextTarget)contextUse();else toast('Stand near a door, vehicle or zipline to interact')}
 function reload(){
   const w=activeWeapon(),st=weaponState[w.key];if(!w.mag||reloading||st.mag>=w.mag||st.reserve<=0)return;
   reloading=true;toast('Reloading '+w.name);tone(190,.035,.02,'triangle');
@@ -743,7 +780,7 @@ async function recordKill(victimName,headshot=false){
   rpc('bridgepoint_horizon_record_kill_v4310',{
     p_host_player_id:playerId,p_host_secret:playerSecret,p_match_id:matchId,
     p_event_type:'INFECTED_KILL',p_killer_player_id:playerId,p_victim_player_id:null,
-    p_weapon_key:activeWeapon().key,p_headshot:headshot,p_distance_m:null,p_metadata:{mode,client_build:4320}
+    p_weapon_key:activeWeapon().key,p_headshot:headshot,p_distance_m:null,p_metadata:{mode,client_build:4330}
   }).catch(()=>{});
 }
 function shootOnce(){
@@ -990,11 +1027,11 @@ async function load(){
   $('zone').textContent=(data?.resolved_jurisdiction?.state||stateCode)+' · '+(data?.resolved_jurisdiction?.name||data?.resolved_jurisdiction?.label||'WORLD CELL');
   addSky();addGround();
   const roads=addRoads(),parcels=addParcels(),water=addWater(),buildings=addBuildings(),buildingParts=addBuildingParts();
-  addVegetation();addStreetLife();addAbandonment();
+  addVegetation();addStreetLife();addAbandonment();const ziplineCount=buildZiplines(),vehicleCount=spawnVehicles(),disasterFx=addAmbientDisasterFx();
   await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
-  updateAmmo();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);
-  loadText.textContent=`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · playable live twin active`;
-  window.BP_HORIZON_V2={ok:true,build:4320,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true};
+  updateAmmo();renderWeaponBar();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();
+  loadText.textContent=`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · ${ziplineCount} ziplines · ${vehicleCount} vehicles · restored traversal active`;
+  window.BP_HORIZON_V2={ok:true,build:4330,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,roofTraversal:true,drivableVehicles:true,infectedPatrols:true,ambientDisasterFx:true};
 }
 function animate(){
   requestAnimationFrame(animate);
@@ -1005,7 +1042,7 @@ function animate(){
   }else{
     if(mode==='TDM')updateCombatants(dt,now);else updateInfected(dt,now);
   }
-  updateWeatherFx(dt,now);updateWorldLight(now);renderer.render(scene,camera);
+  updateWeatherFx(dt,now);updateAmbientDisasterFx(now);updateWorldLight(now);if((frames%6)===0)renderMinimap();renderer.render(scene,camera);
   frames++;if(now-fpsT>1200){
     const fps=Math.round(frames*1000/(now-fpsT));lastMeasuredFps=fps;$('fps').textContent=fps+' FPS';
     const floor=MOBILE?.58:.75,ceiling=Math.min(devicePixelRatio||1,HIGH_DEVICE?1.25:(MOBILE?.88:1.05));
@@ -1027,6 +1064,12 @@ $('aimBtn').addEventListener('click',()=>{aiming=!aiming;sprint=false;$('aimBtn'
 const shootOn=()=>{shooting=true;$('shootBtn').classList.add('active');shootOnce()},shootOff=()=>{shooting=false;$('shootBtn').classList.remove('active')};
 $('shootBtn').addEventListener('pointerdown',shootOn);$('shootBtn').addEventListener('pointerup',shootOff);$('shootBtn').addEventListener('pointercancel',shootOff);$('shootBtn').addEventListener('lostpointercapture',shootOff);
 $('buildBtn').addEventListener('click',buildCover);
+$('contextBtn')?.addEventListener('click',contextUse);
+$('viewBtn')?.addEventListener('click',cycleCameraMode);
+$('crouchBtn')?.addEventListener('click',toggleCrouch);
+$('jumpBtn')?.addEventListener('click',jumpOrVault);
+$('weaponBtn')?.addEventListener('click',cycleWeapon);
+$('dropBtn')?.addEventListener('click',dropActiveWeapon);
 $('skipKillcam').addEventListener('click',finishDeathFlow);
 const keys={};
 addEventListener('keydown',e=>{
@@ -1035,11 +1078,17 @@ addEventListener('keydown',e=>{
   if(e.code==='KeyR')reload();
   if(e.code==='KeyB')buildCover();
   if(e.code==='KeyT')flash=!flash;
-  if(e.code==='Space'&&dead)finishDeathFlow();
+  if(e.code==='KeyV')cycleCameraMode();
+  if(e.code==='KeyC')toggleCrouch();
+  if(e.code==='KeyF'||e.code==='KeyE')contextUse();
+  if(e.code==='KeyX')dropActiveWeapon();
+  if(e.code==='KeyG')cycleWeapon();
+  if(/^Digit[1-5]$/.test(e.code))equipWeaponIndex(Number(e.code.slice(-1))-1);
+  if(e.code==='Space'){if(dead)finishDeathFlow();else jumpOrVault();e.preventDefault()}
 });
 addEventListener('keyup',e=>keys[e.code]=false);
 renderer.domElement.addEventListener('pointerdown',e=>{if(e.button===0&&e.pointerType==='mouse')shootOn()});
-renderer.domElement.addEventListener('pointerup',e=>{if(e.button===0&&e.pointerType==='mouse')shootOff()});
+renderer.domElement.addEventListener('pointerup',e=>{if(e.button===0&&e.pointerType==='mouse')shootOff()});renderer.domElement.addEventListener('wheel',e=>{cycleWeapon();e.preventDefault()},{passive:false});
 setInterval(()=>{
   keyMoveX=(keys.KeyD?1:0)-(keys.KeyA?1:0);keyMoveY=(keys.KeyW?1:0)-(keys.KeyS?1:0);
   moveX=Math.max(-1,Math.min(1,touchMoveX+keyMoveX));moveY=Math.max(-1,Math.min(1,touchMoveY+keyMoveY));
