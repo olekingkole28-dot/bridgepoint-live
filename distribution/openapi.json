@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "BridgePoint Public Distribution API",
-    "version": "5202",
+    "version": "5204",
     "description": "Read-only public discovery surfaces for BII, property resolution and event-exposure research context. No endpoint authorizes financial execution."
   },
   "servers": [
@@ -96,12 +96,105 @@
           }
         }
       }
+    },
+    "/bridgepoint_public_audit_status_v5203": {
+      "post": {
+        "summary": "Read BridgePoint observational audit benchmark status",
+        "responses": {
+          "200": {
+            "description": "24-hour source-to-BridgePoint latency summary"
+          }
+        }
+      }
+    },
+    "/bridgepoint_public_latency_ledger_v5203": {
+      "post": {
+        "summary": "Read source-linked hazard latency ledger",
+        "responses": {
+          "200": {
+            "description": "Timestamped hazard observations with measured source-to-BridgePoint latency"
+          }
+        }
+      }
+    },
+    "/bridgepoint_public_exposure_evidence_ledger_v5203": {
+      "post": {
+        "summary": "Read property exposure evidence for one event",
+        "responses": {
+          "200": {
+            "description": "Event provenance and property exposure/match records"
+          }
+        }
+      }
+    },
+    "/bridgepoint_public_portfolio_evidence_v5204": {
+      "post": {
+        "summary": "Audit a user-supplied property set against event exposure evidence",
+        "responses": {
+          "200": {
+            "description": "Portfolio event/exposure summary without security mapping"
+          }
+        }
+      }
+    },
+    "/bridgepoint-public-audit-export-v5203": {
+      "get": {
+        "summary": "Export BridgePoint public audit as JSON or CSV",
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "status",
+                "latency",
+                "exposure"
+              ]
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ]
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "maximum": 1000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit export"
+          }
+        }
+      }
     }
   },
   "x-bridgepoint-rules": [
     "Exposure is not proof of physical damage.",
     "BII is not a survival probability.",
     "Public exposure feeds are research/context only and not trading instructions.",
-    "No public distribution endpoint moves money, places trades or approves/denies claims."
+    "No public distribution endpoint moves money, places trades or approves/denies claims.",
+    "Public audit measures BridgePoint's own source-to-first-seen latency; it does not claim competitor latency.",
+    "Portfolio evidence requires a caller-supplied property set and performs no security/ticker mapping."
   ]
 }
