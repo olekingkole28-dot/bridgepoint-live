@@ -1085,11 +1085,12 @@ const shootOn=()=>{shooting=true;$('shootBtn').classList.add('active');shootOnce
 $('shootBtn').addEventListener('pointerdown',shootOn);$('shootBtn').addEventListener('pointerup',shootOff);$('shootBtn').addEventListener('pointercancel',shootOff);$('shootBtn').addEventListener('lostpointercapture',shootOff);
 $('buildBtn').addEventListener('click',buildCover);
 $('contextBtn')?.addEventListener('click',contextUse);
-$('viewBtn')?.addEventListener('click',cycleCameraMode);
-$('crouchBtn')?.addEventListener('click',toggleCrouch);
-$('jumpBtn')?.addEventListener('click',jumpOrVault);
-$('weaponBtn')?.addEventListener('click',cycleWeapon);
-$('dropBtn')?.addEventListener('click',dropActiveWeapon);
+$('utilityToggle')?.addEventListener('click',()=>{$('utilityRail')?.classList.toggle('open')});
+$('viewBtn')?.addEventListener('click',()=>{cycleCameraMode();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
+$('crouchBtn')?.addEventListener('click',()=>{toggleCrouch();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
+$('jumpBtn')?.addEventListener('click',()=>{jumpOrVault();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
+$('weaponBtn')?.addEventListener('click',()=>{cycleWeapon();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
+$('dropBtn')?.addEventListener('click',()=>{dropActiveWeapon();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
 $('skipKillcam').addEventListener('click',finishDeathFlow);
 const keys={};
 addEventListener('keydown',e=>{
