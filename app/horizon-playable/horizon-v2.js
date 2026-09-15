@@ -26,7 +26,7 @@ const camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,.08,2800);cam
 const renderer=new THREE.WebGLRenderer({antialias:HIGH_DEVICE,powerPreference:'high-performance',stencil:false,depth:true});
 renderer.setPixelRatio(renderScale);renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
 renderer.shadowMap.enabled=HIGH_DEVICE;renderer.shadowMap.type=THREE.PCFSoftShadowMap;root.appendChild(renderer.domElement);
-const world=new THREE.Group();scene.add(world);const exteriorDetailGroup=new THREE.Group();world.add(exteriorDetailGroup);const mapLineGroup=new THREE.Group();world.add(mapLineGroup);const interiorGroup=new THREE.Group();interiorGroup.visible=false;scene.add(interiorGroup);
+const world=new THREE.Group();scene.add(world);const exteriorDetailGroup=new THREE.Group();world.add(exteriorDetailGroup);const mapLineGroup=new THREE.Group();world.add(mapLineGroup);const ambientDetailGroup=new THREE.Group();world.add(ambientDetailGroup);const interiorGroup=new THREE.Group();interiorGroup.visible=false;scene.add(interiorGroup);
 const actorProxyGroup=new THREE.Group();world.add(actorProxyGroup);
 const PROXY_MAX=32,PROXY_GEOM=new THREE.BoxGeometry(.52,.52,1.62);
 const makeProxy=(color)=>{const m=new THREE.InstancedMesh(PROXY_GEOM,new THREE.MeshBasicMaterial({color}),PROXY_MAX);m.count=0;m.visible=false;m.frustumCulled=true;m.userData.perfProxy=true;actorProxyGroup.add(m);return m};
@@ -573,7 +573,7 @@ function updateZipline(dt){
 }
 function makeVehicle(a,i){
   const g=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(3.9,1.75,.72),mat(i%2?0x4d5652:0x65483d,.74,.25)),cab=new THREE.Mesh(new THREE.BoxGeometry(1.9,1.5,.7),mat(0x263438,.28,.35));
-  body.position.z=.52;cab.position.set(.15,0,1.13);g.add(body,cab);g.position.set(a.x,a.y,terrainZ(a.x,a.y)+.02);g.rotation.z=a.a;world.add(g);
+  body.position.z=.52;cab.position.set(.15,0,1.13);cab.userData.vehicleCab=true;g.add(body,cab);g.position.set(a.x,a.y,terrainZ(a.x,a.y)+.02);g.rotation.z=a.a;world.add(g);
   const v={root:g,x:a.x,y:a.y,heading:a.a,speed:0,maxSpeed:i%3===0?22:17,fuel:68+rand()*32,condition:72+rand()*28,type:i%3===0?'sport':'pickup',warnFuel:false,warnCondition:false};vehicles.push(v);interactables.push({type:'vehicle',x:a.x,y:a.y,z:g.position.z,label:'DRIVE',vehicle:v});return v;
 }
 function spawnVehicles(){for(let i=0;i<Math.min(MOBILE?3:6,roadAnchors.length);i++){const a=roadAnchors[(i*17+9)%roadAnchors.length];if(a)makeVehicle(a,i)}return vehicles.length}
@@ -619,9 +619,9 @@ function addVegetation(){
   }
   for(let i=0;i<bushN;i++){const x=(rand()-.5)*size,y=(rand()-.5)*size,s=.35+rand()*.65;bushGroups[(i+1)%3].push({x,y,z:terrainZ(x,y)+.4,s})}
   const d=new THREE.Object3D();
-  if(trunks.length){const inst=new THREE.InstancedMesh(new THREE.CylinderGeometry(.16,.22,1,6),trMat,trunks.length);trunks.forEach((r,i)=>{d.position.set(r.x,r.y,r.z);d.rotation.set(Math.PI/2,0,0);d.scale.set(1,1,r.h);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)}
-  leafGroups.forEach((rows,k)=>{if(!rows.length)return;const inst=new THREE.InstancedMesh(new THREE.ConeGeometry(1,1,7),leafMats[k],rows.length);rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z);d.rotation.set(0,0,0);d.scale.set(r.sx,r.sy,r.sz);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)});
-  bushGroups.forEach((rows,k)=>{if(!rows.length)return;const inst=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1,0),leafMats[k],rows.length);rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z);d.rotation.set(0,0,0);d.scale.setScalar(r.s);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)});
+  if(trunks.length){const inst=new THREE.InstancedMesh(new THREE.CylinderGeometry(.16,.22,1,6),trMat,trunks.length);trunks.forEach((r,i)=>{d.position.set(r.x,r.y,r.z);d.rotation.set(Math.PI/2,0,0);d.scale.set(1,1,r.h);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;ambientDetailGroup.add(inst)}
+  leafGroups.forEach((rows,k)=>{if(!rows.length)return;const inst=new THREE.InstancedMesh(new THREE.ConeGeometry(1,1,7),leafMats[k],rows.length);rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z);d.rotation.set(0,0,0);d.scale.set(r.sx,r.sy,r.sz);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;ambientDetailGroup.add(inst)});
+  bushGroups.forEach((rows,k)=>{if(!rows.length)return;const inst=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1,0),leafMats[k],rows.length);rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z);d.rotation.set(0,0,0);d.scale.setScalar(r.s);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;ambientDetailGroup.add(inst)});
 }
 function addStreetLife(){
   const rows=[],signRows=[];for(let i=0;i<Math.min(110,roadAnchors.length);i+=2){const a=roadAnchors[i],side=i%4<2?1:-1,nx=-Math.sin(a.a),ny=Math.cos(a.a),x=a.x+nx*side*(a.w/2+2.2),y=a.y+ny*side*(a.w/2+2.2),z=terrainZ(x,y);rows.push({x,y,z});if(i%6===0)signRows.push({x:x+.35,y,z})}
@@ -630,9 +630,9 @@ function addStreetLife(){
     const poles=new THREE.InstancedMesh(new THREE.CylinderGeometry(.07,.09,1,6),mat(0x303a35,.6,.4),rows.length);
     const lamps=new THREE.InstancedMesh(UNIT_BOX,mat(0x49534e,.45,.45),rows.length);
     rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z+2.25);d.rotation.set(Math.PI/2,0,0);d.scale.set(1,1,4.5);d.updateMatrix();poles.setMatrixAt(i,d.matrix);d.position.set(r.x,r.y,r.z+4.45);d.rotation.set(0,0,0);d.scale.set(.65,.22,.18);d.updateMatrix();lamps.setMatrixAt(i,d.matrix)});
-    poles.instanceMatrix.needsUpdate=lamps.instanceMatrix.needsUpdate=true;world.add(poles,lamps);
+    poles.instanceMatrix.needsUpdate=lamps.instanceMatrix.needsUpdate=true;ambientDetailGroup.add(poles,lamps);
   }
-  if(signRows.length){const signs=new THREE.InstancedMesh(UNIT_BOX,mat(0x6e2b24,.65,.12),signRows.length);signRows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z+2.25);d.rotation.set(0,0,0);d.scale.set(.7,.08,.7);d.updateMatrix();signs.setMatrixAt(i,d.matrix)});signs.instanceMatrix.needsUpdate=true;world.add(signs)}
+  if(signRows.length){const signs=new THREE.InstancedMesh(UNIT_BOX,mat(0x6e2b24,.65,.12),signRows.length);signRows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z+2.25);d.rotation.set(0,0,0);d.scale.set(.7,.08,.7);d.updateMatrix();signs.setMatrixAt(i,d.matrix)});signs.instanceMatrix.needsUpdate=true;ambientDetailGroup.add(signs)}
 }
 function makeSmokeTexture(){
   const cv=document.createElement('canvas');cv.width=cv.height=64;const g=cv.getContext('2d'),r=g.createRadialGradient(32,32,3,32,32,31);
@@ -675,8 +675,8 @@ function addAbandonment(){
     const rr=2.05;solidRects.push({type:'car',minx:x-rr,maxx:x+rr,miny:y-1.12,maxy:y+1.12});
   }
   const d=new THREE.Object3D();
-  carGroups.forEach((rows,k)=>{if(!rows.length)return;const inst=new THREE.InstancedMesh(UNIT_BOX,mat(colors[k],.82,.22),rows.length);rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z+.52);d.rotation.set(0,0,r.ang);d.scale.set(3.8,1.72,.72);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)});
-  if(cabRows.length){const inst=new THREE.InstancedMesh(UNIT_BOX,mat(0x283536,.34,.3),cabRows.length);cabRows.forEach((r,i)=>{const ox=Math.cos(r.ang)*.15,oy=Math.sin(r.ang)*.15;d.position.set(r.x+ox,r.y+oy,r.z+1.12);d.rotation.set(0,0,r.ang);d.scale.set(1.8,1.48,.66);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)}
+  carGroups.forEach((rows,k)=>{if(!rows.length)return;const inst=new THREE.InstancedMesh(UNIT_BOX,mat(colors[k],.82,.22),rows.length);rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z+.52);d.rotation.set(0,0,r.ang);d.scale.set(3.8,1.72,.72);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;ambientDetailGroup.add(inst)});
+  if(cabRows.length){const inst=new THREE.InstancedMesh(UNIT_BOX,mat(0x283536,.34,.3),cabRows.length);cabRows.forEach((r,i)=>{const ox=Math.cos(r.ang)*.15,oy=Math.sin(r.ang)*.15;d.position.set(r.x+ox,r.y+oy,r.z+1.12);d.rotation.set(0,0,r.ang);d.scale.set(1.8,1.48,.66);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;ambientDetailGroup.add(inst)}
 
   const coverRows=[[],[],[],[]],coverN=MOBILE?70:130;
   for(let i=0;i<coverN;i++){
@@ -691,7 +691,7 @@ function addAbandonment(){
     {g:new THREE.BoxGeometry(1.7,.45,.72),m:mat(0x4a4038,.95,.02),z:.42},
     {g:new THREE.BoxGeometry(.8,.8,1.45),m:mat(0x6c6657,.9,.04),z:.72}
   ];
-  coverRows.forEach((rows,k)=>{if(!rows.length)return;const def=coverDefs[k],inst=new THREE.InstancedMesh(def.g,def.m,rows.length);rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z+def.z);d.rotation.set(def.rx||0,0,r.ang);d.scale.set(1,1,1);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)});
+  coverRows.forEach((rows,k)=>{if(!rows.length)return;const def=coverDefs[k],inst=new THREE.InstancedMesh(def.g,def.m,rows.length);rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z+def.z);d.rotation.set(def.rx||0,0,r.ang);d.scale.set(1,1,1);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;ambientDetailGroup.add(inst)});
 
   const types=['ammo','medkit','armor','weapon','fuel','repair'],lootGroups=new Map(types.map(t=>[t,[]]));
   for(let i=0;i<44;i++){
@@ -705,12 +705,12 @@ function addAbandonment(){
     const geom=type==='weapon'?new THREE.BoxGeometry(.9,.12,.12):type==='fuel'?new THREE.BoxGeometry(.38,.28,.58):new THREE.BoxGeometry(.34,.34,.22);
     const color=lootColor[type],inst=new THREE.InstancedMesh(geom,new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.25,roughness:.5}),rows.length);
     rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z);d.rotation.set(0,0,r.ang);d.scale.set(1,1,1);d.updateMatrix();inst.setMatrixAt(i,d.matrix);lootPickups.push({...r,space:'world',mesh:inst,instanceIndex:i})});
-    inst.instanceMatrix.needsUpdate=true;world.add(inst);
+    inst.instanceMatrix.needsUpdate=true;ambientDetailGroup.add(inst);
   }
 
   const debrisN=MOBILE?90:220,debris=new THREE.InstancedMesh(UNIT_BOX,mat(0x51463b,1,.03),debrisN);
   for(let i=0;i<debrisN;i++){const x=(rand()-.5)*span*900,y=(rand()-.5)*span*900;d.position.set(x,y,terrainZ(x,y)+.08);d.rotation.set(rand()*2,rand()*2,rand()*6);d.scale.set(.15+rand()*.7,.15+rand()*.7,.08+rand()*.28);d.updateMatrix();debris.setMatrixAt(i,d.matrix)}
-  debris.instanceMatrix.needsUpdate=true;world.add(debris);
+  debris.instanceMatrix.needsUpdate=true;ambientDetailGroup.add(debris);
 }
 function nearestLoot(){
   let best=null,dist=1.75;const wanted=interiorMode?'interior':'world';
@@ -1057,7 +1057,7 @@ function updateActorProxies(){
   fillActorProxy(infectedProxy,infected.filter(q=>q.alive&&!q.g.visible));
 }
 function updatePerfVisualBudget(){
-  const maxFx=[ambientFx.length,Math.min(6,ambientFx.length),Math.min(3,ambientFx.length),Math.min(2,ambientFx.length)][perfTier];
+  const maxFx=[ambientFx.length,Math.min(6,ambientFx.length),Math.min(2,ambientFx.length),0][perfTier];
   ambientFx.forEach((q,i)=>{
     const d=Math.hypot((q.fire?.position.x||0)-player.position.x,(q.fire?.position.y||0)-player.position.y);
     const on=i<maxFx&&d<(perfTier>=2?90:150);
@@ -1084,6 +1084,8 @@ function updatePerfVisualBudget(){
   };
   for(const z of infected)if(z.alive)tuneActor(z,vi.has(z),'infected');
   for(const b of combatants)if(b.alive)tuneActor(b,vc.has(b),b.friendly?'friendly':'enemy');
+  ambientDetailGroup.visible=perfTier<3;
+  for(const v of vehicles)for(const ch of v.root.children)if(ch.userData?.vehicleCab)ch.visible=perfTier<3;
   updateActorProxies();
 }
 function lowCostMaterial(m){
@@ -1141,7 +1143,7 @@ function updatePerformanceGovernor(rawDt,now){
     pixel_ratio:Number(renderScale.toFixed(2)),shadows:renderer.shadowMap.enabled,sim_radius_m:perfSimRadius(),
     draw_calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,lines:renderer.info.render.lines,points:renderer.info.render.points,
     programs:renderer.info.programs?.length||0,
-    exterior_detail_visible:exteriorDetailGroup.visible,map_lines_visible:mapLineGroup.visible,proxy_actors:allyProxy.count+enemyProxy.count+infectedProxy.count
+    exterior_detail_visible:exteriorDetailGroup.visible,map_lines_visible:mapLineGroup.visible,ambient_detail_visible:ambientDetailGroup.visible,proxy_actors:allyProxy.count+enemyProxy.count+infectedProxy.count
   };
 }
 function updateWeatherFx(dt,now){
