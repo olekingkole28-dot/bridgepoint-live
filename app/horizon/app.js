@@ -317,17 +317,15 @@ function weaponSvg(name){
 }
 function money(cents,currency='USD'){return new Intl.NumberFormat(undefined,{style:'currency',currency}).format((cents||0)/100)}
 function rewardArt(item){
-  const seed=Number(item.level||String(item.sku||'').length||1);
-  if(item.preview_kind==='MODEL_RENDER'&&item.preview_ref){
-    return `<div class="preview"><canvas class="preview3d" data-model="${escapeHtml(item.preview_ref)}" data-variant="1"></canvas></div>`;
+  const ref=String(item.preview_ref||''),kind=String(item.preview_kind||'').toUpperCase();
+  if(kind==='MODEL_RENDER'&&ref){
+    return `<div class="preview"><canvas class="preview3d" data-model="${escapeHtml(ref)}" data-variant="1"></canvas></div>`;
   }
-  if(String(item.reward_type||item.category||'').includes('WRAP')){
-    const h=(seed*47)%360;return `<div class="preview" style="background:linear-gradient(135deg,hsl(${h} 80% 55%),hsl(${(h+100)%360} 80% 22%))"><div class="weapon-svg weapon-art">${weaponSvg('Battle Rifle')}</div></div>`;
+  if(kind==='RUNTIME_RENDER'&&ref){
+    return `<div class="preview"><canvas class="preview3d runtime3d" data-runtime="${escapeHtml(ref)}"></canvas></div>`;
   }
-  if(String(item.reward_type||item.category||'').includes('EMOTE'))return '<div class="preview"><div style="font-size:48px">🕺</div></div>';
-  if(String(item.reward_type||item.category||'').includes('SPRAY'))return '<div class="preview"><div style="font-size:48px">☣</div></div>';
-  if(String(item.reward_type||item.category||'').includes('FINISHER'))return '<div class="preview"><div style="font-size:48px">💀</div></div>';
-  return '<div class="preview"><div style="font-size:48px">🎒</div></div>';
+  const fallback='catalog://reward/'+encodeURIComponent(String(item.reward_type||item.category||item.sku||item.reward_key||'horizon'));
+  return `<div class="preview"><canvas class="preview3d runtime3d" data-runtime="${escapeHtml(fallback)}"></canvas></div>`;
 }
 function yearClockHtml(y){
   const c=y?.countdown||{days:365,hours:0,minutes:0,seconds:0};
@@ -346,7 +344,7 @@ async function openModal(tab){
     c.innerHTML=`<div class="eyebrow">BATTLE PASS · PRESEASON ZERO</div><h1>All 150 rewards</h1><p style="color:#95aaa0">Level ${p.level||1} · Prestige ${p.prestige||0}. Rewards that are unlocked are granted into your Horizon entitlement inventory automatically.</p><div class="reward-scroll">${rewards.map(r=>`<article class="reward-card ${r.owned?'owned':''}">${rewardArt(r)}<span class="eyebrow">LEVEL ${r.level} · ${r.rarity}</span><h3>${escapeHtml(r.reward_name)}</h3><small>${r.reward_type}${r.premium?' · PREMIUM':' · FREE'}</small><div style="margin-top:8px;font-size:10px;color:${r.owned?'#44f3bd':'#95aaa0'}">${r.owned?'OWNED':r.unlocked?'UNLOCKED':'LOCKED'}</div></article>`).join('')}</div>`;
   }else if(tab==='STORE'){
     const items=state.catalog?.store||[];
-    c.innerHTML=`<div class="eyebrow">HORIZON STORE</div><h1>Cosmetics and loadout style</h1><p style="color:#95aaa0">Prices and entitlement SKUs are live. Checkout remains intentionally disabled until you tell me to connect Stripe.</p><div class="store-grid">${items.map(s=>`<article class="store-card">${rewardArt(s)}<span class="eyebrow">${s.rarity} · ${s.category}</span><h3>${escapeHtml(s.display_name)}</h3><div class="price">${money(s.price_cents,s.currency)}</div><button disabled>${s.owned?'OWNED':'CHECKOUT OPENS WHEN STRIPE IS CONNECTED'}</button></article>`).join('')}</div>`;
+    c.innerHTML=`<div class="eyebrow">HORIZON STORE</div><h1>Cosmetics and loadout style</h1><p style="color:#95aaa0">Every card below is the actual Horizon entitlement/SKU preview. Checkout remains intentionally disabled until you approve Stripe.</p><div class="store-grid">${items.map(s=>`<article class="store-card">${rewardArt(s)}<span class="eyebrow">${s.rarity} · ${s.category}</span><h3>${escapeHtml(s.display_name)}</h3><div class="price">${money(s.price_cents,s.currency)}</div><button disabled>${s.owned?'OWNED':'PREVIEW READY · CHECKOUT OWNER-LOCKED'}</button></article>`).join('')}</div>`;
   }else if(tab==='ARENA'){
     c.innerHTML=`<div class="eyebrow">ARENA</div><h1>Competitive Horizon</h1><p style="color:#95aaa0">Ranked matchmaking is tracked in the master backlog. The current live competitive queues are Team Deathmatch and the new strict 8-player Island Last Stand.</p>`;
   }else if(tab==='WATCH'){
