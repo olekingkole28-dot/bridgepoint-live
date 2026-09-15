@@ -124,7 +124,49 @@ export function initWorld(){
  function lights(){clearTimeout(lightTimer);lightTimer=setTimeout(()=>{if(moving)return;map.getSource('streetlights')?.setData(roadLights(map))},MOBILE?2500:(LOW?520:360))}
  function scheduleExact(){clearTimeout(detailTimer);detailTimer=setTimeout(()=>{if(!moving)exact()},MOBILE?2300:(LOW?420:260))}
  function startParcelFlow(){clearInterval(parcelPulseTimer);parcelPulseTimer=setInterval(()=>{if(moving||!layerState.parcels||map.getZoom()<PARCEL_MIN)return;parcelPulsePhase=(parcelPulsePhase+1)%16;const t=(Math.sin((parcelPulsePhase/16)*Math.PI*2)+1)/2;paint(map,'gta-parcel-glow','line-opacity',.11+.18*t);paint(map,'gta-parcel-glow','line-blur',2.1+2.4*t);paint(map,'gta-parcel','line-opacity',.82+.16*t)},260)}
- function movement(on){moving=on;const lightMotion=['gta-parcel','gta-parcel-glow','gta-poi-label','gta-opportunity-label'];const heavyMotion=['gta-exact-roof','gta-building-outline','gta-streetlights','gta-streetlights-glow',...(MOBILE?['gta-context-buildings','gta-bp-buildings','gta-bp-building-edge','gta-exact-building','gta-opportunity-buildings','gta-poi-probe']:[])];const motionLayers=[...lightMotion,...heavyMotion];const fastSources=new Set(['ofm','dem','bpBuildings','bpParcels','exact','exactRoof','streetlights','bpOpportunities','bpSemanticLabels']);const extraFast=MOBILE?(map.getStyle()?.layers||[]).filter(l=>l?.source&&fastSources.has(l.source)&&!motionLayers.includes(l.id)).map(l=>l.id):[];if(on){detailSeq++;clearTimeout(detailTimer);clearTimeout(lightTimer);clearTimeout(map.__bpTerrainRestoreTimer);clearTimeout(map.__bpHeavyRestoreTimer);clearTimeout(map.__bpLightRestoreTimer);clearTimeout(map.__bpFastRestoreTimer);if(MOBILE){map.__bpMotionRestoreVis={};for(const id of extraFast){try{map.__bpMotionRestoreVis[id]=map.getLayoutProperty(id,'visibility')||'visible'}catch(_){map.__bpMotionRestoreVis[id]='visible'}vis(map,id,false)}}if(MOBILE&&terrainOn){try{map.setTerrain(null);terrainOn=false}catch(_){}}}for(const id of motionLayers)vis(map,id,false);if(!on){const restore=id=>{const parcelLayer=id==='gta-parcel'||id==='gta-parcel-glow',buildingLayer=['gta-context-buildings','gta-bp-buildings','gta-bp-building-edge','gta-exact-building','gta-exact-roof','gta-building-outline'].includes(id);const onNow=parcelLayer?layerState.parcels:buildingLayer?layerState.buildings:true;vis(map,id,onNow)};map.__bpLightRestoreTimer=setTimeout(()=>{if(!moving)for(const id of lightMotion)restore(id)},MOBILE?1150:150);map.__bpHeavyRestoreTimer=setTimeout(()=>{if(!moving)for(const id of heavyMotion)restore(id)},MOBILE?1850:180);if(MOBILE){const saved={...(map.__bpMotionRestoreVis||{})};map.__bpFastRestoreTimer=setTimeout(()=>{if(moving)return;for(const [id,state] of Object.entries(saved)){try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',state==='none'?'none':'visible')}catch(_){}}},1150);clearTimeout(map.__bpTerrainRestoreTimer);map.__bpTerrainRestoreTimer=setTimeout(()=>{if(!moving)terrain()},3000)}else setTimeout(()=>{if(!moving)terrain()},170);scheduleExact();lights()}}
+ function movement(on){
+  moving=on;
+  const lightMotion=['gta-parcel','gta-parcel-glow','gta-poi-label','gta-opportunity-label'];
+  const heavyMotion=['gta-exact-roof','gta-building-outline','gta-streetlights','gta-streetlights-glow',...(MOBILE?['gta-context-buildings','gta-bp-buildings','gta-bp-building-edge','gta-exact-building','gta-opportunity-buildings','gta-poi-probe']:[])];
+  const motionLayers=[...lightMotion,...heavyMotion];
+  const fastSources=new Set(['ofm','dem','bpBuildings','bpParcels','exact','exactRoof','streetlights','bpOpportunities','bpSemanticLabels']);
+  const extraFast=MOBILE?(map.getStyle()?.layers||[]).filter(l=>l?.source&&fastSources.has(l.source)&&!motionLayers.includes(l.id)).map(l=>l.id):[];
+  if(on){
+    detailSeq++;
+    clearTimeout(detailTimer);clearTimeout(lightTimer);clearTimeout(map.__bpTerrainRestoreTimer);clearTimeout(map.__bpHeavyRestoreTimer);clearTimeout(map.__bpLightRestoreTimer);clearTimeout(map.__bpFastRestoreTimer);
+    const firstFast=!MOBILE||map.__bpFastModeActive!==true;
+    if(MOBILE&&firstFast){
+      map.__bpFastModeActive=true;
+      map.__bpMotionRestoreVis={};
+      for(const id of extraFast){
+        try{map.__bpMotionRestoreVis[id]=map.getLayoutProperty(id,'visibility')||'visible'}catch(_){map.__bpMotionRestoreVis[id]='visible'}
+        vis(map,id,false)
+      }
+    }
+    if(firstFast)for(const id of motionLayers)vis(map,id,false);
+    if(MOBILE&&terrainOn){try{map.setTerrain(null);terrainOn=false}catch(_){}}
+    return
+  }
+  const restore=id=>{
+    const parcelLayer=id==='gta-parcel'||id==='gta-parcel-glow';
+    const buildingLayer=['gta-context-buildings','gta-bp-buildings','gta-bp-building-edge','gta-exact-building','gta-exact-roof','gta-building-outline'].includes(id);
+    const onNow=parcelLayer?layerState.parcels:buildingLayer?layerState.buildings:true;
+    vis(map,id,onNow)
+  };
+  map.__bpLightRestoreTimer=setTimeout(()=>{if(!moving)for(const id of lightMotion)restore(id)},MOBILE?1150:150);
+  map.__bpHeavyRestoreTimer=setTimeout(()=>{if(!moving)for(const id of heavyMotion)restore(id)},MOBILE?1850:180);
+  if(MOBILE){
+    const saved={...(map.__bpMotionRestoreVis||{})};
+    map.__bpFastRestoreTimer=setTimeout(()=>{
+      if(moving)return;
+      for(const [id,state] of Object.entries(saved)){try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',state==='none'?'none':'visible')}catch(_){}}
+      map.__bpFastModeActive=false
+    },1150);
+    clearTimeout(map.__bpTerrainRestoreTimer);
+    map.__bpTerrainRestoreTimer=setTimeout(()=>{if(!moving)terrain()},3000)
+  }else setTimeout(()=>{if(!moving)terrain()},170);
+  scheduleExact();lights()
+}
  function toggleLayer(name,on){if(name==='parcels'){layerState.parcels=!!on;for(const id of ['gta-parcel','gta-parcel-glow'])vis(map,id,on);if(on)startParcelFlow()}if(name==='buildings'){layerState.buildings=!!on;for(const id of ['gta-context-buildings','gta-bp-buildings','gta-bp-building-edge','gta-exact-building','gta-exact-roof','gta-building-outline'])vis(map,id,on)}}
  function resultRows(rows){const root=document.getElementById('mapResults');if(!root)return;root.innerHTML='';for(const r of rows||[]){const b=document.createElement('button');b.type='button';b.className='data-card';b.innerHTML=`<b>${String(r.full_address||'Property').replace(/[<>&]/g,'')}</b><small>${[r.municipality,r.state_code,r.parcel_number].filter(Boolean).join(' · ')}</small>`;b.onclick=()=>{root.innerHTML='';if(Number.isFinite(+r.longitude)&&Number.isFinite(+r.latitude))map.easeTo({center:[+r.longitude,+r.latitude],zoom:17,pitch:62,bearing:-18,duration:LOW?320:620})};root.appendChild(b)}}
  function bindUI(){
