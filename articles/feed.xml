@@ -7,7 +7,14 @@
     <atom:link rel="hub" href="https://pubsubhubbub.appspot.com/" />
     <description>Property intelligence research, methodology and public aggregate data from BridgePoint Intelligence, founded by Kole Johnson.</description>
     <language>en-us</language>
-    <lastBuildDate>Tue, 15 Sep 2026 20:04:00 GMT</lastBuildDate>
+    <lastBuildDate>Tue, 15 Sep 2026 20:25:00 GMT</lastBuildDate>
+    <item>
+      <title>BridgePoint Integrity Index (BII): Why a Property Score Should Be Allowed to Say “Insufficient Data”</title>
+      <link>https://bridgepointintelligence.online/articles/bridgepoint-integrity-index-bii-shadow-calibration-2026-09-15.html</link>
+      <guid isPermaLink="true">https://bridgepointintelligence.online/articles/bridgepoint-integrity-index-bii-shadow-calibration-2026-09-15.html</guid>
+      <pubDate>Tue, 15 Sep 2026 20:25:00 GMT</pubDate>
+      <description>BridgePoint launches BII in shadow calibration with strict evidence and confidence gates, a machine contract and opt-in embeddable badge.</description>
+    </item>
     <item>
       <title>BridgePoint Claims Lifecycle Terminal Launches</title>
       <link>https://bridgepointintelligence.online/claims-terminal/</link>
