@@ -39,7 +39,7 @@ const BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?650:480):900;
 const PART_LIMIT=MOBILE?(HIGH_DEVICE?420:260):700;
 const PARCEL_LIMIT=MOBILE?(HIGH_DEVICE?1250:850):1800;
 let ammoMag=30,ammoReserve=120,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,fpWeaponRig=null,muzzleFlash=null;
-let cameraMode=localStorage.getItem('horizon-camera-mode')||'third',crouched=false,verticalVelocity=0,airborne=false,interiorMode=false,activeInterior=null,rooftopState=null;
+let cameraMode=localStorage.getItem('horizon-camera-mode')||'third',crouched=false,prone=false,slideTime=0,verticalVelocity=0,airborne=false,interiorMode=false,activeInterior=null,rooftopState=null;
 let activeZipline=null,activeVehicle=null,audioCtx=null,lastFootstepAt=0,contextTarget=null;
 const buildingEntries=[],ziplines=[],vehicles=[],ambientFx=[],interiorRects=[];const exteriorReturn=new THREE.Vector3();let exteriorYaw=0;
 const WEAPONS=[
@@ -212,7 +212,17 @@ function cycleCameraMode(){
   if(fpWeaponRig)fpWeaponRig.visible=cameraMode==='first';if(weaponRig)weaponRig.visible=cameraMode!=='first';
   $('viewBtn')?.classList.toggle('active',cameraMode==='first');toast(cameraMode==='first'?'FIRST PERSON':'THIRD PERSON');
 }
-function toggleCrouch(){crouched=!crouched;$('crouchBtn')?.classList.toggle('active',crouched);toast(crouched?'CROUCH':'STAND')}
+function setStance(next){
+  prone=next==='prone';crouched=next==='crouch'||prone;
+  const b=$('crouchBtn');if(b){b.classList.toggle('active',crouched);b.textContent=prone?'PRONE':crouched?'CROUCH':'STANCE'}
+}
+function toggleCrouch(){
+  const moving=Math.abs(moveX)+Math.abs(moveY)>.3;
+  if(sprint&&moving&&!prone){slideTime=.62;setStance('crouch');toast('SLIDE');tone(72,.08,.016,'triangle');return}
+  if(!crouched)setStance('crouch');else if(!prone)setStance('prone');else setStance('stand');
+  toast(prone?'PRONE':crouched?'CROUCH':'STAND');
+}
+function toggleFlashlight(){flash=!flash;$('lightUtilityBtn')?.classList.toggle('active',flash);toast(flash?'FLASHLIGHT ON':'FLASHLIGHT OFF')}
 function jumpOrVault(){
   if(dead||activeZipline||activeVehicle)return;
   const f=new THREE.Vector2(-Math.sin(yaw),Math.cos(yaw)),near=.65,far=1.55;
@@ -978,9 +988,9 @@ function updateCamera(dt){
   if(activeZipline)updateZipline(dt);
   else if(activeVehicle)updateVehicle(dt);
   else{
-    const baseSpeed=crouched?2.45:(sprint?8.4:aiming?2.8:4.65),sp=baseSpeed*dt;
+    let baseSpeed=prone?1.55:(crouched?2.45:(sprint?8.4:aiming?2.8:4.65));if(slideTime>0){baseSpeed=10.2;slideTime=Math.max(0,slideTime-dt)}const sp=baseSpeed*dt;
     const f=new THREE.Vector2(-Math.sin(yaw),Math.cos(yaw)),r=new THREE.Vector2(Math.cos(yaw),Math.sin(yaw));
-    const dx=(f.x*moveY+r.x*moveX)*sp,dy=(f.y*moveY+r.y*moveX)*sp,nx=player.position.x+dx,ny=player.position.y+dy;
+    const slideY=slideTime>0?1:moveY,slideX=slideTime>0?0:moveX;const dx=(f.x*slideY+r.x*slideX)*sp,dy=(f.y*slideY+r.y*slideX)*sp,nx=player.position.x+dx,ny=player.position.y+dy;
     if(!blocked(nx,player.position.y,.34))player.position.x=nx;
     if(!blocked(player.position.x,ny,.34))player.position.y=ny;
     let ground;
@@ -995,7 +1005,7 @@ function updateCamera(dt){
     player.rotation.z=yaw;
   }
 
-  const bodyHeight=crouched?1.02:1.46,target=player.position.clone().add(new THREE.Vector3(0,0,bodyHeight));
+  const bodyHeight=prone?.58:(crouched?1.02:1.46),target=player.position.clone().add(new THREE.Vector3(0,0,bodyHeight));
   const look=target.clone().add(new THREE.Vector3(-Math.sin(yaw)*9,Math.cos(yaw)*9,pitch*8));
   player.children.forEach(ch=>{if(ch.userData?.playerBody)ch.visible=cameraMode!=='first'&&!activeVehicle});
   if(weaponRig)weaponRig.visible=cameraMode!=='first'&&!activeVehicle;
@@ -1005,7 +1015,7 @@ function updateCamera(dt){
     const v=activeVehicle,carTarget=v.root.position.clone().add(new THREE.Vector3(0,0,1.15)),back=new THREE.Vector3(Math.sin(yaw)*6,-Math.cos(yaw)*6,3.0),desired=carTarget.clone().add(back);
     camera.position.lerp(desired,Math.min(1,dt*7));camera.lookAt(carTarget.clone().add(new THREE.Vector3(-Math.sin(yaw)*8,Math.cos(yaw)*8,0)));
   }else if(cameraMode==='first'){
-    const eye=target.clone().add(new THREE.Vector3(0,0,crouched ? .08 : .12));camera.position.lerp(eye,Math.min(1,dt*18));camera.lookAt(look);
+    const eye=target.clone().add(new THREE.Vector3(0,0,prone ? .03 : (crouched ? .08 : .12)));camera.position.lerp(eye,Math.min(1,dt*18));camera.lookAt(look);
     if(fpWeaponRig){fpWeaponRig.position.lerp(aiming?new THREE.Vector3(.04,-.18,-.55):new THREE.Vector3(.29,-.32,-.62),Math.min(1,dt*12));fpWeaponRig.rotation.y=THREE.MathUtils.lerp(fpWeaponRig.rotation.y,aiming?0:-.08,Math.min(1,dt*12))}
   }else{
     const arm=aiming?2.15:4.9,camZ=aiming?1.8:2.35+pitch*2.4,back=new THREE.Vector3(Math.sin(yaw)*arm,-Math.cos(yaw)*arm,camZ),desired=target.clone().add(back);
@@ -1051,7 +1061,7 @@ async function load(){
   await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
   updateAmmo();renderWeaponBar();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();
   loadText.textContent=`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · ${ziplineCount} ziplines · ${vehicleCount} vehicles · restored traversal active`;
-  window.BP_HORIZON_V2={ok:true,build:4330,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,roofTraversal:true,drivableVehicles:true,infectedPatrols:true,ambientDisasterFx:true};
+  window.BP_HORIZON_V2={ok:true,build:4330,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,prone:true,slide:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,roofTraversal:true,drivableVehicles:true,infectedPatrols:true,ambientDisasterFx:true};
 }
 function animate(){
   requestAnimationFrame(animate);
@@ -1091,6 +1101,7 @@ $('crouchBtn')?.addEventListener('click',()=>{toggleCrouch();if(matchMedia?.('(p
 $('jumpBtn')?.addEventListener('click',()=>{jumpOrVault();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
 $('weaponBtn')?.addEventListener('click',()=>{cycleWeapon();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
 $('dropBtn')?.addEventListener('click',()=>{dropActiveWeapon();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
+$('lightUtilityBtn')?.addEventListener('click',()=>{toggleFlashlight();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
 $('skipKillcam').addEventListener('click',finishDeathFlow);
 const keys={};
 addEventListener('keydown',e=>{
@@ -1098,7 +1109,7 @@ addEventListener('keydown',e=>{
   if(e.code==='KeyQ'){aiming=!aiming;$('aimBtn').classList.toggle('active',aiming)}
   if(e.code==='KeyR')reload();
   if(e.code==='KeyB')buildCover();
-  if(e.code==='KeyT')flash=!flash;
+  if(e.code==='KeyT')toggleFlashlight();
   if(e.code==='KeyV')cycleCameraMode();
   if(e.code==='KeyC')toggleCrouch();
   if(e.code==='KeyF'||e.code==='KeyE')contextUse();
