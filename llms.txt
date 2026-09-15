@@ -46,6 +46,17 @@ Important: 169,634,995 is the canonical property/parcel identity record count, n
 
 
 
+
+## Public Evidence Audit
+- Audit dashboard: https://bridgepointintelligence.online/public-audit/
+- Machine contract: https://bridgepointintelligence.online/public-audit/contract.json
+- Portfolio Evidence Lab: https://bridgepointintelligence.online/portfolio-evidence/
+- Portfolio contract: https://bridgepointintelligence.online/portfolio-evidence/contract.json
+- Institutional ingestion guide: https://bridgepointintelligence.online/distribution/institutional-ingestion.html
+- JSON/CSV audit export: https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-audit-export-v5203?mode=latency&format=json&limit=100
+
+BridgePoint Public Evidence Audit publishes measured source-to-BridgePoint hazard observation latency using source_updated_at and BridgePoint first_seen_at. Samples are only counted when timestamps are ordered correctly and the delta is no more than one hour. The benchmark measures BridgePoint's own ingestion visibility, not competitor latency. The Portfolio Evidence Lab audits a caller-supplied list of BridgePoint property IDs against source-linked event exposure evidence without mapping the result to securities or making valuation/trading claims.
+
 ## Distribution Network
 - Distribution hub: https://bridgepointintelligence.online/distribution/
 - GIS / municipal embed: https://bridgepointintelligence.online/distribution/gis-widget/
