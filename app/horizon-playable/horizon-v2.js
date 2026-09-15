@@ -891,28 +891,48 @@ function updateWorldLight(t){dayPhase=(dayPhase+dtGlobal*.002)%1;const sunAmt=Ma
 let dtGlobal=0;
 function updateCamera(dt){
   if(dead)return;
-  const sp=(sprint?8.5:aiming?2.7:4.6)*dt;
-  const f=new THREE.Vector2(-Math.sin(yaw),Math.cos(yaw)),r=new THREE.Vector2(Math.cos(yaw),Math.sin(yaw));
-  const dx=(f.x*moveY+r.x*moveX)*sp,dy=(f.y*moveY+r.y*moveX)*sp;
-  const nx=player.position.x+dx,ny=player.position.y+dy;
-  if(!blocked(nx,player.position.y,.36))player.position.x=nx;
-  if(!blocked(player.position.x,ny,.36))player.position.y=ny;
-  player.position.z=terrainZ(player.position.x,player.position.y);player.rotation.z=yaw;
-  const target=player.position.clone().add(new THREE.Vector3(0,0,aiming?1.45:1.25));
-  const arm=aiming?2.15:4.9,camZ=aiming?1.8:2.4+pitch*2.4;
-  const back=new THREE.Vector3(Math.sin(yaw)*arm,-Math.cos(yaw)*arm,camZ),desired=target.clone().add(back);
-  let safe=desired.clone(),prev=target.clone();
-  for(let i=1;i<=10;i++){const q=target.clone().lerp(desired,i/10);if(blocked(q.x,q.y,.18)||q.z<terrainZ(q.x,q.y)+.35){safe=prev;break}prev=q;safe=q}
-  camera.position.lerp(safe,Math.min(1,dt*(aiming?13:8)));
-  camera.lookAt(target.clone().add(new THREE.Vector3(-Math.sin(yaw)*8,Math.cos(yaw)*8,pitch*7)));
-  if(weaponRig){
-    const targetWeapon=aiming?new THREE.Vector3(.18,.16,1.38):new THREE.Vector3(.38,.08,1.28);
-    weaponRig.position.lerp(targetWeapon,Math.min(1,dt*10));
-    weaponRig.rotation.z=THREE.MathUtils.lerp(weaponRig.rotation.z,aiming?-1.38:-Math.PI/2,Math.min(1,dt*10));
+  pollGamepad();
+  if(activeZipline)updateZipline(dt);
+  else if(activeVehicle)updateVehicle(dt);
+  else{
+    const baseSpeed=crouched?2.45:(sprint?8.4:aiming?2.8:4.65),sp=baseSpeed*dt;
+    const f=new THREE.Vector2(-Math.sin(yaw),Math.cos(yaw)),r=new THREE.Vector2(Math.cos(yaw),Math.sin(yaw));
+    const dx=(f.x*moveY+r.x*moveX)*sp,dy=(f.y*moveY+r.y*moveX)*sp,nx=player.position.x+dx,ny=player.position.y+dy;
+    if(!blocked(nx,player.position.y,.34))player.position.x=nx;
+    if(!blocked(player.position.x,ny,.34))player.position.y=ny;
+    let ground;
+    if(interiorMode)ground=interiorGroundZ(player.position.x,player.position.y,player.position.z);
+    else if(rooftopState){
+      const e=rooftopState.entry,onRoof=e&&player.position.x>e.cx-e.w*.5&&player.position.x<e.cx+e.w*.5&&player.position.y>e.cy-e.d*.5&&player.position.y<e.cy+e.d*.5;
+      if(onRoof)ground=e.baseZ+e.h+.18;else{rooftopState=null;ground=terrainZ(player.position.x,player.position.y);if(!airborne){airborne=true;verticalVelocity=-.5}}
+    }else ground=terrainZ(player.position.x,player.position.y);
+    if(airborne){player.position.z+=verticalVelocity*dt;verticalVelocity-=9.8*dt;if(player.position.z<=ground){player.position.z=ground;airborne=false;verticalVelocity=0}}
+    else player.position.z=ground;
+    if((Math.abs(moveX)+Math.abs(moveY))>.18&&!airborne)footstepAudio();
+    player.rotation.z=yaw;
   }
-  const targetFov=aiming?50:68;
-  camera.fov=THREE.MathUtils.lerp(camera.fov,targetFov,Math.min(1,dt*12));camera.updateProjectionMatrix();
-  $('reticle')?.classList.toggle('aiming',aiming);
+
+  const bodyHeight=crouched?1.02:1.46,target=player.position.clone().add(new THREE.Vector3(0,0,bodyHeight));
+  const look=target.clone().add(new THREE.Vector3(-Math.sin(yaw)*9,Math.cos(yaw)*9,pitch*8));
+  player.children.forEach(ch=>{if(ch.userData?.playerBody)ch.visible=cameraMode!=='first'&&!activeVehicle});
+  if(weaponRig)weaponRig.visible=cameraMode!=='first'&&!activeVehicle;
+  if(fpWeaponRig)fpWeaponRig.visible=cameraMode==='first'&&!activeVehicle;
+
+  if(activeVehicle){
+    const v=activeVehicle,carTarget=v.root.position.clone().add(new THREE.Vector3(0,0,1.15)),back=new THREE.Vector3(Math.sin(yaw)*6,-Math.cos(yaw)*6,3.0),desired=carTarget.clone().add(back);
+    camera.position.lerp(desired,Math.min(1,dt*7));camera.lookAt(carTarget.clone().add(new THREE.Vector3(-Math.sin(yaw)*8,Math.cos(yaw)*8,0)));
+  }else if(cameraMode==='first'){
+    const eye=target.clone().add(new THREE.Vector3(0,0,crouched?.08:.12));camera.position.lerp(eye,Math.min(1,dt*18));camera.lookAt(look);
+    if(fpWeaponRig){fpWeaponRig.position.lerp(aiming?new THREE.Vector3(.04,-.18,-.55):new THREE.Vector3(.29,-.32,-.62),Math.min(1,dt*12));fpWeaponRig.rotation.y=THREE.MathUtils.lerp(fpWeaponRig.rotation.y,aiming?0:-.08,Math.min(1,dt*12))}
+  }else{
+    const arm=aiming?2.15:4.9,camZ=aiming?1.8:2.35+pitch*2.4,back=new THREE.Vector3(Math.sin(yaw)*arm,-Math.cos(yaw)*arm,camZ),desired=target.clone().add(back);
+    let safe=desired.clone(),prev=target.clone();
+    for(let i=1;i<=10;i++){const q=target.clone().lerp(desired,i/10);if(blocked(q.x,q.y,.18)&&!interiorMode){safe=prev;break}prev=q;safe=q}
+    camera.position.lerp(safe,Math.min(1,dt*(aiming?13:8)));camera.lookAt(look);
+    if(weaponRig){const tw=aiming?new THREE.Vector3(.18,.16,1.38):new THREE.Vector3(.38,.08,1.28);weaponRig.position.lerp(tw,Math.min(1,dt*10));weaponRig.rotation.z=THREE.MathUtils.lerp(weaponRig.rotation.z,aiming?-1.38:(activeWeapon().kind==='melee'?-.15:-Math.PI/2),Math.min(1,dt*10))}
+  }
+  const targetFov=aiming?50:(cameraMode==='first'?72:68);camera.fov=THREE.MathUtils.lerp(camera.fov,targetFov,Math.min(1,dt*12));camera.updateProjectionMatrix();
+  $('reticle')?.classList.toggle('aiming',aiming);updateContext();
 }
 async function pollKillFeed(){
   if(!matchId||!playerId||!playerSecret)return;
