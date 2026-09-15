@@ -30,7 +30,9 @@ await page.addInitScript(()=>{
 const url=BASE+'/app/horizon-playable/v2-entry.html?state=NY&lat=40.7580&lon=-73.9855&span_km=3.1&mode=TDM&seed=4320&ci='+Date.now();
 const res=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
 if(res?.status()!==200)throw new Error('Horizon V4320 HTTP '+res?.status());
-await page.waitForFunction(()=>window.BP_HORIZON_V2?.ok===true,null,{timeout:90000});
+await page.waitForFunction(()=>window.BP_HORIZON_V2?.ok===true||document.getElementById('error')?.hidden===false,null,{timeout:90000});
+const startup=await page.evaluate(()=>({ok:window.BP_HORIZON_V2?.ok===true,errorHidden:document.getElementById('error')?.hidden,errorText:document.getElementById('errorText')?.textContent||''}));
+if(!startup.ok)throw new Error('Horizon startup error '+JSON.stringify(startup));
 
 const probe=await page.evaluate(()=>({
   runtime:window.BP_HORIZON_V2,
@@ -46,7 +48,7 @@ const probe=await page.evaluate(()=>({
 }));
 if(!probe.canvas||!probe.errorHidden)throw new Error('Canvas/runtime failed '+JSON.stringify(probe));
 if(probe.runtime?.build!==4320||probe.runtime?.state!=='NY'||probe.runtime?.mode!=='TDM')throw new Error('Wrong runtime contract '+JSON.stringify(probe.runtime));
-if(!probe.runtime?.actualCharacterModel||!probe.runtime?.sourceBackedTwin||!probe.runtime?.solidCollision||!probe.runtime?.dwellPickup||!probe.runtime?.killFeed||!probe.runtime?.killcam)throw new Error('Required V4320 systems missing '+JSON.stringify(probe.runtime));
+if(!probe.runtime?.actualCharacterModel||!probe.runtime?.sourceBackedTwin||!probe.runtime?.terrainSource||Number(probe.runtime?.buildings||0)<1||Number(probe.runtime?.roads||0)<1||!probe.runtime?.solidCollision||!probe.runtime?.dwellPickup||!probe.runtime?.killFeed||!probe.runtime?.killcam)throw new Error('Required V4320 systems missing '+JSON.stringify(probe.runtime));
 if(probe.buttons.some(x=>!x.exists)||!probe.removed||!probe.killFeed||!probe.killCam||!probe.pickup)throw new Error('Four-button HUD contract failed '+JSON.stringify(probe));
 
 await page.tap('#aimBtn');
