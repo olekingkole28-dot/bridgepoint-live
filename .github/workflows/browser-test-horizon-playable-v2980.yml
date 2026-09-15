@@ -1,4 +1,4 @@
-name: Browser Test Horizon Playable v4320
+name: Browser Test Horizon Playable v4330
 
 on:
   workflow_dispatch:
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: horizon-playable-v4320
+  group: horizon-playable-v4330
   cancel-in-progress: true
 
 jobs:
@@ -46,6 +46,12 @@ jobs:
           grep -Fq 'id="buildBtn"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="killFeed"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="killCam"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="miniMap"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="weaponBar"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="viewBtn"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="crouchBtn"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="jumpBtn"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="contextBtn"' app/horizon-playable/v2-entry.html
           ! grep -Fq 'id="useBtn"' app/horizon-playable/v2-entry.html
           ! grep -Fq 'id="lightBtn"' app/horizon-playable/v2-entry.html
           ! grep -Fq 'id="weatherBtn"' app/horizon-playable/v2-entry.html
@@ -55,7 +61,7 @@ jobs:
           echo $! >/tmp/horizon-http.pid
           sleep 1
           curl --fail --silent http://127.0.0.1:4173/app/horizon-playable/v2-entry.html >/dev/null
-      - name: Verify V4320 Android match client
+      - name: Verify V4330 Android match client
         env:
           HORIZON_TEST_BASE: http://127.0.0.1:4173
         run: node scripts/browser-horizon-v2-live.mjs
