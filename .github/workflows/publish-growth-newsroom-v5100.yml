@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: bridgepoint-growth-newsroom-v5100
@@ -67,6 +68,14 @@ jobs:
           git pull --rebase origin main
           git push origin HEAD:main
           echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+
+      - name: Republish combined BridgePoint site
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run deploy-intelligence-rebuild-v5000.yml --ref main
 
       - name: Notify search discovery
         if: steps.commit.outputs.changed == 'true'
