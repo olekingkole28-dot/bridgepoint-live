@@ -371,10 +371,13 @@ function addBuildingDetails(cx,cy,w,d,h,id,row,baseZ){
   }else{
     const roof=new THREE.Mesh(UNIT_BOX,rmat);roof.scale.set(w*.97,d*.97,Math.max(.14,roofH));roof.position.set(cx,cy,baseZ+h+Math.max(.08,roofH/2));world.add(roof);
   }
+  const floors=Math.max(1,Math.floor(h/3.05));
+  const door=new THREE.Mesh(new THREE.PlaneGeometry(1.05,2.05),mat(0x312920,.9,0));door.position.set(cx,cy-d/2-.02,baseZ+1.02);door.rotation.x=Math.PI/2;world.add(door);
+  interactables.push({type:'door',x:cx,y:cy-d/2-1.2,z:baseZ,label:'ENTER',building:{id,cx,cy,w,d,h,baseZ,row,floors}});
   if(MOBILE&&!HIGH_DEVICE)return;
-  const dark=mat(0x26383a,.28,.18),floors=Math.min(7,Math.max(1,Math.floor(h/3.1))),cols=Math.min(7,Math.max(2,Math.floor(w/4)));
+  const dark=mat(0x26383a,.28,.18),cols=Math.min(7,Math.max(2,Math.floor(w/4)));
   for(let f=0;f<floors;f+=Math.max(1,Math.floor(floors/4)))for(let i=0;i<cols;i++){if(hash(id+':'+f+':'+i)%100<42)continue;const win=new THREE.Mesh(new THREE.PlaneGeometry(Math.min(1.2,w/(cols+1)*.56),.7),dark);win.position.set(cx-w/2+(i+1)*w/(cols+1),cy-d/2-.012,baseZ+1.5+f*3);win.rotation.x=Math.PI/2;world.add(win)}
-  const door=new THREE.Mesh(new THREE.PlaneGeometry(1.05,2.05),mat(0x312920,.9,0));door.position.set(cx,cy-d/2-.02,baseZ+1.02);door.rotation.x=Math.PI/2;world.add(door);interactables.push({type:'door',x:cx,y:cy-d/2-1.2,label:'ENTER'});
+
 }
 function addBuildings(){
   let count=0;const buckets=BUILD_MATS.map(()=>[]),details=[];
@@ -384,7 +387,7 @@ function addBuildings(){
       if(w<2||d<2||w>180||d>180)continue;
       const id=String(row.id||count),h=Number(row.height_m||0)>2?Math.min(160,Number(row.height_m)):4.8+(hash(id)%130)/10,cx=(minx+maxx)/2,cy=(miny+maxy)/2,baseZ=terrainZ(cx,cy),bucket=hash(id)%BUILD_MATS.length;
       buckets[bucket].push({cx,cy,h,w,d,baseZ});
-      if(details.length<DETAIL_BUILDING_LIMIT)details.push({cx,cy,h,w,d,id,row,baseZ,pts});
+      if(details.length<DETAIL_BUILDING_LIMIT){const entry={cx,cy,h,w,d,id,row,baseZ,pts,floors:Math.max(1,Math.floor(h/3.05))};details.push(entry);buildingEntries.push(entry)}
       buildingCenters.push({x:cx,y:cy,z:baseZ,h,w,d});registerSolidPoly(pts);count++;if(count>=BUILDING_LIMIT)break outer;
     }
   }
