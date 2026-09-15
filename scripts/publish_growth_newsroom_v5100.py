@@ -105,6 +105,11 @@ def actions(campaign,lat=None,lon=None,vertical="OTHER",state=""):
     signup="/?"+urlencode({"auth":"signup","utm_source":"newsroom","utm_medium":"organic_newsroom","utm_campaign":campaign})
     return f'<div class="ctas"><a class="btn primary" href="{esc(map_url)}">OPEN THE LIVE MAP</a><a class="btn secondary" href="#founder-access">REQUEST FOUNDER ACCESS</a><a class="btn secondary" href="{esc(signup)}">CREATE A BRIDGEPOINT ACCOUNT</a></div>'+founder_access(vertical,state)
 
+def horizon_actions(campaign):
+    play="/app/horizon/?"+urlencode({"utm_source":"newsroom","utm_medium":"horizon_owned","utm_campaign":campaign})
+    early="/app/horizon/early-access.html?"+urlencode({"utm_source":"newsroom","utm_medium":"horizon_owned","utm_campaign":campaign})
+    return f'<div class="ctas"><a class="btn primary" href="{esc(play)}">OPEN HORIZON</a><a class="btn secondary" href="{esc(early)}">JOIN EARLY ACCESS</a></div>'+founder_access("OTHER")
+
 def write(rel,text):
     p=OUT/rel
     p.parent.mkdir(parents=True,exist_ok=True)
@@ -163,6 +168,14 @@ def main():
 <p class="lead">BridgePoint is inviting proptech, geospatial, insurance, climate-tech, construction-tech and data investors to inspect the live product. Current backend metrics report <strong>{num(canonical)}</strong> canonical properties and <strong>{num(buildings)}</strong> map-ready buildings.</p>
 <div class="note">BridgePoint is still finishing parcel and roof materialization. That is visible rather than hidden. If the architecture, scale or founder execution is interesting, use the live product as the first diligence surface.</div>{actions("investor_callout",vertical="OTHER")}''',"investor")
 
+    add("horizon-real-world-spatial-game",
+        "BridgePoint Horizon turns the same national spatial backend into a playable survival world",
+        "BridgePoint Horizon reuses BridgePoint terrain, roads, parcels and buildings as the spatial foundation for a playable survival and combat experience.",
+        f'''<span class="badge">BRIDGEPOINT HORIZON</span><h1>The property-data backend has a second life:<br>a playable world.</h1>
+<p class="lead">BridgePoint Horizon uses the same streamed spatial foundation behind BridgePoint Intelligence—terrain, roads, parcels and buildings—then adds fictional interiors, infected, vehicles, rooftop traversal and combat systems.</p>
+<div class="metrics"><div class="metric"><b>4</b><span>current game modes</span></div><div class="metric"><b>50</b><span>match map locations</span></div><div class="metric"><b>{num(buildings)}</b><span>BridgePoint map-ready buildings feeding the broader spatial system</span></div></div>
+<div class="note"><strong>Early-build truth:</strong> Horizon is being actively regression-tested and performance-tuned. Paid checkout is not enabled. Players can inspect the current web build and join early access without being charged.</div>{horizon_actions("horizon_spatial_game")}''',"horizon")
+
     add("roof-intelligence-mega-sprint",
         f"BridgePoint roof-intelligence sprint: {num(roof.get('lidar_buildings_refined'))} LiDAR-refined buildings and climbing",
         "Live roof materialization status from BridgePoint's active roof-data sprint.",
@@ -216,6 +229,7 @@ def main():
       f"BridgePoint just crossed {canonical/1_000_000:.1f}M canonical U.S. property records. The map is live: {ORIGIN}/?utm_source=share_copy&utm_medium=organic&utm_campaign=canonical",
       f"Solo builder. Started on a phone. Roughly five months later: {canonical/1_000_000:.1f}M canonical property records feeding a live 3D property-intelligence map. {ORIGIN}/newsroom/solo-builder-proptech/",
       f"Investors in proptech/geospatial/insurtech: skip the pitch deck first. Inspect the live product. {ORIGIN}/newsroom/investor-live-product-callout/",
+      f"The same spatial backend is becoming a game. BridgePoint Horizon turns streamed terrain, roads, parcels and buildings into a playable survival world. Early access: {ORIGIN}/app/horizon/early-access.html",
     ]
     if hazards:
         share.append(f"Live storm intelligence is active now: {len(hazards)} source-labelled hazard records are flowing into BridgePoint. {ORIGIN}/newsroom/live-storm-intelligence/")
