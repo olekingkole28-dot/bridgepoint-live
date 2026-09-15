@@ -7,7 +7,14 @@
     <atom:link rel="hub" href="https://pubsubhubbub.appspot.com/" />
     <description>Property intelligence research, methodology and public aggregate data from BridgePoint Intelligence, founded by Kole Johnson.</description>
     <language>en-us</language>
-    <lastBuildDate>Tue, 15 Sep 2026 20:25:00 GMT</lastBuildDate>
+    <lastBuildDate>Tue, 15 Sep 2026 20:48:00 GMT</lastBuildDate>
+    <item>
+      <title>BridgePoint Opens a Property-Intelligence Distribution Layer: GIS Embeds, BII Widgets and Exposure Feeds</title>
+      <link>https://bridgepointintelligence.online/articles/bridgepoint-property-intelligence-distribution-gis-bii-exposure-feeds-2026-09-15.html</link>
+      <guid isPermaLink="true">https://bridgepointintelligence.online/articles/bridgepoint-property-intelligence-distribution-gis-bii-exposure-feeds-2026-09-15.html</guid>
+      <pubDate>Tue, 15 Sep 2026 20:48:00 GMT</pubDate>
+      <description>BridgePoint expands distribution beyond its own app with opt-in GIS embeds, BII widgets, address deep links and read-only catastrophe exposure feeds.</description>
+    </item>
     <item>
       <title>BridgePoint Integrity Index (BII): Why a Property Score Should Be Allowed to Say “Insufficient Data”</title>
       <link>https://bridgepointintelligence.online/articles/bridgepoint-integrity-index-bii-shadow-calibration-2026-09-15.html</link>
