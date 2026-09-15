@@ -1,6 +1,18 @@
 {
-  "entity": "BridgePoint",
+  "entity": "BridgePoint Intelligence",
   "canonical": "https://bridgepointintelligence.online/",
+  "entity_id": "https://bridgepointintelligence.online/#organization",
+  "founder": {
+    "name": "Kole Johnson",
+    "canonical": "https://bridgepointintelligence.online/founder/"
+  },
+  "public_evidence": [
+    {
+      "type": "PodcastEpisode",
+      "name": "Boroughs & Burbs Ep.240 \u2014 Beyond the Listing",
+      "url": "https://www.podscan.fm/podcasts/boroughs-amp-burbs-the-national-real-estate-conversation-2/episodes/beyond-the-listing-how-ai-and-property-intelligence-are-changing-the-way-we-evaluate-real-estate-boroughs-and-burbs-ep240-1"
+    }
+  ],
   "products": [
     {
       "name": "BridgePoint Intelligence",
@@ -214,16 +226,16 @@
       "roof_shell_buildings": 90908368,
       "roof_shell_coverage_pct": 100.0,
       "canonical_property_records": 169634995,
-      "normalized_address_records": 139702575,
-      "source_backed_roof_records": 646574,
-      "lidar_refined_roof_buildings": 1396,
-      "materialized_boundary_estimate": 83848384,
+      "normalized_address_records": 139775302,
+      "source_backed_roof_records": 646614,
+      "lidar_refined_roof_buildings": 1436,
+      "materialized_boundary_estimate": 83848654,
       "public_parcel_identity_records": 169634995,
       "canonical_property_record_label": "canonical property/parcel identity records",
       "property_boundary_link_estimate": 31228689
     },
     "coverage": {
-      "fl_oid_remaining": 64918,
+      "fl_oid_remaining": 64648,
       "ny_oid_remaining": 0,
       "pr_oid_remaining": 0,
       "strict_boundary_ready": false,
@@ -232,15 +244,15 @@
       "public_counter_jurisdictions": 55
     },
     "freshness": {
-      "roof_updated_at": "2026-09-15T05:55:06.733532+00:00",
-      "lidar_last_success_at": "2026-09-15T05:55:05.449793+00:00",
+      "roof_updated_at": "2026-09-15T06:07:38.090413+00:00",
+      "lidar_last_success_at": "2026-09-15T06:06:33.73769+00:00",
       "parcel_counter_updated_at": "2026-09-13T00:07:55.298817+00:00",
-      "address_counter_updated_at": "2026-09-15T05:55:02.934164+00:00",
-      "parcel_scoreboard_updated_at": "2026-09-15T05:55:05.999474+00:00",
-      "parcel_autopilot_last_tick_at": "2026-09-15T05:55:05.999474+00:00"
+      "address_counter_updated_at": "2026-09-15T06:07:34.080828+00:00",
+      "parcel_scoreboard_updated_at": "2026-09-15T06:07:22.181948+00:00",
+      "parcel_autopilot_last_tick_at": "2026-09-15T06:07:22.181948+00:00"
     },
     "horizon_url": "https://bridgepointintelligence.online/app/horizon/",
-    "generated_at": "2026-09-15T05:55:14.939692+00:00",
+    "generated_at": "2026-09-15T06:07:39.89481+00:00",
     "canonical_url": "https://bridgepointintelligence.online/",
     "jurisdictions": [
       {
@@ -529,7 +541,7 @@
     "horizon_year_one_demand": {
       "ok": true,
       "mode": "365_DAY_YEAR_ONE_SURVIVAL",
-      "updated_at": "2026-09-15T05:55:15.252335+00:00",
+      "updated_at": "2026-09-15T06:07:40.038732+00:00",
       "event_started": false,
       "unique_requests": 0,
       "billing_connected": false,

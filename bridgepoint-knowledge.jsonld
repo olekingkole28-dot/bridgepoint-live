@@ -5,7 +5,20 @@
       "@type": "Organization",
       "@id": "https://bridgepointintelligence.online/#organization",
       "name": "BridgePoint Intelligence",
-      "url": "https://bridgepointintelligence.online/"
+      "alternateName": "BridgePoint Intelligence (bridgepointintelligence.online)",
+      "url": "https://bridgepointintelligence.online/",
+      "founder": {
+        "@type": "Person",
+        "@id": "https://bridgepointintelligence.online/founder/#kole-johnson",
+        "name": "Kole Johnson",
+        "url": "https://bridgepointintelligence.online/founder/"
+      },
+      "disambiguatingDescription": "U.S. property, parcel, building, roof, hazard, claims and geospatial intelligence platform published at bridgepointintelligence.online.",
+      "subjectOf": {
+        "@type": "PodcastEpisode",
+        "name": "Beyond the Listing: How AI and Property Intelligence Are Changing the Way We Evaluate Real Estate | Boroughs and Burbs Ep.240",
+        "url": "https://www.podscan.fm/podcasts/boroughs-amp-burbs-the-national-real-estate-conversation-2/episodes/beyond-the-listing-how-ai-and-property-intelligence-are-changing-the-way-we-evaluate-real-estate-boroughs-and-burbs-ep240-1"
+      }
     },
     {
       "@type": "SoftwareApplication",
@@ -29,12 +42,12 @@
         {
           "@type": "PropertyValue",
           "name": "Materialized boundary estimate",
-          "value": 83848384
+          "value": 83848654
         },
         {
           "@type": "PropertyValue",
           "name": "Normalized/public address records",
-          "value": 139702575
+          "value": 139775302
         },
         {
           "@type": "PropertyValue",
