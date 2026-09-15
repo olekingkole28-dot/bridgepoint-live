@@ -106,6 +106,14 @@
       ]
     },
     {
+      "@type": "SoftwareApplication",
+      "@id": "https://bridgepointintelligence.online/#institutional-terminal",
+      "name": "BridgePoint Institutional Terminal",
+      "applicationCategory": "BusinessApplication",
+      "url": "https://bridgepointintelligence.online/terminal/",
+      "description": "Live institutional command center for U.S. property identity, parcel and building state, source-labelled hazards, catastrophe exposure and claims-lifecycle intelligence."
+    },
+    {
       "@type": "VideoGame",
       "@id": "https://bridgepointintelligence.online/#horizon",
       "name": "BridgePoint Horizon",
