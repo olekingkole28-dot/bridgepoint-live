@@ -32,6 +32,7 @@ const sun=new THREE.DirectionalLight(0xffd69a,2.0);sun.position.set(-180,-110,24
 const player=new THREE.Group();scene.add(player);player.position.set(0,0,0);
 let data=null,centerLon=lon,centerLat=lat,yaw=0,pitch=-.08,moveX=0,moveY=0,touchMoveX=0,touchMoveY=0,keyMoveX=0,keyMoveY=0,sprint=false,aiming=false,shooting=false,last=performance.now(),frames=0,fpsT=performance.now(),lootCount=0,health=100,flash=false,storm=false,dayPhase=.62;
 let terrainInfo=null,perfLowStreak=0,perfHighStreak=0,lastMeasuredFps=60;
+let liveWeather={feed:false,event:null,distance_km:null,last_at:null},rainFx=null;
 const WORLD_COUNTS={buildings:0,buildingParts:0,parcels:0,roads:0,water:0};
 const DETAIL_BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?115:58):220;
 const BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?650:480):900;
@@ -464,7 +465,57 @@ function updateInfected(dt,t){
     }
   }
 }
-function updateWorldLight(t){dayPhase=(dayPhase+dtGlobal*.002)%1;const sunAmt=Math.max(.12,Math.sin(dayPhase*Math.PI));sun.intensity=storm?1.05:1.2+sunAmt*1.2;hemi.intensity=storm?.72:1.15+sunAmt*.55;scene.background.set(storm?0x454c49:(dayPhase>.15&&dayPhase<.85?0x738071:0x172028));scene.fog.color.copy(scene.background);renderer.toneMappingExposure=storm?.68:.72+sunAmt*.35;$('time').textContent=dayPhase>.15&&dayPhase<.85?'DAY':'NIGHT';flashlight.intensity=flash?5.5:0}
+function kmBetween(lat1,lon1,lat2,lon2){
+  const r=6371,toRad=Math.PI/180,dLat=(lat2-lat1)*toRad,dLon=(lon2-lon1)*toRad;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*toRad)*Math.cos(lat2*toRad)*Math.sin(dLon/2)**2;
+  return 2*r*Math.asin(Math.sqrt(a));
+}
+function ensureRainFx(){
+  if(rainFx)return rainFx;
+  const n=MOBILE?260:520,positions=new Float32Array(n*3);
+  for(let i=0;i<n;i++){positions[i*3]=(rand()-.5)*28;positions[i*3+1]=(rand()-.5)*28;positions[i*3+2]=2+rand()*18}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(positions,3));
+  const m=new THREE.PointsMaterial({color:0xa7dcff,size:MOBILE?.045:.055,transparent:true,opacity:.62,depthWrite:false});
+  rainFx=new THREE.Points(g,m);rainFx.visible=false;rainFx.frustumCulled=false;scene.add(rainFx);return rainFx;
+}
+function updateWeatherFx(dt,now){
+  const fx=rainFx;if(!fx||!fx.visible)return;
+  fx.position.set(player.position.x,player.position.y,player.position.z);
+  const p=fx.geometry.attributes.position;
+  for(let i=0;i<p.count;i++){let z=p.getZ(i)-dt*24;if(z<.15)z=12+rand()*9;p.setZ(i,z)}
+  p.needsUpdate=true;
+  fx.material.opacity=.5+.12*Math.sin(now*.006);
+}
+async function pollLiveWeather(){
+  const el=$('weatherLive');
+  try{
+    const out=await rpc('bridgepoint_public_weather_bootstrap_v5004',{}),items=Array.isArray(out?.items)?out.items:[];
+    const now=Date.now();
+    const active=items.filter(x=>{
+      if(!Number.isFinite(Number(x?.lat))||!Number.isFinite(Number(x?.lon)))return false;
+      if(String(x?.urgency||'').toLowerCase()==='past')return false;
+      if(x?.ends_at&&Date.parse(x.ends_at)<now)return false;
+      return true;
+    }).map(x=>({...x,_km:kmBetween(lat,lon,Number(x.lat),Number(x.lon))})).sort((a,b)=>a._km-b._km);
+    const near=active[0]||null,local=near&&near._km<=80?near:null;
+    liveWeather={feed:true,event:local,distance_km:local?Number(local._km.toFixed(1)):null,last_at:new Date().toISOString()};
+    const name=String(local?.name||''),type=String(local?.type||'').toUpperCase();
+    const threat=!!local&&(/TORNADO|HURRICANE|FLOOD|WIND|HAIL|LIGHTNING/.test(type)||/storm|warning|advisory|rain/i.test(name));
+    const wet=!!local&&(/rain|thunderstorm|hurricane|tropical|storm/i.test(name)||/HURRICANE|LIGHTNING/.test(type));
+    storm=threat;
+    const fx=ensureRainFx();fx.visible=wet;
+    if(el){
+      el.textContent=local?`LIVE · ${name} · ${Math.round(local._km)} km`:'LIVE WEATHER · NO NEARBY ACTIVE ALERT';
+      el.classList.toggle('alert',!!local);
+      el.title=local?`${local.source||'Public source'} · ${local.severity||''} · ${local.certainty||''}`:'No current source-labelled event within 80 km';
+    }
+    if(window.BP_HORIZON_V2)window.BP_HORIZON_V2.weather={...liveWeather};
+  }catch(e){
+    liveWeather={feed:false,event:null,distance_km:null,last_at:new Date().toISOString()};
+    if(el)el.textContent='LIVE WEATHER · RETRYING';
+  }
+}
+function updateWorldLight(t){dayPhase=(dayPhase+dtGlobal*.002)%1;const sunAmt=Math.max(.12,Math.sin(dayPhase*Math.PI));sun.intensity=storm?1.05:1.2+sunAmt*1.2;hemi.intensity=storm?.72:1.15+sunAmt*.55;scene.background.set(storm?0x454c49:(dayPhase>.15&&dayPhase<.85?0x738071:0x172028));scene.fog.color.copy(scene.background);scene.fog.density=storm?.00105:.00072;renderer.toneMappingExposure=storm?.68:.72+sunAmt*.35;$('time').textContent=dayPhase>.15&&dayPhase<.85?'DAY':'NIGHT';flashlight.intensity=flash?5.5:0}
 let dtGlobal=0;
 function updateCamera(dt){
   if(dead)return;
@@ -521,9 +572,9 @@ async function load(){
   const roads=addRoads(),parcels=addParcels(),water=addWater(),buildings=addBuildings(),buildingParts=addBuildingParts();
   addVegetation();addStreetLife();addAbandonment();
   await Promise.all([addSurvivor(),spawnInfected()]);
-  updateAmmo();pollKillFeed();startSpectatorHeartbeat();
+  updateAmmo();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);
   loadText.textContent=`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · playable live twin active`;
-  window.BP_HORIZON_V2={ok:true,build:4320,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,terrainSource:terrainInfo?.source||null,infected:infected.length,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,solidCollision:true,dwellPickup:true,killFeed:true,killcam:true};
+  window.BP_HORIZON_V2={ok:true,build:4320,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,terrainSource:terrainInfo?.source||null,infected:infected.length,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true};
 }
 function animate(){
   requestAnimationFrame(animate);
@@ -534,7 +585,7 @@ function animate(){
   }else{
     updateInfected(dt,now);
   }
-  updateWorldLight(now);renderer.render(scene,camera);
+  updateWeatherFx(dt,now);updateWorldLight(now);renderer.render(scene,camera);
   frames++;if(now-fpsT>1200){
     const fps=Math.round(frames*1000/(now-fpsT));lastMeasuredFps=fps;$('fps').textContent=fps+' FPS';
     const floor=MOBILE?.58:.75,ceiling=Math.min(devicePixelRatio||1,HIGH_DEVICE?1.25:(MOBILE?.88:1.05));
