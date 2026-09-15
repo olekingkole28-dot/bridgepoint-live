@@ -343,7 +343,7 @@ function applyPublicEmbedMode(q){
  return true
 }
 async function applyGrowthDeepLink(){
- const q=new URLSearchParams(location.search),lat=Number(q.get('lat')),lng=Number(q.get('lng')),z=Number(q.get('z')||17);
+ const q=new URLSearchParams(location.search),rawLat=q.get('lat'),rawLng=q.get('lng'),lat=rawLat===null?NaN:Number(rawLat),lng=rawLng===null?NaN:Number(rawLng),z=Number(q.get('z')||17);
  applyPublicEmbedMode(q);
  let targetLat=lat,targetLng=lng,address=(q.get('address')||q.get('q')||'').trim();
  if((!Number.isFinite(targetLat)||!Number.isFinite(targetLng))&&address){
