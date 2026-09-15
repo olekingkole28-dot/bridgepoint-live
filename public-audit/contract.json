@@ -1,0 +1,53 @@
+{
+  "name": "BridgePoint Public Evidence Audit",
+  "version": "5203",
+  "mode": "OBSERVATIONAL",
+  "purpose": "Publish timestamped, reproducible evidence showing what BridgePoint observed and when.",
+  "latency_method": {
+    "source_timestamp": "intelligence.hazard_events_v903.source_updated_at",
+    "bridgepoint_timestamp": "intelligence.hazard_events_v903.first_seen_at",
+    "inclusion_rules": [
+      "both timestamps present",
+      "first_seen_at >= source_updated_at",
+      "delta <= 1 hour",
+      "24-hour window for headline benchmark"
+    ],
+    "excluded_from_claims": [
+      "competitor latency",
+      "guaranteed response time",
+      "market-price consequence"
+    ]
+  },
+  "endpoints": {
+    "status": {
+      "method": "POST",
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_audit_status_v5203",
+      "body": {}
+    },
+    "latency_ledger": {
+      "method": "POST",
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_latency_ledger_v5203",
+      "body": {
+        "p_limit": 50
+      }
+    },
+    "exposure_ledger": {
+      "method": "POST",
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_exposure_evidence_ledger_v5203",
+      "body": {
+        "p_event_id": "uuid",
+        "p_limit": 100
+      }
+    },
+    "export": {
+      "method": "GET",
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-audit-export-v5203?mode=latency&format=json&limit=100"
+    }
+  },
+  "interpretation": [
+    "Exposure is not physical-damage proof.",
+    "This audit does not determine whether a security or portfolio is mispriced.",
+    "No public endpoint places trades, approves claims, moves money, or impersonates third-party alerts.",
+    "Source links are included when available for independent checking."
+  ]
+}
