@@ -143,8 +143,8 @@ def page(slug: str, spec: dict, stories: list[dict]) -> str:
 <h1>{html.escape(title)}</h1><p class="lead">{html.escape(description)} This page is assembled only from BridgePoint research that passed the public customer-safety quality gate.</p>
 <div class="grid">{cards}</div>
 <div class="note"><strong>Evidence rule:</strong> Public research and opportunity signals prioritize investigation. Weather exposure or a BridgePoint signal does not by itself prove property damage, insurance coverage, customer intent, a claim outcome or a guaranteed sale.</div>
-<a class="cta" href="/free-tools/?utm_source=discover&utm_medium=owned&utm_campaign={slug}">Try BridgePoint free tools</a>
-<footer><a href="/discover/">Nationwide discovery</a> · <a href="/articles/auto/">Automatic research</a> · <a href="/capabilities/">Capabilities</a><br>No social or email distribution is performed by this publisher.</footer></main><script src="/acquisition_tracker.js" defer></script></body></html>'''
+<a class="cta" href="/?utm_source=discover&utm_medium=owned&utm_campaign={slug}">Open the live BridgePoint map</a>
+<footer><a href="/discover/">Nationwide discovery</a> · <a href="/articles/auto/">Automatic research</a> · <a href="/capabilities/">Capabilities</a><br>No social or email distribution is performed by this publisher.</footer></main><script src="/acquisition_tracker.js" defer></script><script src="/current-map-entry.js?v=5100" defer></script></body></html>'''
 
 
 def update_index(hubs: list[tuple[str, dict, int]]) -> None:
