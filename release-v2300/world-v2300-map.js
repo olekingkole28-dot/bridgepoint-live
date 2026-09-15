@@ -13,7 +13,7 @@ const LIGHT_MIN=TIER==='LOW'?16.8:TIER==='HIGH'?15.6:16.1;
 const US_BOUNDS=[-125,24,-66,50];
 
 const roadFilter=classes=>['in',['get','class'],['literal',classes]];
-const vis=(map,id,on)=>{try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',on?'visible':'none')}catch(_){}};
+const vis=(map,id,on)=>{try{if(!map.getLayer(id))return;const next=on?'visible':'none';if((map.getLayoutProperty(id,'visibility')||'visible')!==next)map.setLayoutProperty(id,'visibility',next)}catch(_){}};
 const paint=(map,id,k,v)=>{try{if(map.getLayer(id))map.setPaintProperty(id,k,v)}catch(_){}};
 
 function style(){return{
@@ -110,7 +110,7 @@ function roadLights(map){if(map.getZoom()<LIGHT_MIN)return EMPTY;let fs=[];try{f
 
 export function initWorld(){
  const container=document.getElementById('liveMap');if(!container||!window.maplibregl)return null;if(window.__bpWorldV2300?.map)return window.__bpWorldV2300;container.innerHTML='';
- const map=new maplibregl.Map({container,style:style(),center:[-98.5,39.5],zoom:MOBILE?2.75:3.35,pitch:0,bearing:0,minZoom:2.2,maxZoom:21,projection:{type:'globe'},antialias:!MOBILE&&!LOW,fadeDuration:0,renderWorldCopies:false,transformRequest:tileTransform,maxTileCacheSize:MOBILE?72:(TIER==='LOW'?64:TIER==='HIGH'?180:110)});
+ const map=new maplibregl.Map({container,style:style(),center:[-98.5,39.5],zoom:MOBILE?2.75:3.35,pitch:0,bearing:0,minZoom:2.2,maxZoom:21,projection:{type:'globe'},pixelRatio:MOBILE?1:Math.min(window.devicePixelRatio||1,2),antialias:!MOBILE&&!LOW,fadeDuration:0,renderWorldCopies:false,transformRequest:tileTransform,maxTileCacheSize:MOBILE?72:(TIER==='LOW'?64:TIER==='HIGH'?180:110)});
  try{map.touchZoomRotate?.enable();map.touchZoomRotate?.enableRotation?.();map.dragPan?.enable();map.scrollZoom?.enable();map.doubleClickZoom?.enable();map.keyboard?.enable();map.boxZoom?.enable()}catch(_){};
  map.addControl(new maplibregl.NavigationControl({visualizePitch:true,showCompass:true}),'top-right');
  let detailSeq=0,detailTimer=0,lightTimer=0,parcelPulseTimer=0,parcelPulsePhase=0,hoverFrame=0,exactCount=0,base='gta',moving=false,terrainOn=false,workerReq=0,lastTouchBuildingAt=0,touchPointer=null,touchNative=null,buildingSelectHandler=null,activeTouchPointers=new Set(),layerState={parcels:false,buildings:true};const worker=new Worker('./world-v2300-worker.js?v=5208',{type:'module'}),workerWait=new Map();
