@@ -11,7 +11,7 @@ let globalPrefill={};
 const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
 function render(host){
   if(host.dataset.mounted==='1')return;host.dataset.mounted='1';
-  const product=(host.dataset.product||'INTELLIGENCE').toUpperCase(),vertical=(host.dataset.vertical||qs.get('vertical')||'').toUpperCase(),state=(host.dataset.state||qs.get('state')||'CT').toUpperCase(),territory=host.dataset.territory||qs.get('territory')||'';
+  const product=(host.dataset.product||'INTELLIGENCE').toUpperCase(),vertical=(host.dataset.vertical||qs.get('vertical')||'').toUpperCase(),state=(host.dataset.state||qs.get('state')||'').toUpperCase(),territory=host.dataset.territory||qs.get('territory')||'';
   host.innerHTML=`<div class="bp-founder"><span class="bp-founder-badge">FOUNDER ACCESS · NO CHARGE TODAY</span><h2>Put your territory in front of BridgePoint.</h2><p>Tell us what you need. High-urgency business requests are automatically prioritized. Billing is not connected and this form cannot charge you.</p><form data-founder-access-form data-product="${esc(product)}">
   <div class="bp-founder-grid"><div class="bp-founder-field"><label>Name</label><input name="full_name" autocomplete="name" maxlength="120" required></div><div class="bp-founder-field"><label>Work email</label><input name="email" type="email" autocomplete="email" maxlength="254" required></div></div>
   <div class="bp-founder-grid"><div class="bp-founder-field"><label>Company</label><input name="company_name" autocomplete="organization" maxlength="180"></div><div class="bp-founder-field"><label>Role</label><input name="role_title" autocomplete="organization-title" maxlength="120" placeholder="Owner, estimator, sales manager…"></div></div>
