@@ -44,12 +44,13 @@ jobs:
           mkdir -p site
           git fetch origin live-artifact:refs/remotes/origin/live-artifact --depth=1
           git archive refs/remotes/origin/live-artifact | tar -xf - -C site
-          mkdir -p site/vendor site/app
+          mkdir -p site/vendor
 
-          # Preserve and refresh every public discovery surface plus the separate Horizon app.
-          rm -rf site/discover site/articles/auto site/app/horizon site/app/horizon-playable site/app/horizon-next site/app/horizon-world
+          # Keep only the current Intelligence workspace and current Horizon under /app/.
+          # Any historical /app/... URL now falls through the V5000 404 back to the live map.
+          rm -rf site/app site/discover site/articles/auto
+          mkdir -p site/app site/articles
           cp -a discover site/discover
-          mkdir -p site/articles
           cp -a articles/auto site/articles/auto
           cp -a app/horizon site/app/horizon
           cp current-map-entry.js site/current-map-entry.js
