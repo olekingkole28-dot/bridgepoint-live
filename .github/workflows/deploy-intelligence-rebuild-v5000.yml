@@ -9,6 +9,10 @@ on:
       - 'release-v2300/world-v2300-config.js'
       - 'release-v2300/world-v2300-map.js'
       - 'release-v2300/world-v2300-worker.js'
+      - 'release-v2300/world-v2300.css'
+      - 'release-v2300/world-v2300-inspector.js'
+      - 'release-v2300/world-v2300-bootstrap.js'
+      - 'release-v2300/world-v2300-weather.js'
       - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
       - 'app/horizon/**'
       - 'app/horizon-playable/**'
@@ -87,6 +91,7 @@ jobs:
           # Other historical /app/... URLs fall through the V5000 404 back to the live map.
           rm -rf site/app site/discover site/search site/newsroom site/claims-terminal site/terminal site/integrity-index site/settlement-lab site/distribution site/public-audit site/portfolio-evidence site/data-discrepancy site/articles/auto site/founder-access site/for-roofers site/for-solar site/for-restoration site/for-public-adjusters site/for-property-managers site/sample site/founder site/answers site/press site/investors site/enterprise site/owner/acquisition
           mkdir -p site/app site/articles
+          git archive refs/remotes/origin/live-artifact app/vendor | tar -xf - -C site
           cp -a discover site/discover
           if [ -d search ]; then cp -a search site/search; fi
           if [ ! -d newsroom ]; then python scripts/publish_growth_newsroom_v5100.py; fi
@@ -166,6 +171,13 @@ jobs:
           cp release-v2300/world-v2300-config.js site/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/world-v2300-map.js
           cp release-v2300/world-v2300-worker.js site/world-v2300-worker.js
+          cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
+          cp release-v2300/world-v2300-map.js site/app/world-v2300-map.js
+          cp release-v2300/world-v2300-worker.js site/app/world-v2300-worker.js
+          cp release-v2300/world-v2300-weather.js site/app/world-v2300-weather.js
+          cp release-v2300/world-v2300-inspector.js site/app/world-v2300-inspector.js
+          cp release-v2300/world-v2300-bootstrap.js site/app/world-v2300-bootstrap.js
+          cp release-v2300/world-v2300.css site/app/world-v2300.css
 
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
@@ -179,6 +191,8 @@ jobs:
           node --check site/world-v2300-config.js
           node --check site/world-v2300-map.js
           node --check site/world-v2300-worker.js
+          node --check site/app/world-v2300-weather.js
+          node --check site/app/world-v2300-bootstrap.js
           node --check site/app/horizon/app.js
           node --check site/app/horizon/lobby-scene.js
           node --check site/app/horizon/model-preview.js
