@@ -129,8 +129,7 @@ export function initWorld(){
   const lightMotion=['gta-parcel','gta-parcel-glow','gta-poi-label','gta-opportunity-label'];
   const heavyMotion=['gta-exact-roof','gta-building-outline','gta-streetlights','gta-streetlights-glow',...(MOBILE?['gta-context-buildings','gta-bp-buildings','gta-bp-building-edge','gta-exact-building','gta-opportunity-buildings','gta-poi-probe']:[])];
   const motionLayers=[...lightMotion,...heavyMotion];
-  const fastSources=new Set(['ofm','dem','bpBuildings','bpParcels','exact','exactRoof','streetlights','bpOpportunities','bpSemanticLabels']);
-  const extraFast=MOBILE?(map.getStyle()?.layers||[]).filter(l=>l?.source&&fastSources.has(l.source)&&!motionLayers.includes(l.id)).map(l=>l.id):[];
+  const extraFast=MOBILE?(map.__bpFastMotionLayers||[]):[];
   if(on){
     detailSeq++;
     clearTimeout(detailTimer);clearTimeout(lightTimer);clearTimeout(map.__bpTerrainRestoreTimer);clearTimeout(map.__bpHeavyRestoreTimer);clearTimeout(map.__bpLightRestoreTimer);clearTimeout(map.__bpFastRestoreTimer);
@@ -138,10 +137,7 @@ export function initWorld(){
     if(MOBILE&&firstFast){
       map.__bpFastModeActive=true;
       map.__bpMotionRestoreVis={};
-      for(const id of extraFast){
-        try{map.__bpMotionRestoreVis[id]=map.getLayoutProperty(id,'visibility')||'visible'}catch(_){map.__bpMotionRestoreVis[id]='visible'}
-        vis(map,id,false)
-      }
+      for(const id of extraFast){map.__bpMotionRestoreVis[id]=map.__bpFastMotionDefaults?.[id]||'visible';vis(map,id,false)}
     }
     if(firstFast)for(const id of motionLayers)vis(map,id,false);
     if(MOBILE&&terrainOn){try{map.setTerrain(null);terrainOn=false}catch(_){}}
@@ -177,7 +173,7 @@ export function initWorld(){
   document.getElementById('locateMe')?.addEventListener('click',()=>{if(!navigator.geolocation){setStatus('Location is unavailable on this device');return}setStatus('Getting your location…');navigator.geolocation.getCurrentPosition(p=>map.easeTo({center:[p.coords.longitude,p.coords.latitude],zoom:16.8,pitch:60,bearing:-18,duration:LOW?350:700}),()=>setStatus('Location permission was not available'),{enableHighAccuracy:false,timeout:7000,maximumAge:120000})});
  }
  function chooseBuilding(e){if(window.__BP_MEASURE_ACTIVE__)return false;const layers=['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings'].filter(id=>map.getLayer(id));let f=null;try{f=map.queryRenderedFeatures(e.point,{layers})[0]||null}catch(_){}if(!f)return false;const p={...(f.properties||{})};if(!p.render_height_m)p.render_height_m=Number(p.height||p.render_height||8.5);const ll=e.lngLat||map.unproject(e.point),feature={type:'Feature',geometry:f.geometry,properties:p,id:f.id,layer:{id:f.layer?.id||''}},z=Math.max(map.getZoom(),16.6);map.easeTo({center:ll,zoom:clamp(z,15,19),pitch:64,bearing:map.getBearing(),duration:LOW?260:520});const detail={lngLat:ll,feature};if(typeof window.__BP_V5000_SELECT_BUILDING__==='function'){try{window.__BP_V5000_SELECT_BUILDING__(detail)}catch(err){console.warn('v5000 building selector',err)}}else if(typeof buildingSelectHandler==='function'){try{buildingSelectHandler(detail)}catch(err){console.warn('building selection handler',err)}}window.dispatchEvent(new CustomEvent('bp2300:building-click',{detail}));return true}
- map.on('load',()=>{installBridgePointIcons(map);sky();terrain();bindUI();setBase('gta');startParcelFlow();setTimeout(scheduleExact,MOBILE?1200:500);setTimeout(lights,MOBILE?1600:700);setStatus('BridgePoint national view · live context ready · motion-first rendering')});
+ map.on('load',()=>{installBridgePointIcons(map);sky();terrain();bindUI();setBase('gta');if(MOBILE){const fastSources=new Set(['ofm','dem','bpBuildings','bpParcels','exact','exactRoof','streetlights','bpOpportunities','bpSemanticLabels']),motionIds=new Set(['gta-parcel','gta-parcel-glow','gta-poi-label','gta-opportunity-label','gta-exact-roof','gta-building-outline','gta-streetlights','gta-streetlights-glow','gta-context-buildings','gta-bp-buildings','gta-bp-building-edge','gta-exact-building','gta-opportunity-buildings','gta-poi-probe']),layers=map.getStyle()?.layers||[];map.__bpFastMotionLayers=layers.filter(l=>l?.source&&fastSources.has(l.source)&&!motionIds.has(l.id)).map(l=>l.id);map.__bpFastMotionDefaults=Object.fromEntries(layers.filter(l=>map.__bpFastMotionLayers.includes(l.id)).map(l=>[l.id,l.layout?.visibility||'visible']))}startParcelFlow();setTimeout(scheduleExact,MOBILE?1200:500);setTimeout(lights,MOBILE?1600:700);setStatus('BridgePoint national view · live context ready · motion-first rendering')});
  map.on('movestart',()=>movement(true));map.on('moveend',()=>movement(false));map.on('zoomend',terrain);
  const canvas=map.getCanvas();
  const nativeBuildingTap=(clientX,clientY,originalEvent)=>{const r=canvas.getBoundingClientRect(),point={x:clientX-r.left,y:clientY-r.top};if(point.x<0||point.y<0||point.x>r.width||point.y>r.height)return false;const hit=chooseBuilding({point,lngLat:map.unproject(point),originalEvent});if(hit)lastTouchBuildingAt=performance.now();return hit};
