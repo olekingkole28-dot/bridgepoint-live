@@ -435,6 +435,17 @@ jobs:
                 try{return m.queryRenderedFeatures({layers:['gta-place-label']}).length>0}catch{return false}
               },{timeout:20000});
               console.log('BRIDGEPOINT_TEXT_LABELS_RENDERED',JSON.stringify(launch));
+              const startState=await p.evaluate(()=>({
+                center:[window.__BP_V5000_WORLD?.map?.getCenter?.().lng,window.__BP_V5000_WORLD?.map?.getCenter?.().lat],
+                zoom:window.__BP_V5000_WORLD?.map?.getZoom?.(),
+                langTopbar:!!document.querySelector('.topbar-actions .bp-language--topbar'),
+                langBottom:!!document.querySelector('body>.bp-language:not(.bp-language--topbar)'),
+                weatherMin:[window.__BP_V5000_WORLD?.map?.getLayer('bp-v5004-weather-points')?.minzoom,window.__BP_V5000_WORLD?.map?.getLayer('bp-v5004-weather-shape-line')?.minzoom]
+              }));
+              if(!startState.langTopbar||startState.langBottom)throw new Error('APP_LANGUAGE_POSITION_REGRESSION '+JSON.stringify(startState));
+              if(!Number.isFinite(startState.zoom)||startState.zoom>4.2||Math.abs(startState.center[0]+98.5)>8||Math.abs(startState.center[1]-39.5)>7)throw new Error('APP_NATIONAL_START_REGRESSION '+JSON.stringify(startState));
+              if(startState.weatherMin.some(x=>Number(x)>2.2))throw new Error('APP_NATIONAL_WEATHER_MINZOOM_REGRESSION '+JSON.stringify(startState));
+              console.log('BRIDGEPOINT_APP_NATIONAL_START_PASS',JSON.stringify(startState));
               await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
                 if(!m)throw new Error('semantic map unavailable');
@@ -518,6 +529,11 @@ jobs:
               },{timeout:12000});
               console.log('BRIDGEPOINT_XRAY_FLOORS_RENDERED');
 
+              // The building inspector intentionally floats above map tools on narrow screens.
+              // Close it before testing a different map tool so the smoke test measures the tool itself,
+              // not an overlapping-panel click target.
+              await p.evaluate(()=>document.getElementById('closeBuilding')?.click());
+              await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===true,{timeout:5000});
               await p.click('#measureMap');
               await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('measure map missing');
