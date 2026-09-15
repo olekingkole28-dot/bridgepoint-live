@@ -143,12 +143,13 @@ jobs:
               if rel.startswith(('owner/','admin/')):
                   continue
               text=p.read_text(encoding='utf-8',errors='ignore')
-              language_ok=not rel.startswith('app/horizon-playable/')
+              language_ok=not rel.startswith(('app/horizon-playable/','distribution/gis-widget/'))
               if language_ok and lang_css not in text and '</head>' in text:
                   text=text.replace('</head>',lang_css+'</head>',1)
               if language_ok and lang_js not in text:
                   text=text.replace('</body>',lang_js+'</body>',1) if '</body>' in text else text+lang_js
-              if rel not in {'index.html','app/index.html'} and not rel.startswith('app/') and funnel not in text:
+              current_surface=rel.startswith(('terminal/','integrity-index/','settlement-lab/','distribution/','claims-terminal/'))
+              if rel not in {'index.html','app/index.html'} and not rel.startswith('app/') and not current_surface and funnel not in text:
                   text=text.replace('</body>',funnel+'</body>',1) if '</body>' in text else text+funnel
               p.write_text(text,encoding='utf-8')
           PY
@@ -350,7 +351,7 @@ jobs:
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               const errors=[];p.on('pageerror',e=>errors.push(String(e.message||e)));
-              await p.goto('https://bridgepointintelligence.online/app/?qa=v5063-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await p.goto('https://bridgepointintelligence.online/app/?qa=v5202-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000,{timeout:10000});
               await p.waitForFunction(()=>document.getElementById('canonicalProperties')?.textContent?.includes(','),{timeout:15000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
