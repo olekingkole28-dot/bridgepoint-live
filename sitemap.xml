@@ -91,4 +91,9 @@
   <url><loc>https://bridgepointintelligence.online/distribution/bii-browser-extension.zip</loc><lastmod>2026-09-15</lastmod><changefreq>weekly</changefreq><priority>0.91</priority></url>
   <url><loc>https://bridgepointintelligence.online/distribution/feeds/</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.96</priority></url>
   <url><loc>https://bridgepointintelligence.online/articles/bridgepoint-property-intelligence-distribution-gis-bii-exposure-feeds-2026-09-15.html</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.96</priority></url>
+  <url><loc>https://bridgepointintelligence.online/public-audit/</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.99</priority></url>
+  <url><loc>https://bridgepointintelligence.online/public-audit/contract.json</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.94</priority></url>
+  <url><loc>https://bridgepointintelligence.online/portfolio-evidence/</loc><lastmod>2026-09-15</lastmod><changefreq>daily</changefreq><priority>0.94</priority></url>
+  <url><loc>https://bridgepointintelligence.online/portfolio-evidence/contract.json</loc><lastmod>2026-09-15</lastmod><changefreq>weekly</changefreq><priority>0.94</priority></url>
+  <url><loc>https://bridgepointintelligence.online/distribution/institutional-ingestion.html</loc><lastmod>2026-09-15</lastmod><changefreq>weekly</changefreq><priority>0.94</priority></url>
 </urlset>
