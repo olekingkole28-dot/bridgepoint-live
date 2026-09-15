@@ -29,7 +29,11 @@ function tintModel(root,variant=1,zombie=false){
 }
 
 export function createLobbyScene(canvas){
-  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
+  const mobile=/Android|iPhone|iPad/i.test(navigator.userAgent);
+  const mem=Number(navigator.deviceMemory||0),cores=Number(navigator.hardwareConcurrency||0);
+  const high=(!mobile)||(mem>=8&&cores>=8);
+  let currentDpr=Math.min(high?1.65:1.15,window.devicePixelRatio||1);
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:high,alpha:true,powerPreference:'high-performance'});
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure=1.05;
@@ -82,6 +86,7 @@ export function createLobbyScene(canvas){
   scene.add(dust);
 
   const playerGroup=new THREE.Group();scene.add(playerGroup);
+  const slotGroup=new THREE.Group();scene.add(slotGroup);
   const zombieGroup=new THREE.Group();scene.add(zombieGroup);
   const cache=new Map();
   let catalog=new Map(),party=[],models=[],zombies=[],destroyed=false;
@@ -98,13 +103,22 @@ export function createLobbyScene(canvas){
     return root;
   }
 
+  function addOpenSlot(i){
+    const g=new THREE.Group();
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(.42,.025,12,48),new THREE.MeshStandardMaterial({color:0x56f4c3,emissive:0x1f8f71,emissiveIntensity:.75,transparent:true,opacity:.55,metalness:.25,roughness:.3}));
+    ring.rotation.x=Math.PI/2;g.add(ring);
+    const v=new THREE.Mesh(new THREE.BoxGeometry(.04,.04,.5),new THREE.MeshBasicMaterial({color:0xa5ffe4,transparent:true,opacity:.8}));
+    const h=new THREE.Mesh(new THREE.BoxGeometry(.5,.04,.04),v.material.clone());g.add(v,h);
+    g.position.set(POS[i],1.08,.22);slotGroup.add(g);
+  }
   async function rebuildPlayers(){
     while(playerGroup.children.length)playerGroup.remove(playerGroup.children[0]);
+    while(slotGroup.children.length)slotGroup.remove(slotGroup.children[0]);
     models=[];
     const token=Symbol();rebuildPlayers.token=token;
     for(let i=0;i<4;i++){
-      const m=party[i];
-      if(!m)continue;
+      const m=party.find(x=>Number(x.slot)===i+1);
+      if(!m){addOpenSlot(i);continue}
       try{
         const root=await modelFor(m.avatar_key,false);
         if(rebuildPlayers.token!==token||!root)return;
@@ -140,9 +154,9 @@ export function createLobbyScene(canvas){
   function setParty(next){party=(next||[]).slice().sort((a,b)=>a.slot-b.slot);rebuildPlayers()}
 
   const clock=new THREE.Clock();
+  let perfFrames=0,perfAt=performance.now();
   function resize(){
-    const r=canvas.getBoundingClientRect(),dpr=Math.min(1.75,window.devicePixelRatio||1);
-    renderer.setPixelRatio(dpr);renderer.setSize(Math.max(1,r.width),Math.max(1,r.height),false);
+    const r=canvas.getBoundingClientRect();renderer.setPixelRatio(currentDpr);renderer.setSize(Math.max(1,r.width),Math.max(1,r.height),false);
     camera.aspect=Math.max(.1,r.width/Math.max(1,r.height));camera.updateProjectionMatrix();
   }
   const ro=new ResizeObserver(resize);ro.observe(canvas);resize();
@@ -160,7 +174,21 @@ export function createLobbyScene(canvas){
       z.root.rotation.z=Math.sin(t*2.1+z.phase)*.025;
       z.root.position.y=.02+Math.abs(Math.sin(t*2.5+z.phase))*.025;
     });
-    renderer.render(scene,camera);requestAnimationFrame(frame);
+    slotGroup.children.forEach((g,i)=>{g.rotation.z=t*.18+i*.3;g.position.z=.22+Math.sin(t*1.7+i)*.025});
+    renderer.render(scene,camera);
+    perfFrames++;
+    const now=performance.now();
+    if(now-perfAt>1800){
+      const fps=perfFrames*1000/(now-perfAt);
+      const floor=mobile?.7:.85,ceiling=Math.min(high?1.65:1.15,window.devicePixelRatio||1);
+      let next=currentDpr;
+      if(fps<48)next=Math.max(floor,currentDpr-.12);
+      else if(fps>58)next=Math.min(ceiling,currentDpr+.06);
+      if(Math.abs(next-currentDpr)>.02){currentDpr=next;resize()}
+      if(mobile)zombieGroup.visible=fps>=42;
+      perfFrames=0;perfAt=now;
+    }
+    requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 
