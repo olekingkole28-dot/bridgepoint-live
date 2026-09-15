@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js';
 import {clone as skeletonClone} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/utils/SkeletonUtils.js';
-import {makeHorizonRifle,avatarModelForKey,avatarVariantForKey} from '/app/horizon/cosmetics-v4320.js';
+import {makeHorizonRifle,makeHorizonWeapon,avatarModelForKey,avatarVariantForKey} from '/app/horizon/cosmetics-v4320.js';
 const SUPABASE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const PUBLISHABLE_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const ENDPOINT=SUPABASE_URL+'/functions/v1/bridgepoint-horizon-stream-v3020';
@@ -38,7 +38,19 @@ const DETAIL_BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?115:58):220;
 const BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?650:480):900;
 const PART_LIMIT=MOBILE?(HIGH_DEVICE?420:260):700;
 const PARCEL_LIMIT=MOBILE?(HIGH_DEVICE?1250:850):1800;
-let ammoMag=30,ammoReserve=120,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,muzzleFlash=null;
+let ammoMag=30,ammoReserve=120,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,fpWeaponRig=null,muzzleFlash=null;
+let cameraMode=localStorage.getItem('horizon-camera-mode')||'third',crouched=false,verticalVelocity=0,airborne=false;
+let activeZipline=null,activeVehicle=null,audioCtx=null,lastFootstepAt=0,contextTarget=null;
+const buildingEntries=[],ziplines=[],vehicles=[],ambientFx=[];
+const WEAPONS=[
+  {key:'rifle',name:'AR-12',kind:'rifle',mag:30,reserve:120,damage:42,head:100,interval:92,range:145,spread:.006},
+  {key:'smg',name:'Viper SMG',kind:'smg',mag:36,reserve:180,damage:28,head:70,interval:70,range:92,spread:.012},
+  {key:'shotgun',name:'Breach-8',kind:'shotgun',mag:8,reserve:40,damage:96,head:120,interval:680,range:34,spread:.055},
+  {key:'pistol',name:'Rook Pistol',kind:'pistol',mag:12,reserve:72,damage:48,head:96,interval:260,range:72,spread:.01},
+  {key:'axe',name:'Field Axe',kind:'melee',mag:0,reserve:0,damage:82,head:82,interval:520,range:2.6,spread:0}
+];
+const weaponState=Object.fromEntries(WEAPONS.map(w=>[w.key,{mag:w.mag,reserve:w.reserve,owned:true}]));
+let activeWeaponIndex=0;
 const interactables=[],infected=[],combatants=[],roadAnchors=[],buildingCenters=[],solidRects=[],solidPolys=[],lootPickups=[],builtCover=[];
 const COLLISION_CELL=32,collisionGrid=new Map();
 const activeMembers=Array.isArray(activeMatch?.members)?activeMatch.members:[];
