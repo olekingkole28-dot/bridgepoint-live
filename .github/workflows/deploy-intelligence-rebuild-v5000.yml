@@ -27,6 +27,11 @@ on:
       - 'for-property-managers/**'
       - 'sample/**'
       - 'owner/acquisition/**'
+      - 'enterprise/**'
+      - 'investors/**'
+      - 'press/**'
+      - 'answers/**'
+      - 'founder/**'
       - 'language-selector-v5200.css'
       - 'llms-full.txt'
       - 'llms.txt'
@@ -71,7 +76,7 @@ jobs:
 
           # Keep only the current Intelligence workspace plus the current Horizon lobby and playable runtime.
           # Other historical /app/... URLs fall through the V5000 404 back to the live map.
-          rm -rf site/app site/discover site/search site/newsroom site/articles/auto site/founder-access site/for-roofers site/for-solar site/for-restoration site/for-public-adjusters site/for-property-managers site/sample site/owner/acquisition
+          rm -rf site/app site/discover site/search site/newsroom site/articles/auto site/founder-access site/for-roofers site/for-solar site/for-restoration site/for-public-adjusters site/for-property-managers site/sample site/founder site/answers site/press site/investors site/enterprise site/owner/acquisition
           mkdir -p site/app site/articles
           cp -a discover site/discover
           if [ -d search ]; then cp -a search site/search; fi
@@ -94,6 +99,11 @@ jobs:
           cp -a for-public-adjusters site/for-public-adjusters
           cp -a for-property-managers site/for-property-managers
           cp -a sample site/sample
+          cp -a founder site/founder
+          cp -a answers site/answers
+          cp -a press site/press
+          if [ -d investors ]; then cp -a investors site/investors; fi
+          if [ -d enterprise ]; then cp -a enterprise site/enterprise; fi
           mkdir -p site/owner
           cp -a owner/acquisition site/owner/acquisition
           cp rebuild-v5000/index.html site/index.html
