@@ -7,7 +7,14 @@
     <atom:link rel="hub" href="https://pubsubhubbub.appspot.com/" />
     <description>Property intelligence research, methodology and public aggregate data from BridgePoint Intelligence, founded by Kole Johnson.</description>
     <language>en-us</language>
-    <lastBuildDate>Tue, 15 Sep 2026 20:48:00 GMT</lastBuildDate>
+    <lastBuildDate>Tue, 15 Sep 2026 21:06:00 GMT</lastBuildDate>
+    <item>
+      <title>BridgePoint Launches a Public Evidence Audit for Hazard-Data Latency and Property Exposure</title>
+      <link>https://bridgepointintelligence.online/articles/bridgepoint-public-evidence-audit-hazard-latency-property-exposure-2026-09-15.html</link>
+      <guid isPermaLink="true">https://bridgepointintelligence.online/articles/bridgepoint-public-evidence-audit-hazard-latency-property-exposure-2026-09-15.html</guid>
+      <pubDate>Tue, 15 Sep 2026 21:06:00 GMT</pubDate>
+      <description>Source-linked hazard timestamps, measured source-to-BridgePoint latency, and reproducible property-exposure evidence.</description>
+    </item>
     <item>
       <title>BridgePoint Opens a Property-Intelligence Distribution Layer: GIS Embeds, BII Widgets and Exposure Feeds</title>
       <link>https://bridgepointintelligence.online/articles/bridgepoint-property-intelligence-distribution-gis-bii-exposure-feeds-2026-09-15.html</link>
