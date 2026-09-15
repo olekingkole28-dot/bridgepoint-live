@@ -582,10 +582,10 @@ function nearestLoot(){
 }
 function collectLoot(q){
   if(!q||q.picked)return;q.picked=true;q.mesh.visible=false;lootCount++;$('loot').textContent=lootCount;
-  if(q.type==='ammo'){ammoReserve=Math.min(360,ammoReserve+45);updateAmmo();toast('Ammo acquired')}
+  if(q.type==='ammo'){for(const w of WEAPONS)if(w.mag&&weaponState[w.key]?.owned)weaponState[w.key].reserve=Math.min(w.reserve*3,weaponState[w.key].reserve+Math.max(12,Math.floor(w.reserve*.35)));updateAmmo();toast('Ammo acquired')}
   else if(q.type==='medkit'){health=Math.min(100,health+35);$('health').textContent=Math.round(health);toast('Med kit acquired')}
   else if(q.type==='armor')toast('Armor plate acquired');
-  else {ammoMag=Math.max(ammoMag,30);ammoReserve=Math.max(ammoReserve,120);updateAmmo();toast('Weapon acquired')}
+  else {const locked=WEAPONS.find(w=>!weaponState[w.key]?.owned);if(locked){weaponState[locked.key].owned=true;weaponState[locked.key].mag=locked.mag;weaponState[locked.key].reserve=locked.reserve;toast(locked.name+' acquired')}else toast('Weapon salvage acquired');renderWeaponBar()}
 }
 function updateDwellPickup(now){
   const q=nearestLoot(),prompt=$('pickupPrompt'),ring=$('pickupRing'),label=$('pickupLabel');
@@ -691,13 +691,33 @@ function updateCombatants(dt,t){
     }
   }
 }
+function buildInfectedPatrol(x,y,index){
+  if(!roadAnchors.length)return[{x,y}];
+  let cur=roadAnchors.reduce((best,a)=>{const d=Math.hypot(a.x-x,a.y-y);return !best||d<best.d?{a,d}:best},null)?.a||roadAnchors[index%roadAnchors.length],route=[];
+  const used=new Set();
+  for(let k=0;k<6;k++){
+    route.push({x:cur.x,y:cur.y});used.add(cur);
+    let best=null,score=Infinity;
+    for(const a of roadAnchors){if(used.has(a))continue;const d=Math.hypot(a.x-cur.x,a.y-cur.y);if(d>8&&d<85){const s=d+((hash(index+':'+k+':'+Math.round(a.x))%100)/20);if(s<score){score=s;best=a}}}
+    if(!best)break;cur=best;
+  }
+  return route.length?route:[{x,y}];
+}
 async function spawnInfected(){
-  const source=await loadAsset(CHAR_MODELS.free_03);
-  const count=/Android|iPhone|iPad/i.test(navigator.userAgent)?12:18;
+  const defs=[
+    {id:'shambler',model:'free_03',label:'SHAMBLER',speed:1.05,health:110,damage:13,detect:38,scale:1},
+    {id:'stalker',model:'free_07',label:'STALKER',speed:1.65,health:105,damage:15,detect:52,scale:1},
+    {id:'sprinter',model:'free_05',label:'SPRINTER',speed:2.65,health:80,damage:17,detect:58,scale:.96},
+    {id:'brute',model:'free_09',label:'BRUTE',speed:.82,health:260,damage:27,detect:42,scale:1.16},
+    {id:'screamer',model:'free_01',label:'SCREAMER',speed:1.28,health:120,damage:10,detect:64,scale:1}
+  ];
+  const count=MOBILE?(HIGH_DEVICE?15:11):22;
   for(let i=0;i<count;i++){
-    const g=skeletonClone(source.scene);prepHumanoid(g,{infectedTint:true,variant:i%2+1});orientHumanoid(g,1.68+rand()*.18);
-    {const gx=(rand()-.5)*360,gy=(rand()-.5)*360;g.position.set(gx,gy,terrainZ(gx,gy))}g.rotation.z=rand()*Math.PI*2;world.add(g);
-    infected.push({g,s:1+rand()*.8,phase:rand()*6.28,health:100,alive:true,index:i,name:'INFECTED '+String(i+1).padStart(2,'0')});
+    const def=defs[i%defs.length],source=await loadAsset(CHAR_MODELS[def.model]||CHAR_MODELS.free_03),g=skeletonClone(source.scene);
+    prepHumanoid(g,{infectedTint:true,variant:i%2+1});orientHumanoid(g,1.7*def.scale);
+    const a=roadAnchors.length?roadAnchors[(i*11+3)%roadAnchors.length]:null,gx=a?a.x+(rand()-.5)*15:(rand()-.5)*300,gy=a?a.y+(rand()-.5)*15:(rand()-.5)*300;
+    g.position.set(gx,gy,terrainZ(gx,gy));g.rotation.z=rand()*Math.PI*2;world.add(g);
+    infected.push({g,s:def.speed,phase:rand()*6.28,health:def.health,maxHealth:def.health,damage:def.damage,detect:def.detect,alive:true,index:i,name:def.label+' '+String(i+1).padStart(2,'0'),kind:def.id,patrol:buildInfectedPatrol(gx,gy,i),patrolIndex:0,alertUntil:0,nextScream:performance.now()+2500+rand()*4500});
   }
   $('infected').textContent=count;
 }
@@ -820,19 +840,25 @@ async function triggerDeath(killer){
   playback();killcamTimer=setTimeout(finishDeathFlow,11550);
 }
 function updateInfected(dt,t){
+  if(interiorMode)return;
   for(const z of infected){
     if(!z.alive)continue;
-    const dx=player.position.x-z.g.position.x,dy=player.position.y-z.g.position.y,d=Math.hypot(dx,dy);
-    if(!dead&&d<42&&d>1.2){
-      const nx=z.g.position.x+dx/d*z.s*dt,ny=z.g.position.y+dy/d*z.s*dt;
+    const dx=player.position.x-z.g.position.x,dy=player.position.y-z.g.position.y,d=Math.hypot(dx,dy),aggro=!dead&&(d<z.detect||z.alertUntil>t);
+    if(z.kind==='screamer'&&aggro&&d<28&&t>z.nextScream){
+      z.nextScream=t+7000;tone(330,.18,.025,'sawtooth');
+      for(const q of infected)if(q.alive&&Math.hypot(q.g.position.x-z.g.position.x,q.g.position.y-z.g.position.y)<70)q.alertUntil=t+9000;
+    }
+    if(aggro&&d>1.15){
+      const nx=z.g.position.x+dx/Math.max(.001,d)*z.s*dt,ny=z.g.position.y+dy/Math.max(.001,d)*z.s*dt;
       if(!blocked(nx,ny,.32)){z.g.position.x=nx;z.g.position.y=ny;z.g.position.z=terrainZ(nx,ny)}
       z.g.rotation.z=Math.atan2(dy,dx)-Math.PI/2;
-    }else if(!dead){
-      const nx=z.g.position.x+Math.sin(t*.0005+z.phase)*.12*dt,ny=z.g.position.y+Math.cos(t*.0004+z.phase)*.12*dt;
-      if(!blocked(nx,ny,.28)){z.g.position.x=nx;z.g.position.y=ny;z.g.position.z=terrainZ(nx,ny)}
+    }else if(!dead&&z.patrol?.length){
+      const p=z.patrol[z.patrolIndex%z.patrol.length],px=p.x-z.g.position.x,py=p.y-z.g.position.y,pd=Math.hypot(px,py);
+      if(pd<1.2)z.patrolIndex=(z.patrolIndex+1)%z.patrol.length;
+      else{const speed=z.s*.42,nx=z.g.position.x+px/pd*speed*dt,ny=z.g.position.y+py/pd*speed*dt;if(!blocked(nx,ny,.3)){z.g.position.x=nx;z.g.position.y=ny;z.g.position.z=terrainZ(nx,ny)}z.g.rotation.z=Math.atan2(py,px)-Math.PI/2}
     }
-    if(!dead&&d<1.15){
-      health=Math.max(0,health-14*dt);$('health').textContent=Math.round(health);
+    if(!dead&&d<1.18){
+      health=Math.max(0,health-z.damage*dt);$('health').textContent=Math.round(health);
       if(health<=0)triggerDeath(z);
     }
   }
@@ -922,7 +948,7 @@ function updateCamera(dt){
     const v=activeVehicle,carTarget=v.root.position.clone().add(new THREE.Vector3(0,0,1.15)),back=new THREE.Vector3(Math.sin(yaw)*6,-Math.cos(yaw)*6,3.0),desired=carTarget.clone().add(back);
     camera.position.lerp(desired,Math.min(1,dt*7));camera.lookAt(carTarget.clone().add(new THREE.Vector3(-Math.sin(yaw)*8,Math.cos(yaw)*8,0)));
   }else if(cameraMode==='first'){
-    const eye=target.clone().add(new THREE.Vector3(0,0,crouched?.08:.12));camera.position.lerp(eye,Math.min(1,dt*18));camera.lookAt(look);
+    const eye=target.clone().add(new THREE.Vector3(0,0,crouched ? .08 : .12));camera.position.lerp(eye,Math.min(1,dt*18));camera.lookAt(look);
     if(fpWeaponRig){fpWeaponRig.position.lerp(aiming?new THREE.Vector3(.04,-.18,-.55):new THREE.Vector3(.29,-.32,-.62),Math.min(1,dt*12));fpWeaponRig.rotation.y=THREE.MathUtils.lerp(fpWeaponRig.rotation.y,aiming?0:-.08,Math.min(1,dt*12))}
   }else{
     const arm=aiming?2.15:4.9,camZ=aiming?1.8:2.35+pitch*2.4,back=new THREE.Vector3(Math.sin(yaw)*arm,-Math.cos(yaw)*arm,camZ),desired=target.clone().add(back);
