@@ -576,40 +576,43 @@ async function spawnInfected(){
 async function addSurvivor(){
   const key=savedProfile?.avatar_key||'free_03',url=avatarModelForKey(key,CHAR_MODELS)||CHAR_MODELS.free_03;
   const source=await loadAsset(url),g=skeletonClone(source.scene);prepHumanoid(g,{variant:avatarVariantForKey(key)});orientHumanoid(g,1.82);
-  player.add(g);player.add(makeNameSprite(savedProfile?.display_name||'SURVIVOR','#dffff4'));
-  weaponRig=makeHorizonRifle(THREE,savedProfile?.wrap_key||'wrap_ash');
-  weaponRig.scale.setScalar(.28);weaponRig.rotation.set(.04,-.18,-Math.PI/2);weaponRig.position.set(.38,.08,1.28);player.add(weaponRig);
+  g.userData.playerBody=true;player.add(g);player.add(makeNameSprite(savedProfile?.display_name||'SURVIVOR','#dffff4'));
+  refreshWeaponRig();
   muzzleFlash=new THREE.PointLight(0xffc06c,0,4,2);muzzleFlash.position.set(.38,.86,1.32);player.add(muzzleFlash);
 }
 const flashlight=new THREE.SpotLight(0xfff0ca,0,38,.42,.55,1.5);camera.add(flashlight);flashlight.target.position.set(0,0,-4);camera.add(flashlight.target);scene.add(camera);
 function nearest(){let best=null,dist=4.1;for(const q of interactables){const d=Math.hypot(player.position.x-q.x,player.position.y-q.y);if(d<dist){dist=d;best=q}}return best}
 function use(){toast('Loot is automatic now — stand over an item to pick it up')}
 function reload(){
-  if(reloading||ammoMag>=30||ammoReserve<=0)return;
-  reloading=true;toast('Reloading');
-  setTimeout(()=>{const need=30-ammoMag,take=Math.min(need,ammoReserve);ammoMag+=take;ammoReserve-=take;reloading=false;updateAmmo()},1350);
+  const w=activeWeapon(),st=weaponState[w.key];if(!w.mag||reloading||st.mag>=w.mag||st.reserve<=0)return;
+  reloading=true;toast('Reloading '+w.name);tone(190,.035,.02,'triangle');
+  const reloadMs=w.kind==='shotgun'?1850:w.kind==='pistol'?1050:1350;
+  setTimeout(()=>{const need=w.mag-st.mag,take=Math.min(need,st.reserve);st.mag+=take;st.reserve-=take;reloading=false;updateAmmo();tone(260,.03,.018,'triangle')},reloadMs);
 }
 async function recordKill(victimName,headshot=false){
-  addKillFeed(savedProfile?.display_name||'YOU',victimName,'AR-12',headshot);
+  addKillFeed(savedProfile?.display_name||'YOU',victimName,activeWeapon().name,headshot);
   if(!matchId||activeMatch?.host_player_id!==playerId)return;
   rpc('bridgepoint_horizon_record_kill_v4310',{
     p_host_player_id:playerId,p_host_secret:playerSecret,p_match_id:matchId,
     p_event_type:'INFECTED_KILL',p_killer_player_id:playerId,p_victim_player_id:null,
-    p_weapon_key:'AR-12',p_headshot:headshot,p_distance_m:null,p_metadata:{mode,client_build:4320}
+    p_weapon_key:activeWeapon().key,p_headshot:headshot,p_distance_m:null,p_metadata:{mode,client_build:4320}
   }).catch(()=>{});
 }
 function shootOnce(){
   if(dead||reloading)return;
-  const now=performance.now();if(now-lastFireAt<92)return;lastFireAt=now;
-  if(ammoMag<=0){reload();return}
-  ammoMag--;updateAmmo();if(muzzleFlash){muzzleFlash.intensity=7;setTimeout(()=>{if(muzzleFlash)muzzleFlash.intensity=0},34)}
-  const dir=new THREE.Vector3();camera.getWorldDirection(dir);const origin=camera.position.clone();
+  const w=activeWeapon(),st=weaponState[w.key],now=performance.now();if(now-lastFireAt<w.interval)return;lastFireAt=now;
+  if(w.mag&&st.mag<=0){reload();return}
+  if(w.mag){st.mag--;updateAmmo();gunAudio(w);if(muzzleFlash){muzzleFlash.intensity=7;setTimeout(()=>{if(muzzleFlash)muzzleFlash.intensity=0},34)}}
+  else tone(82,.06,.035,'triangle');
+  const dir=new THREE.Vector3();camera.getWorldDirection(dir);
+  if(w.spread){dir.x+=(rand()-.5)*w.spread;dir.y+=(rand()-.5)*w.spread;dir.z+=(rand()-.5)*w.spread;dir.normalize()}
+  const origin=camera.position.clone();
   let hit=null,best=Infinity,headshot=false,hitKind='';
   if(mode==='TDM'){
     for(const z of combatants){
       if(!z.alive||z.team===playerTeam)continue;
       const target=z.g.position.clone().add(new THREE.Vector3(0,0,1.2)),to=target.clone().sub(origin),along=to.dot(dir);
-      if(along<0||along>145)continue;
+      if(along<0||along>w.range)continue;
       const closest=origin.clone().addScaledVector(dir,along),lateral=closest.distanceTo(target);
       if(lateral<.7&&along<best){hit=z;best=along;headshot=lateral<.22;hitKind='combatant'}
     }
@@ -617,19 +620,19 @@ function shootOnce(){
     for(const z of infected){
       if(!z.alive)continue;
       const target=z.g.position.clone().add(new THREE.Vector3(0,0,1.15)),to=target.clone().sub(origin),along=to.dot(dir);
-      if(along<0||along>115)continue;
+      if(along<0||along>w.range)continue;
       const closest=origin.clone().addScaledVector(dir,along),lateral=closest.distanceTo(target);
       if(lateral<.72&&along<best){hit=z;best=along;headshot=lateral<.24;hitKind='infected'}
     }
   }
   if(hit){
-    hit.health-=headshot?100:42;hit.g.position.addScaledVector(dir,.08);
+    hit.health-=headshot?w.head:w.damage;hit.g.position.addScaledVector(dir,.08);
     if(hit.health<=0){
       if(hitKind==='combatant')eliminateCombatant(hit,savedProfile?.display_name||'YOU');
       else{hit.alive=false;hit.g.visible=false;$('infected').textContent=infected.filter(z=>z.alive).length;recordKill(hit.name,headshot)}
     }
   }
-  if(ammoMag===0)reload();
+  if(w.mag&&st.mag===0)reload();
 }
 function buildCover(){
   if(dead)return;
