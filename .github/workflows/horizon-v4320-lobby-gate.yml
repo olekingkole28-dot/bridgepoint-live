@@ -7,8 +7,8 @@ on:
     paths:
       - 'app/horizon/**'
       - 'app/horizon-playable/assets/characters/**'
-      - 'scripts/browser-horizon-v4330-lobby.mjs'
-      - '.github/workflows/horizon-v4330-lobby-gate.yml'
+      - 'scripts/browser-horizon-v4320-lobby.mjs'
+      - '.github/workflows/horizon-v4320-lobby-gate.yml'
 
 permissions:
   contents: read
@@ -49,4 +49,4 @@ jobs:
       - name: Verify current Android lobby
         env:
           HORIZON_TEST_BASE: http://127.0.0.1:4173
-        run: node scripts/browser-horizon-v4330-lobby.mjs
+        run: node scripts/browser-horizon-v4320-lobby.mjs
