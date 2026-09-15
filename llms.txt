@@ -45,6 +45,20 @@ Important: 169,634,995 is the canonical property/parcel identity record count, n
 
 
 
+
+## Distribution Network
+- Distribution hub: https://bridgepointintelligence.online/distribution/
+- GIS / municipal embed: https://bridgepointintelligence.online/distribution/gis-widget/
+- GIS integration docs: https://bridgepointintelligence.online/distribution/gis-widget/embed-example.html
+- Public distribution OpenAPI index: https://bridgepointintelligence.online/distribution/openapi.json
+- BII embed: https://bridgepointintelligence.online/integrity-index/embed-example.html
+- Browser lookup extension package: https://bridgepointintelligence.online/distribution/bii-browser-extension.zip
+- Exposure JSON feed: https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=json&limit=20
+- Exposure XML feed: https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=xml&limit=20
+- Exposure RSS feed: https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=rss&limit=20
+
+BridgePoint distribution surfaces are designed to be opt-in, user-initiated, site-owner embedded or machine-readable. They do not claim endorsement by third-party property portals, municipalities, insurers, brokerages or financial terminals. Public exposure feeds are research/context only, not damage determinations or trading instructions.
+
 ## Settlement Lab
 - Public shadow simulator: https://bridgepointintelligence.online/settlement-lab/
 - Machine contract: https://bridgepointintelligence.online/settlement-lab/contract.json
