@@ -1,14 +1,16 @@
 {
   "manifest_version": 3,
   "name": "BridgePoint Integrity Index",
-  "version": "0.1.0",
-  "description": "User-initiated BridgePoint Integrity Index lookup by exact property address. No automatic third-party page injection.",
+  "version": "0.2.0",
+  "description": "User-initiated BridgePoint property integrity lookup. Analyze the current page only when you click the extension.",
   "action": {
     "default_title": "BridgePoint BII",
     "default_popup": "popup.html"
   },
   "permissions": [
-    "storage"
+    "storage",
+    "activeTab",
+    "scripting"
   ],
   "host_permissions": [
     "https://xdfsjztwgsbmabshzsjw.supabase.co/*",
