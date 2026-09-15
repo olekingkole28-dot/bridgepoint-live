@@ -29,7 +29,7 @@ STATE_NAMES = {
 }
 
 
-def fetch_feed(limit: int = 25) -> dict:
+def fetch_feed(limit: int = 75) -> dict:
     req = urllib.request.Request(
         RPC_URL,
         data=json.dumps({"p_limit": limit}).encode(),
@@ -145,7 +145,7 @@ def write_sitemap(urls: list[str]) -> None:
 
 
 def main() -> None:
-    feed=fetch_feed(25)
+    feed=fetch_feed(75)
     stories=[]
     for raw in feed.get("stories",[]):
         if not isinstance(raw,dict): continue
