@@ -255,6 +255,9 @@ jobs:
           test -s site/distribution/gis-widget/widget.js
           test -s site/distribution/gis-widget/embed.js
           test -s site/distribution/openapi.json
+          test -s site/distribution/telemetry.js
+          test -s site/distribution/partner-delivery-contract.json
+          node --check site/distribution/telemetry.js
           test -s site/distribution/bii-browser-extension.zip
           test -s site/public-audit/index.html
           test -s site/public-audit/audit.js
