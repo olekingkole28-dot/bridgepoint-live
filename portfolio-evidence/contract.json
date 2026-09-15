@@ -1,0 +1,22 @@
+{
+  "name": "BridgePoint Portfolio Evidence Lab",
+  "version": "5204",
+  "mode": "USER_SUPPLIED_PROPERTY_SET",
+  "max_properties": 500,
+  "endpoint": {
+    "method": "POST",
+    "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_portfolio_evidence_v5204",
+    "body": {
+      "p_property_ids": [
+        "uuid"
+      ],
+      "p_event_limit": 25
+    }
+  },
+  "interpretation": [
+    "Caller supplies the property set.",
+    "Exposure is not proof of damage.",
+    "No security/ticker mapping is performed.",
+    "No valuation, buy/sell, underwriting, lending, claims or payment conclusion is produced."
+  ]
+}
