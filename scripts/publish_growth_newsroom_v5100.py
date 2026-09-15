@@ -86,19 +86,24 @@ def page(title,desc,body,canonical):
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{t}</title><meta name="description" content="{d}"><link rel="canonical" href="{c}">
 <meta property="og:type" content="article"><meta property="og:title" content="{t}"><meta property="og:description" content="{d}"><meta property="og:url" content="{c}">
-<meta name="twitter:card" content="summary_large_image">{STYLE}</head><body><main>
+<meta name="twitter:card" content="summary_large_image"><link rel="stylesheet" href="/founder-access.css">{STYLE}</head><body><main>
 <div class="brand"><a href="/">BRIDGEPOINT INTELLIGENCE</a><a href="/newsroom/">LIVE NEWSROOM</a></div>{body}
 <footer>BridgePoint publishes live product metrics and source-labelled hazard context. Weather alerts do not prove property damage. Counts can change as sources reconcile.</footer>
-<script defer src="/acquisition_tracker.js?v=5001"></script><script defer src="/current-map-entry.js?v=5100"></script>
+<script defer src="/acquisition_tracker.js?v=5001"></script><script defer src="/founder-access.js?v=5101"></script><script defer src="/current-map-entry.js?v=5100"></script>
 </main></body></html>"""
 
-def actions(campaign,lat=None,lon=None):
+def founder_access(vertical="OTHER",state=""):
+    attrs=f'data-founder-access data-product="INTELLIGENCE" data-vertical="{esc(vertical)}"'
+    if state: attrs+=f' data-state="{esc(state)}"'
+    return f'<div id="founder-access" {attrs}></div>'
+
+def actions(campaign,lat=None,lon=None,vertical="OTHER",state=""):
     map_params={"utm_source":"newsroom","utm_medium":"organic_newsroom","utm_campaign":campaign}
     if lat is not None and lon is not None:
         map_params.update({"lat":lat,"lng":lon,"z":11,"live":1})
     map_url="/app/?"+urlencode(map_params)
     signup="/?"+urlencode({"auth":"signup","utm_source":"newsroom","utm_medium":"organic_newsroom","utm_campaign":campaign})
-    return f'<div class="ctas"><a class="btn primary" href="{esc(map_url)}">OPEN THE LIVE MAP</a><a class="btn secondary" href="{esc(signup)}">CREATE A BRIDGEPOINT ACCOUNT</a></div>'
+    return f'<div class="ctas"><a class="btn primary" href="{esc(map_url)}">OPEN THE LIVE MAP</a><a class="btn secondary" href="#founder-access">REQUEST FOUNDER ACCESS</a><a class="btn secondary" href="{esc(signup)}">CREATE A BRIDGEPOINT ACCOUNT</a></div>'+founder_access(vertical,state)
 
 def write(rel,text):
     p=OUT/rel
@@ -135,28 +140,28 @@ def main():
         f'''<span class="badge">LIVE PRODUCT MILESTONE</span><h1>{num(canonical)} canonical properties.<br>One live spatial system.</h1>
 <p class="lead">BridgePoint Intelligence currently reports <strong>{num(canonical)}</strong> canonical properties, <strong>{num(addresses)}</strong> address records and <strong>{num(buildings)}</strong> map-ready buildings. The product is live and the counts update from the backend—not from a static marketing counter.</p>
 <div class="metrics"><div class="metric"><b>{num(canonical)}</b><span>canonical properties</span></div><div class="metric"><b>{num(addresses)}</b><span>address records</span></div><div class="metric"><b>{num(buildings)}</b><span>map-ready buildings</span></div></div>
-<div class="note">BridgePoint uses “canonical property” as its identity layer. That is not automatically identical to a competitor’s parcel count. Current parcel reconciliation remains separately measured.</div>{actions("canonical_169m")}''',"milestone")
+<div class="note">BridgePoint uses “canonical property” as its identity layer. That is not automatically identical to a competitor’s parcel count. Current parcel reconciliation remains separately measured.</div>{actions("canonical_169m",None,None,"REAL_ESTATE")}''',"milestone")
 
     add("solo-builder-proptech",
         f"Solo builder creates a live property-intelligence map spanning {canonical/1_000_000:.1f}M canonical records",
         "An emerging proptech project built by a solo founder connects property identity, 3D buildings, roofs and live hazards.",
         f'''<span class="badge">EMERGING PROPTECH</span><h1>A solo builder is turning {num(canonical)} property identities into a living map.</h1>
 <p class="lead">BridgePoint Intelligence is being built as one spatial interface for property identity, parcel boundaries, 3D structures, roof intelligence, weather, claims context and workflow. The current map is public enough to inspect before creating an account.</p>
-<div class="note"><strong>For proptech operators, founders and technical teams:</strong> the interesting part is not a screenshot. It is the backend-to-map pipeline and the fact that the product exposes live source freshness and uncertainty instead of hiding it.</div>{actions("solo_builder_proptech")}''',"proptech")
+<div class="note"><strong>For proptech operators, founders and technical teams:</strong> the interesting part is not a screenshot. It is the backend-to-map pipeline and the fact that the product exposes live source freshness and uncertainty instead of hiding it.</div>{actions("solo_builder_proptech",vertical="OTHER")}''',"proptech")
 
     add("founder-story-built-from-a-phone",
         "From homelessness and a phone to a national property-intelligence build",
         "The BridgePoint founder story: starting with a phone, building while homeless, and turning the idea into a live national property-intelligence product in about five months.",
         f'''<span class="badge">FOUNDER STORY</span><h1>Started while homeless.<br>Built first on a phone.<br>Now mapping {num(canonical)} canonical properties.</h1>
 <p class="lead">BridgePoint’s founder story is part of the product story: the project began while its founder was homeless, working from a phone, and was pushed from idea to a live national-scale property-intelligence system in roughly five months.</p>
-<p class="lead">The point is not the hardship by itself. The point is what exists now: a working map, live backend metrics, nationwide building and parcel infrastructure, roof processing and source-labelled weather context that people can inspect directly.</p>{actions("founder_story_phone")}''',"founder")
+<p class="lead">The point is not the hardship by itself. The point is what exists now: a working map, live backend metrics, nationwide building and parcel infrastructure, roof processing and source-labelled weather context that people can inspect directly.</p>{actions("founder_story_phone",vertical="OTHER")}''',"founder")
 
     add("investor-live-product-callout",
         "Investors: BridgePoint is live—inspect the product instead of reading a pitch",
         "A direct callout to proptech, geospatial, insurance, climate-tech and data investors to inspect BridgePoint's live product.",
         f'''<span class="badge">INVESTOR CALLOUT</span><h1>Don’t start with the deck.<br>Start with the map.</h1>
 <p class="lead">BridgePoint is inviting proptech, geospatial, insurance, climate-tech, construction-tech and data investors to inspect the live product. Current backend metrics report <strong>{num(canonical)}</strong> canonical properties and <strong>{num(buildings)}</strong> map-ready buildings.</p>
-<div class="note">BridgePoint is still finishing parcel and roof materialization. That is visible rather than hidden. If the architecture, scale or founder execution is interesting, use the live product as the first diligence surface.</div>{actions("investor_callout")}''',"investor")
+<div class="note">BridgePoint is still finishing parcel and roof materialization. That is visible rather than hidden. If the architecture, scale or founder execution is interesting, use the live product as the first diligence surface.</div>{actions("investor_callout",vertical="OTHER")}''',"investor")
 
     add("roof-intelligence-mega-sprint",
         f"BridgePoint roof-intelligence sprint: {num(roof.get('lidar_buildings_refined'))} LiDAR-refined buildings and climbing",
@@ -164,7 +169,7 @@ def main():
         f'''<span class="badge">ROOF INTELLIGENCE · LIVE BUILD</span><h1>Roof data is being materialized continuously.</h1>
 <p class="lead">BridgePoint currently reports <strong>{num(roof.get("source_roof_records"))}</strong> source roof records, <strong>{num(roof.get("exact_roof_plane_records"))}</strong> exact source roof-plane records and <strong>{num(roof.get("lidar_buildings_refined"))}</strong> LiDAR-refined buildings.</p>
 <div class="metrics"><div class="metric"><b>{num(roof.get("pitch_records"))}</b><span>pitch records</span></div><div class="metric"><b>{num(roof.get("direction_records"))}</b><span>direction records</span></div><div class="metric"><b>{num(roof.get("material_records"))}</b><span>material records</span></div></div>
-<div class="note">Renderable roof shells and source-backed roof attributes are separate truth classes. Missing attributes remain unknown instead of being marketed as exact.</div>{actions("roof_mega_sprint")}''',"roof")
+<div class="note">Renderable roof shells and source-backed roof attributes are separate truth classes. Missing attributes remain unknown instead of being marketed as exact.</div>{actions("roof_mega_sprint",vertical="ROOFING")}''',"roof")
 
     if hazards:
         top=[(name,rows[0],len(rows)) for name,rows in sorted(hazard_groups.items(), key=lambda kv:(-len(kv[1]),kv[0]))[:12]]
@@ -173,7 +178,7 @@ def main():
             f"Live U.S. storm intelligence: {len(hazards)} active source-labelled hazard records",
             "Current BridgePoint storm and hazard context generated from live source-labelled weather data.",
             f'''<span class="badge">LIVE STORM INTELLIGENCE</span><h1>{len(hazards)} active source-labelled hazard records in the current public feed.</h1>
-<p class="lead">BridgePoint is ingesting live weather context and tying it to the same spatial system used for properties, structures and roofs. These are alerts/observations—not automatic proof of property damage.</p><div class="grid">{rows}</div>{actions("live_storm_intelligence")}''',"storm")
+<p class="lead">BridgePoint is ingesting live weather context and tying it to the same spatial system used for properties, structures and roofs. These are alerts/observations—not automatic proof of property damage.</p><div class="grid">{rows}</div>{actions("live_storm_intelligence",vertical="RESTORATION")}''',"storm")
 
         for name,group in sorted(hazard_groups.items(), key=lambda kv:(-len(kv[1]),kv[0]))[:16]:
             h=group[0]; k=slug(name); count=len(group)
@@ -183,7 +188,7 @@ def main():
                 f"Live source-labelled {name.lower()} context on the BridgePoint Intelligence map.",
                 f'''<span class="badge">LIVE WEATHER · SOURCE-LABELLED</span><h1>{esc(name)} is active in BridgePoint’s live weather feed.</h1>
 <p class="lead">The current public feed contains <strong>{count}</strong> active record{'s' if count!=1 else ''} in this event family. Open the live map to inspect the spatial context around a current source event.</p>
-<div class="note">Weather alerts and observations do not prove a specific property was damaged. BridgePoint keeps the event source, severity, certainty and timing separate from property conclusions.</div>{actions("live_"+k,lat,lon)}''',"storm")
+<div class="note">Weather alerts and observations do not prove a specific property was damaged. BridgePoint keeps the event source, severity, certainty and timing separate from property conclusions.</div>{actions("live_"+k,lat,lon,vertical="RESTORATION")}''',"storm")
 
     # Current parcel completion page, intentionally avoiding unsupported “largest parcel database” wording.
     fl=int(remaining.get("FL") or 0); ny=int(remaining.get("NY") or 0); pr=int(remaining.get("PR") or 0)
@@ -191,13 +196,13 @@ def main():
         f"BridgePoint parcel build status: {num(canonical)} canonical properties with final reconciliation still running",
         "Live parcel/canonical-property build status with explicit separation between canonical identity and parcel-boundary completion.",
         f'''<span class="badge">PARCEL BUILD STATUS</span><h1>{num(canonical)} canonical properties.<br>Parcel reconciliation is still visible.</h1>
-<p class="lead">Current remaining parcel work reported by the backend: Florida <strong>{num(fl)}</strong>, New York <strong>{num(ny)}</strong>, Puerto Rico <strong>{num(pr)}</strong>. BridgePoint does not convert that into a “largest parcel database” claim until the parcel truth gate supports it.</p>{actions("parcel_build_status")}''',"parcel")
+<p class="lead">Current remaining parcel work reported by the backend: Florida <strong>{num(fl)}</strong>, New York <strong>{num(ny)}</strong>, Puerto Rico <strong>{num(pr)}</strong>. BridgePoint does not convert that into a “largest parcel database” claim until the parcel truth gate supports it.</p>{actions("parcel_build_status",vertical="REAL_ESTATE")}''',"parcel")
 
     cards="".join(f'<article class="card"><small>{esc(i["kind"]).upper()}</small><h2><a href="/newsroom/{esc(i["slug"])}/">{esc(i["title"])}</a></h2><p>{esc(i["description"])}</p></article>' for i in items)
     index_body=f'''<span class="badge">BRIDGEPOINT GROWTH NEWSROOM</span><h1>What BridgePoint is building—updated from the live system.</h1>
 <p class="lead">Milestones, founder story, investor callouts, roof progress and live storm intelligence. Every page routes back to the current map and account flow.</p>
 <div class="metrics"><div class="metric"><b>{num(canonical)}</b><span>canonical properties</span></div><div class="metric"><b>{num(buildings)}</b><span>map-ready buildings</span></div><div class="metric"><b>{len(hazards)}</b><span>active hazard records used for live stories</span></div></div>
-<div class="grid">{cards}</div>{actions("newsroom_index")}'''
+<div class="grid">{cards}</div>{actions("newsroom_index",vertical="OTHER")}'''
     write("index.html",page("BridgePoint Intelligence Live Newsroom","Live BridgePoint milestones, founder story, investor callouts, roof progress and storm intelligence.",index_body,f"{ORIGIN}/newsroom/"))
 
     urls=[f"{ORIGIN}/newsroom/"]+[i["url"] for i in items]
