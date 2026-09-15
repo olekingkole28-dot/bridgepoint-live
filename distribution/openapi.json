@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "BridgePoint Public Distribution API",
-    "version": "5207",
+    "version": "5208",
     "description": "Read-only public discovery surfaces for BII, property resolution and event-exposure research context. No endpoint authorizes financial execution."
   },
   "servers": [
@@ -218,6 +218,46 @@
           }
         }
       }
+    },
+    "/bridgepoint_public_data_discrepancy_ledger_v5208": {
+      "post": {
+        "summary": "Read BridgePoint internal data-quality discrepancy ledger",
+        "responses": {
+          "200": {
+            "description": "Sampled spatial-anchor diagnostics and address-parity repair counters"
+          }
+        }
+      }
+    },
+    "/bridgepoint-public-discrepancy-export-v5208": {
+      "get": {
+        "summary": "Export Data Discrepancy Ledger as JSON or CSV",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ]
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Data-quality ledger export"
+          }
+        }
+      }
     }
   },
   "x-bridgepoint-rules": [
@@ -226,7 +266,9 @@
     "Public exposure feeds are research/context only and not trading instructions.",
     "No public distribution endpoint moves money, places trades or approves/denies claims.",
     "Public audit measures BridgePoint's own source-to-first-seen latency; it does not claim competitor latency.",
-    "Portfolio evidence requires a caller-supplied property set and performs no security/ticker mapping."
+    "Portfolio evidence requires a caller-supplied property set and performs no security/ticker mapping.",
+    "Spatial-anchor gap percentages are sampled diagnostics, not full-jurisdiction missing-property rates.",
+    "Data Discrepancy Ledger describes BridgePoint's own quality/repair telemetry and does not assert errors by another vendor."
   ],
   "x-partner-delivery-contract": "https://bridgepointintelligence.online/distribution/partner-delivery-contract.json"
 }
