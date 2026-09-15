@@ -92,7 +92,7 @@ def write(rel,text):
 
 def main():
     status=rpc("bridgepoint_frontend_status_v5000")
-    roof=rpc("bridgepoint_roof_mega_sprint_status_v5040")
+    roof=rpc("bridgepoint_public_roof_status_v5100") or {}
     weather=rpc("bridgepoint_public_weather_bootstrap_v5004")
     generated=now_iso()
     canonical=int(status.get("canonical_properties") or 0)
