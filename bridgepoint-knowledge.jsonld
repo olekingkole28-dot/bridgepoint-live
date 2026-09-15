@@ -152,6 +152,33 @@
       ]
     },
     {
+      "@type": "Dataset",
+      "@id": "https://bridgepointintelligence.online/#public-evidence-audit",
+      "name": "BridgePoint Public Evidence Audit",
+      "url": "https://bridgepointintelligence.online/public-audit/",
+      "description": "Timestamped, source-linked observational benchmark of BridgePoint hazard-data ingestion visibility and property exposure evidence. It does not make security-price, damage, claims or underwriting determinations.",
+      "distribution": [
+        {
+          "@type": "DataDownload",
+          "contentUrl": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-audit-export-v5203?mode=latency&format=json&limit=100",
+          "encodingFormat": "application/json"
+        },
+        {
+          "@type": "DataDownload",
+          "contentUrl": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-audit-export-v5203?mode=latency&format=csv&limit=500",
+          "encodingFormat": "text/csv"
+        }
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://bridgepointintelligence.online/#portfolio-evidence-lab",
+      "name": "BridgePoint Portfolio Evidence Lab",
+      "applicationCategory": "BusinessApplication",
+      "url": "https://bridgepointintelligence.online/portfolio-evidence/",
+      "description": "Audits a user-supplied property set against source-linked event exposure evidence without mapping results to a security or ticker."
+    },
+    {
       "@type": "VideoGame",
       "@id": "https://bridgepointintelligence.online/#horizon",
       "name": "BridgePoint Horizon",
