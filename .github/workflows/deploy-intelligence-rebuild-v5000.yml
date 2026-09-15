@@ -534,8 +534,10 @@ jobs:
               // not an overlapping-panel click target.
               await p.evaluate(()=>document.getElementById('closeBuilding')?.click());
               await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===true,{timeout:5000});
-              await p.click('#measureMap');
               await p.evaluate(()=>{
+                const b=document.getElementById('measureMap');if(!b)throw new Error('measure button missing');
+                b.click();
+                if(window.__BP_MEASURE_ACTIVE__!==true)throw new Error('measure mode did not activate');
                 const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('measure map missing');
                 const c=m.getCenter();
                 m.fire('click',{lngLat:{lng:c.lng,lat:c.lat}});
