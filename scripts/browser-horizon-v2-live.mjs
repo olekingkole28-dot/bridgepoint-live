@@ -63,10 +63,10 @@ const aim=await page.evaluate(()=>({
 }));
 if(!aim.active||!aim.reticle)throw new Error('Toggle ADS failed '+JSON.stringify(aim));
 
-await page.tap('#viewBtn');
-await page.tap('#crouchBtn');
-await page.tap('#jumpBtn');
-await page.tap('#weaponBtn');
+await page.tap('#utilityToggle');await page.tap('#viewBtn');
+await page.tap('#utilityToggle');await page.tap('#crouchBtn');
+await page.tap('#utilityToggle');await page.tap('#jumpBtn');
+await page.tap('#utilityToggle');await page.tap('#weaponBtn');
 await page.tap('#buildBtn');
 await page.tap('#shootBtn');
 await page.waitForTimeout(500);
