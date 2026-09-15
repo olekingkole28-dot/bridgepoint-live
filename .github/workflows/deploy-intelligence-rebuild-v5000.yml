@@ -226,7 +226,7 @@ jobs:
           grep -Fq 'BP_MOBILE' site/app.js
           grep -Fq 'scheduleOpportunityBuildings' site/app.js
           grep -Fq 'MOBILE?650' site/world-v2300-map.js
-          grep -Fq 'mobileMotion' site/world-v2300-map.js
+          grep -Fq 'heavyMotion' site/world-v2300-map.js
           test -s site/app/horizon/index.html
           test -s site/current-map-entry.js
           test -s site/founder-access/index.html
