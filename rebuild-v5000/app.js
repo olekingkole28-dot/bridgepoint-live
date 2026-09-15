@@ -331,13 +331,34 @@ function refreshSemanticLabels(){
 function startSemanticLabels(){const map=world?.map;if(!map||map.__bpSemanticBound)return;map.__bpSemanticBound=true;window.__BP_REFRESH_SEMANTIC_LABELS__=refreshSemanticLabels;map.on('moveend',()=>queueAfterMap('semantic-labels',refreshSemanticLabels));setTimeout(()=>queueAfterMap('semantic-labels',refreshSemanticLabels),1800)}
 
 function refreshTiles(){if(mapInteracting){deferredWork.set('tile-pulse',refreshTiles);return}const map=world?.map;if(!map||map.isMoving?.())return;const pulse=Math.floor(Date.now()/120000),fn=SUPA+'/functions/v1/';try{const b=map.getSource('bpBuildings');if(b?.setTiles)b.setTiles([fn+'bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000&pulse='+pulse]);const p=map.getSource('bpParcels');if(p?.setTiles)p.setTiles([fn+'bridgepoint-spatial-tile-v1957?layer=parcels&z={z}&x={x}&y={y}&limit=9000&pulse='+pulse]);queueAfterMap('selected-refresh',refreshSelected)}catch(e){console.warn('tile pulse',e)}}
-function applyGrowthDeepLink(){
- const q=new URLSearchParams(location.search),lat=Number(q.get('lat')),lng=Number(q.get('lng')),z=Number(q.get('z')||12);
- if(!world?.map||!Number.isFinite(lat)||!Number.isFinite(lng)||lat<-90||lat>90||lng<-180||lng>180)return false;
- world.map.jumpTo({center:[lng,lat],zoom:Math.min(18,Math.max(4,Number.isFinite(z)?z:12)),pitch:58,bearing:-12});
- window.__BP_GROWTH_DEEP_LINK__={lat,lng,zoom:z,applied_at:Date.now()};
+function applyPublicEmbedMode(q){
+ const embed=q.get('embed')==='1'||q.get('embed')==='true';
+ if(!embed)return false;
+ document.body.classList.add('bp-public-embed');
+ const s=document.createElement('style');s.id='bpPublicEmbedCss';
+ s.textContent='.bp-public-embed .topbar,.bp-public-embed #bottomNav,.bp-public-embed #authPanel,.bp-public-embed #accessToast{display:none!important}.bp-public-embed .workspace{top:0!important;height:100vh!important}.bp-public-embed .map-brand-card{max-width:min(330px,72vw);transform:scale(.82);transform-origin:top left}.bp-public-embed .map-tools{right:8px!important;top:8px!important}.bp-public-embed .map-tools #openPagesNav,.bp-public-embed .map-tools #toggleSearch,.bp-public-embed .map-tools #measureMap,.bp-public-embed .map-tools #clearMeasure,.bp-public-embed .map-tools #locateMe,.bp-public-embed .map-tools #resetMap{display:none!important}.bp-public-embed .search-box{display:none!important}.bp-public-embed .system-panel{display:none!important}.bp-public-embed .building-panel{max-height:56vh!important}.bp-public-embed .live-legend{transform:scale(.82);transform-origin:bottom left}';
+ document.head.appendChild(s);
+ setActiveSurface('map');
+ window.__BP_PUBLIC_EMBED__=true;
  return true
 }
-async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();await loadStatus();try{await bootMap();bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();startSemanticLabels();applyGrowthDeepLink()}catch(e){setText('mapStatus','Map start retry · '+e.message)}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),120000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),90000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5063').catch(()=>{})}
+async function applyGrowthDeepLink(){
+ const q=new URLSearchParams(location.search),lat=Number(q.get('lat')),lng=Number(q.get('lng')),z=Number(q.get('z')||17);
+ applyPublicEmbedMode(q);
+ let targetLat=lat,targetLng=lng,address=(q.get('address')||q.get('q')||'').trim();
+ if((!Number.isFinite(targetLat)||!Number.isFinite(targetLng))&&address){
+   try{
+     const d=await rpc('bridgepoint_public_search_v5200',{p_query:address,p_limit:4},3500),r=(d?.results||[]).find(x=>Number.isFinite(+x.latitude)&&Number.isFinite(+x.longitude));
+     if(r){targetLat=+r.latitude;targetLng=+r.longitude;window.__BP_GROWTH_DEEP_LINK_ADDRESS__=r.full_address||address}
+   }catch(e){console.warn('deep link address resolve',e)}
+ }
+ if(!world?.map||!Number.isFinite(targetLat)||!Number.isFinite(targetLng)||targetLat<-90||targetLat>90||targetLng<-180||targetLng>180)return false;
+ const zoom=Math.min(19,Math.max(4,Number.isFinite(z)?z:17));
+ world.map.jumpTo({center:[targetLng,targetLat],zoom,pitch:58,bearing:-12});
+ window.__BP_GROWTH_DEEP_LINK__={lat:targetLat,lng:targetLng,zoom,address:window.__BP_GROWTH_DEEP_LINK_ADDRESS__||null,embed:window.__BP_PUBLIC_EMBED__===true,applied_at:Date.now()};
+ if(q.get('select')!=='0'&&zoom>=15){setTimeout(()=>{try{selectedFeature=null;showBuilding(targetLng,targetLat)}catch(e){console.warn('deep link building',e)}},350)}
+ return true
+}
+async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();await loadStatus();try{await bootMap();bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();startSemanticLabels();await applyGrowthDeepLink()}catch(e){setText('mapStatus','Map start retry · '+e.message)}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),120000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),90000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5063').catch(()=>{})}
 start();
 window.addEventListener('beforeunload',()=>{clearInterval(statusTimer);clearInterval(tileTimer);clearInterval(selectedTimer);clearInterval(liveContextTimer);clearInterval(transportTimer);clearInterval(opportunityTimer);clearTimeout(semanticTimer)});
