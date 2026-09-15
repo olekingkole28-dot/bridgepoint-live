@@ -7,7 +7,28 @@
     <atom:link rel="hub" href="https://pubsubhubbub.appspot.com/" />
     <description>Property intelligence research, methodology and public aggregate data from BridgePoint Intelligence, founded by Kole Johnson.</description>
     <language>en-us</language>
-    <lastBuildDate>Tue, 15 Sep 2026 19:38:00 GMT</lastBuildDate>
+    <lastBuildDate>Tue, 15 Sep 2026 20:04:00 GMT</lastBuildDate>
+    <item>
+      <title>BridgePoint Claims Lifecycle Terminal Launches</title>
+      <link>https://bridgepointintelligence.online/claims-terminal/</link>
+      <guid isPermaLink="true">https://bridgepointintelligence.online/claims-terminal/</guid>
+      <pubDate>Tue, 15 Sep 2026 20:04:00 GMT</pubDate>
+      <description>Public claims-lifecycle intelligence spanning pre-loss, loss, claim, recovery, repair/rebuild and property context with explicit source-rights and privacy gates.</description>
+    </item>
+    <item>
+      <title>Insurance Claims Lifecycle Intelligence: From Pre-Loss to Recovery on One Property Graph</title>
+      <link>https://bridgepointintelligence.online/articles/claims-lifecycle-intelligence-platform-2026-09-15.html</link>
+      <guid isPermaLink="true">https://bridgepointintelligence.online/articles/claims-lifecycle-intelligence-platform-2026-09-15.html</guid>
+      <pubDate>Tue, 15 Sep 2026 20:04:00 GMT</pubDate>
+      <description>BridgePoint explains its claims-lifecycle architecture and how property identity, catastrophe context, claim-stage evidence, recovery and repair connect without treating exposure as damage.</description>
+    </item>
+    <item>
+      <title>Catastrophe Exposure Data Feeds: The Legal Alternative to Unsolicited System Injection</title>
+      <link>https://bridgepointintelligence.online/articles/catastrophe-exposure-data-feed-authorized-integration-2026-09-15.html</link>
+      <guid isPermaLink="true">https://bridgepointintelligence.online/articles/catastrophe-exposure-data-feed-authorized-integration-2026-09-15.html</guid>
+      <pubDate>Tue, 15 Sep 2026 20:04:00 GMT</pubDate>
+      <description>How BridgePoint uses public JSON, RSS/WebSub and authorized partner integrations instead of impersonated alerts or unauthorized third-party submissions.</description>
+    </item>
     <item>
       <title>BridgePoint Intelligence Reaches 169,634,995 Canonical U.S. Property Identities</title>
       <link>https://bridgepointintelligence.online/articles/bridgepoint-169634995-canonical-property-identities-2026-09-15.html</link>
