@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "BridgePoint Integrity Index",
+  "version": "0.1.0",
+  "description": "User-initiated BridgePoint Integrity Index lookup by exact property address. No automatic third-party page injection.",
+  "action": {
+    "default_title": "BridgePoint BII",
+    "default_popup": "popup.html"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://xdfsjztwgsbmabshzsjw.supabase.co/*",
+    "https://bridgepointintelligence.online/*"
+  ]
+}
