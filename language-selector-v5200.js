@@ -10,7 +10,9 @@ const wrap=document.createElement('div');wrap.className='bp-language';wrap.datas
 const label=document.createElement('label');label.textContent='LANGUAGE ';label.setAttribute('aria-label','Translate this page');
 const sel=document.createElement('select');sel.setAttribute('aria-label','Select language');
 for(const [code,name] of langs){const o=document.createElement('option');o.value=code;o.textContent=name;sel.appendChild(o)}
-label.appendChild(sel);wrap.appendChild(label);document.body.appendChild(wrap);
+label.appendChild(sel);wrap.appendChild(label);
+const appTopbar=document.querySelector('.app-shell .topbar-actions');
+if(appTopbar){wrap.classList.add('bp-language--topbar');appTopbar.prepend(wrap)}else{document.body.appendChild(wrap)}
 sel.addEventListener('change',()=>{
  const code=sel.value;if(code==='en')return;
  const current=location.href;
