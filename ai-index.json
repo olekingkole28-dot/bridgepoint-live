@@ -553,5 +553,35 @@
     "Weather exposure is not proof of damage.",
     "Roof shell coverage is not source-backed material/pitch/shape coverage."
   ],
-  "updated_at": "2026-09-15T19:38:00Z"
+  "updated_at": "2026-09-15T20:00:50Z",
+  "claims_lifecycle_terminal": {
+    "name": "BridgePoint Claims Lifecycle Terminal",
+    "url": "https://bridgepointintelligence.online/claims-terminal/",
+    "json": "https://bridgepointintelligence.online/claims-terminal/claims-lifecycle.json",
+    "rss": "https://bridgepointintelligence.online/claims-terminal/feed.xml",
+    "openapi": "https://bridgepointintelligence.online/claims-terminal/openapi.json",
+    "snapshot": {
+      "generated_at": "2026-09-15T20:00:50Z",
+      "tracked_source_families": 32,
+      "lifecycle_stage_labels": 15,
+      "family_state_rows": 1792,
+      "current_source_slots": 2119,
+      "enabled_source_slots": 1828
+    },
+    "scope": [
+      "pre-loss",
+      "loss",
+      "claim",
+      "recovery",
+      "repair/rebuild",
+      "property context",
+      "property financial context"
+    ],
+    "representation_rules": [
+      "Enabled or discovered sources are not equivalent to unrestricted legal rights.",
+      "Weather exposure is context, not proof of property damage.",
+      "Public terminal excludes private customer claim records.",
+      "Direct third-party delivery requires an authorized integration; BridgePoint does not impersonate internal alerts or submit unsolicited payloads to private systems."
+    ]
+  }
 }
