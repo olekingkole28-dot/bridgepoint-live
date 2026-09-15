@@ -307,9 +307,11 @@ function refreshSemanticLabels(){
  clearTimeout(semanticTimer);const seq=++semanticSeq;
  semanticTimer=setTimeout(()=>{if(seq!==semanticSeq||mapInteracting||map.isMoving?.())return;if(map.getZoom()<13.2){src.setData({type:'FeatureCollection',features:[]});window.__BP_SEMANTIC_STATS={zoom:map.getZoom(),candidates:0,anchored:0,features:0,lowZoom:true};return}
   let rows=[];try{rows=map.queryRenderedFeatures({layers:['gta-poi-probe']})||[]}catch(e){window.__BP_SEMANTIC_STATS={error:String(e?.message||e)};return}
+  if(BP_MOBILE&&!rows.length){try{rows=(map.querySourceFeatures('ofm',{sourceLayer:'poi'})||[]).slice(0,650)}catch(_){}}
   const seen=new Set(),features=[],max=BP_MOBILE?72:150,scan=rows.length>(BP_MOBILE?650:1400)?rows.slice(0,BP_MOBILE?650:1400):rows;
   const buildingLayers=['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings'].filter(id=>map.getLayer(id));
   let buildings=[];try{buildings=buildingLayers.length?(map.queryRenderedFeatures({layers:buildingLayers})||[]).slice(0,BP_MOBILE?120:220):[]}catch(_){}
+  if(BP_MOBILE&&!buildings.length){try{buildings=[...(map.querySourceFeatures('bpBuildings',{sourceLayer:'buildings'})||[]).slice(0,80),...(map.querySourceFeatures('ofm',{sourceLayer:'building'})||[]).slice(0,80)]}catch(_){}}
   const buildingAnchors=buildings.map(hit=>{const a=geometryAnchor(hit.geometry);if(!a)return null;const p=map.project(a);return{hit,anchor:a,x:p.x,y:p.y}}).filter(Boolean);
   if(BP_MOBILE&&(!rows.length||!buildingAnchors.length)){window.__BP_SEMANTIC_STATS={zoom:map.getZoom(),candidates:rows.length,anchored:0,features:0,pending:true,updatedAt:Date.now()};setTimeout(()=>{if(!mapInteracting&&!map.isMoving?.())refreshSemanticLabels()},700);return}
   let anchoredCount=0,classifiedCount=0;
