@@ -6,7 +6,7 @@ const SUPABASE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const PUBLISHABLE_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const sb=window.supabase?.createClient(SUPABASE_URL,PUBLISHABLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 const $=id=>document.getElementById(id);
-const state={player:null,config:null,catalog:null,yearOne:null,party:null,match:null,worldCell:null,selectedMode:'TDM',channel:null,peers:new Map(),killcam:new KillCamBuffer(),pickup:null,installPrompt:null};
+const state={player:null,config:null,catalog:null,yearOne:null,party:null,match:null,worldCell:null,maps:[],selectedMap:null,selectedMode:'TDM',channel:null,peers:new Map(),killcam:new KillCamBuffer(),pickup:null,installPrompt:null};
 const qs=new URLSearchParams(location.search);
 
 function b64url(bytes){
@@ -74,6 +74,35 @@ function paidCharacterOptions(){
   }));
 }
 function completeCharacterCatalog(){return [...(state.catalog?.characters||[]),...paidCharacterOptions()]}
+async function refreshMapCatalog(){
+  const out=await rpc('bridgepoint_horizon_map_catalog_v4330',{p_player_id:ident.id,p_player_secret:ident.secret});
+  state.maps=out?.maps||[];
+  state.selectedMap=state.maps.find(m=>m.map_key===out?.selected_map_key)||null;
+  return out;
+}
+function mapPalette(name){
+  return {
+    'toxic-dawn':['#0b221c','#2d6050','#6dffd1','#d9b85e'],
+    'storm-violet':['#111029','#3b3567','#947cff','#6be5d0'],
+    'ember-night':['#21100d','#673523','#ef7048','#f0bc63'],
+    'cold-moon':['#0c1c23','#264854','#69c1d9','#d8f8f0']
+  }[name]||['#0c1c23','#264854','#69c1d9','#d8f8f0'];
+}
+function drawCatalogMini(canvas,m){
+  if(!canvas||!m)return;const g=canvas.getContext('2d'),w=canvas.width,h=canvas.height,p=mapPalette(m.palette);
+  let seed=2166136261;for(const ch of String(m.map_key)){seed^=ch.charCodeAt(0);seed=Math.imul(seed,16777619)}
+  const rnd=()=>((seed=Math.imul(seed,1664525)+1013904223>>>0)/4294967296);
+  g.fillStyle=p[0];g.fillRect(0,0,w,h);g.strokeStyle='rgba(255,255,255,.10)';g.lineWidth=2;
+  for(let i=0;i<7;i++){const y=10+i*(h-20)/6;g.beginPath();g.moveTo(0,y+(rnd()-.5)*8);g.lineTo(w,y+(rnd()-.5)*10);g.stroke()}
+  for(let i=0;i<10;i++){const x=8+i*(w-16)/9;g.beginPath();g.moveTo(x+(rnd()-.5)*8,0);g.lineTo(x+(rnd()-.5)*10,h);g.stroke()}
+  const water=/coastal|lake|river|island|flood/i.test(m.biome||'');if(water){g.fillStyle='rgba(70,167,207,.24)';g.fillRect(w*.72,0,w*.28,h)}
+  for(let i=0;i<18;i++){const bw=8+rnd()*25,bh=6+rnd()*17,x=rnd()*(w-bw),y=rnd()*(h-bh);g.fillStyle=i%5===0?p[1]:'rgba(8,18,17,.78)';g.fillRect(x,y,bw,bh)}
+  g.strokeStyle=p[2];g.lineWidth=2;g.strokeRect(1,1,w-2,h-2);
+  g.fillStyle=p[2];g.beginPath();g.arc(w*.5,h*.5,4,0,Math.PI*2);g.fill();
+}
+function mountMapMinis(root=document){
+  root.querySelectorAll('canvas.map-mini[data-map-key]').forEach(cv=>drawCatalogMini(cv,state.maps.find(m=>m.map_key===cv.dataset.mapKey)));
+}
 
 async function bootstrap(){
   setNet('BOOTING','#f4c45e');
@@ -109,19 +138,22 @@ async function bootstrap(){
     }catch{}
   }
   state.selectedMode=state.party.selected_mode||'TDM';
+  await refreshMapCatalog().catch(e=>console.warn('map catalog',e));
   markMode();
   renderParty();
   setNet('ONLINE','#44f3bd');
   status('Lobby ready · invite friends or choose a mode');
-  window.BP_HORIZON_LOBBY_V4320={
-    ok:true,build:4320,player_id:state.player?.player_id,mode:state.selectedMode,
+  window.BP_HORIZON_LOBBY_V4330={
+    ok:true,build:4330,player_id:state.player?.player_id,mode:state.selectedMode,
     party_size:state.party?.members?.length||0,
     catalog_characters:completeCharacterCatalog().length,
     store_items:state.catalog?.store?.length||0,
     battle_pass_rewards:state.catalog?.battle_pass?.length||0,
+    map_count:state.maps.length,selected_map_key:state.selectedMap?.map_key||null,
     checkout_enabled:false,
     lobbyScene:()=>lobbyScene?.getStats?.()||null
   };
+  window.BP_HORIZON_LOBBY_V4320=window.BP_HORIZON_LOBBY_V4330;
   connectPartySignal();
   setInterval(refreshParty,1800);
   const initialTab=(qs.get('tab')||'').trim().toUpperCase();
@@ -159,8 +191,9 @@ function markMode(){
   const d=state.config?.modes?.find(m=>m.key===state.selectedMode);
   if(!d){$('playSub').textContent='';return}
   if(d.key==='YEAR_ONE')$('playSub').textContent=state.yearOne?.status==='LIVE'?`DAY ${state.yearOne.current_day} · ${state.yearOne.player?.lives_remaining??3} lives`:'PRESEASON · starts on owner command';
-  else if(d.key==='TDM')$('playSub').textContent='6v6 · 12 players';
+  else if(d.key==='TDM')$('playSub').textContent=`6v6 · 12 players · ${state.selectedMap?.display_name||'random map'}`;
   else if(d.key==='ISLAND_SOLO_8')$('playSub').textContent='8 solo · medium island';
+  else if(d.key==='EXTRACTION')$('playSub').textContent=`${d.match_target} players · squads · ${state.selectedMap?.display_name||'random map'}`;
   else $('playSub').textContent=`${d.match_target} players · squads`;
 }
 document.querySelectorAll('.mode').forEach(btn=>btn.addEventListener('click',async()=>{
@@ -181,7 +214,7 @@ $('playBtn').onclick=async()=>{
   $('playBtn').disabled=true;$('playLabel').textContent='QUEUING';
   try{
     const q=await rpc('bridgepoint_horizon_queue_v4300',{p_player_id:ident.id,p_player_secret:ident.secret});
-    status(q.queued?'Finding match… direct P2P host will be elected':'Solo world ready');
+    status(q.queued?`Finding match… ${state.selectedMap?.display_name||'rotating map pool'} · direct P2P host will be elected`:'Solo world ready');
     pollMatch();
   }catch(e){status(e.message);$('playBtn').disabled=false;$('playLabel').textContent='READY'}
 };
@@ -314,7 +347,7 @@ async function showLoading(match){
         network_topic:synchronized.network_topic,started_at:new Date().toISOString(),
         human_players:synchronized.human_players,bot_players:synchronized.bot_players,
         target_players:synchronized.target_players,team_size:synchronized.team_size,
-        members:synchronized.members||[],map_label:synchronized.map_label,map_palette:synchronized.map_palette
+        members:synchronized.members||[],map_label:synchronized.map_label,map_palette:synchronized.map_palette,map_key:meta.map_key||null
       }));
       const u=new URL('/app/horizon-playable/v2-entry.html',location.origin);
       if(meta.world_state)u.searchParams.set('state',meta.world_state);
@@ -365,7 +398,10 @@ async function openModal(tab){
     const items=state.catalog?.store||[];
     c.innerHTML=`<div class="eyebrow">HORIZON STORE</div><h1>3D cosmetics and loadout style</h1><p style="color:#95aaa0">Preview, entitlement and equipped runtime use the same cosmetic keys. Stripe remains disconnected until owner approval.</p><div class="store-grid">${items.map(s=>{const equipable=s.owned&&['CHARACTER_SKIN','WEAPON_WRAP'].includes(s.category);const selected=(s.category==='CHARACTER_SKIN'&&state.player.avatar_key===s.entitlement_key)||(s.category==='WEAPON_WRAP'&&state.player.wrap_key===s.entitlement_key);return `<article class="store-card ${selected?'selected':''}">${rewardArt(s)}<span class="eyebrow">${s.rarity} · ${s.category}</span><h3>${escapeHtml(s.display_name)}</h3><div class="price">${money(s.price_cents,s.currency)}</div><button ${equipable?`data-store-equip="${escapeHtml(s.entitlement_key)}" data-store-kind="${escapeHtml(s.category)}"`:'disabled'}>${selected?'EQUIPPED':equipable?'EQUIP':s.owned?'OWNED':'PREVIEW READY · CHECKOUT OWNER-LOCKED'}</button></article>`}).join('')}</div>`;
   }else if(tab==='ARENA'){
-    c.innerHTML=`<div class="eyebrow">ARENA</div><h1>Competitive Horizon</h1><p style="color:#95aaa0">Ranked matchmaking is tracked in the master backlog. The current live competitive queues are Team Deathmatch and the new strict 8-player Island Last Stand.</p>`;
+    if(!state.maps.length)await refreshMapCatalog().catch(()=>{});
+    const canChoose=['TDM','EXTRACTION'].includes(state.selectedMode)&&state.party?.host_player_id===ident.id;
+    c.innerHTML=`<div class="eyebrow">ARENA · 50 LIVE WORLD CELLS</div><h1>Choose the actual BridgePoint match location</h1><p style="color:#95aaa0">These choices control the state/latitude/longitude/span passed to the Horizon world stream. ${canChoose?'Your party selection is used by matchmaking.':'Switch to Team Deathmatch or Extraction as party leader to choose a map.'}</p><div class="map-catalog">${state.maps.map(m=>`<article class="map-card ${m.map_key===state.selectedMap?.map_key?'selected':''}"><canvas class="map-mini" width="260" height="130" data-map-key="${escapeHtml(m.map_key)}"></canvas><div class="map-card-body"><span class="eyebrow">${escapeHtml(m.state_code)} · ${escapeHtml(m.biome||'WORLD CELL')}</span><h3>${escapeHtml(m.display_name)}</h3><small>${Number(m.span_km||0).toFixed(1)} km stream span</small><button data-map-key="${escapeHtml(m.map_key)}" ${canChoose?'':'disabled'}>${m.map_key===state.selectedMap?.map_key?'SELECTED':'SELECT MAP'}</button></div></article>`).join('')}</div>`;
+    requestAnimationFrame(()=>mountMapMinis(c));
   }else if(tab==='WATCH'){
     state.yearOne=await rpc('bridgepoint_horizon_year_one_status_v4310',{p_player_id:ident.id,p_player_secret:ident.secret}).catch(()=>state.yearOne);
     let cams=[];
@@ -393,6 +429,15 @@ document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
   if(b.dataset.tab!=='PLAY')openModal(b.dataset.tab);
 });
 $('modalContent').addEventListener('click',async e=>{
+  const mapPick=e.target.closest('button[data-map-key]');
+  if(mapPick){
+    try{
+      const out=await rpc('bridgepoint_horizon_select_map_v4330',{p_player_id:ident.id,p_player_secret:ident.secret,p_map_key:mapPick.dataset.mapKey});
+      state.selectedMap=out.map;await refreshMapCatalog();markMode();status('Map selected · '+state.selectedMap.display_name);openModal('ARENA');
+      if(window.BP_HORIZON_LOBBY_V4330)window.BP_HORIZON_LOBBY_V4330.selected_map_key=state.selectedMap.map_key;
+    }catch(err){status(err.message)}
+    return;
+  }
   const storeEquip=e.target.closest('[data-store-equip]');
   if(storeEquip){
     const key=storeEquip.dataset.storeEquip,kind=storeEquip.dataset.storeKind;
