@@ -39,7 +39,8 @@ const BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?650:480):900;
 const PART_LIMIT=MOBILE?(HIGH_DEVICE?420:260):700;
 const PARCEL_LIMIT=MOBILE?(HIGH_DEVICE?1250:850):1800;
 let ammoMag=30,ammoReserve=120,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,muzzleFlash=null;
-const interactables=[],infected=[],combatants=[],roadAnchors=[],buildingCenters=[],solidRects=[],lootPickups=[],builtCover=[];
+const interactables=[],infected=[],combatants=[],roadAnchors=[],buildingCenters=[],solidRects=[],solidPolys=[],lootPickups=[],builtCover=[];
+const COLLISION_CELL=32,collisionGrid=new Map();
 const activeMembers=Array.isArray(activeMatch?.members)?activeMatch.members:[];
 const playerTeam=Number(activeMembers.find(m=>m.player_id===playerId)?.team_no||1);
 const gltfLoader=new GLTFLoader(),assetCache=new Map(),killSnapshots=[];
@@ -92,7 +93,39 @@ function circleVsRect(x,y,r,o){
   const nx=Math.max(o.minx,Math.min(x,o.maxx)),ny=Math.max(o.miny,Math.min(y,o.maxy));
   return (x-nx)*(x-nx)+(y-ny)*(y-ny)<r*r;
 }
-function blocked(x,y,r=.36){return solidRects.some(o=>circleVsRect(x,y,r,o))}
+function pointInPoly(x,y,pts){
+  let inside=false;for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+    const xi=pts[i].x,yi=pts[i].y,xj=pts[j].x,yj=pts[j].y;
+    if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi+1e-12)+xi))inside=!inside;
+  }return inside;
+}
+function segDistSq(px,py,a,b){
+  const dx=b.x-a.x,dy=b.y-a.y,l=dx*dx+dy*dy||1;
+  const t=Math.max(0,Math.min(1,((px-a.x)*dx+(py-a.y)*dy)/l)),x=a.x+t*dx,y=a.y+t*dy;
+  return (px-x)*(px-x)+(py-y)*(py-y);
+}
+function circleVsPoly(x,y,r,o){
+  if(x+r<o.minx||x-r>o.maxx||y+r<o.miny||y-r>o.maxy)return false;
+  if(pointInPoly(x,y,o.pts))return true;
+  const rr=r*r;for(let i=0,j=o.pts.length-1;i<o.pts.length;j=i++)if(segDistSq(x,y,o.pts[j],o.pts[i])<rr)return true;
+  return false;
+}
+function collisionKey(ix,iy){return ix+':'+iy}
+function registerSolidPoly(pts){
+  if(!pts?.length)return;
+  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),o={pts,minx:Math.min(...xs),maxx:Math.max(...xs),miny:Math.min(...ys),maxy:Math.max(...ys),index:solidPolys.length};
+  solidPolys.push(o);
+  const ax=Math.floor(o.minx/COLLISION_CELL),bx=Math.floor(o.maxx/COLLISION_CELL),ay=Math.floor(o.miny/COLLISION_CELL),by=Math.floor(o.maxy/COLLISION_CELL);
+  for(let ix=ax;ix<=bx;ix++)for(let iy=ay;iy<=by;iy++){const k=collisionKey(ix,iy),arr=collisionGrid.get(k)||[];arr.push(o);collisionGrid.set(k,arr)}
+}
+function blocked(x,y,r=.36){
+  if(solidRects.some(o=>circleVsRect(x,y,r,o)))return true;
+  const ix=Math.floor(x/COLLISION_CELL),iy=Math.floor(y/COLLISION_CELL),seen=new Set();
+  for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(const o of collisionGrid.get(collisionKey(ix+dx,iy+dy))||[]){
+    if(seen.has(o.index))continue;seen.add(o.index);if(circleVsPoly(x,y,r,o))return true;
+  }
+  return false;
+}
 function addKillFeed(killer,victim,weapon='AR-12',headshot=false){
   const feed=$('killFeed');if(!feed)return;
   const row=document.createElement('div');row.className='killRow'+(headshot?' headshot':'');
@@ -258,7 +291,7 @@ function addBuildings(){
       const id=String(row.id||count),h=Number(row.height_m||0)>2?Math.min(160,Number(row.height_m)):4.8+(hash(id)%130)/10,cx=(minx+maxx)/2,cy=(miny+maxy)/2,baseZ=terrainZ(cx,cy),bucket=hash(id)%BUILD_MATS.length;
       buckets[bucket].push({cx,cy,h,w,d,baseZ});
       if(details.length<DETAIL_BUILDING_LIMIT)details.push({cx,cy,h,w,d,id,row,baseZ,pts});
-      buildingCenters.push({x:cx,y:cy,z:baseZ,h,w,d});solidRects.push({type:'building',minx:minx-.12,maxx:maxx+.12,miny:miny-.12,maxy:maxy+.12});count++;if(count>=BUILDING_LIMIT)break outer;
+      buildingCenters.push({x:cx,y:cy,z:baseZ,h,w,d});registerSolidPoly(pts);count++;if(count>=BUILDING_LIMIT)break outer;
     }
   }
   const dummy=new THREE.Object3D();
@@ -642,8 +675,10 @@ function updateCamera(dt){
   player.position.z=terrainZ(player.position.x,player.position.y);player.rotation.z=yaw;
   const target=player.position.clone().add(new THREE.Vector3(0,0,aiming?1.45:1.25));
   const arm=aiming?2.15:4.9,camZ=aiming?1.8:2.4+pitch*2.4;
-  const back=new THREE.Vector3(Math.sin(yaw)*arm,-Math.cos(yaw)*arm,camZ);
-  camera.position.lerp(target.clone().add(back),Math.min(1,dt*(aiming?13:8)));
+  const back=new THREE.Vector3(Math.sin(yaw)*arm,-Math.cos(yaw)*arm,camZ),desired=target.clone().add(back);
+  let safe=desired.clone(),prev=target.clone();
+  for(let i=1;i<=10;i++){const q=target.clone().lerp(desired,i/10);if(blocked(q.x,q.y,.18)||q.z<terrainZ(q.x,q.y)+.35){safe=prev;break}prev=q;safe=q}
+  camera.position.lerp(safe,Math.min(1,dt*(aiming?13:8)));
   camera.lookAt(target.clone().add(new THREE.Vector3(-Math.sin(yaw)*8,Math.cos(yaw)*8,pitch*7)));
   if(weaponRig){
     const targetWeapon=aiming?new THREE.Vector3(.18,.16,1.38):new THREE.Vector3(.38,.08,1.28);
@@ -688,7 +723,7 @@ async function load(){
   await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
   updateAmmo();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);
   loadText.textContent=`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · playable live twin active`;
-  window.BP_HORIZON_V2={ok:true,build:4320,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true};
+  window.BP_HORIZON_V2={ok:true,build:4320,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true};
 }
 function animate(){
   requestAnimationFrame(animate);
