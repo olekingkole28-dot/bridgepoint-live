@@ -154,7 +154,7 @@ export function createLobbyScene(canvas){
   function setParty(next){party=(next||[]).slice().sort((a,b)=>a.slot-b.slot);rebuildPlayers()}
 
   const clock=new THREE.Clock();
-  let perfFrames=0,perfAt=performance.now();
+  let perfFrames=0,perfAt=performance.now(),lastFps=60;
   function resize(){
     const r=canvas.getBoundingClientRect();renderer.setPixelRatio(currentDpr);renderer.setSize(Math.max(1,r.width),Math.max(1,r.height),false);
     camera.aspect=Math.max(.1,r.width/Math.max(1,r.height));camera.updateProjectionMatrix();
@@ -179,7 +179,7 @@ export function createLobbyScene(canvas){
     perfFrames++;
     const now=performance.now();
     if(now-perfAt>1800){
-      const fps=perfFrames*1000/(now-perfAt);
+      const fps=perfFrames*1000/(now-perfAt);lastFps=fps;
       const floor=mobile?.7:.85,ceiling=Math.min(high?1.65:1.15,window.devicePixelRatio||1);
       let next=currentDpr;
       if(fps<48)next=Math.max(floor,currentDpr-.12);
@@ -192,5 +192,5 @@ export function createLobbyScene(canvas){
   }
   requestAnimationFrame(frame);
 
-  return{setCatalog,setParty,destroy(){destroyed=true;ro.disconnect();renderer.dispose()}};
+  return{setCatalog,setParty,getStats:()=>({models:models.length,openSlots:slotGroup.children.length,zombies:zombieGroup.children.length,fps:Math.round(lastFps),dpr:Number(currentDpr.toFixed(2)),mobile,high}),destroy(){destroyed=true;ro.disconnect();renderer.dispose()}};
 }
