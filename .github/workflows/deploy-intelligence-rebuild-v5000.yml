@@ -17,6 +17,16 @@ on:
       - 'articles/auto/**'
       - 'current-map-entry.js'
       - 'acquisition_tracker.js'
+      - 'founder-access.js'
+      - 'founder-access.css'
+      - 'founder-access/**'
+      - 'for-roofers/**'
+      - 'for-solar/**'
+      - 'for-restoration/**'
+      - 'for-public-adjusters/**'
+      - 'for-property-managers/**'
+      - 'sample/**'
+      - 'owner/acquisition/**'
   workflow_dispatch:
 
 permissions:
@@ -50,7 +60,7 @@ jobs:
 
           # Keep only the current Intelligence workspace plus the current Horizon lobby and playable runtime.
           # Other historical /app/... URLs fall through the V5000 404 back to the live map.
-          rm -rf site/app site/discover site/newsroom site/articles/auto
+          rm -rf site/app site/discover site/newsroom site/articles/auto site/founder-access site/for-roofers site/for-solar site/for-restoration site/for-public-adjusters site/for-property-managers site/sample site/owner/acquisition
           mkdir -p site/app site/articles
           cp -a discover site/discover
           if [ ! -d newsroom ]; then python scripts/publish_growth_newsroom_v5100.py; fi
@@ -60,6 +70,17 @@ jobs:
           cp -a app/horizon-playable site/app/horizon-playable
           cp current-map-entry.js site/current-map-entry.js
           cp acquisition_tracker.js site/acquisition_tracker.js
+          cp founder-access.js site/founder-access.js
+          cp founder-access.css site/founder-access.css
+          cp -a founder-access site/founder-access
+          cp -a for-roofers site/for-roofers
+          cp -a for-solar site/for-solar
+          cp -a for-restoration site/for-restoration
+          cp -a for-public-adjusters site/for-public-adjusters
+          cp -a for-property-managers site/for-property-managers
+          cp -a sample site/sample
+          mkdir -p site/owner
+          cp -a owner/acquisition site/owner/acquisition
           cp rebuild-v5000/index.html site/index.html
           cp rebuild-v5000/app-index.html site/app/index.html
           cp rebuild-v5000/landing.css site/landing.css
@@ -159,6 +180,14 @@ jobs:
           grep -Fq 'mobileMotion' site/world-v2300-map.js
           test -s site/app/horizon/index.html
           test -s site/current-map-entry.js
+          test -s site/founder-access/index.html
+          test -s site/for-roofers/index.html
+          test -s site/for-solar/index.html
+          test -s site/sample/index.html
+          test -s site/owner/acquisition/index.html
+          grep -Fq 'BILLING OFF' site/founder-access/index.html
+          grep -Fq 'founder-access.js' site/for-roofers/index.html
+          ! grep -Fq 'bridgepoint-territory-report-v674' site/sample/index.html
           test -s site/discover/index.html
           test -s site/newsroom/index.html
           test -s site/newsroom/manifest.json
@@ -205,11 +234,20 @@ jobs:
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon-playable/v2-entry.html?v5100=${q}" -o /tmp/horizon-playable.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/discover/?v5100=${q}" -o /tmp/discover.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/newsroom/?v5100=${q}" -o /tmp/newsroom.html
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/founder-access/?v5100=${q}" -o /tmp/founder.html
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/for-solar/?v5100=${q}" -o /tmp/solar.html
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sample/?v5100=${q}" -o /tmp/sample.html
           test -s /tmp/horizon.html
           test -s /tmp/horizon-playable.html
           grep -Fq 'Live Match' /tmp/horizon-playable.html
           test -s /tmp/discover.html
           test -s /tmp/newsroom.html
+          test -s /tmp/founder.html
+          test -s /tmp/solar.html
+          test -s /tmp/sample.html
+          grep -Fq 'BILLING OFF' /tmp/founder.html
+          grep -Fq 'Property intelligence for solar teams' /tmp/solar.html
+          ! grep -Fq 'bridgepoint-territory-report-v674' /tmp/sample.html
           grep -Fq 'GROWTH NEWSROOM' /tmp/newsroom.html
           grep -Fq 'BRIDGEPOINT' /tmp/horizon.html
           grep -Fq 'current-map-entry.js?v=5100' /tmp/discover.html

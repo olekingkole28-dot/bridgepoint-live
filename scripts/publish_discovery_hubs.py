@@ -94,7 +94,7 @@ def write_index(stories: list[dict], generated: str) -> list[str]:
     topics = sorted({slug(clean(s.get("story_type"),60)) for s in stories if clean(s.get("story_type"),60)})
     state_links = " ".join(f'<a href="states/{s.lower()}/">{esc(STATE_NAMES.get(s,s))}</a>' for s in states)
     topic_links = " ".join(f'<a href="topics/{t}/">{esc(t.replace("-"," ").title())}</a>' for t in topics)
-    body = f'''<h1>BridgePoint public intelligence discovery</h1><p class="lead">A continuously refreshed directory of quality-gated BridgePoint property and claims-intelligence research. Use it to explore current public findings by market and topic, then open the underlying research brief for source limitations and context.</p><p><strong>Markets:</strong> {state_links or "Current evergreen research"}</p><p><strong>Topics:</strong> {topic_links or "General property intelligence"}</p><div class="grid">{''.join(card(s) for s in stories)}</div><div class="note"><strong>Why this exists:</strong> BridgePoint turns verified public-source infrastructure into searchable research surfaces while preserving privacy and uncertainty. Updated {esc(generated)}.</div><a class="cta" href="/?utm_source=discover&utm_medium=owned&utm_campaign=discovery_hub">Open the live BridgePoint map</a>'''
+    body = f'''<h1>BridgePoint public intelligence discovery</h1><p class="lead">A continuously refreshed directory of quality-gated BridgePoint property and claims-intelligence research. Use it to explore current public findings by market and topic, then open the underlying research brief for source limitations and context.</p><p><strong>Markets:</strong> {state_links or "Current evergreen research"}</p><p><strong>Topics:</strong> {topic_links or "General property intelligence"}</p><div class="grid">{''.join(card(s) for s in stories)}</div><div class="note"><strong>Why this exists:</strong> BridgePoint turns verified public-source infrastructure into searchable research surfaces while preserving privacy and uncertainty. Updated {esc(generated)}.</div><a class="cta" href="/?utm_source=discover&utm_medium=owned&utm_campaign=discovery_hub">Open the live BridgePoint map</a> <a class="cta" href="/founder-access/?utm_source=discover&utm_medium=owned&utm_campaign=founder_access">Request founder access</a>'''
     structured = {"@context":"https://schema.org","@type":"CollectionPage","name":"BridgePoint Public Intelligence Discovery","url":f"{PUBLIC_ORIGIN}/discover/","isPartOf":{"@type":"WebSite","name":"BridgePoint Intelligence","url":PUBLIC_ORIGIN},"numberOfItems":len(stories)}
     (OUT / "index.html").write_text(shell("Public Intelligence Discovery", "Quality-gated BridgePoint property and claims-intelligence research organized for public discovery.", f"{PUBLIC_ORIGIN}/discover/", body, structured), encoding="utf-8")
     return [f"{PUBLIC_ORIGIN}/discover/"]
@@ -129,7 +129,7 @@ def write_topic_pages(stories: list[dict]) -> list[str]:
     for key,items in grouped.items():
         label=labels[key]; d=OUT/"topics"/key; d.mkdir(parents=True,exist_ok=True)
         canonical=f"{PUBLIC_ORIGIN}/discover/topics/{key}/"
-        body=f'''<h1>{esc(label)} research</h1><p class="lead">BridgePoint research briefs grouped around {esc(label.lower())}. Each linked brief preserves its source and use limitations and is selected only after passing the public customer-safety gate.</p><div class="grid">{''.join(card(s) for s in items)}</div><a class="cta" href="/?utm_source=discover&utm_medium=owned&utm_campaign={key}">Open the live BridgePoint map</a>'''
+        body=f'''<h1>{esc(label)} research</h1><p class="lead">BridgePoint research briefs grouped around {esc(label.lower())}. Each linked brief preserves its source and use limitations and is selected only after passing the public customer-safety gate.</p><div class="grid">{''.join(card(s) for s in items)}</div><a class="cta" href="/?utm_source=discover&utm_medium=owned&utm_campaign={key}">Open the live BridgePoint map</a> <a class="cta" href="/founder-access/?utm_source=discover&utm_medium=owned&utm_campaign=founder_access">Request founder access</a>'''
         structured={"@context":"https://schema.org","@type":"CollectionPage","name":f"BridgePoint {label} Research","url":canonical,"numberOfItems":len(items)}
         (d/"index.html").write_text(shell(f"{label} Research", f"Quality-gated BridgePoint public research on {label.lower()}.", canonical, body, structured),encoding="utf-8")
         urls.append(canonical)
@@ -154,7 +154,16 @@ def main() -> None:
     if OUT.exists(): shutil.rmtree(OUT)
     OUT.mkdir(parents=True,exist_ok=True)
     generated=datetime.now(timezone.utc).strftime("%B %d, %Y at %H:%M UTC")
-    urls=write_index(stories,generated)+write_state_pages(stories)+write_topic_pages(stories)
+    conversion_urls=[
+        f"{PUBLIC_ORIGIN}/founder-access/",
+        f"{PUBLIC_ORIGIN}/for-roofers/",
+        f"{PUBLIC_ORIGIN}/for-solar/",
+        f"{PUBLIC_ORIGIN}/for-restoration/",
+        f"{PUBLIC_ORIGIN}/for-public-adjusters/",
+        f"{PUBLIC_ORIGIN}/for-property-managers/",
+        f"{PUBLIC_ORIGIN}/sample/",
+    ]
+    urls=write_index(stories,generated)+write_state_pages(stories)+write_topic_pages(stories)+conversion_urls
     write_sitemap(urls)
     manifest={"version":1111,"generated_at":datetime.now(timezone.utc).isoformat().replace("+00:00","Z"),"source_rpc":"bridgepoint_public_owned_media_feed_v435","safe_story_count":len(stories),"page_count":len(urls),"privacy":feed.get("privacy"),"publication_rule":feed.get("publication_rule"),"urls":urls}
     (OUT/"manifest.json").write_text(json.dumps(manifest,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")

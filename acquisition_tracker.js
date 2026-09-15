@@ -3,8 +3,8 @@
 const SUPABASE='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const TRACK=SUPABASE+'/rest/v1/rpc/track_acquisition_event_v400';
-const VERSION=5001;
-const GENERATION='current_pages_2026_09_14';
+const VERSION=5100;
+const GENERATION='founder_access_2026_09_15';
 const params=new URLSearchParams(location.search);
 const path=location.pathname||'/';
 const disabled=params.get('bp_verify')==='1'||params.get('verify_tracking')==='1'||params.has('verify_mobile_v683');
@@ -14,7 +14,7 @@ const visitorId=stored(localStorage,'bp_visitor_id_v421');
 const sessionId=stored(sessionStorage,'bp_session_id_v421');
 const referrerHost=(()=>{try{return document.referrer?new URL(document.referrer).hostname:null}catch(_){return null}})();
 const surface=path.startsWith('/app/horizon')?'horizon':path.startsWith('/app')?'intelligence_app':'intelligence_public';
-const onceKey='bp_current_acq_once_v5001';
+const onceKey='bp_current_acq_once_v5100';
 const normalize=v=>String(v||'').replace(/\s+/g,' ').trim().toLowerCase();
 function once(k){try{const m=JSON.parse(sessionStorage.getItem(onceKey)||'{}');if(m[k])return false;m[k]=1;sessionStorage.setItem(onceKey,JSON.stringify(m));return true}catch(_){return true}}
 async function send(eventType,metadata){
@@ -104,6 +104,10 @@ function bind(){
       send('VALUE_VIEW',{action:'map_search'});
       return;
     }
+    if(href.startsWith('/founder-access')){
+      send('CONTACT_REQUEST',{action:'founder_access_click',product:'INTELLIGENCE'});
+      return;
+    }
     if(href.startsWith('/app/horizon')){
       send('VALUE_VIEW',{action:'cross_surface_horizon'});
       return;
@@ -124,6 +128,14 @@ function bind(){
   document.addEventListener('submit',e=>{
     const form=e.target instanceof HTMLFormElement?e.target:null;
     if(!form)return;
+    if(form.matches('[data-founder-access-form]')){
+      if(once('founder_form_start'))send('CONTACT_REQUEST',{action:'founder_access_form_start',product:form.dataset.product||'INTELLIGENCE'});
+      return;
+    }
+    if(form.matches('[data-founder-access-form]')){
+      send('CONTACT_REQUEST',{action:'founder_access_submit',product:form.dataset.product||'INTELLIGENCE'});
+      return;
+    }
     if(form.id==='teaser-form'){
       send('SAMPLE_REQUEST',{surface:'property_teaser'});
       return;
