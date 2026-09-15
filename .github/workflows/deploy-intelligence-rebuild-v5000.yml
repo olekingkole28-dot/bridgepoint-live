@@ -300,7 +300,7 @@ jobs:
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               const errors=[];p.on('pageerror',e=>errors.push(String(e.message||e)));
-              await p.goto('https://bridgepointintelligence.online/app/?qa=v5050-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await p.goto('https://bridgepointintelligence.online/app/?qa=v5063-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000,{timeout:10000});
               await p.waitForFunction(()=>document.getElementById('canonicalProperties')?.textContent?.includes(','),{timeout:15000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
@@ -310,12 +310,27 @@ jobs:
                 const m=window.__BP_V5000_WORLD?.map;
                 return !!m?.getLayer('gta-place-label')&&!!m?.getLayer('gta-road-label-major')&&!!m?.getLayer('gta-poi-label')&&!!m?.getLayer('gta-opportunity-buildings')&&!!m?.getLayer('gta-opportunity-label');
               },{timeout:15000});
+              const launch=await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                const lang=document.querySelector('.topbar-actions > .bp-language--topbar select');
+                return {
+                  center:m?[m.getCenter().lng,m.getCenter().lat]:null,
+                  zoom:m?.getZoom?.()??null,
+                  languageTopbar:!!lang,
+                  weatherMinZoom:m?.getLayer('bp-v5004-weather-points')?.minzoom??99
+                };
+              });
+              if(!launch.languageTopbar||!launch.center||Math.abs(launch.center[0]+98.5)>2||Math.abs(launch.center[1]-39.5)>2||launch.zoom>3.6||launch.weatherMinZoom>3.6)throw new Error('NATIONAL_LAUNCH_CONTRACT '+JSON.stringify(launch));
+              await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                m?.jumpTo({center:[-98.5,39.5],zoom:4.2,pitch:0,bearing:0});
+              });
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
                 if(!m)return false;
                 try{return m.queryRenderedFeatures({layers:['gta-place-label']}).length>0}catch{return false}
-              },{timeout:15000});
-              console.log('BRIDGEPOINT_TEXT_LABELS_RENDERED');
+              },{timeout:20000});
+              console.log('BRIDGEPOINT_TEXT_LABELS_RENDERED',JSON.stringify(launch));
               await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
                 if(!m)throw new Error('semantic map unavailable');
