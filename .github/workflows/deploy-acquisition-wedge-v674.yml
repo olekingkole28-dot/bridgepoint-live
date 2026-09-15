@@ -1,56 +1,6 @@
 name: Deploy BridgePoint Single Publisher V683
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - sample/**
-      - pilot/**
-      - contact/**
-      - experience/capabilities.html
-      - experience/app-technology.html
-      - experience/owner-everything-v623.js
-      - experience/owner-completion-v590.html
-      - growth/**
-      - claim-guide/**
-      - founder/**
-      - answers/**
-      - press/**
-      - start-now/**
-      - partners/**
-      - commerce/**
-      - free-tools/**
-      - acquisition_tracker.js
-      - articles/index.html
-      - articles/feed.xml
-      - articles/atom.xml
-      - articles/feed.json
-      - articles/data.json
-      - articles/datapackage.json
-      - articles/dcat.ttl
-      - articles/ct-opportunity-aggregates.csv
-      - articles/bridgepoint-facts.json
-      - articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html
-      - articles/auto/**
-      - llms.txt
-      - llms-full.txt
-      - robots.txt
-      - sitemap.xml
-      - scripts/generate_ct_market_pages.py
-      - enterprise/**
-      - research/national-estimate-variance/**
-      - tools/**
-      - start/**
-      - audit/**
-      - estimate-preflight/**
-      - developers/**
-      - storms/**
-      - owner/global/**
-      - owner/distribution/**
-      - owner/innovation/**
-      - downloads/backup/**
-      - .well-known/**
-      - .github/workflows/deploy-acquisition-wedge-v674.yml
   workflow_dispatch:
 
 permissions:
