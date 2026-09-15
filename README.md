@@ -14,6 +14,20 @@ At the September 15 checkpoint, BridgePoint separately measured approximately **
 - Live machine-readable facts: https://bridgepointintelligence.online/discovery-facts.json
 - Press facts: https://bridgepointintelligence.online/press/
 
+
+## Claims Lifecycle Terminal
+
+BridgePoint now publishes a public claims-lifecycle intelligence surface at https://bridgepointintelligence.online/claims-terminal/. It organizes source-backed context from **pre-loss → loss → claim → recovery → repair/rebuild**, plus ongoing property/financial context.
+
+Current public matrix snapshot (September 15, 2026): **32 tracked source families**, **15 lifecycle-stage labels**, **1,792 family/state rows**, **2,119 current source slots**, and **1,828 enabled source slots**. Each family retains an explicit rights/privacy/accuracy gate; enabled/discovered does not mean unrestricted rights to republish or use every underlying record.
+
+Machine-readable delivery:
+- JSON: https://bridgepointintelligence.online/claims-terminal/claims-lifecycle.json
+- RSS/WebSub: https://bridgepointintelligence.online/claims-terminal/feed.xml
+- Read-only feed contract: https://bridgepointintelligence.online/claims-terminal/openapi.json
+
+BridgePoint does not treat weather exposure as verified damage, does not publish private customer claim records in the public terminal, and does not impersonate internal error/bug notifications or inject unsolicited payloads into third-party private systems.
+
 ## Start here
 
 - **Roofing contractors:** https://bridgepointintelligence.online/for-roofers/
