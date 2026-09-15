@@ -27,6 +27,13 @@ on:
       - 'for-property-managers/**'
       - 'sample/**'
       - 'owner/acquisition/**'
+      - 'language-selector-v5200.css'
+      - 'language-selector-v5200.js'
+      - 'search-sitemap.xml'
+      - 'bridgepoint-knowledge.jsonld'
+      - 'ai-index.json'
+      - 'discovery-facts.json'
+      - 'search/**'
   workflow_dispatch:
 
 permissions:
@@ -60,9 +67,10 @@ jobs:
 
           # Keep only the current Intelligence workspace plus the current Horizon lobby and playable runtime.
           # Other historical /app/... URLs fall through the V5000 404 back to the live map.
-          rm -rf site/app site/discover site/newsroom site/articles/auto site/founder-access site/for-roofers site/for-solar site/for-restoration site/for-public-adjusters site/for-property-managers site/sample site/owner/acquisition
+          rm -rf site/app site/discover site/search site/newsroom site/articles/auto site/founder-access site/for-roofers site/for-solar site/for-restoration site/for-public-adjusters site/for-property-managers site/sample site/owner/acquisition
           mkdir -p site/app site/articles
           cp -a discover site/discover
+          if [ -d search ]; then cp -a search site/search; fi
           if [ ! -d newsroom ]; then python scripts/publish_growth_newsroom_v5100.py; fi
           cp -a newsroom site/newsroom
           cp -a articles/auto site/articles/auto
@@ -70,6 +78,9 @@ jobs:
           cp -a app/horizon-playable site/app/horizon-playable
           cp current-map-entry.js site/current-map-entry.js
           cp acquisition_tracker.js site/acquisition_tracker.js
+          for f in discovery-facts.json ai-index.json bridgepoint-knowledge.jsonld search-sitemap.xml language-selector-v5200.js language-selector-v5200.css; do
+            if [ -f "$f" ]; then cp "$f" "site/$f"; fi
+          done
           cp founder-access.js site/founder-access.js
           cp founder-access.css site/founder-access.css
           cp -a founder-access site/founder-access
@@ -92,22 +103,23 @@ jobs:
           cp rebuild-v5000/404.html site/404.html
           cp rebuild-v5000/bridgepoint-mark.svg site/bridgepoint-mark.svg
 
-          # Make every legacy/public content page funnel into the current map without
-          # destroying its crawlable research content. Product/app and owner surfaces are excluded.
+          # Funnel legacy public content to the current map and attach the language selector.
           python - <<'PY'
           from pathlib import Path
-          tag='<script defer src="/current-map-entry.js?v=5100"></script>'
+          funnel='<script defer src="/current-map-entry.js?v=5100"></script>'
+          lang_js='<script defer src="/language-selector-v5200.js"></script>'
+          lang_css='<link rel="stylesheet" href="/language-selector-v5200.css">'
           for p in Path('site').rglob('*.html'):
               rel=p.relative_to('site').as_posix()
-              if rel in {'index.html','app/index.html'} or rel.startswith(('app/','owner/','admin/')):
+              if rel.startswith(('owner/','admin/')):
                   continue
               text=p.read_text(encoding='utf-8',errors='ignore')
-              if tag in text:
-                  continue
-              if '</body>' in text:
-                  text=text.replace('</body>',tag+'</body>',1)
-              else:
-                  text+=tag
+              if lang_css not in text and '</head>' in text:
+                  text=text.replace('</head>',lang_css+'</head>',1)
+              if lang_js not in text:
+                  text=text.replace('</body>',lang_js+'</body>',1) if '</body>' in text else text+lang_js
+              if rel not in {'index.html','app/index.html'} and not rel.startswith('app/') and funnel not in text:
+                  text=text.replace('</body>',funnel+'</body>',1) if '</body>' in text else text+funnel
               p.write_text(text,encoding='utf-8')
           PY
 
