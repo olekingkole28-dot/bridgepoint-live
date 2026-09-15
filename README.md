@@ -2,6 +2,18 @@
 
 **BridgePoint Intelligence** is a U.S. property and claims intelligence platform founded by **Kole Johnson**. It is built for commercial contractors, restoration firms, public and insurance adjusters, property operators, real-estate organizations, insurers, lenders, investors, and other teams that need property-level evidence to move into an operational workflow.
 
+
+## Current national scale — September 15, 2026
+
+BridgePoint Intelligence currently reports **169,634,995 canonical U.S. property/parcel identity records**. This is the canonical identity layer, **not** a claim that 169,634,995 parcel-boundary polygons have been materialized.
+
+At the September 15 checkpoint, BridgePoint separately measured approximately **142,849,508 normalized/public address records**, **83,858,024 stored parcel-boundary rows**, and **31,282,151 property-to-boundary links**. The current parcel scoreboard showed **55 of 56 required jurisdictions** fresh and approved while final boundary reconciliation remained in progress.
+
+- National scale brief: https://bridgepointintelligence.online/articles/bridgepoint-169634995-canonical-property-identities-2026-09-15.html
+- Parcel-boundary build status: https://bridgepointintelligence.online/articles/bridgepoint-parcel-boundary-progress-2026-09-15.html
+- Live machine-readable facts: https://bridgepointintelligence.online/discovery-facts.json
+- Press facts: https://bridgepointintelligence.online/press/
+
 ## Start here
 
 - **Roofing contractors:** https://bridgepointintelligence.online/for-roofers/
