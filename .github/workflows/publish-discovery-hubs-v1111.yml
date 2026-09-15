@@ -59,20 +59,35 @@ jobs:
         id: commit
         run: |
           set -euo pipefail
-          if git diff --quiet -- discover && git ls-files --error-unmatch discover/index.html >/dev/null 2>&1; then
-            echo 'changed=false' >> "$GITHUB_OUTPUT"
-            echo 'No discovery change.'
-            exit 0
-          fi
           git config user.name 'BridgePoint Discovery Bot'
           git config user.email 'actions@users.noreply.github.com'
-          git add -- discover
-          git diff --cached --check
-          git commit -m 'Refresh BridgePoint nationwide discovery hubs [v1113]'
-          git pull --rebase origin main
-          git push origin HEAD:main
+          changed=false
+          for attempt in 1 2 3; do
+            echo "Discovery publish attempt $attempt"
+            git fetch origin main
+            git reset --hard origin/main
+            python scripts/publish_discovery_hubs.py
+            python scripts/publish_intent_hubs_v1113.py
+            git add -- discover
+            git diff --cached --check
+            if git diff --cached --quiet; then
+              echo 'changed=false' >> "$GITHUB_OUTPUT"
+              echo 'No discovery change.'
+              exit 0
+            fi
+            git commit -m 'Refresh BridgePoint nationwide discovery hubs [v5200]'
+            if git push origin HEAD:main; then
+              changed=true
+              break
+            fi
+            echo "Main advanced during discovery publish; regenerating on newest main."
+            sleep $((attempt * 3))
+          done
+          if [ "$changed" != true ]; then
+            echo 'Could not publish discovery after three clean regenerations.' >&2
+            exit 1
+          fi
           echo 'changed=true' >> "$GITHUB_OUTPUT"
-
 
       - name: Republish combined BridgePoint site
         if: steps.commit.outputs.changed == 'true'
