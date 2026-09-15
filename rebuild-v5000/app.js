@@ -40,7 +40,7 @@ function bindAuthUI(){$('accountButton')?.addEventListener('click',()=>openAuth(
 
 function setText(id,v){const e=$(id);if(e)e.textContent=v}
 function setBar(id,v){const e=$(id);if(e)e.style.width=pct(v)+'%'}
-let statusLast=null,world=null,statusTimer=null,tileTimer=null,selectedTimer=null,liveContextTimer=null,transportTimer=null,opportunityTimer=null,opportunitySeq=0,semanticTimer=null,semanticRetryTimer=null,semanticSeq=0,measureActive=false,measurePoints=[],xrayRestore=null,mapInteracting=false,performanceDrainTimer=null,performanceRestoreTimer=null,deferredWork=new Map(),transportRuntimeLastAt=0,transportVisible=true,transportSourceUrl=null,liveContextVisible=true,selectedPoint=null,selectedFeature=null,selectedMode='building',buildingRequestSeq=0;
+let statusLast=null,world=null,statusTimer=null,tileTimer=null,selectedTimer=null,liveContextTimer=null,transportTimer=null,opportunityTimer=null,opportunitySeq=0,semanticTimer=null,semanticSeq=0,measureActive=false,measurePoints=[],xrayRestore=null,mapInteracting=false,performanceDrainTimer=null,performanceRestoreTimer=null,deferredWork=new Map(),transportRuntimeLastAt=0,transportVisible=true,transportSourceUrl=null,liveContextVisible=true,selectedPoint=null,selectedFeature=null,selectedMode='building',buildingRequestSeq=0;
 function statusLabel(s){if(s.layout_status==='COMPLETE')return 'BACKEND LIVE · LAYOUT INDEX CAUGHT UP';return 'BACKEND LIVE · MATERIALIZING';}
 async function loadTransportRuntimeStatus(){if(Date.now()-transportRuntimeLastAt<30000)return null;transportRuntimeLastAt=Date.now();try{const r=await rpc('bridgepoint_public_transport_runtime_status_v2716',{},2500);const n=Number(r.states_verified||0),failed=Number(r.states_failed||0),building=Number(r.states_building||0),rows=Number(r.runtime_rows||0);const label=n>=56?'RUNTIME COMPLETE · 56/56':n>0?'RUNTIME MATERIALIZING · '+n+'/56 · '+fmt(rows)+' rows'+(failed?' · '+failed+' retrying':''):building>0?'RUNTIME PILOT BUILDING · '+building+' active':failed>0?'RUNTIME PILOT RETRYING · '+failed+' failed':'ARCHIVE READY · MAP BUILD NEXT';setText('transportRuntime',label);return r}catch(e){console.warn('transport runtime status',e);return null}}
 async function loadDataSprintStatus(){try{const d=await rpc('bridgepoint_data_sprint_status_v5106',{},4500);setText('storedBoundaries',fmt(d.stored_boundary_rows_estimate));setText('addressLinks',fmt(d.property_address_links_estimate));setText('nadIngested',fmt(d.nad_ingested_records_estimate));return d}catch(e){console.warn('data sprint status',e);return null}}
@@ -228,7 +228,7 @@ function bindPerformanceGovernor(){
  if(m.__bpPerfGovernor)return;
  m.__bpPerfGovernor=true;
  const motionContext=visible=>{for(const id of liveLayerIds()){try{if(m.getLayer(id))m.setLayoutProperty(id,'visibility',visible&&liveContextVisible?'visible':'none')}catch(_){}}};
- const enter=()=>{mapInteracting=true;lastMapMotionAt=performance.now();semanticSeq++;opportunitySeq++;clearTimeout(semanticTimer);clearTimeout(semanticRetryTimer);clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);motionContext(false);document.body.classList.add('map-interacting');try{closeSystem()}catch(_){}const auth=$('authPanel');if(auth)auth.hidden=true;$('bottomNav')?.classList.remove('peek')},
+ const enter=()=>{mapInteracting=true;lastMapMotionAt=performance.now();semanticSeq++;opportunitySeq++;clearTimeout(semanticTimer);clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);motionContext(false);document.body.classList.add('map-interacting');try{closeSystem()}catch(_){}const auth=$('authPanel');if(auth)auth.hidden=true;$('bottomNav')?.classList.remove('peek')},
  leave=()=>{lastMapMotionAt=performance.now();clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);performanceDrainTimer=setTimeout(()=>{mapInteracting=false;document.body.classList.remove('map-interacting');if(BP_MOBILE){const settledAt=lastMapMotionAt;performanceRestoreTimer=setTimeout(()=>{if(mapInteracting||lastMapMotionAt!==settledAt)return;motionContext(true);flushDeferredWork()},1050)}else{motionContext(true);flushDeferredWork()}},BP_MOBILE?220:120)};
  ['movestart','dragstart','zoomstart','rotatestart','pitchstart'].forEach(e=>m.on(e,enter));
  ['moveend','dragend','zoomend','rotateend','pitchend'].forEach(e=>m.on(e,leave))
@@ -302,7 +302,6 @@ function geometryAnchor(g){
  return Number.isFinite(minX)?[(minX+maxX)/2,(minY+maxY)/2]:null
 }
 function refreshSemanticLabels(){
- clearTimeout(semanticRetryTimer);
  if(mapInteracting){deferredWork.set('semantic-labels',refreshSemanticLabels);return}
  const map=world?.map,src=map?.getSource('bpSemanticLabels');if(!map||!src?.setData||map.isMoving?.())return;
  clearTimeout(semanticTimer);const seq=++semanticSeq;
@@ -314,7 +313,7 @@ function refreshSemanticLabels(){
   let buildings=[];try{buildings=buildingLayers.length?(map.queryRenderedFeatures({layers:buildingLayers})||[]).slice(0,BP_MOBILE?120:220):[]}catch(_){}
   if(BP_MOBILE&&!buildings.length){try{buildings=[...(map.querySourceFeatures('bpBuildings',{sourceLayer:'buildings'})||[]).slice(0,80),...(map.querySourceFeatures('ofm',{sourceLayer:'building'})||[]).slice(0,80)]}catch(_){}}
   const buildingAnchors=buildings.map(hit=>{const a=geometryAnchor(hit.geometry);if(!a)return null;const p=map.project(a);return{hit,anchor:a,x:p.x,y:p.y}}).filter(Boolean);
-  if(BP_MOBILE&&(!rows.length||!buildingAnchors.length)){window.__BP_SEMANTIC_STATS={zoom:map.getZoom(),candidates:rows.length,anchored:0,features:0,pending:true,updatedAt:Date.now()};semanticRetryTimer=setTimeout(()=>{if(!mapInteracting&&!map.isMoving?.())refreshSemanticLabels()},700);return}
+  if(BP_MOBILE&&(!rows.length||!buildingAnchors.length)){window.__BP_SEMANTIC_STATS={zoom:map.getZoom(),candidates:rows.length,anchored:0,features:0,pending:true,updatedAt:Date.now()};setTimeout(()=>{if(!mapInteracting&&!map.isMoving?.())refreshSemanticLabels()},700);return}
   let anchoredCount=0,classifiedCount=0;
   for(const f of scan){
    if(features.length>=max)break;const g=f.geometry,p=f.properties||{};if(g?.type!=='Point'||!Array.isArray(g.coordinates))continue;
@@ -365,4 +364,4 @@ async function applyGrowthDeepLink(){
 }
 async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();await loadStatus();try{await bootMap();bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();startSemanticLabels();await applyGrowthDeepLink()}catch(e){setText('mapStatus','Map start retry · '+e.message)}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),120000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),90000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5202').catch(()=>{})}
 start();
-window.addEventListener('beforeunload',()=>{clearInterval(statusTimer);clearInterval(tileTimer);clearInterval(selectedTimer);clearInterval(liveContextTimer);clearInterval(transportTimer);clearInterval(opportunityTimer);clearTimeout(semanticTimer);clearTimeout(semanticRetryTimer)});
+window.addEventListener('beforeunload',()=>{clearInterval(statusTimer);clearInterval(tileTimer);clearInterval(selectedTimer);clearInterval(liveContextTimer);clearInterval(transportTimer);clearInterval(opportunityTimer);clearTimeout(semanticTimer)});
