@@ -1,0 +1,61 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://bridgepointintelligence.online/#organization",
+      "name": "BridgePoint Intelligence",
+      "url": "https://bridgepointintelligence.online/"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://bridgepointintelligence.online/#intelligence",
+      "name": "BridgePoint Intelligence",
+      "applicationCategory": "BusinessApplication",
+      "url": "https://bridgepointintelligence.online/app/",
+      "description": "Property, parcel, building, roof, hazard, claims and geospatial intelligence platform."
+    },
+    {
+      "@type": "Dataset",
+      "@id": "https://bridgepointintelligence.online/#property-index",
+      "name": "BridgePoint canonical property/parcel identity index",
+      "description": "National canonical property/parcel identity index with separately measured boundaries, addresses and buildings.",
+      "variableMeasured": [
+        {
+          "@type": "PropertyValue",
+          "name": "Canonical property/parcel identity records",
+          "value": 169634995
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Materialized boundary estimate",
+          "value": 83848384
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Normalized/public address records",
+          "value": 139702575
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Map-ready buildings",
+          "value": 90908368
+        }
+      ]
+    },
+    {
+      "@type": "VideoGame",
+      "@id": "https://bridgepointintelligence.online/#horizon",
+      "name": "BridgePoint Horizon",
+      "url": "https://bridgepointintelligence.online/app/horizon/",
+      "genre": [
+        "Survival",
+        "Action",
+        "Shooter",
+        "Extraction",
+        "Persistent World"
+      ],
+      "description": "Real-world spatial survival and combat game using BridgePoint terrain, roads, parcels and buildings as a spatial foundation."
+    }
+  ]
+}

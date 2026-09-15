@@ -1,0 +1,329 @@
+{
+  "entity": "BridgePoint Intelligence",
+  "metrics": {
+    "map_ready_buildings": 90908368,
+    "roof_shell_buildings": 90908368,
+    "roof_shell_coverage_pct": 100.0,
+    "canonical_property_records": 169634995,
+    "normalized_address_records": 139702575,
+    "source_backed_roof_records": 646574,
+    "lidar_refined_roof_buildings": 1396,
+    "materialized_boundary_estimate": 83848384,
+    "public_parcel_identity_records": 169634995,
+    "canonical_property_record_label": "canonical property/parcel identity records",
+    "property_boundary_link_estimate": 31228689
+  },
+  "coverage": {
+    "fl_oid_remaining": 64918,
+    "ny_oid_remaining": 0,
+    "pr_oid_remaining": 0,
+    "strict_boundary_ready": false,
+    "required_jurisdictions": 56,
+    "fresh_approved_jurisdictions": 55,
+    "public_counter_jurisdictions": 55
+  },
+  "freshness": {
+    "roof_updated_at": "2026-09-15T05:55:06.733532+00:00",
+    "lidar_last_success_at": "2026-09-15T05:55:05.449793+00:00",
+    "parcel_counter_updated_at": "2026-09-13T00:07:55.298817+00:00",
+    "address_counter_updated_at": "2026-09-15T05:55:02.934164+00:00",
+    "parcel_scoreboard_updated_at": "2026-09-15T05:55:05.999474+00:00",
+    "parcel_autopilot_last_tick_at": "2026-09-15T05:55:05.999474+00:00"
+  },
+  "horizon_url": "https://bridgepointintelligence.online/app/horizon/",
+  "generated_at": "2026-09-15T05:55:14.939692+00:00",
+  "canonical_url": "https://bridgepointintelligence.online/",
+  "jurisdictions": [
+    {
+      "code": "AK",
+      "updated_at": "2026-09-12T04:26:36.005552+00:00",
+      "canonical_property_parcel_records": 427718
+    },
+    {
+      "code": "AL",
+      "updated_at": "2026-09-11T06:54:00.283807+00:00",
+      "canonical_property_parcel_records": 1749589
+    },
+    {
+      "code": "AR",
+      "updated_at": "2026-09-12T03:04:06.804018+00:00",
+      "canonical_property_parcel_records": 2299145
+    },
+    {
+      "code": "AS",
+      "updated_at": "2026-09-06T17:17:06.746644+00:00",
+      "canonical_property_parcel_records": 3
+    },
+    {
+      "code": "AZ",
+      "updated_at": "2026-09-11T22:22:25.300754+00:00",
+      "canonical_property_parcel_records": 4414820
+    },
+    {
+      "code": "CA",
+      "updated_at": "2026-09-12T03:04:06.804018+00:00",
+      "canonical_property_parcel_records": 22538841
+    },
+    {
+      "code": "CO",
+      "updated_at": "2026-09-11T04:48:57.91648+00:00",
+      "canonical_property_parcel_records": 2804873
+    },
+    {
+      "code": "CT",
+      "updated_at": "2026-09-11T19:55:28.793378+00:00",
+      "canonical_property_parcel_records": 1303187
+    },
+    {
+      "code": "DC",
+      "updated_at": "2026-09-11T18:59:49.184594+00:00",
+      "canonical_property_parcel_records": 279580
+    },
+    {
+      "code": "DE",
+      "updated_at": "2026-09-11T19:55:33.805154+00:00",
+      "canonical_property_parcel_records": 451559
+    },
+    {
+      "code": "FL",
+      "updated_at": "2026-09-11T19:19:32.538617+00:00",
+      "canonical_property_parcel_records": 11748017
+    },
+    {
+      "code": "GA",
+      "updated_at": "2026-09-11T18:19:20.561488+00:00",
+      "canonical_property_parcel_records": 3272581
+    },
+    {
+      "code": "GU",
+      "updated_at": "2026-09-11T19:19:47.574046+00:00",
+      "canonical_property_parcel_records": 23334
+    },
+    {
+      "code": "HI",
+      "updated_at": "2026-09-11T11:38:16.921082+00:00",
+      "canonical_property_parcel_records": 793428
+    },
+    {
+      "code": "IA",
+      "updated_at": "2026-09-11T19:19:32.538617+00:00",
+      "canonical_property_parcel_records": 2686291
+    },
+    {
+      "code": "ID",
+      "updated_at": "2026-09-11T19:19:32.538617+00:00",
+      "canonical_property_parcel_records": 408920
+    },
+    {
+      "code": "IL",
+      "updated_at": "2026-09-11T04:36:04.579761+00:00",
+      "canonical_property_parcel_records": 4182036
+    },
+    {
+      "code": "IN",
+      "updated_at": "2026-09-11T18:55:43.328552+00:00",
+      "canonical_property_parcel_records": 3697926
+    },
+    {
+      "code": "KS",
+      "updated_at": "2026-09-11T06:21:26.230987+00:00",
+      "canonical_property_parcel_records": 211798
+    },
+    {
+      "code": "KY",
+      "updated_at": "2026-09-11T03:49:04.408922+00:00",
+      "canonical_property_parcel_records": 537851
+    },
+    {
+      "code": "LA",
+      "updated_at": "2026-09-11T07:29:07.747858+00:00",
+      "canonical_property_parcel_records": 2621420
+    },
+    {
+      "code": "MA",
+      "updated_at": "2026-09-11T22:01:16.787065+00:00",
+      "canonical_property_parcel_records": 3321966
+    },
+    {
+      "code": "MD",
+      "updated_at": "2026-09-11T10:59:40.118953+00:00",
+      "canonical_property_parcel_records": 3120511
+    },
+    {
+      "code": "ME",
+      "updated_at": "2026-09-11T08:52:48.209148+00:00",
+      "canonical_property_parcel_records": 922696
+    },
+    {
+      "code": "MI",
+      "updated_at": "2026-09-11T08:39:51.978288+00:00",
+      "canonical_property_parcel_records": 3882078
+    },
+    {
+      "code": "MN",
+      "updated_at": "2026-09-11T08:52:42.174993+00:00",
+      "canonical_property_parcel_records": 3642532
+    },
+    {
+      "code": "MO",
+      "updated_at": "2026-09-07T05:57:20.0565+00:00",
+      "canonical_property_parcel_records": 2305505
+    },
+    {
+      "code": "MS",
+      "updated_at": "2026-09-12T23:13:39.949159+00:00",
+      "canonical_property_parcel_records": 2121317
+    },
+    {
+      "code": "MT",
+      "updated_at": "2026-09-06T16:58:21.88768+00:00",
+      "canonical_property_parcel_records": 921768
+    },
+    {
+      "code": "NC",
+      "updated_at": "2026-09-11T03:16:47.195021+00:00",
+      "canonical_property_parcel_records": 6149431
+    },
+    {
+      "code": "ND",
+      "updated_at": "2026-09-08T00:08:12.604556+00:00",
+      "canonical_property_parcel_records": 820034
+    },
+    {
+      "code": "NE",
+      "updated_at": "2026-09-07T00:12:19.078902+00:00",
+      "canonical_property_parcel_records": 1400270
+    },
+    {
+      "code": "NH",
+      "updated_at": "2026-09-06T18:32:02.46498+00:00",
+      "canonical_property_parcel_records": 617217
+    },
+    {
+      "code": "NJ",
+      "updated_at": "2026-09-13T00:07:55.298817+00:00",
+      "canonical_property_parcel_records": 3591817
+    },
+    {
+      "code": "NM",
+      "updated_at": "2026-09-12T09:22:17.573451+00:00",
+      "canonical_property_parcel_records": 3011310
+    },
+    {
+      "code": "NV",
+      "updated_at": "2026-09-08T01:54:48.956572+00:00",
+      "canonical_property_parcel_records": 1235505
+    },
+    {
+      "code": "NY",
+      "updated_at": "2026-09-11T09:02:35.070576+00:00",
+      "canonical_property_parcel_records": 9004458
+    },
+    {
+      "code": "OH",
+      "updated_at": "2026-09-06T17:00:15.505083+00:00",
+      "canonical_property_parcel_records": 7188246
+    },
+    {
+      "code": "OK",
+      "updated_at": "2026-09-10T01:41:01.811864+00:00",
+      "canonical_property_parcel_records": 806998
+    },
+    {
+      "code": "OR",
+      "updated_at": "2026-09-06T17:40:52.007986+00:00",
+      "canonical_property_parcel_records": 1111388
+    },
+    {
+      "code": "PA",
+      "updated_at": "2026-09-12T06:10:06.788024+00:00",
+      "canonical_property_parcel_records": 8763247
+    },
+    {
+      "code": "PR",
+      "updated_at": "2026-09-03T04:24:29.175019+00:00",
+      "canonical_property_parcel_records": 1439552
+    },
+    {
+      "code": "RI",
+      "updated_at": "2026-09-06T17:07:49.842521+00:00",
+      "canonical_property_parcel_records": 392526
+    },
+    {
+      "code": "SC",
+      "updated_at": "2026-09-11T03:18:39.526095+00:00",
+      "canonical_property_parcel_records": 1480359
+    },
+    {
+      "code": "SD",
+      "updated_at": "2026-09-06T17:22:01.738141+00:00",
+      "canonical_property_parcel_records": 109900
+    },
+    {
+      "code": "TN",
+      "updated_at": "2026-09-09T08:38:56.67353+00:00",
+      "canonical_property_parcel_records": 2713828
+    },
+    {
+      "code": "TX",
+      "updated_at": "2026-09-07T04:36:26.743349+00:00",
+      "canonical_property_parcel_records": 16088079
+    },
+    {
+      "code": "UT",
+      "updated_at": "2026-09-12T03:20:06.201779+00:00",
+      "canonical_property_parcel_records": 2770916
+    },
+    {
+      "code": "VA",
+      "updated_at": "2026-09-06T19:00:03.033781+00:00",
+      "canonical_property_parcel_records": 4039235
+    },
+    {
+      "code": "VI",
+      "updated_at": "2026-09-11T04:56:19.711465+00:00",
+      "canonical_property_parcel_records": 65614
+    },
+    {
+      "code": "VT",
+      "updated_at": "2026-09-06T17:24:01.693008+00:00",
+      "canonical_property_parcel_records": 344049
+    },
+    {
+      "code": "WA",
+      "updated_at": "2026-09-11T07:02:36.429937+00:00",
+      "canonical_property_parcel_records": 3720018
+    },
+    {
+      "code": "WI",
+      "updated_at": "2026-09-08T00:51:47.766372+00:00",
+      "canonical_property_parcel_records": 3875028
+    },
+    {
+      "code": "WV",
+      "updated_at": "2026-09-07T09:08:53.439087+00:00",
+      "canonical_property_parcel_records": 1459768
+    },
+    {
+      "code": "WY",
+      "updated_at": "2026-09-11T20:54:48.939143+00:00",
+      "canonical_property_parcel_records": 744912
+    }
+  ],
+  "accuracy_notes": [
+    "169.6M-scale canonical property/parcel identity records are not the same as 169.6M materialized boundary polygons.",
+    "Boundary and property\u2194boundary link counts are separate live measures.",
+    "Roof shell coverage is not the same as source-backed roof material/pitch/shape coverage.",
+    "Weather exposure is context, not proof of physical damage or an insurance outcome."
+  ],
+  "intelligence_app": "https://bridgepointintelligence.online/app/",
+  "horizon_year_one_demand": {
+    "ok": true,
+    "mode": "365_DAY_YEAR_ONE_SURVIVAL",
+    "updated_at": "2026-09-15T05:55:15.252335+00:00",
+    "event_started": false,
+    "unique_requests": 0,
+    "billing_connected": false,
+    "latest_request_at": null
+  }
+}
