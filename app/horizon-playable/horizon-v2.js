@@ -52,6 +52,7 @@ const WEAPONS=[
 const weaponState=Object.fromEntries(WEAPONS.map(w=>[w.key,{mag:w.mag,reserve:w.reserve,owned:true}]));
 let activeWeaponIndex=0;
 const interactables=[],infected=[],combatants=[],roadAnchors=[],buildingCenters=[],solidRects=[],solidPolys=[],lootPickups=[],builtCover=[];
+const ENTRANCE_CELL=28,entranceGrid=new Map();
 const COLLISION_CELL=32,collisionGrid=new Map();
 const activeMembers=Array.isArray(activeMatch?.members)?activeMatch.members:[];
 const playerTeam=Number(activeMembers.find(m=>m.player_id===playerId)?.team_no||1);
@@ -142,6 +143,15 @@ function blocked(x,y,r=.36){
     if(seen.has(o.index))continue;seen.add(o.index);if(circleVsPoly(x,y,r,o))return true;
   }
   return false;
+}
+function entranceKey(ix,iy){return ix+':'+iy}
+function registerEntrance(q){
+  const ix=Math.floor(q.x/ENTRANCE_CELL),iy=Math.floor(q.y/ENTRANCE_CELL),k=entranceKey(ix,iy),a=entranceGrid.get(k)||[];a.push(q);entranceGrid.set(k,a);
+}
+function nearbyEntrances(x,y){
+  const ix=Math.floor(x/ENTRANCE_CELL),iy=Math.floor(y/ENTRANCE_CELL),out=[];
+  for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)out.push(...(entranceGrid.get(entranceKey(ix+dx,iy+dy))||[]));
+  return out;
 }
 function addKillFeed(killer,victim,weapon='AR-12',headshot=false){
   const feed=$('killFeed');if(!feed)return;
@@ -377,8 +387,6 @@ function addBuildingDetails(cx,cy,w,d,h,id,row,baseZ){
     const roof=new THREE.Mesh(UNIT_BOX,rmat);roof.scale.set(w*.97,d*.97,Math.max(.14,roofH));roof.position.set(cx,cy,baseZ+h+Math.max(.08,roofH/2));world.add(roof);
   }
   const floors=Math.max(1,Math.floor(h/3.05));
-  const door=new THREE.Mesh(new THREE.PlaneGeometry(1.05,2.05),mat(0x312920,.9,0));door.position.set(cx,cy-d/2-.02,baseZ+1.02);door.rotation.x=Math.PI/2;world.add(door);
-  interactables.push({type:'door',x:cx,y:cy-d/2-1.2,z:baseZ,label:'ENTER',building:{id,cx,cy,w,d,h,baseZ,row,floors}});
   if(MOBILE&&!HIGH_DEVICE)return;
   const dark=mat(0x26383a,.28,.18),cols=Math.min(7,Math.max(2,Math.floor(w/4)));
   for(let f=0;f<floors;f+=Math.max(1,Math.floor(floors/4)))for(let i=0;i<cols;i++){if(hash(id+':'+f+':'+i)%100<42)continue;const win=new THREE.Mesh(new THREE.PlaneGeometry(Math.min(1.2,w/(cols+1)*.56),.7),dark);win.position.set(cx-w/2+(i+1)*w/(cols+1),cy-d/2-.012,baseZ+1.5+f*3);win.rotation.x=Math.PI/2;world.add(win)}
@@ -392,12 +400,23 @@ function addBuildings(){
       if(w<2||d<2||w>180||d>180)continue;
       const id=String(row.id||count),h=Number(row.height_m||0)>2?Math.min(160,Number(row.height_m)):4.8+(hash(id)%130)/10,cx=(minx+maxx)/2,cy=(miny+maxy)/2,baseZ=terrainZ(cx,cy),bucket=hash(id)%BUILD_MATS.length;
       buckets[bucket].push({cx,cy,h,w,d,baseZ});
-      if(details.length<DETAIL_BUILDING_LIMIT){const entry={cx,cy,h,w,d,id,row,baseZ,pts,floors:Math.max(1,Math.floor(h/3.05))};details.push(entry);buildingEntries.push(entry)}
+      const entry={cx,cy,h,w,d,id,row,baseZ,pts,floors:Math.max(1,Math.floor(h/3.05))};
+      buildingEntries.push(entry);if(details.length<DETAIL_BUILDING_LIMIT)details.push(entry);
       buildingCenters.push({x:cx,y:cy,z:baseZ,h,w,d});registerSolidPoly(pts);count++;if(count>=BUILDING_LIMIT)break outer;
     }
   }
   const dummy=new THREE.Object3D();
   buckets.forEach((rows,i)=>{if(!rows.length)return;const inst=new THREE.InstancedMesh(UNIT_BOX,BUILD_MATS[i],rows.length);inst.castShadow=renderer.shadowMap.enabled;inst.receiveShadow=true;rows.forEach((r,j)=>{dummy.position.set(r.cx,r.cy,r.baseZ+r.h/2+.08);dummy.scale.set(r.w,r.d,r.h);dummy.rotation.set(0,0,0);dummy.updateMatrix();inst.setMatrixAt(j,dummy.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)});
+  if(buildingEntries.length){
+    const geom=new THREE.PlaneGeometry(1.05,2.05),doorMat=new THREE.MeshBasicMaterial({color:0x101716,transparent:true,opacity:.92,side:THREE.DoubleSide});
+    const doors=new THREE.InstancedMesh(geom,doorMat,buildingEntries.length),dmy=new THREE.Object3D();
+    buildingEntries.forEach((e,i)=>{
+      const x=e.cx,y=e.cy-e.d/2-.025,z=e.baseZ+1.03;
+      dmy.position.set(x,y,z);dmy.rotation.set(Math.PI/2,0,0);dmy.scale.set(1,1,1);dmy.updateMatrix();doors.setMatrixAt(i,dmy.matrix);
+      registerEntrance({type:'door',x,y:y-1.05,z:e.baseZ,label:'ENTER',building:e});
+    });
+    doors.instanceMatrix.needsUpdate=true;doors.frustumCulled=true;world.add(doors);
+  }
   const exactWallMat=new THREE.MeshStandardMaterial({map:CONCRETE_MAP,normalMap:CONCRETE_NORMAL,roughnessMap:CONCRETE_ROUGH,color:0x9da7a9,roughness:.82,metalness:.025,transparent:true,opacity:.98});
   const exactEdgeMat=new THREE.LineBasicMaterial({color:0xdffaff,transparent:true,opacity:.5,depthWrite:false});
   details.forEach(r=>{
@@ -531,7 +550,8 @@ function updateContext(){
     const top=(activeInterior.floors-1)*activeInterior.floorH;if(player.position.z>top-.3&&Math.abs(player.position.x-activeInterior.stairX)<1.5){contextTarget={type:'roof',building:activeInterior.entry};btn.hidden=false;btn.textContent='ROOF';return}
     btn.hidden=true;return;
   }
-  for(const q of interactables){
+  const candidates=[...nearbyEntrances(player.position.x,player.position.y),...interactables.filter(q=>q.type!=='door')];
+  for(const q of candidates){
     const qx=q.type==='vehicle'&&q.vehicle?.root?q.vehicle.root.position.x:q.x;
     const qy=q.type==='vehicle'&&q.vehicle?.root?q.vehicle.root.position.y:q.y;
     const qz=q.type==='vehicle'&&q.vehicle?.root?q.vehicle.root.position.z:(q.z??player.position.z);
