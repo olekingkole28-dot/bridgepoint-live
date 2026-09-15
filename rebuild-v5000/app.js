@@ -120,14 +120,20 @@ function applyMapXray(geometry,b={}){
  try{if(map.getLayer('gta-context-buildings'))map.setPaintProperty('gta-context-buildings','fill-extrusion-opacity',.10)}catch(_){}
  const data={type:'FeatureCollection',features:floorSlabFeatures(geometry,b)};
  const install=()=>{
-  let src=map.getSource('bpV5041XrayFloors');
-  if(!src){map.addSource('bpV5041XrayFloors',{type:'geojson',data});
-    map.addLayer({id:'bp-v5041-xray-floors',type:'fill-extrusion',source:'bpV5041XrayFloors',minzoom:13,paint:{
+  try{
+    let src=map.getSource('bpV5041XrayFloors');
+    if(!src){map.addSource('bpV5041XrayFloors',{type:'geojson',data});src=map.getSource('bpV5041XrayFloors')}else src.setData(data);
+    if(!map.getLayer('bp-v5041-xray-floors'))map.addLayer({id:'bp-v5041-xray-floors',type:'fill-extrusion',source:'bpV5041XrayFloors',minzoom:13,paint:{
       'fill-extrusion-color':['match',['get','floor_truth'],'SOURCE_BACKED','#65efff','SOURCE_BACKED_UNDERGROUND','#8c9cff','HEIGHT_DERIVED','#ffd166','#8096a1'],
       'fill-extrusion-height':['get','slab_top_m'],'fill-extrusion-base':['get','slab_base_m'],'fill-extrusion-opacity':.90,'fill-extrusion-vertical-gradient':false
     }});
-    map.addLayer({id:'bp-v5041-xray-floor-lines',type:'line',source:'bpV5041XrayFloors',minzoom:13,paint:{'line-color':'#e9ffff','line-width':['interpolate',['linear'],['zoom'],13,.5,18,1.5,21,2.2],'line-opacity':.72}})
-  }else src.setData(data);
+    if(!map.getLayer('bp-v5041-xray-floor-lines'))map.addLayer({id:'bp-v5041-xray-floor-lines',type:'line',source:'bpV5041XrayFloors',minzoom:13,paint:{'line-color':'#e9ffff','line-width':['interpolate',['linear'],['zoom'],13,.5,18,1.5,21,2.2],'line-opacity':.72}});
+    window.__BP_XRAY_STATE__={ready:true,features:data.features.length,buildingId,updatedAt:Date.now()}
+  }catch(e){
+    window.__BP_XRAY_STATE__={ready:false,features:data.features.length,buildingId,error:String(e?.message||e),updatedAt:Date.now()};
+    console.warn('xray install',e);
+    setTimeout(()=>{if(!map.getLayer('bp-v5041-xray-floors'))install()},250)
+  }
  };
  if(map.isStyleLoaded?.())install();else map.once('styledata',install)
 }
