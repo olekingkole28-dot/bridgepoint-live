@@ -48,7 +48,7 @@ const PART_LIMIT=MOBILE?(HIGH_DEVICE?420:260):700;
 const PARCEL_LIMIT=MOBILE?(HIGH_DEVICE?1250:850):1800;
 let ammoMag=30,ammoReserve=120,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,fpWeaponRig=null,muzzleFlash=null;
 let cameraMode=localStorage.getItem('horizon-camera-mode')||'third',crouched=false,prone=false,slideTime=0,verticalVelocity=0,airborne=false,interiorMode=false,activeInterior=null,rooftopState=null;
-let activeZipline=null,activeVehicle=null,audioCtx=null,lastFootstepAt=0,contextTarget=null;
+let activeZipline=null,activeVehicle=null,audioCtx=null,audioMaster=null,audioCompressor=null,audioReverb=null,audioReverbGain=null,lastAudioEnvAt=0,lastFootstepAt=0,contextTarget=null;const audioBuses={},audioBufferCache=new Map();
 const buildingEntries=[],ziplines=[],vehicles=[],ambientFx=[],interiorRects=[];const exteriorReturn=new THREE.Vector3();let exteriorYaw=0;
 const WEAPONS=[
   {key:'rifle',name:'AR-12',kind:'rifle',mag:30,reserve:120,damage:42,head:100,interval:92,range:145,spread:.006},
@@ -200,20 +200,63 @@ function updateAmmo(){
   if(el){el.textContent=w.mag?(ammoMag+'/'+ammoReserve):'MELEE';el.classList.toggle('ammoLow',w.mag>0&&ammoMag<=Math.max(2,Math.floor(w.mag*.2)))}
   renderWeaponBar();
 }
+function createAudioNoiseBuffer(key,duration=.12,decay=1.8){
+  if(!audioCtx)return null;const ck=key+':'+audioCtx.sampleRate+':'+duration+':'+decay;
+  if(audioBufferCache.has(ck))return audioBufferCache.get(ck);
+  const len=Math.max(64,Math.floor(audioCtx.sampleRate*duration)),buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate),d=buf.getChannelData(0);let prev=0;
+  for(let i=0;i<len;i++){const t=i/len,white=Math.random()*2-1;prev=prev*.2+white*.8;d[i]=prev*Math.pow(1-t,decay)}
+  audioBufferCache.set(ck,buf);return buf;
+}
+function createProceduralImpulse(){
+  if(!audioCtx)return null;const duration=MOBILE?.55:.9,len=Math.max(256,Math.floor(audioCtx.sampleRate*duration)),buf=audioCtx.createBuffer(2,len,audioCtx.sampleRate);
+  for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);for(let i=0;i<len;i++){const t=i/len;d[i]=(Math.random()*2-1)*Math.pow(1-t,3.2)*(ch?.92:1)}}
+  return buf;
+}
 function ensureAudio(){
   try{
-    if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(!audioCtx){
+      audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      audioMaster=audioCtx.createGain();audioMaster.gain.value=.5;
+      audioCompressor=audioCtx.createDynamicsCompressor();audioCompressor.threshold.value=-18;audioCompressor.knee.value=16;audioCompressor.ratio.value=4;
+      audioMaster.connect(audioCompressor);audioCompressor.connect(audioCtx.destination);
+      for(const [name,level] of Object.entries({weapons:.86,foley:.58,creatures:.66,ui:.50})){const g=audioCtx.createGain();g.gain.value=level;g.connect(audioMaster);audioBuses[name]=g}
+      audioReverb=audioCtx.createConvolver();audioReverb.buffer=createProceduralImpulse();audioReverbGain=audioCtx.createGain();audioReverbGain.gain.value=.07;audioReverb.connect(audioReverbGain);audioReverbGain.connect(audioMaster);
+    }
     if(audioCtx.state==='suspended')audioCtx.resume();
   }catch{}
 }
-function tone(freq=140,dur=.05,gain=.035,type='square'){
-  ensureAudio();if(!audioCtx)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-  o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(gain,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+dur);
-  o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur);
+function updateAudioEnvironment(force=false){
+  if(!audioCtx||!audioReverbGain)return;const now=performance.now();if(!force&&now-lastAudioEnvAt<160)return;lastAudioEnvAt=now;
+  const wet=perfTier>=2?0:(interiorMode?.24:rooftopState?.10:.045);audioReverbGain.gain.setTargetAtTime(wet,audioCtx.currentTime,.12);
 }
-function gunAudio(w){tone(w.kind==='shotgun'?62:w.kind==='pistol'?155:w.kind==='smg'?115:88,w.kind==='shotgun'?.12:.055,w.kind==='shotgun'?.09:.04,'sawtooth')}
+function updateAudioListener(){
+  if(!audioCtx)return;updateAudioEnvironment(false);const l=audioCtx.listener,dir=new THREE.Vector3();camera.getWorldDirection(dir);const p=camera.position;
+  if(l.positionX){l.positionX.value=p.x;l.positionY.value=p.z;l.positionZ.value=-p.y;l.forwardX.value=dir.x;l.forwardY.value=dir.z;l.forwardZ.value=-dir.y;l.upX.value=0;l.upY.value=1;l.upZ.value=0}
+}
+function routeSpatialAudio(node,pos,bus='foley',wet=.06){
+  if(!audioCtx||!node||!pos)return null;const p=audioCtx.createPanner();p.panningModel='HRTF';p.distanceModel='inverse';p.refDistance=2;p.maxDistance=95;p.rolloffFactor=1.08;
+  p.positionX.value=pos.x;p.positionY.value=pos.z||0;p.positionZ.value=-pos.y;node.connect(p);p.connect(audioBuses[bus]||audioMaster);
+  if(audioReverb&&wet>0&&perfTier<2){const send=audioCtx.createGain();send.gain.value=Math.min(.45,wet);p.connect(send);send.connect(audioReverb)}
+  return p;
+}
+function tone(freq=140,dur=.05,gain=.035,type='square'){
+  ensureAudio();if(!audioCtx)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.value=freq;
+  g.gain.setValueAtTime(gain,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+dur);o.connect(g);g.connect(audioBuses.ui||audioMaster||audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur);
+}
+function gunAudio(w){
+  ensureAudio();if(!audioCtx)return;const now=audioCtx.currentTime,dur=w.kind==='shotgun'?.16:w.kind==='pistol'?.10:.075,src=audioCtx.createBufferSource(),g=audioCtx.createGain(),lp=audioCtx.createBiquadFilter();
+  src.buffer=createAudioNoiseBuffer('gun-'+w.kind,dur,w.kind==='shotgun'?1.1:1.8);lp.type='lowpass';lp.frequency.value=w.kind==='shotgun'?2100:4200;
+  g.gain.setValueAtTime(w.kind==='shotgun'?.34:.22,now);g.gain.exponentialRampToValueAtTime(.0001,now+dur);src.connect(lp);lp.connect(g);g.connect(audioBuses.weapons||audioMaster);src.start(now);
+}
 function footstepAudio(){
-  const now=performance.now(),gap=sprint?250:crouched?560:390;if(now-lastFootstepAt<gap)return;lastFootstepAt=now;tone(58,.025,.013,'triangle');
+  const now=performance.now(),gap=sprint?250:prone?680:crouched?560:390;if(now-lastFootstepAt<gap)return;lastFootstepAt=now;ensureAudio();if(!audioCtx)return;
+  const src=audioCtx.createBufferSource(),g=audioCtx.createGain(),lp=audioCtx.createBiquadFilter(),t=audioCtx.currentTime;src.buffer=createAudioNoiseBuffer(interiorMode?'step-in':'step-out',.055,1.5);
+  lp.type='lowpass';lp.frequency.value=interiorMode?2700:1900;g.gain.setValueAtTime(sprint?.055:.038,t);g.gain.exponentialRampToValueAtTime(.0001,t+.065);src.connect(lp);lp.connect(g);g.connect(audioBuses.foley||audioMaster);src.start(t);
+}
+function creatureVocalAudio(pos,intensity=1){
+  ensureAudio();if(!audioCtx||perfTier>=3)return;const now=audioCtx.currentTime,o=audioCtx.createOscillator(),g=audioCtx.createGain(),lp=audioCtx.createBiquadFilter();o.type='sawtooth';
+  o.frequency.setValueAtTime(84+rand()*25,now);o.frequency.exponentialRampToValueAtTime(48+rand()*12,now+.5);lp.type='lowpass';lp.frequency.value=1050;
+  g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.055*intensity,now+.04);g.gain.exponentialRampToValueAtTime(.0001,now+.58);o.connect(lp);lp.connect(g);routeSpatialAudio(g,pos,'creatures',interiorMode?.25:.08);o.start(now);o.stop(now+.6);
 }
 function cycleCameraMode(){
   cameraMode=cameraMode==='third'?'first':'third';localStorage.setItem('horizon-camera-mode',cameraMode);
@@ -866,7 +909,7 @@ async function spawnInfected(){
     prepHumanoid(g,{infectedTint:true,variant:i%2+1});orientHumanoid(g,1.7*def.scale);
     const a=roadAnchors.length?roadAnchors[(i*11+3)%roadAnchors.length]:null,gx=a?a.x+(rand()-.5)*15:(rand()-.5)*300,gy=a?a.y+(rand()-.5)*15:(rand()-.5)*300;
     g.position.set(gx,gy,terrainZ(gx,gy));g.rotation.z=rand()*Math.PI*2;world.add(g);
-    infected.push({g,s:def.speed,phase:rand()*6.28,health:def.health,maxHealth:def.health,damage:def.damage,detect:def.detect,alive:true,index:i,name:def.label+' '+String(i+1).padStart(2,'0'),kind:def.id,patrol:buildInfectedPatrol(gx,gy,i),patrolIndex:0,alertUntil:0,nextScream:performance.now()+2500+rand()*4500});
+    infected.push({g,s:def.speed,phase:rand()*6.28,health:def.health,maxHealth:def.health,damage:def.damage,detect:def.detect,alive:true,index:i,name:def.label+' '+String(i+1).padStart(2,'0'),kind:def.id,patrol:buildInfectedPatrol(gx,gy,i),patrolIndex:0,alertUntil:0,nextVocal:performance.now()+3500+rand()*6500,nextScream:performance.now()+2500+rand()*4500});
   }
   $('infected').textContent=count;
 }
@@ -995,9 +1038,10 @@ function updateInfected(dt,t){
     const dx=player.position.x-z.g.position.x,dy=player.position.y-z.g.position.y,d=Math.hypot(dx,dy),aggro=!dead&&(d<z.detect||z.alertUntil>t);
     if(d>perfSimRadius()&&!aggro){z.g.visible=false;continue}else z.g.visible=true;
     if(z.kind==='screamer'&&aggro&&d<28&&t>z.nextScream){
-      z.nextScream=t+7000;tone(330,.18,.025,'sawtooth');
+      z.nextScream=t+7000;creatureVocalAudio(z.g.position,1.3);
       for(const q of infected)if(q.alive&&Math.hypot(q.g.position.x-z.g.position.x,q.g.position.y-z.g.position.y)<70)q.alertUntil=t+9000;
-    }
+    }else if(d<32&&t>z.nextVocal){z.nextVocal=t+5000+rand()*8000;creatureVocalAudio(z.g.position,z.kind==='brute'?1.15:.75)}
+
     if(aggro&&d>1.15){
       const nx=z.g.position.x+dx/Math.max(.001,d)*z.s*dt,ny=z.g.position.y+dy/Math.max(.001,d)*z.s*dt;
       if(!blocked(nx,ny,.32)){z.g.position.x=nx;z.g.position.y=ny;z.g.position.z=terrainZ(nx,ny)}
@@ -1264,7 +1308,7 @@ async function load(){
   await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
   updateAmmo();renderWeaponBar();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();
   loadText.textContent=`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · ${ziplineCount} ziplines · ${vehicleCount} vehicles · restored traversal active`;
-  window.BP_HORIZON_V2={ok:true,build:4331,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,prone:true,slide:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,interiorLoot:true,roofTraversal:true,drivableVehicles:true,vehicleFuelRepair:true,infectedPatrols:true,ambientDisasterFx:true,adaptivePerformanceGovernor:true,instancedWorldProps:true,instancedRoadSurfaces:true,adaptiveShaderBudget:true,adaptiveExteriorDetailBudget:true};
+  window.BP_HORIZON_V2={ok:true,build:4331,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||null,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,prone:true,slide:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,interiorLoot:true,roofTraversal:true,drivableVehicles:true,vehicleFuelRepair:true,infectedPatrols:true,ambientDisasterFx:true,spatialAudio:true,adaptivePerformanceGovernor:true,instancedWorldProps:true,instancedRoadSurfaces:true,adaptiveShaderBudget:true,adaptiveExteriorDetailBudget:true};
 }
 function animate(){
   requestAnimationFrame(animate);
@@ -1278,7 +1322,7 @@ function animate(){
     const step=Math.min(.08,aiAccumulator);if(mode==='TDM')updateCombatants(step,now);else updateInfected(step,now);if(perfTier>=3)updateActorProxies();aiAccumulator=0;
   }
   if(fxAccumulator>=cadence.fx){const step=Math.min(.1,fxAccumulator);updateWeatherFx(step,now);updateAmbientDisasterFx(now);fxAccumulator=0}
-  if(lightAccumulator>=cadence.light){updateWorldLight(now);lightAccumulator=0}
+  if(lightAccumulator>=cadence.light){updateWorldLight(now);updateAudioListener();lightAccumulator=0}
   if((frames%cadence.minimap)===0)renderMinimap();
   renderer.render(scene,camera);updatePerformanceGovernor(rawDt,now);
   frames++;
