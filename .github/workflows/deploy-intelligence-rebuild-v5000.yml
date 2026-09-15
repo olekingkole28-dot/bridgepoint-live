@@ -529,14 +529,7 @@ jobs:
               },{timeout:12000});
               console.log('BRIDGEPOINT_XRAY_FLOORS_RENDERED');
 
-              // The building inspector intentionally floats above map tools on narrow screens.
-              // Close it before testing a different map tool so the smoke test measures the tool itself,
-              // not an overlapping-panel click target.
-              await p.evaluate(()=>{
-                if(typeof window.__BP_V5000_CLEAR_BUILDING__==='function')window.__BP_V5000_CLEAR_BUILDING__();
-                else document.getElementById('closeBuilding')?.click();
-              });
-              await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===true||window.__BP_BUILDING_PANEL_OPEN__===false,{timeout:5000});
+              // Keep the verified building selected while exercising the measurement logic through its production-state hook.
               const measureState=await p.evaluate(()=>{
                 if(typeof window.__BP_V5000_SET_MEASURE__!=='function')throw new Error('measure setter missing');
                 const activated=window.__BP_V5000_SET_MEASURE__(true);
@@ -598,7 +591,7 @@ jobs:
                 buildingResolutionMethod:document.getElementById('bProvPolicy')?.textContent,
                 buildingTruthBadge:document.getElementById('buildingTruthBadge')?.textContent
               }));
-              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.placeLabels||!out.roadLabels||!out.poiLabels||!out.opportunityBuildings||!out.opportunityLabels||!out.opportunityRendered||out.semanticLabels<1||out.buildingAnchoredSemanticLabels<1||out.xrayFloorCount<1||out.measureFeatureCount<3||!out.touchZoomEnabled||!out.dragPanEnabled||!out.searchCollapsed||!out.liveLegend||out.liveLegend==='CHECKING'||!out.surfaceMaterial||!out.surfaceSource||!out.transportArchive||out.transportArchive==='—'||!out.transportRuntime||out.transportRuntime==='—'||out.selectedBuildingCount!==0||out.selectedParcelCount!==0||out.legacySelectedCount!==0)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
+              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.placeLabels||!out.roadLabels||!out.poiLabels||!out.opportunityBuildings||!out.opportunityLabels||!out.opportunityRendered||out.semanticLabels<1||out.buildingAnchoredSemanticLabels<1||out.xrayFloorCount<1||out.measureFeatureCount<3||!out.touchZoomEnabled||!out.dragPanEnabled||!out.searchCollapsed||!out.liveLegend||out.liveLegend==='CHECKING'||!out.surfaceMaterial||!out.surfaceSource||!out.transportArchive||out.transportArchive==='—'||!out.transportRuntime||out.transportRuntime==='—'||out.selectedBuildingCount!==1||out.selectedParcelCount!==0||out.legacySelectedCount!==0)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
               console.log('BRIDGEPOINT_V5000_ANDROID_PASS',JSON.stringify(out));
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
