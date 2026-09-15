@@ -44,6 +44,13 @@ Important: 169,634,995 is the canonical property/parcel identity record count, n
 
 
 
+
+## Settlement Lab
+- Public shadow simulator: https://bridgepointintelligence.online/settlement-lab/
+- Machine contract: https://bridgepointintelligence.online/settlement-lab/contract.json
+
+BridgePoint Settlement Lab evaluates source-backed property-event exposure and parametric trigger readiness in SHADOW_ONLY mode. It cannot move money, approve or deny claims, or place securities trades. Exposure is not proof of physical damage. Real settlement requires an authorized contract, identity/payment controls, applicable compliance review, and explicit release.
+
 ## BridgePoint Integrity Index (BII)
 - Public methodology + live status: https://bridgepointintelligence.online/integrity-index/
 - Machine contract: https://bridgepointintelligence.online/integrity-index/contract.json
