@@ -255,13 +255,23 @@ function addBuildings(){
       if(w<2||d<2||w>180||d>180)continue;
       const id=String(row.id||count),h=Number(row.height_m||0)>2?Math.min(160,Number(row.height_m)):4.8+(hash(id)%130)/10,cx=(minx+maxx)/2,cy=(miny+maxy)/2,baseZ=terrainZ(cx,cy),bucket=hash(id)%BUILD_MATS.length;
       buckets[bucket].push({cx,cy,h,w,d,baseZ});
-      if(details.length<DETAIL_BUILDING_LIMIT)details.push({cx,cy,h,w,d,id,row,baseZ});
+      if(details.length<DETAIL_BUILDING_LIMIT)details.push({cx,cy,h,w,d,id,row,baseZ,pts});
       buildingCenters.push({x:cx,y:cy,z:baseZ,h,w,d});solidRects.push({type:'building',minx:minx-.12,maxx:maxx+.12,miny:miny-.12,maxy:maxy+.12});count++;if(count>=BUILDING_LIMIT)break outer;
     }
   }
   const dummy=new THREE.Object3D();
   buckets.forEach((rows,i)=>{if(!rows.length)return;const inst=new THREE.InstancedMesh(UNIT_BOX,BUILD_MATS[i],rows.length);inst.castShadow=renderer.shadowMap.enabled;inst.receiveShadow=true;rows.forEach((r,j)=>{dummy.position.set(r.cx,r.cy,r.baseZ+r.h/2+.08);dummy.scale.set(r.w,r.d,r.h);dummy.rotation.set(0,0,0);dummy.updateMatrix();inst.setMatrixAt(j,dummy.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)});
-  details.forEach(r=>addBuildingDetails(r.cx,r.cy,r.w,r.d,r.h,r.id,r.row,r.baseZ));WORLD_COUNTS.buildings=count;return count;
+  const exactWallMat=new THREE.MeshStandardMaterial({map:CONCRETE_MAP,normalMap:CONCRETE_NORMAL,roughnessMap:CONCRETE_ROUGH,color:0x9da7a9,roughness:.82,metalness:.025,transparent:true,opacity:.98});
+  const exactEdgeMat=new THREE.LineBasicMaterial({color:0xdffaff,transparent:true,opacity:.5,depthWrite:false});
+  details.forEach(r=>{
+    if(r.pts?.length>=4){
+      const shape=new THREE.Shape();shape.moveTo(r.pts[0].x-r.cx,r.pts[0].y-r.cy);for(let i=1;i<r.pts.length;i++)shape.lineTo(r.pts[i].x-r.cx,r.pts[i].y-r.cy);
+      const eg=new THREE.ExtrudeGeometry(shape,{depth:r.h,bevelEnabled:false,steps:1}),em=new THREE.Mesh(eg,exactWallMat);
+      em.position.set(r.cx,r.cy,r.baseZ+.09);em.castShadow=renderer.shadowMap.enabled;em.receiveShadow=true;world.add(em);
+      const ep=r.pts.map(p=>new THREE.Vector3(p.x,p.y,terrainZ(p.x,p.y)+r.h+.13));if(ep.length){const edge=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(ep),exactEdgeMat);world.add(edge)}
+    }
+    addBuildingDetails(r.cx,r.cy,r.w,r.d,r.h,r.id,r.row,r.baseZ)
+  });WORLD_COUNTS.buildings=count;return count;
 }
 function addBuildingParts(){
   const rows=[];let count=0;
@@ -395,7 +405,7 @@ function buildCover(){
   const f=new THREE.Vector2(-Math.sin(yaw),Math.cos(yaw)),x=player.position.x+f.x*2.1,y=player.position.y+f.y*2.1;
   if(blocked(x,y,.8)){toast('Cannot build here');return}
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(2.2,.45,1.18),new THREE.MeshStandardMaterial({color:0x5c5144,roughness:.95,metalness:.03}));
-  mesh.position.set(x,y,.59);mesh.rotation.z=yaw;mesh.castShadow=mesh.receiveShadow=true;world.add(mesh);
+  mesh.position.set(x,y,terrainZ(x,y)+.59);mesh.rotation.z=yaw;mesh.castShadow=mesh.receiveShadow=true;world.add(mesh);
   const rect={type:'built',minx:x-1.18,maxx:x+1.18,miny:y-.52,maxy:y+.52};solidRects.push(rect);builtCover.push({mesh,rect});buildCount++;toast('Barricade built');
   if(matchId)rpc('bridgepoint_horizon_emit_world_event_v4303',{
     p_player_id:playerId,p_player_secret:playerSecret,p_match_id:matchId,p_cell_key:activeMatch?.cell_seed||('MATCH_'+matchId),
@@ -403,7 +413,7 @@ function buildCover(){
   }).catch(()=>{});
 }
 function respawn(){
-  dead=false;health=100;$('health').textContent='100';player.position.set(0,0,0);camera.fov=aiming?50:68;camera.updateProjectionMatrix();
+  dead=false;health=100;$('health').textContent='100';player.position.set(0,0,terrainZ(0,0));camera.fov=aiming?50:68;camera.updateProjectionMatrix();
   $('killCam').hidden=true;toast('Respawned');
 }
 let yearDeathResult=null,killcamTimer=null;
@@ -453,11 +463,11 @@ function updateInfected(dt,t){
     const dx=player.position.x-z.g.position.x,dy=player.position.y-z.g.position.y,d=Math.hypot(dx,dy);
     if(!dead&&d<42&&d>1.2){
       const nx=z.g.position.x+dx/d*z.s*dt,ny=z.g.position.y+dy/d*z.s*dt;
-      if(!blocked(nx,ny,.32)){z.g.position.x=nx;z.g.position.y=ny}
+      if(!blocked(nx,ny,.32)){z.g.position.x=nx;z.g.position.y=ny;z.g.position.z=terrainZ(nx,ny)}
       z.g.rotation.z=Math.atan2(dy,dx)-Math.PI/2;
     }else if(!dead){
       const nx=z.g.position.x+Math.sin(t*.0005+z.phase)*.12*dt,ny=z.g.position.y+Math.cos(t*.0004+z.phase)*.12*dt;
-      if(!blocked(nx,ny,.28)){z.g.position.x=nx;z.g.position.y=ny}
+      if(!blocked(nx,ny,.28)){z.g.position.x=nx;z.g.position.y=ny;z.g.position.z=terrainZ(nx,ny)}
     }
     if(!dead&&d<1.15){
       health=Math.max(0,health-14*dt);$('health').textContent=Math.round(health);
