@@ -113,6 +113,15 @@ async function bootstrap(){
   renderParty();
   setNet('ONLINE','#44f3bd');
   status('Lobby ready · invite friends or choose a mode');
+  window.BP_HORIZON_LOBBY_V4320={
+    ok:true,build:4320,player_id:state.player?.player_id,mode:state.selectedMode,
+    party_size:state.party?.members?.length||0,
+    catalog_characters:completeCharacterCatalog().length,
+    store_items:state.catalog?.store?.length||0,
+    battle_pass_rewards:state.catalog?.battle_pass?.length||0,
+    checkout_enabled:false,
+    lobbyScene:()=>lobbyScene?.getStats?.()||null
+  };
   connectPartySignal();
   setInterval(refreshParty,1800);
   const initialTab=(qs.get('tab')||'').trim().toUpperCase();
