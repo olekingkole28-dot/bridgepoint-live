@@ -40,6 +40,9 @@ jobs:
           grep -Fq 'drivableVehicles:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'weaponInventory:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'infectedPatrols:true' app/horizon-playable/horizon-v2.js
+          grep -Fq 'spatialAudio:true' app/horizon-playable/horizon-v2.js
+          grep -Fq 'function routeSpatialAudio' app/horizon-playable/horizon-v2.js
+          grep -Fq 'function updateAudioListener' app/horizon-playable/horizon-v2.js
           grep -Fq 'adaptivePerformanceGovernor:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'function updatePerformanceGovernor' app/horizon-playable/horizon-v2.js
           grep -Fq 'function perfCadence' app/horizon-playable/horizon-v2.js
