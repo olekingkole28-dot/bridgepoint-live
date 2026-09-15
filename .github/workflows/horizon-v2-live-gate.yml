@@ -29,6 +29,8 @@ jobs:
           grep -Fq 'build:4320' app/horizon-playable/horizon-v2.js
           grep -Fq 'actualCharacterModel:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'sourceBackedTwin:true' app/horizon-playable/horizon-v2.js
+          grep -Fq 'exactFootprintCollision:true' app/horizon-playable/horizon-v2.js
+          grep -Fq 'registerSolidPoly(pts)' app/horizon-playable/horizon-v2.js
           grep -Fq 'addParcels()' app/horizon-playable/horizon-v2.js
           grep -Fq 'addBuildingParts()' app/horizon-playable/horizon-v2.js
           grep -Fq 'solidCollision:true' app/horizon-playable/horizon-v2.js
