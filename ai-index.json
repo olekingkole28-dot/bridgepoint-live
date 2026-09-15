@@ -553,7 +553,7 @@
     "Weather exposure is not proof of damage.",
     "Roof shell coverage is not source-backed material/pitch/shape coverage."
   ],
-  "updated_at": "2026-09-15T20:36:08Z",
+  "updated_at": "2026-09-15T20:45:00Z",
   "claims_lifecycle_terminal": {
     "name": "BridgePoint Claims Lifecycle Terminal",
     "url": "https://bridgepointintelligence.online/claims-terminal/",
@@ -658,6 +658,62 @@
       "Exposure is not damage proof.",
       "Trigger simulation is not authorization to pay.",
       "Dynamic property intelligence is not a trading signal."
+    ]
+  },
+  "distribution_network": {
+    "name": "BridgePoint Distribution Network",
+    "url": "https://bridgepointintelligence.online/distribution/",
+    "status": "PUBLIC",
+    "channels": [
+      {
+        "type": "BII_EMBED",
+        "url": "https://bridgepointintelligence.online/integrity-index/embed-example.html",
+        "mode": "SITE_OWNER_OPT_IN"
+      },
+      {
+        "type": "GIS_WIDGET",
+        "url": "https://bridgepointintelligence.online/distribution/gis-widget/",
+        "mode": "SITE_OWNER_OPT_IN"
+      },
+      {
+        "type": "BROWSER_LOOKUP",
+        "url": "https://bridgepointintelligence.online/distribution/bii-browser-extension.zip",
+        "mode": "USER_INITIATED"
+      },
+      {
+        "type": "EXPOSURE_FEED_JSON",
+        "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=json&limit=20",
+        "mode": "READ_ONLY_RESEARCH_CONTEXT"
+      },
+      {
+        "type": "EXPOSURE_FEED_XML",
+        "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=xml&limit=20",
+        "mode": "READ_ONLY_RESEARCH_CONTEXT"
+      },
+      {
+        "type": "EXPOSURE_FEED_RSS",
+        "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-exposure-feed-v5202?format=rss&limit=20",
+        "mode": "READ_ONLY_RESEARCH_CONTEXT"
+      }
+    ],
+    "app_deep_links": {
+      "example": "https://bridgepointintelligence.online/app/?embed=1&address=123%20Main%20St&z=17",
+      "accepted": [
+        "address",
+        "q",
+        "lat",
+        "lng",
+        "z",
+        "embed",
+        "select"
+      ]
+    },
+    "safeguards": [
+      "No silent third-party page injection in the published browser preview.",
+      "No claim of endorsement by a host website or institution.",
+      "Exposure feed is not proof of physical damage.",
+      "Exposure feed is not a securities trading instruction.",
+      "BII numeric values remain subject to the evidence/confidence publication gate."
     ]
   }
 }
