@@ -14,7 +14,7 @@ on:
       - 'app/horizon-playable/**'
       - 'discover/**'
       - 'newsroom/**'
-      - 'articles/auto/**'
+      - 'articles/**'
       - 'articles/bridgepoint-facts.json'
       - 'current-map-entry.js'
       - 'acquisition_tracker.js'
@@ -84,6 +84,7 @@ jobs:
           if [ ! -d newsroom ]; then python scripts/publish_growth_newsroom_v5100.py; fi
           cp -a newsroom site/newsroom
           cp -a articles/auto site/articles/auto
+          find articles -maxdepth 1 -type f -exec cp -f {} site/articles/ \;
           cp articles/bridgepoint-facts.json site/articles/bridgepoint-facts.json
           cp -a app/horizon site/app/horizon
           cp -a app/horizon-playable site/app/horizon-playable
