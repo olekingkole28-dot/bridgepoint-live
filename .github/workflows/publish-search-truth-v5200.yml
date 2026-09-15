@@ -64,7 +64,7 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             python scripts/publish_search_truth_v5200.py
-            git add -- search discovery-facts.json ai-index.json bridgepoint-knowledge.jsonld search-sitemap.xml
+            git add -- search discovery-facts.json ai-index.json bridgepoint-knowledge.jsonld search-sitemap.xml press/bridgepoint-facts.json articles/bridgepoint-facts.json
             git diff --cached --check
             if git diff --cached --quiet; then
               echo 'changed=false' >> "$GITHUB_OUTPUT"
