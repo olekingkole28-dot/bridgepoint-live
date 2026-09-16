@@ -42,17 +42,17 @@
         {
           "@type": "PropertyValue",
           "name": "Materialized boundary estimate",
-          "value": 83881524
+          "value": 83881564
         },
         {
           "@type": "PropertyValue",
           "name": "Normalized/public address records",
-          "value": 143381873
+          "value": 143613959
         },
         {
           "@type": "PropertyValue",
           "name": "Map-ready buildings",
-          "value": 92015000
+          "value": 97686320
         }
       ]
     },

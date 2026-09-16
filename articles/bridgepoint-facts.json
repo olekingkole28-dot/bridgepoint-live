@@ -1,5 +1,5 @@
 {
-  "snapshot_generated_at": "2026-09-16T00:21:36.500603+00:00",
+  "snapshot_generated_at": "2026-09-16T05:04:17.915194+00:00",
   "company": "BridgePoint Intelligence",
   "founder": "Kole Johnson",
   "public_origin": "https://bridgepointintelligence.online/",
@@ -12,20 +12,20 @@
   "ai_index": "https://bridgepointintelligence.online/ai-index.json",
   "search_atlas": "https://bridgepointintelligence.online/search/",
   "current_national_metrics": {
-    "map_ready_buildings": 92015000,
-    "roof_shell_buildings": 92015000,
+    "map_ready_buildings": 97686320,
+    "roof_shell_buildings": 97686320,
     "roof_shell_coverage_pct": 100.0,
     "canonical_property_records": 169664739,
-    "normalized_address_records": 143381873,
-    "source_backed_roof_records": 668810,
-    "lidar_refined_roof_buildings": 2874,
-    "materialized_boundary_estimate": 83881524,
+    "normalized_address_records": 143613959,
+    "source_backed_roof_records": 669024,
+    "lidar_refined_roof_buildings": 2956,
+    "materialized_boundary_estimate": 83881564,
     "public_parcel_identity_records": 169664739,
     "canonical_property_record_label": "canonical property/parcel identity records",
     "property_boundary_link_estimate": 31311895
   },
   "coverage": {
-    "fl_oid_remaining": 31778,
+    "fl_oid_remaining": 24528,
     "ny_oid_remaining": 0,
     "pr_oid_remaining": 0,
     "strict_boundary_ready": false,
@@ -34,12 +34,12 @@
     "public_counter_jurisdictions": 56
   },
   "freshness": {
-    "roof_updated_at": "2026-09-16T00:21:26.345054+00:00",
-    "lidar_last_success_at": "2026-09-16T00:09:53.691014+00:00",
+    "roof_updated_at": "2026-09-16T05:04:12.986893+00:00",
+    "lidar_last_success_at": "2026-09-16T04:59:50.058222+00:00",
     "parcel_counter_updated_at": "2026-09-15T23:31:08.77511+00:00",
-    "address_counter_updated_at": "2026-09-16T00:21:26.262404+00:00",
-    "parcel_scoreboard_updated_at": "2026-09-16T00:21:23.914056+00:00",
-    "parcel_autopilot_last_tick_at": "2026-09-16T00:21:23.914056+00:00"
+    "address_counter_updated_at": "2026-09-16T05:04:09.747436+00:00",
+    "parcel_scoreboard_updated_at": "2026-09-16T05:04:01.656283+00:00",
+    "parcel_autopilot_last_tick_at": "2026-09-16T01:18:58.834462+00:00"
   },
   "definitions": {
     "canonical_property_records": "Canonical property/parcel identity records. This is not the same measure as materialized parcel-boundary polygons.",
