@@ -15,7 +15,7 @@ permissions:
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -33,14 +33,35 @@ jobs:
         env:
           CI: 'true'
 
-      - name: Encode master + vertical social cut
+      - name: Preserve raw recording immediately
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg
           RAW="$(cat demo-output-fast/video-path.txt)"
           test -f "$RAW"
-          ffmpeg -y -i "$RAW" -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart -an demo-output-fast/BridgePoint_Intelligence_Production_Demo_Master.mp4
-          ffmpeg -y -i demo-output-fast/BridgePoint_Intelligence_Production_Demo_Master.mp4             -filter_complex "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=30[bg];[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2"             -c:v libx264 -preset medium -crf 19 -pix_fmt yuv420p -movflags +faststart -an demo-output-fast/BridgePoint_Intelligence_Production_Demo_Vertical.mp4
+          cp "$RAW" demo-output-fast/BridgePoint_Intelligence_Production_Demo_RAW.webm
+
+      - name: Upload raw fallback
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-demo-raw-20260916
+          path: demo-output-fast/BridgePoint_Intelligence_Production_Demo_RAW.webm
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+      - name: Install ffmpeg if needed
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y ffmpeg
+          fi
+
+      - name: Encode downloadable MP4 master fast
+        run: |
+          ffmpeg -y -i demo-output-fast/BridgePoint_Intelligence_Production_Demo_RAW.webm             -c:v libx264 -preset ultrafast -crf 20 -pix_fmt yuv420p             -movflags +faststart -an             demo-output-fast/BridgePoint_Intelligence_Production_Demo_Master.mp4
+
+      - name: Encode vertical social edition fast
+        run: |
+          ffmpeg -y -i demo-output-fast/BridgePoint_Intelligence_Production_Demo_Master.mp4             -filter_complex "color=c=0x050b14:s=1080x1920:r=30[bg];[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1"             -c:v libx264 -preset ultrafast -crf 21 -pix_fmt yuv420p             -movflags +faststart -an             demo-output-fast/BridgePoint_Intelligence_Production_Demo_Vertical.mp4
 
       - name: Manifest
         run: |
@@ -51,14 +72,16 @@ jobs:
 
           MASTER: BridgePoint_Intelligence_Production_Demo_Master.mp4 (1920x1080)
           VERTICAL: BridgePoint_Intelligence_Production_Demo_Vertical.mp4 (1080x1920)
+          RAW FALLBACK: BridgePoint_Intelligence_Production_Demo_RAW.webm
 
           The film uses only what the production interface actually returns.
           Account-gated timeline/intelligence surfaces remain visibly gated if the capture browser has no authorized session.
           EOF
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload finished videos
+        uses: actions/upload-artifact@v4
         with:
-          name: bridgepoint-demo-fast-20260916
+          name: bridgepoint-demo-final-20260916
           path: |
             demo-output-fast/BridgePoint_Intelligence_Production_Demo_Master.mp4
             demo-output-fast/BridgePoint_Intelligence_Production_Demo_Vertical.mp4
