@@ -1,0 +1,48 @@
+name: BridgePoint RESTART frame-perfect v7 2026-09-16
+
+on:
+  push:
+    branches:
+      - bridgepoint-demo-restart-v7-20260916
+    paths:
+      - '.github/workflows/bridgepoint-demo-restart-v7-20260916.yml'
+      - '.github/scripts/capture_bridgepoint_demo_restart_v7_20260916.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Capture fresh-browser rendered frames
+        run: xvfb-run -a node .github/scripts/capture_bridgepoint_demo_restart_v7_20260916.js
+        env:
+          CI: 'true'
+      - name: Assemble master
+        run: |
+          ffmpeg -y -f concat -safe 0 -i demo-restart-v7/concat.txt             -vf "fps=30,scale=1920:1080:flags=lanczos,format=yuv420p"             -c:v libx264 -preset veryfast -crf 17 -movflags +faststart -an             demo-restart-v7/BridgePoint_Intelligence_FIXED_POST_READY_Master.mp4
+      - name: Assemble vertical
+        run: |
+          ffmpeg -y -i demo-restart-v7/BridgePoint_Intelligence_FIXED_POST_READY_Master.mp4             -filter_complex "color=c=0x050b14:s=1080x1920:r=30[bg];[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1"             -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p -movflags +faststart -an             demo-restart-v7/BridgePoint_Intelligence_FIXED_POST_READY_Vertical.mp4
+      - name: Upload finished videos
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-fixed-post-ready-v7-20260916
+          path: |
+            demo-restart-v7/BridgePoint_Intelligence_FIXED_POST_READY_Master.mp4
+            demo-restart-v7/BridgePoint_Intelligence_FIXED_POST_READY_Vertical.mp4
+            demo-restart-v7/manifest.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
