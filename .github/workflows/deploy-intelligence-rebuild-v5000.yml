@@ -585,13 +585,18 @@ jobs:
               if(measureState.activated!==true||measureState.accepted.some(x=>x!==true)||Number(measureState.state?.pointCount)<3||measureState.state?.hasLine!==true||measureState.state?.hasPolygon!==true||Number(measureState.state?.areaM2)<=0||Number(measureState.state?.totalDistanceM)<=0)throw new Error('MEASURE_STATE_INVALID '+JSON.stringify(measureState));
               console.log('BRIDGEPOINT_MEASURE_PASS');
 
-              const refreshedStatus=await p.evaluate(async()=>typeof window.__BP_REFRESH_STATUS__==='function'?await window.__BP_REFRESH_STATUS__():null);
+              let refreshedStatus=null;
+              for(let statusAttempt=1;statusAttempt<=3;statusAttempt++){
+                refreshedStatus=await p.evaluate(async()=>typeof window.__BP_REFRESH_STATUS__==='function'?await window.__BP_REFRESH_STATUS__():null);
+                if(Number(refreshedStatus?.canonical_properties||0)>0&&Number(refreshedStatus?.transport_rows_archived||0)>0)break;
+                if(statusAttempt<3)await new Promise(r=>setTimeout(r,4000));
+              }
               console.log('BRIDGEPOINT_BACKEND_STATUS_REFRESHED',JSON.stringify(refreshedStatus||{}));
               await p.waitForFunction(()=>{
                 const canonical=document.getElementById('canonicalProperties')?.textContent;
                 const transport=document.getElementById('transportArchive')?.textContent;
-                return canonical&&canonical!=='—'&&transport&&transport!=='—';
-              },{timeout:16000});
+                return canonical&&canonical!=='—'&&canonical!=='0'&&transport&&transport!=='—'&&!/^0 rows/.test(transport);
+              },{timeout:18000});
 
               const out=await p.evaluate(()=>({
                 version:window.__BP_FRONTEND_VERSION,
