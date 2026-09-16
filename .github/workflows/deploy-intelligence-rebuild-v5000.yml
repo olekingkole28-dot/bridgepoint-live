@@ -497,6 +497,41 @@ jobs:
               await p.waitForFunction(()=>getComputedStyle(document.getElementById('systemPanel')).display==='none',{timeout:5000});
               console.log('BRIDGEPOINT_MOBILE_STATUS_PANEL_CLOSED');
 
+              // Regression gate: visible OpenFreeMap context shells must be selectable even
+              // when the BridgePoint/exact/opportunity overlays are hidden.
+              await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                if(!m)throw new Error('context-hit-test map unavailable');
+                m.jumpTo({center:[-73.9857,40.7484],zoom:17.2,pitch:58,bearing:0});
+              });
+              await p.waitForFunction(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                if(!m?.getLayer('gta-context-buildings'))return false;
+                try{return m.queryRenderedFeatures({layers:['gta-context-buildings']}).length>0}catch{return false}
+              },{timeout:25000});
+              const contextBuildingHit=await p.evaluate(()=>{
+                const w=window.__BP_V5000_WORLD,m=w?.map;
+                if(!w?.selectBuildingAtPoint||!m)return null;
+                const overlays=['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings'];
+                const prior=overlays.map(id=>[id,m.getLayer(id)?(m.getLayoutProperty(id,'visibility')||'visible'):null]);
+                for(const [id,v] of prior)if(v!==null)m.setLayoutProperty(id,'visibility','none');
+                let picked=null;
+                try{
+                  const cv=m.getCanvas(),width=cv.clientWidth||cv.width,height=cv.clientHeight||cv.height;
+                  outer:for(let y=80;y<height-60;y+=18)for(let x=18;x<width-18;x+=18){
+                    let hit=0;try{hit=m.queryRenderedFeatures({x,y},{layers:['gta-context-buildings']}).length}catch(_){}
+                    if(hit&&w.selectBuildingAtPoint({x,y})===true){picked={x,y};break outer}
+                  }
+                }finally{
+                  for(const [id,v] of prior)if(v!==null)m.setLayoutProperty(id,'visibility',v);
+                }
+                return picked;
+              });
+              if(!contextBuildingHit)throw new Error('VISIBLE_CONTEXT_BUILDING_NOT_CLICKABLE');
+              await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===false,{timeout:5000});
+              console.log('BRIDGEPOINT_CONTEXT_BUILDING_HITTEST_PASS',JSON.stringify(contextBuildingHit));
+              await p.evaluate(()=>window.__BP_V5000_CLEAR_BUILDING__?.());
+
               await p.evaluate(()=>{
                 const map=window.__BP_V5000_WORLD?.map;
                 if(!map)throw new Error('map unavailable');
