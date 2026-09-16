@@ -41,7 +41,6 @@ on:
       - 'sample/**'
       - 'owner/acquisition/**'
       - 'owner/command/**'
-      - 'owner/docs/**'
       - 'downloads/backup/**'
       - 'enterprise/**'
       - 'investors/**'
@@ -135,7 +134,6 @@ jobs:
           mkdir -p site/owner
           cp -a owner/acquisition site/owner/acquisition
           cp -a owner/command site/owner/command
-          if [ -d owner/docs ]; then cp -a owner/docs site/owner/docs; fi
           mkdir -p site/downloads/backup
           cp downloads/backup/bridgepoint_full_export_windows.ps1 site/downloads/backup/bridgepoint_full_export_windows.ps1
           cp downloads/backup/bridgepoint_state_export_windows.ps1 site/downloads/backup/bridgepoint_state_export_windows.ps1
@@ -260,14 +258,13 @@ jobs:
           test -s site/sample/index.html
           test -s site/owner/acquisition/index.html
           test -s site/owner/command/index.html
-          test -s site/owner/docs/BridgePoint_Investor_Package.pdf
-          test -s site/owner/docs/BridgePoint_Play_Ventures_One_Page_Brief.pdf
           test -s site/owner-everything.js
           test -s site/owner-everything.css
           test -s site/downloads/backup/bridgepoint_full_export_windows.ps1
           node --check site/owner-everything.js
           grep -Fq 'Owner Everything' site/app/index.html
           grep -Fq 'bridgepoint_owner_hub_v5401' site/owner-everything.js
+          grep -Fq 'bridgepoint_owner_document_v5401' site/owner-everything.js
           grep -Fq 'BILLING OFF' site/founder-access/index.html
           grep -Fq 'founder-access.js' site/for-roofers/index.html
           ! grep -Fq 'bridgepoint-territory-report-v674' site/sample/index.html
