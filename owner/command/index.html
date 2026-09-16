@@ -19,9 +19,21 @@ table{width:100%;border-collapse:collapse;min-width:620px}th,td{padding:7px;bord
 </style>
 </head>
 <body><div class="wrap">
-<div class="top"><div><b>BridgePoint Intelligence · Owner Only</b><div class="muted">National mega-sprint truth console · V5300</div></div><div style="display:flex;gap:7px;flex-wrap:wrap"><span id="live" class="pill"><span class="dot"></span><span>Connecting</span></span><button id="refresh" class="btn">Refresh now</button><a class="btn" href="/app/">Open app</a><a class="btn" href="/owner/acquisition/">Acquisition</a></div></div>
-<section class="hero"><h1>Everything that is moving, stuck, or incomplete.</h1><div class="muted">Auto-refreshes every 15 seconds. Archive coverage, map materialization, source-backed truth and unresolved gaps are shown separately.</div><div id="error" class="alert hidden"></div></section>
+<div class="top"><div><b>BridgePoint Intelligence · Owner Only</b><div class="muted">National mega-sprint + acquisition truth console · V5400</div></div><div style="display:flex;gap:7px;flex-wrap:wrap"><span id="live" class="pill"><span class="dot"></span><span>Connecting</span></span><button id="refresh" class="btn">Refresh now</button><a class="btn" href="/app/">Open app</a><a class="btn" href="/owner/acquisition/">Acquisition</a></div></div>
+<section class="hero"><h1>Everything that is moving, stuck, or incomplete.</h1><div class="muted">Auto-refreshes every 15 seconds. Backend coverage, materialization, package access, opportunity pipelines, acquisition and coarse acquisition geography are kept together here.</div><div id="error" class="alert hidden"></div></section>
 <section id="metrics" class="grid"></section>
+<section class="card" style="margin-top:10px">
+ <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+  <div><h2 style="margin-bottom:3px">Acquisition + geography</h2><div class="muted">Choose a preset or an exact date window. End date is inclusive.</div></div>
+  <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+   <select id="acqRange" class="btn"><option value="1">24 hours</option><option value="7">7 days</option><option value="30">30 days</option><option value="current" selected>Since Sep 15 cutover</option><option value="custom">Custom dates</option></select>
+   <input id="acqStart" class="btn" type="date" aria-label="Acquisition start date">
+   <input id="acqEnd" class="btn" type="date" aria-label="Acquisition end date">
+   <button id="applyAcq" class="btn" type="button">Apply dates</button>
+  </div>
+ </div>
+ <div id="acqMetrics" class="grid" style="margin-top:10px"></div>
+</section>
 <section class="sections">
  <div class="card"><h2>Parcel + address closeout</h2><div id="parcel" class="kv"></div></div>
  <div class="card"><h2>Buildings + layouts + X-ray truth</h2><div id="layout" class="kv"></div></div>
@@ -31,6 +43,12 @@ table{width:100%;border-collapse:collapse;min-width:620px}th,td{padding:7px;bord
  <div class="card"><h2>Opportunity + scoring engine</h2><div id="opportunity" class="kv"></div></div>
  <div class="card"><h2>Physical-world pressure governor</h2><div id="physical" class="kv"></div></div>
  <div class="card"><h2>Live weather/context</h2><div id="weather" class="kv"></div></div>
+</section>
+<section class="sections">
+ <div class="card"><h2>Acquisition geography</h2><table><thead><tr><th>Country</th><th>State</th><th>Visitors</th><th>Latest</th></tr></thead><tbody id="acqStates"></tbody></table></div>
+ <div class="card"><h2>Acquisition sources</h2><table><thead><tr><th>Source</th><th>Visitors</th><th>Latest</th></tr></thead><tbody id="acqSources"></tbody></table></div>
+ <div class="card"><h2>Acquisition pages</h2><table><thead><tr><th>Page</th><th>Visitors</th><th>Events</th><th>Latest</th></tr></thead><tbody id="acqPages"></tbody></table></div>
+ <div class="card"><h2>Acquisition funnel</h2><table><thead><tr><th>Stage</th><th>Visitors</th><th>Events</th><th>From prior</th></tr></thead><tbody id="acqFunnel"></tbody></table></div>
 </section>
 <section class="card" style="margin-top:10px"><h2>Jurisdiction claims-source parity</h2><table><thead><tr><th>Jurisdiction</th><th>Status</th><th>Covered</th><th>Healthy</th><th>Desired</th><th>Gap</th><th>Updated</th></tr></thead><tbody id="claimRows"></tbody></table></section>
 <section class="card" style="margin-top:10px"><h2>Active sprint jobs</h2><table><thead><tr><th>ID</th><th>Name</th><th>Schedule</th><th>Active</th><th>Command</th></tr></thead><tbody id="jobs"></tbody></table></section>
@@ -44,10 +62,14 @@ async function rpc(name,body={}){const t=token();if(!t)throw new Error('Owner si
 const rows=(id,obj,keys)=>{$(id).innerHTML=keys.map(([label,key,format])=>'<div>'+label+'</div><div>'+(format?format(obj?.[key]):(obj?.[key]??'—'))+'</div>').join('')};
 function metric(label,value,cls=''){return '<div class="metric '+cls+'"><span>'+label+'</span><b>'+value+'</b></div>'}
 function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function localDay(v,end=false){if(!v)return null;const d=new Date(v+(end?'T23:59:59.999':'T00:00:00'));return Number.isNaN(d.getTime())?null:d.toISOString()}
+function acquisitionWindow(){const mode=$('acqRange')?.value||'current',now=new Date();if(mode==='custom'){const s=localDay($('acqStart').value),u=localDay($('acqEnd').value,true);return {since:s||new Date(now-86400000).toISOString(),until:u||now.toISOString()}}if(mode==='current')return {since:'2026-09-15T00:00:00-04:00',until:now.toISOString()};return {since:new Date(now-Number(mode)*86400000).toISOString(),until:now.toISOString()}}
+function syncDateInputs(){const custom=$('acqRange').value==='custom';$('acqStart').disabled=!custom;$('acqEnd').disabled=!custom}
 async function load(){
  const live=$('live'),err=$('error');live.className='pill';live.lastElementChild.textContent='Refreshing';err.classList.add('hidden');
  try{
-  const d=await rpc('bridgepoint_owner_mega_sprint_v5300');window.__BP_OWNER_MEGA_SPRINT__=d;
+  const w=acquisitionWindow();
+  const [d,a]=await Promise.all([rpc('bridgepoint_owner_mega_sprint_v5300'),rpc('bridgepoint_owner_acquisition_v5400',{p_since:w.since,p_until:w.until})]);window.__BP_OWNER_MEGA_SPRINT__=d;window.__BP_OWNER_ACQUISITION__=a;
   const f=d.frontend||{},t=d.transport_runtime||{},p=d.parcel||{},r=d.roof||{},l=d.layout||{},i=d.interior||{},c=d.claims||{},o=d.opportunity_engine||{},ph=d.physical_world||{};
   $('metrics').innerHTML=[
    metric('Canonical properties',fmt(f.canonical_properties)),
@@ -63,6 +85,19 @@ async function load(){
    metric('Opportunity rows ~',fmt(o.opportunity_rows_estimate)),
    metric('Score rows ~',fmt(o.property_score_rows_estimate))
   ].join('');
+  const at=a.totals||{},af=a.funnel||[],signup=af.find(x=>x.event_type==='SIGNUP_SUCCESS')?.visitors||0,trials=af.find(x=>x.event_type==='TRIAL_START')?.visitors||0,paid=af.find(x=>x.event_type==='PAID')?.visitors||0;
+  $('acqMetrics').innerHTML=[
+   metric('Unique visitors',fmt(at.unique_visitors)),
+   metric('Tracked events',fmt(at.events)),
+   metric('US visitors w/state',fmt(at.us_visitors_with_state)),
+   metric('Geo coverage',at.geo_coverage_pct==null?'—':at.geo_coverage_pct+'%'),
+   metric('Signups / trials',fmt(signup)+' / '+fmt(trials)),
+   metric('Paid',fmt(paid),paid>0?'good':'')
+  ].join('');
+  $('acqStates').innerHTML=(a.states||[]).map(x=>'<tr><td>'+esc(x.country_code||'UNKNOWN')+'</td><td>'+esc(x.region_code||'—')+'</td><td>'+fmt(x.visitors)+'</td><td>'+esc(x.latest_at?new Date(x.latest_at).toLocaleString():'—')+'</td></tr>').join('');
+  $('acqSources').innerHTML=(a.sources||[]).map(x=>'<tr><td>'+esc(x.source||'direct/unknown')+'</td><td>'+fmt(x.visitors)+'</td><td>'+esc(x.latest_at?new Date(x.latest_at).toLocaleString():'—')+'</td></tr>').join('');
+  $('acqPages').innerHTML=(a.pages||[]).map(x=>'<tr><td>'+esc(x.page_path)+'</td><td>'+fmt(x.visitors)+'</td><td>'+fmt(x.events)+'</td><td>'+esc(x.latest_at?new Date(x.latest_at).toLocaleString():'—')+'</td></tr>').join('');
+  $('acqFunnel').innerHTML=af.map(x=>'<tr><td>'+esc(x.label)+'</td><td>'+fmt(x.visitors)+'</td><td>'+fmt(x.events)+'</td><td>'+esc(x.conversion_from_prior_pct==null?'—':x.conversion_from_prior_pct+'%')+'</td></tr>').join('');
   rows('parcel',f,[['Canonical properties','canonical_properties',fmt],['Unique addresses','unique_addresses',fmt],['Fresh jurisdictions','parcel_fresh_jurisdictions',v=>fmt(v)+' / '+fmt(f.parcel_required_jurisdictions)],['Florida remaining','parcel_remaining',v=>fmt(v?.FL)],['New York remaining','parcel_remaining',v=>fmt(v?.NY)],['Puerto Rico remaining','parcel_remaining',v=>fmt(v?.PR)],['Strict ready','parcel_strict_ready',v=>v?'YES':'NO'],['Backend updated','backend_updated_at',v=>v?new Date(v).toLocaleString():'—']]);
   rows('layout',l,[['Archived buildings','archived_buildings',fmt],['Map-ready buildings','map_ready_buildings_approx',fmt],['Layout indexed','layout_index_materialized',fmt],['Layout of map-ready','layout_index_of_map_ready_pct',pct],['Map-ready of archive','map_ready_of_archive_pct',pct],['Building parts','materialized_building_part_rows',fmt],['Explicit part floors','parent_buildings_with_explicit_part_floors',fmt],['Source underground','parent_buildings_with_underground_parts',fmt],['Measured drawings','measured_drawing_sets',fmt],['Public-safe drawings','safe_measured_drawing_sets',fmt],['Matched plans','matched_plan_sets',fmt],['Unresolved exact interiors','archive_to_map_gap_approx',fmt]]);
   const interiorRows=[['Exact public classified','exact_public',fmt],['Source-backed derived','source_backed_derived',fmt],['Historic partial','historic_partial',fmt],['Sensitive blocked','sensitive_blocked',fmt],['Unresolved interior truth','unresolved',fmt],['Interior classified coverage','classified_coverage_pct',pct]];
@@ -76,9 +111,9 @@ async function load(){
   $('claimRows').innerHTML=(c.jurisdiction_detail||[]).map(x=>'<tr><td>'+esc(x.state_code)+'</td><td class="'+(x.gap===0?'good':x.status==='MINIMUM_MET'?'good':'warn')+'">'+esc(x.status)+'</td><td>'+fmt(x.covered)+'</td><td>'+fmt(x.healthy)+'</td><td>'+fmt(x.desired)+'</td><td>'+fmt(x.gap)+'</td><td>'+esc(x.updated_at?new Date(x.updated_at).toLocaleString():'—')+'</td></tr>').join('');
   $('jobs').innerHTML=(d.jobs||[]).map(x=>'<tr><td>'+fmt(x.jobid)+'</td><td>'+esc(x.jobname||'—')+'</td><td>'+esc(x.schedule)+'</td><td class="'+(x.active?'good':'fail')+'">'+(x.active?'YES':'NO')+'</td><td>'+esc(x.command)+'</td></tr>').join('');
   $('runs').innerHTML=(o.latest_runs||[]).map(x=>'<tr><td>'+esc(x.started_at?new Date(x.started_at).toLocaleString():'—')+'</td><td>'+esc(x.status)+'</td><td>'+fmt(x.properties_processed)+'</td><td>'+fmt(x.opportunities_created)+'</td><td>'+fmt(x.opportunities_updated)+'</td><td class="'+(Number(x.opportunities_failed)>0?'fail':'good')+'">'+fmt(x.opportunities_failed)+'</td></tr>').join('');
-  $('raw').textContent=JSON.stringify(d,null,2);live.className='pill ok';live.lastElementChild.textContent='Live · '+new Date(d.generated_at||Date.now()).toLocaleTimeString();
+  $('raw').textContent=JSON.stringify({backend:d,acquisition:a},null,2);live.className='pill ok';live.lastElementChild.textContent='Live · '+new Date(d.generated_at||Date.now()).toLocaleTimeString();
  }catch(e){live.className='pill bad';live.lastElementChild.textContent='Owner console error';err.textContent=e.message;err.classList.remove('hidden')}
 }
-$('refresh').onclick=load;load();setInterval(load,15000);
+const today=new Date().toISOString().slice(0,10);$('acqStart').value=today;$('acqEnd').value=today;syncDateInputs();$('acqRange').onchange=()=>{syncDateInputs();if($('acqRange').value!=='custom')load()};$('applyAcq').onclick=()=>{if($('acqRange').value!=='custom')$('acqRange').value='custom';syncDateInputs();load()};$('refresh').onclick=load;load();setInterval(load,15000);
 })();
 </script></body></html>
