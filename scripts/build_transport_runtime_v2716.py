@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import base64
 import datetime as dt
 import hashlib
 import json
@@ -7,6 +8,7 @@ import os
 import pathlib
 import subprocess
 import sys
+from urllib.parse import urljoin, urlparse
 
 import duckdb
 import requests
@@ -120,16 +122,75 @@ def build_pmtiles(state,local,out_dir,expected):
         raise RuntimeError("tippecanoe produced no PMTiles output")
     return output,seg_count,con_count,{"segment_columns":seg_cols,"connector_columns":con_cols}
 
+def _b64meta(value):
+    return base64.b64encode(str(value).encode("utf-8")).decode("ascii")
+
+def tus_upload_signed(output,bucket,object_path,signature):
+    """
+    Upload a large runtime artifact through Supabase Storage TUS.
+    The old one-shot signed PUT path hit HTTP 413 on large state PMTiles.
+    Supabase recommends the direct storage hostname plus 6 MiB TUS chunks.
+    """
+    parsed=urlparse(SUPABASE_URL)
+    project_ref=parsed.hostname.split(".")[0]
+    endpoint=f"https://{project_ref}.storage.supabase.co/storage/v1/upload/resumable"
+    size=output.stat().st_size
+    metadata=",".join([
+        f"bucketName {_b64meta(bucket)}",
+        f"objectName {_b64meta(object_path)}",
+        f"contentType {_b64meta('application/octet-stream')}",
+        f"cacheControl {_b64meta('3600')}",
+    ])
+    create=requests.post(endpoint,headers={
+        "Tus-Resumable":"1.0.0",
+        "Upload-Length":str(size),
+        "Upload-Metadata":metadata,
+        "x-signature":signature,
+        "x-upsert":"true",
+    },timeout=120)
+    if create.status_code not in (201,204):
+        raise RuntimeError(f"TUS create {create.status_code}: {create.text[:1200]}")
+    location=create.headers.get("Location") or create.headers.get("location")
+    if not location:
+        raise RuntimeError("TUS create did not return Location")
+    upload_url=urljoin(endpoint,location)
+    offset=0
+    chunk_size=6*1024*1024
+    with output.open("rb") as f:
+        while offset<size:
+            f.seek(offset)
+            chunk=f.read(min(chunk_size,size-offset))
+            if not chunk:
+                raise RuntimeError(f"TUS short read at {offset}/{size}")
+            r=requests.patch(upload_url,data=chunk,headers={
+                "Tus-Resumable":"1.0.0",
+                "Upload-Offset":str(offset),
+                "Content-Type":"application/offset+octet-stream",
+                "Content-Length":str(len(chunk)),
+                "x-signature":signature,
+                "x-upsert":"true",
+            },timeout=300)
+            if r.status_code not in (204,):
+                raise RuntimeError(f"TUS patch {r.status_code} at {offset}/{size}: {r.text[:1200]}")
+            next_offset=int(r.headers.get("Upload-Offset",offset+len(chunk)))
+            if next_offset<=offset:
+                raise RuntimeError(f"TUS upload offset did not advance: {offset}->{next_offset}")
+            offset=next_offset
+            pct=round(offset*100/size,2)
+            print(json.dumps({"tus_uploaded":offset,"bytes":size,"pct":pct},separators=(",",":")))
+    if offset!=size:
+        raise RuntimeError(f"TUS incomplete upload {offset}/{size}")
+
 def upload_finalize(state,output,seg_count,con_count,metadata):
     digest=sha256_file(output)
     size=output.stat().st_size
     signed=post({"action":"sign_upload","state_code":state})
-    with output.open("rb") as f:
-        r=requests.put(signed["signed_url"],data=f,headers={
-            "content-type":"application/octet-stream","x-upsert":"true","content-length":str(size)
-        },timeout=1800)
-    if not r.ok:
-        raise RuntimeError(f"runtime upload {r.status_code}: {r.text[:1200]}")
+    tus_upload_signed(
+        output,
+        "living-world-archives",
+        signed["object_path"],
+        signed["upload_token"],
+    )
     generated=dt.datetime.now(dt.timezone.utc).isoformat()
     receipt=post({
         "action":"finalize","state_code":state,"file_bytes":size,"sha256":digest,
