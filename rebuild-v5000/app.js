@@ -463,6 +463,7 @@ function bindMapGestureIsolation(){
 }
 
 const BP_MOBILE=innerWidth<=900||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+window.__BP_PERFORMANCE_GOVERNOR__=window.__BP_PERFORMANCE_GOVERNOR__||{get interacting(){return mapInteracting},get queued(){return deferredWork.size}};
 let lastMapMotionAt=0;
 function queueAfterMap(key,fn){if(mapInteracting||performance.now()-lastMapMotionAt<(BP_MOBILE?420:220)){deferredWork.set(key,fn);return false}const run=()=>{if(mapInteracting){deferredWork.set(key,fn);return}try{fn()}catch(e){console.warn('deferred '+key,e)}};if('requestIdleCallback'in window)requestIdleCallback(run,{timeout:BP_MOBILE?1400:850});else setTimeout(run,BP_MOBILE?160:70);return true}
 function flushDeferredWork(){const jobs=[...deferredWork.entries()];deferredWork.clear();const gap=BP_MOBILE?170:90;jobs.forEach(([key,fn],i)=>setTimeout(()=>queueAfterMap(key,fn),i*gap))}
