@@ -56,13 +56,15 @@ async function captureCityShots(browser){
   fs.mkdirSync(OUT+'/cities',{recursive:true});
   const ctx=await browser.newContext({viewport:{width:1920,height:1080},ignoreHTTPSErrors:true});
   const page=await ctx.newPage();
+  const cdp=await ctx.newCDPSession(page);
   await boot(page);
   for(let i=0;i<cities.length;i++){
     const c=cities[i];
     await mapJump(page,c[2],c[3],c[4],c[5],c[6]);
     try{await page.waitForFunction(()=>{const m=window.__BP_V5000_WORLD?.map;return !!m&&(typeof m.areTilesLoaded!=='function'||m.areTilesLoaded())},{timeout:7000})}catch{}
     await sleep(4200);
-    await page.screenshot({path:OUT+'/cities/city-'+String(i).padStart(2,'0')+'.png',type:'png'});
+    const shot=await cdp.send('Page.captureScreenshot',{format:'png',fromSurface:true,captureBeyondViewport:false});
+    fs.writeFileSync(OUT+'/cities/city-'+String(i).padStart(2,'0')+'.png',Buffer.from(shot.data,'base64'));
   }
   await ctx.close();
 }
