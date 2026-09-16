@@ -226,8 +226,15 @@ function floorSlabFeatures(geometry,b={}){
 }
 function applyMapXray(geometry,b={}){
  const map=world?.map;if(!map||!geometry)return;
- clearMapXray();
  const buildingId=b.building_id!=null?String(b.building_id):null;
+ const data={type:'FeatureCollection',features:floorSlabFeatures(geometry,b)};
+ const existing=map.getSource('bpV5041XrayFloors');
+ if(existing?.setData&&map.getLayer('bp-v5041-xray-floors')&&window.__BP_XRAY_STATE__?.buildingId===buildingId){
+  existing.setData(data);
+  window.__BP_XRAY_STATE__={ready:true,features:data.features.length,buildingId,updatedAt:Date.now(),preserved:true};
+  return
+ }
+ clearMapXray();
  xrayRestore={
   bpFilter:map.getLayer('gta-bp-buildings')?map.getFilter('gta-bp-buildings'):null,
   oppFilter:map.getLayer('gta-opportunity-buildings')?map.getFilter('gta-opportunity-buildings'):null,
@@ -241,7 +248,6 @@ function applyMapXray(geometry,b={}){
   try{if(map.getLayer('gta-exact-building'))map.setFilter('gta-exact-building',exclude)}catch(_){}
  }
  try{if(map.getLayer('gta-context-buildings'))map.setPaintProperty('gta-context-buildings','fill-extrusion-opacity',.10)}catch(_){}
- const data={type:'FeatureCollection',features:floorSlabFeatures(geometry,b)};
  const install=()=>{
   try{
     let src=map.getSource('bpV5041XrayFloors');
