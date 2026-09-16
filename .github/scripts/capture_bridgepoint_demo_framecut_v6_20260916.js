@@ -69,7 +69,7 @@ async function setOverlay(page,k,t,sub,p){
  },{k,t,sub,p});
 }
 async function cdpShot(page,cdp,file){
- const r=await cdp.send('Page.captureScreenshot',{format:'png',fromSurface:true,captureBeyondViewport:false});
+ const r=await cdp.send('Page.captureScreenshot',{format:'jpeg',quality:88,fromSurface:true,captureBeyondViewport:false});
  fs.writeFileSync(file,Buffer.from(r.data,'base64'));
 }
 async function waitMap(page,ms=5000){
@@ -108,13 +108,13 @@ async function clickTab(page,name,scroll=0){
 (async()=>{
  fs.mkdirSync(OUT,{recursive:true}); fs.mkdirSync(OUT+'/frames',{recursive:true});
  const browser=await chromium.launch({headless:false,args:['--use-gl=angle','--use-angle=swiftshader-webgl','--ignore-gpu-blocklist','--disable-dev-shm-usage']});
- const ctx=await browser.newContext({viewport:{width:1920,height:1080},ignoreHTTPSErrors:true});
+ const ctx=await browser.newContext({viewport:{width:1280,height:720},ignoreHTTPSErrors:true});
  const page=await ctx.newPage(); const cdp=await ctx.newCDPSession(page);
  page.setDefaultTimeout(5000);
  await boot(page); await overlay(page);
  let n=0; const manifest=[];
  const shot=async(label,dur=1.5)=>{
-   const file=OUT+'/frames/'+String(n).padStart(3,'0')+'.png';
+   const file=OUT+'/frames/'+String(n).padStart(3,'0')+'.jpg';
    await cdpShot(page,cdp,file); manifest.push({file:path.resolve(file),dur,label}); n++;
  };
  const st=await se(page,()=>window.__BP_FRONTEND_STATUS__||null);
@@ -125,7 +125,7 @@ async function clickTab(page,name,scroll=0){
 
  for(let i=0;i<cities.length;i++){
   const c=cities[i];
-  await jump(page,c[2],c[3],16.6,62,i%2?18:-18); await waitMap(page,5000);
+  await jump(page,c[2],c[3],16.6,62,i%2?18:-18); await waitMap(page,3500);
   await setOverlay(page,'CITY '+String(i+1).padStart(2,'0')+' / '+cities.length,c[0],c[1]+' • fully rendered production-map capture',5+(i/cities.length)*18);
   await shot('city '+c[0],1.8);
  }
@@ -139,7 +139,7 @@ async function clickTab(page,name,scroll=0){
     await shot('unresolved '+q,1.5); continue;
   }
   try{await page.waitForFunction(()=>{const p=document.getElementById('buildingPanel');return p&&!p.hidden},{timeout:9000})}catch{}
-  await waitMap(page,4500);
+  await waitMap(page,3200);
   await setOverlay(page,'PROPERTY '+String(i+1).padStart(2,'0')+' / '+props.length,q,'Live production property selection',base);
   await shot('property '+q,1.6);
 
