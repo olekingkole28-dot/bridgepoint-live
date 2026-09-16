@@ -100,12 +100,14 @@ async function moveMap(page,lng,lat,zoom,pitch,bearing,duration=800) {
 
 async function openSearch(page) {
   await safeEval(page, () => {
-    const f=document.getElementById('publicSearchForm');
-    if(!f || getComputedStyle(f).visibility==='hidden' || getComputedStyle(f).display==='none' || Number(getComputedStyle(f).opacity)===0){
-      document.getElementById('toggleSearch')?.click();
-    }
+    const surface=document.querySelector('.map-surface');
+    const form=document.getElementById('publicSearchForm');
+    surface?.classList.add('map-engaged');
+    form?.classList.add('search-open');
+    document.getElementById('toggleSearch')?.classList.add('active');
   });
-  await sleep(240);
+  try{await page.locator('#publicSearchInput').waitFor({state:'visible',timeout:2500});}catch{}
+  await sleep(180);
 }
 
 async function searchAddress(page,q,clickResult=true) {
@@ -145,15 +147,15 @@ async function prewarm() {
 
   for(const c of CITIES){
     await moveMap(page,c[2],c[3],c[4],c[5],c[6],350);
-    await waitSettled(page,450,7000);
-    await waitBuildings(page,6500);
+    await waitSettled(page,450,3200);
+    await waitBuildings(page,2800);
   }
 
   for(const q of PROPERTIES){
     const r=await searchAddress(page,q,true);
     if(r.ok){
-      await waitSettled(page,450,8000);
-      await waitBuildings(page,6500);
+      await waitSettled(page,450,3200);
+      await waitBuildings(page,2800);
       await safeEval(page,()=>document.querySelector('#bpInspectorTabs button[data-tab="xray"]')?.click());
       await sleep(450);
     }
@@ -261,8 +263,8 @@ async function record() {
   for(let i=0;i<CITIES.length;i++){
     const c=CITIES[i];
     await moveMap(page,c[2],c[3],c[4],c[5],c[6],600);
-    await waitSettled(page,900,12000);
-    await waitBuildings(page,10000);
+    await waitSettled(page,850,4500);
+    await waitBuildings(page,4200);
     await card(page,'CITY '+String(i+1).padStart(2,'0')+' / '+CITIES.length,c[0],c[1]+' • rendered 3D context',1150,6+(i/CITIES.length)*17);
     await sleep(650);
   }
@@ -301,8 +303,8 @@ async function record() {
     }
 
     try{await page.locator('#buildingPanel').waitFor({state:'visible',timeout:12000});}catch{}
-    await waitSettled(page,950,12000);
-    await waitBuildings(page,9000);
+    await waitSettled(page,850,4500);
+    await waitBuildings(page,4200);
     try{
       await page.waitForFunction(()=>{
         const badge=document.getElementById('buildingTruthBadge')?.textContent||'';
@@ -314,9 +316,9 @@ async function record() {
     const point=await safeEval(page,()=>window.__BP_V5000_WORLD?.map?.getCenter()?.toArray?.());
     if(Array.isArray(point)){
       await moveMap(page,point[0],point[1],18.1,64,-24,520);
-      await waitSettled(page,700,8000);
+      await waitSettled(page,650,3500);
       await moveMap(page,point[0],point[1],18.25,60,20,520);
-      await waitSettled(page,700,8000);
+      await waitSettled(page,650,3500);
     }
 
     await tab(page,'overview','OVERVIEW','Canonical property identity • source-backed building metrics • geometry • height • floors • source confidence',base+1,0);
@@ -337,11 +339,11 @@ async function record() {
   }
 
   await moveMap(page,-72.6734,41.7658,16.3,62,-18,650);
-  await waitSettled(page,1000,10000);
-  await waitBuildings(page,9000);
+  await waitSettled(page,900,4200);
+  await waitBuildings(page,4200);
   await card(page,'BUILT FOR DECISIONS','SEARCH → RENDER → INSPECT → VERIFY','A national spatial interface that moves from city scale to one property without leaving the workflow.',2200,97);
   await moveMap(page,-98.5,39.5,3.35,0,0,800);
-  await waitSettled(page,900,9000);
+  await waitSettled(page,800,4000);
   await card(page,'BRIDGEPOINT INTELLIGENCE','ONE MAP. THE BACKEND UNDERNEATH IT.','Production walkthrough complete • silent master prepared for your voice-over.',3000,100);
 
   await context.close();
