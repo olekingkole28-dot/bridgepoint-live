@@ -263,7 +263,7 @@ jobs:
           test -s site/downloads/backup/bridgepoint_full_export_windows.ps1
           node --check site/owner-everything.js
           grep -Fq 'Owner Everything' site/app/index.html
-          grep -Fq 'bridgepoint_owner_hub_v5401' site/owner-everything.js
+          grep -Fq 'bridgepoint_owner_acquisition_v5400' site/owner-everything.js\n          grep -Fq 'bridgepoint_owner_backend_section_v5402' site/owner-everything.js
           grep -Fq 'bridgepoint_owner_document_v5401' site/owner-everything.js
           grep -Fq 'BILLING OFF' site/founder-access/index.html
           grep -Fq 'founder-access.js' site/for-roofers/index.html
