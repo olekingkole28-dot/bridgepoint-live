@@ -561,13 +561,22 @@ jobs:
               },{timeout:15000});
               console.log('BRIDGEPOINT_BUILDING_CARD_POPULATED');
 
-              await p.waitForFunction(()=>{
-                const m=window.__BP_V5000_WORLD?.map;
-                const d=m?.getSource('bpV5001SelectedParcel')?.serialize?.()?.data;
-                const area=document.getElementById('bPickedParcelArea')?.textContent;
-                const state=window.__BP_PARCEL_CUTOUT_STATE__;
-                return state?.status==='ready'&&(d?.features?.length||0)===1&&area&&area!=='—'&&area!=='not linked';
-              },{timeout:45000});
+              try{
+                await p.waitForFunction(()=>{
+                  const m=window.__BP_V5000_WORLD?.map;
+                  const d=m?.getSource('bpV5001SelectedParcel')?.serialize?.()?.data;
+                  const area=document.getElementById('bPickedParcelArea')?.textContent;
+                  const state=window.__BP_PARCEL_CUTOUT_STATE__;
+                  return state?.status==='ready'&&(d?.features?.length||0)===1&&area&&area!=='—'&&area!=='not linked';
+                },{timeout:45000});
+              }catch(e){
+                console.log('BRIDGEPOINT_PARCEL_CUTOUT_TIMEOUT_STATE',JSON.stringify(await p.evaluate(()=>({
+                  state:window.__BP_PARCEL_CUTOUT_STATE__||null,
+                  area:document.getElementById('bPickedParcelArea')?.textContent,
+                  selectedParcel:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('bpV5001SelectedParcel')?.serialize?.()?.data;return d||null})()
+                }))));
+                throw e;
+              }
               console.log('BRIDGEPOINT_PARCEL_CUTOUT_RENDERED',JSON.stringify(await p.evaluate(()=>window.__BP_PARCEL_CUTOUT_STATE__||{})));
 
               await p.waitForFunction(()=>{
