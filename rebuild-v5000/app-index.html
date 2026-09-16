@@ -9,7 +9,7 @@
 <link rel="icon" href="../bridgepoint-mark.svg" type="image/svg+xml">
 <link rel="manifest" href="../manifest.webmanifest">
 <link rel="stylesheet" href="../vendor/maplibre-gl.css">
-<link rel="stylesheet" href="../styles.css?v=5209">
+<link rel="stylesheet" href="../styles.css?v=5400">
 <script id="BP_FRONTEND_V5000">window.__BP_FRONTEND_VERSION=5000;window.__BP_FRONTEND_BUILD=5209;</script>
 </head>
 <body>
@@ -22,6 +22,10 @@
     <div class="live-state"><i></i><span id="liveStateText">CONNECTING TO BACKEND</span></div>
     <div class="topbar-actions"><div id="appLanguageMount" class="bp-language bp-language--topbar" data-bp-language-mount="app"></div><button class="icon-button" id="accountButton" type="button" aria-label="Account">ACCOUNT</button><button class="icon-button" id="togglePanel" type="button" aria-label="System status">STATUS</button></div>
   </header>
+  <div id="trialBanner" class="trial-banner" hidden>
+    <div><b id="trialBannerTitle">BridgePoint access</b><span id="trialBannerText">Checking account access…</span></div>
+    <button id="trialBannerAction" type="button">VIEW PACKAGES</button>
+  </div>
 
   <main class="workspace">
     <section class="map-surface active" data-surface="map" aria-label="BridgePoint Intelligence live map">
@@ -122,7 +126,7 @@
       <div class="page-scroll">
         <div class="page-head"><span class="eyebrow">INTELLIGENCE ACCESS</span><h1>Packages</h1><p>Unlock the intelligence you need without exposing restricted data on the public map.</p></div>
         <div id="packagesGrid" class="page-card-grid"><div class="empty-state">Loading live BridgePoint package catalog…</div></div><div id="packageActionStatus" class="page-disclaimer"></div>
-        <p class="page-disclaimer">Checkout remains disabled until final commercial approval. Package buttons currently explain access and route users to the correct gated capability.</p>
+        <p class="page-disclaimer">Access is enforced server-side. Live-ready packages use secure Stripe checkout; approval-only packages remain request-gated.</p>
       </div>
     </section>
 
@@ -155,6 +159,6 @@
   <aside id="authPanel" class="auth-panel" hidden aria-label="BridgePoint account"><div class="panel-head"><div><span class="eyebrow">BRIDGEPOINT ACCOUNT</span><h2>Account</h2></div><button id="closeAuth" type="button" aria-label="Close">×</button></div><div id="authSignedOut"><p class="truth-note">Sign in to use Saved, Claims, package access, trials, media and workflow tools.</p><form id="authForm" class="auth-form" autocomplete="on"><label>Email<input id="authEmail" type="email" autocomplete="email" required></label><label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="6" required></label><button id="authSignIn" type="submit">SIGN IN</button><button id="authCreate" class="secondary" type="button">CREATE ACCOUNT</button></form><div id="authMessage" class="auth-message"></div></div><div id="authSignedIn" hidden><div class="account-card"><span>SIGNED IN</span><b id="authUserEmail">—</b><small id="authAccessSummary">Loading package access…</small></div><button id="authSignOut" class="wide-secondary" type="button">SIGN OUT</button></div></aside><div id="accessToast" class="access-toast" hidden></div>
 <script defer src="/acquisition_tracker.js?v=5001"></script>\n<script src="../vendor/maplibre-gl.js"></script>
 <script src="../vendor/pmtiles.js"></script>
-<script type="module" src="../app.js?v=5312"></script>
+<script type="module" src="../app.js?v=5400"></script>
 </body>
 </html>
