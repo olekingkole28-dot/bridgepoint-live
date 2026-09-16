@@ -1,0 +1,53 @@
+name: BridgePoint FRAME-PERFECT demo v6 2026-09-16
+
+on:
+  push:
+    branches:
+      - bridgepoint-demo-framecut-v6-20260916
+    paths:
+      - '.github/workflows/bridgepoint-demo-framecut-v6-20260916.yml'
+      - '.github/scripts/capture_bridgepoint_demo_framecut_v6_20260916.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Capture fully rendered production frames
+        run: xvfb-run -a node .github/scripts/capture_bridgepoint_demo_framecut_v6_20260916.js
+        env:
+          CI: 'true'
+
+      - name: Assemble 1080p master
+        run: |
+          ffmpeg -y -f concat -safe 0 -i demo-framecut-v6/concat.txt             -vf "fps=30,scale=1920:1080:flags=lanczos,format=yuv420p"             -c:v libx264 -preset veryfast -crf 17 -movflags +faststart -an             demo-framecut-v6/BridgePoint_Intelligence_FRAME_PERFECT_Master.mp4
+
+      - name: Assemble vertical social edition
+        run: |
+          ffmpeg -y -i demo-framecut-v6/BridgePoint_Intelligence_FRAME_PERFECT_Master.mp4             -filter_complex "color=c=0x050b14:s=1080x1920:r=30[bg];[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1"             -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p -movflags +faststart -an             demo-framecut-v6/BridgePoint_Intelligence_FRAME_PERFECT_Vertical.mp4
+
+      - name: Upload finished videos
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-frame-perfect-v6-20260916
+          path: |
+            demo-framecut-v6/BridgePoint_Intelligence_FRAME_PERFECT_Master.mp4
+            demo-framecut-v6/BridgePoint_Intelligence_FRAME_PERFECT_Vertical.mp4
+            demo-framecut-v6/manifest.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
