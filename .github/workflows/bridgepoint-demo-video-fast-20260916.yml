@@ -1,0 +1,68 @@
+name: BridgePoint demo video FAST 2026-09-16
+
+on:
+  push:
+    branches:
+      - bridgepoint-demo-video-fast-20260916
+    paths:
+      - '.github/workflows/bridgepoint-demo-video-fast-20260916.yml'
+      - '.github/scripts/capture_bridgepoint_demo_fast_20260916.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Record production app
+        run: node .github/scripts/capture_bridgepoint_demo_fast_20260916.js
+        env:
+          CI: 'true'
+
+      - name: Encode master + vertical social cut
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          RAW="$(cat demo-output-fast/video-path.txt)"
+          test -f "$RAW"
+          ffmpeg -y -i "$RAW" -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -movflags +faststart -an demo-output-fast/BridgePoint_Intelligence_Production_Demo_Master.mp4
+          ffmpeg -y -i demo-output-fast/BridgePoint_Intelligence_Production_Demo_Master.mp4             -filter_complex "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=30[bg];[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2"             -c:v libx264 -preset medium -crf 19 -pix_fmt yuv420p -movflags +faststart -an demo-output-fast/BridgePoint_Intelligence_Production_Demo_Vertical.mp4
+
+      - name: Manifest
+        run: |
+          cat > demo-output-fast/README.txt <<'EOF'
+          BridgePoint Intelligence production-app demo capture
+          Generated in a real Chromium browser against https://bridgepointintelligence.online/app/
+          Video is intentionally silent for Kole's voice-over.
+
+          MASTER: BridgePoint_Intelligence_Production_Demo_Master.mp4 (1920x1080)
+          VERTICAL: BridgePoint_Intelligence_Production_Demo_Vertical.mp4 (1080x1920)
+
+          The film uses only what the production interface actually returns.
+          Account-gated timeline/intelligence surfaces remain visibly gated if the capture browser has no authorized session.
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-demo-fast-20260916
+          path: |
+            demo-output-fast/BridgePoint_Intelligence_Production_Demo_Master.mp4
+            demo-output-fast/BridgePoint_Intelligence_Production_Demo_Vertical.mp4
+            demo-output-fast/README.txt
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
