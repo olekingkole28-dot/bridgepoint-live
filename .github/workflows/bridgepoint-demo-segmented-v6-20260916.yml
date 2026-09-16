@@ -1,0 +1,65 @@
+name: BridgePoint SEGMENTED fixed demo v6 2026-09-16
+
+on:
+  push:
+    branches:
+      - bridgepoint-demo-segmented-v6-20260916
+    paths:
+      - '.github/workflows/bridgepoint-demo-segmented-v6-20260916.yml'
+      - '.github/scripts/capture_bridgepoint_demo_segmented_v6_20260916.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Capture short rendered clips
+        run: xvfb-run -a node .github/scripts/capture_bridgepoint_demo_segmented_v6_20260916.js
+        env:
+          CI: 'true'
+
+      - name: Edit only rendered portions
+        run: |
+          mkdir -p demo-segmented-v6/edit
+          ffmpeg -y -ss 1.5 -i demo-segmented-v6/clips/intro.webm -t 3.5 -vf "fps=30,scale=1920:1080:flags=lanczos" -c:v libx264 -preset ultrafast -crf 19 -pix_fmt yuv420p -an demo-segmented-v6/edit/000-intro.mp4
+          for i in $(seq -w 0 9); do
+            ffmpeg -y -ss 7 -i demo-segmented-v6/clips/city$i.webm -t 4.2 -vf "fps=30,scale=1920:1080:flags=lanczos" -c:v libx264 -preset ultrafast -crf 19 -pix_fmt yuv420p -an demo-segmented-v6/edit/1$i-city.mp4
+          done
+          for i in $(seq -w 0 9); do
+            ffmpeg -y -ss 5.5 -i demo-segmented-v6/clips/prop$i.webm -t 16.5 -vf "fps=30,scale=1920:1080:flags=lanczos" -c:v libx264 -preset ultrafast -crf 19 -pix_fmt yuv420p -an demo-segmented-v6/edit/2$i-property.mp4
+          done
+          : > demo-segmented-v6/concat.txt
+          for f in $(find demo-segmented-v6/edit -name '*.mp4' | sort); do echo "file '$PWD/$f'" >> demo-segmented-v6/concat.txt; done
+
+      - name: Build final 1080p master
+        run: |
+          ffmpeg -y -f concat -safe 0 -i demo-segmented-v6/concat.txt -c copy -movflags +faststart demo-segmented-v6/BridgePoint_Intelligence_FIXED_Rendered_Master.mp4
+
+      - name: Build vertical social version
+        run: |
+          ffmpeg -y -i demo-segmented-v6/BridgePoint_Intelligence_FIXED_Rendered_Master.mp4             -filter_complex "color=c=0x050b14:s=1080x1920:r=30[bg];[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1"             -c:v libx264 -preset ultrafast -crf 20 -pix_fmt yuv420p -movflags +faststart -an             demo-segmented-v6/BridgePoint_Intelligence_FIXED_Rendered_Vertical.mp4
+
+      - name: Upload final videos
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-segmented-fixed-v6-20260916
+          path: |
+            demo-segmented-v6/BridgePoint_Intelligence_FIXED_Rendered_Master.mp4
+            demo-segmented-v6/BridgePoint_Intelligence_FIXED_Rendered_Vertical.mp4
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
