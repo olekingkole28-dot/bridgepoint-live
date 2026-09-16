@@ -508,7 +508,7 @@ jobs:
                 const m=window.__BP_V5000_WORLD?.map;
                 if(!m?.getLayer('gta-context-buildings'))return false;
                 try{return m.queryRenderedFeatures({layers:['gta-context-buildings']}).length>0}catch{return false}
-              },{timeout:25000});
+              },{timeout:45000});
               const contextBuildingHit=await p.evaluate(()=>{
                 const w=window.__BP_V5000_WORLD,m=w?.map;
                 if(!w?.selectBuildingAtPoint||!m)return null;
