@@ -1,0 +1,96 @@
+name: BridgePoint demo video capture 2026-09-16
+
+on:
+  push:
+    branches:
+      - bridgepoint-demo-video-20260916
+    paths:
+      - '.github/workflows/bridgepoint-demo-video-20260916.yml'
+      - '.github/scripts/capture_bridgepoint_demo_20260916.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout capture branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Capture live BridgePoint walkthrough
+        run: |
+          node .github/scripts/capture_bridgepoint_demo_20260916.js
+        env:
+          CI: 'true'
+
+      - name: Build high-quality MP4 master
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          RAW="$(cat demo-output/video-path.txt)"
+          test -f "$RAW"
+          ffmpeg -y -i "$RAW" \
+            -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p \
+            -movflags +faststart -an \
+            demo-output/BridgePoint_Intelligence_Live_Demo_4KStyle_Master.mp4
+
+      - name: Build vertical social edition
+        run: |
+          ffmpeg -y -i demo-output/BridgePoint_Intelligence_Live_Demo_4KStyle_Master.mp4 \
+            -filter_complex "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=28[bg];[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2" \
+            -c:v libx264 -preset medium -crf 19 -pix_fmt yuv420p \
+            -movflags +faststart -an \
+            demo-output/BridgePoint_Intelligence_Live_Demo_Social_9x16.mp4
+
+      - name: Write capture manifest
+        run: |
+          cat > demo-output/README.txt <<'EOF'
+          BRIDGEPOINT INTELLIGENCE LIVE DEMO
+          Generated from the public production app in a real Chromium browser.
+          No voice-over or music is baked in so Kole can record narration afterward.
+
+          Master:
+          BridgePoint_Intelligence_Live_Demo_4KStyle_Master.mp4
+          1920x1080, H.264, fast-start MP4
+
+          Social:
+          BridgePoint_Intelligence_Live_Demo_Social_9x16.mp4
+          1080x1920, H.264, full master preserved over cinematic blurred background
+
+          Demo addresses:
+          140 Hollister Street, Santa Monica, CA
+          1330 North Hillcrest Avenue, Fayetteville, AR
+          1215 Roberts Avenue West, Immokalee, FL
+          902 High Street, Montgomery, AL
+          46 Hynes Ave, Groton, CT 06340
+          471 Washington Ave, North Haven, CT 06473
+          590-626 Asylum Ave, Hartford, CT 06105
+          554 Wethersfield Ave, Hartford, CT 06114
+          141 Woodland St, Hartford, CT 06105
+          3 Elm St, Vernon, CT 06066
+          EOF
+
+      - name: Upload finished videos
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-demo-video-20260916
+          path: |
+            demo-output/BridgePoint_Intelligence_Live_Demo_4KStyle_Master.mp4
+            demo-output/BridgePoint_Intelligence_Live_Demo_Social_9x16.mp4
+            demo-output/README.txt
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
