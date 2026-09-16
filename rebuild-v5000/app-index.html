@@ -9,7 +9,7 @@
 <link rel="icon" href="../bridgepoint-mark.svg" type="image/svg+xml">
 <link rel="manifest" href="../manifest.webmanifest">
 <link rel="stylesheet" href="../vendor/maplibre-gl.css">
-<link rel="stylesheet" href="../styles.css?v=5400">
+<link rel="stylesheet" href="../styles.css?v=5400">\n<link rel="stylesheet" href="../owner-everything.css?v=5401">
 <script id="BP_FRONTEND_V5000">window.__BP_FRONTEND_VERSION=5000;window.__BP_FRONTEND_BUILD=5209;</script>
 </head>
 <body>
@@ -143,7 +143,78 @@
     </section>
 
     <section class="app-page" data-surface="more" hidden>
-      <div class="page-scroll"><div class="page-head"><span class="eyebrow">BRIDGEPOINT</span><h1>More</h1><p>Backend status, global expansion, account access and additional intelligence modules.</p></div><div class="page-card-grid"><article class="page-card"><span>BACKEND</span><h3>System status</h3><p>Live national materialization and source coverage.</p><button id="moreOpenStatus" type="button">OPEN STATUS</button></article><article class="page-card"><span>EXPANSION</span><h3>Global expansion</h3><p>BridgePoint’s country and world expansion controls remain owner-gated.</p><button id="moreExpansion" type="button">OWNER ACCESS</button></article></div></div>
+      <div class="page-scroll">
+        <div class="page-head"><span class="eyebrow">BRIDGEPOINT</span><h1>More</h1><p>Backend status, account access and additional intelligence modules.</p></div>
+        <div class="page-card-grid">
+          <article class="page-card"><span>BACKEND</span><h3>System status</h3><p>Live national materialization and source coverage.</p><button id="moreOpenStatus" type="button">OPEN STATUS</button></article>
+          <article id="ownerEverythingCard" class="page-card owner-only-card" hidden><span>OWNERS ONLY</span><h3>Owner Everything</h3><p>Live acquisition, valuation, workers, sources, global expansion, exports, documents and every recorded backend operation in one control center.</p><button id="moreOwnerEverything" type="button">OPEN OWNER EVERYTHING</button></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="app-page owner-page" data-surface="owner-everything" hidden>
+      <div class="page-scroll">
+        <div class="owner-hero">
+          <div><span class="eyebrow">TWO-OWNER CONTROL CENTER</span><h1>Owner Everything</h1><p>Live BridgePoint operating truth for the two designated owners only. Acquisition, geography, valuation, workers, sources, automation, global expansion and portable export controls refresh from the backend.</p></div>
+          <div class="owner-live"><i></i><span id="ownerUpdated">Connecting…</span></div>
+        </div>
+        <div class="owner-toolbar">
+          <button id="ownerBack" type="button">← MORE</button>
+          <button data-owner-range="today" type="button">TODAY</button><button data-owner-range="24h" class="active" type="button">24H</button><button data-owner-range="7d" type="button">7D</button><button data-owner-range="30d" type="button">30D</button>
+          <label>From<input id="ownerSince" type="datetime-local"></label><label>To<input id="ownerUntil" type="datetime-local"></label><button id="ownerApplyDates" type="button">APPLY DATES</button><button id="ownerRefresh" class="owner-btn primary" type="button">REFRESH LIVE</button>
+        </div>
+        <div id="ownerActionStatus" class="owner-status">Owner backend will connect after owner access is verified.</div>
+        <div id="ownerKpis" class="owner-kpis"></div>
+
+        <div class="owner-grid">
+          <section class="owner-card wide"><span class="eyebrow">ACQUISITION</span><h2>Who's here and what they're doing</h2><div id="ownerOnline"></div></section>
+          <section class="owner-card"><span class="eyebrow">GEOGRAPHY</span><h2>Where visitors are coming from</h2><div id="ownerGeo"></div></section>
+          <section class="owner-card"><span class="eyebrow">SOURCE</span><h2>Referrers and acquisition sources</h2><div id="ownerSources"></div></section>
+          <section class="owner-card"><span class="eyebrow">CONTENT</span><h2>What is being visited</h2><div id="ownerPages"></div></section>
+          <section class="owner-card"><span class="eyebrow">FUNNEL</span><h2>Visitor → account → customer</h2><div id="ownerFunnel"></div></section>
+
+          <section class="owner-card wide"><span class="eyebrow">VALUATION MODEL</span><h2>BridgePoint modeled value backed by live backend metrics</h2><div id="ownerValuation"></div><h3>Historical snapshots</h3><div id="ownerValuationHistory"></div></section>
+
+          <section class="owner-card wide"><span class="eyebrow">GLOBAL EXPANSION</span><h2>Actual owner controls</h2>
+            <div class="owner-actions"><button id="ownerStartUS" class="owner-btn primary" type="button">START / CONTINUE U.S.</button><button id="ownerStartWorld" class="owner-btn danger" type="button">START WORLD DISCOVERY</button></div>
+            <div class="owner-control-grid">
+              <input id="ownerCountryCode" class="owner-input" maxlength="2" placeholder="Country code e.g. CA">
+              <input id="ownerRegionCode" class="owner-input" placeholder="Region/state code">
+              <input id="ownerCountryName" class="owner-input" placeholder="Country / jurisdiction name">
+              <select id="ownerMode" class="owner-input"><option>FULL_SPEED</option><option>LEAN_SURVIVAL</option><option>LOCAL_FIRST</option></select>
+            </div>
+            <div class="owner-actions"><button id="ownerStartCountry" class="owner-btn" type="button">START COUNTRY</button><button id="ownerStartJurisdiction" class="owner-btn" type="button">START JURISDICTION</button><button id="ownerSetMode" class="owner-btn" type="button">SET INFRASTRUCTURE MODE</button></div>
+            <div id="ownerExpansionStatus"></div>
+          </section>
+
+          <section class="owner-card wide"><span class="eyebrow">PORTABLE EXPORT / BOOTSTRAP</span><h2>Full export controls</h2>
+            <p class="owner-sub">Nothing starts automatically. Queue the governed U.S. export only when you decide to bootstrap locally. State bundles are designed for DuckDB + gzipped JSONL and process one state at a time.</p>
+            <div class="owner-actions"><button id="ownerQueueExport" class="owner-btn danger" type="button">QUEUE FULL U.S. EXPORT</button><button id="ownerWorldManifest" class="owner-btn" type="button">GENERATE WORLD MANIFEST</button><a class="owner-btn" href="/downloads/backup/bridgepoint_full_export_windows.ps1" download>DOWNLOAD FULL EXPORT POWERSHELL</a><a class="owner-btn" href="/downloads/backup/BridgePoint_State_Export_Wizard.bat" download>DOWNLOAD STATE EXPORT WIZARD</a></div>
+            <pre class="owner-code">PowerShell:
+1. Download bridgepoint_full_export_windows.ps1.
+2. Open PowerShell in the download folder.
+3. Run: Set-ExecutionPolicy -Scope Process Bypass
+4. Run: .\bridgepoint_full_export_windows.ps1
+5. Keep the generated checksums and DuckDB/JSONL bundles together.
+6. Verify the export before depending on it for local bootstrap or migration.</pre>
+            <div id="ownerExportJobs"></div>
+          </section>
+
+          <section class="owner-card wide"><span class="eyebrow">OWNER DOCUMENTS</span><h2>BridgePoint PDFs</h2>
+            <div class="owner-docs">
+              <a class="owner-doc" href="/owner/docs/BridgePoint_Investor_Package.pdf" target="_blank" rel="noopener"><span>PDF</span><b>Investor Package</b><small>Backend metrics, moat and diligence summary.</small></a>
+              <a class="owner-doc" href="/owner/docs/BridgePoint_Play_Ventures_One_Page_Brief.pdf" target="_blank" rel="noopener"><span>PDF</span><b>One-Page Brief</b><small>Compact BridgePoint overview.</small></a>
+            </div>
+          </section>
+
+          <section class="owner-card wide"><span class="eyebrow">WORKERS</span><h2>What every worker is doing</h2><div id="ownerWorkers"></div></section>
+          <section class="owner-card wide"><span class="eyebrow">U.S. / JURISDICTION PROGRESS</span><h2>Materialization by jurisdiction</h2><div id="ownerStates"></div></section>
+          <section class="owner-card wide"><span class="eyebrow">SOURCE REGISTRY</span><h2>Registered sources and health</h2><div id="ownerSourceRegistry"></div></section>
+          <section class="owner-card wide"><span class="eyebrow">AUTOMATION</span><h2>Cron jobs and schedules</h2><div id="ownerCrons"></div></section>
+          <section class="owner-card wide"><span class="eyebrow">MASTER LEDGER</span><h2>Requirements and unfinished work</h2><div id="ownerLedger"></div></section>
+          <section class="owner-card wide"><span class="eyebrow">INCIDENTS</span><h2>System and expansion failures</h2><div id="ownerIncidents"></div></section>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -159,6 +230,6 @@
   <aside id="authPanel" class="auth-panel" hidden aria-label="BridgePoint account"><div class="panel-head"><div><span class="eyebrow">BRIDGEPOINT ACCOUNT</span><h2>Account</h2></div><button id="closeAuth" type="button" aria-label="Close">×</button></div><div id="authSignedOut"><p class="truth-note">Sign in to use Saved, Claims, package access, trials, media and workflow tools.</p><form id="authForm" class="auth-form" autocomplete="on"><label>Email<input id="authEmail" type="email" autocomplete="email" required></label><label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="6" required></label><button id="authSignIn" type="submit">SIGN IN</button><button id="authCreate" class="secondary" type="button">CREATE ACCOUNT</button></form><div id="authMessage" class="auth-message"></div></div><div id="authSignedIn" hidden><div class="account-card"><span>SIGNED IN</span><b id="authUserEmail">—</b><small id="authAccessSummary">Loading package access…</small></div><button id="authSignOut" class="wide-secondary" type="button">SIGN OUT</button></div></aside><div id="accessToast" class="access-toast" hidden></div>
 <script defer src="/acquisition_tracker.js?v=5001"></script>\n<script src="../vendor/maplibre-gl.js"></script>
 <script src="../vendor/pmtiles.js"></script>
-<script type="module" src="../app.js?v=5426"></script>
+<script type="module" src="../app.js?v=5427"></script>\n<script type="module" src="../owner-everything.js?v=5401"></script>
 </body>
 </html>
