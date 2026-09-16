@@ -53,6 +53,21 @@ function renderExpansion(){
 }
 function renderAll(){if(!hub)return;renderKPIs();renderAcquisition();renderValuation();renderBackend();renderExpansion();$('ownerUpdated').textContent='Updated '+new Date(hub.generated_at||Date.now()).toLocaleString();window.__BP_OWNER_HUB__=hub}
 async function loadHub(force=false){if(loading&&!force)return;if(!ownerAllowed())return;loading=true;try{setStatus('Refreshing owner backend…');hub=await rpc('bridgepoint_owner_hub_v5401',dates(),30000);renderAll();setStatus('Live owner backend connected. Auto-refreshing every 30 seconds.')}catch(e){console.error('owner hub',e);setStatus('Owner backend retry · '+String(e.message||e))}finally{loading=false}}
+async function ownerDocument(doc){
+ if(!ownerAllowed())return;
+ const popup=window.open('about:blank','_blank');
+ try{
+  setStatus('Opening owner document…');
+  const r=await rpc('bridgepoint_owner_document_v5401',{p_doc:doc},20000);
+  const raw=atob(String(r?.data_base64||'')),bytes=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+  const url=URL.createObjectURL(new Blob([bytes],{type:r?.mime||'application/pdf'}));
+  if(popup)popup.location.href=url;
+  else{const a=document.createElement('a');a.href=url;a.download=r?.filename||'BridgePoint.pdf';document.body.appendChild(a);a.click();a.remove()}
+  setStatus('Owner document opened securely.');
+  setTimeout(()=>URL.revokeObjectURL(url),120000);
+ }catch(e){try{popup?.close()}catch(_){ }setStatus('Document failed · '+String(e.message||e))}
+}
 async function action(action,payload={},confirmText=''){if(!ownerAllowed())return;if(confirmText&&!confirm(confirmText))return;try{setStatus('Running '+action.replaceAll('_',' ')+'…');const r=await rpc('bridgepoint_owner_action_v5401',{p_action:action,p_payload:payload},30000);setStatus(JSON.stringify(r,null,2));await loadHub(true)}catch(e){setStatus('Action failed · '+String(e.message||e))}}
 function bind(){
  $('moreOwnerEverything')?.addEventListener('click',()=>{if(!ownerAllowed())return;window.__BP_SET_ACTIVE_SURFACE__?.('owner-everything');loadHub(true)});
@@ -67,6 +82,7 @@ function bind(){
  $('ownerSetMode')?.addEventListener('click',()=>action('SET_MODE',{mode:$('ownerMode').value},'Change BridgePoint infrastructure mode to '+$('ownerMode').value+'?'));
  $('ownerQueueExport')?.addEventListener('click',()=>action('QUEUE_US_EXPORT',{},'Queue the full U.S. portable export now? This will create governed state export jobs.'));
  $('ownerWorldManifest')?.addEventListener('click',()=>action('WORLD_EXPORT_MANIFEST',{},'Generate the current world export manifest?'));
+ document.querySelectorAll('[data-owner-doc]').forEach(b=>b.addEventListener('click',()=>ownerDocument(b.dataset.ownerDoc)));
  setInterval(syncVisibility,700);syncVisibility();clearInterval(refreshTimer);refreshTimer=setInterval(()=>{if(ownerAllowed()&&document.querySelector('[data-surface="owner-everything"]')?.hidden===false)loadHub()},30000)
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
