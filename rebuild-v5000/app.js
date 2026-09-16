@@ -356,21 +356,28 @@ async function loadAdvancedPropertyIntel(seq){
 function populateProperty(d,drawParcel=true){const parcelSrc=world?.map?.getSource('bpV5001SelectedParcel');if(!d?.resolved){renderPickedInspector();resetPropertyCard('Canonical property not resolved at this point');setText('pResolution','UNRESOLVED');if(!selectedParcelGeometry&&parcelSrc?.setData)parcelSrc.setData({type:'FeatureCollection',features:[]});return}const p=d.property||{};if(p.parcel_geometry){selectedParcelGeometry=p.parcel_geometry;window.__BP_PARCEL_CUTOUT_STATE__={status:'ready',source:'property_detail',at:Date.now()}}selectedPropertyId=p.property_id||null;setText('pResolution',String(p.resolution_method||'CANONICAL').replaceAll('_',' '));setText('pAddress',p.display_address||'Canonical property');setText('pLocation',[p.municipality,p.county,p.state_code,p.postal_code].filter(Boolean).join(' · ')||'Location not published');setText('pParcel',p.parcel_number||'Not published');setText('pType',p.property_type||'Not classified');setText('pYear',p.year_built||'Not published');setText('pValue',p.assessed_total_value!=null?money(p.assessed_total_value):'Not published');setText('pTruthNote',d.truth_notice||'Source-backed property identity. Parcel geometry is not a legal survey.');if(p.boundary_source_url)setText('bProvParcelSource',parcelSourceLabel(p.boundary_source_url)+(p.boundary_allowed_use_scope?' · '+p.boundary_allowed_use_scope:''));if(p.parcel_geometry)ensureSelectedParcelLayer(p.parcel_geometry);else if(!selectedParcelGeometry&&parcelSrc?.setData)parcelSrc.setData({type:'FeatureCollection',features:[]});renderPickedInspector()}
 async function loadParcelCutout(lng,lat,seq){
  const bid=Number(selectedBuildingRecord?.building_id||selectedFeature?.properties?.building_id||selectedFeature?.id||0),anchor=selectedMode==='building'&&selectedBuildingGeometry?(pickedOrigin()||{lng,lat}):{lng,lat};
- window.__BP_PARCEL_CUTOUT_STATE__={status:'loading',buildingId:bid||null,anchor,at:Date.now()};
- const usable=(d,source)=>{if(d?.resolved&&d.parcel_geometry)return{d,source};throw new Error(source+'_UNRESOLVED')};
- try{
-  const calls=[
-   bid>0?rpc('bridgepoint_public_building_parcel_cutout_v5415',{p_building_id:bid},6000).then(d=>usable(d,'building_cutout')):Promise.reject(new Error('NO_BUILDING_ID')),
-   rpc('bridgepoint_public_parcel_cutout_v5411',{p_lng:anchor.lng,p_lat:anchor.lat,p_radius_m:140},6000).then(d=>usable(d,'point_cutout'))
-  ];
-  const hit=await Promise.any(calls);if(seq!==buildingRequestSeq)return;const d=hit.d;
-  selectedParcelGeometry=d.parcel_geometry;ensureSelectedParcelLayer(d.parcel_geometry);setText('bProvParcelSource',parcelSourceLabel(d.source_url)+(d.allowed_use_scope?' · '+d.allowed_use_scope:''));setText('bPickedTruth','PARCEL + TERRAIN CUTOUT');
-  window.__BP_PARCEL_CUTOUT_STATE__={status:'ready',source:hit.source,buildingId:bid||null,areaM2:Number(d.area_m2||geometryAreaM2(d.parcel_geometry)||0),at:Date.now()};
-  renderPickedInspector();
- }catch(e){
-  if(seq!==buildingRequestSeq)return;window.__BP_PARCEL_CUTOUT_STATE__={status:selectedParcelGeometry?'ready':'retry',source:selectedParcelGeometry?'property_detail':null,error:String(e?.message||e),at:Date.now()};
-  if(!selectedParcelGeometry){setText('bPickedTruth','PARCEL SOURCE RETRYING');renderPickedInspector()}console.warn('parcel cutout',e)
+ const normalize=(d,source)=>{
+  if(d?.resolved&&d.parcel_geometry)return{d,source};
+  if(d?.resolved&&d.property?.parcel_geometry)return{d:{...d.property,parcel_geometry:d.property.parcel_geometry,source_url:d.property.boundary_source_url,allowed_use_scope:d.property.boundary_allowed_use_scope,area_m2:geometryAreaM2(d.property.parcel_geometry)},source};
+  throw new Error(source+'_UNRESOLVED')
+ };
+ let lastErr=null;
+ for(let attempt=1;attempt<=3;attempt++){
+  if(seq!==buildingRequestSeq)return;
+  window.__BP_PARCEL_CUTOUT_STATE__={status:'loading',attempt,buildingId:bid||null,anchor,at:Date.now()};
+  try{
+   const calls=[
+    bid>0?rpc('bridgepoint_public_building_parcel_cutout_v5415',{p_building_id:bid},8000).then(d=>normalize(d,'building_cutout')):Promise.reject(new Error('NO_BUILDING_ID')),
+    rpc('bridgepoint_public_parcel_cutout_v5411',{p_lng:anchor.lng,p_lat:anchor.lat,p_radius_m:140},8000).then(d=>normalize(d,'point_cutout')),
+    rpc('bridgepoint_public_property_detail_v5001',{p_lng:lng,p_lat:lat,p_radius_m:140},8000).then(d=>normalize(d,'property_detail'))
+   ];
+   const hit=await Promise.any(calls);if(seq!==buildingRequestSeq)return;const d=hit.d;
+   selectedParcelGeometry=d.parcel_geometry;ensureSelectedParcelLayer(d.parcel_geometry);setText('bProvParcelSource',parcelSourceLabel(d.source_url)+(d.allowed_use_scope?' · '+d.allowed_use_scope:''));setText('bPickedTruth','PARCEL + TERRAIN CUTOUT');
+   window.__BP_PARCEL_CUTOUT_STATE__={status:'ready',attempt,source:hit.source,buildingId:bid||null,areaM2:Number(d.area_m2||geometryAreaM2(d.parcel_geometry)||0),at:Date.now()};
+   renderPickedInspector();return
+  }catch(e){lastErr=e;if(seq!==buildingRequestSeq)return;if(selectedParcelGeometry){window.__BP_PARCEL_CUTOUT_STATE__={status:'ready',attempt,source:'property_detail',buildingId:bid||null,areaM2:Number(geometryAreaM2(selectedParcelGeometry)||0),at:Date.now()};renderPickedInspector();return}if(attempt<3)await new Promise(r=>setTimeout(r,attempt*650))}
  }
+ if(seq!==buildingRequestSeq)return;window.__BP_PARCEL_CUTOUT_STATE__={status:'retry',buildingId:bid||null,error:String(lastErr?.message||lastErr||'PARCEL_RESOLVE_FAILED'),at:Date.now()};setText('bPickedTruth','PARCEL SOURCE RETRYING');renderPickedInspector();console.warn('parcel cutout',lastErr)
 }
 async function loadProperty(lng,lat,seq){try{const d=await rpc('bridgepoint_public_property_detail_v5001',{p_lng:lng,p_lat:lat,p_radius_m:140},3500);if(seq!==buildingRequestSeq)return;populateProperty(d);void loadAdvancedPropertyIntel(seq)}catch(e){if(seq!==buildingRequestSeq)return;setText('pResolution','RETRY');setText('pTruthNote','Property identity refresh will retry · '+String(e.message||e))}}
 function refreshSelected(){if(mapInteracting){deferredWork.set('selected-refresh',refreshSelected);return}if(!selectedPoint)return;if(selectedMode==='property')showPropertyOnly(selectedPoint.lng,selectedPoint.lat,{silent:true});else showBuilding(selectedPoint.lng,selectedPoint.lat,{silent:true,feature:selectedFeature})}
