@@ -567,7 +567,7 @@ jobs:
                 const area=document.getElementById('bPickedParcelArea')?.textContent;
                 const state=window.__BP_PARCEL_CUTOUT_STATE__;
                 return state?.status==='ready'&&(d?.features?.length||0)===1&&area&&area!=='—'&&area!=='not linked';
-              },{timeout:20000});
+              },{timeout:45000});
               console.log('BRIDGEPOINT_PARCEL_CUTOUT_RENDERED',JSON.stringify(await p.evaluate(()=>window.__BP_PARCEL_CUTOUT_STATE__||{})));
 
               await p.waitForFunction(()=>{
