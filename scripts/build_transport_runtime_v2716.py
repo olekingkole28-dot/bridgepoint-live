@@ -133,7 +133,8 @@ def tus_upload_signed(output,bucket,object_path,signature):
     """
     parsed=urlparse(SUPABASE_URL)
     project_ref=parsed.hostname.split(".")[0]
-    endpoint=f"https://{project_ref}.storage.supabase.co/storage/v1/upload/resumable"
+    direct_endpoint=f"https://{project_ref}.storage.supabase.co/storage/v1/upload/resumable"
+    gateway_endpoint=f"{SUPABASE_URL.rstrip('/')}/storage/v1/upload/resumable"
     size=output.stat().st_size
     metadata=",".join([
         f"bucketName {_b64meta(bucket)}",
@@ -141,15 +142,28 @@ def tus_upload_signed(output,bucket,object_path,signature):
         f"contentType {_b64meta('application/octet-stream')}",
         f"cacheControl {_b64meta('3600')}",
     ])
-    create=requests.post(endpoint,headers={
+    create_headers={
         "Tus-Resumable":"1.0.0",
         "Upload-Length":str(size),
         "Upload-Metadata":metadata,
         "x-signature":signature,
         "x-upsert":"true",
-    },timeout=120)
-    if create.status_code not in (201,204):
-        raise RuntimeError(f"TUS create {create.status_code}: {create.text[:1200]}")
+    }
+    create=None
+    endpoint=None
+    errors=[]
+    for candidate in (direct_endpoint,gateway_endpoint):
+        r=requests.post(candidate,headers=create_headers,timeout=120)
+        if r.status_code in (201,204):
+            create=r
+            endpoint=candidate
+            break
+        errors.append({"endpoint":"direct" if candidate==direct_endpoint else "gateway","status":r.status_code,"body":r.text[:600]})
+        if "Invalid Compact JWS" not in r.text and r.status_code not in (400,401,403):
+            break
+    if create is None:
+        raise RuntimeError(f"TUS create failed: {json.dumps(errors,separators=(',',':'))}")
+    print(json.dumps({"tus_create_endpoint":"direct" if endpoint==direct_endpoint else "gateway","status":create.status_code},separators=(",",":")))
     location=create.headers.get("Location") or create.headers.get("location")
     if not location:
         raise RuntimeError("TUS create did not return Location")
