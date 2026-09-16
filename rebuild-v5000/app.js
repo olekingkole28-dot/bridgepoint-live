@@ -16,6 +16,7 @@ async function authExchange(path,body){const r=await fetch(SUPA+'/auth/v1/'+path
 async function refreshAuth(){if(!authSession?.refresh_token)return null;try{return await authExchange('token?grant_type=refresh_token',{refresh_token:authSession.refresh_token})}catch(e){saveSession(null);throw e}}
 async function ensureAuth(){if(!authSession){try{authSession=JSON.parse(localStorage.getItem(AUTH_STORE)||'null')}catch(_){authSession=null}}if(authSession?.access_token&&sessionExpiry(authSession)-Date.now()<90000&&authSession.refresh_token)await refreshAuth();return authSession?.access_token?authSession:null}
 async function authRpc(name,args={},timeout=9000,retry=true){const s=await ensureAuth();if(!s)throw new Error('SIGN_IN_REQUIRED');const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);try{const r=await fetch(RPC+name,{method:'POST',headers:{...headers,Authorization:'Bearer '+s.access_token},body:JSON.stringify(args),signal:c.signal,cache:'no-store'}),d=await r.json().catch(()=>({}));if(r.status===401&&retry&&s.refresh_token){clearTimeout(t);await refreshAuth();return authRpc(name,args,timeout,false)}if(!r.ok)throw new Error(d?.message||d?.error||('HTTP '+r.status));return d}finally{clearTimeout(t)}}
+window.__BP_OWNER_AUTH_RPC__=authRpc;
 function openAuth(message=''){if($('authPanel'))$('authPanel').hidden=false;if(message)setText('authMessage',message)}function closeAuth(){if($('authPanel'))$('authPanel').hidden=true}
 function renderAuthState(){const signed=!!authSession?.access_token,email=authSession?.user?.email||'Signed-in BridgePoint account';if($('authSignedOut'))$('authSignedOut').hidden=signed;if($('authSignedIn'))$('authSignedIn').hidden=!signed;setText('authUserEmail',email);if($('accountButton'))$('accountButton').textContent=signed?'ACCOUNT ✓':'ACCOUNT';if(!signed)setText('authAccessSummary','Sign in to load access')}
 async function restoreAuth(){try{authSession=JSON.parse(localStorage.getItem(AUTH_STORE)||'null')}catch(_){authSession=null}if(authSession?.access_token){try{await ensureAuth()}catch(_){}}renderAuthState()}
@@ -432,6 +433,7 @@ function startLiveWeather(){ensureLiveLegend();installLiveContextLayers();const 
 
 
 function setActiveSurface(name,{showNav=false}={}){
+ if(name==='owner-everything'&&accessStateLast?.platform_owner!==true){toast('Owner Everything is restricted to the two designated BridgePoint owners.','error');name='more'}
  if(['saved','claims','workflow'].includes(name)&&authSession?.access_token&&accessStateLast&&accessStateLast.full_app_access===false){toast('Your trial has ended. Choose a package to restore full account access.','error');name='packages'}
  const mapSurface=document.querySelector('[data-surface="map"]');
  document.querySelectorAll('[data-surface]').forEach(el=>{
@@ -445,6 +447,7 @@ function setActiveSurface(name,{showNav=false}={}){
  else if(name==='packages')void loadPackageCatalog();
  else if(name==='saved'||name==='claims'||name==='workflow')void loadWorkspace();
 }
+window.__BP_SET_ACTIVE_SURFACE__=setActiveSurface;
 function bindAppNavigation(){
  const nav=$('bottomNav');
  nav?.addEventListener('click',e=>{const b=e.target.closest('[data-nav]');if(!b)return;setActiveSurface(b.dataset.nav)});
