@@ -7,6 +7,7 @@ on:
     paths:
       - 'release-v2300/world-v2300-weather.js'
       - 'release-v2300/world-v2300-map.js'
+      - 'release-v2300/world-v2300-config.js'
       - '.github/workflows/verify-v2300-weather-fx.yml'
 
 permissions:
@@ -24,20 +25,46 @@ jobs:
           set -euo pipefail
           CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
           rm -rf /tmp/bp2300wx && mkdir -p /tmp/bp2300wx/vendor
-          origin='https://bridgepointintelligence.online/app'
-          for f in world-v2300-config.js world-v2300-map.js world-v2300-weather.js world-v2300-inspector.js world-v2300-bootstrap.js world-v2300-worker.js world-v2300.css vendor/maplibre-gl-v1995.js vendor/maplibre-gl-v1995.css vendor/three.module.min.js vendor/OrbitControls.js; do
-            mkdir -p "/tmp/bp2300wx/$(dirname "$f")"
-            curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL "$origin/$f?weather-gate=${GITHUB_SHA}-$(date +%s)" -o "/tmp/bp2300wx/$f"
-          done
+          cp release-v2300/world-v2300-config.js /tmp/bp2300wx/world-v2300-config.js
+          cp release-v2300/world-v2300-map.js /tmp/bp2300wx/world-v2300-map.js
+          cp release-v2300/world-v2300-worker.js /tmp/bp2300wx/world-v2300-worker.js
+          cp release-v2300/world-v2300-weather.js /tmp/bp2300wx/world-v2300-weather.js
+          curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o /tmp/bp2300wx/vendor/maplibre-gl.js
+          curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o /tmp/bp2300wx/vendor/maplibre-gl.css
           grep -Fq 'sharedMapLibreWebGLContext:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'rainSnowHail:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'wildfireFlameParticles:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'tornadoCone:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'hurricaneSpiralEye:true' /tmp/bp2300wx/world-v2300-weather.js
-          grep -Fq 'staleWhileRevalidateExact:true' /tmp/bp2300wx/world-v2300-map.js
+          grep -Fq "projection:{type:MOBILE?'mercator':'globe'}" /tmp/bp2300wx/world-v2300-map.js
+
           cat >/tmp/bp2300wx/index.html <<'HTML'
-          <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./vendor/maplibre-gl-v1995.css"><link rel="stylesheet" href="./world-v2300.css"><style>html,body{margin:0;width:100%;height:100%;background:#071017}section,.map-shell,#liveMap{width:100%;height:100%}.map-shell{position:relative}#mapStatus,#mapResults{position:absolute;z-index:5}</style></head><body><section data-surface="map" class="active"><form id="mapSearchForm"><input id="mapSearch"></form><button data-base="gta" class="active">GTA</button><button data-base="satellite">Satellite</button><button data-layer="parcels" class="active">Parcels</button><button data-layer="buildings" class="active">Buildings</button><button data-layer="signals" class="active">Signals</button><button data-layer="radar">Radar</button><button id="locateMe">locate</button><button id="resetMap">reset</button><div class="map-shell"><div id="liveMap"></div><div id="mapStatus"></div><div id="mapResults"></div></div></section><script src="./vendor/maplibre-gl-v1995.js"></script><script type="module" src="./world-v2300-bootstrap.js"></script></body></html>
+          <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+          <link rel="stylesheet" href="./vendor/maplibre-gl.css">
+          <style>html,body,[data-surface="map"],#liveMap{margin:0;width:100%;height:100%;overflow:hidden;background:#071017}#mapStatus,#mapResults{position:absolute;z-index:5}.maplibregl-control-container{display:none}</style></head>
+          <body><section data-surface="map" class="active"><button data-base="gta" class="active">MAP</button><button data-base="satellite">SAT</button><button data-layer="parcels">PARCELS</button><button data-layer="buildings" class="active">3D</button><button data-layer="signals" class="active">LIVE</button><button data-layer="radar">RADAR</button><button id="locateMe">LOCATE</button><button id="resetMap">RESET</button><div id="liveMap"></div><div id="mapStatus"></div><div id="mapResults"></div></section>
+          <script src="./vendor/maplibre-gl.js"></script>
+          <script type="module">
+            import {initWorld} from './world-v2300-map.js';
+            import {initWeather} from './world-v2300-weather.js';
+            const world=initWorld();window.__bpWorldV2300=world;
+            // Production-map integration is verified by V5000. This weather gate removes
+            // third-party tile latency while retaining the production MapLibre canvas/context.
+            world.map.setStyle({version:8,sources:{},layers:[{id:'gate-bg',type:'background',paint:{'background-color':'#071017'}}]});
+            const attach=()=>{
+              try{
+                if(window.__bpWeatherV2300)return;
+                const style=world?.map?.getStyle?.();
+                if(!style||!Array.isArray(style.layers)||!style.layers.length)return;
+                window.__bpWeatherV2300=initWeather(world.map);
+                window.__BP_WX_TEST_READY__=true;
+              }catch(e){window.__BP_WX_TEST_ERROR__=String(e?.stack||e)}
+            };
+            world.map.on('style.load',attach);world.map.on('styledata',attach);
+            [0,50,150,350,800,1600].forEach(ms=>setTimeout(attach,ms));
+          </script></body></html>
           HTML
+
           (cd /tmp/bp2300wx && python3 -m http.server 8770 >/tmp/bp2300wx-http.log 2>&1 &)
           cd /tmp
           npm init -y >/dev/null 2>&1 || true
@@ -47,32 +74,41 @@ jobs:
           (async()=>{
             const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader','--disable-gpu-sandbox']});
             try{
-              const p=await browser.newPage();
-              const errors=[];p.on('pageerror',e=>errors.push(String(e.stack||e.message||e)));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+              const p=await browser.newPage(),errors=[];
+              p.on('pageerror',e=>errors.push(String(e.stack||e.message||e)));
+              p.on('console',m=>{const t=m.text();if(m.type()==='error'&&!/favicon/i.test(t))errors.push(t)});
               await p.setRequestInterception(true);
+              const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,x-client-info,apikey,content-type','Access-Control-Allow-Methods':'POST,OPTIONS'};
               p.on('request',req=>{
                 const u=req.url();
                 if(u.includes('/functions/v1/bridgepoint-world-effects-v2190')){
+                  if(req.method()==='OPTIONS')return req.respond({status:204,headers:cors,body:''});
                   const poly=(x,y,r)=>({type:'Polygon',coordinates:[[[x-r,y-r],[x+r,y-r],[x+r,y+r],[x-r,y+r],[x-r,y-r]]]});
                   const now=new Date().toISOString();
-                  const body={generated_at:now,sources:['NOAA/NWS gate','NIFC/WFIGS gate','USGS gate'],alerts:[{geometry:poly(-87.3425,41.538,.025),properties:{phenom:'TO',event:'Tornado Warning'}},{geometry:poly(-87.40,41.50,.04),properties:{phenom:'FF',event:'Flash Flood Warning'}},{geometry:poly(-87.29,41.56,.035),properties:{event:'Ice Storm Warning'}}],fires:[{id:'gate-fire',name:'Gate Fire',acres:48000,contained_pct:37,source:'NIFC/WFIGS',geometry:poly(-87.325,41.53,.018)}],earthquakes:[{lng:-87.31,lat:41.55,magnitude:4.2}],storms:[{id:'gate-storm',name:'Gate Hurricane',lng:-87.37,lat:41.57,wind_mph:128,eye_radius_mi:11}],thermal:[{lng:-87.326,lat:41.531,frp:92}],observations:[{lng:-87.3425,lat:41.538,temperature_f:72,cloud_fraction:.92,visibility_mi:.65,weather:'Thunderstorms with heavy rain',wind_speed_mph:31,wind_dir_deg:235}],lightning:[{lng:-87.34,lat:41.541,timestamp:now}],burn_scars:[{source:'authoritative-gate',geometry:poly(-87.318,41.522,.012)}]};
-                  return req.respond({status:200,contentType:'application/json',body:JSON.stringify(body)});
+                  const body={complete:true,generated_at:now,sources:['NOAA/NWS gate','NIFC/WFIGS gate','USGS gate'],alerts:[{geometry:poly(-87.3425,41.538,.025),properties:{phenom:'TO',event:'Tornado Warning'}},{geometry:poly(-87.40,41.50,.04),properties:{phenom:'FF',event:'Flash Flood Warning'}},{geometry:poly(-87.29,41.56,.035),properties:{event:'Ice Storm Warning'}}],fires:[{id:'gate-fire',name:'Gate Fire',acres:48000,contained_pct:37,source:'NIFC/WFIGS',geometry:poly(-87.325,41.53,.018)}],earthquakes:[{lng:-87.31,lat:41.55,magnitude:4.2}],storms:[{id:'gate-storm',name:'Gate Hurricane',lng:-87.37,lat:41.57,wind_mph:128,eye_radius_mi:11}],thermal:[{lng:-87.326,lat:41.531,frp:92}],observations:[{lng:-87.3425,lat:41.538,temperature_f:72,cloud_fraction:.92,visibility_mi:.65,weather:'Thunderstorms with heavy rain',wind_speed_mph:31,wind_dir_deg:235}],lightning_activity:[{lng:-87.34,lat:41.541,observed_at:now,exact_strike:false,source:'NOAA/NWS METAR thunderstorm activity'}],burn_scars:[{source:'authoritative-gate',geometry:poly(-87.318,41.522,.012)}],water_levels:[{lng:-87.36,lat:41.51,water_level_m:1.4,source:'NOAA CO-OPS'}]};
+                  return req.respond({status:200,headers:{...cors,'Content-Type':'application/json'},body:JSON.stringify(body)});
                 }
-                if(u.includes('/rpc/bridgepoint_building_viewport_v2300'))return req.respond({status:200,contentType:'application/json',body:JSON.stringify({features:[]})});
                 req.continue();
               });
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               await p.goto('http://127.0.0.1:8770/',{waitUntil:'domcontentloaded',timeout:20000});
-              await p.waitForFunction(()=>window.BridgePointWorldV2300?.state?.ready===true,{timeout:25000});
+              await p.waitForFunction(()=>window.__BP_WX_TEST_READY__===true||window.__BP_WX_TEST_ERROR__,{timeout:25000});
+              const initErr=await p.evaluate(()=>window.__BP_WX_TEST_ERROR__||null);assert.equal(initErr,null,initErr||'');
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:10.5,pitch:58,bearing:-12}));
-              await p.evaluate(()=>window.__bpWeatherV2300?.refresh?.(true));
-              await p.waitForFunction(()=>window.__bpWeatherFXV2300?.state?.shaderReady===true,{timeout:12000});
-              await p.waitForFunction(()=>window.__bpWeatherFXV2300?.state?.activeParticles>40,{timeout:12000});
-              await new Promise(r=>setTimeout(r,2200));
-              const out=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,fx=window.__bpWeatherFXV2300.state,w=window.__bpWeatherV2300.state;return{fx,w,mainCanvases:document.querySelectorAll('#liveMap canvas').length,directShellCanvases:document.querySelectorAll('.map-shell>canvas').length,totalCanvases:document.querySelectorAll('canvas').length,gpuLayer:!!m.getLayer('bp2300-weather-fx-gpu'),tornado:!!m.getLayer('bp2300-fx-tornado'),hurricane:!!m.getLayer('bp2300-fx-hurricane'),flood:!!m.getLayer('bp2300-fx-flood-fill'),ice:!!m.getLayer('bp2300-fx-ice-fill'),burn:!!m.getLayer('bp2300-fx-burn'),containment:!!m.getLayer('bp2300-fx-containment'),projection:m.getProjection?.()?.type||''}});
-              assert.equal(out.mainCanvases,1);assert.equal(out.directShellCanvases,0);assert.equal(out.totalCanvases,1);assert(out.gpuLayer&&out.tornado&&out.hurricane&&out.flood&&out.ice&&out.burn&&out.containment);assert.equal(out.projection,'globe');assert.equal(out.fx.sharedMapLibreWebGLContext,true);assert.equal(out.fx.secondaryCanvases,0);assert.equal(out.fx.shaderReady,true);assert(out.fx.activeParticles>40);assert(out.fx.budgets.maxPoints<=2300);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);assert(out.fx.capabilities.rainSnowHail&&out.fx.capabilities.wildfireFlameParticles&&out.fx.capabilities.smoke&&out.fx.capabilities.tornadoCone&&out.fx.capabilities.hurricaneSpiralEye&&out.fx.capabilities.floodIce&&out.fx.capabilities.dynamicWater);assert(out.w.counts.alerts===3&&out.w.counts.fires===1&&out.w.counts.storms===1);assert(errors.filter(x=>!/favicon|net::ERR_ABORTED/i.test(x)).length===0,errors.join('\n'));
-              console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({particles:out.fx.activeParticles,quality:out.fx.qualityScale,fps:out.fx.fps,budget:out.fx.budgets,maxCanvases:out.totalCanvases}));
+              await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
+              await p.waitForFunction(()=>window.__bpWeatherV2300?.state?.counts?.alerts===3,{timeout:15000});
+              await p.waitForFunction(()=>window.__bpWeatherV2300?.fx?.state?.shaderReady===true,{timeout:15000});
+              await p.waitForFunction(()=>window.__bpWeatherV2300?.fx?.state?.activeParticles>40,{timeout:15000});
+              await new Promise(r=>setTimeout(r,1200));
+              const out=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,fx=window.__bpWeatherV2300.fx.state,w=window.__bpWeatherV2300.state;return{fx,w,mapCanvases:document.querySelectorAll('#liveMap canvas').length,totalCanvases:document.querySelectorAll('canvas').length,projection:m.getProjection?.()?.type||'',layers:['bp2300-weather-fx-gpu','bp2300-fx-tornado','bp2300-fx-hurricane','bp2300-fx-flood-fill','bp2300-fx-ice-fill','bp2300-fx-burn','bp2300-fx-containment'].every(id=>!!m.getLayer(id))}});
+              console.log('V2300_WX',JSON.stringify(out));
+              assert.equal(out.mapCanvases,1);assert.equal(out.totalCanvases,1);assert.equal(out.projection,'mercator');assert(out.layers);
+              assert.equal(out.fx.sharedMapLibreWebGLContext,true);assert.equal(out.fx.secondaryCanvases,0);assert.equal(out.fx.shaderReady,true);assert(out.fx.activeParticles>40);
+              assert(out.fx.budgets.maxPoints<=760);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);
+              assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,1);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
+              assert.equal(errors.length,0,errors.join('\n'));
+              console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({particles:out.fx.activeParticles,quality:out.fx.qualityScale,fps:out.fx.fps,maxPoints:out.fx.budgets.maxPoints,canvases:out.totalCanvases,projection:out.projection}));
             }finally{await browser.close()}
-          })().catch(e=>{console.error(e);process.exit(1)});
+          })().catch(e=>{console.error(e.stack||e);process.exit(1)});
           NODE
