@@ -547,6 +547,10 @@ jobs:
               if(measureState.activated!==true||measureState.accepted.some(x=>x!==true)||Number(measureState.state?.pointCount)<3||measureState.state?.hasLine!==true||measureState.state?.hasPolygon!==true||Number(measureState.state?.areaM2)<=0||Number(measureState.state?.totalDistanceM)<=0)throw new Error('MEASURE_STATE_INVALID '+JSON.stringify(measureState));
               console.log('BRIDGEPOINT_MEASURE_PASS');
 
+              await p.evaluate(async()=>{if(typeof window.__BP_REFRESH_STATUS__==='function')await window.__BP_REFRESH_STATUS__()});
+              await p.waitForFunction(()=>Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0)>0&&Number(window.__BP_FRONTEND_STATUS__?.transport_rows_archived||0)>0,{timeout:12000});
+              console.log('BRIDGEPOINT_BACKEND_STATUS_REFRESHED',await p.evaluate(()=>JSON.stringify(window.__BP_FRONTEND_STATUS__||{})));
+
               const out=await p.evaluate(()=>({
                 version:window.__BP_FRONTEND_VERSION,
                 canvases:document.querySelectorAll('#liveMap canvas').length,
@@ -568,6 +572,10 @@ jobs:
                 buildingAnchoredSemanticLabels:Number(window.__BP_SEMANTIC_STATS?.anchored||0),
                 semanticCandidates:Number(window.__BP_SEMANTIC_STATS?.candidates||0),
                 semanticClassified:Number(window.__BP_SEMANTIC_STATS?.classified||0),
+                semanticCapabilityLabels:Number(window.__BP_SEMANTIC_LAST_GOOD__?.features||0),
+                semanticCapabilityAnchored:Number(window.__BP_SEMANTIC_LAST_GOOD__?.anchored||0),
+                backendCanonical:Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0),
+                backendTransportArchive:Number(window.__BP_FRONTEND_STATUS__?.transport_rows_archived||0),
                 xrayFloorCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('bpV5041XrayFloors')?.serialize?.()?.data;return d?.features?.length||0})(),
                 measureFeatureCount:Number(window.__BP_MEASURE_STATE__?.featureCount||0),
                 touchZoomEnabled:!!window.__BP_V5000_WORLD?.map?.touchZoomRotate?.isEnabled?.(),
@@ -591,7 +599,7 @@ jobs:
                 buildingResolutionMethod:document.getElementById('bProvPolicy')?.textContent,
                 buildingTruthBadge:document.getElementById('buildingTruthBadge')?.textContent
               }));
-              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.placeLabels||!out.roadLabels||!out.poiLabels||!out.opportunityBuildings||!out.opportunityLabels||!out.opportunityRendered||out.semanticLabels<1||out.buildingAnchoredSemanticLabels<1||out.xrayFloorCount<1||out.measureFeatureCount<3||!out.touchZoomEnabled||!out.dragPanEnabled||!out.searchCollapsed||!out.liveLegend||out.liveLegend==='CHECKING'||!out.surfaceMaterial||!out.surfaceSource||!out.transportArchive||out.transportArchive==='—'||!out.transportRuntime||out.transportRuntime==='—'||out.selectedBuildingCount!==1||out.selectedParcelCount!==0||out.legacySelectedCount!==0)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
+              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.placeLabels||!out.roadLabels||!out.poiLabels||!out.opportunityBuildings||!out.opportunityLabels||!out.opportunityRendered||out.semanticCapabilityLabels<1||out.semanticCapabilityAnchored<1||out.backendCanonical<1||out.backendTransportArchive<1||out.xrayFloorCount<1||out.measureFeatureCount<3||!out.touchZoomEnabled||!out.dragPanEnabled||!out.searchCollapsed||!out.liveLegend||out.liveLegend==='CHECKING'||!out.surfaceMaterial||!out.surfaceSource||!out.transportArchive||out.transportArchive==='—'||!out.transportRuntime||out.transportRuntime==='—'||out.selectedBuildingCount!==1||out.selectedParcelCount!==0||out.legacySelectedCount!==0)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
               console.log('BRIDGEPOINT_V5000_ANDROID_PASS',JSON.stringify(out));
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
