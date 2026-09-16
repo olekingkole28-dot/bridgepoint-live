@@ -8,7 +8,7 @@ import os
 import pathlib
 import subprocess
 import sys
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse
 
 import duckdb
 import requests
@@ -196,6 +196,89 @@ def tus_upload_signed(output,bucket,object_path,signature):
         raise RuntimeError(f"TUS incomplete upload {offset}/{size}")
 
 
+def broker_tus_upload(output,state):
+    """Upload large PMTiles through the OIDC broker; service-role auth stays server-side."""
+    size=output.stat().st_size
+    created=post({"action":"tus_create","state_code":state,"file_bytes":size},timeout=180)
+    upload_url=created["upload_url"]
+    chunk_size=6*1024*1024
+
+    def head_offset():
+        h=post({"action":"tus_head","state_code":state,"upload_url":upload_url},timeout=120)
+        off=int(h.get("offset",0))
+        length=int(h.get("length",size) or size)
+        if length not in (0,size):
+            raise RuntimeError(f"broker TUS length mismatch {length}!={size}")
+        if off<0 or off>size:
+            raise RuntimeError(f"broker TUS invalid offset {off}/{size}")
+        return off
+
+    offset=head_offset()
+    with output.open("rb") as fh:
+        while offset<size:
+            advanced=False
+            last_error=None
+            for attempt in range(4):
+                fh.seek(offset)
+                chunk=fh.read(min(chunk_size,size-offset))
+                if not chunk:
+                    raise RuntimeError(f"broker TUS short read at {offset}/{size}")
+                relay_url=(
+                    BROKER+"?action=tus_patch"
+                    +"&state_code="+quote(state,safe="")
+                    +"&upload_url="+quote(upload_url,safe="")
+                    +"&offset="+str(offset)
+                )
+                try:
+                    r=requests.post(
+                        relay_url,
+                        data=chunk,
+                        headers={
+                            "x-bridgepoint-oidc":OIDC,
+                            "content-type":"application/offset+octet-stream",
+                            "content-length":str(len(chunk)),
+                        },
+                        timeout=300,
+                    )
+                    if r.ok:
+                        j=r.json()
+                        next_offset=int(j.get("offset",offset+len(chunk)))
+                        if next_offset<=offset or next_offset>size:
+                            raise RuntimeError(f"broker TUS offset did not advance {offset}->{next_offset}")
+                        offset=next_offset
+                        advanced=True
+                        break
+                    last_error=RuntimeError(f"broker TUS patch {r.status_code} at {offset}/{size}: {r.text[:1200]}")
+                except Exception as e:
+                    last_error=e
+
+                # The relay may have completed the PATCH after the client lost the response.
+                # HEAD makes retries idempotent and prevents replaying bytes at the wrong offset.
+                try:
+                    recovered=head_offset()
+                    if recovered>offset:
+                        offset=recovered
+                        advanced=True
+                        break
+                except Exception as he:
+                    last_error=RuntimeError(f"{last_error}; HEAD recovery failed: {he}")
+                import time
+                time.sleep(1+attempt*2)
+
+            if not advanced:
+                raise RuntimeError(str(last_error or f"broker TUS failed at {offset}/{size}"))
+            print(json.dumps({
+                "broker_tus_uploaded":offset,
+                "bytes":size,
+                "pct":round(offset*100/size,2)
+            },separators=(",",":")))
+
+    final_offset=head_offset()
+    if final_offset!=size:
+        raise RuntimeError(f"broker TUS incomplete upload {final_offset}/{size}")
+    print(json.dumps({"broker_tus_complete":True,"bytes":size,"state_code":state},separators=(",",":")))
+
+
 def signed_put_upload(output,signed_url):
     """Control/fallback path matching storage-js uploadToSignedUrl semantics."""
     parsed=urlparse(signed_url)
@@ -224,23 +307,23 @@ def signed_put_upload(output,signed_url):
 def upload_finalize(state,output,seg_count,con_count,metadata):
     digest=sha256_file(output)
     size=output.stat().st_size
-    signed=post({"action":"sign_upload","state_code":state})
-    try:
-        tus_upload_signed(
-            output,
-            "living-world-archives",
-            signed["object_path"],
-            signed["upload_token"],
-        )
-    except RuntimeError as e:
-        # Hosted signed-TUS currently rejects this project's freshly-issued token
-        # as Invalid Compact JWS. Prove/use the SDK's standard signed-upload route
-        # for objects that fit it; large objects still fail closed rather than
-        # exposing service credentials.
-        if "Invalid Compact JWS" not in str(e):
-            raise
-        print(json.dumps({"tus_signed_token_rejected":True,"fallback":"SIGNED_PUT","bytes":size},separators=(",",":")))
-        signed_put_upload(output,signed["signed_url"])
+    # Supabase's normal signed upload path is fast for smaller artifacts, but
+    # returns EntityTooLarge for ~100MB PMTiles. Large objects use a 6 MiB TUS
+    # relay through the OIDC broker so the service-role credential never leaves
+    # Supabase.
+    signed_put_limit=48*1024*1024
+    if size>signed_put_limit:
+        print(json.dumps({"upload_path":"BROKER_TUS_RELAY","bytes":size,"state_code":state},separators=(",",":")))
+        broker_tus_upload(output,state)
+    else:
+        signed=post({"action":"sign_upload","state_code":state})
+        try:
+            signed_put_upload(output,signed["signed_url"])
+        except RuntimeError as e:
+            if "413" not in str(e) and "EntityTooLarge" not in str(e):
+                raise
+            print(json.dumps({"upload_path":"BROKER_TUS_RELAY_AFTER_413","bytes":size,"state_code":state},separators=(",",":")))
+            broker_tus_upload(output,state)
     generated=dt.datetime.now(dt.timezone.utc).isoformat()
     receipt=post({
         "action":"finalize","state_code":state,"file_bytes":size,"sha256":digest,
