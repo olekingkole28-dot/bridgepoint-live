@@ -13,7 +13,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-transport-runtime-v2716
+  group: bridgepoint-transport-runtime-v2716-relay-v5314
   cancel-in-progress: true
 
 env:
