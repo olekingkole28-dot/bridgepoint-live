@@ -305,7 +305,15 @@ function installSelectedParcelLayer(){
  const map=world?.map,geometry=window.__BP_SELECTED_PARCEL_GEOMETRY__;if(!map||!geometry||!map.isStyleLoaded?.())return false;
  try{
   const data={type:'FeatureCollection',features:[{type:'Feature',properties:{},geometry}]};let src=map.getSource('bpV5001SelectedParcel');
-  if(!src){map.addSource('bpV5001SelectedParcel',{type:'geojson',data});src=map.getSource('bpV5001SelectedParcel')}else src.setData(data);
+  if(!src){map.addSource('bpV5001SelectedParcel',{type:'geojson',data});src=map.getSource('bpV5001SelectedParcel')}
+  else{
+   src.setData(data);
+   // MapLibre may retain the source's original serialized options after setData().
+   // Keep the live selection reflected in serialization as well as rendering so
+   // style reloads, diagnostics and mobile smoke tests see the exact same parcel.
+   try{if(src._options)src._options.data=data;if('_data' in src)src._data=data}catch(_){}
+  }
+  window.__BP_SELECTED_PARCEL_SOURCE_DATA__=data;
   if(!map.getLayer('bpV5001SelectedParcelFill'))map.addLayer({id:'bpV5001SelectedParcelFill',type:'fill',source:'bpV5001SelectedParcel',paint:{'fill-color':'#58e3a4','fill-opacity':0.07}});
   if(!map.getLayer('bpV5001SelectedParcelLine'))map.addLayer({id:'bpV5001SelectedParcelLine',type:'line',source:'bpV5001SelectedParcel',paint:{'line-color':'#58e3a4','line-width':2.4,'line-opacity':0.95}});
   window.__BP_SELECTED_PARCEL_LAYER_STATE__={ready:true,features:1,updatedAt:Date.now()};return true
