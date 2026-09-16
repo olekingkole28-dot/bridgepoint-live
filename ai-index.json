@@ -222,20 +222,20 @@
   "live_facts": {
     "entity": "BridgePoint Intelligence",
     "metrics": {
-      "map_ready_buildings": 110409416,
-      "roof_shell_buildings": 110409416,
+      "map_ready_buildings": 108758968,
+      "roof_shell_buildings": 108758968,
       "roof_shell_coverage_pct": 100.0,
       "canonical_property_records": 169664739,
-      "normalized_address_records": 143944438,
-      "source_backed_roof_records": 669069,
-      "lidar_refined_roof_buildings": 3000,
+      "normalized_address_records": 144039016,
+      "source_backed_roof_records": 669092,
+      "lidar_refined_roof_buildings": 3023,
       "materialized_boundary_estimate": 83881564,
       "public_parcel_identity_records": 169664739,
       "canonical_property_record_label": "canonical property/parcel identity records",
       "property_boundary_link_estimate": 31311895
     },
     "coverage": {
-      "fl_oid_remaining": 4748,
+      "fl_oid_remaining": 868,
       "ny_oid_remaining": 0,
       "pr_oid_remaining": 0,
       "strict_boundary_ready": false,
@@ -244,15 +244,15 @@
       "public_counter_jurisdictions": 56
     },
     "freshness": {
-      "roof_updated_at": "2026-09-16T21:31:42.99986+00:00",
-      "lidar_last_success_at": "2026-09-16T20:38:48.869789+00:00",
+      "roof_updated_at": "2026-09-16T23:46:39.638222+00:00",
+      "lidar_last_success_at": "2026-09-16T23:19:36.240937+00:00",
       "parcel_counter_updated_at": "2026-09-15T23:31:08.77511+00:00",
-      "address_counter_updated_at": "2026-09-16T21:31:36.895339+00:00",
-      "parcel_scoreboard_updated_at": "2026-09-16T21:31:01.905594+00:00",
+      "address_counter_updated_at": "2026-09-16T23:46:47.628362+00:00",
+      "parcel_scoreboard_updated_at": "2026-09-16T23:46:03.942456+00:00",
       "parcel_autopilot_last_tick_at": "2026-09-16T01:18:58.834462+00:00"
     },
     "horizon_url": "https://bridgepointintelligence.online/app/horizon/",
-    "generated_at": "2026-09-16T21:31:51.71736+00:00",
+    "generated_at": "2026-09-16T23:46:48.23414+00:00",
     "canonical_url": "https://bridgepointintelligence.online/",
     "jurisdictions": [
       {
@@ -546,7 +546,7 @@
     "horizon_year_one_demand": {
       "ok": true,
       "mode": "365_DAY_YEAR_ONE_SURVIVAL",
-      "updated_at": "2026-09-16T21:31:52.016261+00:00",
+      "updated_at": "2026-09-16T23:46:48.479199+00:00",
       "event_started": false,
       "unique_requests": 0,
       "billing_connected": false,
