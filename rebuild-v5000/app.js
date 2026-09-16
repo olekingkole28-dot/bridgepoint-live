@@ -394,12 +394,20 @@ async function loadParcelCutout(lng,lat,seq){
   if((bid>0&&currentSelectedBuildingId()!==bid)||(bid<=0&&seq!==buildingRequestSeq))return;
   window.__BP_PARCEL_CUTOUT_STATE__={status:'loading',attempt,buildingId:bid||null,anchor,at:Date.now()};
   try{
-   const calls=[
-    bid>0?rpc('bridgepoint_public_building_parcel_cutout_v5415',{p_building_id:bid},8000).then(d=>normalize(d,'building_cutout')):Promise.reject(new Error('NO_BUILDING_ID')),
-    rpc('bridgepoint_public_parcel_cutout_v5411',{p_lng:anchor.lng,p_lat:anchor.lat,p_radius_m:140},8000).then(d=>normalize(d,'point_cutout')),
-    rpc('bridgepoint_public_property_detail_v5001',{p_lng:lng,p_lat:lat,p_radius_m:140},8000).then(d=>normalize(d,'property_detail'))
-   ];
-   const hit=await Promise.any(calls);if((bid>0&&currentSelectedBuildingId()!==bid)||(bid<=0&&seq!==buildingRequestSeq))return;const d=hit.d;
+   let hit=null;
+   // A selected building gives us the strongest, cheapest parcel identity.
+   // Resolve that exact relationship first instead of competing three spatial
+   // queries against each other on mobile. Point/property lookups are fallbacks.
+   if(bid>0){
+    try{hit=normalize(await rpc('bridgepoint_public_building_parcel_cutout_v5415',{p_building_id:bid},5000),'building_cutout')}catch(_){}
+   }
+   if(!hit){
+    hit=await Promise.any([
+      rpc('bridgepoint_public_parcel_cutout_v5411',{p_lng:anchor.lng,p_lat:anchor.lat,p_radius_m:140},6000).then(d=>normalize(d,'point_cutout')),
+      rpc('bridgepoint_public_property_detail_v5001',{p_lng:lng,p_lat:lat,p_radius_m:140},6000).then(d=>normalize(d,'property_detail'))
+    ]);
+   }
+   if((bid>0&&currentSelectedBuildingId()!==bid)||(bid<=0&&seq!==buildingRequestSeq))return;const d=hit.d;
    selectedParcelGeometry=d.parcel_geometry;ensureSelectedParcelLayer(d.parcel_geometry);setText('bProvParcelSource',parcelSourceLabel(d.source_url)+(d.allowed_use_scope?' · '+d.allowed_use_scope:''));setText('bPickedTruth','PARCEL + TERRAIN CUTOUT');
    window.__BP_PARCEL_CUTOUT_STATE__={status:'ready',attempt,source:hit.source,buildingId:bid||null,areaM2:Number(d.area_m2||geometryAreaM2(d.parcel_geometry)||0),at:Date.now()};
    renderPickedInspector();return
