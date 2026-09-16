@@ -45,16 +45,22 @@ jobs:
             import {initWeather} from './world-v2300-weather.js';
             const world=initWorld();
             window.__bpWorldV2300=world;
+            // The weather gate is intentionally deterministic: production-map behavior is
+            // covered by the V5000 smoke, while this gate validates weather on the exact
+            // same MapLibre canvas/WebGL context without depending on third-party tile uptime.
+            world.map.setStyle({version:8,sources:{},layers:[{id:'gate-bg',type:'background',paint:{'background-color':'#071017'}}]});
             const attach=()=>{
               try{
-                if(window.__bpWeatherV2300||!world?.map?.isStyleLoaded?.())return;
+                if(window.__bpWeatherV2300)return;
+                const style=world?.map?.getStyle?.();
+                if(!style||!Array.isArray(style.layers)||!style.layers.length)return;
                 window.__bpWeatherV2300=initWeather(world.map);
                 window.__BP_WX_TEST_READY__=true;
               }catch(e){window.__BP_WX_TEST_ERROR__=String(e?.stack||e)}
             };
-            world?.map?.on?.('load',attach);
+            world?.map?.on?.('style.load',attach);
             world?.map?.on?.('styledata',attach);
-            [0,100,300,800,1600,3000].forEach(ms=>setTimeout(attach,ms));
+            [0,50,150,350,800,1600].forEach(ms=>setTimeout(attach,ms));
           </script></body></html>
           HTML
 
