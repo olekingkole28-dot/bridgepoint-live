@@ -1,0 +1,59 @@
+name: BridgePoint HYBRID perfect demo v4 2026-09-16
+
+on:
+  push:
+    branches:
+      - bridgepoint-demo-hybrid-v4-20260916
+    paths:
+      - '.github/workflows/bridgepoint-demo-hybrid-v4-20260916.yml'
+      - '.github/scripts/capture_bridgepoint_demo_hybrid_v4_20260916.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Capture stable production demo
+        run: xvfb-run -a node .github/scripts/capture_bridgepoint_demo_hybrid_v4_20260916.js
+        env:
+          CI: 'true'
+
+      - name: Preserve raw
+        run: |
+          RAW="$(cat demo-output-v4/video-path.txt)"
+          test -f "$RAW"
+          cp "$RAW" demo-output-v4/BridgePoint_Hybrid_Perfect_v4_RAW.webm
+
+      - name: Encode 1080p master
+        run: |
+          ffmpeg -y -i demo-output-v4/BridgePoint_Hybrid_Perfect_v4_RAW.webm             -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p -movflags +faststart -an             demo-output-v4/BridgePoint_Intelligence_Hybrid_Perfect_v4_Master.mp4
+
+      - name: Encode vertical
+        run: |
+          ffmpeg -y -i demo-output-v4/BridgePoint_Intelligence_Hybrid_Perfect_v4_Master.mp4             -filter_complex "color=c=0x050b14:s=1080x1920:r=30[bg];[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1"             -c:v libx264 -preset veryfast -crf 19 -pix_fmt yuv420p -movflags +faststart -an             demo-output-v4/BridgePoint_Intelligence_Hybrid_Perfect_v4_Vertical.mp4
+
+      - name: Upload videos
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-hybrid-perfect-v4-20260916
+          path: |
+            demo-output-v4/BridgePoint_Intelligence_Hybrid_Perfect_v4_Master.mp4
+            demo-output-v4/BridgePoint_Intelligence_Hybrid_Perfect_v4_Vertical.mp4
+            demo-output-v4/BridgePoint_Hybrid_Perfect_v4_RAW.webm
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
