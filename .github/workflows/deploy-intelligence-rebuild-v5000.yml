@@ -40,6 +40,7 @@ on:
       - 'for-property-managers/**'
       - 'sample/**'
       - 'owner/acquisition/**'
+      - 'owner/command/**'
       - 'enterprise/**'
       - 'investors/**'
       - 'press/**'
@@ -89,7 +90,7 @@ jobs:
 
           # Keep only the current Intelligence workspace plus the current Horizon lobby and playable runtime.
           # Other historical /app/... URLs fall through the V5000 404 back to the live map.
-          rm -rf site/app site/discover site/search site/newsroom site/claims-terminal site/terminal site/integrity-index site/settlement-lab site/distribution site/public-audit site/portfolio-evidence site/data-discrepancy site/articles/auto site/founder-access site/for-roofers site/for-solar site/for-restoration site/for-public-adjusters site/for-property-managers site/sample site/founder site/answers site/press site/investors site/enterprise site/owner/acquisition
+          rm -rf site/app site/discover site/search site/newsroom site/claims-terminal site/terminal site/integrity-index site/settlement-lab site/distribution site/public-audit site/portfolio-evidence site/data-discrepancy site/articles/auto site/founder-access site/for-roofers site/for-solar site/for-restoration site/for-public-adjusters site/for-property-managers site/sample site/founder site/answers site/press site/investors site/enterprise site/owner/acquisition site/owner/command
           mkdir -p site/app site/articles
           git archive refs/remotes/origin/live-artifact app/vendor | tar -xf - -C site
           cp -a discover site/discover
@@ -131,6 +132,7 @@ jobs:
           if [ -d enterprise ]; then cp -a enterprise site/enterprise; fi
           mkdir -p site/owner
           cp -a owner/acquisition site/owner/acquisition
+          cp -a owner/command site/owner/command
           cp rebuild-v5000/index.html site/index.html
           cp rebuild-v5000/app-index.html site/app/index.html
           cp rebuild-v5000/landing.css site/landing.css
@@ -248,6 +250,7 @@ jobs:
           test -s site/for-solar/index.html
           test -s site/sample/index.html
           test -s site/owner/acquisition/index.html
+          test -s site/owner/command/index.html
           grep -Fq 'BILLING OFF' site/founder-access/index.html
           grep -Fq 'founder-access.js' site/for-roofers/index.html
           ! grep -Fq 'bridgepoint-territory-report-v674' site/sample/index.html
