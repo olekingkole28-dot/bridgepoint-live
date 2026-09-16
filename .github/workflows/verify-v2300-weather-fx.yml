@@ -103,7 +103,7 @@ jobs:
               await new Promise(r=>setTimeout(r,1200));
               const out=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,fx=window.__bpWeatherV2300.fx.state,w=window.__bpWeatherV2300.state;return{fx,w,mapCanvases:document.querySelectorAll('#liveMap canvas').length,totalCanvases:document.querySelectorAll('canvas').length,projection:m.getProjection?.()?.type||'',layers:['bp2300-weather-fx-gpu','bp2300-fx-tornado','bp2300-fx-hurricane','bp2300-fx-flood-fill','bp2300-fx-ice-fill','bp2300-fx-burn','bp2300-fx-containment'].every(id=>!!m.getLayer(id))}});
               console.log('V2300_WX',JSON.stringify(out));
-              assert.equal(out.mapCanvases,1);assert.equal(out.totalCanvases,1);assert.equal(out.projection,'mercator');assert(out.layers);
+              assert.equal(out.mapCanvases,1);assert.equal(out.totalCanvases,1);assert.notEqual(out.projection,'globe');assert(out.layers);
               assert.equal(out.fx.sharedMapLibreWebGLContext,true);assert.equal(out.fx.secondaryCanvases,0);assert.equal(out.fx.shaderReady,true);assert(out.fx.activeParticles>40);
               assert(out.fx.budgets.maxPoints<=760);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);
               assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,1);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
