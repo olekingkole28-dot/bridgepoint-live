@@ -195,16 +195,52 @@ def tus_upload_signed(output,bucket,object_path,signature):
     if offset!=size:
         raise RuntimeError(f"TUS incomplete upload {offset}/{size}")
 
+
+def signed_put_upload(output,signed_url):
+    """Control/fallback path matching storage-js uploadToSignedUrl semantics."""
+    parsed=urlparse(signed_url)
+    project_ref=urlparse(SUPABASE_URL).hostname.split(".")[0]
+    direct=parsed._replace(netloc=f"{project_ref}.storage.supabase.co").geturl()
+    candidates=[]
+    for u in (direct,signed_url):
+        if u not in candidates:candidates.append(u)
+    errors=[]
+    size=output.stat().st_size
+    for u in candidates:
+        with output.open("rb") as body:
+            r=requests.put(u,data=body,headers={
+                "content-type":"application/octet-stream",
+                "cache-control":"max-age=3600",
+                "x-upsert":"true",
+                "content-length":str(size),
+            },timeout=900)
+        if r.status_code in (200,201):
+            print(json.dumps({"signed_put":"direct" if u==direct else "gateway","status":r.status_code,"bytes":size},separators=(",",":")))
+            return
+        errors.append({"endpoint":"direct" if u==direct else "gateway","status":r.status_code,"body":r.text[:600]})
+        # A gateway 413 is expected to remain recoverable by another large-object strategy.
+    raise RuntimeError(f"signed PUT failed: {json.dumps(errors,separators=(',',':'))}")
+
 def upload_finalize(state,output,seg_count,con_count,metadata):
     digest=sha256_file(output)
     size=output.stat().st_size
     signed=post({"action":"sign_upload","state_code":state})
-    tus_upload_signed(
-        output,
-        "living-world-archives",
-        signed["object_path"],
-        signed["upload_token"],
-    )
+    try:
+        tus_upload_signed(
+            output,
+            "living-world-archives",
+            signed["object_path"],
+            signed["upload_token"],
+        )
+    except RuntimeError as e:
+        # Hosted signed-TUS currently rejects this project's freshly-issued token
+        # as Invalid Compact JWS. Prove/use the SDK's standard signed-upload route
+        # for objects that fit it; large objects still fail closed rather than
+        # exposing service credentials.
+        if "Invalid Compact JWS" not in str(e):
+            raise
+        print(json.dumps({"tus_signed_token_rejected":True,"fallback":"SIGNED_PUT","bytes":size},separators=(",",":")))
+        signed_put_upload(output,signed["signed_url"])
     generated=dt.datetime.now(dt.timezone.utc).isoformat()
     receipt=post({
         "action":"finalize","state_code":state,"file_bytes":size,"sha256":digest,
