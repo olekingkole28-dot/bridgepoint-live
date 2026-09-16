@@ -1,0 +1,56 @@
+name: BridgePoint VIRAL FINAL video 2026-09-16
+
+on:
+  push:
+    branches:
+      - bridgepoint-viral-final-20260916
+    paths:
+      - '.github/workflows/bridgepoint-viral-final-20260916.yml'
+      - '.github/scripts/capture_bridgepoint_viral_final_20260916.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Pre-resolve addresses and record final production walkthrough
+        run: node .github/scripts/capture_bridgepoint_viral_final_20260916.js
+      - name: Encode social-ready MP4s
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          RAW="$(cat viral-output/video-path.txt)"
+          ffmpeg -y -i "$RAW" -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p -movflags +faststart -an viral-output/BridgePoint_Viral_Production_Walkthrough_16x9.mp4
+          ffmpeg -y -i viral-output/BridgePoint_Viral_Production_Walkthrough_16x9.mp4             -filter_complex "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=30[bg];[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2"             -c:v libx264 -preset veryfast -crf 19 -pix_fmt yuv420p -movflags +faststart -an viral-output/BridgePoint_Viral_Production_Walkthrough_9x16.mp4
+      - name: Package
+        run: |
+          cat > viral-output/README.txt <<'EOF'
+          BRIDGEPOINT INTELLIGENCE — VIRAL PRODUCTION WALKTHROUGH
+          Silent master for Kole's voice-over.
+          Production app only. No fabricated property values are added.
+          Addresses are pre-resolved before the recorded segment so the film stays fast.
+          Timeline/intelligence remains visibly authorization-gated when the capture session is not signed in.
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-viral-final-20260916
+          path: |
+            viral-output/BridgePoint_Viral_Production_Walkthrough_16x9.mp4
+            viral-output/BridgePoint_Viral_Production_Walkthrough_9x16.mp4
+            viral-output/resolved.json
+            viral-output/README.txt
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
