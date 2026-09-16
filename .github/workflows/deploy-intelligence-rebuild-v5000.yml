@@ -631,6 +631,10 @@ jobs:
                 liveLegend:document.getElementById('liveLegendCount')?.textContent,
                 surfaceMaterial:!!document.getElementById('ctxSurfaceMaterial'),
                 surfaceSource:!!document.getElementById('ctxSurfaceSource'),
+                picked3D:!!document.getElementById('bPicked3D'),
+                pickedTop:!!document.getElementById('bPickedTop'),
+                pickedParcelArea:document.getElementById('bPickedParcelArea')?.textContent,
+                pickedLayoutTruth:document.getElementById('bPickedLayoutTruth')?.textContent,
                 transportArchive:document.getElementById('transportArchive')?.textContent,
                 transportRuntime:document.getElementById('transportRuntime')?.textContent,
                 transportArchiveElement:!!document.getElementById('transportArchive'),
@@ -648,7 +652,7 @@ jobs:
                 buildingResolutionMethod:document.getElementById('bProvPolicy')?.textContent,
                 buildingTruthBadge:document.getElementById('buildingTruthBadge')?.textContent
               }));
-              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.placeLabels||!out.roadLabels||!out.poiLabels||!out.opportunityBuildings||!out.opportunityLabels||!out.opportunityRendered||out.semanticCapabilityLabels<1||out.semanticCapabilityAnchored<1||out.xrayFloorCount<1||out.measureFeatureCount<3||!out.touchZoomEnabled||!out.dragPanEnabled||!out.searchCollapsed||!out.liveLegend||out.liveLegend==='CHECKING'||!out.surfaceMaterial||!out.surfaceSource||!out.transportArchiveElement||!out.transportRuntimeElement||out.selectedBuildingCount!==1||out.selectedParcelCount!==0||out.legacySelectedCount!==0)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
+              if(errors.length||out.version!==5000||out.canvases!==1||out.horizonLinks!==0||!out.panel||!out.contextTab||!out.xrayEvidence||!out.liveButton||!out.liveLayer||!out.placeLabels||!out.roadLabels||!out.poiLabels||!out.opportunityBuildings||!out.opportunityLabels||!out.opportunityRendered||out.semanticCapabilityLabels<1||out.semanticCapabilityAnchored<1||out.xrayFloorCount<1||out.measureFeatureCount<3||!out.touchZoomEnabled||!out.dragPanEnabled||!out.searchCollapsed||!out.liveLegend||out.liveLegend==='CHECKING'||!out.surfaceMaterial||!out.surfaceSource||!out.transportArchiveElement||!out.transportRuntimeElement||out.selectedBuildingCount!==1||out.selectedParcelCount!==1||!out.picked3D||!out.pickedTop||!out.pickedParcelArea||out.pickedParcelArea==='—'||out.legacySelectedCount!==0)throw new Error('V5000 Android smoke failed '+JSON.stringify({out,errors}));
               console.log('BRIDGEPOINT_V5000_ANDROID_PASS',JSON.stringify(out));
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
