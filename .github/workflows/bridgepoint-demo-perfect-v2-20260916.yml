@@ -1,0 +1,78 @@
+name: BridgePoint PERFECT demo video v2 2026-09-16
+
+on:
+  push:
+    branches:
+      - bridgepoint-demo-perfect-v2-20260916
+    paths:
+      - '.github/workflows/bridgepoint-demo-perfect-v2-20260916.yml'
+      - '.github/scripts/capture_bridgepoint_demo_perfect_v2_20260916.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install browser
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Prewarm and record production app
+        run: xvfb-run -a node .github/scripts/capture_bridgepoint_demo_perfect_v2_20260916.js
+        env:
+          CI: 'true'
+
+      - name: Preserve raw video
+        run: |
+          RAW="$(cat demo-output-v2/video-path.txt)"
+          test -f "$RAW"
+          cp "$RAW" demo-output-v2/BridgePoint_Perfect_Demo_RAW.webm
+
+      - name: Encode smooth 1080p master
+        run: |
+          ffmpeg -y -i demo-output-v2/BridgePoint_Perfect_Demo_RAW.webm             -vf "scale=1920:1080:flags=lanczos"             -c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p             -movflags +faststart -an             demo-output-v2/BridgePoint_Intelligence_Perfect_Demo_Master.mp4
+
+      - name: Encode vertical social version
+        run: |
+          ffmpeg -y -i demo-output-v2/BridgePoint_Intelligence_Perfect_Demo_Master.mp4             -filter_complex "color=c=0x050b14:s=1080x1920:r=30[bg];[0:v]scale=1080:-2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1"             -c:v libx264 -preset veryfast -crf 19 -pix_fmt yuv420p             -movflags +faststart -an             demo-output-v2/BridgePoint_Intelligence_Perfect_Demo_Vertical.mp4
+
+      - name: Capture notes
+        run: |
+          cat > demo-output-v2/README.txt <<'EOF'
+          BridgePoint Intelligence PERFECT DEMO v2
+
+          This version fixes the earlier render problem by:
+          - prewarming city and property map tiles before recording
+          - waiting for map tile completion before each featured shot
+          - waiting for rendered 3D building features before holding a city
+          - waiting for property inspector/building detail data before cycling tabs
+          - using a visible cursor for actual browser clicks
+          - using a headful Chromium session under Xvfb for more reliable WebGL rendering
+
+          MASTER: BridgePoint_Intelligence_Perfect_Demo_Master.mp4
+          VERTICAL: BridgePoint_Intelligence_Perfect_Demo_Vertical.mp4
+          RAW: BridgePoint_Perfect_Demo_RAW.webm
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-perfect-demo-v2-20260916
+          path: |
+            demo-output-v2/BridgePoint_Intelligence_Perfect_Demo_Master.mp4
+            demo-output-v2/BridgePoint_Intelligence_Perfect_Demo_Vertical.mp4
+            demo-output-v2/BridgePoint_Perfect_Demo_RAW.webm
+            demo-output-v2/README.txt
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
