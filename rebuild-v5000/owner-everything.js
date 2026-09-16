@@ -3,7 +3,7 @@ const $=id=>document.getElementById(id), fmt=n=>Number(n||0).toLocaleString(), m
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const arr=v=>Array.isArray(v)?v:[], when=v=>{if(!v)return '—';const d=new Date(v);return Number.isFinite(d.getTime())?d.toLocaleString():'—'};
 const pill=v=>{const s=String(v??'—'),k=/COMPLETE|DONE|PASS|HEALTHY|ACTIVE|ONLINE|LIVE|SUCCEEDED|VERIFIED|READY/i.test(s)?'good':/FAIL|ERROR|CRITICAL|BLOCK|DEGRADED|OFFLINE|EXPIRED/i.test(s)?'bad':'warn';return '<span class="owner-pill '+k+'">'+esc(s.replaceAll('_',' '))+'</span>'};
-let hub=null, refreshTimer=null, loading=false, currentPreset='24h';
+let hub=null, refreshTimer=null, loading=false, backendLoading=false, lastBackendLoad=0, currentPreset='24h';
 const rpc=(name,args={},timeout=20000)=>{if(typeof window.__BP_OWNER_AUTH_RPC__!=='function')throw new Error('Owner session bridge unavailable');return window.__BP_OWNER_AUTH_RPC__(name,args,timeout)};
 function ownerAllowed(){return window.__BP_ACCESS_STATE__?.platform_owner===true}
 function syncVisibility(){const card=$('ownerEverythingCard');if(card)card.hidden=!ownerAllowed();if(!ownerAllowed()&&document.querySelector('[data-surface="owner-everything"]')?.hidden===false)window.__BP_SET_ACTIVE_SURFACE__?.('more')}
@@ -51,8 +51,75 @@ function renderExpansion(){
  $('ownerExpansionStatus').innerHTML='<div class="owner-kpis">'+[['Jurisdictions',j.total||0,'known'],['Live',j.live||0,'live'],['Queued/building',j.queued_or_building||0,'in progress'],['Countries',j.countries||0,'country scopes'],['US subdivisions',j.us_subdivisions||0,'U.S.'],['Parity rules',x.parity_requirements||0,'requirements']].map(([a,b,c])=>'<div class="owner-kpi"><span>'+a+'</span><b>'+fmt(b)+'</b><small>'+c+'</small></div>').join('')+'</div>'+table(['Jurisdiction','Request','Build','Discovery','Compliance','Priority','Activity'],req.slice(0,100).map(r=>'<tr><td><b>'+esc(r.jurisdiction_name||r.jurisdiction_key)+'</b><br>'+esc([r.country_code,r.region_code].filter(Boolean).join('-'))+'</td><td>'+pill(r.request_status)+'</td><td>'+pill(r.build_status)+'</td><td>'+pill(r.discovery_status)+'</td><td>'+pill([r.licensing_status,r.privacy_status,r.local_law_status].filter(Boolean).join(' / '))+'</td><td>'+esc(r.priority??'—')+'</td><td>'+esc(when(r.last_activity_at||r.requested_at))+'</td></tr>'));
  $('ownerExportJobs').innerHTML=table(['Scope','Status','Format','Requested','Updated'],jobs.map(r=>'<tr><td><b>'+esc((r.scope_kind||'')+' '+(r.scope_key||''))+'</b></td><td>'+pill(r.status)+'</td><td>'+esc(r.requested_format||'—')+'</td><td>'+esc(when(r.requested_at))+'</td><td>'+esc(when(r.updated_at||r.completed_at))+'</td></tr>'));
 }
-function renderAll(){if(!hub)return;renderKPIs();renderAcquisition();renderValuation();renderBackend();renderExpansion();$('ownerUpdated').textContent='Updated '+new Date(hub.generated_at||Date.now()).toLocaleString();window.__BP_OWNER_HUB__=hub}
-async function loadHub(force=false){if(loading&&!force)return;if(!ownerAllowed())return;loading=true;try{setStatus('Refreshing owner backend…');hub=await rpc('bridgepoint_owner_hub_v5401',dates(),30000);renderAll();setStatus('Live owner backend connected. Auto-refreshing every 30 seconds.')}catch(e){console.error('owner hub',e);setStatus('Owner backend retry · '+String(e.message||e))}finally{loading=false}}
+function renderFast(){if(!hub)return;renderKPIs();renderAcquisition();renderValuation();renderExpansion();$('ownerUpdated').textContent='Updated '+new Date(hub.generated_at||Date.now()).toLocaleString();window.__BP_OWNER_HUB__=hub}
+function renderAll(){if(!hub)return;renderFast();renderBackend()}
+async function loadBackendSections(force=false){
+ if(backendLoading||!ownerAllowed())return;
+ if(!force&&Date.now()-lastBackendLoad<45000)return;
+ backendLoading=true;
+ hub=hub||{};hub.everything=hub.everything||{};
+ const specs=[
+  ['states','states'],
+  ['workers','worker_tasks'],
+  ['sources','sources'],
+  ['cron','cron_jobs'],
+  ['ledger','master_ledger'],
+  ['incidents','incidents']
+ ];
+ let ok=0,fail=0;
+ try{
+  await Promise.all(specs.map(async([section,key])=>{
+   try{
+    const r=await rpc('bridgepoint_owner_backend_section_v5402',{p_section:section,p_limit:section==='workers'?250:300},9000);
+    if(section==='incidents'){
+      hub.everything.system_incidents=arr(r?.data?.system);
+      hub.everything.expansion_incidents=arr(r?.data?.expansion);
+    }else hub.everything[key]=arr(r?.data);
+    ok++;renderBackend();renderKPIs();
+   }catch(e){fail++;console.warn('owner backend section',section,e)}
+  }));
+  lastBackendLoad=Date.now();
+  if(fail) setStatus('Live owner numbers loaded. '+ok+' backend sections live; '+fail+' section'+(fail===1?' is':'s are')+' retrying independently.');
+  else setStatus('Live owner backend connected. Numbers refresh every 30 seconds; backend tables refresh every 45 seconds.');
+ }finally{backendLoading=false}
+}
+async function loadHub(force=false){
+ if(loading&&!force)return;if(!ownerAllowed())return;
+ loading=true;hub=hub||{};hub.generated_at=new Date().toISOString();
+ setStatus('Loading live owner numbers…');
+ const d=dates();
+ const specs=[
+  ['acquisition','bridgepoint_owner_acquisition_v5400',d,9000],
+  ['valuation','bridgepoint_owner_investor_valuation_v314',{},9000],
+  ['online','bridgepoint_owner_online_user_activity_v1054',{},8000],
+  ['live_activity','bridgepoint_owner_live_activity_v958',{},8000],
+  ['backend_status','bridgepoint_frontend_status_v5000',{},8000],
+  ['expansion_snapshot','bridgepoint_owner_expansion_snapshot_v5402',{},8000]
+ ];
+ let ok=0,fail=0;
+ try{
+  await Promise.all(specs.map(async([key,name,args,timeout])=>{
+   try{
+    const r=await rpc(name,args,timeout);
+    if(key==='expansion_snapshot'){
+      hub.expansion=r?.expansion||{};
+      hub.expansion_requests=arr(r?.expansion_requests);
+      hub.export_jobs=arr(r?.export_jobs);
+    }else hub[key]=r;
+    hub.generated_at=new Date().toISOString();
+    ok++;renderFast();
+   }catch(e){
+    fail++;console.warn('owner live module',key,e);
+   }
+  }));
+  if(ok===0)setStatus('Owner live modules are retrying independently. The page will stay open instead of timing out as one block.');
+  else if(fail)setStatus(ok+' live owner modules loaded; '+fail+' module'+(fail===1?' is':'s are')+' retrying independently.');
+  else setStatus('Live owner numbers connected. Loading backend worker/source tables…');
+ }finally{
+  loading=false;
+  void loadBackendSections(force);
+ }
+}
 async function ownerDocument(doc){
  if(!ownerAllowed())return;
  const popup=window.open('about:blank','_blank');
@@ -83,6 +150,6 @@ function bind(){
  $('ownerQueueExport')?.addEventListener('click',()=>action('QUEUE_US_EXPORT',{},'Queue the full U.S. portable export now? This will create governed state export jobs.'));
  $('ownerWorldManifest')?.addEventListener('click',()=>action('WORLD_EXPORT_MANIFEST',{},'Generate the current world export manifest?'));
  document.querySelectorAll('[data-owner-doc]').forEach(b=>b.addEventListener('click',()=>ownerDocument(b.dataset.ownerDoc)));
- setInterval(syncVisibility,700);syncVisibility();clearInterval(refreshTimer);refreshTimer=setInterval(()=>{if(ownerAllowed()&&document.querySelector('[data-surface="owner-everything"]')?.hidden===false)loadHub()},30000)
+ setInterval(syncVisibility,700);syncVisibility();clearInterval(refreshTimer);refreshTimer=setInterval(()=>{if(ownerAllowed()&&document.querySelector('[data-surface="owner-everything"]')?.hidden===false){loadHub();void loadBackendSections()}},30000)
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
