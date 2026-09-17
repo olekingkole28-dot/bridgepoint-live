@@ -1,0 +1,33 @@
+name: Test acquisition PostHog v5200
+on:
+  push:
+    branches: [analytics-posthog-v5200]
+    paths:
+      - 'acquisition_tracker.js'
+      - 'rebuild-v5000/landing.js'
+      - '.github/workflows/test-acquisition-posthog-v5200.yml'
+  pull_request:
+    paths:
+      - 'acquisition_tracker.js'
+      - 'rebuild-v5000/landing.js'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax and contract checks
+        run: |
+          node --check acquisition_tracker.js
+          node --check rebuild-v5000/landing.js
+          grep -Fq 'https://us.i.posthog.com' acquisition_tracker.js
+          grep -Fq "posthogCapture('$pageview'" acquisition_tracker.js
+          grep -Fq "HUMAN_INTERACTION" acquisition_tracker.js
+          grep -Fq "ENGAGED_10S" acquisition_tracker.js
+          grep -Fq "SIGNUP_SUCCESS" rebuild-v5000/landing.js
+          grep -Fq "SIGNUP_ERROR" rebuild-v5000/landing.js
+          ! grep -Fq "p_email" acquisition_tracker.js
