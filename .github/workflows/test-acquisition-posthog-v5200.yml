@@ -20,14 +20,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Syntax and contract checks
-        run: |
-          node --check acquisition_tracker.js
-          node --check rebuild-v5000/landing.js
-          grep -Fq 'https://us.i.posthog.com' acquisition_tracker.js
-          grep -Fq "posthogCapture('$pageview'" acquisition_tracker.js
-          grep -Fq "HUMAN_INTERACTION" acquisition_tracker.js
-          grep -Fq "ENGAGED_10S" acquisition_tracker.js
-          grep -Fq "SIGNUP_SUCCESS" rebuild-v5000/landing.js
-          grep -Fq "SIGNUP_ERROR" rebuild-v5000/landing.js
-          ! grep -Fq "p_email" acquisition_tracker.js
+      - name: Check acquisition tracker syntax
+        run: node --check acquisition_tracker.js
+      - name: Check landing syntax
+        run: node --check rebuild-v5000/landing.js
+      - name: Check PostHog host
+        run: grep -Fq 'https://us.i.posthog.com' acquisition_tracker.js
+      - name: Check PostHog pageview
+        run: grep -Fq "posthogCapture('\$pageview'" acquisition_tracker.js
+      - name: Check human signals
+        run: grep -Fq 'HUMAN_INTERACTION' acquisition_tracker.js && grep -Fq 'ENGAGED_10S' acquisition_tracker.js
+      - name: Check signup outcomes
+        run: grep -Fq 'SIGNUP_SUCCESS' rebuild-v5000/landing.js && grep -Fq 'SIGNUP_ERROR' rebuild-v5000/landing.js
+      - name: Check no email forwarding
+        run: '! grep -Fq "p_email" acquisition_tracker.js'
