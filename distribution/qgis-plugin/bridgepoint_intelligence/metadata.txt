@@ -2,13 +2,16 @@
 name=BridgePoint Intelligence
 qgisMinimumVersion=3.22
 description=Resolve U.S. property addresses through BridgePoint and add the matched location to QGIS.
-version=0.1.0
+version=0.1.1
 author=BridgePoint Intelligence
-email=
+email=olekingkole28@gmail.com
 about=User-initiated BridgePoint property lookup. Adds the resolved property point to the active QGIS project and can open the full BridgePoint 3D property view.
 tracker=https://github.com/olekingkole28-dot/bridgepoint-live/issues
 repository=https://github.com/olekingkole28-dot/bridgepoint-live
 homepage=https://bridgepointintelligence.online/distribution/qgis-plugin/
 category=Web
-experimental=True
+experimental=False
 deprecated=False
+
+license=GNU General Public License v2.0 or later
+changelog=0.1.1 - Corrected official QGIS ZIP structure and publication metadata.

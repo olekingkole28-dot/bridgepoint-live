@@ -108,7 +108,7 @@ jobs:
           cp -a data-discrepancy site/data-discrepancy
           (cd distribution && zip -qr ../site/distribution/bii-browser-extension.zip bii-browser-extension)
           (cd distribution && zip -qr ../site/distribution/google-sheets.zip google-sheets)
-          (cd distribution && zip -qr ../site/distribution/qgis-plugin.zip qgis-plugin)
+          (cd distribution/qgis-plugin && zip -qr ../../site/distribution/qgis-plugin.zip bridgepoint_intelligence)
           (cd distribution && zip -qr ../site/distribution/mcp-server.zip mcp)
           cp -a articles/auto site/articles/auto
           find articles -maxdepth 1 -type f -exec cp -f {} site/articles/ \;
@@ -295,6 +295,11 @@ jobs:
           test -s site/distribution/partner-delivery-contract.json
           node --check site/distribution/telemetry.js
           test -s site/distribution/bii-browser-extension.zip
+          test -s site/distribution/qgis-plugin.zip
+          unzip -l site/distribution/qgis-plugin.zip | grep -Fq 'bridgepoint_intelligence/__init__.py'
+          unzip -l site/distribution/qgis-plugin.zip | grep -Fq 'bridgepoint_intelligence/metadata.txt'
+          unzip -l site/distribution/qgis-plugin.zip | grep -Fq 'bridgepoint_intelligence/LICENSE'
+          echo 'QGIS_PACKAGE_STRUCTURE_PASS'
           test -s site/public-audit/index.html
           test -s site/public-audit/audit.js
           test -s site/public-audit/contract.json
