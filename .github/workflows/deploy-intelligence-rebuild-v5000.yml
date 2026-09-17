@@ -199,7 +199,11 @@ jobs:
           touch site/.nojekyll site/app/.nojekyll
 
           node --check site/app.js
-          node --check site/landing.js\n          node --check site/acquisition_tracker.js\n          grep -Fq 'us.i.posthog.com' site/acquisition_tracker.js\n          grep -Fq 'HUMAN_INTERACTION' site/acquisition_tracker.js\n          grep -Fq 'SIGNUP_SUCCESS' site/landing.js
+          node --check site/landing.js
+          node --check site/acquisition_tracker.js
+          grep -Fq 'us.i.posthog.com' site/acquisition_tracker.js
+          grep -Fq 'HUMAN_INTERACTION' site/acquisition_tracker.js
+          grep -Fq 'SIGNUP_SUCCESS' site/landing.js
           node --check site/world-v2300-config.js
           node --check site/world-v2300-map.js
           node --check site/world-v2300-worker.js
@@ -266,7 +270,8 @@ jobs:
           test -s site/downloads/backup/bridgepoint_full_export_windows.ps1
           node --check site/owner-everything.js
           grep -Fq 'Owner Everything' site/app/index.html
-          grep -Fq 'bridgepoint_owner_acquisition_v5400' site/owner-everything.js\n          grep -Fq 'bridgepoint_owner_backend_section_v5402' site/owner-everything.js
+          grep -Fq 'bridgepoint_owner_acquisition_v5400' site/owner-everything.js
+          grep -Fq 'bridgepoint_owner_backend_section_v5402' site/owner-everything.js
           grep -Fq 'bridgepoint_owner_document_v5401' site/owner-everything.js
           grep -Fq 'BILLING OFF' site/founder-access/index.html
           grep -Fq 'founder-access.js' site/for-roofers/index.html
