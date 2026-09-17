@@ -1,0 +1,37 @@
+name: Test BridgePoint distribution integrations v5600
+on:
+  push:
+    branches: [distribution-integrations-v5600]
+    paths:
+      - 'distribution/**'
+      - '.github/workflows/test-distribution-integrations-v5600.yml'
+  pull_request:
+    paths:
+      - 'distribution/**'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate JSON
+        run: |
+          python -m json.tool distribution/google-sheets/appsscript.json >/dev/null
+          python -m json.tool distribution/postman/BridgePoint_Public_API.postman_collection.json >/dev/null
+          python -m json.tool distribution/mcp/package.json >/dev/null
+      - name: Syntax checks
+        run: |
+          node --check distribution/bii-browser-extension/popup.js
+          node --check distribution/mcp/index.mjs
+          python -m py_compile distribution/qgis-plugin/bridgepoint_intelligence/__init__.py distribution/qgis-plugin/bridgepoint_intelligence/bridgepoint_intelligence.py
+      - name: Package checks
+        run: |
+          test -s distribution/google-sheets/Code.gs
+          test -s distribution/qgis-plugin/bridgepoint_intelligence/metadata.txt
+          test -s distribution/postman/BridgePoint_Public_API.postman_collection.json
+          test -s distribution/mcp/index.mjs
+          test -s distribution/databricks/marketplace-listing.md

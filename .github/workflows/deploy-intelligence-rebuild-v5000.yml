@@ -107,6 +107,9 @@ jobs:
           cp -a portfolio-evidence site/portfolio-evidence
           cp -a data-discrepancy site/data-discrepancy
           (cd distribution && zip -qr ../site/distribution/bii-browser-extension.zip bii-browser-extension)
+          (cd distribution && zip -qr ../site/distribution/google-sheets.zip google-sheets)
+          (cd distribution && zip -qr ../site/distribution/qgis-plugin.zip qgis-plugin)
+          (cd distribution && zip -qr ../site/distribution/mcp-server.zip mcp)
           cp -a articles/auto site/articles/auto
           find articles -maxdepth 1 -type f -exec cp -f {} site/articles/ \;
           cp articles/bridgepoint-facts.json site/articles/bridgepoint-facts.json

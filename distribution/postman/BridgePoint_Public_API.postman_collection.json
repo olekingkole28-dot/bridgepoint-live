@@ -1,0 +1,380 @@
+{
+  "info": {
+    "_postman_id": "3e1c6525-bridgepoint-public-api-v5600",
+    "name": "BridgePoint Intelligence — Public Distribution API",
+    "description": "Public-safe BridgePoint property, building, parcel, BII and context endpoints. No paid/account-gated intelligence is exposed by this collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "rpcBase",
+      "value": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc"
+    },
+    {
+      "key": "publishableKey",
+      "value": "sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25"
+    },
+    {
+      "key": "query",
+      "value": "140 Hollister Street, Santa Monica, CA"
+    },
+    {
+      "key": "lng",
+      "value": "-118.4902"
+    },
+    {
+      "key": "lat",
+      "value": "34.0030"
+    },
+    {
+      "key": "property_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Search property",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{publishableKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"p_query\": \"{{query}}\",\n  \"p_limit\": 4\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{rpcBase}}/bridgepoint_public_search_v5200",
+          "host": [
+            "{{rpcBase}}"
+          ],
+          "path": [
+            "bridgepoint_public_search_v5200"
+          ]
+        },
+        "description": "BridgePoint public-safe RPC."
+      },
+      "response": []
+    },
+    {
+      "name": "Property detail",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{publishableKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"p_lng\": \"{{lng}}\",\n  \"p_lat\": \"{{lat}}\",\n  \"p_radius_m\": 120\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{rpcBase}}/bridgepoint_public_property_detail_v5001",
+          "host": [
+            "{{rpcBase}}"
+          ],
+          "path": [
+            "bridgepoint_public_property_detail_v5001"
+          ]
+        },
+        "description": "BridgePoint public-safe RPC."
+      },
+      "response": []
+    },
+    {
+      "name": "Building detail",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{publishableKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"p_lng\": \"{{lng}}\",\n  \"p_lat\": \"{{lat}}\",\n  \"p_radius_m\": 120\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{rpcBase}}/bridgepoint_public_building_detail_v5000",
+          "host": [
+            "{{rpcBase}}"
+          ],
+          "path": [
+            "bridgepoint_public_building_detail_v5000"
+          ]
+        },
+        "description": "BridgePoint public-safe RPC."
+      },
+      "response": []
+    },
+    {
+      "name": "Parcel cutout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{publishableKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"p_lng\": \"{{lng}}\",\n  \"p_lat\": \"{{lat}}\",\n  \"p_radius_m\": 90\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{rpcBase}}/bridgepoint_public_parcel_cutout_v5411",
+          "host": [
+            "{{rpcBase}}"
+          ],
+          "path": [
+            "bridgepoint_public_parcel_cutout_v5411"
+          ]
+        },
+        "description": "BridgePoint public-safe RPC."
+      },
+      "response": []
+    },
+    {
+      "name": "Live property context",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{publishableKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"p_lng\": \"{{lng}}\",\n  \"p_lat\": \"{{lat}}\",\n  \"p_radius_km\": 50\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{rpcBase}}/bridgepoint_public_context_v5003",
+          "host": [
+            "{{rpcBase}}"
+          ],
+          "path": [
+            "bridgepoint_public_context_v5003"
+          ]
+        },
+        "description": "BridgePoint public-safe RPC."
+      },
+      "response": []
+    },
+    {
+      "name": "BridgePoint Integrity Index",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{publishableKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"p_property_id\": \"{{property_id}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{rpcBase}}/bridgepoint_public_integrity_index_v5200",
+          "host": [
+            "{{rpcBase}}"
+          ],
+          "path": [
+            "bridgepoint_public_integrity_index_v5200"
+          ]
+        },
+        "description": "BridgePoint public-safe RPC."
+      },
+      "response": []
+    },
+    {
+      "name": "Frontend status",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{publishableKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{rpcBase}}/bridgepoint_frontend_status_v5000",
+          "host": [
+            "{{rpcBase}}"
+          ],
+          "path": [
+            "bridgepoint_frontend_status_v5000"
+          ]
+        },
+        "description": "BridgePoint public-safe RPC."
+      },
+      "response": []
+    },
+    {
+      "name": "Package catalog",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{publishableKey}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{rpcBase}}/bridgepoint_public_package_catalog_v1054",
+          "host": [
+            "{{rpcBase}}"
+          ],
+          "path": [
+            "bridgepoint_public_package_catalog_v1054"
+          ]
+        },
+        "description": "BridgePoint public-safe RPC."
+      },
+      "response": []
+    }
+  ]
+}
