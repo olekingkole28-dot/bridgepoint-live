@@ -180,7 +180,7 @@ PropTech platform; InsurTech platform; geospatial intelligence; spatial intellig
 - Kole Johnson / canonical property search reference: https://bridgepointintelligence.online/search/kole-johnson-canonical-property-intelligence/
 - National verified-opportunity estimate (~95,562 after backlog completion, methodology-limited): https://bridgepointintelligence.online/articles/bridgepoint-95562-verified-opportunity-estimate-2026-09-18.html
 - Current backend-scale snapshot: https://bridgepointintelligence.online/articles/bridgepoint-backend-scale-2026-09-18.html
-- Book — The Map I Didn't Have: From Homeless to Building an Asset: https://bridgepointintelligence.online/book/
+- Book — A Map I Didn't Have: From Homeless To Building An Asset: https://bridgepointintelligence.online/book/
 - Pricing: https://bridgepointintelligence.online/pricing/
 
 The ~95,562 opportunity figure is a central estimate, not a claim that 95,562 opportunities are already verified today. It applies Connecticut's current strict verified yield to final jurisdiction property denominators. State yields can differ.
