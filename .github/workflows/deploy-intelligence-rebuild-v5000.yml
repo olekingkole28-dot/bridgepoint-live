@@ -599,7 +599,7 @@ jobs:
               try{
                 await p.waitForFunction(()=>{
                   const m=window.__BP_V5000_WORLD?.map;
-                  const d=m?.getSource('bpV5001SelectedParcel')?.serialize?.()?.data;
+                  const d=m?.getSource('bpV5001SelectedParcel')?.serialize?.()?.data||window.__BP_SELECTED_PARCEL_SOURCE_DATA__;
                   const area=document.getElementById('bPickedParcelArea')?.textContent;
                   const state=window.__BP_PARCEL_CUTOUT_STATE__;
                   return state?.status==='ready'&&(d?.features?.length||0)===1&&area&&area!=='—'&&area!=='not linked';
@@ -608,7 +608,7 @@ jobs:
                 console.log('BRIDGEPOINT_PARCEL_CUTOUT_TIMEOUT_STATE',JSON.stringify(await p.evaluate(()=>({
                   state:window.__BP_PARCEL_CUTOUT_STATE__||null,
                   area:document.getElementById('bPickedParcelArea')?.textContent,
-                  selectedParcel:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('bpV5001SelectedParcel')?.serialize?.()?.data;return d||null})()
+                  selectedParcel:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('bpV5001SelectedParcel')?.serialize?.()?.data||window.__BP_SELECTED_PARCEL_SOURCE_DATA__;return d||null})()
                 }))));
                 throw e;
               }
@@ -707,7 +707,7 @@ jobs:
                 buildingFootprint:document.getElementById('bFootprintArea')?.textContent,
                 buildingDataset:document.getElementById('bProvDataset')?.textContent,
                 selectedBuildingCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('bpV5000SelectedBuilding')?.serialize?.()?.data;return d?.features?.length||0})(),
-                selectedParcelCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('bpV5001SelectedParcel')?.serialize?.()?.data;return d?.features?.length||0})(),
+                selectedParcelCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('bpV5001SelectedParcel')?.serialize?.()?.data||window.__BP_SELECTED_PARCEL_SOURCE_DATA__;return d?.features?.length||0})(),
                 legacySelectedCount:(()=>{const d=window.__BP_V5000_WORLD?.map?.getSource('selected')?.serialize?.()?.data;return d?.features?.length||0})(),
                 buildingResolutionMethod:document.getElementById('bProvPolicy')?.textContent,
                 buildingTruthBadge:document.getElementById('buildingTruthBadge')?.textContent
