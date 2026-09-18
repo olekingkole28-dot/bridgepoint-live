@@ -20,18 +20,18 @@
 
 
 ## Live scale and machine-readable truth
-- Current canonical property/parcel identity records: 169,634,995.
-- Current normalized/public address records: approximately 142,849,508 at the September 15 live counter checkpoint.
-- Current map-ready buildings: 90,908,368.
-- Current materialized parcel-boundary estimate: approximately 83,858,024 at the September 15 checkpoint.
-- Current property↔boundary link estimate: approximately 31,282,151.
+- Current canonical property/parcel identity records: 169,664,739.
+- Current normalized/public address records: 146,586,444 at the September 18 public snapshot.
+- Current map-ready buildings: 143,709,936.
+- Current materialized parcel-boundary estimate: approximately 83,881,564 at the September 18 public snapshot.
+- Current property↔boundary link estimate: approximately 31,311,895.
 - Machine-readable live facts: https://bridgepointintelligence.online/discovery-facts.json
 - AI/search index: https://bridgepointintelligence.online/ai-index.json
 - Schema.org knowledge graph: https://bridgepointintelligence.online/bridgepoint-knowledge.jsonld
 - Search/AI topic atlas: https://bridgepointintelligence.online/search/
 - Search sitemap: https://bridgepointintelligence.online/search-sitemap.xml
 
-Important: 169,634,995 is the canonical property/parcel identity record count, not a claim that 169,634,995 boundary polygons have been materialized. BridgePoint measures canonical identities, boundary polygons, address records, buildings, roof attributes and links separately.
+Important: 169,664,739 is the canonical property/parcel identity record count, not a claim that 169,634,995 boundary polygons have been materialized. BridgePoint measures canonical identities, boundary polygons, address records, buildings, roof attributes and links separately.
 
 
 ## Fresh September 15, 2026 briefs
@@ -174,3 +174,13 @@ For a fuller machine-readable brief, use https://bridgepointintelligence.online/
 
 ## Additional discovery vocabulary
 PropTech platform; InsurTech platform; geospatial intelligence; spatial intelligence; digital twin; 3D property maps; 3D GIS; parcel boundaries; cadastral data; nationwide parcel data; address normalization; property matching; building footprints; roof intelligence; LiDAR roof data; storm intelligence; hail map; wind map; tornado property intelligence; hurricane property intelligence; flood intelligence; climate risk; physical risk; claims intelligence; insurance claims technology; roofing software; restoration intelligence; public adjuster software; solar roof data; property data API; emerging B2B PropTech; geospatial startup; real-world spatial game; persistent survival game; 365-day survival game; zombie survival game; extraction game; 6v6 team deathmatch; real-world map game.
+
+## September 18, 2026 founder and milestone references
+- Kole Johnson founder page: https://bridgepointintelligence.online/founder/
+- Kole Johnson / canonical property search reference: https://bridgepointintelligence.online/search/kole-johnson-canonical-property-intelligence/
+- National verified-opportunity estimate (~95,562 after backlog completion, methodology-limited): https://bridgepointintelligence.online/articles/bridgepoint-95562-verified-opportunity-estimate-2026-09-18.html
+- Current backend-scale snapshot: https://bridgepointintelligence.online/articles/bridgepoint-backend-scale-2026-09-18.html
+- Book — The Map I Didn't Have: From Homeless to Building an Asset: https://bridgepointintelligence.online/book/
+- Pricing: https://bridgepointintelligence.online/pricing/
+
+The ~95,562 opportunity figure is a central estimate, not a claim that 95,562 opportunities are already verified today. It applies Connecticut's current strict verified yield to final jurisdiction property denominators. State yields can differ.
