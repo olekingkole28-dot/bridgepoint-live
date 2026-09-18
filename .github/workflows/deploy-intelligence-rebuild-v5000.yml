@@ -247,7 +247,9 @@ jobs:
           grep -Fq 'prefillBuildingFromFeature' site/app.js
           grep -Fq 'bFootprintArea' site/app.js
           grep -Fq 'bProvDataset' site/app.js
-          grep -Fq "11.4,.86,13,.92,15,.97,18,.99" site/world-v2300-map.js
+          grep -Fq 'gta-bp-roofs' site/world-v2300-map.js
+          grep -Fq '__BP_BUILDING_MATERIALS__' site/world-v2300-map.js
+          grep -Fq "mode:'rendered-vector-3d'" site/world-v2300-map.js
           ! grep -Fq "map.getSource('selected')?.setData" site/world-v2300-map.js
           grep -Fq 'transportArchive' site/app.js
           grep -Fq 'transportRuntime' site/app.js
