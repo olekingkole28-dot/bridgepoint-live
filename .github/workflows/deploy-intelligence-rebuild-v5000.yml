@@ -154,6 +154,7 @@ jobs:
           cp rebuild-v5000/owner-everything.js site/owner-everything.js
           cp rebuild-v5000/owner-everything.css site/owner-everything.css
           cp rebuild-v5000/manifest.webmanifest site/manifest.webmanifest
+          cp rebuild-v5000/favicon.ppm site/favicon.ppm
           cp rebuild-v5000/sw.js site/sw.js
           cp rebuild-v5000/404.html site/404.html
           cp rebuild-v5000/bridgepoint-mark.svg site/bridgepoint-mark.svg
