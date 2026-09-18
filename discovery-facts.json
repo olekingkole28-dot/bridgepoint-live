@@ -1,13 +1,13 @@
 {
   "entity": "BridgePoint Intelligence",
   "metrics": {
-    "map_ready_buildings": 143685984,
-    "roof_shell_buildings": 143685984,
+    "map_ready_buildings": 143697936,
+    "roof_shell_buildings": 143697936,
     "roof_shell_coverage_pct": 100.0,
     "canonical_property_records": 169664739,
-    "normalized_address_records": 146054169,
-    "source_backed_roof_records": 669327,
-    "lidar_refined_roof_buildings": 3258,
+    "normalized_address_records": 146280377,
+    "source_backed_roof_records": 669337,
+    "lidar_refined_roof_buildings": 3268,
     "materialized_boundary_estimate": 83881564,
     "public_parcel_identity_records": 169664739,
     "canonical_property_record_label": "canonical property/parcel identity records",
@@ -23,15 +23,15 @@
     "public_counter_jurisdictions": 56
   },
   "freshness": {
-    "roof_updated_at": "2026-09-18T10:04:08.234984+00:00",
-    "lidar_last_success_at": "2026-09-18T09:29:14.200094+00:00",
+    "roof_updated_at": "2026-09-18T14:31:00.98606+00:00",
+    "lidar_last_success_at": "2026-09-18T13:47:27.281915+00:00",
     "parcel_counter_updated_at": "2026-09-15T23:31:08.77511+00:00",
-    "address_counter_updated_at": "2026-09-18T10:04:14.185374+00:00",
-    "parcel_scoreboard_updated_at": "2026-09-18T10:04:01.352156+00:00",
+    "address_counter_updated_at": "2026-09-18T14:30:58.967601+00:00",
+    "parcel_scoreboard_updated_at": "2026-09-18T14:31:01.047672+00:00",
     "parcel_autopilot_last_tick_at": "2026-09-16T01:18:58.834462+00:00"
   },
   "horizon_url": "https://bridgepointintelligence.online/app/horizon/",
-  "generated_at": "2026-09-18T10:04:18.713111+00:00",
+  "generated_at": "2026-09-18T14:31:07.746896+00:00",
   "canonical_url": "https://bridgepointintelligence.online/",
   "jurisdictions": [
     {
@@ -325,7 +325,7 @@
   "horizon_year_one_demand": {
     "ok": true,
     "mode": "365_DAY_YEAR_ONE_SURVIVAL",
-    "updated_at": "2026-09-18T10:04:18.841418+00:00",
+    "updated_at": "2026-09-18T14:31:08.104535+00:00",
     "event_started": false,
     "unique_requests": 0,
     "billing_connected": false,
