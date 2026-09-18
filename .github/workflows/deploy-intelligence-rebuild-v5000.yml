@@ -27,6 +27,8 @@ on:
       - 'portfolio-evidence/**'
       - 'data-discrepancy/**'
       - 'articles/**'
+      - 'book/**'
+      - 'pricing/**'
       - 'articles/bridgepoint-facts.json'
       - 'current-map-entry.js'
       - 'acquisition_tracker.js'
@@ -132,6 +134,8 @@ jobs:
           cp -a founder site/founder
           cp -a answers site/answers
           cp -a press site/press
+          if [ -d book ]; then cp -a book site/book; fi
+          if [ -d pricing ]; then cp -a pricing site/pricing; fi
           if [ -d investors ]; then cp -a investors site/investors; fi
           if [ -d enterprise ]; then cp -a enterprise site/enterprise; fi
           mkdir -p site/owner
