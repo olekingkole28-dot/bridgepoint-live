@@ -53,6 +53,7 @@ required_source = [
     "HorizonAudioDirectorSubsystem",
     "HorizonZombieWallController",
     "HorizonProgressionSubsystem",
+    "HorizonMatchmakingSubsystem",
     "HorizonSocialSubsystem",
     "HorizonRaidDirectorSubsystem",
     "HorizonLoadoutSubsystem",
@@ -144,6 +145,44 @@ for token in [
     require(token in audio, f"AAA audio behavior missing: {token}")
 require("Stripe" not in audio_header + audio and "Payment" not in audio_header + audio,
         "audio runtime must remain independent of payments")
+
+progression_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonProgressionSubsystem.h")
+progression = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonProgressionSubsystem.cpp")
+for token in [
+    "CareerLevel = 1", "MaxCareerLevel = 100", "MaxPrestige = 100",
+    "EHorizonRewardType::Badge", "EHorizonRewardType::Banner",
+    "AddCareerXP", "RecordKill", "TryPrestige", "CanPrestige"
+]:
+    require(token in progression_header + progression, f"career/prestige contract missing: {token}")
+for token in [
+    "State->CareerXP = 0", "State->CareerLevel = 1",
+    "State->Prestige < MaxPrestige", "PRESTIGE_COSMETIC_%03d",
+    "OutReward.bFree = true", "OutReward.bPremium = false"
+]:
+    require(token in progression, f"prestige behavior missing: {token}")
+prestige_body = progression.partition("bool UHorizonProgressionSubsystem::TryPrestige")[2].partition(
+    "FHorizonReward UHorizonProgressionSubsystem::PreviewDailyFreeReward")[0]
+require("SeasonXP" not in prestige_body and "SeasonLevel" not in prestige_body,
+        "prestige must not erase independent seasonal progress")
+
+matchmaking_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonMatchmakingSubsystem.h")
+matchmaking = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonMatchmakingSubsystem.cpp")
+matchmaking_contract = matchmaking_header + "\n" + matchmaking
+for token in [
+    "SkillMean", "SkillUncertainty", "CareerLevel", "LifetimeKills", "Prestige",
+    "InputPool", "PlatformPool", "EstimatedPingMs", "PartySize", "bCrossInputOptIn",
+    "EvaluateCompatibility", "HardPingLimitMs = 180", "MinimumEligibleScore = 0.35f"
+]:
+    require(token in matchmaking_contract, f"fair matchmaking contract missing: {token}")
+for token in [
+    "INPUT_POOL_OPT_IN_REQUIRED", "CONNECTION_OUTSIDE_LIMIT", "INVALID_PARTY_SIZE",
+    "UncertaintyBudget", "SkillPenalty * 0.55f", "ProgressPenalty * 0.12f",
+    "KillPenalty * 0.08f", "Result.ConnectionPenalty * 0.16f"
+]:
+    require(token in matchmaking, f"fair matchmaking behavior missing: {token}")
+for forbidden in ["premium", "purchase", "entitle", "reward"]:
+    require(forbidden not in matchmaking_contract.lower(),
+            f"matchmaking must not use monetization or reward state: {forbidden}")
 
 zombie_wall_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonZombieWallController.h")
 zombie_wall = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonZombieWallController.cpp")
