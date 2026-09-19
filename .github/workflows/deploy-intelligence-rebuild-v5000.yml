@@ -487,6 +487,15 @@ jobs:
               await p.waitForSelector('a[href="/sample/storm-opportunity/"]',{timeout:10000});
               await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,{timeout:30000});
               await p.waitForFunction(()=>Number(window.__BP_LANDING_LIVE_WEATHER__?.shapeCount||0)>0&&Number(window.__BP_LANDING_LIVE_WEATHER__?.pointCount||0)>0,{timeout:30000});
+              await p.waitForFunction(()=>window.__BP_LANDING_RADAR_STATE__?.visible===true,{timeout:30000});
+              await p.waitForFunction(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map;if(!m)return false;
+                try{
+                  const points=m.getLayer('bp-landing-weather-points')?m.queryRenderedFeatures({layers:['bp-landing-weather-points']}).length:0;
+                  const lines=m.getLayer('bp-landing-weather-line')?m.queryRenderedFeatures({layers:['bp-landing-weather-line']}).length:0;
+                  return points>0&&lines>0;
+                }catch{return false}
+              },{timeout:30000});
               await p.waitForFunction(()=>document.querySelectorAll('#landingPackages .package-card').length>=9,{timeout:20000});
               const landing=await p.evaluate(()=>({
                 build:document.querySelector('meta[name="bp-build"]')?.content||'',
@@ -499,9 +508,11 @@ jobs:
                 weatherMore:!!document.getElementById('landingWeatherToggle'),
                 weatherShapes:window.__BP_LANDING_LIVE_WEATHER__?.shapeCount||0,
                 weatherPoints:window.__BP_LANDING_LIVE_WEATHER__?.pointCount||0,
-                radarVisible:window.__BP_LANDING_VISUAL_WEATHER__?.radarVisible===true,
-                radarLayerVisible:(()=>{const m=window.__BP_LANDING_WORLD__?.map;return !!m?.getLayer('wx-radar')&&((m.getLayoutProperty('wx-radar','visibility')||'visible')!=='none')})(),
+                radarVisible:window.__BP_LANDING_RADAR_STATE__?.visible===true,
+                radarLayerVisible:(()=>{const m=window.__BP_LANDING_WORLD__?.map;if(!m)return false;const ids=['bp-landing-radar-a','bp-landing-radar-b'];return ids.some(id=>m.getLayer(id)&&((m.getLayoutProperty(id,'visibility')||'visible')!=='none')&&Number(m.getPaintProperty(id,'raster-opacity')||0)>.2)})(),
                 nationalWeatherLayers:(()=>{const m=window.__BP_LANDING_WORLD__?.map;return !!m?.getLayer('bp-landing-weather-line')&&!!m?.getLayer('bp-landing-weather-points')})(),
+                renderedWeather:(()=>{const m=window.__BP_LANDING_WORLD__?.map;if(!m)return{points:0,lines:0};try{return{points:m.queryRenderedFeatures({layers:['bp-landing-weather-points']}).length,lines:m.queryRenderedFeatures({layers:['bp-landing-weather-line']}).length}}catch{return{points:0,lines:0}}})(),
+                weatherLegendCount:document.getElementById('landingWeatherCount')?.textContent||'',
                 noHorizontalOverflow:document.documentElement.scrollWidth<=window.innerWidth+2,
                 searchZoomOverlap:(()=>{const a=document.getElementById('landingPropertySearch')?.getBoundingClientRect(),b=document.querySelector('#previewMap .maplibregl-ctrl-top-right')?.getBoundingClientRect();return !!(a&&b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top)})(),
                 mollyLoaded:(()=>{const i=document.querySelector('.molly-portrait');return !!i&&i.complete&&i.naturalWidth>0})(),
@@ -509,7 +520,7 @@ jobs:
                 productVisuals:document.querySelectorAll('.cap-visual').length,
                 packageCards:document.querySelectorAll('#landingPackages .package-card').length
               }));
-              if(!landing.build.includes('BP_LANDING_V5410')||!landing.search||!landing.sample||landing.mapCanvases!==1||landing.lockedTabs<6||!landing.weatherLegend||!landing.weatherMore||!landing.radarVisible||!landing.radarLayerVisible||!landing.nationalWeatherLayers||landing.weatherShapes<1||landing.weatherPoints<1||!landing.noHorizontalOverflow||landing.searchZoomOverlap||!landing.mollyLoaded||!landing.backdropLoaded||landing.productVisuals<6||landing.packageCards<9||!/first property lookup is free/i.test(landing.freeLookupCopy))throw new Error('LANDING_CONVERSION_REGRESSION '+JSON.stringify(landing));
+              if(!landing.build.includes('BP_LANDING_V5410')||!landing.search||!landing.sample||landing.mapCanvases!==1||landing.lockedTabs<6||!landing.weatherLegend||!landing.weatherMore||!landing.radarVisible||!landing.radarLayerVisible||!landing.nationalWeatherLayers||landing.weatherShapes<1||landing.weatherPoints<1||landing.renderedWeather.points<1||landing.renderedWeather.lines<1||!/EVENTS/.test(landing.weatherLegendCount)||!landing.noHorizontalOverflow||landing.searchZoomOverlap||!landing.mollyLoaded||!landing.backdropLoaded||landing.productVisuals<6||landing.packageCards<9||!/first property lookup is free/i.test(landing.freeLookupCopy))throw new Error('LANDING_CONVERSION_REGRESSION '+JSON.stringify(landing));
               console.log('BRIDGEPOINT_LANDING_CONVERSION_PASS',JSON.stringify(landing));
               const cols=async(width,height)=>{await p.setViewport({width,height,deviceScaleFactor:width<600?2:1,isMobile:width<600,hasTouch:width<1000});await new Promise(r=>setTimeout(r,350));return p.evaluate(()=>{const gridCols=sel=>{const el=document.querySelector(sel);if(!el)return 0;const v=getComputedStyle(el).gridTemplateColumns.trim();return v?v.split(/\s+/).length:0};return{w:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth+2,products:gridCols('.cap-grid'),packages:gridCols('#landingPackages'),footer:gridCols('.footer-link-groups')}})};
               const phone=await cols(390,844),tablet=await cols(820,1180),desktop=await cols(1440,900);
