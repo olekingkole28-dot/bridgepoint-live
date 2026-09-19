@@ -64,12 +64,24 @@ function ensureBuildingPanelOpen(){const p=$('buildingPanel');if(!p)return;p.hid
 function clearSelectedBuilding(){selectedPoint=null;selectedFeature=null;selectedPropertyId=null;selectedParcelGeometry=null;selectedBuildingGeometry=null;selectedBuildingRecord=null;pickedState.partFeatures=[];pickedState.plan=null;pickedState.measurePts=[];pickedState.topZoom=1;pickedState.topPanX=0;pickedState.topPanY=0;selectedMode='building';clearInterval(selectedTimer);selectedTimer=null;window.__BP_BUILDING_PANEL_OPEN__=false;const p=$('buildingPanel');if(p){p.hidden=true;p.style.removeProperty('display')}clearMapXray();clearSelectedGeometry()}
 $('closeBuilding').onclick=clearSelectedBuilding;window.__BP_V5000_CLEAR_BUILDING__=clearSelectedBuilding;
 (()=>{const p=$('buildingPanel');if(!p)return;new MutationObserver(()=>{if(window.__BP_BUILDING_PANEL_OPEN__&&selectedPoint&&selectedMode==='building'&&p.hidden)ensureBuildingPanelOpen()}).observe(p,{attributes:true,attributeFilter:['hidden','style']})})();
+async function initSharedVisualWeather(targetWorld){
+ const map=targetWorld?.map;if(!map)return null;
+ const styleReady=()=>{try{return map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch{return false}};
+ if(!styleReady())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
+ try{
+  const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5335'),import('./world-v2300-present-weather.js?v=5335')]);
+  const weather=wm.initWeather(map),present=pm.initPresentWeather(map);
+  window.__BP_SHARED_VISUAL_WEATHER__={version:5335,weather,present,mapShared:true,streetWalkLiveSimulation:true,updatedAt:Date.now()};
+  return window.__BP_SHARED_VISUAL_WEATHER__
+ }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
+}
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5332');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5335');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
  bindPerformanceGovernor();
+ void initSharedVisualWeather(world);
  try{world.map.jumpTo({center:[-98.5,39.5],zoom:BP_MOBILE?2.75:3.35,pitch:0,bearing:0});window.__BP_NATIONAL_START__={center:[-98.5,39.5],zoom:world.map.getZoom(),at:Date.now()}}catch(_){}
  window.__BP_INITIAL_WEATHER_PRIORITY__=true;
  world?.onBuildingSelect?.(({lngLat,feature})=>{if(measureActive)return;if(lngLat){lastDirectBuildingEvent=performance.now();showBuilding(lngLat.lng,lngLat.lat,{feature})}});
