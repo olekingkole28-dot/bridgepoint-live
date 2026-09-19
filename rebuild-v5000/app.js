@@ -65,7 +65,7 @@ function clearSelectedBuilding(){selectedPoint=null;selectedFeature=null;selecte
 $('closeBuilding').onclick=clearSelectedBuilding;window.__BP_V5000_CLEAR_BUILDING__=clearSelectedBuilding;
 (()=>{const p=$('buildingPanel');if(!p)return;new MutationObserver(()=>{if(window.__BP_BUILDING_PANEL_OPEN__&&selectedPoint&&selectedMode==='building'&&p.hidden)ensureBuildingPanelOpen()}).observe(p,{attributes:true,attributeFilter:['hidden','style']})})();
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5325');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5326');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
