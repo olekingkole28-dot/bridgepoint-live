@@ -98,6 +98,57 @@ bool UHorizonSurvivalSubsystem::CanAffordRecipe(
         CanAffordIngredients(Inventory, Recipe.Ingredients);
 }
 
+bool UHorizonSurvivalSubsystem::TryBuildInventoryAfterAddition(
+    const TMap<FName, int32>& Inventory,
+    const TArray<FHorizonCraftingIngredient>& Items,
+    float CarryCapacityKg,
+    TMap<FName, int32>& OutInventory)
+{
+    OutInventory.Reset();
+    if (Items.IsEmpty())
+    {
+        return false;
+    }
+
+    TMap<FName, int32> Additions;
+    for (const FHorizonCraftingIngredient& Item : Items)
+    {
+        if (Item.ItemKey.IsNone() ||
+            Item.Quantity <= 0 ||
+            GetItemUnitWeightKg(Item.ItemKey) <= KINDA_SMALL_NUMBER)
+        {
+            return false;
+        }
+
+        int32& Total = Additions.FindOrAdd(Item.ItemKey);
+        if (Total > MAX_int32 - Item.Quantity)
+        {
+            return false;
+        }
+        Total += Item.Quantity;
+    }
+
+    TMap<FName, int32> ResultInventory = Inventory;
+    for (const TPair<FName, int32>& Addition : Additions)
+    {
+        int32& Existing = ResultInventory.FindOrAdd(Addition.Key);
+        if (Existing < 0 || Existing > MAX_int32 - Addition.Value)
+        {
+            return false;
+        }
+        Existing += Addition.Value;
+    }
+
+    const float Capacity = FMath::Clamp(CarryCapacityKg, 1.0f, 100.0f);
+    if (ComputeInventoryWeightKg(ResultInventory) > Capacity + KINDA_SMALL_NUMBER)
+    {
+        return false;
+    }
+
+    OutInventory = MoveTemp(ResultInventory);
+    return true;
+}
+
 FHorizonSurvivalState UHorizonSurvivalSubsystem::SimulateNeeds(
     const FHorizonSurvivalState& Input,
     float DeltaHours,
@@ -214,6 +265,30 @@ bool UHorizonSurvivalSubsystem::TryRemoveItem(FName ItemKey, int32 Quantity)
     {
         State->Inventory.Remove(ItemKey);
     }
+    SaveState();
+    BroadcastChanged();
+    return true;
+}
+
+bool UHorizonSurvivalSubsystem::TryAddItemsAtomically(
+    const TArray<FHorizonCraftingIngredient>& Items)
+{
+    if (!State)
+    {
+        return false;
+    }
+
+    TMap<FName, int32> ResultInventory;
+    if (!TryBuildInventoryAfterAddition(
+            State->Inventory,
+            Items,
+            CarryCapacityKg,
+            ResultInventory))
+    {
+        return false;
+    }
+
+    State->Inventory = MoveTemp(ResultInventory);
     SaveState();
     BroadcastChanged();
     return true;
