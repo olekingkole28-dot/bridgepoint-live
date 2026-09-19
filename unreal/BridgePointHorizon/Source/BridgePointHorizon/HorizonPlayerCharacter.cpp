@@ -235,6 +235,31 @@ bool AHorizonPlayerCharacter::TryStartVault()
         return false;
     }
 
+    // Measure the obstacle independently from the landing floor. Using the far-side
+    // floor height here makes ordinary waist-high barriers look like zero-height obstacles.
+    const FVector TopProbePlanar =
+        ObstacleHit.ImpactPoint + Forward * FMath::Max(8.0f, CapsuleRadius * 0.35f);
+    FHitResult ObstacleTopHit;
+    const FVector TopTraceStart(
+        TopProbePlanar.X,
+        TopProbePlanar.Y,
+        BottomZ + VaultMaximumHeightCm + 80.0f);
+    const FVector TopTraceEnd(
+        TopProbePlanar.X,
+        TopProbePlanar.Y,
+        BottomZ + VaultMinimumHeightCm);
+    if (!World->LineTraceSingleByChannel(
+            ObstacleTopHit,
+            TopTraceStart,
+            TopTraceEnd,
+            ECC_Visibility,
+            Params) ||
+        !ObstacleTopHit.bBlockingHit)
+    {
+        return false;
+    }
+
+    const float ObstacleHeight = ObstacleTopHit.ImpactPoint.Z - BottomZ;
     const FVector LandingPlanar =
         ObstacleHit.ImpactPoint + Forward * (CapsuleRadius * 2.0f + 34.0f);
     FHitResult LandingHit;
@@ -245,7 +270,7 @@ bool AHorizonPlayerCharacter::TryStartVault()
     const FVector LandingTraceEnd(
         LandingPlanar.X,
         LandingPlanar.Y,
-        BottomZ + VaultMinimumHeightCm);
+        BottomZ - 50.0f);
     if (!World->LineTraceSingleByChannel(
             LandingHit,
             LandingTraceStart,
@@ -257,15 +282,19 @@ bool AHorizonPlayerCharacter::TryStartVault()
         return false;
     }
 
-    const float ObstacleHeight = LandingHit.ImpactPoint.Z - BottomZ;
     const FVector CandidateTarget =
         LandingHit.ImpactPoint + FVector::UpVector * (CapsuleHalfHeight + 4.0f);
-    const bool bLandingClear = !World->OverlapBlockingTestByChannel(
-        CandidateTarget,
-        FQuat::Identity,
-        ECC_Pawn,
-        FCollisionShape::MakeCapsule(CapsuleRadius, CapsuleHalfHeight),
-        Params);
+    const bool bWalkableLanding = LandingHit.ImpactNormal.Z >= 0.60f;
+    const bool bSafeDrop = LandingHit.ImpactPoint.Z >= BottomZ - 50.0f;
+    const bool bLandingClear =
+        bWalkableLanding &&
+        bSafeDrop &&
+        !World->OverlapBlockingTestByChannel(
+            CandidateTarget,
+            FQuat::Identity,
+            ECC_Pawn,
+            FCollisionShape::MakeCapsule(CapsuleRadius, CapsuleHalfHeight),
+            Params);
 
     if (!CanStartVault(
             MovementStance,
@@ -334,7 +363,7 @@ void AHorizonPlayerCharacter::UpdateVault(float DeltaSeconds)
         &SweepHit,
         ETeleportType::None);
 
-    if (SweepHit.bBlockingHit && Alpha < 0.98f)
+    if (SweepHit.bBlockingHit)
     {
         EndVault(false);
         return;
@@ -353,13 +382,11 @@ void AHorizonPlayerCharacter::EndVault(bool bCompleted)
         return;
     }
 
-    if (bCompleted)
+    // UpdateVault already moved to the target with collision enabled. Never add an
+    // unswept completion snap: streamed geometry can arrive during the traversal.
+    if (!bCompleted)
     {
-        SetActorLocation(
-            VaultTargetLocation,
-            false,
-            nullptr,
-            ETeleportType::TeleportPhysics);
+        VaultTargetLocation = GetActorLocation();
     }
 
     VaultElapsedSeconds = 0.0f;
