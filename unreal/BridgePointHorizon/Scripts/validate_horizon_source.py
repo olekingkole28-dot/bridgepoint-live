@@ -260,7 +260,7 @@ for token in ["/Engine/Maps/Entry", "GlobalDefaultGameMode=/Script/BridgePointHo
     require(token in engine_config, f"native bootstrap config missing: {token}")
 
 input_config = read("unreal/BridgePointHorizon/Config/DefaultInput.ini")
-for token in ['AxisName="MoveForward"', 'AxisName="MoveRight"', 'ActionName="Sprint"', 'ActionName="Crouch"', 'ActionName="Aim"', 'ActionName="ToggleCamera"', 'ActionName="Prone"', 'ActionName="Slide"']:
+for token in ['AxisName="MoveForward"', 'AxisName="MoveRight"', 'AxisName="Lean"', 'ActionName="Sprint"', 'ActionName="Crouch"', 'ActionName="Aim"', 'ActionName="ToggleCamera"', 'ActionName="Prone"', 'ActionName="Slide"']:
     require(token in input_config, f"native movement input missing: {token}")
 
 player_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonPlayerCharacter.h")
@@ -273,7 +273,9 @@ for token in [
     "FirstPersonWeaponSocketName", "HasFirstPersonArms",
     "EHorizonCameraMode", "SetCameraMode", "ToggleCameraMode", "CachedMoveInput",
     "EHorizonMovementStance", "ProneCapsuleHalfHeight", "ProneCapsuleRadius",
-    "SlideDurationSeconds", "GetMovementStance", "IsSliding", "IsProne"
+    "SlideDurationSeconds", "GetMovementStance", "IsSliding", "IsProne",
+    "LeanDistanceCm", "LeanRollDegrees", "LeanProbeRadiusCm",
+    "GetLeanAlpha", "ResolveLeanTarget"
 ]:
     require(token in player_header, f"native weapon visual contract missing: {token}")
 for token in [
@@ -294,11 +296,30 @@ for token in [
     "StartTraversalJump", "ToggleProne", "StartSlide", "UpdateTraversalState",
     "HasStandingClearance", "OverlapBlockingTestByChannel",
     "Capsule->SetCapsuleSize(ProneCapsuleRadius", "SlideBrakingDeceleration * DeltaSeconds",
-    "MovementStance == EHorizonMovementStance::Sliding ? 0.22f : 1.0f"
+    "MovementStance == EHorizonMovementStance::Sliding ? 0.22f : 1.0f",
+    "BindAxis(TEXT(\"Lean\")", "UpdateLean(DeltaSeconds)",
+    "ProbeLeanObstruction", "SweepSingleByChannel",
+    "FCollisionShape::MakeSphere(LeanProbeRadiusCm)",
+    "CurrentLeanAlpha * LeanDistanceCm",
+    "CurrentLeanAlpha * LeanRollDegrees",
+    "Stance == EHorizonMovementStance::Prone",
+    "Stance == EHorizonMovementStance::Sliding"
 ]:
     require(token in player, f"native facing/camera regression guard missing: {token}")
 require("AddMovementInput(FRotationMatrix" not in player,
         "movement axes must be combined before applying input and facing")
+
+movement_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonPlayerMovementTests.cpp")
+for token in [
+    "WITH_DEV_AUTOMATION_TESTS", "Movement.Lean.Resolver",
+    "Controller noise remains inside deadzone",
+    "Wall obstruction reduces but does not reverse lean",
+    "Near wall margin fully cancels lean",
+    "Sprint cancels lean", "Prone cancels lean", "Slide cancels lean"
+]:
+    require(token in movement_tests, f"native lean QA missing: {token}")
+require("Stripe" not in movement_tests and "Payment" not in movement_tests,
+        "movement QA must remain independent of payments")
 
 
 game_mode = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGameMode.cpp")
