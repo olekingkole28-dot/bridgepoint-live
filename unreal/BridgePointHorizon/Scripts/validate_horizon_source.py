@@ -59,6 +59,7 @@ required_source = [
     "HorizonLoadoutSubsystem",
     "HorizonWeaponRuntimeComponent",
     "HorizonSurvivalSubsystem",
+    "HorizonBaseBuildingSubsystem",
     "HorizonEnemyProgressionSubsystem",
     "HorizonWorldStreamSubsystem",
     "HorizonWorldCellRenderer",
@@ -371,6 +372,41 @@ for token in [
     require(token in survival_tests, f"native survival QA missing: {token}")
 require("Stripe" not in survival_tests and "Payment" not in survival_tests,
         "survival QA must remain independent of payments")
+
+base_building_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonBaseBuildingSubsystem.h")
+base_building = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonBaseBuildingSubsystem.cpp")
+base_building_contract = base_building_header + "\n" + base_building
+for token in [
+    "EHorizonBasePieceType", "FHorizonBaseMaterialCost", "FHorizonBasePieceState",
+    "UHorizonBaseBuildingSaveGame", "MaxBasePieces = 512", "AttachmentRangeCm = 650.0f",
+    "TryBuildPiece", "ApplyPieceDamage", "TryRepairPiece", "GetPieceCost",
+    "CanPlacePiece", "ComputeDamagedDurability", "ComputeRepairedDurability",
+    "bFictionalGameplayConstruction = true"
+]:
+    require(token in base_building_contract, f"base building contract missing: {token}")
+for token in [
+    "BridgePointHorizonBaseBuilding", "LoadGameFromSlot", "SaveGameToSlot",
+    "GetSubsystem<UHorizonSurvivalSubsystem>", "GetItemQuantity", "TryRemoveItem",
+    "FGuid::NewGuid", "ExistingPieces.IsEmpty()", "PieceLimit",
+    "MinimumSeparationSq", "AttachmentRangeSq", "repair_kit"
+]:
+    require(token in base_building, f"persistent base building behavior missing: {token}")
+for forbidden in ["premium", "purchase", "entitlement", "stripe", "payment"]:
+    require(forbidden not in base_building_contract.lower(),
+            f"base building must remain gameplay-only: {forbidden}")
+
+base_building_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonBaseBuildingTests.cpp")
+for token in [
+    "WITH_DEV_AUTOMATION_TESTS", "Systems.Base.Placement",
+    "Systems.Base.EconomyDurability", "A new base must begin with a foundation",
+    "A wall cannot float without a foundation", "Overlapping pieces are rejected",
+    "Disconnected pieces are rejected", "The configured piece cap is enforced",
+    "Foundation wood quantity", "Damage subtracts durability",
+    "Repair clamps to full durability"
+]:
+    require(token in base_building_tests, f"native base building QA missing: {token}")
+require("Stripe" not in base_building_tests and "Payment" not in base_building_tests,
+        "base building QA must remain independent of payments")
 
 enemy_progression_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonEnemyProgressionSubsystem.h")
 enemy_progression = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonEnemyProgressionSubsystem.cpp")
