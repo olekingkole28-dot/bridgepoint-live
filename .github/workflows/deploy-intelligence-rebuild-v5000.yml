@@ -267,7 +267,8 @@ jobs:
           grep -Fq 'forceFunctionRegion=us-east-1' site/world-v2300-map.js
           grep -Fq "tilePath:'V5363_GEOMETRY_FAST'" site/world-v2300-map.js
           grep -Fq 'cacheBusting:false' site/app.js
-          grep -Fq "authoritative:'GLOBAL_CONTEXT_GREY'" site/world-v2300-map.js
+          grep -Fq "'BRIDGEPOINT_GREY':'GLOBAL_CONTEXT_GREY'" site/world-v2300-map.js
+          grep -Fq 'densityGuardPassed:bpReady' site/world-v2300-map.js
           grep -Fq 'disabled_by_owner_v5363' site/app.js
           grep -Fq "ensureWeatherRasterPair('Radar')" site/app.js
           ! grep -Fq "ensureWeatherRasterPair('Cloud')" site/app.js
