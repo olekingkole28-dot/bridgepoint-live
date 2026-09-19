@@ -184,6 +184,22 @@ for forbidden in ["premium", "purchase", "entitle", "reward"]:
     require(forbidden not in matchmaking_contract.lower(),
             f"matchmaking must not use monetization or reward state: {forbidden}")
 
+matchmaking_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonMatchmakingTests.cpp")
+for token in [
+    "WITH_DEV_AUTOMATION_TESTS",
+    "BalancedProfilesAreEligible",
+    "InputLatencyAndPartyGuardrails",
+    "SkillUncertaintyWidensSearchFairly",
+    "CrossInputRequiresMutualConsent",
+    "INPUT_POOL_OPT_IN_REQUIRED",
+    "CONNECTION_OUTSIDE_LIMIT",
+    "INVALID_PARTY_SIZE",
+    "Uncertain.Score01 > Certain.Score01"
+]:
+    require(token in matchmaking_tests, f"native matchmaking QA missing: {token}")
+require("Stripe" not in matchmaking_tests and "Payment" not in matchmaking_tests,
+        "matchmaking QA must remain independent of payments")
+
 zombie_wall_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonZombieWallController.h")
 zombie_wall = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonZombieWallController.cpp")
 for token in ["UHorizonGameStateSubsystem", "GetZombieWallProgress01", "bHideUntilYearOneStarts"]:
