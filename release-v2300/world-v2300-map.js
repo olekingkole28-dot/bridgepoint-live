@@ -41,13 +41,15 @@ function style(){
  const glass=['glass-blue','glass-teal','glass-smoke','glass-silver','glass-green','glass-bronze','glass-ice','office-charcoal'];
  const office=['office-stone','office-beige','office-white','office-charcoal','office-sand','office-gray','glass-blue','glass-silver','glass-bronze'];
  const industrial=['industrial-gray','industrial-blue','industrial-tan','industrial-white','industrial-green','industrial-rust'];
+ const barns=['barn-red','barn-wood','barn-white'];
  const civic=['civic-limestone','civic-stone','civic-brick','civic-granite'];
  const neutral=['neutral-warm','neutral-cool','neutral-dark','office-stone','res-tan','brick-tan','office-gray','res-blue','brick-red','glass-smoke'];
  const facadeDetail=['case',
   inType(['brick','masonry']),pick(brick,3),
   inType(['glass']),pick(glass,5),
   inType(['office','commercial','retail','hotel','mixed_use','mixed-use']),pick(office,7),
-  inType(['industrial','warehouse','hangar','manufacture','factory']),pick(industrial,11),
+  inType(['barn','farm_auxiliary','stable','cowshed']),pick(barns,11),
+  inType(['industrial','warehouse','hangar','manufacture','factory']),pick(industrial,12),
   inType(['hospital','school','university','college','civic','public','government','church','cathedral','chapel','mosque','synagogue','temple']),pick(civic,13),
   inType(['wood','timber','residential','apartments','house','detached','semidetached_house','terrace','dormitory','bungalow']),pick(residential,17),
   ['all',old,['<',bHeight,55]],pick(['row-red','row-brown','brick-red','brick-brown','brick-tan','civic-stone','res-cream'],19),
@@ -56,13 +58,15 @@ function style(){
   ['all',mid,tall],pick(['office-stone','office-beige','office-gray','neutral-cool','industrial-gray'],31),
   pick(neutral,37)
  ];
- const solidName=n=>['concat','bpfacade-solid-',n];
- const detailName=n=>['concat','bpfacade-',n];
+ const facadeVariant=seed(127,12);
+ const solidName=n=>['concat','bpfacade-solid-',n,'-v',['to-string',facadeVariant]];
+ const detailName=n=>['concat','bpfacade-',n,'-v',['to-string',facadeVariant]];
  const facadePattern=['step',['zoom'],solidName(facadeDetail),15.15,detailName(facadeDetail)];
  const facadeColor=['case',
   inType(['brick','masonry']),pick(['#8b5e50','#7b5046','#9a715f','#5f4c46','#a5664d','#b39a7d'],41),
   inType(['glass']),pick(['#496c7d','#4c777c','#596a72','#78868b','#54766f','#4a5961','#6c8797','#716858'],43),
   inType(['office','commercial','retail','hotel','mixed_use','mixed-use']),pick(['#6a706f','#777063','#8b8b82','#4b5559','#567381','#737f84','#8a806d','#5f666b'],47),
+  inType(['barn','farm_auxiliary','stable','cowshed']),pick(['#7c3731','#765b42','#a8a394','#6f302d','#80674e','#b8b2a5'],51),
   inType(['industrial','warehouse','hangar','manufacture','factory']),pick(['#6a6e6c','#65757c','#7b705f','#898982','#667363','#845f4c'],53),
   inType(['hospital','school','university','college','civic','public','government']),pick(['#8c826d','#747976','#855b4e','#686765'],59),
   inType(['wood','timber','residential','apartments','house','detached','semidetached_house','terrace','dormitory','bungalow']),pick(['#827567','#738069','#667985','#8a7863','#8a6863','#8a8980','#81584b','#675047','#a18f72','#5f6464'],61),
@@ -231,7 +235,7 @@ function installBridgePointIcons(map){
 
 function facadePatternImage(id){
  const size=96,cv=document.createElement('canvas');cv.width=size;cv.height=size;const x=cv.getContext('2d');
- const solid=id.includes('bpfacade-solid-'),kind=id.replace('bpfacade-solid-','').replace('bpfacade-','');
+ const solid=id.includes('bpfacade-solid-'),raw=id.replace('bpfacade-solid-','').replace('bpfacade-',''),vm=raw.match(/-v(\d+)$/),variant=vm?Number(vm[1])%12:0,kind=raw.replace(/-v\d+$/,'');
  const specs={
   'res-cream':['#b3a48d','#5f5145','#ded0b5','#8d7d68','res'],
   'res-sage':['#87937a','#445548','#c4cbb2','#697760','res'],
@@ -268,6 +272,9 @@ function facadePatternImage(id){
   'industrial-white':['#8d918c','#4a4f4e','#c2c5bd','#6e716d','industrial'],
   'industrial-green':['#677361','#37433a','#9ca68f','#505b4b','industrial'],
   'industrial-rust':['#805f4e','#443936','#aa8068','#654a3d','industrial'],
+  'barn-red':['#813a34','#482e2c','#c18b78','#672e2a','barn'],
+  'barn-wood':['#765b42','#3f342b','#b99d76','#5d4835','barn'],
+  'barn-white':['#aaa69a','#565650','#e2ddd0','#858177','barn'],
   'civic-limestone':['#9a9078','#504b43','#cec3a8','#7d735f','civic'],
   'civic-stone':['#7c7b73','#464948','#b5b2a7','#64645e','civic'],
   'civic-brick':['#7f594e','#41383a','#b88b76','#62443d','civic'],
@@ -278,7 +285,7 @@ function facadePatternImage(id){
  };
  const p=specs[kind]||specs['neutral-cool'],mode=p[4];x.fillStyle=p[0];x.fillRect(0,0,size,size);
  if(solid)return x.getImageData(0,0,size,size);
- const win=(xx,yy,w,h,lit=false)=>{x.fillStyle=p[1];x.fillRect(xx,yy,w,h);x.fillStyle=p[2];x.globalAlpha=lit?.42:.24;x.fillRect(xx+1,yy+1,Math.max(1,w-2),Math.min(3,h-2));x.globalAlpha=1};
+ const win=(xx,yy,w,h,lit=false)=>{const dx=((variant*5+yy)%7)-3,dw=(variant%3)-1,dh=((variant>>1)%3)-1;xx=Math.max(1,Math.min(size-7,xx+dx));w=Math.max(6,Math.min(size-xx-1,w+dw));h=Math.max(7,h+dh);x.fillStyle=p[1];x.fillRect(xx,yy,w,h);x.fillStyle=p[2];x.globalAlpha=lit?.42:.24;x.fillRect(xx+1,yy+1,Math.max(1,w-2),Math.min(3,h-2));x.globalAlpha=1};
  if(mode==='brick'||mode==='row'){
   x.strokeStyle=p[3];x.lineWidth=1;x.globalAlpha=.55;
   for(let y=0;y<=size;y+=7){x.beginPath();x.moveTo(0,y+.5);x.lineTo(size,y+.5);x.stroke()}
@@ -289,16 +296,21 @@ function facadePatternImage(id){
   x.strokeStyle=p[3];x.lineWidth=1;
   for(let y=0;y<size;y+=16)for(let xx=0;xx<size;xx+=16){x.fillStyle=((xx+y)/16)%4===0?p[2]:p[0];x.globalAlpha=.42;x.fillRect(xx+1,y+1,14,14);x.globalAlpha=1;x.strokeRect(xx+.5,y+.5,16,16)}
  } else if(mode==='industrial'){
-  x.strokeStyle=p[3];x.globalAlpha=.55;for(let xx=0;xx<size;xx+=6){x.beginPath();x.moveTo(xx+.5,0);x.lineTo(xx+.5,size);x.stroke()}x.globalAlpha=1;
-  for(let xx=10;xx<size;xx+=26){win(xx,17,14,9);win(xx,48,14,9)}x.fillStyle=p[3];x.fillRect(7,72,21,24);x.fillRect(55,70,26,26);
+  x.strokeStyle=p[3];x.globalAlpha=.55;for(let xx=0;xx<size;xx+=6+(variant%3)){x.beginPath();x.moveTo(xx+.5,0);x.lineTo(xx+.5,size);x.stroke()}x.globalAlpha=1;
+  for(let xx=8+(variant%5);xx<size;xx+=24+(variant%4)){win(xx,15+(variant%4),13+(variant%3),8+(variant%3));win(xx,47-(variant%3),14,9)}x.fillStyle=p[3];const bay=18+(variant%5)*2;x.fillRect(6+(variant%4)*3,72,bay,24);x.fillRect(52-(variant%3)*2,69,24+(variant%4),27);
+ } else if(mode==='barn'){
+  x.strokeStyle=p[3];x.globalAlpha=.58;for(let xx=0;xx<size;xx+=5+(variant%3)){x.beginPath();x.moveTo(xx+.5,0);x.lineTo(xx+.5,size);x.stroke()}x.globalAlpha=1;
+  const doorW=30+(variant%4)*4,doorX=Math.round((size-doorW)/2);x.fillStyle=p[1];x.fillRect(doorX,48,doorW,47);x.strokeStyle=p[2];x.lineWidth=2;x.strokeRect(doorX+1,49,doorW-2,45);x.beginPath();x.moveTo(doorX+2,50);x.lineTo(doorX+doorW-2,92);x.moveTo(doorX+doorW-2,50);x.lineTo(doorX+2,92);x.stroke();win(10+(variant%5),18,13,15);win(68-(variant%5),18,13,15);
  } else if(mode==='civic'){
   x.strokeStyle=p[3];x.globalAlpha=.5;for(let y=0;y<size;y+=20){x.beginPath();x.moveTo(0,y+.5);x.lineTo(size,y+.5);x.stroke()}for(let xx=0;xx<size;xx+=24){x.beginPath();x.moveTo(xx+.5,0);x.lineTo(xx+.5,size);x.stroke()}x.globalAlpha=1;
   for(let y=12;y<size;y+=30)for(let xx=8;xx<size;xx+=24)win(xx,y,10,16,true);
  } else {
   x.strokeStyle=p[3];x.globalAlpha=.35;for(let y=0;y<size;y+=12){x.beginPath();x.moveTo(0,y+.5);x.lineTo(size,y+.5);x.stroke()}x.globalAlpha=1;
-  const rows=mode==='res'?[12,39,66]:[12,34,56,78];for(const y of rows)for(let xx=7;xx<size;xx+=20)win(xx,y,10,10,(xx+y)%4===0);
-  if(mode==='res'){x.strokeStyle=p[2];x.globalAlpha=.25;for(let y=25;y<size;y+=28){x.beginPath();x.moveTo(0,y);x.lineTo(size,y);x.stroke()}x.globalAlpha=1}
+  const rowShift=(variant%3)*2,rows=mode==='res'?[10+rowShift,37+rowShift,64+rowShift]:[10+rowShift,32+rowShift,54+rowShift,76+rowShift];for(const y of rows)for(let xx=5+(variant%4)*2;xx<size;xx+=18+(variant%5))win(xx,y,9+(variant%3),9+((variant>>1)%3),(xx+y+variant)%4===0);
+  if(mode==='res'){x.strokeStyle=p[2];x.globalAlpha=.25;for(let y=24+(variant%3);y<size;y+=27+(variant%3)){x.beginPath();x.moveTo(0,y);x.lineTo(size,y);x.stroke()}x.globalAlpha=1}
  }
+ if(mode==='res'||mode==='row'){const dw=10+(variant%4)*2,dx=6+((variant*17)%Math.max(8,size-dw-12));x.fillStyle=p[1];x.fillRect(dx,size-23,dw,22);x.fillStyle=p[2];x.globalAlpha=.32;x.fillRect(dx+2,size-21,Math.max(2,dw-4),4);x.globalAlpha=1}
+ else if(mode==='office'){const ew=20+(variant%5)*3,ex=Math.max(3,Math.round((size-ew)/2)+((variant%3)-1)*8);x.fillStyle=p[1];x.fillRect(ex,size-19,Math.min(ew,size-ex-3),18);x.fillStyle=p[2];x.globalAlpha=.3;x.fillRect(ex+2,size-17,Math.max(4,Math.min(ew,size-ex-3)-4),5);x.globalAlpha=1}
  x.strokeStyle=p[3];x.globalAlpha=.62;x.strokeRect(.5,.5,size-1,size-1);x.globalAlpha=1;
  return x.getImageData(0,0,size,size)
 }
@@ -334,13 +346,13 @@ function roofPatternImage(id){
  x.globalAlpha=1;return x.getImageData(0,0,size,size)
 }
 function installBuildingMaterials(map){
- const facadeKinds=['res-cream','res-sage','res-blue','res-tan','res-rose','res-white','res-charcoal','row-red','row-brown','row-cream','brick-red','brick-brown','brick-tan','brick-dark','brick-orange','brick-cream','glass-blue','glass-teal','glass-smoke','glass-silver','glass-green','glass-bronze','glass-ice','office-stone','office-beige','office-white','office-charcoal','office-sand','office-gray','industrial-gray','industrial-blue','industrial-tan','industrial-white','industrial-green','industrial-rust','civic-limestone','civic-stone','civic-brick','civic-granite','neutral-warm','neutral-cool','neutral-dark'];
+ const facadeKinds=['res-cream','res-sage','res-blue','res-tan','res-rose','res-white','res-charcoal','row-red','row-brown','row-cream','brick-red','brick-brown','brick-tan','brick-dark','brick-orange','brick-cream','glass-blue','glass-teal','glass-smoke','glass-silver','glass-green','glass-bronze','glass-ice','office-stone','office-beige','office-white','office-charcoal','office-sand','office-gray','industrial-gray','industrial-blue','industrial-tan','industrial-white','industrial-green','industrial-rust','barn-red','barn-wood','barn-white','civic-limestone','civic-stone','civic-brick','civic-granite','neutral-warm','neutral-cool','neutral-dark'];
  const roofKinds=['roof-membrane-dark','roof-membrane-light','roof-gravel','roof-shingle-gray','roof-shingle-brown','roof-metal-dark','roof-metal-silver','roof-tile-red','roof-tile-brown','roof-slate'];
- const facadeIds=facadeKinds.flatMap(k=>['bpfacade-solid-'+k,'bpfacade-'+k]),roofIds=roofKinds.map(k=>'bproof-'+k),windowIds=['bp-window-night-warm','bp-window-night-cool','bp-window-night-mixed'];
+ const facadeIds=facadeKinds.flatMap(k=>['bpfacade-solid-'+k+'-v0','bpfacade-'+k+'-v0']),roofIds=roofKinds.map(k=>'bproof-'+k),windowIds=['bp-window-night-warm','bp-window-night-cool','bp-window-night-mixed'];
  const add=id=>{try{if(map.hasImage(id))return;if(id.startsWith('bproof-'))map.addImage(id,roofPatternImage(id),{pixelRatio:2});else if(id.startsWith('bp-window-night-'))map.addImage(id,nightWindowPatternImage(id),{pixelRatio:2});else map.addImage(id,facadePatternImage(id),{pixelRatio:2})}catch(e){console.warn('BridgePoint building material',id,e)}};
  map.on('styleimagemissing',e=>{const id=String(e.id||'');if(id.startsWith('bpfacade-')||id.startsWith('bproof-')||id.startsWith('bp-window-night-'))add(id)});
  for(const id of [...facadeIds,...roofIds,...windowIds])add(id);
- window.__BP_BUILDING_MATERIALS__={version:'v5338',mode:'rendered-vector-3d',aerialBase:false,roofCaps:true,directionalLight:true,facadeTextures:true,facadeArchetypes:facadeKinds.length,roofArchetypes:roofKinds.length,deterministicPerBuilding:true,globalStyle:true,updatedAt:Date.now()}
+ window.__BP_BUILDING_MATERIALS__={version:'v5339',mode:'rendered-vector-3d',aerialBase:false,roofCaps:true,directionalLight:true,facadeTextures:true,facadeArchetypes:facadeKinds.length,facadeLayoutVariants:12,possibleFacadeLayouts:facadeKinds.length*12,officeLayoutVariants:9*12,barnArchetypes:3,roofArchetypes:roofKinds.length,deterministicPerBuilding:true,lazyVariantTextures:true,globalStyle:true,updatedAt:Date.now()}
 }
 
 function surfacePatternImage(id){
@@ -371,7 +383,7 @@ function installWorldMaterials(map){
  for(const k of terrain)addTerrain('bpterrain-'+k);
  for(const [id,kind] of [['bp-landmark-monument','monument'],['bp-landmark-statue','statue'],['bp-landmark-fountain','fountain'],['bp-transit-stop','transit']]){try{if(!map.hasImage(id))map.addImage(id,landmarkIconImage(kind),{pixelRatio:2})}catch(e){console.warn('BridgePoint landmark',id,e)}}
  map.on('styleimagemissing',e=>{const id=String(e.id||'');if(id.startsWith('bpterrain-'))addTerrain(id)});
- window.__BP_WORLD_MATERIALS__={version:'v5338',biomes:true,glacierRelief:true,physicalRoads:true,blackYellowWhiteRoads:true,bridgeDecks:true,shorelineMotion:true,landmarks:true,updatedAt:Date.now()}
+ window.__BP_WORLD_MATERIALS__={version:'v5339',biomes:true,glacierRelief:true,physicalRoads:true,blackYellowWhiteRoads:true,bridgeDecks:true,shorelineMotion:true,landmarks:true,updatedAt:Date.now()}
 }
 
 function roadLights(map){if(map.getZoom()<LIGHT_MIN)return EMPTY;let fs=[];try{fs=map.queryRenderedFeatures({layers:['gta-road-major','gta-road-local']})||[]}catch(_){return EMPTY}const pts=[],seen=new Set(),max=MOBILE?260:(TIER==='LOW'?320:TIER==='HIGH'?900:560);for(const f of fs){const g=f.geometry,lines=g?.type==='LineString'?[g.coordinates]:g?.type==='MultiLineString'?g.coordinates:[];for(const line of lines){const step=Math.max(4,Math.ceil(line.length/(MOBILE?6:10)));for(let i=0;i<line.length&&pts.length<max;i+=step){const c=line[i],k=`${c[0].toFixed(5)}|${c[1].toFixed(5)}`;if(seen.has(k))continue;seen.add(k);pts.push({type:'Feature',properties:{kind:'streetlight'},geometry:{type:'Point',coordinates:c}})}}}return fc(pts)}
@@ -379,7 +391,7 @@ function roadLights(map){if(map.getZoom()<LIGHT_MIN)return EMPTY;let fs=[];try{f
 export function initWorld(options={}){
  const containerId=String(options.containerId||'liveMap'),globalKey=String(options.globalKey||'__bpWorldV2300'),container=document.getElementById(containerId);if(!container||!window.maplibregl)return null;if(window[globalKey]?.map)return window[globalKey];container.innerHTML='';
  const initialCenter=Array.isArray(options.center)&&options.center.length===2?options.center:[-98.5,39.5],initialZoom=Number.isFinite(options.zoom)?Number(options.zoom):(MOBILE?2.75:3.35),initialPitch=Number.isFinite(options.pitch)?Number(options.pitch):0,initialBearing=Number.isFinite(options.bearing)?Number(options.bearing):0,projectionType=String(options.projection||((MOBILE||options.preview)?'mercator':'globe'));
- const map=new maplibregl.Map({container,style:style(),center:initialCenter,zoom:initialZoom,pitch:initialPitch,bearing:initialBearing,minZoom:2.2,maxZoom:21,projection:{type:projectionType},pixelRatio:MOBILE?1:Math.min(window.devicePixelRatio||1,2),antialias:!MOBILE&&!LOW,fadeDuration:0,renderWorldCopies:false,transformRequest:tileTransform,maxTileCacheSize:MOBILE?180:(TIER==='LOW'?110:TIER==='HIGH'?280:180),refreshExpiredTiles:false,cancelPendingTileRequestsWhileZooming:false});
+ const map=new maplibregl.Map({container,style:style(),center:initialCenter,zoom:initialZoom,pitch:initialPitch,bearing:initialBearing,minZoom:2.2,maxZoom:21,projection:{type:projectionType},pixelRatio:MOBILE?1:Math.min(window.devicePixelRatio||1,2),antialias:!MOBILE&&!LOW,fadeDuration:0,renderWorldCopies:false,transformRequest:tileTransform,maxTileCacheSize:MOBILE?64:(TIER==='LOW'?96:TIER==='HIGH'?240:160),refreshExpiredTiles:false,cancelPendingTileRequestsWhileZooming:MOBILE});
  const runtimeMapErrors=[];map.on('error',e=>{const raw=e?.error||e,msg=String(raw?.message||raw||'MapLibre runtime error');runtimeMapErrors.push({message:msg,at:Date.now()});if(runtimeMapErrors.length>30)runtimeMapErrors.shift();window.__BP_MAP_RUNTIME_ERRORS__=runtimeMapErrors;console.warn('BridgePoint MapLibre',msg)});
  try{map.touchZoomRotate?.enable();map.touchZoomRotate?.enableRotation?.();map.dragPan?.enable();map.scrollZoom?.enable();map.doubleClickZoom?.enable();map.keyboard?.enable();map.boxZoom?.enable()}catch(_){};
  map.addControl(new maplibregl.NavigationControl({visualizePitch:true,showCompass:true}),'top-right');
@@ -410,7 +422,7 @@ export function initWorld(options={}){
    for(const id of ['gta-context-building-shadow','gta-bp-building-shadow','gta-exact-building-shadow']){paint(map,id,'fill-translate',shadowTranslate);paint(map,id,'fill-opacity',shadowOpacity)}
    for(const id of ['gta-context-buildings','gta-bp-buildings','gta-exact-building'])paint(map,id,'fill-extrusion-opacity',alt>0?['interpolate',['linear'],['zoom'],11.4,.9,13,.96,15,.995,18,1]:['interpolate',['linear'],['zoom'],11.4,.94,13,.98,15,1]);
    const windowOpacity=alt>2?0:clamp((-alt+2)/16,.08,.72);for(const id of ['gta-context-night-windows','gta-bp-night-windows','gta-exact-night-windows'])paint(map,id,'fill-extrusion-opacity',windowOpacity);
-   window.__BP_WORLD_LIGHT__={version:5338,sunAltitude:alt,sunAzimuth:sun.az,daylight:day,night:night>0.55,twilight,moonlight:night>0.45,updatedAt:Date.now()}
+   window.__BP_WORLD_LIGHT__={version:5339,sunAltitude:alt,sunAzimuth:sun.az,daylight:day,night:night>0.55,twilight,moonlight:night>0.45,updatedAt:Date.now()}
   }catch(e){console.warn('BridgePoint world light',e)}
  }
  function sky(){updateWorldLight();clearInterval(solarTimer);solarTimer=setInterval(updateWorldLight,60000)}
@@ -492,9 +504,9 @@ export function initWorld(options={}){
    if(seq!==livingSeq)return;window.__BP_LIVING_WORLD_STATE__={status:'error',count:livingCount,error:String(e?.message||e),updatedAt:Date.now()}
   }
  }
- function scheduleLivingWorld(delay=MOBILE?75:45){clearTimeout(map.__bpLivingTimer);if(map.getZoom()<14.2)return;map.__bpLivingTimer=setTimeout(()=>{if(!moving)livingWorld()},delay)}
- function lights(delay=MOBILE?55:35){clearTimeout(lightTimer);lightTimer=setTimeout(()=>{if(moving)return;map.getSource('streetlights')?.setData(roadLights(map));updateWorldLight()},delay)}
- function scheduleExact(delay=MOBILE?65:40){clearTimeout(detailTimer);detailTimer=setTimeout(()=>{if(!moving)exact()},delay)}
+ function scheduleLivingWorld(delay=MOBILE?1200:120){clearTimeout(map.__bpLivingTimer);if(map.getZoom()<14.2)return;map.__bpLivingTimer=setTimeout(()=>{if(!moving)livingWorld()},delay)}
+ function lights(delay=MOBILE?1450:120){clearTimeout(lightTimer);lightTimer=setTimeout(()=>{if(moving)return;map.getSource('streetlights')?.setData(roadLights(map));updateWorldLight()},delay)}
+ function scheduleExact(delay=MOBILE?900:90){clearTimeout(detailTimer);detailTimer=setTimeout(()=>{if(!moving)exact()},delay)}
  function startParcelFlow(){clearInterval(parcelPulseTimer);parcelPulseTimer=setInterval(()=>{if(moving||!layerState.parcels||map.getZoom()<PARCEL_MIN)return;parcelPulsePhase=(parcelPulsePhase+1)%16;const t=(Math.sin((parcelPulsePhase/16)*Math.PI*2)+1)/2;paint(map,'gta-parcel-glow','line-opacity',.11+.18*t);paint(map,'gta-parcel-glow','line-blur',2.1+2.4*t);paint(map,'gta-parcel','line-opacity',.82+.16*t)},260)}
  function bridgePointDomesticCenter(){
   const p=map.getCenter(),x=p.lng,y=p.lat;
@@ -518,7 +530,7 @@ export function initWorld(options={}){
    clearTimeout(detailTimer);clearTimeout(map.__bpLivingTimer);clearTimeout(lightTimer);
    return
   }
-  terrain();syncBuildingShells();rebuildRoad3D(MOBILE?1450:520);scheduleExact(MOBILE?45:25);scheduleLivingWorld(MOBILE?60:35);lights(MOBILE?70:40)
+  terrain();syncBuildingShells();rebuildRoad3D(MOBILE?1750:620);scheduleExact(MOBILE?900:90);scheduleLivingWorld(MOBILE?1200:120);lights(MOBILE?1450:140)
  }
  function toggleLayer(name,on){if(name==='parcels'){layerState.parcels=!!on;for(const id of ['gta-parcel','gta-parcel-glow'])vis(map,id,on);if(on)startParcelFlow()}if(name==='buildings'){layerState.buildings=!!on;if(!on){for(const id of ['gta-context-building-shadow','gta-context-buildings','gta-context-roofs','gta-context-night-windows','gta-bp-building-shadow','gta-bp-buildings','gta-bp-roofs','gta-bp-building-edge','gta-bp-night-windows','gta-building-outline'])vis(map,id,false)}else syncBuildingShells()}}
  function resultRows(rows){const root=document.getElementById('mapResults');if(!root)return;root.innerHTML='';for(const r of rows||[]){const b=document.createElement('button');b.type='button';b.className='data-card';b.innerHTML=`<b>${String(r.full_address||'Property').replace(/[<>&]/g,'')}</b><small>${[r.municipality,r.state_code,r.parcel_number].filter(Boolean).join(' · ')}</small>`;b.onclick=()=>{root.innerHTML='';if(Number.isFinite(+r.longitude)&&Number.isFinite(+r.latitude))map.easeTo({center:[+r.longitude,+r.latitude],zoom:17,pitch:62,bearing:-18,duration:LOW?320:620})};root.appendChild(b)}}
@@ -632,7 +644,7 @@ export function initWorld(options={}){
   document.getElementById('locateMe')?.addEventListener('click',()=>{if(!navigator.geolocation){setStatus('Location is unavailable on this device');return}setStatus('Getting your location…');navigator.geolocation.getCurrentPosition(p=>map.easeTo({center:[p.coords.longitude,p.coords.latitude],zoom:16.8,pitch:60,bearing:-18,duration:LOW?350:700}),()=>setStatus('Location permission was not available'),{enableHighAccuracy:false,timeout:7000,maximumAge:120000})});
  }
  function chooseBuilding(e){if(window.__BP_MEASURE_ACTIVE__)return false;const layers=['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings'].filter(id=>map.getLayer(id));let f=Array.isArray(e?.features)?e.features.find(x=>layers.includes(x?.layer?.id))||null:null;try{if(!f)f=map.queryRenderedFeatures(e.point,{layers})[0]||null}catch(_){}if(!f)return false;lastBuildingClickAt=performance.now();const p={...(f.properties||{})};if(!p.render_height_m)p.render_height_m=Number(p.height||p.render_height||8.5);const ll=e.lngLat||map.unproject(e.point),feature={type:'Feature',geometry:f.geometry,properties:p,id:f.id,layer:{id:f.layer?.id||''}},z=Math.max(map.getZoom(),16.6);map.easeTo({center:ll,zoom:clamp(z,15,19),pitch:64,bearing:map.getBearing(),duration:LOW?260:520});const detail={lngLat:ll,feature};if(typeof window.__BP_V5000_SELECT_BUILDING__==='function'){try{window.__BP_V5000_SELECT_BUILDING__(detail)}catch(err){console.warn('v5000 building selector',err)}}else if(typeof buildingSelectHandler==='function'){try{buildingSelectHandler(detail)}catch(err){console.warn('building selection handler',err)}}window.dispatchEvent(new CustomEvent('bp2300:building-click',{detail}));return true}
- function bindBuildingHitLayers(){for(const id of ['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings']){if(!map.getLayer(id))continue;map.on('click',id,e=>chooseBuilding(e));map.on('mouseenter',id,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',id,()=>{map.getCanvas().style.cursor=''})}} map.on('load',()=>{installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();installWalkUI();bindBuildingHitLayers();setBase('gta');startParcelFlow();startWaterMotion();syncBuildingShells();setTimeout(()=>rebuildRoad3D(MOBILE?1800:750),MOBILE?900:420);setTimeout(scheduleExact,MOBILE?900:420);setTimeout(scheduleLivingWorld,MOBILE?1050:520);setTimeout(lights,MOBILE?1100:600);setStatus('BridgePoint World v5338 · single-shell 3D · retained physical streetscape · live fine detail')});
+ function bindBuildingHitLayers(){for(const id of ['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings']){if(!map.getLayer(id))continue;map.on('click',id,e=>chooseBuilding(e));map.on('mouseenter',id,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',id,()=>{map.getCanvas().style.cursor=''})}} map.on('load',()=>{installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();installWalkUI();bindBuildingHitLayers();setBase('gta');startParcelFlow();startWaterMotion();syncBuildingShells();setTimeout(()=>rebuildRoad3D(MOBILE?1800:750),MOBILE?900:420);setTimeout(scheduleExact,MOBILE?900:420);setTimeout(scheduleLivingWorld,MOBILE?1050:520);setTimeout(lights,MOBILE?1100:600);setStatus('BridgePoint World v5339 · single-shell 3D · retained physical streetscape · live fine detail')});
  map.on('movestart',()=>movement(true));map.on('moveend',()=>movement(false));map.on('zoomend',()=>{terrain();syncBuildingShells();rebuildRoad3D(MOBILE?1500:560);if(!moving)updateWorldLight()});
  const canvas=map.getCanvas();
  const nativeBuildingTap=(clientX,clientY,originalEvent)=>{const r=canvas.getBoundingClientRect(),point={x:clientX-r.left,y:clientY-r.top};if(point.x<0||point.y<0||point.x>r.width||point.y>r.height)return false;const hit=chooseBuilding({point,lngLat:map.unproject(point),originalEvent});if(hit)lastTouchBuildingAt=performance.now();return hit};
