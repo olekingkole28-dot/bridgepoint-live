@@ -135,6 +135,13 @@ public:
     static bool CanFireRound(int32 RoundsInMagazine, bool bReloading, float FireCooldownSeconds);
     static int32 ComputeReloadTransfer(int32 RoundsInMagazine, int32 ReserveRounds, int32 MagazineSize);
     static float AdvanceCountdown(float RemainingSeconds, float DeltaSeconds);
+    static int32 AdvanceAutomaticCadence(
+        float CurrentCooldownSeconds,
+        float DeltaSeconds,
+        float ShotIntervalSeconds,
+        int32 AvailableRounds,
+        int32 MaxCatchUpShots,
+        float& OutCooldownSeconds);
     static FVector2D ComputeRecoilImpulse(
         int32 ShotSequence,
         bool bAiming,
