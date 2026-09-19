@@ -57,6 +57,7 @@ required_source = [
     "HorizonSocialSubsystem",
     "HorizonRaidDirectorSubsystem",
     "HorizonLoadoutSubsystem",
+    "HorizonWeaponRuntimeComponent",
     "HorizonSurvivalSubsystem",
     "HorizonWorldStreamSubsystem",
     "HorizonWorldCellRenderer",
@@ -313,7 +314,7 @@ for token in ["/Engine/Maps/Entry", "GlobalDefaultGameMode=/Script/BridgePointHo
     require(token in engine_config, f"native bootstrap config missing: {token}")
 
 input_config = read("unreal/BridgePointHorizon/Config/DefaultInput.ini")
-for token in ['AxisName="MoveForward"', 'AxisName="MoveRight"', 'AxisName="Lean"', 'ActionName="Sprint"', 'ActionName="Crouch"', 'ActionName="Aim"', 'ActionName="ToggleCamera"', 'ActionName="Prone"', 'ActionName="Slide"']:
+for token in ['AxisName="MoveForward"', 'AxisName="MoveRight"', 'AxisName="Lean"', 'ActionName="Sprint"', 'ActionName="Crouch"', 'ActionName="Aim"', 'ActionName="Fire"', 'ActionName="Reload"', 'ActionName="ToggleCamera"', 'ActionName="Prone"', 'ActionName="Slide"']:
     require(token in input_config, f"native movement input missing: {token}")
 
 player_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonPlayerCharacter.h")
@@ -328,7 +329,7 @@ for token in [
     "EHorizonMovementStance", "ProneCapsuleHalfHeight", "ProneCapsuleRadius",
     "SlideDurationSeconds", "GetMovementStance", "IsSliding", "IsProne",
     "LeanDistanceCm", "LeanRollDegrees", "LeanProbeRadiusCm",
-    "GetLeanAlpha", "ResolveLeanTarget"
+    "GetLeanAlpha", "ResolveLeanTarget", "WeaponRuntime"
 ]:
     require(token in player_header, f"native weapon visual contract missing: {token}")
 for token in [
@@ -361,6 +362,42 @@ for token in [
     require(token in player, f"native facing/camera regression guard missing: {token}")
 require("AddMovementInput(FRotationMatrix" not in player,
         "movement axes must be combined before applying input and facing")
+for token in [
+    "UHorizonWeaponRuntimeComponent", "BindAction(TEXT(\"Fire\")",
+    "BindAction(TEXT(\"Reload\")", "WeaponRuntime->StartFire(bAiming)",
+    "WeaponRuntime->BeginReload()", "WeaponRuntime->SetAiming(true)",
+]:
+    require(token in player_header + player, f"integrated weapon input/runtime missing: {token}")
+
+weapon_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWeaponRuntimeComponent.h")
+weapon = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWeaponRuntimeComponent.cpp")
+weapon_contract = weapon_header + "\n" + weapon
+for token in [
+    "FHorizonWeaponSpec", "FHorizonWeaponRuntimeState", "FHorizonWeaponShotResult",
+    "RoundsInMagazine", "ReserveRounds", "RoundsPerMinute", "ReloadSeconds",
+    "StartFire", "StopFire", "TryFireOnce", "BeginReload", "CancelReload",
+    "CanFireRound", "ComputeReloadTransfer", "ComputeRecoilImpulse",
+]:
+    require(token in weapon_contract, f"native weapon runtime contract missing: {token}")
+for token in [
+    "PrimaryComponentTick.bStartWithTickEnabled = false",
+    "FireCooldownSeconds = 60.0f / WeaponSpec.RoundsPerMinute",
+    "ReloadRemainingSeconds = WeaponSpec.ReloadSeconds",
+    "OnShotFired.Broadcast", "AddControllerPitchInput", "AddControllerYawInput",
+    "bTriggerHeld && WeaponSpec.bAutomatic", "SetComponentTickEnabled",
+]:
+    require(token in weapon, f"native weapon behavior missing: {token}")
+require("Stripe" not in weapon_contract and "Payment" not in weapon_contract,
+        "weapon runtime must remain independent of payments")
+
+weapon_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWeaponRuntimeTests.cpp")
+for token in [
+    "WITH_DEV_AUTOMATION_TESTS", "Weapon.CadenceAndReload", "Weapon.Recoil",
+    "Loaded idle weapon can fire", "Cadence blocks early repeat shot",
+    "Reload respects reserve", "Horizontal recoil alternates predictably",
+    "ADS reduces recoil", "Recoil pattern is deterministic",
+]:
+    require(token in weapon_tests, f"native weapon QA missing: {token}")
 
 movement_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonPlayerMovementTests.cpp")
 for token in [
