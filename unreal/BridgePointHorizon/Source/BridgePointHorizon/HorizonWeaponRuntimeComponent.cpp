@@ -86,6 +86,52 @@ float UHorizonWeaponRuntimeComponent::AdvanceCountdown(
     return FMath::Max(0.0f, RemainingSeconds - SafeDeltaSeconds);
 }
 
+int32 UHorizonWeaponRuntimeComponent::AdvanceAutomaticCadence(
+    float CurrentCooldownSeconds,
+    float DeltaSeconds,
+    float ShotIntervalSeconds,
+    int32 AvailableRounds,
+    int32 MaxCatchUpShots,
+    float& OutCooldownSeconds)
+{
+    const float SafeCooldown = FMath::IsFinite(CurrentCooldownSeconds)
+        ? FMath::Max(0.0f, CurrentCooldownSeconds)
+        : 0.0f;
+    OutCooldownSeconds = SafeCooldown;
+
+    if (!FMath::IsFinite(DeltaSeconds) || DeltaSeconds <= 0.0f ||
+        !FMath::IsFinite(ShotIntervalSeconds) || ShotIntervalSeconds <= KINDA_SMALL_NUMBER ||
+        AvailableRounds <= 0 || MaxCatchUpShots <= 0)
+    {
+        return 0;
+    }
+
+    // Catch up ordinary hitches without allowing a resume-from-background burst.
+    float TimeBudget = FMath::Min(DeltaSeconds, 0.50f);
+    if (TimeBudget + KINDA_SMALL_NUMBER < SafeCooldown)
+    {
+        OutCooldownSeconds = SafeCooldown - TimeBudget;
+        return 0;
+    }
+
+    TimeBudget = FMath::Max(0.0f, TimeBudget - SafeCooldown);
+    const int32 ShotLimit = FMath::Min(AvailableRounds, MaxCatchUpShots);
+    int32 ShotsDue = 1;
+    while (ShotsDue < ShotLimit && TimeBudget + KINDA_SMALL_NUMBER >= ShotIntervalSeconds)
+    {
+        TimeBudget -= ShotIntervalSeconds;
+        ++ShotsDue;
+    }
+
+    // A zero remainder keeps ticking so additional overdue rounds can drain on
+    // the next frame when the per-frame safety cap was reached.
+    OutCooldownSeconds = (ShotsDue >= MaxCatchUpShots &&
+        TimeBudget + KINDA_SMALL_NUMBER >= ShotIntervalSeconds)
+        ? 0.0f
+        : FMath::Max(0.0f, ShotIntervalSeconds - TimeBudget);
+    return ShotsDue;
+}
+
 FVector2D UHorizonWeaponRuntimeComponent::ComputeRecoilImpulse(
     int32 Sequence,
     bool bIsAiming,
@@ -208,22 +254,45 @@ void UHorizonWeaponRuntimeComponent::TickComponent(
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-    FireCooldownSeconds = AdvanceCountdown(FireCooldownSeconds, DeltaTime);
-
     if (bReloading)
     {
+        FireCooldownSeconds = AdvanceCountdown(FireCooldownSeconds, DeltaTime);
         ReloadRemainingSeconds = AdvanceCountdown(ReloadRemainingSeconds, DeltaTime);
         if (ReloadRemainingSeconds <= KINDA_SMALL_NUMBER)
         {
             CompleteReload();
         }
     }
-    else if (bTriggerHeld && WeaponSpec.bAutomatic && FireCooldownSeconds <= KINDA_SMALL_NUMBER)
+    else if (bTriggerHeld && WeaponSpec.bAutomatic)
     {
-        if (!TryFireOnce() && RoundsInMagazine <= 0)
+        const float ShotIntervalSeconds = 60.0f / WeaponSpec.RoundsPerMinute;
+        float NextCooldownSeconds = FireCooldownSeconds;
+        const int32 ShotsDue = AdvanceAutomaticCadence(
+            FireCooldownSeconds,
+            DeltaTime,
+            ShotIntervalSeconds,
+            RoundsInMagazine,
+            6,
+            NextCooldownSeconds);
+
+        for (int32 ShotIndex = 0; ShotIndex < ShotsDue; ++ShotIndex)
+        {
+            FireCooldownSeconds = 0.0f;
+            if (!TryFireOnce())
+            {
+                break;
+            }
+        }
+        FireCooldownSeconds = NextCooldownSeconds;
+
+        if (RoundsInMagazine <= 0)
         {
             bTriggerHeld = false;
         }
+    }
+    else
+    {
+        FireCooldownSeconds = AdvanceCountdown(FireCooldownSeconds, DeltaTime);
     }
 
     RefreshTickState();
