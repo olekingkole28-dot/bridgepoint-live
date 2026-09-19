@@ -45,8 +45,7 @@ jobs:
           grep -Fq 'world-v2502-visual-fidelity.js' app/bridgepoint-3d-world/index.html
           grep -Fq "detail:[800,1450,2600]" app/bridgepoint-3d-world/world-v2500.js
           grep -Fq "tier==='LOW'?13" app/bridgepoint-3d-world/world-v2500-terrain.js
-          grep -Fq 'href="/app/"' index.html
-          grep -Fq "f.src='/app/'" index.html
+          grep -Fq '/app/bridgepoint-3d-world/?release=v2502' index.html
           ! grep -Fq '/app/bridgepoint-world-v2652/?release=b2b-world-v4246' index.html
           grep -Fq 'BridgePointVisualFidelityV2502' app/bridgepoint-3d-world/world-v2502-visual-fidelity.js
 
@@ -81,6 +80,5 @@ jobs:
           test -s site/app/bridgepoint-3d-world/world-v2502-visual-fidelity.js
           grep -Fq 'BridgePointVisualFidelityV2502' site/app/bridgepoint-3d-world/world-v2502-visual-fidelity.js
           grep -Fq 'world-v2502-visual-fidelity.js' site/app/bridgepoint-3d-world/index.html
-          grep -Fq 'href="/app/"' site/index.html
-          grep -Fq "f.src='/app/'" site/index.html
+          grep -Fq '/app/bridgepoint-3d-world/?release=v2502' site/index.html
           echo BRIDGEPOINT_V2502_RENDER_FIDELITY_DEPLOYED
