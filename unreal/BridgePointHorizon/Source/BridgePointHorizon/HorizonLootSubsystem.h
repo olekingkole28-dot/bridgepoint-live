@@ -76,15 +76,15 @@ struct FHorizonLootCollectionResult
     bool bAlreadyClaimed = false;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FHorizonDeferredLootDrop
 {
     GENERATED_BODY()
 
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     FGuid DropId;
 
-    UPROPERTY()
+    UPROPERTY(BlueprintReadOnly)
     TArray<FHorizonLootStack> Stacks;
 };
 
