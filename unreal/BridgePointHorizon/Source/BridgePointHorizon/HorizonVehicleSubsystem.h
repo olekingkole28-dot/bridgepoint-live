@@ -123,6 +123,12 @@ public:
 
     static bool CanStartEngine(const FHorizonVehicleState& State, FGuid DriverId);
     static bool IsDriverAuthorized(const FHorizonVehicleState& State, FGuid DriverId);
+    static bool ShouldBroadcastTravelUpdate(
+        float AccumulatedSeconds,
+        float DeltaSeconds,
+        bool bCollision,
+        bool bStopped,
+        float& OutRemainderSeconds);
     static FHorizonVehicleState SimulateTravel(
         const FHorizonVehicleState& Input,
         const FHorizonVehicleTuning& Tuning,
@@ -136,6 +142,8 @@ private:
 
     UPROPERTY()
     TObjectPtr<UHorizonVehicleSaveGame> State;
+
+    TMap<FGuid, float> TravelBroadcastAccumulators;
 
     void SaveState();
     void BroadcastVehicle(const FHorizonVehicleState& Vehicle);

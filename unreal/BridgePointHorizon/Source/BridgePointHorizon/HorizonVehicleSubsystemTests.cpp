@@ -116,4 +116,39 @@ bool FHorizonVehicleTuningTest::RunTest(const FString& Parameters)
     return true;
 }
 
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonVehicleBroadcastBudgetTest,
+    "BridgePoint.Horizon.Performance.Vehicle.BroadcastBudget",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonVehicleBroadcastBudgetTest::RunTest(const FString& Parameters)
+{
+    float Accumulator = 0.0f;
+    for (int32 Frame = 0; Frame < 6; ++Frame)
+    {
+        TestFalse(TEXT("Sub-budget travel frame does not broadcast"),
+            UHorizonVehicleSubsystem::ShouldBroadcastTravelUpdate(
+                Accumulator, 0.016f, false, false, Accumulator));
+    }
+    TestTrue(TEXT("Travel update broadcasts when ten-hertz budget is reached"),
+        UHorizonVehicleSubsystem::ShouldBroadcastTravelUpdate(
+            Accumulator, 0.016f, false, false, Accumulator));
+    TestTrue(TEXT("Broadcast remainder remains below interval"),
+        Accumulator >= 0.0f && Accumulator < 0.10f);
+
+    TestTrue(TEXT("Collision feedback bypasses travel throttle"),
+        UHorizonVehicleSubsystem::ShouldBroadcastTravelUpdate(
+            0.0f, 0.001f, true, false, Accumulator));
+    TestEqual(TEXT("Collision clears broadcast remainder"), Accumulator, 0.0f);
+
+    TestTrue(TEXT("Engine shutdown bypasses travel throttle"),
+        UHorizonVehicleSubsystem::ShouldBroadcastTravelUpdate(
+            0.0f, 0.001f, false, true, Accumulator));
+    TestFalse(TEXT("Invalid frame delta cannot synthesize a broadcast"),
+        UHorizonVehicleSubsystem::ShouldBroadcastTravelUpdate(
+            0.0f, -1.0f, false, false, Accumulator));
+    return true;
+}
+
 #endif

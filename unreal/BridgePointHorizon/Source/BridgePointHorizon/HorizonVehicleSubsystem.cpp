@@ -9,6 +9,7 @@ const TCHAR* UHorizonVehicleSubsystem::SaveSlot = TEXT("BridgePointHorizonVehicl
 void UHorizonVehicleSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
+    TravelBroadcastAccumulators.Reset();
 
     if (USaveGame* Loaded = UGameplayStatics::LoadGameFromSlot(SaveSlot, 0))
     {
@@ -102,6 +103,38 @@ bool UHorizonVehicleSubsystem::IsDriverAuthorized(
     return DriverId.IsValid() &&
         Vehicle.ActiveDriverId.IsValid() &&
         Vehicle.ActiveDriverId == DriverId;
+}
+
+bool UHorizonVehicleSubsystem::ShouldBroadcastTravelUpdate(
+    float AccumulatedSeconds,
+    float DeltaSeconds,
+    bool bCollision,
+    bool bStopped,
+    float& OutRemainderSeconds)
+{
+    constexpr float BroadcastIntervalSeconds = 0.10f;
+    const float SafeAccumulated = FMath::IsFinite(AccumulatedSeconds)
+        ? FMath::Max(0.0f, AccumulatedSeconds)
+        : 0.0f;
+    const float SafeDelta = FMath::IsFinite(DeltaSeconds)
+        ? FMath::Clamp(DeltaSeconds, 0.0f, 1.0f)
+        : 0.0f;
+
+    if (bCollision || bStopped)
+    {
+        OutRemainderSeconds = 0.0f;
+        return true;
+    }
+
+    const float TotalSeconds = SafeAccumulated + SafeDelta;
+    if (TotalSeconds + KINDA_SMALL_NUMBER < BroadcastIntervalSeconds)
+    {
+        OutRemainderSeconds = TotalSeconds;
+        return false;
+    }
+
+    OutRemainderSeconds = FMath::Fmod(TotalSeconds, BroadcastIntervalSeconds);
+    return true;
 }
 
 FHorizonVehicleState UHorizonVehicleSubsystem::SimulateTravel(
@@ -220,6 +253,7 @@ bool UHorizonVehicleSubsystem::TryStartEngine(FGuid VehicleId, FGuid DriverId)
 
     Vehicle->ActiveDriverId = DriverId;
     Vehicle->bEngineRunning = true;
+    TravelBroadcastAccumulators.FindOrAdd(VehicleId) = 0.0f;
     SaveState();
     BroadcastVehicle(*Vehicle);
     return true;
@@ -239,6 +273,7 @@ bool UHorizonVehicleSubsystem::StopEngine(FGuid VehicleId, FGuid DriverId)
 
     Vehicle->bEngineRunning = false;
     Vehicle->ActiveDriverId.Invalidate();
+    TravelBroadcastAccumulators.Remove(VehicleId);
     SaveState();
     BroadcastVehicle(*Vehicle);
     return true;
@@ -274,12 +309,27 @@ bool UHorizonVehicleSubsystem::AdvanceVehicle(
         bCollision,
         CollisionSeverity01);
 
+    const bool bStopped = bWasRunning && !Vehicle->bEngineRunning;
     const int32 NewCheckpoint = FMath::FloorToInt(Vehicle->OdometerKm * 4.0f);
-    if (NewCheckpoint != PreviousCheckpoint || (bWasRunning && !Vehicle->bEngineRunning))
+    if (NewCheckpoint != PreviousCheckpoint || bStopped)
     {
         SaveState();
     }
-    BroadcastVehicle(*Vehicle);
+
+    float& BroadcastAccumulator = TravelBroadcastAccumulators.FindOrAdd(VehicleId);
+    if (ShouldBroadcastTravelUpdate(
+            BroadcastAccumulator,
+            DeltaSeconds,
+            bCollision,
+            bStopped,
+            BroadcastAccumulator))
+    {
+        BroadcastVehicle(*Vehicle);
+    }
+    if (bStopped)
+    {
+        TravelBroadcastAccumulators.Remove(VehicleId);
+    }
     return true;
 }
 

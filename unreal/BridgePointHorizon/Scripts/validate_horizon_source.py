@@ -521,7 +521,8 @@ for token in [
     "EHorizonVehicleClass", "FHorizonVehicleTuning", "FHorizonVehicleState",
     "UHorizonVehicleSaveGame", "RegisterVehicle", "TryStartEngine", "StopEngine",
     "AdvanceVehicle", "RefuelFromInventory", "RepairFromInventory",
-    "CanStartEngine", "IsDriverAuthorized", "SimulateTravel"
+    "CanStartEngine", "IsDriverAuthorized", "ShouldBroadcastTravelUpdate",
+    "SimulateTravel", "TravelBroadcastAccumulators"
 ]:
     require(token in vehicle_contract, f"persistent vehicle contract missing: {token}")
 for token in [
@@ -529,7 +530,9 @@ for token in [
     "GetSubsystem<UHorizonSurvivalSubsystem>", 'TryRemoveItem(TEXT("fuel_can"), 1)',
     'TryRemoveItem(TEXT("repair_kit"), 1)', "SafeDeltaSeconds = FMath::Min(DeltaSeconds, 1.0f)",
     "FuelLiters + 10.0f", "Durability01 + 0.35f",
-    "NewCheckpoint != PreviousCheckpoint", "ActiveDriverId.Invalidate()"
+    "NewCheckpoint != PreviousCheckpoint", "ActiveDriverId.Invalidate()",
+    "BroadcastIntervalSeconds = 0.10f",
+    "TravelBroadcastAccumulators.FindOrAdd", "bCollision || bStopped"
 ]:
     require(token in vehicle, f"persistent vehicle behavior missing: {token}")
 for forbidden in ["premium", "purchase", "entitlement", "stripe", "payment"]:
@@ -545,7 +548,13 @@ for token in [
     "Destroyed vehicle cannot start", "Engine travel consumes fuel",
     "Collision severity reduces durability",
     "Resume spike cannot consume unbounded travel time",
-    "Fuel exhaustion stops engine", "Pickup carries more fuel than sedan"
+    "Fuel exhaustion stops engine", "Pickup carries more fuel than sedan",
+    "Performance.Vehicle.BroadcastBudget",
+    "Sub-budget travel frame does not broadcast",
+    "Travel update broadcasts when ten-hertz budget is reached",
+    "Collision feedback bypasses travel throttle",
+    "Engine shutdown bypasses travel throttle",
+    "Invalid frame delta cannot synthesize a broadcast"
 ]:
     require(token in vehicle_tests, f"native vehicle QA missing: {token}")
 require("Stripe" not in vehicle_tests and "Payment" not in vehicle_tests,
