@@ -231,6 +231,8 @@ jobs:
           node --check site/app/horizon-playable/horizon-v2.js
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
+          grep -Fq '__BP_APP_BUILD_VERSION__=5353' site/app.js
+          grep -Fq '__BP_WORLD_RENDER_VERSION__=5353' site/world-v2300-map.js
           grep -Fq 'bridgepoint_frontend_status_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_by_id_v5024' site/app.js
@@ -396,8 +398,9 @@ jobs:
             q="${GITHUB_SHA}-${i}-$(date +%s)"
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?v5050=${q}" -o /tmp/root.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?v5050=${q}" -o /tmp/app.html || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5050=${q}" -o /tmp/app.js || true
-            if grep -Fq 'BP_LANDING_V5050' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js; then ok=1; break; fi
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5353=${q}" -o /tmp/app.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5353=${q}" -o /tmp/world-v2300-map.js || true
+            if grep -Fq 'BP_LANDING_V5050' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5353' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5353' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5353' /tmp/world-v2300-map.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
@@ -478,8 +481,9 @@ jobs:
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               const errors=[];p.on('pageerror',e=>errors.push(String(e.message||e)));
-              await p.goto('https://bridgepointintelligence.online/app/?qa=v5202-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
-              await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000,{timeout:10000});
+              await p.goto('https://bridgepointintelligence.online/app/?qa=v5353-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000&&window.__BP_APP_BUILD_VERSION__===5353,{timeout:20000});
+              await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5353,{timeout:30000});
               await p.waitForFunction(()=>document.getElementById('canonicalProperties')?.textContent?.includes(','),{timeout:15000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
               await p.waitForFunction(()=>!!document.getElementById('bpTabContext')&&!!document.getElementById('bXrayUnderground')&&!!document.getElementById('toggleLiveContext')&&!!document.getElementById('ctxSurfaceMaterial')&&!!document.getElementById('ctxSurfaceSource')&&!!document.getElementById('transportArchive')&&!!document.getElementById('transportRuntime'),{timeout:10000});
