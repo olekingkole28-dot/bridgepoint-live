@@ -83,6 +83,26 @@ struct FHorizonWeaponShotResult
     FHorizonWeaponReportMix LocalAudioMix;
 };
 
+USTRUCT(BlueprintType)
+struct FHorizonWeaponFeedbackEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    EHorizonUiFeedbackCue Cue = EHorizonUiFeedbackCue::Confirm;
+
+    UPROPERTY(BlueprintReadOnly)
+    FHorizonUiFeedbackMix Mix;
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 RoundsInMagazine = 0;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+    FHorizonWeaponFeedback,
+    FHorizonWeaponFeedbackEvent,
+    Feedback);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
     FHorizonWeaponShotFired,
     FHorizonWeaponShotResult,
@@ -115,6 +135,9 @@ public:
     UPROPERTY(BlueprintAssignable)
     FHorizonWeaponStateChanged OnWeaponStateChanged;
 
+    UPROPERTY(BlueprintAssignable)
+    FHorizonWeaponFeedback OnWeaponFeedback;
+
     UFUNCTION(BlueprintCallable, Category="Horizon|Weapon")
     void ConfigureWeapon(const FHorizonWeaponSpec& NewSpec, bool bRefillAmmo = true);
 
@@ -140,6 +163,7 @@ public:
     FHorizonWeaponRuntimeState GetWeaponState() const;
 
     static bool CanFireRound(int32 RoundsInMagazine, bool bReloading, float FireCooldownSeconds);
+    static bool IsLowAmmo(int32 RoundsInMagazine, int32 MagazineSize);
     static int32 ComputeReloadTransfer(int32 RoundsInMagazine, int32 ReserveRounds, int32 MagazineSize);
     static float AdvanceCountdown(float RemainingSeconds, float DeltaSeconds);
     static int32 AdvanceAutomaticCadence(
@@ -166,6 +190,7 @@ private:
     bool bAiming = false;
 
     void CompleteReload();
+    void EmitUiFeedback(EHorizonUiFeedbackCue Cue);
     void BroadcastState();
     void RefreshTickState();
 };

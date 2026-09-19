@@ -299,6 +299,86 @@ FHorizonSpatialCueMix UHorizonAudioDirectorSubsystem::GetSpatialCueMix(
     return Mix;
 }
 
+FHorizonUiFeedbackMix UHorizonAudioDirectorSubsystem::BuildUiFeedbackMix(
+    EHorizonUiFeedbackCue Cue,
+    float CombatIntensity01,
+    int32 VariationSeed)
+{
+    FHorizonUiFeedbackMix Mix;
+    switch (Cue)
+    {
+        case EHorizonUiFeedbackCue::Confirm:
+            Mix.Gain = 0.54f;
+            Mix.Pitch = 1.08f;
+            Mix.HighToneGain = 0.72f;
+            Mix.LowToneGain = 0.10f;
+            Mix.TransientDuck = 0.02f;
+            break;
+        case EHorizonUiFeedbackCue::Denied:
+            Mix.Gain = 0.64f;
+            Mix.Pitch = 0.90f;
+            Mix.HighToneGain = 0.20f;
+            Mix.LowToneGain = 0.72f;
+            Mix.TransientDuck = 0.04f;
+            break;
+        case EHorizonUiFeedbackCue::LowAmmo:
+            Mix.Gain = 0.72f;
+            Mix.Pitch = 1.02f;
+            Mix.HighToneGain = 0.58f;
+            Mix.LowToneGain = 0.50f;
+            Mix.TransientDuck = 0.04f;
+            break;
+        case EHorizonUiFeedbackCue::Empty:
+            Mix.Gain = 0.78f;
+            Mix.Pitch = 0.86f;
+            Mix.HighToneGain = 0.15f;
+            Mix.LowToneGain = 0.82f;
+            Mix.TransientDuck = 0.05f;
+            break;
+        case EHorizonUiFeedbackCue::ReloadStart:
+            Mix.Gain = 0.50f;
+            Mix.Pitch = 0.96f;
+            Mix.HighToneGain = 0.35f;
+            Mix.LowToneGain = 0.42f;
+            Mix.TransientDuck = 0.01f;
+            break;
+        case EHorizonUiFeedbackCue::ReloadComplete:
+            Mix.Gain = 0.62f;
+            Mix.Pitch = 1.10f;
+            Mix.HighToneGain = 0.80f;
+            Mix.LowToneGain = 0.16f;
+            Mix.TransientDuck = 0.02f;
+            break;
+    }
+
+    const float Combat = FMath::Clamp(CombatIntensity01, 0.0f, 1.0f);
+    const bool bCritical =
+        Cue == EHorizonUiFeedbackCue::LowAmmo ||
+        Cue == EHorizonUiFeedbackCue::Empty ||
+        Cue == EHorizonUiFeedbackCue::Denied;
+    Mix.Gain *= FMath::Lerp(1.0f, bCritical ? 0.90f : 0.72f, Combat);
+
+    // Seeded micro-variation avoids sterile repetition without changing cue identity.
+    FRandomStream Variation(
+        VariationSeed * 3571 + static_cast<int32>(Cue) * 193);
+    Mix.Pitch *= Variation.FRandRange(0.985f, 1.015f);
+    Mix.Gain *= Variation.FRandRange(0.98f, 1.02f);
+    Mix.Gain = FMath::Clamp(Mix.Gain, 0.0f, 0.82f);
+    Mix.Pitch = FMath::Clamp(Mix.Pitch, 0.82f, 1.14f);
+    Mix.HighToneGain = FMath::Clamp(Mix.HighToneGain, 0.0f, 1.0f);
+    Mix.LowToneGain = FMath::Clamp(Mix.LowToneGain, 0.0f, 1.0f);
+    Mix.TransientDuck = FMath::Clamp(Mix.TransientDuck, 0.0f, 0.08f);
+    Mix.bListenerRelative = true;
+    return Mix;
+}
+
+FHorizonUiFeedbackMix UHorizonAudioDirectorSubsystem::GetUiFeedbackMix(
+    EHorizonUiFeedbackCue Cue,
+    int32 VariationSeed) const
+{
+    return BuildUiFeedbackMix(Cue, SmoothedCombatIntensity01, VariationSeed);
+}
+
 FHorizonWeaponReportMix UHorizonAudioDirectorSubsystem::GetWeaponReportMix(
     EHorizonWeaponReportClass ReportClass,
     float DistanceCm,

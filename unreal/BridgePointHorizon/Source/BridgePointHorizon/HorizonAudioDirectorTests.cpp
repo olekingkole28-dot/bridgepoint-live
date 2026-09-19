@@ -188,4 +188,36 @@ bool FHorizonWeaponReportAcousticsTest::RunTest(const FString& Parameters)
     return true;
 }
 
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonUiFeedbackClarityTest,
+    "BridgePoint.Horizon.Audio.UIFeedback.Clarity",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonUiFeedbackClarityTest::RunTest(const FString& Parameters)
+{
+    const FHorizonUiFeedbackMix Empty = UHorizonAudioDirectorSubsystem::BuildUiFeedbackMix(
+        EHorizonUiFeedbackCue::Empty, 1.0f, 27);
+    const FHorizonUiFeedbackMix ReloadStart = UHorizonAudioDirectorSubsystem::BuildUiFeedbackMix(
+        EHorizonUiFeedbackCue::ReloadStart, 1.0f, 27);
+    const FHorizonUiFeedbackMix ReloadComplete = UHorizonAudioDirectorSubsystem::BuildUiFeedbackMix(
+        EHorizonUiFeedbackCue::ReloadComplete, 0.0f, 9);
+    const FHorizonUiFeedbackMix Repeat = UHorizonAudioDirectorSubsystem::BuildUiFeedbackMix(
+        EHorizonUiFeedbackCue::Empty, 1.0f, 27);
+
+    TestTrue(TEXT("Critical empty cue remains clearer than routine reload start in combat"),
+        Empty.Gain > ReloadStart.Gain);
+    TestTrue(TEXT("Empty cue emphasizes the low warning tone"),
+        Empty.LowToneGain > Empty.HighToneGain);
+    TestTrue(TEXT("Reload completion emphasizes the high confirmation tone"),
+        ReloadComplete.HighToneGain > ReloadComplete.LowToneGain);
+    TestTrue(TEXT("UI feedback is listener relative"), Empty.bListenerRelative);
+    TestTrue(TEXT("UI feedback gain remains restrained"), Empty.Gain <= 0.82f);
+    TestTrue(TEXT("UI feedback ducking cannot mask combat"),
+        Empty.TransientDuck >= 0.0f && Empty.TransientDuck <= 0.08f);
+    TestEqual(TEXT("Seeded UI feedback pitch is deterministic"), Repeat.Pitch, Empty.Pitch);
+    TestEqual(TEXT("Seeded UI feedback gain is deterministic"), Repeat.Gain, Empty.Gain);
+    return true;
+}
+
 #endif

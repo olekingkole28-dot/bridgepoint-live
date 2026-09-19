@@ -58,6 +58,15 @@ bool UHorizonWeaponRuntimeComponent::CanFireRound(
     return MagazineRounds > 0 && !bIsReloading && CooldownSeconds <= KINDA_SMALL_NUMBER;
 }
 
+bool UHorizonWeaponRuntimeComponent::IsLowAmmo(
+    int32 MagazineRounds,
+    int32 MagazineCapacity)
+{
+    const int32 SafeCapacity = FMath::Max(1, MagazineCapacity);
+    const int32 LowAmmoThreshold = FMath::Max(1, FMath::CeilToInt(SafeCapacity * 0.20f));
+    return MagazineRounds > 0 && MagazineRounds <= LowAmmoThreshold;
+}
+
 int32 UHorizonWeaponRuntimeComponent::ComputeReloadTransfer(
     int32 MagazineRounds,
     int32 AvailableReserve,
@@ -172,6 +181,10 @@ bool UHorizonWeaponRuntimeComponent::TryFireOnce()
 {
     if (!CanFireRound(RoundsInMagazine, bReloading, FireCooldownSeconds))
     {
+        if (RoundsInMagazine <= 0 && !bReloading)
+        {
+            EmitUiFeedback(EHorizonUiFeedbackCue::Empty);
+        }
         return false;
     }
 
@@ -212,6 +225,10 @@ bool UHorizonWeaponRuntimeComponent::TryFireOnce()
     }
 
     OnShotFired.Broadcast(Result);
+    if (IsLowAmmo(RoundsInMagazine, WeaponSpec.MagazineSize))
+    {
+        EmitUiFeedback(EHorizonUiFeedbackCue::LowAmmo);
+    }
     BroadcastState();
     RefreshTickState();
     return true;
@@ -223,12 +240,14 @@ bool UHorizonWeaponRuntimeComponent::BeginReload()
         RoundsInMagazine >= WeaponSpec.MagazineSize ||
         ReserveRounds <= 0)
     {
+        EmitUiFeedback(EHorizonUiFeedbackCue::Denied);
         return false;
     }
 
     bReloading = true;
     bTriggerHeld = false;
     ReloadRemainingSeconds = WeaponSpec.ReloadSeconds;
+    EmitUiFeedback(EHorizonUiFeedbackCue::ReloadStart);
     BroadcastState();
     RefreshTickState();
     return true;
@@ -262,6 +281,10 @@ void UHorizonWeaponRuntimeComponent::CompleteReload()
     ReserveRounds -= Transfer;
     bReloading = false;
     ReloadRemainingSeconds = 0.0f;
+    if (Transfer > 0)
+    {
+        EmitUiFeedback(EHorizonUiFeedbackCue::ReloadComplete);
+    }
     BroadcastState();
 }
 
@@ -325,6 +348,33 @@ FHorizonWeaponRuntimeState UHorizonWeaponRuntimeComponent::GetWeaponState() cons
     State.ReloadRemainingSeconds = ReloadRemainingSeconds;
     State.FireCooldownSeconds = FireCooldownSeconds;
     return State;
+}
+
+void UHorizonWeaponRuntimeComponent::EmitUiFeedback(EHorizonUiFeedbackCue Cue)
+{
+    const int32 VariationSeed = ShotSequence + (static_cast<int32>(Cue) * 101);
+
+    FHorizonWeaponFeedbackEvent Feedback;
+    Feedback.Cue = Cue;
+    Feedback.RoundsInMagazine = RoundsInMagazine;
+    Feedback.Mix = UHorizonAudioDirectorSubsystem::BuildUiFeedbackMix(
+        Cue,
+        0.0f,
+        VariationSeed);
+
+    if (UWorld* World = GetWorld())
+    {
+        if (UGameInstance* GameInstance = World->GetGameInstance())
+        {
+            if (UHorizonAudioDirectorSubsystem* Audio =
+                    GameInstance->GetSubsystem<UHorizonAudioDirectorSubsystem>())
+            {
+                Feedback.Mix = Audio->GetUiFeedbackMix(Cue, VariationSeed);
+            }
+        }
+    }
+
+    OnWeaponFeedback.Broadcast(Feedback);
 }
 
 void UHorizonWeaponRuntimeComponent::BroadcastState()
