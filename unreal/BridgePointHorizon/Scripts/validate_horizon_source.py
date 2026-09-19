@@ -139,6 +139,23 @@ for token in [
 require("real interior plans" in interior and "source-backed exterior records" in interior,
         "real exterior evidence must remain separated from invented interior dressing")
 
+for token in [
+    "PrimaryActorTick.bStartWithTickEnabled = false",
+    "bool bAnyDoorStillMoving = false",
+    "IsDoorAnimationSettled",
+    "SetActorTickEnabled(false)",
+    "SetActorTickEnabled(true)",
+]:
+    require(token in interior, f"interior tick-budget safeguard missing: {token}")
+
+interior_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGeneratedInteriorTests.cpp")
+for token in [
+    "WITH_DEV_AUTOMATION_TESTS", "Interior.Performance.DoorTickBudget",
+    "Exact target is settled", "Wrapped angle is settled",
+    "Active swing remains awake", "Negative tolerance fails closed",
+]:
+    require(token in interior_tests, f"native interior performance QA missing: {token}")
+
 audio_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonAudioDirectorSubsystem.h")
 audio = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonAudioDirectorSubsystem.cpp")
 for token in [

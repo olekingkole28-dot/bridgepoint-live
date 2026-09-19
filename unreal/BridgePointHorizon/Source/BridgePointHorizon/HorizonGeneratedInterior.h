@@ -67,6 +67,12 @@ public:
     UFUNCTION(BlueprintPure, Category="Horizon|Interior")
     FString GetInteriorLayoutProvenance() const { return TEXT("fictional-procedural-gameplay"); }
 
+    // Pure helper keeps the door-settle policy executable in native automation tests.
+    static bool IsDoorAnimationSettled(
+        float CurrentYaw,
+        float TargetYaw,
+        float ToleranceDegrees = 0.10f);
+
 protected:
     virtual void BeginPlay() override;
 

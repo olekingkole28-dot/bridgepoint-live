@@ -8,6 +8,8 @@
 AHorizonGeneratedInterior::AHorizonGeneratedInterior()
 {
     PrimaryActorTick.bCanEverTick = true;
+    // Streamed interiors sleep by default. Door interaction wakes only the touched actor.
+    PrimaryActorTick.bStartWithTickEnabled = false;
 
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
     SetRootComponent(SceneRoot);
@@ -33,6 +35,7 @@ void AHorizonGeneratedInterior::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
+    bool bAnyDoorStillMoving = false;
     for (FDoorRuntime& Door : Doors)
     {
         USceneComponent* Pivot = Door.Pivot.Get();
@@ -42,10 +45,32 @@ void AHorizonGeneratedInterior::Tick(float DeltaSeconds)
         }
 
         FRotator Rotation = Pivot->GetRelativeRotation();
-        const float NewYaw = FMath::FInterpTo(Rotation.Yaw, Door.TargetYaw, DeltaSeconds, 7.5f);
-        Rotation.Yaw = NewYaw;
+        Rotation.Yaw = FMath::FInterpTo(Rotation.Yaw, Door.TargetYaw, DeltaSeconds, 7.5f);
+        if (IsDoorAnimationSettled(Rotation.Yaw, Door.TargetYaw))
+        {
+            // Snap to the exact target so sleeping actors never retain tiny residual drift.
+            Rotation.Yaw = Door.TargetYaw;
+        }
+        else
+        {
+            bAnyDoorStillMoving = true;
+        }
         Pivot->SetRelativeRotation(Rotation);
     }
+
+    if (!bAnyDoorStillMoving)
+    {
+        SetActorTickEnabled(false);
+    }
+}
+
+bool AHorizonGeneratedInterior::IsDoorAnimationSettled(
+    float CurrentYaw,
+    float TargetYaw,
+    float ToleranceDegrees)
+{
+    const float SafeTolerance = FMath::Max(0.001f, ToleranceDegrees);
+    return FMath::Abs(FMath::FindDeltaAngleDegrees(CurrentYaw, TargetYaw)) <= SafeTolerance;
 }
 
 UStaticMeshComponent* AHorizonGeneratedInterior::AddBox(
@@ -77,6 +102,7 @@ UStaticMeshComponent* AHorizonGeneratedInterior::AddBox(
 
 void AHorizonGeneratedInterior::ClearInterior()
 {
+    SetActorTickEnabled(false);
     Doors.Reset();
     GeneratedDressingPieceCount = 0;
 
@@ -608,5 +634,6 @@ bool AHorizonGeneratedInterior::ToggleNearestDoor(FVector WorldLocation, float R
     FDoorRuntime& Door = Doors[BestIndex];
     Door.bOpen = !Door.bOpen;
     Door.TargetYaw = Door.bOpen ? Door.OpenYaw : Door.ClosedYaw;
+    SetActorTickEnabled(true);
     return true;
 }
