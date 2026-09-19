@@ -26,7 +26,7 @@ function precip(o){const s=text([o?.weather,o?.present_weather,o?.weather_text,o
 
 function baseLayers(map){
  for(const id of ['wx-alerts','wx-fires','wx-quakes','wx-storms','wx-thermal','wx-obs','wx-water'])if(!map.getSource(id))map.addSource(id,{type:'geojson',data:EMPTY});
- if(!map.getSource('wx-radar'))try{map.addSource('wx-radar',{type:'raster',tiles:[RADAR],tileSize:256,minzoom:3,maxzoom:12,attribution:'NOAA/NWS radar'})}catch(_){}
+ if(!map.getSource('wx-radar'))try{map.addSource('wx-radar',{type:'raster',tiles:[RADAR],tileSize:256,minzoom:2,maxzoom:12,attribution:'NOAA/NWS radar'})}catch(_){}
  if(!map.getSource('wx-snow-depth'))try{map.addSource('wx-snow-depth',{type:'raster',tiles:[SNOW_DEPTH],tileSize:256,minzoom:4,maxzoom:12,attribution:'NOAA/NWS NOHRSC National Snow Analysis · modeled/assimilated 1-km snow depth'})}catch(_){}
  const before=map.getLayer('gta-exact-building')?'gta-exact-building':undefined;
  add(map,{id:'wx-snow-depth',type:'raster',source:'wx-snow-depth',minzoom:4,maxzoom:15,paint:{'raster-opacity':['interpolate',['linear'],['zoom'],4,.14,8,.2,13,.24,15,.18],'raster-saturation':-.18,'raster-contrast':.08,'raster-fade-duration':0}},before);
@@ -41,8 +41,8 @@ function baseLayers(map){
  add(map,{id:'wx-storm',type:'circle',source:'wx-storms',paint:{'circle-radius':7,'circle-color':'#e8c9ff','circle-stroke-color':'#b555ff','circle-stroke-width':2}},before);
  add(map,{id:'wx-obs',type:'circle',source:'wx-obs',minzoom:6,paint:{'circle-radius':['interpolate',['linear'],['zoom'],6,1.5,12,3.2],'circle-color':['interpolate',['linear'],['coalesce',['get','temperature_f'],60],0,'#70b8ff',55,'#d4f7ff',80,'#ffcf7e',105,'#ff5c48'],'circle-opacity':.68}},before);
  add(map,{id:'wx-water',type:'circle',source:'wx-water',minzoom:6,paint:{'circle-radius':['interpolate',['linear'],['zoom'],6,2,13,4.5],'circle-color':'#78e8ff','circle-stroke-color':'#0d5877','circle-stroke-width':1.5,'circle-opacity':.86}},before);
- add(map,{id:'wx-radar-haze',type:'raster',source:'wx-radar',layout:{visibility:'none'},paint:{'raster-opacity':LOW?.12:.18,'raster-hue-rotate':185,'raster-saturation':-.28,'raster-contrast':-.08,'raster-brightness-max':.9,'raster-fade-duration':0}});
- add(map,{id:'wx-radar',type:'raster',source:'wx-radar',layout:{visibility:'none'},paint:{'raster-opacity':LOW?.42:.56,'raster-saturation':.08,'raster-contrast':.08,'raster-fade-duration':0}})
+ add(map,{id:'wx-radar-haze',type:'raster',source:'wx-radar',minzoom:2,layout:{visibility:'none'},paint:{'raster-opacity':LOW?.12:.18,'raster-hue-rotate':185,'raster-saturation':-.28,'raster-contrast':-.08,'raster-brightness-max':.9,'raster-fade-duration':0}});
+ add(map,{id:'wx-radar',type:'raster',source:'wx-radar',minzoom:2,layout:{visibility:'none'},paint:{'raster-opacity':LOW?.42:.56,'raster-saturation':.08,'raster-contrast':.08,'raster-fade-duration':0}})
 }
 
 function createFx(map){
