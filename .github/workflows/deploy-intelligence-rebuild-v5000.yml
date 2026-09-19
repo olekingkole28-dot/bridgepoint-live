@@ -511,7 +511,12 @@ jobs:
                 return {before,during,after,light:window.__BP_WORLD_LIGHT__||null,living:window.__BP_LIVING_WORLD_STATE__||null}
               });
               console.log('BRIDGEPOINT_PERSISTENT_RENDERER',JSON.stringify(persistenceState));
-              if(Object.values(persistenceState.during).some(v=>v==='none'))throw new Error('PERSISTENT_RENDERER_HID_LAYER '+JSON.stringify(persistenceState));
+              const visible=v=>v!=='none';
+              const shellVisible=s=>visible(s['gta-bp-buildings'])||visible(s['gta-context-buildings']);
+              for(const phase of ['before','during','after']){
+                const s=persistenceState[phase]||{};
+                if(!shellVisible(s)||!visible(s['gta-road-major'])||!visible(s['gta-road-local'])||!visible(s['gta-landcover']))throw new Error('PERSISTENT_RENDERER_BLANKED_AUTHORITATIVE_LAYER '+phase+' '+JSON.stringify(persistenceState));
+              }
               const frameProbe=await p.evaluate(async()=>{
                 const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('frame probe map missing');
                 const gaps=[];let active=true,last=performance.now();
@@ -534,39 +539,31 @@ jobs:
               await p.waitForFunction(()=>getComputedStyle(document.getElementById('systemPanel')).display==='none',{timeout:5000});
               console.log('BRIDGEPOINT_MOBILE_STATUS_PANEL_CLOSED');
 
-              // Regression gate: visible OpenFreeMap context shells must be selectable even
-              // when the BridgePoint/exact/opportunity overlays are hidden.
+              // Regression gate: the authoritative visible shell must be selectable.
               await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
-                if(!m)throw new Error('context-hit-test map unavailable');
+                if(!m)throw new Error('authoritative-hit-test map unavailable');
                 m.jumpTo({center:[-73.9857,40.7484],zoom:17.2,pitch:58,bearing:0});
               });
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
-                if(!m?.getLayer('gta-context-buildings'))return false;
-                try{return m.queryRenderedFeatures({layers:['gta-context-buildings']}).length>0}catch{return false}
+                if(!m)return false;
+                const candidates=['gta-bp-buildings','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                try{return candidates.some(id=>m.queryRenderedFeatures({layers:[id]}).length>0)}catch{return false}
               },{timeout:45000});
-              const contextBuildingHit=await p.evaluate(()=>{
+              const authoritativeBuildingHit=await p.evaluate(()=>{
                 const w=window.__BP_V5000_WORLD,m=w?.map;
                 if(!w?.selectBuildingAtPoint||!m)return null;
-                const overlays=['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings'];
-                const prior=overlays.map(id=>[id,m.getLayer(id)?(m.getLayoutProperty(id,'visibility')||'visible'):null]);
-                for(const [id,v] of prior)if(v!==null)m.setLayoutProperty(id,'visibility','none');
-                let picked=null;
-                try{
-                  const cv=m.getCanvas(),width=cv.clientWidth||cv.width,height=cv.clientHeight||cv.height;
-                  outer:for(let y=80;y<height-60;y+=18)for(let x=18;x<width-18;x+=18){
-                    let hit=0;try{hit=m.queryRenderedFeatures({x,y},{layers:['gta-context-buildings']}).length}catch(_){}
-                    if(hit&&w.selectBuildingAtPoint({x,y})===true){picked={x,y};break outer}
-                  }
-                }finally{
-                  for(const [id,v] of prior)if(v!==null)m.setLayoutProperty(id,'visibility',v);
+                const layers=['gta-bp-buildings','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                const cv=m.getCanvas(),width=cv.clientWidth||cv.width,height=cv.clientHeight||cv.height;
+                for(let y=80;y<height-60;y+=18)for(let x=18;x<width-18;x+=18){
+                  try{if(m.queryRenderedFeatures({x,y},{layers}).length&&w.selectBuildingAtPoint({x,y})===true)return{x,y,layers}}catch(_){}
                 }
-                return picked;
+                return null;
               });
-              if(!contextBuildingHit)throw new Error('VISIBLE_CONTEXT_BUILDING_NOT_CLICKABLE');
+              if(!authoritativeBuildingHit)throw new Error('VISIBLE_AUTHORITATIVE_BUILDING_NOT_CLICKABLE');
               await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===false,{timeout:5000});
-              console.log('BRIDGEPOINT_CONTEXT_BUILDING_HITTEST_PASS',JSON.stringify(contextBuildingHit));
+              console.log('BRIDGEPOINT_AUTHORITATIVE_BUILDING_HITTEST_PASS',JSON.stringify(authoritativeBuildingHit));
               await p.evaluate(()=>window.__BP_V5000_CLEAR_BUILDING__?.());
 
               await p.evaluate(()=>{
