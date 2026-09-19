@@ -22,7 +22,7 @@ const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co',KEY='sb_publishable_lM9oWQ
    $('previewCard').hidden=false
   });
   map.on('move',()=>{$('previewCard').hidden=true});
-  window.__BP_LANDING_RENDERER_PARITY__={sharedModule:true,version:5323,container:'previewMap',sameWorldRendererAsApp:true,updatedAt:Date.now()}
+  window.__BP_LANDING_RENDERER_PARITY__={sharedModule:true,version:5323,container:'previewMap',sameWorldRendererAsApp:true,updatedAt:Date.now()};window.__BP_LANDING_PARITY_V5323__=true
  }catch(e){
   console.error('BridgePoint shared preview renderer',e);
   const el=$('previewMap');if(el)el.innerHTML='<div style="display:grid;place-items:center;height:100%;padding:24px;text-align:center;color:#a9c0ca;background:#071017">BridgePoint World preview is refreshing. Open the app for the live map.</div>'
