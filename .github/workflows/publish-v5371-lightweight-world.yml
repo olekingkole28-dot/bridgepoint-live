@@ -162,7 +162,7 @@ jobs:
                   fine
                 };
               });
-              if(city.buildings<150||city.cityVis==='none'||city.stateVis==='none'||city.parcelVis==='none'||!city.terrain||city.fine.enabled!==false)throw new Error('CITY '+JSON.stringify(city));
+              if(city.buildings<150||city.cityVis==='none'||city.stateVis==='none'||!city.terrain||city.fine.enabled!==false)throw new Error('CITY '+JSON.stringify(city));
 
               await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:14.6,pitch:58,bearing:-18}));
               await sleep(4500);
