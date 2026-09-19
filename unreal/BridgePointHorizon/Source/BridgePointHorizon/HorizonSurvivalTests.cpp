@@ -113,6 +113,11 @@ bool FHorizonInventoryWeightTest::RunTest(const FString& Parameters)
     TestTrue(
         TEXT("Unknown items have no exploitable negative weight"),
         UHorizonSurvivalSubsystem::GetItemUnitWeightKg(TEXT("unknown_item")) == 0.0f);
+    TestTrue(
+        TEXT("Vehicle fuel has a registered carry weight"),
+        FMath::IsNearlyEqual(
+            UHorizonSurvivalSubsystem::GetItemUnitWeightKg(TEXT("fuel_can")),
+            7.50f));
     return true;
 }
 

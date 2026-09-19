@@ -61,6 +61,7 @@ required_source = [
     "HorizonSurvivalSubsystem",
     "HorizonLootSubsystem",
     "HorizonBaseBuildingSubsystem",
+    "HorizonVehicleSubsystem",
     "HorizonEnemyProgressionSubsystem",
     "HorizonWorldStreamSubsystem",
     "HorizonWorldCellRenderer",
@@ -406,6 +407,7 @@ for token in [
     "TryBuildInventoryAfterAddition(", "Additions.FindOrAdd",
     "ComputeInventoryWeightKg(ResultInventory) > Capacity",
     "craft_bandage", "craft_campfire", "craft_water_filter", "craft_repair_kit",
+    'ItemKey == TEXT("fuel_can")',
     "SprintHungerMultiplier", "SprintThirstMultiplier",
     "ShelterHungerMultiplier", "ShelterThirstMultiplier",
     "DeprivationDamagePerHour", "FMath::Clamp(DeltaHours, 0.0f, 24.0f)"
@@ -429,7 +431,8 @@ for token in [
     "Multi-stack addition validates as one transaction",
     "Duplicate additions aggregate exactly once",
     "Over-capacity transaction fails before mutation",
-    "Unknown item addition fails closed", "Quantity overflow fails closed"
+    "Unknown item addition fails closed", "Quantity overflow fails closed",
+    "Vehicle fuel has a registered carry weight"
 ]:
     require(token in survival_tests, f"native survival QA missing: {token}")
 require("Stripe" not in survival_tests and "Payment" not in survival_tests,
@@ -452,7 +455,8 @@ for token in [
     "ComputeInventoryWeightKg", "GetItemUnitWeightKg",
     "ClaimedDropIds.Contains", "DeferredDrops", "Drop.DropId.IsValid()",
     "FMath::Clamp(Context.QualityBias, -0.25f, 0.50f)",
-    "SourceBonus(Context.Source)", "FRandomStream"
+    "SourceBonus(Context.Source)", "FRandomStream",
+    'TEXT("fuel_can")'
 ]:
     require(token in loot, f"persistent fair loot behavior missing: {token}")
 for forbidden in ["premium", "purchase", "entitlement", "stripe", "payment"]:
@@ -509,6 +513,43 @@ for token in [
     require(token in base_building_tests, f"native base building QA missing: {token}")
 require("Stripe" not in base_building_tests and "Payment" not in base_building_tests,
         "base building QA must remain independent of payments")
+
+vehicle_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonVehicleSubsystem.h")
+vehicle = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonVehicleSubsystem.cpp")
+vehicle_contract = vehicle_header + "\n" + vehicle
+for token in [
+    "EHorizonVehicleClass", "FHorizonVehicleTuning", "FHorizonVehicleState",
+    "UHorizonVehicleSaveGame", "RegisterVehicle", "TryStartEngine", "StopEngine",
+    "AdvanceVehicle", "RefuelFromInventory", "RepairFromInventory",
+    "CanStartEngine", "IsDriverAuthorized", "SimulateTravel"
+]:
+    require(token in vehicle_contract, f"persistent vehicle contract missing: {token}")
+for token in [
+    "BridgePointHorizonVehicles", "LoadGameFromSlot", "SaveGameToSlot",
+    "GetSubsystem<UHorizonSurvivalSubsystem>", 'TryRemoveItem(TEXT("fuel_can"), 1)',
+    'TryRemoveItem(TEXT("repair_kit"), 1)', "SafeDeltaSeconds = FMath::Min(DeltaSeconds, 1.0f)",
+    "FuelLiters + 10.0f", "Durability01 + 0.35f",
+    "NewCheckpoint != PreviousCheckpoint", "ActiveDriverId.Invalidate()"
+]:
+    require(token in vehicle, f"persistent vehicle behavior missing: {token}")
+for forbidden in ["premium", "purchase", "entitlement", "stripe", "payment"]:
+    require(forbidden not in vehicle_contract.lower(),
+            f"vehicle runtime must remain gameplay-only: {forbidden}")
+
+vehicle_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonVehicleSubsystemTests.cpp")
+for token in [
+    "WITH_DEV_AUTOMATION_TESTS", "Systems.Vehicle.DriverGuard",
+    "Systems.Vehicle.TravelSimulation", "Systems.Vehicle.ClassTuning",
+    "Operational unoccupied vehicle accepts a valid driver",
+    "Second driver cannot take over an occupied vehicle",
+    "Destroyed vehicle cannot start", "Engine travel consumes fuel",
+    "Collision severity reduces durability",
+    "Resume spike cannot consume unbounded travel time",
+    "Fuel exhaustion stops engine", "Pickup carries more fuel than sedan"
+]:
+    require(token in vehicle_tests, f"native vehicle QA missing: {token}")
+require("Stripe" not in vehicle_tests and "Payment" not in vehicle_tests,
+        "vehicle QA must remain independent of payments")
 
 enemy_progression_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonEnemyProgressionSubsystem.h")
 enemy_progression = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonEnemyProgressionSubsystem.cpp")

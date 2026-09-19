@@ -39,6 +39,7 @@ float UHorizonSurvivalSubsystem::GetItemUnitWeightKg(FName ItemKey)
     if (ItemKey == TEXT("campfire_kit")) return 4.20f;
     if (ItemKey == TEXT("water_filter")) return 0.80f;
     if (ItemKey == TEXT("repair_kit")) return 1.80f;
+    if (ItemKey == TEXT("fuel_can")) return 7.50f;
     return 0.0f;
 }
 
