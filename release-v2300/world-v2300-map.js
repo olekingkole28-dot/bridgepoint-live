@@ -24,6 +24,7 @@ function style(){
    ['to-number',['get','year_built']],
    ['to-number',['get','start_date']],
    ['to-number',['get','construction:year']],
+   ['to-number',['get','construction_year',['coalesce',['get','metadata'],['literal',{}]]]],
    0
  ];
  const bSeedBase=['to-number',
