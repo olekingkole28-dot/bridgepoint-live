@@ -412,25 +412,6 @@ jobs:
           test -s site/app/horizon-playable/assets/characters/mesh2motion/models/swat_male.glb
           echo "V5000 CLEAN INTELLIGENCE ARTIFACT READY"
 
-      - name: Persist successful V5000 artifact as durable live baseline
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf /tmp/v5000-live
-          mkdir -p /tmp/v5000-live
-          cp -a site/. /tmp/v5000-live/
-          cd /tmp/v5000-live
-          git init -q
-          git config user.name 'BridgePoint V5000 Production Authority'
-          git config user.email 'actions@users.noreply.github.com'
-          git checkout -b live-artifact
-          git add -A
-          git commit -m "Publish successful BridgePoint V5000 ${GITHUB_SHA}"
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push --force origin live-artifact
-
       - uses: actions/configure-pages@v5
         with:
           enablement: true
@@ -910,3 +891,23 @@ jobs:
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
           NODE
+
+      - name: Persist only fully verified V5000 production as durable live baseline
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v5000-live
+          mkdir -p /tmp/v5000-live
+          cp -a site/. /tmp/v5000-live/
+          cd /tmp/v5000-live
+          git init -q
+          git config user.name 'BridgePoint V5000 Production Authority'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m "Publish fully verified BridgePoint V5000 ${GITHUB_SHA}"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
