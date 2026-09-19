@@ -59,6 +59,7 @@ required_source = [
     "HorizonLoadoutSubsystem",
     "HorizonWeaponRuntimeComponent",
     "HorizonSurvivalSubsystem",
+    "HorizonEnemyProgressionSubsystem",
     "HorizonWorldStreamSubsystem",
     "HorizonWorldCellRenderer",
     "HorizonWorldRuntime",
@@ -307,6 +308,35 @@ for token in [
     require(token in survival_tests, f"native survival QA missing: {token}")
 require("Stripe" not in survival_tests and "Payment" not in survival_tests,
         "survival QA must remain independent of payments")
+
+enemy_progression_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonEnemyProgressionSubsystem.h")
+enemy_progression = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonEnemyProgressionSubsystem.cpp")
+enemy_progression_contract = enemy_progression_header + "\n" + enemy_progression
+for token in [
+    "FHorizonEnemyProgressionContext", "FHorizonEnemyTierProfile",
+    "UHorizonEnemyProgressionSaveGame", "EvaluateEncounter", "RecordEncounterOutcome",
+    "BuildTierProfile", "ComputeNextWorldThreat", "AveragePrestige", "RecentWinRate01"
+]:
+    require(token in enemy_progression_contract, f"enemy progression contract missing: {token}")
+for token in [
+    "BridgePointHorizonEnemyProgression", "LoadGameFromSlot", "SaveGameToSlot",
+    "0.75f", "2.25f", "1.42f", "1.34f", "1.10f",
+    "Prestige01 * 0.12f", "PerformanceAdjustment", "bBossEligible"
+]:
+    require(token in enemy_progression, f"bounded enemy progression behavior missing: {token}")
+for forbidden in ["premium", "purchase", "entitlement", "stripe", "payment"]:
+    require(forbidden not in enemy_progression_contract.lower(),
+            f"enemy progression must remain gameplay-only: {forbidden}")
+
+enemy_progression_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonEnemyProgressionTests.cpp")
+for token in [
+    "WITH_DEV_AUTOMATION_TESTS", "Enemies.CapabilityScaling", "Enemies.LossRecovery",
+    "Enemies.PrestigeGuardrail", "larger encounter budget", "Losses create recovery space",
+    "Prestige above 100 cannot inflate encounter pressure"
+]:
+    require(token in enemy_progression_tests, f"native enemy progression QA missing: {token}")
+require("Stripe" not in enemy_progression_tests and "Payment" not in enemy_progression_tests,
+        "enemy progression QA must remain independent of payments")
 
 
 engine_config = read("unreal/BridgePointHorizon/Config/DefaultEngine.ini")
