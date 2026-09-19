@@ -74,6 +74,7 @@ jobs:
           CODE=$(curl -sS --retry 3 --retry-all-errors --retry-delay 1             -H 'Origin: https://bridgepointintelligence.online'             -H "apikey: ${KEY}"             -o /tmp/city.mvt             -w '%{http_code}'             'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-building-city-tile-v5370?z=11&x=602&y=770&limit=500')
           BYTES=$(wc -c </tmp/city.mvt)
           echo "CITY_TILE_HTTP=${CODE} BYTES=${BYTES}"
+          if [ "${CODE}" != 200 ]; then cat /tmp/city.mvt; echo; fi
           test "${CODE}" = 200
           test "${BYTES}" -gt 1000
 
