@@ -529,6 +529,31 @@ jobs:
                 const s=persistenceState[phase]||{};
                 if(!shellVisible(s)||!visible(s['gta-road-major'])||!visible(s['gta-road-local'])||!visible(s['gta-landcover']))throw new Error('PERSISTENT_RENDERER_BLANKED_AUTHORITATIVE_LAYER '+phase+' '+JSON.stringify(persistenceState));
               }
+
+              // Regression gate for the exact blank-building failure seen in the public preview:
+              // suburban U.S. viewports must keep the global shell visible until BridgePoint
+              // building tiles are loaded and actually contain features.
+              await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('suburban fallback map unavailable');
+                m.jumpTo({center:[-74.0926,40.8987],zoom:16.1,pitch:50,bearing:0});
+              });
+              await p.waitForFunction(()=>{
+                const m=window.__BP_V5000_WORLD?.map;if(!m)return false;
+                const ids=['gta-bp-buildings','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                try{return ids.length>0&&ids.some(id=>m.queryRenderedFeatures({layers:[id]}).length>0)}catch{return false}
+              },{timeout:30000});
+              const suburbanShell=await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                const mode=window.__BP_BUILDING_SHELL_MODE__||{};
+                const rendered={};
+                for(const id of ['gta-bp-buildings','gta-context-buildings']){
+                  try{rendered[id]=m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none'?m.queryRenderedFeatures({layers:[id]}).length:0}catch{rendered[id]=0}
+                }
+                return{mode,rendered}
+              });
+              if(Number(suburbanShell.rendered['gta-bp-buildings']||0)+Number(suburbanShell.rendered['gta-context-buildings']||0)<1)throw new Error('SUBURBAN_BUILDING_FALLBACK_BLANK '+JSON.stringify(suburbanShell));
+              console.log('BRIDGEPOINT_SUBURBAN_BUILDING_FALLBACK_PASS',JSON.stringify(suburbanShell));
+
               const frameProbe=await p.evaluate(async()=>{
                 const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('frame probe map missing');
                 const gaps=[];let active=true,last=performance.now();
