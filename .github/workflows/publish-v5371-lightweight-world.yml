@@ -1,4 +1,4 @@
-# V5376 final publish: refresh hidden global roof/floor buckets on visibility
+# V5376 final publish: activate global roof/floor passes with paint refresh and stable layer order
 name: Publish BridgePoint V5376 Lightweight World
 
 on:
