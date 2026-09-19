@@ -14,7 +14,9 @@ enum class EHorizonRewardType : uint8
     Emote,
     Spray,
     Character,
-    Blueprint
+    Blueprint,
+    Badge,
+    Banner
 };
 
 USTRUCT(BlueprintType)
@@ -54,6 +56,18 @@ public:
     int32 SeasonLevel = 0;
 
     UPROPERTY()
+    int32 CareerXP = 0;
+
+    UPROPERTY()
+    int32 CareerLevel = 1;
+
+    UPROPERTY()
+    int32 Prestige = 0;
+
+    UPROPERTY()
+    int32 LifetimeKills = 0;
+
+    UPROPERTY()
     int32 Salvage = 0;
 
     UPROPERTY()
@@ -67,6 +81,7 @@ public:
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FHorizonProgressionChanged, int32, NewLevel, int32, NewXP);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FHorizonCareerChanged, int32, NewCareerLevel, int32, NewPrestige);
 
 UCLASS()
 class BRIDGEPOINTHORIZON_API UHorizonProgressionSubsystem : public UGameInstanceSubsystem
@@ -79,8 +94,20 @@ public:
     UPROPERTY(BlueprintAssignable)
     FHorizonProgressionChanged OnProgressionChanged;
 
+    UPROPERTY(BlueprintAssignable)
+    FHorizonCareerChanged OnCareerChanged;
+
     UFUNCTION(BlueprintCallable, Category="Horizon|Progression")
     void AddXP(int32 Amount, FDateTime NowUtc);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Progression|Career")
+    void AddCareerXP(int32 Amount);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Progression|Career")
+    void RecordKill(int32 Count = 1);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Progression|Career")
+    bool TryPrestige(FHorizonReward& OutReward);
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Progression")
     bool ClaimDailyFreeReward(FDateTime NowUtc, FHorizonReward& OutReward);
@@ -106,6 +133,21 @@ public:
     UFUNCTION(BlueprintPure, Category="Horizon|Progression")
     int32 GetXP() const;
 
+    UFUNCTION(BlueprintPure, Category="Horizon|Progression|Career")
+    int32 GetCareerLevel() const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Progression|Career")
+    int32 GetCareerXP() const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Progression|Career")
+    int32 GetPrestige() const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Progression|Career")
+    int32 GetLifetimeKills() const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Progression|Career")
+    bool CanPrestige() const;
+
     UFUNCTION(BlueprintPure, Category="Horizon|Progression")
     int32 GetSalvage() const;
 
@@ -118,12 +160,16 @@ public:
 private:
     static constexpr int32 MaxLevel = 150;
     static constexpr int32 XPPerLevel = 500;
+    static constexpr int32 MaxCareerLevel = 100;
+    static constexpr int32 MaxPrestige = 100;
+    static constexpr int32 CareerXPPerLevel = 1000;
     static const TCHAR* SaveSlot;
 
     UPROPERTY()
     TObjectPtr<UHorizonProgressionSaveGame> State;
 
     void EnsureSeason(FDateTime NowUtc);
+    void SanitizeCareerState();
     void SaveState();
     FString MakeSeasonKey(FDateTime NowUtc) const;
     FString MakeDailyKey(FDateTime NowUtc) const;
