@@ -36,6 +36,19 @@ enum class EHorizonWeatherAudioState : uint8
 };
 
 UENUM(BlueprintType)
+enum class EHorizonRegionalAmbience : uint8
+{
+    NortheastUrban,
+    SoutheastWetlands,
+    DesertSouthwest,
+    PacificForest,
+    GreatPlains,
+    Mountain,
+    TropicalTerritory,
+    Arctic
+};
+
+UENUM(BlueprintType)
 enum class EHorizonSensoryStinger : uint8
 {
     None,
@@ -110,6 +123,39 @@ struct FHorizonFootstepMix
 
     UPROPERTY(BlueprintReadOnly)
     float SplashGain = 0.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FHorizonRegionalAmbienceMix
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    float WindGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float RainGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float SnowGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float ThunderGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float FaunaGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float UrbanHumGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float WaterGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float VegetationGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float InteriorTransmission = 1.0f;
 };
 
 USTRUCT(BlueprintType)
@@ -193,6 +239,12 @@ public:
     void SetWeatherState(EHorizonWeatherAudioState NewWeather);
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Audio")
+    void SetWeatherIntensity01(float NewIntensity);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Audio")
+    void SetRegionalAmbience(EHorizonRegionalAmbience NewRegion);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Audio")
     void SetOcclusion01(float NewOcclusion);
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Audio")
@@ -220,6 +272,9 @@ public:
         bool bCrouched) const;
 
     UFUNCTION(BlueprintPure, Category="Horizon|Audio")
+    FHorizonRegionalAmbienceMix GetRegionalAmbienceMix() const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Audio")
     EHorizonAcousticSpace GetAcousticSpace() const { return AcousticSpace; }
 
     UFUNCTION(BlueprintPure, Category="Horizon|Audio")
@@ -235,12 +290,17 @@ private:
     UPROPERTY()
     EHorizonWeatherAudioState WeatherState = EHorizonWeatherAudioState::Clear;
 
+    UPROPERTY()
+    EHorizonRegionalAmbience RegionalAmbience = EHorizonRegionalAmbience::NortheastUrban;
+
     bool TickCombatMix(float DeltaSeconds);
     float ThreatToIntensity(EHorizonThreatState Threat) const;
     void QueueStinger(EHorizonSensoryStinger Stinger);
 
     float Occlusion01 = 0.0f;
     float HordePressure01 = 0.0f;
+    float DesiredWeatherIntensity01 = 0.0f;
+    float SmoothedWeatherIntensity01 = 0.0f;
     float DesiredCombatIntensity01 = 0.0f;
     float SmoothedCombatIntensity01 = 0.0f;
     float CombatReleaseHoldSeconds = 0.0f;
