@@ -71,6 +71,16 @@ enum class EHorizonSpatialCueClass : uint8
 };
 
 UENUM(BlueprintType)
+enum class EHorizonWeaponReportClass : uint8
+{
+    Sidearm,
+    Rifle,
+    Shotgun,
+    Precision,
+    Suppressed
+};
+
+UENUM(BlueprintType)
 enum class EHorizonFootstepSurface : uint8
 {
     Concrete,
@@ -120,6 +130,45 @@ struct FHorizonSpatialCueMix
 
     UPROPERTY(BlueprintReadOnly)
     float MaxDistanceCm = 12000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bVirtualizeWhenSilent = true;
+};
+
+USTRUCT(BlueprintType)
+struct FHorizonWeaponReportMix
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    float ReportGain = 1.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float MechanicalGain = 0.45f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float LowFrequencyGain = 0.70f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float EarlyReflectionGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float TailGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float Pitch = 1.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float PropagationDelaySeconds = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float TailDelaySeconds = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float LowPassCutoffHz = 20000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float MaxDistanceCm = 45000.0f;
 
     UPROPERTY(BlueprintReadOnly)
     bool bVirtualizeWhenSilent = true;
@@ -318,6 +367,13 @@ public:
         EHorizonSpatialCueClass CueClass,
         float DistanceCm,
         bool bOccluded) const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Audio")
+    FHorizonWeaponReportMix GetWeaponReportMix(
+        EHorizonWeaponReportClass ReportClass,
+        float DistanceCm,
+        bool bOccluded,
+        int32 VariationSeed = 0) const;
 
     UFUNCTION(BlueprintPure, Category="Horizon|Audio")
     FHorizonFootstepMix GetFootstepMix(
