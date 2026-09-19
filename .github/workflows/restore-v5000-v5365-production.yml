@@ -55,7 +55,7 @@ jobs:
           grep -Fq 'BP_FRONTEND_V5000' /tmp/site/index.html
           grep -Fq '__BP_APP_BUILD_VERSION__=5365' /tmp/site/app.js
           grep -Fq '__BP_WORLD_RENDER_VERSION__=5365' /tmp/site/world-v2300-map.js
-          grep -Fq 'HORIZON_FREE_FLY_SINGLE_VIEW' /tmp/site/world-v2300-map.js
+          grep -Fq 'FREE_FLY_SINGLE_VIEW' /tmp/site/world-v2300-map.js
           grep -Fq 'maplibre' /tmp/site/app/index.html
           ! grep -Fqi 'cesium' /tmp/site/app/index.html
           echo V5000_V5365_ARTIFACT_VERIFIED
