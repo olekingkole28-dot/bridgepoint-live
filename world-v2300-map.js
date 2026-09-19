@@ -604,13 +604,13 @@ export function initWorld(options={}){
    paint(map,'gta-context-floor-lines','fill-extrusion-base',['max',0,['coalesce',['to-number',['get','render_min_height']],['to-number',['get','min_height']],['to-number',['get','base_height_m']],0]]);
    paint(map,'gta-context-floor-lines','fill-extrusion-height',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]]);
    paint(map,'gta-context-floor-lines','fill-extrusion-opacity',['interpolate',['linear'],['zoom'],GLOBAL_FLOOR_MIN,.46,18,.72,21,.84]);
-   try{if(map.getLayer('gta-context-roofs'))map.moveLayer('gta-context-floor-lines','gta-context-roofs')}catch(_){}
+   try{if(map.getLayer('gta-context-floor-lines')){map.moveLayer('gta-context-floor-lines');if(map.getLayer('gta-context-roofs'))map.moveLayer('gta-context-floor-lines','gta-context-roofs')}}catch(_){}
   }
   if(roofOn&&roofBecameVisible){
    paint(map,'gta-context-roofs','fill-extrusion-base',0);
    paint(map,'gta-context-roofs','fill-extrusion-height',['+',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]],['max',1,['coalesce',['to-number',['get','roof_height']],['to-number',['get','roof:height']],1]]]);
    paint(map,'gta-context-roofs','fill-extrusion-opacity',['interpolate',['linear'],['zoom'],GLOBAL_ROOF_MIN,.9,14.8,.96,16,.99,18,1]);
-   try{if(map.getLayer('gta-water-label'))map.moveLayer('gta-context-roofs','gta-water-label')}catch(_){}
+   try{if(map.getLayer('gta-context-roofs')){map.moveLayer('gta-context-roofs');if(map.getLayer('gta-water-label'))map.moveLayer('gta-context-roofs','gta-water-label')}}catch(_){}
   }
   // Keep the source-backed city layer visible/requested from city zoom so exact-height geometry can fill whole viewports.
   vis(map,'gta-city-buildings',wantCity);
@@ -671,13 +671,13 @@ export function initWorld(options={}){
    paint(map,'gta-context-floor-lines','fill-extrusion-base',['max',0,['coalesce',['to-number',['get','render_min_height']],['to-number',['get','min_height']],['to-number',['get','base_height_m']],0]]);
    paint(map,'gta-context-floor-lines','fill-extrusion-height',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]]);
    paint(map,'gta-context-floor-lines','fill-extrusion-opacity',['interpolate',['linear'],['zoom'],GLOBAL_FLOOR_MIN,.46,18,.72,21,.84]);
-   try{if(map.getLayer('gta-context-roofs'))map.moveLayer('gta-context-floor-lines','gta-context-roofs')}catch(_){}
+   try{if(map.getLayer('gta-context-floor-lines')){map.moveLayer('gta-context-floor-lines');if(map.getLayer('gta-context-roofs'))map.moveLayer('gta-context-floor-lines','gta-context-roofs')}}catch(_){}
   }
   if(roofVisible){
    paint(map,'gta-context-roofs','fill-extrusion-base',0);
    paint(map,'gta-context-roofs','fill-extrusion-height',['+',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]],['max',1,['coalesce',['to-number',['get','roof_height']],['to-number',['get','roof:height']],1]]]);
    paint(map,'gta-context-roofs','fill-extrusion-opacity',['interpolate',['linear'],['zoom'],GLOBAL_ROOF_MIN,.9,14.8,.96,16,.99,18,1]);
-   try{if(map.getLayer('gta-water-label'))map.moveLayer('gta-context-roofs','gta-water-label')}catch(_){}
+   try{if(map.getLayer('gta-context-roofs')){map.moveLayer('gta-context-roofs');if(map.getLayer('gta-water-label'))map.moveLayer('gta-context-roofs','gta-water-label')}}catch(_){}
   }
   window.__BP_GLOBAL_LOD_SOURCE_REFRESH__={roofVisible,floorVisible,zoom:map.getZoom(),updatedAt:Date.now()};
   return roofVisible||floorVisible
