@@ -110,6 +110,9 @@ public:
     bool TryRemoveItem(FName ItemKey, int32 Quantity);
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Survival")
+    bool TryConsumeItemsAtomically(const TArray<FHorizonCraftingIngredient>& Items);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Survival")
     bool TryCraft(FName RecipeKey);
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Survival")
@@ -126,6 +129,9 @@ public:
 
     static float GetItemUnitWeightKg(FName ItemKey);
     static float ComputeInventoryWeightKg(const TMap<FName, int32>& Inventory);
+    static bool CanAffordIngredients(
+        const TMap<FName, int32>& Inventory,
+        const TArray<FHorizonCraftingIngredient>& Items);
     static bool CanAffordRecipe(
         const TMap<FName, int32>& Inventory,
         const FHorizonCraftingRecipe& Recipe);
