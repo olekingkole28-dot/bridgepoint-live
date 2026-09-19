@@ -1,5 +1,5 @@
-# V5376 final publish: probe global roof/floor renderability while preserving overlays
-name: Publish BridgePoint V5376 Lightweight World
+# V5377 publish: collapsed attribution + viewer location + primary-owner US start
+name: Publish BridgePoint V5377 Lightweight World
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-v5376-world-production
+  group: bridgepoint-v5377-world-production
   cancel-in-progress: true
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
           ref: live-artifact
           fetch-depth: 1
 
-      - name: Verify V5376 artifact contract
+      - name: Verify V5377 artifact contract
         shell: bash
         run: |
           set -euo pipefail
@@ -40,17 +40,22 @@ jobs:
           test -s app/index.html
           test -s app.js
           test -s world-v2300-map.js
-          cp world-v2300-map.js /tmp/world-v5376.mjs
-          node --check /tmp/world-v5376.mjs
+          cp world-v2300-map.js /tmp/world-v5377.mjs
+          node --check /tmp/world-v5377.mjs
           node --check app.js
           grep -Fq 'LIVE PRODUCT PREVIEW' index.html
           grep -Fq 'landingProperties' index.html
           grep -Fq 'ABOUT THE FOUNDER' index.html
           grep -Fq 'id="previewMap"' index.html
-          grep -Fq 'world-v2300-map.js?v=5376' landing.js
-          grep -Fq '__BP_APP_BUILD_VERSION__=5376' app.js
-          grep -Fq 'world-v2300-map.js?v=5376' app.js
-          grep -Fq '__BP_WORLD_RENDER_VERSION__=5376' world-v2300-map.js
+          grep -Fq 'world-v2300-map.js?v=5377' landing.js
+          grep -Fq '__BP_APP_BUILD_VERSION__=5377' app.js
+          grep -Fq 'world-v2300-map.js?v=5377' app.js
+          grep -Fq '__BP_WORLD_RENDER_VERSION__=5377' world-v2300-map.js
+          grep -Fq 'attributionControl:false' world-v2300-map.js
+          grep -Fq 'new maplibregl.AttributionControl({compact:true})' world-v2300-map.js
+          grep -Fq 'startForViewer' world-v2300-map.js
+          grep -Fq 'bridgepoint_my_map_start_v5377' app.js
+          grep -Fq 'bridgepoint_my_map_start_v5377' landing.js
           grep -Fq 'bridgepoint-public-city-structures-v5375' world-v2300-map.js
           grep -Fq "source:'bpCityRoofs','source-layer':'roofs'" world-v2300-map.js
           grep -Fq "id:'gta-city-building-roof-caps'" world-v2300-map.js
@@ -67,14 +72,14 @@ jobs:
           ! grep -Fq '__BP_WORLD_RENDER_VERSION__=5370' world-v2300-map.js
           ! grep -Fqi 'cesium' index.html
           ! grep -Fqi 'cesium' app/index.html
-          echo V5376_ARTIFACT_CONTRACT_OK
+          echo V5377_ARTIFACT_CONTRACT_OK
 
       - name: Smoke-test source-backed city structure tile
         shell: bash
         run: |
           set -euo pipefail
           KEY=$(sed -n "s/^export const KEY='\([^']*\)'.*/\1/p" world-v2300-config.js)
-          CODE=$(curl -sS --retry 3 --retry-all-errors --retry-delay 1             -H 'Origin: https://bridgepointintelligence.online'             -H "apikey: ${KEY}"             -o /tmp/city.mvt             -w '%{http_code}'             'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-city-structures-v5375?z=11&x=602&y=770&limit=500&v=5376')
+          CODE=$(curl -sS --retry 3 --retry-all-errors --retry-delay 1             -H 'Origin: https://bridgepointintelligence.online'             -H "apikey: ${KEY}"             -o /tmp/city.mvt             -w '%{http_code}'             'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-city-structures-v5375?z=11&x=602&y=770&limit=500&v=5377')
           BYTES=$(wc -c </tmp/city.mvt)
           echo "CITY_TILE_HTTP=${CODE} BYTES=${BYTES}"
           test "${CODE}" = 200
@@ -85,7 +90,7 @@ jobs:
             -H "apikey: ${KEY}" \
             -o /tmp/city-roofs.mvt \
             -w '%{http_code}' \
-            'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-city-roofs-v5376?z=16&x=19295&y=24640&limit=650&v=5376')
+            'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-city-roofs-v5376?z=16&x=19295&y=24640&limit=650&v=5377')
           ROOF_BYTES=$(wc -c </tmp/city-roofs.mvt)
           echo "CITY_ROOF_TILE_HTTP=${ROOF_CODE} BYTES=${ROOF_BYTES}"
           test "${ROOF_CODE}" = 200
@@ -109,14 +114,14 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v4
         with:
-          name: bridgepoint-v5376-lightweight
+          name: bridgepoint-v5377-lightweight
           path: site
 
-      - name: Deploy V5376
+      - name: Deploy V5377
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: bridgepoint-v5376-lightweight
+          artifact_name: bridgepoint-v5377-lightweight
 
       - name: Browser verify lightweight city, roofs, camera and homepage
         shell: bash
@@ -133,11 +138,24 @@ jobs:
           (async()=>{
             const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
             try{
+              await browser.defaultBrowserContext().overridePermissions(O,['geolocation']);
               const app=await browser.newPage();
+              await app.setGeolocation({latitude:41.55,longitude:-72.65,accuracy:25});
               await app.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await app.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
-              await app.goto(O+'/app/?verify5376='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
-              await app.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5376&&window.__BP_V5000_WORLD?.map,{timeout:45000});
+              await app.goto(O+'/app/?verify5377='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await app.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5377&&window.__BP_V5000_WORLD?.map,{timeout:45000});
+              await app.waitForFunction(()=>window.__BP_APP_VIEWER_START__?.mode==='VIEWER_LOCATION',{timeout:12000});
+              const startBehavior=await app.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD.map,s=window.__BP_APP_VIEWER_START__||{},attrib=document.querySelector('.maplibregl-ctrl-attrib');
+                return{mode:s.mode,center:[m.getCenter().lng,m.getCenter().lat],zoom:m.getZoom(),attribCollapsed:!!attrib&&!attrib.classList.contains('maplibregl-compact-show')}
+              });
+              if(startBehavior.mode!=='VIEWER_LOCATION'||Math.abs(startBehavior.center[0]-(-72.65))>.2||Math.abs(startBehavior.center[1]-41.55)>.2||!startBehavior.attribCollapsed)throw new Error('VIEWER_START '+JSON.stringify(startBehavior));
+              const ownerStart=await app.evaluate(async()=>{
+                const w=window.__BP_V5000_WORLD,m=w.map,s=await w.startForViewer({primaryOwner:true,ownerZoom:2.75});
+                return{mode:s?.mode,center:[m.getCenter().lng,m.getCenter().lat],zoom:m.getZoom()}
+              });
+              if(ownerStart.mode!=='NATIONAL_OWNER'||Math.abs(ownerStart.center[0]-(-98.5))>.2||Math.abs(ownerStart.center[1]-39.5)>.2||ownerStart.zoom>4)throw new Error('OWNER_START '+JSON.stringify(ownerStart));
               await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:11.35,pitch:58,bearing:-18}));
               try{
                 await app.waitForFunction(()=>{
@@ -294,18 +312,24 @@ jobs:
               await app.close();
 
               const root=await browser.newPage();
+              await root.setGeolocation({latitude:41.55,longitude:-72.65,accuracy:25});
               await root.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
-              await root.goto(O+'/?verify5376='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await root.goto(O+'/?verify5377='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await root.waitForSelector('#previewMap',{timeout:10000});
-              await root.waitForFunction(()=>window.__BP_LANDING_WORLD__?.map&&window.__BP_WORLD_RENDER_VERSION__===5376,{timeout:45000});
-              const home=await root.evaluate(()=>({
-                preview:!!document.querySelector('#previewMap'),
-                counts:['landingProperties','landingBuildings','landingAddresses','landingBoundaries'].every(id=>!!document.getElementById(id)),
-                founder:document.body.textContent.includes('ABOUT THE FOUNDER')&&document.body.textContent.includes('Kole Johnson'),
-                world:window.__BP_WORLD_RENDER_VERSION__
-              }));
-              if(!home.preview||!home.counts||!home.founder||home.world!==5376)throw new Error('HOME '+JSON.stringify(home));
-              console.log('V5376_FINAL_PASS',JSON.stringify({city,cam,roofState,global3d,globalRoofProbe,globalFloors,globalFloorProbe,startup,home}));
+              await root.waitForFunction(()=>window.__BP_LANDING_WORLD__?.map&&window.__BP_WORLD_RENDER_VERSION__===5377,{timeout:45000});
+              await root.waitForFunction(()=>window.__BP_LANDING_VIEWER_START__?.mode==='VIEWER_LOCATION',{timeout:12000});
+              const home=await root.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_LANDING_VIEWER_START__||{},attrib=document.querySelector('#previewMap .maplibregl-ctrl-attrib');
+                return{
+                  preview:!!document.querySelector('#previewMap'),
+                  counts:['landingProperties','landingBuildings','landingAddresses','landingBoundaries'].every(id=>!!document.getElementById(id)),
+                  founder:document.body.textContent.includes('ABOUT THE FOUNDER')&&document.body.textContent.includes('Kole Johnson'),
+                  world:window.__BP_WORLD_RENDER_VERSION__,startMode:s.mode,center:m?[m.getCenter().lng,m.getCenter().lat]:null,
+                  attribCollapsed:!!attrib&&!attrib.classList.contains('maplibregl-compact-show')
+                }
+              });
+              if(!home.preview||!home.counts||!home.founder||home.world!==5377||home.startMode!=='VIEWER_LOCATION'||!home.attribCollapsed||Math.abs(home.center?.[0]-(-72.65))>.2||Math.abs(home.center?.[1]-41.55)>.2)throw new Error('HOME '+JSON.stringify(home));
+              console.log('V5377_FINAL_PASS',JSON.stringify({startBehavior,ownerStart,city,cam,roofState,global3d,globalRoofProbe,globalFloors,globalFloorProbe,startup,home}));
               await root.close();
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
