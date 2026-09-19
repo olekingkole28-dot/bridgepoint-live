@@ -100,11 +100,26 @@ for token in ["CellCache", "CacheTtlSeconds", "TryServeCachedCell", "StoreCached
 renderer = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldCellRenderer.cpp")
 for token in [
     "BuildTerrain", "BuildTransport", "BuildWater", "BuildBuildings",
-    "TriangulateSimplePolygon", "BuildingPartMaterial", "WaterMaterial"
+    "TriangulateSimplePolygon", "BuildingPartMaterial", "WaterMaterial",
+    "FarBuildingMesh", "ResolveBuildingLodCounts", "MaxCollidableBuildingsPerCell"
 ]:
     require(token in renderer, f"streamed UE renderer feature missing: {token}")
 for token in ["SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics)", "SetCollisionResponseToAllChannels(ECR_Block)"]:
     require(token in renderer, f"streamed terrain collision safeguard missing: {token}")
+for token in [
+    "visual-only so city-scale density does not multiply physics cost",
+    "FarBuildingMesh->CreateMeshSection_LinearColor", "BuildingLodCounts.X",
+    "BuildingLodCounts.Y"
+]:
+    require(token in renderer, f"city silhouette LOD safeguard missing: {token}")
+
+world_lod_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldLodTests.cpp")
+for token in [
+    "WITH_DEV_AUTOMATION_TESTS", "World.LOD.BuildingDensityBudget",
+    "City tier keeps collision bounded", "preserves thousands of far silhouettes",
+    "Sparse cells keep every source-backed building", "Invalid budgets fail closed"
+]:
+    require(token in world_lod_tests, f"native world LOD QA missing: {token}")
 
 
 autopilot = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonAutopilotSubsystem.cpp")
