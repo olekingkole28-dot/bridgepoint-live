@@ -162,6 +162,11 @@ jobs:
           node --check site/landing.js
           grep -Fq 'landingPropertySearch' site/index.html
           grep -Fq 'FREE_LOOKUP_KEY' site/landing.js
+          grep -Fq 'landingWeatherLegend' site/landing.js
+          grep -Fq 'setRadar?.(true)' site/landing.js
+          grep -Fq 'Flood watch / advisory / warning area' site/landing.js
+          grep -Fq 'Flood watch / advisory / warning area' site/app.js
+          grep -Fq 'bp-v5004-weather-shape-line' site/app.js
           test -s site/sample/storm-opportunity/index.html
           node --check site/acquisition_tracker.js
           grep -Fq 'us.i.posthog.com' site/acquisition_tracker.js
@@ -272,7 +277,7 @@ jobs:
           grep -Fq 'bridgepoint-transport-runtime-broker-v2716' site/app.js
           grep -Fq 'bp-v2716-transport-segments' site/app.js
           test -s site/vendor/pmtiles.js
-          grep -Fq 'BP_LANDING_V5400' site/index.html
+          grep -Fq 'BP_LANDING_V5410' site/index.html
           grep -Fq 'authModal' site/index.html
           grep -Fq 'authLegalAccept' site/index.html
           grep -Fq 'authPasswordToggle' site/index.html
@@ -387,11 +392,11 @@ jobs:
           ok=0
           for i in $(seq 1 45); do
             q="${GITHUB_SHA}-${i}-$(date +%s)"
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?v5400=${q}" -o /tmp/root.html || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?v5400=${q}" -o /tmp/app.html || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?v5410=${q}" -o /tmp/root.html || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?v5410=${q}" -o /tmp/app.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5371=${q}" -o /tmp/app.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5378=${q}" -o /tmp/world-v2300-map.js || true
-            if grep -Fq 'BP_LANDING_V5400' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5371' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' /tmp/world-v2300-map.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js; then ok=1; break; fi
+            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5410' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' /tmp/world-v2300-map.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
@@ -483,9 +488,13 @@ jobs:
                 freeLookupCopy:document.getElementById('landingPropertySearchInput')?.placeholder||'',
                 sample:!!document.querySelector('a[href="/sample/storm-opportunity/"]'),
                 mapCanvases:document.querySelectorAll('#previewMap canvas').length,
-                lockedTabs:document.querySelectorAll('[data-preview-cap]:not([data-preview-cap="overview"])').length
+                lockedTabs:document.querySelectorAll('[data-preview-cap]:not([data-preview-cap="overview"])').length,
+                weatherLegend:!!document.getElementById('landingWeatherLegend'),
+                weatherMore:!!document.getElementById('landingWeatherToggle'),
+                weatherShapes:window.__BP_LANDING_LIVE_WEATHER__?.shapeCount||0,
+                radarVisible:window.__BP_LANDING_VISUAL_WEATHER__?.radarVisible===true
               }));
-              if(!landing.build.includes('BP_LANDING_V5400')||!landing.search||!landing.sample||landing.mapCanvases!==1||landing.lockedTabs<6||!/first property lookup is free/i.test(landing.freeLookupCopy))throw new Error('LANDING_CONVERSION_REGRESSION '+JSON.stringify(landing));
+              if(!landing.build.includes('BP_LANDING_V5410')||!landing.search||!landing.sample||landing.mapCanvases!==1||landing.lockedTabs<6||!landing.weatherLegend||!landing.weatherMore||!landing.radarVisible||!/first property lookup is free/i.test(landing.freeLookupCopy))throw new Error('LANDING_CONVERSION_REGRESSION '+JSON.stringify(landing));
               console.log('BRIDGEPOINT_LANDING_CONVERSION_PASS',JSON.stringify(landing));
 
               const report=await p.goto('https://bridgepointintelligence.online/sample/storm-opportunity/?qa='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
@@ -525,12 +534,14 @@ jobs:
                     floors:!!m?.getLayer('gta-context-floor-lines'),
                     radarA:!!m?.getLayer('bp-radar-a'),
                     radarB:!!m?.getLayer('bp-radar-b'),
-                    weather:!!m?.getLayer('bp-v5004-weather-points')
+                    weather:!!m?.getLayer('bp-v5004-weather-points'),
+                    weatherShapes:!!m?.getLayer('bp-v5004-weather-shape-line')
                   },
-                  sources:{city:!!m?.getSource('bpCityStructures'),cityRoofs:!!m?.getSource('bpCityRoofs')}
+                  sources:{city:!!m?.getSource('bpCityStructures'),cityRoofs:!!m?.getSource('bpCityRoofs'),weatherShapes:!!m?.getSource('bpV5004WeatherShapes')},
+                  weatherLegend:{present:!!document.getElementById('liveLegend'),more:!!document.getElementById('liveLegendToggle')}
                 };
               });
-              if(state.frontend!==5000||state.app!==5371||state.world!==5378||state.canvases!==1||state.architecture!=='MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY'||state.camera?.mode!=='FREE_FLY_SINGLE_VIEW'||state.camera?.singleView!==true||state.camera?.autoViewSwitching!==false||state.camera?.streetWalkMode!==false||state.camera?.buildingClickOverlook!==true||Number(state.maxPitch)<84||state.materials?.floorLines!==true||state.materials?.roofOverlays!==true||state.materials?.exactRoofs!==true||state.fine?.enabled!==false||!state.sources.city||!state.sources.cityRoofs||Object.values(state.layers).some(v=>v!==true))throw new Error('CURRENT_WORLD_REGRESSION '+JSON.stringify(state));
+              if(state.frontend!==5000||state.app!==5371||state.world!==5378||state.canvases!==1||state.architecture!=='MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY'||state.camera?.mode!=='FREE_FLY_SINGLE_VIEW'||state.camera?.singleView!==true||state.camera?.autoViewSwitching!==false||state.camera?.streetWalkMode!==false||state.camera?.buildingClickOverlook!==true||Number(state.maxPitch)<84||state.materials?.floorLines!==true||state.materials?.roofOverlays!==true||state.materials?.exactRoofs!==true||state.fine?.enabled!==false||!state.sources.city||!state.sources.cityRoofs||!state.sources.weatherShapes||!state.weatherLegend.present||!state.weatherLegend.more||Object.values(state.layers).some(v=>v!==true))throw new Error('CURRENT_WORLD_REGRESSION '+JSON.stringify(state));
               console.log('BRIDGEPOINT_CURRENT_WORLD_PASS',JSON.stringify(state));
 
               await p.evaluate(()=>{
@@ -557,7 +568,7 @@ jobs:
 
               const severe=fatal.filter(x=>!/ResizeObserver loop/i.test(x));
               if(severe.length)throw new Error('ANDROID_PAGEERROR '+JSON.stringify(severe.slice(-5)));
-              console.log('BRIDGEPOINT_V5400_ANDROID_SMOKE_PASS');
+              console.log('BRIDGEPOINT_V5410_ANDROID_SMOKE_PASS');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
