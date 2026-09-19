@@ -9,6 +9,7 @@ class USpringArmComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
 class USkeletalMesh;
+class UHorizonWeaponRuntimeComponent;
 
 UENUM(BlueprintType)
 enum class EHorizonCameraMode : uint8
@@ -52,6 +53,9 @@ public:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|Weapon")
     TObjectPtr<UStaticMeshComponent> FirstPersonWeaponVisual;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|Weapon")
+    TObjectPtr<UHorizonWeaponRuntimeComponent> WeaponRuntime;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Weapon")
     FName WeaponHandSocketName = TEXT("hand_r");
@@ -202,6 +206,9 @@ private:
     bool HasStandingClearance() const;
     void StartAim();
     void StopAim();
+    void StartFireInput();
+    void StopFireInput();
+    void ReloadInput();
     void RefreshMovementProfile();
     void TryEnableWorldGravity(float DeltaSeconds);
     bool AttachWeaponVisualToBestSocket(FName PreferredSocket);
