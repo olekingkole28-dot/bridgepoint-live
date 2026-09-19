@@ -1,5 +1,5 @@
 name: Publish BridgePoint V5370 City World
-# retry-after-visible-city-source: 5
+# retry-after-visible-city-source: 6
 
 on:
   push:
@@ -66,7 +66,7 @@ jobs:
         with:
           artifact_name: bridgepoint-v5370-city-world
 
-      - name: Browser verify app and webpage world parity
+      - name: Browser verify V5370 app and webpage parity
         shell: bash
         run: |
           set -euo pipefail
@@ -77,43 +77,46 @@ jobs:
           CHROME_PATH="$CHROME" node <<'NODE'
           const puppeteer=require('puppeteer-core');
           const O='https://bridgepointintelligence.online';
-          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          async function openSurface(browser,path){
+            const p=await browser.newPage();
+            await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+            await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+            await p.goto(O+path+'?v5370final='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+            await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5370&&window.__BP_V5000_WORLD?.map,{timeout:45000});
+            return p;
+          }
           (async()=>{
             const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
             try{
-              const p=await browser.newPage();
-              await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
-              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
-              await p.goto(O+'/app/?v5370diag='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
-              await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5370&&window.__BP_V5000_WORLD?.map,{timeout:45000});
-              for(const z of [10,11,11.5,12,12.5,13,13.5,14]){
-                await p.evaluate(z=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:z,pitch:62,bearing:-18}),z);
-                await sleep(3500);
-                const state=await p.evaluate(()=>{
-                  const m=window.__BP_V5000_WORLD.map;
-                  const qs=(id,sl)=>{try{return (m.querySourceFeatures(id,sl?{sourceLayer:sl}:undefined)||[]).length}catch{return -1}};
-                  const qr=id=>{try{return (m.queryRenderedFeatures(undefined,{layers:[id]})||[]).length}catch{return -1}};
-                  return{
-                    z:m.getZoom(),
-                    ofm:qs('ofm','building'),
-                    bp:qs('bpBuildings','buildings'),
-                    context:qr('gta-context-buildings'),
-                    bpRendered:qr('gta-bp-buildings'),
-                    terrain:window.__BP_V5000_WORLD.state.terrain,
-                    mode:window.__BP_BUILDING_SHELL_MODE__
-                  };
-                });
-                console.log('ZOOM_DIAG',JSON.stringify(state));
-              }
-              await p.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.0445004,40.6892494],zoom:14.2,pitch:70,bearing:18}));
-              await sleep(3000);
-              const statue=await p.evaluate(()=>{
+              const app=await openSurface(browser,'/app/');
+              await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:11.25,pitch:62,bearing:-18}));
+              await app.waitForFunction(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                if(!m||window.__BP_V5000_WORLD.state?.terrain!==true)return false;
+                try{return (m.querySourceFeatures('bpBuildings',{sourceLayer:'buildings'})||[]).length>=300}catch{return false}
+              },{timeout:35000});
+              const city=await app.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map;
-                let count=-1;try{count=(m.queryRenderedFeatures(undefined,{layers:['bp-statue-liberty-3d']})||[]).length}catch{}
-                return{count,state:window.__BP_STATUE_OF_LIBERTY_STATE__};
+                const bp=(m.querySourceFeatures('bpBuildings',{sourceLayer:'buildings'})||[]).length;
+                const rendered=(m.queryRenderedFeatures(undefined,{layers:['gta-bp-buildings']})||[]).length;
+                return{bp,rendered,terrain:window.__BP_V5000_WORLD.state.terrain,mode:window.__BP_BUILDING_SHELL_MODE__};
               });
-              console.log('STATUE_DIAG',JSON.stringify(statue));
-              if(statue.state?.status!=='ready'||statue.state?.colored!==true)throw new Error('STATUE_STATE '+JSON.stringify(statue));
+              if(city.bp<300||city.rendered<25||!city.terrain||city.mode?.cityScale3D!==true)throw new Error('CITY_LOD '+JSON.stringify(city));
+
+              await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.0445004,40.6892494],zoom:14.2,pitch:70,bearing:18}));
+              await app.waitForFunction(()=>window.__BP_STATUE_OF_LIBERTY_STATE__?.status==='ready',{timeout:15000});
+              const statue=await app.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD.map;
+                return{state:window.__BP_STATUE_OF_LIBERTY_STATE__,count:(m.queryRenderedFeatures(undefined,{layers:['bp-statue-liberty-3d']})||[]).length};
+              });
+              if(statue.state?.colored!==true||statue.count<1)throw new Error('STATUE '+JSON.stringify(statue));
+              await app.close();
+
+              const root=await openSurface(browser,'/');
+              const parity=await root.evaluate(()=>({world:window.__BP_WORLD_RENDER_VERSION__,hasMap:!!window.__BP_V5000_WORLD?.map,mapFirst:!!document.querySelector('meta[name="bp-public-surface"]')}));
+              if(parity.world!==5370||!parity.hasMap||!parity.mapFirst)throw new Error('ROOT_PARITY '+JSON.stringify(parity));
+              await root.close();
+              console.log('BRIDGEPOINT_V5370_FINAL_PASS',JSON.stringify({city,statue,parity}));
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
           NODE
