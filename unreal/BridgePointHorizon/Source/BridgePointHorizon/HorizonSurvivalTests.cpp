@@ -116,4 +116,75 @@ bool FHorizonInventoryWeightTest::RunTest(const FString& Parameters)
     return true;
 }
 
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonInventoryAtomicAdditionTest,
+    "BridgePoint.Horizon.Systems.Survival.AtomicInventoryAddition",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonInventoryAtomicAdditionTest::RunTest(const FString& Parameters)
+{
+    TMap<FName, int32> Inventory;
+    Inventory.Add(TEXT("ration"), 1);
+
+    FHorizonCraftingIngredient ClothA;
+    ClothA.ItemKey = TEXT("cloth");
+    ClothA.Quantity = 1;
+    FHorizonCraftingIngredient ClothB = ClothA;
+    ClothB.Quantity = 2;
+
+    TMap<FName, int32> Result;
+    TestTrue(
+        TEXT("Multi-stack addition validates as one transaction"),
+        UHorizonSurvivalSubsystem::TryBuildInventoryAfterAddition(
+            Inventory,
+            {ClothA, ClothB},
+            1.0f,
+            Result));
+    TestEqual(
+        TEXT("Duplicate additions aggregate exactly once"),
+        Result.FindRef(TEXT("cloth")),
+        3);
+    TestEqual(
+        TEXT("Existing inventory is preserved"),
+        Result.FindRef(TEXT("ration")),
+        1);
+
+    FHorizonCraftingIngredient Water;
+    Water.ItemKey = TEXT("clean_water");
+    Water.Quantity = 2;
+    TestFalse(
+        TEXT("Over-capacity transaction fails before mutation"),
+        UHorizonSurvivalSubsystem::TryBuildInventoryAfterAddition(
+            {},
+            {Water},
+            1.0f,
+            Result));
+    TestTrue(TEXT("Failed capacity transaction exposes no partial result"), Result.IsEmpty());
+
+    FHorizonCraftingIngredient Unknown;
+    Unknown.ItemKey = TEXT("unknown_item");
+    Unknown.Quantity = 1;
+    TestFalse(
+        TEXT("Unknown item addition fails closed"),
+        UHorizonSurvivalSubsystem::TryBuildInventoryAfterAddition(
+            {},
+            {Unknown},
+            35.0f,
+            Result));
+    TestTrue(TEXT("Unknown item creates no partial result"), Result.IsEmpty());
+
+    TMap<FName, int32> OverflowInventory;
+    OverflowInventory.Add(TEXT("cloth"), MAX_int32);
+    TestFalse(
+        TEXT("Quantity overflow fails closed"),
+        UHorizonSurvivalSubsystem::TryBuildInventoryAfterAddition(
+            OverflowInventory,
+            {ClothA},
+            100.0f,
+            Result));
+    TestTrue(TEXT("Overflow creates no partial result"), Result.IsEmpty());
+    return true;
+}
+
 #endif

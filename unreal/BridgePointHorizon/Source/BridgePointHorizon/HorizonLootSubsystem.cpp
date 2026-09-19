@@ -224,14 +224,30 @@ FHorizonLootCollectionResult UHorizonLootSubsystem::CollectDrop(
         Planned,
         Result.Deferred);
 
+    TArray<FHorizonCraftingIngredient> AtomicAdditions;
+    AtomicAdditions.Reserve(Planned.Num());
     for (const FHorizonLootStack& Stack : Planned)
     {
-        const int32 Added = Survival->TryAddItem(Stack.ItemKey, Stack.Quantity);
-        HorizonLoot::AddOrMerge(Result.Collected, Stack.ItemKey, Added);
-        HorizonLoot::AddOrMerge(
-            Result.Deferred,
-            Stack.ItemKey,
-            Stack.Quantity - Added);
+        FHorizonCraftingIngredient Addition;
+        Addition.ItemKey = Stack.ItemKey;
+        Addition.Quantity = Stack.Quantity;
+        AtomicAdditions.Add(Addition);
+    }
+
+    if (!AtomicAdditions.IsEmpty() &&
+        Survival->TryAddItemsAtomically(AtomicAdditions))
+    {
+        Result.Collected = Planned;
+    }
+    else
+    {
+        for (const FHorizonLootStack& Stack : Planned)
+        {
+            HorizonLoot::AddOrMerge(
+                Result.Deferred,
+                Stack.ItemKey,
+                Stack.Quantity);
+        }
     }
 
     State->ClaimedDropIds.Add(Drop.DropId);
@@ -273,14 +289,30 @@ FHorizonLootCollectionResult UHorizonLootSubsystem::ClaimDeferredDrop(FGuid Drop
         Planned,
         Result.Deferred);
 
+    TArray<FHorizonCraftingIngredient> AtomicAdditions;
+    AtomicAdditions.Reserve(Planned.Num());
     for (const FHorizonLootStack& Stack : Planned)
     {
-        const int32 Added = Survival->TryAddItem(Stack.ItemKey, Stack.Quantity);
-        HorizonLoot::AddOrMerge(Result.Collected, Stack.ItemKey, Added);
-        HorizonLoot::AddOrMerge(
-            Result.Deferred,
-            Stack.ItemKey,
-            Stack.Quantity - Added);
+        FHorizonCraftingIngredient Addition;
+        Addition.ItemKey = Stack.ItemKey;
+        Addition.Quantity = Stack.Quantity;
+        AtomicAdditions.Add(Addition);
+    }
+
+    if (!AtomicAdditions.IsEmpty() &&
+        Survival->TryAddItemsAtomically(AtomicAdditions))
+    {
+        Result.Collected = Planned;
+    }
+    else
+    {
+        for (const FHorizonLootStack& Stack : Planned)
+        {
+            HorizonLoot::AddOrMerge(
+                Result.Deferred,
+                Stack.ItemKey,
+                Stack.Quantity);
+        }
     }
 
     if (Result.Deferred.IsEmpty())
