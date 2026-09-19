@@ -91,4 +91,25 @@ bool FHorizonWeaponRecoilTest::RunTest(const FString& Parameters)
     return true;
 }
 
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonWeaponUiFeedbackThresholdTest,
+    "BridgePoint.Horizon.Combat.Weapon.UIFeedbackThresholds",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonWeaponUiFeedbackThresholdTest::RunTest(const FString& Parameters)
+{
+    TestTrue(TEXT("Twenty percent magazine threshold is low ammo"),
+        UHorizonWeaponRuntimeComponent::IsLowAmmo(6, 30));
+    TestFalse(TEXT("Above twenty percent is not low ammo"),
+        UHorizonWeaponRuntimeComponent::IsLowAmmo(7, 30));
+    TestTrue(TEXT("Small magazines retain a one-round low-ammo warning"),
+        UHorizonWeaponRuntimeComponent::IsLowAmmo(1, 4));
+    TestFalse(TEXT("Zero rounds are reserved for empty feedback"),
+        UHorizonWeaponRuntimeComponent::IsLowAmmo(0, 30));
+    TestFalse(TEXT("Negative rounds cannot become a low-ammo warning"),
+        UHorizonWeaponRuntimeComponent::IsLowAmmo(-1, 30));
+    return true;
+}
+
 #endif
