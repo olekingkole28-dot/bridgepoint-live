@@ -144,17 +144,17 @@ jobs:
               await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:14.6,pitch:58,bearing:-18}));
               await sleep(4500);
               const hit=await app.evaluate(()=>{
-                const m=window.__BP_V5000_WORLD.map;
-                const fs=m.queryRenderedFeatures(undefined,{layers:['gta-city-buildings','gta-exact-building']});
-                if(!fs.length)return null;
-                const f=fs[0],g=f.geometry;
-                const coords=g.type==='Polygon'?g.coordinates[0]:g.type==='MultiPolygon'?g.coordinates[0][0]:[];
-                if(!coords.length)return null;
-                let sx=0,sy=0;for(const p of coords){const q=m.project(p);sx+=q.x;sy+=q.y}
-                return{x:sx/coords.length,y:sy/coords.length}
+                const m=window.__BP_V5000_WORLD.map,c=m.getCanvas(),w=c.clientWidth,h=c.clientHeight;
+                const layers=['gta-city-buildings','gta-exact-building'];
+                for(let y=80;y<h-40;y+=24)for(let x=20;x<w-20;x+=24){
+                  try{if((m.queryRenderedFeatures({x,y},{layers})||[]).length)return{x,y}}catch{}
+                }
+                return null
               });
               if(!hit)throw new Error('NO_BUILDING_HIT');
-              await app.mouse.click(hit.x,hit.y);
+              const box=await (await app.$('.maplibregl-canvas')).boundingBox();
+              if(!box)throw new Error('NO_MAP_CANVAS_BOX');
+              await app.mouse.click(box.x+hit.x,box.y+hit.y);
               await sleep(900);
               const cam=await app.evaluate(()=>{const m=window.__BP_V5000_WORLD.map;return{z:m.getZoom(),pitch:m.getPitch(),bearing:m.getBearing()}});
               if(cam.z<16.2||cam.pitch<60)throw new Error('CAMERA '+JSON.stringify(cam));
