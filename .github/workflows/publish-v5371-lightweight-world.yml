@@ -51,7 +51,7 @@ jobs:
           grep -Fq 'world-v2300-map.js?v=5374' app.js
           grep -Fq '__BP_WORLD_RENDER_VERSION__=5374' world-v2300-map.js
           grep -Fq 'bridgepoint-public-city-structures-v5371' world-v2300-map.js
-          grep -Fq "source:'bpCityStructures','source-layer':'roofs'" world-v2300-map.js
+          grep -Fq "source:'bpRoofs','source-layer':'roofs'" world-v2300-map.js
           grep -Fq "id:'gta-city-building-roof-caps'" world-v2300-map.js
           grep -Fq "GLOBAL_ROOF_MIN" world-v2300-map.js
           grep -Fq "GLOBAL_FLOOR_MIN" world-v2300-map.js
@@ -75,6 +75,17 @@ jobs:
           echo "CITY_TILE_HTTP=${CODE} BYTES=${BYTES}"
           test "${CODE}" = 200
           test "${BYTES}" -gt 1000
+
+          ROOF_CODE=$(curl -sS --retry 3 --retry-all-errors --retry-delay 1 \
+            -H 'Origin: https://bridgepointintelligence.online' \
+            -H "apikey: ${KEY}" \
+            -o /tmp/roofs.mvt \
+            -w '%{http_code}' \
+            'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-roof-tile-v5369?z=16&x=19295&y=24640&limit=1600&v=5374')
+          ROOF_BYTES=$(wc -c </tmp/roofs.mvt)
+          echo "ROOF_TILE_HTTP=${ROOF_CODE} BYTES=${ROOF_BYTES}"
+          test "${ROOF_CODE}" = 200
+          test "${ROOF_BYTES}" -gt 1000
 
       - name: Assemble Pages artifact
         shell: bash
@@ -142,7 +153,7 @@ jobs:
               const city=await app.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map;
                 const buildings=(m.querySourceFeatures('bpCityStructures',{sourceLayer:'buildings'})||[]).length;
-                const exactRoofs=(m.querySourceFeatures('bpCityStructures',{sourceLayer:'roofs'})||[]).length;
+                const exactRoofs=(m.querySourceFeatures('bpRoofs',{sourceLayer:'roofs'})||[]).length;
                 let roofCaps=0;try{roofCaps=(m.queryRenderedFeatures(undefined,{layers:['gta-city-building-roof-caps']})||[]).length}catch{}
                 const fine=window.__BP_FINE_DETAIL_MODE__||{};
                 return{
@@ -176,11 +187,11 @@ jobs:
               if(cam.z<16.2||cam.pitch<60)throw new Error('CAMERA '+JSON.stringify(cam));
               await app.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
-                try{return (m?.querySourceFeatures('bpCityStructures',{sourceLayer:'roofs'})||[]).length>0}catch{return false}
+                try{return (m?.querySourceFeatures('bpRoofs',{sourceLayer:'roofs'})||[]).length>0}catch{return false}
               },{timeout:25000});
               const roofDetail=await app.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map;
-                return (m.querySourceFeatures('bpCityStructures',{sourceLayer:'roofs'})||[]).length;
+                return (m.querySourceFeatures('bpRoofs',{sourceLayer:'roofs'})||[]).length;
               });
               if(roofDetail<1)throw new Error('NYC_REAL_ROOFS '+roofDetail);
               const nyRoofCaps=await app.evaluate(()=>{
