@@ -10,6 +10,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "HorizonAutopilotSubsystem.h"
+#include "HorizonWeaponRuntimeComponent.h"
 #include "HorizonWorldCellRenderer.h"
 #include "ProceduralMeshComponent.h"
 
@@ -77,6 +78,8 @@ AHorizonPlayerCharacter::AHorizonPlayerCharacter()
     FirstPersonWeaponVisual->SetOnlyOwnerSee(true);
     FirstPersonWeaponVisual->SetCastShadow(false);
     FirstPersonWeaponVisual->SetVisibility(false, true);
+
+    WeaponRuntime = CreateDefaultSubobject<UHorizonWeaponRuntimeComponent>(TEXT("WeaponRuntime"));
 }
 
 void AHorizonPlayerCharacter::BeginPlay()
@@ -137,6 +140,9 @@ void AHorizonPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerI
     PlayerInputComponent->BindAction(TEXT("Slide"), IE_Pressed, this, &AHorizonPlayerCharacter::StartSlide);
     PlayerInputComponent->BindAction(TEXT("Aim"), IE_Pressed, this, &AHorizonPlayerCharacter::StartAim);
     PlayerInputComponent->BindAction(TEXT("Aim"), IE_Released, this, &AHorizonPlayerCharacter::StopAim);
+    PlayerInputComponent->BindAction(TEXT("Fire"), IE_Pressed, this, &AHorizonPlayerCharacter::StartFireInput);
+    PlayerInputComponent->BindAction(TEXT("Fire"), IE_Released, this, &AHorizonPlayerCharacter::StopFireInput);
+    PlayerInputComponent->BindAction(TEXT("Reload"), IE_Pressed, this, &AHorizonPlayerCharacter::ReloadInput);
     PlayerInputComponent->BindAction(TEXT("ToggleCamera"), IE_Pressed, this, &AHorizonPlayerCharacter::ToggleCameraMode);
 }
 
@@ -581,13 +587,47 @@ void AHorizonPlayerCharacter::StartAim()
 
     bAiming = true;
     bSprinting = false;
+    if (WeaponRuntime)
+    {
+        WeaponRuntime->SetAiming(true);
+    }
     RefreshMovementProfile();
 }
 
 void AHorizonPlayerCharacter::StopAim()
 {
     bAiming = false;
+    if (WeaponRuntime)
+    {
+        WeaponRuntime->SetAiming(false);
+    }
     RefreshMovementProfile();
+}
+
+void AHorizonPlayerCharacter::StartFireInput()
+{
+    if (WeaponRuntime && MovementStance != EHorizonMovementStance::Sliding)
+    {
+        bSprinting = false;
+        WeaponRuntime->StartFire(bAiming);
+        RefreshMovementProfile();
+    }
+}
+
+void AHorizonPlayerCharacter::StopFireInput()
+{
+    if (WeaponRuntime)
+    {
+        WeaponRuntime->StopFire();
+    }
+}
+
+void AHorizonPlayerCharacter::ReloadInput()
+{
+    if (WeaponRuntime)
+    {
+        WeaponRuntime->BeginReload();
+    }
 }
 
 bool AHorizonPlayerCharacter::AttachWeaponVisualToBestSocket(FName PreferredSocket)
