@@ -125,7 +125,8 @@ void UHorizonAutopilotSubsystem::ForceQualityTier(int32 InTier)
 void UHorizonAutopilotSubsystem::RecalculateProfile()
 {
     static const float CellSpans[5] = {1.65f, 2.15f, 2.85f, 3.75f, 4.80f};
-    static const int32 Buildings[5] = {650, 900, 1250, 1800, 2400};
+    static const int32 Buildings[5] = {900, 1400, 2200, 3600, 5200};
+    static const int32 CollidableBuildings[5] = {220, 320, 460, 650, 850};
     static const int32 Parts[5] = {350, 600, 950, 1400, 2100};
     static const int32 Infected[5] = {45, 70, 100, 135, 175};
     static const float Detail[5] = {0.55f, 0.68f, 0.80f, 0.92f, 1.0f};
@@ -141,6 +142,9 @@ void UHorizonAutopilotSubsystem::RecalculateProfile()
     Profile.StreamingPressure01 = StreamingPressure01;
     Profile.RecommendedCellSpanKm = FMath::Clamp(CellSpans[Tier] * PressureScale * SpeedScale, 1.2f, 5.0f);
     Profile.MaxBuildingsPerCell = FMath::Max(450, FMath::RoundToInt(Buildings[Tier] * PressureScale));
+    Profile.MaxCollidableBuildingsPerCell = FMath::Max(
+        180,
+        FMath::RoundToInt(CollidableBuildings[Tier] * PressureScale));
     Profile.MaxBuildingPartsPerCell = FMath::Max(200, FMath::RoundToInt(Parts[Tier] * PressureScale));
     Profile.MaxActiveInfected = FMath::Max(30, FMath::RoundToInt(Infected[Tier] * FMath::Lerp(1.0f, 0.72f, StreamingPressure01)));
     Profile.AnimationBudgetScale = Animation[Tier];

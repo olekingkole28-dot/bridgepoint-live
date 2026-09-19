@@ -25,7 +25,10 @@ struct FHorizonAutopilotProfile
     float RecommendedCellSpanKm = 3.4f;
 
     UPROPERTY(BlueprintReadOnly)
-    int32 MaxBuildingsPerCell = 1800;
+    int32 MaxBuildingsPerCell = 3600;
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 MaxCollidableBuildingsPerCell = 650;
 
     UPROPERTY(BlueprintReadOnly)
     int32 MaxBuildingPartsPerCell = 1400;
