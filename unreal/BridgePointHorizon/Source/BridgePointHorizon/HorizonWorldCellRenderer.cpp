@@ -375,6 +375,7 @@ void AHorizonWorldCellRenderer::ClearCell()
     RenderedRoadSegmentCount = 0;
     RenderedWaterFeatureCount = 0;
     RenderedProfiledRoofCount = 0;
+    TerrainReliefTintVertexCount = 0;
 }
 
 FIntPoint AHorizonWorldCellRenderer::ResolveBuildingLodCounts(
@@ -417,6 +418,46 @@ double AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
 
     const double MaximumRoofHeight = FMath::Min(12.0, TotalBuildingHeightMeters * 0.45);
     return FMath::Clamp(RequestedRoofHeightMeters, 0.0, MaximumRoofHeight);
+}
+
+FLinearColor AHorizonWorldCellRenderer::ResolveTerrainReliefTint(
+    double HeightMeters,
+    double MinimumHeightMeters,
+    double MaximumHeightMeters,
+    double LocalReliefMeters)
+{
+    if (!FMath::IsFinite(HeightMeters) ||
+        !FMath::IsFinite(MinimumHeightMeters) ||
+        !FMath::IsFinite(MaximumHeightMeters) ||
+        !FMath::IsFinite(LocalReliefMeters) ||
+        MaximumHeightMeters < MinimumHeightMeters ||
+        LocalReliefMeters < 0.0)
+    {
+        return FLinearColor(0.62f, 0.60f, 0.56f, 1.0f);
+    }
+
+    const double RangeMeters = MaximumHeightMeters - MinimumHeightMeters;
+    const float Elevation01 = RangeMeters <= 0.01
+        ? 0.5f
+        : static_cast<float>(FMath::Clamp(
+            (HeightMeters - MinimumHeightMeters) / RangeMeters,
+            0.0,
+            1.0));
+    const float Relief01 = static_cast<float>(FMath::Clamp(
+        LocalReliefMeters / FMath::Max(1.0, RangeMeters),
+        0.0,
+        1.0));
+
+    // This is a neutral topographic modulation, not an invented land-cover class.
+    const float Lightness = FMath::Clamp(
+        FMath::Lerp(0.64f, 0.94f, Elevation01) - Relief01 * 0.14f,
+        0.48f,
+        0.96f);
+    return FLinearColor(
+        Lightness,
+        Lightness * 0.96f,
+        Lightness * 0.90f,
+        1.0f);
 }
 
 bool AHorizonWorldCellRenderer::RenderCellJson(const FString& CellJson)
@@ -545,7 +586,31 @@ bool AHorizonWorldCellRenderer::BuildTerrain(const TSharedPtr<FJsonObject>& Root
     TerrainHeightsMeters.Reserve(Heights->Num());
     for (const TSharedPtr<FJsonValue>& Height : *Heights)
     {
-        TerrainHeightsMeters.Add(Height.IsValid() ? Height->AsNumber() : 0.0);
+        if (!Height.IsValid() || Height->Type != EJson::Number)
+        {
+            TerrainHeightsMeters.Reset();
+            TerrainWidth = 0;
+            TerrainHeight = 0;
+            return false;
+        }
+
+        const double HeightMeters = Height->AsNumber();
+        if (!FMath::IsFinite(HeightMeters))
+        {
+            TerrainHeightsMeters.Reset();
+            TerrainWidth = 0;
+            TerrainHeight = 0;
+            return false;
+        }
+        TerrainHeightsMeters.Add(HeightMeters);
+    }
+
+    double MinimumHeightMeters = TerrainHeightsMeters[0];
+    double MaximumHeightMeters = TerrainHeightsMeters[0];
+    for (const double HeightMeters : TerrainHeightsMeters)
+    {
+        MinimumHeightMeters = FMath::Min(MinimumHeightMeters, HeightMeters);
+        MaximumHeightMeters = FMath::Max(MaximumHeightMeters, HeightMeters);
     }
 
     BaseElevationMeters = TerrainHeightsMeters[(TerrainHeight / 2) * TerrainWidth + (TerrainWidth / 2)];
@@ -558,6 +623,14 @@ bool AHorizonWorldCellRenderer::BuildTerrain(const TSharedPtr<FJsonObject>& Root
 
     Vertices.Reserve(TerrainWidth * TerrainHeight);
     UV0.Reserve(TerrainWidth * TerrainHeight);
+    Colors.Reserve(TerrainWidth * TerrainHeight);
+
+    const auto HeightAt = [this](int32 X, int32 Y)
+    {
+        const int32 SafeX = FMath::Clamp(X, 0, TerrainWidth - 1);
+        const int32 SafeY = FMath::Clamp(Y, 0, TerrainHeight - 1);
+        return TerrainHeightsMeters[SafeY * TerrainWidth + SafeX];
+    };
 
     for (int32 Y = 0; Y < TerrainHeight; ++Y)
     {
@@ -572,6 +645,19 @@ bool AHorizonWorldCellRenderer::BuildTerrain(const TSharedPtr<FJsonObject>& Root
 
             Vertices.Add(ProjectCoordinate(Longitude, Latitude, HeightMeters));
             UV0.Add(FVector2D(U * 8.0, V * 8.0));
+
+            const double LocalReliefMeters = FMath::Max(
+                FMath::Max(
+                    FMath::Abs(HeightMeters - HeightAt(X - 1, Y)),
+                    FMath::Abs(HeightMeters - HeightAt(X + 1, Y))),
+                FMath::Max(
+                    FMath::Abs(HeightMeters - HeightAt(X, Y - 1)),
+                    FMath::Abs(HeightMeters - HeightAt(X, Y + 1))));
+            Colors.Add(ResolveTerrainReliefTint(
+                HeightMeters,
+                MinimumHeightMeters,
+                MaximumHeightMeters,
+                LocalReliefMeters));
         }
     }
 
@@ -606,6 +692,7 @@ bool AHorizonWorldCellRenderer::BuildTerrain(const TSharedPtr<FJsonObject>& Root
         Colors,
         Tangents,
         bCreateTerrainCollision);
+    TerrainReliefTintVertexCount = Colors.Num();
     if (TerrainMaterial)
     {
         TerrainMesh->SetMaterial(0, TerrainMaterial);

@@ -68,4 +68,31 @@ bool FHorizonWorldSourceRoofProfileTest::RunTest(const FString& Parameters)
     return true;
 }
 
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonWorldTerrainReliefTintTest,
+    "BridgePoint.Horizon.World.Terrain.SourceReliefTint",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonWorldTerrainReliefTintTest::RunTest(const FString& Parameters)
+{
+    const FLinearColor Low = AHorizonWorldCellRenderer::ResolveTerrainReliefTint(
+        10.0, 10.0, 110.0, 0.0);
+    const FLinearColor High = AHorizonWorldCellRenderer::ResolveTerrainReliefTint(
+        110.0, 10.0, 110.0, 0.0);
+    const FLinearColor Rough = AHorizonWorldCellRenderer::ResolveTerrainReliefTint(
+        110.0, 10.0, 110.0, 80.0);
+    const FLinearColor Flat = AHorizonWorldCellRenderer::ResolveTerrainReliefTint(
+        25.0, 25.0, 25.0, 0.0);
+    const FLinearColor Invalid = AHorizonWorldCellRenderer::ResolveTerrainReliefTint(
+        25.0, 40.0, 20.0, 0.0);
+
+    TestTrue(TEXT("Higher sourced elevation receives lighter relief tint"), High.R > Low.R);
+    TestTrue(TEXT("Abrupt sourced relief receives bounded contrast"), Rough.R < High.R);
+    TestTrue(TEXT("Relief tint stays opaque"), FMath::IsNearlyEqual(High.A, 1.0f));
+    TestTrue(TEXT("Flat terrain remains in a bounded neutral range"), Flat.R > 0.60f && Flat.R < 0.90f);
+    TestTrue(TEXT("Invalid source range fails to neutral tint"), FMath::IsNearlyEqual(Invalid.R, 0.62f));
+    return true;
+}
+
 #endif

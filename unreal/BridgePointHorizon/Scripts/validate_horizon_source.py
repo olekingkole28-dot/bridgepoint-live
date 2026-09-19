@@ -106,7 +106,8 @@ for token in [
     "BuildTerrain", "BuildTransport", "BuildWater", "BuildBuildings",
     "TriangulateSimplePolygon", "BuildingPartMaterial", "WaterMaterial",
     "FarBuildingMesh", "ResolveBuildingLodCounts", "MaxCollidableBuildingsPerCell",
-    "ResolveSourceRoofHeightMeters", "GetRenderedProfiledRoofCount"
+    "ResolveSourceRoofHeightMeters", "GetRenderedProfiledRoofCount",
+    "ResolveTerrainReliefTint", "GetTerrainReliefTintVertexCount"
 ]:
     require(token in renderer_contract, f"streamed UE renderer feature missing: {token}")
 for token in ["SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics)", "SetCollisionResponseToAllChannels(ECR_Block)"]:
@@ -117,7 +118,11 @@ for token in [
     "BuildingLodCounts.Y", "roof_shape", "roof_height_m",
     "ProfileRoofHeightMeters", "RenderedProfiledRoofCount",
     "const int32 ApexIndex = Vertices.Add(Apex)",
-    "TopMeters - ProfileRoofHeightMeters"
+    "TopMeters - ProfileRoofHeightMeters",
+    "Height->Type != EJson::Number", "!FMath::IsFinite(HeightMeters)",
+    "Colors.Reserve(TerrainWidth * TerrainHeight)",
+    "LocalReliefMeters", "TerrainReliefTintVertexCount = Colors.Num()",
+    "neutral topographic modulation, not an invented land-cover class"
 ]:
     require(token in renderer, f"city silhouette LOD safeguard missing: {token}")
 
@@ -129,7 +134,13 @@ for token in [
     "World.Roofs.SourceProfiles", "Explicit pyramidal roofs preserve source roof height",
     "Missing source roof height does not invent a profile",
     "Roof height is bounded against total building height",
-    "Invalid roof metadata fails closed"
+    "Invalid roof metadata fails closed",
+    "World.Terrain.SourceReliefTint",
+    "Higher sourced elevation receives lighter relief tint",
+    "Abrupt sourced relief receives bounded contrast",
+    "Relief tint stays opaque",
+    "Flat terrain remains in a bounded neutral range",
+    "Invalid source range fails to neutral tint"
 ]:
     require(token in world_lod_tests, f"native world LOD QA missing: {token}")
 
