@@ -26,6 +26,21 @@ bool FHorizonWeaponCadenceAndReloadTest::RunTest(const FString& Parameters)
         UHorizonWeaponRuntimeComponent::ComputeReloadTransfer(7, 5, 30), 5);
     TestEqual(TEXT("Full magazine transfers nothing"),
         UHorizonWeaponRuntimeComponent::ComputeReloadTransfer(30, 90, 30), 0);
+
+    TestTrue(TEXT("Two hundred millisecond hitch preserves elapsed weapon time"),
+        FMath::IsNearlyEqual(
+            UHorizonWeaponRuntimeComponent::AdvanceCountdown(1.0f, 0.20f),
+            0.80f));
+    TestEqual(TEXT("Countdown overshoot clamps at zero"),
+        UHorizonWeaponRuntimeComponent::AdvanceCountdown(0.05f, 0.20f),
+        0.0f);
+    TestEqual(TEXT("Negative frame delta cannot increase or consume a timer"),
+        UHorizonWeaponRuntimeComponent::AdvanceCountdown(1.0f, -0.25f),
+        1.0f);
+    TestTrue(TEXT("Catastrophic stalls use a bounded half-second catch-up"),
+        FMath::IsNearlyEqual(
+            UHorizonWeaponRuntimeComponent::AdvanceCountdown(1.0f, 5.0f),
+            0.50f));
     return true;
 }
 

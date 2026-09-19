@@ -66,6 +66,26 @@ int32 UHorizonWeaponRuntimeComponent::ComputeReloadTransfer(
     return FMath::Min(Missing, FMath::Max(0, AvailableReserve));
 }
 
+float UHorizonWeaponRuntimeComponent::AdvanceCountdown(
+    float RemainingSeconds,
+    float DeltaSeconds)
+{
+    if (!FMath::IsFinite(RemainingSeconds) || RemainingSeconds <= 0.0f)
+    {
+        return 0.0f;
+    }
+
+    if (!FMath::IsFinite(DeltaSeconds) || DeltaSeconds <= 0.0f)
+    {
+        return RemainingSeconds;
+    }
+
+    // Preserve ordinary long frames so cadence and reloads remain tied to wall time.
+    // Cap only catastrophic stalls to avoid an unbounded simulation jump on resume.
+    const float SafeDeltaSeconds = FMath::Min(DeltaSeconds, 0.50f);
+    return FMath::Max(0.0f, RemainingSeconds - SafeDeltaSeconds);
+}
+
 FVector2D UHorizonWeaponRuntimeComponent::ComputeRecoilImpulse(
     int32 Sequence,
     bool bIsAiming,
@@ -188,12 +208,11 @@ void UHorizonWeaponRuntimeComponent::TickComponent(
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-    const float Step = FMath::Clamp(DeltaTime, 0.0f, 0.10f);
-    FireCooldownSeconds = FMath::Max(0.0f, FireCooldownSeconds - Step);
+    FireCooldownSeconds = AdvanceCountdown(FireCooldownSeconds, DeltaTime);
 
     if (bReloading)
     {
-        ReloadRemainingSeconds = FMath::Max(0.0f, ReloadRemainingSeconds - Step);
+        ReloadRemainingSeconds = AdvanceCountdown(ReloadRemainingSeconds, DeltaTime);
         if (ReloadRemainingSeconds <= KINDA_SMALL_NUMBER)
         {
             CompleteReload();
