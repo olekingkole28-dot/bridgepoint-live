@@ -1,4 +1,4 @@
-# V5376 final publish: refresh global roof/floor after OFM source settles
+# V5376 final publish: repaint global roof/floor after tile events and camera settle
 name: Publish BridgePoint V5376 Lightweight World
 
 on:
