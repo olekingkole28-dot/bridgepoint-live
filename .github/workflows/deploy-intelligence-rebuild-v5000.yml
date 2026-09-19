@@ -181,8 +181,8 @@ jobs:
           node --check site/app/horizon-playable/horizon-v2.js
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
-          grep -Fq '__BP_APP_BUILD_VERSION__=5368' site/app.js
-          grep -Fq '__BP_WORLD_RENDER_VERSION__=5368' site/world-v2300-map.js
+          grep -Fq '__BP_APP_BUILD_VERSION__=5371' site/app.js
+          grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' site/world-v2300-map.js
           grep -Fq 'bridgepoint_frontend_status_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_by_id_v5024' site/app.js
@@ -209,31 +209,31 @@ jobs:
           grep -Fq 'bProvDataset' site/app.js
           grep -Fq 'gta-bp-roofs' site/world-v2300-map.js
           grep -Fq '__BP_BUILDING_MATERIALS__' site/world-v2300-map.js
-          grep -Fq "mode:'structural-grey-3d'" site/world-v2300-map.js
+          grep -Fq "mode:'grey-3d-detail'" site/world-v2300-map.js
           grep -Fq "id:'gta-context-floor-lines'" site/world-v2300-map.js
           grep -Fq "id:'gta-exact-floor-lines'" site/world-v2300-map.js
           grep -Fq "id:'gta-exact-roof'" site/world-v2300-map.js
           grep -Fq 'floorLines:true' site/world-v2300-map.js
           grep -Fq 'exactRoofs:true' site/world-v2300-map.js
-          grep -Fq 'sourceBackedHeight:true' site/world-v2300-map.js
-          grep -Fq 'bridgePointGeometry:true' site/world-v2300-map.js
-          grep -Fq 'buildingParts:true' site/world-v2300-map.js
-          grep -Fq 'integratedFloorBands:true' site/world-v2300-map.js
-          grep -Fq 'realRoofTruthGeometry:true' site/world-v2300-map.js
-          grep -Fq "roofTruthSourceLayer:'roofs'" site/world-v2300-map.js
+          grep -Fq 'simpleGreyGeometry:true' site/world-v2300-map.js
+          grep -Fq 'legacyPersistentGlobalShell:true' site/world-v2300-map.js
+          grep -Fq 'buildingParts:false' site/world-v2300-map.js
+          grep -Fq 'floorLines:true' site/world-v2300-map.js
+          grep -Fq 'roofOverlays:true' site/world-v2300-map.js
+          grep -Fq 'exactRoofs:true' site/world-v2300-map.js
           grep -Fq "'source-layer':'roofs'" site/world-v2300-map.js
-          grep -Fq "const floorPattern=['step',['zoom'],'bp-grey-solid'" site/world-v2300-map.js
-          grep -Fq "endpoint:'bridgepoint-public-building-tile-v5368'" site/app.js
-          grep -Fq 'roofTruthGeometry:true' site/app.js
-          grep -Fq "id:'gta-bp-floor-lines'" site/world-v2300-map.js
-          grep -Fq "authoritative:useBp?'BRIDGEPOINT_STRUCTURAL':'GLOBAL_CONTEXT_STRUCTURAL'" site/world-v2300-map.js
-          grep -Fq "actualHeightSource:useBp?'render_height_m':'OPENFREEMAP_HEIGHT'" site/world-v2300-map.js
-          grep -Fq "roofMode:useBp?'BRIDGEPOINT_ROOF_TRUTH_GEOMETRY'" site/world-v2300-map.js
-          grep -Fq 'minPitch:58,maxPitch:85' site/world-v2300-map.js
-          grep -Fq "mode:'HORIZON_FREE_FLY_SINGLE_VIEW'" site/world-v2300-map.js
-          grep -Fq 'horizonLocked:true' site/world-v2300-map.js
-          grep -Fq "displaySource:'BRIDGEPOINT_STRUCTURAL_WITH_GLOBAL_FALLBACK'" site/app.js
-          grep -Fq 'bridgePointHandoff:true' site/app.js
+          grep -Fq 'function floorLinePatternImage()' site/world-v2300-map.js
+          grep -Fq 'additiveExactDetail:true' site/app.js
+          grep -Fq 'loadRoofTruth' site/app.js
+          grep -Fq "id:'gta-exact-floor-lines'" site/world-v2300-map.js
+          grep -Fq "authoritative:cityReady?'BRIDGEPOINT_CITY_STRUCTURES_V5371':'GLOBAL_CONTEXT_FALLBACK'" site/world-v2300-map.js
+          grep -Fq 'exactHeightTransport:true' site/world-v2300-map.js
+          grep -Fq 'realRoofGeometry:true' site/world-v2300-map.js
+          grep -Fq 'maxPitch:85' site/world-v2300-map.js
+          grep -Fq "mode:'FREE_FLY_SINGLE_VIEW'" site/world-v2300-map.js
+          grep -Fq 'buildingClickOverlook:true' site/world-v2300-map.js
+          grep -Fq "displaySource:cityReady?'BRIDGEPOINT_CITY_STRUCTURES_V5371':'OPENFREEMAP_GLOBAL_BUILDING'" site/world-v2300-map.js
+          grep -Fq 'bridgePointHandoff:false' site/app.js
           grep -Fq 'maxPitch:85' site/world-v2300-map.js
           grep -Fq 'autoViewSwitching:false' site/world-v2300-map.js
           grep -Fq 'streetWalkMode:false' site/world-v2300-map.js
@@ -242,11 +242,12 @@ jobs:
           ! grep -Fq 'id="pViewStreet"' site/app.js
           ! grep -Fq 'id="pView3D"' site/app.js
           ! grep -Fq 'id="pViewAerial"' site/app.js
-          grep -Fq 'bridgepoint-public-building-tile-v5368' site/world-v2300-map.js
+          grep -Fq 'bridgepoint-public-city-structures-v5375' site/world-v2300-map.js
+          grep -Fq 'bridgepoint-public-city-roofs-v5376' site/world-v2300-map.js
           grep -Fq "'fill-extrusion-base':0" site/world-v2300-map.js
           ! grep -Fq "map.on('idle',syncBuildingShells)" site/world-v2300-map.js
           grep -Fq 'cacheBusting:false' site/app.js
-          grep -Fq 'disabled_by_owner_v5368' site/app.js
+          grep -Fq 'disabled_by_owner_v5365' site/app.js
           grep -Fq "ensureWeatherRasterPair('Radar')" site/app.js
           ! grep -Fq "ensureWeatherRasterPair('Cloud')" site/app.js
           ! grep -Fq 'bridgepoint-noaa-cloud-frames-v215' site/app.js
@@ -262,7 +263,7 @@ jobs:
           grep -Fq '__BP_EXACT_DETAIL_STATE__' site/world-v2300-map.js
           grep -Fq 'streetLevelClamped' site/world-v2300-map.js
           grep -Fq 'gta-bp-landmark3d-body' site/world-v2300-map.js
-          grep -Fq 'cancelPendingTileRequestsWhileZooming:MOBILE' site/world-v2300-map.js
+          grep -Fq 'cancelPendingTileRequestsWhileZooming:true' site/world-v2300-map.js
           grep -Fq 'wx-radar-haze' site/world-v2300-weather.js
           grep -Fq 'NOHRSC_Snow_Analysis' site/world-v2300-weather.js
           ! grep -Fq "map.getSource('selected')?.setData" site/world-v2300-map.js
@@ -288,7 +289,7 @@ jobs:
           grep -Fq 'bindPerformanceGovernor' site/app.js
           grep -Fq 'BP_MOBILE' site/app.js
           grep -Fq 'scheduleOpportunityBuildings' site/app.js
-          grep -Fq 'MOBILE?650' site/world-v2300-map.js
+          grep -Fq 'MOBILE?500:650' site/world-v2300-map.js
           grep -Fq 'bpLivingWorld' site/world-v2300-map.js
           grep -Fq 'scheduleLivingWorld' site/world-v2300-map.js
           grep -Fq 'if(on){' site/world-v2300-map.js
@@ -386,11 +387,11 @@ jobs:
           ok=0
           for i in $(seq 1 45); do
             q="${GITHUB_SHA}-${i}-$(date +%s)"
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?v5050=${q}" -o /tmp/root.html || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?v5050=${q}" -o /tmp/app.html || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5368=${q}" -o /tmp/app.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5368=${q}" -o /tmp/world-v2300-map.js || true
-            if grep -Fq 'BP_LANDING_V5050' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5368' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5368' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5368' /tmp/world-v2300-map.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js; then ok=1; break; fi
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?v5400=${q}" -o /tmp/root.html || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?v5400=${q}" -o /tmp/app.html || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5371=${q}" -o /tmp/app.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5378=${q}" -o /tmp/world-v2300-map.js || true
+            if grep -Fq 'BP_LANDING_V5400' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5371' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' /tmp/world-v2300-map.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
