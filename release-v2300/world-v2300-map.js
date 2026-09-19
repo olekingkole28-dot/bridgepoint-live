@@ -601,16 +601,18 @@ export function initWorld(options={}){
     for(const id of ['gta-context-building-footprints','gta-context-buildings','gta-context-floor-lines','gta-context-roofs','gta-bp-buildings','gta-bp-facade-detail','gta-bp-roofs','gta-bp-building-edge','gta-exact-building','gta-exact-floor-lines','gta-exact-roof','gta-building-outline'])vis(map,id,false);
     return
    }
-   const z=map.getZoom(),cityShell=z>=9.6,bpReady=z>=10.9&&bridgePointBuildingCoverageReady(),exactReady=exactCount>0&&z>=DETAIL_MIN;
+   const z=map.getZoom(),cityShell=z>=9.6,wantBp=z>=11.0,bpReady=wantBp&&bridgePointBuildingCoverageReady(),exactReady=exactCount>0&&z>=DETAIL_MIN;
    const floors=z>=(MOBILE?15.1:14.4),roofFallback=z>=(MOBILE?12.6:11.4),facade=z>=FACADE_DETAIL_MIN;
    vis(map,'gta-context-building-footprints',z>=9.25&&z<9.6);
    vis(map,'gta-context-buildings',cityShell&&!bpReady);
    vis(map,'gta-context-floor-lines',floors&&!bpReady);
    vis(map,'gta-context-roofs',roofFallback&&!bpReady);
-   vis(map,'gta-bp-buildings',bpReady);
-   vis(map,'gta-bp-facade-detail',bpReady&&facade);
-   vis(map,'gta-bp-roofs',bpReady);
-   vis(map,'gta-bp-building-edge',bpReady&&z>=11.8);
+   // Make the BridgePoint layers visible as soon as city LOD starts so MapLibre actually requests their vector tiles.
+   // The OpenFreeMap shell remains beneath them until source features arrive, preventing blank-city flashes.
+   vis(map,'gta-bp-buildings',wantBp);
+   vis(map,'gta-bp-facade-detail',wantBp&&facade);
+   vis(map,'gta-bp-roofs',wantBp);
+   vis(map,'gta-bp-building-edge',wantBp&&z>=11.8);
    vis(map,'gta-exact-building',exactReady);
    vis(map,'gta-exact-floor-lines',exactReady&&floors);
    vis(map,'gta-exact-roof',exactReady);
@@ -633,6 +635,7 @@ export function initWorld(options={}){
     floorLines:floors,
     exactRoofs:exactReady,
     sourceBackedRoofs:bpReady,
+    bridgePointTilesRequested:wantBp,
     contextRoofFallback:roofFallback&&!bpReady,
     exactCount,
     facadeDetail:bpReady&&facade,
