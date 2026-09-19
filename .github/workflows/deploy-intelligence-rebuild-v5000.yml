@@ -160,6 +160,8 @@ jobs:
           cp rebuild-v5000/404.html site/404.html
           cp rebuild-v5000/bridgepoint-mark.svg site/bridgepoint-mark.svg
           cp rebuild-v5000/bridgepoint-favicon-48.png site/bridgepoint-favicon-48.png
+          cp -a rebuild-v5000/terms site/terms
+          cp -a rebuild-v5000/privacy site/privacy
           cp robots.txt sitemap.xml llms.txt llms-full.txt site/
 
           # Funnel legacy public content to the current map and attach the language selector.
@@ -256,8 +258,12 @@ jobs:
           grep -Fq 'bProvDataset' site/app.js
           grep -Fq 'gta-bp-roofs' site/world-v2300-map.js
           grep -Fq '__BP_BUILDING_MATERIALS__' site/world-v2300-map.js
-          grep -Fq 'facadeLayoutVariants:12' site/world-v2300-map.js
-          grep -Fq 'possibleFacadeLayouts:facadeKinds.length*12' site/world-v2300-map.js
+          grep -Fq 'facadeLayoutVariants:128' site/world-v2300-map.js
+          grep -Fq 'possibleFacadeLayouts:facadeKinds.length*128' site/world-v2300-map.js
+          grep -Fq 'residentialLayoutVariants:10*128' site/world-v2300-map.js
+          grep -Fq '__BP_EXACT_DETAIL_STATE__' site/world-v2300-map.js
+          grep -Fq 'streetLevelClamped' site/world-v2300-map.js
+          grep -Fq 'gta-bp-landmark3d-body' site/world-v2300-map.js
           grep -Fq 'cancelPendingTileRequestsWhileZooming:MOBILE' site/world-v2300-map.js
           grep -Fq 'wx-radar-haze' site/world-v2300-weather.js
           grep -Fq 'NOHRSC_Snow_Analysis' site/world-v2300-weather.js
@@ -270,6 +276,16 @@ jobs:
           test -s site/vendor/pmtiles.js
           grep -Fq 'BP_LANDING_V5050' site/index.html
           grep -Fq 'authModal' site/index.html
+          grep -Fq 'authLegalAccept' site/index.html
+          grep -Fq 'authPasswordToggle' site/index.html
+          grep -Fq 'data-preview-cap="xray"' site/index.html
+          grep -Fq 'data-preview-cap="imagery"' site/index.html
+          grep -Fq 'bp_legal_accept_v1' site/app.js
+          grep -Fq 'authLegalAccept' site/app/index.html
+          test -s site/terms/index.html
+          test -s site/privacy/index.html
+          grep -Fq 'Terms of Use' site/terms/index.html
+          grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
           grep -Fq 'bottomNav' site/app/index.html
           grep -Fq 'bindPerformanceGovernor' site/app.js
