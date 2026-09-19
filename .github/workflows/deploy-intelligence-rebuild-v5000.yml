@@ -107,6 +107,8 @@ jobs:
           cp rebuild-v5000/404.html site/404.html
           cp rebuild-v5000/bridgepoint-mark.svg site/bridgepoint-mark.svg
           cp rebuild-v5000/bridgepoint-favicon-48.png site/bridgepoint-favicon-48.png
+          mkdir -p site/assets
+          cp -a rebuild-v5000/assets/. site/assets/
           rm -rf site/terms site/privacy
           cp -a rebuild-v5000/terms site/terms
           cp -a rebuild-v5000/privacy site/privacy
@@ -168,6 +170,8 @@ jobs:
           grep -Fq 'Flood watch / advisory / warning area' site/app.js
           grep -Fq 'bp-v5004-weather-shape-line' site/app.js
           test -s site/sample/storm-opportunity/index.html
+          test -s site/assets/bp-city-world-background.webp
+          test -s site/assets/molly-bridgepoint-guide.webp
           node --check site/acquisition_tracker.js
           grep -Fq 'us.i.posthog.com' site/acquisition_tracker.js
           grep -Fq 'HUMAN_INTERACTION' site/acquisition_tracker.js
