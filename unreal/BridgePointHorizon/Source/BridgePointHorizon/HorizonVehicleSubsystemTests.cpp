@@ -82,7 +82,7 @@ bool FHorizonVehicleTravelSimulationTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Resume spike fuel cost is bounded"),
         FMath::IsNearlyEqual(ResumeSpike.FuelLiters, OneSecond.FuelLiters));
 
-    Vehicle.FuelLiters = 0.000001f;
+    Vehicle.FuelLiters = 0.001f;
     const FHorizonVehicleState Exhausted =
         UHorizonVehicleSubsystem::SimulateTravel(
             Vehicle, Tuning, 1.0f, 60.0f, false, 0.0f);
