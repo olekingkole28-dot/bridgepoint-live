@@ -8,6 +8,7 @@
 AHorizonZombieWallController::AHorizonZombieWallController()
 {
     PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.TickInterval = 2.0f;
 
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
     SetRootComponent(SceneRoot);
@@ -15,6 +16,12 @@ AHorizonZombieWallController::AHorizonZombieWallController()
     WallSpline = CreateDefaultSubobject<USplineComponent>(TEXT("ZombieWallSpline"));
     WallSpline->SetupAttachment(SceneRoot);
     WallSpline->SetClosedLoop(true);
+}
+
+void AHorizonZombieWallController::BeginPlay()
+{
+    Super::BeginPlay();
+    RefreshYearOneClock();
 }
 
 void AHorizonZombieWallController::OnConstruction(const FTransform& Transform)
@@ -26,6 +33,26 @@ void AHorizonZombieWallController::OnConstruction(const FTransform& Transform)
 void AHorizonZombieWallController::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+
+    RefreshYearOneClock();
+}
+
+float AHorizonZombieWallController::ResolveWallTickInterval(
+    bool bFollowingYearOneClock,
+    bool bYearOneStarted)
+{
+    if (!bFollowingYearOneClock || !bYearOneStarted)
+    {
+        return 2.0f;
+    }
+
+    // A quarter-second update is visually continuous at the scale of a
+    // year-long contraction without paying a per-render-frame polling cost.
+    return 0.25f;
+}
+
+void AHorizonZombieWallController::RefreshYearOneClock()
+{
 
     bool bStarted = true;
 
@@ -45,6 +72,7 @@ void AHorizonZombieWallController::Tick(float DeltaSeconds)
     }
 
     SetWallSplinesVisible(!bHideUntilYearOneStarts || bStarted);
+    SetActorTickInterval(ResolveWallTickInterval(bFollowYearOneClock, bStarted));
 
     const float Radius = GetCurrentRadiusCm();
     if (!FMath::IsNearlyEqual(Radius, LastBuiltRadius, 25.0f) ||
