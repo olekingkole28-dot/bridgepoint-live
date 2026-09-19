@@ -36,6 +36,15 @@ enum class EHorizonWeatherAudioState : uint8
 };
 
 UENUM(BlueprintType)
+enum class EHorizonSensoryStinger : uint8
+{
+    None,
+    ThreatRise,
+    HordeSurge,
+    PlayerHit
+};
+
+UENUM(BlueprintType)
 enum class EHorizonSpatialCueClass : uint8
 {
     Weapon,
@@ -112,6 +121,18 @@ struct FHorizonAudioMixState
     float MusicIntensity = 0.0f;
 
     UPROPERTY(BlueprintReadOnly)
+    float CombatIntensity = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float AmbienceGain = 1.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float EffectsGain = 1.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float TransientDuck = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
     float ReverbSend = 0.0f;
 
     UPROPERTY(BlueprintReadOnly)
@@ -157,6 +178,7 @@ class BRIDGEPOINTHORIZON_API UHorizonAudioDirectorSubsystem : public UGameInstan
 
 public:
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+    virtual void Deinitialize() override;
 
     UPROPERTY(BlueprintAssignable)
     FHorizonAudioStateChanged OnAudioStateChanged;
@@ -175,6 +197,12 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Audio")
     void SetHordePressure01(float NewPressure);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Audio")
+    void PushPlayerHitFeedback(float Damage01);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Audio")
+    EHorizonSensoryStinger ConsumePendingStinger();
 
     UFUNCTION(BlueprintPure, Category="Horizon|Audio")
     FHorizonAudioMixState GetMixState(EHorizonGameMode Mode) const;
@@ -207,6 +235,17 @@ private:
     UPROPERTY()
     EHorizonWeatherAudioState WeatherState = EHorizonWeatherAudioState::Clear;
 
+    bool TickCombatMix(float DeltaSeconds);
+    float ThreatToIntensity(EHorizonThreatState Threat) const;
+    void QueueStinger(EHorizonSensoryStinger Stinger);
+
     float Occlusion01 = 0.0f;
     float HordePressure01 = 0.0f;
+    float DesiredCombatIntensity01 = 0.0f;
+    float SmoothedCombatIntensity01 = 0.0f;
+    float CombatReleaseHoldSeconds = 0.0f;
+    float TransientDuck01 = 0.0f;
+    float StingerCooldownSeconds = 0.0f;
+    EHorizonSensoryStinger PendingStinger = EHorizonSensoryStinger::None;
+    FDelegateHandle CombatTickerHandle;
 };
