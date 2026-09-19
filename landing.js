@@ -3,7 +3,7 @@ const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co',KEY='sb_publishable_lM9oWQ
  if(!s?.access_token)return{primary_platform_owner:false};
  const c=new AbortController(),t=setTimeout(()=>c.abort(),4500);
  try{
-  const r=await fetch(RPC+'bridgepoint_my_map_start_v5378',{method:'POST',headers:{...H,Authorization:'Bearer '+s.access_token},body:'{}',signal:c.signal,cache:'no-store'});
+  const r=await fetch(RPC+'bridgepoint_my_map_start_v5377',{method:'POST',headers:{...H,Authorization:'Bearer '+s.access_token},body:'{}',signal:c.signal,cache:'no-store'});
   const d=await r.json().catch(()=>({}));
   return r.ok?d:{primary_platform_owner:false}
  }catch(_){return{primary_platform_owner:false}}finally{clearTimeout(t)}
