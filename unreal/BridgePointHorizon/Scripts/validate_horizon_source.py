@@ -59,6 +59,7 @@ required_source = [
     "HorizonLoadoutSubsystem",
     "HorizonWeaponRuntimeComponent",
     "HorizonSurvivalSubsystem",
+    "HorizonLootSubsystem",
     "HorizonBaseBuildingSubsystem",
     "HorizonEnemyProgressionSubsystem",
     "HorizonWorldStreamSubsystem",
@@ -400,6 +401,45 @@ for token in [
     require(token in survival_tests, f"native survival QA missing: {token}")
 require("Stripe" not in survival_tests and "Payment" not in survival_tests,
         "survival QA must remain independent of payments")
+
+loot_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonLootSubsystem.h")
+loot = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonLootSubsystem.cpp")
+loot_contract = loot_header + "\n" + loot
+for token in [
+    "EHorizonLootSource", "FHorizonLootStack", "FHorizonLootContext", "FHorizonLootDrop",
+    "FHorizonLootCollectionResult", "FHorizonDeferredLootDrop", "UHorizonLootSaveGame",
+    "GenerateDrop", "CollectDrop", "ClaimDeferredDrop", "SplitLootByCapacity",
+    "QualityBias", "bGameplayEarned = true"
+]:
+    require(token in loot_contract, f"fair loot contract missing: {token}")
+for token in [
+    "BridgePointHorizonLoot", "LoadGameFromSlot", "SaveGameToSlot",
+    "GetSubsystem<UHorizonSurvivalSubsystem>", "TryAddItem",
+    "ComputeInventoryWeightKg", "GetItemUnitWeightKg",
+    "ClaimedDropIds.Contains", "DeferredDrops", "Drop.DropId.IsValid()",
+    "FMath::Clamp(Context.QualityBias, -0.25f, 0.50f)",
+    "SourceBonus(Context.Source)", "FRandomStream"
+]:
+    require(token in loot, f"persistent fair loot behavior missing: {token}")
+for forbidden in ["premium", "purchase", "entitlement", "stripe", "payment"]:
+    require(forbidden not in loot_contract.lower(),
+            f"loot must remain gameplay-only: {forbidden}")
+
+loot_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonLootSubsystemTests.cpp")
+for token in [
+    "WITH_DEV_AUTOMATION_TESTS", "Systems.Loot.Determinism",
+    "Systems.Loot.ProgressionBounds", "Systems.Loot.CapacitySafety",
+    "Same drop identity and seed produce the same loot",
+    "Invalid drop identity fails closed",
+    "Bounded quality bias never reduces the number of awarded units",
+    "Boss source grants at least as many units as an ordinary container",
+    "Only weight-safe quantity enters inventory",
+    "Overflow remains deferred exactly once",
+    "Unknown item never enters inventory", "Full inventory loses no loot"
+]:
+    require(token in loot_tests, f"native fair loot QA missing: {token}")
+require("Stripe" not in loot_tests and "Payment" not in loot_tests,
+        "loot QA must remain independent of payments")
 
 base_building_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonBaseBuildingSubsystem.h")
 base_building = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonBaseBuildingSubsystem.cpp")
