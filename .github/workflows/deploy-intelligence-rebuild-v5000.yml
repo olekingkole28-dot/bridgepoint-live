@@ -262,6 +262,10 @@ jobs:
           grep -Fq 'facadeLayoutVariants:128' site/world-v2300-map.js
           grep -Fq 'possibleFacadeLayouts:facadeKinds.length*128' site/world-v2300-map.js
           grep -Fq 'residentialLayoutVariants:10*128' site/world-v2300-map.js
+          grep -Fq 'variant=vm?Number(vm[1])%128:0' site/world-v2300-map.js
+          grep -Fq 'gta-bp-facade-detail' site/world-v2300-map.js
+          grep -Fq 'gta-context-facade-detail' site/world-v2300-map.js
+          grep -Fq 'gta-exact-facade-detail' site/world-v2300-map.js
           grep -Fq '__BP_EXACT_DETAIL_STATE__' site/world-v2300-map.js
           grep -Fq 'streetLevelClamped' site/world-v2300-map.js
           grep -Fq 'gta-bp-landmark3d-body' site/world-v2300-map.js
