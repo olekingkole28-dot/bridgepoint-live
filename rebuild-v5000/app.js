@@ -69,14 +69,14 @@ async function initSharedVisualWeather(targetWorld){
  const styleReady=()=>{try{return map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch{return false}};
  if(!styleReady())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
  try{
-  const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5340'),import('./world-v2300-present-weather.js?v=5340')]);
+  const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5341'),import('./world-v2300-present-weather.js?v=5341')]);
   const weather=wm.initWeather(map),present=pm.initPresentWeather(map);
-  window.__BP_SHARED_VISUAL_WEATHER__={version:5340,weather,present,mapShared:true,streetWalkLiveSimulation:true,updatedAt:Date.now()};
+  window.__BP_SHARED_VISUAL_WEATHER__={version:5341,weather,present,mapShared:true,streetWalkLiveSimulation:true,updatedAt:Date.now()};
   return window.__BP_SHARED_VISUAL_WEATHER__
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5340');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5341');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -597,7 +597,7 @@ function bindPerformanceGovernor(){
  if(m.__bpPerfGovernor)return;
  m.__bpPerfGovernor=true;
  const enter=()=>{mapInteracting=true;lastMapMotionAt=performance.now();opportunitySeq++;clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);document.body.classList.add('map-interacting');try{closeSystem()}catch(_){}const auth=$('authPanel');if(auth)auth.hidden=true;$('bottomNav')?.classList.remove('peek')},
- leave=()=>{lastMapMotionAt=performance.now();clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);performanceDrainTimer=setTimeout(()=>{mapInteracting=false;document.body.classList.remove('map-interacting');flushDeferredWork();setTimeout(refreshSemanticLabels,BP_MOBILE?45:25);window.__BP_PERSISTENT_RENDER_STATE__={layersHiddenDuringMotion:false,heavyMutationsDuringMotion:false,updatedAt:Date.now()}},BP_MOBILE?35:20)};
+ leave=()=>{lastMapMotionAt=performance.now();clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);performanceDrainTimer=setTimeout(()=>{mapInteracting=false;document.body.classList.remove('map-interacting');flushDeferredWork();clearTimeout(semanticTimer);semanticTimer=setTimeout(refreshSemanticLabels,BP_MOBILE?2300:120);window.__BP_PERSISTENT_RENDER_STATE__={layersHiddenDuringMotion:false,heavyMutationsDuringMotion:false,updatedAt:Date.now()}},BP_MOBILE?90:20)};
  ['movestart','dragstart','zoomstart','rotatestart','pitchstart'].forEach(e=>m.on(e,enter));
  ['moveend','dragend','zoomend','rotateend','pitchend'].forEach(e=>m.on(e,leave))
 }
@@ -639,7 +639,7 @@ function bindMeasureTool(){
 
 function bindMapEngagement(){const map=world?.map;if(!map||map.__bpMapEngagementBound)return;map.__bpMapEngagementBound=true;map.on('movestart',()=>setMapSearchOpen(false));map.on('dragstart',()=>setMapSearchOpen(false));map.on('zoomstart',()=>setMapSearchOpen(false));map.getCanvas()?.addEventListener('pointerdown',()=>document.querySelector('.map-surface')?.classList.add('map-engaged'),{passive:true});const b=$('toggleSearch');if(b)b.onclick=()=>setMapSearchOpen(!$('publicSearchForm')?.classList.contains('search-open'));setMapSearchOpen(false)}
 async function refreshOpportunityBuildings(){if(mapInteracting){deferredWork.set('opportunities',refreshOpportunityBuildings);return}const map=world?.map,src=map?.getSource('bpOpportunities');if(!map||!src?.setData||map.isMoving?.())return;const seq=++opportunitySeq;if(map.getZoom()<10.8){src.setData({type:'FeatureCollection',features:[]});return}const b=map.getBounds();try{const d=await rpc('bridgepoint_public_opportunity_viewport_v5025',{p_west:b.getWest(),p_south:b.getSouth(),p_east:b.getEast(),p_north:b.getNorth(),p_limit:BP_MOBILE?90:220},3200);if(seq!==opportunitySeq||mapInteracting)return;queueAfterMap('opportunity-commit-'+seq,()=>{if(seq===opportunitySeq&&!mapInteracting)src.setData(d?.geojson||{type:'FeatureCollection',features:[]})})}catch(e){if(seq===opportunitySeq)console.warn('opportunity overlay',e)}}
-function scheduleOpportunityBuildings(){clearTimeout(opportunityTimer);opportunityTimer=setTimeout(refreshOpportunityBuildings,BP_MOBILE?780:420)}
+function scheduleOpportunityBuildings(){clearTimeout(opportunityTimer);opportunityTimer=setTimeout(refreshOpportunityBuildings,BP_MOBILE?2800:520)}
 function startOpportunityBuildings(){const map=world?.map;if(!map||map.__bpOpportunityBound)return;map.__bpOpportunityBound=true;map.on('moveend',scheduleOpportunityBuildings);setTimeout(scheduleOpportunityBuildings,1600)}
 
 
@@ -706,7 +706,7 @@ function refreshSemanticLabels(){
  semanticTimer=setTimeout(run,BP_MOBILE?90:45)
 }
 
-function startSemanticLabels(){const map=world?.map;if(!map||map.__bpSemanticBound)return;map.__bpSemanticBound=true;window.__BP_REFRESH_SEMANTIC_LABELS__=refreshSemanticLabels;map.on('moveend',()=>setTimeout(refreshSemanticLabels,BP_MOBILE?55:35));setTimeout(refreshSemanticLabels,BP_MOBILE?180:100)}
+function startSemanticLabels(){const map=world?.map;if(!map||map.__bpSemanticBound)return;map.__bpSemanticBound=true;window.__BP_REFRESH_SEMANTIC_LABELS__=refreshSemanticLabels;const trailing=()=>{clearTimeout(semanticTimer);semanticTimer=setTimeout(refreshSemanticLabels,BP_MOBILE?2300:120)};map.on('moveend',trailing);setTimeout(refreshSemanticLabels,BP_MOBILE?220:100)}
 
 function refreshTiles(){if(mapInteracting){deferredWork.set('tile-pulse',refreshTiles);return}const map=world?.map;if(!map||map.isMoving?.())return;const pulse=Math.floor(Date.now()/120000),fn=SUPA+'/functions/v1/';try{const b=map.getSource('bpBuildings');if(b?.setTiles)b.setTiles([fn+'bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000&pulse='+pulse]);const p=map.getSource('bpParcels');if(p?.setTiles)p.setTiles([fn+'bridgepoint-spatial-tile-v1957?layer=parcels&z={z}&x={x}&y={y}&limit=9000&pulse='+pulse]);queueAfterMap('selected-refresh',refreshSelected)}catch(e){console.warn('tile pulse',e)}}
 function applyPublicEmbedMode(q){
@@ -741,6 +741,6 @@ async function applyGrowthDeepLink(){
  if(q.get('select')!=='0'&&zoom>=15){setTimeout(()=>{try{selectedFeature=null;showBuilding(targetLng,targetLat)}catch(e){console.warn('deep link building',e)}},350)}
  return true
 }
-async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();void loadStatus();setTimeout(()=>{if(!Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0))void loadStatus()},5000);try{await bootMap();bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();startSemanticLabels();await applyGrowthDeepLink()}catch(e){setText('mapStatus','Map start retry · '+e.message)}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),120000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),90000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5340',{updateViaCache:'none'}).catch(()=>{})}
+async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();void loadStatus();setTimeout(()=>{if(!Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0))void loadStatus()},5000);try{await bootMap();bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();startSemanticLabels();await applyGrowthDeepLink()}catch(e){setText('mapStatus','Map start retry · '+e.message)}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),120000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),90000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5341',{updateViaCache:'none'}).catch(()=>{})}
 start();
 window.addEventListener('beforeunload',()=>{clearInterval(accessCountdownTimer);clearInterval(statusTimer);clearInterval(tileTimer);clearInterval(selectedTimer);clearInterval(liveContextTimer);clearInterval(radarRefreshTimer);clearInterval(radarAnimTimer);clearInterval(cloudRefreshTimer);clearInterval(cloudAnimTimer);clearInterval(transportTimer);clearInterval(opportunityTimer);clearTimeout(semanticTimer)});
