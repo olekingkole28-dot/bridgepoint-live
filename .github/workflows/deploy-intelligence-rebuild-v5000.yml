@@ -189,10 +189,13 @@ jobs:
           cp release-v2300/world-v2300-config.js site/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/world-v2300-map.js
           cp release-v2300/world-v2300-worker.js site/world-v2300-worker.js
+          cp release-v2300/world-v2300-weather.js site/world-v2300-weather.js
+          cp release-v2300/world-v2300-present-weather.js site/world-v2300-present-weather.js
           cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/app/world-v2300-map.js
           cp release-v2300/world-v2300-worker.js site/app/world-v2300-worker.js
           cp release-v2300/world-v2300-weather.js site/app/world-v2300-weather.js
+          cp release-v2300/world-v2300-present-weather.js site/app/world-v2300-present-weather.js
           cp release-v2300/world-v2300-inspector.js site/app/world-v2300-inspector.js
           cp release-v2300/world-v2300-bootstrap.js site/app/world-v2300-bootstrap.js
           cp release-v2300/world-v2300.css site/app/world-v2300.css
@@ -213,7 +216,10 @@ jobs:
           node --check site/world-v2300-config.js
           node --check site/world-v2300-map.js
           node --check site/world-v2300-worker.js
+          node --check site/world-v2300-weather.js
+          node --check site/world-v2300-present-weather.js
           node --check site/app/world-v2300-weather.js
+          node --check site/app/world-v2300-present-weather.js
           node --check site/app/world-v2300-bootstrap.js
           node --check site/app/horizon/app.js
           node --check site/app/horizon/lobby-scene.js
