@@ -271,7 +271,7 @@ jobs:
           grep -Fq 'bridgepoint-transport-runtime-broker-v2716' site/app.js
           grep -Fq 'bp-v2716-transport-segments' site/app.js
           test -s site/vendor/pmtiles.js
-          grep -Fq 'BP_LANDING_V5050' site/index.html
+          grep -Fq 'BP_LANDING_V5400' site/index.html
           grep -Fq 'authModal' site/index.html
           grep -Fq 'authLegalAccept' site/index.html
           grep -Fq 'authPasswordToggle' site/index.html
