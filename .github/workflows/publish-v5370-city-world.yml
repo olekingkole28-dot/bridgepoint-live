@@ -1,5 +1,5 @@
 name: Publish BridgePoint V5370 City World
-# retry-after-visible-city-source: 3
+# retry-after-visible-city-source: 4
 
 on:
   push:
@@ -100,15 +100,15 @@ jobs:
                 const m=window.__BP_V5000_WORLD?.map;
                 if(!m)return false;
                 try{
-                  const context=(m.queryRenderedFeatures({layers:['gta-context-buildings']})||[]).length;
-                  const bp=(m.queryRenderedFeatures({layers:['gta-bp-buildings']})||[]).length;
+                  const context=(m.queryRenderedFeatures(undefined,{layers:['gta-context-buildings']})||[]).length;
+                  const bp=(m.queryRenderedFeatures(undefined,{layers:['gta-bp-buildings']})||[]).length;
                   return context+bp>=120;
                 }catch{return false}
               },{timeout:30000});
               const city=await app.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map,mode=window.__BP_BUILDING_SHELL_MODE__||{};
-                const contextCount=(m.queryRenderedFeatures({layers:['gta-context-buildings']})||[]).length;
-                const bpCount=(m.queryRenderedFeatures({layers:['gta-bp-buildings']})||[]).length;
+                const contextCount=(m.queryRenderedFeatures(undefined,{layers:['gta-context-buildings']})||[]).length;
+                const bpCount=(m.queryRenderedFeatures(undefined,{layers:['gta-bp-buildings']})||[]).length;
                 return{
                   visibleBuildings:contextCount+bpCount,
                   contextCount,bpCount,
@@ -122,7 +122,7 @@ jobs:
               await app.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
                 if(!m)return false;
-                try{return window.__BP_STATUE_OF_LIBERTY_STATE__?.status==='ready' && (m.queryRenderedFeatures({layers:['bp-statue-liberty-3d']})||[]).length>0}catch{return false}
+                try{return window.__BP_STATUE_OF_LIBERTY_STATE__?.status==='ready' && (m.queryRenderedFeatures(undefined,{layers:['bp-statue-liberty-3d']})||[]).length>0}catch{return false}
               },{timeout:15000});
               const statue=await app.evaluate(()=>({state:window.__BP_STATUE_OF_LIBERTY_STATE__,count:(window.__BP_V5000_WORLD.map.queryRenderedFeatures({layers:['bp-statue-liberty-3d']})||[]).length}));
               if(!statue.count||statue.state?.colored!==true)throw new Error('STATUE '+JSON.stringify(statue));
