@@ -231,8 +231,8 @@ jobs:
           node --check site/app/horizon-playable/horizon-v2.js
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
-          grep -Fq '__BP_APP_BUILD_VERSION__=5361' site/app.js
-          grep -Fq '__BP_WORLD_RENDER_VERSION__=5361' site/world-v2300-map.js
+          grep -Fq '__BP_APP_BUILD_VERSION__=5362' site/app.js
+          grep -Fq '__BP_WORLD_RENDER_VERSION__=5362' site/world-v2300-map.js
           grep -Fq 'bridgepoint_frontend_status_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_by_id_v5024' site/app.js
@@ -261,26 +261,21 @@ jobs:
           grep -Fq 'bProvDataset' site/app.js
           grep -Fq 'gta-bp-roofs' site/world-v2300-map.js
           grep -Fq '__BP_BUILDING_MATERIALS__' site/world-v2300-map.js
-          grep -Fq 'facadeLayoutVariants:128' site/world-v2300-map.js
-          grep -Fq 'possibleFacadeLayouts:facadeKinds.length*128' site/world-v2300-map.js
-          grep -Fq 'residentialLayoutVariants:10*128' site/world-v2300-map.js
-          grep -Fq 'variant=vm?Number(vm[1])%128:0' site/world-v2300-map.js
+          grep -Fq "mode:'simple-grey-3d'" site/world-v2300-map.js
+          grep -Fq 'simpleGreyGeometry:true' site/world-v2300-map.js
+          grep -Fq "authoritative:'GLOBAL_CONTEXT_GREY'" site/world-v2300-map.js
+          grep -Fq 'disabled_by_owner_v5362' site/app.js
+          grep -Fq "ensureWeatherRasterPair('Radar')" site/app.js
+          ! grep -Fq "ensureWeatherRasterPair('Cloud')" site/app.js
+          ! grep -Fq 'bridgepoint-noaa-cloud-frames-v215' site/app.js
+          grep -Fq 'atmosphereFogClouds:false' site/world-v2300-weather.js
           grep -Fq 'gta-bp-facade-detail' site/world-v2300-map.js
           grep -Fq 'gta-context-facade-detail' site/world-v2300-map.js
           grep -Fq 'gta-exact-facade-detail' site/world-v2300-map.js
-          grep -Fq 'adaptiveTextureLod:true' site/world-v2300-map.js
-          grep -Fq 'FACADE_DETAIL_MIN' site/world-v2300-map.js
           grep -Fq 'gta-context-building-footprints' site/world-v2300-map.js
           grep -Fq 'semanticBuildTimer' site/app.js
           grep -Fq 'semantic_build_stationary_recovery' site/app.js
-          grep -Fq '__BP_CAMERA_STALE_MOTION_RECOVERY__' site/world-v2300-map.js
-          grep -Fq '__BP_FINE_DETAIL_SETTLE__' site/world-v2300-map.js
-          grep -Fq 'armFineDetailSettle' site/world-v2300-map.js
-          grep -Fq 'startStationaryLodWatchdog' site/world-v2300-map.js
-          grep -Fq '__BP_STATIONARY_LOD_WATCHDOG__' site/world-v2300-map.js
           grep -Fq 'gta-context-building-parts' site/world-v2300-map.js
-          grep -Fq "vis(map,'gta-exact-roof',exactReady)" site/world-v2300-map.js
-          grep -Fq "roofMode:exactReady?'EXACT_VIEWPORT'" site/world-v2300-map.js
           grep -Fq "build_deferred_for_motion" site/app.js
           grep -Fq '__BP_EXACT_DETAIL_STATE__' site/world-v2300-map.js
           grep -Fq 'streetLevelClamped' site/world-v2300-map.js
@@ -288,7 +283,6 @@ jobs:
           grep -Fq 'cancelPendingTileRequestsWhileZooming:MOBILE' site/world-v2300-map.js
           grep -Fq 'wx-radar-haze' site/world-v2300-weather.js
           grep -Fq 'NOHRSC_Snow_Analysis' site/world-v2300-weather.js
-          grep -Fq "mode:'rendered-vector-3d'" site/world-v2300-map.js
           ! grep -Fq "map.getSource('selected')?.setData" site/world-v2300-map.js
           grep -Fq 'transportArchive' site/app.js
           grep -Fq 'transportRuntime' site/app.js
@@ -412,9 +406,9 @@ jobs:
             q="${GITHUB_SHA}-${i}-$(date +%s)"
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?v5050=${q}" -o /tmp/root.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?v5050=${q}" -o /tmp/app.html || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5361=${q}" -o /tmp/app.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5361=${q}" -o /tmp/world-v2300-map.js || true
-            if grep -Fq 'BP_LANDING_V5050' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5361' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5361' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5361' /tmp/world-v2300-map.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js; then ok=1; break; fi
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5362=${q}" -o /tmp/app.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5362=${q}" -o /tmp/world-v2300-map.js || true
+            if grep -Fq 'BP_LANDING_V5050' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5362' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5362' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5362' /tmp/world-v2300-map.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
@@ -495,13 +489,21 @@ jobs:
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               const errors=[];p.on('pageerror',e=>errors.push(String(e.message||e)));
-              await p.goto('https://bridgepointintelligence.online/app/?qa=v5361-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
-              await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000&&window.__BP_APP_BUILD_VERSION__===5361,{timeout:20000});
-              await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5361,{timeout:30000});
+              await p.goto('https://bridgepointintelligence.online/app/?qa=v5362-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000&&window.__BP_APP_BUILD_VERSION__===5362,{timeout:20000});
+              await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5362,{timeout:30000});
               await p.waitForFunction(()=>document.getElementById('canonicalProperties')?.textContent?.includes(','),{timeout:15000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
               await p.waitForFunction(()=>!!document.getElementById('bpTabContext')&&!!document.getElementById('bXrayUnderground')&&!!document.getElementById('toggleLiveContext')&&!!document.getElementById('ctxSurfaceMaterial')&&!!document.getElementById('ctxSurfaceSource')&&!!document.getElementById('transportArchive')&&!!document.getElementById('transportRuntime'),{timeout:10000});
               await p.waitForFunction(()=>!!window.__BP_V5000_WORLD?.map?.getLayer('bp-v5004-weather-points'),{timeout:90000});
+              const weatherVisualState=await p.evaluate(()=>{const m=window.__BP_V5000_WORLD?.map;return{
+                radarA:!!m?.getLayer('bp-radar-a'),radarB:!!m?.getLayer('bp-radar-b'),
+                points:!!m?.getLayer('bp-v5004-weather-points'),
+                cloudA:!!m?.getLayer('bp-cloud-a'),cloudB:!!m?.getLayer('bp-cloud-b'),
+                cloudState:window.__BP_CLOUD_STATE__||null
+              }});
+              if(!weatherVisualState.radarA||!weatherVisualState.radarB||!weatherVisualState.points||weatherVisualState.cloudA||weatherVisualState.cloudB||weatherVisualState.cloudState?.enabled!==false)throw new Error('WEATHER_VISUAL_CONTRACT '+JSON.stringify(weatherVisualState));
+              console.log('BRIDGEPOINT_RADAR_DOTS_NO_CLOUD_PASS',JSON.stringify(weatherVisualState));
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
                 return !!m?.getLayer('gta-place-label')&&!!m?.getLayer('gta-road-label-major')&&!!m?.getLayer('gta-poi-label')&&!!m?.getLayer('gta-opportunity-buildings')&&!!m?.getLayer('gta-opportunity-label');
@@ -557,7 +559,7 @@ jobs:
               const persistenceState=await p.evaluate(async()=>{
                 const m=window.__BP_V5000_WORLD?.map;
                 if(!m)throw new Error('persistent renderer unavailable');
-                const layers=['gta-context-facade-detail','gta-context-buildings','gta-bp-facade-detail','gta-bp-buildings','gta-road-major','gta-road-local','gta-landcover'].filter(id=>m.getLayer(id));
+                const layers=['gta-context-buildings','gta-road-major','gta-road-local','gta-landcover'].filter(id=>m.getLayer(id));
                 const before=Object.fromEntries(layers.map(id=>[id,m.getLayoutProperty(id,'visibility')||'visible']));
                 m.easeTo({center:[-72.92,41.31],zoom:15.2,duration:420});
                 await new Promise(r=>setTimeout(r,100));
@@ -568,7 +570,7 @@ jobs:
               });
               console.log('BRIDGEPOINT_PERSISTENT_RENDERER',JSON.stringify(persistenceState));
               const visible=v=>v!=='none';
-              const shellVisible=s=>visible(s['gta-bp-facade-detail'])||visible(s['gta-bp-buildings'])||visible(s['gta-context-facade-detail'])||visible(s['gta-context-buildings']);
+              const shellVisible=s=>visible(s['gta-context-buildings']);
               for(const phase of ['before','during','after']){
                 const s=persistenceState[phase]||{};
                 if(!shellVisible(s)||!visible(s['gta-road-major'])||!visible(s['gta-road-local'])||!visible(s['gta-landcover']))throw new Error('PERSISTENT_RENDERER_BLANKED_AUTHORITATIVE_LAYER '+phase+' '+JSON.stringify(persistenceState));
@@ -583,14 +585,14 @@ jobs:
               });
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;if(!m)return false;
-                const ids=['gta-bp-facade-detail','gta-bp-buildings','gta-context-facade-detail','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                const ids=['gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
                 try{return ids.length>0&&ids.some(id=>m.queryRenderedFeatures({layers:[id]}).length>0)}catch{return false}
               },{timeout:30000});
               const suburbanShell=await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
                 const mode=window.__BP_BUILDING_SHELL_MODE__||{};
                 const rendered={};
-                for(const id of ['gta-bp-facade-detail','gta-bp-buildings','gta-context-facade-detail','gta-context-buildings']){
+                for(const id of ['gta-context-buildings']){
                   try{rendered[id]=m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none'?m.queryRenderedFeatures({layers:[id]}).length:0}catch{rendered[id]=0}
                 }
                 return{mode,rendered}
@@ -627,20 +629,20 @@ jobs:
                 m.jumpTo({center:[-73.9857,40.7484],zoom:17.2,pitch:58,bearing:0});
               });
               await p.waitForFunction(()=>{
-                const mode=window.__BP_BUILDING_SHELL_MODE__;
-                return mode?.fineDetailDeferred===false&&mode?.closeTexturedShell===true&&mode?.roofReady===true;
+                const m=window.__BP_V5000_WORLD?.map,mode=window.__BP_BUILDING_SHELL_MODE__;
+                return mode?.simpleGreyGeometry===true&&mode?.authoritative==='GLOBAL_CONTEXT_GREY'&&mode?.closeTexturedShell===false&&m?.getLayer('gta-context-buildings')&&(m.getLayoutProperty('gta-context-buildings','visibility')||'visible')!=='none';
               },{timeout:12000});
-              console.log('BRIDGEPOINT_CLOSE_TEXTURE_LOD_SETTLED',JSON.stringify(await p.evaluate(()=>({mode:window.__BP_BUILDING_SHELL_MODE__||{},watchdog:window.__BP_STATIONARY_LOD_WATCHDOG__||null,fine:window.__BP_FINE_DETAIL_SETTLE__||null}))));
+              console.log('BRIDGEPOINT_GREY_BUILDING_MODE_PASS',JSON.stringify(await p.evaluate(()=>({mode:window.__BP_BUILDING_SHELL_MODE__||{},color:window.__BP_V5000_WORLD?.map?.getPaintProperty('gta-context-buildings','fill-extrusion-color')}))));
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
                 if(!m)return false;
-                const candidates=['gta-bp-facade-detail','gta-bp-buildings','gta-context-facade-detail','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                const candidates=['gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
                 try{return candidates.some(id=>m.queryRenderedFeatures({layers:[id]}).length>0)}catch{return false}
               },{timeout:45000});
               const authoritativeBuildingHit=await p.evaluate(()=>{
                 const w=window.__BP_V5000_WORLD,m=w?.map;
                 if(!w?.selectBuildingAtPoint||!m)return null;
-                const layers=['gta-bp-facade-detail','gta-bp-buildings','gta-context-facade-detail','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                const layers=['gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
                 const cv=m.getCanvas(),width=cv.clientWidth||cv.width,height=cv.clientHeight||cv.height;
                 for(let y=80;y<height-60;y+=18)for(let x=18;x<width-18;x+=18){
                   try{if(m.queryRenderedFeatures({x,y},{layers}).length&&w.selectBuildingAtPoint({x,y})===true)return{x,y,layers}}catch(_){}
@@ -650,12 +652,13 @@ jobs:
               if(!authoritativeBuildingHit)throw new Error('VISIBLE_AUTHORITATIVE_BUILDING_NOT_CLICKABLE');
               await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===false,{timeout:5000});
               console.log('BRIDGEPOINT_AUTHORITATIVE_BUILDING_HITTEST_PASS',JSON.stringify(authoritativeBuildingHit));
-              const adaptiveLodState=await p.evaluate(()=>({
+              const greyBuildingState=await p.evaluate(()=>({
                 mode:window.__BP_BUILDING_SHELL_MODE__||null,
-                materials:window.__BP_BUILDING_MATERIALS__||null
+                materials:window.__BP_BUILDING_MATERIALS__||null,
+                color:window.__BP_V5000_WORLD?.map?.getPaintProperty('gta-context-buildings','fill-extrusion-color')
               }));
-              if(adaptiveLodState.mode?.adaptiveTextureLod!==true||adaptiveLodState.materials?.adaptiveSinglePassTextureSwap!==true)throw new Error('ADAPTIVE_TEXTURE_LOD_STATE_INVALID '+JSON.stringify(adaptiveLodState));
-              console.log('BRIDGEPOINT_ADAPTIVE_TEXTURE_LOD_PASS',JSON.stringify(adaptiveLodState));
+              if(greyBuildingState.mode?.simpleGreyGeometry!==true||greyBuildingState.materials?.simpleGreyGeometry!==true||greyBuildingState.materials?.facadeTextures!==false||greyBuildingState.color!=='#7f878b')throw new Error('GREY_BUILDING_STATE_INVALID '+JSON.stringify(greyBuildingState));
+              console.log('BRIDGEPOINT_GREY_BUILDING_STATE_PASS',JSON.stringify(greyBuildingState));
               await p.evaluate(()=>window.__BP_V5000_CLEAR_BUILDING__?.());
 
               await p.evaluate(()=>{
