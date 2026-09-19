@@ -194,6 +194,13 @@ jobs:
                 return (m.querySourceFeatures('bpRoofs',{sourceLayer:'roofs'})||[]).length;
               });
               if(roofDetail<1)throw new Error('NYC_REAL_ROOFS '+roofDetail);
+              await app.waitForFunction(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                try{
+                  const vis=m?.getLayoutProperty?.('gta-city-building-roof-caps','visibility')||'visible';
+                  return vis!=='none'&&(m.queryRenderedFeatures(undefined,{layers:['gta-city-building-roof-caps']})||[]).length>=10
+                }catch{return false}
+              },{timeout:9000});
               const nyRoofCaps=await app.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map;
                 try{return (m.queryRenderedFeatures(undefined,{layers:['gta-city-building-roof-caps']})||[]).length}catch{return 0}
