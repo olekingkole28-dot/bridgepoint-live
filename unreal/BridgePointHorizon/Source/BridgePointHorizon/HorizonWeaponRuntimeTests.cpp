@@ -41,6 +41,30 @@ bool FHorizonWeaponCadenceAndReloadTest::RunTest(const FString& Parameters)
         FMath::IsNearlyEqual(
             UHorizonWeaponRuntimeComponent::AdvanceCountdown(1.0f, 5.0f),
             0.50f));
+
+    float NextCooldown = 0.0f;
+    TestEqual(TEXT("Two hundred millisecond hitch preserves automatic fire cadence"),
+        UHorizonWeaponRuntimeComponent::AdvanceAutomaticCadence(
+            0.10f, 0.20f, 0.10f, 30, 6, NextCooldown),
+        2);
+    TestTrue(TEXT("Exact cadence catch-up schedules the next full interval"),
+        FMath::IsNearlyEqual(NextCooldown, 0.10f));
+
+    TestEqual(TEXT("Cadence catch-up never exceeds remaining magazine rounds"),
+        UHorizonWeaponRuntimeComponent::AdvanceAutomaticCadence(
+            0.0f, 0.50f, 0.10f, 2, 6, NextCooldown),
+        2);
+    TestEqual(TEXT("Cadence catch-up is bounded per frame"),
+        UHorizonWeaponRuntimeComponent::AdvanceAutomaticCadence(
+            0.0f, 0.50f, 0.02f, 30, 6, NextCooldown),
+        6);
+    TestEqual(TEXT("Bounded backlog remains due for the next frame"),
+        NextCooldown,
+        0.0f);
+    TestEqual(TEXT("Invalid frame delta cannot synthesize automatic shots"),
+        UHorizonWeaponRuntimeComponent::AdvanceAutomaticCadence(
+            0.05f, -0.20f, 0.10f, 30, 6, NextCooldown),
+        0);
     return true;
 }
 

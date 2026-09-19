@@ -437,6 +437,7 @@ for token in [
     "RoundsInMagazine", "ReserveRounds", "RoundsPerMinute", "ReloadSeconds",
     "StartFire", "StopFire", "TryFireOnce", "BeginReload", "CancelReload",
     "CanFireRound", "ComputeReloadTransfer", "AdvanceCountdown", "ComputeRecoilImpulse",
+    "AdvanceAutomaticCadence",
 ]:
     require(token in weapon_contract, f"native weapon runtime contract missing: {token}")
 for token in [
@@ -447,6 +448,8 @@ for token in [
     "bTriggerHeld && WeaponSpec.bAutomatic", "SetComponentTickEnabled",
     "SafeDeltaSeconds = FMath::Min(DeltaSeconds, 0.50f)",
     "FireCooldownSeconds = AdvanceCountdown", "ReloadRemainingSeconds = AdvanceCountdown",
+    "const int32 ShotsDue = AdvanceAutomaticCadence", "ShotIndex < ShotsDue",
+    "MaxCatchUpShots", "TimeBudget = FMath::Min(DeltaSeconds, 0.50f)",
 ]:
     require(token in weapon, f"native weapon behavior missing: {token}")
 require("Stripe" not in weapon_contract and "Payment" not in weapon_contract,
@@ -460,6 +463,9 @@ for token in [
     "ADS reduces recoil", "Recoil pattern is deterministic",
     "Two hundred millisecond hitch preserves elapsed weapon time",
     "Countdown overshoot clamps at zero", "Catastrophic stalls use a bounded half-second catch-up",
+    "Two hundred millisecond hitch preserves automatic fire cadence",
+    "Cadence catch-up never exceeds remaining magazine rounds",
+    "Cadence catch-up is bounded per frame", "Bounded backlog remains due for the next frame",
 ]:
     require(token in weapon_tests, f"native weapon QA missing: {token}")
 
