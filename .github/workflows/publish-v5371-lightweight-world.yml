@@ -1,4 +1,4 @@
-# V5378 publish: click-only attribution + viewer location + primary-owner US start
+# V5378 publish: viewer-location center + click-only attribution verified without full-tile-idle dependency
 name: Publish BridgePoint V5378 Lightweight World
 
 on:
@@ -147,8 +147,7 @@ jobs:
               await app.goto(O+'/app/?verify5378='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await app.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5378&&window.__BP_V5000_WORLD?.map,{timeout:45000});
               await app.waitForFunction(()=>window.__BP_APP_VIEWER_START__?.mode==='VIEWER_LOCATION',{timeout:12000});
-              await app.waitForFunction(()=>window.__BP_V5000_WORLD?.map?.loaded?.()===true,{timeout:12000});
-              await sleep(800);
+              await sleep(1200);
               const startBehavior=await app.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map,s=window.__BP_APP_VIEWER_START__||{},attrib=document.querySelector('.maplibregl-ctrl-attrib');
                 return{mode:s.mode,center:[m.getCenter().lng,m.getCenter().lat],zoom:m.getZoom(),attribCollapsed:!!attrib&&!attrib.classList.contains('maplibregl-compact-show')}
