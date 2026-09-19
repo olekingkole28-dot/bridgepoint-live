@@ -52,6 +52,7 @@ jobs:
           grep -Fq '__BP_WORLD_RENDER_VERSION__=5371' world-v2300-map.js
           grep -Fq 'bridgepoint-public-city-structures-v5371' world-v2300-map.js
           grep -Fq "source:'bpCityStructures','source-layer':'roofs'" world-v2300-map.js
+          grep -Fq "id:'gta-city-building-roof-caps'" world-v2300-map.js
           grep -Fq "fineDetailDisabled:true" world-v2300-map.js
           grep -Fq "buildingClickOverlook:true" world-v2300-map.js
           grep -Fq "layerState={parcels:true,buildings:true}" world-v2300-map.js
@@ -124,19 +125,21 @@ jobs:
               const city=await app.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map;
                 const buildings=(m.querySourceFeatures('bpCityStructures',{sourceLayer:'buildings'})||[]).length;
-                const roofs=(m.querySourceFeatures('bpCityStructures',{sourceLayer:'roofs'})||[]).length;
+                const exactRoofs=(m.querySourceFeatures('bpCityStructures',{sourceLayer:'roofs'})||[]).length;
+                let roofCaps=0;try{roofCaps=(m.queryRenderedFeatures(undefined,{layers:['gta-city-building-roof-caps']})||[]).length}catch{}
                 const fine=window.__BP_FINE_DETAIL_MODE__||{};
                 return{
-                  buildings,roofs,
+                  buildings,exactRoofs,roofCaps,
                   cityVis:m.getLayoutProperty('gta-city-buildings','visibility')||'visible',
-                  roofVis:m.getLayoutProperty('gta-city-roofs','visibility')||'visible',
+                  roofCapVis:m.getLayoutProperty('gta-city-building-roof-caps','visibility')||'visible',
+                  exactRoofVis:m.getLayoutProperty('gta-city-roofs','visibility')||'visible',
                   stateVis:m.getLayoutProperty('gta-state','visibility')||'visible',
                   parcelVis:m.getLayoutProperty('gta-parcel','visibility')||'visible',
                   terrain:window.__BP_V5000_WORLD.state.terrain,
                   fine
                 };
               });
-              if(city.buildings<150||city.roofs<1||city.cityVis==='none'||city.roofVis==='none'||city.stateVis==='none'||city.parcelVis==='none'||!city.terrain||city.fine.enabled!==false)throw new Error('CITY '+JSON.stringify(city));
+              if(city.buildings<150||city.roofCaps<20||city.cityVis==='none'||city.roofCapVis==='none'||city.stateVis==='none'||city.parcelVis==='none'||!city.terrain||city.fine.enabled!==false)throw new Error('CITY '+JSON.stringify(city));
 
               await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:14.6,pitch:58,bearing:-18}));
               await sleep(4500);
