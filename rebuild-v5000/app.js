@@ -71,9 +71,10 @@ async function initSharedVisualWeather(targetWorld){
  const styleReady=()=>{try{return map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch{return false}};
  if(!styleReady())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
  try{
-  const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5365'),import('./world-v2300-present-weather.js?v=5365')]);
+  const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5420'),import('./world-v2300-present-weather.js?v=5420')]);
   const weather=wm.initWeather(map),present=pm.initPresentWeather(map);
-  window.__BP_SHARED_VISUAL_WEATHER__={version:5365,weather,present,mapShared:true,streetWalkLiveSimulation:false,updatedAt:Date.now()};
+  weather?.setActive?.(true);weather?.setRadar?.(true);
+  window.__BP_SHARED_VISUAL_WEATHER__={version:5420,weather,present,mapShared:true,streetWalkLiveSimulation:false,radarVisible:true,radarAnimated:true,updatedAt:Date.now()};
   return window.__BP_SHARED_VISUAL_WEATHER__
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
