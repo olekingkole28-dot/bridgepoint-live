@@ -117,6 +117,6 @@ body>header{z-index:50}body>main,body>.site-footer{z-index:2}
 .package-card-inner{padding:15px}.package-card-head{grid-template-columns:44px minmax(0,1fr);gap:9px}.package-icon{width:44px;height:44px}.package-card h3{font-size:19px!important}.package-price{font-size:22px}.package-card .package-desc{min-height:0;font-size:10.5px!important}.package-feature-list li{font-size:10px}.package-more summary{font-size:8px}.package-card .foot{flex-direction:column!important;align-items:stretch!important}.package-card button{width:100%}
 .site-footer{margin:0 6px 8px;width:calc(100% - 12px);padding:24px 16px!important;grid-template-columns:1fr!important;gap:22px;border-radius:19px}.footer-link-groups{grid-template-columns:1fr!important;gap:18px}.footer-link-groups>div{padding-top:13px;border-top:1px solid rgba(255,255,255,.06)}.site-footer .footer-link-groups a{font-size:9px;padding:3px 0}
 }
-@media(prefers-reduced-motion:reduce){.world-backdrop-image{transform:scale(1.16)!important}.radar-sweep,.haz,.molly-portrait-shell{animation:none!important}}
+@media(prefers-reduced-motion:reduce){.world-backdrop-image{transform:scale(1.16)!important}.radar-sweep,.haz{animation:none!important}}
 
 /* V5450 hero CTA typography: Molly removed from markup; CTA copy enlarged for readability. */
