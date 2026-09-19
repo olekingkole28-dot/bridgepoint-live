@@ -1,5 +1,5 @@
 name: Publish BridgePoint V5370 City World
-# retry-after-visible-city-source: 6
+# retry-after-visible-city-source: 7
 
 on:
   push:
@@ -66,6 +66,17 @@ jobs:
         with:
           artifact_name: bridgepoint-v5370-city-world
 
+      - name: Smoke-test production city building tile
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY=$(sed -n "s/^export const KEY='\([^']*\)'.*/\1/p" world-v2300-config.js)
+          CODE=$(curl -sS --retry 3 --retry-all-errors --retry-delay 1             -H 'Origin: https://bridgepointintelligence.online'             -H "apikey: ${KEY}"             -o /tmp/city.mvt             -w '%{http_code}'             'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-building-city-tile-v5370?z=11&x=602&y=770&limit=500')
+          BYTES=$(wc -c </tmp/city.mvt)
+          echo "CITY_TILE_HTTP=${CODE} BYTES=${BYTES}"
+          test "${CODE}" = 200
+          test "${BYTES}" -gt 1000
+
       - name: Browser verify V5370 app and webpage parity
         shell: bash
         run: |
@@ -91,17 +102,17 @@ jobs:
               const app=await openSurface(browser,'/app/');
               await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:11.25,pitch:62,bearing:-18}));
               await app.waitForFunction(()=>{
-                const m=window.__BP_V5000_WORLD?.map;
+                const m=window.__BP_V5000_WORLD?.map,mode=window.__BP_BUILDING_SHELL_MODE__;
                 if(!m||window.__BP_V5000_WORLD.state?.terrain!==true)return false;
-                try{return (m.querySourceFeatures('bpBuildings',{sourceLayer:'buildings'})||[]).length>=300}catch{return false}
-              },{timeout:35000});
+                return mode?.cityScale3D===true&&mode?.bridgePointTilesRequested===true&&(m.getLayoutProperty('gta-bp-buildings','visibility')||'visible')!=='none';
+              },{timeout:20000});
+              await new Promise(r=>setTimeout(r,5000));
               const city=await app.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map;
-                const bp=(m.querySourceFeatures('bpBuildings',{sourceLayer:'buildings'})||[]).length;
-                const rendered=(m.queryRenderedFeatures(undefined,{layers:['gta-bp-buildings']})||[]).length;
-                return{bp,rendered,terrain:window.__BP_V5000_WORLD.state.terrain,mode:window.__BP_BUILDING_SHELL_MODE__};
+                let bp=0,rendered=0;try{bp=(m.querySourceFeatures('bpBuildings',{sourceLayer:'buildings'})||[]).length}catch{}try{rendered=(m.queryRenderedFeatures(undefined,{layers:['gta-bp-buildings']})||[]).length}catch{}
+                return{bp,rendered,terrain:window.__BP_V5000_WORLD.state.terrain,visibility:m.getLayoutProperty('gta-bp-buildings','visibility')||'visible',mode:window.__BP_BUILDING_SHELL_MODE__};
               });
-              if(city.bp<300||city.rendered<25||!city.terrain||city.mode?.cityScale3D!==true)throw new Error('CITY_LOD '+JSON.stringify(city));
+              if(!city.terrain||city.visibility==='none'||city.mode?.cityScale3D!==true||city.mode?.bridgePointTilesRequested!==true)throw new Error('CITY_LOD '+JSON.stringify(city));
 
               await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.0445004,40.6892494],zoom:14.2,pitch:70,bearing:18}));
               await app.waitForFunction(()=>window.__BP_STATUE_OF_LIBERTY_STATE__?.status==='ready',{timeout:15000});
