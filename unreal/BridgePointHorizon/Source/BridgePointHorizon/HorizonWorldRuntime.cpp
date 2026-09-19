@@ -131,6 +131,7 @@ void AHorizonWorldRuntime::HandleWorldCellLoaded(
         {
             const FHorizonAutopilotProfile Profile = Autopilot->GetProfile();
             Renderer->MaxBuildingsPerCell = Profile.MaxBuildingsPerCell;
+            Renderer->MaxCollidableBuildingsPerCell = Profile.MaxCollidableBuildingsPerCell;
             Renderer->MaxBuildingPartsPerCell = Profile.MaxBuildingPartsPerCell;
             const float StreamPressure = Cell.SpanKm > 0.0
                 ? FMath::Clamp(
