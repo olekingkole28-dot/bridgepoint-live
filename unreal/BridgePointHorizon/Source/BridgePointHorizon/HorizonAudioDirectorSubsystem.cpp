@@ -1,5 +1,6 @@
 #include "HorizonAudioDirectorSubsystem.h"
 
+#include "Containers/Ticker.h"
 #include "Engine/GameInstance.h"
 #include "HorizonAutopilotSubsystem.h"
 
@@ -11,6 +12,27 @@ void UHorizonAudioDirectorSubsystem::Initialize(FSubsystemCollectionBase& Collec
     WeatherState = EHorizonWeatherAudioState::Clear;
     Occlusion01 = 0.0f;
     HordePressure01 = 0.0f;
+    DesiredCombatIntensity01 = 0.0f;
+    SmoothedCombatIntensity01 = 0.0f;
+    CombatReleaseHoldSeconds = 0.0f;
+    TransientDuck01 = 0.0f;
+    StingerCooldownSeconds = 0.0f;
+    PendingStinger = EHorizonSensoryStinger::None;
+
+    CombatTickerHandle = FTSTicker::GetCoreTicker().AddTicker(
+        FTickerDelegate::CreateUObject(this, &UHorizonAudioDirectorSubsystem::TickCombatMix),
+        0.05f);
+}
+
+void UHorizonAudioDirectorSubsystem::Deinitialize()
+{
+    if (CombatTickerHandle.IsValid())
+    {
+        FTSTicker::GetCoreTicker().RemoveTicker(CombatTickerHandle);
+        CombatTickerHandle.Reset();
+    }
+
+    Super::Deinitialize();
 }
 
 void UHorizonAudioDirectorSubsystem::SetAcousticSpace(EHorizonAcousticSpace NewSpace)
@@ -22,11 +44,34 @@ void UHorizonAudioDirectorSubsystem::SetAcousticSpace(EHorizonAcousticSpace NewS
     }
 }
 
+float UHorizonAudioDirectorSubsystem::ThreatToIntensity(EHorizonThreatState Threat) const
+{
+    switch (Threat)
+    {
+        case EHorizonThreatState::Calm: return 0.04f;
+        case EHorizonThreatState::Alert: return 0.28f;
+        case EHorizonThreatState::Chase: return 0.62f;
+        case EHorizonThreatState::Horde: return 0.84f;
+        case EHorizonThreatState::Boss: return 1.0f;
+    }
+
+    return 0.0f;
+}
+
 void UHorizonAudioDirectorSubsystem::SetThreatState(EHorizonThreatState NewThreat)
 {
     if (ThreatState != NewThreat)
     {
+        const float PreviousTarget = DesiredCombatIntensity01;
         ThreatState = NewThreat;
+        DesiredCombatIntensity01 = FMath::Max(ThreatToIntensity(NewThreat), HordePressure01 * 0.88f);
+
+        if (DesiredCombatIntensity01 > PreviousTarget + 0.08f)
+        {
+            CombatReleaseHoldSeconds = 1.75f;
+            QueueStinger(EHorizonSensoryStinger::ThreatRise);
+        }
+
         OnAudioStateChanged.Broadcast();
     }
 }
@@ -55,9 +100,78 @@ void UHorizonAudioDirectorSubsystem::SetHordePressure01(float NewPressure)
     const float Clamped = FMath::Clamp(NewPressure, 0.0f, 1.0f);
     if (!FMath::IsNearlyEqual(HordePressure01, Clamped, 0.01f))
     {
+        const bool bCrossedSurgeThreshold = HordePressure01 < 0.72f && Clamped >= 0.72f;
         HordePressure01 = Clamped;
+        DesiredCombatIntensity01 = FMath::Max(ThreatToIntensity(ThreatState), HordePressure01 * 0.88f);
+
+        if (bCrossedSurgeThreshold)
+        {
+            CombatReleaseHoldSeconds = 2.25f;
+            QueueStinger(EHorizonSensoryStinger::HordeSurge);
+        }
+
         OnAudioStateChanged.Broadcast();
     }
+}
+
+void UHorizonAudioDirectorSubsystem::PushPlayerHitFeedback(float Damage01)
+{
+    const float Damage = FMath::Clamp(Damage01, 0.0f, 1.0f);
+    if (Damage <= KINDA_SMALL_NUMBER)
+    {
+        return;
+    }
+
+    TransientDuck01 = FMath::Max(TransientDuck01, FMath::Lerp(0.18f, 0.62f, Damage));
+    DesiredCombatIntensity01 = FMath::Max(DesiredCombatIntensity01, FMath::Lerp(0.42f, 0.82f, Damage));
+    CombatReleaseHoldSeconds = FMath::Max(CombatReleaseHoldSeconds, 1.1f);
+    QueueStinger(EHorizonSensoryStinger::PlayerHit);
+    OnAudioStateChanged.Broadcast();
+}
+
+EHorizonSensoryStinger UHorizonAudioDirectorSubsystem::ConsumePendingStinger()
+{
+    const EHorizonSensoryStinger Result = PendingStinger;
+    PendingStinger = EHorizonSensoryStinger::None;
+    return Result;
+}
+
+void UHorizonAudioDirectorSubsystem::QueueStinger(EHorizonSensoryStinger Stinger)
+{
+    if (Stinger == EHorizonSensoryStinger::PlayerHit || StingerCooldownSeconds <= 0.0f)
+    {
+        PendingStinger = Stinger;
+        StingerCooldownSeconds = Stinger == EHorizonSensoryStinger::PlayerHit ? 0.35f : 1.25f;
+    }
+}
+
+bool UHorizonAudioDirectorSubsystem::TickCombatMix(float DeltaSeconds)
+{
+    const float Step = FMath::Clamp(DeltaSeconds, 0.0f, 0.1f);
+    StingerCooldownSeconds = FMath::Max(0.0f, StingerCooldownSeconds - Step);
+    TransientDuck01 = FMath::FInterpTo(TransientDuck01, 0.0f, Step, 3.8f);
+
+    float EffectiveTarget = DesiredCombatIntensity01;
+    if (EffectiveTarget < SmoothedCombatIntensity01 && CombatReleaseHoldSeconds > 0.0f)
+    {
+        CombatReleaseHoldSeconds = FMath::Max(0.0f, CombatReleaseHoldSeconds - Step);
+        EffectiveTarget = SmoothedCombatIntensity01;
+    }
+
+    const float InterpSpeed = EffectiveTarget >= SmoothedCombatIntensity01 ? 7.5f : 1.25f;
+    const float Previous = SmoothedCombatIntensity01;
+    SmoothedCombatIntensity01 = FMath::FInterpTo(
+        SmoothedCombatIntensity01,
+        EffectiveTarget,
+        Step,
+        InterpSpeed);
+
+    if (!FMath::IsNearlyEqual(Previous, SmoothedCombatIntensity01, 0.005f))
+    {
+        OnAudioStateChanged.Broadcast();
+    }
+
+    return true;
 }
 
 FHorizonSpatialCueMix UHorizonAudioDirectorSubsystem::GetSpatialCueMix(
@@ -234,6 +348,16 @@ FHorizonAudioMixState UHorizonAudioDirectorSubsystem::GetMixState(EHorizonGameMo
             Mix.MusicIntensity = 1.0f;
             break;
     }
+
+    Mix.CombatIntensity = FMath::Clamp(SmoothedCombatIntensity01, 0.0f, 1.0f);
+    Mix.MusicIntensity = FMath::Max(
+        Mix.MusicIntensity,
+        FMath::Lerp(0.08f, 0.96f, Mix.CombatIntensity));
+    Mix.AmbienceGain = FMath::Lerp(1.0f, 0.58f, Mix.CombatIntensity);
+    Mix.EffectsGain = FMath::Lerp(1.0f, 1.12f, Mix.CombatIntensity);
+    Mix.TransientDuck = TransientDuck01;
+    Mix.AmbienceGain *= FMath::Lerp(1.0f, 0.48f, TransientDuck01);
+    Mix.EffectsGain *= FMath::Lerp(1.0f, 0.78f, TransientDuck01);
 
     switch (AcousticSpace)
     {
