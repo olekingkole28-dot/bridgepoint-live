@@ -1,4 +1,5 @@
 name: Restore BridgePoint V5000 V5365 Production
+# authoritative-baseline-refresh: 2
 
 on:
   workflow_dispatch:
