@@ -78,7 +78,7 @@ async function initSharedVisualWeather(targetWorld){
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const startState=authSession?.access_token?await authRpc('bridgepoint_my_map_start_v5377',{},4500).catch(()=>({primary_platform_owner:false})):({primary_platform_owner:false});
+ const startState=authSession?.access_token?await authRpc('bridgepoint_my_map_start_v5378',{},4500).catch(()=>({primary_platform_owner:false})):({primary_platform_owner:false});
  const mod=await import('./world-v2300-map.js?v=5378');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
