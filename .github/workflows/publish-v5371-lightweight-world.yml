@@ -1,4 +1,4 @@
-# V5376 final publish: isolated roof/floor expressions + dedicated NYC roofs
+# V5376 final publish: refresh hidden global roof/floor buckets on visibility
 name: Publish BridgePoint V5376 Lightweight World
 
 on:
