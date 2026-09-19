@@ -2,6 +2,8 @@
 
 #include "Kismet/GameplayStatics.h"
 
+#include <initializer_list>
+
 const TCHAR* UHorizonSurvivalSubsystem::SaveSlot = TEXT("BridgePointHorizonSurvival");
 
 void UHorizonSurvivalSubsystem::Initialize(FSubsystemCollectionBase& Collection)
