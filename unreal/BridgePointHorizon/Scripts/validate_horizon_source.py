@@ -229,7 +229,7 @@ for token in [
     "EHorizonWeaponReportClass::Suppressed", "SafeDistance / 34300.0f",
     "Mix.TailDelaySeconds = 0.12f", "RegionalTailScale = 1.20f",
     "Mix.MechanicalGain *= FMath::Pow", "SmoothedCombatIntensity01",
-    "CriticalCombatRetention = 0.90f", "RoutineCombatRetention = 0.72f",
+    "bCritical ? 0.90f : 0.72f",
     "Mix.TransientDuck = FMath::Clamp", "FRandomStream Variation"
 ]:
     require(token in audio, f"AAA audio behavior missing: {token}")
