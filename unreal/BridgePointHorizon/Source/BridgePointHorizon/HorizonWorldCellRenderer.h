@@ -99,6 +99,10 @@ public:
         int32 VisualLimit,
         int32 CollisionLimit);
 
+    static TArray<int32> ResolveBuildingLodOrder(
+        const TArray<float>& DistanceSquaredFromCellCenter,
+        int32 VisualLimit);
+
 private:
     double CenterLatitude = 0.0;
     double CenterLongitude = 0.0;
