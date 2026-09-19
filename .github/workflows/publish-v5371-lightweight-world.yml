@@ -219,17 +219,29 @@ jobs:
               if(global3d.bodies<10||global3d.roofs<10||global3d.sourceRows<10||global3d.bodyVis==='none'||global3d.roofVis==='none'){
                 const roofDiag=await app.evaluate(async()=>{
                   const m=window.__BP_V5000_WORLD.map;
-                  let forced=0,err=null;
+                  let err=null;const tests={};
+                  const H=['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]];
                   try{
                     m.setPaintProperty('gta-context-roofs','fill-extrusion-base',0);
-                    m.setPaintProperty('gta-context-roofs','fill-extrusion-height',50);
                     m.setPaintProperty('gta-context-roofs','fill-extrusion-color','#ffffff');
                     m.setPaintProperty('gta-context-roofs','fill-extrusion-opacity',1);
-                    m.triggerRepaint();
-                    await new Promise(r=>setTimeout(r,900));
-                    forced=(m.queryRenderedFeatures(undefined,{layers:['gta-context-roofs']})||[]).length;
+                    try{m.moveLayer('gta-context-roofs','gta-context-buildings')}catch{}
+                    for(const cap of [1.1,2,3,5,8,12]){
+                      m.setPaintProperty('gta-context-roofs','fill-extrusion-height',['+',H,cap]);
+                      m.triggerRepaint();await new Promise(r=>setTimeout(r,350));
+                      tests['behind_'+cap]=(m.queryRenderedFeatures(undefined,{layers:['gta-context-roofs']})||[]).length;
+                    }
+                    try{m.moveLayer('gta-context-roofs')}catch{}
+                    for(const cap of [1.1,3,5]){
+                      m.setPaintProperty('gta-context-roofs','fill-extrusion-height',['+',H,cap]);
+                      m.triggerRepaint();await new Promise(r=>setTimeout(r,350));
+                      tests['front_'+cap]=(m.queryRenderedFeatures(undefined,{layers:['gta-context-roofs']})||[]).length;
+                    }
+                    m.setPaintProperty('gta-context-roofs','fill-extrusion-height',50);
+                    m.triggerRepaint();await new Promise(r=>setTimeout(r,350));
+                    tests.constant50=(m.queryRenderedFeatures(undefined,{layers:['gta-context-roofs']})||[]).length;
                   }catch(e){err=String(e?.message||e)}
-                  return{forced,err,runtimeErrors:window.__BP_MAP_RUNTIME_ERRORS__||[],layer:m.getStyle()?.layers?.find(x=>x.id==='gta-context-roofs')||null};
+                  return{tests,err,runtimeErrors:window.__BP_MAP_RUNTIME_ERRORS__||[],layer:m.getStyle()?.layers?.find(x=>x.id==='gta-context-roofs')||null};
                 });
                 throw new Error('GLOBAL_3D '+JSON.stringify({global3d,roofDiag}));
               }
