@@ -62,4 +62,72 @@ bool FHorizonAcousticTransmissionTest::RunTest(const FString& Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonCreatureVocalDirectionTest,
+    "BridgePoint.Horizon.Audio.Creatures.VocalDirection",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonCreatureVocalDirectionTest::RunTest(const FString& Parameters)
+{
+    UHorizonAudioDirectorSubsystem* Audio = NewObject<UHorizonAudioDirectorSubsystem>();
+    TestNotNull(TEXT("Audio director should construct for creature vocals"), Audio);
+    if (!Audio)
+    {
+        return false;
+    }
+
+    Audio->SetAcousticSpace(EHorizonAcousticSpace::Outdoor);
+    const FHorizonCreatureVocalMix ShamblerIdle = Audio->GetCreatureVocalMix(
+        EHorizonCreatureVocalArchetype::Shambler,
+        EHorizonCreatureVocalIntent::Idle,
+        800.0f,
+        false,
+        42);
+    const FHorizonCreatureVocalMix ShamblerAttack = Audio->GetCreatureVocalMix(
+        EHorizonCreatureVocalArchetype::Shambler,
+        EHorizonCreatureVocalIntent::Attack,
+        800.0f,
+        false,
+        42);
+    TestTrue(TEXT("Attack vocal is stronger than idle vocal"),
+        ShamblerAttack.Volume > ShamblerIdle.Volume);
+
+    const FHorizonCreatureVocalMix Screamer = Audio->GetCreatureVocalMix(
+        EHorizonCreatureVocalArchetype::Screamer,
+        EHorizonCreatureVocalIntent::Alert,
+        800.0f,
+        false,
+        11);
+    TestTrue(TEXT("Screamer emphasizes the scream layer"),
+        Screamer.ScreamLayerGain > Screamer.GrowlLayerGain);
+    TestTrue(TEXT("Screamer projects farther than a shambler"),
+        Screamer.MaxDistanceCm > ShamblerAttack.MaxDistanceCm);
+
+    const FHorizonCreatureVocalMix Clear = Audio->GetCreatureVocalMix(
+        EHorizonCreatureVocalArchetype::Sprinter,
+        EHorizonCreatureVocalIntent::Attack,
+        5000.0f,
+        false,
+        8);
+    const FHorizonCreatureVocalMix Occluded = Audio->GetCreatureVocalMix(
+        EHorizonCreatureVocalArchetype::Sprinter,
+        EHorizonCreatureVocalIntent::Attack,
+        5000.0f,
+        true,
+        8);
+    TestTrue(TEXT("Occlusion reduces creature vocal volume"), Occluded.Volume < Clear.Volume);
+    TestTrue(TEXT("Occlusion lowers creature vocal cutoff"),
+        Occluded.LowPassCutoffHz < Clear.LowPassCutoffHz);
+
+    const FHorizonCreatureVocalMix Repeat = Audio->GetCreatureVocalMix(
+        EHorizonCreatureVocalArchetype::Sprinter,
+        EHorizonCreatureVocalIntent::Attack,
+        5000.0f,
+        false,
+        8);
+    TestEqual(TEXT("Seeded creature vocal pitch is deterministic"), Repeat.Pitch, Clear.Pitch);
+    TestEqual(TEXT("Seeded creature vocal volume is deterministic"), Repeat.Volume, Clear.Volume);
+    return true;
+}
+
 #endif
