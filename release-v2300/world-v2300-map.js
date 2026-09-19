@@ -24,12 +24,9 @@ const paint=(map,id,k,v)=>{try{if(map.getLayer(id))map.setPaintProperty(id,k,v)}
 function style(){
  const bType=['downcase',['to-string',['coalesce',['get','facade_material'],['get','building_material'],['get','building_type'],['get','property_type'],['get','building'],['get','class'],['get','type'],'']]];
  const bAmenity=['downcase',['to-string',['coalesce',['get','amenity'],['get','facility_type'],['get','subtype'],'']]];
- const bLevelKnown=['any',['has','levels'],['has','building:levels'],['has','building_levels'],['has','num_floors'],['has','floor_count']];
- const bLevels=['coalesce',['to-number',['get','levels']],['to-number',['get','building:levels']],['to-number',['get','building_levels']],['to-number',['get','num_floors']],['to-number',['get','floor_count']],1];
  const bBase=['max',0,['coalesce',['to-number',['get','render_min_height']],['to-number',['get','min_height']],['to-number',['get','base_height_m']],0]];
- const bRoofShape=['downcase',['to-string',['coalesce',['get','roof_shape'],['get','roof:shape'],'']]];
- const bRoofHeight=['max',.24,['coalesce',['to-number',['get','roof_height_m']],['to-number',['get','roof_height']],['to-number',['get','roof:height']],['case',['any',['has','roof_levels'],['has','roof:levels']],['*',['coalesce',['to-number',['get','roof_levels']],['to-number',['get','roof:levels']],1],2.4],null],['case',['in',bRoofShape,['literal',['dome','onion']]],1.25,['in',bRoofShape,['literal',['pyramidal','pyramid']]],1.05,['in',bRoofShape,['literal',['gambrel','mansard']]],.95,['in',bRoofShape,['literal',['gabled','gable']]],.82,['in',bRoofShape,['literal',['hipped','hip']]],.7,['in',bRoofShape,['literal',['shed','skillion']]],.42,['in',bRoofShape,['literal',['flat']]],.24,.34]]];
- const bHeight=['max',3,['coalesce',['to-number',['get','render_height_m']],['to-number',['get','render_height']],['to-number',['get','height_m']],['to-number',['get','height']],['case',bLevelKnown,['*',bLevels,3.15],null],8.5]];
+ const bHeight=['max',4,['coalesce',['to-number',['get','render_height_m']],['to-number',['get','render_height']],['to-number',['get','height_m']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],['to-number',['get','building:levels']],['to-number',['get','building_levels']],['to-number',['get','num_floors']],['to-number',['get','floor_count']],3],3],9]];
+ const bRoofHeight=['max',.28,['coalesce',['to-number',['get','roof_height_m']],['to-number',['get','roof_height']],['to-number',['get','roof:height']],['*',['coalesce',['to-number',['get','roof_levels']],['to-number',['get','roof:levels']],0],2.4],.34]];
  const bYear=['coalesce',
    ['to-number',['get','construction_year']],
    ['to-number',['get','year_built']],
