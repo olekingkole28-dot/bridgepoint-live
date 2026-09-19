@@ -369,6 +369,101 @@ FHorizonFootstepMix UHorizonAudioDirectorSubsystem::GetFootstepMix(
     return Mix;
 }
 
+FHorizonCreatureVocalMix UHorizonAudioDirectorSubsystem::GetCreatureVocalMix(
+    EHorizonCreatureVocalArchetype Archetype,
+    EHorizonCreatureVocalIntent Intent,
+    float DistanceCm,
+    bool bOccluded,
+    int32 VariationSeed) const
+{
+    FHorizonCreatureVocalMix Mix;
+    const FHorizonSpatialCueMix Spatial = GetSpatialCueMix(
+        EHorizonSpatialCueClass::Creature,
+        DistanceCm,
+        bOccluded);
+
+    Mix.Volume = Spatial.DistanceGain;
+    Mix.LowPassCutoffHz = Spatial.LowPassCutoffHz;
+    Mix.ReverbSend = Spatial.ReverbSend;
+    Mix.MaxDistanceCm = Spatial.MaxDistanceCm;
+    Mix.bVirtualizeWhenSilent = Spatial.bVirtualizeWhenSilent;
+
+    switch (Archetype)
+    {
+        case EHorizonCreatureVocalArchetype::Shambler:
+            Mix.Pitch = 0.82f;
+            Mix.GrowlLayerGain = 0.86f;
+            Mix.BreathLayerGain = 0.36f;
+            break;
+        case EHorizonCreatureVocalArchetype::Lurker:
+            Mix.Pitch = 0.92f;
+            Mix.GrowlLayerGain = 0.44f;
+            Mix.BreathLayerGain = 0.78f;
+            break;
+        case EHorizonCreatureVocalArchetype::Stalker:
+            Mix.Pitch = 1.02f;
+            Mix.GrowlLayerGain = 0.34f;
+            Mix.BreathLayerGain = 0.68f;
+            break;
+        case EHorizonCreatureVocalArchetype::Screamer:
+            Mix.Pitch = 1.12f;
+            Mix.GrowlLayerGain = 0.18f;
+            Mix.BreathLayerGain = 0.32f;
+            Mix.ScreamLayerGain = 1.0f;
+            Mix.MaxDistanceCm = 36000.0f;
+            break;
+        case EHorizonCreatureVocalArchetype::Sprinter:
+            Mix.Pitch = 1.08f;
+            Mix.GrowlLayerGain = 0.52f;
+            Mix.BreathLayerGain = 0.94f;
+            break;
+        case EHorizonCreatureVocalArchetype::Beast:
+            Mix.Pitch = 0.68f;
+            Mix.GrowlLayerGain = 1.0f;
+            Mix.BreathLayerGain = 0.62f;
+            Mix.MaxDistanceCm = 32000.0f;
+            break;
+    }
+
+    switch (Intent)
+    {
+        case EHorizonCreatureVocalIntent::Idle:
+            Mix.Volume *= 0.48f;
+            Mix.ScreamLayerGain *= 0.12f;
+            break;
+        case EHorizonCreatureVocalIntent::Alert:
+            Mix.Volume *= 0.82f;
+            Mix.GrowlLayerGain = FMath::Min(1.0f, Mix.GrowlLayerGain + 0.12f);
+            Mix.ScreamLayerGain *= 0.72f;
+            break;
+        case EHorizonCreatureVocalIntent::Attack:
+            Mix.Volume *= 1.08f;
+            Mix.GrowlLayerGain = FMath::Min(1.0f, Mix.GrowlLayerGain + 0.20f);
+            break;
+        case EHorizonCreatureVocalIntent::Pain:
+            Mix.Volume *= 0.90f;
+            Mix.Pitch *= 1.06f;
+            Mix.ScreamLayerGain = FMath::Max(0.34f, Mix.ScreamLayerGain);
+            break;
+        case EHorizonCreatureVocalIntent::Death:
+            Mix.Volume *= 1.0f;
+            Mix.Pitch *= 0.88f;
+            Mix.GrowlLayerGain = FMath::Max(0.58f, Mix.GrowlLayerGain);
+            break;
+    }
+
+    // Seeded micro-variation avoids robotic repetition while remaining replay/network deterministic.
+    FRandomStream Variation(VariationSeed * 7919 + static_cast<int32>(Archetype) * 379 + static_cast<int32>(Intent) * 53);
+    Mix.Pitch *= Variation.FRandRange(0.965f, 1.035f);
+    Mix.Volume *= Variation.FRandRange(0.94f, 1.06f);
+    Mix.Volume = FMath::Clamp(Mix.Volume, 0.0f, 1.15f);
+    Mix.Pitch = FMath::Clamp(Mix.Pitch, 0.55f, 1.30f);
+    Mix.GrowlLayerGain = FMath::Clamp(Mix.GrowlLayerGain, 0.0f, 1.0f);
+    Mix.BreathLayerGain = FMath::Clamp(Mix.BreathLayerGain, 0.0f, 1.0f);
+    Mix.ScreamLayerGain = FMath::Clamp(Mix.ScreamLayerGain, 0.0f, 1.0f);
+    return Mix;
+}
+
 FHorizonRegionalAmbienceMix UHorizonAudioDirectorSubsystem::GetRegionalAmbienceMix() const
 {
     FHorizonRegionalAmbienceMix Mix;

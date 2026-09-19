@@ -83,6 +83,27 @@ enum class EHorizonFootstepSurface : uint8
     Snow
 };
 
+UENUM(BlueprintType)
+enum class EHorizonCreatureVocalArchetype : uint8
+{
+    Shambler,
+    Lurker,
+    Stalker,
+    Screamer,
+    Sprinter,
+    Beast
+};
+
+UENUM(BlueprintType)
+enum class EHorizonCreatureVocalIntent : uint8
+{
+    Idle,
+    Alert,
+    Attack,
+    Pain,
+    Death
+};
+
 USTRUCT(BlueprintType)
 struct FHorizonSpatialCueMix
 {
@@ -123,6 +144,39 @@ struct FHorizonFootstepMix
 
     UPROPERTY(BlueprintReadOnly)
     float SplashGain = 0.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FHorizonCreatureVocalMix
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    float Volume = 1.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float Pitch = 1.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float GrowlLayerGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float BreathLayerGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float ScreamLayerGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float LowPassCutoffHz = 20000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float ReverbSend = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float MaxDistanceCm = 24000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bVirtualizeWhenSilent = true;
 };
 
 USTRUCT(BlueprintType)
@@ -270,6 +324,14 @@ public:
         EHorizonFootstepSurface Surface,
         float MovementSpeed01,
         bool bCrouched) const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Audio")
+    FHorizonCreatureVocalMix GetCreatureVocalMix(
+        EHorizonCreatureVocalArchetype Archetype,
+        EHorizonCreatureVocalIntent Intent,
+        float DistanceCm,
+        bool bOccluded,
+        int32 VariationSeed = 0) const;
 
     UFUNCTION(BlueprintPure, Category="Horizon|Audio")
     FHorizonRegionalAmbienceMix GetRegionalAmbienceMix() const;

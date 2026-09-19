@@ -183,7 +183,9 @@ for token in [
     "CombatIntensity", "AmbienceGain", "TransientDuck",
     "EHorizonRegionalAmbience", "FHorizonRegionalAmbienceMix",
     "SetRegionalAmbience", "SetWeatherIntensity01", "GetRegionalAmbienceMix",
-    "DesiredWeatherIntensity01", "SmoothedWeatherIntensity01"
+    "DesiredWeatherIntensity01", "SmoothedWeatherIntensity01",
+    "EHorizonCreatureVocalArchetype", "EHorizonCreatureVocalIntent",
+    "FHorizonCreatureVocalMix", "GetCreatureVocalMix"
 ]:
     require(token in audio_header, f"AAA audio runtime contract missing: {token}")
 for token in [
@@ -199,6 +201,13 @@ for token in [
     "SmoothedWeatherIntensity01 * AmbienceMix.InteriorTransmission"
 ]:
     require(token in audio, f"AAA audio behavior missing: {token}")
+for token in [
+    "EHorizonCreatureVocalArchetype::Shambler", "EHorizonCreatureVocalArchetype::Screamer",
+    "EHorizonCreatureVocalArchetype::Beast", "EHorizonCreatureVocalIntent::Attack",
+    "EHorizonCreatureVocalIntent::Death", "FRandomStream Variation",
+    "GetSpatialCueMix(", "Seeded micro-variation"
+]:
+    require(token in audio, f"infected vocal direction behavior missing: {token}")
 require("Stripe" not in audio_header + audio and "Payment" not in audio_header + audio,
         "audio runtime must remain independent of payments")
 
@@ -210,6 +219,12 @@ for token in [
     "Rooftop wind should remain fully exposed"
 ]:
     require(token in audio_tests, f"native regional ambience QA missing: {token}")
+for token in [
+    "Audio.Creatures.VocalDirection", "Attack vocal is stronger than idle vocal",
+    "Screamer emphasizes the scream layer", "Occlusion reduces creature vocal volume",
+    "Seeded creature vocal pitch is deterministic"
+]:
+    require(token in audio_tests, f"native creature vocal QA missing: {token}")
 require("Stripe" not in audio_tests and "Payment" not in audio_tests,
         "regional ambience QA must remain independent of payments")
 
