@@ -1,4 +1,5 @@
 name: Publish BridgePoint V5370 City World
+# retry-after-visible-city-source: 2
 
 on:
   push:
