@@ -171,6 +171,15 @@ jobs:
               await sleep(900);
               const cam=await app.evaluate(()=>{const m=window.__BP_V5000_WORLD.map;return{z:m.getZoom(),pitch:m.getPitch(),bearing:m.getBearing()}});
               if(cam.z<16.2||cam.pitch<60)throw new Error('CAMERA '+JSON.stringify(cam));
+              await app.waitForFunction(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                try{return (m?.querySourceFeatures('bpCityStructures',{sourceLayer:'roofs'})||[]).length>0}catch{return false}
+              },{timeout:25000});
+              const roofDetail=await app.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD.map;
+                return (m.querySourceFeatures('bpCityStructures',{sourceLayer:'roofs'})||[]).length;
+              });
+              if(roofDetail<1)throw new Error('NYC_REAL_ROOFS '+roofDetail);
 
               await app.waitForFunction(()=>window.__BP_LIVE_WEATHER_STATE__||document.querySelector('#liveLegend'),{timeout:12000}).catch(()=>{});
               const startup=await app.evaluate(()=>{
@@ -197,7 +206,7 @@ jobs:
                 world:window.__BP_WORLD_RENDER_VERSION__
               }));
               if(!home.preview||!home.counts||!home.founder||home.world!==5373)throw new Error('HOME '+JSON.stringify(home));
-              console.log('V5373_FINAL_PASS',JSON.stringify({city,cam,startup,home}));
+              console.log('V5373_FINAL_PASS',JSON.stringify({city,cam,roofDetail,startup,home}));
               await root.close();
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
