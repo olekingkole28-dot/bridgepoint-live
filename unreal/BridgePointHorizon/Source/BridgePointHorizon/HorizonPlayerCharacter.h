@@ -160,6 +160,7 @@ private:
     UPROPERTY()
     EHorizonCameraMode CameraMode = EHorizonCameraMode::ThirdPerson;
 
+    void StartTraversalJump();
     void MoveForward(float Value);
     void MoveRight(float Value);
     void ApplyMovementInput(float DeltaSeconds);
