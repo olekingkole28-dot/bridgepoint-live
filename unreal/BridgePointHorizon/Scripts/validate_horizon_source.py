@@ -128,15 +128,22 @@ audio = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonAudioDi
 for token in [
     "EHorizonSpatialCueClass", "EHorizonFootstepSurface",
     "FHorizonSpatialCueMix", "FHorizonFootstepMix",
-    "GetSpatialCueMix", "GetFootstepMix"
+    "GetSpatialCueMix", "GetFootstepMix",
+    "EHorizonSensoryStinger", "PushPlayerHitFeedback", "ConsumePendingStinger",
+    "CombatIntensity", "AmbienceGain", "TransientDuck"
 ]:
     require(token in audio_header, f"AAA audio runtime contract missing: {token}")
 for token in [
     "MaxDistanceCm = 45000.0f", "bOccluded ? 0.78f",
     "EHorizonFootstepSurface::Metal", "EHorizonFootstepSurface::ShallowWater",
-    "Mix.Volume *= 0.42f", "AcousticSpace == EHorizonAcousticSpace::Tunnel"
+    "Mix.Volume *= 0.42f", "AcousticSpace == EHorizonAcousticSpace::Tunnel",
+    "FTSTicker::GetCoreTicker().AddTicker", "CombatReleaseHoldSeconds = 1.75f",
+    "FMath::FInterpTo", "EHorizonSensoryStinger::HordeSurge",
+    "Mix.AmbienceGain = FMath::Lerp(1.0f, 0.58f", "Mix.EffectsGain *= FMath::Lerp"
 ]:
     require(token in audio, f"AAA audio behavior missing: {token}")
+require("Stripe" not in audio_header + audio and "Payment" not in audio_header + audio,
+        "audio runtime must remain independent of payments")
 
 zombie_wall_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonZombieWallController.h")
 zombie_wall = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonZombieWallController.cpp")
