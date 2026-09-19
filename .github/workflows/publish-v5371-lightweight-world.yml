@@ -1,4 +1,4 @@
-# V5378 publish: viewer-location center + click-only attribution verified without full-tile-idle dependency
+# V5378 publish: click-only attribution + location start after renderer settle
 name: Publish BridgePoint V5378 Lightweight World
 
 on:
@@ -146,7 +146,7 @@ jobs:
               await app.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               await app.goto(O+'/app/?verify5378='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await app.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5378&&window.__BP_V5000_WORLD?.map,{timeout:45000});
-              await app.waitForFunction(()=>window.__BP_APP_VIEWER_START__?.mode==='VIEWER_LOCATION',{timeout:12000});
+              await app.waitForFunction(()=>window.__BP_APP_VIEWER_START__?.mode==='VIEWER_LOCATION',{timeout:25000});
               await sleep(1200);
               const startBehavior=await app.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map,s=window.__BP_APP_VIEWER_START__||{},attrib=document.querySelector('.maplibregl-ctrl-attrib');
@@ -321,7 +321,7 @@ jobs:
               await root.goto(O+'/?verify5378='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await root.waitForSelector('#previewMap',{timeout:10000});
               await root.waitForFunction(()=>window.__BP_LANDING_WORLD__?.map&&window.__BP_WORLD_RENDER_VERSION__===5378,{timeout:45000});
-              await root.waitForFunction(()=>window.__BP_LANDING_VIEWER_START__?.mode==='VIEWER_LOCATION',{timeout:12000});
+              await root.waitForFunction(()=>window.__BP_LANDING_VIEWER_START__?.mode==='VIEWER_LOCATION',{timeout:25000});
               await root.waitForFunction(()=>window.__BP_LANDING_WORLD__?.map?.loaded?.()===true,{timeout:12000});
               await sleep(800);
               const home=await root.evaluate(()=>{
