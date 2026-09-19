@@ -110,6 +110,18 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
     float FacingInterpolationSpeed = 24.0f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera|Lean", meta=(ClampMin="0.0", ClampMax="45.0"))
+    float LeanDistanceCm = 24.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera|Lean", meta=(ClampMin="0.0", ClampMax="18.0"))
+    float LeanRollDegrees = 8.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera|Lean", meta=(ClampMin="1.0", ClampMax="30.0"))
+    float LeanInterpolationSpeed = 13.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera|Lean", meta=(ClampMin="2.0", ClampMax="30.0"))
+    float LeanProbeRadiusCm = 10.0f;
+
     UFUNCTION(BlueprintCallable, Category="Horizon|Weapon")
     bool EquipWeaponVisual(UStaticMesh* WeaponMesh, FName PreferredSocket = NAME_None);
 
@@ -143,6 +155,15 @@ public:
     UFUNCTION(BlueprintPure, Category="Horizon|Movement")
     bool IsProne() const { return MovementStance == EHorizonMovementStance::Prone; }
 
+    UFUNCTION(BlueprintPure, Category="Horizon|Camera|Lean")
+    float GetLeanAlpha() const { return CurrentLeanAlpha; }
+
+    static float ResolveLeanTarget(
+        float RawInput,
+        EHorizonMovementStance Stance,
+        bool bIsSprinting,
+        float ObstructionFraction);
+
 private:
     bool bSprinting = false;
     bool bAiming = false;
@@ -153,6 +174,8 @@ private:
     float SlideTimeRemaining = 0.0f;
     FVector SlideDirection = FVector::ForwardVector;
     FVector2D CachedMoveInput = FVector2D::ZeroVector;
+    float RawLeanInput = 0.0f;
+    float CurrentLeanAlpha = 0.0f;
 
     UPROPERTY()
     EHorizonMovementStance MovementStance = EHorizonMovementStance::Standing;
@@ -164,6 +187,9 @@ private:
     void MoveForward(float Value);
     void MoveRight(float Value);
     void ApplyMovementInput(float DeltaSeconds);
+    void SetLeanInput(float Value);
+    void UpdateLean(float DeltaSeconds);
+    float ProbeLeanObstruction(float LeanDirection) const;
     void UpdateCameraPresentation(float DeltaSeconds);
     void StartSprint();
     void StopSprint();
