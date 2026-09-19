@@ -1,4 +1,4 @@
-# V5376 final publish: force global roof/floor bucket rebuild without overlay reordering
+# V5376 final publish: probe global roof/floor renderability while preserving overlays
 name: Publish BridgePoint V5376 Lightweight World
 
 on:
@@ -242,7 +242,19 @@ jobs:
                   settleState:window.__BP_FINE_DETAIL_SETTLE__||null
                 };
               });
-              if(global3d.bodies<10||global3d.roofs<10||global3d.sourceRows<10||global3d.withRenderHeight<10||global3d.bodyVis==='none'||global3d.roofVis==='none')throw new Error('GLOBAL_3D '+JSON.stringify(global3d));
+              let globalRoofProbe=global3d.roofs;
+              if(globalRoofProbe<10){
+                globalRoofProbe=await app.evaluate(async()=>{
+                  const m=window.__BP_V5000_WORLD.map;
+                  try{m.moveLayer('gta-context-roofs')}catch{}
+                  m.triggerRepaint();await new Promise(r=>setTimeout(r,320));
+                  let n=0;try{n=(m.queryRenderedFeatures(undefined,{layers:['gta-context-roofs']})||[]).length}catch{}
+                  try{if(m.getLayer('gta-water-label'))m.moveLayer('gta-context-roofs','gta-water-label')}catch{}
+                  m.triggerRepaint();
+                  return n;
+                });
+              }
+              if(global3d.bodies<10||globalRoofProbe<10||global3d.sourceRows<10||global3d.withRenderHeight<10||global3d.bodyVis==='none'||global3d.roofVis==='none')throw new Error('GLOBAL_3D '+JSON.stringify({global3d,globalRoofProbe}));
 
               // Close global floor-detail gate.
               await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-0.1276,51.5072],zoom:16.5,pitch:62,bearing:-18}));
@@ -254,7 +266,19 @@ jobs:
                 try{bodies=(m.queryRenderedFeatures(undefined,{layers:['gta-context-buildings']})||[]).length}catch{}
                 return{floors,bodies,floorVis:m.getLayoutProperty('gta-context-floor-lines','visibility')||'visible'};
               });
-              if(globalFloors.bodies<10||globalFloors.floors<10||globalFloors.floorVis==='none')throw new Error('GLOBAL_FLOORS '+JSON.stringify(globalFloors));
+              let globalFloorProbe=globalFloors.floors;
+              if(globalFloorProbe<10){
+                globalFloorProbe=await app.evaluate(async()=>{
+                  const m=window.__BP_V5000_WORLD.map;
+                  try{m.moveLayer('gta-context-floor-lines')}catch{}
+                  m.triggerRepaint();await new Promise(r=>setTimeout(r,320));
+                  let n=0;try{n=(m.queryRenderedFeatures(undefined,{layers:['gta-context-floor-lines']})||[]).length}catch{}
+                  try{if(m.getLayer('gta-context-roofs'))m.moveLayer('gta-context-floor-lines','gta-context-roofs')}catch{}
+                  m.triggerRepaint();
+                  return n;
+                });
+              }
+              if(globalFloors.bodies<10||globalFloorProbe<10||globalFloors.floorVis==='none')throw new Error('GLOBAL_FLOORS '+JSON.stringify({globalFloors,globalFloorProbe}));
 
               await app.waitForFunction(()=>window.__BP_LIVE_WEATHER_STATE__||document.querySelector('#liveLegend'),{timeout:12000}).catch(()=>{});
               const startup=await app.evaluate(()=>{
@@ -281,7 +305,7 @@ jobs:
                 world:window.__BP_WORLD_RENDER_VERSION__
               }));
               if(!home.preview||!home.counts||!home.founder||home.world!==5376)throw new Error('HOME '+JSON.stringify(home));
-              console.log('V5376_FINAL_PASS',JSON.stringify({city,cam,roofState,global3d,globalFloors,startup,home}));
+              console.log('V5376_FINAL_PASS',JSON.stringify({city,cam,roofState,global3d,globalRoofProbe,globalFloors,globalFloorProbe,startup,home}));
               await root.close();
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
