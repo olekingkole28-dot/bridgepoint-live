@@ -143,6 +143,15 @@ public:
     UFUNCTION(BlueprintPure, Category="Horizon|Movement")
     bool IsProne() const { return MovementStance == EHorizonMovementStance::Prone; }
 
+    UFUNCTION(BlueprintPure, Category="Horizon|Camera|Lean")
+    float GetLeanAlpha() const { return CurrentLeanAlpha; }
+
+    static float ResolveLeanTarget(
+        float RawInput,
+        EHorizonMovementStance Stance,
+        bool bIsSprinting,
+        float ObstructionFraction);
+
 private:
     bool bSprinting = false;
     bool bAiming = false;
@@ -153,6 +162,8 @@ private:
     float SlideTimeRemaining = 0.0f;
     FVector SlideDirection = FVector::ForwardVector;
     FVector2D CachedMoveInput = FVector2D::ZeroVector;
+    float RawLeanInput = 0.0f;
+    float CurrentLeanAlpha = 0.0f;
 
     UPROPERTY()
     EHorizonMovementStance MovementStance = EHorizonMovementStance::Standing;
@@ -164,6 +175,9 @@ private:
     void MoveForward(float Value);
     void MoveRight(float Value);
     void ApplyMovementInput(float DeltaSeconds);
+    void SetLeanInput(float Value);
+    void UpdateLean(float DeltaSeconds);
+    float ProbeLeanObstruction(float LeanDirection) const;
     void UpdateCameraPresentation(float DeltaSeconds);
     void StartSprint();
     void StopSprint();
