@@ -118,11 +118,24 @@ jobs:
               await app.goto(O+'/app/?verify5372='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await app.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5372&&window.__BP_V5000_WORLD?.map,{timeout:45000});
               await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:11.35,pitch:58,bearing:-18}));
-              await app.waitForFunction(()=>{
-                const m=window.__BP_V5000_WORLD?.map;
-                if(!m||window.__BP_V5000_WORLD.state?.terrain!==true)return false;
-                try{return (m.querySourceFeatures('bpCityStructures',{sourceLayer:'buildings'})||[]).length>=150}catch{return false}
-              },{timeout:35000});
+              try{
+                await app.waitForFunction(()=>{
+                  const m=window.__BP_V5000_WORLD?.map;
+                  if(!m||window.__BP_V5000_WORLD.state?.terrain!==true)return false;
+                  try{return (m.querySourceFeatures('bpCityStructures',{sourceLayer:'buildings'})||[]).length>=150}catch{return false}
+                },{timeout:35000});
+              }catch(err){
+                const diag=await app.evaluate(()=>{
+                  const w=window.__BP_V5000_WORLD,m=w?.map;
+                  let buildings=-1,loaded=null,cityVis=null,roofVis=null;
+                  try{buildings=(m?.querySourceFeatures('bpCityStructures',{sourceLayer:'buildings'})||[]).length}catch{}
+                  try{loaded=m?.isSourceLoaded?.('bpCityStructures')??null}catch{}
+                  try{cityVis=m?.getLayoutProperty?.('gta-city-buildings','visibility')??null}catch{}
+                  try{roofVis=m?.getLayoutProperty?.('gta-city-building-roof-caps','visibility')??null}catch{}
+                  return{version:window.__BP_WORLD_RENDER_VERSION__,hasWorld:!!w,zoom:m?.getZoom?.(),terrain:w?.state?.terrain,terrainVisual:window.__BP_TERRAIN_VISUAL_STATE__,buildings,loaded,cityVis,roofVis,mode:window.__BP_BUILDING_SHELL_MODE__,status:document.getElementById('mapStatus')?.textContent||null};
+                });
+                throw new Error('CITY_WAIT_DIAG '+JSON.stringify(diag)+' :: '+String(err));
+              }
               const city=await app.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map;
                 const buildings=(m.querySourceFeatures('bpCityStructures',{sourceLayer:'buildings'})||[]).length;
