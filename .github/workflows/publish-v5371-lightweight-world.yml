@@ -55,6 +55,7 @@ jobs:
           grep -Fq "id:'gta-city-building-roof-caps'" world-v2300-map.js
           grep -Fq "fineDetailDisabled:true" world-v2300-map.js
           grep -Fq "buildingClickOverlook:true" world-v2300-map.js
+          grep -Fq "canvas.addEventListener('click'" world-v2300-map.js
           grep -Fq "layerState={parcels:true,buildings:true}" world-v2300-map.js
           ! grep -Fq '__BP_WORLD_RENDER_VERSION__=5370' world-v2300-map.js
           ! grep -Fqi 'cesium' index.html
