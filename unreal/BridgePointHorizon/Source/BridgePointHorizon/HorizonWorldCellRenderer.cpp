@@ -349,6 +349,10 @@ AHorizonWorldCellRenderer::AHorizonWorldCellRenderer()
     BuildingMesh->SetupAttachment(SceneRoot);
     BuildingMesh->bUseComplexAsSimpleCollision = true;
 
+    FarBuildingMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("FarBuildingMesh"));
+    FarBuildingMesh->SetupAttachment(SceneRoot);
+    FarBuildingMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
     WaterMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("WaterMesh"));
     WaterMesh->SetupAttachment(SceneRoot);
     WaterMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -359,6 +363,7 @@ void AHorizonWorldCellRenderer::ClearCell()
     TerrainMesh->ClearAllMeshSections();
     RoadMesh->ClearAllMeshSections();
     BuildingMesh->ClearAllMeshSections();
+    FarBuildingMesh->ClearAllMeshSections();
     WaterMesh->ClearAllMeshSections();
 
     TerrainHeightsMeters.Reset();
@@ -369,6 +374,20 @@ void AHorizonWorldCellRenderer::ClearCell()
     RenderedBuildingPartCount = 0;
     RenderedRoadSegmentCount = 0;
     RenderedWaterFeatureCount = 0;
+}
+
+FIntPoint AHorizonWorldCellRenderer::ResolveBuildingLodCounts(
+    int32 AvailableBuildings,
+    int32 VisualLimit,
+    int32 CollisionLimit)
+{
+    const int32 VisibleCount = FMath::Min(
+        FMath::Max(0, AvailableBuildings),
+        FMath::Max(0, VisualLimit));
+    const int32 CollidableCount = FMath::Min(
+        VisibleCount,
+        FMath::Max(0, CollisionLimit));
+    return FIntPoint(CollidableCount, VisibleCount - CollidableCount);
 }
 
 bool AHorizonWorldCellRenderer::RenderCellJson(const FString& CellJson)
@@ -816,13 +835,18 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
     TArray<int32> BuildingTriangles;
     TArray<FVector2D> BuildingUV0;
 
+    TArray<FVector> FarBuildingVertices;
+    TArray<int32> FarBuildingTriangles;
+    TArray<FVector2D> FarBuildingUV0;
+
     TArray<FVector> PartVertices;
     TArray<int32> PartTriangles;
     TArray<FVector2D> PartUV0;
 
     auto AppendFeatures = [this](
         const TArray<TSharedPtr<FJsonValue>>* Features,
-        int32 Limit,
+        int32 StartIndex,
+        int32 Count,
         bool bBuildingPart,
         TArray<FVector>& Vertices,
         TArray<int32>& Triangles,
@@ -833,9 +857,12 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
             return;
         }
 
-        const int32 SafeLimit = FMath::Min(FMath::Max(0, Limit), Features->Num());
+        const int32 SafeStart = FMath::Clamp(StartIndex, 0, Features->Num());
+        const int32 SafeEnd = FMath::Min(
+            Features->Num(),
+            SafeStart + FMath::Max(0, Count));
 
-        for (int32 FeatureIndex = 0; FeatureIndex < SafeLimit; ++FeatureIndex)
+        for (int32 FeatureIndex = SafeStart; FeatureIndex < SafeEnd; ++FeatureIndex)
         {
             const TSharedPtr<FJsonObject> Feature = (*Features)[FeatureIndex].IsValid()
                 ? (*Features)[FeatureIndex]->AsObject()
@@ -952,16 +979,32 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
         }
     };
 
+    const FIntPoint BuildingLodCounts = ResolveBuildingLodCounts(
+        Buildings ? Buildings->Num() : 0,
+        MaxBuildingsPerCell,
+        MaxCollidableBuildingsPerCell);
+
     AppendFeatures(
         Buildings,
-        MaxBuildingsPerCell,
+        0,
+        BuildingLodCounts.X,
         false,
         BuildingVertices,
         BuildingTriangles,
         BuildingUV0);
 
     AppendFeatures(
+        Buildings,
+        BuildingLodCounts.X,
+        BuildingLodCounts.Y,
+        false,
+        FarBuildingVertices,
+        FarBuildingTriangles,
+        FarBuildingUV0);
+
+    AppendFeatures(
         BuildingParts,
+        0,
         MaxBuildingPartsPerCell,
         true,
         PartVertices,
@@ -1010,6 +1053,31 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
         if (BuildingPartMaterial)
         {
             BuildingMesh->SetMaterial(1, BuildingPartMaterial);
+        }
+    }
+
+    if (!FarBuildingVertices.IsEmpty())
+    {
+        TArray<FVector> FarNormals;
+        HorizonCellRender::ComputeNormals(
+            FarBuildingVertices,
+            FarBuildingTriangles,
+            FarNormals);
+
+        // Far buildings preserve real exterior footprints, heights, roofs and color,
+        // but remain visual-only so city-scale density does not multiply physics cost.
+        FarBuildingMesh->CreateMeshSection_LinearColor(
+            0,
+            FarBuildingVertices,
+            FarBuildingTriangles,
+            FarNormals,
+            FarBuildingUV0,
+            Colors,
+            Tangents,
+            false);
+        if (BuildingMaterial)
+        {
+            FarBuildingMesh->SetMaterial(0, BuildingMaterial);
         }
     }
 }
