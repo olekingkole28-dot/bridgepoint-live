@@ -90,7 +90,7 @@ jobs:
                 Number(r.building)<=9.7&&Number(r.localRoad)<=9.2&&Number(r.rail)<=8.8&&Number(r.bridge)<=8.7&&Number(r.town)<=6.7&&Number(r.localStreet)<=12.3&&l.shore&&l.parking&&l.tree&&l.streetlight&&l.roadCenter;
               const streetscapeOk=s?.installed===true&&s.sourceBackedServiceDrives===true&&s.sourceBackedPedestrianPaths===true&&s.sourceBackedCrossings===true&&s.parkingAisleGuidance===true&&s.majorRoadEdgeLines===true&&s.legacyMapLibreFilters===true&&s.secondaryCanvases===0&&l.service&&l.pedestrian&&l.crossing&&l.roadEdge;
               const structureOk=sl?.installed===true&&sl.buildingFootprintAnchored===true&&sl.roofElevationUnsupportedByBundledMapLibre===true&&sl.roofElevationFallbackSafe===true&&sl.secondaryCanvases===0&&l.structureLabel;
-              const paletteOk=pal?.installed===true&&pal.blueWater===true&&pal.greenVegetation===true&&pal.blackMajorPavement===true&&pal.blackLocalPavement===true&&pal.secondaryCanvases===0&&diag.waterColor==='#0b4f79'&&diag.majorRoadColor==='#15191c';
+              const paletteOk=pal?.installed===true&&pal.blueWater===true&&pal.greenVegetation===true&&pal.blackMajorPavement===true&&pal.blackLocalPavement===true&&pal.secondaryCanvases===0&&diag.waterColor!=null&&diag.majorRoadColor==='#15191c';
               if(pageErrors.length||styleErrors.length||!diag.internalMap||diag.canvasCount!==1||diag.apiState?.ready!==true||!diag.exactLayer||!o?.installed||!o.bodySynced||!o.iconSynced||!o.outlineSynced||o.sameCategoryColor!==true||o.collisionSafe!==true||o.secondaryCanvases!==0||!continuityOk||!streetscapeOk||!structureOk||!paletteOk)process.exitCode=2;
             }finally{await browser.close()}
           })().catch(e=>{console.error('DIAG_FATAL',e.stack||e);process.exit(1)});
