@@ -486,7 +486,9 @@ for token in [
     "EHorizonMovementStance", "ProneCapsuleHalfHeight", "ProneCapsuleRadius",
     "SlideDurationSeconds", "GetMovementStance", "IsSliding", "IsProne",
     "LeanDistanceCm", "LeanRollDegrees", "LeanProbeRadiusCm",
-    "GetLeanAlpha", "ResolveLeanTarget", "WeaponRuntime"
+    "GetLeanAlpha", "ResolveLeanTarget", "WeaponRuntime",
+    "VaultMinimumHeightCm", "VaultMaximumHeightCm", "VaultForwardProbeCm",
+    "VaultDurationSeconds", "VaultArcHeightCm", "IsVaulting", "CanStartVault"
 ]:
     require(token in player_header, f"native weapon visual contract missing: {token}")
 for token in [
@@ -514,7 +516,13 @@ for token in [
     "CurrentLeanAlpha * LeanDistanceCm",
     "CurrentLeanAlpha * LeanRollDegrees",
     "Stance == EHorizonMovementStance::Prone",
-    "Stance == EHorizonMovementStance::Sliding"
+    "Stance == EHorizonMovementStance::Sliding",
+    "TryStartVault", "UpdateVault(DeltaSeconds)", "EndVault",
+    "SCENE_QUERY_STAT(HorizonVaultProbe)", "LineTraceSingleByChannel",
+    "VaultTargetLocation", "FCollisionShape::MakeCapsule(CapsuleRadius, CapsuleHalfHeight)",
+    "Move->SetMovementMode(MOVE_Flying)",
+    "MovementStance == EHorizonMovementStance::Vaulting",
+    "WeaponRuntime->StopFire()"
 ]:
     require(token in player, f"native facing/camera regression guard missing: {token}")
 require("AddMovementInput(FRotationMatrix" not in player,
@@ -575,7 +583,16 @@ for token in [
     "Controller noise remains inside deadzone",
     "Wall obstruction reduces but does not reverse lean",
     "Near wall margin fully cancels lean",
-    "Sprint cancels lean", "Prone cancels lean", "Slide cancels lean"
+    "Sprint cancels lean", "Prone cancels lean", "Slide cancels lean",
+    "Movement.Vault.Eligibility",
+    "Forward grounded standing player can vault a valid obstacle",
+    "Backward input cannot accidentally trigger vault",
+    "Controller noise cannot trigger vault",
+    "Airborne players cannot begin a vault",
+    "ADS blocks an accidental vault",
+    "Tall walls cannot be vaulted",
+    "Blocked landing capsules fail closed",
+    "Vaulting cancels lean"
 ]:
     require(token in movement_tests, f"native lean QA missing: {token}")
 require("Stripe" not in movement_tests and "Payment" not in movement_tests,
