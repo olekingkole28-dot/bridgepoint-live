@@ -17,6 +17,15 @@ enum class EHorizonCameraMode : uint8
     ThirdPerson
 };
 
+UENUM(BlueprintType)
+enum class EHorizonMovementStance : uint8
+{
+    Standing,
+    Crouched,
+    Prone,
+    Sliding
+};
+
 UCLASS()
 class BRIDGEPOINTHORIZON_API AHorizonPlayerCharacter : public ACharacter
 {
@@ -68,6 +77,21 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
     float SprintSpeed = 690.0f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
+    float ProneSpeed = 118.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
+    float SlideEntrySpeed = 760.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
+    float SlideDurationSeconds = 0.85f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
+    float SlideBrakingDeceleration = 620.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
+    float ProneCapsuleHalfHeight = 38.0f;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera")
     float ThirdPersonArmLength = 330.0f;
 
@@ -107,12 +131,27 @@ public:
     UFUNCTION(BlueprintPure, Category="Horizon|Camera")
     EHorizonCameraMode GetCameraMode() const { return CameraMode; }
 
+    UFUNCTION(BlueprintPure, Category="Horizon|Movement")
+    EHorizonMovementStance GetMovementStance() const { return MovementStance; }
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Movement")
+    bool IsSliding() const { return MovementStance == EHorizonMovementStance::Sliding; }
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Movement")
+    bool IsProne() const { return MovementStance == EHorizonMovementStance::Prone; }
+
 private:
     bool bSprinting = false;
     bool bAiming = false;
     bool bWaitingForStreamedTerrain = true;
     float TerrainProbeAccumulator = 0.0f;
+    float StandingCapsuleHalfHeight = 0.0f;
+    float SlideTimeRemaining = 0.0f;
+    FVector SlideDirection = FVector::ForwardVector;
     FVector2D CachedMoveInput = FVector2D::ZeroVector;
+
+    UPROPERTY()
+    EHorizonMovementStance MovementStance = EHorizonMovementStance::Standing;
 
     UPROPERTY()
     EHorizonCameraMode CameraMode = EHorizonCameraMode::ThirdPerson;
@@ -124,6 +163,12 @@ private:
     void StartSprint();
     void StopSprint();
     void ToggleCrouch();
+    void ToggleProne();
+    void StartSlide();
+    void UpdateTraversalState(float DeltaSeconds);
+    void EndSlide();
+    bool TryExitProne();
+    bool HasStandingClearance() const;
     void StartAim();
     void StopAim();
     void RefreshMovementProfile();
