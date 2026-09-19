@@ -1,4 +1,4 @@
-# V5375 fresh publish trigger: global roof shell verification
+# V5375 clean publish after city roof MVT restore
 name: Publish BridgePoint V5375 Lightweight World
 
 on:
