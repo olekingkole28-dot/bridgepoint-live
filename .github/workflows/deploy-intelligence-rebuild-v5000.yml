@@ -13,6 +13,7 @@ on:
       - 'release-v2300/world-v2300-inspector.js'
       - 'release-v2300/world-v2300-bootstrap.js'
       - 'release-v2300/world-v2300-weather.js'
+      - 'release-v2300/world-v2300-present-weather.js'
       - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
       - 'app/horizon/**'
       - 'app/horizon-playable/**'
@@ -255,6 +256,11 @@ jobs:
           grep -Fq 'bProvDataset' site/app.js
           grep -Fq 'gta-bp-roofs' site/world-v2300-map.js
           grep -Fq '__BP_BUILDING_MATERIALS__' site/world-v2300-map.js
+          grep -Fq 'facadeLayoutVariants:12' site/world-v2300-map.js
+          grep -Fq 'possibleFacadeLayouts:facadeKinds.length*12' site/world-v2300-map.js
+          grep -Fq 'cancelPendingTileRequestsWhileZooming:MOBILE' site/world-v2300-map.js
+          grep -Fq 'wx-radar-haze' site/world-v2300-weather.js
+          grep -Fq 'NOHRSC_Snow_Analysis' site/world-v2300-weather.js
           grep -Fq "mode:'rendered-vector-3d'" site/world-v2300-map.js
           ! grep -Fq "map.getSource('selected')?.setData" site/world-v2300-map.js
           grep -Fq 'transportArchive' site/app.js
