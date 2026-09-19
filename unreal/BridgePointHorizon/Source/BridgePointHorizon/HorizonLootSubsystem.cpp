@@ -95,7 +95,8 @@ FHorizonLootDrop UHorizonLootSubsystem::RollLoot(const FHorizonLootContext& Cont
         {TEXT("ration"), 9.0f + PositiveQuality * 3.0f, 1, 2},
         {TEXT("clean_water"), 9.0f + PositiveQuality * 3.0f, 1, 2},
         {TEXT("bandage"), 5.0f + PositiveQuality * 7.0f, 1, 2},
-        {TEXT("repair_kit"), 1.0f + PositiveQuality * 6.0f, 1, 1}
+        {TEXT("repair_kit"), 1.0f + PositiveQuality * 6.0f, 1, 1},
+        {TEXT("fuel_can"), 0.8f + PositiveQuality * 3.0f, 1, 1}
     };
 
     if (Context.Source == EHorizonLootSource::Enemy)
