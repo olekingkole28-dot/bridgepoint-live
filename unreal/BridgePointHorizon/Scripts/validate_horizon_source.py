@@ -98,19 +98,25 @@ for token in ["bridgepoint-horizon-stream-v3020", "state=%s&lat=%.8f&lon=%.8f", 
 for token in ["CellCache", "CacheTtlSeconds", "TryServeCachedCell", "StoreCachedCell", "MaxCachedCells"]:
     require(token in stream_contract, f"short-lived world cell cache missing: {token}")
 
+renderer_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldCellRenderer.h")
 renderer = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldCellRenderer.cpp")
+renderer_contract = renderer_header + "\n" + renderer
 for token in [
     "BuildTerrain", "BuildTransport", "BuildWater", "BuildBuildings",
     "TriangulateSimplePolygon", "BuildingPartMaterial", "WaterMaterial",
-    "FarBuildingMesh", "ResolveBuildingLodCounts", "MaxCollidableBuildingsPerCell"
+    "FarBuildingMesh", "ResolveBuildingLodCounts", "MaxCollidableBuildingsPerCell",
+    "ResolveSourceRoofHeightMeters", "GetRenderedProfiledRoofCount"
 ]:
-    require(token in renderer, f"streamed UE renderer feature missing: {token}")
+    require(token in renderer_contract, f"streamed UE renderer feature missing: {token}")
 for token in ["SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics)", "SetCollisionResponseToAllChannels(ECR_Block)"]:
     require(token in renderer, f"streamed terrain collision safeguard missing: {token}")
 for token in [
     "visual-only so city-scale density does not multiply physics cost",
     "FarBuildingMesh->CreateMeshSection_LinearColor", "BuildingLodCounts.X",
-    "BuildingLodCounts.Y"
+    "BuildingLodCounts.Y", "roof_shape", "roof_height_m",
+    "ProfileRoofHeightMeters", "RenderedProfiledRoofCount",
+    "const int32 ApexIndex = Vertices.Add(Apex)",
+    "TopMeters - ProfileRoofHeightMeters"
 ]:
     require(token in renderer, f"city silhouette LOD safeguard missing: {token}")
 
@@ -118,7 +124,11 @@ world_lod_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/Hori
 for token in [
     "WITH_DEV_AUTOMATION_TESTS", "World.LOD.BuildingDensityBudget",
     "City tier keeps collision bounded", "preserves thousands of far silhouettes",
-    "Sparse cells keep every source-backed building", "Invalid budgets fail closed"
+    "Sparse cells keep every source-backed building", "Invalid budgets fail closed",
+    "World.Roofs.SourceProfiles", "Explicit pyramidal roofs preserve source roof height",
+    "Missing source roof height does not invent a profile",
+    "Roof height is bounded against total building height",
+    "Invalid roof metadata fails closed"
 ]:
     require(token in world_lod_tests, f"native world LOD QA missing: {token}")
 
