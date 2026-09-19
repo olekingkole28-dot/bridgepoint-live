@@ -6,7 +6,7 @@ const OFM='https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf';
 const NASA='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg';
 const USGS='https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}';
 const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
-const BUILDINGS=`${EDGE}bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000`;const CITY_STRUCTURES=`${EDGE}bridgepoint-public-city-structures-v5371?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5376`;
+const BUILDINGS=`${EDGE}bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000`;const CITY_STRUCTURES=`${EDGE}bridgepoint-public-city-structures-v5375?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5376`;
 const PARCELS=`${EDGE}bridgepoint-spatial-tile-v1957?layer=parcels&z={z}&x={x}&y={y}&limit=9000`;
 const MAX_EXACT=MOBILE?320:(TIER==='LOW'?450:TIER==='HIGH'?900:650);
 const DETAIL_MIN=MOBILE?16.8:(TIER==='LOW'?16.7:TIER==='HIGH'?16.1:16.35);
