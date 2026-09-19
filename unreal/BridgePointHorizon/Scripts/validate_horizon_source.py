@@ -367,9 +367,10 @@ survival = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonSurv
 survival_contract = survival_header + "\n" + survival
 for token in [
     "FHorizonSurvivalState", "FHorizonCraftingRecipe", "UHorizonSurvivalSaveGame",
-    "TryAddItem", "TryRemoveItem", "TryConsumeItemsAtomically", "TryCraft", "ConsumeItem",
+    "TryAddItem", "TryRemoveItem", "TryAddItemsAtomically", "TryConsumeItemsAtomically", "TryCraft", "ConsumeItem",
     "AdvanceSurvivalHours", "CarryCapacityKg = 35.0f",
-    "ComputeInventoryWeightKg", "CanAffordIngredients", "CanAffordRecipe", "SimulateNeeds"
+    "ComputeInventoryWeightKg", "CanAffordIngredients", "CanAffordRecipe",
+    "TryBuildInventoryAfterAddition", "SimulateNeeds"
 ]:
     require(token in survival_contract, f"survival/crafting contract missing: {token}")
 for token in [
@@ -377,6 +378,8 @@ for token in [
     "TMap<FName, int32> ResultInventory", "consumes nothing",
     "TMap<FName, int32> Required", "MAX_int32 - Ingredient.Quantity",
     "State->Inventory = MoveTemp(ResultInventory)",
+    "TryBuildInventoryAfterAddition(", "Additions.FindOrAdd",
+    "ComputeInventoryWeightKg(ResultInventory) > Capacity",
     "craft_bandage", "craft_campfire", "craft_water_filter", "craft_repair_kit",
     "SprintHungerMultiplier", "SprintThirstMultiplier",
     "ShelterHungerMultiplier", "ShelterThirstMultiplier",
@@ -396,7 +399,12 @@ for token in [
     "Combined deprivation damages health", "Known inventory weight is deterministic",
     "Duplicate material entries aggregate before debit",
     "Exact aggregated material debit is affordable",
-    "Invalid debit quantities fail closed"
+    "Invalid debit quantities fail closed",
+    "Survival.AtomicInventoryAddition",
+    "Multi-stack addition validates as one transaction",
+    "Duplicate additions aggregate exactly once",
+    "Over-capacity transaction fails before mutation",
+    "Unknown item addition fails closed", "Quantity overflow fails closed"
 ]:
     require(token in survival_tests, f"native survival QA missing: {token}")
 require("Stripe" not in survival_tests and "Payment" not in survival_tests,
@@ -414,7 +422,8 @@ for token in [
     require(token in loot_contract, f"fair loot contract missing: {token}")
 for token in [
     "BridgePointHorizonLoot", "LoadGameFromSlot", "SaveGameToSlot",
-    "GetSubsystem<UHorizonSurvivalSubsystem>", "TryAddItem",
+    "GetSubsystem<UHorizonSurvivalSubsystem>", "TryAddItemsAtomically",
+    "AtomicAdditions.Reserve(Planned.Num())",
     "ComputeInventoryWeightKg", "GetItemUnitWeightKg",
     "ClaimedDropIds.Contains", "DeferredDrops", "Drop.DropId.IsValid()",
     "FMath::Clamp(Context.QualityBias, -0.25f, 0.50f)",
