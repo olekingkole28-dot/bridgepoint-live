@@ -130,4 +130,62 @@ bool FHorizonCreatureVocalDirectionTest::RunTest(const FString& Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonWeaponReportAcousticsTest,
+    "BridgePoint.Horizon.Audio.Weapons.ReportAcoustics",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonWeaponReportAcousticsTest::RunTest(const FString& Parameters)
+{
+    UHorizonAudioDirectorSubsystem* Audio = NewObject<UHorizonAudioDirectorSubsystem>();
+    TestNotNull(TEXT("Audio director should construct for weapon reports"), Audio);
+    if (!Audio)
+    {
+        return false;
+    }
+
+    Audio->SetRegionalAmbience(EHorizonRegionalAmbience::Mountain);
+    Audio->SetAcousticSpace(EHorizonAcousticSpace::Outdoor);
+    const FHorizonWeaponReportMix NearRifle = Audio->GetWeaponReportMix(
+        EHorizonWeaponReportClass::Rifle, 1000.0f, false, 17);
+    const FHorizonWeaponReportMix FarRifle = Audio->GetWeaponReportMix(
+        EHorizonWeaponReportClass::Rifle, 30000.0f, false, 17);
+    TestTrue(TEXT("Distant reports arrive later"),
+        FarRifle.PropagationDelaySeconds > NearRifle.PropagationDelaySeconds);
+    TestTrue(TEXT("Distant reports attenuate"),
+        FarRifle.ReportGain < NearRifle.ReportGain);
+
+    Audio->SetAcousticSpace(EHorizonAcousticSpace::IndoorSmall);
+    const FHorizonWeaponReportMix IndoorRifle = Audio->GetWeaponReportMix(
+        EHorizonWeaponReportClass::Rifle, 1000.0f, false, 17);
+    TestTrue(TEXT("Small rooms emphasize early reflections"),
+        IndoorRifle.EarlyReflectionGain > NearRifle.EarlyReflectionGain);
+
+    Audio->SetAcousticSpace(EHorizonAcousticSpace::Tunnel);
+    const FHorizonWeaponReportMix TunnelRifle = Audio->GetWeaponReportMix(
+        EHorizonWeaponReportClass::Rifle, 1000.0f, false, 17);
+    TestTrue(TEXT("Tunnels produce a stronger tail than small rooms"),
+        TunnelRifle.TailGain > IndoorRifle.TailGain);
+
+    Audio->SetAcousticSpace(EHorizonAcousticSpace::Outdoor);
+    const FHorizonWeaponReportMix Clear = Audio->GetWeaponReportMix(
+        EHorizonWeaponReportClass::Precision, 8000.0f, false, 44);
+    const FHorizonWeaponReportMix Occluded = Audio->GetWeaponReportMix(
+        EHorizonWeaponReportClass::Precision, 8000.0f, true, 44);
+    TestTrue(TEXT("Occlusion reduces weapon report gain"), Occluded.ReportGain < Clear.ReportGain);
+    TestTrue(TEXT("Occlusion lowers weapon report cutoff"), Occluded.LowPassCutoffHz < Clear.LowPassCutoffHz);
+
+    const FHorizonWeaponReportMix Suppressed = Audio->GetWeaponReportMix(
+        EHorizonWeaponReportClass::Suppressed, 1000.0f, false, 9);
+    TestTrue(TEXT("Suppressed reports favor mechanism over muzzle"),
+        Suppressed.MechanicalGain > Suppressed.ReportGain);
+    TestTrue(TEXT("Suppressed reports have shorter reach"),
+        Suppressed.MaxDistanceCm < NearRifle.MaxDistanceCm);
+
+    const FHorizonWeaponReportMix Repeat = Audio->GetWeaponReportMix(
+        EHorizonWeaponReportClass::Precision, 8000.0f, false, 44);
+    TestEqual(TEXT("Seeded weapon report pitch is deterministic"), Repeat.Pitch, Clear.Pitch);
+    return true;
+}
+
 #endif
