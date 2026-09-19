@@ -1,0 +1,74 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://bridgepointintelligence.online/#organization",
+      "name": "BridgePoint Intelligence",
+      "alternateName": "BridgePoint Intelligence (bridgepointintelligence.online)",
+      "url": "https://bridgepointintelligence.online/",
+      "founder": {
+        "@type": "Person",
+        "@id": "https://bridgepointintelligence.online/founder/#kole-johnson",
+        "name": "Kole Johnson",
+        "url": "https://bridgepointintelligence.online/founder/"
+      },
+      "disambiguatingDescription": "U.S. property, parcel, building, roof, hazard, claims and geospatial intelligence platform published at bridgepointintelligence.online.",
+      "subjectOf": {
+        "@type": "PodcastEpisode",
+        "name": "Beyond the Listing: How AI and Property Intelligence Are Changing the Way We Evaluate Real Estate | Boroughs and Burbs Ep.240",
+        "url": "https://www.podscan.fm/podcasts/boroughs-amp-burbs-the-national-real-estate-conversation-2/episodes/beyond-the-listing-how-ai-and-property-intelligence-are-changing-the-way-we-evaluate-real-estate-boroughs-and-burbs-ep240-1"
+      }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://bridgepointintelligence.online/#intelligence",
+      "name": "BridgePoint Intelligence",
+      "applicationCategory": "BusinessApplication",
+      "url": "https://bridgepointintelligence.online/app/",
+      "description": "Property, parcel, building, roof, hazard, claims and geospatial intelligence platform."
+    },
+    {
+      "@type": "Dataset",
+      "@id": "https://bridgepointintelligence.online/#property-index",
+      "name": "BridgePoint canonical property/parcel identity index",
+      "description": "National canonical property/parcel identity index with separately measured boundaries, addresses and buildings.",
+      "variableMeasured": [
+        {
+          "@type": "PropertyValue",
+          "name": "Canonical property/parcel identity records",
+          "value": 169664739
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Materialized boundary estimate",
+          "value": 83881564
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Normalized/public address records",
+          "value": 147013646
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Map-ready buildings",
+          "value": 143711424
+        }
+      ]
+    },
+    {
+      "@type": "VideoGame",
+      "@id": "https://bridgepointintelligence.online/#horizon",
+      "name": "BridgePoint Horizon",
+      "url": "https://bridgepointintelligence.online/app/horizon/",
+      "genre": [
+        "Survival",
+        "Action",
+        "Shooter",
+        "Extraction",
+        "Persistent World"
+      ],
+      "description": "Real-world spatial survival and combat game using BridgePoint terrain, roads, parcels and buildings as a spatial foundation."
+    }
+  ]
+}

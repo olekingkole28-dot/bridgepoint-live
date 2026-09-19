@@ -1,0 +1,14 @@
+{
+  "name": "bridgepoint-mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Public-safe MCP tools for BridgePoint Intelligence property resolution.",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.0",
+    "zod": "^3.25.0"
+  }
+}

@@ -1,0 +1,274 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BridgePoint Public Distribution API",
+    "version": "5208",
+    "description": "Read-only public discovery surfaces for BII, property resolution and event-exposure research context. No endpoint authorizes financial execution."
+  },
+  "servers": [
+    {
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc",
+      "description": "BridgePoint public RPC"
+    },
+    {
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1",
+      "description": "BridgePoint public feed"
+    }
+  ],
+  "paths": {
+    "/bridgepoint_public_search_v5200": {
+      "post": {
+        "summary": "Resolve exact property address",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "p_query": {
+                    "type": "string"
+                  },
+                  "p_limit": {
+                    "type": "integer",
+                    "maximum": 12
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Property candidates"
+          }
+        }
+      }
+    },
+    "/bridgepoint_public_integrity_index_v5200": {
+      "post": {
+        "summary": "Read BII publication status for a property",
+        "responses": {
+          "200": {
+            "description": "BII status/value/confidence"
+          }
+        }
+      }
+    },
+    "/bridgepoint_public_event_exposure_snapshot_v5201": {
+      "post": {
+        "summary": "Read event exposure snapshot",
+        "responses": {
+          "200": {
+            "description": "Research/context exposure snapshot"
+          }
+        }
+      }
+    },
+    "/bridgepoint-public-exposure-feed-v5202": {
+      "get": {
+        "summary": "Read exposure feed",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "xml",
+                "rss"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Exposure research feed"
+          }
+        }
+      }
+    },
+    "/bridgepoint_public_audit_status_v5203": {
+      "post": {
+        "summary": "Read BridgePoint observational audit benchmark status",
+        "responses": {
+          "200": {
+            "description": "24-hour source-to-BridgePoint latency summary"
+          }
+        }
+      }
+    },
+    "/bridgepoint_public_latency_ledger_v5203": {
+      "post": {
+        "summary": "Read source-linked hazard latency ledger",
+        "responses": {
+          "200": {
+            "description": "Timestamped hazard observations with measured source-to-BridgePoint latency"
+          }
+        }
+      }
+    },
+    "/bridgepoint_public_exposure_evidence_ledger_v5203": {
+      "post": {
+        "summary": "Read property exposure evidence for one event",
+        "responses": {
+          "200": {
+            "description": "Event provenance and property exposure/match records"
+          }
+        }
+      }
+    },
+    "/bridgepoint_public_portfolio_evidence_v5204": {
+      "post": {
+        "summary": "Audit a user-supplied property set against event exposure evidence",
+        "responses": {
+          "200": {
+            "description": "Portfolio event/exposure summary without security mapping"
+          }
+        }
+      }
+    },
+    "/bridgepoint-public-audit-export-v5203": {
+      "get": {
+        "summary": "Export BridgePoint public audit as JSON or CSV",
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "status",
+                "latency",
+                "exposure"
+              ]
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ]
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "maximum": 1000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit export"
+          }
+        }
+      }
+    },
+    "/bridgepoint_public_distribution_metrics_v5207": {
+      "post": {
+        "summary": "Read aggregated BridgePoint distribution/acquisition telemetry",
+        "responses": {
+          "200": {
+            "description": "Observed events, visitors, sessions, channel counts and referrers"
+          }
+        }
+      }
+    },
+    "/bridgepoint-public-proof-packet-v5205": {
+      "get": {
+        "summary": "Generate deterministic public proof packet for a BridgePoint event",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Source-linked evidence packet with SHA-256 digest"
+          }
+        }
+      }
+    },
+    "/bridgepoint_public_data_discrepancy_ledger_v5208": {
+      "post": {
+        "summary": "Read BridgePoint internal data-quality discrepancy ledger",
+        "responses": {
+          "200": {
+            "description": "Sampled spatial-anchor diagnostics and address-parity repair counters"
+          }
+        }
+      }
+    },
+    "/bridgepoint-public-discrepancy-export-v5208": {
+      "get": {
+        "summary": "Export Data Discrepancy Ledger as JSON or CSV",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ]
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Data-quality ledger export"
+          }
+        }
+      }
+    }
+  },
+  "x-bridgepoint-rules": [
+    "Exposure is not proof of physical damage.",
+    "BII is not a survival probability.",
+    "Public exposure feeds are research/context only and not trading instructions.",
+    "No public distribution endpoint moves money, places trades or approves/denies claims.",
+    "Public audit measures BridgePoint's own source-to-first-seen latency; it does not claim competitor latency.",
+    "Portfolio evidence requires a caller-supplied property set and performs no security/ticker mapping.",
+    "Spatial-anchor gap percentages are sampled diagnostics, not full-jurisdiction missing-property rates.",
+    "Data Discrepancy Ledger describes BridgePoint's own quality/repair telemetry and does not assert errors by another vendor."
+  ],
+  "x-partner-delivery-contract": "https://bridgepointintelligence.online/distribution/partner-delivery-contract.json"
+}

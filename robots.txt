@@ -1,0 +1,73 @@
+User-agent: *
+Allow: /
+Disallow: /owner/
+Disallow: /admin/
+Disallow: /downloads/
+
+# OpenAI search and user-triggered discovery
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /owner/
+Disallow: /admin/
+Disallow: /downloads/
+
+User-agent: GPTBot
+Allow: /
+Disallow: /owner/
+Disallow: /admin/
+Disallow: /downloads/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /owner/
+Disallow: /admin/
+Disallow: /downloads/
+
+# AI/search crawlers
+User-agent: PerplexityBot
+Allow: /
+Disallow: /owner/
+Disallow: /admin/
+Disallow: /downloads/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /owner/
+Disallow: /admin/
+Disallow: /downloads/
+
+User-agent: Applebot
+Allow: /
+Disallow: /owner/
+Disallow: /admin/
+Disallow: /downloads/
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /owner/
+Disallow: /admin/
+Disallow: /downloads/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /owner/
+Disallow: /admin/
+Disallow: /downloads/
+
+User-agent: meta-externalagent
+Allow: /
+Disallow: /owner/
+Disallow: /admin/
+Disallow: /downloads/
+
+User-agent: CCBot
+Allow: /
+Disallow: /owner/
+Disallow: /admin/
+Disallow: /downloads/
+
+Sitemap: https://bridgepointintelligence.online/sitemap.xml
+Sitemap: https://bridgepointintelligence.online/search-sitemap.xml
+Sitemap: https://bridgepointintelligence.online/discover/sitemap.xml
+Sitemap: https://bridgepointintelligence.online/articles/auto/sitemap.xml
+Sitemap: https://bridgepointintelligence.online/newsroom/sitemap.xml

@@ -1,0 +1,12 @@
+{
+  "build": 4312,
+  "surface": "SINGLE_HORIZON_LOBBY",
+  "pwa_id": "/app/horizon/",
+  "modes": [
+    "YEAR_ONE",
+    "TDM",
+    "EXTRACTION",
+    "ISLAND_SOLO_8"
+  ],
+  "year_one_started": false
+}

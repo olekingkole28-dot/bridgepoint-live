@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#060811">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>BridgePoint Horizon — Native UE5.8 Stream</title>
+<style>
+:root{--bg:#05070c;--panel:#0b1119;--line:rgba(255,255,255,.11);--mint:#55f2ba;--violet:#9876ff;--muted:#9fb0bd;--amber:#f4c66e}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,rgba(152,118,255,.16),transparent 30%),radial-gradient(circle at 0 70%,rgba(85,242,186,.11),transparent 28%),var(--bg);color:#f4fbff;font-family:Inter,system-ui,sans-serif}
+main{width:min(1180px,calc(100% - 24px));margin:auto;padding:18px 0 60px}.top{display:flex;justify-content:space-between;gap:12px;align-items:center}.top a{color:#fff;text-decoration:none;font-weight:900}.pill{border:1px solid rgba(85,242,186,.28);color:var(--mint);border-radius:999px;padding:8px 10px;font-size:10px;font-weight:950;letter-spacing:.1em}
+.hero{padding:42px 0 18px}.hero h1{font-size:clamp(36px,7vw,72px);line-height:.95;letter-spacing:-.05em;margin:12px 0}.hero p{max-width:850px;color:var(--muted);line-height:1.6;font-size:16px}
+.status{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:16px}.dot{width:9px;height:9px;border-radius:50%;background:var(--amber);box-shadow:0 0 18px currentColor}.dot.online{background:var(--mint)}.dot.error{background:#ff6c6c}
+.stage{border:1px solid var(--line);background:#010409;border-radius:22px;overflow:hidden;min-height:520px;position:relative;display:grid;place-items:center}
+.stage iframe{width:100%;height:min(78vh,860px);min-height:560px;border:0;background:#000}
+.fallback{text-align:center;max-width:720px;padding:34px}.fallback h2{font-size:clamp(26px,4vw,42px);margin:0 0 12px}.fallback p{color:var(--muted);line-height:1.55}.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px}.actions a,.actions button{padding:12px 15px;border-radius:11px;text-decoration:none;font-weight:900;border:0;cursor:pointer}.primary{background:linear-gradient(135deg,var(--violet),var(--mint));color:#04100c}.secondary{border:1px solid var(--line)!important;background:rgba(255,255,255,.04);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}.card{border:1px solid var(--line);background:rgba(11,17,25,.88);border-radius:18px;padding:16px}.card b{display:block;color:var(--mint);font-size:11px;letter-spacing:.08em;margin-bottom:7px}.card p{color:var(--muted);line-height:1.45;font-size:13px;margin:0}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.meta span{border:1px solid var(--line);border-radius:999px;padding:7px 9px;color:#cdd9e1;font-size:10px;font-weight:850}
+@media(max-width:820px){.grid{grid-template-columns:1fr}.stage{min-height:460px}.stage iframe{min-height:520px}.hero{padding-top:30px}}
+</style>
+<link rel="stylesheet" href="/language-selector-v5200.css"></head>
+<body>
+<main>
+  <div class="top"><a href="/app/horizon/">← BridgePoint Horizon</a><span class="pill">UE5.8 · PIXEL STREAMING 2</span></div>
+  <section class="hero">
+    <span class="pill">REAL NATIVE STREAM GATE</span>
+    <h1>Horizon native.</h1>
+    <p>This page no longer pretends the browser preview is Unreal Engine. It connects to the packaged BridgePoint Horizon UE5.8 application through Pixel Streaming 2 only when a real GPU host is alive and heartbeating. Otherwise it keeps the browser-world fallback available.</p>
+    <div class="status"><span id="statusDot" class="dot"></span><strong id="statusText">Checking GPU host…</strong><span id="statusDetail"></span></div>
+    <div class="meta"><span id="buildMeta">build: —</span><span id="regionMeta">region: —</span><span id="fpsMeta">target fps: —</span><span id="playersMeta">players: —</span></div>
+  </section>
+
+  <section id="stage" class="stage" aria-live="polite">
+    <div id="fallback" class="fallback">
+      <h2>Checking the UE5.8 host.</h2>
+      <p>The native stream will appear here automatically when the GPU machine reports healthy.</p>
+      <div class="actions">
+        <a class="primary" href="/app/horizon/preview.html?mode=year_one_survival&preseason=1&build=4248">Use browser world while waiting</a>
+        <button class="secondary" id="retryBtn" type="button">Retry native host</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <article class="card"><b>AUTOMATED WORLD QUALITY</b><p>The UE runtime now changes streamed cell span, building/part budgets, screen percentage, Nanite detail, view distance, effects and animation budgets from live frame-time and stream pressure instead of using one fixed setting everywhere.</p></article>
+    <article class="card"><b>AUTOMATED MOVEMENT BUDGET</b><p>The adaptive profile publishes movement sampling and interpolation targets from frame health and network RTT so locomotion/network code can stay responsive without overloading slower clients.</p></article>
+    <article class="card"><b>AUTOMATED NATIVE DELIVERY</b><p>The GPU workflow packages UE5.8 with RunUAT, starts Epic's UE5.8 Pixel Streaming Infrastructure, launches Horizon offscreen, heartbeats the control plane and makes this page switch itself to the native player.</p></article>
+  </section>
+</main>
+
+<script>
+const ENDPOINT='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-horizon-native-stream-v4248';
+const stage=document.getElementById('stage');
+const dot=document.getElementById('statusDot');
+const statusText=document.getElementById('statusText');
+const detail=document.getElementById('statusDetail');
+const buildMeta=document.getElementById('buildMeta');
+const regionMeta=document.getElementById('regionMeta');
+const fpsMeta=document.getElementById('fpsMeta');
+const playersMeta=document.getElementById('playersMeta');
+let activeUrl=null;
+
+function fallback(message){
+  activeUrl=null;
+  stage.innerHTML='<div class="fallback"><h2>Native GPU stream is not online yet.</h2><p>'+message+'</p><div class="actions"><a class="primary" href="/app/horizon/preview.html?mode=year_one_survival&preseason=1&build=4248">Open browser world</a><button class="secondary" id="retryBtn" type="button">Retry native host</button></div></div>';
+  document.getElementById('retryBtn')?.addEventListener('click',check);
+}
+function mount(url){
+  if(activeUrl===url&&stage.querySelector('iframe'))return;
+  activeUrl=url;
+  const f=document.createElement('iframe');
+  f.title='BridgePoint Horizon UE5.8 Pixel Streaming';
+  f.allow='autoplay; fullscreen; gamepad; microphone';
+  f.referrerPolicy='strict-origin-when-cross-origin';
+  f.src=url;
+  stage.replaceChildren(f);
+}
+async function check(){
+  try{
+    statusText.textContent='Checking GPU host…';
+    const r=await fetch(ENDPOINT+'?t='+Date.now(),{cache:'no-store'});
+    const x=await r.json();
+    if(!r.ok||!x.ok)throw new Error(x.error||('HTTP '+r.status));
+    buildMeta.textContent='build: '+(x.build||'—');
+    regionMeta.textContent='region: '+(x.region||'—');
+    fpsMeta.textContent='target fps: '+(x.fps||'—');
+    playersMeta.textContent='players: '+(x.connected_players??0);
+    if(x.online&&x.player_url){
+      dot.className='dot online';
+      statusText.textContent='UE5.8 GPU stream online';
+      detail.textContent=x.heartbeat_age_seconds==null?'':'· heartbeat '+Math.round(x.heartbeat_age_seconds)+'s ago';
+      mount(x.player_url);
+    }else{
+      dot.className='dot';
+      statusText.textContent='UE5.8 GPU stream offline';
+      detail.textContent=x.message?'· '+x.message:'';
+      if(!stage.querySelector('.fallback'))fallback(x.message||'The packaged native host has not registered a fresh heartbeat.');
+    }
+  }catch(err){
+    dot.className='dot error';
+    statusText.textContent='Native status unavailable';
+    detail.textContent='· '+String(err?.message||err);
+    if(!stage.querySelector('.fallback'))fallback('The native control plane could not be reached. The browser world is still available.');
+  }
+}
+document.getElementById('retryBtn')?.addEventListener('click',check);
+check();
+setInterval(check,10000);
+</script>
+<script defer src="/language-selector-v5200.js"></script></body>
+</html>

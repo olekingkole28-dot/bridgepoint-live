@@ -1,0 +1,45 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BridgePoint Claims Lifecycle Public Feed",
+    "version": "2026-09-15",
+    "description": "Read-only public/aggregate claims-lifecycle discovery surface. This describes static public resources, not a write API."
+  },
+  "servers": [
+    {
+      "url": "https://bridgepointintelligence.online"
+    }
+  ],
+  "paths": {
+    "/claims-terminal/claims-lifecycle.json": {
+      "get": {
+        "summary": "Get the current public claims-lifecycle snapshot",
+        "responses": {
+          "200": {
+            "description": "Public aggregate JSON snapshot"
+          }
+        }
+      }
+    },
+    "/claims-terminal/feed.xml": {
+      "get": {
+        "summary": "Get the Claims Lifecycle RSS feed",
+        "responses": {
+          "200": {
+            "description": "RSS 2.0 feed"
+          }
+        }
+      }
+    },
+    "/claims-terminal/": {
+      "get": {
+        "summary": "Open the human-readable Claims Lifecycle Terminal",
+        "responses": {
+          "200": {
+            "description": "HTML terminal"
+          }
+        }
+      }
+    }
+  }
+}

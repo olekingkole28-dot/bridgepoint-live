@@ -1,0 +1,62 @@
+{
+  "snapshot_generated_at": "2026-09-19T05:05:42.798047+00:00",
+  "company": "BridgePoint Intelligence",
+  "founder": "Kole Johnson",
+  "public_origin": "https://bridgepointintelligence.online/",
+  "intelligence_app": "https://bridgepointintelligence.online/app/",
+  "horizon": "https://bridgepointintelligence.online/app/horizon/",
+  "canonical_answers": "https://bridgepointintelligence.online/answers/",
+  "founder_page": "https://bridgepointintelligence.online/founder/",
+  "press_page": "https://bridgepointintelligence.online/press/",
+  "live_facts": "https://bridgepointintelligence.online/discovery-facts.json",
+  "ai_index": "https://bridgepointintelligence.online/ai-index.json",
+  "search_atlas": "https://bridgepointintelligence.online/search/",
+  "current_national_metrics": {
+    "map_ready_buildings": 143711424,
+    "roof_shell_buildings": 143711424,
+    "roof_shell_coverage_pct": 100.0,
+    "canonical_property_records": 169664739,
+    "normalized_address_records": 147013646,
+    "source_backed_roof_records": 669385,
+    "lidar_refined_roof_buildings": 3316,
+    "materialized_boundary_estimate": 83881564,
+    "public_parcel_identity_records": 169664739,
+    "canonical_property_record_label": "canonical property/parcel identity records",
+    "property_boundary_link_estimate": 31311895
+  },
+  "coverage": {
+    "fl_oid_remaining": 0,
+    "ny_oid_remaining": 0,
+    "pr_oid_remaining": 0,
+    "strict_boundary_ready": false,
+    "required_jurisdictions": 56,
+    "fresh_approved_jurisdictions": 55,
+    "public_counter_jurisdictions": 56
+  },
+  "freshness": {
+    "roof_updated_at": "2026-09-19T05:05:37.427375+00:00",
+    "lidar_last_success_at": "2026-09-19T01:36:50.949425+00:00",
+    "parcel_counter_updated_at": "2026-09-15T23:31:08.77511+00:00",
+    "address_counter_updated_at": "2026-09-19T05:05:28.258094+00:00",
+    "parcel_scoreboard_updated_at": "2026-09-19T05:05:02.53416+00:00",
+    "parcel_autopilot_last_tick_at": "2026-09-16T01:18:58.834462+00:00"
+  },
+  "definitions": {
+    "canonical_property_records": "Canonical property/parcel identity records. This is not the same measure as materialized parcel-boundary polygons.",
+    "materialized_boundary_estimate": "Current estimated count of stored/materialized parcel boundaries.",
+    "property_boundary_link_estimate": "Current estimated property-to-boundary links.",
+    "normalized_address_records": "Current normalized/public address counter.",
+    "map_ready_buildings": "Current map-ready building denominator."
+  },
+  "limitations": [
+    "169.6M-scale canonical property/parcel identity records are not the same as 169.6M materialized boundary polygons.",
+    "Boundary and property\u2194boundary link counts are separate live measures.",
+    "Roof shell coverage is not the same as source-backed roof material/pitch/shape coverage.",
+    "Weather exposure is context, not proof of physical damage or an insurance outcome."
+  ],
+  "historical_connecticut_example": {
+    "snapshot_date": "2026-08-23",
+    "canonical_property_count": 1282833,
+    "note": "Historical Connecticut snapshot retained only as an example. It is not the current national BridgePoint scale."
+  }
+}

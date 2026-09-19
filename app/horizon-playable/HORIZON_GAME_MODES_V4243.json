@@ -1,0 +1,225 @@
+{
+  "schema_version": 1,
+  "build_target": 4243,
+  "updated_at": "2026-09-12",
+  "authoritative_modes": [
+    {
+      "mode_key": "year_one_survival",
+      "name": "YEAR ONE SURVIVAL",
+      "type": "solo_persistent_survival",
+      "party": {
+        "min": 1,
+        "max": 1,
+        "invites_allowed": false
+      },
+      "event": {
+        "duration_days": 365,
+        "start": "owner_explicit_only",
+        "lives": 3,
+        "preseason_lives_consumed": false
+      },
+      "world": "continuous_us_and_jurisdictions",
+      "interiors": "fictional_generated_only",
+      "progression": "zombies_begin easier and scale with event day, region, density and world pressure",
+      "endgame": "perimeter zombie wall progressively closes survivors toward major-city final showdowns",
+      "proximity_voice": false
+    },
+    {
+      "mode_key": "infinite_tdm",
+      "name": "INFINITE TEAM DEATHMATCH",
+      "type": "team_pvp",
+      "party": {
+        "min": 2,
+        "max": 4,
+        "supported": [
+          2,
+          3,
+          4
+        ],
+        "invites_allowed": true
+      },
+      "matchmaking": "party_and_skill",
+      "arena_switcher": {
+        "infinite": true,
+        "source": "BridgePoint streamed world cells",
+        "bias": [
+          "high density",
+          "strong elevation change",
+          "vertical combat",
+          "rooftops",
+          "bridges",
+          "waterfronts",
+          "mountain cities",
+          "tight alleys",
+          "multi-level interiors"
+        ],
+        "avoid": [
+          "flat empty low-interest cells",
+          "low cover fields unless intentionally designed"
+        ]
+      },
+      "respawns": true,
+      "proximity_voice": true,
+      "team_voice": true
+    },
+    {
+      "mode_key": "outbreak_raid",
+      "name": "OUTBREAK RAID",
+      "type": "coop_pve",
+      "party": {
+        "min": 1,
+        "max": 4,
+        "supported": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "invites_allowed": true
+      },
+      "matchmaking": "party_or_fill",
+      "mission_loop": [
+        "drop into dense horror zone",
+        "multi-stage objective",
+        "elite creatures",
+        "boss or siege",
+        "rare loot",
+        "extraction"
+      ],
+      "objectives": [
+        "restore power",
+        "rescue NPC",
+        "retrieve cache",
+        "destroy nest",
+        "hold extraction",
+        "escort survivor"
+      ],
+      "proximity_voice": true,
+      "party_voice": true
+    }
+  ],
+  "shared_lobby": {
+    "applies_to_all_modes": true,
+    "features": [
+      "mode selector",
+      "character selector",
+      "skins",
+      "weapon loadouts",
+      "melee loadout",
+      "emote wheel",
+      "spray wheel",
+      "battle pass",
+      "store",
+      "friends presence",
+      "friend invites",
+      "party roster",
+      "voice settings",
+      "audio settings",
+      "ready state"
+    ],
+    "year_one_behavior": "player may customize in shared lobby but launching Year One always forces solo and cannot bring the party into the match",
+    "tdm_behavior": "friends may party as duo, trio or squad before matchmaking",
+    "raid_behavior": "friends may launch 1-4 player co-op or fill remaining slots"
+  },
+  "audio": {
+    "quality_target": "premium cinematic AAA-style original audio",
+    "systems": {
+      "spatial_3d": true,
+      "occlusion": true,
+      "wall_and_door_occlusion": true,
+      "windows_as_audio_portals": true,
+      "interior_exterior_reverb": true,
+      "vertical_floor_propagation": true,
+      "doppler": true,
+      "distance_lod": true,
+      "virtualization": true
+    },
+    "surfaces": [
+      "asphalt",
+      "concrete",
+      "wood",
+      "metal",
+      "glass",
+      "water",
+      "mud",
+      "grass",
+      "snow",
+      "gravel",
+      "roof membrane"
+    ],
+    "weapon_layers": [
+      "mechanical",
+      "muzzle",
+      "blast",
+      "indoor reflection",
+      "outdoor tail",
+      "distant tail",
+      "shell casing",
+      "reload",
+      "suppressed variants"
+    ],
+    "infected_layers": [
+      "idle",
+      "alert",
+      "search",
+      "chase",
+      "attack",
+      "pain",
+      "death",
+      "distant horde",
+      "zombie wall"
+    ],
+    "creatures": [
+      "dogs",
+      "bears",
+      "spiders",
+      "fantasy creatures"
+    ],
+    "ambience": [
+      "wind",
+      "rain",
+      "thunder",
+      "fire",
+      "water",
+      "distant sirens",
+      "building creaks",
+      "power hum",
+      "generator",
+      "city decay",
+      "forest night",
+      "horde pressure"
+    ],
+    "music": "dynamic threat score that reacts to stealth, chase, boss, storm pressure and extraction",
+    "voice_chat": {
+      "year_one_survival": "disabled because solo",
+      "infinite_tdm": "team voice plus proximity voice",
+      "outbreak_raid": "party voice plus proximity voice",
+      "controls": [
+        "mute",
+        "block",
+        "push-to-talk option",
+        "voice volume",
+        "proximity volume"
+      ]
+    }
+  },
+  "commerce": {
+    "battle_pass_price_usd": 9.99,
+    "battle_pass_levels": 150,
+    "provider": "reserved_for_existing_Stripe_account",
+    "stripe_connection_status": "DO_NOT_CONNECT_UNTIL_OWNER_EXPLICITLY_SAYS_TO_AT_THE_END",
+    "store_categories": [
+      "characters",
+      "skins",
+      "weapon wraps",
+      "new guns where balance-safe",
+      "emotes",
+      "sprays",
+      "dances",
+      "finishers",
+      "profile cosmetics"
+    ],
+    "daily_free_rewards": true,
+    "pay_to_win": false
+  }
+}

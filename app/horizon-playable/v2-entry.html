@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#07110d">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>BridgePoint Horizon — Live Match</title>
+<link rel="stylesheet" href="./horizon-v2.css?v=4330">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}</script>
+</head>
+<body>
+<div id="world"></div><div class="atmosphere"></div>
+<header class="topbar">
+  <div class="brand"><b>BRIDGEPOINT HORIZON</b><span id="modeName">LIVE MATCH</span></div>
+  <div class="status"><span id="zone">LOADING WORLD CELL</span><em id="weatherLive">LIVE WEATHER · CHECKING</em><b id="fps">-- FPS</b></div>
+</header>
+<section class="mission">
+  <small>LIVE WORLD CELL</small>
+  <h1 id="title">Survive. Move. Build. Fight.</h1>
+  <p id="loadText">Loading terrain, roads, structures, characters, collision and combat systems…</p>
+  <div class="stats">
+    <span><b id="health">100</b> health</span>
+    <span><b id="ammo">30/120</b> ammo</span>
+    <span><b id="loot">0</b> loot</span>
+    <span><b id="infected">0</b> <i id="enemyLabel">infected</i></span>
+    <span><b id="time">DAY</b></span>
+  </div>
+</section>
+<div class="reticle" id="reticle">+</div>
+<div id="pickupPrompt" class="pickupPrompt" hidden><i id="pickupRing"></i><b id="pickupLabel">PICKING UP</b></div>
+<canvas id="miniMap" class="miniMap" width="210" height="210" aria-label="Tactical minimap"></canvas>
+<div id="weaponBar" class="weaponBar" aria-label="Weapon inventory"></div>
+<button id="contextBtn" class="contextBtn" hidden>USE</button>
+<div class="utilityRail" id="utilityRail"><button id="utilityToggle" title="More controls">•••</button>
+  <button id="viewBtn" title="Switch camera">VIEW</button>
+  <button id="crouchBtn" title="Crouch / stand">CROUCH</button>
+  <button id="jumpBtn" title="Jump / vault">JUMP</button>
+  <button id="weaponBtn" title="Next weapon">WEAPON</button>
+  <button id="dropBtn" title="Drop active weapon">DROP</button>
+  <button id="lightUtilityBtn" title="Flashlight">LIGHT</button>
+</div>
+<div id="killFeed" class="killFeed" aria-live="polite"></div>
+<div id="movePad" class="movePad"><div id="moveKnob"></div></div>
+<div class="rightActions">
+  <button id="aimBtn" class="action small aim">AIM</button>
+  <button id="shootBtn" class="action small shoot">SHOOT</button>
+  <button id="runBtn" class="action small run">RUN</button>
+  <button id="buildBtn" class="action build">BUILD</button>
+</div>
+<div id="toast" class="toast"></div>
+<div id="killCam" class="killCam" hidden>
+  <div class="killCard"><small>KILLCAM</small><h2 id="killCamTitle">YOU WERE KILLED</h2><p id="killCamPhase">5 seconds before impact</p><button id="skipKillcam">SKIP & RESPAWN</button></div>
+</div>
+<div id="error" class="error" hidden><b>Horizon could not start</b><span id="errorText"></span><button onclick="location.reload()">Retry</button></div>
+<script type="module" src="./horizon-v2.js?v=4330"></script>
+</body></html>
