@@ -71,6 +71,17 @@ enum class EHorizonSpatialCueClass : uint8
 };
 
 UENUM(BlueprintType)
+enum class EHorizonUiFeedbackCue : uint8
+{
+    Confirm,
+    Denied,
+    LowAmmo,
+    Empty,
+    ReloadStart,
+    ReloadComplete
+};
+
+UENUM(BlueprintType)
 enum class EHorizonWeaponReportClass : uint8
 {
     Sidearm,
@@ -133,6 +144,30 @@ struct FHorizonSpatialCueMix
 
     UPROPERTY(BlueprintReadOnly)
     bool bVirtualizeWhenSilent = true;
+};
+
+USTRUCT(BlueprintType)
+struct FHorizonUiFeedbackMix
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    float Gain = 0.70f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float Pitch = 1.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float HighToneGain = 0.50f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float LowToneGain = 0.25f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float TransientDuck = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bListenerRelative = true;
 };
 
 USTRUCT(BlueprintType)
@@ -367,6 +402,16 @@ public:
         EHorizonSpatialCueClass CueClass,
         float DistanceCm,
         bool bOccluded) const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Audio")
+    FHorizonUiFeedbackMix GetUiFeedbackMix(
+        EHorizonUiFeedbackCue Cue,
+        int32 VariationSeed = 0) const;
+
+    static FHorizonUiFeedbackMix BuildUiFeedbackMix(
+        EHorizonUiFeedbackCue Cue,
+        float CombatIntensity01,
+        int32 VariationSeed = 0);
 
     UFUNCTION(BlueprintPure, Category="Horizon|Audio")
     FHorizonWeaponReportMix GetWeaponReportMix(
