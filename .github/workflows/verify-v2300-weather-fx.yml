@@ -36,7 +36,8 @@ jobs:
           grep -Fq 'wildfireFlameParticles:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'tornadoCone:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'hurricaneSpiralEye:true' /tmp/bp2300wx/world-v2300-weather.js
-          grep -Fq "projection:{type:MOBILE?'mercator':'globe'}" /tmp/bp2300wx/world-v2300-map.js
+          grep -Fq "projectionType=String(options.projection" /tmp/bp2300wx/world-v2300-map.js
+          grep -Fq "projection:{type:projectionType}" /tmp/bp2300wx/world-v2300-map.js
 
           cat >/tmp/bp2300wx/index.html <<'HTML'
           <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
