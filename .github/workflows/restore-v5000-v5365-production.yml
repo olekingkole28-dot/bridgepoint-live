@@ -1,5 +1,5 @@
-name: Restore BridgePoint V5000 V5365 Production
-# authoritative-baseline-refresh: 3
+name: Restore BridgePoint V5000 V5365 + Map-First Root
+# authoritative-baseline-refresh: 4
 
 on:
   workflow_dispatch:
@@ -45,7 +45,18 @@ jobs:
           test -s /tmp/v5365/artifact.tar
           tar -xf /tmp/v5365/artifact.tar -C /tmp/site
 
-      - name: Verify exact V5000 V5365 artifact
+      - name: Restore current map-first webpage shell only
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp rebuild-v5000/index.html /tmp/site/index.html
+          grep -Fq 'BP_FRONTEND_V5000' /tmp/site/index.html
+          grep -Fq 'bp-public-surface' /tmp/site/index.html
+          grep -Fq 'app.js?v=5365' /tmp/site/index.html
+          ! grep -Fqi 'cesium' /tmp/site/index.html
+          echo MAP_FIRST_ROOT_RESTORED_WITH_V5365_RUNTIME
+
+      - name: Verify V5000 V5365 runtime
         shell: bash
         run: |
           set -euo pipefail
@@ -59,9 +70,9 @@ jobs:
           grep -Fq 'FREE_FLY_SINGLE_VIEW' /tmp/site/world-v2300-map.js
           grep -Fq 'maplibre' /tmp/site/app/index.html
           ! grep -Fqi 'cesium' /tmp/site/app/index.html
-          echo V5000_V5365_ARTIFACT_VERIFIED
+          echo V5000_V5365_RUNTIME_VERIFIED
 
-      - name: Make V5365 the durable live-artifact baseline
+      - name: Make V5365 runtime plus map-first root the durable live-artifact baseline
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -73,7 +84,7 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git checkout -b live-artifact
           git add -A
-          git commit -m 'Restore authoritative BridgePoint V5000 V5365 production'
+          git commit -m 'Restore BridgePoint V5365 runtime with map-first public root'
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin live-artifact
 
@@ -86,13 +97,13 @@ jobs:
           name: bridgepoint-v5000-v5365-restore
           path: /tmp/site
 
-      - name: Deploy exact V5000 V5365
+      - name: Deploy V5365 runtime with map-first root
         id: deployment
         uses: actions/deploy-pages@v4
         with:
           artifact_name: bridgepoint-v5000-v5365-restore
 
-      - name: Verify production is V5000 and not legacy Cesium
+      - name: Verify production is map-first V5000 V5365 and not legacy Cesium
         shell: bash
         run: |
           set -euo pipefail
@@ -104,7 +115,7 @@ jobs:
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?restore=${salt}" -o /tmp/app.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?restore=${salt}" -o /tmp/app.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?restore=${salt}" -o /tmp/world.js || true
-            if grep -Fq 'BP_FRONTEND_V5000' /tmp/root.html               && grep -Fq 'maplibre' /tmp/app.html               && grep -Fq '__BP_APP_BUILD_VERSION__=5365' /tmp/app.js               && grep -Fq '__BP_WORLD_RENDER_VERSION__=5365' /tmp/world.js               && ! grep -Fqi 'cesium' /tmp/app.html; then
+            if grep -Fq 'BP_FRONTEND_V5000' /tmp/root.html               && grep -Fq 'bp-public-surface' /tmp/root.html               && grep -Fq 'maplibre' /tmp/app.html               && grep -Fq '__BP_APP_BUILD_VERSION__=5365' /tmp/app.js               && grep -Fq '__BP_WORLD_RENDER_VERSION__=5365' /tmp/world.js               && ! grep -Fqi 'cesium' /tmp/app.html; then
               ok=1
               echo BRIDGEPOINT_V5000_V5365_RESTORED
               break
