@@ -374,6 +374,7 @@ void AHorizonWorldCellRenderer::ClearCell()
     RenderedBuildingPartCount = 0;
     RenderedRoadSegmentCount = 0;
     RenderedWaterFeatureCount = 0;
+    RenderedProfiledRoofCount = 0;
 }
 
 FIntPoint AHorizonWorldCellRenderer::ResolveBuildingLodCounts(
@@ -388,6 +389,34 @@ FIntPoint AHorizonWorldCellRenderer::ResolveBuildingLodCounts(
         VisibleCount,
         FMath::Max(0, CollisionLimit));
     return FIntPoint(CollidableCount, VisibleCount - CollidableCount);
+}
+
+double AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
+    const FString& RoofShape,
+    double RequestedRoofHeightMeters,
+    double TotalBuildingHeightMeters)
+{
+    FString NormalizedShape = RoofShape;
+    NormalizedShape.TrimStartAndEndInline();
+    NormalizedShape.ToLowerInline();
+
+    const bool bApexProfile =
+        NormalizedShape == TEXT("pyramidal") ||
+        NormalizedShape == TEXT("pyramid") ||
+        NormalizedShape == TEXT("conical") ||
+        NormalizedShape == TEXT("cone");
+
+    if (!bApexProfile ||
+        !FMath::IsFinite(RequestedRoofHeightMeters) ||
+        !FMath::IsFinite(TotalBuildingHeightMeters) ||
+        RequestedRoofHeightMeters <= 0.05 ||
+        TotalBuildingHeightMeters <= 0.5)
+    {
+        return 0.0;
+    }
+
+    const double MaximumRoofHeight = FMath::Min(12.0, TotalBuildingHeightMeters * 0.45);
+    return FMath::Clamp(RequestedRoofHeightMeters, 0.0, MaximumRoofHeight);
 }
 
 bool AHorizonWorldCellRenderer::RenderCellJson(const FString& CellJson)
@@ -901,6 +930,15 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
             double MinHeightMeters = 0.0;
             Feature->TryGetNumberField(TEXT("min_height_m"), MinHeightMeters);
 
+            FString RoofShape;
+            Feature->TryGetStringField(TEXT("roof_shape"), RoofShape);
+            double RequestedRoofHeightMeters = 0.0;
+            Feature->TryGetNumberField(TEXT("roof_height_m"), RequestedRoofHeightMeters);
+            const double ProfileRoofHeightMeters = ResolveSourceRoofHeightMeters(
+                RoofShape,
+                RequestedRoofHeightMeters,
+                HeightMeters);
+
             double AverageLongitude = 0.0;
             double AverageLatitude = 0.0;
             for (const FVector2D& Point : Ring)
@@ -914,6 +952,9 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
             const double TerrainBaseMeters = SampleTerrainMeters(AverageLongitude, AverageLatitude);
             const double BottomMeters = TerrainBaseMeters + FMath::Max(0.0, MinHeightMeters);
             const double TopMeters = TerrainBaseMeters + FMath::Max(MinHeightMeters + 0.5, HeightMeters);
+            const double WallTopMeters = FMath::Max(
+                BottomMeters + 0.5,
+                TopMeters - ProfileRoofHeightMeters);
 
             TArray<FVector2D> LocalPolygon;
             LocalPolygon.Reserve(Ring.Num());
@@ -925,7 +966,7 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
             for (const FVector2D& Point : Ring)
             {
                 const FVector BottomPoint = ProjectCoordinate(Point.X, Point.Y, BottomMeters);
-                const FVector TopPoint = ProjectCoordinate(Point.X, Point.Y, TopMeters);
+                const FVector TopPoint = ProjectCoordinate(Point.X, Point.Y, WallTopMeters);
                 Bottom.Add(BottomPoint);
                 Top.Add(TopPoint);
                 LocalPolygon.Add(FVector2D(BottomPoint.X, BottomPoint.Y));
@@ -954,18 +995,39 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                 Triangles.Add(Base + 3);
             }
 
-            const TArray<int32> RoofIndices = HorizonCellRender::TriangulateSimplePolygon(LocalPolygon);
             const int32 RoofBase = Vertices.Num();
-
             for (const FVector& Point : Top)
             {
                 Vertices.Add(Point);
                 UV0.Add(FVector2D(Point.X * 0.001f, Point.Y * 0.001f));
             }
 
-            for (const int32 Index : RoofIndices)
+            if (ProfileRoofHeightMeters > 0.0)
             {
-                Triangles.Add(RoofBase + Index);
+                const FVector Apex = ProjectCoordinate(
+                    AverageLongitude,
+                    AverageLatitude,
+                    TopMeters);
+                const int32 ApexIndex = Vertices.Add(Apex);
+                UV0.Add(FVector2D(Apex.X * 0.001f, Apex.Y * 0.001f));
+
+                for (int32 Index = 0; Index < Top.Num(); ++Index)
+                {
+                    const int32 Next = (Index + 1) % Top.Num();
+                    Triangles.Add(RoofBase + Index);
+                    Triangles.Add(RoofBase + Next);
+                    Triangles.Add(ApexIndex);
+                }
+                ++RenderedProfiledRoofCount;
+            }
+            else
+            {
+                const TArray<int32> RoofIndices =
+                    HorizonCellRender::TriangulateSimplePolygon(LocalPolygon);
+                for (const int32 Index : RoofIndices)
+                {
+                    Triangles.Add(RoofBase + Index);
+                }
             }
 
             if (bBuildingPart)
