@@ -1,4 +1,4 @@
-# V5376 renderer diagnostic: global roof expression
+# V5376 final publish: isolated roof/floor expressions + dedicated NYC roofs
 name: Publish BridgePoint V5376 Lightweight World
 
 on:
@@ -58,7 +58,7 @@ jobs:
           grep -Fq "GLOBAL_ROOF_MIN" world-v2300-map.js
           grep -Fq "GLOBAL_FLOOR_MIN" world-v2300-map.js
           ! grep -Fq "'fill-extrusion-pattern':roofPattern" world-v2300-map.js
-          grep -Fq "'fill-extrusion-height':['+',['max',4,bHeight],['max',1.15,bRoofHeight]]" world-v2300-map.js
+          grep -Fq "'fill-extrusion-height':['+',['max',4,['coalesce'" world-v2300-map.js
           grep -Fq "cancelPendingTileRequestsWhileZooming:true" world-v2300-map.js
           grep -Fq "fineDetailDisabled:true" world-v2300-map.js
           grep -Fq "buildingClickOverlook:true" world-v2300-map.js
@@ -235,33 +235,7 @@ jobs:
                   roofVis:m.getLayoutProperty('gta-context-roofs','visibility')||'visible'
                 };
               });
-              if(global3d.bodies<10||global3d.roofs<10||global3d.sourceRows<10||global3d.withRenderHeight<10||global3d.bodyVis==='none'||global3d.roofVis==='none'){
-                const exprDiag=await app.evaluate(async()=>{
-                  const m=window.__BP_V5000_WORLD.map;
-                  const tests={};
-                  const R=['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]];
-                  const cases=[
-                    ['constant50',50],
-                    ['renderOnly',R],
-                    ['renderPlus1',['+',R,1]],
-                    ['renderPlus3',['+',R,3]],
-                    ['renderPlusRoof',['+',R,['max',1,['coalesce',['to-number',['get','roof_height']],['to-number',['get','roof:height']],1]]]]
-                  ];
-                  m.setPaintProperty('gta-context-roofs','fill-extrusion-base',0);
-                  m.setPaintProperty('gta-context-roofs','fill-extrusion-opacity',1);
-                  try{m.moveLayer('gta-context-roofs')}catch{}
-                  for(const [name,expr] of cases){
-                    try{
-                      m.setPaintProperty('gta-context-roofs','fill-extrusion-height',expr);
-                      m.triggerRepaint();
-                      await new Promise(r=>setTimeout(r,450));
-                      tests[name]=(m.queryRenderedFeatures(undefined,{layers:['gta-context-roofs']})||[]).length;
-                    }catch(e){tests[name]='ERR:'+String(e?.message||e)}
-                  }
-                  return tests;
-                });
-                throw new Error('GLOBAL_3D '+JSON.stringify({global3d,exprDiag}));
-              }
+              if(global3d.bodies<10||global3d.roofs<10||global3d.sourceRows<10||global3d.withRenderHeight<10||global3d.bodyVis==='none'||global3d.roofVis==='none')throw new Error('GLOBAL_3D '+JSON.stringify(global3d));
 
               // Close global floor-detail gate.
               await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-0.1276,51.5072],zoom:16.5,pitch:62,bearing:-18}));
