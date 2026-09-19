@@ -1,12 +1,12 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
-window.__BP_WORLD_RENDER_VERSION__=5377;
+window.__BP_WORLD_RENDER_VERSION__=5378;
 window.__BP_FINE_DETAIL_MODE__={enabled:false,reason:'performance-first buildings-weather-boundaries',updatedAt:Date.now()};
 
 const OFM='https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf';
 const NASA='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg';
 const USGS='https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}';
 const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
-const BUILDINGS=`${EDGE}bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000`;const CITY_STRUCTURES=`${EDGE}bridgepoint-public-city-structures-v5375?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5377`;const CITY_ROOFS=`${EDGE}bridgepoint-public-city-roofs-v5376?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5377`;
+const BUILDINGS=`${EDGE}bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000`;const CITY_STRUCTURES=`${EDGE}bridgepoint-public-city-structures-v5375?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5378`;const CITY_ROOFS=`${EDGE}bridgepoint-public-city-roofs-v5376?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5378`;
 const PARCELS=`${EDGE}bridgepoint-spatial-tile-v1957?layer=parcels&z={z}&x={x}&y={y}&limit=9000`;
 const MAX_EXACT=MOBILE?320:(TIER==='LOW'?450:TIER==='HIGH'?900:650);
 const DETAIL_MIN=MOBILE?16.8:(TIER==='LOW'?16.7:TIER==='HIGH'?16.1:16.35);
@@ -850,7 +850,7 @@ export function initWorld(options={}){
   document.getElementById('locateMe')?.addEventListener('click',()=>{if(!navigator.geolocation){setStatus('Location is unavailable on this device');return}setStatus('Getting your location…');navigator.geolocation.getCurrentPosition(p=>map.easeTo({center:[p.coords.longitude,p.coords.latitude],zoom:16.8,pitch:60,bearing:-18,duration:LOW?350:700}),()=>setStatus('Location permission was not available'),{enableHighAccuracy:false,timeout:7000,maximumAge:120000})});
  }
  function chooseBuilding(e){if(window.__BP_MEASURE_ACTIVE__)return false;const layers=['gta-exact-building','gta-city-buildings','gta-context-buildings'].filter(id=>map.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')!=='none');let f=Array.isArray(e?.features)?e.features.find(x=>layers.includes(x?.layer?.id))||null:null;try{if(!f)f=map.queryRenderedFeatures(e.point,{layers})[0]||null}catch(_){}if(!f)return false;lastBuildingClickAt=performance.now();const p={...(f.properties||{})};if(!p.render_height_m)p.render_height_m=Number(p.height||p.render_height||8.5);const ll=e.lngLat||map.unproject(e.point);try{map.stop()}catch(_){};map.jumpTo({center:[ll.lng,ll.lat],zoom:Math.max(map.getZoom(),16.6),pitch:64,bearing:-22});const feature={type:'Feature',geometry:f.geometry,properties:p,id:f.id,layer:{id:f.layer?.id||''}},detail={lngLat:ll,feature};if(typeof window.__BP_V5000_SELECT_BUILDING__==='function'){try{window.__BP_V5000_SELECT_BUILDING__(detail)}catch(err){console.warn('v5000 building selector',err)}}else if(typeof buildingSelectHandler==='function'){try{buildingSelectHandler(detail)}catch(err){console.warn('building selection handler',err)}}window.dispatchEvent(new CustomEvent('bp2300:building-click',{detail}));return true}
-  function bindBuildingHitLayers(){for(const id of ['gta-exact-building','gta-city-buildings','gta-context-buildings']){if(!map.getLayer(id))continue;map.on('click',id,e=>chooseBuilding(e));map.on('mouseenter',id,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',id,()=>{map.getCanvas().style.cursor=''})}} map.on('load',()=>{installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();bindBuildingHitLayers();setBase('gta');disableFineDetail();startParcelFlow();syncBuildingShells();window.__BP_CAMERA_MODE__={mode:'FREE_FLY_SINGLE_VIEW',singleView:true,autoViewSwitching:false,streetWalkMode:false,maxPitch:85,minZoom:2.2,maxZoom:22,manualPitch:true,manualRotation:true,buildingClickOverlook:true,updatedAt:Date.now()};setTimeout(scheduleExact,MOBILE?350:220);setStatus('BridgePoint World v5377 · current-city structures · staged real roofs · performance mode')});
+  function bindBuildingHitLayers(){for(const id of ['gta-exact-building','gta-city-buildings','gta-context-buildings']){if(!map.getLayer(id))continue;map.on('click',id,e=>chooseBuilding(e));map.on('mouseenter',id,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',id,()=>{map.getCanvas().style.cursor=''})}} map.on('load',()=>{installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();bindBuildingHitLayers();setBase('gta');disableFineDetail();startParcelFlow();syncBuildingShells();window.__BP_CAMERA_MODE__={mode:'FREE_FLY_SINGLE_VIEW',singleView:true,autoViewSwitching:false,streetWalkMode:false,maxPitch:85,minZoom:2.2,maxZoom:22,manualPitch:true,manualRotation:true,buildingClickOverlook:true,updatedAt:Date.now()};setTimeout(scheduleExact,MOBILE?350:220);setStatus('BridgePoint World v5378 · current-city structures · staged real roofs · performance mode')});
  map.on('movestart',()=>movement(true));map.on('moveend',()=>movement(false));map.on('zoomend',()=>{terrain();syncBuildingShells()});let bpCitySyncTimer=0,bpGlobalLodSyncTimer=0;map.on('sourcedata',e=>{
   if(e?.sourceId==='ofm'){
    clearTimeout(bpGlobalLodSyncTimer);
@@ -872,12 +872,27 @@ export function initWorld(options={}){
  map.on('click',e=>{if(performance.now()-lastTouchBuildingAt<700||performance.now()-lastBuildingClickAt<180)return;chooseBuilding(e)});
  map.on('mousemove',e=>{const now=performance.now();if(hoverFrame||now-lastHoverAt<80)return;lastHoverAt=now;const point={x:e.point.x,y:e.point.y};hoverFrame=requestAnimationFrame(()=>{hoverFrame=0;try{const hit=map.queryRenderedFeatures(point,{layers:['gta-exact-building','gta-city-buildings','gta-context-buildings'].filter(id=>map.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')!=='none')}).length;map.getCanvas().style.cursor=hit?'pointer':''}catch(_){}})});
  const state={version:VERSION,architecture:'MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY',openRuntimeOnly:true,competitorSdk:false,staleWhileRevalidateExact:true,interactionPriorityScheduling:true,mainWebGLCanvases:()=>container.querySelectorAll('canvas').length,get exactCount(){return exactCount},get livingCount(){return livingCount},get moving(){return moving},get terrain(){return terrainOn},get base(){return base},get streetWalk(){return false},get cameraMode(){return window.__BP_CAMERA_MODE__||null},get worldLight(){return window.__BP_WORLD_LIGHT__||null},get buildingShellMode(){return window.__BP_BUILDING_SHELL_MODE__||null},get road3D(){return window.__BP_ROAD3D_STATE__||null},get runtimeErrors(){return runtimeMapErrors.slice(-8)},sources:{map:'MapLibre GL JS',vectors:'OpenFreeMap/OpenStreetMap + BridgePoint exact viewport',globalImagery:'NASA EOSDIS GIBS Blue Marble',usImagery:'USGS The National Map orthoimagery',terrain:'Mapzen Terrain Tiles on AWS Open Data',parcels:'BridgePoint MVT',roofs:'BridgePoint roof truth MVT v5369',livingWorld:'BridgePoint living-world viewport v5319'}};
- function startForViewer(opts={}){
+ async function startForViewer(opts={}){
   const primaryOwner=opts.primaryOwner===true;
   const national={center:[-98.5,39.5],zoom:Number.isFinite(opts.ownerZoom)?Number(opts.ownerZoom):(MOBILE?2.75:3.35),pitch:0,bearing:0};
-  const applyNational=(reason)=>{try{map.stop();map.jumpTo(national)}catch(_){};const state={mode:'NATIONAL_OWNER',primaryOwner,reason,center:national.center,zoom:national.zoom,updatedAt:Date.now()};window.__BP_VIEWER_START__=state;return state};
-  if(primaryOwner)return Promise.resolve(applyNational('primary_owner'));
-  if(!navigator.geolocation){const state=applyNational('geolocation_unavailable');state.mode='NATIONAL_FALLBACK';return Promise.resolve(state)}
+  const waitForMapReady=()=>new Promise(resolve=>{
+   let done=false;
+   const finish=()=>{if(done)return;done=true;resolve()};
+   try{if(map.loaded?.()||map.isStyleLoaded?.()){finish();return}}catch(_){}
+   map.once?.('load',finish);setTimeout(finish,3500)
+  });
+  const applyView=view=>{
+   try{
+    map.stop();map.jumpTo(view);map.setCenter?.(view.center);map.setZoom?.(view.zoom);
+    if(Number.isFinite(view.pitch))map.setPitch?.(view.pitch);
+    if(Number.isFinite(view.bearing))map.setBearing?.(view.bearing)
+   }catch(_){}
+  };
+  const applyNational=reason=>{applyView(national);const state={mode:'NATIONAL_OWNER',primaryOwner,reason,center:national.center,zoom:national.zoom,updatedAt:Date.now()};window.__BP_VIEWER_START__=state;return state};
+  await waitForMapReady();
+  guardAttribution();setTimeout(guardAttribution,80);
+  if(primaryOwner)return applyNational('primary_owner');
+  if(!navigator.geolocation){const state=applyNational('geolocation_unavailable');state.mode='NATIONAL_FALLBACK';return state}
   return new Promise(resolve=>{
    let done=false;
    const finish=state=>{if(done)return;done=true;window.__BP_VIEWER_START__=state;resolve(state)};
@@ -885,10 +900,10 @@ export function initWorld(options={}){
     const lng=Number(p?.coords?.longitude),lat=Number(p?.coords?.latitude);
     if(!Number.isFinite(lng)||!Number.isFinite(lat)){const state=applyNational('invalid_location');state.mode='NATIONAL_FALLBACK';finish(state);return}
     const z=Number.isFinite(opts.viewerZoom)?Number(opts.viewerZoom):(MOBILE?14.25:14.65),pitch=Number.isFinite(opts.viewerPitch)?Number(opts.viewerPitch):56,bearing=Number.isFinite(opts.viewerBearing)?Number(opts.viewerBearing):-18;
-    try{map.stop();map.jumpTo({center:[lng,lat],zoom:z,pitch,bearing})}catch(_){}
-    finish({mode:'VIEWER_LOCATION',primaryOwner:false,center:[lng,lat],zoom:z,pitch,bearing,accuracy:Number(p?.coords?.accuracy)||null,updatedAt:Date.now()})
+    const view={center:[lng,lat],zoom:z,pitch,bearing};applyView(view);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{applyView(view);guardAttribution();finish({mode:'VIEWER_LOCATION',primaryOwner:false,center:[lng,lat],zoom:z,pitch,bearing,accuracy:Number(p?.coords?.accuracy)||null,updatedAt:Date.now()})}));
    },err=>{
-    const state=applyNational(err?.code===1?'location_permission_denied':'location_unavailable');state.mode='NATIONAL_FALLBACK';finish(state)
+    const state=applyNational(err?.code===1?'location_permission_denied':'location_unavailable');state.mode='NATIONAL_FALLBACK';guardAttribution();finish(state)
    },{enableHighAccuracy:false,timeout:Number.isFinite(opts.timeout)?Number(opts.timeout):7000,maximumAge:120000})
   })
  }
