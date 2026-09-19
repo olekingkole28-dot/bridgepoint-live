@@ -486,6 +486,8 @@ jobs:
               await p.waitForSelector('#landingPropertySearch',{timeout:10000});
               await p.waitForSelector('a[href="/sample/storm-opportunity/"]',{timeout:10000});
               await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,{timeout:30000});
+              await p.waitForFunction(()=>Number(window.__BP_LANDING_LIVE_WEATHER__?.shapeCount||0)>0&&Number(window.__BP_LANDING_LIVE_WEATHER__?.pointCount||0)>0,{timeout:30000});
+              await p.waitForFunction(()=>document.querySelectorAll('#landingPackages .package-card').length>=9,{timeout:20000});
               const landing=await p.evaluate(()=>({
                 build:document.querySelector('meta[name="bp-build"]')?.content||'',
                 search:!!document.getElementById('landingPropertySearch'),
@@ -496,10 +498,24 @@ jobs:
                 weatherLegend:!!document.getElementById('landingWeatherLegend'),
                 weatherMore:!!document.getElementById('landingWeatherToggle'),
                 weatherShapes:window.__BP_LANDING_LIVE_WEATHER__?.shapeCount||0,
-                radarVisible:window.__BP_LANDING_VISUAL_WEATHER__?.radarVisible===true
+                weatherPoints:window.__BP_LANDING_LIVE_WEATHER__?.pointCount||0,
+                radarVisible:window.__BP_LANDING_VISUAL_WEATHER__?.radarVisible===true,
+                radarLayerVisible:(()=>{const m=window.__BP_LANDING_WORLD__?.map;return !!m?.getLayer('wx-radar')&&((m.getLayoutProperty('wx-radar','visibility')||'visible')!=='none')})(),
+                nationalWeatherLayers:(()=>{const m=window.__BP_LANDING_WORLD__?.map;return !!m?.getLayer('bp-landing-weather-line')&&!!m?.getLayer('bp-landing-weather-points')})(),
+                noHorizontalOverflow:document.documentElement.scrollWidth<=window.innerWidth+2,
+                searchZoomOverlap:(()=>{const a=document.getElementById('landingPropertySearch')?.getBoundingClientRect(),b=document.querySelector('#previewMap .maplibregl-ctrl-top-right')?.getBoundingClientRect();return !!(a&&b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top)})(),
+                mollyLoaded:(()=>{const i=document.querySelector('.molly-portrait');return !!i&&i.complete&&i.naturalWidth>0})(),
+                backdropLoaded:(getComputedStyle(document.querySelector('.world-backdrop-image')).backgroundImage||'').includes('bp-city-world-background.webp'),
+                productVisuals:document.querySelectorAll('.cap-visual').length,
+                packageCards:document.querySelectorAll('#landingPackages .package-card').length
               }));
-              if(!landing.build.includes('BP_LANDING_V5410')||!landing.search||!landing.sample||landing.mapCanvases!==1||landing.lockedTabs<6||!landing.weatherLegend||!landing.weatherMore||!landing.radarVisible||!/first property lookup is free/i.test(landing.freeLookupCopy))throw new Error('LANDING_CONVERSION_REGRESSION '+JSON.stringify(landing));
+              if(!landing.build.includes('BP_LANDING_V5410')||!landing.search||!landing.sample||landing.mapCanvases!==1||landing.lockedTabs<6||!landing.weatherLegend||!landing.weatherMore||!landing.radarVisible||!landing.radarLayerVisible||!landing.nationalWeatherLayers||landing.weatherShapes<1||landing.weatherPoints<1||!landing.noHorizontalOverflow||landing.searchZoomOverlap||!landing.mollyLoaded||!landing.backdropLoaded||landing.productVisuals<6||landing.packageCards<9||!/first property lookup is free/i.test(landing.freeLookupCopy))throw new Error('LANDING_CONVERSION_REGRESSION '+JSON.stringify(landing));
               console.log('BRIDGEPOINT_LANDING_CONVERSION_PASS',JSON.stringify(landing));
+              const cols=async(width,height)=>{await p.setViewport({width,height,deviceScaleFactor:width<600?2:1,isMobile:width<600,hasTouch:width<1000});await new Promise(r=>setTimeout(r,350));return p.evaluate(()=>{const countCols=sel=>{const els=[...document.querySelectorAll(sel)];if(!els.length)return 0;const y=Math.round(els[0].getBoundingClientRect().top);return els.filter(el=>Math.abs(Math.round(el.getBoundingClientRect().top)-y)<=2).length};return{w:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth+2,products:countCols('.cap-grid>.cap-card'),packages:countCols('#landingPackages>.package-card'),footer:countCols('.footer-link-groups>div')}})};
+              const phone=await cols(390,844),tablet=await cols(820,1180),desktop=await cols(1440,900);
+              if(phone.overflow||tablet.overflow||desktop.overflow||phone.products!==1||phone.packages!==1||phone.footer!==1||tablet.products!==2||tablet.packages!==2||tablet.footer!==2||desktop.products!==3||desktop.packages!==3||desktop.footer!==4)throw new Error('RESPONSIVE_LANDING_REGRESSION '+JSON.stringify({phone,tablet,desktop}));
+              console.log('BRIDGEPOINT_RESPONSIVE_LANDING_PASS',JSON.stringify({phone,tablet,desktop}));
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
 
               const report=await p.goto('https://bridgepointintelligence.online/sample/storm-opportunity/?qa='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               if(!report||report.status()>=400)throw new Error('SAMPLE_REPORT_HTTP_'+report?.status());
