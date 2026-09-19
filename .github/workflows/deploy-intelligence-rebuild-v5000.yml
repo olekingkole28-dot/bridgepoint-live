@@ -85,7 +85,7 @@ jobs:
       - name: Build clean Intelligence-only artifact
         shell: bash
         run: |
-          set -euxo pipefail
+          set -euo pipefail
           rm -rf site
           mkdir -p site
           git fetch origin live-artifact:refs/remotes/origin/live-artifact --depth=1
@@ -160,6 +160,7 @@ jobs:
           cp rebuild-v5000/404.html site/404.html
           cp rebuild-v5000/bridgepoint-mark.svg site/bridgepoint-mark.svg
           cp rebuild-v5000/bridgepoint-favicon-48.png site/bridgepoint-favicon-48.png
+          rm -rf site/terms site/privacy
           cp -a rebuild-v5000/terms site/terms
           cp -a rebuild-v5000/privacy site/privacy
           cp robots.txt sitemap.xml llms.txt llms-full.txt site/
