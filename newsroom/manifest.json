@@ -1,10 +1,10 @@
 {
   "version": 5100,
-  "generated_at": "2026-09-19T06:28:40Z",
+  "generated_at": "2026-09-19T11:26:40Z",
   "canonical_properties": 169664739,
-  "address_records": 147059307,
-  "map_ready_buildings": 143711424,
-  "active_hazard_records": 246,
+  "address_records": 147178714,
+  "map_ready_buildings": 143725072,
+  "active_hazard_records": 243,
   "pages": [
     {
       "slug": "169-million-canonical-property-map",
@@ -12,7 +12,7 @@
       "title": "BridgePoint now reports 169.7M canonical U.S. property records",
       "description": "A live proptech map combining canonical property identity, buildings, roofs and source-labelled hazards.",
       "kind": "milestone",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "solo-builder-proptech",
@@ -20,7 +20,7 @@
       "title": "Solo builder creates a live property-intelligence map spanning 169.7M canonical records",
       "description": "An emerging proptech project built by a solo founder connects property identity, 3D buildings, roofs and live hazards.",
       "kind": "proptech",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "founder-story-built-from-a-phone",
@@ -28,7 +28,7 @@
       "title": "From homelessness and a phone to a national property-intelligence build",
       "description": "The BridgePoint founder story: starting with a phone, building while homeless, and turning the idea into a live national property-intelligence product in about five months.",
       "kind": "founder",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "investor-live-product-callout",
@@ -36,7 +36,7 @@
       "title": "Investors: BridgePoint is live\u2014inspect the product instead of reading a pitch",
       "description": "A direct callout to proptech, geospatial, insurance, climate-tech and data investors to inspect BridgePoint's live product.",
       "kind": "investor",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "horizon-real-world-spatial-game",
@@ -44,55 +44,47 @@
       "title": "BridgePoint Horizon turns the same national spatial backend into a playable survival world",
       "description": "BridgePoint Horizon reuses BridgePoint terrain, roads, parcels and buildings as the spatial foundation for a playable survival and combat experience.",
       "kind": "horizon",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "roof-intelligence-mega-sprint",
       "url": "https://bridgepointintelligence.online/newsroom/roof-intelligence-mega-sprint/",
-      "title": "BridgePoint roof-intelligence sprint: 3,316 LiDAR-refined buildings and climbing",
+      "title": "BridgePoint roof-intelligence sprint: 3,340 LiDAR-refined buildings and climbing",
       "description": "Live roof materialization status from BridgePoint's active roof-data sprint.",
       "kind": "roof",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "live-storm-intelligence",
       "url": "https://bridgepointintelligence.online/newsroom/live-storm-intelligence/",
-      "title": "Live U.S. storm intelligence: 246 active source-labelled hazard records",
+      "title": "Live U.S. storm intelligence: 243 active source-labelled hazard records",
       "description": "Current BridgePoint storm and hazard context generated from live source-labelled weather data.",
       "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "live-flood-warning",
       "url": "https://bridgepointintelligence.online/newsroom/live-flood-warning/",
-      "title": "Flood Warning: 11 current BridgePoint map records",
+      "title": "Flood Warning: 12 current BridgePoint map records",
       "description": "Live source-labelled flood warning context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "live-flash-flood-warning",
       "url": "https://bridgepointintelligence.online/newsroom/live-flash-flood-warning/",
-      "title": "Flash Flood Warning: 8 current BridgePoint map records",
+      "title": "Flash Flood Warning: 6 current BridgePoint map records",
       "description": "Live source-labelled flash flood warning context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "live-flood-advisory",
       "url": "https://bridgepointintelligence.online/newsroom/live-flood-advisory/",
-      "title": "Flood Advisory: 5 current BridgePoint map records",
+      "title": "Flood Advisory: 3 current BridgePoint map records",
       "description": "Live source-labelled flood advisory context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
-    },
-    {
-      "slug": "live-clark",
-      "url": "https://bridgepointintelligence.online/newsroom/live-clark/",
-      "title": "Clark: 2 current BridgePoint map records",
-      "description": "Live source-labelled clark context on the BridgePoint Intelligence map.",
-      "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "live-day-1-hail-outlook",
@@ -100,15 +92,15 @@
       "title": "Day 1 hail outlook: 2 current BridgePoint map records",
       "description": "Live source-labelled day 1 hail outlook context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
-      "slug": "live-dry-river",
-      "url": "https://bridgepointintelligence.online/newsroom/live-dry-river/",
-      "title": "Dry River: 2 current BridgePoint map records",
-      "description": "Live source-labelled dry river context on the BridgePoint Intelligence map.",
+      "slug": "live-ghost",
+      "url": "https://bridgepointintelligence.online/newsroom/live-ghost/",
+      "title": "Ghost: 2 current BridgePoint map records",
+      "description": "Live source-labelled ghost context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "live-lucas",
@@ -116,7 +108,7 @@
       "title": "LUCAS: 2 current BridgePoint map records",
       "description": "Live source-labelled lucas context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "live-timber",
@@ -124,7 +116,7 @@
       "title": "Timber: 2 current BridgePoint map records",
       "description": "Live source-labelled timber context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "live-0505n",
@@ -132,7 +124,23 @@
       "title": "0505N: 1 current BridgePoint map record",
       "description": "Live source-labelled 0505n context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
+    },
+    {
+      "slug": "live-0584-cottonwood",
+      "url": "https://bridgepointintelligence.online/newsroom/live-0584-cottonwood/",
+      "title": "0584 COTTONWOOD: 1 current BridgePoint map record",
+      "description": "Live source-labelled 0584 cottonwood context on the BridgePoint Intelligence map.",
+      "kind": "storm",
+      "generated_at": "2026-09-19T11:26:40Z"
+    },
+    {
+      "slug": "live-0611-green-mountain",
+      "url": "https://bridgepointintelligence.online/newsroom/live-0611-green-mountain/",
+      "title": "0611 GREEN MOUNTAIN: 1 current BridgePoint map record",
+      "description": "Live source-labelled 0611 green mountain context on the BridgePoint Intelligence map.",
+      "kind": "storm",
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "live-0658-round-butte",
@@ -140,7 +148,7 @@
       "title": "0658 ROUND BUTTE: 1 current BridgePoint map record",
       "description": "Live source-labelled 0658 round butte context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "live-0821",
@@ -148,7 +156,7 @@
       "title": "0821: 1 current BridgePoint map record",
       "description": "Live source-labelled 0821 context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "live-0842",
@@ -156,7 +164,7 @@
       "title": "0842: 1 current BridgePoint map record",
       "description": "Live source-labelled 0842 context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "live-0847",
@@ -164,7 +172,7 @@
       "title": "0847: 1 current BridgePoint map record",
       "description": "Live source-labelled 0847 context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "live-14th-ct",
@@ -172,7 +180,7 @@
       "title": "14th Ct: 1 current BridgePoint map record",
       "description": "Live source-labelled 14th ct context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "live-208",
@@ -180,15 +188,7 @@
       "title": "208: 1 current BridgePoint map record",
       "description": "Live source-labelled 208 context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
-    },
-    {
-      "slug": "live-26th-ave",
-      "url": "https://bridgepointintelligence.online/newsroom/live-26th-ave/",
-      "title": "26th Ave: 1 current BridgePoint map record",
-      "description": "Live source-labelled 26th ave context on the BridgePoint Intelligence map.",
-      "kind": "storm",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     },
     {
       "slug": "parcel-build-status",
@@ -196,7 +196,7 @@
       "title": "BridgePoint parcel build status: 169,664,739 canonical properties with final reconciliation still running",
       "description": "Live parcel/canonical-property build status with explicit separation between canonical identity and parcel-boundary completion.",
       "kind": "parcel",
-      "generated_at": "2026-09-19T06:28:40Z"
+      "generated_at": "2026-09-19T11:26:40Z"
     }
   ]
 }
