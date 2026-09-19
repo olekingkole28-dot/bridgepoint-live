@@ -74,6 +74,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment:
