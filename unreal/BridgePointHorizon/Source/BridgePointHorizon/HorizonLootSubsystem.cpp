@@ -26,7 +26,9 @@ static void AddOrMerge(TArray<FHorizonLootStack>& Stacks, FName ItemKey, int32 Q
     {
         if (Stack.ItemKey == ItemKey)
         {
-            Stack.Quantity = FMath::Min(MAX_int32, Stack.Quantity + Quantity);
+            Stack.Quantity = Stack.Quantity > MAX_int32 - Quantity
+                ? MAX_int32
+                : Stack.Quantity + Quantity;
             return;
         }
     }
