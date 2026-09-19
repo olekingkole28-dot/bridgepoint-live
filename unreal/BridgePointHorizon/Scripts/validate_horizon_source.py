@@ -299,6 +299,25 @@ for token in ["OfferChallenge", "AddChallengeProgress", "ClaimChallengeReward", 
     require(token in challenge, f"NPC challenge execution missing: {token}")
 for token in ["GrantFreeSalvage", "GrantFreeUnlock"]:
     require(token in challenge, f"free NPC reward handoff missing: {token}")
+for token in [
+    "ResolveSurvivalInventoryItem", "ResolveSurvivalInventoryQuantity",
+    "ComputeDeferredRewardAmount", "CollectDeferredItemReward",
+    "GameInstance->GetSubsystem<UHorizonSurvivalSubsystem>()",
+    "Survival->TryAddItem", "State->FreeItemInventory.FindOrAdd(InventoryItem.ToString())"
+]:
+    require(token in challenge_header + challenge, f"NPC reward-to-inventory integration missing: {token}")
+
+challenge_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonChallengeDirectorTests.cpp")
+for token in [
+    "WITH_DEV_AUTOMATION_TESTS", "Challenges.SurvivalRewardIntegration",
+    "Medic reward enters usable bandage inventory",
+    "Ranger reward enters consumable ration inventory",
+    "Unknown reward keys fail closed", "Capacity overflow is deferred exactly once",
+    "Over-grant cannot create negative deferred inventory"
+]:
+    require(token in challenge_tests, f"native NPC reward integration QA missing: {token}")
+require("Stripe" not in challenge_tests and "Payment" not in challenge_tests,
+        "NPC reward integration QA must remain independent of payments")
 
 challenge_npc = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonChallengeNPC.cpp")
 for token in ["InteractionSphere", "OfferChallenge", "ReportChallengeProgress", "ClaimChallengeReward", "GetChallengeDirector"]:
