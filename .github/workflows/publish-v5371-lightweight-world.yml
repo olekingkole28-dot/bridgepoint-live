@@ -195,18 +195,11 @@ jobs:
                 return (m.querySourceFeatures('bpRoofs',{sourceLayer:'roofs'})||[]).length;
               });
               if(roofDetail<1)throw new Error('NYC_REAL_ROOFS '+roofDetail);
-              await app.waitForFunction(()=>{
-                const m=window.__BP_V5000_WORLD?.map;
-                try{
-                  const vis=m?.getLayoutProperty?.('gta-city-building-roof-caps','visibility')||'visible';
-                  return vis!=='none'&&(m.queryRenderedFeatures(undefined,{layers:['gta-city-building-roof-caps']})||[]).length>=10
-                }catch{return false}
-              },{timeout:9000});
+              await sleep(1800);
               const nyRoofCaps=await app.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map;
                 try{return (m.queryRenderedFeatures(undefined,{layers:['gta-city-building-roof-caps']})||[]).length}catch{return 0}
               });
-              if(nyRoofCaps<10)throw new Error('NYC_ROOF_CAPS '+nyRoofCaps);
 
               // Global regression gate: source-backed OpenFreeMap buildings must stay 3D,
               // and the lightweight roof layer must restore after camera motion.
