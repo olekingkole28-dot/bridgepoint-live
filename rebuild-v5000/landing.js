@@ -22,7 +22,6 @@ async function initMap(){
   });
   if(!world?.map)throw new Error('Shared BridgePoint world renderer unavailable');
   map=world.map;
-  window.__BP_LANDING_WORLD__=world;
   try{
    const nationalBounds=[[-125.2,24.1],[-66.4,49.8]];
    const padding=window.innerWidth<=620?{top:10,right:8,bottom:10,left:8}:{top:22,right:22,bottom:22,left:22};
@@ -37,7 +36,14 @@ async function initMap(){
    $('previewCard').hidden=false
   });
   map.on('move',()=>{$('previewCard').hidden=true});
-  try{const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5420'),import('./world-v2300-present-weather.js?v=5420')]);const weather=wm.initWeather(world.map),present=pm.initPresentWeather(world.map);weather?.setActive?.(true);weather?.setRadar?.(true);startLandingNationalWeather(world);window.__BP_LANDING_VISUAL_WEATHER__={version:5420,weather,present,mapShared:true,nationalWeather:true,radarVisible:true,radarAnimated:true,updatedAt:Date.now()}}catch(e){console.warn('BridgePoint preview weather',e)}
+  try{
+   if(!map.isStyleLoaded?.())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
+   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5420'),import('./world-v2300-present-weather.js?v=5420')]);
+   const weather=wm.initWeather(world.map),present=pm.initPresentWeather(world.map);
+   weather?.setActive?.(true);weather?.setRadar?.(true);startLandingNationalWeather(world);
+   window.__BP_LANDING_VISUAL_WEATHER__={version:5420,weather,present,mapShared:true,nationalWeather:true,radarVisible:true,radarAnimated:true,updatedAt:Date.now()}
+  }catch(e){console.warn('BridgePoint preview weather',e)}
+  window.__BP_LANDING_WORLD__=world;
   window.__BP_LANDING_RENDERER_PARITY__={sharedModule:true,version:5420,container:'previewMap',sameWorldRendererAsApp:true,sameWeatherEngineAsApp:true,updatedAt:Date.now()}
  }catch(e){
   console.error('BridgePoint shared preview renderer',e);
