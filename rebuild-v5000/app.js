@@ -65,7 +65,7 @@ function clearSelectedBuilding(){selectedPoint=null;selectedFeature=null;selecte
 $('closeBuilding').onclick=clearSelectedBuilding;window.__BP_V5000_CLEAR_BUILDING__=clearSelectedBuilding;
 (()=>{const p=$('buildingPanel');if(!p)return;new MutationObserver(()=>{if(window.__BP_BUILDING_PANEL_OPEN__&&selectedPoint&&selectedMode==='building'&&p.hidden)ensureBuildingPanelOpen()}).observe(p,{attributes:true,attributeFilter:['hidden','style']})})();
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5323');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5324');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -526,7 +526,7 @@ function bindPerformanceGovernor(){
  if(m.__bpPerfGovernor)return;
  m.__bpPerfGovernor=true;
  const enter=()=>{mapInteracting=true;lastMapMotionAt=performance.now();opportunitySeq++;clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);document.body.classList.add('map-interacting');try{closeSystem()}catch(_){}const auth=$('authPanel');if(auth)auth.hidden=true;$('bottomNav')?.classList.remove('peek')},
- leave=()=>{lastMapMotionAt=performance.now();clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);performanceDrainTimer=setTimeout(()=>{mapInteracting=false;document.body.classList.remove('map-interacting');flushDeferredWork();refreshSemanticLabels();window.__BP_PERSISTENT_RENDER_STATE__={layersHiddenDuringMotion:false,updatedAt:Date.now()}},BP_MOBILE?55:35)};
+ leave=()=>{lastMapMotionAt=performance.now();clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);performanceDrainTimer=setTimeout(()=>{mapInteracting=false;document.body.classList.remove('map-interacting');flushDeferredWork();setTimeout(refreshSemanticLabels,BP_MOBILE?45:25);window.__BP_PERSISTENT_RENDER_STATE__={layersHiddenDuringMotion:false,heavyMutationsDuringMotion:false,updatedAt:Date.now()}},BP_MOBILE?35:20)};
  ['movestart','dragstart','zoomstart','rotatestart','pitchstart'].forEach(e=>m.on(e,enter));
  ['moveend','dragend','zoomend','rotateend','pitchend'].forEach(e=>m.on(e,leave))
 }
@@ -599,7 +599,7 @@ function geometryAnchor(g){
  return Number.isFinite(minX)?[(minX+maxX)/2,(minY+maxY)/2]:null
 }
 function refreshSemanticLabels(){
- const map=world?.map,src=map?.getSource('bpSemanticLabels');if(!map||!src?.setData)return;
+ const map=world?.map,src=map?.getSource('bpSemanticLabels');if(!map||!src?.setData||mapInteracting||map.isMoving?.())return;
  clearTimeout(semanticTimer);const seq=++semanticSeq;
  const run=()=>{
   if(seq!==semanticSeq)return;
@@ -630,7 +630,7 @@ function refreshSemanticLabels(){
  semanticTimer=setTimeout(run,BP_MOBILE?90:45)
 }
 
-function startSemanticLabels(){const map=world?.map;if(!map||map.__bpSemanticBound)return;map.__bpSemanticBound=true;window.__BP_REFRESH_SEMANTIC_LABELS__=refreshSemanticLabels;let last=0;map.on('move',()=>{const now=performance.now();if(now-last>500){last=now;refreshSemanticLabels()}});map.on('moveend',()=>refreshSemanticLabels());setTimeout(refreshSemanticLabels,BP_MOBILE?240:140)}
+function startSemanticLabels(){const map=world?.map;if(!map||map.__bpSemanticBound)return;map.__bpSemanticBound=true;window.__BP_REFRESH_SEMANTIC_LABELS__=refreshSemanticLabels;map.on('moveend',()=>setTimeout(refreshSemanticLabels,BP_MOBILE?55:35));setTimeout(refreshSemanticLabels,BP_MOBILE?180:100)}
 
 function refreshTiles(){if(mapInteracting){deferredWork.set('tile-pulse',refreshTiles);return}const map=world?.map;if(!map||map.isMoving?.())return;const pulse=Math.floor(Date.now()/120000),fn=SUPA+'/functions/v1/';try{const b=map.getSource('bpBuildings');if(b?.setTiles)b.setTiles([fn+'bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000&pulse='+pulse]);const p=map.getSource('bpParcels');if(p?.setTiles)p.setTiles([fn+'bridgepoint-spatial-tile-v1957?layer=parcels&z={z}&x={x}&y={y}&limit=9000&pulse='+pulse]);queueAfterMap('selected-refresh',refreshSelected)}catch(e){console.warn('tile pulse',e)}}
 function applyPublicEmbedMode(q){
