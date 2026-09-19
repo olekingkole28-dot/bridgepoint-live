@@ -18,7 +18,7 @@ const GLOBAL_FLOOR_MIN=MOBILE?16.2:(TIER==='LOW'?16.1:TIER==='HIGH'?15.35:15.7);
 const US_BOUNDS=[-125,24,-66,50];
 
 const roadFilter=classes=>['in',['get','class'],['literal',classes]];
-const vis=(map,id,on)=>{try{if(!map.getLayer(id))return;const next=on?'visible':'none';if((map.getLayoutProperty(id,'visibility')||'visible')!==next)map.setLayoutProperty(id,'visibility',next)}catch(_){}};
+const vis=(map,id,on)=>{try{if(!map.getLayer(id))return false;const next=on?'visible':'none';if((map.getLayoutProperty(id,'visibility')||'visible')!==next){map.setLayoutProperty(id,'visibility',next);return true}return false}catch(_){return false}};
 const paint=(map,id,k,v)=>{try{if(map.getLayer(id))map.setPaintProperty(id,k,v)}catch(_){}};
 
 function style(){
@@ -597,8 +597,11 @@ export function initWorld(options={}){
   const floors=detailSettled&&z>=GLOBAL_FLOOR_MIN,roofFallback=detailSettled&&z>=GLOBAL_ROOF_MIN;
   vis(map,'gta-context-building-footprints',z<11.2&&!cityReady);
   vis(map,'gta-context-buildings',z>=11.2&&!cityReady);
-  vis(map,'gta-context-floor-lines',floors&&!cityReady);
-  vis(map,'gta-context-roofs',roofFallback&&!cityReady);
+  const floorOn=floors&&!cityReady,roofOn=roofFallback&&!cityReady;
+  const floorBecameVisible=vis(map,'gta-context-floor-lines',floorOn);
+  const roofBecameVisible=vis(map,'gta-context-roofs',roofOn);
+  if(floorOn&&floorBecameVisible)paint(map,'gta-context-floor-lines','fill-extrusion-height',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]]);
+  if(roofOn&&roofBecameVisible)paint(map,'gta-context-roofs','fill-extrusion-height',['+',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]],['max',1,['coalesce',['to-number',['get','roof_height']],['to-number',['get','roof:height']],1]]]);
   // Keep the source-backed city layer visible/requested from city zoom so exact-height geometry can fill whole viewports.
   vis(map,'gta-city-buildings',wantCity);
   vis(map,'gta-city-building-roof-caps',wantCity&&roofFallback);
