@@ -110,6 +110,18 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
     float FacingInterpolationSpeed = 24.0f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera|Lean", meta=(ClampMin="0.0", ClampMax="45.0"))
+    float LeanDistanceCm = 24.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera|Lean", meta=(ClampMin="0.0", ClampMax="18.0"))
+    float LeanRollDegrees = 8.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera|Lean", meta=(ClampMin="1.0", ClampMax="30.0"))
+    float LeanInterpolationSpeed = 13.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera|Lean", meta=(ClampMin="2.0", ClampMax="30.0"))
+    float LeanProbeRadiusCm = 10.0f;
+
     UFUNCTION(BlueprintCallable, Category="Horizon|Weapon")
     bool EquipWeaponVisual(UStaticMesh* WeaponMesh, FName PreferredSocket = NAME_None);
 
