@@ -293,7 +293,7 @@ function installBuildingMaterials(map){
  const add=id=>{try{if(map.hasImage(id))return;if(id.startsWith('bproof-'))map.addImage(id,roofPatternImage(id),{pixelRatio:2});else if(id.startsWith('bp-window-night-'))map.addImage(id,nightWindowPatternImage(id),{pixelRatio:2});else map.addImage(id,facadePatternImage(id),{pixelRatio:2})}catch(e){console.warn('BridgePoint building material',id,e)}};
  map.on('styleimagemissing',e=>{const id=String(e.id||'');if(id.startsWith('bpfacade-')||id.startsWith('bproof-')||id.startsWith('bp-window-night-'))add(id)});
  for(const id of [...facadeIds,...roofIds,...windowIds])add(id);
- window.__BP_BUILDING_MATERIALS__={version:'v5323',mode:'rendered-vector-3d',aerialBase:false,roofCaps:true,directionalLight:true,facadeTextures:true,facadeArchetypes:facadeKinds.length,roofArchetypes:roofKinds.length,deterministicPerBuilding:true,globalStyle:true,updatedAt:Date.now()}
+ window.__BP_BUILDING_MATERIALS__={version:'v5324',mode:'rendered-vector-3d',aerialBase:false,roofCaps:true,directionalLight:true,facadeTextures:true,facadeArchetypes:facadeKinds.length,roofArchetypes:roofKinds.length,deterministicPerBuilding:true,globalStyle:true,updatedAt:Date.now()}
 }
 
 function surfacePatternImage(id){
@@ -321,7 +321,7 @@ function installWorldMaterials(map){
  for(const k of terrain)addTerrain('bpterrain-'+k);
  for(const [id,kind] of [['bp-landmark-monument','monument'],['bp-landmark-statue','statue']]){try{if(!map.hasImage(id))map.addImage(id,landmarkIconImage(kind),{pixelRatio:2})}catch(e){console.warn('BridgePoint landmark',id,e)}}
  map.on('styleimagemissing',e=>{const id=String(e.id||'');if(id.startsWith('bpterrain-'))addTerrain(id)});
- window.__BP_WORLD_MATERIALS__={version:'v5323',biomes:true,physicalRoads:true,bridgeDecks:true,landmarks:true,updatedAt:Date.now()}
+ window.__BP_WORLD_MATERIALS__={version:'v5324',biomes:true,physicalRoads:true,bridgeDecks:true,landmarks:true,updatedAt:Date.now()}
 }
 
 function roadLights(map){if(map.getZoom()<LIGHT_MIN)return EMPTY;let fs=[];try{fs=map.queryRenderedFeatures({layers:['gta-road-major','gta-road-local']})||[]}catch(_){return EMPTY}const pts=[],seen=new Set(),max=MOBILE?260:(TIER==='LOW'?320:TIER==='HIGH'?900:560);for(const f of fs){const g=f.geometry,lines=g?.type==='LineString'?[g.coordinates]:g?.type==='MultiLineString'?g.coordinates:[];for(const line of lines){const step=Math.max(4,Math.ceil(line.length/(MOBILE?6:10)));for(let i=0;i<line.length&&pts.length<max;i+=step){const c=line[i],k=`${c[0].toFixed(5)}|${c[1].toFixed(5)}`;if(seen.has(k))continue;seen.add(k);pts.push({type:'Feature',properties:{kind:'streetlight'},geometry:{type:'Point',coordinates:c}})}}}return fc(pts)}
@@ -344,6 +344,7 @@ export function initWorld(options={}){
   return{alt:alt/rad,az:(az/rad+360)%360}
  }
  function updateWorldLight(){
+  if(moving)return;
   try{
    const center=map.getCenter(),sun=solarPosition(new Date(),center.lat,center.lng),alt=sun.alt,day=clamp((alt+8)/28,0,1),night=1-day,twilight=alt<8&&alt>-12;
    const intensity=alt>18?.78:alt>2?.58:alt>-8?.34:.20,color=alt>10?'#fff3d7':alt>-6?'#f0b083':'#9fb7d8',skyColor=alt>8?'#4a7f9a':alt>-6?'#263f55':'#07121f',horizon=alt>8?'#9fb5b2':alt>-6?'#6f4b49':'#182a3d',fog=alt>8?'#83959a':alt>-6?'#514c52':'#263443';
@@ -364,32 +365,29 @@ export function initWorld(options={}){
  function sky(){updateWorldLight();clearInterval(solarTimer);solarTimer=setInterval(updateWorldLight,60000)}
  function terrain(){const should=map.getZoom()>=6.5;try{if(should&&!terrainOn){map.setTerrain({source:'dem',exaggeration:LOW?1:TIER==='HIGH'?1.32:1.16});terrainOn=true}else if(!should&&terrainOn){map.setTerrain(null);terrainOn=false}}catch(_){terrainOn=false}}
  function setBase(next){base=next==='satellite'?'satellite':'gta';const sat=base==='satellite';vis(map,'gta-nasa',sat);vis(map,'gta-usgs',sat);paint(map,'gta-landcover','fill-opacity',sat?['interpolate',['linear'],['zoom'],2,.22,8,.12,12,.035,15,0]:['interpolate',['linear'],['zoom'],2,.58,8,.75,13,.84]);paint(map,'gta-landuse','fill-opacity',sat?.06:.72);document.querySelectorAll('[data-base]').forEach(b=>b.classList.toggle('active',b.dataset.base===base));map.triggerRepaint()}
- async function exact(){const z=map.getZoom();if(z<DETAIL_MIN)return;const seq=++detailSeq,b=bbox(map,.12);lastExactFetchAt=performance.now();try{const d=await rpc('bridgepoint_building_viewport_v2300',{p_west:b.west,p_south:b.south,p_east:b.east,p_north:b.north,p_limit:MAX_EXACT},9000);if(seq!==detailSeq)return;const p=await prepare(d?.features||[],MAX_EXACT);if(seq!==detailSeq)return;if((p.buildings?.features?.length||0)>0){map.getSource('exact')?.setData(p.buildings);map.getSource('exactRoof')?.setData(p.roofs||EMPTY);exactCount=Number(p.count||0)}setStatus(`BridgePoint World · persistent detail · ${exactCount.toLocaleString()} exact buildings retained · live refinement active`)}catch(e){if(seq===detailSeq)setStatus(`BridgePoint World · persistent detail retained · live refinement continuing`) }}
+ async function exact(){const z=map.getZoom();if(z<DETAIL_MIN||moving)return;const seq=++detailSeq,b=bbox(map,.13);lastExactFetchAt=performance.now();try{const d=await rpc('bridgepoint_building_viewport_v2300',{p_west:b.west,p_south:b.south,p_east:b.east,p_north:b.north,p_limit:MAX_EXACT},9000);if(seq!==detailSeq||moving)return;const p=await prepare(d?.features||[],MAX_EXACT);if(seq!==detailSeq||moving)return;if((p.buildings?.features?.length||0)>0){map.getSource('exact')?.setData(p.buildings);map.getSource('exactRoof')?.setData(p.roofs||EMPTY);exactCount=Number(p.count||0)}setStatus(`BridgePoint World · persistent detail · ${exactCount.toLocaleString()} exact buildings retained · instant refinement ready`)}catch(e){if(seq===detailSeq)setStatus(`BridgePoint World · persistent detail retained · background refinement retrying`) }}
  async function livingWorld(){
-  if(map.getZoom()<14.2)return;const seq=++livingSeq,b=bbox(map,.16);lastLivingFetchAt=performance.now();
+  if(map.getZoom()<14.2||moving)return;const seq=++livingSeq,b=bbox(map,MOBILE?.075:.11);lastLivingFetchAt=performance.now();
   try{
-   const d=await edge('bridgepoint-living-world-viewport-v5319',{west:b.west,south:b.south,east:b.east,north:b.north,limit:MOBILE?1800:(TIER==='HIGH'?3600:2800)},8500);
-   if(seq!==livingSeq)return;
+   const d=await edge('bridgepoint-living-world-viewport-v5319',{west:b.west,south:b.south,east:b.east,north:b.north,limit:MOBILE?900:(TIER==='HIGH'?2400:1700)},8500);
+   if(seq!==livingSeq||moving)return;
    const data=d?.type==='FeatureCollection'?d:EMPTY;if((data?.features?.length||0)>0){map.getSource('bpLivingWorld')?.setData(data);livingCount=Number(data.features.length)}
    window.__BP_LIVING_WORLD_STATE__={status:'ready',count:livingCount,viewport:{west:b.west,south:b.south,east:b.east,north:b.north},updatedAt:Date.now()}
   }catch(e){
    if(seq!==livingSeq)return;window.__BP_LIVING_WORLD_STATE__={status:'error',count:livingCount,error:String(e?.message||e),updatedAt:Date.now()}
   }
  }
- function scheduleLivingWorld(delay=MOBILE?120:70){clearTimeout(map.__bpLivingTimer);if(map.getZoom()<14.2)return;map.__bpLivingTimer=setTimeout(()=>livingWorld(),delay)}
- function lights(){clearTimeout(lightTimer);lightTimer=setTimeout(()=>{map.getSource('streetlights')?.setData(roadLights(map));updateWorldLight()},MOBILE?180:(LOW?160:110))}
- function scheduleExact(delay=MOBILE?140:80){clearTimeout(detailTimer);detailTimer=setTimeout(()=>exact(),delay)}
+ function scheduleLivingWorld(delay=MOBILE?75:45){clearTimeout(map.__bpLivingTimer);if(map.getZoom()<14.2)return;map.__bpLivingTimer=setTimeout(()=>{if(!moving)livingWorld()},delay)}
+ function lights(delay=MOBILE?55:35){clearTimeout(lightTimer);lightTimer=setTimeout(()=>{if(moving)return;map.getSource('streetlights')?.setData(roadLights(map));updateWorldLight()},delay)}
+ function scheduleExact(delay=MOBILE?65:40){clearTimeout(detailTimer);detailTimer=setTimeout(()=>{if(!moving)exact()},delay)}
  function startParcelFlow(){clearInterval(parcelPulseTimer);parcelPulseTimer=setInterval(()=>{if(moving||!layerState.parcels||map.getZoom()<PARCEL_MIN)return;parcelPulsePhase=(parcelPulsePhase+1)%16;const t=(Math.sin((parcelPulsePhase/16)*Math.PI*2)+1)/2;paint(map,'gta-parcel-glow','line-opacity',.11+.18*t);paint(map,'gta-parcel-glow','line-blur',2.1+2.4*t);paint(map,'gta-parcel','line-opacity',.82+.16*t)},260)}
  function movement(on){
   moving=on;
   if(on){
-   const now=performance.now();
-   if(now-lastExactFetchAt>420)scheduleExact(80);
-   if(now-lastLivingFetchAt>520)scheduleLivingWorld(100);
-   if(!lightTimer)lights();
+   clearTimeout(detailTimer);clearTimeout(map.__bpLivingTimer);clearTimeout(lightTimer);
    return
   }
-  terrain();scheduleExact(40);scheduleLivingWorld(55);lights()
+  terrain();scheduleExact(MOBILE?45:25);scheduleLivingWorld(MOBILE?60:35);lights(MOBILE?70:40)
  }
  function toggleLayer(name,on){if(name==='parcels'){layerState.parcels=!!on;for(const id of ['gta-parcel','gta-parcel-glow'])vis(map,id,on);if(on)startParcelFlow()}if(name==='buildings'){layerState.buildings=!!on;for(const id of ['gta-context-buildings','gta-context-roofs','gta-bp-buildings','gta-bp-roofs','gta-bp-building-edge','gta-exact-building','gta-exact-roof','gta-building-outline'])vis(map,id,on)}}
  function resultRows(rows){const root=document.getElementById('mapResults');if(!root)return;root.innerHTML='';for(const r of rows||[]){const b=document.createElement('button');b.type='button';b.className='data-card';b.innerHTML=`<b>${String(r.full_address||'Property').replace(/[<>&]/g,'')}</b><small>${[r.municipality,r.state_code,r.parcel_number].filter(Boolean).join(' · ')}</small>`;b.onclick=()=>{root.innerHTML='';if(Number.isFinite(+r.longitude)&&Number.isFinite(+r.latitude))map.easeTo({center:[+r.longitude,+r.latitude],zoom:17,pitch:62,bearing:-18,duration:LOW?320:620})};root.appendChild(b)}}
@@ -459,8 +457,8 @@ export function initWorld(options={}){
   document.getElementById('locateMe')?.addEventListener('click',()=>{if(!navigator.geolocation){setStatus('Location is unavailable on this device');return}setStatus('Getting your location…');navigator.geolocation.getCurrentPosition(p=>map.easeTo({center:[p.coords.longitude,p.coords.latitude],zoom:16.8,pitch:60,bearing:-18,duration:LOW?350:700}),()=>setStatus('Location permission was not available'),{enableHighAccuracy:false,timeout:7000,maximumAge:120000})});
  }
  function chooseBuilding(e){if(window.__BP_MEASURE_ACTIVE__)return false;const layers=['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings'].filter(id=>map.getLayer(id));let f=Array.isArray(e?.features)?e.features.find(x=>layers.includes(x?.layer?.id))||null:null;try{if(!f)f=map.queryRenderedFeatures(e.point,{layers})[0]||null}catch(_){}if(!f)return false;lastBuildingClickAt=performance.now();const p={...(f.properties||{})};if(!p.render_height_m)p.render_height_m=Number(p.height||p.render_height||8.5);const ll=e.lngLat||map.unproject(e.point),feature={type:'Feature',geometry:f.geometry,properties:p,id:f.id,layer:{id:f.layer?.id||''}},z=Math.max(map.getZoom(),16.6);map.easeTo({center:ll,zoom:clamp(z,15,19),pitch:64,bearing:map.getBearing(),duration:LOW?260:520});const detail={lngLat:ll,feature};if(typeof window.__BP_V5000_SELECT_BUILDING__==='function'){try{window.__BP_V5000_SELECT_BUILDING__(detail)}catch(err){console.warn('v5000 building selector',err)}}else if(typeof buildingSelectHandler==='function'){try{buildingSelectHandler(detail)}catch(err){console.warn('building selection handler',err)}}window.dispatchEvent(new CustomEvent('bp2300:building-click',{detail}));return true}
- function bindBuildingHitLayers(){for(const id of ['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings']){if(!map.getLayer(id))continue;map.on('click',id,e=>chooseBuilding(e));map.on('mouseenter',id,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',id,()=>{map.getCanvas().style.cursor=''})}} map.on('load',()=>{installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();installWalkUI();bindBuildingHitLayers();setBase('gta');startParcelFlow();setTimeout(scheduleExact,MOBILE?1200:500);setTimeout(scheduleLivingWorld,MOBILE?1450:620);setTimeout(lights,MOBILE?1600:700);setStatus('BridgePoint World v5323 · persistent detail · sun/moon cycle · moving shadows · night windows')});
- map.on('movestart',()=>movement(true));map.on('move',()=>{if(!moving)return;const now=performance.now();if(now-lastExactFetchAt>520)scheduleExact(70);if(now-lastLivingFetchAt>680)scheduleLivingWorld(90)});map.on('moveend',()=>movement(false));map.on('zoomend',()=>{terrain();updateWorldLight()});
+ function bindBuildingHitLayers(){for(const id of ['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings']){if(!map.getLayer(id))continue;map.on('click',id,e=>chooseBuilding(e));map.on('mouseenter',id,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',id,()=>{map.getCanvas().style.cursor=''})}} map.on('load',()=>{installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();installWalkUI();bindBuildingHitLayers();setBase('gta');startParcelFlow();setTimeout(scheduleExact,MOBILE?1200:500);setTimeout(scheduleLivingWorld,MOBILE?1450:620);setTimeout(lights,MOBILE?1600:700);setStatus('BridgePoint World v5324 · zero-blank persistence · instant settled refinement · live sun/moon lighting')});
+ map.on('movestart',()=>movement(true));map.on('moveend',()=>movement(false));map.on('zoomend',()=>{terrain();if(!moving)updateWorldLight()});
  const canvas=map.getCanvas();
  const nativeBuildingTap=(clientX,clientY,originalEvent)=>{const r=canvas.getBoundingClientRect(),point={x:clientX-r.left,y:clientY-r.top};if(point.x<0||point.y<0||point.x>r.width||point.y>r.height)return false;const hit=chooseBuilding({point,lngLat:map.unproject(point),originalEvent});if(hit)lastTouchBuildingAt=performance.now();return hit};
  canvas.addEventListener('pointerdown',ev=>{if(ev.pointerType!=='touch'&&ev.pointerType!=='pen')return;activeTouchPointers.add(ev.pointerId);if(activeTouchPointers.size!==1){touchPointer=null;return}touchPointer={id:ev.pointerId,x:ev.clientX,y:ev.clientY,t:performance.now()}},{passive:true,capture:true});
