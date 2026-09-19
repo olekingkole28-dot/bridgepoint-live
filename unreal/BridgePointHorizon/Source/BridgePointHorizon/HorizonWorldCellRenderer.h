@@ -92,6 +92,9 @@ public:
     int32 GetRenderedProfiledRoofCount() const { return RenderedProfiledRoofCount; }
 
     UFUNCTION(BlueprintPure, Category="Horizon|World")
+    int32 GetTerrainReliefTintVertexCount() const { return TerrainReliefTintVertexCount; }
+
+    UFUNCTION(BlueprintPure, Category="Horizon|World")
     FVector ProjectCoordinate(double Longitude, double Latitude, double HeightMeters = 0.0) const;
 
     UFUNCTION(BlueprintPure, Category="Horizon|World")
@@ -106,6 +109,11 @@ public:
         const FString& RoofShape,
         double RequestedRoofHeightMeters,
         double TotalBuildingHeightMeters);
+    static FLinearColor ResolveTerrainReliefTint(
+        double HeightMeters,
+        double MinimumHeightMeters,
+        double MaximumHeightMeters,
+        double LocalReliefMeters);
 
 private:
     double CenterLatitude = 0.0;
@@ -125,6 +133,7 @@ private:
     int32 RenderedRoadSegmentCount = 0;
     int32 RenderedWaterFeatureCount = 0;
     int32 RenderedProfiledRoofCount = 0;
+    int32 TerrainReliefTintVertexCount = 0;
 
     bool ParseCellHeader(const TSharedPtr<class FJsonObject>& Root);
     bool BuildTerrain(const TSharedPtr<class FJsonObject>& Root);
