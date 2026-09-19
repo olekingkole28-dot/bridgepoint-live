@@ -10,8 +10,11 @@ void UHorizonAudioDirectorSubsystem::Initialize(FSubsystemCollectionBase& Collec
     AcousticSpace = EHorizonAcousticSpace::Outdoor;
     ThreatState = EHorizonThreatState::Calm;
     WeatherState = EHorizonWeatherAudioState::Clear;
+    RegionalAmbience = EHorizonRegionalAmbience::NortheastUrban;
     Occlusion01 = 0.0f;
     HordePressure01 = 0.0f;
+    DesiredWeatherIntensity01 = 0.0f;
+    SmoothedWeatherIntensity01 = 0.0f;
     DesiredCombatIntensity01 = 0.0f;
     SmoothedCombatIntensity01 = 0.0f;
     CombatReleaseHoldSeconds = 0.0f;
@@ -78,9 +81,39 @@ void UHorizonAudioDirectorSubsystem::SetThreatState(EHorizonThreatState NewThrea
 
 void UHorizonAudioDirectorSubsystem::SetWeatherState(EHorizonWeatherAudioState NewWeather)
 {
-    if (WeatherState != NewWeather)
+    if (WeatherState == NewWeather)
     {
-        WeatherState = NewWeather;
+        return;
+    }
+
+    WeatherState = NewWeather;
+    switch (WeatherState)
+    {
+        case EHorizonWeatherAudioState::Clear: DesiredWeatherIntensity01 = 0.0f; break;
+        case EHorizonWeatherAudioState::Rain: DesiredWeatherIntensity01 = 0.72f; break;
+        case EHorizonWeatherAudioState::Storm: DesiredWeatherIntensity01 = 1.0f; break;
+        case EHorizonWeatherAudioState::Snow: DesiredWeatherIntensity01 = 0.58f; break;
+        case EHorizonWeatherAudioState::Wind: DesiredWeatherIntensity01 = 0.66f; break;
+    }
+
+    OnAudioStateChanged.Broadcast();
+}
+
+void UHorizonAudioDirectorSubsystem::SetWeatherIntensity01(float NewIntensity)
+{
+    const float Clamped = FMath::Clamp(NewIntensity, 0.0f, 1.0f);
+    if (!FMath::IsNearlyEqual(DesiredWeatherIntensity01, Clamped, 0.01f))
+    {
+        DesiredWeatherIntensity01 = Clamped;
+        OnAudioStateChanged.Broadcast();
+    }
+}
+
+void UHorizonAudioDirectorSubsystem::SetRegionalAmbience(EHorizonRegionalAmbience NewRegion)
+{
+    if (RegionalAmbience != NewRegion)
+    {
+        RegionalAmbience = NewRegion;
         OnAudioStateChanged.Broadcast();
     }
 }
@@ -151,6 +184,15 @@ bool UHorizonAudioDirectorSubsystem::TickCombatMix(float DeltaSeconds)
     StingerCooldownSeconds = FMath::Max(0.0f, StingerCooldownSeconds - Step);
     TransientDuck01 = FMath::FInterpTo(TransientDuck01, 0.0f, Step, 3.8f);
 
+    const float PreviousWeather = SmoothedWeatherIntensity01;
+    const float WeatherInterpSpeed =
+        DesiredWeatherIntensity01 >= SmoothedWeatherIntensity01 ? 2.8f : 0.72f;
+    SmoothedWeatherIntensity01 = FMath::FInterpTo(
+        SmoothedWeatherIntensity01,
+        DesiredWeatherIntensity01,
+        Step,
+        WeatherInterpSpeed);
+
     float EffectiveTarget = DesiredCombatIntensity01;
     if (EffectiveTarget < SmoothedCombatIntensity01 && CombatReleaseHoldSeconds > 0.0f)
     {
@@ -166,7 +208,8 @@ bool UHorizonAudioDirectorSubsystem::TickCombatMix(float DeltaSeconds)
         Step,
         InterpSpeed);
 
-    if (!FMath::IsNearlyEqual(Previous, SmoothedCombatIntensity01, 0.005f))
+    if (!FMath::IsNearlyEqual(Previous, SmoothedCombatIntensity01, 0.005f) ||
+        !FMath::IsNearlyEqual(PreviousWeather, SmoothedWeatherIntensity01, 0.005f))
     {
         OnAudioStateChanged.Broadcast();
     }
@@ -326,6 +369,115 @@ FHorizonFootstepMix UHorizonAudioDirectorSubsystem::GetFootstepMix(
     return Mix;
 }
 
+FHorizonRegionalAmbienceMix UHorizonAudioDirectorSubsystem::GetRegionalAmbienceMix() const
+{
+    FHorizonRegionalAmbienceMix Mix;
+
+    switch (RegionalAmbience)
+    {
+        case EHorizonRegionalAmbience::NortheastUrban:
+            Mix.WindGain = 0.28f;
+            Mix.FaunaGain = 0.16f;
+            Mix.UrbanHumGain = 0.92f;
+            Mix.WaterGain = 0.18f;
+            Mix.VegetationGain = 0.22f;
+            break;
+        case EHorizonRegionalAmbience::SoutheastWetlands:
+            Mix.WindGain = 0.20f;
+            Mix.FaunaGain = 0.90f;
+            Mix.UrbanHumGain = 0.12f;
+            Mix.WaterGain = 0.78f;
+            Mix.VegetationGain = 0.84f;
+            break;
+        case EHorizonRegionalAmbience::DesertSouthwest:
+            Mix.WindGain = 0.72f;
+            Mix.FaunaGain = 0.18f;
+            Mix.UrbanHumGain = 0.10f;
+            Mix.WaterGain = 0.02f;
+            Mix.VegetationGain = 0.08f;
+            break;
+        case EHorizonRegionalAmbience::PacificForest:
+            Mix.WindGain = 0.44f;
+            Mix.FaunaGain = 0.70f;
+            Mix.UrbanHumGain = 0.08f;
+            Mix.WaterGain = 0.48f;
+            Mix.VegetationGain = 0.94f;
+            break;
+        case EHorizonRegionalAmbience::GreatPlains:
+            Mix.WindGain = 0.86f;
+            Mix.FaunaGain = 0.38f;
+            Mix.UrbanHumGain = 0.04f;
+            Mix.WaterGain = 0.10f;
+            Mix.VegetationGain = 0.46f;
+            break;
+        case EHorizonRegionalAmbience::Mountain:
+            Mix.WindGain = 0.76f;
+            Mix.FaunaGain = 0.34f;
+            Mix.UrbanHumGain = 0.02f;
+            Mix.WaterGain = 0.40f;
+            Mix.VegetationGain = 0.56f;
+            break;
+        case EHorizonRegionalAmbience::TropicalTerritory:
+            Mix.WindGain = 0.48f;
+            Mix.FaunaGain = 0.88f;
+            Mix.UrbanHumGain = 0.10f;
+            Mix.WaterGain = 0.92f;
+            Mix.VegetationGain = 0.90f;
+            break;
+        case EHorizonRegionalAmbience::Arctic:
+            Mix.WindGain = 0.92f;
+            Mix.FaunaGain = 0.08f;
+            Mix.UrbanHumGain = 0.02f;
+            Mix.WaterGain = 0.10f;
+            Mix.VegetationGain = 0.04f;
+            break;
+    }
+
+    const float Weather = FMath::Clamp(SmoothedWeatherIntensity01, 0.0f, 1.0f);
+    switch (WeatherState)
+    {
+        case EHorizonWeatherAudioState::Clear:
+            break;
+        case EHorizonWeatherAudioState::Rain:
+            Mix.RainGain = Weather;
+            Mix.WindGain = FMath::Max(Mix.WindGain, Weather * 0.38f);
+            break;
+        case EHorizonWeatherAudioState::Storm:
+            Mix.RainGain = Weather;
+            Mix.ThunderGain = FMath::Pow(Weather, 1.35f);
+            Mix.WindGain = FMath::Max(Mix.WindGain, Weather);
+            break;
+        case EHorizonWeatherAudioState::Snow:
+            Mix.SnowGain = Weather;
+            Mix.WindGain = FMath::Max(Mix.WindGain, Weather * 0.55f);
+            break;
+        case EHorizonWeatherAudioState::Wind:
+            Mix.WindGain = FMath::Max(Mix.WindGain, Weather);
+            break;
+    }
+
+    switch (AcousticSpace)
+    {
+        case EHorizonAcousticSpace::Outdoor: Mix.InteriorTransmission = 1.0f; break;
+        case EHorizonAcousticSpace::IndoorSmall: Mix.InteriorTransmission = 0.24f; break;
+        case EHorizonAcousticSpace::IndoorLarge: Mix.InteriorTransmission = 0.34f; break;
+        case EHorizonAcousticSpace::Tunnel: Mix.InteriorTransmission = 0.08f; break;
+        case EHorizonAcousticSpace::Rooftop: Mix.InteriorTransmission = 1.12f; break;
+    }
+
+    const float CombatDuck = FMath::Lerp(1.0f, 0.62f, SmoothedCombatIntensity01);
+    const float ExteriorGain = Mix.InteriorTransmission * CombatDuck;
+    Mix.WindGain *= ExteriorGain;
+    Mix.RainGain *= ExteriorGain;
+    Mix.SnowGain *= ExteriorGain;
+    Mix.ThunderGain *= Mix.InteriorTransmission;
+    Mix.FaunaGain *= ExteriorGain;
+    Mix.UrbanHumGain *= FMath::Lerp(0.46f, 1.0f, Mix.InteriorTransmission) * CombatDuck;
+    Mix.WaterGain *= ExteriorGain;
+    Mix.VegetationGain *= ExteriorGain;
+    return Mix;
+}
+
 FHorizonAudioMixState UHorizonAudioDirectorSubsystem::GetMixState(EHorizonGameMode Mode) const
 {
     FHorizonAudioMixState Mix;
@@ -391,11 +543,10 @@ FHorizonAudioMixState UHorizonAudioDirectorSubsystem::GetMixState(EHorizonGameMo
     Mix.LowPassCutoffHz = FMath::Lerp(20000.0f, 1850.0f, FMath::Pow(Occlusion01, 0.72f));
     Mix.HordeBedGain = FMath::Clamp(HordePressure01, 0.0f, 1.0f);
 
-    Mix.WeatherGain = WeatherState == EHorizonWeatherAudioState::Clear ? 0.0f : 1.0f;
-    if (WeatherState == EHorizonWeatherAudioState::Wind && AcousticSpace != EHorizonAcousticSpace::Outdoor)
-    {
-        Mix.WeatherGain = 0.28f;
-    }
+    const FHorizonRegionalAmbienceMix AmbienceMix = GetRegionalAmbienceMix();
+    Mix.WeatherGain = WeatherState == EHorizonWeatherAudioState::Clear
+        ? 0.0f
+        : SmoothedWeatherIntensity01 * AmbienceMix.InteriorTransmission;
 
     if (Mode == EHorizonGameMode::YearOneSurvival)
     {

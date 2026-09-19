@@ -145,7 +145,10 @@ for token in [
     "FHorizonSpatialCueMix", "FHorizonFootstepMix",
     "GetSpatialCueMix", "GetFootstepMix",
     "EHorizonSensoryStinger", "PushPlayerHitFeedback", "ConsumePendingStinger",
-    "CombatIntensity", "AmbienceGain", "TransientDuck"
+    "CombatIntensity", "AmbienceGain", "TransientDuck",
+    "EHorizonRegionalAmbience", "FHorizonRegionalAmbienceMix",
+    "SetRegionalAmbience", "SetWeatherIntensity01", "GetRegionalAmbienceMix",
+    "DesiredWeatherIntensity01", "SmoothedWeatherIntensity01"
 ]:
     require(token in audio_header, f"AAA audio runtime contract missing: {token}")
 for token in [
@@ -154,11 +157,26 @@ for token in [
     "Mix.Volume *= 0.42f", "AcousticSpace == EHorizonAcousticSpace::Tunnel",
     "FTSTicker::GetCoreTicker().AddTicker", "CombatReleaseHoldSeconds = 1.75f",
     "FMath::FInterpTo", "EHorizonSensoryStinger::HordeSurge",
-    "Mix.AmbienceGain = FMath::Lerp(1.0f, 0.58f", "Mix.EffectsGain *= FMath::Lerp"
+    "Mix.AmbienceGain = FMath::Lerp(1.0f, 0.58f", "Mix.EffectsGain *= FMath::Lerp",
+    "WeatherInterpSpeed", "EHorizonRegionalAmbience::SoutheastWetlands",
+    "EHorizonRegionalAmbience::TropicalTerritory", "Mix.InteriorTransmission = 0.24f",
+    "Mix.InteriorTransmission = 0.08f", "Mix.InteriorTransmission = 1.12f",
+    "SmoothedWeatherIntensity01 * AmbienceMix.InteriorTransmission"
 ]:
     require(token in audio, f"AAA audio behavior missing: {token}")
 require("Stripe" not in audio_header + audio and "Payment" not in audio_header + audio,
         "audio runtime must remain independent of payments")
+
+audio_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonAudioDirectorTests.cpp")
+for token in [
+    "WITH_DEV_AUTOMATION_TESTS", "RegionalAmbience.Identity",
+    "RegionalAmbience.AcousticTransmission", "Wetlands should emphasize fauna",
+    "Desert should emphasize wind over water", "Interior should attenuate exterior fauna",
+    "Rooftop wind should remain fully exposed"
+]:
+    require(token in audio_tests, f"native regional ambience QA missing: {token}")
+require("Stripe" not in audio_tests and "Payment" not in audio_tests,
+        "regional ambience QA must remain independent of payments")
 
 progression_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonProgressionSubsystem.h")
 progression = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonProgressionSubsystem.cpp")
