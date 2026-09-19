@@ -78,6 +78,7 @@ UStaticMeshComponent* AHorizonGeneratedInterior::AddBox(
 void AHorizonGeneratedInterior::ClearInterior()
 {
     Doors.Reset();
+    GeneratedDressingPieceCount = 0;
 
     for (UStaticMeshComponent* Mesh : GeneratedMeshes)
     {
@@ -107,6 +108,7 @@ void AHorizonGeneratedInterior::GenerateInterior(int32 Seed)
     RoomsPerSide = FMath::Clamp(RoomsPerSide, 2, 8);
     BuildingWidthCm = FMath::Max(BuildingWidthCm, 900.0f);
     BuildingDepthCm = FMath::Max(BuildingDepthCm, 800.0f);
+    MaxDressingPieces = FMath::Clamp(MaxDressingPieces, 0, 160);
 
     // Tiny deterministic variation prevents every generated building from feeling identical.
     const float WidthVariation = Random.FRandRange(-0.035f, 0.035f);
@@ -119,6 +121,13 @@ void AHorizonGeneratedInterior::GenerateInterior(int32 Seed)
         AddFloorPlate(Floor);
         AddOuterShell(Floor);
         AddRoomPartitions(Floor);
+
+        if (bGenerateFictionalDressing)
+        {
+            // Fictional dressing uses only the gameplay seed and generated room dimensions.
+            // It never consumes source-backed exterior records or real interior plans.
+            AddFictionalDressing(Floor, Random);
+        }
 
         if (Floor < FloorCount - 1)
         {
@@ -350,6 +359,93 @@ void AHorizonGeneratedInterior::AddRoomPartitions(int32 FloorIndex)
                 AddBox(FString::Printf(TEXT("RoomDivider_%d_%d_%d"), FloorIndex, Side, Room),
                     FVector(PartitionX, Y, FloorZ + FloorHeightCm * 0.5f),
                     FVector(PartitionThickness, RoomDepth, FloorHeightCm));
+            }
+        }
+    }
+}
+
+UStaticMeshComponent* AHorizonGeneratedInterior::AddFictionalDressingBox(
+    const FString& Label,
+    const FVector& RelativeCenter,
+    const FVector& SizeCm,
+    bool bBlocksMovement)
+{
+    if (GeneratedDressingPieceCount >= MaxDressingPieces)
+    {
+        return nullptr;
+    }
+
+    UStaticMeshComponent* Mesh = AddBox(Label, RelativeCenter, SizeCm);
+    if (!Mesh)
+    {
+        return nullptr;
+    }
+
+    Mesh->ComponentTags.AddUnique(FName(TEXT("HorizonFictionalDressing")));
+    if (!bBlocksMovement)
+    {
+        // Small debris remains visible and shadow-casting without creating traversal snags.
+        Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    }
+
+    ++GeneratedDressingPieceCount;
+    return Mesh;
+}
+
+void AHorizonGeneratedInterior::AddFictionalDressing(int32 FloorIndex, FRandomStream& Random)
+{
+    if (MaxDressingPieces <= 0 || GeneratedDressingPieceCount >= MaxDressingPieces)
+    {
+        return;
+    }
+
+    const float HalfW = BuildingWidthCm * 0.5f;
+    const float HalfD = BuildingDepthCm * 0.5f;
+    const float RoomBayWidth = BuildingWidthCm / RoomsPerSide;
+    const float FloorZ = FloorIndex * FloorHeightCm;
+    const int32 ClusterCount = FMath::Clamp(RoomsPerSide / 2, 1, 3);
+
+    for (int32 Cluster = 0;
+         Cluster < ClusterCount && GeneratedDressingPieceCount < MaxDressingPieces;
+         ++Cluster)
+    {
+        const int32 RoomIndex = (FloorIndex * 3 + Cluster * 2) % RoomsPerSide;
+        const float Side = ((FloorIndex + Cluster) % 2 == 0) ? 1.0f : -1.0f;
+        const float RoomCenterX = -HalfW + (RoomIndex + 0.5f) * RoomBayWidth;
+        const float WallSideY = Side * (HalfD - 115.0f);
+        const float JitterX = Random.FRandRange(-RoomBayWidth * 0.18f, RoomBayWidth * 0.18f);
+        const float JitterY = Random.FRandRange(-45.0f, 45.0f);
+        const float Yaw = Random.FRandRange(-32.0f, 32.0f);
+
+        // Collision-bearing supply crate sits against the exterior wall, outside the central
+        // corridor, door swing zones, stairwell, and roof-access path.
+        UStaticMeshComponent* Crate = AddFictionalDressingBox(
+            FString::Printf(TEXT("FictionalCrate_%d_%d"), FloorIndex, Cluster),
+            FVector(RoomCenterX + JitterX, WallSideY, FloorZ + 34.0f),
+            FVector(72.0f, 62.0f, 68.0f),
+            true);
+        if (Crate)
+        {
+            Crate->SetRelativeRotation(FRotator(0.0f, Yaw, 0.0f));
+        }
+
+        // Two lightweight debris planks build visual density but cannot snag player movement.
+        for (int32 PlankIndex = 0;
+             PlankIndex < 2 && GeneratedDressingPieceCount < MaxDressingPieces;
+             ++PlankIndex)
+        {
+            const float PlankYaw = Yaw + (PlankIndex == 0 ? -24.0f : 31.0f);
+            UStaticMeshComponent* Plank = AddFictionalDressingBox(
+                FString::Printf(TEXT("FictionalDebris_%d_%d_%d"), FloorIndex, Cluster, PlankIndex),
+                FVector(
+                    RoomCenterX + JitterX + (PlankIndex == 0 ? -58.0f : 52.0f),
+                    WallSideY - Side * (72.0f + JitterY),
+                    FloorZ + 5.0f + PlankIndex * 5.0f),
+                FVector(128.0f, 18.0f, 10.0f),
+                false);
+            if (Plank)
+            {
+                Plank->SetRelativeRotation(FRotator(0.0f, PlankYaw, 0.0f));
             }
         }
     }

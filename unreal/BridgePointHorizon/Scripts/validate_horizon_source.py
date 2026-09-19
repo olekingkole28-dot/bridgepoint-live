@@ -123,6 +123,20 @@ for token in [
 interior_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGeneratedInterior.h")
 require("bGenerateRoofAccess = true" in interior_header,
         "procedural interiors must default to physical roof access")
+for token in [
+    "bGenerateFictionalDressing = true", "MaxDressingPieces = 48",
+    "GetGeneratedDressingPieceCount", "fictional-procedural-gameplay"
+]:
+    require(token in interior_header, f"fictional interior provenance/budget contract missing: {token}")
+for token in [
+    "AddFictionalDressing(Floor, Random)", "HorizonFictionalDressing",
+    "GeneratedDressingPieceCount >= MaxDressingPieces",
+    "SetCollisionEnabled(ECollisionEnabled::NoCollision)",
+    "FictionalCrate_", "FictionalDebris_"
+]:
+    require(token in interior, f"fictional apocalypse dressing behavior missing: {token}")
+require("real interior plans" in interior and "source-backed exterior records" in interior,
+        "real exterior evidence must remain separated from invented interior dressing")
 
 audio_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonAudioDirectorSubsystem.h")
 audio = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonAudioDirectorSubsystem.cpp")
