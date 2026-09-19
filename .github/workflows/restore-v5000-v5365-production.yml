@@ -1,0 +1,113 @@
+name: Restore BridgePoint V5000 V5365 Production
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/restore-v5000-v5365-production.yml'
+
+permissions:
+  actions: read
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-v5000-production-authority
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      V5365_ARTIFACT_ID: '10580333055'
+      V5365_ZIP_SHA256: '24efafbbdb2c8cc5be6de95170ce0c25d7316fd87aa512fa6e1021bc5ec5af83'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download exact successful V5365 Pages artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 4 --retry-all-errors --retry-delay 2             -H "Authorization: Bearer ${GH_TOKEN}"             -H "Accept: application/vnd.github+json"             -H "X-GitHub-Api-Version: 2022-11-28"             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${V5365_ARTIFACT_ID}/zip"             -o /tmp/v5365.zip
+          echo "${V5365_ZIP_SHA256}  /tmp/v5365.zip" | sha256sum -c -
+          rm -rf /tmp/v5365 /tmp/site
+          mkdir -p /tmp/v5365 /tmp/site
+          unzip -q /tmp/v5365.zip -d /tmp/v5365
+          test -s /tmp/v5365/artifact.tar
+          tar -xf /tmp/v5365/artifact.tar -C /tmp/site
+
+      - name: Verify exact V5000 V5365 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s /tmp/site/index.html
+          test -s /tmp/site/app/index.html
+          test -s /tmp/site/app.js
+          test -s /tmp/site/world-v2300-map.js
+          grep -Fq 'BP_FRONTEND_V5000' /tmp/site/index.html
+          grep -Fq '__BP_APP_BUILD_VERSION__=5365' /tmp/site/app.js
+          grep -Fq '__BP_WORLD_RENDER_VERSION__=5365' /tmp/site/world-v2300-map.js
+          grep -Fq 'HORIZON_FREE_FLY_SINGLE_VIEW' /tmp/site/world-v2300-map.js
+          grep -Fq 'maplibre' /tmp/site/app/index.html
+          ! grep -Fqi 'cesium' /tmp/site/app/index.html
+          echo V5000_V5365_ARTIFACT_VERIFIED
+
+      - name: Make V5365 the durable live-artifact baseline
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/site
+          git init -q
+          git config user.name 'BridgePoint Production Authority'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout -b live-artifact
+          git add -A
+          git commit -m 'Restore authoritative BridgePoint V5000 V5365 production'
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin live-artifact
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-v5000-v5365-restore
+          path: /tmp/site
+
+      - name: Deploy exact V5000 V5365
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-v5000-v5365-restore
+
+      - name: Verify production is V5000 and not legacy Cesium
+        shell: bash
+        run: |
+          set -euo pipefail
+          O='https://bridgepointintelligence.online'
+          ok=0
+          for i in $(seq 1 40); do
+            salt="${GITHUB_SHA}-${i}-$(date +%s)"
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?restore=${salt}" -o /tmp/root.html || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?restore=${salt}" -o /tmp/app.html || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?restore=${salt}" -o /tmp/app.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?restore=${salt}" -o /tmp/world.js || true
+            if grep -Fq 'BP_FRONTEND_V5000' /tmp/root.html               && grep -Fq 'maplibre' /tmp/app.html               && grep -Fq '__BP_APP_BUILD_VERSION__=5365' /tmp/app.js               && grep -Fq '__BP_WORLD_RENDER_VERSION__=5365' /tmp/world.js               && ! grep -Fqi 'cesium' /tmp/app.html; then
+              ok=1
+              echo BRIDGEPOINT_V5000_V5365_RESTORED
+              break
+            fi
+            sleep 4
+          done
+          test "${ok}" = 1
