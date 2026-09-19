@@ -9,7 +9,7 @@ function installLandingNationalWeather(world){
  const install=()=>{
   try{if(!m.getSource('bpLandingWeatherPoints'))m.addSource('bpLandingWeatherPoints',{type:'geojson',data:empty})}catch(e){console.warn('Landing weather point source',e)}
   try{if(!m.getSource('bpLandingWeatherShapes'))m.addSource('bpLandingWeatherShapes',{type:'geojson',data:empty})}catch(e){console.warn('Landing weather shape source',e)}
-  const add=layer=>{try{if(!m.getLayer(layer.id))m.addLayer(layer);return !!m.getLayer(layer.id)}catch(e){console.warn('Landing weather layer '+layer.id,e);return false}};
+  const add=layer=>{try{if(!m.getLayer(layer.id))m.addLayer(layer);return !!m.getLayer(layer.id)}catch(e){window.__BP_LANDING_WEATHER_LAYER_ERRORS__=[...(window.__BP_LANDING_WEATHER_LAYER_ERRORS__||[]),{id:layer.id,message:String(e?.message||e),at:Date.now()}].slice(-12);console.warn('Landing weather layer '+layer.id,e);return false}};
   add({id:'bp-landing-weather-fill',type:'fill',source:'bpLandingWeatherShapes',minzoom:0,paint:{'fill-color':landingWeatherColorExpr(),'fill-opacity':['case',['==',['get','observed'],true],.20,.12]}});
   add({id:'bp-landing-weather-line',type:'line',source:'bpLandingWeatherShapes',minzoom:0,paint:{'line-color':landingWeatherColorExpr(),'line-width':['interpolate',['linear'],['zoom'],0,1.3,2.2,1.8,4,2.3,8,3.2,14,4.8],'line-opacity':['case',['==',['get','observed'],true],.98,.80]}});
   add({id:'bp-landing-weather-glow',type:'circle',source:'bpLandingWeatherPoints',minzoom:0,paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,3.5,2.2,5.5,4.5,7,9,10,14,14],'circle-color':landingWeatherColorExpr(),'circle-opacity':['case',['==',['get','observed'],true],.25,.15],'circle-blur':.78}});
@@ -20,7 +20,8 @@ function installLandingNationalWeather(world){
  };
  ensureLandingWeatherLegend();
  if(m.loaded()||m.isStyleLoaded?.())return install();
- m.once('load',install);return false
+ try{m.once('styledata',install);m.once('idle',install);m.once('load',install)}catch(_){}
+ setTimeout(install,180);setTimeout(install,700);return false
 }
 async function loadLandingNationalWeather(world,attempt=0){
  const m=world?.map;if(!m)return false;
@@ -50,7 +51,13 @@ async function loadLandingNationalWeather(world,attempt=0){
  }
 }
 async function startLandingNationalWeather(world){
- installLandingNationalWeather(world);
+ const m=world?.map;if(!m)return;
+ for(let i=0;i<24;i++){
+  installLandingNationalWeather(world);
+  if(m.getLayer('bp-landing-weather-line')&&m.getLayer('bp-landing-weather-points'))break;
+  await new Promise(r=>setTimeout(r,100))
+ }
+ window.__BP_LANDING_WEATHER_LAYER_STATE__={line:!!m.getLayer('bp-landing-weather-line'),points:!!m.getLayer('bp-landing-weather-points'),fill:!!m.getLayer('bp-landing-weather-fill'),glow:!!m.getLayer('bp-landing-weather-glow'),errors:window.__BP_LANDING_WEATHER_LAYER_ERRORS__||[],updatedAt:Date.now()};
  await loadLandingNationalWeather(world,0);
  clearInterval(landingWeatherTimer);
  landingWeatherTimer=setInterval(()=>loadLandingNationalWeather(world,0),60000)
