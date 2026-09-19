@@ -449,7 +449,17 @@ export function initWorld(options={}){
  try{map.touchZoomRotate?.enable();map.touchZoomRotate?.enableRotation?.();map.touchPitch?.enable?.();map.dragPan?.enable();map.dragRotate?.enable?.();map.scrollZoom?.enable();map.doubleClickZoom?.enable();map.keyboard?.enable();map.boxZoom?.enable()}catch(_){};
  map.addControl(new maplibregl.NavigationControl({visualizePitch:true,showCompass:true}),'top-right');
  const attributionControl=new maplibregl.AttributionControl({compact:true});map.addControl(attributionControl,'bottom-right');
- const collapseAttribution=()=>{try{container.querySelectorAll('.maplibregl-ctrl-attrib').forEach(el=>el.classList.remove('maplibregl-compact-show'))}catch(_){}};map.once('load',()=>setTimeout(collapseAttribution,0));
+ let attributionUserIntentUntil=0,attributionObserver=null;
+ const guardAttribution=()=>{
+  try{
+   const el=container.querySelector('.maplibregl-ctrl-attrib');if(!el)return;
+   const btn=el.querySelector('.maplibregl-ctrl-attrib-button');
+   if(btn&&!btn.__bpClickOnlyBound){btn.__bpClickOnlyBound=true;btn.addEventListener('pointerdown',()=>{attributionUserIntentUntil=performance.now()+1500},{capture:true,passive:true});btn.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){attributionUserIntentUntil=performance.now()+1500}},{capture:true})}
+   if(el.classList.contains('maplibregl-compact-show')&&performance.now()>attributionUserIntentUntil)el.classList.remove('maplibregl-compact-show');
+   if(!attributionObserver){attributionObserver=new MutationObserver(()=>{if(el.classList.contains('maplibregl-compact-show')&&performance.now()>attributionUserIntentUntil)el.classList.remove('maplibregl-compact-show')});attributionObserver.observe(el,{attributes:true,attributeFilter:['class']})}
+  }catch(_){}
+ };
+ map.once('load',()=>{guardAttribution();setTimeout(guardAttribution,120);setTimeout(guardAttribution,700)});map.once('idle',guardAttribution);
  let detailSeq=0,livingSeq=0,detailTimer=0,lightTimer=0,solarTimer=0,waterTimer=0,road3dTimer=0,autoCameraTimer=0,lodWatchTimer=0,lodWatchSig='',lodWatchStable=0,autoCameraApplying=false,streetFxRaf=0,streetFxLastConditionAt=0,streetFxCondition=null,parcelPulseTimer=0,parcelPulsePhase=0,hoverFrame=0,lastHoverAt=0,exactCount=0,livingCount=0,base='gta',moving=false,terrainOn=false,walkMode=false,workerReq=0,lastTouchBuildingAt=0,lastBuildingClickAt=0,touchPointer=null,touchNative=null,buildingSelectHandler=null,activeTouchPointers=new Set(),lastExactFetchAt=0,lastLivingFetchAt=0,buildingShellQuietUntil=0,streetPhotoState={sequenceId:null,frames:[],index:-1,loadedCenter:null,loading:false},layerState={parcels:true,buildings:true};const worker=new Worker('./world-v2300-worker.js?v=5312',{type:'module'}),workerWait=new Map();
  worker.onmessage=e=>{const m=e.data||{},r=workerWait.get(m.requestId);if(r){workerWait.delete(m.requestId);r(m)}};
  const prepare=(features,max)=>new Promise(resolve=>{const requestId=++workerReq;workerWait.set(requestId,resolve);worker.postMessage({type:'prepare',requestId,features,max});setTimeout(()=>{if(workerWait.has(requestId)){workerWait.delete(requestId);resolve({buildings:fc(features.slice(0,max)),roofs:EMPTY,count:Math.min(features.length,max)})}},2500)});
