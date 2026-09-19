@@ -352,7 +352,7 @@ function installBuildingMaterials(map){
  const add=id=>{try{if(map.hasImage(id))return;if(id.startsWith('bproof-'))map.addImage(id,roofPatternImage(id),{pixelRatio:2});else if(id.startsWith('bp-window-night-'))map.addImage(id,nightWindowPatternImage(id),{pixelRatio:2});else map.addImage(id,facadePatternImage(id),{pixelRatio:2})}catch(e){console.warn('BridgePoint building material',id,e)}};
  map.on('styleimagemissing',e=>{const id=String(e.id||'');if(id.startsWith('bpfacade-')||id.startsWith('bproof-')||id.startsWith('bp-window-night-'))add(id)});
  for(const id of [...facadeIds,...roofIds,...windowIds])add(id);
- window.__BP_BUILDING_MATERIALS__={version:'v5341',mode:'rendered-vector-3d',aerialBase:false,roofCaps:true,directionalLight:true,facadeTextures:true,facadeArchetypes:facadeKinds.length,facadeLayoutVariants:12,possibleFacadeLayouts:facadeKinds.length*12,officeLayoutVariants:9*12,barnArchetypes:3,roofArchetypes:roofKinds.length,deterministicPerBuilding:true,lazyVariantTextures:true,globalStyle:true,updatedAt:Date.now()}
+ window.__BP_BUILDING_MATERIALS__={version:'v5342',mode:'rendered-vector-3d',aerialBase:false,roofCaps:true,directionalLight:true,facadeTextures:true,facadeArchetypes:facadeKinds.length,facadeLayoutVariants:12,possibleFacadeLayouts:facadeKinds.length*12,officeLayoutVariants:9*12,barnArchetypes:3,roofArchetypes:roofKinds.length,deterministicPerBuilding:true,lazyVariantTextures:true,globalStyle:true,updatedAt:Date.now()}
 }
 
 function surfacePatternImage(id){
@@ -383,7 +383,7 @@ function installWorldMaterials(map){
  for(const k of terrain)addTerrain('bpterrain-'+k);
  for(const [id,kind] of [['bp-landmark-monument','monument'],['bp-landmark-statue','statue'],['bp-landmark-fountain','fountain'],['bp-transit-stop','transit']]){try{if(!map.hasImage(id))map.addImage(id,landmarkIconImage(kind),{pixelRatio:2})}catch(e){console.warn('BridgePoint landmark',id,e)}}
  map.on('styleimagemissing',e=>{const id=String(e.id||'');if(id.startsWith('bpterrain-'))addTerrain(id)});
- window.__BP_WORLD_MATERIALS__={version:'v5341',biomes:true,glacierRelief:true,physicalRoads:true,blackYellowWhiteRoads:true,bridgeDecks:true,shorelineMotion:true,landmarks:true,updatedAt:Date.now()}
+ window.__BP_WORLD_MATERIALS__={version:'v5342',biomes:true,glacierRelief:true,physicalRoads:true,blackYellowWhiteRoads:true,bridgeDecks:true,shorelineMotion:true,landmarks:true,updatedAt:Date.now()}
 }
 
 function roadLights(map){if(map.getZoom()<LIGHT_MIN)return EMPTY;let fs=[];try{fs=map.queryRenderedFeatures({layers:['gta-road-major','gta-road-local']})||[]}catch(_){return EMPTY}const pts=[],seen=new Set(),max=MOBILE?260:(TIER==='LOW'?320:TIER==='HIGH'?900:560);for(const f of fs){const g=f.geometry,lines=g?.type==='LineString'?[g.coordinates]:g?.type==='MultiLineString'?g.coordinates:[];for(const line of lines){const step=Math.max(4,Math.ceil(line.length/(MOBILE?6:10)));for(let i=0;i<line.length&&pts.length<max;i+=step){const c=line[i],k=`${c[0].toFixed(5)}|${c[1].toFixed(5)}`;if(seen.has(k))continue;seen.add(k);pts.push({type:'Feature',properties:{kind:'streetlight'},geometry:{type:'Point',coordinates:c}})}}}return fc(pts)}
@@ -512,14 +512,27 @@ export function initWorld(options={}){
   const p=map.getCenter(),x=p.lng,y=p.lat;
   return (x>=-125&&x<=-66&&y>=24&&y<=50)||(x>=-170&&x<=-129&&y>=51&&y<=72)||(x>=-161&&x<=-154&&y>=18&&y<=23)||(x>=-68.2&&x<=-64.3&&y>=17.5&&y<=19)||(x>=144&&x<=146&&y>=13&&y<=21)||(x>=-171&&x<=-168&&y>=-15&&y<=-10);
  }
+ function bridgePointBuildingCoverageReady(){
+  if(!bridgePointDomesticCenter()||map.getZoom()<11.35)return false;
+  try{
+   const src=map.getSource('bpBuildings');
+   if(!src||!map.isSourceLoaded?.('bpBuildings'))return false;
+   const fs=map.querySourceFeatures?.('bpBuildings',{sourceLayer:'buildings'})||[];
+   return fs.length>0
+  }catch(_){return false}
+ }
  function syncBuildingShells(){
   if(!layerState.buildings)return;
-  const useBp=bridgePointDomesticCenter()&&map.getZoom()>=11.35;
+  const wantsBp=bridgePointDomesticCenter()&&map.getZoom()>=11.35;
+  const useBp=wantsBp&&bridgePointBuildingCoverageReady();
+  // Never allow a blank-building viewport: the global OpenStreetMap/OpenFreeMap shell
+  // remains the fallback until BridgePoint's authoritative building tiles are loaded
+  // and have actual features for the current viewport.
   for(const id of ['gta-context-building-shadow','gta-context-buildings','gta-context-roofs','gta-context-night-windows'])vis(map,id,!useBp);
   for(const id of ['gta-bp-building-shadow','gta-bp-buildings','gta-bp-roofs','gta-bp-building-edge','gta-bp-night-windows'])vis(map,id,useBp);
   for(const id of ['gta-exact-building-shadow','gta-exact-building','gta-exact-roof','gta-exact-night-windows'])vis(map,id,false);
   vis(map,'gta-building-outline',useBp&&map.getZoom()>=DETAIL_MIN);
-  window.__BP_BUILDING_SHELL_MODE__={authoritative:useBp?'BRIDGEPOINT':'GLOBAL_CONTEXT',duplicateExactShell:false,updatedAt:Date.now()}
+  window.__BP_BUILDING_SHELL_MODE__={authoritative:useBp?'BRIDGEPOINT':'GLOBAL_CONTEXT',requestedBridgePoint:wantsBp,bridgePointCoverageReady:useBp,fallbackActive:wantsBp&&!useBp,duplicateExactShell:false,updatedAt:Date.now()}
  }
  function startWaterMotion(){
   clearInterval(waterTimer);let phase=0;waterTimer=setInterval(()=>{if(moving)return;phase=(phase+1)%12;const s=(Math.sin(phase/12*Math.PI*2)+1)/2;paint(map,'gta-coast-foam','line-opacity',.12+.18*s);paint(map,'gta-coast-foam','line-width',['interpolate',['linear'],['zoom'],13,.22+.06*s,18,.72+.3*s,20,1.15+.35*s]);paint(map,'gta-waterway-flow','line-opacity',.24+.22*s)},650)
@@ -644,8 +657,8 @@ export function initWorld(options={}){
   document.getElementById('locateMe')?.addEventListener('click',()=>{if(!navigator.geolocation){setStatus('Location is unavailable on this device');return}setStatus('Getting your location…');navigator.geolocation.getCurrentPosition(p=>map.easeTo({center:[p.coords.longitude,p.coords.latitude],zoom:16.8,pitch:60,bearing:-18,duration:LOW?350:700}),()=>setStatus('Location permission was not available'),{enableHighAccuracy:false,timeout:7000,maximumAge:120000})});
  }
  function chooseBuilding(e){if(window.__BP_MEASURE_ACTIVE__)return false;const layers=['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings'].filter(id=>map.getLayer(id));let f=Array.isArray(e?.features)?e.features.find(x=>layers.includes(x?.layer?.id))||null:null;try{if(!f)f=map.queryRenderedFeatures(e.point,{layers})[0]||null}catch(_){}if(!f)return false;lastBuildingClickAt=performance.now();const p={...(f.properties||{})};if(!p.render_height_m)p.render_height_m=Number(p.height||p.render_height||8.5);const ll=e.lngLat||map.unproject(e.point),feature={type:'Feature',geometry:f.geometry,properties:p,id:f.id,layer:{id:f.layer?.id||''}},z=Math.max(map.getZoom(),16.6);map.easeTo({center:ll,zoom:clamp(z,15,19),pitch:64,bearing:map.getBearing(),duration:LOW?260:520});const detail={lngLat:ll,feature};if(typeof window.__BP_V5000_SELECT_BUILDING__==='function'){try{window.__BP_V5000_SELECT_BUILDING__(detail)}catch(err){console.warn('v5000 building selector',err)}}else if(typeof buildingSelectHandler==='function'){try{buildingSelectHandler(detail)}catch(err){console.warn('building selection handler',err)}}window.dispatchEvent(new CustomEvent('bp2300:building-click',{detail}));return true}
- function bindBuildingHitLayers(){for(const id of ['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings']){if(!map.getLayer(id))continue;map.on('click',id,e=>chooseBuilding(e));map.on('mouseenter',id,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',id,()=>{map.getCanvas().style.cursor=''})}} map.on('load',()=>{installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();installWalkUI();bindBuildingHitLayers();setBase('gta');startParcelFlow();startWaterMotion();syncBuildingShells();setTimeout(()=>rebuildRoad3D(MOBILE?1800:750),MOBILE?900:420);setTimeout(scheduleExact,MOBILE?900:420);setTimeout(scheduleLivingWorld,MOBILE?1050:520);setTimeout(lights,MOBILE?1100:600);setStatus('BridgePoint World v5341 · single-shell 3D · retained physical streetscape · live fine detail')});
- map.on('movestart',()=>movement(true));map.on('moveend',()=>movement(false));map.on('zoomend',()=>{terrain();syncBuildingShells();if(!MOBILE){rebuildRoad3D(560);if(!moving)updateWorldLight()}});
+ function bindBuildingHitLayers(){for(const id of ['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings']){if(!map.getLayer(id))continue;map.on('click',id,e=>chooseBuilding(e));map.on('mouseenter',id,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',id,()=>{map.getCanvas().style.cursor=''})}} map.on('load',()=>{installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();installWalkUI();bindBuildingHitLayers();setBase('gta');startParcelFlow();startWaterMotion();syncBuildingShells();setTimeout(()=>rebuildRoad3D(MOBILE?1800:750),MOBILE?900:420);setTimeout(scheduleExact,MOBILE?900:420);setTimeout(scheduleLivingWorld,MOBILE?1050:520);setTimeout(lights,MOBILE?1100:600);setStatus('BridgePoint World v5342 · single-shell 3D · retained physical streetscape · live fine detail')});
+ map.on('movestart',()=>movement(true));map.on('moveend',()=>movement(false));map.on('zoomend',()=>{terrain();syncBuildingShells();if(!MOBILE){rebuildRoad3D(560);if(!moving)updateWorldLight()}});let bpBuildingSourceSyncTimer=0;map.on('sourcedata',e=>{if(e?.sourceId!=='bpBuildings'||moving)return;clearTimeout(bpBuildingSourceSyncTimer);bpBuildingSourceSyncTimer=setTimeout(syncBuildingShells,MOBILE?120:60)});
  const canvas=map.getCanvas();
  const nativeBuildingTap=(clientX,clientY,originalEvent)=>{const r=canvas.getBoundingClientRect(),point={x:clientX-r.left,y:clientY-r.top};if(point.x<0||point.y<0||point.x>r.width||point.y>r.height)return false;const hit=chooseBuilding({point,lngLat:map.unproject(point),originalEvent});if(hit)lastTouchBuildingAt=performance.now();return hit};
  canvas.addEventListener('pointerdown',ev=>{if(ev.pointerType!=='touch'&&ev.pointerType!=='pen')return;activeTouchPointers.add(ev.pointerId);if(activeTouchPointers.size!==1){touchPointer=null;return}touchPointer={id:ev.pointerId,x:ev.clientX,y:ev.clientY,t:performance.now()}},{passive:true,capture:true});
