@@ -196,7 +196,9 @@ for token in [
     "SetRegionalAmbience", "SetWeatherIntensity01", "GetRegionalAmbienceMix",
     "DesiredWeatherIntensity01", "SmoothedWeatherIntensity01",
     "EHorizonCreatureVocalArchetype", "EHorizonCreatureVocalIntent",
-    "FHorizonCreatureVocalMix", "GetCreatureVocalMix"
+    "FHorizonCreatureVocalMix", "GetCreatureVocalMix",
+    "EHorizonWeaponReportClass", "FHorizonWeaponReportMix", "GetWeaponReportMix",
+    "PropagationDelaySeconds", "EarlyReflectionGain", "TailGain"
 ]:
     require(token in audio_header, f"AAA audio runtime contract missing: {token}")
 for token in [
@@ -209,7 +211,10 @@ for token in [
     "WeatherInterpSpeed", "EHorizonRegionalAmbience::SoutheastWetlands",
     "EHorizonRegionalAmbience::TropicalTerritory", "Mix.InteriorTransmission = 0.24f",
     "Mix.InteriorTransmission = 0.08f", "Mix.InteriorTransmission = 1.12f",
-    "SmoothedWeatherIntensity01 * AmbienceMix.InteriorTransmission"
+    "SmoothedWeatherIntensity01 * AmbienceMix.InteriorTransmission",
+    "EHorizonWeaponReportClass::Suppressed", "SafeDistance / 34300.0f",
+    "Mix.TailDelaySeconds = 0.12f", "RegionalTailScale = 1.20f",
+    "Mix.MechanicalGain *= FMath::Pow", "SmoothedCombatIntensity01"
 ]:
     require(token in audio, f"AAA audio behavior missing: {token}")
 for token in [
@@ -236,6 +241,14 @@ for token in [
     "Seeded creature vocal pitch is deterministic"
 ]:
     require(token in audio_tests, f"native creature vocal QA missing: {token}")
+for token in [
+    "Audio.Weapons.ReportAcoustics", "Distant reports arrive later",
+    "Distant reports attenuate", "Small rooms emphasize early reflections",
+    "Tunnels produce a stronger tail than small rooms",
+    "Occlusion reduces weapon report gain", "Suppressed reports favor mechanism over muzzle",
+    "Seeded weapon report pitch is deterministic"
+]:
+    require(token in audio_tests, f"native spatial weapon audio QA missing: {token}")
 require("Stripe" not in audio_tests and "Payment" not in audio_tests,
         "regional ambience QA must remain independent of payments")
 
@@ -521,7 +534,8 @@ for token in [
     "RoundsInMagazine", "ReserveRounds", "RoundsPerMinute", "ReloadSeconds",
     "StartFire", "StopFire", "TryFireOnce", "BeginReload", "CancelReload",
     "CanFireRound", "ComputeReloadTransfer", "AdvanceCountdown", "ComputeRecoilImpulse",
-    "AdvanceAutomaticCadence",
+    "AdvanceAutomaticCadence", "EHorizonWeaponReportClass",
+    "FHorizonWeaponReportMix", "LocalAudioMix",
 ]:
     require(token in weapon_contract, f"native weapon runtime contract missing: {token}")
 for token in [
@@ -534,6 +548,8 @@ for token in [
     "FireCooldownSeconds = AdvanceCountdown", "ReloadRemainingSeconds = AdvanceCountdown",
     "const int32 ShotsDue = AdvanceAutomaticCadence", "ShotIndex < ShotsDue",
     "MaxCatchUpShots", "TimeBudget = FMath::Min(DeltaSeconds, 0.50f)",
+    "GetSubsystem<UHorizonAudioDirectorSubsystem>", "GetWeaponReportMix(",
+    "WeaponSpec.ReportClass", "ShotSequence",
 ]:
     require(token in weapon, f"native weapon behavior missing: {token}")
 require("Stripe" not in weapon_contract and "Payment" not in weapon_contract,

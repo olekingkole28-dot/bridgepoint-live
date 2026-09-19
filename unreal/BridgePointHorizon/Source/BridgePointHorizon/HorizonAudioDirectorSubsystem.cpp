@@ -299,6 +299,124 @@ FHorizonSpatialCueMix UHorizonAudioDirectorSubsystem::GetSpatialCueMix(
     return Mix;
 }
 
+FHorizonWeaponReportMix UHorizonAudioDirectorSubsystem::GetWeaponReportMix(
+    EHorizonWeaponReportClass ReportClass,
+    float DistanceCm,
+    bool bOccluded,
+    int32 VariationSeed) const
+{
+    FHorizonWeaponReportMix Mix;
+
+    switch (ReportClass)
+    {
+        case EHorizonWeaponReportClass::Sidearm:
+            Mix.ReportGain = 0.86f;
+            Mix.MechanicalGain = 0.56f;
+            Mix.LowFrequencyGain = 0.42f;
+            Mix.MaxDistanceCm = 35000.0f;
+            break;
+        case EHorizonWeaponReportClass::Rifle:
+            Mix.ReportGain = 1.0f;
+            Mix.MechanicalGain = 0.46f;
+            Mix.LowFrequencyGain = 0.78f;
+            Mix.MaxDistanceCm = 52000.0f;
+            break;
+        case EHorizonWeaponReportClass::Shotgun:
+            Mix.ReportGain = 1.12f;
+            Mix.MechanicalGain = 0.40f;
+            Mix.LowFrequencyGain = 1.0f;
+            Mix.MaxDistanceCm = 44000.0f;
+            break;
+        case EHorizonWeaponReportClass::Precision:
+            Mix.ReportGain = 1.16f;
+            Mix.MechanicalGain = 0.34f;
+            Mix.LowFrequencyGain = 0.94f;
+            Mix.MaxDistanceCm = 75000.0f;
+            break;
+        case EHorizonWeaponReportClass::Suppressed:
+            Mix.ReportGain = 0.42f;
+            Mix.MechanicalGain = 0.76f;
+            Mix.LowFrequencyGain = 0.24f;
+            Mix.MaxDistanceCm = 18000.0f;
+            break;
+    }
+
+    const float SafeDistance = FMath::Max(0.0f, DistanceCm);
+    const float Distance01 = FMath::Clamp(SafeDistance / Mix.MaxDistanceCm, 0.0f, 1.0f);
+    const float DistanceGain = FMath::Pow(1.0f - Distance01, 0.65f);
+    Mix.PropagationDelaySeconds = FMath::Min(2.5f, SafeDistance / 34300.0f);
+
+    switch (AcousticSpace)
+    {
+        case EHorizonAcousticSpace::Outdoor:
+            Mix.EarlyReflectionGain = 0.18f;
+            Mix.TailGain = 0.72f;
+            Mix.TailDelaySeconds = 0.08f;
+            break;
+        case EHorizonAcousticSpace::IndoorSmall:
+            Mix.EarlyReflectionGain = 1.0f;
+            Mix.TailGain = 0.34f;
+            Mix.TailDelaySeconds = 0.025f;
+            break;
+        case EHorizonAcousticSpace::IndoorLarge:
+            Mix.EarlyReflectionGain = 0.82f;
+            Mix.TailGain = 0.68f;
+            Mix.TailDelaySeconds = 0.055f;
+            break;
+        case EHorizonAcousticSpace::Tunnel:
+            Mix.EarlyReflectionGain = 1.10f;
+            Mix.TailGain = 0.94f;
+            Mix.TailDelaySeconds = 0.12f;
+            break;
+        case EHorizonAcousticSpace::Rooftop:
+            Mix.EarlyReflectionGain = 0.16f;
+            Mix.TailGain = 0.88f;
+            Mix.TailDelaySeconds = 0.095f;
+            break;
+    }
+
+    float RegionalTailScale = 1.0f;
+    switch (RegionalAmbience)
+    {
+        case EHorizonRegionalAmbience::NortheastUrban: RegionalTailScale = 1.08f; break;
+        case EHorizonRegionalAmbience::SoutheastWetlands: RegionalTailScale = 0.82f; break;
+        case EHorizonRegionalAmbience::DesertSouthwest: RegionalTailScale = 1.12f; break;
+        case EHorizonRegionalAmbience::PacificForest: RegionalTailScale = 0.78f; break;
+        case EHorizonRegionalAmbience::GreatPlains: RegionalTailScale = 1.06f; break;
+        case EHorizonRegionalAmbience::Mountain: RegionalTailScale = 1.20f; break;
+        case EHorizonRegionalAmbience::TropicalTerritory: RegionalTailScale = 0.84f; break;
+        case EHorizonRegionalAmbience::Arctic: RegionalTailScale = 1.02f; break;
+    }
+
+    if (ReportClass == EHorizonWeaponReportClass::Suppressed)
+    {
+        Mix.TailGain *= 0.32f;
+        Mix.EarlyReflectionGain *= 0.58f;
+    }
+
+    const float RuntimeOcclusion = FMath::Max(Occlusion01, bOccluded ? 0.82f : 0.0f);
+    const float AppliedOcclusion = FMath::Clamp(RuntimeOcclusion * 0.62f, 0.0f, 1.0f);
+    const float OccludedGain = FMath::Lerp(1.0f, 0.18f, AppliedOcclusion);
+    Mix.ReportGain *= DistanceGain * OccludedGain;
+    Mix.MechanicalGain *= FMath::Pow(DistanceGain, 1.35f) * OccludedGain;
+    Mix.LowFrequencyGain *= DistanceGain * FMath::Lerp(1.0f, 0.62f, AppliedOcclusion);
+    Mix.EarlyReflectionGain *= DistanceGain * OccludedGain;
+    Mix.TailGain *= DistanceGain * RegionalTailScale * FMath::Lerp(1.0f, 0.44f, AppliedOcclusion);
+    Mix.LowPassCutoffHz = FMath::Lerp(
+        20000.0f,
+        1450.0f,
+        FMath::Pow(AppliedOcclusion, 0.70f));
+
+    const uint32 SeedHash = GetTypeHash(VariationSeed);
+    const float Variation01 = static_cast<float>(SeedHash % 1001u) / 1000.0f;
+    Mix.Pitch = FMath::Lerp(0.975f, 1.025f, Variation01);
+
+    // Weapon transients retain clarity as combat rises while ambience/music
+    // remain ducked by the director's shared combat mix.
+    Mix.ReportGain *= FMath::Lerp(1.0f, 1.08f, SmoothedCombatIntensity01);
+    return Mix;
+}
+
 FHorizonFootstepMix UHorizonAudioDirectorSubsystem::GetFootstepMix(
     EHorizonFootstepSurface Surface,
     float MovementSpeed01,

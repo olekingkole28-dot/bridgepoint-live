@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "HorizonAudioDirectorSubsystem.h"
 #include "HorizonWeaponRuntimeComponent.generated.h"
 
 USTRUCT(BlueprintType)
@@ -35,6 +36,9 @@ struct FHorizonWeaponSpec
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bAutomatic = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    EHorizonWeaponReportClass ReportClass = EHorizonWeaponReportClass::Rifle;
 };
 
 USTRUCT(BlueprintType)
@@ -74,6 +78,9 @@ struct FHorizonWeaponShotResult
 
     UPROPERTY(BlueprintReadOnly)
     FVector2D RecoilImpulse = FVector2D::ZeroVector;
+
+    UPROPERTY(BlueprintReadOnly)
+    FHorizonWeaponReportMix LocalAudioMix;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
