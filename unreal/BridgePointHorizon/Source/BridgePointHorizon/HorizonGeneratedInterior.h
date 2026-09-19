@@ -39,6 +39,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Interior")
     bool bGenerateRoofAccess = true;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Interior|Fictional Dressing")
+    bool bGenerateFictionalDressing = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Interior|Fictional Dressing", meta=(ClampMin="0", ClampMax="160"))
+    int32 MaxDressingPieces = 48;
+
     UFUNCTION(BlueprintCallable, Category="Horizon|Interior")
     void GenerateInterior(int32 Seed = 1337);
 
@@ -53,6 +59,13 @@ public:
 
     UFUNCTION(BlueprintPure, Category="Horizon|Interior")
     int32 GetGeneratedPieceCount() const { return GeneratedMeshes.Num(); }
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Interior|Fictional Dressing")
+    int32 GetGeneratedDressingPieceCount() const { return GeneratedDressingPieceCount; }
+
+    // Explicit provenance boundary: layouts and dressing are invented gameplay geometry.
+    UFUNCTION(BlueprintPure, Category="Horizon|Interior")
+    FString GetInteriorLayoutProvenance() const { return TEXT("fictional-procedural-gameplay"); }
 
 protected:
     virtual void BeginPlay() override;
@@ -80,6 +93,7 @@ private:
     TArray<TObjectPtr<USceneComponent>> GeneratedSceneComponents;
 
     TArray<FDoorRuntime> Doors;
+    int32 GeneratedDressingPieceCount = 0;
 
     UStaticMeshComponent* AddBox(
         const FString& Label,
@@ -95,4 +109,10 @@ private:
     void AddStairRun(int32 FromFloorIndex);
     void AddRoofAccess();
     void AddWindowBayX(float XMin, float XMax, float Y, float FloorZ, const FString& Prefix);
+    UStaticMeshComponent* AddFictionalDressingBox(
+        const FString& Label,
+        const FVector& RelativeCenter,
+        const FVector& SizeCm,
+        bool bBlocksMovement);
+    void AddFictionalDressing(int32 FloorIndex, FRandomStream& Random);
 };
