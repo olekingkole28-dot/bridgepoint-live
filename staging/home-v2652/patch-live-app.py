@@ -21,9 +21,9 @@ map_only = '''<!doctype html>
   <small>Opening BridgePoint World…</small>
   <script>
     if('serviceWorker' in navigator){navigator.serviceWorker.register('./flutter_service_worker.js').catch(()=>{});}
-    location.replace('bridgepoint-world-v2652/?release=instant-map-world-2663');
+    location.replace('bridgepoint-3d-world/?release=instant-map-world-2663-v2502');
   </script>
-  <noscript><a href="bridgepoint-world-v2652/?release=instant-map-world-2663">Open BridgePoint World</a></noscript>
+  <noscript><a href="bridgepoint-3d-world/?release=instant-map-world-2663-v2502">Open BridgePoint World</a></noscript>
 </body>
 </html>
 '''
@@ -32,16 +32,17 @@ index.write_text(map_only)
 service_worker.write_text('''const VERSION = "bridgepoint-direct-world-v2663";
 const CACHE = VERSION;
 const CORE = [
-  "./bridgepoint-world-v2652/",
-  "./bridgepoint-world-v2652/index.html",
-  "./bridgepoint-world-v2652/us-states.geojson",
-  "./bridgepoint-world-v2652/countries-110m.geojson",
-  "./bridgepoint-world-v2652/world-v2500.js",
-  "./bridgepoint-world-v2652/world-v2663-first-map.js",
-  "./bridgepoint-world-v2652/world-v2661-first-frame.js",
-  "./bridgepoint-world-v2652/world-v2662-weather-bootstrap.js",
-  "./bridgepoint-world-v2652/world-v2652.css",
-  "./bridgepoint-world-v2652/world-v2500.css"
+  "./bridgepoint-3d-world/",
+  "./bridgepoint-3d-world/index.html",
+  "./bridgepoint-3d-world/us-states.geojson",
+  "./bridgepoint-3d-world/countries-110m.geojson",
+  "./bridgepoint-3d-world/world-v2500.js",
+  "./bridgepoint-3d-world/world-v2502-visual-fidelity.js",
+  "./bridgepoint-3d-world/world-v2663-first-map.js",
+  "./bridgepoint-3d-world/world-v2661-first-frame.js",
+  "./bridgepoint-3d-world/world-v2662-weather-bootstrap.js",
+  "./bridgepoint-3d-world/world-v2652.css",
+  "./bridgepoint-3d-world/world-v2500.css"
 ];
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE).catch(() => {})).then(() => self.skipWaiting()));
@@ -53,10 +54,10 @@ self.addEventListener("fetch", event => {
   const url = new URL(req.url);
   if(url.origin !== self.location.origin) return;
   if(req.mode === "navigate") {
-    event.respondWith(fetch(req).catch(() => caches.match(req).then(r => r || caches.match("./bridgepoint-world-v2652/"))));
+    event.respondWith(fetch(req).catch(() => caches.match(req).then(r => r || caches.match("./bridgepoint-3d-world/"))));
     return;
   }
-  if(url.pathname.includes("/app/bridgepoint-world-v2652/")) {
+  if(url.pathname.includes("/app/bridgepoint-3d-world/")) {
     event.respondWith(caches.match(req).then(hit => hit || fetch(req).then(res => { const copy=res.clone(); caches.open(CACHE).then(c=>c.put(req,copy)); return res; })));
   }
 });
