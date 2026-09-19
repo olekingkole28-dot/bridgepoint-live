@@ -53,29 +53,49 @@ float UHorizonSurvivalSubsystem::ComputeInventoryWeightKg(
     return FMath::Max(0.0f, Total);
 }
 
-bool UHorizonSurvivalSubsystem::CanAffordRecipe(
+bool UHorizonSurvivalSubsystem::CanAffordIngredients(
     const TMap<FName, int32>& Inventory,
-    const FHorizonCraftingRecipe& Recipe)
+    const TArray<FHorizonCraftingIngredient>& Items)
 {
-    if (Recipe.OutputItemKey.IsNone() || Recipe.OutputQuantity <= 0 || Recipe.Ingredients.IsEmpty())
+    if (Items.IsEmpty())
     {
         return false;
     }
 
-    for (const FHorizonCraftingIngredient& Ingredient : Recipe.Ingredients)
+    TMap<FName, int32> Required;
+    for (const FHorizonCraftingIngredient& Ingredient : Items)
     {
         if (Ingredient.ItemKey.IsNone() || Ingredient.Quantity <= 0)
         {
             return false;
         }
 
-        const int32* Available = Inventory.Find(Ingredient.ItemKey);
-        if (!Available || *Available < Ingredient.Quantity)
+        int32& TotalRequired = Required.FindOrAdd(Ingredient.ItemKey);
+        if (TotalRequired > MAX_int32 - Ingredient.Quantity)
+        {
+            return false;
+        }
+        TotalRequired += Ingredient.Quantity;
+    }
+
+    for (const TPair<FName, int32>& Requirement : Required)
+    {
+        const int32* Available = Inventory.Find(Requirement.Key);
+        if (!Available || *Available < Requirement.Value)
         {
             return false;
         }
     }
     return true;
+}
+
+bool UHorizonSurvivalSubsystem::CanAffordRecipe(
+    const TMap<FName, int32>& Inventory,
+    const FHorizonCraftingRecipe& Recipe)
+{
+    return !Recipe.OutputItemKey.IsNone() &&
+        Recipe.OutputQuantity > 0 &&
+        CanAffordIngredients(Inventory, Recipe.Ingredients);
 }
 
 FHorizonSurvivalState UHorizonSurvivalSubsystem::SimulateNeeds(
@@ -194,6 +214,37 @@ bool UHorizonSurvivalSubsystem::TryRemoveItem(FName ItemKey, int32 Quantity)
     {
         State->Inventory.Remove(ItemKey);
     }
+    SaveState();
+    BroadcastChanged();
+    return true;
+}
+
+bool UHorizonSurvivalSubsystem::TryConsumeItemsAtomically(
+    const TArray<FHorizonCraftingIngredient>& Items)
+{
+    if (!State || !CanAffordIngredients(State->Inventory, Items))
+    {
+        return false;
+    }
+
+    TMap<FName, int32> ResultInventory = State->Inventory;
+    TMap<FName, int32> Required;
+    for (const FHorizonCraftingIngredient& Item : Items)
+    {
+        Required.FindOrAdd(Item.ItemKey) += Item.Quantity;
+    }
+
+    for (const TPair<FName, int32>& Requirement : Required)
+    {
+        int32& Quantity = ResultInventory.FindChecked(Requirement.Key);
+        Quantity -= Requirement.Value;
+        if (Quantity <= 0)
+        {
+            ResultInventory.Remove(Requirement.Key);
+        }
+    }
+
+    State->Inventory = MoveTemp(ResultInventory);
     SaveState();
     BroadcastChanged();
     return true;

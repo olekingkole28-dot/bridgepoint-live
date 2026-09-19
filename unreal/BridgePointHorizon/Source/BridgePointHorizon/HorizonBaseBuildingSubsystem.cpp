@@ -154,27 +154,19 @@ bool UHorizonBaseBuildingSubsystem::TryBuildPiece(
         return false;
     }
 
+    TArray<FHorizonCraftingIngredient> MaterialDebit;
+    MaterialDebit.Reserve(Cost.Num());
     for (const FHorizonBaseMaterialCost& Entry : Cost)
     {
-        if (Entry.ItemKey.IsNone() || Entry.Quantity <= 0 ||
-            Survival->GetItemQuantity(Entry.ItemKey) < Entry.Quantity)
-        {
-            return false;
-        }
+        FHorizonCraftingIngredient Ingredient;
+        Ingredient.ItemKey = Entry.ItemKey;
+        Ingredient.Quantity = Entry.Quantity;
+        MaterialDebit.Add(Ingredient);
     }
 
-    TArray<FHorizonBaseMaterialCost> RemovedCost;
-    for (const FHorizonBaseMaterialCost& Entry : Cost)
+    if (!Survival->TryConsumeItemsAtomically(MaterialDebit))
     {
-        if (!Survival->TryRemoveItem(Entry.ItemKey, Entry.Quantity))
-        {
-            for (const FHorizonBaseMaterialCost& Removed : RemovedCost)
-            {
-                Survival->TryAddItem(Removed.ItemKey, Removed.Quantity);
-            }
-            return false;
-        }
-        RemovedCost.Add(Entry);
+        return false;
     }
 
     OutPiece.PieceId = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower);

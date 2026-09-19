@@ -36,6 +36,31 @@ bool FHorizonCraftingAtomicityTest::RunTest(const FString& Parameters)
     TestFalse(
         TEXT("Invalid output quantity fails closed"),
         UHorizonSurvivalSubsystem::CanAffordRecipe(Inventory, Recipe));
+
+    Inventory[TEXT("cloth")] = 3;
+    TArray<FHorizonCraftingIngredient> DuplicateDebit;
+    FHorizonCraftingIngredient FirstDebit;
+    FirstDebit.ItemKey = TEXT("cloth");
+    FirstDebit.Quantity = 2;
+    DuplicateDebit.Add(FirstDebit);
+    FHorizonCraftingIngredient SecondDebit;
+    SecondDebit.ItemKey = TEXT("cloth");
+    SecondDebit.Quantity = 2;
+    DuplicateDebit.Add(SecondDebit);
+    TestFalse(
+        TEXT("Duplicate material entries aggregate before debit"),
+        UHorizonSurvivalSubsystem::CanAffordIngredients(Inventory, DuplicateDebit));
+
+    Inventory[TEXT("cloth")] = 4;
+    TestTrue(
+        TEXT("Exact aggregated material debit is affordable"),
+        UHorizonSurvivalSubsystem::CanAffordIngredients(Inventory, DuplicateDebit));
+
+    SecondDebit.Quantity = -1;
+    DuplicateDebit[1] = SecondDebit;
+    TestFalse(
+        TEXT("Invalid debit quantities fail closed"),
+        UHorizonSurvivalSubsystem::CanAffordIngredients(Inventory, DuplicateDebit));
     return true;
 }
 
