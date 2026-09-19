@@ -110,6 +110,9 @@ public:
     bool TryRemoveItem(FName ItemKey, int32 Quantity);
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Survival")
+    bool TryAddItemsAtomically(const TArray<FHorizonCraftingIngredient>& Items);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Survival")
     bool TryConsumeItemsAtomically(const TArray<FHorizonCraftingIngredient>& Items);
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Survival")
@@ -135,6 +138,11 @@ public:
     static bool CanAffordRecipe(
         const TMap<FName, int32>& Inventory,
         const FHorizonCraftingRecipe& Recipe);
+    static bool TryBuildInventoryAfterAddition(
+        const TMap<FName, int32>& Inventory,
+        const TArray<FHorizonCraftingIngredient>& Items,
+        float CarryCapacityKg,
+        TMap<FName, int32>& OutInventory);
     static FHorizonSurvivalState SimulateNeeds(
         const FHorizonSurvivalState& Input,
         float DeltaHours,
