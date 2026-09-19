@@ -5,7 +5,7 @@ const OFM='https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf';
 const NASA='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg';
 const USGS='https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}';
 const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
-const BUILDINGS=`${EDGE}bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000`;
+const BUILDINGS=`${EDGE}bridgepoint-public-building-city-tile-v5370?z={z}&x={x}&y={y}&limit=4500`;
 const PARCELS=`${EDGE}bridgepoint-spatial-tile-v1957?layer=parcels&z={z}&x={x}&y={y}&limit=9000`;
 const MAX_EXACT=MOBILE?900:(TIER==='LOW'?1400:TIER==='HIGH'?3200:2200);
 const DETAIL_MIN=MOBILE?13.8:(TIER==='LOW'?13.4:TIER==='HIGH'?12.3:12.8);
@@ -120,7 +120,7 @@ function style(){
   nasa:{type:'raster',tiles:[NASA],tileSize:256,maxzoom:8,attribution:'NASA EOSDIS GIBS · Blue Marble'},
   usgs:{type:'raster',tiles:[USGS],tileSize:256,minzoom:4,maxzoom:17,bounds:US_BOUNDS,attribution:'USDA · USGS The National Map orthoimagery'},
   dem:{type:'raster-dem',tiles:[DEM],tileSize:256,maxzoom:15,encoding:'terrarium',attribution:'Mapzen Terrain Tiles · AWS Open Data'},
-  bpBuildings:{type:'vector',tiles:[BUILDINGS],minzoom:11,maxzoom:22,attribution:'BridgePoint public-safe source-backed building geometry · V5019'},
+  bpBuildings:{type:'vector',tiles:[BUILDINGS],minzoom:11,maxzoom:22,attribution:'BridgePoint source-backed city-scale building geometry · V5370'},
   bpParcels:{type:'vector',tiles:[PARCELS],minzoom:10,maxzoom:22,attribution:'BridgePoint parcel provenance'},
   exact:{type:'geojson',data:EMPTY},exactRoof:{type:'geojson',data:EMPTY},selected:{type:'geojson',data:EMPTY},streetlights:{type:'geojson',data:EMPTY},bpOpportunities:{type:'geojson',data:EMPTY},bpSemanticLabels:{type:'geojson',data:EMPTY},bpLivingWorld:{type:'geojson',data:EMPTY,attribution:'BridgePoint source-backed living-world detail · public/open government and OSM sources'},bpLivingWorld3D:{type:'geojson',data:EMPTY,attribution:'BridgePoint source-backed positions · derived display geometry'},bpRoad3D:{type:'geojson',data:EMPTY,attribution:'OpenStreetMap/OpenFreeMap centerlines · BridgePoint derived physical road deck'}
  },
@@ -637,7 +637,7 @@ export function initWorld(options={}){
     facadeDetail:bpReady&&facade,
     buildingParts:false,
     closeTexturedShell:bpReady&&facade,
-    displaySource:bpReady?'BRIDGEPOINT_PUBLIC_BUILDING_TILE_V5019':'OPENFREEMAP_GLOBAL_BUILDING',
+    displaySource:bpReady?'BRIDGEPOINT_PUBLIC_BUILDING_CITY_TILE_V5370':'OPENFREEMAP_GLOBAL_BUILDING',
     cameraMode:'FREE_FLY_SINGLE_VIEW',
     version:5370,
     updatedAt:Date.now()
