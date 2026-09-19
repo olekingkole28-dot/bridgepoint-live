@@ -1,4 +1,4 @@
-# V5377 publish: collapsed attribution + viewer location + primary-owner US start
+# V5377 publish: click-only attribution + viewer location preserved + primary-owner US start
 name: Publish BridgePoint V5377 Lightweight World
 
 on:
@@ -53,6 +53,7 @@ jobs:
           grep -Fq '__BP_WORLD_RENDER_VERSION__=5377' world-v2300-map.js
           grep -Fq 'attributionControl:false' world-v2300-map.js
           grep -Fq 'new maplibregl.AttributionControl({compact:true})' world-v2300-map.js
+          grep -Fq 'attributionUserIntentUntil' world-v2300-map.js
           grep -Fq 'startForViewer' world-v2300-map.js
           grep -Fq 'bridgepoint_my_map_start_v5377' app.js
           grep -Fq 'bridgepoint_my_map_start_v5377' landing.js
@@ -146,6 +147,8 @@ jobs:
               await app.goto(O+'/app/?verify5377='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await app.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5377&&window.__BP_V5000_WORLD?.map,{timeout:45000});
               await app.waitForFunction(()=>window.__BP_APP_VIEWER_START__?.mode==='VIEWER_LOCATION',{timeout:12000});
+              await app.waitForFunction(()=>window.__BP_V5000_WORLD?.map?.loaded?.()===true,{timeout:12000});
+              await sleep(800);
               const startBehavior=await app.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map,s=window.__BP_APP_VIEWER_START__||{},attrib=document.querySelector('.maplibregl-ctrl-attrib');
                 return{mode:s.mode,center:[m.getCenter().lng,m.getCenter().lat],zoom:m.getZoom(),attribCollapsed:!!attrib&&!attrib.classList.contains('maplibregl-compact-show')}
@@ -318,6 +321,8 @@ jobs:
               await root.waitForSelector('#previewMap',{timeout:10000});
               await root.waitForFunction(()=>window.__BP_LANDING_WORLD__?.map&&window.__BP_WORLD_RENDER_VERSION__===5377,{timeout:45000});
               await root.waitForFunction(()=>window.__BP_LANDING_VIEWER_START__?.mode==='VIEWER_LOCATION',{timeout:12000});
+              await root.waitForFunction(()=>window.__BP_LANDING_WORLD__?.map?.loaded?.()===true,{timeout:12000});
+              await sleep(800);
               const home=await root.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_LANDING_VIEWER_START__||{},attrib=document.querySelector('#previewMap .maplibregl-ctrl-attrib');
                 return{
