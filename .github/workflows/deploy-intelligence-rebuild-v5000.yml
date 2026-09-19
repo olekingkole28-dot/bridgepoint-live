@@ -171,7 +171,6 @@ jobs:
           grep -Fq 'bp-v5004-weather-shape-line' site/app.js
           test -s site/sample/storm-opportunity/index.html
           test -s site/assets/bp-city-world-background.webp
-          test -s site/assets/molly-bridgepoint-guide.webp
           node --check site/acquisition_tracker.js
           grep -Fq 'us.i.posthog.com' site/acquisition_tracker.js
           grep -Fq 'HUMAN_INTERACTION' site/acquisition_tracker.js
@@ -515,12 +514,14 @@ jobs:
                 weatherLegendCount:document.getElementById('landingWeatherCount')?.textContent||'',
                 noHorizontalOverflow:document.documentElement.scrollWidth<=window.innerWidth+2,
                 searchZoomOverlap:(()=>{const a=document.getElementById('landingPropertySearch')?.getBoundingClientRect(),b=document.querySelector('#previewMap .maplibregl-ctrl-top-right')?.getBoundingClientRect();return !!(a&&b&&a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top)})(),
-                mollyLoaded:(()=>{const i=document.querySelector('.molly-portrait');return !!i&&i.complete&&i.naturalWidth>0})(),
+                mollyPresent:!!document.querySelector('.molly-home,.molly-portrait,.molly-tip'),
+                heroLabelFont:parseFloat(getComputedStyle(document.querySelector('.hero-actions-premium .hero-cta strong')).fontSize||'0'),
+                heroSmallFont:parseFloat(getComputedStyle(document.querySelector('.hero-actions-premium .hero-cta small')).fontSize||'0'),
                 backdropLoaded:(getComputedStyle(document.querySelector('.world-backdrop-image')).backgroundImage||'').includes('bp-city-world-background.webp'),
                 productVisuals:document.querySelectorAll('.cap-visual').length,
                 packageCards:document.querySelectorAll('#landingPackages .package-card').length
               }));
-              if(!landing.build.includes('BP_LANDING_V5410')||!landing.search||!landing.sample||landing.mapCanvases!==1||landing.lockedTabs<6||!landing.weatherLegend||!landing.weatherMore||!landing.radarVisible||!landing.radarLayerVisible||!landing.nationalWeatherLayers||landing.weatherShapes<1||landing.weatherPoints<1||landing.renderedWeather.points<1||landing.renderedWeather.lines<1||!/EVENTS/.test(landing.weatherLegendCount)||!landing.noHorizontalOverflow||landing.searchZoomOverlap||!landing.mollyLoaded||!landing.backdropLoaded||landing.productVisuals<6||landing.packageCards<9||!/first property lookup is free/i.test(landing.freeLookupCopy))throw new Error('LANDING_CONVERSION_REGRESSION '+JSON.stringify(landing));
+              if(!landing.build.includes('BP_LANDING_V5410')||!landing.search||!landing.sample||landing.mapCanvases!==1||landing.lockedTabs<6||!landing.weatherLegend||!landing.weatherMore||!landing.radarVisible||!landing.radarLayerVisible||!landing.nationalWeatherLayers||landing.weatherShapes<1||landing.weatherPoints<1||landing.renderedWeather.points<1||landing.renderedWeather.lines<1||!/EVENTS/.test(landing.weatherLegendCount)||!landing.noHorizontalOverflow||landing.searchZoomOverlap||landing.mollyPresent||landing.heroLabelFont<11||landing.heroSmallFont<8.5||!landing.backdropLoaded||landing.productVisuals<6||landing.packageCards<9||!/first property lookup is free/i.test(landing.freeLookupCopy))throw new Error('LANDING_CONVERSION_REGRESSION '+JSON.stringify(landing));
               console.log('BRIDGEPOINT_LANDING_CONVERSION_PASS',JSON.stringify(landing));
               const cols=async(width,height)=>{await p.setViewport({width,height,deviceScaleFactor:width<600?2:1,isMobile:width<600,hasTouch:width<1000});await new Promise(r=>setTimeout(r,350));return p.evaluate(()=>{const gridCols=sel=>{const el=document.querySelector(sel);if(!el)return 0;const v=getComputedStyle(el).gridTemplateColumns.trim();return v?v.split(/\s+/).length:0};return{w:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth+2,products:gridCols('.cap-grid'),packages:gridCols('#landingPackages'),footer:gridCols('.footer-link-groups')}})};
               const phone=await cols(390,844),tablet=await cols(820,1180),desktop=await cols(1440,900);
