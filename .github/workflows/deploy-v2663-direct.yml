@@ -37,6 +37,8 @@ jobs:
           node --check staging/world-v2652/world-v2663-first-map.js
           node --check staging/world-v2652/world-v2662-weather-bootstrap.js
           node --check staging/world-v2652/world-v2662-instant-map.js
+          node --check staging/world-v2652/world-v2502-visual-fidelity.js
+          grep -Fq 'world-v2502-visual-fidelity.js' staging/world-v2652/index.html
           grep -Fq 'world-v2663-first-map.js' staging/world-v2652/index.html
           grep -Fq 'world-v2662-weather-bootstrap.js' staging/world-v2652/index.html
           grep -Fq 'instant-map-world-2663' staging/home-v2652/patch-live-app.py
@@ -80,6 +82,9 @@ jobs:
           cp -a site/app/bridgepoint-3d-world site/app/bridgepoint-world-v2652
           python3 staging/home-v2652/patch-live-app.py
           test -s site/app/bridgepoint-world-v2652/countries-110m.geojson
+          test -s site/app/bridgepoint-world-v2652/world-v2502-visual-fidelity.js
+          grep -Fq 'world-v2502-visual-fidelity.js' site/app/bridgepoint-world-v2652/index.html
+          grep -Fq 'bridgepoint-3d-world/?release=instant-map-world-2663-v2502' site/app/index.html
           test -s site/app/bridgepoint-world-v2652/us-states.geojson
 
           cat > site/app/bridgepoint-world-overlay-v2652.json <<EOF
