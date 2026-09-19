@@ -113,6 +113,7 @@ void AHorizonPlayerCharacter::Tick(float DeltaSeconds)
     UpdateTraversalState(DeltaSeconds);
     ApplyMovementInput(DeltaSeconds);
     RefreshMovementProfile();
+    UpdateLean(DeltaSeconds);
     UpdateCameraPresentation(DeltaSeconds);
 }
 
@@ -123,6 +124,7 @@ void AHorizonPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerI
 
     PlayerInputComponent->BindAxis(TEXT("MoveForward"), this, &AHorizonPlayerCharacter::MoveForward);
     PlayerInputComponent->BindAxis(TEXT("MoveRight"), this, &AHorizonPlayerCharacter::MoveRight);
+    PlayerInputComponent->BindAxis(TEXT("Lean"), this, &AHorizonPlayerCharacter::SetLeanInput);
     PlayerInputComponent->BindAxis(TEXT("Turn"), this, &APawn::AddControllerYawInput);
     PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &APawn::AddControllerPitchInput);
 
@@ -169,6 +171,86 @@ void AHorizonPlayerCharacter::MoveRight(float Value)
     CachedMoveInput.X = FMath::Clamp(Value, -1.0f, 1.0f);
 }
 
+void AHorizonPlayerCharacter::SetLeanInput(float Value)
+{
+    RawLeanInput = FMath::Clamp(Value, -1.0f, 1.0f);
+}
+
+float AHorizonPlayerCharacter::ResolveLeanTarget(
+    float RawInput,
+    EHorizonMovementStance Stance,
+    bool bIsSprinting,
+    float ObstructionFraction)
+{
+    const float Input = FMath::Clamp(RawInput, -1.0f, 1.0f);
+    if (FMath::Abs(Input) < 0.08f ||
+        bIsSprinting ||
+        Stance == EHorizonMovementStance::Prone ||
+        Stance == EHorizonMovementStance::Sliding)
+    {
+        return 0.0f;
+    }
+
+    // Keep a small margin from blocking geometry instead of letting the camera touch a wall.
+    const float SafeFraction = FMath::Clamp(ObstructionFraction, 0.0f, 1.0f);
+    const float Clearance = FMath::Clamp((SafeFraction - 0.08f) / 0.92f, 0.0f, 1.0f);
+    return Input * Clearance;
+}
+
+float AHorizonPlayerCharacter::ProbeLeanObstruction(float LeanDirection) const
+{
+    const UWorld* World = GetWorld();
+    if (!World || !FollowCamera || FMath::IsNearlyZero(LeanDirection))
+    {
+        return 1.0f;
+    }
+
+    const FVector CameraRight = FollowCamera->GetRightVector();
+    const FVector BaseCameraLocation =
+        FollowCamera->GetComponentLocation() -
+        CameraRight * (CurrentLeanAlpha * LeanDistanceCm);
+    const FVector DesiredLocation =
+        BaseCameraLocation + CameraRight * FMath::Sign(LeanDirection) * LeanDistanceCm;
+
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(HorizonLeanProbe), false, this);
+    FHitResult Hit;
+    const bool bBlocked = World->SweepSingleByChannel(
+        Hit,
+        BaseCameraLocation,
+        DesiredLocation,
+        FQuat::Identity,
+        ECC_Visibility,
+        FCollisionShape::MakeSphere(LeanProbeRadiusCm),
+        Params);
+
+    return bBlocked ? FMath::Clamp(Hit.Time, 0.0f, 1.0f) : 1.0f;
+}
+
+void AHorizonPlayerCharacter::UpdateLean(float DeltaSeconds)
+{
+    const float ObstructionFraction =
+        FMath::Abs(RawLeanInput) >= 0.08f ? ProbeLeanObstruction(RawLeanInput) : 1.0f;
+    const float TargetLean = ResolveLeanTarget(
+        RawLeanInput,
+        MovementStance,
+        bSprinting,
+        ObstructionFraction);
+
+    const float Speed = FMath::IsNearlyZero(TargetLean)
+        ? LeanInterpolationSpeed * 1.35f
+        : LeanInterpolationSpeed;
+    CurrentLeanAlpha = FMath::FInterpTo(
+        CurrentLeanAlpha,
+        TargetLean,
+        DeltaSeconds,
+        Speed);
+
+    if (FMath::Abs(CurrentLeanAlpha) < 0.001f)
+    {
+        CurrentLeanAlpha = 0.0f;
+    }
+}
+
 void AHorizonPlayerCharacter::ApplyMovementInput(float DeltaSeconds)
 {
     if (!Controller)
@@ -212,9 +294,10 @@ void AHorizonPlayerCharacter::UpdateCameraPresentation(float DeltaSeconds)
         MovementStance == EHorizonMovementStance::Sliding;
     const float StanceHeightOffset = bLowStance ? -32.0f :
         (MovementStance == EHorizonMovementStance::Crouched ? -18.0f : 0.0f);
-    const FVector TargetOffset = bFirstPerson
+    FVector TargetOffset = bFirstPerson
         ? FVector(12.0f, 0.0f, 70.0f + StanceHeightOffset)
         : FVector(0.0f, 54.0f, 62.0f + StanceHeightOffset);
+    TargetOffset.Y += CurrentLeanAlpha * (bFirstPerson ? LeanDistanceCm : LeanDistanceCm * 0.78f);
 
     CameraBoom->TargetArmLength = FMath::FInterpTo(
         CameraBoom->TargetArmLength,
@@ -231,6 +314,16 @@ void AHorizonPlayerCharacter::UpdateCameraPresentation(float DeltaSeconds)
         TargetFov,
         DeltaSeconds,
         bAiming ? 18.0f : 12.0f));
+
+    const FRotator TargetLeanRotation(
+        0.0f,
+        0.0f,
+        -CurrentLeanAlpha * LeanRollDegrees);
+    FollowCamera->SetRelativeRotation(FMath::RInterpTo(
+        FollowCamera->GetRelativeRotation(),
+        TargetLeanRotation,
+        DeltaSeconds,
+        LeanInterpolationSpeed));
 }
 
 void AHorizonPlayerCharacter::SetCameraMode(EHorizonCameraMode NewMode)
