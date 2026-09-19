@@ -1,4 +1,4 @@
-# V5376 final publish: activate global roof/floor passes with paint refresh and stable layer order
+# V5376 final publish: refresh global roof/floor after OFM source settles
 name: Publish BridgePoint V5376 Lightweight World
 
 on:
