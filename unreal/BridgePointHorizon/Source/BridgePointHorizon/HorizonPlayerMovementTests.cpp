@@ -56,4 +56,59 @@ bool FHorizonLeanResolverTest::RunTest(const FString& Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonVaultEligibilityTest,
+    "BridgePoint.Horizon.Movement.Vault.Eligibility",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonVaultEligibilityTest::RunTest(const FString& Parameters)
+{
+    TestTrue(
+        TEXT("Forward grounded standing player can vault a valid obstacle"),
+        AHorizonPlayerCharacter::CanStartVault(
+            EHorizonMovementStance::Standing, true, false, 1.0f, 90.0f, true));
+    TestTrue(
+        TEXT("Crouched player can rise into a valid vault"),
+        AHorizonPlayerCharacter::CanStartVault(
+            EHorizonMovementStance::Crouched, true, false, 0.8f, 70.0f, true));
+    TestFalse(
+        TEXT("Backward input cannot accidentally trigger vault"),
+        AHorizonPlayerCharacter::CanStartVault(
+            EHorizonMovementStance::Standing, true, false, -1.0f, 90.0f, true));
+    TestFalse(
+        TEXT("Controller noise cannot trigger vault"),
+        AHorizonPlayerCharacter::CanStartVault(
+            EHorizonMovementStance::Standing, true, false, 0.12f, 90.0f, true));
+    TestFalse(
+        TEXT("Airborne players cannot begin a vault"),
+        AHorizonPlayerCharacter::CanStartVault(
+            EHorizonMovementStance::Standing, false, false, 1.0f, 90.0f, true));
+    TestFalse(
+        TEXT("ADS blocks an accidental vault"),
+        AHorizonPlayerCharacter::CanStartVault(
+            EHorizonMovementStance::Standing, true, true, 1.0f, 90.0f, true));
+    TestFalse(
+        TEXT("Low obstacles stay on normal movement"),
+        AHorizonPlayerCharacter::CanStartVault(
+            EHorizonMovementStance::Standing, true, false, 1.0f, 20.0f, true));
+    TestFalse(
+        TEXT("Tall walls cannot be vaulted"),
+        AHorizonPlayerCharacter::CanStartVault(
+            EHorizonMovementStance::Standing, true, false, 1.0f, 220.0f, true));
+    TestFalse(
+        TEXT("Blocked landing capsules fail closed"),
+        AHorizonPlayerCharacter::CanStartVault(
+            EHorizonMovementStance::Standing, true, false, 1.0f, 90.0f, false));
+    TestFalse(
+        TEXT("Prone stance cannot begin a vault"),
+        AHorizonPlayerCharacter::CanStartVault(
+            EHorizonMovementStance::Prone, true, false, 1.0f, 90.0f, true));
+    TestEqual(
+        TEXT("Vaulting cancels lean"),
+        AHorizonPlayerCharacter::ResolveLeanTarget(
+            1.0f, EHorizonMovementStance::Vaulting, false, 1.0f),
+        0.0f);
+    return true;
+}
+
 #endif
