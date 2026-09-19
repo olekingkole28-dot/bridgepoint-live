@@ -210,7 +210,9 @@ for token in [
     "EHorizonCreatureVocalArchetype", "EHorizonCreatureVocalIntent",
     "FHorizonCreatureVocalMix", "GetCreatureVocalMix",
     "EHorizonWeaponReportClass", "FHorizonWeaponReportMix", "GetWeaponReportMix",
-    "PropagationDelaySeconds", "EarlyReflectionGain", "TailGain"
+    "PropagationDelaySeconds", "EarlyReflectionGain", "TailGain",
+    "EHorizonUiFeedbackCue", "FHorizonUiFeedbackMix",
+    "GetUiFeedbackMix", "BuildUiFeedbackMix", "bListenerRelative"
 ]:
     require(token in audio_header, f"AAA audio runtime contract missing: {token}")
 for token in [
@@ -226,7 +228,9 @@ for token in [
     "SmoothedWeatherIntensity01 * AmbienceMix.InteriorTransmission",
     "EHorizonWeaponReportClass::Suppressed", "SafeDistance / 34300.0f",
     "Mix.TailDelaySeconds = 0.12f", "RegionalTailScale = 1.20f",
-    "Mix.MechanicalGain *= FMath::Pow", "SmoothedCombatIntensity01"
+    "Mix.MechanicalGain *= FMath::Pow", "SmoothedCombatIntensity01",
+    "CriticalCombatRetention = 0.90f", "RoutineCombatRetention = 0.72f",
+    "Mix.TransientDuck = FMath::Clamp", "FRandomStream Variation"
 ]:
     require(token in audio, f"AAA audio behavior missing: {token}")
 for token in [
@@ -261,6 +265,16 @@ for token in [
     "Seeded weapon report pitch is deterministic"
 ]:
     require(token in audio_tests, f"native spatial weapon audio QA missing: {token}")
+for token in [
+    "Audio.UIFeedback.Clarity",
+    "Critical empty cue remains clearer than routine reload start in combat",
+    "Empty cue emphasizes the low warning tone",
+    "Reload completion emphasizes the high confirmation tone",
+    "UI feedback is listener relative",
+    "UI feedback ducking cannot mask combat",
+    "Seeded UI feedback pitch is deterministic"
+]:
+    require(token in audio_tests, f"native UI feedback audio QA missing: {token}")
 require("Stripe" not in audio_tests and "Payment" not in audio_tests,
         "regional ambience QA must remain independent of payments")
 
@@ -604,6 +618,7 @@ for token in [
     "CanFireRound", "ComputeReloadTransfer", "AdvanceCountdown", "ComputeRecoilImpulse",
     "AdvanceAutomaticCadence", "EHorizonWeaponReportClass",
     "FHorizonWeaponReportMix", "LocalAudioMix",
+    "FHorizonWeaponFeedbackEvent", "OnWeaponFeedback", "IsLowAmmo",
 ]:
     require(token in weapon_contract, f"native weapon runtime contract missing: {token}")
 for token in [
@@ -618,6 +633,12 @@ for token in [
     "MaxCatchUpShots", "TimeBudget = FMath::Min(DeltaSeconds, 0.50f)",
     "GetSubsystem<UHorizonAudioDirectorSubsystem>", "GetWeaponReportMix(",
     "WeaponSpec.ReportClass", "ShotSequence",
+    "EmitUiFeedback(EHorizonUiFeedbackCue::Empty)",
+    "EmitUiFeedback(EHorizonUiFeedbackCue::LowAmmo)",
+    "EmitUiFeedback(EHorizonUiFeedbackCue::Denied)",
+    "EmitUiFeedback(EHorizonUiFeedbackCue::ReloadStart)",
+    "EmitUiFeedback(EHorizonUiFeedbackCue::ReloadComplete)",
+    "GetUiFeedbackMix(Cue, VariationSeed)",
 ]:
     require(token in weapon, f"native weapon behavior missing: {token}")
 require("Stripe" not in weapon_contract and "Payment" not in weapon_contract,
@@ -634,6 +655,10 @@ for token in [
     "Two hundred millisecond hitch preserves automatic fire cadence",
     "Cadence catch-up never exceeds remaining magazine rounds",
     "Cadence catch-up is bounded per frame", "Bounded backlog remains due for the next frame",
+    "Weapon.UIFeedbackThresholds", "Twenty percent magazine threshold is low ammo",
+    "Above twenty percent is not low ammo",
+    "Small magazines retain a one-round low-ammo warning",
+    "Zero rounds are reserved for empty feedback",
 ]:
     require(token in weapon_tests, f"native weapon QA missing: {token}")
 
