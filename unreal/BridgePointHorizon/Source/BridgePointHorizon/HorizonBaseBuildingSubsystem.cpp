@@ -1,6 +1,7 @@
 #include "HorizonBaseBuildingSubsystem.h"
 
 #include "HorizonSurvivalSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "Kismet/GameplayStatics.h"
 
 const TCHAR* UHorizonBaseBuildingSubsystem::SaveSlot = TEXT("BridgePointHorizonBaseBuilding");
@@ -162,12 +163,18 @@ bool UHorizonBaseBuildingSubsystem::TryBuildPiece(
         }
     }
 
+    TArray<FHorizonBaseMaterialCost> RemovedCost;
     for (const FHorizonBaseMaterialCost& Entry : Cost)
     {
         if (!Survival->TryRemoveItem(Entry.ItemKey, Entry.Quantity))
         {
+            for (const FHorizonBaseMaterialCost& Removed : RemovedCost)
+            {
+                Survival->TryAddItem(Removed.ItemKey, Removed.Quantity);
+            }
             return false;
         }
+        RemovedCost.Add(Entry);
     }
 
     OutPiece.PieceId = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower);
