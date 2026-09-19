@@ -90,7 +90,10 @@ public:
     float SlideBrakingDeceleration = 620.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
-    float ProneCapsuleHalfHeight = 38.0f;
+    float ProneCapsuleHalfHeight = 34.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
+    float ProneCapsuleRadius = 30.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera")
     float ThirdPersonArmLength = 330.0f;
@@ -146,6 +149,7 @@ private:
     bool bWaitingForStreamedTerrain = true;
     float TerrainProbeAccumulator = 0.0f;
     float StandingCapsuleHalfHeight = 0.0f;
+    float StandingCapsuleRadius = 0.0f;
     float SlideTimeRemaining = 0.0f;
     FVector SlideDirection = FVector::ForwardVector;
     FVector2D CachedMoveInput = FVector2D::ZeroVector;
