@@ -53,6 +53,7 @@ jobs:
           grep -Fq 'bridgepoint-public-city-structures-v5371' world-v2300-map.js
           grep -Fq "source:'bpRoofs','source-layer':'roofs'" world-v2300-map.js
           grep -Fq "id:'gta-city-building-roof-caps'" world-v2300-map.js
+          ! grep -Fq "filter:['!=',['get','has_real_roof'],true]" world-v2300-map.js
           grep -Fq "GLOBAL_ROOF_MIN" world-v2300-map.js
           grep -Fq "GLOBAL_FLOOR_MIN" world-v2300-map.js
           grep -Fq "cancelPendingTileRequestsWhileZooming:true" world-v2300-map.js
