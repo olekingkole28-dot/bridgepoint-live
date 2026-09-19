@@ -1,6 +1,7 @@
 #include "HorizonLootSubsystem.h"
 
 #include "HorizonSurvivalSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "Kismet/GameplayStatics.h"
 
 const TCHAR* UHorizonLootSubsystem::SaveSlot = TEXT("BridgePointHorizonLoot");
