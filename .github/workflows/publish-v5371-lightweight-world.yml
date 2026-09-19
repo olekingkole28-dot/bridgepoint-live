@@ -176,6 +176,7 @@ jobs:
               });
               if(city.buildings<150||city.cityVis==='none'||city.stateVis==='none'||!city.terrain||city.fine.enabled!==false)throw new Error('CITY '+JSON.stringify(city));
 
+              // Click/camera regression gate in NYC.
               await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:14.6,pitch:58,bearing:-18}));
               await sleep(4500);
               const hit=await app.evaluate(()=>{
@@ -192,25 +193,32 @@ jobs:
               await sleep(900);
               const cam=await app.evaluate(()=>{const m=window.__BP_V5000_WORLD.map;return{z:m.getZoom(),pitch:m.getPitch(),bearing:m.getBearing()}});
               if(cam.z<16.2||cam.pitch<60)throw new Error('CAMERA '+JSON.stringify(cam));
+
+              // Exact-roof transport gate at a Manhattan tile known to contain source-backed roof parts.
+              await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.00665,40.71187],zoom:16.35,pitch:62,bearing:-18}));
               await app.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
                 try{return (m?.querySourceFeatures('bpCityRoofs',{sourceLayer:'roofs'})||[]).length>0}catch{return false}
               },{timeout:25000});
-              const roofDetail=await app.evaluate(()=>{
+              await sleep(900);
+              const roofState=await app.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map;
-                return (m.querySourceFeatures('bpCityRoofs',{sourceLayer:'roofs'})||[]).length;
+                let roofDetail=0,renderedRoofs=0,roofCaps=0;
+                try{roofDetail=(m.querySourceFeatures('bpCityRoofs',{sourceLayer:'roofs'})||[]).length}catch{}
+                try{renderedRoofs=(m.queryRenderedFeatures(undefined,{layers:['gta-city-roofs']})||[]).length}catch{}
+                try{roofCaps=(m.queryRenderedFeatures(undefined,{layers:['gta-city-building-roof-caps']})||[]).length}catch{}
+                return{
+                  roofDetail,renderedRoofs,roofCaps,
+                  roofSourceLoaded:m.isSourceLoaded?.('bpCityRoofs')??null,
+                  roofVis:m.getLayoutProperty('gta-city-roofs','visibility')||'visible',
+                  capVis:m.getLayoutProperty('gta-city-building-roof-caps','visibility')||'visible'
+                };
               });
-              if(roofDetail<1)throw new Error('NYC_REAL_ROOFS '+roofDetail);
-              await sleep(1800);
-              const nyRoofCaps=await app.evaluate(()=>{
-                const m=window.__BP_V5000_WORLD.map;
-                try{return (m.queryRenderedFeatures(undefined,{layers:['gta-city-building-roof-caps']})||[]).length}catch{return 0}
-              });
+              if(roofState.roofDetail<1||roofState.renderedRoofs<1)throw new Error('NYC_REAL_ROOFS '+JSON.stringify(roofState));
 
-              // Global regression gate: source-backed OpenFreeMap buildings must stay 3D,
-              // and the lightweight roof layer must restore after camera motion.
+              // Global regression gate: bodies keep source heights; roof pass must render above them.
               await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-0.1276,51.5072],zoom:14.2,pitch:58,bearing:-18}));
-              await sleep(3200);
+              await sleep(3600);
               const global3d=await app.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map;
                 let bodies=0,roofs=0,sourceRows=0,withRenderHeight=0;
@@ -224,39 +232,22 @@ jobs:
                 return{
                   bodies,roofs,sourceRows,withRenderHeight,
                   bodyVis:m.getLayoutProperty('gta-context-buildings','visibility')||'visible',
-                  roofVis:m.getLayoutProperty('gta-context-roofs','visibility')||'visible',
-                  mode:window.__BP_BUILDING_SHELL_MODE__
+                  roofVis:m.getLayoutProperty('gta-context-roofs','visibility')||'visible'
                 };
               });
-              if(global3d.bodies<10||global3d.roofs<10||global3d.sourceRows<10||global3d.bodyVis==='none'||global3d.roofVis==='none'){
-                const roofDiag=await app.evaluate(async()=>{
-                  const m=window.__BP_V5000_WORLD.map;
-                  let err=null;const tests={};
-                  const H=['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]];
-                  try{
-                    m.setPaintProperty('gta-context-roofs','fill-extrusion-base',0);
-                    m.setPaintProperty('gta-context-roofs','fill-extrusion-color','#ffffff');
-                    m.setPaintProperty('gta-context-roofs','fill-extrusion-opacity',1);
-                    try{m.moveLayer('gta-context-roofs','gta-context-buildings')}catch{}
-                    for(const cap of [1.1,2,3,5,8,12]){
-                      m.setPaintProperty('gta-context-roofs','fill-extrusion-height',['+',H,cap]);
-                      m.triggerRepaint();await new Promise(r=>setTimeout(r,350));
-                      tests['behind_'+cap]=(m.queryRenderedFeatures(undefined,{layers:['gta-context-roofs']})||[]).length;
-                    }
-                    try{m.moveLayer('gta-context-roofs')}catch{}
-                    for(const cap of [1.1,3,5]){
-                      m.setPaintProperty('gta-context-roofs','fill-extrusion-height',['+',H,cap]);
-                      m.triggerRepaint();await new Promise(r=>setTimeout(r,350));
-                      tests['front_'+cap]=(m.queryRenderedFeatures(undefined,{layers:['gta-context-roofs']})||[]).length;
-                    }
-                    m.setPaintProperty('gta-context-roofs','fill-extrusion-height',50);
-                    m.triggerRepaint();await new Promise(r=>setTimeout(r,350));
-                    tests.constant50=(m.queryRenderedFeatures(undefined,{layers:['gta-context-roofs']})||[]).length;
-                  }catch(e){err=String(e?.message||e)}
-                  return{tests,err,runtimeErrors:window.__BP_MAP_RUNTIME_ERRORS__||[],layer:m.getStyle()?.layers?.find(x=>x.id==='gta-context-roofs')||null};
-                });
-                throw new Error('GLOBAL_3D '+JSON.stringify({global3d,roofDiag}));
-              }
+              if(global3d.bodies<10||global3d.roofs<10||global3d.sourceRows<10||global3d.withRenderHeight<10||global3d.bodyVis==='none'||global3d.roofVis==='none')throw new Error('GLOBAL_3D '+JSON.stringify(global3d));
+
+              // Close global floor-detail gate.
+              await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-0.1276,51.5072],zoom:16.5,pitch:62,bearing:-18}));
+              await sleep(3900);
+              const globalFloors=await app.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD.map;
+                let floors=0,bodies=0;
+                try{floors=(m.queryRenderedFeatures(undefined,{layers:['gta-context-floor-lines']})||[]).length}catch{}
+                try{bodies=(m.queryRenderedFeatures(undefined,{layers:['gta-context-buildings']})||[]).length}catch{}
+                return{floors,bodies,floorVis:m.getLayoutProperty('gta-context-floor-lines','visibility')||'visible'};
+              });
+              if(globalFloors.bodies<10||globalFloors.floors<10||globalFloors.floorVis==='none')throw new Error('GLOBAL_FLOORS '+JSON.stringify(globalFloors));
 
               await app.waitForFunction(()=>window.__BP_LIVE_WEATHER_STATE__||document.querySelector('#liveLegend'),{timeout:12000}).catch(()=>{});
               const startup=await app.evaluate(()=>{
@@ -283,7 +274,7 @@ jobs:
                 world:window.__BP_WORLD_RENDER_VERSION__
               }));
               if(!home.preview||!home.counts||!home.founder||home.world!==5376)throw new Error('HOME '+JSON.stringify(home));
-              console.log('V5376_FINAL_PASS',JSON.stringify({city,cam,roofDetail,nyRoofCaps,global3d,startup,home}));
+              console.log('V5376_FINAL_PASS',JSON.stringify({city,cam,roofState,global3d,globalFloors,startup,home}));
               await root.close();
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
