@@ -1,4 +1,4 @@
-# V5376 clean publish after city roof MVT restore
+# V5376 clean publish: depth-safe global roof shell + dedicated NYC roofs
 name: Publish BridgePoint V5376 Lightweight World
 
 on:
