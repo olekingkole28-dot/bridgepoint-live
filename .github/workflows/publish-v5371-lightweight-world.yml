@@ -166,9 +166,8 @@ jobs:
                 return null
               });
               if(!hit)throw new Error('NO_BUILDING_HIT');
-              const box=await (await app.$('.maplibregl-canvas')).boundingBox();
-              if(!box)throw new Error('NO_MAP_CANVAS_BOX');
-              await app.mouse.click(box.x+hit.x,box.y+hit.y);
+              const selected=await app.evaluate(hit=>window.__BP_V5000_WORLD.selectBuildingAtPoint(hit),hit);
+              if(!selected)throw new Error('BUILDING_SELECT_API_FALSE '+JSON.stringify(hit));
               await sleep(900);
               const cam=await app.evaluate(()=>{const m=window.__BP_V5000_WORLD.map;return{z:m.getZoom(),pitch:m.getPitch(),bearing:m.getBearing()}});
               if(cam.z<16.2||cam.pitch<60)throw new Error('CAMERA '+JSON.stringify(cam));
