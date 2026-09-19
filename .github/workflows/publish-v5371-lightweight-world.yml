@@ -51,7 +51,7 @@ jobs:
           grep -Fq '__BP_APP_BUILD_VERSION__=5376' app.js
           grep -Fq 'world-v2300-map.js?v=5376' app.js
           grep -Fq '__BP_WORLD_RENDER_VERSION__=5376' world-v2300-map.js
-          grep -Fq 'bridgepoint-public-city-structures-v5371' world-v2300-map.js
+          grep -Fq 'bridgepoint-public-city-structures-v5375' world-v2300-map.js
           grep -Fq "source:'bpCityStructures','source-layer':'roofs'" world-v2300-map.js
           grep -Fq "id:'gta-city-building-roof-caps'" world-v2300-map.js
           ! grep -Fq "filter:['!=',['get','has_real_roof'],true]" world-v2300-map.js
@@ -74,7 +74,7 @@ jobs:
         run: |
           set -euo pipefail
           KEY=$(sed -n "s/^export const KEY='\([^']*\)'.*/\1/p" world-v2300-config.js)
-          CODE=$(curl -sS --retry 3 --retry-all-errors --retry-delay 1             -H 'Origin: https://bridgepointintelligence.online'             -H "apikey: ${KEY}"             -o /tmp/city.mvt             -w '%{http_code}'             'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-city-structures-v5371?z=11&x=602&y=770&limit=500&v=5376')
+          CODE=$(curl -sS --retry 3 --retry-all-errors --retry-delay 1             -H 'Origin: https://bridgepointintelligence.online'             -H "apikey: ${KEY}"             -o /tmp/city.mvt             -w '%{http_code}'             'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-city-structures-v5375?z=11&x=602&y=770&limit=500&v=5376')
           BYTES=$(wc -c </tmp/city.mvt)
           echo "CITY_TILE_HTTP=${CODE} BYTES=${BYTES}"
           test "${CODE}" = 200
