@@ -1,4 +1,4 @@
-# V5376 diagnostic: inspect global roof refresh state
+# V5376 final publish: force global roof/floor bucket rebuild without overlay reordering
 name: Publish BridgePoint V5376 Lightweight World
 
 on:
