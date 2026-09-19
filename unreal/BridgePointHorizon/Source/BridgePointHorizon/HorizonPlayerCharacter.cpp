@@ -148,6 +148,11 @@ void AHorizonPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerI
 
 void AHorizonPlayerCharacter::StartTraversalJump()
 {
+    if (TryStartVault())
+    {
+        return;
+    }
+
     if (MovementStance == EHorizonMovementStance::Prone && !TryExitProne())
     {
         return;
@@ -165,6 +170,235 @@ void AHorizonPlayerCharacter::StartTraversalJump()
 
     MovementStance = EHorizonMovementStance::Standing;
     Jump();
+}
+
+bool AHorizonPlayerCharacter::CanStartVault(
+    EHorizonMovementStance Stance,
+    bool bMovingOnGround,
+    bool bIsAiming,
+    float ForwardInput,
+    float ObstacleHeightCm,
+    bool bLandingClear,
+    float MinimumHeightCm,
+    float MaximumHeightCm)
+{
+    const float SafeMinimum = FMath::Max(1.0f, MinimumHeightCm);
+    const float SafeMaximum = FMath::Max(SafeMinimum, MaximumHeightCm);
+    return
+        (Stance == EHorizonMovementStance::Standing ||
+         Stance == EHorizonMovementStance::Crouched) &&
+        bMovingOnGround &&
+        !bIsAiming &&
+        ForwardInput >= 0.25f &&
+        FMath::IsFinite(ObstacleHeightCm) &&
+        ObstacleHeightCm >= SafeMinimum &&
+        ObstacleHeightCm <= SafeMaximum &&
+        bLandingClear;
+}
+
+bool AHorizonPlayerCharacter::TryStartVault()
+{
+    UWorld* World = GetWorld();
+    UCharacterMovementComponent* Move = GetCharacterMovement();
+    const UCapsuleComponent* Capsule = GetCapsuleComponent();
+    if (!World || !Move || !Capsule ||
+        MovementStance == EHorizonMovementStance::Vaulting ||
+        CachedMoveInput.Y < 0.25f)
+    {
+        return false;
+    }
+
+    const FVector Forward = GetActorForwardVector().GetSafeNormal2D();
+    if (Forward.IsNearlyZero())
+    {
+        return false;
+    }
+
+    const float CapsuleHalfHeight = Capsule->GetScaledCapsuleHalfHeight();
+    const float CapsuleRadius = Capsule->GetScaledCapsuleRadius();
+    const FVector ActorLocation = GetActorLocation();
+    const float BottomZ = ActorLocation.Z - CapsuleHalfHeight;
+
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(HorizonVaultProbe), false, this);
+    FHitResult ObstacleHit;
+    const FVector ForwardStart =
+        FVector(ActorLocation.X, ActorLocation.Y, BottomZ + VaultMinimumHeightCm);
+    const FVector ForwardEnd = ForwardStart + Forward * VaultForwardProbeCm;
+    if (!World->LineTraceSingleByChannel(
+            ObstacleHit,
+            ForwardStart,
+            ForwardEnd,
+            ECC_Visibility,
+            Params) ||
+        !ObstacleHit.bBlockingHit)
+    {
+        return false;
+    }
+
+    // Measure the obstacle independently from the landing floor. Using the far-side
+    // floor height here makes ordinary waist-high barriers look like zero-height obstacles.
+    const FVector TopProbePlanar =
+        ObstacleHit.ImpactPoint + Forward * FMath::Max(8.0f, CapsuleRadius * 0.35f);
+    FHitResult ObstacleTopHit;
+    const FVector TopTraceStart(
+        TopProbePlanar.X,
+        TopProbePlanar.Y,
+        BottomZ + VaultMaximumHeightCm + 80.0f);
+    const FVector TopTraceEnd(
+        TopProbePlanar.X,
+        TopProbePlanar.Y,
+        BottomZ + VaultMinimumHeightCm);
+    if (!World->LineTraceSingleByChannel(
+            ObstacleTopHit,
+            TopTraceStart,
+            TopTraceEnd,
+            ECC_Visibility,
+            Params) ||
+        !ObstacleTopHit.bBlockingHit)
+    {
+        return false;
+    }
+
+    const float ObstacleHeight = ObstacleTopHit.ImpactPoint.Z - BottomZ;
+    const FVector LandingPlanar =
+        ObstacleHit.ImpactPoint + Forward * (CapsuleRadius * 2.0f + 34.0f);
+    FHitResult LandingHit;
+    const FVector LandingTraceStart(
+        LandingPlanar.X,
+        LandingPlanar.Y,
+        BottomZ + VaultMaximumHeightCm + 80.0f);
+    const FVector LandingTraceEnd(
+        LandingPlanar.X,
+        LandingPlanar.Y,
+        BottomZ - 50.0f);
+    if (!World->LineTraceSingleByChannel(
+            LandingHit,
+            LandingTraceStart,
+            LandingTraceEnd,
+            ECC_Visibility,
+            Params) ||
+        !LandingHit.bBlockingHit)
+    {
+        return false;
+    }
+
+    const FVector CandidateTarget =
+        LandingHit.ImpactPoint + FVector::UpVector * (CapsuleHalfHeight + 4.0f);
+    const bool bWalkableLanding = LandingHit.ImpactNormal.Z >= 0.60f;
+    const bool bSafeDrop = LandingHit.ImpactPoint.Z >= BottomZ - 50.0f;
+    const bool bLandingClear =
+        bWalkableLanding &&
+        bSafeDrop &&
+        !World->OverlapBlockingTestByChannel(
+            CandidateTarget,
+            FQuat::Identity,
+            ECC_Pawn,
+            FCollisionShape::MakeCapsule(CapsuleRadius, CapsuleHalfHeight),
+            Params);
+
+    if (!CanStartVault(
+            MovementStance,
+            Move->IsMovingOnGround(),
+            bAiming,
+            CachedMoveInput.Y,
+            ObstacleHeight,
+            bLandingClear,
+            VaultMinimumHeightCm,
+            VaultMaximumHeightCm))
+    {
+        return false;
+    }
+
+    bSprinting = false;
+    bAiming = false;
+    RawLeanInput = 0.0f;
+    CurrentLeanAlpha = 0.0f;
+    if (WeaponRuntime)
+    {
+        WeaponRuntime->SetAiming(false);
+        WeaponRuntime->StopFire();
+    }
+    if (bIsCrouched)
+    {
+        UnCrouch();
+    }
+
+    VaultStartLocation = ActorLocation;
+    VaultTargetLocation = CandidateTarget;
+    VaultObstacleHeightCm = ObstacleHeight;
+    VaultElapsedSeconds = 0.0f;
+    ActiveVaultDurationSeconds = FMath::Clamp(VaultDurationSeconds, 0.20f, 0.80f);
+    MovementStance = EHorizonMovementStance::Vaulting;
+    Move->StopMovementImmediately();
+    Move->SetMovementMode(MOVE_Flying);
+    RefreshMovementProfile();
+    return true;
+}
+
+void AHorizonPlayerCharacter::UpdateVault(float DeltaSeconds)
+{
+    if (MovementStance != EHorizonMovementStance::Vaulting)
+    {
+        return;
+    }
+
+    const float Step = FMath::Clamp(DeltaSeconds, 0.0f, 0.10f);
+    VaultElapsedSeconds += Step;
+    const float Alpha = FMath::Clamp(
+        VaultElapsedSeconds / FMath::Max(0.20f, ActiveVaultDurationSeconds),
+        0.0f,
+        1.0f);
+    const float SmoothedAlpha = Alpha * Alpha * (3.0f - 2.0f * Alpha);
+    FVector NextLocation = FMath::Lerp(
+        VaultStartLocation,
+        VaultTargetLocation,
+        SmoothedAlpha);
+    NextLocation.Z += FMath::Sin(Alpha * PI) *
+        FMath::Max(VaultArcHeightCm, VaultObstacleHeightCm * 0.30f);
+
+    FHitResult SweepHit;
+    SetActorLocation(
+        NextLocation,
+        true,
+        &SweepHit,
+        ETeleportType::None);
+
+    if (SweepHit.bBlockingHit)
+    {
+        EndVault(false);
+        return;
+    }
+
+    if (Alpha >= 1.0f - KINDA_SMALL_NUMBER)
+    {
+        EndVault(true);
+    }
+}
+
+void AHorizonPlayerCharacter::EndVault(bool bCompleted)
+{
+    if (MovementStance != EHorizonMovementStance::Vaulting)
+    {
+        return;
+    }
+
+    // UpdateVault already moved to the target with collision enabled. Never add an
+    // unswept completion snap: streamed geometry can arrive during the traversal.
+    if (!bCompleted)
+    {
+        VaultTargetLocation = GetActorLocation();
+    }
+
+    VaultElapsedSeconds = 0.0f;
+    ActiveVaultDurationSeconds = 0.0f;
+    VaultObstacleHeightCm = 0.0f;
+    MovementStance = EHorizonMovementStance::Standing;
+
+    if (UCharacterMovementComponent* Move = GetCharacterMovement())
+    {
+        Move->SetMovementMode(MOVE_Walking);
+    }
+    RefreshMovementProfile();
 }
 
 void AHorizonPlayerCharacter::MoveForward(float Value)
@@ -192,7 +426,8 @@ float AHorizonPlayerCharacter::ResolveLeanTarget(
     if (FMath::Abs(Input) < 0.08f ||
         bIsSprinting ||
         Stance == EHorizonMovementStance::Prone ||
-        Stance == EHorizonMovementStance::Sliding)
+        Stance == EHorizonMovementStance::Sliding ||
+        Stance == EHorizonMovementStance::Vaulting)
     {
         return 0.0f;
     }
@@ -259,7 +494,7 @@ void AHorizonPlayerCharacter::UpdateLean(float DeltaSeconds)
 
 void AHorizonPlayerCharacter::ApplyMovementInput(float DeltaSeconds)
 {
-    if (!Controller)
+    if (!Controller || MovementStance == EHorizonMovementStance::Vaulting)
     {
         return;
     }
@@ -361,6 +596,11 @@ void AHorizonPlayerCharacter::ToggleCameraMode()
 
 void AHorizonPlayerCharacter::StartSprint()
 {
+    if (MovementStance == EHorizonMovementStance::Vaulting)
+    {
+        return;
+    }
+
     if (MovementStance == EHorizonMovementStance::Prone && !TryExitProne())
     {
         return;
@@ -386,6 +626,11 @@ void AHorizonPlayerCharacter::StopSprint()
 
 void AHorizonPlayerCharacter::ToggleCrouch()
 {
+    if (MovementStance == EHorizonMovementStance::Vaulting)
+    {
+        return;
+    }
+
     if (MovementStance == EHorizonMovementStance::Sliding)
     {
         EndSlide();
@@ -425,6 +670,11 @@ void AHorizonPlayerCharacter::ToggleCrouch()
 
 void AHorizonPlayerCharacter::ToggleProne()
 {
+    if (MovementStance == EHorizonMovementStance::Vaulting)
+    {
+        return;
+    }
+
     if (MovementStance == EHorizonMovementStance::Prone)
     {
         TryExitProne();
@@ -495,6 +745,12 @@ void AHorizonPlayerCharacter::StartSlide()
 
 void AHorizonPlayerCharacter::UpdateTraversalState(float DeltaSeconds)
 {
+    if (MovementStance == EHorizonMovementStance::Vaulting)
+    {
+        UpdateVault(DeltaSeconds);
+        return;
+    }
+
     if (MovementStance != EHorizonMovementStance::Sliding)
     {
         return;
@@ -580,6 +836,11 @@ bool AHorizonPlayerCharacter::TryExitProne()
 
 void AHorizonPlayerCharacter::StartAim()
 {
+    if (MovementStance == EHorizonMovementStance::Vaulting)
+    {
+        return;
+    }
+
     if (MovementStance == EHorizonMovementStance::Sliding)
     {
         EndSlide();
@@ -606,7 +867,9 @@ void AHorizonPlayerCharacter::StopAim()
 
 void AHorizonPlayerCharacter::StartFireInput()
 {
-    if (WeaponRuntime && MovementStance != EHorizonMovementStance::Sliding)
+    if (WeaponRuntime &&
+        MovementStance != EHorizonMovementStance::Sliding &&
+        MovementStance != EHorizonMovementStance::Vaulting)
     {
         bSprinting = false;
         WeaponRuntime->StartFire(bAiming);
@@ -857,7 +1120,11 @@ void AHorizonPlayerCharacter::RefreshMovementProfile()
     MinNetUpdateFrequency = FMath::Clamp(NetUpdateFrequency * 0.35f, 20.0f, 45.0f);
 
     UCharacterMovementComponent* Move = GetCharacterMovement();
-    if (MovementStance == EHorizonMovementStance::Prone)
+    if (MovementStance == EHorizonMovementStance::Vaulting)
+    {
+        Move->MaxWalkSpeed = 0.0f;
+    }
+    else if (MovementStance == EHorizonMovementStance::Prone)
     {
         Move->MaxWalkSpeed = ProneSpeed;
     }
