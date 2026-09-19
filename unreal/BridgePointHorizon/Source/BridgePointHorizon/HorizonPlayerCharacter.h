@@ -24,7 +24,8 @@ enum class EHorizonMovementStance : uint8
     Standing,
     Crouched,
     Prone,
-    Sliding
+    Sliding,
+    Vaulting
 };
 
 UCLASS()
@@ -99,6 +100,21 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
     float ProneCapsuleRadius = 30.0f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement|Vault", meta=(ClampMin="25.0", ClampMax="90.0"))
+    float VaultMinimumHeightCm = 45.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement|Vault", meta=(ClampMin="80.0", ClampMax="220.0"))
+    float VaultMaximumHeightCm = 145.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement|Vault", meta=(ClampMin="70.0", ClampMax="220.0"))
+    float VaultForwardProbeCm = 125.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement|Vault", meta=(ClampMin="0.20", ClampMax="0.80"))
+    float VaultDurationSeconds = 0.38f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement|Vault", meta=(ClampMin="15.0", ClampMax="100.0"))
+    float VaultArcHeightCm = 55.0f;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera")
     float ThirdPersonArmLength = 330.0f;
 
@@ -159,6 +175,9 @@ public:
     UFUNCTION(BlueprintPure, Category="Horizon|Movement")
     bool IsProne() const { return MovementStance == EHorizonMovementStance::Prone; }
 
+    UFUNCTION(BlueprintPure, Category="Horizon|Movement")
+    bool IsVaulting() const { return MovementStance == EHorizonMovementStance::Vaulting; }
+
     UFUNCTION(BlueprintPure, Category="Horizon|Camera|Lean")
     float GetLeanAlpha() const { return CurrentLeanAlpha; }
 
@@ -167,6 +186,16 @@ public:
         EHorizonMovementStance Stance,
         bool bIsSprinting,
         float ObstructionFraction);
+
+    static bool CanStartVault(
+        EHorizonMovementStance Stance,
+        bool bMovingOnGround,
+        bool bIsAiming,
+        float ForwardInput,
+        float ObstacleHeightCm,
+        bool bLandingClear,
+        float MinimumHeightCm = 45.0f,
+        float MaximumHeightCm = 145.0f);
 
 private:
     bool bSprinting = false;
@@ -180,6 +209,11 @@ private:
     FVector2D CachedMoveInput = FVector2D::ZeroVector;
     float RawLeanInput = 0.0f;
     float CurrentLeanAlpha = 0.0f;
+    float VaultElapsedSeconds = 0.0f;
+    float ActiveVaultDurationSeconds = 0.0f;
+    float VaultObstacleHeightCm = 0.0f;
+    FVector VaultStartLocation = FVector::ZeroVector;
+    FVector VaultTargetLocation = FVector::ZeroVector;
 
     UPROPERTY()
     EHorizonMovementStance MovementStance = EHorizonMovementStance::Standing;
@@ -188,6 +222,9 @@ private:
     EHorizonCameraMode CameraMode = EHorizonCameraMode::ThirdPerson;
 
     void StartTraversalJump();
+    bool TryStartVault();
+    void UpdateVault(float DeltaSeconds);
+    void EndVault(bool bCompleted);
     void MoveForward(float Value);
     void MoveRight(float Value);
     void ApplyMovementInput(float DeltaSeconds);
