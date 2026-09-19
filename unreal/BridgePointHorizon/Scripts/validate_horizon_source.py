@@ -57,6 +57,7 @@ required_source = [
     "HorizonSocialSubsystem",
     "HorizonRaidDirectorSubsystem",
     "HorizonLoadoutSubsystem",
+    "HorizonSurvivalSubsystem",
     "HorizonWorldStreamSubsystem",
     "HorizonWorldCellRenderer",
     "HorizonWorldRuntime",
@@ -253,6 +254,41 @@ for token in ["GrantFreeSalvage", "GrantFreeUnlock"]:
 challenge_npc = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonChallengeNPC.cpp")
 for token in ["InteractionSphere", "OfferChallenge", "ReportChallengeProgress", "ClaimChallengeReward", "GetChallengeDirector"]:
     require(token in challenge_npc, f"strategic challenge NPC runtime missing: {token}")
+
+survival_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonSurvivalSubsystem.h")
+survival = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonSurvivalSubsystem.cpp")
+survival_contract = survival_header + "\n" + survival
+for token in [
+    "FHorizonSurvivalState", "FHorizonCraftingRecipe", "UHorizonSurvivalSaveGame",
+    "TryAddItem", "TryRemoveItem", "TryCraft", "ConsumeItem",
+    "AdvanceSurvivalHours", "CarryCapacityKg = 35.0f",
+    "ComputeInventoryWeightKg", "CanAffordRecipe", "SimulateNeeds"
+]:
+    require(token in survival_contract, f"survival/crafting contract missing: {token}")
+for token in [
+    "BridgePointHorizonSurvival", "LoadGameFromSlot", "SaveGameToSlot",
+    "TMap<FName, int32> ResultInventory", "consumes nothing",
+    "craft_bandage", "craft_campfire", "craft_water_filter", "craft_repair_kit",
+    "SprintHungerMultiplier", "SprintThirstMultiplier",
+    "ShelterHungerMultiplier", "ShelterThirstMultiplier",
+    "DeprivationDamagePerHour", "FMath::Clamp(DeltaHours, 0.0f, 24.0f)"
+]:
+    require(token in survival, f"survival/crafting behavior missing: {token}")
+for forbidden in ["premium", "purchase", "entitlement", "stripe", "payment"]:
+    require(forbidden not in survival_contract.lower(),
+            f"survival inventory must remain gameplay-only: {forbidden}")
+
+survival_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonSurvivalTests.cpp")
+for token in [
+    "WITH_DEV_AUTOMATION_TESTS", "Survival.CraftingAtomicity",
+    "Survival.Needs", "Survival.InventoryWeight",
+    "Insufficient ingredients fail before consumption",
+    "Sprinting increases thirst drain", "Shelter reduces thirst drain",
+    "Combined deprivation damages health", "Known inventory weight is deterministic"
+]:
+    require(token in survival_tests, f"native survival QA missing: {token}")
+require("Stripe" not in survival_tests and "Payment" not in survival_tests,
+        "survival QA must remain independent of payments")
 
 
 engine_config = read("unreal/BridgePointHorizon/Config/DefaultEngine.ini")
