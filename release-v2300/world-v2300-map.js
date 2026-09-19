@@ -4,7 +4,7 @@ const OFM='https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf';
 const NASA='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg';
 const USGS='https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}';
 const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
-const BUILDINGS=`${EDGE}bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000`;
+const BUILDINGS=`${EDGE}bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000&render=5326`;
 const PARCELS=`${EDGE}bridgepoint-spatial-tile-v1957?layer=parcels&z={z}&x={x}&y={y}&limit=9000`;
 const MAX_EXACT=MOBILE?650:(TIER==='LOW'?900:TIER==='HIGH'?2600:1600);
 const DETAIL_MIN=MOBILE?15.6:(TIER==='LOW'?15.4:TIER==='HIGH'?14.25:14.8);
@@ -18,56 +18,71 @@ const paint=(map,id,k,v)=>{try{if(map.getLayer(id))map.setPaintProperty(id,k,v)}
 
 function style(){
  const bType=['downcase',['to-string',['coalesce',['get','facade_material'],['get','building_material'],['get','building_type'],['get','property_type'],['get','building'],['get','class'],['get','type'],'']]];
- const bHeight=['coalesce',['to-number',['get','render_height_m']],['to-number',['get','render_height']],['to-number',['get','height_m']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],2],3],8];
- const bSeedBase=['case',
-  ['has','building_id'],['to-number',['get','building_id'],0],
-  ['has','osm_id'],['to-number',['get','osm_id'],0],
-  ['has','id'],['to-number',['get','id'],0],
-  ['!=',['id'],null],['to-number',['id'],0],
-  ['*',17,['round',bHeight]]
+ const bHeight=['coalesce',['to-number',['get','render_height_m']],['to-number',['get','render_height']],['to-number',['get','height_m']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],['to-number',['get','num_floors']],2],3],8];
+ const bYear=['coalesce',
+   ['to-number',['get','construction_year']],
+   ['to-number',['get','year_built']],
+   ['to-number',['get','start_date']],
+   ['to-number',['get','construction:year']],
+   0
  ];
- const pick=(names)=>{const s=['%',bSeedBase,names.length],x=['match',s];for(let i=0;i<names.length;i++)x.push(i,names[i]);x.push(names[0]);return x};
+ const bSeedBase=['to-number',
+   ['coalesce',['get','style_seed'],['id'],['get','building_id'],['get','osm_id'],['get','id']],
+   ['+',137,['*',31,['round',bHeight]],['*',7,['round',bYear]]]
+ ];
+ const seed=(salt,mod)=>['%', ['abs',['+', ['*',bSeedBase,salt], salt*7919]], mod];
+ const pick=(names,salt=1)=>{const s=seed(salt,names.length),x=['match',s];for(let i=0;i<names.length;i++)x.push(i,names[i]);x.push(names[0]);return x};
  const inType=xs=>['in',bType,['literal',xs]];
- const residential=['res-cream','res-sage','res-blue','res-tan','res-rose','res-white','row-red','row-brown'];
- const brick=['brick-red','brick-brown','brick-tan','brick-dark'];
- const glass=['glass-blue','glass-teal','glass-smoke','glass-silver','glass-green','office-charcoal'];
- const office=['office-stone','office-beige','office-white','office-charcoal','glass-blue','glass-silver'];
- const industrial=['industrial-gray','industrial-blue','industrial-tan','industrial-white'];
- const civic=['civic-limestone','civic-stone','civic-brick'];
- const neutral=['neutral-warm','neutral-cool','neutral-dark','office-stone','res-tan','brick-tan'];
+ const tall=['>',bHeight,55],veryTall=['>',bHeight,105];
+ const old=['all',['>',bYear,0],['<',bYear,1945]],mid=['all',['>=',bYear,1945],['<',bYear,1985]],modern=['>=',bYear,1985];
+ const residential=['res-cream','res-sage','res-blue','res-tan','res-rose','res-white','row-red','row-brown','row-cream','res-charcoal'];
+ const brick=['brick-red','brick-brown','brick-tan','brick-dark','brick-orange','brick-cream'];
+ const glass=['glass-blue','glass-teal','glass-smoke','glass-silver','glass-green','glass-bronze','glass-ice','office-charcoal'];
+ const office=['office-stone','office-beige','office-white','office-charcoal','office-sand','office-gray','glass-blue','glass-silver','glass-bronze'];
+ const industrial=['industrial-gray','industrial-blue','industrial-tan','industrial-white','industrial-green','industrial-rust'];
+ const civic=['civic-limestone','civic-stone','civic-brick','civic-granite'];
+ const neutral=['neutral-warm','neutral-cool','neutral-dark','office-stone','res-tan','brick-tan','office-gray','res-blue','brick-red','glass-smoke'];
  const facadeDetail=['case',
-  inType(['brick','masonry']),pick(brick),
-  inType(['glass']),pick(glass),
-  inType(['office','commercial','retail','hotel','mixed_use','mixed-use']),pick(office),
-  inType(['industrial','warehouse','hangar','manufacture','factory']),pick(industrial),
-  inType(['hospital','school','university','college','civic','public','government','church','cathedral','chapel','mosque','synagogue','temple']),pick(civic),
-  inType(['wood','timber','residential','apartments','house','detached','semidetached_house','terrace','dormitory','bungalow']),pick(residential),
-  pick(neutral)
+  inType(['brick','masonry']),pick(brick,3),
+  inType(['glass']),pick(glass,5),
+  inType(['office','commercial','retail','hotel','mixed_use','mixed-use']),pick(office,7),
+  inType(['industrial','warehouse','hangar','manufacture','factory']),pick(industrial,11),
+  inType(['hospital','school','university','college','civic','public','government','church','cathedral','chapel','mosque','synagogue','temple']),pick(civic,13),
+  inType(['wood','timber','residential','apartments','house','detached','semidetached_house','terrace','dormitory','bungalow']),pick(residential,17),
+  ['all',old,['<',bHeight,55]],pick(['row-red','row-brown','brick-red','brick-brown','brick-tan','civic-stone','res-cream'],19),
+  ['all',modern,veryTall],pick(['glass-blue','glass-teal','glass-silver','glass-green','glass-bronze','glass-ice','office-charcoal'],23),
+  ['all',modern,tall],pick(['office-white','office-gray','glass-smoke','glass-blue','office-charcoal','office-sand'],29),
+  ['all',mid,tall],pick(['office-stone','office-beige','office-gray','neutral-cool','industrial-gray'],31),
+  pick(neutral,37)
  ];
  const solidName=n=>['concat','bpfacade-solid-',n];
  const detailName=n=>['concat','bpfacade-',n];
  const facadePattern=['step',['zoom'],solidName(facadeDetail),15.15,detailName(facadeDetail)];
  const facadeColor=['case',
-  inType(['brick','masonry']),pick(['#8b5e50','#7b5046','#9a715f','#5f4c46']),
-  inType(['glass']),pick(['#496c7d','#4c777c','#596a72','#78868b','#54766f','#4a5961']),
-  inType(['office','commercial','retail','hotel','mixed_use','mixed-use']),pick(['#6a706f','#777063','#8b8b82','#4b5559','#567381','#737f84']),
-  inType(['industrial','warehouse','hangar','manufacture','factory']),pick(['#6a6e6c','#65757c','#7b705f','#898982']),
-  inType(['hospital','school','university','college','civic','public','government']),pick(['#8c826d','#747976','#855b4e']),
-  inType(['wood','timber','residential','apartments','house','detached','semidetached_house','terrace','dormitory','bungalow']),pick(['#827567','#738069','#667985','#8a7863','#8a6863','#8a8980','#81584b','#675047']),
-  pick(['#726c61','#687279','#585e60','#7d7567','#77675a','#685b54'])
+  inType(['brick','masonry']),pick(['#8b5e50','#7b5046','#9a715f','#5f4c46','#a5664d','#b39a7d'],41),
+  inType(['glass']),pick(['#496c7d','#4c777c','#596a72','#78868b','#54766f','#4a5961','#6c8797','#716858'],43),
+  inType(['office','commercial','retail','hotel','mixed_use','mixed-use']),pick(['#6a706f','#777063','#8b8b82','#4b5559','#567381','#737f84','#8a806d','#5f666b'],47),
+  inType(['industrial','warehouse','hangar','manufacture','factory']),pick(['#6a6e6c','#65757c','#7b705f','#898982','#667363','#845f4c'],53),
+  inType(['hospital','school','university','college','civic','public','government']),pick(['#8c826d','#747976','#855b4e','#686765'],59),
+  inType(['wood','timber','residential','apartments','house','detached','semidetached_house','terrace','dormitory','bungalow']),pick(['#827567','#738069','#667985','#8a7863','#8a6863','#8a8980','#81584b','#675047','#a18f72','#5f6464'],61),
+  ['all',old,['<',bHeight,55]],pick(['#80574b','#6d4d43','#916b58','#a08268','#786553','#8e7b68'],67),
+  ['all',modern,veryTall],pick(['#486b7a','#547b80','#68797f','#798789','#526f75','#646f7a','#5c665d'],71),
+  ['all',modern,tall],pick(['#737a78','#8a887f','#5a666d','#667d89','#7a7469','#555f64'],73),
+  ['all',mid,tall],pick(['#696d6b','#777267','#858177','#60696d','#706a5e'],79),
+  pick(['#726c61','#687279','#585e60','#7d7567','#77675a','#685b54','#7d6856','#617078','#83695b','#586c65','#74726c','#8b7b68'],83)
  ];
  const roofKind=['downcase',['to-string',['coalesce',['get','roof_material'],['get','roof:material'],['get','roof_shape'],['get','roof:shape'],'']]];
  const genericRoofs=['roof-membrane-dark','roof-membrane-light','roof-gravel','roof-shingle-gray','roof-shingle-brown','roof-metal-dark','roof-metal-silver','roof-tile-red','roof-tile-brown','roof-slate'];
  const roofName=['case',
-  ['in',roofKind,['literal',['metal','steel','tin','zinc']]],pick(['roof-metal-silver','roof-metal-dark']),
-  ['in',roofKind,['literal',['tile','tiles','clay','terracotta']]],pick(['roof-tile-red','roof-tile-brown']),
+  ['in',roofKind,['literal',['metal','steel','tin','zinc']]],pick(['roof-metal-silver','roof-metal-dark'],89),
+  ['in',roofKind,['literal',['tile','tiles','clay','terracotta']]],pick(['roof-tile-red','roof-tile-brown'],97),
   ['in',roofKind,['literal',['slate']]],'roof-slate',
-  ['in',roofKind,['literal',['shingle','shingles','asphalt_shingles']]],pick(['roof-shingle-gray','roof-shingle-brown']),
-  ['in',roofKind,['literal',['concrete','cement']]],pick(['roof-membrane-light','roof-gravel']),
-  pick(genericRoofs)
+  ['in',roofKind,['literal',['shingle','shingles','asphalt_shingles']]],pick(['roof-shingle-gray','roof-shingle-brown'],101),
+  ['in',roofKind,['literal',['concrete','cement']]],pick(['roof-membrane-light','roof-gravel'],103),
+  pick(genericRoofs,107)
  ];
  const roofPattern=['concat','bproof-',roofName];
- const nightWindowPattern=pick(['bp-window-night-warm','bp-window-night-cool','bp-window-night-mixed']);
+ const nightWindowPattern=pick(['bp-window-night-warm','bp-window-night-cool','bp-window-night-mixed'],109);
  const roofColor=['case',
   ['in',roofKind,['literal',['metal','steel','tin','zinc']]],pick(['#7d898b','#596367']),
   ['in',roofKind,['literal',['tile','tiles','clay','terracotta']]],pick(['#8b5544','#765441']),
@@ -203,28 +218,39 @@ function facadePatternImage(id){
   'res-tan':['#9b8569','#584b3e','#d7c4a2','#796a55','res'],
   'res-rose':['#956f67','#58433f','#d7b5aa','#74554f','res'],
   'res-white':['#aaa99f','#585d5c','#e5e2d7','#85857d','res'],
+  'res-charcoal':['#626765','#343b3e','#9ba09b','#4b504f','res'],
+  'row-cream':['#a48f75','#5c5148','#dec9a5','#806e59','row'],
   'row-red':['#86564b','#40353a','#c69a83','#68433c','row'],
   'row-brown':['#6f5448','#37363a','#ad8d75','#554237','row'],
   'brick-red':['#824f45','#3a3335','#bd8871','#653c35','brick'],
   'brick-brown':['#695047','#33363a','#a58470','#523d36','brick'],
   'brick-tan':['#93745d','#47413c','#c6aa86','#745a48','brick'],
   'brick-dark':['#544948','#2b3033','#8a7169','#413a3a','brick'],
+  'brick-orange':['#9a6048','#493735','#cc8d68','#774937','brick'],
+  'brick-cream':['#a18c70','#554c43','#d8c3a0','#7c6c56','brick'],
   'glass-blue':['#416b80','#1f3542','#94b8c6','#31586a','glass'],
   'glass-teal':['#3f7072','#223c40','#8eada8','#31595b','glass'],
   'glass-smoke':['#56646d','#29363e','#9ba8ad','#43515a','glass'],
   'glass-silver':['#77858a','#35454d','#c1c9c7','#5e6d72','glass'],
   'glass-green':['#55766f','#2a403d','#9fb1a8','#405e58','glass'],
+  'glass-bronze':['#6f665a','#373939','#b7a98e','#554e46','glass'],
+  'glass-ice':['#718c99','#354c57','#c1d8df','#58717d','glass'],
   'office-stone':['#817d71','#3e4344','#bdb7a4','#666258','office'],
   'office-beige':['#95856e','#484744','#cfbea0','#766954','office'],
   'office-white':['#999d99','#424b50','#d6d9d3','#767b78','office'],
   'office-charcoal':['#555d60','#242e34','#90999a','#41494c','office'],
+  'office-sand':['#8d816d','#474642','#c6b79a','#706653','office'],
+  'office-gray':['#707674','#343d40','#a9afaa','#575d5b','office'],
   'industrial-gray':['#676c6b','#343b3e','#9da2a0','#505554','industrial'],
   'industrial-blue':['#61747c','#32444c','#91a4a9','#4c5d64','industrial'],
   'industrial-tan':['#7d7363','#453f38','#aaa08d','#635b4e','industrial'],
   'industrial-white':['#8d918c','#4a4f4e','#c2c5bd','#6e716d','industrial'],
+  'industrial-green':['#677361','#37433a','#9ca68f','#505b4b','industrial'],
+  'industrial-rust':['#805f4e','#443936','#aa8068','#654a3d','industrial'],
   'civic-limestone':['#9a9078','#504b43','#cec3a8','#7d735f','civic'],
   'civic-stone':['#7c7b73','#464948','#b5b2a7','#64645e','civic'],
   'civic-brick':['#7f594e','#41383a','#b88b76','#62443d','civic'],
+  'civic-granite':['#73716b','#404445','#a8a49a','#5a5955','civic'],
   'neutral-warm':['#75695d','#393a3a','#aaa08f','#5a5148','office'],
   'neutral-cool':['#637077','#303b41','#98a5a8','#4d5b61','office'],
   'neutral-dark':['#4f5555','#242c30','#858b88','#3d4343','office']
@@ -287,13 +313,13 @@ function roofPatternImage(id){
  x.globalAlpha=1;return x.getImageData(0,0,size,size)
 }
 function installBuildingMaterials(map){
- const facadeKinds=['res-cream','res-sage','res-blue','res-tan','res-rose','res-white','row-red','row-brown','brick-red','brick-brown','brick-tan','brick-dark','glass-blue','glass-teal','glass-smoke','glass-silver','glass-green','office-stone','office-beige','office-white','office-charcoal','industrial-gray','industrial-blue','industrial-tan','industrial-white','civic-limestone','civic-stone','civic-brick','neutral-warm','neutral-cool','neutral-dark'];
+ const facadeKinds=['res-cream','res-sage','res-blue','res-tan','res-rose','res-white','res-charcoal','row-red','row-brown','row-cream','brick-red','brick-brown','brick-tan','brick-dark','brick-orange','brick-cream','glass-blue','glass-teal','glass-smoke','glass-silver','glass-green','glass-bronze','glass-ice','office-stone','office-beige','office-white','office-charcoal','office-sand','office-gray','industrial-gray','industrial-blue','industrial-tan','industrial-white','industrial-green','industrial-rust','civic-limestone','civic-stone','civic-brick','civic-granite','neutral-warm','neutral-cool','neutral-dark'];
  const roofKinds=['roof-membrane-dark','roof-membrane-light','roof-gravel','roof-shingle-gray','roof-shingle-brown','roof-metal-dark','roof-metal-silver','roof-tile-red','roof-tile-brown','roof-slate'];
  const facadeIds=facadeKinds.flatMap(k=>['bpfacade-solid-'+k,'bpfacade-'+k]),roofIds=roofKinds.map(k=>'bproof-'+k),windowIds=['bp-window-night-warm','bp-window-night-cool','bp-window-night-mixed'];
  const add=id=>{try{if(map.hasImage(id))return;if(id.startsWith('bproof-'))map.addImage(id,roofPatternImage(id),{pixelRatio:2});else if(id.startsWith('bp-window-night-'))map.addImage(id,nightWindowPatternImage(id),{pixelRatio:2});else map.addImage(id,facadePatternImage(id),{pixelRatio:2})}catch(e){console.warn('BridgePoint building material',id,e)}};
  map.on('styleimagemissing',e=>{const id=String(e.id||'');if(id.startsWith('bpfacade-')||id.startsWith('bproof-')||id.startsWith('bp-window-night-'))add(id)});
  for(const id of [...facadeIds,...roofIds,...windowIds])add(id);
- window.__BP_BUILDING_MATERIALS__={version:'v5325',mode:'rendered-vector-3d',aerialBase:false,roofCaps:true,directionalLight:true,facadeTextures:true,facadeArchetypes:facadeKinds.length,roofArchetypes:roofKinds.length,deterministicPerBuilding:true,globalStyle:true,updatedAt:Date.now()}
+ window.__BP_BUILDING_MATERIALS__={version:'v5326',mode:'rendered-vector-3d',aerialBase:false,roofCaps:true,directionalLight:true,facadeTextures:true,facadeArchetypes:facadeKinds.length,roofArchetypes:roofKinds.length,deterministicPerBuilding:true,globalStyle:true,updatedAt:Date.now()}
 }
 
 function surfacePatternImage(id){
@@ -321,7 +347,7 @@ function installWorldMaterials(map){
  for(const k of terrain)addTerrain('bpterrain-'+k);
  for(const [id,kind] of [['bp-landmark-monument','monument'],['bp-landmark-statue','statue']]){try{if(!map.hasImage(id))map.addImage(id,landmarkIconImage(kind),{pixelRatio:2})}catch(e){console.warn('BridgePoint landmark',id,e)}}
  map.on('styleimagemissing',e=>{const id=String(e.id||'');if(id.startsWith('bpterrain-'))addTerrain(id)});
- window.__BP_WORLD_MATERIALS__={version:'v5325',biomes:true,physicalRoads:true,bridgeDecks:true,landmarks:true,updatedAt:Date.now()}
+ window.__BP_WORLD_MATERIALS__={version:'v5326',biomes:true,physicalRoads:true,bridgeDecks:true,landmarks:true,updatedAt:Date.now()}
 }
 
 function roadLights(map){if(map.getZoom()<LIGHT_MIN)return EMPTY;let fs=[];try{fs=map.queryRenderedFeatures({layers:['gta-road-major','gta-road-local']})||[]}catch(_){return EMPTY}const pts=[],seen=new Set(),max=MOBILE?260:(TIER==='LOW'?320:TIER==='HIGH'?900:560);for(const f of fs){const g=f.geometry,lines=g?.type==='LineString'?[g.coordinates]:g?.type==='MultiLineString'?g.coordinates:[];for(const line of lines){const step=Math.max(4,Math.ceil(line.length/(MOBILE?6:10)));for(let i=0;i<line.length&&pts.length<max;i+=step){const c=line[i],k=`${c[0].toFixed(5)}|${c[1].toFixed(5)}`;if(seen.has(k))continue;seen.add(k);pts.push({type:'Feature',properties:{kind:'streetlight'},geometry:{type:'Point',coordinates:c}})}}}return fc(pts)}
@@ -457,7 +483,7 @@ export function initWorld(options={}){
   document.getElementById('locateMe')?.addEventListener('click',()=>{if(!navigator.geolocation){setStatus('Location is unavailable on this device');return}setStatus('Getting your location…');navigator.geolocation.getCurrentPosition(p=>map.easeTo({center:[p.coords.longitude,p.coords.latitude],zoom:16.8,pitch:60,bearing:-18,duration:LOW?350:700}),()=>setStatus('Location permission was not available'),{enableHighAccuracy:false,timeout:7000,maximumAge:120000})});
  }
  function chooseBuilding(e){if(window.__BP_MEASURE_ACTIVE__)return false;const layers=['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings'].filter(id=>map.getLayer(id));let f=Array.isArray(e?.features)?e.features.find(x=>layers.includes(x?.layer?.id))||null:null;try{if(!f)f=map.queryRenderedFeatures(e.point,{layers})[0]||null}catch(_){}if(!f)return false;lastBuildingClickAt=performance.now();const p={...(f.properties||{})};if(!p.render_height_m)p.render_height_m=Number(p.height||p.render_height||8.5);const ll=e.lngLat||map.unproject(e.point),feature={type:'Feature',geometry:f.geometry,properties:p,id:f.id,layer:{id:f.layer?.id||''}},z=Math.max(map.getZoom(),16.6);map.easeTo({center:ll,zoom:clamp(z,15,19),pitch:64,bearing:map.getBearing(),duration:LOW?260:520});const detail={lngLat:ll,feature};if(typeof window.__BP_V5000_SELECT_BUILDING__==='function'){try{window.__BP_V5000_SELECT_BUILDING__(detail)}catch(err){console.warn('v5000 building selector',err)}}else if(typeof buildingSelectHandler==='function'){try{buildingSelectHandler(detail)}catch(err){console.warn('building selection handler',err)}}window.dispatchEvent(new CustomEvent('bp2300:building-click',{detail}));return true}
- function bindBuildingHitLayers(){for(const id of ['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings']){if(!map.getLayer(id))continue;map.on('click',id,e=>chooseBuilding(e));map.on('mouseenter',id,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',id,()=>{map.getCanvas().style.cursor=''})}} map.on('load',()=>{installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();installWalkUI();bindBuildingHitLayers();setBase('gta');startParcelFlow();setTimeout(scheduleExact,MOBILE?1200:500);setTimeout(scheduleLivingWorld,MOBILE?1450:620);setTimeout(lights,MOBILE?1600:700);setStatus('BridgePoint World v5325 · zero-blank persistence · mobile smooth LOD · live sun/moon lighting')});
+ function bindBuildingHitLayers(){for(const id of ['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings']){if(!map.getLayer(id))continue;map.on('click',id,e=>chooseBuilding(e));map.on('mouseenter',id,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',id,()=>{map.getCanvas().style.cursor=''})}} map.on('load',()=>{installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();installWalkUI();bindBuildingHitLayers();setBase('gta');startParcelFlow();setTimeout(scheduleExact,MOBILE?1200:500);setTimeout(scheduleLivingWorld,MOBILE?1450:620);setTimeout(lights,MOBILE?1600:700);setStatus('BridgePoint World v5326 · per-building identity styling · age-aware facades · distinct roofs')});
  map.on('movestart',()=>movement(true));map.on('moveend',()=>movement(false));map.on('zoomend',()=>{terrain();if(!moving)updateWorldLight()});
  const canvas=map.getCanvas();
  const nativeBuildingTap=(clientX,clientY,originalEvent)=>{const r=canvas.getBoundingClientRect(),point={x:clientX-r.left,y:clientY-r.top};if(point.x<0||point.y<0||point.x>r.width||point.y>r.height)return false;const hit=chooseBuilding({point,lngLat:map.unproject(point),originalEvent});if(hit)lastTouchBuildingAt=performance.now();return hit};
