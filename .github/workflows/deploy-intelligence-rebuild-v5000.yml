@@ -498,21 +498,20 @@ jobs:
                 return Number(s?.features||0)>0&&Number(s?.anchored||0)>0;
               },{timeout:30000});
               console.log('BRIDGEPOINT_SEMANTIC_BUILDING_LABELS_PASS',await p.evaluate(()=>JSON.stringify(window.__BP_SEMANTIC_STATS||{})));
-              await p.waitForFunction(()=>!!window.__BP_PERFORMANCE_GOVERNOR__,{timeout:10000});
-              const perfState=await p.evaluate(async()=>{
-                const m=window.__BP_V5000_WORLD?.map,g=window.__BP_PERFORMANCE_GOVERNOR__;
-                if(!m||!g)throw new Error('performance governor unavailable');
-                const before={interacting:g.interacting,queued:g.queued};
+              const persistenceState=await p.evaluate(async()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                if(!m)throw new Error('persistent renderer unavailable');
+                const layers=['gta-context-buildings','gta-bp-buildings','gta-road-major','gta-road-local','gta-landcover'].filter(id=>m.getLayer(id));
+                const before=Object.fromEntries(layers.map(id=>[id,m.getLayoutProperty(id,'visibility')||'visible']));
                 m.easeTo({center:[-72.92,41.31],zoom:15.2,duration:420});
                 await new Promise(r=>setTimeout(r,100));
-                const during={interacting:g.interacting,queued:g.queued};
+                const during=Object.fromEntries(layers.map(id=>[id,m.getLayoutProperty(id,'visibility')||'visible']));
                 await new Promise(r=>setTimeout(r,520));
-                const after={interacting:g.interacting,queued:g.queued};
-                return {before,during,after}
+                const after=Object.fromEntries(layers.map(id=>[id,m.getLayoutProperty(id,'visibility')||'visible']));
+                return {before,during,after,light:window.__BP_WORLD_LIGHT__||null,living:window.__BP_LIVING_WORLD_STATE__||null}
               });
-              console.log('BRIDGEPOINT_PERFORMANCE_GOVERNOR',JSON.stringify(perfState));
-              if(perfState.during.interacting!==true)throw new Error('PERFORMANCE_GOVERNOR_DID_NOT_ENTER '+JSON.stringify(perfState));
-              await p.waitForFunction(()=>window.__BP_PERFORMANCE_GOVERNOR__?.interacting===false,{timeout:2500});
+              console.log('BRIDGEPOINT_PERSISTENT_RENDERER',JSON.stringify(persistenceState));
+              if(Object.values(persistenceState.during).some(v=>v==='none'))throw new Error('PERSISTENT_RENDERER_HID_LAYER '+JSON.stringify(persistenceState));
               const frameProbe=await p.evaluate(async()=>{
                 const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('frame probe map missing');
                 const gaps=[];let active=true,last=performance.now();
