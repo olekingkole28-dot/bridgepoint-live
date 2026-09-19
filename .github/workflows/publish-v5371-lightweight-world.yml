@@ -1,4 +1,4 @@
-# V5378 publish: click-only attribution + viewer location preserved + primary-owner US start
+# V5378 publish: click-only attribution + viewer location + primary-owner US start
 name: Publish BridgePoint V5378 Lightweight World
 
 on:
@@ -55,8 +55,8 @@ jobs:
           grep -Fq 'new maplibregl.AttributionControl({compact:true})' world-v2300-map.js
           grep -Fq 'attributionUserIntentUntil' world-v2300-map.js
           grep -Fq 'startForViewer' world-v2300-map.js
-          grep -Fq 'bridgepoint_my_map_start_v5377' app.js
-          grep -Fq 'bridgepoint_my_map_start_v5377' landing.js
+          grep -Fq 'bridgepoint_my_map_start_v5378' app.js
+          grep -Fq 'bridgepoint_my_map_start_v5378' landing.js
           grep -Fq 'bridgepoint-public-city-structures-v5375' world-v2300-map.js
           grep -Fq "source:'bpCityRoofs','source-layer':'roofs'" world-v2300-map.js
           grep -Fq "id:'gta-city-building-roof-caps'" world-v2300-map.js
