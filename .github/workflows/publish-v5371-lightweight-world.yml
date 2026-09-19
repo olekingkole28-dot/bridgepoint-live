@@ -1,4 +1,4 @@
-# V5378 publish: click-only attribution + location start after renderer settle
+# V5378 publish: viewer-location + click-only attribution without tile-idle dependency
 name: Publish BridgePoint V5378 Lightweight World
 
 on:
@@ -322,8 +322,7 @@ jobs:
               await root.waitForSelector('#previewMap',{timeout:10000});
               await root.waitForFunction(()=>window.__BP_LANDING_WORLD__?.map&&window.__BP_WORLD_RENDER_VERSION__===5378,{timeout:45000});
               await root.waitForFunction(()=>window.__BP_LANDING_VIEWER_START__?.mode==='VIEWER_LOCATION',{timeout:25000});
-              await root.waitForFunction(()=>window.__BP_LANDING_WORLD__?.map?.loaded?.()===true,{timeout:12000});
-              await sleep(800);
+              await sleep(1200);
               const home=await root.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_LANDING_VIEWER_START__||{},attrib=document.querySelector('#previewMap .maplibregl-ctrl-attrib');
                 return{
