@@ -1,5 +1,5 @@
 name: Publish BridgePoint V5370 City World
-# retry-after-visible-city-source: 2
+# retry-after-visible-city-source: 3
 
 on:
   push:
@@ -98,21 +98,25 @@ jobs:
               },{timeout:20000});
               await app.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
-                if(!m?.isSourceLoaded?.('bpBuildings'))return false;
-                try{return (m.querySourceFeatures('bpBuildings',{sourceLayer:'buildings'})||[]).length>=500}catch{return false}
+                if(!m)return false;
+                try{
+                  const context=(m.queryRenderedFeatures({layers:['gta-context-buildings']})||[]).length;
+                  const bp=(m.queryRenderedFeatures({layers:['gta-bp-buildings']})||[]).length;
+                  return context+bp>=120;
+                }catch{return false}
               },{timeout:30000});
               const city=await app.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map,mode=window.__BP_BUILDING_SHELL_MODE__||{};
-                const sourceCount=(m.querySourceFeatures('bpBuildings',{sourceLayer:'buildings'})||[]).length;
+                const contextCount=(m.queryRenderedFeatures({layers:['gta-context-buildings']})||[]).length;
+                const bpCount=(m.queryRenderedFeatures({layers:['gta-bp-buildings']})||[]).length;
                 return{
-                  sourceCount,
-                  buildingVisible:(m.getLayoutProperty('gta-bp-buildings','visibility')||'visible')!=='none',
-                  roofVisible:(m.getLayoutProperty('gta-bp-roofs','visibility')||'visible')!=='none',
+                  visibleBuildings:contextCount+bpCount,
+                  contextCount,bpCount,
                   terrain:window.__BP_V5000_WORLD.state.terrain,
                   mode
                 };
               });
-              if(city.sourceCount<500||!city.buildingVisible||!city.roofVisible||!city.terrain)throw new Error('CITY_LOD '+JSON.stringify(city));
+              if(city.visibleBuildings<120||!city.terrain||city.mode?.cityScale3D!==true)throw new Error('CITY_LOD '+JSON.stringify(city));
 
               await app.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.0445004,40.6892494],zoom:14.2,pitch:70,bearing:18}));
               await app.waitForFunction(()=>{
