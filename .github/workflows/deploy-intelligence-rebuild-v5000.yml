@@ -231,8 +231,8 @@ jobs:
           node --check site/app/horizon-playable/horizon-v2.js
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
-          grep -Fq '__BP_APP_BUILD_VERSION__=5367' site/app.js
-          grep -Fq '__BP_WORLD_RENDER_VERSION__=5367' site/world-v2300-map.js
+          grep -Fq '__BP_APP_BUILD_VERSION__=5368' site/app.js
+          grep -Fq '__BP_WORLD_RENDER_VERSION__=5368' site/world-v2300-map.js
           grep -Fq 'bridgepoint_frontend_status_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_by_id_v5024' site/app.js
@@ -268,10 +268,17 @@ jobs:
           grep -Fq 'sourceBackedHeight:true' site/world-v2300-map.js
           grep -Fq 'bridgePointGeometry:true' site/world-v2300-map.js
           grep -Fq 'buildingParts:true' site/world-v2300-map.js
+          grep -Fq 'integratedFloorBands:true' site/world-v2300-map.js
+          grep -Fq 'realRoofTruthGeometry:true' site/world-v2300-map.js
+          grep -Fq "roofTruthSourceLayer:'roofs'" site/world-v2300-map.js
+          grep -Fq "'source-layer':'roofs'" site/world-v2300-map.js
+          grep -Fq "const floorPattern=['step',['zoom'],'bp-grey-solid'" site/world-v2300-map.js
+          grep -Fq "endpoint:'bridgepoint-public-building-tile-v5368'" site/app.js
+          grep -Fq 'roofTruthGeometry:true' site/app.js
           grep -Fq "id:'gta-bp-floor-lines'" site/world-v2300-map.js
           grep -Fq "authoritative:useBp?'BRIDGEPOINT_STRUCTURAL':'GLOBAL_CONTEXT_STRUCTURAL'" site/world-v2300-map.js
           grep -Fq "actualHeightSource:useBp?'render_height_m':'OPENFREEMAP_HEIGHT'" site/world-v2300-map.js
-          grep -Fq "roofMode:exactReady?'EXACT_PLUS_SOURCE_CAP'" site/world-v2300-map.js
+          grep -Fq "roofMode:useBp?'BRIDGEPOINT_ROOF_TRUTH_GEOMETRY'" site/world-v2300-map.js
           grep -Fq 'minPitch:58,maxPitch:85' site/world-v2300-map.js
           grep -Fq "mode:'HORIZON_FREE_FLY_SINGLE_VIEW'" site/world-v2300-map.js
           grep -Fq 'horizonLocked:true' site/world-v2300-map.js
@@ -285,11 +292,11 @@ jobs:
           ! grep -Fq 'id="pViewStreet"' site/app.js
           ! grep -Fq 'id="pView3D"' site/app.js
           ! grep -Fq 'id="pViewAerial"' site/app.js
-          grep -Fq 'bridgepoint-public-building-tile-v5367' site/world-v2300-map.js
+          grep -Fq 'bridgepoint-public-building-tile-v5368' site/world-v2300-map.js
           grep -Fq "'fill-extrusion-base':0" site/world-v2300-map.js
           ! grep -Fq "map.on('idle',syncBuildingShells)" site/world-v2300-map.js
           grep -Fq 'cacheBusting:false' site/app.js
-          grep -Fq 'disabled_by_owner_v5367' site/app.js
+          grep -Fq 'disabled_by_owner_v5368' site/app.js
           grep -Fq "ensureWeatherRasterPair('Radar')" site/app.js
           ! grep -Fq "ensureWeatherRasterPair('Cloud')" site/app.js
           ! grep -Fq 'bridgepoint-noaa-cloud-frames-v215' site/app.js
@@ -431,9 +438,9 @@ jobs:
             q="${GITHUB_SHA}-${i}-$(date +%s)"
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?v5050=${q}" -o /tmp/root.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?v5050=${q}" -o /tmp/app.html || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5367=${q}" -o /tmp/app.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5367=${q}" -o /tmp/world-v2300-map.js || true
-            if grep -Fq 'BP_LANDING_V5050' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5367' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5367' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5367' /tmp/world-v2300-map.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js; then ok=1; break; fi
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5368=${q}" -o /tmp/app.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5368=${q}" -o /tmp/world-v2300-map.js || true
+            if grep -Fq 'BP_LANDING_V5050' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5368' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5368' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5368' /tmp/world-v2300-map.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
@@ -514,9 +521,9 @@ jobs:
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               const errors=[];p.on('pageerror',e=>errors.push(String(e.message||e)));
-              await p.goto('https://bridgepointintelligence.online/app/?qa=v5367-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
-              await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000&&window.__BP_APP_BUILD_VERSION__===5367,{timeout:20000});
-              await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5367,{timeout:30000});
+              await p.goto('https://bridgepointintelligence.online/app/?qa=v5368-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000&&window.__BP_APP_BUILD_VERSION__===5368,{timeout:20000});
+              await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5368,{timeout:30000});
               await p.waitForFunction(()=>document.getElementById('canonicalProperties')?.textContent?.includes(','),{timeout:15000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
               await p.waitForFunction(()=>!!document.getElementById('bpTabContext')&&!!document.getElementById('bXrayUnderground')&&!!document.getElementById('toggleLiveContext')&&!!document.getElementById('ctxSurfaceMaterial')&&!!document.getElementById('ctxSurfaceSource')&&!!document.getElementById('transportArchive')&&!!document.getElementById('transportRuntime'),{timeout:10000});
@@ -667,22 +674,25 @@ jobs:
               const structuralProof=await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map,fs=m?.queryRenderedFeatures({layers:['gta-bp-buildings']})||[];
                 const heights=fs.map(f=>Number(f?.properties?.render_height_m)).filter(Number.isFinite);
+                const floors=fs.map(f=>Number(f?.properties?.resolved_floors)).filter(Number.isFinite);
                 const unique=[...new Set(heights.map(x=>x.toFixed(2)))];
                 const parts=(()=>{try{return m?.getLayer('gta-context-building-parts')&&(m.getLayoutProperty('gta-context-building-parts','visibility')||'visible')!=='none'?m.queryRenderedFeatures({layers:['gta-context-building-parts']}).length:0}catch{return 0}})();
-                const floors=(()=>{try{return m?.getLayer('gta-bp-floor-lines')&&(m.getLayoutProperty('gta-bp-floor-lines','visibility')||'visible')!=='none'?m.queryRenderedFeatures({layers:['gta-bp-floor-lines']}).length:0}catch{return 0}})();
                 const roofs=(()=>{try{return m?.getLayer('gta-bp-roofs')&&(m.getLayoutProperty('gta-bp-roofs','visibility')||'visible')!=='none'?m.queryRenderedFeatures({layers:['gta-bp-roofs']}).length:0}catch{return 0}})();
-                return {mode:window.__BP_BUILDING_SHELL_MODE__||{},rendered:fs.length,heightCount:heights.length,uniqueHeights:unique.length,minHeight:heights.length?Math.min(...heights):null,maxHeight:heights.length?Math.max(...heights):null,parts,floors,roofs};
+                const pattern=m?.getPaintProperty('gta-bp-buildings','fill-extrusion-pattern');
+                const floorPatternActive=JSON.stringify(pattern||null).includes('bp-floor-lines')&&!!m?.hasImage?.('bp-floor-lines')&&!!m?.hasImage?.('bp-grey-solid');
+                const roofLayer=m?.getLayer('gta-bp-roofs');
+                return {mode:window.__BP_BUILDING_SHELL_MODE__||{},rendered:fs.length,heightCount:heights.length,uniqueHeights:unique.length,minHeight:heights.length?Math.min(...heights):null,maxHeight:heights.length?Math.max(...heights):null,resolvedFloorCount:floors.length,maxResolvedFloors:floors.length?Math.max(...floors):null,parts,roofs,floorPatternActive,roofSourceLayer:roofLayer?.['source-layer']||null};
               });
-              if(structuralProof.rendered<10||structuralProof.heightCount<10||structuralProof.uniqueHeights<4||!(structuralProof.maxHeight-structuralProof.minHeight>10)||structuralProof.floors<1||structuralProof.roofs<1)throw new Error('STRUCTURAL_BUILDING_PROOF_FAILED '+JSON.stringify(structuralProof));
+              if(structuralProof.rendered<10||structuralProof.heightCount<10||structuralProof.uniqueHeights<4||!(structuralProof.maxHeight-structuralProof.minHeight>10)||structuralProof.resolvedFloorCount<10||!structuralProof.floorPatternActive||structuralProof.roofs<1||structuralProof.roofSourceLayer!=='roofs')throw new Error('STRUCTURAL_BUILDING_PROOF_FAILED '+JSON.stringify(structuralProof));
               console.log('BRIDGEPOINT_STRUCTURAL_BUILDINGS_PASS',JSON.stringify(structuralProof));
               const freeFlyDetail=await p.evaluate(()=>({
                 camera:window.__BP_CAMERA_MODE__||null,
                 pitch:window.__BP_V5000_WORLD?.map?.getPitch?.()??null,
                 minPitch:window.__BP_V5000_WORLD?.map?.getMinPitch?.()??null,
                 maxPitch:window.__BP_V5000_WORLD?.map?.getMaxPitch?.()??null,
-                bpFloorLayer:!!window.__BP_V5000_WORLD?.map?.getLayer('gta-bp-floor-lines'),
-                bpFloorVisible:(()=>{const m=window.__BP_V5000_WORLD?.map;return !!m?.getLayer('gta-bp-floor-lines')&&(m.getLayoutProperty('gta-bp-floor-lines','visibility')||'visible')!=='none'})(),
-                floorImage:!!window.__BP_V5000_WORLD?.map?.hasImage?.('bp-floor-lines'),
+                integratedFloorPattern:(()=>{const m=window.__BP_V5000_WORLD?.map,p=m?.getPaintProperty('gta-bp-buildings','fill-extrusion-pattern');return JSON.stringify(p||null).includes('bp-floor-lines')&&!!m?.hasImage?.('bp-floor-lines')&&!!m?.hasImage?.('bp-grey-solid')})(),
+                dedicatedFloorOverlayHidden:(()=>{const m=window.__BP_V5000_WORLD?.map;return !!m?.getLayer('gta-bp-floor-lines')&&(m.getLayoutProperty('gta-bp-floor-lines','visibility')||'visible')==='none'})(),
+                roofSourceLayer:(()=>window.__BP_V5000_WORLD?.map?.getLayer('gta-bp-roofs')?.['source-layer']||null)(),
                 partsVisible:(()=>{const m=window.__BP_V5000_WORLD?.map;return !!m?.getLayer('gta-context-building-parts')&&(m.getLayoutProperty('gta-context-building-parts','visibility')||'visible')!=='none'})(),
                 bpRoofVisible:(()=>{const m=window.__BP_V5000_WORLD?.map;return !!m?.getLayer('gta-bp-roofs')&&(m.getLayoutProperty('gta-bp-roofs','visibility')||'visible')!=='none'})(),
                 exactBodyLayer:!!window.__BP_V5000_WORLD?.map?.getLayer('gta-exact-building'),
@@ -693,7 +703,7 @@ jobs:
                 view3dButton:!!document.getElementById('pView3D'),
                 streetButton:!!document.getElementById('pViewStreet')
               }));
-              if(freeFlyDetail.camera?.mode!=='HORIZON_FREE_FLY_SINGLE_VIEW'||freeFlyDetail.camera?.singleView!==true||freeFlyDetail.camera?.autoViewSwitching!==false||freeFlyDetail.camera?.streetWalkMode!==false||freeFlyDetail.camera?.horizonLocked!==true||Number(freeFlyDetail.pitch)<57.5||Number(freeFlyDetail.minPitch)<57.5||Number(freeFlyDetail.maxPitch)<84||!freeFlyDetail.bpFloorLayer||!freeFlyDetail.bpFloorVisible||!freeFlyDetail.floorImage||!freeFlyDetail.partsVisible||!freeFlyDetail.bpRoofVisible||!freeFlyDetail.exactBodyLayer||!freeFlyDetail.exactFloorLayer||!freeFlyDetail.exactRoofLayer||freeFlyDetail.walkButton||freeFlyDetail.aerialButton||freeFlyDetail.view3dButton||freeFlyDetail.streetButton)throw new Error('HORIZON_STRUCTURAL_DETAIL_CONTRACT '+JSON.stringify(freeFlyDetail));
+              if(freeFlyDetail.camera?.mode!=='HORIZON_FREE_FLY_SINGLE_VIEW'||freeFlyDetail.camera?.singleView!==true||freeFlyDetail.camera?.autoViewSwitching!==false||freeFlyDetail.camera?.streetWalkMode!==false||freeFlyDetail.camera?.horizonLocked!==true||Number(freeFlyDetail.pitch)<57.5||Number(freeFlyDetail.minPitch)<57.5||Number(freeFlyDetail.maxPitch)<84||!freeFlyDetail.integratedFloorPattern||!freeFlyDetail.dedicatedFloorOverlayHidden||freeFlyDetail.roofSourceLayer!=='roofs'||!freeFlyDetail.partsVisible||!freeFlyDetail.bpRoofVisible||!freeFlyDetail.exactBodyLayer||!freeFlyDetail.exactFloorLayer||!freeFlyDetail.exactRoofLayer||freeFlyDetail.walkButton||freeFlyDetail.aerialButton||freeFlyDetail.view3dButton||freeFlyDetail.streetButton)throw new Error('HORIZON_STRUCTURAL_DETAIL_CONTRACT '+JSON.stringify(freeFlyDetail));
               console.log('BRIDGEPOINT_HORIZON_STRUCTURAL_DETAIL_PASS',JSON.stringify(freeFlyDetail));
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
@@ -728,7 +738,7 @@ jobs:
                 bpRoofVisible:(()=>{const m=window.__BP_V5000_WORLD?.map;return !!m?.getLayer('gta-bp-roofs')&&(m.getLayoutProperty('gta-bp-roofs','visibility')||'visible')!=='none'})(),
                 refresh:window.__BP_BUILDING_TILE_REFRESH__||null
               }));
-              if(structuralState.mode?.authoritative!=='BRIDGEPOINT_STRUCTURAL'||structuralState.mode?.bridgePointCoverageReady!==true||structuralState.mode?.floorLines!==true||structuralState.mode?.buildingParts!==true||structuralState.mode?.roofReady!==true||structuralState.mode?.cameraMode!=='HORIZON_FREE_FLY_SINGLE_VIEW'||structuralState.materials?.sourceBackedHeight!==true||structuralState.materials?.bridgePointGeometry!==true||structuralState.materials?.floorLines!==true||structuralState.materials?.roofOverlays!==true||structuralState.materials?.exactRoofs!==true||structuralState.materials?.buildingParts!==true||structuralState.bpVisible!==true||structuralState.contextVisible!==false||structuralState.partsVisible!==true||structuralState.bpRoofVisible!==true||structuralState.refresh?.bridgePointHandoff!==true)throw new Error('STRUCTURAL_BUILDING_STATE_INVALID '+JSON.stringify(structuralState));
+              if(structuralState.mode?.authoritative!=='BRIDGEPOINT_STRUCTURAL'||structuralState.mode?.bridgePointCoverageReady!==true||structuralState.mode?.floorLines!==true||structuralState.mode?.integratedFloorBands!==true||structuralState.mode?.buildingParts!==true||structuralState.mode?.roofReady!==true||structuralState.mode?.roofMode!=='BRIDGEPOINT_ROOF_TRUTH_GEOMETRY'||structuralState.mode?.cameraMode!=='HORIZON_FREE_FLY_SINGLE_VIEW'||structuralState.materials?.sourceBackedHeight!==true||structuralState.materials?.bridgePointGeometry!==true||structuralState.materials?.floorLines!==true||structuralState.materials?.integratedFloorBands!==true||structuralState.materials?.realRoofTruthGeometry!==true||structuralState.materials?.roofTruthSourceLayer!=='roofs'||structuralState.materials?.roofOverlays!==true||structuralState.materials?.buildingParts!==true||structuralState.bpVisible!==true||structuralState.contextVisible!==false||structuralState.partsVisible!==true||structuralState.bpRoofVisible!==true||structuralState.refresh?.bridgePointHandoff!==true||structuralState.refresh?.integratedFloorBands!==true||structuralState.refresh?.roofTruthGeometry!==true||structuralState.refresh?.endpoint!=='bridgepoint-public-building-tile-v5368')throw new Error('STRUCTURAL_BUILDING_STATE_INVALID '+JSON.stringify(structuralState));
               console.log('BRIDGEPOINT_STRUCTURAL_BUILDING_STATE_PASS',JSON.stringify(structuralState));
               await p.evaluate(()=>window.__BP_V5000_CLEAR_BUILDING__?.());
 
