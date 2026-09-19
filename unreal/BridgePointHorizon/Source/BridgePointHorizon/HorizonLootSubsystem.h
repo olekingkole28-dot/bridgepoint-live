@@ -41,7 +41,7 @@ struct FHorizonLootContext
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     EHorizonLootSource Source = EHorizonLootSource::WorldContainer;
 
-    // Supplied by bounded encounter progression, never purchases or entitlements.
+    // Supplied only by bounded encounter progression.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="-0.25", ClampMax="0.50"))
     float QualityBias = 0.0f;
 };
