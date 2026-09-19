@@ -173,7 +173,7 @@ for token in ["/Engine/Maps/Entry", "GlobalDefaultGameMode=/Script/BridgePointHo
     require(token in engine_config, f"native bootstrap config missing: {token}")
 
 input_config = read("unreal/BridgePointHorizon/Config/DefaultInput.ini")
-for token in ['AxisName="MoveForward"', 'AxisName="MoveRight"', 'ActionName="Sprint"', 'ActionName="Crouch"', 'ActionName="Aim"', 'ActionName="ToggleCamera"']:
+for token in ['AxisName="MoveForward"', 'AxisName="MoveRight"', 'ActionName="Sprint"', 'ActionName="Crouch"', 'ActionName="Aim"', 'ActionName="ToggleCamera"', 'ActionName="Prone"', 'ActionName="Slide"']:
     require(token in input_config, f"native movement input missing: {token}")
 
 player_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonPlayerCharacter.h")
@@ -184,7 +184,9 @@ for token in [
     "EquippedWeaponVisual", "EquipWeaponVisual", "WeaponHandSocketName",
     "FirstPersonArms", "FirstPersonWeaponVisual", "SetFirstPersonArmsMesh",
     "FirstPersonWeaponSocketName", "HasFirstPersonArms",
-    "EHorizonCameraMode", "SetCameraMode", "ToggleCameraMode", "CachedMoveInput"
+    "EHorizonCameraMode", "SetCameraMode", "ToggleCameraMode", "CachedMoveInput",
+    "EHorizonMovementStance", "ProneCapsuleHalfHeight", "ProneCapsuleRadius",
+    "SlideDurationSeconds", "GetMovementStance", "IsSliding", "IsProne"
 ]:
     require(token in player_header, f"native weapon visual contract missing: {token}")
 for token in [
@@ -201,7 +203,11 @@ for token in [
     "ApplyMovementInput(DeltaSeconds)", "CachedMoveInput.GetClampedToMaxSize(1.0f)",
     "Forward * Input.Y + Right * Input.X", "DesiredDirection.Rotation().Yaw",
     "Move->bOrientRotationToMovement = false", "UpdateCameraPresentation",
-    "CameraBoom->bDoCollisionTest = !bFirstPerson", "CharacterMesh->SetOwnerNoSee(bFirstPerson)"
+    "CameraBoom->bDoCollisionTest = !bFirstPerson", "CharacterMesh->SetOwnerNoSee(bFirstPerson)",
+    "StartTraversalJump", "ToggleProne", "StartSlide", "UpdateTraversalState",
+    "HasStandingClearance", "OverlapBlockingTestByChannel",
+    "Capsule->SetCapsuleSize(ProneCapsuleRadius", "SlideBrakingDeceleration * DeltaSeconds",
+    "MovementStance == EHorizonMovementStance::Sliding ? 0.22f : 1.0f"
 ]:
     require(token in player, f"native facing/camera regression guard missing: {token}")
 require("AddMovementInput(FRotationMatrix" not in player,
