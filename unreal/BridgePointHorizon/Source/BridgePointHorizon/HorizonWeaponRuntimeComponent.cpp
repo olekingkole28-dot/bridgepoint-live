@@ -1,6 +1,7 @@
 #include "HorizonWeaponRuntimeComponent.h"
 
 #include "GameFramework/Pawn.h"
+#include "Engine/GameInstance.h"
 
 UHorizonWeaponRuntimeComponent::UHorizonWeaponRuntimeComponent()
 {
@@ -186,6 +187,22 @@ bool UHorizonWeaponRuntimeComponent::TryFireOnce()
         bAiming,
         WeaponSpec.RecoilPitchDegrees,
         WeaponSpec.RecoilYawDegrees);
+
+    if (const UWorld* World = GetWorld())
+    {
+        if (const UGameInstance* GameInstance = World->GetGameInstance())
+        {
+            if (const UHorizonAudioDirectorSubsystem* Audio =
+                    GameInstance->GetSubsystem<UHorizonAudioDirectorSubsystem>())
+            {
+                Result.LocalAudioMix = Audio->GetWeaponReportMix(
+                    WeaponSpec.ReportClass,
+                    0.0f,
+                    false,
+                    ShotSequence);
+            }
+        }
+    }
 
     if (APawn* Pawn = Cast<APawn>(GetOwner()))
     {
