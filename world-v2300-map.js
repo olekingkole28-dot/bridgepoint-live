@@ -663,6 +663,25 @@ export function initWorld(options={}){
  function startWaterMotion(){
   clearInterval(waterTimer);let phase=0;waterTimer=setInterval(()=>{if(moving)return;phase=(phase+1)%12;const s=(Math.sin(phase/12*Math.PI*2)+1)/2;paint(map,'gta-coast-foam','line-opacity',.12+.18*s);paint(map,'gta-coast-foam','line-width',['interpolate',['linear'],['zoom'],13,.22+.06*s,18,.72+.3*s,20,1.15+.35*s]);paint(map,'gta-waterway-flow','line-opacity',.24+.22*s)},650)
  }
+ function refreshGlobalLodPaint(){
+  if(moving||map.isMoving?.())return false;
+  const roofVisible=(map.getLayoutProperty('gta-context-roofs','visibility')||'visible')!=='none';
+  const floorVisible=(map.getLayoutProperty('gta-context-floor-lines','visibility')||'visible')!=='none';
+  if(floorVisible){
+   paint(map,'gta-context-floor-lines','fill-extrusion-base',['max',0,['coalesce',['to-number',['get','render_min_height']],['to-number',['get','min_height']],['to-number',['get','base_height_m']],0]]);
+   paint(map,'gta-context-floor-lines','fill-extrusion-height',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]]);
+   paint(map,'gta-context-floor-lines','fill-extrusion-opacity',['interpolate',['linear'],['zoom'],GLOBAL_FLOOR_MIN,.46,18,.72,21,.84]);
+   try{if(map.getLayer('gta-context-roofs'))map.moveLayer('gta-context-floor-lines','gta-context-roofs')}catch(_){}
+  }
+  if(roofVisible){
+   paint(map,'gta-context-roofs','fill-extrusion-base',0);
+   paint(map,'gta-context-roofs','fill-extrusion-height',['+',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]],['max',1,['coalesce',['to-number',['get','roof_height']],['to-number',['get','roof:height']],1]]]);
+   paint(map,'gta-context-roofs','fill-extrusion-opacity',['interpolate',['linear'],['zoom'],GLOBAL_ROOF_MIN,.9,14.8,.96,16,.99,18,1]);
+   try{if(map.getLayer('gta-water-label'))map.moveLayer('gta-context-roofs','gta-water-label')}catch(_){}
+  }
+  window.__BP_GLOBAL_LOD_SOURCE_REFRESH__={roofVisible,floorVisible,zoom:map.getZoom(),updatedAt:Date.now()};
+  return roofVisible||floorVisible
+ }
  function armFineDetailSettle(delay=MOBILE?1650:180){
   clearTimeout(map.__bpBuildingFineSettle);
   map.__bpBuildingFineSettle=setTimeout(()=>{
@@ -670,6 +689,8 @@ export function initWorld(options={}){
    moving=false;
    buildingShellQuietUntil=0;
    syncBuildingShells();
+   clearTimeout(map.__bpGlobalLodSettle);
+   map.__bpGlobalLodSettle=setTimeout(()=>refreshGlobalLodPaint(),MOBILE?900:420);
    window.__BP_FINE_DETAIL_SETTLE__={settled:true,zoom:map.getZoom(),closeTextured:!!window.__BP_BUILDING_SHELL_MODE__?.closeTexturedShell,updatedAt:Date.now()}
   },delay)
  }
@@ -821,24 +842,7 @@ export function initWorld(options={}){
  map.on('movestart',()=>movement(true));map.on('moveend',()=>movement(false));map.on('zoomend',()=>{terrain();syncBuildingShells()});let bpCitySyncTimer=0,bpGlobalLodSyncTimer=0;map.on('sourcedata',e=>{
   if(e?.sourceId==='ofm'){
    clearTimeout(bpGlobalLodSyncTimer);
-   bpGlobalLodSyncTimer=setTimeout(()=>{
-    if(moving||map.isMoving?.()||!map.isSourceLoaded?.('ofm'))return;
-    const roofVisible=(map.getLayoutProperty('gta-context-roofs','visibility')||'visible')!=='none';
-    const floorVisible=(map.getLayoutProperty('gta-context-floor-lines','visibility')||'visible')!=='none';
-    if(floorVisible){
-     paint(map,'gta-context-floor-lines','fill-extrusion-base',['max',0,['coalesce',['to-number',['get','render_min_height']],['to-number',['get','min_height']],['to-number',['get','base_height_m']],0]]);
-     paint(map,'gta-context-floor-lines','fill-extrusion-height',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]]);
-     paint(map,'gta-context-floor-lines','fill-extrusion-opacity',['interpolate',['linear'],['zoom'],GLOBAL_FLOOR_MIN,.46,18,.72,21,.84]);
-     try{if(map.getLayer('gta-context-roofs'))map.moveLayer('gta-context-floor-lines','gta-context-roofs')}catch(_){}
-    }
-    if(roofVisible){
-     paint(map,'gta-context-roofs','fill-extrusion-base',0);
-     paint(map,'gta-context-roofs','fill-extrusion-height',['+',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]],['max',1,['coalesce',['to-number',['get','roof_height']],['to-number',['get','roof:height']],1]]]);
-     paint(map,'gta-context-roofs','fill-extrusion-opacity',['interpolate',['linear'],['zoom'],GLOBAL_ROOF_MIN,.9,14.8,.96,16,.99,18,1]);
-     try{if(map.getLayer('gta-water-label'))map.moveLayer('gta-context-roofs','gta-water-label')}catch(_){}
-    }
-    window.__BP_GLOBAL_LOD_SOURCE_REFRESH__={roofVisible,floorVisible,zoom:map.getZoom(),updatedAt:Date.now()};
-   },MOBILE?180:80);
+   bpGlobalLodSyncTimer=setTimeout(()=>refreshGlobalLodPaint(),MOBILE?180:80);
    return
   }
   if(e?.sourceId!=='bpCityStructures'&&e?.sourceId!=='bpCityRoofs')return;
