@@ -98,14 +98,16 @@ for token in ["bridgepoint-horizon-stream-v3020", "state=%s&lat=%.8f&lon=%.8f", 
 for token in ["CellCache", "CacheTtlSeconds", "TryServeCachedCell", "StoreCachedCell", "MaxCachedCells"]:
     require(token in stream_contract, f"short-lived world cell cache missing: {token}")
 
+renderer_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldCellRenderer.h")
 renderer = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonWorldCellRenderer.cpp")
+renderer_contract = renderer_header + "\n" + renderer
 for token in [
     "BuildTerrain", "BuildTransport", "BuildWater", "BuildBuildings",
     "TriangulateSimplePolygon", "BuildingPartMaterial", "WaterMaterial",
     "FarBuildingMesh", "ResolveBuildingLodCounts", "MaxCollidableBuildingsPerCell",
     "ResolveSourceRoofHeightMeters", "GetRenderedProfiledRoofCount"
 ]:
-    require(token in renderer, f"streamed UE renderer feature missing: {token}")
+    require(token in renderer_contract, f"streamed UE renderer feature missing: {token}")
 for token in ["SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics)", "SetCollisionResponseToAllChannels(ECR_Block)"]:
     require(token in renderer, f"streamed terrain collision safeguard missing: {token}")
 for token in [
