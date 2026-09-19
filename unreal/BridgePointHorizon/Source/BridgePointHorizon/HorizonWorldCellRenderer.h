@@ -29,6 +29,9 @@ public:
     TObjectPtr<UProceduralMeshComponent> BuildingMesh;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|World")
+    TObjectPtr<UProceduralMeshComponent> FarBuildingMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|World")
     TObjectPtr<UProceduralMeshComponent> WaterMesh;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Materials")
@@ -59,7 +62,10 @@ public:
     bool bCreateBuildingCollision = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|World")
-    int32 MaxBuildingsPerCell = 1800;
+    int32 MaxBuildingsPerCell = 3600;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|World")
+    int32 MaxCollidableBuildingsPerCell = 650;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|World")
     int32 MaxBuildingPartsPerCell = 1400;
@@ -87,6 +93,11 @@ public:
 
     UFUNCTION(BlueprintPure, Category="Horizon|World")
     bool HasTerrain() const { return TerrainWidth >= 2 && TerrainHeight >= 2; }
+
+    static FIntPoint ResolveBuildingLodCounts(
+        int32 AvailableBuildings,
+        int32 VisualLimit,
+        int32 CollisionLimit);
 
 private:
     double CenterLatitude = 0.0;
