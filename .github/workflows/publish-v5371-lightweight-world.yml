@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/publish-v5372-lightweight-world.yml'
+      - '.github/workflows/publish-v5371-lightweight-world.yml'
   workflow_dispatch:
 
 permissions:
