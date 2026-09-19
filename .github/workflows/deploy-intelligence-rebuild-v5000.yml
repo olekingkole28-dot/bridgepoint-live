@@ -85,7 +85,7 @@ jobs:
       - name: Build clean Intelligence-only artifact
         shell: bash
         run: |
-          set -euo pipefail
+          set -euxo pipefail
           rm -rf site
           mkdir -p site
           git fetch origin live-artifact:refs/remotes/origin/live-artifact --depth=1
