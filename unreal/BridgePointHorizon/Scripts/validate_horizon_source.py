@@ -343,14 +343,16 @@ survival = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonSurv
 survival_contract = survival_header + "\n" + survival
 for token in [
     "FHorizonSurvivalState", "FHorizonCraftingRecipe", "UHorizonSurvivalSaveGame",
-    "TryAddItem", "TryRemoveItem", "TryCraft", "ConsumeItem",
+    "TryAddItem", "TryRemoveItem", "TryConsumeItemsAtomically", "TryCraft", "ConsumeItem",
     "AdvanceSurvivalHours", "CarryCapacityKg = 35.0f",
-    "ComputeInventoryWeightKg", "CanAffordRecipe", "SimulateNeeds"
+    "ComputeInventoryWeightKg", "CanAffordIngredients", "CanAffordRecipe", "SimulateNeeds"
 ]:
     require(token in survival_contract, f"survival/crafting contract missing: {token}")
 for token in [
     "BridgePointHorizonSurvival", "LoadGameFromSlot", "SaveGameToSlot",
     "TMap<FName, int32> ResultInventory", "consumes nothing",
+    "TMap<FName, int32> Required", "MAX_int32 - Ingredient.Quantity",
+    "State->Inventory = MoveTemp(ResultInventory)",
     "craft_bandage", "craft_campfire", "craft_water_filter", "craft_repair_kit",
     "SprintHungerMultiplier", "SprintThirstMultiplier",
     "ShelterHungerMultiplier", "ShelterThirstMultiplier",
@@ -367,7 +369,10 @@ for token in [
     "Survival.Needs", "Survival.InventoryWeight",
     "Insufficient ingredients fail before consumption",
     "Sprinting increases thirst drain", "Shelter reduces thirst drain",
-    "Combined deprivation damages health", "Known inventory weight is deterministic"
+    "Combined deprivation damages health", "Known inventory weight is deterministic",
+    "Duplicate material entries aggregate before debit",
+    "Exact aggregated material debit is affordable",
+    "Invalid debit quantities fail closed"
 ]:
     require(token in survival_tests, f"native survival QA missing: {token}")
 require("Stripe" not in survival_tests and "Payment" not in survival_tests,
@@ -386,8 +391,8 @@ for token in [
     require(token in base_building_contract, f"base building contract missing: {token}")
 for token in [
     "BridgePointHorizonBaseBuilding", "LoadGameFromSlot", "SaveGameToSlot",
-    "GetSubsystem<UHorizonSurvivalSubsystem>", "GetItemQuantity", "TryRemoveItem",
-    "FGuid::NewGuid", "ExistingPieces.IsEmpty()", "PieceLimit",
+    "GetSubsystem<UHorizonSurvivalSubsystem>", "TryConsumeItemsAtomically",
+    "MaterialDebit.Reserve(Cost.Num())", "FGuid::NewGuid", "ExistingPieces.IsEmpty()", "PieceLimit",
     "MinimumSeparationSq", "AttachmentRangeSq", "repair_kit"
 ]:
     require(token in base_building, f"persistent base building behavior missing: {token}")
