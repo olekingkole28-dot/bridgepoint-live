@@ -1,92 +1,14 @@
-name: Publish Current BridgePoint Acquisition V5001
-# cutover dashboard refresh: 2026-09-14T22:11:20-04:00
+name: BridgePoint V5000 Legacy Frontend Neutralizer — deploy-acquisition-current-v5001.yml
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/deploy-acquisition-current-v5001.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: bridgepoint-live-pages
-  cancel-in-progress: false
 
 jobs:
-  deploy:
+  neutralized:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    timeout-minutes: 2
     steps:
-      - name: Checkout current live artifact
-        uses: actions/checkout@v4
-        with:
-          ref: live-artifact
-          fetch-depth: 1
-
-      - name: Verify current acquisition capture is attached
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s acquisition_tracker.js
-          node --check acquisition_tracker.js
-          grep -Fq "current_pages_2026_09_14" acquisition_tracker.js
-          grep -Fq 'acquisition_tracker.js?v=5001' index.html
-          grep -Fq 'acquisition_tracker.js?v=5001' app/horizon/index.html
-          grep -Fq 'acquisition_tracker.js?v=5001' app/bridgepoint-world-v2652/index.html
-          ! grep -Fq 'optimizeHomepage' acquisition_tracker.js
-
-      - name: Assemble exact current site
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf site
-          mkdir site
-          tar --exclude=.git --exclude=site -cf - . | tar -xf - -C site
-          touch site/.nojekyll
-          mkdir -p site/app
-          touch site/app/.nojekyll
-
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
-      - uses: actions/upload-pages-artifact@v4
-        with:
-          name: github-pages-acquisition-v5001
-          path: site
-
-      - name: Publish current site with tracking
-        id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          artifact_name: github-pages-acquisition-v5001
-
-      - name: Verify public tracking cutover
-        shell: bash
-        run: |
-          set -euo pipefail
-          origin='https://bridgepointintelligence.online'
-          ok=0
-          for attempt in $(seq 1 30); do
-            salt="${GITHUB_SHA}-${attempt}-$(date +%s)"
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/acquisition_tracker.js?verify=${salt}" -o /tmp/acq.js || true
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/?verify=${salt}" -o /tmp/home.html || true
-            curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${origin}/app/horizon/?verify=${salt}" -o /tmp/horizon.html || true
-            if grep -Fq 'current_pages_2026_09_14' /tmp/acq.js &&
-               grep -Fq 'acquisition_tracker.js?v=5001' /tmp/home.html &&
-               grep -Fq 'acquisition_tracker.js?v=5001' /tmp/horizon.html; then
-              ok=1
-              break
-            fi
-            sleep 4
-          done
-          test "$ok" = 1
-          echo ACQUISITION_V5001_PUBLIC_PASS
+      - run: echo "Retired legacy frontend deployment. BridgePoint Intelligence V5000 is the sole GitHub Pages production authority."

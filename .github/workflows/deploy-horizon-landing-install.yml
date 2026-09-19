@@ -1,4 +1,4 @@
-name: BridgePoint V5000 Legacy Frontend Neutralizer
+name: BridgePoint V5000 Legacy Frontend Neutralizer — deploy-horizon-landing-install.yml
 
 on:
   workflow_dispatch:
@@ -11,4 +11,4 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - run: echo "Public frontend deployment retired. BridgePoint Intelligence V5000 owns GitHub Pages."
+      - run: echo "Retired legacy frontend deployment. BridgePoint Intelligence V5000 is the sole GitHub Pages production authority."

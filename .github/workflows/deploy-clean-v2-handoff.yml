@@ -1,119 +1,14 @@
-name: Deploy BridgePoint World V2500
+name: BridgePoint V5000 Legacy Frontend Neutralizer — deploy-clean-v2-handoff.yml
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/deploy-clean-v2-handoff.yml'
 
 permissions:
-  contents: write
-  pages: write
-  id-token: write
-
-concurrency:
-  group: bridgepoint-live-pages
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  deploy-v2500:
+  neutralized:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    env:
-      EXPECTED_SOURCE: c296b719d10aaca6e2772d4dabca46bbd11f1501
-      EXPECTED_ARCHIVE_SHA: 8870d7a447077150708e1b21b7aeaedb97f3bec4c9a8fd499dc479dcc4e43bc2
-      RELEASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co/storage/v1/object/public/bridgepoint-release-handoff/clean-v2-c296b719d10aaca6e2772d4dabca46bbd11f1501.tar.gz
+    timeout-minutes: 2
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Download and verify exact validated V2500 release
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf /tmp/bp-v2500 /tmp/bp-v2500.tar.gz
-          mkdir -p /tmp/bp-v2500
-          curl -fsSL --retry 6 --retry-delay 2 -H 'Cache-Control: no-cache' "$RELEASE_URL" -o /tmp/bp-v2500.tar.gz
-          ACTUAL="$(sha256sum /tmp/bp-v2500.tar.gz | awk '{print $1}')"
-          test "$ACTUAL" = "$EXPECTED_ARCHIVE_SHA"
-          tar -xzf /tmp/bp-v2500.tar.gz -C /tmp/bp-v2500
-          test -s /tmp/bp-v2500/index.html
-          test -s /tmp/bp-v2500/main.dart.js
-          test -s /tmp/bp-v2500/flutter_bootstrap.js
-          test -s /tmp/bp-v2500/bridgepoint-v2-release.json
-          test -s /tmp/bp-v2500/bridgepoint-3d-world/index.html
-          test -s /tmp/bp-v2500/bridgepoint-3d-world/world-v2500.js
-          grep -Fq "$EXPECTED_SOURCE" /tmp/bp-v2500/bridgepoint-v2-release.json
-          grep -Fq '"world_version":2500' /tmp/bp-v2500/bridgepoint-v2-release.json
-          grep -Fq '"continuous_3d_world":true' /tmp/bp-v2500/bridgepoint-v2-release.json
-          grep -Fq 'BridgePointWorldV2500' /tmp/bp-v2500/bridgepoint-3d-world/world-v2500.js
-          grep -Fq '<base href="/app/">' /tmp/bp-v2500/index.html
-          echo "VALIDATED_V2500_ARCHIVE $ACTUAL"
-
-      - name: Replace production app with exact V2500 build
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin live-artifact:refs/remotes/origin/live-artifact
-          rm -rf site && mkdir site
-          git archive --format=tar origin/live-artifact | tar -xf - -C site
-          mkdir -p site/app
-          rm -rf site/app/*
-          cp -a /tmp/bp-v2500/. site/app/
-          touch site/.nojekyll site/app/.nojekyll
-          test -s site/index.html
-          test -s site/app/index.html
-          test -s site/app/main.dart.js
-          test -s site/app/bridgepoint-3d-world/world-v2500.js
-
-      - name: Persist exact production artifact
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf /tmp/final-live && mkdir /tmp/final-live
-          cp -a site/. /tmp/final-live/
-          cd /tmp/final-live
-          git init -q
-          git config user.name 'BridgePoint Release Bot'
-          git config user.email 'actions@users.noreply.github.com'
-          git checkout -b live-artifact
-          git add -A
-          git commit -m "Publish BridgePoint World V2500 ${EXPECTED_SOURCE}"
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push --force origin live-artifact
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-      - name: Upload V2500 Pages artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: site
-      - name: Deploy V2500 to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Verify production is actually serving V2500
-        shell: bash
-        run: |
-          set -euo pipefail
-          ORIGIN='https://bridgepointintelligence.online'
-          ok=0
-          for attempt in $(seq 1 36); do
-            marker="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-v2-release.json?verify=${EXPECTED_SOURCE}-${attempt}" 2>/dev/null || true)"
-            app="$(curl -fsSL --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/?verify=${EXPECTED_SOURCE}-${attempt}" 2>/dev/null || true)"
-            world_code="$(curl -sS -o /tmp/world-v2500.js -w '%{http_code}' --max-time 15 -H 'Cache-Control: no-cache' "${ORIGIN}/app/bridgepoint-3d-world/world-v2500.js?verify=${EXPECTED_SOURCE}-${attempt}" 2>/dev/null || true)"
-            if printf '%s' "$marker" | grep -Fq "$EXPECTED_SOURCE" && printf '%s' "$marker" | grep -Fq '"world_version":2500' && printf '%s' "$marker" | grep -Fq '"continuous_3d_world":true' && printf '%s' "$app" | grep -Fq 'flutter_bootstrap.js' && [ "$world_code" = '200' ] && grep -Fq 'BridgePointWorldV2500' /tmp/world-v2500.js; then
-              ok=1
-              echo "WORLD_V2500_LIVE ${EXPECTED_SOURCE}"
-              break
-            fi
-            sleep 5
-          done
-          test "$ok" = 1
+      - run: echo "Retired legacy frontend deployment. BridgePoint Intelligence V5000 is the sole GitHub Pages production authority."

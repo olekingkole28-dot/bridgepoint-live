@@ -1,84 +1,14 @@
-name: Deploy BridgePoint V2502 Render Fidelity
+name: BridgePoint V5000 Legacy Frontend Neutralizer — deploy-v2502-render-fidelity.yml
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/deploy-v2502-render-fidelity.yml'
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: bridgepoint-live-pages
-  cancel-in-progress: false
 
 jobs:
-  deploy:
+  neutralized:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    timeout-minutes: 2
     steps:
-      - name: Checkout staged live artifact
-        uses: actions/checkout@v4
-        with:
-          ref: live-artifact
-          fetch-depth: 1
-
-      - name: Verify V2502 shared renderer
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s index.html
-          test -s app/bridgepoint-3d-world/index.html
-          test -s app/bridgepoint-3d-world/world-v2500.js
-          test -s app/bridgepoint-3d-world/world-v2500-terrain.js
-          test -s app/bridgepoint-3d-world/world-v2502-visual-fidelity.js
-          node --check app/bridgepoint-3d-world/world-v2500.js
-          node --check app/bridgepoint-3d-world/world-v2500-terrain.js
-          node --check app/bridgepoint-3d-world/world-v2502-visual-fidelity.js
-          grep -Fq 'world-v2502-visual-fidelity.js' app/bridgepoint-3d-world/index.html
-          grep -Fq "detail:[800,1450,2600]" app/bridgepoint-3d-world/world-v2500.js
-          grep -Fq "tier==='LOW'?13" app/bridgepoint-3d-world/world-v2500-terrain.js
-          grep -Fq '/app/bridgepoint-3d-world/?release=v2502' index.html
-          ! grep -Fq '/app/bridgepoint-world-v2652/?release=b2b-world-v4246' index.html
-          grep -Fq 'BridgePointVisualFidelityV2502' app/bridgepoint-3d-world/world-v2502-visual-fidelity.js
-
-      - name: Assemble current live artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf site
-          mkdir site
-          tar --exclude=.git --exclude=site -cf - . | tar -xf - -C site
-          touch site/.nojekyll site/app/.nojekyll
-
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
-      - uses: actions/upload-pages-artifact@v4
-        with:
-          name: github-pages-v2502-fidelity
-          path: site
-
-      - name: Deploy V2502 to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          artifact_name: github-pages-v2502-fidelity
-
-      - name: Verify staged artifact contract
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s site/app/bridgepoint-3d-world/world-v2502-visual-fidelity.js
-          grep -Fq 'BridgePointVisualFidelityV2502' site/app/bridgepoint-3d-world/world-v2502-visual-fidelity.js
-          grep -Fq 'world-v2502-visual-fidelity.js' site/app/bridgepoint-3d-world/index.html
-          grep -Fq '/app/bridgepoint-3d-world/?release=v2502' site/index.html
-          echo BRIDGEPOINT_V2502_RENDER_FIDELITY_DEPLOYED
+      - run: echo "Retired legacy frontend deployment. BridgePoint Intelligence V5000 is the sole GitHub Pages production authority."

@@ -1,22 +1,14 @@
-name: BridgePoint Legacy Pages Lane Neutralizer
+name: BridgePoint V5000 Legacy Frontend Neutralizer — deploy-maintenance-lockdown-v2800.yml
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/deploy-maintenance-lockdown-v2800.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: bridgepoint-live-pages
-  cancel-in-progress: true
-
 jobs:
-  neutralize:
+  neutralized:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - run: echo "Legacy BridgePoint Pages lane neutralized; no deployment performed."
+      - run: echo "Retired legacy frontend deployment. BridgePoint Intelligence V5000 is the sole GitHub Pages production authority."
