@@ -1,5 +1,5 @@
 {
-  "snapshot_generated_at": "2026-09-19T13:19:21.18971+00:00",
+  "snapshot_generated_at": "2026-09-19T16:39:14.516451+00:00",
   "company": "BridgePoint Intelligence",
   "founder": "Kole Johnson",
   "public_origin": "https://bridgepointintelligence.online/",
@@ -12,13 +12,13 @@
   "ai_index": "https://bridgepointintelligence.online/ai-index.json",
   "search_atlas": "https://bridgepointintelligence.online/search/",
   "current_national_metrics": {
-    "map_ready_buildings": 143733520,
-    "roof_shell_buildings": 143733520,
+    "map_ready_buildings": 143742016,
+    "roof_shell_buildings": 143742016,
     "roof_shell_coverage_pct": 100.0,
     "canonical_property_records": 169664739,
-    "normalized_address_records": 147225580,
-    "source_backed_roof_records": 669409,
-    "lidar_refined_roof_buildings": 3340,
+    "normalized_address_records": 147306944,
+    "source_backed_roof_records": 669413,
+    "lidar_refined_roof_buildings": 3344,
     "materialized_boundary_estimate": 83881564,
     "public_parcel_identity_records": 169664739,
     "canonical_property_record_label": "canonical property/parcel identity records",
@@ -30,15 +30,15 @@
     "pr_oid_remaining": 0,
     "strict_boundary_ready": false,
     "required_jurisdictions": 56,
-    "fresh_approved_jurisdictions": 55,
+    "fresh_approved_jurisdictions": 54,
     "public_counter_jurisdictions": 56
   },
   "freshness": {
-    "roof_updated_at": "2026-09-19T13:19:04.153694+00:00",
-    "lidar_last_success_at": "2026-09-19T11:18:11.604335+00:00",
+    "roof_updated_at": "2026-09-19T16:39:06.356257+00:00",
+    "lidar_last_success_at": "2026-09-19T15:22:17.138163+00:00",
     "parcel_counter_updated_at": "2026-09-15T23:31:08.77511+00:00",
-    "address_counter_updated_at": "2026-09-19T13:18:51.552304+00:00",
-    "parcel_scoreboard_updated_at": "2026-09-19T13:19:01.765847+00:00",
+    "address_counter_updated_at": "2026-09-19T16:39:11.114252+00:00",
+    "parcel_scoreboard_updated_at": "2026-09-19T16:39:01.436212+00:00",
     "parcel_autopilot_last_tick_at": "2026-09-16T01:18:58.834462+00:00"
   },
   "definitions": {
