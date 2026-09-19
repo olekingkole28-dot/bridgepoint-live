@@ -70,14 +70,14 @@ async function initSharedVisualWeather(targetWorld){
  const styleReady=()=>{try{return map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch{return false}};
  if(!styleReady())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
  try{
-  const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5351'),import('./world-v2300-present-weather.js?v=5351')]);
+  const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5352'),import('./world-v2300-present-weather.js?v=5352')]);
   const weather=wm.initWeather(map),present=pm.initPresentWeather(map);
-  window.__BP_SHARED_VISUAL_WEATHER__={version:5351,weather,present,mapShared:true,streetWalkLiveSimulation:true,updatedAt:Date.now()};
+  window.__BP_SHARED_VISUAL_WEATHER__={version:5352,weather,present,mapShared:true,streetWalkLiveSimulation:true,updatedAt:Date.now()};
   return window.__BP_SHARED_VISUAL_WEATHER__
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5351');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5352');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -671,7 +671,8 @@ function geometryAnchor(g){
  return Number.isFinite(minX)?[(minX+maxX)/2,(minY+maxY)/2]:null
 }
 function refreshSemanticLabels(){
- const map=world?.map,src=map?.getSource('bpSemanticLabels');if(!map||!src?.setData||mapInteracting||map.isMoving?.())return;
+ const map=world?.map,src=map?.getSource('bpSemanticLabels');if(!map||!src?.setData)return;
+ if(mapInteracting||map.isMoving?.()){clearTimeout(semanticTimer);semanticTimer=setTimeout(refreshSemanticLabels,BP_MOBILE?260:120);return}
  clearTimeout(semanticTimer);const seq=++semanticSeq;
  const run=()=>{
   if(seq!==semanticSeq)return;
@@ -680,8 +681,8 @@ function refreshSemanticLabels(){
   if(!rows.length){try{rows=map.queryRenderedFeatures({layers:['gta-poi-probe']})||[]}catch(e){window.__BP_SEMANTIC_STATS={error:String(e?.message||e),preserved:true};return}}
   const seen=new Set(),features=[],max=BP_MOBILE?96:180,scan=rows.length>(BP_MOBILE?900:1800)?rows.slice(0,BP_MOBILE?900:1800):rows;
   const buildingLayers=['gta-opportunity-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings'].filter(id=>map.getLayer(id));
-  let buildings=[];try{buildings=buildingLayers.length?(map.queryRenderedFeatures({layers:buildingLayers})||[]).slice(0,BP_MOBILE?180:320):[]}catch(_){}
-  if(!buildings.length){try{buildings=[...(map.querySourceFeatures('bpBuildings',{sourceLayer:'buildings'})||[]).slice(0,140),...(map.querySourceFeatures('ofm',{sourceLayer:'building'})||[]).slice(0,140)]}catch(_){}}
+  let buildings=[];try{buildings=buildingLayers.length?(map.queryRenderedFeatures({layers:buildingLayers})||[]).slice(0,BP_MOBILE?260:420):[]}catch(_){}
+  if(!buildings.length){try{buildings=[...(map.querySourceFeatures('bpBuildings',{sourceLayer:'buildings'})||[]).slice(0,220),...(map.querySourceFeatures('ofm',{sourceLayer:'building'})||[]).slice(0,220)]}catch(_){}}
   const buildingAnchors=buildings.map(hit=>{const a=geometryAnchor(hit.geometry);if(!a)return null;const p=map.project(a);return{hit,anchor:a,x:p.x,y:p.y}}).filter(Boolean);
   let anchoredCount=0,classifiedCount=0;
   for(const f of scan){
@@ -689,7 +690,7 @@ function refreshSemanticLabels(){
    const lng=+g.coordinates[0],lat=+g.coordinates[1];if(!Number.isFinite(lng)||!Number.isFinite(lat))continue;
    const name=String(p.name_en||p.name||'').trim(),cat=semanticCategory(p);if(cat.key!=='general')classifiedCount++;if(!name&&cat.key==='general')continue;
    const dedupe=(name.toLowerCase()||cat.key)+'|'+lng.toFixed(5)+'|'+lat.toFixed(5);if(seen.has(dedupe))continue;seen.add(dedupe);
-   const pp=map.project([lng,lat]);let nearest=null,best=BP_MOBILE?625:900;
+   const pp=map.project([lng,lat]);let nearest=null,best=BP_MOBILE?1600:1225;
    for(const b of buildingAnchors){const dx=b.x-pp.x,dy=b.y-pp.y,d=dx*dx+dy*dy;if(d<best){best=d;nearest=b}}
    const anchor=nearest?.anchor||[lng,lat];if(nearest)anchoredCount++;
    const display=name?(cat.key==='general'?name:name+' · '+cat.label):cat.label;
@@ -742,6 +743,6 @@ async function applyGrowthDeepLink(){
  if(q.get('select')!=='0'&&zoom>=15){setTimeout(()=>{try{selectedFeature=null;showBuilding(targetLng,targetLat)}catch(e){console.warn('deep link building',e)}},350)}
  return true
 }
-async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();void loadStatus();setTimeout(()=>{if(!Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0))void loadStatus()},5000);try{await bootMap();bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();startSemanticLabels();await applyGrowthDeepLink()}catch(e){setText('mapStatus','Map start retry · '+e.message)}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),120000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),90000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5351',{updateViaCache:'none'}).catch(()=>{})}
+async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();void loadStatus();setTimeout(()=>{if(!Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0))void loadStatus()},5000);try{await bootMap();bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();startSemanticLabels();await applyGrowthDeepLink()}catch(e){setText('mapStatus','Map start retry · '+e.message)}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),120000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),90000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5352',{updateViaCache:'none'}).catch(()=>{})}
 start();
 window.addEventListener('beforeunload',()=>{clearInterval(accessCountdownTimer);clearInterval(statusTimer);clearInterval(tileTimer);clearInterval(selectedTimer);clearInterval(liveContextTimer);clearInterval(radarRefreshTimer);clearInterval(radarAnimTimer);clearInterval(cloudRefreshTimer);clearInterval(cloudAnimTimer);clearInterval(transportTimer);clearInterval(opportunityTimer);clearTimeout(semanticTimer)});
