@@ -230,16 +230,6 @@ FHorizonSpatialCueMix UHorizonAudioDirectorSubsystem::GetSpatialCueMix(
     const float Distance01 = FMath::Clamp(SafeDistance / Mix.MaxDistanceCm, 0.0f, 1.0f);
     Mix.DistanceGain = FMath::Pow(1.0f - Distance01, FalloffExponent);
 
-    Mix.CombatIntensity = FMath::Clamp(SmoothedCombatIntensity01, 0.0f, 1.0f);
-    Mix.MusicIntensity = FMath::Max(
-        Mix.MusicIntensity,
-        FMath::Lerp(0.08f, 0.96f, Mix.CombatIntensity));
-    Mix.AmbienceGain = FMath::Lerp(1.0f, 0.58f, Mix.CombatIntensity);
-    Mix.EffectsGain = FMath::Lerp(1.0f, 1.12f, Mix.CombatIntensity);
-    Mix.TransientDuck = TransientDuck01;
-    Mix.AmbienceGain *= FMath::Lerp(1.0f, 0.48f, TransientDuck01);
-    Mix.EffectsGain *= FMath::Lerp(1.0f, 0.78f, TransientDuck01);
-
     switch (AcousticSpace)
     {
         case EHorizonAcousticSpace::Outdoor:
@@ -358,6 +348,16 @@ FHorizonAudioMixState UHorizonAudioDirectorSubsystem::GetMixState(EHorizonGameMo
             Mix.MusicIntensity = 1.0f;
             break;
     }
+
+    Mix.CombatIntensity = FMath::Clamp(SmoothedCombatIntensity01, 0.0f, 1.0f);
+    Mix.MusicIntensity = FMath::Max(
+        Mix.MusicIntensity,
+        FMath::Lerp(0.08f, 0.96f, Mix.CombatIntensity));
+    Mix.AmbienceGain = FMath::Lerp(1.0f, 0.58f, Mix.CombatIntensity);
+    Mix.EffectsGain = FMath::Lerp(1.0f, 1.12f, Mix.CombatIntensity);
+    Mix.TransientDuck = TransientDuck01;
+    Mix.AmbienceGain *= FMath::Lerp(1.0f, 0.48f, TransientDuck01);
+    Mix.EffectsGain *= FMath::Lerp(1.0f, 0.78f, TransientDuck01);
 
     switch (AcousticSpace)
     {
