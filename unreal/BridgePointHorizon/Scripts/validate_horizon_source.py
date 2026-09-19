@@ -406,7 +406,7 @@ for token in [
     "FHorizonWeaponSpec", "FHorizonWeaponRuntimeState", "FHorizonWeaponShotResult",
     "RoundsInMagazine", "ReserveRounds", "RoundsPerMinute", "ReloadSeconds",
     "StartFire", "StopFire", "TryFireOnce", "BeginReload", "CancelReload",
-    "CanFireRound", "ComputeReloadTransfer", "ComputeRecoilImpulse",
+    "CanFireRound", "ComputeReloadTransfer", "AdvanceCountdown", "ComputeRecoilImpulse",
 ]:
     require(token in weapon_contract, f"native weapon runtime contract missing: {token}")
 for token in [
@@ -415,6 +415,8 @@ for token in [
     "ReloadRemainingSeconds = WeaponSpec.ReloadSeconds",
     "OnShotFired.Broadcast", "AddControllerPitchInput", "AddControllerYawInput",
     "bTriggerHeld && WeaponSpec.bAutomatic", "SetComponentTickEnabled",
+    "SafeDeltaSeconds = FMath::Min(DeltaSeconds, 0.50f)",
+    "FireCooldownSeconds = AdvanceCountdown", "ReloadRemainingSeconds = AdvanceCountdown",
 ]:
     require(token in weapon, f"native weapon behavior missing: {token}")
 require("Stripe" not in weapon_contract and "Payment" not in weapon_contract,
@@ -426,6 +428,8 @@ for token in [
     "Loaded idle weapon can fire", "Cadence blocks early repeat shot",
     "Reload respects reserve", "Horizontal recoil alternates predictably",
     "ADS reduces recoil", "Recoil pattern is deterministic",
+    "Two hundred millisecond hitch preserves elapsed weapon time",
+    "Countdown overshoot clamps at zero", "Catastrophic stalls use a bounded half-second catch-up",
 ]:
     require(token in weapon_tests, f"native weapon QA missing: {token}")
 
