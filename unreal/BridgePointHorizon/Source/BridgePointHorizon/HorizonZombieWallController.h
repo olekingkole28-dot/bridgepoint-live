@@ -32,6 +32,7 @@ class BRIDGEPOINTHORIZON_API AHorizonZombieWallController : public AActor
 public:
     AHorizonZombieWallController();
 
+    virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
     virtual void OnConstruction(const FTransform& Transform) override;
 
@@ -102,6 +103,8 @@ public:
         float ArcHalfAngleDegrees = 20.0f,
         int32 Count = 12) const;
 
+    static float ResolveWallTickInterval(bool bFollowingYearOneClock, bool bYearOneStarted);
+
 private:
     UPROPERTY(Transient)
     TArray<TObjectPtr<USplineComponent>> ExtraWallSplines;
@@ -115,5 +118,6 @@ private:
     float DistanceToLoopBoundary(const FVector2D& Point, const TArray<FVector>& LoopPoints) const;
     void EnsureSplineCount(int32 RequiredLoopCount);
     void SetWallSplinesVisible(bool bVisible);
+    void RefreshYearOneClock();
     void RebuildWallSpline();
 };
