@@ -1,5 +1,5 @@
 const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
-window.__BP_APP_BUILD_VERSION__=5358
+window.__BP_APP_BUILD_VERSION__=5359
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const RPC=SUPA+'/rest/v1/rpc/';
 const $=id=>document.getElementById(id);
@@ -71,14 +71,14 @@ async function initSharedVisualWeather(targetWorld){
  const styleReady=()=>{try{return map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch{return false}};
  if(!styleReady())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
  try{
-  const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5358'),import('./world-v2300-present-weather.js?v=5358')]);
+  const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5359'),import('./world-v2300-present-weather.js?v=5359')]);
   const weather=wm.initWeather(map),present=pm.initPresentWeather(map);
-  window.__BP_SHARED_VISUAL_WEATHER__={version:5358,weather,present,mapShared:true,streetWalkLiveSimulation:true,updatedAt:Date.now()};
+  window.__BP_SHARED_VISUAL_WEATHER__={version:5359,weather,present,mapShared:true,streetWalkLiveSimulation:true,updatedAt:Date.now()};
   return window.__BP_SHARED_VISUAL_WEATHER__
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5358');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5359');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -679,6 +679,7 @@ function refreshSemanticLabels(){
  clearTimeout(semanticBuildTimer);const seq=++semanticSeq;window.__BP_SEMANTIC_DEBUG__={phase:'starting',seq,zoom:map.getZoom(),updatedAt:Date.now()};
  const run=()=>{
   if(seq!==semanticSeq)return;
+  if(mapInteracting&&!map.isMoving?.()){mapInteracting=false;document.body.classList.remove('map-interacting');flushDeferredWork();window.__BP_INTERACTION_RECOVERY__={reason:'semantic_build_stationary_recovery',stationary:true,updatedAt:Date.now()}}
   if(mapInteracting||map.isMoving?.()){window.__BP_SEMANTIC_DEBUG__={phase:'build_deferred_for_motion',seq,interacting:mapInteracting,moving:!!map.isMoving?.(),zoom:map.getZoom(),updatedAt:Date.now()};clearTimeout(semanticTimer);semanticTimer=setTimeout(refreshSemanticLabels,BP_MOBILE?260:120);return}
   if(map.getZoom()<13.2){window.__BP_SEMANTIC_STATS={zoom:map.getZoom(),candidates:0,anchored:0,features:window.__BP_SEMANTIC_LAST_GOOD__?.features||0,lowZoom:true,preserved:true,updatedAt:Date.now()};return}
   let rows=[];try{rows=(map.querySourceFeatures('ofm',{sourceLayer:'poi'})||[]).slice(0,BP_MOBILE?900:1800)}catch(_){}
@@ -752,6 +753,6 @@ async function applyGrowthDeepLink(){
  if(q.get('select')!=='0'&&zoom>=15){setTimeout(()=>{try{selectedFeature=null;showBuilding(targetLng,targetLat)}catch(e){console.warn('deep link building',e)}},350)}
  return true
 }
-async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();void loadStatus();setTimeout(()=>{if(!Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0))void loadStatus()},5000);try{await bootMap();bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();startSemanticLabels();await applyGrowthDeepLink()}catch(e){setText('mapStatus','Map start retry · '+e.message)}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),120000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),90000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5358',{updateViaCache:'none'}).catch(()=>{})}
+async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();void loadStatus();setTimeout(()=>{if(!Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0))void loadStatus()},5000);try{await bootMap();bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();startSemanticLabels();await applyGrowthDeepLink()}catch(e){setText('mapStatus','Map start retry · '+e.message)}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),120000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),90000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5359',{updateViaCache:'none'}).catch(()=>{})}
 start();
 window.addEventListener('beforeunload',()=>{clearInterval(accessCountdownTimer);clearInterval(statusTimer);clearInterval(tileTimer);clearInterval(selectedTimer);clearInterval(liveContextTimer);clearInterval(radarRefreshTimer);clearInterval(radarAnimTimer);clearInterval(cloudRefreshTimer);clearInterval(cloudAnimTimer);clearInterval(transportTimer);clearInterval(opportunityTimer);clearTimeout(semanticTimer);clearTimeout(semanticBuildTimer)});
