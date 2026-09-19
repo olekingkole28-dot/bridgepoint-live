@@ -46,7 +46,7 @@ jobs:
           grep -Fq 'bridgepoint-public-building-city-tile-v5370' world-v2300-map.js
           grep -Fq "cityShell=z>=9.6" world-v2300-map.js
           grep -Fq "bp-statue-liberty-3d" world-v2300-map.js
-          grep -Fq "CITY_TILE_LIMIT=MOBILE?(LOW?1800:2600)" world-v2300-map.js
+          grep -Fq "CITY_TILE_LIMIT=MOBILE?500" world-v2300-map.js
           ! grep -Fqi 'cesium' index.html
           node --check world-v2300-map.js
           echo BRIDGEPOINT_V5370_ARTIFACT_VERIFIED
