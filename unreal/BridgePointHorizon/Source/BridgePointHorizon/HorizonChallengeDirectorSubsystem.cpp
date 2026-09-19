@@ -2,6 +2,7 @@
 
 #include "Engine/GameInstance.h"
 #include "HorizonProgressionSubsystem.h"
+#include "HorizonSurvivalSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 
 const TCHAR* UHorizonChallengeDirectorSubsystem::SaveSlot = TEXT("BridgePointHorizonChallenges");
@@ -171,6 +172,33 @@ int32 UHorizonChallengeDirectorSubsystem::FindChallengeIndex(const FString& Chal
     return INDEX_NONE;
 }
 
+FName UHorizonChallengeDirectorSubsystem::ResolveSurvivalInventoryItem(
+    const FString& RewardKey)
+{
+    if (RewardKey == TEXT("FIRST_AID_KIT")) return TEXT("bandage");
+    if (RewardKey == TEXT("AMMO_CACHE")) return TEXT("scrap_metal");
+    if (RewardKey == TEXT("SURVIVAL_CACHE")) return TEXT("ration");
+    if (RewardKey == TEXT("VEHICLE_PART_CACHE")) return TEXT("repair_kit");
+    return NAME_None;
+}
+
+int32 UHorizonChallengeDirectorSubsystem::ResolveSurvivalInventoryQuantity(
+    const FHorizonChallengeReward& Reward)
+{
+    const int32 BaseAmount = FMath::Max(0, Reward.Amount);
+    if (Reward.RewardKey == TEXT("FIRST_AID_KIT")) return BaseAmount * 2;
+    if (Reward.RewardKey == TEXT("AMMO_CACHE")) return BaseAmount * 3;
+    if (Reward.RewardKey == TEXT("SURVIVAL_CACHE")) return BaseAmount * 2;
+    return BaseAmount;
+}
+
+int32 UHorizonChallengeDirectorSubsystem::ComputeDeferredRewardAmount(
+    int32 RequestedQuantity,
+    int32 GrantedQuantity)
+{
+    return FMath::Max(0, FMath::Max(0, RequestedQuantity) - FMath::Max(0, GrantedQuantity));
+}
+
 bool UHorizonChallengeDirectorSubsystem::OfferChallenge(
     const FString& NPCSiteId,
     EHorizonChallengeNPCRole Role,
@@ -263,16 +291,39 @@ bool UHorizonChallengeDirectorSubsystem::ClaimChallengeReward(
         return false;
     }
 
-    if (Reward.Kind == EHorizonChallengeRewardKind::SurvivalItem &&
-        !Reward.RewardKey.IsEmpty() &&
-        Reward.Amount > 0)
+    UGameInstance* GameInstance = GetGameInstance();
+    if (Reward.Kind == EHorizonChallengeRewardKind::SurvivalItem && !GameInstance)
     {
-        int32& Count = State->FreeItemInventory.FindOrAdd(Reward.RewardKey);
-        Count += Reward.Amount;
+        return false;
     }
 
-    if (UGameInstance* GameInstance = GetGameInstance())
+    if (GameInstance)
     {
+        if (Reward.Kind == EHorizonChallengeRewardKind::SurvivalItem)
+        {
+            const FName InventoryItem = ResolveSurvivalInventoryItem(Reward.RewardKey);
+            const int32 RequestedQuantity = ResolveSurvivalInventoryQuantity(Reward);
+            if (InventoryItem.IsNone() || RequestedQuantity <= 0)
+            {
+                return false;
+            }
+
+            int32 GrantedQuantity = 0;
+            if (UHorizonSurvivalSubsystem* Survival =
+                GameInstance->GetSubsystem<UHorizonSurvivalSubsystem>())
+            {
+                GrantedQuantity = Survival->TryAddItem(InventoryItem, RequestedQuantity);
+            }
+
+            const int32 DeferredQuantity = ComputeDeferredRewardAmount(
+                RequestedQuantity,
+                GrantedQuantity);
+            if (DeferredQuantity > 0)
+            {
+                State->FreeItemInventory.FindOrAdd(InventoryItem.ToString()) += DeferredQuantity;
+            }
+        }
+
         if (UHorizonProgressionSubsystem* Progression =
             GameInstance->GetSubsystem<UHorizonProgressionSubsystem>())
         {
@@ -323,7 +374,54 @@ int32 UHorizonChallengeDirectorSubsystem::GetFreeItemCount(const FString& Reward
         return 0;
     }
 
-    return State->FreeItemInventory.FindRef(RewardKey);
+    const int32 DirectCount = State->FreeItemInventory.FindRef(RewardKey);
+    if (DirectCount > 0)
+    {
+        return DirectCount;
+    }
+
+    const FName InventoryItem = ResolveSurvivalInventoryItem(RewardKey);
+    return InventoryItem.IsNone()
+        ? 0
+        : State->FreeItemInventory.FindRef(InventoryItem.ToString());
+}
+
+int32 UHorizonChallengeDirectorSubsystem::CollectDeferredItemReward(FName ItemKey)
+{
+    if (!State || ItemKey.IsNone())
+    {
+        return 0;
+    }
+
+    const FString LedgerKey = ItemKey.ToString();
+    int32* PendingQuantity = State->FreeItemInventory.Find(LedgerKey);
+    if (!PendingQuantity || *PendingQuantity <= 0)
+    {
+        return 0;
+    }
+
+    UGameInstance* GameInstance = GetGameInstance();
+    UHorizonSurvivalSubsystem* Survival = GameInstance
+        ? GameInstance->GetSubsystem<UHorizonSurvivalSubsystem>()
+        : nullptr;
+    if (!Survival)
+    {
+        return 0;
+    }
+
+    const int32 CollectedQuantity = Survival->TryAddItem(ItemKey, *PendingQuantity);
+    if (CollectedQuantity <= 0)
+    {
+        return 0;
+    }
+
+    *PendingQuantity -= CollectedQuantity;
+    if (*PendingQuantity <= 0)
+    {
+        State->FreeItemInventory.Remove(LedgerKey);
+    }
+    SaveState();
+    return CollectedQuantity;
 }
 
 void UHorizonChallengeDirectorSubsystem::SaveState()

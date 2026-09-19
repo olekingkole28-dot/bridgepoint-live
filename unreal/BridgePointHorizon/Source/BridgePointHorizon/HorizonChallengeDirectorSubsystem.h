@@ -145,7 +145,8 @@ public:
     UPROPERTY()
     TArray<FHorizonChallengeRuntimeState> Challenges;
 
-    // Free gameplay items earned from NPC challenges. No store/payment dependency.
+    // Capacity-blocked gameplay rewards waiting to enter the survival inventory.
+    // This is a free earn-only overflow ledger with no store/payment dependency.
     UPROPERTY()
     TMap<FString, int32> FreeItemInventory;
 };
@@ -205,6 +206,13 @@ public:
 
     UFUNCTION(BlueprintPure, Category="Horizon|NPC")
     int32 GetFreeItemCount(const FString& RewardKey) const;
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|NPC")
+    int32 CollectDeferredItemReward(FName ItemKey);
+
+    static FName ResolveSurvivalInventoryItem(const FString& RewardKey);
+    static int32 ResolveSurvivalInventoryQuantity(const FHorizonChallengeReward& Reward);
+    static int32 ComputeDeferredRewardAmount(int32 RequestedQuantity, int32 GrantedQuantity);
 
 private:
     static const TCHAR* SaveSlot;
