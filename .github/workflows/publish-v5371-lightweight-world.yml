@@ -58,7 +58,7 @@ jobs:
           grep -Fq "GLOBAL_ROOF_MIN" world-v2300-map.js
           grep -Fq "GLOBAL_FLOOR_MIN" world-v2300-map.js
           ! grep -Fq "'fill-extrusion-pattern':roofPattern" world-v2300-map.js
-          grep -Fq "'fill-extrusion-height':['+',bHeight,.9]" world-v2300-map.js
+          grep -Fq "'fill-extrusion-height':['+',['max',4,bHeight],['max',1.15,bRoofHeight]]" world-v2300-map.js
           grep -Fq "cancelPendingTileRequestsWhileZooming:true" world-v2300-map.js
           grep -Fq "fineDetailDisabled:true" world-v2300-map.js
           grep -Fq "buildingClickOverlook:true" world-v2300-map.js
