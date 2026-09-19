@@ -1,5 +1,6 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
 window.__BP_WORLD_RENDER_VERSION__=5371;
+window.__BP_FINE_DETAIL_MODE__={enabled:false,reason:'performance-first buildings-weather-boundaries',updatedAt:Date.now()};
 
 const OFM='https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf';
 const NASA='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGeneration/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg';
@@ -161,6 +162,7 @@ function style(){
   {id:'gta-bp-building-shadow',type:'fill',source:'bpBuildings','source-layer':'buildings',minzoom:11.4,layout:{visibility:'none'},paint:{'fill-color':'#020304','fill-opacity':.2,'fill-translate':[5,5],'fill-translate-anchor':'map'}},
   {id:'gta-exact-building-shadow',type:'fill',source:'exact',minzoom:DETAIL_MIN,layout:{visibility:'none'},paint:{'fill-color':'#010203','fill-opacity':.24,'fill-translate':[5,5],'fill-translate-anchor':'map'}},
   {id:'gta-city-buildings',type:'fill-extrusion',source:'bpCityStructures','source-layer':'buildings',minzoom:11,layout:{visibility:'none'},paint:{'fill-extrusion-color':facadeColor,'fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],11,.88,12.5,.95,15,.995],'fill-extrusion-vertical-gradient':true}},
+  {id:'gta-city-building-roof-caps',type:'fill-extrusion',source:'bpCityStructures','source-layer':'buildings',minzoom:11,layout:{visibility:'none'},paint:{'fill-extrusion-color':roofColor,'fill-extrusion-base':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-height':['+',['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],['max',.18,['coalesce',['to-number',['get','roof_height_m']],.28]]],'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],11,.9,13,.97,16,1],'fill-extrusion-vertical-gradient':true}},
   {id:'gta-city-roofs',type:'fill-extrusion',source:'bpCityStructures','source-layer':'roofs',minzoom:11,layout:{visibility:'none'},paint:{'fill-extrusion-color':roofColor,'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','roof_base_m']],0]],'fill-extrusion-height':['max',.18,['coalesce',['to-number',['get','roof_top_m']],.3]],'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],11,.92,13,.97,16,1],'fill-extrusion-vertical-gradient':true}},
   {id:'gta-context-buildings',type:'fill-extrusion',source:'ofm','source-layer':'building',minzoom:11.2,paint:{'fill-extrusion-color':facadeColor,'fill-extrusion-height':['max',4,bHeight],'fill-extrusion-base':0,'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],11.2,.72,13,.86,15,.96,18,.995],'fill-extrusion-vertical-gradient':true}},
   {id:'gta-context-floor-lines',type:'fill-extrusion',source:'ofm','source-layer':'building',minzoom:MOBILE?16.2:15.7,layout:{visibility:'none'},paint:{'fill-extrusion-pattern':'bp-floor-lines','fill-extrusion-height':['max',4,bHeight],'fill-extrusion-base':0,'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],MOBILE?16.2:15.7,.46,18,.72,21,.84],'fill-extrusion-vertical-gradient':false}},
@@ -582,7 +584,7 @@ export function initWorld(options={}){
  }
  function syncBuildingShells(){
   if(!layerState.buildings){
-   for(const id of ['gta-context-building-footprints','gta-context-buildings','gta-context-floor-lines','gta-context-roofs','gta-city-buildings','gta-city-roofs','gta-exact-building','gta-exact-floor-lines','gta-exact-roof','gta-building-outline'])vis(map,id,false);
+   for(const id of ['gta-context-building-footprints','gta-context-buildings','gta-context-floor-lines','gta-context-roofs','gta-city-buildings','gta-city-building-roof-caps','gta-city-roofs','gta-exact-building','gta-exact-floor-lines','gta-exact-roof','gta-building-outline'])vis(map,id,false);
    return
   }
   const z=map.getZoom(),wantCity=bridgePointDomesticCenter()&&z>=11,cityReady=wantCity&&cityStructuresReady(),exactReady=exactCount>0&&z>=DETAIL_MIN;
@@ -593,6 +595,7 @@ export function initWorld(options={}){
   vis(map,'gta-context-roofs',roofFallback&&!cityReady);
   // Keep the source-backed city layer visible/requested from city zoom so exact-height geometry can fill whole viewports.
   vis(map,'gta-city-buildings',wantCity);
+  vis(map,'gta-city-building-roof-caps',wantCity);
   vis(map,'gta-city-roofs',wantCity);
   vis(map,'gta-exact-building',exactReady);
   vis(map,'gta-exact-floor-lines',exactReady&&floors);
