@@ -731,6 +731,8 @@ async function applyGrowthDeepLink(){
  const q=new URLSearchParams(location.search),rawLat=q.get('lat'),rawLng=q.get('lng'),lat=rawLat===null?NaN:Number(rawLat),lng=rawLng===null?NaN:Number(rawLng),z=Number(q.get('z')||17);
  applyPublicEmbedMode(q);
  let targetLat=lat,targetLng=lng,address=(q.get('address')||q.get('q')||'').trim();
+ const hasTarget=rawLat!==null||rawLng!==null||!!address;
+ if(!hasTarget)return false;
  if((!Number.isFinite(targetLat)||!Number.isFinite(targetLng))&&address){
    try{
      let d=null;try{d=await rpc('bridgepoint_public_search_v5200',{p_query:address,p_limit:4},2800)}catch(_){d=null}if(!(d?.results||[]).length){try{d=await publicAddressFallback(address,7000)}catch(_){d=null}}const r=(d?.results||[]).find(x=>Number.isFinite(+x.latitude)&&Number.isFinite(+x.longitude));
