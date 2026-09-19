@@ -38,14 +38,8 @@ export function initZoomContinuity(map){
    ['gta-city-label-v2300',4.4],['gta-town-label-v2300',6.6],['gta-locality-label-v2300',9.25],['gta-water-label',2.8]
   ])zoom(map,id,min);
 
-  // More legible natural/material palette.
-  paint(map,'gta-water','fill-color','#0b4f79');paint(map,'gta-water','fill-opacity',.985);
-  paint(map,'gta-waterway','line-color','#36b9ff');paint(map,'gta-waterway','line-opacity',.86);
-  paint(map,'gta-landcover','fill-color',['match',['get','class'],'wood','#205b38','forest','#205b38','grass','#4f8f46','farmland','#6d7440','ice','#dbeef4','#324335']);
-  paint(map,'gta-landcover','fill-opacity',['interpolate',['linear'],['zoom'],2,.64,7,.76,11,.88,15,.93]);
-  paint(map,'gta-landuse','fill-color',['match',['get','class'],'park','#327849','grass','#4b914e','residential','#30383c','commercial','#3c3542','retail','#463b43','industrial','#443d36','cemetery','#46634a','school','#405c50','#353f3d']);
-  paint(map,'gta-landuse','fill-opacity',['interpolate',['linear'],['zoom'],7.5,.62,11,.76,15,.86]);
-
+  // Natural materials, water and glacier appearance are owned by the shared world renderer
+  // so day/night water and non-white glacier relief are not reverted by an additive module.
   // Deep asphalt surfaces with BridgePoint yellow/white road language.
   paint(map,'gta-road-major','line-color','#15191c');paint(map,'gta-road-major','line-opacity',.99);
   paint(map,'gta-road-major-glow','line-color','#f2b83f');paint(map,'gta-road-major-glow','line-opacity',.26);
@@ -64,17 +58,10 @@ export function initZoomContinuity(map){
   paint(map,'gta-rail-ballast','line-color','#37332e');paint(map,'gta-rail-ballast','line-opacity',.98);
   paint(map,'gta-rail-ties','line-color','#9c7143');paint(map,'gta-rail-ties','line-opacity',.92);
   paint(map,'gta-rail-steel','line-color','#e3eaec');paint(map,'gta-rail-steel','line-opacity',.99);
-  paint(map,'gta-bridge-deck','line-color','#c8d6d8');paint(map,'gta-bridge-center','line-color','#f0b83f');
+  paint(map,'gta-bridge-deck','line-color','#111315');paint(map,'gta-bridge-center','line-color','#f2c94c');paint(map,'gta-bridge-centerline','line-color','#f2c94c');
 
-  // Material/class/height variation stays source-driven; unknown buildings still avoid one flat gray.
-  const varied=['case',
-    ['has','facade_material'],['match',['downcase',['get','facade_material']],'brick','#a86454','stone','#8e877c','glass','#6d9dae','metal','#8f9da2','concrete','#999b94','wood','#96765c','#9aa5a5'],
-    ['in',['downcase',['coalesce',['get','building'],['get','class'],'']],['literal',['commercial','retail','office']]],'#8ca0a8',
-    ['in',['downcase',['coalesce',['get','building'],['get','class'],'']],['literal',['industrial','warehouse']]],'#7f8b83',
-    ['>',['coalesce',['to-number',['get','render_height_m']],['to-number',['get','height']],8],45],'#7898a5',
-    ['>',['coalesce',['to-number',['get','render_height_m']],['to-number',['get','height']],8],18],'#9f8b7d','#9c9187'];
-  for(const id of ['gta-context-buildings','gta-bp-buildings','gta-exact-building'])paint(map,id,'fill-extrusion-color',varied);
-
+  // Per-building facade/roof identity is owned by world-v2300-map.js (v5331+).
+  // Do not collapse it back to a small additive fallback palette.
   try{if(!map.getSource('bp-vegetation-v2300'))map.addSource('bp-vegetation-v2300',{type:'geojson',data:EMPTY})}catch(e){console.warn('V2300 vegetation source',e)}
   add(map,{id:'gta-tree-canopy-flat-v2300',type:'fill',source:'bp-vegetation-v2300',minzoom:11.15,maxzoom:14.2,filter:['==',['get','part'],'canopy'],paint:{'fill-color':vegetationColor(),'fill-opacity':['interpolate',['linear'],['zoom'],11.15,.3,13,.66,14.2,.82]}},'gta-context-buildings');
   add(map,{id:'gta-tree-trunk-v2300',type:'fill-extrusion',source:'bp-vegetation-v2300',minzoom:13.2,filter:['==',['get','part'],'trunk'],paint:{'fill-extrusion-color':'#6f4a2f','fill-extrusion-base':0,'fill-extrusion-height':['*',['get','height_m'],.42],'fill-extrusion-opacity':.98,'fill-extrusion-vertical-gradient':true}},'gta-context-buildings');
@@ -105,5 +92,5 @@ export function initZoomContinuity(map){
  function rebuild(){clearTimeout(timer);timer=setTimeout(()=>{treeCount=0;rebuildTrees();rebuildLights();map.triggerRepaint?.()},TIER==='LOW'?260:150)}
 
  install();map.on?.('styledata',()=>{install();rebuild()});map.on?.('moveend',rebuild);map.on?.('zoomend',rebuild);for(const ms of [120,500,1400,3400])setTimeout(()=>{install();rebuild()},ms);
- const api={version:2300,map,requirementKey:'v2300_zoom_continuity_streetscape_v1',rebuild,get state(){return{installed,continuousMidZoom:true,buildingMinZoom:9.65,localRoadMinZoom:9.15,railMinZoom:8.7,bridgeMinZoom:8.6,townMinZoom:6.6,localStreetNameMinZoom:12.25,shorelineOutline:true,blueWater:true,greenVegetation:true,darkParking:true,blackYellowWhiteRoads:true,derivedTreeForms:treeCount,derivedStreetlights:lightCount,derivedAssetTruthLabels:true,secondaryCanvases:0}}};window.__bpZoomContinuityV2300=api;return api;
+ const api={version:2300,map,requirementKey:'v2300_zoom_continuity_streetscape_v1',rebuild,get state(){return{installed,continuousMidZoom:true,buildingMinZoom:9.65,localRoadMinZoom:9.15,railMinZoom:8.7,bridgeMinZoom:8.6,townMinZoom:6.6,localStreetNameMinZoom:12.25,shorelineOutline:true,blueWater:true,greenVegetation:true,glacierReliefPreserved:true,darkParking:true,blackYellowWhiteRoads:true,derivedTreeForms:treeCount,derivedStreetlights:lightCount,derivedAssetTruthLabels:true,secondaryCanvases:0}}};window.__bpZoomContinuityV2300=api;return api;
 }
