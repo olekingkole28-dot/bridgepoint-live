@@ -3,6 +3,12 @@ name: Deploy BridgePoint Intelligence V5000 Rebuild
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'rebuild-v5000/**'
+      - 'sample/storm-opportunity/**'
+      - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
 
 permissions:
   contents: write
@@ -154,6 +160,9 @@ jobs:
 
           node --check site/app.js
           node --check site/landing.js
+          grep -Fq 'landingPropertySearch' site/index.html
+          grep -Fq 'FREE_LOOKUP_KEY' site/landing.js
+          test -s site/sample/storm-opportunity/index.html
           node --check site/acquisition_tracker.js
           grep -Fq 'us.i.posthog.com' site/acquisition_tracker.js
           grep -Fq 'HUMAN_INTERACTION' site/acquisition_tracker.js
