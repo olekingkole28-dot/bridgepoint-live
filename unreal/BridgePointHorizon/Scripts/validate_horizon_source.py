@@ -93,6 +93,12 @@ for token in [
     "Tuning.DamageMultiplier = 1.0f"
 ]:
     require(token in infected_contract, f"Year One infected combat contract missing: {token}")
+require("case EHorizonInfectedArchetype::Orc:\n            return 150;" in infected,
+        "only Orc receives the 150 HP owner rule")
+require("case EHorizonInfectedArchetype::Brute:\n            return 150;" not in infected,
+        "unspecified Brute must stay on the 100 HP default")
+require("Archetype == EHorizonInfectedArchetype::Brute" not in infected.partition("bool UHorizonInfectedDirectorSubsystem::ShouldHop")[2].partition("float UHorizonInfectedDirectorSubsystem::GetCityConvergencePressure")[0],
+        "unspecified Brute must not inherit Orc hopping")
 
 game_state_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGameStateSubsystem.h")
 game_state = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGameStateSubsystem.cpp")

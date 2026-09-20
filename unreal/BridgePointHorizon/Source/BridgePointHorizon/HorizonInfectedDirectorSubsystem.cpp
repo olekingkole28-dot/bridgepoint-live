@@ -126,7 +126,6 @@ int32 UHorizonInfectedDirectorSubsystem::GetBaseHealth(
         case EHorizonInfectedArchetype::ZombieDog:
             return 75;
         case EHorizonInfectedArchetype::Orc:
-        case EHorizonInfectedArchetype::Brute:
             return 150;
         default:
             return 100;
@@ -146,7 +145,6 @@ float UHorizonInfectedDirectorSubsystem::GetMovementSpeedMps(
         case EHorizonInfectedArchetype::Spider:
             return 2.85f;
         case EHorizonInfectedArchetype::Orc:
-        case EHorizonInfectedArchetype::Brute:
             return 2.25f;
         case EHorizonInfectedArchetype::Walker:
         case EHorizonInfectedArchetype::Shambler:
@@ -160,8 +158,7 @@ bool UHorizonInfectedDirectorSubsystem::ShouldHop(
     EHorizonInfectedArchetype Archetype) const
 {
     return Archetype == EHorizonInfectedArchetype::Spider ||
-        Archetype == EHorizonInfectedArchetype::Orc ||
-        Archetype == EHorizonInfectedArchetype::Brute;
+        Archetype == EHorizonInfectedArchetype::Orc;
 }
 
 float UHorizonInfectedDirectorSubsystem::GetCityConvergencePressure(int32 EventDay) const

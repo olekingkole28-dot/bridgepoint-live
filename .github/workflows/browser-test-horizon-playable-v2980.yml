@@ -57,7 +57,7 @@ jobs:
           grep -Fq 'id="healthBar"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="shieldBar"' app/horizon-playable/v2-entry.html
           grep -Fq '(now-pickupStarted)/3000' app/horizon-playable/horizon-v2.js
-          grep -Fq 'bridgepoint_horizon_year_one_checkpoint_v4336' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_year_one_checkpoint_v4337' app/horizon-playable/horizon-v2.js
           ! grep -Fq 'id="useBtn"' app/horizon-playable/v2-entry.html
           ! grep -Fq 'id="lightBtn"' app/horizon-playable/v2-entry.html
           ! grep -Fq 'id="weatherBtn"' app/horizon-playable/v2-entry.html

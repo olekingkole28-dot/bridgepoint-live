@@ -1,6 +1,6 @@
 {
-  "schema_version": 3,
-  "build_target": 4336,
+  "schema_version": 4,
+  "build_target": 4337,
   "updated_at": "2026-09-19",
   "extends": [
     "HORIZON_GAME_MODES_V4243.json",
@@ -172,7 +172,7 @@
     },
     "persistence": {
       "server_table": "horizon_year_one_runtime_v4336",
-      "checkpoint_rpc": "bridgepoint_horizon_year_one_checkpoint_v4336",
+      "checkpoint_rpc": "bridgepoint_horizon_year_one_checkpoint_v4337",
       "checkpoint_cadence_seconds": 5,
       "fields": [
         "health",
@@ -180,6 +180,8 @@
         "spawn/current location",
         "monster kills",
         "loot collected",
+        "active weapon",
+        "magazine/reserve ammo state",
         "last match/cell",
         "checkpoint timestamp"
       ],
