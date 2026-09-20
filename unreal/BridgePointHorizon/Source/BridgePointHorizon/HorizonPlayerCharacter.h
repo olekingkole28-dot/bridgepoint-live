@@ -20,6 +20,27 @@ enum class EHorizonCameraMode : uint8
     ThirdPerson
 };
 
+USTRUCT(BlueprintType)
+struct FHorizonCameraPresentationState
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    float ArmLength = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float FieldOfView = 82.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bUseCollision = false;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bShowFirstPersonArms = true;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bHideOwnerBody = true;
+};
+
 UENUM(BlueprintType)
 enum class EHorizonMovementStance : uint8
 {
@@ -256,6 +277,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera")
     float ThirdPersonFieldOfView = 86.0f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera")
+    float AimFieldOfView = 68.0f;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
     float FacingInterpolationSpeed = 24.0f;
 
@@ -371,6 +395,15 @@ public:
         const FVector& ViewRight,
         const FVector2D& MoveInput,
         float VerticalInput);
+
+    static FHorizonCameraPresentationState ResolveCameraPresentation(
+        EHorizonCameraMode Mode,
+        bool bIsAiming,
+        float FirstPersonFov,
+        float ThirdPersonFov,
+        float AimFov,
+        float ThirdPersonArm,
+        float ThirdPersonAimArm);
 
     static bool ShouldRefreshMovementProfile(
         float AccumulatedSeconds,
