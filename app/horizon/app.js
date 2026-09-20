@@ -561,6 +561,18 @@ async function refreshDirectorPanel(){
     drawDirectorMap(cv,t);
   }catch{}
 }
+
+function controlDiagramHtml(p){
+  const b=p?.bindings||{},pairs=Object.entries(b);
+  if(p?.input_kind==='KEYBOARD_MOUSE'){
+    const wanted=['MOVE_FORWARD','MOVE_LEFT','MOVE_BACK','MOVE_RIGHT','SPRINT','JUMP','STANCE','INTERACT','RELOAD','BUILD','FLASHLIGHT','TACTICAL_1','TACTICAL_2','LETHAL','AIM','FIRE'];
+    return '<div class="control-device keyboard-device"><div class="device-title">KEYBOARD + MOUSE</div><div class="key-grid">'+wanted.map(a=>{const k=b[a]||'—';return '<div class="key-cap"><b>'+escapeHtml(String(k).replace('Key',''))+'</b><span>'+escapeHtml(a.replaceAll('_',' '))+'</span></div>'}).join('')+'</div></div>';
+  }
+  if(p?.input_kind==='GAMEPAD'){
+    return '<div class="control-device gamepad-device"><div class="gamepad-shell"><span class="stick left-stick"></span><span class="stick right-stick"></span><span class="pad-btn a">A</span><span class="pad-btn b">B</span><span class="pad-btn x">X</span><span class="pad-btn y">Y</span><span class="trigger lt">LT</span><span class="trigger rt">RT</span></div><div class="binding-list">'+pairs.map(([a,k])=>'<span><b>'+escapeHtml(k)+'</b> '+escapeHtml(a.replaceAll('_',' '))+'</span>').join('')+'</div></div>';
+  }
+  return '<div class="control-device touch-device"><div class="phone-shell"><span class="touch-stick">MOVE</span><span class="touch-look">LOOK</span><span class="touch-fire">FIRE</span><span class="touch-flash">LIGHT</span></div><div class="binding-list">'+pairs.map(([a,k])=>'<span><b>'+escapeHtml(k)+'</b> '+escapeHtml(a.replaceAll('_',' '))+'</span>').join('')+'</div></div>';
+}
 async function openModal(tab){
   $('installBanner')?.classList.add('hidden');
   const c=$('modalContent');
@@ -644,8 +656,17 @@ async function openModal(tab){
     clearInterval(directorTimer);setTimeout(refreshDirectorPanel,20);directorTimer=setInterval(refreshDirectorPanel,12000);
   }else if(tab==='INSTALL_HELP'){
     c.innerHTML='<div class="eyebrow">INSTALL HORIZON</div><h1>Add BridgePoint Horizon to your home screen</h1><p style="color:#95aaa0">Use your browser menu and choose <b>Install app</b> or <b>Add to Home screen</b>. Horizon uses a separate app ID and icon from BridgePoint Intelligence.</p>';
+  }else if(tab==='SETTINGS'){
+    if(!state.account){
+      c.innerHTML='<div class="eyebrow">CONTROLS & INPUT</div><h1>Keyboard, mouse, controller & mobile</h1><p class="account-callout">Sign in with your normal BridgePoint/Horizon account to save remapped controls across devices. Mouse/keyboard, standard browser gamepads and touch controls remain supported by default.</p>';
+    }else{
+      const out=await rpc('bridgepoint_horizon_controls_v4342',{p_player_id:ident.id,p_player_secret:ident.secret}).catch(()=>({presets:[],saved:[]}));
+      const saved=new Map((out.saved||[]).map(x=>[x.input_kind,x]));
+      const groups=['KEYBOARD_MOUSE','GAMEPAD','TOUCH'];
+      c.innerHTML=`<div class="eyebrow">CONTROLS & INPUT · V4342</div><h1>Choose a preset or remap it</h1><p class="account-callout">Your bindings are saved to your Horizon player account. Keyboard/mouse, controller and mobile touch all feed the same gameplay actions. TDM uses one global player pool—input device does not create a separate matchmaking pool.</p>${groups.map(kind=>`<section class="control-group"><h2>${kind.replace('_',' + ')}</h2><div class="control-preset-grid">${(out.presets||[]).filter(p=>p.input_kind===kind).map(p=>{const s=saved.get(kind),sel=s?.preset_key===p.preset_key;return `<article class="control-preset-card ${sel?'selected':''}" data-control-card="${escapeHtml(p.preset_key)}">${controlDiagramHtml(p)}<span class="eyebrow">${escapeHtml(p.display_name)}</span><h3>${escapeHtml(p.description||'')}</h3><button data-control-preset="${escapeHtml(p.preset_key)}" data-input-kind="${escapeHtml(kind)}">${sel?'ACTIVE PRESET':'USE PRESET'}</button></article>`}).join('')}</div></section>`).join('')}<p class="settings-note">You can start from any preset and then remap individual actions in the playable settings panel. Flashlight is always available and never consumes an inventory slot.</p>`;
+    }
   }else{
-    c.innerHTML=`<div class="eyebrow">HORIZON</div><h1>Game controls</h1><p style="color:#95aaa0">Aim: toggle · Pickup: 3-second dwell · Death flow: killcam, then lobby at 10 seconds · Four right-side controls: Aim, Shoot, Run, Build. Utility rail includes crouch, jump, weapons, drops, campfire and light.</p>`;
+    c.innerHTML=`<div class="eyebrow">HORIZON</div><h1>Game controls</h1><p style="color:#95aaa0">Keyboard/mouse, controllers and touch are supported. Aim, shoot, run, build and flashlight remain available during play; pickup uses a three-second dwell.</p>`;
   }
   mountModelPreviews(c);
   $('modal').classList.add('show');$('modal').setAttribute('aria-hidden','false');
@@ -720,6 +741,18 @@ $('modalContent').addEventListener('click',async e=>{
     try{await rpc('bridgepoint_horizon_party_chat_send_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_message:message});input.value=''}catch(err){status(err.message)}return;
   }
   if(e.target.closest('[data-party-voice]')){try{await enablePartyVoice();status('Party headset voice enabled')}catch(err){status(err.message)}return}
+    const controlPreset=e.target.closest('[data-control-preset]');
+  if(controlPreset){
+    if(!state.account){openModal('ACCOUNT');return}
+    try{
+      const out=await rpc('bridgepoint_horizon_controls_save_v4342',{
+        p_player_id:ident.id,p_player_secret:ident.secret,p_input_kind:controlPreset.dataset.inputKind,
+        p_preset_key:controlPreset.dataset.controlPreset,p_custom_bindings:{},p_sensitivity:{look:1,aim:.72,deadzone:.14}
+      });
+      if(out?.ok){localStorage.setItem('horizon-control-'+String(controlPreset.dataset.inputKind).toLowerCase(),String(controlPreset.dataset.controlPreset));status('Control preset saved · '+controlPreset.textContent.trim());openModal('SETTINGS')}
+    }catch(err){status(err.message)}
+    return;
+  }
     const classBtn=e.target.closest('[data-save-tdm-class]');
   if(classBtn){
     if(!state.account){openModal('ACCOUNT');return}
