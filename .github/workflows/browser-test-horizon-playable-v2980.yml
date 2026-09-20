@@ -1,4 +1,4 @@
-name: Browser Test Horizon Playable v4335 FPS
+name: Browser Test Horizon Playable v4336
 
 on:
   workflow_dispatch:
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: horizon-playable-v4335-fps
+  group: horizon-playable-v4336
   cancel-in-progress: true
 
 jobs:
@@ -54,6 +54,10 @@ jobs:
           grep -Fq 'id="crouchBtn"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="jumpBtn"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="contextBtn"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="healthBar"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="shieldBar"' app/horizon-playable/v2-entry.html
+          grep -Fq '(now-pickupStarted)/3000' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_year_one_checkpoint_v4336' app/horizon-playable/horizon-v2.js
           ! grep -Fq 'id="useBtn"' app/horizon-playable/v2-entry.html
           ! grep -Fq 'id="lightBtn"' app/horizon-playable/v2-entry.html
           ! grep -Fq 'id="weatherBtn"' app/horizon-playable/v2-entry.html
