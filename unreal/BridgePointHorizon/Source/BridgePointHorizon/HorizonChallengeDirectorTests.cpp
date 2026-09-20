@@ -117,10 +117,13 @@ bool FHorizonBoundedChallengeSiteRankingTest::RunTest(const FString& Parameters)
     const TArray<int32> Top = Director->SelectTopSiteIndices(
         EHorizonChallengeNPCRole::Ranger, Candidates, 100);
     TestEqual(TEXT("Large candidate pool remains capped to four ranked sites"), Top.Num(), 4);
-    TestEqual(TEXT("Highest-scoring site remains first"), Top[0], 999);
-    TestEqual(TEXT("Second-highest site remains second"), Top[1], 998);
-    TestEqual(TEXT("Third-highest site remains third"), Top[2], 997);
-    TestEqual(TEXT("Fourth-highest site remains fourth"), Top[3], 996);
+    if (Top.Num() == 4)
+    {
+        TestEqual(TEXT("Highest-scoring site remains first"), Top[0], 999);
+        TestEqual(TEXT("Second-highest site remains second"), Top[1], 998);
+        TestEqual(TEXT("Third-highest site remains third"), Top[2], 997);
+        TestEqual(TEXT("Fourth-highest site remains fourth"), Top[3], 996);
+    }
 
     const FHorizonNPCSiteCandidate FirstPick = Director->PickStrategicSite(
         EHorizonChallengeNPCRole::Ranger, Candidates, 7781);
@@ -146,8 +149,12 @@ bool FHorizonBoundedChallengeSiteRankingTest::RunTest(const FString& Parameters)
     }
     const TArray<int32> StableTies = Director->SelectTopSiteIndices(
         EHorizonChallengeNPCRole::Ranger, Tied, 4);
-    TestEqual(TEXT("Equal scores preserve source order"), StableTies[0], 0);
-    TestEqual(TEXT("Equal-score cap preserves the fourth source item"), StableTies[3], 3);
+    TestEqual(TEXT("Equal-score selection remains capped"), StableTies.Num(), 4);
+    if (StableTies.Num() == 4)
+    {
+        TestEqual(TEXT("Equal scores preserve source order"), StableTies[0], 0);
+        TestEqual(TEXT("Equal-score cap preserves the fourth source item"), StableTies[3], 3);
+    }
     return true;
 }
 
