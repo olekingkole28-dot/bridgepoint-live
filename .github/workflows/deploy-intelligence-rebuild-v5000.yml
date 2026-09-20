@@ -189,6 +189,7 @@ jobs:
           grep -Fq 'landing.js?v=5513' site/index.html
           grep -Fq 'app.js?v=5513' site/app/index.html
           grep -Fq 'window.__BP_LANDING_WORLD__=world' site/landing.js
+          grep -Fq '__BP_LANDING_MAP_BOOT__' site/landing.js
           grep -Fq 'appFreePremiumTools' site/app/index.html
           grep -Fq 'landingPropertySearch' site/index.html
           grep -Fq 'FREE_LOOKUP_KEY' site/landing.js
@@ -570,7 +571,10 @@ jobs:
               await p.goto('https://bridgepointintelligence.online/?qa=v5400-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await p.waitForSelector('#landingPropertySearch',{timeout:10000});
               await p.waitForSelector('a[href="/sample/storm-opportunity/"]',{timeout:10000});
-              await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,{timeout:30000});
+              await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map||window.__BP_LANDING_MAP_BOOT__?.stage==='error',{timeout:30000});
+              const mapBoot=await p.evaluate(()=>window.__BP_LANDING_MAP_BOOT__||null);
+              if(!window){} // keep node parser context stable
+              if(mapBoot?.stage==='error')throw new Error('LANDING_MAP_BOOT '+JSON.stringify(mapBoot));
               await p.waitForFunction(()=>!!window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__&&!!window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__,{timeout:30000});
               await p.waitForFunction(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;if(!m)return false;
