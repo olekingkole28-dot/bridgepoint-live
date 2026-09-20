@@ -97,12 +97,12 @@ async function openDrawer(){
   await closeActive();
   await page.waitForSelector('#bp5507-tool-panel',{timeout:15000});
   await page.evaluate(()=>{const p=document.getElementById('bp5507-tool-panel');if(p){p.hidden=false;p.scrollTop=0}});
-  await page.waitForFunction(()=>document.getElementById('bp5507-tool-panel')?.hidden===false,{timeout:3000});
+  await sleep(120);
 }
 async function openTool(key){
-  await openDrawer();
+  await closeActive();
   await page.waitForSelector('[data-tool="'+key+'"]',{timeout:7000});
-  await page.$eval('[data-tool="'+key+'"]',b=>b.click());
+  await page.evaluate(k=>document.querySelector('[data-tool="'+k+'"]')?.click(),key);
   await sleep(850);
   meta.tools[key]=await page.evaluate(k=>({state:window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__?.state||null,status:document.getElementById('bp5507-tool-status')?.innerText||'',hud:document.getElementById('bp5507-hud')?.innerText||'',gated:document.querySelector('[data-tool="'+k+'"]')?.dataset.gated||null}),key);
 }
