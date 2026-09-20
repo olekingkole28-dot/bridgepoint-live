@@ -1072,6 +1072,203 @@ FHorizonCombatImpactEvent UHorizonAudioDirectorSubsystem::EmitCombatImpact(
     return Event;
 }
 
+FHorizonTraversalAudioMix UHorizonAudioDirectorSubsystem::BuildTraversalAudioMix(
+    EHorizonTraversalAudioCue Cue,
+    EHorizonFootstepSurface Surface,
+    float Intensity01,
+    float DistanceCm,
+    EHorizonAcousticSpace ListenerSpace,
+    bool bOccluded,
+    int32 VariationSeed)
+{
+    FHorizonTraversalAudioMix Mix;
+    float BaseBody = 0.58f;
+    float BaseGear = 0.42f;
+    float BaseSurface = 0.54f;
+    float BaseSplash = 0.0f;
+    float FalloffExponent = 1.10f;
+
+    switch (Cue)
+    {
+        case EHorizonTraversalAudioCue::Jump:
+            Mix.MaxDistanceCm = 9000.0f;
+            BaseBody = 0.34f;
+            BaseGear = 0.52f;
+            BaseSurface = 0.38f;
+            break;
+        case EHorizonTraversalAudioCue::Land:
+            Mix.MaxDistanceCm = 18000.0f;
+            BaseBody = 0.94f;
+            BaseGear = 0.66f;
+            BaseSurface = 0.88f;
+            FalloffExponent = 0.92f;
+            break;
+        case EHorizonTraversalAudioCue::Slide:
+            Mix.MaxDistanceCm = 15000.0f;
+            BaseBody = 0.46f;
+            BaseGear = 0.74f;
+            BaseSurface = 1.0f;
+            break;
+        case EHorizonTraversalAudioCue::Vault:
+            Mix.MaxDistanceCm = 12000.0f;
+            BaseBody = 0.52f;
+            BaseGear = 0.92f;
+            BaseSurface = 0.44f;
+            break;
+        case EHorizonTraversalAudioCue::WaterEntry:
+            Mix.MaxDistanceCm = 19000.0f;
+            BaseBody = 0.62f;
+            BaseGear = 0.30f;
+            BaseSurface = 0.12f;
+            BaseSplash = 1.0f;
+            FalloffExponent = 0.88f;
+            break;
+        case EHorizonTraversalAudioCue::WaterExit:
+            Mix.MaxDistanceCm = 12000.0f;
+            BaseBody = 0.34f;
+            BaseGear = 0.48f;
+            BaseSurface = 0.20f;
+            BaseSplash = 0.72f;
+            break;
+    }
+
+    switch (Surface)
+    {
+        case EHorizonFootstepSurface::Concrete:
+        case EHorizonFootstepSurface::Asphalt:
+            BaseSurface *= 1.0f;
+            break;
+        case EHorizonFootstepSurface::Dirt:
+        case EHorizonFootstepSurface::Grass:
+        case EHorizonFootstepSurface::Snow:
+            BaseBody *= 0.88f;
+            BaseSurface *= 0.72f;
+            break;
+        case EHorizonFootstepSurface::Metal:
+            BaseGear *= 1.08f;
+            BaseSurface *= 1.12f;
+            break;
+        case EHorizonFootstepSurface::Wood:
+            BaseBody *= 1.04f;
+            BaseSurface *= 0.92f;
+            break;
+        case EHorizonFootstepSurface::ShallowWater:
+            BaseSurface *= 0.36f;
+            BaseSplash = FMath::Max(BaseSplash, 0.82f);
+            break;
+    }
+
+    const float Intensity = FMath::Clamp(
+        FMath::IsFinite(Intensity01) ? Intensity01 : 0.0f,
+        0.0f,
+        1.0f);
+    const float SafeDistance = FMath::Max(
+        0.0f,
+        FMath::IsFinite(DistanceCm) ? DistanceCm : Mix.MaxDistanceCm);
+    const float Distance01 =
+        FMath::Clamp(SafeDistance / Mix.MaxDistanceCm, 0.0f, 1.0f);
+    const float DistanceGain =
+        FMath::Pow(1.0f - Distance01, FalloffExponent);
+
+    Mix.BodyGain = BaseBody * FMath::Pow(Intensity, 0.70f) * DistanceGain;
+    Mix.GearGain = BaseGear * FMath::Sqrt(Intensity) * DistanceGain;
+    Mix.SurfaceGain = BaseSurface * Intensity * DistanceGain;
+    Mix.SplashGain = BaseSplash * FMath::Sqrt(Intensity) * DistanceGain;
+
+    switch (ListenerSpace)
+    {
+        case EHorizonAcousticSpace::Outdoor:
+            Mix.ReverbSend = 0.10f;
+            break;
+        case EHorizonAcousticSpace::IndoorSmall:
+            Mix.ReverbSend = 0.48f;
+            Mix.LowPassCutoffHz = 16500.0f;
+            break;
+        case EHorizonAcousticSpace::IndoorLarge:
+            Mix.ReverbSend = 0.66f;
+            Mix.LowPassCutoffHz = 17600.0f;
+            break;
+        case EHorizonAcousticSpace::Tunnel:
+            Mix.ReverbSend = 0.84f;
+            Mix.LowPassCutoffHz = 14800.0f;
+            break;
+        case EHorizonAcousticSpace::Rooftop:
+            Mix.ReverbSend = 0.15f;
+            break;
+    }
+
+    if (bOccluded)
+    {
+        Mix.BodyGain *= 0.68f;
+        Mix.GearGain *= 0.28f;
+        Mix.SurfaceGain *= 0.32f;
+        Mix.SplashGain *= 0.40f;
+        Mix.LowPassCutoffHz = FMath::Min(Mix.LowPassCutoffHz, 2300.0f);
+        Mix.ReverbSend = FMath::Max(Mix.ReverbSend, 0.30f);
+    }
+
+    FRandomStream Variation(
+        VariationSeed * 6521 +
+        static_cast<int32>(Cue) * 359 +
+        static_cast<int32>(Surface) * 127);
+    Mix.Pitch = Variation.FRandRange(0.965f, 1.035f);
+    Mix.GearGain *= Variation.FRandRange(0.94f, 1.06f);
+    Mix.SurfaceGain *= Variation.FRandRange(0.95f, 1.05f);
+
+    Mix.BodyGain = FMath::Clamp(Mix.BodyGain, 0.0f, 1.0f);
+    Mix.GearGain = FMath::Clamp(Mix.GearGain, 0.0f, 1.0f);
+    Mix.SurfaceGain = FMath::Clamp(Mix.SurfaceGain, 0.0f, 1.0f);
+    Mix.SplashGain = FMath::Clamp(Mix.SplashGain, 0.0f, 1.0f);
+    return Mix;
+}
+
+FHorizonTraversalAudioMix UHorizonAudioDirectorSubsystem::GetTraversalAudioMix(
+    EHorizonTraversalAudioCue Cue,
+    EHorizonFootstepSurface Surface,
+    float Intensity01,
+    float DistanceCm,
+    bool bOccluded,
+    int32 VariationSeed) const
+{
+    return BuildTraversalAudioMix(
+        Cue,
+        Surface,
+        Intensity01,
+        DistanceCm,
+        AcousticSpace,
+        bOccluded || Occlusion01 >= 0.50f,
+        VariationSeed);
+}
+
+FHorizonTraversalAudioEvent UHorizonAudioDirectorSubsystem::EmitTraversalAudio(
+    EHorizonTraversalAudioCue Cue,
+    EHorizonFootstepSurface Surface,
+    float Intensity01,
+    float DistanceCm,
+    bool bOccluded,
+    FVector WorldLocation,
+    int32 Sequence)
+{
+    FHorizonTraversalAudioEvent Event;
+    Event.Cue = Cue;
+    Event.Surface = Surface;
+    Event.Intensity01 = FMath::Clamp(
+        FMath::IsFinite(Intensity01) ? Intensity01 : 0.0f,
+        0.0f,
+        1.0f);
+    Event.WorldLocation = WorldLocation;
+    Event.Sequence = FMath::Max(0, Sequence);
+    Event.Mix = GetTraversalAudioMix(
+        Cue,
+        Surface,
+        Event.Intensity01,
+        DistanceCm,
+        bOccluded,
+        Event.Sequence);
+    OnTraversalAudioEmitted.Broadcast(Event);
+    return Event;
+}
+
 FHorizonFootstepMix UHorizonAudioDirectorSubsystem::GetFootstepMix(
     EHorizonFootstepSurface Surface,
     float MovementSpeed01,
