@@ -737,6 +737,14 @@ require("AddMovementInput(FRotationMatrix" not in player,
         "movement axes must be combined before applying input and facing")
 require('BindAction(TEXT("ToggleCamera")' not in player,
         "first-person-only Horizon must not bind a camera toggle")
+game_state_contract = game_state_header + "\n" + game_state
+require("Rules.MinPartySize = 1" in game_state.partition("case EHorizonGameMode::InfiniteTDM:")[2].partition("case EHorizonGameMode::OutbreakRaid:")[0],
+        "native TDM must allow solo queue parties")
+require("NewMode != EHorizonGameMode::YearOneSurvival" in game_state and
+        "NewMode != EHorizonGameMode::InfiniteTDM" in game_state,
+        "native mode selector must reject retired modes")
+require("OutbreakRaid UMETA(Hidden)" in game_state_header,
+        "retired native raid enum must remain hidden compatibility-only")
 for token in [
     "UHorizonWeaponRuntimeComponent", "BindAction(TEXT(\"Fire\")",
     "BindAction(TEXT(\"Reload\")", "WeaponRuntime->StartFire(bAiming)",
