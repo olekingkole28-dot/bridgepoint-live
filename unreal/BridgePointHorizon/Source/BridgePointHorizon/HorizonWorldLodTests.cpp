@@ -382,6 +382,48 @@ bool FHorizonWorldSourceRoofProfileTest::RunTest(const FString& Parameters)
         TEXT("Degenerate round roof footprint fails closed"),
         AHorizonWorldCellRenderer::ResolveRoundRoofProfilePoints(
             DegenerateFootprint).IsEmpty());
+
+    TestEqual(
+        TEXT("Explicit rectangular dome resolves to dome profile"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
+            TEXT("dome"), 4),
+        EHorizonSourceRoofProfile::Dome);
+    TestEqual(
+        TEXT("Domed alias resolves to the dome profile"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
+            TEXT("domed"), 4),
+        EHorizonSourceRoofProfile::Dome);
+    TestEqual(
+        TEXT("Source dome height is preserved"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
+            TEXT("dome"), 4.0, 18.0, 4),
+        4.0);
+    TestEqual(
+        TEXT("Non-rectangular dome fails flat"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
+            TEXT("dome"), 6),
+        EHorizonSourceRoofProfile::Flat);
+
+    const TArray<FVector2D> DomeShoulders =
+        AHorizonWorldCellRenderer::ResolveMansardInsetFootprint(
+            WideFootprint);
+    TestEqual(
+        TEXT("Valid dome reuses one bounded four-corner shoulder ring"),
+        DomeShoulders.Num(),
+        4);
+    TestTrue(
+        TEXT("Dome shoulder ring remains inside the source footprint"),
+        DomeShoulders.Num() == 4 &&
+        DomeShoulders[0].X > WideFootprint[0].X &&
+        DomeShoulders[0].Y > WideFootprint[0].Y);
+    TestTrue(
+        TEXT("Concave dome shoulder geometry fails closed"),
+        AHorizonWorldCellRenderer::ResolveMansardInsetFootprint(
+            ConcaveFootprint).IsEmpty());
+    TestTrue(
+        TEXT("Degenerate dome shoulder geometry fails closed"),
+        AHorizonWorldCellRenderer::ResolveMansardInsetFootprint(
+            DegenerateFootprint).IsEmpty());
     return true;
 }
 
