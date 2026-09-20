@@ -985,22 +985,50 @@ function buildInfectedPatrol(x,y,index){
   return route.length?route:[{x,y}];
 }
 async function spawnInfected(){
-  const defs=[
-    {id:'shambler',model:'free_03',label:'SHAMBLER',speed:1.05,health:110,damage:13,detect:38,scale:1},
-    {id:'stalker',model:'free_07',label:'STALKER',speed:1.65,health:105,damage:15,detect:52,scale:1},
-    {id:'sprinter',model:'free_05',label:'SPRINTER',speed:2.65,health:80,damage:17,detect:58,scale:.96},
-    {id:'brute',model:'free_09',label:'BRUTE',speed:.82,health:260,damage:27,detect:42,scale:1.16},
-    {id:'screamer',model:'free_01',label:'SCREAMER',speed:1.28,health:120,damage:10,detect:64,scale:1}
-  ];
-  const count=MOBILE?(HIGH_DEVICE?15:11):22;
+  const humanoidSource=await loadAsset(CHAR_MODELS.free_03);
+  const dogCount=3+(hash(matchSeed+':dog-pack')%3);
+  const plan=[];
+  for(let i=0;i<dogCount;i++)plan.push({kind:'zombie_dog',label:'ZOMBIE DOG',health:75,speed:7.25,detect:14,hearing:54,model:'dog',hop:false,barZ:1.35,pack:'DOG PACK'});
+  for(let i=0;i<7;i++)plan.push({kind:'zombie',label:i%3===0?'SHAMBLER':'WALKER',health:100,speed:i%3===0?1.05:1.35,detect:12,hearing:34,model:'zombie',hop:false,barZ:2.42});
+  for(let i=0;i<4;i++)plan.push({kind:'runner',label:'RUNNER',health:100,speed:7.05,detect:15,hearing:48,model:'zombie',hop:false,barZ:2.42});
+  for(let i=0;i<3;i++)plan.push({kind:'spider',label:'SPIDER',health:75,speed:2.85,detect:11,hearing:30,model:'spider',hop:true,hopHeight:.68,hopPeriod:820,barZ:1.12});
+  for(let i=0;i<2;i++)plan.push({kind:'orc',label:'BIG ORC',health:150,speed:2.25,detect:13,hearing:38,model:'orc',hop:true,hopHeight:.38,hopPeriod:1050,barZ:3.15});
+  plan.push({kind:'screamer',label:'SCREAMER',health:100,speed:1.45,detect:16,hearing:50,model:'zombie',hop:false,barZ:2.42});
+  const cap=MOBILE?(HIGH_DEVICE?18:14):plan.length,count=Math.min(cap,plan.length);
+  const packAnchor=roadAnchors.length?roadAnchors[hash(matchSeed+':dog-anchor')%roadAnchors.length]:{x:28,y:28};
+
   for(let i=0;i<count;i++){
-    const def=defs[i%defs.length],source=await loadAsset(CHAR_MODELS[def.model]||CHAR_MODELS.free_03),g=skeletonClone(source.scene);
-    prepHumanoid(g,{infectedTint:true,variant:i%2+1});orientHumanoid(g,1.7*def.scale);
-    const a=roadAnchors.length?roadAnchors[(i*11+3)%roadAnchors.length]:null,gx=a?a.x+(rand()-.5)*15:(rand()-.5)*300,gy=a?a.y+(rand()-.5)*15:(rand()-.5)*300;
-    g.position.set(gx,gy,terrainZ(gx,gy));g.rotation.z=rand()*Math.PI*2;world.add(g);
-    infected.push({g,s:def.speed,phase:rand()*6.28,health:def.health,maxHealth:def.health,damage:def.damage,detect:def.detect,alive:true,index:i,name:def.label+' '+String(i+1).padStart(2,'0'),kind:def.id,patrol:buildInfectedPatrol(gx,gy,i),patrolIndex:0,alertUntil:0,nextVocal:performance.now()+3500+rand()*6500,nextScream:performance.now()+2500+rand()*4500});
+    const def=plan[i];let g;
+    if(def.model==='spider')g=makeSpiderModel();
+    else if(def.model==='dog')g=makeDogModel();
+    else{
+      g=skeletonClone(humanoidSource.scene);prepHumanoid(g,{infectedTint:true,variant:i%2+1});orientHumanoid(g,def.model==='orc'?2.35:1.72);
+    }
+
+    let gx,gy;
+    if(def.kind==='zombie_dog'){
+      const packIndex=i,angle=(packIndex/Math.max(1,dogCount))*Math.PI*2,radius=2.4+(packIndex%2)*1.1;
+      gx=packAnchor.x+Math.cos(angle)*radius;gy=packAnchor.y+Math.sin(angle)*radius;
+    }else{
+      const a=roadAnchors.length?roadAnchors[(i*11+3)%roadAnchors.length]:null;
+      gx=a?a.x+(((hash(matchSeed+':x:'+i)%1600)/100)-8):(rand()-.5)*300;
+      gy=a?a.y+(((hash(matchSeed+':y:'+i)%1600)/100)-8):(rand()-.5)*300;
+      if(blocked(gx,gy,.34)&&a){gx=a.x;gy=a.y}
+    }
+
+    const base=terrainZ(gx,gy);g.position.set(gx,gy,base);g.rotation.z=(hash(matchSeed+':rot:'+i)%628)/100;
+    const bar=makeMonsterHealthBar(def.label,def.health,def.barZ);g.add(bar);world.add(g);
+    const z={
+      g,s:def.speed,phase:(hash(matchSeed+':phase:'+i)%628)/100,health:def.health,maxHealth:def.health,
+      damage:25,detect:def.detect,hearing:def.hearing,alive:true,index:i,name:def.label+' '+String(i+1).padStart(2,'0'),
+      label:def.label,kind:def.kind,space:'world',patrol:buildInfectedPatrol(gx,gy,i),patrolIndex:0,
+      lockedOn:false,alertUntil:0,lastHitAt:0,nextVocal:performance.now()+3500+(hash(i+':vocal')%6500),
+      nextScream:performance.now()+2500+(hash(i+':scream')%4500),hop:!!def.hop,hopHeight:def.hopHeight||0,
+      hopPeriod:def.hopPeriod||900,hopPhase:hash(i+':hop')%900,healthBar:bar,pack:def.pack||null
+    };
+    infected.push(z);updateMonsterHealthBar(z);
   }
-  $('infected').textContent=count;
+  $('infected').textContent=infected.filter(z=>z.alive&&z.space==='world').length;
 }
 async function addSurvivor(){
   const key=savedProfile?.avatar_key||'free_03',url=avatarModelForKey(key,CHAR_MODELS)||CHAR_MODELS.free_03;
@@ -1046,19 +1074,27 @@ function shootOnce(){
       if(lateral<.7&&along<best){hit=z;best=along;headshot=lateral<.22;hitKind='combatant'}
     }
   }else{
+    const wanted=interiorMode?'interior':'world';
     for(const z of infected){
-      if(!z.alive)continue;
-      const target=z.g.position.clone().add(new THREE.Vector3(0,0,1.15)),to=target.clone().sub(origin),along=to.dot(dir);
+      if(!z.alive||z.space!==wanted)continue;
+      const aimHeight=z.kind==='spider'?.38:z.kind==='zombie_dog'?.62:z.kind==='orc'?1.55:1.15;
+      const target=z.g.position.clone().add(new THREE.Vector3(0,0,aimHeight)),to=target.clone().sub(origin),along=to.dot(dir);
       if(along<0||along>w.range)continue;
       const closest=origin.clone().addScaledVector(dir,along),lateral=closest.distanceTo(target);
-      if(lateral<.72&&along<best){hit=z;best=along;headshot=lateral<.24;hitKind='infected'}
+      const radius=z.kind==='orc'?.92:z.kind==='spider'?.58:.72;
+      if(lateral<radius&&along<best){hit=z;best=along;headshot=!['spider','zombie_dog'].includes(z.kind)&&lateral<.24;hitKind='infected'}
     }
   }
   if(hit){
     hit.health-=headshot?w.head:w.damage;hit.g.position.addScaledVector(dir,.08);
+    if(hitKind==='infected')updateMonsterHealthBar(hit);
     if(hit.health<=0){
       if(hitKind==='combatant')eliminateCombatant(hit,savedProfile?.display_name||'YOU');
-      else{hit.alive=false;hit.g.visible=false;$('infected').textContent=infected.filter(z=>z.alive).length;recordKill(hit.name,headshot)}
+      else{
+        hit.health=0;updateMonsterHealthBar(hit);hit.alive=false;hit.g.visible=false;
+        $('infected').textContent=infected.filter(z=>z.alive&&z.space===(interiorMode?'interior':'world')).length;
+        recordKill(hit.name,headshot);
+      }
     }
   }
   if(w.mag&&st.mag===0)reload();
@@ -1076,8 +1112,10 @@ function buildCover(){
   }).catch(()=>{});
 }
 function respawn(){
-  dead=false;health=100;$('health').textContent='100';player.position.set(0,0,terrainZ(0,0));camera.fov=aiming?50:68;camera.updateProjectionMatrix();
-  $('killCam').hidden=true;toast('Respawned');
+  dead=false;health=100;shield=0;updateVitals();
+  if(mode==='YEAR_ONE')applyPreciseSpawn();else player.position.set(0,0,terrainZ(0,0));
+  camera.fov=aiming?50:68;camera.updateProjectionMatrix();
+  $('killCam').hidden=true;checkpointYearOne(true);toast('Respawned');
 }
 let yearDeathResult=null,killcamTimer=null;
 async function finishDeathFlow(){
@@ -1121,28 +1159,59 @@ async function triggerDeath(killer){
   playback();killcamTimer=setTimeout(finishDeathFlow,11550);
 }
 function updateInfected(dt,t){
-  if(interiorMode)return;
+  const wanted=interiorMode?'interior':'world';
   for(const z of infected){
     if(!z.alive)continue;
-    const dx=player.position.x-z.g.position.x,dy=player.position.y-z.g.position.y,d=Math.hypot(dx,dy),aggro=!dead&&(d<z.detect||z.alertUntil>t);
+    const sameSpace=z.space===wanted;
+    if(!sameSpace){z.g.visible=false;continue}
+
+    let dx=player.position.x-z.g.position.x,dy=player.position.y-z.g.position.y;
+    let d=Math.hypot(dx,dy),vertical=Math.abs(player.position.z-z.g.position.z);
+    const heard=!dead&&(t-lastFootstepAt<950)&&d<z.hearing;
+    if(!dead&&(heard||d<z.detect))z.lockedOn=true;
+    const aggro=!dead&&z.lockedOn;
+
     if(d>perfSimRadius()&&!aggro){z.g.visible=false;continue}else z.g.visible=true;
+
     if(z.kind==='screamer'&&aggro&&d<28&&t>z.nextScream){
       z.nextScream=t+7000;creatureVocalAudio(z.g.position,1.3);
-      for(const q of infected)if(q.alive&&Math.hypot(q.g.position.x-z.g.position.x,q.g.position.y-z.g.position.y)<70)q.alertUntil=t+9000;
-    }else if(d<32&&t>z.nextVocal){z.nextVocal=t+5000+rand()*8000;creatureVocalAudio(z.g.position,z.kind==='brute'?1.15:.75)}
+      for(const q of infected){
+        if(q.alive&&q.space===wanted&&Math.hypot(q.g.position.x-z.g.position.x,q.g.position.y-z.g.position.y)<70)q.lockedOn=true;
+      }
+    }else if(d<32&&t>z.nextVocal){
+      z.nextVocal=t+5000+(hash(z.index+':v:'+Math.floor(t/1000))%8000);
+      creatureVocalAudio(z.g.position,z.kind==='orc'?1.15:.75);
+    }
 
-    if(aggro&&d>1.15){
+    let tx=player.position.x,ty=player.position.y;
+    if(aggro&&z.space==='interior'&&activeInterior&&vertical>1.35){
+      tx=activeInterior.stairX;ty=(activeInterior.stairMinY+activeInterior.stairMaxY)/2;
+      dx=tx-z.g.position.x;dy=ty-z.g.position.y;d=Math.max(.001,Math.hypot(dx,dy));
+    }
+
+    if(aggro&&d>1.08){
       const nx=z.g.position.x+dx/Math.max(.001,d)*z.s*dt,ny=z.g.position.y+dy/Math.max(.001,d)*z.s*dt;
-      if(!blocked(nx,ny,.32)){z.g.position.x=nx;z.g.position.y=ny;z.g.position.z=terrainZ(nx,ny)}
+      if(!blocked(nx,ny,z.kind==='orc'?.46:.30)){z.g.position.x=nx;z.g.position.y=ny}
       z.g.rotation.z=Math.atan2(dy,dx)-Math.PI/2;
     }else if(!dead&&z.patrol?.length){
       const p=z.patrol[z.patrolIndex%z.patrol.length],px=p.x-z.g.position.x,py=p.y-z.g.position.y,pd=Math.hypot(px,py);
-      if(pd<1.2)z.patrolIndex=(z.patrolIndex+1)%z.patrol.length;
-      else{const speed=z.s*.42,nx=z.g.position.x+px/pd*speed*dt,ny=z.g.position.y+py/pd*speed*dt;if(!blocked(nx,ny,.3)){z.g.position.x=nx;z.g.position.y=ny;z.g.position.z=terrainZ(nx,ny)}z.g.rotation.z=Math.atan2(py,px)-Math.PI/2}
+      if(pd<1.0)z.patrolIndex=(z.patrolIndex+1)%z.patrol.length;
+      else{
+        const patrolSpeed=Math.min(1.35,z.s*.38),nx=z.g.position.x+px/pd*patrolSpeed*dt,ny=z.g.position.y+py/pd*patrolSpeed*dt;
+        if(!blocked(nx,ny,.28)){z.g.position.x=nx;z.g.position.y=ny}z.g.rotation.z=Math.atan2(py,px)-Math.PI/2;
+      }
     }
-    if(!dead&&d<1.18){
-      health=Math.max(0,health-z.damage*dt);$('health').textContent=Math.round(health);
-      if(health<=0)triggerDeath(z);
+
+    const base=z.space==='interior'
+      ?interiorGroundZ(z.g.position.x,z.g.position.y,z.g.position.z)
+      :terrainZ(z.g.position.x,z.g.position.y);
+    const hop=z.hop?Math.max(0,Math.sin(((t+z.hopPhase)%z.hopPeriod)/z.hopPeriod*Math.PI*2))*z.hopHeight:0;
+    z.g.position.z=base+hop;
+
+    const contactD=Math.hypot(player.position.x-z.g.position.x,player.position.y-z.g.position.y);
+    const contactZ=Math.abs(player.position.z-z.g.position.z);
+    if(!dead&&contactD<(z.kind==='orc'?1.45:1.18)&&contactZ<1.6&&t-z.lastHitAt>=850){
+      z.lastHitAt=t;applyPlayerHit(25,z);
     }
   }
 }
@@ -1204,7 +1273,7 @@ function updatePerfVisualBudget(){
   const tuneActor=(q,on,kind)=>{
     q.g.visible=on;
     q.g.traverse?.(o=>{
-      if(o.isSprite)o.visible=on&&perfTier<2;
+      if(o.isSprite){o.visible=on&&(o.userData?.hpBar||perfTier<2);return}
       if(!o.isMesh)return;
       if(perfTier>=3&&on){
         if(!o.userData.bpActorHqMaterial)o.userData.bpActorHqMaterial=o.material;
