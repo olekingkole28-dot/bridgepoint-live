@@ -332,6 +332,56 @@ bool FHorizonWorldSourceRoofProfileTest::RunTest(const FString& Parameters)
         TEXT("Degenerate half-hip footprint fails closed"),
         AHorizonWorldCellRenderer::ResolveHalfHippedProfilePoints(
             DegenerateFootprint).IsEmpty());
+
+    TestEqual(
+        TEXT("Explicit rectangular round roof resolves to barrel profile"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
+            TEXT("round"), 4),
+        EHorizonSourceRoofProfile::Round);
+    TestEqual(
+        TEXT("Barrel alias resolves to the round profile"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
+            TEXT("barrel"), 4),
+        EHorizonSourceRoofProfile::Round);
+    TestEqual(
+        TEXT("Source round roof height is preserved"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
+            TEXT("round"), 3.4, 15.0, 4),
+        3.4);
+    TestEqual(
+        TEXT("Non-rectangular round roof fails flat"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
+            TEXT("round"), 5),
+        EHorizonSourceRoofProfile::Flat);
+
+    const TArray<FVector2D> RoundPoints =
+        AHorizonWorldCellRenderer::ResolveRoundRoofProfilePoints(
+            WideFootprint);
+    TestEqual(
+        TEXT("Valid round roof creates four shoulders and two ridge points"),
+        RoundPoints.Num(),
+        6);
+    TestTrue(
+        TEXT("Round roof shoulders form a symmetric barrel cross-section"),
+        RoundPoints.Num() == 6 &&
+        FMath::IsNearlyEqual(RoundPoints[0].X, 10.0, 1.0e-5) &&
+        FMath::IsNearlyEqual(RoundPoints[0].Y, 1.0, 1.0e-5) &&
+        FMath::IsNearlyEqual(RoundPoints[2].Y, 3.0, 1.0e-5));
+    TestTrue(
+        TEXT("Round roof ridge follows the source footprint longest axis"),
+        RoundPoints.Num() == 6 &&
+        FMath::IsNearlyEqual(RoundPoints[4].X, 10.0, 1.0e-5) &&
+        FMath::IsNearlyEqual(RoundPoints[4].Y, 2.0, 1.0e-5) &&
+        FMath::IsNearlyEqual(RoundPoints[5].X, 0.0, 1.0e-5) &&
+        FMath::IsNearlyEqual(RoundPoints[5].Y, 2.0, 1.0e-5));
+    TestTrue(
+        TEXT("Concave round roof footprint fails closed"),
+        AHorizonWorldCellRenderer::ResolveRoundRoofProfilePoints(
+            ConcaveFootprint).IsEmpty());
+    TestTrue(
+        TEXT("Degenerate round roof footprint fails closed"),
+        AHorizonWorldCellRenderer::ResolveRoundRoofProfilePoints(
+            DegenerateFootprint).IsEmpty());
     return true;
 }
 
