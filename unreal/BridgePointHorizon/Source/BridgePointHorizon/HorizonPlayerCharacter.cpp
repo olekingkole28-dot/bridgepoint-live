@@ -6,10 +6,13 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/GameInstance.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "HorizonAutopilotSubsystem.h"
+#include "HorizonAudioDirectorSubsystem.h"
 #include "HorizonWeaponRuntimeComponent.h"
 #include "HorizonWorldCellRenderer.h"
 #include "ProceduralMeshComponent.h"
@@ -104,8 +107,183 @@ void AHorizonPlayerCharacter::BeginPlay()
         EquippedWeaponVisual->SetVisibility(true, true);
     }
 
+    MaxHealth = FMath::Max(1.0f, MaxHealth);
+    MaxArmor = FMath::Max(0.0f, MaxArmor);
+    CurrentHealth = MaxHealth;
+    CurrentArmor = MaxArmor;
+
     RefreshMovementProfile();
     RefreshFirstPersonVisualState();
+}
+
+float AHorizonPlayerCharacter::TakeDamage(
+    float DamageAmount,
+    const FDamageEvent& DamageEvent,
+    AController* EventInstigator,
+    AActor* DamageCauser)
+{
+    const float AcceptedDamage =
+        Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+    const FVector IncomingDirection = DamageCauser
+        ? (DamageCauser->GetActorLocation() - GetActorLocation()).GetSafeNormal2D()
+        : GetActorForwardVector();
+    return ApplyCombatHit(AcceptedDamage, IncomingDirection, false);
+}
+
+float AHorizonPlayerCharacter::ApplyCombatHit(
+    float RawDamage,
+    FVector IncomingDirection,
+    bool bHeadshot)
+{
+    if (!HasAuthority() || CurrentHealth <= KINDA_SMALL_NUMBER)
+    {
+        return 0.0f;
+    }
+
+    const FHorizonCombatHitFeedback Feedback = ResolveCombatHit(
+        RawDamage,
+        CurrentHealth,
+        CurrentArmor,
+        MaxHealth,
+        MaxArmor,
+        GetActorForwardVector(),
+        GetActorRightVector(),
+        IncomingDirection,
+        bHeadshot);
+    if (Feedback.DamageToArmor <= 0.0f && Feedback.DamageToHealth <= 0.0f)
+    {
+        return 0.0f;
+    }
+
+    CurrentHealth = Feedback.HealthRemaining;
+    CurrentArmor = Feedback.ArmorRemaining;
+    OnCombatHitReaction.Broadcast(Feedback);
+
+    if (AController* OwnerController = GetController();
+        OwnerController && OwnerController->IsLocalController())
+    {
+        AddControllerPitchInput(Feedback.CameraImpulse.X);
+        AddControllerYawInput(Feedback.CameraImpulse.Y);
+    }
+
+    if (UGameInstance* GameInstance = GetGameInstance())
+    {
+        if (UHorizonAudioDirectorSubsystem* Audio =
+            GameInstance->GetSubsystem<UHorizonAudioDirectorSubsystem>())
+        {
+            Audio->PushPlayerHitFeedback(Feedback.Severity01);
+        }
+    }
+
+    return Feedback.DamageToHealth;
+}
+
+EHorizonHitDirection AHorizonPlayerCharacter::ResolveHitDirection(
+    const FVector& Forward,
+    const FVector& Right,
+    const FVector& IncomingDirection)
+{
+    const FVector SafeForward = Forward.GetSafeNormal2D();
+    const FVector SafeRight = Right.GetSafeNormal2D();
+    const FVector SafeIncoming = IncomingDirection.GetSafeNormal2D();
+    if (SafeForward.IsNearlyZero() || SafeRight.IsNearlyZero() || SafeIncoming.IsNearlyZero())
+    {
+        return EHorizonHitDirection::Front;
+    }
+
+    const float ForwardDot = FVector::DotProduct(SafeForward, SafeIncoming);
+    const float RightDot = FVector::DotProduct(SafeRight, SafeIncoming);
+    if (FMath::Abs(ForwardDot) >= FMath::Abs(RightDot))
+    {
+        return ForwardDot >= 0.0f
+            ? EHorizonHitDirection::Front
+            : EHorizonHitDirection::Rear;
+    }
+    return RightDot >= 0.0f
+        ? EHorizonHitDirection::Right
+        : EHorizonHitDirection::Left;
+}
+
+FHorizonCombatHitFeedback AHorizonPlayerCharacter::ResolveCombatHit(
+    float RawDamage,
+    float CurrentHealthValue,
+    float CurrentArmorValue,
+    float MaxHealthValue,
+    float MaxArmorValue,
+    const FVector& Forward,
+    const FVector& Right,
+    const FVector& IncomingDirection,
+    bool bHeadshot)
+{
+    FHorizonCombatHitFeedback Feedback;
+    const float SafeMaxHealth = FMath::Max(
+        1.0f,
+        FMath::IsFinite(MaxHealthValue) ? MaxHealthValue : 100.0f);
+    const float SafeMaxArmor = FMath::Max(
+        0.0f,
+        FMath::IsFinite(MaxArmorValue) ? MaxArmorValue : 0.0f);
+    const float SafeHealth = FMath::Clamp(
+        FMath::IsFinite(CurrentHealthValue) ? CurrentHealthValue : 0.0f,
+        0.0f,
+        SafeMaxHealth);
+    const float SafeArmor = FMath::Clamp(
+        FMath::IsFinite(CurrentArmorValue) ? CurrentArmorValue : 0.0f,
+        0.0f,
+        SafeMaxArmor);
+    const float SafeDamage = FMath::Max(
+        0.0f,
+        FMath::IsFinite(RawDamage) ? RawDamage : 0.0f);
+    const float ScaledDamage = FMath::Min(
+        SafeDamage * (bHeadshot ? 1.50f : 1.0f),
+        SafeMaxHealth + SafeMaxArmor);
+
+    Feedback.HealthRemaining = SafeHealth;
+    Feedback.ArmorRemaining = SafeArmor;
+    Feedback.Direction = ResolveHitDirection(Forward, Right, IncomingDirection);
+    Feedback.bHeadshot = bHeadshot && ScaledDamage > 0.0f;
+    if (ScaledDamage <= 0.0f || SafeHealth <= 0.0f)
+    {
+        Feedback.bLethal = SafeHealth <= 0.0f;
+        return Feedback;
+    }
+
+    Feedback.DamageToArmor = FMath::Min(SafeArmor, ScaledDamage * 0.65f);
+    Feedback.DamageToHealth = FMath::Min(
+        SafeHealth,
+        ScaledDamage - Feedback.DamageToArmor);
+    Feedback.ArmorRemaining = FMath::Max(0.0f, SafeArmor - Feedback.DamageToArmor);
+    Feedback.HealthRemaining = FMath::Max(0.0f, SafeHealth - Feedback.DamageToHealth);
+    Feedback.bArmorBroken =
+        SafeArmor > KINDA_SMALL_NUMBER &&
+        Feedback.ArmorRemaining <= KINDA_SMALL_NUMBER;
+    Feedback.bLethal = Feedback.HealthRemaining <= KINDA_SMALL_NUMBER;
+    Feedback.Severity01 = FMath::Clamp(
+        (Feedback.DamageToHealth + Feedback.DamageToArmor * 0.35f) / SafeMaxHealth,
+        0.0f,
+        1.0f);
+
+    const float ImpulseStrength = 0.22f + Feedback.Severity01 * 1.35f;
+    Feedback.CameraImpulse.X =
+        Feedback.Direction == EHorizonHitDirection::Rear
+            ? ImpulseStrength * 0.45f
+            : -ImpulseStrength;
+    if (Feedback.Direction == EHorizonHitDirection::Right)
+    {
+        Feedback.CameraImpulse.Y = -ImpulseStrength;
+    }
+    else if (Feedback.Direction == EHorizonHitDirection::Left)
+    {
+        Feedback.CameraImpulse.Y = ImpulseStrength;
+    }
+    else
+    {
+        Feedback.CameraImpulse.Y = 0.0f;
+    }
+    Feedback.ReticleImpulse01 = FMath::Clamp(
+        0.20f + Feedback.Severity01 * 0.80f + (Feedback.bHeadshot ? 0.10f : 0.0f),
+        0.0f,
+        1.0f);
+    return Feedback;
 }
 
 void AHorizonPlayerCharacter::Tick(float DeltaSeconds)

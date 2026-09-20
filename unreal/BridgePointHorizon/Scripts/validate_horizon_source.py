@@ -642,7 +642,10 @@ for token in [
     "LeanDistanceCm", "LeanRollDegrees", "LeanProbeRadiusCm",
     "GetLeanAlpha", "ResolveLeanTarget", "WeaponRuntime",
     "VaultMinimumHeightCm", "VaultMaximumHeightCm", "VaultForwardProbeCm",
-    "VaultDurationSeconds", "VaultArcHeightCm", "IsVaulting", "CanStartVault"
+    "VaultDurationSeconds", "VaultArcHeightCm", "IsVaulting", "CanStartVault",
+    "EHorizonHitDirection", "FHorizonCombatHitFeedback", "OnCombatHitReaction",
+    "ApplyCombatHit", "ResolveHitDirection", "ResolveCombatHit",
+    "CurrentHealth", "CurrentArmor", "ReticleImpulse01"
 ]:
     require(token in player_header, f"native weapon visual contract missing: {token}")
 for token in [
@@ -676,7 +679,13 @@ for token in [
     "VaultTargetLocation", "FCollisionShape::MakeCapsule(CapsuleRadius, CapsuleHalfHeight)",
     "Move->SetMovementMode(MOVE_Flying)",
     "MovementStance == EHorizonMovementStance::Vaulting",
-    "WeaponRuntime->StopFire()"
+    "WeaponRuntime->StopFire()", "TakeDamage(", "Super::TakeDamage",
+    "DamageCauser->GetActorLocation()", "OnCombatHitReaction.Broadcast",
+    "PushPlayerHitFeedback(Feedback.Severity01)",
+    "Feedback.DamageToArmor = FMath::Min",
+    "SafeDamage * (bHeadshot ? 1.50f : 1.0f)",
+    "AddControllerPitchInput(Feedback.CameraImpulse.X)",
+    "AddControllerYawInput(Feedback.CameraImpulse.Y)"
 ]:
     require(token in player, f"native facing/camera regression guard missing: {token}")
 require("AddMovementInput(FRotationMatrix" not in player,
@@ -757,7 +766,15 @@ for token in [
     "ADS blocks an accidental vault",
     "Tall walls cannot be vaulted",
     "Blocked landing capsules fail closed",
-    "Vaulting cancels lean"
+    "Vaulting cancels lean",
+    "Combat.HitReaction.Direction", "Combat.HitReaction.Resolution",
+    "Forward source resolves to front hit", "Right source resolves to right hit",
+    "Rear source resolves to rear hit", "Left source resolves to left hit",
+    "Armor absorbs sixty-five percent of a standard hit",
+    "Headshot applies stronger health damage",
+    "Depleted armor signals armor break", "Lethal hit reaches zero health",
+    "Negative damage cannot consume health",
+    "Reticle impulse remains normalized"
 ]:
     require(token in movement_tests, f"native lean QA missing: {token}")
 require("Stripe" not in movement_tests and "Payment" not in movement_tests,
