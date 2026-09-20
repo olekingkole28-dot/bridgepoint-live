@@ -168,9 +168,22 @@ function cloudFx(kind){
   g.position.copy(p);world.add(g);const started=performance.now();const tick=now=>{const age=(now-started)/1000;g.rotation.z+=.003;g.scale.setScalar(1+Math.min(2,age*.18));g.children.forEach(m=>m.material.opacity=Math.max(0,.11*(1-age/12)));if(age<12)requestAnimationFrame(tick);else world.remove(g)};requestAnimationFrame(tick);
 }
 function useEquipment(slot){
-  if(mode!=='TDM'||dead)return;const q=tdmEquipment[slot];if(!q||q.charges<=0)return;q.charges--;renderEquipmentButtons();
+  if(mode!=='TDM'||dead||tdmMovementLocked())return;const q=tdmEquipment[slot];if(!q||q.charges<=0)return;q.charges--;renderEquipmentButtons();
   if(q.kind==='SMOKE'||q.kind==='GAS'||q.kind==='FLASH')cloudFx(q.kind);
   else{const frag=weaponByKey('frag_common')||{key:'frag',kind:'grenade',weaponClass:'GRENADE',name:'Fragment',damage:105,range:38,mag:1,metadata:{splash_radius_m:6,fuse_ms:1150}};const dir=new THREE.Vector3();camera.getWorldDirection(dir);launchExplosive(frag,camera.position.clone(),dir)}
+}
+function tdmMovementLocked(){return mode==='TDM'&&performance.now()<prematchLockedUntil}
+async function beginTdmPrematch(){
+  if(mode!=='TDM'||!matchId)return;
+  try{
+    const clock=await rpc('bridgepoint_horizon_tdm_combat_clock_v4341',{p_player_id:playerId,p_player_secret:playerSecret,p_match_id:matchId});
+    const end=Date.parse(clock?.combat_live_at||'');prematchLockedUntil=performance.now()+Math.max(0,Number.isFinite(end)?end-Date.now():10000);
+  }catch{prematchLockedUntil=performance.now()+10000}
+  const box=$('prematchFreeze'),num=$('prematchCount');if(box)box.hidden=false;let last=-1;
+  const tick=()=>{const left=Math.max(0,prematchLockedUntil-performance.now()),sec=Math.ceil(left/1000);if(num)num.textContent=String(sec||'GO');if(sec!==last&&sec>0){tone(sec<=3?880:520,.045,.045,'square');last=sec}
+    if(left<=0){if(box)box.hidden=true;tone(1040,.08,.06,'square');toast('GO · FIRE CIRCLE ACTIVE');return}
+    requestAnimationFrame(tick)
+  };tick();
 }
 function loadAsset(url){
   if(!assetCache.has(url))assetCache.set(url,new Promise((resolve,reject)=>gltfLoader.load(url,resolve,undefined,reject)));
@@ -1227,7 +1240,7 @@ function eliminateCombatant(b,killer='YOU'){
 
 }
 function updateCombatants(dt,t){
-  if(mode!=='TDM')return;
+  if(mode!=='TDM'||tdmMovementLocked())return;
   const liveEnemies=combatants.filter(x=>x.alive);
   for(const b of liveEnemies){
     let target=null,targetPos=null;
@@ -1380,7 +1393,7 @@ async function recordKill(victimName,headshot=false,kind='zombie',distance=null,
   }).catch(()=>null);
 }
 function shootOnce(){
-  if(dead||reloading)return;
+  if(dead||reloading||tdmMovementLocked())return;
   const w=activeWeapon(),st=weaponState[w.key],now=performance.now();if(now-lastFireAt<w.interval)return;lastFireAt=now;
   if(w.mag&&st.mag<=0){reload();return}
   if(w.mag){st.mag--;updateAmmo();gunAudio(w);if(muzzleFlash){muzzleFlash.intensity=7;setTimeout(()=>{if(muzzleFlash)muzzleFlash.intensity=0},34)}}
@@ -1426,7 +1439,7 @@ function shootOnce(){
   if(w.mag&&st.mag===0)reload();
 }
 function buildCover(){
-  if(dead)return;
+  if(dead||tdmMovementLocked())return;
   if(mode==='TDM'&&buildCount>=3){toast('BUILD LIMIT · 3');return}
   const f=new THREE.Vector2(-Math.sin(yaw),Math.cos(yaw)),x=player.position.x+f.x*2.1,y=player.position.y+f.y*2.1;
   if(blocked(x,y,.8)){toast('Cannot build here');return}
@@ -1873,6 +1886,7 @@ let dtGlobal=0;
 function updateCamera(dt){
   if(dead)return;
   pollGamepad();
+  if(tdmMovementLocked()){moveX=0;moveY=0;sprint=false;slideTime=0;activeVehicle=null;activeZipline=null}
   if(activeZipline)updateZipline(dt);
   else if(activeVehicle)updateVehicle(dt);
   else{
@@ -1954,6 +1968,7 @@ async function load(){
   if(mode==='YEAR_ONE')await hydrateYearOneRuntime();
   await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
   const spawnType=mode==='YEAR_ONE'?applyPreciseSpawn():'MATCH';
+  if(mode==='TDM')await beginTdmPrematch();
   updateVitals();updateAmmo();renderWeaponBar();renderEquipmentButtons();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();heartbeatWorld(true);setInterval(()=>heartbeatWorld(false),10000);if(mode==='TDM'){pollTdmFireZone(true);setInterval(()=>pollTdmFireZone(false),2000)}if(mode==='YEAR_ONE'){pollYearOneZone(true);setInterval(()=>pollYearOneZone(false),2500);rpc('bridgepoint_horizon_exploration_v4340',{p_player_id:playerId,p_player_secret:playerSecret}).then(x=>(x?.cells||[]).forEach(q=>exploredCells.add(q.cell_key))).catch(()=>{})}
 
   if(mode==='YEAR_ONE'){
@@ -1966,7 +1981,7 @@ async function load(){
     :`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · ${ziplineCount} ziplines · ${vehicleCount} vehicles · restored traversal active`;
 
   window.BP_HORIZON_V2={
-    ok:true,build:4340,mode,matchId,state:data?.resolved_jurisdiction?.state||stateCode,
+    ok:true,build:4341,mode,matchId,state:data?.resolved_jurisdiction?.state||stateCode,
     buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,
     terrainSource:terrainInfo?.source||'FLAT SAFETY FALLBACK',terrainFallback:!terrainInfo,
     infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,
@@ -1976,6 +1991,7 @@ async function load(){
     roofTraversal:true,drivableVehicles:true,vehicleFuelRepair:true,infectedPatrols:true,ambientDisasterFx:true,
     spatialAudio:true,adaptivePerformanceGovernor:true,instancedWorldProps:true,instancedRoadSurfaces:true,
     adaptiveShaderBudget:true,adaptiveExteriorDetailBudget:true,
+    tdm:mode==='TDM'?{playerHealthMax:150,shieldMax:0,targetPlayers:100,teamSize:50,prematchSeconds:10,fireCircleSeconds:1800,fireDamagePerSecond:25,loadoutPresets:5,attachmentSlots:7,deathLootDwellSeconds:3}:null,
     yearOne:mode==='YEAR_ONE'?{
       pveOnly:true,playerHealthMax:100,shieldMax:100,combinedMax:200,shieldPickup:50,monsterHitDamage:25,
       spawnPolicy:'PERSISTENT_LAST_LOCATION_AFTER_FIRST_ENTRY',spawnType,persistentAggro:true,serverCheckpointed:true,conusOnly:true,zombieWall:true,fiveFinalCities:true,
