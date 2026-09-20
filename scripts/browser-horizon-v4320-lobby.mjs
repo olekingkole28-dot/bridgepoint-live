@@ -34,9 +34,12 @@ const lobby=await page.evaluate(()=>({
   occupied:document.querySelectorAll('#partyRow .player-slot.occupied').length,
   empty:document.querySelectorAll('#partyRow .player-slot.empty').length,
   modes:document.querySelectorAll('.mode').length,
-  status:document.getElementById('statusMessage')?.textContent
+  status:document.getElementById('statusMessage')?.textContent,
+  yearOneCountdown:document.getElementById('yearOneCountdown')?.textContent||'',
+  yearOneLaunch:document.querySelector('.year-one-launch')?.textContent||''
 }));
-if(!lobby.canvas||lobby.slots!==4||lobby.occupied<1||lobby.empty<1||lobby.modes!==2||lobby.scene?.models<1||lobby.scene?.idleRigs<1||lobby.scene?.armedIdle<1||lobby.runtime?.build!==4335||lobby.runtime?.map_count!==50||lobby.runtime?.perspective!=='FIRST_PERSON_ONLY'||lobby.runtime?.map_rotation!=='AUTOMATIC'||JSON.stringify(lobby.runtime?.authoritative_modes)!=='["YEAR_ONE","TDM"]')throw new Error('Lobby stage contract failed '+JSON.stringify(lobby));
+if(!lobby.canvas||lobby.slots!==4||lobby.occupied<1||lobby.empty<1||lobby.modes!==2||lobby.scene?.models<1||lobby.scene?.idleRigs<1||lobby.scene?.armedIdle<1||lobby.runtime?.build!==4336||lobby.runtime?.map_count!==50||lobby.runtime?.perspective!=='FIRST_PERSON_ONLY'||lobby.runtime?.map_rotation!=='AUTOMATIC'||JSON.stringify(lobby.runtime?.authoritative_modes)!=='["YEAR_ONE","TDM"]')throw new Error('Lobby stage contract failed '+JSON.stringify(lobby));
+if(!/OCT 1/i.test(lobby.yearOneLaunch)||!/D|LIVE|COUNTDOWN/i.test(lobby.yearOneCountdown))throw new Error('Year One countdown contract failed '+JSON.stringify(lobby));
 
 const tdm=page.locator('.mode[data-mode="TDM"]');
 if(await tdm.count())await tdm.click();
@@ -76,6 +79,6 @@ const locker=await page.evaluate(()=>({cards:document.querySelectorAll('.catalog
 if(locker.cards<10||locker.previews<10)throw new Error('Locker GLB contract failed '+JSON.stringify(locker));
 
 const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|ResizeObserver loop|Failed to load resource.*404/i.test(x));
-if(meaningful.length)throw new Error('Horizon V4335 lobby browser errors '+meaningful.join('\n'));
-console.log('HORIZON_V4335_LOBBY_PASS',JSON.stringify({lobby,maps,store,pass,locker}));
+if(meaningful.length)throw new Error('Horizon V4336 lobby browser errors '+meaningful.join('\n'));
+console.log('HORIZON_V4336_LOBBY_PASS',JSON.stringify({lobby,maps,store,pass,locker}));
 await browser.close();
