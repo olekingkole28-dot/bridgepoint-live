@@ -39,6 +39,16 @@ FHorizonInfectedTuning UHorizonInfectedDirectorSubsystem::GetTuning(
     Tuning.AggroRangeMultiplier =
         0.86f + Day01 * 0.28f + Density * 0.12f + Region * 0.08f;
 
+    // Lurkers and stalkers live in the slower residual pool so adding them never
+    // inflates the existing special-infected budget.
+    Tuning.LurkerChance = FMath::Clamp(
+        0.08f + Day01 * 0.05f + (1.0f - Density) * 0.02f,
+        0.08f,
+        0.15f);
+    Tuning.StalkerChance = Day01 < 0.10f
+        ? 0.0f
+        : FMath::Clamp((Day01 - 0.10f) * 0.075f + Region * 0.015f, 0.0f, 0.08f);
+
     // Hard archetypes ramp in over time instead of appearing everywhere on day one.
     Tuning.RunnerChance = FMath::Clamp(0.03f + Day01 * 0.22f + Density * 0.05f, 0.03f, 0.32f);
     Tuning.SprinterChance = Day01 < 0.18f
@@ -111,7 +121,19 @@ EHorizonInfectedArchetype UHorizonInfectedDirectorSubsystem::PickArchetype(
         return EHorizonInfectedArchetype::Runner;
     }
 
-    // Most of the population remains slow infected, even late in the event.
+    // Lurker and Stalker are sampled only from the remaining slow-infected pool.
+    // This preserves every owner-locked special-infected chance above.
+    const float SlowRoll = Random.FRand();
+    if (SlowRoll < Tuning.StalkerChance)
+    {
+        return EHorizonInfectedArchetype::Stalker;
+    }
+    if (SlowRoll < Tuning.StalkerChance + Tuning.LurkerChance)
+    {
+        return EHorizonInfectedArchetype::Lurker;
+    }
+
+    // Most of the residual population remains classic slow infected.
     return Random.FRand() < 0.38f
         ? EHorizonInfectedArchetype::Shambler
         : EHorizonInfectedArchetype::Walker;
@@ -142,6 +164,10 @@ float UHorizonInfectedDirectorSubsystem::GetMovementSpeedMps(
             return 7.05f;
         case EHorizonInfectedArchetype::ZombieDog:
             return 7.25f;
+        case EHorizonInfectedArchetype::Lurker:
+            return 1.65f;
+        case EHorizonInfectedArchetype::Stalker:
+            return 3.40f;
         case EHorizonInfectedArchetype::Spider:
             return 2.85f;
         case EHorizonInfectedArchetype::Orc:
