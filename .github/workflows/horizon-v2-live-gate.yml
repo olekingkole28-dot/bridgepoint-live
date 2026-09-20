@@ -1,7 +1,16 @@
-name: Horizon V4336 FPS + Year One Source Gate
+name: Horizon V4341 FPS + Year One Source Gate
 
 on:
   push:
+    branches: [main]
+    paths:
+      - '.github/workflows/horizon-v2-live-gate.yml'
+      - 'scripts/browser-horizon-v2-live.mjs'
+      - 'app/horizon-playable/v2-entry.html'
+      - 'app/horizon-playable/index.html'
+      - 'app/horizon-playable/horizon-v2.js'
+      - 'app/horizon-playable/horizon-v2.css'
+  pull_request:
     branches: [main]
     paths:
       - '.github/workflows/horizon-v2-live-gate.yml'
@@ -26,7 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           node --check app/horizon-playable/horizon-v2.js
-          grep -Fq 'build:4336' app/horizon-playable/horizon-v2.js
+          grep -Fq 'build:4341' app/horizon-playable/horizon-v2.js
           grep -Fq 'actualCharacterModel:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'sourceBackedTwin:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'exactFootprintCollision:true' app/horizon-playable/horizon-v2.js
@@ -58,7 +67,22 @@ jobs:
           grep -Fq 'pickupDwellSeconds:3' app/horizon-playable/horizon-v2.js
           grep -Fq "shield=Math.min(100,shield+50)" app/horizon-playable/horizon-v2.js
           grep -Fq "applyPlayerHit(25,z)" app/horizon-playable/horizon-v2.js
-          grep -Fq "spawnPolicy:'PRECISE_PLAYER_LOCATION'" app/horizon-playable/horizon-v2.js
+          grep -Fq "spawnPolicy:'PERSISTENT_LAST_LOCATION_AFTER_FIRST_ENTRY'" app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_year_one_zone_v4340' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_weapon_catalog_v4340' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_death_drop_claim_v4340' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_record_player_kill_v4340' app/horizon-playable/horizon-v2.js
+          grep -Fq 'syncFiniteLoot' app/horizon-playable/horizon-v2.js
+          grep -Fq 'inventoryWeaponKeys' app/horizon-playable/horizon-v2.js
+          grep -Fq 'function buildCampfire' app/horizon-playable/horizon-v2.js
+          grep -Fq 'const target=100' app/horizon-playable/horizon-v2.js
+          grep -Fq 'id="backpackBar"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="equipmentRail"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="prematchFreeze"' app/horizon-playable/v2-entry.html
+          grep -Fq 'bridgepoint_horizon_tdm_loadouts_v4341' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_tdm_fire_zone_v4341' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_tdm_combat_clock_v4341' app/horizon-playable/horizon-v2.js
+          grep -Fq 'id="fireUtilityBtn"' app/horizon-playable/v2-entry.html
       - name: Start local source server
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/horizon-v4331-http.log 2>&1 &

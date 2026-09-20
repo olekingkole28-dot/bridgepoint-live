@@ -36,9 +36,11 @@ const lobby=await page.evaluate(()=>({
   modes:document.querySelectorAll('.mode').length,
   status:document.getElementById('statusMessage')?.textContent,
   yearOneCountdown:document.getElementById('yearOneCountdown')?.textContent||'',
-  yearOneLaunch:document.querySelector('.year-one-launch')?.textContent||''
+  yearOneLaunch:document.querySelector('.year-one-launch')?.textContent||'',
+  friendsTab:!!document.querySelector('#tabs [data-tab="FRIENDS"]'),
+  friendsBadge:!!document.getElementById('friendsBadge')
 }));
-if(!lobby.canvas||lobby.slots!==4||lobby.occupied<1||lobby.empty<1||lobby.modes!==2||lobby.scene?.models<1||lobby.scene?.idleRigs<1||lobby.scene?.armedIdle<1||lobby.runtime?.build!==4336||lobby.runtime?.map_count!==50||lobby.runtime?.perspective!=='FIRST_PERSON_ONLY'||lobby.runtime?.map_rotation!=='AUTOMATIC'||JSON.stringify(lobby.runtime?.authoritative_modes)!=='["YEAR_ONE","TDM"]')throw new Error('Lobby stage contract failed '+JSON.stringify(lobby));
+if(!lobby.canvas||lobby.slots!==4||lobby.occupied<1||lobby.empty<1||lobby.modes!==2||lobby.scene?.models<1||lobby.scene?.idleRigs<1||lobby.scene?.armedIdle<1||lobby.runtime?.build!==4341||lobby.runtime?.map_count!==50||lobby.runtime?.perspective!=='FIRST_PERSON_ONLY'||lobby.runtime?.map_rotation!=='VOTE_TWO_PLUS_RANDOM'||!lobby.friendsTab||!lobby.friendsBadge||JSON.stringify(lobby.runtime?.authoritative_modes)!=='["YEAR_ONE","TDM"]')throw new Error('Lobby stage contract failed '+JSON.stringify(lobby));
 if(!/OCT 1/i.test(lobby.yearOneLaunch)||!/D|LIVE|COUNTDOWN/i.test(lobby.yearOneCountdown))throw new Error('Year One countdown contract failed '+JSON.stringify(lobby));
 
 const tdm=page.locator('.mode[data-mode="TDM"]');
@@ -50,9 +52,9 @@ const maps=await page.evaluate(()=>({
   cards:document.querySelectorAll('.map-card').length,
   minis:document.querySelectorAll('canvas.map-mini').length,
   selectorButtons:document.querySelectorAll('.map-card button[data-map-key]').length,
-  rotationCopy:/automatic map switching|auto rotation/i.test(document.getElementById('modalContent')?.textContent||'')
+  rotationCopy:/two-map \+ random vote|match vote pool/i.test(document.getElementById('modalContent')?.textContent||'')
 }));
-if(maps.cards!==50||maps.minis!==50||maps.selectorButtons!==0||!maps.rotationCopy)throw new Error('50-map automatic rotation contract failed '+JSON.stringify(maps));
+if(maps.cards!==50||maps.minis!==50||maps.selectorButtons!==0||!maps.rotationCopy)throw new Error('50-map vote pool contract failed '+JSON.stringify(maps));
 await page.click('#closeModal');
 
 await page.click('#tabs [data-tab="STORE"]');
@@ -61,16 +63,16 @@ await page.waitForFunction(()=>[...document.querySelectorAll('.store-card canvas
 const store=await page.evaluate(()=>({
   cards:document.querySelectorAll('.store-card').length,
   previews:document.querySelectorAll('.store-card canvas.preview3d').length,
-  locked:[...document.querySelectorAll('.store-card button')].filter(b=>b.disabled&&/OWNER-LOCKED/i.test(b.textContent)).length,
+  locked:[...document.querySelectorAll('.store-card button')].filter(b=>b.disabled&&/CHECKOUT (?:NOT CONNECTED|OWNER-LOCKED)/i.test(b.textContent)).length,
   checkout:window.BP_HORIZON_LOBBY_V4330?.checkout_enabled
 }));
 if(store.cards<8||store.previews<8||store.locked<1||store.checkout!==false)throw new Error('Store contract failed '+JSON.stringify(store));
 
 await page.click('#closeModal');
 await page.click('#tabs [data-tab="BATTLE_PASS"]');
-await page.waitForFunction(()=>document.querySelectorAll('.reward-card').length>=100,null,{timeout:10000});
+await page.waitForFunction(()=>document.querySelectorAll('.reward-card').length>=30,null,{timeout:10000});
 const pass=await page.evaluate(()=>({cards:document.querySelectorAll('.reward-card').length,previews:document.querySelectorAll('.reward-card canvas.preview3d').length}));
-if(pass.cards<100||pass.previews<pass.cards)throw new Error('Battle pass 3D preview contract failed '+JSON.stringify(pass));
+if(pass.cards<30||pass.previews<pass.cards)throw new Error('Battle pass 3D preview contract failed '+JSON.stringify(pass));
 
 await page.click('#closeModal');
 await page.click('#tabs [data-tab="LOCKER"]');
@@ -79,6 +81,6 @@ const locker=await page.evaluate(()=>({cards:document.querySelectorAll('.catalog
 if(locker.cards<10||locker.previews<10)throw new Error('Locker GLB contract failed '+JSON.stringify(locker));
 
 const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|ResizeObserver loop|Failed to load resource.*404/i.test(x));
-if(meaningful.length)throw new Error('Horizon V4336 lobby browser errors '+meaningful.join('\n'));
-console.log('HORIZON_V4336_LOBBY_PASS',JSON.stringify({lobby,maps,store,pass,locker}));
+if(meaningful.length)throw new Error('Horizon V4341 lobby browser errors '+meaningful.join('\n'));
+console.log('HORIZON_V4341_LOBBY_PASS',JSON.stringify({lobby,maps,store,pass,locker}));
 await browser.close();

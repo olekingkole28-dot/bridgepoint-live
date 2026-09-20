@@ -17,6 +17,12 @@ const activeMatch=(()=>{try{return JSON.parse(localStorage.getItem('horizon-acti
 const playerId=localStorage.getItem('horizon-player-id')||'';
 const playerSecret=localStorage.getItem('horizon-player-secret')||'';
 const savedProfile=(()=>{try{return JSON.parse(localStorage.getItem('horizon-player-profile')||'null')}catch{return null}})();
+function horizonAccessToken(){
+  try{
+    const raw=localStorage.getItem('sb-xdfsjztwgsbmabshzsjw-auth-token');if(!raw)return '';
+    const q=JSON.parse(raw);return q?.access_token||q?.currentSession?.access_token||q?.session?.access_token||q?.[0]?.access_token||'';
+  }catch{return ''}
+}
 const MOBILE=/Android|iPhone|iPad/i.test(navigator.userAgent);
 const DEVICE_MEM=Number(navigator.deviceMemory||0),DEVICE_CORES=Number(navigator.hardwareConcurrency||0);
 const HIGH_DEVICE=!MOBILE||(DEVICE_MEM>=8&&DEVICE_CORES>=8);
@@ -29,13 +35,13 @@ renderer.shadowMap.enabled=HIGH_DEVICE;renderer.shadowMap.type=THREE.PCFSoftShad
 localStorage.setItem('horizon-camera-mode','first');
 const world=new THREE.Group();scene.add(world);const exteriorDetailGroup=new THREE.Group();world.add(exteriorDetailGroup);const mapLineGroup=new THREE.Group();world.add(mapLineGroup);const ambientDetailGroup=new THREE.Group();world.add(ambientDetailGroup);const interiorGroup=new THREE.Group();interiorGroup.visible=false;scene.add(interiorGroup);
 const actorProxyGroup=new THREE.Group();world.add(actorProxyGroup);
-const PROXY_MAX=32,PROXY_GEOM=new THREE.BoxGeometry(.52,.52,1.62);
+const PROXY_MAX=120,PROXY_GEOM=new THREE.BoxGeometry(.52,.52,1.62);
 const makeProxy=(color)=>{const m=new THREE.InstancedMesh(PROXY_GEOM,new THREE.MeshBasicMaterial({color}),PROXY_MAX);m.count=0;m.visible=false;m.frustumCulled=true;m.userData.perfProxy=true;actorProxyGroup.add(m);return m};
 const allyProxy=makeProxy(0x5fdcc6),enemyProxy=makeProxy(0xd36859),infectedProxy=makeProxy(0x68765b);
 const hemi=new THREE.HemisphereLight(0xcad5c1,0x263126,1.5);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xffd69a,2.0);sun.position.set(-180,-110,240);sun.castShadow=HIGH_DEVICE;sun.shadow.mapSize.set(MOBILE?512:1024,MOBILE?512:1024);scene.add(sun);
 const player=new THREE.Group();scene.add(player);player.position.set(0,0,0);
-let data=null,centerLon=lon,centerLat=lat,yaw=0,pitch=-.08,moveX=0,moveY=0,touchMoveX=0,touchMoveY=0,keyMoveX=0,keyMoveY=0,sprint=false,aiming=false,shooting=false,last=performance.now(),frames=0,fpsT=performance.now(),lootCount=0,health=100,shield=0,flash=false,storm=false,dayPhase=.62;
+let data=null,centerLon=lon,centerLat=lat,yaw=0,pitch=-.08,moveX=0,moveY=0,touchMoveX=0,touchMoveY=0,keyMoveX=0,keyMoveY=0,sprint=false,aiming=false,shooting=false,last=performance.now(),frames=0,fpsT=performance.now(),lootCount=0,health=mode==='TDM'?150:100,shield=0,flash=false,storm=false,dayPhase=.62;
 let terrainInfo=null,perfLowStreak=0,perfHighStreak=0,lastMeasuredFps=60;
 let perfTier=0,perfEmaMs=16.7,perfWorstMs=16.7,lastPerfAdjustAt=0,fastSince=performance.now(),longFrames=0;
 let aiAccumulator=0,fxAccumulator=0,lightAccumulator=0;
@@ -49,25 +55,30 @@ const DETAIL_BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?52:22):120;
 const BUILDING_LIMIT=Number.POSITIVE_INFINITY;
 const PART_LIMIT=Number.POSITIVE_INFINITY;
 const PARCEL_LIMIT=MOBILE?(HIGH_DEVICE?1250:850):1800;
-let ammoMag=30,ammoReserve=120,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,fpWeaponRig=null,muzzleFlash=null,lootDeltaPending=0,lastYearOneCheckpointAt=0,yearOneCheckpointBusy=false;
+let ammoMag=30,ammoReserve=90,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,fpWeaponRig=null,muzzleFlash=null,lootDeltaPending=0,lastYearOneCheckpointAt=0,yearOneCheckpointBusy=false;
+let yearOneZone=null,lastZonePollAt=0,lastWallDamageAt=0,lastWaterDamageAt=0,lastExposureDamageAt=0,lastWeatherSpawnAt=0,lastPresenceAt=0,lastExploreAt=0,waterIdleSeconds=0,coldExposureSeconds=0,nearbyPlayers=[],worldActivePlayers=0,tdmLoadout=null,tdmLoadoutCatalog=null,tdmFireZone=null,lastTdmFirePollAt=0,lastTdmFireDamageAt=0,prematchLockedUntil=0;
+const exploredCells=new Set(),vehicleParts={spark_plug:0,wheel:0,gas:0},backpackSlots=Array(5).fill(null),sharedPlayers=new Map();
+const waterAreas=[],zombieWallGroup=new THREE.Group(),sharedPlayerGroup=new THREE.Group(),tdmFireGroup=new THREE.Group();world.add(zombieWallGroup,sharedPlayerGroup,tdmFireGroup);
 let cameraMode='first',crouched=false,prone=false,slideTime=0,verticalVelocity=0,airborne=false,interiorMode=false,activeInterior=null,rooftopState=null;
 let activeZipline=null,activeVehicle=null,audioCtx=null,audioMaster=null,audioCompressor=null,audioReverb=null,audioReverbGain=null,lastAudioEnvAt=0,lastFootstepAt=0,contextTarget=null;const audioBuses={},audioBufferCache=new Map();
 const buildingEntries=[],ziplines=[],vehicles=[],ambientFx=[],interiorRects=[];const exteriorReturn=new THREE.Vector3();let exteriorYaw=0;
-const WEAPONS=[
-  {key:'rifle',name:'AR-12',kind:'rifle',mag:30,reserve:120,damage:42,head:100,interval:92,range:145,spread:.006},
-  {key:'smg',name:'Viper SMG',kind:'smg',mag:36,reserve:180,damage:28,head:70,interval:70,range:92,spread:.012},
-  {key:'shotgun',name:'Breach-8',kind:'shotgun',mag:8,reserve:40,damage:96,head:120,interval:680,range:34,spread:.055},
-  {key:'pistol',name:'Rook Pistol',kind:'pistol',mag:12,reserve:72,damage:48,head:96,interval:260,range:72,spread:.01},
-  {key:'axe',name:'Field Axe',kind:'melee',mag:0,reserve:0,damage:82,head:82,interval:520,range:2.6,spread:0}
+let WEAPONS=[
+  {key:'rifle',name:'AR-12 Cobalt',kind:'rifle',rarity:'RARE',mag:32,reserve:96,damage:40,head:72,interval:96,range:150,spread:.007,maxClips:3},
+  {key:'smg',name:'Viper Flux',kind:'smg',rarity:'RARE',mag:40,reserve:160,damage:28,head:50,interval:68,range:88,spread:.012,maxClips:4},
+  {key:'shotgun',name:'Breach Hammer',kind:'shotgun',rarity:'RARE',mag:8,reserve:16,damage:92,head:118,interval:660,range:34,spread:.055,maxClips:2},
+  {key:'pistol',name:'Rook',kind:'pistol',rarity:'COMMON',mag:12,reserve:48,damage:38,head:68,interval:280,range:70,spread:.012,maxClips:4},
+  {key:'axe',name:'Warden Axe',kind:'melee',rarity:'EPIC',mag:0,reserve:0,damage:96,head:96,interval:610,range:2.8,spread:0,maxClips:0}
 ];
 const weaponState=Object.fromEntries(WEAPONS.map(w=>[w.key,{mag:w.mag,reserve:w.reserve,owned:true}]));
+const savedStats=(()=>{try{return JSON.parse(localStorage.getItem('horizon-player-stats-v4340')||'null')||{}}catch{return {}}})();
+const inventoryWeaponKeys=['rifle','smg','shotgun','pistol','axe',null,null,null,null,null];
 let activeWeaponIndex=0;
 const interactables=[],infected=[],combatants=[],roadAnchors=[],buildingCenters=[],solidRects=[],solidPolys=[],lootPickups=[],builtCover=[];
 const ENTRANCE_CELL=28,entranceGrid=new Map();
 const COLLISION_CELL=32,collisionGrid=new Map();
 const activeMembers=Array.isArray(activeMatch?.members)?activeMatch.members:[];
 const playerTeam=Number(activeMembers.find(m=>m.player_id===playerId)?.team_no||1);
-const gltfLoader=new GLTFLoader(),assetCache=new Map(),killSnapshots=[];
+const gltfLoader=new GLTFLoader(),assetCache=new Map(),killSnapshots=[];let infectedHumanoidSource=null,lastHordeSpawnAt=0;
 const CHAR_MODELS={
   free_01:'/app/horizon-playable/assets/characters/mesh2motion/models/female_31.glb',
   free_02:'/app/horizon-playable/assets/characters/mesh2motion/models/female_31.glb',
@@ -82,8 +93,97 @@ const CHAR_MODELS={
 };const rand=(s=>()=>((s=Math.imul(1664525,s)+1013904223>>>0)/4294967296))(913733);const hash=s=>{let h=2166136261;for(const c of String(s)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
 async function rpc(name,params={}){
   if(!playerId||!playerSecret)throw new Error('HORIZON_PLAYER_IDENTITY_MISSING');
-  const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:PUBLISHABLE_KEY,'content-type':'application/json','accept':'application/json'},body:JSON.stringify(params)});
+  const headers={apikey:PUBLISHABLE_KEY,'content-type':'application/json','accept':'application/json'},token=horizonAccessToken();
+  if(token)headers.authorization='Bearer '+token;
+  const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+name,{method:'POST',headers,body:JSON.stringify(params)});
   const t=await r.text();if(!r.ok){let m=t;try{m=JSON.parse(t)?.message||t}catch{}throw new Error(m)}return t?JSON.parse(t):null;
+}
+function weaponKindForClass(cls,renderKind){
+  const r=String(renderKind||'').toLowerCase(),c=String(cls||'').toUpperCase();
+  if(r==='grenade'||c==='GRENADE')return 'grenade';
+  if(/^MELEE_/.test(c)||r==='melee')return 'melee';
+  if(c==='SMG'||r==='smg')return 'smg';
+  if(c==='SHOTGUN'||r==='shotgun')return 'shotgun';
+  if(['PISTOL','REVOLVER'].includes(c)||r==='pistol')return 'pistol';
+  return 'rifle';
+}
+async function hydrateWeaponCatalog(){
+  try{
+    const out=await rpc('bridgepoint_horizon_weapon_catalog_v4340',{}),rows=out?.weapons||[],existing=new Set(WEAPONS.map(w=>w.key));
+    for(const q of rows){
+      if(existing.has(q.weapon_key))continue;
+      const kind=weaponKindForClass(q.weapon_class,q.render_kind),mag=Math.max(0,Number(q.mag_size||0)),clips=Math.max(0,Number(q.max_spare_clips||0));
+      const w={key:q.weapon_key,name:q.display_name,kind,weaponClass:q.weapon_class,rarity:q.rarity,rarityColor:q.rarity_color,mag,
+        reserve:mag*clips,damage:Number(q.body_damage||1),head:Number(q.head_damage||q.body_damage||1),interval:Number(q.fire_interval_ms||250),
+        range:Number(q.range_m||50),spread:Number(q.spread||0),maxClips:clips,prestigeRequired:Number(q.prestige_required||0),
+        unlockedLevel:Number(q.unlocked_level||1),metadata:q.metadata||{}};
+      WEAPONS.push(w);weaponState[w.key]={mag:w.mag,reserve:w.mag*Math.min(1,w.maxClips),owned:false};existing.add(w.key);
+    }
+    return rows.length;
+  }catch{return 0}
+}
+
+function attachmentEffectsFor(loadout){
+  const out=[];const defs=new Map((tdmLoadoutCatalog?.attachments||[]).map(a=>[a.attachment_key,a]));
+  const raw=loadout?.attachments&&typeof loadout.attachments==='object'?loadout.attachments:{};
+  for(const keys of Object.values(raw)){for(const key of Array.isArray(keys)?keys:[]){const d=defs.get(key);if(d)out.push(d.effects||{})}}
+  return out;
+}
+function applyAttachmentEffectsToWeapon(w,effects=[]){
+  for(const e of effects){
+    if(e.range_mult)w.range*=Number(e.range_mult);
+    if(e.recoil_mult)w.recoil=(w.recoil||1)*Number(e.recoil_mult);
+    if(e.spread_mult)w.spread*=Number(e.spread_mult);
+    if(e.mag_mult&&w.mag){w.mag=Math.max(1,Math.round(w.mag*Number(e.mag_mult)));w.maxClips=Math.max(1,w.maxClips||1)}
+    if(e.reload_mult)w.reloadMult=(w.reloadMult||1)*Number(e.reload_mult);
+    if(e.mobility_mult)w.mobilityMult=(w.mobilityMult||1)*Number(e.mobility_mult);
+    if(e.ads_zoom)w.adsZoom=Math.max(w.adsZoom||1,Number(e.ads_zoom));
+  }
+}
+async function hydrateTdmLoadout(){
+  if(mode!=='TDM')return null;
+  try{
+    const out=await rpc('bridgepoint_horizon_tdm_loadouts_v4341',{p_player_id:playerId,p_player_secret:playerSecret});tdmLoadoutCatalog=out;
+    const saved=(out.saved||[]).find(x=>x.selected)||(out.saved||[])[0]||null;
+    const preset=(out.presets||[]).find(x=>x.preset_key===(saved?.preset_key||'preset_smg'))||(out.presets||[])[0];
+    tdmLoadout=saved||preset;
+    const primary=String(tdmLoadout.primary_weapon_key||preset?.primary_weapon_key||'viper_rare'),secondary=String(tdmLoadout.secondary_weapon_key||preset?.secondary_weapon_key||'rook_common');
+    for(const key of [primary,secondary]){const w=weaponByKey(key);if(w){weaponState[key].owned=true;weaponState[key].mag=w.mag;weaponState[key].reserve=w.mag*Math.min(w.maxClips||1,2)}}
+    inventoryWeaponKeys.fill(null);inventoryWeaponKeys[0]=primary;inventoryWeaponKeys[1]=secondary;
+    const effects=attachmentEffectsFor(tdmLoadout);for(const key of [primary,secondary]){const w=weaponByKey(key);if(w)applyAttachmentEffectsToWeapon(w,effects)}
+    equipWeaponKey(primary);renderEquipmentButtons();
+    return tdmLoadout;
+  }catch{return null}
+}
+const tdmEquipment={tactical1:{kind:'SMOKE',charges:1},tactical2:{kind:'GAS',charges:1},lethal:{kind:'FRAG',charges:1}};
+function renderEquipmentButtons(){
+  if(tdmLoadout){tdmEquipment.tactical1.kind=String(tdmLoadout.tactical_1||'SMOKE');tdmEquipment.tactical2.kind=String(tdmLoadout.tactical_2||'GAS');tdmEquipment.lethal.kind=String(tdmLoadout.lethal||'FRAG')}
+  const map=[['tacticalBtn1',tdmEquipment.tactical1],['tacticalBtn2',tdmEquipment.tactical2],['lethalBtn',tdmEquipment.lethal]];
+  for(const [id,q] of map){const el=$(id);if(el){el.textContent=q.kind+' · '+q.charges;el.disabled=mode!=='TDM'||q.charges<=0}}
+}
+function cloudFx(kind){
+  const dir=new THREE.Vector3();camera.getWorldDirection(dir);const p=player.position.clone().addScaledVector(dir,8);p.z=terrainZ(p.x,p.y)+1.1;
+  const color=kind==='GAS'?0x78a84e:0xd7e2df,g=new THREE.Group();
+  for(let i=0;i<(MOBILE?10:18);i++){const m=new THREE.Mesh(new THREE.SphereGeometry(1.1+(i%4)*.22,10,8),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.11,depthWrite:false}));m.position.set((rand()-.5)*5,(rand()-.5)*5,(rand()-.5)*2);g.add(m)}
+  g.position.copy(p);world.add(g);const started=performance.now();const tick=now=>{const age=(now-started)/1000;g.rotation.z+=.003;g.scale.setScalar(1+Math.min(2,age*.18));g.children.forEach(m=>m.material.opacity=Math.max(0,.11*(1-age/12)));if(age<12)requestAnimationFrame(tick);else world.remove(g)};requestAnimationFrame(tick);
+}
+function useEquipment(slot){
+  if(mode!=='TDM'||dead||tdmMovementLocked())return;const q=tdmEquipment[slot];if(!q||q.charges<=0)return;q.charges--;renderEquipmentButtons();
+  if(q.kind==='SMOKE'||q.kind==='GAS'||q.kind==='FLASH')cloudFx(q.kind);
+  else{const frag=weaponByKey('frag_common')||{key:'frag',kind:'grenade',weaponClass:'GRENADE',name:'Fragment',damage:105,range:38,mag:1,metadata:{splash_radius_m:6,fuse_ms:1150}};const dir=new THREE.Vector3();camera.getWorldDirection(dir);launchExplosive(frag,camera.position.clone(),dir)}
+}
+function tdmMovementLocked(){return mode==='TDM'&&performance.now()<prematchLockedUntil}
+async function beginTdmPrematch(){
+  if(mode!=='TDM'||!matchId)return;
+  try{
+    const clock=await rpc('bridgepoint_horizon_tdm_combat_clock_v4341',{p_player_id:playerId,p_player_secret:playerSecret,p_match_id:matchId});
+    const end=Date.parse(clock?.combat_live_at||'');prematchLockedUntil=performance.now()+Math.max(0,Number.isFinite(end)?end-Date.now():10000);
+  }catch{prematchLockedUntil=performance.now()+10000}
+  const box=$('prematchFreeze'),num=$('prematchCount');if(box)box.hidden=false;let last=-1;
+  const tick=()=>{const left=Math.max(0,prematchLockedUntil-performance.now()),sec=Math.ceil(left/1000);if(num)num.textContent=String(sec||'GO');if(sec!==last&&sec>0){tone(sec<=3?880:520,.045,.045,'square');last=sec}
+    if(left<=0){if(box)box.hidden=true;tone(1040,.08,.06,'square');toast('GO · FIRE CIRCLE ACTIVE');return}
+    requestAnimationFrame(tick)
+  };tick();
 }
 function loadAsset(url){
   if(!assetCache.has(url))assetCache.set(url,new Promise((resolve,reject)=>gltfLoader.load(url,resolve,undefined,reject)));
@@ -115,11 +215,13 @@ function makeNameSprite(name,color='#ffffff'){
 }
 
 function updateVitals(hitKind=''){
-  health=Math.max(0,Math.min(100,Math.round(health)));
-  shield=Math.max(0,Math.min(100,Math.round(shield)));
+  const maxHealth=mode==='TDM'?150:100;
+  health=Math.max(0,Math.min(maxHealth,Math.round(health)));
+  shield=mode==='TDM'?0:Math.max(0,Math.min(100,Math.round(shield)));
   const he=$('health'),se=$('shield'),hb=$('healthBar'),sb=$('shieldBar');
-  if(he)he.textContent=String(health);if(se)se.textContent=String(shield);
-  if(hb)hb.style.width=health+'%';if(sb)sb.style.width=shield+'%';
+  if(he)he.textContent=String(health);if(se)se.textContent=mode==='TDM'?'—':String(shield);
+  if(hb)hb.style.width=(health/maxHealth*100)+'%';if(sb)sb.style.width=(mode==='TDM'?0:shield)+'%';
+  const sv=document.querySelector('.shield-vital');if(sv)sv.style.display=mode==='TDM'?'none':'';
   if(hitKind){
     const node=document.querySelector(hitKind==='shield'?'.shield-vital':'.health-vital');
     if(node){node.classList.remove('hit');void node.offsetWidth;node.classList.add('hit');setTimeout(()=>node.classList.remove('hit'),260)}
@@ -128,7 +230,7 @@ function updateVitals(hitKind=''){
 function applyPlayerHit(amount=25,killer=null){
   if(dead)return;
   let remaining=Math.max(0,Math.round(amount)),hitKind='health';
-  if(shield>0){
+  if(mode!=='TDM'&&shield>0){
     const absorbed=Math.min(shield,remaining);shield-=absorbed;remaining-=absorbed;hitKind='shield';
   }
   if(remaining>0)health=Math.max(0,health-remaining);
@@ -154,12 +256,20 @@ async function hydrateYearOneRuntime(){
           const q=savedWeapons[w.key];
           if(!q||typeof q!=='object')continue;
           weaponState[w.key].mag=Math.max(0,Math.min(w.mag,Number(q.mag??weaponState[w.key].mag)));
-          weaponState[w.key].reserve=Math.max(0,Math.min(w.reserve*3,Number(q.reserve??weaponState[w.key].reserve)));
+          weaponState[w.key].reserve=Math.max(0,Math.min(w.mag*(w.maxClips||3),Number(q.reserve??weaponState[w.key].reserve)));
           weaponState[w.key].owned=q.owned!==false;
         }
       }
-      const idx=Number(r.inventory_state?.active_weapon_index);
-      if(Number.isInteger(idx)&&idx>=0&&idx<WEAPONS.length)activeWeaponIndex=idx;
+      const savedInventory=Array.isArray(r.inventory_state?.inventory_weapon_keys)?r.inventory_state.inventory_weapon_keys.slice(0,10):null;
+      if(savedInventory){
+        while(savedInventory.length<10)savedInventory.push(null);
+        for(let i=0;i<10;i++){const key=savedInventory[i];inventoryWeaponKeys[i]=key&&weaponByKey(key)?key:null}
+      }
+      const activeKey=String(r.inventory_state?.active_weapon_key||'');
+      const activeByKey=WEAPONS.findIndex(w=>w.key===activeKey),idx=Number(r.inventory_state?.active_weapon_index);
+      if(activeByKey>=0&&weaponState[activeKey]?.owned)activeWeaponIndex=activeByKey;
+      else if(Number.isInteger(idx)&&idx>=0&&idx<WEAPONS.length&&weaponState[WEAPONS[idx].key]?.owned)activeWeaponIndex=idx;
+      else{const first=inventoryWeaponKeys.slice(0,5).find(k=>k&&weaponState[k]?.owned);if(first)activeWeaponIndex=Math.max(0,WEAPONS.findIndex(w=>w.key===first))}
       $('loot').textContent=lootCount;updateVitals();updateAmmo();renderWeaponBar();
     }
     return r;
@@ -179,7 +289,7 @@ async function checkpointYearOne(force=false){
       p_player_id:playerId,p_player_secret:playerSecret,p_health:Math.round(health),p_shield:Math.round(shield),
       p_lat:coord.lat,p_lon:coord.lon,p_accuracy_m:null,p_altitude_m:player.position.z,
       p_monster_kills_delta:0,p_loot_delta:sentLoot,
-      p_inventory_state:{active_weapon_index:activeWeaponIndex},
+      p_inventory_state:{active_weapon_index:activeWeaponIndex,active_weapon_key:activeWeapon()?.key||null,inventory_weapon_keys:[...inventoryWeaponKeys]},
       p_weapon_state:persistedWeapons
     });
     lootDeltaPending=Math.max(0,lootDeltaPending-sentLoot);lastYearOneCheckpointAt=performance.now();
@@ -276,32 +386,54 @@ function addKillFeed(killer,victim,weapon='AR-12',headshot=false){
   row.innerHTML='<b>'+String(killer||'UNKNOWN')+'</b><span class="weapon">'+String(weapon||'')+'</span><b>'+String(victim||'UNKNOWN')+'</b>';
   feed.prepend(row);while(feed.children.length>6)feed.lastElementChild.remove();setTimeout(()=>row.remove(),6500);
 }
+function weaponByKey(key){return WEAPONS.find(w=>w.key===key)||null}
 function activeWeapon(){return WEAPONS[activeWeaponIndex]||WEAPONS[0]}
+function equipWeaponKey(key){const i=WEAPONS.findIndex(w=>w.key===key);if(i>=0)equipWeaponIndex(i)}
 function renderWeaponBar(){
   const bar=$('weaponBar');if(!bar)return;
-  bar.innerHTML=WEAPONS.map((w,i)=>{
-    const st=weaponState[w.key],ammo=w.mag?st.mag+'/'+st.reserve:'MELEE';
-    return '<button class="weaponSlot '+(i===activeWeaponIndex?'active ':'')+(st?.owned?'':'empty')+'" data-w="'+i+'"><b>'+w.name+'</b>'+ammo+'</button>';
+  bar.innerHTML=inventoryWeaponKeys.slice(0,5).map((key,slot)=>{
+    const w=weaponByKey(key);if(!w)return '<button class="weaponSlot empty" data-slot="'+slot+'" disabled><b>EMPTY</b><small>QUICK '+(slot+1)+'</small></button>';
+    const st=weaponState[w.key],ammo=w.mag?st.mag+'/'+st.reserve:'MELEE',active=w.key===activeWeapon()?.key;
+    return '<button class="weaponSlot '+(active?'active ':'')+(st?.owned?'':'empty')+'" data-rarity="'+(w.rarity||'COMMON')+'" data-key="'+w.key+'" data-slot="'+slot+'"><b>'+w.name+'</b><small>'+ammo+' · '+(w.rarity||'COMMON')+'</small><span class="spec">'+w.damage+' BODY · '+w.head+' HEAD · '+w.range+'M · '+(w.mag?('MAG '+w.mag+' · '+w.maxClips+' SPARE CLIPS'):'MELEE')+'</span></button>';
   }).join('');
-  bar.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>equipWeaponIndex(Number(b.dataset.w)));
+  bar.querySelectorAll('[data-key]').forEach(b=>b.onclick=()=>equipWeaponKey(b.dataset.key));
+  const pack=$('backpackBar');
+  if(pack){
+    pack.innerHTML='<span>BACKPACK</span>'+inventoryWeaponKeys.slice(5,10).map((key,i)=>{const w=weaponByKey(key);return '<i '+(w?'data-pack="'+(i+5)+'" data-rarity="'+(w.rarity||'COMMON')+'"':'')+' title="'+(w?.name||'Empty')+'">'+(w?String(w.name).split(' ')[0].slice(0,7):String(i+1))+'</i>'}).join('');
+    pack.querySelectorAll('[data-pack]').forEach(el=>el.onclick=()=>swapBackpackWeapon(Number(el.dataset.pack)));
+  }
+  const buildEl=$('builds');if(buildEl)buildEl.textContent=mode==='TDM'?buildCount+'/3':'—';
 }
+function swapBackpackWeapon(packSlot){
+  const activeKey=activeWeapon()?.key,quickSlot=Math.max(0,inventoryWeaponKeys.slice(0,5).indexOf(activeKey));
+  const next=inventoryWeaponKeys[packSlot];if(!next)return;
+  inventoryWeaponKeys[packSlot]=inventoryWeaponKeys[quickSlot];inventoryWeaponKeys[quickSlot]=next;equipWeaponKey(next);checkpointYearOne(false);
+}
+function makeGrenadeRig(){
+  const g=new THREE.Group(),body=new THREE.Mesh(new THREE.SphereGeometry(.18,14,10),new THREE.MeshStandardMaterial({color:0x3b4d3a,roughness:.72,metalness:.35})),
+    cap=new THREE.Mesh(new THREE.CylinderGeometry(.055,.075,.13,10),new THREE.MeshStandardMaterial({color:0x242a28,roughness:.4,metalness:.72})),
+    pin=new THREE.Mesh(new THREE.TorusGeometry(.065,.012,6,18),new THREE.MeshStandardMaterial({color:0xb7bdb9,metalness:.85,roughness:.24}));
+  cap.position.z=.19;pin.rotation.x=Math.PI/2;pin.position.set(.07,0,.25);g.add(body,cap,pin);return g;
+}
+function weaponVisual(w,wrap){return w.kind==='grenade'?makeGrenadeRig():makeHorizonWeapon(THREE,w.kind,wrap)}
 function refreshWeaponRig(){
   const w=activeWeapon(),wrap=savedProfile?.wrap_key||'wrap_ash';
   if(weaponRig){player.remove(weaponRig);weaponRig=null}
   if(fpWeaponRig){camera.remove(fpWeaponRig);fpWeaponRig=null}
-  weaponRig=makeHorizonWeapon(THREE,w.kind,wrap);weaponRig.scale.setScalar(w.kind==='melee'?.32:.28);weaponRig.rotation.set(.04,-.18,w.kind==='melee'?-.15:-Math.PI/2);weaponRig.position.set(.38,.08,1.28);player.add(weaponRig);
-  fpWeaponRig=makeHorizonWeapon(THREE,w.kind,wrap);fpWeaponRig.scale.setScalar(w.kind==='melee'?.24:.19);fpWeaponRig.rotation.set(.02,-.08,w.kind==='melee'?-.2:-Math.PI/2);fpWeaponRig.position.set(.29,-.42,-.24);camera.add(fpWeaponRig);
+  weaponRig=weaponVisual(w,wrap);weaponRig.scale.setScalar(w.kind==='grenade'?.75:w.kind==='melee'?.32:.28);weaponRig.rotation.set(.04,-.18,w.kind==='melee'?-.15:-Math.PI/2);weaponRig.position.set(.38,.08,1.28);player.add(weaponRig);
+  fpWeaponRig=weaponVisual(w,wrap);fpWeaponRig.scale.setScalar(w.kind==='grenade'?.6:w.kind==='melee'?.24:.19);fpWeaponRig.rotation.set(.02,-.08,w.kind==='melee'?-.2:-Math.PI/2);fpWeaponRig.position.set(.29,-.42,-.24);camera.add(fpWeaponRig);
+  fpWeaponRig.userData.basePosition=fpWeaponRig.position.clone();fpWeaponRig.userData.baseRotation=fpWeaponRig.rotation.clone();
   fpWeaponRig.visible=cameraMode==='first';
 }
 function equipWeaponIndex(i){
   i=(i+WEAPONS.length)%WEAPONS.length;if(!weaponState[WEAPONS[i].key]?.owned)return;
   activeWeaponIndex=i;reloading=false;refreshWeaponRig();updateAmmo();renderWeaponBar();toast(activeWeapon().name);
 }
-function cycleWeapon(){for(let n=1;n<=WEAPONS.length;n++){const i=(activeWeaponIndex+n)%WEAPONS.length;if(weaponState[WEAPONS[i].key]?.owned){equipWeaponIndex(i);return}}}
+function cycleWeapon(){const quick=inventoryWeaponKeys.slice(0,5).filter(Boolean);if(!quick.length)return;const cur=quick.indexOf(activeWeapon()?.key),next=quick[(Math.max(0,cur)+1)%quick.length];equipWeaponKey(next)}
 function dropActiveWeapon(){
   const w=activeWeapon();if(w.key==='axe'){toast('Keep one melee backup');return}
-  weaponState[w.key].owned=false;toast('Dropped '+w.name);
-  cycleWeapon();renderWeaponBar();
+  weaponState[w.key].owned=false;const slot=inventoryWeaponKeys.indexOf(w.key);if(slot>=0)inventoryWeaponKeys[slot]=null;toast('Dropped '+w.name);
+  cycleWeapon();renderWeaponBar();checkpointYearOne(false);
 }
 function updateAmmo(){
   const w=activeWeapon(),st=weaponState[w.key],el=$('ammo');
@@ -398,20 +530,33 @@ function pollGamepad(){
   yaw-=rx*.045;pitch=Math.max(-.42,Math.min(.32,pitch-ry*.03));
   const edge=(i)=>p.buttons?.[i]?.pressed&&!pollGamepad.prev?.[i];
   if(edge(0))jumpOrVault();if(edge(1))toggleCrouch();if(edge(3))cycleWeapon();if(edge(2))reload();
+  if(edge(4))useEquipment('tactical1');if(edge(5))useEquipment('tactical2');if(edge(9))useEquipment('lethal');
   if(edge(8))cycleCameraMode();sprint=!!p.buttons?.[10]?.pressed;aiming=!!p.buttons?.[6]?.pressed;
   if(p.buttons?.[7]?.pressed)shootOnce();
   pollGamepad.prev=(p.buttons||[]).map(b=>!!b.pressed);
 }
 function renderMinimap(){
   const cv=$('miniMap');if(!cv||!data)return;const g=cv.getContext('2d'),w=cv.width,h=cv.height,scale=2.4;
-  g.clearRect(0,0,w,h);g.fillStyle='rgba(3,10,11,.92)';g.fillRect(0,0,w,h);
+  g.clearRect(0,0,w,h);g.fillStyle=mode==='YEAR_ONE'?'rgba(28,31,32,.96)':'rgba(3,10,11,.92)';g.fillRect(0,0,w,h);
   const ox=w/2-player.position.x/scale,oy=h/2+player.position.y/scale;
   const drawLines=(rows,color,width=1)=>{g.strokeStyle=color;g.lineWidth=width;g.beginPath();for(const row of rows||[])for(const line of lines(row.geometry)){for(let i=0;i<line.length;i++){const p=project(line[i]),x=ox+p.x/scale,y=oy-p.y/scale;if(i===0)g.moveTo(x,y);else g.lineTo(x,y)}}g.stroke()};
   drawLines(data.transport,'rgba(95,226,255,.48)',1.2);
   g.strokeStyle='rgba(65,245,255,.24)';g.lineWidth=.8;for(const row of (data.parcels||[]).slice(0,350))for(const ring of rings(row.geometry)){g.beginPath();ring.forEach((q,i)=>{const p=project(q),x=ox+p.x/scale,y=oy-p.y/scale;i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke()}
   const mark=(x,y,color,r=3)=>{g.fillStyle=color;g.beginPath();g.arc(ox+x/scale,oy-y/scale,r,0,Math.PI*2);g.fill()};
   if(mode==='TDM')combatants.filter(q=>q.alive).forEach(q=>mark(q.g.position.x,q.g.position.y,q.friendly?'#64ffd4':'#ff7868',2.5));
-  else infected.filter(q=>q.alive&&Math.hypot(q.g.position.x-player.position.x,q.g.position.y-player.position.y)<70).forEach(q=>mark(q.g.position.x,q.g.position.y,'#ff7868',2));
+  else{
+    infected.filter(q=>q.alive&&Math.hypot(q.g.position.x-player.position.x,q.g.position.y-player.position.y)<70).forEach(q=>mark(q.g.position.x,q.g.position.y,'#ff7868',2));
+    nearbyPlayers.forEach(q=>{const p=worldToLocal(Number(q.lat),Number(q.lon));mark(p.x,p.y,'#9d7cff',2.5)});
+    g.save();g.globalCompositeOperation='destination-out';g.globalAlpha=.82;
+    const cellSize=.0025;
+    for(const key of exploredCells){
+      const m=/^E(-?\d+):(-?\d+)$/.exec(String(key));if(!m)continue;
+      const clat=(Number(m[1])+.5)*cellSize,clon=(Number(m[2])+.5)*cellSize,p=worldToLocal(clat,clon);
+      const sx=ox+p.x/scale,sy=oy-p.y/scale;
+      if(sx>-55&&sx<w+55&&sy>-55&&sy<h+55){g.beginPath();g.arc(sx,sy,30,0,Math.PI*2);g.fill()}
+    }
+    g.beginPath();g.arc(w/2,h/2,42,0,Math.PI*2);g.fill();g.restore();
+  }
   g.save();g.translate(w/2,h/2);g.rotate(-yaw);g.fillStyle='#ffffff';g.beginPath();g.moveTo(0,-8);g.lineTo(6,7);g.lineTo(-6,7);g.closePath();g.fill();g.restore();
 }
 function snapshotKillcam(now=performance.now()){
@@ -594,14 +739,27 @@ function addBuildings(){
   const dummy=new THREE.Object3D();
   buckets.forEach((rows,i)=>{if(!rows.length)return;const inst=new THREE.InstancedMesh(UNIT_BOX,BUILD_MATS[i],rows.length);inst.castShadow=renderer.shadowMap.enabled;inst.receiveShadow=true;rows.forEach((r,j)=>{dummy.position.set(r.cx,r.cy,r.baseZ+r.h/2+.08);dummy.scale.set(r.w,r.d,r.h);dummy.rotation.set(0,0,0);dummy.updateMatrix();inst.setMatrixAt(j,dummy.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)});
   if(buildingEntries.length){
-    const geom=new THREE.PlaneGeometry(1.05,2.05),doorMat=new THREE.MeshBasicMaterial({color:0x101716,transparent:true,opacity:.92,side:THREE.DoubleSide});
-    const doors=new THREE.InstancedMesh(geom,doorMat,buildingEntries.length),dmy=new THREE.Object3D();
-    buildingEntries.forEach((e,i)=>{
-      const x=e.cx,y=e.cy-e.d/2-.025,z=e.baseZ+1.03;
-      dmy.position.set(x,y,z);dmy.rotation.set(Math.PI/2,0,0);dmy.scale.set(1,1,1);dmy.updateMatrix();doors.setMatrixAt(i,dmy.matrix);
-      registerEntrance({type:'door',x,y:y-1.05,z:e.baseZ,label:'ENTER',building:e});
+    const doorEntries=[...buildingEntries].sort((a,b)=>Math.hypot(a.cx,a.cy)-Math.hypot(b.cx,b.cy)).slice(0,MOBILE?(HIGH_DEVICE?1400:900):3200);
+    const doorCount=doorEntries.reduce((n,e)=>n+4+(e.w>18?4:0)+(e.d>18?4:0),0),geom=new THREE.PlaneGeometry(1.05,2.05),doorMat=new THREE.MeshBasicMaterial({color:0x101716,transparent:true,opacity:.92,side:THREE.DoubleSide});
+    const doors=new THREE.InstancedMesh(geom,doorMat,doorCount),dmy=new THREE.Object3D();let di=0;
+    doorEntries.forEach((e)=>{
+      const z=e.baseZ+1.03,defs=[
+        {x:e.cx,y:e.cy-e.d/2-.025,ex:e.cx,ey:e.cy-e.d/2-1.05,r:0},
+        {x:e.cx,y:e.cy+e.d/2+.025,ex:e.cx,ey:e.cy+e.d/2+1.05,r:Math.PI},
+        {x:e.cx-e.w/2-.025,y:e.cy,ex:e.cx-e.w/2-1.05,ey:e.cy,r:Math.PI/2},
+        {x:e.cx+e.w/2+.025,y:e.cy,ex:e.cx+e.w/2+1.05,ey:e.cy,r:-Math.PI/2}
+      ];
+      if(e.w>18){for(const off of[-e.w*.26,e.w*.26])defs.push(
+        {x:e.cx+off,y:e.cy-e.d/2-.025,ex:e.cx+off,ey:e.cy-e.d/2-1.05,r:0},
+        {x:e.cx+off,y:e.cy+e.d/2+.025,ex:e.cx+off,ey:e.cy+e.d/2+1.05,r:Math.PI}
+      )}
+      if(e.d>18){for(const off of[-e.d*.26,e.d*.26])defs.push(
+        {x:e.cx-e.w/2-.025,y:e.cy+off,ex:e.cx-e.w/2-1.05,ey:e.cy+off,r:Math.PI/2},
+        {x:e.cx+e.w/2+.025,y:e.cy+off,ex:e.cx+e.w/2+1.05,ey:e.cy+off,r:-Math.PI/2}
+      )}
+      for(const d of defs){dmy.position.set(d.x,d.y,z);dmy.rotation.set(Math.PI/2,0,d.r);dmy.scale.set(1,1,1);dmy.updateMatrix();doors.setMatrixAt(di++,dmy.matrix);registerEntrance({type:'door',x:d.ex,y:d.ey,z:e.baseZ,label:'ENTER',building:e})}
     });
-    doors.instanceMatrix.needsUpdate=true;doors.frustumCulled=true;world.add(doors);
+    doors.count=di;doors.instanceMatrix.needsUpdate=true;doors.frustumCulled=true;world.add(doors);
   }
   const exactWallMat=new THREE.MeshStandardMaterial({map:CONCRETE_MAP,normalMap:CONCRETE_NORMAL,roughnessMap:CONCRETE_ROUGH,color:0x9da7a9,roughness:.82,metalness:.025,transparent:true,opacity:.98});
   const exactEdgeMat=new THREE.LineBasicMaterial({color:0xdffaff,transparent:true,opacity:.5,depthWrite:false});
@@ -708,7 +866,7 @@ function buildInterior(entry){
     lootPickups.push({id:'interior-'+entry.id+'-'+f,type:lootType,x:lx,y:ly,z:lz,space:'interior',mesh:lootMesh,picked:false});
   }
   const ceil=new THREE.Mesh(new THREE.BoxGeometry(w,d,.12),wallMat);ceil.position.set(0,0,floors*floorH+.08);interiorGroup.add(ceil);
-  spawnInteriorMonsters(entry);
+  spawnInteriorMonsters(entry);syncFiniteLoot('interior').catch(()=>{});
   interiorGroup.visible=true;world.visible=false;
 }
 function enterInterior(entry,preciseWorldPoint=null){
@@ -770,10 +928,17 @@ function updateZipline(dt){
 function makeVehicle(a,i){
   const g=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(3.9,1.75,.72),mat(i%2?0x4d5652:0x65483d,.74,.25)),cab=new THREE.Mesh(new THREE.BoxGeometry(1.9,1.5,.7),mat(0x263438,.28,.35));
   body.position.z=.52;cab.position.set(.15,0,1.13);cab.userData.vehicleCab=true;g.add(body,cab);g.position.set(a.x,a.y,terrainZ(a.x,a.y)+.02);g.rotation.z=a.a;world.add(g);
-  const v={root:g,x:a.x,y:a.y,heading:a.a,speed:0,maxSpeed:i%3===0?22:17,fuel:68+rand()*32,condition:72+rand()*28,type:i%3===0?'sport':'pickup',warnFuel:false,warnCondition:false};vehicles.push(v);interactables.push({type:'vehicle',x:a.x,y:a.y,z:g.position.z,label:'DRIVE',vehicle:v});return v;
+  const v={root:g,x:a.x,y:a.y,heading:a.a,speed:0,maxSpeed:i%3===0?22:17,fuel:0,condition:72+rand()*28,type:i%3===0?'sport':'pickup',warnFuel:false,warnCondition:false,parts:{spark_plug:false,wheels:0,gas:false}};vehicles.push(v);interactables.push({type:'vehicle',x:a.x,y:a.y,z:g.position.z,label:'REPAIR / DRIVE',vehicle:v});return v;
 }
 function spawnVehicles(){for(let i=0;i<Math.min(MOBILE?3:6,roadAnchors.length);i++){const a=roadAnchors[(i*17+9)%roadAnchors.length];if(a)makeVehicle(a,i)}return vehicles.length}
-function enterVehicle(v){if(!v||interiorMode)return;if(v.condition<=0){toast('VEHICLE DISABLED · FIND REPAIR KIT');return}activeVehicle=v;player.visible=false;toast('DRIVING · '+Math.round(v.fuel)+'% FUEL · '+Math.round(v.condition)+'% CONDITION')}
+function repairVehicleFromInventory(v){
+  if(!v)return false;
+  if(!v.parts.spark_plug&&vehicleParts.spark_plug>0){v.parts.spark_plug=true;vehicleParts.spark_plug--}
+  while(v.parts.wheels<4&&vehicleParts.wheel>0){v.parts.wheels++;vehicleParts.wheel--}
+  if(!v.parts.gas&&vehicleParts.gas>0){v.parts.gas=true;vehicleParts.gas--;v.fuel=55}
+  return v.parts.spark_plug&&v.parts.wheels>=4&&v.parts.gas;
+}
+function enterVehicle(v){if(!v||interiorMode)return;if(v.condition<=0){toast('VEHICLE DISABLED · FIND REPAIR KIT');return}if(!repairVehicleFromInventory(v)){toast('NEEDS SPARK PLUG · 4 WHEELS · GAS');return}activeVehicle=v;player.visible=false;toast('DRIVING · '+Math.round(v.fuel)+'% FUEL · '+Math.round(v.condition)+'% CONDITION')}
 function exitVehicle(){if(!activeVehicle)return;const v=activeVehicle,x=v.root.position.x+Math.cos(v.heading)*1.8,y=v.root.position.y-Math.sin(v.heading)*1.8;activeVehicle=null;player.visible=true;player.position.set(x,y,terrainZ(x,y));toast('EXITED VEHICLE')}
 function updateVehicle(dt){
   if(!activeVehicle)return false;const v=activeVehicle,input=moveY;
@@ -889,13 +1054,13 @@ function addAbandonment(){
   ];
   coverRows.forEach((rows,k)=>{if(!rows.length)return;const def=coverDefs[k],inst=new THREE.InstancedMesh(def.g,def.m,rows.length);rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z+def.z);d.rotation.set(def.rx||0,0,r.ang);d.scale.set(1,1,1);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;ambientDetailGroup.add(inst)});
 
-  const types=['ammo','medkit','armor','weapon','fuel','repair'],lootGroups=new Map(types.map(t=>[t,[]]));
+  const types=['ammo','medkit','armor','weapon','gas','repair','sparkplug','wheel'],lootGroups=new Map(types.map(t=>[t,[]]));
   for(let i=0;i<44;i++){
     const a=roadAnchors[(i*3)%Math.max(1,roadAnchors.length)]||{x:(rand()-.5)*350,y:(rand()-.5)*350};
     const x=a.x+(rand()-.5)*22,y=a.y+(rand()-.5)*22;if(blocked(x,y,.45))continue;
     const type=types[i%types.length],lz=terrainZ(x,y)+.22;lootGroups.get(type).push({id:'loot-'+i,type,x,y,z:lz,ang:rand()*Math.PI});
   }
-  const lootColor={ammo:0xd1b05e,medkit:0xd85858,armor:0x5aa7c9,weapon:0x73e1b2,fuel:0xe0a13f,repair:0x90a4aa};
+  const lootColor={ammo:0xd1b05e,medkit:0xd85858,armor:0x5aa7c9,weapon:0x73e1b2,gas:0xe0a13f,repair:0x90a4aa,sparkplug:0xe6e8d8,wheel:0x303638};
   for(const type of types){
     const rows=lootGroups.get(type);if(!rows.length)continue;
     const geom=type==='weapon'?new THREE.BoxGeometry(.9,.12,.12):type==='fuel'?new THREE.BoxGeometry(.38,.28,.58):new THREE.BoxGeometry(.34,.34,.22);
@@ -920,17 +1085,96 @@ function nearestLoot(){
 function nearestVehicle(max=18){
   let best=null,dist=max;for(const v of vehicles){const d=Math.hypot(player.position.x-v.root.position.x,player.position.y-v.root.position.y);if(d<dist){dist=d;best=v}}return best;
 }
-function collectLoot(q){
-  if(!q||q.picked)return;q.picked=true;
+function lootKeyFor(q){return [mode,stateCode,centerLat.toFixed(4),centerLon.toFixed(4),q.space,q.id].join(':')}
+function hideLootPickup(q){
+  if(!q)return;q.picked=true;
   if(Number.isInteger(q.instanceIndex)&&q.mesh?.isInstancedMesh){const gone=new THREE.Matrix4().makeScale(0,0,0);q.mesh.setMatrixAt(q.instanceIndex,gone);q.mesh.instanceMatrix.needsUpdate=true}
   else if(q.mesh)q.mesh.visible=false;
+}
+async function syncFiniteLoot(space='world'){
+  if(!playerId||!playerSecret)return;
+  const rows=lootPickups.filter(q=>q.space===space&&q.type!=='deathdrop'&&!q.picked),keys=rows.map(lootKeyFor);
+  if(!keys.length)return;
+  try{
+    const out=await rpc('bridgepoint_horizon_loot_state_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_loot_keys:keys});
+    const taken=new Set((out?.items||[]).filter(x=>x.claimed||x.state==='CLAIMED').map(x=>x.loot_key));
+    for(const q of rows)if(taken.has(lootKeyFor(q)))hideLootPickup(q);
+  }catch{}
+}
+const deathDropMeshes=new Map();
+function mergeDeathInventory(inv={}){
+  shield=Math.min(100,shield+Math.max(0,Number(inv.shield||0)));
+  const incoming=inv.weapons||{};
+  for(const w of WEAPONS){const q=incoming[w.key];if(!q)continue;weaponState[w.key].owned=weaponState[w.key].owned||q.owned!==false;weaponState[w.key].mag=Math.min(w.mag,Math.max(weaponState[w.key].mag||0,Number(q.mag||0)));weaponState[w.key].reserve=Math.min(w.mag*(w.maxClips||3),Number(weaponState[w.key].reserve||0)+Number(q.reserve||0));if(q.owned!==false&&!inventoryWeaponKeys.includes(w.key)){const empty=inventoryWeaponKeys.findIndex(k=>!k);if(empty>=0)inventoryWeaponKeys[empty]=w.key}}
+  for(const k of ['spark_plug','wheel','gas'])vehicleParts[k]=Number(vehicleParts[k]||0)+Number(inv.vehicle_parts?.[k]||0);
+  updateVitals();updateAmmo();renderWeaponBar();checkpointYearOne(false);
+}
+async function syncDeathDrops(){
+  if(!playerId||!playerSecret)return;const coord=playerWorldCoordinate();
+  try{
+    const out=await rpc('bridgepoint_horizon_death_drops_near_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_lat:coord.lat,p_lon:coord.lon,p_radius_m:220});
+    const seen=new Set();
+    for(const d of out?.drops||[]){
+      const id=String(d.drop_id);seen.add(id);if(deathDropMeshes.has(id))continue;
+      let x=Number(d.local_x),y=Number(d.local_y),z=Number(d.local_z);
+      if(!Number.isFinite(x)||!Number.isFinite(y)){const p=worldToLocal(Number(d.lat),Number(d.lon));x=p.x;y=p.y;z=terrainZ(x,y)+.35}
+      if(!Number.isFinite(z))z=terrainZ(x,y)+.35;
+      const mesh=new THREE.Mesh(new THREE.BoxGeometry(.72,.52,.42),new THREE.MeshStandardMaterial({color:0xa65cff,emissive:0x35124f,emissiveIntensity:.65,roughness:.35,metalness:.25}));
+      mesh.position.set(x,y,z);world.add(mesh);deathDropMeshes.set(id,mesh);lootPickups.push({id:'death-'+id,type:'deathdrop',deathDropId:id,x,y,z,space:'world',mesh,picked:false,rarity:'EPIC'});
+    }
+    for(const [id,mesh] of deathDropMeshes)if(!seen.has(id)){mesh.visible=false;deathDropMeshes.delete(id)}
+  }catch{}
+}
+async function collectDeathDrop(q){
+  try{
+    const out=await rpc('bridgepoint_horizon_death_drop_claim_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_drop_id:q.deathDropId});
+    hideLootPickup(q);deathDropMeshes.delete(String(q.deathDropId));
+    if(out?.ok){mergeDeathInventory(out.inventory||{});lootCount++;lootDeltaPending++;$('loot').textContent=lootCount;toast('PLAYER DROP CLAIMED')}
+    else toast('Player drop already claimed');
+  }catch{hideLootPickup(q)}
+}
+async function dropDeathLoot(){
+  if(!playerId||!playerSecret)return;
+  const coord=playerWorldCoordinate(),weapons=Object.fromEntries(WEAPONS.filter(w=>weaponState[w.key]?.owned).map(w=>[w.key,{owned:true,mag:weaponState[w.key].mag,reserve:weaponState[w.key].reserve,rarity:w.rarity}]));
+  const inventory={weapons,shield,vehicle_parts:{...vehicleParts},backpack:[...backpackSlots],inventory_weapon_keys:[...inventoryWeaponKeys],active_weapon:activeWeapon()?.key};
+  try{await rpc('bridgepoint_horizon_death_drop_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_lat:coord.lat,p_lon:coord.lon,p_local_x:player.position.x,p_local_y:player.position.y,p_local_z:player.position.z,p_inventory:inventory})}catch{}
+}
+function clearCarriedAfterDeath(){
+  shield=0;for(const w of WEAPONS){weaponState[w.key].reserve=0;weaponState[w.key].mag=0;weaponState[w.key].owned=w.key==='axe'}vehicleParts.spark_plug=vehicleParts.wheel=vehicleParts.gas=0;backpackSlots.fill(null);inventoryWeaponKeys.fill(null);inventoryWeaponKeys[0]='axe';activeWeaponIndex=Math.max(0,WEAPONS.findIndex(w=>w.key==='axe'));updateVitals();updateAmmo();renderWeaponBar();
+}
+async function collectLoot(q){
+  if(!q||q.picked)return;
+  if(q.type==='deathdrop'){await collectDeathDrop(q);return}
+  const coord=playerWorldCoordinate(),lootKey=lootKeyFor(q);
+  try{
+    const claim=await rpc('bridgepoint_horizon_loot_claim_v4340',{
+      p_player_id:playerId,p_player_secret:playerSecret,p_loot_key:lootKey,p_mode:mode,p_world_key:stateCode+':'+centerLat.toFixed(4)+':'+centerLon.toFixed(4),
+      p_item_key:q.type,p_rarity:q.rarity||'COMMON',p_lat:coord.lat,p_lon:coord.lon,p_local_x:q.x,p_local_y:q.y,p_local_z:q.z,p_metadata:{space:q.space}
+    });
+    if(claim?.already_taken){hideLootPickup(q);toast('Loot already taken');return}
+  }catch(e){if(/ACCOUNT|AUTH|TOKEN|JWT/i.test(String(e?.message||''))){toast('Free Horizon account required');return}}
+  hideLootPickup(q);
   lootCount++;lootDeltaPending++;$('loot').textContent=lootCount;
-  if(q.type==='ammo'){for(const w of WEAPONS)if(w.mag&&weaponState[w.key]?.owned)weaponState[w.key].reserve=Math.min(w.reserve*3,weaponState[w.key].reserve+Math.max(12,Math.floor(w.reserve*.35)));updateAmmo();toast('Ammo acquired')}
-  else if(q.type==='medkit'){health=Math.min(100,health+35);updateVitals();toast('Med kit acquired')}
-  else if(q.type==='armor'){shield=Math.min(100,shield+50);updateVitals();toast(shield>=100?'Shield full · 100':'Shield +50 · '+shield)}
-  else if(q.type==='fuel'){const v=activeVehicle||nearestVehicle();if(v){v.fuel=Math.min(100,v.fuel+45);toast('Vehicle fuel '+Math.round(v.fuel)+'%')}else toast('Fuel can acquired')}
+  if(q.type==='ammo'){for(const w of WEAPONS)if(w.mag&&weaponState[w.key]?.owned)weaponState[w.key].reserve=Math.min(w.mag*(w.maxClips||3),weaponState[w.key].reserve+Math.max(w.mag,Math.floor(w.mag*1.2)));updateAmmo();toast('Ammo acquired')}
+  else if(q.type==='medkit'){health=Math.min(mode==='TDM'?150:100,health+35);updateVitals();toast('Med kit acquired')}
+  else if(q.type==='armor'){if(mode==='TDM')toast('TDM uses 150 health · no shield');else{shield=Math.min(100,shield+50);updateVitals();toast(shield>=100?'Shield full · 100':'Shield +50 · '+shield)}}
+  else if(q.type==='gas'){vehicleParts.gas++;toast('Gas acquired · vehicle part')}
+  else if(q.type==='sparkplug'){vehicleParts.spark_plug++;toast('Spark plug acquired')}
+  else if(q.type==='wheel'){vehicleParts.wheel++;toast('Wheel acquired · '+vehicleParts.wheel)}
   else if(q.type==='repair'){const v=activeVehicle||nearestVehicle();if(v){v.condition=Math.min(100,v.condition+38);toast('Vehicle repaired '+Math.round(v.condition)+'%')}else toast('Repair kit acquired')}
-  else {const locked=WEAPONS.find(w=>!weaponState[w.key]?.owned);if(locked){weaponState[locked.key].owned=true;weaponState[locked.key].mag=locked.mag;weaponState[locked.key].reserve=locked.reserve;toast(locked.name+' acquired')}else toast('Weapon salvage acquired');renderWeaponBar()}
+  else {
+    const prestige=Number(savedStats?.prestige||0),level=Number(savedStats?.level||1),baseKeys=new Set(['rifle','smg','shotgun','pistol','axe']);
+    const candidates=WEAPONS.filter(w=>!baseKeys.has(w.key)&&!weaponState[w.key]?.owned&&Number(w.prestigeRequired||0)<=prestige&&Number(w.unlockedLevel||1)<=level);
+    const locked=candidates.length?candidates[hash(q.id+':weapon')%candidates.length]:null,empty=inventoryWeaponKeys.findIndex(k=>!k);
+    if(locked&&empty>=0){
+      weaponState[locked.key].owned=true;weaponState[locked.key].mag=locked.mag;weaponState[locked.key].reserve=locked.mag*Math.min(1,locked.maxClips||0);inventoryWeaponKeys[empty]=locked.key;
+      toast(locked.rarity+' '+locked.name+' acquired · slot '+(empty+1));
+    }else if(locked){
+      const w=activeWeapon();if(w?.mag){weaponState[w.key].reserve=Math.min(w.mag*(w.maxClips||3),weaponState[w.key].reserve+w.mag);toast('Inventory full · weapon converted to '+w.name+' ammo')}
+      else toast('Inventory full');
+    }else toast('Weapon salvage acquired');
+    renderWeaponBar();checkpointYearOne(false);
+  }
 }
 function updateDwellPickup(now){
   const q=nearestLoot(),prompt=$('pickupPrompt'),ring=$('pickupRing'),label=$('pickupLabel');
@@ -940,7 +1184,7 @@ function updateDwellPickup(now){
   if(prompt){prompt.hidden=false;prompt.style.setProperty('--pickup-angle',(progress*360)+'deg')}
   if(ring)ring.style.setProperty('--pickup-angle',(progress*360)+'deg');
   if(label)label.textContent='PICKING UP '+q.type.toUpperCase();
-  if(progress>=1){collectLoot(q);pickupTarget=null;pickupStarted=0;if(prompt)prompt.hidden=true}
+  if(progress>=1){collectLoot(q).catch(()=>{});pickupTarget=null;pickupStarted=0;if(prompt)prompt.hidden=true}
 }
 function clearSpawn(x,y,r=1.1){
   if(Math.hypot(x-player.position.x,y-player.position.y)<8)return false;
@@ -963,74 +1207,104 @@ function canSee(a,b){
   return true;
 }
 async function spawnTdmBots(){
-  const requested=Math.max(0,Math.min(11,Number(activeMatch?.bot_players||0)));
+  const target=100,humanCount=Math.max(1,Number(activeMatch?.human_players||activeMembers.length||1)),requested=Math.max(0,Math.min(99,Number(activeMatch?.bot_players??(target-humanCount))));
   if(mode!=='TDM'||requested<=0){if($('enemyLabel'))$('enemyLabel').textContent=mode==='TDM'?'players':'infected';return 0}
-  const source=await loadAsset(CHAR_MODELS.free_07);
+  const source=await loadAsset(CHAR_MODELS.free_07),fullCap=MOBILE?(HIGH_DEVICE?12:8):20;
   const humanTeamCounts={1:0,2:0};for(const m of activeMembers){const t=Number(m.team_no||1);if(t===1||t===2)humanTeamCounts[t]++}
-  const desired={1:Math.max(0,6-humanTeamCounts[1]),2:Math.max(0,6-humanTeamCounts[2])};
+  const desired={1:Math.max(0,50-humanTeamCounts[1]),2:Math.max(0,50-humanTeamCounts[2])};
   let remaining=requested,index=0;
   for(const team of [1,2]){
     const n=Math.min(remaining,desired[team]);
     for(let j=0;j<n;j++,index++){
-      const g=skeletonClone(source.scene);prepHumanoid(g,{variant:(j+team)%2+1});orientHumanoid(g,1.8);
+      let g;
+      if(index<fullCap){g=skeletonClone(source.scene);prepHumanoid(g,{variant:(j+team)%2+1});orientHumanoid(g,1.8)}
+      else{g=new THREE.Group();const body=new THREE.Mesh(new THREE.CapsuleGeometry(.25,1.05,4,6),new THREE.MeshLambertMaterial({color:team===playerTeam?0x58798b:0x7a5d58}));body.position.z=.85;g.add(body)}
       const pos=chooseCombatSpawn(team,index);g.position.set(pos.x,pos.y,terrainZ(pos.x,pos.y));g.rotation.z=rand()*Math.PI*2;
-      const rifle=makeHorizonRifle(THREE,j%3===0?'wrap_toxic_rain':j%3===1?'wrap_blood_rust':'wrap_ash');
-      rifle.scale.setScalar(.25);rifle.rotation.set(.04,-.18,-Math.PI/2);rifle.position.set(.36,.08,1.25);g.add(rifle);
-      const friendly=team===playerTeam,name=(friendly?'ALLY ':'ENEMY ')+String(j+1).padStart(2,'0');
-      g.add(makeNameSprite(name,friendly?'#7dffe0':'#ff927d'));world.add(g);
-      combatants.push({g,team,friendly,name,health:100,alive:true,speed:3.2+rand()*.8,phase:rand()*6.28,lastShot:performance.now()+rand()*900,index});
-    }
-    remaining-=n;
+      if(index<fullCap){const rifle=makeHorizonRifle(THREE,j%3===0?'wrap_toxic_rain':j%3===1?'wrap_blood_rust':'wrap_ash');rifle.scale.setScalar(.25);rifle.rotation.set(.04,-.18,-Math.PI/2);rifle.position.set(.36,.08,1.25);g.add(rifle)}
+      const friendly=team===playerTeam,name=(friendly?'ALLY ':'ENEMY ')+String(index+1).padStart(2,'0');
+      if(index<fullCap)g.add(makeNameSprite(name+' · LV '+(1+(index%100)),friendly?'#7dffe0':'#ff927d'));world.add(g);
+      combatants.push({g,team,friendly,name,level:1+(index%100),health:150,maxHealth:150,alive:true,speed:3.05+rand()*.75,phase:rand()*6.28,lastShot:performance.now()+rand()*1200,index,weaponDamage:[28,40,31,108,38][index%5]});
+    }remaining-=n;
   }
-  while(remaining>0){
-    const team=2,index2=combatants.length,pos=chooseCombatSpawn(team,index2),g=skeletonClone(source.scene);
-    prepHumanoid(g,{variant:index2%2+1});orientHumanoid(g,1.8);g.position.set(pos.x,pos.y,terrainZ(pos.x,pos.y));g.add(makeNameSprite('ENEMY '+String(index2+1).padStart(2,'0'),'#ff927d'));world.add(g);
-    combatants.push({g,team,friendly:team===playerTeam,name:'ENEMY '+String(index2+1).padStart(2,'0'),health:100,alive:true,speed:3.3,phase:rand()*6.28,lastShot:performance.now()+rand()*900,index:index2});remaining--;
-  }
-  if($('enemyLabel'))$('enemyLabel').textContent='combatants';
-  $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;
-  return combatants.length;
+  if($('enemyLabel'))$('enemyLabel').textContent='combatants';if($('remaining'))$('remaining').textContent=String(combatants.filter(x=>x.alive).length+1);
+  $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;return combatants.length;
 }
 function respawnCombatant(b){
-  const p=chooseCombatSpawn(b.team,b.index+17);b.g.position.set(p.x,p.y,terrainZ(p.x,p.y));b.g.visible=true;b.health=100;b.alive=true;b.lastShot=performance.now()+700;
-  $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;
+  const p=chooseCombatSpawn(b.team,b.index+17);b.g.position.set(p.x,p.y,terrainZ(p.x,p.y));b.g.visible=true;b.health=150;b.alive=true;b.lastShot=performance.now()+900;
+  $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;if($('remaining'))$('remaining').textContent=String(combatants.filter(x=>x.alive).length+(!dead?1:0));
 }
 function eliminateCombatant(b,killer='YOU'){
   if(!b.alive)return;b.alive=false;b.g.visible=false;
-  addKillFeed(killer,b.name,'AR-12',false);
-  $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;
-  setTimeout(()=>{if(mode==='TDM')respawnCombatant(b)},2200);
+  addKillFeed(killer+' · LV '+(savedProfile?.level||1),b.name,'AR-12',false);
+  $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;if($('remaining'))$('remaining').textContent=String(combatants.filter(x=>x.alive).length+(!dead?1:0));
+
 }
 function updateCombatants(dt,t){
-  if(mode!=='TDM')return;
-  const liveEnemies=combatants.filter(x=>x.alive);
-  for(const b of liveEnemies){
-    let target=null,targetPos=null;
-    if(b.team!==playerTeam&&!dead){target={player:true,name:savedProfile?.display_name||'YOU'};targetPos=player.position}
-    const rivals=liveEnemies.filter(x=>x.team!==b.team);
-    if(rivals.length){
-      const nearest=rivals.reduce((best,q)=>{const d=Math.hypot(q.g.position.x-b.g.position.x,q.g.position.y-b.g.position.y);return !best||d<best.d?{q,d}:best},null);
-      const pd=targetPos?Math.hypot(targetPos.x-b.g.position.x,targetPos.y-b.g.position.y):Infinity;
-      if(nearest&&nearest.d<pd){target=nearest.q;targetPos=nearest.q.g.position}
-    }
-    if(!targetPos)continue;
-    const dx=targetPos.x-b.g.position.x,dy=targetPos.y-b.g.position.y,d=Math.max(.001,Math.hypot(dx,dy)),visible=canSee(b.g.position,targetPos);
-    if(d>13||!visible){
-      const nx=b.g.position.x+dx/d*b.speed*dt,ny=b.g.position.y+dy/d*b.speed*dt;
-      if(!blocked(nx,ny,.36)){b.g.position.x=nx;b.g.position.y=ny;b.g.position.z=terrainZ(nx,ny)}
+  if(mode!=='TDM'||tdmMovementLocked())return;
+  const live=combatants.filter(x=>x.alive),maxPlayerAttackers=3;
+  let attackersOnPlayer=0;
+  for(const b of live){
+    let target=null,targetPos=null,targetDistance=Infinity;
+    const fireRadius=Number(tdmFireZone?.radius_m||Infinity);
+    const outsideFire=Number.isFinite(fireRadius)&&Math.hypot(b.g.position.x,b.g.position.y)>fireRadius*.92;
+
+    if(outsideFire){
+      targetPos=new THREE.Vector3(0,0,terrainZ(0,0));
+      targetDistance=Math.hypot(b.g.position.x,b.g.position.y);
+      b.speed=Math.max(b.speed,6.2);
+      b.roamTarget=null;
     }else{
-      const strafe=Math.sin(t*.002+b.phase)*b.speed*.36*dt,nx=b.g.position.x-dy/d*strafe,ny=b.g.position.y+dx/d*strafe;
+      const rivals=live.filter(x=>x.team!==b.team);
+      if(rivals.length){
+        const nearest=rivals.reduce((best,q)=>{
+          const d=Math.hypot(q.g.position.x-b.g.position.x,q.g.position.y-b.g.position.y);
+          return !best||d<best.d?{q,d}:best;
+        },null);
+        if(nearest&&nearest.d<68){target=nearest.q;targetPos=nearest.q.g.position;targetDistance=nearest.d}
+      }
+
+      if(b.team!==playerTeam&&!dead&&attackersOnPlayer<maxPlayerAttackers){
+        const pd=Math.hypot(player.position.x-b.g.position.x,player.position.y-b.g.position.y);
+        const playerVisible=pd<42&&canSee(b.g.position,player.position);
+        if(playerVisible&&(pd+5<targetDistance||!target)){
+          target={player:true,name:savedProfile?.display_name||'YOU'};
+          targetPos=player.position;targetDistance=pd;attackersOnPlayer++;
+        }
+      }
+
+      if(!targetPos){
+        if(!b.roamTarget||Math.hypot(b.g.position.x-b.roamTarget.x,b.g.position.y-b.roamTarget.y)<3){
+          const pool=roadAnchors.length?roadAnchors:buildingCenters;
+          const q=pool.length?pool[(b.index*37+Math.floor(t/7000)*11)%pool.length]:chooseCombatSpawn(b.team,b.index+23);
+          b.roamTarget={x:q.x,y:q.y,z:terrainZ(q.x,q.y)};
+        }
+        targetPos=b.roamTarget;targetDistance=Math.hypot(targetPos.x-b.g.position.x,targetPos.y-b.g.position.y);
+      }
+    }
+
+    if(!targetPos)continue;
+    const dx=targetPos.x-b.g.position.x,dy=targetPos.y-b.g.position.y,d=Math.max(.001,Math.hypot(dx,dy)),visible=target?canSee(b.g.position,targetPos):false;
+    if(!target||d>13||!visible){
+      const roamSpeed=target?b.speed:Math.min(b.speed,2.45);
+      const nx=b.g.position.x+dx/d*roamSpeed*dt,ny=b.g.position.y+dy/d*roamSpeed*dt;
+      if(!blocked(nx,ny,.36)){b.g.position.x=nx;b.g.position.y=ny;b.g.position.z=terrainZ(nx,ny)}
+      else if(!target)b.roamTarget=null;
+    }else{
+      const strafe=Math.sin(t*.002+b.phase)*b.speed*.28*dt,nx=b.g.position.x-dy/d*strafe,ny=b.g.position.y+dx/d*strafe;
       if(!blocked(nx,ny,.34)){b.g.position.x=nx;b.g.position.y=ny;b.g.position.z=terrainZ(nx,ny)}
     }
     b.g.rotation.z=Math.atan2(dy,dx)-Math.PI/2;
-    if(visible&&d<52&&t-b.lastShot>620+((b.index*113)%380)){
+
+    if(target&&visible&&d<48&&t-b.lastShot>760+((b.index*137)%540)){
       b.lastShot=t;
-      const accuracy=Math.max(.18,.72-d/105);
+      const accuracy=Math.max(.12,.56-d/120);
       if(rand()<accuracy){
-        if(target?.player){
-          health=Math.max(0,health-(5+Math.floor(rand()*7)));updateVitals('health');if(health<=0)triggerDeath(b);
-        }else if(target?.alive){
-          target.health-=12+Math.floor(rand()*11);if(target.health<=0)eliminateCombatant(target,b.name);
+        if(target.player){
+          const dmg=Math.max(14,Math.round(Number(b.weaponDamage||31)*(0.68+rand()*.18)));
+          applyPlayerHit(dmg,b);
+        }else if(target.alive){
+          target.health-=Math.max(14,Math.round(Number(b.weaponDamage||31)*(0.66+rand()*.20)));
+          if(target.health<=0)eliminateCombatant(target,b.name+' · LV '+(b.level||1));
         }
       }
     }
@@ -1049,7 +1323,7 @@ function buildInfectedPatrol(x,y,index){
   return route.length?route:[{x,y}];
 }
 async function spawnInfected(){
-  const humanoidSource=await loadAsset(CHAR_MODELS.free_03);
+  const humanoidSource=await loadAsset(CHAR_MODELS.free_03);infectedHumanoidSource=humanoidSource;
   const dogCount=3+(hash(matchSeed+':dog-pack')%3);
   const plan=[];
   for(let i=0;i<dogCount;i++)plan.push({kind:'zombie_dog',label:'ZOMBIE DOG',health:75,speed:7.25,detect:14,hearing:54,model:'dog',hop:false,barZ:1.35,pack:'DOG PACK'});
@@ -1110,24 +1384,59 @@ function reload(){
   const reloadMs=w.kind==='shotgun'?1850:w.kind==='pistol'?1050:1350;
   setTimeout(()=>{const need=w.mag-st.mag,take=Math.min(need,st.reserve);st.mag+=take;st.reserve-=take;reloading=false;updateAmmo();tone(260,.03,.018,'triangle')},reloadMs);
 }
-async function recordKill(victimName,headshot=false){
-  addKillFeed(savedProfile?.display_name||'YOU',victimName,activeWeapon().name,headshot);
-  if(!matchId||activeMatch?.host_player_id!==playerId)return;
-  rpc('bridgepoint_horizon_record_kill_v4310',{
-    p_host_player_id:playerId,p_host_secret:playerSecret,p_match_id:matchId,
-    p_event_type:'INFECTED_KILL',p_killer_player_id:playerId,p_victim_player_id:null,
-    p_weapon_key:activeWeapon().key,p_headshot:headshot,p_distance_m:null,p_metadata:{mode,client_build:4336}
-  }).catch(()=>{});
+function animateWeaponAttack(w){
+  if(!fpWeaponRig)return;const baseP=fpWeaponRig.userData.basePosition?.clone?.()||fpWeaponRig.position.clone(),baseR=fpWeaponRig.userData.baseRotation?.clone?.()||fpWeaponRig.rotation.clone(),token=(fpWeaponRig.userData.attackToken||0)+1;fpWeaponRig.userData.attackToken=token;
+  if(w.kind==='melee'){fpWeaponRig.rotation.x=baseR.x+.78;fpWeaponRig.rotation.z=baseR.z-.88;fpWeaponRig.position.y=baseP.y+.08}
+  else if(w.kind==='grenade'){fpWeaponRig.rotation.x=baseR.x-.42;fpWeaponRig.position.z=baseP.z+.18;fpWeaponRig.position.y=baseP.y+.12}
+  else{fpWeaponRig.rotation.x=baseR.x-.10;fpWeaponRig.position.z=baseP.z+.09;fpWeaponRig.position.y=baseP.y+.025}
+  setTimeout(()=>{if(!fpWeaponRig||fpWeaponRig.userData.attackToken!==token)return;fpWeaponRig.position.copy(baseP);fpWeaponRig.rotation.copy(baseR)},w.kind==='melee'?190:95);
+}
+function explosionFx(pos,radius,damage,w){
+  const core=new THREE.Mesh(new THREE.SphereGeometry(1,18,12),new THREE.MeshBasicMaterial({color:0xff8b3d,transparent:true,opacity:.86,depthWrite:false})),
+    shock=new THREE.Mesh(new THREE.SphereGeometry(1,18,12),new THREE.MeshBasicMaterial({color:0xffd58a,wireframe:true,transparent:true,opacity:.62,depthWrite:false})),
+    light=new THREE.PointLight(0xff7a38,34,Math.max(12,radius*2.5),2);
+  core.position.copy(pos);shock.position.copy(pos);light.position.copy(pos);world.add(core,shock,light);tone(58,.18,.12,'sine');
+  const started=performance.now(),dur=420;
+  const step=now=>{const p=Math.min(1,(now-started)/dur),e=1-Math.pow(1-p,3),s=.25+radius*e;core.scale.setScalar(s*.32);shock.scale.setScalar(s);core.material.opacity=.86*(1-p);shock.material.opacity=.62*(1-p);light.intensity=34*(1-p);if(p<1)requestAnimationFrame(step);else{world.remove(core,shock,light);core.geometry.dispose();shock.geometry.dispose();core.material.dispose();shock.material.dispose()}};
+  requestAnimationFrame(step);
+  if(mode==='TDM'){
+    for(const z of combatants){if(!z.alive||z.team===playerTeam)continue;const d=z.g.position.distanceTo(pos);if(d>radius)continue;z.health-=Math.round(damage*(1-.55*d/radius));if(z.health<=0){eliminateCombatant(z,savedProfile?.display_name||'YOU');recordTdmElimination(false,d,w).catch(()=>{})}}
+  }else{
+    for(const z of infected){if(!z.alive||z.space!==(interiorMode?'interior':'world'))continue;const d=z.g.position.distanceTo(pos);if(d>radius)continue;z.health-=Math.round(damage*(1-.55*d/radius));updateMonsterHealthBar(z);if(z.health<=0){z.health=0;z.alive=false;z.g.visible=false;z.respawnAt=performance.now()+120000;recordKill(z.name,false,z.kind,d,w).catch(()=>{})}}
+  }
+}
+function launchExplosive(w,origin,dir){
+  const radius=Number(w.metadata?.splash_radius_m||6),fuse=Number(w.metadata?.fuse_ms||700),distance=Math.min(w.range,w.kind==='grenade'?38:90),start=origin.clone(),end=origin.clone().addScaledVector(dir,distance);
+  if(!interiorMode)end.z=Math.max(terrainZ(end.x,end.y)+.25,end.z);
+  const proj=new THREE.Mesh(new THREE.SphereGeometry(w.kind==='grenade'?.12:.08,10,8),new THREE.MeshStandardMaterial({color:w.kind==='grenade'?0x475b46:0xffb66a,emissive:w.kind==='grenade'?0x000000:0x6e2d00,emissiveIntensity:.65,roughness:.45,metalness:.25}));
+  proj.position.copy(start);world.add(proj);const began=performance.now();
+  const fly=now=>{const p=Math.min(1,(now-began)/Math.max(220,fuse)),arc=w.kind==='grenade'?Math.sin(Math.PI*p)*5.2:Math.sin(Math.PI*p)*.7;proj.position.lerpVectors(start,end,p);proj.position.z+=arc;if(p<1)requestAnimationFrame(fly);else{const impact=proj.position.clone();world.remove(proj);proj.geometry.dispose();proj.material.dispose();explosionFx(impact,radius,w.damage,w)}};
+  requestAnimationFrame(fly);
+}
+async function recordTdmElimination(headshot=false,distance=null,w=activeWeapon()){
+  if(!matchId)return null;
+  return rpc('bridgepoint_horizon_record_player_kill_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_match_id:matchId,p_event_type:'ELIMINATION',p_weapon_key:w?.key||null,p_headshot:!!headshot,p_distance_m:distance,p_metadata:{mode,client_build:4340,bot_victim:true}});
+}
+async function recordKill(victimName,headshot=false,kind='zombie',distance=null,w=activeWeapon()){
+  addKillFeed(savedProfile?.display_name||'YOU',victimName,w?.name||activeWeapon().name,headshot);
+  if(!matchId)return;
+  return rpc('bridgepoint_horizon_record_player_kill_v4340',{
+    p_player_id:playerId,p_player_secret:playerSecret,p_match_id:matchId,
+    p_event_type:kind==='orc'?'BOSS_KILL':'INFECTED_KILL',
+    p_weapon_key:w?.key||activeWeapon().key,p_headshot:!!headshot,p_distance_m:distance,p_metadata:{mode,client_build:4340,monster_kind:kind}
+  }).catch(()=>null);
 }
 function shootOnce(){
-  if(dead||reloading)return;
+  if(dead||reloading||tdmMovementLocked())return;
   const w=activeWeapon(),st=weaponState[w.key],now=performance.now();if(now-lastFireAt<w.interval)return;lastFireAt=now;
   if(w.mag&&st.mag<=0){reload();return}
   if(w.mag){st.mag--;updateAmmo();gunAudio(w);if(muzzleFlash){muzzleFlash.intensity=7;setTimeout(()=>{if(muzzleFlash)muzzleFlash.intensity=0},34)}}
   else tone(82,.06,.035,'triangle');
+  animateWeaponAttack(w);
   const dir=new THREE.Vector3();camera.getWorldDirection(dir);
   if(w.spread){dir.x+=(rand()-.5)*w.spread;dir.y+=(rand()-.5)*w.spread;dir.z+=(rand()-.5)*w.spread;dir.normalize()}
   const origin=camera.position.clone();
+  if(w.weaponClass==='LAUNCHER'||w.weaponClass==='GRENADE'||w.kind==='grenade'){launchExplosive(w,origin,dir);if(w.mag&&st.mag===0)reload();return}
   let hit=null,best=Infinity,headshot=false,hitKind='';
   if(mode==='TDM'){
     for(const z of combatants){
@@ -1153,44 +1462,55 @@ function shootOnce(){
     hit.health-=headshot?w.head:w.damage;hit.g.position.addScaledVector(dir,.08);
     if(hitKind==='infected')updateMonsterHealthBar(hit);
     if(hit.health<=0){
-      if(hitKind==='combatant')eliminateCombatant(hit,savedProfile?.display_name||'YOU');
+      if(hitKind==='combatant'){eliminateCombatant(hit,savedProfile?.display_name||'YOU');recordTdmElimination(headshot,best,w).catch(()=>{})}
       else{
-        hit.health=0;updateMonsterHealthBar(hit);hit.alive=false;hit.g.visible=false;
+        hit.health=0;updateMonsterHealthBar(hit);hit.alive=false;hit.g.visible=false;hit.respawnAt=performance.now()+120000;
         $('infected').textContent=infected.filter(z=>z.alive&&z.space===(interiorMode?'interior':'world')).length;
-        recordKill(hit.name,headshot);
+        recordKill(hit.name,headshot,hit.kind,best,w);rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'MONSTER_RESPAWN',p_event_key:'respawn:'+matchId+':'+hit.index+':'+Math.round(hit.respawnAt),p_value:120,p_payload:{monster:hit.kind,delay_seconds:120}}).catch(()=>{});
       }
     }
   }
   if(w.mag&&st.mag===0)reload();
 }
 function buildCover(){
-  if(dead)return;
+  if(dead||tdmMovementLocked())return;
+  if(mode==='TDM'&&buildCount>=3){toast('BUILD LIMIT · 3');return}
   const f=new THREE.Vector2(-Math.sin(yaw),Math.cos(yaw)),x=player.position.x+f.x*2.1,y=player.position.y+f.y*2.1;
   if(blocked(x,y,.8)){toast('Cannot build here');return}
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(2.2,.45,1.18),new THREE.MeshStandardMaterial({color:0x5c5144,roughness:.95,metalness:.03}));
   mesh.position.set(x,y,terrainZ(x,y)+.59);mesh.rotation.z=yaw;mesh.castShadow=mesh.receiveShadow=true;world.add(mesh);
-  const rect={type:'built',minx:x-1.18,maxx:x+1.18,miny:y-.52,maxy:y+.52};solidRects.push(rect);builtCover.push({mesh,rect});buildCount++;toast('Barricade built');
+  const rect={type:'built',minx:x-1.18,maxx:x+1.18,miny:y-.52,maxy:y+.52};solidRects.push(rect);builtCover.push({mesh,rect});buildCount++;if($('builds'))$('builds').textContent=mode==='TDM'?buildCount+'/3':'—';toast('Barricade built');
   if(matchId)rpc('bridgepoint_horizon_emit_world_event_v4303',{
     p_player_id:playerId,p_player_secret:playerSecret,p_match_id:matchId,p_cell_key:activeMatch?.cell_seed||('MATCH_'+matchId),
     p_event_type:'FORTIFICATION',p_event_key:'build-'+playerId+'-'+buildCount,p_payload:{kind:'barricade',x,y,yaw},p_ttl_seconds:86400
   }).catch(()=>{});
 }
-function respawn(){
-  dead=false;health=100;shield=0;updateVitals();
-  if(mode==='YEAR_ONE')applyPreciseSpawn();else player.position.set(0,0,terrainZ(0,0));
-  camera.fov=aiming?50:68;camera.updateProjectionMatrix();
-  $('killCam').hidden=true;checkpointYearOne(true);toast('Respawned');
+function buildCampfire(){
+  if(mode!=='YEAR_ONE'){toast('Campfires are a Year One survival tool');return}
+  if(dead||interiorMode||activeVehicle)return;
+  buildCampfire.items=buildCampfire.items||[];
+  if(buildCampfire.items.length>=3){toast('Maximum 3 active campfires nearby');return}
+  const f=new THREE.Vector2(-Math.sin(yaw),Math.cos(yaw)),x=player.position.x+f.x*2.3,y=player.position.y+f.y*2.3;
+  if(blocked(x,y,.65)){toast('Cannot build fire here');return}
+  const z=terrainZ(x,y),g=new THREE.Group(),woodMat=new THREE.MeshStandardMaterial({color:0x4a2f20,roughness:.95}),stoneMat=new THREE.MeshStandardMaterial({color:0x5a5d58,roughness:1});
+  for(let i=0;i<6;i++){const a=i/6*Math.PI*2,s=new THREE.Mesh(new THREE.SphereGeometry(.16,8,6),stoneMat);s.scale.set(1.5,.9,.65);s.position.set(Math.cos(a)*.52,Math.sin(a)*.52,.12);g.add(s)}
+  for(let i=0;i<3;i++){const log=new THREE.Mesh(new THREE.CylinderGeometry(.09,.11,.85,8),woodMat);log.rotation.set(Math.PI/2,0,i*Math.PI/3);log.position.z=.15;g.add(log)}
+  const fire=new THREE.Mesh(new THREE.ConeGeometry(.34,1.05,9),new THREE.MeshBasicMaterial({color:0xff6a2c,transparent:true,opacity:.88}));fire.position.z=.62;g.add(fire);
+  const smoke=new THREE.Sprite(new THREE.SpriteMaterial({map:SMOKE_TEX,color:0x59615d,transparent:true,opacity:.38,depthWrite:false}));smoke.position.z=2.0;smoke.scale.set(1.9,2.7,1);g.add(smoke);
+  const light=new THREE.PointLight(0xff6b2a,7,11,2);light.position.z=1.0;g.add(light);g.position.set(x,y,z);world.add(g);
+  const fx={fire,smoke,light,phase:rand()*6.28,baseZ:0,campfire:true,root:g};ambientFx.push(fx);buildCampfire.items.push(fx);solidRects.push({type:'campfire',minx:x-.55,maxx:x+.55,miny:y-.55,maxy:y+.55});
+  rpc('bridgepoint_horizon_emit_world_event_v4303',{p_player_id:playerId,p_player_secret:playerSecret,p_match_id:matchId,p_cell_key:activeMatch?.cell_seed||('MATCH_'+matchId),p_event_type:'FORTIFICATION',p_event_key:'campfire-'+playerId+'-'+Date.now(),p_payload:{kind:'campfire',x,y,z},p_ttl_seconds:7200}).catch(()=>{});
+  toast('CAMPFIRE BUILT · WARMTH RADIUS 8M');
 }
 let yearDeathResult=null,killcamTimer=null;
 async function finishDeathFlow(){
   clearTimeout(killcamTimer);
-  if(mode==='YEAR_ONE'&&yearDeathResult?.spectator_only){
-    location.assign('/app/horizon/?tab=WATCH');return;
-  }
-  respawn();
+  if(mode==='YEAR_ONE'&&yearDeathResult?.spectator_only){location.assign('/app/horizon/?tab=WATCH');return}
+  location.assign('/app/horizon/?returned=death');
 }
 async function triggerDeath(killer){
   if(dead)return;dead=true;shooting=false;sprint=false;
+  await dropDeathLoot();clearCarriedAfterDeath();
   const kc=$('killCam');if(kc)kc.hidden=false;
   const title=$('killCamTitle'),phase=$('killCamPhase');
   if(title)title.textContent='ELIMINATED BY '+(killer?.name||'THE HORDE');
@@ -1221,12 +1541,20 @@ async function triggerDeath(killer){
       requestAnimationFrame(playback);return;
     }
   };
-  playback();killcamTimer=setTimeout(finishDeathFlow,11550);
+  playback();killcamTimer=setTimeout(finishDeathFlow,10000);
 }
 function updateInfected(dt,t){
   const wanted=interiorMode?'interior':'world';
   for(const z of infected){
-    if(!z.alive)continue;
+    if(!z.alive){
+      if(z.respawnAt&&t>=z.respawnAt&&z.space==='world'){
+        const home=z.patrol?.[0]||{x:z.g.position.x,y:z.g.position.y};
+        if(Math.hypot(home.x-player.position.x,home.y-player.position.y)>=45){
+          z.g.position.set(home.x,home.y,terrainZ(home.x,home.y));z.health=z.maxHealth;z.alive=true;z.lockedOn=false;z.respawnAt=0;z.g.visible=true;updateMonsterHealthBar(z);
+        }
+      }
+      if(!z.alive)continue;
+    }
     const sameSpace=z.space===wanted;
     if(!sameSpace){z.g.visible=false;continue}
 
@@ -1310,9 +1638,12 @@ function perfCadence(){
 }
 function fillActorProxy(mesh,rows){
   const d=new THREE.Object3D();let n=0;
-  for(const q of rows){
-    if(n>=PROXY_MAX)break;
-    d.position.set(q.g.position.x,q.g.position.y,q.g.position.z+.81);
+  const proxyRadius=perfSimRadius()*1.35,proxyCap=MOBILE?36:64;
+  const ranked=rows.map(q=>({q,d:Math.hypot(q.g.position.x-player.position.x,q.g.position.y-player.position.y)}))
+    .filter(x=>x.d<=proxyRadius).sort((a,b)=>a.d-b.d);
+  for(const row of ranked){
+    if(n>=Math.min(PROXY_MAX,proxyCap))break;
+    const q=row.q;d.position.set(q.g.position.x,q.g.position.y,q.g.position.z+.81);
     d.rotation.set(0,0,q.g.rotation.z||0);d.scale.set(1,1,1);d.updateMatrix();mesh.setMatrixAt(n++,d.matrix);
   }
   mesh.count=n;mesh.visible=perfTier>=3&&n>0;mesh.instanceMatrix.needsUpdate=true;
@@ -1381,8 +1712,8 @@ function applyWorldShaderBudget(low){
 function setPerfTier(next,reason='auto'){
   next=Math.max(0,Math.min(3,next|0));if(next===perfTier)return;
   perfTier=next;
-  const floor=MOBILE?.56:.72,deviceCeiling=Math.min(devicePixelRatio||1,HIGH_DEVICE?1.25:(MOBILE?.88:1.05));
-  const cap=MOBILE?[deviceCeiling,.78,.67,.56][perfTier]:[deviceCeiling,1,.88,.74][perfTier];
+  const floor=MOBILE?.50:.72,deviceCeiling=Math.min(devicePixelRatio||1,HIGH_DEVICE?1.25:(MOBILE?.88:1.05));
+  const cap=MOBILE?[deviceCeiling,.76,.62,.50][perfTier]:[deviceCeiling,1,.88,.74][perfTier];
   const desired=Math.max(floor,Math.min(renderScale,cap));
   if(Math.abs(desired-renderScale)>.015){renderScale=desired;renderer.setPixelRatio(renderScale);renderer.setSize(innerWidth,innerHeight,false)}
   if(perfTier>=2&&renderer.shadowMap.enabled){renderer.shadowMap.enabled=false;sun.castShadow=false}
@@ -1405,7 +1736,7 @@ function updatePerformanceGovernor(rawDt,now){
     else if(perfEmaMs<17.4&&now-fastSince>7000&&perfTier>0){setPerfTier(perfTier-1,'stable_recovery');fastSince=now}
   }
   window.BP_HORIZON_PERF={
-    ...(window.BP_HORIZON_PERF||{}),build:4336,tier:perfTier,tier_name:PERF_TIER_NAMES[perfTier],
+    ...(window.BP_HORIZON_PERF||{}),build:4341,tier:perfTier,tier_name:PERF_TIER_NAMES[perfTier],
     ema_ms:Number(perfEmaMs.toFixed(2)),worst_ms:Number(perfWorstMs.toFixed(2)),fps:lastMeasuredFps,
     pixel_ratio:Number(renderScale.toFixed(2)),shadows:renderer.shadowMap.enabled,sim_radius_m:perfSimRadius(),
     draw_calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,lines:renderer.info.render.lines,points:renderer.info.render.points,
@@ -1420,6 +1751,137 @@ function updateWeatherFx(dt,now){
   for(let i=0;i<p.count;i++){let z=p.getZ(i)-dt*24;if(z<.15)z=12+rand()*9;p.setZ(i,z)}
   p.needsUpdate=true;
   fx.material.opacity=.5+.12*Math.sin(now*.006);
+}
+
+function worldToLocal(wlat,wlon){return {x:(wlon-centerLon)*111320*Math.max(.12,Math.cos(centerLat*Math.PI/180)),y:(wlat-centerLat)*110540}}
+function explorationCell(){
+  const q=playerWorldCoordinate(),s=.0025;return 'E'+Math.floor(q.lat/s)+':'+Math.floor(q.lon/s);
+}
+function inWater(x,y){
+  for(const poly of waterAreas)if(pointInPoly(x,y,poly))return true;return false;
+}
+function updateWaterSurvival(dt){
+  if(interiorMode||activeVehicle||!inWater(player.position.x,player.position.y)){waterIdleSeconds=0;return}
+  const moving=Math.abs(moveX)+Math.abs(moveY)>.18||sprint;
+  if(moving){waterIdleSeconds=Math.max(0,waterIdleSeconds-dt*2);return}
+  waterIdleSeconds+=dt;
+  if(waterIdleSeconds>5&&performance.now()-lastWaterDamageAt>900){lastWaterDamageAt=performance.now();applyPlayerHit(25,{name:'DEEP WATER'});toast('KEEP MOVING · SINKING -25');rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'WATER_DAMAGE',p_event_key:null,p_value:25,p_payload:{idle_seconds:Math.round(waterIdleSeconds)}}).catch(()=>{})}
+}
+function rebuildZombieWall(zone){
+  zombieWallGroup.clear();if(mode!=='YEAR_ONE'||!zone?.wall_nearby)return;
+  const count=MOBILE?26:52,bodyGeom=new THREE.CapsuleGeometry(.25,.95,4,7),headGeom=new THREE.SphereGeometry(.25,8,6);
+  const body=new THREE.InstancedMesh(bodyGeom,new THREE.MeshStandardMaterial({color:0x56664b,roughness:.9}),count);
+  const heads=new THREE.InstancedMesh(headGeom,new THREE.MeshStandardMaterial({color:0x667558,roughness:.95}),count),d=new THREE.Object3D();
+  let anchor={x:player.position.x,y:player.position.y},tx=1,ty=0;
+  if(zone.phase==='BORDER'&&zone.closest_border){const border=worldToLocal(zone.closest_border.lat,zone.closest_border.lon),vx=player.position.x-border.x,vy=player.position.y-border.y,l=Math.hypot(vx,vy)||1,inset=Number(zone.border_inset_m||0);anchor={x:border.x+vx/l*inset,y:border.y+vy/l*inset};tx=-vy/l;ty=vx/l}
+  else if(zone.nearest_city){const cc=worldToLocal(zone.nearest_city.lat,zone.nearest_city.lon),vx=player.position.x-cc.x,vy=player.position.y-cc.y,l=Math.hypot(vx,vy)||1;tx=-vy/l;ty=vx/l;anchor={x:player.position.x-vx/l*(Number(zone.wall_distance_m)||0)*(zone.safe?1:-1),y:player.position.y-vy/l*(Number(zone.wall_distance_m)||0)*(zone.safe?1:-1)}}
+  const spacing=1.15;
+  for(let i=0;i<count;i++){const off=(i-(count-1)/2)*spacing,jitter=((hash(matchSeed+':wall:'+i)%100)/100-.5)*.42,x=anchor.x+tx*off,y=anchor.y+ty*off,z=terrainZ(x,y);
+    d.position.set(x,y,z+.76);d.rotation.set(0,0,Math.atan2(ty,tx)+Math.PI/2+jitter);d.scale.set(1,1,1);d.updateMatrix();body.setMatrixAt(i,d.matrix);
+    d.position.set(x,y,z+1.54);d.updateMatrix();heads.setMatrixAt(i,d.matrix);
+  }
+  body.instanceMatrix.needsUpdate=heads.instanceMatrix.needsUpdate=true;zombieWallGroup.add(body,heads);
+}
+function spawnHordeZombie(reason='PRESSURE'){
+  if(mode!=='YEAR_ONE'||!infectedHumanoidSource||dead)return false;
+  const anchors=roadAnchors.filter(a=>Math.hypot(a.x-player.position.x,a.y-player.position.y)>=45&&Math.hypot(a.x-player.position.x,a.y-player.position.y)<=220);
+  if(!anchors.length)return false;
+  const a=anchors[hash(matchSeed+':horde:'+infected.length+':'+Math.floor(performance.now()/10000))%anchors.length],i=infected.length,late=Number(yearOneZone?.day||0)>260;
+  const runner=late&&hash('runner:'+i+':'+reason)%5===0,label=runner?'RUNNER':'HORDE WALKER',speed=runner?7.05:1.22;
+  const g=skeletonClone(infectedHumanoidSource.scene);prepHumanoid(g,{infectedTint:true,variant:i%2+1});orientHumanoid(g,1.72);
+  const gx=a.x+((hash(i+':hx')%900)/100-4.5),gy=a.y+((hash(i+':hy')%900)/100-4.5);g.position.set(gx,gy,terrainZ(gx,gy));g.rotation.z=(hash(i+':hr')%628)/100;
+  const bar=makeMonsterHealthBar(label,100,2.42);g.add(bar);world.add(g);
+  const z={g,s:speed,phase:(hash(i+':hp')%628)/100,health:100,maxHealth:100,damage:25,detect:late?15:12,hearing:late?48:34,alive:true,index:i,name:label+' '+String(i+1).padStart(2,'0'),label,kind:runner?'runner':'zombie',space:'world',patrol:buildInfectedPatrol(gx,gy,i),patrolIndex:0,lockedOn:false,alertUntil:0,lastHitAt:0,nextVocal:performance.now()+2500+(hash(i+':vocal')%5000),nextScream:performance.now()+5000,hop:false,hopHeight:0,hopPeriod:900,hopPhase:0,healthBar:bar,pack:null};
+  infected.push(z);updateMonsterHealthBar(z);$('infected').textContent=infected.filter(q=>q.alive&&q.space==='world').length;
+  rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'HORDESPAWN',p_event_key:null,p_value:1,p_payload:{reason,monster:z.kind,day:yearOneZone?.day||0}}).catch(()=>{});
+  return true;
+}
+function ensureHordePressure(zone){
+  if(mode!=='YEAR_ONE'||!zone)return;
+  const alive=infected.filter(z=>z.alive&&z.space==='world').length,deviceCap=MOBILE?(HIGH_DEVICE?28:20):44;
+  const target=Math.min(deviceCap,18+Math.round(Number(zone.wall_density||.55)*12)+Math.min(12,Math.floor(worldActivePlayers/2)));
+  const now=performance.now();if(alive<target&&now-lastHordeSpawnAt>6500){if(spawnHordeZombie('WORLD_PRESSURE'))lastHordeSpawnAt=now}
+}
+async function pollYearOneZone(force=false){
+  if(mode!=='YEAR_ONE'||(!force&&performance.now()-lastZonePollAt<2500))return;lastZonePollAt=performance.now();
+  const q=playerWorldCoordinate();
+  try{
+    const z=await rpc('bridgepoint_horizon_year_one_zone_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_lat:q.lat,p_lon:q.lon});yearOneZone=z;rebuildZombieWall(z);ensureHordePressure(z);
+    const wl=$('wallLive');if(wl){wl.textContent='DAY '+z.day+' · '+z.phase.replaceAll('_',' ')+' · '+Math.round(Number(z.wall_distance_m||0))+'M';wl.classList.toggle('safe',!!z.safe)}
+    const warn=$('wallWarning');if(warn)warn.hidden=!!z.safe;
+  }catch{}
+}
+function syncSharedPlayers(rows=[]){
+  if(mode!=='YEAR_ONE')return;
+  const keep=new Set();
+  for(const q of rows){
+    const id=String(q.player_id||'');if(!id)continue;keep.add(id);let rec=sharedPlayers.get(id);
+    if(!rec){
+      const g=new THREE.Group(),body=new THREE.Mesh(new THREE.CapsuleGeometry(.24,1.02,6,10),new THREE.MeshStandardMaterial({color:0x5b6ea9,roughness:.56,metalness:.08})),head=new THREE.Mesh(new THREE.SphereGeometry(.22,14,10),new THREE.MeshStandardMaterial({color:0xb98264,roughness:.68}));
+      body.position.z=.76;head.position.z=1.55;g.add(body,head,makeNameSprite(String(q.handle||'SURVIVOR').slice(0,20),'#a892ff'));sharedPlayerGroup.add(g);rec={g};sharedPlayers.set(id,rec);
+    }
+    const p=worldToLocal(Number(q.lat),Number(q.lon));rec.g.position.set(p.x,p.y,terrainZ(p.x,p.y));rec.g.rotation.z=Number(q.heading_deg||0)*Math.PI/180;rec.g.visible=!!q.alive&&Math.hypot(p.x-player.position.x,p.y-player.position.y)<perfSimRadius()*3;
+  }
+  for(const [id,rec] of sharedPlayers)if(!keep.has(id)){sharedPlayerGroup.remove(rec.g);sharedPlayers.delete(id)}
+}
+async function heartbeatWorld(force=false){
+  const now=performance.now();if(!force&&now-lastPresenceAt<10000)return;lastPresenceAt=now;const q=playerWorldCoordinate();
+  try{
+    const out=await rpc('bridgepoint_horizon_presence_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_lat:q.lat,p_lon:q.lon,p_altitude_m:player.position.z,p_heading_deg:(yaw*180/Math.PI+360)%360,p_alive:!dead,p_combat_score:(shooting?5:0)+infected.filter(z=>z.alive&&z.lockedOn).length});
+    worldActivePlayers=Number(out?.active_players||0);if($('activePlayers'))$('activePlayers').textContent=worldActivePlayers+' ACTIVE';
+    if(mode==='YEAR_ONE'){const near=await rpc('bridgepoint_horizon_nearby_players_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_radius_m:1800});nearbyPlayers=near?.players||[];syncSharedPlayers(nearbyPlayers)}
+    await syncDeathDrops();
+  }catch{}
+  if(mode==='YEAR_ONE'&&now-lastExploreAt>8000){lastExploreAt=now;const cell=explorationCell();if(!exploredCells.has(cell)){exploredCells.add(cell);rpc('bridgepoint_horizon_explore_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_cell_key:cell,p_lat:q.lat,p_lon:q.lon}).catch(()=>{})}}
+}
+function updateZoneDamage(now){
+  if(mode!=='YEAR_ONE'||!yearOneZone||yearOneZone.safe||dead)return;
+  if(now-lastWallDamageAt>=Number(yearOneZone.wall_tick_ms||800)){lastWallDamageAt=now;applyPlayerHit(25,{name:'ZOMBIE WALL'});rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'WALL_DAMAGE',p_event_key:null,p_value:25,p_payload:{day:yearOneZone.day,phase:yearOneZone.phase}}).catch(()=>{})}
+}
+
+function rebuildTdmFireWall(){
+  tdmFireGroup.clear();if(mode!=='TDM'||!tdmFireZone)return;const radius=Number(tdmFireZone.radius_m||0),count=MOBILE?48:88;
+  const geom=new THREE.ConeGeometry(.45,2.5,7),mat=new THREE.MeshBasicMaterial({color:0xff6a21,transparent:true,opacity:.72}),mesh=new THREE.InstancedMesh(geom,mat,count),d=new THREE.Object3D();
+  for(let i=0;i<count;i++){const a=i/count*Math.PI*2,x=Math.cos(a)*radius,y=Math.sin(a)*radius,z=terrainZ(x,y);d.position.set(x,y,z+1.15);d.rotation.set(0,0,a);d.scale.set(.7,1+((i%5)*.06),.7);d.updateMatrix();mesh.setMatrixAt(i,d.matrix)}mesh.instanceMatrix.needsUpdate=true;tdmFireGroup.add(mesh);
+}
+async function pollTdmFireZone(force=false){
+  if(mode!=='TDM'||!matchId||(!force&&performance.now()-lastTdmFirePollAt<2000))return;lastTdmFirePollAt=performance.now();
+  try{tdmFireZone=await rpc('bridgepoint_horizon_tdm_fire_zone_v4341',{p_player_id:playerId,p_player_secret:playerSecret,p_match_id:matchId});rebuildTdmFireWall();if($('climate'))$('climate').textContent='FIRE '+tdmFireZone.phase+' · '+Math.ceil(Number(tdmFireZone.remaining_seconds||0)/60)+'M'}catch{}
+}
+function updateTdmFireDamage(now){
+  if(mode!=='TDM'||!tdmFireZone||dead)return;const outside=Math.hypot(player.position.x,player.position.y)>Number(tdmFireZone.radius_m||Infinity);
+  if(outside&&now-lastTdmFireDamageAt>=1000){lastTdmFireDamageAt=now;applyPlayerHit(25,{name:'WILDFIRE'});toast('WILDFIRE · -25')}
+}
+function reviveWeatherMonster(kind){
+  const choices=infected.filter(z=>!z.alive&&z.space==='world'&&(kind==='zombie'?['zombie','runner','screamer'].includes(z.kind):z.kind===kind));
+  for(const z of choices){
+    const home=z.patrol?.[0]||{x:z.g.position.x,y:z.g.position.y};
+    if(Math.hypot(home.x-player.position.x,home.y-player.position.y)<45)continue;
+    z.g.position.set(home.x,home.y,terrainZ(home.x,home.y));z.health=z.maxHealth;z.alive=true;z.lockedOn=false;z.respawnAt=0;z.g.visible=true;updateMonsterHealthBar(z);
+    rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'HORDESPAWN',p_event_key:null,p_value:1,p_payload:{reason:kind==='zombie_dog'?'WILDFIRE':'RAIN',monster:z.kind}}).catch(()=>{});
+    return true;
+  }
+  return false;
+}
+function applyWeatherGameplay(dt){
+  if(mode!=='YEAR_ONE')return;const e=liveWeather?.event,name=String(e?.name||''),type=String(e?.type||'').toUpperCase();
+  const cold=/snow|freeze|winter|cold|blizzard/i.test(name)||/SNOW|WINTER/.test(type),wildfire=/fire|wildfire/i.test(name)||/FIRE/.test(type),rain=/rain|storm|hurricane|thunder/i.test(name)||/HURRICANE|LIGHTNING/.test(type);
+  if($('climate'))$('climate').textContent=cold?'COLD':wildfire?'WILDFIRE':rain?'RAIN':'NORMAL';
+  if(cold&&!ambientFx.some(q=>Math.hypot((q.fire?.position.x||0)-player.position.x,(q.fire?.position.y||0)-player.position.y)<8)){
+    coldExposureSeconds+=dt;if(coldExposureSeconds>30&&performance.now()-lastExposureDamageAt>3000){lastExposureDamageAt=performance.now();applyPlayerHit(25,{name:'EXPOSURE'});toast('COLD EXPOSURE · FIND FIRE');rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'WEATHER_EFFECT',p_event_key:null,p_value:25,p_payload:{effect:'COLD_EXPOSURE'}}).catch(()=>{})}
+  }else coldExposureSeconds=0;
+  if(rain)for(const z of infected)if(z.alive&&['zombie','runner','screamer'].includes(z.kind))z.detect=Math.max(z.detect,16);
+  if(wildfire)for(const z of infected)if(z.kind==='zombie_dog')z.detect=Math.max(z.detect,22);
+  const now=performance.now();
+  if(now-lastWeatherSpawnAt>45000&&(rain||wildfire)){
+    const revived=wildfire?reviveWeatherMonster('zombie_dog'):reviveWeatherMonster('zombie');
+    if(revived)lastWeatherSpawnAt=now;
+  }
+}
+function requestMobileGameMode(){
+  if(!MOBILE)return;
+  try{screen.orientation?.lock?.('landscape').catch(()=>{})}catch{}
+  try{if(!document.fullscreenElement)document.documentElement.requestFullscreen?.({navigationUI:'hide'}).catch(()=>{})}catch{}
 }
 async function pollLiveWeather(){
   const el=$('weatherLive');
@@ -1450,11 +1912,18 @@ async function pollLiveWeather(){
     if(el)el.textContent='LIVE WEATHER · RETRYING';
   }
 }
-function updateWorldLight(t){dayPhase=(dayPhase+dtGlobal*.002)%1;const sunAmt=Math.max(.12,Math.sin(dayPhase*Math.PI));sun.intensity=storm?1.05:1.2+sunAmt*1.2;hemi.intensity=storm?.72:1.15+sunAmt*.55;scene.background.set(storm?0x454c49:(dayPhase>.15&&dayPhase<.85?0x738071:0x172028));scene.fog.color.copy(scene.background);scene.fog.density=storm?.00105:.00072;renderer.toneMappingExposure=storm?.68:.72+sunAmt*.35;$('time').textContent=dayPhase>.15&&dayPhase<.85?'DAY':'NIGHT';flashlight.intensity=flash?5.5:0}
+function updateWorldLight(t){
+  const now=new Date(),utcHours=now.getUTCHours()+now.getUTCMinutes()/60,solarHour=(utcHours+lon/15+24)%24;
+  dayPhase=solarHour/24;const daylight=solarHour>=6.2&&solarHour<=19.4,sunAmt=daylight?Math.max(.12,Math.sin((solarHour-6.2)/(13.2)*Math.PI)):.05;
+  sun.intensity=storm?.72:(daylight?1.1+sunAmt*1.45:.12);hemi.intensity=storm?.58:(daylight?.9+sunAmt*.65:.22);
+  scene.background.set(storm?0x454c49:(daylight?0x738071:0x0c1520));scene.fog.color.copy(scene.background);scene.fog.density=storm?.00105:(daylight?.00072:.001);
+  renderer.toneMappingExposure=storm?.64:(daylight?.72+sunAmt*.35:.42);$('time').textContent=daylight?'DAY':'NIGHT';flashlight.intensity=flash?5.5:0;
+}
 let dtGlobal=0;
 function updateCamera(dt){
   if(dead)return;
   pollGamepad();
+  if(tdmMovementLocked()){moveX=0;moveY=0;sprint=false;slideTime=0;activeVehicle=null;activeZipline=null}
   if(activeZipline)updateZipline(dt);
   else if(activeVehicle)updateVehicle(dt);
   else{
@@ -1517,6 +1986,8 @@ async function startSpectatorHeartbeat(){
   beat();setInterval(beat,5000);
 }
 async function load(){
+  if(!horizonAccessToken())throw new Error('HORIZON_FREE_ACCOUNT_REQUIRED · SIGN IN FROM THE HORIZON LOBBY');
+  requestMobileGameMode();
   const west=lon-span/111.32/2,east=lon+span/111.32/2,south=lat-span/110.54/2,north=lat+span/110.54/2,u=new URL(ENDPOINT);
   for(const [k,v] of Object.entries({lat,lon,west,east,south,north,state:stateCode,span_km:span,cell_id:'HORIZON_MATCH_'+(matchId||matchSeed)}))u.searchParams.set(k,String(v));
   const r=await fetch(u,{cache:'no-store',headers:{apikey:PUBLISHABLE_KEY}});
@@ -1524,15 +1995,18 @@ async function load(){
   data=await r.json();if(!data?.complete)throw new Error(data?.error||'incomplete world stream');
   centerLon=(data.bbox.west+data.bbox.east)/2;centerLat=(data.bbox.south+data.bbox.north)/2;
   $('modeName').textContent=mode.replaceAll('_',' ');
-  $('zone').textContent=(data?.resolved_jurisdiction?.state||stateCode)+' · '+(data?.resolved_jurisdiction?.name||data?.resolved_jurisdiction?.label||'WORLD CELL');
+  $('zone').textContent=mode==='YEAR_ONE'?'YEAR ONE · CONTIGUOUS U.S.':((data?.resolved_jurisdiction?.state||stateCode)+' · '+(data?.resolved_jurisdiction?.name||data?.resolved_jurisdiction?.label||'WORLD CELL'));
   addSky();addGround();
   const roads=addRoads(),parcels=addParcels(),water=addWater(),buildings=addBuildings(),buildingParts=addBuildingParts();
-  addVegetation();addStreetLife();addAbandonment();const ziplineCount=buildZiplines(),vehicleCount=spawnVehicles(),disasterFx=addAmbientDisasterFx();
+  waterAreas.length=0;for(const row of data.water||[])for(const ring of rings(row.geometry)){const pts=ring.map(project);if(pts.length>=3)waterAreas.push(pts)}
+  await hydrateWeaponCatalog();if(mode==='TDM')await hydrateTdmLoadout();
+  addVegetation();addStreetLife();addAbandonment();await syncFiniteLoot('world');const ziplineCount=buildZiplines(),vehicleCount=spawnVehicles(),disasterFx=addAmbientDisasterFx();
 
   if(mode==='YEAR_ONE')await hydrateYearOneRuntime();
   await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
   const spawnType=mode==='YEAR_ONE'?applyPreciseSpawn():'MATCH';
-  updateVitals();updateAmmo();renderWeaponBar();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();
+  if(mode==='TDM')await beginTdmPrematch();
+  updateVitals();updateAmmo();renderWeaponBar();renderEquipmentButtons();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();heartbeatWorld(true);setInterval(()=>heartbeatWorld(false),10000);if(mode==='TDM'){pollTdmFireZone(true);setInterval(()=>pollTdmFireZone(false),2000)}if(mode==='YEAR_ONE'){pollYearOneZone(true);setInterval(()=>pollYearOneZone(false),2500);rpc('bridgepoint_horizon_exploration_v4340',{p_player_id:playerId,p_player_secret:playerSecret}).then(x=>(x?.cells||[]).forEach(q=>exploredCells.add(q.cell_key))).catch(()=>{})}
 
   if(mode==='YEAR_ONE'){
     checkpointYearOne(true);
@@ -1544,7 +2018,7 @@ async function load(){
     :`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · ${ziplineCount} ziplines · ${vehicleCount} vehicles · restored traversal active`;
 
   window.BP_HORIZON_V2={
-    ok:true,build:4336,mode,matchId,state:data?.resolved_jurisdiction?.state||stateCode,
+    ok:true,build:4341,mode,matchId,state:data?.resolved_jurisdiction?.state||stateCode,
     buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,
     terrainSource:terrainInfo?.source||'FLAT SAFETY FALLBACK',terrainFallback:!terrainInfo,
     infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,
@@ -1554,9 +2028,11 @@ async function load(){
     roofTraversal:true,drivableVehicles:true,vehicleFuelRepair:true,infectedPatrols:true,ambientDisasterFx:true,
     spatialAudio:true,adaptivePerformanceGovernor:true,instancedWorldProps:true,instancedRoadSurfaces:true,
     adaptiveShaderBudget:true,adaptiveExteriorDetailBudget:true,
+    tdm:mode==='TDM'?{playerHealthMax:150,shieldMax:0,targetPlayers:100,teamSize:50,prematchSeconds:10,fireCircleSeconds:1800,fireDamagePerSecond:25,loadoutPresets:5,attachmentSlots:7,deathLootDwellSeconds:3}:null,
     yearOne:mode==='YEAR_ONE'?{
       pveOnly:true,playerHealthMax:100,shieldMax:100,combinedMax:200,shieldPickup:50,monsterHitDamage:25,
-      spawnPolicy:'PRECISE_PLAYER_LOCATION',spawnType,persistentAggro:true,serverCheckpointed:true,
+      spawnPolicy:'PERSISTENT_LAST_LOCATION_AFTER_FIRST_ENTRY',spawnType,persistentAggro:true,serverCheckpointed:true,conusOnly:true,zombieWall:true,fiveFinalCities:true,
+      persistentExploration:true,sharedPresence:true,offlineDecay:true,finiteLoot:true,deathDrops:true,vehiclePartsRequired:true,
       monsterHealth:{spider:75,orc:150,zombie:100,zombie_dog:75,other:100}
     }:null
   };
@@ -1566,7 +2042,7 @@ function animate(){
   const now=performance.now(),rawDt=Math.max(.001,(now-last)/1000),dt=Math.min(.05,rawDt);last=now;dtGlobal=dt;
   const cadence=perfCadence();aiAccumulator+=dt;fxAccumulator+=dt;lightAccumulator+=dt;
   if(!dead){
-    updateCamera(dt);updateDwellPickup(now);if(shooting)shootOnce();
+    updateCamera(dt);updateDwellPickup(now);updateWaterSurvival(dt);applyWeatherGameplay(dt);updateZoneDamage(now);updateTdmFireDamage(now);heartbeatWorld(false);pollYearOneZone(false);pollTdmFireZone(false);if(shooting)shootOnce();
     if(aiAccumulator>=cadence.ai){const step=Math.min(.08,aiAccumulator);if(mode==='TDM')updateCombatants(step,now);else updateInfected(step,now);if(perfTier>=3)updateActorProxies();aiAccumulator=0}
     if(now-(killSnapshots.at(-1)?.t||0)>80)snapshotKillcam(now);
   }else if(aiAccumulator>=cadence.ai){
@@ -1590,6 +2066,9 @@ $('aimBtn').addEventListener('click',()=>{aiming=!aiming;sprint=false;$('aimBtn'
 const shootOn=()=>{shooting=true;$('shootBtn').classList.add('active');shootOnce()},shootOff=()=>{shooting=false;$('shootBtn').classList.remove('active')};
 $('shootBtn').addEventListener('pointerdown',shootOn);$('shootBtn').addEventListener('pointerup',shootOff);$('shootBtn').addEventListener('pointercancel',shootOff);$('shootBtn').addEventListener('lostpointercapture',shootOff);
 $('buildBtn').addEventListener('click',buildCover);
+$('tacticalBtn1')?.addEventListener('click',()=>useEquipment('tactical1'));
+$('tacticalBtn2')?.addEventListener('click',()=>useEquipment('tactical2'));
+$('lethalBtn')?.addEventListener('click',()=>useEquipment('lethal'));
 $('contextBtn')?.addEventListener('click',contextUse);
 $('utilityToggle')?.addEventListener('click',()=>{$('utilityRail')?.classList.toggle('open')});
 $('viewBtn')?.addEventListener('click',()=>{cycleCameraMode();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
@@ -1597,6 +2076,7 @@ $('crouchBtn')?.addEventListener('click',()=>{toggleCrouch();if(matchMedia?.('(p
 $('jumpBtn')?.addEventListener('click',()=>{jumpOrVault();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
 $('weaponBtn')?.addEventListener('click',()=>{cycleWeapon();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
 $('dropBtn')?.addEventListener('click',()=>{dropActiveWeapon();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
+$('fireUtilityBtn')?.addEventListener('click',()=>{buildCampfire();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
 $('lightUtilityBtn')?.addEventListener('click',()=>{toggleFlashlight();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
 $('skipKillcam').addEventListener('click',finishDeathFlow);
 const keys={};
@@ -1605,13 +2085,17 @@ addEventListener('keydown',e=>{
   if(e.code==='KeyQ'){aiming=!aiming;$('aimBtn').classList.toggle('active',aiming)}
   if(e.code==='KeyR')reload();
   if(e.code==='KeyB')buildCover();
+  if(e.code==='KeyH')buildCampfire();
   if(e.code==='KeyT')toggleFlashlight();
   if(e.code==='KeyV')cycleCameraMode();
   if(e.code==='KeyC')toggleCrouch();
   if(e.code==='KeyF'||e.code==='KeyE')contextUse();
   if(e.code==='KeyX')dropActiveWeapon();
   if(e.code==='KeyG')cycleWeapon();
-  if(/^Digit[1-5]$/.test(e.code))equipWeaponIndex(Number(e.code.slice(-1))-1);
+  if(e.code==='KeyZ')useEquipment('tactical1');
+  if(e.code==='KeyN')useEquipment('tactical2');
+  if(e.code==='KeyM')useEquipment('lethal');
+  if(/^Digit[1-5]$/.test(e.code)){const k=inventoryWeaponKeys[Number(e.code.slice(-1))-1];if(k)equipWeaponKey(k)}
   if(e.code==='Space'){if(dead)finishDeathFlow();else jumpOrVault();e.preventDefault()}
 });
 addEventListener('keyup',e=>keys[e.code]=false);

@@ -29,6 +29,15 @@ struct FHorizonModeRules
     int32 MaxPartySize = 1;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    int32 TargetPlayers = 1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    int32 TeamSize = 1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    bool bBotBackfill = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
     bool bFriendInvitesAllowed = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly)

@@ -1,8 +1,18 @@
-name: Browser Test Horizon Playable v4336
+name: Browser Test Horizon Playable v4341
 
 on:
   workflow_dispatch:
   push:
+    branches: [main]
+    paths:
+      - 'app/horizon-playable/v2-entry.html'
+      - 'app/horizon-playable/index.html'
+      - 'app/horizon-playable/horizon-v2.js'
+      - 'app/horizon-playable/horizon-v2.css'
+      - 'app/horizon-playable/assets/characters/**'
+      - 'scripts/browser-horizon-v2-live.mjs'
+      - '.github/workflows/browser-test-horizon-playable-v2980.yml'
+  pull_request:
     branches: [main]
     paths:
       - 'app/horizon-playable/v2-entry.html'
@@ -17,7 +27,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: horizon-playable-v4336
+  group: horizon-playable-v4341
   cancel-in-progress: true
 
 jobs:
@@ -48,6 +58,12 @@ jobs:
           grep -Fq 'id="killCam"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="miniMap"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="weaponBar"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="backpackBar"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="equipmentRail"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="prematchFreeze"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="fireUtilityBtn"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="wallLive"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="activePlayers"' app/horizon-playable/v2-entry.html
           ! grep -Fq 'id="viewBtn"' app/horizon-playable/v2-entry.html
           grep -Fq "let cameraMode='first'" app/horizon-playable/horizon-v2.js
           grep -Fq "cameraMode='first';localStorage.setItem('horizon-camera-mode','first')" app/horizon-playable/horizon-v2.js
@@ -58,6 +74,15 @@ jobs:
           grep -Fq 'id="shieldBar"' app/horizon-playable/v2-entry.html
           grep -Fq '(now-pickupStarted)/3000' app/horizon-playable/horizon-v2.js
           grep -Fq 'bridgepoint_horizon_year_one_checkpoint_v4337' app/horizon-playable/horizon-v2.js
+          grep -Fq 'build:4341' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_year_one_zone_v4340' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_weapon_catalog_v4340' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_death_drop_claim_v4340' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_record_player_kill_v4340' app/horizon-playable/horizon-v2.js
+          grep -Fq 'syncFiniteLoot' app/horizon-playable/horizon-v2.js
+          grep -Fq 'inventoryWeaponKeys' app/horizon-playable/horizon-v2.js
+          grep -Fq 'function buildCampfire' app/horizon-playable/horizon-v2.js
+          grep -Fq 'const target=100' app/horizon-playable/horizon-v2.js
           ! grep -Fq 'id="useBtn"' app/horizon-playable/v2-entry.html
           ! grep -Fq 'id="lightBtn"' app/horizon-playable/v2-entry.html
           ! grep -Fq 'id="weatherBtn"' app/horizon-playable/v2-entry.html

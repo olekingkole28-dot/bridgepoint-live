@@ -78,8 +78,10 @@ for stem in required_source:
 arena_director = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonArenaDirectorSubsystem.cpp")
 require(arena_director.count('Add(TEXT("tdm_') == 50,
         "native TDM fallback must contain exactly 50 real-location arenas")
-for token in ["GetRankedArenas(50)", "RotationCounter", "PoolSize", "LastArenaId"]:
-    require(token in arena_director, f"50-map automatic native arena rotation missing: {token}")
+for token in ["GetRankedArenas(50)", "GetVoteCandidates", "ResolveArenaVote", "RandomVotes", "RotationCounter", "PoolSize", "LastArenaId"]:
+    require(token in arena_director, f"50-map native arena vote/fallback contract missing: {token}")
+require('TEXT("Solstice"), TEXT("AZ"), 33.4484, -112.0740' in arena_director,
+        "native map 50 must use Phoenix/Arizona instead of a Year One-excluded territory")
 
 infected_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonInfectedDirectorSubsystem.h")
 infected = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonInfectedDirectorSubsystem.cpp")
@@ -120,6 +122,10 @@ require("2026-10-01 00:00 America/New_York" in default_game,
         "native config must document fixed Oct 1 Year One launch")
 
 social = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonSocialSubsystem.cpp")
+tdm_native = game_state.partition("case EHorizonGameMode::InfiniteTDM:")[2].partition("case EHorizonGameMode::OutbreakRaid:")[0]
+for token in ["Rules.TargetPlayers = 100", "Rules.TeamSize = 50", "Rules.bBotBackfill = true", "Rules.bRespawns = false"]:
+    require(token in tdm_native, f"native v4341 TDM population/death rule missing: {token}")
+
 require("Year One Survival is solo-only." in social, "Year One party rejection missing")
 require("bUseLobbiesVoiceChatIfAvailable = true" in social, "lobby voice auto-join is not enabled")
 
@@ -1038,8 +1044,11 @@ if mode_contract_path.exists():
     require(year.get("event", {}).get("auto_start") is True,
             "Year One countdown must automatically unlock play")
     require(year.get("pvp") is False, "Year One must remain PVE-only")
-    require(year.get("spawn", {}).get("policy") == "PRECISE_PLAYER_LOCATION",
-            "Year One must spawn from the player's precise location")
+    require(year.get("spawn", {}).get("policy") == "PRECISE_FIRST_ENTRY_THEN_SAVED_LOCATION",
+            "Year One must use precise first entry then resume the persisted survivor location")
+    require(year.get("world", {}).get("scope") == "contiguous_us_48_only" and
+            year.get("world", {}).get("gameplay_jurisdiction_borders") is False,
+            "Year One must remain contiguous-US only with no gameplay jurisdiction borders")
     require(year.get("player_vitals", {}).get("monster_hit_damage") == 25,
             "Year One monster hits must deal exactly 25 points")
     require(year.get("player_vitals", {}).get("shield_max") == 100 and
@@ -1053,10 +1062,42 @@ if mode_contract_path.exists():
     tdm = by_key.get("infinite_tdm", {})
     require(tdm.get("party", {}).get("supported") == [1, 2, 3, 4],
             "TDM must support solo, duo, trio and squad parties")
-    require(tdm.get("format") == "6v6", "TDM must remain 6v6")
+    require(tdm.get("format") == "100_PLAYERS_50V50_TARGET",
+            "TDM must target the 100-player / 50-vs-50 population")
+    require(tdm.get("target_players") == 100 and tdm.get("team_size") == 50,
+            "TDM target population/team size changed")
+    require(tdm.get("player_vitals", {}).get("health") == 150 and
+            tdm.get("player_vitals", {}).get("shield") == 0,
+            "TDM must remain 150 health with no shield")
+    require(tdm.get("bot_backfill", {}).get("enabled") is True and
+            tdm.get("bot_backfill", {}).get("after_seconds") == 5,
+            "TDM must retain fast bot backfill")
+    vote = tdm.get("map_vote", {})
+    require(vote.get("choices") == 2 and vote.get("random_option") is True and
+            vote.get("seconds") == 10 and vote.get("audio_countdown") is True,
+            "TDM must use the two-map plus Random ten-second vote")
+    prematch = tdm.get("prematch", {})
+    require(prematch.get("world_loaded") is True and prematch.get("countdown_seconds") == 10 and
+            prematch.get("camera_look") is True and prematch.get("movement") is False and
+            prematch.get("shooting") is False,
+            "TDM prematch must load the world and lock movement/combat for ten seconds")
+    fire = tdm.get("fire_circle", {})
+    require(fire.get("duration_seconds") == 1800 and fire.get("damage_per_second") == 25 and
+            fire.get("staged_move_pause") is True and fire.get("bot_escape") is True,
+            "TDM wildfire circle contract changed")
+    loadouts = tdm.get("loadouts", {})
+    require(loadouts.get("starter_presets") == 5 and
+            loadouts.get("attachment_slots") == ["OPTIC","BARREL","MUZZLE","UNDERBARREL","MAGAZINE","STOCK","GRIP"],
+            "TDM five-class / seven-attachment-slot contract changed")
+    inventory = tdm.get("inventory", {})
+    require(inventory.get("quick_slots") == 5 and inventory.get("backpack_slots") == 5 and
+            inventory.get("death_loot_dwell_seconds") == 3 and inventory.get("ammo_spare_clips_max") == 4,
+            "TDM inventory / three-second death-loot contract changed")
     arena = tdm.get("arena_switcher", {})
-    require(arena.get("automatic") is True and arena.get("map_count") == 50,
-            "TDM must automatically rotate exactly 50 real-location arenas")
+    require(arena.get("automatic") is False and arena.get("map_count") == 50 and
+            arena.get("selection") == "TWO_MAPS_PLUS_RANDOM_10_SECOND_VOTE" and
+            arena.get("one_word_names") is True,
+            "TDM must keep exactly 50 one-word real-location arenas behind the vote")
 
 importer = read("unreal/BridgePointHorizon/Scripts/horizon_batch_import.py")
 for token in [

@@ -37,6 +37,34 @@ function makeLobbyRifle(){
   const mag=new THREE.Mesh(new THREE.BoxGeometry(.055,.12,.07),metal);mag.position.set(0,-.08,.03);mag.rotation.x=-.28;
   g.add(receiver,barrel,stock,mag);g.scale.setScalar(.72);return g;
 }
+
+function stylizedLobbyAvatar(profile={}){
+  const g=new THREE.Group(),a=profile.appearance||{};
+  const skin=new THREE.MeshStandardMaterial({color:new THREE.Color(a.skin_tone||'#a96f50'),roughness:.62,metalness:.02});
+  const cloth=new THREE.MeshStandardMaterial({color:new THREE.Color(a.top_color||'#245f55'),roughness:.48,metalness:.08});
+  const pants=new THREE.MeshStandardMaterial({color:new THREE.Color(a.bottom_color||'#252c31'),roughness:.58,metalness:.05});
+  const hair=new THREE.MeshStandardMaterial({color:new THREE.Color(a.hair_color||'#21170f'),roughness:.76});
+  const eye=new THREE.MeshStandardMaterial({color:new THREE.Color(a.eye_color||'#5ec8ff'),roughness:.25,emissive:new THREE.Color(a.eye_color||'#5ec8ff'),emissiveIntensity:.08});
+  const dark=new THREE.MeshStandardMaterial({color:0x101618,roughness:.42,metalness:.18});
+  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.33,.68,8,16),cloth);torso.rotation.x=Math.PI/2;torso.position.z=1.16;g.add(torso);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.29,24,18),skin);head.scale.set(.94,.88,1.06);head.position.z=1.96;g.add(head);
+  for(const side of[-1,1]){
+    const ew=new THREE.Mesh(new THREE.SphereGeometry(.05,14,10),new THREE.MeshStandardMaterial({color:0xf5f0e9,roughness:.22}));ew.scale.set(1.12,.42,.72);ew.position.set(side*.105,-.26,2.0);g.add(ew);
+    const ir=new THREE.Mesh(new THREE.SphereGeometry(.024,12,8),eye);ir.scale.set(1,.35,1);ir.position.set(side*.105,-.297,2.0);g.add(ir);
+    const arm=new THREE.Mesh(new THREE.CapsuleGeometry(.09,.57,7,10),cloth);arm.rotation.x=Math.PI/2;arm.position.set(side*.46,0,1.24);g.add(arm);
+    const fore=new THREE.Mesh(new THREE.CapsuleGeometry(.075,.48,7,10),skin);fore.rotation.x=Math.PI/2;fore.position.set(side*.59,-.05,.88);g.add(fore);
+    const hand=new THREE.Mesh(new THREE.BoxGeometry(.16,.12,.17),skin);hand.position.set(side*.68,-.07,.58);g.add(hand);
+    for(let j=0;j<5;j++){const finger=new THREE.Mesh(new THREE.CapsuleGeometry(.012,.065,4,6),skin);finger.rotation.x=Math.PI/2;finger.position.set(side*(.72+j*.004),-.095+(j-2)*.023,.50-j*.004);g.add(finger)}
+    const thigh=new THREE.Mesh(new THREE.CapsuleGeometry(.13,.62,7,10),pants);thigh.rotation.x=Math.PI/2;thigh.position.set(side*.18,0,.38);g.add(thigh);
+    const calf=new THREE.Mesh(new THREE.CapsuleGeometry(.115,.53,7,10),pants);calf.rotation.x=Math.PI/2;calf.position.set(side*.18,0,-.15);g.add(calf);
+    const shoe=new THREE.Mesh(new THREE.BoxGeometry(.27,.44,.15),dark);shoe.position.set(side*.18,-.10,-.48);g.add(shoe);
+  }
+  const hairCap=new THREE.Mesh(new THREE.SphereGeometry(.30,20,14,0,Math.PI*2,0,Math.PI*.53),hair);hairCap.position.z=2.08;g.add(hairCap);
+  if(String(a.headwear||'NONE')!=='NONE'){const cap=new THREE.Mesh(new THREE.CylinderGeometry(.31,.32,.12,20),dark);cap.position.z=2.22;g.add(cap)}
+  if(String(a.sunglasses||'NONE')!=='NONE'){const bar=new THREE.Mesh(new THREE.BoxGeometry(.30,.025,.065),dark);bar.position.set(0,-.294,2.0);g.add(bar)}
+  if(String(a.backpack||'NONE')!=='NONE'){const pack=new THREE.Mesh(new THREE.BoxGeometry(.42,.18,.58),new THREE.MeshStandardMaterial({color:0x31483f,roughness:.5,metalness:.12}));pack.position.set(0,.22,1.10);g.add(pack)}
+  return g;
+}
 function createLobbyIdleRig(root,phase){
   const names=['head','neck_01','spine_03','upperarm_l','upperarm_r','lowerarm_l','lowerarm_r','hand_l','hand_r','thigh_l','thigh_r','calf_l','calf_r'];
   const bones={};const rest={};
@@ -111,6 +139,25 @@ export function createLobbyScene(canvas){
     m.position.set((Math.random()-.5)*18,.2+(i%3===0?.32:.15),-2-Math.random()*8);
     m.rotation.set(Math.random()*.3,Math.random()*Math.PI,Math.random()*.15);m.castShadow=true;m.receiveShadow=true;scene.add(m);
   }
+  const backdropGroup=new THREE.Group();scene.add(backdropGroup);
+  const buildingMat=new THREE.MeshStandardMaterial({color:0x18211f,roughness:.82,metalness:.12}),windowMat=new THREE.MeshStandardMaterial({color:0x6fdcc6,emissive:0x173f37,emissiveIntensity:.5,roughness:.25});
+  for(let i=0;i<18;i++){
+    const w=.8+Math.random()*1.8,d=.7+Math.random()*1.4,h=1.8+Math.random()*5.2,b=new THREE.Mesh(new THREE.BoxGeometry(w,d,h),buildingMat.clone());
+    b.position.set(-11+i*1.3,.02+h/2,-8-Math.random()*4);b.rotation.z=(Math.random()-.5)*.025;backdropGroup.add(b);
+    const rows=Math.max(2,Math.floor(h/.55));for(let r=0;r<rows;r++){const win=new THREE.Mesh(new THREE.PlaneGeometry(w*.62,.10),windowMat.clone());win.position.set(b.position.x,b.position.y-.52,b.position.z-h/2+.45+r*.50);win.rotation.x=Math.PI/2;backdropGroup.add(win)}
+  }
+  function lobbyCar(x,z,rot=0){
+    const car=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(1.55,.72,.34),new THREE.MeshStandardMaterial({color:0x38484a,roughness:.42,metalness:.45})),cab=new THREE.Mesh(new THREE.BoxGeometry(.78,.62,.32),new THREE.MeshStandardMaterial({color:0x142027,roughness:.2,metalness:.3}));
+    body.position.z=.24;cab.position.set(.08,0,.53);car.add(body,cab);for(const sx of[-.48,.48])for(const sy of[-.31,.31]){const wh=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.09,14),new THREE.MeshStandardMaterial({color:0x111111,roughness:.9}));wh.rotation.x=Math.PI/2;wh.position.set(sx,sy,.12);car.add(wh)}
+    car.position.set(x,.02,z);car.rotation.y=rot;backdropGroup.add(car)
+  }
+  lobbyCar(-5.5,-3.5,.18);lobbyCar(5.8,-4.4,-.22);lobbyCar(8.5,-7.2,.4);
+  function lobbyTree(x,z,s=1){
+    const t=new THREE.Group(),trunk=new THREE.Mesh(new THREE.CylinderGeometry(.10,.16,1.25,10),new THREE.MeshStandardMaterial({color:0x3b2d23,roughness:1}));trunk.position.z=.62;t.add(trunk);
+    for(let i=0;i<4;i++){const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(.52+.12*Math.random(),2),new THREE.MeshStandardMaterial({color:i%2?0x263e31:0x314d37,roughness:.96}));crown.position.set((Math.random()-.5)*.35,(Math.random()-.5)*.35,1.25+i*.18);t.add(crown)}
+    t.position.set(x,0,z);t.scale.setScalar(s);backdropGroup.add(t)
+  }
+  [-8.5,-6.8,-3.8,3.5,6.8,9.2].forEach((x,i)=>lobbyTree(x,-3.8-(i%3)*1.4,.8+(i%2)*.25));
   const ribMat=new THREE.MeshStandardMaterial({color:0x211d19,roughness:1});
   for(let i=0;i<9;i++){
     const wall=new THREE.Mesh(new THREE.BoxGeometry(.12,1.2+Math.random()*1.8,2.2+Math.random()*2.5),ribMat);
@@ -128,12 +175,21 @@ export function createLobbyScene(canvas){
   const slotGroup=new THREE.Group();scene.add(slotGroup);
   const zombieGroup=new THREE.Group();scene.add(zombieGroup);
   const cache=new Map();
-  let catalog=new Map(),party=[],models=[],zombies=[],destroyed=false;
+  let catalog=new Map(),party=[],models=[],zombies=[],destroyed=false,localCharacter=null,localPlayerId=null;
 
   async function modelFor(charKey,zombie=false){
     const c=catalog.get(charKey)||catalog.values().next().value;
     if(!c)return null;
     const key=c.model_path;
+    if(String(key||'').startsWith('catalog://')){
+      const low=String(charKey||key).toLowerCase(),appearance={
+        skin_tone:low.includes('vanta')?'#6f4a3e':low.includes('moxie')?'#c78969':'#a96f50',
+        top_color:low.includes('cipher')?'#4b3d72':low.includes('riot')?'#783f35':low.includes('vanta')?'#26334d':'#245f55',
+        bottom_color:'#202831',hair_color:low.includes('nova')?'#d7b273':'#1d1612',eye_color:low.includes('cipher')?'#9b7cff':'#5ec8ff',
+        backpack:'TECH',headwear:low.includes('riot')?'CAP':'NONE',sunglasses:low.includes('vanta')?'VISOR':'NONE'
+      };
+      const root=stylizedLobbyAvatar({appearance,preset_key:charKey});if(zombie)tintModel(root,1,true);return root;
+    }
     let asset=cache.get(key);
     if(!asset){asset=await loadGltf(key);cache.set(key,asset)}
     const root=skeletonClone(asset.scene);
@@ -159,7 +215,7 @@ export function createLobbyScene(canvas){
       const m=party.find(x=>Number(x.slot)===i+1);
       if(!m){addOpenSlot(i);continue}
       try{
-        const root=await modelFor(m.avatar_key,false);
+        const root=(localCharacter&&localPlayerId&&m.player_id===localPlayerId)?stylizedLobbyAvatar(localCharacter):await modelFor(m.avatar_key,false);
         if(rebuildPlayers.token!==token||!root)return;
         root.scale.setScalar(1.02);
         root.position.set(POS[i],.06,.18);
@@ -231,7 +287,8 @@ export function createLobbyScene(canvas){
   }
   requestAnimationFrame(frame);
 
-  return{setCatalog,setParty,getStats:()=>({
+  function setLocalCharacter(profile,playerId){localCharacter=profile||null;localPlayerId=playerId||null;rebuildPlayers()}
+  return{setCatalog,setParty,setLocalCharacter,getStats:()=>({
     models:models.length,
     idleRigs:models.filter(m=>m.rig&&Object.keys(m.rig.bones||{}).length>=6).length,
     armedIdle:models.filter(m=>m.root?.getObjectByName?.('lobby-rifle')).length,

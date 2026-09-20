@@ -1,7 +1,7 @@
 {
-  "schema_version": 3,
-  "build_target": 4336,
-  "updated_at": "2026-09-19",
+  "schema_version": 5,
+  "build_target": 4341,
+  "updated_at": "2026-09-20",
   "authoritative_modes": [
     {
       "mode_key": "year_one_survival",
@@ -27,17 +27,18 @@
       },
       "world": {
         "source": "BridgePoint shared world stream",
-        "scope": "continuous_us_and_jurisdictions",
+        "scope": "contiguous_us_48_only",
         "building_fidelity": "source geometry, source height, source floors, source roofs",
-        "renderer_rule": "never drop a source building for visual LOD; adapt collision and fine dressing instead"
+        "renderer_rule": "never drop a source building for visual LOD; adapt collision and fine dressing instead",
+        "gameplay_jurisdiction_borders": false
       },
       "interiors": "fictional_generated_only",
       "progression": "zombies begin easier and scale with event day, region, density and world pressure",
-      "endgame": "perimeter zombie wall progressively closes survivors toward major-city final showdowns",
+      "endgame": "literal CONUS zombie wall closes through five final cities",
       "proximity_voice": false,
       "pvp": false,
       "spawn": {
-        "policy": "PRECISE_PLAYER_LOCATION",
+        "policy": "PRECISE_FIRST_ENTRY_THEN_SAVED_LOCATION",
         "inside_building": "spawn inside streamed building",
         "street": "spawn at exact outdoor coordinate"
       },
@@ -73,13 +74,15 @@
         "seconds": 3,
         "progress": "RADIAL"
       },
-      "persistence": "SERVER_CHECKPOINTED_V4336"
+      "persistence": "SERVER_CHECKPOINTED_V4340_EXPANSION",
+      "account_required": true,
+      "active_player_count": true
     },
     {
       "mode_key": "infinite_tdm",
       "name": "TEAM DEATHMATCH",
       "type": "team_pvp",
-      "format": "6v6",
+      "format": "100_PLAYERS_50V50_TARGET",
       "perspective": "FIRST_PERSON_ONLY",
       "party": {
         "min": 1,
@@ -100,7 +103,7 @@
       },
       "matchmaking": "party_and_skill",
       "arena_switcher": {
-        "automatic": true,
+        "automatic": false,
         "map_count": 50,
         "repeat_rule": "complete ordered pool before wrap",
         "source": "BridgePoint streamed world cells",
@@ -120,12 +123,114 @@
         "avoid": [
           "flat empty low-interest cells",
           "wide low-cover fields"
-        ]
+        ],
+        "selection": "TWO_MAPS_PLUS_RANDOM_10_SECOND_VOTE",
+        "one_word_names": true,
+        "loading": "CONUS_LOCATOR_ZOOM_TO_SOURCE_BACKED_CELL"
       },
-      "respawns": true,
+      "respawns": "BOTS_BACKFILL_AND_COMBATANTS_ONLY__LOCAL_PLAYER_RETURNS_TO_LOBBY",
       "killcams": true,
       "proximity_voice": true,
-      "team_voice": true
+      "team_voice": true,
+      "target_players": 100,
+      "team_size": 50,
+      "bot_backfill": {
+        "enabled": true,
+        "after_seconds": 5,
+        "difficulty": "MODERATE"
+      },
+      "map_vote": {
+        "choices": 2,
+        "random_option": true,
+        "seconds": 10,
+        "audio_countdown": true,
+        "highest_votes_wins": true
+      },
+      "build_limit": 3,
+      "inventory": {
+        "quick_slots": 5,
+        "backpack_slots": 5,
+        "death_loot_dwell_seconds": 3,
+        "ammo_spare_clips_max": 4
+      },
+      "death_flow": "10_SECOND_KILLCAM_THEN_RETURN_TO_LOBBY",
+      "player_vitals": {
+        "health": 150,
+        "shield": 0
+      },
+      "prematch": {
+        "world_loaded": true,
+        "countdown_seconds": 10,
+        "camera_look": true,
+        "movement": false,
+        "shooting": false,
+        "bots_frozen": true
+      },
+      "fire_circle": {
+        "duration_seconds": 1800,
+        "staged_move_pause": true,
+        "damage_per_second": 25,
+        "bot_escape": true,
+        "final_radius_m": 55
+      },
+      "loadouts": {
+        "starter_presets": 5,
+        "presets": [
+          {
+            "slot": 1,
+            "primary_class": "SMG",
+            "secondary_class": "PISTOL",
+            "tactical_slots": 2,
+            "lethal_slots": 1
+          },
+          {
+            "slot": 2,
+            "primary_class": "ASSAULT_RIFLE",
+            "secondary_class": "PISTOL",
+            "tactical_slots": 2,
+            "lethal_slots": 1
+          },
+          {
+            "slot": 3,
+            "primary_class": "LMG",
+            "secondary_class": "PISTOL",
+            "tactical_slots": 2,
+            "lethal_slots": 1
+          },
+          {
+            "slot": 4,
+            "primary_class": "SNIPER",
+            "secondary_class": "SMG",
+            "tactical_slots": 2,
+            "lethal_slots": 1
+          },
+          {
+            "slot": 5,
+            "type": "CUSTOM",
+            "tactical_slots": 2,
+            "lethal_slots": 1
+          }
+        ],
+        "attachment_slots": [
+          "OPTIC",
+          "BARREL",
+          "MUZZLE",
+          "UNDERBARREL",
+          "MAGAZINE",
+          "STOCK",
+          "GRIP"
+        ],
+        "extra_slots_from": [
+          "STORE",
+          "BATTLE_PASS"
+        ]
+      },
+      "controller_and_headset": "BROWSER_DEVICE_CAPABILITY_BEST_EFFORT",
+      "party_chat": {
+        "text": true,
+        "webrtc_voice": true,
+        "max_party_size": 4
+      }
     }
   ],
   "shared_lobby": {
@@ -145,10 +250,29 @@
       "party roster",
       "voice settings",
       "audio settings",
-      "ready state"
+      "ready state",
+      "party text chat",
+      "headset voice",
+      "TDM class builder",
+      "weapon attachments",
+      "public live counters",
+      "owner audit",
+      "friends handle search",
+      "friend requests",
+      "direct lobby invite inbox",
+      "block/unblock",
+      "private player reports",
+      "owner/co-owner moderation queue"
     ],
     "year_one_behavior": "player may customize in shared lobby but launching Year One always forces solo and cannot bring the party into the match",
-    "tdm_behavior": "players may queue solo, duo, trio or squad; matchmaking rotates the 50-map real-location pool automatically"
+    "tdm_behavior": "players may queue solo, duo, trio or squad; each match votes between two of the 50 real-location maps or Random for 10 seconds",
+    "account_required": true,
+    "unique_handle": true,
+    "character_creator": true,
+    "stats": true,
+    "rules": true,
+    "about": true,
+    "owner_metrics": true
   },
   "audio": {
     "quality_target": "premium cinematic AAA-style original audio",
@@ -233,7 +357,7 @@
   },
   "commerce": {
     "battle_pass_price_usd": 9.99,
-    "battle_pass_levels": 150,
+    "battle_pass_levels": 30,
     "provider": "reserved_for_existing_Stripe_account",
     "stripe_connection_status": "DO_NOT_CONNECT_UNTIL_OWNER_EXPLICITLY_SAYS_TO_AT_THE_END",
     "store_categories": [
@@ -248,7 +372,83 @@
       "profile cosmetics"
     ],
     "daily_free_rewards": true,
-    "pay_to_win": false
+    "pay_to_win": false,
+    "battle_pass_rotation": "MONTHLY",
+    "store_rotation": "WEEKLY",
+    "checkout_enabled": false,
+    "permanent_year_one_products": [
+      {
+        "sku": "yearone_life_1",
+        "price_usd": 20,
+        "restore_lives": 1
+      },
+      {
+        "sku": "yearone_lives_3",
+        "price_usd": 50,
+        "restore_lives": 3
+      }
+    ],
+    "owner_auto_entitlements": true
   },
-  "perspective": "FIRST_PERSON_ONLY"
+  "perspective": "FIRST_PERSON_ONLY",
+  "progression": {
+    "level_max": 100,
+    "prestige_max": 15,
+    "prestige_character_choices": 3,
+    "leaderboards": [
+      "kills",
+      "wins",
+      "time",
+      "xp"
+    ],
+    "weapon_rarities": [
+      "COMMON",
+      "UNCOMMON",
+      "RARE",
+      "EPIC",
+      "LEGENDARY",
+      "MYTHIC"
+    ]
+  },
+  "social_and_safety": {
+    "friends": {
+      "handle_search": true,
+      "friend_requests": true,
+      "accept_decline_cancel": true,
+      "unfriend": true,
+      "online_mode_presence": true
+    },
+    "lobby_invites": {
+      "friends_only": true,
+      "inbox": true,
+      "accept_decline": true,
+      "expires_minutes": 15,
+      "party_size_max": 4
+    },
+    "blocking": {
+      "block_unblock": true,
+      "cancels_friendship": true,
+      "cancels_pending_requests": true,
+      "cancels_direct_invites": true,
+      "filters_party_chat_and_voice_for_blocker": true
+    },
+    "reporting": {
+      "private": true,
+      "categories": [
+        "CHEATING",
+        "HARASSMENT",
+        "VOICE_ABUSE",
+        "GRIEFING",
+        "EXPLOIT",
+        "INAPPROPRIATE_NAME",
+        "OTHER"
+      ],
+      "owner_coowner_queue": true,
+      "match_party_context": true
+    },
+    "privacy": {
+      "friend_surface_exposes_email": false,
+      "owner_moderation_may_view_account_email": true
+    }
+  }
 }
