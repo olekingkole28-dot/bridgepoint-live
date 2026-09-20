@@ -230,7 +230,7 @@ async function bootstrap(){
     catalog_characters:completeCharacterCatalog().length,
     store_items:state.catalog?.store?.length||0,
     battle_pass_rewards:state.catalog?.battle_pass?.length||0,
-    map_count:state.maps.length,map_rotation:'AUTOMATIC',
+    map_count:state.maps.length,map_rotation:'VOTE_TWO_PLUS_RANDOM',
     checkout_enabled:false,account_required:true,authenticated:!!state.session,account_linked:!!state.account,
     tdm_target_players:100,map_vote_seconds:10,year_one_scope:'CONUS_48',active_players:state.activePlayers,
     lobbyScene:()=>lobbyScene?.getStats?.()||null
