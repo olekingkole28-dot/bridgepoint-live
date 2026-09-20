@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/SaveGame.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "HorizonAudioDirectorSubsystem.h"
 #include "HorizonVehicleSubsystem.generated.h"
 
 UENUM(BlueprintType)
@@ -62,6 +63,21 @@ struct FHorizonVehicleState
     bool bDestroyed = false;
 };
 
+USTRUCT(BlueprintType)
+struct FHorizonVehicleAudioFrame
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    FGuid VehicleId;
+
+    UPROPERTY(BlueprintReadOnly)
+    float SpeedKph = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    FHorizonVehicleAudioMix Mix;
+};
+
 UCLASS()
 class BRIDGEPOINTHORIZON_API UHorizonVehicleSaveGame : public USaveGame
 {
@@ -77,6 +93,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
     const FHorizonVehicleState&,
     VehicleState);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+    FHorizonVehicleAudioUpdated,
+    const FHorizonVehicleAudioFrame&,
+    AudioFrame);
+
 UCLASS()
 class BRIDGEPOINTHORIZON_API UHorizonVehicleSubsystem : public UGameInstanceSubsystem
 {
@@ -87,6 +108,9 @@ public:
 
     UPROPERTY(BlueprintAssignable)
     FHorizonVehicleStateChanged OnVehicleStateChanged;
+
+    UPROPERTY(BlueprintAssignable)
+    FHorizonVehicleAudioUpdated OnVehicleAudioUpdated;
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Vehicle")
     bool RegisterVehicle(
@@ -120,6 +144,7 @@ public:
 
     UFUNCTION(BlueprintPure, Category="Horizon|Vehicle")
     static FHorizonVehicleTuning GetTuning(EHorizonVehicleClass VehicleClass);
+    static EHorizonVehicleAudioClass ResolveAudioClass(EHorizonVehicleClass VehicleClass);
 
     static bool CanStartEngine(const FHorizonVehicleState& State, FGuid DriverId);
     static bool IsDriverAuthorized(const FHorizonVehicleState& State, FGuid DriverId);
@@ -147,4 +172,5 @@ private:
 
     void SaveState();
     void BroadcastVehicle(const FHorizonVehicleState& Vehicle);
+    void BroadcastVehicleAudio(const FHorizonVehicleState& Vehicle, float SpeedKph);
 };
