@@ -87,6 +87,56 @@ bool FHorizonWorldSourceRoofProfileTest::RunTest(const FString& Parameters)
         AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
             TEXT("gabled"), 2.8, 11.0),
         0.0);
+    TestEqual(
+        TEXT("Explicit rectangular skillion resolves to sloped profile"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(TEXT("skillion"), 4),
+        EHorizonSourceRoofProfile::Skillion);
+    TestEqual(
+        TEXT("Shed alias resolves to skillion profile"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(TEXT("shed"), 4),
+        EHorizonSourceRoofProfile::Skillion);
+    TestEqual(
+        TEXT("Source skillion height is preserved"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
+            TEXT("skillion"), 2.4, 9.0, 4),
+        2.4);
+    TestEqual(
+        TEXT("Non-rectangular skillion fails flat"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(TEXT("skillion"), 5),
+        EHorizonSourceRoofProfile::Flat);
+
+    const TArray<FVector2D> WideFootprint = {
+        FVector2D(0.0, 0.0),
+        FVector2D(10.0, 0.0),
+        FVector2D(10.0, 4.0),
+        FVector2D(0.0, 4.0)
+    };
+    TestEqual(
+        TEXT("Wide skillion selects a source-ring long edge"),
+        AHorizonWorldCellRenderer::ResolveSkillionHighEdge(WideFootprint),
+        FIntPoint(0, 1));
+
+    const TArray<FVector2D> TallFootprint = {
+        FVector2D(0.0, 0.0),
+        FVector2D(4.0, 0.0),
+        FVector2D(4.0, 10.0),
+        FVector2D(0.0, 10.0)
+    };
+    TestEqual(
+        TEXT("Tall skillion follows the footprint longest axis"),
+        AHorizonWorldCellRenderer::ResolveSkillionHighEdge(TallFootprint),
+        FIntPoint(3, 0));
+
+    const TArray<FVector2D> DegenerateFootprint = {
+        FVector2D::ZeroVector,
+        FVector2D::ZeroVector,
+        FVector2D(1.0, 1.0),
+        FVector2D(0.0, 1.0)
+    };
+    TestEqual(
+        TEXT("Degenerate skillion footprint fails closed"),
+        AHorizonWorldCellRenderer::ResolveSkillionHighEdge(DegenerateFootprint),
+        FIntPoint(-1, -1));
     return true;
 }
 

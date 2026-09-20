@@ -14,7 +14,8 @@ enum class EHorizonSourceRoofProfile : uint8
     Flat,
     Apex,
     Gabled,
-    Hipped
+    Hipped,
+    Skillion
 };
 
 UCLASS(BlueprintType)
@@ -117,6 +118,9 @@ public:
     static EHorizonSourceRoofProfile ResolveSourceRoofProfile(
         const FString& RoofShape,
         int32 FootprintVertexCount);
+    static FIntPoint ResolveSkillionHighEdge(
+        const TArray<FVector2D>& Footprint);
+
     static double ResolveSourceRoofHeightMeters(
         const FString& RoofShape,
         double RequestedRoofHeightMeters,
