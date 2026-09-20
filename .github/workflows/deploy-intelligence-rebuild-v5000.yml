@@ -568,7 +568,10 @@ jobs:
               const p=await browser.newPage();
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
-              const fatal=[];p.on('pageerror',e=>fatal.push(String(e.message||e)));
+              const fatal=[];p.on('pageerror',e=>{fatal.push(String(e.message||e));console.log('BROWSER_PAGEERROR',String(e.stack||e.message||e))});
+              p.on('console',m=>{const t=m.text();if(/BridgePoint|premium|global runtime|module|Failed to load|SyntaxError|ReferenceError|TypeError/i.test(t))console.log('BROWSER_CONSOLE',m.type(),t)});
+              p.on('requestfailed',req=>{const u=req.url();if(/intelligence-(tools|global)-v5507\.js/.test(u))console.log('BROWSER_REQUEST_FAILED',u,JSON.stringify(req.failure()||{}))});
+              p.on('response',res=>{const u=res.url();if(/intelligence-(tools|global)-v5507\.js/.test(u))console.log('BROWSER_MODULE_RESPONSE',res.status(),res.headers()['content-type']||'',u)});
 
               await p.goto('https://bridgepointintelligence.online/?qa=v5400-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await p.waitForSelector('#landingPropertySearch',{timeout:10000});
