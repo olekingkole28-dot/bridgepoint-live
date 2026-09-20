@@ -41,6 +41,16 @@ jobs:
           mkdir -p promo-work promo-output
           CHROME_PATH="$CHROME" OUT_DIR="$GITHUB_WORKSPACE/promo-work" node promo/capture_bridgepoint_viral.mjs
 
+      - name: Checkpoint captured footage
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-promo-capture
+          path: |
+            promo-work/*.mp4
+            promo-work/capture_meta.json
+          retention-days: 3
+          compression-level: 0
+
       - name: Edit vertical social master
         shell: bash
         run: |
