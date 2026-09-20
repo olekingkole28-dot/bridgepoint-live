@@ -7,6 +7,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
@@ -15,6 +16,7 @@
 #include "HorizonAudioDirectorSubsystem.h"
 #include "HorizonWeaponRuntimeComponent.h"
 #include "HorizonWorldCellRenderer.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 #include "ProceduralMeshComponent.h"
 
 AHorizonPlayerCharacter::AHorizonPlayerCharacter()
@@ -350,6 +352,7 @@ void AHorizonPlayerCharacter::Tick(float DeltaSeconds)
     TryEnableWorldGravity(DeltaSeconds);
     UpdateTraversalState(DeltaSeconds);
     ApplyMovementInput(DeltaSeconds);
+    UpdateFootstepAudio(DeltaSeconds);
     if (ShouldRefreshMovementProfile(
             MovementProfileRefreshAccumulator,
             DeltaSeconds,
@@ -360,6 +363,122 @@ void AHorizonPlayerCharacter::Tick(float DeltaSeconds)
     }
     UpdateLean(DeltaSeconds);
     UpdateCameraPresentation(DeltaSeconds);
+}
+
+void AHorizonPlayerCharacter::UpdateFootstepAudio(float DeltaSeconds)
+{
+    UCharacterMovementComponent* Move = GetCharacterMovement();
+    const bool bFootstepStance =
+        MovementStance == EHorizonMovementStance::Standing ||
+        MovementStance == EHorizonMovementStance::Crouched;
+    if (!Move ||
+        !Move->IsMovingOnGround() ||
+        !bFootstepStance ||
+        !FMath::IsFinite(DeltaSeconds) ||
+        DeltaSeconds <= 0.0f)
+    {
+        FootstepDistanceAccumulator = 0.0f;
+        return;
+    }
+
+    const float GroundSpeedCmPerSecond = GetVelocity().Size2D();
+    if (!FMath::IsFinite(GroundSpeedCmPerSecond) ||
+        GroundSpeedCmPerSecond < 35.0f)
+    {
+        FootstepDistanceAccumulator = 0.0f;
+        return;
+    }
+
+    const bool bCrouchedStep =
+        MovementStance == EHorizonMovementStance::Crouched || bIsCrouched;
+    const float StrideLengthCm = bCrouchedStep
+        ? 112.0f
+        : (bSprinting ? 205.0f : 158.0f);
+    const float BoundedDeltaSeconds = FMath::Min(DeltaSeconds, 0.10f);
+    const int32 DueSteps =
+        UHorizonAudioDirectorSubsystem::ConsumeFootstepDistance(
+            GroundSpeedCmPerSecond * BoundedDeltaSeconds,
+            StrideLengthCm,
+            2,
+            FootstepDistanceAccumulator);
+    if (DueSteps <= 0)
+    {
+        return;
+    }
+
+    EHorizonFootstepSurface Surface = EHorizonFootstepSurface::Concrete;
+    if (UWorld* World = GetWorld())
+    {
+        FHitResult GroundHit;
+        FCollisionQueryParams QueryParams(
+            SCENE_QUERY_STAT(HorizonFootstepSurface),
+            false,
+            this);
+        QueryParams.bReturnPhysicalMaterial = true;
+
+        const float CapsuleHalfHeight = GetCapsuleComponent()
+            ? GetCapsuleComponent()->GetScaledCapsuleHalfHeight()
+            : 90.0f;
+        const FVector TraceStart = GetActorLocation();
+        const FVector TraceEnd =
+            TraceStart - FVector(0.0f, 0.0f, CapsuleHalfHeight + 45.0f);
+        if (World->LineTraceSingleByChannel(
+                GroundHit,
+                TraceStart,
+                TraceEnd,
+                ECC_Visibility,
+                QueryParams))
+        {
+            if (const UPhysicalMaterial* PhysicalMaterial =
+                    GroundHit.PhysMaterial.Get())
+            {
+                Surface =
+                    UHorizonAudioDirectorSubsystem::ResolveFootstepSurfaceName(
+                        PhysicalMaterial->GetFName());
+            }
+            else if (const UPrimitiveComponent* HitComponent =
+                         GroundHit.GetComponent())
+            {
+                for (const FName& Tag : HitComponent->ComponentTags)
+                {
+                    const EHorizonFootstepSurface TaggedSurface =
+                        UHorizonAudioDirectorSubsystem::
+                            ResolveFootstepSurfaceName(Tag);
+                    if (TaggedSurface != EHorizonFootstepSurface::Concrete ||
+                        Tag.ToString().Contains(TEXT("concrete"),
+                            ESearchCase::IgnoreCase))
+                    {
+                        Surface = TaggedSurface;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    UGameInstance* GameInstance = GetGameInstance();
+    UHorizonAudioDirectorSubsystem* Audio = GameInstance
+        ? GameInstance->GetSubsystem<UHorizonAudioDirectorSubsystem>()
+        : nullptr;
+    if (!Audio)
+    {
+        return;
+    }
+
+    const float MovementSpeed01 = FMath::Clamp(
+        GroundSpeedCmPerSecond / FMath::Max(1.0f, Move->GetMaxSpeed()),
+        0.0f,
+        1.0f);
+    for (int32 StepIndex = 0; StepIndex < DueSteps; ++StepIndex)
+    {
+        ++FootstepSequence;
+        Audio->EmitFootstep(
+            Surface,
+            MovementSpeed01,
+            bCrouchedStep,
+            GetActorLocation(),
+            FootstepSequence);
+    }
 }
 
 void AHorizonPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
