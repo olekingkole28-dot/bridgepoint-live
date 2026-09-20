@@ -1,6 +1,5 @@
 #include "HorizonWeaponRuntimeComponent.h"
 
-#include "GameFramework/Pawn.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 
@@ -220,12 +219,6 @@ bool UHorizonWeaponRuntimeComponent::TryFireOnce()
                     ShotSequence);
             }
         }
-    }
-
-    if (APawn* Pawn = Cast<APawn>(GetOwner()))
-    {
-        Pawn->AddControllerPitchInput(-Result.RecoilImpulse.X);
-        Pawn->AddControllerYawInput(Result.RecoilImpulse.Y);
     }
 
     OnShotFired.Broadcast(Result);

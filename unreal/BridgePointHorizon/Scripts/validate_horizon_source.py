@@ -970,6 +970,9 @@ for token in [
     "LineTraceSingleByChannel", "IsHeadshotBone(Hit.BoneName)",
     "Target->ApplyCombatHit", "UGameplayStatics::ApplyPointDamage",
     "OnHitscanResolved.Broadcast", "Result.bDamageApplied",
+    "ResolveLocalShotRecoil(Shot, true)",
+    "AddControllerPitchInput(-LocalRecoil.X)",
+    "AddControllerYawInput(LocalRecoil.Y)",
     "if (ShouldRefreshMovementProfile(",
     "FMath::Min(DeltaSeconds, 0.50f)",
     "OutRemainderSeconds = FMath::Fmod(Elapsed, SafeInterval)",
@@ -1018,7 +1021,7 @@ for token in [
     "PrimaryComponentTick.bStartWithTickEnabled = false",
     "FireCooldownSeconds = 60.0f / WeaponSpec.RoundsPerMinute",
     "ReloadRemainingSeconds = WeaponSpec.ReloadSeconds",
-    "OnShotFired.Broadcast", "AddControllerPitchInput", "AddControllerYawInput",
+    "OnShotFired.Broadcast",
     "bTriggerHeld && WeaponSpec.bAutomatic", "SetComponentTickEnabled",
     "SafeDeltaSeconds = FMath::Min(DeltaSeconds, 0.50f)",
     "FireCooldownSeconds = AdvanceCountdown", "ReloadRemainingSeconds = AdvanceCountdown",
@@ -1037,6 +1040,9 @@ for token in [
     "WeaponSpec.HeadshotMultiplier",
 ]:
     require(token in weapon, f"native weapon behavior missing: {token}")
+require("AddControllerPitchInput" not in weapon and
+        "AddControllerYawInput" not in weapon,
+        "weapon component must emit recoil without injecting controller input")
 require("Stripe" not in weapon_contract and "Payment" not in weapon_contract,
         "weapon runtime must remain independent of payments")
 
@@ -1119,6 +1125,12 @@ for token in [
     "Head bone resolves as a headshot",
     "Skull socket resolves as a headshot",
     "Spine bone remains a body shot",
+    "Combat.Recoil.SingleOwner",
+    "Local shot applies exactly one authored recoil impulse",
+    "Remote shot cannot inject local controller recoil",
+    "Non-finite recoil fails closed",
+    "Pitch recoil remains inside the weapon tuning bound",
+    "Yaw recoil remains inside the weapon tuning bound",
     "Collision.NoFallThrough.TerrainGravityGate",
     "Gravity remains disabled while streamed terrain data is missing",
     "Gravity remains disabled while the terrain collision mesh is missing",

@@ -300,6 +300,10 @@ public:
 
     static bool IsHeadshotBone(FName BoneName);
 
+    static FVector2D ResolveLocalShotRecoil(
+        const FHorizonWeaponShotResult& Shot,
+        bool bIsLocalController);
+
     static FHorizonCombatHitFeedback ResolveCombatHit(
         float RawDamage,
         float CurrentHealthValue,
