@@ -464,11 +464,11 @@ jobs:
             q="${GITHUB_SHA}-${i}-$(date +%s)"
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?v5410=${q}" -o /tmp/root.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?v5410=${q}" -o /tmp/app.html || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5371=${q}" -o /tmp/app.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5500=${q}" -o /tmp/app.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5378=${q}" -o /tmp/world-v2300-map.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/intelligence-tools-v5500.js?v5500=${q}" -o /tmp/intelligence-tools-v5500.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/weather-timemap-v5201.js?v5500=${q}" -o /tmp/weather-timemap-v5201.js || true
-            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5410' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5500' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' /tmp/world-v2300-map.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js && grep -Fq 'bridgepoint_intelligence_public_tool_allow_v5500' /tmp/intelligence-tools-v5500.js && grep -Fq 'bridgepoint_weather_timemap_v5201' /tmp/weather-timemap-v5201.js; then ok=1; break; fi
+            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5500' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5500' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' /tmp/world-v2300-map.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js && grep -Fq 'bridgepoint_intelligence_public_tool_allow_v5500' /tmp/intelligence-tools-v5500.js && grep -Fq 'bridgepoint_weather_timemap_v5201' /tmp/weather-timemap-v5201.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
