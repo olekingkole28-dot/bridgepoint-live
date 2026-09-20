@@ -322,6 +322,13 @@ public:
         float RefreshIntervalSeconds,
         float& OutRemainderSeconds);
 
+    static bool ShouldEnableWorldGravityFromTerrainCollision(
+        bool bWaitingForStreamedTerrain,
+        bool bHasTerrainData,
+        bool bHasTerrainMesh,
+        bool bTraceSucceeded,
+        bool bBlockingHit);
+
     static float ResolveLeanTarget(
         float RawInput,
         EHorizonMovementStance Stance,
