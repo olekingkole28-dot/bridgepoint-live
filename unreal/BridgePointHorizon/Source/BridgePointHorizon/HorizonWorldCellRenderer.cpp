@@ -449,6 +449,11 @@ EHorizonSourceRoofProfile AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
     {
         return EHorizonSourceRoofProfile::Mansard;
     }
+    if (FootprintVertexCount == 4 &&
+        NormalizedShape == TEXT("gambrel"))
+    {
+        return EHorizonSourceRoofProfile::Gambrel;
+    }
     return EHorizonSourceRoofProfile::Flat;
 }
 
@@ -536,6 +541,44 @@ TArray<FVector2D> AHorizonWorldCellRenderer::ResolveMansardInsetFootprint(
         Inset.Add(FMath::Lerp(Point, Centroid, 0.22f));
     }
     return Inset;
+}
+
+
+TArray<FVector2D> AHorizonWorldCellRenderer::ResolveGambrelProfilePoints(
+    const TArray<FVector2D>& Footprint)
+{
+    TArray<FVector2D> Points;
+    if (ResolveMansardInsetFootprint(Footprint).Num() != 4)
+    {
+        return Points;
+    }
+
+    const double FirstEdgeSquared =
+        FVector2D::DistSquared(Footprint[0], Footprint[1]);
+    const double SecondEdgeSquared =
+        FVector2D::DistSquared(Footprint[1], Footprint[2]);
+    if (!FMath::IsFinite(FirstEdgeSquared) ||
+        !FMath::IsFinite(SecondEdgeSquared) ||
+        FirstEdgeSquared <= 1.0e-16 ||
+        SecondEdgeSquared <= 1.0e-16)
+    {
+        return Points;
+    }
+
+    const bool bFirstEdgeIsShorter = FirstEdgeSquared <= SecondEdgeSquared;
+    const int32 A0 = bFirstEdgeIsShorter ? 0 : 1;
+    const int32 A1 = bFirstEdgeIsShorter ? 1 : 2;
+    const int32 B0 = bFirstEdgeIsShorter ? 3 : 0;
+    const int32 B1 = bFirstEdgeIsShorter ? 2 : 3;
+
+    Points.Reserve(6);
+    Points.Add(FMath::Lerp(Footprint[A0], Footprint[A1], 0.28f));
+    Points.Add(FMath::Lerp(Footprint[B0], Footprint[B1], 0.28f));
+    Points.Add(FMath::Lerp(Footprint[A0], Footprint[A1], 0.72f));
+    Points.Add(FMath::Lerp(Footprint[B0], Footprint[B1], 0.72f));
+    Points.Add((Footprint[A0] + Footprint[A1]) * 0.5f);
+    Points.Add((Footprint[B0] + Footprint[B1]) * 0.5f);
+    return Points;
 }
 
 double AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
@@ -1175,10 +1218,16 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                 RoofProfile == EHorizonSourceRoofProfile::Mansard
                     ? ResolveMansardInsetFootprint(Ring)
                     : TArray<FVector2D>();
+            const TArray<FVector2D> GambrelPoints =
+                RoofProfile == EHorizonSourceRoofProfile::Gambrel
+                    ? ResolveGambrelProfilePoints(Ring)
+                    : TArray<FVector2D>();
             if ((RoofProfile == EHorizonSourceRoofProfile::Skillion &&
                  (SkillionHighEdge.X < 0 || SkillionHighEdge.Y < 0)) ||
                 (RoofProfile == EHorizonSourceRoofProfile::Mansard &&
-                 MansardInset.Num() != 4))
+                 MansardInset.Num() != 4) ||
+                (RoofProfile == EHorizonSourceRoofProfile::Gambrel &&
+                 GambrelPoints.Num() != 6))
             {
                 ProfileRoofHeightMeters = 0.0;
             }
@@ -1335,6 +1384,68 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                     AddRoofTriangle(RoofBase + 2, RidgeBIndex, RidgeAIndex);
                     AddRoofTriangle(RoofBase + 3, RoofBase + 0, RidgeBIndex);
                 }
+                ++RenderedProfiledRoofCount;
+            }
+            else if (ProfileRoofHeightMeters > 0.0 &&
+                RoofProfile == EHorizonSourceRoofProfile::Gambrel &&
+                Top.Num() == 4 &&
+                GambrelPoints.Num() == 6)
+            {
+                // A sourced gambrel adds two shoulder lines and one ridge line:
+                // six bounded vertices in the existing mesh section, with no
+                // additional draw section or collision body.
+                const double ShoulderMeters =
+                    WallTopMeters + ProfileRoofHeightMeters * 0.55;
+                const int32 GambrelBase = Vertices.Num();
+                for (int32 Index = 0; Index < GambrelPoints.Num(); ++Index)
+                {
+                    const double PointHeight = Index < 4 ? ShoulderMeters : TopMeters;
+                    const FVector Point = ProjectCoordinate(
+                        GambrelPoints[Index].X,
+                        GambrelPoints[Index].Y,
+                        PointHeight);
+                    Vertices.Add(Point);
+                    UV0.Add(FVector2D(Point.X * 0.001f, Point.Y * 0.001f));
+                }
+
+                const bool bFirstEdgeIsShorter =
+                    FVector2D::Distance(LocalPolygon[0], LocalPolygon[1]) <=
+                    FVector2D::Distance(LocalPolygon[1], LocalPolygon[2]);
+                const int32 A0 = bFirstEdgeIsShorter ? 0 : 1;
+                const int32 A1 = bFirstEdgeIsShorter ? 1 : 2;
+                const int32 B0 = bFirstEdgeIsShorter ? 3 : 0;
+                const int32 B1 = bFirstEdgeIsShorter ? 2 : 3;
+                const int32 S0A = GambrelBase + 0;
+                const int32 S0B = GambrelBase + 1;
+                const int32 S1A = GambrelBase + 2;
+                const int32 S1B = GambrelBase + 3;
+                const int32 RidgeA = GambrelBase + 4;
+                const int32 RidgeB = GambrelBase + 5;
+                const bool bClockwise =
+                    HorizonCellRender::SignedArea(LocalPolygon) < 0.0f;
+                auto AddGambrelTriangle = [&](int32 A, int32 B, int32 C)
+                {
+                    Triangles.Add(bClockwise ? C : A);
+                    Triangles.Add(B);
+                    Triangles.Add(bClockwise ? A : C);
+                };
+                auto AddGambrelQuad = [&](int32 A, int32 B, int32 C, int32 D)
+                {
+                    AddGambrelTriangle(A, B, C);
+                    AddGambrelTriangle(A, C, D);
+                };
+
+                AddGambrelQuad(RoofBase + A0, RoofBase + B0, S0B, S0A);
+                AddGambrelQuad(S0A, S0B, RidgeB, RidgeA);
+                AddGambrelQuad(RidgeA, RidgeB, S1B, S1A);
+                AddGambrelQuad(S1A, S1B, RoofBase + B1, RoofBase + A1);
+
+                AddGambrelTriangle(RoofBase + A0, RoofBase + A1, S1A);
+                AddGambrelTriangle(RoofBase + A0, S1A, S0A);
+                AddGambrelTriangle(S0A, S1A, RidgeA);
+                AddGambrelTriangle(RoofBase + B0, S0B, S1B);
+                AddGambrelTriangle(RoofBase + B0, S1B, RoofBase + B1);
+                AddGambrelTriangle(S0B, RidgeB, S1B);
                 ++RenderedProfiledRoofCount;
             }
             else if (ProfileRoofHeightMeters > 0.0 &&

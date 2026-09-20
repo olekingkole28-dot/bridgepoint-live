@@ -239,6 +239,48 @@ bool FHorizonWorldSourceRoofProfileTest::RunTest(const FString& Parameters)
         TEXT("Degenerate mansard footprint fails closed"),
         AHorizonWorldCellRenderer::ResolveMansardInsetFootprint(
             DegenerateFootprint).IsEmpty());
+
+    TestEqual(
+        TEXT("Explicit rectangular gambrel resolves to double-slope profile"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(TEXT("gambrel"), 4),
+        EHorizonSourceRoofProfile::Gambrel);
+    TestEqual(
+        TEXT("Source gambrel height is preserved"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
+            TEXT("gambrel"), 3.6, 15.0, 4),
+        3.6);
+    TestEqual(
+        TEXT("Non-rectangular gambrel fails flat"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(TEXT("gambrel"), 5),
+        EHorizonSourceRoofProfile::Flat);
+
+    const TArray<FVector2D> GambrelPoints =
+        AHorizonWorldCellRenderer::ResolveGambrelProfilePoints(WideFootprint);
+    TestEqual(
+        TEXT("Valid gambrel creates four shoulders and two ridge points"),
+        GambrelPoints.Num(),
+        6);
+    TestTrue(
+        TEXT("Gambrel shoulders follow the source footprint short axis"),
+        GambrelPoints.Num() == 6 &&
+        FMath::IsNearlyEqual(GambrelPoints[0].X, 10.0, 1.0e-5) &&
+        FMath::IsNearlyEqual(GambrelPoints[0].Y, 1.12, 1.0e-5) &&
+        FMath::IsNearlyEqual(GambrelPoints[2].Y, 2.88, 1.0e-5));
+    TestTrue(
+        TEXT("Gambrel ridge follows the source footprint longest axis"),
+        GambrelPoints.Num() == 6 &&
+        FMath::IsNearlyEqual(GambrelPoints[4].X, 10.0, 1.0e-5) &&
+        FMath::IsNearlyEqual(GambrelPoints[4].Y, 2.0, 1.0e-5) &&
+        FMath::IsNearlyEqual(GambrelPoints[5].X, 0.0, 1.0e-5) &&
+        FMath::IsNearlyEqual(GambrelPoints[5].Y, 2.0, 1.0e-5));
+    TestTrue(
+        TEXT("Concave gambrel footprint fails closed"),
+        AHorizonWorldCellRenderer::ResolveGambrelProfilePoints(
+            ConcaveFootprint).IsEmpty());
+    TestTrue(
+        TEXT("Degenerate gambrel footprint fails closed"),
+        AHorizonWorldCellRenderer::ResolveGambrelProfilePoints(
+            DegenerateFootprint).IsEmpty());
     return true;
 }
 

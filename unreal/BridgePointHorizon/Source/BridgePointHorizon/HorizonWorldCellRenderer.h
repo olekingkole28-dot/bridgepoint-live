@@ -16,7 +16,8 @@ enum class EHorizonSourceRoofProfile : uint8
     Gabled,
     Hipped,
     Skillion,
-    Mansard
+    Mansard,
+    Gambrel
 };
 
 UCLASS(BlueprintType)
@@ -126,6 +127,9 @@ public:
         const TArray<FVector2D>& Footprint);
 
     static TArray<FVector2D> ResolveMansardInsetFootprint(
+        const TArray<FVector2D>& Footprint);
+
+    static TArray<FVector2D> ResolveGambrelProfilePoints(
         const TArray<FVector2D>& Footprint);
 
     static double ResolveSourceRoofHeightMeters(
