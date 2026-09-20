@@ -545,6 +545,24 @@ function yearClockHtml(y){
   return `<div class="year-clock"><div><b>${c.days}</b><small>DAYS</small></div><div><b>${c.hours}</b><small>HOURS</small></div><div><b>${c.minutes}</b><small>MINUTES</small></div><div><b>${c.seconds}</b><small>SECONDS</small></div></div>`;
 }
 function leaderRows(rows=[]){return rows.map(r=>`<div class="leader-row"><b>#${r.rank}</b><span>@${escapeHtml(r.handle||'Survivor')} · LV ${r.level||1} · P${r.prestige||0}</span><span>${Number(r.kills||0).toLocaleString()} K</span><span>${Number(r.wins||0).toLocaleString()} W</span><span>${Math.floor(Number(r.play_seconds||0)/3600)}H</span></div>`).join('')||'<p style="color:#95aaa0">No ranked players yet.</p>'}
+let directorTimer=null;
+function drawDirectorMap(canvas,target=null){
+  if(!canvas)return;const g=canvas.getContext('2d'),W=canvas.width,H=canvas.height,geo=state.conusOutline?.geometry;
+  g.clearRect(0,0,W,H);const grad=g.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#071714');grad.addColorStop(1,'#020706');g.fillStyle=grad;g.fillRect(0,0,W,H);
+  const xy=(lon,lat)=>[(lon+125)/59*W,H-(lat-24)/26*H],polys=geo?.type==='MultiPolygon'?geo.coordinates:geo?.type==='Polygon'?[geo.coordinates]:[];
+  g.fillStyle='rgba(39,103,82,.22)';g.strokeStyle='rgba(98,255,210,.62)';g.lineWidth=1.4;
+  for(const poly of polys)for(const ring of poly){g.beginPath();ring.forEach((p,i)=>{const q=xy(p[0],p[1]);i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])});g.closePath();g.fill();g.stroke()}
+  if(Number.isFinite(Number(target?.lon))&&Number.isFinite(Number(target?.lat))){
+    const q=xy(Number(target.lon),Number(target.lat));g.fillStyle='#f4c45e';g.beginPath();g.arc(q[0],q[1],6,0,Math.PI*2);g.fill();g.strokeStyle='rgba(244,196,94,.42)';g.lineWidth=2;g.beginPath();g.arc(q[0],q[1],14,0,Math.PI*2);g.stroke()
+  }
+}
+async function refreshDirectorPanel(){
+  try{
+    const out=await rpc('bridgepoint_horizon_world_director_v4340',{}),box=$('directorStatus'),cv=$('directorMap'),t=out?.target||{};
+    if(box)box.innerHTML='<b>'+escapeHtml(String(out?.source||'WORLD').replaceAll('_',' '))+'</b><small>'+Number(out?.active_players||0)+' ACTIVE · AUTO SWITCH '+Number(out?.rotation_seconds||12)+'S</small><span>'+escapeHtml(t.handle||t.scene||'Zombie world overview')+(t.mode?' · '+escapeHtml(t.mode):'')+'</span>';
+    drawDirectorMap(cv,t);
+  }catch{}
+}
 async function openModal(tab){
   $('installBanner')?.classList.add('hidden');
   const c=$('modalContent');
@@ -605,7 +623,8 @@ async function openModal(tab){
       const out=await rpc('bridgepoint_horizon_live_cameras_v4310',{p_player_id:ident.id,p_player_secret:ident.secret,p_match_id:state.match.match_id}).catch(()=>({cameras:[]}));
       cams=out?.cameras||[];
     }
-    c.innerHTML=`<div class="eyebrow">YEAR ONE LIVE WATCH</div><h1>${state.yearOne?.status==='LIVE'?'Survivor cameras':'Preseason spectator center'}</h1>${yearClockHtml(state.yearOne)}<p style="color:#95aaa0">${state.yearOne?.player?.spectator_only?'Your three lives are gone. Pick a surviving player camera below and keep watching the event.':'This camera hub unlocks for Year One players after all three lives are gone.'}</p><div class="camera-grid">${cams.length?cams.map(x=>`<article class="camera-card"><div class="feed">LIVE CAMERA STREAM TOPIC READY</div><h3>${escapeHtml(x.display_name)}</h3><small>${x.alive?'ALIVE':'DOWN'} · ${escapeHtml(x.camera_topic)}</small></article>`).join(''):'<article class="camera-card"><div class="feed">NO ACTIVE CAMERA FEEDS YET</div><h3>Waiting for Year One</h3></article>'}</div>`;
+    c.innerHTML=`<div class="eyebrow">YEAR ONE WORLD DIRECTOR</div><h1>${state.yearOne?.status==='LIVE'?'Live automatic event camera':'Preseason world overview'}</h1>${yearClockHtml(state.yearOne)}<p style="color:#95aaa0">The automatic director prioritizes the highest combat activity, then a random active survivor, then a live zombie-world overview when nobody is playing. It runs during preseason and throughout Year One.</p><div class="world-director-feed"><canvas id="directorMap" width="760" height="300" style="width:100%;height:100%"></canvas><div id="directorStatus" class="director-status"><b>LOCATING WORLD CAMERA</b><small>AUTO SWITCH 12S</small></div></div>${state.yearOne?.player?.spectator_only?`<h2>Survivor feeds</h2><div class="camera-grid">${cams.length?cams.map(x=>`<article class="camera-card"><div class="feed">LIVE CAMERA TOPIC</div><h3>${escapeHtml(x.display_name)}</h3><small>${x.alive?'ALIVE':'DOWN'} · ${escapeHtml(x.camera_topic)}</small></article>`).join(''):'<article class="camera-card"><div class="feed">NO SURVIVOR FEEDS</div><h3>Director stays on the world</h3></article>'}</div>`:''}`;
+    clearInterval(directorTimer);setTimeout(refreshDirectorPanel,20);directorTimer=setInterval(refreshDirectorPanel,12000);
   }else if(tab==='INSTALL_HELP'){
     c.innerHTML='<div class="eyebrow">INSTALL HORIZON</div><h1>Add BridgePoint Horizon to your home screen</h1><p style="color:#95aaa0">Use your browser menu and choose <b>Install app</b> or <b>Add to Home screen</b>. Horizon uses a separate app ID and icon from BridgePoint Intelligence.</p>';
   }else{
@@ -615,7 +634,7 @@ async function openModal(tab){
   $('modal').classList.add('show');$('modal').setAttribute('aria-hidden','false');
 }
 function closeHorizonModal(){
-  $('modal').classList.remove('show');$('modal').setAttribute('aria-hidden','true');refreshInstallUi();
+  clearInterval(directorTimer);directorTimer=null;$('modal').classList.remove('show');$('modal').setAttribute('aria-hidden','true');refreshInstallUi();
 }
 $('closeModal').onclick=closeHorizonModal;
 $('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeHorizonModal()});
