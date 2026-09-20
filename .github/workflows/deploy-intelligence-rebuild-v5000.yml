@@ -697,6 +697,7 @@ jobs:
                 const m=window.__BP_V5000_WORLD?.map;
                 return !!m?.getLayer('gta-context-buildings')&&!!m?.getLayer('gta-city-buildings')&&!!m?.getLayer('gta-city-roofs')&&!!m?.getLayer('gta-exact-building')&&!!m?.getLayer('gta-exact-roof')&&!!m?.getLayer('gta-context-floor-lines')&&!!m?.getLayer('bp-v5004-weather-points');
               },{timeout:90000});
+              await p.waitForFunction(()=>window.__BP_CAMERA_MODE__?.mode==='FREE_FLY_SINGLE_VIEW'&&window.__BP_BUILDING_MATERIALS__?.floorLines===true&&window.__BP_BUILDING_MATERIALS__?.roofOverlays===true&&window.__BP_BUILDING_MATERIALS__?.exactRoofs===true,{timeout:30000});
 
               const state=await p.evaluate(()=>{
                 const w=window.__BP_V5000_WORLD,m=w?.map;
