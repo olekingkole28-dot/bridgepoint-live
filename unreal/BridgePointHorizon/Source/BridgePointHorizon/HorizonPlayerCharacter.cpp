@@ -11,7 +11,9 @@
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
+#include "GameFramework/DamageType.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "HorizonAutopilotSubsystem.h"
 #include "HorizonAudioDirectorSubsystem.h"
 #include "HorizonWeaponRuntimeComponent.h"
@@ -119,6 +121,16 @@ void AHorizonPlayerCharacter::BeginPlay()
     MaxArmor = FMath::Max(0.0f, MaxArmor);
     CurrentHealth = MaxHealth;
     CurrentArmor = MaxArmor;
+
+    if (WeaponRuntime)
+    {
+        WeaponRuntime->OnShotFired.RemoveDynamic(
+            this,
+            &AHorizonPlayerCharacter::HandleWeaponShot);
+        WeaponRuntime->OnShotFired.AddUniqueDynamic(
+            this,
+            &AHorizonPlayerCharacter::HandleWeaponShot);
+    }
 
     RefreshMovementProfile();
     SetCameraMode(EHorizonCameraMode::FirstPerson);
@@ -305,6 +317,157 @@ FHorizonCombatHitFeedback AHorizonPlayerCharacter::ResolveCombatHit(
     return Feedback;
 }
 
+
+FVector AHorizonPlayerCharacter::ResolveHitscanDirection(
+    const FVector& ViewForward,
+    const FVector& ViewRight,
+    const FVector& ViewUp,
+    float SpreadDegrees,
+    int32 ShotSequence)
+{
+    const FVector Forward = ViewForward.GetSafeNormal();
+    const FVector Right = ViewRight.GetSafeNormal();
+    const FVector Up = ViewUp.GetSafeNormal();
+    if (Forward.IsNearlyZero() || Right.IsNearlyZero() || Up.IsNearlyZero())
+    {
+        return FVector::ForwardVector;
+    }
+
+    const float SafeSpreadDegrees = FMath::Clamp(
+        FMath::IsFinite(SpreadDegrees) ? SpreadDegrees : 0.0f,
+        0.0f,
+        15.0f);
+    if (SafeSpreadDegrees <= KINDA_SMALL_NUMBER)
+    {
+        return Forward;
+    }
+
+    FRandomStream Stream(static_cast<int32>(
+        GetTypeHash(ShotSequence) ^ 0x6A09E667u));
+    const float Radius = FMath::Sqrt(Stream.FRand());
+    const float AngleRadians = Stream.FRandRange(0.0f, 2.0f * PI);
+    const float ConeRadius = FMath::Tan(
+        FMath::DegreesToRadians(SafeSpreadDegrees)) * Radius;
+    return (
+        Forward +
+        Right * (FMath::Cos(AngleRadians) * ConeRadius) +
+        Up * (FMath::Sin(AngleRadians) * ConeRadius)).GetSafeNormal();
+}
+
+bool AHorizonPlayerCharacter::IsHeadshotBone(FName BoneName)
+{
+    const FString Normalized = BoneName.ToString().ToLower();
+    return
+        Normalized == TEXT("head") ||
+        Normalized.Contains(TEXT("head_")) ||
+        Normalized.Contains(TEXT("_head")) ||
+        Normalized.Contains(TEXT("skull"));
+}
+
+void AHorizonPlayerCharacter::HandleWeaponShot(FHorizonWeaponShotResult Shot)
+{
+    if (AController* OwnerController = GetController();
+        OwnerController && OwnerController->IsLocalController())
+    {
+        AddControllerPitchInput(-Shot.RecoilImpulse.X);
+        AddControllerYawInput(Shot.RecoilImpulse.Y);
+    }
+
+    if (!HasAuthority() || !WeaponRuntime || !GetWorld())
+    {
+        return;
+    }
+
+    FVector ViewLocation = FollowCamera
+        ? FollowCamera->GetComponentLocation()
+        : GetActorLocation();
+    FRotator ViewRotation = GetControlRotation();
+    if (AController* OwnerController = GetController())
+    {
+        OwnerController->GetPlayerViewPoint(ViewLocation, ViewRotation);
+    }
+
+    const FVector ShotDirection = ResolveHitscanDirection(
+        ViewRotation.Vector(),
+        FRotationMatrix(ViewRotation).GetUnitAxis(EAxis::Y),
+        FRotationMatrix(ViewRotation).GetUnitAxis(EAxis::Z),
+        Shot.SpreadDegrees,
+        Shot.ShotSequence);
+    const float TraceRangeCm = FMath::Clamp(
+        WeaponRuntime->WeaponSpec.RangeCm,
+        100.0f,
+        500000.0f);
+    const FVector TraceEnd = ViewLocation + ShotDirection * TraceRangeCm;
+
+    FCollisionQueryParams QueryParams(
+        SCENE_QUERY_STAT(HorizonWeaponHitscan),
+        true,
+        this);
+    QueryParams.bReturnPhysicalMaterial = true;
+
+    FHitResult Hit;
+    FHorizonHitscanResult Result;
+    Result.ShotDirection = ShotDirection;
+    Result.ShotSequence = FMath::Max(0, Shot.ShotSequence);
+    Result.ImpactPoint = TraceEnd;
+    Result.bBlockingHit = GetWorld()->LineTraceSingleByChannel(
+        Hit,
+        ViewLocation,
+        TraceEnd,
+        ECC_Visibility,
+        QueryParams);
+
+    if (Result.bBlockingHit)
+    {
+        Result.HitActor = Hit.GetActor();
+        Result.ImpactPoint = Hit.ImpactPoint;
+        Result.ImpactNormal = Hit.ImpactNormal;
+        Result.bHeadshot = IsHeadshotBone(Hit.BoneName);
+
+        const float BaseDamage = FMath::Clamp(
+            WeaponRuntime->WeaponSpec.BaseDamage,
+            0.0f,
+            500.0f);
+        if (AHorizonPlayerCharacter* Target =
+            Cast<AHorizonPlayerCharacter>(Hit.GetActor()))
+        {
+            const float PreviousHealth = Target->CurrentHealth;
+            const float PreviousArmor = Target->CurrentArmor;
+            const float HeadshotScale = FMath::Clamp(
+                WeaponRuntime->WeaponSpec.HeadshotMultiplier,
+                1.0f,
+                3.0f);
+            const float PlayerDamage = Result.bHeadshot
+                ? BaseDamage * (HeadshotScale / 1.50f)
+                : BaseDamage;
+            Target->ApplyCombatHit(
+                PlayerDamage,
+                -ShotDirection,
+                Result.bHeadshot);
+            Result.AppliedDamage =
+                FMath::Max(0.0f, PreviousHealth - Target->CurrentHealth) +
+                FMath::Max(0.0f, PreviousArmor - Target->CurrentArmor);
+        }
+        else if (AActor* HitActor = Hit.GetActor())
+        {
+            const float Damage = BaseDamage *
+                (Result.bHeadshot
+                    ? WeaponRuntime->WeaponSpec.HeadshotMultiplier
+                    : 1.0f);
+            Result.AppliedDamage = UGameplayStatics::ApplyPointDamage(
+                HitActor,
+                Damage,
+                ShotDirection,
+                Hit,
+                GetController(),
+                this,
+                UDamageType::StaticClass());
+        }
+        Result.bDamageApplied = Result.AppliedDamage > KINDA_SMALL_NUMBER;
+    }
+
+    OnHitscanResolved.Broadcast(Result);
+}
 
 void AHorizonPlayerCharacter::OnMovementModeChanged(
     EMovementMode PreviousMovementMode,

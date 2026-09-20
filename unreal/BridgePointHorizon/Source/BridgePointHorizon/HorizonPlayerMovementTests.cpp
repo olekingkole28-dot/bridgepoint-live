@@ -368,5 +368,52 @@ bool FHorizonTerrainCollisionGravityGateTest::RunTest(const FString& Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonHitscanDirectionTest,
+    "BridgePoint.Horizon.Combat.Hitscan.DirectionAndHeadshots",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonHitscanDirectionTest::RunTest(const FString& Parameters)
+{
+    const FVector Forward = FVector::ForwardVector;
+    const FVector Right = FVector::RightVector;
+    const FVector Up = FVector::UpVector;
+
+    const FVector Centered = AHorizonPlayerCharacter::ResolveHitscanDirection(
+        Forward, Right, Up, 0.0f, 1);
+    TestTrue(TEXT("Zero-spread shot follows the camera center"),
+        Centered.Equals(Forward, 1.0e-5f));
+
+    const FVector SpreadA = AHorizonPlayerCharacter::ResolveHitscanDirection(
+        Forward, Right, Up, 3.0f, 41);
+    const FVector SpreadRepeat = AHorizonPlayerCharacter::ResolveHitscanDirection(
+        Forward, Right, Up, 3.0f, 41);
+    const FVector SpreadB = AHorizonPlayerCharacter::ResolveHitscanDirection(
+        Forward, Right, Up, 3.0f, 42);
+    TestTrue(TEXT("Hitscan spread remains normalized"),
+        FMath::IsNearlyEqual(SpreadA.Size(), 1.0f, 1.0e-5f));
+    TestTrue(TEXT("Hitscan spread stays inside the configured cone"),
+        FMath::RadiansToDegrees(FMath::Acos(
+            FMath::Clamp(FVector::DotProduct(Forward, SpreadA), -1.0f, 1.0f)))
+            <= 3.01f);
+    TestTrue(TEXT("Shot-seeded spread is deterministic"),
+        SpreadA.Equals(SpreadRepeat, 1.0e-6f));
+    TestFalse(TEXT("Consecutive shots do not reuse one spread direction"),
+        SpreadA.Equals(SpreadB, 1.0e-6f));
+
+    const FVector Invalid = AHorizonPlayerCharacter::ResolveHitscanDirection(
+        FVector::ZeroVector, Right, Up, 3.0f, 10);
+    TestTrue(TEXT("Invalid camera basis fails to safe forward"),
+        Invalid.Equals(FVector::ForwardVector, 1.0e-5f));
+
+    TestTrue(TEXT("Head bone resolves as a headshot"),
+        AHorizonPlayerCharacter::IsHeadshotBone(TEXT("head")));
+    TestTrue(TEXT("Skull socket resolves as a headshot"),
+        AHorizonPlayerCharacter::IsHeadshotBone(TEXT("SKULL_socket")));
+    TestFalse(TEXT("Spine bone remains a body shot"),
+        AHorizonPlayerCharacter::IsHeadshotBone(TEXT("spine_03")));
+    return true;
+}
+
 
 #endif

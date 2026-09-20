@@ -35,6 +35,15 @@ struct FHorizonWeaponSpec
     float RecoilYawDegrees = 0.35f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float BaseDamage = 30.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float RangeCm = 15000.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float HeadshotMultiplier = 1.50f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
     bool bAutomatic = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)

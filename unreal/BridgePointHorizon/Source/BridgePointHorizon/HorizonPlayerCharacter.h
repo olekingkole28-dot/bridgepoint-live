@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "HorizonWeaponRuntimeComponent.h"
 #include "HorizonPlayerCharacter.generated.h"
 
 class UCameraComponent;
@@ -9,7 +10,6 @@ class USpringArmComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
 class USkeletalMesh;
-class UHorizonWeaponRuntimeComponent;
 
 UENUM(BlueprintType)
 enum class EHorizonCameraMode : uint8
@@ -77,10 +77,47 @@ struct FHorizonCombatHitFeedback
     bool bLethal = false;
 };
 
+USTRUCT(BlueprintType)
+struct FHorizonHitscanResult
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bBlockingHit = false;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bDamageApplied = false;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bHeadshot = false;
+
+    UPROPERTY(BlueprintReadOnly)
+    TObjectPtr<AActor> HitActor = nullptr;
+
+    UPROPERTY(BlueprintReadOnly)
+    FVector ImpactPoint = FVector::ZeroVector;
+
+    UPROPERTY(BlueprintReadOnly)
+    FVector ImpactNormal = FVector::ZeroVector;
+
+    UPROPERTY(BlueprintReadOnly)
+    FVector ShotDirection = FVector::ForwardVector;
+
+    UPROPERTY(BlueprintReadOnly)
+    float AppliedDamage = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 ShotSequence = 0;
+};
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
     FHorizonCombatHitReaction,
     const FHorizonCombatHitFeedback&,
     Feedback);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+    FHorizonHitscanResolved,
+    const FHorizonHitscanResult&,
+    Result);
 
 UCLASS()
 class BRIDGEPOINTHORIZON_API AHorizonPlayerCharacter : public ACharacter
@@ -152,6 +189,9 @@ public:
 
     UPROPERTY(BlueprintAssignable)
     FHorizonCombatHitReaction OnCombatHitReaction;
+
+    UPROPERTY(BlueprintAssignable, Category="Horizon|Combat")
+    FHorizonHitscanResolved OnHitscanResolved;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
     float WalkSpeed = 430.0f;
@@ -250,6 +290,15 @@ public:
         const FVector& Forward,
         const FVector& Right,
         const FVector& IncomingDirection);
+
+    static FVector ResolveHitscanDirection(
+        const FVector& ViewForward,
+        const FVector& ViewRight,
+        const FVector& ViewUp,
+        float SpreadDegrees,
+        int32 ShotSequence);
+
+    static bool IsHeadshotBone(FName BoneName);
 
     static FHorizonCombatHitFeedback ResolveCombatHit(
         float RawDamage,
@@ -374,6 +423,9 @@ private:
 
     UPROPERTY()
     EHorizonCameraMode CameraMode = EHorizonCameraMode::FirstPerson;
+
+    UFUNCTION()
+    void HandleWeaponShot(FHorizonWeaponShotResult Shot);
 
     void StartTraversalJump();
     void StopTraversalJump();
