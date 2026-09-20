@@ -119,4 +119,21 @@ body>header{z-index:50}body>main,body>.site-footer{z-index:2}
 }
 @media(prefers-reduced-motion:reduce){.world-backdrop-image{transform:scale(1.16)!important}.radar-sweep,.haz{animation:none!important}}
 
-/* V5450 hero CTA typography: Molly removed from markup; CTA copy enlarged for readability. */
+/* V5450 hero CTA typography: CTA copy enlarged for readability. */
+
+
+/* V5451 — Molly Materson beside the founder portrait. Additive landing-only presentation. */
+.founder-portrait-pair{display:flex;align-items:stretch;gap:18px;flex-wrap:wrap;margin:18px 0 20px}
+.founder-portrait-pair>.founder-portrait-shell{margin:0}
+.molly-home{display:grid;grid-template-columns:minmax(138px,180px) minmax(190px,300px);gap:16px;align-items:center;max-width:540px;min-height:252px;padding:14px 16px;border-radius:24px;border:1px solid rgba(98,230,255,.18);background:linear-gradient(145deg,rgba(8,20,29,.95),rgba(4,11,17,.90));box-shadow:0 24px 64px rgba(0,0,0,.32),inset 0 1px rgba(255,255,255,.035)}
+.molly-portrait-shell{position:relative;margin:0;min-height:222px;display:flex;align-items:flex-end;justify-content:center;border-radius:18px;overflow:hidden;background:radial-gradient(circle at 50% 32%,rgba(98,230,255,.10),rgba(3,9,14,.72) 64%,rgba(3,9,14,.94));border:1px solid rgba(98,230,255,.12)}
+.molly-portrait{display:block;width:100%;height:230px;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 12px 22px rgba(0,0,0,.32))}
+.molly-copy{min-width:0}
+.molly-kicker{display:block;margin-bottom:7px;color:#67dfff;font-size:7.5px;font-weight:950;letter-spacing:.13em}
+.molly-copy h3{margin:0 0 8px;color:#f2fbff;font-size:24px;line-height:1.05}
+.molly-copy p{margin:0 0 9px;color:#9eb3bd;font-size:10.5px;line-height:1.62}
+.molly-copy p:last-child{margin-bottom:0}
+.molly-copy strong{color:#effbff}
+@media(max-width:760px){.founder-portrait-pair{flex-direction:column;align-items:flex-start}.molly-home{width:min(100%,540px)}}
+@media(max-width:520px){.molly-home{grid-template-columns:1fr;width:100%;padding:13px}.molly-portrait-shell{width:min(220px,68vw);min-height:250px}.molly-portrait{height:250px}.molly-copy h3{font-size:22px}}
+@media(prefers-reduced-motion:reduce){.molly-home,.molly-portrait{animation:none!important}}
