@@ -64,7 +64,7 @@ const probe=await page.evaluate(()=>({
   viewButtonAbsent:!document.getElementById('viewBtn'),
   cameraPreference:localStorage.getItem('horizon-camera-mode'),
   miniMap:!!document.getElementById('miniMap'),
-  weaponBar:!!document.getElementById('weaponBar'),backpackBar:!!document.getElementById('backpackBar'),equipmentRail:!!document.getElementById('equipmentRail'),prematchFreeze:!!document.getElementById('prematchFreeze'),wallLive:!!document.getElementById('wallLive'),activePlayers:!!document.getElementById('activePlayers'),
+  weaponBar:!!document.getElementById('weaponBar'),backpackBar:!!document.getElementById('backpackBar'),equipmentRail:!!document.getElementById('equipmentRail'),prematchFreeze:!!document.getElementById('prematchFreeze'),wallLive:!!document.getElementById('wallLive'),activePlayers:!!document.getElementById('activePlayers'),movePad:!!document.getElementById('movePad'),moveKnob:!!document.getElementById('moveKnob'),joystick:window.BP_HORIZON_INPUT_V4341,
   contextBtn:!!document.getElementById('contextBtn'),
   removed:['useBtn','lightBtn','weatherBtn'].every(id=>!document.getElementById(id)),
   killFeed:!!document.getElementById('killFeed'),
@@ -82,7 +82,7 @@ const probe=await page.evaluate(()=>({
 if(!probe.canvas||!probe.errorHidden)throw new Error('Canvas/runtime failed '+JSON.stringify(probe));
 if(probe.runtime?.build!==4341)throw new Error('Wrong runtime build '+JSON.stringify(probe.runtime));
 if(!probe.runtime?.actualCharacterModel||!probe.runtime?.sourceBackedTwin||!probe.runtime?.exactFootprintCollision||!probe.runtime?.terrainSource||Number(probe.runtime?.buildings||0)<1||Number(probe.runtime?.roads||0)<1||!probe.runtime?.solidCollision||!probe.runtime?.dwellPickup||!probe.runtime?.killFeed||!probe.runtime?.killcam||!probe.runtime?.firstPerson||!probe.runtime?.crouch||!probe.runtime?.jumpVault||!probe.runtime?.gamepad||!probe.runtime?.weaponInventory||!probe.runtime?.minimap||!probe.runtime?.proceduralInteriors||!probe.runtime?.roofTraversal||!probe.runtime?.drivableVehicles||!probe.runtime?.infectedPatrols||!probe.runtime?.ambientDisasterFx||!probe.runtime?.spatialAudio||!probe.runtime?.adaptivePerformanceGovernor)throw new Error('Required match systems missing '+JSON.stringify(probe.runtime));
-if(probe.buttons.some(x=>!x.exists)||!probe.viewButtonAbsent||probe.cameraPreference!=='first'||!probe.miniMap||!probe.weaponBar||!probe.backpackBar||!probe.equipmentRail||!probe.prematchFreeze||!probe.wallLive||!probe.activePlayers||!probe.contextBtn||!probe.removed||!probe.killFeed||!probe.killCam||!probe.pickup)throw new Error('FPS-only HUD contract failed '+JSON.stringify(probe));
+if(probe.buttons.some(x=>!x.exists)||!probe.viewButtonAbsent||probe.cameraPreference!=='first'||!probe.miniMap||!probe.weaponBar||!probe.backpackBar||!probe.equipmentRail||!probe.prematchFreeze||!probe.wallLive||!probe.activePlayers||!probe.movePad||!probe.moveKnob||!probe.joystick?.joystick||probe.joystick?.touchAction!=='none'||!probe.contextBtn||!probe.removed||!probe.killFeed||!probe.killCam||!probe.pickup)throw new Error('FPS-only HUD/joystick contract failed '+JSON.stringify(probe));
 
 await page.tap('#aimBtn');
 await page.waitForTimeout(450);
