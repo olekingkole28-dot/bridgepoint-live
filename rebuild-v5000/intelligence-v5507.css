@@ -34,3 +34,8 @@
   .app-shell #bp5507-key{left:8px;bottom:118px}
   .app-shell #bp5507-tools{right:8px;bottom:118px}
 }
+
+
+/* V5527 — unobstructed premium-tool map stage. */
+.bp5507-tool-active .map-brand-card,.bp5507-tool-active .map-tools,.bp5507-tool-active .bottom-nav,.bp5507-tool-active .map-status,.bp5507-tool-active .preview-head,.bp5507-tool-active .preview-chip,.bp5507-tool-active .preview-sample,.bp5507-tool-active #landingPropertySearch{opacity:0!important;pointer-events:none!important}
+.bp5507-tool-active #bp5507-tool-panel{display:none!important}

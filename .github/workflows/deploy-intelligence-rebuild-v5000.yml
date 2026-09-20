@@ -109,6 +109,8 @@ jobs:
           cp rebuild-v5000/intelligence-v5507.css site/intelligence-v5507.css
           cp rebuild-v5000/intelligence-global-v5507.js site/intelligence-global-v5507.js
           cp rebuild-v5000/intelligence-tools-v5507.js site/intelligence-tools-v5507.js
+          cp rebuild-v5000/road-drive-v5527.js site/road-drive-v5527.js
+          cp rebuild-v5000/road-drive-v5527.css site/road-drive-v5527.css
           cp rebuild-v5000/scenario-lab-v5525.js site/scenario-lab-v5525.js
           cp rebuild-v5000/scenario-lab-v5525.css site/scenario-lab-v5525.css
           cp rebuild-v5000/qr-house-v5521.js site/qr-house-v5521.js
@@ -172,12 +174,19 @@ jobs:
           node --check site/landing.js
           node --check site/intelligence-global-v5507.js
           node --check site/intelligence-tools-v5507.js
+          node --check site/road-drive-v5527.js
           node --check site/scenario-lab-v5525.js
           node --check site/qr-house-v5521.js
-          grep -Fq 'intelligence-tools-v5507.js?v=5526' site/index.html
-          grep -Fq 'intelligence-tools-v5507.js?v=5526' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5527' site/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5527' site/app/index.html
           grep -Fq 'FREE PREMIUM TOOLS' site/intelligence-tools-v5507.js
           grep -Fq 'openScenarioLab' site/intelligence-tools-v5507.js
+          grep -Fq 'openRoadDrive' site/intelligence-tools-v5507.js
+          grep -Fq '__BP_ROAD_DRIVE_V5527__' site/road-drive-v5527.js
+          grep -Fq 'FREE · UNLIMITED' site/road-drive-v5527.js
+          grep -Fq 'LIVE WEATHER · CURRENT CONDITIONS' site/road-drive-v5527.js
+          grep -Fq 'road-drive-v5527.css?v=5527' site/index.html
+          grep -Fq 'road-drive-v5527.css?v=5527' site/app/index.html
           grep -Fq 'bridgepoint_intelligence_record_simulation_v5525' site/scenario-lab-v5525.js
           grep -Fq 'CINEMATIC_GEO_ANCHORED_3D_V5525' site/scenario-lab-v5525.js
           grep -Fq 'ILLUSTRATIVE / NOT A FORECAST OR CLAIM ESTIMATE' site/scenario-lab-v5525.js
