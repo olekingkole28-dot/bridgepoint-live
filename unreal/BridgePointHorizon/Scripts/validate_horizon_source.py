@@ -107,7 +107,8 @@ for token in [
     "BuildTerrain", "BuildTransport", "BuildWater", "BuildBuildings",
     "TriangulateSimplePolygon", "BuildingPartMaterial", "WaterMaterial",
     "FarBuildingMesh", "ResolveBuildingLodCounts", "MaxCollidableBuildingsPerCell",
-    "ResolveSourceRoofHeightMeters", "GetRenderedProfiledRoofCount",
+    "ResolveSourceRoofProfile", "ResolveSourceRoofHeightMeters",
+    "EHorizonSourceRoofProfile", "GetRenderedProfiledRoofCount",
     "ResolveTerrainReliefTint", "GetTerrainReliefTintVertexCount"
 ]:
     require(token in renderer_contract, f"streamed UE renderer feature missing: {token}")
@@ -119,7 +120,9 @@ for token in [
     "BuildingLodCounts.Y", "roof_shape", "roof_height_m",
     "ProfileRoofHeightMeters", "RenderedProfiledRoofCount",
     "const int32 ApexIndex = Vertices.Add(Apex)",
-    "TopMeters - ProfileRoofHeightMeters",
+    "EHorizonSourceRoofProfile::Gabled", "EHorizonSourceRoofProfile::Hipped",
+    "bFirstEdgeIsShorter", "RidgeAIndex", "RidgeBIndex",
+    "Orientation comes only from", "TopMeters - ProfileRoofHeightMeters",
     "Height->Type != EJson::Number", "!FMath::IsFinite(HeightMeters)",
     "Colors.Reserve(TerrainWidth * TerrainHeight)",
     "LocalReliefMeters", "TerrainReliefTintVertexCount = Colors.Num()",
@@ -136,6 +139,11 @@ for token in [
     "Missing source roof height does not invent a profile",
     "Roof height is bounded against total building height",
     "Invalid roof metadata fails closed",
+    "Explicit rectangular gable resolves to gabled profile",
+    "Explicit rectangular hip resolves to hipped profile",
+    "Source gable height is preserved on rectangular footprints",
+    "Non-rectangular gables fail flat instead of inventing topology",
+    "Missing footprint topology cannot create a gable",
     "World.Terrain.SourceReliefTint",
     "Higher sourced elevation receives lighter relief tint",
     "Abrupt sourced relief receives bounded contrast",
