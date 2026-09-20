@@ -120,28 +120,67 @@ float UHorizonChallengeDirectorSubsystem::ScoreSiteForRole(
         1.0f);
 }
 
+TArray<int32> UHorizonChallengeDirectorSubsystem::SelectTopSiteIndices(
+    EHorizonChallengeNPCRole Role,
+    const TArray<FHorizonNPCSiteCandidate>& Candidates,
+    int32 MaxSites) const
+{
+    TArray<int32> TopIndices;
+    TArray<float> TopScores;
+    if (Candidates.IsEmpty() || MaxSites <= 0)
+    {
+        return TopIndices;
+    }
+
+    const int32 Limit = FMath::Clamp(MaxSites, 1, 4);
+    TopIndices.Reserve(Limit);
+    TopScores.Reserve(Limit);
+
+    for (int32 CandidateIndex = 0; CandidateIndex < Candidates.Num(); ++CandidateIndex)
+    {
+        const float CandidateScore = ScoreSiteForRole(Role, Candidates[CandidateIndex]);
+        int32 InsertAt = 0;
+        while (InsertAt < TopScores.Num() &&
+               (TopScores[InsertAt] > CandidateScore ||
+                (FMath::IsNearlyEqual(TopScores[InsertAt], CandidateScore) &&
+                 TopIndices[InsertAt] < CandidateIndex)))
+        {
+            ++InsertAt;
+        }
+
+        if (InsertAt >= Limit && TopIndices.Num() >= Limit)
+        {
+            continue;
+        }
+
+        TopIndices.Insert(CandidateIndex, InsertAt);
+        TopScores.Insert(CandidateScore, InsertAt);
+        if (TopIndices.Num() > Limit)
+        {
+            TopIndices.RemoveAt(Limit);
+            TopScores.RemoveAt(Limit);
+        }
+    }
+
+    return TopIndices;
+}
+
 FHorizonNPCSiteCandidate UHorizonChallengeDirectorSubsystem::PickStrategicSite(
     EHorizonChallengeNPCRole Role,
     const TArray<FHorizonNPCSiteCandidate>& Candidates,
     int32 Seed) const
 {
-    if (Candidates.IsEmpty())
+    const TArray<int32> TopIndices = SelectTopSiteIndices(Role, Candidates, 4);
+    if (TopIndices.IsEmpty())
     {
         return FHorizonNPCSiteCandidate();
     }
 
-    TArray<FHorizonNPCSiteCandidate> Ranked = Candidates;
-    Ranked.Sort([this, Role](const FHorizonNPCSiteCandidate& A, const FHorizonNPCSiteCandidate& B)
-    {
-        return ScoreSiteForRole(Role, A) > ScoreSiteForRole(Role, B);
-    });
-
-    const int32 Pool = FMath::Clamp(Ranked.Num(), 1, 4);
     FRandomStream Random(Seed == 0 ? 8849 + static_cast<int32>(Role) * 101 : Seed);
 
     // Stay in the strongest few candidates so NPCs remain strategically placed
-    // without appearing at exactly the same point every session.
-    return Ranked[Random.RandRange(0, Pool - 1)];
+    // without copying and fully sorting every streamed-world candidate.
+    return Candidates[TopIndices[Random.RandRange(0, TopIndices.Num() - 1)]];
 }
 
 FString UHorizonChallengeDirectorSubsystem::MakeChallengeId(
