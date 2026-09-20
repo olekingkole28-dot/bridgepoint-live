@@ -205,6 +205,12 @@ jobs:
           grep -Fq 'bridgepoint_horizon_owner_audit_v4341' site/app/horizon/app.js
           grep -Fq 'bridgepoint_horizon_store_current_v4341' site/app/horizon/app.js
           grep -Fq 'bridgepoint_horizon_party_chat_v4341' site/app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_social_inbox_v4341' site/app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_friend_request_v4341' site/app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_lobby_invite_v4341' site/app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_block_v4341' site/app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_report_player_v4341' site/app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_owner_reports_v4341' site/app/horizon/app.js
           grep -Fq 'OCT 1 · 12:00 AM ET' site/app/horizon/index.html
           grep -Fq '100 PLAYERS' site/app/horizon/index.html
           grep -Fq 'data-tab="RULES"' site/app/horizon/index.html
@@ -215,6 +221,8 @@ jobs:
           grep -Fq 'id="equipmentRail"' site/app/horizon-playable/v2-entry.html
           grep -Fq 'id="prematchFreeze"' site/app/horizon-playable/v2-entry.html
           grep -Fq 'data-tab="PARTY"' site/app/horizon/index.html
+          grep -Fq 'data-tab="FRIENDS"' site/app/horizon/index.html
+          grep -Fq 'id="friendsBadge"' site/app/horizon/index.html
           grep -Fq 'id="fireUtilityBtn"' site/app/horizon-playable/v2-entry.html
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
@@ -463,6 +471,8 @@ jobs:
           grep -Fq 'id="equipmentRail"' /tmp/horizon-playable.html
           grep -Fq 'id="prematchFreeze"' /tmp/horizon-playable.html
           grep -Fq 'data-tab="PARTY"' /tmp/horizon.html
+          grep -Fq 'data-tab="FRIENDS"' /tmp/horizon.html
+          grep -Fq 'id="friendsBadge"' /tmp/horizon.html
           grep -Fq 'id="fireUtilityBtn"' /tmp/horizon-playable.html
           grep -Fq '100 PLAYERS' /tmp/horizon.html
           grep -Fq 'data-tab="RULES"' /tmp/horizon.html
