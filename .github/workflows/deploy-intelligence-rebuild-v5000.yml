@@ -216,14 +216,17 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '/refresh-v5535.js?v=5535' site/index.html
           grep -Fq '/refresh-v5535.js?v=5535' site/app/index.html
-          grep -Fq '__BP_WALKTHROUGH_V5537__' site/walkthrough-v5537.js
+          grep -Fq '__BP_WALKTHROUGH_V5538__' site/walkthrough-v5537.js
           grep -Fq 'MOLLY SAYS' site/walkthrough-v5537.js
+          grep -Fq "MOLLY_GUIDE='/assets/molly-materson-bridgepoint.webp'" site/walkthrough-v5537.js
+          grep -Fq 'card.dataset.dock=dock' site/walkthrough-v5537.js
+          grep -Fq 'data-has-target="1"' site/walkthrough-v5537.css
           grep -Fq 'demo3D' site/walkthrough-v5537.js
           grep -Fq 'qaBypass' site/walkthrough-v5537.js
-          grep -Fq '/walkthrough-v5537.js?v=5537' site/index.html
-          grep -Fq '/walkthrough-v5537.js?v=5537' site/app/index.html
-          grep -Fq '/walkthrough-v5537.css?v=5537' site/index.html
-          grep -Fq '/walkthrough-v5537.css?v=5537' site/app/index.html
+          grep -Fq '/walkthrough-v5537.js?v=5538' site/index.html
+          grep -Fq '/walkthrough-v5537.js?v=5538' site/app/index.html
+          grep -Fq '/walkthrough-v5537.css?v=5538' site/index.html
+          grep -Fq '/walkthrough-v5537.css?v=5538' site/app/index.html
           grep -Fq 'bp5507-live-hit' site/intelligence-global-v5507.js
           ! grep -Fq "source('bp5507-live',fc())" site/intelligence-global-v5507.js
           ! grep -Fq '3D HOUSE QR' site/intelligence-tools-v5507.js
@@ -546,8 +549,8 @@ jobs:
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?v5410=${q}" -o /tmp/app.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5371=${q}" -o /tmp/app.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5378=${q}" -o /tmp/world-v2300-map.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/walkthrough-v5537.js?v5537=${q}" -o /tmp/walkthrough-v5537.js || true
-            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'landing.js?v=5536' /tmp/root.html && grep -Fq '/walkthrough-v5537.js?v=5537' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5536' /tmp/app.html && grep -Fq '/walkthrough-v5537.js?v=5537' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' /tmp/world-v2300-map.js && grep -Fq '__BP_WALKTHROUGH_V5537__' /tmp/walkthrough-v5537.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js; then ok=1; break; fi
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/walkthrough-v5537.js?v5538=${q}" -o /tmp/walkthrough-v5537.js || true
+            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'landing.js?v=5536' /tmp/root.html && grep -Fq '/walkthrough-v5537.js?v=5538' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5536' /tmp/app.html && grep -Fq '/walkthrough-v5537.js?v=5538' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' /tmp/world-v2300-map.js && grep -Fq '__BP_WALKTHROUGH_V5538__' /tmp/walkthrough-v5537.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
@@ -644,14 +647,14 @@ jobs:
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               await p.goto('https://bridgepointintelligence.online/?tourqa=1&v='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await p.waitForSelector('#bpWalkthrough',{timeout:10000});
-              const landingTour=await p.evaluate(()=>({active:window.__BP_WALKTHROUGH_V5537__?.active===true,total:window.__BP_WALKTHROUGH_V5537__?.total||0,title:document.querySelector('.bp-tour-title')?.textContent||'',people:document.querySelectorAll('.bp-tour-person img').length,skip:!!document.querySelector('.bp-tour-skip')}));
-              if(!landingTour.active||landingTour.total<25||landingTour.people!==2||!landingTour.skip||!/Welcome to BridgePoint/i.test(landingTour.title))throw new Error('LANDING_WALKTHROUGH_REGRESSION '+JSON.stringify(landingTour));
+              const landingTour=await p.evaluate(()=>({active:window.__BP_WALKTHROUGH_V5538__?.active===true,version:window.__BP_WALKTHROUGH_V5538__?.version||0,total:window.__BP_WALKTHROUGH_V5538__?.total||0,title:document.querySelector('.bp-tour-title')?.textContent||'',people:document.querySelectorAll('.bp-tour-person img').length,mollySrc:document.querySelector('.bp-tour-person.molly img')?.getAttribute('src')||'',skip:!!document.querySelector('.bp-tour-skip')}));
+              if(!landingTour.active||landingTour.version!==5538||landingTour.total<25||landingTour.people!==2||landingTour.mollySrc!=='/assets/molly-materson-bridgepoint.webp'||!landingTour.skip||!/Welcome to BridgePoint/i.test(landingTour.title))throw new Error('LANDING_WALKTHROUGH_REGRESSION '+JSON.stringify(landingTour));
               await p.click('.bp-tour-skip');await p.waitForFunction(()=>!document.getElementById('bpWalkthrough'),{timeout:5000});
               await p.goto('https://bridgepointintelligence.online/app/?tourqa=1&v='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await p.waitForSelector('#bpWalkthrough',{timeout:10000});
-              const appTour=await p.evaluate(()=>({active:window.__BP_WALKTHROUGH_V5537__?.active===true,total:window.__BP_WALKTHROUGH_V5537__?.total||0,title:document.querySelector('.bp-tour-title')?.textContent||'',molly:document.body.innerText.includes('Molly Materson'),skip:!!document.querySelector('.bp-tour-skip'),apiSkip:typeof window.__BP_WALKTHROUGH_V5537__?.skip==='function'}));
-              if(!appTour.active||appTour.total<30||!appTour.molly||!appTour.skip||!appTour.apiSkip||!/Welcome to the BridgePoint app/i.test(appTour.title))throw new Error('APP_WALKTHROUGH_REGRESSION '+JSON.stringify(appTour));
-              await p.evaluate(()=>window.__BP_WALKTHROUGH_V5537__?.skip?.());await p.waitForFunction(()=>!document.getElementById('bpWalkthrough'),{timeout:5000});
+              const appTour=await p.evaluate(()=>({active:window.__BP_WALKTHROUGH_V5538__?.active===true,version:window.__BP_WALKTHROUGH_V5538__?.version||0,total:window.__BP_WALKTHROUGH_V5538__?.total||0,title:document.querySelector('.bp-tour-title')?.textContent||'',molly:document.body.innerText.includes('Molly Materson'),mollySrc:document.querySelector('.bp-tour-person.molly img')?.getAttribute('src')||'',skip:!!document.querySelector('.bp-tour-skip'),apiSkip:typeof window.__BP_WALKTHROUGH_V5538__?.skip==='function'}));
+              if(!appTour.active||appTour.version!==5538||appTour.total<30||!appTour.molly||appTour.mollySrc!=='/assets/molly-materson-bridgepoint.webp'||!appTour.skip||!appTour.apiSkip||!/Welcome to the BridgePoint app/i.test(appTour.title))throw new Error('APP_WALKTHROUGH_REGRESSION '+JSON.stringify(appTour));
+              await p.evaluate(()=>window.__BP_WALKTHROUGH_V5538__?.skip?.());await p.waitForFunction(()=>!document.getElementById('bpWalkthrough'),{timeout:5000});
               console.log('BRIDGEPOINT_WALKTHROUGH_V5537_PASS',JSON.stringify({landingTour,appTour}));
               const fatal=[];p.on('pageerror',e=>{fatal.push(String(e.message||e));console.log('BROWSER_PAGEERROR',String(e.stack||e.message||e))});
               p.on('console',m=>{const t=m.text();if(/BridgePoint|premium|global runtime|module|Failed to load|SyntaxError|ReferenceError|TypeError/i.test(t))console.log('BROWSER_CONSOLE',m.type(),t)});
