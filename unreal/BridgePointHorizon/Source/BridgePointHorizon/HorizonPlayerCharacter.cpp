@@ -877,7 +877,11 @@ void AHorizonPlayerCharacter::ApplyMovementInput(float DeltaSeconds)
         return;
     }
 
-    const FVector2D Input = CachedMoveInput.GetClampedToMaxSize(1.0f);
+    const FVector2D Input = ShapeMovementInput(
+        CachedMoveInput,
+        MovementInputDeadzone,
+        MovementInputOuterDeadzone,
+        MovementInputResponseExponent);
     UCharacterMovementComponent* Move = GetCharacterMovement();
     if (Move && Move->IsSwimming())
     {
@@ -1530,6 +1534,42 @@ bool AHorizonPlayerCharacter::IsWeaponVisualEquipped() const
         EquippedWeaponVisual->GetStaticMesh() != nullptr;
 }
 
+
+FVector2D AHorizonPlayerCharacter::ShapeMovementInput(
+    const FVector2D& RawInput,
+    float Deadzone,
+    float OuterDeadzone,
+    float ResponseExponent)
+{
+    if (RawInput.ContainsNaN() ||
+        !FMath::IsFinite(Deadzone) ||
+        !FMath::IsFinite(OuterDeadzone) ||
+        !FMath::IsFinite(ResponseExponent))
+    {
+        return FVector2D::ZeroVector;
+    }
+
+    const FVector2D ClampedInput = RawInput.GetClampedToMaxSize(1.0f);
+    const float Magnitude = ClampedInput.Size();
+    const float SafeDeadzone = FMath::Clamp(Deadzone, 0.0f, 0.40f);
+    const float SafeOuterDeadzone = FMath::Clamp(OuterDeadzone, 0.0f, 0.20f);
+    const float FullScaleThreshold =
+        FMath::Max(SafeDeadzone + KINDA_SMALL_NUMBER, 1.0f - SafeOuterDeadzone);
+    if (Magnitude <= SafeDeadzone)
+    {
+        return FVector2D::ZeroVector;
+    }
+
+    const float NormalizedMagnitude = FMath::Clamp(
+        (FMath::Min(Magnitude, FullScaleThreshold) - SafeDeadzone) /
+            FMath::Max(KINDA_SMALL_NUMBER, FullScaleThreshold - SafeDeadzone),
+        0.0f,
+        1.0f);
+    const float ShapedMagnitude = FMath::Pow(
+        NormalizedMagnitude,
+        FMath::Clamp(ResponseExponent, 0.50f, 3.0f));
+    return ClampedInput.GetSafeNormal() * ShapedMagnitude;
+}
 
 FVector AHorizonPlayerCharacter::ResolveSwimDirection(
     const FVector& ViewForward,
