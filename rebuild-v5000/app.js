@@ -1,5 +1,5 @@
 const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
-window.__BP_APP_BUILD_VERSION__=5372
+window.__BP_APP_BUILD_VERSION__=5500
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const RPC=SUPA+'/rest/v1/rpc/';
 const $=id=>document.getElementById(id);
@@ -76,9 +76,13 @@ async function initSharedVisualWeather(targetWorld){
   weather?.setActive?.(true);weather?.setRadar?.(true);
   window.__BP_SHARED_VISUAL_WEATHER__={version:5430,weather,present,mapShared:true,streetWalkLiveSimulation:false,radarVisible:true,radarAnimated:true,updatedAt:Date.now()};
   try{
-   const tm=await import('./weather-timemap-v5201.js?v=5201');
+   const tm=await import('./weather-timemap-v5201.js?v=5500');
    window.__BP_WEATHER_TIMEMAP_V5201=tm.initWeatherTimeMap({map,rpc,weather});
   }catch(e){console.warn('BridgePoint weather TimeMap',e)}
+  try{
+   const tools=await import('./intelligence-tools-v5500.js?v=5500');
+   window.__BP_INTELLIGENCE_TOOLS_V5500=tools.initIntelligenceTools({map,rpc,weather,mode:'app'});
+  }catch(e){console.warn('BridgePoint Intelligence tools v5500',e)}
   return window.__BP_SHARED_VISUAL_WEATHER__
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
