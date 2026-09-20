@@ -1,4 +1,4 @@
-name: Horizon V4335 FPS Source Gate
+name: Horizon V4336 FPS + Year One Source Gate
 
 on:
   push:
@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           node --check app/horizon-playable/horizon-v2.js
-          grep -Fq 'build:4331' app/horizon-playable/horizon-v2.js
+          grep -Fq 'build:4336' app/horizon-playable/horizon-v2.js
           grep -Fq 'actualCharacterModel:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'sourceBackedTwin:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'exactFootprintCollision:true' app/horizon-playable/horizon-v2.js
@@ -53,6 +53,12 @@ jobs:
           grep -Fq 'id="contextBtn"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="aimBtn"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="buildBtn"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="healthBar"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="shieldBar"' app/horizon-playable/v2-entry.html
+          grep -Fq 'pickupDwellSeconds:3' app/horizon-playable/horizon-v2.js
+          grep -Fq "shield=Math.min(100,shield+50)" app/horizon-playable/horizon-v2.js
+          grep -Fq "applyPlayerHit(25,z)" app/horizon-playable/horizon-v2.js
+          grep -Fq "spawnPolicy:'PRECISE_PLAYER_LOCATION'" app/horizon-playable/horizon-v2.js
       - name: Start local source server
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/horizon-v4331-http.log 2>&1 &
