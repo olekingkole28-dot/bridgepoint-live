@@ -12,7 +12,7 @@ for(const marker of [
   'firstPerson:true','crouch:true','prone:true','slide:true','jumpVault:true','gamepad:true','weaponInventory:true','minimap:true','proceduralInteriors:true','interiorLoot:true','roofTraversal:true','drivableVehicles:true','vehicleFuelRepair:true','infectedPatrols:true','ambientDisasterFx:true','spatialAudio:true','adaptivePerformanceGovernor:true',
   'buildInterior(entry)','buildZiplines()','spawnVehicles()','buildInfectedPatrol','state:stateCode','pickupDwellSeconds:3','shieldPickup:50','monsterHitDamage:25',
   "bridgepoint_horizon_record_player_kill_v4340","bridgepoint_horizon_year_one_death_v4310","bridgepoint_horizon_year_one_zone_v4340",
-  "bridgepoint_horizon_weapon_catalog_v4340","bridgepoint_horizon_tdm_loadouts_v4341","bridgepoint_horizon_tdm_fire_zone_v4341","bridgepoint_horizon_tdm_combat_clock_v4341","bridgepoint_horizon_death_drop_claim_v4340","syncFiniteLoot","inventoryWeaponKeys","buildCampfire","target=100","playerHealthMax:150","shieldMax:0","fireCircleSeconds:1800"
+  "bridgepoint_horizon_weapon_catalog_v4340","bridgepoint_horizon_tdm_loadouts_v4341","bridgepoint_horizon_tdm_fire_zone_v4341","bridgepoint_horizon_tdm_combat_clock_v4341","bridgepoint_horizon_death_drop_claim_v4340","syncFiniteLoot","inventoryWeaponKeys","buildCampfire","target=100","playerHealthMax:150","shieldMax:0","fireCircleSeconds:1800","touchMoveX","touchMoveY","pad.setPointerCapture","pointercancel","lostpointercapture"
 ]) if(!source.includes(marker))throw new Error('Missing source contract '+marker);
 
 const browser=await chromium.launch({executablePath,headless:true,args:[
@@ -64,6 +64,7 @@ const probe=await page.evaluate(()=>({
   viewButtonAbsent:!document.getElementById('viewBtn'),
   cameraPreference:localStorage.getItem('horizon-camera-mode'),
   miniMap:!!document.getElementById('miniMap'),
+  movePad:!!document.getElementById('movePad'),moveKnob:!!document.getElementById('moveKnob'),
   weaponBar:!!document.getElementById('weaponBar'),backpackBar:!!document.getElementById('backpackBar'),equipmentRail:!!document.getElementById('equipmentRail'),prematchFreeze:!!document.getElementById('prematchFreeze'),wallLive:!!document.getElementById('wallLive'),activePlayers:!!document.getElementById('activePlayers'),
   contextBtn:!!document.getElementById('contextBtn'),
   removed:['useBtn','lightBtn','weatherBtn'].every(id=>!document.getElementById(id)),
@@ -82,7 +83,17 @@ const probe=await page.evaluate(()=>({
 if(!probe.canvas||!probe.errorHidden)throw new Error('Canvas/runtime failed '+JSON.stringify(probe));
 if(probe.runtime?.build!==4341)throw new Error('Wrong runtime build '+JSON.stringify(probe.runtime));
 if(!probe.runtime?.actualCharacterModel||!probe.runtime?.sourceBackedTwin||!probe.runtime?.exactFootprintCollision||!probe.runtime?.terrainSource||Number(probe.runtime?.buildings||0)<1||Number(probe.runtime?.roads||0)<1||!probe.runtime?.solidCollision||!probe.runtime?.dwellPickup||!probe.runtime?.killFeed||!probe.runtime?.killcam||!probe.runtime?.firstPerson||!probe.runtime?.crouch||!probe.runtime?.jumpVault||!probe.runtime?.gamepad||!probe.runtime?.weaponInventory||!probe.runtime?.minimap||!probe.runtime?.proceduralInteriors||!probe.runtime?.roofTraversal||!probe.runtime?.drivableVehicles||!probe.runtime?.infectedPatrols||!probe.runtime?.ambientDisasterFx||!probe.runtime?.spatialAudio||!probe.runtime?.adaptivePerformanceGovernor)throw new Error('Required match systems missing '+JSON.stringify(probe.runtime));
-if(probe.buttons.some(x=>!x.exists)||!probe.viewButtonAbsent||probe.cameraPreference!=='first'||!probe.miniMap||!probe.weaponBar||!probe.backpackBar||!probe.equipmentRail||!probe.prematchFreeze||!probe.wallLive||!probe.activePlayers||!probe.contextBtn||!probe.removed||!probe.killFeed||!probe.killCam||!probe.pickup)throw new Error('FPS-only HUD contract failed '+JSON.stringify(probe));
+if(probe.buttons.some(x=>!x.exists)||!probe.viewButtonAbsent||probe.cameraPreference!=='first'||!probe.miniMap||!probe.movePad||!probe.moveKnob||!probe.weaponBar||!probe.backpackBar||!probe.equipmentRail||!probe.prematchFreeze||!probe.wallLive||!probe.activePlayers||!probe.contextBtn||!probe.removed||!probe.killFeed||!probe.killCam||!probe.pickup)throw new Error('FPS-only HUD contract failed '+JSON.stringify(probe));
+
+const padBox=await page.locator('#movePad').boundingBox();
+if(!padBox)throw new Error('Joystick movePad has no bounding box');
+const cx=padBox.x+padBox.width/2,cy=padBox.y+padBox.height/2;
+await page.mouse.move(cx,cy);await page.mouse.down();await page.mouse.move(cx+Math.min(34,padBox.width*.25),cy-10,{steps:4});await page.waitForTimeout(120);
+const joystickMoved=await page.evaluate(()=>document.getElementById('moveKnob')?.style.transform||'');
+if(!joystickMoved||/translate\(0(px)?,\s*0(px)?\)/.test(joystickMoved))throw new Error('Touch joystick did not move '+joystickMoved);
+await page.mouse.up();await page.waitForTimeout(80);
+const joystickReset=await page.evaluate(()=>document.getElementById('moveKnob')?.style.transform||'');
+if(!/translate\(0(px)?,\s*0(px)?\)/.test(joystickReset))throw new Error('Touch joystick did not reset '+joystickReset);
 
 await page.tap('#aimBtn');
 await page.waitForTimeout(450);
