@@ -10,6 +10,15 @@ on:
       - 'app/horizon-playable/index.html'
       - 'app/horizon-playable/horizon-v2.js'
       - 'app/horizon-playable/horizon-v2.css'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/horizon-v2-live-gate.yml'
+      - 'scripts/browser-horizon-v2-live.mjs'
+      - 'app/horizon-playable/v2-entry.html'
+      - 'app/horizon-playable/index.html'
+      - 'app/horizon-playable/horizon-v2.js'
+      - 'app/horizon-playable/horizon-v2.css'
   workflow_dispatch:
 
 jobs:
@@ -26,7 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           node --check app/horizon-playable/horizon-v2.js
-          grep -Fq 'build:4340' app/horizon-playable/horizon-v2.js
+          grep -Fq 'build:4341' app/horizon-playable/horizon-v2.js
           grep -Fq 'actualCharacterModel:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'sourceBackedTwin:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'exactFootprintCollision:true' app/horizon-playable/horizon-v2.js
