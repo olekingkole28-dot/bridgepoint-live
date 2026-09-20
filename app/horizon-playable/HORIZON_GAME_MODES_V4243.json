@@ -256,7 +256,13 @@
       "TDM class builder",
       "weapon attachments",
       "public live counters",
-      "owner audit"
+      "owner audit",
+      "friends handle search",
+      "friend requests",
+      "direct lobby invite inbox",
+      "block/unblock",
+      "private player reports",
+      "owner/co-owner moderation queue"
     ],
     "year_one_behavior": "player may customize in shared lobby but launching Year One always forces solo and cannot bring the party into the match",
     "tdm_behavior": "players may queue solo, duo, trio or squad; each match votes between two of the 50 real-location maps or Random for 10 seconds",
@@ -403,5 +409,46 @@
       "LEGENDARY",
       "MYTHIC"
     ]
+  },
+  "social_and_safety": {
+    "friends": {
+      "handle_search": true,
+      "friend_requests": true,
+      "accept_decline_cancel": true,
+      "unfriend": true,
+      "online_mode_presence": true
+    },
+    "lobby_invites": {
+      "friends_only": true,
+      "inbox": true,
+      "accept_decline": true,
+      "expires_minutes": 15,
+      "party_size_max": 4
+    },
+    "blocking": {
+      "block_unblock": true,
+      "cancels_friendship": true,
+      "cancels_pending_requests": true,
+      "cancels_direct_invites": true,
+      "filters_party_chat_and_voice_for_blocker": true
+    },
+    "reporting": {
+      "private": true,
+      "categories": [
+        "CHEATING",
+        "HARASSMENT",
+        "VOICE_ABUSE",
+        "GRIEFING",
+        "EXPLOIT",
+        "INAPPROPRIATE_NAME",
+        "OTHER"
+      ],
+      "owner_coowner_queue": true,
+      "match_party_context": true
+    },
+    "privacy": {
+      "friend_surface_exposes_email": false,
+      "owner_moderation_may_view_account_email": true
+    }
   }
 }
