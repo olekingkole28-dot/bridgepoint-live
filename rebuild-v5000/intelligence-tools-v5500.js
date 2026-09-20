@@ -62,22 +62,30 @@ export function initIntelligenceTools({map,rpc,weather,mode='app'}={}){
   try{state.globe=!state.globe;map.setProjection?.({type:state.globe?'globe':'mercator'});btn('globe').classList.toggle('active',state.globe);say(state.globe?'Globe projection · existing layers preserved':'Mercator projection');return true}catch(e){state.globe=false;say('Globe unavailable on this renderer · Mercator preserved');return false}
  }
  function ensureGlobal(){
-  makeSource(map,'bpGlobalHazardsV5500');
+  makeSource(map,'bpGlobalHazardsV5500');makeSource(map,'bpPlateBoundariesV5500');
   ensureLayer(map,{id:'bp-global-hazard-glow',type:'circle',source:'bpGlobalHazardsV5500',paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,2,5,4,10,9],'circle-color':['match',['get','domain'],'EARTHQUAKE','#ffb25d','VOLCANO','#ff704e','WILDFIRE','#ff8d45','SEVERE_WEATHER','#66c8ff','#b6d9e7'],'circle-opacity':.22,'circle-blur':.65}});
   ensureLayer(map,{id:'bp-global-hazard-point',type:'circle',source:'bpGlobalHazardsV5500',paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,1,5,2.5,10,5.5],'circle-color':['match',['get','domain'],'EARTHQUAKE','#ffb25d','VOLCANO','#ff704e','WILDFIRE','#ff8d45','SEVERE_WEATHER','#66c8ff','#b6d9e7'],'circle-opacity':.9,'circle-stroke-width':.5,'circle-stroke-color':'#f6ffff'}});
+  ensureLayer(map,{id:'bp-plate-boundaries-v5500',type:'line',source:'bpPlateBoundariesV5500',paint:{'line-color':['match',['get','LABEL'],'Convergent Boundary','#ff6a59','Divergent Boundary','#6fd4ff','Transform Boundary','#ffd568','#b68cff'],'line-width':['interpolate',['linear'],['zoom'],0,.7,6,1.5,12,3],'line-opacity':.68,'line-dasharray':[2,1]}});
  }
  async function globalHazards(){
-  if(!(await allow('GLOBAL')))return;if(state.global){state.global=false;btn('global').classList.remove('active');clearLayer('bpGlobalHazardsV5500');say('Global hazard layer off');return}
-  ensureGlobal();say('Loading approved global government hazard feeds…');let features=[];
+  if(state.global){state.global=false;btn('global').classList.remove('active');clearLayer('bpGlobalHazardsV5500');clearLayer('bpPlateBoundariesV5500');say('Global hazard layer off');return}
+  if(!(await allow('GLOBAL')))return;
+  ensureGlobal();say('Loading approved global government hazard feeds…');let features=[],plateFeatures=[];
   try{
-   const [eq,eo]=await Promise.all([
+   const [eq,eo,plates,micro,vol]=await Promise.all([
     fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson',{cache:'no-store'}).then(r=>r.ok?r.json():EMPTY),
-    fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=250',{cache:'no-store'}).then(r=>r.ok?r.json():({events:[]}))
+    fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=250',{cache:'no-store'}).then(r=>r.ok?r.json():({events:[]})),
+    fetch('https://earthquake.usgs.gov/arcgis/rest/services/eq/map_plateboundaries/MapServer/1/query?where=1%3D1&outFields=NAME%2CLABEL&returnGeometry=true&outSR=4326&f=geojson',{cache:'force-cache'}).then(r=>r.ok?r.json():EMPTY),
+    fetch('https://earthquake.usgs.gov/arcgis/rest/services/eq/map_plateboundaries/MapServer/0/query?where=1%3D1&outFields=NAME%2CLABEL&returnGeometry=true&outSR=4326&f=geojson',{cache:'force-cache'}).then(r=>r.ok?r.json():EMPTY),
+    fetch('https://volcanoes.usgs.gov/vsc/api/volcanoApi/volcanoesGVP',{cache:'no-store'}).then(r=>r.ok?r.json():[])
    ]);
    for(const f of eq.features||[]){if(f?.geometry?.type!=='Point')continue;features.push({type:'Feature',geometry:f.geometry,properties:{domain:'EARTHQUAKE',name:f.properties?.place||'Earthquake',magnitude:f.properties?.mag,source:'USGS',observed_at:f.properties?.time||0}})}
    for(const e of eo.events||[]){const cat=String(e.categories?.[0]?.title||'GLOBAL_HAZARD').toUpperCase(),g=[...(e.geometry||[])].reverse().find(x=>x?.coordinates?.length>=2);if(!g||g.type!=='Point')continue;const domain=/VOLCANO/.test(cat)?'VOLCANO':/WILD|FIRE/.test(cat)?'WILDFIRE':/STORM|FLOOD|ICE|SNOW/.test(cat)?'SEVERE_WEATHER':'GLOBAL_HAZARD';features.push({type:'Feature',geometry:{type:'Point',coordinates:g.coordinates.slice(0,2)},properties:{domain,name:e.title||cat,source:'NASA EONET',observed_at:g.date||''}})}
-  }catch(e){say('Global feed retry · '+String(e?.message||e))}
-  map.getSource('bpGlobalHazardsV5500')?.setData({type:'FeatureCollection',features});state.global=true;btn('global').classList.add('active');say('Global hazards · '+features.length+' approved-source events');
+   plateFeatures=[...(plates.features||[]),...(micro.features||[])].map(f=>({...f,properties:{...(f.properties||{}),source:'USGS',domain:'TECTONICS'}}));
+   const rows=Array.isArray(vol)?vol:Array.isArray(vol?.volcanoes)?vol.volcanoes:Array.isArray(vol?.data)?vol.data:Array.isArray(vol?.items)?vol.items:Array.isArray(vol?.features)?vol.features:[];
+   for(const v of rows){const p=v?.properties||v,coords=v?.geometry?.coordinates,lon=Number(coords?.[0]??p.longitude??p.lon??p.lng??p.Longitude),lat=Number(coords?.[1]??p.latitude??p.lat??p.Latitude);if(!Number.isFinite(lon)||!Number.isFinite(lat))continue;features.push({type:'Feature',geometry:{type:'Point',coordinates:[lon,lat]},properties:{domain:'VOLCANO',name:p.volcanoName||p.name||p.volcano_name||p.VOLCANO_NAME||'Volcano',source:'USGS VHP',status:p.status||p.alertLevel||''}})}
+  }catch(e){say('Global feed partial/retry · '+String(e?.message||e))}
+  map.getSource('bpGlobalHazardsV5500')?.setData({type:'FeatureCollection',features});map.getSource('bpPlateBoundariesV5500')?.setData({type:'FeatureCollection',features:plateFeatures});state.global=true;btn('global').classList.add('active');say('Global · '+features.length+' hazard/volcano points · '+plateFeatures.length+' tectonic boundaries');
  }
  async function liveEntities(domain,tool){
   if(!(await allow(tool)))return;const c=await caps(),enabled=(c.enabled||[]).filter(x=>x.domain===domain);
