@@ -279,6 +279,12 @@ public:
     UFUNCTION(BlueprintPure, Category="Horizon|Camera|Lean")
     float GetLeanAlpha() const { return CurrentLeanAlpha; }
 
+    static bool ShouldRefreshMovementProfile(
+        float AccumulatedSeconds,
+        float DeltaSeconds,
+        float RefreshIntervalSeconds,
+        float& OutRemainderSeconds);
+
     static float ResolveLeanTarget(
         float RawInput,
         EHorizonMovementStance Stance,
@@ -300,6 +306,7 @@ private:
     bool bAiming = false;
     bool bWaitingForStreamedTerrain = true;
     float TerrainProbeAccumulator = 0.0f;
+    float MovementProfileRefreshAccumulator = 0.0f;
     float StandingCapsuleHalfHeight = 0.0f;
     float StandingCapsuleRadius = 0.0f;
     float SlideTimeRemaining = 0.0f;
