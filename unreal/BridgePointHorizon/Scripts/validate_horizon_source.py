@@ -766,7 +766,9 @@ for token in [
     "EHorizonHitDirection", "FHorizonCombatHitFeedback", "OnCombatHitReaction",
     "ApplyCombatHit", "ResolveHitDirection", "ResolveCombatHit",
     "CurrentHealth", "CurrentArmor", "ReticleImpulse01",
-    "ShouldRefreshMovementProfile", "MovementProfileRefreshAccumulator"
+    "ShouldRefreshMovementProfile", "MovementProfileRefreshAccumulator",
+    "SwimSpeed", "SwimAcceleration", "SwimBuoyancy", "IsSwimming",
+    "ResolveSwimDirection", "SwimVerticalInput"
 ]:
     require(token in player_header, f"native weapon visual contract missing: {token}")
 for token in [
@@ -811,7 +813,13 @@ for token in [
     "AddControllerYawInput(Feedback.CameraImpulse.Y)",
     "if (ShouldRefreshMovementProfile(",
     "FMath::Min(DeltaSeconds, 0.50f)",
-    "OutRemainderSeconds = FMath::Fmod(Elapsed, SafeInterval)"
+    "OutRemainderSeconds = FMath::Fmod(Elapsed, SafeInterval)",
+    "bCanSwim = true", "Move->MaxSwimSpeed = SwimSpeed",
+    "Move->IsSwimming()", "OnMovementModeChanged(",
+    "MovementStance = EHorizonMovementStance::Swimming",
+    "ResolveSwimDirection(ViewForward, ViewRight, Input, SwimVerticalInput)",
+    "WeaponRuntime->StopFire()",
+    "MovementStance != EHorizonMovementStance::Swimming"
 ]:
     require(token in player, f"native facing/camera regression guard missing: {token}")
 require("AddMovementInput(FRotationMatrix" not in player,
@@ -918,7 +926,13 @@ for token in [
     "Ordinary hitch produces one bounded refresh",
     "Negative frame delta cannot synthesize profile work",
     "Catastrophic stall remains a single refresh",
-    "Catastrophic stall cannot leave an unbounded backlog"
+    "Catastrophic stall cannot leave an unbounded backlog",
+    "Movement.Swim.Direction",
+    "Camera pitch drives three-dimensional swim direction",
+    "Jump input adds bounded swim ascent",
+    "Combined swim input remains normalized",
+    "Idle swim input produces no drift",
+    "Swimming stance cannot start a ground vault"
 ]:
     require(token in movement_tests, f"native lean QA missing: {token}")
 require("Stripe" not in movement_tests and "Payment" not in movement_tests,

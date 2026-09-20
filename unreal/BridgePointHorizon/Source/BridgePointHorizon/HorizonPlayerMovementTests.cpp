@@ -237,4 +237,46 @@ bool FHorizonMovementProfileRefreshBudgetTest::RunTest(const FString& Parameters
     return true;
 }
 
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonSwimmingDirectionTest,
+    "BridgePoint.Horizon.Movement.Swim.Direction",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonSwimmingDirectionTest::RunTest(const FString& Parameters)
+{
+    const FVector PitchedForward =
+        FVector(0.8660254f, 0.0f, 0.5f).GetSafeNormal();
+    const FVector Right = FVector::RightVector;
+
+    const FVector ForwardSwim = AHorizonPlayerCharacter::ResolveSwimDirection(
+        PitchedForward, Right, FVector2D(0.0f, 1.0f), 0.0f);
+    TestTrue(TEXT("Camera pitch drives three-dimensional swim direction"),
+        ForwardSwim.Equals(PitchedForward, KINDA_SMALL_NUMBER));
+
+    const FVector AscendingSwim = AHorizonPlayerCharacter::ResolveSwimDirection(
+        FVector::ForwardVector, Right, FVector2D(0.0f, 1.0f), 1.0f);
+    TestTrue(TEXT("Jump input adds bounded swim ascent"),
+        AscendingSwim.Z > 0.0f && AscendingSwim.Size() <= 1.0f + KINDA_SMALL_NUMBER);
+
+    const FVector DiagonalSwim = AHorizonPlayerCharacter::ResolveSwimDirection(
+        FVector::ForwardVector, Right, FVector2D(1.0f, 1.0f), 1.0f);
+    TestTrue(TEXT("Combined swim input remains normalized"),
+        DiagonalSwim.Size() <= 1.0f + KINDA_SMALL_NUMBER);
+
+    const FVector IdleSwim = AHorizonPlayerCharacter::ResolveSwimDirection(
+        FVector::ForwardVector, Right, FVector2D::ZeroVector, 0.0f);
+    TestTrue(TEXT("Idle swim input produces no drift"), IdleSwim.IsNearlyZero());
+
+    TestFalse(TEXT("Swimming stance cannot start a ground vault"),
+        AHorizonPlayerCharacter::CanStartVault(
+            EHorizonMovementStance::Swimming,
+            false,
+            false,
+            1.0f,
+            80.0f,
+            true));
+    return true;
+}
+
 #endif
