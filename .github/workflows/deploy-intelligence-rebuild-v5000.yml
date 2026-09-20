@@ -231,12 +231,13 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' site/app.js
           grep -Fq 'bpUserMapGesture' site/landing.js
           grep -Fq 'landingFreePremiumTools' site/index.html
-          grep -Fq 'landing.js?v=5533' site/index.html
-          grep -Fq 'app.js?v=5533' site/app/index.html
+          grep -Fq 'landing.js?v=5534' site/index.html
+          grep -Fq 'app.js?v=5534' site/app/index.html
           grep -Fq 'window.__BP_LANDING_WORLD__=world' site/landing.js
           grep -Fq '__BP_WORLD_CORE_READY__' site/world-v2300-map.js
-          grep -Fq "world-v2300-space.js?v=5533" site/world-v2300-map.js
+          grep -Fq "world-v2300-space.js?v=5534" site/world-v2300-map.js
           grep -Fq '__BP_SPACE_V5532__' site/world-v2300-space.js
+          grep -Fq 'get mounted(){return!!c}' site/world-v2300-space.js
           grep -Fq 'JPL-style approximate positions' site/world-v2300-space.js
           grep -Fq 'STELLAR / MILKY WAY SCALE' site/world-v2300-space.js
           grep -Fq '__BP_LANDING_MAP_BOOT__' site/landing.js
