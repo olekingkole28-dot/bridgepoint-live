@@ -101,6 +101,8 @@ jobs:
           cp rebuild-v5000/landing.js site/landing.js
           cp rebuild-v5000/styles.css site/styles.css
           cp rebuild-v5000/app.js site/app.js
+          cp rebuild-v5000/weather-timemap-v5201.js site/weather-timemap-v5201.js
+          cp rebuild-v5000/intelligence-tools-v5500.js site/intelligence-tools-v5500.js
           cp rebuild-v5000/owner-everything.js site/owner-everything.js
           cp rebuild-v5000/owner-everything.css site/owner-everything.css
           cp rebuild-v5000/manifest.webmanifest site/manifest.webmanifest
@@ -158,12 +160,34 @@ jobs:
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/dist/pmtiles.js -o site/vendor/pmtiles.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js -o site/vendor/qrcode-generator.js
 
           printf '%s\n' 'bridgepointintelligence.online' > site/CNAME
           touch site/.nojekyll site/app/.nojekyll
 
           node --check site/app.js
+          node --check site/weather-timemap-v5201.js
+          node --check site/intelligence-tools-v5500.js
           node --check site/landing.js
+          test -s site/vendor/qrcode-generator.js
+          grep -Fq 'weather-timemap-v5201.js?v=5500' site/app.js
+          grep -Fq 'intelligence-tools-v5500.js?v=5500' site/app.js
+          grep -Fq 'intelligence-tools-v5500.js?v=5500' site/landing.js
+          grep -Fq 'bridgepoint_intelligence_public_tool_allow_v5500' site/intelligence-tools-v5500.js
+          grep -Fq 'bridgepoint_intelligence_live_entities_v5500' site/intelligence-tools-v5500.js
+          grep -Fq "['all','ALL']" site/intelligence-tools-v5500.js
+          grep -Fq 'async function toggleAll()' site/intelligence-tools-v5500.js
+          grep -Fq "state.allMode?(mode==='public'?120:300)" site/intelligence-tools-v5500.js
+          grep -Fq 'setProjection?.({type:state.globe' site/intelligence-tools-v5500.js
+          grep -Fq 'FLIGHT SIM' site/intelligence-tools-v5500.js
+          grep -Fq 'BUILDING AERODYNAMICS' site/intelligence-tools-v5500.js
+          grep -Fq 'SIMULATION · NOT A FORECAST' site/intelligence-tools-v5500.js
+          grep -Fq 'FROM</label>' site/weather-timemap-v5201.js
+          grep -Fq 'TO</label>' site/weather-timemap-v5201.js
+          grep -Fq 'MOMENT</label>' site/weather-timemap-v5201.js
+          grep -Fq 'bridgepoint_weather_timemap_v5201' site/weather-timemap-v5201.js
+          grep -Fq 'WEATHER TIMEMAP' site/weather-timemap-v5201.js
+          grep -Fq 'LOCATION DOSSIER' site/weather-timemap-v5201.js
           grep -Fq 'landingPropertySearch' site/index.html
           grep -Fq 'FREE_LOOKUP_KEY' site/landing.js
           grep -Fq 'landingWeatherLegend' site/landing.js
@@ -191,7 +215,11 @@ jobs:
           node --check site/app/horizon/lobby-scene.js
           node --check site/app/horizon/model-preview.js
           node --check site/app/horizon-playable/horizon-v2.js
-          grep -Fq 'build:4341' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'build:4341' app/horizon-playable/horizon-v2.js
+          grep -Fq 'function padMove(e)' app/horizon-playable/horizon-v2.js
+          grep -Fq "pad.addEventListener('pointercancel',endPad)" app/horizon-playable/horizon-v2.js
+          grep -Fq "pad.addEventListener('lostpointercapture',endPad)" app/horizon-playable/horizon-v2.js
+          # site/app/horizon-playable/horizon-v2.js
           grep -Fq 'bridgepoint_horizon_year_one_enter_v4340' site/app/horizon/app.js
           grep -Fq 'bridgepoint_horizon_year_one_checkpoint_v4337' site/app/horizon-playable/horizon-v2.js
           grep -Fq 'bridgepoint_horizon_account_link_v4340' site/app/horizon/app.js
@@ -218,23 +246,22 @@ jobs:
           grep -Fq 'id="healthBar"' site/app/horizon-playable/v2-entry.html
           grep -Fq 'id="shieldBar"' site/app/horizon-playable/v2-entry.html
           grep -Fq 'id="backpackBar"' site/app/horizon-playable/v2-entry.html
-          grep -Fq 'id="movePad"' site/app/horizon-playable/v2-entry.html
-          grep -Fq 'id="moveKnob"' site/app/horizon-playable/v2-entry.html
-          grep -Fq 'BP_HORIZON_INPUT_V4341' site/app/horizon-playable/horizon-v2.js
-          grep -Fq 'touchMoveX' site/app/horizon-playable/horizon-v2.js
-          grep -Fq 'touchMoveY' site/app/horizon-playable/horizon-v2.js
-          grep -Fq 'setPointerCapture' site/app/horizon-playable/horizon-v2.js
-          grep -Fq 'pointercancel' site/app/horizon-playable/horizon-v2.js
-          grep -Fq 'lostpointercapture' site/app/horizon-playable/horizon-v2.js
           grep -Fq 'id="equipmentRail"' site/app/horizon-playable/v2-entry.html
           grep -Fq 'id="prematchFreeze"' site/app/horizon-playable/v2-entry.html
           grep -Fq 'data-tab="PARTY"' site/app/horizon/index.html
           grep -Fq 'data-tab="FRIENDS"' site/app/horizon/index.html
           grep -Fq 'id="friendsBadge"' site/app/horizon/index.html
           grep -Fq 'id="fireUtilityBtn"' site/app/horizon-playable/v2-entry.html
+          grep -Fq 'id="movePad"' site/app/horizon-playable/v2-entry.html
+          grep -Fq 'id="moveKnob"' site/app/horizon-playable/v2-entry.html
+          grep -Fq 'touchMoveX' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'touchMoveY' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'setPointerCapture' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'pointercancel' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'lostpointercapture' site/app/horizon-playable/horizon-v2.js
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
-          grep -Fq '__BP_APP_BUILD_VERSION__=5371' site/app.js
+          grep -Fq '__BP_APP_BUILD_VERSION__=5500' site/app.js
           grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' site/world-v2300-map.js
           grep -Fq 'bridgepoint_frontend_status_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_v5000' site/app.js
@@ -444,7 +471,9 @@ jobs:
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?v5410=${q}" -o /tmp/app.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5371=${q}" -o /tmp/app.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5378=${q}" -o /tmp/world-v2300-map.js || true
-            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5410' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' /tmp/world-v2300-map.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js; then ok=1; break; fi
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/weather-timemap-v5201.js?v5201=${q}" -o /tmp/weather-timemap-v5201.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/intelligence-tools-v5500.js?v5500=${q}" -o /tmp/intelligence-tools-v5500.js || true
+            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5410' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5500' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' /tmp/world-v2300-map.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js && grep -Fq 'weather-timemap-v5201.js?v=5500' /tmp/app.js && grep -Fq 'bridgepoint_weather_timemap_v5201' /tmp/weather-timemap-v5201.js && grep -Fq 'bridgepoint_intelligence_public_tool_allow_v5500' /tmp/intelligence-tools-v5500.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
@@ -476,14 +505,14 @@ jobs:
           grep -Fq 'id="healthBar"' /tmp/horizon-playable.html
           grep -Fq 'id="shieldBar"' /tmp/horizon-playable.html
           grep -Fq 'id="backpackBar"' /tmp/horizon-playable.html
-          grep -Fq 'id="movePad"' /tmp/horizon-playable.html
-          grep -Fq 'id="moveKnob"' /tmp/horizon-playable.html
           grep -Fq 'id="equipmentRail"' /tmp/horizon-playable.html
           grep -Fq 'id="prematchFreeze"' /tmp/horizon-playable.html
           grep -Fq 'data-tab="PARTY"' /tmp/horizon.html
           grep -Fq 'data-tab="FRIENDS"' /tmp/horizon.html
           grep -Fq 'id="friendsBadge"' /tmp/horizon.html
           grep -Fq 'id="fireUtilityBtn"' /tmp/horizon-playable.html
+          grep -Fq 'id="movePad"' /tmp/horizon-playable.html
+          grep -Fq 'id="moveKnob"' /tmp/horizon-playable.html
           grep -Fq '100 PLAYERS' /tmp/horizon.html
           grep -Fq 'data-tab="RULES"' /tmp/horizon.html
           grep -Fq 'data-tab="ABOUT"' /tmp/horizon.html
