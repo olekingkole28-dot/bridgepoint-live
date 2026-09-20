@@ -4,9 +4,9 @@ import {mountModelPreviews} from './model-preview.js';
 
 const SUPABASE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const PUBLISHABLE_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
-const sb=window.supabase?.createClient(SUPABASE_URL,PUBLISHABLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
+const sb=window.supabase?.createClient(SUPABASE_URL,PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=id=>document.getElementById(id);
-const state={player:null,config:null,catalog:null,yearOne:null,party:null,match:null,worldCell:null,maps:[],selectedMap:null,selectedMode:'TDM',channel:null,peers:new Map(),killcam:new KillCamBuffer(),pickup:null,installPrompt:null,queueing:false,yearOneRolloverChecked:false};
+const state={player:null,config:null,catalog:null,yearOne:null,party:null,match:null,worldCell:null,maps:[],selectedMap:null,selectedMode:'TDM',channel:null,peers:new Map(),killcam:new KillCamBuffer(),pickup:null,installPrompt:null,queueing:false,yearOneRolloverChecked:false,session:null,account:null,character:null,stats:null,activePlayers:0,owner:false};
 const qs=new URLSearchParams(location.search);
 
 function b64url(bytes){
@@ -24,14 +24,41 @@ const ident=identity();
 const lobbyScene=$('lobby3d')?createLobbyScene($('lobby3d')):null;
 
 async function rpc(name,params={}){
-  const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{
-    method:'POST',
-    headers:{apikey:PUBLISHABLE_KEY,'content-type':'application/json','accept':'application/json'},
-    body:JSON.stringify(params)
-  });
+  const headers={apikey:PUBLISHABLE_KEY,'content-type':'application/json','accept':'application/json'};
+  const token=state.session?.access_token;if(token)headers.authorization='Bearer '+token;
+  const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+name,{method:'POST',headers,body:JSON.stringify(params)});
   const text=await r.text();
   if(!r.ok){let msg=text;try{msg=JSON.parse(text)?.message||text}catch{}throw new Error(msg)}
   return text?JSON.parse(text):null;
+}
+async function refreshAuthState(){
+  if(!sb)return null;
+  const {data}=await sb.auth.getSession();state.session=data?.session||null;
+  if(state.session){
+    try{
+      const out=await rpc('bridgepoint_horizon_account_v4340',{p_player_id:ident.id,p_player_secret:ident.secret});
+      state.account=out?.account||null;state.character=out?.character||null;state.stats=out?.stats||null;
+      if(state.account?.handle){$('displayName').value=state.account.handle;localStorage.setItem('horizon-display-name',state.account.handle)}
+    }catch{state.account=null}
+  }else{state.account=null;state.character=null;state.stats=null}
+  renderAccountState();syncPlayAvailability();return state.session;
+}
+function renderAccountState(){
+  const btn=$('accountBtn'),st=$('accountState');if(!btn)return;
+  btn.classList.toggle('signed',!!state.account);btn.classList.toggle('needs-setup',!!state.session&&!state.account);
+  btn.textContent=state.account?state.account.handle:(state.session?'SET UP PROFILE':'SIGN IN');
+  if(st)st.textContent=state.account?('SIGNED IN · @'+state.account.handle):(state.session?'CHOOSE UNIQUE HANDLE TO PLAY':'FREE ACCOUNT REQUIRED TO PLAY');
+}
+async function refreshActivePlayers(){
+  try{
+    const out=await rpc('bridgepoint_horizon_active_count_v4340',{});state.activePlayers=Number(out?.active_players||0);
+    if($('horizonActiveCount'))$('horizonActiveCount').textContent=String(state.activePlayers);
+  }catch{}
+}
+async function detectOwner(){
+  if(!state.session){state.owner=false;$('ownerTab')?.setAttribute('hidden','');return false}
+  try{await rpc('bridgepoint_horizon_owner_metrics_v4340',{});state.owner=true;$('ownerTab')?.removeAttribute('hidden');return true}
+  catch{state.owner=false;$('ownerTab')?.setAttribute('hidden','');return false}
 }
 
 function setNet(label,color='#f4c45e'){
@@ -67,9 +94,10 @@ function renderYearOneCountdown(){
 }
 function syncPlayAvailability(){
   const btn=$('playBtn'),label=$('playLabel');if(!btn||!label)return;
-  const waiting=state.selectedMode==='YEAR_ONE'&&state.yearOne?.status!=='LIVE';
+  const waiting=state.selectedMode==='YEAR_ONE'&&state.yearOne?.status!=='LIVE',needsAccount=!state.account;
   btn.disabled=!!state.queueing||waiting;
   if(state.queueing)label.textContent=state.selectedMode==='TDM'?'QUEUING':'LOADING';
+  else if(needsAccount)label.textContent='SIGN IN';
   else if(waiting)label.textContent='OCT 1';
   else label.textContent='READY';
 }
@@ -114,7 +142,7 @@ function renderParty(){
 }
 function escapeHtml(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function paidCharacterOptions(){
-  return (state.catalog?.store||[]).filter(s=>s.category==='CHARACTER_SKIN'&&s.preview_kind==='MODEL_RENDER').map(s=>({
+  return (state.catalog?.store||[]).filter(s=>s.category==='CHARACTER_SKIN'&&['MODEL_RENDER','RUNTIME_RENDER'].includes(String(s.preview_kind||'').toUpperCase())).map(s=>({
     character_key:s.entitlement_key,display_name:s.display_name,model_path:s.preview_ref,outfit_variant:2,base_model_key:'STORE_SKIN',owned:!!s.owned,paid:true
   }));
 }
