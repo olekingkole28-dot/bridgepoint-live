@@ -328,4 +328,45 @@ bool FHorizonRadialMovementInputTest::RunTest(const FString& Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonTerrainCollisionGravityGateTest,
+    "BridgePoint.Horizon.Collision.NoFallThrough.TerrainGravityGate",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonTerrainCollisionGravityGateTest::RunTest(const FString& Parameters)
+{
+    TestFalse(
+        TEXT("Gravity remains disabled after the terrain wait has already ended"),
+        AHorizonPlayerCharacter::ShouldEnableWorldGravityFromTerrainCollision(
+            false, true, true, true, true));
+
+    TestFalse(
+        TEXT("Gravity remains disabled while streamed terrain data is missing"),
+        AHorizonPlayerCharacter::ShouldEnableWorldGravityFromTerrainCollision(
+            true, false, true, true, true));
+
+    TestFalse(
+        TEXT("Gravity remains disabled while the terrain collision mesh is missing"),
+        AHorizonPlayerCharacter::ShouldEnableWorldGravityFromTerrainCollision(
+            true, true, false, true, true));
+
+    TestFalse(
+        TEXT("Gravity remains disabled until the terrain component answers the trace"),
+        AHorizonPlayerCharacter::ShouldEnableWorldGravityFromTerrainCollision(
+            true, true, true, false, false));
+
+    TestFalse(
+        TEXT("Gravity remains disabled when a trace returns without a blocking terrain hit"),
+        AHorizonPlayerCharacter::ShouldEnableWorldGravityFromTerrainCollision(
+            true, true, true, true, false));
+
+    TestTrue(
+        TEXT("Gravity enables only after source terrain collision returns a blocking hit"),
+        AHorizonPlayerCharacter::ShouldEnableWorldGravityFromTerrainCollision(
+            true, true, true, true, true));
+
+    return true;
+}
+
+
 #endif
