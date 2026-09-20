@@ -221,7 +221,9 @@ for token in [
     "EHorizonWeaponReportClass", "FHorizonWeaponReportMix", "GetWeaponReportMix",
     "PropagationDelaySeconds", "EarlyReflectionGain", "TailGain",
     "EHorizonUiFeedbackCue", "FHorizonUiFeedbackMix",
-    "GetUiFeedbackMix", "BuildUiFeedbackMix", "bListenerRelative"
+    "GetUiFeedbackMix", "BuildUiFeedbackMix", "bListenerRelative",
+    "EHorizonVehicleAudioClass", "FHorizonVehicleAudioMix",
+    "GetVehicleAudioMix", "BuildVehicleAudioMix", "DamageSputter01"
 ]:
     require(token in audio_header, f"AAA audio runtime contract missing: {token}")
 for token in [
@@ -239,7 +241,11 @@ for token in [
     "Mix.TailDelaySeconds = 0.12f", "RegionalTailScale = 1.20f",
     "Mix.MechanicalGain *= FMath::Pow", "SmoothedCombatIntensity01",
     "bCritical ? 0.90f : 0.72f",
-    "Mix.TransientDuck = FMath::Clamp", "FRandomStream Variation"
+    "Mix.TransientDuck = FMath::Clamp", "FRandomStream Variation",
+    "EHorizonVehicleAudioClass::Pickup", "EHorizonVehicleAudioClass::Offroad",
+    "bListenerInside", "Mix.LowPassCutoffHz = 5200.0f",
+    "Mix.LowPassCutoffHz = 2600.0f", "SafeDurability < 0.45f",
+    "DistanceGain"
 ]:
     require(token in audio, f"AAA audio behavior missing: {token}")
 for token in [
@@ -284,6 +290,15 @@ for token in [
     "Seeded UI feedback pitch is deterministic"
 ]:
     require(token in audio_tests, f"native UI feedback audio QA missing: {token}")
+for token in [
+    "Audio.Vehicles.RuntimeMix", "Stopped engine has no engine layer",
+    "Road speed raises powertrain pitch", "Road speed introduces tire noise",
+    "Pickup exhaust has more body than sedan", "Damage increases mechanical rattle",
+    "Critical damage creates sputter", "Cabin filters exterior powertrain detail",
+    "Occlusion lowers vehicle cutoff", "Distance attenuates vehicle engine",
+    "Seeded vehicle pitch is deterministic"
+]:
+    require(token in audio_tests, f"native vehicle audio QA missing: {token}")
 require("Stripe" not in audio_tests and "Payment" not in audio_tests,
         "regional ambience QA must remain independent of payments")
 
@@ -530,7 +545,8 @@ for token in [
     "UHorizonVehicleSaveGame", "RegisterVehicle", "TryStartEngine", "StopEngine",
     "AdvanceVehicle", "RefuelFromInventory", "RepairFromInventory",
     "CanStartEngine", "IsDriverAuthorized", "ShouldBroadcastTravelUpdate",
-    "SimulateTravel", "TravelBroadcastAccumulators"
+    "SimulateTravel", "TravelBroadcastAccumulators",
+    "FHorizonVehicleAudioFrame", "OnVehicleAudioUpdated", "ResolveAudioClass"
 ]:
     require(token in vehicle_contract, f"persistent vehicle contract missing: {token}")
 for token in [
@@ -540,7 +556,9 @@ for token in [
     "FuelLiters + 10.0f", "Durability01 + 0.35f",
     "NewCheckpoint != PreviousCheckpoint", "ActiveDriverId.Invalidate()",
     "BroadcastIntervalSeconds = 0.10f",
-    "TravelBroadcastAccumulators.FindOrAdd", "bCollision || bStopped"
+    "TravelBroadcastAccumulators.FindOrAdd", "bCollision || bStopped",
+    "BuildVehicleAudioMix", "GetVehicleAudioMix",
+    "OnVehicleAudioUpdated.Broadcast", "BroadcastVehicleAudio(*Vehicle, SpeedKph)"
 ]:
     require(token in vehicle, f"persistent vehicle behavior missing: {token}")
 for forbidden in ["premium", "purchase", "entitlement", "stripe", "payment"]:
@@ -562,7 +580,11 @@ for token in [
     "Travel update broadcasts when ten-hertz budget is reached",
     "Collision feedback bypasses travel throttle",
     "Engine shutdown bypasses travel throttle",
-    "Invalid frame delta cannot synthesize a broadcast"
+    "Invalid frame delta cannot synthesize a broadcast",
+    "Sedan resolves to sedan acoustic identity",
+    "Pickup resolves to pickup acoustic identity",
+    "Offroad resolves to offroad acoustic identity",
+    "Utility van resolves to utility van acoustic identity"
 ]:
     require(token in vehicle_tests, f"native vehicle QA missing: {token}")
 require("Stripe" not in vehicle_tests and "Payment" not in vehicle_tests,
