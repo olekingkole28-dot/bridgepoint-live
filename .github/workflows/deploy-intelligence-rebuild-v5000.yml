@@ -174,6 +174,9 @@ jobs:
           grep -Fq 'FREE PREMIUM TOOLS' site/intelligence-tools-v5507.js
           grep -Fq 'Use two fingers and swipe / scroll up' site/intelligence-global-v5507.js
           grep -Fq 'bp5507-tect-line' site/intelligence-global-v5507.js
+          grep -Fq '#landingPropertySearch' site/intelligence-v5507.css
+          grep -Fq 'data-globe' site/intelligence-tools-v5507.js
+          grep -Fq 'bindInfo' site/intelligence-global-v5507.js
           grep -Fq 'landingPropertySearch' site/index.html
           grep -Fq 'FREE_LOOKUP_KEY' site/landing.js
           grep -Fq 'landingWeatherLegend' site/landing.js
@@ -589,9 +592,10 @@ jobs:
                 heroSmallFont:parseFloat(getComputedStyle(document.querySelector('.hero-actions-premium .hero-cta small')).fontSize||'0'),
                 backdropLoaded:(getComputedStyle(document.querySelector('.world-backdrop-image')).backgroundImage||'').includes('bp-city-world-background.webp'),
                 productVisuals:document.querySelectorAll('.cap-visual').length,
-                packageCards:document.querySelectorAll('#landingPackages .package-card').length
+                packageCards:document.querySelectorAll('#landingPackages .package-card').length,
+                mobileSearchHide:(()=>{document.body.classList.add('bp5507-mobile-busy');const hidden=getComputedStyle(document.getElementById('landingPropertySearch')).display==='none';document.body.classList.remove('bp5507-mobile-busy');return hidden})()
               }));
-              if(!landing.build.includes('BP_LANDING_V5410')||!landing.search||!landing.sample||landing.mapCanvases!==1||landing.lockedTabs<6||!landing.weatherLegend||!landing.weatherMore||!landing.radarVisible||!landing.radarLayerVisible||!landing.nationalWeatherLayers||landing.weatherShapes<1||landing.weatherPoints<1||landing.renderedWeather.points<1||landing.renderedWeather.lines<1||!/EVENTS/.test(landing.weatherLegendCount)||!landing.noHorizontalOverflow||landing.searchZoomOverlap||!landing.mollyPresent||landing.heroLabelFont<11||landing.heroSmallFont<8.5||!landing.backdropLoaded||landing.productVisuals<6||landing.packageCards<9||!/first property lookup is free/i.test(landing.freeLookupCopy))throw new Error('LANDING_CONVERSION_REGRESSION '+JSON.stringify(landing));
+              if(!landing.build.includes('BP_LANDING_V5410')||!landing.search||!landing.sample||landing.mapCanvases!==1||landing.lockedTabs<6||!landing.weatherLegend||!landing.weatherMore||!landing.radarVisible||!landing.radarLayerVisible||!landing.nationalWeatherLayers||landing.weatherShapes<1||landing.weatherPoints<1||landing.renderedWeather.points<1||landing.renderedWeather.lines<1||!/EVENTS/.test(landing.weatherLegendCount)||!landing.noHorizontalOverflow||landing.searchZoomOverlap||!landing.mollyPresent||landing.heroLabelFont<11||landing.heroSmallFont<8.5||!landing.backdropLoaded||landing.productVisuals<6||landing.packageCards<9||!landing.mobileSearchHide||!/first property lookup is free/i.test(landing.freeLookupCopy))throw new Error('LANDING_CONVERSION_REGRESSION '+JSON.stringify(landing));
               console.log('BRIDGEPOINT_LANDING_CONVERSION_PASS',JSON.stringify(landing));
               const cols=async(width,height)=>{await p.setViewport({width,height,deviceScaleFactor:width<600?2:1,isMobile:width<600,hasTouch:width<1000});await new Promise(r=>setTimeout(r,350));return p.evaluate(()=>{const gridCols=sel=>{const el=document.querySelector(sel);if(!el)return 0;const v=getComputedStyle(el).gridTemplateColumns.trim();return v?v.split(/\s+/).length:0};return{w:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth+2,products:gridCols('.cap-grid'),packages:gridCols('#landingPackages'),footer:gridCols('.footer-link-groups')}})};
               const phone=await cols(390,844),tablet=await cols(820,1180),desktop=await cols(1440,900);
@@ -621,9 +625,10 @@ jobs:
                 key:!!document.getElementById('bp5507-key'),
                 premiumTools:!!document.getElementById('bp5507-tools'),
                 live:!!window.__BP_V5000_WORLD?.map?.getLayer('bp5507-live-points'),
-                tectonics:!!window.__BP_V5000_WORLD?.map?.getLayer('bp5507-tect-line')
+                tectonics:!!window.__BP_V5000_WORLD?.map?.getLayer('bp5507-tect-line'),
+                mobileAppChromeHide:(()=>{document.body.classList.add('bp5507-mobile-busy');const search=document.getElementById('publicSearchForm'),key=document.getElementById('bp5507-key');const ok=(!search||getComputedStyle(search).display==='none')&&(!key||getComputedStyle(key).display==='none');document.body.classList.remove('bp5507-mobile-busy');return ok})()
               }));
-              if(intel5507.runtime!==5507||intel5507.tools!==5507||!intel5507.key||!intel5507.premiumTools||!intel5507.live||!intel5507.tectonics||intel5507.defaultGlobe)throw new Error('INTELLIGENCE_V5507_REGRESSION '+JSON.stringify(intel5507));
+              if(intel5507.runtime!==5507||intel5507.tools!==5507||!intel5507.key||!intel5507.premiumTools||!intel5507.live||!intel5507.tectonics||!intel5507.mobileAppChromeHide||intel5507.defaultGlobe)throw new Error('INTELLIGENCE_V5507_REGRESSION '+JSON.stringify(intel5507));
               console.log('BRIDGEPOINT_INTELLIGENCE_V5507_PASS',JSON.stringify(intel5507));
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
