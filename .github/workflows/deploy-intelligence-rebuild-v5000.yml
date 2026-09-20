@@ -576,6 +576,17 @@ jobs:
               await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map||window.__BP_LANDING_MAP_BOOT__?.stage==='error',{timeout:30000});
               const mapBoot=await p.evaluate(()=>window.__BP_LANDING_MAP_BOOT__||null);
               if(mapBoot?.stage==='error')throw new Error('LANDING_MAP_BOOT '+JSON.stringify(mapBoot));
+              await new Promise(r=>setTimeout(r,1500));
+              const runtimeBootSnapshot=await p.evaluate(()=>({
+                mapBoot:window.__BP_LANDING_MAP_BOOT__||null,
+                landingWorld:!!window.__BP_LANDING_WORLD__?.map,
+                globalRuntime:window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__?.version||0,
+                premiumRuntime:window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__?.version||0,
+                globalBoot:window.__BP_GLOBAL_RUNTIME_BOOT_V5516__||null,
+                premiumBoot:window.__BP_PREMIUM_TOOLS_BOOT_V5516__||null,
+                scripts:[...document.scripts].map(s=>s.src).filter(Boolean).filter(x=>/intelligence|landing/.test(x))
+              }));
+              console.log('BRIDGEPOINT_RUNTIME_BOOT_SNAPSHOT',JSON.stringify(runtimeBootSnapshot));
               await p.waitForFunction(()=>!!window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__&&!!window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__,{timeout:30000});
               await p.waitForFunction(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;if(!m)return false;
