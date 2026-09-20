@@ -57,8 +57,8 @@ const PART_LIMIT=Number.POSITIVE_INFINITY;
 const PARCEL_LIMIT=MOBILE?(HIGH_DEVICE?1250:850):1800;
 let ammoMag=30,ammoReserve=90,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,fpWeaponRig=null,muzzleFlash=null,lootDeltaPending=0,lastYearOneCheckpointAt=0,yearOneCheckpointBusy=false;
 let yearOneZone=null,lastZonePollAt=0,lastWallDamageAt=0,lastWaterDamageAt=0,lastExposureDamageAt=0,lastWeatherSpawnAt=0,lastPresenceAt=0,lastExploreAt=0,waterIdleSeconds=0,coldExposureSeconds=0,nearbyPlayers=[],worldActivePlayers=0;
-const exploredCells=new Set(),vehicleParts={spark_plug:0,wheel:0,gas:0},backpackSlots=Array(5).fill(null);
-const waterAreas=[],zombieWallGroup=new THREE.Group();world.add(zombieWallGroup);
+const exploredCells=new Set(),vehicleParts={spark_plug:0,wheel:0,gas:0},backpackSlots=Array(5).fill(null),sharedPlayers=new Map();
+const waterAreas=[],zombieWallGroup=new THREE.Group(),sharedPlayerGroup=new THREE.Group();world.add(zombieWallGroup,sharedPlayerGroup);
 let cameraMode='first',crouched=false,prone=false,slideTime=0,verticalVelocity=0,airborne=false,interiorMode=false,activeInterior=null,rooftopState=null;
 let activeZipline=null,activeVehicle=null,audioCtx=null,audioMaster=null,audioCompressor=null,audioReverb=null,audioReverbGain=null,lastAudioEnvAt=0,lastFootstepAt=0,contextTarget=null;const audioBuses={},audioBufferCache=new Map();
 const buildingEntries=[],ziplines=[],vehicles=[],ambientFx=[],interiorRects=[];const exteriorReturn=new THREE.Vector3();let exteriorYaw=0;
@@ -1501,12 +1501,25 @@ async function pollYearOneZone(force=false){
     const warn=$('wallWarning');if(warn)warn.hidden=!!z.safe;
   }catch{}
 }
+function syncSharedPlayers(rows=[]){
+  if(mode!=='YEAR_ONE')return;
+  const keep=new Set();
+  for(const q of rows){
+    const id=String(q.player_id||'');if(!id)continue;keep.add(id);let rec=sharedPlayers.get(id);
+    if(!rec){
+      const g=new THREE.Group(),body=new THREE.Mesh(new THREE.CapsuleGeometry(.24,1.02,6,10),new THREE.MeshStandardMaterial({color:0x5b6ea9,roughness:.56,metalness:.08})),head=new THREE.Mesh(new THREE.SphereGeometry(.22,14,10),new THREE.MeshStandardMaterial({color:0xb98264,roughness:.68}));
+      body.position.z=.76;head.position.z=1.55;g.add(body,head,makeNameSprite(String(q.handle||'SURVIVOR').slice(0,20),'#a892ff'));sharedPlayerGroup.add(g);rec={g};sharedPlayers.set(id,rec);
+    }
+    const p=worldToLocal(Number(q.lat),Number(q.lon));rec.g.position.set(p.x,p.y,terrainZ(p.x,p.y));rec.g.rotation.z=Number(q.heading_deg||0)*Math.PI/180;rec.g.visible=!!q.alive&&Math.hypot(p.x-player.position.x,p.y-player.position.y)<perfSimRadius()*3;
+  }
+  for(const [id,rec] of sharedPlayers)if(!keep.has(id)){sharedPlayerGroup.remove(rec.g);sharedPlayers.delete(id)}
+}
 async function heartbeatWorld(force=false){
   const now=performance.now();if(!force&&now-lastPresenceAt<10000)return;lastPresenceAt=now;const q=playerWorldCoordinate();
   try{
     const out=await rpc('bridgepoint_horizon_presence_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_lat:q.lat,p_lon:q.lon,p_altitude_m:player.position.z,p_heading_deg:(yaw*180/Math.PI+360)%360,p_alive:!dead,p_combat_score:(shooting?5:0)+infected.filter(z=>z.alive&&z.lockedOn).length});
     worldActivePlayers=Number(out?.active_players||0);if($('activePlayers'))$('activePlayers').textContent=worldActivePlayers+' ACTIVE';
-    if(mode==='YEAR_ONE'){const near=await rpc('bridgepoint_horizon_nearby_players_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_radius_m:1800});nearbyPlayers=near?.players||[]}
+    if(mode==='YEAR_ONE'){const near=await rpc('bridgepoint_horizon_nearby_players_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_radius_m:1800});nearbyPlayers=near?.players||[];syncSharedPlayers(nearbyPlayers)}
   }catch{}
   if(mode==='YEAR_ONE'&&now-lastExploreAt>8000){lastExploreAt=now;const cell=explorationCell();if(!exploredCells.has(cell)){exploredCells.add(cell);rpc('bridgepoint_horizon_explore_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_cell_key:cell,p_lat:q.lat,p_lon:q.lon}).catch(()=>{})}}
 }
