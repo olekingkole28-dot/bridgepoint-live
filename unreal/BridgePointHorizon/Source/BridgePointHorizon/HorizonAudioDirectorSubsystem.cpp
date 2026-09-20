@@ -899,6 +899,179 @@ FHorizonWeaponReportMix UHorizonAudioDirectorSubsystem::GetWeaponReportMix(
     return Mix;
 }
 
+FHorizonCombatImpactMix UHorizonAudioDirectorSubsystem::BuildCombatImpactMix(
+    EHorizonCombatImpactSurface Surface,
+    float Severity01,
+    float DistanceCm,
+    EHorizonAcousticSpace ListenerSpace,
+    bool bOccluded,
+    int32 VariationSeed)
+{
+    FHorizonCombatImpactMix Mix;
+    float BaseAttack = 0.78f;
+    float BaseBody = 0.72f;
+    float BaseDebris = 0.03f;
+    float BaseRing = 0.0f;
+
+    switch (Surface)
+    {
+        case EHorizonCombatImpactSurface::Flesh:
+            Mix.MaxDistanceCm = 9000.0f;
+            break;
+        case EHorizonCombatImpactSurface::Armor:
+            Mix.MaxDistanceCm = 18000.0f;
+            BaseAttack = 1.0f;
+            BaseBody = 0.88f;
+            BaseDebris = 0.12f;
+            BaseRing = 0.62f;
+            break;
+        case EHorizonCombatImpactSurface::Concrete:
+            Mix.MaxDistanceCm = 18000.0f;
+            BaseAttack = 0.92f;
+            BaseBody = 0.50f;
+            BaseDebris = 0.82f;
+            BaseRing = 0.08f;
+            break;
+        case EHorizonCombatImpactSurface::Metal:
+            Mix.MaxDistanceCm = 26000.0f;
+            BaseAttack = 0.96f;
+            BaseBody = 0.82f;
+            BaseDebris = 0.18f;
+            BaseRing = 1.0f;
+            break;
+        case EHorizonCombatImpactSurface::Wood:
+            Mix.MaxDistanceCm = 16000.0f;
+            BaseAttack = 0.80f;
+            BaseBody = 0.58f;
+            BaseDebris = 0.56f;
+            BaseRing = 0.18f;
+            break;
+        case EHorizonCombatImpactSurface::Glass:
+            Mix.MaxDistanceCm = 24000.0f;
+            BaseAttack = 0.98f;
+            BaseBody = 0.16f;
+            BaseDebris = 1.0f;
+            BaseRing = 0.45f;
+            break;
+        case EHorizonCombatImpactSurface::Dirt:
+            Mix.MaxDistanceCm = 12000.0f;
+            BaseAttack = 0.62f;
+            BaseBody = 0.70f;
+            BaseDebris = 0.74f;
+            break;
+        case EHorizonCombatImpactSurface::Water:
+            Mix.MaxDistanceCm = 14000.0f;
+            BaseAttack = 0.58f;
+            BaseBody = 0.46f;
+            BaseDebris = 0.84f;
+            BaseRing = 0.04f;
+            break;
+    }
+
+    const float Severity = FMath::Clamp(
+        FMath::IsFinite(Severity01) ? Severity01 : 0.0f,
+        0.0f,
+        1.0f);
+    const float SafeDistance = FMath::Max(
+        0.0f,
+        FMath::IsFinite(DistanceCm) ? DistanceCm : Mix.MaxDistanceCm);
+    const float Distance01 =
+        FMath::Clamp(SafeDistance / Mix.MaxDistanceCm, 0.0f, 1.0f);
+    const float DistanceGain = FMath::Square(1.0f - Distance01);
+
+    Mix.AttackGain = BaseAttack * FMath::Sqrt(Severity) *
+        FMath::Lerp(0.35f, 1.0f, Severity) * DistanceGain;
+    Mix.BodyGain = BaseBody * FMath::Pow(Severity, 0.72f) * DistanceGain;
+    Mix.DebrisGain = BaseDebris * FMath::Sqrt(Severity) * DistanceGain;
+    Mix.RingGain = BaseRing * FMath::Sqrt(Severity) * DistanceGain;
+
+    switch (ListenerSpace)
+    {
+        case EHorizonAcousticSpace::Outdoor:
+            Mix.ReverbSend = 0.10f;
+            break;
+        case EHorizonAcousticSpace::IndoorSmall:
+            Mix.ReverbSend = 0.48f;
+            Mix.LowPassCutoffHz = 16500.0f;
+            break;
+        case EHorizonAcousticSpace::IndoorLarge:
+            Mix.ReverbSend = 0.64f;
+            Mix.LowPassCutoffHz = 17800.0f;
+            break;
+        case EHorizonAcousticSpace::Tunnel:
+            Mix.ReverbSend = 0.82f;
+            Mix.LowPassCutoffHz = 15000.0f;
+            break;
+        case EHorizonAcousticSpace::Rooftop:
+            Mix.ReverbSend = 0.16f;
+            break;
+    }
+
+    if (bOccluded)
+    {
+        Mix.AttackGain *= 0.24f;
+        Mix.BodyGain *= 0.68f;
+        Mix.DebrisGain *= 0.30f;
+        Mix.RingGain *= 0.42f;
+        Mix.LowPassCutoffHz = FMath::Min(Mix.LowPassCutoffHz, 2500.0f);
+        Mix.ReverbSend = FMath::Max(Mix.ReverbSend, 0.32f);
+    }
+
+    FRandomStream Variation(
+        VariationSeed * 6151 + static_cast<int32>(Surface) * 277);
+    Mix.Pitch = Variation.FRandRange(0.965f, 1.035f);
+    Mix.AttackGain *= Variation.FRandRange(0.97f, 1.03f);
+    Mix.DebrisGain *= Variation.FRandRange(0.94f, 1.06f);
+
+    Mix.AttackGain = FMath::Clamp(Mix.AttackGain, 0.0f, 1.0f);
+    Mix.BodyGain = FMath::Clamp(Mix.BodyGain, 0.0f, 1.0f);
+    Mix.DebrisGain = FMath::Clamp(Mix.DebrisGain, 0.0f, 1.0f);
+    Mix.RingGain = FMath::Clamp(Mix.RingGain, 0.0f, 1.0f);
+    return Mix;
+}
+
+FHorizonCombatImpactMix UHorizonAudioDirectorSubsystem::GetCombatImpactMix(
+    EHorizonCombatImpactSurface Surface,
+    float Severity01,
+    float DistanceCm,
+    bool bOccluded,
+    int32 VariationSeed) const
+{
+    return BuildCombatImpactMix(
+        Surface,
+        Severity01,
+        DistanceCm,
+        AcousticSpace,
+        bOccluded || Occlusion01 >= 0.50f,
+        VariationSeed);
+}
+
+FHorizonCombatImpactEvent UHorizonAudioDirectorSubsystem::EmitCombatImpact(
+    EHorizonCombatImpactSurface Surface,
+    float Severity01,
+    float DistanceCm,
+    bool bOccluded,
+    FVector WorldLocation,
+    int32 Sequence)
+{
+    FHorizonCombatImpactEvent Event;
+    Event.Surface = Surface;
+    Event.Severity01 = FMath::Clamp(
+        FMath::IsFinite(Severity01) ? Severity01 : 0.0f,
+        0.0f,
+        1.0f);
+    Event.Sequence = FMath::Max(0, Sequence);
+    Event.WorldLocation = WorldLocation;
+    Event.Mix = GetCombatImpactMix(
+        Surface,
+        Event.Severity01,
+        DistanceCm,
+        bOccluded,
+        Event.Sequence);
+    OnCombatImpactEmitted.Broadcast(Event);
+    return Event;
+}
+
 FHorizonFootstepMix UHorizonAudioDirectorSubsystem::GetFootstepMix(
     EHorizonFootstepSurface Surface,
     float MovementSpeed01,
