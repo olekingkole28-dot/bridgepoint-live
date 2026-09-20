@@ -1,15 +1,19 @@
 {
-  "schema_version": 1,
-  "build_target": 4243,
-  "updated_at": "2026-09-12",
+  "schema_version": 2,
+  "build_target": 4335,
+  "updated_at": "2026-09-19",
   "authoritative_modes": [
     {
       "mode_key": "year_one_survival",
       "name": "YEAR ONE SURVIVAL",
       "type": "solo_persistent_survival",
+      "perspective": "FIRST_PERSON_ONLY",
       "party": {
         "min": 1,
         "max": 1,
+        "supported": [
+          1
+        ],
         "invites_allowed": false
       },
       "event": {
@@ -18,54 +22,23 @@
         "lives": 3,
         "preseason_lives_consumed": false
       },
-      "world": "continuous_us_and_jurisdictions",
+      "world": {
+        "source": "BridgePoint shared world stream",
+        "scope": "continuous_us_and_jurisdictions",
+        "building_fidelity": "source geometry, source height, source floors, source roofs",
+        "renderer_rule": "never drop a source building for visual LOD; adapt collision and fine dressing instead"
+      },
       "interiors": "fictional_generated_only",
-      "progression": "zombies_begin easier and scale with event day, region, density and world pressure",
+      "progression": "zombies begin easier and scale with event day, region, density and world pressure",
       "endgame": "perimeter zombie wall progressively closes survivors toward major-city final showdowns",
       "proximity_voice": false
     },
     {
       "mode_key": "infinite_tdm",
-      "name": "INFINITE TEAM DEATHMATCH",
+      "name": "TEAM DEATHMATCH",
       "type": "team_pvp",
-      "party": {
-        "min": 2,
-        "max": 4,
-        "supported": [
-          2,
-          3,
-          4
-        ],
-        "invites_allowed": true
-      },
-      "matchmaking": "party_and_skill",
-      "arena_switcher": {
-        "infinite": true,
-        "source": "BridgePoint streamed world cells",
-        "bias": [
-          "high density",
-          "strong elevation change",
-          "vertical combat",
-          "rooftops",
-          "bridges",
-          "waterfronts",
-          "mountain cities",
-          "tight alleys",
-          "multi-level interiors"
-        ],
-        "avoid": [
-          "flat empty low-interest cells",
-          "low cover fields unless intentionally designed"
-        ]
-      },
-      "respawns": true,
-      "proximity_voice": true,
-      "team_voice": true
-    },
-    {
-      "mode_key": "outbreak_raid",
-      "name": "OUTBREAK RAID",
-      "type": "coop_pve",
+      "format": "6v6",
+      "perspective": "FIRST_PERSON_ONLY",
       "party": {
         "min": 1,
         "max": 4,
@@ -75,27 +48,42 @@
           3,
           4
         ],
+        "labels": [
+          "SOLO",
+          "DUO",
+          "TRIO",
+          "SQUAD"
+        ],
         "invites_allowed": true
       },
-      "matchmaking": "party_or_fill",
-      "mission_loop": [
-        "drop into dense horror zone",
-        "multi-stage objective",
-        "elite creatures",
-        "boss or siege",
-        "rare loot",
-        "extraction"
-      ],
-      "objectives": [
-        "restore power",
-        "rescue NPC",
-        "retrieve cache",
-        "destroy nest",
-        "hold extraction",
-        "escort survivor"
-      ],
+      "matchmaking": "party_and_skill",
+      "arena_switcher": {
+        "automatic": true,
+        "map_count": 50,
+        "repeat_rule": "complete ordered pool before wrap",
+        "source": "BridgePoint streamed world cells",
+        "span_km": {
+          "min": 1,
+          "max": 1.4
+        },
+        "bias": [
+          "high building density",
+          "tight blocks",
+          "vertical combat",
+          "rooftops",
+          "alleys",
+          "waterfronts",
+          "multi-level approaches"
+        ],
+        "avoid": [
+          "flat empty low-interest cells",
+          "wide low-cover fields"
+        ]
+      },
+      "respawns": true,
+      "killcams": true,
       "proximity_voice": true,
-      "party_voice": true
+      "team_voice": true
     }
   ],
   "shared_lobby": {
@@ -118,8 +106,7 @@
       "ready state"
     ],
     "year_one_behavior": "player may customize in shared lobby but launching Year One always forces solo and cannot bring the party into the match",
-    "tdm_behavior": "friends may party as duo, trio or squad before matchmaking",
-    "raid_behavior": "friends may launch 1-4 player co-op or fill remaining slots"
+    "tdm_behavior": "players may queue solo, duo, trio or squad; matchmaking rotates the 50-map real-location pool automatically"
   },
   "audio": {
     "quality_target": "premium cinematic AAA-style original audio",
@@ -193,7 +180,6 @@
     "voice_chat": {
       "year_one_survival": "disabled because solo",
       "infinite_tdm": "team voice plus proximity voice",
-      "outbreak_raid": "party voice plus proximity voice",
       "controls": [
         "mute",
         "block",
@@ -221,5 +207,6 @@
     ],
     "daily_free_rewards": true,
     "pay_to_win": false
-  }
+  },
+  "perspective": "FIRST_PERSON_ONLY"
 }
