@@ -35,7 +35,7 @@ const allyProxy=makeProxy(0x5fdcc6),enemyProxy=makeProxy(0xd36859),infectedProxy
 const hemi=new THREE.HemisphereLight(0xcad5c1,0x263126,1.5);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xffd69a,2.0);sun.position.set(-180,-110,240);sun.castShadow=HIGH_DEVICE;sun.shadow.mapSize.set(MOBILE?512:1024,MOBILE?512:1024);scene.add(sun);
 const player=new THREE.Group();scene.add(player);player.position.set(0,0,0);
-let data=null,centerLon=lon,centerLat=lat,yaw=0,pitch=-.08,moveX=0,moveY=0,touchMoveX=0,touchMoveY=0,keyMoveX=0,keyMoveY=0,sprint=false,aiming=false,shooting=false,last=performance.now(),frames=0,fpsT=performance.now(),lootCount=0,health=100,flash=false,storm=false,dayPhase=.62;
+let data=null,centerLon=lon,centerLat=lat,yaw=0,pitch=-.08,moveX=0,moveY=0,touchMoveX=0,touchMoveY=0,keyMoveX=0,keyMoveY=0,sprint=false,aiming=false,shooting=false,last=performance.now(),frames=0,fpsT=performance.now(),lootCount=0,health=100,shield=0,flash=false,storm=false,dayPhase=.62;
 let terrainInfo=null,perfLowStreak=0,perfHighStreak=0,lastMeasuredFps=60;
 let perfTier=0,perfEmaMs=16.7,perfWorstMs=16.7,lastPerfAdjustAt=0,fastSince=performance.now(),longFrames=0;
 let aiAccumulator=0,fxAccumulator=0,lightAccumulator=0;
@@ -49,7 +49,7 @@ const DETAIL_BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?52:22):120;
 const BUILDING_LIMIT=Number.POSITIVE_INFINITY;
 const PART_LIMIT=Number.POSITIVE_INFINITY;
 const PARCEL_LIMIT=MOBILE?(HIGH_DEVICE?1250:850):1800;
-let ammoMag=30,ammoReserve=120,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,fpWeaponRig=null,muzzleFlash=null;
+let ammoMag=30,ammoReserve=120,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,fpWeaponRig=null,muzzleFlash=null,lootDeltaPending=0,lastYearOneCheckpointAt=0,yearOneCheckpointBusy=false;
 let cameraMode='first',crouched=false,prone=false,slideTime=0,verticalVelocity=0,airborne=false,interiorMode=false,activeInterior=null,rooftopState=null;
 let activeZipline=null,activeVehicle=null,audioCtx=null,audioMaster=null,audioCompressor=null,audioReverb=null,audioReverbGain=null,lastAudioEnvAt=0,lastFootstepAt=0,contextTarget=null;const audioBuses={},audioBufferCache=new Map();
 const buildingEntries=[],ziplines=[],vehicles=[],ambientFx=[],interiorRects=[];const exteriorReturn=new THREE.Vector3();let exteriorYaw=0;
@@ -113,6 +113,90 @@ function makeNameSprite(name,color='#ffffff'){
   const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);x.font='900 38px system-ui';x.textAlign='center';x.textBaseline='middle';x.strokeStyle='rgba(0,0,0,.88)';x.lineWidth=9;x.strokeText(name,256,48);x.fillStyle=color;x.fillText(name,256,48);
   const tex=new THREE.CanvasTexture(c),mat=new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}),s=new THREE.Sprite(mat);s.scale.set(2.5,.47,1);s.position.z=2.45;s.renderOrder=20;return s;
 }
+
+function updateVitals(hitKind=''){
+  health=Math.max(0,Math.min(100,Math.round(health)));
+  shield=Math.max(0,Math.min(100,Math.round(shield)));
+  const he=$('health'),se=$('shield'),hb=$('healthBar'),sb=$('shieldBar');
+  if(he)he.textContent=String(health);if(se)se.textContent=String(shield);
+  if(hb)hb.style.width=health+'%';if(sb)sb.style.width=shield+'%';
+  if(hitKind){
+    const node=document.querySelector(hitKind==='shield'?'.shield-vital':'.health-vital');
+    if(node){node.classList.remove('hit');void node.offsetWidth;node.classList.add('hit');setTimeout(()=>node.classList.remove('hit'),260)}
+  }
+}
+function applyPlayerHit(amount=25,killer=null){
+  if(dead)return;
+  let remaining=Math.max(0,Math.round(amount)),hitKind='health';
+  if(shield>0){
+    const absorbed=Math.min(shield,remaining);shield-=absorbed;remaining-=absorbed;hitKind='shield';
+  }
+  if(remaining>0)health=Math.max(0,health-remaining);
+  updateVitals(hitKind);
+  if(mode==='YEAR_ONE')checkpointYearOne(false);
+  if(health<=0)triggerDeath(killer);
+}
+function playerWorldCoordinate(){
+  const cos=Math.max(.12,Math.cos(centerLat*Math.PI/180));
+  let x=player.position.x,y=player.position.y;
+  if(interiorMode&&activeInterior?.entry){x=activeInterior.entry.cx;y=activeInterior.entry.cy}
+  return {lat:centerLat+y/110540,lon:centerLon+x/(111320*cos)};
+}
+async function hydrateYearOneRuntime(){
+  if(mode!=='YEAR_ONE'||!playerId||!playerSecret)return null;
+  try{
+    const r=await rpc('bridgepoint_horizon_year_one_runtime_v4336',{p_player_id:playerId,p_player_secret:playerSecret});
+    if(r?.ok){health=Number(r.health??100);shield=Number(r.shield??0);lootCount=Number(r.loot_collected??lootCount);$('loot').textContent=lootCount;updateVitals()}
+    return r;
+  }catch{return null}
+}
+async function checkpointYearOne(force=false){
+  if(mode!=='YEAR_ONE'||!playerId||!playerSecret||yearOneCheckpointBusy)return;
+  const now=performance.now();if(!force&&now-lastYearOneCheckpointAt<1800)return;
+  yearOneCheckpointBusy=true;const coord=playerWorldCoordinate(),sentLoot=lootDeltaPending;
+  try{
+    await rpc('bridgepoint_horizon_year_one_checkpoint_v4336',{
+      p_player_id:playerId,p_player_secret:playerSecret,p_health:Math.round(health),p_shield:Math.round(shield),
+      p_lat:coord.lat,p_lon:coord.lon,p_accuracy_m:null,p_altitude_m:player.position.z,
+      p_monster_kills_delta:0,p_loot_delta:sentLoot
+    });
+    lootDeltaPending=Math.max(0,lootDeltaPending-sentLoot);lastYearOneCheckpointAt=performance.now();
+  }catch{}finally{yearOneCheckpointBusy=false}
+}
+function makeMonsterHealthBar(label,maxHealth,z=2.45){
+  const c=document.createElement('canvas');c.width=320;c.height=86;const x=c.getContext('2d');
+  const tex=new THREE.CanvasTexture(c),m=new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false}),sprite=new THREE.Sprite(m);
+  sprite.position.z=z;sprite.scale.set(2.65,.71,1);sprite.renderOrder=30;sprite.userData.hpBar=true;sprite.userData.canvas=c;sprite.userData.ctx=x;sprite.userData.maxHealth=maxHealth;sprite.userData.label=label;sprite.userData.texture=tex;
+  return sprite;
+}
+function updateMonsterHealthBar(z){
+  const b=z?.healthBar;if(!b)return;const x=b.userData.ctx,c=b.userData.canvas,max=Math.max(1,z.maxHealth||b.userData.maxHealth||100),hp=Math.max(0,Math.ceil(z.health||0)),ratio=Math.max(0,Math.min(1,hp/max));
+  x.clearRect(0,0,c.width,c.height);
+  x.fillStyle='rgba(3,7,6,.88)';x.fillRect(8,8,304,70);
+  x.font='900 24px system-ui';x.textAlign='center';x.textBaseline='middle';x.fillStyle='#fff';x.fillText((z.label||b.userData.label||'MONSTER')+'  '+hp+'/'+max,160,26);
+  x.fillStyle='rgba(255,255,255,.14)';x.fillRect(28,49,264,14);
+  x.fillStyle=ratio>.55?'#74f59d':ratio>.25?'#ffd166':'#ff626d';x.fillRect(28,49,264*ratio,14);
+  b.userData.texture.needsUpdate=true;
+}
+function monsterMat(color){return new THREE.MeshStandardMaterial({color,roughness:.84,metalness:.03})}
+function makeSpiderModel(){
+  const g=new THREE.Group(),body=new THREE.Mesh(new THREE.SphereGeometry(.34,12,8),monsterMat(0x3d3438)),abd=new THREE.Mesh(new THREE.SphereGeometry(.44,12,8),monsterMat(0x292327));
+  body.position.set(0,.18,.36);abd.position.set(0,-.28,.37);g.add(body,abd);
+  const lm=monsterMat(0x211d20);
+  for(let side of [-1,1])for(let i=0;i<4;i++){const leg=new THREE.Mesh(new THREE.CylinderGeometry(.035,.045,.72,6),lm);leg.rotation.set(Math.PI/2,(i-1.5)*.22,side*.75);leg.position.set(side*(.36+i*.04),.08-i*.12,.26);g.add(leg)}
+  return g;
+}
+function makeDogModel(){
+  const g=new THREE.Group(),m=monsterMat(0x4d4b42),dark=monsterMat(0x302f2a),body=new THREE.Mesh(new THREE.BoxGeometry(1.05,.42,.52),m),head=new THREE.Mesh(new THREE.BoxGeometry(.42,.42,.42),dark);
+  body.position.z=.55;head.position.set(0,.58,.68);g.add(body,head);
+  for(const sx of [-.35,.35])for(const sy of [-.16,.16]){const leg=new THREE.Mesh(new THREE.CylinderGeometry(.055,.07,.48,7),dark);leg.position.set(sx,sy,.25);g.add(leg)}
+  return g;
+}
+function makeSimpleZombieModel(scale=1){
+  const g=new THREE.Group(),skin=monsterMat(0x67715d),cloth=monsterMat(0x414a43),body=new THREE.Mesh(new THREE.BoxGeometry(.5,.3,.82),cloth),head=new THREE.Mesh(new THREE.SphereGeometry(.22,10,8),skin);
+  body.position.z=.92*scale;head.position.z=1.52*scale;body.scale.setScalar(scale);head.scale.setScalar(scale);g.add(body,head);return g;
+}
+
 function circleVsRect(x,y,r,o){
   const nx=Math.max(o.minx,Math.min(x,o.maxx)),ny=Math.max(o.miny,Math.min(y,o.maxy));
   return (x-nx)*(x-nx)+(y-ny)*(y-ny)<r*r;
@@ -776,10 +860,10 @@ function collectLoot(q){
   if(!q||q.picked)return;q.picked=true;
   if(Number.isInteger(q.instanceIndex)&&q.mesh?.isInstancedMesh){const gone=new THREE.Matrix4().makeScale(0,0,0);q.mesh.setMatrixAt(q.instanceIndex,gone);q.mesh.instanceMatrix.needsUpdate=true}
   else if(q.mesh)q.mesh.visible=false;
-  lootCount++;$('loot').textContent=lootCount;
+  lootCount++;lootDeltaPending++;$('loot').textContent=lootCount;
   if(q.type==='ammo'){for(const w of WEAPONS)if(w.mag&&weaponState[w.key]?.owned)weaponState[w.key].reserve=Math.min(w.reserve*3,weaponState[w.key].reserve+Math.max(12,Math.floor(w.reserve*.35)));updateAmmo();toast('Ammo acquired')}
-  else if(q.type==='medkit'){health=Math.min(100,health+35);$('health').textContent=Math.round(health);toast('Med kit acquired')}
-  else if(q.type==='armor')toast('Armor plate acquired');
+  else if(q.type==='medkit'){health=Math.min(100,health+35);updateVitals();toast('Med kit acquired')}
+  else if(q.type==='armor'){shield=Math.min(100,shield+50);updateVitals();toast(shield>=100?'Shield full · 100':'Shield +50 · '+shield)}
   else if(q.type==='fuel'){const v=activeVehicle||nearestVehicle();if(v){v.fuel=Math.min(100,v.fuel+45);toast('Vehicle fuel '+Math.round(v.fuel)+'%')}else toast('Fuel can acquired')}
   else if(q.type==='repair'){const v=activeVehicle||nearestVehicle();if(v){v.condition=Math.min(100,v.condition+38);toast('Vehicle repaired '+Math.round(v.condition)+'%')}else toast('Repair kit acquired')}
   else {const locked=WEAPONS.find(w=>!weaponState[w.key]?.owned);if(locked){weaponState[locked.key].owned=true;weaponState[locked.key].mag=locked.mag;weaponState[locked.key].reserve=locked.reserve;toast(locked.name+' acquired')}else toast('Weapon salvage acquired');renderWeaponBar()}
@@ -788,7 +872,7 @@ function updateDwellPickup(now){
   const q=nearestLoot(),prompt=$('pickupPrompt'),ring=$('pickupRing'),label=$('pickupLabel');
   if(!q){pickupTarget=null;pickupStarted=0;if(prompt)prompt.hidden=true;return}
   if(pickupTarget!==q){pickupTarget=q;pickupStarted=now}
-  const progress=Math.max(0,Math.min(1,(now-pickupStarted)/1750));
+  const progress=Math.max(0,Math.min(1,(now-pickupStarted)/3000));
   if(prompt){prompt.hidden=false;prompt.style.setProperty('--pickup-angle',(progress*360)+'deg')}
   if(ring)ring.style.setProperty('--pickup-angle',(progress*360)+'deg');
   if(label)label.textContent='PICKING UP '+q.type.toUpperCase();
