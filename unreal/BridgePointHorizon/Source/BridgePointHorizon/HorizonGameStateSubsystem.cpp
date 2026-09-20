@@ -86,6 +86,9 @@ FHorizonModeRules UHorizonGameStateSubsystem::GetModeRules(EHorizonGameMode Mode
         case EHorizonGameMode::YearOneSurvival:
             Rules.MinPartySize = 1;
             Rules.MaxPartySize = 1;
+            Rules.TargetPlayers = 1;
+            Rules.TeamSize = 1;
+            Rules.bBotBackfill = false;
             Rules.bFriendInvitesAllowed = false;
             Rules.bProximityVoice = false;
             Rules.bTeamOrPartyVoice = false;
@@ -96,10 +99,13 @@ FHorizonModeRules UHorizonGameStateSubsystem::GetModeRules(EHorizonGameMode Mode
         case EHorizonGameMode::InfiniteTDM:
             Rules.MinPartySize = 1;
             Rules.MaxPartySize = 4;
+            Rules.TargetPlayers = 100;
+            Rules.TeamSize = 50;
+            Rules.bBotBackfill = true;
             Rules.bFriendInvitesAllowed = true;
             Rules.bProximityVoice = true;
             Rules.bTeamOrPartyVoice = true;
-            Rules.bRespawns = true;
+            Rules.bRespawns = false;
             Rules.bConsumesYearOneLives = false;
             break;
 
