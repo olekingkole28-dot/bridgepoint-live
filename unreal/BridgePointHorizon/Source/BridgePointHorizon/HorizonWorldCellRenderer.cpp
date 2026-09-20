@@ -57,9 +57,19 @@ namespace HorizonCellRender
             return Result;
         }
 
+        // Ear clipping operates on a counter-clockwise working copy, but every
+        // emitted index must still address the caller's original vertex array.
+        TArray<int32> OriginalIndices;
+        OriginalIndices.Reserve(Polygon.Num());
+        for (int32 Index = 0; Index < Polygon.Num(); ++Index)
+        {
+            OriginalIndices.Add(Index);
+        }
+
         if (SignedArea(Polygon) < 0.0f)
         {
             Algo::Reverse(Polygon);
+            Algo::Reverse(OriginalIndices);
         }
 
         TArray<int32> Remaining;
@@ -109,9 +119,9 @@ namespace HorizonCellRender
                     continue;
                 }
 
-                Result.Add(Prev);
-                Result.Add(Curr);
-                Result.Add(Next);
+                Result.Add(OriginalIndices[Prev]);
+                Result.Add(OriginalIndices[Curr]);
+                Result.Add(OriginalIndices[Next]);
                 Remaining.RemoveAt(LocalIndex);
                 bCutEar = true;
                 break;
@@ -125,7 +135,9 @@ namespace HorizonCellRender
 
         if (Remaining.Num() == 3)
         {
-            Result.Append(Remaining);
+            Result.Add(OriginalIndices[Remaining[0]]);
+            Result.Add(OriginalIndices[Remaining[1]]);
+            Result.Add(OriginalIndices[Remaining[2]]);
         }
 
         // Conservative fallback for malformed or unusual source rings.
@@ -133,9 +145,9 @@ namespace HorizonCellRender
         {
             for (int32 Index = 1; Index < Polygon.Num() - 1; ++Index)
             {
-                Result.Add(0);
-                Result.Add(Index);
-                Result.Add(Index + 1);
+                Result.Add(OriginalIndices[0]);
+                Result.Add(OriginalIndices[Index]);
+                Result.Add(OriginalIndices[Index + 1]);
             }
         }
 
@@ -390,6 +402,12 @@ FIntPoint AHorizonWorldCellRenderer::ResolveBuildingLodCounts(
         VisibleCount,
         FMath::Max(0, CollisionLimit));
     return FIntPoint(CollidableCount, VisibleCount - CollidableCount);
+}
+
+TArray<int32> AHorizonWorldCellRenderer::TriangulateRoofFootprint(
+    const TArray<FVector2D>& Footprint)
+{
+    return HorizonCellRender::TriangulateSimplePolygon(Footprint);
 }
 
 EHorizonSourceRoofProfile AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
