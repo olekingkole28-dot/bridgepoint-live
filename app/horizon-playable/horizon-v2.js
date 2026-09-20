@@ -1886,13 +1886,14 @@ let dtGlobal=0;
 function updateCamera(dt){
   if(dead)return;
   pollGamepad();
-  if(tdmMovementLocked()){moveX=0;moveY=0;sprint=false;slideTime=0;activeVehicle=null;activeZipline=null}
+  const movementLocked=tdmMovementLocked();
+  if(movementLocked){sprint=false;slideTime=0;activeVehicle=null;activeZipline=null}
   if(activeZipline)updateZipline(dt);
   else if(activeVehicle)updateVehicle(dt);
   else{
     let baseSpeed=prone?1.55:(crouched?2.45:(sprint?8.4:aiming?2.8:4.65));if(slideTime>0){baseSpeed=10.2;slideTime=Math.max(0,slideTime-dt)}const sp=baseSpeed*dt;
     const f=new THREE.Vector2(-Math.sin(yaw),Math.cos(yaw)),r=new THREE.Vector2(Math.cos(yaw),Math.sin(yaw));
-    const slideY=slideTime>0?1:moveY,slideX=slideTime>0?0:moveX;const dx=(f.x*slideY+r.x*slideX)*sp,dy=(f.y*slideY+r.y*slideX)*sp,nx=player.position.x+dx,ny=player.position.y+dy;
+    const slideY=slideTime>0?1:(movementLocked?0:moveY),slideX=slideTime>0?0:(movementLocked?0:moveX);const dx=(f.x*slideY+r.x*slideX)*sp,dy=(f.y*slideY+r.y*slideX)*sp,nx=player.position.x+dx,ny=player.position.y+dy;
     if(!blocked(nx,player.position.y,.34))player.position.x=nx;
     if(!blocked(player.position.x,ny,.34))player.position.y=ny;
     let ground;
@@ -1903,7 +1904,7 @@ function updateCamera(dt){
     }else ground=terrainZ(player.position.x,player.position.y);
     if(airborne){player.position.z+=verticalVelocity*dt;verticalVelocity-=9.8*dt;if(player.position.z<=ground){player.position.z=ground;airborne=false;verticalVelocity=0}}
     else player.position.z=ground;
-    if((Math.abs(moveX)+Math.abs(moveY))>.18&&!airborne)footstepAudio();
+    if(!movementLocked&&(Math.abs(moveX)+Math.abs(moveY))>.18&&!airborne)footstepAudio();
     player.rotation.z=yaw;
   }
 
