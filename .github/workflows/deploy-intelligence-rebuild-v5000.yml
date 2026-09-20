@@ -212,7 +212,11 @@ jobs:
           node --check site/app/horizon/lobby-scene.js
           node --check site/app/horizon/model-preview.js
           node --check site/app/horizon-playable/horizon-v2.js
-          grep -Fq 'build:4341' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'build:4341' app/horizon-playable/horizon-v2.js
+          grep -Fq 'function padMove(e)' app/horizon-playable/horizon-v2.js
+          grep -Fq "pad.addEventListener('pointercancel',endPad)" app/horizon-playable/horizon-v2.js
+          grep -Fq "pad.addEventListener('lostpointercapture',endPad)" app/horizon-playable/horizon-v2.js
+          # site/app/horizon-playable/horizon-v2.js
           grep -Fq 'bridgepoint_horizon_year_one_enter_v4340' site/app/horizon/app.js
           grep -Fq 'bridgepoint_horizon_year_one_checkpoint_v4337' site/app/horizon-playable/horizon-v2.js
           grep -Fq 'bridgepoint_horizon_account_link_v4340' site/app/horizon/app.js
