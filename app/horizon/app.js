@@ -184,6 +184,7 @@ async function bootstrap(){
   state.config=await rpc('bridgepoint_horizon_bootstrap_v4300',{p_player_id:ident.id,p_player_secret:ident.secret,p_display_name:savedName});
   state.player=state.config.player;
   localStorage.setItem('horizon-player-profile',JSON.stringify(state.player));
+  await refreshAuthState();
   const [catalog,yearOne]=await Promise.all([
     rpc('bridgepoint_horizon_catalog_v4310',{p_player_id:ident.id,p_player_secret:ident.secret}),
     rpc('bridgepoint_horizon_year_one_status_v4310',{p_player_id:ident.id,p_player_secret:ident.secret})
@@ -216,24 +217,27 @@ async function bootstrap(){
   await refreshMapCatalog().catch(e=>console.warn('map catalog',e));
   markMode();
   renderParty();
+  await refreshActivePlayers();await detectOwner();setInterval(refreshActivePlayers,10000);
   setNet('ONLINE','#44f3bd');
-  status('Lobby ready · first-person only · Year One or Team Deathmatch');
-  window.BP_HORIZON_LOBBY_V4330={
-    ok:true,build:4336,player_id:state.player?.player_id,mode:state.selectedMode,
+  status(state.account?'Lobby ready · free account linked · first-person only':'Lobby ready · sign in or create a free Horizon account to play');
+  window.BP_HORIZON_LOBBY_V4340={
+    ok:true,build:4340,player_id:state.player?.player_id,mode:state.selectedMode,
     perspective:'FIRST_PERSON_ONLY',authoritative_modes:['YEAR_ONE','TDM'],
     party_size:state.party?.members?.length||0,
     catalog_characters:completeCharacterCatalog().length,
     store_items:state.catalog?.store?.length||0,
     battle_pass_rewards:state.catalog?.battle_pass?.length||0,
     map_count:state.maps.length,map_rotation:'AUTOMATIC',
-    checkout_enabled:false,
+    checkout_enabled:false,account_required:true,authenticated:!!state.session,account_linked:!!state.account,
+    tdm_target_players:100,map_vote_seconds:10,year_one_scope:'CONUS_48',active_players:state.activePlayers,
     lobbyScene:()=>lobbyScene?.getStats?.()||null
   };
-  window.BP_HORIZON_LOBBY_V4320=window.BP_HORIZON_LOBBY_V4330;
+  window.BP_HORIZON_LOBBY_V4330=window.BP_HORIZON_LOBBY_V4340;
+  window.BP_HORIZON_LOBBY_V4320=window.BP_HORIZON_LOBBY_V4340;
   connectPartySignal();
   setInterval(refreshParty,1800);
   const initialTab=(qs.get('tab')||'').trim().toUpperCase();
-  if(initialTab&&['BATTLE_PASS','LOCKER','LOADOUTS','STORE','ARENA','WATCH'].includes(initialTab))setTimeout(()=>openModal(initialTab),250);
+  if(initialTab&&['BATTLE_PASS','LOCKER','LOADOUTS','STORE','ARENA','WATCH','STATS','RULES','ABOUT','OWNER','ACCOUNT','CUSTOMIZE'].includes(initialTab))setTimeout(()=>openModal(initialTab),250);
 }
 async function refreshParty(){
   try{
@@ -271,7 +275,7 @@ function markMode(){
     $('playSub').textContent=state.yearOne?.status==='LIVE'
       ?`DAY ${state.yearOne.current_day} · PVE ONLY · ${state.yearOne.player?.lives_remaining??3} lives`
       :c?`OCT 1 · ${c.days}D ${String(c.hours).padStart(2,'0')}H ${String(c.minutes).padStart(2,'0')}M`:'OCT 1 · 12:00 AM ET';
-  }else if(d.key==='TDM')$('playSub').textContent='6v6 · solo / duo / trio / squad · 50-map auto rotation';
+  }else if(d.key==='TDM')$('playSub').textContent='100 players · solo / duo / trio / squad · 50 maps · 10-second vote · bot backfill';
   else $('playSub').textContent='';
   renderYearOneCountdown();syncPlayAvailability();
 }
@@ -289,6 +293,7 @@ document.querySelectorAll('.mode').forEach(btn=>btn.addEventListener('click',asy
 }));
 
 $('playBtn').onclick=async()=>{
+  if(!state.account){openModal('ACCOUNT');status('Create or sign in to a free Horizon account before playing.');return}
   if(state.party?.host_player_id!==ident.id){status('Party leader starts matchmaking');return}
   state.queueing=true;syncPlayAvailability();
   try{
@@ -297,7 +302,7 @@ $('playBtn').onclick=async()=>{
       if(state.yearOne?.status!=='LIVE')throw new Error('Year One unlocks October 1 at 12:00 AM Eastern.');
       status('Locking your precise spawn location…');
       const loc=await getPreciseLocation();
-      const entered=await rpc('bridgepoint_horizon_year_one_enter_v4336',{
+      const entered=await rpc('bridgepoint_horizon_year_one_enter_v4340',{
         p_player_id:ident.id,p_player_secret:ident.secret,
         p_lat:loc.lat,p_lon:loc.lon,p_accuracy_m:loc.accuracy_m,p_altitude_m:loc.altitude_m
       });
@@ -308,7 +313,7 @@ $('playBtn').onclick=async()=>{
       showLoading(snap.match);
       return;
     }
-    const q=await rpc('bridgepoint_horizon_queue_v4300',{p_player_id:ident.id,p_player_secret:ident.secret});
+    const q=await rpc('bridgepoint_horizon_queue_v4340',{p_player_id:ident.id,p_player_secret:ident.secret});
     status(q.queued?`Finding match… ${state.selectedMap?.display_name||'rotating map pool'} · direct P2P host will be elected`:'Solo world ready');
     pollMatch();
   }catch(e){
