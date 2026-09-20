@@ -293,7 +293,14 @@ void AHorizonPlayerCharacter::Tick(float DeltaSeconds)
     TryEnableWorldGravity(DeltaSeconds);
     UpdateTraversalState(DeltaSeconds);
     ApplyMovementInput(DeltaSeconds);
-    RefreshMovementProfile();
+    if (ShouldRefreshMovementProfile(
+            MovementProfileRefreshAccumulator,
+            DeltaSeconds,
+            0.10f,
+            MovementProfileRefreshAccumulator))
+    {
+        RefreshMovementProfile();
+    }
     UpdateLean(DeltaSeconds);
     UpdateCameraPresentation(DeltaSeconds);
 }
@@ -1276,6 +1283,37 @@ bool AHorizonPlayerCharacter::IsWeaponVisualEquipped() const
     return EquippedWeaponVisual &&
         EquippedWeaponVisual->IsVisible() &&
         EquippedWeaponVisual->GetStaticMesh() != nullptr;
+}
+
+bool AHorizonPlayerCharacter::ShouldRefreshMovementProfile(
+    float AccumulatedSeconds,
+    float DeltaSeconds,
+    float RefreshIntervalSeconds,
+    float& OutRemainderSeconds)
+{
+    const float SafeAccumulated = FMath::IsFinite(AccumulatedSeconds)
+        ? FMath::Max(0.0f, AccumulatedSeconds)
+        : 0.0f;
+    if (!FMath::IsFinite(DeltaSeconds) || DeltaSeconds <= 0.0f)
+    {
+        OutRemainderSeconds = SafeAccumulated;
+        return false;
+    }
+
+    const float SafeInterval =
+        FMath::IsFinite(RefreshIntervalSeconds) && RefreshIntervalSeconds > 0.0f
+            ? FMath::Clamp(RefreshIntervalSeconds, 0.02f, 1.0f)
+            : 0.10f;
+    const float Elapsed =
+        SafeAccumulated + FMath::Min(DeltaSeconds, 0.50f);
+    if (Elapsed < SafeInterval)
+    {
+        OutRemainderSeconds = Elapsed;
+        return false;
+    }
+
+    OutRemainderSeconds = FMath::Fmod(Elapsed, SafeInterval);
+    return true;
 }
 
 void AHorizonPlayerCharacter::RefreshMovementProfile()
