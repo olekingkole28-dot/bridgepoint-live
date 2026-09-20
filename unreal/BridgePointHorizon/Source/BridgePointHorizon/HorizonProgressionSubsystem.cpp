@@ -21,6 +21,7 @@ void UHorizonProgressionSubsystem::Initialize(FSubsystemCollectionBase& Collecti
 
     SanitizeCareerState();
     EnsureSeason(FDateTime::UtcNow());
+    SaveState();
 }
 
 FString UHorizonProgressionSubsystem::MakeSeasonKey(FDateTime NowUtc) const
