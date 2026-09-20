@@ -134,6 +134,9 @@ struct FHorizonChallengeRuntimeState
 
     UPROPERTY(BlueprintReadOnly)
     bool bClaimed = false;
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 CompletedRuns = 0;
 };
 
 UCLASS()
@@ -213,6 +216,9 @@ public:
     static FName ResolveSurvivalInventoryItem(const FString& RewardKey);
     static int32 ResolveSurvivalInventoryQuantity(const FHorizonChallengeReward& Reward);
     static int32 ComputeDeferredRewardAmount(int32 RequestedQuantity, int32 GrantedQuantity);
+    static int32 AdvanceProgressSafely(int32 CurrentProgress, int32 Amount, int32 TargetCount);
+    static FHorizonChallengeRuntimeState PrepareNextRun(
+        const FHorizonChallengeRuntimeState& PreviousRun);
 
 private:
     static const TCHAR* SaveSlot;
