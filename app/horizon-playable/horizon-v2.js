@@ -1079,7 +1079,19 @@ async function collectLoot(q){
   else if(q.type==='sparkplug'){vehicleParts.spark_plug++;toast('Spark plug acquired')}
   else if(q.type==='wheel'){vehicleParts.wheel++;toast('Wheel acquired · '+vehicleParts.wheel)}
   else if(q.type==='repair'){const v=activeVehicle||nearestVehicle();if(v){v.condition=Math.min(100,v.condition+38);toast('Vehicle repaired '+Math.round(v.condition)+'%')}else toast('Repair kit acquired')}
-  else {const locked=WEAPONS.find(w=>!weaponState[w.key]?.owned);if(locked){weaponState[locked.key].owned=true;weaponState[locked.key].mag=locked.mag;weaponState[locked.key].reserve=locked.reserve;toast(locked.name+' acquired')}else toast('Weapon salvage acquired');renderWeaponBar()}
+  else {
+    const prestige=Number(savedStats?.prestige||0),level=Number(savedStats?.level||1),baseKeys=new Set(['rifle','smg','shotgun','pistol','axe']);
+    const candidates=WEAPONS.filter(w=>!baseKeys.has(w.key)&&!weaponState[w.key]?.owned&&Number(w.prestigeRequired||0)<=prestige&&Number(w.unlockedLevel||1)<=level);
+    const locked=candidates.length?candidates[hash(q.id+':weapon')%candidates.length]:null,empty=inventoryWeaponKeys.findIndex(k=>!k);
+    if(locked&&empty>=0){
+      weaponState[locked.key].owned=true;weaponState[locked.key].mag=locked.mag;weaponState[locked.key].reserve=locked.mag*Math.min(1,locked.maxClips||0);inventoryWeaponKeys[empty]=locked.key;
+      toast(locked.rarity+' '+locked.name+' acquired · slot '+(empty+1));
+    }else if(locked){
+      const w=activeWeapon();if(w?.mag){weaponState[w.key].reserve=Math.min(w.mag*(w.maxClips||3),weaponState[w.key].reserve+w.mag);toast('Inventory full · weapon converted to '+w.name+' ammo')}
+      else toast('Inventory full');
+    }else toast('Weapon salvage acquired');
+    renderWeaponBar();checkpointYearOne(false);
+  }
 }
 function updateDwellPickup(now){
   const q=nearestLoot(),prompt=$('pickupPrompt'),ring=$('pickupRing'),label=$('pickupLabel');
