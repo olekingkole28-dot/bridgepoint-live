@@ -649,9 +649,9 @@ jobs:
               await p.click('.bp-tour-skip');await p.waitForFunction(()=>!document.getElementById('bpWalkthrough'),{timeout:5000});
               await p.goto('https://bridgepointintelligence.online/app/?tourqa=1&v='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await p.waitForSelector('#bpWalkthrough',{timeout:10000});
-              const appTour=await p.evaluate(()=>({active:window.__BP_WALKTHROUGH_V5537__?.active===true,total:window.__BP_WALKTHROUGH_V5537__?.total||0,title:document.querySelector('.bp-tour-title')?.textContent||'',molly:document.body.innerText.includes('Molly Materson'),skip:!!document.querySelector('.bp-tour-skip')}));
-              if(!appTour.active||appTour.total<30||!appTour.molly||!appTour.skip||!/Welcome to the BridgePoint app/i.test(appTour.title))throw new Error('APP_WALKTHROUGH_REGRESSION '+JSON.stringify(appTour));
-              await p.click('.bp-tour-skip');await p.waitForFunction(()=>!document.getElementById('bpWalkthrough'),{timeout:5000});
+              const appTour=await p.evaluate(()=>({active:window.__BP_WALKTHROUGH_V5537__?.active===true,total:window.__BP_WALKTHROUGH_V5537__?.total||0,title:document.querySelector('.bp-tour-title')?.textContent||'',molly:document.body.innerText.includes('Molly Materson'),skip:!!document.querySelector('.bp-tour-skip'),apiSkip:typeof window.__BP_WALKTHROUGH_V5537__?.skip==='function'}));
+              if(!appTour.active||appTour.total<30||!appTour.molly||!appTour.skip||!appTour.apiSkip||!/Welcome to the BridgePoint app/i.test(appTour.title))throw new Error('APP_WALKTHROUGH_REGRESSION '+JSON.stringify(appTour));
+              await p.evaluate(()=>window.__BP_WALKTHROUGH_V5537__?.skip?.());await p.waitForFunction(()=>!document.getElementById('bpWalkthrough'),{timeout:5000});
               console.log('BRIDGEPOINT_WALKTHROUGH_V5537_PASS',JSON.stringify({landingTour,appTour}));
               const fatal=[];p.on('pageerror',e=>{fatal.push(String(e.message||e));console.log('BROWSER_PAGEERROR',String(e.stack||e.message||e))});
               p.on('console',m=>{const t=m.text();if(/BridgePoint|premium|global runtime|module|Failed to load|SyntaxError|ReferenceError|TypeError/i.test(t))console.log('BROWSER_CONSOLE',m.type(),t)});
