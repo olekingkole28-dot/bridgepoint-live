@@ -829,7 +829,9 @@ for token in [
     "CurrentHealth", "CurrentArmor", "ReticleImpulse01",
     "ShouldRefreshMovementProfile", "MovementProfileRefreshAccumulator",
     "SwimSpeed", "SwimAcceleration", "SwimBuoyancy", "IsSwimming",
-    "ResolveSwimDirection", "SwimVerticalInput"
+    "ResolveSwimDirection", "SwimVerticalInput",
+    "MovementInputDeadzone", "MovementInputOuterDeadzone",
+    "MovementInputResponseExponent", "ShapeMovementInput"
 ]:
     require(token in player_header, f"native weapon visual contract missing: {token}")
 for token in [
@@ -843,8 +845,10 @@ for token in ["LineTraceComponent", "GroundedLocation", "MOVE_Walking"]:
     require(token in player, f"streamed terrain grounding safeguard missing: {token}")
 
 for token in [
-    "ApplyMovementInput(DeltaSeconds)", "CachedMoveInput.GetClampedToMaxSize(1.0f)",
-    "Forward * Input.Y + Right * Input.X", "DesiredDirection.Rotation().Yaw",
+    "ApplyMovementInput(DeltaSeconds)", "ShapeMovementInput(",
+    "MovementInputDeadzone", "MovementInputOuterDeadzone",
+    "MovementInputResponseExponent", "Forward * Input.Y + Right * Input.X",
+    "DesiredDirection.Rotation().Yaw",
     "Move->bOrientRotationToMovement = false", "UpdateCameraPresentation",
     "CameraMode = EHorizonCameraMode::FirstPerson",
     "CameraBoom->TargetArmLength = 0.0f", "CameraBoom->bDoCollisionTest = false",
@@ -993,7 +997,17 @@ for token in [
     "Jump input adds bounded swim ascent",
     "Combined swim input remains normalized",
     "Idle swim input produces no drift",
-    "Swimming stance cannot start a ground vault"
+    "Swimming stance cannot start a ground vault",
+    "Movement.Input.RadialResponse",
+    "Controller drift remains inside radial deadzone",
+    "Mid-stick input remains responsive",
+    "Response curve preserves fine control below raw magnitude",
+    "Full digital or stick input reaches full scale",
+    "Outer deadzone reaches full scale before stick edge",
+    "Diagonal movement remains normalized",
+    "Radial shaping preserves diagonal direction",
+    "Opposing directions have symmetric response",
+    "Non-finite movement input fails closed"
 ]:
     require(token in movement_tests, f"native lean QA missing: {token}")
 require("Stripe" not in movement_tests and "Payment" not in movement_tests,
