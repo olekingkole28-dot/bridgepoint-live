@@ -9,10 +9,8 @@ function before(){for(const id of ['gta-place-label','gta-road-label-major','gta
 function weatherBefore(){for(const id of ['bp-radar-a','bp-radar-b','bp-landing-radar-a','bp-landing-radar-b','bp-v5004-weather-shape-fill','bp-landing-weather-fill','bp-v5004-weather-points','bp-landing-weather-points'])try{if(C.map.getLayer(id))return id}catch(_){}return before()}
 function imergTile(date,z='{z}',y='{y}',x='{x}'){return 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/IMERG_Precipitation_Rate_30min/default/'+date+'/GoogleMapsCompatible_Level6/'+z+'/'+y+'/'+x+'.png'}
 async function resolveImergDate(){
- const seen=new Set(),candidates=[];
- for(const h of [6,12,18,24,36,48]){const d=new Date(Date.now()-h*3600000).toISOString().slice(0,10);if(!seen.has(d)){seen.add(d);candidates.push(d)}}
- for(const date of candidates){try{const r=await fetch(imergTile(date,0,0,0),{cache:'no-store'});if(r.ok){const actual=(r.headers.get('layer-time-actual')||date).slice(0,10);return{date:actual,requested:date}}}catch(_){}}
- return null
+ const date=new Date(Date.now()-12*3600000).toISOString().slice(0,10);
+ return{date,requested:date,mode:'NONBLOCKING_GIBS_DATE'};
 }
 async function installGlobalWeather(){
  if(!C.map)return null;
