@@ -171,9 +171,11 @@ jobs:
           node --check site/intelligence-global-v5507.js
           node --check site/intelligence-tools-v5507.js
           node --check site/qr-house-v5521.js
-          grep -Fq 'intelligence-tools-v5507.js?v=5521' site/index.html
-          grep -Fq 'intelligence-tools-v5507.js?v=5521' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5522' site/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5522' site/app/index.html
           grep -Fq 'FREE PREMIUM TOOLS' site/intelligence-tools-v5507.js
+          ! grep -Fq "['GLOBAL_WEATHER','GLOBAL WEATHER'" site/intelligence-tools-v5507.js
+          ! grep -Fq "['GLOBAL','GLOBAL LAYERS'" site/intelligence-tools-v5507.js
           grep -Fq 'bpQrHouseCanvas' site/index.html
           ! grep -Fq 'QR → 3D HOUSE → QR' site/index.html
           grep -Fq '__BP_QR_HOUSE_V5521__' site/qr-house-v5521.js
