@@ -53,6 +53,9 @@ struct FHorizonSurvivalState
     float Health01 = 1.0f;
 
     UPROPERTY(BlueprintReadOnly)
+    int32 ShieldPoints = 0;
+
+    UPROPERTY(BlueprintReadOnly)
     float CarriedWeightKg = 0.0f;
 
     UPROPERTY(BlueprintReadOnly)
@@ -76,6 +79,9 @@ public:
 
     UPROPERTY()
     float Health01 = 1.0f;
+
+    UPROPERTY()
+    int32 ShieldPoints = 0;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
@@ -126,6 +132,15 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Survival")
     void ResetForNewSurvivor();
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Survival|YearOne")
+    bool ApplyMonsterHit(int32 DamagePoints = 25);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Survival|YearOne")
+    int32 AddShieldPickup(int32 ShieldPoints = 50);
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Survival|YearOne")
+    int32 GetCombinedCombatPoints() const;
 
     UFUNCTION(BlueprintPure, Category="Horizon|Survival")
     TArray<FHorizonCraftingRecipe> GetDefaultRecipes() const;
