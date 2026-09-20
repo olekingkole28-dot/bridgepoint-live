@@ -379,6 +379,148 @@ FHorizonUiFeedbackMix UHorizonAudioDirectorSubsystem::GetUiFeedbackMix(
     return BuildUiFeedbackMix(Cue, SmoothedCombatIntensity01, VariationSeed);
 }
 
+FHorizonVehicleAudioMix UHorizonAudioDirectorSubsystem::BuildVehicleAudioMix(
+    EHorizonVehicleAudioClass VehicleClass,
+    bool bEngineRunning,
+    float SpeedKph,
+    float EngineLoad01,
+    float Durability01,
+    float DistanceCm,
+    bool bListenerInside,
+    bool bOccluded,
+    int32 VariationSeed)
+{
+    FHorizonVehicleAudioMix Mix;
+    Mix.bListenerInside = bListenerInside;
+    if (!bEngineRunning)
+    {
+        Mix.Pitch = 0.0f;
+        Mix.LowPassCutoffHz = bListenerInside ? 5200.0f : 18000.0f;
+        return Mix;
+    }
+
+    float MaximumSpeedKph = 190.0f;
+    float BasePitch = 0.82f;
+    float ExhaustCharacter = 0.72f;
+    switch (VehicleClass)
+    {
+        case EHorizonVehicleAudioClass::Sedan:
+            MaximumSpeedKph = 190.0f;
+            BasePitch = 0.82f;
+            ExhaustCharacter = 0.62f;
+            Mix.MaxDistanceCm = 30000.0f;
+            break;
+        case EHorizonVehicleAudioClass::Pickup:
+            MaximumSpeedKph = 170.0f;
+            BasePitch = 0.74f;
+            ExhaustCharacter = 0.88f;
+            Mix.MaxDistanceCm = 36000.0f;
+            break;
+        case EHorizonVehicleAudioClass::Offroad:
+            MaximumSpeedKph = 145.0f;
+            BasePitch = 0.78f;
+            ExhaustCharacter = 0.94f;
+            Mix.MaxDistanceCm = 34000.0f;
+            break;
+        case EHorizonVehicleAudioClass::UtilityVan:
+            MaximumSpeedKph = 155.0f;
+            BasePitch = 0.70f;
+            ExhaustCharacter = 0.80f;
+            Mix.MaxDistanceCm = 33000.0f;
+            break;
+    }
+
+    const float SafeSpeed = FMath::Clamp(
+        FMath::IsFinite(SpeedKph) ? SpeedKph : 0.0f,
+        0.0f,
+        MaximumSpeedKph);
+    const float Speed01 = SafeSpeed / MaximumSpeedKph;
+    const float Load01 = FMath::Clamp(
+        FMath::IsFinite(EngineLoad01) ? EngineLoad01 : 0.0f,
+        0.0f,
+        1.0f);
+    const float SafeDurability = FMath::Clamp(
+        FMath::IsFinite(Durability01) ? Durability01 : 0.0f,
+        0.0f,
+        1.0f);
+    const float SafeDistance = FMath::Max(
+        0.0f,
+        FMath::IsFinite(DistanceCm) ? DistanceCm : Mix.MaxDistanceCm);
+    const float Distance01 = FMath::Clamp(SafeDistance / Mix.MaxDistanceCm, 0.0f, 1.0f);
+    const float DistanceGain = FMath::Pow(1.0f - Distance01, 0.72f);
+
+    Mix.EngineGain = (0.34f + Load01 * 0.52f + Speed01 * 0.16f) * DistanceGain;
+    Mix.ExhaustGain = (0.20f + Load01 * ExhaustCharacter) * DistanceGain;
+    Mix.TireGain = FMath::Pow(Speed01, 0.78f) * 0.68f * DistanceGain;
+    Mix.DamageSputter01 = SafeDurability < 0.45f
+        ? FMath::Square(1.0f - SafeDurability / 0.45f)
+        : 0.0f;
+    Mix.MechanicalRattleGain =
+        (1.0f - SafeDurability) * 0.62f * DistanceGain +
+        (VehicleClass == EHorizonVehicleAudioClass::Offroad ? 0.06f : 0.0f);
+    Mix.Pitch = BasePitch + Speed01 * 0.72f + Load01 * 0.16f;
+
+    if (bListenerInside)
+    {
+        Mix.EngineGain *= 0.76f;
+        Mix.ExhaustGain *= 0.38f;
+        Mix.TireGain *= 0.56f;
+        Mix.MechanicalRattleGain *= 0.82f;
+        Mix.LowPassCutoffHz = 5200.0f;
+        Mix.ReverbSend = 0.05f;
+    }
+    else
+    {
+        Mix.LowPassCutoffHz = 18000.0f;
+        Mix.ReverbSend = 0.18f;
+    }
+
+    if (bOccluded)
+    {
+        Mix.EngineGain *= 0.68f;
+        Mix.ExhaustGain *= 0.74f;
+        Mix.TireGain *= 0.58f;
+        Mix.LowPassCutoffHz = FMath::Min(Mix.LowPassCutoffHz, 2600.0f);
+        Mix.ReverbSend = FMath::Max(Mix.ReverbSend, 0.26f);
+    }
+
+    FRandomStream Variation(
+        VariationSeed * 1877 + static_cast<int32>(VehicleClass) * 283);
+    Mix.Pitch *= Variation.FRandRange(0.992f, 1.008f);
+    Mix.EngineGain *= Variation.FRandRange(0.985f, 1.015f);
+
+    Mix.EngineGain = FMath::Clamp(Mix.EngineGain, 0.0f, 1.0f);
+    Mix.ExhaustGain = FMath::Clamp(Mix.ExhaustGain, 0.0f, 1.0f);
+    Mix.TireGain = FMath::Clamp(Mix.TireGain, 0.0f, 1.0f);
+    Mix.MechanicalRattleGain = FMath::Clamp(Mix.MechanicalRattleGain, 0.0f, 1.0f);
+    Mix.DamageSputter01 = FMath::Clamp(Mix.DamageSputter01, 0.0f, 1.0f);
+    Mix.Pitch = FMath::Clamp(Mix.Pitch, 0.65f, 1.72f);
+    return Mix;
+}
+
+FHorizonVehicleAudioMix UHorizonAudioDirectorSubsystem::GetVehicleAudioMix(
+    EHorizonVehicleAudioClass VehicleClass,
+    bool bEngineRunning,
+    float SpeedKph,
+    float EngineLoad01,
+    float Durability01,
+    float DistanceCm,
+    bool bListenerInside,
+    bool bOccluded,
+    int32 VariationSeed) const
+{
+    return BuildVehicleAudioMix(
+        VehicleClass,
+        bEngineRunning,
+        SpeedKph,
+        EngineLoad01,
+        Durability01,
+        DistanceCm,
+        bListenerInside,
+        bOccluded,
+        VariationSeed);
+}
+
 FHorizonWeaponReportMix UHorizonAudioDirectorSubsystem::GetWeaponReportMix(
     EHorizonWeaponReportClass ReportClass,
     float DistanceCm,

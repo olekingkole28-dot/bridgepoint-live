@@ -220,4 +220,86 @@ bool FHorizonUiFeedbackClarityTest::RunTest(const FString& Parameters)
     return true;
 }
 
+
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonVehicleAudioRuntimeMixTest,
+    "BridgePoint.Horizon.Audio.Vehicles.RuntimeMix",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonVehicleAudioRuntimeMixTest::RunTest(const FString& Parameters)
+{
+    const FHorizonVehicleAudioMix EngineOff =
+        UHorizonAudioDirectorSubsystem::BuildVehicleAudioMix(
+            EHorizonVehicleAudioClass::Sedan, false, 0.0f, 0.0f, 1.0f,
+            0.0f, true, false, 18);
+    const FHorizonVehicleAudioMix Idle =
+        UHorizonAudioDirectorSubsystem::BuildVehicleAudioMix(
+            EHorizonVehicleAudioClass::Sedan, true, 0.0f, 0.05f, 1.0f,
+            0.0f, true, false, 18);
+    const FHorizonVehicleAudioMix Moving =
+        UHorizonAudioDirectorSubsystem::BuildVehicleAudioMix(
+            EHorizonVehicleAudioClass::Sedan, true, 95.0f, 0.50f, 1.0f,
+            0.0f, true, false, 18);
+    TestEqual(TEXT("Stopped engine has no engine layer"), EngineOff.EngineGain, 0.0f);
+    TestEqual(TEXT("Stopped engine has no exhaust layer"), EngineOff.ExhaustGain, 0.0f);
+    TestTrue(TEXT("Road speed raises powertrain pitch"), Moving.Pitch > Idle.Pitch);
+    TestTrue(TEXT("Road speed introduces tire noise"), Moving.TireGain > Idle.TireGain);
+
+    const FHorizonVehicleAudioMix Sedan =
+        UHorizonAudioDirectorSubsystem::BuildVehicleAudioMix(
+            EHorizonVehicleAudioClass::Sedan, true, 80.0f, 0.70f, 1.0f,
+            500.0f, false, false, 42);
+    const FHorizonVehicleAudioMix Pickup =
+        UHorizonAudioDirectorSubsystem::BuildVehicleAudioMix(
+            EHorizonVehicleAudioClass::Pickup, true, 80.0f, 0.70f, 1.0f,
+            500.0f, false, false, 42);
+    TestTrue(TEXT("Pickup exhaust has more body than sedan"),
+        Pickup.ExhaustGain > Sedan.ExhaustGain);
+
+    const FHorizonVehicleAudioMix Damaged =
+        UHorizonAudioDirectorSubsystem::BuildVehicleAudioMix(
+            EHorizonVehicleAudioClass::Offroad, true, 55.0f, 0.65f, 0.18f,
+            0.0f, true, false, 77);
+    const FHorizonVehicleAudioMix Healthy =
+        UHorizonAudioDirectorSubsystem::BuildVehicleAudioMix(
+            EHorizonVehicleAudioClass::Offroad, true, 55.0f, 0.65f, 1.0f,
+            0.0f, true, false, 77);
+    TestTrue(TEXT("Damage increases mechanical rattle"),
+        Damaged.MechanicalRattleGain > Healthy.MechanicalRattleGain);
+    TestTrue(TEXT("Critical damage creates sputter"), Damaged.DamageSputter01 > 0.0f);
+
+    const FHorizonVehicleAudioMix Cabin =
+        UHorizonAudioDirectorSubsystem::BuildVehicleAudioMix(
+            EHorizonVehicleAudioClass::UtilityVan, true, 70.0f, 0.60f, 1.0f,
+            1000.0f, true, false, 9);
+    const FHorizonVehicleAudioMix Exterior =
+        UHorizonAudioDirectorSubsystem::BuildVehicleAudioMix(
+            EHorizonVehicleAudioClass::UtilityVan, true, 70.0f, 0.60f, 1.0f,
+            1000.0f, false, false, 9);
+    const FHorizonVehicleAudioMix Occluded =
+        UHorizonAudioDirectorSubsystem::BuildVehicleAudioMix(
+            EHorizonVehicleAudioClass::UtilityVan, true, 70.0f, 0.60f, 1.0f,
+            1000.0f, false, true, 9);
+    const FHorizonVehicleAudioMix Distant =
+        UHorizonAudioDirectorSubsystem::BuildVehicleAudioMix(
+            EHorizonVehicleAudioClass::UtilityVan, true, 70.0f, 0.60f, 1.0f,
+            30000.0f, false, false, 9);
+    const FHorizonVehicleAudioMix Repeat =
+        UHorizonAudioDirectorSubsystem::BuildVehicleAudioMix(
+            EHorizonVehicleAudioClass::UtilityVan, true, 70.0f, 0.60f, 1.0f,
+            1000.0f, false, false, 9);
+
+    TestTrue(TEXT("Cabin filters exterior powertrain detail"),
+        Cabin.LowPassCutoffHz < Exterior.LowPassCutoffHz);
+    TestTrue(TEXT("Occlusion lowers vehicle cutoff"),
+        Occluded.LowPassCutoffHz < Exterior.LowPassCutoffHz);
+    TestTrue(TEXT("Distance attenuates vehicle engine"),
+        Distant.EngineGain < Exterior.EngineGain);
+    TestEqual(TEXT("Seeded vehicle pitch is deterministic"), Repeat.Pitch, Exterior.Pitch);
+    TestEqual(TEXT("Seeded vehicle engine gain is deterministic"),
+        Repeat.EngineGain, Exterior.EngineGain);
+    return true;
+}
+
 #endif
