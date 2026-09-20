@@ -195,8 +195,16 @@ async function hydrateYearOneRuntime(){
           weaponState[w.key].owned=q.owned!==false;
         }
       }
-      const idx=Number(r.inventory_state?.active_weapon_index);
-      if(Number.isInteger(idx)&&idx>=0&&idx<WEAPONS.length)activeWeaponIndex=idx;
+      const savedInventory=Array.isArray(r.inventory_state?.inventory_weapon_keys)?r.inventory_state.inventory_weapon_keys.slice(0,10):null;
+      if(savedInventory){
+        while(savedInventory.length<10)savedInventory.push(null);
+        for(let i=0;i<10;i++){const key=savedInventory[i];inventoryWeaponKeys[i]=key&&weaponByKey(key)?key:null}
+      }
+      const activeKey=String(r.inventory_state?.active_weapon_key||'');
+      const activeByKey=WEAPONS.findIndex(w=>w.key===activeKey),idx=Number(r.inventory_state?.active_weapon_index);
+      if(activeByKey>=0&&weaponState[activeKey]?.owned)activeWeaponIndex=activeByKey;
+      else if(Number.isInteger(idx)&&idx>=0&&idx<WEAPONS.length&&weaponState[WEAPONS[idx].key]?.owned)activeWeaponIndex=idx;
+      else{const first=inventoryWeaponKeys.slice(0,5).find(k=>k&&weaponState[k]?.owned);if(first)activeWeaponIndex=Math.max(0,WEAPONS.findIndex(w=>w.key===first))}
       $('loot').textContent=lootCount;updateVitals();updateAmmo();renderWeaponBar();
     }
     return r;
@@ -216,7 +224,7 @@ async function checkpointYearOne(force=false){
       p_player_id:playerId,p_player_secret:playerSecret,p_health:Math.round(health),p_shield:Math.round(shield),
       p_lat:coord.lat,p_lon:coord.lon,p_accuracy_m:null,p_altitude_m:player.position.z,
       p_monster_kills_delta:0,p_loot_delta:sentLoot,
-      p_inventory_state:{active_weapon_index:activeWeaponIndex},
+      p_inventory_state:{active_weapon_index:activeWeaponIndex,active_weapon_key:activeWeapon()?.key||null,inventory_weapon_keys:[...inventoryWeaponKeys]},
       p_weapon_state:persistedWeapons
     });
     lootDeltaPending=Math.max(0,lootDeltaPending-sentLoot);lastYearOneCheckpointAt=performance.now();
@@ -1014,7 +1022,7 @@ const deathDropMeshes=new Map();
 function mergeDeathInventory(inv={}){
   shield=Math.min(100,shield+Math.max(0,Number(inv.shield||0)));
   const incoming=inv.weapons||{};
-  for(const w of WEAPONS){const q=incoming[w.key];if(!q)continue;weaponState[w.key].owned=weaponState[w.key].owned||q.owned!==false;weaponState[w.key].mag=Math.min(w.mag,Math.max(weaponState[w.key].mag||0,Number(q.mag||0)));weaponState[w.key].reserve=Math.min(w.mag*(w.maxClips||3),Number(weaponState[w.key].reserve||0)+Number(q.reserve||0))}
+  for(const w of WEAPONS){const q=incoming[w.key];if(!q)continue;weaponState[w.key].owned=weaponState[w.key].owned||q.owned!==false;weaponState[w.key].mag=Math.min(w.mag,Math.max(weaponState[w.key].mag||0,Number(q.mag||0)));weaponState[w.key].reserve=Math.min(w.mag*(w.maxClips||3),Number(weaponState[w.key].reserve||0)+Number(q.reserve||0));if(q.owned!==false&&!inventoryWeaponKeys.includes(w.key)){const empty=inventoryWeaponKeys.findIndex(k=>!k);if(empty>=0)inventoryWeaponKeys[empty]=w.key}}
   for(const k of ['spark_plug','wheel','gas'])vehicleParts[k]=Number(vehicleParts[k]||0)+Number(inv.vehicle_parts?.[k]||0);
   updateVitals();updateAmmo();renderWeaponBar();checkpointYearOne(false);
 }
@@ -1045,11 +1053,11 @@ async function collectDeathDrop(q){
 async function dropDeathLoot(){
   if(!playerId||!playerSecret)return;
   const coord=playerWorldCoordinate(),weapons=Object.fromEntries(WEAPONS.filter(w=>weaponState[w.key]?.owned).map(w=>[w.key,{owned:true,mag:weaponState[w.key].mag,reserve:weaponState[w.key].reserve,rarity:w.rarity}]));
-  const inventory={weapons,shield,vehicle_parts:{...vehicleParts},backpack:[...backpackSlots],active_weapon:activeWeapon()?.key};
+  const inventory={weapons,shield,vehicle_parts:{...vehicleParts},backpack:[...backpackSlots],inventory_weapon_keys:[...inventoryWeaponKeys],active_weapon:activeWeapon()?.key};
   try{await rpc('bridgepoint_horizon_death_drop_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_lat:coord.lat,p_lon:coord.lon,p_local_x:player.position.x,p_local_y:player.position.y,p_local_z:player.position.z,p_inventory:inventory})}catch{}
 }
 function clearCarriedAfterDeath(){
-  shield=0;for(const w of WEAPONS){weaponState[w.key].reserve=0;weaponState[w.key].mag=w.key==='axe'?0:0;weaponState[w.key].owned=w.key==='axe'}vehicleParts.spark_plug=vehicleParts.wheel=vehicleParts.gas=0;backpackSlots.fill(null);activeWeaponIndex=Math.max(0,WEAPONS.findIndex(w=>w.key==='axe'));updateVitals();updateAmmo();renderWeaponBar();
+  shield=0;for(const w of WEAPONS){weaponState[w.key].reserve=0;weaponState[w.key].mag=0;weaponState[w.key].owned=w.key==='axe'}vehicleParts.spark_plug=vehicleParts.wheel=vehicleParts.gas=0;backpackSlots.fill(null);inventoryWeaponKeys.fill(null);inventoryWeaponKeys[0]='axe';activeWeaponIndex=Math.max(0,WEAPONS.findIndex(w=>w.key==='axe'));updateVitals();updateAmmo();renderWeaponBar();
 }
 async function collectLoot(q){
   if(!q||q.picked)return;
@@ -1790,6 +1798,7 @@ async function load(){
   addSky();addGround();
   const roads=addRoads(),parcels=addParcels(),water=addWater(),buildings=addBuildings(),buildingParts=addBuildingParts();
   waterAreas.length=0;for(const row of data.water||[])for(const ring of rings(row.geometry)){const pts=ring.map(project);if(pts.length>=3)waterAreas.push(pts)}
+  await hydrateWeaponCatalog();
   addVegetation();addStreetLife();addAbandonment();await syncFiniteLoot('world');const ziplineCount=buildZiplines(),vehicleCount=spawnVehicles(),disasterFx=addAmbientDisasterFx();
 
   if(mode==='YEAR_ONE')await hydrateYearOneRuntime();
