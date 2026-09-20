@@ -26,6 +26,7 @@ const camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,.08,2800);cam
 const renderer=new THREE.WebGLRenderer({antialias:HIGH_DEVICE,powerPreference:'high-performance',stencil:false,depth:true});
 renderer.setPixelRatio(renderScale);renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;
 renderer.shadowMap.enabled=HIGH_DEVICE;renderer.shadowMap.type=THREE.PCFSoftShadowMap;root.appendChild(renderer.domElement);
+localStorage.setItem('horizon-camera-mode','first');
 const world=new THREE.Group();scene.add(world);const exteriorDetailGroup=new THREE.Group();world.add(exteriorDetailGroup);const mapLineGroup=new THREE.Group();world.add(mapLineGroup);const ambientDetailGroup=new THREE.Group();world.add(ambientDetailGroup);const interiorGroup=new THREE.Group();interiorGroup.visible=false;scene.add(interiorGroup);
 const actorProxyGroup=new THREE.Group();world.add(actorProxyGroup);
 const PROXY_MAX=32,PROXY_GEOM=new THREE.BoxGeometry(.52,.52,1.62);
@@ -42,12 +43,14 @@ const PERF_TIER_NAMES=['FULL','BALANCED','SAFE','SURVIVAL'];
 const lowMaterialCache=new WeakMap();
 let liveWeather={feed:false,event:null,distance_km:null,last_at:null},rainFx=null;
 const WORLD_COUNTS={buildings:0,buildingParts:0,parcels:0,roads:0,water:0};
+// Every source building remains present in the playable world. Adaptive quality
+// only controls fine facade dressing and collision/FX cost, never structure presence.
 const DETAIL_BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?52:22):120;
-const BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?650:480):900;
-const PART_LIMIT=MOBILE?(HIGH_DEVICE?420:260):700;
+const BUILDING_LIMIT=Number.POSITIVE_INFINITY;
+const PART_LIMIT=Number.POSITIVE_INFINITY;
 const PARCEL_LIMIT=MOBILE?(HIGH_DEVICE?1250:850):1800;
 let ammoMag=30,ammoReserve=120,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,fpWeaponRig=null,muzzleFlash=null;
-let cameraMode=localStorage.getItem('horizon-camera-mode')||'third',crouched=false,prone=false,slideTime=0,verticalVelocity=0,airborne=false,interiorMode=false,activeInterior=null,rooftopState=null;
+let cameraMode='first',crouched=false,prone=false,slideTime=0,verticalVelocity=0,airborne=false,interiorMode=false,activeInterior=null,rooftopState=null;
 let activeZipline=null,activeVehicle=null,audioCtx=null,audioMaster=null,audioCompressor=null,audioReverb=null,audioReverbGain=null,lastAudioEnvAt=0,lastFootstepAt=0,contextTarget=null;const audioBuses={},audioBufferCache=new Map();
 const buildingEntries=[],ziplines=[],vehicles=[],ambientFx=[],interiorRects=[];const exteriorReturn=new THREE.Vector3();let exteriorYaw=0;
 const WEAPONS=[
@@ -259,9 +262,9 @@ function creatureVocalAudio(pos,intensity=1){
   g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.055*intensity,now+.04);g.gain.exponentialRampToValueAtTime(.0001,now+.58);o.connect(lp);lp.connect(g);routeSpatialAudio(g,pos,'creatures',interiorMode?.25:.08);o.start(now);o.stop(now+.6);
 }
 function cycleCameraMode(){
-  cameraMode=cameraMode==='third'?'first':'third';localStorage.setItem('horizon-camera-mode',cameraMode);
-  if(fpWeaponRig)fpWeaponRig.visible=cameraMode==='first';if(weaponRig)weaponRig.visible=cameraMode!=='first';
-  $('viewBtn')?.classList.toggle('active',cameraMode==='first');toast(cameraMode==='first'?'FIRST PERSON':'THIRD PERSON');
+  // Kept for legacy key/gamepad bindings, but Horizon no longer has a third-person mode.
+  cameraMode='first';localStorage.setItem('horizon-camera-mode','first');
+  if(fpWeaponRig)fpWeaponRig.visible=true;if(weaponRig)weaponRig.visible=false;
 }
 function setStance(next){
   prone=next==='prone';crouched=next==='crouch'||prone;
@@ -461,7 +464,7 @@ function addBuildingDetails(cx,cy,w,d,h,id,row,baseZ){
   }else{
     const roof=new THREE.Mesh(UNIT_BOX,rmat);roof.scale.set(w*.97,d*.97,Math.max(.14,roofH));roof.position.set(cx,cy,baseZ+h+Math.max(.08,roofH/2));exteriorDetailGroup.add(roof);
   }
-  const floors=Math.max(1,Math.floor(h/3.05));
+  const floors=Math.max(1,Math.round(Number(row?.floors||0))||Math.round(h/3.05));
   if(MOBILE&&!HIGH_DEVICE)return;
   const dark=mat(0x26383a,.28,.18),cols=Math.min(7,Math.max(2,Math.floor(w/4)));
   for(let f=0;f<floors;f+=Math.max(1,Math.floor(floors/4)))for(let i=0;i<cols;i++){if(hash(id+':'+f+':'+i)%100<42)continue;const win=new THREE.Mesh(new THREE.PlaneGeometry(Math.min(1.2,w/(cols+1)*.56),.7),dark);win.position.set(cx-w/2+(i+1)*w/(cols+1),cy-d/2-.012,baseZ+1.5+f*3);win.rotation.x=Math.PI/2;exteriorDetailGroup.add(win)}
@@ -472,10 +475,12 @@ function addBuildings(){
   outer:for(const row of data.buildings||[]){
     for(const ring of rings(row.geometry)){
       if(ring.length<4)continue;const pts=ring.map(project),xs=pts.map(q=>q.x),ys=pts.map(q=>q.y),minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys),w=maxx-minx,d=maxy-miny;
-      if(w<2||d<2||w>180||d>180)continue;
-      const id=String(row.id||count),h=Number(row.height_m||0)>2?Math.min(160,Number(row.height_m)):4.8+(hash(id)%130)/10,cx=(minx+maxx)/2,cy=(miny+maxy)/2,baseZ=terrainZ(cx,cy),bucket=hash(id)%BUILD_MATS.length;
+      if(!Number.isFinite(w)||!Number.isFinite(d)||w<=.25||d<=.25)continue;
+      const id=String(row.id||count),sourceFloors=Math.max(0,Math.round(Number(row.floors||0))),sourceHeight=Number(row.height_m||0),
+        h=sourceHeight>.5?Math.min(1200,sourceHeight):(sourceFloors>0?sourceFloors*3.05:9.0),
+        cx=(minx+maxx)/2,cy=(miny+maxy)/2,baseZ=terrainZ(cx,cy),bucket=hash(id)%BUILD_MATS.length;
       buckets[bucket].push({cx,cy,h,w,d,baseZ});
-      const entry={cx,cy,h,w,d,id,row,baseZ,pts,floors:Math.max(1,Math.floor(h/3.05))};
+      const entry={cx,cy,h,w,d,id,row,baseZ,pts,floors:sourceFloors>0?sourceFloors:Math.max(1,Math.round(h/3.05))};
       buildingEntries.push(entry);if(details.length<DETAIL_BUILDING_LIMIT)details.push(entry);
       buildingCenters.push({x:cx,y:cy,z:baseZ,h,w,d});registerSolidPoly(pts);count++;if(count>=BUILDING_LIMIT)break outer;
     }
