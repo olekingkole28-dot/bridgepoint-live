@@ -78,8 +78,10 @@ for stem in required_source:
 arena_director = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonArenaDirectorSubsystem.cpp")
 require(arena_director.count('Add(TEXT("tdm_') == 50,
         "native TDM fallback must contain exactly 50 real-location arenas")
-for token in ["GetRankedArenas(50)", "RotationCounter", "PoolSize", "LastArenaId"]:
-    require(token in arena_director, f"50-map automatic native arena rotation missing: {token}")
+for token in ["GetRankedArenas(50)", "GetVoteCandidates", "ResolveArenaVote", "RandomVotes", "RotationCounter", "PoolSize", "LastArenaId"]:
+    require(token in arena_director, f"50-map native arena vote/fallback contract missing: {token}")
+require('TEXT("Solstice"), TEXT("AZ"), 33.4484, -112.0740' in arena_director,
+        "native map 50 must use Phoenix/Arizona instead of a Year One-excluded territory")
 
 infected_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonInfectedDirectorSubsystem.h")
 infected = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonInfectedDirectorSubsystem.cpp")
@@ -1038,8 +1040,11 @@ if mode_contract_path.exists():
     require(year.get("event", {}).get("auto_start") is True,
             "Year One countdown must automatically unlock play")
     require(year.get("pvp") is False, "Year One must remain PVE-only")
-    require(year.get("spawn", {}).get("policy") == "PRECISE_PLAYER_LOCATION",
-            "Year One must spawn from the player's precise location")
+    require(year.get("spawn", {}).get("policy") == "PRECISE_FIRST_ENTRY_THEN_SAVED_LOCATION",
+            "Year One must use precise first entry then resume the persisted survivor location")
+    require(year.get("world", {}).get("scope") == "contiguous_us_48_only" and
+            year.get("world", {}).get("gameplay_jurisdiction_borders") is False,
+            "Year One must remain contiguous-US only with no gameplay jurisdiction borders")
     require(year.get("player_vitals", {}).get("monster_hit_damage") == 25,
             "Year One monster hits must deal exactly 25 points")
     require(year.get("player_vitals", {}).get("shield_max") == 100 and
@@ -1053,10 +1058,28 @@ if mode_contract_path.exists():
     tdm = by_key.get("infinite_tdm", {})
     require(tdm.get("party", {}).get("supported") == [1, 2, 3, 4],
             "TDM must support solo, duo, trio and squad parties")
-    require(tdm.get("format") == "6v6", "TDM must remain 6v6")
+    require(tdm.get("format") == "100_PLAYERS_50V50_TARGET",
+            "TDM must remain a 100-player / 50v50 target")
+    require(tdm.get("player_vitals", {}) == {"health":150,"shield":0},
+            "TDM must remain 150 health with no shield")
+    prematch = tdm.get("prematch", {})
+    require(prematch.get("countdown_seconds") == 10 and prematch.get("world_loaded") is True and
+            prematch.get("camera_look") is True and prematch.get("movement") is False,
+            "TDM loaded-world 10-second freeze contract changed")
+    fire = tdm.get("fire_circle", {})
+    require(fire.get("duration_seconds") == 1800 and fire.get("damage_per_second") == 25 and
+            fire.get("staged_move_pause") is True and fire.get("bot_escape") is True,
+            "TDM 30-minute wildfire contract changed")
+    loadouts = tdm.get("loadouts", {})
+    require(loadouts.get("starter_presets") == 5 and len(loadouts.get("attachment_slots", [])) == 7,
+            "TDM five-class / seven-attachment contract changed")
+    require(tdm.get("party_chat", {}).get("text") is True and
+            tdm.get("party_chat", {}).get("webrtc_voice") is True,
+            "TDM party text/headset voice contract changed")
     arena = tdm.get("arena_switcher", {})
-    require(arena.get("automatic") is True and arena.get("map_count") == 50,
-            "TDM must automatically rotate exactly 50 real-location arenas")
+    require(arena.get("automatic") is False and arena.get("map_count") == 50 and
+            arena.get("selection") == "TWO_MAPS_PLUS_RANDOM_10_SECOND_VOTE",
+            "TDM must vote across exactly 50 real-location arenas")
 
 importer = read("unreal/BridgePointHorizon/Scripts/horizon_batch_import.py")
 for token in [
