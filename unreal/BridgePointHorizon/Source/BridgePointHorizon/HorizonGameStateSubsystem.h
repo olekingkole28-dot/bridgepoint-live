@@ -9,8 +9,9 @@ UENUM(BlueprintType)
 enum class EHorizonGameMode : uint8
 {
     YearOneSurvival UMETA(DisplayName="Year One Survival"),
-    InfiniteTDM UMETA(DisplayName="Infinite Team Deathmatch"),
-    OutbreakRaid UMETA(DisplayName="Outbreak Raid")
+    InfiniteTDM UMETA(DisplayName="Team Deathmatch"),
+    // Retained only for save/ABI compatibility with old builds; not selectable.
+    OutbreakRaid UMETA(Hidden)
 };
 
 USTRUCT(BlueprintType)
