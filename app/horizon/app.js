@@ -495,36 +495,28 @@ async function showLoading(match){
   $('mapName').textContent=String(match.map_label||'HORIZON SECTOR').toUpperCase();
   $('modeMeta').textContent=match.mode;$('humanMeta').textContent=`${match.human_players} HUMANS`;$('botMeta').textContent=`${match.bot_players} BOTS`;
   drawUsLocator(match,0);$('loadbarFill').style.width='10%';
-  let voted=await runMapVote(match);
-  await animateUsToMap(voted);
-  $('loadbarFill').style.width='28%';
+  const voted=await runMapVote(match);
+  await animateUsToMap(voted);$('loadbarFill').style.width='28%';
   const synchronized=await waitForSynchronizedStart(voted);
   connectMatchSignal(synchronized);startHostLease(synchronized);
-  const start=Date.parse(synchronized.starts_at);
-  const timer=setInterval(()=>{
-    const left=Math.max(0,start-Date.now()),sec=Math.ceil(left/1000);
-    $('launchCount').textContent=sec;$('loadbarFill').style.width=`${Math.max(78,100-left/70)}%`;
-    if(left<=0){
-      clearInterval(timer);$('loadingStatus').textContent='World seed locked. Launching Horizon…';
-      $('loadbarFill').style.width='100%';$('launchCount').textContent='GO';
-      const meta=synchronized.metadata||{};
-      localStorage.setItem('horizon-active-match',JSON.stringify({
-        match_id:synchronized.match_id,mode:synchronized.mode,seed:synchronized.seed,
-        host_player_id:synchronized.host_player_id,cell_seed:synchronized.cell_seed,
-        network_topic:synchronized.network_topic,started_at:new Date().toISOString(),
-        human_players:synchronized.human_players,bot_players:synchronized.bot_players,
-        target_players:synchronized.target_players,team_size:synchronized.team_size,
-        members:synchronized.members||[],map_label:synchronized.map_label,map_palette:synchronized.map_palette,map_key:meta.map_key||null
-      }));
-      const u=new URL('/app/horizon-playable/v2-entry.html',location.origin);
-      if(meta.world_state)u.searchParams.set('state',meta.world_state);
-      if(meta.world_lat)u.searchParams.set('lat',meta.world_lat);
-      if(meta.world_lon)u.searchParams.set('lon',meta.world_lon);
-      if(meta.world_span_km)u.searchParams.set('span_km',meta.world_span_km);
-      u.searchParams.set('mode',synchronized.mode);u.searchParams.set('match',synchronized.match_id);u.searchParams.set('seed',synchronized.seed);
-      setTimeout(()=>location.assign(u.toString()),650);
-    }
-  },100);
+  $('loadingStatus').textContent='Map loaded · moving into the 10-second in-world countdown…';
+  $('loadbarFill').style.width='100%';$('launchCount').textContent='READY';
+  const meta=synchronized.metadata||{};
+  localStorage.setItem('horizon-active-match',JSON.stringify({
+    match_id:synchronized.match_id,mode:synchronized.mode,seed:synchronized.seed,
+    host_player_id:synchronized.host_player_id,cell_seed:synchronized.cell_seed,
+    network_topic:synchronized.network_topic,started_at:new Date().toISOString(),
+    human_players:synchronized.human_players,bot_players:synchronized.bot_players,
+    target_players:synchronized.target_players,team_size:synchronized.team_size,
+    members:synchronized.members||[],map_label:synchronized.map_label,map_palette:synchronized.map_palette,map_key:meta.map_key||null
+  }));
+  const u=new URL('/app/horizon-playable/v2-entry.html',location.origin);
+  if(meta.world_state)u.searchParams.set('state',meta.world_state);
+  if(meta.world_lat)u.searchParams.set('lat',meta.world_lat);
+  if(meta.world_lon)u.searchParams.set('lon',meta.world_lon);
+  if(meta.world_span_km)u.searchParams.set('span_km',meta.world_span_km);
+  u.searchParams.set('mode',synchronized.mode);u.searchParams.set('match',synchronized.match_id);u.searchParams.set('seed',synchronized.seed);
+  u.searchParams.set('prematch','10');location.assign(u.toString());
 }
 
 function weaponSvg(name){
