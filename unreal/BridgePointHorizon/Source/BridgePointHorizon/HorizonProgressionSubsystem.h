@@ -181,6 +181,8 @@ public:
         EHorizonRewardType RewardType,
         const FString& RewardKey) const;
 
+    static EHorizonRewardType GetPrestigeProfileRewardType(int32 PrestigeLevel);
+
     static bool CanEquipProfileCosmetic(
         EHorizonRewardType RewardType,
         const FString& RewardKey,
