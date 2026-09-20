@@ -885,6 +885,8 @@ for token in [
     "EHorizonHitDirection", "FHorizonCombatHitFeedback", "OnCombatHitReaction",
     "ApplyCombatHit", "ResolveHitDirection", "ResolveCombatHit",
     "CurrentHealth", "CurrentArmor", "ReticleImpulse01",
+    "FHorizonHitscanResult", "FHorizonHitscanResolved", "OnHitscanResolved",
+    "ResolveHitscanDirection", "IsHeadshotBone",
     "ShouldRefreshMovementProfile", "MovementProfileRefreshAccumulator",
     "SwimSpeed", "SwimAcceleration", "SwimBuoyancy", "IsSwimming",
     "ResolveSwimDirection", "SwimVerticalInput",
@@ -942,6 +944,12 @@ for token in [
     "SafeDamage * (bHeadshot ? 1.50f : 1.0f)",
     "AddControllerPitchInput(Feedback.CameraImpulse.X)",
     "AddControllerYawInput(Feedback.CameraImpulse.Y)",
+    "WeaponRuntime->OnShotFired.AddUniqueDynamic",
+    "HandleWeaponShot(FHorizonWeaponShotResult Shot)",
+    "SCENE_QUERY_STAT(HorizonWeaponHitscan)",
+    "LineTraceSingleByChannel", "IsHeadshotBone(Hit.BoneName)",
+    "Target->ApplyCombatHit", "UGameplayStatics::ApplyPointDamage",
+    "OnHitscanResolved.Broadcast", "Result.bDamageApplied",
     "if (ShouldRefreshMovementProfile(",
     "FMath::Min(DeltaSeconds, 0.50f)",
     "OutRemainderSeconds = FMath::Fmod(Elapsed, SafeInterval)",
@@ -982,6 +990,7 @@ for token in [
     "CanFireRound", "ComputeReloadTransfer", "AdvanceCountdown", "ComputeRecoilImpulse",
     "AdvanceAutomaticCadence", "EHorizonWeaponReportClass",
     "FHorizonWeaponReportMix", "LocalAudioMix",
+    "BaseDamage", "RangeCm", "HeadshotMultiplier",
     "FHorizonWeaponFeedbackEvent", "OnWeaponFeedback", "IsLowAmmo",
 ]:
     require(token in weapon_contract, f"native weapon runtime contract missing: {token}")
@@ -1003,6 +1012,9 @@ for token in [
     "EmitUiFeedback(EHorizonUiFeedbackCue::ReloadStart)",
     "EmitUiFeedback(EHorizonUiFeedbackCue::ReloadComplete)",
     "GetUiFeedbackMix(Cue, VariationSeed)",
+    "WeaponSpec.BaseDamage = FMath::Clamp",
+    "WeaponSpec.RangeCm = FMath::Clamp",
+    "WeaponSpec.HeadshotMultiplier",
 ]:
     require(token in weapon, f"native weapon behavior missing: {token}")
 require("Stripe" not in weapon_contract and "Payment" not in weapon_contract,
@@ -1023,6 +1035,9 @@ for token in [
     "Above twenty percent is not low ammo",
     "Small magazines retain a one-round low-ammo warning",
     "Zero rounds are reserved for empty feedback",
+    "Weapon.DamageSpec", "Weapon damage is bounded",
+    "Weapon range cannot collapse below trace safety minimum",
+    "Headshot multiplier is bounded",
 ]:
     require(token in weapon_tests, f"native weapon QA missing: {token}")
 
@@ -1074,6 +1089,16 @@ for token in [
     "Radial shaping preserves diagonal direction",
     "Opposing directions have symmetric response",
     "Non-finite movement input fails closed",
+    "Combat.Hitscan.DirectionAndHeadshots",
+    "Zero-spread shot follows the camera center",
+    "Hitscan spread remains normalized",
+    "Hitscan spread stays inside the configured cone",
+    "Shot-seeded spread is deterministic",
+    "Consecutive shots do not reuse one spread direction",
+    "Invalid camera basis fails to safe forward",
+    "Head bone resolves as a headshot",
+    "Skull socket resolves as a headshot",
+    "Spine bone remains a body shot",
     "Collision.NoFallThrough.TerrainGravityGate",
     "Gravity remains disabled while streamed terrain data is missing",
     "Gravity remains disabled while the terrain collision mesh is missing",
