@@ -1,4 +1,4 @@
-name: Horizon V4331 Source Gate
+name: Horizon V4335 FPS Source Gate
 
 on:
   push:
@@ -47,7 +47,9 @@ jobs:
           grep -Fq 'function updatePerformanceGovernor' app/horizon-playable/horizon-v2.js
           grep -Fq 'function perfCadence' app/horizon-playable/horizon-v2.js
           grep -Fq 'id="miniMap"' app/horizon-playable/v2-entry.html
-          grep -Fq 'id="viewBtn"' app/horizon-playable/v2-entry.html
+          ! grep -Fq 'id="viewBtn"' app/horizon-playable/v2-entry.html
+          grep -Fq "let cameraMode='first'" app/horizon-playable/horizon-v2.js
+          grep -Fq "cameraMode='first';localStorage.setItem('horizon-camera-mode','first')" app/horizon-playable/horizon-v2.js
           grep -Fq 'id="contextBtn"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="aimBtn"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="buildBtn"' app/horizon-playable/v2-entry.html
