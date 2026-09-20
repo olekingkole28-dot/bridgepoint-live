@@ -32,7 +32,7 @@ export class DwellPickupController{
 }
 
 export const HorizonRuntimeContract=Object.freeze({
-  version:4340,
+  version:4341,
   controls:{
     aim:{mode:'toggle',small:true},
     shoot:{mode:'hold-or-tap',small:true},
@@ -73,7 +73,7 @@ export const HorizonRuntimeContract=Object.freeze({
     activePlayerCount:true,presenceHeartbeatSeconds:10,dailyQualifyingMinutes:15,absenceGraceHours:48,absenceDecayHours:12,
     monsterRespawnSeconds:120,noSpawnRadiusM:45,liveWeather:true,realLocalDaylight:true,campfireWarmth:true
   },
-  tdm:{targetPlayers:100,teamSize:50,partySizes:[1,2,3,4],botBackfill:true,mapCount:50,mapVoteSeconds:10,mapVoteChoices:2,randomVote:true,buildLimit:3,deathToLobbyMs:10000},
+  tdm:{targetPlayers:100,teamSize:50,playerHealth:150,shield:0,partySizes:[1,2,3,4],botBackfill:true,mapCount:50,mapVoteSeconds:10,mapVoteChoices:2,randomVote:true,prematchFreezeSeconds:10,prematchLookOnly:true,fireCircleSeconds:1800,fireDamagePerSecond:25,loadoutPresets:5,tacticalSlots:2,lethalSlots:1,attachmentSlots:['OPTIC','BARREL','MUZZLE','UNDERBARREL','MAGAZINE','STOCK','GRIP'],buildLimit:3,deathToLobbyMs:10000,deathLootDwellMs:3000},
   progression:{maxLevel:100,maxPrestige:15,prestigeCharacterChoices:3}
 });
 
