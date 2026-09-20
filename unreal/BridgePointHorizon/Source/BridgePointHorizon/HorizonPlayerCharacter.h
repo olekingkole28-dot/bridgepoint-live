@@ -10,6 +10,8 @@ class USpringArmComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
 class USkeletalMesh;
+enum class EHorizonFootstepSurface : uint8;
+enum class EHorizonTraversalAudioCue : uint8;
 
 UENUM(BlueprintType)
 enum class EHorizonCameraMode : uint8
