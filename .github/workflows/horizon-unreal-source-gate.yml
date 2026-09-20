@@ -41,4 +41,9 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync('app/horizon-playable/HORIZON_GAME_MODES_V4243.json','utf8'));JSON.parse(require('fs').readFileSync('app/horizon-playable/HORIZON_YEAR_ONE_V4251.json','utf8'));"
           grep -Fq 'bridgepoint_horizon_year_one_checkpoint_v4337' app/horizon-playable/horizon-v2.js
           grep -Fq 'pickupDwellSeconds:3' app/horizon-playable/horizon-v2.js
-          grep -Fq 'bridgepoint_horizon_year_one_enter_v4336' app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_year_one_enter_v4340' app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_account_link_v4340' app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_map_vote_v4340' app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_year_one_zone_v4340' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_weapon_catalog_v4340' app/horizon-playable/horizon-v2.js
+          grep -Fq 'build:4340' app/horizon-playable/horizon-v2.js
