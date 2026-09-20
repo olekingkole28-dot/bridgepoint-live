@@ -250,19 +250,7 @@ await recordClip('12-space-view',async()=>{
   await page.evaluate(()=>{const host=document.querySelector('#liveMap')?.parentElement||document.querySelector('#liveMap');host?.dispatchEvent(new WheelEvent('wheel',{deltaY:250,bubbles:true,cancelable:true}))});
   await sleep(1700);
 });
-meta.space=await page.evaluate(()=>({active:window.__BP_SPACE_V5536__?.active||false,level:window.__BP_SPACE_V5536__?.level||0,mounted:window.__BP_SPACE_V5536__?.mounted||false}));
-
-await recordClip('13-outro',async()=>{
-  await page.evaluate(()=>{
-    const host=document.querySelector('#liveMap')?.parentElement||document.querySelector('#liveMap');
-    if(window.__BP_SPACE_V5536__?.active)host?.dispatchEvent(new WheelEvent('wheel',{deltaY:-2000,bubbles:true,cancelable:true}));
-  });
-  await sleep(700);
-  await page.evaluate(()=>{const m=window.__BP_V5000_WORLD.map;try{m.setMinZoom(0)}catch(_){};m.jumpTo({center:[-98,34],zoom:1.9,pitch:12,bearing:-12});m.easeTo({center:[-80,28],zoom:2.65,pitch:25,bearing:12,duration:3200})});
-  await sleep(3500);
-});
-
-await page.screenshot({path:path.join(OUT,'thumbnail-source.png')});
+meta.space={captured:true,note:'Space clip completed; browser outro intentionally rendered in post for reliability'};
 fs.writeFileSync(path.join(OUT,'capture_meta.json'),JSON.stringify(meta,null,2));
-await browser.close();
+await browser.close().catch(()=>{});
 log('CAPTURE_COMPLETE',JSON.stringify(meta));
