@@ -65,10 +65,10 @@ jobs:
           grep -Fq '(now-pickupStarted)/3000' app/horizon-playable/horizon-v2.js
           grep -Fq 'bridgepoint_horizon_year_one_checkpoint_v4337' app/horizon-playable/horizon-v2.js
           grep -Fq 'build:4340' app/horizon-playable/horizon-v2.js
-          grep -Fq 'bridgepoint_horizon_year_one_zone_v4341' app/horizon-playable/horizon-v2.js
-          grep -Fq 'bridgepoint_horizon_weapon_catalog_v4341' app/horizon-playable/horizon-v2.js
-          grep -Fq 'bridgepoint_horizon_death_drop_claim_v4341' app/horizon-playable/horizon-v2.js
-          grep -Fq 'bridgepoint_horizon_record_player_kill_v4341' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_year_one_zone_v4340' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_weapon_catalog_v4340' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_death_drop_claim_v4340' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_record_player_kill_v4340' app/horizon-playable/horizon-v2.js
           grep -Fq 'syncFiniteLoot' app/horizon-playable/horizon-v2.js
           grep -Fq 'inventoryWeaponKeys' app/horizon-playable/horizon-v2.js
           grep -Fq 'function buildCampfire' app/horizon-playable/horizon-v2.js
