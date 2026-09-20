@@ -759,6 +759,36 @@ $('modalContent').addEventListener('click',async e=>{
     const out=await rpc('bridgepoint_horizon_leaderboard_v4340',{p_metric:metric.dataset.leaderMetric,p_limit:25}).catch(()=>({leaders:[]}));
     const rows=$('leaderboardRows');if(rows)rows.innerHTML=leaderRows(out?.leaders||[]);return;
   }
+  if(e.target.closest('[data-friend-search]')){
+    const q=$('friendSearchInput')?.value.trim(),box=$('friendSearchResults');if(!q||q.length<2){if(box)box.innerHTML='<p class="muted">Enter at least 2 characters.</p>';return}
+    try{
+      const out=await rpc('bridgepoint_horizon_social_search_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_query:q});
+      const rows=out.players||[];
+      if(box)box.innerHTML=rows.map(p=>`<div class="social-row search-result"><div><b>@${escapeHtml(p.handle)}</b><small>${p.online?'ONLINE · '+escapeHtml(p.mode||'LOBBY'):'OFFLINE'} · LV ${p.level||1} · P${p.prestige||0}</small></div><div class="social-actions">${p.friend?'<span class="social-state">FRIEND</span>':p.pending?'<span class="social-state">PENDING</span>':`<button data-friend-add="${p.player_id}">ADD FRIEND</button>`}<button data-report-player="${p.player_id}" data-report-handle="${escapeHtml(p.handle)}">REPORT</button><button class="danger" data-block-player="${p.player_id}">BLOCK</button></div></div>`).join('')||'<p class="muted">No Horizon handles matched.</p>';
+    }catch(err){status(err.message)}return;
+  }
+  const friendAdd=e.target.closest('[data-friend-add]');
+  if(friendAdd){try{await rpc('bridgepoint_horizon_friend_request_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_target_player_id:friendAdd.dataset.friendAdd});await refreshSocial();status('Friend request sent');openModal('FRIENDS')}catch(err){status(err.message)}return}
+  const friendReq=e.target.closest('[data-friend-request-action]');
+  if(friendReq){try{await rpc('bridgepoint_horizon_friend_request_action_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_request_id:friendReq.dataset.requestId,p_action:friendReq.dataset.friendRequestAction});await refreshSocial();status('Friend request '+friendReq.dataset.friendRequestAction.toLowerCase());openModal('FRIENDS')}catch(err){status(err.message)}return}
+  const lobbyInvite=e.target.closest('[data-lobby-invite]');
+  if(lobbyInvite){try{await rpc('bridgepoint_horizon_lobby_invite_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_target_player_id:lobbyInvite.dataset.lobbyInvite});await refreshSocial();status('Lobby invite sent · expires in 15 minutes')}catch(err){status(err.message)}return}
+  const lobbyAction=e.target.closest('[data-lobby-invite-action]');
+  if(lobbyAction){try{await rpc('bridgepoint_horizon_lobby_invite_action_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_invite_id:lobbyAction.dataset.inviteId,p_action:lobbyAction.dataset.lobbyInviteAction});await refreshSocial();if(lobbyAction.dataset.lobbyInviteAction==='ACCEPT'){if(state.channel){sb?.removeChannel(state.channel).catch(()=>{});state.channel=null}await refreshParty();connectPartySignal();status('Lobby invite accepted · joined party')}else status('Lobby invite declined');openModal('FRIENDS')}catch(err){status(err.message)}return}
+  const unfriend=e.target.closest('[data-unfriend]');
+  if(unfriend){try{await rpc('bridgepoint_horizon_unfriend_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_target_player_id:unfriend.dataset.unfriend});await refreshSocial();status('Friend removed');openModal('FRIENDS')}catch(err){status(err.message)}return}
+  const block=e.target.closest('[data-block-player]');
+  if(block){try{await rpc('bridgepoint_horizon_block_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_target_player_id:block.dataset.blockPlayer,p_block:true});const rec=state.peers.get(block.dataset.blockPlayer);try{rec?.pc?.close()}catch{}state.peers.delete(block.dataset.blockPlayer);document.querySelector('audio[data-peer="'+block.dataset.blockPlayer+'"]')?.remove();await refreshSocial();state.reportTarget=null;status('Player blocked');openModal('FRIENDS')}catch(err){status(err.message)}return}
+  const unblock=e.target.closest('[data-unblock-player]');
+  if(unblock){try{await rpc('bridgepoint_horizon_block_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_target_player_id:unblock.dataset.unblockPlayer,p_block:false});await refreshSocial();status('Player unblocked');openModal('FRIENDS')}catch(err){status(err.message)}return}
+  const reportPlayer=e.target.closest('[data-report-player]');
+  if(reportPlayer){state.reportTarget={player_id:reportPlayer.dataset.reportPlayer,handle:reportPlayer.dataset.reportHandle||'player'};openModal('REPORT');return}
+  if(e.target.closest('[data-submit-report]')){
+    const t=state.reportTarget;if(!t)return;
+    try{const out=await rpc('bridgepoint_horizon_report_player_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_target_player_id:t.player_id,p_category:$('reportCategory')?.value||'OTHER',p_details:$('reportDetails')?.value.trim()||'',p_match_id:state.match?.match_id||null});state.reportTarget=null;status('Report #'+out.report_id+' sent privately to BridgePoint moderation');openModal('FRIENDS')}catch(err){status(err.message)}return;
+  }
+  const ownerReport=e.target.closest('[data-owner-report-action]');
+  if(ownerReport){try{await rpc('bridgepoint_horizon_owner_report_action_v4341',{p_report_id:Number(ownerReport.dataset.reportId),p_status:ownerReport.dataset.ownerReportAction,p_owner_notes:null});status('Report #'+ownerReport.dataset.reportId+' · '+ownerReport.dataset.ownerReportAction);openModal('OWNER')}catch(err){status(err.message)}return}
   if(e.target.closest('[data-party-send]')){
     const input=$('partyChatInput'),message=input?.value.trim();if(!message)return;
     try{await rpc('bridgepoint_horizon_party_chat_send_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_message:message});input.value=''}catch(err){status(err.message)}return;
@@ -843,8 +873,8 @@ function connectPartySignal(){
   if(!sb||!state.party?.invite_code)return;
   const ch=sb.channel(`horizon-party:${state.party.invite_code}`,{config:{broadcast:{self:false}}});
   ch.on('broadcast',{event:'party-ping'},()=>refreshParty())
-    .on('broadcast',{event:'voice-hello'},({payload})=>{if(payload?.player_id&&payload.player_id!==ident.id&&String(ident.id)<String(payload.player_id))makeOffer(payload.player_id,ch)})
-    .on('broadcast',{event:'signal'},({payload})=>handleSignal(payload,ch))
+    .on('broadcast',{event:'voice-hello'},({payload})=>{if(payload?.player_id&&payload.player_id!==ident.id&&!state.blockedPlayerIds.has(String(payload.player_id))&&String(ident.id)<String(payload.player_id))makeOffer(payload.player_id,ch)})
+    .on('broadcast',{event:'signal'},({payload})=>{if(!state.blockedPlayerIds.has(String(payload?.from||'')))handleSignal(payload,ch)})
     .subscribe(status=>{if(status==='SUBSCRIBED'){ch.send({type:'broadcast',event:'party-ping',payload:{player_id:ident.id}});if(state.voiceStream)ch.send({type:'broadcast',event:'voice-hello',payload:{player_id:ident.id}})}});
   state.channel=ch;
 }
@@ -921,11 +951,12 @@ function wireData(peerId,dc){
   dc.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.t==='snapshot')state.killcam.push(m.s)}catch{}};
 }
 async function makeOffer(peerId,ch){
+  if(state.blockedPlayerIds.has(String(peerId)))return;
   const pc=pcFor(peerId,ch,true),offer=await pc.createOffer();await pc.setLocalDescription(offer);
   ch.send({type:'broadcast',event:'signal',payload:{from:ident.id,to:peerId,sdp:pc.localDescription}});
 }
 async function handleSignal(p,ch){
-  if(!p||p.to!==ident.id||!p.from)return;
+  if(!p||p.to!==ident.id||!p.from||state.blockedPlayerIds.has(String(p.from)))return;
   const pc=pcFor(p.from,ch,false);
   if(p.sdp){
     await pc.setRemoteDescription(p.sdp);
