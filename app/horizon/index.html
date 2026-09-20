@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#07120f">
-<title>BridgePoint Horizon — Real-World Spatial Survival, 365-Day Year One, TDM & Extraction</title>
-<meta name="description" content="BridgePoint Horizon is a real-world spatial survival and combat game built on BridgePoint terrain, roads, parcels and buildings, with 365-day Year One Survival, 6v6 Team Deathmatch, Raid / Extraction and Island Last Stand.">
-<meta name="keywords" content="BridgePoint Horizon, real world survival game, geospatial game, spatial game, persistent survival game, 365 day survival game, Year One Survival, zombie survival game, zombie apocalypse game, team deathmatch, extraction game, raid extraction, island last stand, real world map game, 3D map game, property data game, digital twin game, BridgePoint game">
+<title>BridgePoint Horizon — 365-Day Real-World Survival & Team Deathmatch</title>
+<meta name="description" content="BridgePoint Horizon is a first-person real-world survival and combat game built on the same BridgePoint terrain, roads, parcels and buildings: 365-day Year One Survival plus 6v6 Team Deathmatch with solo, duo, trio and squad parties.">
+<meta name="keywords" content="BridgePoint Horizon, first person survival game, real world survival game, 365 day survival game, Year One Survival, team deathmatch, 6v6 shooter, solo duo trio squad, geospatial game, 3D map game, digital twin game, BridgePoint game">
 <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
 <link rel="canonical" href="https://bridgepointintelligence.online/app/horizon/">
 <meta property="og:type" content="website"><meta property="og:title" content="BridgePoint Horizon — Real-World Spatial Survival"><meta property="og:description" content="A real-world spatial backend turned into a persistent survival and combat world."><meta property="og:url" content="https://bridgepointintelligence.online/app/horizon/">
@@ -15,7 +15,7 @@
 <link rel="icon" href="./horizon-mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="./styles.css?v=4320"><link rel="stylesheet" href="./year-one-demand-v5200.css"><link rel="stylesheet" href="/language-selector-v5200.css">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"BridgePoint Horizon","url":"https://bridgepointintelligence.online/app/horizon/","description":"A real-world spatial survival and combat game built on BridgePoint terrain, roads, parcels and buildings.","genre":["Survival","Action","Shooter","Extraction","Persistent World","Zombie"],"gamePlatform":["Web","Android","PC","Mobile"],"playMode":["SinglePlayer","MultiPlayer"],"isAccessibleForFree":true,"publisher":{"@type":"Organization","name":"BridgePoint Intelligence","url":"https://bridgepointintelligence.online/"},"keywords":"real-world spatial game, 365-day survival, zombie survival, team deathmatch, extraction game, geospatial game, 3D map game"}</script></head>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"BridgePoint Horizon","url":"https://bridgepointintelligence.online/app/horizon/","description":"A real-world spatial survival and combat game built on BridgePoint terrain, roads, parcels and buildings.","genre":["Survival","Action","Shooter","Team Deathmatch","Persistent World","Zombie"],"gamePlatform":["Web","Android","PC","Mobile"],"playMode":["SinglePlayer","MultiPlayer"],"isAccessibleForFree":true,"publisher":{"@type":"Organization","name":"BridgePoint Intelligence","url":"https://bridgepointintelligence.online/"},"keywords":"real-world spatial game, first-person game, 365-day survival, zombie survival, team deathmatch, geospatial game, 3D map game"}</script></head>
 <body>
 <canvas id="sky"></canvas>
 <div class="world-bg" aria-hidden="true">
@@ -76,18 +76,12 @@
 
 <section class="mode-dock">
   <button class="mode" data-mode="YEAR_ONE">
-    <span class="mode-kicker">SOLO</span><b>YEAR ONE SURVIVAL</b><small>3 lives · persistent world · zombie wall endgame</small>
+    <span class="mode-kicker">365 DAYS · SOLO</span><b>YEAR ONE SURVIVAL</b><small>first person · 3 lives · same BridgePoint world · zombie wall endgame</small>
   </button>
   <button class="mode active" data-mode="TDM">
-    <span class="mode-kicker">6V6</span><b>TEAM DEATHMATCH</b><small>12 players · fast respawn · killcams</small>
+    <span class="mode-kicker">6V6 · 1-4 PARTY</span><b>TEAM DEATHMATCH</b><small>solo · duo · trio · squad · 50 dense real-location maps · automatic rotation</small>
   </button>
-  <button class="mode" data-mode="EXTRACTION">
-    <span class="mode-kicker">OUTBREAK</span><b>RAID / EXTRACTION</b><small>16 players · squads · infected objectives · extract</small>
-  </button>
-  <button class="mode" data-mode="ISLAND_SOLO_8">
-    <span class="mode-kicker">8 SOLO</span><b>ISLAND LAST STAND</b><small>8 individual players · medium island maps · no parties</small>
-  </button>
-  <button class="play" id="playBtn"><span id="playLabel">READY</span><small id="playSub">TDM · 12 players</small></button>
+  <button class="play" id="playBtn"><span id="playLabel">READY</span><small id="playSub">TDM · SOLO / DUO / TRIO / SQUAD · 50-MAP ROTATION</small></button>
 </section>
 
 <section class="year-one-demand" aria-labelledby="yearOneDemandTitle">
@@ -133,6 +127,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script defer src="/acquisition_tracker.js?v=5001"></script><script defer src="./year-one-demand-v5200.js"></script><script defer src="/language-selector-v5200.js"></script>\n<script type="module" src="./app.js?v=4320"></script>
+<script defer src="/acquisition_tracker.js?v=5001"></script><script defer src="./year-one-demand-v5200.js"></script><script defer src="/language-selector-v5200.js"></script>\n<script type="module" src="./app.js?v=4335"></script>
 </body>
 </html>
