@@ -15,3 +15,10 @@
 #bp5507-gesture{position:absolute;z-index:24;left:50%;top:45%;transform:translate(-50%,-50%);width:min(270px,75vw);padding:12px;border:1px solid rgba(120,235,255,.28);border-radius:16px;background:rgba(5,18,26,.58);backdrop-filter:blur(8px);text-align:center;pointer-events:none;transition:.35s}#bp5507-gesture b{display:block;font-size:10px}#bp5507-gesture span{display:block;margin-top:4px;color:#b5d0d9;font-size:8.5px;line-height:1.35}#bp5507-gesture i{display:block;font-style:normal;font-size:25px;letter-spacing:7px}#bp5507-gesture.hide{opacity:0;transform:translate(-50%,-44%) scale(.96)}
 .bp5507-night .maplibregl-canvas{filter:brightness(.58) contrast(1.12) saturate(.78)}
 @media(max-width:760px){#bp5507-tools{right:8px;bottom:54px}#bp5507-key{left:8px;bottom:8px}#bp5507-hud{top:64px;width:calc(100vw - 16px)}#bp5507-key-panel,#bp5507-tool-panel{width:calc(100vw - 16px);max-height:54dvh}.bp5507-mobile-busy #bp5507-key,.bp5507-mobile-busy #publicSearchForm,.bp5507-mobile-busy #landingPropertySearch,.bp5507-mobile-busy .search-box,.bp5507-mobile-busy .map-brand-card,.bp5507-tool-active #bp5507-key,.bp5507-tool-active #publicSearchForm,.bp5507-tool-active #landingPropertySearch,.bp5507-tool-active .search-box{display:none!important}}
+
+/* V5510 — canonical globe + guaranteed visible Free Premium Tools triggers. */
+#bp5507-tools>button{display:none!important}
+.landing-free-premium-trigger{position:absolute;z-index:18;left:12px;top:110px;border:1px solid rgba(98,230,255,.55);border-radius:12px;background:linear-gradient(135deg,rgba(19,77,111,.96),rgba(49,92,189,.94));color:#f3fdff;padding:9px 11px;font-size:8px;font-weight:950;letter-spacing:.08em;box-shadow:0 12px 32px rgba(0,0,0,.38);cursor:pointer}
+#appFreePremiumTools{border-color:rgba(98,230,255,.55)!important;background:linear-gradient(135deg,rgba(25,116,151,.92),rgba(65,88,199,.88))!important;color:#effcff!important}
+.bp5507-mobile-busy #landingFreePremiumTools,.bp5507-tool-active #landingFreePremiumTools{display:none!important}
+@media(max-width:760px){.landing-free-premium-trigger{top:105px;left:8px;padding:8px 9px;font-size:7px}}
