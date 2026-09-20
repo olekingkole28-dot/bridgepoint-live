@@ -851,6 +851,14 @@ for token in ["LineTraceComponent", "GroundedLocation", "MOVE_Walking"]:
     require(token in player, f"streamed terrain grounding safeguard missing: {token}")
 
 for token in [
+    "ShouldEnableWorldGravityFromTerrainCollision",
+    "bTraceSucceeded",
+    "bHasTerrainData",
+    "bHasTerrainMesh"
+]:
+    require(token in player_header + player, f"no-fall-through collision gate missing: {token}")
+
+for token in [
     "ApplyMovementInput(DeltaSeconds)", "ShapeMovementInput(",
     "MovementInputDeadzone", "MovementInputOuterDeadzone",
     "MovementInputResponseExponent", "Forward * Input.Y + Right * Input.X",
@@ -1013,9 +1021,15 @@ for token in [
     "Diagonal movement remains normalized",
     "Radial shaping preserves diagonal direction",
     "Opposing directions have symmetric response",
-    "Non-finite movement input fails closed"
+    "Non-finite movement input fails closed",
+    "Collision.NoFallThrough.TerrainGravityGate",
+    "Gravity remains disabled while streamed terrain data is missing",
+    "Gravity remains disabled while the terrain collision mesh is missing",
+    "Gravity remains disabled until the terrain component answers the trace",
+    "Gravity remains disabled when a trace returns without a blocking terrain hit",
+    "Gravity enables only after source terrain collision returns a blocking hit"
 ]:
-    require(token in movement_tests, f"native lean QA missing: {token}")
+    require(token in movement_tests, f"native movement/collision QA missing: {token}")
 require("Stripe" not in movement_tests and "Payment" not in movement_tests,
         "movement QA must remain independent of payments")
 
