@@ -9,6 +9,8 @@ enum class EHorizonInfectedArchetype : uint8
 {
     Walker,
     Shambler,
+    Lurker,
+    Stalker,
     Runner,
     Sprinter,
     Helmeted,
@@ -43,6 +45,12 @@ struct FHorizonInfectedTuning
 
     UPROPERTY(BlueprintReadOnly)
     float EliteChance = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float LurkerChance = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float StalkerChance = 0.0f;
 
     UPROPERTY(BlueprintReadOnly)
     float RunnerChance = 0.0f;
