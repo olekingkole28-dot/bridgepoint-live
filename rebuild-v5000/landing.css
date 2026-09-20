@@ -137,3 +137,7 @@ body>header{z-index:50}body>main,body>.site-footer{z-index:2}
 @media(max-width:760px){.founder-portrait-pair{flex-direction:column;align-items:flex-start}.molly-home{width:min(100%,540px)}}
 @media(max-width:520px){.molly-home{grid-template-columns:1fr;width:100%;padding:13px}.molly-portrait-shell{width:min(220px,68vw);min-height:250px}.molly-portrait{height:250px}.molly-copy h3{font-size:22px}}
 @media(prefers-reduced-motion:reduce){.molly-home,.molly-portrait{animation:none!important}}
+
+/* V5510 Android fast-scroll stability: keep CTA/nav text painted, not blur-composited. */
+.site-nav{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:rgba(2,7,11,.985)!important;transform:translate3d(0,0,0);backface-visibility:hidden;isolation:isolate}
+.site-nav .actions,.site-nav .actions button,.site-nav nav,.site-nav nav a,.site-nav .brand,.hero-actions-premium .hero-cta,.hero-actions-premium .hero-cta strong,.hero-actions-premium .hero-cta small{opacity:1!important;visibility:visible!important;backface-visibility:hidden;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
