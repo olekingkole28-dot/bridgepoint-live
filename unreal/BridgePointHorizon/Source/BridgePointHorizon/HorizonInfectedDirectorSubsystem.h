@@ -14,7 +14,11 @@ enum class EHorizonInfectedArchetype : uint8
     Helmeted,
     Armored,
     Screamer,
-    Brute
+    Brute,
+    Spider,
+    ZombieDog,
+    Orc,
+    Other
 };
 
 USTRUCT(BlueprintType)
@@ -78,6 +82,24 @@ public:
 
     UFUNCTION(BlueprintPure, Category="Horizon|Infected")
     float GetCityConvergencePressure(int32 EventDay) const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Infected|YearOne")
+    int32 GetBaseHealth(EHorizonInfectedArchetype Archetype) const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Infected|YearOne")
+    int32 GetContactDamage() const { return 25; }
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Infected|YearOne")
+    float GetMovementSpeedMps(EHorizonInfectedArchetype Archetype) const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Infected|YearOne")
+    bool ShouldHop(EHorizonInfectedArchetype Archetype) const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Infected|YearOne")
+    int32 GetZombieDogPackMin() const { return 3; }
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Infected|YearOne")
+    int32 GetZombieDogPackMax() const { return 5; }
 
     UFUNCTION(BlueprintPure, Category="Horizon|Infected")
     int32 GetAdaptiveSpawnCap() const;
