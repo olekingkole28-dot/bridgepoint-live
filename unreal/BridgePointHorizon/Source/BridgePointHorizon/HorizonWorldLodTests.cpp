@@ -281,6 +281,57 @@ bool FHorizonWorldSourceRoofProfileTest::RunTest(const FString& Parameters)
         TEXT("Degenerate gambrel footprint fails closed"),
         AHorizonWorldCellRenderer::ResolveGambrelProfilePoints(
             DegenerateFootprint).IsEmpty());
+
+    TestEqual(
+        TEXT("Explicit rectangular half-hip resolves to clipped profile"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
+            TEXT("half-hipped"), 4),
+        EHorizonSourceRoofProfile::HalfHipped);
+    TestEqual(
+        TEXT("Jerkinhead alias resolves to the half-hipped profile"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
+            TEXT("jerkinhead"), 4),
+        EHorizonSourceRoofProfile::HalfHipped);
+    TestEqual(
+        TEXT("Source half-hip height is preserved"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
+            TEXT("half hipped"), 3.2, 14.0, 4),
+        3.2);
+    TestEqual(
+        TEXT("Non-rectangular half-hip fails flat"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
+            TEXT("half-hipped"), 5),
+        EHorizonSourceRoofProfile::Flat);
+
+    const TArray<FVector2D> HalfHipPoints =
+        AHorizonWorldCellRenderer::ResolveHalfHippedProfilePoints(
+            WideFootprint);
+    TestEqual(
+        TEXT("Valid half-hip creates two clipped shoulders and two ridge points"),
+        HalfHipPoints.Num(),
+        4);
+    TestTrue(
+        TEXT("Half-hip shoulders remain on source short-edge midpoints"),
+        HalfHipPoints.Num() == 4 &&
+        FMath::IsNearlyEqual(HalfHipPoints[0].X, 10.0, 1.0e-5) &&
+        FMath::IsNearlyEqual(HalfHipPoints[0].Y, 2.0, 1.0e-5) &&
+        FMath::IsNearlyEqual(HalfHipPoints[1].X, 0.0, 1.0e-5) &&
+        FMath::IsNearlyEqual(HalfHipPoints[1].Y, 2.0, 1.0e-5));
+    TestTrue(
+        TEXT("Half-hip ridge follows and remains inside the longest axis"),
+        HalfHipPoints.Num() == 4 &&
+        FMath::IsNearlyEqual(HalfHipPoints[2].X, 8.4, 1.0e-5) &&
+        FMath::IsNearlyEqual(HalfHipPoints[2].Y, 2.0, 1.0e-5) &&
+        FMath::IsNearlyEqual(HalfHipPoints[3].X, 1.6, 1.0e-5) &&
+        FMath::IsNearlyEqual(HalfHipPoints[3].Y, 2.0, 1.0e-5));
+    TestTrue(
+        TEXT("Concave half-hip footprint fails closed"),
+        AHorizonWorldCellRenderer::ResolveHalfHippedProfilePoints(
+            ConcaveFootprint).IsEmpty());
+    TestTrue(
+        TEXT("Degenerate half-hip footprint fails closed"),
+        AHorizonWorldCellRenderer::ResolveHalfHippedProfilePoints(
+            DegenerateFootprint).IsEmpty());
     return true;
 }
 
