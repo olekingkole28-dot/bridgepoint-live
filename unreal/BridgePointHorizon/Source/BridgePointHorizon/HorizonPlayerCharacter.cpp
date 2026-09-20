@@ -39,7 +39,11 @@ AHorizonPlayerCharacter::AHorizonPlayerCharacter()
     Move->JumpZVelocity = 520.0f;
     Move->MaxWalkSpeed = WalkSpeed;
     Move->GetNavAgentPropertiesRef().bCanCrouch = true;
+    Move->GetNavAgentPropertiesRef().bCanSwim = true;
     Move->MaxWalkSpeedCrouched = 235.0f;
+    Move->MaxSwimSpeed = SwimSpeed;
+    Move->BrakingDecelerationSwimming = 620.0f;
+    Move->Buoyancy = SwimBuoyancy;
     Move->GravityScale = 0.0f;
 
     CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -288,6 +292,57 @@ FHorizonCombatHitFeedback AHorizonPlayerCharacter::ResolveCombatHit(
     return Feedback;
 }
 
+
+void AHorizonPlayerCharacter::OnMovementModeChanged(
+    EMovementMode PreviousMovementMode,
+    uint8 PreviousCustomMode)
+{
+    Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
+
+    UCharacterMovementComponent* Move = GetCharacterMovement();
+    if (Move && Move->IsSwimming())
+    {
+        bSwimUsesProneCapsule = MovementStance == EHorizonMovementStance::Prone;
+        bSprinting = false;
+        bAiming = false;
+        RawLeanInput = 0.0f;
+        SwimVerticalInput = 0.0f;
+        SlideTimeRemaining = 0.0f;
+        VaultElapsedSeconds = 0.0f;
+        ActiveVaultDurationSeconds = 0.0f;
+        if (!bSwimUsesProneCapsule && bIsCrouched)
+        {
+            UnCrouch();
+        }
+        MovementStance = EHorizonMovementStance::Swimming;
+        if (WeaponRuntime)
+        {
+            WeaponRuntime->SetAiming(false);
+            WeaponRuntime->StopFire();
+        }
+        RefreshMovementProfile();
+        return;
+    }
+
+    SwimVerticalInput = 0.0f;
+    if (MovementStance == EHorizonMovementStance::Swimming)
+    {
+        if (bSwimUsesProneCapsule)
+        {
+            MovementStance = EHorizonMovementStance::Prone;
+            TryExitProne();
+        }
+        else
+        {
+            MovementStance = bIsCrouched
+                ? EHorizonMovementStance::Crouched
+                : EHorizonMovementStance::Standing;
+        }
+        bSwimUsesProneCapsule = false;
+        RefreshMovementProfile();
+    }
+}
+
 void AHorizonPlayerCharacter::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
@@ -319,7 +374,7 @@ void AHorizonPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerI
     PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &APawn::AddControllerPitchInput);
 
     PlayerInputComponent->BindAction(TEXT("Jump"), IE_Pressed, this, &AHorizonPlayerCharacter::StartTraversalJump);
-    PlayerInputComponent->BindAction(TEXT("Jump"), IE_Released, this, &ACharacter::StopJumping);
+    PlayerInputComponent->BindAction(TEXT("Jump"), IE_Released, this, &AHorizonPlayerCharacter::StopTraversalJump);
     PlayerInputComponent->BindAction(TEXT("Sprint"), IE_Pressed, this, &AHorizonPlayerCharacter::StartSprint);
     PlayerInputComponent->BindAction(TEXT("Sprint"), IE_Released, this, &AHorizonPlayerCharacter::StopSprint);
     PlayerInputComponent->BindAction(TEXT("Crouch"), IE_Pressed, this, &AHorizonPlayerCharacter::ToggleCrouch);
@@ -335,6 +390,12 @@ void AHorizonPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerI
 
 void AHorizonPlayerCharacter::StartTraversalJump()
 {
+    if (GetCharacterMovement() && GetCharacterMovement()->IsSwimming())
+    {
+        SwimVerticalInput = 1.0f;
+        return;
+    }
+
     if (TryStartVault())
     {
         return;
@@ -357,6 +418,16 @@ void AHorizonPlayerCharacter::StartTraversalJump()
 
     MovementStance = EHorizonMovementStance::Standing;
     Jump();
+}
+
+void AHorizonPlayerCharacter::StopTraversalJump()
+{
+    if (GetCharacterMovement() && GetCharacterMovement()->IsSwimming())
+    {
+        SwimVerticalInput = 0.0f;
+        return;
+    }
+    StopJumping();
 }
 
 bool AHorizonPlayerCharacter::CanStartVault(
@@ -687,6 +758,34 @@ void AHorizonPlayerCharacter::ApplyMovementInput(float DeltaSeconds)
     }
 
     const FVector2D Input = CachedMoveInput.GetClampedToMaxSize(1.0f);
+    UCharacterMovementComponent* Move = GetCharacterMovement();
+    if (Move && Move->IsSwimming())
+    {
+        const FRotator ControlRotation = Controller->GetControlRotation();
+        const FVector ViewForward = FRotationMatrix(ControlRotation).GetUnitAxis(EAxis::X);
+        const FVector ViewRight =
+            FRotationMatrix(FRotator(0.0f, ControlRotation.Yaw, 0.0f)).GetUnitAxis(EAxis::Y);
+        const FVector SwimDirection =
+            ResolveSwimDirection(ViewForward, ViewRight, Input, SwimVerticalInput);
+        if (!SwimDirection.IsNearlyZero())
+        {
+            AddMovementInput(SwimDirection, 1.0f);
+            const FVector PlanarFacing = SwimDirection.GetSafeNormal2D();
+            if (!PlanarFacing.IsNearlyZero())
+            {
+                const FRotator TargetFacing(0.0f, PlanarFacing.Rotation().Yaw, 0.0f);
+                SetActorRotation(
+                    FMath::RInterpTo(
+                        GetActorRotation(),
+                        TargetFacing,
+                        DeltaSeconds,
+                        FacingInterpolationSpeed),
+                    ETeleportType::None);
+            }
+        }
+        return;
+    }
+
     if (Input.IsNearlyZero())
     {
         return;
@@ -779,7 +878,8 @@ void AHorizonPlayerCharacter::ToggleCameraMode()
 
 void AHorizonPlayerCharacter::StartSprint()
 {
-    if (MovementStance == EHorizonMovementStance::Vaulting)
+    if (MovementStance == EHorizonMovementStance::Vaulting ||
+        MovementStance == EHorizonMovementStance::Swimming)
     {
         return;
     }
@@ -809,6 +909,11 @@ void AHorizonPlayerCharacter::StopSprint()
 
 void AHorizonPlayerCharacter::ToggleCrouch()
 {
+    if (MovementStance == EHorizonMovementStance::Swimming)
+    {
+        return;
+    }
+
     if (MovementStance == EHorizonMovementStance::Vaulting)
     {
         return;
@@ -853,6 +958,11 @@ void AHorizonPlayerCharacter::ToggleCrouch()
 
 void AHorizonPlayerCharacter::ToggleProne()
 {
+    if (MovementStance == EHorizonMovementStance::Swimming)
+    {
+        return;
+    }
+
     if (MovementStance == EHorizonMovementStance::Vaulting)
     {
         return;
@@ -903,6 +1013,7 @@ void AHorizonPlayerCharacter::StartSlide()
     if (!Move || !Move->IsMovingOnGround() ||
         MovementStance == EHorizonMovementStance::Prone ||
         MovementStance == EHorizonMovementStance::Sliding ||
+        MovementStance == EHorizonMovementStance::Swimming ||
         GetVelocity().Size2D() < WalkSpeed * 1.15f)
     {
         return;
@@ -928,6 +1039,11 @@ void AHorizonPlayerCharacter::StartSlide()
 
 void AHorizonPlayerCharacter::UpdateTraversalState(float DeltaSeconds)
 {
+    if (MovementStance == EHorizonMovementStance::Swimming)
+    {
+        return;
+    }
+
     if (MovementStance == EHorizonMovementStance::Vaulting)
     {
         UpdateVault(DeltaSeconds);
@@ -1019,6 +1135,11 @@ bool AHorizonPlayerCharacter::TryExitProne()
 
 void AHorizonPlayerCharacter::StartAim()
 {
+    if (MovementStance == EHorizonMovementStance::Swimming)
+    {
+        return;
+    }
+
     if (MovementStance == EHorizonMovementStance::Vaulting)
     {
         return;
@@ -1052,7 +1173,8 @@ void AHorizonPlayerCharacter::StartFireInput()
 {
     if (WeaponRuntime &&
         MovementStance != EHorizonMovementStance::Sliding &&
-        MovementStance != EHorizonMovementStance::Vaulting)
+        MovementStance != EHorizonMovementStance::Vaulting &&
+        MovementStance != EHorizonMovementStance::Swimming)
     {
         bSprinting = false;
         WeaponRuntime->StartFire(bAiming);
@@ -1070,6 +1192,11 @@ void AHorizonPlayerCharacter::StopFireInput()
 
 void AHorizonPlayerCharacter::ReloadInput()
 {
+    if (MovementStance == EHorizonMovementStance::Swimming)
+    {
+        return;
+    }
+
     if (WeaponRuntime)
     {
         WeaponRuntime->BeginReload();
@@ -1283,6 +1410,31 @@ bool AHorizonPlayerCharacter::IsWeaponVisualEquipped() const
         EquippedWeaponVisual->GetStaticMesh() != nullptr;
 }
 
+
+FVector AHorizonPlayerCharacter::ResolveSwimDirection(
+    const FVector& ViewForward,
+    const FVector& ViewRight,
+    const FVector2D& MoveInput,
+    float VerticalInput)
+{
+    if (ViewForward.ContainsNaN() ||
+        ViewRight.ContainsNaN() ||
+        MoveInput.ContainsNaN() ||
+        !FMath::IsFinite(VerticalInput))
+    {
+        return FVector::ZeroVector;
+    }
+
+    const FVector SafeForward = ViewForward.GetSafeNormal();
+    const FVector SafeRight = ViewRight.GetSafeNormal();
+    const FVector2D SafeMoveInput = MoveInput.GetClampedToMaxSize(1.0f);
+    const float SafeVerticalInput = FMath::Clamp(VerticalInput, -1.0f, 1.0f);
+    return (
+        SafeForward * SafeMoveInput.Y +
+        SafeRight * SafeMoveInput.X +
+        FVector::UpVector * SafeVerticalInput).GetClampedToMaxSize(1.0f);
+}
+
 bool AHorizonPlayerCharacter::ShouldRefreshMovementProfile(
     float AccumulatedSeconds,
     float DeltaSeconds,
@@ -1334,9 +1486,18 @@ void AHorizonPlayerCharacter::RefreshMovementProfile()
     MinNetUpdateFrequency = FMath::Clamp(NetUpdateFrequency * 0.35f, 20.0f, 45.0f);
 
     UCharacterMovementComponent* Move = GetCharacterMovement();
+    Move->MaxSwimSpeed = SwimSpeed;
+    Move->Buoyancy = SwimBuoyancy;
+    Move->MaxAcceleration = MovementStance == EHorizonMovementStance::Swimming
+        ? SwimAcceleration
+        : 2200.0f;
     if (MovementStance == EHorizonMovementStance::Vaulting)
     {
         Move->MaxWalkSpeed = 0.0f;
+    }
+    else if (MovementStance == EHorizonMovementStance::Swimming)
+    {
+        Move->MaxWalkSpeed = WalkSpeed;
     }
     else if (MovementStance == EHorizonMovementStance::Prone)
     {
