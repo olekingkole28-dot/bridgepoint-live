@@ -379,6 +379,266 @@ FHorizonUiFeedbackMix UHorizonAudioDirectorSubsystem::GetUiFeedbackMix(
     return BuildUiFeedbackMix(Cue, SmoothedCombatIntensity01, VariationSeed);
 }
 
+FHorizonEnvironmentalEmitterMix UHorizonAudioDirectorSubsystem::BuildFireEmitterMix(
+    EHorizonFireAudioClass FireClass,
+    float Intensity01,
+    float DistanceCm,
+    EHorizonAcousticSpace ListenerSpace,
+    bool bOccluded,
+    int32 VariationSeed)
+{
+    FHorizonEnvironmentalEmitterMix Mix;
+    float BaseBed = 0.58f;
+    float BaseDetail = 0.62f;
+    float BaseLow = 0.18f;
+    float BaseTransient = 0.72f;
+    float FalloffExponent = 1.12f;
+
+    switch (FireClass)
+    {
+        case EHorizonFireAudioClass::Campfire:
+            Mix.MaxDistanceCm = 10000.0f;
+            break;
+        case EHorizonFireAudioClass::StructureFire:
+            Mix.MaxDistanceCm = 26000.0f;
+            BaseBed = 0.82f;
+            BaseDetail = 0.70f;
+            BaseLow = 0.52f;
+            BaseTransient = 0.54f;
+            FalloffExponent = 0.88f;
+            break;
+        case EHorizonFireAudioClass::Wildfire:
+            Mix.MaxDistanceCm = 50000.0f;
+            BaseBed = 1.0f;
+            BaseDetail = 0.48f;
+            BaseLow = 0.82f;
+            BaseTransient = 0.34f;
+            FalloffExponent = 0.62f;
+            break;
+    }
+
+    const float Intensity = FMath::Clamp(
+        FMath::IsFinite(Intensity01) ? Intensity01 : 0.0f,
+        0.0f,
+        1.0f);
+    const float SafeDistance = FMath::Max(
+        0.0f,
+        FMath::IsFinite(DistanceCm) ? DistanceCm : Mix.MaxDistanceCm);
+    const float Distance01 =
+        FMath::Clamp(SafeDistance / Mix.MaxDistanceCm, 0.0f, 1.0f);
+    const float DistanceGain =
+        FMath::Pow(1.0f - Distance01, FalloffExponent);
+
+    switch (ListenerSpace)
+    {
+        case EHorizonAcousticSpace::Outdoor:
+            Mix.InteriorTransmission = 1.0f;
+            Mix.LowPassCutoffHz = 18000.0f;
+            Mix.ReverbSend = 0.10f;
+            break;
+        case EHorizonAcousticSpace::IndoorSmall:
+            Mix.InteriorTransmission = 0.22f;
+            Mix.LowPassCutoffHz = 4200.0f;
+            Mix.ReverbSend = 0.42f;
+            break;
+        case EHorizonAcousticSpace::IndoorLarge:
+            Mix.InteriorTransmission = 0.34f;
+            Mix.LowPassCutoffHz = 5400.0f;
+            Mix.ReverbSend = 0.58f;
+            break;
+        case EHorizonAcousticSpace::Tunnel:
+            Mix.InteriorTransmission = 0.14f;
+            Mix.LowPassCutoffHz = 3200.0f;
+            Mix.ReverbSend = 0.78f;
+            break;
+        case EHorizonAcousticSpace::Rooftop:
+            Mix.InteriorTransmission = 1.08f;
+            Mix.LowPassCutoffHz = 19000.0f;
+            Mix.ReverbSend = 0.14f;
+            break;
+    }
+
+    const float AudibleGain = Intensity * DistanceGain * Mix.InteriorTransmission;
+    Mix.BedGain = BaseBed * AudibleGain;
+    Mix.DetailGain = BaseDetail * FMath::Sqrt(Intensity) * DistanceGain *
+        Mix.InteriorTransmission;
+    Mix.LowFrequencyGain = BaseLow * AudibleGain;
+    Mix.TransientGain = BaseTransient * FMath::Square(Intensity) * DistanceGain *
+        Mix.InteriorTransmission;
+
+    if (bOccluded)
+    {
+        Mix.BedGain *= 0.44f;
+        Mix.DetailGain *= 0.24f;
+        Mix.LowFrequencyGain *= 0.72f;
+        Mix.TransientGain *= 0.30f;
+        Mix.LowPassCutoffHz = FMath::Min(Mix.LowPassCutoffHz, 2200.0f);
+        Mix.ReverbSend = FMath::Max(Mix.ReverbSend, 0.28f);
+    }
+
+    FRandomStream Variation(
+        VariationSeed * 2081 + static_cast<int32>(FireClass) * 317);
+    Mix.Pitch = Variation.FRandRange(0.965f, 1.035f);
+    Mix.DetailGain *= Variation.FRandRange(0.94f, 1.06f);
+    Mix.TransientGain *= Variation.FRandRange(0.92f, 1.08f);
+
+    Mix.BedGain = FMath::Clamp(Mix.BedGain, 0.0f, 1.0f);
+    Mix.DetailGain = FMath::Clamp(Mix.DetailGain, 0.0f, 1.0f);
+    Mix.LowFrequencyGain = FMath::Clamp(Mix.LowFrequencyGain, 0.0f, 1.0f);
+    Mix.TransientGain = FMath::Clamp(Mix.TransientGain, 0.0f, 1.0f);
+    return Mix;
+}
+
+FHorizonEnvironmentalEmitterMix UHorizonAudioDirectorSubsystem::GetFireEmitterMix(
+    EHorizonFireAudioClass FireClass,
+    float Intensity01,
+    float DistanceCm,
+    bool bOccluded,
+    int32 VariationSeed) const
+{
+    return BuildFireEmitterMix(
+        FireClass,
+        Intensity01,
+        DistanceCm,
+        AcousticSpace,
+        bOccluded,
+        VariationSeed);
+}
+
+FHorizonEnvironmentalEmitterMix UHorizonAudioDirectorSubsystem::BuildWaterEmitterMix(
+    EHorizonWaterAudioClass WaterClass,
+    float Flow01,
+    float DistanceCm,
+    EHorizonAcousticSpace ListenerSpace,
+    bool bOccluded,
+    int32 VariationSeed)
+{
+    FHorizonEnvironmentalEmitterMix Mix;
+    float BaseBed = 0.18f;
+    float BaseDetail = 0.72f;
+    float BaseLow = 0.04f;
+    float BaseTransient = 0.84f;
+    float FalloffExponent = 1.40f;
+
+    switch (WaterClass)
+    {
+        case EHorizonWaterAudioClass::Drip:
+            Mix.MaxDistanceCm = 5000.0f;
+            break;
+        case EHorizonWaterAudioClass::Stream:
+            Mix.MaxDistanceCm = 15000.0f;
+            BaseBed = 0.58f;
+            BaseDetail = 0.76f;
+            BaseLow = 0.20f;
+            BaseTransient = 0.48f;
+            FalloffExponent = 1.02f;
+            break;
+        case EHorizonWaterAudioClass::River:
+            Mix.MaxDistanceCm = 28000.0f;
+            BaseBed = 0.86f;
+            BaseDetail = 0.58f;
+            BaseLow = 0.54f;
+            BaseTransient = 0.26f;
+            FalloffExponent = 0.78f;
+            break;
+        case EHorizonWaterAudioClass::Surf:
+            Mix.MaxDistanceCm = 42000.0f;
+            BaseBed = 1.0f;
+            BaseDetail = 0.52f;
+            BaseLow = 0.72f;
+            BaseTransient = 0.44f;
+            FalloffExponent = 0.60f;
+            break;
+    }
+
+    const float Flow = FMath::Clamp(
+        FMath::IsFinite(Flow01) ? Flow01 : 0.0f,
+        0.0f,
+        1.0f);
+    const float SafeDistance = FMath::Max(
+        0.0f,
+        FMath::IsFinite(DistanceCm) ? DistanceCm : Mix.MaxDistanceCm);
+    const float Distance01 =
+        FMath::Clamp(SafeDistance / Mix.MaxDistanceCm, 0.0f, 1.0f);
+    const float DistanceGain =
+        FMath::Pow(1.0f - Distance01, FalloffExponent);
+
+    switch (ListenerSpace)
+    {
+        case EHorizonAcousticSpace::Outdoor:
+            Mix.InteriorTransmission = 1.0f;
+            Mix.LowPassCutoffHz = 19000.0f;
+            Mix.ReverbSend = 0.12f;
+            break;
+        case EHorizonAcousticSpace::IndoorSmall:
+            Mix.InteriorTransmission = 0.18f;
+            Mix.LowPassCutoffHz = 4800.0f;
+            Mix.ReverbSend = 0.48f;
+            break;
+        case EHorizonAcousticSpace::IndoorLarge:
+            Mix.InteriorTransmission = 0.30f;
+            Mix.LowPassCutoffHz = 6200.0f;
+            Mix.ReverbSend = 0.64f;
+            break;
+        case EHorizonAcousticSpace::Tunnel:
+            Mix.InteriorTransmission = 0.58f;
+            Mix.LowPassCutoffHz = 7200.0f;
+            Mix.ReverbSend = 0.86f;
+            break;
+        case EHorizonAcousticSpace::Rooftop:
+            Mix.InteriorTransmission = 1.02f;
+            Mix.LowPassCutoffHz = 19500.0f;
+            Mix.ReverbSend = 0.15f;
+            break;
+    }
+
+    const float AudibleGain = Flow * DistanceGain * Mix.InteriorTransmission;
+    Mix.BedGain = BaseBed * AudibleGain;
+    Mix.DetailGain = BaseDetail * FMath::Sqrt(Flow) * DistanceGain *
+        Mix.InteriorTransmission;
+    Mix.LowFrequencyGain = BaseLow * AudibleGain;
+    Mix.TransientGain = BaseTransient * FMath::Square(Flow) * DistanceGain *
+        Mix.InteriorTransmission;
+
+    if (bOccluded)
+    {
+        Mix.BedGain *= 0.40f;
+        Mix.DetailGain *= 0.22f;
+        Mix.LowFrequencyGain *= 0.68f;
+        Mix.TransientGain *= 0.26f;
+        Mix.LowPassCutoffHz = FMath::Min(Mix.LowPassCutoffHz, 2400.0f);
+        Mix.ReverbSend = FMath::Max(Mix.ReverbSend, 0.30f);
+    }
+
+    FRandomStream Variation(
+        VariationSeed * 2143 + static_cast<int32>(WaterClass) * 331);
+    Mix.Pitch = Variation.FRandRange(0.975f, 1.025f);
+    Mix.DetailGain *= Variation.FRandRange(0.95f, 1.05f);
+    Mix.TransientGain *= Variation.FRandRange(0.94f, 1.06f);
+
+    Mix.BedGain = FMath::Clamp(Mix.BedGain, 0.0f, 1.0f);
+    Mix.DetailGain = FMath::Clamp(Mix.DetailGain, 0.0f, 1.0f);
+    Mix.LowFrequencyGain = FMath::Clamp(Mix.LowFrequencyGain, 0.0f, 1.0f);
+    Mix.TransientGain = FMath::Clamp(Mix.TransientGain, 0.0f, 1.0f);
+    return Mix;
+}
+
+FHorizonEnvironmentalEmitterMix UHorizonAudioDirectorSubsystem::GetWaterEmitterMix(
+    EHorizonWaterAudioClass WaterClass,
+    float Flow01,
+    float DistanceCm,
+    bool bOccluded,
+    int32 VariationSeed) const
+{
+    return BuildWaterEmitterMix(
+        WaterClass,
+        Flow01,
+        DistanceCm,
+        AcousticSpace,
+        bOccluded,
+        VariationSeed);
+}
+
 FHorizonVehicleAudioMix UHorizonAudioDirectorSubsystem::BuildVehicleAudioMix(
     EHorizonVehicleAudioClass VehicleClass,
     bool bEngineRunning,

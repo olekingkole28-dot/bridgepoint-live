@@ -283,7 +283,10 @@ for token in [
     "EHorizonUiFeedbackCue", "FHorizonUiFeedbackMix",
     "GetUiFeedbackMix", "BuildUiFeedbackMix", "bListenerRelative",
     "EHorizonVehicleAudioClass", "FHorizonVehicleAudioMix",
-    "GetVehicleAudioMix", "BuildVehicleAudioMix", "DamageSputter01"
+    "GetVehicleAudioMix", "BuildVehicleAudioMix", "DamageSputter01",
+    "EHorizonFireAudioClass", "EHorizonWaterAudioClass",
+    "FHorizonEnvironmentalEmitterMix", "GetFireEmitterMix",
+    "BuildFireEmitterMix", "GetWaterEmitterMix", "BuildWaterEmitterMix"
 ]:
     require(token in audio_header, f"AAA audio runtime contract missing: {token}")
 for token in [
@@ -305,7 +308,12 @@ for token in [
     "EHorizonVehicleAudioClass::Pickup", "EHorizonVehicleAudioClass::Offroad",
     "bListenerInside", "Mix.LowPassCutoffHz = 5200.0f",
     "FMath::Min(Mix.LowPassCutoffHz, 2600.0f)", "SafeDurability < 0.45f",
-    "DistanceGain"
+    "DistanceGain", "EHorizonFireAudioClass::Wildfire",
+    "EHorizonWaterAudioClass::Surf", "Intensity * DistanceGain",
+    "Flow * DistanceGain", "Mix.InteriorTransmission = 0.22f",
+    "Mix.InteriorTransmission = 0.58f",
+    "FMath::Min(Mix.LowPassCutoffHz, 2200.0f)",
+    "FMath::Min(Mix.LowPassCutoffHz, 2400.0f)"
 ]:
     require(token in audio, f"AAA audio behavior missing: {token}")
 for token in [
@@ -350,6 +358,25 @@ for token in [
     "Seeded UI feedback pitch is deterministic"
 ]:
     require(token in audio_tests, f"native UI feedback audio QA missing: {token}")
+for token in [
+    "Audio.Environment.FireWaterEmitters",
+    "Fire intensity raises the continuous bed",
+    "Fire intensity raises transient crackle",
+    "Wildfire projects farther than a campfire",
+    "Wildfire carries more low-frequency energy",
+    "Distance attenuates fire emitters",
+    "Interior walls attenuate exterior fire",
+    "Fire occlusion lowers the detail cutoff",
+    "Invalid fire intensity fails silent",
+    "Water flow raises the continuous bed",
+    "Water flow raises transient splashes",
+    "Surf projects farther than individual drips",
+    "Surf carries more low-frequency energy",
+    "Tunnel water receives a stronger reverberant tail",
+    "Water occlusion lowers the detail cutoff",
+    "Seeded water pitch is deterministic"
+]:
+    require(token in audio_tests, f"native fire/water emitter audio QA missing: {token}")
 for token in [
     "Audio.Vehicles.RuntimeMix", "Stopped engine has no engine layer",
     "Road speed raises powertrain pitch", "Road speed introduces tire noise",

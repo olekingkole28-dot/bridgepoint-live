@@ -223,6 +223,122 @@ bool FHorizonUiFeedbackClarityTest::RunTest(const FString& Parameters)
 
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonEnvironmentalEmitterAudioTest,
+    "BridgePoint.Horizon.Audio.Environment.FireWaterEmitters",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonEnvironmentalEmitterAudioTest::RunTest(const FString& Parameters)
+{
+    const FHorizonEnvironmentalEmitterMix QuietFire =
+        UHorizonAudioDirectorSubsystem::BuildFireEmitterMix(
+            EHorizonFireAudioClass::Campfire, 0.25f, 500.0f,
+            EHorizonAcousticSpace::Outdoor, false, 31);
+    const FHorizonEnvironmentalEmitterMix IntenseFire =
+        UHorizonAudioDirectorSubsystem::BuildFireEmitterMix(
+            EHorizonFireAudioClass::Campfire, 1.0f, 500.0f,
+            EHorizonAcousticSpace::Outdoor, false, 31);
+    TestTrue(TEXT("Fire intensity raises the continuous bed"),
+        IntenseFire.BedGain > QuietFire.BedGain);
+    TestTrue(TEXT("Fire intensity raises transient crackle"),
+        IntenseFire.TransientGain > QuietFire.TransientGain);
+
+    const FHorizonEnvironmentalEmitterMix Campfire =
+        UHorizonAudioDirectorSubsystem::BuildFireEmitterMix(
+            EHorizonFireAudioClass::Campfire, 1.0f, 1000.0f,
+            EHorizonAcousticSpace::Outdoor, false, 52);
+    const FHorizonEnvironmentalEmitterMix Wildfire =
+        UHorizonAudioDirectorSubsystem::BuildFireEmitterMix(
+            EHorizonFireAudioClass::Wildfire, 1.0f, 1000.0f,
+            EHorizonAcousticSpace::Outdoor, false, 52);
+    TestTrue(TEXT("Wildfire projects farther than a campfire"),
+        Wildfire.MaxDistanceCm > Campfire.MaxDistanceCm);
+    TestTrue(TEXT("Wildfire carries more low-frequency energy"),
+        Wildfire.LowFrequencyGain > Campfire.LowFrequencyGain);
+
+    const FHorizonEnvironmentalEmitterMix FarFire =
+        UHorizonAudioDirectorSubsystem::BuildFireEmitterMix(
+            EHorizonFireAudioClass::StructureFire, 0.9f, 22000.0f,
+            EHorizonAcousticSpace::Outdoor, false, 7);
+    const FHorizonEnvironmentalEmitterMix NearFire =
+        UHorizonAudioDirectorSubsystem::BuildFireEmitterMix(
+            EHorizonFireAudioClass::StructureFire, 0.9f, 1000.0f,
+            EHorizonAcousticSpace::Outdoor, false, 7);
+    const FHorizonEnvironmentalEmitterMix IndoorFire =
+        UHorizonAudioDirectorSubsystem::BuildFireEmitterMix(
+            EHorizonFireAudioClass::StructureFire, 0.9f, 1000.0f,
+            EHorizonAcousticSpace::IndoorSmall, false, 7);
+    const FHorizonEnvironmentalEmitterMix OccludedFire =
+        UHorizonAudioDirectorSubsystem::BuildFireEmitterMix(
+            EHorizonFireAudioClass::StructureFire, 0.9f, 1000.0f,
+            EHorizonAcousticSpace::Outdoor, true, 7);
+    TestTrue(TEXT("Distance attenuates fire emitters"),
+        FarFire.BedGain < NearFire.BedGain);
+    TestTrue(TEXT("Interior walls attenuate exterior fire"),
+        IndoorFire.BedGain < NearFire.BedGain);
+    TestTrue(TEXT("Fire occlusion lowers the detail cutoff"),
+        OccludedFire.LowPassCutoffHz < NearFire.LowPassCutoffHz);
+
+    const FHorizonEnvironmentalEmitterMix ZeroFire =
+        UHorizonAudioDirectorSubsystem::BuildFireEmitterMix(
+            EHorizonFireAudioClass::Campfire, -2.0f, 0.0f,
+            EHorizonAcousticSpace::Outdoor, false, 1);
+    TestEqual(TEXT("Invalid fire intensity fails silent"), ZeroFire.BedGain, 0.0f);
+
+    const FHorizonEnvironmentalEmitterMix SlowStream =
+        UHorizonAudioDirectorSubsystem::BuildWaterEmitterMix(
+            EHorizonWaterAudioClass::Stream, 0.25f, 600.0f,
+            EHorizonAcousticSpace::Outdoor, false, 16);
+    const FHorizonEnvironmentalEmitterMix FastStream =
+        UHorizonAudioDirectorSubsystem::BuildWaterEmitterMix(
+            EHorizonWaterAudioClass::Stream, 1.0f, 600.0f,
+            EHorizonAcousticSpace::Outdoor, false, 16);
+    TestTrue(TEXT("Water flow raises the continuous bed"),
+        FastStream.BedGain > SlowStream.BedGain);
+    TestTrue(TEXT("Water flow raises transient splashes"),
+        FastStream.TransientGain > SlowStream.TransientGain);
+
+    const FHorizonEnvironmentalEmitterMix Drip =
+        UHorizonAudioDirectorSubsystem::BuildWaterEmitterMix(
+            EHorizonWaterAudioClass::Drip, 1.0f, 500.0f,
+            EHorizonAcousticSpace::Outdoor, false, 19);
+    const FHorizonEnvironmentalEmitterMix Surf =
+        UHorizonAudioDirectorSubsystem::BuildWaterEmitterMix(
+            EHorizonWaterAudioClass::Surf, 1.0f, 500.0f,
+            EHorizonAcousticSpace::Outdoor, false, 19);
+    TestTrue(TEXT("Surf projects farther than individual drips"),
+        Surf.MaxDistanceCm > Drip.MaxDistanceCm);
+    TestTrue(TEXT("Surf carries more low-frequency energy"),
+        Surf.LowFrequencyGain > Drip.LowFrequencyGain);
+
+    const FHorizonEnvironmentalEmitterMix TunnelWater =
+        UHorizonAudioDirectorSubsystem::BuildWaterEmitterMix(
+            EHorizonWaterAudioClass::Stream, 0.8f, 800.0f,
+            EHorizonAcousticSpace::Tunnel, false, 81);
+    const FHorizonEnvironmentalEmitterMix OutdoorWater =
+        UHorizonAudioDirectorSubsystem::BuildWaterEmitterMix(
+            EHorizonWaterAudioClass::Stream, 0.8f, 800.0f,
+            EHorizonAcousticSpace::Outdoor, false, 81);
+    const FHorizonEnvironmentalEmitterMix OccludedWater =
+        UHorizonAudioDirectorSubsystem::BuildWaterEmitterMix(
+            EHorizonWaterAudioClass::Stream, 0.8f, 800.0f,
+            EHorizonAcousticSpace::Outdoor, true, 81);
+    const FHorizonEnvironmentalEmitterMix RepeatWater =
+        UHorizonAudioDirectorSubsystem::BuildWaterEmitterMix(
+            EHorizonWaterAudioClass::Stream, 0.8f, 800.0f,
+            EHorizonAcousticSpace::Outdoor, false, 81);
+    TestTrue(TEXT("Tunnel water receives a stronger reverberant tail"),
+        TunnelWater.ReverbSend > OutdoorWater.ReverbSend);
+    TestTrue(TEXT("Water occlusion lowers the detail cutoff"),
+        OccludedWater.LowPassCutoffHz < OutdoorWater.LowPassCutoffHz);
+    TestEqual(TEXT("Seeded water pitch is deterministic"),
+        RepeatWater.Pitch, OutdoorWater.Pitch);
+    TestEqual(TEXT("Seeded water detail is deterministic"),
+        RepeatWater.DetailGain, OutdoorWater.DetailGain);
+    return true;
+}
+
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FHorizonVehicleAudioRuntimeMixTest,
     "BridgePoint.Horizon.Audio.Vehicles.RuntimeMix",
     EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
