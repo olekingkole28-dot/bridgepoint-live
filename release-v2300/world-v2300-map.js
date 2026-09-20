@@ -856,17 +856,19 @@ export function initWorld(options={}){
  const finalizeWorldCore=()=>{
   if(worldCoreReady)return true;
   try{
-   if(!map.isStyleLoaded?.()&&!map.loaded?.())return false;
+   const st=map.getStyle?.(),usable=!!(map.isStyleLoaded?.()||map.loaded?.()||((st?.layers?.length||0)>0&&map.getSource?.('ofm')));
+   if(!usable)return false;
    installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();bindBuildingHitLayers();setBase('gta');disableFineDetail();startParcelFlow();syncBuildingShells();
    window.__BP_CAMERA_MODE__={mode:'FREE_FLY_SINGLE_VIEW',singleView:true,autoViewSwitching:false,streetWalkMode:false,maxPitch:85,minZoom:2.2,maxZoom:22,manualPitch:true,manualRotation:true,buildingClickOverlook:true,updatedAt:Date.now()};
-   window.__BP_WORLD_CORE_READY__={version:5518,ready:true,styleLoaded:true,materials:!!window.__BP_BUILDING_MATERIALS__,camera:!!window.__BP_CAMERA_MODE__,updatedAt:Date.now()};
+   window.__BP_WORLD_CORE_READY__={version:5519,ready:true,styleUsable:true,styleLoaded:!!map.isStyleLoaded?.(),materials:!!window.__BP_BUILDING_MATERIALS__,camera:!!window.__BP_CAMERA_MODE__,updatedAt:Date.now()};
    worldCoreReady=true;setTimeout(scheduleExact,MOBILE?350:220);setStatus('BridgePoint World v5378 · current-city structures · staged real roofs · performance mode');return true
-  }catch(e){console.warn('BridgePoint world core init',e);return false}
+  }catch(e){window.__BP_WORLD_CORE_READY__={version:5519,ready:false,error:String(e?.message||e),updatedAt:Date.now()};console.warn('BridgePoint world core init',e);return false}
  };
  map.once('load',()=>{finalizeWorldCore()});
- if(map.isStyleLoaded?.()||map.loaded?.())queueMicrotask(()=>finalizeWorldCore());
+ map.on('styledata',()=>{if(!worldCoreReady)finalizeWorldCore()});
+ if(map.isStyleLoaded?.()||map.loaded?.()||(map.getStyle?.()?.layers?.length||0)>0)queueMicrotask(()=>finalizeWorldCore());
  const worldCoreRecovery=setInterval(()=>{if(finalizeWorldCore())clearInterval(worldCoreRecovery)},250);
- setTimeout(()=>clearInterval(worldCoreRecovery),10000);
+ setTimeout(()=>clearInterval(worldCoreRecovery),12000);
  map.on('movestart',()=>movement(true));map.on('moveend',()=>movement(false));map.on('zoomend',()=>{terrain();syncBuildingShells()});let bpCitySyncTimer=0,bpGlobalLodSyncTimer=0;map.on('sourcedata',e=>{
   if(e?.sourceId==='ofm'){
    clearTimeout(bpGlobalLodSyncTimer);
