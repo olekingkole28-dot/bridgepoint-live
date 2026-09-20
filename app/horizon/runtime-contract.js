@@ -18,7 +18,7 @@ export class KillCamBuffer{
 }
 
 export class DwellPickupController{
-  constructor({dwellMs=1750,onProgress=()=>{},onComplete=()=>{}}={}){
+  constructor({dwellMs=3000,onProgress=()=>{},onComplete=()=>{}}={}){
     this.dwellMs=dwellMs;this.onProgress=onProgress;this.onComplete=onComplete;this.target=null;this.started=0;this.done=false
   }
   enter(item,now=performance.now()){if(this.target===item)return;this.target=item;this.started=now;this.done=false;this.onProgress(0,item)}
@@ -32,7 +32,7 @@ export class DwellPickupController{
 }
 
 export const HorizonRuntimeContract=Object.freeze({
-  version:4302,
+  version:4336,
   controls:{
     aim:{mode:'toggle',small:true},
     shoot:{mode:'hold-or-tap',small:true},
@@ -40,7 +40,7 @@ export const HorizonRuntimeContract=Object.freeze({
     build:{mode:'contextual-build-wheel',large:true},
     rightButtonCount:4
   },
-  pickup:{mode:'dwell-auto',dwellMs:1750,progress:'radial-around-world-item'},
+  pickup:{mode:'dwell-auto',dwellMs:3000,progress:'radial-around-world-item'},
   collision:{
     groundProps:'solid',
     cars:'solid',

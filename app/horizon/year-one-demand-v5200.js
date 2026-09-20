@@ -14,7 +14,7 @@ async function refresh(){
  try{
   const r=await fetch(SB+'/rest/v1/rpc/bridgepoint_horizon_year_one_demand_v5200',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:'{}'});
   const d=await r.json();if(!r.ok)throw new Error(d?.message||'counter unavailable');
-  countEls.forEach(el=>el.textContent=fmt(d.unique_requests)+' people have requested the 365-day Year One world');
+  countEls.forEach(el=>el.textContent=fmt(d.unique_requests)+' people want launch updates for the 365-day Year One world');
  }catch{countEls.forEach(el=>el.textContent='Demand counter is reconnecting…')}
 }
 async function request(btn){
@@ -26,7 +26,7 @@ async function request(btn){
   })});
   const d=await r.json();if(!r.ok||!d?.ok)throw new Error(d?.message||'request failed');
   countEls.forEach(el=>el.textContent=fmt(d.unique_requests)+' people have requested the 365-day Year One world');
-  buttons.forEach(b=>{b.textContent=d.already_counted?'REQUEST COUNTED · STILL WANT IT':'REQUEST COUNTED';b.classList.add('requested')});
+  buttons.forEach(b=>{b.textContent=d.already_counted?'UPDATE REQUEST COUNTED':'LAUNCH UPDATE REQUESTED';b.classList.add('requested')});
   window.BridgePointAcquisition?.send?.('CONTACT_REQUEST',{action:'horizon_year_one_365_demand',product:'HORIZON'});
  }catch{btn.textContent='TRY REQUEST AGAIN';btn.disabled=false;return}
  setTimeout(()=>buttons.forEach(b=>b.disabled=false),1200);

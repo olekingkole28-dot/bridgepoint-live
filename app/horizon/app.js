@@ -6,7 +6,7 @@ const SUPABASE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const PUBLISHABLE_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const sb=window.supabase?.createClient(SUPABASE_URL,PUBLISHABLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 const $=id=>document.getElementById(id);
-const state={player:null,config:null,catalog:null,yearOne:null,party:null,match:null,worldCell:null,maps:[],selectedMap:null,selectedMode:'TDM',channel:null,peers:new Map(),killcam:new KillCamBuffer(),pickup:null,installPrompt:null};
+const state={player:null,config:null,catalog:null,yearOne:null,party:null,match:null,worldCell:null,maps:[],selectedMap:null,selectedMode:'TDM',channel:null,peers:new Map(),killcam:new KillCamBuffer(),pickup:null,installPrompt:null,queueing:false,yearOneRolloverChecked:false};
 const qs=new URLSearchParams(location.search);
 
 function b64url(bytes){
@@ -38,6 +38,51 @@ function setNet(label,color='#f4c45e'){
   $('netLabel').textContent=label;$('netDot').style.background=color;$('netDot').style.color=color;
 }
 function status(msg){$('statusMessage').textContent=msg}
+function yearOneCountdownParts(){
+  const target=Date.parse(state.yearOne?.status==='LIVE'?state.yearOne?.end_at:state.yearOne?.start_at);
+  if(!Number.isFinite(target))return null;
+  const ms=Math.max(0,target-Date.now()),total=Math.floor(ms/1000);
+  return {ms,days:Math.floor(total/86400),hours:Math.floor(total%86400/3600),minutes:Math.floor(total%3600/60),seconds:total%60};
+}
+async function refreshYearOneStatus(){
+  state.yearOne=await rpc('bridgepoint_horizon_year_one_status_v4310',{p_player_id:ident.id,p_player_secret:ident.secret});
+  state.yearOneRolloverChecked=false;
+  markMode();renderYearOneCountdown();return state.yearOne;
+}
+function renderYearOneCountdown(){
+  const el=$('yearOneCountdown'),modeEl=document.querySelector('.mode[data-mode="YEAR_ONE"]');
+  if(!el||!modeEl||!state.yearOne)return;
+  const c=yearOneCountdownParts();
+  modeEl.classList.toggle('live',state.yearOne.status==='LIVE');
+  modeEl.classList.toggle('preseason',state.yearOne.status==='PRESEASON');
+  if(state.yearOne.status==='LIVE'){
+    el.textContent=`LIVE · DAY ${state.yearOne.current_day||1} / 365`;
+  }else if(state.yearOne.status==='PRESEASON'&&c){
+    el.textContent=`${c.days}D ${String(c.hours).padStart(2,'0')}H ${String(c.minutes).padStart(2,'0')}M ${String(c.seconds).padStart(2,'0')}S`;
+    if(c.ms<=0&&!state.yearOneRolloverChecked){
+      state.yearOneRolloverChecked=true;
+      refreshYearOneStatus().catch(()=>{state.yearOneRolloverChecked=false});
+    }
+  }else el.textContent=state.yearOne.status||'YEAR ONE';
+}
+function syncPlayAvailability(){
+  const btn=$('playBtn'),label=$('playLabel');if(!btn||!label)return;
+  const waiting=state.selectedMode==='YEAR_ONE'&&state.yearOne?.status!=='LIVE';
+  btn.disabled=!!state.queueing||waiting;
+  if(state.queueing)label.textContent=state.selectedMode==='TDM'?'QUEUING':'LOADING';
+  else if(waiting)label.textContent='OCT 1';
+  else label.textContent='READY';
+}
+function getPreciseLocation(){
+  return new Promise((resolve,reject)=>{
+    if(!navigator.geolocation){reject(new Error('Year One needs location access to spawn you where you are.'));return}
+    navigator.geolocation.getCurrentPosition(
+      p=>resolve({lat:p.coords.latitude,lon:p.coords.longitude,accuracy_m:p.coords.accuracy,altitude_m:p.coords.altitude}),
+      e=>reject(new Error(e.code===1?'Enable precise location for Year One so Horizon can spawn you where you are.':'Could not lock your location. Try again where GPS/location services are available.')),
+      {enableHighAccuracy:true,maximumAge:0,timeout:15000}
+    );
+  });
+}
 
 function avatarTheme(key){
   const n=Number(String(key||'').match(/\d+/)?.[0]||1);
@@ -116,6 +161,8 @@ async function bootstrap(){
     rpc('bridgepoint_horizon_year_one_status_v4310',{p_player_id:ident.id,p_player_secret:ident.secret})
   ]);
   state.catalog=catalog;state.yearOne=yearOne;
+  renderYearOneCountdown();
+  if(!window.__BP_YEAR_ONE_CLOCK__)window.__BP_YEAR_ONE_CLOCK__=setInterval(renderYearOneCountdown,1000);
   if(lobbyScene)lobbyScene.setCatalog(completeCharacterCatalog());
   $('loadoutName').textContent=state.config.loadouts.find(x=>x.slot===state.player.selected_loadout)?.name||'Ranger';
 
@@ -144,7 +191,7 @@ async function bootstrap(){
   setNet('ONLINE','#44f3bd');
   status('Lobby ready · first-person only · Year One or Team Deathmatch');
   window.BP_HORIZON_LOBBY_V4330={
-    ok:true,build:4335,player_id:state.player?.player_id,mode:state.selectedMode,
+    ok:true,build:4336,player_id:state.player?.player_id,mode:state.selectedMode,
     perspective:'FIRST_PERSON_ONLY',authoritative_modes:['YEAR_ONE','TDM'],
     party_size:state.party?.members?.length||0,
     catalog_characters:completeCharacterCatalog().length,
@@ -190,10 +237,15 @@ $('displayName').addEventListener('change',async e=>{
 function markMode(){
   document.querySelectorAll('.mode').forEach(b=>b.classList.toggle('active',b.dataset.mode===state.selectedMode));
   const d=state.config?.modes?.find(m=>m.key===state.selectedMode);
-  if(!d){$('playSub').textContent='';return}
-  if(d.key==='YEAR_ONE')$('playSub').textContent=state.yearOne?.status==='LIVE'?`DAY ${state.yearOne.current_day} · ${state.yearOne.player?.lives_remaining??3} lives`:'PRESEASON · starts on owner command';
-  else if(d.key==='TDM')$('playSub').textContent='6v6 · solo / duo / trio / squad · 50-map auto rotation';
+  if(!d){$('playSub').textContent='';syncPlayAvailability();return}
+  if(d.key==='YEAR_ONE'){
+    const c=yearOneCountdownParts();
+    $('playSub').textContent=state.yearOne?.status==='LIVE'
+      ?`DAY ${state.yearOne.current_day} · PVE ONLY · ${state.yearOne.player?.lives_remaining??3} lives`
+      :c?`OCT 1 · ${c.days}D ${String(c.hours).padStart(2,'0')}H ${String(c.minutes).padStart(2,'0')}M`:'OCT 1 · 12:00 AM ET';
+  }else if(d.key==='TDM')$('playSub').textContent='6v6 · solo / duo / trio / squad · 50-map auto rotation';
   else $('playSub').textContent='';
+  renderYearOneCountdown();syncPlayAvailability();
 }
 document.querySelectorAll('.mode').forEach(btn=>btn.addEventListener('click',async()=>{
   const mode=btn.dataset.mode;
@@ -204,18 +256,36 @@ document.querySelectorAll('.mode').forEach(btn=>btn.addEventListener('click',asy
   if(!meHost){status('Party leader chooses the mode');return}
   try{
     const snap=await rpc('bridgepoint_horizon_select_mode_v4300',{p_player_id:ident.id,p_player_secret:ident.secret,p_mode:mode});
-    state.party=snap.party;state.selectedMode=mode;markMode();renderParty();
+    state.party=snap.party;state.selectedMode=mode;state.queueing=false;markMode();renderParty();
   }catch(e){status(e.message)}
 }));
 
 $('playBtn').onclick=async()=>{
   if(state.party?.host_player_id!==ident.id){status('Party leader starts matchmaking');return}
-  $('playBtn').disabled=true;$('playLabel').textContent='QUEUING';
+  state.queueing=true;syncPlayAvailability();
   try{
+    if(state.selectedMode==='YEAR_ONE'){
+      await refreshYearOneStatus();
+      if(state.yearOne?.status!=='LIVE')throw new Error('Year One unlocks October 1 at 12:00 AM Eastern.');
+      status('Locking your precise spawn location…');
+      const loc=await getPreciseLocation();
+      const entered=await rpc('bridgepoint_horizon_year_one_enter_v4336',{
+        p_player_id:ident.id,p_player_secret:ident.secret,
+        p_lat:loc.lat,p_lon:loc.lon,p_accuracy_m:loc.accuracy_m,p_altitude_m:loc.altitude_m
+      });
+      const snap=await rpc('bridgepoint_horizon_match_snapshot_v4300',{p_player_id:ident.id,p_player_secret:ident.secret});
+      if(!entered?.ok||!snap?.match)throw new Error('Year One world could not be opened at your location.');
+      state.match=snap.match;
+      status('Location locked · loading the BridgePoint world around you');
+      showLoading(snap.match);
+      return;
+    }
     const q=await rpc('bridgepoint_horizon_queue_v4300',{p_player_id:ident.id,p_player_secret:ident.secret});
     status(q.queued?`Finding match… ${state.selectedMap?.display_name||'rotating map pool'} · direct P2P host will be elected`:'Solo world ready');
     pollMatch();
-  }catch(e){status(e.message);$('playBtn').disabled=false;$('playLabel').textContent='READY'}
+  }catch(e){
+    state.queueing=false;status(e.message);syncPlayAvailability();
+  }
 };
 
 let matchPoll=null;

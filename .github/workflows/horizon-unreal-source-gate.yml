@@ -6,11 +6,17 @@ on:
     paths:
       - 'unreal/BridgePointHorizon/**'
       - 'app/horizon-playable/HORIZON_GAME_MODES_V4243.json'
+      - 'app/horizon-playable/HORIZON_YEAR_ONE_V4251.json'
+      - 'app/horizon-playable/horizon-v2.js'
+      - 'app/horizon/app.js'
       - '.github/workflows/horizon-unreal-source-gate.yml'
   pull_request:
     paths:
       - 'unreal/BridgePointHorizon/**'
       - 'app/horizon-playable/HORIZON_GAME_MODES_V4243.json'
+      - 'app/horizon-playable/HORIZON_YEAR_ONE_V4251.json'
+      - 'app/horizon-playable/horizon-v2.js'
+      - 'app/horizon/app.js'
       - '.github/workflows/horizon-unreal-source-gate.yml'
 
 jobs:
@@ -22,5 +28,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Validate Horizon Unreal source
         run: python unreal/BridgePointHorizon/Scripts/validate_horizon_source.py
+      - name: Validate Year One web runtime syntax
+        run: |
+          node --check app/horizon/app.js
+          node --check app/horizon-playable/horizon-v2.js
+          node --check app/horizon/runtime-contract.js
+          node -e "JSON.parse(require('fs').readFileSync('app/horizon-playable/HORIZON_GAME_MODES_V4243.json','utf8'));JSON.parse(require('fs').readFileSync('app/horizon-playable/HORIZON_YEAR_ONE_V4251.json','utf8'));"
+          grep -Fq 'bridgepoint_horizon_year_one_checkpoint_v4336' app/horizon-playable/horizon-v2.js
+          grep -Fq 'pickupDwellSeconds:3' app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_year_one_enter_v4336' app/horizon/app.js

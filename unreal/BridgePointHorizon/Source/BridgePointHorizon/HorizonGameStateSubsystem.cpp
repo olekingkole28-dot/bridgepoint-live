@@ -15,6 +15,12 @@ void UHorizonGameStateSubsystem::Initialize(FSubsystemCollectionBase& Collection
     YearOne.bEliminated = false;
 
     LoadYearOneState();
+
+    const FDateTime ScheduledStart = GetScheduledYearOneStartUtc();
+    if (!YearOne.bStarted && FDateTime::UtcNow() >= ScheduledStart)
+    {
+        StartYearOneEvent(ScheduledStart);
+    }
 }
 
 void UHorizonGameStateSubsystem::LoadYearOneState()
@@ -145,16 +151,26 @@ int32 UHorizonGameStateSubsystem::GetMaxPartySize() const
     return GetCurrentModeRules().MaxPartySize;
 }
 
+FDateTime UHorizonGameStateSubsystem::GetScheduledYearOneStartUtc() const
+{
+    // October 1, 2026 00:00 America/New_York is 04:00 UTC (EDT).
+    return FDateTime(2026, 10, 1, 4, 0, 0);
+}
+
 bool UHorizonGameStateSubsystem::StartYearOneEvent(FDateTime StartUtc)
 {
-    // Hard owner gate: the live year cannot start merely because UI/gameplay code calls this.
-    if (!bOwnerAuthorizedYearOneStart || YearOne.bStarted || !StartUtc.GetTicks())
+    const FDateTime ScheduledStart = GetScheduledYearOneStartUtc();
+    const FDateTime NowUtc = FDateTime::UtcNow();
+
+    // Keep the public method for Blueprint/save compatibility, but never allow an
+    // early/manual launch and never allow callers to move the owner-scheduled date.
+    if (YearOne.bStarted || NowUtc < ScheduledStart)
     {
         return false;
     }
 
     YearOne.bStarted = true;
-    YearOne.StartUtc = StartUtc;
+    YearOne.StartUtc = ScheduledStart;
     YearOne.DurationDays = 365;
     YearOne.LivesRemaining = 3;
     YearOne.bEliminated = false;

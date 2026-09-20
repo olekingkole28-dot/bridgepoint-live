@@ -43,3 +43,15 @@
  .miniMap{top:150px;width:100px;height:100px}.weaponBar{left:50%;max-width:55vw;overflow:hidden}.weaponSlot{min-width:42px}
 }
 @media(pointer:fine){.utilityRail{right:18px;bottom:178px}.utilityRail button:not(#utilityToggle){display:block}#utilityToggle{display:none!important}.weaponBar{bottom:12px}}
+
+/* YEAR ONE PVE V4336 */
+.vitals{display:grid;gap:4px;margin-top:8px;width:min(260px,72vw)}
+.vital{display:grid;grid-template-columns:18px 1fr 30px;align-items:center;gap:6px;padding:4px 6px;border-radius:8px;background:rgba(0,0,0,.26);border:1px solid rgba(255,255,255,.08)}
+.vital-icon{font-size:11px;text-align:center}
+.vital-track{height:7px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,.65)}
+.vital-track i{display:block;height:100%;width:0;border-radius:inherit;transition:width .16s linear}
+.health-vital .vital-icon,.health-vital b{color:#ff6d72}.health-vital .vital-track i{background:linear-gradient(90deg,#d74750,#ff777c)}
+.shield-vital .vital-icon,.shield-vital b{color:#67caff}.shield-vital .vital-track i{background:linear-gradient(90deg,#318fd8,#76d7ff)}
+.vital b{font-size:9px;text-align:right;font-variant-numeric:tabular-nums}
+.vital.hit{animation:vitalHit .24s ease-out}
+@keyframes vitalHit{50%{transform:scale(1.02);filter:brightness(1.5)}}

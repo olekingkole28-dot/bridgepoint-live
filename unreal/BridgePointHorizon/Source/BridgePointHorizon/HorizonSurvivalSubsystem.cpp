@@ -36,6 +36,7 @@ float UHorizonSurvivalSubsystem::GetItemUnitWeightKg(FName ItemKey)
     if (ItemKey == TEXT("clean_water")) return 1.00f;
     if (ItemKey == TEXT("ration")) return 0.40f;
     if (ItemKey == TEXT("bandage")) return 0.15f;
+    if (ItemKey == TEXT("shield_plate")) return 0.80f;
     if (ItemKey == TEXT("campfire_kit")) return 4.20f;
     if (ItemKey == TEXT("water_filter")) return 0.80f;
     if (ItemKey == TEXT("repair_kit")) return 1.80f;
@@ -198,6 +199,7 @@ FHorizonSurvivalState UHorizonSurvivalSubsystem::GetSurvivalState() const
         Result.Hunger01 = State->Hunger01;
         Result.Thirst01 = State->Thirst01;
         Result.Health01 = State->Health01;
+        Result.ShieldPoints = FMath::Clamp(State->ShieldPoints, 0, 100);
         Result.CarriedWeightKg = ComputeInventoryWeightKg(State->Inventory);
     }
     return Result;
@@ -470,6 +472,53 @@ void UHorizonSurvivalSubsystem::AdvanceSurvivalHours(
     BroadcastChanged();
 }
 
+bool UHorizonSurvivalSubsystem::ApplyMonsterHit(int32 DamagePoints)
+{
+    if (!State || DamagePoints <= 0)
+    {
+        return State && State->Health01 > KINDA_SMALL_NUMBER;
+    }
+
+    int32 Remaining = DamagePoints;
+    const int32 Absorbed = FMath::Min(FMath::Clamp(State->ShieldPoints, 0, 100), Remaining);
+    State->ShieldPoints -= Absorbed;
+    Remaining -= Absorbed;
+
+    if (Remaining > 0)
+    {
+        int32 HealthPoints = FMath::Clamp(FMath::RoundToInt(State->Health01 * 100.0f), 0, 100);
+        HealthPoints = FMath::Max(0, HealthPoints - Remaining);
+        State->Health01 = static_cast<float>(HealthPoints) / 100.0f;
+    }
+
+    SaveState();
+    BroadcastChanged();
+    return State->Health01 > KINDA_SMALL_NUMBER;
+}
+
+int32 UHorizonSurvivalSubsystem::AddShieldPickup(int32 Points)
+{
+    if (!State || Points <= 0)
+    {
+        return State ? FMath::Clamp(State->ShieldPoints, 0, 100) : 0;
+    }
+
+    State->ShieldPoints = FMath::Clamp(State->ShieldPoints + Points, 0, 100);
+    SaveState();
+    BroadcastChanged();
+    return State->ShieldPoints;
+}
+
+int32 UHorizonSurvivalSubsystem::GetCombinedCombatPoints() const
+{
+    if (!State)
+    {
+        return 100;
+    }
+    const int32 HealthPoints = FMath::Clamp(FMath::RoundToInt(State->Health01 * 100.0f), 0, 100);
+    return HealthPoints + FMath::Clamp(State->ShieldPoints, 0, 100);
+}
+
 void UHorizonSurvivalSubsystem::ResetForNewSurvivor()
 {
     if (!State)
@@ -485,6 +534,7 @@ void UHorizonSurvivalSubsystem::ResetForNewSurvivor()
     State->Hunger01 = 1.0f;
     State->Thirst01 = 1.0f;
     State->Health01 = 1.0f;
+    State->ShieldPoints = 0;
     SaveState();
     BroadcastChanged();
 }
