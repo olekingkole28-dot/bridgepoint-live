@@ -18,7 +18,8 @@ enum class EHorizonSourceRoofProfile : uint8
     Skillion,
     Mansard,
     Gambrel,
-    HalfHipped
+    HalfHipped,
+    Round
 };
 
 UCLASS(BlueprintType)
@@ -134,6 +135,9 @@ public:
         const TArray<FVector2D>& Footprint);
 
     static TArray<FVector2D> ResolveHalfHippedProfilePoints(
+        const TArray<FVector2D>& Footprint);
+
+    static TArray<FVector2D> ResolveRoundRoofProfilePoints(
         const TArray<FVector2D>& Footprint);
 
     static double ResolveSourceRoofHeightMeters(
