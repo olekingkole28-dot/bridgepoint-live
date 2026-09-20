@@ -438,6 +438,15 @@ EHorizonSourceRoofProfile AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
         return EHorizonSourceRoofProfile::Hipped;
     }
     if (FootprintVertexCount == 4 &&
+        (NormalizedShape == TEXT("half-hipped") ||
+         NormalizedShape == TEXT("half hipped") ||
+         NormalizedShape == TEXT("halfhipped") ||
+         NormalizedShape == TEXT("jerkinhead") ||
+         NormalizedShape == TEXT("clipped gable")))
+    {
+        return EHorizonSourceRoofProfile::HalfHipped;
+    }
+    if (FootprintVertexCount == 4 &&
         (NormalizedShape == TEXT("skillion") ||
          NormalizedShape == TEXT("shed") ||
          NormalizedShape == TEXT("shed roof")))
@@ -578,6 +587,45 @@ TArray<FVector2D> AHorizonWorldCellRenderer::ResolveGambrelProfilePoints(
     Points.Add(FMath::Lerp(Footprint[B0], Footprint[B1], 0.72f));
     Points.Add((Footprint[A0] + Footprint[A1]) * 0.5f);
     Points.Add((Footprint[B0] + Footprint[B1]) * 0.5f);
+    return Points;
+}
+
+TArray<FVector2D> AHorizonWorldCellRenderer::ResolveHalfHippedProfilePoints(
+    const TArray<FVector2D>& Footprint)
+{
+    TArray<FVector2D> Points;
+    if (ResolveMansardInsetFootprint(Footprint).Num() != 4)
+    {
+        return Points;
+    }
+
+    const double FirstEdgeSquared =
+        FVector2D::DistSquared(Footprint[0], Footprint[1]);
+    const double SecondEdgeSquared =
+        FVector2D::DistSquared(Footprint[1], Footprint[2]);
+    if (!FMath::IsFinite(FirstEdgeSquared) ||
+        !FMath::IsFinite(SecondEdgeSquared) ||
+        FirstEdgeSquared <= 1.0e-16 ||
+        SecondEdgeSquared <= 1.0e-16)
+    {
+        return Points;
+    }
+
+    const bool bFirstEdgeIsShorter = FirstEdgeSquared <= SecondEdgeSquared;
+    const int32 A0 = bFirstEdgeIsShorter ? 0 : 1;
+    const int32 A1 = bFirstEdgeIsShorter ? 1 : 2;
+    const int32 B0 = bFirstEdgeIsShorter ? 3 : 0;
+    const int32 B1 = bFirstEdgeIsShorter ? 2 : 3;
+    const FVector2D EndA = (Footprint[A0] + Footprint[A1]) * 0.5f;
+    const FVector2D EndB = (Footprint[B0] + Footprint[B1]) * 0.5f;
+
+    // The clipped gable follows the source footprint's longest axis. The two
+    // ridge endpoints are deterministically inset from the short-edge midpoints.
+    Points.Reserve(4);
+    Points.Add(EndA);
+    Points.Add(EndB);
+    Points.Add(FMath::Lerp(EndA, EndB, 0.16f));
+    Points.Add(FMath::Lerp(EndB, EndA, 0.16f));
     return Points;
 }
 
@@ -1222,12 +1270,18 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                 RoofProfile == EHorizonSourceRoofProfile::Gambrel
                     ? ResolveGambrelProfilePoints(Ring)
                     : TArray<FVector2D>();
+            const TArray<FVector2D> HalfHippedPoints =
+                RoofProfile == EHorizonSourceRoofProfile::HalfHipped
+                    ? ResolveHalfHippedProfilePoints(Ring)
+                    : TArray<FVector2D>();
             if ((RoofProfile == EHorizonSourceRoofProfile::Skillion &&
                  (SkillionHighEdge.X < 0 || SkillionHighEdge.Y < 0)) ||
                 (RoofProfile == EHorizonSourceRoofProfile::Mansard &&
                  MansardInset.Num() != 4) ||
                 (RoofProfile == EHorizonSourceRoofProfile::Gambrel &&
-                 GambrelPoints.Num() != 6))
+                 GambrelPoints.Num() != 6) ||
+                (RoofProfile == EHorizonSourceRoofProfile::HalfHipped &&
+                 HalfHippedPoints.Num() != 4))
             {
                 ProfileRoofHeightMeters = 0.0;
             }
@@ -1384,6 +1438,65 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                     AddRoofTriangle(RoofBase + 2, RidgeBIndex, RidgeAIndex);
                     AddRoofTriangle(RoofBase + 3, RoofBase + 0, RidgeBIndex);
                 }
+                ++RenderedProfiledRoofCount;
+            }
+            else if (ProfileRoofHeightMeters > 0.0 &&
+                RoofProfile == EHorizonSourceRoofProfile::HalfHipped &&
+                Top.Num() == 4 &&
+                HalfHippedPoints.Num() == 4)
+            {
+                // A source-backed half-hip adds two clipped-gable shoulders and
+                // two inset ridge endpoints: four bounded vertices in the existing
+                // mesh section, with no additional draw section or collision body.
+                const double ClipMeters =
+                    WallTopMeters + ProfileRoofHeightMeters * 0.62;
+                const int32 HalfHipBase = Vertices.Num();
+                for (int32 Index = 0; Index < HalfHippedPoints.Num(); ++Index)
+                {
+                    const double PointHeight = Index < 2 ? ClipMeters : TopMeters;
+                    const FVector Point = ProjectCoordinate(
+                        HalfHippedPoints[Index].X,
+                        HalfHippedPoints[Index].Y,
+                        PointHeight);
+                    Vertices.Add(Point);
+                    UV0.Add(FVector2D(Point.X * 0.001f, Point.Y * 0.001f));
+                }
+
+                const bool bFirstEdgeIsShorter =
+                    FVector2D::Distance(LocalPolygon[0], LocalPolygon[1]) <=
+                    FVector2D::Distance(LocalPolygon[1], LocalPolygon[2]);
+                const int32 A0 = bFirstEdgeIsShorter ? 0 : 1;
+                const int32 A1 = bFirstEdgeIsShorter ? 1 : 2;
+                const int32 B0 = bFirstEdgeIsShorter ? 3 : 0;
+                const int32 B1 = bFirstEdgeIsShorter ? 2 : 3;
+                const int32 ClipA = HalfHipBase + 0;
+                const int32 ClipB = HalfHipBase + 1;
+                const int32 RidgeA = HalfHipBase + 2;
+                const int32 RidgeB = HalfHipBase + 3;
+                const bool bClockwise =
+                    HorizonCellRender::SignedArea(LocalPolygon) < 0.0f;
+                auto AddHalfHipTriangle = [&](int32 A, int32 B, int32 C)
+                {
+                    Triangles.Add(bClockwise ? C : A);
+                    Triangles.Add(B);
+                    Triangles.Add(bClockwise ? A : C);
+                };
+                auto AddHalfHipQuad = [&](int32 A, int32 B, int32 C, int32 D)
+                {
+                    AddHalfHipTriangle(A, B, C);
+                    AddHalfHipTriangle(A, C, D);
+                };
+
+                AddHalfHipQuad(
+                    RoofBase + A0, RoofBase + B0, RidgeB, RidgeA);
+                AddHalfHipQuad(
+                    RoofBase + A1, RidgeA, RidgeB, RoofBase + B1);
+                AddHalfHipTriangle(RoofBase + A0, RoofBase + A1, ClipA);
+                AddHalfHipTriangle(RoofBase + A0, ClipA, RidgeA);
+                AddHalfHipTriangle(ClipA, RoofBase + A1, RidgeA);
+                AddHalfHipTriangle(RoofBase + B0, ClipB, RoofBase + B1);
+                AddHalfHipTriangle(RoofBase + B0, RidgeB, ClipB);
+                AddHalfHipTriangle(ClipB, RidgeB, RoofBase + B1);
                 ++RenderedProfiledRoofCount;
             }
             else if (ProfileRoofHeightMeters > 0.0 &&
