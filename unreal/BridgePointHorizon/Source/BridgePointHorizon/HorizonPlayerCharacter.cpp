@@ -495,6 +495,9 @@ void AHorizonPlayerCharacter::OnMovementModeChanged(
     UCharacterMovementComponent* Move = GetCharacterMovement();
     if (Move && Move->IsSwimming())
     {
+        const float EntrySpeed = FMath::Max(
+            PeakDownwardSpeedCmPerSecond,
+            FMath::Abs(GetVelocity().Z));
         bSwimUsesProneCapsule = MovementStance == EHorizonMovementStance::Prone;
         bSprinting = false;
         bAiming = false;
@@ -514,6 +517,11 @@ void AHorizonPlayerCharacter::OnMovementModeChanged(
             WeaponRuntime->StopFire();
         }
         RefreshMovementProfile();
+        EmitTraversalAudio(
+            EHorizonTraversalAudioCue::WaterEntry,
+            FMath::Clamp(EntrySpeed / 900.0f, 0.25f, 1.0f),
+            EHorizonFootstepSurface::ShallowWater);
+        PeakDownwardSpeedCmPerSecond = 0.0f;
         return;
     }
 
@@ -533,12 +541,44 @@ void AHorizonPlayerCharacter::OnMovementModeChanged(
         }
         bSwimUsesProneCapsule = false;
         RefreshMovementProfile();
+        EmitTraversalAudio(
+            EHorizonTraversalAudioCue::WaterExit,
+            0.55f,
+            EHorizonFootstepSurface::ShallowWater);
     }
+}
+
+void AHorizonPlayerCharacter::Landed(const FHitResult& Hit)
+{
+    const float ImpactSpeed = FMath::Max(
+        PeakDownwardSpeedCmPerSecond,
+        FMath::Abs(GetVelocity().Z));
+    Super::Landed(Hit);
+
+    const float LandingIntensity = FMath::GetMappedRangeValueClamped(
+        FVector2D(220.0f, 1050.0f),
+        FVector2D(0.18f, 1.0f),
+        ImpactSpeed);
+    EmitTraversalAudio(
+        EHorizonTraversalAudioCue::Land,
+        LandingIntensity,
+        ResolveGroundAudioSurface(&Hit));
+    PeakDownwardSpeedCmPerSecond = 0.0f;
 }
 
 void AHorizonPlayerCharacter::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+
+    if (const UCharacterMovementComponent* Move = GetCharacterMovement())
+    {
+        if (Move->IsFalling() && FMath::IsFinite(GetVelocity().Z))
+        {
+            PeakDownwardSpeedCmPerSecond = FMath::Max(
+                PeakDownwardSpeedCmPerSecond,
+                FMath::Max(0.0f, -GetVelocity().Z));
+        }
+    }
 
     TryEnableWorldGravity(DeltaSeconds);
     UpdateTraversalState(DeltaSeconds);
@@ -554,6 +594,90 @@ void AHorizonPlayerCharacter::Tick(float DeltaSeconds)
     }
     UpdateLean(DeltaSeconds);
     UpdateCameraPresentation(DeltaSeconds);
+}
+
+EHorizonFootstepSurface AHorizonPlayerCharacter::ResolveGroundAudioSurface(
+    const FHitResult* KnownHit) const
+{
+    auto ResolveFromHit = [](const FHitResult& Hit)
+    {
+        if (const UPhysicalMaterial* PhysicalMaterial = Hit.PhysMaterial.Get())
+        {
+            return UHorizonAudioDirectorSubsystem::ResolveFootstepSurfaceName(
+                PhysicalMaterial->GetFName());
+        }
+        if (const UPrimitiveComponent* HitComponent = Hit.GetComponent())
+        {
+            for (const FName& Tag : HitComponent->ComponentTags)
+            {
+                const EHorizonFootstepSurface TaggedSurface =
+                    UHorizonAudioDirectorSubsystem::ResolveFootstepSurfaceName(Tag);
+                if (TaggedSurface != EHorizonFootstepSurface::Concrete ||
+                    Tag.ToString().Contains(TEXT("concrete"), ESearchCase::IgnoreCase))
+                {
+                    return TaggedSurface;
+                }
+            }
+        }
+        return EHorizonFootstepSurface::Concrete;
+    };
+
+    if (KnownHit)
+    {
+        return ResolveFromHit(*KnownHit);
+    }
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return EHorizonFootstepSurface::Concrete;
+    }
+
+    FHitResult GroundHit;
+    FCollisionQueryParams QueryParams(
+        SCENE_QUERY_STAT(HorizonGroundAudioSurface),
+        false,
+        this);
+    QueryParams.bReturnPhysicalMaterial = true;
+    const float CapsuleHalfHeight = GetCapsuleComponent()
+        ? GetCapsuleComponent()->GetScaledCapsuleHalfHeight()
+        : 90.0f;
+    const FVector TraceStart = GetActorLocation();
+    const FVector TraceEnd =
+        TraceStart - FVector(0.0f, 0.0f, CapsuleHalfHeight + 45.0f);
+    return World->LineTraceSingleByChannel(
+        GroundHit,
+        TraceStart,
+        TraceEnd,
+        ECC_Visibility,
+        QueryParams)
+        ? ResolveFromHit(GroundHit)
+        : EHorizonFootstepSurface::Concrete;
+}
+
+void AHorizonPlayerCharacter::EmitTraversalAudio(
+    EHorizonTraversalAudioCue Cue,
+    float Intensity01,
+    EHorizonFootstepSurface Surface)
+{
+    UGameInstance* GameInstance = GetGameInstance();
+    UHorizonAudioDirectorSubsystem* Audio = GameInstance
+        ? GameInstance->GetSubsystem<UHorizonAudioDirectorSubsystem>()
+        : nullptr;
+    if (!Audio)
+    {
+        return;
+    }
+
+    ++TraversalAudioSequence;
+    Audio->EmitTraversalAudio(
+        Cue,
+        Surface,
+        Intensity01,
+        0.0f,
+        false,
+        GetActorLocation(),
+        TraversalAudioSequence);
 }
 
 void AHorizonPlayerCharacter::UpdateFootstepAudio(float DeltaSeconds)
@@ -598,55 +722,7 @@ void AHorizonPlayerCharacter::UpdateFootstepAudio(float DeltaSeconds)
         return;
     }
 
-    EHorizonFootstepSurface Surface = EHorizonFootstepSurface::Concrete;
-    if (UWorld* World = GetWorld())
-    {
-        FHitResult GroundHit;
-        FCollisionQueryParams QueryParams(
-            SCENE_QUERY_STAT(HorizonFootstepSurface),
-            false,
-            this);
-        QueryParams.bReturnPhysicalMaterial = true;
-
-        const float CapsuleHalfHeight = GetCapsuleComponent()
-            ? GetCapsuleComponent()->GetScaledCapsuleHalfHeight()
-            : 90.0f;
-        const FVector TraceStart = GetActorLocation();
-        const FVector TraceEnd =
-            TraceStart - FVector(0.0f, 0.0f, CapsuleHalfHeight + 45.0f);
-        if (World->LineTraceSingleByChannel(
-                GroundHit,
-                TraceStart,
-                TraceEnd,
-                ECC_Visibility,
-                QueryParams))
-        {
-            if (const UPhysicalMaterial* PhysicalMaterial =
-                    GroundHit.PhysMaterial.Get())
-            {
-                Surface =
-                    UHorizonAudioDirectorSubsystem::ResolveFootstepSurfaceName(
-                        PhysicalMaterial->GetFName());
-            }
-            else if (const UPrimitiveComponent* HitComponent =
-                         GroundHit.GetComponent())
-            {
-                for (const FName& Tag : HitComponent->ComponentTags)
-                {
-                    const EHorizonFootstepSurface TaggedSurface =
-                        UHorizonAudioDirectorSubsystem::
-                            ResolveFootstepSurfaceName(Tag);
-                    if (TaggedSurface != EHorizonFootstepSurface::Concrete ||
-                        Tag.ToString().Contains(TEXT("concrete"),
-                            ESearchCase::IgnoreCase))
-                    {
-                        Surface = TaggedSurface;
-                        break;
-                    }
-                }
-            }
-        }
-    }
+    const EHorizonFootstepSurface Surface = ResolveGroundAudioSurface();
 
     UGameInstance* GameInstance = GetGameInstance();
     UHorizonAudioDirectorSubsystem* Audio = GameInstance
@@ -728,7 +804,15 @@ void AHorizonPlayerCharacter::StartTraversalJump()
     }
 
     MovementStance = EHorizonMovementStance::Standing;
+    const bool bCanJump = CanJump();
     Jump();
+    if (bCanJump)
+    {
+        EmitTraversalAudio(
+            EHorizonTraversalAudioCue::Jump,
+            0.55f,
+            ResolveGroundAudioSurface());
+    }
 }
 
 void AHorizonPlayerCharacter::StopTraversalJump()
@@ -901,6 +985,13 @@ bool AHorizonPlayerCharacter::TryStartVault()
     Move->StopMovementImmediately();
     Move->SetMovementMode(MOVE_Flying);
     RefreshMovementProfile();
+    EmitTraversalAudio(
+        EHorizonTraversalAudioCue::Vault,
+        FMath::Clamp(
+            ObstacleHeight / FMath::Max(1.0f, VaultMaximumHeightCm),
+            0.35f,
+            1.0f),
+        ResolveGroundAudioSurface(&ObstacleTopHit));
     return true;
 }
 
@@ -1350,6 +1441,13 @@ void AHorizonPlayerCharacter::StartSlide()
     Move->Velocity.X = SlideDirection.X * EntrySpeed;
     Move->Velocity.Y = SlideDirection.Y * EntrySpeed;
     RefreshMovementProfile();
+    EmitTraversalAudio(
+        EHorizonTraversalAudioCue::Slide,
+        FMath::Clamp(
+            EntrySpeed / FMath::Max(1.0f, SprintSpeed),
+            0.35f,
+            1.0f),
+        ResolveGroundAudioSurface());
 }
 
 void AHorizonPlayerCharacter::UpdateTraversalState(float DeltaSeconds)
