@@ -969,6 +969,112 @@ FHorizonFootstepMix UHorizonAudioDirectorSubsystem::GetFootstepMix(
     return Mix;
 }
 
+int32 UHorizonAudioDirectorSubsystem::ConsumeFootstepDistance(
+    float DistanceDeltaCm,
+    float StrideLengthCm,
+    int32 MaxStepsPerFrame,
+    float& InOutAccumulatedDistanceCm)
+{
+    if (!FMath::IsFinite(DistanceDeltaCm) ||
+        !FMath::IsFinite(StrideLengthCm) ||
+        !FMath::IsFinite(InOutAccumulatedDistanceCm) ||
+        DistanceDeltaCm <= 0.0f ||
+        StrideLengthCm <= KINDA_SMALL_NUMBER ||
+        MaxStepsPerFrame <= 0)
+    {
+        InOutAccumulatedDistanceCm = FMath::Max(
+            0.0f,
+            FMath::IsFinite(InOutAccumulatedDistanceCm)
+                ? InOutAccumulatedDistanceCm
+                : 0.0f);
+        return 0;
+    }
+
+    const float BoundedDelta =
+        FMath::Min(DistanceDeltaCm, StrideLengthCm * MaxStepsPerFrame);
+    InOutAccumulatedDistanceCm =
+        FMath::Max(0.0f, InOutAccumulatedDistanceCm) + BoundedDelta;
+
+    const int32 DueSteps = FMath::Min(
+        FMath::FloorToInt(InOutAccumulatedDistanceCm / StrideLengthCm),
+        MaxStepsPerFrame);
+    InOutAccumulatedDistanceCm -= DueSteps * StrideLengthCm;
+    InOutAccumulatedDistanceCm = FMath::Clamp(
+        InOutAccumulatedDistanceCm,
+        0.0f,
+        FMath::Max(0.0f, StrideLengthCm - KINDA_SMALL_NUMBER));
+    return DueSteps;
+}
+
+EHorizonFootstepSurface UHorizonAudioDirectorSubsystem::ResolveFootstepSurfaceName(
+    FName SurfaceName)
+{
+    const FString Normalized = SurfaceName.ToString().ToLower();
+    if (Normalized.Contains(TEXT("asphalt")) ||
+        Normalized.Contains(TEXT("road")) ||
+        Normalized.Contains(TEXT("tarmac")))
+    {
+        return EHorizonFootstepSurface::Asphalt;
+    }
+    if (Normalized.Contains(TEXT("dirt")) ||
+        Normalized.Contains(TEXT("mud")) ||
+        Normalized.Contains(TEXT("soil")) ||
+        Normalized.Contains(TEXT("gravel")))
+    {
+        return EHorizonFootstepSurface::Dirt;
+    }
+    if (Normalized.Contains(TEXT("grass")) ||
+        Normalized.Contains(TEXT("vegetation")))
+    {
+        return EHorizonFootstepSurface::Grass;
+    }
+    if (Normalized.Contains(TEXT("metal")) ||
+        Normalized.Contains(TEXT("steel")))
+    {
+        return EHorizonFootstepSurface::Metal;
+    }
+    if (Normalized.Contains(TEXT("wood")) ||
+        Normalized.Contains(TEXT("timber")))
+    {
+        return EHorizonFootstepSurface::Wood;
+    }
+    if (Normalized.Contains(TEXT("water")) ||
+        Normalized.Contains(TEXT("puddle")))
+    {
+        return EHorizonFootstepSurface::ShallowWater;
+    }
+    if (Normalized.Contains(TEXT("snow")) ||
+        Normalized.Contains(TEXT("ice")))
+    {
+        return EHorizonFootstepSurface::Snow;
+    }
+    return EHorizonFootstepSurface::Concrete;
+}
+
+FHorizonFootstepEvent UHorizonAudioDirectorSubsystem::EmitFootstep(
+    EHorizonFootstepSurface Surface,
+    float MovementSpeed01,
+    bool bCrouched,
+    FVector WorldLocation,
+    int32 Sequence)
+{
+    FHorizonFootstepEvent Event;
+    Event.Surface = Surface;
+    Event.Mix = GetFootstepMix(Surface, MovementSpeed01, bCrouched);
+    Event.WorldLocation = WorldLocation;
+    Event.Sequence = FMath::Max(0, Sequence);
+    Event.bLeftFoot = (Event.Sequence % 2) == 0;
+
+    FRandomStream Variation(
+        Event.Sequence * 3571 + static_cast<int32>(Surface) * 193);
+    Event.Mix.Pitch *= Variation.FRandRange(0.975f, 1.025f);
+    Event.Mix.Volume *= Variation.FRandRange(0.97f, 1.03f);
+    Event.Mix.Pitch = FMath::Clamp(Event.Mix.Pitch, 0.88f, 1.14f);
+    Event.Mix.Volume = FMath::Clamp(Event.Mix.Volume, 0.0f, 1.30f);
+    OnFootstepEmitted.Broadcast(Event);
+    return Event;
+}
+
 FHorizonCreatureVocalMix UHorizonAudioDirectorSubsystem::GetCreatureVocalMix(
     EHorizonCreatureVocalArchetype Archetype,
     EHorizonCreatureVocalIntent Intent,

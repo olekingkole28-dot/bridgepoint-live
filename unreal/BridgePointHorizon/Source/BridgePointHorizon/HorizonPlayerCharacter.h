@@ -329,6 +329,8 @@ private:
     bool bWaitingForStreamedTerrain = true;
     float TerrainProbeAccumulator = 0.0f;
     float MovementProfileRefreshAccumulator = 0.0f;
+    float FootstepDistanceAccumulator = 0.0f;
+    int32 FootstepSequence = 0;
     float SwimVerticalInput = 0.0f;
     bool bSwimUsesProneCapsule = false;
     float StandingCapsuleHalfHeight = 0.0f;
@@ -358,6 +360,7 @@ private:
     void MoveForward(float Value);
     void MoveRight(float Value);
     void ApplyMovementInput(float DeltaSeconds);
+    void UpdateFootstepAudio(float DeltaSeconds);
     void SetLeanInput(float Value);
     void UpdateLean(float DeltaSeconds);
     float ProbeLeanObstruction(float LeanDirection) const;

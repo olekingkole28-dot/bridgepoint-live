@@ -297,7 +297,9 @@ for token in [
     "GetVehicleAudioMix", "BuildVehicleAudioMix", "DamageSputter01",
     "EHorizonFireAudioClass", "EHorizonWaterAudioClass",
     "FHorizonEnvironmentalEmitterMix", "GetFireEmitterMix",
-    "BuildFireEmitterMix", "GetWaterEmitterMix", "BuildWaterEmitterMix"
+    "BuildFireEmitterMix", "GetWaterEmitterMix", "BuildWaterEmitterMix",
+    "FHorizonFootstepEvent", "OnFootstepEmitted", "EmitFootstep",
+    "ConsumeFootstepDistance", "ResolveFootstepSurfaceName"
 ]:
     require(token in audio_header, f"AAA audio runtime contract missing: {token}")
 for token in [
@@ -331,7 +333,9 @@ for token in [
     "EHorizonCreatureVocalArchetype::Shambler", "EHorizonCreatureVocalArchetype::Screamer",
     "EHorizonCreatureVocalArchetype::Beast", "EHorizonCreatureVocalIntent::Attack",
     "EHorizonCreatureVocalIntent::Death", "FRandomStream Variation",
-    "GetSpatialCueMix(", "Seeded micro-variation"
+    "GetSpatialCueMix(", "Seeded micro-variation",
+    "OnFootstepEmitted.Broadcast", "MaxStepsPerFrame",
+    "Normalized.Contains(TEXT(\"puddle\"))"
 ]:
     require(token in audio, f"infected vocal direction behavior missing: {token}")
 require("Stripe" not in audio_header + audio and "Payment" not in audio_header + audio,
@@ -388,6 +392,19 @@ for token in [
     "Seeded water pitch is deterministic"
 ]:
     require(token in audio_tests, f"native fire/water emitter audio QA missing: {token}")
+for token in [
+    "Audio.Footsteps.RuntimeCadence",
+    "Sub-stride travel emits no footstep",
+    "Crossing one stride emits one footstep",
+    "Hitch catch-up is bounded to two footsteps",
+    "Hitch catch-up cannot retain a burst backlog",
+    "Road material resolves to asphalt",
+    "Puddle material resolves to shallow water",
+    "Unknown material safely defaults to concrete",
+    "Seeded runtime footstep pitch is deterministic",
+    "Footstep alternates left and right feet"
+]:
+    require(token in audio_tests, f"native runtime footstep QA missing: {token}")
 for token in [
     "Audio.Vehicles.RuntimeMix", "Stopped engine has no engine layer",
     "Road speed raises powertrain pitch", "Road speed introduces tire noise",
@@ -789,6 +806,13 @@ player_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/Horizo
 player = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonPlayerCharacter.cpp")
 for token in ["MovementSampleRateHz", "ReportCameraSpeedMps", "TryEnableWorldGravity", "StartSprint", "StartAim"]:
     require(token in player, f"native adaptive player feature missing: {token}")
+for token in [
+    "UpdateFootstepAudio(DeltaSeconds)", "Move->IsMovingOnGround()",
+    "ConsumeFootstepDistance", "bReturnPhysicalMaterial = true",
+    "ResolveFootstepSurfaceName", "Audio->EmitFootstep",
+    "StrideLengthCm", "MaxStepsPerFrame"
+]:
+    require(token in player_header + player, f"runtime footstep integration missing: {token}")
 for token in [
     "EquippedWeaponVisual", "EquipWeaponVisual", "WeaponHandSocketName",
     "FirstPersonArms", "FirstPersonWeaponVisual", "SetFirstPersonArmsMesh",
