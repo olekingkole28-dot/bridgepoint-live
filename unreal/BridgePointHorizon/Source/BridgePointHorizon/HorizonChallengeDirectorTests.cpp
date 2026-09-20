@@ -42,4 +42,48 @@ bool FHorizonChallengeSurvivalRewardIntegrationTest::RunTest(const FString& Para
     return true;
 }
 
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonRepeatableChallengeProgressTest,
+    "BridgePoint.Horizon.Systems.Challenges.RepeatableProgress",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonRepeatableChallengeProgressTest::RunTest(const FString& Parameters)
+{
+    TestEqual(TEXT("Ordinary progress advances toward target"),
+        UHorizonChallengeDirectorSubsystem::AdvanceProgressSafely(4, 3, 10), 7);
+    TestEqual(TEXT("Progress clamps exactly at target"),
+        UHorizonChallengeDirectorSubsystem::AdvanceProgressSafely(9, 50, 10), 10);
+    TestEqual(TEXT("Huge progress addition cannot overflow backward"),
+        UHorizonChallengeDirectorSubsystem::AdvanceProgressSafely(
+            MAX_int32 - 2, MAX_int32, MAX_int32), MAX_int32);
+    TestEqual(TEXT("Negative progress addition is rejected"),
+        UHorizonChallengeDirectorSubsystem::AdvanceProgressSafely(4, -50, 10), 4);
+
+    FHorizonChallengeRuntimeState Claimed;
+    Claimed.ChallengeId = TEXT("hospital-42|0");
+    Claimed.NPCSiteId = TEXT("hospital-42");
+    Claimed.Definition.TargetCount = 3;
+    Claimed.Progress = 3;
+    Claimed.bCompleted = true;
+    Claimed.bClaimed = true;
+    Claimed.CompletedRuns = 7;
+
+    const FHorizonChallengeRuntimeState Next =
+        UHorizonChallengeDirectorSubsystem::PrepareNextRun(Claimed);
+    TestEqual(TEXT("Repeatable challenge preserves stable NPC identity"),
+        Next.ChallengeId, Claimed.ChallengeId);
+    TestEqual(TEXT("Repeatable challenge clears prior progress"), Next.Progress, 0);
+    TestFalse(TEXT("Repeatable challenge begins incomplete"), Next.bCompleted);
+    TestFalse(TEXT("Repeatable challenge begins unclaimed"), Next.bClaimed);
+    TestEqual(TEXT("Completed-run history survives challenge reset"), Next.CompletedRuns, 7);
+
+    Claimed.bClaimed = false;
+    const FHorizonChallengeRuntimeState Active =
+        UHorizonChallengeDirectorSubsystem::PrepareNextRun(Claimed);
+    TestEqual(TEXT("Active unclaimed challenge is never reset"), Active.Progress, 3);
+    TestTrue(TEXT("Active completed challenge remains ready to claim"), Active.bCompleted);
+    return true;
+}
+
 #endif
