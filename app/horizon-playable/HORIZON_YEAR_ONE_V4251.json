@@ -1,12 +1,12 @@
 {
-  "schema_version": 5,
-  "build_target": 4340,
+  "schema_version": 6,
+  "build_target": 4341,
   "updated_at": "2026-09-20",
   "extends": [
     "HORIZON_GAME_MODES_V4243.json",
     "HORIZON_YEAR_ONE_V4250.json"
   ],
-  "authority": "OWNER_SCHEDULED_OCT_1_2026_V4340",
+  "authority": "OWNER_SCHEDULED_OCT_1_2026_V4341",
   "owner_directives": {
     "year_one_start_at": "2026-10-01T00:00:00-04:00",
     "launch_timezone": "America/New_York",
@@ -313,15 +313,18 @@
       "protect_b2b_catalog": true,
       "fixed_owner_spend_permission": false,
       "checkout_enabled": false,
-      "connection_requires_explicit_owner_approval": true
+      "connection_requires_explicit_owner_approval": true,
+      "tax_when_connected": true
     },
     "battle_pass": {
       "price_usd": 9.99,
       "currency": "usd",
       "billing": "one_time_per_pass",
-      "levels": 150,
+      "levels": 30,
       "free_track_always_available": true,
-      "pay_to_win": false
+      "pay_to_win": false,
+      "rotation": "MONTHLY",
+      "checkout_enabled": false
     },
     "store": {
       "categories": [
@@ -344,7 +347,22 @@
         "bundles": "6.99-14.99"
       },
       "weapon_rule": "paid weapon variants must be cosmetic or balance-safe sidegrades; meaningful combat power must remain obtainable through free gameplay",
-      "daily_free_items": true
+      "daily_free_items": true,
+      "rotation": "WEEKLY",
+      "permanent_year_one_life_products": [
+        {
+          "sku": "yearone_life_1",
+          "price_usd": 20,
+          "restore_lives": 1,
+          "checkout_enabled": false
+        },
+        {
+          "sku": "yearone_lives_3",
+          "price_usd": 50,
+          "restore_lives": 3,
+          "checkout_enabled": false
+        }
+      ]
     }
   },
   "five_worker_runtime": {
@@ -430,5 +448,12 @@
         "accessories"
       ]
     }
+  },
+  "owner_access": {
+    "platform_owner_accounts": 2,
+    "normal_gameplay_rules": true,
+    "admin_visibility": true,
+    "auto_grant_store_and_battle_pass_entitlements": true,
+    "grant_requires_linked_horizon_player_account": true
   }
 }
