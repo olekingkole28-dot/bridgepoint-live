@@ -1,4 +1,4 @@
-import{rpc,sessionKey,globe,refresh,globalVisible}from'/intelligence-global-v5507.js?v=5516';
+import{rpc,sessionKey,globe,refresh,globalVisible}from'/intelligence-global-v5507.js?v=5521';
 const S={map:null,surface:null,manifest:null,tool:null,timer:0,frame:0,path:null,pathIndex:0,scenario:'HURRICANE'};const $=id=>document.getElementById(id);const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function waitRuntime(){return new Promise((resolve,reject)=>{const t=Date.now();(function q(){const r=window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__;if(r&&r.map)return resolve(r);if(Date.now()-t>30000)return reject(new Error('Global runtime timeout'));setTimeout(q,120)})()})}
 async function allow(k){const r=await rpc('bridgepoint_intelligence_public_tool_allow_v5500',{p_session_key:sessionKey(),p_tool_key:k,p_surface:S.surface==='landing'?'WEBSITE':'APP'});if(!r.allowed){status('Free '+k+' limit reached today ('+r.uses+'/'+r.limit+').','LIMIT');return null}status(k.replaceAll('_',' ')+' active · '+r.remaining+' free uses remaining today.','FREE PREMIUM');return r}
