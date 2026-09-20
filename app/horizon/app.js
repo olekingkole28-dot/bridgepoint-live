@@ -718,6 +718,28 @@ $('modalContent').addEventListener('click',async e=>{
     const out=await rpc('bridgepoint_horizon_leaderboard_v4340',{p_metric:metric.dataset.leaderMetric,p_limit:25}).catch(()=>({leaders:[]}));
     const rows=$('leaderboardRows');if(rows)rows.innerHTML=leaderRows(out?.leaders||[]);return;
   }
+  const classBtn=e.target.closest('[data-save-tdm-class]');
+  if(classBtn){
+    if(!state.account){openModal('ACCOUNT');return}
+    const card=classBtn.closest('[data-class-card]'),slot=Number(classBtn.dataset.saveTdmClass),preset=classBtn.dataset.preset;
+    const primary=card?.querySelector('[data-custom-primary]')?.value||classBtn.dataset.primary;
+    const secondary=card?.querySelector('[data-custom-secondary]')?.value||classBtn.dataset.secondary;
+    const picked={primary:[]};
+    card?.querySelectorAll('[data-att]').forEach(sel=>{if(sel.value)picked.primary.push(sel.value)});
+    const defaults={
+      preset_smg:['SMOKE','GAS','FRAG'],preset_assault:['SMOKE','FLASH','FRAG'],preset_lmg:['GAS','SMOKE','FRAG'],
+      preset_sniper:['SMOKE','FLASH','FRAG'],preset_custom:['SMOKE','GAS','FRAG']
+    }[preset]||['SMOKE','GAS','FRAG'];
+    try{
+      const out=await rpc('bridgepoint_horizon_tdm_loadout_save_v4341',{
+        p_player_id:ident.id,p_player_secret:ident.secret,p_class_slot:slot,p_preset_key:preset,
+        p_primary_weapon_key:primary,p_secondary_weapon_key:secondary,p_tactical_1:defaults[0],p_tactical_2:defaults[1],
+        p_lethal:defaults[2],p_attachments:picked,p_selected:true
+      });
+      if(out?.ok){localStorage.setItem('horizon-tdm-class-v4341',String(slot));$('loadoutName').textContent='CLASS '+slot;status('TDM Class '+slot+' saved · 150 HP · attachments active');openModal('LOADOUTS')}
+    }catch(err){status(err.message)}
+    return;
+  }
   const storeEquip=e.target.closest('[data-store-equip]');
   if(storeEquip){
     const key=storeEquip.dataset.storeEquip,kind=storeEquip.dataset.storeKind;
