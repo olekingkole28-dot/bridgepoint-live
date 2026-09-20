@@ -332,6 +332,27 @@ struct FHorizonFootstepMix
 };
 
 USTRUCT(BlueprintType)
+struct FHorizonFootstepEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    EHorizonFootstepSurface Surface = EHorizonFootstepSurface::Concrete;
+
+    UPROPERTY(BlueprintReadOnly)
+    FHorizonFootstepMix Mix;
+
+    UPROPERTY(BlueprintReadOnly)
+    FVector WorldLocation = FVector::ZeroVector;
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 Sequence = 0;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bLeftFoot = false;
+};
+
+USTRUCT(BlueprintType)
 struct FHorizonCreatureVocalMix
 {
     GENERATED_BODY()
@@ -455,6 +476,10 @@ struct FHorizonAudioMixState
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FHorizonAudioStateChanged);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+    FHorizonFootstepEmitted,
+    const FHorizonFootstepEvent&,
+    Footstep);
 
 UCLASS()
 class BRIDGEPOINTHORIZON_API UHorizonAudioDirectorSubsystem : public UGameInstanceSubsystem
@@ -467,6 +492,9 @@ public:
 
     UPROPERTY(BlueprintAssignable)
     FHorizonAudioStateChanged OnAudioStateChanged;
+
+    UPROPERTY(BlueprintAssignable, Category="Horizon|Audio")
+    FHorizonFootstepEmitted OnFootstepEmitted;
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Audio")
     void SetAcousticSpace(EHorizonAcousticSpace NewSpace);
@@ -581,6 +609,22 @@ public:
         EHorizonFootstepSurface Surface,
         float MovementSpeed01,
         bool bCrouched) const;
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Audio")
+    FHorizonFootstepEvent EmitFootstep(
+        EHorizonFootstepSurface Surface,
+        float MovementSpeed01,
+        bool bCrouched,
+        FVector WorldLocation,
+        int32 Sequence);
+
+    static int32 ConsumeFootstepDistance(
+        float DistanceDeltaCm,
+        float StrideLengthCm,
+        int32 MaxStepsPerFrame,
+        float& InOutAccumulatedDistanceCm);
+
+    static EHorizonFootstepSurface ResolveFootstepSurfaceName(FName SurfaceName);
 
     UFUNCTION(BlueprintPure, Category="Horizon|Audio")
     FHorizonCreatureVocalMix GetCreatureVocalMix(
