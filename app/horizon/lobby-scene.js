@@ -181,6 +181,15 @@ export function createLobbyScene(canvas){
     const c=catalog.get(charKey)||catalog.values().next().value;
     if(!c)return null;
     const key=c.model_path;
+    if(String(key||'').startsWith('catalog://')){
+      const low=String(charKey||key).toLowerCase(),appearance={
+        skin_tone:low.includes('vanta')?'#6f4a3e':low.includes('moxie')?'#c78969':'#a96f50',
+        top_color:low.includes('cipher')?'#4b3d72':low.includes('riot')?'#783f35':low.includes('vanta')?'#26334d':'#245f55',
+        bottom_color:'#202831',hair_color:low.includes('nova')?'#d7b273':'#1d1612',eye_color:low.includes('cipher')?'#9b7cff':'#5ec8ff',
+        backpack:'TECH',headwear:low.includes('riot')?'CAP':'NONE',sunglasses:low.includes('vanta')?'VISOR':'NONE'
+      };
+      const root=stylizedLobbyAvatar({appearance,preset_key:charKey});if(zombie)tintModel(root,1,true);return root;
+    }
     let asset=cache.get(key);
     if(!asset){asset=await loadGltf(key);cache.set(key,asset)}
     const root=skeletonClone(asset.scene);
