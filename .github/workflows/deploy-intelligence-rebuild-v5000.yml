@@ -218,6 +218,14 @@ jobs:
           grep -Fq 'id="healthBar"' site/app/horizon-playable/v2-entry.html
           grep -Fq 'id="shieldBar"' site/app/horizon-playable/v2-entry.html
           grep -Fq 'id="backpackBar"' site/app/horizon-playable/v2-entry.html
+          grep -Fq 'id="movePad"' site/app/horizon-playable/v2-entry.html
+          grep -Fq 'id="moveKnob"' site/app/horizon-playable/v2-entry.html
+          grep -Fq 'BP_HORIZON_INPUT_V4341' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'touchMoveX' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'touchMoveY' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'setPointerCapture' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'pointercancel' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'lostpointercapture' site/app/horizon-playable/horizon-v2.js
           grep -Fq 'id="equipmentRail"' site/app/horizon-playable/v2-entry.html
           grep -Fq 'id="prematchFreeze"' site/app/horizon-playable/v2-entry.html
           grep -Fq 'data-tab="PARTY"' site/app/horizon/index.html
@@ -468,6 +476,8 @@ jobs:
           grep -Fq 'id="healthBar"' /tmp/horizon-playable.html
           grep -Fq 'id="shieldBar"' /tmp/horizon-playable.html
           grep -Fq 'id="backpackBar"' /tmp/horizon-playable.html
+          grep -Fq 'id="movePad"' /tmp/horizon-playable.html
+          grep -Fq 'id="moveKnob"' /tmp/horizon-playable.html
           grep -Fq 'id="equipmentRail"' /tmp/horizon-playable.html
           grep -Fq 'id="prematchFreeze"' /tmp/horizon-playable.html
           grep -Fq 'data-tab="PARTY"' /tmp/horizon.html
