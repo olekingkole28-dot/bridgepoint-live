@@ -132,7 +132,10 @@ public:
     FYearOneState GetYearOneState() const { return YearOne; }
 
     UFUNCTION(BlueprintPure, Category="Horizon|YearOne")
-    bool IsYearOneStartAuthorized() const { return bOwnerAuthorizedYearOneStart; }
+    bool IsYearOneStartAuthorized() const { return FDateTime::UtcNow() >= GetScheduledYearOneStartUtc(); }
+
+    UFUNCTION(BlueprintPure, Category="Horizon|YearOne")
+    FDateTime GetScheduledYearOneStartUtc() const;
 
     UFUNCTION(BlueprintPure, Category="Horizon|YearOne")
     int32 GetYearOneDay(FDateTime NowUtc) const;
@@ -155,8 +158,6 @@ public:
 private:
     static const TCHAR* YearOneSaveSlot;
 
-    UPROPERTY(Config)
-    bool bOwnerAuthorizedYearOneStart = false;
 
     UPROPERTY()
     EHorizonGameMode CurrentMode = EHorizonGameMode::YearOneSurvival;
