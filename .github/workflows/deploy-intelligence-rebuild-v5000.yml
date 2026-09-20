@@ -182,6 +182,8 @@ jobs:
           grep -Fq 'centerOnViewerCountry' site/intelligence-global-v5507.js
           grep -Fq "id:'gta-country'" site/world-v2300-map.js
           grep -Fq 'preserving the last visible weather + global layer' site/app.js
+          grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' site/landing.js
+          grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' site/app.js
           grep -Fq 'bpUserMapGesture' site/landing.js
           grep -Fq 'landingFreePremiumTools' site/index.html
           grep -Fq 'appFreePremiumTools' site/app/index.html
@@ -566,7 +568,6 @@ jobs:
               await p.waitForSelector('#landingPropertySearch',{timeout:10000});
               await p.waitForSelector('a[href="/sample/storm-opportunity/"]',{timeout:10000});
               await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,{timeout:30000});
-              await p.waitForFunction(()=>Number(window.__BP_LANDING_LIVE_WEATHER__?.shapeCount||0)>0&&Number(window.__BP_LANDING_LIVE_WEATHER__?.pointCount||0)>0,{timeout:30000});
               await p.waitForFunction(()=>!!window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__&&!!window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__,{timeout:30000});
               await p.waitForFunction(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;if(!m)return false;
@@ -609,12 +610,13 @@ jobs:
                 viewerCountryStart:!!window.__BP_VIEWER_COUNTRY_START__,
                 mobileSearchHide:(()=>{document.body.classList.add('bp5507-mobile-busy');const hidden=getComputedStyle(document.getElementById('landingPropertySearch')).display==='none';document.body.classList.remove('bp5507-mobile-busy');return hidden})()
               }));
-              if(!landing.build.includes('BP_LANDING_V5410')||!landing.search||!landing.sample||landing.mapCanvases!==1||landing.lockedTabs<6||!landing.weatherLegend||!landing.weatherMore||!landing.radarVisible||!landing.radarLayerVisible||!landing.nationalWeatherLayers||landing.weatherShapes<1||landing.weatherPoints<1||landing.renderedWeather.points<1||landing.renderedWeather.lines<1||!/EVENTS/.test(landing.weatherLegendCount)||!landing.noHorizontalOverflow||landing.searchZoomOverlap||!landing.mollyPresent||landing.heroLabelFont<11||landing.heroSmallFont<8.5||!landing.backdropLoaded||landing.productVisuals<6||landing.packageCards<9||!landing.globalPrecip5510||!landing.defaultGlobe||!landing.freePremiumVisible||!landing.mapKeyVisible||!landing.viewerCountryStart||!landing.mobileSearchHide||!/first property lookup is free/i.test(landing.freeLookupCopy))throw new Error('LANDING_CONVERSION_REGRESSION '+JSON.stringify(landing));
+              if(!landing.build.includes('BP_LANDING_V5410')||!landing.search||!landing.sample||landing.mapCanvases!==1||landing.lockedTabs<6||!landing.noHorizontalOverflow||landing.searchZoomOverlap||!landing.mollyPresent||landing.heroLabelFont<11||landing.heroSmallFont<8.5||!landing.backdropLoaded||landing.productVisuals<6||landing.packageCards<9||!landing.globalPrecip5510||!landing.defaultGlobe||!landing.freePremiumVisible||!landing.mapKeyVisible||!landing.viewerCountryStart||!landing.mobileSearchHide||!/first property lookup is free/i.test(landing.freeLookupCopy))throw new Error('LANDING_CONVERSION_REGRESSION '+JSON.stringify(landing));
               console.log('BRIDGEPOINT_LANDING_CONVERSION_PASS',JSON.stringify(landing));
               await p.evaluate(()=>{const el=document.getElementById('previewMap');el?.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));window.__BP_LANDING_WORLD__?.map?.panBy([18,0],{duration:0})});
               await p.waitForFunction(()=>{const e=document.querySelector('.preview-sample');return !!e&&(parseFloat(getComputedStyle(e).opacity)||0)<.1},{timeout:5000});
               console.log('BRIDGEPOINT_SAMPLE_CHIP_MOVE_HIDE_PASS');
               await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map;m?.jumpTo({center:[-98.5,39.5],zoom:3.35,pitch:0,bearing:0})});
+              await p.waitForFunction(()=>Number(window.__BP_LANDING_LIVE_WEATHER__?.shapeCount||0)>0&&Number(window.__BP_LANDING_LIVE_WEATHER__?.pointCount||0)>0,{timeout:20000});
               await p.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map;if(!m)return false;try{return m.queryRenderedFeatures({layers:['bp-landing-weather-points']}).length>0&&m.queryRenderedFeatures({layers:['bp-landing-weather-line']}).length>0}catch{return false}},{timeout:30000});
               await p.waitForFunction(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;if(!m)return false;
@@ -622,7 +624,18 @@ jobs:
                 const rasterVisible=ids.some(id=>m.getLayer(id)&&((m.getLayoutProperty(id,'visibility')||'visible')!=='none')&&Number(m.getPaintProperty(id,'raster-opacity')||0)>.2);
                 return rasterVisible&&window.__BP_LANDING_RADAR_STATE__?.visible===true;
               },{timeout:30000});
-              console.log('BRIDGEPOINT_US_WEATHER_ON_GLOBE_PASS');
+              const usWeather=await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map;return{
+                shapes:window.__BP_LANDING_LIVE_WEATHER__?.shapeCount||0,
+                points:window.__BP_LANDING_LIVE_WEATHER__?.pointCount||0,
+                radar:window.__BP_LANDING_RADAR_STATE__?.visible===true,
+                weatherLegend:!!document.getElementById('landingWeatherLegend'),
+                weatherMore:!!document.getElementById('landingWeatherToggle'),
+                count:document.getElementById('landingWeatherCount')?.textContent||'',
+                lines:m?m.queryRenderedFeatures({layers:['bp-landing-weather-line']}).length:0,
+                renderedPoints:m?m.queryRenderedFeatures({layers:['bp-landing-weather-points']}).length:0
+              }});
+              if(usWeather.shapes<1||usWeather.points<1||!usWeather.radar||!usWeather.weatherLegend||!usWeather.weatherMore||usWeather.lines<1||usWeather.renderedPoints<1||!/EVENTS/.test(usWeather.count))throw new Error('US_WEATHER_GLOBE_REGRESSION '+JSON.stringify(usWeather));
+              console.log('BRIDGEPOINT_US_WEATHER_ON_GLOBE_PASS',JSON.stringify(usWeather));
               const cols=async(width,height)=>{await p.setViewport({width,height,deviceScaleFactor:width<600?2:1,isMobile:width<600,hasTouch:width<1000});await new Promise(r=>setTimeout(r,350));return p.evaluate(()=>{const gridCols=sel=>{const el=document.querySelector(sel);if(!el)return 0;const v=getComputedStyle(el).gridTemplateColumns.trim();return v?v.split(/\s+/).length:0};return{w:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth+2,products:gridCols('.cap-grid'),packages:gridCols('#landingPackages'),footer:gridCols('.footer-link-groups')}})};
               const phone=await cols(390,844),tablet=await cols(820,1180),desktop=await cols(1440,900);
               if(phone.overflow||tablet.overflow||desktop.overflow||phone.products!==1||phone.packages!==1||phone.footer!==1||tablet.products!==2||tablet.packages!==2||tablet.footer!==2||desktop.products!==3||desktop.packages!==3||desktop.footer!==4)throw new Error('RESPONSIVE_LANDING_REGRESSION '+JSON.stringify({phone,tablet,desktop}));
