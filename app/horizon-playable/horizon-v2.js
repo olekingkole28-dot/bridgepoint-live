@@ -62,7 +62,7 @@ const waterAreas=[],zombieWallGroup=new THREE.Group(),sharedPlayerGroup=new THRE
 let cameraMode='first',crouched=false,prone=false,slideTime=0,verticalVelocity=0,airborne=false,interiorMode=false,activeInterior=null,rooftopState=null;
 let activeZipline=null,activeVehicle=null,audioCtx=null,audioMaster=null,audioCompressor=null,audioReverb=null,audioReverbGain=null,lastAudioEnvAt=0,lastFootstepAt=0,contextTarget=null;const audioBuses={},audioBufferCache=new Map();
 const buildingEntries=[],ziplines=[],vehicles=[],ambientFx=[],interiorRects=[];const exteriorReturn=new THREE.Vector3();let exteriorYaw=0;
-const WEAPONS=[
+let WEAPONS=[
   {key:'rifle',name:'AR-12 Cobalt',kind:'rifle',rarity:'RARE',mag:32,reserve:96,damage:40,head:72,interval:96,range:150,spread:.007,maxClips:3},
   {key:'smg',name:'Viper Flux',kind:'smg',rarity:'RARE',mag:40,reserve:160,damage:28,head:50,interval:68,range:88,spread:.012,maxClips:4},
   {key:'shotgun',name:'Breach Hammer',kind:'shotgun',rarity:'RARE',mag:8,reserve:16,damage:92,head:118,interval:660,range:34,spread:.055,maxClips:2},
@@ -70,6 +70,8 @@ const WEAPONS=[
   {key:'axe',name:'Warden Axe',kind:'melee',rarity:'EPIC',mag:0,reserve:0,damage:96,head:96,interval:610,range:2.8,spread:0,maxClips:0}
 ];
 const weaponState=Object.fromEntries(WEAPONS.map(w=>[w.key,{mag:w.mag,reserve:w.reserve,owned:true}]));
+const savedStats=(()=>{try{return JSON.parse(localStorage.getItem('horizon-player-stats-v4340')||'null')||{}}catch{return {}}})();
+const inventoryWeaponKeys=['rifle','smg','shotgun','pistol','axe',null,null,null,null,null];
 let activeWeaponIndex=0;
 const interactables=[],infected=[],combatants=[],roadAnchors=[],buildingCenters=[],solidRects=[],solidPolys=[],lootPickups=[],builtCover=[];
 const ENTRANCE_CELL=28,entranceGrid=new Map();
@@ -95,6 +97,30 @@ async function rpc(name,params={}){
   if(token)headers.authorization='Bearer '+token;
   const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+name,{method:'POST',headers,body:JSON.stringify(params)});
   const t=await r.text();if(!r.ok){let m=t;try{m=JSON.parse(t)?.message||t}catch{}throw new Error(m)}return t?JSON.parse(t):null;
+}
+function weaponKindForClass(cls,renderKind){
+  const r=String(renderKind||'').toLowerCase(),c=String(cls||'').toUpperCase();
+  if(r==='grenade'||c==='GRENADE')return 'grenade';
+  if(/^MELEE_/.test(c)||r==='melee')return 'melee';
+  if(c==='SMG'||r==='smg')return 'smg';
+  if(c==='SHOTGUN'||r==='shotgun')return 'shotgun';
+  if(['PISTOL','REVOLVER'].includes(c)||r==='pistol')return 'pistol';
+  return 'rifle';
+}
+async function hydrateWeaponCatalog(){
+  try{
+    const out=await rpc('bridgepoint_horizon_weapon_catalog_v4340',{}),rows=out?.weapons||[],existing=new Set(WEAPONS.map(w=>w.key));
+    for(const q of rows){
+      if(existing.has(q.weapon_key))continue;
+      const kind=weaponKindForClass(q.weapon_class,q.render_kind),mag=Math.max(0,Number(q.mag_size||0)),clips=Math.max(0,Number(q.max_spare_clips||0));
+      const w={key:q.weapon_key,name:q.display_name,kind,weaponClass:q.weapon_class,rarity:q.rarity,rarityColor:q.rarity_color,mag,
+        reserve:mag*clips,damage:Number(q.body_damage||1),head:Number(q.head_damage||q.body_damage||1),interval:Number(q.fire_interval_ms||250),
+        range:Number(q.range_m||50),spread:Number(q.spread||0),maxClips:clips,prestigeRequired:Number(q.prestige_required||0),
+        unlockedLevel:Number(q.unlocked_level||1),metadata:q.metadata||{}};
+      WEAPONS.push(w);weaponState[w.key]={mag:w.mag,reserve:w.mag*Math.min(1,w.maxClips),owned:false};existing.add(w.key);
+    }
+    return rows.length;
+  }catch{return 0}
 }
 function loadAsset(url){
   if(!assetCache.has(url))assetCache.set(url,new Promise((resolve,reject)=>gltfLoader.load(url,resolve,undefined,reject)));
@@ -287,15 +313,28 @@ function addKillFeed(killer,victim,weapon='AR-12',headshot=false){
   row.innerHTML='<b>'+String(killer||'UNKNOWN')+'</b><span class="weapon">'+String(weapon||'')+'</span><b>'+String(victim||'UNKNOWN')+'</b>';
   feed.prepend(row);while(feed.children.length>6)feed.lastElementChild.remove();setTimeout(()=>row.remove(),6500);
 }
+function weaponByKey(key){return WEAPONS.find(w=>w.key===key)||null}
 function activeWeapon(){return WEAPONS[activeWeaponIndex]||WEAPONS[0]}
+function equipWeaponKey(key){const i=WEAPONS.findIndex(w=>w.key===key);if(i>=0)equipWeaponIndex(i)}
 function renderWeaponBar(){
   const bar=$('weaponBar');if(!bar)return;
-  bar.innerHTML=WEAPONS.slice(0,5).map((w,i)=>{
-    const st=weaponState[w.key],ammo=w.mag?st.mag+'/'+st.reserve:'MELEE';
-    return '<button class="weaponSlot '+(i===activeWeaponIndex?'active ':'')+(st?.owned?'':'empty')+'" data-rarity="'+(w.rarity||'COMMON')+'" data-w="'+i+'"><b>'+w.name+'</b><small>'+ammo+' · '+(w.rarity||'COMMON')+'</small><span class="spec">'+w.damage+' BODY · '+w.head+' HEAD · '+w.range+'M · '+(w.mag?('MAG '+w.mag+' · '+w.maxClips+' SPARE CLIPS'):'MELEE')+'</span></button>';
+  bar.innerHTML=inventoryWeaponKeys.slice(0,5).map((key,slot)=>{
+    const w=weaponByKey(key);if(!w)return '<button class="weaponSlot empty" data-slot="'+slot+'" disabled><b>EMPTY</b><small>QUICK '+(slot+1)+'</small></button>';
+    const st=weaponState[w.key],ammo=w.mag?st.mag+'/'+st.reserve:'MELEE',active=w.key===activeWeapon()?.key;
+    return '<button class="weaponSlot '+(active?'active ':'')+(st?.owned?'':'empty')+'" data-rarity="'+(w.rarity||'COMMON')+'" data-key="'+w.key+'" data-slot="'+slot+'"><b>'+w.name+'</b><small>'+ammo+' · '+(w.rarity||'COMMON')+'</small><span class="spec">'+w.damage+' BODY · '+w.head+' HEAD · '+w.range+'M · '+(w.mag?('MAG '+w.mag+' · '+w.maxClips+' SPARE CLIPS'):'MELEE')+'</span></button>';
   }).join('');
-  bar.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>equipWeaponIndex(Number(b.dataset.w)));
+  bar.querySelectorAll('[data-key]').forEach(b=>b.onclick=()=>equipWeaponKey(b.dataset.key));
+  const pack=$('backpackBar');
+  if(pack){
+    pack.innerHTML='<span>BACKPACK</span>'+inventoryWeaponKeys.slice(5,10).map((key,i)=>{const w=weaponByKey(key);return '<i '+(w?'data-pack="'+(i+5)+'" data-rarity="'+(w.rarity||'COMMON')+'"':'')+' title="'+(w?.name||'Empty')+'">'+(w?String(w.name).split(' ')[0].slice(0,7):String(i+1))+'</i>'}).join('');
+    pack.querySelectorAll('[data-pack]').forEach(el=>el.onclick=()=>swapBackpackWeapon(Number(el.dataset.pack)));
+  }
   const buildEl=$('builds');if(buildEl)buildEl.textContent=mode==='TDM'?buildCount+'/3':'—';
+}
+function swapBackpackWeapon(packSlot){
+  const activeKey=activeWeapon()?.key,quickSlot=Math.max(0,inventoryWeaponKeys.slice(0,5).indexOf(activeKey));
+  const next=inventoryWeaponKeys[packSlot];if(!next)return;
+  inventoryWeaponKeys[packSlot]=inventoryWeaponKeys[quickSlot];inventoryWeaponKeys[quickSlot]=next;equipWeaponKey(next);checkpointYearOne(false);
 }
 function refreshWeaponRig(){
   const w=activeWeapon(),wrap=savedProfile?.wrap_key||'wrap_ash';
@@ -309,11 +348,11 @@ function equipWeaponIndex(i){
   i=(i+WEAPONS.length)%WEAPONS.length;if(!weaponState[WEAPONS[i].key]?.owned)return;
   activeWeaponIndex=i;reloading=false;refreshWeaponRig();updateAmmo();renderWeaponBar();toast(activeWeapon().name);
 }
-function cycleWeapon(){for(let n=1;n<=WEAPONS.length;n++){const i=(activeWeaponIndex+n)%WEAPONS.length;if(weaponState[WEAPONS[i].key]?.owned){equipWeaponIndex(i);return}}}
+function cycleWeapon(){const quick=inventoryWeaponKeys.slice(0,5).filter(Boolean);if(!quick.length)return;const cur=quick.indexOf(activeWeapon()?.key),next=quick[(Math.max(0,cur)+1)%quick.length];equipWeaponKey(next)}
 function dropActiveWeapon(){
   const w=activeWeapon();if(w.key==='axe'){toast('Keep one melee backup');return}
-  weaponState[w.key].owned=false;toast('Dropped '+w.name);
-  cycleWeapon();renderWeaponBar();
+  weaponState[w.key].owned=false;const slot=inventoryWeaponKeys.indexOf(w.key);if(slot>=0)inventoryWeaponKeys[slot]=null;toast('Dropped '+w.name);
+  cycleWeapon();renderWeaponBar();checkpointYearOne(false);
 }
 function updateAmmo(){
   const w=activeWeapon(),st=weaponState[w.key],el=$('ammo');
