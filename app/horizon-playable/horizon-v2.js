@@ -673,15 +673,24 @@ function addBuildings(){
   const dummy=new THREE.Object3D();
   buckets.forEach((rows,i)=>{if(!rows.length)return;const inst=new THREE.InstancedMesh(UNIT_BOX,BUILD_MATS[i],rows.length);inst.castShadow=renderer.shadowMap.enabled;inst.receiveShadow=true;rows.forEach((r,j)=>{dummy.position.set(r.cx,r.cy,r.baseZ+r.h/2+.08);dummy.scale.set(r.w,r.d,r.h);dummy.rotation.set(0,0,0);dummy.updateMatrix();inst.setMatrixAt(j,dummy.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)});
   if(buildingEntries.length){
-    const geom=new THREE.PlaneGeometry(1.05,2.05),doorMat=new THREE.MeshBasicMaterial({color:0x101716,transparent:true,opacity:.92,side:THREE.DoubleSide});
-    const doors=new THREE.InstancedMesh(geom,doorMat,buildingEntries.length*4),dmy=new THREE.Object3D();let di=0;
-    buildingEntries.forEach((e)=>{
+    const doorEntries=[...buildingEntries].sort((a,b)=>Math.hypot(a.cx,a.cy)-Math.hypot(b.cx,b.cy)).slice(0,MOBILE?(HIGH_DEVICE?1400:900):3200);
+    const doorCount=doorEntries.reduce((n,e)=>n+4+(e.w>18?4:0)+(e.d>18?4:0),0),geom=new THREE.PlaneGeometry(1.05,2.05),doorMat=new THREE.MeshBasicMaterial({color:0x101716,transparent:true,opacity:.92,side:THREE.DoubleSide});
+    const doors=new THREE.InstancedMesh(geom,doorMat,doorCount),dmy=new THREE.Object3D();let di=0;
+    doorEntries.forEach((e)=>{
       const z=e.baseZ+1.03,defs=[
         {x:e.cx,y:e.cy-e.d/2-.025,ex:e.cx,ey:e.cy-e.d/2-1.05,r:0},
         {x:e.cx,y:e.cy+e.d/2+.025,ex:e.cx,ey:e.cy+e.d/2+1.05,r:Math.PI},
         {x:e.cx-e.w/2-.025,y:e.cy,ex:e.cx-e.w/2-1.05,ey:e.cy,r:Math.PI/2},
         {x:e.cx+e.w/2+.025,y:e.cy,ex:e.cx+e.w/2+1.05,ey:e.cy,r:-Math.PI/2}
       ];
+      if(e.w>18){for(const off of[-e.w*.26,e.w*.26])defs.push(
+        {x:e.cx+off,y:e.cy-e.d/2-.025,ex:e.cx+off,ey:e.cy-e.d/2-1.05,r:0},
+        {x:e.cx+off,y:e.cy+e.d/2+.025,ex:e.cx+off,ey:e.cy+e.d/2+1.05,r:Math.PI}
+      )}
+      if(e.d>18){for(const off of[-e.d*.26,e.d*.26])defs.push(
+        {x:e.cx-e.w/2-.025,y:e.cy+off,ex:e.cx-e.w/2-1.05,ey:e.cy+off,r:Math.PI/2},
+        {x:e.cx+e.w/2+.025,y:e.cy+off,ex:e.cx+e.w/2+1.05,ey:e.cy+off,r:-Math.PI/2}
+      )}
       for(const d of defs){dmy.position.set(d.x,d.y,z);dmy.rotation.set(Math.PI/2,0,d.r);dmy.scale.set(1,1,1);dmy.updateMatrix();doors.setMatrixAt(di++,dmy.matrix);registerEntrance({type:'door',x:d.ex,y:d.ey,z:e.baseZ,label:'ENTER',building:e})}
     });
     doors.count=di;doors.instanceMatrix.needsUpdate=true;doors.frustumCulled=true;world.add(doors);
