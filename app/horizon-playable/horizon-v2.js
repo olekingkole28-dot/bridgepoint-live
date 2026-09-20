@@ -76,7 +76,7 @@ const ENTRANCE_CELL=28,entranceGrid=new Map();
 const COLLISION_CELL=32,collisionGrid=new Map();
 const activeMembers=Array.isArray(activeMatch?.members)?activeMatch.members:[];
 const playerTeam=Number(activeMembers.find(m=>m.player_id===playerId)?.team_no||1);
-const gltfLoader=new GLTFLoader(),assetCache=new Map(),killSnapshots=[];
+const gltfLoader=new GLTFLoader(),assetCache=new Map(),killSnapshots=[];let infectedHumanoidSource=null,lastHordeSpawnAt=0;
 const CHAR_MODELS={
   free_01:'/app/horizon-playable/assets/characters/mesh2motion/models/female_31.glb',
   free_02:'/app/horizon-playable/assets/characters/mesh2motion/models/female_31.glb',
@@ -165,7 +165,7 @@ async function hydrateYearOneRuntime(){
           const q=savedWeapons[w.key];
           if(!q||typeof q!=='object')continue;
           weaponState[w.key].mag=Math.max(0,Math.min(w.mag,Number(q.mag??weaponState[w.key].mag)));
-          weaponState[w.key].reserve=Math.max(0,Math.min(w.reserve*3,Number(q.reserve??weaponState[w.key].reserve)));
+          weaponState[w.key].reserve=Math.max(0,Math.min(w.mag*(w.maxClips||3),Number(q.reserve??weaponState[w.key].reserve)));
           weaponState[w.key].owned=q.owned!==false;
         }
       }
@@ -736,7 +736,7 @@ function buildInterior(entry){
     lootPickups.push({id:'interior-'+entry.id+'-'+f,type:lootType,x:lx,y:ly,z:lz,space:'interior',mesh:lootMesh,picked:false});
   }
   const ceil=new THREE.Mesh(new THREE.BoxGeometry(w,d,.12),wallMat);ceil.position.set(0,0,floors*floorH+.08);interiorGroup.add(ceil);
-  spawnInteriorMonsters(entry);
+  spawnInteriorMonsters(entry);syncFiniteLoot('interior').catch(()=>{});
   interiorGroup.visible=true;world.visible=false;
 }
 function enterInterior(entry,preciseWorldPoint=null){
@@ -1126,7 +1126,7 @@ function updateCombatants(dt,t){
         if(target?.player){
           health=Math.max(0,health-(5+Math.floor(rand()*7)));updateVitals('health');if(health<=0)triggerDeath(b);
         }else if(target?.alive){
-          target.health-=12+Math.floor(rand()*11);if(target.health<=0)eliminateCombatant(target,b.name);
+          target.health-=12+Math.floor(rand()*11);if(target.health<=0)eliminateCombatant(target,b.name+' · LV '+(b.level||1));
         }
       }
     }
@@ -1145,7 +1145,7 @@ function buildInfectedPatrol(x,y,index){
   return route.length?route:[{x,y}];
 }
 async function spawnInfected(){
-  const humanoidSource=await loadAsset(CHAR_MODELS.free_03);
+  const humanoidSource=await loadAsset(CHAR_MODELS.free_03);infectedHumanoidSource=humanoidSource;
   const dogCount=3+(hash(matchSeed+':dog-pack')%3);
   const plan=[];
   for(let i=0;i<dogCount;i++)plan.push({kind:'zombie_dog',label:'ZOMBIE DOG',health:75,speed:7.25,detect:14,hearing:54,model:'dog',hop:false,barZ:1.35,pack:'DOG PACK'});
@@ -1212,7 +1212,7 @@ async function recordKill(victimName,headshot=false){
   rpc('bridgepoint_horizon_record_kill_v4310',{
     p_host_player_id:playerId,p_host_secret:playerSecret,p_match_id:matchId,
     p_event_type:'INFECTED_KILL',p_killer_player_id:playerId,p_victim_player_id:null,
-    p_weapon_key:activeWeapon().key,p_headshot:headshot,p_distance_m:null,p_metadata:{mode,client_build:4336}
+    p_weapon_key:activeWeapon().key,p_headshot:headshot,p_distance_m:null,p_metadata:{mode,client_build:4340}
   }).catch(()=>{});
 }
 function shootOnce(){
@@ -1540,7 +1540,7 @@ function rebuildZombieWall(zone){
   const body=new THREE.InstancedMesh(bodyGeom,new THREE.MeshStandardMaterial({color:0x56664b,roughness:.9}),count);
   const heads=new THREE.InstancedMesh(headGeom,new THREE.MeshStandardMaterial({color:0x667558,roughness:.95}),count),d=new THREE.Object3D();
   let anchor={x:player.position.x,y:player.position.y},tx=1,ty=0;
-  if(zone.phase==='BORDER'&&zone.closest_border){anchor=worldToLocal(zone.closest_border.lat,zone.closest_border.lon);const vx=player.position.x-anchor.x,vy=player.position.y-anchor.y,l=Math.hypot(vx,vy)||1;tx=-vy/l;ty=vx/l}
+  if(zone.phase==='BORDER'&&zone.closest_border){const border=worldToLocal(zone.closest_border.lat,zone.closest_border.lon),vx=player.position.x-border.x,vy=player.position.y-border.y,l=Math.hypot(vx,vy)||1,inset=Number(zone.border_inset_m||0);anchor={x:border.x+vx/l*inset,y:border.y+vy/l*inset};tx=-vy/l;ty=vx/l}
   else if(zone.nearest_city){const cc=worldToLocal(zone.nearest_city.lat,zone.nearest_city.lon),vx=player.position.x-cc.x,vy=player.position.y-cc.y,l=Math.hypot(vx,vy)||1;tx=-vy/l;ty=vx/l;anchor={x:player.position.x-vx/l*(Number(zone.wall_distance_m)||0)*(zone.safe?1:-1),y:player.position.y-vy/l*(Number(zone.wall_distance_m)||0)*(zone.safe?1:-1)}}
   const spacing=1.15;
   for(let i=0;i<count;i++){const off=(i-(count-1)/2)*spacing,jitter=((hash(matchSeed+':wall:'+i)%100)/100-.5)*.42,x=anchor.x+tx*off,y=anchor.y+ty*off,z=terrainZ(x,y);
@@ -1549,11 +1549,31 @@ function rebuildZombieWall(zone){
   }
   body.instanceMatrix.needsUpdate=heads.instanceMatrix.needsUpdate=true;zombieWallGroup.add(body,heads);
 }
+function spawnHordeZombie(reason='PRESSURE'){
+  if(mode!=='YEAR_ONE'||!infectedHumanoidSource||dead)return false;
+  const anchors=roadAnchors.filter(a=>Math.hypot(a.x-player.position.x,a.y-player.position.y)>=45&&Math.hypot(a.x-player.position.x,a.y-player.position.y)<=220);
+  if(!anchors.length)return false;
+  const a=anchors[hash(matchSeed+':horde:'+infected.length+':'+Math.floor(performance.now()/10000))%anchors.length],i=infected.length,late=Number(yearOneZone?.day||0)>260;
+  const runner=late&&hash('runner:'+i+':'+reason)%5===0,label=runner?'RUNNER':'HORDE WALKER',speed=runner?7.05:1.22;
+  const g=skeletonClone(infectedHumanoidSource.scene);prepHumanoid(g,{infectedTint:true,variant:i%2+1});orientHumanoid(g,1.72);
+  const gx=a.x+((hash(i+':hx')%900)/100-4.5),gy=a.y+((hash(i+':hy')%900)/100-4.5);g.position.set(gx,gy,terrainZ(gx,gy));g.rotation.z=(hash(i+':hr')%628)/100;
+  const bar=makeMonsterHealthBar(label,100,2.42);g.add(bar);world.add(g);
+  const z={g,s:speed,phase:(hash(i+':hp')%628)/100,health:100,maxHealth:100,damage:25,detect:late?15:12,hearing:late?48:34,alive:true,index:i,name:label+' '+String(i+1).padStart(2,'0'),label,kind:runner?'runner':'zombie',space:'world',patrol:buildInfectedPatrol(gx,gy,i),patrolIndex:0,lockedOn:false,alertUntil:0,lastHitAt:0,nextVocal:performance.now()+2500+(hash(i+':vocal')%5000),nextScream:performance.now()+5000,hop:false,hopHeight:0,hopPeriod:900,hopPhase:0,healthBar:bar,pack:null};
+  infected.push(z);updateMonsterHealthBar(z);$('infected').textContent=infected.filter(q=>q.alive&&q.space==='world').length;
+  rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'HORDESPAWN',p_event_key:null,p_value:1,p_payload:{reason,monster:z.kind,day:yearOneZone?.day||0}}).catch(()=>{});
+  return true;
+}
+function ensureHordePressure(zone){
+  if(mode!=='YEAR_ONE'||!zone)return;
+  const alive=infected.filter(z=>z.alive&&z.space==='world').length,deviceCap=MOBILE?(HIGH_DEVICE?28:20):44;
+  const target=Math.min(deviceCap,18+Math.round(Number(zone.wall_density||.55)*12)+Math.min(12,Math.floor(worldActivePlayers/2)));
+  const now=performance.now();if(alive<target&&now-lastHordeSpawnAt>6500){if(spawnHordeZombie('WORLD_PRESSURE'))lastHordeSpawnAt=now}
+}
 async function pollYearOneZone(force=false){
   if(mode!=='YEAR_ONE'||(!force&&performance.now()-lastZonePollAt<2500))return;lastZonePollAt=performance.now();
   const q=playerWorldCoordinate();
   try{
-    const z=await rpc('bridgepoint_horizon_year_one_zone_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_lat:q.lat,p_lon:q.lon});yearOneZone=z;rebuildZombieWall(z);
+    const z=await rpc('bridgepoint_horizon_year_one_zone_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_lat:q.lat,p_lon:q.lon});yearOneZone=z;rebuildZombieWall(z);ensureHordePressure(z);
     const wl=$('wallLive');if(wl){wl.textContent='DAY '+z.day+' · '+z.phase.replaceAll('_',' ')+' · '+Math.round(Number(z.wall_distance_m||0))+'M';wl.classList.toggle('safe',!!z.safe)}
     const warn=$('wallWarning');if(warn)warn.hidden=!!z.safe;
   }catch{}
@@ -1727,11 +1747,11 @@ async function load(){
   data=await r.json();if(!data?.complete)throw new Error(data?.error||'incomplete world stream');
   centerLon=(data.bbox.west+data.bbox.east)/2;centerLat=(data.bbox.south+data.bbox.north)/2;
   $('modeName').textContent=mode.replaceAll('_',' ');
-  $('zone').textContent=(data?.resolved_jurisdiction?.state||stateCode)+' · '+(data?.resolved_jurisdiction?.name||data?.resolved_jurisdiction?.label||'WORLD CELL');
+  $('zone').textContent=mode==='YEAR_ONE'?'YEAR ONE · CONTIGUOUS U.S.':((data?.resolved_jurisdiction?.state||stateCode)+' · '+(data?.resolved_jurisdiction?.name||data?.resolved_jurisdiction?.label||'WORLD CELL'));
   addSky();addGround();
   const roads=addRoads(),parcels=addParcels(),water=addWater(),buildings=addBuildings(),buildingParts=addBuildingParts();
   waterAreas.length=0;for(const row of data.water||[])for(const ring of rings(row.geometry)){const pts=ring.map(project);if(pts.length>=3)waterAreas.push(pts)}
-  addVegetation();addStreetLife();addAbandonment();const ziplineCount=buildZiplines(),vehicleCount=spawnVehicles(),disasterFx=addAmbientDisasterFx();
+  addVegetation();addStreetLife();addAbandonment();await syncFiniteLoot('world');const ziplineCount=buildZiplines(),vehicleCount=spawnVehicles(),disasterFx=addAmbientDisasterFx();
 
   if(mode==='YEAR_ONE')await hydrateYearOneRuntime();
   await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
