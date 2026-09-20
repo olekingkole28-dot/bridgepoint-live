@@ -101,6 +101,23 @@ enum class EHorizonVehicleAudioClass : uint8
 };
 
 UENUM(BlueprintType)
+enum class EHorizonFireAudioClass : uint8
+{
+    Campfire,
+    StructureFire,
+    Wildfire
+};
+
+UENUM(BlueprintType)
+enum class EHorizonWaterAudioClass : uint8
+{
+    Drip,
+    Stream,
+    River,
+    Surf
+};
+
+UENUM(BlueprintType)
 enum class EHorizonFootstepSurface : uint8
 {
     Concrete,
@@ -252,6 +269,42 @@ struct FHorizonVehicleAudioMix
 
     UPROPERTY(BlueprintReadOnly)
     bool bListenerInside = false;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bVirtualizeWhenSilent = true;
+};
+
+USTRUCT(BlueprintType)
+struct FHorizonEnvironmentalEmitterMix
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    float BedGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float DetailGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float LowFrequencyGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float TransientGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float Pitch = 1.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float LowPassCutoffHz = 20000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float ReverbSend = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float MaxDistanceCm = 12000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float InteriorTransmission = 1.0f;
 
     UPROPERTY(BlueprintReadOnly)
     bool bVirtualizeWhenSilent = true;
@@ -459,6 +512,38 @@ public:
     static FHorizonUiFeedbackMix BuildUiFeedbackMix(
         EHorizonUiFeedbackCue Cue,
         float CombatIntensity01,
+        int32 VariationSeed = 0);
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Audio")
+    FHorizonEnvironmentalEmitterMix GetFireEmitterMix(
+        EHorizonFireAudioClass FireClass,
+        float Intensity01,
+        float DistanceCm,
+        bool bOccluded,
+        int32 VariationSeed = 0) const;
+
+    static FHorizonEnvironmentalEmitterMix BuildFireEmitterMix(
+        EHorizonFireAudioClass FireClass,
+        float Intensity01,
+        float DistanceCm,
+        EHorizonAcousticSpace ListenerSpace,
+        bool bOccluded,
+        int32 VariationSeed = 0);
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Audio")
+    FHorizonEnvironmentalEmitterMix GetWaterEmitterMix(
+        EHorizonWaterAudioClass WaterClass,
+        float Flow01,
+        float DistanceCm,
+        bool bOccluded,
+        int32 VariationSeed = 0) const;
+
+    static FHorizonEnvironmentalEmitterMix BuildWaterEmitterMix(
+        EHorizonWaterAudioClass WaterClass,
+        float Flow01,
+        float DistanceCm,
+        EHorizonAcousticSpace ListenerSpace,
+        bool bOccluded,
         int32 VariationSeed = 0);
 
     UFUNCTION(BlueprintPure, Category="Horizon|Audio")
