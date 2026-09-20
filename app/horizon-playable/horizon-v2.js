@@ -1094,7 +1094,7 @@ async function recordKill(victimName,headshot=false){
   rpc('bridgepoint_horizon_record_kill_v4310',{
     p_host_player_id:playerId,p_host_secret:playerSecret,p_match_id:matchId,
     p_event_type:'INFECTED_KILL',p_killer_player_id:playerId,p_victim_player_id:null,
-    p_weapon_key:activeWeapon().key,p_headshot:headshot,p_distance_m:null,p_metadata:{mode,client_build:4331}
+    p_weapon_key:activeWeapon().key,p_headshot:headshot,p_distance_m:null,p_metadata:{mode,client_build:4336}
   }).catch(()=>{});
 }
 function shootOnce(){
@@ -1383,7 +1383,7 @@ function updatePerformanceGovernor(rawDt,now){
     else if(perfEmaMs<17.4&&now-fastSince>7000&&perfTier>0){setPerfTier(perfTier-1,'stable_recovery');fastSince=now}
   }
   window.BP_HORIZON_PERF={
-    ...(window.BP_HORIZON_PERF||{}),build:4331,tier:perfTier,tier_name:PERF_TIER_NAMES[perfTier],
+    ...(window.BP_HORIZON_PERF||{}),build:4336,tier:perfTier,tier_name:PERF_TIER_NAMES[perfTier],
     ema_ms:Number(perfEmaMs.toFixed(2)),worst_ms:Number(perfWorstMs.toFixed(2)),fps:lastMeasuredFps,
     pixel_ratio:Number(renderScale.toFixed(2)),shadows:renderer.shadowMap.enabled,sim_radius_m:perfSimRadius(),
     draw_calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,lines:renderer.info.render.lines,points:renderer.info.render.points,
