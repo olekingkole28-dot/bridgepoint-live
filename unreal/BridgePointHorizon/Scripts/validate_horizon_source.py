@@ -75,6 +75,12 @@ for stem in required_source:
     require(ht.count("{") == ht.count("}"), f"brace mismatch: {h}")
     require(cppt.count("{") == cppt.count("}"), f"brace mismatch: {cpp}")
 
+arena_director = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonArenaDirectorSubsystem.cpp")
+require(arena_director.count('Add(TEXT("tdm_') == 50,
+        "native TDM fallback must contain exactly 50 real-location arenas")
+for token in ["GetRankedArenas(50)", "RotationCounter", "PoolSize", "LastArenaId"]:
+    require(token in arena_director, f"50-map automatic native arena rotation missing: {token}")
+
 game_state_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGameStateSubsystem.h")
 game_state = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGameStateSubsystem.cpp")
 require("YearOne.DurationDays = 365" in game_state, "Year One must remain 365 days")
