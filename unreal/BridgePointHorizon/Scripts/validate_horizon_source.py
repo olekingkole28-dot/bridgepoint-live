@@ -307,19 +307,46 @@ progression = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonP
 for token in [
     "CareerLevel = 1", "MaxCareerLevel = 100", "MaxPrestige = 100",
     "EHorizonRewardType::Badge", "EHorizonRewardType::Banner",
-    "AddCareerXP", "RecordKill", "TryPrestige", "CanPrestige"
+    "AddCareerXP", "RecordKill", "TryPrestige", "CanPrestige",
+    "FHorizonProfileCosmetics", "BadgeUnlocks", "BannerUnlocks",
+    "EquippedBadgeKey", "EquippedBannerKey", "OnProfileCosmeticsChanged",
+    "TryEquipProfileBadge", "TryEquipProfileBanner", "GetProfileCosmetics",
+    "CanEquipProfileCosmetic", "GetPrestigeProfileRewardType"
 ]:
     require(token in progression_header + progression, f"career/prestige contract missing: {token}")
 for token in [
     "State->CareerXP = 0", "State->CareerLevel = 1",
     "State->Prestige < MaxPrestige", "PRESTIGE_COSMETIC_%03d",
-    "OutReward.bFree = true", "OutReward.bPremium = false"
+    "OutReward.bFree = true", "OutReward.bPremium = false",
+    "State->BadgeUnlocks.AddUnique", "State->BannerUnlocks.AddUnique",
+    "State->EquippedBadgeKey = CanEquipProfileCosmetic",
+    "State->EquippedBannerKey = CanEquipProfileCosmetic",
+    "OnProfileCosmeticsChanged.Broadcast",
+    "RewardType != EHorizonRewardType::Badge",
+    "RewardType != EHorizonRewardType::Banner",
+    "UnlockedKeys.Contains(NormalizedKey)"
 ]:
     require(token in progression, f"prestige behavior missing: {token}")
 prestige_body = progression.partition("bool UHorizonProgressionSubsystem::TryPrestige")[2].partition(
     "FHorizonReward UHorizonProgressionSubsystem::PreviewDailyFreeReward")[0]
 require("SeasonXP" not in prestige_body and "SeasonLevel" not in prestige_body,
         "prestige must not erase independent seasonal progress")
+
+progression_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonProgressionTests.cpp")
+for token in [
+    "WITH_DEV_AUTOMATION_TESTS", "Systems.Progression.ProfileRewards",
+    "Systems.Progression.ProfileCosmeticEligibility",
+    "First prestige unlocks a badge", "Every tenth prestige unlocks a banner",
+    "Prestige one hundred unlocks a banner",
+    "Invalid prestige cannot synthesize a banner",
+    "Earned badge can be equipped", "Earned banner can be equipped",
+    "Whitespace is normalized before badge lookup",
+    "Locked badge cannot be equipped", "Empty profile key fails closed",
+    "Non-profile reward cannot be equipped as identity"
+]:
+    require(token in progression_tests, f"native profile progression QA missing: {token}")
+require("Stripe" not in progression_tests and "Payment" not in progression_tests,
+        "profile progression QA must remain independent of payments")
 
 matchmaking_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonMatchmakingSubsystem.h")
 matchmaking = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonMatchmakingSubsystem.cpp")

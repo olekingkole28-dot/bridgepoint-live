@@ -40,6 +40,24 @@ struct FHorizonReward
     bool bPremium = false;
 };
 
+USTRUCT(BlueprintType)
+struct FHorizonProfileCosmetics
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    FString EquippedBadgeKey;
+
+    UPROPERTY(BlueprintReadOnly)
+    FString EquippedBannerKey;
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 UnlockedBadgeCount = 0;
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 UnlockedBannerCount = 0;
+};
+
 UCLASS()
 class BRIDGEPOINTHORIZON_API UHorizonProgressionSaveGame : public USaveGame
 {
@@ -78,10 +96,26 @@ public:
 
     UPROPERTY()
     TArray<FString> CosmeticUnlocks;
+
+    UPROPERTY()
+    TArray<FString> BadgeUnlocks;
+
+    UPROPERTY()
+    TArray<FString> BannerUnlocks;
+
+    UPROPERTY()
+    FString EquippedBadgeKey;
+
+    UPROPERTY()
+    FString EquippedBannerKey;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FHorizonProgressionChanged, int32, NewLevel, int32, NewXP);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FHorizonCareerChanged, int32, NewCareerLevel, int32, NewPrestige);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+    FHorizonProfileCosmeticsChanged,
+    const FHorizonProfileCosmetics&,
+    Profile);
 
 UCLASS()
 class BRIDGEPOINTHORIZON_API UHorizonProgressionSubsystem : public UGameInstanceSubsystem
@@ -96,6 +130,9 @@ public:
 
     UPROPERTY(BlueprintAssignable)
     FHorizonCareerChanged OnCareerChanged;
+
+    UPROPERTY(BlueprintAssignable)
+    FHorizonProfileCosmeticsChanged OnProfileCosmeticsChanged;
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Progression")
     void AddXP(int32 Amount, FDateTime NowUtc);
@@ -123,6 +160,33 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Progression")
     bool GrantFreeUnlock(const FString& RewardKey);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Progression|Profile")
+    bool TryEquipProfileBadge(const FString& RewardKey);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Progression|Profile")
+    bool TryEquipProfileBanner(const FString& RewardKey);
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Progression|Profile")
+    FHorizonProfileCosmetics GetProfileCosmetics() const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Progression|Profile")
+    TArray<FString> GetUnlockedBadges() const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Progression|Profile")
+    TArray<FString> GetUnlockedBanners() const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Progression|Profile")
+    bool IsProfileCosmeticUnlocked(
+        EHorizonRewardType RewardType,
+        const FString& RewardKey) const;
+
+    static EHorizonRewardType GetPrestigeProfileRewardType(int32 PrestigeLevel);
+
+    static bool CanEquipProfileCosmetic(
+        EHorizonRewardType RewardType,
+        const FString& RewardKey,
+        const TArray<FString>& UnlockedKeys);
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Progression")
     void SetPremiumPassEntitled(bool bEntitled);
@@ -174,4 +238,6 @@ private:
     FString MakeSeasonKey(FDateTime NowUtc) const;
     FString MakeDailyKey(FDateTime NowUtc) const;
     void GrantReward(const FHorizonReward& Reward);
+    bool TryEquipProfileCosmetic(EHorizonRewardType RewardType, const FString& RewardKey);
+    void BroadcastProfileCosmetics();
 };
