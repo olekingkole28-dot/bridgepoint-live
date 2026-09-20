@@ -495,9 +495,18 @@ for token in [
 
 challenge_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonChallengeDirectorSubsystem.h")
 challenge = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonChallengeDirectorSubsystem.cpp")
-for token in ["UHorizonChallengeSaveGame", "FHorizonChallengeRuntimeState", "FreeItemInventory"]:
+for token in [
+    "UHorizonChallengeSaveGame", "FHorizonChallengeRuntimeState", "FreeItemInventory",
+    "CompletedRuns", "AdvanceProgressSafely", "PrepareNextRun"
+]:
     require(token in challenge_header, f"persistent NPC challenge contract missing: {token}")
-for token in ["OfferChallenge", "AddChallengeProgress", "ClaimChallengeReward", "LoadGameFromSlot", "SaveGameToSlot"]:
+for token in [
+    "OfferChallenge", "AddChallengeProgress", "ClaimChallengeReward",
+    "LoadGameFromSlot", "SaveGameToSlot",
+    "Existing = PrepareNextRun(Existing)",
+    "Runtime.Progress = AdvanceProgressSafely",
+    "Runtime.CompletedRuns >= MAX_int32"
+]:
     require(token in challenge, f"NPC challenge execution missing: {token}")
 for token in ["GrantFreeSalvage", "GrantFreeUnlock"]:
     require(token in challenge, f"free NPC reward handoff missing: {token}")
@@ -515,7 +524,12 @@ for token in [
     "Medic reward enters usable bandage inventory",
     "Ranger reward enters consumable ration inventory",
     "Unknown reward keys fail closed", "Capacity overflow is deferred exactly once",
-    "Over-grant cannot create negative deferred inventory"
+    "Over-grant cannot create negative deferred inventory",
+    "Challenges.RepeatableProgress",
+    "Huge progress addition cannot overflow backward",
+    "Repeatable challenge clears prior progress",
+    "Completed-run history survives challenge reset",
+    "Active unclaimed challenge is never reset"
 ]:
     require(token in challenge_tests, f"native NPC reward integration QA missing: {token}")
 require("Stripe" not in challenge_tests and "Payment" not in challenge_tests,
