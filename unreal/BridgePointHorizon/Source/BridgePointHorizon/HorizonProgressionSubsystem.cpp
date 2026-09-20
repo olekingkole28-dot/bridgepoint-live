@@ -175,9 +175,7 @@ bool UHorizonProgressionSubsystem::TryPrestige(FHorizonReward& OutReward)
     State->CareerXP = 0;
     State->CareerLevel = 1;
 
-    OutReward.Type = (State->Prestige % 10 == 0)
-        ? EHorizonRewardType::Banner
-        : EHorizonRewardType::Badge;
+    OutReward.Type = GetPrestigeProfileRewardType(State->Prestige);
     OutReward.RewardKey = FString::Printf(TEXT("PRESTIGE_COSMETIC_%03d"), State->Prestige);
     OutReward.Amount = 1;
     OutReward.bFree = true;
@@ -372,6 +370,14 @@ bool UHorizonProgressionSubsystem::GrantFreeUnlock(const FString& RewardKey)
     }
 
     return false;
+}
+
+EHorizonRewardType UHorizonProgressionSubsystem::GetPrestigeProfileRewardType(
+    int32 PrestigeLevel)
+{
+    return PrestigeLevel > 0 && PrestigeLevel % 10 == 0
+        ? EHorizonRewardType::Banner
+        : EHorizonRewardType::Badge;
 }
 
 bool UHorizonProgressionSubsystem::CanEquipProfileCosmetic(
