@@ -375,8 +375,13 @@ function drawWorldCellPreview(match,payload){
   g.clearRect(0,0,W,H);g.fillStyle='#07110f';g.fillRect(0,0,W,H);
   for(const row of payload.water||[])for(const ring of ringsOf(row.geometry)){g.beginPath();ring.forEach((p,i)=>{const q=xy(p);i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])});g.closePath();g.fillStyle='rgba(53,129,170,.40)';g.fill()}
   g.strokeStyle='rgba(132,231,208,.34)';g.lineWidth=1.4;for(const row of payload.transport||[])for(const line of linesOf(row.geometry)){g.beginPath();line.forEach((p,i)=>{const q=xy(p);i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])});g.stroke()}
-  let shown=0;for(const row of payload.buildings||[]){if(shown++>3500)break;for(const ring of ringsOf(row.geometry)){g.beginPath();ring.forEach((p,i)=>{const q=xy(p);i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])});g.closePath();g.fillStyle='rgba(232,246,239,.16)';g.fill();g.strokeStyle='rgba(232,246,239,.30)';g.stroke()}}
-  g.strokeStyle='#f4c45e';g.lineWidth=3;g.strokeRect(4,4,W-8,H-8);g.fillStyle='#dffff4';g.font='900 16px system-ui';g.fillText(String(match.map_label||'HORIZON SECTOR').toUpperCase()+' · SOURCE-BACKED CELL',18,28);
+  const buildings=(payload.buildings||[]).slice(0,1800).map(row=>{const ring=ringsOf(row.geometry)[0]||[];const pts=ring.map(xy),avg=pts.length?pts.reduce((s,p)=>s+p[1],0)/pts.length:0;return{row,pts,avg}}).filter(x=>x.pts.length>=3).sort((a,b)=>a.avg-b.avg);
+  for(const bld of buildings){
+    const h=Math.max(4,Math.min(38,Number(bld.row?.height_m||bld.row?.height||bld.row?.floors*3||9)*.58)),base=bld.pts,top=base.map(p=>[p[0],p[1]-h]);
+    for(let i=0;i<base.length;i++){const j=(i+1)%base.length;g.beginPath();g.moveTo(base[i][0],base[i][1]);g.lineTo(base[j][0],base[j][1]);g.lineTo(top[j][0],top[j][1]);g.lineTo(top[i][0],top[i][1]);g.closePath();g.fillStyle=i%2?'rgba(70,103,94,.28)':'rgba(48,77,70,.36)';g.fill()}
+    g.beginPath();top.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));g.closePath();g.fillStyle='rgba(214,242,231,.24)';g.fill();g.strokeStyle='rgba(174,255,226,.34)';g.stroke();
+  }
+  g.strokeStyle='#f4c45e';g.lineWidth=3;g.strokeRect(4,4,W-8,H-8);g.fillStyle='#dffff4';g.font='900 16px system-ui';g.fillText(String(match.map_label||'HORIZON SECTOR').toUpperCase()+' · SOURCE-BACKED 3D CELL PREVIEW',18,28);
 }
 function voteTone(sec){
   try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;voteTone.ctx=voteTone.ctx||new A();const o=voteTone.ctx.createOscillator(),gain=voteTone.ctx.createGain();o.frequency.value=sec<=3?880:520;gain.gain.setValueAtTime(.05,voteTone.ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.001,voteTone.ctx.currentTime+.11);o.connect(gain).connect(voteTone.ctx.destination);o.start();o.stop(voteTone.ctx.currentTime+.12)}catch{}
@@ -388,7 +393,7 @@ async function runMapVote(match){
   const panel=$('mapVote'),opts=$('mapVoteOptions');panel.hidden=false;
   const mk=(x,label)=>`<button data-vote="${escapeHtml(x)}"><b>${escapeHtml(label)}</b><small>VOTE</small></button>`;
   opts.innerHTML=mk(candidates[0].map_key,candidates[0].display_name)+mk(candidates[1].map_key,candidates[1].display_name)+mk('random','RANDOM');
-  let selected='';opts.querySelectorAll('[data-vote]').forEach(b=>b.onclick=async()=>{selected=b.dataset.vote;opts.querySelectorAll('button').forEach(x=>x.classList.toggle('selected',x===b));await rpc('bridgepoint_horizon_map_vote_v4340',{p_player_id:ident.id,p_player_secret:ident.secret,p_match_id:match.match_id,p_vote_key:selected}).catch(()=>{})});
+  let selected='';opts.querySelectorAll('[data-vote]').forEach(b=>b.onclick=async()=>{selected=b.dataset.vote;opts.querySelectorAll('button').forEach(x=>x.classList.toggle('selected',x===b));const out=await rpc('bridgepoint_horizon_map_vote_v4340',{p_player_id:ident.id,p_player_secret:ident.secret,p_match_id:match.match_id,p_vote_key:selected}).catch(()=>null);if(out?.counts)opts.querySelectorAll('[data-vote]').forEach(x=>{const small=x.querySelector('small');if(small)small.textContent='VOTE · '+Number(out.counts[x.dataset.vote]||0)})});
   const end=Date.parse(match.metadata?.map_vote_ends_at||'')||Date.now()+10000;let last=-1;
   while(Date.now()<end){const sec=Math.max(1,Math.ceil((end-Date.now())/1000));$('launchCount').textContent=String(sec);$('loadingStatus').textContent='Vote: '+candidates[0].display_name+' · '+candidates[1].display_name+' · Random';if(sec!==last){voteTone(sec);last=sec}await new Promise(r=>setTimeout(r,120))}
   const out=await rpc('bridgepoint_horizon_map_vote_resolve_v4340',{p_player_id:ident.id,p_player_secret:ident.secret,p_match_id:match.match_id});
@@ -628,7 +633,7 @@ async function openModal(tab){
   }else if(tab==='INSTALL_HELP'){
     c.innerHTML='<div class="eyebrow">INSTALL HORIZON</div><h1>Add BridgePoint Horizon to your home screen</h1><p style="color:#95aaa0">Use your browser menu and choose <b>Install app</b> or <b>Add to Home screen</b>. Horizon uses a separate app ID and icon from BridgePoint Intelligence.</p>';
   }else{
-    c.innerHTML=`<div class="eyebrow">HORIZON</div><h1>Game controls</h1><p style="color:#95aaa0">Aim: toggle · Pickup: 1.75s dwell · Killcam: 5s before / slow-motion kill / 5s after · Four right-side controls only: Aim, Shoot, Run, Build.</p>`;
+    c.innerHTML=`<div class="eyebrow">HORIZON</div><h1>Game controls</h1><p style="color:#95aaa0">Aim: toggle · Pickup: 3-second dwell · Death flow: killcam, then lobby at 10 seconds · Four right-side controls: Aim, Shoot, Run, Build. Utility rail includes crouch, jump, weapons, drops, campfire and light.</p>`;
   }
   mountModelPreviews(c);
   $('modal').classList.add('show');$('modal').setAttribute('aria-hidden','false');
