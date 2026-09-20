@@ -39,7 +39,9 @@ const probe=await page.evaluate(()=>({
   runtime:window.BP_HORIZON_V2,
   canvas:!!document.querySelector('#world canvas'),
   errorHidden:document.getElementById('error')?.hidden,
-  buttons:['aimBtn','shootBtn','runBtn','buildBtn','viewBtn','crouchBtn','jumpBtn','weaponBtn','dropBtn'].map(id=>({id,exists:!!document.getElementById(id),text:document.getElementById(id)?.textContent?.trim()})),
+  buttons:['aimBtn','shootBtn','runBtn','buildBtn','crouchBtn','jumpBtn','weaponBtn','dropBtn'].map(id=>({id,exists:!!document.getElementById(id),text:document.getElementById(id)?.textContent?.trim()})),
+  viewButtonAbsent:!document.getElementById('viewBtn'),
+  cameraPreference:localStorage.getItem('horizon-camera-mode'),
   miniMap:!!document.getElementById('miniMap'),
   weaponBar:!!document.getElementById('weaponBar'),
   contextBtn:!!document.getElementById('contextBtn'),
@@ -52,8 +54,8 @@ const probe=await page.evaluate(()=>({
 }));
 if(!probe.canvas||!probe.errorHidden)throw new Error('Canvas/runtime failed '+JSON.stringify(probe));
 if(probe.runtime?.build!==4331||probe.runtime?.state!=='NY'||probe.runtime?.mode!=='TDM')throw new Error('Wrong runtime contract '+JSON.stringify(probe.runtime));
-if(!probe.runtime?.actualCharacterModel||!probe.runtime?.sourceBackedTwin||!probe.runtime?.exactFootprintCollision||!probe.runtime?.terrainSource||Number(probe.runtime?.buildings||0)<1||Number(probe.runtime?.roads||0)<1||!probe.runtime?.solidCollision||!probe.runtime?.dwellPickup||!probe.runtime?.killFeed||!probe.runtime?.killcam||!probe.runtime?.firstPerson||!probe.runtime?.crouch||!probe.runtime?.jumpVault||!probe.runtime?.gamepad||!probe.runtime?.weaponInventory||!probe.runtime?.minimap||!probe.runtime?.proceduralInteriors||!probe.runtime?.roofTraversal||!probe.runtime?.drivableVehicles||!probe.runtime?.infectedPatrols||!probe.runtime?.ambientDisasterFx||!probe.runtime?.spatialAudio||!probe.runtime?.adaptivePerformanceGovernor)throw new Error('Required V4331 systems missing '+JSON.stringify(probe.runtime));
-if(probe.buttons.some(x=>!x.exists)||!probe.miniMap||!probe.weaponBar||!probe.contextBtn||!probe.removed||!probe.killFeed||!probe.killCam||!probe.pickup)throw new Error('Restored HUD contract failed '+JSON.stringify(probe));
+if(!probe.runtime?.actualCharacterModel||!probe.runtime?.sourceBackedTwin||!probe.runtime?.exactFootprintCollision||!probe.runtime?.terrainSource||Number(probe.runtime?.buildings||0)<1||Number(probe.runtime?.roads||0)<1||!probe.runtime?.solidCollision||!probe.runtime?.dwellPickup||!probe.runtime?.killFeed||!probe.runtime?.killcam||!probe.runtime?.firstPerson||!probe.runtime?.crouch||!probe.runtime?.jumpVault||!probe.runtime?.gamepad||!probe.runtime?.weaponInventory||!probe.runtime?.minimap||!probe.runtime?.proceduralInteriors||!probe.runtime?.roofTraversal||!probe.runtime?.drivableVehicles||!probe.runtime?.infectedPatrols||!probe.runtime?.ambientDisasterFx||!probe.runtime?.spatialAudio||!probe.runtime?.adaptivePerformanceGovernor)throw new Error('Required match systems missing '+JSON.stringify(probe.runtime));
+if(probe.buttons.some(x=>!x.exists)||!probe.viewButtonAbsent||probe.cameraPreference!=='first'||!probe.miniMap||!probe.weaponBar||!probe.contextBtn||!probe.removed||!probe.killFeed||!probe.killCam||!probe.pickup)throw new Error('FPS-only HUD contract failed '+JSON.stringify(probe));
 
 await page.tap('#aimBtn');
 await page.waitForTimeout(450);
@@ -63,7 +65,6 @@ const aim=await page.evaluate(()=>({
 }));
 if(!aim.active||!aim.reticle)throw new Error('Toggle ADS failed '+JSON.stringify(aim));
 
-await page.tap('#utilityToggle');await page.tap('#viewBtn');
 await page.tap('#utilityToggle');await page.tap('#crouchBtn');
 await page.tap('#utilityToggle');await page.tap('#jumpBtn');
 await page.tap('#utilityToggle');await page.tap('#weaponBtn');
@@ -71,12 +72,13 @@ await page.tap('#buildBtn');
 await page.tap('#shootBtn');
 await page.waitForTimeout(500);
 const restored=await page.evaluate(()=>({
-  viewActive:document.getElementById('viewBtn')?.classList.contains('active'),
+  viewButtonAbsent:!document.getElementById('viewBtn'),
+  cameraPreference:localStorage.getItem('horizon-camera-mode'),
   crouchActive:document.getElementById('crouchBtn')?.classList.contains('active'),
   weaponSlots:document.querySelectorAll('#weaponBar .weaponSlot').length,
   minimapPixels:document.getElementById('miniMap')?.getContext('2d')?.getImageData(0,0,4,4)?.data?.some?.(x=>x>0)===true
 }));
-if(!restored.viewActive||!restored.crouchActive||restored.weaponSlots<5||!restored.minimapPixels)throw new Error('Restored interaction contract failed '+JSON.stringify(restored));
+if(!restored.viewButtonAbsent||restored.cameraPreference!=='first'||!restored.crouchActive||restored.weaponSlots<5||!restored.minimapPixels)throw new Error('FPS interaction contract failed '+JSON.stringify(restored));
 
 await page.waitForTimeout(6500);
 const perfA=await page.evaluate(()=>({...window.BP_HORIZON_PERF}));
@@ -85,7 +87,7 @@ const perfB=await page.evaluate(()=>({...window.BP_HORIZON_PERF}));
 if(!Number.isFinite(perfB?.ema_ms)||!Number.isFinite(perfB?.fps)||perfB.fps<12||perfB.ema_ms>70||perfB.tier<0||perfB.tier>3||perfB.pixel_ratio<0.5)throw new Error('Adaptive performance gate failed '+JSON.stringify({perfA,perfB}));
 
 const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource.*404|ResizeObserver loop/i.test(x));
-if(meaningful.length)throw new Error('Horizon V4331 browser errors '+meaningful.join('\n'));
+if(meaningful.length)throw new Error('Horizon FPS browser errors '+meaningful.join('\n'));
 
-console.log('HORIZON_V4331_MATCH_CLIENT_PASS',JSON.stringify({probe,perf:perfB}));
+console.log('HORIZON_FPS_MATCH_CLIENT_PASS',JSON.stringify({probe,perf:perfB}));
 await browser.close();
