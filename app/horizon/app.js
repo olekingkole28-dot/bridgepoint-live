@@ -258,12 +258,17 @@ $('inviteBtn').onclick=inviteFriend;$('inviteTop').onclick=inviteFriend;
 $('copyParty').onclick=async()=>{await navigator.clipboard.writeText(state.party?.invite_code||'');status('Party code copied')};
 
 $('displayName').addEventListener('change',async e=>{
-  const name=e.target.value.trim().slice(0,32)||'Survivor';
+  const name=e.target.value.trim().slice(0,20)||'Survivor';
   localStorage.setItem('horizon-display-name',name);
   try{
-    const out=await rpc('bridgepoint_horizon_bootstrap_v4300',{p_player_id:ident.id,p_player_secret:ident.secret,p_display_name:name});
-    state.player=out.player;localStorage.setItem('horizon-player-profile',JSON.stringify(state.player));await refreshParty();
-  }catch(err){status(err.message)}
+    if(state.account){
+      await rpc('bridgepoint_horizon_account_link_v4340',{p_player_id:ident.id,p_player_secret:ident.secret,p_handle:name,p_banner_key:state.account.banner_key||'banner_founder',p_icon_key:state.account.icon_key||'icon_skull'});
+      await refreshAuthState();
+    }else{
+      const out=await rpc('bridgepoint_horizon_bootstrap_v4300',{p_player_id:ident.id,p_player_secret:ident.secret,p_display_name:name});state.player=out.player;
+    }
+    localStorage.setItem('horizon-player-profile',JSON.stringify(state.player));await refreshParty();
+  }catch(err){status(err.message);if(state.account)$('displayName').value=state.account.handle}
 });
 
 function markMode(){
@@ -559,14 +564,53 @@ function closeHorizonModal(){
 }
 $('closeModal').onclick=closeHorizonModal;
 $('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeHorizonModal()});
-$('settingsBtn').onclick=()=>openModal('SETTINGS');$('editLocker').onclick=()=>openModal('LOCKER');
+$('settingsBtn').onclick=()=>openModal('SETTINGS');$('editLocker').onclick=()=>openModal(state.account?'CUSTOMIZE':'ACCOUNT');$('accountBtn').onclick=()=>openModal('ACCOUNT');
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('active',x===b));
   if(b.dataset.tab!=='PLAY')openModal(b.dataset.tab);
 });
 $('modalContent').addEventListener('click',async e=>{
-  // TDM arenas are server-rotated across the fixed 50-map pool.
-  // There is intentionally no client-side map-selection action.
+  const auth=e.target.closest('[data-auth-action]');
+  if(auth){
+    const action=auth.dataset.authAction,email=$('authEmail')?.value.trim(),password=$('authPassword')?.value||'',handle=$('authHandle')?.value.trim();
+    try{
+      if(action==='signup'){
+        if(!email||password.length<8)throw new Error('Enter an email and a password with at least 8 characters.');
+        const {data,error}=await sb.auth.signUp({email,password});if(error)throw error;state.session=data?.session||null;
+        if(!state.session){status('Account created · confirm your email, then sign in.');return}
+      }else if(action==='signin'){
+        if(!email||!password)throw new Error('Enter your email and password.');
+        const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;state.session=data?.session||null;
+      }else if(action==='signout'){
+        await sb.auth.signOut();state.session=null;state.account=null;state.character=null;state.stats=null;renderAccountState();syncPlayAvailability();closeHorizonModal();status('Signed out of Horizon');return;
+      }
+      if(action==='link'||state.session){
+        const h=handle||$('displayName')?.value.trim();
+        if(action==='link'||h){
+          const out=await rpc('bridgepoint_horizon_account_link_v4340',{p_player_id:ident.id,p_player_secret:ident.secret,p_handle:h,p_banner_key:$('authBanner')?.value||'banner_founder',p_icon_key:$('authIcon')?.value||'icon_skull'});
+          if(out?.ok){await refreshAuthState();await detectOwner();await refreshParty();status('Free Horizon account linked · @'+state.account.handle);openModal('ACCOUNT');return}
+        }
+      }
+      await refreshAuthState();openModal(state.account?'ACCOUNT':'ACCOUNT');
+    }catch(err){status(err.message);const box=document.querySelector('.account-callout');if(box)box.textContent=err.message}
+    return;
+  }
+  if(e.target.closest('[data-open-customizer]')){openModal('CUSTOMIZE');return}
+  const tabJump=e.target.closest('[data-tab-jump]');if(tabJump){openModal(tabJump.dataset.tabJump);return}
+  if(e.target.closest('[data-save-customizer]')){
+    if(!state.account){openModal('ACCOUNT');return}
+    const appearance={hair:$('customHair')?.value,eyes:$('customEyes')?.value,eye_color:$('customEyeColor')?.value,hair_color:$('customHairColor')?.value,skin_tone:$('customSkin')?.value,top_color:$('customTop')?.value,bottom_color:$('customBottom')?.value,shoes:$('customShoes')?.value,backpack:$('customBackpack')?.value,headwear:$('customHeadwear')?.value,sunglasses:$('customGlasses')?.value};
+    try{
+      const out=await rpc('bridgepoint_horizon_character_save_v4340',{p_player_id:ident.id,p_player_secret:ident.secret,p_presentation:$('customPresentation')?.value||'UNSPECIFIED',p_preset_key:$('customPreset')?.value||'nova',p_appearance:appearance,p_equipped_character_key:'custom_v4340'});
+      if(out?.ok){state.character={...(state.character||{}),presentation:out.presentation,preset_key:out.preset_key,appearance:out.appearance,equipped_character_key:out.equipped_character_key};localStorage.setItem('horizon-character-profile-v4340',JSON.stringify(state.character));status('Character saved to your Horizon account');openModal('CUSTOMIZE')}
+    }catch(err){status(err.message)}
+    return;
+  }
+  const metric=e.target.closest('[data-leader-metric]');
+  if(metric){
+    const out=await rpc('bridgepoint_horizon_leaderboard_v4340',{p_metric:metric.dataset.leaderMetric,p_limit:25}).catch(()=>({leaders:[]}));
+    const rows=$('leaderboardRows');if(rows)rows.innerHTML=leaderRows(out?.leaders||[]);return;
+  }
   const storeEquip=e.target.closest('[data-store-equip]');
   if(storeEquip){
     const key=storeEquip.dataset.storeEquip,kind=storeEquip.dataset.storeKind;
@@ -745,6 +789,7 @@ function animateSky(){
 
 state.pickup=new DwellPickupController({onProgress:(p)=>{document.documentElement.style.setProperty('--pickup',String(p))}});
 animateSky();
+sb?.auth?.onAuthStateChange?.((_event,session)=>{state.session=session||null;setTimeout(()=>{refreshAuthState().then(detectOwner).catch(()=>{})},0)});
 bootstrap().catch(e=>{console.error(e);setNet('BACKEND ERROR','#ff5d71');status(e.message)});
 if('serviceWorker' in navigator){
   navigator.serviceWorker.getRegistrations()
