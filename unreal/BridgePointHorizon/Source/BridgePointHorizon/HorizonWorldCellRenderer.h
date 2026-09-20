@@ -8,6 +8,15 @@ class UProceduralMeshComponent;
 class USceneComponent;
 class UMaterialInterface;
 
+UENUM(BlueprintType)
+enum class EHorizonSourceRoofProfile : uint8
+{
+    Flat,
+    Apex,
+    Gabled,
+    Hipped
+};
+
 UCLASS(BlueprintType)
 class BRIDGEPOINTHORIZON_API AHorizonWorldCellRenderer : public AActor
 {
@@ -105,10 +114,14 @@ public:
         int32 VisualLimit,
         int32 CollisionLimit);
 
+    static EHorizonSourceRoofProfile ResolveSourceRoofProfile(
+        const FString& RoofShape,
+        int32 FootprintVertexCount);
     static double ResolveSourceRoofHeightMeters(
         const FString& RoofShape,
         double RequestedRoofHeightMeters,
-        double TotalBuildingHeightMeters);
+        double TotalBuildingHeightMeters,
+        int32 FootprintVertexCount = 0);
     static FLinearColor ResolveTerrainReliefTint(
         double HeightMeters,
         double MinimumHeightMeters,
