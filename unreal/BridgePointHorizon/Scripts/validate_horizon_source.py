@@ -81,18 +81,37 @@ require(arena_director.count('Add(TEXT("tdm_') == 50,
 for token in ["GetRankedArenas(50)", "RotationCounter", "PoolSize", "LastArenaId"]:
     require(token in arena_director, f"50-map automatic native arena rotation missing: {token}")
 
+infected_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonInfectedDirectorSubsystem.h")
+infected = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonInfectedDirectorSubsystem.cpp")
+infected_contract = infected_header + "\n" + infected
+for token in [
+    "EHorizonInfectedArchetype::Spider", "EHorizonInfectedArchetype::ZombieDog",
+    "EHorizonInfectedArchetype::Orc", "GetBaseHealth", "GetContactDamage() const { return 25; }",
+    "GetMovementSpeedMps", "ShouldHop", "GetZombieDogPackMin() const { return 3; }",
+    "GetZombieDogPackMax() const { return 5; }", "return 75;", "return 150;",
+    "return 7.05f;", "return 7.25f;", "Tuning.HealthMultiplier = 1.0f",
+    "Tuning.DamageMultiplier = 1.0f"
+]:
+    require(token in infected_contract, f"Year One infected combat contract missing: {token}")
+
 game_state_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGameStateSubsystem.h")
 game_state = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGameStateSubsystem.cpp")
 require("YearOne.DurationDays = 365" in game_state, "Year One must remain 365 days")
 require("FMath::Clamp(Lives, 0, 3)" in game_state, "Year One lives must remain capped at three")
 require("case EHorizonGameMode::YearOneSurvival" in game_state and "Rules.MaxPartySize = 1" in game_state and "Rules.bConsumesYearOneLives = YearOne.bStarted" in game_state, "Year One mode rules missing")
-require("bOwnerAuthorizedYearOneStart = false" in game_state_header, "Year One owner start gate must default locked")
-require("!bOwnerAuthorizedYearOneStart" in game_state, "Year One runtime start gate missing")
+for token in [
+    "GetScheduledYearOneStartUtc", "FDateTime(2026, 10, 1, 4, 0, 0)",
+    "FDateTime::UtcNow() >= ScheduledStart", "StartYearOneEvent(ScheduledStart)"
+]:
+    require(token in game_state_header + game_state, f"scheduled Oct 1 Year One start missing: {token}")
+require("bOwnerAuthorizedYearOneStart" not in game_state_header + game_state,
+        "retired manual Year One owner-start gate must not return")
 for token in ["LoadGameFromSlot", "SaveGameToSlot", "YearOneSaveSlot"]:
     require(token in game_state, f"Year One persistence missing: {token}")
 
 default_game = read("unreal/BridgePointHorizon/Config/DefaultGame.ini")
-require("bOwnerAuthorizedYearOneStart=False" in default_game, "Year One must remain owner-locked until explicit start approval")
+require("2026-10-01 00:00 America/New_York" in default_game,
+        "native config must document fixed Oct 1 Year One launch")
 
 social = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonSocialSubsystem.cpp")
 require("Year One Survival is solo-only." in social, "Year One party rejection missing")
@@ -462,7 +481,8 @@ for token in [
     "TryAddItem", "TryRemoveItem", "TryAddItemsAtomically", "TryConsumeItemsAtomically", "TryCraft", "ConsumeItem",
     "AdvanceSurvivalHours", "CarryCapacityKg = 35.0f",
     "ComputeInventoryWeightKg", "CanAffordIngredients", "CanAffordRecipe",
-    "TryBuildInventoryAfterAddition", "SimulateNeeds"
+    "TryBuildInventoryAfterAddition", "SimulateNeeds",
+    "ShieldPoints", "ApplyMonsterHit", "AddShieldPickup", "GetCombinedCombatPoints"
 ]:
     require(token in survival_contract, f"survival/crafting contract missing: {token}")
 for token in [
@@ -476,7 +496,10 @@ for token in [
     'ItemKey == TEXT("fuel_can")',
     "SprintHungerMultiplier", "SprintThirstMultiplier",
     "ShelterHungerMultiplier", "ShelterThirstMultiplier",
-    "DeprivationDamagePerHour", "FMath::Clamp(DeltaHours, 0.0f, 24.0f)"
+    "DeprivationDamagePerHour", "FMath::Clamp(DeltaHours, 0.0f, 24.0f)",
+    "FMath::Min(FMath::Clamp(State->ShieldPoints, 0, 100), Remaining)",
+    "State->ShieldPoints = FMath::Clamp(State->ShieldPoints + Points, 0, 100)",
+    'ItemKey == TEXT("shield_plate")'
 ]:
     require(token in survival, f"survival/crafting behavior missing: {token}")
 for forbidden in ["premium", "purchase", "entitlement", "stripe", "payment"]:
@@ -869,6 +892,23 @@ if mode_contract_path.exists():
     require(year.get("party", {}).get("max") == 1, "Year One must be solo")
     require(year.get("party", {}).get("invites_allowed") is False, "Year One invites must be disabled")
     require(year.get("event", {}).get("duration_days") == 365, "Year One must remain 365 days")
+    require(year.get("event", {}).get("start_at") == "2026-10-01T00:00:00-04:00",
+            "Year One must start October 1 at midnight Eastern")
+    require(year.get("event", {}).get("auto_start") is True,
+            "Year One countdown must automatically unlock play")
+    require(year.get("pvp") is False, "Year One must remain PVE-only")
+    require(year.get("spawn", {}).get("policy") == "PRECISE_PLAYER_LOCATION",
+            "Year One must spawn from the player's precise location")
+    require(year.get("player_vitals", {}).get("monster_hit_damage") == 25,
+            "Year One monster hits must deal exactly 25 points")
+    require(year.get("player_vitals", {}).get("shield_max") == 100 and
+            year.get("player_vitals", {}).get("combined_max") == 200,
+            "Year One health/shield cap contract changed")
+    require(year.get("pickup", {}).get("seconds") == 3,
+            "Year One pickup dwell must remain exactly three seconds")
+    hp = year.get("monsters", {}).get("hp", {})
+    require(hp == {"spider":75,"big_orc":150,"regular_zombie":100,"zombie_dog":75,"other":100},
+            f"unexpected Year One monster HP table: {hp}")
     tdm = by_key.get("infinite_tdm", {})
     require(tdm.get("party", {}).get("supported") == [1, 2, 3, 4],
             "TDM must support solo, duo, trio and squad parties")
