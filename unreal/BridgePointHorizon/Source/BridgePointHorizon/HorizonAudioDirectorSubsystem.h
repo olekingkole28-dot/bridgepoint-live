@@ -92,6 +92,15 @@ enum class EHorizonWeaponReportClass : uint8
 };
 
 UENUM(BlueprintType)
+enum class EHorizonVehicleAudioClass : uint8
+{
+    Sedan,
+    Pickup,
+    Offroad,
+    UtilityVan
+};
+
+UENUM(BlueprintType)
 enum class EHorizonFootstepSurface : uint8
 {
     Concrete,
@@ -204,6 +213,45 @@ struct FHorizonWeaponReportMix
 
     UPROPERTY(BlueprintReadOnly)
     float MaxDistanceCm = 45000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bVirtualizeWhenSilent = true;
+};
+
+USTRUCT(BlueprintType)
+struct FHorizonVehicleAudioMix
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    float EngineGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float ExhaustGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float TireGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float MechanicalRattleGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float DamageSputter01 = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float Pitch = 1.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float LowPassCutoffHz = 20000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float ReverbSend = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float MaxDistanceCm = 32000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bListenerInside = false;
 
     UPROPERTY(BlueprintReadOnly)
     bool bVirtualizeWhenSilent = true;
@@ -411,6 +459,29 @@ public:
     static FHorizonUiFeedbackMix BuildUiFeedbackMix(
         EHorizonUiFeedbackCue Cue,
         float CombatIntensity01,
+        int32 VariationSeed = 0);
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Audio")
+    FHorizonVehicleAudioMix GetVehicleAudioMix(
+        EHorizonVehicleAudioClass VehicleClass,
+        bool bEngineRunning,
+        float SpeedKph,
+        float EngineLoad01,
+        float Durability01,
+        float DistanceCm,
+        bool bListenerInside,
+        bool bOccluded,
+        int32 VariationSeed = 0) const;
+
+    static FHorizonVehicleAudioMix BuildVehicleAudioMix(
+        EHorizonVehicleAudioClass VehicleClass,
+        bool bEngineRunning,
+        float SpeedKph,
+        float EngineLoad01,
+        float Durability01,
+        float DistanceCm,
+        bool bListenerInside,
+        bool bOccluded,
         int32 VariationSeed = 0);
 
     UFUNCTION(BlueprintPure, Category="Horizon|Audio")
