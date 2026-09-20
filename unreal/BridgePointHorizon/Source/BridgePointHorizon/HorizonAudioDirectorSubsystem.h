@@ -144,6 +144,17 @@ enum class EHorizonFootstepSurface : uint8
 };
 
 UENUM(BlueprintType)
+enum class EHorizonTraversalAudioCue : uint8
+{
+    Jump,
+    Land,
+    Slide,
+    Vault,
+    WaterEntry,
+    WaterExit
+};
+
+UENUM(BlueprintType)
 enum class EHorizonCreatureVocalArchetype : uint8
 {
     Shambler,
@@ -420,6 +431,63 @@ struct FHorizonFootstepEvent
 };
 
 USTRUCT(BlueprintType)
+struct FHorizonTraversalAudioMix
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    float BodyGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float GearGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float SurfaceGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float SplashGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float Pitch = 1.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float LowPassCutoffHz = 20000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float ReverbSend = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float MaxDistanceCm = 14000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bVirtualizeWhenSilent = true;
+};
+
+USTRUCT(BlueprintType)
+struct FHorizonTraversalAudioEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    EHorizonTraversalAudioCue Cue = EHorizonTraversalAudioCue::Jump;
+
+    UPROPERTY(BlueprintReadOnly)
+    EHorizonFootstepSurface Surface = EHorizonFootstepSurface::Concrete;
+
+    UPROPERTY(BlueprintReadOnly)
+    FHorizonTraversalAudioMix Mix;
+
+    UPROPERTY(BlueprintReadOnly)
+    FVector WorldLocation = FVector::ZeroVector;
+
+    UPROPERTY(BlueprintReadOnly)
+    float Intensity01 = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 Sequence = 0;
+};
+
+USTRUCT(BlueprintType)
 struct FHorizonCreatureVocalMix
 {
     GENERATED_BODY()
@@ -551,6 +619,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
     FHorizonCombatImpactEmitted,
     const FHorizonCombatImpactEvent&,
     Impact);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+    FHorizonTraversalAudioEmitted,
+    const FHorizonTraversalAudioEvent&,
+    Traversal);
 
 UCLASS()
 class BRIDGEPOINTHORIZON_API UHorizonAudioDirectorSubsystem : public UGameInstanceSubsystem
@@ -569,6 +641,9 @@ public:
 
     UPROPERTY(BlueprintAssignable, Category="Horizon|Audio")
     FHorizonCombatImpactEmitted OnCombatImpactEmitted;
+
+    UPROPERTY(BlueprintAssignable, Category="Horizon|Audio")
+    FHorizonTraversalAudioEmitted OnTraversalAudioEmitted;
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Audio")
     void SetAcousticSpace(EHorizonAcousticSpace NewSpace);
@@ -724,6 +799,34 @@ public:
         float& InOutAccumulatedDistanceCm);
 
     static EHorizonFootstepSurface ResolveFootstepSurfaceName(FName SurfaceName);
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Audio")
+    FHorizonTraversalAudioMix GetTraversalAudioMix(
+        EHorizonTraversalAudioCue Cue,
+        EHorizonFootstepSurface Surface,
+        float Intensity01,
+        float DistanceCm,
+        bool bOccluded,
+        int32 VariationSeed = 0) const;
+
+    static FHorizonTraversalAudioMix BuildTraversalAudioMix(
+        EHorizonTraversalAudioCue Cue,
+        EHorizonFootstepSurface Surface,
+        float Intensity01,
+        float DistanceCm,
+        EHorizonAcousticSpace ListenerSpace,
+        bool bOccluded,
+        int32 VariationSeed = 0);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Audio")
+    FHorizonTraversalAudioEvent EmitTraversalAudio(
+        EHorizonTraversalAudioCue Cue,
+        EHorizonFootstepSurface Surface,
+        float Intensity01,
+        float DistanceCm,
+        bool bOccluded,
+        FVector WorldLocation,
+        int32 Sequence);
 
     UFUNCTION(BlueprintPure, Category="Horizon|Audio")
     FHorizonCreatureVocalMix GetCreatureVocalMix(
