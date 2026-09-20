@@ -174,11 +174,12 @@ jobs:
           node --check site/landing.js
           node --check site/intelligence-global-v5507.js
           node --check site/intelligence-tools-v5507.js
+          node -e "const fs=require('fs');let s=fs.readFileSync('site/intelligence-tools-v5507.js','utf8').split('\\n').filter(x=>!x.startsWith('import')).join('\\n');new Function(s);"
           node --check site/road-drive-v5527.js
           node --check site/scenario-lab-v5525.js
           node --check site/qr-house-v5521.js
-          grep -Fq 'intelligence-tools-v5507.js?v=5528' site/index.html
-          grep -Fq 'intelligence-tools-v5507.js?v=5528' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5529' site/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5529' site/app/index.html
           grep -Fq 'FREE PREMIUM TOOLS' site/intelligence-tools-v5507.js
           grep -Fq 'openScenarioLab' site/intelligence-tools-v5507.js
           grep -Fq 'openRoadDrive' site/intelligence-tools-v5507.js

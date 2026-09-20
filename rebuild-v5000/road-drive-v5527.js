@@ -24,8 +24,45 @@ function selectionMarkup(){return '<section class="bp-rd-picker"><div class="bp-
 function driveMarkup(s){return '<div class="bp-rd-drive-head"><div><small>BRIDGEPOINT ROAD DRIVE</small><b data-rd-place-name>'+esc(s.location.label)+'</b><span data-rd-weather>LIVE WEATHER · CHECKING</span></div><button data-rd-exit type="button">EXIT</button></div><div class="bp-rd-drive-controls"><div class="bp-rd-gauge" data-rd-gauge><span>MPH</span><b data-rd-mph>'+Math.round(s.speedMph)+'</b></div><button data-rd-pause type="button">Ⅱ PAUSE</button><button data-rd-slower type="button">− SPEED</button><button data-rd-faster type="button">+ SPEED</button><button data-rd-zoomout type="button">− ZOOM</button><button data-rd-zoomin type="button">+ ZOOM</button><button data-rd-new type="button">NEW PLACE</button></div><div class="bp-rd-hint">TAP THE SCREEN TO SHOW CONTROLS · PINCH / ZOOM ANY TIME</div>'}
 function setPlace(s,lon,lat,label){s.location={lon:+lon,lat:+lat,label:label||'Selected location'};const box=s.root.querySelector('[data-rd-place]'),start=s.root.querySelector('[data-rd-start]');if(box){box.innerHTML='<b>'+esc(s.location.label)+'</b><span>'+s.location.lat.toFixed(5)+', '+s.location.lon.toFixed(5)+' · finding nearby mapped roads</span>'}if(start)start.disabled=false;try{s.map.easeTo({center:[s.location.lon,s.location.lat],zoom:Math.max(14.7,s.map.getZoom()),pitch:58,bearing:0,duration:700})}catch(_){}}
 function bindSelection(s){const root=s.root,form=root.querySelector('[data-rd-search]'),input=root.querySelector('[data-rd-query]'),results=root.querySelector('[data-rd-results]');root.querySelector('[data-rd-exit]').onclick=()=>s.onExit?.();root.querySelector('[data-rd-center]').onclick=()=>{const c=s.map.getCenter();setPlace(s,c.lng,c.lat,'Map center')};root.querySelector('[data-rd-start]').onclick=()=>void startDriving(s);root.querySelectorAll('[data-rd-preset]').forEach(b=>b.onclick=()=>setPlace(s,+b.dataset.lon,+b.dataset.lat,b.dataset.label));form.onsubmit=async e=>{e.preventDefault();const q=input.value.trim();if(q.length<2)return;results.hidden=false;results.innerHTML='<button disabled><b>Searching BridgePoint…</b><small>Resolving location.</small></button>';const rows=await searchPlace(s,q);if(!rows.length){results.innerHTML='<button disabled><b>No match yet</b><small>Try a fuller city/address/country.</small></button>';return}results.innerHTML='';for(const row of rows){const b=document.createElement('button');b.type='button';const label=row.full_address||row.geocoder_address||row.display_name||q;b.innerHTML='<b>'+esc(label)+'</b><small>'+esc(row.match_type||row.source||'BridgePoint location')+'</small>';b.onclick=()=>{results.hidden=true;setPlace(s,+row.longitude,+row.latitude,label)};results.appendChild(b)}};s.pick=e=>{if(s.stage!=='select')return;setPlace(s,e.lngLat.lng,e.lngLat.lat,'Selected map location')};s.map.on('click',s.pick)}
-function nearestPath(s,coord,heading=null){const layers=roadLayers(s);if(!layers.length)return null;let p;try{p=s.map.project(coord)}catch(_){return null}const boxes=[70,130,220,360],candidates=[];for(const r of boxes){let fs=[];try{fs=s.map.queryRenderedFeatures([[p.x-r,p.y-r],[p.x+r,p.y+r]],{layers})||[]}catch(_){fs=[]}for(const f of fs){for(const line of lineSets(f.geometry)){if(!line||line.length<2)continue;let bestD=Infinity,bestI=0,bestT=0,bestProj=null,bestBear=0;for(let i=0;i<line.length-1;i++){const a=line[i],b=line[i+1],lat=((coord[1]+a[1]+b[1])/3)*Math.PI/180,sx=111320*Math.cos(lat),sy=110540,ax=(a[0]-coord[0])*sx,ay=(a[1]-coord[1])*sy,bx=(b[0]-coord[0])*sx,by=(b[1]-coord[1])*sy,vx=bx-ax,vy=by-ay,l2=vx*vx+vy*vy;if(l2<1)continue;const t=clamp((-(ax*vx+ay*vy))/l2),px=ax+t*vx,py=ay+t*vy,d=Math.hypot(px,py);if(d<bestD){bestD=d;bestI=i;bestT=t;bestProj=[coord[0]+px/sx,coord[1]+py/sy];bestBear=bearing(a,b)}}if(!bestProj)continue;const fwd=[bestProj,...line.slice(bestI+1)],rev=[bestProj,...line.slice(0,bestI+1).reverse()],fwdLen=fwd.reduce((n,x,i)=>i?n+meters(fwd[i-1],x):0,0),revLen=rev.reduce((n,x,i)=>i?n+meters(rev[i-1],x):0,0);for(const path of [fwd,rev]){if(path.length<2)continue;const br=bearing(path[0],path[1]),turn=heading==null?0:angleDelta(br,heading),len=path===fwd?fwdLen:revLen,key=path.slice(0,3).map(x=>x.map(v=>v.toFixed(5)).join(',')).join('|');candidates.push({path,dist:bestD,bearing:br,turn,len,key})}}if(candidates.length)break}
- if(!candidates.length)return null;candidates.sort((a,b)=>(a.dist+Math.min(a.turn,95)*1.7-(Math.min(a.len,900)*.025))-(b.dist+Math.min(b.turn,95)*1.7-(Math.min(b.len,900)*.025)));return candidates.find(x=>x.key!==s.lastPathKey)||candidates[0]}
+function nearestPath(s,coord,heading=null){
+ const layers=roadLayers(s);if(!layers.length)return null;
+ let projected;try{projected=s.map.project(coord)}catch(_){return null}
+ const boxes=[70,130,220,360],candidates=[];
+ for(const radius of boxes){
+  let fs=[];try{fs=s.map.queryRenderedFeatures([[projected.x-radius,projected.y-radius],[projected.x+radius,projected.y+radius]],{layers})||[]}catch(_){fs=[]}
+  for(const f of fs){
+   for(const line of lineSets(f.geometry)){
+    if(!line||line.length<2)continue;
+    let bestD=Infinity,bestI=0,bestProj=null;
+    for(let i=0;i<line.length-1;i++){
+     const a=line[i],b=line[i+1],lat=((coord[1]+a[1]+b[1])/3)*Math.PI/180,sx=111320*Math.cos(lat),sy=110540;
+     const ax=(a[0]-coord[0])*sx,ay=(a[1]-coord[1])*sy,bx=(b[0]-coord[0])*sx,by=(b[1]-coord[1])*sy,vx=bx-ax,vy=by-ay,l2=vx*vx+vy*vy;
+     if(l2<1)continue;
+     const t=clamp((-(ax*vx+ay*vy))/l2),px=ax+t*vx,py=ay+t*vy,d=Math.hypot(px,py);
+     if(d<bestD){bestD=d;bestI=i;bestProj=[coord[0]+px/sx,coord[1]+py/sy]}
+    }
+    if(!bestProj)continue;
+    const fwd=[bestProj,...line.slice(bestI+1)],rev=[bestProj,...line.slice(0,bestI+1).reverse()];
+    const options=[fwd,rev];
+    for(const path of options){
+     if(path.length<2)continue;
+     const br=bearing(path[0],path[1]),turn=heading==null?0:angleDelta(br,heading);
+     const len=path.reduce((n,x,i)=>i?n+meters(path[i-1],x):0,0);
+     const key=path.slice(0,3).map(x=>x.map(v=>v.toFixed(5)).join(',')).join('|');
+     candidates.push({path,dist:bestD,bearing:br,turn,len,key});
+    }
+   }
+  }
+  if(candidates.length)break;
+ }
+ if(!candidates.length)return null;
+ candidates.sort((a,b)=>{
+  const sa=a.dist+Math.min(a.turn,95)*1.7-Math.min(a.len,900)*.025;
+  const sb=b.dist+Math.min(b.turn,95)*1.7-Math.min(b.len,900)*.025;
+  return sa-sb;
+ });
+ return candidates.find(x=>x.key!==s.lastPathKey)||candidates[0];
+}
 function makeCar(s){const el=document.createElement('div');el.className='bp-rd-car';el.innerHTML='<div class="bp-rd-car-shadow"></div><div class="bp-rd-car-body"><i class="hood"></i><i class="cabin"></i><i class="glass"></i><i class="tail"></i><i class="wheel w1"></i><i class="wheel w2"></i><i class="wheel w3"></i><i class="wheel w4"></i><i class="light l1"></i><i class="light l2"></i></div>';try{s.marker=new window.maplibregl.Marker({element:el,anchor:'center'}).setLngLat([s.location.lon,s.location.lat]).addTo(s.map)}catch(_){s.marker=null}}
 function setRoute(s,r){if(!r)return false;s.route=r.path;s.routeIndex=0;s.routeT=0;s.lastPathKey=r.key;s.heading=r.bearing;s.position=s.route[0];return true}
 function moveAlong(s,metersToMove){let guard=0;while(metersToMove>0&&guard++<40){if(!s.route||s.routeIndex>=s.route.length-1){const next=nearestPath(s,s.position||[s.location.lon,s.location.lat],s.heading);if(!setRoute(s,next)){s.paused=true;s.status='NO CONNECTED ROAD';return}}const a=s.route[s.routeIndex],b=s.route[s.routeIndex+1],seg=Math.max(.1,meters(a,b)),remain=seg*(1-s.routeT);if(metersToMove<remain){s.routeT+=metersToMove/seg;metersToMove=0;s.position=[a[0]+(b[0]-a[0])*s.routeT,a[1]+(b[1]-a[1])*s.routeT];s.heading=bearing(a,b)}else{metersToMove-=remain;s.routeIndex++;s.routeT=0;s.position=b;s.heading=bearing(a,b);if(s.routeIndex>=s.route.length-1){const next=nearestPath(s,s.position,s.heading);if(!setRoute(s,next)){s.paused=true;s.status='ROAD END · TAP NEW PLACE'}}}}}
