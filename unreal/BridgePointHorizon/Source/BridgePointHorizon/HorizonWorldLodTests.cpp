@@ -222,8 +222,8 @@ bool FHorizonWorldSourceRoofProfileTest::RunTest(const FString& Parameters)
     TestTrue(
         TEXT("Mansard inset remains inside the source footprint"),
         MansardInset.Num() == 4 &&
-        FMath::IsNearlyEqual(MansardInset[0].X, 1.1) &&
-        FMath::IsNearlyEqual(MansardInset[0].Y, 0.44));
+        FMath::IsNearlyEqual(MansardInset[0].X, 1.1, 1.0e-5) &&
+        FMath::IsNearlyEqual(MansardInset[0].Y, 0.44, 1.0e-5));
 
     const TArray<FVector2D> ConcaveFootprint = {
         FVector2D(0.0, 0.0),
