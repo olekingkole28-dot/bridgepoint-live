@@ -550,7 +550,7 @@ function yearClockHtml(y){
   return `<div class="year-clock"><div><b>${c.days}</b><small>DAYS</small></div><div><b>${c.hours}</b><small>HOURS</small></div><div><b>${c.minutes}</b><small>MINUTES</small></div><div><b>${c.seconds}</b><small>SECONDS</small></div></div>`;
 }
 function leaderRows(rows=[]){return rows.map(r=>`<div class="leader-row"><b>#${r.rank}</b><span>@${escapeHtml(r.handle||'Survivor')} · LV ${r.level||1} · P${r.prestige||0}</span><span>${Number(r.kills||0).toLocaleString()} K</span><span>${Number(r.wins||0).toLocaleString()} W</span><span>${Math.floor(Number(r.play_seconds||0)/3600)}H</span></div>`).join('')||'<p style="color:#95aaa0">No ranked players yet.</p>'}
-let directorTimer=null;
+let directorTimer=null,partyChatTimer=null;
 function drawDirectorMap(canvas,target=null){
   if(!canvas)return;const g=canvas.getContext('2d'),W=canvas.width,H=canvas.height,geo=state.conusOutline?.geometry;
   g.clearRect(0,0,W,H);const grad=g.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#071714');grad.addColorStop(1,'#020706');g.fillStyle=grad;g.fillRect(0,0,W,H);
@@ -611,6 +611,10 @@ async function openModal(tab){
     if(!out){c.innerHTML='<div class="eyebrow">OWNER</div><h1>Owner access required</h1>';return}
     const ps=out.players||[],pays=out.purchases||[],signals=out.anticheat||[];
     c.innerHTML=`<div class="eyebrow">OWNER / CO-OWNER · HORIZON BACKEND</div><h1>Accounts, gameplay, purchases & anti-cheat</h1><p class="account-callout">Checkout is not connected yet, so purchase rows remain empty until Stripe is deliberately enabled. Both designated BridgePoint platform owners can see this page.</p><div class="owner-metrics"><article><h3>PLAYERS</h3><b>${ps.length}</b></article><article><h3>ACTIVE</h3><b>${state.activePlayers||0}</b></article><article><h3>PURCHASES</h3><b>${pays.length}</b></article><article><h3>UNREVIEWED FLAGS</h3><b>${signals.filter(x=>!x.reviewed).length}</b></article></div><h2>Player audit</h2><div class="leaderboard">${ps.map(p=>`<div class="leader-row"><b>LV ${p.level||1}</b><span>@${escapeHtml(p.handle||'Survivor')}<small style="display:block;color:#789087">${escapeHtml(p.email||'')}</small></span><span>${escapeHtml(p.current_mode||'OFFLINE')}</span><span>${Math.floor(Number(p.play_seconds||0)/60)}M</span><span>${Number(p.kills||0)} K · P${p.prestige||0} · ${Number(p.anticheat_unreviewed||0)} FLAGS</span></div>`).join('')||'<p>No linked Horizon accounts yet.</p>'}</div><h2>Payments</h2><div class="leaderboard">${pays.map(p=>`<div class="leader-row"><b>${escapeHtml(p.status)}</b><span>${escapeHtml(p.sku)}</span><span>${money(p.amount_cents,p.currency)}</span><span>TAX ${money(p.tax_cents,p.currency)}</span><span>${new Date(p.created_at).toLocaleString()}</span></div>`).join('')||'<p>No Horizon payments recorded. Stripe is still disconnected.</p>'}</div><h2>Anti-cheat signals</h2><div class="leaderboard">${signals.slice(0,100).map(s=>`<div class="leader-row"><b>S${s.severity}</b><span>${escapeHtml(s.signal_type)}</span><span>${escapeHtml(String(s.observed??''))}</span><span>MAX ${escapeHtml(String(s.expected_max??''))}</span><span>${new Date(s.created_at).toLocaleString()}</span></div>`).join('')||'<p>No anti-cheat signals.</p>'}</div>`;
+  }else if(tab==='PARTY'){
+    if(!state.account){c.innerHTML='<div class="eyebrow">PARTY</div><h1>Sign in to use squad chat</h1>';return}
+    c.innerHTML=`<div class="eyebrow">SQUAD COMMS</div><h1>Party chat & headset voice</h1><p style="color:#95aaa0">Text chat is party-only. Voice uses direct WebRTC audio and your browser/device microphone permission; headset routing follows the device/browser audio output.</p><div class="auth-actions"><button data-party-voice>ENABLE HEADSET VOICE</button></div><div id="partyChatLog" class="party-chat-log"></div><div class="party-chat-compose"><input id="partyChatInput" maxlength="280" placeholder="Message your squad"><button data-party-send>SEND</button></div>`;
+    let after=0;const refresh=async()=>{const out=await rpc('bridgepoint_horizon_party_chat_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_after_id:after}).catch(()=>({messages:[]})),log=$('partyChatLog');for(const m of out.messages||[]){after=Math.max(after,Number(m.id||0));if(log)log.insertAdjacentHTML('beforeend',`<div><b>@${escapeHtml(m.handle)}</b><span>${escapeHtml(m.message)}</span></div>`)}if(log)log.scrollTop=log.scrollHeight};await refresh();clearInterval(partyChatTimer);partyChatTimer=setInterval(refresh,1200);
   }else if(tab==='ARMORY'){
     const out=await rpc('bridgepoint_horizon_weapon_catalog_v4340',{}).catch(()=>({weapons:[]})),weapons=out?.weapons||[],rank={COMMON:1,UNCOMMON:2,RARE:3,EPIC:4,LEGENDARY:5,MYTHIC:6};
     c.innerHTML=`<div class="eyebrow">HORIZON ARMORY · LIVE SPECS</div><h1>${weapons.length} weapons across all combat classes</h1><p style="color:#95aaa0">Damage, head damage, range, magazine size, spare-clip cap, level and prestige requirements come from the authoritative Horizon weapon catalog. Rarity colors are consistent in loot and the playable HUD.</p><div class="store-grid">${weapons.sort((a,b)=>(rank[b.rarity]||0)-(rank[a.rarity]||0)||String(a.weapon_class).localeCompare(String(b.weapon_class))).map(w=>`<article class="store-card" style="--rarity:${escapeHtml(w.rarity_color||'#9aa0a6')}">${rewardArt({preview_kind:'RUNTIME_RENDER',preview_ref:'catalog://weapon/'+w.weapon_key})}<span class="eyebrow" style="color:${escapeHtml(w.rarity_color||'#9aa0a6')}">${escapeHtml(w.rarity)} · ${escapeHtml(w.weapon_class)}</span><h3>${escapeHtml(w.display_name)}</h3><div class="weapon-spec-grid"><span><b>${w.body_damage}</b> BODY</span><span><b>${w.head_damage}</b> HEAD</span><span><b>${w.range_m}m</b> RANGE</span><span><b>${w.mag_size}</b> MAG</span><span><b>${w.max_spare_clips}</b> CLIPS</span><span><b>${w.fire_interval_ms}ms</b> FIRE</span></div><small>LEVEL ${w.unlocked_level} · PRESTIGE ${w.prestige_required||0}</small></article>`).join('')}</div>`;
@@ -654,7 +658,7 @@ async function openModal(tab){
   $('modal').classList.add('show');$('modal').setAttribute('aria-hidden','false');
 }
 function closeHorizonModal(){
-  clearInterval(directorTimer);directorTimer=null;$('modal').classList.remove('show');$('modal').setAttribute('aria-hidden','true');refreshInstallUi();
+  clearInterval(directorTimer);directorTimer=null;clearInterval(partyChatTimer);partyChatTimer=null;$('modal').classList.remove('show');$('modal').setAttribute('aria-hidden','true');refreshInstallUi();
 }
 $('closeModal').onclick=closeHorizonModal;
 $('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeHorizonModal()});
@@ -718,7 +722,12 @@ $('modalContent').addEventListener('click',async e=>{
     const out=await rpc('bridgepoint_horizon_leaderboard_v4340',{p_metric:metric.dataset.leaderMetric,p_limit:25}).catch(()=>({leaders:[]}));
     const rows=$('leaderboardRows');if(rows)rows.innerHTML=leaderRows(out?.leaders||[]);return;
   }
-  const classBtn=e.target.closest('[data-save-tdm-class]');
+  if(e.target.closest('[data-party-send]')){
+    const input=$('partyChatInput'),message=input?.value.trim();if(!message)return;
+    try{await rpc('bridgepoint_horizon_party_chat_send_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_message:message});input.value=''}catch(err){status(err.message)}return;
+  }
+  if(e.target.closest('[data-party-voice]')){try{await enablePartyVoice();status('Party headset voice enabled')}catch(err){status(err.message)}return}
+    const classBtn=e.target.closest('[data-save-tdm-class]');
   if(classBtn){
     if(!state.account){openModal('ACCOUNT');return}
     const card=classBtn.closest('[data-class-card]'),slot=Number(classBtn.dataset.saveTdmClass),preset=classBtn.dataset.preset;
@@ -784,8 +793,17 @@ $('modalContent').addEventListener('click',async e=>{
 function connectPartySignal(){
   if(!sb||!state.party?.invite_code)return;
   const ch=sb.channel(`horizon-party:${state.party.invite_code}`,{config:{broadcast:{self:false}}});
-  ch.on('broadcast',{event:'party-ping'},()=>refreshParty()).subscribe(status=>{if(status==='SUBSCRIBED')ch.send({type:'broadcast',event:'party-ping',payload:{player_id:ident.id}})});
+  ch.on('broadcast',{event:'party-ping'},()=>refreshParty())
+    .on('broadcast',{event:'voice-hello'},({payload})=>{if(payload?.player_id&&payload.player_id!==ident.id&&String(ident.id)<String(payload.player_id))makeOffer(payload.player_id,ch)})
+    .on('broadcast',{event:'signal'},({payload})=>handleSignal(payload,ch))
+    .subscribe(status=>{if(status==='SUBSCRIBED'){ch.send({type:'broadcast',event:'party-ping',payload:{player_id:ident.id}});if(state.voiceStream)ch.send({type:'broadcast',event:'voice-hello',payload:{player_id:ident.id}})}});
   state.channel=ch;
+}
+async function enablePartyVoice(){
+  if(!navigator.mediaDevices?.getUserMedia)throw new Error('This browser does not expose microphone capture.');
+  if(!state.voiceStream)state.voiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+  for(const rec of state.peers.values())for(const track of state.voiceStream.getAudioTracks())if(!rec.pc.getSenders().some(s=>s.track===track))rec.pc.addTrack(track,state.voiceStream);
+  state.channel?.send({type:'broadcast',event:'voice-hello',payload:{player_id:ident.id}});
 }
 
 const peerConfig={iceServers:[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']}]};
@@ -838,6 +856,8 @@ function connectMatchSignal(match){
 function pcFor(peerId,ch,initiator=false){
   let rec=state.peers.get(peerId);if(rec)return rec.pc;
   const pc=new RTCPeerConnection(peerConfig);rec={pc,dc:null};state.peers.set(peerId,rec);
+  if(state.voiceStream)for(const track of state.voiceStream.getAudioTracks())pc.addTrack(track,state.voiceStream);
+  pc.ontrack=e=>{let audio=document.querySelector('audio[data-peer="'+peerId+'"]');if(!audio){audio=document.createElement('audio');audio.dataset.peer=peerId;audio.autoplay=true;audio.playsInline=true;audio.hidden=true;document.body.appendChild(audio)}audio.srcObject=e.streams?.[0]||new MediaStream([e.track]);audio.play?.().catch(()=>{})};
   pc.onicecandidate=e=>{if(e.candidate)ch.send({type:'broadcast',event:'signal',payload:{from:ident.id,to:peerId,candidate:e.candidate}})};
   pc.onconnectionstatechange=()=>{
     if(pc.connectionState==='connected'){setNet('P2P DIRECT','#44f3bd');$('peerMeta').textContent=`${[...state.peers.values()].filter(x=>x.pc.connectionState==='connected').length+1} DIRECT`}
