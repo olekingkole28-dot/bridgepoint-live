@@ -74,7 +74,6 @@ export const HorizonRuntimeContract=Object.freeze({
     monsterRespawnSeconds:120,noSpawnRadiusM:45,liveWeather:true,realLocalDaylight:true,campfireWarmth:true
   },
   tdm:{targetPlayers:100,teamSize:50,playerHealth:150,shield:0,partySizes:[1,2,3,4],botBackfill:true,mapCount:50,mapVoteSeconds:10,mapVoteChoices:2,randomVote:true,prematchFreezeSeconds:10,prematchLookOnly:true,fireCircleSeconds:1800,fireDamagePerSecond:25,loadoutPresets:5,tacticalSlots:2,lethalSlots:1,attachmentSlots:['OPTIC','BARREL','MUZZLE','UNDERBARREL','MAGAZINE','STOCK','GRIP'],buildLimit:3,deathToLobbyMs:10000,deathLootDwellMs:3000},
-  social:{friends:true,friendRequests:true,lobbyInvites:true,blockUnblock:true,privateReports:true,ownerModeration:true,friendEmailExposure:false},
   progression:{maxLevel:100,maxPrestige:15,prestigeCharacterChoices:3}
 });
 
