@@ -1,19 +1,21 @@
 {
-  "schema_version": 2,
-  "build_target": 4251,
-  "updated_at": "2026-09-13",
+  "schema_version": 3,
+  "build_target": 4336,
+  "updated_at": "2026-09-19",
   "extends": [
     "HORIZON_GAME_MODES_V4243.json",
     "HORIZON_YEAR_ONE_V4250.json"
   ],
-  "authority": "OWNER_LOCKED",
+  "authority": "OWNER_SCHEDULED_OCT_1_2026",
   "owner_directives": {
-    "year_one_start": "owner_explicit_only",
+    "year_one_start_at": "2026-10-01T00:00:00-04:00",
+    "launch_timezone": "America/New_York",
+    "auto_start_when_countdown_reaches_zero": true,
     "duration_days": 365,
     "lives_total_per_player": 3,
+    "pvp": false,
     "owner_funded_fixed_spend_usd": 0,
-    "repurpose_five_chatgpt_workers_to_horizon": true,
-    "stripe_existing_bridgepoint_account_authorized": true
+    "repurpose_five_chatgpt_workers_to_horizon": true
   },
   "zero_budget_policy": {
     "paid_assets": false,
@@ -26,7 +28,7 @@
     "free_sources_only": "original, public-domain, CC0, or otherwise explicitly verified for the intended commercial use"
   },
   "year_one_survival": {
-    "status": "PRESEASON_DAY_0_UNTIL_OWNER_START_COMMAND",
+    "status": "PRESEASON_COUNTDOWN_TO_2026_10_01",
     "solo_only": true,
     "duration_days": 365,
     "lives": {
@@ -113,6 +115,75 @@
       "pressure_goal": "force remaining survivors toward larger cities over time",
       "finale": "major-city showdown among remaining survivors near the end of Year One",
       "presentation": "original Horizon infected-wall system; no copied Fortnite art/UI/assets"
+    },
+    "start_at": "2026-10-01T00:00:00-04:00",
+    "auto_start": true,
+    "pvp": {
+      "enabled": false,
+      "player_damage": false,
+      "friendly_fire": false,
+      "monster_combat_only": true
+    },
+    "spawn": {
+      "policy": "PRECISE_PLAYER_LOCATION",
+      "use_high_accuracy_device_location": true,
+      "if_inside_building": "spawn inside that streamed building",
+      "if_on_street": "spawn at that street coordinate",
+      "world_cell_center": "player latitude/longitude",
+      "backend_rpc": "bridgepoint_horizon_year_one_enter_v4336"
+    },
+    "player_vitals": {
+      "health": 100,
+      "shield_initial": 0,
+      "shield_pickup_points": 50,
+      "shield_max": 100,
+      "combined_max": 200,
+      "monster_hit_damage": 25,
+      "damage_order": "SHIELD_FIRST_THEN_HEALTH",
+      "hud": "separate live health and shield bars with icons and animated decrement"
+    },
+    "monsters": {
+      "health": {
+        "spider": 75,
+        "big_orc": 150,
+        "regular_zombie": 100,
+        "zombie_dog": 75,
+        "other": 100
+      },
+      "movement": {
+        "walker": "slow walk",
+        "runner": "7.05 m/s, below 8.4 m/s player sprint",
+        "zombie_dog": "7.25 m/s in packs of 3-5, below player sprint",
+        "spider": "hop only; airborne arc then ground contact; never crawl",
+        "big_orc": "heavy hop",
+        "other": "slow walk"
+      },
+      "patrols": "deterministic realistic road/building routes; indoor variants occupy generated floors",
+      "aggro": "proximity or footsteps permanently locks target until monster is killed",
+      "train_behavior": "locked monsters continuously follow the player, enabling COD-zombies-style training",
+      "hp_bars": "world-space bars parented to each monster and updated after every hit"
+    },
+    "loot": {
+      "pickup": "AUTO_DWELL",
+      "dwell_seconds": 3,
+      "progress_ui": "radial ring around pickup prompt",
+      "shield_pickup": 50,
+      "shield_max": 100
+    },
+    "persistence": {
+      "server_table": "horizon_year_one_runtime_v4336",
+      "checkpoint_rpc": "bridgepoint_horizon_year_one_checkpoint_v4336",
+      "checkpoint_cadence_seconds": 5,
+      "fields": [
+        "health",
+        "shield",
+        "spawn/current location",
+        "monster kills",
+        "loot collected",
+        "last match/cell",
+        "checkpoint timestamp"
+      ],
+      "event_tick": "automation.horizon_year_one_tick_v4336 every minute"
     }
   },
   "retention_and_progression": {
@@ -177,7 +248,7 @@
       "never spend owner money",
       "never provision billable DigitalOcean or GPU resources",
       "never ship ripped or unclear-license assets",
-      "never start Year One without the owner start command",
+      "Year One starts automatically at the owner-scheduled 2026-10-01 00:00 America/New_York timestamp; never start it early",
       "never weaken release gates to force publication",
       "keep Horizon commerce and entitlements namespace-separated from B2B"
     ]
