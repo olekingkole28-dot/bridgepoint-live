@@ -84,6 +84,23 @@ FHorizonVehicleTuning UHorizonVehicleSubsystem::GetTuning(
     return Tuning;
 }
 
+EHorizonVehicleAudioClass UHorizonVehicleSubsystem::ResolveAudioClass(
+    EHorizonVehicleClass VehicleClass)
+{
+    switch (VehicleClass)
+    {
+        case EHorizonVehicleClass::Pickup:
+            return EHorizonVehicleAudioClass::Pickup;
+        case EHorizonVehicleClass::Offroad:
+            return EHorizonVehicleAudioClass::Offroad;
+        case EHorizonVehicleClass::UtilityVan:
+            return EHorizonVehicleAudioClass::UtilityVan;
+        case EHorizonVehicleClass::Sedan:
+        default:
+            return EHorizonVehicleAudioClass::Sedan;
+    }
+}
+
 bool UHorizonVehicleSubsystem::CanStartEngine(
     const FHorizonVehicleState& Vehicle,
     FGuid DriverId)
@@ -256,6 +273,7 @@ bool UHorizonVehicleSubsystem::TryStartEngine(FGuid VehicleId, FGuid DriverId)
     TravelBroadcastAccumulators.FindOrAdd(VehicleId) = 0.0f;
     SaveState();
     BroadcastVehicle(*Vehicle);
+    BroadcastVehicleAudio(*Vehicle, 0.0f);
     return true;
 }
 
@@ -276,6 +294,7 @@ bool UHorizonVehicleSubsystem::StopEngine(FGuid VehicleId, FGuid DriverId)
     TravelBroadcastAccumulators.Remove(VehicleId);
     SaveState();
     BroadcastVehicle(*Vehicle);
+    BroadcastVehicleAudio(*Vehicle, 0.0f);
     return true;
 }
 
@@ -325,6 +344,7 @@ bool UHorizonVehicleSubsystem::AdvanceVehicle(
             BroadcastAccumulator))
     {
         BroadcastVehicle(*Vehicle);
+        BroadcastVehicleAudio(*Vehicle, SpeedKph);
     }
     if (bStopped)
     {
@@ -401,6 +421,58 @@ void UHorizonVehicleSubsystem::SaveState()
     {
         UGameplayStatics::SaveGameToSlot(State, SaveSlot, 0);
     }
+}
+
+void UHorizonVehicleSubsystem::BroadcastVehicleAudio(
+    const FHorizonVehicleState& Vehicle,
+    float SpeedKph)
+{
+    const FHorizonVehicleTuning Tuning = GetTuning(Vehicle.VehicleClass);
+    const float SafeSpeedKph = FMath::IsFinite(SpeedKph)
+        ? FMath::Clamp(SpeedKph, 0.0f, Tuning.MaximumSpeedKph)
+        : 0.0f;
+    const float EngineLoad01 = Tuning.MaximumSpeedKph > KINDA_SMALL_NUMBER
+        ? SafeSpeedKph / Tuning.MaximumSpeedKph
+        : 0.0f;
+    const int32 VariationSeed =
+        static_cast<int32>(GetTypeHash(Vehicle.VehicleId)) ^
+        FMath::FloorToInt(Vehicle.OdometerKm * 10.0f);
+
+    FHorizonVehicleAudioFrame Frame;
+    Frame.VehicleId = Vehicle.VehicleId;
+    Frame.SpeedKph = SafeSpeedKph;
+
+    UGameInstance* GameInstance = GetGameInstance();
+    UHorizonAudioDirectorSubsystem* Audio =
+        GameInstance ? GameInstance->GetSubsystem<UHorizonAudioDirectorSubsystem>() : nullptr;
+    if (Audio)
+    {
+        Frame.Mix = Audio->GetVehicleAudioMix(
+            ResolveAudioClass(Vehicle.VehicleClass),
+            Vehicle.bEngineRunning,
+            SafeSpeedKph,
+            EngineLoad01,
+            Vehicle.Durability01,
+            0.0f,
+            true,
+            false,
+            VariationSeed);
+    }
+    else
+    {
+        Frame.Mix = UHorizonAudioDirectorSubsystem::BuildVehicleAudioMix(
+            ResolveAudioClass(Vehicle.VehicleClass),
+            Vehicle.bEngineRunning,
+            SafeSpeedKph,
+            EngineLoad01,
+            Vehicle.Durability01,
+            0.0f,
+            true,
+            false,
+            VariationSeed);
+    }
+
+    OnVehicleAudioUpdated.Broadcast(Frame);
 }
 
 void UHorizonVehicleSubsystem::BroadcastVehicle(
