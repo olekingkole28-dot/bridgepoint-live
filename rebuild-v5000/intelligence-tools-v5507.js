@@ -1,4 +1,4 @@
-import{openScenarioLab,closeScenarioLab}from'/scenario-lab-v5524.js?v=5524';
+import{openScenarioLab,closeScenarioLab}from'/scenario-lab-v5525.js?v=5525';
 import{rpc,sessionKey,globe,refresh,globalVisible}from'/intelligence-global-v5507.js?v=5521';
 const S={map:null,surface:null,manifest:null,tool:null,timer:0,frame:0,path:null,pathIndex:0,scenario:'HURRICANE'};const $=id=>document.getElementById(id);const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function waitRuntime(){return new Promise((resolve,reject)=>{const t=Date.now();(function q(){const r=window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__;if(r&&r.map)return resolve(r);if(Date.now()-t>30000)return reject(new Error('Global runtime timeout'));setTimeout(q,120)})()})}
