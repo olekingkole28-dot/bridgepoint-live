@@ -12,7 +12,7 @@ for(const marker of [
   'firstPerson:true','crouch:true','prone:true','slide:true','jumpVault:true','gamepad:true','weaponInventory:true','minimap:true','proceduralInteriors:true','interiorLoot:true','roofTraversal:true','drivableVehicles:true','vehicleFuelRepair:true','infectedPatrols:true','ambientDisasterFx:true','spatialAudio:true','adaptivePerformanceGovernor:true',
   'buildInterior(entry)','buildZiplines()','spawnVehicles()','buildInfectedPatrol','state:stateCode','pickupDwellSeconds:3','shieldPickup:50','monsterHitDamage:25',
   "bridgepoint_horizon_record_player_kill_v4340","bridgepoint_horizon_year_one_death_v4310","bridgepoint_horizon_year_one_zone_v4340",
-  "bridgepoint_horizon_weapon_catalog_v4340","bridgepoint_horizon_tdm_loadouts_v4341","bridgepoint_horizon_tdm_fire_zone_v4341","bridgepoint_horizon_tdm_combat_clock_v4341","bridgepoint_horizon_social_inbox_v4341","bridgepoint_horizon_friend_request_v4341","bridgepoint_horizon_lobby_invite_v4341","bridgepoint_horizon_report_player_v4341","bridgepoint_horizon_death_drop_claim_v4340","syncFiniteLoot","inventoryWeaponKeys","buildCampfire","target=100","playerHealthMax:150","shieldMax:0","fireCircleSeconds:1800"
+  "bridgepoint_horizon_weapon_catalog_v4340","bridgepoint_horizon_tdm_loadouts_v4341","bridgepoint_horizon_tdm_fire_zone_v4341","bridgepoint_horizon_tdm_combat_clock_v4341","bridgepoint_horizon_death_drop_claim_v4340","syncFiniteLoot","inventoryWeaponKeys","buildCampfire","target=100","playerHealthMax:150","shieldMax:0","fireCircleSeconds:1800"
 ]) if(!source.includes(marker))throw new Error('Missing source contract '+marker);
 
 const browser=await chromium.launch({executablePath,headless:true,args:[
@@ -40,10 +40,6 @@ await page.route('**/rest/v1/rpc/**',async route=>{
     if(name==='bridgepoint_horizon_tdm_loadouts_v4341')return {ok:true,health:150,shield:0,presets:[{preset_key:'preset_smg',slot_no:1,primary_weapon_key:'smg',secondary_weapon_key:'pistol',tactical_1:'SMOKE',tactical_2:'GAS',lethal:'FRAG'}],saved:[],attachments:[]};
     if(name==='bridgepoint_horizon_tdm_fire_zone_v4341')return {ok:true,radius_m:500,phase:1,moving:false,remaining_seconds:1800,damage_per_tick:25,tick_ms:1000};
     if(name==='bridgepoint_horizon_tdm_combat_clock_v4341')return {ok:true,combat_live_at:new Date(Date.now()+100).toISOString(),seconds_remaining:1};
-    if(name==='bridgepoint_horizon_social_inbox_v4341')return {ok:true,friends:[],incoming_requests:[],outgoing_requests:[],lobby_invites:[],blocked:[]};
-    if(name==='bridgepoint_horizon_friend_request_v4341')return {ok:true,status:'PENDING'};
-    if(name==='bridgepoint_horizon_lobby_invite_v4341')return {ok:true,expires_in_seconds:900};
-    if(name==='bridgepoint_horizon_report_player_v4341')return {ok:true,report_id:1,status:'OPEN'};
     if(name==='bridgepoint_horizon_presence_v4340')return {ok:true,active_players:1,heartbeat_seconds:10};
     if(name==='bridgepoint_horizon_death_drops_near_v4340')return {ok:true,drops:[]};
     if(name==='bridgepoint_horizon_active_count_v4340')return {ok:true,active_players:1,year_one:0,tdm:1};
