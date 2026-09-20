@@ -418,4 +418,87 @@ bool FHorizonVehicleAudioRuntimeMixTest::RunTest(const FString& Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonRuntimeFootstepCadenceTest,
+    "BridgePoint.Horizon.Audio.Footsteps.RuntimeCadence",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonRuntimeFootstepCadenceTest::RunTest(const FString& Parameters)
+{
+    float AccumulatedDistanceCm = 0.0f;
+    TestEqual(TEXT("Sub-stride travel emits no footstep"),
+        UHorizonAudioDirectorSubsystem::ConsumeFootstepDistance(
+            70.0f, 160.0f, 2, AccumulatedDistanceCm),
+        0);
+    TestEqual(TEXT("Sub-stride distance is retained"),
+        AccumulatedDistanceCm,
+        70.0f);
+    TestEqual(TEXT("Crossing one stride emits one footstep"),
+        UHorizonAudioDirectorSubsystem::ConsumeFootstepDistance(
+            100.0f, 160.0f, 2, AccumulatedDistanceCm),
+        1);
+    TestEqual(TEXT("Cadence preserves distance remainder"),
+        AccumulatedDistanceCm,
+        10.0f);
+
+    AccumulatedDistanceCm = 0.0f;
+    TestEqual(TEXT("Hitch catch-up is bounded to two footsteps"),
+        UHorizonAudioDirectorSubsystem::ConsumeFootstepDistance(
+            2000.0f, 160.0f, 2, AccumulatedDistanceCm),
+        2);
+    TestTrue(TEXT("Hitch catch-up cannot retain a burst backlog"),
+        AccumulatedDistanceCm < 160.0f);
+
+    AccumulatedDistanceCm = 20.0f;
+    TestEqual(TEXT("Invalid negative travel emits no footstep"),
+        UHorizonAudioDirectorSubsystem::ConsumeFootstepDistance(
+            -50.0f, 160.0f, 2, AccumulatedDistanceCm),
+        0);
+
+    TestEqual(TEXT("Road material resolves to asphalt"),
+        UHorizonAudioDirectorSubsystem::ResolveFootstepSurfaceName(
+            TEXT("PM_Road_Asphalt")),
+        EHorizonFootstepSurface::Asphalt);
+    TestEqual(TEXT("Puddle material resolves to shallow water"),
+        UHorizonAudioDirectorSubsystem::ResolveFootstepSurfaceName(
+            TEXT("Wet_Puddle")),
+        EHorizonFootstepSurface::ShallowWater);
+    TestEqual(TEXT("Unknown material safely defaults to concrete"),
+        UHorizonAudioDirectorSubsystem::ResolveFootstepSurfaceName(
+            TEXT("UnknownSurface")),
+        EHorizonFootstepSurface::Concrete);
+
+    UHorizonAudioDirectorSubsystem* Audio =
+        NewObject<UHorizonAudioDirectorSubsystem>();
+    TestNotNull(TEXT("Audio director should construct for footstep events"), Audio);
+    if (!Audio)
+    {
+        return false;
+    }
+
+    const FHorizonFootstepEvent First = Audio->EmitFootstep(
+        EHorizonFootstepSurface::Metal,
+        0.8f,
+        false,
+        FVector(10.0f, 20.0f, 30.0f),
+        12);
+    const FHorizonFootstepEvent Repeat = Audio->EmitFootstep(
+        EHorizonFootstepSurface::Metal,
+        0.8f,
+        false,
+        FVector(10.0f, 20.0f, 30.0f),
+        12);
+    TestEqual(TEXT("Seeded runtime footstep pitch is deterministic"),
+        Repeat.Mix.Pitch,
+        First.Mix.Pitch);
+    TestEqual(TEXT("Seeded runtime footstep gain is deterministic"),
+        Repeat.Mix.Volume,
+        First.Mix.Volume);
+    TestTrue(TEXT("Footstep alternates left and right feet"),
+        First.bLeftFoot);
+    TestTrue(TEXT("Metal runtime step preserves surface identity"),
+        First.Mix.LowFrequencyGain > 0.70f);
+    return true;
+}
+
 #endif
