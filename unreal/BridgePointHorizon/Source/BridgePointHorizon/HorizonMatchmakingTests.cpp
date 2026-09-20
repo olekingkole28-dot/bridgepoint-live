@@ -128,4 +128,109 @@ bool FHorizonCrossInputConsentTest::RunTest(const FString& Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonMatchProfileValidationTest,
+    "BridgePoint.Horizon.Matchmaking.ProfileValidationFailsClosed",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonMatchProfileValidationTest::RunTest(const FString& Parameters)
+{
+    FString Reason;
+    FHorizonMatchProfile Profile =
+        HorizonMatchmakingTest::MakeProfile(TEXT("valid-player"));
+    TestTrue(TEXT("valid server profile passes validation"),
+        UHorizonMatchmakingSubsystem::ValidateProfile(Profile, Reason));
+    TestTrue(TEXT("valid profile has no rejection reason"), Reason.IsEmpty());
+
+    Profile.PlayerId = TEXT("   ");
+    TestFalse(TEXT("blank player identity fails closed"),
+        UHorizonMatchmakingSubsystem::ValidateProfile(Profile, Reason));
+    TestEqual(TEXT("blank identity rejection is explainable"),
+        Reason,
+        FString(TEXT("INVALID_PLAYER_ID")));
+
+    Profile = HorizonMatchmakingTest::MakeProfile(TEXT("invalid-skill"));
+    Profile.SkillMean = TNumericLimits<float>::QuietNaN();
+    TestFalse(TEXT("non-finite skill cannot enter matchmaking"),
+        UHorizonMatchmakingSubsystem::ValidateProfile(Profile, Reason));
+    TestEqual(TEXT("skill rejection is explainable"),
+        Reason,
+        FString(TEXT("INVALID_SKILL_PROFILE")));
+
+    Profile = HorizonMatchmakingTest::MakeProfile(TEXT("invalid-uncertainty"));
+    Profile.SkillUncertainty = 30.0f;
+    TestFalse(TEXT("out-of-contract uncertainty cannot widen search"),
+        UHorizonMatchmakingSubsystem::ValidateProfile(Profile, Reason));
+
+    Profile = HorizonMatchmakingTest::MakeProfile(TEXT("invalid-progress"));
+    Profile.Prestige = 101;
+    TestFalse(TEXT("prestige above the current cap fails closed"),
+        UHorizonMatchmakingSubsystem::ValidateProfile(Profile, Reason));
+    TestEqual(TEXT("progression rejection is explainable"),
+        Reason,
+        FString(TEXT("INVALID_PROGRESSION_PROFILE")));
+
+    Profile = HorizonMatchmakingTest::MakeProfile(TEXT("invalid-kills"));
+    Profile.LifetimeKills = -1;
+    TestFalse(TEXT("negative lifetime kills cannot improve compatibility"),
+        UHorizonMatchmakingSubsystem::ValidateProfile(Profile, Reason));
+
+    Profile = HorizonMatchmakingTest::MakeProfile(TEXT("invalid-ping"));
+    Profile.EstimatedPingMs = -1;
+    TestFalse(TEXT("negative ping cannot masquerade as perfect connection"),
+        UHorizonMatchmakingSubsystem::ValidateProfile(Profile, Reason));
+    TestEqual(TEXT("negative ping rejection is explainable"),
+        Reason,
+        FString(TEXT("INVALID_CONNECTION_PROFILE")));
+
+    Profile = HorizonMatchmakingTest::MakeProfile(TEXT("invalid-input"));
+    Profile.InputPool = static_cast<EHorizonInputPool>(255);
+    TestFalse(TEXT("unknown input pool fails closed"),
+        UHorizonMatchmakingSubsystem::ValidateProfile(Profile, Reason));
+    TestEqual(TEXT("input platform rejection is explainable"),
+        Reason,
+        FString(TEXT("INVALID_INPUT_PLATFORM_PROFILE")));
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonMatchPenaltyTransparencyTest,
+    "BridgePoint.Horizon.Matchmaking.PenaltyTransparency",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonMatchPenaltyTransparencyTest::RunTest(const FString& Parameters)
+{
+    const UHorizonMatchmakingSubsystem* Subject =
+        NewObject<UHorizonMatchmakingSubsystem>();
+    FHorizonMatchProfile Host =
+        HorizonMatchmakingTest::MakeProfile(TEXT("host"));
+    FHorizonMatchProfile Candidate =
+        HorizonMatchmakingTest::MakeProfile(TEXT("candidate"));
+    Candidate.SkillMean = 36.0f;
+    Candidate.CareerLevel = 80;
+    Candidate.LifetimeKills = 2200;
+    Candidate.PlatformPool = EHorizonPlatformPool::PC;
+    Candidate.EstimatedPingMs = 90;
+    Candidate.PartySize = 2;
+
+    const FHorizonMatchCompatibility Result =
+        Subject->EvaluateCompatibility(Host, Candidate);
+    TestTrue(TEXT("skill contribution is exposed"), Result.SkillPenalty > 0.0f);
+    TestTrue(TEXT("progress contribution is exposed"), Result.ProgressPenalty > 0.0f);
+    TestTrue(TEXT("kill contribution is exposed"), Result.KillPenalty > 0.0f);
+    TestTrue(TEXT("connection contribution is exposed"),
+        Result.ConnectionPenalty > 0.0f);
+    TestEqual(TEXT("same-input match has no input penalty"),
+        Result.InputPenalty,
+        0.0f);
+    TestEqual(TEXT("cross-platform consideration is exposed"),
+        Result.PlatformPenalty,
+        1.0f);
+    TestTrue(TEXT("party-size consideration is exposed"),
+        Result.PartyPenalty > 0.0f);
+    TestTrue(TEXT("transparent penalties retain a bounded score"),
+        Result.Score01 >= 0.0f && Result.Score01 <= 1.0f);
+    return true;
+}
+
 #endif
