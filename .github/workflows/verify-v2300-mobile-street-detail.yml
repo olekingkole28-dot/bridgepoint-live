@@ -25,7 +25,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/bpstreet/vendor
-          cp release-v2300/world-v2300-map.js release-v2300/world-v2300-config.js release-v2300/world-v2300-worker.js /tmp/bpstreet/
+          cp release-v2300/world-v2300-map.js release-v2300/world-v2300-space.js release-v2300/world-v2300-config.js release-v2300/world-v2300-worker.js /tmp/bpstreet/
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o /tmp/bpstreet/vendor/maplibre-gl-v1995.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o /tmp/bpstreet/vendor/maplibre-gl-v1995.css
           test -s /tmp/bpstreet/vendor/maplibre-gl-v1995.js
