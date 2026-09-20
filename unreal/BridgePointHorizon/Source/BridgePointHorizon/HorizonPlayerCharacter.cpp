@@ -52,8 +52,8 @@ AHorizonPlayerCharacter::AHorizonPlayerCharacter()
 
     CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
     CameraBoom->SetupAttachment(GetRootComponent());
-    // Horizon is first-person only. Keep the spring arm as a head/lean mount,
-    // but never allow a chase-camera arm, lag, or third-person collision swing.
+    // Start responsive in first person; third person enables the spring-arm
+    // obstruction probe only while the chase camera is active.
     CameraBoom->TargetArmLength = 0.0f;
     CameraBoom->bUsePawnControlRotation = true;
     CameraBoom->bEnableCameraLag = false;
@@ -772,7 +772,7 @@ void AHorizonPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerI
     PlayerInputComponent->BindAction(TEXT("Fire"), IE_Pressed, this, &AHorizonPlayerCharacter::StartFireInput);
     PlayerInputComponent->BindAction(TEXT("Fire"), IE_Released, this, &AHorizonPlayerCharacter::StopFireInput);
     PlayerInputComponent->BindAction(TEXT("Reload"), IE_Pressed, this, &AHorizonPlayerCharacter::ReloadInput);
-    // No camera-toggle binding: Horizon has one gameplay perspective, first person.
+    PlayerInputComponent->BindAction(TEXT("CameraToggle"), IE_Pressed, this, &AHorizonPlayerCharacter::ToggleCameraMode);
 }
 
 void AHorizonPlayerCharacter::StartTraversalJump()
@@ -1216,12 +1216,63 @@ void AHorizonPlayerCharacter::ApplyMovementInput(float DeltaSeconds)
     }
 }
 
+FHorizonCameraPresentationState AHorizonPlayerCharacter::ResolveCameraPresentation(
+    EHorizonCameraMode Mode,
+    bool bIsAiming,
+    float FirstPersonFov,
+    float ThirdPersonFov,
+    float AimFov,
+    float ThirdPersonArm,
+    float ThirdPersonAimArm)
+{
+    const auto SafeFov = [](float Candidate, float Fallback)
+    {
+        return FMath::Clamp(
+            FMath::IsFinite(Candidate) ? Candidate : Fallback,
+            55.0f,
+            115.0f);
+    };
+    const auto SafeArm = [](float Candidate, float Fallback)
+    {
+        return FMath::Clamp(
+            FMath::IsFinite(Candidate) ? Candidate : Fallback,
+            120.0f,
+            600.0f);
+    };
+
+    FHorizonCameraPresentationState State;
+    const bool bFirstPerson = Mode == EHorizonCameraMode::FirstPerson;
+    State.ArmLength = bFirstPerson
+        ? 0.0f
+        : (bIsAiming
+            ? SafeArm(ThirdPersonAimArm, 185.0f)
+            : SafeArm(ThirdPersonArm, 330.0f));
+    State.FieldOfView = bIsAiming
+        ? SafeFov(AimFov, 68.0f)
+        : (bFirstPerson
+            ? SafeFov(FirstPersonFov, 82.0f)
+            : SafeFov(ThirdPersonFov, 86.0f));
+    State.bUseCollision = !bFirstPerson;
+    State.bShowFirstPersonArms = bFirstPerson;
+    State.bHideOwnerBody = bFirstPerson;
+    return State;
+}
+
 void AHorizonPlayerCharacter::UpdateCameraPresentation(float DeltaSeconds)
 {
     const bool bFirstPerson = CameraMode == EHorizonCameraMode::FirstPerson;
-    const float TargetArm = bFirstPerson ? 0.0f : (bAiming ? AimArmLength : ThirdPersonArmLength);
-    const float TargetFov = bAiming ? 68.0f :
-        (bFirstPerson ? FirstPersonFieldOfView : ThirdPersonFieldOfView);
+    const FHorizonCameraPresentationState Presentation =
+        ResolveCameraPresentation(
+            CameraMode,
+            bAiming,
+            FirstPersonFieldOfView,
+            ThirdPersonFieldOfView,
+            AimFieldOfView,
+            ThirdPersonArmLength,
+            AimArmLength);
+    const float TargetArm = Presentation.ArmLength;
+    const float TargetFov = Presentation.FieldOfView;
+    CameraBoom->bDoCollisionTest = Presentation.bUseCollision;
     const bool bLowStance =
         MovementStance == EHorizonMovementStance::Prone ||
         MovementStance == EHorizonMovementStance::Sliding;
@@ -1261,25 +1312,33 @@ void AHorizonPlayerCharacter::UpdateCameraPresentation(float DeltaSeconds)
 
 void AHorizonPlayerCharacter::SetCameraMode(EHorizonCameraMode NewMode)
 {
-    // Preserve the public API for Blueprint/backward compatibility, but clamp
-    // every request to the only supported Horizon perspective.
-    (void)NewMode;
-    CameraMode = EHorizonCameraMode::FirstPerson;
-    CameraBoom->TargetArmLength = 0.0f;
-    CameraBoom->bDoCollisionTest = false;
+    CameraMode = NewMode;
+    const FHorizonCameraPresentationState Presentation =
+        ResolveCameraPresentation(
+            CameraMode,
+            bAiming,
+            FirstPersonFieldOfView,
+            ThirdPersonFieldOfView,
+            AimFieldOfView,
+            ThirdPersonArmLength,
+            AimArmLength);
+    CameraBoom->bDoCollisionTest = Presentation.bUseCollision;
     CameraBoom->bEnableCameraLag = false;
     CameraBoom->bEnableCameraRotationLag = false;
 
     if (USkeletalMeshComponent* CharacterMesh = GetMesh())
     {
-        CharacterMesh->SetOwnerNoSee(true);
+        CharacterMesh->SetOwnerNoSee(Presentation.bHideOwnerBody);
     }
     RefreshFirstPersonVisualState();
 }
 
 void AHorizonPlayerCharacter::ToggleCameraMode()
 {
-    SetCameraMode(EHorizonCameraMode::FirstPerson);
+    SetCameraMode(
+        CameraMode == EHorizonCameraMode::FirstPerson
+            ? EHorizonCameraMode::ThirdPerson
+            : EHorizonCameraMode::FirstPerson);
 }
 
 void AHorizonPlayerCharacter::StartSprint()
