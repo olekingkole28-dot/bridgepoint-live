@@ -176,6 +176,12 @@ public:
     UFUNCTION(BlueprintPure, Category="Horizon|NPC")
     float ScoreSiteForRole(EHorizonChallengeNPCRole Role, const FHorizonNPCSiteCandidate& Site) const;
 
+    UFUNCTION(BlueprintPure, Category="Horizon|NPC")
+    TArray<int32> SelectTopSiteIndices(
+        EHorizonChallengeNPCRole Role,
+        const TArray<FHorizonNPCSiteCandidate>& Candidates,
+        int32 MaxSites = 4) const;
+
     UFUNCTION(BlueprintCallable, Category="Horizon|NPC")
     FHorizonNPCSiteCandidate PickStrategicSite(
         EHorizonChallengeNPCRole Role,
