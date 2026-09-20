@@ -19,7 +19,8 @@ enum class EHorizonSourceRoofProfile : uint8
     Mansard,
     Gambrel,
     HalfHipped,
-    Round
+    Round,
+    Dome
 };
 
 UCLASS(BlueprintType)
