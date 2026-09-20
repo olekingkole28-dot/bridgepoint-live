@@ -65,6 +65,28 @@ bool FHorizonWorldSourceRoofProfileTest::RunTest(const FString& Parameters)
         AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
             TEXT("pyramid"), -2.0, 10.0),
         0.0);
+    TestEqual(
+        TEXT("Explicit rectangular gable resolves to gabled profile"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(TEXT("gabled"), 4),
+        EHorizonSourceRoofProfile::Gabled);
+    TestEqual(
+        TEXT("Explicit rectangular hip resolves to hipped profile"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(TEXT("hipped"), 4),
+        EHorizonSourceRoofProfile::Hipped);
+    TestEqual(
+        TEXT("Source gable height is preserved on rectangular footprints"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
+            TEXT("gable"), 2.8, 11.0, 4),
+        2.8);
+    TestEqual(
+        TEXT("Non-rectangular gables fail flat instead of inventing topology"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(TEXT("gabled"), 6),
+        EHorizonSourceRoofProfile::Flat);
+    TestEqual(
+        TEXT("Missing footprint topology cannot create a gable"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
+            TEXT("gabled"), 2.8, 11.0),
+        0.0);
     return true;
 }
 
