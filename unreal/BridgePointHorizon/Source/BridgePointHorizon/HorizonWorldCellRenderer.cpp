@@ -1342,6 +1342,8 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                 Top.Num() == 4 &&
                 MansardInset.Num() == 4)
             {
+                // The sourced profile adds one bounded four-vertex inset to the
+                // existing mesh section: no new draw section or collision body.
                 const int32 MansardTopBase = Vertices.Num();
                 TArray<FVector2D> MansardTopLocal;
                 MansardTopLocal.Reserve(4);
