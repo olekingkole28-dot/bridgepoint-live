@@ -1,4 +1,4 @@
-name: Horizon V4336 Lobby Gate
+name: Horizon V4340 Lobby Gate
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: horizon-v4336-lobby
+  group: horizon-v4340-lobby
   cancel-in-progress: true
 
 jobs:
@@ -33,16 +33,23 @@ jobs:
           node --check app/horizon/lobby-scene.js
           node --check app/horizon/model-preview.js
           node --check app/horizon/cosmetics-v4320.js
-          grep -Fq 'BP_HORIZON_LOBBY_V4330' app/horizon/app.js
+          grep -Fq 'BP_HORIZON_LOBBY_V4340' app/horizon/app.js
           grep -Fq 'bridgepoint_horizon_map_catalog_v4330' app/horizon/app.js
           grep -Fq "perspective:'FIRST_PERSON_ONLY'" app/horizon/app.js
           grep -Fq "authoritative_modes:['YEAR_ONE','TDM']" app/horizon/app.js
-          grep -Fq "map_rotation:'AUTOMATIC'" app/horizon/app.js
+          grep -Fq "map_rotation:'VOTE_TWO_PLUS_RANDOM'" app/horizon/app.js
           grep -Fq 'map_count:state.maps.length' app/horizon/app.js
           ! grep -Fq 'bridgepoint_horizon_select_map_v4330' app/horizon/app.js
           grep -Fq 'PREVIEW READY · CHECKOUT OWNER-LOCKED' app/horizon/app.js
           grep -Fq 'bridgepoint_horizon_set_profile_v4320' app/horizon/app.js
-          grep -Fq 'bridgepoint_horizon_year_one_enter_v4336' app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_year_one_enter_v4340' app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_account_link_v4340' app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_map_vote_v4340' app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_weapon_catalog_v4340' app/horizon/app.js
+          grep -Fq "tdm_target_players:100" app/horizon/app.js
+          grep -Fq 'data-tab="ARMORY"' app/horizon/index.html
+          grep -Fq 'data-tab="RULES"' app/horizon/index.html
+          grep -Fq 'data-tab="ABOUT"' app/horizon/index.html
           grep -Fq 'yearOneCountdown' app/horizon/index.html
           grep -Fq 'OCT 1 · 12:00 AM ET' app/horizon/index.html
           grep -Fq 'getPreciseLocation' app/horizon/app.js

@@ -66,14 +66,21 @@ public:
     UFUNCTION(BlueprintCallable, Category="Horizon|Arena")
     void SetCandidates(const TArray<FHorizonArenaCandidate>& InCandidates);
 
+    // Fallback selector used when no pre-match vote is available.
     UFUNCTION(BlueprintCallable, Category="Horizon|Arena")
     FHorizonArenaCandidate SelectNextArena(int32 Seed = 0);
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Arena")
+    TArray<FHorizonArenaCandidate> GetVoteCandidates(int32 Seed = 0) const;
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Arena")
+    FHorizonArenaCandidate ResolveArenaVote(int32 Seed, int32 CandidateAVotes, int32 CandidateBVotes, int32 RandomVotes);
 
     UFUNCTION(BlueprintPure, Category="Horizon|Arena")
     float ScoreArena(const FHorizonArenaCandidate& Candidate) const;
 
     UFUNCTION(BlueprintPure, Category="Horizon|Arena")
-    TArray<FHorizonArenaCandidate> GetRankedArenas(int32 MaxCount = 12) const;
+    TArray<FHorizonArenaCandidate> GetRankedArenas(int32 MaxCount = 50) const;
 
     UFUNCTION(BlueprintPure, Category="Horizon|Arena")
     const TArray<FHorizonArenaCandidate>& GetCandidates() const { return Candidates; }
