@@ -452,4 +452,82 @@ bool FHorizonSingleOwnerShotRecoilTest::RunTest(const FString& Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonDualCameraPresentationTest,
+    "BridgePoint.Horizon.Movement.Camera.DualPerspective",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonDualCameraPresentationTest::RunTest(const FString& Parameters)
+{
+    const FHorizonCameraPresentationState FirstPerson =
+        AHorizonPlayerCharacter::ResolveCameraPresentation(
+            EHorizonCameraMode::FirstPerson,
+            false,
+            82.0f,
+            86.0f,
+            68.0f,
+            330.0f,
+            185.0f);
+    TestEqual(TEXT("First person keeps camera at the player head"),
+        FirstPerson.ArmLength,
+        0.0f);
+    TestFalse(TEXT("First person disables chase-camera collision"),
+        FirstPerson.bUseCollision);
+    TestTrue(TEXT("First person shows isolated arms"),
+        FirstPerson.bShowFirstPersonArms);
+    TestTrue(TEXT("First person hides the owner body from the camera"),
+        FirstPerson.bHideOwnerBody);
+
+    const FHorizonCameraPresentationState ThirdPerson =
+        AHorizonPlayerCharacter::ResolveCameraPresentation(
+            EHorizonCameraMode::ThirdPerson,
+            false,
+            82.0f,
+            86.0f,
+            68.0f,
+            330.0f,
+            185.0f);
+    TestEqual(TEXT("Third person restores authored chase distance"),
+        ThirdPerson.ArmLength,
+        330.0f);
+    TestTrue(TEXT("Third person enables obstruction collision"),
+        ThirdPerson.bUseCollision);
+    TestFalse(TEXT("Third person hides first-person arms"),
+        ThirdPerson.bShowFirstPersonArms);
+    TestFalse(TEXT("Third person exposes the owner body"),
+        ThirdPerson.bHideOwnerBody);
+
+    const FHorizonCameraPresentationState ThirdPersonAds =
+        AHorizonPlayerCharacter::ResolveCameraPresentation(
+            EHorizonCameraMode::ThirdPerson,
+            true,
+            82.0f,
+            86.0f,
+            68.0f,
+            330.0f,
+            185.0f);
+    TestTrue(TEXT("Third-person ADS tightens the camera shoulder"),
+        ThirdPersonAds.ArmLength < ThirdPerson.ArmLength);
+    TestTrue(TEXT("ADS narrows field of view in both perspectives"),
+        ThirdPersonAds.FieldOfView < ThirdPerson.FieldOfView);
+
+    const FHorizonCameraPresentationState Invalid =
+        AHorizonPlayerCharacter::ResolveCameraPresentation(
+            EHorizonCameraMode::ThirdPerson,
+            false,
+            TNumericLimits<float>::QuietNaN(),
+            TNumericLimits<float>::QuietNaN(),
+            TNumericLimits<float>::QuietNaN(),
+            TNumericLimits<float>::QuietNaN(),
+            TNumericLimits<float>::QuietNaN());
+    TestEqual(TEXT("Invalid third-person FOV uses a safe fallback"),
+        Invalid.FieldOfView,
+        86.0f);
+    TestEqual(TEXT("Invalid chase distance uses a safe fallback"),
+        Invalid.ArmLength,
+        330.0f);
+    return true;
+}
+
+
 #endif
