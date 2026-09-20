@@ -353,6 +353,7 @@ private:
     float MovementProfileRefreshAccumulator = 0.0f;
     float FootstepDistanceAccumulator = 0.0f;
     int32 FootstepSequence = 0;
+    int32 CombatImpactSequence = 0;
     float SwimVerticalInput = 0.0f;
     bool bSwimUsesProneCapsule = false;
     float StandingCapsuleHalfHeight = 0.0f;

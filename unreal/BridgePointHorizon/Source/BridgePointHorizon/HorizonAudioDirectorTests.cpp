@@ -501,4 +501,158 @@ bool FHorizonRuntimeFootstepCadenceTest::RunTest(const FString& Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonCombatImpactAudioTest,
+    "BridgePoint.Horizon.Audio.Combat.RuntimeImpacts",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonCombatImpactAudioTest::RunTest(const FString& Parameters)
+{
+    const FHorizonCombatImpactMix Flesh =
+        UHorizonAudioDirectorSubsystem::BuildCombatImpactMix(
+            EHorizonCombatImpactSurface::Flesh,
+            0.80f,
+            200.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            17);
+    const FHorizonCombatImpactMix Armor =
+        UHorizonAudioDirectorSubsystem::BuildCombatImpactMix(
+            EHorizonCombatImpactSurface::Armor,
+            0.80f,
+            200.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            17);
+    const FHorizonCombatImpactMix Metal =
+        UHorizonAudioDirectorSubsystem::BuildCombatImpactMix(
+            EHorizonCombatImpactSurface::Metal,
+            0.80f,
+            200.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            17);
+    const FHorizonCombatImpactMix Glass =
+        UHorizonAudioDirectorSubsystem::BuildCombatImpactMix(
+            EHorizonCombatImpactSurface::Glass,
+            0.80f,
+            200.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            17);
+
+    TestTrue(TEXT("Armor impact carries more ring than flesh"),
+        Armor.RingGain > Flesh.RingGain);
+    TestTrue(TEXT("Metal impact emphasizes ringing resonance"),
+        Metal.RingGain > Metal.DebrisGain);
+    TestTrue(TEXT("Glass impact emphasizes debris over body"),
+        Glass.DebrisGain > Glass.BodyGain);
+
+    const FHorizonCombatImpactMix Soft =
+        UHorizonAudioDirectorSubsystem::BuildCombatImpactMix(
+            EHorizonCombatImpactSurface::Concrete,
+            0.20f,
+            100.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            31);
+    const FHorizonCombatImpactMix Hard =
+        UHorizonAudioDirectorSubsystem::BuildCombatImpactMix(
+            EHorizonCombatImpactSurface::Concrete,
+            1.0f,
+            100.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            31);
+    const FHorizonCombatImpactMix Distant =
+        UHorizonAudioDirectorSubsystem::BuildCombatImpactMix(
+            EHorizonCombatImpactSurface::Concrete,
+            1.0f,
+            16000.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            31);
+    const FHorizonCombatImpactMix Occluded =
+        UHorizonAudioDirectorSubsystem::BuildCombatImpactMix(
+            EHorizonCombatImpactSurface::Concrete,
+            1.0f,
+            100.0f,
+            EHorizonAcousticSpace::Outdoor,
+            true,
+            31);
+    const FHorizonCombatImpactMix Tunnel =
+        UHorizonAudioDirectorSubsystem::BuildCombatImpactMix(
+            EHorizonCombatImpactSurface::Concrete,
+            1.0f,
+            100.0f,
+            EHorizonAcousticSpace::Tunnel,
+            false,
+            31);
+    const FHorizonCombatImpactMix Repeat =
+        UHorizonAudioDirectorSubsystem::BuildCombatImpactMix(
+            EHorizonCombatImpactSurface::Concrete,
+            1.0f,
+            100.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            31);
+    const FHorizonCombatImpactMix Invalid =
+        UHorizonAudioDirectorSubsystem::BuildCombatImpactMix(
+            EHorizonCombatImpactSurface::Concrete,
+            -1.0f,
+            -100.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            31);
+
+    TestTrue(TEXT("Hard impacts raise transient attack"),
+        Hard.AttackGain > Soft.AttackGain);
+    TestTrue(TEXT("Distance attenuates combat impacts"),
+        Distant.AttackGain < Hard.AttackGain);
+    TestTrue(TEXT("Occlusion reduces impact attack"),
+        Occluded.AttackGain < Hard.AttackGain);
+    TestTrue(TEXT("Occlusion lowers impact cutoff"),
+        Occluded.LowPassCutoffHz < Hard.LowPassCutoffHz);
+    TestTrue(TEXT("Tunnel impacts receive a stronger reverberant tail"),
+        Tunnel.ReverbSend > Hard.ReverbSend);
+    TestEqual(TEXT("Seeded combat impact pitch is deterministic"),
+        Repeat.Pitch,
+        Hard.Pitch);
+    TestEqual(TEXT("Seeded combat impact gain is deterministic"),
+        Repeat.AttackGain,
+        Hard.AttackGain);
+    TestEqual(TEXT("Invalid impact severity fails silent"),
+        Invalid.AttackGain,
+        0.0f);
+
+    UHorizonAudioDirectorSubsystem* Audio =
+        NewObject<UHorizonAudioDirectorSubsystem>();
+    TestNotNull(TEXT("Audio director should construct for combat impacts"), Audio);
+    if (!Audio)
+    {
+        return false;
+    }
+
+    const FVector ImpactLocation(125.0f, -80.0f, 40.0f);
+    const FHorizonCombatImpactEvent Event = Audio->EmitCombatImpact(
+        EHorizonCombatImpactSurface::Armor,
+        0.72f,
+        0.0f,
+        false,
+        ImpactLocation,
+        9);
+    TestEqual(TEXT("Runtime impact preserves surface identity"),
+        Event.Surface,
+        EHorizonCombatImpactSurface::Armor);
+    TestEqual(TEXT("Runtime impact preserves world location"),
+        Event.WorldLocation,
+        ImpactLocation);
+    TestEqual(TEXT("Runtime impact preserves sequence"),
+        Event.Sequence,
+        9);
+    TestTrue(TEXT("Runtime armor impact produces an audible transient"),
+        Event.Mix.AttackGain > 0.0f);
+    return true;
+}
+
 #endif

@@ -118,6 +118,19 @@ enum class EHorizonWaterAudioClass : uint8
 };
 
 UENUM(BlueprintType)
+enum class EHorizonCombatImpactSurface : uint8
+{
+    Flesh,
+    Armor,
+    Concrete,
+    Metal,
+    Wood,
+    Glass,
+    Dirt,
+    Water
+};
+
+UENUM(BlueprintType)
 enum class EHorizonFootstepSurface : uint8
 {
     Concrete,
@@ -311,6 +324,60 @@ struct FHorizonEnvironmentalEmitterMix
 };
 
 USTRUCT(BlueprintType)
+struct FHorizonCombatImpactMix
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    float AttackGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float BodyGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float DebrisGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float RingGain = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float Pitch = 1.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float LowPassCutoffHz = 20000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float ReverbSend = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float MaxDistanceCm = 16000.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bVirtualizeWhenSilent = true;
+};
+
+USTRUCT(BlueprintType)
+struct FHorizonCombatImpactEvent
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    EHorizonCombatImpactSurface Surface = EHorizonCombatImpactSurface::Concrete;
+
+    UPROPERTY(BlueprintReadOnly)
+    FHorizonCombatImpactMix Mix;
+
+    UPROPERTY(BlueprintReadOnly)
+    FVector WorldLocation = FVector::ZeroVector;
+
+    UPROPERTY(BlueprintReadOnly)
+    float Severity01 = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    int32 Sequence = 0;
+};
+
+USTRUCT(BlueprintType)
 struct FHorizonFootstepMix
 {
     GENERATED_BODY()
@@ -480,6 +547,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
     FHorizonFootstepEmitted,
     const FHorizonFootstepEvent&,
     Footstep);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+    FHorizonCombatImpactEmitted,
+    const FHorizonCombatImpactEvent&,
+    Impact);
 
 UCLASS()
 class BRIDGEPOINTHORIZON_API UHorizonAudioDirectorSubsystem : public UGameInstanceSubsystem
@@ -495,6 +566,9 @@ public:
 
     UPROPERTY(BlueprintAssignable, Category="Horizon|Audio")
     FHorizonFootstepEmitted OnFootstepEmitted;
+
+    UPROPERTY(BlueprintAssignable, Category="Horizon|Audio")
+    FHorizonCombatImpactEmitted OnCombatImpactEmitted;
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Audio")
     void SetAcousticSpace(EHorizonAcousticSpace NewSpace);
@@ -603,6 +677,31 @@ public:
         float DistanceCm,
         bool bOccluded,
         int32 VariationSeed = 0) const;
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Audio")
+    FHorizonCombatImpactMix GetCombatImpactMix(
+        EHorizonCombatImpactSurface Surface,
+        float Severity01,
+        float DistanceCm,
+        bool bOccluded,
+        int32 VariationSeed = 0) const;
+
+    static FHorizonCombatImpactMix BuildCombatImpactMix(
+        EHorizonCombatImpactSurface Surface,
+        float Severity01,
+        float DistanceCm,
+        EHorizonAcousticSpace ListenerSpace,
+        bool bOccluded,
+        int32 VariationSeed = 0);
+
+    UFUNCTION(BlueprintCallable, Category="Horizon|Audio")
+    FHorizonCombatImpactEvent EmitCombatImpact(
+        EHorizonCombatImpactSurface Surface,
+        float Severity01,
+        float DistanceCm,
+        bool bOccluded,
+        FVector WorldLocation,
+        int32 Sequence);
 
     UFUNCTION(BlueprintPure, Category="Horizon|Audio")
     FHorizonFootstepMix GetFootstepMix(
