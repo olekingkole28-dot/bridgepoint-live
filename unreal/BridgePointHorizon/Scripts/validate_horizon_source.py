@@ -87,6 +87,7 @@ infected_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/Hori
 infected = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonInfectedDirectorSubsystem.cpp")
 infected_contract = infected_header + "\n" + infected
 for token in [
+    "EHorizonInfectedArchetype::Lurker", "EHorizonInfectedArchetype::Stalker",
     "EHorizonInfectedArchetype::Spider", "EHorizonInfectedArchetype::ZombieDog",
     "EHorizonInfectedArchetype::Orc", "GetBaseHealth", "GetContactDamage() const { return 25; }",
     "GetMovementSpeedMps", "ShouldHop", "GetZombieDogPackMin() const { return 3; }",
@@ -101,6 +102,17 @@ require("case EHorizonInfectedArchetype::Brute:\n            return 150;" not in
         "unspecified Brute must stay on the 100 HP default")
 require("Archetype == EHorizonInfectedArchetype::Brute" not in infected.partition("bool UHorizonInfectedDirectorSubsystem::ShouldHop")[2].partition("float UHorizonInfectedDirectorSubsystem::GetCityConvergencePressure")[0],
         "unspecified Brute must not inherit Orc hopping")
+
+infected_tests = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonInfectedDirectorTests.cpp")
+for token in [
+    "WITH_DEV_AUTOMATION_TESTS",
+    "Systems.Infected.LurkerStalkerRoster",
+    "Lurkers are present from the early residual infected pool",
+    "Stalkers phase into the later event",
+    "Late deterministic spawn rolls can produce a Lurker",
+    "Late deterministic spawn rolls can produce a Stalker"
+]:
+    require(token in infected_tests, f"native Lurker/Stalker QA missing: {token}")
 
 game_state_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGameStateSubsystem.h")
 game_state = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGameStateSubsystem.cpp")
