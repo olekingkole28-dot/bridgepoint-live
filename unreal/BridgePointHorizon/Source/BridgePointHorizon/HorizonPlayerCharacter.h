@@ -28,6 +28,59 @@ enum class EHorizonMovementStance : uint8
     Vaulting
 };
 
+UENUM(BlueprintType)
+enum class EHorizonHitDirection : uint8
+{
+    Front,
+    Right,
+    Rear,
+    Left
+};
+
+USTRUCT(BlueprintType)
+struct FHorizonCombatHitFeedback
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly)
+    float DamageToArmor = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float DamageToHealth = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float HealthRemaining = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float ArmorRemaining = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float Severity01 = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    EHorizonHitDirection Direction = EHorizonHitDirection::Front;
+
+    UPROPERTY(BlueprintReadOnly)
+    FVector2D CameraImpulse = FVector2D::ZeroVector;
+
+    UPROPERTY(BlueprintReadOnly)
+    float ReticleImpulse01 = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bArmorBroken = false;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bHeadshot = false;
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bLethal = false;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+    FHorizonCombatHitReaction,
+    const FHorizonCombatHitFeedback&,
+    Feedback);
+
 UCLASS()
 class BRIDGEPOINTHORIZON_API AHorizonPlayerCharacter : public ACharacter
 {
@@ -39,6 +92,11 @@ public:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+    virtual float TakeDamage(
+        float DamageAmount,
+        struct FDamageEvent const& DamageEvent,
+        AController* EventInstigator,
+        AActor* DamageCauser) override;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Horizon|Camera")
     TObjectPtr<USpringArmComponent> CameraBoom;
@@ -75,6 +133,21 @@ public:
         FRotator::ZeroRotator,
         FVector(18.0f, 0.0f, -18.0f),
         FVector::OneVector);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Combat", meta=(ClampMin="1.0"))
+    float MaxHealth = 100.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Combat", meta=(ClampMin="0.0"))
+    float MaxArmor = 50.0f;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Horizon|Combat")
+    float CurrentHealth = 100.0f;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Horizon|Combat")
+    float CurrentArmor = 50.0f;
+
+    UPROPERTY(BlueprintAssignable)
+    FHorizonCombatHitReaction OnCombatHitReaction;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
     float WalkSpeed = 430.0f;
@@ -141,6 +214,31 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera|Lean", meta=(ClampMin="2.0", ClampMax="30.0"))
     float LeanProbeRadiusCm = 10.0f;
+
+    UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Horizon|Combat")
+    float ApplyCombatHit(
+        float RawDamage,
+        FVector IncomingDirection,
+        bool bHeadshot = false);
+
+    UFUNCTION(BlueprintPure, Category="Horizon|Combat")
+    bool IsCombatAlive() const { return CurrentHealth > KINDA_SMALL_NUMBER; }
+
+    static EHorizonHitDirection ResolveHitDirection(
+        const FVector& Forward,
+        const FVector& Right,
+        const FVector& IncomingDirection);
+
+    static FHorizonCombatHitFeedback ResolveCombatHit(
+        float RawDamage,
+        float CurrentHealthValue,
+        float CurrentArmorValue,
+        float MaxHealthValue,
+        float MaxArmorValue,
+        const FVector& Forward,
+        const FVector& Right,
+        const FVector& IncomingDirection,
+        bool bHeadshot);
 
     UFUNCTION(BlueprintCallable, Category="Horizon|Weapon")
     bool EquipWeaponVisual(UStaticMesh* WeaponMesh, FName PreferredSocket = NAME_None);
