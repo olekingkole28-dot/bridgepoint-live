@@ -39,6 +39,7 @@ async function refreshAuthState(){
       const out=await rpc('bridgepoint_horizon_account_v4340',{p_player_id:ident.id,p_player_secret:ident.secret});
       state.account=out?.account||null;state.character=out?.character||null;state.stats=out?.stats||null;
       if(state.account?.handle){$('displayName').value=state.account.handle;localStorage.setItem('horizon-display-name',state.account.handle)}
+      lobbyScene?.setLocalCharacter?.(state.character,ident.id);
     }catch{state.account=null}
   }else{state.account=null;state.character=null;state.stats=null}
   renderAccountState();syncPlayAvailability();return state.session;
@@ -660,7 +661,7 @@ $('modalContent').addEventListener('click',async e=>{
     const appearance={hair:$('customHair')?.value,eyes:$('customEyes')?.value,eye_color:$('customEyeColor')?.value,hair_color:$('customHairColor')?.value,skin_tone:$('customSkin')?.value,top_color:$('customTop')?.value,bottom_color:$('customBottom')?.value,shoes:$('customShoes')?.value,backpack:$('customBackpack')?.value,headwear:$('customHeadwear')?.value,sunglasses:$('customGlasses')?.value};
     try{
       const out=await rpc('bridgepoint_horizon_character_save_v4340',{p_player_id:ident.id,p_player_secret:ident.secret,p_presentation:$('customPresentation')?.value||'UNSPECIFIED',p_preset_key:$('customPreset')?.value||'nova',p_appearance:appearance,p_equipped_character_key:'custom_v4340'});
-      if(out?.ok){state.character={...(state.character||{}),presentation:out.presentation,preset_key:out.preset_key,appearance:out.appearance,equipped_character_key:out.equipped_character_key};localStorage.setItem('horizon-character-profile-v4340',JSON.stringify(state.character));status('Character saved to your Horizon account');openModal('CUSTOMIZE')}
+      if(out?.ok){state.character={...(state.character||{}),presentation:out.presentation,preset_key:out.preset_key,appearance:out.appearance,equipped_character_key:out.equipped_character_key};localStorage.setItem('horizon-character-profile-v4340',JSON.stringify(state.character));lobbyScene?.setLocalCharacter?.(state.character,ident.id);status('Character saved to your Horizon account');openModal('CUSTOMIZE')}
     }catch(err){status(err.message)}
     return;
   }
