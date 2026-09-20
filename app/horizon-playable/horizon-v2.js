@@ -1980,6 +1980,10 @@ async function load(){
     ?`${buildings.toLocaleString()} source-backed structures · precise ${spawnType.toLowerCase()} spawn · PVE only · 25 damage per monster hit · 3-second auto pickup`
     :`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · ${ziplineCount} ziplines · ${vehicleCount} vehicles · restored traversal active`;
 
+  window.BP_HORIZON_INPUT_V4341={
+    get movement(){return {moveX,moveY,touchMoveX,touchMoveY,keyMoveX,keyMoveY,locked:tdmMovementLocked(),padActive:pid!==null}},
+    joystick:true,pointerCapture:true,touchAction:'none'
+  };
   window.BP_HORIZON_V2={
     ok:true,build:4341,mode,matchId,state:data?.resolved_jurisdiction?.state||stateCode,
     buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,
