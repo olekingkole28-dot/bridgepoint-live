@@ -1,0 +1,85 @@
+name: Build BridgePoint Viral Promo
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'promo/**'
+      - '.github/workflows/build-bridgepoint-promo.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bridgepoint-viral-promo
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install video dependencies
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          cd promo
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund
+
+      - name: Capture real BridgePoint production footage
+        shell: bash
+        run: |
+          set -euxo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          rm -rf promo-work promo-output
+          mkdir -p promo-work promo-output
+          CHROME_PATH="$CHROME" OUT_DIR="$GITHUB_WORKSPACE/promo-work" node promo/capture_bridgepoint_viral.mjs
+
+      - name: Edit vertical social master
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OUT_DIR="$GITHUB_WORKSPACE/promo-work" FINAL_DIR="$GITHUB_WORKSPACE/promo-output" python3 promo/build_promo.py
+          test -s promo-output/BridgePoint_Intelligence_Viral_Promo_9x16.mp4
+          test -s promo-output/BridgePoint_Intelligence_Viral_Promo_Thumbnail.jpg
+          ffprobe -v error -show_entries stream=width,height -show_entries format=duration,size -of json promo-output/BridgePoint_Intelligence_Viral_Promo_9x16.mp4 | tee promo-output/ffprobe.json
+          python3 - <<'PY'
+          import json, pathlib
+          j=json.load(open('promo-output/ffprobe.json'))
+          v=next(x for x in j['streams'] if 'width' in x)
+          assert v['width']==1080 and v['height']==1920,(v['width'],v['height'])
+          size=pathlib.Path('promo-output/BridgePoint_Intelligence_Viral_Promo_9x16.mp4').stat().st_size
+          assert size < 95*1024*1024, f'promo too large for GitHub handoff: {size}'
+          print('PROMO_VERIFY_PASS',j)
+          PY
+
+      - name: Upload promo artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-viral-promo
+          path: |
+            promo-output/BridgePoint_Intelligence_Viral_Promo_9x16.mp4
+            promo-output/BridgePoint_Intelligence_Viral_Promo_Thumbnail.jpg
+            promo-output/promo_report.json
+            promo-work/capture_meta.json
+          retention-days: 14
+          compression-level: 0
+
+      - name: Publish downloadable promo branch
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name "BridgePoint Promo Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git switch -C promo-video-output
+          git add -f promo-output/BridgePoint_Intelligence_Viral_Promo_9x16.mp4
+          git add -f promo-output/BridgePoint_Intelligence_Viral_Promo_Thumbnail.jpg
+          git add -f promo-output/promo_report.json
+          git commit -m "Render BridgePoint viral promo video"
+          git push --force origin promo-video-output
