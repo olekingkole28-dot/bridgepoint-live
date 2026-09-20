@@ -307,11 +307,13 @@
   },
   "commerce": {
     "stripe": {
-      "authorized": true,
+      "authorized": false,
       "account": "existing_bridgepoint_stripe_account",
       "namespace": "horizon",
       "protect_b2b_catalog": true,
-      "fixed_owner_spend_permission": false
+      "fixed_owner_spend_permission": false,
+      "checkout_enabled": false,
+      "connection_requires_explicit_owner_approval": true
     },
     "battle_pass": {
       "price_usd": 9.99,
