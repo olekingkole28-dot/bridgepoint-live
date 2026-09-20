@@ -56,7 +56,7 @@ const BUILDING_LIMIT=Number.POSITIVE_INFINITY;
 const PART_LIMIT=Number.POSITIVE_INFINITY;
 const PARCEL_LIMIT=MOBILE?(HIGH_DEVICE?1250:850):1800;
 let ammoMag=30,ammoReserve=90,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,fpWeaponRig=null,muzzleFlash=null,lootDeltaPending=0,lastYearOneCheckpointAt=0,yearOneCheckpointBusy=false;
-let yearOneZone=null,lastZonePollAt=0,lastWallDamageAt=0,lastPresenceAt=0,lastExploreAt=0,waterIdleSeconds=0,coldExposureSeconds=0,nearbyPlayers=[],worldActivePlayers=0;
+let yearOneZone=null,lastZonePollAt=0,lastWallDamageAt=0,lastWaterDamageAt=0,lastExposureDamageAt=0,lastWeatherSpawnAt=0,lastPresenceAt=0,lastExploreAt=0,waterIdleSeconds=0,coldExposureSeconds=0,nearbyPlayers=[],worldActivePlayers=0;
 const exploredCells=new Set(),vehicleParts={spark_plug:0,wheel:0,gas:0},backpackSlots=Array(5).fill(null);
 const waterAreas=[],zombieWallGroup=new THREE.Group();world.add(zombieWallGroup);
 let cameraMode='first',crouched=false,prone=false,slideTime=0,verticalVelocity=0,airborne=false,interiorMode=false,activeInterior=null,rooftopState=null;
@@ -426,7 +426,15 @@ function renderMinimap(){
   else{
     infected.filter(q=>q.alive&&Math.hypot(q.g.position.x-player.position.x,q.g.position.y-player.position.y)<70).forEach(q=>mark(q.g.position.x,q.g.position.y,'#ff7868',2));
     nearbyPlayers.forEach(q=>{const p=worldToLocal(Number(q.lat),Number(q.lon));mark(p.x,p.y,'#9d7cff',2.5)});
-    g.save();g.globalCompositeOperation='destination-out';g.globalAlpha=.72;g.beginPath();g.arc(w/2,h/2,42,0,Math.PI*2);g.fill();g.restore();
+    g.save();g.globalCompositeOperation='destination-out';g.globalAlpha=.82;
+    const cellSize=.0025;
+    for(const key of exploredCells){
+      const m=/^E(-?\d+):(-?\d+)$/.exec(String(key));if(!m)continue;
+      const clat=(Number(m[1])+.5)*cellSize,clon=(Number(m[2])+.5)*cellSize,p=worldToLocal(clat,clon);
+      const sx=ox+p.x/scale,sy=oy-p.y/scale;
+      if(sx>-55&&sx<w+55&&sy>-55&&sy<h+55){g.beginPath();g.arc(sx,sy,30,0,Math.PI*2);g.fill()}
+    }
+    g.beginPath();g.arc(w/2,h/2,42,0,Math.PI*2);g.fill();g.restore();
   }
   g.save();g.translate(w/2,h/2);g.rotate(-yaw);g.fillStyle='#ffffff';g.beginPath();g.moveTo(0,-8);g.lineTo(6,7);g.lineTo(-6,7);g.closePath();g.fill();g.restore();
 }
@@ -1467,7 +1475,7 @@ function updateWaterSurvival(dt){
   const moving=Math.abs(moveX)+Math.abs(moveY)>.18||sprint;
   if(moving){waterIdleSeconds=Math.max(0,waterIdleSeconds-dt*2);return}
   waterIdleSeconds+=dt;
-  if(waterIdleSeconds>5&&performance.now()-lastWallDamageAt>900){lastWallDamageAt=performance.now();applyPlayerHit(25,{name:'DEEP WATER'});toast('KEEP MOVING · SINKING -25');rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'WATER_DAMAGE',p_event_key:null,p_value:25,p_payload:{idle_seconds:Math.round(waterIdleSeconds)}}).catch(()=>{})}
+  if(waterIdleSeconds>5&&performance.now()-lastWaterDamageAt>900){lastWaterDamageAt=performance.now();applyPlayerHit(25,{name:'DEEP WATER'});toast('KEEP MOVING · SINKING -25');rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'WATER_DAMAGE',p_event_key:null,p_value:25,p_payload:{idle_seconds:Math.round(waterIdleSeconds)}}).catch(()=>{})}
 }
 function rebuildZombieWall(zone){
   zombieWallGroup.clear();if(mode!=='YEAR_ONE'||!zone?.wall_nearby)return;
@@ -1506,14 +1514,31 @@ function updateZoneDamage(now){
   if(mode!=='YEAR_ONE'||!yearOneZone||yearOneZone.safe||dead)return;
   if(now-lastWallDamageAt>=Number(yearOneZone.wall_tick_ms||800)){lastWallDamageAt=now;applyPlayerHit(25,{name:'ZOMBIE WALL'});rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'WALL_DAMAGE',p_event_key:null,p_value:25,p_payload:{day:yearOneZone.day,phase:yearOneZone.phase}}).catch(()=>{})}
 }
+function reviveWeatherMonster(kind){
+  const choices=infected.filter(z=>!z.alive&&z.space==='world'&&(kind==='zombie'?['zombie','runner','screamer'].includes(z.kind):z.kind===kind));
+  for(const z of choices){
+    const home=z.patrol?.[0]||{x:z.g.position.x,y:z.g.position.y};
+    if(Math.hypot(home.x-player.position.x,home.y-player.position.y)<45)continue;
+    z.g.position.set(home.x,home.y,terrainZ(home.x,home.y));z.health=z.maxHealth;z.alive=true;z.lockedOn=false;z.respawnAt=0;z.g.visible=true;updateMonsterHealthBar(z);
+    rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'HORDESPAWN',p_event_key:null,p_value:1,p_payload:{reason:kind==='zombie_dog'?'WILDFIRE':'RAIN',monster:z.kind}}).catch(()=>{});
+    return true;
+  }
+  return false;
+}
 function applyWeatherGameplay(dt){
   if(mode!=='YEAR_ONE')return;const e=liveWeather?.event,name=String(e?.name||''),type=String(e?.type||'').toUpperCase();
   const cold=/snow|freeze|winter|cold|blizzard/i.test(name)||/SNOW|WINTER/.test(type),wildfire=/fire|wildfire/i.test(name)||/FIRE/.test(type),rain=/rain|storm|hurricane|thunder/i.test(name)||/HURRICANE|LIGHTNING/.test(type);
   if($('climate'))$('climate').textContent=cold?'COLD':wildfire?'WILDFIRE':rain?'RAIN':'NORMAL';
-  if(cold&&!ambientFx.some(q=>Math.hypot((q.fire?.position.x||0)-player.position.x,(q.fire?.position.y||0)-player.position.y)<8)){coldExposureSeconds+=dt;if(coldExposureSeconds>30&&performance.now()-lastWallDamageAt>3000){lastWallDamageAt=performance.now();applyPlayerHit(25,{name:'EXPOSURE'});toast('COLD EXPOSURE · FIND FIRE')}}
-  else coldExposureSeconds=0;
-  if(rain)for(const z of infected)if(z.alive&&z.kind==='zombie')z.detect=Math.max(z.detect,16);
+  if(cold&&!ambientFx.some(q=>Math.hypot((q.fire?.position.x||0)-player.position.x,(q.fire?.position.y||0)-player.position.y)<8)){
+    coldExposureSeconds+=dt;if(coldExposureSeconds>30&&performance.now()-lastExposureDamageAt>3000){lastExposureDamageAt=performance.now();applyPlayerHit(25,{name:'EXPOSURE'});toast('COLD EXPOSURE · FIND FIRE');rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'WEATHER_EFFECT',p_event_key:null,p_value:25,p_payload:{effect:'COLD_EXPOSURE'}}).catch(()=>{})}
+  }else coldExposureSeconds=0;
+  if(rain)for(const z of infected)if(z.alive&&['zombie','runner','screamer'].includes(z.kind))z.detect=Math.max(z.detect,16);
   if(wildfire)for(const z of infected)if(z.kind==='zombie_dog')z.detect=Math.max(z.detect,22);
+  const now=performance.now();
+  if(now-lastWeatherSpawnAt>45000&&(rain||wildfire)){
+    const revived=wildfire?reviveWeatherMonster('zombie_dog'):reviveWeatherMonster('zombie');
+    if(revived)lastWeatherSpawnAt=now;
+  }
 }
 function requestMobileGameMode(){
   if(!MOBILE)return;
