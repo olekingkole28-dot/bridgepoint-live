@@ -198,7 +198,7 @@ document.querySelectorAll('.mode').forEach(btn=>btn.addEventListener('click',asy
   const mode=btn.dataset.mode;
   const count=state.party?.members?.length||1;
   const cfg=state.config?.modes?.find(m=>m.key===mode);
-  if(cfg?.solo&&count>1){status(mode==='ISLAND_SOLO_8'?'Island Last Stand is strict solo. Leave the party first.':'Year One is solo. Leave the party first.');return}
+  if(cfg?.solo&&count>1){status('Year One is solo. Leave the party first.');return}
   const meHost=state.party?.host_player_id===ident.id;
   if(!meHost){status('Party leader chooses the mode');return}
   try{
@@ -384,7 +384,7 @@ async function openModal(tab){
   $('installBanner')?.classList.add('hidden');
   const c=$('modalContent');
   if(tab==='LOADOUTS'){
-    c.innerHTML=`<div class="eyebrow">PRE-MATCH LOADOUTS</div><h1>Choose one of five Horizon kits</h1><p style="color:#95aaa0">TDM, Raid/Extraction and Island Last Stand lock this choice when the match starts.</p><div class="catalog-grid">${state.config.loadouts.map(l=>`<article class="catalog-card ${l.slot===state.player.selected_loadout?'selected':''}" data-loadout="${l.slot}"><span class="eyebrow">LOADOUT ${l.slot}</span><h3>${l.name}</h3>${['primary','secondary','tactical','lethal','melee','field'].map(k=>`<div class="item-row"><div class="weapon-svg">${weaponSvg(l[k])}</div><div><small style="color:#95aaa0">${k.toUpperCase()}</small><br><b>${l[k]}</b></div></div>`).join('')}</article>`).join('')}</div>`;
+    c.innerHTML=`<div class="eyebrow">PRE-MATCH LOADOUTS</div><h1>Choose one of five Horizon kits</h1><p style="color:#95aaa0">Team Deathmatch locks this choice when the match starts. Year One keeps your survival loadout persistent.</p><div class="catalog-grid">${state.config.loadouts.map(l=>`<article class="catalog-card ${l.slot===state.player.selected_loadout?'selected':''}" data-loadout="${l.slot}"><span class="eyebrow">LOADOUT ${l.slot}</span><h3>${l.name}</h3>${['primary','secondary','tactical','lethal','melee','field'].map(k=>`<div class="item-row"><div class="weapon-svg">${weaponSvg(l[k])}</div><div><small style="color:#95aaa0">${k.toUpperCase()}</small><br><b>${l[k]}</b></div></div>`).join('')}</article>`).join('')}</div>`;
   }else if(tab==='LOCKER'){
     const chars=completeCharacterCatalog().filter(ch=>!ch.paid||ch.owned);
     c.innerHTML=`<div class="eyebrow">LOCKER</div><h1>Your 3D Horizon survivors</h1><p style="color:#95aaa0">The model shown here is the same GLB definition used on the lobby stage and in the playable match. Paid skins only appear here after their entitlement exists.</p><div class="catalog-grid">${chars.map(ch=>`<article class="catalog-card ${ch.character_key===state.player.avatar_key?'selected':''}" data-avatar="${ch.character_key}"><canvas class="preview3d" data-model="${escapeHtml(ch.model_path)}" data-variant="${ch.outfit_variant||1}"></canvas><h3>${escapeHtml(ch.display_name)}</h3><small>${escapeHtml(ch.base_model_key||'SURVIVOR')} · ${ch.paid?'OWNED':'FREE'}</small></article>`).join('')}</div>`;
