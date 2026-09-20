@@ -146,7 +146,22 @@ async function hydrateYearOneRuntime(){
   if(mode!=='YEAR_ONE'||!playerId||!playerSecret)return null;
   try{
     const r=await rpc('bridgepoint_horizon_year_one_runtime_v4336',{p_player_id:playerId,p_player_secret:playerSecret});
-    if(r?.ok){health=Number(r.health??100);shield=Number(r.shield??0);lootCount=Number(r.loot_collected??lootCount);$('loot').textContent=lootCount;updateVitals()}
+    if(r?.ok){
+      health=Number(r.health??100);shield=Number(r.shield??0);lootCount=Number(r.loot_collected??lootCount);
+      const savedWeapons=r.weapon_state&&typeof r.weapon_state==='object'?r.weapon_state:null;
+      if(savedWeapons){
+        for(const w of WEAPONS){
+          const q=savedWeapons[w.key];
+          if(!q||typeof q!=='object')continue;
+          weaponState[w.key].mag=Math.max(0,Math.min(w.mag,Number(q.mag??weaponState[w.key].mag)));
+          weaponState[w.key].reserve=Math.max(0,Math.min(w.reserve*3,Number(q.reserve??weaponState[w.key].reserve)));
+          weaponState[w.key].owned=q.owned!==false;
+        }
+      }
+      const idx=Number(r.inventory_state?.active_weapon_index);
+      if(Number.isInteger(idx)&&idx>=0&&idx<WEAPONS.length)activeWeaponIndex=idx;
+      $('loot').textContent=lootCount;updateVitals();updateAmmo();renderWeaponBar();
+    }
     return r;
   }catch{return null}
 }
@@ -154,11 +169,18 @@ async function checkpointYearOne(force=false){
   if(mode!=='YEAR_ONE'||!playerId||!playerSecret||yearOneCheckpointBusy)return;
   const now=performance.now();if(!force&&now-lastYearOneCheckpointAt<1800)return;
   yearOneCheckpointBusy=true;const coord=playerWorldCoordinate(),sentLoot=lootDeltaPending;
+  const persistedWeapons=Object.fromEntries(WEAPONS.map(w=>[w.key,{
+    mag:Math.max(0,Math.round(Number(weaponState[w.key]?.mag||0))),
+    reserve:Math.max(0,Math.round(Number(weaponState[w.key]?.reserve||0))),
+    owned:weaponState[w.key]?.owned!==false
+  }]));
   try{
-    await rpc('bridgepoint_horizon_year_one_checkpoint_v4336',{
+    await rpc('bridgepoint_horizon_year_one_checkpoint_v4337',{
       p_player_id:playerId,p_player_secret:playerSecret,p_health:Math.round(health),p_shield:Math.round(shield),
       p_lat:coord.lat,p_lon:coord.lon,p_accuracy_m:null,p_altitude_m:player.position.z,
-      p_monster_kills_delta:0,p_loot_delta:sentLoot
+      p_monster_kills_delta:0,p_loot_delta:sentLoot,
+      p_inventory_state:{active_weapon_index:activeWeaponIndex},
+      p_weapon_state:persistedWeapons
     });
     lootDeltaPending=Math.max(0,lootDeltaPending-sentLoot);lastYearOneCheckpointAt=performance.now();
   }catch{}finally{yearOneCheckpointBusy=false}
