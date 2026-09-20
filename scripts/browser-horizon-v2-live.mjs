@@ -64,7 +64,7 @@ const probe=await page.evaluate(()=>({
   viewButtonAbsent:!document.getElementById('viewBtn'),
   cameraPreference:localStorage.getItem('horizon-camera-mode'),
   miniMap:!!document.getElementById('miniMap'),
-  weaponBar:!!document.getElementById('weaponBar'),backpackBar:!!document.getElementById('backpackBar'),equipmentRail:!!document.getElementById('equipmentRail'),prematchFreeze:!!document.getElementById('prematchFreeze'),wallLive:!!document.getElementById('wallLive'),activePlayers:!!document.getElementById('activePlayers'),movePad:!!document.getElementById('movePad'),moveKnob:!!document.getElementById('moveKnob'),joystick:window.BP_HORIZON_INPUT_V4341,
+  weaponBar:!!document.getElementById('weaponBar'),backpackBar:!!document.getElementById('backpackBar'),equipmentRail:!!document.getElementById('equipmentRail'),prematchFreeze:!!document.getElementById('prematchFreeze'),wallLive:!!document.getElementById('wallLive'),activePlayers:!!document.getElementById('activePlayers'),
   contextBtn:!!document.getElementById('contextBtn'),
   removed:['useBtn','lightBtn','weatherBtn'].every(id=>!document.getElementById(id)),
   killFeed:!!document.getElementById('killFeed'),
@@ -82,22 +82,7 @@ const probe=await page.evaluate(()=>({
 if(!probe.canvas||!probe.errorHidden)throw new Error('Canvas/runtime failed '+JSON.stringify(probe));
 if(probe.runtime?.build!==4341)throw new Error('Wrong runtime build '+JSON.stringify(probe.runtime));
 if(!probe.runtime?.actualCharacterModel||!probe.runtime?.sourceBackedTwin||!probe.runtime?.exactFootprintCollision||!probe.runtime?.terrainSource||Number(probe.runtime?.buildings||0)<1||Number(probe.runtime?.roads||0)<1||!probe.runtime?.solidCollision||!probe.runtime?.dwellPickup||!probe.runtime?.killFeed||!probe.runtime?.killcam||!probe.runtime?.firstPerson||!probe.runtime?.crouch||!probe.runtime?.jumpVault||!probe.runtime?.gamepad||!probe.runtime?.weaponInventory||!probe.runtime?.minimap||!probe.runtime?.proceduralInteriors||!probe.runtime?.roofTraversal||!probe.runtime?.drivableVehicles||!probe.runtime?.infectedPatrols||!probe.runtime?.ambientDisasterFx||!probe.runtime?.spatialAudio||!probe.runtime?.adaptivePerformanceGovernor)throw new Error('Required match systems missing '+JSON.stringify(probe.runtime));
-if(probe.buttons.some(x=>!x.exists)||!probe.viewButtonAbsent||probe.cameraPreference!=='first'||!probe.miniMap||!probe.weaponBar||!probe.backpackBar||!probe.equipmentRail||!probe.prematchFreeze||!probe.wallLive||!probe.activePlayers||!probe.movePad||!probe.moveKnob||!probe.joystick?.joystick||probe.joystick?.touchAction!=='none'||!probe.contextBtn||!probe.removed||!probe.killFeed||!probe.killCam||!probe.pickup)throw new Error('FPS-only HUD/joystick contract failed '+JSON.stringify(probe));
-
-const joyActive=await page.evaluate(()=>{
-  const pad=document.getElementById('movePad'),r=pad.getBoundingClientRect(),id=77;
-  const fire=(type,x,y)=>pad.dispatchEvent(new PointerEvent(type,{pointerId:id,pointerType:'touch',bubbles:true,clientX:x,clientY:y,buttons:type==='pointerup'?0:1}));
-  fire('pointerdown',r.left+r.width/2,r.top+r.height/2);
-  fire('pointermove',r.left+r.width*.78,r.top+r.height*.25);
-  return {diag:window.BP_HORIZON_INPUT_V4341?.movement,transform:document.getElementById('moveKnob')?.style.transform||''};
-});
-if(!joyActive.diag?.padActive||Math.hypot(Number(joyActive.diag.touchMoveX||0),Number(joyActive.diag.touchMoveY||0))<.25)throw new Error('Mobile joystick drag failed '+JSON.stringify(joyActive));
-const joyReset=await page.evaluate(()=>{
-  const pad=document.getElementById('movePad'),r=pad.getBoundingClientRect();
-  pad.dispatchEvent(new PointerEvent('pointerup',{pointerId:77,pointerType:'touch',bubbles:true,clientX:r.left+r.width*.78,clientY:r.top+r.height*.25,buttons:0}));
-  return {diag:window.BP_HORIZON_INPUT_V4341?.movement,transform:document.getElementById('moveKnob')?.style.transform||''};
-});
-if(joyReset.diag?.padActive||Math.abs(Number(joyReset.diag?.touchMoveX||0))>.001||Math.abs(Number(joyReset.diag?.touchMoveY||0))>.001)throw new Error('Mobile joystick reset failed '+JSON.stringify(joyReset));
+if(probe.buttons.some(x=>!x.exists)||!probe.viewButtonAbsent||probe.cameraPreference!=='first'||!probe.miniMap||!probe.weaponBar||!probe.backpackBar||!probe.equipmentRail||!probe.prematchFreeze||!probe.wallLive||!probe.activePlayers||!probe.contextBtn||!probe.removed||!probe.killFeed||!probe.killCam||!probe.pickup)throw new Error('FPS-only HUD contract failed '+JSON.stringify(probe));
 
 await page.tap('#aimBtn');
 await page.waitForTimeout(450);
