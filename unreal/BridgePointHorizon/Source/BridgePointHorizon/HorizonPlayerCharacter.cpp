@@ -394,12 +394,13 @@ void AHorizonPlayerCharacter::UpdateFootstepAudio(float DeltaSeconds)
     const float StrideLengthCm = bCrouchedStep
         ? 112.0f
         : (bSprinting ? 205.0f : 158.0f);
+    constexpr int32 MaxStepsPerFrame = 2;
     const float BoundedDeltaSeconds = FMath::Min(DeltaSeconds, 0.10f);
     const int32 DueSteps =
         UHorizonAudioDirectorSubsystem::ConsumeFootstepDistance(
             GroundSpeedCmPerSecond * BoundedDeltaSeconds,
             StrideLengthCm,
-            2,
+            MaxStepsPerFrame,
             FootstepDistanceAccumulator);
     if (DueSteps <= 0)
     {
