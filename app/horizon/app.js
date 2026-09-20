@@ -598,9 +598,14 @@ async function openModal(tab){
   }else if(tab==='ABOUT'){
     c.innerHTML=`<div class="eyebrow">ABOUT BRIDGEPOINT HORIZON</div><h1>A real-world spatial backend turned into a playable world.</h1><div class="rules-grid"><article><h3>WHAT IT IS</h3><p>BridgePoint Horizon is the consumer/game side of BridgePoint Intelligence. Horizon turns BridgePoint's world-stream systems—real-world buildings, terrain, roads, water and live environmental context—into first-person survival and team combat.</p></article><article><h3>LIVE WORLD</h3><p>Horizon connects live public weather and hazard information to the game world and uses real local daylight. Year One adds a persistent continental survival state while TDM turns dense real locations into compact combat cells.</p></article><article><h3>BUILT BY</h3><p>Horizon is built by Kole Johnson, founder and CEO of BridgePoint Intelligence. It grew from the same data and mapping work behind BridgePoint Intelligence rather than from a separate fictional map database.</p></article><article><h3>STILL EVOLVING</h3><p>Higher-fidelity character/monster art, deeper animations, additional interior detail, broader authoritative world coverage and expanded cosmetics continue to be upgraded. The site separates already-running systems from targets still being improved.</p></article></div>`;
   }else if(tab==='STATS'){
-    const out=await rpc('bridgepoint_horizon_leaderboard_v4340',{p_metric:'KILLS',p_limit:25}).catch(()=>({leaders:[]}));
+    const [out,top,prestige]=await Promise.all([
+      rpc('bridgepoint_horizon_leaderboard_v4340',{p_metric:'KILLS',p_limit:25}).catch(()=>({leaders:[]})),
+      state.account?rpc('bridgepoint_horizon_top_weapon_v4340',{p_player_id:ident.id,p_player_secret:ident.secret}).catch(()=>({display_name:'NONE',kills:0})):Promise.resolve({display_name:'NONE',kills:0}),
+      state.account?rpc('bridgepoint_horizon_prestige_choices_v4340',{p_player_id:ident.id,p_player_secret:ident.secret}).catch(()=>null):Promise.resolve(null)
+    ]);
     const own=state.stats||{};
-    c.innerHTML=`<div class="eyebrow">HORIZON LIVE STATS</div><h1>Player totals & world leaderboard</h1><div class="stats-grid"><article class="stats-card"><h3>YOUR KILLS</h3><b>${Number(own.total_kills||0).toLocaleString()}</b></article><article class="stats-card"><h3>WINS</h3><b>${Number(own.wins||0).toLocaleString()}</b></article><article class="stats-card"><h3>LEVEL</h3><b>${own.level||1}</b></article><article class="stats-card"><h3>PRESTIGE</h3><b>${own.prestige||0} / 15</b></article></div><div class="metric-tabs"><button data-leader-metric="KILLS">KILLS</button><button data-leader-metric="WINS">WINS</button><button data-leader-metric="TIME">TIME PLAYED</button><button data-leader-metric="XP">XP</button></div><div class="leaderboard" id="leaderboardRows">${leaderRows(out?.leaders||[])}</div>`;
+    const prestigeHtml=prestige?.eligible?`<section class="prestige-choice"><div class="eyebrow">PRESTIGE ${prestige.next_prestige} READY</div><h2>Choose one permanent character reward</h2><p>Prestiging resets your level to 1, keeps your recorded career totals, advances your prestige badge, and unlocks the next prestige tier of weapons/cosmetics.</p><div class="catalog-grid">${(prestige.choices||[]).map(x=>`<article class="catalog-card"><canvas class="preview3d runtime3d" data-runtime="${escapeHtml(x.preview_ref)}"></canvas><span class="eyebrow">CHOICE ${x.choice_no}</span><h3>${escapeHtml(x.display_name)}</h3><button data-prestige-choice="${x.choice_no}">PRESTIGE WITH THIS CHARACTER</button></article>`).join('')}</div></section>`:prestige?.prestige>=15?'<p class="account-callout">PRESTIGE 15 MAX REACHED</p>':'';
+    c.innerHTML=`<div class="eyebrow">HORIZON LIVE STATS</div><h1>Player totals & world leaderboard</h1><div class="stats-grid"><article class="stats-card"><h3>YOUR KILLS</h3><b>${Number(own.total_kills||0).toLocaleString()}</b></article><article class="stats-card"><h3>WINS</h3><b>${Number(own.wins||0).toLocaleString()}</b></article><article class="stats-card"><h3>LEVEL</h3><b>${own.level||1}</b></article><article class="stats-card"><h3>PRESTIGE</h3><b>${own.prestige||0} / 15</b></article><article class="stats-card"><h3>TOP WEAPON</h3><b>${escapeHtml(top?.display_name||'NONE')}</b><small>${Number(top?.kills||0).toLocaleString()} KILLS</small></article><article class="stats-card"><h3>XP</h3><b>${Number(own.xp||0).toLocaleString()}</b></article></div>${prestigeHtml}<div class="metric-tabs"><button data-leader-metric="KILLS">KILLS</button><button data-leader-metric="WINS">WINS</button><button data-leader-metric="TIME">TIME PLAYED</button><button data-leader-metric="XP">XP</button></div><div class="leaderboard" id="leaderboardRows">${leaderRows(out?.leaders||[])}</div>`;
   }else if(tab==='OWNER'){
     const out=await rpc('bridgepoint_horizon_owner_metrics_v4340',{}).catch(()=>null);
     if(!out){c.innerHTML='<div class="eyebrow">OWNER</div><h1>Owner access required</h1>';return}
@@ -690,6 +695,14 @@ $('modalContent').addEventListener('click',async e=>{
     try{
       const out=await rpc('bridgepoint_horizon_character_save_v4340',{p_player_id:ident.id,p_player_secret:ident.secret,p_presentation:$('customPresentation')?.value||'UNSPECIFIED',p_preset_key:$('customPreset')?.value||'nova',p_appearance:appearance,p_equipped_character_key:'custom_v4340'});
       if(out?.ok){state.character={...(state.character||{}),presentation:out.presentation,preset_key:out.preset_key,appearance:out.appearance,equipped_character_key:out.equipped_character_key};localStorage.setItem('horizon-character-profile-v4340',JSON.stringify(state.character));lobbyScene?.setLocalCharacter?.(state.character,ident.id);status('Character saved to your Horizon account');openModal('CUSTOMIZE')}
+    }catch(err){status(err.message)}
+    return;
+  }
+  const prestigeChoice=e.target.closest('[data-prestige-choice]');
+  if(prestigeChoice){
+    try{
+      const out=await rpc('bridgepoint_horizon_prestige_v4340',{p_player_id:ident.id,p_player_secret:ident.secret,p_choice_no:Number(prestigeChoice.dataset.prestigeChoice)});
+      if(out?.ok){await refreshAuthState();status('Prestige '+out.prestige+' unlocked · '+(out.reward?.display_name||'character reward'));openModal('STATS')}
     }catch(err){status(err.message)}
     return;
   }
