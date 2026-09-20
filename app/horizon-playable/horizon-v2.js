@@ -709,7 +709,8 @@ function applyPreciseSpawn(){
   return 'OUTDOOR';
 }
 function exitInterior(){
-  if(!interiorMode)return;interiorMode=false;interiorGroup.visible=false;world.visible=true;player.position.copy(exteriorReturn);yaw=exteriorYaw;verticalVelocity=0;airborne=false;toast('BACK OUTSIDE');
+  if(!interiorMode)return;interiorMode=false;interiorGroup.visible=false;world.visible=true;player.position.copy(exteriorReturn);yaw=exteriorYaw;verticalVelocity=0;airborne=false;
+  $('infected').textContent=infected.filter(z=>z.alive&&z.space==='world').length;checkpointYearOne(false);toast('BACK OUTSIDE');
 }
 function interiorGroundZ(x,y,currentZ){
   if(!activeInterior)return 0;const fH=activeInterior.floorH,max=activeInterior.floors-1;
@@ -1505,10 +1506,38 @@ async function load(){
   addSky();addGround();
   const roads=addRoads(),parcels=addParcels(),water=addWater(),buildings=addBuildings(),buildingParts=addBuildingParts();
   addVegetation();addStreetLife();addAbandonment();const ziplineCount=buildZiplines(),vehicleCount=spawnVehicles(),disasterFx=addAmbientDisasterFx();
+
+  if(mode==='YEAR_ONE')await hydrateYearOneRuntime();
   await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
-  updateAmmo();renderWeaponBar();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();
-  loadText.textContent=`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · ${ziplineCount} ziplines · ${vehicleCount} vehicles · restored traversal active`;
-  window.BP_HORIZON_V2={ok:true,build:4331,mode,matchId,state:stateCode,buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,terrainSource:terrainInfo?.source||'FLAT SAFETY FALLBACK',terrainFallback:!terrainInfo,infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,dwellPickup:true,killFeed:true,killcam:true,firstPerson:true,crouch:true,prone:true,slide:true,jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,interiorLoot:true,roofTraversal:true,drivableVehicles:true,vehicleFuelRepair:true,infectedPatrols:true,ambientDisasterFx:true,spatialAudio:true,adaptivePerformanceGovernor:true,instancedWorldProps:true,instancedRoadSurfaces:true,adaptiveShaderBudget:true,adaptiveExteriorDetailBudget:true};
+  const spawnType=mode==='YEAR_ONE'?applyPreciseSpawn():'MATCH';
+  updateVitals();updateAmmo();renderWeaponBar();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();
+
+  if(mode==='YEAR_ONE'){
+    checkpointYearOne(true);
+    if(!window.__BP_YEAR_ONE_CHECKPOINT__)window.__BP_YEAR_ONE_CHECKPOINT__=setInterval(()=>checkpointYearOne(false),5000);
+  }
+
+  loadText.textContent=mode==='YEAR_ONE'
+    ?`${buildings.toLocaleString()} source-backed structures · precise ${spawnType.toLowerCase()} spawn · PVE only · 25 damage per monster hit · 3-second auto pickup`
+    :`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · ${ziplineCount} ziplines · ${vehicleCount} vehicles · restored traversal active`;
+
+  window.BP_HORIZON_V2={
+    ok:true,build:4336,mode,matchId,state:data?.resolved_jurisdiction?.state||stateCode,
+    buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,
+    terrainSource:terrainInfo?.source||'FLAT SAFETY FALLBACK',terrainFallback:!terrainInfo,
+    infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,
+    sourceBackedTwin:true,exactFootprintCollision:true,liveWeather:true,weather:{...liveWeather},solidCollision:true,
+    dwellPickup:true,pickupDwellSeconds:3,killFeed:true,killcam:true,firstPerson:true,crouch:true,prone:true,slide:true,
+    jumpVault:true,gamepad:true,weaponInventory:true,minimap:true,proceduralInteriors:true,interiorLoot:true,
+    roofTraversal:true,drivableVehicles:true,vehicleFuelRepair:true,infectedPatrols:true,ambientDisasterFx:true,
+    spatialAudio:true,adaptivePerformanceGovernor:true,instancedWorldProps:true,instancedRoadSurfaces:true,
+    adaptiveShaderBudget:true,adaptiveExteriorDetailBudget:true,
+    yearOne:mode==='YEAR_ONE'?{
+      pveOnly:true,playerHealthMax:100,shieldMax:100,combinedMax:200,shieldPickup:50,monsterHitDamage:25,
+      spawnPolicy:'PRECISE_PLAYER_LOCATION',spawnType,persistentAggro:true,serverCheckpointed:true,
+      monsterHealth:{spider:75,orc:150,zombie:100,zombie_dog:75,other:100}
+    }:null
+  };
 }
 function animate(){
   requestAnimationFrame(animate);
@@ -1571,4 +1600,5 @@ setInterval(()=>{
   moveX=Math.max(-1,Math.min(1,touchMoveX+keyMoveX));moveY=Math.max(-1,Math.min(1,touchMoveY+keyMoveY));
   sprint=!!(keys.ShiftLeft||keys.ShiftRight);
 },16);
+addEventListener('pagehide',()=>{if(mode==='YEAR_ONE')checkpointYearOne(true)});
 load().then(animate).catch(fail);
