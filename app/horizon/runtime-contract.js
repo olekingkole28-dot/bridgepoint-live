@@ -32,7 +32,7 @@ export class DwellPickupController{
 }
 
 export const HorizonRuntimeContract=Object.freeze({
-  version:4336,
+  version:4340,
   controls:{
     aim:{mode:'toggle',small:true},
     shoot:{mode:'hold-or-tap',small:true},
@@ -64,7 +64,17 @@ export const HorizonRuntimeContract=Object.freeze({
     coverFamilies:['pallet','barrel','concrete-barrier','desk','pillar','wrecked-car','dumpster','crate','fence','sandbag','generator','bus-stop','planter'],
     indoorCoverFamilies:['desk','cabinet','counter','pillar','shelving','crate','couch','vending-machine'],
     deterministic:true
-  }
+  },
+  account:{required:true,free:true,uniqueHandle:true},
+  inventory:{quickSlots:5,backpackSlots:5,persistentYearOne:true,deathDrops:true,finiteWorldLoot:true},
+  weapons:{rarities:['COMMON','UNCOMMON','RARE','EPIC','LEGENDARY','MYTHIC'],maxSpareClips:4,visibleSpecs:true,recoilAnimation:true,meleeSwingAnimation:true,explosionAnimation:true},
+  yearOne:{
+    scope:'CONUS_48_ONLY',pvp:false,wallDamage:25,finalCities:5,persistentLocation:true,persistentExploration:true,
+    activePlayerCount:true,presenceHeartbeatSeconds:10,dailyQualifyingMinutes:15,absenceGraceHours:48,absenceDecayHours:12,
+    monsterRespawnSeconds:120,noSpawnRadiusM:45,liveWeather:true,realLocalDaylight:true,campfireWarmth:true
+  },
+  tdm:{targetPlayers:100,teamSize:50,partySizes:[1,2,3,4],botBackfill:true,mapCount:50,mapVoteSeconds:10,mapVoteChoices:2,randomVote:true,buildLimit:3,deathToLobbyMs:10000},
+  progression:{maxLevel:100,maxPrestige:15,prestigeCharacterChoices:3}
 });
 
 export function canHurdleWindow(w){
