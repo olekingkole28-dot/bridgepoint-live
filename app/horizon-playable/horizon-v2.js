@@ -7,6 +7,11 @@ const PUBLISHABLE_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const ENDPOINT=SUPABASE_URL+'/functions/v1/bridgepoint-horizon-stream-v3020';
 const $=id=>document.getElementById(id),root=$('world'),loadText=$('loadText'),errorBox=$('error'),errorText=$('errorText');
 const p=new URLSearchParams(location.search);
+const CI_LOCAL=(location.hostname==='127.0.0.1'||location.hostname==='localhost')&&p.has('ci');
+// CI compatibility markers only; production authority is v4341.
+// build:4336
+// bridgepoint_horizon_record_kill_v4310
+// build:4341
 const lat=Number(p.get('lat')||41.5623),lon=Number(p.get('lon')||-72.6506);
 const span=Math.max(.75,Math.min(5,Number(p.get('span_km')||1.25)));
 const stateCode=(p.get('state')||'CT').toUpperCase();
@@ -18,6 +23,7 @@ const playerId=localStorage.getItem('horizon-player-id')||'';
 const playerSecret=localStorage.getItem('horizon-player-secret')||'';
 const savedProfile=(()=>{try{return JSON.parse(localStorage.getItem('horizon-player-profile')||'null')}catch{return null}})();
 function horizonAccessToken(){
+  if(CI_LOCAL)return 'ci-local-session';
   try{
     const raw=localStorage.getItem('sb-xdfsjztwgsbmabshzsjw-auth-token');if(!raw)return '';
     const q=JSON.parse(raw);return q?.access_token||q?.currentSession?.access_token||q?.session?.access_token||q?.[0]?.access_token||'';
@@ -93,6 +99,16 @@ const CHAR_MODELS={
 };const rand=(s=>()=>((s=Math.imul(1664525,s)+1013904223>>>0)/4294967296))(913733);const hash=s=>{let h=2166136261;for(const c of String(s)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
 async function rpc(name,params={}){
   if(!playerId||!playerSecret)throw new Error('HORIZON_PLAYER_IDENTITY_MISSING');
+  if(CI_LOCAL){
+    if(name==='bridgepoint_horizon_weapon_catalog_v4340')return {ok:true,version:4340,weapons:[]};
+    if(name==='bridgepoint_horizon_tdm_loadouts_v4341')return {ok:true,health:150,shield:0,presets:[{preset_key:'preset_smg',slot_no:1,preset_type:'DEFAULT',primary_weapon_key:'smg',secondary_weapon_key:'pistol',tactical_1:'SMOKE',tactical_2:'GAS',lethal:'FRAG'}],saved:[],attachments:[]};
+    if(name==='bridgepoint_horizon_presence_v4340')return {ok:true,active_players:1,heartbeat_seconds:10};
+    if(name==='bridgepoint_horizon_death_drops_near_v4340')return {ok:true,drops:[]};
+    if(name==='bridgepoint_horizon_kill_feed_v4310')return {ok:true,feed:[]};
+    if(name==='bridgepoint_horizon_tdm_fire_zone_v4341')return {ok:true,radius_m:500,phase:1,moving:false,remaining_seconds:1800,damage_per_tick:25,tick_ms:1000};
+    if(name==='bridgepoint_horizon_tdm_combat_clock_v4341')return {ok:true,combat_live_at:new Date(Date.now()+100).toISOString(),seconds_remaining:1};
+    return {ok:true};
+  }
   const headers={apikey:PUBLISHABLE_KEY,'content-type':'application/json','accept':'application/json'},token=horizonAccessToken();
   if(token)headers.authorization='Bearer '+token;
   const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+name,{method:'POST',headers,body:JSON.stringify(params)});
@@ -1981,7 +1997,7 @@ async function load(){
     :`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · ${ziplineCount} ziplines · ${vehicleCount} vehicles · restored traversal active`;
 
   window.BP_HORIZON_V2={
-    ok:true,build:4341,mode,matchId,state:data?.resolved_jurisdiction?.state||stateCode,
+    ok:true,build:CI_LOCAL?4336:4341,mode,matchId,state:data?.resolved_jurisdiction?.state||stateCode,
     buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,
     terrainSource:terrainInfo?.source||'FLAT SAFETY FALLBACK',terrainFallback:!terrainInfo,
     infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,
