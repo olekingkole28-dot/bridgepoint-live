@@ -416,4 +416,40 @@ bool FHorizonHitscanDirectionTest::RunTest(const FString& Parameters)
 }
 
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonSingleOwnerShotRecoilTest,
+    "BridgePoint.Horizon.Combat.Recoil.SingleOwner",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonSingleOwnerShotRecoilTest::RunTest(const FString& Parameters)
+{
+    FHorizonWeaponShotResult Shot;
+    Shot.RecoilImpulse = FVector2D(1.25f, -0.40f);
+
+    const FVector2D Local =
+        AHorizonPlayerCharacter::ResolveLocalShotRecoil(Shot, true);
+    TestTrue(TEXT("Local shot applies exactly one authored recoil impulse"),
+        Local.Equals(Shot.RecoilImpulse, KINDA_SMALL_NUMBER));
+
+    const FVector2D Remote =
+        AHorizonPlayerCharacter::ResolveLocalShotRecoil(Shot, false);
+    TestTrue(TEXT("Remote shot cannot inject local controller recoil"),
+        Remote.IsNearlyZero());
+
+    Shot.RecoilImpulse.X = TNumericLimits<float>::QuietNaN();
+    const FVector2D Invalid =
+        AHorizonPlayerCharacter::ResolveLocalShotRecoil(Shot, true);
+    TestTrue(TEXT("Non-finite recoil fails closed"),
+        Invalid.IsNearlyZero());
+
+    Shot.RecoilImpulse = FVector2D(50.0f, -50.0f);
+    const FVector2D Bounded =
+        AHorizonPlayerCharacter::ResolveLocalShotRecoil(Shot, true);
+    TestEqual(TEXT("Pitch recoil remains inside the weapon tuning bound"),
+        Bounded.X, 8.0f);
+    TestEqual(TEXT("Yaw recoil remains inside the weapon tuning bound"),
+        Bounded.Y, -5.0f);
+    return true;
+}
+
 #endif
