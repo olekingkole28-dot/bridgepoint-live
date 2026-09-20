@@ -58,7 +58,7 @@ if not outro_src.exists():
       "drawtext=fontfile="+FONT+":text='BRIDGEPOINT INTELLIGENCE':fontsize=64:fontcolor=white:x=(w-text_w)/2:y=790,"
       "drawtext=fontfile="+FONT_REG+":text='THE WORLD. LIVE. IN 3D.':fontsize=36:fontcolor=0x9CEEFF:x=(w-text_w)/2:y=900,"
       "drawtext=fontfile="+FONT_REG+":text='bridgepointintelligence.online':fontsize=32:fontcolor=white:x=(w-text_w)/2:y=1010,"
-      "fade=t=in:st=0:d=.25,fade=t=out:st=3.25:d=.35,format=yuv420p"
+      "fade=t=in:st=0:d=0.25,fade=t=out:st=3.25:d=0.35,format=yuv420p"
     )
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","lavfi","-i","color=c=0x030910:s=1080x1920:r=30:d=3.6","-vf",vf,"-an","-c:v","libx264","-preset","veryfast","-crf","18","-movflags","+faststart",outro_src])
 
