@@ -29,6 +29,10 @@ void UHorizonWeaponRuntimeComponent::ConfigureWeapon(
     WeaponSpec.AdsSpreadDegrees = FMath::Clamp(WeaponSpec.AdsSpreadDegrees, 0.0f, 8.0f);
     WeaponSpec.RecoilPitchDegrees = FMath::Clamp(WeaponSpec.RecoilPitchDegrees, 0.0f, 8.0f);
     WeaponSpec.RecoilYawDegrees = FMath::Clamp(WeaponSpec.RecoilYawDegrees, 0.0f, 5.0f);
+    WeaponSpec.BaseDamage = FMath::Clamp(WeaponSpec.BaseDamage, 0.0f, 500.0f);
+    WeaponSpec.RangeCm = FMath::Clamp(WeaponSpec.RangeCm, 100.0f, 500000.0f);
+    WeaponSpec.HeadshotMultiplier =
+        FMath::Clamp(WeaponSpec.HeadshotMultiplier, 1.0f, 3.0f);
 
     if (bRefillAmmo)
     {
