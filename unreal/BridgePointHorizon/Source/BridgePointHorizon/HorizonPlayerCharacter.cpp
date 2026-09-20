@@ -180,6 +180,17 @@ float AHorizonPlayerCharacter::ApplyCombatHit(
             GameInstance->GetSubsystem<UHorizonAudioDirectorSubsystem>())
         {
             Audio->PushPlayerHitFeedback(Feedback.Severity01);
+            const EHorizonCombatImpactSurface ImpactSurface =
+                Feedback.DamageToArmor > KINDA_SMALL_NUMBER
+                    ? EHorizonCombatImpactSurface::Armor
+                    : EHorizonCombatImpactSurface::Flesh;
+            Audio->EmitCombatImpact(
+                ImpactSurface,
+                Feedback.Severity01,
+                0.0f,
+                false,
+                GetActorLocation(),
+                CombatImpactSequence++);
         }
     }
 
