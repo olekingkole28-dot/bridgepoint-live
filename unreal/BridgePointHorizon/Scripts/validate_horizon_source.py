@@ -672,7 +672,8 @@ for token in [
     "VaultDurationSeconds", "VaultArcHeightCm", "IsVaulting", "CanStartVault",
     "EHorizonHitDirection", "FHorizonCombatHitFeedback", "OnCombatHitReaction",
     "ApplyCombatHit", "ResolveHitDirection", "ResolveCombatHit",
-    "CurrentHealth", "CurrentArmor", "ReticleImpulse01"
+    "CurrentHealth", "CurrentArmor", "ReticleImpulse01",
+    "ShouldRefreshMovementProfile", "MovementProfileRefreshAccumulator"
 ]:
     require(token in player_header, f"native weapon visual contract missing: {token}")
 for token in [
@@ -712,7 +713,10 @@ for token in [
     "Feedback.DamageToArmor = FMath::Min",
     "SafeDamage * (bHeadshot ? 1.50f : 1.0f)",
     "AddControllerPitchInput(Feedback.CameraImpulse.X)",
-    "AddControllerYawInput(Feedback.CameraImpulse.Y)"
+    "AddControllerYawInput(Feedback.CameraImpulse.Y)",
+    "if (ShouldRefreshMovementProfile(",
+    "FMath::Min(DeltaSeconds, 0.50f)",
+    "OutRemainderSeconds = FMath::Fmod(Elapsed, SafeInterval)"
 ]:
     require(token in player, f"native facing/camera regression guard missing: {token}")
 require("AddMovementInput(FRotationMatrix" not in player,
@@ -801,7 +805,15 @@ for token in [
     "Headshot applies stronger health damage",
     "Depleted armor signals armor break", "Lethal hit reaches zero health",
     "Negative damage cannot consume health",
-    "Reticle impulse remains normalized"
+    "Reticle impulse remains normalized",
+    "Performance.Player.MovementProfileBudget",
+    "Sub-budget movement frame avoids adaptive profile work",
+    "Adaptive movement profile refreshes at ten hertz",
+    "Movement profile remainder stays below refresh interval",
+    "Ordinary hitch produces one bounded refresh",
+    "Negative frame delta cannot synthesize profile work",
+    "Catastrophic stall remains a single refresh",
+    "Catastrophic stall cannot leave an unbounded backlog"
 ]:
     require(token in movement_tests, f"native lean QA missing: {token}")
 require("Stripe" not in movement_tests and "Payment" not in movement_tests,
