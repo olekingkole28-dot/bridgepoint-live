@@ -39,6 +39,9 @@ await page.waitForFunction(()=>window.__BP_WORLD_CORE_READY__?.ready===true||!!w
 await sleep(2500);
 await page.evaluate(()=>{
   const s=document.createElement('i');s.id='bpPromoPulse';s.style.cssText='position:fixed;left:-10px;top:-10px;width:1px;height:1px;opacity:.001;pointer-events:none;z-index:-1';document.body.appendChild(s);
+  const keep=document.createElement('input');keep.id='bpPromoRefreshGuard';keep.type='text';keep.autocomplete='off';keep.setAttribute('aria-hidden','true');keep.style.cssText='position:fixed;left:-200vw;top:-200vh;width:1px;height:1px;opacity:0;pointer-events:none';document.body.appendChild(keep);
+  const refocus=()=>{try{keep.focus({preventScroll:true})}catch(_){}};
+  refocus();setInterval(refocus,220);
   let n=0;setInterval(()=>{n++;s.style.transform='translateX('+(n%2)+'px)';s.style.opacity=n%2?'.001':'.002'},40);
 });
 
@@ -73,7 +76,7 @@ async function recordClip(name,action){
   }
   const out=path.join(OUT,name+'.mp4');
   const sourceFps=Math.max(4,Math.min(24,idx/(wallMs/1000)));
-  ff(['-framerate',sourceFps.toFixed(3),'-i',path.join(dir,'f-%05d.jpg'),'-vf','fps=30,format=yuv420p','-c:v','libx264','-preset','veryfast','-crf','19','-movflags','+faststart',out]);
+  ff(['-framerate',sourceFps.toFixed(3),'-i',path.join(dir,'f-%05d.jpg'),'-vf','framerate=fps=30:interp_start=0:interp_end=255:scene=100,format=yuv420p','-c:v','libx264','-preset','veryfast','-crf','19','-movflags','+faststart',out]);
   const seconds=idx/sourceFps;
   meta.clips.push({name,frames:idx,seconds,wallMs,sourceFps});
   log('clip',name,idx,'frames',seconds.toFixed(2),'sec','capture fps',sourceFps.toFixed(2));
