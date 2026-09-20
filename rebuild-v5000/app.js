@@ -79,13 +79,13 @@ async function initSharedVisualWeather(targetWorld){
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5420');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5510');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
  bindPerformanceGovernor();
  void initSharedVisualWeather(world);
- try{world.map.jumpTo({center:[-98.5,39.5],zoom:BP_MOBILE?2.75:3.35,pitch:0,bearing:0});window.__BP_NATIONAL_START__={center:[-98.5,39.5],zoom:world.map.getZoom(),at:Date.now()}}catch(_){}
+ try{world.map.jumpTo({center:[0,20],zoom:BP_MOBILE?1.05:1.25,pitch:0,bearing:0});window.__BP_GLOBAL_START__={center:[0,20],projection:'globe',zoom:world.map.getZoom(),at:Date.now()}}catch(_){}
  window.__BP_INITIAL_WEATHER_PRIORITY__=true;
  world?.onBuildingSelect?.(({lngLat,feature})=>{if(measureActive)return;if(lngLat){lastDirectBuildingEvent=performance.now();showBuilding(lngLat.lng,lngLat.lat,{feature})}});
  return world
