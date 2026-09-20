@@ -6,7 +6,7 @@ const SUPABASE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const PUBLISHABLE_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const sb=window.supabase?.createClient(SUPABASE_URL,PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=id=>document.getElementById(id);
-const state={player:null,config:null,catalog:null,yearOne:null,party:null,match:null,worldCell:null,maps:[],selectedMap:null,selectedMode:'TDM',channel:null,peers:new Map(),killcam:new KillCamBuffer(),pickup:null,installPrompt:null,queueing:false,yearOneRolloverChecked:false,session:null,account:null,character:null,stats:null,activePlayers:0,owner:false};
+const state={player:null,config:null,catalog:null,yearOne:null,party:null,match:null,worldCell:null,maps:[],selectedMap:null,selectedMode:'TDM',channel:null,peers:new Map(),killcam:new KillCamBuffer(),pickup:null,installPrompt:null,queueing:false,yearOneRolloverChecked:false,session:null,account:null,character:null,stats:null,activePlayers:0,owner:false,conusOutline:null};
 const qs=new URLSearchParams(location.search);
 
 function b64url(bytes){
@@ -215,6 +215,7 @@ async function bootstrap(){
   }
   state.selectedMode=state.party.selected_mode||'TDM';
   await refreshMapCatalog().catch(e=>console.warn('map catalog',e));
+  state.conusOutline=await rpc('bridgepoint_horizon_conus_outline_v4340',{}).catch(()=>null);
   markMode();
   renderParty();
   await refreshActivePlayers();await detectOwner();setInterval(refreshActivePlayers,10000);
@@ -343,6 +344,54 @@ async function pollMatch(){
 
 function hashSeed(x){
   let h=2166136261>>>0;for(const c of String(x)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return BigInt(h||1);
+}
+function drawUsLocator(match,progress=0){
+  const cv=$('mapCanvas'),g=cv.getContext('2d'),W=cv.width,H=cv.height,geo=state.conusOutline?.geometry;
+  const meta=match?.metadata||{},targetLon=Number(meta.world_lon),targetLat=Number(meta.world_lat);
+  const full={minLon:-125,maxLon:-66,minLat:24,maxLat:50},local={minLon:targetLon-2.6,maxLon:targetLon+2.6,minLat:targetLat-1.7,maxLat:targetLat+1.7};
+  const t=Math.max(0,Math.min(1,progress)),ease=t*t*(3-2*t),box={minLon:full.minLon+(local.minLon-full.minLon)*ease,maxLon:full.maxLon+(local.maxLon-full.maxLon)*ease,minLat:full.minLat+(local.minLat-full.minLat)*ease,maxLat:full.maxLat+(local.maxLat-full.maxLat)*ease};
+  const xy=(lon,lat)=>[(lon-box.minLon)/(box.maxLon-box.minLon)*W,H-(lat-box.minLat)/(box.maxLat-box.minLat)*H];
+  g.clearRect(0,0,W,H);const grad=g.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#071714');grad.addColorStop(1,'#020706');g.fillStyle=grad;g.fillRect(0,0,W,H);
+  g.strokeStyle='rgba(89,255,206,.68)';g.fillStyle='rgba(34,98,79,.18)';g.lineWidth=2;
+  const polys=geo?.type==='MultiPolygon'?geo.coordinates:geo?.type==='Polygon'?[geo.coordinates]:[];
+  for(const poly of polys){for(const ring of poly){g.beginPath();ring.forEach((p,i)=>{const q=xy(p[0],p[1]);i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])});g.closePath();g.fill();g.stroke()}}
+  if(Number.isFinite(targetLon)&&Number.isFinite(targetLat)){
+    const q=xy(targetLon,targetLat),r=progress<.75?9:Math.max(22,80*progress);g.strokeStyle='#f4c45e';g.lineWidth=3;g.strokeRect(q[0]-r,q[1]-r*.65,r*2,r*1.3);g.fillStyle='#f4c45e';g.beginPath();g.arc(q[0],q[1],5,0,Math.PI*2);g.fill();
+    g.font='900 18px system-ui';g.fillText(String(match.map_label||'COMBAT CELL').toUpperCase(),Math.min(W-250,q[0]+14),Math.max(30,q[1]-14));
+  }
+  g.fillStyle='rgba(226,255,244,.68)';g.font='800 12px system-ui';g.fillText(progress<.55?'CONTIGUOUS U.S. · LOCATING COMBAT CELL':'ZOOMING TO REAL LOCATION',22,28);
+}
+function animateUsToMap(match,duration=1350){
+  return new Promise(resolve=>{const start=performance.now();const tick=now=>{const p=Math.min(1,(now-start)/duration);drawUsLocator(match,p);if(p<1)requestAnimationFrame(tick);else resolve()};requestAnimationFrame(tick)});
+}
+function drawWorldCellPreview(match,payload){
+  const cv=$('mapCanvas'),g=cv.getContext('2d'),W=cv.width,H=cv.height,b=payload?.bbox;
+  if(!b){drawMap(match);return}
+  const west=Number(b.west),east=Number(b.east),south=Number(b.south),north=Number(b.north),xy=p=>[(Number(p[0])-west)/(east-west)*W,H-(Number(p[1])-south)/(north-south)*H];
+  const ringsOf=geom=>!geom?[]:geom.type==='Polygon'?[geom.coordinates?.[0]||[]]:geom.type==='MultiPolygon'?(geom.coordinates||[]).map(x=>x?.[0]||[]):[];
+  const linesOf=geom=>!geom?[]:geom.type==='LineString'?[geom.coordinates||[]]:geom.type==='MultiLineString'?geom.coordinates||[]:[];
+  g.clearRect(0,0,W,H);g.fillStyle='#07110f';g.fillRect(0,0,W,H);
+  for(const row of payload.water||[])for(const ring of ringsOf(row.geometry)){g.beginPath();ring.forEach((p,i)=>{const q=xy(p);i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])});g.closePath();g.fillStyle='rgba(53,129,170,.40)';g.fill()}
+  g.strokeStyle='rgba(132,231,208,.34)';g.lineWidth=1.4;for(const row of payload.transport||[])for(const line of linesOf(row.geometry)){g.beginPath();line.forEach((p,i)=>{const q=xy(p);i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])});g.stroke()}
+  let shown=0;for(const row of payload.buildings||[]){if(shown++>3500)break;for(const ring of ringsOf(row.geometry)){g.beginPath();ring.forEach((p,i)=>{const q=xy(p);i?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])});g.closePath();g.fillStyle='rgba(232,246,239,.16)';g.fill();g.strokeStyle='rgba(232,246,239,.30)';g.stroke()}}
+  g.strokeStyle='#f4c45e';g.lineWidth=3;g.strokeRect(4,4,W-8,H-8);g.fillStyle='#dffff4';g.font='900 16px system-ui';g.fillText(String(match.map_label||'HORIZON SECTOR').toUpperCase()+' · SOURCE-BACKED CELL',18,28);
+}
+function voteTone(sec){
+  try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;voteTone.ctx=voteTone.ctx||new A();const o=voteTone.ctx.createOscillator(),gain=voteTone.ctx.createGain();o.frequency.value=sec<=3?880:520;gain.gain.setValueAtTime(.05,voteTone.ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.001,voteTone.ctx.currentTime+.11);o.connect(gain).connect(voteTone.ctx.destination);o.start();o.stop(voteTone.ctx.currentTime+.12)}catch{}
+}
+async function runMapVote(match){
+  if(match.mode!=='TDM')return match;
+  const candidates=Array.isArray(match.metadata?.map_vote_candidates)?match.metadata.map_vote_candidates:[];
+  if(candidates.length<2)return match;
+  const panel=$('mapVote'),opts=$('mapVoteOptions');panel.hidden=false;
+  const mk=(x,label)=>`<button data-vote="${escapeHtml(x)}"><b>${escapeHtml(label)}</b><small>VOTE</small></button>`;
+  opts.innerHTML=mk(candidates[0].map_key,candidates[0].display_name)+mk(candidates[1].map_key,candidates[1].display_name)+mk('random','RANDOM');
+  let selected='';opts.querySelectorAll('[data-vote]').forEach(b=>b.onclick=async()=>{selected=b.dataset.vote;opts.querySelectorAll('button').forEach(x=>x.classList.toggle('selected',x===b));await rpc('bridgepoint_horizon_map_vote_v4340',{p_player_id:ident.id,p_player_secret:ident.secret,p_match_id:match.match_id,p_vote_key:selected}).catch(()=>{})});
+  const end=Date.parse(match.metadata?.map_vote_ends_at||'')||Date.now()+10000;let last=-1;
+  while(Date.now()<end){const sec=Math.max(1,Math.ceil((end-Date.now())/1000));$('launchCount').textContent=String(sec);$('loadingStatus').textContent='Vote: '+candidates[0].display_name+' · '+candidates[1].display_name+' · Random';if(sec!==last){voteTone(sec);last=sec}await new Promise(r=>setTimeout(r,120))}
+  const out=await rpc('bridgepoint_horizon_map_vote_resolve_v4340',{p_player_id:ident.id,p_player_secret:ident.secret,p_match_id:match.match_id});
+  panel.hidden=true;const resolved={...match,map_label:out?.map_label||match.map_label,metadata:out?.metadata||match.metadata};
+  $('mapName').textContent=String(resolved.map_label||'HORIZON SECTOR').toUpperCase();return resolved;
 }
 function drawMap(match){
   const c=$('mapCanvas'),g=c.getContext('2d'),rng=new DeterministicRng(hashSeed(match.seed));
