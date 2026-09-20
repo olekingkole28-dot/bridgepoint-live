@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#07110d">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <title>BridgePoint Horizon — Live Match</title>
-<link rel="stylesheet" href="./horizon-v2.css?v=4330">
+<link rel="stylesheet" href="./horizon-v2.css?v=4336">
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}</script>
 </head>
 <body>
@@ -19,8 +19,11 @@
   <small>LIVE WORLD CELL</small>
   <h1 id="title">Survive. Move. Build. Fight.</h1>
   <p id="loadText">Loading terrain, roads, structures, characters, collision and combat systems…</p>
+  <div class="vitals" aria-label="Player health and shield">
+    <div class="vital health-vital"><span class="vital-icon">✚</span><div class="vital-track"><i id="healthBar"></i></div><b id="health">100</b></div>
+    <div class="vital shield-vital"><span class="vital-icon">⬡</span><div class="vital-track"><i id="shieldBar"></i></div><b id="shield">0</b></div>
+  </div>
   <div class="stats">
-    <span><b id="health">100</b> health</span>
     <span><b id="ammo">30/120</b> ammo</span>
     <span><b id="loot">0</b> loot</span>
     <span><b id="infected">0</b> <i id="enemyLabel">infected</i></span>
@@ -52,5 +55,5 @@
   <div class="killCard"><small>KILLCAM</small><h2 id="killCamTitle">YOU WERE KILLED</h2><p id="killCamPhase">5 seconds before impact</p><button id="skipKillcam">SKIP & RESPAWN</button></div>
 </div>
 <div id="error" class="error" hidden><b>Horizon could not start</b><span id="errorText"></span><button onclick="location.reload()">Retry</button></div>
-<script type="module" src="./horizon-v2.js?v=4335"></script>
+<script type="module" src="./horizon-v2.js?v=4336"></script>
 </body></html>
