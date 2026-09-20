@@ -112,4 +112,37 @@ bool FHorizonWeaponUiFeedbackThresholdTest::RunTest(const FString& Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonWeaponDamageSpecTest,
+    "BridgePoint.Horizon.Combat.Weapon.DamageSpec",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonWeaponDamageSpecTest::RunTest(const FString& Parameters)
+{
+    UHorizonWeaponRuntimeComponent* Weapon =
+        NewObject<UHorizonWeaponRuntimeComponent>();
+    TestNotNull(TEXT("Weapon runtime should construct for damage tuning"), Weapon);
+    if (!Weapon)
+    {
+        return false;
+    }
+
+    FHorizonWeaponSpec InvalidSpec;
+    InvalidSpec.BaseDamage = 900.0f;
+    InvalidSpec.RangeCm = -10.0f;
+    InvalidSpec.HeadshotMultiplier = 9.0f;
+    Weapon->ConfigureWeapon(InvalidSpec, true);
+
+    TestEqual(TEXT("Weapon damage is bounded"),
+        Weapon->WeaponSpec.BaseDamage,
+        500.0f);
+    TestEqual(TEXT("Weapon range cannot collapse below trace safety minimum"),
+        Weapon->WeaponSpec.RangeCm,
+        100.0f);
+    TestEqual(TEXT("Headshot multiplier is bounded"),
+        Weapon->WeaponSpec.HeadshotMultiplier,
+        3.0f);
+    return true;
+}
+
 #endif
