@@ -124,6 +124,8 @@ async function initMap(){
   });
   if(!world?.map)throw new Error('Shared BridgePoint world renderer unavailable');
   map=world.map;
+  window.__BP_LANDING_WORLD__=world;
+  window.__BP_LANDING_RENDERER_PARITY__={sharedModule:true,version:5513,container:'previewMap',sameWorldRendererAsApp:true,sameWeatherEngineAsApp:true,updatedAt:Date.now()};
   try{
    map.jumpTo({center:[0,20],zoom:window.innerWidth<=620?1.05:1.25,pitch:0,bearing:0});
    window.__BP_LANDING_GLOBAL_START__={center:[0,20],projection:'globe',zoom:map.getZoom(),at:Date.now()}
@@ -139,11 +141,10 @@ async function initMap(){
    if(!map.isStyleLoaded?.())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
    const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5511'),import('./world-v2300-present-weather.js?v=5511')]);
    const weather=wm.initWeather(world.map),present=pm.initPresentWeather(world.map);
-   weather?.setActive?.(true);weather?.setRadar?.(true);await startLandingNationalWeather(world);
-   window.__BP_LANDING_VISUAL_WEATHER__={version:5440,weather,present,mapShared:true,nationalWeather:true,radarVisible:true,radarAnimated:true,updatedAt:Date.now()}
+   weather?.setActive?.(true);weather?.setRadar?.(true);
+   void startLandingNationalWeather(world).catch(e=>console.warn('BridgePoint national weather async',e));
+   window.__BP_LANDING_VISUAL_WEATHER__={version:5513,weather,present,mapShared:true,nationalWeather:true,radarVisible:true,radarAnimated:true,asyncAttach:true,updatedAt:Date.now()}
   }catch(e){console.warn('BridgePoint preview weather',e)}
-  window.__BP_LANDING_WORLD__=world;
-  window.__BP_LANDING_RENDERER_PARITY__={sharedModule:true,version:5440,container:'previewMap',sameWorldRendererAsApp:true,sameWeatherEngineAsApp:true,updatedAt:Date.now()}
  }catch(e){
   console.error('BridgePoint shared preview renderer',e);
   const el=$('previewMap');if(el)el.innerHTML='<div style="display:grid;place-items:center;height:100%;padding:24px;text-align:center;color:#a9c0ca;background:#071017">BridgePoint World preview is refreshing. Open the app for the live map.</div>'
