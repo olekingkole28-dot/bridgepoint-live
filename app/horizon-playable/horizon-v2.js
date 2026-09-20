@@ -955,19 +955,75 @@ function nearestLoot(){
 function nearestVehicle(max=18){
   let best=null,dist=max;for(const v of vehicles){const d=Math.hypot(player.position.x-v.root.position.x,player.position.y-v.root.position.y);if(d<dist){dist=d;best=v}}return best;
 }
+function lootKeyFor(q){return [mode,stateCode,centerLat.toFixed(4),centerLon.toFixed(4),q.space,q.id].join(':')}
+function hideLootPickup(q){
+  if(!q)return;q.picked=true;
+  if(Number.isInteger(q.instanceIndex)&&q.mesh?.isInstancedMesh){const gone=new THREE.Matrix4().makeScale(0,0,0);q.mesh.setMatrixAt(q.instanceIndex,gone);q.mesh.instanceMatrix.needsUpdate=true}
+  else if(q.mesh)q.mesh.visible=false;
+}
+async function syncFiniteLoot(space='world'){
+  if(!playerId||!playerSecret)return;
+  const rows=lootPickups.filter(q=>q.space===space&&q.type!=='deathdrop'&&!q.picked),keys=rows.map(lootKeyFor);
+  if(!keys.length)return;
+  try{
+    const out=await rpc('bridgepoint_horizon_loot_state_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_loot_keys:keys});
+    const taken=new Set((out?.items||[]).filter(x=>x.claimed||x.state==='CLAIMED').map(x=>x.loot_key));
+    for(const q of rows)if(taken.has(lootKeyFor(q)))hideLootPickup(q);
+  }catch{}
+}
+const deathDropMeshes=new Map();
+function mergeDeathInventory(inv={}){
+  shield=Math.min(100,shield+Math.max(0,Number(inv.shield||0)));
+  const incoming=inv.weapons||{};
+  for(const w of WEAPONS){const q=incoming[w.key];if(!q)continue;weaponState[w.key].owned=weaponState[w.key].owned||q.owned!==false;weaponState[w.key].mag=Math.min(w.mag,Math.max(weaponState[w.key].mag||0,Number(q.mag||0)));weaponState[w.key].reserve=Math.min(w.mag*(w.maxClips||3),Number(weaponState[w.key].reserve||0)+Number(q.reserve||0))}
+  for(const k of ['spark_plug','wheel','gas'])vehicleParts[k]=Number(vehicleParts[k]||0)+Number(inv.vehicle_parts?.[k]||0);
+  updateVitals();updateAmmo();renderWeaponBar();checkpointYearOne(false);
+}
+async function syncDeathDrops(){
+  if(!playerId||!playerSecret)return;const coord=playerWorldCoordinate();
+  try{
+    const out=await rpc('bridgepoint_horizon_death_drops_near_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_lat:coord.lat,p_lon:coord.lon,p_radius_m:220});
+    const seen=new Set();
+    for(const d of out?.drops||[]){
+      const id=String(d.drop_id);seen.add(id);if(deathDropMeshes.has(id))continue;
+      let x=Number(d.local_x),y=Number(d.local_y),z=Number(d.local_z);
+      if(!Number.isFinite(x)||!Number.isFinite(y)){const p=worldToLocal(Number(d.lat),Number(d.lon));x=p.x;y=p.y;z=terrainZ(x,y)+.35}
+      if(!Number.isFinite(z))z=terrainZ(x,y)+.35;
+      const mesh=new THREE.Mesh(new THREE.BoxGeometry(.72,.52,.42),new THREE.MeshStandardMaterial({color:0xa65cff,emissive:0x35124f,emissiveIntensity:.65,roughness:.35,metalness:.25}));
+      mesh.position.set(x,y,z);world.add(mesh);deathDropMeshes.set(id,mesh);lootPickups.push({id:'death-'+id,type:'deathdrop',deathDropId:id,x,y,z,space:'world',mesh,picked:false,rarity:'EPIC'});
+    }
+    for(const [id,mesh] of deathDropMeshes)if(!seen.has(id)){mesh.visible=false;deathDropMeshes.delete(id)}
+  }catch{}
+}
+async function collectDeathDrop(q){
+  try{
+    const out=await rpc('bridgepoint_horizon_death_drop_claim_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_drop_id:q.deathDropId});
+    hideLootPickup(q);deathDropMeshes.delete(String(q.deathDropId));
+    if(out?.ok){mergeDeathInventory(out.inventory||{});lootCount++;lootDeltaPending++;$('loot').textContent=lootCount;toast('PLAYER DROP CLAIMED')}
+    else toast('Player drop already claimed');
+  }catch{hideLootPickup(q)}
+}
+async function dropDeathLoot(){
+  if(!playerId||!playerSecret)return;
+  const coord=playerWorldCoordinate(),weapons=Object.fromEntries(WEAPONS.filter(w=>weaponState[w.key]?.owned).map(w=>[w.key,{owned:true,mag:weaponState[w.key].mag,reserve:weaponState[w.key].reserve,rarity:w.rarity}]));
+  const inventory={weapons,shield,vehicle_parts:{...vehicleParts},backpack:[...backpackSlots],active_weapon:activeWeapon()?.key};
+  try{await rpc('bridgepoint_horizon_death_drop_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_lat:coord.lat,p_lon:coord.lon,p_local_x:player.position.x,p_local_y:player.position.y,p_local_z:player.position.z,p_inventory:inventory})}catch{}
+}
+function clearCarriedAfterDeath(){
+  shield=0;for(const w of WEAPONS){weaponState[w.key].reserve=0;weaponState[w.key].mag=w.key==='axe'?0:0;weaponState[w.key].owned=w.key==='axe'}vehicleParts.spark_plug=vehicleParts.wheel=vehicleParts.gas=0;backpackSlots.fill(null);activeWeaponIndex=Math.max(0,WEAPONS.findIndex(w=>w.key==='axe'));updateVitals();updateAmmo();renderWeaponBar();
+}
 async function collectLoot(q){
   if(!q||q.picked)return;
-  const coord=playerWorldCoordinate(),lootKey=[mode,stateCode,centerLat.toFixed(4),centerLon.toFixed(4),q.space,q.id].join(':');
+  if(q.type==='deathdrop'){await collectDeathDrop(q);return}
+  const coord=playerWorldCoordinate(),lootKey=lootKeyFor(q);
   try{
     const claim=await rpc('bridgepoint_horizon_loot_claim_v4340',{
       p_player_id:playerId,p_player_secret:playerSecret,p_loot_key:lootKey,p_mode:mode,p_world_key:stateCode+':'+centerLat.toFixed(4)+':'+centerLon.toFixed(4),
       p_item_key:q.type,p_rarity:q.rarity||'COMMON',p_lat:coord.lat,p_lon:coord.lon,p_local_x:q.x,p_local_y:q.y,p_local_z:q.z,p_metadata:{space:q.space}
     });
-    if(claim?.already_taken){q.picked=true;if(q.mesh)q.mesh.visible=false;toast('Loot already taken');return}
+    if(claim?.already_taken){hideLootPickup(q);toast('Loot already taken');return}
   }catch(e){if(/ACCOUNT|AUTH|TOKEN|JWT/i.test(String(e?.message||''))){toast('Free Horizon account required');return}}
-  q.picked=true;
-  if(Number.isInteger(q.instanceIndex)&&q.mesh?.isInstancedMesh){const gone=new THREE.Matrix4().makeScale(0,0,0);q.mesh.setMatrixAt(q.instanceIndex,gone);q.mesh.instanceMatrix.needsUpdate=true}
-  else if(q.mesh)q.mesh.visible=false;
+  hideLootPickup(q);
   lootCount++;lootDeltaPending++;$('loot').textContent=lootCount;
   if(q.type==='ammo'){for(const w of WEAPONS)if(w.mag&&weaponState[w.key]?.owned)weaponState[w.key].reserve=Math.min(w.mag*(w.maxClips||3),weaponState[w.key].reserve+Math.max(w.mag,Math.floor(w.mag*1.2)));updateAmmo();toast('Ammo acquired')}
   else if(q.type==='medkit'){health=Math.min(100,health+35);updateVitals();toast('Med kit acquired')}
@@ -1224,6 +1280,7 @@ async function finishDeathFlow(){
 }
 async function triggerDeath(killer){
   if(dead)return;dead=true;shooting=false;sprint=false;
+  await dropDeathLoot();clearCarriedAfterDeath();
   const kc=$('killCam');if(kc)kc.hidden=false;
   const title=$('killCamTitle'),phase=$('killCamPhase');
   if(title)title.textContent='ELIMINATED BY '+(killer?.name||'THE HORDE');
@@ -1520,6 +1577,7 @@ async function heartbeatWorld(force=false){
     const out=await rpc('bridgepoint_horizon_presence_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_lat:q.lat,p_lon:q.lon,p_altitude_m:player.position.z,p_heading_deg:(yaw*180/Math.PI+360)%360,p_alive:!dead,p_combat_score:(shooting?5:0)+infected.filter(z=>z.alive&&z.lockedOn).length});
     worldActivePlayers=Number(out?.active_players||0);if($('activePlayers'))$('activePlayers').textContent=worldActivePlayers+' ACTIVE';
     if(mode==='YEAR_ONE'){const near=await rpc('bridgepoint_horizon_nearby_players_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_radius_m:1800});nearbyPlayers=near?.players||[];syncSharedPlayers(nearbyPlayers)}
+    await syncDeathDrops();
   }catch{}
   if(mode==='YEAR_ONE'&&now-lastExploreAt>8000){lastExploreAt=now;const cell=explorationCell();if(!exploredCells.has(cell)){exploredCells.add(cell);rpc('bridgepoint_horizon_explore_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_cell_key:cell,p_lat:q.lat,p_lon:q.lon}).catch(()=>{})}}
 }
