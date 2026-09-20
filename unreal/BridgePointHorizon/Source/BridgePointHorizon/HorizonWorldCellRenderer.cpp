@@ -447,6 +447,12 @@ EHorizonSourceRoofProfile AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
         return EHorizonSourceRoofProfile::HalfHipped;
     }
     if (FootprintVertexCount == 4 &&
+        (NormalizedShape == TEXT("dome") ||
+         NormalizedShape == TEXT("domed")))
+    {
+        return EHorizonSourceRoofProfile::Dome;
+    }
+    if (FootprintVertexCount == 4 &&
         (NormalizedShape == TEXT("round") ||
          NormalizedShape == TEXT("barrel") ||
          NormalizedShape == TEXT("arched")))
@@ -1324,6 +1330,10 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                 RoofProfile == EHorizonSourceRoofProfile::Round
                     ? ResolveRoundRoofProfilePoints(Ring)
                     : TArray<FVector2D>();
+            const TArray<FVector2D> DomeInset =
+                RoofProfile == EHorizonSourceRoofProfile::Dome
+                    ? ResolveMansardInsetFootprint(Ring)
+                    : TArray<FVector2D>();
             if ((RoofProfile == EHorizonSourceRoofProfile::Skillion &&
                  (SkillionHighEdge.X < 0 || SkillionHighEdge.Y < 0)) ||
                 (RoofProfile == EHorizonSourceRoofProfile::Mansard &&
@@ -1333,7 +1343,9 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                 (RoofProfile == EHorizonSourceRoofProfile::HalfHipped &&
                  HalfHippedPoints.Num() != 4) ||
                 (RoofProfile == EHorizonSourceRoofProfile::Round &&
-                 RoundRoofPoints.Num() != 6))
+                 RoundRoofPoints.Num() != 6) ||
+                (RoofProfile == EHorizonSourceRoofProfile::Dome &&
+                 DomeInset.Num() != 4))
             {
                 ProfileRoofHeightMeters = 0.0;
             }
@@ -1620,6 +1632,65 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                 AddGambrelTriangle(RoofBase + B0, S0B, S1B);
                 AddGambrelTriangle(RoofBase + B0, S1B, RoofBase + B1);
                 AddGambrelTriangle(S0B, RidgeB, S1B);
+                ++RenderedProfiledRoofCount;
+            }
+            else if (ProfileRoofHeightMeters > 0.0 &&
+                RoofProfile == EHorizonSourceRoofProfile::Dome &&
+                Top.Num() == 4 &&
+                DomeInset.Num() == 4)
+            {
+                // A sourced dome adds one bounded shoulder ring and one apex:
+                // five vertices in the existing mesh section, with no additional
+                // draw section or collision body.
+                const double ShoulderMeters =
+                    WallTopMeters + ProfileRoofHeightMeters * 0.58;
+                const int32 DomeShoulderBase = Vertices.Num();
+                for (const FVector2D& Point : DomeInset)
+                {
+                    const FVector Shoulder = ProjectCoordinate(
+                        Point.X,
+                        Point.Y,
+                        ShoulderMeters);
+                    Vertices.Add(Shoulder);
+                    UV0.Add(FVector2D(
+                        Shoulder.X * 0.001f,
+                        Shoulder.Y * 0.001f));
+                }
+
+                const FVector DomeApex = ProjectCoordinate(
+                    AverageLongitude,
+                    AverageLatitude,
+                    TopMeters);
+                const int32 DomeApexIndex = Vertices.Add(DomeApex);
+                UV0.Add(FVector2D(
+                    DomeApex.X * 0.001f,
+                    DomeApex.Y * 0.001f));
+
+                const bool bClockwise =
+                    HorizonCellRender::SignedArea(LocalPolygon) < 0.0f;
+                auto AddDomeTriangle = [&](int32 A, int32 B, int32 C)
+                {
+                    Triangles.Add(bClockwise ? C : A);
+                    Triangles.Add(B);
+                    Triangles.Add(bClockwise ? A : C);
+                };
+
+                for (int32 Index = 0; Index < 4; ++Index)
+                {
+                    const int32 Next = (Index + 1) % 4;
+                    AddDomeTriangle(
+                        RoofBase + Index,
+                        RoofBase + Next,
+                        DomeShoulderBase + Index);
+                    AddDomeTriangle(
+                        DomeShoulderBase + Index,
+                        RoofBase + Next,
+                        DomeShoulderBase + Next);
+                    AddDomeTriangle(
+                        DomeShoulderBase + Index,
+                        DomeShoulderBase + Next,
+                        DomeApexIndex);
+                }
                 ++RenderedProfiledRoofCount;
             }
             else if (ProfileRoofHeightMeters > 0.0 &&
