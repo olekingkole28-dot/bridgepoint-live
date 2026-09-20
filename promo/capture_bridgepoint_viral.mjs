@@ -61,6 +61,7 @@ async function recordClip(name,action){
   const started=Date.now();
   await action();
   await sleep(240);
+  const wallMs=Math.max(500,Date.now()-started);
   active=false;
   await client.send('Page.stopScreencast').catch(()=>{});
   await sleep(250);
@@ -71,10 +72,11 @@ async function recordClip(name,action){
     while(idx<40){fs.writeFileSync(path.join(dir,'f-'+String(idx).padStart(5,'0')+'.jpg'),shot);idx++}
   }
   const out=path.join(OUT,name+'.mp4');
-  ff(['-framerate',String(FRAME_RATE),'-i',path.join(dir,'f-%05d.jpg'),'-vf','fps='+FRAME_RATE+',format=yuv420p','-c:v','libx264','-preset','veryfast','-crf','18','-movflags','+faststart',out]);
-  const seconds=idx/FRAME_RATE;
-  meta.clips.push({name,frames:idx,seconds,wallMs:Date.now()-started});
-  log('clip',name,idx,'frames',seconds.toFixed(2),'sec');
+  const sourceFps=Math.max(4,Math.min(24,idx/(wallMs/1000)));
+  ff(['-framerate',sourceFps.toFixed(3),'-i',path.join(dir,'f-%05d.jpg'),'-vf','fps=30,format=yuv420p','-c:v','libx264','-preset','veryfast','-crf','19','-movflags','+faststart',out]);
+  const seconds=idx/sourceFps;
+  meta.clips.push({name,frames:idx,seconds,wallMs,sourceFps});
+  log('clip',name,idx,'frames',seconds.toFixed(2),'sec','capture fps',sourceFps.toFixed(2));
 }
 
 async function mapEval(cfg){
@@ -90,9 +92,9 @@ async function closeActive(){
 }
 async function openDrawer(){
   await closeActive();
-  await page.waitForSelector('#appFreePremiumTools',{timeout:15000});
-  await page.$eval('#appFreePremiumTools',b=>b.click());
-  await page.waitForFunction(()=>document.getElementById('bp5507-tool-panel')?.hidden===false,{timeout:7000});
+  await page.waitForSelector('#bp5507-tool-panel',{timeout:15000});
+  await page.evaluate(()=>{const p=document.getElementById('bp5507-tool-panel');if(p){p.hidden=false;p.scrollTop=0}});
+  await page.waitForFunction(()=>document.getElementById('bp5507-tool-panel')?.hidden===false,{timeout:3000});
 }
 async function openTool(key){
   await openDrawer();
@@ -136,18 +138,18 @@ await recordClip('03-city-3d',async()=>{
   await sleep(3300);
 });
 
+await openDrawer();
 await recordClip('04-free-tools',async()=>{
-  await openDrawer();
-  await sleep(1900);
+  await sleep(1500);
   await page.evaluate(()=>{const p=document.getElementById('bp5507-tool-panel');if(p)p.scrollTo({top:p.scrollHeight*.55,behavior:'smooth'})});
   await sleep(2200);
 });
 
+await closeActive();
+await mapEval({jump:{center:[-76,39],zoom:5.4,pitch:62,bearing:40}});
+await openTool('FLIGHT_SIM');
 await recordClip('05-flight-sim',async()=>{
-  await closeActive();
-  await mapEval({jump:{center:[-76,39],zoom:5.4,pitch:62,bearing:40}});
-  await openTool('FLIGHT_SIM');
-  await sleep(1200);
+  await sleep(900);
   await page.evaluate(()=>{document.querySelector('#bp5507-hud [data-fast]')?.click();document.querySelector('#bp5507-hud [data-fast]')?.click()});
   await sleep(3900);
 });
@@ -199,34 +201,32 @@ await recordClip('06-road-drive',async()=>{
 });
 meta.roadDriveEnd=await page.evaluate(()=>({state:window.__BP_ROAD_DRIVE_V5530__?.state||null,fireLabels:[...document.querySelectorAll('.bp-rd-fire-distance')].map(x=>x.innerText)}));
 
-await recordClip('07-scenario-lab',async()=>{
-  await closeActive();await openTool('SCENARIO');
-  await page.waitForSelector('.bp-sl-panel',{timeout:10000});
-  await page.$eval('[data-event="WILDFIRE"]',b=>b.click());
-  const p=await page.$('[data-preset][data-label="LOS ANGELES"]')||await page.$('[data-preset]');if(p)await p.click();
-  await sleep(700);
-  const start=await page.$('[data-start]');if(start)await start.click();
-  try{await page.waitForSelector('[data-play]',{timeout:13000})}catch(_){}
-  await sleep(4600);
-});
+await closeActive();await openTool('SCENARIO');
+await page.waitForSelector('.bp-sl-panel',{timeout:10000});
+await page.$eval('[data-event="WILDFIRE"]',b=>b.click());
+{const p=await page.$('[data-preset][data-label="LOS ANGELES"]')||await page.$('[data-preset]');if(p)await p.click()}
+await sleep(700);
+{const start=await page.$('[data-start]');if(start)await start.click()}
+try{await page.waitForSelector('[data-play]',{timeout:15000})}catch(_){}
+await recordClip('07-scenario-lab',async()=>{await sleep(5200)});
 
+await closeActive();await openTool('TIMEMAP');await sleep(900);
 await recordClip('08-weather-time',async()=>{
-  await closeActive();await openTool('TIMEMAP');await sleep(1200);
   await page.evaluate(()=>{const r=document.querySelector('#bp5507-hud [data-range]');if(r){r.value='62';r.dispatchEvent(new Event('input',{bubbles:true}))}});
-  await sleep(1200);
-  await page.evaluate(()=>{const r=document.querySelector('#bp5507-hud [data-range]');if(r){r.value='30';r.dispatchEvent(new Event('input',{bubbles:true}))}});
   await sleep(1400);
+  await page.evaluate(()=>{const r=document.querySelector('#bp5507-hud [data-range]');if(r){r.value='30';r.dispatchEvent(new Event('input',{bubbles:true}))}});
+  await sleep(1800);
 });
 
+await closeActive();await openTool('WIND');await sleep(700);
 await recordClip('09-3d-wind',async()=>{
-  await closeActive();await openTool('WIND');await sleep(1500);
+  await sleep(900);
   await page.evaluate(()=>document.querySelector('#bp5507-hud [data-key]')?.click());
   await sleep(2200);
 });
 
-await recordClip('10-space-weather',async()=>{
-  await closeActive();await openTool('SPACE_WEATHER');await sleep(3900);
-});
+await closeActive();await openTool('SPACE_WEATHER');await sleep(900);
+await recordClip('10-space-weather',async()=>{await sleep(3900)});
 
 await recordClip('11-source-gated',async()=>{
   await closeActive();await openDrawer();await sleep(700);
