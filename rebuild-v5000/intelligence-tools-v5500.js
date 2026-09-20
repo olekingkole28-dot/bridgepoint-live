@@ -39,10 +39,10 @@ function ensureLayer(map,def,before){try{if(!map.getLayer(def.id))map.addLayer(d
 export function initIntelligenceTools({map,rpc,weather,mode='app'}={}){
  if(!map||typeof rpc!=='function')return null;if(window.__BP_INTELLIGENCE_TOOLS_V5500)return window.__BP_INTELLIGENCE_TOOLS_V5500;
  addStyle();const surface=document.querySelector('.map-surface')||map.getContainer().parentElement;
- const state={mode,session:sessionKey(),globe:false,global:false,liveDomains:new Set(),selectedBuilding:null,flight:null,driveNight:false,sourceCaps:null,globalCache:null,globalFetchedAt:0,liveEntityRows:[],ride:null};
+ const state={mode,session:sessionKey(),globe:false,global:false,allMode:false,liveDomains:new Set(),selectedBuilding:null,flight:null,driveNight:false,sourceCaps:null,globalCache:null,globalFetchedAt:0,liveEntityRows:[],ride:null};
  const rail=document.createElement('div');rail.className='bp-tools5500';
  const tools=[
-  ['globe','GLOBE'],['timemap','TIME'],['global','GLOBAL'],['flight','FLIGHT'],['drive','DRIVE'],
+  ['all','ALL'],['globe','GLOBE'],['timemap','TIME'],['global','GLOBAL'],['flight','FLIGHT'],['drive','DRIVE'],
   ['sky','SKY'],['transport','TRANSIT'],['cameras','CAMS'],['scenario','SIM'],['wind','WIND'],['qr','QR']
  ];
  rail.innerHTML=tools.map(([k,l])=>'<button data-tool="'+k+'">'+l+'</button>').join('');surface.appendChild(rail);
@@ -87,15 +87,18 @@ export function initIntelligenceTools({map,rpc,weather,mode='app'}={}){
   }catch(e){say('Global feed partial/retry · '+String(e?.message||e))}
   map.getSource('bpGlobalHazardsV5500')?.setData({type:'FeatureCollection',features});map.getSource('bpPlateBoundariesV5500')?.setData({type:'FeatureCollection',features:plateFeatures});state.global=true;btn('global').classList.add('active');say('Global · '+features.length+' hazard/volcano points · '+plateFeatures.length+' tectonic boundaries');
  }
- async function liveEntities(domain,tool){
-  if(!(await allow(tool)))return;const c=await caps(),enabled=(c.enabled||[]).filter(x=>x.domain===domain);
-  const b=map.getBounds();let d={entities:[]};try{d=await rpc('bridgepoint_intelligence_live_entities_v5500',{p_domain:domain,p_min_lat:b.getSouth(),p_max_lat:b.getNorth(),p_min_lng:b.getWest(),p_max_lng:b.getEast(),p_limit:mode==='public'?250:800},6000)}catch{}
-  const rows=d.entities||[];state.liveEntityRows=rows;const source='bpLiveEntitiesV5500';makeSource(map,source).setData({type:'FeatureCollection',features:rows.map(x=>({type:'Feature',geometry:{type:'Point',coordinates:[+x.lon,+x.lat]},properties:{...x,metadata:JSON.stringify(x.metadata||{})}}))});
-  ensureLayer(map,{id:'bp-live-entities-v5500',type:'symbol',source,layout:{'icon-image':['case',['==',['get','domain'],'AVIATION'],'airport-15',['==',['get','domain'],'SATELLITES'],'rocket-15','circle-11'],'icon-size':1.1,'icon-allow-overlap':true,'text-field':['coalesce',['get','display_name'],''],'text-size':9,'text-offset':[0,1.2],'text-optional':true},paint:{'text-color':'#dff9ff','text-halo-color':'#071016','text-halo-width':1}});
-  if(!map.__bpLiveEntityClick){map.__bpLiveEntityClick=true;map.on('click','bp-live-entities-v5500',e=>{const p=e.features?.[0]?.properties;if(!p)return;show('LIVE ENTITY','<div class="card"><b>'+esc(p.display_name||p.entity_key)+'</b><small>'+esc(p.domain)+' · '+esc(p.entity_type)+' · '+esc(p.source_key)+'</small><small>ALT '+esc(p.altitude_m||'—')+' m · SPEED '+esc(p.speed_mps||'—')+' m/s · HDG '+esc(p.heading_deg||'—')+'</small></div><div class="action"><button data-ride="'+esc(p.entity_key)+'">RIDE ALONG</button></div><p>Ride-along is a BridgePoint rendering from telemetry, not an onboard camera.</p>')})}
+ async function liveEntities(domain,tool,{silent=false}={}){
+  if(!(await allow(tool)))return[];const c=await caps(),enabled=(c.enabled||[]).filter(x=>x.domain===domain);
+  const safeDomain=String(domain||'LIVE').toLowerCase().replace(/[^a-z0-9]+/g,'-'),source='bpLiveEntitiesV5500-'+safeDomain,layer='bp-live-entities-v5500-'+safeDomain;
+  const b=map.getBounds(),budget=state.allMode?(mode==='public'?120:300):(mode==='public'?250:800);let d={entities:[]};
+  try{d=await rpc('bridgepoint_intelligence_live_entities_v5500',{p_domain:domain,p_min_lat:b.getSouth(),p_max_lat:b.getNorth(),p_min_lng:b.getWest(),p_max_lng:b.getEast(),p_limit:budget},6000)}catch{}
+  const rows=d.entities||[];state.liveEntityRows=[...state.liveEntityRows.filter(x=>x.domain!==domain),...rows];state.liveDomains.add(domain);
+  makeSource(map,source).setData({type:'FeatureCollection',features:rows.map(x=>({type:'Feature',geometry:{type:'Point',coordinates:[+x.lon,+x.lat]},properties:{...x,metadata:JSON.stringify(x.metadata||{})}}))});
+  ensureLayer(map,{id:layer,type:'symbol',source,layout:{'icon-image':['case',['==',['get','domain'],'AVIATION'],'airport-15',['==',['get','domain'],'SATELLITES'],'rocket-15','circle-11'],'icon-size':state.allMode?.88:1.1,'icon-allow-overlap':!state.allMode,'text-field':state.allMode?'':['coalesce',['get','display_name'],''],'text-size':9,'text-offset':[0,1.2],'text-optional':true},paint:{'text-color':'#dff9ff','text-halo-color':'#071016','text-halo-width':1}});
+  const clickKey='__bpLiveClick_'+safeDomain;if(!map[clickKey]){map[clickKey]=true;map.on('click',layer,e=>{const p=e.features?.[0]?.properties;if(!p)return;show('LIVE ENTITY','<div class="card"><b>'+esc(p.display_name||p.entity_key)+'</b><small>'+esc(p.domain)+' · '+esc(p.entity_type)+' · '+esc(p.source_key)+'</small><small>ALT '+esc(p.altitude_m||'—')+' m · SPEED '+esc(p.speed_mps||'—')+' m/s · HDG '+esc(p.heading_deg||'—')+'</small></div><div class="action"><button data-ride="'+esc(p.entity_key)+'">RIDE ALONG</button></div><p>Ride-along is a BridgePoint rendering from telemetry, not an onboard camera.</p>')})}
   const pending=(c.pending||[]).filter(x=>x.domain===domain);
-  if(!rows.length)show(domain+' STATUS','<p>No approved live entities are currently available in this viewport.</p>'+enabled.map(x=>'<div class="card"><b>'+esc(x.provider)+'</b><small>ENABLED · '+esc(x.source_key)+'</small></div>').join('')+pending.map(x=>'<div class="card"><b>'+esc(x.provider)+'</b><small>'+esc(x.status)+' · '+esc(x.notes||'')</small></div>').join(''));
-  say(domain+' · '+rows.length+' live approved entities');return rows
+  if(!silent&&!rows.length)show(domain+' STATUS','<p>No approved live entities are currently available in this viewport.</p>'+enabled.map(x=>'<div class="card"><b>'+esc(x.provider)+'</b><small>ENABLED · '+esc(x.source_key)+'</small></div>').join('')+pending.map(x=>'<div class="card"><b>'+esc(x.provider)+'</b><small>'+esc(x.status)+' · '+esc(x.notes||'')+'</small></div>').join(''));
+  if(!silent)say(domain+' · '+rows.length+' live approved entities · budget '+budget);return rows
  }
  function rideEntity(key){
   const row=state.liveEntityRows.find(x=>String(x.entity_key)===String(key));if(!row)return;state.ride=row;map.easeTo({center:[+row.lon,+row.lat],zoom:15,pitch:78,bearing:Number(row.heading_deg||0),duration:700});say('Ride-along · '+(row.display_name||row.entity_key)+' · rendered from telemetry')
@@ -157,10 +160,24 @@ export function initIntelligenceTools({map,rpc,weather,mode='app'}={}){
   try{await ensureQrLib();const qr=window.qrcode(0,'M');qr.addData('https://bridgepointintelligence.online/app/');qr.make();const url=qr.createDataURL(7,4),stage=document.getElementById('bpQrStage');stage.innerHTML='<img class="bp-qrflat" src="'+url+'" alt="BridgePoint Intelligence QR code"><div class="bp-qrhouse"><div class="wall front"></div><div class="wall side"></div><div class="wall roof"></div></div>';stage.querySelectorAll('.wall').forEach(x=>x.style.backgroundImage='url('+url+')')}catch(e){document.getElementById('bpQrStage').textContent='QR renderer retrying · '+String(e?.message||e)}
  }
  function sourcePanel(domain,title){liveEntities(domain,domain==='AVIATION'||domain==='SATELLITES'?'SKY':domain==='CAMERAS'?'CAMERAS':'TRANSPORT').then(()=>{if(panel.hidden)show(title,'<p>Source status loaded.</p>')})}
+ async function toggleAll(){
+  if(state.allMode){
+    state.allMode=false;btn('all')?.classList.remove('active');
+    for(const domain of [...state.liveDomains]){const safe=String(domain).toLowerCase().replace(/[^a-z0-9]+/g,'-');clearLayer('bpLiveEntitiesV5500-'+safe)}
+    state.liveDomains.clear();state.liveEntityRows=[];
+    if(state.global){state.global=false;clearLayer('bpGlobalHazardsV5500');clearLayer('bpPlateBoundariesV5500');btn('global')?.classList.remove('active')}
+    say('ALL mode off · default live weather remains on');return
+  }
+  if(!(await allow('ALL')))return;state.allMode=true;btn('all')?.classList.add('active');
+  if(!state.global)await globalHazards();
+  const c=await caps(),domains=[...new Set((c.enabled||[]).map(x=>x.domain).filter(x=>['AVIATION','MARITIME','SATELLITES','CAMERAS','TRANSIT','TRANSPORT'].includes(x)))];
+  let total=0;for(const domain of domains){const tool=domain==='CAMERAS'?'CAMERAS':domain==='AVIATION'||domain==='SATELLITES'?'SKY':'TRANSPORT';const rows=await liveEntities(domain,tool,{silent:true});total+=rows?.length||0}
+  say('ALL approved layers · adaptive low-detail mode · '+total+' live moving entities · pending/unauthorized feeds stay off')
+ }
  async function timemap(){if(!(await allow('TIMEMAP')))return;let tm=window.__BP_WEATHER_TIMEMAP_V5201;if(!tm){try{const mod=await import('./weather-timemap-v5201.js?v=5500');tm=mod.initWeatherTimeMap({map,rpc,weather});window.__BP_WEATHER_TIMEMAP_V5201=tm}catch(e){say('Weather TimeMap retry · '+String(e?.message||e));return}}tm.queryHistory?.(true);say('Weather TimeMap active · drag FROM / TO / MOMENT bars')}
  function clearSimulation(){clearLayer('bpScenarioV5500');simBadge.hidden=true;say('Simulation cleared')}
  panel.querySelector('[data-close]').onclick=()=>panel.hidden=true;
- rail.onclick=e=>{const b=e.target.closest('[data-tool]');if(!b)return;const k=b.dataset.tool;if(k==='globe')toggleGlobe();else if(k==='timemap')timemap();else if(k==='global')globalHazards();else if(k==='flight')flightStart();else if(k==='drive')drivePanel();else if(k==='sky'){sourcePanel('AVIATION','AIRCRAFT / SATELLITES');liveEntities('SATELLITES','SKY')}else if(k==='transport')sourcePanel('TRANSPORT','LIVE TRANSPORT');else if(k==='cameras')sourcePanel('CAMERAS','PUBLIC CAMERA SOURCES');else if(k==='scenario')scenarioPanel();else if(k==='wind')windPanel();else if(k==='qr')qrPanel()};
+ rail.onclick=e=>{const b=e.target.closest('[data-tool]');if(!b)return;const k=b.dataset.tool;if(k==='all')toggleAll();else if(k==='globe')toggleGlobe();else if(k==='timemap')timemap();else if(k==='global')globalHazards();else if(k==='flight')flightStart();else if(k==='drive')drivePanel();else if(k==='sky'){sourcePanel('AVIATION','AIRCRAFT / SATELLITES');liveEntities('SATELLITES','SKY')}else if(k==='transport')sourcePanel('TRANSPORT','LIVE TRANSPORT');else if(k==='cameras')sourcePanel('CAMERAS','PUBLIC CAMERA SOURCES');else if(k==='scenario')scenarioPanel();else if(k==='wind')windPanel();else if(k==='qr')qrPanel()};
  panel.onclick=e=>{if(e.target.matches('[data-run-sim]'))runScenario();if(e.target.matches('[data-clear-sim]'))clearSimulation();if(e.target.matches('[data-run-wind]'))runWind();if(e.target.matches('[data-clear-wind]'))clearLayer('bpWindV5500');if(e.target.matches('[data-drive-toggle]'))driveToggle();if(e.target.matches('[data-drive-night]'))driveNight();if(e.target.matches('[data-drive-weather]'))driveWeather();const r=e.target.closest('[data-ride]');if(r)rideEntity(r.dataset.ride)};
  addEventListener('keydown',e=>{if(state.flight?.active)state.flight.keys.add(e.code)});
  addEventListener('keyup',e=>state.flight?.keys.delete(e.code));
@@ -168,6 +185,6 @@ export function initIntelligenceTools({map,rpc,weather,mode='app'}={}){
  map.on('styledata',()=>{if(state.global)ensureGlobal()});
  caps().then(c=>{for(const k of ['sky','transport','cameras']){const domain=k==='sky'?'AVIATION':k==='transport'?'TRANSPORT':'CAMERAS',has=(c.enabled||[]).some(x=>x.domain===domain);btn(k)?.classList.toggle('pending',!has)}}).catch(()=>{});
  try{map.setProjection?.({type:'globe'});state.globe=true;btn('globe').classList.add('active')}catch{}
- const api={version:TOOL_VERSION,state,toggleGlobe,globalHazards,liveEntities,runScenario,runWind,flightStart,rideEntity};
+ const api={version:TOOL_VERSION,state,toggleAll,toggleGlobe,globalHazards,liveEntities,runScenario,runWind,flightStart,rideEntity};
  window.__BP_INTELLIGENCE_TOOLS_V5500=api;say('Tools v5500 · globe on · heavy live layers off');return api
 }
