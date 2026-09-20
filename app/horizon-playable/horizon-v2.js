@@ -17,6 +17,12 @@ const activeMatch=(()=>{try{return JSON.parse(localStorage.getItem('horizon-acti
 const playerId=localStorage.getItem('horizon-player-id')||'';
 const playerSecret=localStorage.getItem('horizon-player-secret')||'';
 const savedProfile=(()=>{try{return JSON.parse(localStorage.getItem('horizon-player-profile')||'null')}catch{return null}})();
+function horizonAccessToken(){
+  try{
+    const raw=localStorage.getItem('sb-xdfsjztwgsbmabshzsjw-auth-token');if(!raw)return '';
+    const q=JSON.parse(raw);return q?.access_token||q?.currentSession?.access_token||q?.session?.access_token||q?.[0]?.access_token||'';
+  }catch{return ''}
+}
 const MOBILE=/Android|iPhone|iPad/i.test(navigator.userAgent);
 const DEVICE_MEM=Number(navigator.deviceMemory||0),DEVICE_CORES=Number(navigator.hardwareConcurrency||0);
 const HIGH_DEVICE=!MOBILE||(DEVICE_MEM>=8&&DEVICE_CORES>=8);
@@ -29,7 +35,7 @@ renderer.shadowMap.enabled=HIGH_DEVICE;renderer.shadowMap.type=THREE.PCFSoftShad
 localStorage.setItem('horizon-camera-mode','first');
 const world=new THREE.Group();scene.add(world);const exteriorDetailGroup=new THREE.Group();world.add(exteriorDetailGroup);const mapLineGroup=new THREE.Group();world.add(mapLineGroup);const ambientDetailGroup=new THREE.Group();world.add(ambientDetailGroup);const interiorGroup=new THREE.Group();interiorGroup.visible=false;scene.add(interiorGroup);
 const actorProxyGroup=new THREE.Group();world.add(actorProxyGroup);
-const PROXY_MAX=32,PROXY_GEOM=new THREE.BoxGeometry(.52,.52,1.62);
+const PROXY_MAX=120,PROXY_GEOM=new THREE.BoxGeometry(.52,.52,1.62);
 const makeProxy=(color)=>{const m=new THREE.InstancedMesh(PROXY_GEOM,new THREE.MeshBasicMaterial({color}),PROXY_MAX);m.count=0;m.visible=false;m.frustumCulled=true;m.userData.perfProxy=true;actorProxyGroup.add(m);return m};
 const allyProxy=makeProxy(0x5fdcc6),enemyProxy=makeProxy(0xd36859),infectedProxy=makeProxy(0x68765b);
 const hemi=new THREE.HemisphereLight(0xcad5c1,0x263126,1.5);scene.add(hemi);
@@ -49,16 +55,19 @@ const DETAIL_BUILDING_LIMIT=MOBILE?(HIGH_DEVICE?52:22):120;
 const BUILDING_LIMIT=Number.POSITIVE_INFINITY;
 const PART_LIMIT=Number.POSITIVE_INFINITY;
 const PARCEL_LIMIT=MOBILE?(HIGH_DEVICE?1250:850):1800;
-let ammoMag=30,ammoReserve=120,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,fpWeaponRig=null,muzzleFlash=null,lootDeltaPending=0,lastYearOneCheckpointAt=0,yearOneCheckpointBusy=false;
+let ammoMag=30,ammoReserve=90,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,fpWeaponRig=null,muzzleFlash=null,lootDeltaPending=0,lastYearOneCheckpointAt=0,yearOneCheckpointBusy=false;
+let yearOneZone=null,lastZonePollAt=0,lastWallDamageAt=0,lastPresenceAt=0,lastExploreAt=0,waterIdleSeconds=0,coldExposureSeconds=0,nearbyPlayers=[],worldActivePlayers=0;
+const exploredCells=new Set(),vehicleParts={spark_plug:0,wheel:0,gas:0},backpackSlots=Array(5).fill(null);
+const waterAreas=[],zombieWallGroup=new THREE.Group();world.add(zombieWallGroup);
 let cameraMode='first',crouched=false,prone=false,slideTime=0,verticalVelocity=0,airborne=false,interiorMode=false,activeInterior=null,rooftopState=null;
 let activeZipline=null,activeVehicle=null,audioCtx=null,audioMaster=null,audioCompressor=null,audioReverb=null,audioReverbGain=null,lastAudioEnvAt=0,lastFootstepAt=0,contextTarget=null;const audioBuses={},audioBufferCache=new Map();
 const buildingEntries=[],ziplines=[],vehicles=[],ambientFx=[],interiorRects=[];const exteriorReturn=new THREE.Vector3();let exteriorYaw=0;
 const WEAPONS=[
-  {key:'rifle',name:'AR-12',kind:'rifle',mag:30,reserve:120,damage:42,head:100,interval:92,range:145,spread:.006},
-  {key:'smg',name:'Viper SMG',kind:'smg',mag:36,reserve:180,damage:28,head:70,interval:70,range:92,spread:.012},
-  {key:'shotgun',name:'Breach-8',kind:'shotgun',mag:8,reserve:40,damage:96,head:120,interval:680,range:34,spread:.055},
-  {key:'pistol',name:'Rook Pistol',kind:'pistol',mag:12,reserve:72,damage:48,head:96,interval:260,range:72,spread:.01},
-  {key:'axe',name:'Field Axe',kind:'melee',mag:0,reserve:0,damage:82,head:82,interval:520,range:2.6,spread:0}
+  {key:'rifle',name:'AR-12 Cobalt',kind:'rifle',rarity:'RARE',mag:32,reserve:96,damage:40,head:72,interval:96,range:150,spread:.007,maxClips:3},
+  {key:'smg',name:'Viper Flux',kind:'smg',rarity:'RARE',mag:40,reserve:160,damage:28,head:50,interval:68,range:88,spread:.012,maxClips:4},
+  {key:'shotgun',name:'Breach Hammer',kind:'shotgun',rarity:'RARE',mag:8,reserve:16,damage:92,head:118,interval:660,range:34,spread:.055,maxClips:2},
+  {key:'pistol',name:'Rook',kind:'pistol',rarity:'COMMON',mag:12,reserve:48,damage:38,head:68,interval:280,range:70,spread:.012,maxClips:4},
+  {key:'axe',name:'Warden Axe',kind:'melee',rarity:'EPIC',mag:0,reserve:0,damage:96,head:96,interval:610,range:2.8,spread:0,maxClips:0}
 ];
 const weaponState=Object.fromEntries(WEAPONS.map(w=>[w.key,{mag:w.mag,reserve:w.reserve,owned:true}]));
 let activeWeaponIndex=0;
@@ -82,7 +91,9 @@ const CHAR_MODELS={
 };const rand=(s=>()=>((s=Math.imul(1664525,s)+1013904223>>>0)/4294967296))(913733);const hash=s=>{let h=2166136261;for(const c of String(s)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
 async function rpc(name,params={}){
   if(!playerId||!playerSecret)throw new Error('HORIZON_PLAYER_IDENTITY_MISSING');
-  const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:PUBLISHABLE_KEY,'content-type':'application/json','accept':'application/json'},body:JSON.stringify(params)});
+  const headers={apikey:PUBLISHABLE_KEY,'content-type':'application/json','accept':'application/json'},token=horizonAccessToken();
+  if(token)headers.authorization='Bearer '+token;
+  const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/'+name,{method:'POST',headers,body:JSON.stringify(params)});
   const t=await r.text();if(!r.ok){let m=t;try{m=JSON.parse(t)?.message||t}catch{}throw new Error(m)}return t?JSON.parse(t):null;
 }
 function loadAsset(url){
@@ -279,11 +290,12 @@ function addKillFeed(killer,victim,weapon='AR-12',headshot=false){
 function activeWeapon(){return WEAPONS[activeWeaponIndex]||WEAPONS[0]}
 function renderWeaponBar(){
   const bar=$('weaponBar');if(!bar)return;
-  bar.innerHTML=WEAPONS.map((w,i)=>{
+  bar.innerHTML=WEAPONS.slice(0,5).map((w,i)=>{
     const st=weaponState[w.key],ammo=w.mag?st.mag+'/'+st.reserve:'MELEE';
-    return '<button class="weaponSlot '+(i===activeWeaponIndex?'active ':'')+(st?.owned?'':'empty')+'" data-w="'+i+'"><b>'+w.name+'</b>'+ammo+'</button>';
+    return '<button class="weaponSlot '+(i===activeWeaponIndex?'active ':'')+(st?.owned?'':'empty')+'" data-rarity="'+(w.rarity||'COMMON')+'" data-w="'+i+'"><b>'+w.name+'</b><small>'+ammo+' · '+(w.rarity||'COMMON')+'</small><span class="spec">'+w.damage+' BODY · '+w.head+' HEAD · '+w.range+'M · '+(w.mag?('MAG '+w.mag+' · '+w.maxClips+' SPARE CLIPS'):'MELEE')+'</span></button>';
   }).join('');
   bar.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>equipWeaponIndex(Number(b.dataset.w)));
+  const buildEl=$('builds');if(buildEl)buildEl.textContent=mode==='TDM'?buildCount+'/3':'—';
 }
 function refreshWeaponRig(){
   const w=activeWeapon(),wrap=savedProfile?.wrap_key||'wrap_ash';
@@ -404,14 +416,18 @@ function pollGamepad(){
 }
 function renderMinimap(){
   const cv=$('miniMap');if(!cv||!data)return;const g=cv.getContext('2d'),w=cv.width,h=cv.height,scale=2.4;
-  g.clearRect(0,0,w,h);g.fillStyle='rgba(3,10,11,.92)';g.fillRect(0,0,w,h);
+  g.clearRect(0,0,w,h);g.fillStyle=mode==='YEAR_ONE'?'rgba(28,31,32,.96)':'rgba(3,10,11,.92)';g.fillRect(0,0,w,h);
   const ox=w/2-player.position.x/scale,oy=h/2+player.position.y/scale;
   const drawLines=(rows,color,width=1)=>{g.strokeStyle=color;g.lineWidth=width;g.beginPath();for(const row of rows||[])for(const line of lines(row.geometry)){for(let i=0;i<line.length;i++){const p=project(line[i]),x=ox+p.x/scale,y=oy-p.y/scale;if(i===0)g.moveTo(x,y);else g.lineTo(x,y)}}g.stroke()};
   drawLines(data.transport,'rgba(95,226,255,.48)',1.2);
   g.strokeStyle='rgba(65,245,255,.24)';g.lineWidth=.8;for(const row of (data.parcels||[]).slice(0,350))for(const ring of rings(row.geometry)){g.beginPath();ring.forEach((q,i)=>{const p=project(q),x=ox+p.x/scale,y=oy-p.y/scale;i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke()}
   const mark=(x,y,color,r=3)=>{g.fillStyle=color;g.beginPath();g.arc(ox+x/scale,oy-y/scale,r,0,Math.PI*2);g.fill()};
   if(mode==='TDM')combatants.filter(q=>q.alive).forEach(q=>mark(q.g.position.x,q.g.position.y,q.friendly?'#64ffd4':'#ff7868',2.5));
-  else infected.filter(q=>q.alive&&Math.hypot(q.g.position.x-player.position.x,q.g.position.y-player.position.y)<70).forEach(q=>mark(q.g.position.x,q.g.position.y,'#ff7868',2));
+  else{
+    infected.filter(q=>q.alive&&Math.hypot(q.g.position.x-player.position.x,q.g.position.y-player.position.y)<70).forEach(q=>mark(q.g.position.x,q.g.position.y,'#ff7868',2));
+    nearbyPlayers.forEach(q=>{const p=worldToLocal(Number(q.lat),Number(q.lon));mark(p.x,p.y,'#9d7cff',2.5)});
+    g.save();g.globalCompositeOperation='destination-out';g.globalAlpha=.72;g.beginPath();g.arc(w/2,h/2,42,0,Math.PI*2);g.fill();g.restore();
+  }
   g.save();g.translate(w/2,h/2);g.rotate(-yaw);g.fillStyle='#ffffff';g.beginPath();g.moveTo(0,-8);g.lineTo(6,7);g.lineTo(-6,7);g.closePath();g.fill();g.restore();
 }
 function snapshotKillcam(now=performance.now()){
@@ -595,13 +611,17 @@ function addBuildings(){
   buckets.forEach((rows,i)=>{if(!rows.length)return;const inst=new THREE.InstancedMesh(UNIT_BOX,BUILD_MATS[i],rows.length);inst.castShadow=renderer.shadowMap.enabled;inst.receiveShadow=true;rows.forEach((r,j)=>{dummy.position.set(r.cx,r.cy,r.baseZ+r.h/2+.08);dummy.scale.set(r.w,r.d,r.h);dummy.rotation.set(0,0,0);dummy.updateMatrix();inst.setMatrixAt(j,dummy.matrix)});inst.instanceMatrix.needsUpdate=true;world.add(inst)});
   if(buildingEntries.length){
     const geom=new THREE.PlaneGeometry(1.05,2.05),doorMat=new THREE.MeshBasicMaterial({color:0x101716,transparent:true,opacity:.92,side:THREE.DoubleSide});
-    const doors=new THREE.InstancedMesh(geom,doorMat,buildingEntries.length),dmy=new THREE.Object3D();
-    buildingEntries.forEach((e,i)=>{
-      const x=e.cx,y=e.cy-e.d/2-.025,z=e.baseZ+1.03;
-      dmy.position.set(x,y,z);dmy.rotation.set(Math.PI/2,0,0);dmy.scale.set(1,1,1);dmy.updateMatrix();doors.setMatrixAt(i,dmy.matrix);
-      registerEntrance({type:'door',x,y:y-1.05,z:e.baseZ,label:'ENTER',building:e});
+    const doors=new THREE.InstancedMesh(geom,doorMat,buildingEntries.length*4),dmy=new THREE.Object3D();let di=0;
+    buildingEntries.forEach((e)=>{
+      const z=e.baseZ+1.03,defs=[
+        {x:e.cx,y:e.cy-e.d/2-.025,ex:e.cx,ey:e.cy-e.d/2-1.05,r:0},
+        {x:e.cx,y:e.cy+e.d/2+.025,ex:e.cx,ey:e.cy+e.d/2+1.05,r:Math.PI},
+        {x:e.cx-e.w/2-.025,y:e.cy,ex:e.cx-e.w/2-1.05,ey:e.cy,r:Math.PI/2},
+        {x:e.cx+e.w/2+.025,y:e.cy,ex:e.cx+e.w/2+1.05,ey:e.cy,r:-Math.PI/2}
+      ];
+      for(const d of defs){dmy.position.set(d.x,d.y,z);dmy.rotation.set(Math.PI/2,0,d.r);dmy.scale.set(1,1,1);dmy.updateMatrix();doors.setMatrixAt(di++,dmy.matrix);registerEntrance({type:'door',x:d.ex,y:d.ey,z:e.baseZ,label:'ENTER',building:e})}
     });
-    doors.instanceMatrix.needsUpdate=true;doors.frustumCulled=true;world.add(doors);
+    doors.count=di;doors.instanceMatrix.needsUpdate=true;doors.frustumCulled=true;world.add(doors);
   }
   const exactWallMat=new THREE.MeshStandardMaterial({map:CONCRETE_MAP,normalMap:CONCRETE_NORMAL,roughnessMap:CONCRETE_ROUGH,color:0x9da7a9,roughness:.82,metalness:.025,transparent:true,opacity:.98});
   const exactEdgeMat=new THREE.LineBasicMaterial({color:0xdffaff,transparent:true,opacity:.5,depthWrite:false});
@@ -770,10 +790,17 @@ function updateZipline(dt){
 function makeVehicle(a,i){
   const g=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(3.9,1.75,.72),mat(i%2?0x4d5652:0x65483d,.74,.25)),cab=new THREE.Mesh(new THREE.BoxGeometry(1.9,1.5,.7),mat(0x263438,.28,.35));
   body.position.z=.52;cab.position.set(.15,0,1.13);cab.userData.vehicleCab=true;g.add(body,cab);g.position.set(a.x,a.y,terrainZ(a.x,a.y)+.02);g.rotation.z=a.a;world.add(g);
-  const v={root:g,x:a.x,y:a.y,heading:a.a,speed:0,maxSpeed:i%3===0?22:17,fuel:68+rand()*32,condition:72+rand()*28,type:i%3===0?'sport':'pickup',warnFuel:false,warnCondition:false};vehicles.push(v);interactables.push({type:'vehicle',x:a.x,y:a.y,z:g.position.z,label:'DRIVE',vehicle:v});return v;
+  const v={root:g,x:a.x,y:a.y,heading:a.a,speed:0,maxSpeed:i%3===0?22:17,fuel:0,condition:72+rand()*28,type:i%3===0?'sport':'pickup',warnFuel:false,warnCondition:false,parts:{spark_plug:false,wheels:0,gas:false}};vehicles.push(v);interactables.push({type:'vehicle',x:a.x,y:a.y,z:g.position.z,label:'REPAIR / DRIVE',vehicle:v});return v;
 }
 function spawnVehicles(){for(let i=0;i<Math.min(MOBILE?3:6,roadAnchors.length);i++){const a=roadAnchors[(i*17+9)%roadAnchors.length];if(a)makeVehicle(a,i)}return vehicles.length}
-function enterVehicle(v){if(!v||interiorMode)return;if(v.condition<=0){toast('VEHICLE DISABLED · FIND REPAIR KIT');return}activeVehicle=v;player.visible=false;toast('DRIVING · '+Math.round(v.fuel)+'% FUEL · '+Math.round(v.condition)+'% CONDITION')}
+function repairVehicleFromInventory(v){
+  if(!v)return false;
+  if(!v.parts.spark_plug&&vehicleParts.spark_plug>0){v.parts.spark_plug=true;vehicleParts.spark_plug--}
+  while(v.parts.wheels<4&&vehicleParts.wheel>0){v.parts.wheels++;vehicleParts.wheel--}
+  if(!v.parts.gas&&vehicleParts.gas>0){v.parts.gas=true;vehicleParts.gas--;v.fuel=55}
+  return v.parts.spark_plug&&v.parts.wheels>=4&&v.parts.gas;
+}
+function enterVehicle(v){if(!v||interiorMode)return;if(v.condition<=0){toast('VEHICLE DISABLED · FIND REPAIR KIT');return}if(!repairVehicleFromInventory(v)){toast('NEEDS SPARK PLUG · 4 WHEELS · GAS');return}activeVehicle=v;player.visible=false;toast('DRIVING · '+Math.round(v.fuel)+'% FUEL · '+Math.round(v.condition)+'% CONDITION')}
 function exitVehicle(){if(!activeVehicle)return;const v=activeVehicle,x=v.root.position.x+Math.cos(v.heading)*1.8,y=v.root.position.y-Math.sin(v.heading)*1.8;activeVehicle=null;player.visible=true;player.position.set(x,y,terrainZ(x,y));toast('EXITED VEHICLE')}
 function updateVehicle(dt){
   if(!activeVehicle)return false;const v=activeVehicle,input=moveY;
@@ -889,13 +916,13 @@ function addAbandonment(){
   ];
   coverRows.forEach((rows,k)=>{if(!rows.length)return;const def=coverDefs[k],inst=new THREE.InstancedMesh(def.g,def.m,rows.length);rows.forEach((r,i)=>{d.position.set(r.x,r.y,r.z+def.z);d.rotation.set(def.rx||0,0,r.ang);d.scale.set(1,1,1);d.updateMatrix();inst.setMatrixAt(i,d.matrix)});inst.instanceMatrix.needsUpdate=true;ambientDetailGroup.add(inst)});
 
-  const types=['ammo','medkit','armor','weapon','fuel','repair'],lootGroups=new Map(types.map(t=>[t,[]]));
+  const types=['ammo','medkit','armor','weapon','gas','repair','sparkplug','wheel'],lootGroups=new Map(types.map(t=>[t,[]]));
   for(let i=0;i<44;i++){
     const a=roadAnchors[(i*3)%Math.max(1,roadAnchors.length)]||{x:(rand()-.5)*350,y:(rand()-.5)*350};
     const x=a.x+(rand()-.5)*22,y=a.y+(rand()-.5)*22;if(blocked(x,y,.45))continue;
     const type=types[i%types.length],lz=terrainZ(x,y)+.22;lootGroups.get(type).push({id:'loot-'+i,type,x,y,z:lz,ang:rand()*Math.PI});
   }
-  const lootColor={ammo:0xd1b05e,medkit:0xd85858,armor:0x5aa7c9,weapon:0x73e1b2,fuel:0xe0a13f,repair:0x90a4aa};
+  const lootColor={ammo:0xd1b05e,medkit:0xd85858,armor:0x5aa7c9,weapon:0x73e1b2,gas:0xe0a13f,repair:0x90a4aa,sparkplug:0xe6e8d8,wheel:0x303638};
   for(const type of types){
     const rows=lootGroups.get(type);if(!rows.length)continue;
     const geom=type==='weapon'?new THREE.BoxGeometry(.9,.12,.12):type==='fuel'?new THREE.BoxGeometry(.38,.28,.58):new THREE.BoxGeometry(.34,.34,.22);
@@ -920,15 +947,26 @@ function nearestLoot(){
 function nearestVehicle(max=18){
   let best=null,dist=max;for(const v of vehicles){const d=Math.hypot(player.position.x-v.root.position.x,player.position.y-v.root.position.y);if(d<dist){dist=d;best=v}}return best;
 }
-function collectLoot(q){
-  if(!q||q.picked)return;q.picked=true;
+async function collectLoot(q){
+  if(!q||q.picked)return;
+  const coord=playerWorldCoordinate(),lootKey=[mode,stateCode,centerLat.toFixed(4),centerLon.toFixed(4),q.space,q.id].join(':');
+  try{
+    const claim=await rpc('bridgepoint_horizon_loot_claim_v4340',{
+      p_player_id:playerId,p_player_secret:playerSecret,p_loot_key:lootKey,p_mode:mode,p_world_key:stateCode+':'+centerLat.toFixed(4)+':'+centerLon.toFixed(4),
+      p_item_key:q.type,p_rarity:q.rarity||'COMMON',p_lat:coord.lat,p_lon:coord.lon,p_local_x:q.x,p_local_y:q.y,p_local_z:q.z,p_metadata:{space:q.space}
+    });
+    if(claim?.already_taken){q.picked=true;if(q.mesh)q.mesh.visible=false;toast('Loot already taken');return}
+  }catch(e){if(/ACCOUNT|AUTH|TOKEN|JWT/i.test(String(e?.message||''))){toast('Free Horizon account required');return}}
+  q.picked=true;
   if(Number.isInteger(q.instanceIndex)&&q.mesh?.isInstancedMesh){const gone=new THREE.Matrix4().makeScale(0,0,0);q.mesh.setMatrixAt(q.instanceIndex,gone);q.mesh.instanceMatrix.needsUpdate=true}
   else if(q.mesh)q.mesh.visible=false;
   lootCount++;lootDeltaPending++;$('loot').textContent=lootCount;
-  if(q.type==='ammo'){for(const w of WEAPONS)if(w.mag&&weaponState[w.key]?.owned)weaponState[w.key].reserve=Math.min(w.reserve*3,weaponState[w.key].reserve+Math.max(12,Math.floor(w.reserve*.35)));updateAmmo();toast('Ammo acquired')}
+  if(q.type==='ammo'){for(const w of WEAPONS)if(w.mag&&weaponState[w.key]?.owned)weaponState[w.key].reserve=Math.min(w.mag*(w.maxClips||3),weaponState[w.key].reserve+Math.max(w.mag,Math.floor(w.mag*1.2)));updateAmmo();toast('Ammo acquired')}
   else if(q.type==='medkit'){health=Math.min(100,health+35);updateVitals();toast('Med kit acquired')}
   else if(q.type==='armor'){shield=Math.min(100,shield+50);updateVitals();toast(shield>=100?'Shield full · 100':'Shield +50 · '+shield)}
-  else if(q.type==='fuel'){const v=activeVehicle||nearestVehicle();if(v){v.fuel=Math.min(100,v.fuel+45);toast('Vehicle fuel '+Math.round(v.fuel)+'%')}else toast('Fuel can acquired')}
+  else if(q.type==='gas'){vehicleParts.gas++;toast('Gas acquired · vehicle part')}
+  else if(q.type==='sparkplug'){vehicleParts.spark_plug++;toast('Spark plug acquired')}
+  else if(q.type==='wheel'){vehicleParts.wheel++;toast('Wheel acquired · '+vehicleParts.wheel)}
   else if(q.type==='repair'){const v=activeVehicle||nearestVehicle();if(v){v.condition=Math.min(100,v.condition+38);toast('Vehicle repaired '+Math.round(v.condition)+'%')}else toast('Repair kit acquired')}
   else {const locked=WEAPONS.find(w=>!weaponState[w.key]?.owned);if(locked){weaponState[locked.key].owned=true;weaponState[locked.key].mag=locked.mag;weaponState[locked.key].reserve=locked.reserve;toast(locked.name+' acquired')}else toast('Weapon salvage acquired');renderWeaponBar()}
 }
@@ -940,7 +978,7 @@ function updateDwellPickup(now){
   if(prompt){prompt.hidden=false;prompt.style.setProperty('--pickup-angle',(progress*360)+'deg')}
   if(ring)ring.style.setProperty('--pickup-angle',(progress*360)+'deg');
   if(label)label.textContent='PICKING UP '+q.type.toUpperCase();
-  if(progress>=1){collectLoot(q);pickupTarget=null;pickupStarted=0;if(prompt)prompt.hidden=true}
+  if(progress>=1){collectLoot(q).catch(()=>{});pickupTarget=null;pickupStarted=0;if(prompt)prompt.hidden=true}
 }
 function clearSpawn(x,y,r=1.1){
   if(Math.hypot(x-player.position.x,y-player.position.y)<8)return false;
@@ -963,42 +1001,36 @@ function canSee(a,b){
   return true;
 }
 async function spawnTdmBots(){
-  const requested=Math.max(0,Math.min(11,Number(activeMatch?.bot_players||0)));
+  const target=100,humanCount=Math.max(1,Number(activeMatch?.human_players||activeMembers.length||1)),requested=Math.max(0,Math.min(99,Number(activeMatch?.bot_players??(target-humanCount))));
   if(mode!=='TDM'||requested<=0){if($('enemyLabel'))$('enemyLabel').textContent=mode==='TDM'?'players':'infected';return 0}
-  const source=await loadAsset(CHAR_MODELS.free_07);
+  const source=await loadAsset(CHAR_MODELS.free_07),fullCap=MOBILE?(HIGH_DEVICE?12:8):20;
   const humanTeamCounts={1:0,2:0};for(const m of activeMembers){const t=Number(m.team_no||1);if(t===1||t===2)humanTeamCounts[t]++}
-  const desired={1:Math.max(0,6-humanTeamCounts[1]),2:Math.max(0,6-humanTeamCounts[2])};
+  const desired={1:Math.max(0,50-humanTeamCounts[1]),2:Math.max(0,50-humanTeamCounts[2])};
   let remaining=requested,index=0;
   for(const team of [1,2]){
     const n=Math.min(remaining,desired[team]);
     for(let j=0;j<n;j++,index++){
-      const g=skeletonClone(source.scene);prepHumanoid(g,{variant:(j+team)%2+1});orientHumanoid(g,1.8);
+      let g;
+      if(index<fullCap){g=skeletonClone(source.scene);prepHumanoid(g,{variant:(j+team)%2+1});orientHumanoid(g,1.8)}
+      else{g=new THREE.Group();const body=new THREE.Mesh(new THREE.CapsuleGeometry(.25,1.05,4,6),new THREE.MeshLambertMaterial({color:team===playerTeam?0x58798b:0x7a5d58}));body.position.z=.85;g.add(body)}
       const pos=chooseCombatSpawn(team,index);g.position.set(pos.x,pos.y,terrainZ(pos.x,pos.y));g.rotation.z=rand()*Math.PI*2;
-      const rifle=makeHorizonRifle(THREE,j%3===0?'wrap_toxic_rain':j%3===1?'wrap_blood_rust':'wrap_ash');
-      rifle.scale.setScalar(.25);rifle.rotation.set(.04,-.18,-Math.PI/2);rifle.position.set(.36,.08,1.25);g.add(rifle);
-      const friendly=team===playerTeam,name=(friendly?'ALLY ':'ENEMY ')+String(j+1).padStart(2,'0');
-      g.add(makeNameSprite(name,friendly?'#7dffe0':'#ff927d'));world.add(g);
-      combatants.push({g,team,friendly,name,health:100,alive:true,speed:3.2+rand()*.8,phase:rand()*6.28,lastShot:performance.now()+rand()*900,index});
-    }
-    remaining-=n;
+      if(index<fullCap){const rifle=makeHorizonRifle(THREE,j%3===0?'wrap_toxic_rain':j%3===1?'wrap_blood_rust':'wrap_ash');rifle.scale.setScalar(.25);rifle.rotation.set(.04,-.18,-Math.PI/2);rifle.position.set(.36,.08,1.25);g.add(rifle)}
+      const friendly=team===playerTeam,name=(friendly?'ALLY ':'ENEMY ')+String(index+1).padStart(2,'0');
+      if(index<fullCap)g.add(makeNameSprite(name+' · LV '+(1+(index%100)),friendly?'#7dffe0':'#ff927d'));world.add(g);
+      combatants.push({g,team,friendly,name,level:1+(index%100),health:100,alive:true,speed:3.05+rand()*.75,phase:rand()*6.28,lastShot:performance.now()+rand()*1200,index});
+    }remaining-=n;
   }
-  while(remaining>0){
-    const team=2,index2=combatants.length,pos=chooseCombatSpawn(team,index2),g=skeletonClone(source.scene);
-    prepHumanoid(g,{variant:index2%2+1});orientHumanoid(g,1.8);g.position.set(pos.x,pos.y,terrainZ(pos.x,pos.y));g.add(makeNameSprite('ENEMY '+String(index2+1).padStart(2,'0'),'#ff927d'));world.add(g);
-    combatants.push({g,team,friendly:team===playerTeam,name:'ENEMY '+String(index2+1).padStart(2,'0'),health:100,alive:true,speed:3.3,phase:rand()*6.28,lastShot:performance.now()+rand()*900,index:index2});remaining--;
-  }
-  if($('enemyLabel'))$('enemyLabel').textContent='combatants';
-  $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;
-  return combatants.length;
+  if($('enemyLabel'))$('enemyLabel').textContent='combatants';if($('remaining'))$('remaining').textContent=String(combatants.filter(x=>x.alive).length+1);
+  $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;return combatants.length;
 }
 function respawnCombatant(b){
-  const p=chooseCombatSpawn(b.team,b.index+17);b.g.position.set(p.x,p.y,terrainZ(p.x,p.y));b.g.visible=true;b.health=100;b.alive=true;b.lastShot=performance.now()+700;
-  $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;
+  const p=chooseCombatSpawn(b.team,b.index+17);b.g.position.set(p.x,p.y,terrainZ(p.x,p.y));b.g.visible=true;b.health=100;b.alive=true;b.lastShot=performance.now()+900;
+  $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;if($('remaining'))$('remaining').textContent=String(combatants.filter(x=>x.alive).length+(!dead?1:0));
 }
 function eliminateCombatant(b,killer='YOU'){
   if(!b.alive)return;b.alive=false;b.g.visible=false;
-  addKillFeed(killer,b.name,'AR-12',false);
-  $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;
+  addKillFeed(killer+' · LV '+(savedProfile?.level||1),b.name,'AR-12',false);
+  $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;if($('remaining'))$('remaining').textContent=String(combatants.filter(x=>x.alive).length+(!dead?1:0));
   setTimeout(()=>{if(mode==='TDM')respawnCombatant(b)},2200);
 }
 function updateCombatants(dt,t){
@@ -1155,9 +1187,9 @@ function shootOnce(){
     if(hit.health<=0){
       if(hitKind==='combatant')eliminateCombatant(hit,savedProfile?.display_name||'YOU');
       else{
-        hit.health=0;updateMonsterHealthBar(hit);hit.alive=false;hit.g.visible=false;
+        hit.health=0;updateMonsterHealthBar(hit);hit.alive=false;hit.g.visible=false;hit.respawnAt=performance.now()+120000;
         $('infected').textContent=infected.filter(z=>z.alive&&z.space===(interiorMode?'interior':'world')).length;
-        recordKill(hit.name,headshot);
+        recordKill(hit.name,headshot);rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'MONSTER_RESPAWN',p_event_key:'respawn:'+matchId+':'+hit.index+':'+Math.round(hit.respawnAt),p_value:120,p_payload:{monster:hit.kind,delay_seconds:120}}).catch(()=>{});
       }
     }
   }
@@ -1165,29 +1197,22 @@ function shootOnce(){
 }
 function buildCover(){
   if(dead)return;
+  if(mode==='TDM'&&buildCount>=3){toast('BUILD LIMIT · 3');return}
   const f=new THREE.Vector2(-Math.sin(yaw),Math.cos(yaw)),x=player.position.x+f.x*2.1,y=player.position.y+f.y*2.1;
   if(blocked(x,y,.8)){toast('Cannot build here');return}
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(2.2,.45,1.18),new THREE.MeshStandardMaterial({color:0x5c5144,roughness:.95,metalness:.03}));
   mesh.position.set(x,y,terrainZ(x,y)+.59);mesh.rotation.z=yaw;mesh.castShadow=mesh.receiveShadow=true;world.add(mesh);
-  const rect={type:'built',minx:x-1.18,maxx:x+1.18,miny:y-.52,maxy:y+.52};solidRects.push(rect);builtCover.push({mesh,rect});buildCount++;toast('Barricade built');
+  const rect={type:'built',minx:x-1.18,maxx:x+1.18,miny:y-.52,maxy:y+.52};solidRects.push(rect);builtCover.push({mesh,rect});buildCount++;if($('builds'))$('builds').textContent=mode==='TDM'?buildCount+'/3':'—';toast('Barricade built');
   if(matchId)rpc('bridgepoint_horizon_emit_world_event_v4303',{
     p_player_id:playerId,p_player_secret:playerSecret,p_match_id:matchId,p_cell_key:activeMatch?.cell_seed||('MATCH_'+matchId),
     p_event_type:'FORTIFICATION',p_event_key:'build-'+playerId+'-'+buildCount,p_payload:{kind:'barricade',x,y,yaw},p_ttl_seconds:86400
   }).catch(()=>{});
 }
-function respawn(){
-  dead=false;health=100;shield=0;updateVitals();
-  if(mode==='YEAR_ONE')applyPreciseSpawn();else player.position.set(0,0,terrainZ(0,0));
-  camera.fov=aiming?50:68;camera.updateProjectionMatrix();
-  $('killCam').hidden=true;checkpointYearOne(true);toast('Respawned');
-}
 let yearDeathResult=null,killcamTimer=null;
 async function finishDeathFlow(){
   clearTimeout(killcamTimer);
-  if(mode==='YEAR_ONE'&&yearDeathResult?.spectator_only){
-    location.assign('/app/horizon/?tab=WATCH');return;
-  }
-  respawn();
+  if(mode==='YEAR_ONE'&&yearDeathResult?.spectator_only){location.assign('/app/horizon/?tab=WATCH');return}
+  location.assign('/app/horizon/?returned=death');
 }
 async function triggerDeath(killer){
   if(dead)return;dead=true;shooting=false;sprint=false;
@@ -1221,12 +1246,20 @@ async function triggerDeath(killer){
       requestAnimationFrame(playback);return;
     }
   };
-  playback();killcamTimer=setTimeout(finishDeathFlow,11550);
+  playback();killcamTimer=setTimeout(finishDeathFlow,10000);
 }
 function updateInfected(dt,t){
   const wanted=interiorMode?'interior':'world';
   for(const z of infected){
-    if(!z.alive)continue;
+    if(!z.alive){
+      if(z.respawnAt&&t>=z.respawnAt&&z.space==='world'){
+        const home=z.patrol?.[0]||{x:z.g.position.x,y:z.g.position.y};
+        if(Math.hypot(home.x-player.position.x,home.y-player.position.y)>=45){
+          z.g.position.set(home.x,home.y,terrainZ(home.x,home.y));z.health=z.maxHealth;z.alive=true;z.lockedOn=false;z.respawnAt=0;z.g.visible=true;updateMonsterHealthBar(z);
+        }
+      }
+      if(!z.alive)continue;
+    }
     const sameSpace=z.space===wanted;
     if(!sameSpace){z.g.visible=false;continue}
 
@@ -1405,7 +1438,7 @@ function updatePerformanceGovernor(rawDt,now){
     else if(perfEmaMs<17.4&&now-fastSince>7000&&perfTier>0){setPerfTier(perfTier-1,'stable_recovery');fastSince=now}
   }
   window.BP_HORIZON_PERF={
-    ...(window.BP_HORIZON_PERF||{}),build:4336,tier:perfTier,tier_name:PERF_TIER_NAMES[perfTier],
+    ...(window.BP_HORIZON_PERF||{}),build:4340,tier:perfTier,tier_name:PERF_TIER_NAMES[perfTier],
     ema_ms:Number(perfEmaMs.toFixed(2)),worst_ms:Number(perfWorstMs.toFixed(2)),fps:lastMeasuredFps,
     pixel_ratio:Number(renderScale.toFixed(2)),shadows:renderer.shadowMap.enabled,sim_radius_m:perfSimRadius(),
     draw_calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,lines:renderer.info.render.lines,points:renderer.info.render.points,
@@ -1420,6 +1453,72 @@ function updateWeatherFx(dt,now){
   for(let i=0;i<p.count;i++){let z=p.getZ(i)-dt*24;if(z<.15)z=12+rand()*9;p.setZ(i,z)}
   p.needsUpdate=true;
   fx.material.opacity=.5+.12*Math.sin(now*.006);
+}
+
+function worldToLocal(wlat,wlon){return {x:(wlon-centerLon)*111320*Math.max(.12,Math.cos(centerLat*Math.PI/180)),y:(wlat-centerLat)*110540}}
+function explorationCell(){
+  const q=playerWorldCoordinate(),s=.0025;return 'E'+Math.floor(q.lat/s)+':'+Math.floor(q.lon/s);
+}
+function inWater(x,y){
+  for(const poly of waterAreas)if(pointInPoly(x,y,poly))return true;return false;
+}
+function updateWaterSurvival(dt){
+  if(interiorMode||activeVehicle||!inWater(player.position.x,player.position.y)){waterIdleSeconds=0;return}
+  const moving=Math.abs(moveX)+Math.abs(moveY)>.18||sprint;
+  if(moving){waterIdleSeconds=Math.max(0,waterIdleSeconds-dt*2);return}
+  waterIdleSeconds+=dt;
+  if(waterIdleSeconds>5&&performance.now()-lastWallDamageAt>900){lastWallDamageAt=performance.now();applyPlayerHit(25,{name:'DEEP WATER'});toast('KEEP MOVING · SINKING -25');rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'WATER_DAMAGE',p_event_key:null,p_value:25,p_payload:{idle_seconds:Math.round(waterIdleSeconds)}}).catch(()=>{})}
+}
+function rebuildZombieWall(zone){
+  zombieWallGroup.clear();if(mode!=='YEAR_ONE'||!zone?.wall_nearby)return;
+  const count=MOBILE?26:52,bodyGeom=new THREE.CapsuleGeometry(.25,.95,4,7),headGeom=new THREE.SphereGeometry(.25,8,6);
+  const body=new THREE.InstancedMesh(bodyGeom,new THREE.MeshStandardMaterial({color:0x56664b,roughness:.9}),count);
+  const heads=new THREE.InstancedMesh(headGeom,new THREE.MeshStandardMaterial({color:0x667558,roughness:.95}),count),d=new THREE.Object3D();
+  let anchor={x:player.position.x,y:player.position.y},tx=1,ty=0;
+  if(zone.phase==='BORDER'&&zone.closest_border){anchor=worldToLocal(zone.closest_border.lat,zone.closest_border.lon);const vx=player.position.x-anchor.x,vy=player.position.y-anchor.y,l=Math.hypot(vx,vy)||1;tx=-vy/l;ty=vx/l}
+  else if(zone.nearest_city){const cc=worldToLocal(zone.nearest_city.lat,zone.nearest_city.lon),vx=player.position.x-cc.x,vy=player.position.y-cc.y,l=Math.hypot(vx,vy)||1;tx=-vy/l;ty=vx/l;anchor={x:player.position.x-vx/l*(Number(zone.wall_distance_m)||0)*(zone.safe?1:-1),y:player.position.y-vy/l*(Number(zone.wall_distance_m)||0)*(zone.safe?1:-1)}}
+  const spacing=1.15;
+  for(let i=0;i<count;i++){const off=(i-(count-1)/2)*spacing,jitter=((hash(matchSeed+':wall:'+i)%100)/100-.5)*.42,x=anchor.x+tx*off,y=anchor.y+ty*off,z=terrainZ(x,y);
+    d.position.set(x,y,z+.76);d.rotation.set(0,0,Math.atan2(ty,tx)+Math.PI/2+jitter);d.scale.set(1,1,1);d.updateMatrix();body.setMatrixAt(i,d.matrix);
+    d.position.set(x,y,z+1.54);d.updateMatrix();heads.setMatrixAt(i,d.matrix);
+  }
+  body.instanceMatrix.needsUpdate=heads.instanceMatrix.needsUpdate=true;zombieWallGroup.add(body,heads);
+}
+async function pollYearOneZone(force=false){
+  if(mode!=='YEAR_ONE'||(!force&&performance.now()-lastZonePollAt<2500))return;lastZonePollAt=performance.now();
+  const q=playerWorldCoordinate();
+  try{
+    const z=await rpc('bridgepoint_horizon_year_one_zone_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_lat:q.lat,p_lon:q.lon});yearOneZone=z;rebuildZombieWall(z);
+    const wl=$('wallLive');if(wl){wl.textContent='DAY '+z.day+' · '+z.phase.replaceAll('_',' ')+' · '+Math.round(Number(z.wall_distance_m||0))+'M';wl.classList.toggle('safe',!!z.safe)}
+    const warn=$('wallWarning');if(warn)warn.hidden=!!z.safe;
+  }catch{}
+}
+async function heartbeatWorld(force=false){
+  const now=performance.now();if(!force&&now-lastPresenceAt<10000)return;lastPresenceAt=now;const q=playerWorldCoordinate();
+  try{
+    const out=await rpc('bridgepoint_horizon_presence_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_lat:q.lat,p_lon:q.lon,p_altitude_m:player.position.z,p_heading_deg:(yaw*180/Math.PI+360)%360,p_alive:!dead,p_combat_score:(shooting?5:0)+infected.filter(z=>z.alive&&z.lockedOn).length});
+    worldActivePlayers=Number(out?.active_players||0);if($('activePlayers'))$('activePlayers').textContent=worldActivePlayers+' ACTIVE';
+    if(mode==='YEAR_ONE'){const near=await rpc('bridgepoint_horizon_nearby_players_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_radius_m:1800});nearbyPlayers=near?.players||[]}
+  }catch{}
+  if(mode==='YEAR_ONE'&&now-lastExploreAt>8000){lastExploreAt=now;const cell=explorationCell();if(!exploredCells.has(cell)){exploredCells.add(cell);rpc('bridgepoint_horizon_explore_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_cell_key:cell,p_lat:q.lat,p_lon:q.lon}).catch(()=>{})}}
+}
+function updateZoneDamage(now){
+  if(mode!=='YEAR_ONE'||!yearOneZone||yearOneZone.safe||dead)return;
+  if(now-lastWallDamageAt>=Number(yearOneZone.wall_tick_ms||800)){lastWallDamageAt=now;applyPlayerHit(25,{name:'ZOMBIE WALL'});rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'WALL_DAMAGE',p_event_key:null,p_value:25,p_payload:{day:yearOneZone.day,phase:yearOneZone.phase}}).catch(()=>{})}
+}
+function applyWeatherGameplay(dt){
+  if(mode!=='YEAR_ONE')return;const e=liveWeather?.event,name=String(e?.name||''),type=String(e?.type||'').toUpperCase();
+  const cold=/snow|freeze|winter|cold|blizzard/i.test(name)||/SNOW|WINTER/.test(type),wildfire=/fire|wildfire/i.test(name)||/FIRE/.test(type),rain=/rain|storm|hurricane|thunder/i.test(name)||/HURRICANE|LIGHTNING/.test(type);
+  if($('climate'))$('climate').textContent=cold?'COLD':wildfire?'WILDFIRE':rain?'RAIN':'NORMAL';
+  if(cold&&!ambientFx.some(q=>Math.hypot((q.fire?.position.x||0)-player.position.x,(q.fire?.position.y||0)-player.position.y)<8)){coldExposureSeconds+=dt;if(coldExposureSeconds>30&&performance.now()-lastWallDamageAt>3000){lastWallDamageAt=performance.now();applyPlayerHit(25,{name:'EXPOSURE'});toast('COLD EXPOSURE · FIND FIRE')}}
+  else coldExposureSeconds=0;
+  if(rain)for(const z of infected)if(z.alive&&z.kind==='zombie')z.detect=Math.max(z.detect,16);
+  if(wildfire)for(const z of infected)if(z.kind==='zombie_dog')z.detect=Math.max(z.detect,22);
+}
+function requestMobileGameMode(){
+  if(!MOBILE)return;
+  try{screen.orientation?.lock?.('landscape').catch(()=>{})}catch{}
+  try{if(!document.fullscreenElement)document.documentElement.requestFullscreen?.({navigationUI:'hide'}).catch(()=>{})}catch{}
 }
 async function pollLiveWeather(){
   const el=$('weatherLive');
@@ -1450,7 +1549,13 @@ async function pollLiveWeather(){
     if(el)el.textContent='LIVE WEATHER · RETRYING';
   }
 }
-function updateWorldLight(t){dayPhase=(dayPhase+dtGlobal*.002)%1;const sunAmt=Math.max(.12,Math.sin(dayPhase*Math.PI));sun.intensity=storm?1.05:1.2+sunAmt*1.2;hemi.intensity=storm?.72:1.15+sunAmt*.55;scene.background.set(storm?0x454c49:(dayPhase>.15&&dayPhase<.85?0x738071:0x172028));scene.fog.color.copy(scene.background);scene.fog.density=storm?.00105:.00072;renderer.toneMappingExposure=storm?.68:.72+sunAmt*.35;$('time').textContent=dayPhase>.15&&dayPhase<.85?'DAY':'NIGHT';flashlight.intensity=flash?5.5:0}
+function updateWorldLight(t){
+  const now=new Date(),utcHours=now.getUTCHours()+now.getUTCMinutes()/60,solarHour=(utcHours+lon/15+24)%24;
+  dayPhase=solarHour/24;const daylight=solarHour>=6.2&&solarHour<=19.4,sunAmt=daylight?Math.max(.12,Math.sin((solarHour-6.2)/(13.2)*Math.PI)):.05;
+  sun.intensity=storm?.72:(daylight?1.1+sunAmt*1.45:.12);hemi.intensity=storm?.58:(daylight?.9+sunAmt*.65:.22);
+  scene.background.set(storm?0x454c49:(daylight?0x738071:0x0c1520));scene.fog.color.copy(scene.background);scene.fog.density=storm?.00105:(daylight?.00072:.001);
+  renderer.toneMappingExposure=storm?.64:(daylight?.72+sunAmt*.35:.42);$('time').textContent=daylight?'DAY':'NIGHT';flashlight.intensity=flash?5.5:0;
+}
 let dtGlobal=0;
 function updateCamera(dt){
   if(dead)return;
@@ -1517,6 +1622,8 @@ async function startSpectatorHeartbeat(){
   beat();setInterval(beat,5000);
 }
 async function load(){
+  if(!horizonAccessToken())throw new Error('HORIZON_FREE_ACCOUNT_REQUIRED · SIGN IN FROM THE HORIZON LOBBY');
+  requestMobileGameMode();
   const west=lon-span/111.32/2,east=lon+span/111.32/2,south=lat-span/110.54/2,north=lat+span/110.54/2,u=new URL(ENDPOINT);
   for(const [k,v] of Object.entries({lat,lon,west,east,south,north,state:stateCode,span_km:span,cell_id:'HORIZON_MATCH_'+(matchId||matchSeed)}))u.searchParams.set(k,String(v));
   const r=await fetch(u,{cache:'no-store',headers:{apikey:PUBLISHABLE_KEY}});
@@ -1527,12 +1634,13 @@ async function load(){
   $('zone').textContent=(data?.resolved_jurisdiction?.state||stateCode)+' · '+(data?.resolved_jurisdiction?.name||data?.resolved_jurisdiction?.label||'WORLD CELL');
   addSky();addGround();
   const roads=addRoads(),parcels=addParcels(),water=addWater(),buildings=addBuildings(),buildingParts=addBuildingParts();
+  waterAreas.length=0;for(const row of data.water||[])for(const ring of rings(row.geometry)){const pts=ring.map(project);if(pts.length>=3)waterAreas.push(pts)}
   addVegetation();addStreetLife();addAbandonment();const ziplineCount=buildZiplines(),vehicleCount=spawnVehicles(),disasterFx=addAmbientDisasterFx();
 
   if(mode==='YEAR_ONE')await hydrateYearOneRuntime();
   await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
   const spawnType=mode==='YEAR_ONE'?applyPreciseSpawn():'MATCH';
-  updateVitals();updateAmmo();renderWeaponBar();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();
+  updateVitals();updateAmmo();renderWeaponBar();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();heartbeatWorld(true);setInterval(()=>heartbeatWorld(false),10000);if(mode==='YEAR_ONE'){pollYearOneZone(true);setInterval(()=>pollYearOneZone(false),2500);rpc('bridgepoint_horizon_exploration_v4340',{p_player_id:playerId,p_player_secret:playerSecret}).then(x=>(x?.cells||[]).forEach(q=>exploredCells.add(q.cell_key))).catch(()=>{})}
 
   if(mode==='YEAR_ONE'){
     checkpointYearOne(true);
@@ -1544,7 +1652,7 @@ async function load(){
     :`${buildings.toLocaleString()} source-backed structures · ${buildingParts.toLocaleString()} building parts · ${parcels.toLocaleString()} parcel outlines · ${roads.toLocaleString()} transport segments · ${ziplineCount} ziplines · ${vehicleCount} vehicles · restored traversal active`;
 
   window.BP_HORIZON_V2={
-    ok:true,build:4336,mode,matchId,state:data?.resolved_jurisdiction?.state||stateCode,
+    ok:true,build:4340,mode,matchId,state:data?.resolved_jurisdiction?.state||stateCode,
     buildings,buildingParts,parcels,roads,water,ziplines:ziplineCount,vehicles:vehicleCount,disasterFx,
     terrainSource:terrainInfo?.source||'FLAT SAFETY FALLBACK',terrainFallback:!terrainInfo,
     infected:infected.length,combatBots:combatants.length,playerTeam,mobileSafe:true,actualCharacterModel:true,
@@ -1556,7 +1664,8 @@ async function load(){
     adaptiveShaderBudget:true,adaptiveExteriorDetailBudget:true,
     yearOne:mode==='YEAR_ONE'?{
       pveOnly:true,playerHealthMax:100,shieldMax:100,combinedMax:200,shieldPickup:50,monsterHitDamage:25,
-      spawnPolicy:'PRECISE_PLAYER_LOCATION',spawnType,persistentAggro:true,serverCheckpointed:true,
+      spawnPolicy:'PERSISTENT_LAST_LOCATION_AFTER_FIRST_ENTRY',spawnType,persistentAggro:true,serverCheckpointed:true,conusOnly:true,zombieWall:true,fiveFinalCities:true,
+      persistentExploration:true,sharedPresence:true,offlineDecay:true,finiteLoot:true,deathDrops:true,vehiclePartsRequired:true,
       monsterHealth:{spider:75,orc:150,zombie:100,zombie_dog:75,other:100}
     }:null
   };
@@ -1566,7 +1675,7 @@ function animate(){
   const now=performance.now(),rawDt=Math.max(.001,(now-last)/1000),dt=Math.min(.05,rawDt);last=now;dtGlobal=dt;
   const cadence=perfCadence();aiAccumulator+=dt;fxAccumulator+=dt;lightAccumulator+=dt;
   if(!dead){
-    updateCamera(dt);updateDwellPickup(now);if(shooting)shootOnce();
+    updateCamera(dt);updateDwellPickup(now);updateWaterSurvival(dt);applyWeatherGameplay(dt);updateZoneDamage(now);heartbeatWorld(false);pollYearOneZone(false);if(shooting)shootOnce();
     if(aiAccumulator>=cadence.ai){const step=Math.min(.08,aiAccumulator);if(mode==='TDM')updateCombatants(step,now);else updateInfected(step,now);if(perfTier>=3)updateActorProxies();aiAccumulator=0}
     if(now-(killSnapshots.at(-1)?.t||0)>80)snapshotKillcam(now);
   }else if(aiAccumulator>=cadence.ai){
