@@ -344,12 +344,20 @@ function swapBackpackWeapon(packSlot){
   const next=inventoryWeaponKeys[packSlot];if(!next)return;
   inventoryWeaponKeys[packSlot]=inventoryWeaponKeys[quickSlot];inventoryWeaponKeys[quickSlot]=next;equipWeaponKey(next);checkpointYearOne(false);
 }
+function makeGrenadeRig(){
+  const g=new THREE.Group(),body=new THREE.Mesh(new THREE.SphereGeometry(.18,14,10),new THREE.MeshStandardMaterial({color:0x3b4d3a,roughness:.72,metalness:.35})),
+    cap=new THREE.Mesh(new THREE.CylinderGeometry(.055,.075,.13,10),new THREE.MeshStandardMaterial({color:0x242a28,roughness:.4,metalness:.72})),
+    pin=new THREE.Mesh(new THREE.TorusGeometry(.065,.012,6,18),new THREE.MeshStandardMaterial({color:0xb7bdb9,metalness:.85,roughness:.24}));
+  cap.position.z=.19;pin.rotation.x=Math.PI/2;pin.position.set(.07,0,.25);g.add(body,cap,pin);return g;
+}
+function weaponVisual(w,wrap){return w.kind==='grenade'?makeGrenadeRig():makeHorizonWeapon(THREE,w.kind,wrap)}
 function refreshWeaponRig(){
   const w=activeWeapon(),wrap=savedProfile?.wrap_key||'wrap_ash';
   if(weaponRig){player.remove(weaponRig);weaponRig=null}
   if(fpWeaponRig){camera.remove(fpWeaponRig);fpWeaponRig=null}
-  weaponRig=makeHorizonWeapon(THREE,w.kind,wrap);weaponRig.scale.setScalar(w.kind==='melee'?.32:.28);weaponRig.rotation.set(.04,-.18,w.kind==='melee'?-.15:-Math.PI/2);weaponRig.position.set(.38,.08,1.28);player.add(weaponRig);
-  fpWeaponRig=makeHorizonWeapon(THREE,w.kind,wrap);fpWeaponRig.scale.setScalar(w.kind==='melee'?.24:.19);fpWeaponRig.rotation.set(.02,-.08,w.kind==='melee'?-.2:-Math.PI/2);fpWeaponRig.position.set(.29,-.42,-.24);camera.add(fpWeaponRig);
+  weaponRig=weaponVisual(w,wrap);weaponRig.scale.setScalar(w.kind==='grenade'?.75:w.kind==='melee'?.32:.28);weaponRig.rotation.set(.04,-.18,w.kind==='melee'?-.15:-Math.PI/2);weaponRig.position.set(.38,.08,1.28);player.add(weaponRig);
+  fpWeaponRig=weaponVisual(w,wrap);fpWeaponRig.scale.setScalar(w.kind==='grenade'?.6:w.kind==='melee'?.24:.19);fpWeaponRig.rotation.set(.02,-.08,w.kind==='melee'?-.2:-Math.PI/2);fpWeaponRig.position.set(.29,-.42,-.24);camera.add(fpWeaponRig);
+  fpWeaponRig.userData.basePosition=fpWeaponRig.position.clone();fpWeaponRig.userData.baseRotation=fpWeaponRig.rotation.clone();
   fpWeaponRig.visible=cameraMode==='first';
 }
 function equipWeaponIndex(i){
@@ -1265,14 +1273,47 @@ function reload(){
   const reloadMs=w.kind==='shotgun'?1850:w.kind==='pistol'?1050:1350;
   setTimeout(()=>{const need=w.mag-st.mag,take=Math.min(need,st.reserve);st.mag+=take;st.reserve-=take;reloading=false;updateAmmo();tone(260,.03,.018,'triangle')},reloadMs);
 }
-async function recordKill(victimName,headshot=false){
-  addKillFeed(savedProfile?.display_name||'YOU',victimName,activeWeapon().name,headshot);
-  if(!matchId||activeMatch?.host_player_id!==playerId)return;
-  rpc('bridgepoint_horizon_record_kill_v4310',{
-    p_host_player_id:playerId,p_host_secret:playerSecret,p_match_id:matchId,
-    p_event_type:'INFECTED_KILL',p_killer_player_id:playerId,p_victim_player_id:null,
-    p_weapon_key:activeWeapon().key,p_headshot:headshot,p_distance_m:null,p_metadata:{mode,client_build:4340}
-  }).catch(()=>{});
+function animateWeaponAttack(w){
+  if(!fpWeaponRig)return;const baseP=fpWeaponRig.userData.basePosition?.clone?.()||fpWeaponRig.position.clone(),baseR=fpWeaponRig.userData.baseRotation?.clone?.()||fpWeaponRig.rotation.clone(),token=(fpWeaponRig.userData.attackToken||0)+1;fpWeaponRig.userData.attackToken=token;
+  if(w.kind==='melee'){fpWeaponRig.rotation.x=baseR.x+.78;fpWeaponRig.rotation.z=baseR.z-.88;fpWeaponRig.position.y=baseP.y+.08}
+  else if(w.kind==='grenade'){fpWeaponRig.rotation.x=baseR.x-.42;fpWeaponRig.position.z=baseP.z+.18;fpWeaponRig.position.y=baseP.y+.12}
+  else{fpWeaponRig.rotation.x=baseR.x-.10;fpWeaponRig.position.z=baseP.z+.09;fpWeaponRig.position.y=baseP.y+.025}
+  setTimeout(()=>{if(!fpWeaponRig||fpWeaponRig.userData.attackToken!==token)return;fpWeaponRig.position.copy(baseP);fpWeaponRig.rotation.copy(baseR)},w.kind==='melee'?190:95);
+}
+function explosionFx(pos,radius,damage,w){
+  const core=new THREE.Mesh(new THREE.SphereGeometry(1,18,12),new THREE.MeshBasicMaterial({color:0xff8b3d,transparent:true,opacity:.86,depthWrite:false})),
+    shock=new THREE.Mesh(new THREE.SphereGeometry(1,18,12),new THREE.MeshBasicMaterial({color:0xffd58a,wireframe:true,transparent:true,opacity:.62,depthWrite:false})),
+    light=new THREE.PointLight(0xff7a38,34,Math.max(12,radius*2.5),2);
+  core.position.copy(pos);shock.position.copy(pos);light.position.copy(pos);world.add(core,shock,light);tone(58,.18,.12,'sine');
+  const started=performance.now(),dur=420;
+  const step=now=>{const p=Math.min(1,(now-started)/dur),e=1-Math.pow(1-p,3),s=.25+radius*e;core.scale.setScalar(s*.32);shock.scale.setScalar(s);core.material.opacity=.86*(1-p);shock.material.opacity=.62*(1-p);light.intensity=34*(1-p);if(p<1)requestAnimationFrame(step);else{world.remove(core,shock,light);core.geometry.dispose();shock.geometry.dispose();core.material.dispose();shock.material.dispose()}};
+  requestAnimationFrame(step);
+  if(mode==='TDM'){
+    for(const z of combatants){if(!z.alive||z.team===playerTeam)continue;const d=z.g.position.distanceTo(pos);if(d>radius)continue;z.health-=Math.round(damage*(1-.55*d/radius));if(z.health<=0){eliminateCombatant(z,savedProfile?.display_name||'YOU');recordTdmElimination(false,d,w).catch(()=>{})}}
+  }else{
+    for(const z of infected){if(!z.alive||z.space!==(interiorMode?'interior':'world'))continue;const d=z.g.position.distanceTo(pos);if(d>radius)continue;z.health-=Math.round(damage*(1-.55*d/radius));updateMonsterHealthBar(z);if(z.health<=0){z.health=0;z.alive=false;z.g.visible=false;z.respawnAt=performance.now()+120000;recordKill(z.name,false,z.kind,d,w).catch(()=>{})}}
+  }
+}
+function launchExplosive(w,origin,dir){
+  const radius=Number(w.metadata?.splash_radius_m||6),fuse=Number(w.metadata?.fuse_ms||700),distance=Math.min(w.range,w.kind==='grenade'?38:90),start=origin.clone(),end=origin.clone().addScaledVector(dir,distance);
+  if(!interiorMode)end.z=Math.max(terrainZ(end.x,end.y)+.25,end.z);
+  const proj=new THREE.Mesh(new THREE.SphereGeometry(w.kind==='grenade'?.12:.08,10,8),new THREE.MeshStandardMaterial({color:w.kind==='grenade'?0x475b46:0xffb66a,emissive:w.kind==='grenade'?0x000000:0x6e2d00,emissiveIntensity:.65,roughness:.45,metalness:.25}));
+  proj.position.copy(start);world.add(proj);const began=performance.now();
+  const fly=now=>{const p=Math.min(1,(now-began)/Math.max(220,fuse)),arc=w.kind==='grenade'?Math.sin(Math.PI*p)*5.2:Math.sin(Math.PI*p)*.7;proj.position.lerpVectors(start,end,p);proj.position.z+=arc;if(p<1)requestAnimationFrame(fly);else{const impact=proj.position.clone();world.remove(proj);proj.geometry.dispose();proj.material.dispose();explosionFx(impact,radius,w.damage,w)}};
+  requestAnimationFrame(fly);
+}
+async function recordTdmElimination(headshot=false,distance=null,w=activeWeapon()){
+  if(!matchId)return null;
+  return rpc('bridgepoint_horizon_record_player_kill_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_match_id:matchId,p_event_type:'ELIMINATION',p_weapon_key:w?.key||null,p_headshot:!!headshot,p_distance_m:distance,p_metadata:{mode,client_build:4340,bot_victim:true}});
+}
+async function recordKill(victimName,headshot=false,kind='zombie',distance=null,w=activeWeapon()){
+  addKillFeed(savedProfile?.display_name||'YOU',victimName,w?.name||activeWeapon().name,headshot);
+  if(!matchId)return;
+  return rpc('bridgepoint_horizon_record_player_kill_v4340',{
+    p_player_id:playerId,p_player_secret:playerSecret,p_match_id:matchId,
+    p_event_type:kind==='orc'?'BOSS_KILL':'INFECTED_KILL',
+    p_weapon_key:w?.key||activeWeapon().key,p_headshot:!!headshot,p_distance_m:distance,p_metadata:{mode,client_build:4340,monster_kind:kind}
+  }).catch(()=>null);
 }
 function shootOnce(){
   if(dead||reloading)return;
@@ -1280,9 +1321,11 @@ function shootOnce(){
   if(w.mag&&st.mag<=0){reload();return}
   if(w.mag){st.mag--;updateAmmo();gunAudio(w);if(muzzleFlash){muzzleFlash.intensity=7;setTimeout(()=>{if(muzzleFlash)muzzleFlash.intensity=0},34)}}
   else tone(82,.06,.035,'triangle');
+  animateWeaponAttack(w);
   const dir=new THREE.Vector3();camera.getWorldDirection(dir);
   if(w.spread){dir.x+=(rand()-.5)*w.spread;dir.y+=(rand()-.5)*w.spread;dir.z+=(rand()-.5)*w.spread;dir.normalize()}
   const origin=camera.position.clone();
+  if(w.weaponClass==='LAUNCHER'||w.weaponClass==='GRENADE'||w.kind==='grenade'){launchExplosive(w,origin,dir);if(w.mag&&st.mag===0)reload();return}
   let hit=null,best=Infinity,headshot=false,hitKind='';
   if(mode==='TDM'){
     for(const z of combatants){
@@ -1308,11 +1351,11 @@ function shootOnce(){
     hit.health-=headshot?w.head:w.damage;hit.g.position.addScaledVector(dir,.08);
     if(hitKind==='infected')updateMonsterHealthBar(hit);
     if(hit.health<=0){
-      if(hitKind==='combatant')eliminateCombatant(hit,savedProfile?.display_name||'YOU');
+      if(hitKind==='combatant'){eliminateCombatant(hit,savedProfile?.display_name||'YOU');recordTdmElimination(headshot,best,w).catch(()=>{})}
       else{
         hit.health=0;updateMonsterHealthBar(hit);hit.alive=false;hit.g.visible=false;hit.respawnAt=performance.now()+120000;
         $('infected').textContent=infected.filter(z=>z.alive&&z.space===(interiorMode?'interior':'world')).length;
-        recordKill(hit.name,headshot);rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'MONSTER_RESPAWN',p_event_key:'respawn:'+matchId+':'+hit.index+':'+Math.round(hit.respawnAt),p_value:120,p_payload:{monster:hit.kind,delay_seconds:120}}).catch(()=>{});
+        recordKill(hit.name,headshot,hit.kind,best,w);rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'MONSTER_RESPAWN',p_event_key:'respawn:'+matchId+':'+hit.index+':'+Math.round(hit.respawnAt),p_value:120,p_payload:{monster:hit.kind,delay_seconds:120}}).catch(()=>{});
       }
     }
   }
