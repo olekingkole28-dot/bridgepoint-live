@@ -27,6 +27,7 @@ jobs:
           rm -rf /tmp/bp2300wx && mkdir -p /tmp/bp2300wx/vendor
           cp release-v2300/world-v2300-config.js /tmp/bp2300wx/world-v2300-config.js
           cp release-v2300/world-v2300-map.js /tmp/bp2300wx/world-v2300-map.js
+          cp release-v2300/world-v2300-space.js /tmp/bp2300wx/world-v2300-space.js
           cp release-v2300/world-v2300-worker.js /tmp/bp2300wx/world-v2300-worker.js
           cp release-v2300/world-v2300-weather.js /tmp/bp2300wx/world-v2300-weather.js
           curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o /tmp/bp2300wx/vendor/maplibre-gl.js
