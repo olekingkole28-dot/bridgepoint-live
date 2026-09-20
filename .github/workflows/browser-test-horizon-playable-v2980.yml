@@ -56,6 +56,7 @@ jobs:
           grep -Fq 'id="buildBtn"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="killFeed"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="killCam"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="movePad"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="miniMap"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="weaponBar"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="backpackBar"' app/horizon-playable/v2-entry.html
@@ -75,6 +76,10 @@ jobs:
           grep -Fq '(now-pickupStarted)/3000' app/horizon-playable/horizon-v2.js
           grep -Fq 'bridgepoint_horizon_year_one_checkpoint_v4337' app/horizon-playable/horizon-v2.js
           grep -Fq 'build:4341' app/horizon-playable/horizon-v2.js
+          grep -Fq 'function padMove(e)' app/horizon-playable/horizon-v2.js
+          grep -Fq "pad.addEventListener('pointercancel',endPad)" app/horizon-playable/horizon-v2.js
+          grep -Fq "pad.addEventListener('lostpointercapture',endPad)" app/horizon-playable/horizon-v2.js
+          
           grep -Fq 'bridgepoint_horizon_year_one_zone_v4340' app/horizon-playable/horizon-v2.js
           grep -Fq 'bridgepoint_horizon_weapon_catalog_v4340' app/horizon-playable/horizon-v2.js
           grep -Fq 'bridgepoint_horizon_death_drop_claim_v4340' app/horizon-playable/horizon-v2.js
