@@ -186,6 +186,9 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' site/app.js
           grep -Fq 'bpUserMapGesture' site/landing.js
           grep -Fq 'landingFreePremiumTools' site/index.html
+          grep -Fq 'landing.js?v=5513' site/index.html
+          grep -Fq 'app.js?v=5513' site/app/index.html
+          grep -Fq 'window.__BP_LANDING_WORLD__=world' site/landing.js
           grep -Fq 'appFreePremiumTools' site/app/index.html
           grep -Fq 'landingPropertySearch' site/index.html
           grep -Fq 'FREE_LOOKUP_KEY' site/landing.js
