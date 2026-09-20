@@ -41,7 +41,7 @@ const allyProxy=makeProxy(0x5fdcc6),enemyProxy=makeProxy(0xd36859),infectedProxy
 const hemi=new THREE.HemisphereLight(0xcad5c1,0x263126,1.5);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xffd69a,2.0);sun.position.set(-180,-110,240);sun.castShadow=HIGH_DEVICE;sun.shadow.mapSize.set(MOBILE?512:1024,MOBILE?512:1024);scene.add(sun);
 const player=new THREE.Group();scene.add(player);player.position.set(0,0,0);
-let data=null,centerLon=lon,centerLat=lat,yaw=0,pitch=-.08,moveX=0,moveY=0,touchMoveX=0,touchMoveY=0,keyMoveX=0,keyMoveY=0,sprint=false,aiming=false,shooting=false,last=performance.now(),frames=0,fpsT=performance.now(),lootCount=0,health=100,shield=0,flash=false,storm=false,dayPhase=.62;
+let data=null,centerLon=lon,centerLat=lat,yaw=0,pitch=-.08,moveX=0,moveY=0,touchMoveX=0,touchMoveY=0,keyMoveX=0,keyMoveY=0,sprint=false,aiming=false,shooting=false,last=performance.now(),frames=0,fpsT=performance.now(),lootCount=0,health=mode==='TDM'?150:100,shield=0,flash=false,storm=false,dayPhase=.62;
 let terrainInfo=null,perfLowStreak=0,perfHighStreak=0,lastMeasuredFps=60;
 let perfTier=0,perfEmaMs=16.7,perfWorstMs=16.7,lastPerfAdjustAt=0,fastSince=performance.now(),longFrames=0;
 let aiAccumulator=0,fxAccumulator=0,lightAccumulator=0;
@@ -56,9 +56,9 @@ const BUILDING_LIMIT=Number.POSITIVE_INFINITY;
 const PART_LIMIT=Number.POSITIVE_INFINITY;
 const PARCEL_LIMIT=MOBILE?(HIGH_DEVICE?1250:850):1800;
 let ammoMag=30,ammoReserve=90,reloading=false,dead=false,buildCount=0,pickupTarget=null,pickupStarted=0,lastFireAt=0,weaponRig=null,fpWeaponRig=null,muzzleFlash=null,lootDeltaPending=0,lastYearOneCheckpointAt=0,yearOneCheckpointBusy=false;
-let yearOneZone=null,lastZonePollAt=0,lastWallDamageAt=0,lastWaterDamageAt=0,lastExposureDamageAt=0,lastWeatherSpawnAt=0,lastPresenceAt=0,lastExploreAt=0,waterIdleSeconds=0,coldExposureSeconds=0,nearbyPlayers=[],worldActivePlayers=0;
+let yearOneZone=null,lastZonePollAt=0,lastWallDamageAt=0,lastWaterDamageAt=0,lastExposureDamageAt=0,lastWeatherSpawnAt=0,lastPresenceAt=0,lastExploreAt=0,waterIdleSeconds=0,coldExposureSeconds=0,nearbyPlayers=[],worldActivePlayers=0,tdmLoadout=null,tdmLoadoutCatalog=null,tdmFireZone=null,lastTdmFirePollAt=0,lastTdmFireDamageAt=0,prematchLockedUntil=0;
 const exploredCells=new Set(),vehicleParts={spark_plug:0,wheel:0,gas:0},backpackSlots=Array(5).fill(null),sharedPlayers=new Map();
-const waterAreas=[],zombieWallGroup=new THREE.Group(),sharedPlayerGroup=new THREE.Group();world.add(zombieWallGroup,sharedPlayerGroup);
+const waterAreas=[],zombieWallGroup=new THREE.Group(),sharedPlayerGroup=new THREE.Group(),tdmFireGroup=new THREE.Group();world.add(zombieWallGroup,sharedPlayerGroup,tdmFireGroup);
 let cameraMode='first',crouched=false,prone=false,slideTime=0,verticalVelocity=0,airborne=false,interiorMode=false,activeInterior=null,rooftopState=null;
 let activeZipline=null,activeVehicle=null,audioCtx=null,audioMaster=null,audioCompressor=null,audioReverb=null,audioReverbGain=null,lastAudioEnvAt=0,lastFootstepAt=0,contextTarget=null;const audioBuses={},audioBufferCache=new Map();
 const buildingEntries=[],ziplines=[],vehicles=[],ambientFx=[],interiorRects=[];const exteriorReturn=new THREE.Vector3();let exteriorYaw=0;
@@ -152,11 +152,13 @@ function makeNameSprite(name,color='#ffffff'){
 }
 
 function updateVitals(hitKind=''){
-  health=Math.max(0,Math.min(100,Math.round(health)));
-  shield=Math.max(0,Math.min(100,Math.round(shield)));
+  const maxHealth=mode==='TDM'?150:100;
+  health=Math.max(0,Math.min(maxHealth,Math.round(health)));
+  shield=mode==='TDM'?0:Math.max(0,Math.min(100,Math.round(shield)));
   const he=$('health'),se=$('shield'),hb=$('healthBar'),sb=$('shieldBar');
-  if(he)he.textContent=String(health);if(se)se.textContent=String(shield);
-  if(hb)hb.style.width=health+'%';if(sb)sb.style.width=shield+'%';
+  if(he)he.textContent=String(health);if(se)se.textContent=mode==='TDM'?'—':String(shield);
+  if(hb)hb.style.width=(health/maxHealth*100)+'%';if(sb)sb.style.width=(mode==='TDM'?0:shield)+'%';
+  const sv=document.querySelector('.shield-vital');if(sv)sv.style.display=mode==='TDM'?'none':'';
   if(hitKind){
     const node=document.querySelector(hitKind==='shield'?'.shield-vital':'.health-vital');
     if(node){node.classList.remove('hit');void node.offsetWidth;node.classList.add('hit');setTimeout(()=>node.classList.remove('hit'),260)}
@@ -165,7 +167,7 @@ function updateVitals(hitKind=''){
 function applyPlayerHit(amount=25,killer=null){
   if(dead)return;
   let remaining=Math.max(0,Math.round(amount)),hitKind='health';
-  if(shield>0){
+  if(mode!=='TDM'&&shield>0){
     const absorbed=Math.min(shield,remaining);shield-=absorbed;remaining-=absorbed;hitKind='shield';
   }
   if(remaining>0)health=Math.max(0,health-remaining);
@@ -1090,8 +1092,8 @@ async function collectLoot(q){
   hideLootPickup(q);
   lootCount++;lootDeltaPending++;$('loot').textContent=lootCount;
   if(q.type==='ammo'){for(const w of WEAPONS)if(w.mag&&weaponState[w.key]?.owned)weaponState[w.key].reserve=Math.min(w.mag*(w.maxClips||3),weaponState[w.key].reserve+Math.max(w.mag,Math.floor(w.mag*1.2)));updateAmmo();toast('Ammo acquired')}
-  else if(q.type==='medkit'){health=Math.min(100,health+35);updateVitals();toast('Med kit acquired')}
-  else if(q.type==='armor'){shield=Math.min(100,shield+50);updateVitals();toast(shield>=100?'Shield full · 100':'Shield +50 · '+shield)}
+  else if(q.type==='medkit'){health=Math.min(mode==='TDM'?150:100,health+35);updateVitals();toast('Med kit acquired')}
+  else if(q.type==='armor'){if(mode==='TDM')toast('TDM uses 150 health · no shield');else{shield=Math.min(100,shield+50);updateVitals();toast(shield>=100?'Shield full · 100':'Shield +50 · '+shield)}}
   else if(q.type==='gas'){vehicleParts.gas++;toast('Gas acquired · vehicle part')}
   else if(q.type==='sparkplug'){vehicleParts.spark_plug++;toast('Spark plug acquired')}
   else if(q.type==='wheel'){vehicleParts.wheel++;toast('Wheel acquired · '+vehicleParts.wheel)}
@@ -1157,21 +1159,21 @@ async function spawnTdmBots(){
       if(index<fullCap){const rifle=makeHorizonRifle(THREE,j%3===0?'wrap_toxic_rain':j%3===1?'wrap_blood_rust':'wrap_ash');rifle.scale.setScalar(.25);rifle.rotation.set(.04,-.18,-Math.PI/2);rifle.position.set(.36,.08,1.25);g.add(rifle)}
       const friendly=team===playerTeam,name=(friendly?'ALLY ':'ENEMY ')+String(index+1).padStart(2,'0');
       if(index<fullCap)g.add(makeNameSprite(name+' · LV '+(1+(index%100)),friendly?'#7dffe0':'#ff927d'));world.add(g);
-      combatants.push({g,team,friendly,name,level:1+(index%100),health:100,alive:true,speed:3.05+rand()*.75,phase:rand()*6.28,lastShot:performance.now()+rand()*1200,index});
+      combatants.push({g,team,friendly,name,level:1+(index%100),health:150,maxHealth:150,alive:true,speed:3.05+rand()*.75,phase:rand()*6.28,lastShot:performance.now()+rand()*1200,index,weaponDamage:[28,40,31,108,38][index%5]});
     }remaining-=n;
   }
   if($('enemyLabel'))$('enemyLabel').textContent='combatants';if($('remaining'))$('remaining').textContent=String(combatants.filter(x=>x.alive).length+1);
   $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;return combatants.length;
 }
 function respawnCombatant(b){
-  const p=chooseCombatSpawn(b.team,b.index+17);b.g.position.set(p.x,p.y,terrainZ(p.x,p.y));b.g.visible=true;b.health=100;b.alive=true;b.lastShot=performance.now()+900;
+  const p=chooseCombatSpawn(b.team,b.index+17);b.g.position.set(p.x,p.y,terrainZ(p.x,p.y));b.g.visible=true;b.health=150;b.alive=true;b.lastShot=performance.now()+900;
   $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;if($('remaining'))$('remaining').textContent=String(combatants.filter(x=>x.alive).length+(!dead?1:0));
 }
 function eliminateCombatant(b,killer='YOU'){
   if(!b.alive)return;b.alive=false;b.g.visible=false;
   addKillFeed(killer+' · LV '+(savedProfile?.level||1),b.name,'AR-12',false);
   $('infected').textContent=combatants.filter(x=>x.alive&&!x.friendly).length;if($('remaining'))$('remaining').textContent=String(combatants.filter(x=>x.alive).length+(!dead?1:0));
-  setTimeout(()=>{if(mode==='TDM')respawnCombatant(b)},2200);
+
 }
 function updateCombatants(dt,t){
   if(mode!=='TDM')return;
@@ -1200,9 +1202,9 @@ function updateCombatants(dt,t){
       const accuracy=Math.max(.18,.72-d/105);
       if(rand()<accuracy){
         if(target?.player){
-          health=Math.max(0,health-(5+Math.floor(rand()*7)));updateVitals('health');if(health<=0)triggerDeath(b);
+          const dmg=Math.max(18,Math.round(Number(b.weaponDamage||31)*(0.82+rand()*.22)));applyPlayerHit(dmg,b);
         }else if(target?.alive){
-          target.health-=12+Math.floor(rand()*11);if(target.health<=0)eliminateCombatant(target,b.name+' · LV '+(b.level||1));
+          target.health-=Math.max(16,Math.round(Number(b.weaponDamage||31)*(0.72+rand()*.24)));if(target.health<=0)eliminateCombatant(target,b.name+' · LV '+(b.level||1));
         }
       }
     }
