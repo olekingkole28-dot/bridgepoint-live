@@ -805,25 +805,18 @@ export function initWorld(options={}){
   if(!streetPhotoState.frames.length)return false;streetPhotoState.index=clamp(index,0,streetPhotoState.frames.length-1);const p=streetPhotoState.frames[streetPhotoState.index],lng=Number(p.matchLng??p.lng),lat=Number(p.matchLat??p.lat),heading=Number(p.heading);if(Number.isFinite(lng)&&Number.isFinite(lat))map.easeTo({center:[lng,lat],zoom:19.35,pitch:82,bearing:Number.isFinite(heading)?heading:map.getBearing(),duration:LOW?180:300});updateStreetPhotoPanel();setStatus('Street Walk · real KartaView imagery where available · BridgePoint 3D stays synchronized');return true
  }
  async function loadStreetPhotoSequence(center){
-  if(streetPhotoState.loading)return;const here=Array.isArray(center)?center:map.getCenter().toArray();
-  if(streetPhotoState.frames.length&&streetPhotoState.loadedCenter&&roadMeters(streetPhotoState.loadedCenter,here)<120){updateStreetPhotoPanel();return}
-  streetPhotoState.loading=true;
-  try{
-   const nearbyUrl=`https://api.openstreetcam.org/2.0/photo/?lat=${encodeURIComponent(here[1])}&lng=${encodeURIComponent(here[0])}&zoomLevel=18&radius=120&join=sequence&orderBy=id&orderDirection=desc`;
-   const nr=await fetch(nearbyUrl,{mode:'cors',credentials:'omit'});if(!nr.ok)throw new Error('nearby '+nr.status);const nj=await nr.json(),near=Array.isArray(nj?.result?.data)?nj.result.data:[];if(!near.length)throw new Error('no nearby imagery');
-   near.sort((x,y)=>roadMeters([Number(x.matchLng??x.lng),Number(x.matchLat??x.lat)],here)-roadMeters([Number(y.matchLng??y.lng),Number(y.matchLat??y.lat)],here));
-   const seed=near[0],sequenceId=seed?.sequenceId||seed?.sequence?.id;if(!sequenceId)throw new Error('no sequence');
-   const sr=await fetch(`https://api.openstreetcam.org/2.0/photo/?sequenceId=${encodeURIComponent(sequenceId)}&page=1&itemsPerPage=150`,{mode:'cors',credentials:'omit'});if(!sr.ok)throw new Error('sequence '+sr.status);const sj=await sr.json(),frames=Array.isArray(sj?.result?.data)?sj.result.data:[];if(!frames.length)throw new Error('empty sequence');
-   let best=0,bestD=Infinity;frames.forEach((p,i)=>{const lng=Number(p.matchLng??p.lng),lat=Number(p.matchLat??p.lat);if(!Number.isFinite(lng)||!Number.isFinite(lat))return;const d=roadMeters([lng,lat],here);if(d<bestD){bestD=d;best=i}});
-   streetPhotoState={sequenceId:String(sequenceId),frames,index:best,loadedCenter:here,loading:false};applyStreetPhotoFrame(best);window.__BP_STREET_PHOTO__={provider:'KartaView',sequenceId:String(sequenceId),coverage:true,license:'CC BY-SA 4.0',attribution:'© Grab and KartaView Contributors',updatedAt:Date.now()}
-  }catch(e){streetPhotoState={sequenceId:null,frames:[],index:-1,loadedCenter:here,loading:false};updateStreetPhotoPanel();window.__BP_STREET_PHOTO__={provider:'KartaView',coverage:false,error:String(e?.message||e),updatedAt:Date.now()};setStatus('Street Walk · no public street photo here · using BridgePoint 3D road navigation')}
+  const here=Array.isArray(center)?center:map.getCenter().toArray();
+  streetPhotoState={sequenceId:null,frames:[],index:-1,loadedCenter:here,loading:false};
+  updateStreetPhotoPanel();
+  window.__BP_STREET_PHOTO__={provider:'BRIDGEPOINT_RENDERED_3D',coverage:false,externalImagery:false,updatedAt:Date.now()};
+  setStatus('Street Walk · BridgePoint rendered 3D road navigation · no external street-photo feed')
  }
  function updateWalkUI(){
   const panel=document.getElementById('bpStreetWalkControls'),toggle=document.getElementById('bpWalkToggle');if(panel)panel.style.display=walkMode?'grid':'none';if(toggle){toggle.classList.toggle('active',walkMode);toggle.textContent=walkMode?'EXIT WALK':'WALK'}if(!walkMode)updateStreetPhotoPanel()
  }
  function enterWalk(){
   const s=nearestWalkSegment();walkMode=true;let center=map.getCenter().toArray(),bearing=map.getBearing();if(s){center=s.proj;let bb=s.bearing;if(Math.abs(walkAngleDiff(bb,bearing))>90)bb=(bb+180)%360;bearing=bb}
-  map.easeTo({center,zoom:Math.max(map.getZoom(),19.15),pitch:82,bearing,duration:LOW?280:520});updateWalkUI();setStatus(s?'Street Walk · loading public street imagery if coverage exists':'Street Walk · zoom into a mapped street and use the arrows');window.__BP_STREET_WALK__={active:true,mode:'hybrid-3d-plus-public-street-imagery',photoProvider:'KartaView',updatedAt:Date.now()};setTimeout(()=>loadStreetPhotoSequence(center),450)
+  map.easeTo({center,zoom:Math.max(map.getZoom(),19.15),pitch:82,bearing,duration:LOW?280:520});updateWalkUI();setStatus(s?'Street Walk · BridgePoint rendered road view':'Street Walk · zoom into a mapped street and use the arrows');window.__BP_STREET_WALK__={active:true,mode:'bridgepoint-rendered-3d-road',photoProvider:null,updatedAt:Date.now()};setTimeout(()=>loadStreetPhotoSequence(center),450)
  }
  function exitWalk(){walkMode=false;stopStreetPhotoWeather();map.easeTo({pitch:58,zoom:Math.min(map.getZoom(),18.2),duration:LOW?220:420});updateWalkUI();setStatus('Street Walk off · BridgePoint 3D world');window.__BP_STREET_WALK__={active:false,mode:'hybrid-3d-plus-public-street-imagery',photoProvider:'KartaView',updatedAt:Date.now()}}
  function walkStep(dir){
@@ -831,7 +824,7 @@ export function initWorld(options={}){
   const s=nearestWalkSegment();if(!s){setStatus('Street Walk · no mapped road under the camera');return}
   let forward=s.bearing,along=1;if(Math.abs(walkAngleDiff(forward,map.getBearing()))>90){forward=(forward+180)%360;along=-1}
   const metres=MOBILE?16:22,delta=Math.min(.42,metres/Math.max(6,s.len))*dir*along,t=clamp(s.t+delta,0,1),target=[s.a[0]+(s.b[0]-s.a[0])*t,s.a[1]+(s.b[1]-s.a[1])*t];
-  const viewBearing=dir>0?forward:(forward+180)%360;map.easeTo({center:target,zoom:19.35,pitch:82,bearing:viewBearing,duration:LOW?220:360});setStatus('Street Walk · moving through BridgePoint 3D · checking public imagery');setTimeout(()=>loadStreetPhotoSequence(target),420)
+  const viewBearing=dir>0?forward:(forward+180)%360;map.easeTo({center:target,zoom:19.35,pitch:82,bearing:viewBearing,duration:LOW?220:360});setStatus('Street Walk · moving through BridgePoint rendered 3D road');setTimeout(()=>loadStreetPhotoSequence(target),420)
  }
  function turnWalk(delta){if(!walkMode){enterWalk();return}map.easeTo({bearing:(map.getBearing()+delta+360)%360,pitch:82,duration:LOW?160:260})}
  function installWalkUI(){
