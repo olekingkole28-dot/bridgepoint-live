@@ -390,7 +390,7 @@
     ],
     "owner_auto_entitlements": true
   },
-  "perspective": "FIRST_PERSON_ONLY",
+  "perspective": "FIRST_AND_THIRD_PERSON",
   "progression": {
     "level_max": 100,
     "prestige_max": 15,
