@@ -88,7 +88,7 @@ FHorizonModeRules UHorizonGameStateSubsystem::GetModeRules(EHorizonGameMode Mode
             break;
 
         case EHorizonGameMode::InfiniteTDM:
-            Rules.MinPartySize = 2;
+            Rules.MinPartySize = 1;
             Rules.MaxPartySize = 4;
             Rules.bFriendInvitesAllowed = true;
             Rules.bProximityVoice = true;
@@ -118,6 +118,14 @@ FHorizonModeRules UHorizonGameStateSubsystem::GetCurrentModeRules() const
 
 void UHorizonGameStateSubsystem::SetCurrentMode(EHorizonGameMode NewMode)
 {
+    // Only the two authoritative Horizon modes can become active. OutbreakRaid
+    // remains in the enum solely so old serialized content does not break.
+    if (NewMode != EHorizonGameMode::YearOneSurvival &&
+        NewMode != EHorizonGameMode::InfiniteTDM)
+    {
+        return;
+    }
+
     if (CurrentMode == NewMode)
     {
         return;
