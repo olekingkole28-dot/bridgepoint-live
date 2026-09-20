@@ -6,7 +6,7 @@ const SUPABASE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const PUBLISHABLE_KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const sb=window.supabase?.createClient(SUPABASE_URL,PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const $=id=>document.getElementById(id);
-const state={player:null,config:null,catalog:null,yearOne:null,party:null,match:null,worldCell:null,maps:[],selectedMap:null,selectedMode:'TDM',channel:null,peers:new Map(),killcam:new KillCamBuffer(),pickup:null,installPrompt:null,queueing:false,yearOneRolloverChecked:false,session:null,account:null,character:null,stats:null,activePlayers:0,owner:false,conusOutline:null,social:null,blockedPlayerIds:new Set(),reportTarget:null};
+const state={player:null,config:null,catalog:null,yearOne:null,party:null,match:null,worldCell:null,maps:[],selectedMap:null,selectedMode:'TDM',channel:null,peers:new Map(),killcam:new KillCamBuffer(),pickup:null,installPrompt:null,queueing:false,yearOneRolloverChecked:false,session:null,account:null,character:null,stats:null,activePlayers:0,owner:false,conusOutline:null};
 const qs=new URLSearchParams(location.search);
 
 function b64url(bytes){
@@ -61,17 +61,6 @@ async function detectOwner(){
   if(!state.session){state.owner=false;$('ownerTab')?.setAttribute('hidden','');return false}
   try{await rpc('bridgepoint_horizon_owner_audit_v4341',{});state.owner=true;$('ownerTab')?.removeAttribute('hidden');return true}
   catch{state.owner=false;$('ownerTab')?.setAttribute('hidden','');return false}
-}
-async function refreshSocial(){
-  if(!state.account){state.social=null;state.blockedPlayerIds=new Set();const badge=$('friendsBadge');if(badge)badge.hidden=true;return null}
-  try{
-    const out=await rpc('bridgepoint_horizon_social_inbox_v4341',{p_player_id:ident.id,p_player_secret:ident.secret});
-    state.social=out;state.blockedPlayerIds=new Set((out.blocked||[]).map(x=>String(x.player_id)));
-    const pending=(out.incoming_requests?.length||0)+(out.lobby_invites?.length||0),badge=$('friendsBadge');
-    if(badge){badge.textContent=String(pending);badge.hidden=pending<1}
-    for(const [peerId,rec] of state.peers){if(state.blockedPlayerIds.has(String(peerId))){try{rec.pc?.close()}catch{}state.peers.delete(peerId);document.querySelector('audio[data-peer="'+peerId+'"]')?.remove()}}
-    return out;
-  }catch{return state.social}
 }
 
 function setNet(label,color='#f4c45e'){
@@ -231,7 +220,7 @@ async function bootstrap(){
   state.conusOutline=await rpc('bridgepoint_horizon_conus_outline_v4340',{}).catch(()=>null);
   markMode();
   renderParty();
-  await refreshActivePlayers();await detectOwner();await refreshSocial();setInterval(refreshActivePlayers,10000);setInterval(refreshSocial,5000);
+  await refreshActivePlayers();await detectOwner();setInterval(refreshActivePlayers,10000);
   setNet('ONLINE','#44f3bd');
   status(state.account?'Lobby ready · free account linked · first-person only':'Lobby ready · sign in or create a free Horizon account to play');
   window.BP_HORIZON_LOBBY_V4341={
@@ -252,7 +241,7 @@ async function bootstrap(){
   connectPartySignal();
   setInterval(refreshParty,1800);
   const initialTab=(qs.get('tab')||'').trim().toUpperCase();
-  if(initialTab&&['BATTLE_PASS','LOCKER','LOADOUTS','ARMORY','FRIENDS','PARTY','STORE','ARENA','WATCH','STATS','RULES','ABOUT','OWNER','ACCOUNT','CUSTOMIZE'].includes(initialTab))setTimeout(()=>openModal(initialTab),250);
+  if(initialTab&&['BATTLE_PASS','LOCKER','LOADOUTS','ARMORY','PARTY','STORE','ARENA','WATCH','STATS','RULES','ABOUT','OWNER','ACCOUNT','CUSTOMIZE'].includes(initialTab))setTimeout(()=>openModal(initialTab),250);
 }
 async function refreshParty(){
   try{
@@ -572,18 +561,6 @@ async function refreshDirectorPanel(){
     drawDirectorMap(cv,t);
   }catch{}
 }
-
-function controlDiagramHtml(p){
-  const b=p?.bindings||{},pairs=Object.entries(b);
-  if(p?.input_kind==='KEYBOARD_MOUSE'){
-    const wanted=['MOVE_FORWARD','MOVE_LEFT','MOVE_BACK','MOVE_RIGHT','SPRINT','JUMP','STANCE','INTERACT','RELOAD','BUILD','FLASHLIGHT','TACTICAL_1','TACTICAL_2','LETHAL','AIM','FIRE'];
-    return '<div class="control-device keyboard-device"><div class="device-title">KEYBOARD + MOUSE</div><div class="key-grid">'+wanted.map(a=>{const k=b[a]||'—';return '<div class="key-cap"><b>'+escapeHtml(String(k).replace('Key',''))+'</b><span>'+escapeHtml(a.replaceAll('_',' '))+'</span></div>'}).join('')+'</div></div>';
-  }
-  if(p?.input_kind==='GAMEPAD'){
-    return '<div class="control-device gamepad-device"><div class="gamepad-shell"><span class="stick left-stick"></span><span class="stick right-stick"></span><span class="pad-btn a">A</span><span class="pad-btn b">B</span><span class="pad-btn x">X</span><span class="pad-btn y">Y</span><span class="trigger lt">LT</span><span class="trigger rt">RT</span></div><div class="binding-list">'+pairs.map(([a,k])=>'<span><b>'+escapeHtml(k)+'</b> '+escapeHtml(a.replaceAll('_',' '))+'</span>').join('')+'</div></div>';
-  }
-  return '<div class="control-device touch-device"><div class="phone-shell"><span class="touch-stick">MOVE</span><span class="touch-look">LOOK</span><span class="touch-fire">FIRE</span><span class="touch-flash">LIGHT</span></div><div class="binding-list">'+pairs.map(([a,k])=>'<span><b>'+escapeHtml(k)+'</b> '+escapeHtml(a.replaceAll('_',' '))+'</span>').join('')+'</div></div>';
-}
 async function openModal(tab){
   $('installBanner')?.classList.add('hidden');
   const c=$('modalContent');
@@ -622,23 +599,11 @@ async function openModal(tab){
     const own=state.stats||{};
     const prestigeHtml=prestige?.eligible?`<section class="prestige-choice"><div class="eyebrow">PRESTIGE ${prestige.next_prestige} READY</div><h2>Choose one permanent character reward</h2><p>Prestiging resets your level to 1, keeps your recorded career totals, advances your prestige badge, and unlocks the next prestige tier of weapons/cosmetics.</p><div class="catalog-grid">${(prestige.choices||[]).map(x=>`<article class="catalog-card"><canvas class="preview3d runtime3d" data-runtime="${escapeHtml(x.preview_ref)}"></canvas><span class="eyebrow">CHOICE ${x.choice_no}</span><h3>${escapeHtml(x.display_name)}</h3><button data-prestige-choice="${x.choice_no}">PRESTIGE WITH THIS CHARACTER</button></article>`).join('')}</div></section>`:prestige?.prestige>=15?'<p class="account-callout">PRESTIGE 15 MAX REACHED</p>':'';
     c.innerHTML=`<div class="eyebrow">HORIZON LIVE STATS</div><h1>Player totals & world leaderboard</h1><div class="stats-grid"><article class="stats-card"><h3>YOUR KILLS</h3><b>${Number(own.total_kills||0).toLocaleString()}</b></article><article class="stats-card"><h3>WINS</h3><b>${Number(own.wins||0).toLocaleString()}</b></article><article class="stats-card"><h3>LEVEL</h3><b>${own.level||1}</b></article><article class="stats-card"><h3>PRESTIGE</h3><b>${own.prestige||0} / 15</b></article><article class="stats-card"><h3>TOP WEAPON</h3><b>${escapeHtml(top?.display_name||'NONE')}</b><small>${Number(top?.kills||0).toLocaleString()} KILLS</small></article><article class="stats-card"><h3>XP</h3><b>${Number(own.xp||0).toLocaleString()}</b></article></div>${prestigeHtml}<div class="metric-tabs"><button data-leader-metric="KILLS">KILLS</button><button data-leader-metric="WINS">WINS</button><button data-leader-metric="TIME">TIME PLAYED</button><button data-leader-metric="XP">XP</button></div><div class="leaderboard" id="leaderboardRows">${leaderRows(out?.leaders||[])}</div>`;
-  }else if(tab==='FRIENDS'){
-    if(!state.account){c.innerHTML='<div class="eyebrow">FRIENDS</div><h1>Sign in to add friends</h1>';return}
-    const social=await refreshSocial()||{friends:[],incoming_requests:[],outgoing_requests:[],lobby_invites:[],blocked:[]};
-    const friendRows=(social.friends||[]).map(f=>`<div class="social-row"><div><b>@${escapeHtml(f.handle)}</b><small>${f.online?'ONLINE · '+escapeHtml(f.mode||'LOBBY'):'OFFLINE'} · LV ${f.level||1} · P${f.prestige||0}</small></div><div class="social-actions"><button data-lobby-invite="${f.player_id}">INVITE</button><button data-report-player="${f.player_id}" data-report-handle="${escapeHtml(f.handle)}">REPORT</button><button data-unfriend="${f.player_id}">UNFRIEND</button><button class="danger" data-block-player="${f.player_id}">BLOCK</button></div></div>`).join('')||'<p class="muted">No friends yet. Search a Horizon handle below.</p>';
-    const incoming=(social.incoming_requests||[]).map(r=>`<div class="social-row"><div><b>@${escapeHtml(r.handle)}</b><small>FRIEND REQUEST</small></div><div class="social-actions"><button data-friend-request-action="ACCEPT" data-request-id="${r.request_id}">ACCEPT</button><button data-friend-request-action="DECLINE" data-request-id="${r.request_id}">DECLINE</button><button class="danger" data-block-player="${r.player_id}">BLOCK</button></div></div>`).join('')||'<p class="muted">No incoming friend requests.</p>';
-    const invites=(social.lobby_invites||[]).map(i=>`<div class="social-row invite"><div><b>@${escapeHtml(i.handle)}</b><small>LOBBY INVITE · ${escapeHtml(i.mode||'TDM')}</small></div><div class="social-actions"><button data-lobby-invite-action="ACCEPT" data-invite-id="${i.invite_id}">JOIN</button><button data-lobby-invite-action="DECLINE" data-invite-id="${i.invite_id}">DECLINE</button><button class="danger" data-block-player="${i.player_id}">BLOCK</button></div></div>`).join('')||'<p class="muted">No lobby invites.</p>';
-    const outgoing=(social.outgoing_requests||[]).map(r=>`<div class="social-row"><div><b>@${escapeHtml(r.handle)}</b><small>REQUEST SENT</small></div><div class="social-actions"><button data-friend-request-action="CANCEL" data-request-id="${r.request_id}">CANCEL</button></div></div>`).join('')||'<p class="muted">No pending sent requests.</p>';
-    const blocked=(social.blocked||[]).map(b=>`<div class="social-row"><div><b>@${escapeHtml(b.handle)}</b><small>BLOCKED</small></div><div class="social-actions"><button data-unblock-player="${b.player_id}">UNBLOCK</button></div></div>`).join('')||'<p class="muted">Nobody blocked.</p>';
-    c.innerHTML=`<div class="eyebrow">HORIZON SOCIAL</div><h1>Friends, lobby invites & safety</h1><p class="account-callout">Search exact or partial Horizon handles. Email addresses are never shown here. Blocking cuts off direct requests/invites and filters that player from your party chat/voice path.</p><div class="friend-search"><input id="friendSearchInput" maxlength="20" placeholder="Search @handle"><button data-friend-search>SEARCH</button></div><div id="friendSearchResults" class="social-stack"></div><h2>Lobby invites</h2><div class="social-stack">${invites}</div><h2>Friend requests</h2><div class="social-stack">${incoming}</div><h2>Friends</h2><div class="social-stack">${friendRows}</div><details><summary>Sent requests</summary><div class="social-stack">${outgoing}</div></details><details><summary>Blocked players</summary><div class="social-stack">${blocked}</div></details>`;
   }else if(tab==='OWNER'){
-    const [out,moderation]=await Promise.all([rpc('bridgepoint_horizon_owner_audit_v4341',{}).catch(()=>null),rpc('bridgepoint_horizon_owner_reports_v4341',{}).catch(()=>({reports:[]}))]);
+    const out=await rpc('bridgepoint_horizon_owner_audit_v4341',{}).catch(()=>null);
     if(!out){c.innerHTML='<div class="eyebrow">OWNER</div><h1>Owner access required</h1>';return}
-    const ps=out.players||[],pays=out.purchases||[],signals=out.anticheat||[],reports=moderation?.reports||[],openReports=reports.filter(r=>r.status==='OPEN'||r.status==='REVIEWING');
-    c.innerHTML=`<div class="eyebrow">OWNER / CO-OWNER · HORIZON BACKEND</div><h1>Accounts, gameplay, purchases & anti-cheat</h1><p class="account-callout">Checkout is not connected yet, so purchase rows remain empty until Stripe is deliberately enabled. Both designated BridgePoint platform owners can see this page.</p><div class="owner-metrics"><article><h3>PLAYERS</h3><b>${ps.length}</b></article><article><h3>ACTIVE</h3><b>${state.activePlayers||0}</b></article><article><h3>PURCHASES</h3><b>${pays.length}</b></article><article><h3>UNREVIEWED FLAGS</h3><b>${signals.filter(x=>!x.reviewed).length}</b></article><article><h3>PLAYER REPORTS</h3><b>${openReports.length}</b></article></div><h2>Player reports</h2><div class="moderation-list">${reports.slice(0,100).map(r=>`<article class="moderation-card"><div><span class="eyebrow">#${r.report_id} · ${escapeHtml(r.category)} · ${escapeHtml(r.status)}</span><h3>@${escapeHtml(r.reported_handle||'unknown')} reported by @${escapeHtml(r.reporter_handle||'unknown')}</h3><small>${escapeHtml(r.reported_email||'')} · reporter ${escapeHtml(r.reporter_email||'')}</small><p>${escapeHtml(r.details||'No details supplied.')}</p><small>${new Date(r.created_at).toLocaleString()} ${r.match_id?'· MATCH '+escapeHtml(String(r.match_id).slice(0,8)):''}</small></div><div class="social-actions"><button data-owner-report-action="REVIEWING" data-report-id="${r.report_id}">REVIEW</button><button data-owner-report-action="RESOLVED" data-report-id="${r.report_id}">RESOLVE</button><button data-owner-report-action="DISMISSED" data-report-id="${r.report_id}">DISMISS</button></div></article>`).join('')||'<p>No player reports.</p>'}</div><h2>Player audit</h2><div class="leaderboard">${ps.map(p=>`<div class="leader-row"><b>LV ${p.level||1}</b><span>@${escapeHtml(p.handle||'Survivor')}<small style="display:block;color:#789087">${escapeHtml(p.email||'')}</small></span><span>${escapeHtml(p.current_mode||'OFFLINE')}</span><span>${Math.floor(Number(p.play_seconds||0)/60)}M</span><span>${Number(p.kills||0)} K · P${p.prestige||0} · ${Number(p.anticheat_unreviewed||0)} FLAGS</span></div>`).join('')||'<p>No linked Horizon accounts yet.</p>'}</div><h2>Payments</h2><div class="leaderboard">${pays.map(p=>`<div class="leader-row"><b>${escapeHtml(p.status)}</b><span>${escapeHtml(p.sku)}</span><span>${money(p.amount_cents,p.currency)}</span><span>TAX ${money(p.tax_cents,p.currency)}</span><span>${new Date(p.created_at).toLocaleString()}</span></div>`).join('')||'<p>No Horizon payments recorded. Stripe is still disconnected.</p>'}</div><h2>Anti-cheat signals</h2><div class="leaderboard">${signals.slice(0,100).map(s=>`<div class="leader-row"><b>S${s.severity}</b><span>${escapeHtml(s.signal_type)}</span><span>${escapeHtml(String(s.observed??''))}</span><span>MAX ${escapeHtml(String(s.expected_max??''))}</span><span>${new Date(s.created_at).toLocaleString()}</span></div>`).join('')||'<p>No anti-cheat signals.</p>'}</div>`;
-  }else if(tab==='REPORT'){
-    const t=state.reportTarget;if(!t){c.innerHTML='<div class="eyebrow">REPORT</div><h1>No player selected</h1>';return}
-    c.innerHTML=`<div class="eyebrow">PRIVATE PLAYER REPORT</div><h1>Report @${escapeHtml(t.handle||'player')}</h1><p class="account-callout">This report is private and goes to the BridgePoint Horizon owner/co-owner moderation backend with current account and match context.</p><label class="report-field">CATEGORY<select id="reportCategory"><option>CHEATING</option><option>HARASSMENT</option><option>VOICE_ABUSE</option><option>GRIEFING</option><option>EXPLOIT</option><option>INAPPROPRIATE_NAME</option><option>OTHER</option></select></label><label class="report-field">DETAILS<textarea id="reportDetails" maxlength="1200" placeholder="What happened? Add useful context."></textarea></label><div class="auth-actions"><button data-submit-report>SUBMIT REPORT</button><button class="danger" data-block-player="${t.player_id}">BLOCK PLAYER</button></div>`;
+    const ps=out.players||[],pays=out.purchases||[],signals=out.anticheat||[];
+    c.innerHTML=`<div class="eyebrow">OWNER / CO-OWNER · HORIZON BACKEND</div><h1>Accounts, gameplay, purchases & anti-cheat</h1><p class="account-callout">Checkout is not connected yet, so purchase rows remain empty until Stripe is deliberately enabled. Both designated BridgePoint platform owners can see this page.</p><div class="owner-metrics"><article><h3>PLAYERS</h3><b>${ps.length}</b></article><article><h3>ACTIVE</h3><b>${state.activePlayers||0}</b></article><article><h3>PURCHASES</h3><b>${pays.length}</b></article><article><h3>UNREVIEWED FLAGS</h3><b>${signals.filter(x=>!x.reviewed).length}</b></article></div><h2>Player audit</h2><div class="leaderboard">${ps.map(p=>`<div class="leader-row"><b>LV ${p.level||1}</b><span>@${escapeHtml(p.handle||'Survivor')}<small style="display:block;color:#789087">${escapeHtml(p.email||'')}</small></span><span>${escapeHtml(p.current_mode||'OFFLINE')}</span><span>${Math.floor(Number(p.play_seconds||0)/60)}M</span><span>${Number(p.kills||0)} K · P${p.prestige||0} · ${Number(p.anticheat_unreviewed||0)} FLAGS</span></div>`).join('')||'<p>No linked Horizon accounts yet.</p>'}</div><h2>Payments</h2><div class="leaderboard">${pays.map(p=>`<div class="leader-row"><b>${escapeHtml(p.status)}</b><span>${escapeHtml(p.sku)}</span><span>${money(p.amount_cents,p.currency)}</span><span>TAX ${money(p.tax_cents,p.currency)}</span><span>${new Date(p.created_at).toLocaleString()}</span></div>`).join('')||'<p>No Horizon payments recorded. Stripe is still disconnected.</p>'}</div><h2>Anti-cheat signals</h2><div class="leaderboard">${signals.slice(0,100).map(s=>`<div class="leader-row"><b>S${s.severity}</b><span>${escapeHtml(s.signal_type)}</span><span>${escapeHtml(String(s.observed??''))}</span><span>MAX ${escapeHtml(String(s.expected_max??''))}</span><span>${new Date(s.created_at).toLocaleString()}</span></div>`).join('')||'<p>No anti-cheat signals.</p>'}</div>`;
   }else if(tab==='PARTY'){
     if(!state.account){c.innerHTML='<div class="eyebrow">PARTY</div><h1>Sign in to use squad chat</h1>';return}
     c.innerHTML=`<div class="eyebrow">SQUAD COMMS</div><h1>Party chat & headset voice</h1><p style="color:#95aaa0">Text chat is party-only. Voice uses direct WebRTC audio and your browser/device microphone permission; headset routing follows the device/browser audio output.</p><div class="auth-actions"><button data-party-voice>ENABLE HEADSET VOICE</button></div><div id="partyChatLog" class="party-chat-log"></div><div class="party-chat-compose"><input id="partyChatInput" maxlength="280" placeholder="Message your squad"><button data-party-send>SEND</button></div>`;
@@ -666,7 +631,7 @@ async function openModal(tab){
     c.innerHTML=`<div class="eyebrow">WEEKLY HORIZON STORE</div><h1>Original 3D cosmetics, loadout unlocks & Year One revives</h1><p style="color:#95aaa0">The rotating catalog refreshes weekly. Second Chance ($20) and Full Revival ($50) remain permanently listed. Stripe/tax checkout is not connected yet, so nothing can charge a player today.</p><div class="store-grid">${items.map(s=>`<article class="store-card">${rewardArt(s)}<span class="eyebrow">${s.permanent?'PERMANENT · ':''}${escapeHtml(s.rarity)} · ${escapeHtml(s.category)}</span><h3>${escapeHtml(s.display_name)}</h3><div class="price">${money(s.price_cents,s.currency)}</div><button disabled>3D PREVIEW · CHECKOUT NOT CONNECTED</button></article>`).join('')}</div>`;
   }else if(tab==='ARENA'){
     if(!state.maps.length)await refreshMapCatalog().catch(()=>{});
-    c.innerHTML=`<div class="eyebrow">TDM MAP POOL · 50 REAL LOCATIONS</div><h1>Dense fights. Two-map + Random vote.</h1><p style="color:#95aaa0">Each TDM match pulls two choices from the 50-map real-location pool plus Random. After the vote, the winning world cell loads before the separate 10-second look-around countdown.</p><div class="map-catalog">${state.maps.map((m,i)=>`<article class="map-card"><canvas class="map-mini" width="260" height="130" data-map-key="${escapeHtml(m.map_key)}"></canvas><div class="map-card-body"><span class="eyebrow">#${i+1} · ${escapeHtml(m.state_code)} · ${escapeHtml(m.biome||'DENSE WORLD CELL')}</span><h3>${escapeHtml(m.display_name)}</h3><small>${Number(m.span_km||0).toFixed(1)} km combat cell · MATCH VOTE POOL</small></div></article>`).join('')}</div>`;
+    c.innerHTML=`<div class="eyebrow">TDM ROTATION · 50 REAL LOCATIONS</div><h1>Dense fights. Automatic map switching.</h1><p style="color:#95aaa0">Team Deathmatch rotates through the complete 50-map pool automatically. Each arena is a compact BridgePoint world-stream cell centered on a dense real location; no party can lock the next map.</p><div class="map-catalog">${state.maps.map((m,i)=>`<article class="map-card"><canvas class="map-mini" width="260" height="130" data-map-key="${escapeHtml(m.map_key)}"></canvas><div class="map-card-body"><span class="eyebrow">#${i+1} · ${escapeHtml(m.state_code)} · ${escapeHtml(m.biome||'DENSE WORLD CELL')}</span><h3>${escapeHtml(m.display_name)}</h3><small>${Number(m.span_km||0).toFixed(1)} km combat cell · AUTO ROTATION</small></div></article>`).join('')}</div>`;
     requestAnimationFrame(()=>mountMapMinis(c));
   }else if(tab==='WATCH'){
     state.yearOne=await rpc('bridgepoint_horizon_year_one_status_v4310',{p_player_id:ident.id,p_player_secret:ident.secret}).catch(()=>state.yearOne);
@@ -679,17 +644,8 @@ async function openModal(tab){
     clearInterval(directorTimer);setTimeout(refreshDirectorPanel,20);directorTimer=setInterval(refreshDirectorPanel,12000);
   }else if(tab==='INSTALL_HELP'){
     c.innerHTML='<div class="eyebrow">INSTALL HORIZON</div><h1>Add BridgePoint Horizon to your home screen</h1><p style="color:#95aaa0">Use your browser menu and choose <b>Install app</b> or <b>Add to Home screen</b>. Horizon uses a separate app ID and icon from BridgePoint Intelligence.</p>';
-  }else if(tab==='SETTINGS'){
-    if(!state.account){
-      c.innerHTML='<div class="eyebrow">CONTROLS & INPUT</div><h1>Keyboard, mouse, controller & mobile</h1><p class="account-callout">Sign in with your normal BridgePoint/Horizon account to save remapped controls across devices. Mouse/keyboard, standard browser gamepads and touch controls remain supported by default.</p>';
-    }else{
-      const out=await rpc('bridgepoint_horizon_controls_v4342',{p_player_id:ident.id,p_player_secret:ident.secret}).catch(()=>({presets:[],saved:[]}));
-      const saved=new Map((out.saved||[]).map(x=>[x.input_kind,x]));
-      const groups=['KEYBOARD_MOUSE','GAMEPAD','TOUCH'];
-      c.innerHTML=`<div class="eyebrow">CONTROLS & INPUT · V4342</div><h1>Choose a preset or remap it</h1><p class="account-callout">Your bindings are saved to your Horizon player account. Keyboard/mouse, controller and mobile touch all feed the same gameplay actions. TDM uses one global player pool—input device does not create a separate matchmaking pool.</p>${groups.map(kind=>`<section class="control-group"><h2>${kind.replace('_',' + ')}</h2><div class="control-preset-grid">${(out.presets||[]).filter(p=>p.input_kind===kind).map(p=>{const s=saved.get(kind),sel=s?.preset_key===p.preset_key;return `<article class="control-preset-card ${sel?'selected':''}" data-control-card="${escapeHtml(p.preset_key)}">${controlDiagramHtml(p)}<span class="eyebrow">${escapeHtml(p.display_name)}</span><h3>${escapeHtml(p.description||'')}</h3><button data-control-preset="${escapeHtml(p.preset_key)}" data-input-kind="${escapeHtml(kind)}">${sel?'ACTIVE PRESET':'USE PRESET'}</button></article>`}).join('')}</div></section>`).join('')}<p class="settings-note">You can start from any preset and then remap individual actions in the playable settings panel. Flashlight is always available and never consumes an inventory slot.</p>`;
-    }
   }else{
-    c.innerHTML=`<div class="eyebrow">HORIZON</div><h1>Game controls</h1><p style="color:#95aaa0">Keyboard/mouse, controllers and touch are supported. Aim, shoot, run, build and flashlight remain available during play; pickup uses a three-second dwell.</p>`;
+    c.innerHTML=`<div class="eyebrow">HORIZON</div><h1>Game controls</h1><p style="color:#95aaa0">Aim: toggle · Pickup: 3-second dwell · Death flow: killcam, then lobby at 10 seconds · Four right-side controls: Aim, Shoot, Run, Build. Utility rail includes crouch, jump, weapons, drops, campfire and light.</p>`;
   }
   mountModelPreviews(c);
   $('modal').classList.add('show');$('modal').setAttribute('aria-hidden','false');
@@ -759,53 +715,11 @@ $('modalContent').addEventListener('click',async e=>{
     const out=await rpc('bridgepoint_horizon_leaderboard_v4340',{p_metric:metric.dataset.leaderMetric,p_limit:25}).catch(()=>({leaders:[]}));
     const rows=$('leaderboardRows');if(rows)rows.innerHTML=leaderRows(out?.leaders||[]);return;
   }
-  if(e.target.closest('[data-friend-search]')){
-    const q=$('friendSearchInput')?.value.trim(),box=$('friendSearchResults');if(!q||q.length<2){if(box)box.innerHTML='<p class="muted">Enter at least 2 characters.</p>';return}
-    try{
-      const out=await rpc('bridgepoint_horizon_social_search_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_query:q});
-      const rows=out.players||[];
-      if(box)box.innerHTML=rows.map(p=>`<div class="social-row search-result"><div><b>@${escapeHtml(p.handle)}</b><small>${p.online?'ONLINE · '+escapeHtml(p.mode||'LOBBY'):'OFFLINE'} · LV ${p.level||1} · P${p.prestige||0}</small></div><div class="social-actions">${p.friend?'<span class="social-state">FRIEND</span>':p.pending?'<span class="social-state">PENDING</span>':`<button data-friend-add="${p.player_id}">ADD FRIEND</button>`}<button data-report-player="${p.player_id}" data-report-handle="${escapeHtml(p.handle)}">REPORT</button><button class="danger" data-block-player="${p.player_id}">BLOCK</button></div></div>`).join('')||'<p class="muted">No Horizon handles matched.</p>';
-    }catch(err){status(err.message)}return;
-  }
-  const friendAdd=e.target.closest('[data-friend-add]');
-  if(friendAdd){try{await rpc('bridgepoint_horizon_friend_request_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_target_player_id:friendAdd.dataset.friendAdd});await refreshSocial();status('Friend request sent');openModal('FRIENDS')}catch(err){status(err.message)}return}
-  const friendReq=e.target.closest('[data-friend-request-action]');
-  if(friendReq){try{await rpc('bridgepoint_horizon_friend_request_action_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_request_id:friendReq.dataset.requestId,p_action:friendReq.dataset.friendRequestAction});await refreshSocial();status('Friend request '+friendReq.dataset.friendRequestAction.toLowerCase());openModal('FRIENDS')}catch(err){status(err.message)}return}
-  const lobbyInvite=e.target.closest('[data-lobby-invite]');
-  if(lobbyInvite){try{await rpc('bridgepoint_horizon_lobby_invite_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_target_player_id:lobbyInvite.dataset.lobbyInvite});await refreshSocial();status('Lobby invite sent · expires in 15 minutes')}catch(err){status(err.message)}return}
-  const lobbyAction=e.target.closest('[data-lobby-invite-action]');
-  if(lobbyAction){try{await rpc('bridgepoint_horizon_lobby_invite_action_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_invite_id:lobbyAction.dataset.inviteId,p_action:lobbyAction.dataset.lobbyInviteAction});await refreshSocial();if(lobbyAction.dataset.lobbyInviteAction==='ACCEPT'){if(state.channel){sb?.removeChannel(state.channel).catch(()=>{});state.channel=null}await refreshParty();connectPartySignal();status('Lobby invite accepted · joined party')}else status('Lobby invite declined');openModal('FRIENDS')}catch(err){status(err.message)}return}
-  const unfriend=e.target.closest('[data-unfriend]');
-  if(unfriend){try{await rpc('bridgepoint_horizon_unfriend_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_target_player_id:unfriend.dataset.unfriend});await refreshSocial();status('Friend removed');openModal('FRIENDS')}catch(err){status(err.message)}return}
-  const block=e.target.closest('[data-block-player]');
-  if(block){try{await rpc('bridgepoint_horizon_block_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_target_player_id:block.dataset.blockPlayer,p_block:true});const rec=state.peers.get(block.dataset.blockPlayer);try{rec?.pc?.close()}catch{}state.peers.delete(block.dataset.blockPlayer);document.querySelector('audio[data-peer="'+block.dataset.blockPlayer+'"]')?.remove();await refreshSocial();state.reportTarget=null;status('Player blocked');openModal('FRIENDS')}catch(err){status(err.message)}return}
-  const unblock=e.target.closest('[data-unblock-player]');
-  if(unblock){try{await rpc('bridgepoint_horizon_block_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_target_player_id:unblock.dataset.unblockPlayer,p_block:false});await refreshSocial();status('Player unblocked');openModal('FRIENDS')}catch(err){status(err.message)}return}
-  const reportPlayer=e.target.closest('[data-report-player]');
-  if(reportPlayer){state.reportTarget={player_id:reportPlayer.dataset.reportPlayer,handle:reportPlayer.dataset.reportHandle||'player'};openModal('REPORT');return}
-  if(e.target.closest('[data-submit-report]')){
-    const t=state.reportTarget;if(!t)return;
-    try{const out=await rpc('bridgepoint_horizon_report_player_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_target_player_id:t.player_id,p_category:$('reportCategory')?.value||'OTHER',p_details:$('reportDetails')?.value.trim()||'',p_match_id:state.match?.match_id||null});state.reportTarget=null;status('Report #'+out.report_id+' sent privately to BridgePoint moderation');openModal('FRIENDS')}catch(err){status(err.message)}return;
-  }
-  const ownerReport=e.target.closest('[data-owner-report-action]');
-  if(ownerReport){try{await rpc('bridgepoint_horizon_owner_report_action_v4341',{p_report_id:Number(ownerReport.dataset.reportId),p_status:ownerReport.dataset.ownerReportAction,p_owner_notes:null});status('Report #'+ownerReport.dataset.reportId+' · '+ownerReport.dataset.ownerReportAction);openModal('OWNER')}catch(err){status(err.message)}return}
   if(e.target.closest('[data-party-send]')){
     const input=$('partyChatInput'),message=input?.value.trim();if(!message)return;
     try{await rpc('bridgepoint_horizon_party_chat_send_v4341',{p_player_id:ident.id,p_player_secret:ident.secret,p_message:message});input.value=''}catch(err){status(err.message)}return;
   }
   if(e.target.closest('[data-party-voice]')){try{await enablePartyVoice();status('Party headset voice enabled')}catch(err){status(err.message)}return}
-    const controlPreset=e.target.closest('[data-control-preset]');
-  if(controlPreset){
-    if(!state.account){openModal('ACCOUNT');return}
-    try{
-      const out=await rpc('bridgepoint_horizon_controls_save_v4342',{
-        p_player_id:ident.id,p_player_secret:ident.secret,p_input_kind:controlPreset.dataset.inputKind,
-        p_preset_key:controlPreset.dataset.controlPreset,p_custom_bindings:{},p_sensitivity:{look:1,aim:.72,deadzone:.14}
-      });
-      if(out?.ok){localStorage.setItem('horizon-control-'+String(controlPreset.dataset.inputKind).toLowerCase(),String(controlPreset.dataset.controlPreset));status('Control preset saved · '+controlPreset.textContent.trim());openModal('SETTINGS')}
-    }catch(err){status(err.message)}
-    return;
-  }
     const classBtn=e.target.closest('[data-save-tdm-class]');
   if(classBtn){
     if(!state.account){openModal('ACCOUNT');return}
@@ -873,8 +787,8 @@ function connectPartySignal(){
   if(!sb||!state.party?.invite_code)return;
   const ch=sb.channel(`horizon-party:${state.party.invite_code}`,{config:{broadcast:{self:false}}});
   ch.on('broadcast',{event:'party-ping'},()=>refreshParty())
-    .on('broadcast',{event:'voice-hello'},({payload})=>{if(payload?.player_id&&payload.player_id!==ident.id&&!state.blockedPlayerIds.has(String(payload.player_id))&&String(ident.id)<String(payload.player_id))makeOffer(payload.player_id,ch)})
-    .on('broadcast',{event:'signal'},({payload})=>{if(!state.blockedPlayerIds.has(String(payload?.from||'')))handleSignal(payload,ch)})
+    .on('broadcast',{event:'voice-hello'},({payload})=>{if(payload?.player_id&&payload.player_id!==ident.id&&String(ident.id)<String(payload.player_id))makeOffer(payload.player_id,ch)})
+    .on('broadcast',{event:'signal'},({payload})=>handleSignal(payload,ch))
     .subscribe(status=>{if(status==='SUBSCRIBED'){ch.send({type:'broadcast',event:'party-ping',payload:{player_id:ident.id}});if(state.voiceStream)ch.send({type:'broadcast',event:'voice-hello',payload:{player_id:ident.id}})}});
   state.channel=ch;
 }
@@ -951,12 +865,11 @@ function wireData(peerId,dc){
   dc.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.t==='snapshot')state.killcam.push(m.s)}catch{}};
 }
 async function makeOffer(peerId,ch){
-  if(state.blockedPlayerIds.has(String(peerId)))return;
   const pc=pcFor(peerId,ch,true),offer=await pc.createOffer();await pc.setLocalDescription(offer);
   ch.send({type:'broadcast',event:'signal',payload:{from:ident.id,to:peerId,sdp:pc.localDescription}});
 }
 async function handleSignal(p,ch){
-  if(!p||p.to!==ident.id||!p.from||state.blockedPlayerIds.has(String(p.from)))return;
+  if(!p||p.to!==ident.id||!p.from)return;
   const pc=pcFor(p.from,ch,false);
   if(p.sdp){
     await pc.setRemoteDescription(p.sdp);
