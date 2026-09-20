@@ -75,7 +75,7 @@ async function recordClip(name,action){
     while(idx<40){fs.writeFileSync(path.join(dir,'f-'+String(idx).padStart(5,'0')+'.jpg'),shot);idx++}
   }
   const out=path.join(OUT,name+'.mp4');
-  const sourceFps=Math.max(4,Math.min(24,idx/(wallMs/1000)));
+  const sourceFps=Math.max(1,Math.min(24,idx/(wallMs/1000)));
   ff(['-framerate',sourceFps.toFixed(3),'-i',path.join(dir,'f-%05d.jpg'),'-vf','framerate=fps=30:interp_start=0:interp_end=255:scene=100,format=yuv420p','-c:v','libx264','-preset','veryfast','-crf','19','-movflags','+faststart',out]);
   const seconds=idx/sourceFps;
   meta.clips.push({name,frames:idx,seconds,wallMs,sourceFps});
