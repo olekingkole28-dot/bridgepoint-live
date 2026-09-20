@@ -1558,9 +1558,10 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                  (RoofProfile == EHorizonSourceRoofProfile::Round &&
                   RoundRoofPoints.Num() == 6)))
             {
-                // Sourced gambrel and round roofs share a bounded three-band
-                // cross-section. Round roofs lift their shoulders higher to form
-                // a faceted barrel, without extra draw sections or collision.
+                // Sourced gambrel and round roofs share six bounded vertices
+                // in the existing mesh section. Round roofs lift their shoulders
+                // higher to form a faceted barrel, without extra draw sections
+                // or collision bodies.
                 const TArray<FVector2D>& ProfilePoints =
                     RoofProfile == EHorizonSourceRoofProfile::Round
                         ? RoundRoofPoints
