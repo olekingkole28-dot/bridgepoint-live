@@ -78,6 +78,24 @@ struct FHorizonMatchCompatibility
     float ConnectionPenalty = 0.0f;
 
     UPROPERTY(BlueprintReadOnly)
+    float SkillPenalty = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float ProgressPenalty = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float KillPenalty = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float InputPenalty = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float PlatformPenalty = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
+    float PartyPenalty = 0.0f;
+
+    UPROPERTY(BlueprintReadOnly)
     FString RejectionReason;
 };
 
@@ -91,6 +109,10 @@ public:
     FHorizonMatchCompatibility EvaluateCompatibility(
         const FHorizonMatchProfile& Host,
         const FHorizonMatchProfile& Candidate) const;
+
+    static bool ValidateProfile(
+        const FHorizonMatchProfile& Profile,
+        FString& OutRejectionReason);
 
 private:
     static constexpr int32 MaxCareerLevel = 100;
