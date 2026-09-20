@@ -36,6 +36,17 @@ MAX_DURATIONS={
 "09-3d-wind":3.8,"10-space-weather":4.4,"11-source-gated":5.8,"12-space-view":7.2,"13-outro":3.6
 }
 
+def run(cmd):
+    print("+"," ".join(shlex.quote(str(x)) for x in cmd))
+    subprocess.run([str(x) for x in cmd],check=True)
+
+def probe(p):
+    r=subprocess.run(["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",str(p)],capture_output=True,text=True,check=True)
+    return float(r.stdout.strip())
+
+def esc(t):
+    return t.replace("\\","\\\\").replace(":","\\:").replace("'","\\'").replace("%","\\%").replace(",","\\,")
+
 # The live browser shoot intentionally ends after the expensive space renderer. Build the brand close in post.
 outro_src=ROOT/"13-outro.mp4"
 if not outro_src.exists():
@@ -50,17 +61,6 @@ if not outro_src.exists():
       "fade=t=in:st=0:d=.25,fade=t=out:st=3.25:d=.35,format=yuv420p"
     )
     run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","lavfi","-i","color=c=0x030910:s=1080x1920:r=30:d=3.6","-vf",vf,"-an","-c:v","libx264","-preset","veryfast","-crf","18","-movflags","+faststart",outro_src])
-
-def run(cmd):
-    print("+"," ".join(shlex.quote(str(x)) for x in cmd))
-    subprocess.run([str(x) for x in cmd],check=True)
-
-def probe(p):
-    r=subprocess.run(["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",str(p)],capture_output=True,text=True,check=True)
-    return float(r.stdout.strip())
-
-def esc(t):
-    return t.replace("\\","\\\\").replace(":","\\:").replace("'","\\'").replace("%","\\%").replace(",","\\,")
 
 norm=[]
 dur=[]
