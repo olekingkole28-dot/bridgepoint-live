@@ -198,6 +198,47 @@ bool FHorizonWorldSourceRoofProfileTest::RunTest(const FString& Parameters)
         TEXT("Degenerate skillion footprint fails closed"),
         AHorizonWorldCellRenderer::ResolveSkillionHighEdge(DegenerateFootprint),
         FIntPoint(-1, -1));
+
+    TestEqual(
+        TEXT("Explicit rectangular mansard resolves to inset profile"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(TEXT("mansard"), 4),
+        EHorizonSourceRoofProfile::Mansard);
+    TestEqual(
+        TEXT("Source mansard height is preserved"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
+            TEXT("mansard"), 3.0, 14.0, 4),
+        3.0);
+    TestEqual(
+        TEXT("Non-rectangular mansard fails flat"),
+        AHorizonWorldCellRenderer::ResolveSourceRoofProfile(TEXT("mansard"), 5),
+        EHorizonSourceRoofProfile::Flat);
+
+    const TArray<FVector2D> MansardInset =
+        AHorizonWorldCellRenderer::ResolveMansardInsetFootprint(WideFootprint);
+    TestEqual(
+        TEXT("Valid mansard creates a four-corner inset"),
+        MansardInset.Num(),
+        4);
+    TestTrue(
+        TEXT("Mansard inset remains inside the source footprint"),
+        MansardInset.Num() == 4 &&
+        FMath::IsNearlyEqual(MansardInset[0].X, 1.1) &&
+        FMath::IsNearlyEqual(MansardInset[0].Y, 0.44));
+
+    const TArray<FVector2D> ConcaveFootprint = {
+        FVector2D(0.0, 0.0),
+        FVector2D(6.0, 0.0),
+        FVector2D(2.0, 1.0),
+        FVector2D(0.0, 4.0)
+    };
+    TestTrue(
+        TEXT("Concave mansard footprint fails closed"),
+        AHorizonWorldCellRenderer::ResolveMansardInsetFootprint(
+            ConcaveFootprint).IsEmpty());
+    TestTrue(
+        TEXT("Degenerate mansard footprint fails closed"),
+        AHorizonWorldCellRenderer::ResolveMansardInsetFootprint(
+            DegenerateFootprint).IsEmpty());
     return true;
 }
 
