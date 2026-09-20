@@ -199,6 +199,35 @@ int32 UHorizonChallengeDirectorSubsystem::ComputeDeferredRewardAmount(
     return FMath::Max(0, FMath::Max(0, RequestedQuantity) - FMath::Max(0, GrantedQuantity));
 }
 
+
+int32 UHorizonChallengeDirectorSubsystem::AdvanceProgressSafely(
+    int32 CurrentProgress,
+    int32 Amount,
+    int32 TargetCount)
+{
+    const int64 SafeTarget = FMath::Max<int64>(1, TargetCount);
+    const int64 SafeCurrent = FMath::Clamp<int64>(CurrentProgress, 0, SafeTarget);
+    const int64 SafeAmount = FMath::Max<int64>(0, Amount);
+    return static_cast<int32>(FMath::Min<int64>(SafeTarget, SafeCurrent + SafeAmount));
+}
+
+FHorizonChallengeRuntimeState UHorizonChallengeDirectorSubsystem::PrepareNextRun(
+    const FHorizonChallengeRuntimeState& PreviousRun)
+{
+    FHorizonChallengeRuntimeState NextRun = PreviousRun;
+    if (!PreviousRun.bClaimed)
+    {
+        return NextRun;
+    }
+
+    NextRun.Progress = 0;
+    NextRun.bCompleted = false;
+    NextRun.bClaimed = false;
+    NextRun.CompletedRuns = FMath::Max(0, PreviousRun.CompletedRuns);
+    NextRun.Definition.TargetCount = FMath::Max(1, PreviousRun.Definition.TargetCount);
+    return NextRun;
+}
+
 bool UHorizonChallengeDirectorSubsystem::OfferChallenge(
     const FString& NPCSiteId,
     EHorizonChallengeNPCRole Role,
@@ -214,7 +243,14 @@ bool UHorizonChallengeDirectorSubsystem::OfferChallenge(
 
     if (ExistingIndex != INDEX_NONE)
     {
-        OutChallenge = State->Challenges[ExistingIndex];
+        FHorizonChallengeRuntimeState& Existing = State->Challenges[ExistingIndex];
+        if (Existing.bClaimed)
+        {
+            Existing = PrepareNextRun(Existing);
+            SaveState();
+            OnChallengeChanged.Broadcast(Existing);
+        }
+        OutChallenge = Existing;
         return true;
     }
 
@@ -226,6 +262,7 @@ bool UHorizonChallengeDirectorSubsystem::OfferChallenge(
     Runtime.Progress = 0;
     Runtime.bCompleted = false;
     Runtime.bClaimed = false;
+    Runtime.CompletedRuns = 0;
 
     State->Challenges.Add(Runtime);
     SaveState();
@@ -259,7 +296,7 @@ bool UHorizonChallengeDirectorSubsystem::AddChallengeProgress(
     }
 
     const int32 Target = FMath::Max(1, Runtime.Definition.TargetCount);
-    Runtime.Progress = FMath::Clamp(Runtime.Progress + Amount, 0, Target);
+    Runtime.Progress = AdvanceProgressSafely(Runtime.Progress, Amount, Target);
     Runtime.bCompleted = Runtime.Progress >= Target;
 
     SaveState();
@@ -341,6 +378,9 @@ bool UHorizonChallengeDirectorSubsystem::ClaimChallengeReward(
     }
 
     Runtime.bClaimed = true;
+    Runtime.CompletedRuns = Runtime.CompletedRuns >= MAX_int32
+        ? MAX_int32
+        : FMath::Max(0, Runtime.CompletedRuns) + 1;
     SaveState();
 
     OutReward = Reward;
