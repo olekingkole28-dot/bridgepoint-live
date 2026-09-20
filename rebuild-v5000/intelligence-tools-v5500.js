@@ -103,7 +103,8 @@ export function initIntelligenceTools({map,rpc,weather,mode='app'}={}){
   makeSource(map,'bpScenarioV5500').setData({type:'FeatureCollection',features:rings});
   ensureLayer(map,{id:'bp-sim-fill-v5500',type:'fill',source:'bpScenarioV5500',paint:{'fill-color':['match',['get','type'],'HURRICANE','#4acde8','TORNADO','#cb72ff','FLOOD','#4f9cff','WILDFIRE','#ff713d','VOLCANO','#b85b42','EARTHQUAKE','#ffb154','HAIL','#d6efff','SNOW','#e9f7ff','WIND','#8dd7ff','#ff7350'],'fill-opacity':['interpolate',['linear'],['get','band'],1,.10,4,.025]}});
   ensureLayer(map,{id:'bp-sim-line-v5500',type:'line',source:'bpScenarioV5500',paint:{'line-color':'#ffb48d','line-width':['interpolate',['linear'],['zoom'],3,1.5,15,4],'line-opacity':.72}});
-  simBadge.hidden=false;say(type+' simulation · intensity '+level+' · '+Math.round(radius)+' km outer radius')
+  ensureLayer(map,{id:'bp-sim-volume-v5500',type:'fill-extrusion',source:'bpScenarioV5500',minzoom:6,paint:{'fill-extrusion-color':['match',['get','type'],'HURRICANE','#39bfdc','TORNADO','#b75cff','FLOOD','#428ee8','WILDFIRE','#ff6332','VOLCANO','#9f4939','EARTHQUAKE','#e99d42','HAIL','#d4efff','SNOW','#e5f6ff','WIND','#74c8f4','#ff7350'],'fill-extrusion-height':['*',['get','intensity'],['-',5,['get','band']],650],'fill-extrusion-base':0,'fill-extrusion-opacity':.10}});
+  simBadge.hidden=false;say(type+' 3D simulation · intensity '+level+' · '+Math.round(radius)+' km outer radius')
  }
  function flightStart(){
   if(state.flight){state.flight.active=false;state.flight=null;flightHud.hidden=true;btn('flight').classList.remove('active');say('Flight simulator off');return}
@@ -118,9 +119,14 @@ export function initIntelligenceTools({map,rpc,weather,mode='app'}={}){
   const zoom=clamp(18-Math.log2(Math.max(40,f.alt)/40),7,18);map.jumpTo({center:[f.lon,f.lat],zoom,pitch:78,bearing:f.bearing});
   flightHud.textContent='FLIGHT · '+Math.round(f.alt)+'M ALT · '+Math.round(f.speed*1.94384)+' KT · HDG '+Math.round((f.bearing+360)%360);requestAnimationFrame(flightFrame)
  }
- function driveToggle(){
-  allow('DRIVE').then(ok=>{if(!ok)return;const walk=document.getElementById('bpWalkToggle');if(walk){walk.click();btn('drive').classList.toggle('active',String(walk.textContent).includes('EXIT'));say('Drive/road mode · BridgePoint rendered 3D · no external street-photo feed')}else say('Drive mode is waiting for the road renderer to finish loading')})
+ function drivePanel(){
+  show('BRIDGEPOINT DRIVE','<p>Follow mapped road geometry in the BridgePoint rendered 3D world. No external street-photo provider is used.</p><div class="action"><button data-drive-toggle>START / STOP DRIVE</button><button data-drive-night>NIGHT</button><button data-drive-weather>WEATHER ON / OFF</button></div><p>Road movement uses the existing solid 3D world, buildings, terrain and weather context. Night is a visual mode, not historical imagery.</p>')
  }
+ async function driveToggle(){
+  if(!(await allow('DRIVE')))return;const walk=document.getElementById('bpWalkToggle');if(walk){walk.click();const on=String(walk.textContent).includes('EXIT');btn('drive').classList.toggle('active',on);say('Drive/road mode · BridgePoint rendered 3D · '+(on?'active':'off'))}else say('Drive mode is waiting for the road renderer to finish loading')
+ }
+ function driveNight(){state.driveNight=!state.driveNight;map.getContainer().classList.toggle('bp-night5500',state.driveNight);say('Drive night mode '+(state.driveNight?'on':'off'))}
+ function driveWeather(){const next=!(state.driveWeather!==false);state.driveWeather=next;try{weather?.setActive?.(next);weather?.setRadar?.(next)}catch{}say('Drive weather context '+(next?'on':'off'))}
  function windPanel(){
   const c=state.selectedBuilding?polygonCenter(state.selectedBuilding.geometry):null;
   show('BUILDING AERODYNAMICS','<p>'+(c?'Selected building ready.':'Select/tap a building on the map first.')+' This is a visualization aid, not stamped structural engineering.</p><label>WIND SPEED MPH<input id="bpWindSpeed" type="number" min="1" max="200" value="45"></label><label>DIRECTION °<input id="bpWindDir" type="number" min="0" max="359" value="270"></label><div class="action"><button data-run-wind>VISUALIZE</button><button data-clear-wind>CLEAR</button></div>')
@@ -146,8 +152,8 @@ export function initIntelligenceTools({map,rpc,weather,mode='app'}={}){
  async function timemap(){if(!(await allow('TIMEMAP')))return;let tm=window.__BP_WEATHER_TIMEMAP_V5201;if(!tm){try{const mod=await import('./weather-timemap-v5201.js?v=5500');tm=mod.initWeatherTimeMap({map,rpc,weather});window.__BP_WEATHER_TIMEMAP_V5201=tm}catch(e){say('Weather TimeMap retry · '+String(e?.message||e));return}}tm.queryHistory?.(true);say('Weather TimeMap active · drag FROM / TO / MOMENT bars')}
  function clearSimulation(){clearLayer('bpScenarioV5500');simBadge.hidden=true;say('Simulation cleared')}
  panel.querySelector('[data-close]').onclick=()=>panel.hidden=true;
- rail.onclick=e=>{const b=e.target.closest('[data-tool]');if(!b)return;const k=b.dataset.tool;if(k==='globe')toggleGlobe();else if(k==='timemap')timemap();else if(k==='global')globalHazards();else if(k==='flight')flightStart();else if(k==='drive')driveToggle();else if(k==='sky'){sourcePanel('AVIATION','AIRCRAFT / SATELLITES');liveEntities('SATELLITES','SKY')}else if(k==='transport')sourcePanel('TRANSPORT','LIVE TRANSPORT');else if(k==='cameras')sourcePanel('CAMERAS','PUBLIC CAMERA SOURCES');else if(k==='scenario')scenarioPanel();else if(k==='wind')windPanel();else if(k==='qr')qrPanel()};
- panel.onclick=e=>{if(e.target.matches('[data-run-sim]'))runScenario();if(e.target.matches('[data-clear-sim]'))clearSimulation();if(e.target.matches('[data-run-wind]'))runWind();if(e.target.matches('[data-clear-wind]'))clearLayer('bpWindV5500');const r=e.target.closest('[data-ride]');if(r)rideEntity(r.dataset.ride)};
+ rail.onclick=e=>{const b=e.target.closest('[data-tool]');if(!b)return;const k=b.dataset.tool;if(k==='globe')toggleGlobe();else if(k==='timemap')timemap();else if(k==='global')globalHazards();else if(k==='flight')flightStart();else if(k==='drive')drivePanel();else if(k==='sky'){sourcePanel('AVIATION','AIRCRAFT / SATELLITES');liveEntities('SATELLITES','SKY')}else if(k==='transport')sourcePanel('TRANSPORT','LIVE TRANSPORT');else if(k==='cameras')sourcePanel('CAMERAS','PUBLIC CAMERA SOURCES');else if(k==='scenario')scenarioPanel();else if(k==='wind')windPanel();else if(k==='qr')qrPanel()};
+ panel.onclick=e=>{if(e.target.matches('[data-run-sim]'))runScenario();if(e.target.matches('[data-clear-sim]'))clearSimulation();if(e.target.matches('[data-run-wind]'))runWind();if(e.target.matches('[data-clear-wind]'))clearLayer('bpWindV5500');if(e.target.matches('[data-drive-toggle]'))driveToggle();if(e.target.matches('[data-drive-night]'))driveNight();if(e.target.matches('[data-drive-weather]'))driveWeather();const r=e.target.closest('[data-ride]');if(r)rideEntity(r.dataset.ride)};
  addEventListener('keydown',e=>{if(state.flight?.active)state.flight.keys.add(e.code)});
  addEventListener('keyup',e=>state.flight?.keys.delete(e.code));
  addEventListener('bp2300:building-click',e=>{state.selectedBuilding=e.detail?.feature||null});
