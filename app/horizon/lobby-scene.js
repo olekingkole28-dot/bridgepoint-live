@@ -231,5 +231,11 @@ export function createLobbyScene(canvas){
   }
   requestAnimationFrame(frame);
 
-  return{setCatalog,setParty,getStats:()=>({models:models.length,openSlots:slotGroup.children.length,zombies:zombieGroup.children.length,fps:Math.round(lastFps),dpr:Number(currentDpr.toFixed(2)),mobile,high}),destroy(){destroyed=true;ro.disconnect();renderer.dispose()}};
+  return{setCatalog,setParty,getStats:()=>({
+    models:models.length,
+    idleRigs:models.filter(m=>m.rig&&Object.keys(m.rig.bones||{}).length>=6).length,
+    armedIdle:models.filter(m=>m.root?.getObjectByName?.('lobby-rifle')).length,
+    openSlots:slotGroup.children.length,zombies:zombieGroup.children.length,
+    fps:Math.round(lastFps),dpr:Number(currentDpr.toFixed(2)),mobile,high
+  }),destroy(){destroyed=true;ro.disconnect();renderer.dispose()}};
 }
