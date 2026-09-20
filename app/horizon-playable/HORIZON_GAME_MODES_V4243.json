@@ -174,7 +174,7 @@
       "ready state"
     ],
     "year_one_behavior": "player may customize in shared lobby but launching Year One always forces solo and cannot bring the party into the match",
-    "tdm_behavior": "players may queue solo, duo, trio or squad; matchmaking rotates the 50-map real-location pool automatically",
+    "tdm_behavior": "players may queue solo, duo, trio or squad; each match votes between two of the 50 real-location maps or Random for 10 seconds",
     "account_required": true,
     "unique_handle": true,
     "character_creator": true,
