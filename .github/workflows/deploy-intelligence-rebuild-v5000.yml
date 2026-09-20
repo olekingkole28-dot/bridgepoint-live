@@ -169,8 +169,8 @@ jobs:
           node --check site/landing.js
           node --check site/intelligence-global-v5507.js
           node --check site/intelligence-tools-v5507.js
-          grep -Fq 'intelligence-tools-v5507.js?v=5515' site/index.html
-          grep -Fq 'intelligence-tools-v5507.js?v=5515' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5516' site/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5516' site/app/index.html
           grep -Fq 'FREE PREMIUM TOOLS' site/intelligence-tools-v5507.js
           grep -Fq 'Use two fingers and swipe / scroll up' site/intelligence-global-v5507.js
           grep -Fq 'bp5507-tect-line' site/intelligence-global-v5507.js
@@ -180,8 +180,8 @@ jobs:
           grep -Fq 'NASA_GPM_IMERG_NEAR_REALTIME' site/intelligence-global-v5507.js
           grep -Fq 'bp5510-global-imerg' site/intelligence-global-v5507.js
           grep -Fq 'centerOnViewerCountry' site/intelligence-global-v5507.js
-          grep -Fq '__BP_GLOBAL_RUNTIME_BOOT_V5515__' site/intelligence-global-v5507.js
-          grep -Fq '__BP_PREMIUM_TOOLS_BOOT_V5515__' site/intelligence-tools-v5507.js
+          grep -Fq '__BP_GLOBAL_RUNTIME_BOOT_V5516__' site/intelligence-global-v5507.js
+          grep -Fq '__BP_PREMIUM_TOOLS_BOOT_V5516__' site/intelligence-tools-v5507.js
           grep -Fq "id:'gta-country'" site/world-v2300-map.js
           grep -Fq 'preserving the last visible weather + global layer' site/app.js
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' site/landing.js
@@ -677,7 +677,7 @@ jobs:
                 freePremiumVisible:(()=>{const e=document.getElementById('appFreePremiumTools');return !!e&&getComputedStyle(e).display!=='none'})(),
                 mobileAppChromeHide:(()=>{document.body.classList.add('bp5507-mobile-busy');const search=document.getElementById('publicSearchForm'),key=document.getElementById('bp5507-key');const ok=(!search||getComputedStyle(search).display==='none')&&(!key||getComputedStyle(key).display==='none');document.body.classList.remove('bp5507-mobile-busy');return ok})()
               }));
-              if(intel5507.runtime!==5515||intel5507.tools!==5515||!intel5507.key||!intel5507.premiumTools||!intel5507.live||!intel5507.tectonics||!intel5507.globalPrecip||!intel5507.freePremiumVisible||!intel5507.mobileAppChromeHide||!intel5507.defaultGlobe)throw new Error('INTELLIGENCE_V5507_REGRESSION '+JSON.stringify(intel5507));
+              if(intel5507.runtime!==5516||intel5507.tools!==5516||!intel5507.key||!intel5507.premiumTools||!intel5507.live||!intel5507.tectonics||!intel5507.globalPrecip||!intel5507.freePremiumVisible||!intel5507.mobileAppChromeHide||!intel5507.defaultGlobe)throw new Error('INTELLIGENCE_V5507_REGRESSION '+JSON.stringify(intel5507));
               console.log('BRIDGEPOINT_INTELLIGENCE_V5507_PASS',JSON.stringify(intel5507));
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
