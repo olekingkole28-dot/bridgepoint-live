@@ -392,22 +392,45 @@ FIntPoint AHorizonWorldCellRenderer::ResolveBuildingLodCounts(
     return FIntPoint(CollidableCount, VisibleCount - CollidableCount);
 }
 
-double AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
+EHorizonSourceRoofProfile AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
     const FString& RoofShape,
-    double RequestedRoofHeightMeters,
-    double TotalBuildingHeightMeters)
+    int32 FootprintVertexCount)
 {
     FString NormalizedShape = RoofShape;
     NormalizedShape.TrimStartAndEndInline();
     NormalizedShape.ToLowerInline();
 
-    const bool bApexProfile =
-        NormalizedShape == TEXT("pyramidal") ||
+    if (NormalizedShape == TEXT("pyramidal") ||
         NormalizedShape == TEXT("pyramid") ||
         NormalizedShape == TEXT("conical") ||
-        NormalizedShape == TEXT("cone");
+        NormalizedShape == TEXT("cone"))
+    {
+        return EHorizonSourceRoofProfile::Apex;
+    }
+    if (FootprintVertexCount == 4 &&
+        (NormalizedShape == TEXT("gabled") ||
+         NormalizedShape == TEXT("gable")))
+    {
+        return EHorizonSourceRoofProfile::Gabled;
+    }
+    if (FootprintVertexCount == 4 &&
+        (NormalizedShape == TEXT("hipped") ||
+         NormalizedShape == TEXT("hip")))
+    {
+        return EHorizonSourceRoofProfile::Hipped;
+    }
+    return EHorizonSourceRoofProfile::Flat;
+}
 
-    if (!bApexProfile ||
+double AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
+    const FString& RoofShape,
+    double RequestedRoofHeightMeters,
+    double TotalBuildingHeightMeters,
+    int32 FootprintVertexCount)
+{
+    const EHorizonSourceRoofProfile Profile =
+        ResolveSourceRoofProfile(RoofShape, FootprintVertexCount);
+    if (Profile == EHorizonSourceRoofProfile::Flat ||
         !FMath::IsFinite(RequestedRoofHeightMeters) ||
         !FMath::IsFinite(TotalBuildingHeightMeters) ||
         RequestedRoofHeightMeters <= 0.05 ||
@@ -1021,10 +1044,13 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
             Feature->TryGetStringField(TEXT("roof_shape"), RoofShape);
             double RequestedRoofHeightMeters = 0.0;
             Feature->TryGetNumberField(TEXT("roof_height_m"), RequestedRoofHeightMeters);
+            const EHorizonSourceRoofProfile RoofProfile =
+                ResolveSourceRoofProfile(RoofShape, Ring.Num());
             const double ProfileRoofHeightMeters = ResolveSourceRoofHeightMeters(
                 RoofShape,
                 RequestedRoofHeightMeters,
-                HeightMeters);
+                HeightMeters,
+                Ring.Num());
 
             double AverageLongitude = 0.0;
             double AverageLatitude = 0.0;
@@ -1089,7 +1115,8 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                 UV0.Add(FVector2D(Point.X * 0.001f, Point.Y * 0.001f));
             }
 
-            if (ProfileRoofHeightMeters > 0.0)
+            if (ProfileRoofHeightMeters > 0.0 &&
+                RoofProfile == EHorizonSourceRoofProfile::Apex)
             {
                 const FVector Apex = ProjectCoordinate(
                     AverageLongitude,
@@ -1104,6 +1131,65 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                     Triangles.Add(RoofBase + Index);
                     Triangles.Add(RoofBase + Next);
                     Triangles.Add(ApexIndex);
+                }
+                ++RenderedProfiledRoofCount;
+            }
+            else if (ProfileRoofHeightMeters > 0.0 &&
+                Top.Num() == 4 &&
+                (RoofProfile == EHorizonSourceRoofProfile::Gabled ||
+                 RoofProfile == EHorizonSourceRoofProfile::Hipped))
+            {
+                const bool bFirstEdgeIsShorter =
+                    FVector2D::Distance(LocalPolygon[0], LocalPolygon[1]) <=
+                    FVector2D::Distance(LocalPolygon[1], LocalPolygon[2]);
+                FVector2D RidgeGeoA = bFirstEdgeIsShorter
+                    ? (Ring[0] + Ring[1]) * 0.5f
+                    : (Ring[1] + Ring[2]) * 0.5f;
+                FVector2D RidgeGeoB = bFirstEdgeIsShorter
+                    ? (Ring[2] + Ring[3]) * 0.5f
+                    : (Ring[3] + Ring[0]) * 0.5f;
+
+                // A hipped ridge terminates inside the footprint; a gable ridge
+                // reaches the short-edge midpoints. Orientation comes only from
+                // the source footprint's longest axis.
+                if (RoofProfile == EHorizonSourceRoofProfile::Hipped)
+                {
+                    const FVector2D OriginalA = RidgeGeoA;
+                    RidgeGeoA = FMath::Lerp(OriginalA, RidgeGeoB, 0.18f);
+                    RidgeGeoB = FMath::Lerp(RidgeGeoB, OriginalA, 0.18f);
+                }
+
+                const FVector RidgeA = ProjectCoordinate(RidgeGeoA.X, RidgeGeoA.Y, TopMeters);
+                const FVector RidgeB = ProjectCoordinate(RidgeGeoB.X, RidgeGeoB.Y, TopMeters);
+                const int32 RidgeAIndex = Vertices.Add(RidgeA);
+                const int32 RidgeBIndex = Vertices.Add(RidgeB);
+                UV0.Add(FVector2D(RidgeA.X * 0.001f, RidgeA.Y * 0.001f));
+                UV0.Add(FVector2D(RidgeB.X * 0.001f, RidgeB.Y * 0.001f));
+
+                auto AddRoofTriangle = [&](int32 A, int32 B, int32 C)
+                {
+                    Triangles.Add(A);
+                    Triangles.Add(B);
+                    Triangles.Add(C);
+                };
+
+                if (bFirstEdgeIsShorter)
+                {
+                    AddRoofTriangle(RoofBase + 0, RoofBase + 1, RidgeAIndex);
+                    AddRoofTriangle(RoofBase + 1, RoofBase + 2, RidgeBIndex);
+                    AddRoofTriangle(RoofBase + 1, RidgeBIndex, RidgeAIndex);
+                    AddRoofTriangle(RoofBase + 2, RoofBase + 3, RidgeBIndex);
+                    AddRoofTriangle(RoofBase + 3, RoofBase + 0, RidgeAIndex);
+                    AddRoofTriangle(RoofBase + 3, RidgeAIndex, RidgeBIndex);
+                }
+                else
+                {
+                    AddRoofTriangle(RoofBase + 0, RoofBase + 1, RidgeAIndex);
+                    AddRoofTriangle(RoofBase + 0, RidgeAIndex, RidgeBIndex);
+                    AddRoofTriangle(RoofBase + 1, RoofBase + 2, RidgeAIndex);
+                    AddRoofTriangle(RoofBase + 2, RoofBase + 3, RidgeBIndex);
+                    AddRoofTriangle(RoofBase + 2, RidgeBIndex, RidgeAIndex);
+                    AddRoofTriangle(RoofBase + 3, RoofBase + 0, RidgeBIndex);
                 }
                 ++RenderedProfiledRoofCount;
             }
