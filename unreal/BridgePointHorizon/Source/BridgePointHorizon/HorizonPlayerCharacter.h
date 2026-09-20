@@ -216,6 +216,15 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
     float FacingInterpolationSpeed = 24.0f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement|Input", meta=(ClampMin="0.0", ClampMax="0.40"))
+    float MovementInputDeadzone = 0.12f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement|Input", meta=(ClampMin="0.0", ClampMax="0.20"))
+    float MovementInputOuterDeadzone = 0.02f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement|Input", meta=(ClampMin="0.50", ClampMax="3.0"))
+    float MovementInputResponseExponent = 1.15f;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Camera|Lean", meta=(ClampMin="0.0", ClampMax="45.0"))
     float LeanDistanceCm = 24.0f;
 
@@ -294,6 +303,12 @@ public:
 
     UFUNCTION(BlueprintPure, Category="Horizon|Camera|Lean")
     float GetLeanAlpha() const { return CurrentLeanAlpha; }
+
+    static FVector2D ShapeMovementInput(
+        const FVector2D& RawInput,
+        float Deadzone = 0.12f,
+        float OuterDeadzone = 0.02f,
+        float ResponseExponent = 1.15f);
 
     static FVector ResolveSwimDirection(
         const FVector& ViewForward,
