@@ -370,9 +370,9 @@ let onlineChannel=null,onlineUser=null,onlineSubscribed=false,onlineLastSend=0,o
 const remoteOnlinePlayers=new Map();
 let playerModelYawOffset=0,playerAssetLoaded=false,playerAssetMode='fallback';
 const CONTROL_PREFS_KEY='bridgepoint-horizon-controls-v1';
-const CAMERA_MODES=Object.freeze(['firstPerson','thirdPersonClose','thirdPersonFar']);
+const CAMERA_MODES=Object.freeze(['firstPerson']);
 let controlPrefs={
-  cameraMode:'thirdPersonClose',
+  cameraMode:'firstPerson',
   inputProfile:'auto',
   touchLookSensitivity:.0045,
   mouseLookSensitivity:.0032,
@@ -392,8 +392,9 @@ try{
     }
   }
 }catch(_){}
-let yaw=0,pitch=.14,cameraMode=Math.max(0,CAMERA_MODES.indexOf(controlPrefs.cameraMode));
-if(cameraMode<0)cameraMode=1;
+// First-person is the only Horizon gameplay perspective, including this legacy surface.
+controlPrefs.cameraMode='firstPerson';
+let yaw=0,pitch=.14,cameraMode=0;
 let firstPersonRig=null,firstPersonWeapon=null,firstPersonFallbackArms=null,firstPersonActualArms=null,firstPersonArmsSource=null;
 let health=100,lastDamageAt=0;
 let playerSpawn=new THREE.Vector3();
@@ -5581,12 +5582,11 @@ function openControlSettings(){
 }
 function closeControlSettings(){const panel=$('controlSettings');if(panel)panel.hidden=true}
 function cycleCameraMode(){
-  cameraMode=(cameraMode+1)%CAMERA_MODES.length;
+  cameraMode=0;controlPrefs.cameraMode='firstPerson';
   persistControlPrefs();
   refreshFirstPersonRig();
   syncControlSettingsUi();
-  const label=CAMERA_MODES[cameraMode]==='firstPerson'?'FIRST PERSON':CAMERA_MODES[cameraMode]==='thirdPersonFar'?'THIRD PERSON · FAR':'THIRD PERSON · CLOSE';
-  showToast(label);
+  showToast('FIRST PERSON');
 }
 let mouseLookLocked=false;
 function wantsMousePointerLock(e){
@@ -5765,8 +5765,9 @@ function initInput(){
   $('settingsBtn').onclick=e=>{e?.preventDefault?.();openControlSettings()};
   $('controlSettingsClose').onclick=e=>{e?.preventDefault?.();closeControlSettings()};
   $('cameraModeSetting')?.addEventListener('change',e=>{
-    const next=CAMERA_MODES.indexOf(String(e.target.value));
-    if(next>=0){cameraMode=next;persistControlPrefs();refreshFirstPersonRig();setCameraPresentation();syncControlSettingsUi()}
+    cameraMode=0;controlPrefs.cameraMode='firstPerson';
+    if(e?.target){e.target.value='firstPerson';e.target.disabled=true}
+    persistControlPrefs();refreshFirstPersonRig();setCameraPresentation();syncControlSettingsUi();
   });
   $('inputProfileSetting')?.addEventListener('change',e=>applyControlProfileDefaults(String(e.target.value||'auto')));
   $('gamepadLayoutSetting')?.addEventListener('change',e=>{

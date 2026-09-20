@@ -130,9 +130,22 @@ void AHorizonWorldRuntime::HandleWorldCellLoaded(
         if (UHorizonAutopilotSubsystem* Autopilot = World->GetSubsystem<UHorizonAutopilotSubsystem>())
         {
             const FHorizonAutopilotProfile Profile = Autopilot->GetProfile();
-            Renderer->MaxBuildingsPerCell = Profile.MaxBuildingsPerCell;
-            Renderer->MaxCollidableBuildingsPerCell = Profile.MaxCollidableBuildingsPerCell;
-            Renderer->MaxBuildingPartsPerCell = Profile.MaxBuildingPartsPerCell;
+            // Visual fidelity follows the shared BridgePoint source cell exactly:
+            // never discard a returned building/part for a performance tier. Collision
+            // remains adaptive so far structures do not all become physics bodies.
+            const int32 SourceBuildingCount = static_cast<int32>(
+                FMath::Min<int64>(Cell.BuildingCount, MAX_int32));
+            const int32 SourcePartCount = static_cast<int32>(
+                FMath::Min<int64>(Cell.BuildingPartCount, MAX_int32));
+            Renderer->MaxBuildingsPerCell = FMath::Max(
+                Profile.MaxBuildingsPerCell,
+                SourceBuildingCount);
+            Renderer->MaxCollidableBuildingsPerCell = FMath::Min(
+                SourceBuildingCount,
+                Profile.MaxCollidableBuildingsPerCell);
+            Renderer->MaxBuildingPartsPerCell = FMath::Max(
+                Profile.MaxBuildingPartsPerCell,
+                SourcePartCount);
             const float StreamPressure = Cell.SpanKm > 0.0
                 ? FMath::Clamp(
                     static_cast<float>(Cell.BuildingCount) /

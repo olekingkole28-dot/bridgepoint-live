@@ -324,7 +324,7 @@ private:
     EHorizonMovementStance MovementStance = EHorizonMovementStance::Standing;
 
     UPROPERTY()
-    EHorizonCameraMode CameraMode = EHorizonCameraMode::ThirdPerson;
+    EHorizonCameraMode CameraMode = EHorizonCameraMode::FirstPerson;
 
     void StartTraversalJump();
     bool TryStartVault();

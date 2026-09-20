@@ -75,6 +75,12 @@ for stem in required_source:
     require(ht.count("{") == ht.count("}"), f"brace mismatch: {h}")
     require(cppt.count("{") == cppt.count("}"), f"brace mismatch: {cpp}")
 
+arena_director = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonArenaDirectorSubsystem.cpp")
+require(arena_director.count('Add(TEXT("tdm_') == 50,
+        "native TDM fallback must contain exactly 50 real-location arenas")
+for token in ["GetRankedArenas(50)", "RotationCounter", "PoolSize", "LastArenaId"]:
+    require(token in arena_director, f"50-map automatic native arena rotation missing: {token}")
+
 game_state_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGameStateSubsystem.h")
 game_state = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonGameStateSubsystem.cpp")
 require("YearOne.DurationDays = 365" in game_state, "Year One must remain 365 days")
@@ -662,8 +668,10 @@ for token in ["/Engine/Maps/Entry", "GlobalDefaultGameMode=/Script/BridgePointHo
     require(token in engine_config, f"native bootstrap config missing: {token}")
 
 input_config = read("unreal/BridgePointHorizon/Config/DefaultInput.ini")
-for token in ['AxisName="MoveForward"', 'AxisName="MoveRight"', 'AxisName="Lean"', 'ActionName="Sprint"', 'ActionName="Crouch"', 'ActionName="Aim"', 'ActionName="Fire"', 'ActionName="Reload"', 'ActionName="ToggleCamera"', 'ActionName="Prone"', 'ActionName="Slide"']:
+for token in ['AxisName="MoveForward"', 'AxisName="MoveRight"', 'AxisName="Lean"', 'ActionName="Sprint"', 'ActionName="Crouch"', 'ActionName="Aim"', 'ActionName="Fire"', 'ActionName="Reload"', 'ActionName="Prone"', 'ActionName="Slide"']:
     require(token in input_config, f"native movement input missing: {token}")
+require('ActionName="ToggleCamera"' not in input_config,
+        "first-person-only Horizon must not expose a camera-toggle input")
 
 player_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonPlayerCharacter.h")
 player = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonPlayerCharacter.cpp")
@@ -700,7 +708,9 @@ for token in [
     "ApplyMovementInput(DeltaSeconds)", "CachedMoveInput.GetClampedToMaxSize(1.0f)",
     "Forward * Input.Y + Right * Input.X", "DesiredDirection.Rotation().Yaw",
     "Move->bOrientRotationToMovement = false", "UpdateCameraPresentation",
-    "CameraBoom->bDoCollisionTest = !bFirstPerson", "CharacterMesh->SetOwnerNoSee(bFirstPerson)",
+    "CameraMode = EHorizonCameraMode::FirstPerson",
+    "CameraBoom->TargetArmLength = 0.0f", "CameraBoom->bDoCollisionTest = false",
+    "CharacterMesh->SetOwnerNoSee(true)",
     "StartTraversalJump", "ToggleProne", "StartSlide", "UpdateTraversalState",
     "HasStandingClearance", "OverlapBlockingTestByChannel",
     "Capsule->SetCapsuleSize(ProneCapsuleRadius", "SlideBrakingDeceleration * DeltaSeconds",
@@ -731,6 +741,16 @@ for token in [
     require(token in player, f"native facing/camera regression guard missing: {token}")
 require("AddMovementInput(FRotationMatrix" not in player,
         "movement axes must be combined before applying input and facing")
+require('BindAction(TEXT("ToggleCamera")' not in player,
+        "first-person-only Horizon must not bind a camera toggle")
+game_state_contract = game_state_header + "\n" + game_state
+require("Rules.MinPartySize = 1" in game_state.partition("case EHorizonGameMode::InfiniteTDM:")[2].partition("case EHorizonGameMode::OutbreakRaid:")[0],
+        "native TDM must allow solo queue parties")
+require("NewMode != EHorizonGameMode::YearOneSurvival" in game_state and
+        "NewMode != EHorizonGameMode::InfiniteTDM" in game_state,
+        "native mode selector must reject retired modes")
+require("OutbreakRaid UMETA(Hidden)" in game_state_header,
+        "retired native raid enum must remain hidden compatibility-only")
 for token in [
     "UHorizonWeaponRuntimeComponent", "BindAction(TEXT(\"Fire\")",
     "BindAction(TEXT(\"Reload\")", "WeaponRuntime->StartFire(bAiming)",
@@ -835,17 +855,27 @@ for token in ["AHorizonPlayerCharacter::StaticClass", "AHorizonWorldRuntime::Sta
     require(token in game_mode, f"native bootstrap game mode feature missing: {token}")
 
 mode_contract_path = ROOT / "app" / "horizon-playable" / "HORIZON_GAME_MODES_V4243.json"
-require(mode_contract_path.exists(), "authoritative three-mode contract missing")
+require(mode_contract_path.exists(), "authoritative two-mode contract missing")
 if mode_contract_path.exists():
     spec = json.loads(mode_contract_path.read_text(encoding="utf-8"))
     modes = spec.get("authoritative_modes", [])
     keys = [m.get("mode_key") for m in modes]
-    require(keys == ["year_one_survival", "infinite_tdm", "outbreak_raid"],
+    require(keys == ["year_one_survival", "infinite_tdm"],
             f"unexpected mode catalog: {keys}")
+    require(spec.get("perspective") == "FIRST_PERSON_ONLY",
+            "Horizon gameplay contract must remain first-person only")
     by_key = {m["mode_key"]: m for m in modes}
     year = by_key.get("year_one_survival", {})
     require(year.get("party", {}).get("max") == 1, "Year One must be solo")
     require(year.get("party", {}).get("invites_allowed") is False, "Year One invites must be disabled")
+    require(year.get("event", {}).get("duration_days") == 365, "Year One must remain 365 days")
+    tdm = by_key.get("infinite_tdm", {})
+    require(tdm.get("party", {}).get("supported") == [1, 2, 3, 4],
+            "TDM must support solo, duo, trio and squad parties")
+    require(tdm.get("format") == "6v6", "TDM must remain 6v6")
+    arena = tdm.get("arena_switcher", {})
+    require(arena.get("automatic") is True and arena.get("map_count") == 50,
+            "TDM must automatically rotate exactly 50 real-location arenas")
 
 importer = read("unreal/BridgePointHorizon/Scripts/horizon_batch_import.py")
 for token in [

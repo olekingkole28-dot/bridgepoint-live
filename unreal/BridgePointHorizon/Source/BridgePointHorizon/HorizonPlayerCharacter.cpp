@@ -44,14 +44,16 @@ AHorizonPlayerCharacter::AHorizonPlayerCharacter()
 
     CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
     CameraBoom->SetupAttachment(GetRootComponent());
-    CameraBoom->TargetArmLength = ThirdPersonArmLength;
+    // Horizon is first-person only. Keep the spring arm as a head/lean mount,
+    // but never allow a chase-camera arm, lag, or third-person collision swing.
+    CameraBoom->TargetArmLength = 0.0f;
     CameraBoom->bUsePawnControlRotation = true;
-    CameraBoom->bEnableCameraLag = true;
-    CameraBoom->CameraLagSpeed = 15.0f;
-    CameraBoom->bEnableCameraRotationLag = true;
-    CameraBoom->CameraRotationLagSpeed = 18.0f;
-    CameraBoom->bDoCollisionTest = true;
-    CameraBoom->SocketOffset = FVector(0.0f, 54.0f, 62.0f);
+    CameraBoom->bEnableCameraLag = false;
+    CameraBoom->CameraLagSpeed = 24.0f;
+    CameraBoom->bEnableCameraRotationLag = false;
+    CameraBoom->CameraRotationLagSpeed = 24.0f;
+    CameraBoom->bDoCollisionTest = false;
+    CameraBoom->SocketOffset = FVector(12.0f, 0.0f, 70.0f);
 
     FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
     FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
@@ -113,7 +115,7 @@ void AHorizonPlayerCharacter::BeginPlay()
     CurrentArmor = MaxArmor;
 
     RefreshMovementProfile();
-    RefreshFirstPersonVisualState();
+    SetCameraMode(EHorizonCameraMode::FirstPerson);
 }
 
 float AHorizonPlayerCharacter::TakeDamage(
@@ -328,7 +330,7 @@ void AHorizonPlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerI
     PlayerInputComponent->BindAction(TEXT("Fire"), IE_Pressed, this, &AHorizonPlayerCharacter::StartFireInput);
     PlayerInputComponent->BindAction(TEXT("Fire"), IE_Released, this, &AHorizonPlayerCharacter::StopFireInput);
     PlayerInputComponent->BindAction(TEXT("Reload"), IE_Pressed, this, &AHorizonPlayerCharacter::ReloadInput);
-    PlayerInputComponent->BindAction(TEXT("ToggleCamera"), IE_Pressed, this, &AHorizonPlayerCharacter::ToggleCameraMode);
+    // No camera-toggle binding: Horizon has one gameplay perspective, first person.
 }
 
 void AHorizonPlayerCharacter::StartTraversalJump()
@@ -754,29 +756,25 @@ void AHorizonPlayerCharacter::UpdateCameraPresentation(float DeltaSeconds)
 
 void AHorizonPlayerCharacter::SetCameraMode(EHorizonCameraMode NewMode)
 {
-    if (CameraMode == NewMode)
-    {
-        return;
-    }
-
-    CameraMode = NewMode;
-    const bool bFirstPerson = CameraMode == EHorizonCameraMode::FirstPerson;
-    CameraBoom->bDoCollisionTest = !bFirstPerson;
-    CameraBoom->bEnableCameraLag = !bFirstPerson;
-    CameraBoom->bEnableCameraRotationLag = !bFirstPerson;
+    // Preserve the public API for Blueprint/backward compatibility, but clamp
+    // every request to the only supported Horizon perspective.
+    (void)NewMode;
+    CameraMode = EHorizonCameraMode::FirstPerson;
+    CameraBoom->TargetArmLength = 0.0f;
+    CameraBoom->bDoCollisionTest = false;
+    CameraBoom->bEnableCameraLag = false;
+    CameraBoom->bEnableCameraRotationLag = false;
 
     if (USkeletalMeshComponent* CharacterMesh = GetMesh())
     {
-        CharacterMesh->SetOwnerNoSee(bFirstPerson);
+        CharacterMesh->SetOwnerNoSee(true);
     }
     RefreshFirstPersonVisualState();
 }
 
 void AHorizonPlayerCharacter::ToggleCameraMode()
 {
-    SetCameraMode(CameraMode == EHorizonCameraMode::FirstPerson
-        ? EHorizonCameraMode::ThirdPerson
-        : EHorizonCameraMode::FirstPerson);
+    SetCameraMode(EHorizonCameraMode::FirstPerson);
 }
 
 void AHorizonPlayerCharacter::StartSprint()

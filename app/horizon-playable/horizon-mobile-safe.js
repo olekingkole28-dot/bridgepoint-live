@@ -5,7 +5,7 @@ const ua=navigator.userAgent||'';
 const android=/Android/i.test(ua);
 const coarse=matchMedia?.('(pointer:coarse)')?.matches===true;
 const enabled=android;
-window.BP_MOBILE_SAFE={enabled,android,coarse,version:3052,sceneTrimmed:false};
+window.BP_MOBILE_SAFE={enabled,android,coarse,version:4335,sceneTrimmed:false};
 
 if(enabled){
   document.documentElement.classList.add('horizon-mobile-safe');
@@ -43,13 +43,14 @@ if(enabled){
       const payload=await response.clone().json();
       if(!payload?.complete)return response;
       const limit=(arr,n)=>Array.isArray(arr)&&arr.length>n?arr.slice(0,n):arr;
-      payload.buildings=limit(payload.buildings,520);
-      payload.building_parts=limit(payload.building_parts,650);
+      // Never trim source buildings or building parts: Horizon must match the
+      // BridgePoint world cell on every device. Phone LOD only reduces secondary layers.
       payload.parcels=limit(payload.parcels,420);
       payload.transport=limit(payload.transport,850);
       payload.water=limit(payload.water,180);
       payload.mobile_lod=true;
-      window.BP_MOBILE_SAFE.sceneTrimmed=true;
+      payload.building_fidelity='FULL_SOURCE_SET';
+      window.BP_MOBILE_SAFE.sceneTrimmed=false;
       return new Response(JSON.stringify(payload),{
         status:response.status,
         statusText:response.statusText,
