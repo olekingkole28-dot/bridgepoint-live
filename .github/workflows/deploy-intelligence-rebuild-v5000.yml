@@ -175,7 +175,7 @@ jobs:
           grep -Fq 'Use two fingers and swipe / scroll up' site/intelligence-global-v5507.js
           grep -Fq 'bp5507-tect-line' site/intelligence-global-v5507.js
           grep -Fq '#landingPropertySearch' site/intelligence-v5507.css
-          grep -Fq 'data-globe' site/intelligence-tools-v5507.js
+          grep -Fq 'data-home' site/intelligence-tools-v5507.js
           grep -Fq 'bindInfo' site/intelligence-global-v5507.js
           grep -Fq 'NASA_GPM_IMERG_NEAR_REALTIME' site/intelligence-global-v5507.js
           grep -Fq 'bp5510-global-imerg' site/intelligence-global-v5507.js
