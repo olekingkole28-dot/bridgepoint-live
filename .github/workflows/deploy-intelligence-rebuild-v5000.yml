@@ -178,18 +178,22 @@ jobs:
           node --check site/road-drive-v5527.js
           node --check site/scenario-lab-v5525.js
           node --check site/qr-house-v5521.js
-          grep -Fq 'intelligence-tools-v5507.js?v=5529' site/index.html
-          grep -Fq 'intelligence-tools-v5507.js?v=5529' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5530' site/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5530' site/app/index.html
           grep -Fq 'FREE PREMIUM TOOLS' site/intelligence-tools-v5507.js
           grep -Fq 'openScenarioLab' site/intelligence-tools-v5507.js
           grep -Fq 'openRoadDrive' site/intelligence-tools-v5507.js
           grep -Fq 'const RoadDrive5527=(()=>{' site/intelligence-tools-v5507.js
           ! grep -Fq "from'/road-drive-v5527.js?v=5527'" site/intelligence-tools-v5507.js
-          grep -Fq '__BP_ROAD_DRIVE_V5527__' site/road-drive-v5527.js
+          grep -Fq '__BP_ROAD_DRIVE_V5530__' site/road-drive-v5527.js
           grep -Fq 'FREE · UNLIMITED' site/road-drive-v5527.js
           grep -Fq 'LIVE WEATHER · CURRENT CONDITIONS' site/road-drive-v5527.js
-          grep -Fq 'road-drive-v5527.css?v=5527' site/index.html
-          grep -Fq 'road-drive-v5527.css?v=5527' site/app/index.html
+          grep -Fq 'bp-rd-source-buildings-v5530' site/road-drive-v5527.js
+          grep -Fq 'syncFireDistanceMarkers' site/road-drive-v5527.js
+          grep -Fq '+10 MPH' site/road-drive-v5527.js
+          grep -Fq 'FREE · UNLIMITED · Still being actively improved' site/intelligence-tools-v5507.js
+          grep -Fq 'road-drive-v5527.css?v=5530' site/index.html
+          grep -Fq 'road-drive-v5527.css?v=5530' site/app/index.html
           grep -Fq 'bridgepoint_intelligence_record_simulation_v5525' site/scenario-lab-v5525.js
           grep -Fq 'CINEMATIC_GEO_ANCHORED_3D_V5525' site/scenario-lab-v5525.js
           grep -Fq 'ILLUSTRATIVE / NOT A FORECAST OR CLAIM ESTIMATE' site/scenario-lab-v5525.js
