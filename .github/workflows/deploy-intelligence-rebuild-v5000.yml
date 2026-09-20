@@ -109,6 +109,8 @@ jobs:
           cp rebuild-v5000/intelligence-v5507.css site/intelligence-v5507.css
           cp rebuild-v5000/intelligence-global-v5507.js site/intelligence-global-v5507.js
           cp rebuild-v5000/intelligence-tools-v5507.js site/intelligence-tools-v5507.js
+          cp rebuild-v5000/scenario-lab-v5524.js site/scenario-lab-v5524.js
+          cp rebuild-v5000/scenario-lab-v5524.css site/scenario-lab-v5524.css
           cp rebuild-v5000/qr-house-v5521.js site/qr-house-v5521.js
           cp rebuild-v5000/404.html site/404.html
           cp rebuild-v5000/bridgepoint-mark.svg site/bridgepoint-mark.svg
@@ -170,10 +172,17 @@ jobs:
           node --check site/landing.js
           node --check site/intelligence-global-v5507.js
           node --check site/intelligence-tools-v5507.js
+          node --check site/scenario-lab-v5524.js
           node --check site/qr-house-v5521.js
-          grep -Fq 'intelligence-tools-v5507.js?v=5522' site/index.html
-          grep -Fq 'intelligence-tools-v5507.js?v=5522' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5524' site/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5524' site/app/index.html
           grep -Fq 'FREE PREMIUM TOOLS' site/intelligence-tools-v5507.js
+          grep -Fq 'openScenarioLab' site/intelligence-tools-v5507.js
+          grep -Fq 'bridgepoint_intelligence_record_simulation_v5524' site/scenario-lab-v5524.js
+          grep -Fq 'SCENARIO LAB · 3D IMPACT SIMULATOR' site/scenario-lab-v5524.js
+          grep -Fq 'ILLUSTRATIVE / NOT A FORECAST OR CLAIM ESTIMATE' site/scenario-lab-v5524.js
+          grep -Fq 'scenario-lab-v5524.css?v=5524' site/index.html
+          grep -Fq 'scenario-lab-v5524.css?v=5524' site/app/index.html
           ! grep -Fq "['GLOBAL_WEATHER','GLOBAL WEATHER'" site/intelligence-tools-v5507.js
           ! grep -Fq "['GLOBAL','GLOBAL LAYERS'" site/intelligence-tools-v5507.js
           grep -Fq 'bpQrHouseCanvas' site/index.html
