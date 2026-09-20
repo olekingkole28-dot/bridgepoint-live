@@ -66,3 +66,6 @@
 @media(max-height:560px){.backpackBar{bottom:41px}.wallWarning{top:12%}}
 .backpackBar i[data-pack]{cursor:pointer;pointer-events:auto}.backpackBar i[data-pack]:hover{filter:brightness(1.35);transform:translateY(-1px)}
 .backpackBar i[data-rarity="COMMON"]{border-bottom:2px solid #9aa0a6}.backpackBar i[data-rarity="UNCOMMON"]{border-bottom:2px solid #45c96b}.backpackBar i[data-rarity="RARE"]{border-bottom:2px solid #3d8dff}.backpackBar i[data-rarity="EPIC"]{border-bottom:2px solid #9c5cff}.backpackBar i[data-rarity="LEGENDARY"]{border-bottom:2px solid #ffad33}.backpackBar i[data-rarity="MYTHIC"]{border-bottom:2px solid #f5d84c}
+
+.equipmentRail{position:fixed;z-index:12;right:max(12px,env(safe-area-inset-right));bottom:max(94px,calc(env(safe-area-inset-bottom) + 94px));display:grid;gap:6px;pointer-events:auto}.equipmentRail button{min-width:96px;padding:9px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(5,12,10,.82);color:#eafff7;font-size:8px;font-weight:950;letter-spacing:.08em;backdrop-filter:blur(8px)}.equipmentRail button:disabled{opacity:.34}.equipmentRail button:last-child{border-color:rgba(255,122,68,.38);box-shadow:inset 0 -2px rgba(255,91,45,.7)}
+@media(max-height:560px){.equipmentRail{right:8px;bottom:62px}.equipmentRail button{min-width:82px;padding:7px 8px;font-size:7px}}
