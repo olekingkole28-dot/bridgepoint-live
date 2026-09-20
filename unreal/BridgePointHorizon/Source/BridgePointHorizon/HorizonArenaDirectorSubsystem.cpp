@@ -55,21 +55,24 @@ TArray<FHorizonArenaCandidate> UHorizonArenaDirectorSubsystem::GetRankedArenas(i
 
 FHorizonArenaCandidate UHorizonArenaDirectorSubsystem::SelectNextArena(int32 Seed)
 {
-    TArray<FHorizonArenaCandidate> Ranked = GetRankedArenas(16);
+    TArray<FHorizonArenaCandidate> Ranked = GetRankedArenas(50);
     if (Ranked.IsEmpty())
     {
         SeedFallbackArenas();
-        Ranked = GetRankedArenas(16);
+        Ranked = GetRankedArenas(50);
     }
 
-    // Use the strongest group, but rotate deterministically so matches do not repeat.
-    const int32 PoolSize = FMath::Clamp(Ranked.Num(), 1, 8);
-    FRandomStream Random(Seed != 0 ? Seed : (RotationCounter + 1) * 7919);
-    int32 Pick = Random.RandRange(0, PoolSize - 1);
+    // Walk the complete authoritative pool before repeating. Seed only offsets
+    // the start point; RotationCounter guarantees automatic map-to-map switching.
+    const int32 PoolSize = FMath::Max(1, Ranked.Num());
+    const int32 SeedOffset = Seed == 0
+        ? 0
+        : static_cast<int32>(static_cast<uint32>(Seed) % static_cast<uint32>(PoolSize));
+    int32 Pick = (SeedOffset + RotationCounter) % PoolSize;
 
     if (PoolSize > 1 && Ranked[Pick].ArenaId == LastArenaId)
     {
-        Pick = (Pick + 1 + (RotationCounter % (PoolSize - 1))) % PoolSize;
+        Pick = (Pick + 1) % PoolSize;
     }
 
     ++RotationCounter;
