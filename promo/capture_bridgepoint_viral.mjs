@@ -47,6 +47,24 @@ await page.evaluate(()=>{
 
 const meta={clips:[],fire:null,weatherTarget:null,tools:{},generatedAt:new Date().toISOString()};
 
+async function rearmPromoGuard(){
+  await page.evaluate(()=>{
+    let s=document.getElementById('bpPromoPulse');
+    if(!s){s=document.createElement('i');s.id='bpPromoPulse';s.style.cssText='position:fixed;left:-10px;top:-10px;width:1px;height:1px;opacity:.001;pointer-events:none;z-index:-1';document.body.appendChild(s);let n=0;setInterval(()=>{n++;s.style.transform='translateX('+(n%2)+'px)';s.style.opacity=n%2?'.001':'.002'},40)}
+    let keep=document.getElementById('bpPromoRefreshGuard');
+    if(!keep){keep=document.createElement('input');keep.id='bpPromoRefreshGuard';keep.type='text';keep.autocomplete='off';keep.setAttribute('aria-hidden','true');keep.style.cssText='position:fixed;left:-200vw;top:-200vh;width:1px;height:1px;opacity:0;pointer-events:none';document.body.appendChild(keep);setInterval(()=>{try{keep.focus({preventScroll:true})}catch(_){}},220)}
+    try{keep.focus({preventScroll:true})}catch(_){}
+  });
+}
+async function reloadPromoApp(reason='recovery'){
+  log('reloading live app for',reason);
+  await page.goto('https://bridgepointintelligence.online/app/?qa=promo-recover-'+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
+  await page.waitForFunction(()=>window.__BP_V5000_WORLD?.map&&window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__,{timeout:60000});
+  await page.waitForFunction(()=>window.__BP_WORLD_CORE_READY__?.ready===true||!!window.__BP_WORLD_CORE_READY__?.error,{timeout:40000});
+  await sleep(1600);
+  await rearmPromoGuard();
+}
+
 async function recordClip(name,action){
   const dir=path.join(OUT,'frames-'+name);fs.rmSync(dir,{recursive:true,force:true});fs.mkdirSync(dir,{recursive:true});
   const client=await page.target().createCDPSession();
@@ -101,7 +119,8 @@ async function openDrawer(){
 }
 async function openTool(key){
   await closeActive();
-  await page.waitForSelector('[data-tool="'+key+'"]',{timeout:7000});
+  let tool=await page.$('[data-tool="'+key+'"]');
+  if(!tool){await reloadPromoApp('missing tool '+key);tool=await page.waitForSelector('[data-tool="'+key+'"]',{timeout:12000})}
   await page.evaluate(k=>document.querySelector('[data-tool="'+k+'"]')?.click(),key);
   await sleep(850);
   meta.tools[key]=await page.evaluate(k=>({state:window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__?.state||null,status:document.getElementById('bp5507-tool-status')?.innerText||'',hud:document.getElementById('bp5507-hud')?.innerText||'',gated:document.querySelector('[data-tool="'+k+'"]')?.dataset.gated||null}),key);
@@ -213,7 +232,8 @@ await sleep(700);
 try{await page.waitForSelector('[data-play]',{timeout:15000})}catch(_){}
 await recordClip('07-scenario-lab',async()=>{await sleep(5200)});
 
-await closeActive();await openTool('TIMEMAP');await sleep(900);
+await reloadPromoApp('after Scenario Lab');
+await openTool('TIMEMAP');await sleep(900);
 await recordClip('08-weather-time',async()=>{
   await page.evaluate(()=>{const r=document.querySelector('#bp5507-hud [data-range]');if(r){r.value='62';r.dispatchEvent(new Event('input',{bubbles:true}))}});
   await sleep(1400);
@@ -239,6 +259,7 @@ await recordClip('11-source-gated',async()=>{
   await openDrawer();await sleep(1200);
 });
 
+await reloadPromoApp('before space view');
 await recordClip('12-space-view',async()=>{
   await closeActive();
   await page.evaluate(()=>{const m=window.__BP_V5000_WORLD.map;try{m.setMinZoom(0)}catch(_){};m.jumpTo({center:[-30,20],zoom:.82,pitch:0,bearing:0})});
