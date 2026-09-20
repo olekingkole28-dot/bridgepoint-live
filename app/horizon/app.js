@@ -1,5 +1,5 @@
 import {DeterministicRng,HorizonRuntimeContract,KillCamBuffer,DwellPickupController,generateCover} from './runtime-contract.js';
-import {createLobbyScene} from './lobby-scene.js';
+import {createLobbyScene} from './lobby-scene.js?v=4335';
 import {mountModelPreviews} from './model-preview.js';
 
 const SUPABASE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co';
