@@ -63,7 +63,7 @@ await page.waitForFunction(()=>[...document.querySelectorAll('.store-card canvas
 const store=await page.evaluate(()=>({
   cards:document.querySelectorAll('.store-card').length,
   previews:document.querySelectorAll('.store-card canvas.preview3d').length,
-  locked:[...document.querySelectorAll('.store-card button')].filter(b=>b.disabled&&/CHECKOUT NOT CONNECTED/i.test(b.textContent)).length,
+  locked:[...document.querySelectorAll('.store-card button')].filter(b=>b.disabled&&/CHECKOUT (?:NOT CONNECTED|OWNER-LOCKED)/i.test(b.textContent)).length,
   checkout:window.BP_HORIZON_LOBBY_V4330?.checkout_enabled
 }));
 if(store.cards<8||store.previews<8||store.locked<1||store.checkout!==false)throw new Error('Store contract failed '+JSON.stringify(store));
