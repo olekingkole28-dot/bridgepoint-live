@@ -122,6 +122,56 @@ async function hydrateWeaponCatalog(){
     return rows.length;
   }catch{return 0}
 }
+
+function attachmentEffectsFor(loadout){
+  const out=[];const defs=new Map((tdmLoadoutCatalog?.attachments||[]).map(a=>[a.attachment_key,a]));
+  const raw=loadout?.attachments&&typeof loadout.attachments==='object'?loadout.attachments:{};
+  for(const keys of Object.values(raw)){for(const key of Array.isArray(keys)?keys:[]){const d=defs.get(key);if(d)out.push(d.effects||{})}}
+  return out;
+}
+function applyAttachmentEffectsToWeapon(w,effects=[]){
+  for(const e of effects){
+    if(e.range_mult)w.range*=Number(e.range_mult);
+    if(e.recoil_mult)w.recoil=(w.recoil||1)*Number(e.recoil_mult);
+    if(e.spread_mult)w.spread*=Number(e.spread_mult);
+    if(e.mag_mult&&w.mag){w.mag=Math.max(1,Math.round(w.mag*Number(e.mag_mult)));w.maxClips=Math.max(1,w.maxClips||1)}
+    if(e.reload_mult)w.reloadMult=(w.reloadMult||1)*Number(e.reload_mult);
+    if(e.mobility_mult)w.mobilityMult=(w.mobilityMult||1)*Number(e.mobility_mult);
+    if(e.ads_zoom)w.adsZoom=Math.max(w.adsZoom||1,Number(e.ads_zoom));
+  }
+}
+async function hydrateTdmLoadout(){
+  if(mode!=='TDM')return null;
+  try{
+    const out=await rpc('bridgepoint_horizon_tdm_loadouts_v4341',{p_player_id:playerId,p_player_secret:playerSecret});tdmLoadoutCatalog=out;
+    const saved=(out.saved||[]).find(x=>x.selected)||(out.saved||[])[0]||null;
+    const preset=(out.presets||[]).find(x=>x.preset_key===(saved?.preset_key||'preset_smg'))||(out.presets||[])[0];
+    tdmLoadout=saved||preset;
+    const primary=String(tdmLoadout.primary_weapon_key||preset?.primary_weapon_key||'viper_rare'),secondary=String(tdmLoadout.secondary_weapon_key||preset?.secondary_weapon_key||'rook_common');
+    for(const key of [primary,secondary]){const w=weaponByKey(key);if(w){weaponState[key].owned=true;weaponState[key].mag=w.mag;weaponState[key].reserve=w.mag*Math.min(w.maxClips||1,2)}}
+    inventoryWeaponKeys.fill(null);inventoryWeaponKeys[0]=primary;inventoryWeaponKeys[1]=secondary;
+    const effects=attachmentEffectsFor(tdmLoadout);for(const key of [primary,secondary]){const w=weaponByKey(key);if(w)applyAttachmentEffectsToWeapon(w,effects)}
+    equipWeaponKey(primary);renderEquipmentButtons();
+    return tdmLoadout;
+  }catch{return null}
+}
+const tdmEquipment={tactical1:{kind:'SMOKE',charges:1},tactical2:{kind:'GAS',charges:1},lethal:{kind:'FRAG',charges:1}};
+function renderEquipmentButtons(){
+  if(tdmLoadout){tdmEquipment.tactical1.kind=String(tdmLoadout.tactical_1||'SMOKE');tdmEquipment.tactical2.kind=String(tdmLoadout.tactical_2||'GAS');tdmEquipment.lethal.kind=String(tdmLoadout.lethal||'FRAG')}
+  const map=[['tacticalBtn1',tdmEquipment.tactical1],['tacticalBtn2',tdmEquipment.tactical2],['lethalBtn',tdmEquipment.lethal]];
+  for(const [id,q] of map){const el=$(id);if(el){el.textContent=q.kind+' · '+q.charges;el.disabled=mode!=='TDM'||q.charges<=0}}
+}
+function cloudFx(kind){
+  const dir=new THREE.Vector3();camera.getWorldDirection(dir);const p=player.position.clone().addScaledVector(dir,8);p.z=terrainZ(p.x,p.y)+1.1;
+  const color=kind==='GAS'?0x78a84e:0xd7e2df,g=new THREE.Group();
+  for(let i=0;i<(MOBILE?10:18);i++){const m=new THREE.Mesh(new THREE.SphereGeometry(1.1+(i%4)*.22,10,8),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.11,depthWrite:false}));m.position.set((rand()-.5)*5,(rand()-.5)*5,(rand()-.5)*2);g.add(m)}
+  g.position.copy(p);world.add(g);const started=performance.now();const tick=now=>{const age=(now-started)/1000;g.rotation.z+=.003;g.scale.setScalar(1+Math.min(2,age*.18));g.children.forEach(m=>m.material.opacity=Math.max(0,.11*(1-age/12)));if(age<12)requestAnimationFrame(tick);else world.remove(g)};requestAnimationFrame(tick);
+}
+function useEquipment(slot){
+  if(mode!=='TDM'||dead)return;const q=tdmEquipment[slot];if(!q||q.charges<=0)return;q.charges--;renderEquipmentButtons();
+  if(q.kind==='SMOKE'||q.kind==='GAS'||q.kind==='FLASH')cloudFx(q.kind);
+  else{const frag=weaponByKey('frag_common')||{key:'frag',kind:'grenade',weaponClass:'GRENADE',name:'Fragment',damage:105,range:38,mag:1,metadata:{splash_radius_m:6,fuse_ms:1150}};const dir=new THREE.Vector3();camera.getWorldDirection(dir);launchExplosive(frag,camera.position.clone(),dir)}
+}
 function loadAsset(url){
   if(!assetCache.has(url))assetCache.set(url,new Promise((resolve,reject)=>gltfLoader.load(url,resolve,undefined,reject)));
   return assetCache.get(url);
@@ -1180,7 +1230,9 @@ function updateCombatants(dt,t){
   const liveEnemies=combatants.filter(x=>x.alive);
   for(const b of liveEnemies){
     let target=null,targetPos=null;
-    if(b.team!==playerTeam&&!dead){target={player:true,name:savedProfile?.display_name||'YOU'};targetPos=player.position}
+    const outsideFire=tdmFireZone&&Math.hypot(b.g.position.x,b.g.position.y)>Number(tdmFireZone.radius_m||Infinity)*.92;
+    if(outsideFire){targetPos=new THREE.Vector3(0,0,terrainZ(0,0));b.speed=Math.max(b.speed,6.2)}
+    if(!outsideFire&&b.team!==playerTeam&&!dead){target={player:true,name:savedProfile?.display_name||'YOU'};targetPos=player.position}
     const rivals=liveEnemies.filter(x=>x.team!==b.team);
     if(rivals.length){
       const nearest=rivals.reduce((best,q)=>{const d=Math.hypot(q.g.position.x-b.g.position.x,q.g.position.y-b.g.position.y);return !best||d<best.d?{q,d}:best},null);
@@ -1735,6 +1787,20 @@ function updateZoneDamage(now){
   if(mode!=='YEAR_ONE'||!yearOneZone||yearOneZone.safe||dead)return;
   if(now-lastWallDamageAt>=Number(yearOneZone.wall_tick_ms||800)){lastWallDamageAt=now;applyPlayerHit(25,{name:'ZOMBIE WALL'});rpc('bridgepoint_horizon_gameplay_event_v4340',{p_player_id:playerId,p_player_secret:playerSecret,p_mode:mode,p_match_id:matchId||null,p_event_type:'WALL_DAMAGE',p_event_key:null,p_value:25,p_payload:{day:yearOneZone.day,phase:yearOneZone.phase}}).catch(()=>{})}
 }
+
+function rebuildTdmFireWall(){
+  tdmFireGroup.clear();if(mode!=='TDM'||!tdmFireZone)return;const radius=Number(tdmFireZone.radius_m||0),count=MOBILE?48:88;
+  const geom=new THREE.ConeGeometry(.45,2.5,7),mat=new THREE.MeshBasicMaterial({color:0xff6a21,transparent:true,opacity:.72}),mesh=new THREE.InstancedMesh(geom,mat,count),d=new THREE.Object3D();
+  for(let i=0;i<count;i++){const a=i/count*Math.PI*2,x=Math.cos(a)*radius,y=Math.sin(a)*radius,z=terrainZ(x,y);d.position.set(x,y,z+1.15);d.rotation.set(0,0,a);d.scale.set(.7,1+((i%5)*.06),.7);d.updateMatrix();mesh.setMatrixAt(i,d.matrix)}mesh.instanceMatrix.needsUpdate=true;tdmFireGroup.add(mesh);
+}
+async function pollTdmFireZone(force=false){
+  if(mode!=='TDM'||!matchId||(!force&&performance.now()-lastTdmFirePollAt<2000))return;lastTdmFirePollAt=performance.now();
+  try{tdmFireZone=await rpc('bridgepoint_horizon_tdm_fire_zone_v4341',{p_player_id:playerId,p_player_secret:playerSecret,p_match_id:matchId});rebuildTdmFireWall();if($('climate'))$('climate').textContent='FIRE '+tdmFireZone.phase+' · '+Math.ceil(Number(tdmFireZone.remaining_seconds||0)/60)+'M'}catch{}
+}
+function updateTdmFireDamage(now){
+  if(mode!=='TDM'||!tdmFireZone||dead)return;const outside=Math.hypot(player.position.x,player.position.y)>Number(tdmFireZone.radius_m||Infinity);
+  if(outside&&now-lastTdmFireDamageAt>=1000){lastTdmFireDamageAt=now;applyPlayerHit(25,{name:'WILDFIRE'});toast('WILDFIRE · -25')}
+}
 function reviveWeatherMonster(kind){
   const choices=infected.filter(z=>!z.alive&&z.space==='world'&&(kind==='zombie'?['zombie','runner','screamer'].includes(z.kind):z.kind===kind));
   for(const z of choices){
@@ -1881,13 +1947,13 @@ async function load(){
   addSky();addGround();
   const roads=addRoads(),parcels=addParcels(),water=addWater(),buildings=addBuildings(),buildingParts=addBuildingParts();
   waterAreas.length=0;for(const row of data.water||[])for(const ring of rings(row.geometry)){const pts=ring.map(project);if(pts.length>=3)waterAreas.push(pts)}
-  await hydrateWeaponCatalog();
+  await hydrateWeaponCatalog();if(mode==='TDM')await hydrateTdmLoadout();
   addVegetation();addStreetLife();addAbandonment();await syncFiniteLoot('world');const ziplineCount=buildZiplines(),vehicleCount=spawnVehicles(),disasterFx=addAmbientDisasterFx();
 
   if(mode==='YEAR_ONE')await hydrateYearOneRuntime();
   await Promise.all([addSurvivor(),mode==='TDM'?spawnTdmBots():spawnInfected()]);
   const spawnType=mode==='YEAR_ONE'?applyPreciseSpawn():'MATCH';
-  updateVitals();updateAmmo();renderWeaponBar();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();heartbeatWorld(true);setInterval(()=>heartbeatWorld(false),10000);if(mode==='YEAR_ONE'){pollYearOneZone(true);setInterval(()=>pollYearOneZone(false),2500);rpc('bridgepoint_horizon_exploration_v4340',{p_player_id:playerId,p_player_secret:playerSecret}).then(x=>(x?.cells||[]).forEach(q=>exploredCells.add(q.cell_key))).catch(()=>{})}
+  updateVitals();updateAmmo();renderWeaponBar();renderEquipmentButtons();pollKillFeed();startSpectatorHeartbeat();pollLiveWeather();setInterval(pollLiveWeather,30000);renderMinimap();heartbeatWorld(true);setInterval(()=>heartbeatWorld(false),10000);if(mode==='TDM'){pollTdmFireZone(true);setInterval(()=>pollTdmFireZone(false),2000)}if(mode==='YEAR_ONE'){pollYearOneZone(true);setInterval(()=>pollYearOneZone(false),2500);rpc('bridgepoint_horizon_exploration_v4340',{p_player_id:playerId,p_player_secret:playerSecret}).then(x=>(x?.cells||[]).forEach(q=>exploredCells.add(q.cell_key))).catch(()=>{})}
 
   if(mode==='YEAR_ONE'){
     checkpointYearOne(true);
@@ -1922,7 +1988,7 @@ function animate(){
   const now=performance.now(),rawDt=Math.max(.001,(now-last)/1000),dt=Math.min(.05,rawDt);last=now;dtGlobal=dt;
   const cadence=perfCadence();aiAccumulator+=dt;fxAccumulator+=dt;lightAccumulator+=dt;
   if(!dead){
-    updateCamera(dt);updateDwellPickup(now);updateWaterSurvival(dt);applyWeatherGameplay(dt);updateZoneDamage(now);heartbeatWorld(false);pollYearOneZone(false);if(shooting)shootOnce();
+    updateCamera(dt);updateDwellPickup(now);updateWaterSurvival(dt);applyWeatherGameplay(dt);updateZoneDamage(now);updateTdmFireDamage(now);heartbeatWorld(false);pollYearOneZone(false);pollTdmFireZone(false);if(shooting)shootOnce();
     if(aiAccumulator>=cadence.ai){const step=Math.min(.08,aiAccumulator);if(mode==='TDM')updateCombatants(step,now);else updateInfected(step,now);if(perfTier>=3)updateActorProxies();aiAccumulator=0}
     if(now-(killSnapshots.at(-1)?.t||0)>80)snapshotKillcam(now);
   }else if(aiAccumulator>=cadence.ai){
