@@ -1,0 +1,124 @@
+name: Capture Live BridgePoint Weather Screenshots
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/weather-capture-once.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Capture live production weather views
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 sharp@0.34.3 --no-audit --no-fund >/dev/null 2>&1
+          mkdir -p /tmp/weather-shots/raw /tmp/weather-shots/enhanced
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          const fs=require('fs');
+          const sharp=require('sharp');
+
+          function centerOfGeom(g){
+            if(!g)return null;
+            if(g.type==='Point')return g.coordinates;
+            const coords=[];
+            const walk=x=>Array.isArray(x)&&typeof x[0]==='number'&&typeof x[1]==='number'?coords.push(x):Array.isArray(x)&&x.forEach(walk);
+            walk(g.coordinates);
+            if(!coords.length)return null;
+            const xs=coords.map(c=>c[0]),ys=coords.map(c=>c[1]);
+            return [(Math.min(...xs)+Math.max(...xs))/2,(Math.min(...ys)+Math.max(...ys))/2];
+          }
+          const safe=s=>String(s).replace(/[^A-Za-z0-9_-]+/g,'_');
+
+          (async()=>{
+            const browser=await puppeteer.launch({
+              headless:true,
+              executablePath:process.env.CHROME_PATH,
+              args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']
+            });
+            const page=await browser.newPage();
+            await page.setViewport({width:1800,height:1200,deviceScaleFactor:1});
+            await page.goto('https://bridgepointintelligence.online/?capture=weather-'+Date.now(),{waitUntil:'domcontentloaded',timeout:60000});
+            await page.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,{timeout:45000});
+            await page.waitForFunction(()=>window.__BP_LANDING_LIVE_WEATHER__?.fresh===true&&Number(window.__BP_LANDING_LIVE_WEATHER__?.pointCount||0)>0,{timeout:45000});
+            await page.waitForFunction(()=>window.__BP_LANDING_RADAR_STATE__?.visible===true,{timeout:45000});
+            await page.evaluate(()=>{
+              const preview=document.querySelector('.preview');
+              if(preview){preview.style.height='980px';preview.style.minHeight='980px';preview.style.maxHeight='980px'}
+              for(const sel of ['.preview-head','#landingPropertySearch','.preview-chip','.preview-sample','#previewCard']){
+                const el=document.querySelector(sel); if(el)el.style.display='none';
+              }
+              const root=document.getElementById('landingWeatherLegend');
+              const more=document.getElementById('landingWeatherMore');
+              const toggle=document.getElementById('landingWeatherToggle');
+              if(root&&more&&toggle){more.hidden=false;root.classList.add('expanded');toggle.textContent='LESS';toggle.setAttribute('aria-expanded','true')}
+              window.__BP_LANDING_WORLD__?.map?.resize?.();
+            });
+            await new Promise(r=>setTimeout(r,1500));
+
+            const info=await page.evaluate(()=>{
+              const m=window.__BP_LANDING_WORLD__.map;
+              const pts=m.getSource('bpLandingWeatherPoints')?._data?.features||[];
+              const sh=m.getSource('bpLandingWeatherShapes')?._data?.features||[];
+              return {points:pts,shapes:sh,count:window.__BP_LANDING_LIVE_WEATHER__?.count||0,updatedAt:window.__BP_LANDING_LIVE_WEATHER__?.updatedAt||0};
+            });
+            fs.writeFileSync('/tmp/weather-shots/weather-source-snapshot.json',JSON.stringify(info,null,2));
+
+            const preview=await page.$('.preview');
+            async function shot(name, center, zoom, bounds){
+              await page.evaluate(({center,zoom,bounds})=>{
+                const m=window.__BP_LANDING_WORLD__.map;
+                m.setPitch?.(0);m.setBearing?.(0);
+                if(bounds)m.fitBounds(bounds,{padding:{top:90,right:60,bottom:60,left:60},duration:0,maxZoom:zoom});
+                else m.jumpTo({center,zoom,pitch:0,bearing:0});
+              },{center,zoom,bounds});
+              await new Promise(r=>setTimeout(r,3800));
+              const raw='/tmp/weather-shots/raw/'+name+'.png';
+              await preview.screenshot({path:raw});
+              await sharp(raw)
+                .resize({width:2400,withoutEnlargement:false})
+                .sharpen({sigma:0.75,m1:0.7,m2:1.4})
+                .modulate({saturation:1.06,brightness:1.01})
+                .png({compressionLevel:8})
+                .toFile('/tmp/weather-shots/enhanced/'+name+'-enhanced.png');
+            }
+
+            await shot('00-US-live-weather-overview',null,3.65,[[-125.2,24.1],[-66.4,49.8]]);
+
+            const all=[...info.shapes.map(f=>({...f,_shape:true})),...info.points.map(f=>({...f,_shape:false}))];
+            const types=[...new Set(all.map(f=>String(f.properties?.type||'').toUpperCase()).filter(Boolean))];
+            const wanted=['FLOOD','WILDFIRE','LIGHTNING','HAIL','WIND','TORNADO','WEATHER_REPORT'];
+            for(const type of wanted){
+              const candidates=all.filter(f=>String(f.properties?.type||'').toUpperCase()===type);
+              if(!candidates.length)continue;
+              const chosen=candidates.find(f=>f._shape)||candidates.find(f=>f.properties?.observed===true)||candidates[0];
+              const center=centerOfGeom(chosen.geometry);
+              if(!center)continue;
+              const zoom={FLOOD:6.4,WILDFIRE:6.4,LIGHTNING:6.6,HAIL:6.6,WIND:6.5,TORNADO:6.8,WEATHER_REPORT:6.5}[type]||6.3;
+              await shot(String(wanted.indexOf(type)+1).padStart(2,'0')+'-'+safe(type.toLowerCase()),center,zoom,null);
+            }
+            const h=all.find(f=>['HURRICANE_CONE','HURRICANE_TRACK','HURRICANE'].includes(String(f.properties?.type||'').toUpperCase())&&f._shape)
+                 || all.find(f=>['HURRICANE_CONE','HURRICANE_TRACK','HURRICANE'].includes(String(f.properties?.type||'').toUpperCase()));
+            if(h){const center=centerOfGeom(h.geometry);if(center)await shot('08-hurricane-system-atlantic',center,4.1,null)}
+
+            await browser.close();
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+      - name: Upload weather screenshot package
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-live-weather-screenshots
+          path: /tmp/weather-shots/
+          retention-days: 3
+          if-no-files-found: error
