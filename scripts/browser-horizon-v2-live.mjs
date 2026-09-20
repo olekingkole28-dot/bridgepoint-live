@@ -8,11 +8,11 @@ if(!executablePath)throw new Error('No Chromium/Chrome found');
 
 const source=fs.readFileSync('app/horizon-playable/horizon-v2.js','utf8');
 for(const marker of [
-  'build:4340','actualCharacterModel:true','sourceBackedTwin:true','exactFootprintCollision:true','solidCollision:true','dwellPickup:true','killFeed:true','killcam:true',
+  'build:4341','actualCharacterModel:true','sourceBackedTwin:true','exactFootprintCollision:true','solidCollision:true','dwellPickup:true','killFeed:true','killcam:true',
   'firstPerson:true','crouch:true','prone:true','slide:true','jumpVault:true','gamepad:true','weaponInventory:true','minimap:true','proceduralInteriors:true','interiorLoot:true','roofTraversal:true','drivableVehicles:true','vehicleFuelRepair:true','infectedPatrols:true','ambientDisasterFx:true','spatialAudio:true','adaptivePerformanceGovernor:true',
   'buildInterior(entry)','buildZiplines()','spawnVehicles()','buildInfectedPatrol','state:stateCode','pickupDwellSeconds:3','shieldPickup:50','monsterHitDamage:25',
   "bridgepoint_horizon_record_player_kill_v4340","bridgepoint_horizon_year_one_death_v4310","bridgepoint_horizon_year_one_zone_v4340",
-  "bridgepoint_horizon_weapon_catalog_v4340","bridgepoint_horizon_death_drop_claim_v4340","syncFiniteLoot","inventoryWeaponKeys","buildCampfire","target=100"
+  "bridgepoint_horizon_weapon_catalog_v4340","bridgepoint_horizon_tdm_loadouts_v4341","bridgepoint_horizon_tdm_fire_zone_v4341","bridgepoint_horizon_tdm_combat_clock_v4341","bridgepoint_horizon_death_drop_claim_v4340","syncFiniteLoot","inventoryWeaponKeys","buildCampfire","target=100","playerHealthMax:150","shieldMax:0","fireCircleSeconds:1800"
 ]) if(!source.includes(marker))throw new Error('Missing source contract '+marker);
 
 const browser=await chromium.launch({executablePath,headless:true,args:[
@@ -37,6 +37,9 @@ await page.route('**/rest/v1/rpc/**',async route=>{
   const name=new URL(route.request().url()).pathname.split('/').pop();
   const payload=(()=>{
     if(name==='bridgepoint_horizon_weapon_catalog_v4340')return {ok:true,version:4340,weapons:[]};
+    if(name==='bridgepoint_horizon_tdm_loadouts_v4341')return {ok:true,health:150,shield:0,presets:[{preset_key:'preset_smg',slot_no:1,primary_weapon_key:'smg',secondary_weapon_key:'pistol',tactical_1:'SMOKE',tactical_2:'GAS',lethal:'FRAG'}],saved:[],attachments:[]};
+    if(name==='bridgepoint_horizon_tdm_fire_zone_v4341')return {ok:true,radius_m:500,phase:1,moving:false,remaining_seconds:1800,damage_per_tick:25,tick_ms:1000};
+    if(name==='bridgepoint_horizon_tdm_combat_clock_v4341')return {ok:true,combat_live_at:new Date(Date.now()+100).toISOString(),seconds_remaining:1};
     if(name==='bridgepoint_horizon_presence_v4340')return {ok:true,active_players:1,heartbeat_seconds:10};
     if(name==='bridgepoint_horizon_death_drops_near_v4340')return {ok:true,drops:[]};
     if(name==='bridgepoint_horizon_active_count_v4340')return {ok:true,active_players:1,year_one:0,tdm:1};
@@ -46,9 +49,9 @@ await page.route('**/rest/v1/rpc/**',async route=>{
   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(payload)});
 });
 
-const url=BASE+'/app/horizon-playable/v2-entry.html?state=NY&lat=40.7580&lon=-73.9855&span_km=1.1&mode=TDM&seed=4340&ci='+Date.now();
+const url=BASE+'/app/horizon-playable/v2-entry.html?state=NY&lat=40.7580&lon=-73.9855&span_km=1.1&mode=TDM&seed=4341&ci='+Date.now();
 const res=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
-if(res?.status()!==200)throw new Error('Horizon V4340 HTTP '+res?.status());
+if(res?.status()!==200)throw new Error('Horizon V4341 HTTP '+res?.status());
 await page.waitForFunction(()=>window.BP_HORIZON_V2?.ok===true||document.getElementById('error')?.hidden===false,null,{timeout:90000});
 const startup=await page.evaluate(()=>({ok:window.BP_HORIZON_V2?.ok===true,errorHidden:document.getElementById('error')?.hidden,errorText:document.getElementById('errorText')?.textContent||''}));
 if(!startup.ok)throw new Error('Horizon startup error '+JSON.stringify(startup));
@@ -61,7 +64,7 @@ const probe=await page.evaluate(()=>({
   viewButtonAbsent:!document.getElementById('viewBtn'),
   cameraPreference:localStorage.getItem('horizon-camera-mode'),
   miniMap:!!document.getElementById('miniMap'),
-  weaponBar:!!document.getElementById('weaponBar'),backpackBar:!!document.getElementById('backpackBar'),wallLive:!!document.getElementById('wallLive'),activePlayers:!!document.getElementById('activePlayers'),
+  weaponBar:!!document.getElementById('weaponBar'),backpackBar:!!document.getElementById('backpackBar'),equipmentRail:!!document.getElementById('equipmentRail'),prematchFreeze:!!document.getElementById('prematchFreeze'),wallLive:!!document.getElementById('wallLive'),activePlayers:!!document.getElementById('activePlayers'),
   contextBtn:!!document.getElementById('contextBtn'),
   removed:['useBtn','lightBtn','weatherBtn'].every(id=>!document.getElementById(id)),
   killFeed:!!document.getElementById('killFeed'),
@@ -77,9 +80,9 @@ const probe=await page.evaluate(()=>({
   })()
 }));
 if(!probe.canvas||!probe.errorHidden)throw new Error('Canvas/runtime failed '+JSON.stringify(probe));
-if(probe.runtime?.build!==4340)throw new Error('Wrong runtime build '+JSON.stringify(probe.runtime));
+if(probe.runtime?.build!==4341)throw new Error('Wrong runtime build '+JSON.stringify(probe.runtime));
 if(!probe.runtime?.actualCharacterModel||!probe.runtime?.sourceBackedTwin||!probe.runtime?.exactFootprintCollision||!probe.runtime?.terrainSource||Number(probe.runtime?.buildings||0)<1||Number(probe.runtime?.roads||0)<1||!probe.runtime?.solidCollision||!probe.runtime?.dwellPickup||!probe.runtime?.killFeed||!probe.runtime?.killcam||!probe.runtime?.firstPerson||!probe.runtime?.crouch||!probe.runtime?.jumpVault||!probe.runtime?.gamepad||!probe.runtime?.weaponInventory||!probe.runtime?.minimap||!probe.runtime?.proceduralInteriors||!probe.runtime?.roofTraversal||!probe.runtime?.drivableVehicles||!probe.runtime?.infectedPatrols||!probe.runtime?.ambientDisasterFx||!probe.runtime?.spatialAudio||!probe.runtime?.adaptivePerformanceGovernor)throw new Error('Required match systems missing '+JSON.stringify(probe.runtime));
-if(probe.buttons.some(x=>!x.exists)||!probe.viewButtonAbsent||probe.cameraPreference!=='first'||!probe.miniMap||!probe.weaponBar||!probe.backpackBar||!probe.wallLive||!probe.activePlayers||!probe.contextBtn||!probe.removed||!probe.killFeed||!probe.killCam||!probe.pickup)throw new Error('FPS-only HUD contract failed '+JSON.stringify(probe));
+if(probe.buttons.some(x=>!x.exists)||!probe.viewButtonAbsent||probe.cameraPreference!=='first'||!probe.miniMap||!probe.weaponBar||!probe.backpackBar||!probe.equipmentRail||!probe.prematchFreeze||!probe.wallLive||!probe.activePlayers||!probe.contextBtn||!probe.removed||!probe.killFeed||!probe.killCam||!probe.pickup)throw new Error('FPS-only HUD contract failed '+JSON.stringify(probe));
 
 await page.tap('#aimBtn');
 await page.waitForTimeout(450);
