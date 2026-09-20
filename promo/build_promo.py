@@ -29,6 +29,13 @@ positions={
 }
 transitions=["fade","smoothleft","fadeblack","wipeup","fade","smoothright","fadeblack","wipedown","fade","circleopen","fadeblack","smoothleft"]
 
+# Keep the final social cut tight even when live source-gated tools take longer to respond.
+MAX_DURATIONS={
+"01-globe":5.2,"02-weather-3d":5.8,"03-city-3d":7.2,"04-free-tools":4.4,
+"05-flight-sim":5.9,"06-road-drive":8.2,"07-scenario-lab":5.6,"08-weather-time":4.8,
+"09-3d-wind":3.8,"10-space-weather":4.4,"11-source-gated":5.8,"12-space-view":7.2,"13-outro":3.6
+}
+
 def run(cmd):
     print("+"," ".join(shlex.quote(str(x)) for x in cmd))
     subprocess.run([str(x) for x in cmd],check=True)
@@ -40,13 +47,29 @@ def probe(p):
 def esc(t):
     return t.replace("\\","\\\\").replace(":","\\:").replace("'","\\'").replace("%","\\%").replace(",","\\,")
 
+# The live browser shoot intentionally ends after the expensive space renderer. Build the brand close in post.
+outro_src=ROOT/"13-outro.mp4"
+if not outro_src.exists():
+    logo=Path("rebuild-v5000/bridgepoint-favicon-48.png")
+    vf=(
+      "scale=1080:1920,"
+      "drawbox=x=0:y=0:w=iw:h=ih:color=0x030910:t=fill,"
+      "drawbox=x=88:y=730:w=904:h=5:color=0x55E6FF@0.9:t=fill,"
+      "drawtext=fontfile="+FONT+":text='BRIDGEPOINT INTELLIGENCE':fontsize=64:fontcolor=white:x=(w-text_w)/2:y=790,"
+      "drawtext=fontfile="+FONT_REG+":text='THE WORLD. LIVE. IN 3D.':fontsize=36:fontcolor=0x9CEEFF:x=(w-text_w)/2:y=900,"
+      "drawtext=fontfile="+FONT_REG+":text='bridgepointintelligence.online':fontsize=32:fontcolor=white:x=(w-text_w)/2:y=1010,"
+      "fade=t=in:st=0:d=.25,fade=t=out:st=3.25:d=.35,format=yuv420p"
+    )
+    run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","lavfi","-i","color=c=0x030910:s=1080x1920:r=30:d=3.6","-vf",vf,"-an","-c:v","libx264","-preset","veryfast","-crf","18","-movflags","+faststart",outro_src])
+
 norm=[]
 dur=[]
 for name,title,sub in clips:
     src=ROOT/(name+".mp4")
     if not src.exists():
         print("SKIP missing",src);continue
-    d=probe(src)
+    source_d=probe(src)
+    d=min(source_d,MAX_DURATIONS.get(name,source_d))
     pos=positions.get(name,"top")
     y1="95" if pos=="top" else "h-360"
     y2="165" if pos=="top" else "h-285"
@@ -63,7 +86,7 @@ for name,title,sub in clips:
       "fade=t=in:st=0:d=0.12,fade=t=out:st="+str(max(.1,d-.12))+":d=0.12,format=yuv420p"
     )
     dst=ROOT/(name+"-norm.mp4")
-    run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",src,"-vf",vf,"-an","-c:v","libx264","-preset","veryfast","-crf","18","-movflags","+faststart",dst])
+    run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",src,"-t",f"{d:.3f}","-vf",vf,"-an","-c:v","libx264","-preset","veryfast","-crf","18","-movflags","+faststart",dst])
     norm.append(dst);dur.append(probe(dst))
 
 if len(norm)<6:
