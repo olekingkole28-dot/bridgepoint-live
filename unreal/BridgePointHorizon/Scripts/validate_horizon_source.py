@@ -109,7 +109,7 @@ for token in [
     "FarBuildingMesh", "ResolveBuildingLodCounts", "MaxCollidableBuildingsPerCell",
     "ResolveSourceRoofProfile", "ResolveSourceRoofHeightMeters",
     "EHorizonSourceRoofProfile", "GetRenderedProfiledRoofCount",
-    "ResolveTerrainReliefTint", "GetTerrainReliefTintVertexCount"
+    "ResolveSkillionHighEdge", "ResolveTerrainReliefTint", "GetTerrainReliefTintVertexCount"
 ]:
     require(token in renderer_contract, f"streamed UE renderer feature missing: {token}")
 for token in ["SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics)", "SetCollisionResponseToAllChannels(ECR_Block)"]:
@@ -121,7 +121,10 @@ for token in [
     "ProfileRoofHeightMeters", "RenderedProfiledRoofCount",
     "const int32 ApexIndex = Vertices.Add(Apex)",
     "EHorizonSourceRoofProfile::Gabled", "EHorizonSourceRoofProfile::Hipped",
-    "bFirstEdgeIsShorter", "RidgeAIndex", "RidgeBIndex",
+    "EHorizonSourceRoofProfile::Skillion", "NormalizedShape == TEXT(\"skillion\")",
+    "SkillionHighEdge", "ResolveSkillionHighEdge(Ring)",
+    "reuse the four source footprint vertices",
+    "no extra draw", "bFirstEdgeIsShorter", "RidgeAIndex", "RidgeBIndex",
     "Orientation comes only from", "TopMeters - ProfileRoofHeightMeters",
     "Height->Type != EJson::Number", "!FMath::IsFinite(HeightMeters)",
     "Colors.Reserve(TerrainWidth * TerrainHeight)",
@@ -144,6 +147,13 @@ for token in [
     "Source gable height is preserved on rectangular footprints",
     "Non-rectangular gables fail flat instead of inventing topology",
     "Missing footprint topology cannot create a gable",
+    "Explicit rectangular skillion resolves to sloped profile",
+    "Shed alias resolves to skillion profile",
+    "Source skillion height is preserved",
+    "Non-rectangular skillion fails flat",
+    "Wide skillion selects a source-ring long edge",
+    "Tall skillion follows the footprint longest axis",
+    "Degenerate skillion footprint fails closed",
     "World.Terrain.SourceReliefTint",
     "Higher sourced elevation receives lighter relief tint",
     "Abrupt sourced relief receives bounded contrast",
