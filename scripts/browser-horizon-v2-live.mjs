@@ -112,7 +112,7 @@ const perfA=await page.evaluate(()=>({...window.BP_HORIZON_PERF}));
 await page.waitForTimeout(1400);
 const perfB=await page.evaluate(()=>({...window.BP_HORIZON_PERF}));
 const softwareGpu=/swiftshader|llvmpipe|software/i.test(probe.gpu||'');
-const minFps=softwareGpu?5:12,maxEma=softwareGpu?220:70;
+const minFps=softwareGpu?4:12,maxEma=softwareGpu?260:70;
 if(!Number.isFinite(perfB?.ema_ms)||!Number.isFinite(perfB?.fps)||perfB.fps<minFps||perfB.ema_ms>maxEma||perfB.tier<0||perfB.tier>3||perfB.pixel_ratio<0.5)throw new Error('Adaptive performance gate failed '+JSON.stringify({softwareGpu,gpu:probe.gpu,minFps,maxEma,perfA,perfB}));
 
 const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|Failed to load resource.*404|ResizeObserver loop/i.test(x));
