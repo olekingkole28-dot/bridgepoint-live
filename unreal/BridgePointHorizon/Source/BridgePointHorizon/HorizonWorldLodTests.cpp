@@ -29,6 +29,67 @@ bool FHorizonWorldBuildingLodBudgetTest::RunTest(const FString& Parameters)
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonWorldRoofTriangulationWindingTest,
+    "BridgePoint.Horizon.World.Roofs.TriangulationWinding",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonWorldRoofTriangulationWindingTest::RunTest(const FString& Parameters)
+{
+    const TArray<FVector2D> CounterClockwise = {
+        FVector2D(0.0, 0.0),
+        FVector2D(8.0, 0.0),
+        FVector2D(8.0, 3.0),
+        FVector2D(0.0, 3.0)
+    };
+    const TArray<FVector2D> Clockwise = {
+        FVector2D(0.0, 0.0),
+        FVector2D(0.0, 3.0),
+        FVector2D(8.0, 3.0),
+        FVector2D(8.0, 0.0)
+    };
+
+    auto SignedTriangleArea = [](const TArray<FVector2D>& Polygon, const TArray<int32>& Indices)
+    {
+        double Area = 0.0;
+        for (int32 Tri = 0; Tri + 2 < Indices.Num(); Tri += 3)
+        {
+            const FVector2D& A = Polygon[Indices[Tri]];
+            const FVector2D& B = Polygon[Indices[Tri + 1]];
+            const FVector2D& C = Polygon[Indices[Tri + 2]];
+            Area += static_cast<double>(
+                (B.X - A.X) * (C.Y - A.Y) -
+                (B.Y - A.Y) * (C.X - A.X)) * 0.5;
+        }
+        return Area;
+    };
+
+    const TArray<int32> CounterClockwiseTriangles =
+        AHorizonWorldCellRenderer::TriangulateRoofFootprint(CounterClockwise);
+    const TArray<int32> ClockwiseTriangles =
+        AHorizonWorldCellRenderer::TriangulateRoofFootprint(Clockwise);
+
+    TestEqual(
+        TEXT("Counter-clockwise quad produces two roof triangles"),
+        CounterClockwiseTriangles.Num(),
+        6);
+    TestEqual(
+        TEXT("Clockwise quad produces two roof triangles"),
+        ClockwiseTriangles.Num(),
+        6);
+    TestTrue(
+        TEXT("Counter-clockwise roof preserves positive winding and full area"),
+        FMath::IsNearlyEqual(
+            SignedTriangleArea(CounterClockwise, CounterClockwiseTriangles),
+            24.0));
+    TestTrue(
+        TEXT("Clockwise roof remaps indices to positive winding and full area"),
+        FMath::IsNearlyEqual(
+            SignedTriangleArea(Clockwise, ClockwiseTriangles),
+            24.0));
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FHorizonWorldSourceRoofProfileTest,
     "BridgePoint.Horizon.World.Roofs.SourceProfiles",
     EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

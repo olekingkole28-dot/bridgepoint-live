@@ -115,6 +115,9 @@ public:
         int32 VisualLimit,
         int32 CollisionLimit);
 
+    static TArray<int32> TriangulateRoofFootprint(
+        const TArray<FVector2D>& Footprint);
+
     static EHorizonSourceRoofProfile ResolveSourceRoofProfile(
         const FString& RoofShape,
         int32 FootprintVertexCount);

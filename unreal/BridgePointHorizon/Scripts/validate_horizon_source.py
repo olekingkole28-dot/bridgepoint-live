@@ -140,7 +140,8 @@ for token in [
     "FarBuildingMesh", "ResolveBuildingLodCounts", "MaxCollidableBuildingsPerCell",
     "ResolveSourceRoofProfile", "ResolveSourceRoofHeightMeters",
     "EHorizonSourceRoofProfile", "GetRenderedProfiledRoofCount",
-    "ResolveSkillionHighEdge", "ResolveTerrainReliefTint", "GetTerrainReliefTintVertexCount"
+    "ResolveSkillionHighEdge", "TriangulateRoofFootprint",
+    "ResolveTerrainReliefTint", "GetTerrainReliefTintVertexCount"
 ]:
     require(token in renderer_contract, f"streamed UE renderer feature missing: {token}")
 for token in ["SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics)", "SetCollisionResponseToAllChannels(ECR_Block)"]:
@@ -154,6 +155,8 @@ for token in [
     "EHorizonSourceRoofProfile::Gabled", "EHorizonSourceRoofProfile::Hipped",
     "EHorizonSourceRoofProfile::Skillion", "NormalizedShape == TEXT(\"skillion\")",
     "SkillionHighEdge", "ResolveSkillionHighEdge(Ring)",
+    "OriginalIndices", "Algo::Reverse(OriginalIndices)",
+    "Result.Add(OriginalIndices[Prev])",
     "reuse the four source footprint vertices",
     "no extra draw", "bFirstEdgeIsShorter", "RidgeAIndex", "RidgeBIndex",
     "Orientation comes only from", "TopMeters - ProfileRoofHeightMeters",
@@ -169,6 +172,11 @@ for token in [
     "WITH_DEV_AUTOMATION_TESTS", "World.LOD.BuildingDensityBudget",
     "City tier keeps collision bounded", "preserves thousands of far silhouettes",
     "Sparse cells keep every source-backed building", "Invalid budgets fail closed",
+    "World.Roofs.TriangulationWinding",
+    "Counter-clockwise quad produces two roof triangles",
+    "Clockwise quad produces two roof triangles",
+    "Counter-clockwise roof preserves positive winding and full area",
+    "Clockwise roof remaps indices to positive winding and full area",
     "World.Roofs.SourceProfiles", "Explicit pyramidal roofs preserve source roof height",
     "Missing source roof height does not invent a profile",
     "Roof height is bounded against total building height",
