@@ -5,9 +5,9 @@
     "roof_shell_buildings": 143787840,
     "roof_shell_coverage_pct": 100.0,
     "canonical_property_records": 169664739,
-    "normalized_address_records": 147841655,
-    "source_backed_roof_records": 669471,
-    "lidar_refined_roof_buildings": 3402,
+    "normalized_address_records": 148212172,
+    "source_backed_roof_records": 669561,
+    "lidar_refined_roof_buildings": 3492,
     "materialized_boundary_estimate": 83881564,
     "public_parcel_identity_records": 169664739,
     "canonical_property_record_label": "canonical property/parcel identity records",
@@ -23,15 +23,15 @@
     "public_counter_jurisdictions": 56
   },
   "freshness": {
-    "roof_updated_at": "2026-09-19T23:19:32.552948+00:00",
-    "lidar_last_success_at": "2026-09-19T23:11:35.800475+00:00",
+    "roof_updated_at": "2026-09-20T01:22:48.959346+00:00",
+    "lidar_last_success_at": "2026-09-20T00:53:55.022446+00:00",
     "parcel_counter_updated_at": "2026-09-15T23:31:08.77511+00:00",
-    "address_counter_updated_at": "2026-09-19T23:19:27.446055+00:00",
-    "parcel_scoreboard_updated_at": "2026-09-19T23:19:00.754358+00:00",
+    "address_counter_updated_at": "2026-09-20T01:22:43.892883+00:00",
+    "parcel_scoreboard_updated_at": "2026-09-20T01:22:00.409992+00:00",
     "parcel_autopilot_last_tick_at": "2026-09-16T01:18:58.834462+00:00"
   },
   "horizon_url": "https://bridgepointintelligence.online/app/horizon/",
-  "generated_at": "2026-09-19T23:19:40.579255+00:00",
+  "generated_at": "2026-09-20T01:22:59.563146+00:00",
   "canonical_url": "https://bridgepointintelligence.online/",
   "jurisdictions": [
     {
@@ -325,7 +325,7 @@
   "horizon_year_one_demand": {
     "ok": true,
     "mode": "365_DAY_YEAR_ONE_SURVIVAL",
-    "updated_at": "2026-09-19T23:19:40.750516+00:00",
+    "updated_at": "2026-09-20T01:22:59.607488+00:00",
     "event_started": false,
     "unique_requests": 0,
     "billing_connected": false,
