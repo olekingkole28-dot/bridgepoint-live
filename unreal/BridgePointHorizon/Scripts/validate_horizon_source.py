@@ -244,7 +244,7 @@ for token in [
     "Mix.TransientDuck = FMath::Clamp", "FRandomStream Variation",
     "EHorizonVehicleAudioClass::Pickup", "EHorizonVehicleAudioClass::Offroad",
     "bListenerInside", "Mix.LowPassCutoffHz = 5200.0f",
-    "Mix.LowPassCutoffHz = 2600.0f", "SafeDurability < 0.45f",
+    "FMath::Min(Mix.LowPassCutoffHz, 2600.0f)", "SafeDurability < 0.45f",
     "DistanceGain"
 ]:
     require(token in audio, f"AAA audio behavior missing: {token}")
