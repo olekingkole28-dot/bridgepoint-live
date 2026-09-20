@@ -1,6 +1,6 @@
 {
-  "schema_version": 2,
-  "build_target": 4335,
+  "schema_version": 3,
+  "build_target": 4336,
   "updated_at": "2026-09-19",
   "authoritative_modes": [
     {
@@ -18,7 +18,10 @@
       },
       "event": {
         "duration_days": 365,
-        "start": "owner_explicit_only",
+        "start_at": "2026-10-01T00:00:00-04:00",
+        "timezone": "America/New_York",
+        "countdown": true,
+        "auto_start": true,
         "lives": 3,
         "preseason_lives_consumed": false
       },
@@ -31,7 +34,46 @@
       "interiors": "fictional_generated_only",
       "progression": "zombies begin easier and scale with event day, region, density and world pressure",
       "endgame": "perimeter zombie wall progressively closes survivors toward major-city final showdowns",
-      "proximity_voice": false
+      "proximity_voice": false,
+      "pvp": false,
+      "spawn": {
+        "policy": "PRECISE_PLAYER_LOCATION",
+        "inside_building": "spawn inside streamed building",
+        "street": "spawn at exact outdoor coordinate"
+      },
+      "player_vitals": {
+        "health": 100,
+        "shield_initial": 0,
+        "shield_pickup": 50,
+        "shield_max": 100,
+        "combined_max": 200,
+        "monster_hit_damage": 25,
+        "damage_order": "SHIELD_FIRST"
+      },
+      "monsters": {
+        "hp": {
+          "spider": 75,
+          "big_orc": 150,
+          "regular_zombie": 100,
+          "zombie_dog": 75,
+          "other": 100
+        },
+        "zombie_dog_pack": [
+          3,
+          5
+        ],
+        "runners": "below player sprint speed",
+        "spiders": "hop only",
+        "orcs": "hop",
+        "aggro": "footstep/proximity lock until killed",
+        "hp_bars": true
+      },
+      "pickup": {
+        "mode": "AUTO_DWELL",
+        "seconds": 3,
+        "progress": "RADIAL"
+      },
+      "persistence": "SERVER_CHECKPOINTED_V4336"
     },
     {
       "mode_key": "infinite_tdm",
