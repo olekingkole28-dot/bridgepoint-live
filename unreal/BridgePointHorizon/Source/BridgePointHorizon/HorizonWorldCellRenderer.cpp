@@ -447,6 +447,13 @@ EHorizonSourceRoofProfile AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
         return EHorizonSourceRoofProfile::HalfHipped;
     }
     if (FootprintVertexCount == 4 &&
+        (NormalizedShape == TEXT("round") ||
+         NormalizedShape == TEXT("barrel") ||
+         NormalizedShape == TEXT("arched")))
+    {
+        return EHorizonSourceRoofProfile::Round;
+    }
+    if (FootprintVertexCount == 4 &&
         (NormalizedShape == TEXT("skillion") ||
          NormalizedShape == TEXT("shed") ||
          NormalizedShape == TEXT("shed roof")))
@@ -626,6 +633,45 @@ TArray<FVector2D> AHorizonWorldCellRenderer::ResolveHalfHippedProfilePoints(
     Points.Add(EndB);
     Points.Add(FMath::Lerp(EndA, EndB, 0.16f));
     Points.Add(FMath::Lerp(EndB, EndA, 0.16f));
+    return Points;
+}
+
+TArray<FVector2D> AHorizonWorldCellRenderer::ResolveRoundRoofProfilePoints(
+    const TArray<FVector2D>& Footprint)
+{
+    TArray<FVector2D> Points;
+    if (ResolveMansardInsetFootprint(Footprint).Num() != 4)
+    {
+        return Points;
+    }
+
+    const double FirstEdgeSquared =
+        FVector2D::DistSquared(Footprint[0], Footprint[1]);
+    const double SecondEdgeSquared =
+        FVector2D::DistSquared(Footprint[1], Footprint[2]);
+    if (!FMath::IsFinite(FirstEdgeSquared) ||
+        !FMath::IsFinite(SecondEdgeSquared) ||
+        FirstEdgeSquared <= 1.0e-16 ||
+        SecondEdgeSquared <= 1.0e-16)
+    {
+        return Points;
+    }
+
+    const bool bFirstEdgeIsShorter = FirstEdgeSquared <= SecondEdgeSquared;
+    const int32 A0 = bFirstEdgeIsShorter ? 0 : 1;
+    const int32 A1 = bFirstEdgeIsShorter ? 1 : 2;
+    const int32 B0 = bFirstEdgeIsShorter ? 3 : 0;
+    const int32 B1 = bFirstEdgeIsShorter ? 2 : 3;
+
+    // A symmetric three-band barrel approximation follows only the source
+    // footprint's longest axis, avoiding any invented roof direction.
+    Points.Reserve(6);
+    Points.Add(FMath::Lerp(Footprint[A0], Footprint[A1], 0.25f));
+    Points.Add(FMath::Lerp(Footprint[B0], Footprint[B1], 0.25f));
+    Points.Add(FMath::Lerp(Footprint[A0], Footprint[A1], 0.75f));
+    Points.Add(FMath::Lerp(Footprint[B0], Footprint[B1], 0.75f));
+    Points.Add((Footprint[A0] + Footprint[A1]) * 0.5f);
+    Points.Add((Footprint[B0] + Footprint[B1]) * 0.5f);
     return Points;
 }
 
@@ -1274,6 +1320,10 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                 RoofProfile == EHorizonSourceRoofProfile::HalfHipped
                     ? ResolveHalfHippedProfilePoints(Ring)
                     : TArray<FVector2D>();
+            const TArray<FVector2D> RoundRoofPoints =
+                RoofProfile == EHorizonSourceRoofProfile::Round
+                    ? ResolveRoundRoofProfilePoints(Ring)
+                    : TArray<FVector2D>();
             if ((RoofProfile == EHorizonSourceRoofProfile::Skillion &&
                  (SkillionHighEdge.X < 0 || SkillionHighEdge.Y < 0)) ||
                 (RoofProfile == EHorizonSourceRoofProfile::Mansard &&
@@ -1281,7 +1331,9 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                 (RoofProfile == EHorizonSourceRoofProfile::Gambrel &&
                  GambrelPoints.Num() != 6) ||
                 (RoofProfile == EHorizonSourceRoofProfile::HalfHipped &&
-                 HalfHippedPoints.Num() != 4))
+                 HalfHippedPoints.Num() != 4) ||
+                (RoofProfile == EHorizonSourceRoofProfile::Round &&
+                 RoundRoofPoints.Num() != 6))
             {
                 ProfileRoofHeightMeters = 0.0;
             }
@@ -1500,22 +1552,30 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                 ++RenderedProfiledRoofCount;
             }
             else if (ProfileRoofHeightMeters > 0.0 &&
-                RoofProfile == EHorizonSourceRoofProfile::Gambrel &&
                 Top.Num() == 4 &&
-                GambrelPoints.Num() == 6)
+                ((RoofProfile == EHorizonSourceRoofProfile::Gambrel &&
+                  GambrelPoints.Num() == 6) ||
+                 (RoofProfile == EHorizonSourceRoofProfile::Round &&
+                  RoundRoofPoints.Num() == 6)))
             {
-                // A sourced gambrel adds two shoulder lines and one ridge line:
-                // six bounded vertices in the existing mesh section, with no
-                // additional draw section or collision body.
+                // Sourced gambrel and round roofs share a bounded three-band
+                // cross-section. Round roofs lift their shoulders higher to form
+                // a faceted barrel, without extra draw sections or collision.
+                const TArray<FVector2D>& ProfilePoints =
+                    RoofProfile == EHorizonSourceRoofProfile::Round
+                        ? RoundRoofPoints
+                        : GambrelPoints;
+                const double ShoulderScale =
+                    RoofProfile == EHorizonSourceRoofProfile::Round ? 0.72 : 0.55;
                 const double ShoulderMeters =
-                    WallTopMeters + ProfileRoofHeightMeters * 0.55;
+                    WallTopMeters + ProfileRoofHeightMeters * ShoulderScale;
                 const int32 GambrelBase = Vertices.Num();
-                for (int32 Index = 0; Index < GambrelPoints.Num(); ++Index)
+                for (int32 Index = 0; Index < ProfilePoints.Num(); ++Index)
                 {
                     const double PointHeight = Index < 4 ? ShoulderMeters : TopMeters;
                     const FVector Point = ProjectCoordinate(
-                        GambrelPoints[Index].X,
-                        GambrelPoints[Index].Y,
+                        ProfilePoints[Index].X,
+                        ProfilePoints[Index].Y,
                         PointHeight);
                     Vertices.Add(Point);
                     UV0.Add(FVector2D(Point.X * 0.001f, Point.Y * 0.001f));
