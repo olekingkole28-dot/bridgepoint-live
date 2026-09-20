@@ -9,6 +9,7 @@
 #include "Engine/GameInstance.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "HorizonAutopilotSubsystem.h"
 #include "HorizonAudioDirectorSubsystem.h"
