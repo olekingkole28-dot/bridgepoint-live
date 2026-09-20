@@ -142,7 +142,7 @@ async function bootstrap(){
   markMode();
   renderParty();
   setNet('ONLINE','#44f3bd');
-  status('Lobby ready · invite friends or choose a mode');
+  status('Lobby ready · first-person only · Year One or Team Deathmatch');
   window.BP_HORIZON_LOBBY_V4330={
     ok:true,build:4330,player_id:state.player?.player_id,mode:state.selectedMode,
     party_size:state.party?.members?.length||0,
@@ -191,10 +191,8 @@ function markMode(){
   const d=state.config?.modes?.find(m=>m.key===state.selectedMode);
   if(!d){$('playSub').textContent='';return}
   if(d.key==='YEAR_ONE')$('playSub').textContent=state.yearOne?.status==='LIVE'?`DAY ${state.yearOne.current_day} · ${state.yearOne.player?.lives_remaining??3} lives`:'PRESEASON · starts on owner command';
-  else if(d.key==='TDM')$('playSub').textContent=`6v6 · 12 players · ${state.selectedMap?.display_name||'random map'}`;
-  else if(d.key==='ISLAND_SOLO_8')$('playSub').textContent='8 solo · medium island';
-  else if(d.key==='EXTRACTION')$('playSub').textContent=`${d.match_target} players · squads · ${state.selectedMap?.display_name||'random map'}`;
-  else $('playSub').textContent=`${d.match_target} players · squads`;
+  else if(d.key==='TDM')$('playSub').textContent='6v6 · solo / duo / trio / squad · 50-map auto rotation';
+  else $('playSub').textContent='';
 }
 document.querySelectorAll('.mode').forEach(btn=>btn.addEventListener('click',async()=>{
   const mode=btn.dataset.mode;
@@ -399,8 +397,7 @@ async function openModal(tab){
     c.innerHTML=`<div class="eyebrow">HORIZON STORE</div><h1>3D cosmetics and loadout style</h1><p style="color:#95aaa0">Preview, entitlement and equipped runtime use the same cosmetic keys. Stripe remains disconnected until owner approval.</p><div class="store-grid">${items.map(s=>{const equipable=s.owned&&['CHARACTER_SKIN','WEAPON_WRAP'].includes(s.category);const selected=(s.category==='CHARACTER_SKIN'&&state.player.avatar_key===s.entitlement_key)||(s.category==='WEAPON_WRAP'&&state.player.wrap_key===s.entitlement_key);return `<article class="store-card ${selected?'selected':''}">${rewardArt(s)}<span class="eyebrow">${s.rarity} · ${s.category}</span><h3>${escapeHtml(s.display_name)}</h3><div class="price">${money(s.price_cents,s.currency)}</div><button ${equipable?`data-store-equip="${escapeHtml(s.entitlement_key)}" data-store-kind="${escapeHtml(s.category)}"`:'disabled'}>${selected?'EQUIPPED':equipable?'EQUIP':s.owned?'OWNED':'PREVIEW READY · CHECKOUT OWNER-LOCKED'}</button></article>`}).join('')}</div>`;
   }else if(tab==='ARENA'){
     if(!state.maps.length)await refreshMapCatalog().catch(()=>{});
-    const canChoose=['TDM','EXTRACTION'].includes(state.selectedMode)&&state.party?.host_player_id===ident.id;
-    c.innerHTML=`<div class="eyebrow">ARENA · 50 LIVE WORLD CELLS</div><h1>Choose the actual BridgePoint match location</h1><p style="color:#95aaa0">These choices control the state/latitude/longitude/span passed to the Horizon world stream. ${canChoose?'Your party selection is used by matchmaking.':'Switch to Team Deathmatch or Extraction as party leader to choose a map.'}</p><div class="map-catalog">${state.maps.map(m=>`<article class="map-card ${m.map_key===state.selectedMap?.map_key?'selected':''}"><canvas class="map-mini" width="260" height="130" data-map-key="${escapeHtml(m.map_key)}"></canvas><div class="map-card-body"><span class="eyebrow">${escapeHtml(m.state_code)} · ${escapeHtml(m.biome||'WORLD CELL')}</span><h3>${escapeHtml(m.display_name)}</h3><small>${Number(m.span_km||0).toFixed(1)} km stream span</small><button data-map-key="${escapeHtml(m.map_key)}" ${canChoose?'':'disabled'}>${m.map_key===state.selectedMap?.map_key?'SELECTED':'SELECT MAP'}</button></div></article>`).join('')}</div>`;
+    c.innerHTML=`<div class="eyebrow">TDM ROTATION · 50 REAL LOCATIONS</div><h1>Dense fights. Automatic map switching.</h1><p style="color:#95aaa0">Team Deathmatch rotates through the complete 50-map pool automatically. Each arena is a compact BridgePoint world-stream cell centered on a dense real location; no party can lock the next map.</p><div class="map-catalog">${state.maps.map((m,i)=>`<article class="map-card"><canvas class="map-mini" width="260" height="130" data-map-key="${escapeHtml(m.map_key)}"></canvas><div class="map-card-body"><span class="eyebrow">#${i+1} · ${escapeHtml(m.state_code)} · ${escapeHtml(m.biome||'DENSE WORLD CELL')}</span><h3>${escapeHtml(m.display_name)}</h3><small>${Number(m.span_km||0).toFixed(1)} km combat cell · AUTO ROTATION</small></div></article>`).join('')}</div>`;
     requestAnimationFrame(()=>mountMapMinis(c));
   }else if(tab==='WATCH'){
     state.yearOne=await rpc('bridgepoint_horizon_year_one_status_v4310',{p_player_id:ident.id,p_player_secret:ident.secret}).catch(()=>state.yearOne);
@@ -429,15 +426,8 @@ document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
   if(b.dataset.tab!=='PLAY')openModal(b.dataset.tab);
 });
 $('modalContent').addEventListener('click',async e=>{
-  const mapPick=e.target.closest('button[data-map-key]');
-  if(mapPick){
-    try{
-      const out=await rpc('bridgepoint_horizon_select_map_v4330',{p_player_id:ident.id,p_player_secret:ident.secret,p_map_key:mapPick.dataset.mapKey});
-      state.selectedMap=out.map;await refreshMapCatalog();markMode();status('Map selected · '+state.selectedMap.display_name);openModal('ARENA');
-      if(window.BP_HORIZON_LOBBY_V4330)window.BP_HORIZON_LOBBY_V4330.selected_map_key=state.selectedMap.map_key;
-    }catch(err){status(err.message)}
-    return;
-  }
+  // TDM arenas are server-rotated across the fixed 50-map pool.
+  // There is intentionally no client-side map-selection action.
   const storeEquip=e.target.closest('[data-store-equip]');
   if(storeEquip){
     const key=storeEquip.dataset.storeEquip,kind=storeEquip.dataset.storeKind;
