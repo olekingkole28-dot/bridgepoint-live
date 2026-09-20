@@ -455,6 +455,7 @@ async function waitForSynchronizedStart(match){
   const started=performance.now();
   try{
     state.worldCell=await loadWorldCell(match);
+    if(state.worldCell)drawWorldCellPreview(match,state.worldCell);else drawMap(match);
     $('loadbarFill').style.width='72%';
     const ready=await rpc('bridgepoint_horizon_match_ready_v4302',{
       p_player_id:ident.id,p_player_secret:ident.secret,p_match_id:match.match_id,
@@ -486,8 +487,11 @@ async function showLoading(match){
   $('loading').classList.add('show');$('loading').setAttribute('aria-hidden','false');
   $('mapName').textContent=String(match.map_label||'HORIZON SECTOR').toUpperCase();
   $('modeMeta').textContent=match.mode;$('humanMeta').textContent=`${match.human_players} HUMANS`;$('botMeta').textContent=`${match.bot_players} BOTS`;
-  drawMap(match);$('loadbarFill').style.width='10%';
-  const synchronized=await waitForSynchronizedStart(match);
+  drawUsLocator(match,0);$('loadbarFill').style.width='10%';
+  let voted=await runMapVote(match);
+  await animateUsToMap(voted);
+  $('loadbarFill').style.width='28%';
+  const synchronized=await waitForSynchronizedStart(voted);
   connectMatchSignal(synchronized);startHostLease(synchronized);
   const start=Date.parse(synchronized.starts_at);
   const timer=setInterval(()=>{
