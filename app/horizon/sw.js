@@ -1,4 +1,4 @@
-const CACHE='bridgepoint-horizon-v4340';
+const CACHE='bridgepoint-horizon-v4341';
 const SHELL=[
   './','./index.html','./styles.css','./app.js','./runtime-contract.js','./lobby-scene.js','./model-preview.js',
   './manifest.webmanifest','./horizon-mark.svg'
