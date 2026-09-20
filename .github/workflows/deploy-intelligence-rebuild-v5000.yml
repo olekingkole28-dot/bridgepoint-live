@@ -169,14 +169,18 @@ jobs:
           node --check site/landing.js
           node --check site/intelligence-global-v5507.js
           node --check site/intelligence-tools-v5507.js
-          grep -Fq 'intelligence-tools-v5507.js?v=5507' site/index.html
-          grep -Fq 'intelligence-tools-v5507.js?v=5507' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5510' site/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5510' site/app/index.html
           grep -Fq 'FREE PREMIUM TOOLS' site/intelligence-tools-v5507.js
           grep -Fq 'Use two fingers and swipe / scroll up' site/intelligence-global-v5507.js
           grep -Fq 'bp5507-tect-line' site/intelligence-global-v5507.js
           grep -Fq '#landingPropertySearch' site/intelligence-v5507.css
           grep -Fq 'data-globe' site/intelligence-tools-v5507.js
           grep -Fq 'bindInfo' site/intelligence-global-v5507.js
+          grep -Fq 'NASA_GPM_IMERG_NEAR_REALTIME' site/intelligence-global-v5507.js
+          grep -Fq 'bp5510-global-imerg' site/intelligence-global-v5507.js
+          grep -Fq 'landingFreePremiumTools' site/index.html
+          grep -Fq 'appFreePremiumTools' site/app/index.html
           grep -Fq 'landingPropertySearch' site/index.html
           grep -Fq 'FREE_LOOKUP_KEY' site/landing.js
           grep -Fq 'landingWeatherLegend' site/landing.js
@@ -560,14 +564,16 @@ jobs:
               await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map,{timeout:30000});
               await p.waitForFunction(()=>Number(window.__BP_LANDING_LIVE_WEATHER__?.shapeCount||0)>0&&Number(window.__BP_LANDING_LIVE_WEATHER__?.pointCount||0)>0,{timeout:30000});
               await p.waitForFunction(()=>window.__BP_LANDING_RADAR_STATE__?.visible===true,{timeout:30000});
+              await p.waitForFunction(()=>!!window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__&&!!window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__,{timeout:30000});
               await p.waitForFunction(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;if(!m)return false;
-                try{
-                  const points=m.getLayer('bp-landing-weather-points')?m.queryRenderedFeatures({layers:['bp-landing-weather-points']}).length:0;
-                  const lines=m.getLayer('bp-landing-weather-line')?m.queryRenderedFeatures({layers:['bp-landing-weather-line']}).length:0;
-                  return points>0&&lines>0;
-                }catch{return false}
+                const proj=m.getProjection?.()?.type||'';
+                const btn=document.getElementById('landingFreePremiumTools');
+                return proj==='globe'&&!!m.getLayer('bp5510-global-imerg')&&!!btn&&getComputedStyle(btn).display!=='none';
               },{timeout:30000});
+              await p.click('#landingFreePremiumTools');
+              await p.waitForFunction(()=>document.getElementById('bp5507-tool-panel')?.hidden===false,{timeout:5000});
+              await p.evaluate(()=>{const p=document.getElementById('bp5507-tool-panel');if(p)p.hidden=true});
               await p.waitForFunction(()=>document.querySelectorAll('#landingPackages .package-card').length>=9,{timeout:20000});
               const landing=await p.evaluate(()=>({
                 build:document.querySelector('meta[name="bp-build"]')?.content||'',
@@ -593,10 +599,16 @@ jobs:
                 backdropLoaded:(getComputedStyle(document.querySelector('.world-backdrop-image')).backgroundImage||'').includes('bp-city-world-background.webp'),
                 productVisuals:document.querySelectorAll('.cap-visual').length,
                 packageCards:document.querySelectorAll('#landingPackages .package-card').length,
+                globalPrecip5510:!!window.__BP_LANDING_WORLD__?.map?.getLayer('bp5510-global-imerg'),
+                defaultGlobe:(window.__BP_LANDING_WORLD__?.map?.getProjection?.()?.type||'')==='globe',
+                freePremiumVisible:(()=>{const e=document.getElementById('landingFreePremiumTools');return !!e&&getComputedStyle(e).display!=='none'&&e.getBoundingClientRect().width>60})(),
                 mobileSearchHide:(()=>{document.body.classList.add('bp5507-mobile-busy');const hidden=getComputedStyle(document.getElementById('landingPropertySearch')).display==='none';document.body.classList.remove('bp5507-mobile-busy');return hidden})()
               }));
-              if(!landing.build.includes('BP_LANDING_V5410')||!landing.search||!landing.sample||landing.mapCanvases!==1||landing.lockedTabs<6||!landing.weatherLegend||!landing.weatherMore||!landing.radarVisible||!landing.radarLayerVisible||!landing.nationalWeatherLayers||landing.weatherShapes<1||landing.weatherPoints<1||landing.renderedWeather.points<1||landing.renderedWeather.lines<1||!/EVENTS/.test(landing.weatherLegendCount)||!landing.noHorizontalOverflow||landing.searchZoomOverlap||!landing.mollyPresent||landing.heroLabelFont<11||landing.heroSmallFont<8.5||!landing.backdropLoaded||landing.productVisuals<6||landing.packageCards<9||!landing.mobileSearchHide||!/first property lookup is free/i.test(landing.freeLookupCopy))throw new Error('LANDING_CONVERSION_REGRESSION '+JSON.stringify(landing));
+              if(!landing.build.includes('BP_LANDING_V5410')||!landing.search||!landing.sample||landing.mapCanvases!==1||landing.lockedTabs<6||!landing.weatherLegend||!landing.weatherMore||!landing.radarVisible||!landing.radarLayerVisible||!landing.nationalWeatherLayers||landing.weatherShapes<1||landing.weatherPoints<1||landing.renderedWeather.points<1||landing.renderedWeather.lines<1||!/EVENTS/.test(landing.weatherLegendCount)||!landing.noHorizontalOverflow||landing.searchZoomOverlap||!landing.mollyPresent||landing.heroLabelFont<11||landing.heroSmallFont<8.5||!landing.backdropLoaded||landing.productVisuals<6||landing.packageCards<9||!landing.globalPrecip5510||!landing.defaultGlobe||!landing.freePremiumVisible||!landing.mobileSearchHide||!/first property lookup is free/i.test(landing.freeLookupCopy))throw new Error('LANDING_CONVERSION_REGRESSION '+JSON.stringify(landing));
               console.log('BRIDGEPOINT_LANDING_CONVERSION_PASS',JSON.stringify(landing));
+              await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map;m?.jumpTo({center:[-98.5,39.5],zoom:3.35,pitch:0,bearing:0})});
+              await p.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map;if(!m)return false;try{return m.queryRenderedFeatures({layers:['bp-landing-weather-points']}).length>0&&m.queryRenderedFeatures({layers:['bp-landing-weather-line']}).length>0}catch{return false}},{timeout:30000});
+              console.log('BRIDGEPOINT_US_WEATHER_ON_GLOBE_PASS');
               const cols=async(width,height)=>{await p.setViewport({width,height,deviceScaleFactor:width<600?2:1,isMobile:width<600,hasTouch:width<1000});await new Promise(r=>setTimeout(r,350));return p.evaluate(()=>{const gridCols=sel=>{const el=document.querySelector(sel);if(!el)return 0;const v=getComputedStyle(el).gridTemplateColumns.trim();return v?v.split(/\s+/).length:0};return{w:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth+2,products:gridCols('.cap-grid'),packages:gridCols('#landingPackages'),footer:gridCols('.footer-link-groups')}})};
               const phone=await cols(390,844),tablet=await cols(820,1180),desktop=await cols(1440,900);
               if(phone.overflow||tablet.overflow||desktop.overflow||phone.products!==1||phone.packages!==1||phone.footer!==1||tablet.products!==2||tablet.packages!==2||tablet.footer!==2||desktop.products!==3||desktop.packages!==3||desktop.footer!==4)throw new Error('RESPONSIVE_LANDING_REGRESSION '+JSON.stringify({phone,tablet,desktop}));
@@ -626,9 +638,11 @@ jobs:
                 premiumTools:!!document.getElementById('bp5507-tools'),
                 live:!!window.__BP_V5000_WORLD?.map?.getLayer('bp5507-live-points'),
                 tectonics:!!window.__BP_V5000_WORLD?.map?.getLayer('bp5507-tect-line'),
+                globalPrecip:!!window.__BP_V5000_WORLD?.map?.getLayer('bp5510-global-imerg'),
+                freePremiumVisible:(()=>{const e=document.getElementById('appFreePremiumTools');return !!e&&getComputedStyle(e).display!=='none'})(),
                 mobileAppChromeHide:(()=>{document.body.classList.add('bp5507-mobile-busy');const search=document.getElementById('publicSearchForm'),key=document.getElementById('bp5507-key');const ok=(!search||getComputedStyle(search).display==='none')&&(!key||getComputedStyle(key).display==='none');document.body.classList.remove('bp5507-mobile-busy');return ok})()
               }));
-              if(intel5507.runtime!==5507||intel5507.tools!==5507||!intel5507.key||!intel5507.premiumTools||!intel5507.live||!intel5507.tectonics||!intel5507.mobileAppChromeHide||intel5507.defaultGlobe)throw new Error('INTELLIGENCE_V5507_REGRESSION '+JSON.stringify(intel5507));
+              if(intel5507.runtime!==5510||intel5507.tools!==5510||!intel5507.key||!intel5507.premiumTools||!intel5507.live||!intel5507.tectonics||!intel5507.globalPrecip||!intel5507.freePremiumVisible||!intel5507.mobileAppChromeHide||!intel5507.defaultGlobe)throw new Error('INTELLIGENCE_V5507_REGRESSION '+JSON.stringify(intel5507));
               console.log('BRIDGEPOINT_INTELLIGENCE_V5507_PASS',JSON.stringify(intel5507));
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
