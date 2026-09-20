@@ -627,24 +627,29 @@ $('modalContent').addEventListener('click',async e=>{
   if(auth){
     const action=auth.dataset.authAction,email=$('authEmail')?.value.trim(),password=$('authPassword')?.value||'',handle=$('authHandle')?.value.trim();
     try{
-      if(action==='signup'){
-        if(!email||password.length<8)throw new Error('Enter an email and a password with at least 8 characters.');
-        const {data,error}=await sb.auth.signUp({email,password});if(error)throw error;state.session=data?.session||null;
-        if(!state.session){status('Account created · confirm your email, then sign in.');return}
-      }else if(action==='signin'){
-        if(!email||!password)throw new Error('Enter your email and password.');
-        const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;state.session=data?.session||null;
-      }else if(action==='signout'){
+      if(action==='signout'){
         await sb.auth.signOut();state.session=null;state.account=null;state.character=null;state.stats=null;renderAccountState();syncPlayAvailability();closeHorizonModal();status('Signed out of Horizon');return;
       }
-      if(action==='link'||state.session){
-        const h=handle||$('displayName')?.value.trim();
-        if(action==='link'||h){
-          const out=await rpc('bridgepoint_horizon_account_link_v4340',{p_player_id:ident.id,p_player_secret:ident.secret,p_handle:h,p_banner_key:$('authBanner')?.value||'banner_founder',p_icon_key:$('authIcon')?.value||'icon_skull'});
-          if(out?.ok){await refreshAuthState();await detectOwner();await refreshParty();status('Free Horizon account linked · @'+state.account.handle);openModal('ACCOUNT');return}
-        }
+      if(action==='signup'){
+        if(!email||password.length<8)throw new Error('Enter an email and a password with at least 8 characters.');
+        if(!/^[A-Za-z0-9_]{3,20}$/.test(handle||''))throw new Error('Choose a unique 3-20 character handle using letters, numbers, or _.');
+        const {data,error}=await sb.auth.signUp({email,password});if(error)throw error;state.session=data?.session||null;
+        if(!state.session){status('Account created · confirm your email, then sign in.');return}
+        const linked=await rpc('bridgepoint_horizon_account_link_v4340',{p_player_id:ident.id,p_player_secret:ident.secret,p_handle:handle,p_banner_key:'banner_founder',p_icon_key:'icon_skull'});
+        if(linked?.ok){await refreshAuthState();await detectOwner();await refreshParty();status('Free Horizon account linked · @'+state.account.handle);openModal('ACCOUNT');return}
       }
-      await refreshAuthState();openModal(state.account?'ACCOUNT':'ACCOUNT');
+      if(action==='signin'){
+        if(!email||!password)throw new Error('Enter your email and password.');
+        const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;state.session=data?.session||null;
+        await refreshAuthState();
+        if(state.account){await detectOwner();status('Signed in · @'+state.account.handle);openModal('ACCOUNT');return}
+        status('Signed in · finish your player profile.');openModal('ACCOUNT');return;
+      }
+      if(action==='link'){
+        if(!/^[A-Za-z0-9_]{3,20}$/.test(handle||''))throw new Error('Choose a unique 3-20 character handle using letters, numbers, or _.');
+        const linked=await rpc('bridgepoint_horizon_account_link_v4340',{p_player_id:ident.id,p_player_secret:ident.secret,p_handle:handle,p_banner_key:$('authBanner')?.value||'banner_founder',p_icon_key:$('authIcon')?.value||'icon_skull'});
+        if(linked?.ok){await refreshAuthState();await detectOwner();await refreshParty();status('Player profile saved · @'+state.account.handle);openModal('ACCOUNT');return}
+      }
     }catch(err){status(err.message);const box=document.querySelector('.account-callout');if(box)box.textContent=err.message}
     return;
   }
