@@ -1689,6 +1689,20 @@ void AHorizonPlayerCharacter::RefreshMovementProfile()
     CameraBoom->CameraRotationLagSpeed = FMath::Clamp(InterpSpeed * 1.15f, 10.0f, 21.0f);
 }
 
+bool AHorizonPlayerCharacter::ShouldEnableWorldGravityFromTerrainCollision(
+    bool bWaitingForStreamedTerrain,
+    bool bHasTerrainData,
+    bool bHasTerrainMesh,
+    bool bTraceSucceeded,
+    bool bBlockingHit)
+{
+    return bWaitingForStreamedTerrain &&
+        bHasTerrainData &&
+        bHasTerrainMesh &&
+        bTraceSucceeded &&
+        bBlockingHit;
+}
+
 void AHorizonPlayerCharacter::TryEnableWorldGravity(float DeltaSeconds)
 {
     if (!bWaitingForStreamedTerrain)
@@ -1705,7 +1719,9 @@ void AHorizonPlayerCharacter::TryEnableWorldGravity(float DeltaSeconds)
 
     for (TActorIterator<AHorizonWorldCellRenderer> It(GetWorld()); It; ++It)
     {
-        if (!It->HasTerrain() || !It->TerrainMesh)
+        const bool bHasTerrainData = It->HasTerrain();
+        const bool bHasTerrainMesh = It->TerrainMesh != nullptr;
+        if (!bHasTerrainData || !bHasTerrainMesh)
         {
             continue;
         }
@@ -1719,8 +1735,14 @@ void AHorizonPlayerCharacter::TryEnableWorldGravity(float DeltaSeconds)
         FCollisionQueryParams Params(SCENE_QUERY_STAT(HorizonTerrainGrounding), false, this);
         FHitResult TerrainHit;
 
-        if (!It->TerrainMesh->LineTraceComponent(TerrainHit, TraceStart, TraceEnd, Params) ||
-            !TerrainHit.bBlockingHit)
+        const bool bTraceSucceeded =
+            It->TerrainMesh->LineTraceComponent(TerrainHit, TraceStart, TraceEnd, Params);
+        if (!ShouldEnableWorldGravityFromTerrainCollision(
+                bWaitingForStreamedTerrain,
+                bHasTerrainData,
+                bHasTerrainMesh,
+                bTraceSucceeded,
+                TerrainHit.bBlockingHit))
         {
             continue;
         }
