@@ -444,6 +444,11 @@ EHorizonSourceRoofProfile AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
     {
         return EHorizonSourceRoofProfile::Skillion;
     }
+    if (FootprintVertexCount == 4 &&
+        NormalizedShape == TEXT("mansard"))
+    {
+        return EHorizonSourceRoofProfile::Mansard;
+    }
     return EHorizonSourceRoofProfile::Flat;
 }
 
@@ -480,6 +485,57 @@ FIntPoint AHorizonWorldCellRenderer::ResolveSkillionHighEdge(
     return FirstEdgeSquared <= SecondEdgeSquared
         ? FIntPoint(3, 0)
         : FIntPoint(0, 1);
+}
+
+TArray<FVector2D> AHorizonWorldCellRenderer::ResolveMansardInsetFootprint(
+    const TArray<FVector2D>& Footprint)
+{
+    TArray<FVector2D> Inset;
+    if (Footprint.Num() != 4)
+    {
+        return Inset;
+    }
+
+    double TurnSign = 0.0;
+    FVector2D Centroid = FVector2D::ZeroVector;
+    for (int32 Index = 0; Index < Footprint.Num(); ++Index)
+    {
+        const FVector2D& A = Footprint[Index];
+        const FVector2D& B = Footprint[(Index + 1) % Footprint.Num()];
+        const FVector2D& C = Footprint[(Index + 2) % Footprint.Num()];
+        if (!FMath::IsFinite(A.X) || !FMath::IsFinite(A.Y) ||
+            FVector2D::DistSquared(A, B) <= 1.0e-16)
+        {
+            return TArray<FVector2D>();
+        }
+
+        const double Turn = HorizonCellRender::Cross2D(A, B, C);
+        if (!FMath::IsFinite(Turn) || FMath::Abs(Turn) <= KINDA_SMALL_NUMBER)
+        {
+            return TArray<FVector2D>();
+        }
+
+        const double CurrentSign = Turn > 0.0 ? 1.0 : -1.0;
+        if (TurnSign != 0.0 && CurrentSign != TurnSign)
+        {
+            return TArray<FVector2D>();
+        }
+        TurnSign = CurrentSign;
+        Centroid += A;
+    }
+
+    if (FMath::Abs(HorizonCellRender::SignedArea(Footprint)) <= KINDA_SMALL_NUMBER)
+    {
+        return Inset;
+    }
+
+    Centroid /= static_cast<double>(Footprint.Num());
+    Inset.Reserve(Footprint.Num());
+    for (const FVector2D& Point : Footprint)
+    {
+        Inset.Add(FMath::Lerp(Point, Centroid, 0.22f));
+    }
+    return Inset;
 }
 
 double AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
@@ -1115,8 +1171,14 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                 RoofProfile == EHorizonSourceRoofProfile::Skillion
                     ? ResolveSkillionHighEdge(Ring)
                     : FIntPoint(-1, -1);
-            if (RoofProfile == EHorizonSourceRoofProfile::Skillion &&
-                (SkillionHighEdge.X < 0 || SkillionHighEdge.Y < 0))
+            const TArray<FVector2D> MansardInset =
+                RoofProfile == EHorizonSourceRoofProfile::Mansard
+                    ? ResolveMansardInsetFootprint(Ring)
+                    : TArray<FVector2D>();
+            if ((RoofProfile == EHorizonSourceRoofProfile::Skillion &&
+                 (SkillionHighEdge.X < 0 || SkillionHighEdge.Y < 0)) ||
+                (RoofProfile == EHorizonSourceRoofProfile::Mansard &&
+                 MansardInset.Num() != 4))
             {
                 ProfileRoofHeightMeters = 0.0;
             }
@@ -1272,6 +1334,55 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                     AddRoofTriangle(RoofBase + 2, RoofBase + 3, RidgeBIndex);
                     AddRoofTriangle(RoofBase + 2, RidgeBIndex, RidgeAIndex);
                     AddRoofTriangle(RoofBase + 3, RoofBase + 0, RidgeBIndex);
+                }
+                ++RenderedProfiledRoofCount;
+            }
+            else if (ProfileRoofHeightMeters > 0.0 &&
+                RoofProfile == EHorizonSourceRoofProfile::Mansard &&
+                Top.Num() == 4 &&
+                MansardInset.Num() == 4)
+            {
+                // The sourced profile adds one bounded four-vertex inset to the
+                // existing mesh section: no new draw section or collision body.
+                const int32 MansardTopBase = Vertices.Num();
+                TArray<FVector2D> MansardTopLocal;
+                MansardTopLocal.Reserve(4);
+                for (const FVector2D& Point : MansardInset)
+                {
+                    const FVector TopPoint =
+                        ProjectCoordinate(Point.X, Point.Y, TopMeters);
+                    Vertices.Add(TopPoint);
+                    UV0.Add(FVector2D(TopPoint.X * 0.001f, TopPoint.Y * 0.001f));
+                    MansardTopLocal.Add(FVector2D(TopPoint.X, TopPoint.Y));
+                }
+
+                const bool bClockwise =
+                    HorizonCellRender::SignedArea(LocalPolygon) < 0.0f;
+                auto AddMansardTriangle = [&](int32 A, int32 B, int32 C)
+                {
+                    Triangles.Add(bClockwise ? C : A);
+                    Triangles.Add(B);
+                    Triangles.Add(bClockwise ? A : C);
+                };
+
+                for (int32 Index = 0; Index < 4; ++Index)
+                {
+                    const int32 Next = (Index + 1) % 4;
+                    AddMansardTriangle(
+                        RoofBase + Index,
+                        RoofBase + Next,
+                        MansardTopBase + Index);
+                    AddMansardTriangle(
+                        MansardTopBase + Index,
+                        RoofBase + Next,
+                        MansardTopBase + Next);
+                }
+
+                const TArray<int32> TopIndices =
+                    HorizonCellRender::TriangulateSimplePolygon(MansardTopLocal);
+                for (const int32 Index : TopIndices)
+                {
+                    Triangles.Add(MansardTopBase + Index);
                 }
                 ++RenderedProfiledRoofCount;
             }

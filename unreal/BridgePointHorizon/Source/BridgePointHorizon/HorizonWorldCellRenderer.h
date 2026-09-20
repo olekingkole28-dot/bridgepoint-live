@@ -15,7 +15,8 @@ enum class EHorizonSourceRoofProfile : uint8
     Apex,
     Gabled,
     Hipped,
-    Skillion
+    Skillion,
+    Mansard
 };
 
 UCLASS(BlueprintType)
@@ -122,6 +123,9 @@ public:
         const FString& RoofShape,
         int32 FootprintVertexCount);
     static FIntPoint ResolveSkillionHighEdge(
+        const TArray<FVector2D>& Footprint);
+
+    static TArray<FVector2D> ResolveMansardInsetFootprint(
         const TArray<FVector2D>& Footprint);
 
     static double ResolveSourceRoofHeightMeters(
