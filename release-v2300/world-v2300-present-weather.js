@@ -25,7 +25,7 @@ export function initPresentWeather(map){
  }
  function schedule(delay=250){clearTimeout(timer);timer=setTimeout(()=>refresh(false),delay)}
  const wait=()=>{if(window.__bpWeatherV2300?.fx){refresh(true);return}setTimeout(wait,180)};wait();
- map.on('moveend',()=>schedule(LOW?800:450));map.on('zoomend',()=>schedule(220));setInterval(()=>document.querySelector('[data-surface="map"]')?.classList.contains('active')&&refresh(false),60000);
+ map.on('moveend',()=>schedule(LOW?520:260));map.on('zoomend',()=>schedule(220));setInterval(()=>document.querySelector('[data-surface="map"]')?.classList.contains('active')&&refresh(false),60000);
  const api={version:2301,map,source:'NOAA/NWS Aviation Weather Center METAR',presentWeatherCodes:true,drivesRainSnowHail:true,exactLightningStrikesInvented:false,secondaryCanvases:0,refresh,setActive(v){active=!!v;if(active)refresh(true)},get state(){return{active,last,count,secondaryCanvases:0,source:'NOAA_AWC_METAR'}}};
  window.__bpPresentWeatherV2301=api;return api;
 }
