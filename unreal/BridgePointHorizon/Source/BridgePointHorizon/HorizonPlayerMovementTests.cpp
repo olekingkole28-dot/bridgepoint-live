@@ -195,4 +195,46 @@ bool FHorizonCombatHitResolutionTest::RunTest(const FString& Parameters)
     return true;
 }
 
+
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonMovementProfileRefreshBudgetTest,
+    "BridgePoint.Horizon.Performance.Player.MovementProfileBudget",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonMovementProfileRefreshBudgetTest::RunTest(const FString& Parameters)
+{
+    float Accumulator = 0.0f;
+    for (int32 Frame = 0; Frame < 6; ++Frame)
+    {
+        TestFalse(TEXT("Sub-budget movement frame avoids adaptive profile work"),
+            AHorizonPlayerCharacter::ShouldRefreshMovementProfile(
+                Accumulator, 0.016f, 0.10f, Accumulator));
+    }
+    TestTrue(TEXT("Adaptive movement profile refreshes at ten hertz"),
+        AHorizonPlayerCharacter::ShouldRefreshMovementProfile(
+            Accumulator, 0.016f, 0.10f, Accumulator));
+    TestTrue(TEXT("Movement profile remainder stays below refresh interval"),
+        Accumulator >= 0.0f && Accumulator < 0.10f);
+
+    TestTrue(TEXT("Ordinary hitch produces one bounded refresh"),
+        AHorizonPlayerCharacter::ShouldRefreshMovementProfile(
+            0.0f, 0.20f, 0.10f, Accumulator));
+    TestTrue(TEXT("Hitch remainder remains bounded"),
+        Accumulator >= 0.0f && Accumulator < 0.10f);
+
+    TestFalse(TEXT("Negative frame delta cannot synthesize profile work"),
+        AHorizonPlayerCharacter::ShouldRefreshMovementProfile(
+            0.0f, -1.0f, 0.10f, Accumulator));
+    TestFalse(TEXT("Zero frame delta cannot synthesize profile work"),
+        AHorizonPlayerCharacter::ShouldRefreshMovementProfile(
+            0.0f, 0.0f, 0.10f, Accumulator));
+    TestTrue(TEXT("Catastrophic stall remains a single refresh"),
+        AHorizonPlayerCharacter::ShouldRefreshMovementProfile(
+            0.0f, 20.0f, 0.10f, Accumulator));
+    TestTrue(TEXT("Catastrophic stall cannot leave an unbounded backlog"),
+        Accumulator >= 0.0f && Accumulator < 0.10f);
+    return true;
+}
+
 #endif
