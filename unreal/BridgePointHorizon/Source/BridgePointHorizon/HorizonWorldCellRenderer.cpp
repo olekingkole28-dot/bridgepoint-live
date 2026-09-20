@@ -419,7 +419,49 @@ EHorizonSourceRoofProfile AHorizonWorldCellRenderer::ResolveSourceRoofProfile(
     {
         return EHorizonSourceRoofProfile::Hipped;
     }
+    if (FootprintVertexCount == 4 &&
+        (NormalizedShape == TEXT("skillion") ||
+         NormalizedShape == TEXT("shed") ||
+         NormalizedShape == TEXT("shed roof")))
+    {
+        return EHorizonSourceRoofProfile::Skillion;
+    }
     return EHorizonSourceRoofProfile::Flat;
+}
+
+FIntPoint AHorizonWorldCellRenderer::ResolveSkillionHighEdge(
+    const TArray<FVector2D>& Footprint)
+{
+    if (Footprint.Num() != 4)
+    {
+        return FIntPoint(-1, -1);
+    }
+
+    for (const FVector2D& Point : Footprint)
+    {
+        if (!FMath::IsFinite(Point.X) || !FMath::IsFinite(Point.Y))
+        {
+            return FIntPoint(-1, -1);
+        }
+    }
+
+    const double FirstEdgeSquared =
+        FVector2D::DistSquared(Footprint[0], Footprint[1]);
+    const double SecondEdgeSquared =
+        FVector2D::DistSquared(Footprint[1], Footprint[2]);
+    if (!FMath::IsFinite(FirstEdgeSquared) ||
+        !FMath::IsFinite(SecondEdgeSquared) ||
+        FirstEdgeSquared <= 1.0e-16 ||
+        SecondEdgeSquared <= 1.0e-16)
+    {
+        return FIntPoint(-1, -1);
+    }
+
+    // The source ring determines the high side; its longest-axis pair determines
+    // the slope orientation. No roof direction is inferred from unrelated context.
+    return FirstEdgeSquared <= SecondEdgeSquared
+        ? FIntPoint(3, 0)
+        : FIntPoint(0, 1);
 }
 
 double AHorizonWorldCellRenderer::ResolveSourceRoofHeightMeters(
@@ -1046,11 +1088,20 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
             Feature->TryGetNumberField(TEXT("roof_height_m"), RequestedRoofHeightMeters);
             const EHorizonSourceRoofProfile RoofProfile =
                 ResolveSourceRoofProfile(RoofShape, Ring.Num());
-            const double ProfileRoofHeightMeters = ResolveSourceRoofHeightMeters(
+            double ProfileRoofHeightMeters = ResolveSourceRoofHeightMeters(
                 RoofShape,
                 RequestedRoofHeightMeters,
                 HeightMeters,
                 Ring.Num());
+            const FIntPoint SkillionHighEdge =
+                RoofProfile == EHorizonSourceRoofProfile::Skillion
+                    ? ResolveSkillionHighEdge(Ring)
+                    : FIntPoint(-1, -1);
+            if (RoofProfile == EHorizonSourceRoofProfile::Skillion &&
+                (SkillionHighEdge.X < 0 || SkillionHighEdge.Y < 0))
+            {
+                ProfileRoofHeightMeters = 0.0;
+            }
 
             double AverageLongitude = 0.0;
             double AverageLatitude = 0.0;
@@ -1083,6 +1134,19 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                 Bottom.Add(BottomPoint);
                 Top.Add(TopPoint);
                 LocalPolygon.Add(FVector2D(BottomPoint.X, BottomPoint.Y));
+            }
+
+            if (ProfileRoofHeightMeters > 0.0 &&
+                RoofProfile == EHorizonSourceRoofProfile::Skillion)
+            {
+                Top[SkillionHighEdge.X] = ProjectCoordinate(
+                    Ring[SkillionHighEdge.X].X,
+                    Ring[SkillionHighEdge.X].Y,
+                    TopMeters);
+                Top[SkillionHighEdge.Y] = ProjectCoordinate(
+                    Ring[SkillionHighEdge.Y].X,
+                    Ring[SkillionHighEdge.Y].Y,
+                    TopMeters);
             }
 
             for (int32 Index = 0; Index < Ring.Num(); ++Index)
@@ -1190,6 +1254,21 @@ void AHorizonWorldCellRenderer::BuildBuildings(const TSharedPtr<FJsonObject>& Ro
                     AddRoofTriangle(RoofBase + 2, RoofBase + 3, RidgeBIndex);
                     AddRoofTriangle(RoofBase + 2, RidgeBIndex, RidgeAIndex);
                     AddRoofTriangle(RoofBase + 3, RoofBase + 0, RidgeBIndex);
+                }
+                ++RenderedProfiledRoofCount;
+            }
+            else if (ProfileRoofHeightMeters > 0.0 &&
+                RoofProfile == EHorizonSourceRoofProfile::Skillion &&
+                Top.Num() == 4)
+            {
+                // Skillion roofs reuse the four source footprint vertices. The wall
+                // extrusion follows their two sourced-height edges, so no extra draw
+                // section, collision body, or roof vertices are introduced.
+                const TArray<int32> RoofIndices =
+                    HorizonCellRender::TriangulateSimplePolygon(LocalPolygon);
+                for (const int32 Index : RoofIndices)
+                {
+                    Triangles.Add(RoofBase + Index);
                 }
                 ++RenderedProfiledRoofCount;
             }
