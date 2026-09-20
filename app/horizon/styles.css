@@ -154,3 +154,11 @@ button,input{font:inherit}button{cursor:pointer;color:inherit}
 .map-card-body button{width:100%;margin-top:9px;border:1px solid rgba(68,243,189,.32);border-radius:9px;padding:8px;background:rgba(68,243,189,.11);color:var(--mint);font-size:8px;font-weight:950}
 .map-card-body button:disabled{opacity:.4}
 @media(max-width:560px){.map-catalog{grid-template-columns:1fr 1fr;gap:7px}.map-card-body{padding:8px}.map-card-body h3{font-size:10px}.map-card-body .eyebrow{font-size:6px}}
+
+
+/* HORIZON TWO-MODE LOBBY V4335 */
+.mode-dock{grid-template-columns:repeat(2,minmax(0,1fr)) 190px}
+@media(max-width:930px){
+  .mode-dock{grid-template-columns:1fr 1fr}
+  .play{grid-column:1/-1;grid-row:auto;min-height:68px}
+}
