@@ -115,6 +115,8 @@ jobs:
           cp rebuild-v5000/scenario-lab-v5525.css site/scenario-lab-v5525.css
           cp rebuild-v5000/qr-house-v5521.js site/qr-house-v5521.js
           cp rebuild-v5000/refresh-v5535.js site/refresh-v5535.js
+          cp rebuild-v5000/walkthrough-v5537.js site/walkthrough-v5537.js
+          cp rebuild-v5000/walkthrough-v5537.css site/walkthrough-v5537.css
           cp rebuild-v5000/404.html site/404.html
           cp rebuild-v5000/bridgepoint-mark.svg site/bridgepoint-mark.svg
           cp rebuild-v5000/bridgepoint-favicon-48.png site/bridgepoint-favicon-48.png
@@ -182,6 +184,7 @@ jobs:
           node --check site/scenario-lab-v5525.js
           node --check site/qr-house-v5521.js
           node --check site/refresh-v5535.js
+          node --check site/walkthrough-v5537.js
           grep -Fq 'intelligence-tools-v5507.js?v=5531' site/index.html
           grep -Fq 'intelligence-tools-v5507.js?v=5531' site/app/index.html
           grep -Fq 'FREE PREMIUM TOOLS' site/intelligence-tools-v5507.js
@@ -213,6 +216,14 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '/refresh-v5535.js?v=5535' site/index.html
           grep -Fq '/refresh-v5535.js?v=5535' site/app/index.html
+          grep -Fq '__BP_WALKTHROUGH_V5537__' site/walkthrough-v5537.js
+          grep -Fq 'MOLLY SAYS' site/walkthrough-v5537.js
+          grep -Fq 'demo3D' site/walkthrough-v5537.js
+          grep -Fq 'qaBypass' site/walkthrough-v5537.js
+          grep -Fq '/walkthrough-v5537.js?v=5537' site/index.html
+          grep -Fq '/walkthrough-v5537.js?v=5537' site/app/index.html
+          grep -Fq '/walkthrough-v5537.css?v=5537' site/index.html
+          grep -Fq '/walkthrough-v5537.css?v=5537' site/app/index.html
           grep -Fq 'bp5507-live-hit' site/intelligence-global-v5507.js
           ! grep -Fq "source('bp5507-live',fc())" site/intelligence-global-v5507.js
           ! grep -Fq '3D HOUSE QR' site/intelligence-tools-v5507.js
@@ -630,6 +641,17 @@ jobs:
               const p=await browser.newPage();
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.goto('https://bridgepointintelligence.online/?tourqa=1&v='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await p.waitForSelector('#bpWalkthrough',{timeout:10000});
+              const landingTour=await p.evaluate(()=>({active:window.__BP_WALKTHROUGH_V5537__?.active===true,total:window.__BP_WALKTHROUGH_V5537__?.total||0,title:document.querySelector('.bp-tour-title')?.textContent||'',people:document.querySelectorAll('.bp-tour-person img').length,skip:!!document.querySelector('.bp-tour-skip')}));
+              if(!landingTour.active||landingTour.total<25||landingTour.people!==2||!landingTour.skip||!/Welcome to BridgePoint/i.test(landingTour.title))throw new Error('LANDING_WALKTHROUGH_REGRESSION '+JSON.stringify(landingTour));
+              await p.click('.bp-tour-skip');await p.waitForFunction(()=>!document.getElementById('bpWalkthrough'),{timeout:5000});
+              await p.goto('https://bridgepointintelligence.online/app/?tourqa=1&v='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await p.waitForSelector('#bpWalkthrough',{timeout:10000});
+              const appTour=await p.evaluate(()=>({active:window.__BP_WALKTHROUGH_V5537__?.active===true,total:window.__BP_WALKTHROUGH_V5537__?.total||0,title:document.querySelector('.bp-tour-title')?.textContent||'',molly:document.body.innerText.includes('Molly Materson'),skip:!!document.querySelector('.bp-tour-skip')}));
+              if(!appTour.active||appTour.total<30||!appTour.molly||!appTour.skip||!/Welcome to the BridgePoint app/i.test(appTour.title))throw new Error('APP_WALKTHROUGH_REGRESSION '+JSON.stringify(appTour));
+              await p.click('.bp-tour-skip');await p.waitForFunction(()=>!document.getElementById('bpWalkthrough'),{timeout:5000});
+              console.log('BRIDGEPOINT_WALKTHROUGH_V5537_PASS',JSON.stringify({landingTour,appTour}));
               const fatal=[];p.on('pageerror',e=>{fatal.push(String(e.message||e));console.log('BROWSER_PAGEERROR',String(e.stack||e.message||e))});
               p.on('console',m=>{const t=m.text();if(/BridgePoint|premium|global runtime|module|Failed to load|SyntaxError|ReferenceError|TypeError/i.test(t))console.log('BROWSER_CONSOLE',m.type(),t)});
               p.on('requestfailed',req=>{const u=req.url();if(/intelligence-(tools|global)-v5507\.js/.test(u))console.log('BROWSER_REQUEST_FAILED',u,JSON.stringify(req.failure()||{}))});
