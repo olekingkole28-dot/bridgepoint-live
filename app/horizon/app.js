@@ -144,12 +144,13 @@ async function bootstrap(){
   setNet('ONLINE','#44f3bd');
   status('Lobby ready · first-person only · Year One or Team Deathmatch');
   window.BP_HORIZON_LOBBY_V4330={
-    ok:true,build:4330,player_id:state.player?.player_id,mode:state.selectedMode,
+    ok:true,build:4335,player_id:state.player?.player_id,mode:state.selectedMode,
+    perspective:'FIRST_PERSON_ONLY',authoritative_modes:['YEAR_ONE','TDM'],
     party_size:state.party?.members?.length||0,
     catalog_characters:completeCharacterCatalog().length,
     store_items:state.catalog?.store?.length||0,
     battle_pass_rewards:state.catalog?.battle_pass?.length||0,
-    map_count:state.maps.length,selected_map_key:state.selectedMap?.map_key||null,
+    map_count:state.maps.length,map_rotation:'AUTOMATIC',
     checkout_enabled:false,
     lobbyScene:()=>lobbyScene?.getStats?.()||null
   };
