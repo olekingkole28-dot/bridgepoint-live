@@ -517,6 +517,7 @@ function pollGamepad(){
   yaw-=rx*.045;pitch=Math.max(-.42,Math.min(.32,pitch-ry*.03));
   const edge=(i)=>p.buttons?.[i]?.pressed&&!pollGamepad.prev?.[i];
   if(edge(0))jumpOrVault();if(edge(1))toggleCrouch();if(edge(3))cycleWeapon();if(edge(2))reload();
+  if(edge(4))useEquipment('tactical1');if(edge(5))useEquipment('tactical2');if(edge(9))useEquipment('lethal');
   if(edge(8))cycleCameraMode();sprint=!!p.buttons?.[10]?.pressed;aiming=!!p.buttons?.[6]?.pressed;
   if(p.buttons?.[7]?.pressed)shootOnce();
   pollGamepad.prev=(p.buttons||[]).map(b=>!!b.pressed);
@@ -2012,6 +2013,9 @@ $('aimBtn').addEventListener('click',()=>{aiming=!aiming;sprint=false;$('aimBtn'
 const shootOn=()=>{shooting=true;$('shootBtn').classList.add('active');shootOnce()},shootOff=()=>{shooting=false;$('shootBtn').classList.remove('active')};
 $('shootBtn').addEventListener('pointerdown',shootOn);$('shootBtn').addEventListener('pointerup',shootOff);$('shootBtn').addEventListener('pointercancel',shootOff);$('shootBtn').addEventListener('lostpointercapture',shootOff);
 $('buildBtn').addEventListener('click',buildCover);
+$('tacticalBtn1')?.addEventListener('click',()=>useEquipment('tactical1'));
+$('tacticalBtn2')?.addEventListener('click',()=>useEquipment('tactical2'));
+$('lethalBtn')?.addEventListener('click',()=>useEquipment('lethal'));
 $('contextBtn')?.addEventListener('click',contextUse);
 $('utilityToggle')?.addEventListener('click',()=>{$('utilityRail')?.classList.toggle('open')});
 $('viewBtn')?.addEventListener('click',()=>{cycleCameraMode();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
@@ -2035,6 +2039,9 @@ addEventListener('keydown',e=>{
   if(e.code==='KeyF'||e.code==='KeyE')contextUse();
   if(e.code==='KeyX')dropActiveWeapon();
   if(e.code==='KeyG')cycleWeapon();
+  if(e.code==='KeyZ')useEquipment('tactical1');
+  if(e.code==='KeyN')useEquipment('tactical2');
+  if(e.code==='KeyM')useEquipment('lethal');
   if(/^Digit[1-5]$/.test(e.code)){const k=inventoryWeaponKeys[Number(e.code.slice(-1))-1];if(k)equipWeaponKey(k)}
   if(e.code==='Space'){if(dead)finishDeathFlow();else jumpOrVault();e.preventDefault()}
 });
