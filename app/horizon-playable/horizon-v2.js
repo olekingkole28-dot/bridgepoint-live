@@ -1374,6 +1374,23 @@ function buildCover(){
     p_event_type:'FORTIFICATION',p_event_key:'build-'+playerId+'-'+buildCount,p_payload:{kind:'barricade',x,y,yaw},p_ttl_seconds:86400
   }).catch(()=>{});
 }
+function buildCampfire(){
+  if(mode!=='YEAR_ONE'){toast('Campfires are a Year One survival tool');return}
+  if(dead||interiorMode||activeVehicle)return;
+  buildCampfire.items=buildCampfire.items||[];
+  if(buildCampfire.items.length>=3){toast('Maximum 3 active campfires nearby');return}
+  const f=new THREE.Vector2(-Math.sin(yaw),Math.cos(yaw)),x=player.position.x+f.x*2.3,y=player.position.y+f.y*2.3;
+  if(blocked(x,y,.65)){toast('Cannot build fire here');return}
+  const z=terrainZ(x,y),g=new THREE.Group(),woodMat=new THREE.MeshStandardMaterial({color:0x4a2f20,roughness:.95}),stoneMat=new THREE.MeshStandardMaterial({color:0x5a5d58,roughness:1});
+  for(let i=0;i<6;i++){const a=i/6*Math.PI*2,s=new THREE.Mesh(new THREE.SphereGeometry(.16,8,6),stoneMat);s.scale.set(1.5,.9,.65);s.position.set(Math.cos(a)*.52,Math.sin(a)*.52,.12);g.add(s)}
+  for(let i=0;i<3;i++){const log=new THREE.Mesh(new THREE.CylinderGeometry(.09,.11,.85,8),woodMat);log.rotation.set(Math.PI/2,0,i*Math.PI/3);log.position.z=.15;g.add(log)}
+  const fire=new THREE.Mesh(new THREE.ConeGeometry(.34,1.05,9),new THREE.MeshBasicMaterial({color:0xff6a2c,transparent:true,opacity:.88}));fire.position.z=.62;g.add(fire);
+  const smoke=new THREE.Sprite(new THREE.SpriteMaterial({map:SMOKE_TEX,color:0x59615d,transparent:true,opacity:.38,depthWrite:false}));smoke.position.z=2.0;smoke.scale.set(1.9,2.7,1);g.add(smoke);
+  const light=new THREE.PointLight(0xff6b2a,7,11,2);light.position.z=1.0;g.add(light);g.position.set(x,y,z);world.add(g);
+  const fx={fire,smoke,light,phase:rand()*6.28,baseZ:0,campfire:true,root:g};ambientFx.push(fx);buildCampfire.items.push(fx);solidRects.push({type:'campfire',minx:x-.55,maxx:x+.55,miny:y-.55,maxy:y+.55});
+  rpc('bridgepoint_horizon_emit_world_event_v4303',{p_player_id:playerId,p_player_secret:playerSecret,p_match_id:matchId,p_cell_key:activeMatch?.cell_seed||('MATCH_'+matchId),p_event_type:'FORTIFICATION',p_event_key:'campfire-'+playerId+'-'+Date.now(),p_payload:{kind:'campfire',x,y,z},p_ttl_seconds:7200}).catch(()=>{});
+  toast('CAMPFIRE BUILT · WARMTH RADIUS 8M');
+}
 let yearDeathResult=null,killcamTimer=null;
 async function finishDeathFlow(){
   clearTimeout(killcamTimer);
@@ -1925,6 +1942,7 @@ $('crouchBtn')?.addEventListener('click',()=>{toggleCrouch();if(matchMedia?.('(p
 $('jumpBtn')?.addEventListener('click',()=>{jumpOrVault();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
 $('weaponBtn')?.addEventListener('click',()=>{cycleWeapon();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
 $('dropBtn')?.addEventListener('click',()=>{dropActiveWeapon();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
+$('fireUtilityBtn')?.addEventListener('click',()=>{buildCampfire();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
 $('lightUtilityBtn')?.addEventListener('click',()=>{toggleFlashlight();if(matchMedia?.('(pointer:coarse)')?.matches)$('utilityRail')?.classList.remove('open')});
 $('skipKillcam').addEventListener('click',finishDeathFlow);
 const keys={};
@@ -1933,13 +1951,14 @@ addEventListener('keydown',e=>{
   if(e.code==='KeyQ'){aiming=!aiming;$('aimBtn').classList.toggle('active',aiming)}
   if(e.code==='KeyR')reload();
   if(e.code==='KeyB')buildCover();
+  if(e.code==='KeyH')buildCampfire();
   if(e.code==='KeyT')toggleFlashlight();
   if(e.code==='KeyV')cycleCameraMode();
   if(e.code==='KeyC')toggleCrouch();
   if(e.code==='KeyF'||e.code==='KeyE')contextUse();
   if(e.code==='KeyX')dropActiveWeapon();
   if(e.code==='KeyG')cycleWeapon();
-  if(/^Digit[1-5]$/.test(e.code))equipWeaponIndex(Number(e.code.slice(-1))-1);
+  if(/^Digit[1-5]$/.test(e.code)){const k=inventoryWeaponKeys[Number(e.code.slice(-1))-1];if(k)equipWeaponKey(k)}
   if(e.code==='Space'){if(dead)finishDeathFlow();else jumpOrVault();e.preventDefault()}
 });
 addEventListener('keyup',e=>keys[e.code]=false);
