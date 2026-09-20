@@ -1241,36 +1241,70 @@ function eliminateCombatant(b,killer='YOU'){
 }
 function updateCombatants(dt,t){
   if(mode!=='TDM'||tdmMovementLocked())return;
-  const liveEnemies=combatants.filter(x=>x.alive);
-  for(const b of liveEnemies){
-    let target=null,targetPos=null;
-    const outsideFire=tdmFireZone&&Math.hypot(b.g.position.x,b.g.position.y)>Number(tdmFireZone.radius_m||Infinity)*.92;
-    if(outsideFire){targetPos=new THREE.Vector3(0,0,terrainZ(0,0));b.speed=Math.max(b.speed,6.2)}
-    if(!outsideFire&&b.team!==playerTeam&&!dead){target={player:true,name:savedProfile?.display_name||'YOU'};targetPos=player.position}
-    const rivals=liveEnemies.filter(x=>x.team!==b.team);
-    if(rivals.length){
-      const nearest=rivals.reduce((best,q)=>{const d=Math.hypot(q.g.position.x-b.g.position.x,q.g.position.y-b.g.position.y);return !best||d<best.d?{q,d}:best},null);
-      const pd=targetPos?Math.hypot(targetPos.x-b.g.position.x,targetPos.y-b.g.position.y):Infinity;
-      if(nearest&&nearest.d<pd){target=nearest.q;targetPos=nearest.q.g.position}
-    }
-    if(!targetPos)continue;
-    const dx=targetPos.x-b.g.position.x,dy=targetPos.y-b.g.position.y,d=Math.max(.001,Math.hypot(dx,dy)),visible=canSee(b.g.position,targetPos);
-    if(d>13||!visible){
-      const nx=b.g.position.x+dx/d*b.speed*dt,ny=b.g.position.y+dy/d*b.speed*dt;
-      if(!blocked(nx,ny,.36)){b.g.position.x=nx;b.g.position.y=ny;b.g.position.z=terrainZ(nx,ny)}
+  const live=combatants.filter(x=>x.alive),maxPlayerAttackers=3;
+  let attackersOnPlayer=0;
+  for(const b of live){
+    let target=null,targetPos=null,targetDistance=Infinity;
+    const fireRadius=Number(tdmFireZone?.radius_m||Infinity);
+    const outsideFire=Number.isFinite(fireRadius)&&Math.hypot(b.g.position.x,b.g.position.y)>fireRadius*.92;
+
+    if(outsideFire){
+      targetPos=new THREE.Vector3(0,0,terrainZ(0,0));
+      targetDistance=Math.hypot(b.g.position.x,b.g.position.y);
+      b.speed=Math.max(b.speed,6.2);
+      b.roamTarget=null;
     }else{
-      const strafe=Math.sin(t*.002+b.phase)*b.speed*.36*dt,nx=b.g.position.x-dy/d*strafe,ny=b.g.position.y+dx/d*strafe;
+      const rivals=live.filter(x=>x.team!==b.team);
+      if(rivals.length){
+        const nearest=rivals.reduce((best,q)=>{
+          const d=Math.hypot(q.g.position.x-b.g.position.x,q.g.position.y-b.g.position.y);
+          return !best||d<best.d?{q,d}:best;
+        },null);
+        if(nearest&&nearest.d<68){target=nearest.q;targetPos=nearest.q.g.position;targetDistance=nearest.d}
+      }
+
+      if(b.team!==playerTeam&&!dead&&attackersOnPlayer<maxPlayerAttackers){
+        const pd=Math.hypot(player.position.x-b.g.position.x,player.position.y-b.g.position.y);
+        const playerVisible=pd<42&&canSee(b.g.position,player.position);
+        if(playerVisible&&(pd+5<targetDistance||!target)){
+          target={player:true,name:savedProfile?.display_name||'YOU'};
+          targetPos=player.position;targetDistance=pd;attackersOnPlayer++;
+        }
+      }
+
+      if(!targetPos){
+        if(!b.roamTarget||Math.hypot(b.g.position.x-b.roamTarget.x,b.g.position.y-b.roamTarget.y)<3){
+          const pool=roadAnchors.length?roadAnchors:buildingCenters;
+          const q=pool.length?pool[(b.index*37+Math.floor(t/7000)*11)%pool.length]:chooseCombatSpawn(b.team,b.index+23);
+          b.roamTarget={x:q.x,y:q.y,z:terrainZ(q.x,q.y)};
+        }
+        targetPos=b.roamTarget;targetDistance=Math.hypot(targetPos.x-b.g.position.x,targetPos.y-b.g.position.y);
+      }
+    }
+
+    if(!targetPos)continue;
+    const dx=targetPos.x-b.g.position.x,dy=targetPos.y-b.g.position.y,d=Math.max(.001,Math.hypot(dx,dy)),visible=target?canSee(b.g.position,targetPos):false;
+    if(!target||d>13||!visible){
+      const roamSpeed=target?b.speed:Math.min(b.speed,2.45);
+      const nx=b.g.position.x+dx/d*roamSpeed*dt,ny=b.g.position.y+dy/d*roamSpeed*dt;
+      if(!blocked(nx,ny,.36)){b.g.position.x=nx;b.g.position.y=ny;b.g.position.z=terrainZ(nx,ny)}
+      else if(!target)b.roamTarget=null;
+    }else{
+      const strafe=Math.sin(t*.002+b.phase)*b.speed*.28*dt,nx=b.g.position.x-dy/d*strafe,ny=b.g.position.y+dx/d*strafe;
       if(!blocked(nx,ny,.34)){b.g.position.x=nx;b.g.position.y=ny;b.g.position.z=terrainZ(nx,ny)}
     }
     b.g.rotation.z=Math.atan2(dy,dx)-Math.PI/2;
-    if(visible&&d<52&&t-b.lastShot>620+((b.index*113)%380)){
+
+    if(target&&visible&&d<48&&t-b.lastShot>760+((b.index*137)%540)){
       b.lastShot=t;
-      const accuracy=Math.max(.18,.72-d/105);
+      const accuracy=Math.max(.12,.56-d/120);
       if(rand()<accuracy){
-        if(target?.player){
-          const dmg=Math.max(18,Math.round(Number(b.weaponDamage||31)*(0.82+rand()*.22)));applyPlayerHit(dmg,b);
-        }else if(target?.alive){
-          target.health-=Math.max(16,Math.round(Number(b.weaponDamage||31)*(0.72+rand()*.24)));if(target.health<=0)eliminateCombatant(target,b.name+' · LV '+(b.level||1));
+        if(target.player){
+          const dmg=Math.max(14,Math.round(Number(b.weaponDamage||31)*(0.68+rand()*.18)));
+          applyPlayerHit(dmg,b);
+        }else if(target.alive){
+          target.health-=Math.max(14,Math.round(Number(b.weaponDamage||31)*(0.66+rand()*.20)));
+          if(target.health<=0)eliminateCombatant(target,b.name+' · LV '+(b.level||1));
         }
       }
     }
