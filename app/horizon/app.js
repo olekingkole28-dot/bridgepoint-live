@@ -39,6 +39,7 @@ async function refreshAuthState(){
       const out=await rpc('bridgepoint_horizon_account_v4340',{p_player_id:ident.id,p_player_secret:ident.secret});
       state.account=out?.account||null;state.character=out?.character||null;state.stats=out?.stats||null;
       if(state.account?.handle){$('displayName').value=state.account.handle;localStorage.setItem('horizon-display-name',state.account.handle)}
+      if(state.stats)localStorage.setItem('horizon-player-stats-v4340',JSON.stringify(state.stats));
       lobbyScene?.setLocalCharacter?.(state.character,ident.id);
     }catch{state.account=null}
   }else{state.account=null;state.character=null;state.stats=null}
