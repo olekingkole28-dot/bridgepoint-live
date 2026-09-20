@@ -68,6 +68,38 @@ void UHorizonProgressionSubsystem::SanitizeCareerState()
     State->CareerLevel = FMath::Clamp(1 + State->CareerXP / CareerXPPerLevel, 1, MaxCareerLevel);
     State->Prestige = FMath::Clamp(State->Prestige, 0, MaxPrestige);
     State->LifetimeKills = FMath::Max(0, State->LifetimeKills);
+
+    for (int32 PrestigeLevel = 1; PrestigeLevel <= State->Prestige; ++PrestigeLevel)
+    {
+        const FString RewardKey =
+            FString::Printf(TEXT("PRESTIGE_COSMETIC_%03d"), PrestigeLevel);
+        State->CosmeticUnlocks.AddUnique(RewardKey);
+        if (PrestigeLevel % 10 == 0)
+        {
+            State->BannerUnlocks.AddUnique(RewardKey);
+        }
+        else
+        {
+            State->BadgeUnlocks.AddUnique(RewardKey);
+        }
+    }
+
+    State->BadgeUnlocks.RemoveAll(
+        [](const FString& Key) { return Key.TrimStartAndEnd().IsEmpty(); });
+    State->BannerUnlocks.RemoveAll(
+        [](const FString& Key) { return Key.TrimStartAndEnd().IsEmpty(); });
+    State->EquippedBadgeKey = CanEquipProfileCosmetic(
+        EHorizonRewardType::Badge,
+        State->EquippedBadgeKey,
+        State->BadgeUnlocks)
+        ? State->EquippedBadgeKey.TrimStartAndEnd()
+        : FString();
+    State->EquippedBannerKey = CanEquipProfileCosmetic(
+        EHorizonRewardType::Banner,
+        State->EquippedBannerKey,
+        State->BannerUnlocks)
+        ? State->EquippedBannerKey.TrimStartAndEnd()
+        : FString();
 }
 
 void UHorizonProgressionSubsystem::SaveState()
@@ -292,7 +324,23 @@ void UHorizonProgressionSubsystem::GrantReward(const FHorizonReward& Reward)
 
     if (!Reward.RewardKey.IsEmpty())
     {
-        State->CosmeticUnlocks.AddUnique(Reward.RewardKey);
+        const FString RewardKey = Reward.RewardKey.TrimStartAndEnd();
+        if (RewardKey.IsEmpty())
+        {
+            return;
+        }
+
+        State->CosmeticUnlocks.AddUnique(RewardKey);
+        if (Reward.Type == EHorizonRewardType::Badge)
+        {
+            State->BadgeUnlocks.AddUnique(RewardKey);
+            BroadcastProfileCosmetics();
+        }
+        else if (Reward.Type == EHorizonRewardType::Banner)
+        {
+            State->BannerUnlocks.AddUnique(RewardKey);
+            BroadcastProfileCosmetics();
+        }
     }
 }
 
@@ -324,6 +372,123 @@ bool UHorizonProgressionSubsystem::GrantFreeUnlock(const FString& RewardKey)
     }
 
     return false;
+}
+
+bool UHorizonProgressionSubsystem::CanEquipProfileCosmetic(
+    EHorizonRewardType RewardType,
+    const FString& RewardKey,
+    const TArray<FString>& UnlockedKeys)
+{
+    if (RewardType != EHorizonRewardType::Badge &&
+        RewardType != EHorizonRewardType::Banner)
+    {
+        return false;
+    }
+
+    const FString NormalizedKey = RewardKey.TrimStartAndEnd();
+    return !NormalizedKey.IsEmpty() && UnlockedKeys.Contains(NormalizedKey);
+}
+
+bool UHorizonProgressionSubsystem::TryEquipProfileCosmetic(
+    EHorizonRewardType RewardType,
+    const FString& RewardKey)
+{
+    if (!State)
+    {
+        return false;
+    }
+
+    const TArray<FString>* UnlockedKeys = nullptr;
+    FString* EquippedKey = nullptr;
+    if (RewardType == EHorizonRewardType::Badge)
+    {
+        UnlockedKeys = &State->BadgeUnlocks;
+        EquippedKey = &State->EquippedBadgeKey;
+    }
+    else if (RewardType == EHorizonRewardType::Banner)
+    {
+        UnlockedKeys = &State->BannerUnlocks;
+        EquippedKey = &State->EquippedBannerKey;
+    }
+    else
+    {
+        return false;
+    }
+
+    const FString NormalizedKey = RewardKey.TrimStartAndEnd();
+    if (!CanEquipProfileCosmetic(RewardType, NormalizedKey, *UnlockedKeys))
+    {
+        return false;
+    }
+    if (*EquippedKey == NormalizedKey)
+    {
+        return true;
+    }
+
+    *EquippedKey = NormalizedKey;
+    SaveState();
+    BroadcastProfileCosmetics();
+    return true;
+}
+
+bool UHorizonProgressionSubsystem::TryEquipProfileBadge(const FString& RewardKey)
+{
+    return TryEquipProfileCosmetic(EHorizonRewardType::Badge, RewardKey);
+}
+
+bool UHorizonProgressionSubsystem::TryEquipProfileBanner(const FString& RewardKey)
+{
+    return TryEquipProfileCosmetic(EHorizonRewardType::Banner, RewardKey);
+}
+
+FHorizonProfileCosmetics UHorizonProgressionSubsystem::GetProfileCosmetics() const
+{
+    FHorizonProfileCosmetics Profile;
+    if (State)
+    {
+        Profile.EquippedBadgeKey = State->EquippedBadgeKey;
+        Profile.EquippedBannerKey = State->EquippedBannerKey;
+        Profile.UnlockedBadgeCount = State->BadgeUnlocks.Num();
+        Profile.UnlockedBannerCount = State->BannerUnlocks.Num();
+    }
+    return Profile;
+}
+
+TArray<FString> UHorizonProgressionSubsystem::GetUnlockedBadges() const
+{
+    return State ? State->BadgeUnlocks : TArray<FString>();
+}
+
+TArray<FString> UHorizonProgressionSubsystem::GetUnlockedBanners() const
+{
+    return State ? State->BannerUnlocks : TArray<FString>();
+}
+
+bool UHorizonProgressionSubsystem::IsProfileCosmeticUnlocked(
+    EHorizonRewardType RewardType,
+    const FString& RewardKey) const
+{
+    if (!State)
+    {
+        return false;
+    }
+
+    if (RewardType == EHorizonRewardType::Badge)
+    {
+        return CanEquipProfileCosmetic(
+            RewardType, RewardKey, State->BadgeUnlocks);
+    }
+    if (RewardType == EHorizonRewardType::Banner)
+    {
+        return CanEquipProfileCosmetic(
+            RewardType, RewardKey, State->BannerUnlocks);
+    }
+    return false;
+}
+
+void UHorizonProgressionSubsystem::BroadcastProfileCosmetics()
+{
+    OnProfileCosmeticsChanged.Broadcast(GetProfileCosmetics());
 }
 
 void UHorizonProgressionSubsystem::SetPremiumPassEntitled(bool bEntitled)
