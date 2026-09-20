@@ -28,6 +28,45 @@ function tintModel(root,variant=1,zombie=false){
   });
 }
 
+function lobbyBone(root,name){return root.getObjectByName(name)||null}
+function makeLobbyRifle(){
+  const g=new THREE.Group(),metal=new THREE.MeshStandardMaterial({color:0x202725,roughness:.46,metalness:.62});
+  const receiver=new THREE.Mesh(new THREE.BoxGeometry(.08,.34,.09),metal);
+  const barrel=new THREE.Mesh(new THREE.CylinderGeometry(.015,.018,.30,10),metal);barrel.rotation.x=Math.PI/2;barrel.position.z=-.26;
+  const stock=new THREE.Mesh(new THREE.BoxGeometry(.07,.16,.08),metal);stock.position.z=.22;
+  const mag=new THREE.Mesh(new THREE.BoxGeometry(.055,.12,.07),metal);mag.position.set(0,-.08,.03);mag.rotation.x=-.28;
+  g.add(receiver,barrel,stock,mag);g.scale.setScalar(.72);return g;
+}
+function createLobbyIdleRig(root,phase){
+  const names=['head','neck_01','spine_03','upperarm_l','upperarm_r','lowerarm_l','lowerarm_r','hand_l','hand_r','thigh_l','thigh_r','calf_l','calf_r'];
+  const bones={};const rest={};
+  for(const name of names){const b=lobbyBone(root,name);if(b){bones[name]=b;rest[name]=b.rotation.clone()}}
+  const hand=bones.hand_r;
+  if(hand){
+    const rifle=makeLobbyRifle();rifle.name='lobby-rifle';
+    rifle.position.set(.01,.18,.01);rifle.rotation.set(Math.PI/2,.06,Math.PI/2);hand.add(rifle);
+  }
+  return {bones,rest,phase,baseY:root.position.y};
+}
+function animateLobbyIdle(model,t){
+  const {root,rig,phase}=model;if(!rig)return;
+  const set=(name,x=0,y=0,z=0)=>{const b=rig.bones[name],r=rig.rest[name];if(b&&r)b.rotation.set(r.x+x,r.y+y,r.z+z)};
+  const breathe=Math.sin(t*1.35+phase),turn=Math.sin(t*.28+phase)*.10;
+  const cycle=(t*.19+phase*.37)%6.283;
+  const crouch=Math.max(0,Math.sin(cycle)-.72)/.28;
+  // Relax the imported T-pose into a low-ready rifle stance, then layer small
+  // natural lobby movement: weapon checks, head turns and occasional crouches.
+  set('upperarm_l',-.12,.08,-1.00);set('upperarm_r',-.12,-.08,1.00);
+  set('lowerarm_l',-.58,.06,-.16);set('lowerarm_r',-.58,-.06,.16);
+  set('spine_03',-.04+breathe*.012,turn*.18,0);
+  set('neck_01',.08+breathe*.01,-turn*.50,0);
+  set('head',.10+Math.sin(t*.45+phase)*.025,-turn*.72,0);
+  set('thigh_l',crouch*.20,0,.03*crouch);set('thigh_r',crouch*.20,0,-.03*crouch);
+  set('calf_l',-crouch*.28,0,0);set('calf_r',-crouch*.28,0,0);
+  root.position.y=rig.baseY+Math.sin(t*1.2+phase)*.008-crouch*.13;
+  root.rotation.y=Math.PI+turn;
+}
+
 export function createLobbyScene(canvas){
   const mobile=/Android|iPhone|iPad/i.test(navigator.userAgent);
   const mem=Number(navigator.deviceMemory||0),cores=Number(navigator.hardwareConcurrency||0);
@@ -126,7 +165,7 @@ export function createLobbyScene(canvas){
         root.position.set(POS[i],.06,.18);
         root.rotation.y=Math.PI;
         playerGroup.add(root);
-        models.push({root,slot:i,phase:i*.9});
+        const phase=i*.9;models.push({root,slot:i,phase,rig:createLobbyIdleRig(root,phase)});
       }catch(e){console.warn('Lobby character load',e)}
     }
   }
@@ -167,7 +206,7 @@ export function createLobbyScene(canvas){
     camera.position.x=Math.sin(t*.11)*.14;camera.position.y=2.16+Math.sin(t*.16)*.025;camera.lookAt(0,1.32,.1);
     ember.intensity=42+Math.sin(t*3.7)*6+Math.sin(t*7.1)*3;
     dust.rotation.y=t*.006;dust.position.x=Math.sin(t*.08)*.45;
-    models.forEach(({root,phase})=>{root.position.y=.06+Math.sin(t*1.2+phase)*.012;root.rotation.y=Math.PI+Math.sin(t*.35+phase)*.015});
+    models.forEach(model=>animateLobbyIdle(model,t));
     zombies.forEach((z,i)=>{
       z.root.position.x+=z.speed*z.dir*dt;
       if(Math.abs(z.root.position.x)>10){z.dir*=-1;z.root.rotation.y=z.dir>0?Math.PI/2:-Math.PI/2}
