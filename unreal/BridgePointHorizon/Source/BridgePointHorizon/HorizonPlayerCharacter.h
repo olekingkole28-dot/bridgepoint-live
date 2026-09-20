@@ -25,7 +25,8 @@ enum class EHorizonMovementStance : uint8
     Crouched,
     Prone,
     Sliding,
-    Vaulting
+    Vaulting,
+    Swimming
 };
 
 UENUM(BlueprintType)
@@ -92,6 +93,9 @@ public:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+    virtual void OnMovementModeChanged(
+        EMovementMode PreviousMovementMode,
+        uint8 PreviousCustomMode = 0) override;
     virtual float TakeDamage(
         float DamageAmount,
         struct FDamageEvent const& DamageEvent,
@@ -157,6 +161,15 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
     float ProneSpeed = 118.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement|Swimming", meta=(ClampMin="100.0", ClampMax="700.0"))
+    float SwimSpeed = 360.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement|Swimming", meta=(ClampMin="100.0", ClampMax="3000.0"))
+    float SwimAcceleration = 900.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement|Swimming", meta=(ClampMin="0.5", ClampMax="2.0"))
+    float SwimBuoyancy = 1.10f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Horizon|Movement")
     float SlideEntrySpeed = 760.0f;
@@ -276,8 +289,17 @@ public:
     UFUNCTION(BlueprintPure, Category="Horizon|Movement")
     bool IsVaulting() const { return MovementStance == EHorizonMovementStance::Vaulting; }
 
+    UFUNCTION(BlueprintPure, Category="Horizon|Movement")
+    bool IsSwimming() const { return MovementStance == EHorizonMovementStance::Swimming; }
+
     UFUNCTION(BlueprintPure, Category="Horizon|Camera|Lean")
     float GetLeanAlpha() const { return CurrentLeanAlpha; }
+
+    static FVector ResolveSwimDirection(
+        const FVector& ViewForward,
+        const FVector& ViewRight,
+        const FVector2D& MoveInput,
+        float VerticalInput);
 
     static bool ShouldRefreshMovementProfile(
         float AccumulatedSeconds,
@@ -307,6 +329,8 @@ private:
     bool bWaitingForStreamedTerrain = true;
     float TerrainProbeAccumulator = 0.0f;
     float MovementProfileRefreshAccumulator = 0.0f;
+    float SwimVerticalInput = 0.0f;
+    bool bSwimUsesProneCapsule = false;
     float StandingCapsuleHalfHeight = 0.0f;
     float StandingCapsuleRadius = 0.0f;
     float SlideTimeRemaining = 0.0f;
@@ -327,6 +351,7 @@ private:
     EHorizonCameraMode CameraMode = EHorizonCameraMode::FirstPerson;
 
     void StartTraversalJump();
+    void StopTraversalJump();
     bool TryStartVault();
     void UpdateVault(float DeltaSeconds);
     void EndVault(bool bCompleted);
