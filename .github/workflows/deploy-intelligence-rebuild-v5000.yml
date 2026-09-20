@@ -8,6 +8,8 @@ on:
     paths:
       - 'rebuild-v5000/**'
       - 'sample/storm-opportunity/**'
+      - 'app/horizon/**'
+      - 'app/horizon-playable/**'
       - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
 
 permissions:
@@ -189,6 +191,12 @@ jobs:
           node --check site/app/horizon/lobby-scene.js
           node --check site/app/horizon/model-preview.js
           node --check site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'build:4336' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'bridgepoint_horizon_year_one_enter_v4336' site/app/horizon/app.js
+          grep -Fq 'bridgepoint_horizon_year_one_checkpoint_v4336' site/app/horizon-playable/horizon-v2.js
+          grep -Fq 'OCT 1 · 12:00 AM ET' site/app/horizon/index.html
+          grep -Fq 'id="healthBar"' site/app/horizon-playable/v2-entry.html
+          grep -Fq 'id="shieldBar"' site/app/horizon-playable/v2-entry.html
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
           grep -Fq '__BP_APP_BUILD_VERSION__=5371' site/app.js
@@ -429,6 +437,9 @@ jobs:
           test -s /tmp/horizon.html
           test -s /tmp/horizon-playable.html
           grep -Fq 'Live Match' /tmp/horizon-playable.html
+          grep -Fq 'OCT 1 · 12:00 AM ET' /tmp/horizon.html
+          grep -Fq 'id="healthBar"' /tmp/horizon-playable.html
+          grep -Fq 'id="shieldBar"' /tmp/horizon-playable.html
           test -s /tmp/discover.html
           test -s /tmp/newsroom.html
           test -s /tmp/claims-terminal.html
