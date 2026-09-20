@@ -151,7 +151,7 @@ with wave.open(str(music),"wb") as w:
 final=OUT/"BridgePoint_Intelligence_Viral_Promo_9x16.mp4"
 run(["ffmpeg","-hide_banner","-loglevel","error","-y","-i",silent,"-i",music,
      "-filter_complex","[1:a]volume=0.78,highpass=f=34,lowpass=f=15500,alimiter=limit=0.92[a]",
-     "-map","0:v:0","-map","[a]","-c:v","copy","-c:a","aac","-b:a","192k","-shortest","-movflags","+faststart",final])
+     "-map","0:v:0","-map","[a]","-c:v","libx264","-preset","medium","-crf","21","-maxrate","9M","-bufsize","18M","-pix_fmt","yuv420p","-c:a","aac","-b:a","192k","-shortest","-movflags","+faststart",final])
 
 thumb=OUT/"BridgePoint_Intelligence_Viral_Promo_Thumbnail.jpg"
 run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss","1.25","-i",final,"-frames:v","1","-q:v","2",thumb])
