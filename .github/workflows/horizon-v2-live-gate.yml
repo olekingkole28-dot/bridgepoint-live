@@ -36,6 +36,10 @@ jobs:
           set -euo pipefail
           node --check app/horizon-playable/horizon-v2.js
           grep -Fq 'build:4341' app/horizon-playable/horizon-v2.js
+          grep -Fq 'function padMove(e)' app/horizon-playable/horizon-v2.js
+          grep -Fq "pad.addEventListener('pointercancel',endPad)" app/horizon-playable/horizon-v2.js
+          grep -Fq "pad.addEventListener('lostpointercapture',endPad)" app/horizon-playable/horizon-v2.js
+          
           grep -Fq 'actualCharacterModel:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'sourceBackedTwin:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'exactFootprintCollision:true' app/horizon-playable/horizon-v2.js
@@ -55,6 +59,7 @@ jobs:
           grep -Fq 'adaptivePerformanceGovernor:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'function updatePerformanceGovernor' app/horizon-playable/horizon-v2.js
           grep -Fq 'function perfCadence' app/horizon-playable/horizon-v2.js
+          grep -Fq 'id="movePad"' app/horizon-playable/v2-entry.html
           grep -Fq 'id="miniMap"' app/horizon-playable/v2-entry.html
           ! grep -Fq 'id="viewBtn"' app/horizon-playable/v2-entry.html
           grep -Fq "let cameraMode='first'" app/horizon-playable/horizon-v2.js
