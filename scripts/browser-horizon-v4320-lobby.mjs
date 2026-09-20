@@ -36,25 +36,20 @@ const lobby=await page.evaluate(()=>({
   modes:document.querySelectorAll('.mode').length,
   status:document.getElementById('statusMessage')?.textContent
 }));
-if(!lobby.canvas||lobby.slots!==4||lobby.occupied<1||lobby.empty<1||lobby.modes<4||lobby.scene?.models<1||lobby.runtime?.build!==4330||lobby.runtime?.map_count!==50)throw new Error('Lobby stage contract failed '+JSON.stringify(lobby));
+if(!lobby.canvas||lobby.slots!==4||lobby.occupied<1||lobby.empty<1||lobby.modes!==2||lobby.scene?.models<1||lobby.scene?.idleRigs<1||lobby.scene?.armedIdle<1||lobby.runtime?.build!==4335||lobby.runtime?.map_count!==50||lobby.runtime?.perspective!=='FIRST_PERSON_ONLY'||lobby.runtime?.map_rotation!=='AUTOMATIC'||JSON.stringify(lobby.runtime?.authoritative_modes)!=='["YEAR_ONE","TDM"]')throw new Error('Lobby stage contract failed '+JSON.stringify(lobby));
 
 const tdm=page.locator('.mode[data-mode="TDM"]');
 if(await tdm.count())await tdm.click();
 await page.waitForTimeout(350);
 await page.click('#tabs [data-tab="ARENA"]');
 await page.waitForFunction(()=>document.querySelectorAll('.map-card').length===50&&document.querySelectorAll('canvas.map-mini').length===50,null,{timeout:12000});
-const beforeMap=await page.evaluate(()=>window.BP_HORIZON_LOBBY_V4330?.selected_map_key||null);
-const firstMapButton=page.locator('.map-card button[data-map-key]:not([disabled])').first();
-if(await firstMapButton.count())await firstMapButton.click();
-await page.waitForFunction(prev=>window.BP_HORIZON_LOBBY_V4330?.selected_map_key&&window.BP_HORIZON_LOBBY_V4330.selected_map_key!==prev,beforeMap,{timeout:12000}).catch(()=>{});
 const maps=await page.evaluate(()=>({
   cards:document.querySelectorAll('.map-card').length,
   minis:document.querySelectorAll('canvas.map-mini').length,
-  selected:document.querySelectorAll('.map-card.selected').length,
-  selectedKey:window.BP_HORIZON_LOBBY_V4330?.selected_map_key,
-  enabledButtons:[...document.querySelectorAll('.map-card button[data-map-key]')].filter(b=>!b.disabled).length
+  selectorButtons:document.querySelectorAll('.map-card button[data-map-key]').length,
+  rotationCopy:/automatic map switching|auto rotation/i.test(document.getElementById('modalContent')?.textContent||'')
 }));
-if(maps.cards!==50||maps.minis!==50||maps.selected<1||!maps.selectedKey||maps.enabledButtons<1)throw new Error('50-map selector contract failed '+JSON.stringify(maps));
+if(maps.cards!==50||maps.minis!==50||maps.selectorButtons!==0||!maps.rotationCopy)throw new Error('50-map automatic rotation contract failed '+JSON.stringify(maps));
 await page.click('#closeModal');
 
 await page.click('#tabs [data-tab="STORE"]');
@@ -81,6 +76,6 @@ const locker=await page.evaluate(()=>({cards:document.querySelectorAll('.catalog
 if(locker.cards<10||locker.previews<10)throw new Error('Locker GLB contract failed '+JSON.stringify(locker));
 
 const meaningful=errors.filter(x=>!/favicon|WebGL performance caveat|ResizeObserver loop|Failed to load resource.*404/i.test(x));
-if(meaningful.length)throw new Error('Horizon V4330 lobby browser errors '+meaningful.join('\n'));
-console.log('HORIZON_V4330_LOBBY_PASS',JSON.stringify({lobby,maps,store,pass,locker}));
+if(meaningful.length)throw new Error('Horizon V4335 lobby browser errors '+meaningful.join('\n'));
+console.log('HORIZON_V4335_LOBBY_PASS',JSON.stringify({lobby,maps,store,pass,locker}));
 await browser.close();
