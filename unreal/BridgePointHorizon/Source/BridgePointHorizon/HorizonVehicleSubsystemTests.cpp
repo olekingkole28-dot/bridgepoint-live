@@ -113,6 +113,18 @@ bool FHorizonVehicleTuningTest::RunTest(const FString& Parameters)
         Sedan.MaximumSpeedKph > 0.0f &&
         Pickup.MaximumSpeedKph > 0.0f &&
         Offroad.MaximumSpeedKph > 0.0f);
+    TestEqual(TEXT("Sedan resolves to sedan acoustic identity"),
+        UHorizonVehicleSubsystem::ResolveAudioClass(EHorizonVehicleClass::Sedan),
+        EHorizonVehicleAudioClass::Sedan);
+    TestEqual(TEXT("Pickup resolves to pickup acoustic identity"),
+        UHorizonVehicleSubsystem::ResolveAudioClass(EHorizonVehicleClass::Pickup),
+        EHorizonVehicleAudioClass::Pickup);
+    TestEqual(TEXT("Offroad resolves to offroad acoustic identity"),
+        UHorizonVehicleSubsystem::ResolveAudioClass(EHorizonVehicleClass::Offroad),
+        EHorizonVehicleAudioClass::Offroad);
+    TestEqual(TEXT("Utility van resolves to utility van acoustic identity"),
+        UHorizonVehicleSubsystem::ResolveAudioClass(EHorizonVehicleClass::UtilityVan),
+        EHorizonVehicleAudioClass::UtilityVan);
     return true;
 }
 
