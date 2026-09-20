@@ -10,6 +10,8 @@ on:
       - 'app/horizon-playable/index.html'
       - 'app/horizon-playable/horizon-v2.js'
       - 'app/horizon-playable/horizon-v2.css'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/weather-timemap-v5201.js'
   pull_request:
     branches: [main]
     paths:
@@ -19,6 +21,8 @@ on:
       - 'app/horizon-playable/index.html'
       - 'app/horizon-playable/horizon-v2.js'
       - 'app/horizon-playable/horizon-v2.css'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/weather-timemap-v5201.js'
   workflow_dispatch:
 
 jobs:
@@ -35,6 +39,15 @@ jobs:
         run: |
           set -euo pipefail
           node --check app/horizon-playable/horizon-v2.js
+          node --check rebuild-v5000/app.js
+          node --check rebuild-v5000/weather-timemap-v5201.js
+          grep -Fq 'weather-timemap-v5201.js?v=5201' rebuild-v5000/app.js
+          grep -Fq 'bridgepoint_weather_timemap_v5201' rebuild-v5000/weather-timemap-v5201.js
+          grep -Fq 'WEATHER TIMEMAP' rebuild-v5000/weather-timemap-v5201.js
+          grep -Fq 'LOCATION DOSSIER' rebuild-v5000/weather-timemap-v5201.js
+          grep -Fq 'data-start' rebuild-v5000/weather-timemap-v5201.js
+          grep -Fq 'data-end' rebuild-v5000/weather-timemap-v5201.js
+          grep -Fq 'data-playhead' rebuild-v5000/weather-timemap-v5201.js
           grep -Fq 'build:4341' app/horizon-playable/horizon-v2.js
           grep -Fq 'actualCharacterModel:true' app/horizon-playable/horizon-v2.js
           grep -Fq 'sourceBackedTwin:true' app/horizon-playable/horizon-v2.js
@@ -83,6 +96,13 @@ jobs:
           grep -Fq 'bridgepoint_horizon_tdm_fire_zone_v4341' app/horizon-playable/horizon-v2.js
           grep -Fq 'bridgepoint_horizon_tdm_combat_clock_v4341' app/horizon-playable/horizon-v2.js
           grep -Fq 'id="fireUtilityBtn"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="movePad"' app/horizon-playable/v2-entry.html
+          grep -Fq 'id="moveKnob"' app/horizon-playable/v2-entry.html
+          grep -Fq 'touchMoveX' app/horizon-playable/horizon-v2.js
+          grep -Fq 'touchMoveY' app/horizon-playable/horizon-v2.js
+          grep -Fq 'setPointerCapture' app/horizon-playable/horizon-v2.js
+          grep -Fq 'pointercancel' app/horizon-playable/horizon-v2.js
+          grep -Fq 'lostpointercapture' app/horizon-playable/horizon-v2.js
       - name: Start local source server
         run: |
           python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/horizon-v4331-http.log 2>&1 &

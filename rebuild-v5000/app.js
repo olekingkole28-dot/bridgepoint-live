@@ -1,5 +1,5 @@
 const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
-window.__BP_APP_BUILD_VERSION__=5371
+window.__BP_APP_BUILD_VERSION__=5372
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const RPC=SUPA+'/rest/v1/rpc/';
 const $=id=>document.getElementById(id);
@@ -75,6 +75,10 @@ async function initSharedVisualWeather(targetWorld){
   const weather=wm.initWeather(map),present=pm.initPresentWeather(map);
   weather?.setActive?.(true);weather?.setRadar?.(true);
   window.__BP_SHARED_VISUAL_WEATHER__={version:5430,weather,present,mapShared:true,streetWalkLiveSimulation:false,radarVisible:true,radarAnimated:true,updatedAt:Date.now()};
+  try{
+   const tm=await import('./weather-timemap-v5201.js?v=5201');
+   window.__BP_WEATHER_TIMEMAP_V5201=tm.initWeatherTimeMap({map,rpc,weather});
+  }catch(e){console.warn('BridgePoint weather TimeMap',e)}
   return window.__BP_SHARED_VISUAL_WEATHER__
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
