@@ -10,6 +10,8 @@ class USpringArmComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
 class USkeletalMesh;
+enum class EHorizonFootstepSurface : uint8;
+enum class EHorizonTraversalAudioCue : uint8;
 
 UENUM(BlueprintType)
 enum class EHorizonCameraMode : uint8
@@ -133,6 +135,7 @@ public:
     virtual void OnMovementModeChanged(
         EMovementMode PreviousMovementMode,
         uint8 PreviousCustomMode = 0) override;
+    virtual void Landed(const FHitResult& Hit) override;
     virtual float TakeDamage(
         float DamageAmount,
         struct FDamageEvent const& DamageEvent,
@@ -407,6 +410,8 @@ private:
     float FootstepDistanceAccumulator = 0.0f;
     int32 FootstepSequence = 0;
     int32 CombatImpactSequence = 0;
+    int32 TraversalAudioSequence = 0;
+    float PeakDownwardSpeedCmPerSecond = 0.0f;
     float SwimVerticalInput = 0.0f;
     bool bSwimUsesProneCapsule = false;
     float StandingCapsuleHalfHeight = 0.0f;
@@ -440,6 +445,12 @@ private:
     void MoveRight(float Value);
     void ApplyMovementInput(float DeltaSeconds);
     void UpdateFootstepAudio(float DeltaSeconds);
+    void EmitTraversalAudio(
+        EHorizonTraversalAudioCue Cue,
+        float Intensity01,
+        EHorizonFootstepSurface Surface);
+    EHorizonFootstepSurface ResolveGroundAudioSurface(
+        const FHitResult* KnownHit = nullptr) const;
     void SetLeanInput(float Value);
     void UpdateLean(float DeltaSeconds);
     float ProbeLeanObstruction(float LeanDirection) const;

@@ -655,4 +655,174 @@ bool FHorizonCombatImpactAudioTest::RunTest(const FString& Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonTraversalAudioTest,
+    "BridgePoint.Horizon.Audio.Traversal.RuntimeFeedback",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonTraversalAudioTest::RunTest(const FString& Parameters)
+{
+    const FHorizonTraversalAudioMix Jump =
+        UHorizonAudioDirectorSubsystem::BuildTraversalAudioMix(
+            EHorizonTraversalAudioCue::Jump,
+            EHorizonFootstepSurface::Concrete,
+            0.75f,
+            100.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            41);
+    const FHorizonTraversalAudioMix Land =
+        UHorizonAudioDirectorSubsystem::BuildTraversalAudioMix(
+            EHorizonTraversalAudioCue::Land,
+            EHorizonFootstepSurface::Concrete,
+            0.75f,
+            100.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            41);
+    const FHorizonTraversalAudioMix Slide =
+        UHorizonAudioDirectorSubsystem::BuildTraversalAudioMix(
+            EHorizonTraversalAudioCue::Slide,
+            EHorizonFootstepSurface::Concrete,
+            0.75f,
+            100.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            41);
+    const FHorizonTraversalAudioMix WaterEntry =
+        UHorizonAudioDirectorSubsystem::BuildTraversalAudioMix(
+            EHorizonTraversalAudioCue::WaterEntry,
+            EHorizonFootstepSurface::ShallowWater,
+            0.75f,
+            100.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            41);
+    const FHorizonTraversalAudioMix MetalVault =
+        UHorizonAudioDirectorSubsystem::BuildTraversalAudioMix(
+            EHorizonTraversalAudioCue::Vault,
+            EHorizonFootstepSurface::Metal,
+            0.75f,
+            100.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            41);
+    const FHorizonTraversalAudioMix DirtVault =
+        UHorizonAudioDirectorSubsystem::BuildTraversalAudioMix(
+            EHorizonTraversalAudioCue::Vault,
+            EHorizonFootstepSurface::Dirt,
+            0.75f,
+            100.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            41);
+
+    TestTrue(TEXT("Landing carries more body than takeoff"),
+        Land.BodyGain > Jump.BodyGain);
+    TestTrue(TEXT("Slide emphasizes sustained surface texture"),
+        Slide.SurfaceGain > Slide.BodyGain);
+    TestTrue(TEXT("Water entry emphasizes splash"),
+        WaterEntry.SplashGain > WaterEntry.BodyGain);
+    TestTrue(TEXT("Metal vault carries more gear detail than dirt"),
+        MetalVault.GearGain > DirtVault.GearGain);
+
+    const FHorizonTraversalAudioMix Distant =
+        UHorizonAudioDirectorSubsystem::BuildTraversalAudioMix(
+            EHorizonTraversalAudioCue::Land,
+            EHorizonFootstepSurface::Concrete,
+            1.0f,
+            17000.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            77);
+    const FHorizonTraversalAudioMix Occluded =
+        UHorizonAudioDirectorSubsystem::BuildTraversalAudioMix(
+            EHorizonTraversalAudioCue::Land,
+            EHorizonFootstepSurface::Concrete,
+            1.0f,
+            100.0f,
+            EHorizonAcousticSpace::Outdoor,
+            true,
+            77);
+    const FHorizonTraversalAudioMix Tunnel =
+        UHorizonAudioDirectorSubsystem::BuildTraversalAudioMix(
+            EHorizonTraversalAudioCue::Land,
+            EHorizonFootstepSurface::Concrete,
+            1.0f,
+            100.0f,
+            EHorizonAcousticSpace::Tunnel,
+            false,
+            77);
+    const FHorizonTraversalAudioMix Repeat =
+        UHorizonAudioDirectorSubsystem::BuildTraversalAudioMix(
+            EHorizonTraversalAudioCue::Land,
+            EHorizonFootstepSurface::Concrete,
+            1.0f,
+            100.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            77);
+    const FHorizonTraversalAudioMix Invalid =
+        UHorizonAudioDirectorSubsystem::BuildTraversalAudioMix(
+            EHorizonTraversalAudioCue::Land,
+            EHorizonFootstepSurface::Concrete,
+            -1.0f,
+            -100.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            77);
+
+    TestTrue(TEXT("Distance attenuates traversal feedback"),
+        Distant.BodyGain < Repeat.BodyGain);
+    TestTrue(TEXT("Occlusion reduces traversal gear detail"),
+        Occluded.GearGain < Repeat.GearGain);
+    TestTrue(TEXT("Occlusion lowers traversal cutoff"),
+        Occluded.LowPassCutoffHz < Repeat.LowPassCutoffHz);
+    TestTrue(TEXT("Tunnel traversal receives a stronger reverberant tail"),
+        Tunnel.ReverbSend > Repeat.ReverbSend);
+    TestEqual(TEXT("Seeded traversal pitch is deterministic"),
+        Repeat.Pitch,
+        UHorizonAudioDirectorSubsystem::BuildTraversalAudioMix(
+            EHorizonTraversalAudioCue::Land,
+            EHorizonFootstepSurface::Concrete,
+            1.0f,
+            100.0f,
+            EHorizonAcousticSpace::Outdoor,
+            false,
+            77).Pitch);
+    TestEqual(TEXT("Invalid traversal intensity fails silent"),
+        Invalid.BodyGain,
+        0.0f);
+
+    UHorizonAudioDirectorSubsystem* Audio =
+        NewObject<UHorizonAudioDirectorSubsystem>();
+    TestNotNull(TEXT("Audio director should construct for traversal feedback"), Audio);
+    if (!Audio)
+    {
+        return false;
+    }
+
+    const FVector EventLocation(30.0f, 40.0f, 50.0f);
+    const FHorizonTraversalAudioEvent Event = Audio->EmitTraversalAudio(
+        EHorizonTraversalAudioCue::Vault,
+        EHorizonFootstepSurface::Wood,
+        0.65f,
+        0.0f,
+        false,
+        EventLocation,
+        12);
+    TestEqual(TEXT("Runtime traversal preserves cue identity"),
+        Event.Cue,
+        EHorizonTraversalAudioCue::Vault);
+    TestEqual(TEXT("Runtime traversal preserves surface identity"),
+        Event.Surface,
+        EHorizonFootstepSurface::Wood);
+    TestEqual(TEXT("Runtime traversal preserves world location"),
+        Event.WorldLocation,
+        EventLocation);
+    TestTrue(TEXT("Runtime traversal produces audible gear detail"),
+        Event.Mix.GearGain > 0.0f);
+    return true;
+}
+
 #endif

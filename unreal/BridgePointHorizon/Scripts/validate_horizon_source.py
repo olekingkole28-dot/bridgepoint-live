@@ -360,7 +360,10 @@ for token in [
     "ConsumeFootstepDistance", "ResolveFootstepSurfaceName",
     "EHorizonCombatImpactSurface", "FHorizonCombatImpactMix",
     "FHorizonCombatImpactEvent", "OnCombatImpactEmitted",
-    "GetCombatImpactMix", "BuildCombatImpactMix", "EmitCombatImpact"
+    "GetCombatImpactMix", "BuildCombatImpactMix", "EmitCombatImpact",
+    "EHorizonTraversalAudioCue", "FHorizonTraversalAudioMix",
+    "FHorizonTraversalAudioEvent", "OnTraversalAudioEmitted",
+    "GetTraversalAudioMix", "BuildTraversalAudioMix", "EmitTraversalAudio"
 ]:
     require(token in audio_header, f"AAA audio runtime contract missing: {token}")
 for token in [
@@ -391,7 +394,11 @@ for token in [
     "EHorizonCombatImpactSurface::Armor",
     "EHorizonCombatImpactSurface::Glass",
     "FMath::Min(Mix.LowPassCutoffHz, 2500.0f)",
-    "OnCombatImpactEmitted.Broadcast"
+    "OnCombatImpactEmitted.Broadcast",
+    "EHorizonTraversalAudioCue::WaterEntry",
+    "EHorizonFootstepSurface::ShallowWater",
+    "FMath::Min(Mix.LowPassCutoffHz, 2300.0f)",
+    "OnTraversalAudioEmitted.Broadcast"
 ]:
     require(token in audio, f"AAA audio behavior missing: {token}")
 for token in [
@@ -473,6 +480,22 @@ for token in [
     "Runtime armor impact produces an audible transient"
 ]:
     require(token in audio_tests, f"native combat impact audio QA missing: {token}")
+for token in [
+    "Audio.Traversal.RuntimeFeedback",
+    "Landing carries more body than takeoff",
+    "Slide emphasizes sustained surface texture",
+    "Water entry emphasizes splash",
+    "Metal vault carries more gear detail than dirt",
+    "Distance attenuates traversal feedback",
+    "Occlusion reduces traversal gear detail",
+    "Occlusion lowers traversal cutoff",
+    "Tunnel traversal receives a stronger reverberant tail",
+    "Seeded traversal pitch is deterministic",
+    "Invalid traversal intensity fails silent",
+    "Runtime traversal preserves cue identity",
+    "Runtime traversal produces audible gear detail"
+]:
+    require(token in audio_tests, f"native traversal audio QA missing: {token}")
 for token in [
     "Audio.Footsteps.RuntimeCadence",
     "Sub-stride travel emits no footstep",
@@ -914,7 +937,16 @@ for token in [
     "StrideLengthCm", "MaxStepsPerFrame",
     "CombatImpactSequence", "Audio->EmitCombatImpact",
     "EHorizonCombatImpactSurface::Armor",
-    "EHorizonCombatImpactSurface::Flesh"
+    "EHorizonCombatImpactSurface::Flesh",
+    "TraversalAudioSequence", "PeakDownwardSpeedCmPerSecond",
+    "EmitTraversalAudio(", "ResolveGroundAudioSurface",
+    "EHorizonTraversalAudioCue::Jump",
+    "EHorizonTraversalAudioCue::Land",
+    "EHorizonTraversalAudioCue::Slide",
+    "EHorizonTraversalAudioCue::Vault",
+    "EHorizonTraversalAudioCue::WaterEntry",
+    "EHorizonTraversalAudioCue::WaterExit",
+    "Audio->EmitTraversalAudio"
 ]:
     require(token in player_header + player, f"runtime footstep integration missing: {token}")
 for token in [
