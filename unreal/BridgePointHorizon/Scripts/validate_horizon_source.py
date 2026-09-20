@@ -524,13 +524,20 @@ matchmaking_contract = matchmaking_header + "\n" + matchmaking
 for token in [
     "SkillMean", "SkillUncertainty", "CareerLevel", "LifetimeKills", "Prestige",
     "InputPool", "PlatformPool", "EstimatedPingMs", "PartySize", "bCrossInputOptIn",
-    "EvaluateCompatibility", "HardPingLimitMs = 180", "MinimumEligibleScore = 0.35f"
+    "EvaluateCompatibility", "ValidateProfile",
+    "SkillPenalty", "ProgressPenalty", "KillPenalty",
+    "InputPenalty", "PlatformPenalty", "PartyPenalty",
+    "HardPingLimitMs = 180", "MinimumEligibleScore = 0.35f"
 ]:
     require(token in matchmaking_contract, f"fair matchmaking contract missing: {token}")
 for token in [
     "INPUT_POOL_OPT_IN_REQUIRED", "CONNECTION_OUTSIDE_LIMIT", "INVALID_PARTY_SIZE",
     "UncertaintyBudget", "SkillPenalty * 0.55f", "ProgressPenalty * 0.12f",
-    "KillPenalty * 0.08f", "Result.ConnectionPenalty * 0.16f"
+    "KillPenalty * 0.08f", "Result.ConnectionPenalty * 0.16f",
+    "INVALID_SKILL_PROFILE", "INVALID_PROGRESSION_PROFILE",
+    "INVALID_CONNECTION_PROFILE", "INVALID_INPUT_PLATFORM_PROFILE",
+    "!FMath::IsFinite(Profile.SkillMean)",
+    "Profile.Prestige > MaxPrestige", "Profile.EstimatedPingMs < 0"
 ]:
     require(token in matchmaking, f"fair matchmaking behavior missing: {token}")
 for forbidden in ["premium", "purchase", "entitle", "reward"]:
@@ -547,7 +554,20 @@ for token in [
     "INPUT_POOL_OPT_IN_REQUIRED",
     "CONNECTION_OUTSIDE_LIMIT",
     "INVALID_PARTY_SIZE",
-    "Uncertain.Score01 > Certain.Score01"
+    "Uncertain.Score01 > Certain.Score01",
+    "ProfileValidationFailsClosed", "PenaltyTransparency",
+    "blank player identity fails closed",
+    "non-finite skill cannot enter matchmaking",
+    "out-of-contract uncertainty cannot widen search",
+    "prestige above the current cap fails closed",
+    "negative lifetime kills cannot improve compatibility",
+    "negative ping cannot masquerade as perfect connection",
+    "unknown input pool fails closed",
+    "skill contribution is exposed",
+    "progress contribution is exposed",
+    "kill contribution is exposed",
+    "cross-platform consideration is exposed",
+    "transparent penalties retain a bounded score"
 ]:
     require(token in matchmaking_tests, f"native matchmaking QA missing: {token}")
 require("Stripe" not in matchmaking_tests and "Payment" not in matchmaking_tests,
