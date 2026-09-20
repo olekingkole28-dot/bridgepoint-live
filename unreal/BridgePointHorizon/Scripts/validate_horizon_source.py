@@ -921,10 +921,8 @@ for token in ["/Engine/Maps/Entry", "GlobalDefaultGameMode=/Script/BridgePointHo
     require(token in engine_config, f"native bootstrap config missing: {token}")
 
 input_config = read("unreal/BridgePointHorizon/Config/DefaultInput.ini")
-for token in ['AxisName="MoveForward"', 'AxisName="MoveRight"', 'AxisName="Lean"', 'ActionName="Sprint"', 'ActionName="Crouch"', 'ActionName="Aim"', 'ActionName="Fire"', 'ActionName="Reload"', 'ActionName="Prone"', 'ActionName="Slide"']:
+for token in ['AxisName="MoveForward"', 'AxisName="MoveRight"', 'AxisName="Lean"', 'ActionName="Sprint"', 'ActionName="Crouch"', 'ActionName="Aim"', 'ActionName="Fire"', 'ActionName="Reload"', 'ActionName="Prone"', 'ActionName="Slide"', 'ActionName="CameraToggle"', 'Key=V', 'Key=Gamepad_Special_Right']:
     require(token in input_config, f"native movement input missing: {token}")
-require('ActionName="ToggleCamera"' not in input_config,
-        "first-person-only Horizon must not expose a camera-toggle input")
 
 player_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonPlayerCharacter.h")
 player = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonPlayerCharacter.cpp")
@@ -953,7 +951,9 @@ for token in [
     "EquippedWeaponVisual", "EquipWeaponVisual", "WeaponHandSocketName",
     "FirstPersonArms", "FirstPersonWeaponVisual", "SetFirstPersonArmsMesh",
     "FirstPersonWeaponSocketName", "HasFirstPersonArms",
-    "EHorizonCameraMode", "SetCameraMode", "ToggleCameraMode", "CachedMoveInput",
+    "EHorizonCameraMode", "FHorizonCameraPresentationState",
+    "ResolveCameraPresentation", "AimFieldOfView",
+    "SetCameraMode", "ToggleCameraMode", "CachedMoveInput",
     "EHorizonMovementStance", "ProneCapsuleHalfHeight", "ProneCapsuleRadius",
     "SlideDurationSeconds", "GetMovementStance", "IsSliding", "IsProne",
     "LeanDistanceCm", "LeanRollDegrees", "LeanProbeRadiusCm",
@@ -976,7 +976,11 @@ for token in [
     "AttachWeaponVisualToBestSocket", "AttachFirstPersonWeaponToBestSocket",
     "RefreshFirstPersonVisualState", "SetLeaderPoseComponent",
     "FirstPersonWeaponVisual->SetStaticMesh", "bUseControllerRotationYaw = bControllerFacing",
-    "FVector SafeStart = GetActorLocation()"
+    "FVector SafeStart = GetActorLocation()",
+    "CameraMode == EHorizonCameraMode::FirstPerson",
+    "EHorizonCameraMode::ThirdPerson",
+    "CameraBoom->bDoCollisionTest = Presentation.bUseCollision",
+    "BindAction(TEXT(\"CameraToggle\")"
 ]:
     require(token in player, f"native player facing/spawn/weapon/first-person implementation missing: {token}")
 for token in ["LineTraceComponent", "GroundedLocation", "MOVE_Walking"]:
@@ -1194,7 +1198,17 @@ for token in [
     "Gravity remains disabled while the terrain collision mesh is missing",
     "Gravity remains disabled until the terrain component answers the trace",
     "Gravity remains disabled when a trace returns without a blocking terrain hit",
-    "Gravity enables only after source terrain collision returns a blocking hit"
+    "Gravity enables only after source terrain collision returns a blocking hit",
+    "Movement.Camera.DualPerspective",
+    "First person keeps camera at the player head",
+    "First person disables chase-camera collision",
+    "First person shows isolated arms",
+    "Third person restores authored chase distance",
+    "Third person enables obstruction collision",
+    "Third person hides first-person arms",
+    "Third-person ADS tightens the camera shoulder",
+    "ADS narrows field of view in both perspectives",
+    "Invalid chase distance uses a safe fallback"
 ]:
     require(token in movement_tests, f"native movement/collision QA missing: {token}")
 require("Stripe" not in movement_tests and "Payment" not in movement_tests,
@@ -1213,8 +1227,8 @@ if mode_contract_path.exists():
     keys = [m.get("mode_key") for m in modes]
     require(keys == ["year_one_survival", "infinite_tdm"],
             f"unexpected mode catalog: {keys}")
-    require(spec.get("perspective") == "FIRST_PERSON_ONLY",
-            "Horizon gameplay contract must remain first-person only")
+    require(spec.get("perspective") == "FIRST_AND_THIRD_PERSON",
+            "Horizon gameplay contract must preserve first/third-person choice")
     by_key = {m["mode_key"]: m for m in modes}
     year = by_key.get("year_one_survival", {})
     require(year.get("party", {}).get("max") == 1, "Year One must be solo")
