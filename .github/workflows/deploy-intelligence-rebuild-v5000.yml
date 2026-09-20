@@ -573,7 +573,6 @@ jobs:
               await p.waitForSelector('a[href="/sample/storm-opportunity/"]',{timeout:10000});
               await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map||window.__BP_LANDING_MAP_BOOT__?.stage==='error',{timeout:30000});
               const mapBoot=await p.evaluate(()=>window.__BP_LANDING_MAP_BOOT__||null);
-              if(!window){} // keep node parser context stable
               if(mapBoot?.stage==='error')throw new Error('LANDING_MAP_BOOT '+JSON.stringify(mapBoot));
               await p.waitForFunction(()=>!!window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__&&!!window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__,{timeout:30000});
               await p.waitForFunction(()=>{
