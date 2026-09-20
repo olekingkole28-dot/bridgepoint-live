@@ -364,13 +364,30 @@ bool AHorizonPlayerCharacter::IsHeadshotBone(FName BoneName)
         Normalized.Contains(TEXT("skull"));
 }
 
+FVector2D AHorizonPlayerCharacter::ResolveLocalShotRecoil(
+    const FHorizonWeaponShotResult& Shot,
+    bool bIsLocalController)
+{
+    if (!bIsLocalController ||
+        !FMath::IsFinite(Shot.RecoilImpulse.X) ||
+        !FMath::IsFinite(Shot.RecoilImpulse.Y))
+    {
+        return FVector2D::ZeroVector;
+    }
+
+    return FVector2D(
+        FMath::Clamp(Shot.RecoilImpulse.X, 0.0f, 8.0f),
+        FMath::Clamp(Shot.RecoilImpulse.Y, -5.0f, 5.0f));
+}
+
 void AHorizonPlayerCharacter::HandleWeaponShot(FHorizonWeaponShotResult Shot)
 {
     if (AController* OwnerController = GetController();
         OwnerController && OwnerController->IsLocalController())
     {
-        AddControllerPitchInput(-Shot.RecoilImpulse.X);
-        AddControllerYawInput(Shot.RecoilImpulse.Y);
+        const FVector2D LocalRecoil = ResolveLocalShotRecoil(Shot, true);
+        AddControllerPitchInput(-LocalRecoil.X);
+        AddControllerYawInput(LocalRecoil.Y);
     }
 
     if (!HasAuthority() || !WeaponRuntime || !GetWorld())
