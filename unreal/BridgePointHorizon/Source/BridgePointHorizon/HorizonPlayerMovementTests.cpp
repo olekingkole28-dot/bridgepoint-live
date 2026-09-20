@@ -279,4 +279,53 @@ bool FHorizonSwimmingDirectionTest::RunTest(const FString& Parameters)
     return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+    FHorizonRadialMovementInputTest,
+    "BridgePoint.Horizon.Movement.Input.RadialResponse",
+    EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FHorizonRadialMovementInputTest::RunTest(const FString& Parameters)
+{
+    const FVector2D Noise = AHorizonPlayerCharacter::ShapeMovementInput(
+        FVector2D(0.07f, -0.05f));
+    TestTrue(TEXT("Controller drift remains inside radial deadzone"),
+        Noise.IsNearlyZero());
+
+    const FVector2D MidInput(0.50f, 0.0f);
+    const FVector2D Mid = AHorizonPlayerCharacter::ShapeMovementInput(MidInput);
+    TestTrue(TEXT("Mid-stick input remains responsive"), Mid.X > 0.0f);
+    TestTrue(TEXT("Response curve preserves fine control below raw magnitude"),
+        Mid.Size() < MidInput.Size());
+
+    const FVector2D Full = AHorizonPlayerCharacter::ShapeMovementInput(
+        FVector2D(1.0f, 0.0f));
+    TestTrue(TEXT("Full digital or stick input reaches full scale"),
+        FMath::IsNearlyEqual(Full.Size(), 1.0f));
+
+    const FVector2D Outer = AHorizonPlayerCharacter::ShapeMovementInput(
+        FVector2D(0.99f, 0.0f));
+    TestTrue(TEXT("Outer deadzone reaches full scale before stick edge"),
+        FMath::IsNearlyEqual(Outer.Size(), 1.0f));
+
+    const FVector2D Diagonal = AHorizonPlayerCharacter::ShapeMovementInput(
+        FVector2D(1.0f, 1.0f));
+    TestTrue(TEXT("Diagonal movement remains normalized"),
+        FMath::IsNearlyEqual(Diagonal.Size(), 1.0f));
+    TestTrue(TEXT("Radial shaping preserves diagonal direction"),
+        FMath::IsNearlyEqual(Diagonal.X, Diagonal.Y));
+
+    const FVector2D Negative = AHorizonPlayerCharacter::ShapeMovementInput(
+        FVector2D(-0.75f, 0.0f));
+    const FVector2D Positive = AHorizonPlayerCharacter::ShapeMovementInput(
+        FVector2D(0.75f, 0.0f));
+    TestTrue(TEXT("Opposing directions have symmetric response"),
+        FMath::IsNearlyEqual(FMath::Abs(Negative.X), Positive.X));
+
+    const FVector2D Invalid = AHorizonPlayerCharacter::ShapeMovementInput(
+        FVector2D(TNumericLimits<float>::QuietNaN(), 0.0f));
+    TestTrue(TEXT("Non-finite movement input fails closed"),
+        Invalid.IsNearlyZero());
+    return true;
+}
+
 #endif
