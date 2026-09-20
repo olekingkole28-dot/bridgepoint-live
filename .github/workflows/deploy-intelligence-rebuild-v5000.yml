@@ -106,6 +106,9 @@ jobs:
           cp rebuild-v5000/manifest.webmanifest site/manifest.webmanifest
           cp rebuild-v5000/favicon.ppm site/favicon.ppm
           cp rebuild-v5000/sw.js site/sw.js
+          cp rebuild-v5000/intelligence-v5507.css site/intelligence-v5507.css
+          cp rebuild-v5000/intelligence-global-v5507.js site/intelligence-global-v5507.js
+          cp rebuild-v5000/intelligence-tools-v5507.js site/intelligence-tools-v5507.js
           cp rebuild-v5000/404.html site/404.html
           cp rebuild-v5000/bridgepoint-mark.svg site/bridgepoint-mark.svg
           cp rebuild-v5000/bridgepoint-favicon-48.png site/bridgepoint-favicon-48.png
@@ -164,6 +167,13 @@ jobs:
 
           node --check site/app.js
           node --check site/landing.js
+          node --check site/intelligence-global-v5507.js
+          node --check site/intelligence-tools-v5507.js
+          grep -Fq 'intelligence-tools-v5507.js?v=5507' site/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5507' site/app/index.html
+          grep -Fq 'FREE PREMIUM TOOLS' site/intelligence-tools-v5507.js
+          grep -Fq 'Use two fingers and swipe / scroll up' site/intelligence-global-v5507.js
+          grep -Fq 'bp5507-tect-line' site/intelligence-global-v5507.js
           grep -Fq 'landingPropertySearch' site/index.html
           grep -Fq 'FREE_LOOKUP_KEY' site/landing.js
           grep -Fq 'landingWeatherLegend' site/landing.js
