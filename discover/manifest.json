@@ -1,6 +1,6 @@
 {
   "version": 1111,
-  "generated_at": "2026-09-19T22:29:09.152243Z",
+  "generated_at": "2026-09-20T00:21:56.540046Z",
   "source_rpc": "bridgepoint_public_owned_media_feed_v435",
   "facts_rpc": "bridgepoint_public_discovery_facts_v5200",
   "facts_metrics": {
@@ -8,9 +8,9 @@
     "roof_shell_buildings": 143787840,
     "roof_shell_coverage_pct": 100.0,
     "canonical_property_records": 169664739,
-    "normalized_address_records": 147611977,
-    "source_backed_roof_records": 669444,
-    "lidar_refined_roof_buildings": 3375,
+    "normalized_address_records": 148035122,
+    "source_backed_roof_records": 669521,
+    "lidar_refined_roof_buildings": 3452,
     "materialized_boundary_estimate": 83881564,
     "public_parcel_identity_records": 169664739,
     "canonical_property_record_label": "canonical property/parcel identity records",
