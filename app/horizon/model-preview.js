@@ -137,6 +137,34 @@ function stylizedCharacter(ref){
   const plate=new THREE.Mesh(new THREE.TorusGeometry(.76,.045,12,48),accent);plate.rotation.x=Math.PI/2;plate.position.z=-.63;g.add(plate);
   g.rotation.z=.015;return g;
 }
+
+function profileIcon(ref){
+  const g=new THREE.Group(),low=String(ref||'').toLowerCase(),accent=material(low.includes('rose')?0xd84f76:low.includes('alien')?0x69e4a6:low.includes('crown')?0xf2c75b:0x8a7cff,.28,.34,0x10261f),dark=material(0x14191a,.38,.42);
+  if(low.includes('skull')){
+    const head=new THREE.Mesh(new THREE.SphereGeometry(.72,24,18),material(0xe2dfd2,.08,.58));head.scale.set(.9,.72,1);g.add(head);
+    for(const s of[-1,1]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.17,14,10),dark);eye.position.set(s*.25,-.54,.18);g.add(eye)}
+    const jaw=new THREE.Mesh(new THREE.BoxGeometry(.78,.38,.36),material(0xd1cdbf,.05,.62));jaw.position.set(0,-.08,-.62);g.add(jaw);
+  }else if(low.includes('alien')){
+    const head=new THREE.Mesh(new THREE.SphereGeometry(.8,26,20),accent);head.scale.set(.82,.72,1.18);g.add(head);
+    for(const s of[-1,1]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.24,18,12),dark);eye.scale.set(.82,.32,1.25);eye.position.set(s*.25,-.62,.16);eye.rotation.z=s*.18;g.add(eye)}
+  }else if(low.includes('rose')){
+    for(let i=0;i<18;i++){const petal=new THREE.Mesh(new THREE.SphereGeometry(.28,14,10),accent);const a=i/18*Math.PI*2,r=.18+.42*(i/18);petal.scale.set(1,.42,.72);petal.position.set(Math.cos(a)*r,Math.sin(a)*r,(i%3)*.05);petal.rotation.z=a;g.add(petal)}
+    const stem=new THREE.Mesh(new THREE.CylinderGeometry(.06,.08,1.5,10),material(0x2d6a43,.08,.72));stem.position.z=-1;g.add(stem);
+  }else{
+    const core=new THREE.Mesh(new THREE.IcosahedronGeometry(.78,2),accent);g.add(core);const ring=new THREE.Mesh(new THREE.TorusGeometry(1.0,.05,10,40),dark);ring.rotation.x=Math.PI/2;g.add(ring)
+  }
+  const halo=new THREE.Mesh(new THREE.TorusGeometry(1.18,.035,10,44),accent);halo.rotation.x=Math.PI/2;g.add(halo);return g;
+}
+function vehiclePreview(ref){
+  const g=new THREE.Group(),low=String(ref||'').toLowerCase(),bodyColor=low.includes('afterburn')?0xf05e3f:low.includes('circuit')?0x4e7cff:0x4d6f62,body=material(bodyColor,.62,.3,bodyColor===0xf05e3f?0x3c1008:0x09142e),glass=material(0x12222b,.35,.18),rubber=material(0x111213,.15,.88),metal=material(0xb4bbb8,.75,.24);
+  const base=new THREE.Mesh(new THREE.BoxGeometry(2.8,1.25,.48),body);base.position.z=.42;g.add(base);
+  const hood=new THREE.Mesh(new THREE.BoxGeometry(.9,1.12,.32),body);hood.position.set(1.18,0,.69);g.add(hood);
+  const cab=new THREE.Mesh(new THREE.BoxGeometry(1.28,1.08,.58),glass);cab.position.set(.1,0,.86);cab.rotation.y=-.05;g.add(cab);
+  const spoiler=new THREE.Mesh(new THREE.BoxGeometry(.42,1.16,.08),metal);spoiler.position.set(-1.42,0,.87);g.add(spoiler);
+  for(const x of[-.92,.92])for(const y of[-.62,.62]){const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.31,.31,.18,18),rubber);wheel.rotation.x=Math.PI/2;wheel.position.set(x,y,.30);g.add(wheel);const hub=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.19,14),metal);hub.rotation.x=Math.PI/2;hub.position.copy(wheel.position);g.add(hub)}
+  const stripe=new THREE.Mesh(new THREE.BoxGeometry(2.25,.02,.05),material(low.includes('circuit')?0x79ffd4:0xffd86e,.28,.26,0x17382d));stripe.position.set(.05,-.64,.63);g.add(stripe);
+  g.rotation.set(.24,-.46,.05);return g;
+}
 function genericReward(ref){
   const group=new THREE.Group();
   const core=new THREE.Mesh(new THREE.IcosahedronGeometry(.9,2),material(0x54dcb5,.35,.3,0x0a4232));group.add(core);
@@ -152,6 +180,8 @@ function runtimeObject(ref){
   if(low.includes('/cache/'))return cacheCrate(low);
   if(low.includes('/spray/'))return sprayCan(low);
   if(low.includes('/character/')||low.includes('/prestige/'))return stylizedCharacter(low);
+  if(low.includes('/vehicle/'))return vehiclePreview(low);
+  if(low.includes('/icon/')||low.includes('profile_icon'))return profileIcon(low);
   if(low.includes('/skin/'))return skinDisplay(low);
   return genericReward(low);
 }
