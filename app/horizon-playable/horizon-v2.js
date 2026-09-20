@@ -1638,9 +1638,12 @@ function perfCadence(){
 }
 function fillActorProxy(mesh,rows){
   const d=new THREE.Object3D();let n=0;
-  for(const q of rows){
-    if(n>=PROXY_MAX)break;
-    d.position.set(q.g.position.x,q.g.position.y,q.g.position.z+.81);
+  const proxyRadius=perfSimRadius()*1.35,proxyCap=MOBILE?36:64;
+  const ranked=rows.map(q=>({q,d:Math.hypot(q.g.position.x-player.position.x,q.g.position.y-player.position.y)}))
+    .filter(x=>x.d<=proxyRadius).sort((a,b)=>a.d-b.d);
+  for(const row of ranked){
+    if(n>=Math.min(PROXY_MAX,proxyCap))break;
+    const q=row.q;d.position.set(q.g.position.x,q.g.position.y,q.g.position.z+.81);
     d.rotation.set(0,0,q.g.rotation.z||0);d.scale.set(1,1,1);d.updateMatrix();mesh.setMatrixAt(n++,d.matrix);
   }
   mesh.count=n;mesh.visible=perfTier>=3&&n>0;mesh.instanceMatrix.needsUpdate=true;
@@ -1709,8 +1712,8 @@ function applyWorldShaderBudget(low){
 function setPerfTier(next,reason='auto'){
   next=Math.max(0,Math.min(3,next|0));if(next===perfTier)return;
   perfTier=next;
-  const floor=MOBILE?.56:.72,deviceCeiling=Math.min(devicePixelRatio||1,HIGH_DEVICE?1.25:(MOBILE?.88:1.05));
-  const cap=MOBILE?[deviceCeiling,.78,.67,.56][perfTier]:[deviceCeiling,1,.88,.74][perfTier];
+  const floor=MOBILE?.50:.72,deviceCeiling=Math.min(devicePixelRatio||1,HIGH_DEVICE?1.25:(MOBILE?.88:1.05));
+  const cap=MOBILE?[deviceCeiling,.76,.62,.50][perfTier]:[deviceCeiling,1,.88,.74][perfTier];
   const desired=Math.max(floor,Math.min(renderScale,cap));
   if(Math.abs(desired-renderScale)>.015){renderScale=desired;renderer.setPixelRatio(renderScale);renderer.setSize(innerWidth,innerHeight,false)}
   if(perfTier>=2&&renderer.shadowMap.enabled){renderer.shadowMap.enabled=false;sun.castShadow=false}
@@ -1733,7 +1736,7 @@ function updatePerformanceGovernor(rawDt,now){
     else if(perfEmaMs<17.4&&now-fastSince>7000&&perfTier>0){setPerfTier(perfTier-1,'stable_recovery');fastSince=now}
   }
   window.BP_HORIZON_PERF={
-    ...(window.BP_HORIZON_PERF||{}),build:4340,tier:perfTier,tier_name:PERF_TIER_NAMES[perfTier],
+    ...(window.BP_HORIZON_PERF||{}),build:4341,tier:perfTier,tier_name:PERF_TIER_NAMES[perfTier],
     ema_ms:Number(perfEmaMs.toFixed(2)),worst_ms:Number(perfWorstMs.toFixed(2)),fps:lastMeasuredFps,
     pixel_ratio:Number(renderScale.toFixed(2)),shadows:renderer.shadowMap.enabled,sim_radius_m:perfSimRadius(),
     draw_calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,lines:renderer.info.render.lines,points:renderer.info.render.points,
