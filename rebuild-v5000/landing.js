@@ -111,25 +111,22 @@ async function startLandingNationalWeather(world){
 async function initMap(){
  if(!window.maplibregl)return;
  try{
-  const mod=await import('./world-v2300-map.js?v=5420');
+  const mod=await import('./world-v2300-map.js?v=5510');
   const world=mod.initWorld({
    containerId:'previewMap',
    globalKey:'__bpLandingWorldV5420',
-   center:[-98.5,39.5],
-   zoom:window.innerWidth<=620?2.55:3.15,
+   center:[0,20],
+   zoom:window.innerWidth<=620?1.05:1.25,
    pitch:0,
    bearing:0,
-   projection:'mercator',
+   projection:'globe',
    preview:true
   });
   if(!world?.map)throw new Error('Shared BridgePoint world renderer unavailable');
   map=world.map;
   try{
-   const nationalBounds=[[-125.2,24.1],[-66.4,49.8]];
-   const padding=window.innerWidth<=620?{top:10,right:8,bottom:10,left:8}:{top:22,right:22,bottom:22,left:22};
-   map.fitBounds(nationalBounds,{padding,duration:0,maxZoom:3.65});
-   map.setPitch?.(0);map.setBearing?.(0);
-   window.__BP_LANDING_NATIONAL_START__={bounds:nationalBounds,fit:true,at:Date.now()}
+   map.jumpTo({center:[0,20],zoom:window.innerWidth<=620?1.05:1.25,pitch:0,bearing:0});
+   window.__BP_LANDING_GLOBAL_START__={center:[0,20],projection:'globe',zoom:map.getZoom(),at:Date.now()}
   }catch(_){};
   world.onBuildingSelect?.(({feature})=>{
    const p=feature?.properties||{},h=Number(p.render_height_m||p.height_m||p.height||p.render_height||8.5),id=p.building_id||feature?.id||'mapped';
