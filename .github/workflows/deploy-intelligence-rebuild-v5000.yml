@@ -175,6 +175,9 @@ jobs:
           grep -Fq 'intelligence-tools-v5500.js?v=5500' site/landing.js
           grep -Fq 'bridgepoint_intelligence_public_tool_allow_v5500' site/intelligence-tools-v5500.js
           grep -Fq 'bridgepoint_intelligence_live_entities_v5500' site/intelligence-tools-v5500.js
+          grep -Fq "['all','ALL']" site/intelligence-tools-v5500.js
+          grep -Fq 'async function toggleAll()' site/intelligence-tools-v5500.js
+          grep -Fq "state.allMode?(mode==='public'?120:300)" site/intelligence-tools-v5500.js
           grep -Fq 'setProjection?.({type:state.globe' site/intelligence-tools-v5500.js
           grep -Fq 'FLIGHT SIM' site/intelligence-tools-v5500.js
           grep -Fq 'BUILDING AERODYNAMICS' site/intelligence-tools-v5500.js
