@@ -174,8 +174,8 @@ jobs:
           node --check site/intelligence-tools-v5507.js
           node --check site/scenario-lab-v5525.js
           node --check site/qr-house-v5521.js
-          grep -Fq 'intelligence-tools-v5507.js?v=5525' site/index.html
-          grep -Fq 'intelligence-tools-v5507.js?v=5525' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5526' site/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5526' site/app/index.html
           grep -Fq 'FREE PREMIUM TOOLS' site/intelligence-tools-v5507.js
           grep -Fq 'openScenarioLab' site/intelligence-tools-v5507.js
           grep -Fq 'bridgepoint_intelligence_record_simulation_v5525' site/scenario-lab-v5525.js
@@ -194,6 +194,10 @@ jobs:
           grep -Fq 'Use two fingers and swipe / scroll up' site/intelligence-global-v5507.js
           grep -Fq 'bp5507-tect-line' site/intelligence-global-v5507.js
           grep -Fq '#landingPropertySearch' site/intelligence-v5507.css
+          grep -Fq '.app-shell .map-tools{bottom:74px}' site/intelligence-v5507.css
+          grep -Fq '.app-shell #bp5507-key{bottom:128px}' site/intelligence-v5507.css
+          grep -Fq 'SOLO-BUILT &amp; STILL IMPROVING' site/intelligence-tools-v5507.js
+          grep -Fq 'intelligence-v5507.css?v=5518' site/app/index.html
           grep -Fq 'data-home' site/intelligence-tools-v5507.js
           grep -Fq 'bindInfo' site/intelligence-global-v5507.js
           grep -Fq 'NASA_GPM_IMERG_NEAR_REALTIME' site/intelligence-global-v5507.js
