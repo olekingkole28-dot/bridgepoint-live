@@ -143,7 +143,11 @@ async function initMap(){
    const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5440'),import('./world-v2300-present-weather.js?v=5440')]);
    const weather=wm.initWeather(world.map),present=pm.initPresentWeather(world.map);
    weather?.setActive?.(true);weather?.setRadar?.(true);await startLandingNationalWeather(world);
-   window.__BP_LANDING_VISUAL_WEATHER__={version:5440,weather,present,mapShared:true,nationalWeather:true,radarVisible:true,radarAnimated:true,updatedAt:Date.now()}
+   window.__BP_LANDING_VISUAL_WEATHER__={version:5500,weather,present,mapShared:true,nationalWeather:true,radarVisible:true,radarAnimated:true,updatedAt:Date.now()};
+   try{
+    const tools=await import('./intelligence-tools-v5500.js?v=5500');
+    window.__BP_LANDING_INTELLIGENCE_TOOLS_V5500=tools.initIntelligenceTools({map:world.map,rpc,weather,mode:'public'});
+   }catch(toolErr){console.warn('BridgePoint public tools v5500',toolErr)}
   }catch(e){console.warn('BridgePoint preview weather',e)}
   window.__BP_LANDING_WORLD__=world;
   window.__BP_LANDING_RENDERER_PARITY__={sharedModule:true,version:5440,container:'previewMap',sameWorldRendererAsApp:true,sameWeatherEngineAsApp:true,updatedAt:Date.now()}
