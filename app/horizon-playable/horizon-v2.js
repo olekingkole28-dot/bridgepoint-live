@@ -607,9 +607,34 @@ function interiorBox(x,y,z,w,d,h,material,collide=true){
   if(collide)interiorRects.push({minx:x-w/2,maxx:x+w/2,miny:y-d/2,maxy:y+d/2});return m;
 }
 function clearInteriorRuntime(){
+  for(let i=infected.length-1;i>=0;i--)if(infected[i].space==='interior')infected.splice(i,1);
   while(interiorGroup.children.length)interiorGroup.remove(interiorGroup.children[0]);
   for(let i=lootPickups.length-1;i>=0;i--)if(lootPickups[i].space==='interior')lootPickups.splice(i,1);
   interiorRects.length=0;activeInterior=null;
+}
+function spawnInteriorMonsters(entry){
+  if(mode!=='YEAR_ONE'||!activeInterior)return 0;
+  const n=Math.max(1,Math.min(activeInterior.floors,MOBILE?2:4));
+  for(let i=0;i<n;i++){
+    const floor=i%activeInterior.floors,spider=(hash(entry.id+':inside:'+i)%5===0),kind=spider?'spider':'zombie';
+    const maxHealth=spider?75:100,label=spider?'SPIDER':'INDOOR ZOMBIE';
+    const g=spider?makeSpiderModel():makeSimpleZombieModel(.92);
+    const x=(hash(entry.id+':ix:'+i)%1000/1000-.5)*activeInterior.w*.42;
+    let y=(hash(entry.id+':iy:'+i)%1000/1000-.5)*activeInterior.d*.50;
+    if(floor===0&&y<-activeInterior.d*.18)y=activeInterior.d*.14;
+    const z=floor*activeInterior.floorH;g.position.set(x,y,z);g.rotation.z=(hash(entry.id+':ir:'+i)%628)/100;
+    const bar=makeMonsterHealthBar(label,maxHealth,spider?1.12:2.28);g.add(bar);interiorGroup.add(g);
+    const patrol=[
+      {x,y},{x:Math.max(-activeInterior.w*.35,Math.min(activeInterior.w*.35,-x)),y},
+      {x:Math.max(-activeInterior.w*.35,Math.min(activeInterior.w*.35,-x)),y:Math.max(-activeInterior.d*.34,Math.min(activeInterior.d*.34,-y))},
+      {x,y:Math.max(-activeInterior.d*.34,Math.min(activeInterior.d*.34,-y))}
+    ];
+    const q={g,s:spider?2.65:1.18,phase:i*.7,health:maxHealth,maxHealth,damage:25,detect:10,hearing:32,alive:true,index:1000+i,
+      name:label+' '+String(i+1).padStart(2,'0'),label,kind,space:'interior',patrol,patrolIndex:0,lockedOn:false,alertUntil:0,lastHitAt:0,
+      nextVocal:performance.now()+4500+i*900,nextScream:Infinity,hop:spider,hopHeight:spider?.62:0,hopPeriod:spider?780:900,hopPhase:i*150,healthBar:bar};
+    infected.push(q);updateMonsterHealthBar(q);
+  }
+  return n;
 }
 function interiorFloorSlab(z,w,d,hx,hy,hw,hd,material){
   const left=(w-hw)/2,right=left,top=(d-hd)/2,bottom=top;
@@ -661,11 +686,27 @@ function buildInterior(entry){
     lootPickups.push({id:'interior-'+entry.id+'-'+f,type:lootType,x:lx,y:ly,z:lz,space:'interior',mesh:lootMesh,picked:false});
   }
   const ceil=new THREE.Mesh(new THREE.BoxGeometry(w,d,.12),wallMat);ceil.position.set(0,0,floors*floorH+.08);interiorGroup.add(ceil);
+  spawnInteriorMonsters(entry);
   interiorGroup.visible=true;world.visible=false;
 }
-function enterInterior(entry){
+function enterInterior(entry,preciseWorldPoint=null){
   if(!entry||interiorMode)return;exteriorReturn.set(entry.cx,entry.cy-entry.d/2-1.8,entry.baseZ+.05);exteriorYaw=yaw;buildInterior(entry);interiorMode=true;rooftopState=null;
-  player.position.set(0,-activeInterior.d/2+1.5,.05);verticalVelocity=0;airborne=false;yaw=0;toast('PROCEDURAL INTERIOR · '+activeInterior.floors+' PLAYABLE FLOORS');
+  if(preciseWorldPoint){
+    const ix=THREE.MathUtils.clamp(preciseWorldPoint.x-entry.cx,-activeInterior.w*.38,activeInterior.w*.38);
+    const iy=THREE.MathUtils.clamp(preciseWorldPoint.y-entry.cy,-activeInterior.d*.38,activeInterior.d*.38);
+    player.position.set(ix,iy,.05);
+  }else player.position.set(0,-activeInterior.d/2+1.5,.05);
+  verticalVelocity=0;airborne=false;yaw=0;$('infected').textContent=infected.filter(z=>z.alive&&z.space==='interior').length;
+  toast('PROCEDURAL INTERIOR · '+activeInterior.floors+' PLAYABLE FLOORS');
+}
+function applyPreciseSpawn(){
+  if(mode!=='YEAR_ONE'){player.position.set(0,0,terrainZ(0,0));return 'WORLD'}
+  if(interiorMode){interiorMode=false;interiorGroup.visible=false;world.visible=true;clearInteriorRuntime()}
+  const containing=buildingEntries.find(e=>e.pts?.length>=3&&pointInPoly(0,0,e.pts));
+  if(containing){enterInterior(containing,{x:0,y:0});return 'BUILDING'}
+  player.position.set(0,0,terrainZ(0,0));verticalVelocity=0;airborne=false;rooftopState=null;
+  $('infected').textContent=infected.filter(z=>z.alive&&z.space==='world').length;
+  return 'OUTDOOR';
 }
 function exitInterior(){
   if(!interiorMode)return;interiorMode=false;interiorGroup.visible=false;world.visible=true;player.position.copy(exteriorReturn);yaw=exteriorYaw;verticalVelocity=0;airborne=false;toast('BACK OUTSIDE');
@@ -964,7 +1005,7 @@ function updateCombatants(dt,t){
       const accuracy=Math.max(.18,.72-d/105);
       if(rand()<accuracy){
         if(target?.player){
-          health=Math.max(0,health-(5+Math.floor(rand()*7)));$('health').textContent=Math.round(health);if(health<=0)triggerDeath(b);
+          health=Math.max(0,health-(5+Math.floor(rand()*7)));updateVitals('health');if(health<=0)triggerDeath(b);
         }else if(target?.alive){
           target.health-=12+Math.floor(rand()*11);if(target.health<=0)eliminateCombatant(target,b.name);
         }
@@ -1131,6 +1172,7 @@ async function triggerDeath(killer){
   const title=$('killCamTitle'),phase=$('killCamPhase');
   if(title)title.textContent='ELIMINATED BY '+(killer?.name||'THE HORDE');
   if(mode==='YEAR_ONE'&&playerId&&playerSecret){
+    await checkpointYearOne(true);
     yearDeathResult=await rpc('bridgepoint_horizon_year_one_death_v4310',{
       p_player_id:playerId,p_player_secret:playerSecret,p_death_key:'death-'+Date.now()
     }).catch(()=>null);
