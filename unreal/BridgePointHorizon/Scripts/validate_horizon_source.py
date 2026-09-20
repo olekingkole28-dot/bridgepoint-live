@@ -497,7 +497,8 @@ challenge_header = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/Hor
 challenge = read("unreal/BridgePointHorizon/Source/BridgePointHorizon/HorizonChallengeDirectorSubsystem.cpp")
 for token in [
     "UHorizonChallengeSaveGame", "FHorizonChallengeRuntimeState", "FreeItemInventory",
-    "CompletedRuns", "AdvanceProgressSafely", "PrepareNextRun"
+    "CompletedRuns", "AdvanceProgressSafely", "PrepareNextRun",
+    "SelectTopSiteIndices"
 ]:
     require(token in challenge_header, f"persistent NPC challenge contract missing: {token}")
 for token in [
@@ -505,7 +506,10 @@ for token in [
     "LoadGameFromSlot", "SaveGameToSlot",
     "Existing = PrepareNextRun(Existing)",
     "Runtime.Progress = AdvanceProgressSafely",
-    "Runtime.CompletedRuns >= MAX_int32"
+    "Runtime.CompletedRuns >= MAX_int32",
+    "const int32 Limit = FMath::Clamp(MaxSites, 1, 4)",
+    "TopIndices.Insert(CandidateIndex, InsertAt)",
+    "return Candidates[TopIndices[Random.RandRange"
 ]:
     require(token in challenge, f"NPC challenge execution missing: {token}")
 for token in ["GrantFreeSalvage", "GrantFreeUnlock"]:
@@ -529,9 +533,17 @@ for token in [
     "Huge progress addition cannot overflow backward",
     "Repeatable challenge clears prior progress",
     "Completed-run history survives challenge reset",
-    "Active unclaimed challenge is never reset"
+    "Active unclaimed challenge is never reset",
+    "Performance.Challenges.BoundedSiteRanking",
+    "Large candidate pool remains capped to four ranked sites",
+    "Highest-scoring site remains first",
+    "Bounded strategic selection remains deterministic for a seed",
+    "Strategic selection stays inside the strongest four candidates",
+    "Equal scores preserve source order"
 ]:
     require(token in challenge_tests, f"native NPC reward integration QA missing: {token}")
+require("Ranked.Sort" not in challenge,
+        "strategic NPC placement must not fully sort streamed-world candidates")
 require("Stripe" not in challenge_tests and "Payment" not in challenge_tests,
         "NPC reward integration QA must remain independent of payments")
 
