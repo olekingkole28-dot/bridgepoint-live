@@ -609,6 +609,22 @@ jobs:
               await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000&&window.__BP_APP_BUILD_VERSION__===5371,{timeout:20000});
               await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5378&&!!window.__BP_V5000_WORLD?.map,{timeout:35000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
+              await p.waitForFunction(()=>!!window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__&&!!window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__,{timeout:30000});
+              await p.waitForFunction(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                return !!document.getElementById('bp5507-key')&&!!document.getElementById('bp5507-tools')&&!!m?.getLayer('bp5507-live-points')&&!!m?.getLayer('bp5507-tect-line');
+              },{timeout:30000});
+              const intel5507=await p.evaluate(()=>({
+                runtime:window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__?.version||0,
+                tools:window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__?.version||0,
+                defaultGlobe:window.__BP_GLOBE_MODE_V5507__?.enabled===true,
+                key:!!document.getElementById('bp5507-key'),
+                premiumTools:!!document.getElementById('bp5507-tools'),
+                live:!!window.__BP_V5000_WORLD?.map?.getLayer('bp5507-live-points'),
+                tectonics:!!window.__BP_V5000_WORLD?.map?.getLayer('bp5507-tect-line')
+              }));
+              if(intel5507.runtime!==5507||intel5507.tools!==5507||!intel5507.key||!intel5507.premiumTools||!intel5507.live||!intel5507.tectonics||intel5507.defaultGlobe)throw new Error('INTELLIGENCE_V5507_REGRESSION '+JSON.stringify(intel5507));
+              console.log('BRIDGEPOINT_INTELLIGENCE_V5507_PASS',JSON.stringify(intel5507));
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
                 return !!m?.getLayer('gta-context-buildings')&&!!m?.getLayer('gta-city-buildings')&&!!m?.getLayer('gta-city-roofs')&&!!m?.getLayer('gta-exact-building')&&!!m?.getLayer('gta-exact-roof')&&!!m?.getLayer('gta-context-floor-lines')&&!!m?.getLayer('bp-v5004-weather-points');
