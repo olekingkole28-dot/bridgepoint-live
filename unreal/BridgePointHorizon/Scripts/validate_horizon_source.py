@@ -331,7 +331,10 @@ for token in [
     "FHorizonEnvironmentalEmitterMix", "GetFireEmitterMix",
     "BuildFireEmitterMix", "GetWaterEmitterMix", "BuildWaterEmitterMix",
     "FHorizonFootstepEvent", "OnFootstepEmitted", "EmitFootstep",
-    "ConsumeFootstepDistance", "ResolveFootstepSurfaceName"
+    "ConsumeFootstepDistance", "ResolveFootstepSurfaceName",
+    "EHorizonCombatImpactSurface", "FHorizonCombatImpactMix",
+    "FHorizonCombatImpactEvent", "OnCombatImpactEmitted",
+    "GetCombatImpactMix", "BuildCombatImpactMix", "EmitCombatImpact"
 ]:
     require(token in audio_header, f"AAA audio runtime contract missing: {token}")
 for token in [
@@ -358,7 +361,11 @@ for token in [
     "Flow * DistanceGain", "Mix.InteriorTransmission = 0.22f",
     "Mix.InteriorTransmission = 0.58f",
     "FMath::Min(Mix.LowPassCutoffHz, 2200.0f)",
-    "FMath::Min(Mix.LowPassCutoffHz, 2400.0f)"
+    "FMath::Min(Mix.LowPassCutoffHz, 2400.0f)",
+    "EHorizonCombatImpactSurface::Armor",
+    "EHorizonCombatImpactSurface::Glass",
+    "FMath::Min(Mix.LowPassCutoffHz, 2500.0f)",
+    "OnCombatImpactEmitted.Broadcast"
 ]:
     require(token in audio, f"AAA audio behavior missing: {token}")
 for token in [
@@ -424,6 +431,22 @@ for token in [
     "Seeded water pitch is deterministic"
 ]:
     require(token in audio_tests, f"native fire/water emitter audio QA missing: {token}")
+for token in [
+    "Audio.Combat.RuntimeImpacts",
+    "Armor impact carries more ring than flesh",
+    "Metal impact emphasizes ringing resonance",
+    "Glass impact emphasizes debris over body",
+    "Hard impacts raise transient attack",
+    "Distance attenuates combat impacts",
+    "Occlusion reduces impact attack",
+    "Occlusion lowers impact cutoff",
+    "Tunnel impacts receive a stronger reverberant tail",
+    "Seeded combat impact pitch is deterministic",
+    "Invalid impact severity fails silent",
+    "Runtime impact preserves surface identity",
+    "Runtime armor impact produces an audible transient"
+]:
+    require(token in audio_tests, f"native combat impact audio QA missing: {token}")
 for token in [
     "Audio.Footsteps.RuntimeCadence",
     "Sub-stride travel emits no footstep",
@@ -842,7 +865,10 @@ for token in [
     "UpdateFootstepAudio(DeltaSeconds)", "Move->IsMovingOnGround()",
     "ConsumeFootstepDistance", "bReturnPhysicalMaterial = true",
     "ResolveFootstepSurfaceName", "Audio->EmitFootstep",
-    "StrideLengthCm", "MaxStepsPerFrame"
+    "StrideLengthCm", "MaxStepsPerFrame",
+    "CombatImpactSequence", "Audio->EmitCombatImpact",
+    "EHorizonCombatImpactSurface::Armor",
+    "EHorizonCombatImpactSurface::Flesh"
 ]:
     require(token in player_header + player, f"runtime footstep integration missing: {token}")
 for token in [
