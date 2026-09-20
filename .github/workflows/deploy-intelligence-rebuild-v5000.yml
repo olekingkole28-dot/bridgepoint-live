@@ -102,6 +102,7 @@ jobs:
           cp rebuild-v5000/styles.css site/styles.css
           cp rebuild-v5000/app.js site/app.js
           cp rebuild-v5000/weather-timemap-v5201.js site/weather-timemap-v5201.js
+          cp rebuild-v5000/intelligence-tools-v5500.js site/intelligence-tools-v5500.js
           cp rebuild-v5000/owner-everything.js site/owner-everything.js
           cp rebuild-v5000/owner-everything.css site/owner-everything.css
           cp rebuild-v5000/manifest.webmanifest site/manifest.webmanifest
@@ -159,14 +160,28 @@ jobs:
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/dist/pmtiles.js -o site/vendor/pmtiles.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js -o site/vendor/qrcode-generator.js
 
           printf '%s\n' 'bridgepointintelligence.online' > site/CNAME
           touch site/.nojekyll site/app/.nojekyll
 
           node --check site/app.js
           node --check site/weather-timemap-v5201.js
+          node --check site/intelligence-tools-v5500.js
           node --check site/landing.js
-          grep -Fq 'weather-timemap-v5201.js?v=5201' site/app.js
+          test -s site/vendor/qrcode-generator.js
+          grep -Fq 'weather-timemap-v5201.js?v=5500' site/app.js
+          grep -Fq 'intelligence-tools-v5500.js?v=5500' site/app.js
+          grep -Fq 'intelligence-tools-v5500.js?v=5500' site/landing.js
+          grep -Fq 'bridgepoint_intelligence_public_tool_allow_v5500' site/intelligence-tools-v5500.js
+          grep -Fq 'bridgepoint_intelligence_live_entities_v5500' site/intelligence-tools-v5500.js
+          grep -Fq 'setProjection?.({type:state.globe' site/intelligence-tools-v5500.js
+          grep -Fq 'FLIGHT SIM' site/intelligence-tools-v5500.js
+          grep -Fq 'BUILDING AERODYNAMICS' site/intelligence-tools-v5500.js
+          grep -Fq 'SIMULATION · NOT A FORECAST' site/intelligence-tools-v5500.js
+          grep -Fq 'FROM</label>' site/weather-timemap-v5201.js
+          grep -Fq 'TO</label>' site/weather-timemap-v5201.js
+          grep -Fq 'MOMENT</label>' site/weather-timemap-v5201.js
           grep -Fq 'bridgepoint_weather_timemap_v5201' site/weather-timemap-v5201.js
           grep -Fq 'WEATHER TIMEMAP' site/weather-timemap-v5201.js
           grep -Fq 'LOCATION DOSSIER' site/weather-timemap-v5201.js
@@ -239,7 +254,7 @@ jobs:
           grep -Fq 'lostpointercapture' site/app/horizon-playable/horizon-v2.js
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
-          grep -Fq '__BP_APP_BUILD_VERSION__=5372' site/app.js
+          grep -Fq '__BP_APP_BUILD_VERSION__=5500' site/app.js
           grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' site/world-v2300-map.js
           grep -Fq 'bridgepoint_frontend_status_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_v5000' site/app.js
@@ -450,7 +465,8 @@ jobs:
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5371=${q}" -o /tmp/app.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5378=${q}" -o /tmp/world-v2300-map.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/weather-timemap-v5201.js?v5201=${q}" -o /tmp/weather-timemap-v5201.js || true
-            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5410' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5372' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' /tmp/world-v2300-map.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js && grep -Fq 'weather-timemap-v5201.js?v=5201' /tmp/app.js && grep -Fq 'bridgepoint_weather_timemap_v5201' /tmp/weather-timemap-v5201.js; then ok=1; break; fi
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/intelligence-tools-v5500.js?v5500=${q}" -o /tmp/intelligence-tools-v5500.js || true
+            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5410' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5500' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' /tmp/world-v2300-map.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5004' /tmp/app.js && grep -Fq 'weather-timemap-v5201.js?v=5500' /tmp/app.js && grep -Fq 'bridgepoint_weather_timemap_v5201' /tmp/weather-timemap-v5201.js && grep -Fq 'bridgepoint_intelligence_public_tool_allow_v5500' /tmp/intelligence-tools-v5500.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
