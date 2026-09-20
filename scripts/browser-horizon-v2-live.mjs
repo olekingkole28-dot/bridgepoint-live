@@ -12,7 +12,7 @@ for(const marker of [
   'firstPerson:true','crouch:true','prone:true','slide:true','jumpVault:true','gamepad:true','weaponInventory:true','minimap:true','proceduralInteriors:true','interiorLoot:true','roofTraversal:true','drivableVehicles:true','vehicleFuelRepair:true','infectedPatrols:true','ambientDisasterFx:true','spatialAudio:true','adaptivePerformanceGovernor:true',
   'buildInterior(entry)','buildZiplines()','spawnVehicles()','buildInfectedPatrol','state:stateCode','pickupDwellSeconds:3','shieldPickup:50','monsterHitDamage:25',
   "bridgepoint_horizon_record_player_kill_v4340","bridgepoint_horizon_year_one_death_v4310","bridgepoint_horizon_year_one_zone_v4340",
-  "bridgepoint_horizon_weapon_catalog_v4340","bridgepoint_horizon_tdm_loadouts_v4341","bridgepoint_horizon_tdm_fire_zone_v4341","bridgepoint_horizon_tdm_combat_clock_v4341","bridgepoint_horizon_death_drop_claim_v4340","syncFiniteLoot","inventoryWeaponKeys","buildCampfire","target=100","playerHealthMax:150","shieldMax:0","fireCircleSeconds:1800,"touchMoveX","touchMoveY","pad.setPointerCapture","pointercancel","lostpointercapture"]
+  "bridgepoint_horizon_weapon_catalog_v4340","bridgepoint_horizon_tdm_loadouts_v4341","bridgepoint_horizon_tdm_fire_zone_v4341","bridgepoint_horizon_tdm_combat_clock_v4341","bridgepoint_horizon_death_drop_claim_v4340","syncFiniteLoot","inventoryWeaponKeys","buildCampfire","target=100","playerHealthMax:150","shieldMax:0","fireCircleSeconds:1800","touchMoveX","touchMoveY","pad.setPointerCapture","pointercancel","lostpointercapture"
 ]) if(!source.includes(marker))throw new Error('Missing source contract '+marker);
 
 const browser=await chromium.launch({executablePath,headless:true,args:[
