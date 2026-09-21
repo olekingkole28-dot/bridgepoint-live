@@ -84,6 +84,7 @@ jobs:
               await p.waitForFunction(()=>!!window.__BP_MAP_STABILITY_V5580__?.serialBackgroundDrain&&!!document.getElementById('bp5507-key')&&!!document.querySelector('.map-brand-card'),{timeout:30000});
               const stability=await p.evaluate(()=>({app:window.__BP_MAP_STABILITY_V5580__||null,key:(()=>{const e=document.getElementById('bp5507-key');return !!e&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden'&&Number(getComputedStyle(e).opacity||1)>.8})(),brand:(()=>{const e=document.querySelector('.map-brand-card');return !!e&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden'&&Number(getComputedStyle(e).opacity||1)>.8})()}));
               if(!stability.app?.serialBackgroundDrain||!stability.app?.noResizeOnMoveEnd||!stability.key||!stability.brand)throw new Error('APP_STABILITY_V5580 '+JSON.stringify(stability));
+              await p.waitForFunction(()=>!!window.__BP_VIEWER_COUNTRY_START__,{timeout:15000});
               const navStart=Date.now();
               await p.click('#openPagesNav');
               await p.waitForFunction(()=>document.getElementById('bottomNav')?.classList.contains('peek')===true,{timeout:7000});
