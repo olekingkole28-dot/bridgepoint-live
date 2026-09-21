@@ -46,7 +46,7 @@ let terrainInfo=null,perfLowStreak=0,perfHighStreak=0,lastMeasuredFps=60;
 let perfTier=0,perfEmaMs=16.7,perfWorstMs=16.7,lastPerfAdjustAt=0,fastSince=performance.now(),longFrames=0;
 let aiAccumulator=0,fxAccumulator=0,lightAccumulator=0;
 const PERF_TIER_NAMES=['FULL','BALANCED','SAFE','SURVIVAL'];
-const lowMaterialCache=new WeakMap();
+const lowMaterialCache=new WeakMap(),basicMaterialCache=new WeakMap();
 let liveWeather={feed:false,event:null,distance_km:null,last_at:null},rainFx=null;
 const WORLD_COUNTS={buildings:0,buildingParts:0,parcels:0,roads:0,water:0};
 // Every source building remains present in the playable world. Adaptive quality
@@ -1687,7 +1687,7 @@ function updatePerfVisualBudget(){
   updateActorProxies();
 }
 function lowCostMaterial(m){
-  if(!m||(!m.isMeshStandardMaterial&&!m.isMeshPhysicalMaterial))return m;
+  if(!m||(!m.isMeshStandardMaterial&&!m.isMeshPhysicalMaterial&&!m.isMeshLambertMaterial))return m;
   if(lowMaterialCache.has(m))return lowMaterialCache.get(m);
   const q=new THREE.MeshLambertMaterial({
     color:m.color?.clone?.()||new THREE.Color(0xffffff),map:m.map||null,
@@ -1696,13 +1696,25 @@ function lowCostMaterial(m){
   });
   lowMaterialCache.set(m,q);return q;
 }
+function survivalMaterial(m){
+  if(!m||m.isMeshBasicMaterial)return m;
+  if(basicMaterialCache.has(m))return basicMaterialCache.get(m);
+  const q=new THREE.MeshBasicMaterial({
+    color:m.color?.clone?.()||new THREE.Color(0xffffff),map:m.map||null,
+    transparent:!!m.transparent,opacity:m.opacity??1,side:m.side,depthWrite:m.depthWrite!==false,
+    alphaTest:m.alphaTest||0,vertexColors:!!m.vertexColors,fog:false
+  });
+  basicMaterialCache.set(m,q);return q;
+}
 function applyWorldShaderBudget(low){
+  const survival=perfTier>=3;
   world.traverse(o=>{
     if(!o.isMesh||o.userData?.playerBody||o.userData?.perfProxy)return;
     if(low){
       if(!o.userData.bpHqMaterial)o.userData.bpHqMaterial=o.material;
       const src=o.userData.bpHqMaterial;
-      o.material=Array.isArray(src)?src.map(lowCostMaterial):lowCostMaterial(src);
+      const convert=survival?survivalMaterial:lowCostMaterial;
+      o.material=Array.isArray(src)?src.map(convert):convert(src);
     }else if(o.userData.bpHqMaterial){
       o.material=o.userData.bpHqMaterial;delete o.userData.bpHqMaterial;
     }
@@ -1718,6 +1730,7 @@ function setPerfTier(next,reason='auto'){
   if(Math.abs(desired-renderScale)>.015){renderScale=desired;renderer.setPixelRatio(renderScale);renderer.setSize(innerWidth,innerHeight,false)}
   if(perfTier>=2&&renderer.shadowMap.enabled){renderer.shadowMap.enabled=false;sun.castShadow=false}
   if(perfTier===0&&HIGH_DEVICE&&!renderer.shadowMap.enabled){renderer.shadowMap.enabled=true;sun.castShadow=true}
+  if(perfTier>=3){hemi.intensity=.18;sun.intensity=.08;scene.fog.density=0}
   applyWorldShaderBudget(perfTier>=2);
   exteriorDetailGroup.visible=perfTier<2;
   mapLineGroup.visible=perfTier<3;
