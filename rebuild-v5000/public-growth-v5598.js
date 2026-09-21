@@ -15,7 +15,7 @@ function donutData(rows){
  const live=(rows||[]).filter(x=>Number(x.canonical_records)>0).sort((a,b)=>Number(b.canonical_records)-Number(a.canonical_records));
  if(!live.length)return{rows:[],gradient:'#18313d',total:0};
  const total=live.reduce((s,x)=>s+Number(x.canonical_records||0),0);let pct=0,parts=[];
- live.forEach((x,i)=>{const p=total?Number(x.canonical_records||0)/total*100:0,start=pct,end=pct+pct===pct?pct+p:pct+p;pct=end;parts.push(PALETTE[i%PALETTE.length]+' '+start.toFixed(3)+'% '+end.toFixed(3)+'%')});
+ live.forEach((x,i)=>{const p=total?Number(x.canonical_records||0)/total*100:0,start=pct,end=pct+p;pct=end;parts.push(PALETTE[i%PALETTE.length]+' '+start.toFixed(3)+'% '+end.toFixed(3)+'%')});
  return{rows:live,gradient:'conic-gradient('+parts.join(',')+')',total};
 }
 function legend(el,rows,total){
