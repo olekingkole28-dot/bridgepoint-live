@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - 'rebuild-v5000/**'
+      - 'release-v2300/**'
       - 'pricing/**'
       - 'newsroom/**'
       - 'terminal/**'
