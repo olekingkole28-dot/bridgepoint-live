@@ -513,12 +513,10 @@ function bindLiveContextInteraction(){
  const ids=['bp-v5004-weather-hit','bp-v5004-weather-points','bp-v5004-weather-shape-fill','bp-v5004-weather-shape-line'];
  const onLiveClick=e=>{
    const now=performance.now();markMapOverlayClick(900);
-   e.preventDefault?.();
-   e.originalEvent?.stopPropagation?.();
    if(now-lastLiveContextClickAt<140)return;
    lastLiveContextClickAt=now;
    liveFeaturePopup(map,e);
-   window.__BP_LIVE_CONTEXT_CLICK_V5556__={instant:true,exclusive:true,at:Date.now()}
+   window.__BP_LIVE_CONTEXT_CLICK_V5559__={instant:true,exclusive:true,nonBlockingGesturePath:true,at:Date.now()}
  };
  for(const id of ids){
    map.on('click',id,onLiveClick);
