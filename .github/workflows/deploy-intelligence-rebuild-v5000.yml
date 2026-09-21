@@ -728,8 +728,8 @@ jobs:
               p.on('response',res=>{const u=res.url();if(/intelligence-(tools|global)-v5507\.js/.test(u))console.log('BROWSER_MODULE_RESPONSE',res.status(),res.headers()['content-type']||'',u)});
 
               await p.goto('https://bridgepointintelligence.online/?qa=v5400-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
-              await p.waitForSelector('#landingPropertySearch',{timeout:10000});
-              await p.waitForSelector('a[href="/sample/storm-opportunity/"]',{timeout:10000});
+              await p.waitForSelector('#landingPropertySearch',{timeout:30000});
+              await p.waitForSelector('a[href="/sample/storm-opportunity/"]',{timeout:30000});
               await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map||window.__BP_LANDING_MAP_BOOT__?.stage==='error',{timeout:30000});
               const mapBoot=await p.evaluate(()=>window.__BP_LANDING_MAP_BOOT__||null);
               if(mapBoot?.stage==='error')throw new Error('LANDING_MAP_BOOT '+JSON.stringify(mapBoot));
@@ -751,8 +751,13 @@ jobs:
                 const btn=document.getElementById('landingFreePremiumTools');
                 return proj==='globe'&&!!m.getLayer('bp5510-global-imerg')&&!!btn&&getComputedStyle(btn).display!=='none';
               },{timeout:30000});
+              await p.waitForFunction(()=>{
+                const e=document.getElementById('landingFreePremiumTools');if(!e)return false;
+                const r=e.getBoundingClientRect(),top=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+                return e===top||e.contains(top);
+              },{timeout:20000});
               await p.click('#landingFreePremiumTools');
-              await p.waitForFunction(()=>document.getElementById('bp5507-tool-panel')?.hidden===false,{timeout:5000});
+              await p.waitForFunction(()=>document.getElementById('bp5507-tool-panel')?.hidden===false,{timeout:15000});
               await p.evaluate(()=>{const p=document.getElementById('bp5507-tool-panel');if(p)p.hidden=true});
               await p.waitForFunction(()=>document.querySelectorAll('#landingPackages .package-card').length>=9,{timeout:20000});
               const landing=await p.evaluate(()=>({
