@@ -1,15 +1,15 @@
 {
   "entity": "BridgePoint Intelligence",
   "metrics": {
-    "map_ready_buildings": 144018848,
-    "roof_shell_buildings": 144018848,
+    "map_ready_buildings": 144160016,
+    "roof_shell_buildings": 144160016,
     "roof_shell_coverage_pct": 100.0,
-    "canonical_property_records": 170104241,
-    "normalized_address_records": 154611709,
-    "source_backed_roof_records": 683903,
-    "lidar_refined_roof_buildings": 4475,
+    "canonical_property_records": 170153526,
+    "normalized_address_records": 154784579,
+    "source_backed_roof_records": 684703,
+    "lidar_refined_roof_buildings": 4511,
     "materialized_boundary_estimate": 83881564,
-    "public_parcel_identity_records": 170104241,
+    "public_parcel_identity_records": 170153526,
     "canonical_property_record_label": "canonical property/parcel identity records",
     "property_boundary_link_estimate": 31311895
   },
@@ -19,19 +19,19 @@
     "pr_oid_remaining": 0,
     "strict_boundary_ready": false,
     "required_jurisdictions": 56,
-    "fresh_approved_jurisdictions": 54,
+    "fresh_approved_jurisdictions": 53,
     "public_counter_jurisdictions": 56
   },
   "freshness": {
-    "roof_updated_at": "2026-09-21T18:09:45.534917+00:00",
-    "lidar_last_success_at": "2026-09-21T15:01:13.855246+00:00",
-    "parcel_counter_updated_at": "2026-09-21T18:06:02.222017+00:00",
-    "address_counter_updated_at": "2026-09-21T18:09:33.646721+00:00",
-    "parcel_scoreboard_updated_at": "2026-09-21T18:09:04.085511+00:00",
+    "roof_updated_at": "2026-09-21T21:58:12.202265+00:00",
+    "lidar_last_success_at": "2026-09-21T21:56:04.187812+00:00",
+    "parcel_counter_updated_at": "2026-09-21T21:54:31.622697+00:00",
+    "address_counter_updated_at": "2026-09-21T21:57:27.619445+00:00",
+    "parcel_scoreboard_updated_at": "2026-09-21T21:56:01.256354+00:00",
     "parcel_autopilot_last_tick_at": "2026-09-16T01:18:58.834462+00:00"
   },
   "horizon_url": "https://bridgepointintelligence.online/app/horizon/",
-  "generated_at": "2026-09-21T18:09:54.010152+00:00",
+  "generated_at": "2026-09-21T21:58:25.006115+00:00",
   "canonical_url": "https://bridgepointintelligence.online/",
   "jurisdictions": [
     {
@@ -56,8 +56,8 @@
     },
     {
       "code": "AZ",
-      "updated_at": "2026-09-21T18:06:02.222017+00:00",
-      "canonical_property_parcel_records": 4547033
+      "updated_at": "2026-09-21T21:54:31.622697+00:00",
+      "canonical_property_parcel_records": 4595332
     },
     {
       "code": "CA",
@@ -156,8 +156,8 @@
     },
     {
       "code": "MI",
-      "updated_at": "2026-09-21T18:04:23.33569+00:00",
-      "canonical_property_parcel_records": 3957456
+      "updated_at": "2026-09-21T18:35:23.693426+00:00",
+      "canonical_property_parcel_records": 3958442
     },
     {
       "code": "MN",
@@ -325,7 +325,7 @@
   "horizon_year_one_demand": {
     "ok": true,
     "mode": "365_DAY_YEAR_ONE_SURVIVAL",
-    "updated_at": "2026-09-21T18:09:54.263407+00:00",
+    "updated_at": "2026-09-21T21:58:25.147704+00:00",
     "event_started": false,
     "unique_requests": 0,
     "billing_connected": false,
