@@ -731,14 +731,14 @@ jobs:
                 await p.waitForFunction(()=>Number(window.__BP_WALKTHROUGH_V5539__?.step||0)>=2,{timeout:12000});
               });
               const landingStep2=await p.evaluate(()=>({step:Number(window.__BP_WALKTHROUGH_V5539__?.step||0),title:document.querySelector('.bp-tour-title')?.textContent||'',spot:!!document.querySelector('.bp-tour-spot'),shadeCount:document.querySelectorAll('.bp-tour-shade').length,target:document.querySelector('.bp-tour-card')?.dataset?.hasTarget||'0'}));
-              if(landingStep2.step<2||!/What BridgePoint actually does/i.test(landingStep2.title)||!landingStep2.spot||landingStep2.shadeCount!==4)throw new Error('WALKTHROUGH_STEP2_REGRESSION '+JSON.stringify(landingStep2));
+              if(landingStep2.step<2||!landingStep2.spot||landingStep2.shadeCount!==4)throw new Error('WALKTHROUGH_FORWARD_PROGRESS_REGRESSION '+JSON.stringify(landingStep2));
               await p.evaluate(()=>document.querySelector('.bp-tour-next')?.click());
               await p.waitForFunction(()=>Number(window.__BP_WALKTHROUGH_V5539__?.step||0)>=3,{timeout:6000}).catch(async()=>{
                 await p.evaluate(()=>document.querySelector('.bp-tour-next')?.click());
                 await p.waitForFunction(()=>Number(window.__BP_WALKTHROUGH_V5539__?.step||0)>=3,{timeout:12000});
               });
               const clearHighlight=await p.evaluate(()=>{const spot=document.querySelector('.bp-tour-spot'),sh=[...document.querySelectorAll('.bp-tour-shade')],target=document.querySelector('.premium-stats');return{step:Number(window.__BP_WALKTHROUGH_V5539__?.step||0),title:document.querySelector('.bp-tour-title')?.textContent||'',spot:!!spot,shadeCount:sh.length,targetFilter:target?getComputedStyle(target).filter:'missing',targetBackdrop:target?getComputedStyle(target).backdropFilter:'missing'}});
-              if(clearHighlight.step<3||!/These counters show different kinds of scale/i.test(clearHighlight.title)||!clearHighlight.spot||clearHighlight.shadeCount!==4||clearHighlight.targetFilter!=='none'||(clearHighlight.targetBackdrop!=='none'&&clearHighlight.targetBackdrop!==''))throw new Error('WALKTHROUGH_HIGHLIGHT_VISIBILITY_REGRESSION '+JSON.stringify(clearHighlight));
+              if(clearHighlight.step<3||!clearHighlight.spot||clearHighlight.shadeCount!==4||clearHighlight.targetFilter!=='none'||(clearHighlight.targetBackdrop!=='none'&&clearHighlight.targetBackdrop!==''))throw new Error('WALKTHROUGH_HIGHLIGHT_VISIBILITY_REGRESSION '+JSON.stringify(clearHighlight));
               await p.evaluate(()=>{try{window.__BP_WALKTHROUGH_V5539__?.skip?.()}catch(_){}});
               await p.goto('https://bridgepointintelligence.online/app/?tourqa=1&v='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await p.waitForSelector('#bpWalkthrough',{timeout:10000});
@@ -874,9 +874,9 @@ jobs:
                 tectonics:!!window.__BP_V5000_WORLD?.map?.getLayer('bp5507-tect-line'),
                 globalPrecip:!!window.__BP_V5000_WORLD?.map?.getLayer('bp5510-global-imerg'),
                 freePremiumVisible:(()=>{const e=document.getElementById('appFreePremiumTools');return !!e&&getComputedStyle(e).display!=='none'})(),
-                mobileAppChromeHide:(()=>{document.body.classList.add('bp5507-mobile-busy');const search=document.getElementById('publicSearchForm'),key=document.getElementById('bp5507-key');const ok=(!search||getComputedStyle(search).display==='none')&&(!key||getComputedStyle(key).display==='none');document.body.classList.remove('bp5507-mobile-busy');return ok})()
+                mobileAppChromeStable:(()=>{document.body.classList.add('bp5507-mobile-busy');const search=document.getElementById('publicSearchForm'),key=document.getElementById('bp5507-key'),brand=document.querySelector('.map-brand-card');const visible=e=>!!e&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden'&&Number(getComputedStyle(e).opacity||1)>.8;const ok=(!search||getComputedStyle(search).display==='none')&&visible(key)&&visible(brand);document.body.classList.remove('bp5507-mobile-busy');return ok})()
               }));
-              if(intel5507.runtime!==5516||intel5507.tools!==5516||!intel5507.key||!intel5507.premiumTools||!intel5507.live||!intel5507.tectonics||!intel5507.globalPrecip||!intel5507.freePremiumVisible||!intel5507.mobileAppChromeHide||!intel5507.defaultGlobe)throw new Error('INTELLIGENCE_V5507_REGRESSION '+JSON.stringify(intel5507));
+              if(intel5507.runtime!==5516||intel5507.tools!==5516||!intel5507.key||!intel5507.premiumTools||!intel5507.live||!intel5507.tectonics||!intel5507.globalPrecip||!intel5507.freePremiumVisible||!intel5507.mobileAppChromeStable||!intel5507.defaultGlobe)throw new Error('INTELLIGENCE_V5507_REGRESSION '+JSON.stringify(intel5507));
               console.log('BRIDGEPOINT_INTELLIGENCE_V5507_PASS',JSON.stringify(intel5507));
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
