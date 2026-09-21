@@ -890,6 +890,10 @@ jobs:
               const worldCore=await p.evaluate(()=>window.__BP_WORLD_CORE_READY__||null);
               if(worldCore?.ready!==true)throw new Error('WORLD_CORE_INIT '+JSON.stringify(worldCore));
               await p.waitForFunction(()=>window.__BP_CAMERA_MODE__?.mode==='FREE_FLY_SINGLE_VIEW'&&window.__BP_BUILDING_MATERIALS__?.floorLines===true&&window.__BP_BUILDING_MATERIALS__?.roofOverlays===true&&window.__BP_BUILDING_MATERIALS__?.exactRoofs===true,{timeout:20000});
+              await p.waitForFunction(()=>{
+                const caps=window.__bpWeatherV2300?.fx?.state?.capabilities||window.__bpWeatherFXV2300?.state?.capabilities;
+                return caps?.rainSnowHail===true&&caps?.wildfireFlameParticles===true;
+              },{timeout:30000});
 
               const state=await p.evaluate(()=>{
                 const w=window.__BP_V5000_WORLD,m=w?.map;
@@ -919,7 +923,7 @@ jobs:
                   },
                   sources:{city:!!m?.getSource('bpCityStructures'),cityRoofs:!!m?.getSource('bpCityRoofs'),weatherShapes:!!m?.getSource('bpV5004WeatherShapes')},
                   weatherLegend:{present:!!document.getElementById('liveLegend'),more:!!document.getElementById('liveLegendToggle')},
-                weatherFx:window.__bpWeatherV2300?.fx?.state?.capabilities||{}
+                weatherFx:window.__bpWeatherV2300?.fx?.state?.capabilities||window.__bpWeatherFXV2300?.state?.capabilities||{}
                 };
               });
               if(state.frontend!==5000||state.app!==5371||state.world!==5561||state.canvases!==1||state.architecture!=='MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY'||state.camera?.mode!=='FREE_FLY_SINGLE_VIEW'||state.camera?.singleView!==true||state.camera?.autoViewSwitching!==false||state.camera?.streetWalkMode!==false||state.camera?.buildingClickOverlook!==true||Number(state.maxPitch)<84||state.materials?.floorLines!==true||state.materials?.roofOverlays!==true||state.materials?.exactRoofs!==true||state.fine?.enabled!==false||!state.sources.city||!state.sources.cityRoofs||!state.sources.weatherShapes||!state.weatherLegend.present||!state.weatherLegend.more||state.weatherFx.rainSnowHail!==true||state.weatherFx.wildfireFlameParticles!==true||Object.values(state.layers).some(v=>v!==true))throw new Error('CURRENT_WORLD_REGRESSION '+JSON.stringify(state));
