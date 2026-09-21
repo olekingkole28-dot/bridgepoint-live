@@ -81,8 +81,8 @@ jobs:
                 appErrors:(window.__BP_V5000_WORLD?.state?.runtimeErrors||[]).slice(-5)
               }));
               if(shell.world!==5561||!shell.appResponsive?.idleBackgroundWork||!shell.dragPan||!shell.touchZoom||shell.nav<3)throw new Error('APP_SHELL_CONTRACT '+JSON.stringify(shell));
-    const stability=await p.evaluate(()=>({app:window.__BP_MAP_STABILITY_V5580__||null,key:(()=>{const e=document.getElementById('bp5507-key');return !!e&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden'&&Number(getComputedStyle(e).opacity||1)>.8})(),brand:(()=>{const e=document.querySelector('.map-brand-card');return !!e&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden'&&Number(getComputedStyle(e).opacity||1)>.8})()}));
-    if(!stability.app?.serialBackgroundDrain||!stability.app?.noResizeOnMoveEnd||!stability.key||!stability.brand)throw new Error('APP_STABILITY_V5580 '+JSON.stringify(stability));
+              const stability=await p.evaluate(()=>({app:window.__BP_MAP_STABILITY_V5580__||null,key:(()=>{const e=document.getElementById('bp5507-key');return !!e&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden'&&Number(getComputedStyle(e).opacity||1)>.8})(),brand:(()=>{const e=document.querySelector('.map-brand-card');return !!e&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden'&&Number(getComputedStyle(e).opacity||1)>.8})()}));
+              if(!stability.app?.serialBackgroundDrain||!stability.app?.noResizeOnMoveEnd||!stability.key||!stability.brand)throw new Error('APP_STABILITY_V5580 '+JSON.stringify(stability));
               const navStart=Date.now();
               await p.click('#bottomNav [data-nav="packages"]');
               await p.waitForFunction(()=>document.querySelector('[data-surface="packages"]')?.hidden===false,{timeout:7000});
