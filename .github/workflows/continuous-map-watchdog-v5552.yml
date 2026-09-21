@@ -92,16 +92,16 @@ jobs:
               if(Number(baseline.parcelMin)>6.7||Number(baseline.parcelGlowMin)>6.7||Number(baseline.parcelSourceMin)>6.7)throw new Error('PARCEL_ZOOM_GATE '+JSON.stringify(baseline));
 
               await page.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:14.7,pitch:58,bearing:-18}));
-              await sleep(4500);
+              await sleep(6500);
               const hit=await page.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map,c=m.getCanvas(),w=c.clientWidth,h=c.clientHeight;
-                const layers=['gta-city-buildings','gta-exact-building','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                const layers=['gta-city-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
                 for(let y=90;y<h-80;y+=22)for(let x=28;x<w-28;x+=22){
                   try{if((m.queryRenderedFeatures({x,y},{layers})||[]).length)return{x,y}}catch{}
                 }
                 return null;
               });
-              if(!hit)throw new Error('NO_BUILDING_HIT');
+              if(!hit){const diag=await page.evaluate(()=>{const m=window.__BP_V5000_WORLD.map;return{zoom:m.getZoom(),center:m.getCenter(),bpSource:m.isSourceLoaded?.('bpBuildings'),citySource:m.isSourceLoaded?.('bpCityStructures'),layers:['gta-city-buildings','gta-bp-buildings','gta-context-buildings'].map(id=>({id,exists:!!m.getLayer(id),visibility:m.getLayer(id)?(m.getLayoutProperty(id,'visibility')||'visible'):null}))}});throw new Error('NO_BUILDING_HIT '+JSON.stringify(diag));}
 
               const box=await page.$eval('.maplibregl-canvas',el=>{const r=el.getBoundingClientRect();return{x:r.left,y:r.top,w:r.width,h:r.height}});
               await page.touchscreen.tap(box.x+hit.x,box.y+hit.y);
