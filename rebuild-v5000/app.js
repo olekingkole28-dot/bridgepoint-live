@@ -571,7 +571,7 @@ function startLiveWeather(){ensureLiveLegend();installLiveContextLayers();const 
 function setActiveSurface(name,{showNav=false}={}){
  if(name==='owner-everything'&&accessStateLast?.platform_owner!==true){toast('Owner Everything is restricted to the two designated BridgePoint owners.','error');name='more'}
  if(['saved','claims','workflow'].includes(name)&&authSession?.access_token&&accessStateLast&&accessStateLast.full_app_access===false){toast('Your trial has ended. Choose a package to restore full account access.','error');name='packages'}
- const mapSurface=document.querySelector('[data-surface="map"]');
+ const mapSurface=document.querySelector('[data-surface="map"]'),wasMapActive=!!mapSurface&&mapSurface.hidden===false;
  document.querySelectorAll('[data-surface]').forEach(el=>{
   const active=el.dataset.surface===name;el.hidden=!active;el.classList.toggle('active',active)
  });
@@ -579,7 +579,7 @@ function setActiveSurface(name,{showNav=false}={}){
  const nav=$('bottomNav');
  if(nav){nav.classList.toggle('map-hidden',name==='map'&&!showNav);nav.classList.toggle('peek',name==='map'&&showNav)}
  document.body.classList.toggle('map-page-active',name==='map');
- if(name==='map'){closeSystem();requestAnimationFrame(()=>{world?.map?.resize?.();setMapSearchOpen(false)})}
+ if(name==='map'){closeSystem();requestAnimationFrame(()=>{if(!wasMapActive)world?.map?.resize?.();setMapSearchOpen(false);window.__BP_NAV_STABILITY_V5583__={version:5583,showNav,resizeSkipped:wasMapActive,updatedAt:Date.now()}})}
  else if(name==='packages')void loadPackageCatalog();
  else if(name==='saved'||name==='claims'||name==='workflow')void loadWorkspace();
 }
