@@ -86,22 +86,22 @@ function addBoundaryLayers(map,bucket){
   try{if(map.getLayer(LINE))map.removeLayer(LINE)}catch(_){}
   try{if(map.getLayer(GLOW))map.removeLayer(GLOW)}catch(_){}
   try{if(map.getSource(SOURCE))map.removeSource(SOURCE)}catch(_){}
-  map.addSource(SOURCE,{type:'vector',tiles:[tileUrl(bucket)],minzoom:9,maxzoom:22});
+  map.addSource(SOURCE,{type:'vector',tiles:[tileUrl(bucket)],minzoom:7,maxzoom:22});
   map.addLayer({
-    id:GLOW,type:'line',source:SOURCE,'source-layer':'parcels',minzoom:9,
+    id:GLOW,type:'line',source:SOURCE,'source-layer':'parcels',minzoom:7,
     paint:{
-      'line-color':'#27d9ff',
-      'line-opacity':['interpolate',['linear'],['zoom'],9,.18,12,.28,16,.38,20,.46],
-      'line-width':['interpolate',['linear'],['zoom'],9,1.3,12,1.7,16,2.6,20,4.0],
-      'line-blur':['interpolate',['linear'],['zoom'],9,1.2,18,2.0]
+      'line-color':'#004cff',
+      'line-opacity':['interpolate',['linear'],['zoom'],7,.72,9,.62,12,.52,16,.44,20,.36],
+      'line-width':['interpolate',['linear'],['zoom'],7,2.6,9,3.2,12,4.1,16,5.6,20,7.2],
+      'line-blur':['interpolate',['linear'],['zoom'],7,1.5,14,2.2,20,3.0]
     }
   });
   map.addLayer({
-    id:LINE,type:'line',source:SOURCE,'source-layer':'parcels',minzoom:9,
+    id:LINE,type:'line',source:SOURCE,'source-layer':'parcels',minzoom:7,
     paint:{
-      'line-color':'#6df3ff',
-      'line-opacity':['interpolate',['linear'],['zoom'],9,.72,12,.86,16,.95,20,1],
-      'line-width':['interpolate',['linear'],['zoom'],9,.35,12,.5,16,.85,20,1.25]
+      'line-color':'#73ffff',
+      'line-opacity':1,
+      'line-width':['interpolate',['linear'],['zoom'],7,.8,9,.95,12,1.2,16,1.65,20,2.25]
     }
   });
 }
@@ -139,7 +139,7 @@ async function openViewer(nextMode='public'){
         </div>
         <button id="bpBoundaryClose5403" class="bp-boundary-close5403" type="button" aria-label="Close">×</button>
       </div>
-      <div id="bpBoundaryZoom5403" class="bp-boundary-zoom5403">Zoom in to stream parcel lines</div>`;
+      <div id="bpBoundaryZoom5403" class="bp-boundary-zoom5403">Parcel lines stream from regional zoom</div>`;
     document.body.appendChild(shell);
     document.getElementById('bpBoundaryClose5403').onclick=closeViewer;
   }
@@ -163,7 +163,7 @@ async function openViewer(nextMode='public'){
     container:'bpBoundaryMap5403',
     style,
     center:[center.lng,center.lat],
-    zoom:Math.max(3.3,Math.min(base.getZoom?.()||3.3,16)),
+    zoom:Math.max(7.65,Math.min(base.getZoom?.()||7.65,16)),
     pitch:Math.max(45,Math.min(base.getPitch?.()||55,78)),
     bearing:base.getBearing?.()||0,
     maxPitch:85,
@@ -179,7 +179,7 @@ async function openViewer(nextMode='public'){
   viewer.on('load',()=>{
     addBoundaryLayers(viewer,Math.floor(Date.now()/20000));
     const z=document.getElementById('bpBoundaryZoom5403');
-    const update=()=>{if(z)z.textContent=viewer.getZoom()<9?'Zoom in to stream exact parcel lines':'Live exact boundaries · refreshing as materialization advances'};
+    const update=()=>{if(z)z.textContent=viewer.getZoom()<7?'Zoom in slightly to stream parcel lines':'Live bright parcel boundaries · refreshing as materialization advances'};
     update();viewer.on('zoom',update);
   });
   clearInterval(refreshTimer);
