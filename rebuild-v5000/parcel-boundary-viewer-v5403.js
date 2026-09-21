@@ -86,9 +86,9 @@ function addBoundaryLayers(map,bucket){
   try{if(map.getLayer(LINE))map.removeLayer(LINE)}catch(_){}
   try{if(map.getLayer(GLOW))map.removeLayer(GLOW)}catch(_){}
   try{if(map.getSource(SOURCE))map.removeSource(SOURCE)}catch(_){}
-  map.addSource(SOURCE,{type:'vector',tiles:[tileUrl(bucket)],minzoom:7,maxzoom:22});
+  map.addSource(SOURCE,{type:'vector',tiles:[tileUrl(bucket)],minzoom:5.9,maxzoom:22});
   map.addLayer({
-    id:GLOW,type:'line',source:SOURCE,'source-layer':'parcels',minzoom:7,
+    id:GLOW,type:'line',source:SOURCE,'source-layer':'parcels',minzoom:5.9,
     paint:{
       'line-color':'#004cff',
       'line-opacity':['interpolate',['linear'],['zoom'],7,.72,9,.62,12,.52,16,.44,20,.36],
@@ -97,7 +97,7 @@ function addBoundaryLayers(map,bucket){
     }
   });
   map.addLayer({
-    id:LINE,type:'line',source:SOURCE,'source-layer':'parcels',minzoom:7,
+    id:LINE,type:'line',source:SOURCE,'source-layer':'parcels',minzoom:5.9,
     paint:{
       'line-color':'#73ffff',
       'line-opacity':1,
@@ -179,7 +179,7 @@ async function openViewer(nextMode='public'){
   viewer.on('load',()=>{
     addBoundaryLayers(viewer,Math.floor(Date.now()/20000));
     const z=document.getElementById('bpBoundaryZoom5403');
-    const update=()=>{if(z)z.textContent=viewer.getZoom()<7?'Zoom in slightly to stream parcel lines':'Live bright parcel boundaries · refreshing as materialization advances'};
+    const update=()=>{if(z)z.textContent=viewer.getZoom()<5.9?'Zoom in slightly to stream parcel lines':'Live bright parcel boundaries · refreshing as materialization advances'};
     update();viewer.on('zoom',update);
   });
   clearInterval(refreshTimer);
