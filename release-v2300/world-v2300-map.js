@@ -1039,10 +1039,16 @@ export function initWorld(options={}){
   if(window.__BP_MEASURE_ACTIVE__||moving||activeTouchPointers.size>1)return false;
   const now=performance.now();
   if(now<selectionBusyUntil)return false;
+  if(performance.now()<Number(window.__BP_MAP_OVERLAY_CLICK_UNTIL__||0))return false;
   const visibleLayers=buildingHitLayers(true);
   if(!visibleLayers.length||!e?.point)return false;
+  const overlayLayers=['bp-v5004-weather-hit','bp-v5004-weather-points','bp-v5004-weather-shape-fill','bp-v5004-weather-shape-line','bp5507-live-hit','bp5507-live-points','bp5507-tect-hit','bp5507-tect-line','bp5507-geyser'].filter(id=>map.getLayer(id));
   let f=null;
-  try{f=(map.queryRenderedFeatures(e.point,{layers:visibleLayers})||[])[0]||null}catch(_){return false}
+  try{
+   const hits=map.queryRenderedFeatures(e.point,{layers:[...overlayLayers,...visibleLayers]})||[];
+   if(hits.some(x=>overlayLayers.includes(x?.layer?.id)))return false;
+   f=hits.find(x=>visibleLayers.includes(x?.layer?.id))||null
+  }catch(_){return false}
   if(!f)return false;
   selectionBusyUntil=now+320;
   lastBuildingClickAt=now;
