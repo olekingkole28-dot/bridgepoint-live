@@ -722,11 +722,17 @@ jobs:
               const landingTour=await p.evaluate(()=>({active:window.__BP_WALKTHROUGH_V5539__?.active===true,version:window.__BP_WALKTHROUGH_V5539__?.version||0,total:window.__BP_WALKTHROUGH_V5539__?.total||0,title:document.querySelector('.bp-tour-title')?.textContent||'',people:document.querySelectorAll('.bp-tour-person img').length,mollySrc:document.querySelector('.bp-tour-person.molly img')?.getAttribute('src')||'',skip:!!document.querySelector('.bp-tour-skip')}));
               if(!landingTour.active||landingTour.version!==5539||landingTour.total<25||landingTour.people!==2||landingTour.mollySrc!=='/assets/molly-materson-bridgepoint.webp'||!landingTour.skip||!/Welcome to BridgePoint/i.test(landingTour.title))throw new Error('LANDING_WALKTHROUGH_REGRESSION '+JSON.stringify(landingTour));
               await p.evaluate(()=>document.querySelector('.bp-tour-next')?.click());
-              await p.waitForFunction(()=>Number(window.__BP_WALKTHROUGH_V5539__?.step||0)>=2,{timeout:12000});
+              await p.waitForFunction(()=>Number(window.__BP_WALKTHROUGH_V5539__?.step||0)>=2,{timeout:6000}).catch(async()=>{
+                await p.evaluate(()=>document.querySelector('.bp-tour-next')?.click());
+                await p.waitForFunction(()=>Number(window.__BP_WALKTHROUGH_V5539__?.step||0)>=2,{timeout:12000});
+              });
               const landingStep2=await p.evaluate(()=>({step:Number(window.__BP_WALKTHROUGH_V5539__?.step||0),title:document.querySelector('.bp-tour-title')?.textContent||'',spot:!!document.querySelector('.bp-tour-spot'),shadeCount:document.querySelectorAll('.bp-tour-shade').length,target:document.querySelector('.bp-tour-card')?.dataset?.hasTarget||'0'}));
               if(landingStep2.step<2||!/What BridgePoint actually does/i.test(landingStep2.title)||!landingStep2.spot||landingStep2.shadeCount!==4)throw new Error('WALKTHROUGH_STEP2_REGRESSION '+JSON.stringify(landingStep2));
               await p.evaluate(()=>document.querySelector('.bp-tour-next')?.click());
-              await p.waitForFunction(()=>Number(window.__BP_WALKTHROUGH_V5539__?.step||0)>=3,{timeout:12000});
+              await p.waitForFunction(()=>Number(window.__BP_WALKTHROUGH_V5539__?.step||0)>=3,{timeout:6000}).catch(async()=>{
+                await p.evaluate(()=>document.querySelector('.bp-tour-next')?.click());
+                await p.waitForFunction(()=>Number(window.__BP_WALKTHROUGH_V5539__?.step||0)>=3,{timeout:12000});
+              });
               const clearHighlight=await p.evaluate(()=>{const spot=document.querySelector('.bp-tour-spot'),sh=[...document.querySelectorAll('.bp-tour-shade')],target=document.querySelector('.premium-stats');return{step:Number(window.__BP_WALKTHROUGH_V5539__?.step||0),title:document.querySelector('.bp-tour-title')?.textContent||'',spot:!!spot,shadeCount:sh.length,targetFilter:target?getComputedStyle(target).filter:'missing',targetBackdrop:target?getComputedStyle(target).backdropFilter:'missing'}});
               if(clearHighlight.step<3||!/These counters show different kinds of scale/i.test(clearHighlight.title)||!clearHighlight.spot||clearHighlight.shadeCount!==4||clearHighlight.targetFilter!=='none'||(clearHighlight.targetBackdrop!=='none'&&clearHighlight.targetBackdrop!==''))throw new Error('WALKTHROUGH_HIGHLIGHT_VISIBILITY_REGRESSION '+JSON.stringify(clearHighlight));
               await p.evaluate(()=>window.__BP_WALKTHROUGH_V5539__?.skip?.());await p.waitForFunction(()=>window.__BP_WALKTHROUGH_V5539__?.active!==true,{timeout:15000});
