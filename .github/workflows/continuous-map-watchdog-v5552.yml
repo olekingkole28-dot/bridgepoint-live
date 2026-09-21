@@ -34,16 +34,38 @@ jobs:
           echo "CT_PARCEL_TILE_HTTP=${CODE} BYTES=${BYTES}"
           test "${CODE}" = "200"
           test "${BYTES}" -gt 5000
-          curl -sS --retry 3 --retry-all-errors --retry-delay 1 --max-time 25 \
-            'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403?mode=public&status=1' \
-            -o /tmp/boundary-status.json
-          grep -Fq '"version":5576' /tmp/boundary-status.json
-          grep -Eq '"state_code":"CT"[^}]*"public_enabled":true' /tmp/boundary-status.json
-          grep -Eq '"state_code":"MD"[^}]*"public_enabled":true' /tmp/boundary-status.json
-          curl -sS --retry 3 --retry-all-errors --retry-delay 1 --max-time 25 \
-            'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403?states=1' \
-            -o /tmp/boundary-states.geojson
-          grep -Fq '"FeatureCollection"' /tmp/boundary-states.geojson
+          STATUS_CODE=$(curl -sS --retry 3 --retry-all-errors --retry-delay 1 --max-time 25 \
+            -o /tmp/boundary-status.json -w '%{http_code}' \
+            'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403?mode=public&status=1')
+          echo "BOUNDARY_STATUS_HTTP=${STATUS_CODE}"
+          head -c 3000 /tmp/boundary-status.json || true
+          echo
+          test "${STATUS_CODE}" = "200"
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/boundary-status.json'))
+          assert d.get('version')==5576, d
+          rows={str(x.get('state_code')):x for x in d.get('status',{}).get('states',[])}
+          assert rows.get('CT',{}).get('public_enabled') is True, rows.get('CT')
+          assert rows.get('MD',{}).get('public_enabled') is True, rows.get('MD')
+          assert rows.get('MI',{}).get('public_enabled') is True, rows.get('MI')
+          assert rows.get('NE',{}).get('public_enabled') is True, rows.get('NE')
+          print('STATE_STATUS_PASS', {k:rows[k] for k in ('CT','MD','MI','NE')})
+          PY
+          STATES_CODE=$(curl -sS --retry 3 --retry-all-errors --retry-delay 1 --max-time 25 \
+            -o /tmp/boundary-states.geojson -w '%{http_code}' \
+            'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403?states=1')
+          echo "BOUNDARY_STATES_HTTP=${STATES_CODE}"
+          head -c 400 /tmp/boundary-states.geojson || true
+          echo
+          test "${STATES_CODE}" = "200"
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/boundary-states.geojson'))
+          assert d.get('type')=='FeatureCollection', d.get('type')
+          assert len(d.get('features',[]))>=50, len(d.get('features',[]))
+          print('STATE_GEOMETRY_PASS',len(d['features']))
+          PY
 
       - name: Mobile interaction + parcel viewer regression test
         shell: bash
