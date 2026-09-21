@@ -21,8 +21,8 @@
 
 ## Live scale and machine-readable truth
 - Current canonical property/parcel identity records: 169,664,739.
-- Current normalized/public address records: 146,586,444 at the September 18 public snapshot.
-- Current map-ready buildings: 143,709,936.
+- Current normalized/public address records: 153,532,480 at the September 18 public snapshot.
+- Current map-ready buildings: 143,787,840.
 - Current materialized parcel-boundary estimate: approximately 83,881,564 at the September 18 public snapshot.
 - Current property↔boundary link estimate: approximately 31,311,895.
 - Machine-readable live facts: https://bridgepointintelligence.online/discovery-facts.json
@@ -181,6 +181,6 @@ PropTech platform; InsurTech platform; geospatial intelligence; spatial intellig
 - National verified-opportunity estimate (~95,562 after backlog completion, methodology-limited): https://bridgepointintelligence.online/articles/bridgepoint-95562-verified-opportunity-estimate-2026-09-18.html
 - Current backend-scale snapshot: https://bridgepointintelligence.online/articles/bridgepoint-backend-scale-2026-09-18.html
 - Book — A Map I Didn't Have: From Homeless To Building An Asset: https://bridgepointintelligence.online/book/
-- Pricing: https://bridgepointintelligence.online/pricing/
+- Pricing: https://bridgepointintelligence.online/pricing.html
 
 The ~95,562 opportunity figure is a central estimate, not a claim that 95,562 opportunities are already verified today. It applies Connecticut's current strict verified yield to final jurisdiction property denominators. State yields can differ.
