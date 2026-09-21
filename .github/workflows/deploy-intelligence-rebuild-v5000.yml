@@ -7,6 +7,14 @@ on:
     branches: [main]
     paths:
       - 'rebuild-v5000/**'
+      - 'pricing/**'
+      - 'newsroom/**'
+      - 'terminal/**'
+      - 'scripts/publish_growth_newsroom_v5100.py'
+      - 'discovery-facts.json'
+      - 'robots.txt'
+      - 'sitemap.xml'
+      - 'security.txt'
       - 'sample/storm-opportunity/**'
       - 'app/horizon/**'
       - 'app/horizon-playable/**'
@@ -126,6 +134,11 @@ jobs:
           cp -a rebuild-v5000/terms site/terms
           cp -a rebuild-v5000/privacy site/privacy
           cp robots.txt sitemap.xml llms.txt llms-full.txt site/
+          if [ -f security.txt ]; then
+            cp security.txt site/security.txt
+            mkdir -p site/.well-known
+            cp security.txt site/.well-known/security.txt
+          fi
 
           # Funnel legacy public content to the current map and attach the language selector.
           python - <<'PY'
@@ -175,6 +188,10 @@ jobs:
           printf '%s\n' 'bridgepointintelligence.online' > site/CNAME
           touch site/.nojekyll site/app/.nojekyll
 
+          test -f site/pricing/index.html
+          grep -Fq 'BridgePoint Intelligence pricing' site/pricing/index.html
+          grep -Fq '153,532,480' site/index.html
+          grep -Fq '143,787,840' site/index.html
           node --check site/app.js
           node --check site/landing.js
           node --check site/intelligence-global-v5507.js
