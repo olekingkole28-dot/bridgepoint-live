@@ -344,6 +344,8 @@ async function openViewer(nextMode='public'){
     }
   });
   window.__BP_BOUNDARY_VIEWER_MAP_V5585__=viewer;
+  const viewerNode=document.getElementById('bpBoundaryMap5403');if(viewerNode)viewerNode.__bpBoundaryMap=viewer;
+  window.__BP_BOUNDARY_VIEWER_MAP_V5600__=viewer;
   window.__BP_BOUNDARY_VIEWER_BOOT_V5585__={version:5585,mode,phase:'map-created',ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
   viewer.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
   viewer.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-right');
@@ -403,7 +405,7 @@ function closeViewer(){
   if(shell)shell.hidden=true;
   document.body.style.overflow='';
   clearInterval(refreshTimer);clearInterval(statusTimer);
-  if(viewer){try{viewer.remove()}catch(_){}if(window.__BP_BOUNDARY_VIEWER_MAP_V5585__===viewer)window.__BP_BOUNDARY_VIEWER_MAP_V5585__=null;viewer=null}
+  if(viewer){const oldViewer=viewer;try{viewer.remove()}catch(_){}const node=document.getElementById('bpBoundaryMap5403');if(node?.__bpBoundaryMap===oldViewer)node.__bpBoundaryMap=null;if(window.__BP_BOUNDARY_VIEWER_MAP_V5585__===oldViewer)window.__BP_BOUNDARY_VIEWER_MAP_V5585__=null;if(window.__BP_BOUNDARY_VIEWER_MAP_V5600__===oldViewer)window.__BP_BOUNDARY_VIEWER_MAP_V5600__=null;viewer=null}
 }
 
 function wirePublicApp(){
@@ -447,6 +449,6 @@ function boot(){
     if(n>120)clearInterval(t);
   },500);
 }
-const BOUNDARY_API={version:VERSION,open:openViewer,close:closeViewer,getMap:()=>viewer||window.__BP_BOUNDARY_VIEWER_MAP_V5585__||null,get mode(){return mode},get stateStatus(){return lastStateRows.slice()},stateFillLayer:STATE_FILL};window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5405__=BOUNDARY_API;
+const BOUNDARY_API={version:VERSION,open:openViewer,close:closeViewer,getMap:()=>viewer||window.__BP_BOUNDARY_VIEWER_MAP_V5600__||window.__BP_BOUNDARY_VIEWER_MAP_V5585__||document.getElementById('bpBoundaryMap5403')?.__bpBoundaryMap||null,get mode(){return mode},get stateStatus(){return lastStateRows.slice()},stateFillLayer:STATE_FILL};window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5405__=BOUNDARY_API;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
