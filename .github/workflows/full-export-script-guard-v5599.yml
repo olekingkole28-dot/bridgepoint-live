@@ -1,0 +1,46 @@
+name: BridgePoint Full Export Script Guard V5599
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'downloads/backup/bridgepoint_full_export_windows.ps1'
+      - '.github/workflows/full-export-script-guard-v5599.yml'
+  pull_request:
+    paths:
+      - 'downloads/backup/bridgepoint_full_export_windows.ps1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bridgepoint-full-export-script-guard-v5599
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse-check full export PowerShell
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $path='downloads/backup/bridgepoint_full_export_windows.ps1'
+          $tokens=$null
+          $errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors)
+          if($errors.Count -gt 0){
+            $errors | ForEach-Object { Write-Error ("Line {0}: {1}" -f $_.Extent.StartLineNumber,$_.Message) }
+            exit 1
+          }
+          $raw=Get-Content $path -Raw
+          if($raw -match "\+Run 'pg_dump'" -or $raw -match " then \(metadata->>'size'\)"){
+            throw 'Known export-script corruption signature detected.'
+          }
+          if($raw -notmatch 'PreflightOnly'){ throw 'PreflightOnly guard missing.' }
+          if($raw -notmatch 'SHA256SUMS.txt'){ throw 'Checksum manifest generation missing.' }
+          if($raw -notmatch 'secrets_exported = \$false'){ throw 'Secret-exclusion manifest contract missing.' }
+          Write-Host 'Export script syntax and safety contract passed.'
