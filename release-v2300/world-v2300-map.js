@@ -3,6 +3,7 @@ import{initSpace}from'./world-v2300-space.js?v=5536';
 window.__BP_WORLD_RENDER_VERSION__=5561;
 window.__BP_GEOMETRY_TRUTH_V5590__={version:5590,genericRoofCaps:false,sourceBackedRoofOnly:true,groundBridgeRoadExcluded:true,continuousBridgeRibbons:true,updatedAt:Date.now()};
 window.__BP_GEOMETRY_TRUTH_V5592__={version:5592,syntheticLandmarks:false,statueOfLibertyGenericModel:false,syntheticBridgePiers:false,bridgeRailRequiresSource:true,sourceBurstHeavyRebuilds:false,updatedAt:Date.now()};
+window.__BP_WORLD_SELF_HEAL_V5595__={version:5595,clientPressureAware:true,terrainPreserved:true,parcelsPreserved:true,optionalFineDetailDeferred:true,updatedAt:Date.now()};
 window.__BP_FINE_DETAIL_MODE__={enabled:false,reason:'performance-first buildings-weather-boundaries',updatedAt:Date.now()};
 
 const OFM='https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf';
@@ -917,10 +918,12 @@ export function initWorld(options={}){
   window.__BP_GLOBAL_LOD_SOURCE_REFRESH__={roofVisible,floorVisible,zoom:map.getZoom(),updatedAt:Date.now()};
   return roofVisible||floorVisible
  }
+ function worldClientPressureBlocked(){return Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0)>performance.now()}
  function armFineDetailSettle(delay=MOBILE?1650:180){
   clearTimeout(map.__bpBuildingFineSettle);
   map.__bpBuildingFineSettle=setTimeout(()=>{
    if(map.isMoving?.()){armFineDetailSettle(MOBILE?320:120);return}
+   if(worldClientPressureBlocked()){window.__BP_WORLD_CLIENT_PRESSURE_V5595__={version:5595,deferred:'fine-detail',until:Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0),updatedAt:Date.now()};armFineDetailSettle(MOBILE?650:220);return}
    moving=false;
    buildingShellQuietUntil=0;
    syncBuildingShells();
@@ -955,7 +958,9 @@ export function initWorld(options={}){
   clearTimeout(postMoveSettleTimer);
   postMoveSettleTimer=setTimeout(()=>{
    if(moving||map.isMoving?.()){schedulePostMoveSettle();return}
-   terrain();syncParcelShells();armFineDetailSettle(0);scheduleExact(MOBILE?720:120);
+   terrain();syncParcelShells();
+   if(worldClientPressureBlocked()){window.__BP_WORLD_CLIENT_PRESSURE_V5595__={version:5595,deferred:'postmove-heavy',terrainPreserved:true,parcelsPreserved:true,until:Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0),updatedAt:Date.now()};postMoveSettleTimer=setTimeout(schedulePostMoveSettle,MOBILE?700:240);return}
+   armFineDetailSettle(0);scheduleExact(MOBILE?720:120);
    rebuildLandmark3D(MOBILE?950:260);rebuildBridge3D(MOBILE?760:200);
    window.__BP_WORLD_POSTMOVE_V5580__={version:5580,coalesced:true,idleOnly:true,updatedAt:Date.now()}
   },MOBILE?420:110)
