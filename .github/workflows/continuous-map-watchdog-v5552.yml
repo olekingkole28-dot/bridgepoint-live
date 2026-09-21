@@ -1,0 +1,160 @@
+name: BridgePoint Continuous Mobile Map Watchdog V5552
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'release-v2300/**'
+      - 'rebuild-v5000/**'
+      - '.github/workflows/continuous-map-watchdog-v5552.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bridgepoint-continuous-map-watchdog-v5552
+  cancel-in-progress: true
+
+jobs:
+  mobile-map-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Probe public Connecticut parcel tile
+        shell: bash
+        run: |
+          set -euo pipefail
+          CODE=$(curl -sS --retry 3 --retry-all-errors --retry-delay 1 \
+            -o /tmp/ct-parcels-z8.mvt -w '%{http_code}' \
+            'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403?mode=public&z=8&x=76&y=95&v=watchdog')
+          BYTES=$(wc -c </tmp/ct-parcels-z8.mvt)
+          echo "CT_PARCEL_TILE_HTTP=${CODE} BYTES=${BYTES}"
+          test "${CODE}" = "200"
+          test "${BYTES}" -gt 5000
+
+      - name: Mobile interaction + parcel viewer regression test
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          const O='https://bridgepointintelligence.online';
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const delta=(a,b)=>Math.hypot(Number(a[0])-Number(b[0]),Number(a[1])-Number(b[1]));
+          async function touchDrag(page,x1,y1,x2,y2){
+            const cdp=await page.createCDPSession();
+            await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:x1,y:y1,radiusX:8,radiusY:8,force:1,id:1}]});
+            for(let i=1;i<=8;i++){
+              const t=i/8;
+              await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x1+(x2-x1)*t,y:y1+(y2-y1)*t,radiusX:8,radiusY:8,force:1,id:1}]});
+              await sleep(28);
+            }
+            await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+          }
+          (async()=>{
+            const browser=await puppeteer.launch({
+              headless:true,
+              executablePath:process.env.CHROME_PATH,
+              args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']
+            });
+            const page=await browser.newPage();
+            try{
+              await browser.defaultBrowserContext().overridePermissions(O,['geolocation']);
+              await page.setGeolocation({latitude:41.55,longitude:-72.65,accuracy:25});
+              await page.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto(O+'/app/?watchdog5552='+Date.now(),{waitUntil:'domcontentloaded',timeout:35000});
+              await page.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5378&&window.__BP_V5000_WORLD?.map,{timeout:45000});
+              await sleep(1200);
+
+              const baseline=await page.evaluate(()=>{
+                const w=window.__BP_V5000_WORLD,m=w.map;
+                return{
+                  performance:w.state?.performance,
+                  dragPan:m.dragPan?.isEnabled?.(),
+                  touchZoomRotate:m.touchZoomRotate?.isEnabled?.(),
+                  parcelMin:m.getLayer('gta-parcel')?.minzoom,
+                  parcelGlowMin:m.getLayer('gta-parcel-glow')?.minzoom,
+                  parcelSourceMin:m.getStyle()?.sources?.bpParcels?.minzoom
+                }
+              });
+              if(!baseline.dragPan||!baseline.touchZoomRotate)throw new Error('GESTURES_DISABLED '+JSON.stringify(baseline));
+              if(!baseline.performance?.duplicateTouchSelectionRemoved)throw new Error('OLD_TOUCH_PATH '+JSON.stringify(baseline));
+              if(Number(baseline.parcelMin)>8.6||Number(baseline.parcelGlowMin)>8.6||Number(baseline.parcelSourceMin)>7.1)throw new Error('PARCEL_ZOOM_GATE '+JSON.stringify(baseline));
+
+              await page.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:14.7,pitch:58,bearing:-18}));
+              await sleep(4500);
+              const hit=await page.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD.map,c=m.getCanvas(),w=c.clientWidth,h=c.clientHeight;
+                const layers=['gta-city-buildings','gta-exact-building','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                for(let y=90;y<h-80;y+=22)for(let x=28;x<w-28;x+=22){
+                  try{if((m.queryRenderedFeatures({x,y},{layers})||[]).length)return{x,y}}catch{}
+                }
+                return null;
+              });
+              if(!hit)throw new Error('NO_BUILDING_HIT');
+
+              const box=await page.$eval('.maplibregl-canvas',el=>{const r=el.getBoundingClientRect();return{x:r.left,y:r.top,w:r.width,h:r.height}});
+              await page.touchscreen.tap(box.x+hit.x,box.y+hit.y);
+              await page.waitForFunction(()=>window.__BP_BUILDING_SELECTION_V5552__?.singleClickPath===true,{timeout:6000});
+              await sleep(650);
+
+              const before=await page.evaluate(()=>{const c=window.__BP_V5000_WORLD.map.getCenter();return[c.lng,c.lat]});
+              await touchDrag(page,box.x+box.w*.66,box.y+box.h*.52,box.x+box.w*.34,box.y+box.h*.52);
+              await sleep(900);
+              const after=await page.evaluate(()=>{const c=window.__BP_V5000_WORLD.map.getCenter();return[c.lng,c.lat]});
+              if(delta(before,after)<0.00001)throw new Error('MAP_FROZEN_AFTER_BUILDING_TAP '+JSON.stringify({before,after}));
+
+              await page.evaluate(async()=>{
+                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
+                if(!v)throw new Error('BOUNDARY_VIEWER_MISSING');
+                await v.open('public');
+              });
+              await page.waitForFunction(()=>{
+                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
+                return !!v?.getMap?.();
+              },{timeout:12000});
+              await page.evaluate(()=>{
+                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
+                v.getMap().jumpTo({center:[-72.65,41.55],zoom:8.1,pitch:45,bearing:0});
+              });
+              await sleep(4500);
+              const parcel=await page.evaluate(()=>{
+                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
+                const m=v.getMap();
+                let n=0;try{n=(m.querySourceFeatures('bp-boundary-viewer-v5403',{sourceLayer:'parcels'})||[]).length}catch{}
+                return{
+                  n,
+                  sourceLoaded:m.isSourceLoaded?.('bp-boundary-viewer-v5403')??null,
+                  lineVisibility:m.getLayoutProperty('bp-boundary-line-v5403','visibility')||'visible',
+                  zoom:m.getZoom()
+                }
+              });
+              if(parcel.n<1||parcel.lineVisibility==='none')throw new Error('PUBLIC_CT_PARCELS_NOT_RENDERING '+JSON.stringify(parcel));
+
+              console.log('BRIDGEPOINT_MAP_WATCHDOG_PASS',JSON.stringify({baseline,before,after,parcel}));
+            }catch(e){
+              try{await page.screenshot({path:'/tmp/map-watchdog-failure.png',fullPage:true})}catch{}
+              console.error(e.stack||e);
+              process.exitCode=1;
+            }finally{
+              await browser.close();
+            }
+          })();
+          NODE
+
+      - name: Upload failure screenshot
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-map-watchdog-failure
+          path: /tmp/map-watchdog-failure.png
+          if-no-files-found: ignore
+          retention-days: 3
