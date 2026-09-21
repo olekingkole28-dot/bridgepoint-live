@@ -89,6 +89,7 @@ jobs:
               const stability=await p.evaluate(()=>({app:window.__BP_MAP_STABILITY_V5580__||null,key:(()=>{const e=document.getElementById('bp5507-key');return !!e&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden'&&Number(getComputedStyle(e).opacity||1)>.8})(),brand:(()=>{const e=document.querySelector('.map-brand-card');return !!e&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden'&&Number(getComputedStyle(e).opacity||1)>.8})()}));
               if(!stability.app?.serialBackgroundDrain||!stability.app?.noResizeOnMoveEnd||!stability.key||!stability.brand)throw new Error('APP_STABILITY_V5580 '+JSON.stringify(stability));
               await p.waitForFunction(()=>!!window.__BP_VIEWER_COUNTRY_START__,{timeout:15000});
+              await p.waitForFunction(()=>!!window.__BP_APP_MAIN_THREAD_GUARD_V5587__&&!!window.__BP_MATERIAL_LAZYLOAD_V5587__,{timeout:30000});
               const navStart=Date.now();
               await p.click('#openPagesNav');
               await p.waitForFunction(()=>{const n=document.getElementById('bottomNav');if(!n)return false;const s=getComputedStyle(n),r=n.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity||1)>.8&&s.pointerEvents!=='none'&&r.width>100&&r.height>20},{timeout:7000});
@@ -96,7 +97,9 @@ jobs:
               await p.waitForFunction(()=>document.querySelector('[data-surface="packages"]')?.hidden===false,{timeout:7000});
               await p.click('#bottomNav [data-nav="map"]');
               await p.waitForFunction(()=>document.querySelector('[data-surface="map"]')?.hidden===false,{timeout:7000});
-              console.log('NAV_ROUNDTRIP_MS',Date.now()-navStart);
+              const navMs=Date.now()-navStart;
+              console.log('NAV_ROUNDTRIP_MS',navMs);
+              if(navMs>15000)throw new Error('NAV_MAIN_THREAD_BLOCKED '+navMs+'ms');
               const raf=await p.evaluate(()=>new Promise(resolve=>{
                 const ts=[],start=performance.now();
                 const step=t=>{ts.push(t);if(ts.length>=8||performance.now()-start>2500){const gaps=ts.slice(1).map((v,i)=>v-ts[i]);resolve({frames:ts.length,maxGap:gaps.length?Math.max(...gaps):null,total:performance.now()-start})}else requestAnimationFrame(step)};
