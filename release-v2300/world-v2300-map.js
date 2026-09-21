@@ -28,7 +28,7 @@ window.__BP_WORLD_INTERACTION_V5543__={version:5543,stableSingleFrameBuildingHit
 window.__BP_WORLD_PERFORMANCE_V5544__={version:5544,gestureHotPath:'native-only',persistentTerrain:true,persistentRadarDrape:true,retainGeometryDuringMotion:true,staleTileCancellation:true,updatedAt:Date.now()};
 window.__BP_EXACT_FALLBACK_V5546__={version:5546,canonicalViewportArgs:true,cityFallbackPreserved:true,updatedAt:Date.now()};
 window.__BP_BUILDING_SELECTION_V5547__={version:5547,panelImmediate:false,updatedAt:Date.now()};
-window.__BP_PHOTOREAL_WORLD_V5548__={version:5548,groundImagery:['USGS','OpenAerialMap'],oamLicense:'CC BY 4.0',oamCloseZoomOnly:true,bridgePointBuildingsRemainPrimary:true,updatedAt:Date.now()};
+window.__BP_PHOTOREAL_WORLD_V5548__={version:5548,groundImagery:['USGS','OpenAerialMap'],oamLicense:'CC BY 4.0',oamCloseZoomOnly:true,bridgePointBuildingsRemainPrimary:true,photoDerivedRoofColor:true,roofColorTruthLayer:'BridgePoint v5376 real roofs',updatedAt:Date.now()};
 const US_BOUNDS=[-125,24,-66,50];
 
 const roadFilter=classes=>['in',['get','class'],['literal',classes]];
@@ -124,6 +124,7 @@ function style(){
  const roofPattern=['concat','bproof-',roofName];
  const nightWindowPattern=pick(['bp-window-night-warm','bp-window-night-cool','bp-window-night-mixed'],109);
  const roofColor=['case',
+  ['has','roof_color'],['get','roof_color'],
   ['in',roofKind,['literal',['metal','steel','tin','zinc']]],pick(['#7d898b','#596367']),
   ['in',roofKind,['literal',['tile','tiles','clay','terracotta']]],pick(['#8b5544','#765441']),
   ['in',roofKind,['literal',['slate']]],'#4f5d66',
