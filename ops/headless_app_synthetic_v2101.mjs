@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const targets=(process.env.HEADLESS_TARGETS||'https://www.bridgepointintelligence.com/,https://www.bridgepointintelligence.com/app/').split(',').map(x=>x.trim()).filter(Boolean);
+const targets=(process.env.HEADLESS_TARGETS||'https://bridgepointintelligence.online/,https://bridgepointintelligence.online/app/').split(',').map(x=>x.trim()).filter(Boolean);
 const artifactDir=path.resolve('headless-artifacts');
 await fs.mkdir(artifactDir,{recursive:true});
 
