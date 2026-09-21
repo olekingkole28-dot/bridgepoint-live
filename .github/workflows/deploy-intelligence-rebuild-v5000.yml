@@ -853,16 +853,28 @@ jobs:
                 const ids=['gta-city-buildings','gta-exact-building','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
                 try{return ids.some(id=>m.queryRenderedFeatures({layers:[id]}).length>0)}catch{return false}
               },{timeout:45000});
-              const clicked=await p.evaluate(()=>{
-                const w=window.__BP_V5000_WORLD,m=w?.map;if(!w?.selectBuildingAtPoint||!m)return null;
-                const ids=['gta-city-buildings','gta-exact-building','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
-                const cv=m.getCanvas(),width=cv.clientWidth||cv.width,height=cv.clientHeight||cv.height;
-                for(let y=90;y<height-70;y+=18)for(let x=20;x<width-20;x+=18){
-                  try{if(m.queryRenderedFeatures({x,y},{layers:ids}).length&&w.selectBuildingAtPoint({x,y})===true)return{x,y,ids}}catch(_){}
-                }
-                return null;
-              });
-              if(!clicked)throw new Error('VISIBLE_BUILDING_NOT_CLICKABLE');
+              let clicked=null;
+              for(let attempt=0;attempt<12&&!clicked;attempt++){
+                clicked=await p.evaluate(()=>{
+                  const w=window.__BP_V5000_WORLD,m=w?.map;if(!w?.selectBuildingAtPoint||!m)return null;
+                  const ids=['gta-city-buildings','gta-exact-building','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                  const cv=m.getCanvas(),width=cv.clientWidth||cv.width,height=cv.clientHeight||cv.height;
+                  for(let y=90;y<height-70;y+=18)for(let x=20;x<width-20;x+=18){
+                    try{if(m.queryRenderedFeatures({x,y},{layers:ids}).length&&w.selectBuildingAtPoint({x,y})===true)return{x,y,ids}}catch(_){}
+                  }
+                  return null;
+                });
+                if(!clicked)await p.waitForTimeout(450);
+              }
+              if(!clicked){
+                const clickDiag=await p.evaluate(()=>{
+                  const w=window.__BP_V5000_WORLD,m=w?.map;
+                  const ids=['gta-city-buildings','gta-exact-building','gta-context-buildings'].filter(id=>m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                  let counts={};for(const id of ids){try{counts[id]=m.queryRenderedFeatures({layers:[id]}).length}catch(_){counts[id]=-1}}
+                  return{measure:!!window.__BP_MEASURE_ACTIVE__,moving:!!w?.state?.moving,ids,counts,center:m?.getCenter?.()||null,zoom:m?.getZoom?.()||null,pitch:m?.getPitch?.()||null,bridge:window.__BP_BRIDGE3D_V5542__||null,landmark:window.__BP_LANDMARK3D_V5542__||null}
+                });
+                throw new Error('VISIBLE_BUILDING_NOT_CLICKABLE '+JSON.stringify(clickDiag));
+              }
               await p.waitForFunction(()=>document.getElementById('buildingPanel')?.hidden===false,{timeout:8000});
               console.log('BRIDGEPOINT_BUILDING_CLICK_PASS',JSON.stringify(clicked));
 
