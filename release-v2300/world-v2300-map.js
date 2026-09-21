@@ -1097,7 +1097,7 @@ export function initWorld(options={}){
  });
  const canvas=map.getCanvas();
  const clearTouchState=()=>{activeTouchPointers.clear();touchPointer=null;touchNative=null};
- canvas.addEventListener('pointerdown',ev=>{if(ev.pointerType==='touch'||ev.pointerType==='pen')activeTouchPointers.add(ev.pointerId)},{passive:true,capture:true});
+ canvas.addEventListener('pointerdown',ev=>{if(ev.pointerType==='touch'||ev.pointerType==='pen'){activeTouchPointers.add(ev.pointerId);ensureMapGestures();try{if(map.isMoving?.())map.stop?.()}catch(_){}}},{passive:true,capture:true});
  canvas.addEventListener('pointerup',ev=>{activeTouchPointers.delete(ev.pointerId)},{passive:true,capture:true});
  canvas.addEventListener('pointercancel',ev=>{activeTouchPointers.delete(ev.pointerId)},{passive:true,capture:true});
  window.addEventListener('blur',clearTouchState,{passive:true});
