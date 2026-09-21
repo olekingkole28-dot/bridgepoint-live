@@ -70,6 +70,10 @@ jobs:
               r=await p.goto(O+'/app/?wholeApp5561='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               if(!r||r.status()>=400)throw new Error('APP_HTTP_'+r?.status());
               await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5561&&!!window.__BP_V5000_WORLD?.map,{timeout:45000});
+              await p.waitForFunction(()=>!!window.__BP_WALKTHROUGH_V5539__,{timeout:15000}).catch(()=>{});
+              await p.evaluate(()=>{try{window.__BP_WALKTHROUGH_V5539__?.skip?.()}catch(_){}}).catch(()=>{});
+              await p.waitForFunction(()=>window.__BP_WALKTHROUGH_V5539__?.active!==true,{timeout:15000}).catch(()=>{});
+              console.log('WATCHDOG_WALKTHROUGH_SKIPPED');
               console.log('APP_WORLD_READY_MS',Date.now()-t);
               const shell=await p.evaluate(()=>({
                 frontend:window.__BP_FRONTEND_VERSION,
