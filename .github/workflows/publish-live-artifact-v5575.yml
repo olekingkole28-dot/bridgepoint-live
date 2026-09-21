@@ -1,4 +1,5 @@
 # BridgePoint default-branch production authority V5575
+# Source and live-artifact aligned: parcel viewer V5405 minzoom 5.9
 name: Publish Live Artifact V5575
 
 on:
