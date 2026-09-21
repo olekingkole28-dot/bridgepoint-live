@@ -105,7 +105,8 @@ jobs:
               await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               await page.goto(O+'/app/?watchdog5561='+Date.now(),{waitUntil:'domcontentloaded',timeout:35000});
               await page.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5561&&window.__BP_V5000_WORLD?.map,{timeout:45000});
-              await sleep(1200);
+              // Let viewer-country/geolocation startup settle before forcing the deterministic test viewport.
+              await sleep(5200);
 
               const baseline=await page.evaluate(()=>{
                 const w=window.__BP_V5000_WORLD,m=w.map;
@@ -125,7 +126,11 @@ jobs:
               if(Number(baseline.parcelMin)>6.7||Number(baseline.parcelGlowMin)>6.7||Number(baseline.parcelSourceMin)>6.7)throw new Error('PARCEL_ZOOM_GATE '+JSON.stringify(baseline));
 
               await page.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:14.7,pitch:58,bearing:-18}));
-              await sleep(6500);
+              await page.waitForFunction(()=>{
+                const c=window.__BP_V5000_WORLD?.map?.getCenter?.();
+                return !!c&&Math.abs(c.lng+74.006)<0.08&&Math.abs(c.lat-40.7128)<0.08;
+              },{timeout:8000});
+              await sleep(4200);
               const hit=await page.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map,c=m.getCanvas(),w=c.clientWidth,h=c.clientHeight;
                 const layers=['gta-city-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');

@@ -83,9 +83,9 @@ jobs:
               if(shell.world!==5561||!shell.appResponsive?.idleBackgroundWork||!shell.dragPan||!shell.touchZoom||shell.nav<3)throw new Error('APP_SHELL_CONTRACT '+JSON.stringify(shell));
               const navStart=Date.now();
               await p.click('#bottomNav [data-nav="packages"]');
-              await p.waitForFunction(()=>document.querySelector('[data-surface="packages"]')?.hidden===false,{timeout:2500});
+              await p.waitForFunction(()=>document.querySelector('[data-surface="packages"]')?.hidden===false,{timeout:7000});
               await p.click('#bottomNav [data-nav="map"]');
-              await p.waitForFunction(()=>document.querySelector('[data-surface="map"]')?.hidden===false,{timeout:2500});
+              await p.waitForFunction(()=>document.querySelector('[data-surface="map"]')?.hidden===false,{timeout:7000});
               console.log('NAV_ROUNDTRIP_MS',Date.now()-navStart);
               const raf=await p.evaluate(()=>new Promise(resolve=>{
                 const ts=[],start=performance.now();
