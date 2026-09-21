@@ -52,7 +52,7 @@ jobs:
 
           # Keep only the current Intelligence workspace plus the current Horizon lobby and playable runtime.
           # Other historical /app/... URLs fall through the V5000 404 back to the live map.
-          rm -rf site/app site/discover site/search site/newsroom site/claims-terminal site/terminal site/integrity-index site/settlement-lab site/distribution site/public-audit site/portfolio-evidence site/data-discrepancy site/articles/auto site/founder-access site/for-roofers site/for-solar site/for-restoration site/for-public-adjusters site/for-property-managers site/sample site/founder site/answers site/press site/investors site/enterprise site/pricing site/owner/acquisition site/owner/command
+          rm -rf site/app site/discover site/search site/newsroom site/claims-terminal site/terminal site/integrity-index site/settlement-lab site/distribution site/public-audit site/portfolio-evidence site/data-discrepancy site/articles/auto site/founder-access site/for-roofers site/for-solar site/for-restoration site/for-public-adjusters site/for-property-managers site/sample site/founder site/answers site/press site/investors site/enterprise site/pricing site/owner site/downloads/backup
           mkdir -p site/app site/articles
           git archive refs/remotes/origin/live-artifact app/vendor | tar -xf - -C site
           cp -a discover site/discover
@@ -97,13 +97,6 @@ jobs:
           if [ -d pricing ]; then cp -a pricing site/pricing; cp pricing/index.html site/pricing.html; fi
           if [ -d investors ]; then cp -a investors site/investors; fi
           if [ -d enterprise ]; then cp -a enterprise site/enterprise; fi
-          mkdir -p site/owner
-          cp -a owner/acquisition site/owner/acquisition
-          cp -a owner/command site/owner/command
-          mkdir -p site/downloads/backup
-          cp downloads/backup/bridgepoint_full_export_windows.ps1 site/downloads/backup/bridgepoint_full_export_windows.ps1
-          cp downloads/backup/bridgepoint_state_export_windows.ps1 site/downloads/backup/bridgepoint_state_export_windows.ps1
-          cp downloads/backup/BridgePoint_State_Export_Wizard.bat site/downloads/backup/BridgePoint_State_Export_Wizard.bat
           cp rebuild-v5000/index.html site/index.html
           cp rebuild-v5000/app-index.html site/app/index.html
           cp rebuild-v5000/landing.css site/landing.css
@@ -192,6 +185,9 @@ jobs:
           test -f site/pricing/index.html
           test -f site/pricing.html
           test -f site/.well-known/security.txt
+          test ! -e site/owner
+          test ! -e site/downloads/backup
+          echo 'PRIVATE_SURFACES_NOT_PUBLISHED_PASS'
           grep -Fq 'BridgePoint Intelligence pricing' site/pricing/index.html
           grep -Fq 'BridgePoint Intelligence pricing' site/pricing.html
           grep -Fq '153,532,480' site/index.html
@@ -618,6 +614,9 @@ jobs:
           grep -Fq 'BRIDGEPOINT' /tmp/root.html
           ! grep -Eiq 'HORIZON|battle pass|zombie|game mode' /tmp/root.html
           q="${GITHUB_SHA}-surface-check-$(date +%s)"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "${O}/owner/command/?owner-route-check=${q}")" = "404"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "${O}/owner/acquisition/?owner-route-check=${q}")" = "404"
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "${O}/downloads/backup/bridgepoint_full_export_windows.ps1?owner-route-check=${q}")" = "404"
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/?v5100=${q}" -o /tmp/horizon.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon-playable/v2-entry.html?v5100=${q}" -o /tmp/horizon-playable.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/discover/?v5100=${q}" -o /tmp/discover.html
