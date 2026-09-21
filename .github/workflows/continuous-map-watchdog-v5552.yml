@@ -34,6 +34,16 @@ jobs:
           echo "CT_PARCEL_TILE_HTTP=${CODE} BYTES=${BYTES}"
           test "${CODE}" = "200"
           test "${BYTES}" -gt 5000
+          curl -sS --retry 3 --retry-all-errors --retry-delay 1 --max-time 25 \
+            'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403?mode=public&status=1' \
+            -o /tmp/boundary-status.json
+          grep -Fq '"version":5576' /tmp/boundary-status.json
+          grep -Eq '"state_code":"CT"[^}]*"public_enabled":true' /tmp/boundary-status.json
+          grep -Eq '"state_code":"MD"[^}]*"public_enabled":true' /tmp/boundary-status.json
+          curl -sS --retry 3 --retry-all-errors --retry-delay 1 --max-time 25 \
+            'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403?states=1' \
+            -o /tmp/boundary-states.geojson
+          grep -Fq '"FeatureCollection"' /tmp/boundary-states.geojson
 
       - name: Mobile interaction + parcel viewer regression test
         shell: bash
@@ -119,21 +129,25 @@ jobs:
               if(delta(before,after)<0.00001)throw new Error('MAP_FROZEN_AFTER_BUILDING_TAP '+JSON.stringify({before,after}));
 
               await page.evaluate(async()=>{
-                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
+                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
                 if(!v)throw new Error('BOUNDARY_VIEWER_MISSING');
                 await v.open('public');
               });
               await page.waitForFunction(()=>{
-                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
+                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
                 return !!v?.getMap?.();
               },{timeout:12000});
+              await page.waitForFunction(()=>{
+                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
+                return !!v?.getMap?.()?.getLayer?.('bp-boundary-state-fill-v5576')&&v.stateStatus?.some?.(s=>s.state_code==='CT'&&s.public_enabled===true);
+              },{timeout:25000});
               await page.evaluate(()=>{
-                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
+                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
                 v.getMap().jumpTo({center:[-72.65,41.55],zoom:8.1,pitch:45,bearing:0});
               });
               await sleep(4500);
               const parcel=await page.evaluate(()=>{
-                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
+                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
                 const m=v.getMap();
                 let n=0;try{n=(m.querySourceFeatures('bp-boundary-viewer-v5403',{sourceLayer:'parcels'})||[]).length}catch{}
                 return{
