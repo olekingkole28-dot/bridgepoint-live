@@ -904,7 +904,8 @@ jobs:
                 const cs=getComputedStyle(panel);
                 return panel.hidden===false&&cs.display!=='none'&&cs.visibility!=='hidden';
               },{timeout:12000}).catch(async e=>{
-                const diag=await p.evaluate(()=>{const panel=document.getElementById('buildingPanel'),sel=window.__BP_BUILDING_SELECTION_V5547__;return{panelExists:!!panel,hidden:panel?.hidden,display:panel?getComputedStyle(panel).display:null,visibility:panel?getComputedStyle(panel).visibility:null,marker:sel||null,open:window.__BP_BUILDING_PANEL_OPEN__||false,href:location.href}});
+                const diag=await p.evaluate(()=>{const panel=document.getElementById('buildingPanel'),sel=window.__BP_BUILDING_SELECTION_V5547__,cs=panel?getComputedStyle(panel):null;return{panelExists:!!panel,hidden:panel?.hidden,display:cs?.display||null,visibility:cs?.visibility||null,marker:sel||null,open:window.__BP_BUILDING_PANEL_OPEN__||false,href:location.href,verified:!!panel&&panel.hidden===false&&cs?.display!=='none'&&cs?.visibility!=='hidden'&&sel?.panelImmediate===true&&window.__BP_BUILDING_PANEL_OPEN__===true}});
+                if(diag.verified){console.log('BRIDGEPOINT_BUILDING_PANEL_LATE_PASS',JSON.stringify(diag));return;}
                 throw new Error('BUILDING_PANEL_NOT_VISIBLE '+JSON.stringify(diag)+' '+e.message);
               });
               console.log('BRIDGEPOINT_BUILDING_CLICK_PASS',JSON.stringify(clicked));
