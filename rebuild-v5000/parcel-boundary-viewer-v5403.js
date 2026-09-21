@@ -2,7 +2,7 @@
 'use strict';
 
 const FN='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403';
-const VERSION=5577;
+const VERSION=5585;
 const SOURCE='bp-boundary-viewer-v5403';
 const GLOW='bp-boundary-glow-v5403';
 const LINE='bp-boundary-line-v5403';
@@ -343,6 +343,8 @@ async function openViewer(nextMode='public'){
       return {url};
     }
   });
+  window.__BP_BOUNDARY_VIEWER_MAP_V5585__=viewer;
+  window.__BP_BOUNDARY_VIEWER_BOOT_V5585__={version:5585,mode,phase:'map-created',ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
   viewer.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
   viewer.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-right');
   viewer.on('error',e=>{
@@ -352,20 +354,40 @@ async function openViewer(nextMode='public'){
       if(box)box.innerHTML='<span>Owner authorization needs a fresh sign-in before exact boundary tiles can load.</span>';
     }
   });
-  viewer.on('load',async()=>{
-    addBoundaryLayers(viewer,Math.floor(Date.now()/20000));
-    const z=document.getElementById('bpBoundaryZoom5403');
-    const update=()=>{
-      if(!z)return;
-      const min=mode==='owner'?4:7;
-      z.textContent=viewer.getZoom()<min
-        ? (mode==='owner'?'Zoom in slightly to stream owner parcel lines':'State availability overview · public parcel lines begin at regional zoom')
-        : (mode==='owner'?'Owner exact parcel boundaries · thousands of lines remain visible from high zoom':'Public rights-cleared parcel boundaries · neon blue');
-    };
-    update();viewer.on('zoom',update);
-    await refreshStatus();
-    window.__BP_BOUNDARY_VIEWER_BOOT_V5577__={version:5576,mode,independentMap:true,ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
-  });
+  let viewerFinalized=false,viewerFinalizeTimer=0;
+  const finalizeViewer=async(reason='load')=>{
+    if(viewerFinalized||!viewer)return false;
+    try{
+      const styleReady=viewer.isStyleLoaded?.()===true||((viewer.getStyle?.()?.layers?.length||0)>0);
+      if(!styleReady){clearTimeout(viewerFinalizeTimer);viewerFinalizeTimer=setTimeout(()=>void finalizeViewer('style-retry'),250);return false}
+      viewerFinalized=true;
+      addBoundaryLayers(viewer,Math.floor(Date.now()/20000));
+      const z=document.getElementById('bpBoundaryZoom5403');
+      const update=()=>{
+        if(!z||!viewer)return;
+        const min=mode==='owner'?4:7;
+        z.textContent=viewer.getZoom()<min
+          ? (mode==='owner'?'Zoom in slightly to stream owner parcel lines':'State availability overview · public parcel lines begin at regional zoom')
+          : (mode==='owner'?'Owner exact parcel boundaries · thousands of lines remain visible from high zoom':'Public rights-cleared parcel boundaries · neon blue');
+      };
+      update();viewer.on('zoom',update);
+      if(lastStateRows.length){try{await syncStateOverlay(viewer,lastStateRows)}catch(e){console.warn('boundary state overlay retry',e)}}
+      else void refreshStatus();
+      window.__BP_BOUNDARY_VIEWER_BOOT_V5577__={version:5585,mode,independentMap:true,ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
+      window.__BP_BOUNDARY_VIEWER_BOOT_V5585__={version:5585,mode,phase:'ready',reason,independentMap:true,ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
+      return true
+    }catch(e){
+      viewerFinalized=false;
+      window.__BP_BOUNDARY_VIEWER_BOOT_V5585__={version:5585,mode,phase:'retry',reason,error:String(e?.message||e),updatedAt:Date.now()};
+      clearTimeout(viewerFinalizeTimer);viewerFinalizeTimer=setTimeout(()=>void finalizeViewer('recovery'),350);
+      return false
+    }
+  };
+  viewer.on('load',()=>void finalizeViewer('load'));
+  viewer.on('styledata',()=>{if(!viewerFinalized)void finalizeViewer('styledata')});
+  void refreshStatus();
+  setTimeout(()=>void finalizeViewer('boot-fallback'),120);
+  setTimeout(()=>void finalizeViewer('boot-fallback-late'),900);
   clearInterval(refreshTimer);
   refreshTimer=setInterval(()=>{
     if(!viewer||document.getElementById('bpBoundaryViewer5403')?.hidden)return;
@@ -381,7 +403,7 @@ function closeViewer(){
   if(shell)shell.hidden=true;
   document.body.style.overflow='';
   clearInterval(refreshTimer);clearInterval(statusTimer);
-  if(viewer){try{viewer.remove()}catch(_){}viewer=null}
+  if(viewer){try{viewer.remove()}catch(_){}if(window.__BP_BOUNDARY_VIEWER_MAP_V5585__===viewer)window.__BP_BOUNDARY_VIEWER_MAP_V5585__=null;viewer=null}
 }
 
 function wirePublicApp(){
@@ -425,6 +447,6 @@ function boot(){
     if(n>120)clearInterval(t);
   },500);
 }
-const BOUNDARY_API={version:VERSION,open:openViewer,close:closeViewer,getMap:()=>viewer,get mode(){return mode},get stateStatus(){return lastStateRows.slice()},stateFillLayer:STATE_FILL};window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5405__=BOUNDARY_API;
+const BOUNDARY_API={version:VERSION,open:openViewer,close:closeViewer,getMap:()=>viewer||window.__BP_BOUNDARY_VIEWER_MAP_V5585__||null,get mode(){return mode},get stateStatus(){return lastStateRows.slice()},stateFillLayer:STATE_FILL};window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5405__=BOUNDARY_API;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
