@@ -766,9 +766,13 @@ export function initWorld(options={}){
  function cityStructuresReady(){
   if(!bridgePointDomesticCenter()||map.getZoom()<11)return false;
   try{
-   if(!map.getSource('bpCityStructures'))return false;
-   const fs=map.querySourceFeatures?.('bpCityStructures',{sourceLayer:'buildings'})||[];
-   return fs.length>0
+   if(!map.getSource('bpCityStructures')||!map.getLayer('gta-city-buildings'))return false;
+   const visible=(map.getLayoutProperty('gta-city-buildings','visibility')||'visible')!=='none';
+   if(!visible)return false;
+   const rendered=map.queryRenderedFeatures?.({layers:['gta-city-buildings']})||[];
+   const ready=rendered.length>0;
+   window.__BP_CITY_BUILDING_HANDOFF_V5545__={version:5545,ready,rendered:rendered.length,zoom:map.getZoom(),center:map.getCenter(),rule:'hide-global-only-after-city-renders-in-current-viewport',updatedAt:Date.now()};
+   return ready
   }catch(_){return false}
  }
  function syncParcelShells(){const z=map.getZoom(),on=!!layerState.parcels&&!moving&&bridgePointDomesticCenter()&&z>=PARCEL_MIN;vis(map,'gta-parcel-glow',on);vis(map,'gta-parcel',on);return on}
@@ -822,6 +826,8 @@ export function initWorld(options={}){
    floorLines:floors,
    contextRoofFallback:roofFallback&&!cityReady,
    displaySource:cityReady?'BRIDGEPOINT_CITY_STRUCTURES_V5371':'OPENFREEMAP_GLOBAL_BUILDING',
+   seamlessFallback:!cityReady,
+   cityHandoff:'CURRENT_VIEWPORT_RENDERED_FEATURE_REQUIRED_V5545',
    fineDetailDisabled:true,
    cameraMode:'FREE_FLY_SINGLE_VIEW',
    updatedAt:Date.now()

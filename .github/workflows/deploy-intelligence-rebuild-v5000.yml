@@ -256,8 +256,8 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' site/app.js
           grep -Fq 'bpUserMapGesture' site/landing.js
           grep -Fq 'landingFreePremiumTools' site/index.html
-          grep -Fq 'landing.js?v=5544' site/index.html
-          grep -Fq 'app.js?v=5544' site/app/index.html
+          grep -Fq 'landing.js?v=5545' site/index.html
+          grep -Fq 'app.js?v=5545' site/app/index.html
           grep -Fq 'window.__BP_LANDING_WORLD__=world' site/landing.js
           grep -Fq '__BP_WORLD_CORE_READY__' site/world-v2300-map.js
           grep -Fq "world-v2300-space.js?v=5536" site/world-v2300-map.js
@@ -269,6 +269,9 @@ jobs:
           grep -Fq '__BP_WORLD_FIX_V5542__' site/world-v2300-map.js
           grep -Fq '__BP_WORLD_INTERACTION_V5543__' site/world-v2300-map.js
           grep -Fq '__BP_WORLD_PERFORMANCE_V5544__' site/world-v2300-map.js
+          grep -Fq '__BP_CITY_BUILDING_HANDOFF_V5545__' site/world-v2300-map.js
+          grep -Fq 'CURRENT_VIEWPORT_RENDERED_FEATURE_REQUIRED_V5545' site/world-v2300-map.js
+          grep -Fq 'seamlessFallback:!cityReady' site/world-v2300-map.js
           grep -Fq 'persistentThroughStreetLevel:true' site/world-v2300-map.js
           grep -Fq "map.once('load',ensureMapGestures)" site/world-v2300-map.js
           ! grep -Fq "map.on('move',refreshWorldDuringMotion)" site/world-v2300-map.js
@@ -574,7 +577,7 @@ jobs:
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5371=${q}" -o /tmp/app.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5378=${q}" -o /tmp/world-v2300-map.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/walkthrough-v5537.js?v5539=${q}" -o /tmp/walkthrough-v5537.js || true
-            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'landing.js?v=5544' /tmp/root.html && grep -Fq '/walkthrough-v5537.js?v=5539' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5544' /tmp/app.html && grep -Fq '/walkthrough-v5537.js?v=5539' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' /tmp/world-v2300-map.js && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js; then ok=1; break; fi
+            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'landing.js?v=5545' /tmp/root.html && grep -Fq '/walkthrough-v5537.js?v=5539' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5545' /tmp/app.html && grep -Fq '/walkthrough-v5537.js?v=5539' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' /tmp/world-v2300-map.js && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
