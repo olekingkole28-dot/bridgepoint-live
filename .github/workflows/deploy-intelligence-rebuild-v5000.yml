@@ -752,8 +752,8 @@ jobs:
               }));
               if(!landing.build.includes('BP_LANDING_V5410')||!landing.search||!landing.sample||landing.mapCanvases!==1||landing.lockedTabs<6||!landing.noHorizontalOverflow||landing.searchZoomOverlap||!landing.mollyPresent||landing.heroLabelFont<11||landing.heroSmallFont<8.5||!landing.backdropLoaded||landing.productVisuals<6||landing.packageCards<9||!landing.globalPrecip5510||!landing.defaultGlobe||!landing.freePremiumVisible||!landing.mapKeyVisible||!landing.viewerCountryStart||!landing.mobileSearchHide||!/first property lookup is free/i.test(landing.freeLookupCopy))throw new Error('LANDING_CONVERSION_REGRESSION '+JSON.stringify(landing));
               console.log('BRIDGEPOINT_LANDING_CONVERSION_PASS',JSON.stringify(landing));
-              await p.evaluate(()=>{const el=document.getElementById('previewMap');el?.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));window.__BP_LANDING_WORLD__?.map?.panBy([18,0],{duration:0})});
-              await p.waitForFunction(()=>{const e=document.querySelector('.preview-sample');return !!e&&(parseFloat(getComputedStyle(e).opacity)||0)<.1},{timeout:5000});
+              await p.evaluate(()=>{const el=document.getElementById('previewMap'),m=window.__BP_LANDING_WORLD__?.map;el?.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'touch'}));m?.panBy([18,0],{duration:120})});
+              await p.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map,e=document.querySelector('.preview-sample');return !!e&&!m?.isMoving?.()&&(parseFloat(getComputedStyle(e).opacity)||0)<.1},{timeout:10000});
               console.log('BRIDGEPOINT_SAMPLE_CHIP_MOVE_HIDE_PASS');
               await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map;m?.jumpTo({center:[-98.5,39.5],zoom:3.35,pitch:0,bearing:0})});
               await p.waitForFunction(()=>Number(window.__BP_LANDING_LIVE_WEATHER__?.shapeCount||0)>0&&Number(window.__BP_LANDING_LIVE_WEATHER__?.pointCount||0)>0,{timeout:20000});
