@@ -3,7 +3,7 @@ name: BridgePoint Continuous Mobile Map Watchdog V5561
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/5 * * * *'
   push:
     branches: [main]
     paths:
@@ -44,7 +44,7 @@ jobs:
           python3 - <<'PY'
           import json
           d=json.load(open('/tmp/boundary-status.json'))
-          assert d.get('version')==5576, d
+          assert int(d.get('version') or 0)>=5576, d
           rows={str(x.get('state_code')):x for x in d.get('status',{}).get('states',[])}
           assert rows.get('CT',{}).get('public_enabled') is True, rows.get('CT')
           assert rows.get('MD',{}).get('public_enabled') is True, rows.get('MD')
@@ -121,6 +121,8 @@ jobs:
                 }
               });
               if(!baseline.dragPan||!baseline.touchZoomRotate)throw new Error('GESTURES_DISABLED '+JSON.stringify(baseline));
+              const chrome0=await page.evaluate(()=>{const key=document.getElementById('bp5507-key'),brand=document.querySelector('.map-brand-card');const ok=e=>!!e&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden'&&Number(getComputedStyle(e).opacity||1)>.8;return{key:ok(key),brand:ok(brand),busy:document.body.classList.contains('bp5507-mobile-busy'),app:window.__BP_MAP_STABILITY_V5580__||null,mobile:window.__BP_MOBILE_MAP_INTERACTION_V5580__||null}});
+              if(!chrome0.key||!chrome0.brand||chrome0.busy||!chrome0.app?.serialBackgroundDrain)throw new Error('MAP_CHROME_NOT_PERSISTENT_V5580 '+JSON.stringify(chrome0));
               if(!baseline.performance?.duplicateTouchSelectionRemoved||baseline.performance?.lodNeverForcesStationaryDuringTouch!==true||baseline.performance?.touchPointerDownNeverStopsCamera!==true)throw new Error('OLD_TOUCH_PATH '+JSON.stringify(baseline));
               if(baseline.circuit?.destructiveCameraStop!==false)throw new Error('DESTRUCTIVE_CAMERA_STOP_PRESENT '+JSON.stringify(baseline));
               if(Number(baseline.parcelMin)>6.7||Number(baseline.parcelGlowMin)>6.7||Number(baseline.parcelSourceMin)>6.7)throw new Error('PARCEL_ZOOM_GATE '+JSON.stringify(baseline));
@@ -155,6 +157,8 @@ jobs:
               await sleep(900);
               const after=await page.evaluate(()=>{const c=window.__BP_V5000_WORLD.map.getCenter();return[c.lng,c.lat]});
               if(delta(before,after)<0.00001)throw new Error('MAP_FROZEN_AFTER_BUILDING_TAP '+JSON.stringify({before,after}));
+              const chrome1=await page.evaluate(()=>{const key=document.getElementById('bp5507-key'),brand=document.querySelector('.map-brand-card');const ok=e=>!!e&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden'&&Number(getComputedStyle(e).opacity||1)>.8;return{key:ok(key),brand:ok(brand),busy:document.body.classList.contains('bp5507-mobile-busy'),tap:window.__BP_TAP_CONTINUITY_V5580__||null}});
+              if(!chrome1.key||!chrome1.brand||chrome1.busy)throw new Error('MAP_CHROME_FLICKER_AFTER_DRAG '+JSON.stringify(chrome1));
 
               await page.evaluate(async()=>{
                 const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
