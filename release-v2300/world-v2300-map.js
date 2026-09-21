@@ -289,10 +289,10 @@ function bpIconImage(id){
  return x.getImageData(0,0,size,size)
 }
 function installBridgePointIcons(map){
- const ids=['bp-poi-medical','bp-poi-school','bp-poi-fire','bp-poi-police','bp-poi-transit','bp-poi-food','bp-poi-shop','bp-poi-park','bp-poi-government','bp-poi-library','bp-poi-hotel','bp-poi-fuel','bp-poi-parking','bp-poi-worship','bp-poi-airport','bp-poi-general','bp-opp-roof','bp-opp-storm','bp-opp-fire','bp-opp-water','bp-opp-solar','bp-opp-development','bp-opp-investment','bp-opp-compliance','bp-opp-general'];
+ if(map.__bpIconLazyV5587)return;map.__bpIconLazyV5587=true;
  const add=id=>{try{if(!map.hasImage(id))map.addImage(id,bpIconImage(id),{pixelRatio:2})}catch(e){console.warn('BridgePoint icon',id,e)}};
- map.on('styleimagemissing',e=>{if(String(e.id||'').startsWith('bp-'))add(e.id)});
- for(const id of ids)add(id)
+ map.on('styleimagemissing',e=>{const id=String(e.id||'');if(id.startsWith('bp-poi-')||id.startsWith('bp-opp-'))add(id)});
+ window.__BP_ICON_LAZYLOAD_V5587__={version:5587,onDemand:true,eagerCount:0,updatedAt:Date.now()}
 }
 
 function facadePatternImage(id){
@@ -427,13 +427,11 @@ function floorLinePatternImage(){
  return x.getImageData(0,0,size,size)
 }
 function installBuildingMaterials(map){
- const facadeKinds=['res-cream','res-sage','res-blue','res-tan','res-rose','res-white','res-charcoal','row-red','row-brown','row-cream','brick-red','brick-brown','brick-tan','brick-dark','brick-orange','brick-cream','glass-blue','glass-teal','glass-smoke','glass-silver','glass-green','glass-bronze','glass-ice','office-stone','office-beige','office-white','office-charcoal','office-sand','office-gray','industrial-gray','industrial-blue','industrial-tan','industrial-white','industrial-green','industrial-rust','barn-red','barn-wood','barn-white','civic-limestone','civic-stone','civic-brick','civic-granite','medical-white','medical-brick','medical-glass','fire-red','fire-brick','fire-modern','school-brick','school-stone','school-modern','police-stone','police-modern','neutral-warm','neutral-cool','neutral-dark'];
- const roofKinds=['roof-membrane-dark','roof-membrane-light','roof-gravel','roof-shingle-gray','roof-shingle-brown','roof-metal-dark','roof-metal-silver','roof-tile-red','roof-tile-brown','roof-slate'];
- const facadeIds=facadeKinds.flatMap(k=>['bpfacade-solid-'+k+'-v0','bpfacade-'+k+'-v0']),roofIds=roofKinds.map(k=>'bproof-'+k),windowIds=['bp-window-night-warm','bp-window-night-cool','bp-window-night-mixed'],floorIds=['bp-floor-lines'];
- const add=id=>{try{if(map.hasImage(id))return;if(id==='bp-floor-lines')map.addImage(id,floorLinePatternImage(),{pixelRatio:2});else if(id.startsWith('bproof-'))map.addImage(id,roofPatternImage(id),{pixelRatio:2});else if(id.startsWith('bp-window-night-'))map.addImage(id,nightWindowPatternImage(id),{pixelRatio:2});else map.addImage(id,facadePatternImage(id),{pixelRatio:2})}catch(e){console.warn('BridgePoint building material',id,e)}};
+ if(map.__bpBuildingMaterialLazyV5587)return;map.__bpBuildingMaterialLazyV5587=true;
+ const add=id=>{try{if(map.hasImage(id))return;if(id==='bp-floor-lines')map.addImage(id,floorLinePatternImage(),{pixelRatio:2});else if(id.startsWith('bproof-'))map.addImage(id,roofPatternImage(id),{pixelRatio:2});else if(id.startsWith('bp-window-night-'))map.addImage(id,nightWindowPatternImage(id),{pixelRatio:2});else if(id.startsWith('bpfacade-'))map.addImage(id,facadePatternImage(id),{pixelRatio:2})}catch(e){console.warn('BridgePoint building material',id,e)}};
  map.on('styleimagemissing',e=>{const id=String(e.id||'');if(id==='bp-floor-lines'||id.startsWith('bpfacade-')||id.startsWith('bproof-')||id.startsWith('bp-window-night-'))add(id)});
- for(const id of [...facadeIds,...roofIds,...windowIds,...floorIds])add(id);
- window.__BP_BUILDING_MATERIALS__={version:'v5365',mode:'grey-3d-detail',simpleGreyGeometry:true,legacyPersistentGlobalShell:true,floorLines:true,facadeTextures:false,roofOverlays:true,exactRoofs:true,buildingParts:false,nightWindows:false,exactWorldOverlay:true,updatedAt:Date.now()}
+ window.__BP_BUILDING_MATERIALS__={version:'v5587',mode:'grey-3d-detail',simpleGreyGeometry:true,legacyPersistentGlobalShell:true,floorLines:true,facadeTextures:false,roofOverlays:true,exactRoofs:true,buildingParts:false,nightWindows:false,exactWorldOverlay:true,lazyImages:true,eagerImages:0,updatedAt:Date.now()};
+ window.__BP_MATERIAL_LAZYLOAD_V5587__={version:5587,buildingImages:'on-demand',eagerBuildingImages:0,updatedAt:Date.now()}
 }
 
 function surfacePatternImage(id){
@@ -459,12 +457,14 @@ function landmarkIconImage(kind){
  return x.getImageData(0,0,size,size)
 }
 function installWorldMaterials(map){
- const terrain=['forest','grass','farm','wetland','sand','desert','rock','scrub','glacier','neutral'];
+ if(map.__bpWorldMaterialLazyV5587)return;map.__bpWorldMaterialLazyV5587=true;
+ const landmarks=new Map([['bp-landmark-monument','monument'],['bp-landmark-statue','statue'],['bp-landmark-fountain','fountain'],['bp-transit-stop','transit']]);
  const addTerrain=id=>{try{if(!map.hasImage(id))map.addImage(id,surfacePatternImage(id),{pixelRatio:2})}catch(e){console.warn('BridgePoint surface',id,e)}};
- for(const k of terrain)addTerrain('bpterrain-'+k);
- for(const [id,kind] of [['bp-landmark-monument','monument'],['bp-landmark-statue','statue'],['bp-landmark-fountain','fountain'],['bp-transit-stop','transit']]){try{if(!map.hasImage(id))map.addImage(id,landmarkIconImage(kind),{pixelRatio:2})}catch(e){console.warn('BridgePoint landmark',id,e)}}
- map.on('styleimagemissing',e=>{const id=String(e.id||'');if(id.startsWith('bpterrain-'))addTerrain(id)});
- window.__BP_WORLD_MATERIALS__={version:'v5365',biomes:true,glacierRelief:true,physicalRoads:true,blackYellowWhiteRoads:true,bridgeDecks:true,shorelineMotion:true,landmarks:true,updatedAt:Date.now()}
+ const addLandmark=id=>{try{if(!map.hasImage(id)&&landmarks.has(id))map.addImage(id,landmarkIconImage(landmarks.get(id)),{pixelRatio:2})}catch(e){console.warn('BridgePoint landmark',id,e)}};
+ map.on('styleimagemissing',e=>{const id=String(e.id||'');if(id.startsWith('bpterrain-'))addTerrain(id);else if(landmarks.has(id))addLandmark(id)});
+ try{map.triggerRepaint?.()}catch(_){}
+ window.__BP_WORLD_MATERIALS__={version:'v5587',biomes:true,glacierRelief:true,physicalRoads:true,blackYellowWhiteRoads:true,bridgeDecks:true,shorelineMotion:true,landmarks:true,lazyImages:true,eagerImages:0,updatedAt:Date.now()};
+ window.__BP_MATERIAL_LAZYLOAD_V5587__={...(window.__BP_MATERIAL_LAZYLOAD_V5587__||{}),version:5587,buildingImages:'on-demand',worldImages:'on-demand',eagerWorldImages:0,updatedAt:Date.now()}
 }
 
 function roadLights(map){if(map.getZoom()<LIGHT_MIN)return EMPTY;let fs=[];try{fs=map.queryRenderedFeatures({layers:['gta-road-major','gta-road-local']})||[]}catch(_){return EMPTY}const pts=[],seen=new Set(),max=MOBILE?260:(TIER==='LOW'?320:TIER==='HIGH'?900:560);for(const f of fs){const g=f.geometry,lines=g?.type==='LineString'?[g.coordinates]:g?.type==='MultiLineString'?g.coordinates:[];for(const line of lines){const step=Math.max(4,Math.ceil(line.length/(MOBILE?6:10)));for(let i=0;i<line.length&&pts.length<max;i+=step){const c=line[i],k=`${c[0].toFixed(5)}|${c[1].toFixed(5)}`;if(seen.has(k))continue;seen.add(k);pts.push({type:'Feature',properties:{kind:'streetlight'},geometry:{type:'Point',coordinates:c}})}}}return fc(pts)}
