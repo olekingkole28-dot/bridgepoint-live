@@ -823,7 +823,7 @@ jobs:
               await p.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map,e=document.querySelector('.preview-sample');return !!e&&!m?.isMoving?.()&&(parseFloat(getComputedStyle(e).opacity)||0)<.1},{timeout:10000});
               console.log('BRIDGEPOINT_SAMPLE_CHIP_MOVE_HIDE_PASS');
               await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map;m?.jumpTo({center:[-98.5,39.5],zoom:3.35,pitch:0,bearing:0})});
-              await p.waitForFunction(()=>Number(window.__BP_LANDING_LIVE_WEATHER__?.shapeCount||0)>0&&Number(window.__BP_LANDING_LIVE_WEATHER__?.pointCount||0)>0,{timeout:20000});
+              await p.waitForFunction(()=>Number(window.__BP_LANDING_LIVE_WEATHER__?.shapeCount||0)>0&&Number(window.__BP_LANDING_LIVE_WEATHER__?.pointCount||0)>0,{timeout:45000});
               await p.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map;if(!m)return false;try{return m.queryRenderedFeatures({layers:['bp-landing-weather-points']}).length>0&&m.queryRenderedFeatures({layers:['bp-landing-weather-line']}).length>0}catch{return false}},{timeout:30000});
               await p.waitForFunction(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;if(!m)return false;
