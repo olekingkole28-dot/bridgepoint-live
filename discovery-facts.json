@@ -1,15 +1,15 @@
 {
   "entity": "BridgePoint Intelligence",
   "metrics": {
-    "map_ready_buildings": 143830912,
-    "roof_shell_buildings": 143830912,
+    "map_ready_buildings": 144018848,
+    "roof_shell_buildings": 144018848,
     "roof_shell_coverage_pct": 100.0,
-    "canonical_property_records": 169961211,
-    "normalized_address_records": 154484593,
-    "source_backed_roof_records": 683658,
-    "lidar_refined_roof_buildings": 4463,
+    "canonical_property_records": 170104241,
+    "normalized_address_records": 154611709,
+    "source_backed_roof_records": 683903,
+    "lidar_refined_roof_buildings": 4475,
     "materialized_boundary_estimate": 83881564,
-    "public_parcel_identity_records": 169961361,
+    "public_parcel_identity_records": 170104241,
     "canonical_property_record_label": "canonical property/parcel identity records",
     "property_boundary_link_estimate": 31311895
   },
@@ -19,19 +19,19 @@
     "pr_oid_remaining": 0,
     "strict_boundary_ready": false,
     "required_jurisdictions": 56,
-    "fresh_approved_jurisdictions": 55,
+    "fresh_approved_jurisdictions": 54,
     "public_counter_jurisdictions": 56
   },
   "freshness": {
-    "roof_updated_at": "2026-09-21T12:00:34.503667+00:00",
-    "lidar_last_success_at": "2026-09-21T10:48:11.856902+00:00",
-    "parcel_counter_updated_at": "2026-09-21T12:00:08.248783+00:00",
-    "address_counter_updated_at": "2026-09-21T12:00:39.706122+00:00",
-    "parcel_scoreboard_updated_at": "2026-09-21T12:00:07.863768+00:00",
+    "roof_updated_at": "2026-09-21T18:09:45.534917+00:00",
+    "lidar_last_success_at": "2026-09-21T15:01:13.855246+00:00",
+    "parcel_counter_updated_at": "2026-09-21T18:06:02.222017+00:00",
+    "address_counter_updated_at": "2026-09-21T18:09:33.646721+00:00",
+    "parcel_scoreboard_updated_at": "2026-09-21T18:09:04.085511+00:00",
     "parcel_autopilot_last_tick_at": "2026-09-16T01:18:58.834462+00:00"
   },
   "horizon_url": "https://bridgepointintelligence.online/app/horizon/",
-  "generated_at": "2026-09-21T12:00:51.533649+00:00",
+  "generated_at": "2026-09-21T18:09:54.010152+00:00",
   "canonical_url": "https://bridgepointintelligence.online/",
   "jurisdictions": [
     {
@@ -56,13 +56,13 @@
     },
     {
       "code": "AZ",
-      "updated_at": "2026-09-21T12:00:08.248783+00:00",
-      "canonical_property_parcel_records": 4501416
+      "updated_at": "2026-09-21T18:06:02.222017+00:00",
+      "canonical_property_parcel_records": 4547033
     },
     {
       "code": "CA",
-      "updated_at": "2026-09-21T11:43:39.214498+00:00",
-      "canonical_property_parcel_records": 22543769
+      "updated_at": "2026-09-21T12:08:45.883933+00:00",
+      "canonical_property_parcel_records": 22543829
     },
     {
       "code": "CO",
@@ -111,8 +111,8 @@
     },
     {
       "code": "ID",
-      "updated_at": "2026-09-21T11:59:13.183043+00:00",
-      "canonical_property_parcel_records": 419664
+      "updated_at": "2026-09-21T12:08:45.883933+00:00",
+      "canonical_property_parcel_records": 424507
     },
     {
       "code": "IL",
@@ -156,8 +156,8 @@
     },
     {
       "code": "MI",
-      "updated_at": "2026-09-21T11:58:35.960723+00:00",
-      "canonical_property_parcel_records": 3924007
+      "updated_at": "2026-09-21T18:04:23.33569+00:00",
+      "canonical_property_parcel_records": 3957456
     },
     {
       "code": "MN",
@@ -216,8 +216,8 @@
     },
     {
       "code": "NV",
-      "updated_at": "2026-09-21T11:46:58.15445+00:00",
-      "canonical_property_parcel_records": 1240591
+      "updated_at": "2026-09-21T12:08:45.883933+00:00",
+      "canonical_property_parcel_records": 1240593
     },
     {
       "code": "NY",
@@ -236,8 +236,8 @@
     },
     {
       "code": "OR",
-      "updated_at": "2026-09-21T11:36:48.854898+00:00",
-      "canonical_property_parcel_records": 1119566
+      "updated_at": "2026-09-21T12:15:05.492297+00:00",
+      "canonical_property_parcel_records": 1119670
     },
     {
       "code": "PA",
@@ -261,8 +261,8 @@
     },
     {
       "code": "SD",
-      "updated_at": "2026-09-21T10:49:54.119722+00:00",
-      "canonical_property_parcel_records": 115177
+      "updated_at": "2026-09-21T13:18:42.535828+00:00",
+      "canonical_property_parcel_records": 148845
     },
     {
       "code": "TN",
@@ -296,8 +296,8 @@
     },
     {
       "code": "WA",
-      "updated_at": "2026-09-21T11:37:52.803255+00:00",
-      "canonical_property_parcel_records": 3730030
+      "updated_at": "2026-09-21T12:15:05.492297+00:00",
+      "canonical_property_parcel_records": 3731623
     },
     {
       "code": "WI",
@@ -311,8 +311,8 @@
     },
     {
       "code": "WY",
-      "updated_at": "2026-09-21T10:40:40.062377+00:00",
-      "canonical_property_parcel_records": 745160
+      "updated_at": "2026-09-21T13:47:03.046636+00:00",
+      "canonical_property_parcel_records": 768704
     }
   ],
   "accuracy_notes": [
@@ -325,7 +325,7 @@
   "horizon_year_one_demand": {
     "ok": true,
     "mode": "365_DAY_YEAR_ONE_SURVIVAL",
-    "updated_at": "2026-09-21T12:00:51.668927+00:00",
+    "updated_at": "2026-09-21T18:09:54.263407+00:00",
     "event_started": false,
     "unique_requests": 0,
     "billing_connected": false,

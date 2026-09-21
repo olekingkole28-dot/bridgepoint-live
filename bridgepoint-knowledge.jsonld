@@ -37,7 +37,7 @@
         {
           "@type": "PropertyValue",
           "name": "Canonical property/parcel identity records",
-          "value": 169961211
+          "value": 170104241
         },
         {
           "@type": "PropertyValue",
@@ -47,12 +47,12 @@
         {
           "@type": "PropertyValue",
           "name": "Normalized/public address records",
-          "value": 154484593
+          "value": 154611709
         },
         {
           "@type": "PropertyValue",
           "name": "Map-ready buildings",
-          "value": 143830912
+          "value": 144018848
         }
       ]
     },
