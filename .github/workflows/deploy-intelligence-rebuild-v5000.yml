@@ -435,7 +435,7 @@ jobs:
           grep -Fq '__BP_EXACT_DETAIL_STATE__' site/world-v2300-map.js
           grep -Fq 'streetLevelClamped' site/world-v2300-map.js
           grep -Fq 'gta-bp-landmark3d-body' site/world-v2300-map.js
-          grep -Fq 'cancelPendingTileRequestsWhileZooming:true' site/world-v2300-map.js
+          grep -Fq 'cancelPendingTileRequestsWhileZooming:false' site/world-v2300-map.js
           grep -Fq 'wx-radar-haze' site/world-v2300-weather.js
           grep -Fq 'NOHRSC_Snow_Analysis' site/world-v2300-weather.js
           ! grep -Fq "map.getSource('selected')?.setData" site/world-v2300-map.js
