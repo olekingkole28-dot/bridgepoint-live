@@ -299,6 +299,7 @@ jobs:
           grep -Fq '__BP_CITY_BUILDING_HANDOFF_V5545__' site/world-v2300-map.js
           grep -Fq '__BP_EXACT_FALLBACK_V5546__' site/world-v2300-map.js
           grep -Fq '__BP_BUILDING_SELECTION_V5547__' site/world-v2300-map.js
+          grep -Fq '__BP_BUILDING_SELECTION_V5552__' site/world-v2300-map.js
           grep -Fq 'panelDeferred:true' site/world-v2300-map.js
           grep -Fq 'p_min_lat:b.south' site/world-v2300-map.js
           ! grep -Fq 'p_west:b.west' site/world-v2300-map.js
@@ -938,12 +939,12 @@ jobs:
                 throw new Error('VISIBLE_BUILDING_NOT_CLICKABLE '+JSON.stringify(clickDiag));
               }
               await p.waitForFunction(()=>{
-                const panel=document.getElementById('buildingPanel'),sel=window.__BP_BUILDING_SELECTION_V5547__;
-                if(!panel||sel?.panelImmediate!==true)return false;
+                const panel=document.getElementById('buildingPanel'),sel=window.__BP_BUILDING_SELECTION_V5552__;
+                if(!panel||sel?.singleClickPath!==true)return false;
                 const cs=getComputedStyle(panel);
                 return panel.hidden===false&&cs.display!=='none'&&cs.visibility!=='hidden';
               },{timeout:12000}).catch(async e=>{
-                const diag=await p.evaluate(()=>{const panel=document.getElementById('buildingPanel'),sel=window.__BP_BUILDING_SELECTION_V5547__,cs=panel?getComputedStyle(panel):null;return{panelExists:!!panel,hidden:panel?.hidden,display:cs?.display||null,visibility:cs?.visibility||null,marker:sel||null,open:window.__BP_BUILDING_PANEL_OPEN__||false,href:location.href,verified:!!panel&&panel.hidden===false&&cs?.display!=='none'&&cs?.visibility!=='hidden'&&sel?.panelImmediate===true&&window.__BP_BUILDING_PANEL_OPEN__===true}});
+                const diag=await p.evaluate(()=>{const panel=document.getElementById('buildingPanel'),sel=window.__BP_BUILDING_SELECTION_V5552__,cs=panel?getComputedStyle(panel):null;return{panelExists:!!panel,hidden:panel?.hidden,display:cs?.display||null,visibility:cs?.visibility||null,marker:sel||null,open:window.__BP_BUILDING_PANEL_OPEN__||false,href:location.href,verified:!!panel&&panel.hidden===false&&cs?.display!=='none'&&cs?.visibility!=='hidden'&&sel?.singleClickPath===true&&window.__BP_BUILDING_PANEL_OPEN__===true}});
                 if(diag.verified){console.log('BRIDGEPOINT_BUILDING_PANEL_LATE_PASS',JSON.stringify(diag));return;}
                 throw new Error('BUILDING_PANEL_NOT_VISIBLE '+JSON.stringify(diag)+' '+e.message);
               });
