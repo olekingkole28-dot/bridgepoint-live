@@ -293,11 +293,11 @@ jobs:
           grep -Fq '__BP_BRIDGE3D_V5542__' site/world-v2300-map.js
           grep -Fq '__BP_WORLD_FIX_V5542__' site/world-v2300-map.js
           grep -Fq '__BP_WORLD_INTERACTION_V5543__' site/world-v2300-map.js
-          grep -Fq '__BP_WORLD_PERFORMANCE_V5544__' site/world-v2300-map.js
+          grep -Fq '__BP_WORLD_PERFORMANCE_V5552__' site/world-v2300-map.js
           grep -Fq '__BP_CITY_BUILDING_HANDOFF_V5545__' site/world-v2300-map.js
           grep -Fq '__BP_EXACT_FALLBACK_V5546__' site/world-v2300-map.js
           grep -Fq '__BP_BUILDING_SELECTION_V5547__' site/world-v2300-map.js
-          grep -Fq 'panelImmediate:true' site/world-v2300-map.js
+          grep -Fq 'panelDeferred:true' site/world-v2300-map.js
           grep -Fq 'p_min_lat:b.south' site/world-v2300-map.js
           ! grep -Fq 'p_west:b.west' site/world-v2300-map.js
           grep -Fq 'CURRENT_VIEWPORT_RENDERED_FEATURE_REQUIRED_V5545' site/world-v2300-map.js
