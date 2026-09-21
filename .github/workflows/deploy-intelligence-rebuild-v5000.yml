@@ -602,20 +602,17 @@ jobs:
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5371=${q}" -o /tmp/app.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5378=${q}" -o /tmp/world-v2300-map.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/walkthrough-v5537.js?v5539=${q}" -o /tmp/walkthrough-v5537.js || true
-            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'landing.js?v=5547' /tmp/root.html && grep -Fq '/walkthrough-v5537.js?v=5539' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq 'app.js?v=5547' /tmp/app.html && grep -Fq '/walkthrough-v5537.js?v=5539' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' /tmp/world-v2300-map.js && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js; then ok=1; break; fi
+            curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/pricing/?v5551=${q}" -o /tmp/pricing.html || true
+            curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/.well-known/security.txt?v5551=${q}" -o /tmp/security.txt || true
+            curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/terminal/?v5551=${q}" -o /tmp/terminal.html || true
+            curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/newsroom/?v5551=${q}" -o /tmp/newsroom.html || true
+            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'landing.js?v=5547' /tmp/root.html && grep -Fq '/walkthrough-v5537.js?v=5539' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq '153,532,480' /tmp/root.html && grep -Fq '143,787,840' /tmp/root.html && grep -Fq 'app.js?v=5547' /tmp/app.html && grep -Fq '/walkthrough-v5537.js?v=5539' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq 'data-nosnippet' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5378' /tmp/world-v2300-map.js && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js && grep -Fq 'BridgePoint Intelligence pricing' /tmp/pricing.html && grep -Fq 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security.txt && grep -Fq '169,664,739' /tmp/terminal.html && ! grep -Eq 'live-(chileno|chicken-coop|lucas|thunder-creek|0505n|0584-cottonwood|0587-shingle|0611-green-mountain)' /tmp/newsroom.html; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
           grep -Fq 'BRIDGEPOINT' /tmp/root.html
           ! grep -Eiq 'HORIZON|battle pass|zombie|game mode' /tmp/root.html
           q="${GITHUB_SHA}-surface-check-$(date +%s)"
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/pricing/?v5551=${q}" -o /tmp/pricing.html
-          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/.well-known/security.txt?v5551=${q}" -o /tmp/security.txt
-          grep -Fq 'BridgePoint Intelligence pricing' /tmp/pricing.html
-          grep -Fq '153,532,480' /tmp/root.html
-          grep -Fq '143,787,840' /tmp/root.html
-          grep -Fq 'data-nosnippet' /tmp/app.html
-          grep -Fq 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security.txt
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/?v5100=${q}" -o /tmp/horizon.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon-playable/v2-entry.html?v5100=${q}" -o /tmp/horizon-playable.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/discover/?v5100=${q}" -o /tmp/discover.html
