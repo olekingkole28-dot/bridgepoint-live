@@ -18,6 +18,9 @@ const GLOBAL_ROOF_MIN=MOBILE?13.6:(TIER==='LOW'?13.5:TIER==='HIGH'?12.25:12.85);
 const GLOBAL_FLOOR_MIN=MOBILE?16.2:(TIER==='LOW'?16.1:TIER==='HIGH'?15.35:15.7);
 const BRIDGE_3D_MIN=MOBILE?12.7:(TIER==='LOW'?12.65:TIER==='HIGH'?11.55:12.05);
 const BRIDGE_SUPPORT_MIN=MOBILE?14.15:(TIER==='LOW'?14:TIER==='HIGH'?13.15:13.55);
+const LANDMARK_3D_MIN=MOBILE?13.35:(TIER==='LOW'?13.25:TIER==='HIGH'?12.45:12.8);
+const LANDMARK_DETAIL_MIN=MOBILE?14.2:(TIER==='LOW'?14.1:TIER==='HIGH'?13.25:13.65);
+const STATUE_LIBERTY_COORD=[-74.0445004,40.6892494];
 const US_BOUNDS=[-125,24,-66,50];
 
 const roadFilter=classes=>['in',['get','class'],['literal',classes]];
@@ -130,7 +133,7 @@ function style(){
   dem:{type:'raster-dem',tiles:[DEM],tileSize:256,maxzoom:15,encoding:'terrarium',attribution:'Mapzen Terrain Tiles · AWS Open Data'},
   bpBuildings:{type:'vector',tiles:[BUILDINGS],minzoom:10,maxzoom:22,attribution:'BridgePoint public-safe source-backed building geometry · V5019'},bpCityStructures:{type:'vector',tiles:[CITY_STRUCTURES],minzoom:11,maxzoom:22,attribution:'BridgePoint source-backed city structures · V5376'},bpCityRoofs:{type:'vector',tiles:[CITY_ROOFS],minzoom:15,maxzoom:22,attribution:'BridgePoint source-backed real roof geometry · V5376'},
   bpParcels:{type:'vector',tiles:[PARCELS],minzoom:10,maxzoom:22,attribution:'BridgePoint parcel provenance'},
-  exact:{type:'geojson',data:EMPTY},exactRoof:{type:'geojson',data:EMPTY},selected:{type:'geojson',data:EMPTY},streetlights:{type:'geojson',data:EMPTY},bpOpportunities:{type:'geojson',data:EMPTY},bpSemanticLabels:{type:'geojson',data:EMPTY},bpLivingWorld:{type:'geojson',data:EMPTY,attribution:'BridgePoint source-backed living-world detail · public/open government and OSM sources'},bpLivingWorld3D:{type:'geojson',data:EMPTY,attribution:'BridgePoint source-backed positions · derived display geometry'},bpBridge3D:{type:'geojson',data:EMPTY,attribution:'OpenStreetMap/OpenFreeMap bridge centerlines · BridgePoint derived 3D bridge display geometry'},bpRoad3D:{type:'geojson',data:EMPTY,attribution:'OpenStreetMap/OpenFreeMap centerlines · BridgePoint derived physical road deck'}
+  exact:{type:'geojson',data:EMPTY},exactRoof:{type:'geojson',data:EMPTY},selected:{type:'geojson',data:EMPTY},streetlights:{type:'geojson',data:EMPTY},bpOpportunities:{type:'geojson',data:EMPTY},bpSemanticLabels:{type:'geojson',data:EMPTY},bpLivingWorld:{type:'geojson',data:EMPTY,attribution:'BridgePoint source-backed living-world detail · public/open government and OSM sources'},bpLivingWorld3D:{type:'geojson',data:EMPTY,attribution:'BridgePoint source-backed positions · derived display geometry'},bpLandmark3D:{type:'geojson',data:EMPTY,attribution:'OpenStreetMap/OpenFreeMap landmark POIs · BridgePoint source-position-derived 3D landmark geometry · Statue of Liberty height: U.S. National Park Service'},bpBridge3D:{type:'geojson',data:EMPTY,attribution:'OpenStreetMap/OpenFreeMap bridge centerlines · BridgePoint derived 3D bridge display geometry'},bpRoad3D:{type:'geojson',data:EMPTY,attribution:'OpenStreetMap/OpenFreeMap centerlines · BridgePoint derived physical road deck'}
  },
  layers:[
   {id:'gta-bg',type:'background',paint:{'background-color':'#071017'}},
@@ -144,6 +147,9 @@ function style(){
   {id:'gta-landcover-texture',type:'fill',source:'ofm','source-layer':'landcover',minzoom:9.2,paint:{'fill-pattern':['match',['downcase',['to-string',['coalesce',['get','class'],'']]],['wood','forest'],'bpterrain-forest',['grass','meadow'],'bpterrain-grass','farmland','bpterrain-farm',['wetland','marsh'],'bpterrain-wetland',['sand','beach'],'bpterrain-sand',['desert','dune'],'bpterrain-desert',['bare_rock','rock','scree'],'bpterrain-rock',['ice','glacier','snow'],'bpterrain-glacier',['scrub','heath'],'bpterrain-scrub','bpterrain-neutral'],'fill-opacity':['interpolate',['linear'],['zoom'],9.2,.18,13,.32,17,.46]}},
   {id:'gta-landuse',type:'fill',source:'ofm','source-layer':'landuse',minzoom:7.5,paint:{'fill-color':['match',['downcase',['to-string',['coalesce',['get','class'],'']]],['park','recreation_ground'],'#285b38','grass','#4c733f','cemetery','#3d5b43','residential','#373b3a','commercial','#44403a','retail','#494039','industrial','#454642','school','#555649','hospital','#55514a','#3b403d'],'fill-opacity':['interpolate',['linear'],['zoom'],7.5,.68,14,.82,18,.9]}},
   {id:'gta-hillshade',type:'hillshade',source:'dem',minzoom:4,paint:{'hillshade-exaggeration':LOW?.42:TIER==='HIGH'?.76:.62,'hillshade-shadow-color':'#11130f','hillshade-highlight-color':'#d6d2bb','hillshade-accent-color':'#686955'}},
+  {id:'gta-landmark3d-base',type:'fill-extrusion',source:'bpLandmark3D',minzoom:LANDMARK_3D_MIN,filter:['==',['get','part_group'],'base'],paint:{'fill-extrusion-color':['coalesce',['get','color'],'#918b81'],'fill-extrusion-base':['to-number',['get','base_m'],0],'fill-extrusion-height':['to-number',['get','top_m'],1],'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],LANDMARK_3D_MIN,.92,14,.98,16,1],'fill-extrusion-vertical-gradient':true}},
+  {id:'gta-landmark3d-body',type:'fill-extrusion',source:'bpLandmark3D',minzoom:LANDMARK_3D_MIN,filter:['==',['get','part_group'],'body'],paint:{'fill-extrusion-color':['coalesce',['get','color'],'#8d877d'],'fill-extrusion-base':['to-number',['get','base_m'],0],'fill-extrusion-height':['to-number',['get','top_m'],4],'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],LANDMARK_3D_MIN,.94,14,.99,16,1],'fill-extrusion-vertical-gradient':true}},
+  {id:'gta-landmark3d-accent',type:'fill-extrusion',source:'bpLandmark3D',minzoom:LANDMARK_DETAIL_MIN,filter:['==',['get','part_group'],'accent'],paint:{'fill-extrusion-color':['coalesce',['get','color'],'#d8c47f'],'fill-extrusion-base':['to-number',['get','base_m'],0],'fill-extrusion-height':['to-number',['get','top_m'],5],'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],LANDMARK_DETAIL_MIN,.9,15,.98,17,1],'fill-extrusion-vertical-gradient':true}},
   {id:'gta-bridge3d-pier',type:'fill-extrusion',source:'bpBridge3D',minzoom:BRIDGE_SUPPORT_MIN,filter:['==',['get','part'],'bridge_pier'],paint:{'fill-extrusion-color':'#777a78','fill-extrusion-base':0,'fill-extrusion-height':['to-number',['get','pier_top_m'],3.2],'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],BRIDGE_SUPPORT_MIN,.82,15,.96,17,.99],'fill-extrusion-vertical-gradient':true}},
   {id:'gta-bridge3d-deck',type:'fill-extrusion',source:'bpBridge3D',minzoom:BRIDGE_3D_MIN,filter:['==',['get','part'],'bridge_deck'],paint:{'fill-extrusion-color':['match',['get','bridge_class'],'rail','#4d4f50','path','#5c5b57','footway','#5c5b57','#171a1c'],'fill-extrusion-base':['to-number',['get','base_m'],3.2],'fill-extrusion-height':['to-number',['get','deck_top_m'],3.58],'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],BRIDGE_3D_MIN,.86,13.5,.96,15,.995],'fill-extrusion-vertical-gradient':true}},
   {id:'gta-bridge3d-rail',type:'fill-extrusion',source:'bpBridge3D',minzoom:BRIDGE_SUPPORT_MIN,filter:['==',['get','part'],'bridge_rail'],paint:{'fill-extrusion-color':'#c2c3be','fill-extrusion-base':['to-number',['get','rail_base_m'],3.5],'fill-extrusion-height':['to-number',['get','rail_top_m'],4.55],'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],BRIDGE_SUPPORT_MIN,.76,15,.94,17,.99],'fill-extrusion-vertical-gradient':true}},
@@ -227,6 +233,7 @@ function style(){
   {id:'gta-bp-landmarks',type:'symbol',source:'bpLivingWorld',minzoom:15,filter:['==',['get','layer_key'],'LANDMARK_OBJECTS_FINE'],layout:{'icon-image':['case',['==',['downcase',['to-string',['coalesce',['get','class'],'']]],'fountain'],'bp-landmark-fountain',['in',['downcase',['to-string',['coalesce',['get','subtype'],'']]],['literal',['statue','sculpture','artwork']]],'bp-landmark-statue','bp-landmark-monument'],'icon-size':['interpolate',['linear'],['zoom'],15,.65,19,1.05],'icon-anchor':'bottom','icon-allow-overlap':false,'text-field':['get','name'],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],15,9.5,19,13],'text-variable-anchor':['top','left','right'],'text-radial-offset':1,'text-optional':true},paint:{'text-color':'#e4ddca','text-halo-color':'rgba(8,11,11,.96)','text-halo-width':2}},
   {id:'gta-transit-stops',type:'symbol',source:'ofm','source-layer':'poi',minzoom:15,filter:['any',['in',['downcase',['to-string',['coalesce',['get','class'],'']]],['literal',['bus','bus_stop','station','transit']]],['in',['downcase',['to-string',['coalesce',['get','subclass'],'']]],['literal',['bus_stop','bus_station','tram_stop','station']]]],layout:{'icon-image':'bp-transit-stop','icon-size':['interpolate',['linear'],['zoom'],15,.48,18,.72,20,.9],'icon-anchor':'bottom','icon-allow-overlap':false,'text-field':['coalesce',['get','name_en'],['get','name']],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],15,9,19,12],'text-variable-anchor':['top','left','right'],'text-radial-offset':1,'text-optional':true},paint:{'text-color':'#dff6f7','text-halo-color':'rgba(5,12,17,.96)','text-halo-width':2}},
   {id:'gta-poi-probe',type:'circle',source:'ofm','source-layer':'poi',minzoom:12.5,paint:{'circle-radius':3,'circle-color':'#ffffff','circle-opacity':.001,'circle-stroke-opacity':0}},
+  {id:'gta-landmark3d-probe',type:'circle',source:'ofm','source-layer':'poi',minzoom:LANDMARK_3D_MIN,filter:['any',['in',['downcase',['to-string',['coalesce',['get','class'],'']]],['literal',['monument','memorial','artwork']]],['in',['downcase',['to-string',['coalesce',['get','subclass'],'']]],['literal',['monument','memorial','war_memorial','statue','sculpture','artwork','fountain','tower','observation_tower','communications_tower','lighthouse','beacon','obelisk','wayside_cross','wayside_shrine','bell_tower']]],['all',['==',['downcase',['to-string',['coalesce',['get','class'],'']]],'attraction'],['<=',['coalesce',['to-number',['get','rank']],99],6]],['==',['downcase',['to-string',['coalesce',['get','name_en'],['get','name'],'']]],'statue of liberty']],paint:{'circle-radius':2,'circle-color':'#ffffff','circle-opacity':.001,'circle-stroke-opacity':0}},
   {id:'gta-landmark-monuments',type:'symbol',source:'ofm','source-layer':'poi',minzoom:14,filter:['any',['in',['get','class'],['literal',['monument','memorial','attraction','artwork']]],['in',['get','subclass'],['literal',['monument','memorial','statue','sculpture','artwork','fountain']]]],layout:{'icon-image':['case',['in',['get','subclass'],['literal',['fountain']]],'bp-landmark-fountain',['in',['get','subclass'],['literal',['statue','sculpture','artwork']]],'bp-landmark-statue','bp-landmark-monument'],'icon-size':['interpolate',['linear'],['zoom'],14,.62,18,.9,20,1.1],'icon-anchor':'bottom','icon-allow-overlap':false,'text-field':['coalesce',['get','name_en'],['get','name']],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],14,9.5,18,12.5,20,14],'text-variable-anchor':['top','left','right'],'text-radial-offset':1.1,'text-optional':true},paint:{'text-color':'#e6dfcd','text-halo-color':'rgba(10,12,12,.96)','text-halo-width':2}},
   {id:'gta-poi-label',type:'symbol',source:'bpSemanticLabels',minzoom:13.4,layout:{'icon-image':['get','icon_id'],'icon-size':['interpolate',['linear'],['zoom'],13.4,.62,17,.82,20,1],'icon-anchor':'bottom','icon-allow-overlap':false,'icon-ignore-placement':false,'icon-padding':10,'text-field':['get','display_label'],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],13.4,10,17,11.5,20,13],'text-variable-anchor':['top','bottom','left','right'],'text-radial-offset':1.1,'text-justify':'auto','text-optional':true,'text-allow-overlap':false,'text-ignore-placement':false,'text-padding':11,'symbol-sort-key':['coalesce',['get','priority'],9]},paint:{'text-color':['coalesce',['get','label_color'],'#e8f8fc'],'text-halo-color':'rgba(4,11,16,.97)','text-halo-width':2,'text-halo-blur':.4}},
   {id:'gta-opportunity-label',type:'symbol',source:'bpOpportunities',minzoom:12.8,layout:{'icon-image':['match',['get','icon_key'],'ROOF','bp-opp-roof','STORM','bp-opp-storm','FIRE','bp-opp-fire','WATER','bp-opp-water','SOLAR','bp-opp-solar','DEVELOPMENT','bp-opp-development','INVESTMENT','bp-opp-investment','COMPLIANCE','bp-opp-compliance','bp-opp-general'],'icon-size':['interpolate',['linear'],['zoom'],12.8,.7,17,.9,20,1.05],'icon-anchor':'bottom','icon-offset':[0,-.35],'icon-allow-overlap':false,'icon-ignore-placement':false,'icon-padding':12,'text-field':['get','label'],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],13.8,10,17,11.5,20,13],'text-variable-anchor':['top','left','right','bottom'],'text-radial-offset':1.25,'text-optional':true,'text-allow-overlap':false,'text-ignore-placement':false,'text-padding':12,'symbol-sort-key':['-',0,['coalesce',['get','opportunity_count'],1]]},paint:{'text-color':['coalesce',['get','color'],'#7adcf0'],'text-halo-color':'rgba(3,9,14,.98)','text-halo-width':2.2,'text-halo-blur':.4}},
@@ -468,7 +475,7 @@ export function initWorld(options={}){
   }catch(_){}
  };
  map.once('load',()=>{guardAttribution();setTimeout(guardAttribution,120);setTimeout(guardAttribution,700)});map.once('idle',guardAttribution);
- let detailSeq=0,livingSeq=0,detailTimer=0,lightTimer=0,solarTimer=0,waterTimer=0,bridge3dTimer=0,road3dTimer=0,autoCameraTimer=0,lodWatchTimer=0,lodWatchSig='',lodWatchStable=0,autoCameraApplying=false,streetFxRaf=0,streetFxLastConditionAt=0,streetFxCondition=null,parcelPulseTimer=0,parcelPulsePhase=0,hoverFrame=0,lastHoverAt=0,exactCount=0,livingCount=0,base='gta',moving=false,terrainOn=false,walkMode=false,workerReq=0,lastTouchBuildingAt=0,lastBuildingClickAt=0,touchPointer=null,touchNative=null,buildingSelectHandler=null,activeTouchPointers=new Set(),lastExactFetchAt=0,lastLivingFetchAt=0,buildingShellQuietUntil=0,streetPhotoState={sequenceId:null,frames:[],index:-1,loadedCenter:null,loading:false},layerState={parcels:true,buildings:true};const worker=new Worker('./world-v2300-worker.js?v=5312',{type:'module'}),workerWait=new Map();
+ let detailSeq=0,livingSeq=0,detailTimer=0,lightTimer=0,solarTimer=0,waterTimer=0,landmark3dTimer=0,bridge3dTimer=0,road3dTimer=0,autoCameraTimer=0,lodWatchTimer=0,lodWatchSig='',lodWatchStable=0,autoCameraApplying=false,streetFxRaf=0,streetFxLastConditionAt=0,streetFxCondition=null,parcelPulseTimer=0,parcelPulsePhase=0,hoverFrame=0,lastHoverAt=0,exactCount=0,livingCount=0,base='gta',moving=false,terrainOn=false,walkMode=false,workerReq=0,lastTouchBuildingAt=0,lastBuildingClickAt=0,touchPointer=null,touchNative=null,buildingSelectHandler=null,activeTouchPointers=new Set(),lastExactFetchAt=0,lastLivingFetchAt=0,buildingShellQuietUntil=0,streetPhotoState={sequenceId:null,frames:[],index:-1,loadedCenter:null,loading:false},layerState={parcels:true,buildings:true};const worker=new Worker('./world-v2300-worker.js?v=5312',{type:'module'}),workerWait=new Map();
  worker.onmessage=e=>{const m=e.data||{},r=workerWait.get(m.requestId);if(r){workerWait.delete(m.requestId);r(m)}};
  const prepare=(features,max)=>new Promise(resolve=>{const requestId=++workerReq;workerWait.set(requestId,resolve);worker.postMessage({type:'prepare',requestId,features,max});setTimeout(()=>{if(workerWait.has(requestId)){workerWait.delete(requestId);resolve({buildings:fc(features.slice(0,max)),roofs:EMPTY,count:Math.min(features.length,max)})}},2500)});
  const setStatus=t=>{const e=document.getElementById('mapStatus');if(e)e.textContent=t};
@@ -554,6 +561,102 @@ export function initWorld(options={}){
   return{type:'FeatureCollection',features:out}
  }
  function road3dWidth(p){const explicit=Number(String(p?.width||'').match(/\d+(?:\.\d+)?/)?.[0]);if(Number.isFinite(explicit)&&explicit>1&&explicit<60)return explicit;const lanes=Number(p?.lanes);if(Number.isFinite(lanes)&&lanes>0)return clamp(lanes*3.25,3,26);const k=String(p?.class||'').toLowerCase();return({motorway:11,trunk:9,primary:8,secondary:7,tertiary:5.8,minor:4.8,residential:5.2,living_street:4.5,service:3.5,track:2.8,path:1.6,footway:1.5,cycleway:1.8}[k]||4.2)}
+ function offsetMeters(coord,east,north){return[coord[0]+east/metersLon(coord[1]),coord[1]+north/110540]}
+ function landmarkText(p){return String(p?.name_en||p?.name||'').trim()}
+ function landmarkKind(p){
+  const cls=String(p?.class||'').toLowerCase(),sub=String(p?.subclass||'').toLowerCase(),name=landmarkText(p).toLowerCase();
+  if(name==='statue of liberty'||name.includes('statue of liberty'))return'liberty_statue';
+  if(sub==='lighthouse'||sub==='beacon')return'lighthouse';
+  if(sub==='observation_tower'||sub==='communications_tower'||sub==='bell_tower'||sub==='tower')return'tower';
+  if(sub==='obelisk')return'obelisk';
+  if(sub==='fountain')return'fountain';
+  if(['statue','sculpture','artwork'].includes(sub)||cls==='artwork')return sub==='artwork'?'sculpture':sub||'sculpture';
+  if(['memorial','war_memorial'].includes(sub)||cls==='memorial')return'memorial';
+  if(sub==='monument'||cls==='monument')return'monument';
+  if(sub==='wayside_cross'||sub==='wayside_shrine')return'shrine';
+  if(cls==='attraction'){
+   if(/lighthouse|beacon/.test(name))return'lighthouse';
+   if(/tower|needle|spire/.test(name))return'tower';
+   if(/obelisk|column/.test(name))return'obelisk';
+   if(/statue|sculpture|buddha|christ|angel|liberty/.test(name))return'statue';
+   if(/monument|memorial|arch|shrine/.test(name))return'monument'
+  }
+  return null
+ }
+ function landmarkHeight(p,kind){
+  const raw=Number(String(p?.height_m??p?.height??'').match(/\d+(?:\.\d+)?/)?.[0]);
+  if(Number.isFinite(raw)&&raw>1&&raw<700)return raw;
+  return({liberty_statue:92.99,lighthouse:24,tower:38,obelisk:24,fountain:3.4,statue:8,sculpture:7,memorial:11,monument:18,shrine:6}[kind]||12)
+ }
+ function pushLandmarkPart(out,coord,r,base,top,part_group,color,meta,n=12){
+  out.push({type:'Feature',geometry:{type:'Polygon',coordinates:circlePoly(coord,Math.max(.08,r),n)},properties:{...meta,part_group,color,base_m:Math.max(0,base),top_m:Math.max(base+.03,top)}})
+ }
+ function materializeLandmark(out,coord,p,source='OPENFREEMAP_OSM_POI'){
+  const kind=landmarkKind(p);if(!kind||!Array.isArray(coord))return false;
+  const name=landmarkText(p)||kind.replaceAll('_',' '),h=landmarkHeight(p,kind),meta={landmark_kind:kind,landmark_name:name,source,source_id:String(p?.osm_id??p?.id??''),truth:kind==='liberty_statue'?'NPS_HEIGHT_OSM_POSITION_DERIVED_3D':'SOURCE_POSITION_DERIVED_3D'};
+  if(kind==='liberty_statue'){
+   pushLandmarkPart(out,coord,8.2,0,7.2,'base','#817b72',meta,16);
+   pushLandmarkPart(out,coord,6.5,7.2,46.94,'base','#969087',meta,16);
+   pushLandmarkPart(out,coord,5.2,46.94,71.5,'body','#6fa58d',meta,16);
+   pushLandmarkPart(out,coord,3.65,71.5,84.5,'body','#6fa58d',meta,14);
+   pushLandmarkPart(out,coord,2.55,84.5,89.7,'body','#6fa58d',meta,14);
+   pushLandmarkPart(out,offsetMeters(coord,4.8,1.5),1.05,79,91.2,'accent','#6fa58d',meta,10);
+   pushLandmarkPart(out,offsetMeters(coord,4.8,1.5),1.25,91.2,92.99,'accent','#d5b64b',meta,10);
+   pushLandmarkPart(out,coord,3.15,89.0,91.1,'accent','#6fa58d',meta,14);
+   return true
+  }
+  if(kind==='fountain'){
+   pushLandmarkPart(out,coord,Math.max(2.2,h*.8),0,.42,'base','#8b8e89',meta,16);
+   pushLandmarkPart(out,coord,Math.max(1.7,h*.63),.43,.49,'accent','#5dbbd2',meta,16);
+   pushLandmarkPart(out,coord,.42,.49,h,'body','#8b8e89',meta,10);return true
+  }
+  if(kind==='lighthouse'){
+   pushLandmarkPart(out,coord,Math.max(2,h*.11),0,h*.12,'base','#847e75',meta,14);
+   pushLandmarkPart(out,coord,Math.max(1.4,h*.065),h*.12,h*.82,'body','#e9e4db',meta,14);
+   pushLandmarkPart(out,coord,Math.max(1.8,h*.085),h*.82,h*.91,'accent','#9b4f43',meta,14);
+   pushLandmarkPart(out,coord,Math.max(.8,h*.04),h*.91,h,'accent','#f0d88a',meta,12);return true
+  }
+  if(kind==='tower'){
+   pushLandmarkPart(out,coord,Math.max(1.8,h*.06),0,h*.12,'base','#777b7a',meta,12);
+   pushLandmarkPart(out,coord,Math.max(.8,h*.026),h*.12,h*.86,'body','#858d91',meta,10);
+   pushLandmarkPart(out,coord,Math.max(1.4,h*.05),h*.72,h*.88,'accent','#6d7478',meta,12);
+   pushLandmarkPart(out,coord,Math.max(.35,h*.012),h*.88,h,'accent','#b9c3c6',meta,8);return true
+  }
+  if(kind==='obelisk'){
+   pushLandmarkPart(out,coord,Math.max(2,h*.1),0,h*.12,'base','#9b958c',meta,12);
+   pushLandmarkPart(out,coord,Math.max(.8,h*.035),h*.12,h*.93,'body','#aaa49a',meta,8);
+   pushLandmarkPart(out,coord,Math.max(.45,h*.022),h*.93,h,'accent','#c2bbb0',meta,8);return true
+  }
+  if(kind==='shrine'){
+   pushLandmarkPart(out,coord,Math.max(.8,h*.16),0,h*.18,'base','#82796d',meta,10);
+   pushLandmarkPart(out,coord,Math.max(.3,h*.055),h*.18,h,'body','#9b9180',meta,8);return true
+  }
+  if(kind==='statue'||kind==='sculpture'){
+   pushLandmarkPart(out,coord,Math.max(.8,h*.17),0,h*.2,'base','#817a6d',meta,12);
+   pushLandmarkPart(out,coord,Math.max(.5,h*.09),h*.2,h*.72,'body',kind==='statue'?'#887d69':'#747a78',meta,12);
+   pushLandmarkPart(out,coord,Math.max(.32,h*.055),h*.72,h*.9,'body',kind==='statue'?'#887d69':'#747a78',meta,12);
+   pushLandmarkPart(out,coord,Math.max(.4,h*.065),h*.9,h,'accent',kind==='statue'?'#9b8c74':'#888e8a',meta,12);return true
+  }
+  const baseTop=h*(kind==='memorial'?.18:.14),bodyR=Math.max(.7,h*(kind==='memorial'?.065:.045));
+  pushLandmarkPart(out,coord,Math.max(1.4,h*.12),0,baseTop,'base',kind==='memorial'?'#8f897f':'#969087',meta,12);
+  pushLandmarkPart(out,coord,bodyR,baseTop,h*.9,'body',kind==='memorial'?'#979187':'#a39c91',meta,10);
+  pushLandmarkPart(out,coord,Math.max(.55,h*.06),h*.9,h,'accent','#b8b0a3',meta,10);return true
+ }
+ function rebuildLandmark3D(delay=MOBILE?760:(LOW?520:300)){
+  clearTimeout(landmark3dTimer);landmark3dTimer=setTimeout(()=>{
+   const src=map.getSource('bpLandmark3D'),z=map.getZoom();if(!src)return;
+   if(z<LANDMARK_3D_MIN){src.setData(EMPTY);window.__BP_LANDMARK3D_V5541__={version:5541,status:'lod-off',count:0,minZoom:LANDMARK_3D_MIN,globalSource:true,updatedAt:Date.now()};return}
+   if(moving)return;
+   const build=()=>{
+    if(moving)return;let fs=[];try{fs=map.queryRenderedFeatures({layers:['gta-landmark3d-probe']})||[]}catch(e){window.__BP_LANDMARK3D_V5541__={version:5541,status:'query-error',error:String(e?.message||e),updatedAt:Date.now()};return}
+    const out=[],seen=new Set(),cap=MOBILE?180:(TIER==='HIGH'?900:520);let count=0,statueOfLiberty=false,truncated=false;
+    for(const ft of fs){if(count>=cap){truncated=true;break}const p=ft.properties||{},g=ft.geometry;if(g?.type!=='Point'||!Array.isArray(g.coordinates))continue;const kind=landmarkKind(p);if(!kind)continue;const name=landmarkText(p),key=String(ft.id??p.osm_id??[name,g.coordinates[0].toFixed(5),g.coordinates[1].toFixed(5)].join('|'));if(seen.has(key))continue;seen.add(key);if(kind==='liberty_statue')statueOfLiberty=true;if(materializeLandmark(out,g.coordinates,p)){count++}}
+    const b=map.getBounds?.();if(!statueOfLiberty&&b&&b.getWest()<-74.0445&&b.getEast()>-74.0445&&b.getSouth()<40.68925&&b.getNorth()>40.68925&&count<cap){materializeLandmark(out,STATUE_LIBERTY_COORD,{name:'Statue of Liberty',name_en:'Statue of Liberty',class:'attraction',subclass:'statue',osm_id:'statue-of-liberty-fallback'},'NPS_HEIGHT_OPEN_SOURCE_POSITION');statueOfLiberty=true;count++}
+    src.setData({type:'FeatureCollection',features:out});window.__BP_LANDMARK3D_V5541__={version:5541,status:'ready',sourceLayer:'OpenMapTiles poi',landmarks:count,statueOfLiberty,featureParts:out.length,truncated,minZoom:LANDMARK_3D_MIN,detailMinZoom:LANDMARK_DETAIL_MIN,globalSource:true,onDemandViewportMaterialization:true,derivedDisplayGeometry:true,statueOfLibertyHeightM:92.99,updatedAt:Date.now()}
+   };
+   if('requestIdleCallback'in window)requestIdleCallback(build,{timeout:MOBILE?1900:950});else setTimeout(build,MOBILE?130:45)
+  },delay)
+ }
  function bridge3dMeters(a,b){const lat=((a?.[1]||0)+(b?.[1]||0))*.5*Math.PI/180,dx=((b?.[0]||0)-(a?.[0]||0))*111320*Math.cos(lat),dy=((b?.[1]||0)-(a?.[1]||0))*110540;return Math.hypot(dx,dy)}
  function bridge3dWidth(p){const cls=String(p?.class||'').toLowerCase(),w=road3dWidth(p);return cls==='rail'||cls==='transit'?Math.max(5.2,w):cls==='path'||cls==='footway'?Math.max(2,w):w}
  function rebuildBridge3D(delay=MOBILE?720:(LOW?480:260)){
@@ -744,7 +847,7 @@ export function initWorld(options={}){
   moving=on;
   if(on){
    buildingShellQuietUntil=performance.now()+(MOBILE?3500:260);syncParcelShells();
-   clearTimeout(detailTimer);clearTimeout(map.__bpLivingTimer);clearTimeout(lightTimer);clearTimeout(bridge3dTimer);clearTimeout(road3dTimer);clearTimeout(map.__bpBuildingShellProbe);clearTimeout(map.__bpMotionHardRelease);clearTimeout(map.__bpBuildingFineSettle);
+   clearTimeout(detailTimer);clearTimeout(map.__bpLivingTimer);clearTimeout(lightTimer);clearTimeout(landmark3dTimer);clearTimeout(bridge3dTimer);clearTimeout(road3dTimer);clearTimeout(map.__bpBuildingShellProbe);clearTimeout(map.__bpMotionHardRelease);clearTimeout(map.__bpBuildingFineSettle);
    const recover=()=>{
     if(map.isMoving?.()){map.__bpMotionHardRelease=setTimeout(recover,MOBILE?260:120);return}
     const stale=moving;
@@ -891,7 +994,7 @@ export function initWorld(options={}){
   try{
    const st=map.getStyle?.(),usable=!!(map.isStyleLoaded?.()||map.loaded?.()||((st?.layers?.length||0)>0&&map.getSource?.('ofm')));
    if(!usable)return false;
-   installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();bindBuildingHitLayers();setBase('gta');disableFineDetail();rebuildBridge3D(0);startParcelFlow();syncBuildingShells();
+   installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();bindBuildingHitLayers();setBase('gta');disableFineDetail();rebuildLandmark3D(0);rebuildBridge3D(0);startParcelFlow();syncBuildingShells();
    window.__BP_CAMERA_MODE__={mode:'FREE_FLY_SINGLE_VIEW',singleView:true,autoViewSwitching:false,streetWalkMode:false,maxPitch:85,minZoom:2.2,maxZoom:22,manualPitch:true,manualRotation:true,buildingClickOverlook:true,updatedAt:Date.now()};
    window.__BP_WORLD_CORE_READY__={version:5519,ready:true,styleUsable:true,styleLoaded:!!map.isStyleLoaded?.(),materials:!!window.__BP_BUILDING_MATERIALS__,camera:!!window.__BP_CAMERA_MODE__,updatedAt:Date.now()};
    worldCoreReady=true;setTimeout(scheduleExact,MOBILE?350:220);setStatus('BridgePoint World v5378 · current-city structures · staged real roofs · performance mode');return true
@@ -902,10 +1005,10 @@ export function initWorld(options={}){
  if(map.isStyleLoaded?.()||map.loaded?.()||(map.getStyle?.()?.layers?.length||0)>0)queueMicrotask(()=>finalizeWorldCore());
  const worldCoreRecovery=setInterval(()=>{if(finalizeWorldCore())clearInterval(worldCoreRecovery)},250);
  setTimeout(()=>clearInterval(worldCoreRecovery),12000);
- map.on('movestart',()=>movement(true));map.on('moveend',()=>{movement(false);rebuildBridge3D()});map.on('zoomend',()=>{terrain();syncBuildingShells();rebuildBridge3D(MOBILE?680:220)});let bpCitySyncTimer=0,bpGlobalLodSyncTimer=0;map.on('sourcedata',e=>{
+ map.on('movestart',()=>movement(true));map.on('moveend',()=>{movement(false);rebuildLandmark3D();rebuildBridge3D()});map.on('zoomend',()=>{terrain();syncBuildingShells();rebuildLandmark3D(MOBILE?720:250);rebuildBridge3D(MOBILE?680:220)});let bpCitySyncTimer=0,bpGlobalLodSyncTimer=0;map.on('sourcedata',e=>{
   if(e?.sourceId==='ofm'){
    clearTimeout(bpGlobalLodSyncTimer);
-   bpGlobalLodSyncTimer=setTimeout(()=>{refreshGlobalLodPaint();if(!moving)rebuildBridge3D(MOBILE?820:320)},MOBILE?180:80);
+   bpGlobalLodSyncTimer=setTimeout(()=>{refreshGlobalLodPaint();if(!moving){rebuildLandmark3D(MOBILE?860:360);rebuildBridge3D(MOBILE?820:320)}},MOBILE?180:80);
    return
   }
   if(e?.sourceId!=='bpCityStructures'&&e?.sourceId!=='bpCityRoofs')return;
@@ -922,7 +1025,7 @@ export function initWorld(options={}){
  container.addEventListener('touchcancel',()=>{touchNative=null},{passive:true,capture:true});
  map.on('click',e=>{if(performance.now()-lastTouchBuildingAt<700||performance.now()-lastBuildingClickAt<180)return;chooseBuilding(e)});
  map.on('mousemove',e=>{const now=performance.now();if(hoverFrame||now-lastHoverAt<80)return;lastHoverAt=now;const point={x:e.point.x,y:e.point.y};hoverFrame=requestAnimationFrame(()=>{hoverFrame=0;try{const hit=map.queryRenderedFeatures(point,{layers:['gta-exact-building','gta-city-buildings','gta-context-buildings'].filter(id=>map.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')!=='none')}).length;map.getCanvas().style.cursor=hit?'pointer':''}catch(_){}})});
- const state={version:VERSION,architecture:'MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY',openRuntimeOnly:true,competitorSdk:false,staleWhileRevalidateExact:true,interactionPriorityScheduling:true,mainWebGLCanvases:()=>container.querySelectorAll('canvas').length,get exactCount(){return exactCount},get livingCount(){return livingCount},get moving(){return moving},get terrain(){return terrainOn},get base(){return base},get streetWalk(){return false},get cameraMode(){return window.__BP_CAMERA_MODE__||null},get worldLight(){return window.__BP_WORLD_LIGHT__||null},get buildingShellMode(){return window.__BP_BUILDING_SHELL_MODE__||null},get bridge3D(){return window.__BP_BRIDGE3D_V5540__||null},get road3D(){return window.__BP_ROAD3D_STATE__||null},get runtimeErrors(){return runtimeMapErrors.slice(-8)},sources:{map:'MapLibre GL JS',vectors:'OpenFreeMap/OpenStreetMap + BridgePoint exact viewport',globalImagery:'NASA EOSDIS GIBS Blue Marble',usImagery:'USGS The National Map orthoimagery',terrain:'Mapzen Terrain Tiles on AWS Open Data',parcels:'BridgePoint MVT',roofs:'BridgePoint roof truth MVT v5369',livingWorld:'BridgePoint living-world viewport v5319'}};
+ const state={version:VERSION,architecture:'MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY',openRuntimeOnly:true,competitorSdk:false,staleWhileRevalidateExact:true,interactionPriorityScheduling:true,mainWebGLCanvases:()=>container.querySelectorAll('canvas').length,get exactCount(){return exactCount},get livingCount(){return livingCount},get moving(){return moving},get terrain(){return terrainOn},get base(){return base},get streetWalk(){return false},get cameraMode(){return window.__BP_CAMERA_MODE__||null},get worldLight(){return window.__BP_WORLD_LIGHT__||null},get buildingShellMode(){return window.__BP_BUILDING_SHELL_MODE__||null},get landmark3D(){return window.__BP_LANDMARK3D_V5541__||null},get bridge3D(){return window.__BP_BRIDGE3D_V5540__||null},get road3D(){return window.__BP_ROAD3D_STATE__||null},get runtimeErrors(){return runtimeMapErrors.slice(-8)},sources:{map:'MapLibre GL JS',vectors:'OpenFreeMap/OpenStreetMap + BridgePoint exact viewport',globalImagery:'NASA EOSDIS GIBS Blue Marble',usImagery:'USGS The National Map orthoimagery',terrain:'Mapzen Terrain Tiles on AWS Open Data',parcels:'BridgePoint MVT',roofs:'BridgePoint roof truth MVT v5369',livingWorld:'BridgePoint living-world viewport v5319'}};
  async function startForViewer(opts={}){
   const primaryOwner=opts.primaryOwner===true;
   const national={center:[-98.5,39.5],zoom:Number.isFinite(opts.ownerZoom)?Number(opts.ownerZoom):(MOBILE?2.75:3.35),pitch:0,bearing:0};
