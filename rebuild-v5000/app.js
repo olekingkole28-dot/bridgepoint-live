@@ -71,15 +71,15 @@ async function initSharedVisualWeather(targetWorld){
  const styleReady=()=>{try{return map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch{return false}};
  if(!styleReady())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
  try{
-  const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5430'),import('./world-v2300-present-weather.js?v=5430')]);
+  const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5544'),import('./world-v2300-present-weather.js?v=5544')]);
   const weather=wm.initWeather(map),present=pm.initPresentWeather(map);
   weather?.setActive?.(true);weather?.setRadar?.(true);
-  window.__BP_SHARED_VISUAL_WEATHER__={version:5430,weather,present,mapShared:true,streetWalkLiveSimulation:false,radarVisible:true,radarAnimated:true,updatedAt:Date.now()};
+  window.__BP_SHARED_VISUAL_WEATHER__={version:5544,weather,present,mapShared:true,streetWalkLiveSimulation:false,radarVisible:true,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,updatedAt:Date.now()};
   return window.__BP_SHARED_VISUAL_WEATHER__
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5543');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5544');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -520,7 +520,7 @@ async function weatherEdge(slug,body={}){
 function weatherRasterBefore(map){for(const id of ['gta-context-building-shadow','gta-context-buildings','gta-place-label'])if(map.getLayer(id))return id;return undefined}
 function ensureWeatherRasterPair(prefix){
  const map=world?.map;if(!map)return;const before=weatherRasterBefore(map);
- for(const side of ['A','B']){const sid='bp'+prefix+side,lid='bp-'+prefix.toLowerCase()+'-'+side.toLowerCase();if(!map.getSource(sid))map.addSource(sid,{type:'raster',tiles:['data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='],tileSize:256,minzoom:0,maxzoom:12});if(!map.getLayer(lid))map.addLayer({id:lid,type:'raster',source:sid,minzoom:0,maxzoom:13,paint:{'raster-opacity':0,'raster-fade-duration':0,'raster-resampling':'linear'}},before)}
+ for(const side of ['A','B']){const sid='bp'+prefix+side,lid='bp-'+prefix.toLowerCase()+'-'+side.toLowerCase();if(!map.getSource(sid))map.addSource(sid,{type:'raster',tiles:['data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='],tileSize:256,minzoom:0,maxzoom:12});if(!map.getLayer(lid))map.addLayer({id:lid,type:'raster',source:sid,minzoom:0,maxzoom:24,paint:{'raster-opacity':0,'raster-fade-duration':0,'raster-resampling':'linear'}},before)}
 }
 function radarTileUrl(epoch){
  const base='https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer/exportImage';
@@ -535,7 +535,7 @@ function swapRaster(prefix,url,opacity){
 }
 async function refreshRadarFrames(){
  if(mapInteracting){deferredWork.set('radar-frames',refreshRadarFrames);return}
- try{const d=await weatherEdge('bridgepoint-noaa-radar-frames-v271',{});if(!d)return;const frames=(d.frames_epoch_ms||[]).map(Number).filter(Number.isFinite);if(!frames.length)return;radarFrames=frames.slice(-18);radarIndex=Math.max(0,radarFrames.length-6);window.__BP_RADAR_STATE__={live:d.live_available===true,degraded:d.degraded===true,frameCount:radarFrames.length,latest:d.latest_epoch_ms,updatedAt:Date.now()};if(!radarAnimTimer){radarAnimTimer=setInterval(()=>{if(mapInteracting||!liveContextVisible||!radarFrames.length)return;const z=world?.map?.getZoom?.()||0;if(z>12)return;const f=radarFrames[radarIndex%radarFrames.length];radarIndex=(radarIndex+1)%radarFrames.length;swapRaster('Radar',radarTileUrl(f),z<7?.56:.44)},BP_MOBILE?1800:1400)}}catch(e){console.warn('radar frames',e)}
+ try{const d=await weatherEdge('bridgepoint-noaa-radar-frames-v271',{});if(!d)return;const frames=(d.frames_epoch_ms||[]).map(Number).filter(Number.isFinite);if(!frames.length)return;radarFrames=frames.slice(-18);radarIndex=Math.max(0,radarFrames.length-6);const latest=radarFrames[radarFrames.length-1];window.__BP_RADAR_STATE__={live:d.live_available===true,degraded:d.degraded===true,frameCount:radarFrames.length,latest:d.latest_epoch_ms,groundDrapeThroughZoom:24,closeZoomStableFrame:true,updatedAt:Date.now()};if(!mapInteracting&&liveContextVisible&&latest)swapRaster('Radar',radarTileUrl(latest),.62);if(!radarAnimTimer){radarAnimTimer=setInterval(()=>{if(mapInteracting||!liveContextVisible||!radarFrames.length)return;const z=world?.map?.getZoom?.()||0;if(z>10)return;const frame=radarFrames[radarIndex%radarFrames.length];radarIndex=(radarIndex+1)%radarFrames.length;swapRaster('Radar',radarTileUrl(frame),z<7?.58:.52)},BP_MOBILE?2200:1800)}}catch(e){console.warn('radar frames',e)}
 }
 window.__BP_CLOUD_STATE__={enabled:false,reason:'disabled_by_owner_v5365',updatedAt:Date.now()};
 function weatherColorExpr(){return['match',['get','type'],'WILDFIRE','#ff744f','FIRE_WEATHER','#ff9c5a','TORNADO','#d596ff','HAIL','#c9efff','LIGHTNING','#ffe16d','FLOOD','#4ca7ff','HURRICANE','#65e6ff','HURRICANE_CONE','#65e6ff','HURRICANE_TRACK','#65e6ff','WIND','#9ad7ff','RAIN','#68b9ff','WEATHER_REPORT','#b9d6df','#9ab8c5']}

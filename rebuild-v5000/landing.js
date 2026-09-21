@@ -17,7 +17,7 @@ function installLandingRadar(world){
   for(const side of ['A','B']){
    const sid='bpLandingRadar'+side,lid='bp-landing-radar-'+side.toLowerCase();
    if(!m.getSource(sid))m.addSource(sid,{type:'raster',tiles:[blank],tileSize:256,minzoom:0,maxzoom:12});
-   if(!m.getLayer(lid))m.addLayer({id:lid,type:'raster',source:sid,minzoom:0,maxzoom:13,layout:{visibility:'visible'},paint:{'raster-opacity':0,'raster-fade-duration':0,'raster-resampling':'linear'}},before)
+   if(!m.getLayer(lid))m.addLayer({id:lid,type:'raster',source:sid,minzoom:0,maxzoom:24,layout:{visibility:'visible'},paint:{'raster-opacity':0,'raster-fade-duration':0,'raster-resampling':'linear'}},before)
   }
   return !!m.getLayer('bp-landing-radar-a')&&!!m.getLayer('bp-landing-radar-b')
  }catch(e){console.warn('Landing radar install',e);return false}
@@ -43,7 +43,7 @@ function startLandingRadar(world){
  installLandingRadar(world);landingRadarFrames=landingRadarFramesNow();landingRadarIndex=Math.max(0,landingRadarFrames.length-6);
  showLandingRadarFrame(world,landingRadarFrames[landingRadarIndex]);
  clearInterval(landingRadarTimer);
- landingRadarTimer=setInterval(()=>{if(document.hidden)return;landingRadarFrames=landingRadarFramesNow();const frame=landingRadarFrames[landingRadarIndex%landingRadarFrames.length];landingRadarIndex=(landingRadarIndex+1)%landingRadarFrames.length;showLandingRadarFrame(world,frame)},1800);
+ landingRadarTimer=setInterval(()=>{if(document.hidden||m.isMoving?.())return;const z=m.getZoom?.()||0;if(z>10)return;landingRadarFrames=landingRadarFramesNow();const frame=landingRadarFrames[landingRadarIndex%landingRadarFrames.length];landingRadarIndex=(landingRadarIndex+1)%landingRadarFrames.length;showLandingRadarFrame(world,frame)},2200);
  const reassert=()=>{installLandingRadar(world);for(const id of ['bp-landing-radar-a','bp-landing-radar-b'])try{if(m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')==='none')m.setLayoutProperty(id,'visibility','visible')}catch(_){}};
  try{m.on('styledata',reassert);m.on('idle',reassert)}catch(_){}
 }
@@ -114,7 +114,7 @@ async function initMap(){
  if(!window.maplibregl){window.__BP_LANDING_MAP_BOOT__={stage:'error',error:'MAPLIBRE_UNAVAILABLE',maplibre:false,at:Date.now()};return}
  try{
   window.__BP_LANDING_MAP_BOOT__={stage:'importing-world',maplibre:true,at:Date.now()};
-  const mod=await import('./world-v2300-map.js?v=5543');
+  const mod=await import('./world-v2300-map.js?v=5544');
   window.__BP_LANDING_MAP_BOOT__={stage:'initializing-world',maplibre:true,module:true,at:Date.now()};
   const world=mod.initWorld({
    containerId:'previewMap',
@@ -144,11 +144,11 @@ async function initMap(){
   let bpUserMapGesture=false;const previewEl=$('previewMap');for(const ev of ['pointerdown','touchstart','wheel'])previewEl?.addEventListener(ev,()=>{bpUserMapGesture=true},{passive:true});map.on('move',()=>{$('previewCard').hidden=true;if(bpUserMapGesture){const s=document.querySelector('.preview-sample');if(s){s.style.opacity='0';s.style.pointerEvents='none';s.style.transform='translateY(6px)'}}});
   try{
    if(!map.isStyleLoaded?.())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
-   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5511'),import('./world-v2300-present-weather.js?v=5511')]);
+   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5544'),import('./world-v2300-present-weather.js?v=5544')]);
    const weather=wm.initWeather(world.map),present=pm.initPresentWeather(world.map);
    weather?.setActive?.(true);weather?.setRadar?.(true);
    void startLandingNationalWeather(world).catch(e=>console.warn('BridgePoint national weather async',e));
-   window.__BP_LANDING_VISUAL_WEATHER__={version:5513,weather,present,mapShared:true,nationalWeather:true,radarVisible:true,radarAnimated:true,asyncAttach:true,updatedAt:Date.now()}
+   window.__BP_LANDING_VISUAL_WEATHER__={version:5544,weather,present,mapShared:true,nationalWeather:true,radarVisible:true,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,asyncAttach:true,updatedAt:Date.now()}
   }catch(e){console.warn('BridgePoint preview weather',e)}
  }catch(e){
   const msg=String(e?.stack||e?.message||e||'UNKNOWN_MAP_BOOT_ERROR');
