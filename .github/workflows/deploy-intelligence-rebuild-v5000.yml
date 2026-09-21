@@ -751,9 +751,11 @@ jobs:
                 const btn=document.getElementById('landingFreePremiumTools');
                 return proj==='globe'&&!!m.getLayer('bp5510-global-imerg')&&!!btn&&getComputedStyle(btn).display!=='none';
               },{timeout:30000});
+              await p.evaluate(()=>document.getElementById('landingFreePremiumTools')?.scrollIntoView({block:'center',inline:'nearest'}));
               await p.waitForFunction(()=>{
                 const e=document.getElementById('landingFreePremiumTools');if(!e)return false;
-                const r=e.getBoundingClientRect(),top=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+                const r=e.getBoundingClientRect();if(r.bottom<=0||r.top>=innerHeight)return false;
+                const top=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
                 return e===top||e.contains(top);
               },{timeout:20000});
               await p.click('#landingFreePremiumTools');
