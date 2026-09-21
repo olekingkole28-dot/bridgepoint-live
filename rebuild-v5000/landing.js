@@ -188,7 +188,46 @@ async function initMap(){
  }
 }
 async function stats(){try{const [d,s]=await Promise.all([rpc('bridgepoint_frontend_status_v5000'),rpc('bridgepoint_data_sprint_status_v5106')]);$('landingProperties').textContent=fmt(d.canonical_properties);$('landingBuildings').textContent=fmt(d.map_ready_buildings);$('landingAddresses').textContent=fmt(s.address_rows_estimate||d.unique_addresses);if($('landingBoundaries'))$('landingBoundaries').textContent=fmt(s.stored_boundary_rows_estimate);if($('landingLayouts'))$('landingLayouts').textContent=fmt(d.layout_indexed_buildings);if($('landingParts'))$('landingParts').textContent=fmt(d.materialized_part_geometries);if($('landingTransport'))$('landingTransport').textContent=fmt(d.transport_rows_archived);if($('landingWeatherEvents'))$('landingWeatherEvents').textContent=fmt(d.weather_bootstrap_events)}catch(e){console.warn(e)}}
-const PACKAGE_FEATURES={
+
+const BP_COVERAGE_COLORS=['#37d4ff','#7c6cff','#5ee1a2','#ffb74d','#ff6b8a','#4dd0e1','#b388ff','#ffd166','#72e06a','#ff8a65','#64b5f6','#ce93d8'];
+function bpDonut(el,rows,total){
+ if(!el)return;
+ const safe=rows.filter(x=>Number(x.value)>0),sum=Number(total)||safe.reduce((a,b)=>a+Number(b.value||0),0);
+ if(!sum||!safe.length){el.style.background='conic-gradient(#27404b 0 100%)';return}
+ let at=0,parts=[];
+ safe.forEach((row,i)=>{const start=at,pct=100*Number(row.value)/sum;at+=pct;parts.push((row.color||BP_COVERAGE_COLORS[i%BP_COVERAGE_COLORS.length])+' '+start.toFixed(3)+'% '+at.toFixed(3)+'%')});
+ el.style.background='conic-gradient('+parts.join(',')+')';
+}
+function bpLegend(el,rows){
+ if(!el)return;el.textContent='';
+ rows.forEach((row,i)=>{const d=document.createElement('div');d.className='bp-legend-row';const dot=document.createElement('i');dot.style.background=row.color||BP_COVERAGE_COLORS[i%BP_COVERAGE_COLORS.length];const n=document.createElement('span');n.textContent=row.name;const v=document.createElement('b');v.textContent=fmt(row.value);d.append(dot,n,v);el.appendChild(d)});
+}
+async function globalCoverage(){
+ try{
+  const d=await rpc('bridgepoint_public_global_coverage_v5601',{},9000),world=d?.world||{},us=d?.us||{},countries=Array.isArray(world.countries)?world.countries:[],states=Array.isArray(us.states_and_jurisdictions)?us.states_and_jurisdictions:[],queue=Array.isArray(world.expansion_queue)?world.expansion_queue:[];
+  const positiveCountries=countries.filter(x=>Number(x.canonical_count)>0).map((x,i)=>({name:x.name+' · '+x.code,value:Number(x.canonical_count),color:BP_COVERAGE_COLORS[i%BP_COVERAGE_COLORS.length]}));
+  const countryTotal=positiveCountries.reduce((a,b)=>a+b.value,0);
+  const topStates=states.slice(0,10).map((x,i)=>({name:x.code,value:Number(x.count),color:BP_COVERAGE_COLORS[i%BP_COVERAGE_COLORS.length]}));
+  const stateAll=states.reduce((a,b)=>a+Number(b.count||0),0),topSum=topStates.reduce((a,b)=>a+b.value,0);
+  if(stateAll>topSum)topStates.push({name:'Other U.S. jurisdictions',value:stateAll-topSum,color:BP_COVERAGE_COLORS[topStates.length%BP_COVERAGE_COLORS.length]});
+  bpDonut($('globalCountryDonut'),positiveCountries,countryTotal);bpLegend($('globalCountryLegend'),positiveCountries.length?positiveCountries:[{name:'No non-U.S. canonical records published yet',value:0,color:'#27404b'}]);
+  bpDonut($('globalStateDonut'),topStates,stateAll);bpLegend($('globalStateLegend'),topStates);
+  if($('globalCountryTotal'))$('globalCountryTotal').textContent=fmt(countryTotal);
+  if($('globalStateTotal'))$('globalStateTotal').textContent=fmt(stateAll);
+  const summary=$('globalCoverageSummary');if(summary){summary.textContent='';[
+    ['Canonical properties',fmt(us.canonical_properties||0)],
+    ['Stored parcel boundaries',fmt(us.stored_parcel_boundaries_estimate||0)],
+    ['Country registry',fmt(world.country_registry_total||0)],
+    ['Non-U.S. countries started',fmt(world.non_us_started||0)],
+    ['Non-U.S. countries canonicalizing',fmt(world.non_us_with_canonical||0)]
+  ].forEach(([k,v])=>{const s=document.createElement('span');s.textContent=k+': '+v;summary.appendChild(s)})}
+  const q=$('globalExpansionQueue');if(q){q.textContent='';queue.forEach(x=>{const c=document.createElement('div');c.className='bp-country-chip';const b=document.createElement('b');b.textContent=(x.name||x.code)+' · '+x.code;const s=document.createElement('span');s.textContent=String(x.status||'QUEUED').replaceAll('_',' ');c.append(b,s);q.appendChild(c)});if(!queue.length){const c=document.createElement('div');c.className='bp-country-chip';c.innerHTML='<b>No country queue yet</b><span>LEGAL-GATED</span>';q.appendChild(c)}}
+  if($('globalCoverageNotice'))$('globalCoverageNotice').textContent=d.public_notice||'Public-safe operational coverage only.';
+  if($('globalCoverageUpdated')){const when=d.updated_at?new Date(d.updated_at):new Date();$('globalCoverageUpdated').textContent='Last updated: '+when.toLocaleString()}
+  window.__BP_GLOBAL_COVERAGE__={version:5601,data:d,updatedAt:Date.now()};
+ }catch(e){console.warn('BridgePoint global coverage',e);if($('globalCoverageUpdated'))$('globalCoverageUpdated').textContent='Last updated: retrying live coverage…'}
+}
+\nconst PACKAGE_FEATURES={
  homeowner:['Package Community Chat','Intelligence Map','Property Profiles','Weather Intelligence','Alerts','Calendar','Favorites'],
  home:['Package Community Chat','Intelligence Map','Property Profiles','Weather Intelligence','Opportunity Rankings','Patterns','Score Explanations','Score Movement','Signals','Micro-Climate Hail Impact','Alerts','Calendar','Favorites','Saved Searches'],
  solar:['Intelligence Map','Property Profiles','Solar Intelligence','Weather Intelligence','Opportunity Rankings','Patterns','Score Explanations','Score Movement','Signals','Alerts','Calendar','Favorites','Saved Searches'],
@@ -308,5 +347,5 @@ function bindConversionPreview(){
  }));
 }
 async function install(){if(installPrompt){installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;return}alert('Use your browser install or Add to Home Screen option to install BridgePoint on this device.')}function bindWorldBackdrop(){const paint=()=>{backdropFrame=0;const shift=Math.min(innerWidth<=600?84:170,scrollY*.055);document.documentElement.style.setProperty('--bp-world-shift',shift.toFixed(1)+'px')};const queue=()=>{if(!backdropFrame)backdropFrame=requestAnimationFrame(paint)};addEventListener('scroll',queue,{passive:true});addEventListener('resize',queue,{passive:true});paint()}
-function bind(){document.querySelectorAll('.auth-open').forEach(b=>b.onclick=()=>openAuth(b.dataset.mode));$('closeAuth').onclick=()=>$('authModal').hidden=true;$('authModal').onclick=e=>{if(e.target===$('authModal'))$('authModal').hidden=true};$('authSwitch').onclick=()=>setMode(mode==='signup'?'signin':'signup');$('authForm').onsubmit=submit;$('installTop').onclick=install;$('installBottom').onclick=install;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});const q=new URLSearchParams(location.search);if(q.get('auth'))openAuth(q.get('auth')==='signin'?'signin':'signup')}if(!hashSession()){bind();bindWorldBackdrop();bindConversionPreview();initMap();stats();setInterval(stats,15000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5592',{updateViaCache:'none'}).catch(()=>{})}
+function bind(){document.querySelectorAll('.auth-open').forEach(b=>b.onclick=()=>openAuth(b.dataset.mode));$('closeAuth').onclick=()=>$('authModal').hidden=true;$('authModal').onclick=e=>{if(e.target===$('authModal'))$('authModal').hidden=true};$('authSwitch').onclick=()=>setMode(mode==='signup'?'signin':'signup');$('authForm').onsubmit=submit;$('installTop').onclick=install;$('installBottom').onclick=install;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});const q=new URLSearchParams(location.search);if(q.get('auth'))openAuth(q.get('auth')==='signin'?'signin':'signup')}if(!hashSession()){bind();bindWorldBackdrop();bindConversionPreview();initMap();stats();setInterval(stats,15000);globalCoverage();setInterval(globalCoverage,120000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5592',{updateViaCache:'none'}).catch(()=>{})}
 // BP_V5441_DEPLOY_SYNC: compact national hazard dots; radar and boundaries unchanged.
