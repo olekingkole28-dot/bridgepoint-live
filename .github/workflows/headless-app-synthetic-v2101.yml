@@ -39,7 +39,7 @@ jobs:
 
       - name: Run headless customer-path synthetic
         env:
-          HEADLESS_TARGETS: https://www.bridgepointintelligence.com/,https://www.bridgepointintelligence.com/app/
+          HEADLESS_TARGETS: https://bridgepointintelligence.online/,https://bridgepointintelligence.online/app/
         run: node ops/headless_app_synthetic_v2101.mjs
 
       - name: Upload failure evidence
