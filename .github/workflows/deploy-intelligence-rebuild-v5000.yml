@@ -239,7 +239,7 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v5585' site/sw.js
+          grep -Fq 'bp-intelligence-v5586' site/sw.js
           grep -Fq '/refresh-v5535.js?v=5548' site/index.html
           grep -Fq '/refresh-v5535.js?v=5548' site/app/index.html
           grep -Fq '__BP_WALKTHROUGH_V5539__' site/walkthrough-v5537.js
@@ -283,7 +283,7 @@ jobs:
           grep -Fq 'bpUserMapGesture' site/landing.js
           grep -Fq 'landingFreePremiumTools' site/index.html
           grep -Fq 'landing.js?v=5584' site/index.html
-          grep -Fq 'app.js?v=5584' site/app/index.html
+          grep -Fq 'app.js?v=5586' site/app/index.html
           grep -Fq "world-v2300-map.js?v=5584" site/app.js
           grep -Fq "world-v2300-map.js?v=5584" site/landing.js
           grep -Fq '__BP_APP_OPPORTUNITY_STYLE_V5578__' site/app.js
@@ -516,7 +516,9 @@ jobs:
           grep -Fq 'bindPerformanceGovernor' site/app.js
           grep -Fq '__BP_MAP_CLICK_FASTPATH_V5557__' site/app.js
           grep -Fq '__BP_MAP_STABILITY_V5580__' site/app.js
-          grep -Fq '__BP_NAV_STABILITY_V5583__' site/app.js
+          grep -Fq '__BP_NAV_STABILITY_V5586__' site/app.js
+          grep -Fq '__BP_APP_MAIN_THREAD_GUARD_V5586__' site/app.js
+          grep -Fq '__BP_STARTUP_SCHEDULER_V5586__' site/app.js
           grep -Fq '__BP_MOBILE_MAP_INTERACTION_V5580__' site/intelligence-global-v5507.js
           grep -Fq 'BP_MOBILE' site/app.js
           grep -Fq 'scheduleOpportunityBuildings' site/app.js
@@ -626,7 +628,7 @@ jobs:
             curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/.well-known/security.txt?v5551=${q}" -o /tmp/security.txt || true
             curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/terminal/?v5551=${q}" -o /tmp/terminal.html || true
             curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/newsroom/?v5551=${q}" -o /tmp/newsroom.html || true
-            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'landing.js?v=5584' /tmp/root.html && grep -Fq '/walkthrough-v5537.js?v=5564' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq '153,532,480' /tmp/root.html && grep -Fq '143,787,840' /tmp/root.html && grep -Fq 'app.js?v=5584' /tmp/app.html && grep -Fq '/walkthrough-v5537.js?v=5564' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq 'data-nosnippet' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5561' /tmp/world-v2300-map.js && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js && grep -Fq '__BP_PARCEL_BOUNDARY_VIEWER_V5577__' /tmp/parcel-boundary-viewer-v5403.js && grep -Fq 'parcel-boundary-viewer-v5403.js?v=5585' /tmp/root.html && grep -Fq 'parcel-boundary-viewer-v5403.js?v=5585' /tmp/app.html && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js && grep -Fq 'BridgePoint Intelligence pricing' /tmp/pricing.html && grep -Fq 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security.txt && grep -Fq '169,664,739' /tmp/terminal.html && ! grep -Eq 'live-(chileno|chicken-coop|lucas|thunder-creek|0505n|0584-cottonwood|0587-shingle|0611-green-mountain)' /tmp/newsroom.html; then ok=1; break; fi
+            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'landing.js?v=5584' /tmp/root.html && grep -Fq '/walkthrough-v5537.js?v=5564' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq '153,532,480' /tmp/root.html && grep -Fq '143,787,840' /tmp/root.html && grep -Fq 'app.js?v=5586' /tmp/app.html && grep -Fq '/walkthrough-v5537.js?v=5564' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq 'data-nosnippet' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5561' /tmp/world-v2300-map.js && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js && grep -Fq '__BP_PARCEL_BOUNDARY_VIEWER_V5577__' /tmp/parcel-boundary-viewer-v5403.js && grep -Fq 'parcel-boundary-viewer-v5403.js?v=5585' /tmp/root.html && grep -Fq 'parcel-boundary-viewer-v5403.js?v=5585' /tmp/app.html && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js && grep -Fq 'BridgePoint Intelligence pricing' /tmp/pricing.html && grep -Fq 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security.txt && grep -Fq '169,664,739' /tmp/terminal.html && ! grep -Eq 'live-(chileno|chicken-coop|lucas|thunder-creek|0505n|0584-cottonwood|0587-shingle|0611-green-mountain)' /tmp/newsroom.html; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
