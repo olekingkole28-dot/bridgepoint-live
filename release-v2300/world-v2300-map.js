@@ -25,6 +25,7 @@ const STATUE_LIBERTY_FACING_DEG=135;
 window.__BP_WORLD_FIX_V5542__={version:5542,statueModel:'NPS_HAER_MEASURED_RECONSTRUCTION',bridgeSource:'OPENFREEMAP_OSM_QUERY_SOURCE',continuousGestureLoading:true,updatedAt:Date.now()};
 window.__BP_WORLD_INTERACTION_V5543__={version:5543,stableSingleFrameBuildingHit:true,updatedAt:Date.now()};
 window.__BP_WORLD_PERFORMANCE_V5544__={version:5544,gestureHotPath:'native-only',persistentTerrain:true,persistentRadarDrape:true,retainGeometryDuringMotion:true,staleTileCancellation:true,updatedAt:Date.now()};
+window.__BP_BUILDING_CONTINUITY_V5545__={version:5545,viewportVerifiedCityHandoff:true,globalFallbackUntilVisible:true,updatedAt:Date.now()};
 const US_BOUNDS=[-125,24,-66,50];
 
 const roadFilter=classes=>['in',['get','class'],['literal',classes]];
@@ -766,9 +767,12 @@ export function initWorld(options={}){
  function cityStructuresReady(){
   if(!bridgePointDomesticCenter()||map.getZoom()<11)return false;
   try{
-   if(!map.getSource('bpCityStructures'))return false;
-   const fs=map.querySourceFeatures?.('bpCityStructures',{sourceLayer:'buildings'})||[];
-   return fs.length>0
+   if(!map.getSource('bpCityStructures')||!map.getLayer('gta-city-buildings'))return false;
+   if((map.getLayoutProperty('gta-city-buildings','visibility')||'visible')==='none')return false;
+   const rendered=map.queryRenderedFeatures?.({layers:['gta-city-buildings']})||[],minVisible=map.getZoom()>=14?4:1;
+   const ready=rendered.length>=minVisible;
+   window.__BP_CITY_VIEWPORT_HANDOFF_V5545__={ready,rendered:rendered.length,minVisible,zoom:map.getZoom(),sourceLoaded:!!map.isSourceLoaded?.('bpCityStructures'),updatedAt:Date.now()};
+   return ready
   }catch(_){return false}
  }
  function syncParcelShells(){const z=map.getZoom(),on=!!layerState.parcels&&!moving&&bridgePointDomesticCenter()&&z>=PARCEL_MIN;vis(map,'gta-parcel-glow',on);vis(map,'gta-parcel',on);return on}
