@@ -53,18 +53,19 @@ jobs:
           print('STATE_STATUS_PASS', {k:rows[k] for k in ('CT','MD','MI','NE')})
           PY
           STATES_CODE=$(curl -sS --retry 3 --retry-all-errors --retry-delay 1 --max-time 25 \
-            -o /tmp/boundary-states.geojson -w '%{http_code}' \
-            'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403?states=1')
+            -o /tmp/boundary-states.topo.json -w '%{http_code}' \
+            'https://bridgepointintelligence.online/assets/us-state-boundaries-census.topo.json?v=5577')
           echo "BOUNDARY_STATES_HTTP=${STATES_CODE}"
-          head -c 400 /tmp/boundary-states.geojson || true
-          echo
           test "${STATES_CODE}" = "200"
           python3 - <<'PY'
           import json
-          d=json.load(open('/tmp/boundary-states.geojson'))
-          assert d.get('type')=='FeatureCollection', d.get('type')
-          assert len(d.get('features',[]))>=50, len(d.get('features',[]))
-          print('STATE_GEOMETRY_PASS',len(d['features']))
+          d=json.load(open('/tmp/boundary-states.topo.json'))
+          obj=d.get('objects',{}).get('state') or d.get('objects',{}).get('states')
+          geoms=(obj or {}).get('geometries',[])
+          assert d.get('type')=='Topology', d.get('type')
+          assert len(geoms)>=50, len(geoms)
+          assert any((g.get('properties') or {}).get('STUSPS10')=='CT' for g in geoms)
+          print('STATE_GEOMETRY_PASS',len(geoms))
           PY
 
       - name: Mobile interaction + parcel viewer regression test
@@ -151,25 +152,25 @@ jobs:
               if(delta(before,after)<0.00001)throw new Error('MAP_FROZEN_AFTER_BUILDING_TAP '+JSON.stringify({before,after}));
 
               await page.evaluate(async()=>{
-                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
+                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
                 if(!v)throw new Error('BOUNDARY_VIEWER_MISSING');
                 await v.open('public');
               });
               await page.waitForFunction(()=>{
-                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
+                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
                 return !!v?.getMap?.();
               },{timeout:12000});
               await page.waitForFunction(()=>{
-                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
+                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
                 return !!v?.getMap?.()?.getLayer?.('bp-boundary-state-fill-v5576')&&v.stateStatus?.some?.(s=>s.state_code==='CT'&&s.public_enabled===true);
               },{timeout:25000});
               await page.evaluate(()=>{
-                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
+                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
                 v.getMap().jumpTo({center:[-72.65,41.55],zoom:8.1,pitch:45,bearing:0});
               });
               await sleep(4500);
               const parcel=await page.evaluate(()=>{
-                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
+                const v=window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
                 const m=v.getMap();
                 let n=0;try{n=(m.querySourceFeatures('bp-boundary-viewer-v5403',{sourceLayer:'parcels'})||[]).length}catch{}
                 return{

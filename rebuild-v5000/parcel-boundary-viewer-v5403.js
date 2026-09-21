@@ -2,7 +2,7 @@
 'use strict';
 
 const FN='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403';
-const VERSION=5576;
+const VERSION=5577;
 const SOURCE='bp-boundary-viewer-v5403';
 const GLOW='bp-boundary-glow-v5403';
 const LINE='bp-boundary-line-v5403';
@@ -38,6 +38,7 @@ function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 
 
 const OFM_BOUNDARY='https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf';
+const STATE_TOPOLOGY='/assets/us-state-boundaries-census.topo.json?v=5577';
 let stateGeometryPromise=null,lastStateRows=[],stateFeatureCount=0;
 
 function boundaryStyle(){
@@ -68,12 +69,50 @@ function stateReason(row){
   if(Number(row?.active_approved||0)>0)return 'BridgePoint has approved boundary source data internally, but the current source metadata does not explicitly permit public boundary display or raw redistribution.';
   return 'No boundary source currently passes BridgePoint active approval and public-display gate for this jurisdiction.';
 }
+function topologyToStateGeoJSON(topo){
+  if(!topo||topo.type!=='Topology')throw new Error('STATE_TOPOLOGY_INVALID');
+  const obj=topo.objects?.state||topo.objects?.states;
+  if(!obj||!Array.isArray(obj.geometries))throw new Error('STATE_TOPOLOGY_OBJECT_MISSING');
+  const tr=topo.transform||null,raw=Array.isArray(topo.arcs)?topo.arcs:[],cache=new Array(raw.length);
+  const decodeArc=i=>{
+    const rev=i<0,idx=rev?~i:i;
+    let pts=cache[idx];
+    if(!pts){
+      let x=0,y=0;
+      pts=(raw[idx]||[]).map(p=>{
+        x+=Number(p?.[0]||0);y+=Number(p?.[1]||0);
+        return tr?[x*tr.scale[0]+tr.translate[0],y*tr.scale[1]+tr.translate[1]]:[x,y];
+      });
+      cache[idx]=pts;
+    }
+    return rev?pts.slice().reverse():pts;
+  };
+  const stitch=ids=>{
+    const out=[];
+    (ids||[]).forEach((id,n)=>{
+      const a=decodeArc(Number(id));
+      out.push(...(n&&a.length?a.slice(1):a));
+    });
+    return out;
+  };
+  const geometry=g=>{
+    if(g.type==='Polygon')return{type:'Polygon',coordinates:(g.arcs||[]).map(stitch)};
+    if(g.type==='MultiPolygon')return{type:'MultiPolygon',coordinates:(g.arcs||[]).map(poly=>(poly||[]).map(stitch))};
+    return null;
+  };
+  return{type:'FeatureCollection',features:obj.geometries.map(g=>({
+    type:'Feature',id:g.id,
+    properties:{...(g.properties||{}),state_code:String(g.properties?.STUSPS10||'').toUpperCase()},
+    geometry:geometry(g)
+  })).filter(f=>f.geometry)};
+}
 async function stateGeometry(){
   if(stateGeometryPromise)return stateGeometryPromise;
-  stateGeometryPromise=fetch(FN+'?states=1',{cache:'force-cache'}).then(async r=>{
+  stateGeometryPromise=fetch(STATE_TOPOLOGY,{cache:'force-cache'}).then(async r=>{
     if(!r.ok)throw new Error('STATE_GEOMETRY_HTTP_'+r.status);
-    const d=await r.json();
-    if(d?.type!=='FeatureCollection'||!Array.isArray(d.features))throw new Error('STATE_GEOMETRY_INVALID');
+    return topologyToStateGeoJSON(await r.json());
+  }).then(d=>{
+    if(d?.type!=='FeatureCollection'||!Array.isArray(d.features)||d.features.length<50)throw new Error('STATE_GEOMETRY_INVALID');
     return d;
   }).catch(e=>{stateGeometryPromise=null;throw e});
   return stateGeometryPromise;
@@ -84,7 +123,7 @@ function stateData(geo,rows){
   stateFeatureCount=Array.isArray(d.features)?d.features.length:0;
   for(const f of d.features||[]){
     const p=f.properties||(f.properties={});
-    const code=String(p.STUSAB||p.state_code||p.STATE||'').toUpperCase();
+    const code=String(p.STUSAB||p.STUSPS||p.STUSPS10||f.id||p.state_code||p.STATE||'').toUpperCase();
     const row=by.get(code)||{state_code:code,active_approved:0,public_approved:0,public_enabled:false,reason_code:'NO_ACTIVE_APPROVED_BOUNDARY_SOURCE'};
     p.state_code=code;
     p.status_key=row.public_enabled===true?'public':'hold';
@@ -102,7 +141,7 @@ function bindStatePopup(map){
   map.on('mouseleave',STATE_FILL,()=>{try{map.getCanvas().style.cursor=''}catch(_){}});
   map.on('click',STATE_FILL,e=>{
     const f=e?.features?.[0];if(!f)return;
-    const p=f.properties||{},ok=String(p.status_key)==='public',name=p.BASENAME||p.NAME||p.state_code||'Jurisdiction';
+    const p=f.properties||{},ok=String(p.status_key)==='public',name=p.BASENAME||p.NAME||p.NAME10||p.name||p.state_code||'Jurisdiction';
     const html='<b>'+esc(name)+' · '+esc(p.state_code||'')+'</b><em class="'+(ok?'ok':'hold')+'">'+(ok?'PUBLIC DISPLAY ENABLED':'NOT PUBLIC-ENABLED')+'</em><div>'+esc(p.reason||'')+'</div><small>This reflects BridgePoint source-rights metadata and publishing policy; it is not a statement that state law itself prohibits publication.</small>';
     new maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'330px',className:'bp-boundary-state-popup'}).setLngLat(e.lngLat).setHTML(html).addTo(map);
   });
@@ -112,7 +151,7 @@ async function syncStateOverlay(map,rows){
   const geo=await stateGeometry(),data=stateData(geo,rows);
   const src=map.getSource(STATE_SOURCE);
   if(src?.setData)src.setData(data);
-  else map.addSource(STATE_SOURCE,{type:'geojson',data,attribution:'U.S. Census Bureau TIGERweb · January 1, 2026 state boundaries'});
+  else map.addSource(STATE_SOURCE,{type:'geojson',data,attribution:'U.S. Census Bureau state geometry · locally vendored Census-derived topology'});
   if(!map.getLayer(STATE_FILL)){
     const before=map.getLayer(GLOW)?GLOW:undefined;
     map.addLayer({id:STATE_FILL,type:'fill',source:STATE_SOURCE,minzoom:1.8,paint:{
@@ -325,7 +364,7 @@ async function openViewer(nextMode='public'){
     };
     update();viewer.on('zoom',update);
     await refreshStatus();
-    window.__BP_BOUNDARY_VIEWER_BOOT_V5576__={version:5576,mode,independentMap:true,ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
+    window.__BP_BOUNDARY_VIEWER_BOOT_V5577__={version:5576,mode,independentMap:true,ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
   });
   clearInterval(refreshTimer);
   refreshTimer=setInterval(()=>{
@@ -386,6 +425,6 @@ function boot(){
     if(n>120)clearInterval(t);
   },500);
 }
-const BOUNDARY_API={version:VERSION,open:openViewer,close:closeViewer,getMap:()=>viewer,get mode(){return mode},get stateStatus(){return lastStateRows.slice()},stateFillLayer:STATE_FILL};window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5405__=BOUNDARY_API;
+const BOUNDARY_API={version:VERSION,open:openViewer,close:closeViewer,getMap:()=>viewer,get mode(){return mode},get stateStatus(){return lastStateRows.slice()},stateFillLayer:STATE_FILL};window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5405__=BOUNDARY_API;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
