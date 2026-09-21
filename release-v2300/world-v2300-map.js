@@ -859,7 +859,7 @@ export function initWorld(options={}){
   },500)
  }
  function startWaterMotion(){
-  clearInterval(waterTimer);let phase=0;waterTimer=setInterval(()=>{if(moving)return;phase=(phase+1)%12;const s=(Math.sin(phase/12*Math.PI*2)+1)/2;paint(map,'gta-coast-foam','line-opacity',.12+.18*s);paint(map,'gta-coast-foam','line-width',['interpolate',['linear'],['zoom'],13,.22+.06*s,18,.72+.3*s,20,1.15+.35*s]);paint(map,'gta-waterway-flow','line-opacity',.24+.22*s)},650)
+  clearInterval(waterTimer);waterTimer=0;paint(map,'gta-coast-foam','line-opacity',MOBILE||LOW?.18:.21);paint(map,'gta-waterway-flow','line-opacity',MOBILE||LOW?.3:.34);if(MOBILE||LOW)return;let phase=0;waterTimer=setInterval(()=>{if(document.hidden||moving)return;phase=(phase+1)%12;const s=(Math.sin(phase/12*Math.PI*2)+1)/2;paint(map,'gta-coast-foam','line-opacity',.12+.18*s);paint(map,'gta-coast-foam','line-width',['interpolate',['linear'],['zoom'],13,.22+.06*s,18,.72+.3*s,20,1.15+.35*s]);paint(map,'gta-waterway-flow','line-opacity',.24+.22*s)},900)
  }
  function refreshGlobalLodPaint(){
   if(moving||map.isMoving?.())return false;
