@@ -79,7 +79,7 @@ async function initSharedVisualWeather(targetWorld){
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5559');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5560');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -614,15 +614,15 @@ function bindPerformanceGovernor(){
  if(m.__bpPerfGovernor)return;
  m.__bpPerfGovernor=true;
  const restoreGestures=()=>{try{m.dragPan?.enable();m.touchZoomRotate?.enable();m.touchZoomRotate?.enableRotation?.();m.touchPitch?.enable?.();m.dragRotate?.enable?.();m.scrollZoom?.enable();m.doubleClickZoom?.enable();m.keyboard?.enable();m.boxZoom?.enable()}catch(_){}},
- release=(reason='event')=>{clearTimeout(performanceHardReleaseTimer);const now=performance.now(),staleFor=now-lastMapMotionAt,moving=!!m.isMoving?.();if(moving&&staleFor<(BP_MOBILE?850:520)){performanceHardReleaseTimer=setTimeout(()=>release('stationary_retry'),BP_MOBILE?260:120);return}if(moving){try{m.stop?.()}catch(_){}}restoreGestures();mapInteracting=false;document.body.classList.remove('map-interacting');flushDeferredWork();clearTimeout(semanticTimer);semanticTimer=setTimeout(refreshSemanticLabels,BP_MOBILE?650:120);try{m.resize?.();m.triggerRepaint?.()}catch(_){}window.__BP_INTERACTION_RECOVERY__={reason,stationary:!m.isMoving?.(),forced:moving&&staleFor>=(BP_MOBILE?850:520),staleForMs:Math.round(staleFor),updatedAt:Date.now()};window.__BP_PERSISTENT_RENDER_STATE__={layersHiddenDuringMotion:false,heavyMutationsDuringMotion:false,updatedAt:Date.now()}},
- enter=()=>{mapInteracting=true;lastMapMotionAt=performance.now();opportunitySeq++;clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);clearTimeout(performanceHardReleaseTimer);performanceHardReleaseTimer=setTimeout(()=>release('hard_release'),BP_MOBILE?1200:750);document.body.classList.add('map-interacting');try{closeSystem()}catch(_){}const auth=$('authPanel');if(auth)auth.hidden=true;$('bottomNav')?.classList.remove('peek')},
- leave=()=>{lastMapMotionAt=performance.now();clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);performanceDrainTimer=setTimeout(()=>release('paired_end'),BP_MOBILE?90:20)};
+ finishRelease=(reason,staleFor=0)=>{restoreGestures();mapInteracting=false;document.body.classList.remove('map-interacting');flushDeferredWork();clearTimeout(semanticTimer);semanticTimer=setTimeout(refreshSemanticLabels,BP_MOBILE?900:160);try{m.resize?.();m.triggerRepaint?.()}catch(_){}window.__BP_INTERACTION_RECOVERY__={reason,stationary:!m.isMoving?.(),forced:false,destructiveStop:false,staleForMs:Math.round(staleFor),updatedAt:Date.now()};window.__BP_PERSISTENT_RENDER_STATE__={layersHiddenDuringMotion:false,heavyMutationsDuringMotion:false,updatedAt:Date.now()}},
+ release=(reason='event')=>{clearTimeout(performanceHardReleaseTimer);const now=performance.now(),staleFor=now-lastMapMotionAt,moving=!!m.isMoving?.();restoreGestures();if(moving){performanceHardReleaseTimer=setTimeout(()=>release('non_destructive_retry'),BP_MOBILE?420:180);window.__BP_INTERACTION_RECOVERY__={reason,stationary:false,forced:false,destructiveStop:false,staleForMs:Math.round(staleFor),updatedAt:Date.now()};return}finishRelease(reason,staleFor)},
+ enter=()=>{mapInteracting=true;lastMapMotionAt=performance.now();opportunitySeq++;clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);clearTimeout(performanceHardReleaseTimer);restoreGestures();performanceHardReleaseTimer=setTimeout(()=>release('hard_release'),BP_MOBILE?1800:1000);document.body.classList.add('map-interacting');try{closeSystem()}catch(_){}const auth=$('authPanel');if(auth)auth.hidden=true;$('bottomNav')?.classList.remove('peek')},
+ leave=()=>{lastMapMotionAt=performance.now();clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);performanceDrainTimer=setTimeout(()=>release('paired_end'),BP_MOBILE?140:35)};
  m.on('move',()=>{lastMapMotionAt=performance.now()});
  ['movestart','dragstart','zoomstart','rotatestart','pitchstart'].forEach(e=>m.on(e,enter));
  ['moveend','dragend','zoomend','rotateend','pitchend'].forEach(e=>m.on(e,leave));
- window.__BP_INTERACTION_CIRCUIT_BREAKER_V5558__={version:5558,staleMotionRecovery:true,gestureRestore:true,updatedAt:Date.now()}
+ window.__BP_INTERACTION_CIRCUIT_BREAKER_V5560__={version:5560,staleMotionRecovery:true,gestureRestore:true,destructiveCameraStop:false,backgroundWorkDeferredDuringMotion:true,updatedAt:Date.now()}
 }
-
 function setMapSearchOpen(open){const surface=document.querySelector('.map-surface'),form=$('publicSearchForm'),box=$('publicSearchResults');surface?.classList.add('map-engaged');form?.classList.toggle('search-open',!!open);if(!open&&box)box.hidden=true;const btn=$('toggleSearch');if(btn)btn.classList.toggle('active',!!open);if(open)setTimeout(()=>$('publicSearchInput')?.focus(),60)}
 
 function haversineM(a,b){const R=6371008.8,toRad=x=>x*Math.PI/180,dLat=toRad(b[1]-a[1]),dLon=toRad(b[0]-a[0]),lat1=toRad(a[1]),lat2=toRad(b[1]);const h=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.min(1,Math.sqrt(h)))}
