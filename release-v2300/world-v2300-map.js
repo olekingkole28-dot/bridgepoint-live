@@ -1,6 +1,7 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
 import{initSpace}from'./world-v2300-space.js?v=5536';
 window.__BP_WORLD_RENDER_VERSION__=5561;
+window.__BP_GEOMETRY_TRUTH_V5590__={version:5590,genericRoofCaps:false,sourceBackedRoofOnly:true,groundBridgeRoadExcluded:true,continuousBridgeRibbons:true,updatedAt:Date.now()};
 window.__BP_FINE_DETAIL_MODE__={enabled:false,reason:'performance-first buildings-weather-boundaries',updatedAt:Date.now()};
 
 const OFM='https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf';
@@ -31,7 +32,7 @@ window.__BP_BUILDING_SELECTION_V5547__={version:5547,panelImmediate:false,update
 window.__BP_PHOTOREAL_WORLD_V5548__={version:5548,groundImagery:['USGS','OpenAerialMap'],oamLicense:'CC BY 4.0',oamCloseZoomOnly:true,bridgePointBuildingsRemainPrimary:true,photoDerivedRoofColor:true,roofColorTruthLayer:'BridgePoint v5376 real roofs',updatedAt:Date.now()};
 const US_BOUNDS=[-125,24,-66,50];
 
-const roadFilter=classes=>['in',['get','class'],['literal',classes]];
+const roadFilter=classes=>['all',['in',['get','class'],['literal',classes]],['!=',['downcase',['to-string',['coalesce',['get','brunnel'],'']]],'bridge'],['!=',['downcase',['to-string',['coalesce',['get','bridge'],'']]],'yes']];
 const vis=(map,id,on)=>{try{if(!map.getLayer(id))return false;const next=on?'visible':'none';if((map.getLayoutProperty(id,'visibility')||'visible')!==next){map.setLayoutProperty(id,'visibility',next);return true}return false}catch(_){return false}};
 const paint=(map,id,k,v)=>{try{if(map.getLayer(id))map.setPaintProperty(id,k,v)}catch(_){}};
 
@@ -535,6 +536,21 @@ export function initWorld(options={}){
  function circlePoly(coord,r,n=10){const out=[];for(let i=0;i<n;i++){const a=i/n*Math.PI*2;out.push([coord[0]+Math.cos(a)*r/metersLon(coord[1]),coord[1]+Math.sin(a)*r/110540])}out.push(out[0]);return[out]}
  function ribbonPoly(a,b,half){const lat=(a[1]+b[1])*.5,ml=metersLon(lat),dx=(b[0]-a[0])*ml,dy=(b[1]-a[1])*110540,len=Math.hypot(dx,dy);if(len<.35)return null;const nx=-dy/len,ny=dx/len,ox=nx*half/ml,oy=ny*half/110540;return[[[a[0]+ox,a[1]+oy],[b[0]+ox,b[1]+oy],[b[0]-ox,b[1]-oy],[a[0]-ox,a[1]-oy],[a[0]+ox,a[1]+oy]]]}
  function ribbonOffsetPoly(a,b,centerOffset,half){const lat=(a[1]+b[1])*.5,ml=metersLon(lat),dx=(b[0]-a[0])*ml,dy=(b[1]-a[1])*110540,len=Math.hypot(dx,dy);if(len<.35)return null;const nx=-dy/len,ny=dx/len,cx=nx*centerOffset/ml,cy=ny*centerOffset/110540,hx=nx*half/ml,hy=ny*half/110540;return[[[a[0]+cx+hx,a[1]+cy+hy],[b[0]+cx+hx,b[1]+cy+hy],[b[0]+cx-hx,b[1]+cy-hy],[a[0]+cx-hx,a[1]+cy-hy],[a[0]+cx+hx,a[1]+cy+hy]]]}
+ function ribbonLinePoly(line,half,centerOffset=0){
+  if(!Array.isArray(line)||line.length<2)return null;
+  const pts=[];for(const p of line||[]){if(!Array.isArray(p)||!Number.isFinite(+p[0])||!Number.isFinite(+p[1]))continue;const q=[+p[0],+p[1]];const last=pts[pts.length-1];if(!last||Math.abs(q[0]-last[0])>1e-10||Math.abs(q[1]-last[1])>1e-10)pts.push(q)}
+  if(pts.length<2)return null;
+  const normalAt=i=>{
+   const p=pts[i],prev=pts[Math.max(0,i-1)],next=pts[Math.min(pts.length-1,i+1)];
+   const seg=(a,b)=>{const lat=((a[1]+b[1])*.5)*Math.PI/180,dx=(b[0]-a[0])*111320*Math.max(.12,Math.cos(lat)),dy=(b[1]-a[1])*110540,len=Math.hypot(dx,dy)||1;return{tx:dx/len,ty:dy/len,nx:-dy/len,ny:dx/len}};
+   const a=i>0?seg(prev,p):seg(p,next),b=i<pts.length-1?seg(p,next):seg(prev,p);
+   let nx=a.nx+b.nx,ny=a.ny+b.ny,nl=Math.hypot(nx,ny);if(nl<.001){nx=b.nx;ny=b.ny;nl=1}nx/=nl;ny/=nl;
+   const denom=Math.max(.55,Math.abs(nx*b.nx+ny*b.ny));return{nx,ny,miter:Math.min(1.8,1/denom)}
+  };
+  const side=(sign)=>pts.map((p,i)=>{const n=normalAt(i),dist=centerOffset+sign*half*n.miter,ml=111320*Math.max(.12,Math.cos(p[1]*Math.PI/180));return[p[0]+n.nx*dist/ml,p[1]+n.ny*dist/110540]});
+  const left=side(1),right=side(-1).reverse(),ring=[...left,...right];ring.push(ring[0]);return[ring]
+ }
+
  function livingPhysical(data){
   const out=[],cap=MOBILE?72:(TIER==='HIGH'?420:220);let used=0;
   const linesOf=g=>g?.type==='LineString'?[g.coordinates]:g?.type==='MultiLineString'?(g.coordinates||[]):[];
@@ -706,22 +722,40 @@ export function initWorld(options={}){
  function bridge3dMeters(a,b){const lat=((a?.[1]||0)+(b?.[1]||0))*.5*Math.PI/180,dx=((b?.[0]||0)-(a?.[0]||0))*111320*Math.cos(lat),dy=((b?.[1]||0)-(a?.[1]||0))*110540;return Math.hypot(dx,dy)}
  function bridge3dWidth(p){const cls=String(p?.class||'').toLowerCase(),w=road3dWidth(p);return cls==='rail'||cls==='transit'?Math.max(5.2,w):cls==='path'||cls==='footway'?Math.max(2,w):w}
  function bridge3dBase(p,w){const explicit=Number(String(p?.min_height??p?.clearance??'').match(/\d+(?:\.\d+)?/)?.[0]),layerN=Number(p?.layer),cls=String(p?.class||'').toLowerCase();if(Number.isFinite(explicit)&&explicit>1&&explicit<80)return clamp(explicit,2.5,40);const classBase=({motorway:8.2,trunk:7.6,primary:7,secondary:6.3,tertiary:5.7,rail:7.2,transit:6.8,path:4.2,footway:4}[cls]||5.2);return clamp(classBase+Math.max(0,(Number.isFinite(layerN)?layerN:1)-1)*3+Math.max(0,w-8)*.12,3.2,28)}
- function bridgeSourceFeatures(){let fs=[];try{fs=map.querySourceFeatures?.('ofm',{sourceLayer:'transportation',filter:['==',['get','brunnel'],'bridge'],validate:false})||[]}catch(_){fs=[]}if(!fs.length)try{fs=map.queryRenderedFeatures({layers:['gta-bridge-deck']})||[]}catch(_){fs=[]}return fs}
+ function bridgeSourceFeatures(){let fs=[];try{fs=map.queryRenderedFeatures({layers:['gta-bridge-deck']})||[]}catch(_){fs=[]}if(!fs.length)try{fs=map.querySourceFeatures?.('ofm',{sourceLayer:'transportation',filter:['==',['get','brunnel'],'bridge'],validate:false})||[]}catch(_){fs=[]}return fs}
  function rebuildBridge3D(delay=MOBILE?420:(LOW?300:180),allowMotion=false){
   clearTimeout(bridge3dTimer);bridge3dTimer=setTimeout(()=>{
    const src=map.getSource('bpBridge3D'),z=map.getZoom();if(!src)return;
-   if(z<BRIDGE_3D_MIN){if(!allowMotion)src.setData(EMPTY);window.__BP_BRIDGE3D_V5542__={version:5542,status:'lod-off',segments:0,minZoom:BRIDGE_3D_MIN,globalSource:true,updatedAt:Date.now()};return}
+   if(z<BRIDGE_3D_MIN){if(!allowMotion)src.setData(EMPTY);window.__BP_BRIDGE3D_V5590__={version:5590,status:'lod-off',segments:0,minZoom:BRIDGE_3D_MIN,globalSource:true,updatedAt:Date.now()};return}
    if(moving&&!allowMotion)return;
    const build=()=>{
-    if(moving&&!allowMotion)return;const fs=bridgeSourceFeatures(),out=[],seen=new Set(),bridgeKeys=new Set(),cap=allowMotion?(MOBILE?420:(TIER==='HIGH'?1900:1100)):(z<12?(MOBILE?900:(TIER==='HIGH'?3600:2200)):(MOBILE?1800:(TIER==='HIGH'?7600:4400))),supports=z>=BRIDGE_SUPPORT_MIN;let segments=0,rails=0,piers=0,surfaces=0,centers=0,truncated=false;
-    outer:for(const ft of fs){const p=ft.properties||{},g=ft.geometry,lines=g?.type==='LineString'?[g.coordinates]:g?.type==='MultiLineString'?g.coordinates:[],w=bridge3dWidth(p),base=bridge3dBase(p,w),cls=String(p.class||'').toLowerCase()||'road',bridgeId=String(ft.id??p.osm_id??p.id??[p.ref||'',p.name||'',cls,lines?.[0]?.[0]?.join(',')||''].join('|'));bridgeKeys.add(bridgeId);
-     for(const line of lines){let pierRun=0;for(let i=0;i<line.length-1;i++){if(segments>=cap){truncated=true;break outer}const a=line[i],b=line[i+1],key=[a[0].toFixed(6),a[1].toFixed(6),b[0].toFixed(6),b[1].toFixed(6),Math.round(w*10)].join(':');if(seen.has(key))continue;seen.add(key);const deck=ribbonPoly(a,b,w*.5+.48),surface=ribbonPoly(a,b,Math.max(.8,w*.5));if(!deck||!surface)continue;const common={bridge_id:bridgeId,bridge_name:String(p.name||''),bridge_class:cls,source:'OPENFREEMAP_OSM_TRANSPORTATION',truth:'SOURCE_BRIDGE_CENTERLINE_DERIVED_3D'};out.push({type:'Feature',geometry:{type:'Polygon',coordinates:deck},properties:{...common,part:'bridge_deck',base_m:base,deck_top_m:base+.42,width_m:w}});out.push({type:'Feature',geometry:{type:'Polygon',coordinates:surface},properties:{...common,part:'bridge_surface',surface_base_m:base+.415,surface_top_m:base+.56,width_m:w}});surfaces++;
-       if(supports&&['motorway','trunk','primary','secondary','tertiary'].includes(cls)){const stripe=ribbonPoly(a,b,clamp(w*.018,.06,.14));if(stripe){out.push({type:'Feature',geometry:{type:'Polygon',coordinates:stripe},properties:{...common,part:'bridge_center',stripe_base_m:base+.565,stripe_top_m:base+.59,stripe_color:'#f2c94c'}});centers++}}
-       if(supports){for(const side of [-1,1]){const rail=ribbonOffsetPoly(a,b,side*(w*.5+.28),.09);if(rail){out.push({type:'Feature',geometry:{type:'Polygon',coordinates:rail},properties:{...common,part:'bridge_rail',rail_base_m:base+.48,rail_top_m:base+1.55}});rails++}}pierRun+=bridge3dMeters(a,b);const pierGap=clamp(w*5.2,34,92);if(pierRun>=pierGap){const mid=[(a[0]+b[0])*.5,(a[1]+b[1])*.5],pier=circlePoly(mid,clamp(w*.1,.3,1.15),10);out.push({type:'Feature',geometry:{type:'Polygon',coordinates:pier},properties:{...common,part:'bridge_pier',pier_top_m:base+.08}});piers++;pierRun=0}}
-       segments++
-      }}
+    if(moving&&!allowMotion)return;
+    const fs=bridgeSourceFeatures(),out=[],seenLines=new Set(),bridgeKeys=new Set(),cap=allowMotion?(MOBILE?180:(TIER==='HIGH'?900:520)):(z<12?(MOBILE?320:(TIER==='HIGH'?1400:900)):(MOBILE?620:(TIER==='HIGH'?2600:1600))),supports=z>=BRIDGE_SUPPORT_MIN;
+    let linesBuilt=0,rails=0,piers=0,surfaces=0,centers=0,truncated=false;
+    outer:for(const ft of fs){
+     const p=ft.properties||{},g=ft.geometry,lines=g?.type==='LineString'?[g.coordinates]:g?.type==='MultiLineString'?(g.coordinates||[]):[],w=bridge3dWidth(p),base=bridge3dBase(p,w),cls=String(p.class||'').toLowerCase()||'road',bridgeId=String(ft.id??p.osm_id??p.id??[p.ref||'',p.name||'',cls].join('|'));bridgeKeys.add(bridgeId);
+     for(const rawLine of lines){
+      if(linesBuilt>=cap){truncated=true;break outer}
+      const line=(rawLine||[]).filter(q=>Array.isArray(q)&&Number.isFinite(+q[0])&&Number.isFinite(+q[1]));if(line.length<2)continue;
+      const a=line[0],b=line[line.length-1],ea=[a[0].toFixed(5),a[1].toFixed(5)].join(','),eb=[b[0].toFixed(5),b[1].toFixed(5)].join(','),lineKey=[cls,Math.round(w*10),line.length,...([ea,eb].sort())].join('|');
+      if(seenLines.has(lineKey))continue;seenLines.add(lineKey);
+      const deck=ribbonLinePoly(line,w*.5+.48),surface=ribbonLinePoly(line,Math.max(.8,w*.5));if(!deck||!surface)continue;
+      const common={bridge_id:bridgeId,bridge_name:String(p.name||''),bridge_class:cls,source:'OPENFREEMAP_OSM_TRANSPORTATION',truth:'SOURCE_BRIDGE_CENTERLINE_DERIVED_CONTINUOUS_3D'};
+      out.push({type:'Feature',geometry:{type:'Polygon',coordinates:deck},properties:{...common,part:'bridge_deck',base_m:base,deck_top_m:base+.42,width_m:w}});
+      out.push({type:'Feature',geometry:{type:'Polygon',coordinates:surface},properties:{...common,part:'bridge_surface',surface_base_m:base+.415,surface_top_m:base+.56,width_m:w}});surfaces++;
+      if(supports&&['motorway','trunk','primary','secondary','tertiary'].includes(cls)){
+       const stripe=ribbonLinePoly(line,clamp(w*.018,.06,.14));if(stripe){out.push({type:'Feature',geometry:{type:'Polygon',coordinates:stripe},properties:{...common,part:'bridge_center',stripe_base_m:base+.565,stripe_top_m:base+.59,stripe_color:'#f2c94c'}});centers++}
+      }
+      if(supports){
+       for(const side of [-1,1]){const rail=ribbonLinePoly(line,.09,side*(w*.5+.28));if(rail){out.push({type:'Feature',geometry:{type:'Polygon',coordinates:rail},properties:{...common,part:'bridge_rail',rail_base_m:base+.48,rail_top_m:base+1.55}});rails++}}
+       let carry=0;const pierGap=clamp(w*5.2,34,92);
+       for(let i=0;i<line.length-1;i++){const aa=line[i],bb=line[i+1],seg=bridge3dMeters(aa,bb);carry+=seg;if(carry>=pierGap){const mid=[(aa[0]+bb[0])*.5,(aa[1]+bb[1])*.5],pier=circlePoly(mid,clamp(w*.1,.3,1.15),10);out.push({type:'Feature',geometry:{type:'Polygon',coordinates:pier},properties:{...common,part:'bridge_pier',pier_top_m:base+.08}});piers++;carry=carry%pierGap}}
+      }
+      linesBuilt++
+     }
     }
-    src.setData({type:'FeatureCollection',features:out});window.__BP_BRIDGE3D_V5542__={version:5542,status:'ready',sourceLayer:'OpenMapTiles transportation / brunnel=bridge',sourceMode:'querySourceFeatures-first',renderedBridgeFeatures:bridgeKeys.size,segments,surfaces,centerStripes:centers,rails,piers,truncated,minZoom:BRIDGE_3D_MIN,supportMinZoom:BRIDGE_SUPPORT_MIN,globalSource:true,onDemandViewportMaterialization:true,continuousDuringGestures:allowMotion,roadSurfaceRaisedWithBridge:true,derivedDisplayGeometry:true,updatedAt:Date.now()}
+    src.setData({type:'FeatureCollection',features:out});
+    window.__BP_BRIDGE3D_V5590__={version:5590,status:'ready',sourceLayer:'OpenMapTiles transportation / brunnel=bridge',sourceMode:'rendered-first',renderedBridgeFeatures:bridgeKeys.size,continuousLines:linesBuilt,surfaces,centerStripes:centers,rails,piers,truncated,minZoom:BRIDGE_3D_MIN,supportMinZoom:BRIDGE_SUPPORT_MIN,globalSource:true,onDemandViewportMaterialization:true,continuousDuringGestures:allowMotion,roadSurfaceRaisedWithBridge:true,groundRoadExcluded:true,continuousJoinGeometry:true,updatedAt:Date.now()}
    };
    if(allowMotion)requestAnimationFrame(build);else if('requestIdleCallback'in window)requestIdleCallback(build,{timeout:MOBILE?1200:700});else setTimeout(build,MOBILE?80:30)
   },delay)
@@ -797,9 +831,10 @@ export function initWorld(options={}){
   const floors=detailSettled&&z>=GLOBAL_FLOOR_MIN,roofFallback=detailSettled&&z>=GLOBAL_ROOF_MIN;
   vis(map,'gta-context-building-footprints',z<11.2&&!cityReady);
   vis(map,'gta-context-buildings',z>=11.2&&!cityReady);
-  const floorOn=floors&&!cityReady,roofOn=roofFallback&&!cityReady;
+  const floorOn=floors&&!cityReady,roofOn=false;
   const floorBecameVisible=vis(map,'gta-context-floor-lines',floorOn);
-  const roofBecameVisible=vis(map,'gta-context-roofs',roofOn);
+  const roofBecameVisible=vis(map,'gta-context-roofs',false);
+  vis(map,'gta-city-building-roof-caps',false);
   if(floorOn&&floorBecameVisible){
    paint(map,'gta-context-floor-lines','fill-extrusion-base',['max',0,['coalesce',['to-number',['get','render_min_height']],['to-number',['get','min_height']],['to-number',['get','base_height_m']],0]]);
    paint(map,'gta-context-floor-lines','fill-extrusion-height',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]]);
@@ -814,7 +849,7 @@ export function initWorld(options={}){
   }
   // Keep the source-backed city layer visible/requested from city zoom so exact-height geometry can fill whole viewports.
   vis(map,'gta-city-buildings',wantCity);
-  vis(map,'gta-city-building-roof-caps',wantCity&&roofFallback);
+  vis(map,'gta-city-building-roof-caps',false);
   vis(map,'gta-city-roofs',wantCity&&z>=15.85);
   vis(map,'gta-exact-building',exactReady&&!cityReady);
   vis(map,'gta-exact-floor-lines',exactReady&&floors&&!cityReady);
@@ -837,7 +872,9 @@ export function initWorld(options={}){
    additiveExactHeight:exactReady&&!cityReady,
    exactRoofs:exactReady&&!cityReady,
    floorLines:floors,
-   contextRoofFallback:roofFallback&&!cityReady,
+   contextRoofFallback:false,
+   genericRoofCaps:false,
+   sourceBackedRoofOnly:true,
    displaySource:cityReady?'BRIDGEPOINT_CITY_STRUCTURES_V5371':'OPENFREEMAP_GLOBAL_BUILDING',
    seamlessFallback:!cityReady,
    cityHandoff:'CURRENT_VIEWPORT_RENDERED_FEATURE_REQUIRED_V5545',
