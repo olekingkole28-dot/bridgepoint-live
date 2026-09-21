@@ -617,6 +617,26 @@ function bindMapGestureIsolation(){
 
 const BP_MOBILE=innerWidth<=900||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 startupInteractiveUntil=performance.now()+(BP_MOBILE?18000:6000);window.__BP_INTERACTION_PRIORITY_UNTIL__=startupInteractiveUntil;
+let clientPressureWindowStart=performance.now(),clientPressureLongMs=0,clientPressureHits=0;
+function extendInteractionPriority(ms,reason='runtime-pressure'){
+ const next=performance.now()+Math.max(250,Number(ms)||0);
+ if(next>startupInteractiveUntil)startupInteractiveUntil=next;
+ window.__BP_INTERACTION_PRIORITY_UNTIL__=startupInteractiveUntil;
+ clearTimeout(deferredDrainTimer);
+ deferredDrainTimer=setTimeout(flushDeferredWork,Math.min(BP_MOBILE?1000:400,Math.max(100,startupInteractiveUntil-performance.now()+50)));
+ window.__BP_CLIENT_PRESSURE_GUARD_V5595__={version:5595,active:true,reason,until:startupInteractiveUntil,longTaskMs:Math.round(clientPressureLongMs),hits:clientPressureHits,nonDestructive:true,gesturesPreserved:true,updatedAt:Date.now()}
+}
+try{
+ if('PerformanceObserver'in window&&PerformanceObserver.supportedEntryTypes?.includes('longtask')){
+  const po=new PerformanceObserver(list=>{
+   const now=performance.now();if(now-clientPressureWindowStart>9000){clientPressureWindowStart=now;clientPressureLongMs=0;clientPressureHits=0}
+   for(const e of list.getEntries()){const d=Number(e.duration)||0;if(d<120)continue;clientPressureLongMs+=d;clientPressureHits++}
+   if(clientPressureLongMs>=(BP_MOBILE?520:850)||clientPressureHits>=(BP_MOBILE?2:4))extendInteractionPriority(BP_MOBILE?14000:5000,'long-task-pressure')
+  });po.observe({entryTypes:['longtask']});
+  window.__BP_CLIENT_PRESSURE_OBSERVER__=po
+ }
+}catch(_){}
+window.__BP_CLIENT_PRESSURE_GUARD_V5595__={version:5595,active:true,reason:'startup',until:startupInteractiveUntil,longTaskMs:0,hits:0,nonDestructive:true,gesturesPreserved:true,updatedAt:Date.now()};
 window.__BP_PERFORMANCE_GOVERNOR__=window.__BP_PERFORMANCE_GOVERNOR__||{get interacting(){return mapInteracting},get queued(){return deferredWork.size}};
 let lastMapMotionAt=0;
 function bpInputPending(){try{return navigator.scheduling?.isInputPending?.({includeContinuous:true})===true}catch(_){return false}}
@@ -648,7 +668,7 @@ function bindPerformanceGovernor(){
  const restoreGestures=()=>{try{m.dragPan?.enable();m.touchZoomRotate?.enable();m.touchZoomRotate?.enableRotation?.();m.touchPitch?.enable?.();m.dragRotate?.enable?.();m.scrollZoom?.enable();m.doubleClickZoom?.enable();m.keyboard?.enable();m.boxZoom?.enable()}catch(_){}},
  finishRelease=(reason,staleFor=0)=>{restoreGestures();mapInteracting=false;document.body.classList.remove('map-interacting');flushDeferredWork();clearTimeout(semanticTimer);semanticTimer=setTimeout(refreshSemanticLabels,BP_MOBILE?1200:220);try{m.triggerRepaint?.()}catch(_){}window.__BP_INTERACTION_RECOVERY__={reason,stationary:!m.isMoving?.(),forced:false,destructiveStop:false,staleForMs:Math.round(staleFor),updatedAt:Date.now()};window.__BP_PERSISTENT_RENDER_STATE__={layersHiddenDuringMotion:false,heavyMutationsDuringMotion:false,updatedAt:Date.now()}},
  release=(reason='event')=>{clearTimeout(performanceHardReleaseTimer);const now=performance.now(),staleFor=now-lastMapMotionAt,moving=!!m.isMoving?.();restoreGestures();if(moving){performanceHardReleaseTimer=setTimeout(()=>release('non_destructive_retry'),BP_MOBILE?420:180);window.__BP_INTERACTION_RECOVERY__={reason,stationary:false,forced:false,destructiveStop:false,staleForMs:Math.round(staleFor),updatedAt:Date.now()};return}finishRelease(reason,staleFor)},
- enter=()=>{mapInteracting=true;lastMapMotionAt=performance.now();opportunitySeq++;clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);clearTimeout(performanceHardReleaseTimer);restoreGestures();performanceHardReleaseTimer=setTimeout(()=>release('hard_release'),BP_MOBILE?1800:1000);document.body.classList.add('map-interacting');try{closeSystem()}catch(_){}const auth=$('authPanel');if(auth)auth.hidden=true;$('bottomNav')?.classList.remove('peek')},
+ enter=()=>{mapInteracting=true;lastMapMotionAt=performance.now();extendInteractionPriority(BP_MOBILE?1800:700,'active-map-gesture');opportunitySeq++;clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);clearTimeout(performanceHardReleaseTimer);restoreGestures();performanceHardReleaseTimer=setTimeout(()=>release('hard_release'),BP_MOBILE?1800:1000);document.body.classList.add('map-interacting');try{closeSystem()}catch(_){}const auth=$('authPanel');if(auth)auth.hidden=true;$('bottomNav')?.classList.remove('peek')},
  leave=()=>{lastMapMotionAt=performance.now();clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);performanceDrainTimer=setTimeout(()=>release('paired_end'),BP_MOBILE?140:35)};
  m.on('move',()=>{lastMapMotionAt=performance.now()});
  ['movestart','dragstart','zoomstart','rotatestart','pitchstart'].forEach(e=>m.on(e,enter));
@@ -820,3 +840,4 @@ window.__BP_APP_MAIN_THREAD_GUARD_V5586__={version:5586,offMapBackgroundPause:tr
 window.__BP_APP_MAIN_THREAD_GUARD_V5587__={version:5587,offMapBackgroundPause:true,serializedStartup:true,duplicateWeatherRefreshRemoved:true,lazyRendererMaterials:true,updatedAt:Date.now()};
 window.__BP_APP_GEOMETRY_V5590__={version:5590,sourceBackedRoofOnly:true,bridgeGroundDuplicationRemoved:true,updatedAt:Date.now()};
 window.__BP_MAIN_THREAD_GUARD_V5592__={version:5592,interactionPriorityMsMobile:10000,sharedVisualWeatherDeferred:true,duplicateRadarDisabled:true,backgroundDrainHeldAtStartup:true,ownerLiveLegalPdf:true,updatedAt:Date.now()};
+window.__BP_SELF_HEAL_CLIENT_V5595__={version:5595,longTaskCircuitBreaker:true,optionalWorkDeferred:true,mapGesturesNeverDisabled:true,pressureExtendsInteractionPriority:true,updatedAt:Date.now()};

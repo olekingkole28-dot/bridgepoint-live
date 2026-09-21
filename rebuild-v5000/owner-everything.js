@@ -51,7 +51,25 @@ function renderExpansion(){
  $('ownerExpansionStatus').innerHTML='<div class="owner-kpis">'+[['Jurisdictions',j.total||0,'known'],['Live',j.live||0,'live'],['Queued/building',j.queued_or_building||0,'in progress'],['Countries',j.countries||0,'country scopes'],['US subdivisions',j.us_subdivisions||0,'U.S.'],['Parity rules',x.parity_requirements||0,'requirements']].map(([a,b,c])=>'<div class="owner-kpi"><span>'+a+'</span><b>'+fmt(b)+'</b><small>'+c+'</small></div>').join('')+'</div>'+table(['Jurisdiction','Request','Build','Discovery','Compliance','Priority','Activity'],req.slice(0,100).map(r=>'<tr><td><b>'+esc(r.jurisdiction_name||r.jurisdiction_key)+'</b><br>'+esc([r.country_code,r.region_code].filter(Boolean).join('-'))+'</td><td>'+pill(r.request_status)+'</td><td>'+pill(r.build_status)+'</td><td>'+pill(r.discovery_status)+'</td><td>'+pill([r.licensing_status,r.privacy_status,r.local_law_status].filter(Boolean).join(' / '))+'</td><td>'+esc(r.priority??'—')+'</td><td>'+esc(when(r.last_activity_at||r.requested_at))+'</td></tr>'));
  $('ownerExportJobs').innerHTML=table(['Scope','Status','Format','Requested','Updated'],jobs.map(r=>'<tr><td><b>'+esc((r.scope_kind||'')+' '+(r.scope_key||''))+'</b></td><td>'+pill(r.status)+'</td><td>'+esc(r.requested_format||'—')+'</td><td>'+esc(when(r.requested_at))+'</td><td>'+esc(when(r.updated_at||r.completed_at))+'</td></tr>'));
 }
-function renderFast(){if(!hub)return;renderKPIs();renderAcquisition();renderValuation();renderExpansion();$('ownerUpdated').textContent='Updated '+new Date(hub.generated_at||Date.now()).toLocaleString();window.__BP_OWNER_HUB__=hub}
+function renderAutonomy(){
+ const root=$('ownerAutonomy');if(!root)return;
+ const a=hub?.autonomy||{},s=a.supervisor||{},h=a.worker_health||{},jobs=arr(a.autonomous_jobs),g=a.global_expansion||{},legal=a.legal_manifest||{};
+ const mode=String(s.mode||'CONNECTING'),pressure=[
+  ['HTTP queue',s.http_queue??'—'],['Active clients',s.active_clients??'—'],['I/O waits',s.io_waits??'—'],
+  ['Running cron',s.running_cron??'—'],['Startup timeouts',s.startup_timeouts_5m??'—'],['Recent worker failures',h.recent_failed_runs??'—']
+ ];
+ const lanes=jobs.map(j=>'<tr><td><b>'+esc(String(j.jobname||'').replace('bridgepoint-autonomous-','').replace('-v5594','').replaceAll('-',' '))+'</b></td><td>'+pill(j.active?'ACTIVE':'PAUSED')+'</td><td>'+esc(j.schedule||'—')+'</td><td>'+pill(j.last_status||'—')+'</td><td>'+esc(when(j.last_start))+'</td></tr>');
+ root.innerHTML=
+  '<div class="owner-kpis"><div class="owner-kpi"><span>Governor mode</span><b>'+esc(mode)+'</b><small>pressure aware</small></div>'+
+  pressure.map(([k,v])=>'<div class="owner-kpi"><span>'+esc(k)+'</span><b>'+esc(v)+'</b><small>live</small></div>').join('')+'</div>'+
+  '<div class="owner-driver"><div><b>Last supervisor tick</b><small>'+esc(when(s.last_tick_at))+'</small></div><b>'+esc(String(s.changed_jobs??0))+' schedule changes</b></div>'+
+  '<div class="owner-driver"><div><b>Global expansion</b><small>'+fmt(g.requests_total||0)+' requests · '+fmt(g.queue_total||0)+' queue rows</small></div><b>'+esc(when(s.last_global_tick_at))+'</b></div>'+
+  '<div class="owner-driver"><div><b>Legal/source manifest</b><small>'+fmt(legal.rows||0)+' evidence rows · current-source PDF is generated live</small></div><b>'+esc(when(s.last_legal_refresh_at||legal.latest_snapshot))+'</b></div>'+
+  '<div class="owner-driver"><div><b>Acquisition maintenance</b><small>funnel, capture and acquisition-fuel maintenance</small></div><b>'+esc(when(s.last_acquisition_tick_at))+'</b></div>'+
+  table(['Autonomous lane','State','Schedule','Last result','Last run'],lanes);
+}
+
+function renderFast(){if(!hub)return;renderKPIs();renderAcquisition();renderValuation();renderExpansion();renderAutonomy();$('ownerUpdated').textContent='Updated '+new Date(hub.generated_at||Date.now()).toLocaleString();window.__BP_OWNER_HUB__=hub}
 function renderAll(){if(!hub)return;renderFast();renderBackend()}
 async function loadBackendSections(force=false){
  if(backendLoading||!ownerAllowed())return;
@@ -94,7 +112,8 @@ async function loadHub(force=false){
   ['online','bridgepoint_owner_online_user_activity_v1054',{},8000],
   ['live_activity','bridgepoint_owner_live_activity_v958',{},8000],
   ['backend_status','bridgepoint_frontend_status_v5000',{},8000],
-  ['expansion_snapshot','bridgepoint_owner_expansion_snapshot_v5402',{},8000]
+  ['expansion_snapshot','bridgepoint_owner_expansion_snapshot_v5402',{},8000],
+  ['autonomy','bridgepoint_owner_autonomy_status_v5594',{},8000]
  ];
  let ok=0,fail=0;
  try{
