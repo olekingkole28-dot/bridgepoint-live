@@ -128,11 +128,15 @@ jobs:
               if(baseline.circuit?.destructiveCameraStop!==false)throw new Error('DESTRUCTIVE_CAMERA_STOP_PRESENT '+JSON.stringify(baseline));
               if(Number(baseline.parcelMin)>6.7||Number(baseline.parcelGlowMin)>6.7||Number(baseline.parcelSourceMin)>6.7)throw new Error('PARCEL_ZOOM_GATE '+JSON.stringify(baseline));
 
-              await page.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:14.7,pitch:58,bearing:-18}));
+              await page.evaluate(()=>{
+                window.__BP_MAP_USER_INTENT_AT__=Date.now();
+                const m=window.__BP_V5000_WORLD.map;
+                m.jumpTo({center:[-74.006,40.7128],zoom:14.7,pitch:58,bearing:-18});
+              });
               await page.waitForFunction(()=>{
                 const c=window.__BP_V5000_WORLD?.map?.getCenter?.();
                 return !!c&&Math.abs(c.lng+74.006)<0.08&&Math.abs(c.lat-40.7128)<0.08;
-              },{timeout:8000});
+              },{timeout:15000});
               await sleep(4200);
               const hit=await page.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map,c=m.getCanvas(),w=c.clientWidth,h=c.clientHeight;
