@@ -241,6 +241,6 @@ function boot(){
     if(n>120)clearInterval(t);
   },500);
 }
-window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__={version:VERSION,open:openViewer,close:closeViewer};window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__=window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
+window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__={version:VERSION,open:openViewer,close:closeViewer,getMap:()=>viewer,get mode(){return mode}};window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__=window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
