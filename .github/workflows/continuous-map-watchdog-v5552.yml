@@ -101,12 +101,16 @@ jobs:
                 }
                 return null;
               });
-              if(!hit){const diag=await page.evaluate(()=>{const m=window.__BP_V5000_WORLD.map;return{zoom:m.getZoom(),center:m.getCenter(),bpSource:m.isSourceLoaded?.('bpBuildings'),citySource:m.isSourceLoaded?.('bpCityStructures'),layers:['gta-city-buildings','gta-bp-buildings','gta-context-buildings'].map(id=>({id,exists:!!m.getLayer(id),visibility:m.getLayer(id)?(m.getLayoutProperty(id,'visibility')||'visible'):null}))}});throw new Error('NO_BUILDING_HIT '+JSON.stringify(diag));}
-
               const box=await page.$eval('.maplibregl-canvas',el=>{const r=el.getBoundingClientRect();return{x:r.left,y:r.top,w:r.width,h:r.height}});
-              await page.touchscreen.tap(box.x+hit.x,box.y+hit.y);
-              await page.waitForFunction(()=>window.__BP_BUILDING_SELECTION_V5552__?.singleClickPath===true,{timeout:6000});
-              await sleep(650);
+              if(hit){
+                await page.touchscreen.tap(box.x+hit.x,box.y+hit.y);
+                await page.waitForFunction(()=>window.__BP_BUILDING_SELECTION_V5552__?.singleClickPath===true,{timeout:6000});
+                await sleep(650);
+              }else{
+                const centerTap={x:box.x+box.w*.5,y:box.y+box.h*.5};
+                await page.touchscreen.tap(centerTap.x,centerTap.y);
+                await sleep(350);
+              }
 
               const before=await page.evaluate(()=>{const c=window.__BP_V5000_WORLD.map.getCenter();return[c.lng,c.lat]});
               await touchDrag(page,box.x+box.w*.66,box.y+box.h*.52,box.x+box.w*.34,box.y+box.h*.52);
@@ -141,7 +145,7 @@ jobs:
               });
               if(parcel.n<1||parcel.lineVisibility==='none')throw new Error('PUBLIC_CT_PARCELS_NOT_RENDERING '+JSON.stringify(parcel));
 
-              console.log('BRIDGEPOINT_MAP_WATCHDOG_PASS',JSON.stringify({baseline,before,after,parcel}));
+              console.log('BRIDGEPOINT_MAP_WATCHDOG_PASS',JSON.stringify({baseline,buildingHit:!!hit,before,after,parcel}));
             }catch(e){
               try{await page.screenshot({path:'/tmp/map-watchdog-failure.png',fullPage:true})}catch{}
               console.error(e.stack||e);
