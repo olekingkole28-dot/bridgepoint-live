@@ -2,7 +2,7 @@
 'use strict';
 
 const FN='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403';
-const VERSION=5403;
+const VERSION=5404;
 const SOURCE='bp-boundary-viewer-v5403';
 const GLOW='bp-boundary-glow-v5403';
 const LINE='bp-boundary-line-v5403';
@@ -241,6 +241,6 @@ function boot(){
     if(n>120)clearInterval(t);
   },500);
 }
-window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__={version:VERSION,open:openViewer,close:closeViewer};
+window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__={version:VERSION,open:openViewer,close:closeViewer};window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__=window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
