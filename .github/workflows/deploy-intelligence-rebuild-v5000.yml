@@ -396,7 +396,7 @@ jobs:
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
           grep -Fq '__BP_APP_BUILD_VERSION__=5371' site/app.js
-          grep -Fq '__BP_WORLD_RENDER_VERSION__=5560' site/world-v2300-map.js
+          grep -Fq '__BP_WORLD_RENDER_VERSION__=5561' site/world-v2300-map.js
           grep -Fq 'bridgepoint_frontend_status_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_v5000' site/app.js
           grep -Fq 'bridgepoint_public_building_detail_by_id_v5024' site/app.js
@@ -606,14 +606,14 @@ jobs:
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?v5410=${q}" -o /tmp/root.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?v5410=${q}" -o /tmp/app.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5371=${q}" -o /tmp/app.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5560=${q}" -o /tmp/world-v2300-map.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5561=${q}" -o /tmp/world-v2300-map.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/walkthrough-v5537.js?v5539=${q}" -o /tmp/walkthrough-v5537.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/parcel-boundary-viewer-v5403.js?v5404=${q}" -o /tmp/parcel-boundary-viewer-v5403.js || true
             curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/pricing.html?v5551=${q}" -o /tmp/pricing.html || true
             curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/.well-known/security.txt?v5551=${q}" -o /tmp/security.txt || true
             curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/terminal/?v5551=${q}" -o /tmp/terminal.html || true
             curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/newsroom/?v5551=${q}" -o /tmp/newsroom.html || true
-            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'landing.js?v=5559' /tmp/root.html && grep -Fq '/walkthrough-v5537.js?v=5564' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq '153,532,480' /tmp/root.html && grep -Fq '143,787,840' /tmp/root.html && grep -Fq 'app.js?v=5563' /tmp/app.html && grep -Fq '/walkthrough-v5537.js?v=5564' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq 'data-nosnippet' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5560' /tmp/world-v2300-map.js && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js && grep -Fq '__BP_PARCEL_BOUNDARY_VIEWER_V5403__' /tmp/parcel-boundary-viewer-v5403.js && grep -Fq 'parcel-boundary-viewer-v5403.js?v=5575' /tmp/root.html && grep -Fq 'parcel-boundary-viewer-v5403.js?v=5575' /tmp/app.html && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js && grep -Fq 'BridgePoint Intelligence pricing' /tmp/pricing.html && grep -Fq 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security.txt && grep -Fq '169,664,739' /tmp/terminal.html && ! grep -Eq 'live-(chileno|chicken-coop|lucas|thunder-creek|0505n|0584-cottonwood|0587-shingle|0611-green-mountain)' /tmp/newsroom.html; then ok=1; break; fi
+            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'landing.js?v=5563' /tmp/root.html && grep -Fq '/walkthrough-v5537.js?v=5564' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq '153,532,480' /tmp/root.html && grep -Fq '143,787,840' /tmp/root.html && grep -Fq 'app.js?v=5563' /tmp/app.html && grep -Fq '/walkthrough-v5537.js?v=5564' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq 'data-nosnippet' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5561' /tmp/world-v2300-map.js && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js && grep -Fq '__BP_PARCEL_BOUNDARY_VIEWER_V5403__' /tmp/parcel-boundary-viewer-v5403.js && grep -Fq 'parcel-boundary-viewer-v5403.js?v=5575' /tmp/root.html && grep -Fq 'parcel-boundary-viewer-v5403.js?v=5575' /tmp/app.html && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js && grep -Fq 'BridgePoint Intelligence pricing' /tmp/pricing.html && grep -Fq 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security.txt && grep -Fq '169,664,739' /tmp/terminal.html && ! grep -Eq 'live-(chileno|chicken-coop|lucas|thunder-creek|0505n|0584-cottonwood|0587-shingle|0611-green-mountain)' /tmp/newsroom.html; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
@@ -840,7 +840,7 @@ jobs:
               if(!/static demonstration/i.test(reportText)||!/does not claim/i.test(reportText)||!/START ACCOUNT \/ TRIAL/i.test(reportText))throw new Error('SAMPLE_REPORT_CONTRACT');
               console.log('BRIDGEPOINT_SAMPLE_REPORT_PASS');
 
-              await p.goto('https://bridgepointintelligence.online/app/?qa=v5560-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              await p.goto('https://bridgepointintelligence.online/app/?qa=v5561-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000&&window.__BP_APP_BUILD_VERSION__===5371,{timeout:20000});
               await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5561&&!!window.__BP_V5000_WORLD?.map,{timeout:35000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
