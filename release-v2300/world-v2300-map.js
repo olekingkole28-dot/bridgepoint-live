@@ -204,7 +204,7 @@ function style(){
   {id:'gta-bp-facade-detail',type:'fill-extrusion',source:'bpBuildings','source-layer':'buildings',minzoom:16.15,layout:{visibility:'none'},paint:{'fill-extrusion-pattern':facadePattern,'fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],'fill-extrusion-opacity':.999,'fill-extrusion-vertical-gradient':false}},
   {id:'gta-bp-roofs',type:'fill-extrusion',source:'bpBuildings','source-layer':'buildings',minzoom:MOBILE?15.8:13.8,layout:{visibility:'none'},paint:{'fill-extrusion-color':roofColor,'fill-extrusion-base':['max',['coalesce',['to-number',['get','base_height_m']],0],['-',['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],['max',.18,['coalesce',['to-number',['get','roof_height_m']],.3]]]],'fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],13.8,.8,15,.94,18,.995],'fill-extrusion-vertical-gradient':true}},
   {id:'gta-bp-building-edge',type:'line',source:'bpBuildings','source-layer':'buildings',minzoom:13.2,layout:{visibility:'none'},paint:{'line-color':['interpolate',['linear'],['zoom'],13.2,'#88aeb7',17,'#b6d4d9',20,'#d5e5e7'],'line-width':['interpolate',['linear'],['zoom'],13.2,.25,18,.7,21,1.05],'line-opacity':['interpolate',['linear'],['zoom'],13.2,.28,17,.46,20,.6]}},
-  {id:'gta-opportunity-buildings',type:'fill-extrusion',source:'bpOpportunities',minzoom:11.8,layout:{visibility:'none'},paint:{'fill-extrusion-color':['coalesce',['get','color'],'#7adcf0'],'fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],11.8,.88,14,.96,17,.995],'fill-extrusion-vertical-gradient':true}},
+  {id:'gta-opportunity-buildings',type:'fill-extrusion',source:'bpOpportunities',minzoom:11.8,layout:{visibility:'none'},paint:{'fill-extrusion-color':['coalesce',['get','color'],'#7adcf0'],'fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':false}},
   {id:'gta-parcel-glow',type:'line',source:'bpParcels','source-layer':'parcels',minzoom:PARCEL_MIN,paint:{'line-color':'#00eaff','line-width':['interpolate',['linear'],['zoom'],PARCEL_MIN,2.8,11,3.6,15,5.2,18,7.2,21,9.5],'line-opacity':['interpolate',['linear'],['zoom'],PARCEL_MIN,.46,11,.38,16,.31,21,.24],'line-blur':['interpolate',['linear'],['zoom'],PARCEL_MIN,2.4,15,3.2,21,4.4]}},
   {id:'gta-parcel-halo',type:'line',source:'bpParcels','source-layer':'parcels',minzoom:PARCEL_MIN,paint:{'line-color':'#003cff','line-width':['interpolate',['linear'],['zoom'],PARCEL_MIN,1.35,11,1.8,15,2.5,20,3.6],'line-opacity':.78}},
   {id:'gta-parcel',type:'line',source:'bpParcels','source-layer':'parcels',minzoom:PARCEL_MIN,paint:{'line-color':['case',['>', ['coalesce',['get','render_score'],0],75],'#fff06a','#69f8ff'],'line-width':['interpolate',['linear'],['zoom'],PARCEL_MIN,.78,11,1.0,15,1.35,18,1.8,21,2.5],'line-opacity':1}},
@@ -819,9 +819,10 @@ export function initWorld(options={}){
   for(const id of [
    'gta-context-building-shadow','gta-context-facade-detail','gta-context-building-parts','gta-context-night-windows',
    'gta-bp-building-shadow','gta-bp-buildings','gta-bp-facade-detail','gta-bp-roofs','gta-bp-building-edge','gta-bp-night-windows',
-   'gta-exact-building-shadow','gta-exact-facade-detail','gta-exact-night-windows',
-   'gta-opportunity-buildings'
+   'gta-exact-building-shadow','gta-exact-facade-detail','gta-exact-night-windows'
   ])vis(map,id,false);
+  vis(map,'gta-opportunity-buildings',z>=11.8);
+  vis(map,'gta-opportunity-label',z>=12.8);
   syncParcelShells();
   window.__BP_BUILDING_SHELL_MODE__={
    authoritative:cityReady?'BRIDGEPOINT_CITY_STRUCTURES_V5371':'GLOBAL_CONTEXT_FALLBACK',
