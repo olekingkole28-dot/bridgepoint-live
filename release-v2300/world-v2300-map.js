@@ -25,7 +25,7 @@ const LANDMARK_3D_MIN=MOBILE?12.85:(TIER==='LOW'?12.85:TIER==='HIGH'?12.15:12.45
 const LANDMARK_DETAIL_MIN=MOBILE?13.85:(TIER==='LOW'?13.8:TIER==='HIGH'?13.05:13.35);
 const STATUE_LIBERTY_COORD=[-74.044643,40.689211];
 const STATUE_LIBERTY_FACING_DEG=135;
-window.__BP_WORLD_FIX_V5542__={version:5542,statueModel:'NPS_HAER_MEASURED_RECONSTRUCTION',bridgeSource:'OPENFREEMAP_OSM_QUERY_SOURCE',continuousGestureLoading:true,updatedAt:Date.now()};
+window.__BP_WORLD_FIX_V5542__={version:5542,statueModel:null,syntheticLandmarksDisabled:true,bridgeSource:'OPENFREEMAP_OSM_QUERY_SOURCE',continuousGestureLoading:true,updatedAt:Date.now()};
 window.__BP_WORLD_INTERACTION_V5543__={version:5543,stableSingleFrameBuildingHit:true,updatedAt:Date.now()};
 window.__BP_WORLD_PERFORMANCE_V5561__={version:5561,gestureHotPath:'single-maplibre-click',duplicateTouchSelectionRemoved:true,persistentTerrain:true,persistentRadarDrape:true,retainGeometryDuringMotion:true,parcelLinesPersistDuringMotion:true,staleTileCancellation:true,mobileAnimationsAdaptive:true,lodNeverForcesStationaryDuringTouch:true,touchPointerDownNeverStopsCamera:true,mobileBuildingSelectionPreservesGesture:true,updatedAt:Date.now()};
 window.__BP_EXACT_FALLBACK_V5546__={version:5546,canonicalViewportArgs:true,cityFallbackPreserved:true,updatedAt:Date.now()};
