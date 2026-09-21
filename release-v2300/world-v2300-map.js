@@ -489,7 +489,7 @@ export function initWorld(options={}){
   }catch(_){}
  };
  map.once('load',()=>{guardAttribution();setTimeout(guardAttribution,120);setTimeout(guardAttribution,700)});map.once('idle',guardAttribution);
- let detailSeq=0,livingSeq=0,detailTimer=0,lightTimer=0,solarTimer=0,waterTimer=0,landmark3dTimer=0,bridge3dTimer=0,motionWorldTimer=0,lastMotionWorldAt=0,road3dTimer=0,autoCameraTimer=0,lodWatchTimer=0,lodWatchSig='',lodWatchStable=0,autoCameraApplying=false,streetFxRaf=0,streetFxLastConditionAt=0,streetFxCondition=null,parcelPulseTimer=0,parcelPulsePhase=0,hoverFrame=0,lastHoverAt=0,exactCount=0,livingCount=0,base='gta',moving=false,terrainOn=false,walkMode=false,workerReq=0,lastTouchBuildingAt=0,lastBuildingClickAt=0,touchPointer=null,touchNative=null,buildingSelectHandler=null,selectionBusyUntil=0,activeTouchPointers=new Set(),lastExactFetchAt=0,lastLivingFetchAt=0,buildingShellQuietUntil=0,streetPhotoState={sequenceId:null,frames:[],index:-1,loadedCenter:null,loading:false},layerState={parcels:true,buildings:true};const worker=new Worker('./world-v2300-worker.js?v=5312',{type:'module'}),workerWait=new Map();
+ let detailSeq=0,livingSeq=0,detailTimer=0,lightTimer=0,solarTimer=0,waterTimer=0,landmark3dTimer=0,bridge3dTimer=0,postMoveSettleTimer=0,motionWorldTimer=0,lastMotionWorldAt=0,road3dTimer=0,autoCameraTimer=0,lodWatchTimer=0,lodWatchSig='',lodWatchStable=0,autoCameraApplying=false,streetFxRaf=0,streetFxLastConditionAt=0,streetFxCondition=null,parcelPulseTimer=0,parcelPulsePhase=0,hoverFrame=0,lastHoverAt=0,exactCount=0,livingCount=0,base='gta',moving=false,terrainOn=false,walkMode=false,workerReq=0,lastTouchBuildingAt=0,lastBuildingClickAt=0,touchPointer=null,touchNative=null,buildingSelectHandler=null,selectionBusyUntil=0,activeTouchPointers=new Set(),lastExactFetchAt=0,lastLivingFetchAt=0,buildingShellQuietUntil=0,streetPhotoState={sequenceId:null,frames:[],index:-1,loadedCenter:null,loading:false},layerState={parcels:true,buildings:true};const worker=new Worker('./world-v2300-worker.js?v=5312',{type:'module'}),workerWait=new Map();
  worker.onmessage=e=>{const m=e.data||{},r=workerWait.get(m.requestId);if(r){workerWait.delete(m.requestId);r(m)}};
  const prepare=(features,max)=>new Promise(resolve=>{const requestId=++workerReq;workerWait.set(requestId,resolve);worker.postMessage({type:'prepare',requestId,features,max});setTimeout(()=>{if(workerWait.has(requestId)){workerWait.delete(requestId);resolve({buildings:fc(features.slice(0,max)),roofs:EMPTY,count:Math.min(features.length,max)})}},2500)});
  const setStatus=t=>{const e=document.getElementById('mapStatus');if(e)e.textContent=t};
@@ -912,8 +912,17 @@ export function initWorld(options={}){
    return
   }
   clearTimeout(map.__bpMotionHardRelease);
-  buildingShellQuietUntil=0;
-  terrain();syncBuildingShells();syncParcelShells();armFineDetailSettle(MOBILE?180:90);scheduleExact(MOBILE?260:70)
+  buildingShellQuietUntil=performance.now()+(MOBILE?260:70);
+  schedulePostMoveSettle()
+ }
+ function schedulePostMoveSettle(){
+  clearTimeout(postMoveSettleTimer);
+  postMoveSettleTimer=setTimeout(()=>{
+   if(moving||map.isMoving?.()){schedulePostMoveSettle();return}
+   terrain();syncParcelShells();armFineDetailSettle(0);scheduleExact(MOBILE?720:120);
+   rebuildLandmark3D(MOBILE?950:260);rebuildBridge3D(MOBILE?760:200);
+   window.__BP_WORLD_POSTMOVE_V5580__={version:5580,coalesced:true,idleOnly:true,updatedAt:Date.now()}
+  },MOBILE?420:110)
  }
  function disableFineDetail(){
   clearTimeout(map.__bpLivingTimer);clearTimeout(lightTimer);clearTimeout(road3dTimer);
@@ -1059,12 +1068,12 @@ export function initWorld(options={}){
   const feature={type:'Feature',geometry:f.geometry,properties:p,id:f.id,layer:{id:f.layer?.id||''}};
   const detail={lngLat:ll,feature};
   requestAnimationFrame(()=>{
-   try{const view={center:[ll.lng,ll.lat],zoom:Math.max(map.getZoom(),16.6),pitch:64,bearing:-22};if(MOBILE||LOW){map.jumpTo(view)}else map.easeTo({...view,duration:220,essential:true})}catch(_){}
+   try{const view={center:[ll.lng,ll.lat],zoom:Math.max(map.getZoom(),16.6),pitch:64,bearing:-22};map.easeTo({...view,duration:MOBILE||LOW?170:220,essential:false});setTimeout(ensureMapGestures,MOBILE||LOW?190:240)}catch(_){}
    setTimeout(()=>{
     try{const panel=document.getElementById('buildingPanel');if(panel){panel.hidden=false;panel.removeAttribute('hidden');panel.style.setProperty('display','block','important');window.__BP_BUILDING_PANEL_OPEN__=true}}catch(_){}
     try{if(typeof window.__BP_V5000_SELECT_BUILDING__==='function')window.__BP_V5000_SELECT_BUILDING__(detail);else if(typeof buildingSelectHandler==='function')buildingSelectHandler(detail)}catch(err){console.warn('building selection handler',err)}
     window.dispatchEvent(new CustomEvent('bp2300:building-click',{detail}));
-    window.__BP_BUILDING_SELECTION_V5552__={version:5552,panelDeferred:true,singleClickPath:true,layer:f.layer?.id||'',updatedAt:Date.now()}
+    window.__BP_BUILDING_SELECTION_V5552__={version:5552,panelDeferred:true,singleClickPath:true,nonBlockingCamera:true,gestureRestore:true,layer:f.layer?.id||'',updatedAt:Date.now()};window.__BP_TAP_CONTINUITY_V5580__={version:5580,nonBlockingCamera:true,gestureRestore:true,updatedAt:Date.now()}
    },0)
   });
   return true
@@ -1087,7 +1096,7 @@ export function initWorld(options={}){
  if(map.isStyleLoaded?.()||map.loaded?.()||(map.getStyle?.()?.layers?.length||0)>0)queueMicrotask(()=>finalizeWorldCore());
  const worldCoreRecovery=setInterval(()=>{if(finalizeWorldCore())clearInterval(worldCoreRecovery)},250);
  setTimeout(()=>clearInterval(worldCoreRecovery),12000);
- map.on('movestart',()=>movement(true));map.on('moveend',()=>{movement(false);terrain();rebuildLandmark3D(MOBILE?80:30);rebuildBridge3D(MOBILE?70:25)});map.on('zoomend',()=>{terrain();syncBuildingShells();rebuildLandmark3D(MOBILE?110:45);rebuildBridge3D(MOBILE?90:35)});let bpCitySyncTimer=0,bpGlobalLodSyncTimer=0;map.on('sourcedata',e=>{
+ map.on('movestart',()=>movement(true));map.on('moveend',()=>movement(false));map.on('zoomend',()=>schedulePostMoveSettle());let bpCitySyncTimer=0,bpGlobalLodSyncTimer=0;map.on('sourcedata',e=>{
   if(e?.sourceId==='ofm'){
    clearTimeout(bpGlobalLodSyncTimer);
    bpGlobalLodSyncTimer=setTimeout(()=>{if(moving)return;refreshGlobalLodPaint();rebuildLandmark3D(MOBILE?120:45);rebuildBridge3D(MOBILE?100:40)},MOBILE?180:90);
