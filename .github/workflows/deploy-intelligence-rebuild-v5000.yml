@@ -898,16 +898,14 @@ jobs:
                 });
                 throw new Error('VISIBLE_BUILDING_NOT_CLICKABLE '+JSON.stringify(clickDiag));
               }
-              await p.waitForFunction(()=>{
-                const panel=document.getElementById('buildingPanel'),sel=window.__BP_BUILDING_SELECTION_V5547__;
-                if(!panel||sel?.panelImmediate!==true)return false;
-                const cs=getComputedStyle(panel);
-                return panel.hidden===false&&cs.display!=='none'&&cs.visibility!=='hidden';
-              },{timeout:12000}).catch(async e=>{
-                const diag=await p.evaluate(()=>{const panel=document.getElementById('buildingPanel'),sel=window.__BP_BUILDING_SELECTION_V5547__;return{panelExists:!!panel,hidden:panel?.hidden,display:panel?getComputedStyle(panel).display:null,visibility:panel?getComputedStyle(panel).visibility:null,marker:sel||null,open:window.__BP_BUILDING_PANEL_OPEN__||false,href:location.href}});
-                throw new Error('BUILDING_PANEL_NOT_VISIBLE '+JSON.stringify(diag)+' '+e.message);
-              });
-              console.log('BRIDGEPOINT_BUILDING_CLICK_PASS',JSON.stringify(clicked));
+              let panelDiag=null,panelVisible=false;
+              for(let attempt=0;attempt<30&&!panelVisible;attempt++){
+                panelDiag=await p.evaluate(()=>{const panel=document.getElementById('buildingPanel'),sel=window.__BP_BUILDING_SELECTION_V5547__,cs=panel?getComputedStyle(panel):null;return{panelExists:!!panel,hidden:panel?.hidden,display:cs?.display||null,visibility:cs?.visibility||null,marker:sel||null,open:window.__BP_BUILDING_PANEL_OPEN__||false,href:location.href}});
+                panelVisible=!!panelDiag?.panelExists&&panelDiag.hidden===false&&panelDiag.display!=='none'&&panelDiag.visibility!=='hidden'&&panelDiag.marker?.panelImmediate===true&&panelDiag.open===true;
+                if(!panelVisible)await p.waitForTimeout(400);
+              }
+              if(!panelVisible)throw new Error('BUILDING_PANEL_NOT_VISIBLE '+JSON.stringify(panelDiag));
+              console.log('BRIDGEPOINT_BUILDING_CLICK_PASS',JSON.stringify({clicked,panel:panelDiag}));
 
               const severe=fatal.filter(x=>!/ResizeObserver loop/i.test(x));
               if(severe.length)throw new Error('ANDROID_PAGEERROR '+JSON.stringify(severe.slice(-5)));
