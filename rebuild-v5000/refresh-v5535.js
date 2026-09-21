@@ -1,14 +1,15 @@
 (()=>{
   'use strict';
-  if(window.__BP_FULL_REFRESH_V5535__)return;
-  const VERSION=5535;
+  if(window.__BP_FULL_REFRESH_V5548__)return;
+  const VERSION=5548;
   const PERIOD_MS=5*60*1000;
   const BUSY_RETRY_MS=30*1000;
   const STORE_KEY='bridgepoint_full_refresh_state_v5535';
   let timer=0;
   let reloading=false;
+  let lastInteractionAt=0;
 
-  const api=window.__BP_FULL_REFRESH_V5535__={
+  const api=window.__BP_FULL_REFRESH_V5535__=window.__BP_FULL_REFRESH_V5548__={
     version:VERSION,
     periodMs:PERIOD_MS,
     busyRetryMs:BUSY_RETRY_MS,
@@ -31,6 +32,18 @@
       try{return getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden'}catch(_){return false}
     });
   }
+
+  function interactionBusy(){
+    const now=Date.now(),map=currentMap();
+    try{if(map?.isMoving?.()||document.body.classList.contains('map-interacting'))return true}catch(_){}
+    const selectedAt=Number(window.__BP_BUILDING_SELECTION_V5547__?.updatedAt||0);
+    if(selectedAt&&now-selectedAt<60000)return true;
+    if(lastInteractionAt&&now-lastInteractionAt<30000)return true;
+    return false;
+  }
+
+  function noteInteraction(){lastInteractionAt=Date.now()}
+  for(const type of ['pointerdown','touchstart','wheel','keydown'])document.addEventListener(type,noteInteraction,{passive:true,capture:true});
 
   function captureState(){
     const state={at:Date.now(),pathname:location.pathname,scrollY:window.scrollY||0,map:null,surface:null};
@@ -58,7 +71,8 @@
   }
 
   function scheduledAttempt(){
-    if(activeFormBusy()){
+    if(activeFormBusy()||interactionBusy()){
+      api.lastReason='deferred-active-use';
       api.nextAt=Date.now()+BUSY_RETRY_MS;
       timer=setTimeout(scheduledAttempt,BUSY_RETRY_MS);
       return;
@@ -129,6 +143,6 @@
   }
 
   api.reload=()=>doReload('api');
-  const boot=()=>{mountButton();restoreState();schedule()};
+  const boot=()=>{lastInteractionAt=Date.now();mountButton();restoreState();schedule()};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
