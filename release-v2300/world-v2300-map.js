@@ -478,6 +478,8 @@ export function initWorld(options={}){
  const ensureMapGestures=()=>{try{map.touchZoomRotate?.enable();map.touchZoomRotate?.enableRotation?.();map.touchPitch?.enable?.();map.dragPan?.enable();map.dragRotate?.enable?.();map.scrollZoom?.enable();map.doubleClickZoom?.enable();map.keyboard?.enable();map.boxZoom?.enable()}catch(_){}};ensureMapGestures();map.once('load',ensureMapGestures);
  map.addControl(new maplibregl.NavigationControl({visualizePitch:true,showCompass:true}),'top-right');
  const attributionControl=new maplibregl.AttributionControl({compact:true});map.addControl(attributionControl,'bottom-right');
+ if(!document.getElementById('bpMapAttributionGuardCss')){const s=document.createElement('style');s.id='bpMapAttributionGuardCss';s.textContent='.maplibregl-ctrl-attrib.maplibregl-compact-show{max-width:min(320px,calc(100vw - 18px))!important;max-height:min(180px,28dvh)!important;overflow:auto!important;overscroll-behavior:contain!important}.maplibregl-ctrl-attrib.maplibregl-compact-show .maplibregl-ctrl-attrib-inner{max-height:inherit!important;overflow:auto!important}@media(max-width:900px){.maplibregl-ctrl-attrib.maplibregl-compact-show{max-width:min(286px,calc(100vw - 16px))!important;max-height:min(150px,24dvh)!important;font-size:9px!important;line-height:1.25!important}}';document.head.appendChild(s)}
+
  let attributionUserIntentUntil=0,attributionObserver=null;
  const guardAttribution=()=>{
   try{
@@ -486,6 +488,8 @@ export function initWorld(options={}){
    if(btn&&!btn.__bpClickOnlyBound){btn.__bpClickOnlyBound=true;btn.addEventListener('pointerdown',()=>{attributionUserIntentUntil=performance.now()+1500},{capture:true,passive:true});btn.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){attributionUserIntentUntil=performance.now()+1500}},{capture:true})}
    if(el.classList.contains('maplibregl-compact-show')&&performance.now()>attributionUserIntentUntil)el.classList.remove('maplibregl-compact-show');
    if(!attributionObserver){attributionObserver=new MutationObserver(()=>{if(el.classList.contains('maplibregl-compact-show')&&performance.now()>attributionUserIntentUntil)el.classList.remove('maplibregl-compact-show')});attributionObserver.observe(el,{attributes:true,attributeFilter:['class']})}
+   if(!el.__bpOutsideCloseBound){el.__bpOutsideCloseBound=true;document.addEventListener('pointerdown',ev=>{if(!el.classList.contains('maplibregl-compact-show'))return;if(el.contains(ev.target))return;el.classList.remove('maplibregl-compact-show')},{capture:true,passive:true});map.on('dragstart',()=>el.classList.remove('maplibregl-compact-show'));map.on('zoomstart',()=>el.classList.remove('maplibregl-compact-show'));map.on('rotatestart',()=>el.classList.remove('maplibregl-compact-show'))}
+   window.__BP_ATTRIBUTION_GUARD_V5584__={version:5584,compact:true,maxObstruction:true,gestureClose:true,updatedAt:Date.now()}
   }catch(_){}
  };
  map.once('load',()=>{guardAttribution();setTimeout(guardAttribution,120);setTimeout(guardAttribution,700)});map.once('idle',guardAttribution);
