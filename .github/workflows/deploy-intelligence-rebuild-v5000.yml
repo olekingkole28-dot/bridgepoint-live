@@ -325,7 +325,7 @@ jobs:
           grep -Fq 'syntheticLandmarksDisabled:true' site/world-v2300-map.js
           grep -Fq "querySourceFeatures?.('ofm',{sourceLayer:'transportation'" site/world-v2300-map.js
           grep -Fq 'cancelPendingTileRequestsWhileZooming:true' site/world-v2300-map.js
-          grep -Fq "Statue of Liberty" site/world-v2300-map.js
+          grep -Fq 'statueOfLibertyGenericModel:false' site/world-v2300-map.js
           grep -Fq "host.addEventListener('wheel'" site/world-v2300-space.js
           grep -Fq 'SUN-CENTERED SOLAR SYSTEM' site/world-v2300-space.js
           grep -Fq 'PLANETS · TRUE RELATIVE DIAMETER SCALE' site/world-v2300-space.js
