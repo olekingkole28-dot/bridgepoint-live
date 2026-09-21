@@ -609,6 +609,14 @@ jobs:
           grep -Fq 'BRIDGEPOINT' /tmp/root.html
           ! grep -Eiq 'HORIZON|battle pass|zombie|game mode' /tmp/root.html
           q="${GITHUB_SHA}-surface-check-$(date +%s)"
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/pricing/?v5551=${q}" -o /tmp/pricing.html
+          curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/.well-known/security.txt?v5551=${q}" -o /tmp/security.txt
+          grep -Fq 'BridgePoint Intelligence pricing' /tmp/pricing.html
+          grep -Fq '153,532,480' /tmp/root.html
+          grep -Fq '143,787,840' /tmp/root.html
+          grep -Fq 'data-nosnippet' /tmp/app.html
+          grep -Fq '169,664,739' /tmp/terminal.html 2>/dev/null || true
+          grep -Fq 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security.txt
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/?v5100=${q}" -o /tmp/horizon.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon-playable/v2-entry.html?v5100=${q}" -o /tmp/horizon-playable.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/discover/?v5100=${q}" -o /tmp/discover.html
