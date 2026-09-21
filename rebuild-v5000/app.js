@@ -582,6 +582,7 @@ function startLiveWeather(){ensureLiveLegend();installLiveContextLayers();const 
 
 
 
+let surfaceNavigationUntil=0;
 function setActiveSurface(name,{showNav=false}={}){
  if(name==='owner-everything'&&accessStateLast?.platform_owner!==true){toast('Owner Everything is restricted to the two designated BridgePoint owners.','error');name='more'}
  if(['saved','claims','workflow'].includes(name)&&authSession?.access_token&&accessStateLast&&accessStateLast.full_app_access===false){toast('Your trial has ended. Choose a package to restore full account access.','error');name='packages'}
@@ -593,7 +594,21 @@ function setActiveSurface(name,{showNav=false}={}){
  const nav=$('bottomNav');
  if(nav){nav.classList.toggle('map-hidden',name==='map'&&!showNav);nav.classList.toggle('peek',name==='map'&&showNav)}
  document.body.classList.toggle('map-page-active',name==='map');
- if(name==='map'){closeSystem();requestAnimationFrame(()=>{if(!wasMapActive)world?.map?.resize?.();setMapSearchOpen(false);setTimeout(flushDeferredWork,BP_MOBILE?420:80);window.__BP_NAV_STABILITY_V5586__={version:5586,showNav,resizeSkipped:wasMapActive,backgroundPausedOffMap:true,updatedAt:Date.now()}})}
+ if(name==='map'){
+  closeSystem();
+  if(!wasMapActive){
+   const settleMs=BP_MOBILE?2800:900;
+   surfaceNavigationUntil=performance.now()+settleMs;
+   try{extendInteractionPriority(settleMs,'surface-navigation-map-return')}catch(_){}
+   window.__BP_NAV_SETTLE_V5596__={version:5596,active:true,until:surfaceNavigationUntil,reason:'map-return',updatedAt:Date.now()};
+  }
+  requestAnimationFrame(()=>{
+   setMapSearchOpen(false);
+   if(!wasMapActive)setTimeout(()=>{try{world?.map?.resize?.();world?.map?.triggerRepaint?.()}catch(_){}},BP_MOBILE?180:70);
+   setTimeout(()=>{if(performance.now()>=surfaceNavigationUntil)flushDeferredWork();else setTimeout(flushDeferredWork,Math.max(80,surfaceNavigationUntil-performance.now()+80))},BP_MOBILE?900:240);
+   window.__BP_NAV_STABILITY_V5586__={version:5586,showNav,resizeSkipped:wasMapActive,backgroundPausedOffMap:true,navSettleV5596:!wasMapActive,updatedAt:Date.now()}
+  })
+ }
  else if(name==='packages')void loadPackageCatalog();
  else if(name==='saved'||name==='claims'||name==='workflow')void loadWorkspace();
 }
@@ -642,21 +657,24 @@ let lastMapMotionAt=0;
 function bpInputPending(){try{return navigator.scheduling?.isInputPending?.({includeContinuous:true})===true}catch(_){return false}}
 function appMapSurfaceActive(){const el=document.querySelector('[data-surface="map"]');return !!el&&el.hidden===false&&el.classList.contains('active')}
 function startupPriorityBlocked(){return performance.now()<startupInteractiveUntil}
-function mapBackgroundBlocked(){return mapInteracting||document.hidden||!appMapSurfaceActive()||bpInputPending()||startupPriorityBlocked()}
+function mapBackgroundBlocked(){return mapInteracting||document.hidden||!appMapSurfaceActive()||bpInputPending()||startupPriorityBlocked()||performance.now()<surfaceNavigationUntil}
 function queueAfterMap(key,fn){if(mapBackgroundBlocked()){deferredWork.set(key,fn);return false}const run=()=>{if(mapBackgroundBlocked()){deferredWork.set(key,fn);return}try{fn()}catch(e){console.warn('deferred '+key,e)}};if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:BP_MOBILE?1200:420});else setTimeout(run,BP_MOBILE?180:55);return true}
 function flushDeferredWork(){
  if(mapInteracting||document.hidden||!appMapSurfaceActive())return;
- if(startupPriorityBlocked()){clearTimeout(deferredDrainTimer);deferredDrainTimer=setTimeout(flushDeferredWork,Math.min(BP_MOBILE?900:300,Math.max(80,startupInteractiveUntil-performance.now()+40)));return}
+ const blockedUntil=Math.max(startupInteractiveUntil,surfaceNavigationUntil);
+ if(performance.now()<blockedUntil){clearTimeout(deferredDrainTimer);deferredDrainTimer=setTimeout(flushDeferredWork,Math.min(BP_MOBILE?1100:360,Math.max(100,blockedUntil-performance.now()+60)));return}
  clearTimeout(deferredDrainTimer);
  const drain=()=>{
-  if(mapInteracting||document.hidden||bpInputPending()||startupPriorityBlocked()){deferredDrainTimer=setTimeout(drain,BP_MOBILE?320:120);return}
+  const hold=Math.max(startupInteractiveUntil,surfaceNavigationUntil);
+  if(mapInteracting||document.hidden||bpInputPending()||performance.now()<hold){deferredDrainTimer=setTimeout(drain,BP_MOBILE?520:150);return}
   const next=deferredWork.entries().next();
-  if(next.done){window.__BP_BACKGROUND_DRAIN_V5580__={queued:0,serial:true,updatedAt:Date.now()};return}
+  if(next.done){window.__BP_BACKGROUND_DRAIN_V5580__={queued:0,serial:true,navSettleAware:true,updatedAt:Date.now()};return}
   const [key,fn]=next.value;deferredWork.delete(key);queueAfterMap(key,fn);
-  window.__BP_BACKGROUND_DRAIN_V5580__={queued:deferredWork.size,serial:true,updatedAt:Date.now()};
-  deferredDrainTimer=setTimeout(drain,BP_MOBILE?420:110)
+  window.__BP_BACKGROUND_DRAIN_V5580__={queued:deferredWork.size,serial:true,navSettleAware:true,updatedAt:Date.now()};
+  // One heavy lane at a time. Mobile gets a full render window between jobs.
+  deferredDrainTimer=setTimeout(drain,BP_MOBILE?1050:180)
  };
- deferredDrainTimer=setTimeout(drain,BP_MOBILE?260:60)
+ deferredDrainTimer=setTimeout(drain,BP_MOBILE?720:100)
 }
 function waitForMapRest(){if(!mapInteracting)return Promise.resolve();return new Promise(resolve=>{const m=world?.map;if(!m){resolve();return}let done=false;const finish=()=>{if(done)return;done=true;setTimeout(resolve,BP_MOBILE?90:45)};m.once('moveend',finish);setTimeout(finish,BP_MOBILE?650:420)})}
 function bindPerformanceGovernor(){

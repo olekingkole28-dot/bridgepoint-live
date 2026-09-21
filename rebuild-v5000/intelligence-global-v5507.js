@@ -115,7 +115,7 @@ function scheduleGlobalBackground(delay=C.mobile?8500:2500){
   };
   if('requestIdleCallback'in window)requestIdleCallback(()=>void run(),{timeout:C.mobile?3500:1400});else void run()
  },Math.max(0,delay));
- window.__BP_GLOBAL_BACKGROUND_SCHEDULER_V5592__={version:5592,deferred:true,interactionAware:true,sequentialSourceCommits:true,delayMs:delay,updatedAt:Date.now()}
+ window.__BP_GLOBAL_BACKGROUND_SCHEDULER_V5592__={version:5592,deferred:true,interactionAware:true,sequentialSourceCommits:true,precipitationAttachImmediate:true,delayMs:delay,updatedAt:Date.now()}
 }
 async function boot(){
  try{
@@ -133,8 +133,11 @@ async function boot(){
    window.__BP_GLOBAL_RUNTIME_BOOT_V5516__={ready:true,visualsPending:false,networkPending:window.__BP_GLOBAL_RUNTIME_BOOT_V5516__?.networkPending!==false,at:Date.now()}
   };
   visuals();
+  // V5596: attach the lightweight global precipitation source/layer immediately.
+  // Network-heavy global refresh stays pressure/interaction gated below.
+  try{void installGlobalWeather().catch(e=>console.warn('BP global precipitation attach',e))}catch(e){console.warn('BP global precipitation attach',e)}
   try{mobile()}catch(e){console.warn('BP mobile gesture setup',e)}
-  try{C.map.once('load',()=>visuals())}catch(_){}
+  try{C.map.once('load',()=>{visuals();try{void installGlobalWeather().catch(e=>console.warn('BP global precipitation load attach',e))}catch(_){}})}catch(_){}
   try{C.map.on('styledata',()=>{clearTimeout(C.styleTimer);C.styleTimer=setTimeout(()=>{if(C.map.isMoving?.())return;visuals()},C.mobile?900:300)})}catch(_){}
   try{const cv=C.map.getCanvas?.();for(const ev of ['pointerdown','touchstart','wheel'])cv?.addEventListener(ev,()=>{window.__BP_MAP_USER_INTENT_AT__=Date.now()},{once:true,passive:true,capture:true})}catch(_){}
   void centerOnViewerCountry().catch(e=>console.warn('BridgePoint viewer country start',e));
