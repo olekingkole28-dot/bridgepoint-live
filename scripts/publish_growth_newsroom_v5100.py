@@ -38,17 +38,29 @@ def now_iso():
 def hazard_family(h):
     name=str(h.get("name") or h.get("type") or "Live hazard").strip()
     low=name.lower()
+    typ=str(h.get("type") or "HAZARD").upper()
     if low.startswith("probsevere storm"): return "ProbSevere convective storm signals"
     if low.startswith("day 1 hail outlook"): return "Day 1 hail outlook"
     if low.startswith("day 1 tornado outlook"): return "Day 1 tornado outlook"
     if low.startswith("day 1 wind outlook"): return "Day 1 severe wind outlook"
     if "flash flood warning" in low: return "Flash Flood Warning"
     if "flood warning" in low: return "Flood Warning"
+    if "flood watch" in low: return "Flood Watch"
     if "flood advisory" in low: return "Flood Advisory"
     if "tornado warning" in low: return "Tornado Warning"
     if "severe thunderstorm warning" in low: return "Severe Thunderstorm Warning"
     if "wildfire" in low or "fire warning" in low: return "Wildfire / fire weather"
-    return name
+    # Fall back to the source hazard TYPE, not station/place/report names.
+    # This prevents identifiers such as "CHILENO", "LUCAS" or station codes
+    # from being published as if they were weather-event families.
+    if typ=="HAIL": return "Hail reports / signals"
+    if typ=="WIND": return "Wind reports / signals"
+    if typ=="LIGHTNING": return "Lightning observations"
+    if typ=="FLOOD": return "Flood events"
+    if typ=="TORNADO": return "Tornado events"
+    if typ=="HURRICANE": return "Tropical / hurricane events"
+    if typ=="WILDFIRE": return "Wildfire / fire weather"
+    return "Other source-labelled weather events"
 
 def active_hazards(weather):
     now=datetime.now(timezone.utc)
