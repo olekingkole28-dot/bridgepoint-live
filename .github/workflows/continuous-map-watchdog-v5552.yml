@@ -105,6 +105,7 @@ jobs:
               await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               await page.goto(O+'/app/?watchdog5561='+Date.now(),{waitUntil:'domcontentloaded',timeout:35000});
               await page.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5561&&window.__BP_V5000_WORLD?.map,{timeout:45000});
+              await page.waitForFunction(()=>!!window.__BP_GEOMETRY_TRUTH_V5592__&&!!window.__BP_MAIN_THREAD_GUARD_V5592__&&!!window.__BP_GLOBAL_BACKGROUND_SCHEDULER_V5592__,{timeout:30000});
               await page.waitForFunction(()=>!!window.__BP_WALKTHROUGH_V5539__,{timeout:15000}).catch(()=>{});
               await page.evaluate(()=>{try{window.__BP_WALKTHROUGH_V5539__?.skip?.()}catch(_){}}).catch(()=>{});
               await page.waitForFunction(()=>window.__BP_WALKTHROUGH_V5539__?.active!==true,{timeout:15000}).catch(()=>{});
@@ -200,6 +201,8 @@ jobs:
               });
               if(parcel.n<1||parcel.lineVisibility==='none')throw new Error('PUBLIC_CT_PARCELS_NOT_RENDERING '+JSON.stringify(parcel));
 
+              const truth=await page.evaluate(()=>({geom:window.__BP_GEOMETRY_TRUTH_V5592__,guard:window.__BP_MAIN_THREAD_GUARD_V5592__,global:window.__BP_GLOBAL_BACKGROUND_SCHEDULER_V5592__}));
+              if(truth.geom?.syntheticLandmarks!==false||truth.geom?.syntheticBridgePiers!==false||!truth.guard?.backgroundDrainHeldAtStartup||!truth.global?.interactionAware)throw new Error('MAP_TRUTH_V5592 '+JSON.stringify(truth));
               console.log('BRIDGEPOINT_MAP_WATCHDOG_PASS',JSON.stringify({baseline,buildingHit:!!hit,before,after,parcel}));
             }catch(e){
               try{await page.screenshot({path:'/tmp/map-watchdog-failure.png',fullPage:true})}catch{}
