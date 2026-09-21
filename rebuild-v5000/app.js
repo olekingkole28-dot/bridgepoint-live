@@ -49,7 +49,7 @@ function bindAuthUI(){$('accountButton')?.addEventListener('click',()=>openAuth(
 
 function setText(id,v){const e=$(id);if(e)e.textContent=v}
 function setBar(id,v){const e=$(id);if(e)e.style.width=pct(v)+'%'}
-let statusLast=null,world=null,statusTimer=null,tileTimer=null,selectedTimer=null,liveContextTimer=null,radarRefreshTimer=null,radarAnimTimer=null,cloudRefreshTimer=null,cloudAnimTimer=null,transportTimer=null,opportunityTimer=null,opportunitySeq=0,semanticTimer=null,semanticBuildTimer=null,semanticSeq=0,measureActive=false,measurePoints=[],xrayRestore=null,mapInteracting=false,performanceDrainTimer=null,performanceRestoreTimer=null,performanceHardReleaseTimer=null,deferredWork=new Map(),transportRuntimeLastAt=0,transportVisible=true,transportSourceUrl=null,liveContextVisible=true,radarFrames=[],radarIndex=0,radarActive='A',cloudFrames=[],cloudIndex=0,cloudActive='A',selectedPoint=null,selectedFeature=null,selectedPropertyId=null,selectedMode='building',buildingRequestSeq=0;
+let statusLast=null,world=null,statusTimer=null,tileTimer=null,selectedTimer=null,liveContextTimer=null,radarRefreshTimer=null,radarAnimTimer=null,cloudRefreshTimer=null,cloudAnimTimer=null,transportTimer=null,opportunityTimer=null,opportunitySeq=0,semanticTimer=null,semanticBuildTimer=null,semanticSeq=0,measureActive=false,measurePoints=[],xrayRestore=null,mapInteracting=false,performanceDrainTimer=null,performanceRestoreTimer=null,performanceHardReleaseTimer=null,deferredDrainTimer=null,deferredWork=new Map(),transportRuntimeLastAt=0,transportVisible=true,transportSourceUrl=null,liveContextVisible=true,radarFrames=[],radarIndex=0,radarActive='A',cloudFrames=[],cloudIndex=0,cloudActive='A',selectedPoint=null,selectedFeature=null,selectedPropertyId=null,selectedMode='building',buildingRequestSeq=0;
 let selectedParcelGeometry=null,selectedBuildingGeometry=null,selectedBuildingRecord=null;
 const pickedState={yaw:-0.62,pitch:0.92,zoom:1,terrainElevation:null,surfaceLabel:'PUBLIC LAND SURFACE',measureMode:false,measurePts:[],topMap:null,topZoom:1,topPanX:0,topPanY:0,topPointers:new Map(),topPinch:0,partFeatures:[],plan:null,pointers:new Map(),lastPinch:0,dragLast:null};
 window.__BP_PERFORMANCE_GOVERNOR__={get interacting(){return mapInteracting},get queued(){return deferredWork.size}};window.__BP_PERFORMANCE_GOVERNOR_BOOTSTRAP__=true;
@@ -79,7 +79,7 @@ async function initSharedVisualWeather(targetWorld){
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5564');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5580');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -605,8 +605,20 @@ const BP_MOBILE=innerWidth<=900||/Android|iPhone|iPad|Mobile/i.test(navigator.us
 window.__BP_PERFORMANCE_GOVERNOR__=window.__BP_PERFORMANCE_GOVERNOR__||{get interacting(){return mapInteracting},get queued(){return deferredWork.size}};
 let lastMapMotionAt=0;
 function bpInputPending(){try{return navigator.scheduling?.isInputPending?.({includeContinuous:true})===true}catch(_){return false}}
-function queueAfterMap(key,fn){if(mapInteracting||document.hidden||bpInputPending()){deferredWork.set(key,fn);return false}const run=()=>{if(mapInteracting||document.hidden||bpInputPending()){deferredWork.set(key,fn);return}try{fn()}catch(e){console.warn('deferred '+key,e)}};if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:BP_MOBILE?650:320});else setTimeout(run,BP_MOBILE?90:35);return true}
-function flushDeferredWork(){const jobs=[...deferredWork.entries()];deferredWork.clear();const gap=BP_MOBILE?180:70;jobs.forEach(([key,fn],i)=>setTimeout(()=>queueAfterMap(key,fn),i*gap))}
+function queueAfterMap(key,fn){if(mapInteracting||document.hidden||bpInputPending()){deferredWork.set(key,fn);return false}const run=()=>{if(mapInteracting||document.hidden||bpInputPending()){deferredWork.set(key,fn);return}try{fn()}catch(e){console.warn('deferred '+key,e)}};if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:BP_MOBILE?900:420});else setTimeout(run,BP_MOBILE?140:55);return true}
+function flushDeferredWork(){
+ if(mapInteracting||document.hidden)return;
+ clearTimeout(deferredDrainTimer);
+ const drain=()=>{
+  if(mapInteracting||document.hidden||bpInputPending()){deferredDrainTimer=setTimeout(drain,BP_MOBILE?320:120);return}
+  const next=deferredWork.entries().next();
+  if(next.done){window.__BP_BACKGROUND_DRAIN_V5580__={queued:0,serial:true,updatedAt:Date.now()};return}
+  const [key,fn]=next.value;deferredWork.delete(key);queueAfterMap(key,fn);
+  window.__BP_BACKGROUND_DRAIN_V5580__={queued:deferredWork.size,serial:true,updatedAt:Date.now()};
+  deferredDrainTimer=setTimeout(drain,BP_MOBILE?420:110)
+ };
+ deferredDrainTimer=setTimeout(drain,BP_MOBILE?260:60)
+}
 function waitForMapRest(){if(!mapInteracting)return Promise.resolve();return new Promise(resolve=>{const m=world?.map;if(!m){resolve();return}let done=false;const finish=()=>{if(done)return;done=true;setTimeout(resolve,BP_MOBILE?90:45)};m.once('moveend',finish);setTimeout(finish,BP_MOBILE?650:420)})}
 function bindPerformanceGovernor(){
  window.__BP_PERFORMANCE_GOVERNOR__=window.__BP_PERFORMANCE_GOVERNOR__||{get interacting(){return mapInteracting},get queued(){return deferredWork.size},persistentLayers:true};
@@ -615,14 +627,14 @@ function bindPerformanceGovernor(){
  if(m.__bpPerfGovernor)return;
  m.__bpPerfGovernor=true;
  const restoreGestures=()=>{try{m.dragPan?.enable();m.touchZoomRotate?.enable();m.touchZoomRotate?.enableRotation?.();m.touchPitch?.enable?.();m.dragRotate?.enable?.();m.scrollZoom?.enable();m.doubleClickZoom?.enable();m.keyboard?.enable();m.boxZoom?.enable()}catch(_){}},
- finishRelease=(reason,staleFor=0)=>{restoreGestures();mapInteracting=false;document.body.classList.remove('map-interacting');flushDeferredWork();clearTimeout(semanticTimer);semanticTimer=setTimeout(refreshSemanticLabels,BP_MOBILE?900:160);try{m.resize?.();m.triggerRepaint?.()}catch(_){}window.__BP_INTERACTION_RECOVERY__={reason,stationary:!m.isMoving?.(),forced:false,destructiveStop:false,staleForMs:Math.round(staleFor),updatedAt:Date.now()};window.__BP_PERSISTENT_RENDER_STATE__={layersHiddenDuringMotion:false,heavyMutationsDuringMotion:false,updatedAt:Date.now()}},
+ finishRelease=(reason,staleFor=0)=>{restoreGestures();mapInteracting=false;document.body.classList.remove('map-interacting');flushDeferredWork();clearTimeout(semanticTimer);semanticTimer=setTimeout(refreshSemanticLabels,BP_MOBILE?1200:220);try{m.triggerRepaint?.()}catch(_){}window.__BP_INTERACTION_RECOVERY__={reason,stationary:!m.isMoving?.(),forced:false,destructiveStop:false,staleForMs:Math.round(staleFor),updatedAt:Date.now()};window.__BP_PERSISTENT_RENDER_STATE__={layersHiddenDuringMotion:false,heavyMutationsDuringMotion:false,updatedAt:Date.now()}},
  release=(reason='event')=>{clearTimeout(performanceHardReleaseTimer);const now=performance.now(),staleFor=now-lastMapMotionAt,moving=!!m.isMoving?.();restoreGestures();if(moving){performanceHardReleaseTimer=setTimeout(()=>release('non_destructive_retry'),BP_MOBILE?420:180);window.__BP_INTERACTION_RECOVERY__={reason,stationary:false,forced:false,destructiveStop:false,staleForMs:Math.round(staleFor),updatedAt:Date.now()};return}finishRelease(reason,staleFor)},
  enter=()=>{mapInteracting=true;lastMapMotionAt=performance.now();opportunitySeq++;clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);clearTimeout(performanceHardReleaseTimer);restoreGestures();performanceHardReleaseTimer=setTimeout(()=>release('hard_release'),BP_MOBILE?1800:1000);document.body.classList.add('map-interacting');try{closeSystem()}catch(_){}const auth=$('authPanel');if(auth)auth.hidden=true;$('bottomNav')?.classList.remove('peek')},
  leave=()=>{lastMapMotionAt=performance.now();clearTimeout(performanceDrainTimer);clearTimeout(performanceRestoreTimer);performanceDrainTimer=setTimeout(()=>release('paired_end'),BP_MOBILE?140:35)};
  m.on('move',()=>{lastMapMotionAt=performance.now()});
  ['movestart','dragstart','zoomstart','rotatestart','pitchstart'].forEach(e=>m.on(e,enter));
  ['moveend','dragend','zoomend','rotateend','pitchend'].forEach(e=>m.on(e,leave));
- window.__BP_INTERACTION_CIRCUIT_BREAKER_V5561__={version:5561,staleMotionRecovery:true,gestureRestore:true,destructiveCameraStop:false,backgroundWorkDeferredDuringMotion:true,inputPendingAware:true,idleCallbackScheduling:true,updatedAt:Date.now()}
+ window.__BP_INTERACTION_CIRCUIT_BREAKER_V5561__={version:5561,staleMotionRecovery:true,gestureRestore:true,destructiveCameraStop:false,backgroundWorkDeferredDuringMotion:true,inputPendingAware:true,idleCallbackScheduling:true,serialDeferredDrain:true,noResizeOnMoveEnd:true,updatedAt:Date.now()};window.__BP_MAP_STABILITY_V5580__={version:5580,persistentChrome:true,serialBackgroundDrain:true,noResizeOnMoveEnd:true,updatedAt:Date.now()}
 }
 function setMapSearchOpen(open){const surface=document.querySelector('.map-surface'),form=$('publicSearchForm'),box=$('publicSearchResults');surface?.classList.add('map-engaged');form?.classList.toggle('search-open',!!open);if(!open&&box)box.hidden=true;const btn=$('toggleSearch');if(btn)btn.classList.toggle('active',!!open);if(open)setTimeout(()=>$('publicSearchInput')?.focus(),60)}
 
@@ -699,7 +711,7 @@ function geometryAnchor(g){
 function refreshSemanticLabels(){
  const map=world?.map,src=map?.getSource('bpSemanticLabels');if(!map||!src?.setData)return;
  if(mapInteracting&&!map.isMoving?.()){mapInteracting=false;document.body.classList.remove('map-interacting');flushDeferredWork();window.__BP_INTERACTION_RECOVERY__={reason:'semantic_stationary_recovery',updatedAt:Date.now()}}
- if(mapInteracting||map.isMoving?.()){window.__BP_SEMANTIC_DEBUG__={phase:'deferred_for_motion',interacting:mapInteracting,moving:!!map.isMoving?.(),zoom:map.getZoom(),updatedAt:Date.now()};clearTimeout(semanticTimer);clearTimeout(semanticBuildTimer);semanticTimer=setTimeout(refreshSemanticLabels,BP_MOBILE?260:120);return}
+ if(mapInteracting||map.isMoving?.()){window.__BP_SEMANTIC_DEBUG__={phase:'deferred_for_motion',interacting:mapInteracting,moving:!!map.isMoving?.(),zoom:map.getZoom(),updatedAt:Date.now()};clearTimeout(semanticTimer);clearTimeout(semanticBuildTimer);clearTimeout(deferredDrainTimer);semanticTimer=setTimeout(refreshSemanticLabels,BP_MOBILE?260:120);return}
  clearTimeout(semanticBuildTimer);const seq=++semanticSeq;window.__BP_SEMANTIC_DEBUG__={phase:'starting',seq,zoom:map.getZoom(),updatedAt:Date.now()};
  const run=()=>{
   if(seq!==semanticSeq)return;
@@ -777,7 +789,7 @@ async function applyGrowthDeepLink(){
  if(q.get('select')!=='0'&&zoom>=15){setTimeout(()=>{try{selectedFeature=null;showBuilding(targetLng,targetLat)}catch(e){console.warn('deep link building',e)}},350)}
  return true
 }
-async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();void loadStatus();setTimeout(()=>{if(!Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0))void loadStatus()},5000);try{await bootMap();bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();await applyGrowthDeepLink()}catch(e){setText('mapStatus','Map start retry · '+e.message)}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),120000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),90000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5578',{updateViaCache:'none'}).catch(()=>{})}
+async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();void loadStatus();setTimeout(()=>{if(!Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0))void loadStatus()},5000);try{await bootMap();bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();await applyGrowthDeepLink()}catch(e){setText('mapStatus','Map start retry · '+e.message)}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),120000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),90000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5580',{updateViaCache:'none'}).catch(()=>{})}
 start();
 window.addEventListener('beforeunload',()=>{clearInterval(accessCountdownTimer);clearInterval(statusTimer);clearInterval(tileTimer);clearInterval(selectedTimer);clearInterval(liveContextTimer);clearInterval(radarRefreshTimer);clearInterval(radarAnimTimer);clearInterval(cloudRefreshTimer);clearInterval(cloudAnimTimer);clearInterval(transportTimer);clearInterval(opportunityTimer);clearTimeout(semanticTimer);clearTimeout(semanticBuildTimer)});
 ;(()=>{const resume=()=>{if(document.hidden)return;try{window.__BP_V5000_WORLD__?.map?.resize?.();window.__BP_V5000_WORLD__?.map?.triggerRepaint?.()}catch(_){ }if(!mapInteracting)flushDeferredWork()};document.addEventListener('visibilitychange',resume,{passive:true});window.__BP_APP_RESPONSIVENESS_V5561__={version:5561,inputPendingAware:true,idleBackgroundWork:true,visibilityPause:true,updatedAt:Date.now()}})();
