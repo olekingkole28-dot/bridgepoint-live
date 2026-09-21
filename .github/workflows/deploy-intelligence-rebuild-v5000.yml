@@ -106,6 +106,7 @@ jobs:
           cp rebuild-v5000/app.js site/app.js
           cp rebuild-v5000/owner-everything.js site/owner-everything.js
           cp rebuild-v5000/owner-everything.css site/owner-everything.css
+          cp rebuild-v5000/parcel-boundary-viewer-v5403.js site/parcel-boundary-viewer-v5403.js
           cp rebuild-v5000/manifest.webmanifest site/manifest.webmanifest
           cp rebuild-v5000/favicon.ppm site/favicon.ppm
           cp rebuild-v5000/sw.js site/sw.js
@@ -194,7 +195,10 @@ jobs:
           grep -Fq '153,532,480' site/index.html
           grep -Fq '143,787,840' site/index.html
           node --check site/app.js
+          node --check site/parcel-boundary-viewer-v5403.js
           node --check site/landing.js
+          grep -Fq 'parcel-boundary-viewer-v5403.js?v=5403' site/index.html
+          grep -Fq 'parcel-boundary-viewer-v5403.js?v=5403' site/app/index.html
           node --check site/intelligence-global-v5507.js
           node --check site/intelligence-tools-v5507.js
           node -e "const fs=require('fs');let s=fs.readFileSync('site/intelligence-tools-v5507.js','utf8').split('\\n').filter(x=>!x.startsWith('import')).join('\\n');new Function(s);"
