@@ -91,7 +91,7 @@ jobs:
               await p.waitForFunction(()=>!!window.__BP_VIEWER_COUNTRY_START__,{timeout:15000});
               const navStart=Date.now();
               await p.click('#openPagesNav');
-              await p.waitForFunction(()=>document.getElementById('bottomNav')?.classList.contains('peek')===true,{timeout:7000});
+              await p.waitForFunction(()=>{const n=document.getElementById('bottomNav');if(!n)return false;const s=getComputedStyle(n),r=n.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity||1)>.8&&s.pointerEvents!=='none'&&r.width>100&&r.height>20},{timeout:7000});
               await p.click('#bottomNav [data-nav="packages"]');
               await p.waitForFunction(()=>document.querySelector('[data-surface="packages"]')?.hidden===false,{timeout:7000});
               await p.click('#bottomNav [data-nav="map"]');
