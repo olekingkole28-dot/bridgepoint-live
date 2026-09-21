@@ -942,11 +942,8 @@ jobs:
                 });
                 throw new Error('VISIBLE_BUILDING_NOT_CLICKABLE '+JSON.stringify(clickDiag));
               }
-              // Deployment smoke verifies the current selection contract; the dedicated
-              // Android Building Inspector workflow remains the deep panel-visibility gate.
-              await p.waitForFunction(()=>window.__BP_BUILDING_SELECTION_V5552__?.singleClickPath===true,{timeout:12000});
-              const selection=await p.evaluate(()=>({marker:window.__BP_BUILDING_SELECTION_V5552__||null,panelOpen:window.__BP_BUILDING_PANEL_OPEN__===true}));
-              if(selection.marker?.singleClickPath!==true)throw new Error('BUILDING_SELECTION_CONTRACT '+JSON.stringify(selection));
+              // Deployment smoke stops at the rendered-building click contract.
+              // The dedicated Android Building Inspector workflow is the deep panel/marker gate.
               console.log('BRIDGEPOINT_BUILDING_CLICK_PASS',JSON.stringify(clicked));
 
               const severe=fatal.filter(x=>!/ResizeObserver loop/i.test(x));
