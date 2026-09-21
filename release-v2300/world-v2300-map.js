@@ -1,6 +1,6 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
 import{initSpace}from'./world-v2300-space.js?v=5536';
-window.__BP_WORLD_RENDER_VERSION__=5548;
+window.__BP_WORLD_RENDER_VERSION__=5378;
 window.__BP_FINE_DETAIL_MODE__={enabled:false,reason:'performance-first buildings-weather-boundaries',updatedAt:Date.now()};
 
 const OFM='https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf';
