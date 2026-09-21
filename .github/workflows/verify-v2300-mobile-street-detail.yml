@@ -55,6 +55,7 @@ jobs:
               await p.setRequestInterception(true);
               p.on('request',req=>{
                 const u=req.url();
+                if(u.includes('bridgepoint-public-city-structures-v5375')||u.includes('bridgepoint-public-city-roofs-v5376'))return req.abort();
                 if(u.includes('/rest/v1/rpc/bridgepoint_building_viewport_v2300')){
                   let body={};try{body=JSON.parse(req.postData()||'{}')}catch(_){}
                   viewportBodies.push(body);
