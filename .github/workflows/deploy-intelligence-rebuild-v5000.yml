@@ -615,7 +615,6 @@ jobs:
           grep -Fq '153,532,480' /tmp/root.html
           grep -Fq '143,787,840' /tmp/root.html
           grep -Fq 'data-nosnippet' /tmp/app.html
-          grep -Fq '169,664,739' /tmp/terminal.html 2>/dev/null || true
           grep -Fq 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security.txt
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/?v5100=${q}" -o /tmp/horizon.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon-playable/v2-entry.html?v5100=${q}" -o /tmp/horizon-playable.html
@@ -623,6 +622,7 @@ jobs:
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/newsroom/?v5100=${q}" -o /tmp/newsroom.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/claims-terminal/?v5100=${q}" -o /tmp/claims-terminal.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/terminal/?v5100=${q}" -o /tmp/terminal.html
+          grep -Fq '169,664,739' /tmp/terminal.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/integrity-index/?v5100=${q}" -o /tmp/integrity-index.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/settlement-lab/?v5100=${q}" -o /tmp/settlement-lab.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/distribution/?v5202=${q}" -o /tmp/distribution.html
