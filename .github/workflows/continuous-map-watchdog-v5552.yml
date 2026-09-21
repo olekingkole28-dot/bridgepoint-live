@@ -1,9 +1,9 @@
-name: BridgePoint Continuous Mobile Map Watchdog V5560
+name: BridgePoint Continuous Mobile Map Watchdog V5561
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/15 * * * *'
   push:
     branches: [main]
     paths:
@@ -70,15 +70,15 @@ jobs:
               await page.setGeolocation({latitude:41.55,longitude:-72.65,accuracy:25});
               await page.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
-              await page.goto(O+'/app/?watchdog5560='+Date.now(),{waitUntil:'domcontentloaded',timeout:35000});
-              await page.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5560&&window.__BP_V5000_WORLD?.map,{timeout:45000});
+              await page.goto(O+'/app/?watchdog5561='+Date.now(),{waitUntil:'domcontentloaded',timeout:35000});
+              await page.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5561&&window.__BP_V5000_WORLD?.map,{timeout:45000});
               await sleep(1200);
 
               const baseline=await page.evaluate(()=>{
                 const w=window.__BP_V5000_WORLD,m=w.map;
                 return{
                   performance:w.state?.performance,
-                  circuit:window.__BP_INTERACTION_CIRCUIT_BREAKER_V5560__||null,
+                  circuit:window.__BP_INTERACTION_CIRCUIT_BREAKER_V5561__||null,
                   dragPan:m.dragPan?.isEnabled?.(),
                   touchZoomRotate:m.touchZoomRotate?.isEnabled?.(),
                   parcelMin:m.getLayer('gta-parcel')?.minzoom,
@@ -87,7 +87,7 @@ jobs:
                 }
               });
               if(!baseline.dragPan||!baseline.touchZoomRotate)throw new Error('GESTURES_DISABLED '+JSON.stringify(baseline));
-              if(!baseline.performance?.duplicateTouchSelectionRemoved||baseline.performance?.lodNeverForcesStationaryDuringTouch!==true)throw new Error('OLD_TOUCH_PATH '+JSON.stringify(baseline));
+              if(!baseline.performance?.duplicateTouchSelectionRemoved||baseline.performance?.lodNeverForcesStationaryDuringTouch!==true||baseline.performance?.touchPointerDownNeverStopsCamera!==true)throw new Error('OLD_TOUCH_PATH '+JSON.stringify(baseline));
               if(baseline.circuit?.destructiveCameraStop!==false)throw new Error('DESTRUCTIVE_CAMERA_STOP_PRESENT '+JSON.stringify(baseline));
               if(Number(baseline.parcelMin)>6.7||Number(baseline.parcelGlowMin)>6.7||Number(baseline.parcelSourceMin)>6.7)throw new Error('PARCEL_ZOOM_GATE '+JSON.stringify(baseline));
 

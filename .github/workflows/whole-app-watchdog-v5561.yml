@@ -1,0 +1,113 @@
+name: BridgePoint Whole-App Headless Watchdog V5561
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '2-59/5 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'rebuild-v5000/**'
+      - 'release-v2300/**'
+      - '.github/workflows/whole-app-watchdog-v5561.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bridgepoint-whole-app-watchdog-v5561
+  cancel-in-progress: true
+
+jobs:
+  whole-app-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: HTTP surface and asset probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN='https://bridgepointintelligence.online'
+          for path in '/' '/app/' '/pricing/' '/sample/storm-opportunity/' '/app.js' '/world-v2300-map.js'; do
+            out=$(curl -L -sS --retry 2 --retry-all-errors --max-time 18 -o /tmp/bp-probe -w '%{http_code} %{time_total} %{size_download}' "$ORIGIN$path")
+            code=$(awk '{print $1}' <<<"$out")
+            secs=$(awk '{print $2}' <<<"$out")
+            bytes=$(awk '{print $3}' <<<"$out")
+            echo "SURFACE $path HTTP=$code SEC=$secs BYTES=$bytes"
+            test "$code" = "200"
+            awk -v s="$secs" 'BEGIN{exit !(s<12)}'
+            test "$bytes" -gt 100
+          done
+          code=$(curl -sS --retry 2 --retry-all-errors --max-time 18 -o /tmp/ct.mvt -w '%{http_code}' 'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403?mode=public&z=8&x=76&y=95&v=whole-app-5561')
+          test "$code" = "200"
+          test "$(wc -c </tmp/ct.mvt)" -gt 5000
+
+      - name: Mobile shell responsiveness
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          timeout 210s env CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          const O='https://bridgepointintelligence.online';
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
+            const p=await browser.newPage();
+            const fatal=[];
+            p.on('pageerror',e=>fatal.push(String(e?.message||e)));
+            await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+            await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+            try{
+              let t=Date.now();
+              let r=await p.goto(O+'/?wholeApp5561='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              if(!r||r.status()>=400)throw new Error('LANDING_HTTP_'+r?.status());
+              console.log('LANDING_DOM_MS',Date.now()-t);
+              await p.waitForSelector('#previewMap',{timeout:15000});
+              t=Date.now();
+              r=await p.goto(O+'/app/?wholeApp5561='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              if(!r||r.status()>=400)throw new Error('APP_HTTP_'+r?.status());
+              await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5561&&!!window.__BP_V5000_WORLD?.map,{timeout:45000});
+              console.log('APP_WORLD_READY_MS',Date.now()-t);
+              const shell=await p.evaluate(()=>({
+                frontend:window.__BP_FRONTEND_VERSION,
+                world:window.__BP_WORLD_RENDER_VERSION__,
+                appResponsive:window.__BP_APP_RESPONSIVENESS_V5561__||null,
+                dragPan:window.__BP_V5000_WORLD?.map?.dragPan?.isEnabled?.(),
+                touchZoom:window.__BP_V5000_WORLD?.map?.touchZoomRotate?.isEnabled?.(),
+                nav:document.querySelectorAll('#bottomNav [data-nav]').length,
+                appErrors:(window.__BP_V5000_WORLD?.state?.runtimeErrors||[]).slice(-5)
+              }));
+              if(shell.world!==5561||!shell.appResponsive?.idleBackgroundWork||!shell.dragPan||!shell.touchZoom||shell.nav<3)throw new Error('APP_SHELL_CONTRACT '+JSON.stringify(shell));
+              const navStart=Date.now();
+              await p.click('#bottomNav [data-nav="packages"]');
+              await p.waitForFunction(()=>document.querySelector('[data-surface="packages"]')?.hidden===false,{timeout:2500});
+              await p.click('#bottomNav [data-nav="map"]');
+              await p.waitForFunction(()=>document.querySelector('[data-surface="map"]')?.hidden===false,{timeout:2500});
+              console.log('NAV_ROUNDTRIP_MS',Date.now()-navStart);
+              const raf=await p.evaluate(()=>new Promise(resolve=>{
+                const ts=[],start=performance.now();
+                const step=t=>{ts.push(t);if(ts.length>=8||performance.now()-start>2500){const gaps=ts.slice(1).map((v,i)=>v-ts[i]);resolve({frames:ts.length,maxGap:gaps.length?Math.max(...gaps):null,total:performance.now()-start})}else requestAnimationFrame(step)};
+                requestAnimationFrame(step);
+              }));
+              if(raf.frames<4)throw new Error('UI_MAIN_THREAD_STALLED '+JSON.stringify(raf));
+              const severe=fatal.filter(x=>!/ResizeObserver loop/i.test(x));
+              if(severe.length)throw new Error('PAGEERROR '+JSON.stringify(severe.slice(-5)));
+              console.log('WHOLE_APP_WATCHDOG_PASS',JSON.stringify({shell,raf}));
+            }catch(e){
+              try{await p.screenshot({path:'/tmp/whole-app-failure.png',fullPage:true})}catch{}
+              console.error(e.stack||e);process.exitCode=1;
+            }finally{await browser.close()}
+          })();
+          NODE
+
+      - name: Upload failure screenshot
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-whole-app-watchdog-failure
+          path: /tmp/whole-app-failure.png
+          if-no-files-found: ignore
+          retention-days: 3

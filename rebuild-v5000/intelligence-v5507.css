@@ -43,3 +43,6 @@
 .bp5507-tool .bp5507-road-drive-note{display:block;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08);color:#8feaff;font-size:7px;line-height:1.35;font-weight:850}
 
 .bp5507-tool .bp5507-work-note{display:block;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.07);color:#9eb7c3;font-size:7px;line-height:1.35;font-weight:800}
+
+/* BP v5561 mobile compositing: keep controls/features, remove costly blur passes on touch devices. */
+@media(max-width:900px){#bp5507-key,#bp5507-tools,.bp5507-panel,.bp5507-sheet{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}}

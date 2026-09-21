@@ -62,3 +62,6 @@ body.map-page-active{overflow:hidden}
 .auth-form .password-wrap{position:relative;display:block}.auth-form .password-wrap input{width:100%;padding-right:48px}.auth-form .password-toggle{position:absolute;right:5px;top:5px;width:38px;height:34px;padding:0;border:1px solid rgba(98,230,255,.18);border-radius:8px;background:#0b171e;color:#dffcff;font-size:15px}
 .auth-form .legal-accept{display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:start;text-transform:none;letter-spacing:0;line-height:1.45;color:#8ba2ad;font-size:9px}
 .auth-form .legal-accept input{width:16px;height:16px;margin:1px 0 0;padding:0;accent-color:#62e6ff}.auth-form .legal-accept a{color:#62e6ff;text-decoration:none}
+
+/* BP mobile compositor relief v5561: preserve features, reduce GPU compositing/thermal load. */
+@media(max-width:900px){.topbar,.map-brand-card,.search-box,.map-tools button,.system-panel,.building-panel,.live-legend,.page-card,.owner-card{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}.page-scroll,.system-panel,.building-panel{overscroll-behavior:contain}}

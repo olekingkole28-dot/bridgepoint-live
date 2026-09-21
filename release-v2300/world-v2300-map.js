@@ -1,6 +1,6 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
 import{initSpace}from'./world-v2300-space.js?v=5536';
-window.__BP_WORLD_RENDER_VERSION__=5560;
+window.__BP_WORLD_RENDER_VERSION__=5561;
 window.__BP_FINE_DETAIL_MODE__={enabled:false,reason:'performance-first buildings-weather-boundaries',updatedAt:Date.now()};
 
 const OFM='https://tiles.openfreemap.org/planet/latest/{z}/{x}/{y}.pbf';
@@ -25,7 +25,7 @@ const STATUE_LIBERTY_COORD=[-74.044643,40.689211];
 const STATUE_LIBERTY_FACING_DEG=135;
 window.__BP_WORLD_FIX_V5542__={version:5542,statueModel:'NPS_HAER_MEASURED_RECONSTRUCTION',bridgeSource:'OPENFREEMAP_OSM_QUERY_SOURCE',continuousGestureLoading:true,updatedAt:Date.now()};
 window.__BP_WORLD_INTERACTION_V5543__={version:5543,stableSingleFrameBuildingHit:true,updatedAt:Date.now()};
-window.__BP_WORLD_PERFORMANCE_V5560__={version:5560,gestureHotPath:'single-maplibre-click',duplicateTouchSelectionRemoved:true,persistentTerrain:true,persistentRadarDrape:true,retainGeometryDuringMotion:true,parcelLinesPersistDuringMotion:true,staleTileCancellation:true,mobileAnimationsAdaptive:true,lodNeverForcesStationaryDuringTouch:true,updatedAt:Date.now()};
+window.__BP_WORLD_PERFORMANCE_V5561__={version:5561,gestureHotPath:'single-maplibre-click',duplicateTouchSelectionRemoved:true,persistentTerrain:true,persistentRadarDrape:true,retainGeometryDuringMotion:true,parcelLinesPersistDuringMotion:true,staleTileCancellation:true,mobileAnimationsAdaptive:true,lodNeverForcesStationaryDuringTouch:true,touchPointerDownNeverStopsCamera:true,mobileBuildingSelectionPreservesGesture:true,updatedAt:Date.now()};
 window.__BP_EXACT_FALLBACK_V5546__={version:5546,canonicalViewportArgs:true,cityFallbackPreserved:true,updatedAt:Date.now()};
 window.__BP_BUILDING_SELECTION_V5547__={version:5547,panelImmediate:false,updatedAt:Date.now()};
 window.__BP_PHOTOREAL_WORLD_V5548__={version:5548,groundImagery:['USGS','OpenAerialMap'],oamLicense:'CC BY 4.0',oamCloseZoomOnly:true,bridgePointBuildingsRemainPrimary:true,photoDerivedRoofColor:true,roofColorTruthLayer:'BridgePoint v5376 real roofs',updatedAt:Date.now()};
@@ -1058,7 +1058,7 @@ export function initWorld(options={}){
   const feature={type:'Feature',geometry:f.geometry,properties:p,id:f.id,layer:{id:f.layer?.id||''}};
   const detail={lngLat:ll,feature};
   requestAnimationFrame(()=>{
-   try{const view={center:[ll.lng,ll.lat],zoom:Math.max(map.getZoom(),16.6),pitch:64,bearing:-22};if(MOBILE||LOW){map.stop?.();map.jumpTo(view)}else map.easeTo({...view,duration:220,essential:true})}catch(_){}
+   try{const view={center:[ll.lng,ll.lat],zoom:Math.max(map.getZoom(),16.6),pitch:64,bearing:-22};if(MOBILE||LOW){map.jumpTo(view)}else map.easeTo({...view,duration:220,essential:true})}catch(_){}
    setTimeout(()=>{
     try{const panel=document.getElementById('buildingPanel');if(panel){panel.hidden=false;panel.removeAttribute('hidden');panel.style.setProperty('display','block','important');window.__BP_BUILDING_PANEL_OPEN__=true}}catch(_){}
     try{if(typeof window.__BP_V5000_SELECT_BUILDING__==='function')window.__BP_V5000_SELECT_BUILDING__(detail);else if(typeof buildingSelectHandler==='function')buildingSelectHandler(detail)}catch(err){console.warn('building selection handler',err)}
@@ -1097,14 +1097,14 @@ export function initWorld(options={}){
  });
  const canvas=map.getCanvas();
  const clearTouchState=()=>{activeTouchPointers.clear();touchPointer=null;touchNative=null};
- canvas.addEventListener('pointerdown',ev=>{if(ev.pointerType==='touch'||ev.pointerType==='pen'){activeTouchPointers.add(ev.pointerId);ensureMapGestures();try{if(map.isMoving?.())map.stop?.()}catch(_){}}},{passive:true,capture:true});
+ canvas.addEventListener('pointerdown',ev=>{if(ev.pointerType==='touch'||ev.pointerType==='pen'){activeTouchPointers.add(ev.pointerId);ensureMapGestures()}},{passive:true,capture:true});
  canvas.addEventListener('pointerup',ev=>{activeTouchPointers.delete(ev.pointerId)},{passive:true,capture:true});
  canvas.addEventListener('pointercancel',ev=>{activeTouchPointers.delete(ev.pointerId)},{passive:true,capture:true});
  window.addEventListener('blur',clearTouchState,{passive:true});
  document.addEventListener('visibilitychange',()=>{if(document.hidden)clearTouchState()},{passive:true});
  map.on('click',e=>{if(moving||activeTouchPointers.size>1)return;chooseBuilding(e)});
  map.on('mousemove',e=>{const now=performance.now();if(hoverFrame||now-lastHoverAt<80)return;lastHoverAt=now;const point={x:e.point.x,y:e.point.y};hoverFrame=requestAnimationFrame(()=>{hoverFrame=0;try{const hit=map.queryRenderedFeatures(point,{layers:['gta-exact-building','gta-city-buildings','gta-context-buildings'].filter(id=>map.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')!=='none')}).length;map.getCanvas().style.cursor=hit?'pointer':''}catch(_){}})});
- const state={version:VERSION,architecture:'MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY',openRuntimeOnly:true,competitorSdk:false,staleWhileRevalidateExact:true,interactionPriorityScheduling:true,mainWebGLCanvases:()=>container.querySelectorAll('canvas').length,get exactCount(){return exactCount},get livingCount(){return livingCount},get moving(){return moving},get terrain(){return terrainOn},get base(){return base},get streetWalk(){return false},get cameraMode(){return window.__BP_CAMERA_MODE__||null},get worldLight(){return window.__BP_WORLD_LIGHT__||null},get buildingShellMode(){return window.__BP_BUILDING_SHELL_MODE__||null},get performance(){return window.__BP_WORLD_PERFORMANCE_V5560__||window.__BP_WORLD_PERFORMANCE_V5552__||window.__BP_WORLD_PERFORMANCE_V5544__||null},get landmark3D(){return window.__BP_LANDMARK3D_V5542__||window.__BP_LANDMARK3D_V5541__||null},get bridge3D(){return window.__BP_BRIDGE3D_V5542__||window.__BP_BRIDGE3D_V5540__||null},get road3D(){return window.__BP_ROAD3D_STATE__||null},get runtimeErrors(){return runtimeMapErrors.slice(-8)},sources:{map:'MapLibre GL JS',vectors:'OpenFreeMap/OpenStreetMap + BridgePoint exact viewport',globalImagery:'NASA EOSDIS GIBS Blue Marble',usImagery:'USGS The National Map orthoimagery + OpenAerialMap CC BY 4.0 close-zoom overlay',terrain:'Mapzen Terrain Tiles on AWS Open Data',parcels:'BridgePoint MVT',roofs:'BridgePoint roof truth MVT v5369',livingWorld:'BridgePoint living-world viewport v5319'}};
+ const state={version:VERSION,architecture:'MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY',openRuntimeOnly:true,competitorSdk:false,staleWhileRevalidateExact:true,interactionPriorityScheduling:true,mainWebGLCanvases:()=>container.querySelectorAll('canvas').length,get exactCount(){return exactCount},get livingCount(){return livingCount},get moving(){return moving},get terrain(){return terrainOn},get base(){return base},get streetWalk(){return false},get cameraMode(){return window.__BP_CAMERA_MODE__||null},get worldLight(){return window.__BP_WORLD_LIGHT__||null},get buildingShellMode(){return window.__BP_BUILDING_SHELL_MODE__||null},get performance(){return window.__BP_WORLD_PERFORMANCE_V5561__||window.__BP_WORLD_PERFORMANCE_V5560__||window.__BP_WORLD_PERFORMANCE_V5552__||window.__BP_WORLD_PERFORMANCE_V5544__||null},get landmark3D(){return window.__BP_LANDMARK3D_V5542__||window.__BP_LANDMARK3D_V5541__||null},get bridge3D(){return window.__BP_BRIDGE3D_V5542__||window.__BP_BRIDGE3D_V5540__||null},get road3D(){return window.__BP_ROAD3D_STATE__||null},get runtimeErrors(){return runtimeMapErrors.slice(-8)},sources:{map:'MapLibre GL JS',vectors:'OpenFreeMap/OpenStreetMap + BridgePoint exact viewport',globalImagery:'NASA EOSDIS GIBS Blue Marble',usImagery:'USGS The National Map orthoimagery + OpenAerialMap CC BY 4.0 close-zoom overlay',terrain:'Mapzen Terrain Tiles on AWS Open Data',parcels:'BridgePoint MVT',roofs:'BridgePoint roof truth MVT v5369',livingWorld:'BridgePoint living-world viewport v5319'}};
  async function startForViewer(opts={}){
   const primaryOwner=opts.primaryOwner===true;
   const national={center:[-98.5,39.5],zoom:Number.isFinite(opts.ownerZoom)?Number(opts.ownerZoom):(MOBILE?2.75:3.35),pitch:0,bearing:0};
