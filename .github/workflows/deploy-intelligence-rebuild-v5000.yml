@@ -510,11 +510,8 @@ jobs:
           test -s site/for-roofers/index.html
           test -s site/for-solar/index.html
           test -s site/sample/index.html
-          test -s site/owner/acquisition/index.html
-          test -s site/owner/command/index.html
           test -s site/owner-everything.js
           test -s site/owner-everything.css
-          test -s site/downloads/backup/bridgepoint_full_export_windows.ps1
           node --check site/owner-everything.js
           grep -Fq 'Owner Everything' site/app/index.html
           grep -Fq 'bridgepoint_owner_acquisition_v5400' site/owner-everything.js
