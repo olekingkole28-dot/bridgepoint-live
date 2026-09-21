@@ -919,7 +919,7 @@ jobs:
                   },
                   sources:{city:!!m?.getSource('bpCityStructures'),cityRoofs:!!m?.getSource('bpCityRoofs'),weatherShapes:!!m?.getSource('bpV5004WeatherShapes')},
                   weatherLegend:{present:!!document.getElementById('liveLegend'),more:!!document.getElementById('liveLegendToggle')},
-                weatherFx:window.__bpWeatherV2300?.fx?.state?.capabilities||{}
+                weatherFx:window.__bpWeatherV2300?.fx?.state?.capabilities||window.__bpWeatherFXV2300?.state?.capabilities||window.BridgePointWorldV2300?.weather?.fx?.state?.capabilities||{}
                 };
               });
               if(state.frontend!==5000||state.app!==5371||state.world!==5561||state.canvases!==1||state.architecture!=='MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY'||state.camera?.mode!=='FREE_FLY_SINGLE_VIEW'||state.camera?.singleView!==true||state.camera?.autoViewSwitching!==false||state.camera?.streetWalkMode!==false||state.camera?.buildingClickOverlook!==true||Number(state.maxPitch)<84||state.materials?.floorLines!==true||state.materials?.roofOverlays!==true||state.materials?.exactRoofs!==true||state.fine?.enabled!==false||!state.sources.city||!state.sources.cityRoofs||!state.sources.weatherShapes||!state.weatherLegend.present||!state.weatherLegend.more||state.weatherFx.rainSnowHail!==true||state.weatherFx.wildfireFlameParticles!==true||Object.values(state.layers).some(v=>v!==true))throw new Error('CURRENT_WORLD_REGRESSION '+JSON.stringify(state));
