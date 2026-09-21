@@ -1058,7 +1058,7 @@ export function initWorld(options={}){
   const feature={type:'Feature',geometry:f.geometry,properties:p,id:f.id,layer:{id:f.layer?.id||''}};
   const detail={lngLat:ll,feature};
   requestAnimationFrame(()=>{
-   try{map.easeTo({center:[ll.lng,ll.lat],zoom:Math.max(map.getZoom(),16.6),pitch:64,bearing:-22,duration:220,essential:true})}catch(_){}
+   try{const view={center:[ll.lng,ll.lat],zoom:Math.max(map.getZoom(),16.6),pitch:64,bearing:-22};if(MOBILE||LOW){map.stop?.();map.jumpTo(view)}else map.easeTo({...view,duration:220,essential:true})}catch(_){}
    setTimeout(()=>{
     try{const panel=document.getElementById('buildingPanel');if(panel){panel.hidden=false;panel.removeAttribute('hidden');panel.style.setProperty('display','block','important');window.__BP_BUILDING_PANEL_OPEN__=true}}catch(_){}
     try{if(typeof window.__BP_V5000_SELECT_BUILDING__==='function')window.__BP_V5000_SELECT_BUILDING__(detail);else if(typeof buildingSelectHandler==='function')buildingSelectHandler(detail)}catch(err){console.warn('building selection handler',err)}
