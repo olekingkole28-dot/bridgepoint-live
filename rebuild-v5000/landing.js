@@ -227,7 +227,8 @@ async function globalCoverage(){
   window.__BP_GLOBAL_COVERAGE__={version:5601,data:d,updatedAt:Date.now()};
  }catch(e){console.warn('BridgePoint global coverage',e);if($('globalCoverageUpdated'))$('globalCoverageUpdated').textContent='Last updated: retrying live coverage…'}
 }
-\nconst PACKAGE_FEATURES={
+
+const PACKAGE_FEATURES={
  homeowner:['Package Community Chat','Intelligence Map','Property Profiles','Weather Intelligence','Alerts','Calendar','Favorites'],
  home:['Package Community Chat','Intelligence Map','Property Profiles','Weather Intelligence','Opportunity Rankings','Patterns','Score Explanations','Score Movement','Signals','Micro-Climate Hail Impact','Alerts','Calendar','Favorites','Saved Searches'],
  solar:['Intelligence Map','Property Profiles','Solar Intelligence','Weather Intelligence','Opportunity Rankings','Patterns','Score Explanations','Score Movement','Signals','Alerts','Calendar','Favorites','Saved Searches'],
