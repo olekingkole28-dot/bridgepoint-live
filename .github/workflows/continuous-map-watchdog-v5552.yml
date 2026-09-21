@@ -105,8 +105,8 @@ jobs:
               await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               await page.goto(O+'/app/?watchdog5561='+Date.now(),{waitUntil:'domcontentloaded',timeout:35000});
               await page.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5561&&window.__BP_V5000_WORLD?.map,{timeout:45000});
-              // Let viewer-country/geolocation startup settle before forcing the deterministic test viewport.
-              await sleep(5200);
+              // Let the one-time viewer-country/geolocation startup settle before forcing the deterministic test viewport.
+              await page.waitForFunction(()=>!!window.__BP_VIEWER_COUNTRY_START__,{timeout:15000});
               await page.waitForFunction(()=>!!window.__BP_MAP_STABILITY_V5580__?.serialBackgroundDrain&&!!document.getElementById('bp5507-key')&&!!document.querySelector('.map-brand-card'),{timeout:30000});
 
               const baseline=await page.evaluate(()=>{
