@@ -125,6 +125,16 @@ async function ownerDocument(doc){
  const popup=window.open('about:blank','_blank');
  try{
   setStatus('Opening owner document…');
+  if(doc==='legal_sources_live'){
+   if(typeof window.__BP_OWNER_LEGAL_PDF_FETCH__!=='function')throw new Error('Live legal PDF bridge unavailable');
+   const r=await window.__BP_OWNER_LEGAL_PDF_FETCH__();
+   const url=URL.createObjectURL(r.blob);
+   if(popup)popup.location.href=url;
+   else{const a=document.createElement('a');a.href=url;a.download=r.filename||'BridgePoint-Legal-Sources.pdf';document.body.appendChild(a);a.click();a.remove()}
+   setStatus('Live source + legal evidence PDF generated from the current manifest.');
+   setTimeout(()=>URL.revokeObjectURL(url),120000);
+   return
+  }
   const r=await rpc('bridgepoint_owner_document_v5401',{p_doc:doc},20000);
   const raw=atob(String(r?.data_base64||'')),bytes=new Uint8Array(raw.length);
   for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
