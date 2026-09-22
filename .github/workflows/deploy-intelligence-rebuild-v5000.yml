@@ -218,8 +218,8 @@ jobs:
           node --check site/qr-house-v5521.js
           node --check site/refresh-v5535.js
           node --check site/walkthrough-v5537.js
-          grep -Fq 'intelligence-tools-v5507.js?v=5592' site/index.html
-          grep -Fq 'intelligence-tools-v5507.js?v=5592' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5610' site/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5610' site/app/index.html
           grep -Fq 'FREE PREMIUM TOOLS' site/intelligence-tools-v5507.js
           grep -Fq 'openScenarioLab' site/intelligence-tools-v5507.js
           grep -Fq 'openRoadDrive' site/intelligence-tools-v5507.js
