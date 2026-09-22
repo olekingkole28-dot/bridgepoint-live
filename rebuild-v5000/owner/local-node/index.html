@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Owner Local Node — BridgePoint Intelligence</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="theme-color" content="#061119">
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#040a0f;color:#eefbff;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}.wrap{max-width:920px;margin:auto;padding:40px 18px 80px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:34px}.top a{color:#bfeaff;text-decoration:none;font-weight:800}.eyebrow{font-size:11px;letter-spacing:.16em;color:#76e7f9;font-weight:900}.card{border:1px solid rgba(120,220,255,.16);background:#091722;border-radius:18px;padding:24px;margin:16px 0}.card h1,.card h2{margin:5px 0 12px}.muted{color:#91aebb;line-height:1.6}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.metric{padding:14px;background:#061018;border-radius:12px}.metric b{display:block;font-size:22px}.metric span{font-size:10px;color:#91aebb;letter-spacing:.1em}.btn{appearance:none;border:0;border-radius:12px;padding:13px 16px;font-weight:900;cursor:pointer;background:#78e8ff;color:#031015}.btn.secondary{background:#102a38;color:#dff9ff;border:1px solid #24495b}.code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#020609;border:1px solid #173343;border-radius:12px;padding:16px;white-space:pre-wrap;word-break:break-word;color:#c9f4ff}.secret{font-size:17px;color:#fff}.ok{color:#76efb6}.bad{color:#ff9d8b}.warn{color:#ffd46b}.row{display:flex;gap:10px;flex-wrap:wrap}.small{font-size:12px;color:#7f9daa;line-height:1.6}@media(max-width:650px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body><main class="wrap">
+<div class="top"><div><span class="eyebrow">OWNER ONLY</span><strong>BridgePoint Local Runtime</strong></div><a href="/app/">← Back to app</a></div>
+<section class="card"><span class="eyebrow">NEW DESKTOP · V718+</span><h1>Enroll the owner PC.</h1><p class="muted">This creates a one-time 20-minute enrollment code. The PC never receives the Supabase service-role key. Backup/export authority is granted by the backend, not by the installer.</p><div id="authState" class="small">Checking owner session…</div></section>
+<section class="card"><h2>Current node state</h2><div class="grid"><div class="metric"><b id="nodeState">—</b><span>LOCAL NODE</span></div><div class="metric"><b id="agent">—</b><span>AGENT VERSION</span></div><div class="metric"><b id="disk">—</b><span>FREE HOT STORAGE</span></div><div class="metric"><b id="queue">—</b><span>AI QUEUE</span></div></div><p id="nodeDetail" class="small"></p></section>
+<section class="card"><h2>1 · Generate enrollment</h2><p class="muted">Generate this only when you are at the new PC and ready to run the installer. The code is single-use and expires quickly.</p><div class="row"><button id="gen" class="btn" type="button">GENERATE 20-MINUTE CODE</button><button id="copy" class="btn secondary" type="button" hidden>COPY CODE</button></div><div id="code" class="code secret" hidden></div><p id="expiry" class="small"></p></section>
+<section class="card"><h2>2 · Run the canonical installer</h2><p class="muted">After the private <b>bridgepoint-live</b> repository is on the new desktop, open PowerShell as Administrator in <code>ops\local-node</code> and run:</p><div class="code">Set-ExecutionPolicy -Scope Process Bypass
+.\install.ps1 -DataRoot "C:\BridgePointData"</div><p class="small">The installer requires at least 600 GB free on the hot-data drive, keeps Ollama on 127.0.0.1, protects the node token with Windows DPAPI, and installs one Windows Scheduled Task named <b>BridgePoint Autonomous Node</b>. Do not install the older fallback scheduled task at the same time.</p></section>
+<section class="card"><h2>3 · Automatic handoff</h2><p class="muted">After the heartbeat turns ONLINE at v718+, the backend can unlock governed local reasoning and the already-authorized export queue. Export remains resumable and cannot bypass storage/integrity gates. OneDrive remains cold archive only; the live DuckDB stays on the SSD.</p><button id="refresh" class="btn secondary" type="button">REFRESH STATUS</button></section>
+</main>
+<script>
+const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co',KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25',STORE='bp_auth_v5045';
+const $=id=>document.getElementById(id);
+function session(){try{return JSON.parse(localStorage.getItem(STORE)||'null')}catch(_){return null}}
+async function rpc(name,args={}){
+ const s=session();if(!s?.access_token)throw new Error('Sign in to the BridgePoint owner account first.');
+ const r=await fetch(SUPA+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+s.access_token,'Content-Type':'application/json'},body:JSON.stringify(args),cache:'no-store'});
+ const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.message||d.error||('HTTP '+r.status));return d
+}
+async function status(){
+ try{
+  const d=await rpc('bridgepoint_owner_ai_control_local_v598',{}),nodes=Array.isArray(d.local_nodes)?d.local_nodes:[],n=nodes.sort((a,b)=>String(b.last_seen_at||'').localeCompare(String(a.last_seen_at||'')))[0]||null;
+  $('authState').innerHTML='<span class="ok">Owner session verified.</span>';
+  $('nodeState').textContent=n?.status||'NO NODE';$('agent').textContent=n?.capabilities?.agent_version||'—';$('disk').textContent=n?.hardware?.free_disk_gb!=null?n.hardware.free_disk_gb+' GB':'—';$('queue').textContent=d?.task_counts?.ai_queued??'—';
+  $('nodeDetail').textContent=n?'Last seen '+(n.last_seen_at?new Date(n.last_seen_at).toLocaleString():'never')+' · '+(n.node_name||'Owner node'):'No enrolled local node is reporting yet.';
+ }catch(e){$('authState').innerHTML='<span class="bad">'+String(e.message||e)+'</span>';$('nodeDetail').textContent='Sign in through the main BridgePoint app with the platform-owner account, then reload this page.'}
+}
+$('gen').onclick=async()=>{
+ $('gen').disabled=true;$('code').hidden=true;$('copy').hidden=true;$('expiry').textContent='Generating server-signed enrollment…';
+ try{
+  const d=await rpc('bridgepoint_owner_create_local_reasoning_enrollment_v584',{p_node_name:'BridgePoint Owner PC - New Desktop'});
+  $('code').textContent=d.enrollment_code;$('code').hidden=false;$('copy').hidden=false;$('expiry').textContent='Expires '+new Date(d.expires_at).toLocaleString()+' · one use only.';
+ }catch(e){$('expiry').innerHTML='<span class="bad">'+String(e.message||e)+'</span>'}finally{$('gen').disabled=false}
+};
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('code').textContent);$('copy').textContent='COPIED'}catch(_){$('copy').textContent='SELECT CODE MANUALLY'}};
+$('refresh').onclick=status;status();setInterval(()=>{if(!document.hidden)status()},60000);
+</script></body></html>
