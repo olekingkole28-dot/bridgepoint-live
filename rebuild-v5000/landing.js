@@ -373,10 +373,10 @@ async function landingSearchSubmit(e){
  if(q.length<4)return;
  if(freeLookupUsed()){gateLookup('Your first free property lookup has already been used in this browser. Create an account to keep searching and use a 7-day trial where available.');return}
  box.hidden=false;box.innerHTML='<button disabled><b>Searching BridgePoint…</b><small>Matching address and property identity.</small></button>';
- let rows=[];
- try{const d=await rpc('bridgepoint_public_search_v5200',{p_query:q,p_limit:6},3200);rows=credibleAddressRows(q,d?.results||[])}catch(_){}
- if(!rows.length){try{const d=await landingAddressFallback(q,7000);rows=d?.results||[]}catch(_){}}
- if(!rows.length){box.innerHTML='<button disabled><b>No match yet</b><small>Try a fuller street address, city and state.</small></button>';return}
+ let rows=[],rawRows=[],recoveryUsed=false;
+ try{const d=await rpc('bridgepoint_public_search_v5200',{p_query:q,p_limit:6},3200);rawRows=d?.results||[];rows=credibleAddressRows(q,rawRows);if(rawRows.length>rows.length)window.BridgePointAcquisition?.send?.('ADDRESS_SEARCH_WEAK_MATCH_SUPPRESSED',{surface:'landing',suppressed:rawRows.length-rows.length})}catch(_){}
+ if(!rows.length){try{const d=await landingAddressFallback(q,7000);rows=d?.results||[];recoveryUsed=rows.length>0;if(recoveryUsed)window.BridgePointAcquisition?.send?.('ADDRESS_SEARCH_RECOVERED',{surface:'landing',resolver:String(d?.resolver||'CENSUS')})}catch(_){}}
+ if(!rows.length){window.BridgePointAcquisition?.send?.('ADDRESS_SEARCH_NO_MATCH',{surface:'landing'});box.innerHTML='<button disabled><b>No match yet</b><small>BridgePoint could not confidently resolve that address yet. Try the full street address, city, state and ZIP.</small></button>';return}
  box.innerHTML='';
  rows.slice(0,6).forEach(row=>{
   const b=document.createElement('button');b.type='button';
