@@ -7,8 +7,8 @@ param(
 $ErrorActionPreference='Stop'
 $ProgressPreference='SilentlyContinue'
 $Release=938
-$ArtifactCommit='830c75481a4ae2132c8fda57125d4bc99a3d04f0'
-$Base='https://raw.githubusercontent.com/olekingkole28-dot/bridgepoint-live/830c75481a4ae2132c8fda57125d4bc99a3d04f0/downloads/local-ai'
+$ArtifactCommit='c12fb329c021671295b6279276b42b53835d0ad5'
+$Base='https://raw.githubusercontent.com/olekingkole28-dot/bridgepoint-live/c12fb329c021671295b6279276b42b53835d0ad5/downloads/local-ai'
 $Bundle=Join-Path $env:TEMP ("bridgepoint-local-node-v"+$Release)
 New-Item -ItemType Directory -Path $Bundle -Force | Out-Null
 $files=@('runtime_install.ps1','bridgepoint_agent.py','requirements.txt')
