@@ -165,3 +165,5 @@ body>header{z-index:50}body>main,body>.site-footer{z-index:2}
 .bp-opp-loading{color:#718c98;font-size:9px;padding:18px 0}
 @media(max-width:900px){.bp-opp-dashboard{grid-template-columns:1fr}.bp-opp-state-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.bp-opportunity-intel{padding-top:48px!important}.bp-opp-hero-card,.bp-opp-family-panel,.bp-opp-state-panel{border-radius:18px}.bp-opp-hero-card{min-height:300px;padding:20px}.bp-opp-family-panel,.bp-opp-state-panel{padding:17px}.bp-opp-state-grid{grid-template-columns:1fr}.bp-opp-cta{align-items:stretch;flex-direction:column}.bp-opp-cta button{width:100%}}
+
+.stat-opportunities{border-color:rgba(255,92,115,.22)!important;background:linear-gradient(145deg,rgba(255,92,115,.075),rgba(127,140,255,.055),rgba(5,14,22,.94))!important}.stat-opportunities .stat-icon{color:#ff7588!important}.stat-opportunities .stat-copy strong{background:linear-gradient(90deg,#ff7588,#d98aff,#70e7ff);-webkit-background-clip:text;background-clip:text;color:transparent}
