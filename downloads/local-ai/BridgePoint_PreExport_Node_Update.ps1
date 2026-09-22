@@ -40,8 +40,8 @@ Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" |
     @{N='FreePct';E={if($_.Size){[math]::Round(100*$_.FreeSpace/$_.Size,1)}else{0}}} |
   Format-Table -AutoSize
 
-Write-Host "`nBridgePoint released local-agent target: V936" -ForegroundColor Cyan
-Write-Host "The backend must receive a fresh owner-PC heartbeat and the export release gate must show local_node_current=true and storage_verified=true before final export." -ForegroundColor Yellow
+Write-Host "`nBridgePoint released local-agent target: V938" -ForegroundColor Cyan
+Write-Host "The canonical v938 installer is released. A fresh owner-PC enrollment, at least 600 GB free on non-OneDrive storage, and a live v938 heartbeat are the only local-machine gates before the owner-authorized snapshot begins." -ForegroundColor Yellow
 
 if (-not $node) { exit 2 }
 exit 0
