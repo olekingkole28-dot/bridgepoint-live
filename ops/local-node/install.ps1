@@ -29,10 +29,29 @@ function Resolve-Executable([string]$Name,[string[]]$Candidates) {
   }
   throw "$Name was installed but its executable could not be located."
 }
-$PythonExe=Resolve-Executable "python" @(
-  "%LOCALAPPDATA%\Programs\Python\Python312\python.exe",
-  "%ProgramFiles%\Python312\python.exe"
-)
+$PythonExe=$null
+try {
+  $PythonExe=Resolve-Executable "python" @(
+    "%LOCALAPPDATA%\Programs\Python\Python312\python.exe",
+    "%LOCALAPPDATA%\Programs\Python\Python313\python.exe",
+    "%ProgramFiles%\Python312\python.exe",
+    "%ProgramFiles%\Python313\python.exe"
+  )
+} catch {
+  Write-Host "Python executable not found after winget. Installing Python 3.12 explicitly..." -ForegroundColor Yellow
+  winget install --id Python.Python.3.12 -e --scope user --accept-package-agreements --accept-source-agreements
+  $machinePath=[Environment]::GetEnvironmentVariable('Path','Machine')
+  $userPath=[Environment]::GetEnvironmentVariable('Path','User')
+  $env:Path="$machinePath;$userPath"
+  $PythonExe=Resolve-Executable "python" @(
+    "%LOCALAPPDATA%\Programs\Python\Python312\python.exe",
+    "%LOCALAPPDATA%\Programs\Python\Python313\python.exe",
+    "%ProgramFiles%\Python312\python.exe",
+    "%ProgramFiles%\Python313\python.exe"
+  )
+}
+& $PythonExe --version
+if($LASTEXITCODE -ne 0){ throw "Python executable exists but failed its version check." }
 $OllamaExe=$null
 try {
   $OllamaExe=Resolve-Executable "ollama" @(
@@ -64,8 +83,15 @@ if($OllamaExe){
   Write-Host "Ollama not available. Continuing with BridgePoint export-first mode." -ForegroundColor Yellow
 }
 $Venv = Join-Path $RuntimeRoot ".venv"
-if (-not (Test-Path $Venv)) { & $PythonExe -m venv $Venv }
 $Py = Join-Path $Venv "Scripts\python.exe"
+if (-not (Test-Path -LiteralPath $Py)) {
+  if(Test-Path -LiteralPath $Venv){ Remove-Item -LiteralPath $Venv -Recurse -Force -ErrorAction SilentlyContinue }
+  & $PythonExe -m venv $Venv
+  if($LASTEXITCODE -ne 0){ throw "Python venv creation failed." }
+}
+if (-not (Test-Path -LiteralPath $Py)) { throw "BridgePoint Python virtual environment was not created." }
+& $Py --version
+if($LASTEXITCODE -ne 0){ throw "BridgePoint venv Python failed its version check." }
 & $Py -m pip install --upgrade pip
 & $Py -m pip install -r (Join-Path $RuntimeAgentDir "requirements.txt")
 $secure = Read-Host "Paste the one-time BridgePoint enrollment code" -AsSecureString
