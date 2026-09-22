@@ -1,20 +1,23 @@
 name: Transport Runtime Nationwide v2716
 
+# Manual-only while the unified BridgePoint pressure governor is HIGH/CRITICAL.
+# Heavy runtime builds are released deliberately after source/archive and storage gates pass.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/transport-runtime-pilot-v2716.yml'
-      - 'scripts/build_transport_runtime_v2716.py'
+    inputs:
+      state:
+        description: 'US state/territory code to rebuild'
+        required: true
+        default: 'DC'
+        type: string
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: bridgepoint-transport-runtime-v2716-relay-v5314
-  cancel-in-progress: true
+  group: bridgepoint-transport-runtime-v2716-${{ inputs.state }}
+  cancel-in-progress: false
 
 env:
   SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
@@ -22,21 +25,14 @@ env:
 
 jobs:
   runtime:
-    name: ${{ matrix.state }} BridgePoint transport PMTiles
+    name: ${{ inputs.state }} BridgePoint transport PMTiles
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      max-parallel: 6
-      matrix:
-        state: [AK]
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
       - name: Install pinned runtime dependencies
         shell: bash
         run: |
@@ -50,7 +46,6 @@ jobs:
           make -j2
           sudo make install
           tippecanoe --version
-
       - name: Mint runtime-only GitHub OIDC identity
         id: oidc
         shell: bash
@@ -60,17 +55,15 @@ jobs:
           TOKEN=$(printf '%s' "$RESPONSE" | python -c 'import json,sys; print(json.load(sys.stdin)["value"])')
           echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
-
       - name: Build, verify, and upload runtime PMTiles
         env:
           TRANSPORT_RUNTIME_OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
-        run: python scripts/build_transport_runtime_v2716.py --state "${{ matrix.state }}"
-
+        run: python scripts/build_transport_runtime_v2716.py --state "${{ inputs.state }}"
       - name: Preserve diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: transport-runtime-v2716-${{ matrix.state }}
+          name: transport-runtime-v2716-${{ inputs.state }}
           path: transport-runtime-output/
           if-no-files-found: ignore
           retention-days: 1
