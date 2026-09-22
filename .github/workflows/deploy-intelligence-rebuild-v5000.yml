@@ -95,6 +95,13 @@ jobs:
           cp -a answers site/answers
           cp -a press site/press
           if [ -d book ]; then cp -a book site/book; fi
+          # Publish only the governed local-node bootstrap/runtime; no credentials or secrets are included.
+          mkdir -p site/downloads/local-ai
+          cp downloads/local-ai/install_windows.ps1 site/downloads/local-ai/install_windows.ps1
+          cp downloads/local-ai/Install_BridgePoint_Local_AI.bat site/downloads/local-ai/Install_BridgePoint_Local_AI.bat
+          cp ops/local-node/install.ps1 site/downloads/local-ai/runtime_install.ps1
+          cp ops/local-node/bridgepoint_agent.py site/downloads/local-ai/bridgepoint_agent.py
+          cp ops/local-node/requirements.txt site/downloads/local-ai/requirements.txt
           if [ -d pricing ]; then cp -a pricing site/pricing; cp pricing/index.html site/pricing.html; fi
           if [ -d investors ]; then cp -a investors site/investors; fi
           if [ -d enterprise ]; then cp -a enterprise site/enterprise; fi
