@@ -52,5 +52,6 @@ jobs:
           if($runtime -notmatch 'BridgePointRuntime'){ throw 'Durable runtime root missing.' }
           if($runtime -notmatch 'Unregister-ScheduledTask -TaskName "BridgePoint Local AI"'){ throw 'Legacy startup cleanup missing.' }
           $boot=Get-Content downloads/local-ai/install_windows.ps1 -Raw
-          if($boot -notmatch 'live-artifact/downloads/local-ai'){ throw 'Verified live-artifact bootstrap channel missing.' }
+          if($boot -notmatch 'raw\.githubusercontent\.com/olekingkole28-dot/bridgepoint-live/[0-9a-f]{40}/downloads/local-ai'){ throw 'Immutable commit-pinned bootstrap channel missing.' }
+          if($boot -match "bridgepoint-live/live-artifact/downloads/local-ai"){ throw 'Moving live-artifact dependency is not allowed in v938 bootstrap.' }
           if($boot -notmatch 'AGENT_VERSION=938'){ throw 'Bootstrap agent marker check missing.' }
