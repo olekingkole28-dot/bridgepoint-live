@@ -1,0 +1,56 @@
+name: BridgePoint Desktop Node V938 Guard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/local-node/**'
+      - 'downloads/local-ai/**'
+      - '.github/workflows/local-node-v938-guard.yml'
+  pull_request:
+    paths:
+      - 'ops/local-node/**'
+      - 'downloads/local-ai/**'
+      - '.github/workflows/local-node-v938-guard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bridgepoint-desktop-node-v938
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify governed Python agent
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          py -m py_compile ops/local-node/bridgepoint_agent.py
+          $agent=Get-Content ops/local-node/bridgepoint_agent.py -Raw
+          if($agent -notmatch 'AGENT_VERSION=938'){ throw 'Agent is not v938.' }
+          if($agent -notmatch 'xdfsjztwgsbmabshzsjw'){ throw 'Agent is not pinned to live v.01.' }
+          if($agent -match 'dgkrvafvtlokkenzrcvs'){ throw 'Agent references non-live v.03.' }
+          if($agent -notmatch 'PORTABLE_EXPORT_AUTHORITY_NOT_SERVER_GRANTED'){ throw 'Server-granted export authority guard missing.' }
+          if($agent -notmatch 'PARQUET_ZSTD_DUCKDB_V5604'){ throw 'Compact local runtime marker missing.' }
+      - name: Parse-check PowerShell installers
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          foreach($path in @('ops/local-node/install.ps1','downloads/local-ai/install_windows.ps1')){
+            $tokens=$null;$errors=$null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors)
+            if($errors.Count){$errors|ForEach-Object{Write-Error ("$path line {0}: {1}" -f $_.Extent.StartLineNumber,$_.Message)};exit 1}
+          }
+          $runtime=Get-Content ops/local-node/install.ps1 -Raw
+          if($runtime -notmatch 'autonomous node v938 is installed'){ throw 'Durable installer v938 marker missing.' }
+          if($runtime -notmatch 'BridgePointRuntime'){ throw 'Durable runtime root missing.' }
+          if($runtime -notmatch 'Unregister-ScheduledTask -TaskName "BridgePoint Local AI"'){ throw 'Legacy startup cleanup missing.' }
+          $boot=Get-Content downloads/local-ai/install_windows.ps1 -Raw
+          if($boot -notmatch 'live-artifact/downloads/local-ai'){ throw 'Verified live-artifact bootstrap channel missing.' }
+          if($boot -notmatch 'AGENT_VERSION=938'){ throw 'Bootstrap agent marker check missing.' }
