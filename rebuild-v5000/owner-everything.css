@@ -19,3 +19,15 @@
 .owner-empty{padding:12px;color:#78919d;font-size:10px}.owner-search{width:min(310px,100%);margin-bottom:8px}
 @media(max-width:1050px){.owner-kpis{grid-template-columns:repeat(3,1fr)}.owner-control-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:760px){.owner-hero{display:block}.owner-live{margin-top:10px}.owner-grid,.owner-valuation{grid-template-columns:1fr}.owner-card.wide{grid-column:auto}.owner-kpis{grid-template-columns:repeat(2,1fr)}.owner-control-grid{grid-template-columns:1fr 1fr}.owner-toolbar{align-items:stretch}.owner-toolbar label{flex:1 1 145px}.owner-toolbar button{flex:1 1 120px}}
+
+
+/* V5626 opportunity intelligence */
+.owner-opportunity-card{position:relative;overflow:hidden}
+.owner-opportunity-card:after{content:"";position:absolute;right:-90px;top:-120px;width:280px;height:280px;border-radius:50%;background:conic-gradient(rgba(255,92,115,.10),rgba(127,140,255,.10),rgba(98,230,255,.08),rgba(88,224,181,.08),rgba(255,92,115,.10));filter:blur(24px);pointer-events:none}
+.owner-opp-kpis{position:relative;z-index:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0}
+.owner-opp-families{position:relative;z-index:1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin:0 0 16px}
+.owner-opp-family{min-width:0;padding:10px;border-radius:12px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.owner-opp-family span{min-width:0;color:#9db3bd;font-size:8px;font-weight:850;line-height:1.3}.owner-opp-family span i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;box-shadow:0 0 9px currentColor}.owner-opp-family b{font-size:12px;color:#f3fbff}
+.owner-opp-chipset{display:flex;gap:4px;flex-wrap:wrap}.owner-opp-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 6px;border-radius:999px;background:color-mix(in srgb,var(--opp) 8%,transparent);border:1px solid color-mix(in srgb,var(--opp) 20%,transparent);font-size:6.5px;white-space:nowrap}.owner-opp-chip i{width:5px;height:5px;border-radius:50%;background:var(--opp);box-shadow:0 0 7px var(--opp)}
+@media(max-width:900px){.owner-opp-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.owner-opp-families{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.owner-opp-kpis,.owner-opp-families{grid-template-columns:1fr}}
