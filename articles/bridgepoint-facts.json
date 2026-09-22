@@ -1,5 +1,5 @@
 {
-  "snapshot_generated_at": "2026-09-22T00:37:41.535655+00:00",
+  "snapshot_generated_at": "2026-09-22T05:23:53.111299+00:00",
   "company": "BridgePoint Intelligence",
   "founder": "Kole Johnson",
   "public_origin": "https://bridgepointintelligence.online/",
@@ -12,15 +12,15 @@
   "ai_index": "https://bridgepointintelligence.online/ai-index.json",
   "search_atlas": "https://bridgepointintelligence.online/search/",
   "current_national_metrics": {
-    "map_ready_buildings": 144514848,
-    "roof_shell_buildings": 144514848,
+    "map_ready_buildings": 145402736,
+    "roof_shell_buildings": 145402736,
     "roof_shell_coverage_pct": 100.0,
-    "canonical_property_records": 170298376,
-    "normalized_address_records": 155450230,
-    "source_backed_roof_records": 686282,
-    "lidar_refined_roof_buildings": 4610,
+    "canonical_property_records": 170509700,
+    "normalized_address_records": 156767376,
+    "source_backed_roof_records": 687905,
+    "lidar_refined_roof_buildings": 4694,
     "materialized_boundary_estimate": 83881564,
-    "public_parcel_identity_records": 170303376,
+    "public_parcel_identity_records": 170510998,
     "canonical_property_record_label": "canonical property/parcel identity records",
     "property_boundary_link_estimate": 31311895
   },
@@ -30,15 +30,15 @@
     "pr_oid_remaining": 0,
     "strict_boundary_ready": false,
     "required_jurisdictions": 56,
-    "fresh_approved_jurisdictions": 53,
+    "fresh_approved_jurisdictions": 55,
     "public_counter_jurisdictions": 56
   },
   "freshness": {
-    "roof_updated_at": "2026-09-22T00:37:32.189933+00:00",
-    "lidar_last_success_at": "2026-09-22T00:22:49.948727+00:00",
-    "parcel_counter_updated_at": "2026-09-22T00:36:01.560296+00:00",
-    "address_counter_updated_at": "2026-09-22T00:37:00.746875+00:00",
-    "parcel_scoreboard_updated_at": "2026-09-22T00:30:06.926662+00:00",
+    "roof_updated_at": "2026-09-22T05:23:25.80212+00:00",
+    "lidar_last_success_at": "2026-09-22T05:10:11.51678+00:00",
+    "parcel_counter_updated_at": "2026-09-22T05:23:37.071389+00:00",
+    "address_counter_updated_at": "2026-09-22T05:23:37.136135+00:00",
+    "parcel_scoreboard_updated_at": "2026-09-22T05:20:28.219775+00:00",
     "parcel_autopilot_last_tick_at": "2026-09-16T01:18:58.834462+00:00"
   },
   "definitions": {
