@@ -7,7 +7,8 @@ param(
 $ErrorActionPreference='Stop'
 $ProgressPreference='SilentlyContinue'
 $Release=938
-$Base='https://raw.githubusercontent.com/olekingkole28-dot/bridgepoint-live/live-artifact/downloads/local-ai'
+$ArtifactCommit='80ac74c3318f5fc013f677a52ead613904a7706f'
+$Base='https://raw.githubusercontent.com/olekingkole28-dot/bridgepoint-live/80ac74c3318f5fc013f677a52ead613904a7706f/downloads/local-ai'
 $Bundle=Join-Path $env:TEMP ("bridgepoint-local-node-v"+$Release)
 New-Item -ItemType Directory -Path $Bundle -Force | Out-Null
 $files=@('runtime_install.ps1','bridgepoint_agent.py','requirements.txt')
@@ -22,4 +23,4 @@ if($agent -notmatch 'AGENT_VERSION=938'){throw 'BridgePoint release marker misma
 if($installer -notmatch 'autonomous node v938 is installed'){throw 'BridgePoint installer release marker mismatch: expected v938.'}
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Bundle 'runtime_install.ps1') -DataRoot $DataRoot -RuntimeRoot $RuntimeRoot -PrimaryModel $PrimaryModel -ReviewerModel $ReviewerModel
 if($LASTEXITCODE -ne 0){throw "BridgePoint runtime installer exited $LASTEXITCODE"}
-Write-Host 'BridgePoint governed desktop runtime v938 installation completed.' -ForegroundColor Green
+Write-Host ("BridgePoint governed desktop runtime v938 installation completed from pinned artifact commit " + $ArtifactCommit + ".") -ForegroundColor Green
