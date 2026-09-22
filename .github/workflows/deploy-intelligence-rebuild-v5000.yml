@@ -107,6 +107,8 @@ jobs:
           if [ -d enterprise ]; then cp -a enterprise site/enterprise; fi
           cp rebuild-v5000/index.html site/index.html
           cp rebuild-v5000/app-index.html site/app/index.html
+          mkdir -p site/app/local-node
+          cp rebuild-v5000/owner/local-node/index.html site/app/local-node/index.html
           cp rebuild-v5000/landing.css site/landing.css
           cp rebuild-v5000/landing.js site/landing.js
           cp rebuild-v5000/styles.css site/styles.css
@@ -195,6 +197,9 @@ jobs:
           test -f site/pricing/index.html
           test -f site/pricing.html
           test -f site/.well-known/security.txt
+          test -s site/app/local-node/index.html
+          grep -Fq 'bridgepoint_owner_create_local_reasoning_enrollment_v5607' site/app/local-node/index.html
+          grep -Fq 'Install_BridgePoint_Local_AI.bat' site/app/local-node/index.html
           test ! -e site/owner
           test ! -e site/downloads/backup
           echo 'PRIVATE_SURFACES_NOT_PUBLISHED_PASS'
