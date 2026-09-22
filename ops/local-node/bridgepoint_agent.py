@@ -12,7 +12,7 @@ OLLAMA="http://127.0.0.1:11434"
 MIN_FREE_GB=600.0
 PRIMARY="qwen2.5:3b"
 REVIEWER="deepseek-r1:1.5b"
-DATASETS=["PROPERTIES","SIGNALS","PATTERNS","SCORES","OPPORTUNITIES","MEDIA","SOURCES","EVIDENCE","STATE_SUMMARY","PACKAGE_MAP"]
+DATASETS=["PROPERTIES","ADDRESSES","PARCEL_GEOMETRY","BOUNDARY_PROVENANCE","LEGAL_MANIFEST","TERRAIN","SURFACE","BUILDING_VISUAL_MATERIAL","SIGNALS","PATTERNS","SCORES","OPPORTUNITIES","MEDIA","SOURCES","EVIDENCE","STATE_SUMMARY","PACKAGE_MAP"]
 STATES=["AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","AS","GU","MP","PR","VI"]
 ARCHIVES=[
  ("buildings/v2710/{state}/building","archives/buildings/state_code={state}/building"),
@@ -100,9 +100,13 @@ def ollama(c,model,prompt):
 
 def heartbeat(c,root,disk,lim):
     m=metrics(root)
+    snap=portable_snapshot_status(root)
     caps={"provider":"OLLAMA","agent_version":AGENT_VERSION,"outbound_only":True,"primary_model":c["primary_model"],"reviewer_model":c["reviewer_model"],
           "storage_verified":storage_ok(root,m),"adaptive_claim_limit":lim,"disk_benchmark_mbps":disk,
-          "local_governor":"HEADROOM_V938","compact_runtime":"PARQUET_ZSTD_DUCKDB_V5604"}
+          "local_governor":"HEADROOM_V938","compact_runtime":"PARQUET_ZSTD_DUCKDB_V5604",
+          "portable_export_protocol":"STATE_PARQUET_V1845","backup_protocol":"PORTABLE_VERIFY_V938",
+          "portable_snapshot_complete":bool(snap["complete"]),"portable_states_complete":int(snap["states_complete"]),
+          "portable_archive_files":int(snap["archive_files"])}
     return api(c,"heartbeat",capabilities=caps,hardware=m)
 
 def reason(c,lim):
@@ -151,26 +155,65 @@ def sync_archives(c,root,workers=2):
     out={"generated_at":now(),"agent_version":AGENT_VERSION,"count":len(records),"bytes":sum(x["bytes"] for x in records),"files":records}
     (md/"archive-copy-manifest.json").write_text(json.dumps(out,indent=2),encoding="utf-8"); return out
 
+def file_sha256(path):
+    h=hashlib.sha256()
+    with Path(path).open("rb") as f:
+        for b in iter(lambda:f.read(8*1024*1024),b""): h.update(b)
+    return h.hexdigest()
+
+def write_json_atomic(path,obj):
+    path=Path(path); path.parent.mkdir(parents=True,exist_ok=True)
+    tmp=path.with_suffix(path.suffix+".tmp")
+    tmp.write_text(json.dumps(obj,indent=2,sort_keys=True),encoding="utf-8")
+    os.replace(tmp,path)
+
+def parquet_dir_stats(d):
+    import pyarrow.parquet as pq
+    files=[]
+    rows=0
+    for p in sorted(Path(d).glob("part-*.parquet")):
+        n=int(pq.ParquetFile(p).metadata.num_rows); rows+=n
+        files.append({"file":p.name,"rows":n,"bytes":p.stat().st_size,"sha256":file_sha256(p)})
+    return {"rows":rows,"bytes":sum(x["bytes"] for x in files),"files":files}
+
 def export_job(c,root,job):
     import pyarrow as pa, pyarrow.parquet as pq
     rid,state=job["request_id"],job["scope_key"]; sr=root/"snapshots"/f"state_code={state}"; sr.mkdir(parents=True,exist_ok=True)
-    resume_file=sr/f"{rid}.resume.json"; resume=json.loads(resume_file.read_text()) if resume_file.exists() else {"datasets":{},"started_at":now()}; totals={}
+    resume_file=sr/f"{rid}.resume.json"
+    resume=json.loads(resume_file.read_text(encoding="utf-8")) if resume_file.exists() else {"datasets":{},"started_at":now(),"format":"PARQUET_ZSTD_DUCKDB_V938"}
+    totals={}; integrity={}
     try:
         for ds in DATASETS:
-            d=sr/ds.lower(); d.mkdir(parents=True,exist_ok=True); s=resume["datasets"].setdefault(ds,{"cursor":None,"done":False,"part":0,"rows":0}); buf=[]
-            while not s["done"]:
-                p=api(c,"export_page",request_id=rid,dataset=ds,cursor=s["cursor"],limit=1000); rows=p.get("rows") or []
-                buf.extend(rows); s["cursor"]=p.get("next_cursor"); s["done"]=bool(p.get("done")); s["rows"]+=len(rows)
-                if len(buf)>=100000 or s["done"]:
+            d=sr/ds.lower(); d.mkdir(parents=True,exist_ok=True)
+            st=resume["datasets"].setdefault(ds,{"cursor":None,"done":False,"part":0,"rows":0}); buf=[]
+            while not st["done"]:
+                page=api(c,"export_page",request_id=rid,dataset=ds,cursor=st["cursor"],limit=1000)
+                rows=page.get("rows") or []
+                buf.extend(rows); st["cursor"]=page.get("next_cursor"); st["done"]=bool(page.get("done")); st["rows"]+=len(rows)
+                if len(buf)>=100000 or st["done"]:
                     if buf:
-                        pq.write_table(pa.Table.from_pylist(buf),d/f"part-{s['part']:05d}.parquet",compression="zstd",row_group_size=250000,use_dictionary=True); s["part"]+=1; buf=[]
-                    resume_file.write_text(json.dumps(resume,indent=2),encoding="utf-8")
-                if not rows and not s["done"]: raise RuntimeError("empty non-final export page")
-            totals[ds]=s["rows"]
-        result={"completed_at":now(),"state_code":state,"datasets":totals,"format":"PARQUET_ZSTD","agent_version":AGENT_VERSION}
-        api(c,"export_complete",request_id=rid,result=result); (sr/"COMPLETE.json").write_text(json.dumps(result,indent=2),encoding="utf-8"); return result
+                        part=d/f"part-{st['part']:05d}.parquet"
+                        pq.write_table(pa.Table.from_pylist(buf),part,compression="zstd",row_group_size=250000,use_dictionary=True)
+                        st["part"]+=1; buf=[]
+                    write_json_atomic(resume_file,resume)
+                if not rows and not st["done"]: raise RuntimeError(f"{ds}: empty non-final export page")
+            stats=parquet_dir_stats(d)
+            if stats["rows"]!=int(st["rows"]): raise RuntimeError(f"{ds}: row verification failed expected={st['rows']} actual={stats['rows']}")
+            totals[ds]=int(st["rows"]); integrity[ds]=stats
+        manifest={"completed_at":now(),"request_id":rid,"state_code":state,"datasets":totals,"integrity":integrity,
+                  "format":"PARQUET_ZSTD_DUCKDB_V938","agent_version":AGENT_VERSION,"secrets_exported":False}
+        write_json_atomic(sr/"MANIFEST.json",manifest)
+        result={"completed_at":manifest["completed_at"],"state_code":state,"datasets":totals,
+                "dataset_count":len(DATASETS),"format":"PARQUET_ZSTD_DUCKDB_V938","manifest_sha256":file_sha256(sr/"MANIFEST.json"),
+                "verified_rows":sum(totals.values()),"agent_version":AGENT_VERSION}
+        api(c,"export_complete",request_id=rid,result=result)
+        write_json_atomic(sr/"COMPLETE.json",result)
+        return result
     except Exception as e:
-        api(c,"export_fail",request_id=rid,error=f"{type(e).__name__}: {e}",result={"state_code":state,"failed_at":now(),"resume":resume}); raise
+        try: api(c,"export_fail",request_id=rid,error=f"{type(e).__name__}: {e}",result={"state_code":state,"failed_at":now(),"resume":resume})
+        finally: pass
+        raise
+
 def export_once(c,root):
     if not storage_ok(root,metrics(root)): return None
     job=api(c,"export_claim").get("job")
@@ -180,15 +223,107 @@ def catalog(root):
     import duckdb
     d=root/"catalog"; d.mkdir(parents=True,exist_ok=True); db=duckdb.connect(str(d/"bridgepoint.duckdb"))
     try:
-        patterns={"properties":"snapshots/state_code=*/properties/*.parquet","signals":"snapshots/state_code=*/signals/*.parquet","patterns":"snapshots/state_code=*/patterns/*.parquet",
-                  "scores":"snapshots/state_code=*/scores/*.parquet","opportunities":"snapshots/state_code=*/opportunities/*.parquet","media":"snapshots/state_code=*/media/*.parquet",
-                  "buildings":"archives/buildings/state_code=*/building/*.parquet","building_parts":"archives/buildings/state_code=*/building_part/*.parquet",
-                  "transport_segments":"archives/transport/state_code=*/segment/*.parquet","transport_connectors":"archives/transport/state_code=*/connector/*.parquet"}
+        patterns={
+          "properties":"snapshots/state_code=*/properties/*.parquet",
+          "addresses":"snapshots/state_code=*/addresses/*.parquet",
+          "parcel_geometry":"snapshots/state_code=*/parcel_geometry/*.parquet",
+          "boundary_provenance":"snapshots/state_code=*/boundary_provenance/*.parquet",
+          "legal_manifest":"snapshots/state_code=*/legal_manifest/*.parquet",
+          "terrain":"snapshots/state_code=*/terrain/*.parquet",
+          "surface":"snapshots/state_code=*/surface/*.parquet",
+          "building_visual_material":"snapshots/state_code=*/building_visual_material/*.parquet",
+          "signals":"snapshots/state_code=*/signals/*.parquet",
+          "patterns":"snapshots/state_code=*/patterns/*.parquet",
+          "scores":"snapshots/state_code=*/scores/*.parquet",
+          "opportunities":"snapshots/state_code=*/opportunities/*.parquet",
+          "media":"snapshots/state_code=*/media/*.parquet",
+          "sources":"snapshots/state_code=*/sources/*.parquet",
+          "evidence":"snapshots/state_code=*/evidence/*.parquet",
+          "state_summary":"snapshots/state_code=*/state_summary/*.parquet",
+          "package_map":"snapshots/state_code=*/package_map/*.parquet",
+          "buildings":"archives/buildings/state_code=*/building/*.parquet",
+          "building_parts":"archives/buildings/state_code=*/building_part/*.parquet",
+          "transport_segments":"archives/transport/state_code=*/segment/*.parquet",
+          "transport_connectors":"archives/transport/state_code=*/connector/*.parquet"
+        }
         for name,rel in patterns.items():
             if list(root.glob(rel)):
                 g=str(root/rel).replace("\\","/").replace("'","''")
                 db.execute(f"create or replace view {name} as select * from read_parquet('{g}',union_by_name=true,hive_partitioning=true)")
     finally: db.close()
+
+def portable_snapshot_status(root):
+    complete={}
+    for p in sorted((root/"snapshots").glob("state_code=*/COMPLETE.json")) if (root/"snapshots").exists() else []:
+        try:
+            x=json.loads(p.read_text(encoding="utf-8")); complete[x.get("state_code")]=x
+        except Exception: pass
+    archive=root/"manifests"/"archive-copy-manifest.json"
+    archive_ok=False; archive_count=0
+    if archive.exists():
+        try:
+            a=json.loads(archive.read_text(encoding="utf-8")); archive_count=int(a.get("count") or 0); archive_ok=archive_count>0
+        except Exception: pass
+    return {"states_complete":len(set(STATES)&set(complete)),"archive_manifest":archive_ok,"archive_files":archive_count,
+            "complete":set(STATES).issubset(set(complete)) and archive_ok}
+
+def build_portable_backup_manifest(root):
+    st=portable_snapshot_status(root)
+    if not st["complete"]: raise RuntimeError(f"portable snapshot incomplete: {st}")
+    files=[]
+    for pat in ("snapshots/state_code=*/MANIFEST.json","snapshots/state_code=*/COMPLETE.json","manifests/archive-copy-manifest.json","catalog/bridgepoint.duckdb"):
+        for p in sorted(root.glob(pat)):
+            files.append({"path":str(p.relative_to(root)).replace("\\","/"),"bytes":p.stat().st_size,"sha256":file_sha256(p)})
+    out={"created_at":now(),"agent_version":AGENT_VERSION,"format":"PARQUET_ZSTD_DUCKDB_V938","states_complete":st["states_complete"],
+         "archive_files":st["archive_files"],"files":files,"secrets_exported":False}
+    write_json_atomic(root/"manifests"/"portable-backup-manifest.json",out)
+    return out
+
+def verify_portable_snapshot(root):
+    import pyarrow.parquet as pq
+    manifest=build_portable_backup_manifest(root)
+    parquet_files=list(root.glob("snapshots/state_code=*/*/part-*.parquet"))+list(root.glob("archives/**/*.parquet"))
+    checked=0; rows=0
+    for p in parquet_files:
+        pf=pq.ParquetFile(p); rows+=int(pf.metadata.num_rows); checked+=1
+    catalog(root)
+    result={"verified_at":now(),"verified":True,"parquet_files_checked":checked,"parquet_rows_read_from_metadata":rows,
+            "states_complete":manifest["states_complete"],"archive_files":manifest["archive_files"],
+            "manifest_sha256":file_sha256(root/"manifests"/"portable-backup-manifest.json"),"agent_version":AGENT_VERSION}
+    write_json_atomic(root/"manifests"/"verification.json",result)
+    return result
+
+def restore_test(root):
+    import duckdb
+    catalog(root); dbp=root/"catalog"/"bridgepoint.duckdb"
+    con=duckdb.connect(str(dbp),read_only=True)
+    checked=[]
+    try:
+        names=[x[0] for x in con.execute("select table_name from information_schema.views where table_schema='main'").fetchall()]
+        for name in names:
+            con.execute(f'select * from "{name}" limit 1').fetchall(); checked.append(name)
+    finally: con.close()
+    result={"tested_at":now(),"restore_test_passed":True,"catalog":str(dbp),"views_checked":checked,"agent_version":AGENT_VERSION}
+    write_json_atomic(root/"manifests"/"restore-test.json",result)
+    return result
+
+def backup_once(c,root):
+    job=api(c,"backup_claim").get("job")
+    if not job: return None
+    jid=job["job_id"]; op=str(job.get("operation") or "").upper()
+    try:
+        if op=="EXPORT":
+            m=build_portable_backup_manifest(root)
+            result={"backup_kind":"PORTABLE_SNAPSHOT","created_at":m["created_at"],"states_complete":m["states_complete"],
+                    "archive_files":m["archive_files"],"manifest_sha256":file_sha256(root/"manifests"/"portable-backup-manifest.json"),"agent_version":AGENT_VERSION}
+        elif op=="VERIFY": result=verify_portable_snapshot(root)
+        elif op=="RESTORE_TEST": result=restore_test(root)
+        else: raise RuntimeError(f"unsupported backup operation {op}")
+        api(c,"backup_complete",job_id=jid,result=result); return result
+    except Exception as e:
+        api(c,"backup_fail",job_id=jid,error=f"{type(e).__name__}: {e}",result={"operation":op,"agent_version":AGENT_VERSION})
+        raise
+
 
 def configure(a):
     code=a.enrollment_code
@@ -213,6 +348,7 @@ def run():
             if lim>0 and storage_ok(root,m): export_once(c,root)
             if t-arc>=21600 and storage_ok(root,m): sync_archives(c,root,max(1,min(3,lim or 1))); arc=t
             if t-cat>=900: catalog(root); cat=t
+            if portable_snapshot_status(root)["complete"]: backup_once(c,root)
             failures=0; time.sleep(5 if n else 15)
         except KeyboardInterrupt: raise
         except Exception as e:
