@@ -299,8 +299,8 @@ jobs:
           grep -Fq 'landingFreePremiumTools' site/index.html
           grep -Fq 'landing.js?v=5601' site/index.html
           grep -Fq 'app.js?v=5592' site/app/index.html
-          grep -Fq "world-v2300-map.js?v=5592" site/app.js
-          grep -Fq "world-v2300-map.js?v=5592" site/landing.js
+          grep -Fq "world-v2300-map.js?v=5615" site/app.js
+          grep -Fq "world-v2300-map.js?v=5615" site/landing.js
           grep -Fq '__BP_APP_OPPORTUNITY_STYLE_V5578__' site/app.js
           grep -Fq '__BP_PUBLIC_OPPORTUNITY_STYLE_V5578__' site/landing.js
           grep -Fq "vis(map,'gta-opportunity-buildings',z>=11.8)" site/world-v2300-map.js
