@@ -196,6 +196,9 @@ jobs:
           grep -Fq '153,532,480' site/index.html
           grep -Fq '143,787,840' site/index.html
           node --check site/app.js
+          grep -Fq 'package-entitlements' site/app.js
+          grep -Fq 'VIEW ALL ' site/app.js
+          grep -Fq 'package-feature-toggle' site/styles.css
           node --check site/parcel-boundary-viewer-v5403.js
           node --check site/landing.js
           grep -Fq 'parcel-boundary-viewer-v5403.js?v=5585' site/index.html
