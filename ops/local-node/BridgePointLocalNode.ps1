@@ -196,9 +196,8 @@ if (-not $credential) {
     capabilities=@{
       provider='OLLAMA';agent_version=$AgentVersion;outbound_only=$true
       primary_model=$PrimaryModel;reviewer_model=$ReviewerModel
-      storage_verified=$storageVerified;backup_authority=$true
-      restore_test_authority=$true;portable_export_authority=$true
-      execution_authority=$false
+      storage_verified=$storageVerified
+      # Authority is server-granted by the owner-signed enrollment; the client never self-grants it.
     }
     hardware=$hardware
   }
