@@ -55,7 +55,12 @@ def save(c):
 
 def post(url,payload,headers=None,timeout=90):
     req=urllib.request.Request(url,data=json.dumps(payload).encode(),headers={"content-type":"application/json",**(headers or {})},method="POST")
-    with urllib.request.urlopen(req,timeout=timeout) as r: return json.loads(r.read().decode())
+    try:
+        with urllib.request.urlopen(req,timeout=timeout) as r:
+            return json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        body=e.read().decode("utf-8","replace")
+        raise RuntimeError(f"BridgePoint gateway HTTP {e.code}: {body}") from e
 def api(c,action,**kw):
     return post(c["gateway"],{"action":action,"node_id":c.get("node_id"),**kw},{"x-bridgepoint-node-token":c["node_token"]})
 def get(url,timeout=20):
