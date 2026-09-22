@@ -222,15 +222,15 @@
   "live_facts": {
     "entity": "BridgePoint Intelligence",
     "metrics": {
-      "map_ready_buildings": 145402736,
-      "roof_shell_buildings": 145402736,
+      "map_ready_buildings": 145921008,
+      "roof_shell_buildings": 145921008,
       "roof_shell_coverage_pct": 100.0,
-      "canonical_property_records": 170509700,
-      "normalized_address_records": 156767376,
-      "source_backed_roof_records": 687905,
-      "lidar_refined_roof_buildings": 4694,
+      "canonical_property_records": 170604827,
+      "normalized_address_records": 157417732,
+      "source_backed_roof_records": 687981,
+      "lidar_refined_roof_buildings": 4770,
       "materialized_boundary_estimate": 83881564,
-      "public_parcel_identity_records": 170510998,
+      "public_parcel_identity_records": 170605127,
       "canonical_property_record_label": "canonical property/parcel identity records",
       "property_boundary_link_estimate": 31311895
     },
@@ -240,25 +240,25 @@
       "pr_oid_remaining": 0,
       "strict_boundary_ready": false,
       "required_jurisdictions": 56,
-      "fresh_approved_jurisdictions": 55,
+      "fresh_approved_jurisdictions": 49,
       "public_counter_jurisdictions": 56
     },
     "freshness": {
-      "roof_updated_at": "2026-09-22T05:23:25.80212+00:00",
-      "lidar_last_success_at": "2026-09-22T05:10:11.51678+00:00",
-      "parcel_counter_updated_at": "2026-09-22T05:23:37.071389+00:00",
-      "address_counter_updated_at": "2026-09-22T05:23:37.136135+00:00",
-      "parcel_scoreboard_updated_at": "2026-09-22T05:20:28.219775+00:00",
+      "roof_updated_at": "2026-09-22T10:10:00.018156+00:00",
+      "lidar_last_success_at": "2026-09-22T08:48:55.942695+00:00",
+      "parcel_counter_updated_at": "2026-09-22T08:49:40.198074+00:00",
+      "address_counter_updated_at": "2026-09-22T08:48:48.540201+00:00",
+      "parcel_scoreboard_updated_at": "2026-09-22T08:48:19.356154+00:00",
       "parcel_autopilot_last_tick_at": "2026-09-16T01:18:58.834462+00:00"
     },
     "horizon_url": "https://bridgepointintelligence.online/app/horizon/",
-    "generated_at": "2026-09-22T05:23:53.111299+00:00",
+    "generated_at": "2026-09-22T10:11:33.447316+00:00",
     "canonical_url": "https://bridgepointintelligence.online/",
     "jurisdictions": [
       {
         "code": "AK",
-        "updated_at": "2026-09-21T10:40:40.062377+00:00",
-        "canonical_property_parcel_records": 427735
+        "updated_at": "2026-09-22T06:26:17.404073+00:00",
+        "canonical_property_parcel_records": 427808
       },
       {
         "code": "AL",
@@ -282,8 +282,8 @@
       },
       {
         "code": "CA",
-        "updated_at": "2026-09-22T02:32:20.995135+00:00",
-        "canonical_property_parcel_records": 22546780
+        "updated_at": "2026-09-22T08:15:40.794257+00:00",
+        "canonical_property_parcel_records": 22547734
       },
       {
         "code": "CO",
@@ -347,8 +347,8 @@
       },
       {
         "code": "KS",
-        "updated_at": "2026-09-22T02:23:54.023431+00:00",
-        "canonical_property_parcel_records": 212791
+        "updated_at": "2026-09-22T07:12:25.706037+00:00",
+        "canonical_property_parcel_records": 213153
       },
       {
         "code": "KY",
@@ -382,8 +382,8 @@
       },
       {
         "code": "MN",
-        "updated_at": "2026-09-21T08:23:39.711519+00:00",
-        "canonical_property_parcel_records": 3654239
+        "updated_at": "2026-09-22T08:15:40.794257+00:00",
+        "canonical_property_parcel_records": 3657029
       },
       {
         "code": "MO",
@@ -402,8 +402,8 @@
       },
       {
         "code": "MT",
-        "updated_at": "2026-09-21T10:40:40.062377+00:00",
-        "canonical_property_parcel_records": 959412
+        "updated_at": "2026-09-22T07:09:56.622295+00:00",
+        "canonical_property_parcel_records": 973487
       },
       {
         "code": "NC",
@@ -412,8 +412,8 @@
       },
       {
         "code": "ND",
-        "updated_at": "2026-09-21T10:49:54.119722+00:00",
-        "canonical_property_parcel_records": 826779
+        "updated_at": "2026-09-22T08:17:27.514223+00:00",
+        "canonical_property_parcel_records": 851211
       },
       {
         "code": "NE",
@@ -437,13 +437,13 @@
       },
       {
         "code": "NV",
-        "updated_at": "2026-09-22T01:41:15.005513+00:00",
-        "canonical_property_parcel_records": 1243593
+        "updated_at": "2026-09-22T07:14:54.768939+00:00",
+        "canonical_property_parcel_records": 1243965
       },
       {
         "code": "NY",
-        "updated_at": "2026-09-22T05:23:37.071389+00:00",
-        "canonical_property_parcel_records": 9018008
+        "updated_at": "2026-09-22T08:49:40.198074+00:00",
+        "canonical_property_parcel_records": 9051458
       },
       {
         "code": "OH",
@@ -452,8 +452,8 @@
       },
       {
         "code": "OK",
-        "updated_at": "2026-09-22T05:21:38.97179+00:00",
-        "canonical_property_parcel_records": 846915
+        "updated_at": "2026-09-22T07:29:22.339447+00:00",
+        "canonical_property_parcel_records": 850632
       },
       {
         "code": "OR",
@@ -482,8 +482,8 @@
       },
       {
         "code": "SD",
-        "updated_at": "2026-09-22T04:37:17.012077+00:00",
-        "canonical_property_parcel_records": 178318
+        "updated_at": "2026-09-22T08:14:41.775157+00:00",
+        "canonical_property_parcel_records": 191287
       },
       {
         "code": "TN",
@@ -522,8 +522,8 @@
       },
       {
         "code": "WI",
-        "updated_at": "2026-09-22T03:27:23.316904+00:00",
-        "canonical_property_parcel_records": 3879087
+        "updated_at": "2026-09-22T08:17:27.514223+00:00",
+        "canonical_property_parcel_records": 3880022
       },
       {
         "code": "WV",
@@ -546,7 +546,7 @@
     "horizon_year_one_demand": {
       "ok": true,
       "mode": "365_DAY_YEAR_ONE_SURVIVAL",
-      "updated_at": "2026-09-22T05:23:53.249466+00:00",
+      "updated_at": "2026-09-22T10:11:33.714632+00:00",
       "event_started": false,
       "unique_requests": 0,
       "billing_connected": false,
