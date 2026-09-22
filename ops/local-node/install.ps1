@@ -10,57 +10,82 @@ $Here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RuntimeAgentDir = Join-Path $RuntimeRoot "agent"
 function Require-Command([string]$Name, [string]$WingetId) {
   if (Get-Command $Name -ErrorAction SilentlyContinue) { return }
-  if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw "$Name is missing and winget is unavailable." }
-  winget install --id $WingetId -e --accept-package-agreements --accept-source-agreements
-}
-Require-Command "python" "Python.Python.3.12"
-try { Require-Command "ollama" "Ollama.Ollama" } catch { Write-Warning "Ollama is unavailable. Continuing in export-first mode; local AI can be enabled later." }
-
-# Refresh PATH after winget installs in this same PowerShell process.
-$machinePath=[Environment]::GetEnvironmentVariable('Path','Machine')
-$userPath=[Environment]::GetEnvironmentVariable('Path','User')
-$env:Path="$machinePath;$userPath"
-function Resolve-Executable([string]$Name,[string[]]$Candidates) {
-  $cmd=Get-Command $Name -ErrorAction SilentlyContinue
-  if($cmd){ return $cmd.Source }
-  foreach($candidate in $Candidates){
-    $expanded=[Environment]::ExpandEnvironmentVariables($candidate)
-    if(Test-Path -LiteralPath $expanded){ return $expanded }
+  if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { return }
+  try {
+    winget install --id $WingetId -e --accept-package-agreements --accept-source-agreements | Out-Host
+  } catch {
+    Write-Warning "$Name winget installation failed; BridgePoint will continue if that dependency is optional."
   }
-  throw "$Name was installed but its executable could not be located."
 }
+
+# Export must not depend on Windows Store aliases or winget source health.
+# Resolve a real Python interpreter, and if none exists install the official
+# python.org x64 build into BridgePointRuntime\Python313 after Authenticode validation.
+function Test-RealPython([string]$Path) {
+  if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $false }
+  if ($Path -match '\\WindowsApps\\') { return $false }
+  try {
+    & $Path -c "import sys; assert sys.version_info >= (3,11); print(sys.executable)" *> $null
+    return ($LASTEXITCODE -eq 0)
+  } catch { return $false }
+}
+
 $PythonExe=$null
-try {
-  $PythonExe=Resolve-Executable "python" @(
-    "%LOCALAPPDATA%\Programs\Python\Python312\python.exe",
-    "%LOCALAPPDATA%\Programs\Python\Python313\python.exe",
-    "%ProgramFiles%\Python312\python.exe",
-    "%ProgramFiles%\Python313\python.exe"
-  )
-} catch {
-  Write-Host "Python executable not found after winget. Installing Python 3.12 explicitly..." -ForegroundColor Yellow
-  winget install --id Python.Python.3.12 -e --scope user --accept-package-agreements --accept-source-agreements
-  $machinePath=[Environment]::GetEnvironmentVariable('Path','Machine')
-  $userPath=[Environment]::GetEnvironmentVariable('Path','User')
-  $env:Path="$machinePath;$userPath"
-  $PythonExe=Resolve-Executable "python" @(
-    "%LOCALAPPDATA%\Programs\Python\Python312\python.exe",
-    "%LOCALAPPDATA%\Programs\Python\Python313\python.exe",
-    "%ProgramFiles%\Python312\python.exe",
-    "%ProgramFiles%\Python313\python.exe"
-  )
+$pythonCandidates=@(
+  "$RuntimeRoot\Python313\python.exe",
+  "$env:LOCALAPPDATA\Programs\Python\Python313\python.exe",
+  "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe",
+  "$env:ProgramFiles\Python313\python.exe",
+  "$env:ProgramFiles\Python312\python.exe"
+)
+$pythonCmd=Get-Command python -ErrorAction SilentlyContinue
+if($pythonCmd){ $pythonCandidates += $pythonCmd.Source }
+$pyCmd=Get-Command py -ErrorAction SilentlyContinue
+if($pyCmd){
+  try {
+    $candidate=& $pyCmd.Source -3 -c "import sys; print(sys.executable)" 2>$null
+    if($candidate){ $pythonCandidates += ($candidate | Select-Object -First 1) }
+  } catch {}
 }
+foreach($candidate in ($pythonCandidates | Select-Object -Unique)){
+  if(Test-RealPython $candidate){ $PythonExe=$candidate; break }
+}
+
+if(-not $PythonExe){
+  $PythonVersion='3.13.15'
+  $PythonInstaller=Join-Path $env:TEMP "python-$PythonVersion-amd64.exe"
+  $PythonUrl="https://www.python.org/ftp/python/$PythonVersion/python-$PythonVersion-amd64.exe"
+  Write-Host "Installing verified Python $PythonVersion directly from python.org..." -ForegroundColor Cyan
+  Invoke-WebRequest -UseBasicParsing -TimeoutSec 180 -Uri $PythonUrl -OutFile ($PythonInstaller+'.tmp')
+  Move-Item ($PythonInstaller+'.tmp') $PythonInstaller -Force
+  $sig=Get-AuthenticodeSignature -FilePath $PythonInstaller
+  if($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'Python Software Foundation'){
+    throw "Python installer signature validation failed: $($sig.Status) $($sig.SignerCertificate.Subject)"
+  }
+  $PythonRoot=Join-Path $RuntimeRoot "Python313"
+  $args=@('/quiet','InstallAllUsers=0',"TargetDir=$PythonRoot",'Include_launcher=0','PrependPath=0','Include_test=0','Include_pip=1','Shortcuts=0')
+  $proc=Start-Process -FilePath $PythonInstaller -ArgumentList $args -Wait -PassThru
+  if($proc.ExitCode -ne 0){ throw "Official Python installer exited $($proc.ExitCode)." }
+  $PythonExe=Join-Path $PythonRoot 'python.exe'
+}
+if(-not (Test-RealPython $PythonExe)){ throw "A verified real Python interpreter could not be installed." }
 & $PythonExe --version
-if($LASTEXITCODE -ne 0){ throw "Python executable exists but failed its version check." }
+if($LASTEXITCODE -ne 0){ throw "Python executable failed its final version check." }
+
+# Ollama is optional for export-first mode.
 $OllamaExe=$null
-try {
-  $OllamaExe=Resolve-Executable "ollama" @(
-    "%LOCALAPPDATA%\Programs\Ollama\ollama.exe",
-    "%LOCALAPPDATA%\Ollama\ollama.exe",
-    "%ProgramFiles%\Ollama\ollama.exe"
-  )
-} catch {
-  Write-Warning "Ollama executable was not found. BridgePoint will install and run in export-first mode."
+$ollamaCmd=Get-Command ollama -ErrorAction SilentlyContinue
+$ollamaCandidates=@(
+  "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe",
+  "$env:LOCALAPPDATA\Ollama\ollama.exe",
+  "$env:ProgramFiles\Ollama\ollama.exe"
+)
+if($ollamaCmd){ $ollamaCandidates += $ollamaCmd.Source }
+foreach($candidate in ($ollamaCandidates | Select-Object -Unique)){
+  if($candidate -and (Test-Path -LiteralPath $candidate)){ $OllamaExe=$candidate; break }
+}
+if(-not $OllamaExe){
+  Write-Warning "Ollama is unavailable. BridgePoint will continue in export-first mode."
 }
 
 if ($DataRoot.ToLower().Contains("onedrive")) { throw "Active BridgePoint data cannot live inside OneDrive." }
