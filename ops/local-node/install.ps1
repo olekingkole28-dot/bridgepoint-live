@@ -2,7 +2,8 @@ param(
   [string]$DataRoot = "C:\BridgePointData",
   [string]$RuntimeRoot = "C:\BridgePointRuntime",
   [string]$PrimaryModel = "qwen2.5:3b",
-  [string]$ReviewerModel = "deepseek-r1:1.5b"
+  [string]$ReviewerModel = "deepseek-r1:1.5b",
+  [string]$EnrollmentCode = ""
 )
 $ErrorActionPreference = "Stop"
 $MinFreeGB = 600
@@ -119,20 +120,29 @@ if (-not (Test-Path -LiteralPath $Py)) { throw "BridgePoint Python virtual envir
 if($LASTEXITCODE -ne 0){ throw "BridgePoint venv Python failed its version check." }
 & $Py -m pip install --upgrade pip
 & $Py -m pip install -r (Join-Path $RuntimeAgentDir "requirements.txt")
-$secure = Read-Host "Paste the one-time BridgePoint enrollment code" -AsSecureString
-$bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-try {
-  $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-  $env:BRIDGEPOINT_ENROLLMENT_CODE = $plain
-  & $Py (Join-Path $RuntimeAgentDir "bridgepoint_agent.py") configure --data-root $DataRoot --primary-model $PrimaryModel --reviewer-model $ReviewerModel
-} finally {
-  $env:BRIDGEPOINT_ENROLLMENT_CODE = $null
-  if ($bstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
-}
 $AgentPath = Join-Path $RuntimeAgentDir "bridgepoint_agent.py"
 Unregister-ScheduledTask -TaskName "BridgePoint Local AI" -Confirm:$false -ErrorAction SilentlyContinue
 Unregister-ScheduledTask -TaskName "BridgePoint Local Node" -Confirm:$false -ErrorAction SilentlyContinue
 Unregister-ScheduledTask -TaskName "BridgePoint Autonomous Node" -Confirm:$false -ErrorAction SilentlyContinue
+
+$bstr=[IntPtr]::Zero
+try {
+  if([string]::IsNullOrWhiteSpace($EnrollmentCode)){
+    $secure = Read-Host "Paste the one-time BridgePoint enrollment code" -AsSecureString
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+    $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+  } else {
+    $plain = $EnrollmentCode.Trim()
+  }
+  if($plain.Length -lt 24){ throw "BridgePoint enrollment code is missing or too short." }
+  $env:BRIDGEPOINT_ENROLLMENT_CODE = $plain
+  & $Py $AgentPath configure --data-root $DataRoot --primary-model $PrimaryModel --reviewer-model $ReviewerModel
+  if($LASTEXITCODE -ne 0){ throw "BridgePoint enrollment failed with exit code $LASTEXITCODE." }
+} finally {
+  $env:BRIDGEPOINT_ENROLLMENT_CODE = $null
+  $plain=$null
+  if ($bstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+}
 try {
   $runPath='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
   Remove-ItemProperty -Path $runPath -Name "BridgePoint Local AI" -ErrorAction SilentlyContinue
