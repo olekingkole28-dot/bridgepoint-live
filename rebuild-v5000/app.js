@@ -605,9 +605,18 @@ function setActiveSurface(name,{showNav=false}={}){
   }
   requestAnimationFrame(()=>{
    setMapSearchOpen(false);
-   if(!wasMapActive)setTimeout(()=>{try{world?.map?.resize?.();world?.map?.triggerRepaint?.()}catch(_){}},BP_MOBILE?180:70);
+   if(!wasMapActive){
+    if(BP_MOBILE){
+     // V5611: do not synchronously resize MapLibre during the mobile return transition.
+     // The map surface keeps the same viewport; a repaint after the navigation hold is enough
+     // and avoids a multi-second style/source relayout burst on weaker phones.
+     setTimeout(()=>{try{if(appMapSurfaceActive()&&!mapInteracting){world?.map?.triggerRepaint?.()}}catch(_){}},settleMs+120)
+    }else{
+     setTimeout(()=>{try{world?.map?.resize?.();world?.map?.triggerRepaint?.()}catch(_){}},70)
+    }
+   }
    setTimeout(()=>{if(performance.now()>=surfaceNavigationUntil)flushDeferredWork();else setTimeout(flushDeferredWork,Math.max(80,surfaceNavigationUntil-performance.now()+80))},BP_MOBILE?900:240);
-   window.__BP_NAV_STABILITY_V5586__={version:5586,showNav,resizeSkipped:wasMapActive,backgroundPausedOffMap:true,navSettleV5596:!wasMapActive,updatedAt:Date.now()}
+   window.__BP_NAV_STABILITY_V5611__={version:5611,showNav,mobileResizeDeferred:BP_MOBILE&&!wasMapActive,backgroundPausedOffMap:true,navSettleV5596:!wasMapActive,updatedAt:Date.now()}
   })
  }
  else if(name==='packages')void loadPackageCatalog();
