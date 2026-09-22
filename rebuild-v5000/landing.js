@@ -284,6 +284,7 @@ async function opportunitySummary(){
  try{
   const d=await rpc('bridgepoint_public_opportunity_summary_v5626',{},7000),families=Array.isArray(d?.families)?d.families:[],states=Array.isArray(d?.states)?d.states:[],positive=states.filter(x=>Number(x.count)>0),maxFamily=Math.max(1,...families.map(x=>Number(x.count)||0)),claims=d?.claims_parity||{};
   if($('landingOpportunityTotal'))$('landingOpportunityTotal').textContent=fmt(d.total_opportunities);
+  if($('landingOpportunityTotalHero'))$('landingOpportunityTotalHero').textContent=fmt(d.total_opportunities);
   if($('landingOpportunityProperties'))$('landingOpportunityProperties').textContent=fmt(d.unique_properties);
   if($('landingOpportunityStatesCount'))$('landingOpportunityStatesCount').textContent=fmt(d.states_with_opportunities);
   if($('landingOpportunityClaimsParity'))$('landingOpportunityClaimsParity').textContent=fmt(claims.minimum_met||0)+' / '+fmt(claims.jurisdictions_total||56)+' at minimum source parity';
