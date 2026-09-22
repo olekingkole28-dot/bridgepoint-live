@@ -519,14 +519,15 @@ $('publicSearchForm').addEventListener('submit',async e=>{
  e.preventDefault();setMapSearchOpen(true);
  const q=$('publicSearchInput').value.trim(),box=$('publicSearchResults');if(q.length<4)return;
  box.hidden=false;box.innerHTML='<button disabled>Searching BridgePoint…</button>';
- let rows=[],linkedError=null,fallbackUsed=false;
- try{const d=await rpc('bridgepoint_public_search_v5000',{p_query:q,p_limit:8},2800);rows=appCredibleAddressRows(q,d?.results||[])}catch(err){linkedError=err}
+ let rows=[],rawRows=[],linkedError=null,fallbackUsed=false;
+ try{const d=await rpc('bridgepoint_public_search_v5000',{p_query:q,p_limit:8},2800);rawRows=d?.results||[];rows=appCredibleAddressRows(q,rawRows);if(rawRows.length>rows.length)window.BridgePointAcquisition?.send?.('ADDRESS_SEARCH_WEAK_MATCH_SUPPRESSED',{surface:'app',suppressed:rawRows.length-rows.length})}catch(err){linkedError=err}
  if(!rows.length){
   box.innerHTML='<button disabled>Checking public U.S. Census address location…</button>';
-  try{const d=await publicAddressFallback(q,7000);rows=d?.results||[];fallbackUsed=rows.length>0}catch(err){console.warn('address fallback',err)}
+  try{const d=await publicAddressFallback(q,7000);rows=d?.results||[];fallbackUsed=rows.length>0;if(fallbackUsed)window.BridgePointAcquisition?.send?.('ADDRESS_SEARCH_RECOVERED',{surface:'app',resolver:String(d?.resolver||'CENSUS')})}catch(err){console.warn('address fallback',err)}
  }
  if(!rows.length){
-  box.innerHTML='<button disabled>No address location or linked BridgePoint property match yet.'+(linkedError?' Linked-address lookup will retry on the next search.':'')+'</button>';
+  window.BridgePointAcquisition?.send?.('ADDRESS_SEARCH_NO_MATCH',{surface:'app'});
+  box.innerHTML='<button disabled>No confident address match yet. BridgePoint checked its property index and the public U.S. Census locator.'+(linkedError?' Linked-address lookup will retry on the next search.':'')+'</button>';
   return;
  }
  box.innerHTML='';
