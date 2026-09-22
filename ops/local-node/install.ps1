@@ -15,6 +15,29 @@ function Require-Command([string]$Name, [string]$WingetId) {
 }
 Require-Command "python" "Python.Python.3.12"
 Require-Command "ollama" "Ollama.Ollama"
+
+# Refresh PATH after winget installs in this same PowerShell process.
+$machinePath=[Environment]::GetEnvironmentVariable('Path','Machine')
+$userPath=[Environment]::GetEnvironmentVariable('Path','User')
+$env:Path="$machinePath;$userPath"
+function Resolve-Executable([string]$Name,[string[]]$Candidates) {
+  $cmd=Get-Command $Name -ErrorAction SilentlyContinue
+  if($cmd){ return $cmd.Source }
+  foreach($candidate in $Candidates){
+    $expanded=[Environment]::ExpandEnvironmentVariables($candidate)
+    if(Test-Path -LiteralPath $expanded){ return $expanded }
+  }
+  throw "$Name was installed but its executable could not be located."
+}
+$PythonExe=Resolve-Executable "python" @(
+  "%LOCALAPPDATA%\Programs\Python\Python312\python.exe",
+  "%ProgramFiles%\Python312\python.exe"
+)
+$OllamaExe=Resolve-Executable "ollama" @(
+  "%LOCALAPPDATA%\Programs\Ollama\ollama.exe",
+  "%ProgramFiles%\Ollama\ollama.exe"
+)
+
 if ($DataRoot.ToLower().Contains("onedrive")) { throw "Active BridgePoint data cannot live inside OneDrive." }
 New-Item -ItemType Directory -Path $DataRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $RuntimeRoot -Force | Out-Null
@@ -27,11 +50,11 @@ $freeGB = [math]::Round($drive.Free / 1GB, 1)
 if ($freeGB -lt $MinFreeGB) { throw "BridgePoint requires at least $MinFreeGB GB free. Found $freeGB GB." }
 [Environment]::SetEnvironmentVariable("OLLAMA_HOST", "127.0.0.1:11434", "User")
 $env:OLLAMA_HOST = "127.0.0.1:11434"
-try { Invoke-RestMethod "http://127.0.0.1:11434/api/tags" -TimeoutSec 3 | Out-Null } catch { Start-Process -FilePath "ollama" -ArgumentList "serve" -WindowStyle Hidden; Start-Sleep -Seconds 3 }
-ollama pull $PrimaryModel
-ollama pull $ReviewerModel
+try { Invoke-RestMethod "http://127.0.0.1:11434/api/tags" -TimeoutSec 3 | Out-Null } catch { Start-Process -FilePath $OllamaExe -ArgumentList "serve" -WindowStyle Hidden; Start-Sleep -Seconds 3 }
+& $OllamaExe pull $PrimaryModel
+& $OllamaExe pull $ReviewerModel
 $Venv = Join-Path $RuntimeRoot ".venv"
-if (-not (Test-Path $Venv)) { python -m venv $Venv }
+if (-not (Test-Path $Venv)) { & $PythonExe -m venv $Venv }
 $Py = Join-Path $Venv "Scripts\python.exe"
 & $Py -m pip install --upgrade pip
 & $Py -m pip install -r (Join-Path $RuntimeAgentDir "requirements.txt")
