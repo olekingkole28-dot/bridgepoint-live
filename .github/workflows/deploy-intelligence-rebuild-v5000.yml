@@ -421,7 +421,8 @@ jobs:
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
           grep -Fq '__BP_APP_BUILD_VERSION__=5371' site/app.js
-          grep -Fq '__BP_WORLD_RENDER_VERSION__=5561' site/world-v2300-map.js\n          grep -Fq '__BP_MATERIAL_LAZYLOAD_V5587__' site/world-v2300-map.js
+          grep -Fq '__BP_WORLD_RENDER_VERSION__=5561' site/world-v2300-map.js
+          grep -Fq '__BP_MATERIAL_LAZYLOAD_V5587__' site/world-v2300-map.js
           grep -Fq '__BP_GEOMETRY_TRUTH_V5590__' site/world-v2300-map.js
           grep -Fq '__BP_GEOMETRY_TRUTH_V5592__' site/world-v2300-map.js
           grep -Fq '__BP_SOURCE_BURST_GUARD_V5592__' site/world-v2300-map.js
@@ -541,7 +542,7 @@ jobs:
           grep -Fq 'bindPerformanceGovernor' site/app.js
           grep -Fq '__BP_MAP_CLICK_FASTPATH_V5557__' site/app.js
           grep -Fq '__BP_MAP_STABILITY_V5580__' site/app.js
-          grep -Fq '__BP_NAV_STABILITY_V5586__' site/app.js
+          grep -Fq '__BP_NAV_STABILITY_V5611__' site/app.js
           grep -Fq '__BP_APP_MAIN_THREAD_GUARD_V5587__' site/app.js
           grep -Fq '__BP_STARTUP_SCHEDULER_V5586__' site/app.js
           grep -Fq '__BP_MOBILE_MAP_INTERACTION_V5580__' site/intelligence-global-v5507.js
