@@ -108,7 +108,12 @@ async function bootMap(){
  // V5614: register the lightweight weather-FX capability contract immediately.
  // Network fetches and active particle rendering stay behind the interaction/pressure governor.
  void initSharedVisualWeather(world,{activate:false});
- setTimeout(()=>queueAfterMap('shared-visual-weather',()=>void initSharedVisualWeather(world,{activate:true})),BP_MOBILE?12000:3500);
+ const activateSharedWeather=()=>queueAfterMap('shared-visual-weather',()=>void initSharedVisualWeather(world,{activate:true}));
+ if(BP_MOBILE){
+  const armSharedWeather=()=>{try{if(world?.map?.getZoom?.()>=4.5)setTimeout(activateSharedWeather,850)}catch(_){}};
+  world?.map?.on?.('moveend',armSharedWeather);
+  setTimeout(activateSharedWeather,30000);
+ }else setTimeout(activateSharedWeather,3500);
  try{world.map.jumpTo({center:[0,20],zoom:BP_MOBILE?1.05:1.25,pitch:0,bearing:0});window.__BP_GLOBAL_START__={center:[0,20],projection:'globe',zoom:world.map.getZoom(),at:Date.now()}}catch(_){}
  window.__BP_INITIAL_WEATHER_PRIORITY__=true;
  world?.onBuildingSelect?.(({lngLat,feature})=>{if(measureActive)return;if(lngLat){lastDirectBuildingEvent=performance.now();showBuilding(lngLat.lng,lngLat.lat,{feature})}});
@@ -596,7 +601,12 @@ let surfaceNavigationUntil=0;
 function setActiveSurface(name,{showNav=false}={}){
  if(name==='owner-everything'&&accessStateLast?.platform_owner!==true){toast('Owner Everything is restricted to the two designated BridgePoint owners.','error');name='more'}
  if(['saved','claims','workflow'].includes(name)&&authSession?.access_token&&accessStateLast&&accessStateLast.full_app_access===false){toast('Your trial has ended. Choose a package to restore full account access.','error');name='packages'}
- const mapSurface=document.querySelector('[data-surface="map"]'),wasMapActive=!!mapSurface&&mapSurface.hidden===false;
+ const mapSurface=document.querySelector('[data-surface="map"]'),wasMapActive=!!mapSurface&&mapSurface.hidden===false,settleMs=BP_MOBILE?2800:900;
+ if(wasMapActive&&name!=='map'){
+  try{window.__BP_SHARED_VISUAL_WEATHER__?.weather?.setActive?.(false);window.__BP_SHARED_VISUAL_WEATHER__?.present?.setActive?.(false)}catch(_){}
+  surfaceNavigationUntil=Math.max(surfaceNavigationUntil,performance.now()+(BP_MOBILE?1200:350));
+  window.__BP_OFFMAP_RENDER_PAUSE_V5615__={version:5615,weatherPaused:true,backgroundWorkHeld:true,updatedAt:Date.now()}
+ }
  document.querySelectorAll('[data-surface]').forEach(el=>{
   const active=el.dataset.surface===name;el.hidden=!active;el.classList.toggle('active',active)
  });
@@ -607,7 +617,6 @@ function setActiveSurface(name,{showNav=false}={}){
  if(name==='map'){
   closeSystem();
   if(!wasMapActive){
-   const settleMs=BP_MOBILE?2800:900;
    surfaceNavigationUntil=performance.now()+settleMs;
    try{extendInteractionPriority(settleMs,'surface-navigation-map-return')}catch(_){}
    window.__BP_NAV_SETTLE_V5596__={version:5596,active:true,until:surfaceNavigationUntil,reason:'map-return',updatedAt:Date.now()};
@@ -624,8 +633,12 @@ function setActiveSurface(name,{showNav=false}={}){
      setTimeout(()=>{try{world?.map?.resize?.();world?.map?.triggerRepaint?.()}catch(_){}},70)
     }
    }
+   if(!wasMapActive)setTimeout(()=>queueAfterMap('shared-weather-resume',()=>{
+    try{window.__BP_SHARED_VISUAL_WEATHER__?.weather?.setActive?.(true);window.__BP_SHARED_VISUAL_WEATHER__?.present?.setActive?.(true)}catch(_){}
+    window.__BP_OFFMAP_RENDER_PAUSE_V5615__={version:5615,weatherPaused:false,backgroundWorkHeld:false,updatedAt:Date.now()}
+   }),settleMs+180);
    setTimeout(()=>{if(performance.now()>=surfaceNavigationUntil)flushDeferredWork();else setTimeout(flushDeferredWork,Math.max(80,surfaceNavigationUntil-performance.now()+80))},BP_MOBILE?900:240);
-   window.__BP_NAV_STABILITY_V5611__={version:5611,showNav,mobileResizeDeferred:BP_MOBILE&&!wasMapActive,backgroundPausedOffMap:true,navSettleV5596:!wasMapActive,updatedAt:Date.now()}
+   window.__BP_NAV_STABILITY_V5615__={version:5615,showNav,mobileResizeDeferred:BP_MOBILE&&!wasMapActive,backgroundPausedOffMap:true,weatherRenderPausedOffMap:true,settleScopeSafe:true,updatedAt:Date.now()}
   })
  }
  else if(name==='packages')void loadPackageCatalog();
