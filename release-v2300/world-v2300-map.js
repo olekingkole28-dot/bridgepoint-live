@@ -958,8 +958,11 @@ export function initWorld(options={}){
   clearTimeout(postMoveSettleTimer);
   postMoveSettleTimer=setTimeout(()=>{
    if(moving||map.isMoving?.()){schedulePostMoveSettle();return}
-   terrain();syncParcelShells();
-   if(worldClientPressureBlocked()){window.__BP_WORLD_CLIENT_PRESSURE_V5595__={version:5595,deferred:'postmove-heavy',terrainPreserved:true,parcelsPreserved:true,until:Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0),updatedAt:Date.now()};postMoveSettleTimer=setTimeout(schedulePostMoveSettle,MOBILE?700:240);return}
+   terrain();syncParcelShells();syncBuildingShells();
+   // V5615: base building visibility is interaction-critical, not enrichment.
+   // Keep shells/city fallback visible immediately; exact/detail/landmark/bridge rebuilds remain pressure-gated.
+   window.__BP_BASE_BUILDING_VISIBILITY_V5615__={version:5615,visible:true,pressureGated:false,updatedAt:Date.now()};
+   if(worldClientPressureBlocked()){window.__BP_WORLD_CLIENT_PRESSURE_V5595__={version:5595,deferred:'postmove-heavy',terrainPreserved:true,parcelsPreserved:true,baseBuildingsPreserved:true,until:Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0),updatedAt:Date.now()};postMoveSettleTimer=setTimeout(schedulePostMoveSettle,MOBILE?700:240);return}
    armFineDetailSettle(0);scheduleExact(MOBILE?720:120);
    rebuildLandmark3D(MOBILE?950:260);rebuildBridge3D(MOBILE?760:200);
    window.__BP_WORLD_POSTMOVE_V5580__={version:5580,coalesced:true,idleOnly:true,updatedAt:Date.now()}
