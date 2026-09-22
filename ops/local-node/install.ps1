@@ -14,7 +14,7 @@ function Require-Command([string]$Name, [string]$WingetId) {
   winget install --id $WingetId -e --accept-package-agreements --accept-source-agreements
 }
 Require-Command "python" "Python.Python.3.12"
-Require-Command "ollama" "Ollama.Ollama"
+try { Require-Command "ollama" "Ollama.Ollama" } catch { Write-Warning "Ollama is unavailable. Continuing in export-first mode; local AI can be enabled later." }
 
 # Refresh PATH after winget installs in this same PowerShell process.
 $machinePath=[Environment]::GetEnvironmentVariable('Path','Machine')
@@ -33,10 +33,16 @@ $PythonExe=Resolve-Executable "python" @(
   "%LOCALAPPDATA%\Programs\Python\Python312\python.exe",
   "%ProgramFiles%\Python312\python.exe"
 )
-$OllamaExe=Resolve-Executable "ollama" @(
-  "%LOCALAPPDATA%\Programs\Ollama\ollama.exe",
-  "%ProgramFiles%\Ollama\ollama.exe"
-)
+$OllamaExe=$null
+try {
+  $OllamaExe=Resolve-Executable "ollama" @(
+    "%LOCALAPPDATA%\Programs\Ollama\ollama.exe",
+    "%LOCALAPPDATA%\Ollama\ollama.exe",
+    "%ProgramFiles%\Ollama\ollama.exe"
+  )
+} catch {
+  Write-Warning "Ollama executable was not found. BridgePoint will install and run in export-first mode."
+}
 
 if ($DataRoot.ToLower().Contains("onedrive")) { throw "Active BridgePoint data cannot live inside OneDrive." }
 New-Item -ItemType Directory -Path $DataRoot -Force | Out-Null
@@ -50,9 +56,13 @@ $freeGB = [math]::Round($drive.Free / 1GB, 1)
 if ($freeGB -lt $MinFreeGB) { throw "BridgePoint requires at least $MinFreeGB GB free. Found $freeGB GB." }
 [Environment]::SetEnvironmentVariable("OLLAMA_HOST", "127.0.0.1:11434", "User")
 $env:OLLAMA_HOST = "127.0.0.1:11434"
-try { Invoke-RestMethod "http://127.0.0.1:11434/api/tags" -TimeoutSec 3 | Out-Null } catch { Start-Process -FilePath $OllamaExe -ArgumentList "serve" -WindowStyle Hidden; Start-Sleep -Seconds 3 }
-& $OllamaExe pull $PrimaryModel
-& $OllamaExe pull $ReviewerModel
+if($OllamaExe){
+  try { Invoke-RestMethod "http://127.0.0.1:11434/api/tags" -TimeoutSec 3 | Out-Null } catch { Start-Process -FilePath $OllamaExe -ArgumentList "serve" -WindowStyle Hidden; Start-Sleep -Seconds 3 }
+  try { & $OllamaExe pull $PrimaryModel } catch { Write-Warning "Primary model pull failed; export-first mode will continue." }
+  try { & $OllamaExe pull $ReviewerModel } catch { Write-Warning "Reviewer model pull failed; export-first mode will continue." }
+}else{
+  Write-Host "Ollama not available. Continuing with BridgePoint export-first mode." -ForegroundColor Yellow
+}
 $Venv = Join-Path $RuntimeRoot ".venv"
 if (-not (Test-Path $Venv)) { & $PythonExe -m venv $Venv }
 $Py = Join-Path $Venv "Scripts\python.exe"
@@ -92,4 +102,4 @@ Start-ScheduledTask -TaskName "BridgePoint Autonomous Node"
 Write-Host "BridgePoint autonomous node v938 is installed."
 Write-Host "Hot data: $DataRoot"
 Write-Host "Runtime: $RuntimeRoot"
-Write-Host "The node is outbound-only, Ollama is loopback-only, and the node token is DPAPI-protected."
+Write-Host "The node is outbound-only, the node token is DPAPI-protected, and export can run even if Ollama is not yet available."
