@@ -32,6 +32,24 @@ function renderAcquisition(){
  $('ownerPages').innerHTML=table(['Page','Visitors','Views / events','Last seen'],pages.slice(0,100).map(x=>'<tr><td><b>'+esc(x.page_path||x.path||'/')+'</b></td><td>'+fmt(x.unique_visitors??x.visitors??0)+'</td><td>'+fmt(x.views??x.events??x.event_count??0)+'</td><td>'+esc(when(x.last_seen_at||x.last_event_at))+'</td></tr>'));
  $('ownerFunnel').innerHTML=table(['Stage','Visitors / count','Rate'],funnel.map(x=>'<tr><td><b>'+esc(x.label||x.event_type||x.stage||x.step||x.key||'Stage')+'</b></td><td>'+fmt(x.unique_visitors??x.visitors??x.count??x.events??0)+'</td><td>'+esc((x.conversion_from_prior_pct??x.rate)!=null?Number(x.conversion_from_prior_pct??x.rate).toFixed(1)+'%':'—')+'</td></tr>'));
 }
+
+function renderOpportunities(){
+ const d=hub?.opportunities||{},families=arr(d.families),states=arr(d.states),claims=d.claims_parity||{},positive=states.filter(x=>Number(x.count)>0);
+ const root=$('ownerOpportunitySummary'),tableRoot=$('ownerOpportunityStates');if(!root||!tableRoot)return;
+ const colors={acquisition:'#7f8cff',construction:'#ff9f5f',claims:'#d77cff',redevelopment:'#58e0b5',property_damage:'#ff5c73'};
+ const label=k=>({acquisition:'Investor / Acquisition',construction:'Construction',claims:'Claims',redevelopment:'Redevelopment',property_damage:'Property Damage / Restoration'})[k]||String(k||'Opportunity').replaceAll('_',' ');
+ root.innerHTML='<div class="owner-opp-kpis">'+[
+  ['Opportunities',d.total_opportunities||0,'customer-ready cache'],
+  ['Properties',d.unique_properties||0,'unique properties'],
+  ['Live states',d.states_with_opportunities||0,'with current opportunities'],
+  ['Claims parity',claims.minimum_met||0,(claims.jurisdictions_total||56)+' jurisdictions minimum met']
+ ].map(([a,b,s])=>'<div class="owner-kpi"><span>'+esc(a)+'</span><b>'+fmt(b)+'</b><small>'+esc(s)+'</small></div>').join('')+'</div>'+
+ '<div class="owner-opp-families">'+families.map(x=>'<div class="owner-opp-family"><span><i style="background:'+(colors[x.key]||'#62e6ff')+'"></i>'+esc(x.label||label(x.key))+'</span><b>'+fmt(x.count)+'</b></div>').join('')+'</div>';
+ tableRoot.innerHTML=table(['State','Opportunities','Properties','Mix','Claims parity','Source gap'],positive.map(s=>{
+   const mix=Object.entries(s.families||{}).filter(([,v])=>Number(v)>0).sort((a,b)=>Number(b[1])-Number(a[1])).map(([k,v])=>'<span class="owner-opp-chip" style="--opp:'+(colors[k]||'#62e6ff')+'"><i></i>'+esc(label(k))+' '+fmt(v)+'</span>').join('');
+   return '<tr><td><b>'+esc(s.state_code)+'</b></td><td><b>'+fmt(s.count)+'</b></td><td>'+fmt(s.properties)+'</td><td><div class="owner-opp-chipset">'+mix+'</div></td><td>'+pill(s.claims_target_status||'BUILDING')+'</td><td>'+fmt(s.claims_source_gap||0)+'</td></tr>';
+ }));
+}
 function renderValuation(){
  const w=hub?.valuation||{},v=w.current||w.valuation||w.model||w, drivers=arr(v.drivers), m=v.metrics||{};
  $('ownerValuation').innerHTML='<div class="owner-valuation"><div class="owner-value-main"><span>'+esc(v.label||'MODELED PRE-MONEY ESTIMATE')+'</span><strong>'+money(v.modeled_pre_money_usd||0)+'</strong><div class="owner-value-range">'+money(v.low_usd||0)+' low · '+money(v.high_usd||0)+' high · '+esc(v.confidence_score??'—')+' confidence</div><p class="owner-sub">'+esc(v.disclaimer||'Internal operating model, not a certified appraisal.')+'</p></div><div><h3>Live metrics backing the model</h3>'+Object.entries(m).slice(0,16).map(([k,x])=>'<div class="owner-driver"><div>'+esc(k.replaceAll('_',' '))+'</div><b>'+fmt(x)+'</b></div>').join('')+'</div></div><h3>Why it is valued there</h3>'+drivers.map(d=>'<div class="owner-driver"><div><b>'+esc(d.label||d.key)+'</b><small>'+esc(d.why||[d.metric!=null?'metric '+d.metric:null,d.live_states!=null?'live states '+d.live_states:null].filter(Boolean).join(' · '))+'</small></div><b>'+money(d.value_usd||0)+'</b></div>').join('');
@@ -69,7 +87,7 @@ function renderAutonomy(){
   table(['Autonomous lane','State','Schedule','Last result','Last run'],lanes);
 }
 
-function renderFast(){if(!hub)return;renderKPIs();renderAcquisition();renderValuation();renderExpansion();renderAutonomy();$('ownerUpdated').textContent='Updated '+new Date(hub.generated_at||Date.now()).toLocaleString();window.__BP_OWNER_HUB__=hub}
+function renderFast(){if(!hub)return;renderKPIs();renderAcquisition();renderOpportunities();renderValuation();renderExpansion();renderAutonomy();$('ownerUpdated').textContent='Updated '+new Date(hub.generated_at||Date.now()).toLocaleString();window.__BP_OWNER_HUB__=hub}
 function renderAll(){if(!hub)return;renderFast();renderBackend()}
 async function loadBackendSections(force=false){
  if(backendLoading||!ownerAllowed())return;
@@ -113,7 +131,8 @@ async function loadHub(force=false){
   ['live_activity','bridgepoint_owner_live_activity_v958',{},8000],
   ['backend_status','bridgepoint_frontend_status_v5000',{},8000],
   ['expansion_snapshot','bridgepoint_owner_expansion_snapshot_v5402',{},8000],
-  ['autonomy','bridgepoint_owner_autonomy_status_v5594',{},8000]
+  ['autonomy','bridgepoint_owner_autonomy_status_v5594',{},8000],
+  ['opportunities','bridgepoint_public_opportunity_summary_v5626',{},8000]
  ];
  let ok=0,fail=0;
  try{
