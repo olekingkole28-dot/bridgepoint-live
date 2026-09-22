@@ -93,6 +93,12 @@ def limit_for(m,disk,latency):
     if m["cpu_percent"]<70 and m["memory_available_gb"]>=8: return 2
     return 1
 
+def export_pressure_ok(root,m):
+    # Export is disk/network bound and must not be disabled just because local AI pauses.
+    # Keep one state active at a time, require the 600 GB storage gate, and retain a hard
+    # 2 GB RAM / 92% CPU emergency stop.
+    return storage_ok(root,m) and m["memory_available_gb"]>=2 and m["cpu_percent"]<92
+
 def ollama_ready(c):
     try:
         get(c["ollama"]+"/api/tags",timeout=3)
@@ -213,7 +219,7 @@ def export_job(c,root,job):
                 page=api(c,"export_page",request_id=rid,dataset=ds,cursor=st["cursor"],limit=1000)
                 rows=page.get("rows") or []
                 buf.extend(rows); st["cursor"]=page.get("next_cursor"); st["done"]=bool(page.get("done")); st["rows"]+=len(rows)
-                if len(buf)>=100000 or st["done"]:
+                if len(buf)>=10000 or st["done"]:
                     if buf:
                         part=d/f"part-{st['part']:05d}.parquet"
                         pq.write_table(pa.Table.from_pylist(buf),part,compression="zstd",row_group_size=250000,use_dictionary=True)
@@ -369,8 +375,8 @@ def run():
             if t-models>=3600: ensure_models(c); models=t
             ai_lim=lim if ollama_ready(c) else 0
             n,elapsed=reason(c,ai_lim); lat=(elapsed/max(n,1)) if n else lat
-            if lim>0 and storage_ok(root,m): export_once(c,root)
-            if t-arc>=21600 and storage_ok(root,m): sync_archives(c,root,max(1,min(3,lim or 1))); arc=t
+            if export_pressure_ok(root,m): export_once(c,root)
+            if t-arc>=21600 and export_pressure_ok(root,m): sync_archives(c,root,1); arc=t
             if t-cat>=900: catalog(root); cat=t
             if portable_snapshot_status(root)["complete"]: backup_once(c,root)
             failures=0; time.sleep(5 if n else 15)
