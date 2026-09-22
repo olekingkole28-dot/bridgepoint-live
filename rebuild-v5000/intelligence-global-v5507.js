@@ -135,7 +135,7 @@ async function boot(){
   visuals();
   // V5596: attach the lightweight global precipitation source/layer immediately.
   // Network-heavy global refresh stays pressure/interaction gated below.
-  try{void installGlobalWeather().catch(e=>console.warn('BP global precipitation attach',e))}catch(e){console.warn('BP global precipitation attach',e)}
+  try{await installGlobalWeather()}catch(e){console.warn('BP global precipitation attach',e)}
   try{mobile()}catch(e){console.warn('BP mobile gesture setup',e)}
   try{C.map.once('load',()=>{visuals();try{void installGlobalWeather().catch(e=>console.warn('BP global precipitation load attach',e))}catch(_){}})}catch(_){}
   try{C.map.on('styledata',()=>{clearTimeout(C.styleTimer);C.styleTimer=setTimeout(()=>{if(C.map.isMoving?.())return;visuals()},C.mobile?900:300)})}catch(_){}
