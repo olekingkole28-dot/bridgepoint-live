@@ -88,11 +88,28 @@ def limit_for(m,disk,latency):
     if m["cpu_percent"]<70 and m["memory_available_gb"]>=8: return 2
     return 1
 
+def ollama_ready(c):
+    try:
+        get(c["ollama"]+"/api/tags",timeout=3)
+        return True
+    except Exception:
+        return False
+
+def ollama_executable():
+    return shutil.which("ollama")
+
 def ensure_models(c):
-    try: names={x.get("name") for x in get(c["ollama"]+"/api/tags").get("models",[])}
-    except Exception: names=set()
-    for model in (c["primary_model"],c["reviewer_model"]):
-        if model not in names: subprocess.run(["ollama","pull",model],check=True)
+    exe=ollama_executable()
+    if not exe or not ollama_ready(c):
+        return False
+    try:
+        names={x.get("name") for x in get(c["ollama"]+"/api/tags").get("models",[])}
+        for model in (c["primary_model"],c["reviewer_model"]):
+            if model not in names: subprocess.run([exe,"pull",model],check=True)
+        return True
+    except Exception:
+        return False
+
 def ollama(c,model,prompt):
     r=post(c["ollama"]+"/api/generate",{"model":model,"prompt":prompt,"stream":False,"format":"json","options":{"temperature":.1,"num_ctx":8192}},timeout=600)
     try: return json.loads(r.get("response","{}"))
@@ -101,8 +118,9 @@ def ollama(c,model,prompt):
 def heartbeat(c,root,disk,lim):
     m=metrics(root)
     snap=portable_snapshot_status(root)
-    caps={"provider":"OLLAMA","agent_version":AGENT_VERSION,"outbound_only":True,"primary_model":c["primary_model"],"reviewer_model":c["reviewer_model"],
-          "storage_verified":storage_ok(root,m),"adaptive_claim_limit":lim,"disk_benchmark_mbps":disk,
+    ai_ready=ollama_ready(c)
+    caps={"provider":"OLLAMA" if ai_ready else "EXPORT_ONLY__OLLAMA_PENDING","agent_version":AGENT_VERSION,"outbound_only":True,"primary_model":c["primary_model"],"reviewer_model":c["reviewer_model"],
+          "local_ai_ready":ai_ready,"storage_verified":storage_ok(root,m),"adaptive_claim_limit":lim if ai_ready else 0,"disk_benchmark_mbps":disk,
           "local_governor":"HEADROOM_V938","compact_runtime":"PARQUET_ZSTD_DUCKDB_V5604",
           "portable_export_protocol":"STATE_PARQUET_V1845","backup_protocol":"PORTABLE_VERIFY_V938",
           "portable_snapshot_complete":bool(snap["complete"]),"portable_states_complete":int(snap["states_complete"]),
@@ -110,7 +128,7 @@ def heartbeat(c,root,disk,lim):
     return api(c,"heartbeat",capabilities=caps,hardware=m)
 
 def reason(c,lim):
-    if lim<=0: return 0,0
+    if lim<=0 or not ollama_ready(c): return 0,0
     t=time.perf_counter(); tasks=(api(c,"claim",limit=lim).get("tasks") or [])
     for task in tasks:
         tid=task.get("task_id"); worker=task.get("worker") or {}
@@ -344,7 +362,8 @@ def run():
             m=metrics(root); lim=limit_for(m,disk,lat); t=time.monotonic()
             if t-hb>=45: heartbeat(c,root,disk,lim); hb=t
             if t-models>=3600: ensure_models(c); models=t
-            n,elapsed=reason(c,lim); lat=(elapsed/max(n,1)) if n else lat
+            ai_lim=lim if ollama_ready(c) else 0
+            n,elapsed=reason(c,ai_lim); lat=(elapsed/max(n,1)) if n else lat
             if lim>0 and storage_ok(root,m): export_once(c,root)
             if t-arc>=21600 and storage_ok(root,m): sync_archives(c,root,max(1,min(3,lim or 1))); arc=t
             if t-cat>=900: catalog(root); cat=t
