@@ -6,7 +6,7 @@ import shutil, socket, subprocess, sys, time, urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
-AGENT_VERSION=718
+AGENT_VERSION=938
 GATEWAY="https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-local-reasoning-v584"
 OLLAMA="http://127.0.0.1:11434"
 MIN_FREE_GB=600.0
@@ -101,7 +101,8 @@ def ollama(c,model,prompt):
 def heartbeat(c,root,disk,lim):
     m=metrics(root)
     caps={"provider":"OLLAMA","agent_version":AGENT_VERSION,"outbound_only":True,"primary_model":c["primary_model"],"reviewer_model":c["reviewer_model"],
-          "storage_verified":storage_ok(root,m),"adaptive_claim_limit":lim,"disk_benchmark_mbps":disk}
+          "storage_verified":storage_ok(root,m),"adaptive_claim_limit":lim,"disk_benchmark_mbps":disk,
+          "local_governor":"HEADROOM_V938","compact_runtime":"PARQUET_ZSTD_DUCKDB_V5604"}
     return api(c,"heartbeat",capabilities=caps,hardware=m)
 
 def reason(c,lim):
@@ -132,6 +133,9 @@ def download(item,dest):
     if expected and size!=expected: tmp.unlink(missing_ok=True); raise RuntimeError("archive size mismatch")
     os.replace(tmp,dest); return {"path":str(dest),"bytes":size,"sha256":sha.hexdigest(),"status":"DOWNLOADED"}
 def sync_archives(c,root,workers=2):
+    status=api(c,"status")
+    if not status.get("portable_export_authority"):
+        return {"generated_at":now(),"agent_version":AGENT_VERSION,"count":0,"bytes":0,"files":[],"status":"SKIPPED","reason":"PORTABLE_EXPORT_AUTHORITY_NOT_SERVER_GRANTED"}
     records=[]
     for state in STATES:
         for remote_t,local_t in ARCHIVES:
@@ -199,11 +203,12 @@ def configure(a):
 
 def run():
     c=load(); root=Path(c["data_root"]); root.mkdir(parents=True,exist_ok=True); disk=disk_benchmark(root); ensure_models(c)
-    hb=cat=arc=lat=0.0; failures=0
+    hb=cat=arc=models=lat=0.0; failures=0
     while True:
         try:
             m=metrics(root); lim=limit_for(m,disk,lat); t=time.monotonic()
             if t-hb>=45: heartbeat(c,root,disk,lim); hb=t
+            if t-models>=3600: ensure_models(c); models=t
             n,elapsed=reason(c,lim); lat=(elapsed/max(n,1)) if n else lat
             if lim>0 and storage_ok(root,m): export_once(c,root)
             if t-arc>=21600 and storage_ok(root,m): sync_archives(c,root,max(1,min(3,lim or 1))); arc=t
