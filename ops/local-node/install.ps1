@@ -53,8 +53,8 @@ try {
   $runPath='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
   Remove-ItemProperty -Path $runPath -Name "BridgePoint Local AI" -ErrorAction SilentlyContinue
 } catch {}
-$Action = New-ScheduledTaskAction -Execute $Py -Argument ('"' + $AgentPath + '" run') -WorkingDirectory $Here
-$Trigger = New-ScheduledTaskTrigger -AtStartup
+$Action = New-ScheduledTaskAction -Execute $Py -Argument ('"' + $AgentPath + '" run') -WorkingDirectory $RuntimeAgentDir
+$Trigger = New-ScheduledTaskTrigger -AtLogOn -User ("$env:USERDOMAIN\$env:USERNAME")
 $Settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
 Register-ScheduledTask -TaskName "BridgePoint Autonomous Node" -Action $Action -Trigger $Trigger -Settings $Settings -RunLevel Highest -Force | Out-Null
 Start-ScheduledTask -TaskName "BridgePoint Autonomous Node"
