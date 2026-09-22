@@ -603,9 +603,10 @@ function setActiveSurface(name,{showNav=false}={}){
  if(['saved','claims','workflow'].includes(name)&&authSession?.access_token&&accessStateLast&&accessStateLast.full_app_access===false){toast('Your trial has ended. Choose a package to restore full account access.','error');name='packages'}
  const mapSurface=document.querySelector('[data-surface="map"]'),wasMapActive=!!mapSurface&&mapSurface.hidden===false,settleMs=BP_MOBILE?2800:900;
  if(wasMapActive&&name!=='map'){
-  try{window.__BP_SHARED_VISUAL_WEATHER__?.weather?.setActive?.(false);window.__BP_SHARED_VISUAL_WEATHER__?.present?.setActive?.(false)}catch(_){}
+  // V5616: never mutate MapLibre weather layer visibility during tab navigation.
+  // Weather GPU repaint already self-suspends when the map surface is hidden.
   surfaceNavigationUntil=Math.max(surfaceNavigationUntil,performance.now()+(BP_MOBILE?1200:350));
-  window.__BP_OFFMAP_RENDER_PAUSE_V5615__={version:5615,weatherPaused:true,backgroundWorkHeld:true,updatedAt:Date.now()}
+  window.__BP_OFFMAP_RENDER_PAUSE_V5616__={version:5616,weatherRenderLoopPausedByHiddenSurface:true,styleMutationsOnNavigation:false,backgroundWorkHeld:true,updatedAt:Date.now()}
  }
  document.querySelectorAll('[data-surface]').forEach(el=>{
   const active=el.dataset.surface===name;el.hidden=!active;el.classList.toggle('active',active)
@@ -633,12 +634,8 @@ function setActiveSurface(name,{showNav=false}={}){
      setTimeout(()=>{try{world?.map?.resize?.();world?.map?.triggerRepaint?.()}catch(_){}},70)
     }
    }
-   if(!wasMapActive)setTimeout(()=>queueAfterMap('shared-weather-resume',()=>{
-    try{window.__BP_SHARED_VISUAL_WEATHER__?.weather?.setActive?.(true);window.__BP_SHARED_VISUAL_WEATHER__?.present?.setActive?.(true)}catch(_){}
-    window.__BP_OFFMAP_RENDER_PAUSE_V5615__={version:5615,weatherPaused:false,backgroundWorkHeld:false,updatedAt:Date.now()}
-   }),settleMs+180);
    setTimeout(()=>{if(performance.now()>=surfaceNavigationUntil)flushDeferredWork();else setTimeout(flushDeferredWork,Math.max(80,surfaceNavigationUntil-performance.now()+80))},BP_MOBILE?900:240);
-   window.__BP_NAV_STABILITY_V5615__={version:5615,showNav,mobileResizeDeferred:BP_MOBILE&&!wasMapActive,backgroundPausedOffMap:true,weatherRenderPausedOffMap:true,settleScopeSafe:true,updatedAt:Date.now()}
+   window.__BP_NAV_STABILITY_V5616__={version:5616,showNav,mobileResizeDeferred:BP_MOBILE&&!wasMapActive,backgroundPausedOffMap:true,weatherRenderPausedByHiddenSurface:true,styleMutationsOnNavigation:false,settleScopeSafe:true,updatedAt:Date.now()}
   })
  }
  else if(name==='packages')void loadPackageCatalog();
