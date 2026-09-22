@@ -277,6 +277,45 @@ function pkg(p){
  const b=document.createElement('button');b.type='button';b.textContent=p.owner_approval_required?'REQUEST ACCESS':'CHOOSE PACKAGE';b.onclick=()=>{localStorage.setItem('bp_landing_package',p.package_key||'');let s=null;try{s=JSON.parse(localStorage.getItem(AUTH_STORE)||'null')}catch(_){}if(s?.access_token)location.assign('/app/?page=packages');else openAuth('signup')};foot.append(sm,b);
  inner.append(head,h,price,d,meta,inc,foot);a.appendChild(inner);return a
 }
+
+const BP_OPP_COLORS={acquisition:'#7f8cff',construction:'#ff9f5f',claims:'#d77cff',redevelopment:'#58e0b5',property_damage:'#ff5c73'};
+function oppFamilyLabel(k){return({acquisition:'Investor / Acquisition',construction:'Construction',claims:'Claims',redevelopment:'Redevelopment',property_damage:'Property Damage / Restoration'})[k]||String(k||'Opportunity').replaceAll('_',' ')}
+async function opportunitySummary(){
+ try{
+  const d=await rpc('bridgepoint_public_opportunity_summary_v5626',{},7000),families=Array.isArray(d?.families)?d.families:[],states=Array.isArray(d?.states)?d.states:[],positive=states.filter(x=>Number(x.count)>0),maxFamily=Math.max(1,...families.map(x=>Number(x.count)||0)),claims=d?.claims_parity||{};
+  if($('landingOpportunityTotal'))$('landingOpportunityTotal').textContent=fmt(d.total_opportunities);
+  if($('landingOpportunityProperties'))$('landingOpportunityProperties').textContent=fmt(d.unique_properties);
+  if($('landingOpportunityStatesCount'))$('landingOpportunityStatesCount').textContent=fmt(d.states_with_opportunities);
+  if($('landingOpportunityClaimsParity'))$('landingOpportunityClaimsParity').textContent=fmt(claims.minimum_met||0)+' / '+fmt(claims.jurisdictions_total||56)+' at minimum source parity';
+  const fam=$('landingOpportunityFamilies');
+  if(fam){
+    fam.textContent='';
+    families.forEach(x=>{
+      const row=document.createElement('div');row.className='bp-opp-bar-row';
+      const color=BP_OPP_COLORS[x.key]||'#62e6ff',width=Math.max(3,100*Number(x.count||0)/maxFamily);
+      row.innerHTML='<div class="bp-opp-bar-copy"><span><i style="background:'+color+'"></i>'+esc(x.label||oppFamilyLabel(x.key))+'</span><b>'+fmt(x.count)+'</b></div><div class="bp-opp-track"><i style="width:'+width.toFixed(1)+'%;background:'+color+'"></i></div>';
+      fam.appendChild(row);
+    });
+  }
+  const list=$('landingOpportunityStates');
+  if(list){
+    list.textContent='';
+    positive.forEach(s=>{
+      const card=document.createElement('article');card.className='bp-opp-state';
+      const fs=Object.entries(s.families||{}).filter(([,v])=>Number(v)>0).sort((a,b)=>Number(b[1])-Number(a[1]));
+      card.innerHTML='<div class="bp-opp-state-head"><b>'+esc(s.state_code)+'</b><strong>'+fmt(s.count)+'</strong></div><small>'+fmt(s.properties)+' properties · claims parity '+esc(String(s.claims_target_status||'BUILDING').replaceAll('_',' '))+'</small><div class="bp-opp-chips">'+fs.map(([k,v])=>'<span style="--opp:'+esc(BP_OPP_COLORS[k]||'#62e6ff')+'"><i></i>'+esc(oppFamilyLabel(k))+' '+fmt(v)+'</span>').join('')+'</div>';
+      list.appendChild(card);
+    });
+    const zero=states.filter(x=>Number(x.count)===0);
+    if(zero.length){
+      const details=document.createElement('details');details.className='bp-opp-zero-states';
+      details.innerHTML='<summary>VIEW '+fmt(zero.length)+' MORE JURISDICTIONS CURRENTLY AT 0 CUSTOMER-READY OPPORTUNITIES</summary><div>'+zero.map(s=>'<span>'+esc(s.state_code)+' · '+esc(String(s.claims_target_status||'BUILDING').replaceAll('_',' '))+'</span>').join('')+'</div>';
+      list.appendChild(details);
+    }
+  }
+  window.__BP_PUBLIC_OPPORTUNITY_SUMMARY_V5626__={version:5626,total:Number(d.total_opportunities||0),properties:Number(d.unique_properties||0),states:Number(d.states_with_opportunities||0),updatedAt:Date.now()};
+ }catch(e){console.warn('opportunity summary',e)}
+}
 async function packages(){const g=$('landingPackages');try{const d=await rpc('bridgepoint_public_package_catalog_v1054',{},10000),rows=(d.packages||[]).filter(p=>!String(p.package_key||'').startsWith('technology_'));g.textContent='';rows.forEach(p=>g.appendChild(pkg(p)));if(!rows.length)g.textContent='Package catalog is updating.'}catch(e){g.textContent='Package catalog retry · '+String(e.message||e)}}
 const FREE_LOOKUP_KEY='bp_landing_free_lookup_v5400';
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -286,6 +325,16 @@ async function landingAddressFallback(q,timeout=7000){
   const r=await fetch(SUPA+'/functions/v1/bridgepoint-public-address-geocode-v5300',{method:'POST',headers:H,body:JSON.stringify({q}),signal:ctl.signal,cache:'no-store'});
   const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.message||d.error||('HTTP '+r.status));return d;
  }finally{clearTimeout(timer)}
+}
+function credibleAddressRows(q,rows){
+ const raw=String(q||'').trim().toLowerCase(),state=(raw.match(/\b(al|ak|az|ar|ca|co|ct|de|dc|fl|ga|hi|id|il|in|ia|ks|ky|la|me|md|ma|mi|mn|ms|mo|mt|ne|nv|nh|nj|nm|ny|nc|nd|oh|ok|or|pa|ri|sc|sd|tn|tx|ut|vt|va|wa|wv|wi|wy)\b/)||[])[1];
+ return (Array.isArray(rows)?rows:[]).filter(r=>{
+   const reason=String(r?.match_reason||'').toUpperCase(),score=Number(r?.match_score||0),addr=String(r?.full_address||r?.geocoder_address||'').toLowerCase();
+   if(!addr)return false;
+   if(reason.includes('EXACT')||reason.startsWith('CENSUS_'))return true;
+   if(state&&String(r?.state_code||r?.state||'').toLowerCase()!==state)return false;
+   return score>=0.72;
+ });
 }
 function freeLookupUsed(){return localStorage.getItem(FREE_LOOKUP_KEY)==='1'}
 function gateLookup(message){
@@ -324,7 +373,7 @@ async function landingSearchSubmit(e){
  if(freeLookupUsed()){gateLookup('Your first free property lookup has already been used in this browser. Create an account to keep searching and use a 7-day trial where available.');return}
  box.hidden=false;box.innerHTML='<button disabled><b>Searching BridgePoint…</b><small>Matching address and property identity.</small></button>';
  let rows=[];
- try{const d=await rpc('bridgepoint_public_search_v5200',{p_query:q,p_limit:6},3200);rows=d?.results||[]}catch(_){}
+ try{const d=await rpc('bridgepoint_public_search_v5200',{p_query:q,p_limit:6},3200);rows=credibleAddressRows(q,d?.results||[])}catch(_){}
  if(!rows.length){try{const d=await landingAddressFallback(q,7000);rows=d?.results||[]}catch(_){}}
  if(!rows.length){box.innerHTML='<button disabled><b>No match yet</b><small>Try a fuller street address, city and state.</small></button>';return}
  box.innerHTML='';
@@ -348,5 +397,5 @@ function bindConversionPreview(){
  }));
 }
 async function install(){if(installPrompt){installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;return}alert('Use your browser install or Add to Home Screen option to install BridgePoint on this device.')}function bindWorldBackdrop(){const paint=()=>{backdropFrame=0;const shift=Math.min(innerWidth<=600?84:170,scrollY*.055);document.documentElement.style.setProperty('--bp-world-shift',shift.toFixed(1)+'px')};const queue=()=>{if(!backdropFrame)backdropFrame=requestAnimationFrame(paint)};addEventListener('scroll',queue,{passive:true});addEventListener('resize',queue,{passive:true});paint()}
-function bind(){document.querySelectorAll('.auth-open').forEach(b=>b.onclick=()=>openAuth(b.dataset.mode));$('closeAuth').onclick=()=>$('authModal').hidden=true;$('authModal').onclick=e=>{if(e.target===$('authModal'))$('authModal').hidden=true};$('authSwitch').onclick=()=>setMode(mode==='signup'?'signin':'signup');$('authForm').onsubmit=submit;$('installTop').onclick=install;$('installBottom').onclick=install;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});const q=new URLSearchParams(location.search);if(q.get('auth'))openAuth(q.get('auth')==='signin'?'signin':'signup')}if(!hashSession()){bind();bindWorldBackdrop();bindConversionPreview();initMap();stats();setInterval(stats,15000);globalCoverage();setInterval(globalCoverage,120000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5592',{updateViaCache:'none'}).catch(()=>{})}
+function bind(){document.querySelectorAll('.auth-open').forEach(b=>b.onclick=()=>openAuth(b.dataset.mode));$('closeAuth').onclick=()=>$('authModal').hidden=true;$('authModal').onclick=e=>{if(e.target===$('authModal'))$('authModal').hidden=true};$('authSwitch').onclick=()=>setMode(mode==='signup'?'signin':'signup');$('authForm').onsubmit=submit;$('installTop').onclick=install;$('installBottom').onclick=install;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});const q=new URLSearchParams(location.search);if(q.get('auth'))openAuth(q.get('auth')==='signin'?'signin':'signup')}if(!hashSession()){bind();bindWorldBackdrop();bindConversionPreview();initMap();stats();setInterval(stats,15000);globalCoverage();setInterval(globalCoverage,120000);opportunitySummary();setInterval(opportunitySummary,120000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5592',{updateViaCache:'none'}).catch(()=>{})}
 // BP_V5441_DEPLOY_SYNC: compact national hazard dots; radar and boundaries unchanged.
