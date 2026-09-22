@@ -7,7 +7,7 @@ echo   BridgePoint Intelligence Desktop Node v938
 echo ===============================================
 echo.
 set "PS1=%TEMP%\bridgepoint_install_v938.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/olekingkole28-dot/bridgepoint-live/c31ef21e33ce43295bab219d4aa7ff5c899c90d2/downloads/local-ai/install_windows.ps1' -OutFile '%PS1%'"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/olekingkole28-dot/bridgepoint-live/0a8cd5020fe6712367b50579e17e4baf5bb25730/downloads/local-ai/install_windows.ps1' -OutFile '%PS1%'"
 if errorlevel 1 goto :fail
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PS1%"
 if errorlevel 1 goto :fail
