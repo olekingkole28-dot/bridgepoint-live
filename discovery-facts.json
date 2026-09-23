@@ -23,7 +23,7 @@
     "public_counter_jurisdictions": 56
   },
   "freshness": {
-    "roof_updated_at": "2026-09-22T23:48:00.027707+00:00",
+    "roof_updated_at": "2026-09-23T03:20:00.024728+00:00",
     "lidar_last_success_at": "2026-09-22T08:48:55.942695+00:00",
     "parcel_counter_updated_at": "2026-09-22T08:49:40.198074+00:00",
     "address_counter_updated_at": "2026-09-22T08:48:48.540201+00:00",
@@ -31,7 +31,7 @@
     "parcel_autopilot_last_tick_at": "2026-09-16T01:18:58.834462+00:00"
   },
   "horizon_url": "https://bridgepointintelligence.online/app/horizon/",
-  "generated_at": "2026-09-22T23:49:56.146327+00:00",
+  "generated_at": "2026-09-23T03:20:53.539038+00:00",
   "canonical_url": "https://bridgepointintelligence.online/",
   "jurisdictions": [
     {
@@ -325,7 +325,7 @@
   "horizon_year_one_demand": {
     "ok": true,
     "mode": "365_DAY_YEAR_ONE_SURVIVAL",
-    "updated_at": "2026-09-22T23:49:56.414071+00:00",
+    "updated_at": "2026-09-23T03:20:53.805493+00:00",
     "event_started": false,
     "unique_requests": 0,
     "billing_connected": false,
