@@ -23,14 +23,29 @@ async function status(){const d=await rpc('bridgepoint_public_global_status_v957
 async function search(q,limit=8){return rpc('bridgepoint_public_global_search_v957',{p_query:String(q||''),p_limit:limit},4500)}
 async function detail(lng,lat,radius=140){return rpc('bridgepoint_public_global_property_detail_v957',{p_lng:Number(lng),p_lat:Number(lat),p_radius_m:Number(radius)||140},4500)}
 function currentMap(){return window.__BP_V5000_WORLD__?.map||window.__BP_LANDING_WORLD__?.map||null}
-function countryName(code){return({CA:'Canada',MX:'Mexico'})[String(code||'').toUpperCase()]||String(code||'Global')}
+function countryName(code){return({AU:'Australia',CA:'Canada',CD:'DR Congo',CN:'China',DE:'Germany',DJ:'Djibouti',EE:'Estonia',GB:'United Kingdom',IS:'Iceland',JP:'Japan',KE:'Kenya',KR:'South Korea',MX:'Mexico',MY:'Malaysia',NL:'Netherlands',NO:'Norway',PA:'Panama',PH:'Philippines',PL:'Poland',RO:'Romania',SG:'Singapore',TW:'Taiwan',TZ:'Tanzania',UA:'Ukraine',VN:'Vietnam'})[String(code||'').toUpperCase()]||String(code||'Global')}
 function updateCounters(d){
  const total=document.getElementById('landingGlobalProperties');
  if(total)total.textContent=fmt(d?.active_global_canonical);
  const sub=document.getElementById('landingGlobalCountryMix');
+ const countries=(d?.countries||[]).filter(x=>Number(x.active_canonical)>0).sort((a,b)=>Number(b.active_canonical)-Number(a.active_canonical));
  if(sub){
-  const countries=(d?.countries||[]).filter(x=>Number(x.active_canonical)>0);
-  sub.textContent=countries.map(x=>countryName(x.country_code)+' '+fmt(x.active_canonical)).join(' · ')+(Number(d?.materialized_global_boundaries)>=0?' · '+fmt(d.materialized_global_boundaries)+' boundaries':'');
+  const head=countries.slice(0,3).map(x=>countryName(x.country_code)+' '+fmt(x.active_canonical));
+  if(countries.length>3)head.push('+'+(countries.length-3)+' more');
+  if(Number(d?.materialized_global_boundaries)>=0)head.push(fmt(d.materialized_global_boundaries)+' boundaries');
+  sub.textContent=head.join(' · ');
+ }
+ const list=document.getElementById('landingGlobalCountryDropdown');
+ if(list){
+  list.textContent='';
+  for(const x of countries){
+   const row=document.createElement('div'),name=document.createElement('span'),count=document.createElement('b'),meta=document.createElement('small');
+   name.textContent=countryName(x.country_code)+' · '+String(x.country_code||'');
+   count.textContent=fmt(x.active_canonical);
+   meta.textContent=fmt(x.materialized_boundary_rows||x.with_boundary||0)+' boundaries';
+   row.append(name,count,meta);list.appendChild(row);
+  }
+  if(!countries.length){const row=document.createElement('div');row.textContent='International materialization starting…';list.appendChild(row)}
  }
  const g=document.getElementById('globalCountryTotal');
  if(g&&Number(d?.active_global_canonical)>=0)g.textContent=fmt(d.active_global_canonical);
