@@ -275,7 +275,7 @@ function authHeaders(){
   return mode==='owner'&&t?{Authorization:'Bearer '+t}:{};
 }
 function addBoundaryLayers(map,bucket){
-  const min=mode==='owner'?4:7;
+  const min=mode==='owner'?3:7;
   try{if(map.getLayer(LINE))map.removeLayer(LINE)}catch(_){}
   try{if(map.getLayer(GLOW))map.removeLayer(GLOW)}catch(_){}
   try{if(map.getSource(SOURCE))map.removeSource(SOURCE)}catch(_){}
@@ -284,17 +284,17 @@ function addBoundaryLayers(map,bucket){
     id:GLOW,type:'line',source:SOURCE,'source-layer':'parcels',minzoom:min,
     paint:{
       'line-color':'#004cff',
-      'line-opacity':['interpolate',['linear'],['zoom'],4,.82,7,.76,9,.64,12,.54,16,.45,20,.36],
-      'line-width':['interpolate',['linear'],['zoom'],4,1.25,6,1.7,7,2.25,9,3.2,12,4.1,16,5.6,20,7.2],
-      'line-blur':['interpolate',['linear'],['zoom'],4,.65,7,1.15,14,2.2,20,3.0]
+      'line-opacity':['interpolate',['linear'],['zoom'],3,.78,4,.82,7,.76,9,.64,12,.54,16,.45,20,.36],
+      'line-width':['interpolate',['linear'],['zoom'],3,.95,4,1.25,6,1.7,7,2.25,9,3.2,12,4.1,16,5.6,20,7.2],
+      'line-blur':['interpolate',['linear'],['zoom'],3,.42,4,.65,7,1.15,14,2.2,20,3.0]
     }
   });
   map.addLayer({
     id:LINE,type:'line',source:SOURCE,'source-layer':'parcels',minzoom:min,
     paint:{
       'line-color':'#73ffff',
-      'line-opacity':['interpolate',['linear'],['zoom'],4,.92,7,1,20,1],
-      'line-width':['interpolate',['linear'],['zoom'],4,.34,6,.5,7,.7,9,.95,12,1.2,16,1.65,20,2.25]
+      'line-opacity':['interpolate',['linear'],['zoom'],3,.88,4,.92,7,1,20,1],
+      'line-width':['interpolate',['linear'],['zoom'],3,.24,4,.34,6,.5,7,.7,9,.95,12,1.2,16,1.65,20,2.25]
     }
   });
 }
@@ -307,18 +307,18 @@ async function refreshStatus(){
     if(!r.ok)throw new Error(d.error||'status failed');
     const s=d.status||{};
     lastStateRows=Array.isArray(s.states)?s.states:[];
-    lastGlobalRows=Array.isArray(s.global?.countries)?s.global.countries:[];
+    lastGlobalRows=mode==='owner'&&Array.isArray(s.global?.countries)?s.global.countries:[];
     let stateError='';
     if(viewer){
       try{await syncStateOverlay(viewer,lastStateRows)}catch(e){stateError=String(e?.message||e)}
-      try{syncGlobalOverlay(viewer,lastGlobalRows)}catch(e){stateError=stateError||String(e?.message||e)}
+      if(mode==='owner')try{syncGlobalOverlay(viewer,lastGlobalRows)}catch(e){stateError=stateError||String(e?.message||e)}
     }
     const publicCount=lastStateRows.filter(x=>x.public_enabled===true).length;
     const denominator=stateFeatureCount?(' / '+fmt(stateFeatureCount)):'';
     const gb=Number(s.global?.global_boundaries||0),gc=Number(s.global?.global_canonicals||0),gCountries=lastGlobalRows.filter(x=>Number(x.boundaries||0)>0).length;
     box.innerHTML=mode==='owner'
       ? '<span>U.S. parcel counter '+fmt(s.parcel_counter_total)+'</span><span>U.S. market canonical '+fmt(s.market_canonical_total)+'</span><span>Global parcel boundaries '+fmt(gb)+'</span><span>Global canonicals '+fmt(gc)+'</span><span>Countries materialized '+fmt(gCountries)+'</span><span>Approved U.S. boundary sources '+fmt(s.active_boundary_candidates)+'</span><span>Public-enabled U.S. jurisdictions '+fmt(publicCount)+denominator+'</span>'
-      : '<span>U.S. parcel counter '+fmt(s.parcel_counter_total)+'</span><span>Global public boundaries '+fmt(gb)+'</span><span>Countries with public materialized parcels '+fmt(gCountries)+'</span><span>Public-display U.S. sources '+fmt(s.public_display_candidates)+'</span><span>Public-enabled U.S. jurisdictions '+fmt(publicCount)+denominator+'</span>';
+      : '<span>U.S. parcel counter '+fmt(s.parcel_counter_total)+'</span><span>Public-display U.S. sources '+fmt(s.public_display_candidates)+'</span><span>Public-enabled U.S. jurisdictions '+fmt(publicCount)+denominator+'</span>';
     if(stateError)box.innerHTML+='<span>State overlay retrying · '+esc(stateError)+'</span>';
   }catch(e){
     box.innerHTML='<span>'+esc(e.message||e)+'</span>';
@@ -353,7 +353,7 @@ async function openViewer(nextMode='public'){
   document.getElementById('bpBoundaryTitle5403').textContent=mode==='owner'?'Owner Exact Parcel Boundary Viewer':'Public Parcel Boundary Viewer';
   document.getElementById('bpBoundaryCopy5403').textContent=mode==='owner'
     ? '3D global terrain parcel atlas. Country coverage labels appear from globe zoom; exact verified parcel lines stream from regional zoom. U.S. state rights colors remain intact while newly materialized global parcel sources join the same boundary layer.'
-    : '3D global parcel coverage overview. Public-enabled countries appear from globe zoom; exact public rights-cleared parcel lines stream as you zoom in. U.S. state rights colors remain intact.';
+    : 'Public U.S. parcel boundary viewer. International parcel geometry and country coverage are owner-backend only.';
 
   if(!window.maplibregl){
     document.getElementById('bpBoundaryCounts5403').innerHTML='<span>Map engine failed to load. Refresh the app and retry.</span>';
@@ -412,9 +412,9 @@ async function openViewer(nextMode='public'){
       const z=document.getElementById('bpBoundaryZoom5403');
       const update=()=>{
         if(!z||!viewer)return;
-        const min=mode==='owner'?4:7;
+        const min=mode==='owner'?3:7;
         z.textContent=viewer.getZoom()<min
-          ? 'Global coverage overview · country/state labels + 3D terrain · exact parcel lines begin at regional zoom'
+          ? 'Owner global coverage overview · country/state labels + 3D terrain · parcel linework begins from high-altitude zoom'
           : (mode==='owner'?'Owner U.S. + global parcel boundary atlas · 3D terrain · exact lines refine as you zoom':'Public U.S. + global rights-cleared parcel boundaries · 3D terrain');
       };
       update();viewer.on('zoom',update);
