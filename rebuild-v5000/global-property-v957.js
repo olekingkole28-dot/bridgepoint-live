@@ -23,7 +23,7 @@ async function status(){const d=await rpc('bridgepoint_public_global_status_v957
 async function search(q,limit=8){return rpc('bridgepoint_public_global_search_v957',{p_query:String(q||''),p_limit:limit},4500)}
 async function detail(lng,lat,radius=140){return rpc('bridgepoint_public_global_property_detail_v957',{p_lng:Number(lng),p_lat:Number(lat),p_radius_m:Number(radius)||140},4500)}
 function currentMap(){return window.__BP_V5000_WORLD__?.map||window.__BP_LANDING_WORLD__?.map||null}
-function countryName(code){return({AU:'Australia',CA:'Canada',CD:'DR Congo',CN:'China',DE:'Germany',DJ:'Djibouti',EE:'Estonia',GB:'United Kingdom',IS:'Iceland',JP:'Japan',KE:'Kenya',KR:'South Korea',MX:'Mexico',MY:'Malaysia',NL:'Netherlands',NO:'Norway',PA:'Panama',PH:'Philippines',PL:'Poland',RO:'Romania',SG:'Singapore',TW:'Taiwan',TZ:'Tanzania',UA:'Ukraine',VN:'Vietnam'})[String(code||'').toUpperCase()]||String(code||'Global')}
+function countryName(code){return({AU:'Australia',BR:'Brazil',CA:'Canada',CD:'DR Congo',CL:'Chile',CN:'China',CY:'Cyprus',DE:'Germany',DJ:'Djibouti',EE:'Estonia',EG:'Egypt',GB:'United Kingdom',IN:'India',IS:'Iceland',JP:'Japan',KE:'Kenya',KR:'South Korea',LT:'Lithuania',LV:'Latvia',MX:'Mexico',MY:'Malaysia',NL:'Netherlands',NO:'Norway',NZ:'New Zealand',PA:'Panama',PH:'Philippines',PL:'Poland',RO:'Romania',SG:'Singapore',TW:'Taiwan',TZ:'Tanzania',UA:'Ukraine',VN:'Vietnam'})[String(code||'').toUpperCase()]||String(code||'Global')}
 function updateCounters(d){
  const total=document.getElementById('landingGlobalProperties');
  if(total)total.textContent=fmt(d?.active_global_canonical);
