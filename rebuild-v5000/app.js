@@ -424,7 +424,7 @@ async function loadAdvancedPropertyIntel(seq){
  if(calls[2].status==='fulfilled')renderScore(calls[2].value);else setText('pScoreExplanation','Score explanation refresh will retry.');
  if(calls[3].status==='fulfilled')renderImagery(calls[3].value);else{$('pImageryHistory').innerHTML='<div class="hazard-item"><b>Imagery history refresh will retry.</b></div>'}
 }
-function populateProperty(d,drawParcel=true){const parcelSrc=world?.map?.getSource('bpV5001SelectedParcel');if(!d?.resolved){renderPickedInspector();resetPropertyCard('Canonical property not resolved at this point');setText('pResolution','UNRESOLVED');if(!selectedParcelGeometry&&parcelSrc?.setData)parcelSrc.setData({type:'FeatureCollection',features:[]});return}const p=d.property||{};if(p.parcel_geometry){selectedParcelGeometry=p.parcel_geometry;window.__BP_PARCEL_CUTOUT_STATE__={status:'ready',source:'property_detail',at:Date.now()}}selectedPropertyId=p.property_id||null;setText('pResolution',String(p.resolution_method||'CANONICAL').replaceAll('_',' '));setText('pAddress',p.display_address||'Canonical property');setText('pLocation',[p.municipality,p.county,p.state_code,p.postal_code].filter(Boolean).join(' · ')||'Location not published');setText('pParcel',p.parcel_number||'Not published');setText('pType',p.property_type||'Not classified');setText('pYear',p.year_built||'Not published');setText('pValue',p.assessed_total_value!=null?money(p.assessed_total_value):'Not published');setText('pTruthNote',d.truth_notice||'Source-backed property identity. Parcel geometry is not a legal survey.');if(p.boundary_source_url)setText('bProvParcelSource',parcelSourceLabel(p.boundary_source_url)+(p.boundary_allowed_use_scope?' · '+p.boundary_allowed_use_scope:''));if(p.parcel_geometry)ensureSelectedParcelLayer(p.parcel_geometry);else if(!selectedParcelGeometry&&parcelSrc?.setData)parcelSrc.setData({type:'FeatureCollection',features:[]});renderPickedInspector()}
+function populateProperty(d,drawParcel=true){const parcelSrc=world?.map?.getSource('bpV5001SelectedParcel');if(!d?.resolved){renderPickedInspector();resetPropertyCard('Canonical property not resolved at this point');setText('pResolution','UNRESOLVED');if(!selectedParcelGeometry&&parcelSrc?.setData)parcelSrc.setData({type:'FeatureCollection',features:[]});return}const p=d.property||{};if(p.parcel_geometry){selectedParcelGeometry=p.parcel_geometry;window.__BP_PARCEL_CUTOUT_STATE__={status:'ready',source:'property_detail',at:Date.now()}}selectedPropertyId=p.property_id||null;setText('pResolution',String(p.resolution_method||'CANONICAL').replaceAll('_',' '));setText('pAddress',p.display_address||'Canonical property');setText('pLocation',[p.municipality,p.county,p.state_code,p.country_code,p.postal_code].filter(Boolean).join(' · ')||'Location not published');setText('pParcel',p.parcel_number||'Not published');setText('pType',p.property_type||'Not classified');setText('pYear',p.year_built||'Not published');setText('pValue',p.assessed_total_value!=null?money(p.assessed_total_value):'Not published');setText('pTruthNote',d.truth_notice||'Source-backed property identity. Parcel geometry is not a legal survey.');if(p.boundary_source_url)setText('bProvParcelSource',parcelSourceLabel(p.boundary_source_url)+(p.boundary_allowed_use_scope?' · '+p.boundary_allowed_use_scope:''));if(p.parcel_geometry)ensureSelectedParcelLayer(p.parcel_geometry);else if(!selectedParcelGeometry&&parcelSrc?.setData)parcelSrc.setData({type:'FeatureCollection',features:[]});renderPickedInspector()}
 function currentSelectedBuildingId(){return Number(selectedBuildingRecord?.building_id||selectedFeature?.properties?.building_id||selectedFeature?.id||0)}
 async function loadParcelCutout(lng,lat,seq){
  const bid=currentSelectedBuildingId(),anchor=selectedMode==='building'&&selectedBuildingGeometry?(pickedOrigin()||{lng,lat}):{lng,lat};
@@ -446,10 +446,15 @@ async function loadParcelCutout(lng,lat,seq){
     try{hit=normalize(await rpc('bridgepoint_public_building_parcel_cutout_v5415',{p_building_id:bid},5000),'building_cutout')}catch(_){}
    }
    if(!hit){
-    hit=await Promise.any([
-      rpc('bridgepoint_public_parcel_cutout_v5411',{p_lng:anchor.lng,p_lat:anchor.lat,p_radius_m:140},6000).then(d=>normalize(d,'point_cutout')),
-      rpc('bridgepoint_public_property_detail_v5001',{p_lng:lng,p_lat:lat,p_radius_m:140},6000).then(d=>normalize(d,'property_detail'))
-    ]);
+    try{
+     hit=await Promise.any([
+       rpc('bridgepoint_public_parcel_cutout_v5411',{p_lng:anchor.lng,p_lat:anchor.lat,p_radius_m:140},6000).then(d=>normalize(d,'point_cutout')),
+       rpc('bridgepoint_public_property_detail_v5001',{p_lng:lng,p_lat:lat,p_radius_m:140},6000).then(d=>normalize(d,'property_detail'))
+     ]);
+    }catch(_){}
+   }
+   if(!hit){
+    hit=normalize(await rpc('bridgepoint_public_global_property_detail_v957',{p_lng:anchor.lng,p_lat:anchor.lat,p_radius_m:180},6000),'global_property_detail');
    }
    if((bid>0&&currentSelectedBuildingId()!==bid)||(bid<=0&&seq!==buildingRequestSeq))return;const d=hit.d;
    selectedParcelGeometry=d.parcel_geometry;ensureSelectedParcelLayer(d.parcel_geometry);setText('bProvParcelSource',parcelSourceLabel(d.source_url)+(d.allowed_use_scope?' · '+d.allowed_use_scope:''));setText('bPickedTruth','PARCEL + TERRAIN CUTOUT');
@@ -459,7 +464,7 @@ async function loadParcelCutout(lng,lat,seq){
  }
  if((bid>0&&currentSelectedBuildingId()!==bid)||(bid<=0&&seq!==buildingRequestSeq))return;window.__BP_PARCEL_CUTOUT_STATE__={status:'retry',buildingId:bid||null,error:String(lastErr?.message||lastErr||'PARCEL_RESOLVE_FAILED'),at:Date.now()};setText('bPickedTruth','PARCEL SOURCE RETRYING');renderPickedInspector();console.warn('parcel cutout',lastErr)
 }
-async function loadProperty(lng,lat,seq){try{const d=await rpc('bridgepoint_public_property_detail_v5001',{p_lng:lng,p_lat:lat,p_radius_m:140},3500);if(seq!==buildingRequestSeq)return;populateProperty(d);void loadAdvancedPropertyIntel(seq)}catch(e){if(seq!==buildingRequestSeq)return;setText('pResolution','RETRY');setText('pTruthNote','Property identity refresh will retry · '+String(e.message||e))}}
+async function loadProperty(lng,lat,seq){try{let d=await rpc('bridgepoint_public_property_detail_v5001',{p_lng:lng,p_lat:lat,p_radius_m:140},3500);if(!d?.resolved){try{d=await rpc('bridgepoint_public_global_property_detail_v957',{p_lng:lng,p_lat:lat,p_radius_m:180},4500)}catch(_){}}if(seq!==buildingRequestSeq)return;populateProperty(d);if(d?.global)resetAdvancedPropertyIntel();else void loadAdvancedPropertyIntel(seq)}catch(e){if(seq!==buildingRequestSeq)return;setText('pResolution','RETRY');setText('pTruthNote','Property identity refresh will retry · '+String(e.message||e))}}
 function refreshSelected(){if(mapInteracting){deferredWork.set('selected-refresh',refreshSelected);return}if(!selectedPoint)return;if(selectedMode==='property')showPropertyOnly(selectedPoint.lng,selectedPoint.lat,{silent:true});else showBuilding(selectedPoint.lng,selectedPoint.lat,{silent:true,feature:selectedFeature})}
 async function showPropertyOnly(lng,lat,opts={}){const seq=++buildingRequestSeq;clearMapXray();clearBuildingParts();selectedPoint={lng,lat};selectedFeature=null;selectedParcelGeometry=null;window.__BP_SELECTED_PARCEL_GEOMETRY__=null;selectedMode='property';const panel=$('buildingPanel');panel.hidden=false;if(innerWidth<=760)closeSystem();if(!opts.silent){setText('buildingTitle','Property');setText('buildingTruthBadge','PROPERTY IDENTITY');setText('bHeight','—');setText('bFloors','—');setText('bFloorTruth','—');setText('bParts','—');setText('bUnderground','—');setText('bConfidence','—');setText('bRoof','—');setText('bFacade','—');setText('bSource','—');setText('bSourceDate','No building selected');setText('bGeometryMeta','No building selected');setText('bGeometrySub','Parcel identity can resolve independently of a building.');resetPropertyCard();resetContext()}await waitForMapRest();if(seq!==buildingRequestSeq)return;void loadParcelCutout(lng,lat,seq);queueAfterMap('property-context-'+seq,()=>loadContext(lng,lat,seq));queueAfterMap('property-foundation-'+seq,()=>loadFoundation(lng,lat,seq));await loadProperty(lng,lat,seq);if(!selectedTimer)selectedTimer=setInterval(()=>queueAfterMap('selected-refresh',refreshSelected),60000)}
 let baseMapClickSeq=0;
@@ -519,24 +524,29 @@ $('publicSearchForm').addEventListener('submit',async e=>{
  e.preventDefault();setMapSearchOpen(true);
  const q=$('publicSearchInput').value.trim(),box=$('publicSearchResults');if(q.length<4)return;
  box.hidden=false;box.innerHTML='<button disabled>Searching BridgePoint…</button>';
- let rows=[],rawRows=[],linkedError=null,fallbackUsed=false;
+ let rows=[],rawRows=[],linkedError=null,fallbackUsed=false,globalUsed=false;
  try{const d=await rpc('bridgepoint_public_search_v5000',{p_query:q,p_limit:8},2800);rawRows=d?.results||[];rows=appCredibleAddressRows(q,rawRows);if(rawRows.length>rows.length)window.BridgePointAcquisition?.send?.('ADDRESS_SEARCH_WEAK_MATCH_SUPPRESSED',{surface:'app',suppressed:rawRows.length-rows.length})}catch(err){linkedError=err}
+ if(!rows.length){
+  box.innerHTML='<button disabled>Checking BridgePoint international parcel index…</button>';
+  try{const d=await rpc('bridgepoint_public_global_search_v957',{p_query:q,p_limit:8},4200);rows=d?.results||[];globalUsed=rows.length>0}catch(err){console.warn('global parcel search',err)}
+ }
  if(!rows.length){
   box.innerHTML='<button disabled>Checking public U.S. Census address location…</button>';
   try{const d=await publicAddressFallback(q,7000);rows=d?.results||[];fallbackUsed=rows.length>0;if(fallbackUsed)window.BridgePointAcquisition?.send?.('ADDRESS_SEARCH_RECOVERED',{surface:'app',resolver:String(d?.resolver||'CENSUS')})}catch(err){console.warn('address fallback',err)}
  }
  if(!rows.length){
   window.BridgePointAcquisition?.send?.('ADDRESS_SEARCH_NO_MATCH',{surface:'app'});
-  box.innerHTML='<button disabled>No confident address match yet. BridgePoint checked its property index and the public U.S. Census locator.'+(linkedError?' Linked-address lookup will retry on the next search.':'')+'</button>';
+  box.innerHTML='<button disabled>No confident match yet. Try a full U.S. street address or a source parcel ID from a live international coverage area.'+(linkedError?' Linked-address lookup will retry on the next search.':'')+'</button>';
   return;
  }
  box.innerHTML='';
  for(const r of rows){
   const b=document.createElement('button');b.type='button';
-  const meta=[r.municipality,r.state_code,r.parcel_number].filter(Boolean);
+  const isGlobal=!!r.global_property_id||(['CA','MX'].includes(String(r.country_code||'').toUpperCase()));
+  const meta=isGlobal?[r.municipality,r.state_code,r.country_code,r.parcel_number,r.source_name].filter(Boolean):[r.municipality,r.state_code,r.parcel_number].filter(Boolean);
   if(fallbackUsed||String(r.match_reason||'').startsWith('CENSUS_'))meta.push(r.property_resolved?'Census located · BridgePoint property resolved':'Census located · property link resolving');
-  b.innerHTML='<b>'+String(r.full_address||r.geocoder_address||'Address').replace(/[<>&]/g,'')+'</b><small>'+meta.join(' · ')+'</small>';
-  b.onclick=()=>{box.hidden=true;setMapSearchOpen(false);const lng=+r.longitude,lat=+r.latitude;if(world?.map&&Number.isFinite(lng)&&Number.isFinite(lat)){world.map.easeTo({center:[lng,lat],zoom:17,pitch:62,bearing:-18,duration:700});selectedFeature=null;showBuilding(lng,lat)}};
+  b.innerHTML='<b>'+String(r.full_address||r.geocoder_address||r.display_label||'Property / parcel').replace(/[<>&]/g,'')+'</b><small>'+meta.join(' · ')+'</small>';
+  b.onclick=()=>{box.hidden=true;setMapSearchOpen(false);const lng=+r.longitude,lat=+r.latitude;if(world?.map&&Number.isFinite(lng)&&Number.isFinite(lat)){world.map.easeTo({center:[lng,lat],zoom:17,pitch:62,bearing:-18,duration:700});selectedFeature=null;if(isGlobal)showPropertyOnly(lng,lat);else showBuilding(lng,lat)}};
   box.appendChild(b)
  }
 });
