@@ -275,7 +275,7 @@ function authHeaders(){
   return mode==='owner'&&t?{Authorization:'Bearer '+t}:{};
 }
 function addBoundaryLayers(map,bucket){
-  const min=mode==='owner'?3:7;
+  const min=mode==='owner'?2:7;
   try{if(map.getLayer(LINE))map.removeLayer(LINE)}catch(_){}
   try{if(map.getLayer(GLOW))map.removeLayer(GLOW)}catch(_){}
   try{if(map.getSource(SOURCE))map.removeSource(SOURCE)}catch(_){}
@@ -284,17 +284,17 @@ function addBoundaryLayers(map,bucket){
     id:GLOW,type:'line',source:SOURCE,'source-layer':'parcels',minzoom:min,
     paint:{
       'line-color':'#004cff',
-      'line-opacity':['interpolate',['linear'],['zoom'],3,.78,4,.82,7,.76,9,.64,12,.54,16,.45,20,.36],
-      'line-width':['interpolate',['linear'],['zoom'],3,.95,4,1.25,6,1.7,7,2.25,9,3.2,12,4.1,16,5.6,20,7.2],
-      'line-blur':['interpolate',['linear'],['zoom'],3,.42,4,.65,7,1.15,14,2.2,20,3.0]
+      'line-opacity':['interpolate',['linear'],['zoom'],2,.72,3,.80,4,.82,7,.76,9,.64,12,.54,16,.45,20,.36],
+      'line-width':['interpolate',['linear'],['zoom'],2,.78,3,.95,4,1.25,6,1.7,7,2.25,9,3.2,12,4.1,16,5.6,20,7.2],
+      'line-blur':['interpolate',['linear'],['zoom'],2,.30,3,.42,4,.65,7,1.15,14,2.2,20,3.0]
     }
   });
   map.addLayer({
     id:LINE,type:'line',source:SOURCE,'source-layer':'parcels',minzoom:min,
     paint:{
       'line-color':'#73ffff',
-      'line-opacity':['interpolate',['linear'],['zoom'],3,.88,4,.92,7,1,20,1],
-      'line-width':['interpolate',['linear'],['zoom'],3,.24,4,.34,6,.5,7,.7,9,.95,12,1.2,16,1.65,20,2.25]
+      'line-opacity':['interpolate',['linear'],['zoom'],2,.82,3,.88,4,.92,7,1,20,1],
+      'line-width':['interpolate',['linear'],['zoom'],2,.18,3,.24,4,.34,6,.5,7,.7,9,.95,12,1.2,16,1.65,20,2.25]
     }
   });
 }
@@ -352,7 +352,7 @@ async function openViewer(nextMode='public'){
   document.body.style.overflow='hidden';
   document.getElementById('bpBoundaryTitle5403').textContent=mode==='owner'?'Owner Exact Parcel Boundary Viewer':'Public Parcel Boundary Viewer';
   document.getElementById('bpBoundaryCopy5403').textContent=mode==='owner'
-    ? '3D global terrain parcel atlas. Country coverage labels appear from globe zoom; exact verified parcel lines stream from regional zoom. U.S. state rights colors remain intact while newly materialized global parcel sources join the same boundary layer.'
+    ? 'Owner-only 3D global terrain parcel atlas. U.S. + global verified parcel linework is visible from high-altitude globe zoom and resolves to exact source geometry as you descend. Public users remain limited to the public-enabled U.S. parcel layer.'
     : 'Public U.S. parcel boundary viewer. International parcel geometry and country coverage are owner-backend only.';
 
   if(!window.maplibregl){
@@ -362,7 +362,7 @@ async function openViewer(nextMode='public'){
   if(viewer){try{viewer.remove()}catch(_){} viewer=null}
   const t=token(),mobile=window.innerWidth<=620;
   const start=mode==='owner'
-    ? {center:[-20,33],zoom:mobile?1.55:1.9,pitch:mobile?18:28,bearing:0}
+    ? {center:[-20,33],zoom:mobile?2.05:2.2,pitch:mobile?18:28,bearing:0}
     : {center:[-20,28],zoom:mobile?1.35:1.75,pitch:mobile?12:22,bearing:0};
   viewer=new maplibregl.Map({
     container:'bpBoundaryMap5403',
@@ -412,9 +412,9 @@ async function openViewer(nextMode='public'){
       const z=document.getElementById('bpBoundaryZoom5403');
       const update=()=>{
         if(!z||!viewer)return;
-        const min=mode==='owner'?3:7;
+        const min=mode==='owner'?2:7;
         z.textContent=viewer.getZoom()<min
-          ? 'Owner global coverage overview · country/state labels + 3D terrain · parcel linework begins from high-altitude zoom'
+          ? 'Owner U.S. + global parcel linework · visible from high-altitude globe zoom · exact source geometry refines as you descend'
           : (mode==='owner'?'Owner U.S. + global parcel boundary atlas · 3D terrain · exact lines refine as you zoom':'Public U.S. + global rights-cleared parcel boundaries · 3D terrain');
       };
       update();viewer.on('zoom',update);
