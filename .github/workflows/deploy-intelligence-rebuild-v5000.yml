@@ -206,21 +206,21 @@ jobs:
           echo 'PRIVATE_SURFACES_NOT_PUBLISHED_PASS'
           grep -Fq 'BridgePoint Intelligence pricing' site/pricing/index.html
           grep -Fq 'BridgePoint Intelligence pricing' site/pricing.html
-          grep -Fq '153,532,480' site/index.html
-          grep -Fq '143,787,840' site/index.html
+          grep -Fq '157,421,280' site/index.html
+          grep -Fq '145,921,760' site/index.html
           node --check site/app.js
           grep -Fq 'package-entitlements' site/app.js
           grep -Fq 'VIEW ALL ' site/app.js
           grep -Fq 'package-feature-toggle' site/styles.css
           node --check site/parcel-boundary-viewer-v5403.js
           node --check site/landing.js
-          grep -Fq 'parcel-boundary-viewer-v5403.js?v=5585' site/index.html
-          grep -Fq 'parcel-boundary-viewer-v5403.js?v=5585' site/app/index.html
+          grep -Fq 'parcel-boundary-viewer-v5403.js?v=5751' site/index.html
+          grep -Fq 'parcel-boundary-viewer-v5403.js?v=5751' site/app/index.html
           node --check site/intelligence-global-v5507.js
           node --check site/global-property-v957.js
           grep -Fq 'bridgepoint_public_global_status_v957' site/global-property-v957.js
-          grep -Fq '/global-property-v957.js?v=957' site/index.html
-          grep -Fq '/global-property-v957.js?v=957' site/app/index.html
+          grep -Fq '/global-property-v957.js?v=975' site/index.html
+          grep -Fq '/global-property-v957.js?v=975' site/app/index.html
           grep -Fq 'landingGlobalProperties' site/index.html
           node --check site/intelligence-tools-v5507.js
           node -e "const fs=require('fs');let s=fs.readFileSync('site/intelligence-tools-v5507.js','utf8').split('\\n').filter(x=>!x.startsWith('import')).join('\\n');new Function(s);"
