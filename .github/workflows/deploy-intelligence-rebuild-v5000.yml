@@ -121,6 +121,7 @@ jobs:
           cp rebuild-v5000/sw.js site/sw.js
           cp rebuild-v5000/intelligence-v5507.css site/intelligence-v5507.css
           cp rebuild-v5000/intelligence-global-v5507.js site/intelligence-global-v5507.js
+          cp rebuild-v5000/global-property-v957.js site/global-property-v957.js
           cp rebuild-v5000/intelligence-tools-v5507.js site/intelligence-tools-v5507.js
           cp rebuild-v5000/road-drive-v5527.js site/road-drive-v5527.js
           cp rebuild-v5000/road-drive-v5527.css site/road-drive-v5527.css
@@ -216,6 +217,11 @@ jobs:
           grep -Fq 'parcel-boundary-viewer-v5403.js?v=5585' site/index.html
           grep -Fq 'parcel-boundary-viewer-v5403.js?v=5585' site/app/index.html
           node --check site/intelligence-global-v5507.js
+          node --check site/global-property-v957.js
+          grep -Fq 'bridgepoint_public_global_status_v957' site/global-property-v957.js
+          grep -Fq '/global-property-v957.js?v=957' site/index.html
+          grep -Fq '/global-property-v957.js?v=957' site/app/index.html
+          grep -Fq 'landingGlobalProperties' site/index.html
           node --check site/intelligence-tools-v5507.js
           node -e "const fs=require('fs');let s=fs.readFileSync('site/intelligence-tools-v5507.js','utf8').split('\\n').filter(x=>!x.startsWith('import')).join('\\n');new Function(s);"
           node --check site/road-drive-v5527.js
