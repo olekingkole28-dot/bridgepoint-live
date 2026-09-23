@@ -10,9 +10,11 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 VERSION=5631
+HERE=Path(__file__).resolve().parent
 DATA=Path(os.environ.get("BRIDGEPOINT_DATA_ROOT",r"C:\BridgePointData"))
 SNAP=DATA/"snapshots"
 ATLAS=DATA/"atlas"
+TOPO=HERE/"us-state-boundaries-census.topo.json"
 DB=ATLAS/"parcel_atlas.sqlite"
 HOST="127.0.0.1"; PORT=8766
 MAX_FEATURES=7000
@@ -209,12 +211,16 @@ HTML=r"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" 
 <div class="stats" id="stats"></div><div class="legend">Green = full state rescue · gold = core rescue · blue = partial. Exact parcel lines appear from local index and refine as you zoom.</div>
 <button class="btn" onclick="reloadNow()">Refresh local lines</button><button class="btn" onclick="printSheet()">Open printable SVG sheet</button>
 <div id="states"></div></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script><script>
 const map=L.map('map',{minZoom:3,maxZoom:20,preferCanvas:true}).setView([39.3,-98.5],4);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'Base map © OpenStreetMap contributors'}).addTo(map);
+let stateLayer=null,coverageMap={};
+function stateStyle(f){const s=f?.properties?.STUSPS10||'';const x=coverageMap[s]||{};return {color:x.complete?'#56e98f':(x.core?'#e9c956':(x.started?'#64a8e9':'#77838a')),weight:1.25,opacity:.9,fill:false}}
+fetch('/states.topo.json').then(r=>r.ok?r.json():null).then(t=>{if(!t||!window.topojson)return;const obj=t.objects.state||Object.values(t.objects)[0];stateLayer=L.geoJSON(topojson.feature(t,obj),{style:stateStyle}).addTo(map)}).catch(()=>{});
 const persistent=L.geoJSON([], {style:{color:'#73ffff',weight:1,opacity:.92,fill:false},onEachFeature:(f,l)=>l.bindPopup((f.properties?.state_code||'')+' '+(f.properties?.parcel_number||''))}).addTo(map);
 const seen=new Set(); let busy=false;
-async function boot(){const r=await fetch('/api/status',{cache:'no-store'});const s=await r.json();
+async function boot(){const r=await fetch('/api/status',{cache:'no-store'});const s=await r.json();coverageMap=Object.fromEntries(s.coverage.map(x=>[x.state,x]));if(stateLayer)stateLayer.setStyle(stateStyle);
  document.getElementById('stats').innerHTML='<span>'+s.indexed_parcels.toLocaleString()+' parcels indexed</span><span>'+s.states_started+'/56 started</span><span>'+s.states_core+'/56 core-safe</span><span>'+s.states_complete+'/56 full</span>';
  document.getElementById('states').innerHTML=s.coverage.map(x=>'<span class="s '+(x.complete?'full':x.core?'core':x.started?'partial':'')+'" title="'+x.parcel_files+' parcel files">'+x.state+'</span>').join('');
 }
@@ -249,6 +255,9 @@ class H(BaseHTTPRequestHandler):
         try:
             if u.path in ("/","/index.html"): return self.send_bytes(HTML,"text/html; charset=utf-8")
             if u.path=="/api/status": return self.send_bytes(json.dumps(status()))
+            if u.path=="/states.topo.json":
+                if TOPO.exists(): return self.send_bytes(TOPO.read_bytes(),"application/json")
+                return self.send_bytes('{"error":"state topology not installed"}',code=404)
             if u.path=="/api/parcels":
                 w=float(q["w"][0]);s=float(q["s"][0]);e=float(q["e"][0]);n=float(q["n"][0]); lim=int(q.get("limit",["7000"])[0])
                 fs=query_parcels(w,s,e,n,lim)
