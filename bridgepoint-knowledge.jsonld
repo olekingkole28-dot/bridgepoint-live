@@ -37,17 +37,17 @@
         {
           "@type": "PropertyValue",
           "name": "Canonical property/parcel identity records",
-          "value": 170604827
+          "value": 170605127
         },
         {
           "@type": "PropertyValue",
           "name": "Materialized boundary estimate",
-          "value": 83881564
+          "value": 84510335
         },
         {
           "@type": "PropertyValue",
           "name": "Normalized/public address records",
-          "value": 157417732
+          "value": 157419857
         },
         {
           "@type": "PropertyValue",
