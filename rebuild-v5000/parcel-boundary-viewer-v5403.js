@@ -2,7 +2,7 @@
 'use strict';
 
 const FN='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403';
-const VERSION=5585;
+const VERSION=5631;
 const SOURCE='bp-boundary-viewer-v5403';
 const GLOW='bp-boundary-glow-v5403';
 const LINE='bp-boundary-line-v5403';
@@ -307,7 +307,7 @@ async function openViewer(nextMode='public'){
   document.body.style.overflow='hidden';
   document.getElementById('bpBoundaryTitle5403').textContent=mode==='owner'?'Owner Exact Parcel Boundary Viewer':'Public Parcel Boundary Viewer';
   document.getElementById('bpBoundaryCopy5403').textContent=mode==='owner'
-    ? 'Green = BridgePoint public-display gate enabled. Red = keep parcel geometry owner-only. Owner parcel lines render from high regional zoom for promotion-safe review; tap a state for the current reason.'
+    ? 'Green = BridgePoint public-display gate enabled. Red = keep parcel geometry owner-only. Owner mode is locked to the parcel-safe national scale so boundary linework stays active while you zoom in; loaded lines remain visible while neighboring tiles stream.'
     : 'Starts at a U.S. overview. Green states have public boundary display enabled by BridgePoint source-rights metadata; red states are withheld from the public parcel layer. Tap a state for the reason.';
 
   if(!window.maplibregl){
@@ -317,7 +317,7 @@ async function openViewer(nextMode='public'){
   if(viewer){try{viewer.remove()}catch(_){} viewer=null}
   const t=token(),mobile=window.innerWidth<=620;
   const start=mode==='owner'
-    ? {center:[-98.5,39.5],zoom:mobile?3.95:4.18,pitch:0,bearing:0}
+    ? {center:[-98.5,39.5],zoom:mobile?4.05:4.18,pitch:0,bearing:0}
     : {center:[-98.5,39.2],zoom:mobile?2.35:3.05,pitch:0,bearing:0};
   viewer=new maplibregl.Map({
     container:'bpBoundaryMap5403',
@@ -326,15 +326,15 @@ async function openViewer(nextMode='public'){
     zoom:start.zoom,
     pitch:start.pitch,
     bearing:start.bearing,
-    minZoom:1.8,
+    minZoom:mode==='owner'?4:1.8,
     maxZoom:22,
     maxPitch:85,
     projection:{type:'mercator'},
     antialias:false,
     fadeDuration:0,
     renderWorldCopies:false,
-    maxTileCacheSize:mobile?56:120,
-    cancelPendingTileRequestsWhileZooming:true,
+    maxTileCacheSize:mobile?72:180,
+    cancelPendingTileRequestsWhileZooming:false,
     attributionControl:false,
     transformRequest:(url)=>{
       if(mode==='owner'&&url.includes('bridgepoint-parcel-boundary-tile-v5403')&&t){
@@ -367,8 +367,8 @@ async function openViewer(nextMode='public'){
         if(!z||!viewer)return;
         const min=mode==='owner'?4:7;
         z.textContent=viewer.getZoom()<min
-          ? (mode==='owner'?'Zoom in slightly to stream owner parcel lines':'State availability overview · public parcel lines begin at regional zoom')
-          : (mode==='owner'?'Owner exact parcel boundaries · thousands of lines remain visible from high zoom':'Public rights-cleared parcel boundaries · neon blue');
+          ? 'State availability overview · public parcel lines begin at regional zoom'
+          : (mode==='owner'?'Owner parcel boundary atlas · persistent line cache · exact lines refine as you zoom':'Public rights-cleared parcel boundaries · neon blue');
       };
       update();viewer.on('zoom',update);
       if(lastStateRows.length){try{await syncStateOverlay(viewer,lastStateRows)}catch(e){console.warn('boundary state overlay retry',e)}}
@@ -389,12 +389,12 @@ async function openViewer(nextMode='public'){
   setTimeout(()=>void finalizeViewer('boot-fallback'),120);
   setTimeout(()=>void finalizeViewer('boot-fallback-late'),900);
   clearInterval(refreshTimer);
+  // Keep the current tile URL stable during a viewing session. Replacing it every 20s
+  // invalidated visible tiles and could make parcel lines blink while replacements loaded.
   refreshTimer=setInterval(()=>{
     if(!viewer||document.getElementById('bpBoundaryViewer5403')?.hidden)return;
-    const src=viewer.getSource(SOURCE);
-    if(src?.setTiles)src.setTiles([tileUrl(Math.floor(Date.now()/20000))]);
     viewer.triggerRepaint?.();
-  },20000);
+  },60000);
   clearInterval(statusTimer);statusTimer=setInterval(refreshStatus,30000);
 }
 
