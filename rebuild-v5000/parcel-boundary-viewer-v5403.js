@@ -10,7 +10,12 @@ const STATE_SOURCE='bp-boundary-state-status-v5576';
 const STATE_FILL='bp-boundary-state-fill-v5576';
 const STATE_LINE='bp-boundary-state-line-v5576';
 const STATE_LABEL='bp-boundary-state-label-v5576';
+const GLOBAL_SOURCE='bp-boundary-global-status-v5750';
+const GLOBAL_DOT='bp-boundary-global-dot-v5750';
+const GLOBAL_LABEL='bp-boundary-global-label-v5750';
+const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 let viewer=null, refreshTimer=null, statusTimer=null, mode='public';
+let lastGlobalRows=[];
 
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function token(){
@@ -46,14 +51,19 @@ function boundaryStyle(){
     version:8,
     glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
     sources:{
-      ofm:{type:'vector',tiles:[OFM_BOUNDARY],minzoom:0,maxzoom:14,attribution:'OpenFreeMap © OpenMapTiles · © OpenStreetMap contributors'}
+      ofm:{type:'vector',tiles:[OFM_BOUNDARY],minzoom:0,maxzoom:14,attribution:'OpenFreeMap © OpenMapTiles · © OpenStreetMap contributors'},
+      dem:{type:'raster-dem',tiles:[DEM],tileSize:256,maxzoom:15,encoding:'terrarium',attribution:'Mapzen Terrain Tiles · AWS Open Data'}
     },
+    terrain:{source:'dem',exaggeration:1.12},
     layers:[
       {id:'bp-boundary-bg-v5576',type:'background',paint:{'background-color':'#061017'}},
       {id:'bp-boundary-water-v5576',type:'fill',source:'ofm','source-layer':'water',paint:{'fill-color':'#0b3044','fill-opacity':.96}},
+      {id:'bp-boundary-hillshade-v5750',type:'hillshade',source:'dem',minzoom:2,paint:{'hillshade-exaggeration':.62,'hillshade-shadow-color':'#0b1112','hillshade-highlight-color':'#d7d2b8','hillshade-accent-color':'#60706b'}},
       {id:'bp-boundary-road-v5576',type:'line',source:'ofm','source-layer':'transportation',minzoom:5.5,filter:['in',['get','class'],['literal',['motorway','trunk','primary','secondary']]],paint:{'line-color':'#53717c','line-width':['interpolate',['linear'],['zoom'],5.5,.25,10,1.1,16,3.2],'line-opacity':.34}},
       {id:'bp-boundary-country-v5576',type:'line',source:'ofm','source-layer':'boundary',minzoom:1,filter:['==',['get','admin_level'],2],paint:{'line-color':'#dffaff','line-width':['interpolate',['linear'],['zoom'],1,.55,4,1.05,10,1.8],'line-opacity':.88}},
-      {id:'bp-boundary-state-base-v5576',type:'line',source:'ofm','source-layer':'boundary',minzoom:1,filter:['==',['get','admin_level'],4],paint:{'line-color':'#8fb6c1','line-width':['interpolate',['linear'],['zoom'],1,.22,4,.65,10,1.35],'line-opacity':.7}}
+      {id:'bp-boundary-state-base-v5576',type:'line',source:'ofm','source-layer':'boundary',minzoom:1,filter:['==',['get','admin_level'],4],paint:{'line-color':'#8fb6c1','line-width':['interpolate',['linear'],['zoom'],1,.22,4,.65,10,1.35],'line-opacity':.7}},
+      {id:'bp-boundary-country-label-v5750',type:'symbol',source:'ofm','source-layer':'place',minzoom:0,maxzoom:6.5,filter:['==',['get','class'],'country'],layout:{'text-field':['coalesce',['get','name:en'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],0,8,2,10,4,12.5,6,14],'text-allow-overlap':false,'text-padding':4},paint:{'text-color':'#e9fbff','text-halo-color':'rgba(2,9,13,.96)','text-halo-width':1.35,'text-opacity':.86}},
+      {id:'bp-boundary-admin-label-v5750',type:'symbol',source:'ofm','source-layer':'place',minzoom:3,maxzoom:8,filter:['in',['get','class'],['literal',['state','province','region']]],layout:{'text-field':['coalesce',['get','name:en'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],3,8,5,10,8,12],'text-allow-overlap':false,'text-padding':3},paint:{'text-color':'#b9d9df','text-halo-color':'rgba(2,9,13,.96)','text-halo-width':1.15,'text-opacity':.78}}
     ]
   };
 }
@@ -145,6 +155,37 @@ function bindStatePopup(map){
     const html='<b>'+esc(name)+' · '+esc(p.state_code||'')+'</b><em class="'+(ok?'ok':'hold')+'">'+(ok?'PUBLIC DISPLAY ENABLED':'NOT PUBLIC-ENABLED')+'</em><div>'+esc(p.reason||'')+'</div><small>This reflects BridgePoint source-rights metadata and publishing policy; it is not a statement that state law itself prohibits publication.</small>';
     new maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'330px',className:'bp-boundary-state-popup'}).setLngLat(e.lngLat).setHTML(html).addTo(map);
   });
+}
+function globalCoverageData(rows){
+  return{type:'FeatureCollection',features:(rows||[]).filter(r=>Number.isFinite(Number(r?.center_lon))&&Number.isFinite(Number(r?.center_lat))&&Number(r?.boundaries)>0).map(r=>({
+    type:'Feature',
+    properties:{
+      country_code:String(r.country_code||'').trim(),
+      boundaries:Number(r.boundaries||0),
+      canonicals:Number(r.canonicals||0),
+      boundaries_fmt:fmt(r.boundaries),
+      canonicals_fmt:fmt(r.canonicals),
+      public_enabled:r.public_enabled===true
+    },
+    geometry:{type:'Point',coordinates:[Number(r.center_lon),Number(r.center_lat)]}
+  }))};
+}
+function syncGlobalOverlay(map,rows){
+  if(!map)return;
+  const data=globalCoverageData(rows);
+  const src=map.getSource(GLOBAL_SOURCE);
+  if(src?.setData)src.setData(data); else map.addSource(GLOBAL_SOURCE,{type:'geojson',data});
+  if(!map.getLayer(GLOBAL_DOT))map.addLayer({id:GLOBAL_DOT,type:'circle',source:GLOBAL_SOURCE,minzoom:1,maxzoom:7,paint:{
+    'circle-radius':['interpolate',['linear'],['zoom'],1,3.5,3,5,5,7.5,7,10],
+    'circle-color':['case',['get','public_enabled'],'#27ed89','#27d9ff'],
+    'circle-opacity':.9,'circle-stroke-color':'#eaffff','circle-stroke-width':1.1
+  }});
+  if(!map.getLayer(GLOBAL_LABEL))map.addLayer({id:GLOBAL_LABEL,type:'symbol',source:GLOBAL_SOURCE,minzoom:1,maxzoom:7,layout:{
+    'text-field':['concat',['get','country_code'],' · ',['get','boundaries_fmt'],' parcels'],
+    'text-font':['Noto Sans Regular'],
+    'text-size':['interpolate',['linear'],['zoom'],1,8,3,10,5,12,7,13],
+    'text-offset':[0,1.25],'text-anchor':'top','text-allow-overlap':false,'text-padding':3
+  },paint:{'text-color':'#dffcff','text-halo-color':'rgba(2,9,13,.98)','text-halo-width':1.25}});
 }
 async function syncStateOverlay(map,rows){
   if(!map)return;
@@ -265,15 +306,18 @@ async function refreshStatus(){
     if(!r.ok)throw new Error(d.error||'status failed');
     const s=d.status||{};
     lastStateRows=Array.isArray(s.states)?s.states:[];
+    lastGlobalRows=Array.isArray(s.global?.countries)?s.global.countries:[];
     let stateError='';
     if(viewer){
       try{await syncStateOverlay(viewer,lastStateRows)}catch(e){stateError=String(e?.message||e)}
+      try{syncGlobalOverlay(viewer,lastGlobalRows)}catch(e){stateError=stateError||String(e?.message||e)}
     }
     const publicCount=lastStateRows.filter(x=>x.public_enabled===true).length;
     const denominator=stateFeatureCount?(' / '+fmt(stateFeatureCount)):'';
+    const gb=Number(s.global?.global_boundaries||0),gc=Number(s.global?.global_canonicals||0),gCountries=lastGlobalRows.filter(x=>Number(x.boundaries||0)>0).length;
     box.innerHTML=mode==='owner'
-      ? '<span>Parcel counter '+fmt(s.parcel_counter_total)+'</span><span>Market canonical '+fmt(s.market_canonical_total)+'</span><span>Approved boundary sources '+fmt(s.active_boundary_candidates)+'</span><span>Public-enabled jurisdictions '+fmt(publicCount)+denominator+'</span>'
-      : '<span>Parcel counter '+fmt(s.parcel_counter_total)+'</span><span>Public-display sources '+fmt(s.public_display_candidates)+'</span><span>Public-enabled jurisdictions '+fmt(publicCount)+denominator+'</span>';
+      ? '<span>U.S. parcel counter '+fmt(s.parcel_counter_total)+'</span><span>U.S. market canonical '+fmt(s.market_canonical_total)+'</span><span>Global parcel boundaries '+fmt(gb)+'</span><span>Global canonicals '+fmt(gc)+'</span><span>Countries materialized '+fmt(gCountries)+'</span><span>Approved U.S. boundary sources '+fmt(s.active_boundary_candidates)+'</span><span>Public-enabled U.S. jurisdictions '+fmt(publicCount)+denominator+'</span>'
+      : '<span>U.S. parcel counter '+fmt(s.parcel_counter_total)+'</span><span>Global public boundaries '+fmt(gb)+'</span><span>Countries with public materialized parcels '+fmt(gCountries)+'</span><span>Public-display U.S. sources '+fmt(s.public_display_candidates)+'</span><span>Public-enabled U.S. jurisdictions '+fmt(publicCount)+denominator+'</span>';
     if(stateError)box.innerHTML+='<span>State overlay retrying · '+esc(stateError)+'</span>';
   }catch(e){
     box.innerHTML='<span>'+esc(e.message||e)+'</span>';
@@ -307,8 +351,8 @@ async function openViewer(nextMode='public'){
   document.body.style.overflow='hidden';
   document.getElementById('bpBoundaryTitle5403').textContent=mode==='owner'?'Owner Exact Parcel Boundary Viewer':'Public Parcel Boundary Viewer';
   document.getElementById('bpBoundaryCopy5403').textContent=mode==='owner'
-    ? 'Green = BridgePoint public-display gate enabled. Red = keep parcel geometry owner-only. Owner mode is locked to the parcel-safe national scale so boundary linework stays active while you zoom in; loaded lines remain visible while neighboring tiles stream.'
-    : 'Starts at a U.S. overview. Green states have public boundary display enabled by BridgePoint source-rights metadata; red states are withheld from the public parcel layer. Tap a state for the reason.';
+    ? '3D global terrain parcel atlas. Country coverage labels appear from globe zoom; exact verified parcel lines stream from regional zoom. U.S. state rights colors remain intact while newly materialized global parcel sources join the same boundary layer.'
+    : '3D global parcel coverage overview. Public-enabled countries appear from globe zoom; exact public rights-cleared parcel lines stream as you zoom in. U.S. state rights colors remain intact.';
 
   if(!window.maplibregl){
     document.getElementById('bpBoundaryCounts5403').innerHTML='<span>Map engine failed to load. Refresh the app and retry.</span>';
@@ -317,8 +361,8 @@ async function openViewer(nextMode='public'){
   if(viewer){try{viewer.remove()}catch(_){} viewer=null}
   const t=token(),mobile=window.innerWidth<=620;
   const start=mode==='owner'
-    ? {center:[-98.5,39.5],zoom:mobile?4.05:4.18,pitch:0,bearing:0}
-    : {center:[-98.5,39.2],zoom:mobile?2.35:3.05,pitch:0,bearing:0};
+    ? {center:[-20,33],zoom:mobile?1.55:1.9,pitch:mobile?18:28,bearing:0}
+    : {center:[-20,28],zoom:mobile?1.35:1.75,pitch:mobile?12:22,bearing:0};
   viewer=new maplibregl.Map({
     container:'bpBoundaryMap5403',
     style:boundaryStyle(),
@@ -326,10 +370,10 @@ async function openViewer(nextMode='public'){
     zoom:start.zoom,
     pitch:start.pitch,
     bearing:start.bearing,
-    minZoom:mode==='owner'?4:1.8,
+    minZoom:1.15,
     maxZoom:22,
     maxPitch:85,
-    projection:{type:'mercator'},
+    projection:{type:'globe'},
     antialias:false,
     fadeDuration:0,
     renderWorldCopies:false,
@@ -361,14 +405,16 @@ async function openViewer(nextMode='public'){
       const styleReady=viewer.isStyleLoaded?.()===true||((viewer.getStyle?.()?.layers?.length||0)>0);
       if(!styleReady){clearTimeout(viewerFinalizeTimer);viewerFinalizeTimer=setTimeout(()=>void finalizeViewer('style-retry'),250);return false}
       viewerFinalized=true;
+      try{if(viewer.getSource('dem'))viewer.setTerrain?.({source:'dem',exaggeration:1.12})}catch(e){console.warn('boundary terrain',e)}
       addBoundaryLayers(viewer,Math.floor(Date.now()/20000));
+      if(lastGlobalRows.length)try{syncGlobalOverlay(viewer,lastGlobalRows)}catch(e){console.warn('global coverage overlay',e)}
       const z=document.getElementById('bpBoundaryZoom5403');
       const update=()=>{
         if(!z||!viewer)return;
         const min=mode==='owner'?4:7;
         z.textContent=viewer.getZoom()<min
-          ? 'State availability overview · public parcel lines begin at regional zoom'
-          : (mode==='owner'?'Owner parcel boundary atlas · persistent line cache · exact lines refine as you zoom':'Public rights-cleared parcel boundaries · neon blue');
+          ? 'Global coverage overview · country/state labels + 3D terrain · exact parcel lines begin at regional zoom'
+          : (mode==='owner'?'Owner U.S. + global parcel boundary atlas · 3D terrain · exact lines refine as you zoom':'Public U.S. + global rights-cleared parcel boundaries · 3D terrain');
       };
       update();viewer.on('zoom',update);
       if(lastStateRows.length){try{await syncStateOverlay(viewer,lastStateRows)}catch(e){console.warn('boundary state overlay retry',e)}}
