@@ -133,7 +133,7 @@ function install(map){
 }
 async function boot(){
  void status().catch(e=>console.warn('BridgePoint global status',e));
- clearInterval(state.statusTimer);state.statusTimer=setInterval(()=>void status().catch(()=>{}),60000);
+ clearInterval(state.statusTimer);state.statusTimer=setInterval(()=>void status().catch(()=>{}),15000);
  for(let i=0;i<100;i++){
   const m=currentMap();
   if(m){install(m);return}
