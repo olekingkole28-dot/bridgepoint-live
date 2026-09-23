@@ -14,13 +14,15 @@ function setStatus(msg){const e=$('ownerActionStatus');if(e)e.textContent=msg}
 function renderKPIs(){
  const a=hub?.acquisition||{},t=a.totals||{},la=hub?.live_activity||{},on=hub?.online||{},ev=hub?.everything||{};
  const online=arr(on.online_users).length||Number(la.active_users_15m||0), workers=arr(ev.worker_tasks), running=workers.filter(x=>['RUNNING','ACTIVE','WORKING'].includes(String(x.status).toUpperCase())).length;
+ const issueRows=workers.filter(x=>/FAIL|ERROR|BLOCK/i.test(String(x.status))), cutoff=Date.now()-86400000;
+ const currentIssues=issueRows.filter(x=>{const ts=Date.parse(x.updated_at||x.last_activity_at||x.created_at||'');return Number.isFinite(ts)&&ts>=cutoff}).length, retainedIssues=Math.max(0,issueRows.length-currentIssues);
  const vals=[
   ['Visitors',pick(t,'unique_visitors','visitors','visitor_count')||0,'selected window'],
   ['Events',pick(t,'events','event_count','total_events')||0,'selected window'],
   ['Accounts',la.total_users||0,'registered'],
   ['Online',online,'recent session activity'],
   ['Workers running',running,'backend queue'],
-  ['Open failures',workers.filter(x=>/FAIL|ERROR|BLOCK/i.test(String(x.status))).length,'worker tasks']
+  ['Current blockers',currentIssues,retainedIssues?fmt(retainedIssues)+' older retained':'updated in last 24h']
  ];
  $('ownerKpis').innerHTML=vals.map(([a,b,c])=>'<div class="owner-kpi"><span>'+esc(a)+'</span><b>'+fmt(b)+'</b><small>'+esc(c)+'</small></div>').join('');
 }
@@ -115,7 +117,7 @@ async function loadBackendSections(force=false){
    }catch(e){fail++;console.warn('owner backend section',section,e)}
   }));
   lastBackendLoad=Date.now();
-  if(fail) setStatus('Live owner numbers loaded. '+ok+' backend sections live; '+fail+' section'+(fail===1?' is':'s are')+' retrying independently.');
+  if(fail) setStatus('Live owner numbers loaded. '+ok+' backend sections live; '+fail+' dashboard section refresh'+(fail===1?'':'es')+' failed this cycle and will retry automatically.');
   else setStatus('Live owner backend connected. Numbers refresh every 30 seconds; backend tables refresh every 45 seconds.');
  }finally{backendLoading=false}
 }
@@ -150,8 +152,8 @@ async function loadHub(force=false){
     fail++;console.warn('owner live module',key,e);
    }
   }));
-  if(ok===0)setStatus('Owner live modules are retrying independently. The page will stay open instead of timing out as one block.');
-  else if(fail)setStatus(ok+' live owner modules loaded; '+fail+' module'+(fail===1?' is':'s are')+' retrying independently.');
+  if(ok===0)setStatus('Owner dashboard modules did not refresh this cycle. The page stays available and retries automatically.');
+  else if(fail)setStatus(ok+' live owner modules loaded; '+fail+' dashboard module refresh'+(fail===1?'':'es')+' failed this cycle and will retry automatically.');
   else setStatus('Live owner numbers connected. Loading backend worker/source tables…');
  }finally{
   loading=false;
