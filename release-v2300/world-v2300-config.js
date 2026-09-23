@@ -1,6 +1,7 @@
 export const VERSION=2300;
-export const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
-export const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+export const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localhost';
+export const SUPA=LOCAL_RUNTIME?location.origin:'https://xdfsjztwgsbmabshzsjw.supabase.co';
+export const KEY=LOCAL_RUNTIME?'bridgepoint-local':'sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 export const RPC=`${SUPA}/rest/v1/rpc/`;
 export const EDGE=`${SUPA}/functions/v1/`;
 export const EMPTY={type:'FeatureCollection',features:[]};
