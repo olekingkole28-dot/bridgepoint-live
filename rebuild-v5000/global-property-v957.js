@@ -28,7 +28,7 @@ function updateCounters(d){
  const total=document.getElementById('landingGlobalProperties');
  if(total)total.textContent=fmt(d?.active_global_canonical);
  const sub=document.getElementById('landingGlobalCountryMix');
- const countries=(d?.countries||[]).filter(x=>Number(x.active_canonical)>0).sort((a,b)=>Number(b.active_canonical)-Number(a.active_canonical));
+ const countries=(d?.countries||[]).filter(x=>Number(x.active_canonical)>0||Number(x.building_footprints)>0||Number(x.addresses)>0||Number(x.roof_records)>0).sort((a,b)=>(Number(b.active_canonical)+Number(b.building_footprints)+Number(b.addresses)+Number(b.roof_records))-(Number(a.active_canonical)+Number(a.building_footprints)+Number(a.addresses)+Number(a.roof_records)));
  if(sub){
   const head=countries.slice(0,3).map(x=>countryName(x.country_code)+' '+fmt(x.active_canonical));
   if(countries.length>3)head.push('+'+(countries.length-3)+' more');
@@ -41,8 +41,9 @@ function updateCounters(d){
   for(const x of countries){
    const row=document.createElement('div'),name=document.createElement('span'),count=document.createElement('b'),meta=document.createElement('small');
    name.textContent=countryName(x.country_code)+' · '+String(x.country_code||'');
-   count.textContent=fmt(x.active_canonical);
-   meta.textContent=fmt(x.materialized_boundary_rows||x.with_boundary||0)+' boundaries';
+   const canon=Number(x.active_canonical||0),buildings=Number(x.building_footprints||0),addresses=Number(x.addresses||0),roofs=Number(x.roof_records||0);
+   count.textContent=canon>0?fmt(canon)+' canonical':buildings>0?fmt(buildings)+' buildings':addresses>0?fmt(addresses)+' addresses':fmt(roofs)+' roofs';
+   meta.textContent=[Number(x.materialized_boundary_rows||x.with_boundary||0)>0?fmt(x.materialized_boundary_rows||x.with_boundary)+' boundaries':'',buildings>0?fmt(buildings)+' buildings':'',addresses>0?fmt(addresses)+' addresses':'',roofs>0?fmt(roofs)+' roofs':''].filter(Boolean).join(' · ');
    row.append(name,count,meta);list.appendChild(row);
   }
   if(!countries.length){const row=document.createElement('div');row.textContent='International materialization starting…';list.appendChild(row)}
