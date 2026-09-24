@@ -61,9 +61,36 @@ function renderWorkflow(){const h=$('workflowWorkspace');if(!h)return;if(!worksp
 async function loadWorkspace(force=false){if(workspaceLoading&&!force)return workspaceLoading;const s=await ensureAuth();if(!s){workspaceLast=null;accessStateLast=null;renderAccessBanner();renderWorkspaceSignedOut();renderPackages();return null}workspaceLoading=(async()=>{try{await loadAccessState();workspaceLast=await authRpc('bridgepoint_my_workspace_v5045',{},15000);const p=workspaceLast?.access?.packages||[];setText('authAccessSummary',p.length?p.map(x=>x.package_name).join(' · '):(workspaceLast?.access?.platform_override?'Platform owner override':'No active package'));renderPackages();renderSaved();renderClaims();renderWorkflow();return workspaceLast}catch(e){console.warn('workspace',e);toast('Workspace retry · '+String(e.message||e),'error');return null}finally{workspaceLoading=null}})();return workspaceLoading}
 function bindAuthUI(){$('accountButton')?.addEventListener('click',()=>openAuth());$('closeAuth')?.addEventListener('click',closeAuth);$('authForm')?.addEventListener('submit',async e=>{e.preventDefault();try{await signIn($('authEmail').value.trim(),$('authPassword').value)}catch(err){setText('authMessage',String(err.message||err))}});$('authCreate')?.addEventListener('click',async()=>{try{await createAccount($('authEmail').value.trim(),$('authPassword').value)}catch(err){setText('authMessage',String(err.message||err))}});$('authPasswordToggle')?.addEventListener('click',()=>{const p=$('authPassword'),b=$('authPasswordToggle');if(!p||!b)return;const show=p.type==='password';p.type=show?'text':'password';b.setAttribute('aria-pressed',String(show));b.setAttribute('aria-label',show?'Hide password':'Show password');b.textContent=show?'◎':'◉'});$('authSignOut')?.addEventListener('click',signOut)}
 
-function setText(id,v){const e=$(id);if(e)e.textContent=v}
+const BP_TRUTH_VALUE_ID=/^(authUserEmail|pAddress|pLocation|pParcel|bRecord|bSource|bProvSource|bProvDataset|bProvLicense|bProvOriginal|bProvOriginalUpdated|bProvParcelSource)$/;
+function setText(id,v){const e=$(id);if(e){e.textContent=v;if(BP_TRUTH_VALUE_ID.test(id)){e.classList.add('notranslate');e.setAttribute('translate','no')}}}
 function setBar(id,v){const e=$(id);if(e)e.style.width=pct(v)+'%'}
 let statusLast=null,world=null,statusTimer=null,tileTimer=null,selectedTimer=null,liveContextTimer=null,radarRefreshTimer=null,radarAnimTimer=null,cloudRefreshTimer=null,cloudAnimTimer=null,transportTimer=null,opportunityTimer=null,opportunitySeq=0,semanticTimer=null,semanticBuildTimer=null,semanticSeq=0,measureActive=false,measurePoints=[],xrayRestore=null,mapInteracting=false,performanceDrainTimer=null,performanceRestoreTimer=null,performanceHardReleaseTimer=null,deferredDrainTimer=null,deferredWork=new Map(),transportRuntimeLastAt=0,transportVisible=true,transportSourceUrl=null,liveContextVisible=true,radarFrames=[],radarIndex=0,radarActive='A',cloudFrames=[],cloudIndex=0,cloudActive='A',selectedPoint=null,selectedFeature=null,selectedPropertyId=null,selectedMode='building',buildingRequestSeq=0;
+
+function bpLocaleCode(){try{return window.BridgePointLanguage?.getLocale?.()||localStorage.getItem('bp-language')||document.documentElement.lang||'en'}catch(_){return'en'}}
+function bpMapCode(){const c=bpLocaleCode();if(window.BridgePointLanguage?.mapCode)return window.BridgePointLanguage.mapCode();if(c==='pt-BR')return'pt';if(c==='zh-Hans'||c==='zh-Hant')return'zh';if(c==='tl')return'fil';return String(c).split('-')[0]}
+function bpMapFeatureName(p={}){
+ const c=bpMapCode(),u=String(c).replace(/-/g,'_');
+ for(const k of ['name:'+c,'name_'+u,'name:en','name_en','name','name_int','ref']){const v=p?.[k];if(v!=null&&String(v).trim())return String(v).trim()}
+ return''
+}
+function bpApplyMapLanguage(map=world?.map){
+ if(!map?.getStyle||!map?.setLayoutProperty)return false;
+ const c=bpMapCode(),u=String(c).replace(/-/g,'_');
+ const expr=['coalesce',['get','name:'+c],['get','name_'+u],['get','name:en'],['get','name_en'],['get','name'],''];
+ let changed=0;
+ for(const layer of map.getStyle()?.layers||[]){
+  if(layer?.type!=='symbol')continue;
+  const sl=String(layer['source-layer']||'').toLowerCase();
+  if(sl&&!/^(place|poi|water_name|waterway|transportation_name|aerodrome_label|mountain_peak)$/.test(sl))continue;
+  let currentField=null;try{currentField=map.getLayoutProperty(layer.id,'text-field')}catch(_){}
+  if(!/name/i.test(JSON.stringify(currentField||'')))continue;
+  try{map.setLayoutProperty(layer.id,'text-field',expr);changed++}catch(_){}
+ }
+ window.__BP_MAP_LANGUAGE_V1067__={locale:bpLocaleCode(),map_code:c,layers_updated:changed,at:Date.now()};
+ return changed>0
+}
+window.addEventListener('bridgepoint:languagechange',()=>setTimeout(()=>{bpApplyMapLanguage();try{refreshSemanticLabels()}catch(_){}},80));
+
 let startupInteractiveUntil=0;
 let selectedParcelGeometry=null,selectedBuildingGeometry=null,selectedBuildingRecord=null;
 const pickedState={yaw:-0.62,pitch:0.92,zoom:1,terrainElevation:null,surfaceLabel:'PUBLIC LAND SURFACE',measureMode:false,measurePts:[],topMap:null,topZoom:1,topPanX:0,topPanY:0,topPointers:new Map(),topPinch:0,partFeatures:[],plan:null,pointers:new Map(),lastPinch:0,dragLast:null};
@@ -100,7 +127,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5802');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5615');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -364,15 +391,9 @@ function installSelectedParcelLayer(){
  }catch(e){window.__BP_SELECTED_PARCEL_LAYER_STATE__={ready:false,error:String(e?.message||e),updatedAt:Date.now()};console.warn('parcel selection layer',e);return false}
 }
 function ensureSelectedParcelLayer(geometry){
- const map=world?.map;
- selectedParcelGeometry=null;
- window.__BP_SELECTED_PARCEL_GEOMETRY__=null;
- window.__BP_SELECTED_PARCEL_SOURCE_DATA__={type:'FeatureCollection',features:[]};
- for(const id of ['bpV5001SelectedParcelFill','bpV5001SelectedParcelLine']){try{if(map?.getLayer(id))map.removeLayer(id)}catch(_){}}
- try{const src=map?.getSource('bpV5001SelectedParcel');if(src?.setData)src.setData({type:'FeatureCollection',features:[]})}catch(_){}
- window.__BP_SELECTED_PARCEL_LAYER_STATE__={ready:false,suppressed:true,reason:'DEDICATED_BOUNDARY_VIEWER_ONLY',updatedAt:Date.now()};
- window.__BP_PUBLIC_PARCEL_SURFACE_LOCK_V5802__={version:5801,mainMapGeometry:false,dedicatedBoundaryViewerOnly:true,updatedAt:Date.now()};
- return false
+ const map=world?.map;if(!map||!geometry)return;window.__BP_SELECTED_PARCEL_GEOMETRY__=geometry;
+ if(!map.__bpSelectedParcelStyleBound){map.__bpSelectedParcelStyleBound=true;map.on('styledata',()=>{if(window.__BP_SELECTED_PARCEL_GEOMETRY__)setTimeout(installSelectedParcelLayer,0)})}
+ if(!installSelectedParcelLayer()){setTimeout(installSelectedParcelLayer,80);setTimeout(installSelectedParcelLayer,260);setTimeout(installSelectedParcelLayer,700)}
 }
 function parcelSourceLabel(url){if(!url)return 'Boundary source not attached';try{return new URL(url).hostname.replace(/^www\./,'')}catch(_){return String(url).slice(0,90)}}
 function resetPropertyCard(message='Resolving property identity…'){selectedPropertyId=null;setText('pResolution','RESOLVING');setText('pAddress',message);setText('pLocation','—');setText('pParcel','—');setText('pType','—');setText('pYear','—');setText('pValue','—');setText('pTruthNote','Public-safe identity only; no owner or contact data.');setText('bProvParcelSource','—');resetAdvancedPropertyIntel()}
@@ -430,15 +451,45 @@ async function loadAdvancedPropertyIntel(seq){
  if(calls[2].status==='fulfilled')renderScore(calls[2].value);else setText('pScoreExplanation','Score explanation refresh will retry.');
  if(calls[3].status==='fulfilled')renderImagery(calls[3].value);else{$('pImageryHistory').innerHTML='<div class="hazard-item"><b>Imagery history refresh will retry.</b></div>'}
 }
-function populateProperty(d,drawParcel=true){const parcelSrc=world?.map?.getSource('bpV5001SelectedParcel');if(!d?.resolved){renderPickedInspector();resetPropertyCard('Canonical property not resolved at this point');setText('pResolution','UNRESOLVED');if(!selectedParcelGeometry&&parcelSrc?.setData)parcelSrc.setData({type:'FeatureCollection',features:[]});return}const p=d.property||{};if(p.parcel_geometry){selectedParcelGeometry=p.parcel_geometry;window.__BP_PARCEL_CUTOUT_STATE__={status:'ready',source:'property_detail',at:Date.now()}}selectedPropertyId=p.property_id||null;setText('pResolution',String(p.resolution_method||'CANONICAL').replaceAll('_',' '));setText('pAddress',p.display_address||'Canonical property');setText('pLocation',[p.municipality,p.county,p.state_code,p.country_code,p.postal_code].filter(Boolean).join(' · ')||'Location not published');setText('pParcel',p.parcel_number||'Not published');setText('pType',p.property_type||'Not classified');setText('pYear',p.year_built||'Not published');setText('pValue',p.assessed_total_value!=null?money(p.assessed_total_value):'Not published');setText('pTruthNote',d.truth_notice||'Source-backed property identity. Parcel geometry is not a legal survey.');if(p.boundary_source_url)setText('bProvParcelSource',parcelSourceLabel(p.boundary_source_url)+(p.boundary_allowed_use_scope?' · '+p.boundary_allowed_use_scope:''));selectedParcelGeometry=null;window.__BP_SELECTED_PARCEL_GEOMETRY__=null;if(parcelSrc?.setData)parcelSrc.setData({type:'FeatureCollection',features:[]});window.__BP_PARCEL_CUTOUT_STATE__={status:'suppressed',reason:'DEDICATED_BOUNDARY_VIEWER_ONLY',at:Date.now()};renderPickedInspector()}
+function populateProperty(d,drawParcel=true){const parcelSrc=world?.map?.getSource('bpV5001SelectedParcel');if(!d?.resolved){renderPickedInspector();resetPropertyCard('Canonical property not resolved at this point');setText('pResolution','UNRESOLVED');if(!selectedParcelGeometry&&parcelSrc?.setData)parcelSrc.setData({type:'FeatureCollection',features:[]});return}const p=d.property||{};if(p.parcel_geometry){selectedParcelGeometry=p.parcel_geometry;window.__BP_PARCEL_CUTOUT_STATE__={status:'ready',source:'property_detail',at:Date.now()}}selectedPropertyId=p.property_id||null;setText('pResolution',String(p.resolution_method||'CANONICAL').replaceAll('_',' '));setText('pAddress',p.display_address||'Canonical property');setText('pLocation',[p.municipality,p.county,p.state_code,p.country_code,p.postal_code].filter(Boolean).join(' · ')||'Location not published');setText('pParcel',p.parcel_number||'Not published');setText('pType',p.property_type||'Not classified');setText('pYear',p.year_built||'Not published');setText('pValue',p.assessed_total_value!=null?money(p.assessed_total_value):'Not published');setText('pTruthNote',d.truth_notice||'Source-backed property identity. Parcel geometry is not a legal survey.');if(p.boundary_source_url)setText('bProvParcelSource',parcelSourceLabel(p.boundary_source_url)+(p.boundary_allowed_use_scope?' · '+p.boundary_allowed_use_scope:''));if(p.parcel_geometry)ensureSelectedParcelLayer(p.parcel_geometry);else if(!selectedParcelGeometry&&parcelSrc?.setData)parcelSrc.setData({type:'FeatureCollection',features:[]});renderPickedInspector()}
 function currentSelectedBuildingId(){return Number(selectedBuildingRecord?.building_id||selectedFeature?.properties?.building_id||selectedFeature?.id||0)}
 async function loadParcelCutout(lng,lat,seq){
- selectedParcelGeometry=null;
- window.__BP_SELECTED_PARCEL_GEOMETRY__=null;
- window.__BP_PARCEL_CUTOUT_STATE__={status:'suppressed',reason:'DEDICATED_BOUNDARY_VIEWER_ONLY',buildingId:currentSelectedBuildingId()||null,at:Date.now()};
- setText('bPickedTruth','PARCEL GEOMETRY · BOUNDARY VIEWER ONLY');
- renderPickedInspector();
- return
+ const bid=currentSelectedBuildingId(),anchor=selectedMode==='building'&&selectedBuildingGeometry?(pickedOrigin()||{lng,lat}):{lng,lat};
+ const normalize=(d,source)=>{
+  if(d?.resolved&&d.parcel_geometry)return{d,source};
+  if(d?.resolved&&d.property?.parcel_geometry)return{d:{...d.property,parcel_geometry:d.property.parcel_geometry,source_url:d.property.boundary_source_url,allowed_use_scope:d.property.boundary_allowed_use_scope,area_m2:geometryAreaM2(d.property.parcel_geometry)},source};
+  throw new Error(source+'_UNRESOLVED')
+ };
+ let lastErr=null;
+ for(let attempt=1;attempt<=3;attempt++){
+  if((bid>0&&currentSelectedBuildingId()!==bid)||(bid<=0&&seq!==buildingRequestSeq))return;
+  window.__BP_PARCEL_CUTOUT_STATE__={status:'loading',attempt,buildingId:bid||null,anchor,at:Date.now()};
+  try{
+   let hit=null;
+   // A selected building gives us the strongest, cheapest parcel identity.
+   // Resolve that exact relationship first instead of competing three spatial
+   // queries against each other on mobile. Point/property lookups are fallbacks.
+   if(bid>0){
+    try{hit=normalize(await rpc('bridgepoint_public_building_parcel_cutout_v5415',{p_building_id:bid},5000),'building_cutout')}catch(_){}
+   }
+   if(!hit){
+    try{
+     hit=await Promise.any([
+       rpc('bridgepoint_public_parcel_cutout_v5411',{p_lng:anchor.lng,p_lat:anchor.lat,p_radius_m:140},6000).then(d=>normalize(d,'point_cutout')),
+       rpc('bridgepoint_public_property_detail_v5001',{p_lng:lng,p_lat:lat,p_radius_m:140},6000).then(d=>normalize(d,'property_detail'))
+     ]);
+    }catch(_){}
+   }
+   if(!hit){
+    hit=normalize(await rpc('bridgepoint_public_global_property_detail_v957',{p_lng:anchor.lng,p_lat:anchor.lat,p_radius_m:180},6000),'global_property_detail');
+   }
+   if((bid>0&&currentSelectedBuildingId()!==bid)||(bid<=0&&seq!==buildingRequestSeq))return;const d=hit.d;
+   selectedParcelGeometry=d.parcel_geometry;ensureSelectedParcelLayer(d.parcel_geometry);setText('bProvParcelSource',parcelSourceLabel(d.source_url)+(d.allowed_use_scope?' · '+d.allowed_use_scope:''));setText('bPickedTruth','PARCEL + TERRAIN CUTOUT');
+   window.__BP_PARCEL_CUTOUT_STATE__={status:'ready',attempt,source:hit.source,buildingId:bid||null,areaM2:Number(d.area_m2||geometryAreaM2(d.parcel_geometry)||0),at:Date.now()};
+   renderPickedInspector();return
+  }catch(e){lastErr=e;if((bid>0&&currentSelectedBuildingId()!==bid)||(bid<=0&&seq!==buildingRequestSeq))return;if(selectedParcelGeometry){window.__BP_PARCEL_CUTOUT_STATE__={status:'ready',attempt,source:'property_detail',buildingId:bid||null,areaM2:Number(geometryAreaM2(selectedParcelGeometry)||0),at:Date.now()};renderPickedInspector();return}if(attempt<3)await new Promise(r=>setTimeout(r,attempt*650))}
+ }
+ if((bid>0&&currentSelectedBuildingId()!==bid)||(bid<=0&&seq!==buildingRequestSeq))return;window.__BP_PARCEL_CUTOUT_STATE__={status:'retry',buildingId:bid||null,error:String(lastErr?.message||lastErr||'PARCEL_RESOLVE_FAILED'),at:Date.now()};setText('bPickedTruth','PARCEL SOURCE RETRYING');renderPickedInspector();console.warn('parcel cutout',lastErr)
 }
 async function loadProperty(lng,lat,seq){try{let d=await rpc('bridgepoint_public_property_detail_v5001',{p_lng:lng,p_lat:lat,p_radius_m:140},3500);if(!d?.resolved){try{d=await rpc('bridgepoint_public_global_property_detail_v957',{p_lng:lng,p_lat:lat,p_radius_m:180},4500)}catch(_){}}if(seq!==buildingRequestSeq)return;populateProperty(d);if(d?.global)resetAdvancedPropertyIntel();else void loadAdvancedPropertyIntel(seq)}catch(e){if(seq!==buildingRequestSeq)return;setText('pResolution','RETRY');setText('pTruthNote','Property identity refresh will retry · '+String(e.message||e))}}
 function refreshSelected(){if(mapInteracting){deferredWork.set('selected-refresh',refreshSelected);return}if(!selectedPoint)return;if(selectedMode==='property')showPropertyOnly(selectedPoint.lng,selectedPoint.lat,{silent:true});else showBuilding(selectedPoint.lng,selectedPoint.lat,{silent:true,feature:selectedFeature})}
@@ -475,12 +526,7 @@ async function loadRoofTruth(buildingId,seq){
   renderPickedInspector()
  }catch(e){console.warn('roof truth',e)}
 }
-async function showBuilding(lng,lat,opts={}){const panel=$('buildingPanel'),seq=++buildingRequestSeq,priorBid=currentSelectedBuildingId(),incomingFeature=opts.feature||selectedFeature,incomingBid=Number(incomingFeature?.properties?.building_id||incomingFeature?.id||0),sameBuilding=incomingBid>0&&priorBid===incomingBid,preserveParcel=sameBuilding&&(!!selectedParcelGeometry||['loading','ready'].includes(window.__BP_PARCEL_CUTOUT_STATE__?.status));selectedPoint={lng,lat};selectedFeature=incomingFeature;if(!sameBuilding){clearMapXray();clearBuildingParts();selectedBuildingGeometry=null;selectedBuildingRecord=null;window.__BP_SELECTED_ROOF_TRUTH__=null;window.__BP_XRAY_STATE__={ready:false,status:'loading',buildingId:incomingBid||null,selectionSeq:seq,updatedAt:Date.now()};setText('bXrayMode','LOADING CURRENT BUILDING');setText('bXrayFloors','—');setText('bXrayHeight','—');setText('bXrayParts','—');setText('bXrayUnderground','—');setText('bXrayRoof','—')}if(!preserveParcel){selectedParcelGeometry=null;window.__BP_SELECTED_PARCEL_GEOMETRY__=null;window.__BP_PARCEL_CUTOUT_STATE__={status:'pending',buildingId:incomingBid||null,at:Date.now()}}selectedMode='building';ensureBuildingPanelOpen();const parcelSrc=world?.map?.getSource('bpV5001SelectedParcel');if(!preserveParcel&&parcelSrc?.setData)parcelSrc.setData({type:'FeatureCollection',features:[]});if(!opts.silent&&!sameBuilding)resetPropertyCard();if(!opts.silent){resetContext();if(selectedFeature)prefillBuildingFromFeature(selectedFeature)}if(innerWidth<=760)closeSystem();if(!selectedTimer)selectedTimer=setInterval(()=>queueAfterMap('selected-refresh',refreshSelected),60000);await waitForMapRest();if(seq!==buildingRequestSeq)return;void loadProperty(lng,lat,seq);queueAfterMap('building-context-'+seq,()=>loadContext(lng,lat,seq));queueAfterMap('building-foundation-'+seq,()=>loadFoundation(lng,lat,seq));try{const exactBuildingId=Number(selectedFeature?.properties?.building_id||selectedFeature?.id||0);let d=null,detailErr=null;if(exactBuildingId>0){try{d=await rpc('bridgepoint_public_building_detail_by_id_v5024',{p_building_id:exactBuildingId},7000)}catch(e){detailErr=e}}if(!d?.resolved){try{d=await rpc('bridgepoint_public_building_detail_v5000',{p_lng:lng,p_lat:lat,p_radius_m:140},6500)}catch(e){detailErr=detailErr||e}}if(seq!==buildingRequestSeq)return;if(!d&&detailErr)throw detailErr;if(!d?.resolved){if(!preserveParcel&&!selectedParcelGeometry)void loadParcelCutout(lng,lat,seq);setText('buildingTruthBadge',selectedFeature?'BRIDGEPOINT MAP BUILDING':'NO BUILDING RESOLVED');setText('bTruthNote',selectedFeature?'The clicked BridgePoint geometry is selected, but a deeper structural enrichment record is not linked yet. Tile evidence remains visible without inventing missing fields.':'BridgePoint did not resolve a public building geometry at this point yet.');return}const pc=d.parcel_cutout;
-selectedParcelGeometry=null;
-window.__BP_SELECTED_PARCEL_GEOMETRY__=null;
-window.__BP_PARCEL_CUTOUT_STATE__={status:'suppressed',reason:'DEDICATED_BOUNDARY_VIEWER_ONLY',buildingId:Number(d?.building?.building_id||0)||null,at:Date.now()};
-if(pc?.source_url)setText('bProvParcelSource',parcelSourceLabel(pc.source_url)+(pc.allowed_use_scope?' · '+pc.allowed_use_scope:''));
-const b=d.building||{};loadBuildingParts(b.building_id,seq);setText('buildingTitle','Building #'+b.building_id);setText('buildingTruthBadge',truthLabel(b));setText('bHeight',b.render_height_m?Number(b.render_height_m).toFixed(1)+' m':'—');setText('bFloors',b.floors??'—');setText('bFloorTruth',floorTruth(b.floor_count_method));setText('bParts',fmt(b.building_part_count));setText('bUnderground',b.underground_part_count?fmt(b.underground_part_count)+(b.max_underground_floors?' · '+b.max_underground_floors+' floors':''):'0');setText('bConfidence',b.source_confidence!=null?Math.round(Number(b.source_confidence)*100)+'%':'Not scored by source');setText('bRoof',[b.roof_shape,b.roof_material].filter(Boolean).join(' · ')||'Not published by source');setText('bFacade',b.facade_material||'Not published by source');setText('bSource',b.source_key||'BridgePoint source registry');setText('bSourceDate',sourceAge(b.source_updated_at));setText('bTruthNote',d.truth_notice||'BridgePoint labels derived structure separately from exact public plans.');populateInspector(b,selectedFeature?.geometry,selectedFeature?.properties);void loadRoofTruth(b.building_id,seq)}catch(e){if(seq!==buildingRequestSeq)return;setText('buildingTruthBadge','DETAIL RETRY');setText('bTruthNote',e.message||String(e))}}
+async function showBuilding(lng,lat,opts={}){const panel=$('buildingPanel'),seq=++buildingRequestSeq,priorBid=currentSelectedBuildingId(),incomingFeature=opts.feature||selectedFeature,incomingBid=Number(incomingFeature?.properties?.building_id||incomingFeature?.id||0),sameBuilding=incomingBid>0&&priorBid===incomingBid,preserveParcel=sameBuilding&&(!!selectedParcelGeometry||['loading','ready'].includes(window.__BP_PARCEL_CUTOUT_STATE__?.status));selectedPoint={lng,lat};selectedFeature=incomingFeature;if(!sameBuilding){clearMapXray();clearBuildingParts();selectedBuildingGeometry=null;selectedBuildingRecord=null;window.__BP_SELECTED_ROOF_TRUTH__=null;window.__BP_XRAY_STATE__={ready:false,status:'loading',buildingId:incomingBid||null,selectionSeq:seq,updatedAt:Date.now()};setText('bXrayMode','LOADING CURRENT BUILDING');setText('bXrayFloors','—');setText('bXrayHeight','—');setText('bXrayParts','—');setText('bXrayUnderground','—');setText('bXrayRoof','—')}if(!preserveParcel){selectedParcelGeometry=null;window.__BP_SELECTED_PARCEL_GEOMETRY__=null;window.__BP_PARCEL_CUTOUT_STATE__={status:'pending',buildingId:incomingBid||null,at:Date.now()}}selectedMode='building';ensureBuildingPanelOpen();const parcelSrc=world?.map?.getSource('bpV5001SelectedParcel');if(!preserveParcel&&parcelSrc?.setData)parcelSrc.setData({type:'FeatureCollection',features:[]});if(!opts.silent&&!sameBuilding)resetPropertyCard();if(!opts.silent){resetContext();if(selectedFeature)prefillBuildingFromFeature(selectedFeature)}if(innerWidth<=760)closeSystem();if(!selectedTimer)selectedTimer=setInterval(()=>queueAfterMap('selected-refresh',refreshSelected),60000);await waitForMapRest();if(seq!==buildingRequestSeq)return;void loadProperty(lng,lat,seq);queueAfterMap('building-context-'+seq,()=>loadContext(lng,lat,seq));queueAfterMap('building-foundation-'+seq,()=>loadFoundation(lng,lat,seq));try{const exactBuildingId=Number(selectedFeature?.properties?.building_id||selectedFeature?.id||0);let d=null,detailErr=null;if(exactBuildingId>0){try{d=await rpc('bridgepoint_public_building_detail_by_id_v5024',{p_building_id:exactBuildingId},7000)}catch(e){detailErr=e}}if(!d?.resolved){try{d=await rpc('bridgepoint_public_building_detail_v5000',{p_lng:lng,p_lat:lat,p_radius_m:140},6500)}catch(e){detailErr=detailErr||e}}if(seq!==buildingRequestSeq)return;if(!d&&detailErr)throw detailErr;if(!d?.resolved){if(!preserveParcel&&!selectedParcelGeometry)void loadParcelCutout(lng,lat,seq);setText('buildingTruthBadge',selectedFeature?'BRIDGEPOINT MAP BUILDING':'NO BUILDING RESOLVED');setText('bTruthNote',selectedFeature?'The clicked BridgePoint geometry is selected, but a deeper structural enrichment record is not linked yet. Tile evidence remains visible without inventing missing fields.':'BridgePoint did not resolve a public building geometry at this point yet.');return}const pc=d.parcel_cutout;if(!preserveParcel&&pc?.resolved&&pc.parcel_geometry){selectedParcelGeometry=pc.parcel_geometry;ensureSelectedParcelLayer(pc.parcel_geometry);setText('bProvParcelSource',parcelSourceLabel(pc.source_url)+(pc.allowed_use_scope?' · '+pc.allowed_use_scope:''));window.__BP_PARCEL_CUTOUT_STATE__={status:'ready',source:'building_detail_bundle',buildingId:Number(d?.building?.building_id||0)||null,areaM2:Number(pc.area_m2||geometryAreaM2(pc.parcel_geometry)||0),at:Date.now()};renderPickedInspector()}else if(!preserveParcel&&!selectedParcelGeometry){void loadParcelCutout(lng,lat,seq)}const b=d.building||{};loadBuildingParts(b.building_id,seq);setText('buildingTitle','Building #'+b.building_id);setText('buildingTruthBadge',truthLabel(b));setText('bHeight',b.render_height_m?Number(b.render_height_m).toFixed(1)+' m':'—');setText('bFloors',b.floors??'—');setText('bFloorTruth',floorTruth(b.floor_count_method));setText('bParts',fmt(b.building_part_count));setText('bUnderground',b.underground_part_count?fmt(b.underground_part_count)+(b.max_underground_floors?' · '+b.max_underground_floors+' floors':''):'0');setText('bConfidence',b.source_confidence!=null?Math.round(Number(b.source_confidence)*100)+'%':'Not scored by source');setText('bRoof',[b.roof_shape,b.roof_material].filter(Boolean).join(' · ')||'Not published by source');setText('bFacade',b.facade_material||'Not published by source');setText('bSource',b.source_key||'BridgePoint source registry');setText('bSourceDate',sourceAge(b.source_updated_at));setText('bTruthNote',d.truth_notice||'BridgePoint labels derived structure separately from exact public plans.');populateInspector(b,selectedFeature?.geometry,selectedFeature?.properties);void loadRoofTruth(b.building_id,seq)}catch(e){if(seq!==buildingRequestSeq)return;setText('buildingTruthBadge','DETAIL RETRY');setText('bTruthNote',e.message||String(e))}}
 window.__BP_V5000_SELECT_BUILDING__=({lngLat,feature})=>{if(!lngLat)return false;lastDirectBuildingEvent=performance.now();markMapOverlayClick(900);selectedPoint={lng:lngLat.lng,lat:lngLat.lat};selectedFeature=feature||selectedFeature;selectedMode='building';ensureBuildingPanelOpen();requestAnimationFrame(()=>showBuilding(lngLat.lng,lngLat.lat,{feature}));return true};let lastDirectBuildingEvent=0;window.addEventListener('bp2300:building-click',e=>{if(performance.now()-lastDirectBuildingEvent<250)return;const ll=e.detail?.lngLat,f=e.detail?.feature;if(ll){lastDirectBuildingEvent=performance.now();markMapOverlayClick(900);requestAnimationFrame(()=>showBuilding(ll.lng,ll.lat,{feature:f}))}});
 function appCredibleAddressRows(q,rows){
  const raw=String(q||'').trim().toLowerCase(),state=(raw.match(/\b(al|ak|az|ar|ca|co|ct|de|dc|fl|ga|hi|id|il|in|ia|ks|ky|la|me|md|ma|mi|mn|ms|mo|mt|ne|nv|nh|nj|nm|ny|nc|nd|oh|ok|or|pa|ri|sc|sd|tn|tx|ut|vt|va|wa|wv|wi|wy)\b/)||[])[1];
@@ -523,10 +569,10 @@ $('publicSearchForm').addEventListener('submit',async e=>{
  box.innerHTML='';
  for(const r of rows){
   const b=document.createElement('button');b.type='button';
-  const isGlobal=!!r.global_property_id||(['CA','MX'].includes(String(r.country_code||'').toUpperCase()));
+  const cc=String(r.country_code||'').trim().toUpperCase(),isGlobal=!!r.global_property_id||(cc&&cc!=='US');
   const meta=isGlobal?[r.municipality,r.state_code,r.country_code,r.parcel_number,r.source_name].filter(Boolean):[r.municipality,r.state_code,r.parcel_number].filter(Boolean);
   if(fallbackUsed||String(r.match_reason||'').startsWith('CENSUS_'))meta.push(r.property_resolved?'Census located · BridgePoint property resolved':'Census located · property link resolving');
-  b.innerHTML='<b>'+String(r.full_address||r.geocoder_address||r.display_label||'Property / parcel').replace(/[<>&]/g,'')+'</b><small>'+meta.join(' · ')+'</small>';
+  b.innerHTML='<b class="notranslate" translate="no">'+String(r.full_address||r.geocoder_address||r.display_label||'Property / parcel').replace(/[<>&]/g,'')+'</b><small class="notranslate" translate="no">'+meta.join(' · ')+'</small>';
   b.onclick=()=>{box.hidden=true;setMapSearchOpen(false);const lng=+r.longitude,lat=+r.latitude;if(world?.map&&Number.isFinite(lng)&&Number.isFinite(lat)){world.map.easeTo({center:[lng,lat],zoom:17,pitch:62,bearing:-18,duration:700});selectedFeature=null;if(isGlobal)showPropertyOnly(lng,lat);else showBuilding(lng,lat)}};
   box.appendChild(b)
  }
@@ -818,7 +864,7 @@ function refreshSemanticLabels(){
   for(const f of scan){
    if(features.length>=max)break;const g=f.geometry,p=f.properties||{};if(g?.type!=='Point'||!Array.isArray(g.coordinates))continue;
    const lng=+g.coordinates[0],lat=+g.coordinates[1];if(!Number.isFinite(lng)||!Number.isFinite(lat))continue;
-   const name=String(p.name_en||p.name||'').trim(),cat=semanticCategory(p);if(cat.key!=='general')classifiedCount++;if(!name&&cat.key==='general')continue;
+   const name=bpMapFeatureName(p),cat=semanticCategory(p);if(cat.key!=='general')classifiedCount++;if(!name&&cat.key==='general')continue;
    const dedupe=(name.toLowerCase()||cat.key)+'|'+lng.toFixed(5)+'|'+lat.toFixed(5);if(seen.has(dedupe))continue;seen.add(dedupe);
    const pp=map.project([lng,lat]);let nearest=null,best=BP_MOBILE?1600:1225;
    for(const b of buildingAnchors){const dx=b.x-pp.x,dy=b.y-pp.y,d=dx*dx+dy*dy;if(d<best){best=d;nearest=b}}
@@ -828,7 +874,7 @@ function refreshSemanticLabels(){
    features.push({type:'Feature',geometry:{type:'Point',coordinates:anchor},properties:{name:name||cat.label,display_label:display,semantic_type:cat.label,icon_id:'bp-poi-'+cat.key,priority:cat.priority,label_color:cat.color,building_id:nearest?.hit?.properties?.building_id||null,anchor_truth:nearest?'BUILDING_ANCHORED':'POI_POINT'}})
   }
   if(anchoredCount===0&&buildingAnchors.length&&features.length<max){
-   for(const b of buildingAnchors){if(features.length>=max||anchoredCount>=12)break;const p=b.hit?.properties||{},name=String(p.name_en||p.name||p.ref||'').trim();if(!name)continue;const cat=semanticCategory(p),dedupe='building|'+name.toLowerCase()+'|'+b.anchor[0].toFixed(5)+'|'+b.anchor[1].toFixed(5);if(seen.has(dedupe))continue;seen.add(dedupe);features.push({type:'Feature',geometry:{type:'Point',coordinates:b.anchor},properties:{name,display_label:cat.key==='general'?name:name+' · '+cat.label,semantic_type:cat.label,icon_id:'bp-poi-'+cat.key,priority:cat.priority,label_color:cat.color,building_id:p.building_id||b.hit?.id||null,anchor_truth:'NAMED_BUILDING_SOURCE'}});anchoredCount++}
+   for(const b of buildingAnchors){if(features.length>=max||anchoredCount>=12)break;const p=b.hit?.properties||{},name=bpMapFeatureName(p);if(!name)continue;const cat=semanticCategory(p),dedupe='building|'+name.toLowerCase()+'|'+b.anchor[0].toFixed(5)+'|'+b.anchor[1].toFixed(5);if(seen.has(dedupe))continue;seen.add(dedupe);features.push({type:'Feature',geometry:{type:'Point',coordinates:b.anchor},properties:{name,display_label:cat.key==='general'?name:name+' · '+cat.label,semantic_type:cat.label,icon_id:'bp-poi-'+cat.key,priority:cat.priority,label_color:cat.color,building_id:p.building_id||b.hit?.id||null,anchor_truth:'NAMED_BUILDING_SOURCE'}});anchoredCount++}
   }
   window.__BP_SEMANTIC_DEBUG__={phase:'built',seq,zoom:map.getZoom(),rows:rows.length,buildingLayers,buildingCandidates:buildingAnchors.length,features:features.length,anchored:anchoredCount,interacting:mapInteracting,moving:!!map.isMoving?.(),updatedAt:Date.now()};
   if(seq!==semanticSeq)return;
@@ -845,18 +891,7 @@ function refreshSemanticLabels(){
 
 function startSemanticLabels(){const map=world?.map;if(!map||map.__bpSemanticBound)return;map.__bpSemanticBound=true;window.__BP_REFRESH_SEMANTIC_LABELS__=refreshSemanticLabels;const trailing=()=>{clearTimeout(semanticTimer);semanticTimer=setTimeout(refreshSemanticLabels,BP_MOBILE?2300:120)};map.on('moveend',trailing);setTimeout(refreshSemanticLabels,BP_MOBILE?220:100)}
 
-function refreshTiles(){
- if(mapBackgroundBlocked()){deferredWork.set('tile-pulse',refreshTiles);return}
- const map=world?.map;if(!map||map.isMoving?.())return;
- try{
-   // V5801: the normal public app never carries a parcel vector tile source.
-   for(const id of ['gta-parcel-glow','gta-parcel-halo','gta-parcel']){try{if(map.getLayer(id))map.removeLayer(id)}catch(_){}}
-   try{if(map.getSource('bpParcels'))map.removeSource('bpParcels')}catch(_){}
-   window.__BP_PUBLIC_PARCEL_SURFACE_LOCK_V5802__={version:5801,mainMapVectorSource:false,selectedParcelGeometry:false,dedicatedBoundaryViewerOnly:true,updatedAt:Date.now()};
-   window.__BP_BUILDING_TILE_REFRESH__={stable:true,cacheBusting:false,displaySource:'OPENFREEMAP_GLOBAL_BUILDING',bridgePointHandoff:false,additiveExactDetail:true,updatedAt:Date.now()};
-   queueAfterMap('selected-refresh',refreshSelected)
- }catch(e){console.warn('tile pulse',e)}
-}
+function refreshTiles(){if(mapBackgroundBlocked()){deferredWork.set('tile-pulse',refreshTiles);return}const map=world?.map;if(!map||map.isMoving?.())return;const pulse=Math.floor(Date.now()/120000),fn=SUPA+'/functions/v1/';try{const p=map.getSource('bpParcels');if(p?.setTiles)p.setTiles([fn+'bridgepoint-spatial-tile-v1957?layer=parcels&z={z}&x={x}&y={y}&limit=9000&pulse='+pulse]);window.__BP_BUILDING_TILE_REFRESH__={stable:true,cacheBusting:false,displaySource:'OPENFREEMAP_GLOBAL_BUILDING',bridgePointHandoff:false,additiveExactDetail:true,updatedAt:Date.now()};queueAfterMap('selected-refresh',refreshSelected)}catch(e){console.warn('tile pulse',e)}}
 function applyPublicEmbedMode(q){
  const embed=q.get('embed')==='1'||q.get('embed')==='true';
  if(!embed)return false;
@@ -891,7 +926,7 @@ async function applyGrowthDeepLink(){
  if(q.get('select')!=='0'&&zoom>=15){setTimeout(()=>{try{selectedFeature=null;showBuilding(targetLng,targetLat)}catch(e){console.warn('deep link building',e)}},350)}
  return true
 }
-async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();void loadStatus();setTimeout(()=>{if(!Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0))void loadStatus()},5000);try{await bootMap();startupInteractiveUntil=Math.max(startupInteractiveUntil,performance.now()+(BP_MOBILE?10000:1800));window.__BP_INTERACTION_PRIORITY_UNTIL__=startupInteractiveUntil;bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();await applyGrowthDeepLink();setTimeout(flushDeferredWork,BP_MOBILE?10200:2000);window.__BP_APP_START_READY_V5582__={version:5582,settled:true,userCameraPreserved:Number(window.__BP_MAP_USER_INTENT_AT__||0)>0,updatedAt:Date.now()}}catch(e){setText('mapStatus','Map start retry · '+e.message);window.__BP_APP_START_READY_V5582__={version:5582,settled:false,error:String(e?.message||e),updatedAt:Date.now()}}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),120000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),90000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5802',{updateViaCache:'none'}).catch(()=>{})}
+async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();void loadStatus();setTimeout(()=>{if(!Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0))void loadStatus()},5000);try{await bootMap();bpApplyMapLanguage();startupInteractiveUntil=Math.max(startupInteractiveUntil,performance.now()+(BP_MOBILE?10000:1800));window.__BP_INTERACTION_PRIORITY_UNTIL__=startupInteractiveUntil;bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();await applyGrowthDeepLink();setTimeout(flushDeferredWork,BP_MOBILE?10200:2000);window.__BP_APP_START_READY_V5582__={version:5582,settled:true,userCameraPreserved:Number(window.__BP_MAP_USER_INTENT_AT__||0)>0,updatedAt:Date.now()}}catch(e){setText('mapStatus','Map start retry · '+e.message);window.__BP_APP_START_READY_V5582__={version:5582,settled:false,error:String(e?.message||e),updatedAt:Date.now()}}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),120000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),90000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5616',{updateViaCache:'none'}).catch(()=>{})}
 start();
 window.addEventListener('beforeunload',()=>{clearInterval(accessCountdownTimer);clearInterval(statusTimer);clearInterval(tileTimer);clearInterval(selectedTimer);clearInterval(liveContextTimer);clearInterval(radarRefreshTimer);clearInterval(radarAnimTimer);clearInterval(cloudRefreshTimer);clearInterval(cloudAnimTimer);clearInterval(transportTimer);clearInterval(opportunityTimer);clearTimeout(semanticTimer);clearTimeout(semanticBuildTimer)});
 ;(()=>{const resume=()=>{if(document.hidden)return;try{window.__BP_V5000_WORLD__?.map?.resize?.();window.__BP_V5000_WORLD__?.map?.triggerRepaint?.()}catch(_){ }if(!mapInteracting)flushDeferredWork()};document.addEventListener('visibilitychange',resume,{passive:true});window.__BP_APP_RESPONSIVENESS_V5561__={version:5561,inputPendingAware:true,idleBackgroundWork:true,visibilityPause:true,updatedAt:Date.now()}})();
