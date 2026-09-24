@@ -214,8 +214,8 @@ jobs:
           grep -Fq 'package-feature-toggle' site/styles.css
           node --check site/parcel-boundary-viewer-v5403.js
           node --check site/landing.js
-          grep -Fq 'parcel-boundary-viewer-v5403.js?v=5802' site/index.html
-          grep -Fq 'parcel-boundary-viewer-v5403.js?v=5802' site/app/index.html
+          grep -Fq 'parcel-boundary-viewer-v5403.js?v=5803' site/index.html
+          grep -Fq 'parcel-boundary-viewer-v5403.js?v=5803' site/app/index.html
           node --check site/intelligence-global-v5507.js
           node --check site/global-property-v957.js
           grep -Fq 'bridgepoint_public_global_status_v957' site/global-property-v957.js
