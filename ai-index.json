@@ -222,15 +222,15 @@
   "live_facts": {
     "entity": "BridgePoint Intelligence",
     "metrics": {
-      "map_ready_buildings": 146032384,
-      "roof_shell_buildings": 146032384,
+      "map_ready_buildings": 147941600,
+      "roof_shell_buildings": 147941600,
       "roof_shell_coverage_pct": 100.0,
-      "canonical_property_records": 170605127,
-      "normalized_address_records": 157423435,
-      "source_backed_roof_records": 695817,
-      "lidar_refined_roof_buildings": 5268,
+      "canonical_property_records": 170654203,
+      "normalized_address_records": 157467495,
+      "source_backed_roof_records": 695907,
+      "lidar_refined_roof_buildings": 5358,
       "materialized_boundary_estimate": 84510335,
-      "public_parcel_identity_records": 170605127,
+      "public_parcel_identity_records": 170654653,
       "canonical_property_record_label": "canonical property/parcel identity records",
       "property_boundary_link_estimate": 31311995
     },
@@ -244,15 +244,15 @@
       "public_counter_jurisdictions": 56
     },
     "freshness": {
-      "roof_updated_at": "2026-09-23T23:58:06.810976+00:00",
-      "lidar_last_success_at": "2026-09-23T23:55:02.49736+00:00",
-      "parcel_counter_updated_at": "2026-09-22T08:49:40.198074+00:00",
-      "address_counter_updated_at": "2026-09-23T23:57:46.547195+00:00",
-      "parcel_scoreboard_updated_at": "2026-09-23T23:55:00.052617+00:00",
+      "roof_updated_at": "2026-09-24T03:32:12.607622+00:00",
+      "lidar_last_success_at": "2026-09-24T03:30:23.144256+00:00",
+      "parcel_counter_updated_at": "2026-09-24T03:31:36.181185+00:00",
+      "address_counter_updated_at": "2026-09-24T03:32:07.849352+00:00",
+      "parcel_scoreboard_updated_at": "2026-09-24T03:30:00.229297+00:00",
       "parcel_autopilot_last_tick_at": "2026-09-23T05:51:45.397871+00:00"
     },
     "horizon_url": "https://bridgepointintelligence.online/app/horizon/",
-    "generated_at": "2026-09-23T23:58:13.264033+00:00",
+    "generated_at": "2026-09-24T03:32:19.706388+00:00",
     "canonical_url": "https://bridgepointintelligence.online/",
     "jurisdictions": [
       {
@@ -282,8 +282,8 @@
       },
       {
         "code": "CA",
-        "updated_at": "2026-09-22T08:15:40.794257+00:00",
-        "canonical_property_parcel_records": 22547734
+        "updated_at": "2026-09-24T01:06:28.423067+00:00",
+        "canonical_property_parcel_records": 22547750
       },
       {
         "code": "CO",
@@ -377,8 +377,8 @@
       },
       {
         "code": "MI",
-        "updated_at": "2026-09-21T18:35:23.693426+00:00",
-        "canonical_property_parcel_records": 3958442
+        "updated_at": "2026-09-24T01:06:28.423067+00:00",
+        "canonical_property_parcel_records": 3958509
       },
       {
         "code": "MN",
@@ -402,8 +402,8 @@
       },
       {
         "code": "MT",
-        "updated_at": "2026-09-22T07:09:56.622295+00:00",
-        "canonical_property_parcel_records": 973487
+        "updated_at": "2026-09-24T03:27:09.093067+00:00",
+        "canonical_property_parcel_records": 984978
       },
       {
         "code": "NC",
@@ -432,8 +432,8 @@
       },
       {
         "code": "NM",
-        "updated_at": "2026-09-22T03:27:23.316904+00:00",
-        "canonical_property_parcel_records": 3029865
+        "updated_at": "2026-09-24T02:51:27.841879+00:00",
+        "canonical_property_parcel_records": 3053113
       },
       {
         "code": "NV",
@@ -442,8 +442,8 @@
       },
       {
         "code": "NY",
-        "updated_at": "2026-09-22T08:49:40.198074+00:00",
-        "canonical_property_parcel_records": 9051458
+        "updated_at": "2026-09-24T03:31:36.181185+00:00",
+        "canonical_property_parcel_records": 9066158
       },
       {
         "code": "OH",
@@ -522,8 +522,8 @@
       },
       {
         "code": "WI",
-        "updated_at": "2026-09-22T08:17:27.514223+00:00",
-        "canonical_property_parcel_records": 3880022
+        "updated_at": "2026-09-24T01:06:28.423067+00:00",
+        "canonical_property_parcel_records": 3880026
       },
       {
         "code": "WV",
@@ -546,7 +546,7 @@
     "horizon_year_one_demand": {
       "ok": true,
       "mode": "365_DAY_YEAR_ONE_SURVIVAL",
-      "updated_at": "2026-09-23T23:58:13.416933+00:00",
+      "updated_at": "2026-09-24T03:32:19.794447+00:00",
       "event_started": false,
       "unique_requests": 0,
       "billing_connected": false,
