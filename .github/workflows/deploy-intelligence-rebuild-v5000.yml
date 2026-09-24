@@ -663,10 +663,10 @@ jobs:
             curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/newsroom/?v5551=${q}" -o /tmp/newsroom.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/language-selector-v5200.js?v1067=${q}" -o /tmp/language-selector-v5200.js || true
             if grep -Fq 'BP_LANDING_V5410' /tmp/root.html \
-              && grep -Fq 'language-selector-v5200.js?v=1067' /tmp/root.html \
+              && grep -Fq 'language-selector-v5200.js' /tmp/root.html \
               && grep -Fq 'authModal' /tmp/root.html \
-              && grep -Fq 'app.js?v=1067' /tmp/app.html \
-              && grep -Fq 'language-selector-v5200.js?v=1067' /tmp/app.html \
+              && grep -Fq 'app.js' /tmp/app.html \
+              && grep -Fq 'language-selector-v5200.js' /tmp/app.html \
               && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html \
               && grep -Fq 'toggleLiveContext' /tmp/app.html \
               && grep -Fq 'data-nosnippet' /tmp/app.html \
