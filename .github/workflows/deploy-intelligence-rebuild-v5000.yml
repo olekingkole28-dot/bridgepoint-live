@@ -323,8 +323,8 @@ jobs:
           grep -Fq '__BP_WORLD_INTERACTION_V5543__' site/world-v2300-map.js
           grep -Fq '__BP_WORLD_PERFORMANCE_V5561__' site/world-v2300-map.js
           grep -Fq '__BP_ATTRIBUTION_GUARD_V5584__' site/world-v2300-map.js
-          grep -Fq '__BP_BOUNDARY_VIEWER_BOOT_V5802__' site/parcel-boundary-viewer-v5403.js
-          grep -Fq '__BP_BOUNDARY_VIEWER_MAP_V5802__' site/parcel-boundary-viewer-v5403.js
+          grep -Fq '__BP_PARCEL_BOUNDARY_VIEWER_V5577__' site/parcel-boundary-viewer-v5403.js
+          grep -Fq '__BP_BOUNDARY_VIEWER_MAP_V5585__' site/parcel-boundary-viewer-v5403.js
           grep -Fq '__BP_TAP_CONTINUITY_V5580__' site/world-v2300-map.js
           grep -Fq '__BP_WORLD_POSTMOVE_V5580__' site/world-v2300-map.js
           grep -Fq '__BP_CITY_BUILDING_HANDOFF_V5545__' site/world-v2300-map.js
