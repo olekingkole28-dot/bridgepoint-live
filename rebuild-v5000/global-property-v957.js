@@ -24,25 +24,14 @@ async function status(){const d=await rpc('bridgepoint_public_global_status_v957
 async function search(q,limit=8){return rpc('bridgepoint_public_global_search_v957',{p_query:String(q||''),p_limit:limit},4500)}
 async function detail(lng,lat,radius=140){return rpc('bridgepoint_public_global_property_detail_v957',{p_lng:Number(lng),p_lat:Number(lat),p_radius_m:Number(radius)||140},4500)}
 function currentMap(){return window.__BP_V5000_WORLD__?.map||window.__BP_LANDING_WORLD__?.map||null}
-const REGION_NAMES=typeof Intl!=='undefined'&&Intl.DisplayNames?new Intl.DisplayNames(['en'],{type:'region'}):null;
-const COUNTRY_FALLBACK={XK:'Kosovo',TW:'Taiwan'};
-function countryName(code,provided=''){
- const c=String(code||'').trim().toUpperCase(),p=String(provided||'').trim();
- if(p&&p.toUpperCase()!==c)return p;
- try{const n=REGION_NAMES?.of(c);if(n&&n!==c)return n}catch(_){}
- return COUNTRY_FALLBACK[c]||c||'Global'
-}
-function isCountryRow(x){
- const c=String(x?.country_code||'').trim().toUpperCase(),p=String(x?.country_name||'').trim(),n=countryName(c,p);
- return !!c&&(!!p||n!==c||Object.prototype.hasOwnProperty.call(COUNTRY_FALLBACK,c))
-}
+function countryName(code){return({AU:'Australia',BE:'Belgium',BR:'Brazil',CA:'Canada',CD:'DR Congo',CH:'Switzerland',CL:'Chile',CN:'China',CY:'Cyprus',CZ:'Czechia',DE:'Germany',DJ:'Djibouti',DK:'Denmark',EE:'Estonia',EG:'Egypt',ES:'Spain',FR:'France',GB:'United Kingdom',IN:'India',IS:'Iceland',JP:'Japan',KE:'Kenya',KR:'South Korea',LT:'Lithuania',LV:'Latvia',MX:'Mexico',MY:'Malaysia',NL:'Netherlands',NO:'Norway',NZ:'New Zealand',PA:'Panama',PH:'Philippines',PL:'Poland',RO:'Romania',SG:'Singapore',TW:'Taiwan',TZ:'Tanzania',UA:'Ukraine',VN:'Vietnam'})[String(code||'').toUpperCase()]||String(code||'Global')}
 function updateCounters(d){
  const total=document.getElementById('landingGlobalProperties');
  if(total)total.textContent=fmt(d?.active_global_canonical);
  const sub=document.getElementById('landingGlobalCountryMix');
- const countries=(d?.countries||[]).filter(isCountryRow).sort((a,b)=>{const am=Number(a.active_canonical||0)+Number(a.building_footprints||0)+Number(a.addresses||0)+Number(a.roof_records||0)+Number(a.materialized_boundary_rows||0),bm=Number(b.active_canonical||0)+Number(b.building_footprints||0)+Number(b.addresses||0)+Number(b.roof_records||0)+Number(b.materialized_boundary_rows||0);return (bm>0)-(am>0)||bm-am||String(a.country_code||'').localeCompare(String(b.country_code||''))});
+ const countries=(d?.countries||[]).filter(x=>Number(x.active_canonical)>0||Number(x.building_footprints)>0||Number(x.addresses)>0||Number(x.roof_records)>0).sort((a,b)=>(Number(b.active_canonical)+Number(b.building_footprints)+Number(b.addresses)+Number(b.roof_records))-(Number(a.active_canonical)+Number(a.building_footprints)+Number(a.addresses)+Number(a.roof_records)));
  if(sub){
-  const head=countries.slice(0,3).map(x=>countryName(x.country_code,x.country_name)+' '+fmt(x.active_canonical));
+  const head=countries.slice(0,3).map(x=>countryName(x.country_code)+' '+fmt(x.active_canonical));
   if(countries.length>3)head.push('+'+(countries.length-3)+' more');
   if(Number(d?.materialized_global_boundaries)>=0)head.push(fmt(d.materialized_global_boundaries)+' boundaries');
   sub.textContent=head.join(' · ');
@@ -52,9 +41,9 @@ function updateCounters(d){
   list.textContent='';
   for(const x of countries){
    const row=document.createElement('div'),name=document.createElement('span'),count=document.createElement('b'),meta=document.createElement('small');
-   name.textContent=countryName(x.country_code,x.country_name)+' · '+String(x.country_code||'');
+   name.textContent=countryName(x.country_code)+' · '+String(x.country_code||'');
    const canon=Number(x.active_canonical||0),buildings=Number(x.building_footprints||0),addresses=Number(x.addresses||0),roofs=Number(x.roof_records||0);
-   count.textContent=canon>0?fmt(canon)+' canonical':buildings>0?fmt(buildings)+' buildings':addresses>0?fmt(addresses)+' addresses':roofs>0?fmt(roofs)+' roofs':String(x.materialization_state||'Queued / materializing').replaceAll('_',' ');
+   count.textContent=canon>0?fmt(canon)+' canonical':buildings>0?fmt(buildings)+' buildings':addresses>0?fmt(addresses)+' addresses':fmt(roofs)+' roofs';
    meta.textContent=[Number(x.materialized_boundary_rows||x.with_boundary||0)>0?fmt(x.materialized_boundary_rows||x.with_boundary)+' boundaries':'',buildings>0?fmt(buildings)+' buildings':'',addresses>0?fmt(addresses)+' addresses':'',roofs>0?fmt(roofs)+' roofs':''].filter(Boolean).join(' · ');
    row.append(name,count,meta);list.appendChild(row);
   }
@@ -126,7 +115,7 @@ function bindRootPopup(map){
   if(document.querySelector('.app-shell'))return;
   const f=e.features?.[0];if(!f)return;const p=f.properties||{};
   const wrap=document.createElement('div');wrap.style.cssText='min-width:220px;max-width:320px;font-family:Inter,system-ui,sans-serif;color:#071118';
-  const k=document.createElement('div');k.style.cssText='font-size:9px;font-weight:900;letter-spacing:.08em;color:#397180';k.textContent='GLOBAL SOURCE PARCEL · '+countryName(p.country_code,p.country_name);
+  const k=document.createElement('div');k.style.cssText='font-size:9px;font-weight:900;letter-spacing:.08em;color:#397180';k.textContent='GLOBAL SOURCE PARCEL · '+countryName(p.country_code);
   const b=document.createElement('b');b.style.cssText='display:block;margin-top:4px;font-size:13px;line-height:1.25';b.textContent='Parcel '+String(p.parcel_number||p.source_record_id||'source record');
   const d=document.createElement('div');d.style.cssText='margin-top:6px;font-size:10px;line-height:1.4;color:#415661';d.textContent=[p.source_name,p.region_code,String(p.allowed_use_scope||'').replaceAll('_',' ')].filter(Boolean).join(' · ');
   const n=document.createElement('small');n.style.cssText='display:block;margin-top:6px;color:#607681';n.textContent=p.country_code==='MX'?'RAN social/agrarian parcel scope; not a complete private/urban cadastre.':'Source-backed parcel geometry; not a legal survey.';
@@ -144,7 +133,7 @@ function install(map){
 }
 async function boot(){
  void status().catch(e=>console.warn('BridgePoint global status',e));
- clearInterval(state.statusTimer);state.statusTimer=setInterval(()=>void status().catch(()=>{}),15000);
+ clearInterval(state.statusTimer);state.statusTimer=setInterval(()=>void status().catch(()=>{}),60000);
  for(let i=0;i<100;i++){
   const m=currentMap();
   if(m){install(m);return}
