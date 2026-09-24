@@ -532,6 +532,8 @@ function appCredibleAddressRows(q,rows){
  const raw=String(q||'').trim().toLowerCase(),state=(raw.match(/\b(al|ak|az|ar|ca|co|ct|de|dc|fl|ga|hi|id|il|in|ia|ks|ky|la|me|md|ma|mi|mn|ms|mo|mt|ne|nv|nh|nj|nm|ny|nc|nd|oh|ok|or|pa|ri|sc|sd|tn|tx|ut|vt|va|wa|wv|wi|wy)\b/)||[])[1];
  return (Array.isArray(rows)?rows:[]).filter(r=>{
    const reason=String(r?.match_reason||'').toUpperCase(),score=Number(r?.match_score||0),addr=String(r?.full_address||r?.geocoder_address||'').toLowerCase();
+   const cc=String(r?.country_code||'').trim().toUpperCase(),globalTruth=!!r?.global_property_id||(cc&&cc!=='US'),display=String(r?.display_label||'').trim();
+   if(globalTruth&&display)return !!r?.global_property_id||reason.startsWith('GLOBAL_')||score>=0.50;
    if(!addr)return false;
    if(reason.includes('EXACT')||reason.startsWith('CENSUS_'))return true;
    if(state&&String(r?.state_code||r?.state||'').toLowerCase()!==state)return false;
@@ -563,7 +565,7 @@ $('publicSearchForm').addEventListener('submit',async e=>{
  }
  if(!rows.length){
   window.BridgePointAcquisition?.send?.('ADDRESS_SEARCH_NO_MATCH',{surface:'app'});
-  box.innerHTML='<button disabled>No confident match yet. Try a full U.S. street address or a source parcel ID from a live international coverage area.'+(linkedError?' Linked-address lookup will retry on the next search.':'')+'</button>';
+  box.innerHTML='<button disabled>No confident match yet. Try a complete street address, cadastral/parcel ID, municipality, or another source-backed location from a live coverage area.'+(linkedError?' Linked-address lookup will retry on the next search.':'')+'</button>';
   return;
  }
  box.innerHTML='';
