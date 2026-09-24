@@ -458,6 +458,7 @@ async function loadParcelCutout(lng,lat,seq){
  const normalize=(d,source)=>{
   if(d?.resolved&&d.parcel_geometry)return{d,source};
   if(d?.resolved&&d.property?.parcel_geometry)return{d:{...d.property,parcel_geometry:d.property.parcel_geometry,source_url:d.property.boundary_source_url,allowed_use_scope:d.property.boundary_allowed_use_scope,area_m2:geometryAreaM2(d.property.parcel_geometry)},source};
+  if(d?.resolved&&d?.address_only&&d?.property)return{d:{...d.property,address_only:true,truth_notice:d.truth_notice||'',parcel_geometry:null},source,addressOnly:true};
   throw new Error(source+'_UNRESOLVED')
  };
  let lastErr=null;
@@ -484,6 +485,13 @@ async function loadParcelCutout(lng,lat,seq){
     hit=normalize(await rpc('bridgepoint_public_global_property_detail_v957',{p_lng:anchor.lng,p_lat:anchor.lat,p_radius_m:180},6000),'global_property_detail');
    }
    if((bid>0&&currentSelectedBuildingId()!==bid)||(bid<=0&&seq!==buildingRequestSeq))return;const d=hit.d;
+   if(hit.addressOnly||d.address_only){
+    selectedParcelGeometry=null;window.__BP_SELECTED_PARCEL_GEOMETRY__=null;
+    const parcelSrc=world?.map?.getSource('bpV5001SelectedParcel');if(parcelSrc?.setData)parcelSrc.setData({type:'FeatureCollection',features:[]});
+    setText('bProvParcelSource',d.address_source_name||d.address_source_key||'Official address source');setText('bPickedTruth','OFFICIAL ADDRESS · NO PARCEL BOUNDARY');
+    window.__BP_PARCEL_CUTOUT_STATE__={status:'ready',attempt,source:hit.source,buildingId:bid||null,addressOnly:true,areaM2:0,at:Date.now()};
+    renderPickedInspector();return
+   }
    selectedParcelGeometry=d.parcel_geometry;ensureSelectedParcelLayer(d.parcel_geometry);setText('bProvParcelSource',parcelSourceLabel(d.source_url)+(d.allowed_use_scope?' · '+d.allowed_use_scope:''));setText('bPickedTruth','PARCEL + TERRAIN CUTOUT');
    window.__BP_PARCEL_CUTOUT_STATE__={status:'ready',attempt,source:hit.source,buildingId:bid||null,areaM2:Number(d.area_m2||geometryAreaM2(d.parcel_geometry)||0),at:Date.now()};
    renderPickedInspector();return
