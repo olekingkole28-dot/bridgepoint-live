@@ -3,7 +3,7 @@
 
 const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localhost';
 const FN=LOCAL_RUNTIME?location.origin+'/functions/v1/bridgepoint-parcel-boundary-tile-v5403':'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403';
-const VERSION=5801;
+const VERSION=5802;
 const SOURCE='bp-boundary-viewer-v5403';
 const GLOW='bp-boundary-glow-v5403';
 const LINE='bp-boundary-line-v5403';
@@ -22,7 +22,7 @@ const BUILDING_BODY='bp-boundary-building-body-v5801';
 const BUILDING_ROOF='bp-boundary-building-roof-v5801';
 const COUNTRY_TOPOLOGY='https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 const PUBLIC_BUILDINGS='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=2200';
-function buildingTiles(){return mode==='owner'?FN+'?mode=owner&layer=buildings&z={z}&x={x}&y={y}&v=5801':PUBLIC_BUILDINGS}
+function buildingTiles(){return mode==='owner'?FN+'?mode=owner&layer=buildings&z={z}&x={x}&y={y}&v=5802':PUBLIC_BUILDINGS}
 const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 let viewer=null, refreshTimer=null, statusTimer=null, mode='public';
 let lastGlobalRows=[];
@@ -488,8 +488,8 @@ async function openViewer(nextMode='public'){
       return {url};
     }
   });
-  window.__BP_BOUNDARY_VIEWER_MAP_V5801__=viewer;
-  window.__BP_BOUNDARY_VIEWER_BOOT_V5801__={version:5801,mode,phase:'map-created',ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
+  window.__BP_BOUNDARY_VIEWER_MAP_V5802__=viewer;
+  window.__BP_BOUNDARY_VIEWER_BOOT_V5802__={version:5802,mode,phase:'map-created',ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
   viewer.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
   viewer.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-right');
   viewer.on('error',e=>{
@@ -520,12 +520,12 @@ async function openViewer(nextMode='public'){
       update();viewer.on('zoom',update);viewer.on('moveend',()=>{refreshCountryPointCache(viewer);if(lastGlobalRows.length)void syncGlobalOverlay(viewer,lastGlobalRows)});
       if(lastStateRows.length){try{await syncStateOverlay(viewer,lastStateRows)}catch(e){console.warn('boundary state overlay retry',e)}}
       else void refreshStatus();
-      window.__BP_BOUNDARY_VIEWER_BOOT_V5577__={version:5801,mode,independentMap:true,ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
-      window.__BP_BOUNDARY_VIEWER_BOOT_V5801__={version:5801,mode,phase:'ready',reason,independentMap:true,ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
+      window.__BP_BOUNDARY_VIEWER_BOOT_V5577__={version:5802,mode,independentMap:true,ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
+      window.__BP_BOUNDARY_VIEWER_BOOT_V5802__={version:5802,mode,phase:'ready',reason,independentMap:true,ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
       return true
     }catch(e){
       viewerFinalized=false;
-      window.__BP_BOUNDARY_VIEWER_BOOT_V5801__={version:5801,mode,phase:'retry',reason,error:String(e?.message||e),updatedAt:Date.now()};
+      window.__BP_BOUNDARY_VIEWER_BOOT_V5802__={version:5802,mode,phase:'retry',reason,error:String(e?.message||e),updatedAt:Date.now()};
       clearTimeout(viewerFinalizeTimer);viewerFinalizeTimer=setTimeout(()=>void finalizeViewer('recovery'),350);
       return false
     }
@@ -550,7 +550,7 @@ function closeViewer(){
   if(shell)shell.hidden=true;
   document.body.style.overflow='';
   clearInterval(refreshTimer);clearInterval(statusTimer);
-  if(viewer){try{viewer.remove()}catch(_){}if(window.__BP_BOUNDARY_VIEWER_MAP_V5801__===viewer)window.__BP_BOUNDARY_VIEWER_MAP_V5801__=null;viewer=null}
+  if(viewer){try{viewer.remove()}catch(_){}if(window.__BP_BOUNDARY_VIEWER_MAP_V5802__===viewer)window.__BP_BOUNDARY_VIEWER_MAP_V5802__=null;viewer=null}
 }
 
 function wirePublicApp(){
@@ -594,6 +594,6 @@ function boot(){
     if(n>120)clearInterval(t);
   },500);
 }
-const BOUNDARY_API={version:VERSION,open:openViewer,close:closeViewer,getMap:()=>viewer||window.__BP_BOUNDARY_VIEWER_MAP_V5801__||null,get mode(){return mode},get stateStatus(){return lastStateRows.slice()},stateFillLayer:STATE_FILL};window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5405__=BOUNDARY_API;
+const BOUNDARY_API={version:VERSION,open:openViewer,close:closeViewer,getMap:()=>viewer||window.__BP_BOUNDARY_VIEWER_MAP_V5802__||null,get mode(){return mode},get stateStatus(){return lastStateRows.slice()},stateFillLayer:STATE_FILL};window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5405__=BOUNDARY_API;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
