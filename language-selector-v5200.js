@@ -49,7 +49,7 @@ const GOOGLE={'pt-BR':'pt','zh-Hans':'zh-CN','zh-Hant':'zh-TW'};
 const MAP={'pt-BR':'pt','zh-Hans':'zh','zh-Hant':'zh','tl':'fil'};
 const PROTECTED=[
  'code','pre','kbd','samp','[translate="no"]','[data-no-translate]','.notranslate',
- '#authUserEmail','#pAddress','#pLocation','#pParcel','#bRecord','#bSource',
+ '#authUserEmail','#pAddress','#pLocation','#pParcel','#previewTitle','#bRecord','#bSource',
  '#bProvSource','#bProvDataset','#bProvLicense','#bProvOriginal','#bProvOriginalUpdated',
  '#bProvParcelSource','.workspace-row h3','.workspace-row p',
  '[data-property-id]','[data-parcel-id]','[data-source-record-id]'
