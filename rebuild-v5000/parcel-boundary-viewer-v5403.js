@@ -3,7 +3,7 @@
 
 const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localhost';
 const FN=LOCAL_RUNTIME?location.origin+'/functions/v1/bridgepoint-parcel-boundary-tile-v5403':'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403';
-const VERSION=5800;
+const VERSION=5801;
 const SOURCE='bp-boundary-viewer-v5403';
 const GLOW='bp-boundary-glow-v5403';
 const LINE='bp-boundary-line-v5403';
@@ -13,15 +13,16 @@ const STATE_LINE='bp-boundary-state-line-v5576';
 const STATE_LABEL='bp-boundary-state-label-v5576';
 const GLOBAL_SOURCE='bp-boundary-global-status-v5750';
 const GLOBAL_DOT='bp-boundary-global-dot-v5750';
-const GLOBAL_LABEL='bp-boundary-global-label-v5800';
-const COUNTRY_FILL_SOURCE='bp-boundary-country-fill-v5800';
-const COUNTRY_FILL='bp-boundary-country-fill-layer-v5800';
-const COUNTRY_STATUS_LINE='bp-boundary-country-status-line-v5800';
-const BUILDING_SOURCE='bp-boundary-buildings-v5800';
-const BUILDING_BODY='bp-boundary-building-body-v5800';
-const BUILDING_ROOF='bp-boundary-building-roof-v5800';
+const GLOBAL_LABEL='bp-boundary-global-label-v5801';
+const COUNTRY_FILL_SOURCE='bp-boundary-country-fill-v5801';
+const COUNTRY_FILL='bp-boundary-country-fill-layer-v5801';
+const COUNTRY_STATUS_LINE='bp-boundary-country-status-line-v5801';
+const BUILDING_SOURCE='bp-boundary-buildings-v5801';
+const BUILDING_BODY='bp-boundary-building-body-v5801';
+const BUILDING_ROOF='bp-boundary-building-roof-v5801';
 const COUNTRY_TOPOLOGY='https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
-const BUILDINGS='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=2200';
+const PUBLIC_BUILDINGS='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=2200';
+function buildingTiles(){return mode==='owner'?FN+'?mode=owner&layer=buildings&z={z}&x={x}&y={y}&v=5801':PUBLIC_BUILDINGS}
 const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 let viewer=null, refreshTimer=null, statusTimer=null, mode='public';
 let lastGlobalRows=[];
@@ -63,7 +64,7 @@ function boundaryStyle(){
     sources:{
       ofm:{type:'vector',tiles:[OFM_BOUNDARY],minzoom:0,maxzoom:14,attribution:'OpenFreeMap © OpenMapTiles · © OpenStreetMap contributors'},
       dem:{type:'raster-dem',tiles:[DEM],tileSize:256,maxzoom:15,encoding:'terrarium',attribution:'Mapzen Terrain Tiles · AWS Open Data'},
-      [BUILDING_SOURCE]:{type:'vector',tiles:[BUILDINGS],minzoom:11,maxzoom:22,attribution:'BridgePoint source-backed building geometry'}
+      [BUILDING_SOURCE]:{type:'vector',tiles:[buildingTiles()],minzoom:mode==='owner'?8:11,maxzoom:22,attribution:'BridgePoint source-backed building geometry'}
     },
     terrain:{source:'dem',exaggeration:1.12},
     layers:[
@@ -75,11 +76,11 @@ function boundaryStyle(){
       {id:'bp-boundary-state-base-v5576',type:'line',source:'ofm','source-layer':'boundary',minzoom:1,filter:['==',['get','admin_level'],4],paint:{'line-color':'#8fb6c1','line-width':['interpolate',['linear'],['zoom'],1,.22,4,.65,10,1.35],'line-opacity':.7}},
       {id:'bp-boundary-country-label-v5750',type:'symbol',source:'ofm','source-layer':'place',minzoom:0,maxzoom:6.5,filter:['==',['get','class'],'country'],layout:{'text-field':['coalesce',['get','name_en'],['get','name:en'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],0,8,2,10,4,12.5,6,14],'text-allow-overlap':false,'text-padding':4},paint:{'text-color':'#e9fbff','text-halo-color':'rgba(2,9,13,.96)','text-halo-width':1.35,'text-opacity':.86}},
       {id:'bp-boundary-admin-label-v5750',type:'symbol',source:'ofm','source-layer':'place',minzoom:3,maxzoom:8,filter:['in',['get','class'],['literal',['state','province','region']]],layout:{'text-field':['coalesce',['get','name_en'],['get','name:en'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],3,8,5,10,8,12],'text-allow-overlap':false,'text-padding':3},paint:{'text-color':'#b9d9df','text-halo-color':'rgba(2,9,13,.96)','text-halo-width':1.15,'text-opacity':.78}},
-      {id:BUILDING_BODY,type:'fill-extrusion',source:BUILDING_SOURCE,'source-layer':'buildings',minzoom:11,paint:{'fill-extrusion-color':'#4f6e7a','fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],'fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':true}},
-      {id:BUILDING_ROOF,type:'fill-extrusion',source:BUILDING_SOURCE,'source-layer':'buildings',minzoom:11,paint:{'fill-extrusion-color':'#f4f1e8','fill-extrusion-base':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-height':['+',['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],['max',.28,['coalesce',['to-number',['get','roof_height_m']],.45]]],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':false}},
-      {id:'bp-boundary-water-label-v5800',type:'symbol',source:'ofm','source-layer':'water_name',minzoom:4,layout:{'text-field':['coalesce',['get','name_en'],['get','name:en'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],4,9,10,11,16,13],'text-allow-overlap':false,'text-padding':6},paint:{'text-color':'#74ccec','text-halo-color':'rgba(2,9,13,.96)','text-halo-width':1.2}},
-      {id:'bp-boundary-place-label-v5800',type:'symbol',source:'ofm','source-layer':'place',minzoom:5,filter:['in',['get','class'],['literal',['city','town','village','suburb']]],layout:{'text-field':['coalesce',['get','name_en'],['get','name:en'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],5,9,10,11,16,13.5],'text-allow-overlap':false,'text-padding':6},paint:{'text-color':'#e9f7fb','text-halo-color':'rgba(2,9,13,.96)','text-halo-width':1.35}},
-      {id:'bp-boundary-road-label-v5800',type:'symbol',source:'ofm','source-layer':'transportation_name',minzoom:9,layout:{'symbol-placement':'line','text-field':['coalesce',['get','name_en'],['get','name:en'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],9,9.5,14,11,18,13],'text-allow-overlap':false,'text-padding':9},paint:{'text-color':'#d7edf2','text-halo-color':'rgba(2,9,13,.96)','text-halo-width':1.4}}
+      {id:BUILDING_BODY,type:'fill-extrusion',source:BUILDING_SOURCE,'source-layer':'buildings',minzoom:mode==='owner'?8:11,paint:{'fill-extrusion-color':mode==='owner'?'#405d6b':'#4f6e7a','fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],'fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':true}},
+      {id:BUILDING_ROOF,type:'fill-extrusion',source:BUILDING_SOURCE,'source-layer':'buildings',minzoom:mode==='owner'?8:11,paint:{'fill-extrusion-color':mode==='owner'?'#f0d7a6':'#ffffff','fill-extrusion-base':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-height':['+',['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],['max',.28,['coalesce',['to-number',['get','roof_height_m']],.45]]],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':false}},
+      {id:'bp-boundary-water-label-v5801',type:'symbol',source:'ofm','source-layer':'water_name',minzoom:4,layout:{'text-field':['coalesce',['get','name_en'],['get','name:en'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],4,9,10,11,16,13],'text-allow-overlap':false,'text-padding':6},paint:{'text-color':'#74ccec','text-halo-color':'rgba(2,9,13,.96)','text-halo-width':1.2}},
+      {id:'bp-boundary-place-label-v5801',type:'symbol',source:'ofm','source-layer':'place',minzoom:5,filter:['in',['get','class'],['literal',['city','town','village','suburb']]],layout:{'text-field':['coalesce',['get','name_en'],['get','name:en'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],5,9,10,11,16,13.5],'text-allow-overlap':false,'text-padding':6},paint:{'text-color':'#e9f7fb','text-halo-color':'rgba(2,9,13,.96)','text-halo-width':1.35}},
+      {id:'bp-boundary-road-label-v5801',type:'symbol',source:'ofm','source-layer':'transportation_name',minzoom:9,layout:{'symbol-placement':'line','text-field':['coalesce',['get','name_en'],['get','name:en'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],9,9.5,14,11,18,13],'text-allow-overlap':false,'text-padding':9},paint:{'text-color':'#d7edf2','text-halo-color':'rgba(2,9,13,.96)','text-halo-width':1.4}}
     ]
   };
 }
@@ -249,7 +250,7 @@ function countryStatusData(geo,rows){
   return{polygons:{type:'FeatureCollection',features:polys},points:{type:'FeatureCollection',features:points}}
 }
 function bindCountryPopup(map){
-  if(map.__bpCountryPopup5800)return;map.__bpCountryPopup5800=true;
+  if(map.__bpCountryPopup5801)return;map.__bpCountryPopup5801=true;
   map.on('mouseenter',COUNTRY_FILL,()=>{try{map.getCanvas().style.cursor='pointer'}catch(_){}});
   map.on('mouseleave',COUNTRY_FILL,()=>{try{map.getCanvas().style.cursor=''}catch(_){}});
   map.on('click',COUNTRY_FILL,e=>{const p=e?.features?.[0]?.properties||{};const ok=String(p.status_key)==='available';const html='<b>'+esc(p.country_name||p.country_code||'Country')+' · '+esc(p.country_code||'')+'</b><em class="'+(ok?'ok':'hold')+'">'+esc(p.status_short||'')+'</em><div>'+fmt(p.boundaries||0)+' parcel boundaries</div><small>'+ (mode==='owner'?'Owner status comes from BridgePoint backend materialization/block state.':'Country parcel geometry is not public.') +'</small>';new maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'330px',className:'bp-boundary-state-popup'}).setLngLat(e.lngLat).setHTML(html).addTo(map)});
@@ -372,7 +373,7 @@ function authHeaders(){
   return mode==='owner'&&t?{Authorization:'Bearer '+t}:{};
 }
 function addBoundaryLayers(map,bucket){
-  const min=7;
+  const min=6;
   try{if(map.getLayer(LINE))map.removeLayer(LINE)}catch(_){}
   try{if(map.getLayer(GLOW))map.removeLayer(GLOW)}catch(_){}
   try{if(map.getSource(SOURCE))map.removeSource(SOURCE)}catch(_){}
@@ -399,7 +400,7 @@ async function refreshStatus(){
   const box=document.getElementById('bpBoundaryCounts5403');
   if(!box)return;
   try{
-    const r=await fetch(FN+'?mode='+encodeURIComponent(mode)+'&status=1',{headers:authHeaders(),cache:'no-store',signal:AbortSignal.timeout(4500)});
+    const r=await fetch(FN+'?mode='+encodeURIComponent(mode)+'&status=1',{headers:authHeaders(),cache:'no-store',signal:AbortSignal.timeout(6500)});
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||'status failed');
     const s=d.status||{};
@@ -437,7 +438,7 @@ async function openViewer(nextMode='public'){
         '<div class="bp-boundary-card5403">'+
           '<b id="bpBoundaryTitle5403">BridgePoint Parcel Boundary Viewer</b>'+
           '<small id="bpBoundaryCopy5403"></small>'+
-          '<div id="bpBoundaryLegend5800" class="bp-boundary-legend5576"></div>'+
+          '<div id="bpBoundaryLegend5801" class="bp-boundary-legend5576"></div>'+
           '<div id="bpBoundaryCounts5403" class="bp-boundary-counts5403"><span>Loading live boundary status…</span></div>'+
         '</div>'+
         '<button id="bpBoundaryClose5403" class="bp-boundary-close5403" type="button" aria-label="Close">×</button>'+
@@ -450,9 +451,9 @@ async function openViewer(nextMode='public'){
   document.body.style.overflow='hidden';
   document.getElementById('bpBoundaryTitle5403').textContent=mode==='owner'?'Owner Exact Parcel Boundary Viewer':'Public Parcel Boundary Viewer';
   document.getElementById('bpBoundaryCopy5403').textContent=mode==='owner'
-    ? 'Owner-only 3D parcel atlas. Country/state coverage colors and counters stay visible from globe altitude; exact source parcel lines render from zoom 7. Solid 3D buildings and contrasting roofs render where BridgePoint building tiles are available.'
+    ? 'Owner-only 3D parcel atlas. Country/state coverage colors and counters stay visible from globe altitude; exact source parcel lines render from zoom 6. Solid 3D buildings and contrasting roofs render where BridgePoint building tiles are available.'
     : 'Public parcel viewer. Countries are NOT PUBLIC. Exact parcel geometry is restricted to CT, MD, MI and NE and only within the protected detail range.';
-  const legend=document.getElementById('bpBoundaryLegend5800');if(legend)legend.innerHTML=mode==='owner'?'<span class="public"><i></i>GREEN · AVAILABLE</span><span class="private"><i></i>RED · BLOCKED</span><span style="color:#e2b74a"><i></i>AMBER · REVIEWING</span>':'<span class="public"><i></i>GREEN · PUBLIC (CT/MD/MI/NE)</span><span class="private"><i></i>RED · NOT PUBLIC</span>';
+  const legend=document.getElementById('bpBoundaryLegend5801');if(legend)legend.innerHTML=mode==='owner'?'<span class="public"><i></i>GREEN · AVAILABLE</span><span class="private"><i></i>RED · BLOCKED</span><span style="color:#e2b74a"><i></i>AMBER · REVIEWING</span>':'<span class="public"><i></i>GREEN · PUBLIC (CT/MD/MI/NE)</span><span class="private"><i></i>RED · NOT PUBLIC</span>';
 
   if(!window.maplibregl){
     document.getElementById('bpBoundaryCounts5403').innerHTML='<span>Map engine failed to load. Refresh the app and retry.</span>';
@@ -471,7 +472,7 @@ async function openViewer(nextMode='public'){
     pitch:start.pitch,
     bearing:start.bearing,
     minZoom:1.15,
-    maxZoom:mode==='owner'?22:12,
+    maxZoom:mode==='owner'?22:11,
     maxPitch:85,
     projection:{type:'globe'},
     antialias:false,
@@ -487,8 +488,8 @@ async function openViewer(nextMode='public'){
       return {url};
     }
   });
-  window.__BP_BOUNDARY_VIEWER_MAP_V5800__=viewer;
-  window.__BP_BOUNDARY_VIEWER_BOOT_V5800__={version:5800,mode,phase:'map-created',ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
+  window.__BP_BOUNDARY_VIEWER_MAP_V5801__=viewer;
+  window.__BP_BOUNDARY_VIEWER_BOOT_V5801__={version:5801,mode,phase:'map-created',ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
   viewer.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
   viewer.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-right');
   viewer.on('error',e=>{
@@ -513,18 +514,18 @@ async function openViewer(nextMode='public'){
         if(!z||!viewer)return;
         const min=7;
         z.textContent=viewer.getZoom()<min
-          ? (mode==='owner'?'Global coverage + parcel counters · exact parcel lines begin at zoom 7 to prevent world-scale tile timeouts':'Countries NOT PUBLIC · CT/MD/MI/NE exact parcel lines begin at zoom 7')
+          ? (mode==='owner'?'Global coverage + parcel counters · exact parcel lines begin at zoom 6 to prevent world-scale tile timeouts':'Countries NOT PUBLIC · CT/MD/MI/NE exact parcel lines begin at zoom 6')
           : (mode==='owner'?'Owner U.S. + global exact parcel boundaries · solid 3D buildings · 3D terrain':'Public exact parcel boundaries · CT/MD/MI/NE only · detail capped at zoom 12');
       };
       update();viewer.on('zoom',update);viewer.on('moveend',()=>{refreshCountryPointCache(viewer);if(lastGlobalRows.length)void syncGlobalOverlay(viewer,lastGlobalRows)});
       if(lastStateRows.length){try{await syncStateOverlay(viewer,lastStateRows)}catch(e){console.warn('boundary state overlay retry',e)}}
       else void refreshStatus();
-      window.__BP_BOUNDARY_VIEWER_BOOT_V5577__={version:5800,mode,independentMap:true,ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
-      window.__BP_BOUNDARY_VIEWER_BOOT_V5800__={version:5800,mode,phase:'ready',reason,independentMap:true,ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
+      window.__BP_BOUNDARY_VIEWER_BOOT_V5577__={version:5801,mode,independentMap:true,ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
+      window.__BP_BOUNDARY_VIEWER_BOOT_V5801__={version:5801,mode,phase:'ready',reason,independentMap:true,ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
       return true
     }catch(e){
       viewerFinalized=false;
-      window.__BP_BOUNDARY_VIEWER_BOOT_V5800__={version:5800,mode,phase:'retry',reason,error:String(e?.message||e),updatedAt:Date.now()};
+      window.__BP_BOUNDARY_VIEWER_BOOT_V5801__={version:5801,mode,phase:'retry',reason,error:String(e?.message||e),updatedAt:Date.now()};
       clearTimeout(viewerFinalizeTimer);viewerFinalizeTimer=setTimeout(()=>void finalizeViewer('recovery'),350);
       return false
     }
@@ -549,7 +550,7 @@ function closeViewer(){
   if(shell)shell.hidden=true;
   document.body.style.overflow='';
   clearInterval(refreshTimer);clearInterval(statusTimer);
-  if(viewer){try{viewer.remove()}catch(_){}if(window.__BP_BOUNDARY_VIEWER_MAP_V5800__===viewer)window.__BP_BOUNDARY_VIEWER_MAP_V5800__=null;viewer=null}
+  if(viewer){try{viewer.remove()}catch(_){}if(window.__BP_BOUNDARY_VIEWER_MAP_V5801__===viewer)window.__BP_BOUNDARY_VIEWER_MAP_V5801__=null;viewer=null}
 }
 
 function wirePublicApp(){
@@ -593,6 +594,6 @@ function boot(){
     if(n>120)clearInterval(t);
   },500);
 }
-const BOUNDARY_API={version:VERSION,open:openViewer,close:closeViewer,getMap:()=>viewer||window.__BP_BOUNDARY_VIEWER_MAP_V5800__||null,get mode(){return mode},get stateStatus(){return lastStateRows.slice()},stateFillLayer:STATE_FILL};window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5405__=BOUNDARY_API;
+const BOUNDARY_API={version:VERSION,open:openViewer,close:closeViewer,getMap:()=>viewer||window.__BP_BOUNDARY_VIEWER_MAP_V5801__||null,get mode(){return mode},get stateStatus(){return lastStateRows.slice()},stateFillLayer:STATE_FILL};window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5405__=BOUNDARY_API;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
