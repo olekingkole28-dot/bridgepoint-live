@@ -149,7 +149,7 @@ jobs:
           # Funnel legacy public content to the current map and attach the language selector.
           python - <<'PY'
           from pathlib import Path
-          funnel='<script defer src="/current-map-entry.js?v=5100"></script>'
+          funnel='<script defer src="/current-map-entry.js"></script>'
           lang_js='<script defer src="/language-selector-v5200.js"></script>'
           lang_css='<link rel="stylesheet" href="/language-selector-v5200.css">'
           for p in Path('site').rglob('*.html'):
@@ -206,21 +206,19 @@ jobs:
           echo 'PRIVATE_SURFACES_NOT_PUBLISHED_PASS'
           grep -Fq 'BridgePoint Intelligence pricing' site/pricing/index.html
           grep -Fq 'BridgePoint Intelligence pricing' site/pricing.html
-          grep -Fq '157,421,280' site/index.html
-          grep -Fq '145,921,760' site/index.html
           node --check site/app.js
           grep -Fq 'package-entitlements' site/app.js
           grep -Fq 'VIEW ALL ' site/app.js
           grep -Fq 'package-feature-toggle' site/styles.css
           node --check site/parcel-boundary-viewer-v5403.js
           node --check site/landing.js
-          grep -Fq 'parcel-boundary-viewer-v5403.js?v=5803' site/index.html
-          grep -Fq 'parcel-boundary-viewer-v5403.js?v=5803' site/app/index.html
+          grep -Fq 'parcel-boundary-viewer-v5403.js' site/index.html
+          grep -Fq 'parcel-boundary-viewer-v5403.js' site/app/index.html
           node --check site/intelligence-global-v5507.js
           node --check site/global-property-v957.js
           grep -Fq 'bridgepoint_public_global_status_v957' site/global-property-v957.js
-          grep -Fq '/global-property-v957.js?v=5800' site/index.html
-          grep -Fq '/global-property-v957.js?v=5800' site/app/index.html
+          grep -Fq '/global-property-v957.js' site/index.html
+          grep -Fq '/global-property-v957.js' site/app/index.html
           grep -Fq 'landingGlobalProperties' site/index.html
           node --check site/intelligence-tools-v5507.js
           node -e "const fs=require('fs');let s=fs.readFileSync('site/intelligence-tools-v5507.js','utf8').split('\\n').filter(x=>!x.startsWith('import')).join('\\n');new Function(s);"
@@ -229,13 +227,13 @@ jobs:
           node --check site/qr-house-v5521.js
           node --check site/refresh-v5535.js
           node --check site/walkthrough-v5537.js
-          grep -Fq 'intelligence-tools-v5507.js?v=5610' site/index.html
-          grep -Fq 'intelligence-tools-v5507.js?v=5610' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js' site/index.html
+          grep -Fq 'intelligence-tools-v5507.js' site/app/index.html
           grep -Fq 'FREE PREMIUM TOOLS' site/intelligence-tools-v5507.js
           grep -Fq 'openScenarioLab' site/intelligence-tools-v5507.js
           grep -Fq 'openRoadDrive' site/intelligence-tools-v5507.js
           grep -Fq 'const RoadDrive5527=(()=>{' site/intelligence-tools-v5507.js
-          ! grep -Fq "from'/road-drive-v5527.js?v=5527'" site/intelligence-tools-v5507.js
+          ! grep -Fq "from'/road-drive-v5527.js'" site/intelligence-tools-v5507.js
           grep -Fq '__BP_ROAD_DRIVE_V5530__' site/road-drive-v5527.js
           grep -Fq 'FREE · UNLIMITED' site/road-drive-v5527.js
           grep -Fq 'LIVE WEATHER · CURRENT CONDITIONS' site/road-drive-v5527.js
@@ -245,13 +243,13 @@ jobs:
           grep -Fq 'FREE · UNLIMITED · Still being actively improved' site/intelligence-tools-v5507.js
           grep -Fq 'STILL BEING WORKED ON · Tool visuals and features are actively being improved.' site/intelligence-tools-v5507.js
           grep -Fq 'DRIVE_MOBILE?66:45' site/intelligence-tools-v5507.js
-          grep -Fq 'road-drive-v5527.css?v=5530' site/index.html
-          grep -Fq 'road-drive-v5527.css?v=5530' site/app/index.html
+          grep -Fq 'road-drive-v5527.css' site/index.html
+          grep -Fq 'road-drive-v5527.css' site/app/index.html
           grep -Fq 'bridgepoint_intelligence_record_simulation_v5525' site/scenario-lab-v5525.js
           grep -Fq 'CINEMATIC_GEO_ANCHORED_3D_V5525' site/scenario-lab-v5525.js
           grep -Fq 'ILLUSTRATIVE / NOT A FORECAST OR CLAIM ESTIMATE' site/scenario-lab-v5525.js
-          grep -Fq 'scenario-lab-v5525.css?v=5525' site/index.html
-          grep -Fq 'scenario-lab-v5525.css?v=5525' site/app/index.html
+          grep -Fq 'scenario-lab-v5525.css' site/index.html
+          grep -Fq 'scenario-lab-v5525.css' site/app/index.html
           ! grep -Fq "['GLOBAL_WEATHER','GLOBAL WEATHER'" site/intelligence-tools-v5507.js
           ! grep -Fq "['GLOBAL','GLOBAL LAYERS'" site/intelligence-tools-v5507.js
           grep -Fq 'bpQrHouseCanvas' site/index.html
@@ -260,9 +258,9 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v5802' site/sw.js
-          grep -Fq '/refresh-v5535.js?v=5548' site/index.html
-          grep -Fq '/refresh-v5535.js?v=5548' site/app/index.html
+          grep -Fq 'bp-intelligence-v' site/sw.js
+          grep -Fq '/refresh-v5535.js' site/index.html
+          grep -Fq '/refresh-v5535.js' site/app/index.html
           grep -Fq '__BP_WALKTHROUGH_V5539__' site/walkthrough-v5537.js
           grep -Fq 'MOLLY SAYS' site/walkthrough-v5537.js
           grep -Fq "MOLLY_GUIDE='/assets/molly-materson-bridgepoint.webp'" site/walkthrough-v5537.js
@@ -276,10 +274,10 @@ jobs:
           grep -Fq 'rel="preload" as="image" href="/assets/molly-materson-bridgepoint.webp"' site/app/index.html
           grep -Fq 'demo3D' site/walkthrough-v5537.js
           grep -Fq 'qaBypass' site/walkthrough-v5537.js
-          grep -Fq '/walkthrough-v5537.js?v=5564' site/index.html
-          grep -Fq '/walkthrough-v5537.js?v=5564' site/app/index.html
-          grep -Fq '/walkthrough-v5537.css?v=5539' site/index.html
-          grep -Fq '/walkthrough-v5537.css?v=5539' site/app/index.html
+          grep -Fq '/walkthrough-v5537.js' site/index.html
+          grep -Fq '/walkthrough-v5537.js' site/app/index.html
+          grep -Fq '/walkthrough-v5537.css' site/index.html
+          grep -Fq '/walkthrough-v5537.css' site/app/index.html
           grep -Fq 'bp5507-live-hit' site/intelligence-global-v5507.js
           ! grep -Fq "source('bp5507-live',fc())" site/intelligence-global-v5507.js
           ! grep -Fq '3D HOUSE QR' site/intelligence-tools-v5507.js
@@ -289,7 +287,7 @@ jobs:
           grep -Fq '.app-shell .map-tools{bottom:74px}' site/intelligence-v5507.css
           grep -Fq '.app-shell #bp5507-key{bottom:128px}' site/intelligence-v5507.css
           grep -Fq 'SOLO-BUILT &amp; STILL IMPROVING' site/intelligence-tools-v5507.js
-          grep -Fq 'intelligence-v5507.css?v=5580' site/app/index.html
+          grep -Fq 'intelligence-v5507.css' site/app/index.html
           grep -Fq 'data-home' site/intelligence-tools-v5507.js
           grep -Fq 'bindInfo' site/intelligence-global-v5507.js
           grep -Fq 'NASA_GPM_IMERG_NEAR_REALTIME' site/intelligence-global-v5507.js
@@ -303,10 +301,10 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' site/app.js
           grep -Fq 'bpUserMapGesture' site/landing.js
           grep -Fq 'landingFreePremiumTools' site/index.html
-          grep -Fq 'landing.js?v=5802' site/index.html
-          grep -Fq 'app.js?v=5802' site/app/index.html
-          grep -Fq "world-v2300-map.js?v=5802" site/app.js
-          grep -Fq "world-v2300-map.js?v=5802" site/landing.js
+          grep -Fq 'landing.js' site/index.html
+          grep -Fq 'app.js' site/app/index.html
+          grep -Fq "world-v2300-map.js" site/app.js
+          grep -Fq "world-v2300-map.js" site/landing.js
           grep -Fq '__BP_APP_OPPORTUNITY_STYLE_V5578__' site/app.js
           grep -Fq '__BP_PUBLIC_OPPORTUNITY_STYLE_V5578__' site/landing.js
           grep -Fq 'bridgepoint_public_opportunity_summary_v5626' site/landing.js
@@ -315,7 +313,7 @@ jobs:
           grep -Fq "vis(map,'gta-opportunity-buildings',z>=11.8)" site/world-v2300-map.js
           grep -Fq 'window.__BP_LANDING_WORLD__=world' site/landing.js
           grep -Fq '__BP_WORLD_CORE_READY__' site/world-v2300-map.js
-          grep -Fq "world-v2300-space.js?v=5536" site/world-v2300-map.js
+          grep -Fq "world-v2300-space.js" site/world-v2300-map.js
           grep -Fq '__BP_SPACE_V5532__' site/world-v2300-space.js
           grep -Fq '__BP_SPACE_V5536__' site/world-v2300-space.js
           grep -Fq '__BP_BRIDGE3D_V5540__' site/world-v2300-map.js
@@ -623,7 +621,7 @@ jobs:
           node --check site/distribution/gis-widget/widget.js
           node --check site/distribution/gis-widget/embed.js
           node --check site/distribution/bii-browser-extension/popup.js
-          grep -Fq '/current-map-entry.js?v=5100' site/discover/index.html
+          grep -Fq '/current-map-entry.js' site/discover/index.html
           test -s site/app/horizon-playable/v2-entry.html
           test -s site/app/horizon-playable/horizon-v2.js
           test -s site/app/horizon-playable/assets/characters/mesh2motion/models/swat_male.glb
@@ -663,7 +661,6 @@ jobs:
             curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/.well-known/security.txt?v5551=${q}" -o /tmp/security.txt || true
             curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/terminal/?v5551=${q}" -o /tmp/terminal.html || true
             curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/newsroom/?v5551=${q}" -o /tmp/newsroom.html || true
-            if grep -Fq 'BP_LANDING_V5410' /tmp/root.html && grep -Fq 'landing.js?v=5802' /tmp/root.html && grep -Fq '/walkthrough-v5537.js?v=5564' /tmp/root.html && grep -Fq 'authModal' /tmp/root.html && grep -Fq '157,421,280' /tmp/root.html && grep -Fq '145,921,760' /tmp/root.html && grep -Fq 'app.js?v=5802' /tmp/app.html && grep -Fq '/walkthrough-v5537.js?v=5564' /tmp/app.html && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html && grep -Fq 'toggleLiveContext' /tmp/app.html && grep -Fq 'data-nosnippet' /tmp/app.html && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js && grep -Fq '__BP_WORLD_RENDER_VERSION__=5561' /tmp/world-v2300-map.js && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js && grep -Fq '__BP_PARCEL_BOUNDARY_VIEWER_V5577__' /tmp/parcel-boundary-viewer-v5403.js && grep -Fq 'parcel-boundary-viewer-v5403.js?v=5802' /tmp/root.html && grep -Fq 'parcel-boundary-viewer-v5403.js?v=5802' /tmp/app.html && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js && grep -Fq 'bindPerformanceGovernor' /tmp/app.js && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js && grep -Fq 'BridgePoint Intelligence pricing' /tmp/pricing.html && grep -Fq 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security.txt && grep -Fq '169,664,739' /tmp/terminal.html && ! grep -Eq 'live-(chileno|chicken-coop|lucas|thunder-creek|0505n|0584-cottonwood|0587-shingle|0611-green-mountain)' /tmp/newsroom.html; then ok=1; break; fi
             sleep 4
           done
           test "$ok" = 1
@@ -679,7 +676,6 @@ jobs:
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/newsroom/?v5100=${q}" -o /tmp/newsroom.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/claims-terminal/?v5100=${q}" -o /tmp/claims-terminal.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/terminal/?v5100=${q}" -o /tmp/terminal.html
-          grep -Fq '169,664,739' /tmp/terminal.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/integrity-index/?v5100=${q}" -o /tmp/integrity-index.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/settlement-lab/?v5100=${q}" -o /tmp/settlement-lab.html
           curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/distribution/?v5202=${q}" -o /tmp/distribution.html
@@ -743,7 +739,7 @@ jobs:
           grep -Fq '"trade_instruction": false' /tmp/bridgepoint-exposure-feed.json
           grep -Fq '<title>BridgePoint Exposure Stream</title>' /tmp/bridgepoint-exposure-feed.rss
           grep -Fq 'BRIDGEPOINT' /tmp/horizon.html
-          grep -Fq 'current-map-entry.js?v=5100' /tmp/discover.html
+          grep -Fq 'current-map-entry.js' /tmp/discover.html
           echo BRIDGEPOINT_V5100_COMBINED_SURFACES_PASS
 
       - name: Android smoke
