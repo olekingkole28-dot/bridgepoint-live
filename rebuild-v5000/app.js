@@ -100,7 +100,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5801');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5802');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -371,7 +371,7 @@ function ensureSelectedParcelLayer(geometry){
  for(const id of ['bpV5001SelectedParcelFill','bpV5001SelectedParcelLine']){try{if(map?.getLayer(id))map.removeLayer(id)}catch(_){}}
  try{const src=map?.getSource('bpV5001SelectedParcel');if(src?.setData)src.setData({type:'FeatureCollection',features:[]})}catch(_){}
  window.__BP_SELECTED_PARCEL_LAYER_STATE__={ready:false,suppressed:true,reason:'DEDICATED_BOUNDARY_VIEWER_ONLY',updatedAt:Date.now()};
- window.__BP_PUBLIC_PARCEL_SURFACE_LOCK_V5801__={version:5801,mainMapGeometry:false,dedicatedBoundaryViewerOnly:true,updatedAt:Date.now()};
+ window.__BP_PUBLIC_PARCEL_SURFACE_LOCK_V5802__={version:5801,mainMapGeometry:false,dedicatedBoundaryViewerOnly:true,updatedAt:Date.now()};
  return false
 }
 function parcelSourceLabel(url){if(!url)return 'Boundary source not attached';try{return new URL(url).hostname.replace(/^www\./,'')}catch(_){return String(url).slice(0,90)}}
@@ -852,7 +852,7 @@ function refreshTiles(){
    // V5801: the normal public app never carries a parcel vector tile source.
    for(const id of ['gta-parcel-glow','gta-parcel-halo','gta-parcel']){try{if(map.getLayer(id))map.removeLayer(id)}catch(_){}}
    try{if(map.getSource('bpParcels'))map.removeSource('bpParcels')}catch(_){}
-   window.__BP_PUBLIC_PARCEL_SURFACE_LOCK_V5801__={version:5801,mainMapVectorSource:false,selectedParcelGeometry:false,dedicatedBoundaryViewerOnly:true,updatedAt:Date.now()};
+   window.__BP_PUBLIC_PARCEL_SURFACE_LOCK_V5802__={version:5801,mainMapVectorSource:false,selectedParcelGeometry:false,dedicatedBoundaryViewerOnly:true,updatedAt:Date.now()};
    window.__BP_BUILDING_TILE_REFRESH__={stable:true,cacheBusting:false,displaySource:'OPENFREEMAP_GLOBAL_BUILDING',bridgePointHandoff:false,additiveExactDetail:true,updatedAt:Date.now()};
    queueAfterMap('selected-refresh',refreshSelected)
  }catch(e){console.warn('tile pulse',e)}
@@ -891,7 +891,7 @@ async function applyGrowthDeepLink(){
  if(q.get('select')!=='0'&&zoom>=15){setTimeout(()=>{try{selectedFeature=null;showBuilding(targetLng,targetLat)}catch(e){console.warn('deep link building',e)}},350)}
  return true
 }
-async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();void loadStatus();setTimeout(()=>{if(!Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0))void loadStatus()},5000);try{await bootMap();startupInteractiveUntil=Math.max(startupInteractiveUntil,performance.now()+(BP_MOBILE?10000:1800));window.__BP_INTERACTION_PRIORITY_UNTIL__=startupInteractiveUntil;bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();await applyGrowthDeepLink();setTimeout(flushDeferredWork,BP_MOBILE?10200:2000);window.__BP_APP_START_READY_V5582__={version:5582,settled:true,userCameraPreserved:Number(window.__BP_MAP_USER_INTENT_AT__||0)>0,updatedAt:Date.now()}}catch(e){setText('mapStatus','Map start retry · '+e.message);window.__BP_APP_START_READY_V5582__={version:5582,settled:false,error:String(e?.message||e),updatedAt:Date.now()}}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),120000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),90000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5616',{updateViaCache:'none'}).catch(()=>{})}
+async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();void loadStatus();setTimeout(()=>{if(!Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0))void loadStatus()},5000);try{await bootMap();startupInteractiveUntil=Math.max(startupInteractiveUntil,performance.now()+(BP_MOBILE?10000:1800));window.__BP_INTERACTION_PRIORITY_UNTIL__=startupInteractiveUntil;bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();await applyGrowthDeepLink();setTimeout(flushDeferredWork,BP_MOBILE?10200:2000);window.__BP_APP_START_READY_V5582__={version:5582,settled:true,userCameraPreserved:Number(window.__BP_MAP_USER_INTENT_AT__||0)>0,updatedAt:Date.now()}}catch(e){setText('mapStatus','Map start retry · '+e.message);window.__BP_APP_START_READY_V5582__={version:5582,settled:false,error:String(e?.message||e),updatedAt:Date.now()}}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),120000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),90000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5802',{updateViaCache:'none'}).catch(()=>{})}
 start();
 window.addEventListener('beforeunload',()=>{clearInterval(accessCountdownTimer);clearInterval(statusTimer);clearInterval(tileTimer);clearInterval(selectedTimer);clearInterval(liveContextTimer);clearInterval(radarRefreshTimer);clearInterval(radarAnimTimer);clearInterval(cloudRefreshTimer);clearInterval(cloudAnimTimer);clearInterval(transportTimer);clearInterval(opportunityTimer);clearTimeout(semanticTimer);clearTimeout(semanticBuildTimer)});
 ;(()=>{const resume=()=>{if(document.hidden)return;try{window.__BP_V5000_WORLD__?.map?.resize?.();window.__BP_V5000_WORLD__?.map?.triggerRepaint?.()}catch(_){ }if(!mapInteracting)flushDeferredWork()};document.addEventListener('visibilitychange',resume,{passive:true});window.__BP_APP_RESPONSIVENESS_V5561__={version:5561,inputPendingAware:true,idleBackgroundWork:true,visibilityPause:true,updatedAt:Date.now()}})();
