@@ -219,8 +219,8 @@ jobs:
           node --check site/intelligence-global-v5507.js
           node --check site/global-property-v957.js
           grep -Fq 'bridgepoint_public_global_status_v957' site/global-property-v957.js
-          grep -Fq '/global-property-v957.js?v=975' site/index.html
-          grep -Fq '/global-property-v957.js?v=975' site/app/index.html
+          grep -Fq '/global-property-v957.js?v=5800' site/index.html
+          grep -Fq '/global-property-v957.js?v=5800' site/app/index.html
           grep -Fq 'landingGlobalProperties' site/index.html
           node --check site/intelligence-tools-v5507.js
           node -e "const fs=require('fs');let s=fs.readFileSync('site/intelligence-tools-v5507.js','utf8').split('\\n').filter(x=>!x.startsWith('import')).join('\\n');new Function(s);"
