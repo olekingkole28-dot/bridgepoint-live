@@ -3,7 +3,7 @@
 
 const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localhost';
 const FN=LOCAL_RUNTIME?location.origin+'/functions/v1/bridgepoint-parcel-boundary-tile-v5403':'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403';
-const VERSION=5802;
+const VERSION=5803;
 const SOURCE='bp-boundary-viewer-v5403';
 const GLOW='bp-boundary-glow-v5403';
 const LINE='bp-boundary-line-v5403';
@@ -559,7 +559,7 @@ function wirePublicApp(){
     const b=document.createElement('button');
     b.id='bpAppBoundaryOpen5403';b.type='button';b.className='bp-boundary-open5403';b.textContent='BOUNDARY VIEW';
     b.title='Open the rights-cleared parcel boundary viewer';
-    b.onclick=()=>openViewer('public');
+    b.onclick=()=>openViewer(ownerAllowed()?'owner':'public');
     tools.appendChild(b);
   }
   const preview=document.getElementById('previewMap');
@@ -568,7 +568,7 @@ function wirePublicApp(){
     if(cs.position==='static')preview.style.position='relative';
     const b=document.createElement('button');
     b.id='bpLandingBoundaryOpen5403';b.type='button';b.textContent='PARCEL BOUNDARIES';
-    b.onclick=()=>openViewer('public');
+    b.onclick=()=>openViewer(ownerAllowed()?'owner':'public');
     preview.appendChild(b);
   }
 }
