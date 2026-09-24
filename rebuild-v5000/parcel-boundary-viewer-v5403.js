@@ -3,7 +3,7 @@
 
 const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localhost';
 const FN=LOCAL_RUNTIME?location.origin+'/functions/v1/bridgepoint-parcel-boundary-tile-v5403':'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403';
-const VERSION=5631;
+const VERSION=5634;
 const SOURCE='bp-boundary-viewer-v5403';
 const GLOW='bp-boundary-glow-v5403';
 const LINE='bp-boundary-line-v5403';
@@ -162,6 +162,7 @@ function globalCoverageData(rows){
     type:'Feature',
     properties:{
       country_code:String(r.country_code||'').trim(),
+      country_name:String(r.country_name||r.country_code||'').trim(),
       boundaries:Number(r.boundaries||0),
       canonicals:Number(r.canonicals||0),
       boundaries_fmt:fmt(r.boundaries),
@@ -182,7 +183,7 @@ function syncGlobalOverlay(map,rows){
     'circle-opacity':.9,'circle-stroke-color':'#eaffff','circle-stroke-width':1.1
   }});
   if(!map.getLayer(GLOBAL_LABEL))map.addLayer({id:GLOBAL_LABEL,type:'symbol',source:GLOBAL_SOURCE,minzoom:1,maxzoom:7,layout:{
-    'text-field':['concat',['get','country_code'],' · ',['get','boundaries_fmt'],' parcels'],
+    'text-field':['concat',['get','country_name'],' · ',['get','boundaries_fmt'],' parcels'],
     'text-font':['Noto Sans Regular'],
     'text-size':['interpolate',['linear'],['zoom'],1,8,3,10,5,12,7,13],
     'text-offset':[0,1.25],'text-anchor':'top','text-allow-overlap':false,'text-padding':3
@@ -302,7 +303,7 @@ async function refreshStatus(){
   const box=document.getElementById('bpBoundaryCounts5403');
   if(!box)return;
   try{
-    const r=await fetch(FN+'?mode='+encodeURIComponent(mode)+'&status=1',{headers:authHeaders(),cache:'no-store'});
+    const r=await fetch(FN+'?mode='+encodeURIComponent(mode)+'&status=1',{headers:authHeaders(),cache:'no-store',signal:AbortSignal.timeout(4500)});
     const d=await r.json();
     if(!r.ok)throw new Error(d.error||'status failed');
     const s=d.status||{};
@@ -319,9 +320,10 @@ async function refreshStatus(){
     box.innerHTML=mode==='owner'
       ? '<span>U.S. parcel counter '+fmt(s.parcel_counter_total)+'</span><span>U.S. market canonical '+fmt(s.market_canonical_total)+'</span><span>Global parcel boundaries '+fmt(gb)+'</span><span>Global canonicals '+fmt(gc)+'</span><span>Countries materialized '+fmt(gCountries)+'</span><span>Approved U.S. boundary sources '+fmt(s.active_boundary_candidates)+'</span><span>Public-enabled U.S. jurisdictions '+fmt(publicCount)+denominator+'</span>'
       : '<span>U.S. parcel counter '+fmt(s.parcel_counter_total)+'</span><span>Public-display U.S. sources '+fmt(s.public_display_candidates)+'</span><span>Public-enabled U.S. jurisdictions '+fmt(publicCount)+denominator+'</span>';
+    box.dataset.ready='1';
     if(stateError)box.innerHTML+='<span>State overlay retrying · '+esc(stateError)+'</span>';
   }catch(e){
-    box.innerHTML='<span>'+esc(e.message||e)+'</span>';
+    if(box.dataset.ready!=='1')box.innerHTML='<span>Live boundary status reconnecting…</span>';
   }
 }
 
@@ -379,7 +381,7 @@ async function openViewer(nextMode='public'){
     fadeDuration:0,
     renderWorldCopies:false,
     maxTileCacheSize:mobile?72:180,
-    cancelPendingTileRequestsWhileZooming:false,
+    cancelPendingTileRequestsWhileZooming:true,
     attributionControl:false,
     transformRequest:(url)=>{
       if(mode==='owner'&&url.includes('bridgepoint-parcel-boundary-tile-v5403')&&t){
@@ -442,7 +444,7 @@ async function openViewer(nextMode='public'){
     if(!viewer||document.getElementById('bpBoundaryViewer5403')?.hidden)return;
     viewer.triggerRepaint?.();
   },60000);
-  clearInterval(statusTimer);statusTimer=setInterval(refreshStatus,30000);
+  clearInterval(statusTimer);statusTimer=setInterval(refreshStatus,60000);
 }
 
 function closeViewer(){
