@@ -428,8 +428,9 @@ jobs:
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
           grep -Fq '__BP_APP_BUILD_VERSION__=5371' site/app.js
-          grep -Fq '__BP_WORLD_RENDER_VERSION__=5624' site/world-v2300-map.js
+          grep -Fq '__BP_WORLD_RENDER_VERSION__=5625' site/world-v2300-map.js
           grep -Fq '__BP_TECH_BASEMAP_V1116__' site/world-v2300-map.js
+          grep -Fq '__BP_PUBLIC_TECH_FAST_V1117__' site/world-v2300-map.js
           grep -Fq "setBase('gta')" site/world-v2300-map.js
           grep -Fq 'PUBLIC_PARCEL_GEOMETRY=false' site/global-property-v957.js
           grep -Fq '__BP_MATERIAL_LAZYLOAD_V5587__' site/world-v2300-map.js
@@ -657,7 +658,7 @@ jobs:
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?v5410=${q}" -o /tmp/root.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?v5410=${q}" -o /tmp/app.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5371=${q}" -o /tmp/app.js || true
-            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5561=${q}" -o /tmp/world-v2300-map.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5625=${q}" -o /tmp/world-v2300-map.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/walkthrough-v5537.js?v5539=${q}" -o /tmp/walkthrough-v5537.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/parcel-boundary-viewer-v5403.js?v5404=${q}" -o /tmp/parcel-boundary-viewer-v5403.js || true
             curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/pricing.html?v5551=${q}" -o /tmp/pricing.html || true
@@ -674,7 +675,7 @@ jobs:
               && grep -Fq 'toggleLiveContext' /tmp/app.html \
               && grep -Fq 'data-nosnippet' /tmp/app.html \
               && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js \
-              && grep -Fq '__BP_WORLD_RENDER_VERSION__=5561' /tmp/world-v2300-map.js \
+              && grep -Fq '__BP_WORLD_RENDER_VERSION__=5625' /tmp/world-v2300-map.js \
               && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js \
               && grep -Fq '__BP_PARCEL_BOUNDARY_VIEWER_V5577__' /tmp/parcel-boundary-viewer-v5403.js \
               && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js \
@@ -913,7 +914,7 @@ jobs:
 
               await p.goto('https://bridgepointintelligence.online/app/?qa=v5584-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000&&window.__BP_APP_BUILD_VERSION__===5371,{timeout:20000});
-              await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5561&&!!window.__BP_V5000_WORLD?.map,{timeout:35000});
+              await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5625&&!!window.__BP_V5000_WORLD?.map,{timeout:35000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
               await p.waitForFunction(()=>!!window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__&&!!window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__,{timeout:30000});
               await p.waitForFunction(()=>{
@@ -978,7 +979,7 @@ jobs:
                 weatherFx:window.__bpWeatherV2300?.fx?.state?.capabilities||window.__bpWeatherFXV2300?.state?.capabilities||{}
                 };
               });
-              if(state.frontend!==5000||state.app!==5371||state.world!==5561||state.canvases!==1||state.architecture!=='MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY'||state.camera?.mode!=='FREE_FLY_SINGLE_VIEW'||state.camera?.singleView!==true||state.camera?.autoViewSwitching!==false||state.camera?.streetWalkMode!==false||state.camera?.buildingClickOverlook!==true||Number(state.maxPitch)<84||state.materials?.floorLines!==true||state.materials?.roofOverlays!==true||state.materials?.exactRoofs!==true||state.fine?.enabled!==false||!state.sources.city||!state.sources.cityRoofs||!state.sources.weatherShapes||!state.weatherLegend.present||!state.weatherLegend.more||state.weatherFx.rainSnowHail!==true||state.weatherFx.wildfireFlameParticles!==true||Object.values(state.layers).some(v=>v!==true))throw new Error('CURRENT_WORLD_REGRESSION '+JSON.stringify(state));
+              if(state.frontend!==5000||state.app!==5371||state.world!==5625||state.canvases!==1||state.architecture!=='MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY'||state.camera?.mode!=='FREE_FLY_SINGLE_VIEW'||state.camera?.singleView!==true||state.camera?.autoViewSwitching!==false||state.camera?.streetWalkMode!==false||state.camera?.buildingClickOverlook!==true||Number(state.maxPitch)<84||state.materials?.floorLines!==true||state.materials?.roofOverlays!==true||state.materials?.exactRoofs!==true||state.fine?.enabled!==false||!state.sources.city||!state.sources.cityRoofs||!state.sources.weatherShapes||!state.weatherLegend.present||!state.weatherLegend.more||state.weatherFx.rainSnowHail!==true||state.weatherFx.wildfireFlameParticles!==true||Object.values(state.layers).some(v=>v!==true))throw new Error('CURRENT_WORLD_REGRESSION '+JSON.stringify(state));
               console.log('BRIDGEPOINT_CURRENT_WORLD_PASS',JSON.stringify(state));
 
               await p.evaluate(()=>{
