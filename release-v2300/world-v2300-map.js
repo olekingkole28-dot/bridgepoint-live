@@ -803,12 +803,12 @@ export function initWorld(options={}){
    const sourceLoaded=!!map.isSourceLoaded?.('bpCityStructures');
    let rendered=0,sourceFeatures=0;
    try{rendered=(map.queryRenderedFeatures?.({layers:['gta-city-buildings']})||[]).length}catch(_){}
-   if(sourceLoaded&&rendered===0){
+   if(rendered===0){
     try{sourceFeatures=(map.querySourceFeatures?.('bpCityStructures',{sourceLayer:'buildings'})||[]).length}catch(_){}
    }
-   const ready=sourceLoaded&&(rendered>0||sourceFeatures>0);
-   map.__bpCityReadyCheck={at:now,ready,rendered,sourceFeatures};
-   window.__BP_CITY_BUILDING_HANDOFF_V5545__={version:5546,ready,sourceLoaded,rendered,sourceFeatures,zoom:map.getZoom(),center:map.getCenter(),rule:'source-loaded-current-viewport-can-promote-city-before-first-render',cachedMs:900,updatedAt:Date.now()};
+   const ready=rendered>0||sourceFeatures>0;
+   map.__bpCityReadyCheck={at:now,ready,rendered,sourceFeatures,sourceLoaded};
+   window.__BP_CITY_BUILDING_HANDOFF_V5545__={version:5547,ready,sourceLoaded,rendered,sourceFeatures,zoom:map.getZoom(),center:map.getCenter(),rule:'loaded-current-viewport-features-promote-city-before-first-render',cachedMs:900,updatedAt:Date.now()};
    return ready
   }catch(_){return false}
  }
