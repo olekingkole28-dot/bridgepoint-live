@@ -5,7 +5,7 @@ const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localh
 const FN=LOCAL_RUNTIME?location.origin+'/functions/v1/bridgepoint-parcel-boundary-tile-v5403':'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403';
 const SEARCH_FN=LOCAL_RUNTIME?location.origin+'/functions/v1/bridgepoint-boundary-search-v1091':'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-boundary-search-v1091';
 const PUBLIC_BUILDINGS='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000';
-const VERSION=5636;
+const VERSION=5637;
 const SOURCE='bp-boundary-viewer-v5403';
 const GLOW='bp-boundary-glow-v5403';
 const LINE='bp-boundary-line-v5403';
@@ -404,13 +404,33 @@ async function boundarySearch(q){
       const b=document.createElement('button');b.type='button';b.className='bp-boundary-search-result1091';
       const meta=[row.municipality,row.state_code,row.country_code,row.target_kind,row.parcel_access].filter(Boolean).join(' · ');
       b.innerHTML='<b class="notranslate" translate="no">'+esc(row.full_address||'Address result')+'</b><small>'+esc(meta)+'</small><span>'+esc(row.message||'Source-backed location found.')+'</span>';
-      b.onclick=()=>{
+      b.onclick=async()=>{
         const lng=Number(row.longitude),lat=Number(row.latitude);
         if(Number.isFinite(lng)&&Number.isFinite(lat)){
           box.hidden=true;
           viewer.easeTo({center:[lng,lat],zoom:mode==='owner'?17.2:Math.min(11.35,10.9),pitch:mode==='owner'?62:45,bearing:-18,duration:650});
-          if(mode==='owner'&&Number(row.building_id)>0)setTimeout(()=>highlightOwnerBuilding(row.building_id),100);
         }
+        if(mode!=='owner')return;
+        let buildingId=Number(row.building_id||0);
+        if(buildingId>0){
+          setTimeout(()=>highlightOwnerBuilding(buildingId),120);
+          return;
+        }
+        if(!row.address_id)return;
+        try{
+          const attach=await fetch(
+            SEARCH_FN+'?mode=owner&attach=1&address_id='+encodeURIComponent(row.address_id),
+            {headers:authHeaders(),cache:'no-store',signal:AbortSignal.timeout(3500)}
+          );
+          const linked=await attach.json();
+          if(!attach.ok||linked?.complete===false||linked?.linked!==true)return;
+          buildingId=Number(linked.building_id||0);
+          const blng=Number(linked.longitude),blat=Number(linked.latitude);
+          if(Number.isFinite(blng)&&Number.isFinite(blat)){
+            viewer.easeTo({center:[blng,blat],zoom:17.6,pitch:62,bearing:-18,duration:480});
+          }
+          if(buildingId>0)setTimeout(()=>highlightOwnerBuilding(buildingId),160);
+        }catch(e){console.warn('owner on-demand building attach',e)}
       };
       box.appendChild(b);
     }
