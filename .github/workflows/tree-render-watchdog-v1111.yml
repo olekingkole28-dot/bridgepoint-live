@@ -1,10 +1,13 @@
-name: BridgePoint Tree Render Watchdog V1111
+name: BridgePoint Tree Render Watchdog V1121
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
+      - 'release-v2300/world-v2300-map.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/app-index.html'
       - '.github/workflows/tree-render-watchdog-v1111.yml'
 
 permissions:
@@ -13,9 +16,9 @@ permissions:
 jobs:
   tree-render:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 9
     steps:
-      - name: Verify live height-backed tree rendering
+      - name: Verify high-altitude LOD and realistic close 3D trees
         shell: bash
         run: |
           set -euo pipefail
@@ -29,58 +32,66 @@ jobs:
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
           (async()=>{
             const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
-            const page=await browser.newPage();
-            const errors=[];
+            const page=await browser.newPage(),errors=[];
             page.on('pageerror',e=>errors.push(String(e?.message||e)));
             try{
               await browser.defaultBrowserContext().overridePermissions(O,['geolocation']);
               await page.setGeolocation({latitude:41.55,longitude:-72.65,accuracy:20});
               await page.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
-              await page.goto(O+'/app/?tree1111='+Date.now(),{waitUntil:'domcontentloaded',timeout:35000});
+              await page.goto(O+'/app/?tree1121='+Date.now(),{waitUntil:'domcontentloaded',timeout:35000});
               await page.waitForFunction(()=>window.__BP_V5000_WORLD?.map,{timeout:45000});
               await page.evaluate(()=>{try{window.__BP_WALKTHROUGH_V5539__?.skip?.()}catch(_){}});
+
               await page.evaluate(()=>{
                 window.__BP_MAP_USER_INTENT_AT__=Date.now();
-                window.__BP_V5000_WORLD.map.jumpTo({center:[-72.66,41.55],zoom:16.4,pitch:62,bearing:10});
+                window.__BP_V5000_WORLD.map.jumpTo({center:[-72.66,41.55],zoom:13.15,pitch:48,bearing:8});
               });
-              await page.waitForFunction(()=>Number(window.__BP_LIVING_WORLD_STATE__?.treeCount||0)>=40,{timeout:35000});
-              await page.waitForFunction(()=>window.__BP_TREE_RENDER_STATE__?.visible3D===true,{timeout:15000});
-              await sleep(1800);
-              const state=await page.evaluate(()=>{
-                const m=window.__BP_V5000_WORLD.map;
-                let crowns=0,trunks=0,physical=0;
+              await page.waitForFunction(()=>Number(window.__BP_LIVING_WORLD_STATE__?.treeCount||0)>=20,{timeout:35000});
+              await page.waitForFunction(()=>window.__BP_TREE_RENDER_STATE__?.version>=1121&&window.__BP_TREE_RENDER_STATE__?.visibleLod===true,{timeout:18000});
+              await sleep(1200);
+              const high=await page.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD.map;let crowns=0,lodSource=0;
+                try{crowns=(m.queryRenderedFeatures({layers:['gta-bp-tree-crowns']})||[]).length}catch{}
+                try{lodSource=(m.querySourceFeatures('bpTreeLod')||[]).length}catch{}
+                return{render:window.__BP_TREE_RENDER_STATE__||null,crowns,lodSource,zoom:m.getZoom(),
+                  crownVisibility:m.getLayer('gta-bp-tree-crowns')?(m.getLayoutProperty('gta-bp-tree-crowns','visibility')||'visible'):null};
+              });
+              console.log('TREE_HIGH_LOD_DIAGNOSTICS',JSON.stringify(high));
+              if(high.render?.visibleLod!==true)throw new Error('TREE_HIGH_LOD_NOT_ENABLED '+JSON.stringify(high));
+              if(high.crownVisibility==='none'||high.crowns<1||high.lodSource<1)throw new Error('TREE_HIGH_LOD_NOT_RENDERED '+JSON.stringify(high));
+
+              await page.evaluate(()=>window.__BP_V5000_WORLD.map.jumpTo({center:[-72.66,41.55],zoom:15.2,pitch:62,bearing:10}));
+              await page.waitForFunction(()=>window.__BP_TREE_RENDER_STATE__?.visible3D===true,{timeout:25000});
+              await sleep(1600);
+              const close=await page.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD.map;let crowns=0,trunks=0,physical=[];
                 try{crowns=(m.queryRenderedFeatures({layers:['gta-bp-tree3d-canopy']})||[]).length}catch{}
                 try{trunks=(m.queryRenderedFeatures({layers:['gta-bp-tree3d-trunk']})||[]).length}catch{}
-                try{physical=(m.querySourceFeatures('bpLivingWorld3D')||[]).length}catch{}
-                return {
-                  living:window.__BP_LIVING_WORLD_STATE__||null,
-                  render:window.__BP_TREE_RENDER_STATE__||null,
-                  crowns,trunks,physical,
-                  canopyVisibility:m.getLayer('gta-bp-tree3d-canopy')?(m.getLayoutProperty('gta-bp-tree3d-canopy','visibility')||'visible'):null,
-                  trunkVisibility:m.getLayer('gta-bp-tree3d-trunk')?(m.getLayoutProperty('gta-bp-tree3d-trunk','visibility')||'visible'):null,
-                  center:[m.getCenter().lng,m.getCenter().lat],zoom:m.getZoom(),pitch:m.getPitch()
-                };
+                try{physical=m.querySourceFeatures('bpLivingWorld3D')||[]}catch{}
+                const canopy=physical.filter(f=>f?.properties?.part==='tree_canopy');
+                const trunk=physical.filter(f=>f?.properties?.part==='tree_trunk');
+                const tiers=new Set(canopy.map(f=>Number(f?.properties?.crown_tier)).filter(Number.isFinite));
+                return{render:window.__BP_TREE_RENDER_STATE__||null,crowns,trunks,physical:physical.length,canopyParts:canopy.length,trunkParts:trunk.length,crownTiers:[...tiers].sort(),zoom:m.getZoom()};
               });
-              console.log('TREE_RENDER_DIAGNOSTICS',JSON.stringify(state));
-              if(Number(state.living?.treeCount||0)<40)throw new Error('TREE_FEED_TOO_SPARSE '+JSON.stringify(state));
-              if(state.render?.visible3D!==true)throw new Error('TREE_RENDER_NOT_ENABLED '+JSON.stringify(state));
-              if(state.canopyVisibility==='none'||state.trunkVisibility==='none')throw new Error('TREE_LAYERS_HIDDEN '+JSON.stringify(state));
-              if(state.crowns<1||state.trunks<1)throw new Error('TREE_FEATURES_NOT_RENDERED '+JSON.stringify(state));
+              console.log('TREE_CLOSE_3D_DIAGNOSTICS',JSON.stringify(close));
+              if(close.render?.visible3D!==true)throw new Error('TREE_3D_NOT_ENABLED '+JSON.stringify(close));
+              if(close.crowns<1||close.trunks<1)throw new Error('TREE_3D_NOT_RENDERED '+JSON.stringify(close));
+              if(close.crownTiers.length<4||close.trunkParts<2)throw new Error('TREE_GEOMETRY_NOT_MULTI_TIER '+JSON.stringify(close));
+              if(!String(close.render?.geometry||'').includes('MULTI_TIER'))throw new Error('TREE_GEOMETRY_MARKER_MISSING '+JSON.stringify(close));
               if(errors.length)throw new Error('PAGEERROR '+JSON.stringify(errors.slice(-5)));
-              console.log('TREE_RENDER_WATCHDOG_PASS',JSON.stringify({treeCount:state.living.treeCount,crowns:state.crowns,trunks:state.trunks,heightBacked:state.living.treeHeightBackedCount||0}));
+              console.log('TREE_RENDER_WATCHDOG_PASS',JSON.stringify({highCrowns:high.crowns,highSource:high.lodSource,closeCrowns:close.crowns,closeTrunks:close.trunks,crownTiers:close.crownTiers}));
             }catch(e){
               try{await page.screenshot({path:'/tmp/tree-render-failure.png',fullPage:true})}catch{}
               console.error(e.stack||e);process.exitCode=1;
             }finally{await browser.close()}
           })();
           NODE
-
       - name: Upload tree failure screenshot
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: bridgepoint-tree-render-failure
+          name: bridgepoint-tree-render-failure-v1121
           path: /tmp/tree-render-failure.png
           if-no-files-found: ignore
           retention-days: 2
