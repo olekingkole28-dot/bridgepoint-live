@@ -1,4 +1,4 @@
-const C={supa:'https://xdfsjztwgsbmabshzsjw.supabase.co',key:'sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25',map:null,world:null,surface:null,signals:null,last:0,imergDate:null,styleTimer:0,bgTimer:0,bgRunning:false,mobile:matchMedia('(max-width:760px)').matches||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)};
+const C={supa:'https://xdfsjztwgsbmabshzsjw.supabase.co',key:'sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25',map:null,world:null,surface:null,signals:null,last:0,bootAt:Date.now(),imergDate:null,styleTimer:0,bgTimer:0,bgRunning:false,mobile:matchMedia('(max-width:760px)').matches||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)};
 const $=id=>document.getElementById(id);const fc=()=>({type:'FeatureCollection',features:[]});
 function authHeaders(){let a='';try{const s=JSON.parse(localStorage.getItem('bp_auth_v5045')||'null');if(s&&s.access_token)a='Bearer '+s.access_token}catch(_){}return{apikey:C.key,'Content-Type':'application/json',Accept:'application/json',...(a?{Authorization:a}:{})}}
 export async function rpc(name,args={},timeout=12000){const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);try{const r=await fetch(C.supa+'/rest/v1/rpc/'+name,{method:'POST',headers:authHeaders(),body:JSON.stringify(args),signal:c.signal,cache:'no-store'});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.message||d.error||('HTTP '+r.status));return d}finally{clearTimeout(t)}}
@@ -73,18 +73,27 @@ export async function refresh(force=false){
  if(!force&&Date.now()-C.last<90000)return;
  if(C.bgRunning&&!force)return;
  C.last=Date.now();
- const yieldUi=()=>new Promise(resolve=>setTimeout(resolve,C.mobile?90:25));
+ const yieldUi=()=>new Promise(resolve=>setTimeout(resolve,C.mobile?140:25)),mobileWarm=C.mobile&&(Date.now()-C.bootAt<45000),liveLimit=C.mobile?650:1800,refLimit=C.mobile?850:2500;
  try{
-  const live=await rpc('bridgepoint_intelligence_live_entities_v5507',{p_domain:null,p_limit:1800});
+  const live=await rpc('bridgepoint_intelligence_live_entities_v5507',{p_domain:null,p_limit:liveLimit});
+  if(globalInputPending())await yieldUi();
   source('bp5507-live',{type:'FeatureCollection',features:entities(live.entities)});mergeGlobalFx(live.entities);await yieldUi();
-  const tect=await rpc('bridgepoint_intelligence_reference_geometry_v5505',{p_domain:'TECTONICS',p_feature_class:null,p_limit:2500});
-  source('bp5507-tect',{type:'FeatureCollection',features:refs(tect.features)});await yieldUi();
-  const geo=await rpc('bridgepoint_intelligence_reference_geometry_v5505',{p_domain:'GEOTHERMAL',p_feature_class:null,p_limit:2500});
-  source('bp5507-geo',{type:'FeatureCollection',features:refs(geo.features)});await yieldUi();
-  const space=await rpc('bridgepoint_intelligence_global_signals_v5503',{p_domain:'SPACE_WEATHER',p_limit:200});
+  let tect={count:0,features:[]},geo={count:0,features:[]};
+  if(!mobileWarm){
+   tect=await rpc('bridgepoint_intelligence_reference_geometry_v5505',{p_domain:'TECTONICS',p_feature_class:null,p_limit:refLimit});
+   if(globalInputPending())await yieldUi();
+   source('bp5507-tect',{type:'FeatureCollection',features:refs(tect.features)});await yieldUi();
+   geo=await rpc('bridgepoint_intelligence_reference_geometry_v5505',{p_domain:'GEOTHERMAL',p_feature_class:null,p_limit:refLimit});
+   if(globalInputPending())await yieldUi();
+   source('bp5507-geo',{type:'FeatureCollection',features:refs(geo.features)});await yieldUi();
+  }else{
+   const wait=Math.max(2500,45000-(Date.now()-C.bootAt)+800);
+   scheduleGlobalBackground(wait)
+  }
+  const space=await rpc('bridgepoint_intelligence_global_signals_v5503',{p_domain:'SPACE_WEATHER',p_limit:C.mobile?80:200});
   C.signals=space;
-  window.__BP_INTELLIGENCE_GLOBAL_V5507__={liveCount:live.count||0,tectonics:tect.count||0,geothermal:geo.count||0,spaceSignals:space.count||0,sequentialCommit:true,updatedAt:Date.now()};
-  const e=$('bp5507-key-counts');if(e)e.textContent=(live.count||0).toLocaleString()+' live events · '+(tect.count||0).toLocaleString()+' tectonic features · '+(geo.count||0).toLocaleString()+' geothermal features · '+(space.count||0)+' space-weather signals'
+  window.__BP_INTELLIGENCE_GLOBAL_V5507__={liveCount:live.count||0,tectonics:tect.count||0,geothermal:geo.count||0,spaceSignals:space.count||0,sequentialCommit:true,mobileReferenceDeferred:mobileWarm,renderLimits:{live:liveLimit,reference:refLimit},updatedAt:Date.now()};
+  const e=$('bp5507-key-counts');if(e)e.textContent=(live.count||0).toLocaleString()+' live events · '+(mobileWarm?'reference layers warming':(tect.count||0).toLocaleString()+' tectonic · '+(geo.count||0).toLocaleString()+' geothermal')+' · '+(space.count||0)+' space-weather signals'
  }catch(e){console.warn('BP refresh',e)}
 }
 export function globalVisible(on){for(const id of ['bp5510-global-imerg','bp5507-live-glow','bp5507-live-points','bp5507-live-hit','bp5507-tect-line','bp5507-tect-hit','bp5507-geo-fill','bp5507-geyser'])setLayerVisible(id,on)}
@@ -99,8 +108,8 @@ function mobile(){if(!C.mobile)return;const s=shell(),g=document.createElement('
 function weatherVisible(){for(const id of ['bp-v5004-weather-shape-fill','bp-v5004-weather-shape-line','bp-v5004-weather-point-glow','bp-v5004-weather-points','bp-v5004-weather-hit','bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-glow','bp-landing-weather-points','bp-landing-weather-hit','bp-radar-a','bp-radar-b','bp-landing-radar-a','bp-landing-radar-b'])setLayerVisible(id,true)}
 function globalInputPending(){try{return navigator.scheduling?.isInputPending?.({includeContinuous:true})===true}catch(_){return false}}
 function globalBackgroundBlocked(){
- const hold=Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0);
- return document.hidden||C.map?.isMoving?.()||globalInputPending()||(hold>performance.now())
+ const hold=Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0),mapSurface=C.surface==='app'?document.querySelector('[data-surface="map"]'):null;
+ return document.hidden||!!(mapSurface&&mapSurface.hidden)||C.map?.isMoving?.()||globalInputPending()||(hold>performance.now())
 }
 function scheduleGlobalBackground(delay=C.mobile?8500:2500){
  clearTimeout(C.bgTimer);
@@ -115,7 +124,7 @@ function scheduleGlobalBackground(delay=C.mobile?8500:2500){
   };
   if('requestIdleCallback'in window)requestIdleCallback(()=>void run(),{timeout:C.mobile?3500:1400});else void run()
  },Math.max(0,delay));
- window.__BP_GLOBAL_BACKGROUND_SCHEDULER_V5592__={version:5592,deferred:true,interactionAware:true,sequentialSourceCommits:true,precipitationAttachImmediate:true,delayMs:delay,updatedAt:Date.now()}
+ window.__BP_GLOBAL_BACKGROUND_SCHEDULER_V5592__={version:5592,deferred:true,interactionAware:true,offMapAware:true,sequentialSourceCommits:true,mobileReferenceHydrationDeferred:true,precipitationAttachImmediate:true,delayMs:delay,updatedAt:Date.now()}
 }
 async function boot(){
  try{
