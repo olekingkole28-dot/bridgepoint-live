@@ -5,7 +5,7 @@ const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localh
 const FN=LOCAL_RUNTIME?location.origin+'/functions/v1/bridgepoint-parcel-boundary-tile-v5403':'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403';
 const SEARCH_FN=LOCAL_RUNTIME?location.origin+'/functions/v1/bridgepoint-boundary-search-v1091':'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-boundary-search-v1091';
 const PUBLIC_BUILDINGS='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000';
-const VERSION=5635;
+const VERSION=5636;
 const SOURCE='bp-boundary-viewer-v5403';
 const GLOW='bp-boundary-glow-v5403';
 const LINE='bp-boundary-line-v5403';
@@ -205,7 +205,8 @@ function bindStatePopup(map){
   map.on('click',STATE_FILL,e=>{
     const f=e?.features?.[0];if(!f)return;
     const p=f.properties||{},ok=String(p.status_key)==='public',name=p.BASENAME||p.NAME||p.NAME10||p.name||p.state_code||'Jurisdiction';
-    const html='<b>'+esc(name)+' · '+esc(p.state_code||'')+'</b><em class="'+(ok?'ok':'hold')+'">'+(ok?'PUBLIC DISPLAY ENABLED':'NOT PUBLIC-ENABLED')+'</em><div>'+esc(p.reason||'')+'</div><small>This reflects BridgePoint source-rights metadata and publishing policy; it is not a statement that state law itself prohibits publication.</small>';
+    const badge=ok?(mode==='owner'?'OWNER DATA AVAILABLE':'PUBLIC DISPLAY ENABLED'):(mode==='owner'?'STILL ACQUIRING':'RESTRICTED / ACQUIRING');
+    const html='<b>'+esc(name)+' · '+esc(p.state_code||'')+'</b><em class="'+(ok?'ok':'hold')+'">'+badge+'</em><div>'+esc(p.reason||'')+'</div><small>This reflects BridgePoint source-rights metadata and publishing policy; it is not a statement that state law itself prohibits publication.</small>';
     new maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'330px',className:'bp-boundary-state-popup'}).setLngLat(e.lngLat).setHTML(html).addTo(map);
   });
 }
