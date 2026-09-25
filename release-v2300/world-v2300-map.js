@@ -1,6 +1,7 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
 import{initSpace}from'./world-v2300-space.js?v=5536';
 window.__BP_WORLD_RENDER_VERSION__=5561;
+window.__BP_BUILDING_PALETTE_V1091__={version:1091,buildingWall:'#7f878b',roof:'#ffffff',opportunity:'#ff1744',uniformBuildings:true,opportunityRoofCap:true,updatedAt:Date.now()};
 window.__BP_GEOMETRY_TRUTH_V5590__={version:5800,genericRoofCaps:true,sourceBackedRoofOnly:false,groundBridgeRoadExcluded:true,continuousBridgeRibbons:true,updatedAt:Date.now()};
 window.__BP_GEOMETRY_TRUTH_V5592__={version:5592,syntheticLandmarks:false,statueOfLibertyGenericModel:false,syntheticBridgePiers:false,bridgeRailRequiresSource:true,sourceBurstHeavyRebuilds:false,updatedAt:Date.now()};
 window.__BP_WORLD_SELF_HEAL_V5595__={version:5800,clientPressureAware:true,terrainPreserved:true,parcelsPreserved:false,optionalFineDetailDeferred:true,updatedAt:Date.now()};
@@ -95,24 +96,7 @@ function style(){
  const solidName=n=>['concat','bpfacade-solid-',n,'-v',['to-string',facadeVariant]];
  const detailName=n=>['concat','bpfacade-',n,'-v',['to-string',facadeVariant]];
  const facadePattern=['step',['zoom'],solidName(facadeDetail),15.15,detailName(facadeDetail)];
- const facadeColor=['case',
-  ['any',inType(['hospital','clinic','medical']),inAmenity(['hospital','clinic','doctors','pharmacy'])],pick(['#c7c9c3','#ddd9cf','#9faeb2','#b6b7af','#d5d6d0','#87999e'],151),
-  ['any',inType(['fire_station','fire station']),inAmenity(['fire_station'])],pick(['#8f3f35','#7b4b3e','#b05b43','#6d3c34','#8f7567'],157),
-  ['any',inType(['school','college','university','kindergarten']),inAmenity(['school','college','university','kindergarten'])],pick(['#8a6957','#927960','#77766e','#a08b70','#6e7472'],163),
-  ['any',inType(['police','sheriff']),inAmenity(['police'])],pick(['#717a7a','#7f817a','#626c70','#8c877c'],167),
-  inType(['brick','masonry']),pick(['#8b5e50','#7b5046','#9a715f','#5f4c46','#a5664d','#b39a7d'],41),
-  inType(['glass']),pick(['#496c7d','#4c777c','#596a72','#78868b','#54766f','#4a5961','#6c8797','#716858'],43),
-  inType(['office','commercial','retail','hotel','mixed_use','mixed-use']),pick(['#6a706f','#777063','#8b8b82','#4b5559','#567381','#737f84','#8a806d','#5f666b'],47),
-  inType(['barn','farm_auxiliary','stable','cowshed']),pick(['#7c3731','#765b42','#a8a394','#6f302d','#80674e','#b8b2a5'],51),
-  inType(['industrial','warehouse','hangar','manufacture','factory']),pick(['#6a6e6c','#65757c','#7b705f','#898982','#667363','#845f4c'],53),
-  inType(['hospital','school','university','college','civic','public','government']),pick(['#8c826d','#747976','#855b4e','#686765'],59),
-  inType(['wood','timber','residential','apartments','house','detached','semidetached_house','terrace','dormitory','bungalow']),pick(['#827567','#738069','#667985','#8a7863','#8a6863','#8a8980','#81584b','#675047','#a18f72','#5f6464'],61),
-  ['all',old,['<',bHeight,55]],pick(['#80574b','#6d4d43','#916b58','#a08268','#786553','#8e7b68'],67),
-  ['all',modern,veryTall],pick(['#486b7a','#547b80','#68797f','#798789','#526f75','#646f7a','#5c665d'],71),
-  ['all',modern,tall],pick(['#737a78','#8a887f','#5a666d','#667d89','#7a7469','#555f64'],73),
-  ['all',mid,tall],pick(['#696d6b','#777267','#858177','#60696d','#706a5e'],79),
-  pick(['#726c61','#687279','#585e60','#7d7567','#77675a','#685b54','#7d6856','#617078','#83695b','#586c65','#74726c','#8b7b68'],83)
- ];
+ const facadeColor='#7f878b';
  const roofKind=['downcase',['to-string',['coalesce',['get','roof_material'],['get','roof:material'],['get','roof_shape'],['get','roof:shape'],'']]];
  const genericRoofs=['roof-membrane-dark','roof-membrane-light','roof-gravel','roof-shingle-gray','roof-shingle-brown','roof-metal-dark','roof-metal-silver','roof-tile-red','roof-tile-brown','roof-slate'];
  const roofName=['case',
@@ -205,7 +189,8 @@ function style(){
   {id:'gta-bp-facade-detail',type:'fill-extrusion',source:'bpBuildings','source-layer':'buildings',minzoom:16.15,layout:{visibility:'none'},paint:{'fill-extrusion-pattern':facadePattern,'fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],'fill-extrusion-opacity':.999,'fill-extrusion-vertical-gradient':false}},
   {id:'gta-bp-roofs',type:'fill-extrusion',source:'bpBuildings','source-layer':'buildings',minzoom:MOBILE?15.8:13.8,layout:{visibility:'none'},paint:{'fill-extrusion-color':'#ffffff','fill-extrusion-base':['max',['coalesce',['to-number',['get','base_height_m']],0],['-',['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],['max',.18,['coalesce',['to-number',['get','roof_height_m']],.3]]]],'fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],13.8,.8,15,.94,18,.995],'fill-extrusion-vertical-gradient':true}},
   {id:'gta-bp-building-edge',type:'line',source:'bpBuildings','source-layer':'buildings',minzoom:13.2,layout:{visibility:'none'},paint:{'line-color':['interpolate',['linear'],['zoom'],13.2,'#88aeb7',17,'#b6d4d9',20,'#d5e5e7'],'line-width':['interpolate',['linear'],['zoom'],13.2,.25,18,.7,21,1.05],'line-opacity':['interpolate',['linear'],['zoom'],13.2,.28,17,.46,20,.6]}},
-  {id:'gta-opportunity-buildings',type:'fill-extrusion',source:'bpOpportunities',minzoom:11.8,layout:{visibility:'none'},paint:{'fill-extrusion-color':['coalesce',['get','color'],'#7adcf0'],'fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':false}},
+  {id:'gta-opportunity-buildings',type:'fill-extrusion',source:'bpOpportunities',minzoom:11.8,layout:{visibility:'none'},paint:{'fill-extrusion-color':'#ff1744','fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':false}},
+  {id:'gta-opportunity-roofs',type:'fill-extrusion',source:'bpOpportunities',minzoom:11.8,layout:{visibility:'none'},paint:{'fill-extrusion-color':'#ff1744','fill-extrusion-base':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-height':['+',['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],['max',.35,['coalesce',['to-number',['get','roof_height_m']],.55]]],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':false}},
   {id:'gta-exact-building',type:'fill-extrusion',source:'exact',minzoom:DETAIL_MIN,layout:{visibility:'none'},paint:{'fill-extrusion-color':facadeColor,'fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':true}},
   {id:'gta-exact-floor-lines',type:'fill-extrusion',source:'exact',minzoom:MOBILE?16.2:15.7,layout:{visibility:'none'},paint:{'fill-extrusion-pattern':'bp-floor-lines','fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],MOBILE?16.2:15.7,.58,18,.78,21,.9],'fill-extrusion-vertical-gradient':false}},
   {id:'gta-exact-facade-detail',type:'fill-extrusion',source:'exact',minzoom:16.15,layout:{visibility:'none'},paint:{'fill-extrusion-pattern':facadePattern,'fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],'fill-extrusion-opacity':.999,'fill-extrusion-vertical-gradient':false}},
