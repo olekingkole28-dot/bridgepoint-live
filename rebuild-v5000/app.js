@@ -720,7 +720,7 @@ function bindMapGestureIsolation(){
 
 const BP_MOBILE=innerWidth<=900||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 startupInteractiveUntil=performance.now()+(BP_MOBILE?45000:6000);window.__BP_INTERACTION_PRIORITY_UNTIL__=startupInteractiveUntil;
-let clientPressureWindowStart=performance.now(),clientPressureLongMs=0,clientPressureHits=0;
+let clientPressureWindowStart=performance.now(),clientPressureLongMs=0,clientPressureHits=0,backgroundJobRunning=false,backgroundJobKey=null;
 function extendInteractionPriority(ms,reason='runtime-pressure'){
  const next=performance.now()+Math.max(250,Number(ms)||0);
  if(next>startupInteractiveUntil)startupInteractiveUntil=next;
@@ -746,19 +746,39 @@ function bpInputPending(){try{return navigator.scheduling?.isInputPending?.({inc
 function appMapSurfaceActive(){const el=document.querySelector('[data-surface="map"]');return !!el&&el.hidden===false&&el.classList.contains('active')}
 function startupPriorityBlocked(){return performance.now()<startupInteractiveUntil}
 function mapBackgroundBlocked(){return mapInteracting||document.hidden||!appMapSurfaceActive()||bpInputPending()||startupPriorityBlocked()||performance.now()<surfaceNavigationUntil}
-function queueAfterMap(key,fn){if(mapBackgroundBlocked()){deferredWork.set(key,fn);return false}const run=()=>{if(mapBackgroundBlocked()){deferredWork.set(key,fn);return}try{fn()}catch(e){console.warn('deferred '+key,e)}};if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:BP_MOBILE?1200:420});else setTimeout(run,BP_MOBILE?180:55);return true}
+function queueAfterMap(key,fn){
+ if(mapBackgroundBlocked()||backgroundJobRunning){deferredWork.set(key,fn);return false}
+ const run=async()=>{
+  if(mapBackgroundBlocked()||backgroundJobRunning){deferredWork.set(key,fn);return}
+  backgroundJobRunning=true;backgroundJobKey=key;
+  window.__BP_BACKGROUND_ACTIVE_JOB__={key,running:true,startedAt:Date.now()};
+  try{await Promise.resolve(fn())}catch(e){console.warn('deferred '+key,e)}
+  finally{
+   backgroundJobRunning=false;backgroundJobKey=null;
+   window.__BP_BACKGROUND_ACTIVE_JOB__={key,running:false,finishedAt:Date.now(),queued:deferredWork.size};
+   if(deferredWork.size&&!mapInteracting&&!document.hidden&&appMapSurfaceActive()){
+    clearTimeout(deferredDrainTimer);
+    deferredDrainTimer=setTimeout(flushDeferredWork,BP_MOBILE?1250:220)
+   }
+  }
+ };
+ if('requestIdleCallback' in window)requestIdleCallback(()=>void run(),{timeout:BP_MOBILE?1400:480});
+ else setTimeout(()=>void run(),BP_MOBILE?220:70);
+ return true
+}
 function flushDeferredWork(){
  if(mapInteracting||document.hidden||!appMapSurfaceActive())return;
+ if(backgroundJobRunning){clearTimeout(deferredDrainTimer);deferredDrainTimer=setTimeout(flushDeferredWork,BP_MOBILE?900:180);return}
  const blockedUntil=Math.max(startupInteractiveUntil,surfaceNavigationUntil);
  if(performance.now()<blockedUntil){clearTimeout(deferredDrainTimer);deferredDrainTimer=setTimeout(flushDeferredWork,Math.min(BP_MOBILE?1100:360,Math.max(100,blockedUntil-performance.now()+60)));return}
  clearTimeout(deferredDrainTimer);
  const drain=()=>{
   const hold=Math.max(startupInteractiveUntil,surfaceNavigationUntil);
-  if(mapInteracting||document.hidden||bpInputPending()||performance.now()<hold){deferredDrainTimer=setTimeout(drain,BP_MOBILE?520:150);return}
+  if(backgroundJobRunning||mapInteracting||document.hidden||bpInputPending()||performance.now()<hold){deferredDrainTimer=setTimeout(drain,BP_MOBILE?620:170);return}
   const next=deferredWork.entries().next();
   if(next.done){window.__BP_BACKGROUND_DRAIN_V5580__={queued:0,serial:true,navSettleAware:true,updatedAt:Date.now()};return}
   const [key,fn]=next.value;deferredWork.delete(key);queueAfterMap(key,fn);
-  window.__BP_BACKGROUND_DRAIN_V5580__={queued:deferredWork.size,serial:true,navSettleAware:true,updatedAt:Date.now()};
+  window.__BP_BACKGROUND_DRAIN_V5580__={queued:deferredWork.size,serial:true,awaitsAsyncCompletion:true,activeKey:backgroundJobKey,navSettleAware:true,updatedAt:Date.now()};
   // One heavy lane at a time. Mobile gets a full render window between jobs.
   deferredDrainTimer=setTimeout(drain,BP_MOBILE?1050:180)
  };
@@ -953,5 +973,5 @@ window.addEventListener('beforeunload',()=>{clearInterval(accessCountdownTimer);
 window.__BP_APP_MAIN_THREAD_GUARD_V5586__={version:5586,offMapBackgroundPause:true,serializedStartup:true,duplicateWeatherRefreshRemoved:true,updatedAt:Date.now()};
 window.__BP_APP_MAIN_THREAD_GUARD_V5587__={version:5587,offMapBackgroundPause:true,serializedStartup:true,duplicateWeatherRefreshRemoved:true,lazyRendererMaterials:true,updatedAt:Date.now()};
 window.__BP_APP_GEOMETRY_V5590__={version:5590,sourceBackedRoofOnly:true,bridgeGroundDuplicationRemoved:true,updatedAt:Date.now()};
-window.__BP_MAIN_THREAD_GUARD_V5592__={version:5592,interactionPriorityMsMobile:10000,sharedVisualWeatherDeferred:true,duplicateRadarDisabled:true,backgroundDrainHeldAtStartup:true,hiddenParcelTileRefreshDisabled:true,ownerLiveLegalPdf:true,updatedAt:Date.now()};
+window.__BP_MAIN_THREAD_GUARD_V5592__={version:5592,interactionPriorityMsMobile:10000,sharedVisualWeatherDeferred:true,duplicateRadarDisabled:true,backgroundDrainHeldAtStartup:true,trueAsyncBackgroundSerialization:true,hiddenParcelTileRefreshDisabled:true,ownerLiveLegalPdf:true,updatedAt:Date.now()};
 window.__BP_SELF_HEAL_CLIENT_V5595__={version:5595,longTaskCircuitBreaker:true,optionalWorkDeferred:true,mapGesturesNeverDisabled:true,pressureExtendsInteractionPriority:true,updatedAt:Date.now()};
