@@ -230,12 +230,21 @@ async function globalCoverage(){
   if($('globalCountryTotal'))$('globalCountryTotal').textContent=fmt(countryTotal);
   if($('globalStateTotal'))$('globalStateTotal').textContent=fmt(stateAll);
   if($('landingGlobalProperties')&&g)$('landingGlobalProperties').textContent=fmt(g.active_global_canonical);
-  if($('landingGlobalCountryMix')&&g)$('landingGlobalCountryMix').textContent=liveCountries.filter(x=>Number(x.active_canonical)>0).map(x=>bpCountryName(x.country_code,x.country_name||names[x.country_code])+' '+fmt(x.active_canonical)).join(' · ')+' · '+fmt(g.materialized_global_boundaries)+' boundaries';
+  const footholdCountries=liveCountries.filter(x=>Number(x.official_foothold_features||x.foothold_features||0)>0);
+  const footholdFeatures=footholdCountries.reduce((n,x)=>n+Number(x.official_foothold_features||x.foothold_features||0),0);
+  if($('landingGlobalCountryMix')&&g){
+   const canonicalMix=liveCountries.filter(x=>Number(x.active_canonical)>0).map(x=>bpCountryName(x.country_code,x.country_name||names[x.country_code])+' '+fmt(x.active_canonical));
+   if(footholdCountries.length)canonicalMix.push(fmt(footholdCountries.length)+' official foothold countries');
+   canonicalMix.push(fmt(g.materialized_global_boundaries)+' boundaries');
+   $('landingGlobalCountryMix').textContent=canonicalMix.join(' · ');
+  }
   const summary=$('globalCoverageSummary');if(summary){summary.textContent='';[
     ['U.S. canonical properties',fmt(us.canonical_properties||0)],
     ['U.S. stored parcel boundaries',fmt(us.stored_parcel_boundaries_estimate||0)],
     ['Live non-U.S. canonical properties',fmt(g?.active_global_canonical||countryTotal)],
     ['Live non-U.S. materialized boundaries',fmt(g?.materialized_global_boundaries||0)],
+    ['Official geospatial foothold countries',fmt(footholdCountries.length)],
+    ['Official foothold features',fmt(footholdFeatures)],
     ['Country registry',fmt(world.country_registry_total||0)],
     ['Non-U.S. countries started',fmt(world.non_us_started||0)]
   ].forEach(([k,v])=>{const s=document.createElement('span');s.textContent=k+': '+v;summary.appendChild(s)})}
