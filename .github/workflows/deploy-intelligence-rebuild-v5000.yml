@@ -483,7 +483,7 @@ jobs:
           grep -Fq 'exactRoofs:true' site/world-v2300-map.js
           grep -Fq "'source-layer':'roofs'" site/world-v2300-map.js
           grep -Fq 'function floorLinePatternImage()' site/world-v2300-map.js
-          grep -Fq 'additiveExactDetail:true' site/app.js
+          grep -Fq 'additiveExactHeight:exactReady&&!cityReady' site/world-v2300-map.js
           grep -Fq 'loadRoofTruth' site/app.js
           grep -Fq "id:'gta-exact-floor-lines'" site/world-v2300-map.js
           grep -Fq "authoritative:cityReady?'BRIDGEPOINT_CITY_STRUCTURES_V5371':'GLOBAL_CONTEXT_FALLBACK'" site/world-v2300-map.js
