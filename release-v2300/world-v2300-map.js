@@ -798,11 +798,17 @@ export function initWorld(options={}){
   if(!bridgePointDomesticCenter()||map.getZoom()<11)return false;
   try{
    if(!map.getSource('bpCityStructures')||!map.getLayer('gta-city-buildings'))return false;
-   const visible=(map.getLayoutProperty('gta-city-buildings','visibility')||'visible')!=='none';
-   if(!visible)return false;
-   const rendered=map.queryRenderedFeatures?.({layers:['gta-city-buildings']})||[];
-   const ready=rendered.length>0;
-   window.__BP_CITY_BUILDING_HANDOFF_V5545__={version:5545,ready,rendered:rendered.length,zoom:map.getZoom(),center:map.getCenter(),rule:'hide-global-only-after-city-renders-in-current-viewport',updatedAt:Date.now()};
+   const now=performance.now(),cached=map.__bpCityReadyCheck;
+   if(cached&&now-cached.at<900)return cached.ready;
+   const sourceLoaded=!!map.isSourceLoaded?.('bpCityStructures');
+   let rendered=0,sourceFeatures=0;
+   try{rendered=(map.queryRenderedFeatures?.({layers:['gta-city-buildings']})||[]).length}catch(_){}
+   if(sourceLoaded&&rendered===0){
+    try{sourceFeatures=(map.querySourceFeatures?.('bpCityStructures',{sourceLayer:'buildings'})||[]).length}catch(_){}
+   }
+   const ready=sourceLoaded&&(rendered>0||sourceFeatures>0);
+   map.__bpCityReadyCheck={at:now,ready,rendered,sourceFeatures};
+   window.__BP_CITY_BUILDING_HANDOFF_V5545__={version:5546,ready,sourceLoaded,rendered,sourceFeatures,zoom:map.getZoom(),center:map.getCenter(),rule:'source-loaded-current-viewport-can-promote-city-before-first-render',cachedMs:900,updatedAt:Date.now()};
    return ready
   }catch(_){return false}
  }
