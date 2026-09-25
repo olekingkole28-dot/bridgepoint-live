@@ -1,0 +1,192 @@
+name: BridgePoint Dense Scene Watchdog V1108
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'release-v2300/**'
+      - 'rebuild-v5000/**'
+      - '.github/workflows/dense-scene-watchdog-v1108.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bridgepoint-dense-scene-watchdog-v1108
+  cancel-in-progress: true
+
+jobs:
+  dense-scene-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Verify dense tree and city backends
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TREE_URL='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-global-tree-viewport-v1101?west=-72.68&south=41.53&east=-72.64&north=41.57&limit=650'
+          curl -fsS --retry 3 --retry-all-errors --max-time 35 "$TREE_URL" -o /tmp/trees.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/trees.json'))
+          assert d.get('complete') is True, d
+          assert int(d.get('version') or 0) >= 1104, d.get('version')
+          fs=d.get('features') or []
+          assert len(fs) >= 400, len(fs)
+          hs=[(f.get('properties') or {}).get('height_m') for f in fs]
+          hs=[float(x) for x in hs if x is not None]
+          assert len(hs) >= 400, len(hs)
+          assert max(hs) >= 10, max(hs) if hs else None
+          assert any('META_WRI' in str((f.get('properties') or {}).get('height_truth','')) for f in fs), 'META_WRI height truth missing'
+          print('DENSE_TREE_BACKEND_PASS', {'count':len(fs),'min_h':min(hs),'max_h':max(hs),'source':d.get('source')})
+          PY
+
+          CITY_URL='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-city-structures-v5375?z=16&x=19295&y=24640&limit=650&v=dense1108'
+          CODE=$(curl -sS --retry 3 --retry-all-errors --max-time 30 -o /tmp/nyc.mvt -w '%{http_code}' "$CITY_URL")
+          BYTES=$(wc -c </tmp/nyc.mvt)
+          echo "NYC_CITY_MVT_HTTP=$CODE BYTES=$BYTES"
+          test "$CODE" = "200"
+          test "$BYTES" -gt 4000
+
+          curl -fsS --retry 3 --retry-all-errors --max-time 20             'https://bridgepointintelligence.online/refresh-v5535.js?v=dense1108'             -o /tmp/refresh.js
+          grep -q "automaticHardReload=false" /tmp/refresh.js
+          if grep -q "doReload('interval')" /tmp/refresh.js; then
+            echo "AUTOMATIC_HARD_RELOAD_PRESENT"
+            exit 1
+          fi
+          echo "NO_AUTOMATIC_HARD_RELOAD_PASS"
+
+      - name: Dense mobile city and forest interaction test
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          const O='https://bridgepointintelligence.online';
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const delta=(a,b)=>Math.hypot(Number(a[0])-Number(b[0]),Number(a[1])-Number(b[1]));
+
+          async function touchDrag(page,x1,y1,x2,y2){
+            const cdp=await page.createCDPSession();
+            await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:x1,y:y1,radiusX:8,radiusY:8,force:1,id:1}]});
+            for(let i=1;i<=8;i++){
+              const t=i/8;
+              await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x1+(x2-x1)*t,y:y1+(y2-y1)*t,radiusX:8,radiusY:8,force:1,id:1}]});
+              await sleep(28);
+            }
+            await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+          }
+
+          async function rafHealth(page,ms=1400){
+            return page.evaluate(ms=>new Promise(resolve=>{
+              let frames=0,last=performance.now(),maxGap=0,start=last;
+              const tick=t=>{frames++;maxGap=Math.max(maxGap,t-last);last=t;if(t-start>=ms)resolve({frames,maxGap});else requestAnimationFrame(tick)};
+              requestAnimationFrame(tick);
+            }),ms);
+          }
+
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
+            const page=await browser.newPage();
+            const fatal=[];
+            page.on('pageerror',e=>fatal.push(String(e?.message||e)));
+            try{
+              await browser.defaultBrowserContext().overridePermissions(O,['geolocation']);
+              await page.setGeolocation({latitude:41.55,longitude:-72.65,accuracy:25});
+              await page.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto(O+'/app/?dense1108='+Date.now(),{waitUntil:'domcontentloaded',timeout:35000});
+              await page.waitForFunction(()=>window.__BP_V5000_WORLD?.map,{timeout:45000});
+              await page.waitForFunction(()=>!!window.__BP_GLOBAL_BACKGROUND_SCHEDULER_V5592__,{timeout:30000});
+              await page.evaluate(()=>{try{window.__BP_WALKTHROUGH_V5539__?.skip?.()}catch(_){}}).catch(()=>{});
+              await sleep(1200);
+
+              const boot=await page.evaluate(()=>({
+                hardReload:window.__BP_FULL_REFRESH_V5548__?.automaticHardReload,
+                world:!!window.__BP_V5000_WORLD?.map,
+                scheduler:window.__BP_GLOBAL_BACKGROUND_SCHEDULER_V5592__||null
+              }));
+              if(boot.hardReload!==false)throw new Error('AUTOMATIC_HARD_RELOAD_NOT_DISABLED '+JSON.stringify(boot));
+              if(!boot.scheduler?.mobileReferenceHydrationStaged)throw new Error('MOBILE_GLOBAL_HYDRATION_NOT_STAGED '+JSON.stringify(boot));
+
+              // Dense Manhattan building scene.
+              await page.evaluate(()=>{
+                window.__BP_MAP_USER_INTENT_AT__=Date.now();
+                window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:16.2,pitch:60,bearing:-22});
+              });
+              await sleep(6500);
+              const city=await page.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD.map;
+                let rendered=0;
+                try{rendered=(m.queryRenderedFeatures({layers:['gta-city-buildings','gta-exact-building','gta-bp-buildings']})||[]).length}catch{}
+                return{
+                  rendered,
+                  cityVisible:m.getLayer('gta-city-buildings')?(m.getLayoutProperty('gta-city-buildings','visibility')||'visible'):null,
+                  floorVisible:m.getLayer('gta-city-floor-lines')?(m.getLayoutProperty('gta-city-floor-lines','visibility')||'visible'):null,
+                  floorPattern:m.getLayer('gta-city-floor-lines')?m.getPaintProperty('gta-city-floor-lines','fill-extrusion-pattern'):null,
+                  zoom:m.getZoom()
+                }
+              });
+              if(city.rendered<1)throw new Error('DENSE_CITY_BUILDINGS_NOT_RENDERED '+JSON.stringify(city));
+              if(city.floorVisible==='none'||!city.floorVisible)throw new Error('DENSE_CITY_FLOOR_LINES_HIDDEN '+JSON.stringify(city));
+              if(String(city.floorPattern||'').indexOf('bp-floor-lines')<0)throw new Error('DENSE_CITY_FLOOR_PATTERN_MISSING '+JSON.stringify(city));
+              const cityRaf=await rafHealth(page);
+              if(cityRaf.frames<8||cityRaf.maxGap>1100)throw new Error('DENSE_CITY_MAIN_THREAD_STALL '+JSON.stringify(cityRaf));
+
+              const box=await page.$eval('.maplibregl-canvas',el=>{const r=el.getBoundingClientRect();return{x:r.left,y:r.top,w:r.width,h:r.height}});
+              const before=await page.evaluate(()=>{const c=window.__BP_V5000_WORLD.map.getCenter();return[c.lng,c.lat]});
+              await touchDrag(page,box.x+box.w*.70,box.y+box.h*.55,box.x+box.w*.38,box.y+box.h*.55);
+              await sleep(900);
+              const after=await page.evaluate(()=>{const c=window.__BP_V5000_WORLD.map.getCenter();return[c.lng,c.lat]});
+              if(delta(before,after)<0.00001)throw new Error('DENSE_CITY_MAP_FROZEN '+JSON.stringify({before,after}));
+
+              // Dense Middletown tree scene.
+              await page.evaluate(()=>{
+                window.__BP_MAP_USER_INTENT_AT__=Date.now();
+                window.__BP_V5000_WORLD.map.jumpTo({center:[-72.66,41.55],zoom:16.3,pitch:60,bearing:12});
+              });
+              await page.waitForFunction(()=>Number(window.__BP_LIVING_WORLD_STATE__?.treeCount||0)>=80,{timeout:25000}).catch(()=>{});
+              await sleep(2500);
+              const forest=await page.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD.map;
+                let crowns=0,trunks=0;
+                try{crowns=(m.queryRenderedFeatures({layers:['gta-bp-tree3d-canopy']})||[]).length}catch{}
+                try{trunks=(m.queryRenderedFeatures({layers:['gta-bp-tree3d-trunk']})||[]).length}catch{}
+                return{
+                  state:window.__BP_LIVING_WORLD_STATE__||null,
+                  crowns,trunks,
+                  canopyVisible:m.getLayer('gta-bp-tree3d-canopy')?(m.getLayoutProperty('gta-bp-tree3d-canopy','visibility')||'visible'):null,
+                  trunkVisible:m.getLayer('gta-bp-tree3d-trunk')?(m.getLayoutProperty('gta-bp-tree3d-trunk','visibility')||'visible'):null
+                }
+              });
+              if(Number(forest.state?.treeCount||0)<40)throw new Error('DENSE_TREE_FEED_TOO_SPARSE '+JSON.stringify(forest));
+              if(forest.canopyVisible==='none'||forest.trunkVisible==='none')throw new Error('DENSE_TREE_3D_HIDDEN '+JSON.stringify(forest));
+              const forestRaf=await rafHealth(page);
+              if(forestRaf.frames<8||forestRaf.maxGap>1100)throw new Error('DENSE_TREE_MAIN_THREAD_STALL '+JSON.stringify(forestRaf));
+
+              if(fatal.length)throw new Error('PAGEERROR '+JSON.stringify(fatal.slice(-5)));
+              console.log('DENSE_SCENE_WATCHDOG_PASS',JSON.stringify({city,cityRaf,forest,forestRaf}));
+            }catch(e){
+              try{await page.screenshot({path:'/tmp/dense-scene-failure.png',fullPage:true})}catch{}
+              console.error(e.stack||e);
+              process.exitCode=1;
+            }finally{await browser.close()}
+          })();
+          NODE
+
+      - name: Upload dense-scene failure screenshot
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-dense-scene-failure
+          path: /tmp/dense-scene-failure.png
+          if-no-files-found: ignore
+          retention-days: 3
