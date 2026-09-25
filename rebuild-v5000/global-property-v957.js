@@ -9,6 +9,8 @@ const GLOW='bp-global-parcel-glow-v957';
 const LINE='bp-global-parcel-line-v957';
 const HIT='bp-global-parcel-hit-v957';
 const EMPTY={type:'FeatureCollection',features:[]};
+const PUBLIC_PARCEL_GEOMETRY=false;
+window.__BP_PUBLIC_MAP_PRIVACY_V1116__={version:1116,parcelGeometry:false,parcelCounts:true,parcelSearch:true,ownerViewerUnaffected:true,updatedAt:Date.now()};
 const state={map:null,timer:0,statusTimer:0,seq:0,lastKey:'',lastStatus:null,lastData:EMPTY};
 const fmt=n=>Number(n||0).toLocaleString();
 async function rpc(name,args={},timeout=7000){
@@ -67,8 +69,16 @@ function beforeLayer(map){
  }
  return undefined;
 }
+function clearPublicParcelGeometry(map){
+ if(!map)return;
+ try{for(const id of [HIT,LINE,GLOW])if(map.getLayer(id))map.removeLayer(id)}catch(_){}
+ try{if(map.getSource(SOURCE))map.removeSource(SOURCE)}catch(_){}
+ state.lastData=EMPTY;state.lastKey='';
+ window.__BP_GLOBAL_PARCEL_VIEW_V957__={count:0,hiddenOnPublicMap:true,statusAndSearchRemainAvailable:true,updatedAt:Date.now()};
+}
 function addLayers(map){
  if(!map)return;
+ if(!PUBLIC_PARCEL_GEOMETRY){clearPublicParcelGeometry(map);return}
  try{
   if(!map.getSource(SOURCE))map.addSource(SOURCE,{type:'geojson',data:state.lastData||EMPTY});
   const before=beforeLayer(map);
@@ -94,7 +104,7 @@ function bboxKey(map){
  return{w,s,e,n,z,key:[w,s,e,n].map(x=>x.toFixed(4)).join('|')+'|'+z.toFixed(2)}
 }
 async function refresh(force=false){
- const map=state.map||currentMap();if(!map)return null;state.map=map;addLayers(map);
+ const map=state.map||currentMap();if(!map)return null;state.map=map;addLayers(map);if(!PUBLIC_PARCEL_GEOMETRY)return EMPTY;
  const b=bboxKey(map);if(!b)return null;
  if(b.z<7){
   state.lastData=EMPTY;map.getSource(SOURCE)?.setData?.(EMPTY);state.lastKey='';return EMPTY
@@ -116,6 +126,7 @@ async function refresh(force=false){
 function BP_LIMIT(){return innerWidth<=760?700:1400}
 function schedule(ms=220){clearTimeout(state.timer);state.timer=setTimeout(()=>{const m=state.map||currentMap();if(!m||m.isMoving?.())return schedule(250);void refresh(false)},ms)}
 function bindRootPopup(map){
+ if(!PUBLIC_PARCEL_GEOMETRY)return;
  if(map.__bpGlobalParcelPopup957)return;map.__bpGlobalParcelPopup957=true;
  map.on('mouseenter',HIT,()=>{try{map.getCanvas().style.cursor='pointer'}catch(_){}});
  map.on('mouseleave',HIT,()=>{try{map.getCanvas().style.cursor=''}catch(_){}});
@@ -148,6 +159,6 @@ async function boot(){
   await new Promise(r=>setTimeout(r,120));
  }
 }
-window.__BP_GLOBAL_PROPERTY_V957__={version:957,rpc,status,search,detail,refresh,get statusData(){return state.lastStatus},get viewport(){return state.lastData}};
+window.__BP_GLOBAL_PROPERTY_V957__={version:1120,rpc,status,search,detail,refresh,publicParcelGeometry:false,get statusData(){return state.lastStatus},get viewport(){return state.lastData}};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>void boot(),{once:true});else void boot();
 })();
