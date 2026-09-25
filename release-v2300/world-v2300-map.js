@@ -860,10 +860,15 @@ export function initWorld(options={}){
    updatedAt:Date.now()
   }
  }
-  function startStationaryLodWatchdog(){
+  function worldMapSurfaceInactive(){
+  const s=document.querySelector('[data-surface="map"]');
+  return !!s&&(s.hidden===true||!s.classList.contains('active'));
+ }
+ function startStationaryLodWatchdog(){
   clearInterval(lodWatchTimer);
   if(!MOBILE)return;
   lodWatchTimer=setInterval(()=>{
+   if(worldMapSurfaceInactive())return;
    if(!layerState.buildings)return;
    const center=map.getCenter(),sig=[center.lng.toFixed(6),center.lat.toFixed(6),map.getZoom().toFixed(3),map.getPitch().toFixed(2),map.getBearing().toFixed(2)].join('|');
    if(sig!==lodWatchSig){lodWatchSig=sig;lodWatchStable=0;return}
@@ -881,7 +886,7 @@ export function initWorld(options={}){
   clearInterval(waterTimer);waterTimer=0;paint(map,'gta-coast-foam','line-opacity',MOBILE||LOW?.18:.21);paint(map,'gta-waterway-flow','line-opacity',MOBILE||LOW?.3:.34);if(MOBILE||LOW)return;let phase=0;waterTimer=setInterval(()=>{if(document.hidden||moving)return;phase=(phase+1)%12;const s=(Math.sin(phase/12*Math.PI*2)+1)/2;paint(map,'gta-coast-foam','line-opacity',.12+.18*s);paint(map,'gta-coast-foam','line-width',['interpolate',['linear'],['zoom'],13,.22+.06*s,18,.72+.3*s,20,1.15+.35*s]);paint(map,'gta-waterway-flow','line-opacity',.24+.22*s)},900)
  }
  function refreshGlobalLodPaint(){
-  if(moving||map.isMoving?.())return false;
+  if(worldMapSurfaceInactive()||moving||map.isMoving?.())return false;
   const roofVisible=(map.getLayoutProperty('gta-context-roofs','visibility')||'visible')!=='none';
   const floorVisible=(map.getLayoutProperty('gta-context-floor-lines','visibility')||'visible')!=='none';
   if(floorVisible){
@@ -899,10 +904,11 @@ export function initWorld(options={}){
   window.__BP_GLOBAL_LOD_SOURCE_REFRESH__={roofVisible,floorVisible,zoom:map.getZoom(),updatedAt:Date.now()};
   return roofVisible||floorVisible
  }
- function worldClientPressureBlocked(){return Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0)>performance.now()}
+ function worldClientPressureBlocked(){return worldMapSurfaceInactive()||Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0)>performance.now()}
  function armFineDetailSettle(delay=MOBILE?1650:180){
   clearTimeout(map.__bpBuildingFineSettle);
   map.__bpBuildingFineSettle=setTimeout(()=>{
+   if(worldMapSurfaceInactive()){window.__BP_WORLD_OFFMAP_PAUSE_V5617__={version:5617,deferred:'fine-detail',updatedAt:Date.now()};armFineDetailSettle(MOBILE?1200:500);return}
    if(map.isMoving?.()){armFineDetailSettle(MOBILE?320:120);return}
    if(worldClientPressureBlocked()){window.__BP_WORLD_CLIENT_PRESSURE_V5595__={version:5595,deferred:'fine-detail',until:Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0),updatedAt:Date.now()};armFineDetailSettle(MOBILE?650:220);return}
    moving=false;
@@ -938,6 +944,7 @@ export function initWorld(options={}){
  function schedulePostMoveSettle(){
   clearTimeout(postMoveSettleTimer);
   postMoveSettleTimer=setTimeout(()=>{
+   if(worldMapSurfaceInactive()){window.__BP_WORLD_OFFMAP_PAUSE_V5617__={version:5617,deferred:'postmove-heavy',updatedAt:Date.now()};postMoveSettleTimer=setTimeout(schedulePostMoveSettle,MOBILE?1200:500);return}
    if(moving||map.isMoving?.()){schedulePostMoveSettle();return}
    terrain();syncParcelShells();syncBuildingShells();
    // V5615: base building visibility is interaction-critical, not enrichment.
