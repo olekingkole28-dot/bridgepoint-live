@@ -24,12 +24,19 @@ async function status(){const d=await rpc('bridgepoint_public_global_status_v957
 async function search(q,limit=8){return rpc('bridgepoint_public_global_search_v957',{p_query:String(q||''),p_limit:limit},4500)}
 async function detail(lng,lat,radius=140){return rpc('bridgepoint_public_global_property_detail_v957',{p_lng:Number(lng),p_lat:Number(lat),p_radius_m:Number(radius)||140},4500)}
 function currentMap(){return window.__BP_V5000_WORLD__?.map||window.__BP_LANDING_WORLD__?.map||null}
-function countryName(code){return({AU:'Australia',BE:'Belgium',BR:'Brazil',CA:'Canada',CD:'DR Congo',CH:'Switzerland',CL:'Chile',CN:'China',CY:'Cyprus',CZ:'Czechia',DE:'Germany',DJ:'Djibouti',DK:'Denmark',EE:'Estonia',EG:'Egypt',ES:'Spain',FR:'France',GB:'United Kingdom',IN:'India',IS:'Iceland',FJ:'Fiji',JP:'Japan',KE:'Kenya',KR:'South Korea',KZ:'Kazakhstan',LT:'Lithuania',RW:'Rwanda',LV:'Latvia',MX:'Mexico',MY:'Malaysia',NL:'Netherlands',NO:'Norway',NZ:'New Zealand',PA:'Panama',PH:'Philippines',PL:'Poland',RO:'Romania',SG:'Singapore',TW:'Taiwan',TZ:'Tanzania',UA:'Ukraine',VN:'Vietnam'})[String(code||'').toUpperCase()]||String(code||'Global')}
+const BP_COUNTRY_NAMES=(()=>{try{return new Intl.DisplayNames(['en'],{type:'region'})}catch(_){return null}})();
+function countryName(code){
+ const c=String(code||'').trim().toUpperCase();
+ const overrides={CD:'DR Congo',GB:'United Kingdom',KR:'South Korea',TW:'Taiwan',XK:'Kosovo'};
+ if(overrides[c])return overrides[c];
+ try{const n=BP_COUNTRY_NAMES?.of(c);if(n&&n!==c)return n}catch(_){}
+ return c||'Global'
+}
 function updateCounters(d){
  const total=document.getElementById('landingGlobalProperties');
  if(total)total.textContent=fmt(d?.active_global_canonical);
  const sub=document.getElementById('landingGlobalCountryMix');
- const countries=(d?.countries||[]).filter(x=>Number(x.active_canonical)>0||Number(x.building_footprints)>0||Number(x.addresses)>0||Number(x.roof_records)>0).sort((a,b)=>(Number(b.active_canonical)+Number(b.building_footprints)+Number(b.addresses)+Number(b.roof_records))-(Number(a.active_canonical)+Number(a.building_footprints)+Number(a.addresses)+Number(a.roof_records)));
+ const countries=(d?.countries||[]).filter(x=>Number(x.active_canonical)>0||Number(x.building_footprints)>0||Number(x.addresses)>0||Number(x.roof_records)>0||Number(x.foothold_features)>0).sort((a,b)=>(Number(b.active_canonical)+Number(b.building_footprints)+Number(b.addresses)+Number(b.roof_records)+Number(b.foothold_features))-(Number(a.active_canonical)+Number(a.building_footprints)+Number(a.addresses)+Number(a.roof_records)+Number(a.foothold_features)));
  if(sub){
   const head=countries.slice(0,3).map(x=>countryName(x.country_code)+' '+fmt(x.active_canonical));
   if(countries.length>3)head.push('+'+(countries.length-3)+' more');
@@ -42,9 +49,9 @@ function updateCounters(d){
   for(const x of countries){
    const row=document.createElement('div'),name=document.createElement('span'),count=document.createElement('b'),meta=document.createElement('small');
    name.textContent=countryName(x.country_code)+' · '+String(x.country_code||'');
-   const canon=Number(x.active_canonical||0),buildings=Number(x.building_footprints||0),addresses=Number(x.addresses||0),roofs=Number(x.roof_records||0);
-   count.textContent=canon>0?fmt(canon)+' canonical':buildings>0?fmt(buildings)+' buildings':addresses>0?fmt(addresses)+' addresses':fmt(roofs)+' roofs';
-   meta.textContent=[Number(x.materialized_boundary_rows||x.with_boundary||0)>0?fmt(x.materialized_boundary_rows||x.with_boundary)+' boundaries':'',buildings>0?fmt(buildings)+' buildings':'',addresses>0?fmt(addresses)+' addresses':'',roofs>0?fmt(roofs)+' roofs':''].filter(Boolean).join(' · ');
+   const canon=Number(x.active_canonical||0),buildings=Number(x.building_footprints||0),addresses=Number(x.addresses||0),roofs=Number(x.roof_records||0),footholds=Number(x.foothold_features||0);
+   count.textContent=canon>0?fmt(canon)+' canonical':buildings>0?fmt(buildings)+' buildings':addresses>0?fmt(addresses)+' addresses':roofs>0?fmt(roofs)+' roofs':fmt(footholds)+' foothold features';
+   meta.textContent=[Number(x.materialized_boundary_rows||x.with_boundary||0)>0?fmt(x.materialized_boundary_rows||x.with_boundary)+' boundaries':'',buildings>0?fmt(buildings)+' buildings':'',addresses>0?fmt(addresses)+' addresses':'',roofs>0?fmt(roofs)+' roofs':'',footholds>0?fmt(footholds)+' official foothold features':'',canon===0&&footholds>0?'parcels acquiring':''].filter(Boolean).join(' · ');
    row.append(name,count,meta);list.appendChild(row);
   }
   if(!countries.length){const row=document.createElement('div');row.textContent='International materialization starting…';list.appendChild(row)}
