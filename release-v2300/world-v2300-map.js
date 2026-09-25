@@ -761,7 +761,10 @@ export function initWorld(options={}){
  }
  async function exact(){const z=map.getZoom();if(z<DETAIL_MIN||moving)return;if(cityStructuresReady()){window.__BP_EXACT_DETAIL_STATE__={status:'city-tile-authoritative',count:exactCount,visible:false,worldOverlay:false,inspectorAvailable:true,zoom:z,updatedAt:Date.now()};return;}const seq=++detailSeq,b=bbox(map,MOBILE?.045:.075);lastExactFetchAt=performance.now();try{const d=await rpc('bridgepoint_building_viewport_v2300',{p_min_lat:b.south,p_max_lat:b.north,p_min_lng:b.west,p_max_lng:b.east,p_limit:MAX_EXACT},9000);if(seq!==detailSeq||moving)return;const p=await prepare(d?.features||[],MAX_EXACT);if(seq!==detailSeq||moving)return;if((p.buildings?.features?.length||0)>0){map.getSource('exact')?.setData(p.buildings);map.getSource('exactRoof')?.setData(p.roofs||EMPTY);exactCount=Number(p.count||0);syncBuildingShells()}window.__BP_EXACT_DETAIL_STATE__={status:exactCount>0?'ready':'empty',count:exactCount,visible:exactCount>0&&z>=DETAIL_MIN,worldOverlay:exactCount>0&&z>=DETAIL_MIN,inspectorAvailable:exactCount>0,zoom:z,updatedAt:Date.now()};setStatus(`BridgePoint World · persistent detail · ${exactCount.toLocaleString()} exact buildings retained · refinement visible`)}catch(e){if(seq===detailSeq){window.__BP_EXACT_DETAIL_STATE__={status:'error',count:exactCount,error:String(e?.message||e),updatedAt:Date.now()};setStatus(`BridgePoint World · persistent detail retained · background refinement retrying`)}}}
  async function livingWorld(){
-  if(map.getZoom()<14.2||moving)return;const z=map.getZoom(),seq=++livingSeq,b=bbox(map,MOBILE?.035:.06),baseLimit=MOBILE?(z>=16.5?620:430):(TIER==='HIGH'?(z>=16.5?1650:1150):(z>=16.5?1250:850)),treeLimit=MOBILE?(z>=17?320:z>=16?220:130):(TIER==='HIGH'?(z>=17?1050:z>=16?720:340):(z>=17?720:z>=16?500:260));lastLivingFetchAt=performance.now();
+  if(map.getZoom()<14.2||moving)return;
+  if(worldMapSurfaceInactive())return;
+  if(worldClientPressureBlocked()){scheduleLivingWorld(MOBILE?700:180);return}
+  const z=map.getZoom(),seq=++livingSeq,b=bbox(map,MOBILE?.035:.06),baseLimit=MOBILE?(z>=16.5?520:360):(TIER==='HIGH'?(z>=16.5?1450:1000):(z>=16.5?1050:760)),treeLimit=MOBILE?(z>=17?420:z>=16?300:180):(TIER==='HIGH'?(z>=17?1150:z>=16?820:420):(z>=17?800:z>=16?560:320));lastLivingFetchAt=performance.now();
   try{
    const settled=await Promise.allSettled([
     edge('bridgepoint-living-world-viewport-v5319',{west:b.west,south:b.south,east:b.east,north:b.north,limit:baseLimit},8500),
@@ -770,9 +773,20 @@ export function initWorld(options={}){
    if(seq!==livingSeq||moving)return;
    const base=settled[0].status==='fulfilled'&&settled[0].value?.type==='FeatureCollection'?settled[0].value:EMPTY,trees=settled[1].status==='fulfilled'&&settled[1].value?.type==='FeatureCollection'?settled[1].value:EMPTY,features=[],seen=new Set();
    for(const f of [...(base.features||[]),...(trees.features||[])]){const p=f?.properties||{},g=f?.geometry,key=String(p.source_key||'')+'|'+String(p.source_record_id||'')+'|'+JSON.stringify(g?.coordinates||[]);if(seen.has(key))continue;seen.add(key);features.push(f)}
-   const data={type:'FeatureCollection',features};if(features.length){map.getSource('bpLivingWorld')?.setData(data);const physicalData={type:'FeatureCollection',features:[...(trees.features||[]),...(base.features||[])]};map.getSource('bpLivingWorld3D')?.setData(livingPhysical(physicalData));livingCount=features.length}
+   const data={type:'FeatureCollection',features};if(features.length){
+    map.getSource('bpLivingWorld')?.setData(data);
+    const physicalData={type:'FeatureCollection',features:[...(trees.features||[]),...(base.features||[])]};
+    const physical=livingPhysical(physicalData);
+    map.getSource('bpLivingWorld3D')?.setData(physical);
+    const treeOn=(trees.features||[]).length>0&&z>=15;
+    vis(map,'gta-bp-tree3d-trunk',treeOn);vis(map,'gta-bp-tree3d-canopy',treeOn);
+    vis(map,'gta-bp-tree-trunks',(trees.features||[]).length>0&&z>=14.6&&z<15.05);
+    vis(map,'gta-bp-tree-crowns',(trees.features||[]).length>0&&z>=14.6&&z<15.05);
+    livingCount=features.length;
+    window.__BP_TREE_RENDER_STATE__={version:1111,requested:(trees.features||[]).length,physicalFeatures:(physical.features||[]).length,visible3D:treeOn,trunkLayer:(map.getLayoutProperty('gta-bp-tree3d-trunk','visibility')||'visible'),canopyLayer:(map.getLayoutProperty('gta-bp-tree3d-canopy','visibility')||'visible'),zoom:z,updatedAt:Date.now()}
+   }
    const baseError=settled[0].status==='rejected'?String(settled[0].reason?.message||settled[0].reason):null,treeError=settled[1].status==='rejected'?String(settled[1].reason?.message||settled[1].reason):null;
-   window.__BP_LIVING_WORLD_STATE__={status:features.length?'ready':(baseError&&treeError?'error':'empty'),count:livingCount,baseCount:(base.features||[]).length,treeCount:(trees.features||[]).length,treeMeasuredHeightCount:Number(trees.measured_height_count||0),baseError,treeError,viewport:{west:b.west,south:b.south,east:b.east,north:b.north},updatedAt:Date.now()}
+   window.__BP_LIVING_WORLD_STATE__={status:features.length?'ready':(baseError&&treeError?'error':'empty'),count:livingCount,baseCount:(base.features||[]).length,treeCount:(trees.features||[]).length,treeHeightBackedCount:Number(trees.height_backed_count||0),treeModeledHeightCount:Number(trees.modeled_height_count||0),treeMeasuredHeightCount:Number(trees.measured_height_count||0),baseError,treeError,viewport:{west:b.west,south:b.south,east:b.east,north:b.north},updatedAt:Date.now()}
   }catch(e){
    if(seq!==livingSeq)return;window.__BP_LIVING_WORLD_STATE__={status:'error',count:livingCount,error:String(e?.message||e),updatedAt:Date.now()}
   }
@@ -969,6 +983,7 @@ export function initWorld(options={}){
    if(worldMapSurfaceInactive()){window.__BP_WORLD_OFFMAP_PAUSE_V5617__={version:5617,deferred:'postmove-heavy',updatedAt:Date.now()};postMoveSettleTimer=setTimeout(schedulePostMoveSettle,MOBILE?1200:500);return}
    if(moving||map.isMoving?.()){schedulePostMoveSettle();return}
    terrain();syncParcelShells();syncBuildingShells();
+   if(map.getZoom()>=14.2)scheduleLivingWorld(MOBILE?900:120);
    // V5615: base building visibility is interaction-critical, not enrichment.
    // Keep shells/city fallback visible immediately; exact/detail/landmark/bridge rebuilds remain pressure-gated.
    window.__BP_BASE_BUILDING_VISIBILITY_V5615__={version:5615,visible:true,pressureGated:false,updatedAt:Date.now()};
@@ -1142,7 +1157,7 @@ export function initWorld(options={}){
    installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();bindBuildingHitLayers();setBase('satellite');disableFineDetail();try{for(const id of ['gta-bridge3d-pier','gta-bridge3d-deck','gta-bridge3d-surface','gta-bridge3d-center','gta-bridge3d-rail'])if(map.getLayer(id)&&map.getLayer('gta-country'))map.moveLayer(id,'gta-country')}catch(_){};rebuildLandmark3D(0);rebuildBridge3D(0);startParcelFlow();syncBuildingShells();
    window.__BP_CAMERA_MODE__={mode:'FREE_FLY_SINGLE_VIEW',singleView:true,autoViewSwitching:false,streetWalkMode:false,maxPitch:85,minZoom:2.2,maxZoom:22,manualPitch:true,manualRotation:true,buildingClickOverlook:true,updatedAt:Date.now()};
    window.__BP_WORLD_CORE_READY__={version:5519,ready:true,styleUsable:true,styleLoaded:!!map.isStyleLoaded?.(),materials:!!window.__BP_BUILDING_MATERIALS__,camera:!!window.__BP_CAMERA_MODE__,updatedAt:Date.now()};
-   worldCoreReady=true;setTimeout(scheduleExact,MOBILE?350:220);setStatus('BridgePoint World v5378 · current-city structures · staged real roofs · performance mode');return true
+   worldCoreReady=true;setTimeout(scheduleExact,MOBILE?350:220);if(map.getZoom()>=14.2)setTimeout(()=>scheduleLivingWorld(0),MOBILE?700:180);setStatus('BridgePoint World v5623 · height-backed 3D trees · current-city structures · staged real roofs');return true
   }catch(e){window.__BP_WORLD_CORE_READY__={version:5519,ready:false,error:String(e?.message||e),updatedAt:Date.now()};console.warn('BridgePoint world core init',e);return false}
  };
  map.once('load',()=>{finalizeWorldCore()});
