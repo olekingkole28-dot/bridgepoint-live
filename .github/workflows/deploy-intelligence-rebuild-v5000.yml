@@ -428,7 +428,10 @@ jobs:
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
           grep -Fq '__BP_APP_BUILD_VERSION__=5371' site/app.js
-          grep -Fq '__BP_WORLD_RENDER_VERSION__=5561' site/world-v2300-map.js
+          grep -Fq '__BP_WORLD_RENDER_VERSION__=5624' site/world-v2300-map.js
+          grep -Fq '__BP_TECH_BASEMAP_V1116__' site/world-v2300-map.js
+          grep -Fq "setBase('gta')" site/world-v2300-map.js
+          grep -Fq 'PUBLIC_PARCEL_GEOMETRY=false' site/global-property-v957.js
           grep -Fq '__BP_MATERIAL_LAZYLOAD_V5587__' site/world-v2300-map.js
           grep -Fq '__BP_GEOMETRY_TRUTH_V5590__' site/world-v2300-map.js
           grep -Fq '__BP_GEOMETRY_TRUTH_V5592__' site/world-v2300-map.js
