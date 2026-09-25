@@ -139,7 +139,7 @@ async function bootMap(){
  if(BP_MOBILE){
   const armSharedWeather=()=>{try{if(world?.map?.getZoom?.()>=4.5)setTimeout(activateSharedWeather,850)}catch(_){}};
   world?.map?.on?.('moveend',armSharedWeather);
-  setTimeout(activateSharedWeather,30000);
+  setTimeout(activateSharedWeather,60000);
  }else setTimeout(activateSharedWeather,3500);
  try{world.map.jumpTo({center:[0,20],zoom:BP_MOBILE?1.05:1.25,pitch:0,bearing:0});window.__BP_GLOBAL_START__={center:[0,20],projection:'globe',zoom:world.map.getZoom(),at:Date.now()}}catch(_){}
  window.__BP_INITIAL_WEATHER_PRIORITY__=true;
@@ -718,7 +718,7 @@ function bindMapGestureIsolation(){
 }
 
 const BP_MOBILE=innerWidth<=900||/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
-startupInteractiveUntil=performance.now()+(BP_MOBILE?18000:6000);window.__BP_INTERACTION_PRIORITY_UNTIL__=startupInteractiveUntil;
+startupInteractiveUntil=performance.now()+(BP_MOBILE?45000:6000);window.__BP_INTERACTION_PRIORITY_UNTIL__=startupInteractiveUntil;
 let clientPressureWindowStart=performance.now(),clientPressureLongMs=0,clientPressureHits=0;
 function extendInteractionPriority(ms,reason='runtime-pressure'){
  const next=performance.now()+Math.max(250,Number(ms)||0);
@@ -738,7 +738,7 @@ try{
   window.__BP_CLIENT_PRESSURE_OBSERVER__=po
  }
 }catch(_){}
-window.__BP_CLIENT_PRESSURE_GUARD_V5595__={version:5595,active:true,reason:'startup',until:startupInteractiveUntil,longTaskMs:0,hits:0,nonDestructive:true,gesturesPreserved:true,updatedAt:Date.now()};
+window.__BP_CLIENT_PRESSURE_GUARD_V5595__={version:5595,active:true,reason:'startup',until:startupInteractiveUntil,longTaskMs:0,hits:0,nonDestructive:true,gesturesPreserved:true,mobileFirstUseGuardMs:BP_MOBILE?45000:6000,updatedAt:Date.now()};
 window.__BP_PERFORMANCE_GOVERNOR__=window.__BP_PERFORMANCE_GOVERNOR__||{get interacting(){return mapInteracting},get queued(){return deferredWork.size}};
 let lastMapMotionAt=0;
 function bpInputPending(){try{return navigator.scheduling?.isInputPending?.({includeContinuous:true})===true}catch(_){return false}}
