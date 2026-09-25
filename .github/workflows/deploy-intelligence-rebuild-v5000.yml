@@ -428,14 +428,15 @@ jobs:
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
           grep -Fq '__BP_APP_BUILD_VERSION__=5371' site/app.js
-          grep -Fq '__BP_WORLD_RENDER_VERSION__=5626' site/world-v2300-map.js
+          grep -Fq '__BP_WORLD_RENDER_VERSION__=5627' site/world-v2300-map.js
           grep -Fq '__BP_TECH_BASEMAP_V1116__' site/world-v2300-map.js
           grep -Fq '__BP_PUBLIC_TECH_FAST_V1117__' site/world-v2300-map.js
           grep -Fq '__BP_FAST_BUILDINGS_V1119__' site/world-v2300-map.js
           grep -Fq '__BP_FAST_BUILDING_HANDOFF_V1120__' site/world-v2300-map.js
-          grep -Fq '__BP_REALISTIC_TREE_LOD_V1121__' site/world-v2300-map.js
+          grep -Fq '__BP_REALISTIC_TREE_LOD_V1122__' site/world-v2300-map.js
           grep -Fq "bpTreeLod:{type:'geojson'" site/world-v2300-map.js
           grep -Fq "detailed3DMinZoom:14.25" site/world-v2300-map.js
+          grep -Fq "pressureTreeOnly:true" site/world-v2300-map.js
           grep -Fq "id:'gta-bp-floor-lines'" site/world-v2300-map.js
           grep -Fq "setBase('gta')" site/world-v2300-map.js
           grep -Fq 'PUBLIC_PARCEL_GEOMETRY=false' site/global-property-v957.js
@@ -681,7 +682,7 @@ jobs:
               && grep -Fq 'toggleLiveContext' /tmp/app.html \
               && grep -Fq 'data-nosnippet' /tmp/app.html \
               && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js \
-              && grep -Fq '__BP_WORLD_RENDER_VERSION__=5626' /tmp/world-v2300-map.js \
+              && grep -Fq '__BP_WORLD_RENDER_VERSION__=5627' /tmp/world-v2300-map.js \
               && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js \
               && grep -Fq '__BP_PARCEL_BOUNDARY_VIEWER_V5577__' /tmp/parcel-boundary-viewer-v5403.js \
               && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js \
@@ -920,7 +921,7 @@ jobs:
 
               await p.goto('https://bridgepointintelligence.online/app/?qa=v5584-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000&&window.__BP_APP_BUILD_VERSION__===5371,{timeout:20000});
-              await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5626&&!!window.__BP_V5000_WORLD?.map,{timeout:35000});
+              await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5627&&!!window.__BP_V5000_WORLD?.map,{timeout:35000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
               await p.waitForFunction(()=>!!window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__&&!!window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__,{timeout:30000});
               await p.waitForFunction(()=>{
