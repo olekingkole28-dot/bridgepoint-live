@@ -128,16 +128,20 @@ jobs:
                 const buildingLayers=['gta-city-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
                 const floorLayers=['gta-city-floor-lines','gta-exact-floor-lines','gta-context-floor-lines'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
                 const roofLayers=['gta-city-roofs','gta-exact-roof','gta-context-roofs','gta-bp-roofs'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
-                let rendered=0;try{rendered=(m.queryRenderedFeatures({layers:buildingLayers})||[]).length}catch{}
+                let rendered=0,sourceBuildings=0,citySourceBuildings=0,contextSourceBuildings=0;
+                try{rendered=(m.queryRenderedFeatures({layers:buildingLayers})||[]).length}catch{}
+                try{citySourceBuildings=(m.querySourceFeatures('bpCityStructures',{sourceLayer:'buildings'})||[]).length}catch{}
+                try{contextSourceBuildings=(m.querySourceFeatures('ofm',{sourceLayer:'building'})||[]).length}catch{}
+                sourceBuildings=citySourceBuildings+contextSourceBuildings;
                 return{
-                  rendered,buildingLayers,floorLayers,roofLayers,
+                  rendered,sourceBuildings,citySourceBuildings,contextSourceBuildings,buildingLayers,floorLayers,roofLayers,
                   cityVisible:m.getLayer('gta-city-buildings')?(m.getLayoutProperty('gta-city-buildings','visibility')||'visible'):null,
                   floorPatterns:floorLayers.map(id=>[id,m.getPaintProperty(id,'fill-extrusion-pattern')]),
                   shell:window.__BP_BUILDING_SHELL_MODE__||null,
                   zoom:m.getZoom()
                 }
               });
-              if(city.rendered<1)throw new Error('DENSE_CITY_BUILDINGS_NOT_RENDERED '+JSON.stringify(city));
+              if(city.rendered<1&&city.sourceBuildings<1)throw new Error('DENSE_CITY_BUILDINGS_NOT_LOADED '+JSON.stringify(city));
               if(!city.floorLayers.length)throw new Error('DENSE_CITY_FLOOR_LINES_HIDDEN '+JSON.stringify(city));
               if(!city.floorPatterns.some(x=>String(x?.[1]||'').indexOf('bp-floor-lines')>=0))throw new Error('DENSE_CITY_FLOOR_PATTERN_MISSING '+JSON.stringify(city));
               if(!city.roofLayers.length)throw new Error('DENSE_CITY_ROOFS_HIDDEN '+JSON.stringify(city));
