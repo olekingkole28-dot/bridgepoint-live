@@ -41,7 +41,11 @@ jobs:
               await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               await page.goto(O+'/app/?tree1121='+Date.now(),{waitUntil:'domcontentloaded',timeout:35000});
               await page.waitForFunction(()=>window.__BP_V5000_WORLD?.map,{timeout:45000});
-              await page.evaluate(()=>{try{window.__BP_WALKTHROUGH_V5539__?.skip?.()}catch(_){}});
+              await page.evaluate(()=>{try{window.__BP_WALKTHROUGH_V5539__?.skip?.()}catch(_){}
+                const surface=document.querySelector('[data-surface="map"]');
+                if(surface){surface.hidden=false;surface.classList.add('active')}
+                for(const el of document.querySelectorAll('[data-surface]:not([data-surface="map"])')){try{el.classList.remove('active')}catch(_){}}
+              });
 
               await page.evaluate(()=>{
                 window.__BP_MAP_USER_INTENT_AT__=Date.now();
