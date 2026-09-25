@@ -104,7 +104,7 @@ jobs:
               await page.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
               await page.goto(O+'/app/?watchdog5561='+Date.now(),{waitUntil:'domcontentloaded',timeout:35000});
-              await page.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5561&&window.__BP_V5000_WORLD?.map,{timeout:45000});
+              await page.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5625&&window.__BP_V5000_WORLD?.map,{timeout:45000});
               await page.waitForFunction(()=>!!window.__BP_GEOMETRY_TRUTH_V5592__&&!!window.__BP_MAIN_THREAD_GUARD_V5592__&&!!window.__BP_GLOBAL_BACKGROUND_SCHEDULER_V5592__,{timeout:30000});
               await page.waitForFunction(()=>!!window.__BP_WALKTHROUGH_V5539__,{timeout:15000}).catch(()=>{});
               await page.evaluate(()=>{try{window.__BP_WALKTHROUGH_V5539__?.skip?.()}catch(_){}}).catch(()=>{});
