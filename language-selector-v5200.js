@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const VERSION=1067;
+const VERSION=1068;
 if(window.BridgePointLanguage?.version>=VERSION)return;
 
 const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
@@ -39,7 +39,7 @@ const FALLBACK=[
 ];
 let languages=FALLBACK.slice();
 let current='en';
-let observer=null,refreshTimer=0,googleReady=false,googleLoading=false;
+let observer=null,refreshTimer=0,googleReady=false,googleLoading=false,observerMuteUntil=0;
 
 const ALIAS={
  'pt':'pt-BR','pt-br':'pt-BR','zh-cn':'zh-Hans','zh-hans':'zh-Hans','zh-tw':'zh-Hant','zh-hant':'zh-Hant',
@@ -196,6 +196,7 @@ function applyGoogleTarget(){
  if(!combo)return false;
  const g=googleCode(current);
  if(combo.value!==g)combo.value=g;
+ observerMuteUntil=Date.now()+1600;
  combo.dispatchEvent(new Event('change',{bubbles:true}));
  googleReady=true;
  return true;
@@ -265,18 +266,30 @@ function refresh(){
 function startObserver(){
  if(observer)return;
  observer=new MutationObserver(ms=>{
+  if(current==='en'||Date.now()<observerMuteUntil)return;
   let relevant=false;
   for(const m of ms){
+   if(m.type==='characterData'){
+    const p=m.target?.parentElement;
+    if(p&&!p.closest?.(PROTECTED))relevant=true;
+    continue;
+   }
    for(const n of m.addedNodes||[]){
-    if(n.nodeType===1){protectTruth(n);relevant=true}
+    if(n.nodeType===1){
+     protectTruth(n);
+     if(!n.matches?.(PROTECTED)&&!n.closest?.(PROTECTED))relevant=true;
+    }else if(n.nodeType===3){
+     const p=n.parentElement;
+     if(p&&!p.closest?.(PROTECTED))relevant=true;
+    }
    }
   }
-  if(relevant&&current!=='en'){
+  if(relevant){
    clearTimeout(refreshTimer);
    refreshTimer=setTimeout(()=>applyGoogleTarget(),700);
   }
  });
- observer.observe(document.documentElement,{childList:true,subtree:true});
+ observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
 }
 function mapNameExpression(locale=current){
  const m=mapCode(locale);
