@@ -39,7 +39,7 @@ jobs:
               await page.setGeolocation({latitude:41.55,longitude:-72.65,accuracy:20});
               await page.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
-              await page.goto(O+'/app/?tree1122='+Date.now(),{waitUntil:'domcontentloaded',timeout:35000});
+              await page.goto(O+'/app/?tree1123='+Date.now(),{waitUntil:'domcontentloaded',timeout:35000});
               await page.waitForFunction(()=>window.__BP_V5000_WORLD?.map,{timeout:45000});
               await page.evaluate(()=>{try{window.__BP_WALKTHROUGH_V5539__?.skip?.()}catch(_){}
                 const surface=document.querySelector('[data-surface="map"]');
@@ -52,7 +52,7 @@ jobs:
                 window.__BP_V5000_WORLD.map.jumpTo({center:[-72.66,41.55],zoom:13.15,pitch:48,bearing:8});
               });
               await page.waitForFunction(()=>Number(window.__BP_LIVING_WORLD_STATE__?.treeCount||0)>=20,{timeout:35000});
-              await page.waitForFunction(()=>window.__BP_TREE_RENDER_STATE__?.version>=1122&&window.__BP_TREE_RENDER_STATE__?.visibleLod===true,{timeout:18000});
+              await page.waitForFunction(()=>window.__BP_TREE_RENDER_STATE__?.version>=1123&&window.__BP_TREE_RENDER_STATE__?.visibleLod===true,{timeout:18000});
               await sleep(1200);
               const high=await page.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map;let crowns=0,lodSource=0;
@@ -84,7 +84,7 @@ jobs:
               if(close.crownTiers.length<4||close.trunkParts<2)throw new Error('TREE_GEOMETRY_NOT_MULTI_TIER '+JSON.stringify(close));
               if(!String(close.render?.geometry||'').includes('MULTI_TIER'))throw new Error('TREE_GEOMETRY_MARKER_MISSING '+JSON.stringify(close));
               if(errors.length)throw new Error('PAGEERROR '+JSON.stringify(errors.slice(-5)));
-              console.log('TREE_RENDER_WATCHDOG_PASS_V1122',JSON.stringify({highCrowns:high.crowns,highSource:high.lodSource,closeCrowns:close.crowns,closeTrunks:close.trunks,crownTiers:close.crownTiers}));
+              console.log('TREE_RENDER_WATCHDOG_PASS_V1123',JSON.stringify({highCrowns:high.crowns,highSource:high.lodSource,closeCrowns:close.crowns,closeTrunks:close.trunks,crownTiers:close.crownTiers}));
             }catch(e){
               try{await page.screenshot({path:'/tmp/tree-render-failure.png',fullPage:true})}catch{}
               console.error(e.stack||e);process.exitCode=1;
