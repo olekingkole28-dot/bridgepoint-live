@@ -170,3 +170,34 @@ body>header{z-index:50}body>main,body>.site-footer{z-index:2}
 
 /* V5630 live international counter breakdown */
 .stat-global{overflow:visible!important;position:relative}.global-stat-details{position:relative;margin-top:5px}.global-stat-details summary{cursor:pointer;list-style:none;color:#79d8e8;font-size:6.4px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}.global-stat-details summary::-webkit-details-marker{display:none}.global-stat-details summary:after{content:" +";color:#59e5ae}.global-stat-details[open] summary:after{content:" −"}.global-stat-country-list{position:absolute;z-index:30;left:-8px;top:calc(100% + 6px);width:min(270px,78vw);max-height:270px;overflow:auto;padding:7px;border:1px solid rgba(98,230,255,.22);border-radius:12px;background:rgba(3,10,15,.985);box-shadow:0 18px 50px rgba(0,0,0,.48);backdrop-filter:blur(12px)}.global-stat-country-list>div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 9px;padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.055)}.global-stat-country-list>div:last-child{border-bottom:0}.global-stat-country-list span,.global-stat-country-list b,.global-stat-country-list small{margin:0!important;text-transform:none!important;letter-spacing:.02em!important}.global-stat-country-list span{color:#cce4ec!important;font-size:7.2px!important;font-weight:850}.global-stat-country-list b{color:#effcff;font-size:8px}.global-stat-country-list small{grid-column:1/-1;color:#69838f;font-size:6.5px}
+
+
+/* V1124 LIVE-METRIC LAYOUT STABILITY */
+.premium-stats,.bp-opportunity-intel{overflow-anchor:none}
+.premium-stats .stat-tile{animation:none!important}
+.premium-stats .stat-copy strong,
+#landingOpportunityTotal,#landingOpportunityTotalHero,#landingOpportunityHeroStat,
+#landingOpportunityProperties,#landingOpportunityStatesCount{
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1;
+}
+.premium-stats .stat-copy strong{min-inline-size:10ch}
+.stat-global .stat-live-detail{
+  min-block-size:1.25em;
+  max-block-size:1.25em;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#landingOpportunityTotal{display:inline-block;min-inline-size:8.5ch}
+#landingOpportunityTotalHero,#landingOpportunityHeroStat{display:inline-block;min-inline-size:8.5ch}
+#landingOpportunityProperties{display:inline-block;min-inline-size:8.5ch}
+#landingOpportunityStatesCount{display:inline-block;min-inline-size:3ch}
+#landingOpportunityFamilies,#landingOpportunityStates{overflow-anchor:none}
+#landingOpportunityFamilies{min-block-size:180px}
+#landingOpportunityStates{min-block-size:220px}
+@media(max-width:520px){
+ .premium-stats .stat-copy strong{min-inline-size:9.5ch}
+ #landingOpportunityFamilies{min-block-size:160px}
+ #landingOpportunityStates{min-block-size:280px}
+}
