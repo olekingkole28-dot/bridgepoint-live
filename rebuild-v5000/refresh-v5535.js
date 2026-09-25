@@ -1,7 +1,7 @@
 (()=>{
   'use strict';
   if(window.__BP_FULL_REFRESH_V5548__)return;
-  const VERSION=5548;
+  const VERSION=5549;
   const PERIOD_MS=5*60*1000;
   const BUSY_RETRY_MS=30*1000;
   const STORE_KEY='bridgepoint_full_refresh_state_v5535';
@@ -70,6 +70,13 @@
     location.reload();
   }
 
+  function softRefresh(reason='interval-soft'){
+    api.lastReason=reason;
+    api.nextAt=Date.now()+PERIOD_MS;
+    try{window.dispatchEvent(new CustomEvent('bridgepoint:softrefresh',{detail:{reason,at:Date.now()}}))}catch(_){}
+    try{currentMap()?.triggerRepaint?.()}catch(_){}
+  }
+
   function scheduledAttempt(){
     if(activeFormBusy()||interactionBusy()){
       api.lastReason='deferred-active-use';
@@ -77,7 +84,8 @@
       timer=setTimeout(scheduledAttempt,BUSY_RETRY_MS);
       return;
     }
-    doReload('interval');
+    softRefresh('interval-soft');
+    schedule();
   }
 
   function schedule(){
@@ -124,7 +132,7 @@
       sessionStorage.removeItem(STORE_KEY);
     }catch(_){state=null}
     if(!state||state.pathname!==location.pathname||Date.now()-Number(state.at||0)>120000)return;
-    if(Number.isFinite(Number(state.scrollY)))setTimeout(()=>scrollTo(0,Number(state.scrollY)||0),250);
+    if(state.surface!=='map'&&Number.isFinite(Number(state.scrollY)))setTimeout(()=>scrollTo(0,Number(state.scrollY)||0),250);
     if(state.surface&&state.surface!=='map'){
       setTimeout(()=>document.querySelector('[data-nav="'+CSS.escape(state.surface)+'"]')?.click(),1000);
     }
@@ -143,6 +151,8 @@
   }
 
   api.reload=()=>doReload('api');
+  api.softRefresh=()=>softRefresh('api-soft');
+  api.automaticHardReload=false;
   const boot=()=>{lastInteractionAt=Date.now();mountButton();restoreState();schedule()};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
