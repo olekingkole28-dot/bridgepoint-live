@@ -135,11 +135,12 @@ async function bootMap(){
  // V5614: register the lightweight weather-FX capability contract immediately.
  // Network fetches and active particle rendering stay behind the interaction/pressure governor.
  void initSharedVisualWeather(world,{activate:false});
- const activateSharedWeather=()=>queueAfterMap('shared-visual-weather',()=>void initSharedVisualWeather(world,{activate:true}));
+ let sharedWeatherRequested=false;
+ const activateSharedWeather=()=>{if(sharedWeatherRequested)return;sharedWeatherRequested=true;queueAfterMap('shared-visual-weather',()=>void initSharedVisualWeather(world,{activate:true}))};
  if(BP_MOBILE){
-  const armSharedWeather=()=>{try{if(world?.map?.getZoom?.()>=4.5)setTimeout(activateSharedWeather,850)}catch(_){}};
+  const armSharedWeather=()=>{try{if(world?.map?.getZoom?.()>=4.5)setTimeout(activateSharedWeather,6000)}catch(_){}};
   world?.map?.on?.('moveend',armSharedWeather);
-  setTimeout(activateSharedWeather,60000);
+  setTimeout(activateSharedWeather,120000);
  }else setTimeout(activateSharedWeather,3500);
  try{world.map.jumpTo({center:[0,20],zoom:BP_MOBILE?1.05:1.25,pitch:0,bearing:0});window.__BP_GLOBAL_START__={center:[0,20],projection:'globe',zoom:world.map.getZoom(),at:Date.now()}}catch(_){}
  window.__BP_INITIAL_WEATHER_PRIORITY__=true;
