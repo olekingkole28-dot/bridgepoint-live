@@ -5,7 +5,7 @@ const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localh
 const FN=LOCAL_RUNTIME?location.origin+'/functions/v1/bridgepoint-parcel-boundary-tile-v5403':'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403';
 const SEARCH_FN=LOCAL_RUNTIME?location.origin+'/functions/v1/bridgepoint-boundary-search-v1091':'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-boundary-search-v1091';
 const PUBLIC_BUILDINGS='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000';
-const VERSION=5634;
+const VERSION=5635;
 const SOURCE='bp-boundary-viewer-v5403';
 const GLOW='bp-boundary-glow-v5403';
 const LINE='bp-boundary-line-v5403';
@@ -45,12 +45,39 @@ function fmt(n){return Number(n||0).toLocaleString()}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 function bpBoundaryMapNameExpr(){return window.BridgePointLanguage?.mapNameExpression?.()||['coalesce',['get','name:en'],['get','name_en'],['get','name'],'']}
+function bpBoundaryCountryCountExpr(rows=lastGlobalRows){
+ const by=new Map((rows||[]).map(r=>[String(r.country_code||'').trim().toUpperCase(),r]));
+ const match=['match',['upcase',['coalesce',['get','iso_a2'],'']]];
+ for(const [code,row] of by)match.push(code,fmt(Number(row.boundaries||0))+' parcels');
+ match.push('0 parcels · acquiring');
+ return ['concat',bpBoundaryMapNameExpr(),'\\n',match];
+}
+function bpBoundaryCountryColorExpr(rows=lastGlobalRows){
+ const by=new Map((rows||[]).map(r=>[String(r.country_code||'').trim().toUpperCase(),r]));
+ const match=['match',['upcase',['coalesce',['get','iso_a2'],'']]];
+ for(const [code,row] of by){
+  const live=mode==='owner'?row.owner_enabled===true:row.public_enabled===true;
+  match.push(code,live?'#b8ffd3':'#ffd0d7');
+ }
+ match.push('#e9fbff');
+ return match;
+}
 function bpBoundaryApplyLanguage(){
  if(!viewer)return false;
- const expr=bpBoundaryMapNameExpr();let n=0;
- for(const id of ['bp-boundary-country-label-v5750','bp-boundary-admin-label-v5750']){
-  try{if(viewer.getLayer(id)){viewer.setLayoutProperty(id,'text-field',expr);n++}}catch(_){}
- }
+ let n=0;
+ try{
+  if(viewer.getLayer('bp-boundary-country-label-v5750')){
+   viewer.setLayoutProperty('bp-boundary-country-label-v5750','text-field',bpBoundaryCountryCountExpr());
+   viewer.setPaintProperty('bp-boundary-country-label-v5750','text-color',bpBoundaryCountryColorExpr());
+   n++;
+  }
+ }catch(_){}
+ try{
+  if(viewer.getLayer('bp-boundary-admin-label-v5750')){
+   viewer.setLayoutProperty('bp-boundary-admin-label-v5750','text-field',bpBoundaryMapNameExpr());
+   n++;
+  }
+ }catch(_){}
  return n>0
 }
 window.addEventListener('bridgepoint:languagechange',()=>setTimeout(bpBoundaryApplyLanguage,80));
@@ -183,35 +210,25 @@ function bindStatePopup(map){
   });
 }
 function globalCoverageData(rows){
-  return{type:'FeatureCollection',features:(rows||[]).filter(r=>Number.isFinite(Number(r?.center_lon))&&Number.isFinite(Number(r?.center_lat))&&Number(r?.boundaries)>0).map(r=>({
-    type:'Feature',
-    properties:{
-      country_code:String(r.country_code||'').trim(),
-      boundaries:Number(r.boundaries||0),
-      canonicals:Number(r.canonicals||0),
-      boundaries_fmt:fmt(r.boundaries),
-      canonicals_fmt:fmt(r.canonicals),
-      public_enabled:r.public_enabled===true
-    },
-    geometry:{type:'Point',coordinates:[Number(r.center_lon),Number(r.center_lat)]}
-  }))};
+ return{type:'FeatureCollection',features:[]};
 }
 function syncGlobalOverlay(map,rows){
-  if(!map)return;
-  const data=globalCoverageData(rows);
-  const src=map.getSource(GLOBAL_SOURCE);
-  if(src?.setData)src.setData(data); else map.addSource(GLOBAL_SOURCE,{type:'geojson',data});
-  if(!map.getLayer(GLOBAL_DOT))map.addLayer({id:GLOBAL_DOT,type:'circle',source:GLOBAL_SOURCE,minzoom:1,maxzoom:7,paint:{
-    'circle-radius':['interpolate',['linear'],['zoom'],1,3.5,3,5,5,7.5,7,10],
-    'circle-color':mode==='owner'?'#27ed89':'#ff4d67',
-    'circle-opacity':.9,'circle-stroke-color':'#eaffff','circle-stroke-width':1.1
-  }});
-  if(!map.getLayer(GLOBAL_LABEL))map.addLayer({id:GLOBAL_LABEL,type:'symbol',source:GLOBAL_SOURCE,minzoom:1,maxzoom:7,layout:{
-    'text-field':['concat',['get','country_code'],' · ',['get','boundaries_fmt'],' parcels'],
-    'text-font':['Noto Sans Regular'],
-    'text-size':['interpolate',['linear'],['zoom'],1,8,3,10,5,12,7,13],
-    'text-offset':[0,1.25],'text-anchor':'top','text-allow-overlap':false,'text-padding':3
-  },paint:{'text-color':mode==='owner'?'#b8ffd3':'#ffd0d7','text-halo-color':'rgba(2,9,13,.98)','text-halo-width':1.25}});
+ if(!map)return;
+ lastGlobalRows=Array.isArray(rows)?rows:[];
+ // Country counters belong on the basemap's real country-label geometry.
+ // The old point overlay relied on missing centroids, collapsing labels at 0,0.
+ try{
+  if(map.getLayer(GLOBAL_LABEL))map.removeLayer(GLOBAL_LABEL);
+  if(map.getLayer(GLOBAL_DOT))map.removeLayer(GLOBAL_DOT);
+  if(map.getSource(GLOBAL_SOURCE))map.removeSource(GLOBAL_SOURCE);
+ }catch(_){}
+ try{
+  if(map.getLayer('bp-boundary-country-label-v5750')){
+   map.setLayoutProperty('bp-boundary-country-label-v5750','text-field',bpBoundaryCountryCountExpr(lastGlobalRows));
+   map.setPaintProperty('bp-boundary-country-label-v5750','text-color',bpBoundaryCountryColorExpr(lastGlobalRows));
+   map.setPaintProperty('bp-boundary-country-label-v5750','text-halo-width',1.45);
+  }
+ }catch(e){console.warn('country count labels',e)}
 }
 async function syncStateOverlay(map,rows){
   if(!map)return;
@@ -232,7 +249,7 @@ async function syncStateOverlay(map,rows){
     'line-opacity':['interpolate',['linear'],['zoom'],2,.9,7,.62]
   }});
   if(!map.getLayer(STATE_LABEL))map.addLayer({id:STATE_LABEL,type:'symbol',source:STATE_SOURCE,minzoom:2.15,maxzoom:6.8,layout:{
-    'text-field':['concat',['get','state_code'],'\\n',['get','status_short']],
+    'text-field':['concat',['get','state_code'],'\\n',['get','parcel_count_fmt'],' parcels\\n',['get','status_short']],
     'text-size':['interpolate',['linear'],['zoom'],2.15,8,4,10.5,6,12],
     'text-font':['Noto Sans Regular'],
     'text-anchor':'center',
