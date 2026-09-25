@@ -1,0 +1,86 @@
+name: BridgePoint Tree Render Watchdog V1111
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tree-render-watchdog-v1111.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tree-render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify live height-backed tree rendering
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          const O='https://bridgepointintelligence.online';
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
+            const page=await browser.newPage();
+            const errors=[];
+            page.on('pageerror',e=>errors.push(String(e?.message||e)));
+            try{
+              await browser.defaultBrowserContext().overridePermissions(O,['geolocation']);
+              await page.setGeolocation({latitude:41.55,longitude:-72.65,accuracy:20});
+              await page.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+              await page.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await page.goto(O+'/app/?tree1111='+Date.now(),{waitUntil:'domcontentloaded',timeout:35000});
+              await page.waitForFunction(()=>window.__BP_V5000_WORLD?.map,{timeout:45000});
+              await page.evaluate(()=>{try{window.__BP_WALKTHROUGH_V5539__?.skip?.()}catch(_){}});
+              await page.evaluate(()=>{
+                window.__BP_MAP_USER_INTENT_AT__=Date.now();
+                window.__BP_V5000_WORLD.map.jumpTo({center:[-72.66,41.55],zoom:16.4,pitch:62,bearing:10});
+              });
+              await page.waitForFunction(()=>Number(window.__BP_LIVING_WORLD_STATE__?.treeCount||0)>=40,{timeout:35000});
+              await page.waitForFunction(()=>window.__BP_TREE_RENDER_STATE__?.visible3D===true,{timeout:15000});
+              await sleep(1800);
+              const state=await page.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD.map;
+                let crowns=0,trunks=0,physical=0;
+                try{crowns=(m.queryRenderedFeatures({layers:['gta-bp-tree3d-canopy']})||[]).length}catch{}
+                try{trunks=(m.queryRenderedFeatures({layers:['gta-bp-tree3d-trunk']})||[]).length}catch{}
+                try{physical=(m.querySourceFeatures('bpLivingWorld3D')||[]).length}catch{}
+                return {
+                  living:window.__BP_LIVING_WORLD_STATE__||null,
+                  render:window.__BP_TREE_RENDER_STATE__||null,
+                  crowns,trunks,physical,
+                  canopyVisibility:m.getLayer('gta-bp-tree3d-canopy')?(m.getLayoutProperty('gta-bp-tree3d-canopy','visibility')||'visible'):null,
+                  trunkVisibility:m.getLayer('gta-bp-tree3d-trunk')?(m.getLayoutProperty('gta-bp-tree3d-trunk','visibility')||'visible'):null,
+                  center:[m.getCenter().lng,m.getCenter().lat],zoom:m.getZoom(),pitch:m.getPitch()
+                };
+              });
+              console.log('TREE_RENDER_DIAGNOSTICS',JSON.stringify(state));
+              if(Number(state.living?.treeCount||0)<40)throw new Error('TREE_FEED_TOO_SPARSE '+JSON.stringify(state));
+              if(state.render?.visible3D!==true)throw new Error('TREE_RENDER_NOT_ENABLED '+JSON.stringify(state));
+              if(state.canopyVisibility==='none'||state.trunkVisibility==='none')throw new Error('TREE_LAYERS_HIDDEN '+JSON.stringify(state));
+              if(state.crowns<1||state.trunks<1)throw new Error('TREE_FEATURES_NOT_RENDERED '+JSON.stringify(state));
+              if(errors.length)throw new Error('PAGEERROR '+JSON.stringify(errors.slice(-5)));
+              console.log('TREE_RENDER_WATCHDOG_PASS',JSON.stringify({treeCount:state.living.treeCount,crowns:state.crowns,trunks:state.trunks,heightBacked:state.living.treeHeightBackedCount||0}));
+            }catch(e){
+              try{await page.screenshot({path:'/tmp/tree-render-failure.png',fullPage:true})}catch{}
+              console.error(e.stack||e);process.exitCode=1;
+            }finally{await browser.close()}
+          })();
+          NODE
+
+      - name: Upload tree failure screenshot
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridgepoint-tree-render-failure
+          path: /tmp/tree-render-failure.png
+          if-no-files-found: ignore
+          retention-days: 2
