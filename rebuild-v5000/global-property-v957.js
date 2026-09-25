@@ -36,7 +36,8 @@ function updateCounters(d){
  const total=document.getElementById('landingGlobalProperties');
  if(total)total.textContent=fmt(d?.active_global_canonical);
  const sub=document.getElementById('landingGlobalCountryMix');
- const countries=(d?.countries||[]).filter(x=>Number(x.active_canonical)>0||Number(x.building_footprints)>0||Number(x.addresses)>0||Number(x.roof_records)>0||Number(x.foothold_features)>0).sort((a,b)=>(Number(b.active_canonical)+Number(b.building_footprints)+Number(b.addresses)+Number(b.roof_records)+Number(b.foothold_features))-(Number(a.active_canonical)+Number(a.building_footprints)+Number(a.addresses)+Number(a.roof_records)+Number(a.foothold_features)));
+ const footholdCount=x=>Number(x?.official_foothold_features||x?.foothold_features||0);
+ const countries=(d?.countries||[]).filter(x=>Number(x.active_canonical)>0||Number(x.building_footprints)>0||Number(x.addresses)>0||Number(x.roof_records)>0||footholdCount(x)>0).sort((a,b)=>(Number(b.active_canonical)+Number(b.building_footprints)+Number(b.addresses)+Number(b.roof_records)+footholdCount(b))-(Number(a.active_canonical)+Number(a.building_footprints)+Number(a.addresses)+Number(a.roof_records)+footholdCount(a)));
  if(sub){
   const head=countries.slice(0,3).map(x=>countryName(x.country_code)+' '+fmt(x.active_canonical));
   if(countries.length>3)head.push('+'+(countries.length-3)+' more');
@@ -49,7 +50,7 @@ function updateCounters(d){
   for(const x of countries){
    const row=document.createElement('div'),name=document.createElement('span'),count=document.createElement('b'),meta=document.createElement('small');
    name.textContent=countryName(x.country_code)+' · '+String(x.country_code||'');
-   const canon=Number(x.active_canonical||0),buildings=Number(x.building_footprints||0),addresses=Number(x.addresses||0),roofs=Number(x.roof_records||0),footholds=Number(x.foothold_features||0);
+   const canon=Number(x.active_canonical||0),buildings=Number(x.building_footprints||0),addresses=Number(x.addresses||0),roofs=Number(x.roof_records||0),footholds=footholdCount(x);
    count.textContent=canon>0?fmt(canon)+' canonical':buildings>0?fmt(buildings)+' buildings':addresses>0?fmt(addresses)+' addresses':roofs>0?fmt(roofs)+' roofs':fmt(footholds)+' foothold features';
    meta.textContent=[Number(x.materialized_boundary_rows||x.with_boundary||0)>0?fmt(x.materialized_boundary_rows||x.with_boundary)+' boundaries':'',buildings>0?fmt(buildings)+' buildings':'',addresses>0?fmt(addresses)+' addresses':'',roofs>0?fmt(roofs)+' roofs':'',footholds>0?fmt(footholds)+' official foothold features':'',canon===0&&footholds>0?'parcels acquiring':''].filter(Boolean).join(' · ');
    row.append(name,count,meta);list.appendChild(row);
