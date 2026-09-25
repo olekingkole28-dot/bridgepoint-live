@@ -347,7 +347,8 @@ function ownerBuildingTileUrl(bucket){
 }
 function addOwnerBuildingLayers(map,bucket){
   if(mode!=='owner'||!map)return;
-  const source='bp-boundary-owner-buildings-v1091',walls='bp-boundary-owner-buildings-fill-v1091',roofs='bp-boundary-owner-roofs-v1091';
+  const source='bp-boundary-owner-buildings-v1091',walls='bp-boundary-owner-buildings-fill-v1091',roofs='bp-boundary-owner-roofs-v1091',highlight='bp-boundary-owner-search-highlight-v1095';
+  try{if(map.getLayer(highlight))map.removeLayer(highlight)}catch(_){}
   try{if(map.getLayer(roofs))map.removeLayer(roofs)}catch(_){}
   try{if(map.getLayer(walls))map.removeLayer(walls)}catch(_){}
   try{if(map.getSource(source))map.removeSource(source)}catch(_){}
@@ -367,6 +368,21 @@ function addOwnerBuildingLayers(map,bucket){
   for(const id of ['bp-boundary-public-buildings-v1091','bp-boundary-public-roofs-v1091']){
     try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none')}catch(_){}
   }
+}
+function highlightOwnerBuilding(buildingId){
+  const id=Number(buildingId),map=viewer,source='bp-boundary-owner-buildings-v1091',layer='bp-boundary-owner-search-highlight-v1095';
+  if(mode!=='owner'||!map||!Number.isFinite(id)||id<=0||!map.getSource(source))return false;
+  try{if(map.getLayer(layer))map.removeLayer(layer)}catch(_){}
+  try{
+    map.addLayer({id:layer,type:'fill-extrusion',source,'source-layer':'buildings',filter:['==',['get','building_id'],id],paint:{
+      'fill-extrusion-color':'#37f4ff',
+      'fill-extrusion-height':['+',['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],['max',.35,['coalesce',['to-number',['get','roof_height_m']],.45]]],
+      'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],
+      'fill-extrusion-opacity':.42,
+      'fill-extrusion-vertical-gradient':false
+    }});
+    return true;
+  }catch(e){console.warn('owner search building highlight',e);return false}
 }
 async function boundarySearch(q){
   const box=document.getElementById('bpBoundarySearchResults1091');
@@ -393,6 +409,7 @@ async function boundarySearch(q){
         if(Number.isFinite(lng)&&Number.isFinite(lat)){
           box.hidden=true;
           viewer.easeTo({center:[lng,lat],zoom:mode==='owner'?17.2:Math.min(11.35,10.9),pitch:mode==='owner'?62:45,bearing:-18,duration:650});
+          if(mode==='owner'&&Number(row.building_id)>0)setTimeout(()=>highlightOwnerBuilding(row.building_id),100);
         }
       };
       box.appendChild(b);
