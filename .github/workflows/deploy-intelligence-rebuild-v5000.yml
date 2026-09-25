@@ -432,6 +432,7 @@ jobs:
           grep -Fq '__BP_TECH_BASEMAP_V1116__' site/world-v2300-map.js
           grep -Fq '__BP_PUBLIC_TECH_FAST_V1117__' site/world-v2300-map.js
           grep -Fq '__BP_FAST_BUILDINGS_V1119__' site/world-v2300-map.js
+          grep -Fq '__BP_FAST_BUILDING_HANDOFF_V1120__' site/world-v2300-map.js
           grep -Fq "id:'gta-bp-floor-lines'" site/world-v2300-map.js
           grep -Fq "setBase('gta')" site/world-v2300-map.js
           grep -Fq 'PUBLIC_PARCEL_GEOMETRY=false' site/global-property-v957.js
