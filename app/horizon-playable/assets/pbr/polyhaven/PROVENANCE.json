@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "source": "Poly Haven",
+  "license": "CC0",
+  "acquisition": "Poly Haven public API with BridgePoint unique User-Agent",
+  "runtime_api_dependency": false,
+  "resolution": "1k",
+  "format": "jpg",
+  "assets": {
+    "asphalt_03": "https://polyhaven.com/a/asphalt_03",
+    "dirt": "https://polyhaven.com/a/dirt",
+    "brick_wall_001": "https://polyhaven.com/a/brick_wall_001",
+    "concrete_wall_005": "https://polyhaven.com/a/concrete_wall_005",
+    "urban_street_03": "https://polyhaven.com/a/urban_street_03"
+  },
+  "files": [
+    {
+      "path": "asphalt_03_diff_1k.jpg",
+      "bytes": 788840,
+      "sha256": "95ad02e2631c41cf9fdd6a37596cf75adb4fb8a8b6880567cc78ed1c41dc5681"
+    },
+    {
+      "path": "asphalt_03_nor_gl_1k.jpg",
+      "bytes": 974676,
+      "sha256": "978de8349ce2e9989325099a6fd1f5ea6b2826528e1264606a5c51296b1e2888"
+    },
+    {
+      "path": "asphalt_03_rough_1k.jpg",
+      "bytes": 590105,
+      "sha256": "069b6ea342aaad04fd1582f59c16fbbe5c7a6f0f3a87bc9d57648ed53336fb3a"
+    },
+    {
+      "path": "brick_wall_001_diff_1k.jpg",
+      "bytes": 574381,
+      "sha256": "6a1233ec0186703de830354d89f122991e61e67fb67e0846c7eaf6c5aefea902"
+    },
+    {
+      "path": "brick_wall_001_nor_gl_1k.jpg",
+      "bytes": 295279,
+      "sha256": "8afbe3919308b168a6b7235fe7b930f670cfffa1a34de39ee790d55c9d7bda09"
+    },
+    {
+      "path": "brick_wall_001_rough_1k.jpg",
+      "bytes": 211093,
+      "sha256": "a23342b02e6c5af106aaece16130aa9153a801cb1a84d5f3e0d06ce248677f38"
+    },
+    {
+      "path": "concrete_wall_005_diff_1k.jpg",
+      "bytes": 508624,
+      "sha256": "a06a7246e8d220badf4ab7225b6a69d6fe87238816f68efa0cd3523f6ba75cc9"
+    },
+    {
+      "path": "concrete_wall_005_nor_gl_1k.jpg",
+      "bytes": 758971,
+      "sha256": "89dc8af90cf2521932bae79838433ed6741e81409b0ef91e788a4c4c3f52fb6a"
+    },
+    {
+      "path": "concrete_wall_005_rough_1k.jpg",
+      "bytes": 209767,
+      "sha256": "2b55007fbc56387d8a96bafbd58670ab5df8bd782705b908de9ebe5fd8de6dff"
+    },
+    {
+      "path": "dirt_diff_1k.jpg",
+      "bytes": 730425,
+      "sha256": "6ce6ca7e28ed046f7f93fa60dcb29f8cf42cd5a539adc5676675acccfa34efd3"
+    },
+    {
+      "path": "dirt_nor_gl_1k.jpg",
+      "bytes": 1202783,
+      "sha256": "5a5f97d920fdcdf352b350b95558bf48bb306be1fe61a47418aadc60b7deb0ce"
+    },
+    {
+      "path": "dirt_rough_1k.jpg",
+      "bytes": 253549,
+      "sha256": "eff62d5ae7bf0c46b84173bc46f07528dd164aa39f5d550c93a805b36f54b704"
+    },
+    {
+      "path": "urban_street_03_1k.hdr",
+      "bytes": 1633950,
+      "sha256": "145c1e911e763c43a28ba5800888606b79acd1830f43fe9793f24da3478b5d8b"
+    }
+  ]
+}

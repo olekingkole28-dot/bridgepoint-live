@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "build_target": 4250,
+  "updated_at": "2026-09-13",
+  "extends": "HORIZON_GAME_MODES_V4243.json",
+  "authority": "OWNER_LOCKED",
+  "zero_budget_policy": {
+    "owner_funded_spend_usd": 0,
+    "paid_assets": false,
+    "billable_cloud_compute": false,
+    "billable_plugins": false,
+    "native_gpu": "optional; local or genuinely zero-cost only",
+    "browser_pwa": "primary playable delivery path until a truly free native GPU host exists",
+    "stripe": "reserved for the existing BridgePoint account but DO_NOT_CONNECT until owner explicitly gives final go-ahead"
+  },
+  "year_one": {
+    "duration_days": 365,
+    "start": "owner_explicit_only",
+    "preseason_day": 0,
+    "solo_only": true,
+    "lives_total": 3,
+    "preseason_lives_consumed": false,
+    "world": "continuous_us_and_jurisdictions",
+    "interior_truth": {
+      "real_world_exteriors": "source-backed geography/building envelopes where lawful",
+      "real_world_interior_floorplans": false,
+      "generated_interiors": "fictional_only",
+      "required_geometry": [
+        "physical stairs between floors",
+        "functional room doors with collision and animation",
+        "true wall openings for windows and doorways",
+        "see-through/open windows that expose outside world",
+        "roof access and multi-floor traversal"
+      ],
+      "prohibited": [
+        "real apartment/office/home floor-plan reconstruction",
+        "fake card/teleport door system as the primary interior traversal method"
+      ]
+    },
+    "traversal": {
+      "rooftop_ziplines": true,
+      "building_to_building": true,
+      "validation": [
+        "anchor",
+        "distance",
+        "slope",
+        "clearance",
+        "collision",
+        "landing"
+      ]
+    },
+    "infected_progression": {
+      "early_event": "slower/easier majority",
+      "mid_event": "mixed runners, armored and regional variants",
+      "late_event": "higher density, faster/specialized threats and stronger horde coordination",
+      "scales_with": [
+        "event_day",
+        "region",
+        "population_density",
+        "survivor_pressure",
+        "endgame_phase"
+      ],
+      "never_start_hard_everywhere": true
+    },
+    "regional_identity": {
+      "goal": "each state/jurisdiction should feel geographically recognizable but zombified/horrorified",
+      "dimensions": [
+        "terrain",
+        "climate",
+        "vegetation",
+        "urban/rural density",
+        "architecture cues",
+        "weather",
+        "lighting",
+        "decay",
+        "regional wildlife"
+      ],
+      "ip_rule": "original presentation only; other franchises are feel references, never copied content"
+    },
+    "challenge_npcs": {
+      "enabled": true,
+      "strategic_placement": true,
+      "contextual_challenges": true,
+      "rewards": "free items/cosmetics/survival resources"
+    },
+    "endgame": {
+      "storm_mechanic": "massive zombie wall",
+      "origin": "outer playable perimeter of the U.S. and jurisdictions",
+      "movement": "progressive inward contraction",
+      "pressure_goal": "push remaining survivors toward larger cities",
+      "finale": "major-city showdown of surviving players near event end"
+    },
+    "creatures": {
+      "enabled": true,
+      "distribution": "biome/geography aware",
+      "types": [
+        "infected dogs",
+        "infected bears",
+        "spiders",
+        "regional wildlife",
+        "original dark-fantasy/monster threats"
+      ],
+      "license_rule": "original or properly licensed only"
+    },
+    "retention": {
+      "daily_free_rewards": true,
+      "reward_days": 365,
+      "pay_to_win": false
+    }
+  },
+  "commerce_design_only": {
+    "battle_pass": {
+      "levels": 150,
+      "price_usd": 9.99,
+      "status": "DESIGN_ONLY_UNTIL_OWNER_FINAL_STRIPE_GO_AHEAD"
+    },
+    "store": {
+      "categories": [
+        "characters",
+        "skins",
+        "weapon wraps",
+        "emotes",
+        "sprays",
+        "dances",
+        "finishers",
+        "profile cosmetics",
+        "balance-safe weapon variants"
+      ],
+      "pricing_rule": "reasonable microtransaction bands; never required for competitive viability",
+      "pay_to_win": false
+    }
+  },
+  "autonomous_workers": {
+    "backend_registry": "automation.horizon_worker_registry_v4250",
+    "work_queue": "automation.horizon_work_queue_v4250",
+    "receipts": "automation.horizon_worker_receipts_v4250",
+    "lanes": [
+      "horizon_world_interiors",
+      "horizon_infected_event",
+      "horizon_gameplay",
+      "horizon_assets_audio",
+      "horizon_qa_release"
+    ],
+    "operational_rules": [
+      "make measurable code/data/test progress each run",
+      "preserve legal/license provenance",
+      "protect BridgePoint cadastral #5 compute",
+      "never spend money or provision billable services",
+      "never start Year One without explicit owner instruction",
+      "never connect Stripe until explicit final owner instruction",
+      "publish only after relevant validation gates pass"
+    ]
+  }
+}

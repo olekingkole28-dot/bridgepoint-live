@@ -1,0 +1,52 @@
+# BridgePoint Horizon — third-party game art
+
+## Quaternius Zombie Apocalypse Kit
+
+Runtime source: Quaternius Zombie Apocalypse Kit (March 2024).
+
+Official source: https://quaternius.com/packs/zombieapocalypsekit.html
+
+License: CC0 1.0 Universal. The official pack page states that the kit is free for personal and commercial use and provides FBX, OBJ, glTF and Blend formats.
+
+BridgePoint Horizon uses only the decorative/gameplay layer from this pack. The real-world terrain/building/road geometry remains separate and source-backed.
+
+Runtime models currently referenced by the Horizon preview:
+- playable survivors: Characters_Matt.gltf, Characters_Lis.gltf, Characters_Sam.gltf, Characters_Shaun.gltf
+- infected: Zombie_Basic.gltf
+- melee / carried weapons: Axe.gltf, Knife.gltf, WoodenBat_Barbed.gltf
+- holstered firearms / loot: Pistol.gltf, Rifle.gltf, Shotgun.gltf
+- loot containers: Chest.gltf, Chest_Special.gltf
+- street debris: Barrel.gltf, TrashBag_1.gltf, Pallet_Broken.gltf, CinderBlock.gltf, Pipes.gltf, Wheels_Stack.gltf
+- barriers / traffic props: TrafficBarrier_1.gltf, PlasticBarrier.gltf, TrafficCone_1.gltf, TrafficLight_1.gltf, TrafficLight_2.gltf, TownSign.gltf
+- street fixtures: StreetLights.gltf, FireHydrant.gltf
+- environment containers: Container_Green.gltf, Container_Red.gltf
+- vehicles: Vehicle_Pickup.gltf, Vehicle_Sports.gltf, Vehicle_Truck.gltf
+
+BridgePoint also creates procedural game-only trees, bicycles, benches, planters, grass tufts, road markings and interaction markers at runtime. These procedural objects are BridgePoint-authored gameplay dressing and are not source-backed assertions about the real-world site.
+
+The files are loaded from a public GitHub mirror of the original CC0 release through jsDelivr. If the assets are later vendored into BridgePoint storage, retain this notice and the upstream CC0 license evidence.
+
+Game-art placement is fictional decorative dressing. It must not be represented as evidence that a zombie, vehicle, loot cache, barricade, debris item or other game object exists at the corresponding real-world coordinate.
+
+## Additional runtime creatures (4208)
+- Infected German Shepherd + Pug: Quaternius Zombie Apocalypse Kit — CC0; runtime tint differentiates infected dogs.
+- Wolf + Spider: Quaternius models mirrored by Quaternius Showcase — CC0 1.0.\n- Orc + Yeti: Quaternius Ultimate Monsters mirrored by Constellation Defense — CC0 1.0 per source credits.
+- Yeti: Quaternius Ultimate Monsters mirrored by Constellation Defense — CC0 1.0 per source credits.
+- Bear: Poly Pizza source mirrored by Dereth — CC-BY; attribution must remain with distributions using it.
+- Giant spiders use a façade locomotion state and crawl vertically up and down source-backed building faces.
+
+## Additional runtime weapons (4208)
+- Firearms: Pistol, Rifle, Shotgun, SMG — Quaternius Zombie Apocalypse Kit, CC0.
+- Melee: Axe, Knife, Barbed Bat, Saw Bat, Spear, Guitar — Quaternius Zombie Apocalypse Kit, CC0.
+- Players can pick up weapons, tap stored weapons to equip them, switch slots, and drop the active weapon back into the world.
+
+## Grounded survivor / crow pass (4209)
+- Default preview survivor: SceneView's mirrored three.js Soldier GLB, listed as CC0-1.0 in SceneView's asset credits. Existing Quaternius survivors remain selectable.
+- Infected crow/vulture: Kenney Cube Pets model from the local-agents CC0 mirror, recolored and given dive/circle AI at runtime.
+- No Resident Evil, Call of Duty, World War Z, or Lord of the Rings proprietary character assets are included. The game uses original/generic horror archetypes and legally cleared free assets instead.
+
+## 4213 precomputed patrol / MakeHuman pass
+- Default player is now the CC0 MakeHuman/MPFB suited.glb from vsim, replacing the previous Soldier default. It carries walk/run/idle/wave animation clips.
+- New realistic infected variants use vsim's CC0 MakeHuman human.glb, man.glb, and speaker.glb, with runtime decay/bruising/blood shader treatment and per-archetype speed/attack behavior.
+- Outdoor ground enemies receive a precomputed road/nav patrol route at spawn and follow that route until the player enters their aggro radius. Chase paths are then recalculated toward the player.
+- Active weapons use a dedicated visible grip mount plus a generated fallback weapon mesh so selecting a weapon cannot silently leave the survivor empty-handed.

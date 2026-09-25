@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "BridgePoint Integrity Index",
+  "version": "0.2.0",
+  "description": "User-initiated BridgePoint property integrity lookup. Current-tab analysis runs only after the user clicks Analyze Current Tab.",
+  "action": {
+    "default_title": "BridgePoint BII",
+    "default_popup": "popup.html"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://xdfsjztwgsbmabshzsjw.supabase.co/*",
+    "https://bridgepointintelligence.online/*"
+  ]
+}

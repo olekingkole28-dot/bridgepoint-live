@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">BridgePoint Horizon survival mark</title>
+  <desc id="desc">A dark red survival-game icon with a ruined H skyline, infected silhouettes, and an ember horizon.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#080706"/>
+      <stop offset=".52" stop-color="#170806"/>
+      <stop offset="1" stop-color="#2A0A05"/>
+    </linearGradient>
+    <radialGradient id="ember" cx="50%" cy="43%" r="46%">
+      <stop offset="0" stop-color="#FF6A16"/>
+      <stop offset=".34" stop-color="#D92A0A"/>
+      <stop offset=".72" stop-color="#551008" stop-opacity=".72"/>
+      <stop offset="1" stop-color="#120806" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F5E7D4"/>
+      <stop offset=".46" stop-color="#B9A18D"/>
+      <stop offset=".52" stop-color="#7E685A"/>
+      <stop offset="1" stop-color="#E7D2B9"/>
+    </linearGradient>
+    <filter id="redGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="24"/>
+    </filter>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#000" flood-opacity=".72"/>
+    </filter>
+    <clipPath id="tile"><rect x="72" y="72" width="880" height="880" rx="220"/></clipPath>
+  </defs>
+
+  <rect x="72" y="72" width="880" height="880" rx="220" fill="#050505"/>
+  <g clip-path="url(#tile)">
+    <rect x="72" y="72" width="880" height="880" fill="url(#bg)"/>
+    <circle cx="520" cy="430" r="310" fill="url(#ember)"/>
+    <ellipse cx="520" cy="460" rx="245" ry="245" fill="none" stroke="#E83512" stroke-width="20" opacity=".42"/>
+    <ellipse cx="520" cy="460" rx="210" ry="210" fill="none" stroke="#FF5A18" stroke-width="6" opacity=".48"/>
+
+    <g opacity=".55" fill="#120907">
+      <path d="M72 695 144 632 214 658 276 590 341 617 417 558 494 609 555 540 636 597 704 526 775 586 840 535 952 618 952 952 72 952Z"/>
+      <path d="M72 739 132 698 192 716 259 655 334 684 410 624 483 667 555 606 633 655 705 599 781 648 850 606 952 681 952 952 72 952Z" opacity=".7"/>
+    </g>
+
+    <g filter="url(#shadow)">
+      <path d="M292 220 419 220 419 431 605 431 605 220 732 220 732 762 605 762 605 546 419 546 419 762 292 762Z"
+            fill="url(#metal)" stroke="#20140F" stroke-width="18" stroke-linejoin="round"/>
+      <path d="M320 220 374 188 406 220 444 198 478 220 520 180 555 220 593 195 622 220 662 188 704 220"
+            fill="none" stroke="#D7C0AA" stroke-width="22" stroke-linecap="square"/>
+      <path d="M292 470 372 448 420 470 470 447 514 470 558 445 606 470 655 448 732 470"
+            fill="none" stroke="#2B1711" stroke-width="22" opacity=".6"/>
+      <path d="M292 658 342 635 389 658 434 632 478 658 526 629 574 658 620 633 670 658 732 630"
+            fill="none" stroke="#2B1711" stroke-width="20" opacity=".66"/>
+      <path d="M284 762 336 735 372 762 412 731 451 762 490 734 531 762 572 730 612 762 654 737 698 762 739 732"
+            fill="none" stroke="#0C0908" stroke-width="28"/>
+    </g>
+
+    <g fill="#100907" stroke="#050403" stroke-width="8">
+      <path d="M160 836c0-70 20-128 57-166l42 25 12 48 32 23-3 70Z"/>
+      <circle cx="220" cy="650" r="33"/>
+      <path d="M770 840c-4-79 8-144 47-187l45 25 10 55 36 27-3 80Z"/>
+      <circle cx="824" cy="630" r="35"/>
+      <path d="M419 865c-4-94 14-160 54-207l48 17 20 72 31 30-2 88Z"/>
+      <circle cx="492" cy="638" r="37"/>
+      <path d="M547 872c2-82 24-146 67-182l42 26 4 52 42 28-5 76Z"/>
+      <circle cx="622" cy="667" r="34"/>
+    </g>
+
+    <g fill="#FF3A13">
+      <circle cx="208" cy="650" r="7"/><circle cx="232" cy="650" r="7"/>
+      <circle cx="812" cy="631" r="7"/><circle cx="836" cy="631" r="7"/>
+      <circle cx="481" cy="638" r="7"/><circle cx="505" cy="638" r="7"/>
+    </g>
+
+    <path d="M115 839C315 802 707 802 909 839" fill="none" stroke="#FF4D16" stroke-width="16" stroke-linecap="round" opacity=".78" filter="url(#redGlow)"/>
+    <path d="M115 839C315 802 707 802 909 839" fill="none" stroke="#FF7B21" stroke-width="5" stroke-linecap="round" opacity=".92"/>
+
+    <g opacity=".95">
+      <path d="M482 775c-20-37-18-84 2-116l17-5 18 7c20 33 20 79 2 114l-18 26Z" fill="#E7D5C3"/>
+      <circle cx="503" cy="638" r="18" fill="#E7D5C3"/>
+      <path d="M485 688 445 738 457 750 493 716M520 689l39 49-13 13-34-38" fill="none" stroke="#E7D5C3" stroke-width="14" stroke-linecap="round"/>
+      <path d="M492 775 463 833M514 775l29 58" fill="none" stroke="#E7D5C3" stroke-width="16" stroke-linecap="round"/>
+      <path d="M468 713 555 674" stroke="#0A0807" stroke-width="13" stroke-linecap="round"/>
+      <path d="M540 671 577 659" stroke="#0A0807" stroke-width="18" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <rect x="84" y="84" width="856" height="856" rx="208" fill="none" stroke="#FF3A13" stroke-width="14" opacity=".78"/>
+  <rect x="98" y="98" width="828" height="828" rx="196" fill="none" stroke="#FF7B21" stroke-width="4" opacity=".45"/>
+</svg>

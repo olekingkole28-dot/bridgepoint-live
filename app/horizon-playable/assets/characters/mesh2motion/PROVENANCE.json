@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "source": "Mesh2Motion/mesh2motion-app",
+  "source_url": "https://github.com/Mesh2Motion/mesh2motion-app",
+  "license": "CC0 for art assets (models, rigs, animations), per upstream README",
+  "runtime_external_dependency": false,
+  "files": [
+    {
+      "path": "animations/human-base-animations.glb",
+      "bytes": 5656648,
+      "sha256": "406eb0a8dc4ab366e623b79b6e3005a4951392e1bda78ae39c1099d31147733c"
+    },
+    {
+      "path": "models/female_31.glb",
+      "bytes": 421708,
+      "sha256": "72c50339c0caa248b19ec11a5c188d52f6e2bf8e16bd0dd64e98ae756680ceb3"
+    },
+    {
+      "path": "models/hazmat_suit_male.glb",
+      "bytes": 385104,
+      "sha256": "35d00f488c2972ea4e1b72cbe5ba15a27ab69888e71c842ff9adadffa75973bb"
+    },
+    {
+      "path": "models/male_32.glb",
+      "bytes": 393780,
+      "sha256": "bc380df99f584b988703b9c702b2add5d625aee4a8f47e06749c2fefcba8c960"
+    },
+    {
+      "path": "models/police_male.glb",
+      "bytes": 349764,
+      "sha256": "33447b40cc8b1b8bca3b45883467a950c66330176f5216f664cb8c6bcdf9b2a9"
+    },
+    {
+      "path": "models/swat_male.glb",
+      "bytes": 282228,
+      "sha256": "ea47afffd621eb9a899a2eec11d222f28ee4f78b0a232a865f987a308293bcbd"
+    }
+  ]
+}

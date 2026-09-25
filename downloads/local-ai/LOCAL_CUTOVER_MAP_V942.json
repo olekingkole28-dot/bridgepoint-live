@@ -1,0 +1,21 @@
+{
+  "version": 942,
+  "current_api_url": "https://xdfsjztwgsbmabshzsjw.supabase.co",
+  "current_publishable_key": "sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25",
+  "target_api_url_placeholder": "LOCAL_SUPABASE_COMPATIBLE_API_URL",
+  "target_publishable_key_placeholder": "LOCAL_PUBLISHABLE_KEY",
+  "private_source_replacements": [
+    "lib/main.dart",
+    "lib/main_v2.dart"
+  ],
+  "public_live_replacements": [
+    "app.js",
+    "app/world-v2300-config.js",
+    "world-v2300-config.js"
+  ],
+  "public_site_repository": "olekingkole28-dot/bridgepoint-live",
+  "github_pages_enabled": true,
+  "private_source_repository": "olekingkole28-dot/bridgepoint_data_studio",
+  "private_emergency_branch": "supabase-emergency-snapshot-20260922",
+  "approach": "Run a local/self-hosted Supabase-compatible stack so existing auth/RPC/storage/function client behavior remains; automatically repoint URL/key rather than rewriting application logic."
+}

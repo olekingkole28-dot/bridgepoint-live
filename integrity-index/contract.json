@@ -1,0 +1,77 @@
+{
+  "name": "BridgePoint Integrity Index",
+  "key": "BII",
+  "version": "0.1-shadow",
+  "status": "SHADOW_CALIBRATION",
+  "purpose": "Evidence-supported property integrity/resilience context",
+  "score_range": [
+    0,
+    100
+  ],
+  "direction": "Higher is intended to mean stronger evidence-supported integrity/resilience context after validation.",
+  "public_numeric_gate": {
+    "minimum_confidence": 0.5,
+    "minimum_observed_component_families": 3,
+    "health_band_must_not_equal": "INSUFFICIENT_DATA"
+  },
+  "endpoints": {
+    "status": {
+      "method": "POST",
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_integrity_index_status_v5200",
+      "body": {}
+    },
+    "property": {
+      "method": "POST",
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_integrity_index_v5200",
+      "body": {
+        "p_property_id": "uuid"
+      }
+    },
+    "search": {
+      "method": "POST",
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_search_v5200",
+      "body": {
+        "p_query": "exact street address",
+        "p_limit": 4
+      }
+    }
+  },
+  "output_fields": [
+    "publication_status",
+    "index_value",
+    "confidence",
+    "observed_component_count",
+    "health_band",
+    "trend",
+    "component_scores",
+    "data_coverage",
+    "critical_findings",
+    "dynamic_intelligence_context",
+    "generated_at"
+  ],
+  "prohibited_claims": [
+    "structural survival probability",
+    "guaranteed property safety",
+    "insurance pricing or coverage determination",
+    "lending decision",
+    "investment recommendation",
+    "engineering certification",
+    "claim validity determination"
+  ],
+  "governance": [
+    "Missing evidence is not treated as healthy evidence.",
+    "A public numeric value is withheld until evidence and confidence gates pass.",
+    "Dynamic property-opportunity/intelligence scoring is kept separate from BII.",
+    "Any regulated or high-impact deployment requires use-specific validation and jurisdiction review."
+  ],
+  "embed": {
+    "script": "https://bridgepointintelligence.online/integrity-index/embed.js",
+    "examples": "https://bridgepointintelligence.online/integrity-index/embed-example.html",
+    "behavior": "Opt-in badge; returns WITHHELD when the publication gate fails."
+  },
+  "browser_extension": {
+    "status": "SOURCE_PREVIEW",
+    "repository_path": "distribution/bii-browser-extension",
+    "behavior": "User-initiated address lookup; no automatic third-party portal scraping or injection."
+  }
+}
