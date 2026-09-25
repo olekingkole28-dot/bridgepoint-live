@@ -125,19 +125,22 @@ jobs:
               await sleep(6500);
               const city=await page.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map;
-                let rendered=0;
-                try{rendered=(m.queryRenderedFeatures({layers:['gta-city-buildings','gta-exact-building','gta-bp-buildings']})||[]).length}catch{}
+                const buildingLayers=['gta-city-buildings','gta-exact-building','gta-bp-buildings','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                const floorLayers=['gta-city-floor-lines','gta-exact-floor-lines','gta-context-floor-lines'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                const roofLayers=['gta-city-roofs','gta-exact-roof','gta-context-roofs','gta-bp-roofs'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                let rendered=0;try{rendered=(m.queryRenderedFeatures({layers:buildingLayers})||[]).length}catch{}
                 return{
-                  rendered,
+                  rendered,buildingLayers,floorLayers,roofLayers,
                   cityVisible:m.getLayer('gta-city-buildings')?(m.getLayoutProperty('gta-city-buildings','visibility')||'visible'):null,
-                  floorVisible:m.getLayer('gta-city-floor-lines')?(m.getLayoutProperty('gta-city-floor-lines','visibility')||'visible'):null,
-                  floorPattern:m.getLayer('gta-city-floor-lines')?m.getPaintProperty('gta-city-floor-lines','fill-extrusion-pattern'):null,
+                  floorPatterns:floorLayers.map(id=>[id,m.getPaintProperty(id,'fill-extrusion-pattern')]),
+                  shell:window.__BP_BUILDING_SHELL_MODE__||null,
                   zoom:m.getZoom()
                 }
               });
               if(city.rendered<1)throw new Error('DENSE_CITY_BUILDINGS_NOT_RENDERED '+JSON.stringify(city));
-              if(city.floorVisible==='none'||!city.floorVisible)throw new Error('DENSE_CITY_FLOOR_LINES_HIDDEN '+JSON.stringify(city));
-              if(String(city.floorPattern||'').indexOf('bp-floor-lines')<0)throw new Error('DENSE_CITY_FLOOR_PATTERN_MISSING '+JSON.stringify(city));
+              if(!city.floorLayers.length)throw new Error('DENSE_CITY_FLOOR_LINES_HIDDEN '+JSON.stringify(city));
+              if(!city.floorPatterns.some(x=>String(x?.[1]||'').indexOf('bp-floor-lines')>=0))throw new Error('DENSE_CITY_FLOOR_PATTERN_MISSING '+JSON.stringify(city));
+              if(!city.roofLayers.length)throw new Error('DENSE_CITY_ROOFS_HIDDEN '+JSON.stringify(city));
               const cityRaf=await rafHealth(page);
               if(cityRaf.frames<8||cityRaf.maxGap>1100)throw new Error('DENSE_CITY_MAIN_THREAD_STALL '+JSON.stringify(cityRaf));
 
