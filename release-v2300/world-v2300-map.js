@@ -4,6 +4,7 @@ window.__BP_WORLD_RENDER_VERSION__=5625;
 const PUBLIC_TECH_FAST=true;
 window.__BP_PUBLIC_TECH_FAST_V1117__={version:1117,enabled:true,autoDenseCityHandoff:false,autoExactViewport:false,context3D:true,whiteRoofs:true,floorLines:true,labels:true,trees:true,roads:true,weather:true,updatedAt:Date.now()};
 window.__BP_OWNER_ROAD_STYLE_V1118__={version:1118,major:'#53717c',local:'#45616b',heavyGlow:false,heavyCasing:false,labelsPreserved:true,updatedAt:Date.now()};
+window.__BP_FAST_BUILDINGS_V1119__={version:1119,source:'bridgepoint-public-building-tile-v5019',contextFallback:true,whiteRoofs:true,neonFloorLines:true,cityAutoHandoff:false,updatedAt:Date.now()};
 window.__BP_TECH_BASEMAP_V1116__={version:1116,defaultBase:'gta',ownerViewerVisualParity:true,background:'#061017',water:'#0b3044',buildingWall:'#7f878b',roof:'#ffffff',labels:true,publicParcelGeometry:false,satelliteManualOnly:true,landTextureDefault:false,updatedAt:Date.now()};
 window.__BP_BUILDING_PALETTE_V1091__={version:1091,buildingWall:'#7f878b',roof:'#ffffff',opportunity:'#ff1744',uniformBuildings:true,opportunityRoofCap:true,updatedAt:Date.now()};
 window.__BP_GEOMETRY_TRUTH_V5590__={version:5800,genericRoofCaps:true,sourceBackedRoofOnly:false,groundBridgeRoadExcluded:true,continuousBridgeRibbons:true,updatedAt:Date.now()};
@@ -191,6 +192,7 @@ function style(){
   {id:'gta-context-building-parts',type:'fill-extrusion',source:'ofm','source-layer':'building',minzoom:15.2,filter:['>', ['coalesce',['to-number',['get','render_min_height']],['to-number',['get','min_height']],0], .05],layout:{visibility:'none'},paint:{'fill-extrusion-color':facadeColor,'fill-extrusion-height':['max',4,bHeight],'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','render_min_height']],['to-number',['get','min_height']],0]],'fill-extrusion-opacity':.998,'fill-extrusion-vertical-gradient':true}},
   
   {id:'gta-bp-buildings',type:'fill-extrusion',source:'bpBuildings','source-layer':'buildings',minzoom:11.4,layout:{visibility:'none'},paint:{'fill-extrusion-color':'#7f878b','fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],'fill-extrusion-opacity':1,'fill-extrusion-vertical-gradient':true}},
+  {id:'gta-bp-floor-lines',type:'fill-extrusion',source:'bpBuildings','source-layer':'buildings',minzoom:GLOBAL_FLOOR_MIN,layout:{visibility:'none'},paint:{'fill-extrusion-pattern':'bp-floor-lines','fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],GLOBAL_FLOOR_MIN,.66,17,.82,19,.92,21,.96],'fill-extrusion-vertical-gradient':false}},
   {id:'gta-bp-facade-detail',type:'fill-extrusion',source:'bpBuildings','source-layer':'buildings',minzoom:16.15,layout:{visibility:'none'},paint:{'fill-extrusion-pattern':facadePattern,'fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-base':['max',0,['coalesce',['to-number',['get','base_height_m']],0]],'fill-extrusion-opacity':.999,'fill-extrusion-vertical-gradient':false}},
   {id:'gta-bp-roofs',type:'fill-extrusion',source:'bpBuildings','source-layer':'buildings',minzoom:MOBILE?15.8:13.8,layout:{visibility:'none'},paint:{'fill-extrusion-color':'#ffffff','fill-extrusion-base':['max',['coalesce',['to-number',['get','base_height_m']],0],['-',['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],['max',.18,['coalesce',['to-number',['get','roof_height_m']],.3]]]],'fill-extrusion-height':['max',3,['coalesce',['to-number',['get','render_height_m']],8.5]],'fill-extrusion-opacity':['interpolate',['linear'],['zoom'],13.8,.8,15,.94,18,.995],'fill-extrusion-vertical-gradient':true}},
   {id:'gta-bp-building-edge',type:'line',source:'bpBuildings','source-layer':'buildings',minzoom:13.2,layout:{visibility:'none'},paint:{'line-color':['interpolate',['linear'],['zoom'],13.2,'#88aeb7',17,'#b6d4d9',20,'#d5e5e7'],'line-width':['interpolate',['linear'],['zoom'],13.2,.25,18,.7,21,1.05],'line-opacity':['interpolate',['linear'],['zoom'],13.2,.28,17,.46,20,.6]}},
@@ -804,12 +806,17 @@ export function initWorld(options={}){
   return (x>=-125&&x<=-66&&y>=24&&y<=50)||(x>=-170&&x<=-129&&y>=51&&y<=72)||(x>=-161&&x<=-154&&y>=18&&y<=23)||(x>=-68.2&&x<=-64.3&&y>=17.5&&y<=19)||(x>=144&&x<=146&&y>=13&&y<=21)||(x>=-171&&x<=-168&&y>=-15&&y<=-10);
  }
  function bridgePointBuildingCoverageReady(){
-  if(!bridgePointDomesticCenter()||map.getZoom()<11.35)return false;
+  if(map.getZoom()<11.35)return false;
   try{
    if(!map.getSource('bpBuildings')||!map.isSourceLoaded?.('bpBuildings'))return false;
-   const layers=['gta-bp-buildings','gta-bp-facade-detail'].filter(id=>map.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')!=='none');
-   if(!layers.length)return false;
-   return (map.queryRenderedFeatures?.({layers})||[]).length>0
+   const now=performance.now(),cached=map.__bpPublicBuildingReadyCheck;
+   if(cached&&now-cached.at<650)return cached.ready;
+   let sourceFeatures=0;
+   try{sourceFeatures=(map.querySourceFeatures?.('bpBuildings',{sourceLayer:'buildings'})||[]).length}catch(_){}
+   const ready=sourceFeatures>0;
+   map.__bpPublicBuildingReadyCheck={at:now,ready,sourceFeatures};
+   window.__BP_FAST_BUILDING_SOURCE_V1119__={version:1119,ready,sourceFeatures,sourceLoaded:true,zoom:map.getZoom(),updatedAt:Date.now()};
+   return ready
   }catch(_){return false}
  }
  function cityStructuresReady(){
@@ -836,11 +843,14 @@ export function initWorld(options={}){
    for(const id of ['gta-context-building-footprints','gta-context-buildings','gta-context-floor-lines','gta-context-roofs','gta-city-buildings','gta-city-floor-lines','gta-city-building-roof-caps','gta-city-roofs','gta-exact-building','gta-exact-floor-lines','gta-exact-roof','gta-building-outline'])vis(map,id,false);
    return
   }
-  const z=map.getZoom(),wantCity=PUBLIC_TECH_FAST?false:(bridgePointDomesticCenter()&&z>=11),cityReady=PUBLIC_TECH_FAST?false:(wantCity&&cityStructuresReady()),exactReady=PUBLIC_TECH_FAST?false:(exactCount>0&&z>=DETAIL_MIN),detailSettled=!moving&&performance.now()>=buildingShellQuietUntil;
+  const z=map.getZoom(),bpReady=PUBLIC_TECH_FAST&&bridgePointBuildingCoverageReady(),wantCity=PUBLIC_TECH_FAST?false:(bridgePointDomesticCenter()&&z>=11),cityReady=PUBLIC_TECH_FAST?false:(wantCity&&cityStructuresReady()),exactReady=PUBLIC_TECH_FAST?false:(exactCount>0&&z>=DETAIL_MIN),detailSettled=!moving&&performance.now()>=buildingShellQuietUntil;
   const floors=detailSettled&&z>=GLOBAL_FLOOR_MIN,roofFallback=detailSettled&&z>=11.2;
-  vis(map,'gta-context-building-footprints',z<11.2&&!cityReady);
-  vis(map,'gta-context-buildings',z>=11.2&&!cityReady);
-  const floorOn=floors&&!cityReady,roofOn=roofFallback&&!cityReady;
+  vis(map,'gta-bp-buildings',PUBLIC_TECH_FAST&&z>=11.4);
+  vis(map,'gta-bp-floor-lines',PUBLIC_TECH_FAST&&bpReady&&floors);
+  vis(map,'gta-bp-roofs',PUBLIC_TECH_FAST&&bpReady&&z>=13.8);
+  vis(map,'gta-context-building-footprints',z<11.2&&!cityReady&&!bpReady);
+  vis(map,'gta-context-buildings',z>=11.2&&!cityReady&&!bpReady);
+  const floorOn=floors&&!cityReady&&!bpReady,roofOn=roofFallback&&!cityReady&&!bpReady;
   const floorBecameVisible=vis(map,'gta-context-floor-lines',floorOn);
   const roofBecameVisible=vis(map,'gta-context-roofs',roofOn);
   vis(map,'gta-city-building-roof-caps',wantCity&&z>=11);
@@ -872,7 +882,7 @@ export function initWorld(options={}){
   vis(map,'gta-building-outline',exactReady&&!cityReady);
   for(const id of [
    'gta-context-building-shadow','gta-context-facade-detail','gta-context-building-parts','gta-context-night-windows',
-   'gta-bp-building-shadow','gta-bp-buildings','gta-bp-facade-detail','gta-bp-roofs','gta-bp-building-edge','gta-bp-night-windows',
+   'gta-bp-building-shadow','gta-bp-facade-detail','gta-bp-building-edge','gta-bp-night-windows',
    'gta-exact-building-shadow','gta-exact-facade-detail','gta-exact-night-windows'
   ])vis(map,id,false);
   vis(map,'gta-opportunity-buildings',z>=11.8);
@@ -887,6 +897,8 @@ export function initWorld(options={}){
    additiveExactHeight:exactReady&&!cityReady,
    exactRoofs:exactReady&&!cityReady,
    floorLines:floors,
+   fastBuildingSource:bpReady,
+   fastBuildingFloorLines:bpReady&&floors,
    cityFloorLines:cityReady&&floors,
    floorLineStyle:'THIN_NEON_CYAN_V1102',
    contextRoofFallback:false,
@@ -1176,6 +1188,7 @@ export function initWorld(options={}){
    bpGlobalLodSyncTimer=setTimeout(()=>{if(moving||map.isMoving?.())return;refreshGlobalLodPaint();window.__BP_SOURCE_BURST_GUARD_V5592__={version:5592,heavyRebuildsOnSourceData:false,coalescedPaintOnly:true,updatedAt:Date.now()}},MOBILE?900:320);
    return
   }
+  if(e?.sourceId==='bpBuildings'){clearTimeout(bpCitySyncTimer);bpCitySyncTimer=setTimeout(()=>{if(!moving&&!map.isMoving?.())syncBuildingShells()},MOBILE?420:140);return}
   if(e?.sourceId!=='bpCityStructures'&&e?.sourceId!=='bpCityRoofs')return;
   clearTimeout(bpCitySyncTimer);bpCitySyncTimer=setTimeout(()=>{if(!moving&&!map.isMoving?.())syncBuildingShells()},MOBILE?500:180)
  });
