@@ -1,11 +1,12 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
 import{initSpace}from'./world-v2300-space.js?v=5536';
-window.__BP_WORLD_RENDER_VERSION__=5625;
+window.__BP_WORLD_RENDER_VERSION__=5626;
 const PUBLIC_TECH_FAST=true;
 window.__BP_PUBLIC_TECH_FAST_V1117__={version:1117,enabled:true,autoDenseCityHandoff:false,autoExactViewport:false,context3D:true,whiteRoofs:true,floorLines:true,labels:true,trees:true,roads:true,weather:true,updatedAt:Date.now()};
 window.__BP_OWNER_ROAD_STYLE_V1118__={version:1118,major:'#53717c',local:'#45616b',heavyGlow:false,heavyCasing:false,labelsPreserved:true,updatedAt:Date.now()};
 window.__BP_FAST_BUILDINGS_V1119__={version:1119,source:'bridgepoint-public-building-tile-v5019',contextFallback:true,whiteRoofs:true,neonFloorLines:true,cityAutoHandoff:false,updatedAt:Date.now()};
 window.__BP_FAST_BUILDING_HANDOFF_V1120__={version:1120,featureFirst:true,fullSourceLoadNotRequired:true,singleBuildingStack:true,updatedAt:Date.now()};
+window.__BP_REALISTIC_TREE_LOD_V1121__={version:1121,lodMinZoom:12.6,detailed3DMinZoom:14.25,geometry:'TAPERED_TRUNK_MULTI_TIER_IRREGULAR_CROWN',motionRetainsTreeLod:true,updatedAt:Date.now()};
 window.__BP_TECH_BASEMAP_V1116__={version:1116,defaultBase:'gta',ownerViewerVisualParity:true,background:'#061017',water:'#0b3044',buildingWall:'#7f878b',roof:'#ffffff',labels:true,publicParcelGeometry:false,satelliteManualOnly:true,landTextureDefault:false,updatedAt:Date.now()};
 window.__BP_BUILDING_PALETTE_V1091__={version:1091,buildingWall:'#7f878b',roof:'#ffffff',opportunity:'#ff1744',uniformBuildings:true,opportunityRoofCap:true,updatedAt:Date.now()};
 window.__BP_GEOMETRY_TRUTH_V5590__={version:5800,genericRoofCaps:true,sourceBackedRoofOnly:false,groundBridgeRoadExcluded:true,continuousBridgeRibbons:true,updatedAt:Date.now()};
