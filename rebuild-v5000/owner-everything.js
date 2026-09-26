@@ -166,12 +166,18 @@ async function ownerDocument(doc){
  try{
   setStatus('Opening owner document…');
   if(doc==='legal_sources_live'){
-   if(typeof window.__BP_OWNER_LEGAL_PDF_FETCH__!=='function')throw new Error('Live legal PDF bridge unavailable');
+   if(typeof window.__BP_OWNER_LEGAL_PDF_FETCH__!=='function')throw new Error('Live source-register bridge unavailable');
    const r=await window.__BP_OWNER_LEGAL_PDF_FETCH__();
+   if(r?.url){
+    if(popup)popup.location.href=r.url;
+    else{const a=document.createElement('a');a.href=r.url;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()}
+    setStatus('Complete source + legal evidence register opened from the latest private hourly refresh.');
+    return
+   }
    const url=URL.createObjectURL(r.blob);
    if(popup)popup.location.href=url;
-   else{const a=document.createElement('a');a.href=url;a.download=r.filename||'BridgePoint-Legal-Sources.pdf';document.body.appendChild(a);a.click();a.remove()}
-   setStatus('Live source + legal evidence PDF generated from the current manifest.');
+   else{const a=document.createElement('a');a.href=url;a.download=r.filename||'BridgePoint-Complete-Source-Register-LIVE.pdf';document.body.appendChild(a);a.click();a.remove()}
+   setStatus('Complete source + legal evidence register opened.');
    setTimeout(()=>URL.revokeObjectURL(url),120000);
    return
   }
