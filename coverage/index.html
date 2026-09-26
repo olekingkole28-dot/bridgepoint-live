@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Global Coverage — BridgePoint Intelligence</title>
+<meta name="description" content="Live public-safe BridgePoint Intelligence coverage counts by country and U.S. jurisdiction, updated from source-backed canonical records.">
+<meta name="theme-color" content="#061119">
+<link rel="icon" href="/bridgepoint-favicon-48.png" type="image/png">
+<style>
+:root{color-scheme:dark;--bg:#040a0f;--panel:#0b1620;--line:#1d3545;--text:#effbff;--muted:#8ba9b8}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0,#12364b 0,#071019 30%,#03080c 72%);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:inherit}.top{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(16px,4vw,50px);border-bottom:1px solid rgba(130,220,255,.14);background:rgba(3,9,13,.86);backdrop-filter:blur(16px);position:sticky;top:0;z-index:4}.brand{text-decoration:none;font-weight:950;letter-spacing:.08em}.back{text-decoration:none;font-size:12px;font-weight:850;color:#c7e7f3}
+main{max-width:1240px;margin:auto;padding:clamp(34px,6vw,78px) clamp(16px,4vw,40px) 80px}.eyebrow{font-size:11px;font-weight:900;letter-spacing:.16em;color:#72e6fa}.hero h1{font-size:clamp(42px,7vw,86px);line-height:.94;letter-spacing:-.05em;margin:10px 0 16px}.hero p{max-width:820px;color:#bfd2dc;line-height:1.7;font-size:17px}.fresh{margin-top:12px;font-size:12px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:32px 0}.stat{padding:18px;border:1px solid rgba(121,216,255,.14);border-radius:15px;background:rgba(9,23,32,.82)}.stat b{display:block;font-size:clamp(24px,4vw,42px)}.stat span{font-size:10px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.grid{display:grid;grid-template-columns:minmax(280px,.85fr) minmax(0,1.15fr);gap:18px}.card{border:1px solid rgba(126,218,255,.14);border-radius:20px;background:linear-gradient(145deg,rgba(11,27,37,.92),rgba(5,13,19,.94));padding:clamp(20px,3vw,30px)}.card h2{margin:0 0 8px;font-size:26px}.card p{margin:0 0 20px;color:var(--muted);line-height:1.55}
+.donut-wrap{display:flex;align-items:center;justify-content:center;min-height:360px}.donut{width:min(70vw,330px);aspect-ratio:1;border-radius:50%;position:relative;background:#132633;box-shadow:0 24px 70px rgba(0,0,0,.35)}.donut:after{content:"";position:absolute;inset:24%;border-radius:50%;background:#071019;box-shadow:inset 0 0 0 1px rgba(130,220,255,.12)}.donut-center{position:absolute;z-index:2;inset:31%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none}.donut-center b{font-size:clamp(22px,4vw,38px)}.donut-center span{font-size:10px;color:var(--muted);letter-spacing:.12em}
+.legend{display:grid;gap:8px;margin-top:18px;max-height:360px;overflow:auto}.row{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 10px;border-radius:9px;background:rgba(255,255,255,.025)}.dot{width:10px;height:10px;border-radius:50%}.row b{font-size:13px}.row span{color:var(--muted);font-variant-numeric:tabular-nums}
+.table{display:grid;gap:7px;max-height:610px;overflow:auto}.state{display:grid;grid-template-columns:46px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px;border-radius:10px;background:rgba(255,255,255,.025)}.bar{height:7px;border-radius:999px;background:#16303e;overflow:hidden}.fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#69e6ff,#7af2bd)}.state code{font-family:inherit;font-weight:900}.state b{font-size:12px;font-variant-numeric:tabular-nums}
+.note{margin-top:20px;padding:16px;border-top:1px solid rgba(130,220,255,.12);color:#7f9ba9;font-size:12px;line-height:1.6}
+@media(max-width:860px){.stats{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.donut-wrap{min-height:300px}}
+</style>
+</head>
+<body>
+<header class="top"><a class="brand" href="/">BRIDGEPOINT INTELLIGENCE</a><a class="back" href="/">← HOME</a></header>
+<main>
+<section class="hero"><span class="eyebrow">LIVE COVERAGE · PUBLIC-SAFE COUNTS</span><h1>What BridgePoint has, by geography.</h1><p>Verified/canonical coverage is separated from legal acquisition backlog. Countries with a real private seed can appear as <strong>seeded — waiting turn</strong> without inflating BridgePoint's canonical parcel totals or exposing exact private geometry.</p><div class="fresh" id="fresh">Loading current coverage…</div></section>
+<section class="stats"><div class="stat"><b id="usTotal">—</b><span>U.S. canonical records</span></div><div class="stat"><b id="countries">—</b><span>Countries registered</span></div><div class="stat"><b id="liveCountries">—</b><span>Countries with records</span></div><div class="stat"><b id="usJur">—</b><span>U.S. jurisdictions reporting</span></div></section>
+<section class="grid">
+<div class="card"><h2>Country distribution</h2><p>Canonical records by country. Seeded backlog countries remain listed with their seed count and waiting-turn status, but never create a misleading canonical chart slice.</p><div class="donut-wrap"><div class="donut" id="countryDonut"><div class="donut-center"><b id="globalTotal">—</b><span>CANONICAL SHOWN</span></div></div></div><div class="legend" id="countryLegend"></div></div>
+<div class="card"><h2>United States</h2><p>State and territory counts stay separate so national totals do not hide where the foundation is concentrated.</p><div class="table" id="stateTable"></div></div>
+</section>
+<div class="note">These are public-safe coverage counts, not a disclosure of proprietary scoring weights, internal source-selection logic, customer data, or private records. A canonical record count is not the same thing as claiming every parcel polygon, roof, layout, or other downstream feature is complete.</div>
+</main>
+<script>
+const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co',KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+const colors=['#62e5ff','#72f0b9','#ffd56a','#ff8f78','#ad8cff','#ff82bf','#72a8ff','#a7f06c','#f0a66c','#6ce0d5','#e7ef78','#cc89ff'];
+const fmt=n=>Number(n||0).toLocaleString();
+function donut(items,total){let pos=0,stops=[];items.forEach((x,i)=>{const pct=total?x.value/total*100:0;if(pct<=0)return;const next=pos+pct;stops.push(colors[i%colors.length]+' '+pos.toFixed(3)+'% '+next.toFixed(3)+'%');pos=next});return stops.length?'conic-gradient('+stops.join(',')+')':'#132633'}
+async function load(){
+ try{
+  const r=await fetch(SUPA+'/rest/v1/rpc/bridgepoint_public_global_coverage_v5597',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json',Accept:'application/json'},body:'{}',cache:'no-store'});
+  const d=await r.json();if(!r.ok)throw new Error(d?.message||('HTTP '+r.status));
+  let gs={};try{const gr=await fetch(SUPA+'/rest/v1/rpc/bridgepoint_public_global_status_v957',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json',Accept:'application/json'},body:'{}',cache:'no-store'});if(gr.ok)gs=await gr.json()}catch(_){}
+  const s=d.summary||{},base=Array.isArray(d.countries)?d.countries:[],states=Array.isArray(d.us_states)?d.us_states:[],by=new Map(base.map(x=>[String(x.country_code||'').toUpperCase(),{...x}]));
+  for(const x of (Array.isArray(gs.countries)?gs.countries:[])){const code=String(x.country_code||'').toUpperCase();if(!code||(!x.legal_backlog&&!x.waiting_turn&&!Number(x.seeded_parcels||0)))continue;const prev=by.get(code)||{country_code:code,country_name:x.country_name||code,canonical_records:Number(x.active_canonical||0)};by.set(code,{...prev,country_name:x.country_name||prev.country_name||code,canonical_records:Number(prev.canonical_records||x.active_canonical||0),legal_backlog:!!x.legal_backlog,seeded_parcels:Number(x.seeded_parcels||x.seed_records||0),seeded_buildings:Number(x.seeded_buildings||0),waiting_turn:!!x.waiting_turn,display_status:x.display_status||'',backlog_status:x.backlog_status||'',backlog_group:x.backlog_group??null})}
+  const cs=[...by.values()].sort((a,b)=>Number(b.canonical_records||0)-Number(a.canonical_records||0)||Number(b.seeded_parcels||0)-Number(a.seeded_parcels||0)||String(a.country_code).localeCompare(String(b.country_code)));
+  document.getElementById('usTotal').textContent=fmt(s.us_canonical_records);document.getElementById('countries').textContent=fmt(cs.length);document.getElementById('liveCountries').textContent=fmt(cs.filter(x=>Number(x.canonical_records)>0).length);document.getElementById('usJur').textContent=fmt(s.us_jurisdictions_reporting);
+  const positive=cs.filter(x=>Number(x.canonical_records)>0).map(x=>({name:x.country_name||x.country_code,code:x.country_code,value:Number(x.canonical_records),updated:x.data_updated_at}));
+  const total=positive.reduce((a,x)=>a+x.value,0);document.getElementById('globalTotal').textContent=fmt(total);document.getElementById('countryDonut').style.background=donut(positive,total);
+  document.getElementById('countryLegend').innerHTML=cs.map((x,i)=>{const canon=Number(x.canonical_records||0),sp=Number(x.seeded_parcels||0),sb=Number(x.seeded_buildings||0),label=canon>0?fmt(canon)+' canonical':sp>0?fmt(sp)+' seeded · waiting turn':String(x.display_status||'acquiring').toLowerCase();const more=[sp>0?fmt(sp)+' parcels seeded':'',sb>0?fmt(sb)+' buildings seeded':''].filter(Boolean).join(' · ');return '<div class="row"><i class="dot" style="background:'+colors[i%colors.length]+'"></i><b>'+String(x.country_name||x.country_code).replace(/[<>&]/g,'')+(more?'<small style="display:block;color:#8ba9b8;font-weight:500;margin-top:2px">'+more+'</small>':'')+'</b><span>'+label+'</span></div>'}).join('');
+  const max=Math.max(1,...states.map(x=>Number(x.canonical_records)||0));document.getElementById('stateTable').innerHTML=states.map(x=>'<div class="state"><code>'+x.state_code+'</code><div class="bar"><div class="fill" style="width:'+Math.max(.15,Number(x.canonical_records||0)/max*100).toFixed(2)+'%"></div></div><b>'+fmt(x.canonical_records)+'</b></div>').join('');
+  document.getElementById('fresh').textContent='Last data update: '+(s.last_updated_at?new Date(s.last_updated_at).toLocaleString():'not yet reported');
+ }catch(e){document.getElementById('fresh').textContent='Coverage refresh retrying · '+String(e.message||e)}
+}
+load();setInterval(()=>{if(!document.hidden)load()},120000);
+</script>
+</body></html>
