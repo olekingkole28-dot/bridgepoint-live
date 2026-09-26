@@ -1,0 +1,35 @@
+name: BridgePoint Newsroom SEO V5810
+on:
+  schedule:
+    - cron: '17 */2 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: bridgepoint-newsroom-seo-v5810
+  cancel-in-progress: true
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Refresh source-backed newsroom
+        run: python scripts/update_newsroom_v5810.py
+      - name: Commit meaningful refreshes
+        shell: bash
+        run: |
+          if git diff --quiet -- rebuild-v5000/news rebuild-v5000/sitemap.xml rebuild-v5000/news-sitemap.xml rebuild-v5000/feed.xml; then
+            echo "No newsroom changes."
+            exit 0
+          fi
+          git config user.name "BridgePoint Newsroom Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add rebuild-v5000/news rebuild-v5000/sitemap.xml rebuild-v5000/news-sitemap.xml rebuild-v5000/feed.xml
+          git commit -m "Refresh BridgePoint source-backed newsroom"
+          git push origin HEAD:main
