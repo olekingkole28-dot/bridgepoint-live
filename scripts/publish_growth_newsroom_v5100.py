@@ -197,6 +197,27 @@ def main():
 <div class="metrics"><div class="metric"><b>{num(roof.get("pitch_records"))}</b><span>pitch records</span></div><div class="metric"><b>{num(roof.get("direction_records"))}</b><span>direction records</span></div><div class="metric"><b>{num(roof.get("material_records"))}</b><span>material records</span></div></div>
 <div class="note">Renderable roof shells and source-backed roof attributes are separate truth classes. Missing attributes remain unknown instead of being marketed as exact.</div>{actions("roof_mega_sprint",vertical="ROOFING")}''',"roof")
 
+    global_countries=[x for x in (global_status.get("countries") or []) if int(x.get("active_canonical") or 0)>0]
+    worldwide=int(global_status.get("worldwide_canonical_total") or 0)
+    global_non_us=int(global_status.get("global_non_us_canonical") or global_status.get("active_global_canonical") or 0)
+    global_boundaries=int(global_status.get("materialized_global_boundaries") or 0)
+    global_buildings=int(global_status.get("global_building_footprints") or 0)
+    global_models=int(global_status.get("global_3d_building_models") or 0)
+    if worldwide and global_countries:
+        leaders=sorted(global_countries,key=lambda x:int(x.get("active_canonical") or 0),reverse=True)[:10]
+        leader_cards="".join(
+            f'<article class="card"><small>{esc(x.get("country_code"))} · LIVE BACKEND</small><h2>{esc(x.get("country_name") or x.get("country_code"))}</h2><p>{num(x.get("active_canonical"))} canonical · {num(x.get("materialized_boundary_rows"))} materialized boundaries · {num(x.get("building_footprints"))} building footprints</p></article>'
+            for x in leaders
+        )
+        add("global-property-intelligence-expansion",
+            f"BridgePoint global expansion: {num(worldwide)} worldwide canonical property identities",
+            "Live BridgePoint global property, parcel-boundary and building coverage generated from current backend counters.",
+            f'''<span class="badge">GLOBAL EXPANSION · LIVE COUNTERS</span><h1>{num(worldwide)} worldwide canonical identities.<br>{num(global_non_us)} currently outside the U.S.</h1>
+<p class="lead">BridgePoint's public backend currently reports <strong>{num(global_boundaries)}</strong> materialized non-U.S. boundaries, <strong>{num(global_buildings)}</strong> global building footprints and <strong>{num(global_models)}</strong> global 3D building models. These counts update as already-approved country lanes materialize.</p>
+<div class="metrics"><div class="metric"><b>{num(worldwide)}</b><span>worldwide canonical total</span></div><div class="metric"><b>{num(global_boundaries)}</b><span>materialized global boundaries</span></div><div class="metric"><b>{num(global_buildings)}</b><span>global building footprints</span></div><div class="metric"><b>{num(global_models)}</b><span>global 3D building models</span></div></div>
+<div class="grid">{leader_cards}</div>
+<div class="note">Country counts are source- and rights-gated. Official-government footholds remain separate from parcel counts, and missing roof or height attributes are not represented as exact.</div>{actions("global_expansion_live",vertical="REAL_ESTATE")}''',"global")
+
     if hazards:
         top=[(name,rows[0],len(rows)) for name,rows in sorted(hazard_groups.items(), key=lambda kv:(-len(kv[1]),kv[0]))[:12]]
         rows="".join(f'<article class="card"><small>{esc(h.get("type","HAZARD"))} · {esc(h.get("source","SOURCE"))}</small><h2>{esc(name)}</h2><p>{count} current record{"s" if count!=1 else ""} · {esc(h.get("severity") or "Source-labelled event")} · {esc(h.get("certainty") or "")}</p><a href="/app/?{urlencode({"lat":h.get("lat"),"lng":h.get("lon"),"z":11,"live":1,"utm_source":"newsroom","utm_medium":"storm_live","utm_campaign":slug(name)})}">Open this area on the map →</a></article>' for name,h,count in top)
