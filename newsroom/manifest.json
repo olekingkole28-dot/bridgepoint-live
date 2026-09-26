@@ -1,9 +1,9 @@
 {
   "version": 5100,
-  "generated_at": "2026-09-26T01:41:02Z",
+  "generated_at": "2026-09-26T15:30:20Z",
   "canonical_properties": 171321626,
-  "address_records": 158475325,
-  "map_ready_buildings": 164432208,
+  "address_records": 156182193,
+  "map_ready_buildings": 176140144,
   "active_hazard_records": 0,
   "pages": [
     {
@@ -12,7 +12,7 @@
       "title": "BridgePoint now reports 171.3M canonical U.S. property records",
       "description": "A live proptech map combining canonical property identity, buildings, roofs and source-labelled hazards.",
       "kind": "milestone",
-      "generated_at": "2026-09-26T01:41:02Z"
+      "generated_at": "2026-09-26T15:30:20Z"
     },
     {
       "slug": "solo-builder-proptech",
@@ -20,7 +20,7 @@
       "title": "Solo builder creates a live property-intelligence map spanning 171.3M canonical records",
       "description": "An emerging proptech project built by a solo founder connects property identity, 3D buildings, roofs and live hazards.",
       "kind": "proptech",
-      "generated_at": "2026-09-26T01:41:02Z"
+      "generated_at": "2026-09-26T15:30:20Z"
     },
     {
       "slug": "founder-story-built-from-a-phone",
@@ -28,7 +28,7 @@
       "title": "From homelessness and a phone to a national property-intelligence build",
       "description": "The BridgePoint founder story: starting with a phone, building while homeless, and turning the idea into a live national property-intelligence product in about five months.",
       "kind": "founder",
-      "generated_at": "2026-09-26T01:41:02Z"
+      "generated_at": "2026-09-26T15:30:20Z"
     },
     {
       "slug": "investor-live-product-callout",
@@ -36,7 +36,7 @@
       "title": "Investors: BridgePoint is live\u2014inspect the product instead of reading a pitch",
       "description": "A direct callout to proptech, geospatial, insurance, climate-tech and data investors to inspect BridgePoint's live product.",
       "kind": "investor",
-      "generated_at": "2026-09-26T01:41:02Z"
+      "generated_at": "2026-09-26T15:30:20Z"
     },
     {
       "slug": "horizon-real-world-spatial-game",
@@ -44,7 +44,7 @@
       "title": "BridgePoint Horizon turns the same national spatial backend into a playable survival world",
       "description": "BridgePoint Horizon reuses BridgePoint terrain, roads, parcels and buildings as the spatial foundation for a playable survival and combat experience.",
       "kind": "horizon",
-      "generated_at": "2026-09-26T01:41:02Z"
+      "generated_at": "2026-09-26T15:30:20Z"
     },
     {
       "slug": "roof-intelligence-mega-sprint",
@@ -52,7 +52,7 @@
       "title": "BridgePoint roof-intelligence sprint: 6,121 LiDAR-refined buildings and climbing",
       "description": "Live roof materialization status from BridgePoint's active roof-data sprint.",
       "kind": "roof",
-      "generated_at": "2026-09-26T01:41:02Z"
+      "generated_at": "2026-09-26T15:30:20Z"
     },
     {
       "slug": "parcel-build-status",
@@ -60,7 +60,7 @@
       "title": "BridgePoint parcel build status: 171,321,626 canonical properties with final reconciliation still running",
       "description": "Live parcel/canonical-property build status with explicit separation between canonical identity and parcel-boundary completion.",
       "kind": "parcel",
-      "generated_at": "2026-09-26T01:41:02Z"
+      "generated_at": "2026-09-26T15:30:20Z"
     }
   ]
 }
