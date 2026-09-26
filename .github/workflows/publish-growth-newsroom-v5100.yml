@@ -33,6 +33,7 @@ jobs:
           python scripts/publish_growth_newsroom_v5100.py
           test -s newsroom/index.html
           test -s newsroom/sitemap.xml
+          test -s newsroom/news-sitemap.xml
           test -s newsroom/feed.xml
           test -s newsroom/manifest.json
           test -s newsroom/share-copy.json
@@ -101,7 +102,7 @@ jobs:
           import json
           from pathlib import Path
           m=json.loads(Path('newsroom/manifest.json').read_text(encoding='utf-8'))
-          urls=['https://bridgepointintelligence.online/newsroom/','https://bridgepointintelligence.online/newsroom/sitemap.xml','https://bridgepointintelligence.online/newsroom/feed.xml']
+          urls=['https://bridgepointintelligence.online/newsroom/','https://bridgepointintelligence.online/newsroom/sitemap.xml','https://bridgepointintelligence.online/newsroom/news-sitemap.xml','https://bridgepointintelligence.online/newsroom/feed.xml']
           urls += [p['url'] for p in m.get('pages',[]) if p.get('url')]
           payload={
             'host':'bridgepointintelligence.online',
