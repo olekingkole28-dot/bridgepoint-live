@@ -533,6 +533,16 @@ async function openViewer(nextMode='public'){
       return {url};
     }
   });
+  const ensureGlobe=()=>{
+    try{
+      if(!viewer)return false;
+      const type=viewer.getProjection?.()?.type||'';
+      if(type!=='globe')viewer.setProjection?.({type:'globe'});
+      window.__BP_BOUNDARY_GLOBE_V5723__={enabled:true,projection:'globe',mode,updatedAt:Date.now()};
+      return true;
+    }catch(e){console.warn('boundary globe projection',e);return false}
+  };
+  ensureGlobe();
   window.__BP_BOUNDARY_VIEWER_MAP_V5585__=viewer;
   window.__BP_BOUNDARY_VIEWER_BOOT_V5585__={version:5585,mode,phase:'map-created',ownerTokenFromAppStore:!!t,start,updatedAt:Date.now()};
   viewer.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
@@ -551,6 +561,7 @@ async function openViewer(nextMode='public'){
       const styleReady=viewer.isStyleLoaded?.()===true||((viewer.getStyle?.()?.layers?.length||0)>0);
       if(!styleReady){clearTimeout(viewerFinalizeTimer);viewerFinalizeTimer=setTimeout(()=>void finalizeViewer('style-retry'),250);return false}
       viewerFinalized=true;
+      ensureGlobe();
       try{if(viewer.getSource('dem'))viewer.setTerrain?.({source:'dem',exaggeration:1.12})}catch(e){console.warn('boundary terrain',e)}
       const bucket=Math.floor(Date.now()/20000);
       addBoundaryLayers(viewer,bucket);
@@ -578,7 +589,7 @@ async function openViewer(nextMode='public'){
     }
   };
   viewer.on('load',()=>void finalizeViewer('load'));
-  viewer.on('styledata',()=>{if(!viewerFinalized)void finalizeViewer('styledata')});
+  viewer.on('styledata',()=>{ensureGlobe();if(!viewerFinalized)void finalizeViewer('styledata')});
   void refreshStatus();
   setTimeout(()=>void finalizeViewer('boot-fallback'),120);
   setTimeout(()=>void finalizeViewer('boot-fallback-late'),900);
