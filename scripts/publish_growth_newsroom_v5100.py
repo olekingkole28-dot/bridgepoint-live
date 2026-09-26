@@ -62,6 +62,17 @@ def hazard_family(h):
     if typ=="WILDFIRE": return "Wildfire / fire weather"
     return "Other source-labelled weather events"
 
+def northeast_storm_hazards(hazards):
+    out=[]
+    for h in hazards:
+        try:
+            lat=float(h.get("lat")); lon=float(h.get("lon"))
+        except (TypeError,ValueError):
+            continue
+        if 38.0<=lat<=45.5 and -76.5<=lon<=-66.0 and str(h.get("type") or "").upper() in {"FLOOD","WIND","RAIN","HURRICANE"}:
+            out.append(h)
+    return out
+
 def active_hazards(weather):
     now=datetime.now(timezone.utc)
     out=[]
@@ -140,6 +151,7 @@ def main():
     buildings=int(status.get("map_ready_buildings") or 0)
     remaining=status.get("parcel_remaining") or {}
     hazards=active_hazards(weather)
+    northeast_hazards=northeast_storm_hazards(hazards)
     hazard_groups={}
     for h in hazards:
         hazard_groups.setdefault(hazard_family(h),[]).append(h)
