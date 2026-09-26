@@ -133,6 +133,7 @@ def main():
     status=rpc("bridgepoint_frontend_status_v5000")
     roof=rpc("bridgepoint_public_roof_status_v5100") or {}
     weather=rpc("bridgepoint_public_weather_bootstrap_v5004")
+    global_status=rpc("bridgepoint_public_global_status_v957") or {}
     generated=now_iso()
     canonical=int(status.get("canonical_properties") or 0)
     addresses=int(status.get("unique_addresses") or 0)
