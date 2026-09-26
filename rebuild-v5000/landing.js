@@ -228,15 +228,18 @@ function hydrateLiveMetricSnapshot(){
 async function globalCoverage(){
  if(globalCoverageLoading)return globalCoverageLoading;
  globalCoverageLoading=(async()=>{try{
-  const [d,g]=await Promise.all([
+  const [d,g,cov]=await Promise.all([
    rpc('bridgepoint_public_global_coverage_v5601',{},9000),
-   rpc('bridgepoint_public_global_status_v957',{},6000).catch(()=>null)
+   rpc('bridgepoint_public_global_status_v957',{},6000).catch(()=>null),
+   rpc('bridgepoint_public_global_coverage_v5597',{},9000).catch(()=>null)
   ]);
-  const world=d?.world||{},us=d?.us||{},countries=Array.isArray(world.countries)?world.countries:[],states=Array.isArray(us.states_and_jurisdictions)?us.states_and_jurisdictions:[],queue=Array.isArray(world.expansion_queue)?world.expansion_queue:[],liveCountries=Array.isArray(g?.countries)?g.countries:[];
+  const world=d?.world||{},us=d?.us||{},countries=Array.isArray(world.countries)?world.countries:[],states=Array.isArray(us.states_and_jurisdictions)?us.states_and_jurisdictions:[],queue=Array.isArray(world.expansion_queue)?world.expansion_queue:[],liveCountries=Array.isArray(g?.countries)?g.countries:[],coverageCountries=Array.isArray(cov?.countries)?cov.countries:[];
   const names={AU:'Australia',BR:'Brazil',CA:'Canada',CD:'DR Congo',CL:'Chile',CN:'China',CY:'Cyprus',DE:'Germany',DJ:'Djibouti',EE:'Estonia',EG:'Egypt',GB:'United Kingdom',IN:'India',IS:'Iceland',JP:'Japan',KE:'Kenya',KR:'South Korea',LT:'Lithuania',LV:'Latvia',MX:'Mexico',MY:'Malaysia',NL:'Netherlands',NO:'Norway',NZ:'New Zealand',PA:'Panama',PH:'Philippines',PL:'Poland',RO:'Romania',SG:'Singapore',TW:'Taiwan',TZ:'Tanzania',UA:'Ukraine',VN:'Vietnam'};
-  const positiveCountries=liveCountries.some(x=>Number(x.active_canonical)>0)
-   ? liveCountries.filter(x=>Number(x.active_canonical)>0).map((x,i)=>({name:bpCountryName(x.country_code,x.country_name||names[x.country_code])+' · '+x.country_code,value:Number(x.active_canonical),color:BP_COVERAGE_COLORS[i%BP_COVERAGE_COLORS.length]}))
-   : countries.filter(x=>Number(x.canonical_count)>0).map((x,i)=>({name:bpCountryName(x.code,x.name)+' · '+x.code,value:Number(x.canonical_count),color:BP_COVERAGE_COLORS[i%BP_COVERAGE_COLORS.length]}));
+  const positiveCountries=coverageCountries.some(x=>Number(x.display_records)>0)
+   ? coverageCountries.filter(x=>Number(x.display_records)>0).map((x,i)=>({name:bpCountryName(x.country_code,x.country_name||names[x.country_code])+' · '+x.country_code+(x.display_kind==='SEEDED_WAITING_TURN'?' · SEEDED':''),value:Number(x.display_records),color:BP_COVERAGE_COLORS[i%BP_COVERAGE_COLORS.length],kind:x.display_kind}))
+   : liveCountries.some(x=>Number(x.active_canonical)>0)
+     ? liveCountries.filter(x=>Number(x.active_canonical)>0).map((x,i)=>({name:bpCountryName(x.country_code,x.country_name||names[x.country_code])+' · '+x.country_code,value:Number(x.active_canonical),color:BP_COVERAGE_COLORS[i%BP_COVERAGE_COLORS.length]}))
+     : countries.filter(x=>Number(x.canonical_count)>0).map((x,i)=>({name:bpCountryName(x.code,x.name)+' · '+x.code,value:Number(x.canonical_count),color:BP_COVERAGE_COLORS[i%BP_COVERAGE_COLORS.length]}));
   const countryTotal=positiveCountries.reduce((a,b)=>a+b.value,0);
   const topStates=states.slice(0,10).map((x,i)=>({name:x.code,value:Number(x.count),color:BP_COVERAGE_COLORS[i%BP_COVERAGE_COLORS.length]}));
   const stateAll=states.reduce((a,b)=>a+Number(b.count||0),0),topSum=topStates.reduce((a,b)=>a+b.value,0);
@@ -246,7 +249,7 @@ async function globalCoverage(){
   bpStableText('globalCountryTotal',fmt(countryTotal));
   bpStableText('globalStateTotal',fmt(stateAll));
   const liveCanonical=Number(g?.active_global_canonical||countryTotal||0);
-  const liveCountryCount=liveCountries.filter(x=>Number(x.active_canonical)>0||Number(x.official_foothold_features||x.foothold_features||0)>0).length;
+  const liveCountryCount=coverageCountries.length?coverageCountries.filter(x=>Number(x.canonical_records)>0||Number(x.seeded_parcels)>0).length:liveCountries.filter(x=>Number(x.active_canonical)>0||Number(x.official_foothold_features||x.foothold_features||0)>0).length;
   const liveBoundaryCount=Number(g?.materialized_global_boundaries||0);
   const compactGlobalDetail=fmt(liveCountryCount)+' countries · '+fmt(liveBoundaryCount)+' boundaries';
   if(g){bpStableText('landingGlobalProperties',fmt(liveCanonical));bpStableText('landingGlobalCountryMix',compactGlobalDetail);bpLiveCacheWrite({globalCanonical:liveCanonical,globalDetail:compactGlobalDetail})}
@@ -260,12 +263,13 @@ async function globalCoverage(){
     ['Official geospatial foothold countries',fmt(footholdCountries.length)],
     ['Official foothold features',fmt(footholdFeatures)],
     ['Country registry',fmt(world.country_registry_total||0)],
-    ['Non-U.S. countries started',fmt(world.non_us_started||0)]
+    ['Non-U.S. countries started',fmt(world.non_us_started||0)],
+    ['Seeded parcels waiting turn',fmt(cov?.summary?.seeded_parcels_waiting_turn||0)]
   ].forEach(([k,v])=>{const s=document.createElement('span');s.textContent=k+': '+v;summary.appendChild(s)})}
-  const q=$('globalExpansionQueue');if(q){q.textContent='';queue.forEach(x=>{const c=document.createElement('div');c.className='bp-country-chip';const b=document.createElement('b');b.textContent=(x.name||x.code)+' · '+x.code;const s=document.createElement('span');s.textContent=String(x.status||'QUEUED').replaceAll('_',' ');c.append(b,s);q.appendChild(c)});if(!queue.length){const c=document.createElement('div');c.className='bp-country-chip';c.innerHTML='<b>No country queue yet</b><span>LEGAL-GATED</span>';q.appendChild(c)}}
-  if($('globalCoverageNotice'))$('globalCoverageNotice').textContent=g?.truth_notice||d.public_notice||'Public-safe operational coverage only.';
+  const q=$('globalExpansionQueue');if(q){q.textContent='';const seededQueue=coverageCountries.filter(x=>Number(x.seeded_parcels)>0&&Number(x.canonical_records)<=0).map(x=>({name:bpCountryName(x.country_code,x.country_name||names[x.country_code]),code:x.country_code,status:'SEEDED '+fmt(x.seeded_parcels)+' · WAITING TURN'}));const seen=new Set();const queueDisplay=[...seededQueue,...queue].filter(x=>{const k=String(x.code||x.name||'');if(seen.has(k))return false;seen.add(k);return true});queueDisplay.forEach(x=>{const c=document.createElement('div');c.className='bp-country-chip';const b=document.createElement('b');b.textContent=(x.name||x.code)+' · '+x.code;const s=document.createElement('span');s.textContent=String(x.status||'QUEUED').replaceAll('_',' ');c.append(b,s);q.appendChild(c)});if(!queueDisplay.length){const c=document.createElement('div');c.className='bp-country-chip';c.innerHTML='<b>No country queue yet</b><span>LEGAL-GATED</span>';q.appendChild(c)}}
+  if($('globalCoverageNotice'))$('globalCoverageNotice').textContent=cov?.counting_note||g?.truth_notice||d.public_notice||'Public-safe operational coverage only.';
   if($('globalCoverageUpdated')){const when=d.updated_at?new Date(d.updated_at):new Date();$('globalCoverageUpdated').textContent='Last updated: '+when.toLocaleString()}
-  window.__BP_GLOBAL_COVERAGE__={version:5603,data:d,liveGlobal:g,layoutStable:true,updatedAt:Date.now()};
+  window.__BP_GLOBAL_COVERAGE__={version:5723,data:d,liveGlobal:g,seededCoverage:cov,layoutStable:true,updatedAt:Date.now()};
  }catch(e){console.warn('BridgePoint global coverage',e);if($('globalCoverageUpdated'))$('globalCoverageUpdated').textContent='Last updated: retrying live coverage…'}
  finally{globalCoverageLoading=null}})();
  return globalCoverageLoading;
