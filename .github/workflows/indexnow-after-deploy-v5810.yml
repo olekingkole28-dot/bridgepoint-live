@@ -1,0 +1,37 @@
+name: BridgePoint IndexNow V5810
+on:
+  workflow_run:
+    workflows: ["Deploy BridgePoint Intelligence V5000 Rebuild"]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  notify:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Notify IndexNow after production deploy
+        env:
+          INDEXNOW_KEY: 96da49863828462d84e9623ba284ca70
+        run: |
+          python - <<'PY'
+          import json,os,urllib.request,urllib.error
+          host="bridgepointintelligence.online"
+          key=os.environ["INDEXNOW_KEY"]
+          urls=[
+            "https://bridgepointintelligence.online/",
+            "https://bridgepointintelligence.online/news/",
+            "https://bridgepointintelligence.online/news/current-northeast-weather.html",
+            "https://bridgepointintelligence.online/news/global-expansion.html",
+          ]
+          payload={"host":host,"key":key,"keyLocation":f"https://{host}/{key}.txt","urlList":urls}
+          req=urllib.request.Request("https://api.indexnow.org/indexnow",data=json.dumps(payload).encode(),headers={"Content-Type":"application/json; charset=utf-8","User-Agent":"BridgePointIntelligence/5810"},method="POST")
+          try:
+              with urllib.request.urlopen(req,timeout=25) as r:
+                  print("IndexNow response",r.status)
+          except urllib.error.HTTPError as e:
+              print("IndexNow HTTP",e.code,e.read().decode("utf-8","ignore")[:500])
+          except Exception as e:
+              print("IndexNow non-fatal",type(e).__name__,str(e)[:500])
+          PY
