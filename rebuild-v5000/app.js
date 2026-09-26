@@ -1,5 +1,5 @@
 const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
-window.__BP_APP_BUILD_VERSION__=5371
+window.__BP_APP_BUILD_VERSION__=5801
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const RPC=SUPA+'/rest/v1/rpc/';
 const $=id=>document.getElementById(id);
@@ -20,14 +20,13 @@ async function authRpc(name,args={},timeout=9000,retry=true){const s=await ensur
 window.__BP_OWNER_AUTH_RPC__=authRpc;
 async function fetchOwnerLegalSourcesPdf(state=''){
  const s=await ensureAuth();if(!s)throw new Error('SIGN_IN_REQUIRED');
- const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),25000);
+ const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),15000);
  try{
-  const q=state?'?state='+encodeURIComponent(String(state).trim().toUpperCase()):'';
-  let r=await fetch(SUPA+'/functions/v1/bridgepoint-owner-legal-sources-pdf-v5590'+q,{headers:{apikey:KEY,Authorization:'Bearer '+s.access_token,Accept:'application/pdf'},signal:ctl.signal,cache:'no-store'});
+  let r=await fetch(SUPA+'/functions/v1/bridgepoint-source-manifest-service-v5801?mode=latest',{headers:{apikey:KEY,Authorization:'Bearer '+s.access_token,Accept:'application/json'},signal:ctl.signal,cache:'no-store'});
   if(r.status===401&&s.refresh_token){clearTimeout(timer);await refreshAuth();return fetchOwnerLegalSourcesPdf(state)}
-  if(!r.ok)throw new Error('LEGAL_PDF_HTTP_'+r.status);
-  const blob=await r.blob(),cd=r.headers.get('content-disposition')||'',m=cd.match(/filename="?([^";]+)"?/i);
-  return{blob,filename:m?.[1]||'BridgePoint-Legal-Sources.pdf'}
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||!d?.signed_url)throw new Error(d?.error||('SOURCE_REGISTER_HTTP_'+r.status));
+  return{url:d.signed_url,filename:'BridgePoint-Complete-Source-Register-LIVE.pdf'}
  }finally{clearTimeout(timer)}
 }
 window.__BP_OWNER_LEGAL_PDF_FETCH__=fetchOwnerLegalSourcesPdf;
