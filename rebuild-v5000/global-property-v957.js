@@ -39,17 +39,18 @@ function updateCounters(d){
  if(total)total.textContent=fmt(d?.active_global_canonical);
  const sub=document.getElementById('landingGlobalCountryMix');
  const footholdCount=x=>Number(x?.official_foothold_features||x?.foothold_features||0);
- const seededParcels=x=>Number(x?.seeded_parcels||x?.seed_records||0);
- const seededBuildings=x=>Number(x?.seeded_buildings||0);
- const backlog=x=>!!x?.legal_backlog||!!x?.waiting_turn||seededParcels(x)>0||seededBuildings(x)>0;
- const countries=(d?.countries||[]).filter(x=>Number(x.active_canonical)>0||Number(x.building_footprints)>0||Number(x.addresses)>0||Number(x.roof_records)>0||footholdCount(x)>0||backlog(x)).sort((a,b)=>{
+ const seededParcels=x=>Number(x?.seed_records||x?.seeded_backlog_count||x?.seeded_parcels||0);
+ const seededBuildings=x=>Number(x?.seed_building_records||x?.seeded_buildings||0);
+ const displayCount=x=>Number(x?.display_count||x?.active_canonical||seededParcels(x)||0);
+ const backlog=x=>!!x?.legal_backlog||String(x?.display_status||'')==='SEEDED_WAITING_TURN'||seededParcels(x)>0||seededBuildings(x)>0;
+ const countries=(d?.countries||[]).filter(x=>displayCount(x)>0||Number(x.building_footprints)>0||Number(x.addresses)>0||Number(x.roof_records)>0||footholdCount(x)>0||backlog(x)).sort((a,b)=>{
   const ar=backlog(a)?1:0,br=backlog(b)?1:0;
-  const av=Number(a.active_canonical)+Number(a.building_footprints)+Number(a.addresses)+Number(a.roof_records)+footholdCount(a)+seededParcels(a)+seededBuildings(a);
-  const bv=Number(b.active_canonical)+Number(b.building_footprints)+Number(b.addresses)+Number(b.roof_records)+footholdCount(b)+seededParcels(b)+seededBuildings(b);
+  const av=displayCount(a)+Number(a.building_footprints||0)+Number(a.addresses||0)+Number(a.roof_records||0)+footholdCount(a)+seededBuildings(a);
+  const bv=displayCount(b)+Number(b.building_footprints||0)+Number(b.addresses||0)+Number(b.roof_records||0)+footholdCount(b)+seededBuildings(b);
   return bv-av||br-ar||String(a.country_code||'').localeCompare(String(b.country_code||''));
  });
  if(sub){
-  const head=countries.slice(0,3).map(x=>countryName(x.country_code)+' '+fmt(x.active_canonical));
+  const head=countries.slice(0,3).map(x=>(x.country_name||countryName(x.country_code))+' '+fmt(displayCount(x))+(x.display_count_kind==='SEEDED_BACKLOG'?' seeded':''));
   if(countries.length>3)head.push('+'+(countries.length-3)+' more');
   if(Number(d?.materialized_global_boundaries)>=0)head.push(fmt(d.materialized_global_boundaries)+' boundaries');
   sub.textContent=head.join(' · ');
@@ -59,10 +60,10 @@ function updateCounters(d){
   list.textContent='';
   for(const x of countries){
    const row=document.createElement('div'),name=document.createElement('span'),count=document.createElement('b'),meta=document.createElement('small');
-   name.textContent=countryName(x.country_code)+' · '+String(x.country_code||'');
-   const canon=Number(x.active_canonical||0),buildings=Number(x.building_footprints||0),addresses=Number(x.addresses||0),roofs=Number(x.roof_records||0),footholds=footholdCount(x),seedP=seededParcels(x),seedB=seededBuildings(x);
-   count.textContent=canon>0?fmt(canon)+' canonical':seedP>0?fmt(seedP)+' seeded parcels':buildings>0?fmt(buildings)+' buildings':addresses>0?fmt(addresses)+' addresses':roofs>0?fmt(roofs)+' roofs':footholds>0?fmt(footholds)+' foothold features':String(x.display_status||'acquiring').toLowerCase();
-   meta.textContent=[Number(x.materialized_boundary_rows||x.with_boundary||0)>0?fmt(x.materialized_boundary_rows||x.with_boundary)+' boundaries':'',seedP>0?fmt(seedP)+' seeded parcels':'',seedB>0?fmt(seedB)+' seeded buildings':'',buildings>0?fmt(buildings)+' buildings':'',addresses>0?fmt(addresses)+' addresses':'',roofs>0?fmt(roofs)+' roofs':'',footholds>0?fmt(footholds)+' official foothold features':'',x.waiting_turn?'waiting turn':'',canon===0&&footholds>0&&!x.waiting_turn?'parcels acquiring':''].filter(Boolean).join(' · ');
+   name.textContent=(x.country_name||countryName(x.country_code))+' · '+String(x.country_code||'');
+   const canon=Number(x.active_canonical||0),shown=displayCount(x),buildings=Number(x.building_footprints||0),addresses=Number(x.addresses||0),roofs=Number(x.roof_records||0),footholds=footholdCount(x),seedP=seededParcels(x),seedB=seededBuildings(x);
+   count.textContent=canon>0?fmt(canon)+' canonical':shown>0?fmt(shown)+' seeded · waiting turn':buildings>0?fmt(buildings)+' buildings':addresses>0?fmt(addresses)+' addresses':roofs>0?fmt(roofs)+' roofs':footholds>0?fmt(footholds)+' foothold features':String(x.display_status||'acquiring').toLowerCase();
+   meta.textContent=[seedP>0?fmt(seedP)+' parcels seeded':'',seedB>0?fmt(seedB)+' buildings seeded':'',Number(x.materialized_boundary_rows||x.with_boundary||0)>0?fmt(x.materialized_boundary_rows||x.with_boundary)+' boundaries':'',buildings>0?fmt(buildings)+' buildings':'',addresses>0?fmt(addresses)+' addresses':'',roofs>0?fmt(roofs)+' roofs':'',footholds>0?fmt(footholds)+' official foothold features':'',x.display_status==='SEEDED_WAITING_TURN'?'waiting turn':'',canon===0&&shown===0&&footholds>0?'parcels acquiring':''].filter(Boolean).join(' · ');
    row.append(name,count,meta);list.appendChild(row);
   }
   if(!countries.length){const row=document.createElement('div');row.textContent='International materialization starting…';list.appendChild(row)}
