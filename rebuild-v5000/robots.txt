@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Sitemap: https://bridgepointintelligence.online/sitemap.xml
+Sitemap: https://bridgepointintelligence.online/news-sitemap.xml
