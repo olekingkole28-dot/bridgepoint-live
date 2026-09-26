@@ -5,6 +5,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode
+from urllib.request import Request
 
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/"newsroom"
@@ -25,6 +26,44 @@ def rpc(name,args=None):
     req=urllib.request.Request(f"{SUPA}/rest/v1/rpc/{name}",data=data,headers=HEAD,method="POST")
     with urllib.request.urlopen(req,timeout=20) as r:
         return json.loads(r.read().decode())
+
+def fetch_json(url,timeout=20):
+    req=Request(url,headers={
+        "Accept":"application/geo+json,application/json",
+        "User-Agent":"BridgePointIntelligence/5805 (https://bridgepointintelligence.online/newsroom/)"
+    })
+    with urllib.request.urlopen(req,timeout=timeout) as r:
+        return json.loads(r.read().decode())
+
+NWS_AREAS=("CT","MA","RI","NY","NJ","ME","NH","VT","PA")
+
+def nws_alerts():
+    out={}
+    for area in NWS_AREAS:
+        try:
+            j=fetch_json(f"https://api.weather.gov/alerts/active?area={area}",15)
+        except Exception:
+            continue
+        for f in j.get("features",[]) or []:
+            if not isinstance(f,dict): continue
+            p=f.get("properties") or {}
+            event=str(p.get("event") or "").strip()
+            if not event: continue
+            ident=str(f.get("id") or p.get("id") or (area+":"+event+":"+str(p.get("sent") or "")))
+            low=event.lower()
+            typ=("FLOOD" if "flood" in low else
+                 "WIND" if ("wind" in low or "surf" in low) else
+                 "HURRICANE" if ("tropical" in low or "hurricane" in low or "storm surge" in low) else
+                 "HAZARD")
+            out[ident]={
+                "name":event,"type":typ,"source":"National Weather Service",
+                "severity":p.get("severity"),"certainty":p.get("certainty"),"urgency":p.get("urgency"),
+                "ends_at":p.get("ends") or p.get("expires"),
+                "area_desc":p.get("areaDesc"),"headline":p.get("headline"),
+                "instruction":p.get("instruction"),"description":p.get("description"),
+                "source_url":f.get("id"),"nws_area":area
+            }
+    return list(out.values())
 
 def esc(v): return html.escape(str(v if v is not None else ""))
 def num(v): return f"{int(v or 0):,}"
@@ -109,7 +148,9 @@ def page(title,desc,body,canonical):
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{t}</title><meta name="description" content="{d}"><link rel="canonical" href="{c}">
 <meta property="og:type" content="article"><meta property="og:title" content="{t}"><meta property="og:description" content="{d}"><meta property="og:url" content="{c}">
-<meta name="twitter:card" content="summary_large_image"><link rel="stylesheet" href="/founder-access.css">{STYLE}</head><body><main>
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{json.dumps({"@context":"https://schema.org","@type":"NewsArticle","headline":title,"description":desc,"mainEntityOfPage":canonical,"dateModified":now_iso(),"publisher":{"@type":"Organization","name":"BridgePoint Intelligence","url":ORIGIN}},separators=(",",":"))}</script>
+<link rel="stylesheet" href="/founder-access.css">{STYLE}</head><body><main>
 <div class="brand"><a href="/">BRIDGEPOINT INTELLIGENCE</a><a href="/newsroom/">LIVE NEWSROOM</a></div>{body}
 <footer>BridgePoint publishes live product metrics and source-labelled hazard context. Weather alerts do not prove property damage. Counts can change as sources reconcile.</footer>
 <script defer src="/acquisition_tracker.js?v=5001"></script><script defer src="/founder-access.js?v=5101"></script><script defer src="/current-map-entry.js?v=5100"></script>
@@ -150,6 +191,9 @@ def main():
     addresses=int(status.get("unique_addresses") or 0)
     buildings=int(status.get("map_ready_buildings") or 0)
     remaining=status.get("parcel_remaining") or {}
+    weather_items=list(weather.get("items",[]) or [])
+    nws=nws_alerts()
+    weather={"items":[*weather_items,*nws]}
     hazards=active_hazards(weather)
     northeast_hazards=northeast_storm_hazards(hazards)
     hazard_groups={}
@@ -251,6 +295,36 @@ def main():
 
     # Current parcel completion page, intentionally avoiding unsupported “largest parcel database” wording.
     fl=int(remaining.get("FL") or 0); ny=int(remaining.get("NY") or 0); pr=int(remaining.get("PR") or 0)
+    countries=[x for x in (global_status.get("countries") or []) if isinstance(x,dict) and int(x.get("active_canonical") or 0)>0]
+    countries.sort(key=lambda x:int(x.get("active_canonical") or 0),reverse=True)
+    fr=next((x for x in countries if x.get("country_code")=="FR"),{})
+    gb=next((x for x in countries if x.get("country_code")=="GB"),{})
+    top_global="".join(
+        f'<article class="card"><small>{esc(x.get("country_code") or "")}</small><h2>{esc(x.get("country_name") or x.get("country_code") or "Country")}</h2>'
+        f'<p><strong>{num(x.get("active_canonical"))}</strong> canonical records · {num(x.get("materialized_boundary_rows"))} materialized boundaries · {num(x.get("building_footprints"))} building footprints.</p></article>'
+        for x in countries[:16]
+    )
+    add("global-expansion-live",
+        f"BridgePoint global expansion: {len(countries)} countries currently reporting live canonical coverage",
+        "Live BridgePoint global expansion counters for countries already in the production pipeline, including parcel boundaries and building-footprint progress.",
+        f'''<span class="badge">GLOBAL EXPANSION · LIVE COUNTERS</span><h1>{len(countries)} countries are currently reporting live BridgePoint coverage.</h1>
+<p class="lead">BridgePoint is now materializing countries already in its legal/source pipeline instead of treating global expansion as a static announcement. France currently reports <strong>{num(fr.get("active_canonical"))}</strong> canonical records and Great Britain <strong>{num(gb.get("active_canonical"))}</strong>. Counts update as official sources are reconciled.</p>
+<div class="grid">{top_global}</div>
+<div class="note">Coverage depth differs by country and layer. A live country counter does not mean every parcel, roof attribute or 3D structure is complete yet; BridgePoint publishes those layer states separately.</div>{actions("global_expansion_live",vertical="REAL_ESTATE")}''',"global")
+
+    northeast=[h for h in hazards if str(h.get("source") or "")=="National Weather Service" and str(h.get("nws_area") or "") in NWS_AREAS]
+    nor_events=Counter(hazard_family(h) for h in northeast)
+    nor_signal=sum(v for k,v in nor_events.items() if any(w in k.lower() for w in ("wind","flood","surf","tropical","hurricane")))
+    if nor_signal:
+        cards="".join(f'<article class="card"><small>NWS · ACTIVE</small><h2>{esc(k)}</h2><p>{v} active alert{"s" if v!=1 else ""} across the Northeast feed.</p></article>' for k,v in nor_events.most_common(12))
+        add("northeast-noreaster-live",
+            f"Northeast Nor'easter intelligence: {nor_signal} active NWS wind, coastal-flood, surf or tropical alerts",
+            "Live National Weather Service alert context for the Northeast, connected to BridgePoint's property and building intelligence map.",
+            f'''<span class="badge">NOR'EASTER · LIVE NWS ALERT CONTEXT</span><h1>{nor_signal} active Northeast wind/coastal-flood/surf/tropical alert records are flowing into the live newsroom.</h1>
+<p class="lead">BridgePoint is publishing this page from active National Weather Service alerts and tying the public weather context back to its property, parcel, structure and roof map. The alert feed is source-labelled and refreshed automatically.</p>
+<div class="grid">{cards}</div>
+<div class="note"><strong>Truth rule:</strong> an NWS alert describes weather risk for an area. It does not prove that a particular building or roof was damaged. BridgePoint keeps the weather event separate from property-level conclusions.</div>{actions("noreaster_live",vertical="RESTORATION")}''',"storm")
+
     add("parcel-build-status",
         f"BridgePoint parcel build status: {num(canonical)} canonical properties with final reconciliation still running",
         "Live parcel/canonical-property build status with explicit separation between canonical identity and parcel-boundary completion.",
@@ -267,9 +341,14 @@ def main():
     urls=[f"{ORIGIN}/newsroom/"]+[i["url"] for i in items]
     sitemap='<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+''.join(f'<url><loc>{esc(u)}</loc><lastmod>{generated[:10]}</lastmod></url>' for u in urls)+'</urlset>'
     write("sitemap.xml",sitemap)
+    news_urls=[i for i in items if i.get("kind") in {"storm","global","milestone","roof"}][:1000]
+    news_sitemap='<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">'+''.join(
+        f'<url><loc>{esc(i["url"])}</loc><news:news><news:publication><news:name>BridgePoint Intelligence</news:name><news:language>en</news:language></news:publication><news:publication_date>{generated}</news:publication_date><news:title>{esc(i["title"])}</news:title></news:news></url>'
+        for i in news_urls)+'</urlset>'
+    write("news-sitemap.xml",news_sitemap)
     rss_items="".join(f'<item><title>{esc(i["title"])}</title><link>{esc(i["url"])}</link><guid>{esc(i["url"])}</guid><description>{esc(i["description"])}</description></item>' for i in items[:30])
     write("feed.xml",f'<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>BridgePoint Intelligence Live Newsroom</title><link>{ORIGIN}/newsroom/</link><description>Live BridgePoint product and storm intelligence updates.</description>{rss_items}</channel></rss>')
-    manifest={"version":5100,"generated_at":generated,"canonical_properties":canonical,"address_records":addresses,"map_ready_buildings":buildings,"active_hazard_records":len(hazards),"pages":items}
+    manifest={"version":5805,"generated_at":generated,"canonical_properties":canonical,"address_records":addresses,"map_ready_buildings":buildings,"active_hazard_records":len(hazards),"pages":items}
     write("manifest.json",json.dumps(manifest,indent=2))
     share=[
       f"BridgePoint just crossed {canonical/1_000_000:.1f}M canonical U.S. property records. The map is live: {ORIGIN}/?utm_source=share_copy&utm_medium=organic&utm_campaign=canonical",
