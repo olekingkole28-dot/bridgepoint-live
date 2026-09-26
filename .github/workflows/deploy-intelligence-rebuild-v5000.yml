@@ -106,6 +106,8 @@ jobs:
           if [ -d investors ]; then cp -a investors site/investors; fi
           if [ -d enterprise ]; then cp -a enterprise site/enterprise; fi
           cp rebuild-v5000/index.html site/index.html
+          rm -rf site/coverage
+          cp -a rebuild-v5000/coverage site/coverage
           cp rebuild-v5000/app-index.html site/app/index.html
           mkdir -p site/app/local-node
           cp rebuild-v5000/owner/local-node/index.html site/app/local-node/index.html
@@ -212,6 +214,13 @@ jobs:
           grep -Fq 'package-feature-toggle' site/styles.css
           node --check site/parcel-boundary-viewer-v5403.js
           node --check site/landing.js
+          test -s site/coverage/index.html
+          grep -Fq 'bridgepoint_public_global_coverage_v5597' site/landing.js
+          grep -Fq 'display_records' site/landing.js
+          grep -Fq 'WAITING TURN' site/landing.js
+          grep -Fq 'display_records' site/coverage/index.html
+          grep -Fq 'seeded · waiting turn' site/coverage/index.html
+          grep -Fq 'World parcel coverage' site/index.html
           grep -Fq 'parcel-boundary-viewer-v5403.js' site/index.html
           grep -Fq 'parcel-boundary-viewer-v5403.js' site/app/index.html
           node --check site/intelligence-global-v5507.js
