@@ -222,13 +222,13 @@
   "live_facts": {
     "entity": "BridgePoint Intelligence",
     "metrics": {
-      "map_ready_buildings": 153702256,
-      "roof_shell_buildings": 153702256,
+      "map_ready_buildings": 161463328,
+      "roof_shell_buildings": 161463328,
       "roof_shell_coverage_pct": 100.0,
       "canonical_property_records": 171321626,
-      "normalized_address_records": 158474349,
-      "source_backed_roof_records": 696663,
-      "lidar_refined_roof_buildings": 6098,
+      "normalized_address_records": 158475038,
+      "source_backed_roof_records": 696686,
+      "lidar_refined_roof_buildings": 6121,
       "materialized_boundary_estimate": 84510335,
       "public_parcel_identity_records": 171321626,
       "canonical_property_record_label": "canonical property/parcel identity records",
@@ -244,15 +244,15 @@
       "public_counter_jurisdictions": 56
     },
     "freshness": {
-      "roof_updated_at": "2026-09-25T21:57:53.497815+00:00",
-      "lidar_last_success_at": "2026-09-25T21:57:33.254286+00:00",
+      "roof_updated_at": "2026-09-26T00:23:47.909332+00:00",
+      "lidar_last_success_at": "2026-09-25T22:14:24.438242+00:00",
       "parcel_counter_updated_at": "2026-09-25T21:27:23.676933+00:00",
-      "address_counter_updated_at": "2026-09-25T21:57:55.031056+00:00",
-      "parcel_scoreboard_updated_at": "2026-09-25T21:58:00.34679+00:00",
+      "address_counter_updated_at": "2026-09-26T00:24:26.135813+00:00",
+      "parcel_scoreboard_updated_at": "2026-09-26T00:24:00.402339+00:00",
       "parcel_autopilot_last_tick_at": "2026-09-23T05:51:45.397871+00:00"
     },
     "horizon_url": "https://bridgepointintelligence.online/app/horizon/",
-    "generated_at": "2026-09-25T21:58:26.098916+00:00",
+    "generated_at": "2026-09-26T00:24:27.785306+00:00",
     "canonical_url": "https://bridgepointintelligence.online/",
     "jurisdictions": [
       {
@@ -546,7 +546,7 @@
     "horizon_year_one_demand": {
       "ok": true,
       "mode": "365_DAY_YEAR_ONE_SURVIVAL",
-      "updated_at": "2026-09-25T21:58:26.222754+00:00",
+      "updated_at": "2026-09-26T00:24:27.877205+00:00",
       "event_started": false,
       "unique_requests": 0,
       "billing_connected": false,
