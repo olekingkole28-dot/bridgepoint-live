@@ -180,7 +180,7 @@ async function initMap(){
    const weather=wm.initWeather(world.map),present=pm.initPresentWeather(world.map);
    weather?.setActive?.(true);weather?.setRadar?.(false);
    void startLandingNationalWeather(world).catch(e=>console.warn('BridgePoint national weather async',e));
-   window.__BP_LANDING_VISUAL_WEATHER__={version:5544,weather,present,mapShared:true,nationalWeather:true,radarVisible:true,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,asyncAttach:true,updatedAt:Date.now()}
+   window.__BP_LANDING_VISUAL_WEATHER__={version:5822,weather,present,mapShared:true,nationalWeather:true,radarVisible:true,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,asyncAttach:true,updatedAt:Date.now()}
   }catch(e){console.warn('BridgePoint preview weather',e)}
  }catch(e){
   const msg=String(e?.stack||e?.message||e||'UNKNOWN_MAP_BOOT_ERROR');
