@@ -57,16 +57,19 @@ const REGION_HOME={
 async function centerOnViewerCountry(){
  let region='';try{region=new Intl.Locale(navigator.language||'en-US').region||''}catch(_){}
  const fallback=REGION_HOME[region],userIntent=()=>Number(window.__BP_MAP_USER_INTENT_AT__||0)>0;
+ const start=(()=>{try{const c=C.map.getCenter();return{lng:Number(c.lng),lat:Number(c.lat),zoom:Number(C.map.getZoom())}}catch(_){return null}})();
+ const cameraChanged=()=>{if(!start)return false;try{const c=C.map.getCenter(),z=Number(C.map.getZoom());return Math.abs(Number(c.lng)-start.lng)>.002||Math.abs(Number(c.lat)-start.lat)>.002||Math.abs(z-start.zoom)>.03}catch(_){return false}};
+ const preserve=mode=>{if(userIntent()||cameraChanged()||window.__BP_CAMERA_START_LOCK_V5826__){window.__BP_VIEWER_COUNTRY_START__={region,mode,at:Date.now()};return true}return false};
  try{
   if(navigator.permissions&&navigator.geolocation){
    const p=await navigator.permissions.query({name:'geolocation'});
    if(p.state==='granted'){
     const pos=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:false,maximumAge:86400000,timeout:2500}));
-    if(pos?.coords){if(userIntent()){window.__BP_VIEWER_COUNTRY_START__={region,mode:'user-interaction-preserved',at:Date.now()};return}C.map.jumpTo({center:[pos.coords.longitude,pos.coords.latitude],zoom:fallback?.[2]||3.25,pitch:0,bearing:0});window.__BP_VIEWER_COUNTRY_START__={region,mode:'granted-geolocation',at:Date.now()};return}
+    if(pos?.coords){if(preserve('camera-preserved'))return;C.map.jumpTo({center:[pos.coords.longitude,pos.coords.latitude],zoom:fallback?.[2]||3.25,pitch:0,bearing:0});window.__BP_VIEWER_COUNTRY_START__={region,mode:'granted-geolocation',at:Date.now()};return}
    }
   }
  }catch(_){}
- if(fallback){if(userIntent()){window.__BP_VIEWER_COUNTRY_START__={region,mode:'user-interaction-preserved',at:Date.now()};return}C.map.jumpTo({center:[fallback[0],fallback[1]],zoom:fallback[2],pitch:0,bearing:0});window.__BP_VIEWER_COUNTRY_START__={region,mode:'locale-region',at:Date.now()}}
+ if(fallback){if(preserve('camera-preserved'))return;C.map.jumpTo({center:[fallback[0],fallback[1]],zoom:fallback[2],pitch:0,bearing:0});window.__BP_VIEWER_COUNTRY_START__={region,mode:'locale-region',at:Date.now()}}
 }
 
 export async function refresh(force=false){
@@ -176,3 +179,5 @@ async function boot(){
 }
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0),{once:true});else setTimeout(boot,0);
+
+window.__BP_CAMERA_AUTHORITY_V5826__={viewerCountryPreservesMovedCamera:true,deepLinkOwnsExplicitCamera:true,updatedAt:Date.now()};
