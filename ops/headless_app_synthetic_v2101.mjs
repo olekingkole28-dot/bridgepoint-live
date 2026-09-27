@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const VERSION=5843;
+const VERSION=5847;
 const targets=(process.env.HEADLESS_TARGETS||'https://bridgepointintelligence.online/,https://bridgepointintelligence.online/app/').split(',').map(x=>x.trim()).filter(Boolean);
 const artifactDir=path.resolve('headless-artifacts');
 await fs.mkdir(artifactDir,{recursive:true});
@@ -90,10 +90,11 @@ try{
     let result={url,ok:false,attempts:0,status:null,title:'',bridgepoint_text:false,page_errors:[],console_errors:[],request_failures:[],elapsed_ms:0,contracts:null};
     for(let attempt=1;attempt<=2&&!result.ok;attempt++){
       const context=await browser.newContext({viewport:{width:1440,height:1000},userAgent:'BridgePointHeadlessSynthetic/'+VERSION});
-      const page=await context.newPage(),started=Date.now(),pageErrors=[],consoleErrors=[],requestFailures=[];
+      const page=await context.newPage(),started=Date.now(),pageErrors=[],consoleErrors=[],requestFailures=[],httpErrors=[];
       page.on('pageerror',e=>pageErrors.push(String(e?.message||e).slice(0,500)));
       page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text().slice(0,500));});
       page.on('requestfailed',r=>requestFailures.push((r.method()+' '+r.url()+' :: '+(r.failure()?.errorText||'FAILED')).slice(0,700)));
+      page.on('response',r=>{if(r.status()>=400)httpErrors.push((r.status()+' '+r.url()).slice(0,700));});
       try{
         const runUrl=new URL(url);runUrl.searchParams.set('qa','bp-headless-v5824');
         const response=await page.goto(runUrl.toString(),{waitUntil:'domcontentloaded',timeout:45000});
@@ -105,10 +106,10 @@ try{
         else if(pth.startsWith('/app'))contracts=await appContracts(page);
         const fatalConsole=consoleErrors.filter(x=>!/favicon|ERR_BLOCKED_BY_CLIENT|ResizeObserver/i.test(x));
         const severePage=pageErrors.filter(x=>!/ResizeObserver loop/i.test(x));
-        result={url,ok:status>=200&&status<400&&textOk&&severePage.length===0,status,title,bridgepoint_text:textOk,page_errors:severePage,console_errors:fatalConsole,request_failures:requestFailures.slice(0,25),attempts:attempt,elapsed_ms:Date.now()-started,contracts};
+        result={url,ok:status>=200&&status<400&&textOk&&severePage.length===0,status,title,bridgepoint_text:textOk,page_errors:severePage,console_errors:fatalConsole,request_failures:requestFailures.slice(0,25),http_errors:httpErrors.slice(0,25),attempts:attempt,elapsed_ms:Date.now()-started,contracts};
         if(!result.ok)throw new Error('SYNTHETIC_CONTRACT_FAILED '+JSON.stringify(result).slice(0,2000));
       }catch(e){
-        result={...result,ok:false,attempts:attempt,elapsed_ms:Date.now()-started,page_errors:[...pageErrors,String(e?.message||e).slice(0,1200)],console_errors:consoleErrors,request_failures:requestFailures.slice(0,25)};
+        result={...result,ok:false,attempts:attempt,elapsed_ms:Date.now()-started,page_errors:[...pageErrors,String(e?.message||e).slice(0,1200)],console_errors:consoleErrors,request_failures:requestFailures.slice(0,25),http_errors:httpErrors.slice(0,25)};
         const safe=new URL(url).pathname.replace(/[^a-z0-9]+/gi,'_')||'root';
         await page.screenshot({path:path.join(artifactDir,safe+'-attempt-'+attempt+'.png'),fullPage:true}).catch(()=>{});
       }finally{await context.close();}
