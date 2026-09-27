@@ -1,0 +1,12 @@
+{
+  "version": 939,
+  "release": "PODCAST_CONVERSION_FUNNEL",
+  "primary_cta": "INSTALL_OR_OPEN_BRIDGEPOINT",
+  "secondary_cta": "FREE_TERRITORY_PREVIEW",
+  "top_nav_links": 4,
+  "pwa_install_prompt": true,
+  "app_route": "/app/",
+  "trial_copy": "7-day trial",
+  "informational_sections_preserved": true,
+  "released_for": "Boroughs & Burbs podcast traffic 2026-08-27"
+}

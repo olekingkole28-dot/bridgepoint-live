@@ -1,0 +1,26 @@
+{
+  "name":"BridgePoint Horizon",
+  "short_name":"Horizon",
+  "description":"BridgePoint Horizon — survival, multiplayer, Year One and island combat.",
+  "id":"/app/horizon/",
+  "start_url":"/app/horizon/?source=pwa",
+  "scope":"/app/horizon/",
+  "display":"standalone",
+  "display_override":["window-controls-overlay","standalone"],
+  "orientation":"landscape",
+  "background_color":"#020706",
+  "theme_color":"#07120f",
+  "prefer_related_applications":false,
+  "categories":["games","entertainment","action"],
+  "icons":[
+    {"src":"./horizon-mark.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any"},
+    {"src":"./horizon-mark.svg","sizes":"512x512","type":"image/svg+xml","purpose":"any maskable"},
+    {"src":"./horizon-mark.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ],
+  "shortcuts":[
+    {"name":"Year One Survival","short_name":"Year One","url":"/app/horizon/?mode=YEAR_ONE","icons":[{"src":"./horizon-mark.svg","sizes":"192x192","type":"image/svg+xml"}]},
+    {"name":"Team Deathmatch","short_name":"TDM","url":"/app/horizon/?mode=TDM","icons":[{"src":"./horizon-mark.svg","sizes":"192x192","type":"image/svg+xml"}]},
+    {"name":"Outbreak Raid","short_name":"Raid","url":"/app/horizon/?mode=EXTRACTION","icons":[{"src":"./horizon-mark.svg","sizes":"192x192","type":"image/svg+xml"}]},
+    {"name":"Island Last Stand","short_name":"Island","url":"/app/horizon/?mode=ISLAND_SOLO_8","icons":[{"src":"./horizon-mark.svg","sizes":"192x192","type":"image/svg+xml"}]}
+  ]
+}

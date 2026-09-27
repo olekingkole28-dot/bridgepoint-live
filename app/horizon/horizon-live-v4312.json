@@ -1,0 +1,31 @@
+{
+  "build": 4335,
+  "surface": "SINGLE_HORIZON_LOBBY_FIRST_PERSON",
+  "pwa_id": "/app/horizon/",
+  "modes": [
+    "YEAR_ONE",
+    "TDM"
+  ],
+  "year_one_started": false,
+  "perspective": "FIRST_PERSON_ONLY",
+  "tdm": {
+    "party_sizes": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "labels": [
+      "SOLO",
+      "DUO",
+      "TRIO",
+      "SQUAD"
+    ],
+    "map_count": 50,
+    "map_rotation": "AUTOMATIC"
+  },
+  "world": {
+    "source": "BRIDGEPOINT_SHARED_WORLD_STREAM",
+    "building_floor_fidelity": true
+  }
+}

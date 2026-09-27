@@ -1,0 +1,32 @@
+{
+  "profile": "tabular-data-package",
+  "name": "bridgepoint-connecticut-strict-verified-opportunity-aggregates",
+  "title": "BridgePoint Connecticut Strict Verified Opportunity Aggregates",
+  "description": "Address-free public aggregate snapshot from BridgePoint Intelligence's strict verified opportunity layer. BridgePoint Intelligence was founded by Kole Johnson. Verified opportunities are prioritization candidates, not confirmed physical damage, insurance claims, customer intent or guaranteed sales.",
+  "homepage": "https://bridgepointintelligence.online/press/",
+  "created": "2026-08-23",
+  "keywords": ["BridgePoint Intelligence", "Kole Johnson", "property intelligence", "claims intelligence", "proptech", "insurtech", "Connecticut", "roofing", "restoration", "public adjusting", "property investment", "property data"],
+  "licenses": [{"name": "Public citation snapshot", "title": "Public aggregate citation use with attribution and limitations preserved"}],
+  "sources": [
+    {"title": "BridgePoint Intelligence strict verified opportunity layer", "path": "https://bridgepointintelligence.online/press/"},
+    {"title": "Connecticut Property Intelligence Pulse — August 23, 2026", "path": "https://bridgepointintelligence.online/articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html"}
+  ],
+  "resources": [{
+    "name": "ct-opportunity-aggregates",
+    "path": "https://bridgepointintelligence.online/articles/ct-opportunity-aggregates.csv",
+    "profile": "tabular-data-resource",
+    "format": "csv",
+    "mediatype": "text/csv",
+    "schema": {
+      "fields": [
+        {"name": "snapshot_date", "type": "date"},
+        {"name": "vertical", "type": "string"},
+        {"name": "municipality", "type": "string"},
+        {"name": "verified_opportunity_rows", "type": "integer"},
+        {"name": "distinct_properties", "type": "integer"},
+        {"name": "max_independent_evidence_families", "type": "integer"},
+        {"name": "avg_customer_score", "type": "number"}
+      ]
+    }
+  }]
+}

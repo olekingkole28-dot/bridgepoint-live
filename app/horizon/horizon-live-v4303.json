@@ -1,0 +1,14 @@
+{
+  "build": 4303,
+  "status": "HORIZON_LOBBY_CLIENT_READY_FOR_PUBLICATION",
+  "lobby": "/app/horizon/play/",
+  "backend": "bridgepoint-horizon-master-v4302",
+  "world_stream": "bridgepoint-horizon-stream-v3020",
+  "party_max": 4,
+  "modes": [
+    "YEAR_ONE",
+    "TDM",
+    "EXTRACTION"
+  ],
+  "network": "WEBRTC_STUN_FIRST_WITH_RELAY_FALLBACK"
+}

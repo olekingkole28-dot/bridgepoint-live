@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-09-13",
+  "target": "native_unreal_modern_aaa_realism",
+  "owner_budget_usd": 0,
+  "non_goals": [
+    "copy proprietary Call of Duty assets/code/UI",
+    "ship low-poly prototype art as native production identity",
+    "force high-end settings on hardware that cannot sustain them"
+  ],
+  "production_quality_floor": {
+    "characters": {
+      "target": "MetaHuman / City Sample crowd quality or equivalent",
+      "first_person": "dedicated skeletal arms/hands plus separate first-person weapon mount",
+      "skin": "subsurface skin shading, detailed normals, roughness variation, eyes/teeth/hair/grooms",
+      "infected": "high-fidelity human rigs with Horizon-authored damage/decay/wound materials and meshes",
+      "forbidden_shipping_defaults": [
+        "Quaternius survivor",
+        "MakeHuman prototype",
+        "primitive capsule/cube human"
+      ]
+    },
+    "animation": {
+      "target": "motion matching / high-quality retargeted locomotion",
+      "source_priority": [
+        "Epic Game Animation Sample",
+        "Horizon-authored combat/additive layers"
+      ],
+      "requirements": [
+        "directional locomotion",
+        "sprint",
+        "crouch",
+        "jump",
+        "fall",
+        "vault",
+        "ADS",
+        "reload",
+        "hit reaction"
+      ]
+    },
+    "environment": {
+      "source_priority": [
+        "BridgePoint source-backed geometry",
+        "City Sample Buildings",
+        "Electric Dreams Env",
+        "Poly Haven CC0",
+        "ambientCG CC0"
+      ],
+      "materials": "photoreal PBR with base color, normal, roughness, metallic/AO where applicable",
+      "rendering": [
+        "Nanite",
+        "Lumen GI",
+        "Lumen reflections",
+        "Virtual Shadow Maps",
+        "TSR",
+        "volumetric fog",
+        "high-quality post"
+      ]
+    },
+    "effects": {
+      "target": "Niagara-quality fire/smoke/muzzle/impact/blood/weather effects",
+      "no_final_primitives": true
+    },
+    "fallback_policy": {
+      "browser_pwa": "lightweight assets allowed for reach/performance",
+      "native_unreal": "low-poly packs fallback-only, never primary production look",
+      "autopilot": "scale quality dynamically rather than globally lowering native baseline"
+    }
+  },
+  "legal_sources": [
+    {
+      "name": "MetaHuman",
+      "scope": "Unreal native",
+      "status": "primary"
+    },
+    {
+      "name": "City Sample Crowds",
+      "scope": "Unreal native",
+      "status": "primary"
+    },
+    {
+      "name": "City Sample Buildings",
+      "scope": "Unreal native",
+      "status": "primary"
+    },
+    {
+      "name": "Electric Dreams Env",
+      "scope": "Unreal native",
+      "status": "primary"
+    },
+    {
+      "name": "Poly Haven",
+      "license": "CC0",
+      "scope": "engine-agnostic",
+      "status": "primary"
+    },
+    {
+      "name": "ambientCG",
+      "license": "CC0",
+      "scope": "engine-agnostic",
+      "status": "primary"
+    },
+    {
+      "name": "Quaternius Zombie Apocalypse Kit",
+      "license": "CC0",
+      "scope": "fallback",
+      "status": "fallback_only"
+    },
+    {
+      "name": "MakeHuman/MPFB CC0 models",
+      "license": "CC0",
+      "scope": "fallback",
+      "status": "fallback_only"
+    }
+  ]
+}

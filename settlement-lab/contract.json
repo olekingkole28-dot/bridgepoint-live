@@ -1,0 +1,49 @@
+{
+  "name": "BridgePoint Settlement Lab",
+  "version": "5201",
+  "execution_mode": "SHADOW_ONLY",
+  "purpose": "Evaluate source-backed property-event exposure and parametric trigger readiness without autonomous financial execution.",
+  "endpoints": {
+    "status": {
+      "method": "POST",
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_settlement_lab_status_v5201",
+      "body": {}
+    },
+    "exposure_stream": {
+      "method": "POST",
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_exposure_stream_v5201",
+      "body": {
+        "p_limit": 20
+      }
+    },
+    "event_snapshot": {
+      "method": "POST",
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_event_exposure_snapshot_v5201",
+      "body": {
+        "p_event_id": "uuid"
+      }
+    },
+    "parametric_simulation": {
+      "method": "POST",
+      "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_parametric_trigger_simulation_v5201",
+      "body": {
+        "p_event_id": "uuid",
+        "p_property_id": "uuid",
+        "p_trigger_magnitude": 1,
+        "p_min_exposure_confidence": 0.8
+      }
+    }
+  },
+  "hard_blocks": [
+    "capital movement",
+    "claim approval/denial",
+    "brokerage order execution",
+    "automatic securities trading"
+  ],
+  "interpretation_rules": [
+    "Exposure is not damage proof.",
+    "A trigger simulation is not authorization to pay.",
+    "Dynamic property intelligence score is not BII and is not a trading signal.",
+    "Real settlement requires an authorized contract and explicit release."
+  ]
+}

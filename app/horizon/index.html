@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#07120f">
+<title>BridgePoint Horizon — 365-Day Real-World Survival & Team Deathmatch</title>
+<meta name="description" content="BridgePoint Horizon is a first-person real-world survival and combat game built on the same BridgePoint terrain, roads, parcels and buildings: 365-day persistent Year One Survival across the contiguous United States plus 100-player Team Deathmatch with solo, duo, trio and squad parties.">
+<meta name="keywords" content="BridgePoint Horizon, first person survival game, real world survival game, 365 day survival game, Year One Survival, team deathmatch, 100 player shooter, solo duo trio squad, geospatial game, 3D map game, digital twin game, BridgePoint game">
+<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+<link rel="canonical" href="https://bridgepointintelligence.online/app/horizon/">
+<meta property="og:type" content="website"><meta property="og:title" content="BridgePoint Horizon — Real-World Spatial Survival"><meta property="og:description" content="A real-world spatial backend turned into a persistent survival and combat world."><meta property="og:url" content="https://bridgepointintelligence.online/app/horizon/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./horizon-mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./styles.css?v=4341"><link rel="stylesheet" href="./year-one-demand-v5200.css"><link rel="stylesheet" href="/language-selector-v5200.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"BridgePoint Horizon","url":"https://bridgepointintelligence.online/app/horizon/","description":"A real-world spatial survival and combat game built on BridgePoint terrain, roads, parcels and buildings.","genre":["Survival","Action","Shooter","Team Deathmatch","Persistent World","Zombie"],"gamePlatform":["Web","Android","PC","Mobile"],"playMode":["SinglePlayer","MultiPlayer"],"isAccessibleForFree":true,"publisher":{"@type":"Organization","name":"BridgePoint Intelligence","url":"https://bridgepointintelligence.online/"},"keywords":"real-world spatial game, first-person game, 365-day survival, zombie survival, team deathmatch, geospatial game, 3D map game"}</script></head>
+<body>
+<canvas id="sky"></canvas>
+<div class="world-bg" aria-hidden="true">
+  <div class="moon"></div><div class="fog fog-a"></div><div class="fog fog-b"></div>
+  <div class="skyline skyline-far"></div><div class="skyline skyline-near"></div>
+  <div class="ember-field"></div>
+</div>
+
+<header class="topbar">
+  <div class="brand"><img src="./horizon-mark.svg" alt=""><div><b>BRIDGEPOINT</b><span>HORIZON</span></div></div>
+  <div class="net"><span id="netDot"></span><b id="netLabel">BOOTING</b></div>
+  <div class="live-count glass"><b id="horizonActiveCount">0</b><span>ACTIVE</span></div>
+  <button class="glass account-main" id="accountBtn">SIGN IN</button>
+  <button class="glass install-main" id="installBtn">⬇ INSTALL</button><button class="glass" id="inviteTop">INVITE</button>
+  <button class="glass" id="settingsBtn">⚙</button>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="PLAY" class="active">PLAY</button>
+  <button data-tab="BATTLE_PASS">BATTLE PASS</button>
+  <button data-tab="LOCKER">LOCKER</button>
+  <button data-tab="LOADOUTS">LOADOUTS</button>
+  <button data-tab="ARMORY">ARMORY</button>
+  <button data-tab="PARTY">PARTY</button>
+  <button data-tab="FRIENDS">FRIENDS <span id="friendsBadge" class="tabBadge" hidden>0</span></button>
+  <button data-tab="STORE">STORE</button>
+  <button data-tab="ARENA">ARENA</button><button data-tab="WATCH">WATCH LIVE</button>
+  <button data-tab="STATS">STATS</button><button data-tab="RULES">RULES</button><button data-tab="ABOUT">ABOUT</button><button data-tab="OWNER" id="ownerTab" hidden>OWNER</button>
+</nav>
+
+<main class="lobby">
+  <aside class="profile glass-panel">
+    <div class="eyebrow">CURRENT SURVIVOR</div>
+    <div class="avatar-badge" id="avatarBadge">01</div>
+    <input id="displayName" maxlength="20" value="Survivor" aria-label="Unique Horizon handle">
+    <div class="account-state" id="accountState">FREE ACCOUNT REQUIRED TO PLAY</div>
+    <div class="statline"><span>LEVEL</span><b>1</b></div>
+    <div class="statline"><span>PRESTIGE</span><b>0</b></div>
+    <div class="statline"><span>LOADOUT</span><b id="loadoutName">Ranger</b></div>
+    <button class="accent" id="editLocker">CHANGE SURVIVOR</button>
+  </aside>
+
+  <section class="stage"><canvas id="lobby3d" aria-label="Horizon live lobby scene"></canvas>
+    <div class="stage-light"></div>
+    <div class="party-row" id="partyRow"></div>
+    <div class="party-code-wrap">
+      <span>PARTY</span><b id="partyCode">------</b>
+      <button id="copyParty">COPY</button>
+    </div>
+    <div class="status-message" id="statusMessage">Starting Horizon…</div>
+  </section>
+
+  <aside class="party glass-panel">
+    <div class="eyebrow">SQUAD</div>
+    <h2>Party Lobby</h2>
+    <p>Invite up to 3 friends. They appear beside you when they join.</p>
+    <button class="accent" id="inviteBtn">SEND FRIEND INVITE</button>
+    <div class="party-rules">
+      <span><b>4</b> max party</span>
+      <span><b>P2P</b> direct first</span>
+      <span><b>PHONE</b> host eligible</span>
+    </div>
+  </aside>
+</main>
+
+<section class="mode-dock">
+  <button class="mode year-one-mode" data-mode="YEAR_ONE">
+    <span class="mode-kicker">365 DAYS · PVE SURVIVAL</span><b>YEAR ONE SURVIVAL</b>
+    <span class="year-one-launch">OCT 1 · 12:00 AM ET</span>
+    <span class="year-one-countdown" id="yearOneCountdown">COUNTDOWN LOADING…</span>
+    <small>first person · spawn at your real location · monsters only · 3 lives</small>
+  </button>
+  <button class="mode active" data-mode="TDM">
+    <span class="mode-kicker">100 PLAYERS · 1-4 PARTY</span><b>TEAM DEATHMATCH</b><small>solo · duo · trio · squad · 50 dense real-location maps · bot backfill · 10-second map vote</small>
+  </button>
+  <button class="play" id="playBtn"><span id="playLabel">READY</span><small id="playSub">TDM · 100 PLAYERS · SOLO / DUO / TRIO / SQUAD · 50 MAPS</small></button>
+</section>
+
+<section class="year-one-demand" aria-labelledby="yearOneDemandTitle">
+  <span class="kicker">YEAR ONE SURVIVAL · LAUNCH LOCKED</span>
+  <h2 id="yearOneDemandTitle">The 365-day world starts October 1.</h2>
+  <p>The countdown is now fixed. Requests below are only a notification/demand signal—they do not change the launch date or charge you.</p>
+  <div class="demand-actions"><input data-year-one-demand-email type="email" autocomplete="email" placeholder="Email optional · notify me if it launches"><button data-year-one-demand-request type="button">REQUEST THE 365-DAY WORLD</button></div>
+  <strong class="count" data-year-one-demand-count>Loading public demand…</strong>
+  <small>Count = unique browser interest requests. It is a demand signal, not verified active players.</small>
+</section>
+
+<div class="install-banner" id="installBanner">
+  <div><b>INSTALL BRIDGEPOINT HORIZON</b><small>Separate app and icon from BridgePoint Intelligence</small></div>
+  <button id="installBannerBtn">INSTALL</button><button id="installNotNow">NOT NOW</button>
+</div>
+<div class="modal" id="modal" aria-hidden="true">
+  <div class="modal-card">
+    <button class="close" id="closeModal">×</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<div class="loading" id="loading" aria-hidden="true">
+  <div class="loading-card">
+    <div class="loading-top">
+      <div><span class="eyebrow">MATCH FOUND</span><h1 id="mapName">BLACKOUT DISTRICT</h1></div>
+      <div class="countdown" id="launchCount">8</div>
+    </div>
+    <canvas id="mapCanvas" width="900" height="520"></canvas>
+    <div class="map-vote" id="mapVote" hidden>
+      <div class="eyebrow">VOTE · 10 SECONDS</div>
+      <div class="map-vote-options" id="mapVoteOptions"></div>
+    </div>
+    <div class="load-meta">
+      <span id="modeMeta">TDM</span><span id="humanMeta">0 HUMANS</span><span id="botMeta">0 BOTS</span><span id="peerMeta">P2P STARTING</span>
+    </div>
+    <div class="loadbar"><i id="loadbarFill"></i></div>
+    <p id="loadingStatus">Generating the same deterministic map on every device…</p>
+  </div>
+</div>
+
+<div class="hud-preview" id="hudPreview" aria-hidden="true">
+  <div class="pickup-demo"><div class="pickup-ring"><span>AR</span></div><small>STAND OVER ITEM TO PICK UP</small></div>
+  <div class="right-controls">
+    <button>AIM</button><button>SHOOT</button><button>RUN</button><button class="build">BUILD</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script defer src="/acquisition_tracker.js?v=5001"></script><script defer src="./year-one-demand-v5200.js"></script><script defer src="/language-selector-v5200.js"></script>\n<script type="module" src="./app.js?v=4341"></script>
+</body>
+</html>

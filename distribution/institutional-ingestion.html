@@ -1,0 +1,17 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BridgePoint Institutional Ingestion Guide</title><meta name="description" content="How authorized analytics, insurance, GIS and alternative-data partners can ingest BridgePoint source-linked property and catastrophe context."><style>body{max-width:920px;margin:42px auto;padding:0 20px;background:#050b10;color:#eefaff;font:15px/1.68 system-ui}a{color:#62e7ff}pre{background:#091722;border:1px solid #1a4055;border-radius:10px;padding:14px;overflow:auto}.note{border-left:4px solid #ffd36b;background:#0b1d29;padding:13px 15px}</style><link rel="stylesheet" href="/language-selector-v5200.css"></head><body><a href="/distribution/">← Distribution</a><h1>Institutional ingestion guide</h1><p>BridgePoint provides pull-based public research feeds and can support authenticated partner delivery where an institution explicitly authorizes the connection. The public surface does not anonymously push payloads into third-party systems.</p><h2>Recommended record envelope</h2><pre>{
+  "bridgepoint_version": "5203",
+  "record_type": "hazard_observation | property_exposure",
+  "provider": "NOAA/NWS",
+  "source_url": "https://...",
+  "source_updated_at": "ISO-8601",
+  "bridgepoint_first_seen_at": "ISO-8601",
+  "source_to_bridgepoint_seconds": 83.65,
+  "hazard_type": "FLOOD",
+  "confidence": 0.91,
+  "property_exposure_count": 1234,
+  "interpretation_flags": {
+    "damage_determination": false,
+    "securities_instruction": false,
+    "claims_decision": false
+  }
+}</pre><h2>Delivery surfaces available now</h2><ul><li>JSON, XML and RSS exposure feeds</li><li>JSON/CSV public-audit exports</li><li>OpenAPI discovery document</li><li>Settlement Lab shadow contract</li><li>GIS/BII embeds for site-owner integrations</li></ul><h2>Authorized enterprise delivery</h2><p>For a signed partner integration, the same envelope can be delivered over authenticated HTTPS pull, signed webhook, S3/object delivery or a customer-specific queue. Authentication, rate limits, entitlement and source-license restrictions should be defined in the partner contract.</p><div class="note"><strong>No “ingestion attack.”</strong> BridgePoint does not disguise payloads as errors, exploit intake forms, or force data into systems that have not authorized delivery. A financial platform can ingest the data when it deliberately connects to BridgePoint.</div><p><a href="/distribution/partner-delivery-contract.json">Partner delivery contract</a> · <a href="/public-audit/">Public Evidence Audit</a> · <a href="/distribution/openapi.json">OpenAPI</a> · <a href="/settlement-lab/contract.json">Settlement contract</a></p><script defer src="/language-selector-v5200.js"></script></body></html>

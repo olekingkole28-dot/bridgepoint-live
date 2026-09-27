@@ -1,0 +1,459 @@
+{
+  "schema_version": 6,
+  "build_target": 4341,
+  "updated_at": "2026-09-20",
+  "extends": [
+    "HORIZON_GAME_MODES_V4243.json",
+    "HORIZON_YEAR_ONE_V4250.json"
+  ],
+  "authority": "OWNER_SCHEDULED_OCT_1_2026_V4341",
+  "owner_directives": {
+    "year_one_start_at": "2026-10-01T00:00:00-04:00",
+    "launch_timezone": "America/New_York",
+    "auto_start_when_countdown_reaches_zero": true,
+    "duration_days": 365,
+    "lives_total_per_player": 3,
+    "pvp": false,
+    "owner_funded_fixed_spend_usd": 0,
+    "repurpose_five_chatgpt_workers_to_horizon": true,
+    "year_one_world_scope": "CONTIGUOUS_US_48_ONLY",
+    "jurisdiction_gameplay_borders": false,
+    "alaska": false,
+    "hawaii": false,
+    "territories": false,
+    "free_account_required": true
+  },
+  "zero_budget_policy": {
+    "paid_assets": false,
+    "paid_plugins": false,
+    "billable_cloud_compute": false,
+    "paid_gpu_hosting": false,
+    "digitalocean_billable_resources": false,
+    "browser_pwa": "primary public playable path while no genuinely zero-cost native GPU route exists",
+    "unreal": "development/AAA target; local or genuinely zero-cost execution only unless owner later changes the zero-spend rule",
+    "free_sources_only": "original, public-domain, CC0, or otherwise explicitly verified for the intended commercial use"
+  },
+  "year_one_survival": {
+    "status": "PRESEASON_COUNTDOWN_TO_2026_10_01",
+    "solo_only": true,
+    "duration_days": 365,
+    "lives": {
+      "total": 3,
+      "preseason_deaths_consume_life": false,
+      "server_authoritative": true,
+      "reset_during_live_year": false
+    },
+    "world": {
+      "scope": "contiguous_us_48_only",
+      "regional_goal": "recognizable real-world exterior geography and regional feel, transformed into an original zombified/horrorified survival world",
+      "exterior_truth": "source-backed where lawful and technically available",
+      "interiors": {
+        "real_world_floorplans_allowed": false,
+        "generated_layouts": "fictional_only",
+        "requirements": [
+          "actual floor geometry",
+          "physical stairs between floors",
+          "functional room doors",
+          "true doorway openings in walls",
+          "transparent or open windows that are actual wall openings",
+          "outside world visible through windows",
+          "roof access where gameplay-safe",
+          "multi-floor navigation without teleport-card doors"
+        ]
+      },
+      "gameplay_jurisdiction_borders": false,
+      "excluded": [
+        "AK",
+        "HI",
+        "PR",
+        "GU",
+        "VI",
+        "AS",
+        "MP",
+        "UM"
+      ]
+    },
+    "traversal": {
+      "rooftop_ziplines": true,
+      "building_to_building_ziplines": true,
+      "zipline_validation": [
+        "anchor integrity",
+        "distance",
+        "slope",
+        "clearance",
+        "collision",
+        "landing",
+        "fall safety"
+      ]
+    },
+    "infected_progression": {
+      "early_event": "easier/slower infected majority with lower density and simpler coordination",
+      "mid_event": "mixed runners, armored infected, screamers, regional variants and larger groups",
+      "late_event": "higher density, faster specialized threats, stronger horde coordination and city pressure",
+      "scales_with": [
+        "event_day",
+        "region",
+        "population_density",
+        "survivor_pressure",
+        "endgame_phase"
+      ],
+      "never_uniform_hard_everywhere": true
+    },
+    "creatures": {
+      "enabled": true,
+      "distribution": "biome_and_geography_aware",
+      "examples": [
+        "infected dogs",
+        "infected bears",
+        "spiders",
+        "regional wildlife",
+        "original dark-fantasy creatures",
+        "elite infected"
+      ],
+      "ip_rule": "original or properly licensed only"
+    },
+    "npc_challenges": {
+      "enabled": true,
+      "strategic_placement": true,
+      "contextual_to_region_and_survival_state": true,
+      "free_rewards": [
+        "survival items",
+        "ammo/resources",
+        "cosmetics",
+        "emotes/sprays",
+        "crafting materials",
+        "limited challenge gear"
+      ]
+    },
+    "endgame": {
+      "mechanic": "literal dense infected zombie wall",
+      "outline_source": "automation.horizon_year_one_conus_v4340 from authoritative stored U.S. state boundaries",
+      "origin": "contiguous U.S. exterior outline",
+      "wall_damage_per_tick": 25,
+      "border_phase_days": [
+        1,
+        239
+      ],
+      "convergence_phase_days": [
+        240,
+        329
+      ],
+      "final_city_phase_days": [
+        330,
+        365
+      ],
+      "final_cities": [
+        "New York",
+        "Chicago",
+        "Los Angeles",
+        "Dallas",
+        "Atlanta"
+      ],
+      "no_safe_wall_entry": true,
+      "presentation": "original Horizon infected-wall system"
+    },
+    "start_at": "2026-10-01T00:00:00-04:00",
+    "auto_start": true,
+    "pvp": {
+      "enabled": false,
+      "player_damage": false,
+      "friendly_fire": false,
+      "monster_combat_only": true
+    },
+    "spawn": {
+      "policy": "PRECISE_FIRST_ENTRY_THEN_PERSISTENT_LAST_LOCATION",
+      "use_high_accuracy_device_location": true,
+      "first_entry": "device precise location",
+      "returning_player": "server checkpoint location",
+      "if_inside_building": "spawn inside that streamed building",
+      "if_on_street": "spawn at that street coordinate",
+      "world_cell_center": "saved player latitude/longitude",
+      "backend_rpc": "bridgepoint_horizon_year_one_enter_v4340"
+    },
+    "player_vitals": {
+      "health": 100,
+      "shield_initial": 0,
+      "shield_pickup_points": 50,
+      "shield_max": 100,
+      "combined_max": 200,
+      "monster_hit_damage": 25,
+      "damage_order": "SHIELD_FIRST_THEN_HEALTH",
+      "hud": "separate live health and shield bars with icons and animated decrement"
+    },
+    "monsters": {
+      "health": {
+        "spider": 75,
+        "big_orc": 150,
+        "regular_zombie": 100,
+        "zombie_dog": 75,
+        "other": 100
+      },
+      "movement": {
+        "walker": "slow walk",
+        "runner": "7.05 m/s, below 8.4 m/s player sprint",
+        "zombie_dog": "7.25 m/s in packs of 3-5, below player sprint",
+        "spider": "hop only; airborne arc then ground contact; never crawl",
+        "big_orc": "heavy hop",
+        "other": "slow walk"
+      },
+      "patrols": "deterministic realistic road/building routes; indoor variants occupy generated floors",
+      "aggro": "proximity or footsteps permanently locks target until monster is killed",
+      "train_behavior": "locked monsters continuously follow the player, enabling COD-zombies-style training",
+      "hp_bars": "world-space bars parented to each monster and updated after every hit",
+      "respawn_delay_seconds": 120,
+      "no_spawn_radius_m": 45,
+      "horde_replenishment": true,
+      "horde_scales_with_active_players": true,
+      "late_game_pressure": true
+    },
+    "loot": {
+      "pickup": "AUTO_DWELL",
+      "dwell_seconds": 3,
+      "progress_ui": "radial ring around pickup prompt",
+      "shield_pickup": 50,
+      "shield_max": 100,
+      "finite_world_instances": true,
+      "claimed_instances_do_not_respawn": true,
+      "death_drops": true,
+      "quick_slots": 5,
+      "backpack_slots": 5,
+      "ammo_spare_clips": [
+        1,
+        4
+      ],
+      "vehicle_parts": [
+        "spark plug",
+        "wheel",
+        "gas"
+      ]
+    },
+    "persistence": {
+      "server_table": "horizon_year_one_runtime_v4336",
+      "checkpoint_rpc": "bridgepoint_horizon_year_one_checkpoint_v4337",
+      "checkpoint_cadence_seconds": 5,
+      "exploration_table": "horizon_exploration_cell_v4340",
+      "presence_table": "horizon_world_presence_v4340",
+      "finite_loot_table": "horizon_world_loot_v4340",
+      "death_drop_table": "horizon_death_drop_v4340",
+      "fields": [
+        "health",
+        "shield",
+        "spawn/current location",
+        "persistent explored cells",
+        "monster kills",
+        "loot collected",
+        "active weapon",
+        "five quick weapon slots",
+        "five backpack weapon slots",
+        "magazine/reserve ammo state",
+        "vehicle parts",
+        "last match/cell",
+        "checkpoint timestamp"
+      ],
+      "event_tick": "automation.horizon_year_one_tick_v4336 every minute",
+      "absence_tick": "automation.horizon_year_one_absence_tick_v4340 hourly"
+    },
+    "activity_anticheat": {
+      "daily_qualifying_minutes": 15,
+      "grace_hours": 48,
+      "decay_interval_hours": 12,
+      "decay_health": 25,
+      "shield_does_not_block_absence_decay": true,
+      "can_consume_lives": true,
+      "qualified_activity_resets_clock": true
+    },
+    "shared_world": {
+      "enabled": true,
+      "pvp": false,
+      "presence_heartbeat_seconds": 10,
+      "active_player_count": true,
+      "nearby_players_visible_at_shared_coordinates": true,
+      "director_priority": [
+        "highest combat activity",
+        "random active survivor",
+        "zombie world overview"
+      ],
+      "director_rotation_seconds": 12,
+      "preseason_director": true
+    },
+    "environment": {
+      "live_weather": true,
+      "real_location_mapping": true,
+      "real_local_daylight": true,
+      "cold_requires_campfire": true,
+      "rain_increases_zombie_pressure": true,
+      "wildfire_increases_zombie_dogs": true,
+      "water_enterable": true,
+      "water_idle_damage_after_seconds": 5,
+      "water_damage": 25,
+      "solid_collision": [
+        "buildings",
+        "walls",
+        "cars",
+        "trees",
+        "props",
+        "cover"
+      ],
+      "stair_floor_openings": true,
+      "multi_side_building_entrances": true
+    }
+  },
+  "retention_and_progression": {
+    "daily_free_rewards": true,
+    "daily_reward_days": 365,
+    "free_track": true,
+    "pay_to_win": false,
+    "battle_pass_levels": 150
+  },
+  "commerce": {
+    "stripe": {
+      "authorized": false,
+      "account": "existing_bridgepoint_stripe_account",
+      "namespace": "horizon",
+      "protect_b2b_catalog": true,
+      "fixed_owner_spend_permission": false,
+      "checkout_enabled": false,
+      "connection_requires_explicit_owner_approval": true,
+      "tax_when_connected": true
+    },
+    "battle_pass": {
+      "price_usd": 9.99,
+      "currency": "usd",
+      "billing": "one_time_per_pass",
+      "levels": 30,
+      "free_track_always_available": true,
+      "pay_to_win": false,
+      "rotation": "MONTHLY",
+      "checkout_enabled": false
+    },
+    "store": {
+      "categories": [
+        "characters",
+        "character_skins",
+        "weapon_wraps",
+        "balance_safe_weapon_variants",
+        "emotes",
+        "sprays",
+        "dances",
+        "finishers",
+        "profile_cosmetics",
+        "bundles"
+      ],
+      "pricing_guidance_usd": {
+        "sprays_and_small_cosmetics": "0.99-2.99",
+        "emotes_and_dances": "1.99-4.99",
+        "weapon_wraps": "1.99-4.99",
+        "character_skins": "4.99-9.99",
+        "bundles": "6.99-14.99"
+      },
+      "weapon_rule": "paid weapon variants must be cosmetic or balance-safe sidegrades; meaningful combat power must remain obtainable through free gameplay",
+      "daily_free_items": true,
+      "rotation": "WEEKLY",
+      "permanent_year_one_life_products": [
+        {
+          "sku": "yearone_life_1",
+          "price_usd": 20,
+          "restore_lives": 1,
+          "checkout_enabled": false
+        },
+        {
+          "sku": "yearone_lives_3",
+          "price_usd": 50,
+          "restore_lives": 3,
+          "checkout_enabled": false
+        }
+      ]
+    }
+  },
+  "five_worker_runtime": {
+    "repurposed_from_bridgepoint_b2b_workers": true,
+    "lanes": [
+      "Horizon World & Interiors",
+      "Horizon Year-One Director",
+      "Horizon Gameplay & Combat",
+      "Horizon Content & Economy",
+      "Horizon QA & Release Governor"
+    ],
+    "cadence": "hourly_staggered",
+    "rules": [
+      "each run must make measurable progress when tools permit or record the exact blocker",
+      "never spend owner money",
+      "never provision billable DigitalOcean or GPU resources",
+      "never ship ripped or unclear-license assets",
+      "Year One starts automatically at the owner-scheduled 2026-10-01 00:00 America/New_York timestamp; never start it early",
+      "never weaken release gates to force publication",
+      "keep Horizon commerce and entitlements namespace-separated from B2B"
+    ]
+  },
+  "combat_progression": {
+    "weapon_catalog": "horizon_weapon_catalog_v4340",
+    "rarities": [
+      "COMMON",
+      "UNCOMMON",
+      "RARE",
+      "EPIC",
+      "LEGENDARY",
+      "MYTHIC"
+    ],
+    "weapon_classes": [
+      "ASSAULT_RIFLE",
+      "SMG",
+      "SHOTGUN",
+      "PISTOL",
+      "REVOLVER",
+      "MARKSMAN",
+      "SNIPER",
+      "LMG",
+      "LAUNCHER",
+      "GRENADE",
+      "MELEE_BAT",
+      "MELEE_KNIFE",
+      "MELEE_STICK",
+      "MELEE_AXE"
+    ],
+    "visible_specs": true,
+    "gun_recoil_animation": true,
+    "melee_swing_animation": true,
+    "animated_explosions": true,
+    "max_level": 100,
+    "max_prestige": 15,
+    "prestige_character_choices": 3
+  },
+  "account_and_identity": {
+    "free_authenticated_account_required": true,
+    "unique_case_insensitive_handle": true,
+    "banners": true,
+    "profile_3d_icons": true,
+    "character_creator": {
+      "presentations": [
+        "MALE",
+        "FEMALE",
+        "UNSPECIFIED"
+      ],
+      "style": "ORIGINAL_HIGH_DETAIL_STYLIZED",
+      "presets": true,
+      "customization": [
+        "face",
+        "hair",
+        "eyes",
+        "eye color",
+        "skin tone",
+        "hair color",
+        "tops",
+        "bottoms",
+        "shoes",
+        "backpacks",
+        "headwear",
+        "sunglasses",
+        "accessories"
+      ]
+    }
+  },
+  "owner_access": {
+    "platform_owner_accounts": 2,
+    "normal_gameplay_rules": true,
+    "admin_visibility": true,
+    "auto_grant_store_and_battle_pass_entitlements": true,
+    "grant_requires_linked_horizon_player_account": true
+  }
+}

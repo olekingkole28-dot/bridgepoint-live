@@ -1,0 +1,5 @@
+const EMPTY={type:'FeatureCollection',features:[]};
+const key=f=>String(f?.properties?.building_id??f?.id??JSON.stringify(f?.geometry?.coordinates?.[0]?.[0]||''));
+function dedupe(features,max){const seen=new Set(),out=[];for(const f of features||[]){const k=key(f);if(!k||seen.has(k))continue;seen.add(k);out.push(f);if(out.length>=max)break}return out}
+function roofs(features){return(features||[]).map(f=>{const p=f.properties||{},base=Math.max(2,Number(p.render_height_m||p.height_m||8.5)),rh=Math.max(.18,Number(p.roof_height_m||.28));return{type:'Feature',id:f.id,geometry:f.geometry,properties:{...p,roof_base_m:base,roof_top_m:base+rh,roof_truth:p.roof_height_m!=null||p.roof_shape||p.roof_material?'SOURCE_ATTRIBUTE':'VISUAL_CAP'}}})}
+self.onmessage=e=>{const m=e.data||{};if(m.type!=='prepare')return;const max=Math.max(100,Math.min(5000,Number(m.max||1800))),fs=dedupe(m.features,max);self.postMessage({type:'prepared',requestId:m.requestId,buildings:{type:'FeatureCollection',features:fs},roofs:{type:'FeatureCollection',features:roofs(fs)},count:fs.length})};

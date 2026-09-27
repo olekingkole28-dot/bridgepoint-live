@@ -1,0 +1,23 @@
+{
+  "audit_version": 942,
+  "managed_supabase_project": "xdfsjztwgsbmabshzsjw",
+  "managed_supabase_url": "https://xdfsjztwgsbmabshzsjw.supabase.co",
+  "counts": {
+    "physical_tables": 1590,
+    "schema_control_objects": 17450,
+    "migrations": 2485,
+    "edge_functions": 385,
+    "storage_buckets": 9,
+    "storage_objects": 1510,
+    "storage_bytes": 40043289038,
+    "auth_users": 7,
+    "auth_identities": 7
+  },
+  "data_priority": {
+    "state_v939_bytes": 381018824704,
+    "p10_nonstaging_bytes": 388060962816,
+    "p20_staging_bytes": 51324125184,
+    "p30_raw_geographic_staging_bytes": 248954494976
+  },
+  "note": "Indexes are not copied as bytes; their definitions are preserved and rebuilt locally. Plaintext hosted secrets/session tokens are not placed in OneDrive."
+}

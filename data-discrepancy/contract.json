@@ -1,0 +1,21 @@
+{
+  "name": "BridgePoint Data Discrepancy Ledger",
+  "version": "5208",
+  "scope": "BridgePoint internal data-quality transparency",
+  "endpoint": {
+    "method": "POST",
+    "url": "https://xdfsjztwgsbmabshzsjw.supabase.co/rest/v1/rpc/bridgepoint_public_data_discrepancy_ledger_v5208",
+    "body": {
+      "p_state_code": null
+    }
+  },
+  "exports": {
+    "json": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-discrepancy-export-v5208?format=json",
+    "csv": "https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-discrepancy-export-v5208?format=csv"
+  },
+  "interpretation": [
+    "Spatial-anchor percentages are sampled diagnostics, not full-jurisdiction missing-property rates.",
+    "Address parity counters describe BridgePoint repair and normalization work.",
+    "No external-vendor quality claim, market valuation claim or security-price conclusion is produced."
+  ]
+}

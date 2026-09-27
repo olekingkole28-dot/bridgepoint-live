@@ -1,0 +1,5 @@
+Contact: mailto:bridgepointintelligence@gmail.com
+Canonical: https://bridgepointintelligence.online/.well-known/security.txt
+Policy: https://bridgepointintelligence.online/privacy/
+Preferred-Languages: en
+Expires: 2027-09-21T23:59:59Z

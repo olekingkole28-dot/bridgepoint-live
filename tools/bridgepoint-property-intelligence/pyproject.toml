@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bridgepoint-property-intelligence"
+version = "0.1.0"
+description = "Open screening utilities for property weather and relative peril context from BridgePoint Intelligence."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "BridgePoint Intelligence"}]
+keywords = ["property", "weather", "insurance", "roofing", "hail", "wind", "geospatial"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Homepage = "https://bridgepointintelligence.online"
+Documentation = "https://bridgepointintelligence.online/enterprise/"
+Research = "https://bridgepointintelligence.online/research/national-estimate-variance/"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bridgepoint_property_intelligence"]
