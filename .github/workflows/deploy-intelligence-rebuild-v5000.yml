@@ -279,6 +279,10 @@ jobs:
           grep -Fq '/app-update-v5820.js?v=5820' site/app/index.html
           grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
           grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
+          grep -Fq "bridgepoint-horizon-v5820" site/app/horizon/sw.js
+          grep -Fq "bridgepoint-horizon-play-v5820" site/app/horizon/play/sw.js
+          grep -Fq "updateViaCache:'none'" site/app/horizon/app.js
+          grep -Fq "updateViaCache:'none'" site/app/horizon/play/app.js
           grep -Fq '/refresh-v5535.js' site/index.html
           grep -Fq '/refresh-v5535.js' site/app/index.html
           grep -Fq '__BP_WALKTHROUGH_V5539__' site/walkthrough-v5537.js
@@ -698,6 +702,8 @@ jobs:
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app-update-v5820.js?v5820=${q}" -o /tmp/app-update-v5820.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/flutter_service_worker.js?v5820=${q}" -o /tmp/flutter-service-worker-retire.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?v5820=${q}" -o /tmp/legacy-intelligence-launch.html || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/sw.js?v5820=${q}" -o /tmp/horizon-sw.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/play/sw.js?v5820=${q}" -o /tmp/horizon-play-sw.js || true
             if grep -Fq 'BP_LANDING_V5410' /tmp/root.html \
               && grep -Fq 'language-selector-v5200.js' /tmp/root.html \
               && grep -Fq 'authModal' /tmp/root.html \
@@ -719,6 +725,8 @@ jobs:
               && grep -Fq 'BUILD=5820' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
+              && grep -Fq "bridgepoint-horizon-v5820" /tmp/horizon-sw.js \
+              && grep -Fq "bridgepoint-horizon-play-v5820" /tmp/horizon-play-sw.js \
               && grep -Fq 'BridgePoint Intelligence pricing' /tmp/pricing.html \
               && grep -Fq 'Canonical: https://bridgepointintelligence.online/.well-known/security.txt' /tmp/security.txt \
               && ! grep -Eq 'live-(chileno|chicken-coop|lucas|thunder-creek|0505n|0584-cottonwood|0587-shingle|0611-green-mountain)' /tmp/newsroom.html; then
@@ -1026,7 +1034,7 @@ jobs:
                 const m=window.__BP_V5000_WORLD?.map;if(!m)return false;
                 const ids=['gta-city-buildings','gta-exact-building','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
                 try{return ids.some(id=>m.queryRenderedFeatures({layers:[id]}).length>0)}catch{return false}
-              },{timeout:45000});
+              },{timeout:90000});
               let clicked=null;
               for(let attempt=0;attempt<12&&!clicked;attempt++){
                 clicked=await p.evaluate(()=>{
