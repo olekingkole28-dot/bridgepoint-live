@@ -74,7 +74,8 @@ try{
       page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text().slice(0,500));});
       page.on('requestfailed',r=>requestFailures.push((r.method()+' '+r.url()+' :: '+(r.failure()?.errorText||'FAILED')).slice(0,700)));
       try{
-        const response=await page.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
+        const runUrl=new URL(url);runUrl.searchParams.set('qa','bp-headless-v5824');
+        const response=await page.goto(runUrl.toString(),{waitUntil:'domcontentloaded',timeout:45000});
         await page.waitForSelector('body',{state:'attached',timeout:10000});
         const body=(await page.locator('body').innerText({timeout:10000})).slice(0,250000),title=await page.title(),status=response?.status()??0,textOk=/bridgepoint/i.test(body)||/bridgepoint/i.test(title);
         let contracts=null;
