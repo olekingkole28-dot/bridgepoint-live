@@ -1009,7 +1009,7 @@ async function start(){
  statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);
  tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?600000:300000);
  setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?300000:120000);
- if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5826',{updateViaCache:'none'}).catch(()=>{})
+ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5827',{updateViaCache:'none'}).catch(()=>{})
 }
 window.addEventListener('bridgepoint:softrefresh',()=>{
  try{queueAfterMap('status-pulse',loadStatus)}catch(_){}
