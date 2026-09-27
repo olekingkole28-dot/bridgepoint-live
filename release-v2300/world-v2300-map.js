@@ -21,7 +21,7 @@ const NASA='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/BlueMarble_NextGe
 const USGS='https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}';
 const OAM='https://global.imagery.hotosm.org/{z}/{x}/{y}.png';
 const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
-const BUILDINGS=`${EDGE}bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000`;const CITY_STRUCTURES=`${EDGE}bridgepoint-public-city-structures-v5375?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5380`;const CITY_ROOFS=`${EDGE}bridgepoint-public-city-roofs-v5376?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5380`;
+const BUILDINGS=`${EDGE}bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=${MOBILE?3500:7000}`;const CITY_STRUCTURES=`${EDGE}bridgepoint-public-city-structures-v5375?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5380`;const CITY_ROOFS=`${EDGE}bridgepoint-public-city-roofs-v5376?z={z}&x={x}&y={y}&limit=${MOBILE?500:650}&v=5380`;
 const MAX_EXACT=MOBILE?320:(TIER==='LOW'?450:TIER==='HIGH'?900:650);
 const DETAIL_MIN=MOBILE?16.8:(TIER==='LOW'?16.7:TIER==='HIGH'?16.1:16.35);
 const FACADE_DETAIL_MIN=MOBILE?(TIER==='LOW'?17.15:16.55):(TIER==='LOW'?16.65:TIER==='HIGH'?15.65:16.1);
@@ -860,7 +860,7 @@ export function initWorld(options={}){
    return
   }
   const z=map.getZoom(),bpSourceReady=PUBLIC_TECH_FAST&&bridgePointBuildingCoverageReady(),wantCity=PUBLIC_TECH_FAST?false:(bridgePointDomesticCenter()&&z>=11),cityReady=PUBLIC_TECH_FAST?false:(wantCity&&cityStructuresReady()),exactReady=PUBLIC_TECH_FAST?false:(exactCount>0&&z>=DETAIL_MIN),detailSettled=!moving&&performance.now()>=buildingShellQuietUntil;
-  const floors=detailSettled&&z>=GLOBAL_FLOOR_MIN,roofFallback=detailSettled&&z>=11.2;
+  const floors=detailSettled&&z>=GLOBAL_FLOOR_MIN,roofFallback=detailSettled&&z>=GLOBAL_ROOF_MIN;
   vis(map,'gta-bp-buildings',PUBLIC_TECH_FAST&&z>=11.4);
   let bpRendered=false;
   if(PUBLIC_TECH_FAST&&z>=11.4){
@@ -1009,11 +1009,17 @@ export function initWorld(options={}){
     if(map.isMoving?.()){map.__bpMotionHardRelease=setTimeout(recover,MOBILE?260:120);return}
     const stale=moving;
     moving=false;
-    buildingShellQuietUntil=0;
-    syncBuildingShells();
-    armFineDetailSettle(0);
-    if(stale){scheduleExact(MOBILE?900:90)}
-    window.__BP_CAMERA_STALE_MOTION_RECOVERY__={recovered:true,zoom:map.getZoom(),closeTextured:!!window.__BP_BUILDING_SHELL_MODE__?.closeTexturedShell,updatedAt:Date.now()}
+    if(MOBILE){
+     buildingShellQuietUntil=performance.now()+650;
+     schedulePostMoveSettle();
+     if(stale)scheduleExact(1800)
+    }else{
+     buildingShellQuietUntil=0;
+     syncBuildingShells();
+     armFineDetailSettle(0);
+     if(stale)scheduleExact(90)
+    }
+    window.__BP_CAMERA_STALE_MOTION_RECOVERY__={recovered:true,coalescedMobile:MOBILE,zoom:map.getZoom(),closeTextured:!!window.__BP_BUILDING_SHELL_MODE__?.closeTexturedShell,updatedAt:Date.now()}
    };
    map.__bpMotionHardRelease=setTimeout(recover,MOBILE?1100:500);
    return
@@ -1027,15 +1033,17 @@ export function initWorld(options={}){
   postMoveSettleTimer=setTimeout(()=>{
    if(worldMapSurfaceInactive()){window.__BP_WORLD_OFFMAP_PAUSE_V5617__={version:5617,deferred:'postmove-heavy',updatedAt:Date.now()};postMoveSettleTimer=setTimeout(schedulePostMoveSettle,MOBILE?1200:500);return}
    if(moving||map.isMoving?.()){schedulePostMoveSettle();return}
-   terrain();syncParcelShells();syncBuildingShells();
-   if(map.getZoom()>=12.6)scheduleLivingWorld(MOBILE?900:120);
-   // V5615: base building visibility is interaction-critical, not enrichment.
-   // Keep shells/city fallback visible immediately; exact/detail/landmark/bridge rebuilds remain pressure-gated.
+   terrain();syncParcelShells();
+   // Interaction wins. Do not immediately run several expensive style/source rebuilds
+   // after a mobile gesture; wait for the existing pressure window to clear, then
+   // commit one building-shell pass and stagger optional detail.
+   if(worldClientPressureBlocked()){window.__BP_WORLD_CLIENT_PRESSURE_V5595__={version:5595,deferred:'postmove-heavy',terrainPreserved:true,parcelsPreserved:true,baseBuildingsPreserved:true,until:Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0),updatedAt:Date.now()};postMoveSettleTimer=setTimeout(schedulePostMoveSettle,MOBILE?900:240);return}
+   syncBuildingShells();
+   if(map.getZoom()>=12.6)scheduleLivingWorld(MOBILE?2200:120);
    window.__BP_BASE_BUILDING_VISIBILITY_V5615__={version:5615,visible:true,pressureGated:false,updatedAt:Date.now()};
-   if(worldClientPressureBlocked()){window.__BP_WORLD_CLIENT_PRESSURE_V5595__={version:5595,deferred:'postmove-heavy',terrainPreserved:true,parcelsPreserved:true,baseBuildingsPreserved:true,until:Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0),updatedAt:Date.now()};postMoveSettleTimer=setTimeout(schedulePostMoveSettle,MOBILE?700:240);return}
-   armFineDetailSettle(0);scheduleExact(MOBILE?720:120);
-   rebuildLandmark3D(MOBILE?950:260);rebuildBridge3D(MOBILE?760:200);
-   window.__BP_WORLD_POSTMOVE_V5580__={version:5580,coalesced:true,idleOnly:true,updatedAt:Date.now()}
+   armFineDetailSettle(MOBILE?1100:180);scheduleExact(MOBILE?1700:120);
+   rebuildLandmark3D(MOBILE?2600:260);rebuildBridge3D(MOBILE?2200:200);
+   window.__BP_WORLD_POSTMOVE_V5580__={version:5580,coalesced:true,idleOnly:true,mobileStaggered:true,updatedAt:Date.now()}
   },MOBILE?420:110)
  }
  function disableFineDetail(){
