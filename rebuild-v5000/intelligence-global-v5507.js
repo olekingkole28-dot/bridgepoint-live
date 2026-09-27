@@ -19,10 +19,10 @@ async function installGlobalWeather(){
  try{
   if(dateChanged){if(C.map.getLayer(layer))C.map.removeLayer(layer);if(C.map.getSource(id))C.map.removeSource(id)}
   if(!C.map.getSource(id))C.map.addSource(id,{type:'raster',tiles:[imergTile(resolved.date)],tileSize:256,minzoom:0,maxzoom:6,attribution:'NASA GPM IMERG via Earthdata GIBS'});
-  if(!C.map.getLayer(layer))C.map.addLayer({id:layer,type:'raster',source:id,minzoom:0,maxzoom:12,paint:{'raster-opacity':.48,'raster-fade-duration':180}},weatherBefore());
+  if(!C.map.getLayer(layer))C.map.addLayer({id:layer,type:'raster',source:id,minzoom:0,maxzoom:24,paint:{'raster-opacity':['interpolate',['linear'],['zoom'],0,.48,8,.46,14,.35,20,.22,24,.15],'raster-fade-duration':0,'raster-resampling':'linear'}},weatherBefore());try{const b=weatherBefore();if(b&&C.map.getLayer(layer))C.map.moveLayer(layer,b)}catch(_){};
   C.imergDate=resolved.date;
  }catch(e){console.warn('BP global precipitation attach',e)}
- window.__BP_GLOBAL_WEATHER_V5510__={version:5510,projection:'globe',imerg:true,imergDate:C.imergDate,truth:'NASA_GPM_IMERG_NEAR_REALTIME_NOT_ZERO_LATENCY',updatedAt:Date.now()};
+ window.__BP_GLOBAL_WEATHER_V5822__={version:5822,projection:'globe',imerg:true,imergDate:C.imergDate,truth:'NASA_GPM_IMERG_NEAR_REALTIME_NOT_ZERO_LATENCY',groundDrape:true,below3D:true,visibleThroughZoom:24,updatedAt:Date.now()};
  return window.__BP_GLOBAL_WEATHER_V5510__
 }
 function source(id,data){let s=C.map.getSource(id);if(!s){C.map.addSource(id,{type:'geojson',data});s=C.map.getSource(id)}else s.setData&&s.setData(data);return s}
@@ -167,7 +167,7 @@ async function boot(){
   try{C.map.on('styledata',()=>{clearTimeout(C.styleTimer);C.styleTimer=setTimeout(()=>{if(C.map.isMoving?.())return;visuals()},C.mobile?900:300)})}catch(_){}
   try{const cv=C.map.getCanvas?.();for(const ev of ['pointerdown','touchstart','wheel'])cv?.addEventListener(ev,()=>{window.__BP_MAP_USER_INTENT_AT__=Date.now()},{once:true,passive:true,capture:true})}catch(_){}
   void centerOnViewerCountry().catch(e=>console.warn('BridgePoint viewer country start',e));
-  scheduleGlobalBackground(C.surface==='app'?(C.mobile?120000:2500):(C.mobile?15000:1000));
+  scheduleGlobalBackground(C.surface==='app'?(C.mobile?3500:1200):(C.mobile?2800:900));
   setInterval(()=>{if(document.hidden)return;scheduleGlobalBackground(C.mobile?700:220)},120000)
  }catch(e){
   window.__BP_GLOBAL_RUNTIME_BOOT_V5516__={ready:false,error:String(e?.message||e),at:Date.now()};
