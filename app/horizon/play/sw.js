@@ -1,4 +1,4 @@
-const CACHE='bridgepoint-horizon-play-v4302';
+const CACHE='bridgepoint-horizon-play-v5820';
 const SHELL=[
   './',
   './index.html',
@@ -61,3 +61,4 @@ self.addEventListener('fetch',event=>{
     })
   );
 });
+self.addEventListener('message',event=>{if(event.data==='skipWaiting'||event.data?.type==='SKIP_WAITING')self.skipWaiting()});
