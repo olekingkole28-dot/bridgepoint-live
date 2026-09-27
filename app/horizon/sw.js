@@ -1,4 +1,4 @@
-const CACHE='bridgepoint-horizon-v4341';
+const CACHE='bridgepoint-horizon-v5820';
 const SHELL=[
   './','./index.html','./styles.css','./app.js','./runtime-contract.js','./lobby-scene.js','./model-preview.js',
   './manifest.webmanifest','./horizon-mark.svg'
@@ -30,3 +30,4 @@ self.addEventListener('fetch',event=>{
     return cached||net;
   }));
 });
+self.addEventListener('message',event=>{if(event.data==='skipWaiting'||event.data?.type==='SKIP_WAITING')self.skipWaiting()});
