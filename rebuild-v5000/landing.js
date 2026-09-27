@@ -476,5 +476,5 @@ function bind(){document.querySelectorAll('.auth-open').forEach(b=>b.onclick=()=
  try{window.__BP_LANDING_WORLD__?.map?.triggerRepaint?.()}catch(_){}
  window.__BP_LANDING_SOFT_REFRESH__={hardReload:false,lastAt:Date.now()}
 });
-if(!hashSession()){bind();bindWorldBackdrop();bindConversionPreview();hydrateLiveMetricSnapshot();initMap();stats();setInterval(stats,15000);globalCoverage();setInterval(globalCoverage,15000);opportunitySummary();setInterval(opportunitySummary,120000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5820',{updateViaCache:'none'}).catch(()=>{})}
+if(!hashSession()){bind();bindWorldBackdrop();bindConversionPreview();hydrateLiveMetricSnapshot();initMap();stats();setInterval(stats,15000);globalCoverage();setInterval(globalCoverage,15000);opportunitySummary();setInterval(opportunitySummary,120000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5822',{updateViaCache:'none'}).catch(()=>{})}
 // BP_V5441_DEPLOY_SYNC: compact national hazard dots; radar and boundaries unchanged.
