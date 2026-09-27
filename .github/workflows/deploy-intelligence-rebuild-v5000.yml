@@ -275,8 +275,8 @@ jobs:
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
           grep -Fq 'bp-intelligence-v5826' site/sw.js
           node --check site/app-update-v5820.js
-          grep -Fq '/app-update-v5820.js?v=5825' site/index.html
-          grep -Fq '/app-update-v5820.js?v=5825' site/app/index.html
+          grep -Fq '/app-update-v5820.js?v=5826' site/index.html
+          grep -Fq '/app-update-v5820.js?v=5826' site/app/index.html
           grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
           grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
           grep -Fq "bridgepoint-horizon-v5820" site/app/horizon/sw.js
