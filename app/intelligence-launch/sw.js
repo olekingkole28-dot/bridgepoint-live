@@ -1,17 +1,5 @@
-const CACHE='bridgepoint-intelligence-launch-v3';
-const SHELL=['./','./index.html','./manifest.webmanifest','./bridgepoint-mark.svg'];
-self.addEventListener('install',event=>{
-  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
-});
-self.addEventListener('activate',event=>{
-  event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
-});
-self.addEventListener('fetch',event=>{
-  const u=new URL(event.request.url);
-  if(event.request.method!=='GET'||u.hostname.endsWith('supabase.co')) return;
-  event.respondWith(fetch(event.request).then(r=>{
-    const copy=r.clone();
-    caches.open(CACHE).then(c=>c.put(event.request,copy)).catch(()=>{});
-    return r;
-  }).catch(()=>caches.match(event.request).then(r=>r||caches.match('./index.html'))));
-});
+const V='bridgepoint-intelligence-launch-retired-v5820';
+self.addEventListener('install',()=>self.skipWaiting());
+self.addEventListener('activate',e=>e.waitUntil((async()=>{for(const k of await caches.keys())if(k.startsWith('bridgepoint-intelligence-launch-')||k.startsWith('bridgepoint-universe-'))await caches.delete(k);await self.clients.claim();const cs=await self.clients.matchAll({type:'window',includeUncontrolled:true});for(const c of cs){try{await c.navigate('/app/?migrated=legacy-intelligence-v5820')}catch{}}})()));
+self.addEventListener('message',e=>{if(e.data==='skipWaiting'||e.data?.type==='SKIP_WAITING')self.skipWaiting()});
+self.addEventListener('fetch',e=>{if(e.request.method==='GET')e.respondWith(fetch(e.request,{cache:'no-store'}))});
