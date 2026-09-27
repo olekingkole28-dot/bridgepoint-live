@@ -36,7 +36,7 @@ function countryName(code){
 }
 function updateCounters(d){
  const total=document.getElementById('landingGlobalProperties');
- if(total)total.textContent=fmt(d?.active_global_canonical);
+ if(total&&Number.isFinite(Number(window.__BP_HEADLINE_V5822__?.world_canonical_total)))total.textContent=fmt(window.__BP_HEADLINE_V5822__.world_canonical_total);
  const sub=document.getElementById('landingGlobalCountryMix');
  const footholdCount=x=>Number(x?.official_foothold_features||x?.foothold_features||0);
  const seededParcels=x=>Number(x?.seed_records||x?.seeded_backlog_count||x?.seeded_parcels||0);
