@@ -730,7 +730,7 @@ jobs:
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
               && grep -Fq "const V='bp-intelligence-v5825'" /tmp/sw.js \
-              && grep -Fq 'BUILD=5823' /tmp/app-update-v5820.js \
+              && grep -Fq 'BUILD=5825' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
               && grep -Fq "bridgepoint-horizon-v5820" /tmp/horizon-sw.js \
