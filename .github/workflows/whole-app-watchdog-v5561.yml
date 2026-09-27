@@ -69,7 +69,7 @@ jobs:
               t=Date.now();
               r=await p.goto(O+'/app/?wholeApp5561='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               if(!r||r.status()>=400)throw new Error('APP_HTTP_'+r?.status());
-              await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5625&&!!window.__BP_V5000_WORLD?.map,{timeout:45000});
+              await p.waitForFunction(()=>Number(window.__BP_WORLD_RENDER_VERSION__||0)>=5628&&!!window.__BP_V5000_WORLD?.map,{timeout:45000});
               await p.waitForFunction(()=>!!window.__BP_WALKTHROUGH_V5539__,{timeout:15000}).catch(()=>{});
               await p.evaluate(()=>{try{window.__BP_WALKTHROUGH_V5539__?.skip?.()}catch(_){}}).catch(()=>{});
               await p.waitForFunction(()=>window.__BP_WALKTHROUGH_V5539__?.active!==true,{timeout:15000}).catch(()=>{});
@@ -84,8 +84,12 @@ jobs:
                 nav:document.querySelectorAll('#bottomNav [data-nav]').length,
                 appErrors:(window.__BP_V5000_WORLD?.state?.runtimeErrors||[]).slice(-5)
               }));
-              if(shell.world!==5625||!shell.appResponsive?.idleBackgroundWork||!shell.dragPan||!shell.touchZoom||shell.nav<3)throw new Error('APP_SHELL_CONTRACT '+JSON.stringify(shell));
+              if(Number(shell.world||0)<5628||!shell.appResponsive?.idleBackgroundWork||!shell.dragPan||!shell.touchZoom||shell.nav<3)throw new Error('APP_SHELL_CONTRACT '+JSON.stringify(shell));
               await p.waitForFunction(()=>!!window.__BP_MAP_STABILITY_V5580__?.serialBackgroundDrain&&!!document.getElementById('bp5507-key')&&!!document.querySelector('.map-brand-card'),{timeout:30000});
+              await p.waitForFunction(()=>window.__BP_LIVE_WEATHER_STATE_V5806__?.fresh===true&&window.__BP_GLOBAL_WEATHER_V5822__?.imerg===true,{timeout:30000});
+              const weather=await p.evaluate(()=>{const m=window.__BP_V5000_WORLD?.map;return{live:window.__BP_LIVE_WEATHER_STATE_V5806__||null,global:window.__BP_GLOBAL_WEATHER_V5822__||null,drape:window.__BP_RADAR_GROUND_DRAPE_V5822__||null,layers:{radarA:!!m?.getLayer('bp-radar-a'),radarB:!!m?.getLayer('bp-radar-b'),points:!!m?.getLayer('bp-v5004-weather-points'),lines:!!m?.getLayer('bp-v5004-weather-shape-line'),imerg:!!m?.getLayer('bp5510-global-imerg')}}});
+              if(!weather.live?.fresh||!weather.global?.imerg||!weather.drape?.below3d||Object.values(weather.layers).some(v=>v!==true))throw new Error('WEATHER_GLOBAL_RADAR_REGRESSION '+JSON.stringify(weather));
+              console.log('WHOLE_APP_WEATHER_GLOBAL_PASS',JSON.stringify(weather));
               const stability=await p.evaluate(()=>({app:window.__BP_MAP_STABILITY_V5580__||null,key:(()=>{const e=document.getElementById('bp5507-key');return !!e&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden'&&Number(getComputedStyle(e).opacity||1)>.8})(),brand:(()=>{const e=document.querySelector('.map-brand-card');return !!e&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden'&&Number(getComputedStyle(e).opacity||1)>.8})()}));
               if(!stability.app?.serialBackgroundDrain||!stability.app?.noResizeOnMoveEnd||!stability.key||!stability.brand)throw new Error('APP_STABILITY_V5580 '+JSON.stringify(stability));
               await p.waitForFunction(()=>!!window.__BP_VIEWER_COUNTRY_START__,{timeout:15000});
