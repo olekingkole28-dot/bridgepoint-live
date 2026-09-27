@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05090d">
-<meta name="description" content="BridgePoint Intelligence — live national property, parcel, building and spatial intelligence.">
+<meta name="description" content="BridgePoint Intelligence — live global property, parcel, building, weather and spatial intelligence.">
 <title>BridgePoint Intelligence</title>
 <link rel="icon" href="../bridgepoint-mark.svg" type="image/svg+xml">
 <link rel="manifest" href="../manifest.webmanifest">
@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="../styles.css?v=5590">
 <link rel="stylesheet" href="../owner-everything.css?v=5626">
 <script id="BP_FRONTEND_V5000">window.__BP_FRONTEND_VERSION=5000;window.__BP_FRONTEND_BUILD=5209;</script>
-<script defer src="/app-update-v5820.js?v=5833"></script><link rel="stylesheet" href="/language-selector-v5200.css?v=1091"><link rel="stylesheet" href="/intelligence-v5507.css?v=5580"><link rel="stylesheet" href="/scenario-lab-v5525.css?v=5525"><link rel="stylesheet" href="/road-drive-v5527.css?v=5530"><link rel="stylesheet" href="/walkthrough-v5537.css?v=5539"><script defer src="/walkthrough-v5537.js?v=5564"></script><link rel="preload" as="image" href="/assets/molly-materson-bridgepoint.webp" fetchpriority="high"><link rel="preload" href="/vendor/maplibre-gl.js" as="script"><link rel="modulepreload" href="/world-v2300-map.js?v=5630-rendered-handoff"><link rel="modulepreload" href="/world-v2300-weather.js?v=5822"><link rel="modulepreload" href="/intelligence-global-v5507.js?v=5827-camera-authority"></head>
+<script defer src="/app-update-v5820.js?v=5847"></script><link rel="stylesheet" href="/language-selector-v5200.css?v=1091"><link rel="stylesheet" href="/intelligence-v5507.css?v=5580"><link rel="stylesheet" href="/scenario-lab-v5525.css?v=5525"><link rel="stylesheet" href="/road-drive-v5527.css?v=5530"><link rel="stylesheet" href="/walkthrough-v5537.css?v=5539"><script defer src="/walkthrough-v5537.js?v=5564"></script><link rel="preload" as="image" href="/assets/molly-materson-bridgepoint.webp" fetchpriority="high"><link rel="preload" href="/vendor/maplibre-gl.js" as="script"><link rel="modulepreload" href="/world-v2300-map.js?v=5630-audit-v5847"><link rel="modulepreload" href="/world-v2300-weather.js?v=5822"><link rel="modulepreload" href="/intelligence-global-v5507.js?v=5827-camera-authority"></head>
 <body>
 <div class="app-shell">
   <header class="topbar">
@@ -33,9 +33,9 @@
       <div id="liveMap"></div>
 
       <div class="map-brand-card">
-        <div class="map-kicker">LIVE NATIONAL SPATIAL INDEX</div>
+        <div class="map-kicker">LIVE GLOBAL SPATIAL INDEX</div>
         <h1>One map. The backend underneath it.</h1>
-        <p>Buildings, parcels and structural truth stream from BridgePoint as the national materialization finishes.</p>
+        <p>Buildings, parcels and structural truth stream from BridgePoint as U.S. depth and international coverage materialize.</p>
       </div>
 
       <form id="publicSearchForm" class="search-box" autocomplete="off">
@@ -69,9 +69,9 @@
           <div><span class="eyebrow">BACKEND → FRONTEND</span><h2>Live materialization</h2></div>
           <button id="closePanel" type="button" aria-label="Close">×</button>
         </div>
-        <div class="hero-number"><span>Canonical properties</span><strong id="canonicalProperties">—</strong></div>
+        <div class="hero-number"><span>U.S. canonical properties</span><strong id="canonicalProperties">—</strong></div>
         <div class="metric-grid">
-          <article><span>Address records</span><b id="uniqueAddresses">—</b></article><article><span>Stored parcel boundaries</span><b id="storedBoundaries">—</b></article><article><span>Property ↔ address links</span><b id="addressLinks">—</b></article><article><span>NAD ingested</span><b id="nadIngested">—</b></article>
+          <article><span>U.S. address records</span><b id="uniqueAddresses">—</b></article><article><span>U.S. stored parcel boundaries</span><b id="storedBoundaries">—</b></article><article><span>Property ↔ address links</span><b id="addressLinks">—</b></article><article><span>NAD ingested</span><b id="nadIngested">—</b></article>
           <article><span>Global address points</span><b id="globalAddressPoints">—</b></article><article><span>Address ↔ building links</span><b id="buildingAddressLinks">—</b></article>
           <article><span>Building archive</span><b id="archivedBuildings">—</b></article>
           <article><span>Map-ready buildings</span><b id="mapReadyBuildings">—</b></article>
