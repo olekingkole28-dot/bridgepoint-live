@@ -383,7 +383,9 @@ jobs:
           grep -Fq 'landingPropertySearch' site/index.html
           grep -Fq 'FREE_LOOKUP_KEY' site/landing.js
           grep -Fq 'landingWeatherLegend' site/landing.js
-          grep -Fq 'setRadar?.(true)' site/landing.js
+          grep -Fq 'setRadar?.(false)' site/landing.js
+          grep -Fq 'bp-landing-radar-a' site/landing.js
+          grep -Fq '__BP_LANDING_RADAR_DRAPE_V5822__' site/landing.js
           grep -Fq 'Flood watch / advisory / warning area' site/landing.js
           grep -Fq 'Flood watch / advisory / warning area' site/app.js
           grep -Fq 'bp-v5004-weather-shape-line' site/app.js
