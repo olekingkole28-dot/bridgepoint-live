@@ -273,10 +273,10 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v5822' site/sw.js
+          grep -Fq 'bp-intelligence-v5823' site/sw.js
           node --check site/app-update-v5820.js
-          grep -Fq '/app-update-v5820.js?v=5822' site/index.html
-          grep -Fq '/app-update-v5820.js?v=5822' site/app/index.html
+          grep -Fq '/app-update-v5820.js?v=5823' site/index.html
+          grep -Fq '/app-update-v5820.js?v=5823' site/app/index.html
           grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
           grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
           grep -Fq "bridgepoint-horizon-v5820" site/app/horizon/sw.js
@@ -367,6 +367,10 @@ jobs:
           grep -Fq 'stableGroundDrape:true' site/world-v2300-weather.js
           grep -Fq 'groundDrapeThroughZoom:24' site/app.js
           grep -Fq 'radarGroundDrape:true' site/landing.js
+          grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
+          grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
+          grep -Fq 'WMO_CAP_WARNING' site/app.js
+          grep -Fq 'WMO_CAP_WARNING' site/landing.js
           grep -Fq 'stableSingleFrameBuildingHit:true' site/world-v2300-map.js
           grep -Fq 'syntheticLandmarksDisabled:true' site/world-v2300-map.js
           grep -Fq "querySourceFeatures?.('ofm',{sourceLayer:'transportation'" site/world-v2300-map.js
@@ -723,8 +727,8 @@ jobs:
               && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js \
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
-              && grep -Fq "const V='bp-intelligence-v5822'" /tmp/sw.js \
-              && grep -Fq 'BUILD=5822' /tmp/app-update-v5820.js \
+              && grep -Fq "const V='bp-intelligence-v5823'" /tmp/sw.js \
+              && grep -Fq 'BUILD=5823' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
               && grep -Fq "bridgepoint-horizon-v5820" /tmp/horizon-sw.js \
