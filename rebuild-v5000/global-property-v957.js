@@ -50,10 +50,14 @@ function updateCounters(d){
   return bv-av||br-ar||String(a.country_code||'').localeCompare(String(b.country_code||''));
  });
  if(sub){
-  const head=countries.slice(0,3).map(x=>(x.country_name||countryName(x.country_code))+' '+fmt(displayCount(x))+(x.display_count_kind==='SEEDED_BACKLOG'?' seeded':''));
-  if(countries.length>3)head.push('+'+(countries.length-3)+' more');
-  if(Number(d?.materialized_global_boundaries)>=0)head.push(fmt(d.materialized_global_boundaries)+' boundaries');
-  sub.textContent=head.join(' · ');
+  const truth=window.__BP_HEADLINE_V5822__||{},worldCountries=Number(truth.world_country_count),worldBoundaries=Number(truth.world_stored_boundaries);
+  if(Number.isFinite(worldCountries)&&Number.isFinite(worldBoundaries))sub.textContent=fmt(worldCountries)+' countries · '+fmt(worldBoundaries)+' boundaries';
+  else{
+   const head=countries.slice(0,3).map(x=>(x.country_name||countryName(x.country_code))+' '+fmt(displayCount(x))+(x.display_count_kind==='SEEDED_BACKLOG'?' seeded':''));
+   if(countries.length>3)head.push('+'+(countries.length-3)+' more');
+   if(Number(d?.materialized_global_boundaries)>=0)head.push(fmt(d.materialized_global_boundaries)+' international boundaries');
+   sub.textContent=head.join(' · ');
+  }
  }
  const list=document.getElementById('landingGlobalCountryDropdown');
  if(list){
@@ -68,8 +72,8 @@ function updateCounters(d){
   }
   if(!countries.length){const row=document.createElement('div');row.textContent='International materialization starting…';list.appendChild(row)}
  }
- const g=document.getElementById('globalCountryTotal');
- if(g&&Number(d?.active_global_canonical)>=0)g.textContent=fmt(d.active_global_canonical);
+ const g=document.getElementById('globalCountryTotal'),worldTotal=Number(window.__BP_HEADLINE_V5822__?.world_canonical_total);
+ if(g&&Number.isFinite(worldTotal))g.textContent=fmt(worldTotal);
  window.__BP_GLOBAL_PROPERTY_STATUS_V957__={...(d||{}),updatedAt:Date.now()};
 }
 function beforeLayer(map){
