@@ -964,13 +964,12 @@ async function applyGrowthDeepLink(){
  }
  if(!world?.map)return false;
  if(!Number.isFinite(targetLat)||!Number.isFinite(targetLng)||targetLat<-90||targetLat>90||targetLng<-180||targetLng>180){
-   if(Number(window.__BP_MAP_USER_INTENT_AT__||0)>0){window.__BP_NATIONAL_START__={preservedUserCamera:true,at:Date.now()};return false}
-   try{world.map.jumpTo({center:[-98.5,39.5],zoom:BP_MOBILE?2.75:3.35,pitch:0,bearing:0});window.__BP_NATIONAL_START__={center:[-98.5,39.5],zoom:world.map.getZoom(),at:Date.now()}}catch(_){}
+   window.__BP_NATIONAL_START__={delegatedToViewerCountry:true,preservedCurrentCamera:true,userIntent:Number(window.__BP_MAP_USER_INTENT_AT__||0)>0,at:Date.now()};
    return false
  }
  const zoom=Math.min(19,Math.max(4,Number.isFinite(z)?z:17));
  if(Number(window.__BP_MAP_USER_INTENT_AT__||0)>0&&!q.has('lat')&&!q.has('lng')&&!address){window.__BP_GROWTH_DEEP_LINK__={preservedUserCamera:true,applied_at:Date.now()};return false}
- world.map.jumpTo({center:[targetLng,targetLat],zoom,pitch:58,bearing:-12});
+ window.__BP_CAMERA_START_LOCK_V5826__='deep-link';world.map.jumpTo({center:[targetLng,targetLat],zoom,pitch:58,bearing:-12});
  window.__BP_GROWTH_DEEP_LINK__={lat:targetLat,lng:targetLng,zoom,address:window.__BP_GROWTH_DEEP_LINK_ADDRESS__||null,embed:window.__BP_PUBLIC_EMBED__===true,applied_at:Date.now()};
  if(q.get('select')!=='0'&&zoom>=15){setTimeout(()=>{try{selectedFeature=null;showBuilding(targetLng,targetLat)}catch(e){console.warn('deep link building',e)}},350)}
  return true
@@ -1010,7 +1009,7 @@ async function start(){
  statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);
  tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?600000:300000);
  setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?300000:120000);
- if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5825',{updateViaCache:'none'}).catch(()=>{})
+ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5826',{updateViaCache:'none'}).catch(()=>{})
 }
 window.addEventListener('bridgepoint:softrefresh',()=>{
  try{queueAfterMap('status-pulse',loadStatus)}catch(_){}
