@@ -20,6 +20,7 @@ on:
       - 'sample/storm-opportunity/**'
       - 'app/horizon/**'
       - 'app/horizon-playable/**'
+      - 'app/intelligence-launch/**'
       - '.github/workflows/deploy-intelligence-rebuild-v5000.yml'
 
 permissions:
@@ -121,6 +122,11 @@ jobs:
           cp rebuild-v5000/manifest.webmanifest site/manifest.webmanifest
           cp rebuild-v5000/favicon.ppm site/favicon.ppm
           cp rebuild-v5000/sw.js site/sw.js
+          cp rebuild-v5000/app-update-v5820.js site/app-update-v5820.js
+          cp rebuild-v5000/flutter-service-worker-retire-v5820.js site/app/flutter_service_worker.js
+          cp rebuild-v5000/legacy-app-manifest.json site/app/manifest.json
+          rm -rf site/app/intelligence-launch
+          cp -a app/intelligence-launch site/app/intelligence-launch
           cp rebuild-v5000/intelligence-v5507.css site/intelligence-v5507.css
           cp rebuild-v5000/intelligence-global-v5507.js site/intelligence-global-v5507.js
           cp rebuild-v5000/global-property-v957.js site/global-property-v957.js
@@ -267,7 +273,12 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v' site/sw.js
+          grep -Fq 'bp-intelligence-v5820' site/sw.js
+          node --check site/app-update-v5820.js
+          grep -Fq '/app-update-v5820.js?v=5820' site/index.html
+          grep -Fq '/app-update-v5820.js?v=5820' site/app/index.html
+          grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
+          grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
           grep -Fq '/refresh-v5535.js' site/index.html
           grep -Fq '/refresh-v5535.js' site/app/index.html
           grep -Fq '__BP_WALKTHROUGH_V5539__' site/walkthrough-v5537.js
