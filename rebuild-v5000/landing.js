@@ -74,7 +74,7 @@ async function loadLandingNationalWeather(world,attempt=0){
  const m=world?.map;if(!m)return false;
  try{
   if(!m.getLayer('bp-landing-weather-line')||!m.getLayer('bp-landing-weather-points'))installLandingNationalWeather(world);
-  const d=await rpc('bridgepoint_public_weather_bootstrap_v5821',{},7000);
+  let d;try{d=await rpc('bridgepoint_public_weather_bootstrap_v5821',{},7000)}catch(globalWeatherError){console.warn('global weather bootstrap v5821',globalWeatherError);d=await rpc('bridgepoint_public_weather_bootstrap_v5512',{},6000)};
   if(d?.fresh!==true){
    if($('landingWeatherCount'))$('landingWeatherCount').textContent='REFRESHING';
    if($('landingWeatherTime'))$('landingWeatherTime').textContent='Public weather cache is refreshing · preserving the last visible layer.';
