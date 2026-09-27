@@ -277,7 +277,7 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v5827' site/sw.js
+          grep -Fq 'bp-intelligence-v5833' site/sw.js
           node --check site/app-update-v5820.js
           grep -Fq '/app-update-v5820.js?v=5827' site/index.html
           grep -Fq '/app-update-v5820.js?v=5827' site/app/index.html
