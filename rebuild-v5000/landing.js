@@ -285,7 +285,8 @@ async function globalCoverage(){
   bpStableText('landingGlobalProperties',fmt(worldCanonicalTotal));bpStableText('landingGlobalCountryMix',compactGlobalDetail);bpLiveCacheWrite({globalCanonical:worldCanonicalTotal,globalDetail:compactGlobalDetail})
   const footholdCountries=liveCountries.filter(x=>Number(x.official_foothold_features||x.foothold_features||0)>0),footholdFeatures=footholdCountries.reduce((n,x)=>n+Number(x.official_foothold_features||x.foothold_features||0),0),seededTotal=Number(summaryMeta.seeded_parcels_waiting_turn||0),seededCountries=Number(summaryMeta.countries_with_seeded_footholds||0);
   const summary=$('globalCoverageSummary');if(summary){summary.textContent='';[
-    ['Global canonical properties',fmt(worldCanonicalTotal)],\n    ['U.S. canonical properties',fmt(legacyUs.canonical_properties||summaryMeta.us_canonical_records||0)],
+    ['Global canonical properties',fmt(worldCanonicalTotal)],
+    ['U.S. canonical properties',fmt(legacyUs.canonical_properties||summaryMeta.us_canonical_records||0)],
     ['U.S. stored parcel boundaries',fmt(legacyUs.stored_parcel_boundaries_estimate||0)],
     ['Live non-U.S. canonical properties',fmt(liveCanonical)],
     ['Legal seeded parcels waiting turn',fmt(seededTotal)],
@@ -500,7 +501,8 @@ function bindConversionPreview(){
 }
 async function install(){if(installPrompt){installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;return}alert('Use your browser install or Add to Home Screen option to install BridgePoint on this device.')}function bindWorldBackdrop(){const paint=()=>{backdropFrame=0;const shift=Math.min(innerWidth<=600?84:170,scrollY*.055);document.documentElement.style.setProperty('--bp-world-shift',shift.toFixed(1)+'px')};const queue=()=>{if(!backdropFrame)backdropFrame=requestAnimationFrame(paint)};addEventListener('scroll',queue,{passive:true});addEventListener('resize',queue,{passive:true});paint()}
 function bind(){document.querySelectorAll('.auth-open').forEach(b=>b.onclick=()=>openAuth(b.dataset.mode));$('closeAuth').onclick=()=>$('authModal').hidden=true;$('authModal').onclick=e=>{if(e.target===$('authModal'))$('authModal').hidden=true};$('authSwitch').onclick=()=>setMode(mode==='signup'?'signin':'signup');$('authForm').onsubmit=submit;$('installTop').onclick=install;$('installBottom').onclick=install;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});const q=new URLSearchParams(location.search);if(q.get('auth'))openAuth(q.get('auth')==='signin'?'signin':'signup')}window.addEventListener('bridgepoint:softrefresh',()=>{
- try{headline()}catch(_){}\n try{stats()}catch(_){}
+ try{headline()}catch(_){}
+ try{stats()}catch(_){}
  try{globalCoverage()}catch(_){}
  try{opportunitySummary()}catch(_){}
  try{if(window.__BP_LANDING_WORLD__)void loadLandingNationalWeather(window.__BP_LANDING_WORLD__,0)}catch(_){}
