@@ -459,11 +459,12 @@ jobs:
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
           grep -Fq '__BP_APP_BUILD_VERSION__=5371' site/app.js
-          grep -Fq '__BP_WORLD_RENDER_VERSION__=5628' site/world-v2300-map.js
+          grep -Fq '__BP_WORLD_RENDER_VERSION__=5629' site/world-v2300-map.js
           grep -Fq '__BP_TECH_BASEMAP_V1116__' site/world-v2300-map.js
           grep -Fq '__BP_PUBLIC_TECH_FAST_V1117__' site/world-v2300-map.js
           grep -Fq '__BP_FAST_BUILDINGS_V1119__' site/world-v2300-map.js
           grep -Fq '__BP_FAST_BUILDING_HANDOFF_V1120__' site/world-v2300-map.js
+          grep -Fq '__BP_FAST_BUILDING_HIT_V5826__' site/world-v2300-map.js
           grep -Fq '__BP_REALISTIC_TREE_LOD_V1123__' site/world-v2300-map.js
           grep -Fq "bpTreeLod:{type:'geojson'" site/world-v2300-map.js
           grep -Fq "detailed3DMinZoom:14.25" site/world-v2300-map.js
@@ -722,7 +723,7 @@ jobs:
               && grep -Fq 'toggleLiveContext' /tmp/app.html \
               && grep -Fq 'data-nosnippet' /tmp/app.html \
               && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js \
-              && grep -Fq '__BP_WORLD_RENDER_VERSION__=5628' /tmp/world-v2300-map.js \
+              && grep -Fq '__BP_WORLD_RENDER_VERSION__=5629' /tmp/world-v2300-map.js \
               && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js \
               && grep -Fq '__BP_PARCEL_BOUNDARY_VIEWER_V5577__' /tmp/parcel-boundary-viewer-v5403.js \
               && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js \
@@ -967,7 +968,7 @@ jobs:
 
               await p.goto('https://bridgepointintelligence.online/app/?qa=v5584-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000&&window.__BP_APP_BUILD_VERSION__===5371,{timeout:20000});
-              await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5628&&!!window.__BP_V5000_WORLD?.map,{timeout:35000});
+              await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5629&&!!window.__BP_V5000_WORLD?.map,{timeout:35000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
               await p.waitForFunction(()=>!!window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__&&!!window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__,{timeout:30000});
               await p.waitForFunction(()=>{
@@ -1032,7 +1033,7 @@ jobs:
                 weatherFx:window.__bpWeatherV2300?.fx?.state?.capabilities||window.__bpWeatherFXV2300?.state?.capabilities||{}
                 };
               });
-              if(state.frontend!==5000||state.app!==5371||state.world!==5628||state.canvases!==1||state.architecture!=='MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY'||state.camera?.mode!=='FREE_FLY_SINGLE_VIEW'||state.camera?.singleView!==true||state.camera?.autoViewSwitching!==false||state.camera?.streetWalkMode!==false||state.camera?.buildingClickOverlook!==true||Number(state.maxPitch)<84||state.materials?.floorLines!==true||state.materials?.roofOverlays!==true||state.materials?.exactRoofs!==true||state.fine?.enabled!==false||!state.sources.city||!state.sources.cityRoofs||!state.sources.weatherShapes||!state.weatherLegend.present||!state.weatherLegend.more||state.weatherFx.rainSnowHail!==true||state.weatherFx.wildfireFlameParticles!==true||Object.values(state.layers).some(v=>v!==true))throw new Error('CURRENT_WORLD_REGRESSION '+JSON.stringify(state));
+              if(state.frontend!==5000||state.app!==5371||state.world!==5629||state.canvases!==1||state.architecture!=='MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY'||state.camera?.mode!=='FREE_FLY_SINGLE_VIEW'||state.camera?.singleView!==true||state.camera?.autoViewSwitching!==false||state.camera?.streetWalkMode!==false||state.camera?.buildingClickOverlook!==true||Number(state.maxPitch)<84||state.materials?.floorLines!==true||state.materials?.roofOverlays!==true||state.materials?.exactRoofs!==true||state.fine?.enabled!==false||!state.sources.city||!state.sources.cityRoofs||!state.sources.weatherShapes||!state.weatherLegend.present||!state.weatherLegend.more||state.weatherFx.rainSnowHail!==true||state.weatherFx.wildfireFlameParticles!==true||Object.values(state.layers).some(v=>v!==true))throw new Error('CURRENT_WORLD_REGRESSION '+JSON.stringify(state));
               console.log('BRIDGEPOINT_CURRENT_WORLD_PASS',JSON.stringify(state));
 
               await p.evaluate(()=>{
@@ -1041,14 +1042,14 @@ jobs:
               });
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;if(!m)return false;
-                const ids=['gta-city-buildings','gta-exact-building','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                const ids=['gta-bp-buildings','gta-city-buildings','gta-exact-building','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
                 try{return ids.some(id=>m.queryRenderedFeatures({layers:[id]}).length>0)}catch{return false}
               },{timeout:90000});
               let clicked=null;
               for(let attempt=0;attempt<12&&!clicked;attempt++){
                 clicked=await p.evaluate(()=>{
                   const w=window.__BP_V5000_WORLD,m=w?.map;if(!w?.selectBuildingAtPoint||!m)return null;
-                  const ids=['gta-city-buildings','gta-exact-building','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                  const ids=['gta-bp-buildings','gta-city-buildings','gta-exact-building','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
                   const cv=m.getCanvas(),width=cv.clientWidth||cv.width,height=cv.clientHeight||cv.height;
                   for(let y=90;y<height-70;y+=18)for(let x=20;x<width-20;x+=18){
                     try{if(m.queryRenderedFeatures({x,y},{layers:ids}).length&&w.selectBuildingAtPoint({x,y})===true)return{x,y,ids}}catch(_){}
@@ -1060,7 +1061,7 @@ jobs:
               if(!clicked){
                 const clickDiag=await p.evaluate(()=>{
                   const w=window.__BP_V5000_WORLD,m=w?.map;
-                  const ids=['gta-city-buildings','gta-exact-building','gta-context-buildings'].filter(id=>m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
+                  const ids=['gta-bp-buildings','gta-city-buildings','gta-exact-building','gta-context-buildings'].filter(id=>m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
                   let counts={};for(const id of ids){try{counts[id]=m.queryRenderedFeatures({layers:[id]}).length}catch(_){counts[id]=-1}}
                   return{measure:!!window.__BP_MEASURE_ACTIVE__,moving:!!w?.state?.moving,ids,counts,center:m?.getCenter?.()||null,zoom:m?.getZoom?.()||null,pitch:m?.getPitch?.()||null,bridge:window.__BP_BRIDGE3D_V5542__||null,landmark:window.__BP_LANDMARK3D_V5542__||null}
                 });
