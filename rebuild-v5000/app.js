@@ -975,7 +975,43 @@ async function applyGrowthDeepLink(){
  if(q.get('select')!=='0'&&zoom>=15){setTimeout(()=>{try{selectedFeature=null;showBuilding(targetLng,targetLat)}catch(e){console.warn('deep link building',e)}},350)}
  return true
 }
-async function start(){enhanceInspectorUI();closeSystem();bindAuthUI();await restoreAuth();const landingPackage=localStorage.getItem('bp_landing_package');if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}renderWorkspaceSignedOut();void loadPackageCatalog();if(authSession?.access_token)void loadWorkspace();bindAppNavigation();bindMapGestureIsolation();void loadStatus();setTimeout(()=>{if(!Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0))void loadStatus()},5000);try{await bootMap();bpApplyMapLanguage();startupInteractiveUntil=Math.max(startupInteractiveUntil,performance.now()+(BP_MOBILE?4500:1200));window.__BP_INTERACTION_PRIORITY_UNTIL__=startupInteractiveUntil;bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();startLiveWeather();startRuntimeTransport();startOpportunityBuildings();await applyGrowthDeepLink();setTimeout(flushDeferredWork,BP_MOBILE?4800:1350);window.__BP_APP_START_READY_V5582__={version:5582,settled:true,userCameraPreserved:Number(window.__BP_MAP_USER_INTENT_AT__||0)>0,updatedAt:Date.now()}}catch(e){setText('mapStatus','Map start retry · '+e.message);window.__BP_APP_START_READY_V5582__={version:5582,settled:false,error:String(e?.message||e),updatedAt:Date.now()}}statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?600000:300000);setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?300000:120000);if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5823',{updateViaCache:'none'}).catch(()=>{})}
+async function start(){
+ const appBootStarted=performance.now();
+ window.__BP_APP_BOOT_PRIORITY_V5825__={version:5825,stage:'starting-map-first',startedAt:Date.now()};
+ enhanceInspectorUI();closeSystem();bindAuthUI();
+ const authReady=restoreAuth();
+ const mapReady=bootMap();
+ const landingPackage=localStorage.getItem('bp_landing_package');
+ if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}
+ renderWorkspaceSignedOut();bindAppNavigation();bindMapGestureIsolation();
+ try{
+  await mapReady;
+  window.__BP_APP_BOOT_PRIORITY_V5825__={version:5825,stage:'map-ready',mapReadyMs:Math.round(performance.now()-appBootStarted),updatedAt:Date.now()};
+  bpApplyMapLanguage();
+  startupInteractiveUntil=Math.max(startupInteractiveUntil,performance.now()+(BP_MOBILE?3200:1000));
+  window.__BP_INTERACTION_PRIORITY_UNTIL__=startupInteractiveUntil;
+  bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();
+  startLiveWeather();startRuntimeTransport();startOpportunityBuildings();
+  void authReady.then(()=>{if(authSession?.access_token)void loadWorkspace()}).catch(()=>{});
+  setTimeout(()=>void loadPackageCatalog(),BP_MOBILE?1800:260);
+  setTimeout(()=>void loadStatus(),BP_MOBILE?2200:380);
+  setTimeout(()=>{if(!Number(window.__BP_FRONTEND_STATUS__?.canonical_properties||0))void loadStatus()},BP_MOBILE?8000:5000);
+  await applyGrowthDeepLink();
+  setTimeout(flushDeferredWork,BP_MOBILE?3400:1050);
+  window.__BP_APP_START_READY_V5582__={version:5582,settled:true,userCameraPreserved:Number(window.__BP_MAP_USER_INTENT_AT__||0)>0,mapReadyMs:Math.round(performance.now()-appBootStarted),updatedAt:Date.now()}
+ }catch(e){
+  setText('mapStatus','Map start retry · '+e.message);
+  window.__BP_APP_BOOT_PRIORITY_V5825__={version:5825,stage:'error',error:String(e?.message||e),elapsedMs:Math.round(performance.now()-appBootStarted),updatedAt:Date.now()};
+  window.__BP_APP_START_READY_V5582__={version:5582,settled:false,error:String(e?.message||e),updatedAt:Date.now()};
+  void authReady.then(()=>{if(authSession?.access_token)void loadWorkspace()}).catch(()=>{});
+  setTimeout(()=>void loadPackageCatalog(),300);
+  setTimeout(()=>void loadStatus(),450)
+ }
+ statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);
+ tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?600000:300000);
+ setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?300000:120000);
+ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5825',{updateViaCache:'none'}).catch(()=>{})
+}
 window.addEventListener('bridgepoint:softrefresh',()=>{
  try{queueAfterMap('status-pulse',loadStatus)}catch(_){}
  try{queueAfterMap('tile-pulse',refreshTiles)}catch(_){}
