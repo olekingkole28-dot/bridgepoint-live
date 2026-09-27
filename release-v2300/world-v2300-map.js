@@ -1,11 +1,12 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
 import{initSpace}from'./world-v2300-space.js?v=5536';
-window.__BP_WORLD_RENDER_VERSION__=5628;
+window.__BP_WORLD_RENDER_VERSION__=5629;
 const PUBLIC_TECH_FAST=true;
 window.__BP_PUBLIC_TECH_FAST_V1117__={version:1117,enabled:true,autoDenseCityHandoff:false,autoExactViewport:false,context3D:true,whiteRoofs:true,floorLines:true,labels:true,trees:true,roads:true,weather:true,updatedAt:Date.now()};
 window.__BP_OWNER_ROAD_STYLE_V1118__={version:1118,major:'#53717c',local:'#45616b',heavyGlow:false,heavyCasing:false,labelsPreserved:true,updatedAt:Date.now()};
 window.__BP_FAST_BUILDINGS_V1119__={version:1119,source:'bridgepoint-public-building-tile-v5019',contextFallback:true,whiteRoofs:true,neonFloorLines:true,cityAutoHandoff:false,updatedAt:Date.now()};
 window.__BP_FAST_BUILDING_HANDOFF_V1120__={version:1120,featureFirst:true,fullSourceLoadNotRequired:true,singleBuildingStack:true,updatedAt:Date.now()};
+window.__BP_FAST_BUILDING_HIT_V5826__={version:5826,layers:['gta-bp-buildings','gta-context-buildings','gta-city-buildings','gta-exact-building'],updatedAt:Date.now()};
 window.__BP_REALISTIC_TREE_LOD_V1123__={version:1123,lodMinZoom:12.6,detailed3DMinZoom:14.25,geometry:'TAPERED_TRUNK_MULTI_TIER_IRREGULAR_CROWN',motionRetainsTreeLod:true,pressureTreeOnly:true,stationaryRecovery:true,updatedAt:Date.now()};
 window.__BP_TECH_BASEMAP_V1116__={version:1116,defaultBase:'gta',ownerViewerVisualParity:true,background:'#061017',water:'#0b3044',buildingWall:'#7f878b',roof:'#ffffff',labels:true,publicParcelGeometry:false,satelliteManualOnly:true,landTextureDefault:false,updatedAt:Date.now()};
 window.__BP_BUILDING_PALETTE_V1091__={version:1091,buildingWall:'#7f878b',roof:'#ffffff',opportunity:'#ff1744',uniformBuildings:true,opportunityRoofCap:true,updatedAt:Date.now()};
@@ -1150,7 +1151,7 @@ export function initWorld(options={}){
   document.getElementById('resetMap')?.addEventListener('click',()=>map.easeTo({center:[-98.5,39.5],zoom:MOBILE?2.75:3.35,pitch:0,bearing:0,duration:LOW?220:480}));
   document.getElementById('locateMe')?.addEventListener('click',()=>{if(!navigator.geolocation){setStatus('Location is unavailable on this device');return}setStatus('Getting your location…');navigator.geolocation.getCurrentPosition(p=>map.easeTo({center:[p.coords.longitude,p.coords.latitude],zoom:16.8,pitch:60,bearing:-18,duration:LOW?350:700}),()=>setStatus('Location permission was not available'),{enableHighAccuracy:false,timeout:7000,maximumAge:120000})});
  }
- function buildingHitLayers(visibleOnly=true){return['gta-exact-building','gta-city-buildings','gta-context-buildings'].filter(id=>map.getLayer(id)&&(!visibleOnly||(map.getLayoutProperty(id,'visibility')||'visible')!=='none'))}
+ function buildingHitLayers(visibleOnly=true){return['gta-exact-building','gta-bp-buildings','gta-city-buildings','gta-context-buildings'].filter(id=>map.getLayer(id)&&(!visibleOnly||(map.getLayoutProperty(id,'visibility')||'visible')!=='none'))}
  function chooseBuilding(e){
   if(window.__BP_MEASURE_ACTIVE__||moving||activeTouchPointers.size>1)return false;
   const now=performance.now();
@@ -1184,7 +1185,7 @@ export function initWorld(options={}){
   });
   return true
  }
-  function bindBuildingHitLayers(){for(const id of ['gta-exact-building','gta-city-buildings','gta-context-buildings']){if(!map.getLayer(id))continue;map.on('mouseenter',id,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',id,()=>{map.getCanvas().style.cursor=''})}}
+  function bindBuildingHitLayers(){for(const id of ['gta-exact-building','gta-bp-buildings','gta-city-buildings','gta-context-buildings']){if(!map.getLayer(id))continue;map.on('mouseenter',id,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',id,()=>{map.getCanvas().style.cursor=''})}}
  let worldCoreReady=false;
  const finalizeWorldCore=()=>{
   if(worldCoreReady)return true;
