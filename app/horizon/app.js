@@ -970,5 +970,5 @@ if('serviceWorker' in navigator){
   navigator.serviceWorker.getRegistrations()
     .then(regs=>Promise.all(regs.filter(r=>r.scope.includes('/app/horizon/play/')||r.scope.includes('/app/horizon/native/')).map(r=>r.unregister())))
     .catch(()=>[])
-    .finally(()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+    .finally(()=>navigator.serviceWorker.register('./sw.js?v=5820',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{}));
 }
