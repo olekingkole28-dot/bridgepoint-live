@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const VERSION=5823;
+const VERSION=5843;
 const targets=(process.env.HEADLESS_TARGETS||'https://bridgepointintelligence.online/,https://bridgepointintelligence.online/app/').split(',').map(x=>x.trim()).filter(Boolean);
 const artifactDir=path.resolve('headless-artifacts');
 await fs.mkdir(artifactDir,{recursive:true});
@@ -42,7 +42,28 @@ async function rootContracts(page){
   }
   const tabs=await page.locator('[data-preview-cap]').count();
   for(let i=0;i<tabs;i++){const b=page.locator('[data-preview-cap]').nth(i);if(await b.isVisible().catch(()=>false))await b.click({timeout:3000}).catch(()=>{});}
-  return{world,us,nonus,opportunities:Number(h.opportunities_total||0),headline_cards:Object.keys(snap.texts).length,preview_tabs:tabs};
+
+  // Public address-search contract: a source-backed address must return a clickable
+  // result and move the shared landing map away from its global start.
+  const search=page.locator('#landingPropertySearchInput');
+  if(!(await search.count()))throw new Error('PUBLIC_ADDRESS_SEARCH_INPUT_MISSING');
+  await search.fill('KENINGTON ROAD, Avon, 06001, CT');
+  await page.locator('#landingPropertySearch').evaluate(form=>form.requestSubmit());
+  const resultButton=page.locator('#landingPropertySearchResults button:not([disabled])').first();
+  await resultButton.waitFor({state:'visible',timeout:12000});
+  const resultText=(await resultButton.innerText()).trim();
+  if(!/KENINGTON ROAD/i.test(resultText))throw new Error('PUBLIC_ADDRESS_SEARCH_BAD_RESULT '+resultText);
+  await resultButton.click({timeout:5000});
+  await page.locator('#previewCard').waitFor({state:'visible',timeout:12000});
+  await sleep(900);
+  const searchState=await page.evaluate(()=>{
+    const m=window.__BP_LANDING_WORLD__?.map,c=m?.getCenter?.();
+    return{title:document.getElementById('previewTitle')?.textContent?.trim()||'',lng:c?.lng??null,lat:c?.lat??null};
+  });
+  if(!/KENINGTON ROAD/i.test(searchState.title))throw new Error('PUBLIC_ADDRESS_SEARCH_PREVIEW_FAILED '+JSON.stringify(searchState));
+  if(!Number.isFinite(searchState.lng)||!Number.isFinite(searchState.lat)||Math.abs(searchState.lng)<1)throw new Error('PUBLIC_ADDRESS_SEARCH_MAP_DID_NOT_MOVE '+JSON.stringify(searchState));
+
+  return{world,us,nonus,opportunities:Number(h.opportunities_total||0),headline_cards:Object.keys(snap.texts).length,preview_tabs:tabs,address_search:true};
 }
 async function appContracts(page){
   await skipMolly(page);
