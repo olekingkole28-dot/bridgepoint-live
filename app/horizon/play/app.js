@@ -438,4 +438,4 @@ function animateSky(){
 state.pickup=new DwellPickupController({onProgress:(p)=>{document.documentElement.style.setProperty('--pickup',String(p))}});
 animateSky();
 bootstrap().catch(e=>{console.error(e);setNet('BACKEND ERROR','#ff5d71');status(e.message)});
-if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js?v=5820',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
