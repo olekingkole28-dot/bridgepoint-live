@@ -561,25 +561,42 @@ async function publicAddressFallback(q,timeout=7000){
   return d;
  }finally{clearTimeout(timer)}
 }
+async function resolveAppSearchCoordinates(row){
+ const lng=Number(row?.longitude),lat=Number(row?.latitude);
+ if(Number.isFinite(lng)&&Number.isFinite(lat))return row;
+ const address=row?.full_address||row?.geocoder_address||row?.display_label||'';
+ const cc=String(row?.country_code||'').trim().toUpperCase();
+ if(!address||(cc&&cc!=='US'))return row;
+ try{
+  const d=await publicAddressFallback(address,7000),g=Array.isArray(d?.results)?d.results[0]:null;
+  if(g&&Number.isFinite(Number(g.longitude))&&Number.isFinite(Number(g.latitude))){
+   window.BridgePointAcquisition?.send?.('VALUE_VIEW',{action:'app_address_selection_geocoded',surface:'app'});
+   return {...row,...g,property_id:row.property_id||g.property_id,address_id:row.address_id||g.address_id}
+  }
+ }catch(_){}
+ return row
+}
 $('publicSearchForm').addEventListener('submit',async e=>{
  e.preventDefault();setMapSearchOpen(true);
  const q=$('publicSearchInput').value.trim(),box=$('publicSearchResults');if(q.length<4)return;
+ window.BridgePointAcquisition?.send?.('VALUE_VIEW',{action:'app_address_search_submit',surface:'app'});
  box.hidden=false;box.innerHTML='<button disabled>Searching BridgePoint…</button>';
  let rows=[],rawRows=[],linkedError=null,fallbackUsed=false,globalUsed=false;
- try{const d=await rpc('bridgepoint_public_search_v5000',{p_query:q,p_limit:8},2800);rawRows=d?.results||[];rows=appCredibleAddressRows(q,rawRows);if(rawRows.length>rows.length)window.BridgePointAcquisition?.send?.('ADDRESS_SEARCH_WEAK_MATCH_SUPPRESSED',{surface:'app',suppressed:rawRows.length-rows.length})}catch(err){linkedError=err}
+ try{const d=await rpc('bridgepoint_public_search_v5000',{p_query:q,p_limit:8},2800);rawRows=d?.results||[];rows=appCredibleAddressRows(q,rawRows);if(rawRows.length>rows.length)window.BridgePointAcquisition?.send?.('VALUE_VIEW',{action:'app_address_search_weak_match_suppressed',surface:'app',suppressed:rawRows.length-rows.length})}catch(err){linkedError=err}
  if(!rows.length){
   box.innerHTML='<button disabled>Checking BridgePoint international parcel index…</button>';
   try{const d=await rpc('bridgepoint_public_global_search_v957',{p_query:q,p_limit:8},4200);rows=d?.results||[];globalUsed=rows.length>0}catch(err){console.warn('global parcel search',err)}
  }
  if(!rows.length){
   box.innerHTML='<button disabled>Checking public U.S. Census address location…</button>';
-  try{const d=await publicAddressFallback(q,7000);rows=d?.results||[];fallbackUsed=rows.length>0;if(fallbackUsed)window.BridgePointAcquisition?.send?.('ADDRESS_SEARCH_RECOVERED',{surface:'app',resolver:String(d?.resolver||'CENSUS')})}catch(err){console.warn('address fallback',err)}
+  try{const d=await publicAddressFallback(q,7000);rows=d?.results||[];fallbackUsed=rows.length>0;if(fallbackUsed)window.BridgePointAcquisition?.send?.('VALUE_VIEW',{action:'app_address_search_recovered',surface:'app',resolver:String(d?.resolver||'CENSUS')})}catch(err){console.warn('address fallback',err)}
  }
  if(!rows.length){
-  window.BridgePointAcquisition?.send?.('ADDRESS_SEARCH_NO_MATCH',{surface:'app'});
+  window.BridgePointAcquisition?.send?.('VALUE_VIEW',{action:'app_address_search_no_match',surface:'app'});
   box.innerHTML='<button disabled>No confident public match yet. This location may still be acquiring, not yet linked to a building/parcel, or restricted from public display. Try a complete street address, cadastral/parcel ID, municipality, or another source-backed location from a live coverage area.'+(linkedError?' Linked-address lookup will retry on the next search.':'')+'</button>';
   return;
  }
+ window.BridgePointAcquisition?.send?.('VALUE_VIEW',{action:'app_address_search_results',surface:'app',result_count:rows.length});
  box.innerHTML='';
  for(const r of rows){
   const b=document.createElement('button');b.type='button';
@@ -587,7 +604,25 @@ $('publicSearchForm').addEventListener('submit',async e=>{
   const meta=isGlobal?[r.municipality,r.state_code,r.country_code,r.parcel_number,r.source_name].filter(Boolean):[r.municipality,r.state_code,r.parcel_number].filter(Boolean);const coverage=String(r.coverage_status||'');if(coverage==='ADDRESS_AND_BUILDING_LINKED')meta.push('building linked');else if(coverage.includes('ACQUIRING'))meta.push('address found · building/parcel still acquiring');
   if(fallbackUsed||String(r.match_reason||'').startsWith('CENSUS_'))meta.push(r.property_resolved?'Census located · BridgePoint property resolved':'Census located · property link resolving');
   b.innerHTML='<b class="notranslate" translate="no">'+String(r.full_address||r.geocoder_address||r.display_label||'Property / parcel').replace(/[<>&]/g,'')+'</b><small class="notranslate" translate="no">'+meta.join(' · ')+'</small>';
-  b.onclick=()=>{box.hidden=true;setMapSearchOpen(false);const lng=+r.longitude,lat=+r.latitude,bid=Number(r.building_id||0);if(world?.map&&Number.isFinite(lng)&&Number.isFinite(lat)){world.map.easeTo({center:[lng,lat],zoom:17,pitch:62,bearing:-18,duration:700});selectedFeature=null;if(bid>0){const feature={id:bid,properties:{building_id:bid,country_code:cc}};showBuilding(lng,lat,{feature})}else if(isGlobal)showPropertyOnly(lng,lat);else showBuilding(lng,lat)}};
+  b.onclick=async()=>{
+   b.disabled=true;
+   const original=b.innerHTML;
+   b.innerHTML='<b>Locating property…</b><small>Resolving map coordinates.</small>';
+   const resolved=await resolveAppSearchCoordinates(r);
+   const lng=Number(resolved?.longitude),lat=Number(resolved?.latitude),bid=Number(resolved?.building_id||0);
+   if(!world?.map||!Number.isFinite(lng)||!Number.isFinite(lat)){
+    b.disabled=false;b.innerHTML=original;
+    window.BridgePointAcquisition?.send?.('VALUE_VIEW',{action:'app_address_search_unresolved_coordinates',surface:'app'});
+    box.innerHTML='<button disabled>Address found — map location is still resolving. Try another complete address or parcel ID.</button>';
+    return
+   }
+   box.hidden=true;setMapSearchOpen(false);
+   world.map.easeTo({center:[lng,lat],zoom:17,pitch:62,bearing:-18,duration:700});
+   selectedFeature=null;
+   if(bid>0){const feature={id:bid,properties:{building_id:bid,country_code:cc}};showBuilding(lng,lat,{feature})}
+   else if(isGlobal)showPropertyOnly(lng,lat);
+   else showBuilding(lng,lat)
+  };
   box.appendChild(b)
  }
 });
