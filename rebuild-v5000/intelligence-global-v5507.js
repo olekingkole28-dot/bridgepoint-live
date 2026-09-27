@@ -59,7 +59,7 @@ async function centerOnViewerCountry(){
  const fallback=REGION_HOME[region],userIntent=()=>Number(window.__BP_MAP_USER_INTENT_AT__||0)>0;
  const start=(()=>{try{const c=C.map.getCenter();return{lng:Number(c.lng),lat:Number(c.lat),zoom:Number(C.map.getZoom())}}catch(_){return null}})();
  const cameraChanged=()=>{if(!start)return false;try{const c=C.map.getCenter(),z=Number(C.map.getZoom());return Math.abs(Number(c.lng)-start.lng)>.002||Math.abs(Number(c.lat)-start.lat)>.002||Math.abs(z-start.zoom)>.03}catch(_){return false}};
- const preserve=mode=>{if(userIntent()||cameraChanged()||window.__BP_CAMERA_START_LOCK_V5826__){window.__BP_VIEWER_COUNTRY_START__={region,mode,at:Date.now()};return true}return false};
+ const preserve=mode=>{let z=0;try{z=Number(C.map.getZoom())||0}catch(_){}if(userIntent()||cameraChanged()||z>5.5||window.__BP_CAMERA_START_LOCK_V5826__||window.__BP_APP_START_READY_V5582__?.settled===true){window.__BP_VIEWER_COUNTRY_START__={region,mode,zoom:z,at:Date.now()};return true}return false};
  try{
   if(navigator.permissions&&navigator.geolocation){
    const p=await navigator.permissions.query({name:'geolocation'});
@@ -180,4 +180,4 @@ async function boot(){
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0),{once:true});else setTimeout(boot,0);
 
-window.__BP_CAMERA_AUTHORITY_V5826__={viewerCountryPreservesMovedCamera:true,deepLinkOwnsExplicitCamera:true,updatedAt:Date.now()};
+window.__BP_CAMERA_AUTHORITY_V5827__={viewerCountryPreservesMovedCamera:true,detailZoomNeverRecenters:true,settledAppNeverRecenters:true,deepLinkOwnsExplicitCamera:true,updatedAt:Date.now()};
