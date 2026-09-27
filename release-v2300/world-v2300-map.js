@@ -27,8 +27,8 @@ const DETAIL_MIN=MOBILE?16.8:(TIER==='LOW'?16.7:TIER==='HIGH'?16.1:16.35);
 const FACADE_DETAIL_MIN=MOBILE?(TIER==='LOW'?17.15:16.55):(TIER==='LOW'?16.65:TIER==='HIGH'?15.65:16.1);
 const PARCEL_MIN=MOBILE?6.45:(TIER==='LOW'?6.65:TIER==='HIGH'?5.95:6.25);
 const LIGHT_MIN=TIER==='LOW'?16.8:TIER==='HIGH'?15.6:16.1;
-const GLOBAL_ROOF_MIN=MOBILE?13.6:(TIER==='LOW'?13.5:TIER==='HIGH'?12.25:12.85);
-const GLOBAL_FLOOR_MIN=MOBILE?16.2:(TIER==='LOW'?16.1:TIER==='HIGH'?15.35:15.7);
+const GLOBAL_ROOF_MIN=MOBILE?17.05:(TIER==='LOW'?13.5:TIER==='HIGH'?12.25:12.85);
+const GLOBAL_FLOOR_MIN=MOBILE?17.2:(TIER==='LOW'?16.1:TIER==='HIGH'?15.35:15.7);
 const BRIDGE_3D_MIN=MOBILE?9.85:(TIER==='LOW'?9.85:TIER==='HIGH'?8.95:9.35);
 const BRIDGE_SUPPORT_MIN=MOBILE?12.2:(TIER==='LOW'?12:TIER==='HIGH'?10.95:11.45);
 const LANDMARK_3D_MIN=MOBILE?12.85:(TIER==='LOW'?12.85:TIER==='HIGH'?12.15:12.45);
@@ -489,7 +489,7 @@ export function initWorld(options={}){
   }catch(_){}
  };
  map.once('load',()=>{guardAttribution();setTimeout(guardAttribution,120);setTimeout(guardAttribution,700)});map.once('idle',guardAttribution);
- let detailSeq=0,livingSeq=0,detailTimer=0,lightTimer=0,solarTimer=0,waterTimer=0,landmark3dTimer=0,bridge3dTimer=0,postMoveSettleTimer=0,motionWorldTimer=0,lastMotionWorldAt=0,road3dTimer=0,autoCameraTimer=0,lodWatchTimer=0,lodWatchSig='',lodWatchStable=0,autoCameraApplying=false,streetFxRaf=0,streetFxLastConditionAt=0,streetFxCondition=null,parcelPulseTimer=0,parcelPulsePhase=0,hoverFrame=0,lastHoverAt=0,exactCount=0,livingCount=0,base='gta',moving=false,terrainOn=false,walkMode=false,workerReq=0,lastTouchBuildingAt=0,lastBuildingClickAt=0,touchPointer=null,touchNative=null,buildingSelectHandler=null,selectionBusyUntil=0,activeTouchPointers=new Set(),lastExactFetchAt=0,lastLivingFetchAt=0,buildingShellQuietUntil=0,streetPhotoState={sequenceId:null,frames:[],index:-1,loadedCenter:null,loading:false},layerState={parcels:false,buildings:true};const worker=new Worker('./world-v2300-worker.js?v=5312',{type:'module'}),workerWait=new Map();
+ let detailSeq=0,livingSeq=0,detailTimer=0,lightTimer=0,solarTimer=0,waterTimer=0,landmark3dTimer=0,bridge3dTimer=0,postMoveSettleTimer=0,motionWorldTimer=0,lastMotionWorldAt=0,road3dTimer=0,autoCameraTimer=0,lodWatchTimer=0,lodWatchSig='',lodWatchStable=0,autoCameraApplying=false,streetFxRaf=0,streetFxLastConditionAt=0,streetFxCondition=null,parcelPulseTimer=0,parcelPulsePhase=0,hoverFrame=0,lastHoverAt=0,exactCount=0,livingCount=0,base='gta',moving=false,terrainOn=false,walkMode=false,workerReq=0,lastTouchBuildingAt=0,lastBuildingClickAt=0,touchPointer=null,touchNative=null,buildingSelectHandler=null,selectionBusyUntil=0,activeTouchPointers=new Set(),lastExactFetchAt=0,lastLivingFetchAt=0,lastMotionEndAt=0,buildingShellQuietUntil=0,streetPhotoState={sequenceId:null,frames:[],index:-1,loadedCenter:null,loading:false},layerState={parcels:false,buildings:true};const worker=new Worker('./world-v2300-worker.js?v=5312',{type:'module'}),workerWait=new Map();
  worker.onmessage=e=>{const m=e.data||{},r=workerWait.get(m.requestId);if(r){workerWait.delete(m.requestId);r(m)}};
  const prepare=(features,max)=>new Promise(resolve=>{const requestId=++workerReq;workerWait.set(requestId,resolve);worker.postMessage({type:'prepare',requestId,features,max});setTimeout(()=>{if(workerWait.has(requestId)){workerWait.delete(requestId);resolve({buildings:fc(features.slice(0,max)),roofs:EMPTY,count:Math.min(features.length,max)})}},2500)});
  const setStatus=t=>{const e=document.getElementById('mapStatus');if(e)e.textContent=t};
@@ -549,7 +549,7 @@ export function initWorld(options={}){
  }
 
  function livingPhysical(data){
-  const z=map.getZoom(),cap=MOBILE?(z>=17?360:z>=16?280:210):(TIER==='HIGH'?(z>=17?1100:z>=16?820:560):(z>=17?700:z>=16?520:380)),out=[];let used=0;
+  const z=map.getZoom(),cap=MOBILE?(z>=17?120:z>=16?90:70):(TIER==='HIGH'?(z>=17?1100:z>=16?820:560):(z>=17?700:z>=16?520:380)),out=[];let used=0;
   const linesOf=g=>g?.type==='LineString'?[g.coordinates]:g?.type==='MultiLineString'?(g.coordinates||[]):[];
   const polygonsOf=g=>g?.type==='Polygon'?[g.coordinates]:g?.type==='MultiPolygon'?(g.coordinates||[]):[];
   for(const ft of data?.features||[]){if(used>=cap)break;const p=ft.properties||{},g=ft.geometry;if(!g)continue;
@@ -784,7 +784,7 @@ export function initWorld(options={}){
  async function livingWorld(){
   if(map.getZoom()<12.6||moving)return;
   if(worldMapSurfaceInactive())return;
-  const z=map.getZoom(),clientPressure=Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0)>performance.now(),seq=++livingSeq,b=bbox(map,MOBILE?.035:.06),tb=bbox(map,MOBILE?(z<14?.11:.045):(z<14?.16:.075)),baseLimit=MOBILE?(z>=16.5?520:360):(TIER==='HIGH'?(z>=16.5?1450:1000):(z>=16.5?1050:760)),normalTreeLimit=MOBILE?(z>=17?420:z>=16?300:z>=14.25?170:z>=13.4?110:70):(TIER==='HIGH'?(z>=17?1150:z>=16?820:z>=14.25?420:z>=13.4?240:150):(z>=17?800:z>=16?560:z>=14.25?320:z>=13.4?190:120)),treeLimit=clientPressure?Math.min(normalTreeLimit,MOBILE?90:180):normalTreeLimit;lastLivingFetchAt=performance.now();
+  const z=map.getZoom(),clientPressure=Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0)>performance.now(),seq=++livingSeq,b=bbox(map,MOBILE?.035:.06),tb=bbox(map,MOBILE?(z<14?.11:.045):(z<14?.16:.075)),baseLimit=MOBILE?(z>=16.5?260:180):(TIER==='HIGH'?(z>=16.5?1450:1000):(z>=16.5?1050:760)),normalTreeLimit=MOBILE?(z>=17?240:z>=16?160:z>=14.25?100:z>=13.4?80:55):(TIER==='HIGH'?(z>=17?1150:z>=16?820:z>=14.25?420:z>=13.4?240:150):(z>=17?800:z>=16?560:z>=14.25?320:z>=13.4?190:120)),treeLimit=clientPressure?Math.min(normalTreeLimit,MOBILE?70:180):normalTreeLimit;lastLivingFetchAt=performance.now();
   try{
    const settled=await Promise.allSettled([
     z>=14.2&&!clientPressure?edge('bridgepoint-living-world-viewport-v5319',{west:b.west,south:b.south,east:b.east,north:b.north,limit:baseLimit},8500):Promise.resolve(EMPTY),
@@ -797,14 +797,18 @@ export function initWorld(options={}){
     map.getSource('bpLivingWorld')?.setData(data);
     map.getSource('bpTreeLod')?.setData({type:'FeatureCollection',features:[...(trees.features||[])]});
     const physicalData={type:'FeatureCollection',features:[...(trees.features||[]),...(base.features||[])]};
-    const physical=z>=14.25?livingPhysical(physicalData):EMPTY;
+    let denseMobileScene=false,denseRenderedBuildings=0;
+    if(MOBILE&&z<17.2){
+     try{const ls=['gta-bp-buildings','gta-context-buildings','gta-city-buildings'].filter(id=>map.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')!=='none');denseRenderedBuildings=ls.length?(map.queryRenderedFeatures({layers:ls})||[]).length:0;denseMobileScene=denseRenderedBuildings>45}catch(_){}
+    }
+    const physical=z>=14.25&&!denseMobileScene?livingPhysical(physicalData):EMPTY;
     map.getSource('bpLivingWorld3D')?.setData(physical);
-    const hasTrees=(trees.features||[]).length>0,treeOn=hasTrees&&z>=14.25,treeLod=hasTrees&&z>=12.6&&z<14.25;
+    const hasTrees=(trees.features||[]).length>0,treeOn=hasTrees&&z>=14.25&&!denseMobileScene,treeLod=hasTrees&&z>=12.6&&!treeOn;
     vis(map,'gta-bp-tree3d-trunk',treeOn);vis(map,'gta-bp-tree3d-canopy',treeOn);
     vis(map,'gta-bp-tree-trunks',treeLod&&z>=13.6);
     vis(map,'gta-bp-tree-crowns',treeLod);
     livingCount=features.length;
-    window.__BP_TREE_RENDER_STATE__={version:1123,requested:(trees.features||[]).length,physicalFeatures:(physical.features||[]).length,visible3D:treeOn,visibleLod:treeLod,lodSource:'bpTreeLod',lodMinZoom:12.6,detailed3DMinZoom:14.25,geometry:'TAPERED_TRUNK_MULTI_TIER_IRREGULAR_CROWN',pressureTreeOnly:clientPressure,treeLimit,trunkLayer:(map.getLayoutProperty('gta-bp-tree3d-trunk','visibility')||'visible'),canopyLayer:(map.getLayoutProperty('gta-bp-tree3d-canopy','visibility')||'visible'),zoom:z,updatedAt:Date.now()}
+    window.__BP_TREE_RENDER_STATE__={version:1124,requested:(trees.features||[]).length,physicalFeatures:(physical.features||[]).length,visible3D:treeOn,visibleLod:treeLod,lodSource:'bpTreeLod',lodMinZoom:12.6,detailed3DMinZoom:14.25,geometry:'TAPERED_TRUNK_MULTI_TIER_IRREGULAR_CROWN',pressureTreeOnly:clientPressure,treeLimit,denseMobileScene,denseRenderedBuildings,trunkLayer:(map.getLayoutProperty('gta-bp-tree3d-trunk','visibility')||'visible'),canopyLayer:(map.getLayoutProperty('gta-bp-tree3d-canopy','visibility')||'visible'),zoom:z,updatedAt:Date.now()}
    }
    const baseError=settled[0].status==='rejected'?String(settled[0].reason?.message||settled[0].reason):null,treeError=settled[1].status==='rejected'?String(settled[1].reason?.message||settled[1].reason):null;
    window.__BP_LIVING_WORLD_STATE__={status:features.length?'ready':(baseError&&treeError?'error':'empty'),count:livingCount,baseCount:(base.features||[]).length,treeCount:(trees.features||[]).length,treeHeightBackedCount:Number(trees.height_backed_count||0),treeModeledHeightCount:Number(trees.modeled_height_count||0),treeMeasuredHeightCount:Number(trees.measured_height_count||0),baseError,treeError,viewport:{west:b.west,south:b.south,east:b.east,north:b.north},updatedAt:Date.now()}
@@ -859,7 +863,7 @@ export function initWorld(options={}){
    for(const id of ['gta-context-building-footprints','gta-context-buildings','gta-context-floor-lines','gta-context-roofs','gta-city-buildings','gta-city-floor-lines','gta-city-building-roof-caps','gta-city-roofs','gta-exact-building','gta-exact-floor-lines','gta-exact-roof','gta-building-outline'])vis(map,id,false);
    return
   }
-  const z=map.getZoom(),bpSourceReady=PUBLIC_TECH_FAST&&bridgePointBuildingCoverageReady(),wantCity=PUBLIC_TECH_FAST?false:(bridgePointDomesticCenter()&&z>=11),cityReady=PUBLIC_TECH_FAST?false:(wantCity&&cityStructuresReady()),exactReady=PUBLIC_TECH_FAST?false:(exactCount>0&&z>=DETAIL_MIN),detailSettled=!moving&&performance.now()>=buildingShellQuietUntil;
+  const z=map.getZoom(),bpSourceReady=PUBLIC_TECH_FAST&&bridgePointBuildingCoverageReady(),wantCity=PUBLIC_TECH_FAST?false:(bridgePointDomesticCenter()&&z>=11),cityReady=PUBLIC_TECH_FAST?false:(wantCity&&cityStructuresReady()),exactReady=PUBLIC_TECH_FAST?false:(exactCount>0&&z>=DETAIL_MIN),detailSettled=!moving&&performance.now()>=Math.max(buildingShellQuietUntil,lastMotionEndAt+(MOBILE?1800:0));
   const floors=detailSettled&&z>=GLOBAL_FLOOR_MIN,roofFallback=detailSettled&&z>=GLOBAL_ROOF_MIN;
   vis(map,'gta-bp-buildings',PUBLIC_TECH_FAST&&z>=11.4);
   let bpRendered=false;
@@ -868,7 +872,7 @@ export function initWorld(options={}){
   }
   const bpReady=PUBLIC_TECH_FAST&&bpRendered;
   vis(map,'gta-bp-floor-lines',PUBLIC_TECH_FAST&&bpReady&&floors);
-  vis(map,'gta-bp-roofs',PUBLIC_TECH_FAST&&bpReady&&z>=13.8);
+  vis(map,'gta-bp-roofs',PUBLIC_TECH_FAST&&bpReady&&detailSettled&&z>=GLOBAL_ROOF_MIN);
   vis(map,'gta-context-building-footprints',z<11.2&&!cityReady&&!bpReady);
   vis(map,'gta-context-buildings',z>=11.2&&!cityReady&&!bpReady);
   const floorOn=floors&&!cityReady&&!bpReady,roofOn=roofFallback&&!cityReady&&!bpReady;
@@ -896,7 +900,7 @@ export function initWorld(options={}){
    try{if(map.getLayer('gta-city-floor-lines')){map.moveLayer('gta-city-floor-lines');if(map.getLayer('gta-city-roofs'))map.moveLayer('gta-city-floor-lines','gta-city-roofs')}}catch(_){}
   }
   vis(map,'gta-city-building-roof-caps',false);
-  vis(map,'gta-city-roofs',wantCity&&z>=15.85);
+  vis(map,'gta-city-roofs',wantCity&&detailSettled&&z>=(MOBILE?17.05:15.85));
   vis(map,'gta-exact-building',exactReady&&!cityReady);
   vis(map,'gta-exact-floor-lines',exactReady&&floors&&!cityReady);
   vis(map,'gta-exact-roof',exactReady&&!cityReady);
@@ -949,7 +953,7 @@ export function initWorld(options={}){
    if(sig!==lodWatchSig){lodWatchSig=sig;lodWatchStable=0;return}
    lodWatchStable++;
    const treeState=window.__BP_TREE_RENDER_STATE__||{},treeZoom=Number(treeState.zoom),treeAge=Date.now()-Number(treeState.updatedAt||0),treeStale=z>=12.6&&(!Number.isFinite(treeZoom)||Math.abs(treeZoom-z)>.08||treeAge>45000);
-   if(lodWatchStable>=2&&treeStale&&!map.isMoving?.()&&performance.now()-lastLivingFetchAt>1200){
+   if(lodWatchStable>=4&&treeStale&&!map.isMoving?.()&&performance.now()-lastMotionEndAt>(MOBILE?3200:1200)&&performance.now()-lastLivingFetchAt>(MOBILE?2500:1200)){
     moving=false;scheduleLivingWorld(0);
     window.__BP_TREE_STATIONARY_RECOVERY_V1123__={forced:true,stableTicks:lodWatchStable,mapZoom:z,treeZoom:Number.isFinite(treeZoom)?treeZoom:null,treeAgeMs:treeAge,updatedAt:Date.now()}
    }
@@ -1028,7 +1032,8 @@ export function initWorld(options={}){
    return
   }
   clearTimeout(map.__bpMotionHardRelease);
-  buildingShellQuietUntil=performance.now()+(MOBILE?260:70);
+  lastMotionEndAt=performance.now();
+  buildingShellQuietUntil=lastMotionEndAt+(MOBILE?260:70);
   if(MOBILE){
    syncBuildingShells();
    clearTimeout(map.__bpBuildingShellReveal);
@@ -1047,7 +1052,7 @@ export function initWorld(options={}){
    // commit one building-shell pass and stagger optional detail.
    if(worldClientPressureBlocked()){window.__BP_WORLD_CLIENT_PRESSURE_V5595__={version:5595,deferred:'postmove-heavy',terrainPreserved:true,parcelsPreserved:true,baseBuildingsPreserved:true,until:Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0),updatedAt:Date.now()};postMoveSettleTimer=setTimeout(schedulePostMoveSettle,MOBILE?900:240);return}
    syncBuildingShells();
-   if(map.getZoom()>=12.6)scheduleLivingWorld(MOBILE?2200:120);
+   if(map.getZoom()>=12.6)scheduleLivingWorld(MOBILE?4200:120);
    window.__BP_BASE_BUILDING_VISIBILITY_V5615__={version:5615,visible:true,pressureGated:false,updatedAt:Date.now()};
    armFineDetailSettle(MOBILE?1100:180);scheduleExact(MOBILE?1700:120);
    rebuildLandmark3D(MOBILE?2600:260);rebuildBridge3D(MOBILE?2200:200);
