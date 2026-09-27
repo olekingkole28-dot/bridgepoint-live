@@ -363,7 +363,7 @@ jobs:
           grep -Fq 'persistentThroughStreetLevel:true' site/world-v2300-map.js
           grep -Fq "map.once('load',ensureMapGestures)" site/world-v2300-map.js
           ! grep -Fq "map.on('move',refreshWorldDuringMotion)" site/world-v2300-map.js
-          grep -Fq '__BP_WEATHER_PERFORMANCE_V5544__' site/world-v2300-weather.js
+          grep -Fq '__BP_WEATHER_PERFORMANCE_V5822__' site/world-v2300-weather.js
           grep -Fq 'stableGroundDrape:true' site/world-v2300-weather.js
           grep -Fq 'groundDrapeThroughZoom:24' site/app.js
           grep -Fq 'radarGroundDrape:true' site/landing.js
