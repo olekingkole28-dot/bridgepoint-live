@@ -1004,13 +1004,16 @@ export function initWorld(options={}){
   moving=on;
   if(on){
    buildingShellQuietUntil=0;
-   clearTimeout(detailTimer);clearTimeout(map.__bpLivingTimer);clearTimeout(lightTimer);clearTimeout(road3dTimer);clearTimeout(map.__bpBuildingShellProbe);clearTimeout(map.__bpMotionHardRelease);clearTimeout(map.__bpBuildingFineSettle);
+   clearTimeout(detailTimer);clearTimeout(map.__bpLivingTimer);clearTimeout(lightTimer);clearTimeout(road3dTimer);clearTimeout(map.__bpBuildingShellProbe);clearTimeout(map.__bpMotionHardRelease);clearTimeout(map.__bpBuildingFineSettle);clearTimeout(map.__bpBuildingShellReveal);
    const recover=()=>{
     if(map.isMoving?.()){map.__bpMotionHardRelease=setTimeout(recover,MOBILE?260:120);return}
     const stale=moving;
     moving=false;
     if(MOBILE){
      buildingShellQuietUntil=performance.now()+650;
+     syncBuildingShells();
+     clearTimeout(map.__bpBuildingShellReveal);
+     map.__bpBuildingShellReveal=setTimeout(()=>{if(!moving&&!map.isMoving?.()){buildingShellQuietUntil=0;syncBuildingShells();window.__BP_BASE_BUILDING_REVEAL_V5847__={reason:'stale-motion-recovery',zoom:map.getZoom(),updatedAt:Date.now()}}},900);
      schedulePostMoveSettle();
      if(stale)scheduleExact(1800)
     }else{
@@ -1026,6 +1029,11 @@ export function initWorld(options={}){
   }
   clearTimeout(map.__bpMotionHardRelease);
   buildingShellQuietUntil=performance.now()+(MOBILE?260:70);
+  if(MOBILE){
+   syncBuildingShells();
+   clearTimeout(map.__bpBuildingShellReveal);
+   map.__bpBuildingShellReveal=setTimeout(()=>{if(!moving&&!map.isMoving?.()){buildingShellQuietUntil=0;syncBuildingShells();window.__BP_BASE_BUILDING_REVEAL_V5847__={reason:'moveend',zoom:map.getZoom(),updatedAt:Date.now()}}},900)
+  }
   schedulePostMoveSettle()
  }
  function schedulePostMoveSettle(){
