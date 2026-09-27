@@ -222,10 +222,14 @@ jobs:
           node --check site/landing.js
           test -s site/coverage/index.html
           grep -Fq 'bridgepoint_public_global_coverage_v5597' site/landing.js
-          grep -Fq 'bridgepoint_public_headline_v5822' site/landing.js\n          grep -Fq "bind('globalCanonicalTile','global-coverage')" site/landing.js\n          grep -Fq 'Global canonical properties' site/landing.js
+          grep -Fq 'bridgepoint_public_headline_v5822' site/landing.js
+          grep -Fq "bind('globalCanonicalTile','global-coverage')" site/landing.js
+          grep -Fq 'Global canonical properties' site/landing.js
           grep -Fq 'WAITING TURN' site/landing.js
           grep -Fq 'display_records' site/coverage/index.html
-          grep -Fq 'seeded · waiting turn' site/coverage/index.html
+          grep -Fq 'bridgepoint_public_headline_v5822' site/coverage/index.html
+          grep -Fq 'World canonical distribution' site/coverage/index.html
+          grep -Fq 'GLOBAL CANONICAL' site/coverage/index.html
           grep -Fq 'World parcel coverage' site/index.html
           grep -Fq 'parcel-boundary-viewer-v5403.js' site/index.html
           grep -Fq 'parcel-boundary-viewer-v5403.js' site/app/index.html
