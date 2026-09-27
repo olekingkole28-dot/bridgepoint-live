@@ -227,7 +227,7 @@ function hydrateLiveMetricSnapshot(){
  if(Number.isFinite(Number(c.opportunityProperties)))bpStableText('landingOpportunityProperties',fmt(c.opportunityProperties));
  if(Number.isFinite(Number(c.opportunityStates)))bpStableText('landingOpportunityStatesCount',fmt(c.opportunityStates));
 }
-const BP_HEADLINE_CACHE_KEY='bp-public-headline-v5841';
+const BP_HEADLINE_CACHE_KEY='bp-public-headline-v5851';
 function paintHeadline(d){
  if(!d||typeof d!=='object')return false;
  const put=(id,v)=>{const el=$(id),n=Number(v);if(el&&Number.isFinite(n))bpStableText(id,fmt(n))};
