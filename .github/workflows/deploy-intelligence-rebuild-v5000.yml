@@ -390,7 +390,8 @@ jobs:
           grep -Fq 'setRadar?.(false)' site/landing.js
           grep -Fq 'bp-landing-radar-a' site/landing.js
           grep -Fq '__BP_LANDING_RADAR_DRAPE_V5822__' site/landing.js
-          grep -Fq 'Flood watch / advisory / warning area' site/landing.js
+          grep -Fq 'Dots, outlines and fills use the same color for the same hazard' site/landing.js
+          grep -Fq 'WMO SWIC' site/intelligence-global-v5507.js
           grep -Fq 'Flood watch / advisory / warning area' site/app.js
           grep -Fq 'bp-v5004-weather-shape-line' site/app.js
           test -s site/sample/storm-opportunity/index.html
