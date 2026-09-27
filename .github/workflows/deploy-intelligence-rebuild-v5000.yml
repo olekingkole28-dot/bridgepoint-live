@@ -273,7 +273,7 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v5825' site/sw.js
+          grep -Fq 'bp-intelligence-v5826' site/sw.js
           node --check site/app-update-v5820.js
           grep -Fq '/app-update-v5820.js?v=5825' site/index.html
           grep -Fq '/app-update-v5820.js?v=5825' site/app/index.html
@@ -595,6 +595,7 @@ jobs:
           grep -Fq '__BP_NAV_STABILITY_V5616__' site/app.js
           grep -Fq '__BP_APP_MAIN_THREAD_GUARD_V5587__' site/app.js
           grep -Fq '__BP_APP_BOOT_PRIORITY_V5825__' site/app.js
+          grep -Fq '__BP_CAMERA_AUTHORITY_V5826__' site/intelligence-global-v5507.js
           grep -Fq '__BP_STARTUP_SCHEDULER_V5586__' site/app.js
           grep -Fq '__BP_MOBILE_MAP_INTERACTION_V5580__' site/intelligence-global-v5507.js
           grep -Fq 'BP_MOBILE' site/app.js
@@ -706,8 +707,8 @@ jobs:
             curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/terminal/?v5551=${q}" -o /tmp/terminal.html || true
             curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/newsroom/?v5551=${q}" -o /tmp/newsroom.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/language-selector-v5200.js?v1068=${q}" -o /tmp/language-selector-v5200.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?v5822=${q}" -o /tmp/sw.js || true
-            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app-update-v5820.js?v5820=${q}" -o /tmp/app-update-v5820.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/sw.js?v5826=${q}" -o /tmp/sw.js || true
+            curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app-update-v5820.js?v5826=${q}" -o /tmp/app-update-v5820.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/flutter_service_worker.js?v5820=${q}" -o /tmp/flutter-service-worker-retire.js || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/intelligence-launch/?v5820=${q}" -o /tmp/legacy-intelligence-launch.html || true
             curl --retry 2 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/horizon/sw.js?v5822=${q}" -o /tmp/horizon-sw.js || true
@@ -729,8 +730,8 @@ jobs:
               && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js \
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
-              && grep -Fq "const V='bp-intelligence-v5825'" /tmp/sw.js \
-              && grep -Fq 'BUILD=5825' /tmp/app-update-v5820.js \
+              && grep -Fq "const V='bp-intelligence-v5826'" /tmp/sw.js \
+              && grep -Fq 'BUILD=5826' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
               && grep -Fq "bridgepoint-horizon-v5820" /tmp/horizon-sw.js \
