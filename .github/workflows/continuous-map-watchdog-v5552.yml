@@ -1,4 +1,4 @@
-name: BridgePoint Continuous Mobile Map Watchdog V5561
+name: BridgePoint Continuous Mobile Map Watchdog V5822
 
 on:
   workflow_dispatch:
