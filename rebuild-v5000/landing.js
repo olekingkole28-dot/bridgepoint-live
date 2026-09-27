@@ -176,7 +176,7 @@ async function initMap(){
   let bpUserMapGesture=false;const previewEl=$('previewMap');for(const ev of ['pointerdown','touchstart','wheel'])previewEl?.addEventListener(ev,()=>{bpUserMapGesture=true},{passive:true});map.on('move',()=>{$('previewCard').hidden=true;if(bpUserMapGesture){const s=document.querySelector('.preview-sample');if(s){s.style.opacity='0';s.style.pointerEvents='none';s.style.transform='translateY(6px)'}}});
   try{
    if(!map.isStyleLoaded?.())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
-   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5615'),import('./world-v2300-present-weather.js?v=5544')]);
+   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5822'),import('./world-v2300-present-weather.js?v=5544')]);
    const weather=wm.initWeather(world.map),present=pm.initPresentWeather(world.map);
    weather?.setActive?.(true);weather?.setRadar?.(false);
    void startLandingNationalWeather(world).catch(e=>console.warn('BridgePoint national weather async',e));
