@@ -227,13 +227,13 @@ function hydrateLiveMetricSnapshot(){
  if(Number.isFinite(Number(c.opportunityProperties)))bpStableText('landingOpportunityProperties',fmt(c.opportunityProperties));
  if(Number.isFinite(Number(c.opportunityStates)))bpStableText('landingOpportunityStatesCount',fmt(c.opportunityStates));
 }
-const BP_HEADLINE_CACHE_KEY='bp-public-headline-v5851';
+const BP_HEADLINE_CACHE_KEY='bp-public-headline-v5852';
 function paintHeadline(d){
  if(!d||typeof d!=='object')return false;
  const put=(id,v)=>{const el=$(id),n=Number(v);if(el&&Number.isFinite(n))bpStableText(id,fmt(n))};
  put('landingProperties',d.world_canonical_total);put('landingBuildings',d.map_ready_buildings);put('landingAddresses',d.address_records);put('landingBoundaries',d.stored_boundaries);
  put('landingGlobalProperties',d.world_canonical_total);put('globalCountryTotal',d.world_canonical_total);
- put('landingLayouts',d.global_3d_building_models);put('landingParts',d.global_roof_shell_buildings);put('landingTransport',d.global_transport_rows);put('landingWeatherEvents',d.weather_events);
+ put('landingLayouts',d.global_3d_building_models);put('landingParts',d.global_roof_shell_buildings);put('landingTransport',d.global_transport_rows);put('landingWeatherEvents',d.global_live_events??d.weather_events);
  put('landingOpportunityHeroStat',d.opportunities_total);put('landingOpportunityTotal',d.opportunities_total);put('landingOpportunityTotalHero',d.opportunities_total);
  put('landingOpportunityProperties',d.opportunity_properties);put('landingOpportunityStatesCount',d.opportunity_jurisdictions);
  const cp=d.claims_parity||{};if($('landingOpportunityClaimsParity')&&Number.isFinite(Number(cp.minimum_met)))bpStableText('landingOpportunityClaimsParity',fmt(cp.minimum_met)+' / '+fmt(cp.jurisdictions_total||56)+' at minimum source parity');
@@ -241,7 +241,7 @@ function paintHeadline(d){
 }
 function cachedHeadline(){try{return JSON.parse(localStorage.getItem(BP_HEADLINE_CACHE_KEY)||'null')}catch(_){return null}}
 async function headline(){
- try{const d=await rpc('bridgepoint_public_headline_v5822',{},2500);paintHeadline(d);try{localStorage.setItem(BP_HEADLINE_CACHE_KEY,JSON.stringify(d))}catch(_){}return d}
+ try{const [d,globalLive]=await Promise.all([rpc('bridgepoint_public_headline_v5822',{},2500),rpc('bridgepoint_global_live_event_count_v5852',{},2500)]);const merged={...d,global_live_events:Number(globalLive)};paintHeadline(merged);try{localStorage.setItem(BP_HEADLINE_CACHE_KEY,JSON.stringify(merged))}catch(_){}return merged}
  catch(e){const c=cachedHeadline();if(c)paintHeadline(c);console.warn('BridgePoint headline cache',e);return c}
 }
 function bindMetricNavigation(){
@@ -543,5 +543,5 @@ function bind(){document.querySelectorAll('.auth-open').forEach(b=>b.onclick=()=
  try{window.__BP_LANDING_WORLD__?.map?.triggerRepaint?.()}catch(_){}
  window.__BP_LANDING_SOFT_REFRESH__={hardReload:false,lastAt:Date.now()}
 });
-if(!hashSession()){bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();hydrateLiveMetricSnapshot();headline();initMap();setInterval(headline,15000);globalCoverage();setInterval(globalCoverage,60000);opportunitySummary();setInterval(opportunitySummary,120000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5850',{updateViaCache:'none'}).catch(()=>{})}
+if(!hashSession()){bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();hydrateLiveMetricSnapshot();headline();initMap();setInterval(headline,15000);globalCoverage();setInterval(globalCoverage,60000);opportunitySummary();setInterval(opportunitySummary,120000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5852',{updateViaCache:'none'}).catch(()=>{})}
 // BP_V5441_DEPLOY_SYNC: compact national hazard dots; radar and boundaries unchanged.
