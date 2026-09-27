@@ -201,6 +201,8 @@ jobs:
 
           printf '%s\n' 'bridgepointintelligence.online' > site/CNAME
           touch site/.nojekyll site/app/.nojekyll
+          printf '{"commit":"%s","audit_version":5847,"built_at":"%s"}\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > site/build.json
+          test -s site/build.json
 
           test -f site/assets/us-state-boundaries-census.topo.json
           test -f site/pricing/index.html
