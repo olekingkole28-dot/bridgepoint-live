@@ -1,0 +1,165 @@
+name: Discover incompatible map layers v5864
+
+on:
+  push:
+    branches: [restore-prepause-map-v5864]
+    paths:
+      - '.github/workflows/discover-map-layer-breaks-v5864.yml'
+      - 'release-v2300/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build isolated world
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf site
+          mkdir -p site/vendor
+          cp release-v2300/world-v2300-*.js site/
+          cp release-v2300/world-v2300.css site/ || true
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
+          cat > site/probe.html <<'HTML'
+          <!doctype html><html><head><meta charset="utf-8">
+          <link rel="stylesheet" href="/vendor/maplibre-gl.css">
+          <style>html,body,#m{width:100%;height:100%;margin:0;background:#05090d}</style></head>
+          <body><div id="m"></div><script src="/vendor/maplibre-gl.js"></script>
+          <script type="module">
+          import {initWorld} from '/world-v2300-map.js?discover=5864';
+          try { window.__testWorld=initWorld({containerId:'m',globalKey:'__testWorld',center:[-98.5,39.5],zoom:2.55,pitch:0,bearing:0,projection:'globe'}); }
+          catch(e){window.__probeInitError=String(e?.stack||e)}
+          </script></body></html>
+          HTML
+
+      - name: Discover every construction-breaking layer
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 -m http.server 8080 -d site >/tmp/bp-discover-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8080/probe.html >/dev/null && break; sleep 1; done
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          const fs=require('fs');
+
+          async function probe(browser,skip,name){
+            const p=await browser.newPage();
+            await p.setViewport({width:900,height:700,deviceScaleFactor:1});
+            const pageErrors=[];
+            p.on('pageerror',e=>pageErrors.push(String(e.stack||e.message||e)));
+            await p.evaluateOnNewDocument((skip)=>{
+              let ml;
+              Object.defineProperty(window,'maplibregl',{
+                configurable:true,
+                get(){return ml},
+                set(v){
+                  ml=v;
+                  const P=v?.Map?.prototype;
+                  if(!P||P.__bpDiscoverWrapped)return;
+                  P.__bpDiscoverWrapped=true;
+                  const raw=P.setStyle;
+                  P.setStyle=function(style,opts){
+                    if(style&&typeof style==='object'&&Array.isArray(style.layers)){
+                      window.__BP_DISCOVER_ORIGINAL_IDS__=style.layers.map(x=>x?.id);
+                      const layers=style.layers.filter(x=>x&&x.id&&!skip.includes(x.id));
+                      window.__BP_DISCOVER_EFFECTIVE_IDS__=layers.map(x=>x.id);
+                      style={...style,layers};
+                    }
+                    return raw.call(this,style,opts);
+                  }
+                }
+              });
+            },skip);
+            await p.goto('http://127.0.0.1:8080/probe.html?name='+encodeURIComponent(name),{waitUntil:'domcontentloaded',timeout:30000});
+            try{await p.waitForFunction(()=>!!window.__testWorld?.map||!!window.__probeInitError,{timeout:8000})}catch(_){}
+            await new Promise(r=>setTimeout(r,900));
+            const state=await p.evaluate(()=>{
+              const m=window.__testWorld?.map,st=m?.style;
+              const ids=window.__BP_DISCOVER_EFFECTIVE_IDS__||[];
+              const layers=st?._layers||{};
+              const count=Object.keys(layers).length;
+              const canvas=m?.getCanvas?.()||document.querySelector('.maplibregl-canvas');
+              let gl=null;try{gl=canvas?.getContext('webgl2')||canvas?.getContext('webgl')}catch(_){}
+              return {
+                originalIds:window.__BP_DISCOVER_ORIGINAL_IDS__||[],
+                effectiveIds:ids,
+                effectiveCount:ids.length,
+                layerCount:count,
+                orderCount:Array.isArray(st?._order)?st._order.length:0,
+                nextId:count<ids.length?ids[count]:null,
+                map:!!m,
+                initError:window.__probeInitError||null,
+                canvas:!!canvas,
+                webgl:!!gl,
+                contextLost:gl?.isContextLost?.()??null
+              };
+            });
+            const out={name,skip:[...skip],state,pageErrors:[...new Set(pageErrors)].slice(0,5)};
+            console.log('DISCOVER_PROBE '+JSON.stringify(out));
+            await p.close();
+            return out;
+          }
+
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
+            const skip=[];
+            const history=[];
+            try{
+              for(let i=0;i<30;i++){
+                const r=await probe(browser,skip,'discover-'+i);
+                history.push(r);
+                if(r.state.layerCount===r.state.effectiveCount){
+                  console.log('DISCOVERY_COMPLETE '+JSON.stringify({badLayers:skip,final:r.state}));
+                  await fs.promises.writeFile('/tmp/map-layer-discovery.json',JSON.stringify({badLayers:skip,history},null,2));
+                  const p=await browser.newPage();
+                  await p.setViewport({width:900,height:700});
+                  await p.evaluateOnNewDocument((skip)=>{
+                    let ml;Object.defineProperty(window,'maplibregl',{configurable:true,get(){return ml},set(v){ml=v;const P=v?.Map?.prototype;if(!P||P.__bpFinalWrapped)return;P.__bpFinalWrapped=true;const raw=P.setStyle;P.setStyle=function(style,opts){if(style&&Array.isArray(style.layers))style={...style,layers:style.layers.filter(x=>x?.id&&!skip.includes(x.id))};return raw.call(this,style,opts)}}});
+                  },skip);
+                  await p.goto('http://127.0.0.1:8080/probe.html?final=1',{waitUntil:'domcontentloaded',timeout:30000});
+                  await new Promise(r=>setTimeout(r,2500));
+                  await p.screenshot({path:'/tmp/map-layer-final.png',fullPage:true});
+                  await p.close();
+                  return;
+                }
+                const bad=r.state.nextId;
+                if(!bad)throw new Error('NO_NEXT_BAD_LAYER '+JSON.stringify(r.state));
+                if(skip.includes(bad))throw new Error('DISCOVERY_LOOP '+bad);
+                skip.push(bad);
+                console.log('DISCOVER_BAD_LAYER '+bad);
+              }
+              throw new Error('TOO_MANY_BAD_LAYERS '+JSON.stringify(skip));
+            } finally {
+              await browser.close();
+            }
+          })().catch(async e=>{
+            console.error('DISCOVERY_FAILURE',e.stack||e);
+            try{fs.writeFileSync('/tmp/map-layer-discovery.json',JSON.stringify({error:String(e.stack||e)},null,2))}catch(_){}
+            process.exit(1);
+          });
+          NODE
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: map-layer-discovery-v5864
+          path: |
+            /tmp/map-layer-discovery.json
+            /tmp/map-layer-final.png
+            /tmp/bp-discover-http.log
+          if-no-files-found: ignore
