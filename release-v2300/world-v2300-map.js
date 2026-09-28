@@ -1,6 +1,6 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
 import{initSpace}from'./world-v2300-space.js?v=5536-style-ready-v5880';
-window.__BP_WORLD_RENDER_VERSION__=5631;window.__BP_STYLE_READY_GATE_V5880__={version:5880,strictStyleLoaded:true,earlyStyledataMutation:false};
+window.__BP_WORLD_RENDER_VERSION__=5630;window.__BP_STYLE_READY_GATE_V5880__={version:5880,strictStyleLoaded:true,earlyStyledataMutation:false};
 const PUBLIC_TECH_FAST=true;
 window.__BP_PUBLIC_TECH_FAST_V1117__={version:1117,enabled:true,autoDenseCityHandoff:false,autoExactViewport:false,context3D:true,whiteRoofs:true,floorLines:true,labels:true,trees:true,roads:true,weather:true,updatedAt:Date.now()};
 window.__BP_OWNER_ROAD_STYLE_V1118__={version:1118,major:'#53717c',local:'#45616b',heavyGlow:false,heavyCasing:false,labelsPreserved:true,updatedAt:Date.now()};
