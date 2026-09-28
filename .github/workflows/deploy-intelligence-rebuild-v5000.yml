@@ -857,7 +857,7 @@ jobs:
               await p.goto('https://bridgepointintelligence.online/app/?tourqa=1&v='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               await p.waitForSelector('#bpWalkthrough',{timeout:10000});
               const appTour=await p.evaluate(()=>({active:window.__BP_WALKTHROUGH_V5539__?.active===true,version:window.__BP_WALKTHROUGH_V5539__?.version||0,total:window.__BP_WALKTHROUGH_V5539__?.total||0,title:document.querySelector('.bp-tour-title')?.textContent||'',molly:document.body.innerText.includes('Molly Materson'),mollySrc:document.querySelector('.bp-tour-person.molly img')?.getAttribute('src')||'',skip:!!document.querySelector('.bp-tour-skip'),apiSkip:typeof window.__BP_WALKTHROUGH_V5539__?.skip==='function'}));
-              if(!appTour.active||appTour.version!==5539||appTour.total<30||!appTour.molly||appTour.mollySrc!=='/assets/molly-materson-bridgepoint.webp'||!appTour.skip||!appTour.apiSkip||!/Welcome to the BridgePoint app/i.test(appTour.title))throw new Error('APP_WALKTHROUGH_REGRESSION '+JSON.stringify(appTour));
+              if(!appTour.active||appTour.version!==5539||appTour.total<30||!appTour.molly||appTour.mollySrc!=='/assets/molly-materson-bridgepoint.webp'||!appTour.skip||!appTour.apiSkip||!/Welcome to BridgePoint/i.test(appTour.title))throw new Error('APP_WALKTHROUGH_REGRESSION '+JSON.stringify(appTour));
               await p.evaluate(()=>{try{window.__BP_WALKTHROUGH_V5539__?.skip?.()}catch(_){}});
               console.log('BRIDGEPOINT_WALKTHROUGH_V5539_PASS',JSON.stringify({landingTour,appTour}));
               const fatal=[];p.on('pageerror',e=>{fatal.push(String(e.message||e));console.log('BROWSER_PAGEERROR',String(e.stack||e.message||e))});
@@ -986,7 +986,7 @@ jobs:
               const intel5507=await p.evaluate(()=>({
                 runtime:window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__?.version||0,
                 tools:window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__?.version||0,
-                defaultGlobe:window.__BP_GLOBE_MODE_V5507__?.enabled===true,
+                defaultGlobe:window.__BP_GLOBE_MODE_V5507__?.enabled===true&&(window.__BP_V5000_WORLD__?.map?.getProjection?.()?.type||'')==='globe',
                 key:!!document.getElementById('bp5507-key'),
                 premiumTools:!!document.getElementById('bp5507-tools'),
                 live:!!window.__BP_V5000_WORLD?.map?.getLayer('bp5507-live-points'),
