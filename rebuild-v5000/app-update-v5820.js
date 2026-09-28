@@ -1,4 +1,4 @@
-(()=>{const BUILD=5849,CURRENT_SW='/sw.js?v='+BUILD,CURRENT_CACHE='bp-intelligence-v'+BUILD,RELOAD_KEY='bp-update-reload-'+BUILD;
+(()=>{const BUILD=5853,CURRENT_SW='/sw.js?v='+BUILD,CURRENT_CACHE='bp-intelligence-v'+BUILD,RELOAD_KEY='bp-update-reload-'+BUILD;
 let busy=false;
 const sameOrigin=u=>{try{return new URL(u,location.href).origin===location.origin}catch{return false}};
 const scopePath=s=>{try{return new URL(s).pathname}catch{return''}};
