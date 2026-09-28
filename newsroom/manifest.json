@@ -1,10 +1,10 @@
 {
   "version": 5805,
-  "generated_at": "2026-09-28T13:34:16Z",
+  "generated_at": "2026-09-28T20:13:40Z",
   "canonical_properties": 171321626,
   "address_records": 156184506,
   "map_ready_buildings": 202501744,
-  "active_hazard_records": 295,
+  "active_hazard_records": 311,
   "pages": [
     {
       "slug": "169-million-canonical-property-map",
@@ -12,7 +12,7 @@
       "title": "BridgePoint now reports 171.3M canonical U.S. property records",
       "description": "A live proptech map combining canonical property identity, buildings, roofs and source-labelled hazards.",
       "kind": "milestone",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "solo-builder-proptech",
@@ -20,7 +20,7 @@
       "title": "Solo builder creates a live property-intelligence map spanning 171.3M canonical records",
       "description": "An emerging proptech project built by a solo founder connects property identity, 3D buildings, roofs and live hazards.",
       "kind": "proptech",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "founder-story-built-from-a-phone",
@@ -28,7 +28,7 @@
       "title": "From homelessness and a phone to a national property-intelligence build",
       "description": "The BridgePoint founder story: starting with a phone, building while homeless, and turning the idea into a live national property-intelligence product in about five months.",
       "kind": "founder",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "investor-live-product-callout",
@@ -36,7 +36,7 @@
       "title": "Investors: BridgePoint is live\u2014inspect the product instead of reading a pitch",
       "description": "A direct callout to proptech, geospatial, insurance, climate-tech and data investors to inspect BridgePoint's live product.",
       "kind": "investor",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "horizon-real-world-spatial-game",
@@ -44,7 +44,7 @@
       "title": "BridgePoint Horizon turns the same national spatial backend into a playable survival world",
       "description": "BridgePoint Horizon reuses BridgePoint terrain, roads, parcels and buildings as the spatial foundation for a playable survival and combat experience.",
       "kind": "horizon",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "roof-intelligence-mega-sprint",
@@ -52,23 +52,23 @@
       "title": "BridgePoint roof-intelligence sprint: 6,121 LiDAR-refined buildings and climbing",
       "description": "Live roof materialization status from BridgePoint's active roof-data sprint.",
       "kind": "roof",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "global-property-intelligence-expansion",
       "url": "https://bridgepointintelligence.online/newsroom/global-property-intelligence-expansion/",
-      "title": "BridgePoint global expansion: 330,105,710 worldwide canonical property identities",
+      "title": "BridgePoint global expansion: 337,911,187 worldwide canonical property identities",
       "description": "Live BridgePoint global property, parcel-boundary and building coverage generated from current backend counters.",
       "kind": "global",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "live-storm-intelligence",
       "url": "https://bridgepointintelligence.online/newsroom/live-storm-intelligence/",
-      "title": "Live U.S. storm intelligence: 295 active source-labelled hazard records",
+      "title": "Live U.S. storm intelligence: 311 active source-labelled hazard records",
       "description": "Current BridgePoint storm and hazard context generated from live source-labelled weather data.",
       "kind": "storm",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "live-wildfire-fire-weather",
@@ -76,15 +76,15 @@
       "title": "Wildfire / fire weather: 220 current BridgePoint map records",
       "description": "Live source-labelled wildfire / fire weather context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "live-probsevere-convective-storm-signals",
       "url": "https://bridgepointintelligence.online/newsroom/live-probsevere-convective-storm-signals/",
-      "title": "ProbSevere convective storm signals: 48 current BridgePoint map records",
+      "title": "ProbSevere convective storm signals: 67 current BridgePoint map records",
       "description": "Live source-labelled probsevere convective storm signals context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "live-flood-warning",
@@ -92,23 +92,31 @@
       "title": "Flood Warning: 10 current BridgePoint map records",
       "description": "Live source-labelled flood warning context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-28T13:34:16Z"
-    },
-    {
-      "slug": "live-flood-advisory",
-      "url": "https://bridgepointintelligence.online/newsroom/live-flood-advisory/",
-      "title": "Flood Advisory: 8 current BridgePoint map records",
-      "description": "Live source-labelled flood advisory context on the BridgePoint Intelligence map.",
-      "kind": "storm",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "live-tropical-hurricane-events",
       "url": "https://bridgepointintelligence.online/newsroom/live-tropical-hurricane-events/",
-      "title": "Tropical / hurricane events: 4 current BridgePoint map records",
+      "title": "Tropical / hurricane events: 5 current BridgePoint map records",
       "description": "Live source-labelled tropical / hurricane events context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
+    },
+    {
+      "slug": "live-flash-flood-warning",
+      "url": "https://bridgepointintelligence.online/newsroom/live-flash-flood-warning/",
+      "title": "Flash Flood Warning: 2 current BridgePoint map records",
+      "description": "Live source-labelled flash flood warning context on the BridgePoint Intelligence map.",
+      "kind": "storm",
+      "generated_at": "2026-09-28T20:13:40Z"
+    },
+    {
+      "slug": "live-flood-advisory",
+      "url": "https://bridgepointintelligence.online/newsroom/live-flood-advisory/",
+      "title": "Flood Advisory: 2 current BridgePoint map records",
+      "description": "Live source-labelled flood advisory context on the BridgePoint Intelligence map.",
+      "kind": "storm",
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "live-flood-events",
@@ -116,7 +124,7 @@
       "title": "Flood events: 2 current BridgePoint map records",
       "description": "Live source-labelled flood events context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "live-wind-reports-signals",
@@ -124,15 +132,15 @@
       "title": "Wind reports / signals: 2 current BridgePoint map records",
       "description": "Live source-labelled wind reports / signals context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
-      "slug": "live-flood-watch",
-      "url": "https://bridgepointintelligence.online/newsroom/live-flood-watch/",
-      "title": "Flood Watch: 1 current BridgePoint map record",
-      "description": "Live source-labelled flood watch context on the BridgePoint Intelligence map.",
+      "slug": "live-day-1-hail-outlook",
+      "url": "https://bridgepointintelligence.online/newsroom/live-day-1-hail-outlook/",
+      "title": "Day 1 hail outlook: 1 current BridgePoint map record",
+      "description": "Live source-labelled day 1 hail outlook context on the BridgePoint Intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "global-expansion-live",
@@ -140,15 +148,15 @@
       "title": "BridgePoint global expansion: 174 countries currently reporting live canonical coverage",
       "description": "Live BridgePoint global expansion counters for countries already in the production pipeline, including parcel boundaries and building-footprint progress.",
       "kind": "global",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "northeast-noreaster-live",
       "url": "https://bridgepointintelligence.online/newsroom/northeast-noreaster-live/",
-      "title": "Northeast Nor'easter intelligence: 17 active NWS wind, coastal-flood, surf or tropical alerts",
+      "title": "Northeast Nor'easter intelligence: 7 active NWS wind, coastal-flood, surf or tropical alerts",
       "description": "Live National Weather Service alert context for the Northeast, connected to BridgePoint's property and building intelligence map.",
       "kind": "storm",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     },
     {
       "slug": "parcel-build-status",
@@ -156,7 +164,7 @@
       "title": "BridgePoint parcel build status: 171,321,626 canonical properties with final reconciliation still running",
       "description": "Live parcel/canonical-property build status with explicit separation between canonical identity and parcel-boundary completion.",
       "kind": "parcel",
-      "generated_at": "2026-09-28T13:34:16Z"
+      "generated_at": "2026-09-28T20:13:40Z"
     }
   ]
 }
