@@ -361,7 +361,7 @@ function oppFamilyLabel(k){return({acquisition:'Investor / Acquisition',construc
 async function opportunitySummary(){
  if(opportunitySummaryLoading)return opportunitySummaryLoading;
  opportunitySummaryLoading=(async()=>{try{
-  const d=await rpc('bridgepoint_public_opportunity_summary_v5626',{},7000),truth=window.__BP_HEADLINE_V5822__||await headline().catch(()=>null),families=Array.isArray(d?.families)?d.families:[],states=Array.isArray(d?.states)?d.states:[],positive=states.filter(x=>Number(x.count)>0),maxFamily=Math.max(1,...families.map(x=>Number(x.count)||0)),claims=d?.claims_parity||{};
+  const d=await rpc('bridgepoint_public_opportunity_summary_v5626',{},7000),truth=window.__BP_HEADLINE_V5822__||await headline().catch(()=>null),families=Array.isArray(d?.families)?d.families:[],states=Array.isArray(d?.states)?d.states:[],countries=Array.isArray(d?.countries)?d.countries:[],positive=states.filter(x=>Number(x.count)>0),positiveCountries=countries.filter(x=>Number(x.count)>0),maxFamily=Math.max(1,...families.map(x=>Number(x.count)||0)),claims=d?.claims_parity||{};
   const total=Number.isFinite(Number(truth?.opportunities_total))?Number(truth.opportunities_total):Number(d?.total_opportunities||0),props=Number.isFinite(Number(truth?.opportunity_properties))?Number(truth.opportunity_properties):Number(d?.unique_properties||0),stateCount=Number.isFinite(Number(truth?.opportunity_jurisdictions))?Number(truth.opportunity_jurisdictions):Number(d?.states_with_opportunities||0),claimText=fmt(claims.minimum_met||0)+' / '+fmt(claims.jurisdictions_total||56)+' U.S. jurisdictions at minimum source parity';
   requestAnimationFrame(()=>{
    const v=fmt(total);
@@ -369,7 +369,7 @@ async function opportunitySummary(){
    bpStableText('landingOpportunityProperties',fmt(props));bpStableText('landingOpportunityStatesCount',fmt(stateCount));bpStableText('landingOpportunityClaimsParity',claimText);
   });
   bpLiveCacheWrite({opportunities:total,opportunityProperties:props,opportunityStates:stateCount});
-  const domSig=JSON.stringify([total,props,stateCount,families.map(x=>[x.key,x.count]),states.map(x=>[x.state_code,x.count,x.properties,x.claims_target_status])]);
+  const domSig=JSON.stringify([total,props,stateCount,families.map(x=>[x.key,x.count]),states.map(x=>[x.state_code,x.count,x.properties,x.claims_target_status]),countries.map(x=>[x.country_code,x.count,x.properties,x.avg_score])]);
   if(window.__BP_OPPORTUNITY_DOM_SIG__!==domSig){
    const fam=$('landingOpportunityFamilies');
    if(fam){
@@ -398,6 +398,18 @@ async function opportunitySummary(){
       frag.appendChild(details);
     }
     list.replaceChildren(frag);
+   }
+   const countryList=$('landingOpportunityCountries');
+   if(countryList){
+    const frag=document.createDocumentFragment();
+    positiveCountries.forEach(ct=>{
+      const card=document.createElement('article');card.className='bp-opp-state';
+      const code=String(ct.country_code||'').toUpperCase(),fs=Object.entries(ct.families||{}).filter(([,v])=>Number(v)>0).sort((a,b)=>Number(b[1])-Number(a[1]));
+      card.innerHTML='<div class="bp-opp-state-head"><b>'+esc(bpCountryName(code,code))+' · '+esc(code)+'</b><strong>'+fmt(ct.count)+'</strong></div><small>'+fmt(ct.properties)+' properties · avg score '+Number(ct.avg_score||0).toFixed(1)+'</small><div class="bp-opp-chips">'+fs.map(([k,v])=>'<span style="--opp:'+esc(BP_OPP_COLORS[k]||'#62e6ff')+'"><i></i>'+esc(oppFamilyLabel(k))+' '+fmt(v)+'</span>').join('')+'</div>';
+      frag.appendChild(card);
+    });
+    if(!positiveCountries.length){const empty=document.createElement('div');empty.className='bp-opp-loading';empty.textContent='No non-U.S. customer-ready opportunities published yet.';frag.appendChild(empty)}
+    countryList.replaceChildren(frag);
    }
    window.__BP_OPPORTUNITY_DOM_SIG__=domSig;
   }
