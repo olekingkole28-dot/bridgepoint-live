@@ -129,6 +129,8 @@ function style(){
  ];
  return{
  version:8,
+ light:{anchor:'map',color:'#fff3d7',intensity:.78,position:[1.35,210,60]},
+ sky:{'sky-color':'#4a7f9a','horizon-color':'#9fb5b2','fog-color':'#83959a','sky-horizon-blend':.2,'horizon-fog-blend':.06,'fog-ground-blend':.025,'atmosphere-blend':['interpolate',['linear'],['zoom'],0,.62,5,.36,9,.09,12,0]},
  glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
  sources:{
   ofm:{type:'vector',tiles:[OFM],minzoom:0,maxzoom:14,attribution:'OpenFreeMap © OpenMapTiles · © OpenStreetMap contributors'},
@@ -483,7 +485,7 @@ export function initWorld(options={}){
  const containerId=String(options.containerId||'liveMap'),globalKey=String(options.globalKey||'__bpWorldV2300'),container=document.getElementById(containerId);if(!container||!window.maplibregl)return null;if(window[globalKey]?.map)return window[globalKey];container.innerHTML='';
  const initialCenter=Array.isArray(options.center)&&options.center.length===2?options.center:[0,20],initialZoom=Number.isFinite(options.zoom)?Number(options.zoom):(MOBILE?1.05:1.25),initialPitch=Number.isFinite(options.pitch)?Number(options.pitch):0,initialBearing=Number.isFinite(options.bearing)?Number(options.bearing):0,projectionType=String(options.projection||'globe');
  const map=new maplibregl.Map({container,style:style(),center:initialCenter,zoom:initialZoom,pitch:initialPitch,bearing:initialBearing,minZoom:.65,maxZoom:22,maxPitch:85,projection:{type:projectionType},pixelRatio:MOBILE?1:Math.min(window.devicePixelRatio||1,2),antialias:!MOBILE&&!LOW,fadeDuration:0,renderWorldCopies:false,transformRequest:tileTransform,maxTileCacheSize:MOBILE?48:(TIER==='LOW'?96:TIER==='HIGH'?240:160),refreshExpiredTiles:false,cancelPendingTileRequestsWhileZooming:true,crossSourceCollisions:!MOBILE,validateStyle:false,attributionControl:false});
- const repairMaplibreLayerOrder=(reason='guard')=>{try{const st=map.style,order=st?._order,layers=st?._layers;if(!Array.isArray(order)||!layers)return false;const removed=order.filter(id=>!layers[id]),clean=order.filter(id=>!!layers[id]);if(!removed.length)return false;st._order=clean;st._layerOrderChanged=true;window.__BP_MAPLIBRE_LAYER_ORDER_GUARD_V5863__={version:5863,reason,removed,remaining:clean.length,updatedAt:Date.now()};map.triggerRepaint?.();return true}catch(_){return false}};
+ const repairMaplibreLayerOrder=(reason='guard')=>{try{const st=map.style,order=st?._order,layers=st?._layers;if(!Array.isArray(order)||!layers)return false;const removed=order.filter(id=>!layers[id]),clean=order.filter(id=>!!layers[id]);if(!removed.length)return false;st._order=clean;st._layerOrderChanged=true;window.__BP_MAPLIBRE_LAYER_ORDER_GUARD_V5864__={version:5864,reason,removed,remaining:clean.length,updatedAt:Date.now()};map.triggerRepaint?.();return true}catch(_){return false}};
  try{
   const st=map.style,rawRemoveLayer=map.removeLayer.bind(map),rawMoveLayer=map.moveLayer.bind(map);
   repairMaplibreLayerOrder('post-constructor-sync');
@@ -497,7 +499,7 @@ export function initWorld(options={}){
   map.on('moveend',()=>repairMaplibreLayerOrder('moveend'));
   map.on('zoomend',()=>repairMaplibreLayerOrder('zoomend'));
  }catch(_){}
- window.__BP_MAPLIBRE_RUNTIME_V5863__={version:5863,library:'MapLibre GL JS',target:'6.10.0',privateInternalsPatched:true,layerOrderGuard:true,upstreamTerrainProjectionFixes:true,updatedAt:Date.now()};
+ window.__BP_MAPLIBRE_RUNTIME_V5864__={version:5864,library:'MapLibre GL JS',target:'6.10.0',privateInternalsPatched:true,layerOrderGuard:true,upstreamTerrainProjectionFixes:true,updatedAt:Date.now()};
 
  const space=initSpace(map,container);
  const runtimeMapErrors=[];map.on('error',e=>{const raw=e?.error||e,msg=String(raw?.message||raw||'MapLibre runtime error');runtimeMapErrors.push({message:msg,at:Date.now()});if(runtimeMapErrors.length>30)runtimeMapErrors.shift();window.__BP_MAP_RUNTIME_ERRORS__=runtimeMapErrors;console.warn('BridgePoint MapLibre',msg)});
