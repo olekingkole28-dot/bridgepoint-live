@@ -1,10 +1,10 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/vendor/maplibre-gl.css">
 <style>html,body,#liveMap{margin:0;width:100%;height:100%;background:#000}#diag{position:fixed;z-index:99;left:8px;top:8px;max-width:92vw;max-height:45vh;overflow:auto;background:rgba(0,0,0,.85);color:#8ff;padding:8px;font:11px/1.3 monospace;white-space:pre-wrap}</style>
-</head><body><div id="liveMap"></div><pre id="diag">BOOT</pre><script src="/vendor/maplibre-gl.js?v=562-v5873"></script>
+</head><body><div id="liveMap"></div><pre id="diag">BOOT</pre><script src="/vendor/maplibre-gl.js?v=562-v5874"></script>
 <script type="module">
 const out=document.getElementById('diag');const events=[];addEventListener('error',e=>events.push({type:'window',message:e.message,src:e.filename,line:e.lineno}));addEventListener('unhandledrejection',e=>events.push({type:'promise',message:String(e.reason?.message||e.reason)}));
-const mod=await import('/world-v2300-map.js?v=5630-v5852-earth-return-v5873');
+const mod=await import('/world-v2300-map.js?v=5630-v5852-earth-return-v5874');
 const w=mod.initWorld({containerId:'liveMap',globalKey:'__BP_DIAG_WORLD__',center:[0,20],zoom:1.25,projection:'globe'});
 const snap=()=>{const m=w?.map,c=m?.getCanvas?.();let gl=null;try{gl=c?.getContext('webgl2')||c?.getContext('webgl')}catch(e){};let pixel=null;try{if(gl){const p=new Uint8Array(4);gl.readPixels(Math.floor(c.width/2),Math.floor(c.height/2),1,1,gl.RGBA,gl.UNSIGNED_BYTE,p);pixel=[...p]}}catch(e){};return{maplibre:window.maplibregl?.version,world:!!w,zoom:m?.getZoom?.(),center:m?.getCenter?.()?.toArray?.(),projection:m?.getProjection?.(),loaded:m?.loaded?.(),styleLoaded:m?.isStyleLoaded?.(),layers:m?.getStyle?.()?.layers?.length,nasa:!!m?.getSource?.('nasa'),nasaVisibility:m?.getLayoutProperty?.('gta-nasa','visibility'),nasaOpacity:m?.getPaintProperty?.('gta-nasa','raster-opacity'),errors:window.__BP_MAP_RUNTIME_ERRORS__||[],events,canvas:c&&{w:c.width,h:c.height,cw:c.clientWidth,ch:c.clientHeight,display:getComputedStyle(c).display,visibility:getComputedStyle(c).visibility,opacity:getComputedStyle(c).opacity},webgl:gl&&{lost:gl.isContextLost(),vendor:gl.getParameter(gl.VENDOR),renderer:gl.getParameter(gl.RENDERER),version:gl.getParameter(gl.VERSION),pixel},space:w?.space&&{active:w.space.active,level:w.space.level,mounted:w.space.mounted}}};
 setInterval(()=>{out.textContent=JSON.stringify(snap(),null,2);out.dataset.ready='1'},1000);
