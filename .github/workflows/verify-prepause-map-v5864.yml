@@ -120,7 +120,7 @@ jobs:
               const order=Array.isArray(st?._order)?st._order:[];
               const layers=st?._layers||{};
               const updatedPaint=st?._updatedPaintProps;
-              const updatedLayerKeys=st?._updatedLayers ? [...st._updatedLayers] : [];
+              const updatedLayerKeys=st?._updatedLayers instanceof Set ? [...st._updatedLayers] : (st?._updatedLayers instanceof Map ? [...st._updatedLayers.keys()] : (st?._updatedLayers ? Object.keys(st._updatedLayers) : []));
               const updatedPaintKeys=updatedPaint instanceof Map ? [...updatedPaint.keys()] : (updatedPaint?Object.keys(updatedPaint):[]);
               const canvas=m?.getCanvas?.()||document.querySelector('.maplibregl-canvas');
               let gl=null;try{gl=canvas?.getContext('webgl2')||canvas?.getContext('webgl')}catch(_){}
