@@ -107,6 +107,7 @@ jobs:
           if [ -d investors ]; then cp -a investors site/investors; fi
           if [ -d enterprise ]; then cp -a enterprise site/enterprise; fi
           cp rebuild-v5000/index.html site/index.html
+          cp rebuild-v5000/globe-diag.html site/globe-diag.html
           rm -rf site/coverage
           cp -a rebuild-v5000/coverage site/coverage
           cp rebuild-v5000/app-index.html site/app/index.html
