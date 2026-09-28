@@ -1,6 +1,6 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
-import{initSpace}from'./world-v2300-space.js?v=5536-style-projection-v5879';
-window.__BP_WORLD_RENDER_VERSION__=5630;
+import{initSpace}from'./world-v2300-space.js?v=5536-style-ready-v5880';
+window.__BP_WORLD_RENDER_VERSION__=5630;window.__BP_STYLE_READY_GATE_V5880__={version:5880,strictStyleLoaded:true,earlyStyledataMutation:false};
 const PUBLIC_TECH_FAST=true;
 window.__BP_PUBLIC_TECH_FAST_V1117__={version:1117,enabled:true,autoDenseCityHandoff:false,autoExactViewport:false,context3D:true,whiteRoofs:true,floorLines:true,labels:true,trees:true,roads:true,weather:true,updatedAt:Date.now()};
 window.__BP_OWNER_ROAD_STYLE_V1118__={version:1118,major:'#53717c',local:'#45616b',heavyGlow:false,heavyCasing:false,labelsPreserved:true,updatedAt:Date.now()};
@@ -1220,7 +1220,7 @@ export function initWorld(options={}){
  const finalizeWorldCore=()=>{
   if(worldCoreReady)return true;
   try{
-   const st=map.getStyle?.(),usable=!!(map.isStyleLoaded?.()||map.loaded?.()||((st?.layers?.length||0)>0&&map.getSource?.('ofm')));
+   const usable=map.isStyleLoaded?.()===true;
    if(!usable)return false;
    installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();bindBuildingHitLayers();setBase('gta');disableFineDetail();try{for(const id of ['gta-bridge3d-pier','gta-bridge3d-deck','gta-bridge3d-surface','gta-bridge3d-center','gta-bridge3d-rail'])if(map.getLayer(id)&&map.getLayer('gta-country'))map.moveLayer(id,'gta-country')}catch(_){};rebuildLandmark3D(0);rebuildBridge3D(0);startParcelFlow();syncBuildingShells();
    window.__BP_CAMERA_MODE__={mode:'FREE_FLY_SINGLE_VIEW',singleView:true,autoViewSwitching:false,streetWalkMode:false,maxPitch:85,minZoom:2.2,maxZoom:22,manualPitch:true,manualRotation:true,buildingClickOverlook:true,updatedAt:Date.now()};
@@ -1228,10 +1228,10 @@ export function initWorld(options={}){
    worldCoreReady=true;setTimeout(scheduleExact,MOBILE?350:220);if(map.getZoom()>=12.6)setTimeout(()=>scheduleLivingWorld(0),MOBILE?700:180);setStatus('BridgePoint World v5628 · owner-style fast tech map · white roofs · labels · realistic tree LOD');return true
   }catch(e){window.__BP_WORLD_CORE_READY__={version:5519,ready:false,error:String(e?.message||e),updatedAt:Date.now()};console.warn('BridgePoint world core init',e);return false}
  };
- map.once('load',()=>{finalizeWorldCore()});
- map.on('styledata',()=>{if(!worldCoreReady)finalizeWorldCore()});
- if(map.isStyleLoaded?.()||map.loaded?.()||(map.getStyle?.()?.layers?.length||0)>0)queueMicrotask(()=>finalizeWorldCore());
- const worldCoreRecovery=setInterval(()=>{if(finalizeWorldCore())clearInterval(worldCoreRecovery)},250);
+ map.once('style.load',()=>{if(!worldCoreReady)finalizeWorldCore()});
+ map.once('load',()=>{if(!worldCoreReady)finalizeWorldCore()});
+ if(map.isStyleLoaded?.()===true)queueMicrotask(()=>finalizeWorldCore());
+ const worldCoreRecovery=setInterval(()=>{if(map.isStyleLoaded?.()===true&&finalizeWorldCore())clearInterval(worldCoreRecovery)},250);
  setTimeout(()=>clearInterval(worldCoreRecovery),12000);
  map.on('movestart',()=>movement(true));map.on('moveend',()=>movement(false));map.on('zoomend',()=>schedulePostMoveSettle());let bpCitySyncTimer=0,bpGlobalLodSyncTimer=0;map.on('sourcedata',e=>{
   if(e?.sourceId==='ofm'){
