@@ -1,0 +1,189 @@
+name: Verify pre-pause map renderer v5864
+
+on:
+  push:
+    branches: [restore-prepause-map-v5864]
+    paths:
+      - '.github/workflows/verify-prepause-map-v5864.yml'
+      - 'release-v2300/**'
+      - 'rebuild-v5000/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe-map-style:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build isolated map probe
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf site
+          mkdir -p site/vendor
+          cp release-v2300/world-v2300-*.js site/
+          cp release-v2300/world-v2300.css site/ || true
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
+          cat > site/probe.html <<'HTML'
+          <!doctype html>
+          <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+          <link rel="stylesheet" href="/vendor/maplibre-gl.css">
+          <style>html,body,#m{width:100%;height:100%;margin:0;background:#05090d}</style></head>
+          <body><div id="m"></div>
+          <script src="/vendor/maplibre-gl.js"></script>
+          <script type="module">
+          import {initWorld} from '/world-v2300-map.js?probe=5864';
+          try {
+            window.__testWorld=initWorld({containerId:'m',globalKey:'__testWorld',center:[-98.5,39.5],zoom:2.55,pitch:0,bearing:0,projection:'globe'});
+          } catch (e) {
+            window.__probeInitError=String(e?.stack||e);
+            console.error('PROBE_INIT_ERROR',e);
+          }
+          </script></body></html>
+          HTML
+
+      - name: Run layer-construction matrix
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 -m http.server 8080 -d site >/tmp/bp-probe-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8080/probe.html >/dev/null && break; sleep 1; done
+
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          const fs=require('fs');
+
+          const patternLayers=[
+            'gta-city-floor-lines',
+            'gta-context-floor-lines',
+            'gta-bp-floor-lines',
+            'gta-exact-floor-lines',
+            'gta-context-facade-detail',
+            'gta-bp-facade-detail',
+            'gta-exact-facade-detail',
+            'gta-context-night-windows',
+            'gta-bp-night-windows',
+            'gta-exact-night-windows'
+          ];
+
+          async function run(browser,name,{limit=0,skip=[]}={}){
+            const p=await browser.newPage();
+            await p.setViewport({width:900,height:700,deviceScaleFactor:1});
+            const errors=[];
+            const consoleErrors=[];
+            p.on('pageerror',e=>errors.push(String(e.stack||e.message||e)));
+            p.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text())});
+            await p.evaluateOnNewDocument(({limit,skip})=>{
+              let ml;
+              try{
+                Object.defineProperty(window,'maplibregl',{
+                  configurable:true,
+                  get(){return ml},
+                  set(v){
+                    ml=v;
+                    try{
+                      const P=v?.Map?.prototype;
+                      if(!P||P.__bpProbeWrapped)return;
+                      P.__bpProbeWrapped=true;
+                      const raw=P.setStyle;
+                      P.setStyle=function(style,opts){
+                        if(style&&typeof style==='object'&&Array.isArray(style.layers)){
+                          window.__BP_PROBE_ORIGINAL_IDS__=style.layers.map(x=>x?.id);
+                          let layers=style.layers.filter(x=>x&&x.id&&!skip.includes(x.id));
+                          if(limit>0)layers=layers.slice(0,limit);
+                          window.__BP_PROBE_EFFECTIVE_IDS__=layers.map(x=>x.id);
+                          style={...style,layers};
+                        }
+                        return raw.call(this,style,opts);
+                      };
+                    }catch(e){window.__BP_PROBE_PATCH_ERROR__=String(e?.stack||e)}
+                  }
+                });
+              }catch(e){window.__BP_PROBE_PATCH_ERROR__=String(e?.stack||e)}
+            },{limit,skip});
+            await p.goto('http://127.0.0.1:8080/probe.html?name='+encodeURIComponent(name),{waitUntil:'domcontentloaded',timeout:30000});
+            await new Promise(r=>setTimeout(r,6000));
+            const state=await p.evaluate(()=>{
+              const m=window.__testWorld?.map,st=m?.style;
+              const order=Array.isArray(st?._order)?st._order:[];
+              const layers=st?._layers||{};
+              const updatedPaint=st?._updatedPaintProps;
+              const updatedLayerKeys=st?._updatedLayers ? [...st._updatedLayers] : [];
+              const updatedPaintKeys=updatedPaint instanceof Map ? [...updatedPaint.keys()] : (updatedPaint?Object.keys(updatedPaint):[]);
+              const canvas=m?.getCanvas?.()||document.querySelector('.maplibregl-canvas');
+              let gl=null;try{gl=canvas?.getContext('webgl2')||canvas?.getContext('webgl')}catch(_){}
+              return {
+                maplibre:window.maplibregl?.version||null,
+                initError:window.__probeInitError||null,
+                patchError:window.__BP_PROBE_PATCH_ERROR__||null,
+                originalCount:window.__BP_PROBE_ORIGINAL_IDS__?.length||0,
+                effectiveCount:window.__BP_PROBE_EFFECTIVE_IDS__?.length||0,
+                effectiveLast:window.__BP_PROBE_EFFECTIVE_IDS__?.slice(-4)||[],
+                map:!!m,
+                loaded:m?.loaded?.()??false,
+                styleLoaded:m?.isStyleLoaded?.()??false,
+                orderCount:order.length,
+                layerCount:Object.keys(layers).length,
+                orphans:order.filter(id=>!layers[id]),
+                staleUpdatedPaint:updatedPaintKeys.filter(id=>!layers[id]),
+                staleUpdatedLayers:updatedLayerKeys.filter(id=>!layers[id]),
+                canvas:!!canvas,
+                webgl:!!gl,
+                contextLost:gl?.isContextLost?.()??null
+              };
+            });
+            const fatal=[...new Set(errors.filter(x=>/maplibre-gl|updateTransitions|_updatePlacement|recalculate|Cannot read properties/i.test(x)))];
+            const out={name,limit,skip,state,pageErrorCount:errors.length,fatalCount:fatal.length,firstFatal:fatal[0]||null,consoleErrors:consoleErrors.slice(0,6)};
+            console.log('PROBE_RESULT '+JSON.stringify(out));
+            if(name==='full-minus-patterns')await p.screenshot({path:'/tmp/full-minus-patterns.png',fullPage:true});
+            await p.close();
+            return out;
+          }
+
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
+            try{
+              const results=[];
+              for(const limit of [45,46,47,48,49,55,107]) results.push(await run(browser,'limit-'+limit,{limit}));
+              results.push(await run(browser,'full-minus-city-floor',{skip:['gta-city-floor-lines']}));
+              results.push(await run(browser,'full-minus-patterns',{skip:patternLayers}));
+
+              fs.writeFileSync('/tmp/probe-results.json',JSON.stringify(results,null,2));
+              const r46=results.find(x=>x.name==='limit-46');
+              const r47=results.find(x=>x.name==='limit-47');
+              const noPatterns=results.find(x=>x.name==='full-minus-patterns');
+              console.log('PROBE_SUMMARY '+JSON.stringify({
+                limit46:{fatal:r46?.fatalCount,state:r46?.state},
+                limit47:{fatal:r47?.fatalCount,state:r47?.state},
+                noPatterns:{fatal:noPatterns?.fatalCount,state:noPatterns?.state}
+              }));
+              if((r46?.fatalCount||0)>0) throw new Error('BASE_46_ALREADY_FAILS');
+              if((r47?.fatalCount||0)===0) throw new Error('LAYER_47_NOT_REPRODUCED');
+              if((noPatterns?.fatalCount||0)>0) throw new Error('PATTERN_DEFERRAL_NOT_SUFFICIENT');
+            } finally {
+              await browser.close();
+            }
+          })().catch(e=>{console.error('PROBE_FAILURE',e.stack||e);process.exit(1)});
+          NODE
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: prepause-map-v5864-probe
+          path: |
+            /tmp/probe-results.json
+            /tmp/full-minus-patterns.png
+            /tmp/bp-probe-http.log
+          if-no-files-found: ignore
