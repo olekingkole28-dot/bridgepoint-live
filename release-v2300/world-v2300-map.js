@@ -1,6 +1,6 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
-import{initSpace}from'./world-v2300-space.js?v=5536-prepause-restore-v5873';
-window.__BP_WORLD_RENDER_VERSION__=5630;window.__BP_EARTH_BASE_V5873__={version:5873,blueMarbleAlwaysUnderlay:true,detailFadeZoom:8.2,updatedAt:Date.now()};
+import{initSpace}from'./world-v2300-space.js?v=5536-prepause-restore-v5874';
+window.__BP_WORLD_RENDER_VERSION__=5630;window.__BP_EARTH_BASE_V5874__={version:5874,blueMarbleAlwaysUnderlay:true,detailFadeZoom:8.2,updatedAt:Date.now()};
 const PUBLIC_TECH_FAST=true;
 window.__BP_PUBLIC_TECH_FAST_V1117__={version:1117,enabled:true,autoDenseCityHandoff:false,autoExactViewport:false,context3D:true,whiteRoofs:true,floorLines:true,labels:true,trees:true,roads:true,weather:true,updatedAt:Date.now()};
 window.__BP_OWNER_ROAD_STYLE_V1118__={version:1118,major:'#53717c',local:'#45616b',heavyGlow:false,heavyCasing:false,labelsPreserved:true,updatedAt:Date.now()};
@@ -129,6 +129,7 @@ function style(){
  ];
  return{
  version:8,
+ projection:{type:'globe'},
  glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
  sources:{
   ofm:{type:'vector',tiles:[OFM],minzoom:0,maxzoom:14,attribution:'OpenFreeMap © OpenMapTiles · © OpenStreetMap contributors'},
@@ -337,7 +338,7 @@ function facadePatternImage(id){
   'civic-granite':['#73716b','#404445','#a8a49a','#5a5955','civic'],
   'medical-white':['#c7c9c3','#526269','#edf0ed','#9ba6a7','office'],
   'medical-brick':['#8b665a','#4d4240','#d0a99b','#705247','brick'],
-  'medical-glass':['#71919b','#334b55','#c5d9de','#58737d','glass'],
+  'medical-glass':['#71919b','#334b55','#c5d9de','#58747d','glass'],
   'fire-red':['#8b4036','#3d3230','#cc7861','#6b302a','industrial'],
   'fire-brick':['#7a5046','#393234','#b37b69','#604039','brick'],
   'fire-modern':['#777b78','#343d40','#b4b8b1','#5e625f','industrial'],
@@ -469,6 +470,7 @@ export function initWorld(options={}){
  const containerId=String(options.containerId||'liveMap'),globalKey=String(options.globalKey||'__bpWorldV2300'),container=document.getElementById(containerId);if(!container||!window.maplibregl)return null;if(window[globalKey]?.map)return window[globalKey];container.innerHTML='';
  const initialCenter=Array.isArray(options.center)&&options.center.length===2?options.center:[0,20],initialZoom=Number.isFinite(options.zoom)?Number(options.zoom):(MOBILE?1.05:1.25),initialPitch=Number.isFinite(options.pitch)?Number(options.pitch):0,initialBearing=Number.isFinite(options.bearing)?Number(options.bearing):0,projectionType=String(options.projection||'globe');
  const map=new maplibregl.Map({container,style:style(),center:initialCenter,zoom:initialZoom,pitch:initialPitch,bearing:initialBearing,minZoom:.65,maxZoom:22,maxPitch:85,projection:{type:projectionType},pixelRatio:MOBILE?1:Math.min(window.devicePixelRatio||1,2),antialias:!MOBILE&&!LOW,fadeDuration:0,renderWorldCopies:false,transformRequest:tileTransform,maxTileCacheSize:MOBILE?48:(TIER==='LOW'?96:TIER==='HIGH'?240:160),refreshExpiredTiles:false,cancelPendingTileRequestsWhileZooming:true,crossSourceCollisions:!MOBILE,validateStyle:false,attributionControl:false});
+ const enforceGlobe=()=>{try{if(typeof map.setProjection==='function')map.setProjection({type:'globe'});window.__BP_GLOBE_PROJECTION_V5874__={version:5874,styleProjection:true,setProjectionApplied:typeof map.setProjection==='function',updatedAt:Date.now()}}catch(e){console.warn('BridgePoint globe projection',e)}};map.on('style.load',enforceGlobe);
  const space=initSpace(map,container);
  const runtimeMapErrors=[];map.on('error',e=>{const raw=e?.error||e,msg=String(raw?.message||raw||'MapLibre runtime error');runtimeMapErrors.push({message:msg,at:Date.now()});if(runtimeMapErrors.length>30)runtimeMapErrors.shift();window.__BP_MAP_RUNTIME_ERRORS__=runtimeMapErrors;console.warn('BridgePoint MapLibre',msg)});
  const ensureMapGestures=()=>{try{map.touchZoomRotate?.enable();map.touchZoomRotate?.enableRotation?.();map.touchPitch?.enable?.();map.dragPan?.enable();map.dragRotate?.enable?.();map.scrollZoom?.enable();map.doubleClickZoom?.enable();map.keyboard?.enable();map.boxZoom?.enable()}catch(_){}};ensureMapGestures();map.once('load',ensureMapGestures);
