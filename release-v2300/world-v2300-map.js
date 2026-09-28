@@ -1,7 +1,6 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
 import{initSpace}from'./world-v2300-space.js?v=5536';
 window.__BP_WORLD_RENDER_VERSION__=5630;
-window.__BP_RUNTIME_LAYER_REORDER_V5866__={version:5866,suppressed:true,reason:'prevent MapLibre style-order corruption during camera transitions',updatedAt:Date.now()};
 const PUBLIC_TECH_FAST=true;
 window.__BP_PUBLIC_TECH_FAST_V1117__={version:1117,enabled:true,autoDenseCityHandoff:false,autoExactViewport:false,context3D:true,whiteRoofs:true,floorLines:true,labels:true,trees:true,roads:true,weather:true,updatedAt:Date.now()};
 window.__BP_OWNER_ROAD_STYLE_V1118__={version:1118,major:'#53717c',local:'#45616b',heavyGlow:false,heavyCasing:false,labelsPreserved:true,updatedAt:Date.now()};
@@ -884,13 +883,13 @@ export function initWorld(options={}){
    paint(map,'gta-context-floor-lines','fill-extrusion-base',['max',0,['coalesce',['to-number',['get','render_min_height']],['to-number',['get','min_height']],['to-number',['get','base_height_m']],0]]);
    paint(map,'gta-context-floor-lines','fill-extrusion-height',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]]);
    paint(map,'gta-context-floor-lines','fill-extrusion-opacity',['interpolate',['linear'],['zoom'],GLOBAL_FLOOR_MIN,.46,18,.72,21,.84]);
-   try{if(map.getLayer('gta-context-floor-lines')){map.__bpSuppressedMoveLayer?.('gta-context-floor-lines');if(map.getLayer('gta-context-roofs'))map.__bpSuppressedMoveLayer?.('gta-context-floor-lines','gta-context-roofs')}}catch(_){}
+   try{if(map.getLayer('gta-context-floor-lines')){map.moveLayer('gta-context-floor-lines');if(map.getLayer('gta-context-roofs'))map.moveLayer('gta-context-floor-lines','gta-context-roofs')}}catch(_){}
   }
   if(roofOn&&roofBecameVisible){
    paint(map,'gta-context-roofs','fill-extrusion-base',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]]);
    paint(map,'gta-context-roofs','fill-extrusion-height',['+',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]],['max',1,['coalesce',['to-number',['get','roof_height']],['to-number',['get','roof:height']],1]]]);
    paint(map,'gta-context-roofs','fill-extrusion-opacity',1);paint(map,'gta-context-roofs','fill-extrusion-color','#ffffff');
-   try{if(map.getLayer('gta-context-roofs')){map.__bpSuppressedMoveLayer?.('gta-context-roofs');if(map.getLayer('gta-water-label'))map.__bpSuppressedMoveLayer?.('gta-context-roofs','gta-water-label')}}catch(_){}
+   try{if(map.getLayer('gta-context-roofs')){map.moveLayer('gta-context-roofs');if(map.getLayer('gta-water-label'))map.moveLayer('gta-context-roofs','gta-water-label')}}catch(_){}
   }
   // Keep the source-backed city layer visible/requested from city zoom so exact-height geometry can fill whole viewports.
   vis(map,'gta-city-buildings',wantCity);
@@ -898,7 +897,7 @@ export function initWorld(options={}){
   const cityFloorBecameVisible=vis(map,'gta-city-floor-lines',cityFloorOn);
   if(cityFloorOn&&cityFloorBecameVisible){
    paint(map,'gta-city-floor-lines','fill-extrusion-opacity',['interpolate',['linear'],['zoom'],GLOBAL_FLOOR_MIN,.72,17,.86,19,.96,21,1]);
-   try{if(map.getLayer('gta-city-floor-lines')){map.__bpSuppressedMoveLayer?.('gta-city-floor-lines');if(map.getLayer('gta-city-roofs'))map.__bpSuppressedMoveLayer?.('gta-city-floor-lines','gta-city-roofs')}}catch(_){}
+   try{if(map.getLayer('gta-city-floor-lines')){map.moveLayer('gta-city-floor-lines');if(map.getLayer('gta-city-roofs'))map.moveLayer('gta-city-floor-lines','gta-city-roofs')}}catch(_){}
   }
   vis(map,'gta-city-building-roof-caps',false);
   vis(map,'gta-city-roofs',wantCity&&detailSettled&&z>=(MOBILE?17.05:15.85));
@@ -979,13 +978,13 @@ export function initWorld(options={}){
    paint(map,'gta-context-floor-lines','fill-extrusion-base',['max',0,['coalesce',['to-number',['get','render_min_height']],['to-number',['get','min_height']],['to-number',['get','base_height_m']],0]]);
    paint(map,'gta-context-floor-lines','fill-extrusion-height',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]]);
    paint(map,'gta-context-floor-lines','fill-extrusion-opacity',['interpolate',['linear'],['zoom'],GLOBAL_FLOOR_MIN,.46,18,.72,21,.84]);
-   try{if(map.getLayer('gta-context-floor-lines')){map.__bpSuppressedMoveLayer?.('gta-context-floor-lines');if(map.getLayer('gta-context-roofs'))map.__bpSuppressedMoveLayer?.('gta-context-floor-lines','gta-context-roofs')}}catch(_){}
+   try{if(map.getLayer('gta-context-floor-lines')){map.moveLayer('gta-context-floor-lines');if(map.getLayer('gta-context-roofs'))map.moveLayer('gta-context-floor-lines','gta-context-roofs')}}catch(_){}
   }
   if(roofVisible){
    paint(map,'gta-context-roofs','fill-extrusion-base',0);
    paint(map,'gta-context-roofs','fill-extrusion-height',['+',['max',4,['coalesce',['to-number',['get','render_height']],['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]],['max',1,['coalesce',['to-number',['get','roof_height']],['to-number',['get','roof:height']],1]]]);
    paint(map,'gta-context-roofs','fill-extrusion-opacity',1);paint(map,'gta-context-roofs','fill-extrusion-color','#ffffff');
-   try{if(map.getLayer('gta-context-roofs')){map.__bpSuppressedMoveLayer?.('gta-context-roofs');if(map.getLayer('gta-water-label'))map.__bpSuppressedMoveLayer?.('gta-context-roofs','gta-water-label')}}catch(_){}
+   try{if(map.getLayer('gta-context-roofs')){map.moveLayer('gta-context-roofs');if(map.getLayer('gta-water-label'))map.moveLayer('gta-context-roofs','gta-water-label')}}catch(_){}
   }
   window.__BP_GLOBAL_LOD_SOURCE_REFRESH__={roofVisible,floorVisible,zoom:map.getZoom(),updatedAt:Date.now()};
   return roofVisible||floorVisible
@@ -1222,7 +1221,7 @@ export function initWorld(options={}){
   try{
    const st=map.getStyle?.(),usable=!!(map.isStyleLoaded?.()||map.loaded?.()||((st?.layers?.length||0)>0&&map.getSource?.('ofm')));
    if(!usable)return false;
-   installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();bindBuildingHitLayers();setBase('gta');disableFineDetail();try{for(const id of ['gta-bridge3d-pier','gta-bridge3d-deck','gta-bridge3d-surface','gta-bridge3d-center','gta-bridge3d-rail'])if(map.getLayer(id)&&map.getLayer('gta-country'))map.__bpSuppressedMoveLayer?.(id,'gta-country')}catch(_){};rebuildLandmark3D(0);rebuildBridge3D(0);startParcelFlow();syncBuildingShells();
+   installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();bindBuildingHitLayers();setBase('gta');disableFineDetail();try{for(const id of ['gta-bridge3d-pier','gta-bridge3d-deck','gta-bridge3d-surface','gta-bridge3d-center','gta-bridge3d-rail'])if(map.getLayer(id)&&map.getLayer('gta-country'))map.moveLayer(id,'gta-country')}catch(_){};rebuildLandmark3D(0);rebuildBridge3D(0);startParcelFlow();syncBuildingShells();
    window.__BP_CAMERA_MODE__={mode:'FREE_FLY_SINGLE_VIEW',singleView:true,autoViewSwitching:false,streetWalkMode:false,maxPitch:85,minZoom:2.2,maxZoom:22,manualPitch:true,manualRotation:true,buildingClickOverlook:true,updatedAt:Date.now()};
    window.__BP_WORLD_CORE_READY__={version:5519,ready:true,styleUsable:true,styleLoaded:!!map.isStyleLoaded?.(),materials:!!window.__BP_BUILDING_MATERIALS__,camera:!!window.__BP_CAMERA_MODE__,updatedAt:Date.now()};
    worldCoreReady=true;setTimeout(scheduleExact,MOBILE?350:220);if(map.getZoom()>=12.6)setTimeout(()=>scheduleLivingWorld(0),MOBILE?700:180);setStatus('BridgePoint World v5628 · owner-style fast tech map · white roofs · labels · realistic tree LOD');return true
