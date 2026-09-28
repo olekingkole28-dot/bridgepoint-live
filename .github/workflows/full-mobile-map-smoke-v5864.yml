@@ -1,0 +1,164 @@
+name: Full mobile map smoke v5864
+
+on:
+  push:
+    branches: [restore-prepause-map-v5864]
+    paths:
+      - '.github/workflows/full-mobile-map-smoke-v5864.yml'
+      - 'release-v2300/**'
+      - 'rebuild-v5000/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mobile-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble production-like site
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf site
+          mkdir -p site/app site/vendor site/assets
+          cp rebuild-v5000/index.html site/index.html
+          cp rebuild-v5000/app-index.html site/app/index.html
+          cp rebuild-v5000/landing.css site/landing.css
+          cp rebuild-v5000/landing.js site/landing.js
+          cp rebuild-v5000/styles.css site/styles.css
+          cp rebuild-v5000/app.js site/app.js
+          cp rebuild-v5000/owner-everything.js site/owner-everything.js
+          cp rebuild-v5000/owner-everything.css site/owner-everything.css
+          cp rebuild-v5000/parcel-boundary-viewer-v5403.js site/parcel-boundary-viewer-v5403.js
+          cp rebuild-v5000/manifest.webmanifest site/manifest.webmanifest
+          cp rebuild-v5000/app-update-v5820.js site/app-update-v5820.js
+          cp rebuild-v5000/sw.js site/sw.js
+          cp rebuild-v5000/intelligence-v5507.css site/intelligence-v5507.css
+          cp rebuild-v5000/intelligence-global-v5507.js site/intelligence-global-v5507.js
+          cp rebuild-v5000/intelligence-tools-v5507.js site/intelligence-tools-v5507.js
+          cp rebuild-v5000/scenario-lab-v5525.css site/scenario-lab-v5525.css
+          cp rebuild-v5000/scenario-lab-v5525.js site/scenario-lab-v5525.js
+          cp rebuild-v5000/road-drive-v5527.css site/road-drive-v5527.css
+          cp rebuild-v5000/road-drive-v5527.js site/road-drive-v5527.js
+          cp rebuild-v5000/walkthrough-v5537.css site/walkthrough-v5537.css
+          cp rebuild-v5000/walkthrough-v5537.js site/walkthrough-v5537.js
+          cp rebuild-v5000/qr-house-v5521.js site/qr-house-v5521.js
+          cp rebuild-v5000/refresh-v5535.js site/refresh-v5535.js
+          cp rebuild-v5000/global-property-v957.js site/global-property-v957.js
+          cp rebuild-v5000/bridgepoint-mark.svg site/bridgepoint-mark.svg
+          cp rebuild-v5000/bridgepoint-favicon-48.png site/bridgepoint-favicon-48.png
+          cp -a rebuild-v5000/assets/. site/assets/
+          cp acquisition_tracker.js site/acquisition_tracker.js
+          cp language-selector-v5200.js site/language-selector-v5200.js
+          cp language-selector-v5200.css site/language-selector-v5200.css
+          cp discovery-facts.json site/discovery-facts.json
+          cp ai-index.json site/ai-index.json || true
+          cp bridgepoint-knowledge.jsonld site/bridgepoint-knowledge.jsonld || true
+          cp llms.txt site/llms.txt || true
+          cp release-v2300/world-v2300-config.js site/world-v2300-config.js
+          cp release-v2300/world-v2300-map.js site/world-v2300-map.js
+          cp release-v2300/world-v2300-space.js site/world-v2300-space.js
+          cp release-v2300/world-v2300-worker.js site/world-v2300-worker.js
+          cp release-v2300/world-v2300-weather.js site/world-v2300-weather.js
+          cp release-v2300/world-v2300-present-weather.js site/world-v2300-present-weather.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/dist/pmtiles.js -o site/vendor/pmtiles.js
+
+      - name: Smoke Android landing and app
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 -m http.server 8080 -d site >/tmp/bp-full-smoke-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8080/ >/dev/null && break; sleep 1; done
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          const fs=require('fs');
+
+          async function test(browser,path,name){
+            const p=await browser.newPage();
+            await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; SM-S731U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Mobile Safari/537.36');
+            await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+            const errors=[];
+            p.on('pageerror',e=>errors.push(String(e.stack||e.message||e)));
+            p.on('console',m=>{if(m.type()==='error')console.log('MOBILE_CONSOLE_ERROR',name,m.text())});
+            await p.goto('http://127.0.0.1:8080'+path+'?qa=mobile-v5864-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+            try{await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map||!!window.__BP_V5000_WORLD__?.map||window.__BP_LANDING_MAP_BOOT__?.stage==='error',{timeout:30000})}catch(_){}
+            await new Promise(r=>setTimeout(r,5000));
+            const state=await p.evaluate(()=>{
+              try{window.__BP_WALKTHROUGH_V5539__?.skip?.()}catch(_){}
+              const m=window.__BP_LANDING_WORLD__?.map||window.__BP_V5000_WORLD__?.map;
+              const c=m?.getCanvas?.()||document.querySelector('.maplibregl-canvas');
+              let gl=null;try{gl=c?.getContext('webgl2')||c?.getContext('webgl')}catch(_){}
+              const st=m?.style,layers=st?._layers||{},order=Array.isArray(st?._order)?st._order:[];
+              return {
+                href:location.href,
+                mobile:innerWidth<=900,
+                maplibre:window.maplibregl?.version||null,
+                map:!!m,
+                boot:window.__BP_LANDING_MAP_BOOT__||null,
+                worldVersion:window.__BP_WORLD_RENDER_VERSION__||null,
+                mobileFix:window.__BP_MOBILE_STYLE_FIX_V5864__||null,
+                loaded:m?.loaded?.()??false,
+                styleLoaded:m?.isStyleLoaded?.()??false,
+                projection:m?.getProjection?.()?.type||null,
+                canvasCount:document.querySelectorAll('.maplibregl-canvas').length,
+                webgl:!!gl,
+                contextLost:gl?.isContextLost?.()??null,
+                orderCount:order.length,
+                layerCount:Object.keys(layers).length,
+                orphans:order.filter(id=>!layers[id]),
+                keyLayers:{
+                  country:!!m?.getLayer('gta-country'),
+                  city:!!m?.getLayer('gta-city-buildings'),
+                  cityFloors:!!m?.getLayer('gta-city-floor-lines'),
+                  context:!!m?.getLayer('gta-context-buildings'),
+                  contextRoofs:!!m?.getLayer('gta-context-roofs'),
+                  bpFloors:!!m?.getLayer('gta-bp-floor-lines'),
+                  exact:!!m?.getLayer('gta-exact-building')
+                }
+              };
+            });
+            const fatal=[...new Set(errors.filter(x=>/maplibre-gl|shaderPreludeCode|updateTransitions|_updatePlacement|recalculate|Cannot read properties/i.test(x)))];
+            const out={name,state,pageErrorCount:errors.length,fatalCount:fatal.length,fatal:fatal.slice(0,5)};
+            console.log('FULL_MOBILE_SMOKE '+JSON.stringify(out));
+            await p.screenshot({path:'/tmp/'+name+'.png',fullPage:true});
+            await p.close();
+            if(!state.map||state.canvasCount!==1||!state.webgl||state.contextLost||!state.styleLoaded||state.orphans.length||fatal.length)throw new Error('MOBILE_MAP_FAIL '+JSON.stringify(out));
+            if(!state.mobileFix||state.worldVersion!==5864)throw new Error('MOBILE_FIX_NOT_ACTIVE '+JSON.stringify(out));
+            for(const [k,v] of Object.entries(state.keyLayers))if(!v)throw new Error('MISSING_KEY_LAYER '+k+' '+JSON.stringify(out));
+            return out;
+          }
+
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
+            try{
+              const landing=await test(browser,'/','landing-mobile-v5864');
+              const app=await test(browser,'/app/','app-mobile-v5864');
+              fs.writeFileSync('/tmp/full-mobile-smoke.json',JSON.stringify({landing,app},null,2));
+              console.log('FULL_MOBILE_SMOKE_PASS');
+            }finally{await browser.close()}
+          })().catch(e=>{console.error('FULL_MOBILE_SMOKE_FAILURE',e.stack||e);process.exit(1)});
+          NODE
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-mobile-map-smoke-v5864
+          path: |
+            /tmp/full-mobile-smoke.json
+            /tmp/landing-mobile-v5864.png
+            /tmp/app-mobile-v5864.png
+            /tmp/bp-full-smoke-http.log
+          if-no-files-found: ignore
