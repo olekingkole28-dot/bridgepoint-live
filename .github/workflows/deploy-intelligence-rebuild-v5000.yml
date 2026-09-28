@@ -201,7 +201,7 @@ jobs:
 
           printf '%s\n' 'bridgepointintelligence.online' > site/CNAME
           touch site/.nojekyll site/app/.nojekyll
-          printf '{"commit":"%s","audit_version":5869,"built_at":"%s"}\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > site/build.json
+          printf '{"commit":"%s","audit_version":5870,"built_at":"%s"}\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > site/build.json
           test -s site/build.json
 
           test -f site/assets/us-state-boundaries-census.topo.json
@@ -279,10 +279,10 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v5869' site/sw.js
+          grep -Fq 'bp-intelligence-v5870' site/sw.js
           node --check site/app-update-v5820.js
-          grep -Fq '/app-update-v5820.js?v=5869' site/index.html
-          grep -Fq '/app-update-v5820.js?v=5869' site/app/index.html
+          grep -Fq '/app-update-v5820.js?v=5870' site/index.html
+          grep -Fq '/app-update-v5820.js?v=5870' site/app/index.html
           grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
           grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
           grep -Fq "bridgepoint-horizon-v5820" site/app/horizon/sw.js
@@ -738,8 +738,8 @@ jobs:
               && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js \
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
-              && grep -Fq "const V='bp-intelligence-v5869'" /tmp/sw.js \
-              && grep -Fq 'BUILD=5869' /tmp/app-update-v5820.js \
+              && grep -Fq "const V='bp-intelligence-v5870'" /tmp/sw.js \
+              && grep -Fq 'BUILD=5870' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
               && grep -Fq "bridgepoint-horizon-v5820" /tmp/horizon-sw.js \
