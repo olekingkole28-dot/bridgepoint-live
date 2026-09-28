@@ -1,6 +1,6 @@
 import{VERSION,EDGE,EMPTY,MOBILE,LOW,TIER,rpc,edge,tileTransform,bbox,fc,clamp}from'./world-v2300-config.js';
-import{initSpace}from'./world-v2300-space.js?v=5536-prepause-restore-v5872';
-window.__BP_WORLD_RENDER_VERSION__=5630;
+import{initSpace}from'./world-v2300-space.js?v=5536-prepause-restore-v5873';
+window.__BP_WORLD_RENDER_VERSION__=5630;window.__BP_EARTH_BASE_V5873__={version:5873,blueMarbleAlwaysUnderlay:true,detailFadeZoom:8.2,updatedAt:Date.now()};
 const PUBLIC_TECH_FAST=true;
 window.__BP_PUBLIC_TECH_FAST_V1117__={version:1117,enabled:true,autoDenseCityHandoff:false,autoExactViewport:false,context3D:true,whiteRoofs:true,floorLines:true,labels:true,trees:true,roads:true,weather:true,updatedAt:Date.now()};
 window.__BP_OWNER_ROAD_STYLE_V1118__={version:1118,major:'#53717c',local:'#45616b',heavyGlow:false,heavyCasing:false,labelsPreserved:true,updatedAt:Date.now()};
@@ -141,7 +141,7 @@ function style(){
  },
  layers:[
   {id:'gta-bg',type:'background',paint:{'background-color':'#061017'}},
-  {id:'gta-nasa',type:'raster',source:'nasa',layout:{visibility:'none'},paint:{'raster-opacity':.93,'raster-saturation':-.08,'raster-contrast':.12,'raster-resampling':'linear','raster-fade-duration':0}},
+  {id:'gta-nasa',type:'raster',source:'nasa',layout:{visibility:'visible'},paint:{'raster-opacity':['interpolate',['linear'],['zoom'],0,.99,2,.97,4,.92,6,.78,7.4,.38,8.2,0],'raster-saturation':-.04,'raster-contrast':.08,'raster-resampling':'linear','raster-fade-duration':0}},
   {id:'gta-usgs',type:'raster',source:'usgs',layout:{visibility:'none'},paint:{'raster-opacity':['interpolate',['linear'],['zoom'],5,.45,9,.82,13,.96,17,.99],'raster-saturation':-.06,'raster-contrast':.1,'raster-resampling':'linear','raster-fade-duration':0}},
   {id:'gta-oam',type:'raster',source:'oam',minzoom:14,maxzoom:22,layout:{visibility:'none'},paint:{'raster-opacity':['interpolate',['linear'],['zoom'],14,0,14.25,.72,15,.9,17,.96,20,.985],'raster-saturation':-.02,'raster-contrast':.06,'raster-resampling':'linear','raster-fade-duration':0}},
   {id:'gta-water',type:'fill',source:'ofm','source-layer':'water',paint:{'fill-color':'#0b3044','fill-opacity':.96}},
@@ -526,7 +526,7 @@ export function initWorld(options={}){
  function sky(){updateWorldLight();clearInterval(solarTimer);solarTimer=setInterval(updateWorldLight,60000)}
  function terrain(){const z=map.getZoom(),should=z>=2,ex=LOW?.82:TIER==='HIGH'?1.08:1;try{if(should&&!terrainOn){map.setTerrain({source:'dem',exaggeration:ex});terrainOn=true}else if(!should&&terrainOn){map.setTerrain(null);terrainOn=false}vis(map,'gta-hillshade',z>=4&&z<19.5);vis(map,'gta-landcover-texture',base!=='satellite'&&z<19.5);window.__BP_TERRAIN_VISUAL_STATE__={zoom:z,enabled:terrainOn,exaggeration:terrainOn?ex:0,streetLevelClamped:false,persistentThroughStreetLevel:true,coastRoadCliffProtection:true,demOverzoomToStreet:true,updatedAt:Date.now()}}catch(_){terrainOn=false}}
  function applyAutoCamera(){window.__BP_AUTO_CAMERA__={enabled:false,singleView:true,mode:'FREE_FLY',maxPitch:85,zoom:map.getZoom(),pitch:map.getPitch(),updatedAt:Date.now()};return false}
- function setBase(next){base=next==='satellite'?'satellite':'gta';const sat=base==='satellite';vis(map,'gta-nasa',sat);vis(map,'gta-usgs',sat);vis(map,'gta-oam',sat);vis(map,'gta-landcover-texture',false);paint(map,'gta-landcover','fill-opacity',sat?['interpolate',['linear'],['zoom'],2,.18,8,.09,12,.025,15,0]:['interpolate',['linear'],['zoom'],2,.34,8,.42,13,.5]);paint(map,'gta-landuse','fill-opacity',sat?.04:['interpolate',['linear'],['zoom'],7.5,.26,14,.34,18,.42]);document.querySelectorAll('[data-base]').forEach(b=>b.classList.toggle('active',b.dataset.base===base));window.__BP_TECH_BASEMAP_V1116__={...(window.__BP_TECH_BASEMAP_V1116__||{}),activeBase:base,satelliteManualOnly:true,updatedAt:Date.now()};map.triggerRepaint()}
+ function setBase(next){base=next==='satellite'?'satellite':'gta';const sat=base==='satellite';vis(map,'gta-nasa',true);paint(map,'gta-nasa','raster-opacity',sat?.93:['interpolate',['linear'],['zoom'],0,.99,2,.97,4,.92,6,.78,7.4,.38,8.2,0]);vis(map,'gta-usgs',sat);vis(map,'gta-oam',sat);vis(map,'gta-landcover-texture',false);paint(map,'gta-landcover','fill-opacity',sat?['interpolate',['linear'],['zoom'],2,.18,8,.09,12,.025,15,0]:['interpolate',['linear'],['zoom'],2,.34,8,.42,13,.5]);paint(map,'gta-landuse','fill-opacity',sat?.04:['interpolate',['linear'],['zoom'],7.5,.26,14,.34,18,.42]);document.querySelectorAll('[data-base]').forEach(b=>b.classList.toggle('active',b.dataset.base===base));window.__BP_TECH_BASEMAP_V1116__={...(window.__BP_TECH_BASEMAP_V1116__||{}),activeBase:base,satelliteManualOnly:true,updatedAt:Date.now()};map.triggerRepaint()}
  function metersLon(lat){return 111320*Math.max(.12,Math.cos(lat*Math.PI/180))}
  function circlePoly(coord,r,n=10){const out=[];for(let i=0;i<n;i++){const a=i/n*Math.PI*2;out.push([coord[0]+Math.cos(a)*r/metersLon(coord[1]),coord[1]+Math.sin(a)*r/110540])}out.push(out[0]);return[out]}
  function treeHash(v){let h=2166136261>>>0;for(const ch of String(v||'tree')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)>>>0}return h>>>0}
