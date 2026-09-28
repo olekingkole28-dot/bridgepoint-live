@@ -1,0 +1,145 @@
+name: Diagnose three bad map layers v5864
+
+on:
+  push:
+    branches: [restore-prepause-map-v5864]
+    paths:
+      - '.github/workflows/diagnose-three-map-layers-v5864.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build isolated world
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf site
+          mkdir -p site/vendor
+          cp release-v2300/world-v2300-*.js site/
+          cp release-v2300/world-v2300.css site/ || true
+          curl -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
+          curl -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
+          cat > site/probe.html <<'HTML'
+          <!doctype html><html><head><meta charset="utf-8">
+          <link rel="stylesheet" href="/vendor/maplibre-gl.css">
+          <style>html,body,#m{width:100%;height:100%;margin:0;background:#05090d}</style></head>
+          <body><div id="m"></div><script src="/vendor/maplibre-gl.js"></script>
+          <script type="module">
+          import {initWorld} from '/world-v2300-map.js?diag=5864';
+          try{window.__testWorld=initWorld({containerId:'m',globalKey:'__testWorld',center:[-98.5,39.5],zoom:2.55,pitch:0,bearing:0,projection:'globe'})}
+          catch(e){window.__probeInitError=String(e?.stack||e)}
+          </script></body></html>
+          HTML
+
+      - name: Test safe replacements
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 -m http.server 8080 -d site >/tmp/bp-diag-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8080/probe.html >/dev/null && break; sleep 1; done
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          const fs=require('fs');
+          const bad=['gta-city-floor-lines','gta-context-roofs','gta-bp-floor-lines'];
+
+          const cases=[
+            {name:'drop-three',skip:bad},
+            {name:'city-no-pattern',skip:['gta-context-roofs','gta-bp-floor-lines'],mutate:{'gta-city-floor-lines':'no-pattern'}},
+            {name:'city-constant-pattern',skip:['gta-context-roofs','gta-bp-floor-lines'],mutate:{'gta-city-floor-lines':'constant-pattern'}},
+            {name:'city-ofm-pattern',skip:['gta-context-roofs','gta-bp-floor-lines'],mutate:{'gta-city-floor-lines':'ofm-pattern'}},
+            {name:'context-roof-constant',skip:['gta-city-floor-lines','gta-bp-floor-lines'],mutate:{'gta-context-roofs':'roof-constant'}},
+            {name:'context-roof-simple-expression',skip:['gta-city-floor-lines','gta-bp-floor-lines'],mutate:{'gta-context-roofs':'roof-simple'}},
+            {name:'bp-no-pattern',skip:['gta-city-floor-lines','gta-context-roofs'],mutate:{'gta-bp-floor-lines':'no-pattern'}},
+            {name:'bp-constant-pattern',skip:['gta-city-floor-lines','gta-context-roofs'],mutate:{'gta-bp-floor-lines':'constant-pattern'}},
+            {name:'bp-ofm-pattern',skip:['gta-city-floor-lines','gta-context-roofs'],mutate:{'gta-bp-floor-lines':'ofm-pattern'}},
+            {name:'all-safe-fallback',skip:[],mutate:{'gta-city-floor-lines':'no-pattern','gta-context-roofs':'roof-simple','gta-bp-floor-lines':'no-pattern'}}
+          ];
+
+          function mutateLayer(layer,mode){
+            const x=JSON.parse(JSON.stringify(layer));
+            if(mode==='no-pattern'){
+              delete x.paint['fill-extrusion-pattern'];
+              x.paint['fill-extrusion-color']='#31e8ff';
+              return x;
+            }
+            if(mode==='constant-pattern'){
+              x.paint['fill-extrusion-height']=9;
+              x.paint['fill-extrusion-base']=0;
+              x.paint['fill-extrusion-opacity']=0.8;
+              return x;
+            }
+            if(mode==='ofm-pattern'){
+              x.source='ofm';x['source-layer']='building';
+              x.paint['fill-extrusion-height']=9;
+              x.paint['fill-extrusion-base']=0;
+              x.paint['fill-extrusion-opacity']=0.8;
+              return x;
+            }
+            if(mode==='roof-constant'){
+              x.paint={'fill-extrusion-color':'#ffffff','fill-extrusion-base':8,'fill-extrusion-height':9,'fill-extrusion-opacity':0.98,'fill-extrusion-vertical-gradient':true};
+              return x;
+            }
+            if(mode==='roof-simple'){
+              x.paint={
+                'fill-extrusion-color':'#ffffff',
+                'fill-extrusion-base':['max',4,['coalesce',['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]],
+                'fill-extrusion-height':['+',['max',4,['coalesce',['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]],1],
+                'fill-extrusion-opacity':0.98,
+                'fill-extrusion-vertical-gradient':true
+              };
+              return x;
+            }
+            return x;
+          }
+
+          async function run(browser,cfg){
+            const p=await browser.newPage();
+            await p.setViewport({width:900,height:700});
+            const errors=[];p.on('pageerror',e=>errors.push(String(e.stack||e.message||e)));
+            await p.evaluateOnNewDocument((cfg)=>{
+              let ml;Object.defineProperty(window,'maplibregl',{configurable:true,get(){return ml},set(v){ml=v;const P=v?.Map?.prototype;if(!P||P.__bpDiagWrapped)return;P.__bpDiagWrapped=true;const raw=P.setStyle;P.setStyle=function(style,opts){if(style&&Array.isArray(style.layers)){const copy=o=>JSON.parse(JSON.stringify(o));const mutateLayer=(layer,mode)=>{const x=copy(layer);if(mode==='no-pattern'){delete x.paint['fill-extrusion-pattern'];x.paint['fill-extrusion-color']='#31e8ff';return x}if(mode==='constant-pattern'){x.paint['fill-extrusion-height']=9;x.paint['fill-extrusion-base']=0;x.paint['fill-extrusion-opacity']=.8;return x}if(mode==='ofm-pattern'){x.source='ofm';x['source-layer']='building';x.paint['fill-extrusion-height']=9;x.paint['fill-extrusion-base']=0;x.paint['fill-extrusion-opacity']=.8;return x}if(mode==='roof-constant'){x.paint={'fill-extrusion-color':'#ffffff','fill-extrusion-base':8,'fill-extrusion-height':9,'fill-extrusion-opacity':.98,'fill-extrusion-vertical-gradient':true};return x}if(mode==='roof-simple'){x.paint={'fill-extrusion-color':'#ffffff','fill-extrusion-base':['max',4,['coalesce',['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]],'fill-extrusion-height':['+',['max',4,['coalesce',['to-number',['get','height']],['*',['coalesce',['to-number',['get','levels']],3],3],9]],1],'fill-extrusion-opacity':.98,'fill-extrusion-vertical-gradient':true};return x}return x};style={...style,layers:style.layers.filter(x=>x?.id&&!cfg.skip.includes(x.id)).map(x=>cfg.mutate?.[x.id]?mutateLayer(x,cfg.mutate[x.id]):x)};window.__DIAG_IDS__=style.layers.map(x=>x.id)}return raw.call(this,style,opts)}}});
+            },cfg);
+            await p.goto('http://127.0.0.1:8080/probe.html?case='+encodeURIComponent(cfg.name),{waitUntil:'domcontentloaded',timeout:30000});
+            try{await p.waitForFunction(()=>!!window.__testWorld?.map||!!window.__probeInitError,{timeout:8000})}catch(_){}
+            await new Promise(r=>setTimeout(r,1200));
+            const state=await p.evaluate(()=>{const m=window.__testWorld?.map,st=m?.style,ids=window.__DIAG_IDS__||[],layers=st?._layers||{},c=m?.getCanvas?.();let gl=null;try{gl=c?.getContext('webgl2')||c?.getContext('webgl')}catch(_){};return{effective:ids.length,layers:Object.keys(layers).length,next:Object.keys(layers).length<ids.length?ids[Object.keys(layers).length]:null,map:!!m,loaded:m?.loaded?.()??false,styleLoaded:m?.isStyleLoaded?.()??false,webgl:!!gl,lost:gl?.isContextLost?.()??null}});
+            const fatal=[...new Set(errors.filter(x=>/maplibre-gl|shaderPreludeCode|updateTransitions|_updatePlacement|recalculate|Cannot read properties/i.test(x)))];
+            const out={name:cfg.name,state,fatalCount:fatal.length,firstFatal:fatal[0]||null};
+            console.log('DIAG_RESULT '+JSON.stringify(out));
+            if(cfg.name==='all-safe-fallback')await p.screenshot({path:'/tmp/all-safe-fallback.png',fullPage:true});
+            await p.close();return out;
+          }
+
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
+            try{
+              const results=[];for(const cfg of cases)results.push(await run(browser,cfg));
+              fs.writeFileSync('/tmp/three-layer-results.json',JSON.stringify(results,null,2));
+              console.log('DIAG_SUMMARY '+JSON.stringify(results));
+              const safe=results.find(x=>x.name==='all-safe-fallback');
+              if(!safe||safe.fatalCount||safe.state.layers!==safe.state.effective)throw new Error('SAFE_FALLBACK_FAILED '+JSON.stringify(safe));
+            }finally{await browser.close()}
+          })().catch(e=>{console.error('DIAG_FAILURE',e.stack||e);process.exit(1)});
+          NODE
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: three-map-layer-diagnostics-v5864
+          path: |
+            /tmp/three-layer-results.json
+            /tmp/all-safe-fallback.png
+          if-no-files-found: ignore
