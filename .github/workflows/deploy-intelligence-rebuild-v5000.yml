@@ -29,7 +29,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-v5000-production-authority-v5868
+  group: bridgepoint-v5000-production-authority
   cancel-in-progress: true
 
 jobs:
@@ -197,8 +197,6 @@ jobs:
 
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
-          test -s site/vendor/maplibre-gl.js
-          test -s site/vendor/maplibre-gl.css
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/dist/pmtiles.js -o site/vendor/pmtiles.js
 
           printf '%s\n' 'bridgepointintelligence.online' > site/CNAME
