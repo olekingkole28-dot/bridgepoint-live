@@ -16,6 +16,17 @@ function sessionExpiry(s){return Number(s?.expires_at||0)*1000}
 async function authExchange(path,body){const r=await fetch(SUPA+'/auth/v1/'+path,{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(body),cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.msg||d?.message||d?.error_description||d?.error||('HTTP '+r.status));if(d?.access_token){if(!d.expires_at&&d.expires_in)d.expires_at=Math.floor(Date.now()/1000)+Number(d.expires_in);saveSession(d)}return d}
 async function refreshAuth(){if(!authSession?.refresh_token)return null;try{return await authExchange('token?grant_type=refresh_token',{refresh_token:authSession.refresh_token})}catch(e){saveSession(null);throw e}}
 async function ensureAuth(){if(!authSession){try{authSession=JSON.parse(localStorage.getItem(AUTH_STORE)||'null')}catch(_){authSession=null}}if(authSession?.access_token&&sessionExpiry(authSession)-Date.now()<90000&&authSession.refresh_token)await refreshAuth();return authSession?.access_token?authSession:null}
+async function requireAuthenticatedAppSession(){
+ const s=await ensureAuth();if(!s?.access_token)return null;
+ try{
+  const r=await fetch(SUPA+'/auth/v1/user',{headers:{apikey:KEY,Authorization:'Bearer '+s.access_token,Accept:'application/json'},cache:'no-store'});
+  if(!r.ok){saveSession(null);return null}
+  const user=await r.json().catch(()=>null);if(!user?.id){saveSession(null);return null}
+  authSession={...s,user};try{localStorage.setItem(AUTH_STORE,JSON.stringify(authSession))}catch(_){}
+  renderAuthState();return authSession
+ }catch(_){return null}
+}
+
 async function authRpc(name,args={},timeout=9000,retry=true){const s=await ensureAuth();if(!s)throw new Error('SIGN_IN_REQUIRED');const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);try{const r=await fetch(RPC+name,{method:'POST',headers:{...headers,Authorization:'Bearer '+s.access_token},body:JSON.stringify(args),signal:c.signal,cache:'no-store'}),d=await r.json().catch(()=>({}));if(r.status===401&&retry&&s.refresh_token){clearTimeout(t);await refreshAuth();return authRpc(name,args,timeout,false)}if(!r.ok)throw new Error(d?.message||d?.error||('HTTP '+r.status));return d}finally{clearTimeout(t)}}
 window.__BP_OWNER_AUTH_RPC__=authRpc;
 async function fetchOwnerLegalSourcesPdf(state=''){
@@ -126,7 +137,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5630-v5852-earth-return-v5874');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5630-v5852-earth-return-v5875');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -1011,9 +1022,17 @@ async function applyGrowthDeepLink(){
 }
 async function start(){
  const appBootStarted=performance.now();
- window.__BP_APP_BOOT_PRIORITY_V5825__={version:5825,stage:'starting-map-first',startedAt:Date.now()};
+ window.__BP_APP_BOOT_PRIORITY_V5825__={version:5825,stage:'auth-gate',startedAt:Date.now()};
  enhanceInspectorUI();closeSystem();bindAuthUI();
- const authReady=restoreAuth();
+ await restoreAuth();
+ const verifiedSession=await requireAuthenticatedAppSession();
+ if(!verifiedSession){
+  try{sessionStorage.setItem('bp_post_auth_path',location.pathname+location.search)}catch(_){}
+  location.replace('/?auth=signin');
+  return
+ }
+ const authReady=Promise.resolve(verifiedSession);
+ window.__BP_APP_BOOT_PRIORITY_V5825__={version:5825,stage:'starting-map-after-auth',startedAt:Date.now()};
  const mapReady=bootMap();
  const landingPackage=localStorage.getItem('bp_landing_package');
  if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}
@@ -1044,7 +1063,7 @@ async function start(){
  statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);
  tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?600000:300000);
  setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?300000:120000);
- if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5874',{updateViaCache:'none'}).catch(()=>{})
+ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5875',{updateViaCache:'none'}).catch(()=>{})
 }
 window.addEventListener('bridgepoint:softrefresh',()=>{
  try{queueAfterMap('status-pulse',loadStatus)}catch(_){}
