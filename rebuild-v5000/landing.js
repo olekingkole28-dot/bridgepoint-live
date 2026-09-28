@@ -36,7 +36,7 @@ function showLandingRadarFrame(world,epoch){
  try{
   src.setTiles([landingRadarTileUrl(epoch)]);
   for(const id of [lid,old]){const vis=m.getLayoutProperty(id,'visibility')||'visible';if(vis==='none')m.setLayoutProperty(id,'visibility','visible')}
-  setTimeout(()=>{try{m.setPaintProperty(lid,'raster-opacity',.62);m.setPaintProperty(old,'raster-opacity',0);landingRadarActive=next;m.triggerRepaint();window.__BP_LANDING_RADAR_STATE__={visible:true,active:next,epoch,opacity:.62,updatedAt:Date.now()}}catch(_){}},220);
+  setTimeout(()=>{try{m.setPaintProperty(lid,'raster-opacity',.70);m.setPaintProperty(old,'raster-opacity',0);landingRadarActive=next;m.triggerRepaint();window.__BP_LANDING_RADAR_STATE__={visible:true,active:next,epoch,opacity:.70,updatedAt:Date.now()}}catch(_){}},220);
   return true
  }catch(e){console.warn('Landing radar frame',e);return false}
 }
@@ -56,10 +56,10 @@ function installLandingNationalWeather(world){
   try{if(!m.getSource('bpLandingWeatherPoints'))m.addSource('bpLandingWeatherPoints',{type:'geojson',data:empty})}catch(e){console.warn('Landing weather point source',e)}
   try{if(!m.getSource('bpLandingWeatherShapes'))m.addSource('bpLandingWeatherShapes',{type:'geojson',data:empty})}catch(e){console.warn('Landing weather shape source',e)}
   const add=layer=>{try{if(!m.getLayer(layer.id))m.addLayer(layer);return !!m.getLayer(layer.id)}catch(e){window.__BP_LANDING_WEATHER_LAYER_ERRORS__=[...(window.__BP_LANDING_WEATHER_LAYER_ERRORS__||[]),{id:layer.id,message:String(e?.message||e),at:Date.now()}].slice(-12);console.warn('Landing weather layer '+layer.id,e);return false}};
-  add({id:'bp-landing-weather-fill',type:'fill',source:'bpLandingWeatherShapes',minzoom:0,paint:{'fill-color':landingWeatherColorExpr(),'fill-opacity':['case',['==',['get','observed'],true],.24,.16]}});
+  add({id:'bp-landing-weather-fill',type:'fill',source:'bpLandingWeatherShapes',minzoom:0,paint:{'fill-color':landingWeatherColorExpr(),'fill-opacity':['case',['==',['get','observed'],true],.28,.19]}});
   add({id:'bp-landing-weather-line',type:'line',source:'bpLandingWeatherShapes',minzoom:0,paint:{'line-color':landingWeatherColorExpr(),'line-width':['interpolate',['linear'],['zoom'],0,.42,1.2,.5,2.2,.7,4,1.15,8,2.6,14,5.8],'line-opacity':['case',['==',['get','observed'],true],1,.94]}});
-  add({id:'bp-landing-weather-glow',type:'circle',source:'bpLandingWeatherPoints',minzoom:0,paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,.8,1.2,1.05,2.2,1.45,3.5,2.1,4.5,3.2,9,8,14,13],'circle-color':landingWeatherColorExpr(),'circle-opacity':['case',['==',['get','observed'],true],.25,.15],'circle-blur':.78}});
-  add({id:'bp-landing-weather-points',type:'circle',source:'bpLandingWeatherPoints',minzoom:0,paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,.32,1.2,.42,2.2,.62,3.5,1,4.5,1.6,9,4.8,14,7.4],'circle-color':landingWeatherColorExpr(),'circle-opacity':['case',['==',['get','observed'],true],.96,.72],'circle-stroke-color':'#eefcff','circle-stroke-width':['interpolate',['linear'],['zoom'],0,.18,2.2,.24,3.5,.32,4.5,.52,12,1.25],'circle-stroke-opacity':['interpolate',['linear'],['zoom'],0,.42,3.5,.55,6,.72,12,.88]}});
+  add({id:'bp-landing-weather-glow',type:'circle',source:'bpLandingWeatherPoints',minzoom:0,paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,.8,1.2,1.05,2.2,1.45,3.5,2.1,4.5,3.2,9,8,14,13],'circle-color':landingWeatherColorExpr(),'circle-opacity':['case',['==',['get','observed'],true],.30,.18],'circle-blur':.78}});
+  add({id:'bp-landing-weather-points',type:'circle',source:'bpLandingWeatherPoints',minzoom:0,paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,.32,1.2,.42,2.2,.62,3.5,1,4.5,1.6,9,4.8,14,7.4],'circle-color':landingWeatherColorExpr(),'circle-opacity':['case',['==',['get','observed'],true],.99,.80],'circle-stroke-color':'#eefcff','circle-stroke-width':['interpolate',['linear'],['zoom'],0,.18,2.2,.24,3.5,.32,4.5,.52,12,1.25],'circle-stroke-opacity':['interpolate',['linear'],['zoom'],0,.42,3.5,.55,6,.72,12,.88]}});
   add({id:'bp-landing-weather-hit',type:'circle',source:'bpLandingWeatherPoints',minzoom:0,paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,7,3.5,9,9,13],'circle-color':'#ffffff','circle-opacity':.001,'circle-stroke-opacity':0}});
   const interactive=['bp-landing-weather-hit','bp-landing-weather-points','bp-landing-weather-fill','bp-landing-weather-line'].filter(id=>m.getLayer(id));
   if(!m.__bpLandingWeatherBound&&interactive.length){m.__bpLandingWeatherBound=true;for(const id of interactive){m.on('click',id,e=>landingWeatherPopup(m,e));m.on('mouseenter',id,()=>m.getCanvas().style.cursor='pointer');m.on('mouseleave',id,()=>{m.getCanvas().style.cursor=''})}}
@@ -145,7 +145,7 @@ async function initMap(){
  if(!window.maplibregl){window.__BP_LANDING_MAP_BOOT__={stage:'error',error:'MAPLIBRE_UNAVAILABLE',maplibre:false,at:Date.now()};return}
  try{
   window.__BP_LANDING_MAP_BOOT__={stage:'importing-world',maplibre:true,at:Date.now()};
-  const mod=await import('./world-v2300-map.js?v=5630-known-good-v5881');
+  const mod=await import('./world-v2300-map.js?v=5631-known-good-visual-v5882');
   window.__BP_LANDING_MAP_BOOT__={stage:'initializing-world',maplibre:true,module:true,at:Date.now()};
   const world=mod.initWorld({
    containerId:'previewMap',
@@ -176,7 +176,7 @@ async function initMap(){
   let bpUserMapGesture=false;const previewEl=$('previewMap');for(const ev of ['pointerdown','touchstart','wheel'])previewEl?.addEventListener(ev,()=>{bpUserMapGesture=true},{passive:true});map.on('move',()=>{$('previewCard').hidden=true;if(bpUserMapGesture){const s=document.querySelector('.preview-sample');if(s){s.style.opacity='0';s.style.pointerEvents='none';s.style.transform='translateY(6px)'}}});
   try{
    if(!map.isStyleLoaded?.())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
-   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5822'),import('./world-v2300-present-weather.js?v=5544')]);
+   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5822-visual-v5882'),import('./world-v2300-present-weather.js?v=5544')]);
    const weather=wm.initWeather(world.map),present=pm.initPresentWeather(world.map);
    weather?.setActive?.(true);weather?.setRadar?.(false);
    void startLandingNationalWeather(world).catch(e=>console.warn('BridgePoint national weather async',e));
