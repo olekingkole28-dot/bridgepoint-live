@@ -17,9 +17,10 @@ jobs:
           CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
           cd /tmp
           npm init -y >/dev/null 2>&1
-          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          npm install puppeteer-core@24 pngjs@7 --no-audit --no-fund >/dev/null 2>&1
           CHROME_PATH="$CHROME" node <<'NODE'
           const puppeteer=require('puppeteer-core');
+          const {PNG}=require('pngjs');
           (async()=>{
             const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
             const p=await browser.newPage();
@@ -51,6 +52,26 @@ jobs:
             });
             console.log('BP_GLOBE_DIAG_STATE',JSON.stringify(s));
             console.log('BP_GLOBE_DIAG_ERRORS',JSON.stringify(errors.slice(0,12)));
+            await p.evaluate(()=>{try{window.__BP_WALKTHROUGH_V5539__?.skip?.()}catch(_){};const t=document.getElementById('bpWalkthrough');if(t)t.remove();const s=document.querySelector('.preview-sample');if(s)s.style.display='none'});
+            await new Promise(r=>setTimeout(r,1200));
+            const el=await p.$('#previewMap');
+            const box=await el?.boundingBox();
+            let pixels=null;
+            if(box&&box.width>80&&box.height>80){
+              const clip={x:box.x+box.width*.2,y:box.y+box.height*.2,width:box.width*.6,height:box.height*.6};
+              const buf=await p.screenshot({type:'png',clip});
+              const png=PNG.sync.read(buf);
+              let n=0,sum=0,sum2=0,min=255,max=0,nonDark=0;const buckets=new Set();
+              for(let i=0;i<png.data.length;i+=4){
+                const a=png.data[i+3];if(a<20)continue;
+                const lum=.2126*png.data[i]+.7152*png.data[i+1]+.0722*png.data[i+2];
+                n++;sum+=lum;sum2+=lum*lum;min=Math.min(min,lum);max=Math.max(max,lum);if(lum>18)nonDark++;
+                buckets.add((png.data[i]>>4)+','+(png.data[i+1]>>4)+','+(png.data[i+2]>>4));
+              }
+              const mean=n?sum/n:0,variance=n?sum2/n-mean*mean:0;
+              pixels={n,mean,variance,min,max,nonDarkRatio:n?nonDark/n:0,quantizedColors:buckets.size,width:png.width,height:png.height};
+            }
+            console.log('BP_GLOBE_PIXEL_DIAG',JSON.stringify(pixels));
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
