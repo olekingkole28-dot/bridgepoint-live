@@ -145,7 +145,7 @@ async function initMap(){
  if(!window.maplibregl){window.__BP_LANDING_MAP_BOOT__={stage:'error',error:'MAPLIBRE_UNAVAILABLE',maplibre:false,at:Date.now()};return}
  try{
   window.__BP_LANDING_MAP_BOOT__={stage:'importing-world',maplibre:true,at:Date.now()};
-  const mod=await import('./world-v2300-map.js?v=5630-known-good-v5876');
+  const mod=await import('./world-v2300-map.js?v=5630-known-good-v5877');
   window.__BP_LANDING_MAP_BOOT__={stage:'initializing-world',maplibre:true,module:true,at:Date.now()};
   const world=mod.initWorld({
    containerId:'previewMap',
@@ -555,5 +555,5 @@ function bind(){document.querySelectorAll('.auth-open').forEach(b=>b.onclick=()=
  try{window.__BP_LANDING_WORLD__?.map?.triggerRepaint?.()}catch(_){}
  window.__BP_LANDING_SOFT_REFRESH__={hardReload:false,lastAt:Date.now()}
 });
-if(!hashSession()){bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();hydrateLiveMetricSnapshot();headline();initMap();setInterval(headline,15000);globalCoverage();setInterval(globalCoverage,60000);opportunitySummary();setInterval(opportunitySummary,120000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5876',{updateViaCache:'none'}).catch(()=>{})}
+if(!hashSession()){bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();hydrateLiveMetricSnapshot();headline();initMap();setInterval(headline,15000);globalCoverage();setInterval(globalCoverage,60000);opportunitySummary();setInterval(opportunitySummary,120000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5877',{updateViaCache:'none'}).catch(()=>{})}
 // BP_V5441_DEPLOY_SYNC: compact national hazard dots; radar and boundaries unchanged.
