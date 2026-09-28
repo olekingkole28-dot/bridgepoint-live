@@ -1,4 +1,4 @@
-const V='bp-intelligence-v5873';
+const V='bp-intelligence-v5874';
 self.addEventListener('install',()=>self.skipWaiting());
 self.addEventListener('activate',e=>e.waitUntil((async()=>{for(const k of await caches.keys()){const legacy=k.startsWith('bridgepoint-universe-')||k.startsWith('bridgepoint-intelligence-launch-')||(k.startsWith('bp-intelligence-')&&k!==V);if(legacy)await caches.delete(k)}await self.clients.claim()})()));
 self.addEventListener('message',e=>{if(e.data==='skipWaiting'||e.data?.type==='SKIP_WAITING')self.skipWaiting()});
