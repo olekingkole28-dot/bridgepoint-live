@@ -29,7 +29,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-v5000-production-authority-v5863
+  group: bridgepoint-v5000-production-authority-v5864
   cancel-in-progress: true
 
 jobs:
@@ -195,18 +195,15 @@ jobs:
           cp release-v2300/world-v2300-bootstrap.js site/app/world-v2300-bootstrap.js
           cp release-v2300/world-v2300.css site/app/world-v2300.css
 
-          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://unpkg.com/maplibre-gl@6.10.0/dist/maplibre-gl.mjs -o site/vendor/maplibre-gl.mjs
-          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://unpkg.com/maplibre-gl@6.10.0/dist/maplibre-gl-worker.mjs -o site/vendor/maplibre-gl-worker.mjs
-          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://unpkg.com/maplibre-gl@6.10.0/dist/maplibre-gl-shared.mjs -o site/vendor/maplibre-gl-shared.mjs
-          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://unpkg.com/maplibre-gl@6.10.0/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
-          test -s site/vendor/maplibre-gl.mjs
-          test -s site/vendor/maplibre-gl-worker.mjs
-          test -s site/vendor/maplibre-gl-shared.mjs
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
+          test -s site/vendor/maplibre-gl.js
+          test -s site/vendor/maplibre-gl.css
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/dist/pmtiles.js -o site/vendor/pmtiles.js
 
           printf '%s\n' 'bridgepointintelligence.online' > site/CNAME
           touch site/.nojekyll site/app/.nojekyll
-          printf '{"commit":"%s","audit_version":5863,"built_at":"%s"}\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > site/build.json
+          printf '{"commit":"%s","audit_version":5864,"built_at":"%s"}\n' "$GITHUB_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > site/build.json
           test -s site/build.json
 
           test -f site/assets/us-state-boundaries-census.topo.json
@@ -284,10 +281,10 @@ jobs:
           grep -Fq '__BP_FULL_REFRESH_V5535__' site/refresh-v5535.js
           grep -Fq '__BP_FULL_REFRESH_V5548__' site/refresh-v5535.js
           grep -Fq 'deferred-active-use' site/refresh-v5535.js
-          grep -Fq 'bp-intelligence-v5863' site/sw.js
+          grep -Fq 'bp-intelligence-v5864' site/sw.js
           node --check site/app-update-v5820.js
-          grep -Fq '/app-update-v5820.js?v=5863' site/index.html
-          grep -Fq '/app-update-v5820.js?v=5863' site/app/index.html
+          grep -Fq '/app-update-v5820.js?v=5864' site/index.html
+          grep -Fq '/app-update-v5820.js?v=5864' site/app/index.html
           grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
           grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
           grep -Fq "bridgepoint-horizon-v5820" site/app/horizon/sw.js
@@ -743,8 +740,8 @@ jobs:
               && grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' /tmp/app.js \
               && grep -Fq 'const VERSION=1068' /tmp/language-selector-v5200.js \
               && grep -Fq 'BridgePointLanguage' /tmp/language-selector-v5200.js \
-              && grep -Fq "const V='bp-intelligence-v5863'" /tmp/sw.js \
-              && grep -Fq 'BUILD=5863' /tmp/app-update-v5820.js \
+              && grep -Fq "const V='bp-intelligence-v5864'" /tmp/sw.js \
+              && grep -Fq 'BUILD=5864' /tmp/app-update-v5820.js \
               && grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' /tmp/flutter-service-worker-retire.js \
               && grep -Fq 'migrated=legacy-intelligence-v5820' /tmp/legacy-intelligence-launch.html \
               && grep -Fq "bridgepoint-horizon-v5820" /tmp/horizon-sw.js \
