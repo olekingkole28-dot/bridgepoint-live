@@ -469,6 +469,15 @@ export function initWorld(options={}){
  const containerId=String(options.containerId||'liveMap'),globalKey=String(options.globalKey||'__bpWorldV2300'),container=document.getElementById(containerId);if(!container||!window.maplibregl)return null;if(window[globalKey]?.map)return window[globalKey];container.innerHTML='';
  const initialCenter=Array.isArray(options.center)&&options.center.length===2?options.center:[0,20],initialZoom=Number.isFinite(options.zoom)?Number(options.zoom):(MOBILE?1.05:1.25),initialPitch=Number.isFinite(options.pitch)?Number(options.pitch):0,initialBearing=Number.isFinite(options.bearing)?Number(options.bearing):0,projectionType=String(options.projection||'globe');
  const map=new maplibregl.Map({container,style:style(),center:initialCenter,zoom:initialZoom,pitch:initialPitch,bearing:initialBearing,minZoom:.65,maxZoom:22,maxPitch:85,projection:{type:projectionType},pixelRatio:MOBILE?1:Math.min(window.devicePixelRatio||1,2),antialias:!MOBILE&&!LOW,fadeDuration:0,renderWorldCopies:false,transformRequest:tileTransform,maxTileCacheSize:MOBILE?48:(TIER==='LOW'?96:TIER==='HIGH'?240:160),refreshExpiredTiles:false,cancelPendingTileRequestsWhileZooming:true,crossSourceCollisions:!MOBILE,validateStyle:false,attributionControl:false});
+ const repairMaplibreLayerOrder=(reason='guard')=>{try{const st=map.style,order=st?._order,layers=st?._layers;if(!Array.isArray(order)||!layers)return false;const clean=order.filter(id=>!!layers[id]);if(clean.length===order.length)return false;st._order=clean;st._layerOrderChanged=true;window.__BP_MAPLIBRE_LAYER_ORDER_GUARD_V5855__={version:5855,reason,removed:order.filter(id=>!layers[id]),remaining:clean.length,updatedAt:Date.now()};map.triggerRepaint?.();return true}catch(_){return false}};
+ try{
+  const rawRemoveLayer=map.removeLayer.bind(map),rawMoveLayer=map.moveLayer.bind(map);
+  map.removeLayer=(id)=>{const out=rawRemoveLayer(id);repairMaplibreLayerOrder('removeLayer:'+id);queueMicrotask(()=>repairMaplibreLayerOrder('removeLayer-microtask:'+id));return out};
+  map.moveLayer=(id,beforeId)=>{repairMaplibreLayerOrder('before-moveLayer:'+id);const out=rawMoveLayer(id,beforeId);repairMaplibreLayerOrder('after-moveLayer:'+id);return out};
+  map.on('styledata',()=>repairMaplibreLayerOrder('styledata'));
+  map.on('moveend',()=>repairMaplibreLayerOrder('moveend'));
+  map.on('zoomend',()=>repairMaplibreLayerOrder('zoomend'));
+ }catch(_){};
  const space=initSpace(map,container);
  const runtimeMapErrors=[];map.on('error',e=>{const raw=e?.error||e,msg=String(raw?.message||raw||'MapLibre runtime error');runtimeMapErrors.push({message:msg,at:Date.now()});if(runtimeMapErrors.length>30)runtimeMapErrors.shift();window.__BP_MAP_RUNTIME_ERRORS__=runtimeMapErrors;console.warn('BridgePoint MapLibre',msg)});
  const ensureMapGestures=()=>{try{map.touchZoomRotate?.enable();map.touchZoomRotate?.enableRotation?.();map.touchPitch?.enable?.();map.dragPan?.enable();map.dragRotate?.enable?.();map.scrollZoom?.enable();map.doubleClickZoom?.enable();map.keyboard?.enable();map.boxZoom?.enable()}catch(_){}};ensureMapGestures();map.once('load',ensureMapGestures);
