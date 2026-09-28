@@ -252,7 +252,7 @@
       "parcel_autopilot_last_tick_at": "2026-09-23T05:51:45.397871+00:00"
     },
     "horizon_url": "https://bridgepointintelligence.online/app/horizon/",
-    "generated_at": "2026-09-28T15:58:50.199039+00:00",
+    "generated_at": "2026-09-28T21:39:34.139576+00:00",
     "canonical_url": "https://bridgepointintelligence.online/",
     "jurisdictions": [
       {
@@ -546,7 +546,7 @@
     "horizon_year_one_demand": {
       "ok": true,
       "mode": "365_DAY_YEAR_ONE_SURVIVAL",
-      "updated_at": "2026-09-28T15:58:50.420443+00:00",
+      "updated_at": "2026-09-28T21:39:34.296117+00:00",
       "event_started": false,
       "unique_requests": 0,
       "billing_connected": false,
