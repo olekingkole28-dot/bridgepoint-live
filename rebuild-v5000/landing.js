@@ -18,8 +18,9 @@ function installLandingRadar(world){
    const sid='bpLandingRadar'+side,lid='bp-landing-radar-'+side.toLowerCase();
    if(!m.getSource(sid))m.addSource(sid,{type:'raster',tiles:[blank],tileSize:256,minzoom:0,maxzoom:14});
    if(!m.getLayer(lid))m.addLayer({id:lid,type:'raster',source:sid,minzoom:0,maxzoom:24,layout:{visibility:'visible'},paint:{'raster-opacity':0,'raster-fade-duration':0,'raster-resampling':'linear'}},before);
+   try{if(before&&m.getLayer(lid))m.moveLayer(lid,before)}catch(_){} 
   }
-  if(!m.__bpLandingRadarDrape5822){m.__bpLandingRadarDrape5822=true;window.__BP_LANDING_RADAR_DRAPE_V5867__={version:5867,terrain:!!m.getTerrain?.(),below3d:true,sourceMaxZoom:14,displayMaxZoom:24,stableInitialOrder:true,runtimeMoveLayer:false,updatedAt:Date.now()}}
+  if(!m.__bpLandingRadarDrape5822){m.__bpLandingRadarDrape5822=true;const pin=()=>{const b=landingWeatherBefore(m);for(const id of ['bp-landing-radar-a','bp-landing-radar-b'])try{if(b&&m.getLayer(id))m.moveLayer(id,b)}catch(_){};window.__BP_LANDING_RADAR_DRAPE_V5822__={terrain:!!m.getTerrain?.(),below3d:true,sourceMaxZoom:14,displayMaxZoom:24,updatedAt:Date.now()}};m.on?.('pitchend',pin);m.on?.('zoomend',pin);m.on?.('styledata',pin);setTimeout(pin,0)}
   return !!m.getLayer('bp-landing-radar-a')&&!!m.getLayer('bp-landing-radar-b')
  }catch(e){console.warn('Landing radar install',e);return false}
 }
@@ -84,7 +85,7 @@ async function loadLandingNationalWeather(world,attempt=0){
   m.getSource('bpLandingWeatherPoints')?.setData(wx.points);
   m.getSource('bpLandingWeatherShapes')?.setData(wx.shapes);
   for(const id of ['bp-landing-radar-a','bp-landing-radar-b','bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-glow','bp-landing-weather-points','bp-landing-weather-hit'])try{if(m.getLayer(id))m.setLayoutProperty(id,'visibility','visible')}catch(_){}
-  window.__BP_LANDING_WEATHER_ORDER_V5867__={version:5867,stableInitialOrder:true,runtimeMoveLayer:false,updatedAt:Date.now()};
+  for(const id of ['bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-glow','bp-landing-weather-points'])try{if(m.getLayer(id))m.moveLayer(id)}catch(_){}
   if($('landingWeatherCount'))$('landingWeatherCount').textContent=(d.items?.length||0)+' EVENTS';
   if($('landingWeatherTime'))$('landingWeatherTime').textContent='Fresh '+new Date(d.generated_at).toLocaleTimeString()+' · global source events + tracks · U.S. watch/warning geometry · live precipitation context';
   window.__BP_LANDING_LIVE_WEATHER__={fresh:true,count:d.items?.length||0,shapeCount:wx.shapes.features.length,pointCount:wx.points.features.length,updatedAt:Date.now()};
@@ -141,11 +142,10 @@ function startLandingOpportunities(world){
 
 async function initMap(){
  window.__BP_LANDING_MAP_BOOT__={stage:'start',maplibre:!!window.maplibregl,at:Date.now()};
- if(!window.maplibregl&&window.__BP_MAPLIBRE_READY__){try{await window.__BP_MAPLIBRE_READY__}catch(e){console.warn('BridgePoint MapLibre ESM bootstrap',e)}}
  if(!window.maplibregl){window.__BP_LANDING_MAP_BOOT__={stage:'error',error:'MAPLIBRE_UNAVAILABLE',maplibre:false,at:Date.now()};return}
  try{
   window.__BP_LANDING_MAP_BOOT__={stage:'importing-world',maplibre:true,at:Date.now()};
-  const mod=await import('./world-v2300-map.js?v=5630-prepause-v5866');
+  const mod=await import('./world-v2300-map.js?v=5630-audit-v5849');
   window.__BP_LANDING_MAP_BOOT__={stage:'initializing-world',maplibre:true,module:true,at:Date.now()};
   const world=mod.initWorld({
    containerId:'previewMap',
@@ -543,5 +543,5 @@ function bind(){document.querySelectorAll('.auth-open').forEach(b=>b.onclick=()=
  try{window.__BP_LANDING_WORLD__?.map?.triggerRepaint?.()}catch(_){}
  window.__BP_LANDING_SOFT_REFRESH__={hardReload:false,lastAt:Date.now()}
 });
-if(!hashSession()){bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();hydrateLiveMetricSnapshot();headline();initMap();setInterval(headline,15000);globalCoverage();setInterval(globalCoverage,60000);opportunitySummary();setInterval(opportunitySummary,120000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5866',{updateViaCache:'none'}).catch(()=>{})}
+if(!hashSession()){bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();hydrateLiveMetricSnapshot();headline();initMap();setInterval(headline,15000);globalCoverage();setInterval(globalCoverage,60000);opportunitySummary();setInterval(opportunitySummary,120000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5852',{updateViaCache:'none'}).catch(()=>{})}
 // BP_V5441_DEPLOY_SYNC: compact national hazard dots; radar and boundaries unchanged.
