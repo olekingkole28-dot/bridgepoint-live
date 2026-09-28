@@ -18,9 +18,8 @@ function installLandingRadar(world){
    const sid='bpLandingRadar'+side,lid='bp-landing-radar-'+side.toLowerCase();
    if(!m.getSource(sid))m.addSource(sid,{type:'raster',tiles:[blank],tileSize:256,minzoom:0,maxzoom:14});
    if(!m.getLayer(lid))m.addLayer({id:lid,type:'raster',source:sid,minzoom:0,maxzoom:24,layout:{visibility:'visible'},paint:{'raster-opacity':0,'raster-fade-duration':0,'raster-resampling':'linear'}},before);
-   try{if(before&&m.getLayer(lid))m.moveLayer(lid,before)}catch(_){} 
   }
-  if(!m.__bpLandingRadarDrape5822){m.__bpLandingRadarDrape5822=true;const pin=()=>{const b=landingWeatherBefore(m);for(const id of ['bp-landing-radar-a','bp-landing-radar-b'])try{if(b&&m.getLayer(id))m.moveLayer(id,b)}catch(_){};window.__BP_LANDING_RADAR_DRAPE_V5822__={terrain:!!m.getTerrain?.(),below3d:true,sourceMaxZoom:14,displayMaxZoom:24,updatedAt:Date.now()}};m.on?.('pitchend',pin);m.on?.('zoomend',pin);m.on?.('styledata',pin);setTimeout(pin,0)}
+  if(!m.__bpLandingRadarDrape5822){m.__bpLandingRadarDrape5822=true;window.__BP_LANDING_RADAR_DRAPE_V5867__={version:5867,terrain:!!m.getTerrain?.(),below3d:true,sourceMaxZoom:14,displayMaxZoom:24,stableInitialOrder:true,runtimeMoveLayer:false,updatedAt:Date.now()}}
   return !!m.getLayer('bp-landing-radar-a')&&!!m.getLayer('bp-landing-radar-b')
  }catch(e){console.warn('Landing radar install',e);return false}
 }
@@ -85,7 +84,7 @@ async function loadLandingNationalWeather(world,attempt=0){
   m.getSource('bpLandingWeatherPoints')?.setData(wx.points);
   m.getSource('bpLandingWeatherShapes')?.setData(wx.shapes);
   for(const id of ['bp-landing-radar-a','bp-landing-radar-b','bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-glow','bp-landing-weather-points','bp-landing-weather-hit'])try{if(m.getLayer(id))m.setLayoutProperty(id,'visibility','visible')}catch(_){}
-  for(const id of ['bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-glow','bp-landing-weather-points'])try{if(m.getLayer(id))m.moveLayer(id)}catch(_){}
+  window.__BP_LANDING_WEATHER_ORDER_V5867__={version:5867,stableInitialOrder:true,runtimeMoveLayer:false,updatedAt:Date.now()};
   if($('landingWeatherCount'))$('landingWeatherCount').textContent=(d.items?.length||0)+' EVENTS';
   if($('landingWeatherTime'))$('landingWeatherTime').textContent='Fresh '+new Date(d.generated_at).toLocaleTimeString()+' · global source events + tracks · U.S. watch/warning geometry · live precipitation context';
   window.__BP_LANDING_LIVE_WEATHER__={fresh:true,count:d.items?.length||0,shapeCount:wx.shapes.features.length,pointCount:wx.points.features.length,updatedAt:Date.now()};
