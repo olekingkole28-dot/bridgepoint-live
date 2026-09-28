@@ -282,10 +282,24 @@ function bpIconImage(id){
  else {x.beginPath();x.moveTo(24,10);x.lineTo(38,24);x.lineTo(24,38);x.lineTo(10,24);x.closePath();x.stroke();if(opp){x.beginPath();x.arc(24,24,4,0,Math.PI*2);x.fill()}}
  return x.getImageData(0,0,size,size)
 }
+
+function registerMissingStyleImageResolver(map,resolver){
+ if(typeof resolver!=='function')return;
+ if(typeof map.setMissingStyleImageResolver==='function'){
+  if(!Array.isArray(map.__bpMissingStyleImageResolversV5859)){
+   map.__bpMissingStyleImageResolversV5859=[];
+   map.setMissingStyleImageResolver(async id=>{const key=String(id||'');for(const fn of map.__bpMissingStyleImageResolversV5859){try{await fn(key);if(map.hasImage?.(key))return}catch(e){console.warn('BridgePoint missing style image resolver',key,e)}}});
+  }
+  map.__bpMissingStyleImageResolversV5859.push(resolver);
+ }else{
+  map.on('styleimagemissing',e=>resolver(String(e.id||'')));
+ }
+}
+
 function installBridgePointIcons(map){
  if(map.__bpIconLazyV5587)return;map.__bpIconLazyV5587=true;
  const add=id=>{try{if(!map.hasImage(id))map.addImage(id,bpIconImage(id),{pixelRatio:2})}catch(e){console.warn('BridgePoint icon',id,e)}};
- map.on('styleimagemissing',e=>{const id=String(e.id||'');if(id.startsWith('bp-poi-')||id.startsWith('bp-opp-'))add(id)});
+ registerMissingStyleImageResolver(map,id=>{if(id.startsWith('bp-poi-')||id.startsWith('bp-opp-'))add(id)});
  window.__BP_ICON_LAZYLOAD_V5587__={version:5587,onDemand:true,eagerCount:0,updatedAt:Date.now()}
 }
 
@@ -424,7 +438,7 @@ function floorLinePatternImage(){
 function installBuildingMaterials(map){
  if(map.__bpBuildingMaterialLazyV5587)return;map.__bpBuildingMaterialLazyV5587=true;
  const add=id=>{try{if(map.hasImage(id))return;if(id==='bp-floor-lines')map.addImage(id,floorLinePatternImage(),{pixelRatio:2});else if(id.startsWith('bproof-'))map.addImage(id,roofPatternImage(id),{pixelRatio:2});else if(id.startsWith('bp-window-night-'))map.addImage(id,nightWindowPatternImage(id),{pixelRatio:2});else if(id.startsWith('bpfacade-'))map.addImage(id,facadePatternImage(id),{pixelRatio:2})}catch(e){console.warn('BridgePoint building material',id,e)}};
- map.on('styleimagemissing',e=>{const id=String(e.id||'');if(id==='bp-floor-lines'||id.startsWith('bpfacade-')||id.startsWith('bproof-')||id.startsWith('bp-window-night-'))add(id)});
+ registerMissingStyleImageResolver(map,id=>{if(id==='bp-floor-lines'||id.startsWith('bpfacade-')||id.startsWith('bproof-')||id.startsWith('bp-window-night-'))add(id)});
  window.__BP_BUILDING_MATERIALS__={version:'v5587',mode:'grey-3d-detail',simpleGreyGeometry:true,legacyPersistentGlobalShell:true,floorLines:true,facadeTextures:false,roofOverlays:true,exactRoofs:true,buildingParts:false,nightWindows:false,exactWorldOverlay:true,lazyImages:true,eagerImages:0,updatedAt:Date.now()};
  window.__BP_MATERIAL_LAZYLOAD_V5587__={version:5587,buildingImages:'on-demand',eagerBuildingImages:0,updatedAt:Date.now()}
 }
@@ -456,7 +470,7 @@ function installWorldMaterials(map){
  const landmarks=new Map([['bp-landmark-monument','monument'],['bp-landmark-statue','statue'],['bp-landmark-fountain','fountain'],['bp-transit-stop','transit']]);
  const addTerrain=id=>{try{if(!map.hasImage(id))map.addImage(id,surfacePatternImage(id),{pixelRatio:2})}catch(e){console.warn('BridgePoint surface',id,e)}};
  const addLandmark=id=>{try{if(!map.hasImage(id)&&landmarks.has(id))map.addImage(id,landmarkIconImage(landmarks.get(id)),{pixelRatio:2})}catch(e){console.warn('BridgePoint landmark',id,e)}};
- map.on('styleimagemissing',e=>{const id=String(e.id||'');if(id.startsWith('bpterrain-'))addTerrain(id);else if(landmarks.has(id))addLandmark(id)});
+ registerMissingStyleImageResolver(map,id=>{if(id.startsWith('bpterrain-'))addTerrain(id);else if(landmarks.has(id))addLandmark(id)});
  try{map.triggerRepaint?.()}catch(_){}
  window.__BP_WORLD_MATERIALS__={version:'v5587',biomes:true,glacierRelief:true,physicalRoads:true,blackYellowWhiteRoads:true,bridgeDecks:true,shorelineMotion:true,landmarks:true,lazyImages:true,eagerImages:0,updatedAt:Date.now()};
  window.__BP_MATERIAL_LAZYLOAD_V5587__={...(window.__BP_MATERIAL_LAZYLOAD_V5587__||{}),version:5587,buildingImages:'on-demand',worldImages:'on-demand',eagerWorldImages:0,updatedAt:Date.now()}
@@ -469,7 +483,7 @@ export function initWorld(options={}){
  const containerId=String(options.containerId||'liveMap'),globalKey=String(options.globalKey||'__bpWorldV2300'),container=document.getElementById(containerId);if(!container||!window.maplibregl)return null;if(window[globalKey]?.map)return window[globalKey];container.innerHTML='';
  const initialCenter=Array.isArray(options.center)&&options.center.length===2?options.center:[0,20],initialZoom=Number.isFinite(options.zoom)?Number(options.zoom):(MOBILE?1.05:1.25),initialPitch=Number.isFinite(options.pitch)?Number(options.pitch):0,initialBearing=Number.isFinite(options.bearing)?Number(options.bearing):0,projectionType=String(options.projection||'globe');
  const map=new maplibregl.Map({container,style:style(),center:initialCenter,zoom:initialZoom,pitch:initialPitch,bearing:initialBearing,minZoom:.65,maxZoom:22,maxPitch:85,projection:{type:projectionType},pixelRatio:MOBILE?1:Math.min(window.devicePixelRatio||1,2),antialias:!MOBILE&&!LOW,fadeDuration:0,renderWorldCopies:false,transformRequest:tileTransform,maxTileCacheSize:MOBILE?48:(TIER==='LOW'?96:TIER==='HIGH'?240:160),refreshExpiredTiles:false,cancelPendingTileRequestsWhileZooming:true,crossSourceCollisions:!MOBILE,validateStyle:false,attributionControl:false});
- window.__BP_MAPLIBRE_RUNTIME_V5857__={version:5858,library:'MapLibre GL JS',target:'6.10.0',privateInternalsPatched:false,upstreamTerrainProjectionFixes:true,updatedAt:Date.now()};
+ window.__BP_MAPLIBRE_RUNTIME_V5857__={version:5859,library:'MapLibre GL JS',target:'6.10.0',privateInternalsPatched:false,upstreamTerrainProjectionFixes:true,updatedAt:Date.now()};
 
  const space=initSpace(map,container);
  const runtimeMapErrors=[];map.on('error',e=>{const raw=e?.error||e,msg=String(raw?.message||raw||'MapLibre runtime error');runtimeMapErrors.push({message:msg,at:Date.now()});if(runtimeMapErrors.length>30)runtimeMapErrors.shift();window.__BP_MAP_RUNTIME_ERRORS__=runtimeMapErrors;console.warn('BridgePoint MapLibre',msg)});
