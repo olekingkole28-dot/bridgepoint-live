@@ -471,9 +471,14 @@ export function initWorld(options={}){
  const map=new maplibregl.Map({container,style:style(),center:initialCenter,zoom:initialZoom,pitch:initialPitch,bearing:initialBearing,minZoom:.65,maxZoom:22,maxPitch:85,projection:{type:projectionType},pixelRatio:MOBILE?1:Math.min(window.devicePixelRatio||1,2),antialias:!MOBILE&&!LOW,fadeDuration:0,renderWorldCopies:false,transformRequest:tileTransform,maxTileCacheSize:MOBILE?48:(TIER==='LOW'?96:TIER==='HIGH'?240:160),refreshExpiredTiles:false,cancelPendingTileRequestsWhileZooming:true,crossSourceCollisions:!MOBILE,validateStyle:false,attributionControl:false});
  const repairMaplibreLayerOrder=(reason='guard')=>{try{const st=map.style,order=st?._order,layers=st?._layers;if(!Array.isArray(order)||!layers)return false;const clean=order.filter(id=>!!layers[id]);if(clean.length===order.length)return false;st._order=clean;st._layerOrderChanged=true;window.__BP_MAPLIBRE_LAYER_ORDER_GUARD_V5855__={version:5855,reason,removed:order.filter(id=>!layers[id]),remaining:clean.length,updatedAt:Date.now()};map.triggerRepaint?.();return true}catch(_){return false}};
  try{
-  const rawRemoveLayer=map.removeLayer.bind(map),rawMoveLayer=map.moveLayer.bind(map);
+  const st=map.style,rawRemoveLayer=map.removeLayer.bind(map),rawMoveLayer=map.moveLayer.bind(map);
+  repairMaplibreLayerOrder('post-constructor-sync');
+  if(st?._updatePlacement){const rawPlacement=st._updatePlacement.bind(st);st._updatePlacement=(...args)=>{repairMaplibreLayerOrder('pre-placement');return rawPlacement(...args)}}
+  if(st?.update){const rawStyleUpdate=st.update.bind(st);st.update=(...args)=>{repairMaplibreLayerOrder('pre-style-update');return rawStyleUpdate(...args)}}
   map.removeLayer=(id)=>{const out=rawRemoveLayer(id);repairMaplibreLayerOrder('removeLayer:'+id);queueMicrotask(()=>repairMaplibreLayerOrder('removeLayer-microtask:'+id));return out};
   map.moveLayer=(id,beforeId)=>{repairMaplibreLayerOrder('before-moveLayer:'+id);const out=rawMoveLayer(id,beforeId);repairMaplibreLayerOrder('after-moveLayer:'+id);return out};
+  queueMicrotask(()=>repairMaplibreLayerOrder('post-constructor-microtask'));
+  setTimeout(()=>repairMaplibreLayerOrder('post-constructor-timeout'),0);
   map.on('styledata',()=>repairMaplibreLayerOrder('styledata'));
   map.on('moveend',()=>repairMaplibreLayerOrder('moveend'));
   map.on('zoomend',()=>repairMaplibreLayerOrder('zoomend'));
