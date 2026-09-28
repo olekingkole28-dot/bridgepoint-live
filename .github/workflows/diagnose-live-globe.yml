@@ -1,0 +1,56 @@
+name: Diagnose live globe layer state
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-live-globe.yml'
+  workflow_dispatch:
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect live MapLibre state without deploying
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          (async()=>{
+            const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
+            const p=await browser.newPage();
+            await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+            const errors=[];
+            p.on('pageerror',e=>errors.push(String(e.stack||e.message||e)));
+            await p.goto('https://bridgepointintelligence.online/?globediag='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+            await new Promise(r=>setTimeout(r,8000));
+            const s=await p.evaluate(()=>{
+              const m=window.__BP_LANDING_WORLD__?.map,st=m?.style;
+              const order=Array.isArray(st?._order)?st._order:[];
+              const layers=st?._layers||{};
+              const updated=st?._updatedPaintProps||{};
+              return {
+                build:window.__BP_LANDING_MAP_BOOT__||null,
+                map:!!m,
+                loaded:m?.loaded?.()||false,
+                styleLoaded:m?.isStyleLoaded?.()||false,
+                publicProjection:m?.getProjection?.()||null,
+                stylesheetProjection:st?.stylesheet?.projection||null,
+                internalProjection:st?.projection?{name:st.projection.name,transitionState:st.projection.transitionState}:null,
+                light:!!st?.light, sky:!!st?.sky,
+                orderCount:order.length, layerCount:Object.keys(layers).length,
+                missingOrder:order.filter(id=>!layers[id]),
+                missingUpdated:Object.keys(updated).filter(id=>!layers[id]),
+                orderTail:order.slice(-20),
+                runtimeErrors:window.__BP_MAP_RUNTIME_ERRORS__||[]
+              };
+            });
+            console.log('BP_GLOBE_DIAG_STATE',JSON.stringify(s));
+            console.log('BP_GLOBE_DIAG_ERRORS',JSON.stringify(errors.slice(0,12)));
+            await browser.close();
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
