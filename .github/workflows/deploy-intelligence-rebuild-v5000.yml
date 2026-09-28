@@ -195,12 +195,10 @@ jobs:
           cp release-v2300/world-v2300-bootstrap.js site/app/world-v2300-bootstrap.js
           cp release-v2300/world-v2300.css site/app/world-v2300.css
 
-          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@6.10.0/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://unpkg.com/maplibre-gl@6.10.0/dist/maplibre-gl.mjs -o site/vendor/maplibre-gl.mjs
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://unpkg.com/maplibre-gl@6.10.0/dist/maplibre-gl-worker.mjs -o site/vendor/maplibre-gl-worker.mjs
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://unpkg.com/maplibre-gl@6.10.0/dist/maplibre-gl-shared.mjs -o site/vendor/maplibre-gl-shared.mjs
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://unpkg.com/maplibre-gl@6.10.0/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
-          test -s site/vendor/maplibre-gl.js
           test -s site/vendor/maplibre-gl.mjs
           test -s site/vendor/maplibre-gl-worker.mjs
           test -s site/vendor/maplibre-gl-shared.mjs
