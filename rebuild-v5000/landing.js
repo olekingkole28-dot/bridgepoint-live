@@ -212,11 +212,16 @@ function bpLegend(el,rows){
  if(!el)return;el.textContent='';
  rows.forEach((row,i)=>{const d=document.createElement('div');d.className='bp-legend-row';const dot=document.createElement('i');dot.style.background=row.color||BP_COVERAGE_COLORS[i%BP_COVERAGE_COLORS.length];const n=document.createElement('span');n.textContent=row.name;const v=document.createElement('b');v.textContent=fmt(row.value);d.append(dot,n,v);el.appendChild(d)});
 }
-let globalCoverageLoading=null,opportunitySummaryLoading=null;
+let headlineLoading=null,globalCoverageLoading=null,opportunitySummaryLoading=null;
 const BP_LIVE_CACHE_KEY='bp_live_metric_snapshot_v5841';
 function bpLiveCacheRead(){try{return JSON.parse(localStorage.getItem(BP_LIVE_CACHE_KEY)||'{}')}catch(_){return{}}}
 function bpLiveCacheWrite(patch){try{localStorage.setItem(BP_LIVE_CACHE_KEY,JSON.stringify({...bpLiveCacheRead(),...patch,updatedAt:Date.now()}))}catch(_){}}
-function bpStableText(id,value){const el=$(id);if(!el)return;const next=String(value??'—');if(el.textContent===next)return;el.textContent=next}
+const BP_CRITICAL_METRIC_IDS=['landingProperties','landingBuildings','landingAddresses','landingBoundaries','landingGlobalProperties','landingLayouts','landingParts','landingTransport','landingWeatherEvents','landingOpportunityHeroStat'];
+const BP_METRIC_LAST_VISIBLE=Object.fromEntries(BP_CRITICAL_METRIC_IDS.map(id=>[id,String($(id)?.textContent||'').trim()]).filter(([,v])=>v));
+function bpStableText(id,value){const el=$(id);if(!el)return;const next=String(value??'—');if(!next.trim())return;if(BP_CRITICAL_METRIC_IDS.includes(id))BP_METRIC_LAST_VISIBLE[id]=next;if(el.textContent===next)return;el.textContent=next}
+const BP_CRITICAL_COPY=[['.hero-cta-primary strong','CREATE FREE ACCOUNT'],['.hero-cta-primary small','Start with live map access'],['.hero-cta-map strong','OPEN LIVE APP'],['.hero-cta-map small','Sign in required · live 3D globe'],['.hero-cta-report strong','SEE SAMPLE REPORT'],['.hero-cta-report small','Storm → property → opportunity'],['.stat-properties .stat-copy>span','global canonical properties'],['.stat-buildings .stat-copy>span','global map-ready buildings'],['.stat-addresses .stat-copy>span','global address records'],['.stat-parcels .stat-copy>span','global stored parcel boundaries'],['.stat-global .stat-copy>span','global canonical properties'],['.stat-layouts .stat-copy>span','global 3D building models'],['.stat-parts .stat-copy>span','global roof-shell buildings'],['.stat-transport .stat-copy>span','global transport source rows'],['.stat-weather .stat-copy>span','global live events'],['.stat-opportunities .stat-copy>span','global live opportunities']];
+function ensureCriticalCopy(){for(const [selector,fallback] of BP_CRITICAL_COPY){const el=document.querySelector(selector);if(el&&!String(el.textContent||'').trim())el.textContent=fallback}for(const id of BP_CRITICAL_METRIC_IDS){const el=$(id);if(el&&!String(el.textContent||'').trim()&&BP_METRIC_LAST_VISIBLE[id])el.textContent=BP_METRIC_LAST_VISIBLE[id]}}
+function watchCriticalCopy(){ensureCriticalCopy();const roots=[document.querySelector('.hero-actions-premium'),document.querySelector('.premium-stats')].filter(Boolean);if(!roots.length||window.__BP_CRITICAL_COPY_OBSERVER__)return;let queued=false;const observer=new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;ensureCriticalCopy()})});for(const root of roots)observer.observe(root,{subtree:true,childList:true,characterData:true});window.__BP_CRITICAL_COPY_OBSERVER__=observer}
 function hydrateLiveMetricSnapshot(){
  const c=bpLiveCacheRead();
  if(Number.isFinite(Number(c.globalCanonical)))bpStableText('landingGlobalProperties',fmt(c.globalCanonical));
@@ -230,7 +235,7 @@ function hydrateLiveMetricSnapshot(){
 const BP_HEADLINE_CACHE_KEY='bp-public-headline-v5852';
 function paintHeadline(d){
  if(!d||typeof d!=='object')return false;
- const put=(id,v)=>{const el=$(id),n=Number(v);if(el&&Number.isFinite(n))bpStableText(id,fmt(n))};
+ const put=(id,v)=>{const el=$(id);if(!el||v===null||v===undefined||v==='')return;const n=Number(v);if(Number.isFinite(n))bpStableText(id,fmt(n))};
  put('landingProperties',d.world_canonical_total);put('landingBuildings',d.map_ready_buildings);put('landingAddresses',d.address_records);put('landingBoundaries',d.stored_boundaries);
  put('landingGlobalProperties',d.world_canonical_total);put('globalCountryTotal',d.world_canonical_total);
  put('landingLayouts',d.global_3d_building_models);put('landingParts',d.global_roof_shell_buildings);put('landingTransport',d.global_transport_rows);put('landingWeatherEvents',d.global_live_events??d.weather_events);
@@ -241,8 +246,14 @@ function paintHeadline(d){
 }
 function cachedHeadline(){try{return JSON.parse(localStorage.getItem(BP_HEADLINE_CACHE_KEY)||'null')}catch(_){return null}}
 async function headline(){
- try{const [d,globalLive]=await Promise.all([rpc('bridgepoint_public_headline_v5822',{},2500),rpc('bridgepoint_global_live_event_count_v5852',{},2500)]);const merged={...d,global_live_events:Number(globalLive)};paintHeadline(merged);try{localStorage.setItem(BP_HEADLINE_CACHE_KEY,JSON.stringify(merged))}catch(_){}return merged}
- catch(e){const c=cachedHeadline();if(c)paintHeadline(c);console.warn('BridgePoint headline cache',e);return c}
+ if(headlineLoading)return headlineLoading;
+ headlineLoading=(async()=>{const cached=cachedHeadline();try{
+  const d=await rpc('bridgepoint_public_headline_v5822',{},3500),merged={...(cached||{}),...(d||{})};
+  paintHeadline(merged);try{localStorage.setItem(BP_HEADLINE_CACHE_KEY,JSON.stringify(merged))}catch(_){}
+  void rpc('bridgepoint_global_live_event_count_v5852',{},1800).then(globalLive=>{const n=Number(globalLive);if(!Number.isFinite(n))return;const next={...merged,global_live_events:n};paintHeadline(next);try{localStorage.setItem(BP_HEADLINE_CACHE_KEY,JSON.stringify(next))}catch(_){}}).catch(()=>{});
+  return merged
+ }catch(e){if(cached)paintHeadline(cached);ensureCriticalCopy();console.warn('BridgePoint headline cache',e);return cached}finally{headlineLoading=null}})();
+ return headlineLoading
 }
 function bindMetricNavigation(){
  const bind=(id,target)=>{const el=$(id),dest=$(target);if(!el||!dest||el.dataset.bpScrollBound)return;el.dataset.bpScrollBound='1';const go=e=>{if(e?.type==='keydown'&&!['Enter',' '].includes(e.key))return;e?.preventDefault?.();dest.scrollIntoView({behavior:'auto',block:'start'})};el.addEventListener('click',go);el.addEventListener('keydown',go)};
@@ -555,5 +566,5 @@ function bind(){document.querySelectorAll('.auth-open').forEach(b=>b.onclick=()=
  try{window.__BP_LANDING_WORLD__?.map?.triggerRepaint?.()}catch(_){}
  window.__BP_LANDING_SOFT_REFRESH__={hardReload:false,lastAt:Date.now()}
 });
-if(!hashSession()){bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();hydrateLiveMetricSnapshot();headline();initMap();setInterval(headline,15000);globalCoverage();setInterval(globalCoverage,60000);opportunitySummary();setInterval(opportunitySummary,120000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5881',{updateViaCache:'none'}).catch(()=>{})}
+if(!hashSession()){bind();bindMetricNavigation();bindWorldBackdrop();bindConversionPreview();watchCriticalCopy();hydrateLiveMetricSnapshot();headline();initMap();setInterval(headline,5000);globalCoverage();setInterval(globalCoverage,60000);opportunitySummary();setInterval(opportunitySummary,120000);packages();if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5881',{updateViaCache:'none'}).catch(()=>{})}
 // BP_V5441_DEPLOY_SYNC: compact national hazard dots; radar and boundaries unchanged.
