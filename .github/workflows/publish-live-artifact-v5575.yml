@@ -41,11 +41,15 @@ jobs:
           grep -Fq "const PARCEL_MIN=MOBILE?6.45" world-v2300-map.js
           ! grep -Fq "canvas.addEventListener('click'" world-v2300-map.js
           grep -Fq 'destructiveStop:false' app.js
-          grep -Fq 'const VERSION=5405' parcel-boundary-viewer-v5403.js
-          grep -Fq 'minzoom:5.9' parcel-boundary-viewer-v5403.js
-          grep -Fq 'parcel-boundary-viewer-v5403.js?v=5575' index.html
-          grep -Fq 'parcel-boundary-viewer-v5403.js?v=5575' app/index.html
-          echo LIVE_ARTIFACT_V5575_CONTRACT_OK
+          grep -Fq 'const VERSION=5637' parcel-boundary-viewer-v5403.js
+          grep -Fq 'window.__BP_BOUNDARY_VIEWER_BOOT_V5585__' parcel-boundary-viewer-v5403.js
+          grep -Fq 'parcel-boundary-viewer-v5403.js?v=1096' index.html
+          grep -Fq 'parcel-boundary-viewer-v5403.js?v=1096' app/index.html
+          grep -Fq 'setInterval(globalCoverage,5000)' landing.js
+          grep -Fq 'state.statusTimer=setInterval(()=>void status().catch(()=>{}),5000)' global-property-v957.js
+          grep -Fq 'landing.js?v=5890-country-pulse' index.html
+          grep -Fq 'global-property-v957.js?v=5890-country-pulse' index.html
+          echo LIVE_ARTIFACT_V5575_COUNTRY_PULSE_OK
 
       - uses: actions/configure-pages@v5
         with:
