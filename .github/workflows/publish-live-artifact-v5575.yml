@@ -16,7 +16,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: bridgepoint-live-artifact-direct
+  group: bridgepoint-live-artifact-authority-v5890
   cancel-in-progress: true
 
 jobs:
