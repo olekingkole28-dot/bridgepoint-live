@@ -1,5 +1,5 @@
 {
-  "snapshot_generated_at": "2026-09-30T01:50:28.731677+00:00",
+  "snapshot_generated_at": "2026-09-30T07:58:28.719693+00:00",
   "company": "BridgePoint Intelligence",
   "founder": "Kole Johnson",
   "public_origin": "https://bridgepointintelligence.online/",
@@ -17,8 +17,8 @@
     "roof_shell_coverage_pct": 100.0,
     "canonical_property_records": 171321626,
     "normalized_address_records": 156184506,
-    "source_backed_roof_records": 697021,
-    "lidar_refined_roof_buildings": 6460,
+    "source_backed_roof_records": 697074,
+    "lidar_refined_roof_buildings": 6509,
     "materialized_boundary_estimate": 84510335,
     "public_parcel_identity_records": 171321626,
     "canonical_property_record_label": "canonical property/parcel identity records",
@@ -34,8 +34,8 @@
     "public_counter_jurisdictions": 56
   },
   "freshness": {
-    "roof_updated_at": "2026-09-30T01:39:52.721819+00:00",
-    "lidar_last_success_at": "2026-09-30T01:39:52.721819+00:00",
+    "roof_updated_at": "2026-09-30T07:58:12.807144+00:00",
+    "lidar_last_success_at": "2026-09-30T06:27:35.641596+00:00",
     "parcel_counter_updated_at": "2026-09-25T21:27:23.676933+00:00",
     "address_counter_updated_at": "2026-09-27T02:32:35.038458+00:00",
     "parcel_scoreboard_updated_at": "2026-09-27T02:32:01.320015+00:00",
