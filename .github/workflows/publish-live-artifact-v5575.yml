@@ -45,11 +45,12 @@ jobs:
           grep -Fq 'window.__BP_BOUNDARY_VIEWER_BOOT_V5585__' parcel-boundary-viewer-v5403.js
           grep -Fq 'parcel-boundary-viewer-v5403.js?v=1096' index.html
           grep -Fq 'parcel-boundary-viewer-v5403.js?v=1096' app/index.html
-          grep -Fq 'setInterval(globalCoverage,5000)' landing.js
-          grep -Fq 'state.statusTimer=setInterval(()=>void status().catch(()=>{}),5000)' global-property-v957.js
-          grep -Fq 'landing.js?v=5890-country-pulse' index.html
-          grep -Fq 'global-property-v957.js?v=5890-country-pulse' index.html
-          echo LIVE_ARTIFACT_V5575_COUNTRY_PULSE_OK
+          grep -Fq "navigator.serviceWorker.register('/sw.js?v=5853'" landing.js
+          grep -Fq 'setInterval(headline,15000);globalCoverage();setInterval(globalCoverage,60000);' landing.js
+          grep -Fq 'state.statusTimer=setInterval(()=>void status().catch(()=>{}),60000);' global-property-v957.js
+          grep -Fq 'landing.js?v=5852-global-truth' index.html
+          grep -Fq 'global-property-v957.js?v=5841-worldwide-truth' index.html
+          echo LIVE_ARTIFACT_GLOBE_RECOVERY_V5853_OK
 
       - uses: actions/configure-pages@v5
         with:
