@@ -36,6 +36,22 @@ const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co',KEY='sb_publishable_lM9oWQ
 const colors=['#62e5ff','#72f0b9','#ffd56a','#ff8f78','#ad8cff','#ff82bf','#72a8ff','#a7f06c','#f0a66c','#6ce0d5','#e7ef78','#cc89ff'];
 const fmt=n=>Number(n||0).toLocaleString();
 function donut(items,total){let pos=0,stops=[];items.forEach((x,i)=>{const pct=total?x.value/total*100:0;if(pct<=0)return;const next=pos+pct;stops.push(colors[i%colors.length]+' '+pos.toFixed(3)+'% '+next.toFixed(3)+'%');pos=next});return stops.length?'conic-gradient('+stops.join(',')+')':'#132633'}
+const regionNames=typeof Intl!=='undefined'&&Intl.DisplayNames?new Intl.DisplayNames(['en'],{type:'region'}):null;
+const countryName=code=>{try{return regionNames?.of(code)||code}catch(_){return code}};
+async function liveCounters(){
+ try{
+  const r=await fetch(SUPA+'/rest/v1/rpc/bridgepoint_public_live_counters_v5902',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json',Accept:'application/json'},body:'{}',cache:'no-store'});
+  const d=await r.json();if(!r.ok)throw new Error(d?.message||('HTTP '+r.status));
+  const us=Number(d.us_public_parcels||0),world=Number(d.worldwide_canonical_total||0),rows=(Array.isArray(d.countries)?d.countries:[]).filter(x=>Number(x.active_canonical)>0).map(x=>({name:countryName(String(x.country_code||'').toUpperCase()),code:String(x.country_code||'').toUpperCase(),value:Number(x.active_canonical||0)})).sort((a,b)=>b.value-a.value||a.code.localeCompare(b.code));
+  const positive=[{name:'United States',code:'US',value:us},...rows].filter(x=>x.value>0);
+  document.getElementById('usTotal').textContent=fmt(us);document.getElementById('liveCountries').textContent=fmt(positive.length);document.getElementById('globalTotal').textContent=fmt(world);
+  document.getElementById('countryDonut').style.background=donut(positive,world);
+  document.getElementById('countryLegend').innerHTML=positive.map((x,i)=>'<div class="row"><i class="dot" style="background:'+colors[i%colors.length]+'"></i><b>'+String(x.name||x.code).replace(/[<>&]/g,'')+'</b><span>'+fmt(x.value)+' canonical</span></div>').join('');
+  document.getElementById('fresh').textContent='Live counters: '+new Date(d.updated_at||Date.now()).toLocaleString();
+  window.__BP_COVERAGE_LIVE__={...d,paintedAt:Date.now()};
+  return d;
+ }catch(e){console.warn('Coverage live counters',e);return null}
+}
 async function load(){
  try{
   const r=await fetch(SUPA+'/rest/v1/rpc/bridgepoint_public_global_coverage_v5597',{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json',Accept:'application/json'},body:'{}',cache:'no-store'});
@@ -52,9 +68,9 @@ async function load(){
   const positive=[{name:'United States',code:'US',value:usTotal},...nonUs].filter(x=>x.value>0);document.getElementById('globalTotal').textContent=fmt(worldTotal);document.getElementById('countryDonut').style.background=donut(positive,worldTotal);
   document.getElementById('countryLegend').innerHTML=positive.map((x,i)=>'<div class="row"><i class="dot" style="background:'+colors[i%colors.length]+'"></i><b>'+String(x.name||x.code).replace(/[<>&]/g,'')+'</b><span>'+fmt(x.value)+' canonical</span></div>').join('');
   const max=Math.max(1,...states.map(x=>Number(x.canonical_records)||0));document.getElementById('stateTable').innerHTML=states.map(x=>'<div class="state"><code>'+x.state_code+'</code><div class="bar"><div class="fill" style="width:'+Math.max(.15,Number(x.canonical_records||0)/max*100).toFixed(2)+'%"></div></div><b>'+fmt(x.canonical_records)+'</b></div>').join('');
-  document.getElementById('fresh').textContent='Last data update: '+(s.last_updated_at?new Date(s.last_updated_at).toLocaleString():'not yet reported');
+  document.getElementById('fresh').textContent='Last data update: '+(s.last_updated_at?new Date(s.last_updated_at).toLocaleString():'not yet reported');if(window.__BP_COVERAGE_LIVE__)await liveCounters();
  }catch(e){document.getElementById('fresh').textContent='Coverage refresh retrying · '+String(e.message||e)}
 }
-load();setInterval(()=>{if(!document.hidden)load()},120000);
+liveCounters();setInterval(()=>{if(!document.hidden)liveCounters()},5000);load();setInterval(()=>{if(!document.hidden)load()},120000);
 </script>
 </body></html>
