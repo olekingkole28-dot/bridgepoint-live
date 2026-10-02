@@ -1,13 +1,13 @@
 {
   "entity": "BridgePoint Intelligence",
   "metrics": {
-    "map_ready_buildings": 192754144,
-    "roof_shell_buildings": 192754144,
+    "map_ready_buildings": 192755136,
+    "roof_shell_buildings": 192755136,
     "roof_shell_coverage_pct": 100.0,
     "canonical_property_records": 171321626,
     "normalized_address_records": 156184506,
-    "source_backed_roof_records": 697289,
-    "lidar_refined_roof_buildings": 6724,
+    "source_backed_roof_records": 697320,
+    "lidar_refined_roof_buildings": 6755,
     "materialized_boundary_estimate": 84510335,
     "public_parcel_identity_records": 171321626,
     "canonical_property_record_label": "canonical property/parcel identity records",
@@ -23,15 +23,15 @@
     "public_counter_jurisdictions": 56
   },
   "freshness": {
-    "roof_updated_at": "2026-10-01T20:53:45.336524+00:00",
-    "lidar_last_success_at": "2026-10-01T20:21:38.420864+00:00",
+    "roof_updated_at": "2026-10-02T00:30:08.361068+00:00",
+    "lidar_last_success_at": "2026-10-02T00:01:33.700106+00:00",
     "parcel_counter_updated_at": "2026-09-25T21:27:23.676933+00:00",
     "address_counter_updated_at": "2026-09-27T02:32:35.038458+00:00",
     "parcel_scoreboard_updated_at": "2026-09-27T02:32:01.320015+00:00",
     "parcel_autopilot_last_tick_at": "2026-09-23T05:51:45.397871+00:00"
   },
   "horizon_url": "https://bridgepointintelligence.online/app/horizon/",
-  "generated_at": "2026-10-01T20:54:04.345894+00:00",
+  "generated_at": "2026-10-02T00:30:48.717278+00:00",
   "canonical_url": "https://bridgepointintelligence.online/",
   "jurisdictions": [
     {
@@ -325,7 +325,7 @@
   "horizon_year_one_demand": {
     "ok": true,
     "mode": "365_DAY_YEAR_ONE_SURVIVAL",
-    "updated_at": "2026-10-01T20:54:04.606782+00:00",
+    "updated_at": "2026-10-02T00:30:48.845288+00:00",
     "event_started": false,
     "unique_requests": 0,
     "billing_connected": false,
