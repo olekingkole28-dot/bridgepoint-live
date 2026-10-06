@@ -4,12 +4,12 @@
     "map_ready_buildings": 192755136,
     "roof_shell_buildings": 192755136,
     "roof_shell_coverage_pct": 100.0,
-    "canonical_property_records": 171321626,
+    "canonical_property_records": 171325444,
     "normalized_address_records": 156184506,
-    "source_backed_roof_records": 698087,
-    "lidar_refined_roof_buildings": 7520,
+    "source_backed_roof_records": 698093,
+    "lidar_refined_roof_buildings": 7526,
     "materialized_boundary_estimate": 83512730,
-    "public_parcel_identity_records": 171321626,
+    "public_parcel_identity_records": 171325444,
     "canonical_property_record_label": "canonical property/parcel identity records",
     "property_boundary_link_estimate": 31956612
   },
@@ -23,15 +23,15 @@
     "public_counter_jurisdictions": 56
   },
   "freshness": {
-    "roof_updated_at": "2026-10-06T13:37:21.451061+00:00",
-    "lidar_last_success_at": "2026-10-06T02:49:55.790611+00:00",
-    "parcel_counter_updated_at": "2026-09-25T21:27:23.676933+00:00",
+    "roof_updated_at": "2026-10-06T19:05:29.069543+00:00",
+    "lidar_last_success_at": "2026-10-06T17:29:50.565698+00:00",
+    "parcel_counter_updated_at": "2026-10-06T13:48:18.026687+00:00",
     "address_counter_updated_at": "2026-09-27T02:32:35.038458+00:00",
-    "parcel_scoreboard_updated_at": "2026-10-06T13:38:00.148172+00:00",
+    "parcel_scoreboard_updated_at": "2026-10-06T19:04:00.190939+00:00",
     "parcel_autopilot_last_tick_at": "2026-10-03T11:46:56.486712+00:00"
   },
   "horizon_url": "https://bridgepointintelligence.online/app/horizon/",
-  "generated_at": "2026-10-06T13:38:07.268434+00:00",
+  "generated_at": "2026-10-06T19:05:35.767977+00:00",
   "canonical_url": "https://bridgepointintelligence.online/",
   "jurisdictions": [
     {
@@ -121,8 +121,8 @@
     },
     {
       "code": "IN",
-      "updated_at": "2026-09-21T08:21:24.061219+00:00",
-      "canonical_property_parcel_records": 3698231
+      "updated_at": "2026-10-06T13:48:18.026687+00:00",
+      "canonical_property_parcel_records": 3698315
     },
     {
       "code": "KS",
@@ -186,8 +186,8 @@
     },
     {
       "code": "NC",
-      "updated_at": "2026-09-21T08:34:55.899196+00:00",
-      "canonical_property_parcel_records": 6149782
+      "updated_at": "2026-10-06T13:48:18.026687+00:00",
+      "canonical_property_parcel_records": 6150764
     },
     {
       "code": "ND",
@@ -226,8 +226,8 @@
     },
     {
       "code": "OH",
-      "updated_at": "2026-09-21T08:21:24.061219+00:00",
-      "canonical_property_parcel_records": 7188327
+      "updated_at": "2026-10-06T13:48:18.026687+00:00",
+      "canonical_property_parcel_records": 7191079
     },
     {
       "code": "OK",
@@ -325,7 +325,7 @@
   "horizon_year_one_demand": {
     "ok": true,
     "mode": "365_DAY_YEAR_ONE_SURVIVAL",
-    "updated_at": "2026-10-06T13:38:07.607286+00:00",
+    "updated_at": "2026-10-06T19:05:36.063117+00:00",
     "event_started": false,
     "unique_requests": 0,
     "billing_connected": false,
