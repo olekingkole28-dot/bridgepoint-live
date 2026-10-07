@@ -1,5 +1,5 @@
 {
-  "snapshot_generated_at": "2026-10-07T02:22:59.370794+00:00",
+  "snapshot_generated_at": "2026-10-07T09:03:11.329569+00:00",
   "company": "BridgePoint Intelligence",
   "founder": "Kole Johnson",
   "public_origin": "https://bridgepointintelligence.online/",
@@ -34,11 +34,11 @@
     "public_counter_jurisdictions": 56
   },
   "freshness": {
-    "roof_updated_at": "2026-10-07T02:22:39.569382+00:00",
+    "roof_updated_at": "2026-10-07T09:02:51.708906+00:00",
     "lidar_last_success_at": "2026-10-06T20:20:00.347685+00:00",
     "parcel_counter_updated_at": "2026-10-06T13:48:18.026687+00:00",
     "address_counter_updated_at": "2026-09-27T02:32:35.038458+00:00",
-    "parcel_scoreboard_updated_at": "2026-10-07T02:22:00.158279+00:00",
+    "parcel_scoreboard_updated_at": "2026-10-07T09:02:01.018301+00:00",
     "parcel_autopilot_last_tick_at": "2026-10-03T11:46:56.486712+00:00"
   },
   "definitions": {
