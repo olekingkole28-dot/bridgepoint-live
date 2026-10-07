@@ -48,10 +48,15 @@ jobs:
           grep -Fq 'window.__BP_BOUNDARY_VIEWER_BOOT_V5585__' parcel-boundary-viewer-v5403.js
           grep -Fq 'parcel-boundary-viewer-v5403.js?v=1096' index.html
           grep -Fq 'parcel-boundary-viewer-v5403.js?v=1096' app/index.html
-          grep -Fq 'setInterval(globalCoverage,5000)' landing.js
-          grep -Fq 'state.statusTimer=setInterval(()=>void status().catch(()=>{}),5000)' global-property-v957.js
-          grep -Fq 'landing.js?v=5890-country-pulse' index.html
-          grep -Fq 'global-property-v957.js?v=5890-country-pulse' index.html
+          grep -Fq 'setInterval(liveCountryCounters,3000)' landing.js
+          grep -Fq "bridgepoint_public_live_counters_v5902" landing.js
+          ! grep -Fq "put('landingProperties',d.world_canonical_total)" landing.js
+          grep -Fq 'state.liveTimer=setInterval(()=>void liveCounters().catch(()=>{}),2000)' global-property-v957.js
+          grep -Fq 'bridgepoint_public_live_counters_v5902' global-property-v957.js
+          ! grep -Fq 'window.__BP_HEADLINE_V5822__?.world_canonical_total' global-property-v957.js
+          grep -Fq 'landing.js?v=5905-live-truth' index.html
+          grep -Fq 'global-property-v957.js?v=5905-live-truth' index.html
+          grep -Fq 'global-property-v957.js?v=5905-live-truth' app/index.html
           echo LIVE_ARTIFACT_V5575_COUNTRY_PULSE_OK
 
       - uses: actions/configure-pages@v5
