@@ -11,7 +11,7 @@ const HIT='bp-global-parcel-hit-v957';
 const EMPTY={type:'FeatureCollection',features:[]};
 const PUBLIC_PARCEL_GEOMETRY=false;
 window.__BP_PUBLIC_MAP_PRIVACY_V1116__={version:1116,parcelGeometry:false,parcelCounts:true,parcelSearch:true,ownerViewerUnaffected:true,updatedAt:Date.now()};
-const state={map:null,timer:0,statusTimer:0,seq:0,lastKey:'',lastStatus:null,lastData:EMPTY};
+const state={map:null,timer:0,statusTimer:0,liveTimer:0,seq:0,lastKey:'',lastStatus:null,lastLive:null,lastData:EMPTY};
 const fmt=n=>Number(n||0).toLocaleString();
 async function rpc(name,args={},timeout=7000){
  const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);
@@ -22,7 +22,8 @@ async function rpc(name,args={},timeout=7000){
   return d;
  }finally{clearTimeout(t)}
 }
-async function status(){const d=await rpc('bridgepoint_public_global_status_v957',{},5000);state.lastStatus=d;updateCounters(d);return d}
+async function liveCounters(){const d=await rpc('bridgepoint_public_live_counters_v5902',{},3000);state.lastLive=d;updateCounters(d);return d}
+async function status(){const d=await rpc('bridgepoint_public_global_status_v957',{},5000);state.lastStatus=d;return d}
 async function search(q,limit=8){return rpc('bridgepoint_public_global_search_v957',{p_query:String(q||''),p_limit:limit},4500)}
 async function detail(lng,lat,radius=140){return rpc('bridgepoint_public_global_property_detail_v957',{p_lng:Number(lng),p_lat:Number(lat),p_radius_m:Number(radius)||140},4500)}
 function currentMap(){return window.__BP_V5000_WORLD__?.map||window.__BP_LANDING_WORLD__?.map||null}
@@ -35,8 +36,8 @@ function countryName(code){
  return c||'Global'
 }
 function updateCounters(d){
- const total=document.getElementById('landingGlobalProperties');
- if(total&&Number.isFinite(Number(window.__BP_HEADLINE_V5822__?.world_canonical_total)))total.textContent=fmt(window.__BP_HEADLINE_V5822__.world_canonical_total);
+ const worldLive=Number(d?.worldwide_canonical_total);
+ if(Number.isFinite(worldLive)){for(const id of ['landingProperties','landingGlobalProperties','globalCountryTotal']){const el=document.getElementById(id);if(el)el.textContent=fmt(worldLive)}}
  const sub=document.getElementById('landingGlobalCountryMix');
  const footholdCount=x=>Number(x?.official_foothold_features||x?.foothold_features||0);
  const seededParcels=x=>Number(x?.seed_records||x?.seeded_backlog_count||x?.seeded_parcels||0);
@@ -72,8 +73,6 @@ function updateCounters(d){
   }
   if(!countries.length){const row=document.createElement('div');row.textContent='International materialization starting…';list.appendChild(row)}
  }
- const g=document.getElementById('globalCountryTotal'),worldTotal=Number(window.__BP_HEADLINE_V5822__?.world_canonical_total);
- if(g&&Number.isFinite(worldTotal))g.textContent=fmt(worldTotal);
  window.__BP_GLOBAL_PROPERTY_STATUS_V957__={...(d||{}),updatedAt:Date.now()};
 }
 function beforeLayer(map){
@@ -165,13 +164,15 @@ function install(map){
 }
 async function boot(){
  void status().catch(e=>console.warn('BridgePoint global status',e));
- clearInterval(state.statusTimer);state.statusTimer=setInterval(()=>void status().catch(()=>{}),60000);
+ clearInterval(state.statusTimer);state.statusTimer=setInterval(()=>void status().catch(()=>{}),30000);
+ clearInterval(state.liveTimer);state.liveTimer=setInterval(()=>void liveCounters().catch(()=>{}),2000);
+ void liveCounters().catch(e=>console.warn('BridgePoint live counters',e));
  for(let i=0;i<100;i++){
   const m=currentMap();
   if(m){install(m);return}
   await new Promise(r=>setTimeout(r,120));
  }
 }
-window.__BP_GLOBAL_PROPERTY_V957__={version:1120,rpc,status,search,detail,refresh,publicParcelGeometry:false,get statusData(){return state.lastStatus},get viewport(){return state.lastData}};
+window.__BP_GLOBAL_PROPERTY_V957__={version:1122,rpc,status,liveCounters,search,detail,refresh,publicParcelGeometry:false,get statusData(){return state.lastStatus},get liveData(){return state.lastLive},get viewport(){return state.lastData}};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>void boot(),{once:true});else void boot();
 })();
