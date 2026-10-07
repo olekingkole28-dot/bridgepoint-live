@@ -73,8 +73,6 @@ function updateCounters(d){
   }
   if(!countries.length){const row=document.createElement('div');row.textContent='International materialization starting…';list.appendChild(row)}
  }
- const g=document.getElementById('globalCountryTotal'),worldTotal=Number(window.__BP_HEADLINE_V5822__?.world_canonical_total);
- if(g&&Number.isFinite(worldTotal))g.textContent=fmt(worldTotal);
  window.__BP_GLOBAL_PROPERTY_STATUS_V957__={...(d||{}),updatedAt:Date.now()};
 }
 function beforeLayer(map){
@@ -175,6 +173,6 @@ async function boot(){
   await new Promise(r=>setTimeout(r,120));
  }
 }
-window.__BP_GLOBAL_PROPERTY_V957__={version:1121,rpc,status,liveCounters,search,detail,refresh,publicParcelGeometry:false,get statusData(){return state.lastStatus},get liveData(){return state.lastLive},get viewport(){return state.lastData}};
+window.__BP_GLOBAL_PROPERTY_V957__={version:1122,rpc,status,liveCounters,search,detail,refresh,publicParcelGeometry:false,get statusData(){return state.lastStatus},get liveData(){return state.lastLive},get viewport(){return state.lastData}};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>void boot(),{once:true});else void boot();
 })();
