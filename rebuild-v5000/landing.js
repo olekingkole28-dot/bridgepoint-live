@@ -225,7 +225,7 @@ function ensureCriticalCopy(){for(const [selector,fallback] of BP_CRITICAL_COPY)
 function watchCriticalCopy(){ensureCriticalCopy();const roots=[document.querySelector('.hero-actions-premium'),document.querySelector('.premium-stats')].filter(Boolean);if(!roots.length||window.__BP_CRITICAL_COPY_OBSERVER__)return;let queued=false;const observer=new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;ensureCriticalCopy()})});for(const root of roots)observer.observe(root,{subtree:true,childList:true,characterData:true});window.__BP_CRITICAL_COPY_OBSERVER__=observer}
 function hydrateLiveMetricSnapshot(){
  const c=bpLiveCacheRead();
- if(Number.isFinite(Number(c.globalCanonical)))bpStableText('landingGlobalProperties',fmt(c.globalCanonical));
+ // Never hydrate the authoritative global counter from localStorage; wait for the live Supabase RPC.
  if(c.globalDetail)bpStableText('landingGlobalCountryMix',c.globalDetail);
  if(Number.isFinite(Number(c.opportunities))){
   const v=fmt(c.opportunities);bpStableText('landingOpportunityTotal',v);bpStableText('landingOpportunityTotalHero',v);bpStableText('landingOpportunityHeroStat',v);
@@ -237,8 +237,8 @@ const BP_HEADLINE_CACHE_KEY='bp-public-headline-v5904';
 function paintHeadline(d){
  if(!d||typeof d!=='object')return false;
  const put=(id,v)=>{const el=$(id);if(!el||v===null||v===undefined||v==='')return;const n=Number(v);if(Number.isFinite(n))bpStableText(id,fmt(n))};
- const live=window.__BP_LIVE_COUNTRY_COUNTERS__,liveFresh=!!(live?.paintedAt&&Date.now()-Number(live.paintedAt)<15000);
- if(!liveFresh){put('landingProperties',d.world_canonical_total);put('landingGlobalProperties',d.world_canonical_total);put('globalCountryTotal',d.world_canonical_total)}
+ // Global canonical counters have exactly one writer: paintLiveCountryCounters(), sourced from bridgepoint_public_live_counters_v5902.
+ // Headline snapshots are intentionally forbidden from rewriting those counters.
  put('landingBuildings',d.map_ready_buildings);put('landingAddresses',d.address_records);put('landingBoundaries',d.stored_boundaries);
  put('landingLayouts',d.global_3d_building_models);put('landingParts',d.global_roof_shell_buildings);put('landingTransport',d.global_transport_rows);put('landingWeatherEvents',d.global_live_events??d.weather_events);
  put('landingOpportunityHeroStat',d.opportunities_total);put('landingOpportunityTotal',d.opportunities_total);put('landingOpportunityTotalHero',d.opportunities_total);
@@ -325,11 +325,10 @@ async function globalCoverage(){
   if(stateAll>topSum)topStates.push({name:'Other U.S. jurisdictions',value:stateAll-topSum,color:BP_COVERAGE_COLORS[topStates.length%BP_COVERAGE_COLORS.length]});
   bpDonut($('globalCountryDonut'),displayCountries,countryDisplayTotal);bpLegend($('globalCountryLegend'),displayCountries.length?displayCountries:[{name:'No live or seeded country records published yet',value:0,color:'#27404b'}]);
   bpDonut($('globalStateDonut'),topStates,stateAll);bpLegend($('globalStateLegend'),topStates);
-  const headlineTruth=window.__BP_HEADLINE_V5822__||{},liveTruth=window.__BP_LIVE_COUNTRY_COUNTERS__||{},liveWorld=Number(liveTruth.worldwide_canonical_total),headlineWorld=Number(headlineTruth.world_canonical_total),headlineCountries=Number(headlineTruth.world_country_count),headlineBoundaries=Number(headlineTruth.world_stored_boundaries),worldDisplay=Number.isFinite(liveWorld)?liveWorld:(Number.isFinite(headlineWorld)?headlineWorld:countryDisplayTotal);
-  bpStableText('globalCountryTotal',fmt(worldDisplay));
+  const liveTruth=window.__BP_LIVE_COUNTRY_COUNTERS__||{},liveWorld=Number(liveTruth.worldwide_canonical_total),worldDisplay=Number.isFinite(liveWorld)?liveWorld:countryDisplayTotal;
   bpStableText('globalStateTotal',fmt(stateAll));
   const liveCanonical=countryCanonicalTotal,liveCountryCount=liveCountries.filter(x=>Number(x.active_canonical)>0||Number(x.official_foothold_features||x.foothold_features||0)>0).length,liveBoundaryCount=Number(g?.materialized_global_boundaries||0),worldCountryCount=Number.isFinite(headlineCountries)?headlineCountries:(liveCountryCount+(usCanonical>0?1:0)),worldBoundaryCount=Number.isFinite(headlineBoundaries)?headlineBoundaries:(Number(legacyUs.stored_parcel_boundaries_estimate||0)+liveBoundaryCount),compactGlobalDetail=fmt(worldCountryCount)+' countries · '+fmt(worldBoundaryCount)+' boundaries';
-  bpStableText('landingGlobalProperties',fmt(worldDisplay));bpStableText('landingGlobalCountryMix',compactGlobalDetail);bpLiveCacheWrite({globalCanonical:worldDisplay,globalDetail:compactGlobalDetail})
+  // Do not write landingProperties/landingGlobalProperties/globalCountryTotal here. This coverage refresh is a secondary snapshot and must never overwrite the live canonical counter.
   const footholdCountries=liveCountries.filter(x=>Number(x.official_foothold_features||x.foothold_features||0)>0),footholdFeatures=footholdCountries.reduce((n,x)=>n+Number(x.official_foothold_features||x.foothold_features||0),0),seededTotal=Number(summaryMeta.seeded_parcels_waiting_turn||0),seededCountries=Number(summaryMeta.countries_with_seeded_footholds||0);
   const summary=$('globalCoverageSummary');if(summary){summary.textContent='';[
     ['Global canonical properties',fmt(worldCanonicalTotal)],
