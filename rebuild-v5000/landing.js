@@ -304,7 +304,7 @@ async function globalCoverage(){
    rpc('bridgepoint_public_global_coverage_v5601',{},9000).catch(()=>null),
    rpc('bridgepoint_public_global_status_v957',{},6000).catch(()=>null)
   ]);
-  const legacyWorld=legacy?.world||{},legacyUs=legacy?.us||{},countries=Array.isArray(d?.countries)?d.countries:[],states=Array.isArray(d?.us_states)?d.us_states:(Array.isArray(legacyUs.states_and_jurisdictions)?legacyUs.states_and_jurisdictions:[]),queue=Array.isArray(legacyWorld.expansion_queue)?legacyWorld.expansion_queue:[],liveCountries=Array.isArray(g?.countries)?g.countries:[],summaryMeta=d?.summary||{};
+  const liveNow=await liveCountryCounters().catch(()=>null),liveWorldNow=Number(liveNow?.worldwide_canonical_total),liveNonUsNow=Number(liveNow?.global_non_us_canonical),legacyWorld=legacy?.world||{},legacyUs=legacy?.us||{},countries=Array.isArray(d?.countries)?d.countries:[],states=Array.isArray(d?.us_states)?d.us_states:(Array.isArray(legacyUs.states_and_jurisdictions)?legacyUs.states_and_jurisdictions:[]),queue=Array.isArray(legacyWorld.expansion_queue)?legacyWorld.expansion_queue:[],liveCountries=Array.isArray(g?.countries)?g.countries:[],summaryMeta=d?.summary||{};
   const names={AU:'Australia',BR:'Brazil',CA:'Canada',CD:'DR Congo',CL:'Chile',CN:'China',CY:'Cyprus',DE:'Germany',DJ:'Djibouti',EE:'Estonia',EG:'Egypt',GB:'United Kingdom',HU:'Hungary',IN:'India',IS:'Iceland',JP:'Japan',KE:'Kenya',KR:'South Korea',LT:'Lithuania',LV:'Latvia',MD:'Moldova',MK:'North Macedonia',AL:'Albania',AM:'Armenia',MX:'Mexico',MY:'Malaysia',NL:'Netherlands',NO:'Norway',NZ:'New Zealand',PA:'Panama',PH:'Philippines',PL:'Poland',RO:'Romania',SG:'Singapore',TW:'Taiwan',TZ:'Tanzania',UA:'Ukraine',VN:'Vietnam'};
   const canonicalCountryRows=liveCountries.filter(x=>Number(x.active_canonical)>0).map((x,i)=>{
    const code=String(x.country_code||'').toUpperCase(),canonical=Number(x.active_canonical||0);
@@ -315,9 +315,9 @@ async function globalCoverage(){
    return {name:bpCountryName(code,x.country_name||names[code])+' · '+code,value:canonical,canonical,seeded:Number(x.seeded_parcels||0),kind:'CANONICAL',color:BP_COVERAGE_COLORS[(i+1)%BP_COVERAGE_COLORS.length]};
   });
   const nonUsRows=canonicalCountryRows.length?canonicalCountryRows:fallbackCountryRows;
-  const visibleNonUs=nonUsRows.reduce((a,b)=>a+Number(b.value||0),0),countryCanonicalTotal=Number(g?.active_global_canonical||visibleNonUs||0);
+  const visibleNonUs=nonUsRows.reduce((a,b)=>a+Number(b.value||0),0),countryCanonicalTotal=Number.isFinite(liveNonUsNow)?liveNonUsNow:Number(g?.active_global_canonical||visibleNonUs||0);
   if(countryCanonicalTotal>visibleNonUs)nonUsRows.push({name:'Other live non-U.S. coverage',value:countryCanonicalTotal-visibleNonUs,canonical:countryCanonicalTotal-visibleNonUs,seeded:0,kind:'CANONICAL',color:BP_COVERAGE_COLORS[(nonUsRows.length+1)%BP_COVERAGE_COLORS.length]});
-  const usCanonical=Number(legacyUs.canonical_properties||summaryMeta.us_canonical_records||0),worldCanonicalTotal=usCanonical+countryCanonicalTotal;
+  const usCanonical=Number(legacyUs.canonical_properties||summaryMeta.us_canonical_records||0),worldCanonicalTotal=Number.isFinite(liveWorldNow)?liveWorldNow:usCanonical+countryCanonicalTotal;
   const displayCountries=[{name:'United States · US',value:usCanonical,canonical:usCanonical,seeded:0,kind:'CANONICAL',color:BP_COVERAGE_COLORS[0]},...nonUsRows].filter(x=>Number(x.value)>0);
   const countryDisplayTotal=worldCanonicalTotal;
   const topStates=states.slice(0,10).map((x,i)=>({name:x.state_code||x.code,value:Number(x.canonical_records??x.count??0),color:BP_COVERAGE_COLORS[i%BP_COVERAGE_COLORS.length]}));
