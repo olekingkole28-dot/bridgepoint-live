@@ -1,0 +1,45 @@
+name: China Overture Building Coverage v1
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17,47 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/china-building-ingest-v1.yml"
+      - "scripts/ingest-china-overture-buildings-v1.py"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: bridgepoint-china-overture-buildings-v1
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        worker: [0, 1, 2, 3]
+    env:
+      SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned DuckDB and HTTP dependencies
+        run: python -m pip install --disable-pip-version-check duckdb==1.4.1 requests==2.32.5
+      - name: Verify renewable GitHub OIDC endpoint
+        shell: bash
+        run: |
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+      - name: Process one leased China tile with PostGIS-filtered inserts
+        run: python scripts/ingest-china-overture-buildings-v1.py --worker "${{ matrix.worker }}"
