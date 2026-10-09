@@ -19,7 +19,7 @@ import requests
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://xdfsjztwgsbmabshzsjw.supabase.co").rstrip("/")
 BROKER = f"{SUPABASE_URL}/functions/v1/bridgepoint-china-building-broker-v1"
 AUDIENCE = "bridgepoint-china-building-v1"
-BATCH_SIZE = 75
+BATCH_SIZE = 150
 TOKEN = {"value": None, "exp": 0}
 
 
