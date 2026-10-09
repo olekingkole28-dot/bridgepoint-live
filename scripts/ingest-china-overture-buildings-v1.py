@@ -247,14 +247,11 @@ def process_item(claim, worker):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--worker", type=int, default=0)
-    parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     args = parser.parse_args()
     if not 0 <= args.worker <= 15:
         raise SystemExit("worker must be between 0 and 15")
     # A small batch avoids HTTP payload/CPU spikes; the long-running compute is
     # on the GitHub hosted runner, not the 2-second Supabase Edge CPU budget.
-    global BATCH_SIZE
-    BATCH_SIZE = max(25, min(100, args.batch_size))
     claim = broker("claim", {"batch_size": BATCH_SIZE}, timeout=60)
     if not claim.get("claimed"):
         status = broker("status", timeout=60)
