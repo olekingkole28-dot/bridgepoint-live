@@ -1,10 +1,10 @@
 {
   "version": 5805,
-  "generated_at": "2026-10-10T02:28:45Z",
+  "generated_at": "2026-10-10T08:54:36Z",
   "canonical_properties": 171592728,
   "address_records": 156184506,
-  "map_ready_buildings": 273131744,
-  "active_hazard_records": 0,
+  "map_ready_buildings": 285739904,
+  "active_hazard_records": 3,
   "pages": [
     {
       "slug": "169-million-canonical-property-map",
@@ -12,7 +12,7 @@
       "title": "BridgePoint now reports 171.6M canonical U.S. property records",
       "description": "A live proptech map combining canonical property identity, buildings, roofs and source-labelled hazards.",
       "kind": "milestone",
-      "generated_at": "2026-10-10T02:28:45Z"
+      "generated_at": "2026-10-10T08:54:36Z"
     },
     {
       "slug": "solo-builder-proptech",
@@ -20,7 +20,7 @@
       "title": "Solo builder creates a live property-intelligence map spanning 171.6M canonical records",
       "description": "An emerging proptech project built by a solo founder connects property identity, 3D buildings, roofs and live hazards.",
       "kind": "proptech",
-      "generated_at": "2026-10-10T02:28:45Z"
+      "generated_at": "2026-10-10T08:54:36Z"
     },
     {
       "slug": "founder-story-built-from-a-phone",
@@ -28,7 +28,7 @@
       "title": "From homelessness and a phone to a national property-intelligence build",
       "description": "The BridgePoint founder story: starting with a phone, building while homeless, and turning the idea into a live national property-intelligence product in about five months.",
       "kind": "founder",
-      "generated_at": "2026-10-10T02:28:45Z"
+      "generated_at": "2026-10-10T08:54:36Z"
     },
     {
       "slug": "investor-live-product-callout",
@@ -36,7 +36,7 @@
       "title": "Investors: BridgePoint is live\u2014inspect the product instead of reading a pitch",
       "description": "A direct callout to proptech, geospatial, insurance, climate-tech and data investors to inspect BridgePoint's live product.",
       "kind": "investor",
-      "generated_at": "2026-10-10T02:28:45Z"
+      "generated_at": "2026-10-10T08:54:36Z"
     },
     {
       "slug": "horizon-real-world-spatial-game",
@@ -44,7 +44,7 @@
       "title": "BridgePoint Horizon turns the same national spatial backend into a playable survival world",
       "description": "BridgePoint Horizon reuses BridgePoint terrain, roads, parcels and buildings as the spatial foundation for a playable survival and combat experience.",
       "kind": "horizon",
-      "generated_at": "2026-10-10T02:28:45Z"
+      "generated_at": "2026-10-10T08:54:36Z"
     },
     {
       "slug": "roof-intelligence-mega-sprint",
@@ -52,15 +52,39 @@
       "title": "BridgePoint roof-intelligence sprint: 7,530 LiDAR-refined buildings and climbing",
       "description": "Live roof materialization status from BridgePoint's active roof-data sprint.",
       "kind": "roof",
-      "generated_at": "2026-10-10T02:28:45Z"
+      "generated_at": "2026-10-10T08:54:36Z"
     },
     {
       "slug": "global-property-intelligence-expansion",
       "url": "https://bridgepointintelligence.online/newsroom/global-property-intelligence-expansion/",
-      "title": "BridgePoint global expansion: 410,455,337 worldwide canonical property identities",
+      "title": "BridgePoint global expansion: 410,710,267 worldwide canonical property identities",
       "description": "Live BridgePoint global property, parcel-boundary and building coverage generated from current backend counters.",
       "kind": "global",
-      "generated_at": "2026-10-10T02:28:45Z"
+      "generated_at": "2026-10-10T08:54:36Z"
+    },
+    {
+      "slug": "live-storm-intelligence",
+      "url": "https://bridgepointintelligence.online/newsroom/live-storm-intelligence/",
+      "title": "Live U.S. storm intelligence: 3 active source-labelled hazard records",
+      "description": "Current BridgePoint storm and hazard context generated from live source-labelled weather data.",
+      "kind": "storm",
+      "generated_at": "2026-10-10T08:54:36Z"
+    },
+    {
+      "slug": "live-wind-reports-signals",
+      "url": "https://bridgepointintelligence.online/newsroom/live-wind-reports-signals/",
+      "title": "Wind reports / signals: 2 current BridgePoint map records",
+      "description": "Live source-labelled wind reports / signals context on the BridgePoint Intelligence map.",
+      "kind": "storm",
+      "generated_at": "2026-10-10T08:54:36Z"
+    },
+    {
+      "slug": "live-other-source-labelled-weather-events",
+      "url": "https://bridgepointintelligence.online/newsroom/live-other-source-labelled-weather-events/",
+      "title": "Other source-labelled weather events: 1 current BridgePoint map record",
+      "description": "Live source-labelled other source-labelled weather events context on the BridgePoint Intelligence map.",
+      "kind": "storm",
+      "generated_at": "2026-10-10T08:54:36Z"
     },
     {
       "slug": "global-expansion-live",
@@ -68,7 +92,15 @@
       "title": "BridgePoint global expansion: 174 countries currently reporting live canonical coverage",
       "description": "Live BridgePoint global expansion counters for countries already in the production pipeline, including parcel boundaries and building-footprint progress.",
       "kind": "global",
-      "generated_at": "2026-10-10T02:28:45Z"
+      "generated_at": "2026-10-10T08:54:36Z"
+    },
+    {
+      "slug": "northeast-noreaster-live",
+      "url": "https://bridgepointintelligence.online/newsroom/northeast-noreaster-live/",
+      "title": "Northeast Nor'easter intelligence: 2 active NWS wind, coastal-flood, surf or tropical alerts",
+      "description": "Live National Weather Service alert context for the Northeast, connected to BridgePoint's property and building intelligence map.",
+      "kind": "storm",
+      "generated_at": "2026-10-10T08:54:36Z"
     },
     {
       "slug": "parcel-build-status",
@@ -76,7 +108,7 @@
       "title": "BridgePoint parcel build status: 171,592,728 canonical properties with final reconciliation still running",
       "description": "Live parcel/canonical-property build status with explicit separation between canonical identity and parcel-boundary completion.",
       "kind": "parcel",
-      "generated_at": "2026-10-10T02:28:45Z"
+      "generated_at": "2026-10-10T08:54:36Z"
     }
   ]
 }
