@@ -137,7 +137,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5904-performance-v1');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5907-public-listing-icons-bridges');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -943,6 +943,49 @@ async function refreshOpportunityBuildings(){if(mapBackgroundBlocked()){deferred
 function scheduleOpportunityBuildings(){clearTimeout(opportunityTimer);opportunityTimer=setTimeout(refreshOpportunityBuildings,BP_MOBILE?1100:650)}
 function startOpportunityBuildings(){const map=world?.map;if(!map||map.__bpOpportunityBound)return;map.__bpOpportunityBound=true;map.on('moveend',scheduleOpportunityBuildings);setTimeout(()=>queueAfterMap('opportunities',refreshOpportunityBuildings),BP_MOBILE?4200:520)}
 
+const APP_LISTING_COLORS={FOR_SALE:'#7dff63',FOR_RENT:'#24ffc8'};
+let opportunityListingTimer=0,opportunityListingSeq=0;
+function appListingGeojson(geo){
+ const base=geo?.type==='FeatureCollection'?geo:{type:'FeatureCollection',features:[]};
+ return{...base,features:(base.features||[]).map(f=>{const p={...(f.properties||{})},kind=String(p.listing_type||'FOR_SALE').toUpperCase();return{...f,properties:{...p,listing_type:kind,color:APP_LISTING_COLORS[kind]||APP_LISTING_COLORS.FOR_SALE}}})}
+}
+async function refreshPublicListings(){
+ if(mapBackgroundBlocked()||mapInteracting||document.hidden||!appMapSurfaceActive()){deferredWork.set('public-listings',refreshPublicListings);return}
+ const map=world?.map,src=map?.getSource('bpListings');if(!map||!src?.setData||map.isMoving?.())return;
+ const seq=++opportunityListingSeq,z=map.getZoom(),b=map.getBounds();
+ const limit=BP_MOBILE?(z<2.5?18:z<5?35:z<9?60:120):(z<2.5?30:z<5?55:z<9?100:200);
+ try{
+  const d=await rpc('bridgepoint_public_listings_viewport_v5906',{p_west:b.getWest(),p_south:b.getSouth(),p_east:b.getEast(),p_north:b.getNorth(),p_limit:limit},2600);
+  if(seq!==opportunityListingSeq||map.isMoving?.()||mapInteracting)return;
+  const geo=appListingGeojson(d?.geojson);src.setData(geo);
+  window.__BP_PUBLIC_LISTINGS_V5906__={source:d?.source_key||'UNKNOWN',status:d?.source_status||'UNKNOWN',features:geo.features.length,totalInLastSync:Number(d?.source_total_last_sync||0),sourceSnapshotLastEdit:d?.source_layer_last_edit||null,lastSync:d?.source_last_synced_at||null,returned:d?.returned||0,zoomBand:z<2.5?'globe':z<5?'regional':z<9?'city':'local',updatedAt:Date.now()};
+ }catch(e){if(seq===opportunityListingSeq)console.warn('public listing overlay',e)}
+}
+function schedulePublicListings(){clearTimeout(opportunityListingTimer);opportunityListingTimer=setTimeout(()=>void refreshPublicListings(),BP_MOBILE?1450:950)}
+function bindPublicListingPopup(){
+ const map=world?.map;if(!map||map.__bpPublicListingPopupBound)return;map.__bpPublicListingPopupBound=true;
+ map.on('click',e=>{
+  let f=null;try{if(!map.getLayer('gta-property-listings'))return;f=(map.queryRenderedFeatures(e.point,{layers:['gta-property-listings']})||[]).find(x=>x?.properties?.listing_id)}catch(_){return}
+  if(!f)return;
+  const p=f.properties||{},root=document.createElement('div');root.style.cssText='min-width:215px;max-width:290px;font:13px/1.45 system-ui,sans-serif;color:#102319';
+  const title=document.createElement('strong');title.style.cssText='display:block;font-size:15px;color:#237d22';title.textContent=String(p.title||'Property listing');
+  const details=document.createElement('p');details.style.cssText='margin:7px 0;color:#40594a';
+  details.textContent=[p.address,p.city,p.state_code,p.postal_code,p.price_amount!=null?new Intl.NumberFormat(undefined,{style:'currency',currency:p.price_currency||'USD',maximumFractionDigits:0}).format(Number(p.price_amount)):null].filter(Boolean).join(' · ');
+  const date=p.source_updated_at?new Date(p.source_updated_at):null,sourceAge=date&&!Number.isNaN(date.getTime())?Math.max(0,Math.floor((Date.now()-date.getTime())/86400000)):null;
+  const warning=document.createElement('small');warning.style.cssText='display:block;margin:7px 0;color:#7b4d00';
+  warning.textContent='HUD FHA property record · for-sale status is not guaranteed current. '+(sourceAge!==null?'Source snapshot last updated '+date.toLocaleDateString()+' ('+sourceAge+' days old). ':'')+'Verify availability and price with the publisher before acting.';
+  const link=document.createElement('a');link.href=String(p.listing_url||p.source_url||'https://www.hudhomestore.gov/Home/Index.aspx');link.target='_blank';link.rel='noopener noreferrer';link.textContent='Check source listing ↗';link.style.cssText='display:inline-block;color:#1d7027;font-weight:800;text-decoration:underline;margin-top:4px';
+  root.append(title,details,warning,link);
+  try{new maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'320px'}).setLngLat(e.lngLat).setDOMContent(root).addTo(map)}catch(_){}
+ });
+}
+function startPublicListings(){
+ const map=world?.map;if(!map||map.__bpPublicListingsBound)return;map.__bpPublicListingsBound=true;
+ bindPublicListingPopup();map.on('moveend',schedulePublicListings);
+ setTimeout(()=>void refreshPublicListings(),BP_MOBILE?3900:1100);
+}
+
+
 
 function semanticCategory(p={}){
  const s=String([p.subclass,p.class,p.type,p.amenity,p.category].filter(Boolean).join(' ')).toLowerCase();
@@ -1074,7 +1117,7 @@ async function start(){
   startupInteractiveUntil=Math.max(startupInteractiveUntil,performance.now()+(BP_MOBILE?3200:1000));
   window.__BP_INTERACTION_PRIORITY_UNTIL__=startupInteractiveUntil;
   bindPerformanceGovernor();bindParcelClicks();bindMapEngagement();bindMeasureTool();
-  startLiveWeather();startRuntimeTransport();startOpportunityBuildings();
+  startLiveWeather();startRuntimeTransport();startOpportunityBuildings();startPublicListings();
   void authReady.then(()=>{if(authSession?.access_token)void loadWorkspace()}).catch(()=>{});
   setTimeout(()=>void loadPackageCatalog(),BP_MOBILE?1800:260);
   setTimeout(()=>void loadStatus(),BP_MOBILE?2200:380);
@@ -1104,7 +1147,7 @@ window.addEventListener('bridgepoint:softrefresh',()=>{
  window.__BP_SOFT_REFRESH_STATE__={hardReload:false,lastAt:Date.now(),updatedAt:Date.now()}
 });
 start();
-window.addEventListener('beforeunload',()=>{clearInterval(accessCountdownTimer);clearInterval(statusTimer);clearInterval(tileTimer);clearInterval(selectedTimer);clearInterval(liveContextTimer);clearInterval(radarRefreshTimer);clearInterval(radarAnimTimer);clearInterval(cloudRefreshTimer);clearInterval(cloudAnimTimer);clearInterval(transportTimer);clearInterval(opportunityTimer);clearTimeout(semanticTimer);clearTimeout(semanticBuildTimer)});
+window.addEventListener('beforeunload',()=>{clearInterval(accessCountdownTimer);clearInterval(statusTimer);clearInterval(tileTimer);clearInterval(selectedTimer);clearInterval(liveContextTimer);clearInterval(radarRefreshTimer);clearInterval(radarAnimTimer);clearInterval(cloudRefreshTimer);clearInterval(cloudAnimTimer);clearInterval(transportTimer);clearInterval(opportunityTimer);clearTimeout(opportunityListingTimer);clearTimeout(semanticTimer);clearTimeout(semanticBuildTimer)});
 ;(()=>{const resume=()=>{if(document.hidden)return;try{window.__BP_V5000_WORLD__?.map?.resize?.();window.__BP_V5000_WORLD__?.map?.triggerRepaint?.()}catch(_){ }if(!mapInteracting)flushDeferredWork()};document.addEventListener('visibilitychange',resume,{passive:true});window.__BP_APP_RESPONSIVENESS_V5561__={version:5561,inputPendingAware:true,idleBackgroundWork:true,visibilityPause:true,updatedAt:Date.now()}})();
 
 window.__BP_APP_MAIN_THREAD_GUARD_V5586__={version:5586,offMapBackgroundPause:true,serializedStartup:true,duplicateWeatherRefreshRemoved:true,updatedAt:Date.now()};
