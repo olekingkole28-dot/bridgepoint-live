@@ -729,7 +729,7 @@ jobs:
               && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html \
               && grep -Fq 'toggleLiveContext' /tmp/app.html \
               && grep -Fq 'data-nosnippet' /tmp/app.html \
-              && grep -Fq '__BP_APP_BUILD_VERSION__=5371' /tmp/app.js \
+              && grep -Fq '__BP_APP_BUILD_VERSION__=5906' /tmp/app.js \
               && grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' /tmp/world-v2300-map.js \
               && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js \
               && grep -Fq '__BP_PARCEL_BOUNDARY_VIEWER_V5577__' /tmp/parcel-boundary-viewer-v5403.js \
