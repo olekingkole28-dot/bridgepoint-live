@@ -336,7 +336,7 @@ jobs:
           grep -Fq "world-v2300-map.js" site/app.js
           grep -Fq "world-v2300-map.js" site/landing.js
           grep -Fq '__BP_APP_OPPORTUNITY_STYLE_V5578__' site/app.js
-          grep -Fq '__BP_PUBLIC_OPPORTUNITY_STYLE_V5578__' site/landing.js
+          grep -Fq '__BP_PUBLIC_OPPORTUNITY_STYLE_V5906__' site/landing.js
           grep -Fq 'bridgepoint_public_opportunity_summary_v5626' site/landing.js
           grep -Fq 'landingOpportunityStates' site/index.html
           grep -Fq 'ownerOpportunitySummary' site/app/index.html
