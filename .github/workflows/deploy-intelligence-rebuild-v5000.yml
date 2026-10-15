@@ -502,7 +502,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' site/app.js
           grep -Fq 'bridgepoint_public_building_parts_v5000' site/app.js
           grep -Fq 'bridgepoint_public_foundation_sample_v5011' site/app.js
-          grep -Fq 'bridgepoint_public_opportunity_viewport_v5025' site/app.js
+          grep -Fq 'bridgepoint_public_opportunity_viewport_v5906' site/app.js
           grep -Fq 'gta-place-label' site/world-v2300-map.js
           grep -Fq 'gta-road-label-major' site/world-v2300-map.js
           grep -Fq 'gta-poi-probe' site/world-v2300-map.js
