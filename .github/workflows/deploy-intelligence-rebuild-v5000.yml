@@ -975,7 +975,13 @@ jobs:
               console.log('BRIDGEPOINT_SAMPLE_REPORT_PASS');
 
               await p.goto('https://bridgepointintelligence.online/app/?qa=v5584-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
-              await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000&&window.__BP_APP_BUILD_VERSION__===5906,{timeout:20000});
+              try{
+                await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000&&window.__BP_APP_BUILD_VERSION__===5906,{timeout:20000});
+              }catch(e){
+                const boot=await p.evaluate(()=>({url:location.href,readyState:document.readyState,frontend:window.__BP_FRONTEND_VERSION,app:window.__BP_APP_BUILD_VERSION__,scripts:[...document.scripts].map(s=>s.src).filter(Boolean),body:document.body.innerText.slice(0,300)}));
+                console.log('APP_BOOT_VERSION_TIMEOUT',JSON.stringify(boot));
+                throw e;
+              }
               await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5630&&!!window.__BP_V5000_WORLD?.map,{timeout:35000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
               await p.waitForFunction(()=>!!window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__&&!!window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__,{timeout:30000});
