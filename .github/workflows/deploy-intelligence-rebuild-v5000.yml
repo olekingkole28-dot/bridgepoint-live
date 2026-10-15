@@ -464,7 +464,7 @@ jobs:
           grep -Fq 'id="fireUtilityBtn"' site/app/horizon-playable/v2-entry.html
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
-          grep -Fq '__BP_APP_BUILD_VERSION__=5371' site/app.js
+          grep -Fq '__BP_APP_BUILD_VERSION__=5906' site/app.js
           grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' site/world-v2300-map.js
           grep -Fq '__BP_TECH_BASEMAP_V1116__' site/world-v2300-map.js
           grep -Fq '__BP_PUBLIC_TECH_FAST_V1117__' site/world-v2300-map.js
