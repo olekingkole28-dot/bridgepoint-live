@@ -893,7 +893,7 @@ export function initWorld(options={}){
  function syncParcelShells(){layerState.parcels=false;for(const id of ['gta-parcel-glow','gta-parcel-halo','gta-parcel'])vis(map,id,false);return false}
  function syncBuildingShells(){
   if(!layerState.buildings){
-   for(const id of ['gta-context-building-footprints','gta-context-buildings','gta-context-floor-lines','gta-context-roofs','gta-city-buildings','gta-city-floor-lines','gta-city-building-roof-caps','gta-city-roofs','gta-exact-building','gta-exact-floor-lines','gta-exact-roof','gta-building-outline'])vis(map,id,false);
+   for(const id of ['gta-context-building-footprints','gta-context-buildings','gta-context-floor-lines','gta-context-roofs','gta-city-buildings','gta-city-floor-lines','gta-city-building-roof-caps','gta-city-roofs','gta-exact-building','gta-exact-floor-lines','gta-exact-roof','gta-building-outline','gta-context-building-shadow','gta-context-facade-detail','gta-context-building-parts','gta-context-night-windows','gta-bp-building-shadow','gta-bp-facade-detail','gta-bp-building-edge','gta-bp-night-windows','gta-exact-building-shadow','gta-exact-facade-detail','gta-exact-night-windows'])vis(map,id,false);
    return
   }
   const z=map.getZoom(),bpSourceReady=PUBLIC_TECH_FAST&&bridgePointBuildingCoverageReady(),wantCity=PUBLIC_TECH_FAST?false:(bridgePointDomesticCenter()&&z>=11),cityReady=PUBLIC_TECH_FAST?false:(wantCity&&cityStructuresReady()),exactReady=PUBLIC_TECH_FAST?false:(exactCount>0&&z>=DETAIL_MIN),detailSettled=!moving&&performance.now()>=Math.max(buildingShellQuietUntil,lastMotionEndAt+(MOBILE?1800:0)),realismOn=window.__BP_REAL_WORLD_MODE_V5910__?.enabled===true;
