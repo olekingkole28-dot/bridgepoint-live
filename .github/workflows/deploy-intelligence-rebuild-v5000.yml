@@ -304,7 +304,7 @@ jobs:
           grep -Fq 'bp-intelligence-v5912' site/sw.js
           node --check site/app-update-v5820.js
           grep -Fq '/app-update-v5820.js?v=5912' site/index.html
-          grep -Fq '../app-update-v5820.js?v=5912' site/app/index.html
+          grep -Fq '/app-update-v5820.js?v=5912' site/app/index.html
           grep -Fq 'bridgepoint-intelligence-legacy-retire-v5820' site/app/flutter_service_worker.js
           grep -Fq 'migrated=legacy-intelligence-v5820' site/app/intelligence-launch/index.html
           grep -Fq "bridgepoint-horizon-v5820" site/app/horizon/sw.js
