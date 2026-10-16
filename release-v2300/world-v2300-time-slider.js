@@ -21,6 +21,10 @@ const CSS=`
 }
 #liveMap .bp-world-time-slider-v5908 *{box-sizing:border-box}
 #liveMap .bp-world-time-slider-v5908 .bpwt-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+#liveMap .bp-world-time-slider-v5908 [data-collapse]{min-height:23px;padding:4px 8px;margin-left:2px;font-size:12px;line-height:1}
+#liveMap .bp-world-time-slider-v5908.bpwt-collapsed{width:min(300px,calc(100% - 24px));padding:8px 11px}
+#liveMap .bp-world-time-slider-v5908.bpwt-collapsed .bpwt-head{margin-bottom:0}
+#liveMap .bp-world-time-slider-v5908.bpwt-collapsed>:not(.bpwt-head){display:none!important}
 #liveMap .bp-world-time-slider-v5908 .bpwt-eyebrow{font-size:10px;letter-spacing:.13em;font-weight:900;color:#91eaff}
 #liveMap .bp-world-time-slider-v5908 .bpwt-status{font-variant-numeric:tabular-nums;color:#b6d2e0;font-size:11px}
 #liveMap .bp-world-time-slider-v5908 .bpwt-date{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 2px}
@@ -87,7 +91,7 @@ export function initWorldTimeSlider(target,rpc){
  if(!document.getElementById(STYLE_ID)){const style=document.createElement('style');style.id=STYLE_ID;style.textContent=CSS;document.head.appendChild(style)}
  const dock=document.createElement('section');dock.id=ROOT_ID;dock.className='bp-world-time-slider-v5908';dock.setAttribute('aria-label','World activity time slider');
  dock.innerHTML=`
-  <div class="bpwt-head"><span class="bpwt-eyebrow">WORLD ACTIVITY · 30-DAY SCRUB</span><span class="bpwt-status" data-status>CONNECTING</span></div>
+  <div class="bpwt-head"><span class="bpwt-eyebrow">WORLD ACTIVITY · 30-DAY SCRUB</span><span class="bpwt-status" data-status>CONNECTING</span><button type="button" data-collapse aria-expanded="true" aria-label="Collapse world activity controls">⌄</button></div>
   <div class="bpwt-date"><strong data-date>Latest source observations</strong><span data-window>24-hour observation window</span></div>
   <input data-slider type="range" min="0" max="30" step="1" value="30" aria-label="Browse world activity from 30 days ago to now">
   <div class="bpwt-scale"><span>30 DAYS AGO</span><span>LIVE NOW</span></div>
@@ -102,6 +106,13 @@ export function initWorldTimeSlider(target,rpc){
   <div class="bpwt-note">Time-filtered source observations, not a historical rewind of building geometry or imagery. Forecasts/events are context—not proof of physical damage or sale intent.</div>`;
  container.appendChild(dock);
  const $=s=>dock.querySelector(s),slider=$('[data-slider]'),status=$('[data-status]'),date=$('[data-date]'),windowLabel=$('[data-window]'),stats=$('[data-stats]'),list=$('[data-list]'),liveBtn=$('[data-live]'),playBtn=$('[data-play]'),cloudBtn=$('[data-clouds]');
+ const collapseBtn=$('[data-collapse]');
+ collapseBtn.addEventListener('click',()=>{
+  const collapsed=dock.classList.toggle('bpwt-collapsed');
+  collapseBtn.setAttribute('aria-expanded',String(!collapsed));
+  collapseBtn.setAttribute('aria-label',collapsed?'Expand world activity controls':'Collapse world activity controls');
+  collapseBtn.textContent=collapsed?'⌃':'⌄';
+ });
  let seq=0,timer=null,playTimer=null,disposed=false,playing=false,live=true,lastFeatures=[],lastMode='LIVE',lastRequestAt=0;
  const setStatus=(s,err=false)=>{status.textContent=s;status.classList.toggle('bpwt-error',!!err)};
  function selectedAt(){const val=Number(slider.value);if(val>=30)return new Date();return new Date(Date.now()-(30-val)*DAY)}
