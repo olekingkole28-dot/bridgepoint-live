@@ -1079,15 +1079,15 @@ jobs:
               });
               if(state.frontend!==5000||state.app!==5907||state.world!==5630||state.canvases!==1||state.architecture!=='MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY'||state.camera?.mode!=='FREE_FLY_SINGLE_VIEW'||state.camera?.singleView!==true||state.camera?.autoViewSwitching!==false||state.camera?.streetWalkMode!==false||state.camera?.buildingClickOverlook!==true||Number(state.maxPitch)<84||state.materials?.floorLines!==true||state.materials?.roofOverlays!==true||state.materials?.exactRoofs!==true||state.fine?.enabled!==false||!state.sources.city||!state.sources.cityRoofs||!state.sources.weatherShapes||!state.weatherLegend.present||!state.weatherLegend.more||state.weatherFx.rainSnowHail!==true||state.weatherFx.wildfireFlameParticles!==true||Object.values(state.layers).some(v=>v!==true))throw new Error('CURRENT_WORLD_REGRESSION '+JSON.stringify(state));
               console.log('BRIDGEPOINT_CURRENT_WORLD_PASS',JSON.stringify(state));
-              await p.waitForFunction(()=>window.__BP_SKY_CLOUDS_STATE_V5908__?.visible===true&&!!document.querySelector('#liveMap .bp-sky-cloudfield-v5908'),{timeout:12000});
-              const clouds=await p.evaluate(()=>({state:window.__BP_SKY_CLOUDS_STATE_V5908__||null,overlay:!!document.querySelector('#liveMap .bp-sky-cloudfield-v5908'),slider:!!document.getElementById('bp-world-time-slider-v5908'),label:document.getElementById('bp-world-time-slider-v5908')?.innerText.includes('WORLD ACTIVITY')}));
-              if(!clouds.state?.visible||!clouds.overlay||!clouds.slider||!clouds.label)throw new Error('SKY_CLOUDS_OR_WORLD_ACTIVITY_SLIDER_REGRESSION '+JSON.stringify(clouds));
-              console.log('BRIDGEPOINT_CLOUDS_AND_WORLD_TIME_SLIDER_PASS',JSON.stringify(clouds));
 
               await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('map unavailable');
                 m.jumpTo({center:[-73.9857,40.7484],zoom:16.8,pitch:64,bearing:-22});
               });
+              await p.waitForFunction(()=>window.__BP_SKY_CLOUDS_STATE_V5908__?.visible===true&&!!document.querySelector('#liveMap .bp-sky-cloudfield-v5908'),{timeout:12000});
+              const clouds=await p.evaluate(()=>({state:window.__BP_SKY_CLOUDS_STATE_V5908__||null,overlay:!!document.querySelector('#liveMap .bp-sky-cloudfield-v5908'),slider:!!document.getElementById('bp-world-time-slider-v5908'),label:document.getElementById('bp-world-time-slider-v5908')?.innerText.includes('WORLD ACTIVITY')}));
+              if(!clouds.state?.visible||!clouds.overlay||!clouds.slider||!clouds.label)throw new Error('SKY_CLOUDS_OR_WORLD_ACTIVITY_SLIDER_REGRESSION '+JSON.stringify(clouds));
+              console.log('BRIDGEPOINT_CLOUDS_AND_WORLD_TIME_SLIDER_PASS',JSON.stringify(clouds));
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;if(!m)return false;
                 const ids=['gta-bp-buildings','gta-city-buildings','gta-exact-building','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
