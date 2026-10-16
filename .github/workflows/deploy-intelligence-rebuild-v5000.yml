@@ -1032,7 +1032,7 @@ jobs:
               const intel5507=await p.evaluate(()=>({
                 runtime:window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__?.version||0,
                 tools:window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__?.version||0,
-                defaultGlobe:(window.__BP_V5000_WORLD__?.map?.getProjection?.()?.type||'')==='globe',
+                defaultGlobe:(window.__BP_V5000_WORLD?.map?.getProjection?.()?.type||'')==='globe',
                 key:!!document.getElementById('bp5507-key'),
                 premiumTools:!!document.getElementById('bp5507-tools'),
                 live:!!window.__BP_V5000_WORLD?.map?.getLayer('bp5507-live-points'),
