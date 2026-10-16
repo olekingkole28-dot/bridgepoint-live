@@ -212,6 +212,7 @@ export function initSpectralImagery(target){
   if(!['png','tif'].includes(format))return;
   setStatus('Preparing '+format.toUpperCase()+' preview export…');
   const params=comboParams(scene,comboSel.value);
+  params.delete('tile_format');
   params.set('max_size','2048');params.set('width','2048');params.set('height','2048');
   params.set('format',format==='png'?'png':'tif');
   const path=DATA_API+'preview.'+(format==='png'?'png':'tif')+'?'+params.toString();
