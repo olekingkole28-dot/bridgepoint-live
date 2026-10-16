@@ -237,7 +237,7 @@ export function initGisCore(target,rpc){
     case 'SATELLITE_ANALYSIS':{
      const sat=window.__BP_SPECTRAL_IMAGERY_V5909__;
      if(!sat?.available||typeof sat.load!=='function')throw Object.assign(new Error('Satellite module is not ready; wait for the map to finish loading.'),{routeStatus:'blocked'});
-     if(payload.composite&&['earth','water','vegetation'].includes(payload.composite)&&sat.root?.querySelector('[data-combo]'))sat.root.querySelector('[data-combo]').value=payload.composite;
+     if(payload.composite&&['earth','water','vegetation'].includes(payload.composite)&&document.querySelector('#bp-spectral-imagery-v5909 [data-combo]'))document.querySelector('#bp-spectral-imagery-v5909 [data-combo]').value=payload.composite;
      await sat.load();
      const scene=sat.scene;
      const satelliteStatus=document.querySelector('#bp-spectral-imagery-v5909 [data-status]')?.textContent||'';
@@ -321,7 +321,7 @@ export function initGisCore(target,rpc){
      await sat.export(format);
      const exportStatus=document.querySelector('#bp-spectral-imagery-v5909 [data-status]')?.textContent||'';
      data={scene_id:sat.scene.id,format,ui_status:exportStatus};
-     if(/failed|http \\d{3}|empty|load a scene/i.test(exportStatus)){statusValue='failed';message=exportStatus||'Satellite preview export failed.';}
+     if(/failed|http \d{3}|empty|load a scene/i.test(exportStatus)){statusValue='failed';message=exportStatus||'Satellite preview export failed.';}
      else message='Requested a georeferenced satellite scene preview export, with source scene metadata preserved by the imagery module.';
      sourceRefs.push({source_key:'LANDSAT_C2_L2',item_id:sat.scene.id,acquired_at:sat.scene.properties?.datetime||null,url:'https://planetarycomputer.microsoft.com/api/stac/v1'});
      break;
