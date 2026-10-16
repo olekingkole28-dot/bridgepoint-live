@@ -43,7 +43,14 @@ export function initRealismMode(target){
  const api={
   version:VERSION,map,root,
   get enabled(){return enabled},
-  setEnabled(value){return setEnabled(Boolean(value))},
+  setEnabled(value){
+   const desired=Boolean(value);
+   setEnabled(desired);
+   // Keep the public state and closure in sync after basemap/style transitions.
+   enabled=desired;
+   if(window.__BP_REAL_WORLD_MODE_V5910__?.enabled!==desired)report();
+   return desired;
+  },
   toggle(){return setEnabled(!enabled)},
   get state(){return window.__BP_REAL_WORLD_MODE_V5910__||null},
   open(){panel.hidden=false},
