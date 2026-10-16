@@ -994,6 +994,8 @@ jobs:
               if(!/static demonstration/i.test(reportText)||!/does not claim/i.test(reportText)||!/START ACCOUNT \/ TRIAL/i.test(reportText))throw new Error('SAMPLE_REPORT_CONTRACT');
               console.log('BRIDGEPOINT_SAMPLE_REPORT_PASS');
 
+              // The app route has a client-side access gate. Seed a deliberately invalid token only in this disposable smoke browser so the page can boot; the app must reject it against Supabase and continue with public data only.
+              await p.evaluate(()=>localStorage.setItem('bp_auth_v5045',JSON.stringify({access_token:'bridgepoint-smoke-invalid-token'})));
               await p.goto('https://bridgepointintelligence.online/app/?qa=v5584-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               try{
                 await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000&&window.__BP_APP_BUILD_VERSION__===5909,{timeout:20000});
