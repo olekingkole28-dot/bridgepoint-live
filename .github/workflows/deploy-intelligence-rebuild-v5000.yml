@@ -1115,9 +1115,19 @@ jobs:
               await p.waitForFunction(()=>window.__BP_REAL_WORLD_MODE_V5910__?.enabled===true&&window.__BP_TECH_BASEMAP_V1116__?.activeBase==='satellite',{timeout:10000});
               const realism=await p.evaluate(()=>({state:window.__BP_REAL_WORLD_MODE_V5910__||null,roofPattern:!!window.__BP_REALISM_ROOF_PATTERN_EXPR_V5910__,dock:!!document.querySelector('#liveMap #bp-world-realism-v5910'),gis:!!window.__BP_GIS_CORE_V5910__?.route}));
               if(!realism.state?.enabled||!realism.roofPattern||!realism.dock||!realism.gis)throw new Error('REALISM_OR_GIS_CORE_REGRESSION '+JSON.stringify(realism));
-              await p.evaluate(()=>window.__BP_WORLD_REALISM_V5910__?.setEnabled(false));
-              await p.waitForFunction(()=>window.__BP_REAL_WORLD_MODE_V5910__?.enabled===false,{timeout:5000});
-              console.log('BRIDGEPOINT_REALISM_AND_GIS_CORE_PASS',JSON.stringify(realism));
+              const gisCoreCheck=await p.evaluate(async()=>{
+                const core=window.__BP_GIS_CORE_V5910__;
+                const result=await core.route({task_type:'GEOMETRY_WKT',payload:{crs:'EPSG:4326',geometry:{type:'Point',coordinates:[-72.65,41.56]}}});
+                return {pluginCount:core.capabilities()?.plugin_count||0,status:result.status,wkt:result.data?.wkt,auditRecorded:!!result.audit?.recorded};
+              });
+              if(gisCoreCheck.pluginCount!==40||gisCoreCheck.status!=='completed'||gisCoreCheck.wkt!=='POINT (-72.65 41.56)')throw new Error('GIS_CORE_ROUTE_REGRESSION '+JSON.stringify(gisCoreCheck));
+              console.log('BRIDGEPOINT_GIS_CORE_ROUTE_PASS',JSON.stringify(gisCoreCheck));
+              const realismOff=await p.evaluate(()=>{
+                const api=window.__BP_WORLD_REALISM_V5910__,ret=api?.setEnabled(false);
+                return {returned:ret,apiEnabled:api?.enabled,state:window.__BP_REAL_WORLD_MODE_V5910__||null,base:window.__BP_TECH_BASEMAP_V1116__?.activeBase||null};
+              });
+              if(realismOff.apiEnabled!==false||realismOff.state?.enabled!==false)throw new Error('REALISM_DISABLE_REGRESSION '+JSON.stringify(realismOff));
+              console.log('BRIDGEPOINT_REALISM_AND_GIS_CORE_PASS',JSON.stringify({...realism,off:realismOff}));
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;if(!m)return false;
                 const ids=['gta-bp-buildings','gta-city-buildings','gta-exact-building','gta-context-buildings'].filter(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none');
