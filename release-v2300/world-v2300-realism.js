@@ -38,7 +38,7 @@ export function initRealismMode(target){
   '<div class="bpr-note">Imagery coverage and building attributes vary by place. Facade/roof patterns are material-inspired approximations, not photographs of each building. Unknown roof geometry, exact facade texture and interior layouts are never invented as source facts.</div>'+
   '<button data-close type="button" style="width:100%;margin-top:8px">CLOSE</button></div>';
  container.appendChild(root);
- const $=s=>root.querySelector(s),button=$('[data-toggle]'),panel=$('[data-panel]'),stateLine=$('[data-state');
+ const $=s=>root.querySelector(s),button=$('[data-toggle]'),panel=$('[data-panel]'),stateLine=$('[data-state]');
  let enabled=false,previousBase='gta',disposed=false,applyFrame=0,previousRoofPaint=new Map(),patternsActive=false;
  const api={
   version:VERSION,map,root,
