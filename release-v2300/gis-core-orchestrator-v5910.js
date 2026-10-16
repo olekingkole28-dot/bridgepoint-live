@@ -2,6 +2,48 @@ const VERSION=5910;
 const ROOT_ID='bp-gis-core-v5910';
 const STYLE_ID='bp-gis-core-style-v5910';
 const ACTIVITY_SOURCE='bp-world-activity-source-v5908';
+const PLUGIN_LOGIC_CATALOG=[
+ {name:'SLYR (Community Edition)',family:'conversion',status:'NOT_CONFIGURED',task_types:['PROPERTY_GROUND_TRUTH'],execution:'QGIS project/style conversion is not run by the BridgePoint web app.'},
+ {name:'Georeferencer Extension',family:'imagery',status:'NOT_CONFIGURED',task_types:['SATELLITE_ANALYSIS','PROPERTY_GROUND_TRUTH'],execution:'No GCP-based raster warp tool is exposed in this release.'},
+ {name:'GeoParquet Downloader',family:'ingestion',status:'NOT_CONFIGURED',task_types:['PROPERTY_GROUND_TRUTH','FIELD_INGEST'],execution:'No GeoParquet bulk download/ingest job is started by this UI.'},
+ {name:'Data-Driven Input Mask',family:'database',status:'NOT_CONFIGURED',task_types:['PROPERTY_GROUND_TRUTH'],execution:'Database forms/schema introspection are not wired to this router.'},
+ {name:'Coordinates Converter',family:'geometry',status:'PARTIAL',task_types:['COORDINATE_CONVERSION'],execution:'Decimal degrees and DMS are supported; UTM/projection transforms are explicitly not computed.'},
+ {name:'D3 Data Visualization',family:'visualization',status:'PARTIAL',task_types:['HAZARD_INTERSECTION','TERRAIN_ANALYSIS'],execution:'Current live overlays use MapLibre; no D3-powered chart/visualization operation is exposed.'},
+ {name:'Buffer by Percentage',family:'geometry',status:'NOT_CONFIGURED',task_types:['GEOMETRY_WKT','HAZARD_INTERSECTION'],execution:'No percentage-based geometric buffer is generated.'},
+ {name:'Google Earth Engine',family:'remote-analysis',status:'NOT_CONFIGURED',task_types:['SATELLITE_ANALYSIS','TERRAIN_ANALYSIS'],execution:'No Earth Engine credentials/project binding or GEE task is invoked.'},
+ {name:'Point Sampling Tool',family:'raster',status:'NOT_CONFIGURED',task_types:['SATELLITE_ANALYSIS','TERRAIN_ANALYSIS'],execution:'Raster band sampling at coordinates is not implemented in the browser router.'},
+ {name:'Batch GPS Importer',family:'field',status:'NOT_CONFIGURED',task_types:['FIELD_INGEST'],execution:'No GPX batch upload/merge job is configured.'},
+ {name:'GIS Cloud Publisher',family:'publishing',status:'NOT_CONFIGURED',task_types:['EVIDENCE_EXPORT'],execution:'No GIS Cloud account or publisher endpoint is configured.'},
+ {name:'GarminCustomMap',family:'field',status:'NOT_CONFIGURED',task_types:['FIELD_INGEST','EVIDENCE_EXPORT'],execution:'No Garmin/KMZ device export operation is exposed.'},
+ {name:'Coordinate Capture',family:'geometry',status:'PARTIAL',task_types:['COORDINATE_CONVERSION','PROPERTY_GROUND_TRUTH'],execution:'Rendered map selections and point inputs are supported; there is no independent multi-CRS capture panel.'},
+ {name:'STAC API Browser',family:'imagery',status:'READY_WITH_LIMITS',task_types:['SATELLITE_ANALYSIS','EVIDENCE_EXPORT'],execution:'Queries real Landsat 8/9 Level-2 scenes from Planetary Computer and preserves item/acquisition metadata.'},
+ {name:'Geometry Paster',family:'geometry',status:'NOT_CONFIGURED',task_types:['PROPERTY_GROUND_TRUTH','GEOMETRY_WKT'],execution:'No feature-to-feature geometry copy operation is exposed.'},
+ {name:'Bivariate Legend',family:'visualization',status:'NOT_CONFIGURED',task_types:['HAZARD_INTERSECTION','TERRAIN_ANALYSIS'],execution:'No dual-variable bivariate choropleth renderer is generated.'},
+ {name:'Terrain Shading',family:'terrain',status:'PARTIAL',task_types:['TERRAIN_ANALYSIS'],execution:'Reports existing DEM/hillshade layer state; this router does not run a new hillshade raster computation.'},
+ {name:'WhiteboxTools',family:'terrain',status:'NOT_CONFIGURED',task_types:['TERRAIN_ANALYSIS','HAZARD_INTERSECTION'],execution:'No WhiteboxTools process is invoked.'},
+ {name:'Layout Loader',family:'reporting',status:'NOT_CONFIGURED',task_types:['EVIDENCE_EXPORT'],execution:'No fixed-layout report template engine is bound here.'},
+ {name:'GeoDataFarm',family:'field',status:'NOT_CONFIGURED',task_types:['FIELD_INGEST','PROPERTY_GROUND_TRUTH'],execution:'No crop/soil field-observation feed is configured.'},
+ {name:'Globe Builder',family:'visualization',status:'PARTIAL',task_types:['REAL_WORLD_RENDERING','SATELLITE_ANALYSIS'],execution:'BridgePoint has an interactive globe and pitched 3D map; QGIS globe-builder workflows are not imported.'},
+ {name:'TomBio tools',family:'field-science',status:'NOT_CONFIGURED',task_types:['FIELD_INGEST'],execution:'No biological survey or species-recording pipeline is configured.'},
+ {name:'Maps Printer',family:'reporting',status:'PARTIAL',task_types:['EVIDENCE_EXPORT'],execution:'The Landsat module can download a PNG/GeoTIFF preview; bulk map-layout/PDF printing is not implemented here.'},
+ {name:'TrendsEarth',family:'environmental-change',status:'NOT_CONFIGURED',task_types:['SATELLITE_ANALYSIS','TERRAIN_ANALYSIS'],execution:'No land-degradation, soil-carbon or Trends.Earth workflow is invoked.'},
+ {name:'Geoscience',family:'geology',status:'NOT_CONFIGURED',task_types:['TERRAIN_ANALYSIS'],execution:'No geoscience processing package or data source is configured.'},
+ {name:'Street View',family:'visual-context',status:'NOT_CONFIGURED',task_types:['PROPERTY_GROUND_TRUTH'],execution:'No Street View provider/API is configured.'},
+ {name:'Smart-Map',family:'spatial-modeling',status:'NOT_CONFIGURED',task_types:['TERRAIN_ANALYSIS','HAZARD_INTERSECTION'],execution:'No kriging or machine-learning interpolation is run.'},
+ {name:'GeoCoding',family:'address',status:'PARTIAL',task_types:['PROPERTY_GROUND_TRUTH'],execution:'Address/property lookup exists elsewhere in BridgePoint; this route does not claim a new geocoding request unless a result is returned.'},
+ {name:'QRealTime',family:'field',status:'NOT_CONFIGURED',task_types:['FIELD_INGEST'],execution:'No ODK Central, KoboToolbox, or Mergin Maps connection is configured.'},
+ {name:'Value Tool',family:'raster',status:'NOT_CONFIGURED',task_types:['SATELLITE_ANALYSIS','TERRAIN_ANALYSIS'],execution:'No live cursor sampling across stacked raster values is implemented in this release.'},
+ {name:'QuickOSM',family:'open-data',status:'PARTIAL',task_types:['PROPERTY_GROUND_TRUTH','REAL_WORLD_RENDERING'],execution:'The map uses OpenStreetMap/OpenFreeMap-sourced building context; no Overpass key/value query is run by this router.'},
+ {name:'ORS Tools',family:'routing',status:'NOT_CONFIGURED',task_types:['ROUTING_ANALYSIS'],execution:'No OpenRouteService key/provider is configured; no route or isochrone is fabricated.'},
+ {name:'DSG Tools',family:'database',status:'PARTIAL',task_types:['PROPERTY_GROUND_TRUTH','EVIDENCE_EXPORT'],execution:'Supabase/PostGIS database/RPC infrastructure exists; QGIS-specific connection configuration management is not exposed.'},
+ {name:'autoSaver',family:'audit',status:'PARTIAL',task_types:['EVIDENCE_EXPORT','PROPERTY_GROUND_TRUTH'],execution:'Authenticated GIS processing events are written through the audit RPC; no QGIS edit-session auto-save loop is present.'},
+ {name:'Discovery',family:'search',status:'PARTIAL',task_types:['PROPERTY_GROUND_TRUTH'],execution:'BridgePoint property/address search exists, but cross-registry PostgreSQL/GeoPackage/MSSQL search is not configured here.'},
+ {name:'TUFLOW',family:'hydrodynamic-modeling',status:'NOT_CONFIGURED',task_types:['HAZARD_INTERSECTION','TERRAIN_ANALYSIS'],execution:'No TUFLOW 1D/2D solver/model inputs are configured; no flood-depth simulation is claimed.'},
+ {name:'Get WKT',family:'geometry',status:'READY_WITH_LIMITS',task_types:['GEOMETRY_WKT'],execution:'Converts supplied GeoJSON coordinates to WKT/EWKT; does not validate cadastral truth or reproject coordinates.'},
+ {name:'HCMGIS',family:'basemap-open-data',status:'PARTIAL',task_types:['REAL_WORLD_RENDERING','PROPERTY_GROUND_TRUTH'],execution:'Existing basemap and source-data layers are used; the HCMGIS plugin itself is not run.'},
+ {name:'LF Tools',family:'geometry-analysis',status:'NOT_CONFIGURED',task_types:['PROPERTY_GROUND_TRUTH','TERRAIN_ANALYSIS'],execution:'No independent LF Tools processing routine is configured.'},
+ {name:'UMEP',family:'microclimate-modeling',status:'NOT_CONFIGURED',task_types:['TERRAIN_ANALYSIS','HAZARD_INTERSECTION'],execution:'No UMEP/SOLWEIG urban microclimate or heat-stress model is invoked.'}
+];
 const CAPABILITIES={
  SATELLITE_ANALYSIS:{label:'Satellite imagery & spectral analysis',status:'READY_WITH_LIMITS',pluginLogic:['STAC API Browser','Google Earth Engine','Point Sampling Tool','Value Tool'],services:['USGS/NASA Landsat Collection 2 Level-2','Microsoft Planetary Computer STAC'],notes:'Real Landsat scene query, false-color raster tiles, and preview export are connected. Landsat optical pixel size is about 30 m; this is not roof-level aerial imagery.'},
  PROPERTY_GROUND_TRUTH:{label:'Property/building ground truth',status:'PARTIAL',pluginLogic:['Get WKT','Coordinates Converter','Discovery','GeoParquet Downloader','Data-Driven Input Mask'],services:['OpenFreeMap / OpenStreetMap building context','BridgePoint public building tiles','building inspector'],notes:'Can select rendered buildings and use source-backed inspector facts available for that location. Exact parcel/roof/permit coverage varies by jurisdiction.'},
@@ -188,6 +230,8 @@ export function initGisCore(target,rpc){
  function capabilityReport(){
   return {engine:'BridgePoint GIS Core Orchestration Engine',version:VERSION,mode:'source-verified / explicitly capability-gated',
    capabilities:Object.entries(CAPABILITIES).map(([key,v])=>({key,...v,active:activeCapability(key)})),
+   plugin_catalog:PLUGIN_LOGIC_CATALOG.map(p=>({...p,implemented_here:!['NOT_CONFIGURED'].includes(p.status)})),
+   plugin_count:PLUGIN_LOGIC_CATALOG.length,
    task_types:Object.keys(TASK_CATALOG),audit:{appendOnlyForClientRoles:true,hashLinked:true,authenticatedOnly:true,cryptographicallyImmutableAgainstPrivilegedDatabaseActors:false},
    updated_at:new Date().toISOString()};
  }
@@ -339,7 +383,7 @@ export function initGisCore(target,rpc){
    statusValue=e?.routeStatus||'failed';message=String(e?.message||e);
    if(statusValue==='failed')warnings.push('No unsupported operation should be inferred from a failed route.');
   }
-  const result={engine:'BridgePoint GIS Core Orchestration Engine',version:VERSION,run_id:runId,task_type:type,capability:spec.capability,plugin_logic:CAPABILITIES[spec.capability]?.pluginLogic||[],status:statusValue,message,data,metrics:{elapsed_ms:Math.round(performance.now()-start),map_zoom:Math.round(map.getZoom()*100)/100},source_refs:sourceRefs,required_inputs:spec.required_inputs,warnings,source_policy:spec.source_policy,updated_at:new Date().toISOString()};
+  const result={engine:'BridgePoint GIS Core Orchestration Engine',version:VERSION,run_id:runId,task_type:type,capability:spec.capability,plugin_logic:PLUGIN_LOGIC_CATALOG.filter(p=>p.task_types.includes(type)).map(p=>({name:p.name,status:p.status,execution:p.execution})),status:statusValue,message,data,metrics:{elapsed_ms:Math.round(performance.now()-start),map_zoom:Math.round(map.getZoom()*100)/100},source_refs:sourceRefs,required_inputs:spec.required_inputs,warnings,source_policy:spec.source_policy,updated_at:new Date().toISOString()};
   result.audit=await recordAudit(result,type,payload,sourceRefs);
   if(result.audit?.recorded)result.audit.integrity='hash-linked event recorded; verify event_hash against independent storage for stronger assurance';
   window.__BP_GIS_CORE_LAST_RESULT_V5910__=result;
