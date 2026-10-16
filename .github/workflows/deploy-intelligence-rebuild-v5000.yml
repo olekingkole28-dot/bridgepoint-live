@@ -1003,7 +1003,7 @@ jobs:
                   try{
                     const r=await fetch('/app.js?bp-smoke-diagnostic='+Date.now(),{cache:'no-store'});
                     const t=await r.text();
-                    freshAsset={checked:true,status:r.status,ok:r.ok,contentType:r.headers.get('content-type'),cacheControl:r.headers.get('cache-control'),length:t.length,build5908:t.includes('__BP_APP_BUILD_VERSION__=5909'),rpc5907:t.includes('bridgepoint_public_opportunity_viewport_v5907'),buildSnippet:t.split('window.__BP_APP_BUILD_VERSION__').slice(1,2)[0]?.slice(0,90)||null};
+                    freshAsset={checked:true,status:r.status,ok:r.ok,contentType:r.headers.get('content-type'),cacheControl:r.headers.get('cache-control'),length:t.length,build5909:t.includes('__BP_APP_BUILD_VERSION__=5909'),rpc5907:t.includes('bridgepoint_public_opportunity_viewport_v5907'),buildSnippet:t.split('window.__BP_APP_BUILD_VERSION__').slice(1,2)[0]?.slice(0,90)||null};
                   }catch(e){freshAsset={checked:true,error:String(e?.message||e)}}
                   let workers=[];
                   try{workers=await navigator.serviceWorker.getRegistrations().then(rs=>rs.map(r=>({scope:r.scope,active:r.active?.scriptURL||null,waiting:r.waiting?.scriptURL||null,installing:r.installing?.scriptURL||null})))}catch(e){workers=[{error:String(e?.message||e)}]}
