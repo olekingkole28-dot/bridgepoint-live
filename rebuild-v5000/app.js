@@ -1,5 +1,5 @@
 const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
-window.__BP_APP_BUILD_VERSION__=5908;window.__BP_PUBLIC_MARKET_MAP_V5906__={publicMap:true,publicOpportunityLayers:true,updatedAt:Date.now()}
+window.__BP_APP_BUILD_VERSION__=5909;window.__BP_PUBLIC_MARKET_MAP_V5906__={publicMap:true,publicOpportunityLayers:true,updatedAt:Date.now()}
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const RPC=SUPA+'/rest/v1/rpc/';
 const $=id=>document.getElementById(id);
@@ -148,6 +148,9 @@ async function bootMap(){
  void import('./world-v2300-time-slider.js?v=5908-world-activity')
   .then(m=>{window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)})
   .catch(e=>console.warn('BridgePoint world activity slider unavailable',e));
+ void import('./world-v2300-spectral-imagery.js?v=5909-spectral-landsat')
+  .then(m=>{window.__BP_SPECTRAL_IMAGERY_V5909__=m.initSpectralImagery(world)})
+  .catch(e=>console.warn('BridgePoint spectral satellite layer unavailable',e));
  bindPerformanceGovernor();
  // V5614: register the lightweight weather-FX capability contract immediately.
  // Network fetches and active particle rendering stay behind the interaction/pressure governor.
@@ -1155,7 +1158,7 @@ async function start(){
  statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);
  tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?600000:300000);
  setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?300000:120000);
- if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5908',{updateViaCache:'none'}).catch(()=>{})
+ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5909',{updateViaCache:'none'}).catch(()=>{})
 }
 window.addEventListener('bridgepoint:softrefresh',()=>{
  try{queueAfterMap('status-pulse',loadStatus)}catch(_){}
