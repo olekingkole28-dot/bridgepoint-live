@@ -1,0 +1,460 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+import argparse, base64, ctypes, ctypes.wintypes as wt, hashlib, json, os
+from pathlib import Path
+import shutil, socket, subprocess, sys, time, urllib.request, threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
+
+AGENT_VERSION=939
+GATEWAY="https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-local-reasoning-v584"
+OLLAMA="http://127.0.0.1:11434"
+MIN_FREE_GB=180.0
+PRIMARY="qwen2.5:3b"
+REVIEWER="deepseek-r1:1.5b"
+DATASETS=["PROPERTIES","ADDRESSES","PARCEL_GEOMETRY","BOUNDARY_PROVENANCE","LEGAL_MANIFEST","TERRAIN","SURFACE","BUILDING_VISUAL_MATERIAL","SIGNALS","PATTERNS","SCORES","OPPORTUNITIES","MEDIA","SOURCES","EVIDENCE","STATE_SUMMARY","PACKAGE_MAP"]
+STATES=["AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","AS","GU","MP","PR","VI"]
+ARCHIVES=[
+ ("buildings/v2710/{state}/building","archives/buildings/state_code={state}/building"),
+ ("buildings/v2710/{state}/building_part","archives/buildings/state_code={state}/building_part"),
+ ("transport/v2696/{state}/connector","archives/transport/state_code={state}/connector"),
+ ("transport/v2696/{state}/segment","archives/transport/state_code={state}/segment")
+]
+
+def now(): return datetime.now(timezone.utc).isoformat()
+def appdir(): return Path(os.environ.get("LOCALAPPDATA",str(Path.home()/".local"/"share")))/"BridgePoint"
+def cfgfile(): return appdir()/"node.json"
+
+class BLOB(ctypes.Structure):
+    _fields_=[("cbData",wt.DWORD),("pbData",ctypes.POINTER(ctypes.c_byte))]
+def blob(data):
+    b=ctypes.create_string_buffer(data)
+    return BLOB(len(data),ctypes.cast(b,ctypes.POINTER(ctypes.c_byte))),b
+def protect(s):
+    raw=s.encode()
+    if os.name!="nt": return "plain:"+base64.b64encode(raw).decode()
+    c,k=ctypes.windll.crypt32,ctypes.windll.kernel32; ib,_=blob(raw); ob=BLOB()
+    if not c.CryptProtectData(ctypes.byref(ib),"BridgePoint",None,None,None,0,ctypes.byref(ob)): raise ctypes.WinError()
+    try: return "dpapi:"+base64.b64encode(ctypes.string_at(ob.pbData,ob.cbData)).decode()
+    finally: k.LocalFree(ob.pbData)
+def unprotect(v):
+    kind,b64=v.split(":",1); raw=base64.b64decode(b64)
+    if kind=="plain": return raw.decode()
+    c,k=ctypes.windll.crypt32,ctypes.windll.kernel32; ib,_=blob(raw); ob=BLOB()
+    if not c.CryptUnprotectData(ctypes.byref(ib),None,None,None,None,0,ctypes.byref(ob)): raise ctypes.WinError()
+    try: return ctypes.string_at(ob.pbData,ob.cbData).decode()
+    finally: k.LocalFree(ob.pbData)
+
+def load():
+    c=json.loads(cfgfile().read_text(encoding="utf-8"))
+    c["node_token"]=unprotect(c.pop("node_token_protected"))
+    return c
+def save(c):
+    appdir().mkdir(parents=True,exist_ok=True); x=dict(c); x["node_token_protected"]=protect(x.pop("node_token"))
+    t=cfgfile().with_suffix(".tmp"); t.write_text(json.dumps(x,indent=2),encoding="utf-8"); os.replace(t,cfgfile())
+
+def post(url,payload,headers=None,timeout=90):
+    req=urllib.request.Request(url,data=json.dumps(payload).encode(),headers={"content-type":"application/json",**(headers or {})},method="POST")
+    try:
+        with urllib.request.urlopen(req,timeout=timeout) as r:
+            return json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        body=e.read().decode("utf-8","replace")
+        raise RuntimeError(f"BridgePoint gateway HTTP {e.code}: {body}") from e
+def api(c,action,**kw):
+    return post(c["gateway"],{"action":action,"node_id":c.get("node_id"),**kw},{"x-bridgepoint-node-token":c["node_token"]})
+def get(url,timeout=20):
+    with urllib.request.urlopen(url,timeout=timeout) as r: return json.loads(r.read().decode())
+
+def metrics(root):
+    import psutil
+    du=shutil.disk_usage(root); vm=psutil.virtual_memory()
+    gpu=None
+    try:
+        p=subprocess.run(["nvidia-smi","--query-gpu=name,memory.total,memory.free,utilization.gpu","--format=csv,noheader,nounits"],capture_output=True,text=True,timeout=5)
+        if p.returncode==0 and p.stdout.strip(): gpu=p.stdout.strip().splitlines()[0]
+    except Exception: pass
+    return {"computer":socket.gethostname(),"os":sys.platform,"cpu_count":os.cpu_count(),"cpu_percent":psutil.cpu_percent(.4),
+            "memory_total_gb":round(vm.total/1024**3,2),"memory_available_gb":round(vm.available/1024**3,2),
+            "free_disk_gb":round(du.free/1024**3,2),"total_disk_gb":round(du.total/1024**3,2),"gpu":gpu,"data_root":str(root)}
+def storage_ok(root,m):
+    od=os.environ.get("OneDrive","").lower(); p=str(root).lower()
+    return m["free_disk_gb"]>=MIN_FREE_GB and "onedrive" not in p and not (od and p.startswith(od))
+def disk_benchmark(root):
+    f=root/".bp-bench"; chunk=b"0"*(8*1024*1024); total=64*1024*1024; t=time.perf_counter()
+    try:
+        with f.open("wb",buffering=0) as h:
+            for _ in range(total//len(chunk)): h.write(chunk)
+        return round((total/1024**2)/max(time.perf_counter()-t,.01),1)
+    finally: f.unlink(missing_ok=True)
+def limit_for(m,disk,latency):
+    if m["cpu_percent"]>=90 or m["memory_available_gb"]<4 or latency>90: return 0
+    if m["cpu_percent"]<50 and m["memory_available_gb"]>=16 and disk>=150 and latency<20: return 4
+    if m["cpu_percent"]<70 and m["memory_available_gb"]>=8: return 2
+    return 1
+
+def export_pressure_ok(root,m):
+    # Export is disk/network bound. Protect the Windows/runtime reserve while allowing
+    # the compact Parquet rescue to use the rest of the SSD.
+    return storage_ok(root,m) and m["memory_available_gb"]>=2 and m["cpu_percent"]<92
+
+def export_lane_count(root,m):
+    if not export_pressure_ok(root,m): return 0
+    # 16 GB owner PC: two bounded network/disk lanes when at least ~2.75 GB remains free.
+    # Fall back to one lane immediately under memory or CPU pressure.
+    if m["memory_available_gb"]>=2.75 and m["cpu_percent"]<75: return 2
+    return 1
+
+def ollama_ready(c):
+    try:
+        get(c["ollama"]+"/api/tags",timeout=3)
+        return True
+    except Exception:
+        return False
+
+def ollama_executable():
+    return shutil.which("ollama")
+
+def ensure_models(c):
+    exe=ollama_executable()
+    if not exe or not ollama_ready(c):
+        return False
+    try:
+        names={x.get("name") for x in get(c["ollama"]+"/api/tags").get("models",[])}
+        for model in (c["primary_model"],c["reviewer_model"]):
+            if model not in names: subprocess.run([exe,"pull",model],check=True)
+        return True
+    except Exception:
+        return False
+
+def ollama(c,model,prompt):
+    r=post(c["ollama"]+"/api/generate",{"model":model,"prompt":prompt,"stream":False,"format":"json","options":{"temperature":.1,"num_ctx":8192}},timeout=600)
+    try: return json.loads(r.get("response","{}"))
+    except Exception: return {"summary":r.get("response","")[:12000],"unparsed":True}
+
+def heartbeat(c,root,disk,lim):
+    m=metrics(root)
+    snap=portable_snapshot_status(root)
+    ai_ready=ollama_ready(c)
+    caps={"provider":"OLLAMA" if ai_ready else "EXPORT_ONLY__OLLAMA_PENDING","agent_version":AGENT_VERSION,"outbound_only":True,"primary_model":c["primary_model"],"reviewer_model":c["reviewer_model"],
+          "local_ai_ready":ai_ready,"storage_verified":storage_ok(root,m),"adaptive_claim_limit":lim if ai_ready else 0,"disk_benchmark_mbps":disk,
+          "local_governor":"HEADROOM_V938","compact_runtime":"PARQUET_ZSTD_DUCKDB_V5604",
+          "portable_export_protocol":"STATE_PARQUET_V1845","backup_protocol":"PORTABLE_VERIFY_V938",
+          "portable_snapshot_complete":bool(snap["complete"]),"portable_states_complete":int(snap["states_complete"]),
+          "portable_archive_files":int(snap["archive_files"]),"export_runtime":"PARQUET_ZSTD_DUCKDB_V939",
+          "parallel_state_lanes":2,"disk_reserve_gb":MIN_FREE_GB}
+    return api(c,"heartbeat",capabilities=caps,hardware=m)
+
+def reason(c,lim):
+    if lim<=0 or not ollama_ready(c): return 0,0
+    t=time.perf_counter(); tasks=(api(c,"claim",limit=lim).get("tasks") or [])
+    for task in tasks:
+        tid=task.get("task_id"); worker=task.get("worker") or {}
+        prompt=json.dumps({"mission":worker.get("mission"),"guardrails":worker.get("guardrails"),"permissions":worker.get("permissions"),"task_type":task.get("task_type"),"input":task.get("input"),
+                           "instruction":"Return strict JSON with summary, proposed_actions, evidence_needed, risks, confidence_0_to_1. Never claim external actions. Preserve legal provenance, security, truth, and no-regression constraints."})
+        try:
+            primary=ollama(c,c["primary_model"],prompt)
+            review=ollama(c,c["reviewer_model"],json.dumps({"task":task.get("task_type"),"primary":primary,"instruction":"Audit strictly. Return JSON with approved, issues, required_changes, confidence_0_to_1. Reject fabrication, unsafe side effects, missing provenance, or regressions."}))
+            api(c,"submit",task_id=tid,primary=primary,reviewer=review,models={"primary":c["primary_model"],"reviewer":c["reviewer_model"],"agent_version":AGENT_VERSION})
+        except Exception as e:
+            try: api(c,"fail",task_id=tid,error=f"{type(e).__name__}: {e}")
+            except Exception: pass
+    return len(tasks),time.perf_counter()-t
+
+def download(item,dest):
+    dest.parent.mkdir(parents=True,exist_ok=True); expected=int(item.get("size") or 0)
+    if dest.exists() and expected and dest.stat().st_size==expected: return {"path":str(dest),"bytes":expected,"status":"EXISTS"}
+    tmp=dest.with_suffix(dest.suffix+".part"); sha=hashlib.sha256(); size=0
+    with urllib.request.urlopen(item["signed_url"],timeout=300) as r,tmp.open("wb") as f:
+        while True:
+            b=r.read(8*1024*1024)
+            if not b: break
+            f.write(b); sha.update(b); size+=len(b)
+    if expected and size!=expected: tmp.unlink(missing_ok=True); raise RuntimeError("archive size mismatch")
+    os.replace(tmp,dest); return {"path":str(dest),"bytes":size,"sha256":sha.hexdigest(),"status":"DOWNLOADED"}
+def sync_archives(c,root,workers=2):
+    status=api(c,"status")
+    if not status.get("portable_export_authority"):
+        return {"generated_at":now(),"agent_version":AGENT_VERSION,"count":0,"bytes":0,"files":[],"status":"SKIPPED","reason":"PORTABLE_EXPORT_AUTHORITY_NOT_SERVER_GRANTED"}
+    records=[]
+    for state in STATES:
+        for remote_t,local_t in ARCHIVES:
+            prefix=remote_t.format(state=state); off=0
+            while True:
+                page=api(c,"archive_list",prefix=prefix,offset=off,limit=100); files=[x for x in page.get("files",[]) if x.get("signed_url")]
+                with ThreadPoolExecutor(max_workers=max(1,workers)) as pool:
+                    fut=[pool.submit(download,x,root/local_t.format(state=state)/Path(x["path"]).name) for x in files]
+                    for f in as_completed(fut): records.append(f.result())
+                if not page.get("has_more"): break
+                off+=100
+    md=root/"manifests"; md.mkdir(parents=True,exist_ok=True)
+    out={"generated_at":now(),"agent_version":AGENT_VERSION,"count":len(records),"bytes":sum(x["bytes"] for x in records),"files":records}
+    (md/"archive-copy-manifest.json").write_text(json.dumps(out,indent=2),encoding="utf-8"); return out
+
+def file_sha256(path):
+    h=hashlib.sha256()
+    with Path(path).open("rb") as f:
+        for b in iter(lambda:f.read(8*1024*1024),b""): h.update(b)
+    return h.hexdigest()
+
+def write_json_atomic(path,obj):
+    path=Path(path); path.parent.mkdir(parents=True,exist_ok=True)
+    tmp=path.with_suffix(path.suffix+".tmp")
+    tmp.write_text(json.dumps(obj,indent=2,sort_keys=True),encoding="utf-8")
+    os.replace(tmp,path)
+
+def parquet_dir_stats(d):
+    import pyarrow.parquet as pq
+    files=[]
+    rows=0
+    for p in sorted(Path(d).glob("part-*.parquet")):
+        n=int(pq.ParquetFile(p).metadata.num_rows); rows+=n
+        files.append({"file":p.name,"rows":n,"bytes":p.stat().st_size,"sha256":file_sha256(p)})
+    return {"rows":rows,"bytes":sum(x["bytes"] for x in files),"files":files}
+
+def export_job(c,root,job):
+    import pyarrow as pa, pyarrow.parquet as pq
+    rid,state=job["request_id"],job["scope_key"]; sr=root/"snapshots"/f"state_code={state}"; sr.mkdir(parents=True,exist_ok=True)
+    resume_file=sr/f"{rid}.resume.json"
+    resume=json.loads(resume_file.read_text(encoding="utf-8")) if resume_file.exists() else {"datasets":{},"started_at":now(),"format":"PARQUET_ZSTD_DUCKDB_V938"}
+    totals={}; integrity={}
+    try:
+        for ds in DATASETS:
+            d=sr/ds.lower(); d.mkdir(parents=True,exist_ok=True)
+            st=resume["datasets"].setdefault(ds,{"cursor":None,"done":False,"part":0,"rows":0}); buf=[]
+            while not st["done"]:
+                page=api(c,"export_page",request_id=rid,dataset=ds,cursor=st["cursor"],limit=2500)
+                rows=page.get("rows") or []
+                buf.extend(rows); st["cursor"]=page.get("next_cursor"); st["done"]=bool(page.get("done")); st["rows"]+=len(rows)
+                if len(buf)>=10000 or st["done"]:
+                    if buf:
+                        part=d/f"part-{st['part']:05d}.parquet"
+                        pq.write_table(pa.Table.from_pylist(buf),part,compression="zstd",row_group_size=250000,use_dictionary=True)
+                        st["part"]+=1; buf=[]
+                    write_json_atomic(resume_file,resume)
+                if not rows and not st["done"]: raise RuntimeError(f"{ds}: empty non-final export page")
+            stats=parquet_dir_stats(d)
+            if stats["rows"]!=int(st["rows"]): raise RuntimeError(f"{ds}: row verification failed expected={st['rows']} actual={stats['rows']}")
+            totals[ds]=int(st["rows"]); integrity[ds]=stats
+        manifest={"completed_at":now(),"request_id":rid,"state_code":state,"datasets":totals,"integrity":integrity,
+                  "format":"PARQUET_ZSTD_DUCKDB_V938","agent_version":AGENT_VERSION,"secrets_exported":False}
+        write_json_atomic(sr/"MANIFEST.json",manifest)
+        result={"completed_at":manifest["completed_at"],"state_code":state,"datasets":totals,
+                "dataset_count":len(DATASETS),"format":"PARQUET_ZSTD_DUCKDB_V938","manifest_sha256":file_sha256(sr/"MANIFEST.json"),
+                "verified_rows":sum(totals.values()),"agent_version":AGENT_VERSION}
+        api(c,"export_complete",request_id=rid,result=result)
+        write_json_atomic(sr/"COMPLETE.json",result)
+        return result
+    except Exception as e:
+        try: api(c,"export_fail",request_id=rid,error=f"{type(e).__name__}: {e}",result={"state_code":state,"failed_at":now(),"resume":resume})
+        finally: pass
+        raise
+
+def export_once(c,root):
+    if not storage_ok(root,metrics(root)): return None
+    job=api(c,"export_claim").get("job")
+    return export_job(c,root,job) if job else None
+
+def export_parallel(c,root,lanes):
+    lanes=max(0,min(int(lanes),2))
+    if lanes<=0: return []
+    jobs=[]
+    for _ in range(lanes):
+        job=api(c,"export_claim").get("job")
+        if job: jobs.append(job)
+    if not jobs: return []
+    results=[]
+    with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
+        futures={pool.submit(export_job,c,root,job):job for job in jobs}
+        for future in as_completed(futures):
+            job=futures[future]
+            try:
+                results.append(future.result())
+            except Exception as e:
+                results.append({"state_code":job.get("scope_key"),"error":f"{type(e).__name__}: {e}"})
+    return results
+
+def catalog(root):
+    import duckdb
+    d=root/"catalog"; d.mkdir(parents=True,exist_ok=True); db=duckdb.connect(str(d/"bridgepoint.duckdb"))
+    try:
+        patterns={
+          "properties":"snapshots/state_code=*/properties/*.parquet",
+          "addresses":"snapshots/state_code=*/addresses/*.parquet",
+          "parcel_geometry":"snapshots/state_code=*/parcel_geometry/*.parquet",
+          "boundary_provenance":"snapshots/state_code=*/boundary_provenance/*.parquet",
+          "legal_manifest":"snapshots/state_code=*/legal_manifest/*.parquet",
+          "terrain":"snapshots/state_code=*/terrain/*.parquet",
+          "surface":"snapshots/state_code=*/surface/*.parquet",
+          "building_visual_material":"snapshots/state_code=*/building_visual_material/*.parquet",
+          "signals":"snapshots/state_code=*/signals/*.parquet",
+          "patterns":"snapshots/state_code=*/patterns/*.parquet",
+          "scores":"snapshots/state_code=*/scores/*.parquet",
+          "opportunities":"snapshots/state_code=*/opportunities/*.parquet",
+          "media":"snapshots/state_code=*/media/*.parquet",
+          "sources":"snapshots/state_code=*/sources/*.parquet",
+          "evidence":"snapshots/state_code=*/evidence/*.parquet",
+          "state_summary":"snapshots/state_code=*/state_summary/*.parquet",
+          "package_map":"snapshots/state_code=*/package_map/*.parquet",
+          "buildings":"archives/buildings/state_code=*/building/*.parquet",
+          "building_parts":"archives/buildings/state_code=*/building_part/*.parquet",
+          "transport_segments":"archives/transport/state_code=*/segment/*.parquet",
+          "transport_connectors":"archives/transport/state_code=*/connector/*.parquet"
+        }
+        for name,rel in patterns.items():
+            if list(root.glob(rel)):
+                g=str(root/rel).replace("\\","/").replace("'","''")
+                db.execute(f"create or replace view {name} as select * from read_parquet('{g}',union_by_name=true,hive_partitioning=true)")
+    finally: db.close()
+
+def portable_snapshot_status(root):
+    complete={}
+    for p in sorted((root/"snapshots").glob("state_code=*/COMPLETE.json")) if (root/"snapshots").exists() else []:
+        try:
+            x=json.loads(p.read_text(encoding="utf-8")); complete[x.get("state_code")]=x
+        except Exception: pass
+    archive=root/"manifests"/"archive-copy-manifest.json"
+    archive_ok=False; archive_count=0
+    if archive.exists():
+        try:
+            a=json.loads(archive.read_text(encoding="utf-8")); archive_count=int(a.get("count") or 0); archive_ok=archive_count>0
+        except Exception: pass
+    return {"states_complete":len(set(STATES)&set(complete)),"archive_manifest":archive_ok,"archive_files":archive_count,
+            "complete":set(STATES).issubset(set(complete)) and archive_ok}
+
+def build_portable_backup_manifest(root):
+    st=portable_snapshot_status(root)
+    if not st["complete"]: raise RuntimeError(f"portable snapshot incomplete: {st}")
+    files=[]
+    for pat in ("snapshots/state_code=*/MANIFEST.json","snapshots/state_code=*/COMPLETE.json","manifests/archive-copy-manifest.json","catalog/bridgepoint.duckdb"):
+        for p in sorted(root.glob(pat)):
+            files.append({"path":str(p.relative_to(root)).replace("\\","/"),"bytes":p.stat().st_size,"sha256":file_sha256(p)})
+    out={"created_at":now(),"agent_version":AGENT_VERSION,"format":"PARQUET_ZSTD_DUCKDB_V938","states_complete":st["states_complete"],
+         "archive_files":st["archive_files"],"files":files,"secrets_exported":False}
+    write_json_atomic(root/"manifests"/"portable-backup-manifest.json",out)
+    return out
+
+def verify_portable_snapshot(root):
+    import pyarrow.parquet as pq
+    manifest=build_portable_backup_manifest(root)
+    parquet_files=list(root.glob("snapshots/state_code=*/*/part-*.parquet"))+list(root.glob("archives/**/*.parquet"))
+    checked=0; rows=0
+    for p in parquet_files:
+        pf=pq.ParquetFile(p); rows+=int(pf.metadata.num_rows); checked+=1
+    catalog(root)
+    result={"verified_at":now(),"verified":True,"parquet_files_checked":checked,"parquet_rows_read_from_metadata":rows,
+            "states_complete":manifest["states_complete"],"archive_files":manifest["archive_files"],
+            "manifest_sha256":file_sha256(root/"manifests"/"portable-backup-manifest.json"),"agent_version":AGENT_VERSION}
+    write_json_atomic(root/"manifests"/"verification.json",result)
+    return result
+
+def restore_test(root):
+    import duckdb
+    catalog(root); dbp=root/"catalog"/"bridgepoint.duckdb"
+    con=duckdb.connect(str(dbp),read_only=True)
+    checked=[]
+    try:
+        names=[x[0] for x in con.execute("select table_name from information_schema.views where table_schema='main'").fetchall()]
+        for name in names:
+            con.execute(f'select * from "{name}" limit 1').fetchall(); checked.append(name)
+    finally: con.close()
+    result={"tested_at":now(),"restore_test_passed":True,"catalog":str(dbp),"views_checked":checked,"agent_version":AGENT_VERSION}
+    write_json_atomic(root/"manifests"/"restore-test.json",result)
+    return result
+
+def backup_once(c,root):
+    job=api(c,"backup_claim").get("job")
+    if not job: return None
+    jid=job["job_id"]; op=str(job.get("operation") or "").upper()
+    try:
+        if op=="EXPORT":
+            m=build_portable_backup_manifest(root)
+            result={"backup_kind":"PORTABLE_SNAPSHOT","created_at":m["created_at"],"states_complete":m["states_complete"],
+                    "archive_files":m["archive_files"],"manifest_sha256":file_sha256(root/"manifests"/"portable-backup-manifest.json"),"agent_version":AGENT_VERSION}
+        elif op=="VERIFY": result=verify_portable_snapshot(root)
+        elif op=="RESTORE_TEST": result=restore_test(root)
+        else: raise RuntimeError(f"unsupported backup operation {op}")
+        api(c,"backup_complete",job_id=jid,result=result); return result
+    except Exception as e:
+        api(c,"backup_fail",job_id=jid,error=f"{type(e).__name__}: {e}",result={"operation":op,"agent_version":AGENT_VERSION})
+        raise
+
+
+def configure(a):
+    code=a.enrollment_code
+    if not code: raise RuntimeError("Enrollment code required")
+    root=Path(a.data_root).resolve(); root.mkdir(parents=True,exist_ok=True); m=metrics(root)
+    if not storage_ok(root,m): raise RuntimeError(f"Need at least {MIN_FREE_GB:.0f} GB free on non-OneDrive hot storage")
+    r=post(a.gateway,{"action":"enroll","enrollment_code":code,"node_name":a.node_name or f"BridgePoint Owner PC - {socket.gethostname()}",
+                      "capabilities":{"provider":"OLLAMA","agent_version":AGENT_VERSION,"outbound_only":True,"primary_model":a.primary_model,"reviewer_model":a.reviewer_model,"storage_verified":True},"hardware":m})
+    if not r.get("ok"): raise RuntimeError(r)
+    save({"gateway":a.gateway,"ollama":a.ollama,"node_id":r["node_id"],"node_token":r["node_token"],"primary_model":r.get("primary_model",a.primary_model),"reviewer_model":r.get("reviewer_model",a.reviewer_model),"data_root":str(root),"agent_version":AGENT_VERSION,"enrolled_at":now()})
+    print(json.dumps({"ok":True,"node_id":r["node_id"],"data_root":str(root)},indent=2))
+
+def _append_log(message):
+    p=appdir()/"logs"; p.mkdir(parents=True,exist_ok=True)
+    with (p/"agent.log").open("a",encoding="utf-8") as f: f.write(f"{now()} {message}\n")
+
+def heartbeat_background(c,root,disk,stop):
+    while not stop.is_set():
+        try:
+            heartbeat(c,root,disk,0)
+        except Exception as e:
+            _append_log(f"heartbeat {type(e).__name__}: {e}")
+        stop.wait(30)
+
+def archive_background(c,root,stop):
+    # Copy already-materialized building/transport archives in parallel with state exports.
+    while not stop.is_set():
+        try:
+            if export_pressure_ok(root,metrics(root)):
+                sync_archives(c,root,2)
+        except Exception as e:
+            _append_log(f"archive_sync {type(e).__name__}: {e}")
+        stop.wait(1800)
+
+def run():
+    c=load(); root=Path(c["data_root"]); root.mkdir(parents=True,exist_ok=True); disk=disk_benchmark(root)
+    stop=threading.Event()
+    threading.Thread(target=heartbeat_background,args=(c,root,disk,stop),daemon=True,name="bp-heartbeat").start()
+    threading.Thread(target=archive_background,args=(c,root,stop),daemon=True,name="bp-archives").start()
+    cat=models=lat=0.0; failures=0
+    while True:
+        try:
+            m=metrics(root); t=time.monotonic(); snap=portable_snapshot_status(root)
+            # Rescue first: keep Ollama idle until the portable snapshot is complete.
+            lanes=export_lane_count(root,m)
+            if not snap["complete"] and lanes>0:
+                export_parallel(c,root,lanes)
+            else:
+                if t-models>=3600:
+                    ensure_models(c); models=t
+                lim=limit_for(m,disk,lat)
+                ai_lim=lim if ollama_ready(c) else 0
+                n,elapsed=reason(c,ai_lim); lat=(elapsed/max(n,1)) if n else lat
+                if snap["complete"]:
+                    backup_once(c,root)
+            if t-cat>=900:
+                catalog(root); cat=t
+            failures=0
+            time.sleep(2 if not snap["complete"] else 10)
+        except KeyboardInterrupt:
+            stop.set()
+            raise
+        except Exception as e:
+            failures+=1; _append_log(f"{type(e).__name__}: {e}")
+            time.sleep(min(60,3*(2**min(failures,4))))
+
+def main():
+    p=argparse.ArgumentParser(); s=p.add_subparsers(dest="cmd",required=True); c=s.add_parser("configure")
+    c.add_argument("--enrollment-code",default=os.environ.get("BRIDGEPOINT_ENROLLMENT_CODE")); c.add_argument("--node-name"); c.add_argument("--gateway",default=GATEWAY); c.add_argument("--ollama",default=OLLAMA)
+    c.add_argument("--primary-model",default=PRIMARY); c.add_argument("--reviewer-model",default=REVIEWER); c.add_argument("--data-root",default=os.environ.get("BRIDGEPOINT_DATA_ROOT",r"C:\BridgePointData"))
+    for name in ("run","status","sync-archives","export-once"): s.add_parser(name)
+    a=p.parse_args()
+    if a.cmd=="configure": configure(a); return
+    c=load(); root=Path(c["data_root"])
+    if a.cmd=="run": run()
+    elif a.cmd=="status": print(json.dumps(api(c,"status"),indent=2))
+    elif a.cmd=="sync-archives": print(json.dumps(sync_archives(c,root),indent=2)); catalog(root)
+    elif a.cmd=="export-once": print(json.dumps(export_once(c,root),indent=2)); catalog(root)
+if __name__=="__main__": main()

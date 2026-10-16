@@ -1,0 +1,306 @@
+{
+  "entity": "BridgePoint Intelligence",
+  "product": "Claims Lifecycle Terminal",
+  "generated_at": "2026-09-15T20:00:50Z",
+  "scope": "Public, aggregate and source-labelled claims-lifecycle intelligence",
+  "metrics": {
+    "canonical_property_identities": 169634995,
+    "source_families": 32,
+    "lifecycle_stages": 15,
+    "family_state_rows": 1792,
+    "current_source_slots": 2119,
+    "enabled_source_slots": 1828
+  },
+  "live_hazard_snapshot": {
+    "snapshot_note": "BridgePoint operational source-labelled snapshot around 2026-09-15 19:56 UTC; counts are not property-damage determinations.",
+    "items": [
+      {
+        "provider": "NOAA/NWS",
+        "event": "Flood Watch",
+        "hazard_type": "FLOOD",
+        "records": 40,
+        "severity": "Severe",
+        "certainty": "Possible"
+      },
+      {
+        "provider": "NOAA/NWS",
+        "event": "Wind Advisory",
+        "hazard_type": "WIND",
+        "records": 36,
+        "severity": "Moderate",
+        "certainty": "Likely"
+      },
+      {
+        "provider": "NOAA/NWS",
+        "event": "Flood Advisory",
+        "hazard_type": "FLOOD",
+        "records": 8,
+        "severity": "Minor",
+        "certainty": "Likely"
+      },
+      {
+        "provider": "NOAA/NWS",
+        "event": "Flood Warning",
+        "hazard_type": "FLOOD",
+        "records": 4,
+        "severity": "Severe",
+        "certainty": "Observed"
+      },
+      {
+        "provider": "NOAA/NWS",
+        "event": "Severe Thunderstorm Warning",
+        "hazard_type": "WIND",
+        "records": 3,
+        "severity": "Severe",
+        "certainty": "Observed"
+      },
+      {
+        "provider": "NOAA/NWS",
+        "event": "Red Flag Warning",
+        "hazard_type": "FIRE_WEATHER",
+        "records": 3,
+        "severity": "Severe",
+        "certainty": "Likely"
+      }
+    ]
+  },
+  "source_families": [
+    {
+      "lifecycle_stage": "CLAIM",
+      "family_key": "NFIP_CLAIMS",
+      "current_sources": 57,
+      "enabled_sources": 57,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "CLAIM_RECOVERY",
+      "family_key": "CLAIMS_REGULATORY_RECOVERY",
+      "current_sources": 4,
+      "enabled_sources": 2,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "CLAIM_REPAIR",
+      "family_key": "CONTRACTOR_LICENSING",
+      "current_sources": 1,
+      "enabled_sources": 1,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "LOSS",
+      "family_key": "STRUCTURE_FIRE_INCIDENTS",
+      "current_sources": 61,
+      "enabled_sources": 56,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "LOSS_RECOVERY",
+      "family_key": "FLOOD_DISASTER_DECLARATIONS",
+      "current_sources": 159,
+      "enabled_sources": 159,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "LOSS_RECOVERY",
+      "family_key": "GRID_OUTAGES",
+      "current_sources": 0,
+      "enabled_sources": 0,
+      "legal_gate": "UTILITY_OR_STATE_SOURCE_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "MITIGATION",
+      "family_key": "HAZARD_MITIGATION_PROJECTS",
+      "current_sources": 56,
+      "enabled_sources": 56,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS",
+      "family_key": "AIR_COMPLIANCE",
+      "current_sources": 56,
+      "enabled_sources": 56,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS",
+      "family_key": "HAIL_OUTLOOK",
+      "current_sources": 56,
+      "enabled_sources": 56,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS",
+      "family_key": "HAZARDOUS_WASTE",
+      "current_sources": 56,
+      "enabled_sources": 56,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS",
+      "family_key": "TORNADO_WIND_OUTLOOK",
+      "current_sources": 56,
+      "enabled_sources": 56,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS",
+      "family_key": "WATER_COMPLIANCE",
+      "current_sources": 63,
+      "enabled_sources": 63,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS_CLAIM",
+      "family_key": "NFIP_POLICY_CONTEXT",
+      "current_sources": 57,
+      "enabled_sources": 57,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS_CLAIM",
+      "family_key": "REPETITIVE_LOSS_CONTEXT",
+      "current_sources": 56,
+      "enabled_sources": 56,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS_LOSS",
+      "family_key": "EARTHQUAKE_EVENTS",
+      "current_sources": 56,
+      "enabled_sources": 56,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS_LOSS",
+      "family_key": "ENVIRONMENTAL_RELEASES",
+      "current_sources": 70,
+      "enabled_sources": 68,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS_LOSS",
+      "family_key": "LIGHTNING_DETECTION",
+      "current_sources": 0,
+      "enabled_sources": 0,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_ACCURACY_LABEL_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS_LOSS",
+      "family_key": "LIVE_RADAR_HAIL",
+      "current_sources": 56,
+      "enabled_sources": 56,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS_LOSS",
+      "family_key": "NWS_ALERTS_WARNINGS",
+      "current_sources": 56,
+      "enabled_sources": 56,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS_LOSS",
+      "family_key": "STORM_EVENT_HISTORY",
+      "current_sources": 106,
+      "enabled_sources": 106,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS_LOSS",
+      "family_key": "TROPICAL_CYCLONE",
+      "current_sources": 56,
+      "enabled_sources": 56,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS_LOSS",
+      "family_key": "WILDFIRE_INCIDENTS",
+      "current_sources": 57,
+      "enabled_sources": 57,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS_RECOVERY",
+      "family_key": "BROWNFIELDS_REMEDIATION",
+      "current_sources": 59,
+      "enabled_sources": 59,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS_RECOVERY",
+      "family_key": "SUPERFUND_CLEANUP",
+      "current_sources": 56,
+      "enabled_sources": 56,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PRE_LOSS_REPAIR",
+      "family_key": "CODE_ENFORCEMENT",
+      "current_sources": 6,
+      "enabled_sources": 4,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PROPERTY_CONTEXT",
+      "family_key": "PROPERTY_ASSESSMENT",
+      "current_sources": 501,
+      "enabled_sources": 224,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PROPERTY_FINANCIAL",
+      "family_key": "MORTGAGE_FINANCIAL_DISTRESS",
+      "current_sources": 59,
+      "enabled_sources": 59,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "PROPERTY_FINANCIAL",
+      "family_key": "SALES_DEEDS_LIENS",
+      "current_sources": 9,
+      "enabled_sources": 9,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "RECOVERY",
+      "family_key": "INDIVIDUAL_ASSISTANCE",
+      "current_sources": 163,
+      "enabled_sources": 163,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "RECOVERY",
+      "family_key": "PUBLIC_ASSISTANCE",
+      "current_sources": 56,
+      "enabled_sources": 56,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "REPAIR_REBUILD",
+      "family_key": "BUILDING_PERMITS",
+      "current_sources": 15,
+      "enabled_sources": 12,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    },
+    {
+      "lifecycle_stage": "REPAIR_REBUILD",
+      "family_key": "INSPECTIONS_OCCUPANCY",
+      "current_sources": 0,
+      "enabled_sources": 0,
+      "legal_gate": "SOURCE_SPECIFIC_RIGHTS_AND_PRIVACY_REVIEW_REQUIRED"
+    }
+  ],
+  "delivery": {
+    "json": "https://bridgepointintelligence.online/claims-terminal/claims-lifecycle.json",
+    "rss": "https://bridgepointintelligence.online/claims-terminal/feed.xml",
+    "openapi": "https://bridgepointintelligence.online/claims-terminal/openapi.json",
+    "human": "https://bridgepointintelligence.online/claims-terminal/"
+  },
+  "rules": [
+    "Source availability is not the same as legal approval for unrestricted use.",
+    "Weather exposure and warnings are context, not proof of property damage.",
+    "No customer-specific claim data is published in this public feed.",
+    "BridgePoint does not submit unsolicited payloads into third-party private systems or impersonate error/bug reports.",
+    "Restricted, paid, private, or high-privacy sources require explicit rights and privacy review."
+  ]
+}

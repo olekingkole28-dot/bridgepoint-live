@@ -1,0 +1,27 @@
+[
+  {
+    "zip_code": "06457",
+    "city": "Middletown",
+    "state": "CT",
+    "material_slug": "asphalt-shingle",
+    "indexable": false,
+    "facts": [
+      {
+        "label": "Free weather workflow",
+        "value": "NWS point-alert timeline formatter available",
+        "source_label": "National Weather Service API"
+      }
+    ],
+    "sources": [
+      {
+        "label": "National Weather Service API documentation",
+        "url": "https://www.weather.gov/documentation/services-web-api"
+      }
+    ],
+    "labor_benchmark": {
+      "verified": false,
+      "premium_percent": null,
+      "comparison_basis": null
+    }
+  }
+]

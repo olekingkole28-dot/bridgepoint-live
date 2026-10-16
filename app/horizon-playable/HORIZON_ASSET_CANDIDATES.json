@@ -1,0 +1,227 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-09-13",
+  "world_mode": "continuous_us_streamed_world",
+  "policy": {
+    "auto_discover": true,
+    "auto_promote": false,
+    "required_gates": [
+      "explicit reusable license",
+      "commercial project compatibility",
+      "engine compatibility",
+      "performance budget",
+      "visual improvement",
+      "regression test",
+      "release verification"
+    ],
+    "blocked_ip": [
+      "Call of Duty",
+      "Resident Evil",
+      "World War Z",
+      "Grand Theft Auto",
+      "The Sims",
+      "The Lord of the Rings"
+    ],
+    "zero_budget_owner": true,
+    "paid_assets_allowed": false,
+    "billable_services_allowed": false,
+    "browser_client_continues_without_native_gpu": true,
+    "native_production_requires_photoreal_primary": true,
+    "low_poly_native_primary_forbidden": true,
+    "low_poly_fallback_allowed_for_browser_mobile": true
+  },
+  "candidates": [
+    {
+      "name": "MetaHuman Creator 5.6+",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "primary_native_visual_target",
+      "production_priority": "primary",
+      "use": [
+        "photoreal survivors",
+        "photoreal hands and arms",
+        "faces",
+        "skin",
+        "hair and grooms",
+        "human-derived infected bases",
+        "LOD-ready digital humans"
+      ],
+      "license_note": "Unreal Engine EULA / MetaHuman terms; keep in the native Unreal pipeline and verify current terms at acquisition.",
+      "source": "https://dev.epicgames.com/documentation/metahuman/metahuman-creator-in-unreal-engine"
+    },
+    {
+      "name": "Game Animation Sample",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "qualified_for_evaluation",
+      "use": [
+        "motion matching",
+        "walk/run/jump/fall",
+        "traversal",
+        "500+ animations"
+      ],
+      "license_note": "Epic sample/Fab listing; verify acquisition EULA before production import",
+      "source": "https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016",
+      "production_priority": "primary"
+    },
+    {
+      "name": "City Sample",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "qualified_for_evaluation",
+      "use": [
+        "World Partition patterns",
+        "Nanite/Lumen",
+        "Mass AI",
+        "Niagara",
+        "city PCG"
+      ],
+      "license_note": "Epic sample; UE client only unless specific license says otherwise",
+      "source": "https://www.fab.com/listings/4898e707-7855-404b-af0e-a505ee690e68",
+      "production_priority": "primary"
+    },
+    {
+      "name": "City Sample Buildings",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "qualified_ue_only",
+      "use": [
+        "high-quality modular city buildings",
+        "entrances",
+        "multi-level modules"
+      ],
+      "license_note": "Fab page explicitly says UE-Only Content",
+      "source": "https://www.fab.com/listings/008fe959-5511-428e-93bd-f99b1179f6d5",
+      "production_priority": "primary"
+    },
+    {
+      "name": "City Sample Vehicles",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "qualified_ue_only",
+      "use": [
+        "13 driveable vehicle types",
+        "cars",
+        "pickup",
+        "semi",
+        "bus",
+        "van"
+      ],
+      "license_note": "Fab page explicitly says UE-Only Content",
+      "source": "https://www.fab.com/listings/2909157b-ddfa-4cef-a925-69dc2467021f"
+    },
+    {
+      "name": "City Sample Crowds",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "qualified_for_evaluation",
+      "use": [
+        "crowd simulation patterns",
+        "human population systems"
+      ],
+      "license_note": "Epic sample; verify item EULA before production import",
+      "source": "https://www.fab.com/listings/903037e9-e1ac-4f41-96e8-1683c6fa7ad4"
+    },
+    {
+      "name": "Electric Dreams Env",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "qualified_ue_only",
+      "use": [
+        "photorealistic foliage",
+        "PCG environment",
+        "Nanite environment reference"
+      ],
+      "license_note": "Fab page explicitly says UE-Only Content",
+      "source": "https://www.fab.com/listings/d79688f5-29be-4fb2-a650-2d4a813f5306",
+      "production_priority": "primary"
+    },
+    {
+      "name": "Poly Haven",
+      "publisher": "Poly Haven",
+      "price": "Free",
+      "engine": "Engine-agnostic",
+      "status": "qualified_cc0",
+      "use": [
+        "photoreal HDRIs",
+        "PBR ground",
+        "concrete",
+        "wood",
+        "metal",
+        "roofing",
+        "abandoned/ruins assets",
+        "environment models"
+      ],
+      "license_note": "All Poly Haven assets are CC0; commercial use allowed; no attribution required.",
+      "source": "https://polyhaven.com/",
+      "license_source": "https://polyhaven.com/license",
+      "production_priority": "primary"
+    },
+    {
+      "name": "ambientCG",
+      "publisher": "ambientCG",
+      "price": "Free",
+      "engine": "Engine-agnostic",
+      "status": "qualified_cc0",
+      "use": [
+        "photoreal PBR surfaces",
+        "ground",
+        "siding",
+        "roofing",
+        "concrete",
+        "asphalt",
+        "wood",
+        "metal",
+        "decay materials"
+      ],
+      "license_note": "ambientCG states its assets are CC0 and usable commercially without attribution.",
+      "source": "https://ambientcg.com/",
+      "license_source": "https://ambientcg.com/",
+      "production_priority": "primary"
+    },
+    {
+      "name": "Sonniss GDC 2026 Game Audio Bundle",
+      "publisher": "Sonniss",
+      "price": "Free",
+      "engine": "Engine-agnostic",
+      "status": "qualified_for_project_sync_use",
+      "use": [
+        "weapons",
+        "foley",
+        "footsteps",
+        "impacts",
+        "weather",
+        "creatures",
+        "infected",
+        "interior/exterior ambience",
+        "horror sound design"
+      ],
+      "license_note": "Royalty-free commercial project use with modification and no attribution; do not redistribute source sounds standalone; AI/ML training prohibited by current bundle terms.",
+      "source": "https://gdc.sonniss.com/",
+      "license_source": "https://sonniss.com/gdc-bundle-license/"
+    },
+    {
+      "name": "Lyra Starter Game",
+      "publisher": "Epic Games",
+      "price": "Free",
+      "engine": "Unreal Engine",
+      "status": "qualified_ue_only_reference_and_components",
+      "use": [
+        "multiplayer architecture",
+        "team deathmatch patterns",
+        "scalable input/gameplay framework",
+        "EOS patterns",
+        "animation integration"
+      ],
+      "license_note": "Fab listing identifies UE-Only Content; keep inside Unreal-based products.",
+      "source": "https://www.fab.com/listings/93faede1-4434-47c0-85f1-bf27c0820ad0"
+    }
+  ]
+}

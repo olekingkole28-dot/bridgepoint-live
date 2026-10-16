@@ -1,0 +1,41 @@
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://bridgepointintelligence.online/press/>
+  a dcat:Dataset ;
+  dct:identifier "bridgepoint-ct-strict-verified-opportunity-aggregates-2026-08-23" ;
+  dct:title "BridgePoint Connecticut Strict Verified Opportunity Aggregates" ;
+  dct:description "Address-free public aggregate snapshot from BridgePoint Intelligence's strict verified opportunity layer. Verified opportunities are prioritization candidates, not confirmed physical damage, insurance claims, customer intent or guaranteed sales." ;
+  dct:issued "2026-08-23"^^xsd:date ;
+  dct:modified "2026-08-23"^^xsd:date ;
+  dct:publisher <https://bridgepointintelligence.online/#organization> ;
+  dct:creator <https://bridgepointintelligence.online/founder/#kole-johnson> ;
+  dct:spatial "Connecticut, United States" ;
+  dcat:keyword "BridgePoint Intelligence", "Kole Johnson", "property intelligence", "claims intelligence", "proptech", "insurtech", "roofing", "restoration", "public adjusting", "property investment" ;
+  dcat:landingPage <https://bridgepointintelligence.online/press/> ;
+  dcat:distribution <https://bridgepointintelligence.online/articles/ct-opportunity-aggregates.csv>, <https://bridgepointintelligence.online/press/bridgepoint-facts.json> ;
+  dct:references <https://bridgepointintelligence.online/articles/bridgepoint-connecticut-property-intelligence-pulse-2026-08-23.html> .
+
+<https://bridgepointintelligence.online/#organization>
+  a foaf:Organization ;
+  foaf:name "BridgePoint Intelligence" ;
+  foaf:homepage <https://bridgepointintelligence.online/> .
+
+<https://bridgepointintelligence.online/founder/#kole-johnson>
+  a foaf:Person ;
+  foaf:name "Kole Johnson" ;
+  foaf:homepage <https://bridgepointintelligence.online/founder/> .
+
+<https://bridgepointintelligence.online/articles/ct-opportunity-aggregates.csv>
+  a dcat:Distribution ;
+  dct:title "BridgePoint CT Opportunity Aggregate CSV" ;
+  dcat:downloadURL <https://bridgepointintelligence.online/articles/ct-opportunity-aggregates.csv> ;
+  dcat:mediaType "text/csv" .
+
+<https://bridgepointintelligence.online/press/bridgepoint-facts.json>
+  a dcat:Distribution ;
+  dct:title "BridgePoint Current Machine-Readable Facts" ;
+  dcat:downloadURL <https://bridgepointintelligence.online/press/bridgepoint-facts.json> ;
+  dcat:mediaType "application/json" .

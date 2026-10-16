@@ -1,0 +1,75 @@
+# BridgePoint V5575 direct production authority
+name: Deploy Live Artifact Branch V5575
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [live-artifact]
+    paths:
+      - 'world-v2300-map.js'
+      - 'app.js'
+      - 'parcel-boundary-viewer-v5403.js'
+      - 'index.html'
+      - 'app/index.html'
+      - '.github/workflows/deploy-live-artifact-branch-v5575.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: bridgepoint-live-artifact-direct
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: live-artifact
+          fetch-depth: 1
+
+      - name: Verify current production artifact contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq '__BP_WORLD_PERFORMANCE_V5560__' world-v2300-map.js
+          grep -Fq 'single-maplibre-click' world-v2300-map.js
+          grep -Fq "const PARCEL_MIN=MOBILE?6.45" world-v2300-map.js
+          ! grep -Fq "canvas.addEventListener('click'" world-v2300-map.js
+          grep -Fq 'destructiveStop:false' app.js
+          grep -Fq 'const VERSION=5637' parcel-boundary-viewer-v5403.js
+          grep -Fq 'window.__BP_BOUNDARY_VIEWER_BOOT_V5585__' parcel-boundary-viewer-v5403.js
+          grep -Fq 'parcel-boundary-viewer-v5403.js?v=1096' index.html
+          grep -Fq 'parcel-boundary-viewer-v5403.js?v=1096' app/index.html
+          grep -Fq 'setInterval(liveCountryCounters,3000)' landing.js
+          grep -Fq "bridgepoint_public_live_counters_v5902" landing.js
+          ! grep -Fq "put('landingProperties',d.world_canonical_total)" landing.js
+          grep -Fq 'state.liveTimer=setInterval(()=>void liveCounters().catch(()=>{}),2000)' global-property-v957.js
+          grep -Fq 'bridgepoint_public_live_counters_v5902' global-property-v957.js
+          ! grep -Fq 'window.__BP_HEADLINE_V5822__?.world_canonical_total' global-property-v957.js
+          grep -Fq 'landing.js?v=5905-live-truth' index.html
+          grep -Fq 'global-property-v957.js?v=5905-live-truth' index.html
+          grep -Fq 'global-property-v957.js?v=5905-live-truth' app/index.html
+          echo LIVE_ARTIFACT_V5575_COUNTRY_PULSE_OK
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          name: bridgepoint-live-artifact-v5575
+          path: .
+
+      - name: Deploy exact live-artifact branch
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: bridgepoint-live-artifact-v5575

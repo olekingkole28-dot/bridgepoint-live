@@ -1,0 +1,454 @@
+{
+  "schema_version": 5,
+  "build_target": 4341,
+  "updated_at": "2026-09-20",
+  "authoritative_modes": [
+    {
+      "mode_key": "year_one_survival",
+      "name": "YEAR ONE SURVIVAL",
+      "type": "solo_persistent_survival",
+      "perspective": "FIRST_PERSON_ONLY",
+      "party": {
+        "min": 1,
+        "max": 1,
+        "supported": [
+          1
+        ],
+        "invites_allowed": false
+      },
+      "event": {
+        "duration_days": 365,
+        "start_at": "2026-10-01T00:00:00-04:00",
+        "timezone": "America/New_York",
+        "countdown": true,
+        "auto_start": true,
+        "lives": 3,
+        "preseason_lives_consumed": false
+      },
+      "world": {
+        "source": "BridgePoint shared world stream",
+        "scope": "contiguous_us_48_only",
+        "building_fidelity": "source geometry, source height, source floors, source roofs",
+        "renderer_rule": "never drop a source building for visual LOD; adapt collision and fine dressing instead",
+        "gameplay_jurisdiction_borders": false
+      },
+      "interiors": "fictional_generated_only",
+      "progression": "zombies begin easier and scale with event day, region, density and world pressure",
+      "endgame": "literal CONUS zombie wall closes through five final cities",
+      "proximity_voice": false,
+      "pvp": false,
+      "spawn": {
+        "policy": "PRECISE_FIRST_ENTRY_THEN_SAVED_LOCATION",
+        "inside_building": "spawn inside streamed building",
+        "street": "spawn at exact outdoor coordinate"
+      },
+      "player_vitals": {
+        "health": 100,
+        "shield_initial": 0,
+        "shield_pickup": 50,
+        "shield_max": 100,
+        "combined_max": 200,
+        "monster_hit_damage": 25,
+        "damage_order": "SHIELD_FIRST"
+      },
+      "monsters": {
+        "hp": {
+          "spider": 75,
+          "big_orc": 150,
+          "regular_zombie": 100,
+          "zombie_dog": 75,
+          "other": 100
+        },
+        "zombie_dog_pack": [
+          3,
+          5
+        ],
+        "runners": "below player sprint speed",
+        "spiders": "hop only",
+        "orcs": "hop",
+        "aggro": "footstep/proximity lock until killed",
+        "hp_bars": true
+      },
+      "pickup": {
+        "mode": "AUTO_DWELL",
+        "seconds": 3,
+        "progress": "RADIAL"
+      },
+      "persistence": "SERVER_CHECKPOINTED_V4340_EXPANSION",
+      "account_required": true,
+      "active_player_count": true
+    },
+    {
+      "mode_key": "infinite_tdm",
+      "name": "TEAM DEATHMATCH",
+      "type": "team_pvp",
+      "format": "100_PLAYERS_50V50_TARGET",
+      "perspective": "FIRST_PERSON_ONLY",
+      "party": {
+        "min": 1,
+        "max": 4,
+        "supported": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "labels": [
+          "SOLO",
+          "DUO",
+          "TRIO",
+          "SQUAD"
+        ],
+        "invites_allowed": true
+      },
+      "matchmaking": "party_and_skill",
+      "arena_switcher": {
+        "automatic": false,
+        "map_count": 50,
+        "repeat_rule": "complete ordered pool before wrap",
+        "source": "BridgePoint streamed world cells",
+        "span_km": {
+          "min": 1,
+          "max": 1.4
+        },
+        "bias": [
+          "high building density",
+          "tight blocks",
+          "vertical combat",
+          "rooftops",
+          "alleys",
+          "waterfronts",
+          "multi-level approaches"
+        ],
+        "avoid": [
+          "flat empty low-interest cells",
+          "wide low-cover fields"
+        ],
+        "selection": "TWO_MAPS_PLUS_RANDOM_10_SECOND_VOTE",
+        "one_word_names": true,
+        "loading": "CONUS_LOCATOR_ZOOM_TO_SOURCE_BACKED_CELL"
+      },
+      "respawns": "BOTS_BACKFILL_AND_COMBATANTS_ONLY__LOCAL_PLAYER_RETURNS_TO_LOBBY",
+      "killcams": true,
+      "proximity_voice": true,
+      "team_voice": true,
+      "target_players": 100,
+      "team_size": 50,
+      "bot_backfill": {
+        "enabled": true,
+        "after_seconds": 5,
+        "difficulty": "MODERATE"
+      },
+      "map_vote": {
+        "choices": 2,
+        "random_option": true,
+        "seconds": 10,
+        "audio_countdown": true,
+        "highest_votes_wins": true
+      },
+      "build_limit": 3,
+      "inventory": {
+        "quick_slots": 5,
+        "backpack_slots": 5,
+        "death_loot_dwell_seconds": 3,
+        "ammo_spare_clips_max": 4
+      },
+      "death_flow": "10_SECOND_KILLCAM_THEN_RETURN_TO_LOBBY",
+      "player_vitals": {
+        "health": 150,
+        "shield": 0
+      },
+      "prematch": {
+        "world_loaded": true,
+        "countdown_seconds": 10,
+        "camera_look": true,
+        "movement": false,
+        "shooting": false,
+        "bots_frozen": true
+      },
+      "fire_circle": {
+        "duration_seconds": 1800,
+        "staged_move_pause": true,
+        "damage_per_second": 25,
+        "bot_escape": true,
+        "final_radius_m": 55
+      },
+      "loadouts": {
+        "starter_presets": 5,
+        "presets": [
+          {
+            "slot": 1,
+            "primary_class": "SMG",
+            "secondary_class": "PISTOL",
+            "tactical_slots": 2,
+            "lethal_slots": 1
+          },
+          {
+            "slot": 2,
+            "primary_class": "ASSAULT_RIFLE",
+            "secondary_class": "PISTOL",
+            "tactical_slots": 2,
+            "lethal_slots": 1
+          },
+          {
+            "slot": 3,
+            "primary_class": "LMG",
+            "secondary_class": "PISTOL",
+            "tactical_slots": 2,
+            "lethal_slots": 1
+          },
+          {
+            "slot": 4,
+            "primary_class": "SNIPER",
+            "secondary_class": "SMG",
+            "tactical_slots": 2,
+            "lethal_slots": 1
+          },
+          {
+            "slot": 5,
+            "type": "CUSTOM",
+            "tactical_slots": 2,
+            "lethal_slots": 1
+          }
+        ],
+        "attachment_slots": [
+          "OPTIC",
+          "BARREL",
+          "MUZZLE",
+          "UNDERBARREL",
+          "MAGAZINE",
+          "STOCK",
+          "GRIP"
+        ],
+        "extra_slots_from": [
+          "STORE",
+          "BATTLE_PASS"
+        ]
+      },
+      "controller_and_headset": "BROWSER_DEVICE_CAPABILITY_BEST_EFFORT",
+      "party_chat": {
+        "text": true,
+        "webrtc_voice": true,
+        "max_party_size": 4
+      }
+    }
+  ],
+  "shared_lobby": {
+    "applies_to_all_modes": true,
+    "features": [
+      "mode selector",
+      "character selector",
+      "skins",
+      "weapon loadouts",
+      "melee loadout",
+      "emote wheel",
+      "spray wheel",
+      "battle pass",
+      "store",
+      "friends presence",
+      "friend invites",
+      "party roster",
+      "voice settings",
+      "audio settings",
+      "ready state",
+      "party text chat",
+      "headset voice",
+      "TDM class builder",
+      "weapon attachments",
+      "public live counters",
+      "owner audit",
+      "friends handle search",
+      "friend requests",
+      "direct lobby invite inbox",
+      "block/unblock",
+      "private player reports",
+      "owner/co-owner moderation queue"
+    ],
+    "year_one_behavior": "player may customize in shared lobby but launching Year One always forces solo and cannot bring the party into the match",
+    "tdm_behavior": "players may queue solo, duo, trio or squad; each match votes between two of the 50 real-location maps or Random for 10 seconds",
+    "account_required": true,
+    "unique_handle": true,
+    "character_creator": true,
+    "stats": true,
+    "rules": true,
+    "about": true,
+    "owner_metrics": true
+  },
+  "audio": {
+    "quality_target": "premium cinematic AAA-style original audio",
+    "systems": {
+      "spatial_3d": true,
+      "occlusion": true,
+      "wall_and_door_occlusion": true,
+      "windows_as_audio_portals": true,
+      "interior_exterior_reverb": true,
+      "vertical_floor_propagation": true,
+      "doppler": true,
+      "distance_lod": true,
+      "virtualization": true
+    },
+    "surfaces": [
+      "asphalt",
+      "concrete",
+      "wood",
+      "metal",
+      "glass",
+      "water",
+      "mud",
+      "grass",
+      "snow",
+      "gravel",
+      "roof membrane"
+    ],
+    "weapon_layers": [
+      "mechanical",
+      "muzzle",
+      "blast",
+      "indoor reflection",
+      "outdoor tail",
+      "distant tail",
+      "shell casing",
+      "reload",
+      "suppressed variants"
+    ],
+    "infected_layers": [
+      "idle",
+      "alert",
+      "search",
+      "chase",
+      "attack",
+      "pain",
+      "death",
+      "distant horde",
+      "zombie wall"
+    ],
+    "creatures": [
+      "dogs",
+      "bears",
+      "spiders",
+      "fantasy creatures"
+    ],
+    "ambience": [
+      "wind",
+      "rain",
+      "thunder",
+      "fire",
+      "water",
+      "distant sirens",
+      "building creaks",
+      "power hum",
+      "generator",
+      "city decay",
+      "forest night",
+      "horde pressure"
+    ],
+    "music": "dynamic threat score that reacts to stealth, chase, boss, storm pressure and extraction",
+    "voice_chat": {
+      "year_one_survival": "disabled because solo",
+      "infinite_tdm": "team voice plus proximity voice",
+      "controls": [
+        "mute",
+        "block",
+        "push-to-talk option",
+        "voice volume",
+        "proximity volume"
+      ]
+    }
+  },
+  "commerce": {
+    "battle_pass_price_usd": 9.99,
+    "battle_pass_levels": 30,
+    "provider": "reserved_for_existing_Stripe_account",
+    "stripe_connection_status": "DO_NOT_CONNECT_UNTIL_OWNER_EXPLICITLY_SAYS_TO_AT_THE_END",
+    "store_categories": [
+      "characters",
+      "skins",
+      "weapon wraps",
+      "new guns where balance-safe",
+      "emotes",
+      "sprays",
+      "dances",
+      "finishers",
+      "profile cosmetics"
+    ],
+    "daily_free_rewards": true,
+    "pay_to_win": false,
+    "battle_pass_rotation": "MONTHLY",
+    "store_rotation": "WEEKLY",
+    "checkout_enabled": false,
+    "permanent_year_one_products": [
+      {
+        "sku": "yearone_life_1",
+        "price_usd": 20,
+        "restore_lives": 1
+      },
+      {
+        "sku": "yearone_lives_3",
+        "price_usd": 50,
+        "restore_lives": 3
+      }
+    ],
+    "owner_auto_entitlements": true
+  },
+  "perspective": "FIRST_PERSON_ONLY",
+  "progression": {
+    "level_max": 100,
+    "prestige_max": 15,
+    "prestige_character_choices": 3,
+    "leaderboards": [
+      "kills",
+      "wins",
+      "time",
+      "xp"
+    ],
+    "weapon_rarities": [
+      "COMMON",
+      "UNCOMMON",
+      "RARE",
+      "EPIC",
+      "LEGENDARY",
+      "MYTHIC"
+    ]
+  },
+  "social_and_safety": {
+    "friends": {
+      "handle_search": true,
+      "friend_requests": true,
+      "accept_decline_cancel": true,
+      "unfriend": true,
+      "online_mode_presence": true
+    },
+    "lobby_invites": {
+      "friends_only": true,
+      "inbox": true,
+      "accept_decline": true,
+      "expires_minutes": 15,
+      "party_size_max": 4
+    },
+    "blocking": {
+      "block_unblock": true,
+      "cancels_friendship": true,
+      "cancels_pending_requests": true,
+      "cancels_direct_invites": true,
+      "filters_party_chat_and_voice_for_blocker": true
+    },
+    "reporting": {
+      "private": true,
+      "categories": [
+        "CHEATING",
+        "HARASSMENT",
+        "VOICE_ABUSE",
+        "GRIEFING",
+        "EXPLOIT",
+        "INAPPROPRIATE_NAME",
+        "OTHER"
+      ],
+      "owner_coowner_queue": true,
+      "match_party_context": true
+    },
+    "privacy": {
+      "friend_surface_exposes_email": false,
+      "owner_moderation_may_view_account_email": true
+    }
+  }
+}
