@@ -1,5 +1,5 @@
 const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
-window.__BP_APP_BUILD_VERSION__=5907;window.__BP_PUBLIC_MARKET_MAP_V5906__={publicMap:true,publicOpportunityLayers:true,updatedAt:Date.now()}
+window.__BP_APP_BUILD_VERSION__=5908;window.__BP_PUBLIC_MARKET_MAP_V5906__={publicMap:true,publicOpportunityLayers:true,updatedAt:Date.now()}
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const RPC=SUPA+'/rest/v1/rpc/';
 const $=id=>document.getElementById(id);
@@ -1155,7 +1155,7 @@ async function start(){
  statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);
  tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?600000:300000);
  setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?300000:120000);
- if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5907',{updateViaCache:'none'}).catch(()=>{})
+ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5908',{updateViaCache:'none'}).catch(()=>{})
 }
 window.addEventListener('bridgepoint:softrefresh',()=>{
  try{queueAfterMap('status-pulse',loadStatus)}catch(_){}
