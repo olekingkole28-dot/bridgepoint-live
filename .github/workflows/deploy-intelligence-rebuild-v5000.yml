@@ -185,12 +185,16 @@ jobs:
           cp release-v2300/world-v2300-worker.js site/world-v2300-worker.js
           cp release-v2300/world-v2300-weather.js site/world-v2300-weather.js
           cp release-v2300/world-v2300-present-weather.js site/world-v2300-present-weather.js
+          cp release-v2300/world-v2300-clouds.js site/world-v2300-clouds.js
+          cp release-v2300/world-v2300-time-slider.js site/world-v2300-time-slider.js
           cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/app/world-v2300-map.js
           cp release-v2300/world-v2300-space.js site/app/world-v2300-space.js
           cp release-v2300/world-v2300-worker.js site/app/world-v2300-worker.js
           cp release-v2300/world-v2300-weather.js site/app/world-v2300-weather.js
           cp release-v2300/world-v2300-present-weather.js site/app/world-v2300-present-weather.js
+          cp release-v2300/world-v2300-clouds.js site/app/world-v2300-clouds.js
+          cp release-v2300/world-v2300-time-slider.js site/app/world-v2300-time-slider.js
           cp release-v2300/world-v2300-inspector.js site/app/world-v2300-inspector.js
           cp release-v2300/world-v2300-bootstrap.js site/app/world-v2300-bootstrap.js
           cp release-v2300/world-v2300.css site/app/world-v2300.css
@@ -217,6 +221,11 @@ jobs:
           grep -Fq 'BridgePoint Intelligence pricing' site/pricing/index.html
           grep -Fq 'BridgePoint Intelligence pricing' site/pricing.html
           node --check site/app.js
+          node --input-type=module --check < site/world-v2300-clouds.js
+          node --input-type=module --check < site/world-v2300-time-slider.js
+          grep -Fq 'world-v2300-clouds.js?v=5908-game-clouds' site/app.js
+          grep -Fq 'world-v2300-time-slider.js?v=5908-world-activity' site/app.js
+          grep -Fq 'bridgepoint_public_property_timeline_v5908' site/app.js
           grep -Fq 'package-entitlements' site/app.js
           grep -Fq 'VIEW ALL ' site/app.js
           grep -Fq 'package-feature-toggle' site/styles.css
@@ -708,6 +717,8 @@ jobs:
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?v5410=${q}" -o /tmp/app.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5371=${q}" -o /tmp/app.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5628=${q}" -o /tmp/world-v2300-map.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-clouds.js?v5908=${q}" -o /tmp/world-v2300-clouds.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-time-slider.js?v5908=${q}" -o /tmp/world-v2300-time-slider.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/walkthrough-v5537.js?v5539=${q}" -o /tmp/walkthrough-v5537.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/parcel-boundary-viewer-v5403.js?v5404=${q}" -o /tmp/parcel-boundary-viewer-v5403.js || true
             curl --retry 1 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/pricing.html?v5551=${q}" -o /tmp/pricing.html || true
@@ -731,6 +742,8 @@ jobs:
               && grep -Fq 'data-nosnippet' /tmp/app.html \
               && grep -Fq '__BP_APP_BUILD_VERSION__=5907' /tmp/app.js \
               && grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' /tmp/world-v2300-map.js \
+              && grep -Fq '__BP_SKY_CLOUDS_V5908__' /tmp/world-v2300-clouds.js \
+              && grep -Fq 'bridgepoint_public_world_activity_v5908' /tmp/world-v2300-time-slider.js \
               && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js \
               && grep -Fq '__BP_PARCEL_BOUNDARY_VIEWER_V5577__' /tmp/parcel-boundary-viewer-v5403.js \
               && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js \
@@ -1000,6 +1013,7 @@ jobs:
               }
               await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5630&&!!window.__BP_V5000_WORLD?.map,{timeout:35000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
+              await p.waitForFunction(()=>!!window.__BP_SKY_CLOUDS_V5908__&&!!window.__BP_WORLD_TIME_SLIDER_V5908__&&!!document.getElementById('bp-world-time-slider-v5908'),{timeout:20000});
               await p.waitForFunction(()=>!!window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__&&!!window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__,{timeout:30000});
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
@@ -1065,6 +1079,10 @@ jobs:
               });
               if(state.frontend!==5000||state.app!==5907||state.world!==5630||state.canvases!==1||state.architecture!=='MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY'||state.camera?.mode!=='FREE_FLY_SINGLE_VIEW'||state.camera?.singleView!==true||state.camera?.autoViewSwitching!==false||state.camera?.streetWalkMode!==false||state.camera?.buildingClickOverlook!==true||Number(state.maxPitch)<84||state.materials?.floorLines!==true||state.materials?.roofOverlays!==true||state.materials?.exactRoofs!==true||state.fine?.enabled!==false||!state.sources.city||!state.sources.cityRoofs||!state.sources.weatherShapes||!state.weatherLegend.present||!state.weatherLegend.more||state.weatherFx.rainSnowHail!==true||state.weatherFx.wildfireFlameParticles!==true||Object.values(state.layers).some(v=>v!==true))throw new Error('CURRENT_WORLD_REGRESSION '+JSON.stringify(state));
               console.log('BRIDGEPOINT_CURRENT_WORLD_PASS',JSON.stringify(state));
+              await p.waitForFunction(()=>window.__BP_SKY_CLOUDS_STATE_V5908__?.visible===true&&!!document.querySelector('#liveMap .bp-sky-cloudfield-v5908'),{timeout:12000});
+              const clouds=await p.evaluate(()=>({state:window.__BP_SKY_CLOUDS_STATE_V5908__||null,overlay:!!document.querySelector('#liveMap .bp-sky-cloudfield-v5908'),slider:!!document.getElementById('bp-world-time-slider-v5908'),label:document.getElementById('bp-world-time-slider-v5908')?.innerText.includes('WORLD ACTIVITY')}));
+              if(!clouds.state?.visible||!clouds.overlay||!clouds.slider||!clouds.label)throw new Error('SKY_CLOUDS_OR_WORLD_ACTIVITY_SLIDER_REGRESSION '+JSON.stringify(clouds));
+              console.log('BRIDGEPOINT_CLOUDS_AND_WORLD_TIME_SLIDER_PASS',JSON.stringify(clouds));
 
               await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('map unavailable');
