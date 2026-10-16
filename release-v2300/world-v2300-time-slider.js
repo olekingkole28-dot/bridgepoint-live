@@ -94,7 +94,7 @@ export function initWorldTimeSlider(target,rpc){
   <div class="bpwt-controls">
    <button type="button" data-live aria-pressed="true">● LIVE</button>
    <button type="button" data-play aria-pressed="false">▶ PLAY</button>
-   <button type="button" data-clouds aria-pressed="false">☁ CLOUDS</button>
+   <button type="button" data-clouds aria-pressed="true">☁ CLOUDS ON</button>
    <button type="button" data-refresh>↻ REFRESH</button>
    <span class="bpwt-stats" data-stats>Waiting for map bounds…</span>
   </div>
