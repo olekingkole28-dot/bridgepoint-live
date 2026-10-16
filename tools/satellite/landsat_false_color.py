@@ -69,6 +69,13 @@ def parse_bbox(value: str) -> tuple[float, float, float, float]:
     return west, south, east, north
 
 
+def parse_utc(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 def utc_iso(value: datetime) -> str:
     return value.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -88,9 +95,9 @@ def platform_is_landsat_8_or_9(item: Item) -> bool:
 
 def query_scene(args: argparse.Namespace) -> Item:
     catalog = Client.open(STAC_URL)
-    start = args.date_start
-    end = args.date_end or utc_iso(datetime.now(timezone.utc))
-    if datetime.fromisoformat(start.replace("Z", "+00:00")) > datetime.fromisoformat(end.replace("Z", "+00:00")):
+    start = utc_iso(parse_utc(args.date_start))
+    end = utc_iso(parse_utc(args.date_end)) if args.date_end else utc_iso(datetime.now(timezone.utc))
+    if parse_utc(start) > parse_utc(end):
         raise ValueError("--date-start must be earlier than or equal to --date-end.")
 
     search = catalog.search(
@@ -205,7 +212,6 @@ def stretch_parameters(
 
     qa = qa_source.read(1, window=window, out_shape=out_shape, resampling=Resampling.nearest)
     valid = qa_valid_mask(qa)
-    samples: dict[str, np.ndarray] = {}
     percentiles: dict[str, tuple[float, float]] = {}
     details: dict[str, Any] = {"sample_stride": stride, "sample_width": out_w, "sample_height": out_h}
 
@@ -227,7 +233,6 @@ def stretch_parameters(
         if not np.isfinite(lo) or not np.isfinite(hi) or hi <= lo:
             raise RuntimeError(f"Invalid percentile stretch for channel '{name}': {lo}, {hi}.")
         percentiles[name] = (lo, hi)
-        samples[name] = values
         details[DISPLAY_NAMES.get(name, name)] = {
             "low": round(lo, 8),
             "high": round(hi, 8),
@@ -254,7 +259,7 @@ def produce_assets(args: argparse.Namespace, item: Item) -> dict[str, Any]:
     tif_path = outdir / f"{prefix}.tif"
     png_path = outdir / f"{prefix}.png"
 
-    with ExitStack() as stack:
+    with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True), ExitStack() as stack:
         sources = {
             name: stack.enter_context(rasterio.open(item.assets[name].href))
             for name in set(channel_names)
