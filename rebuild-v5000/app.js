@@ -74,7 +74,7 @@ function bindAuthUI(){$('accountButton')?.addEventListener('click',()=>openAuth(
 const BP_TRUTH_VALUE_ID=/^(authUserEmail|pAddress|pLocation|pParcel|bRecord|bSource|bProvSource|bProvDataset|bProvLicense|bProvOriginal|bProvOriginalUpdated|bProvParcelSource)$/;
 function setText(id,v){const e=$(id);if(e){e.textContent=v;if(BP_TRUTH_VALUE_ID.test(id)){e.classList.add('notranslate');e.setAttribute('translate','no')}}}
 function setBar(id,v){const e=$(id);if(e)e.style.width=pct(v)+'%'}
-let statusLast=null,world=null,statusTimer=null,tileTimer=null,selectedTimer=null,liveContextTimer=null,radarRefreshTimer=null,radarAnimTimer=null,cloudRefreshTimer=null,cloudAnimTimer=null,transportTimer=null,opportunityTimer=null,opportunitySeq=0,semanticTimer=null,semanticBuildTimer=null,semanticSeq=0,measureActive=false,measurePoints=[],xrayRestore=null,mapInteracting=false,performanceDrainTimer=null,performanceRestoreTimer=null,performanceHardReleaseTimer=null,deferredDrainTimer=null,deferredWork=new Map(),transportRuntimeLastAt=0,transportVisible=true,transportSourceUrl=null,liveContextVisible=true,radarFrames=[],radarIndex=0,radarActive='A',cloudFrames=[],cloudIndex=0,cloudActive='A',selectedPoint=null,selectedFeature=null,selectedPropertyId=null,selectedMode='building',buildingRequestSeq=0;
+let statusLast=null,world=null,statusTimer=null,tileTimer=null,selectedTimer=null,liveContextTimer=null,radarRefreshTimer=null,radarAnimTimer=null,cloudRefreshTimer=null,cloudAnimTimer=null,transportTimer=null,opportunityTimer=null,opportunitySeq=0,semanticTimer=null,semanticBuildTimer=null,semanticSeq=0,measureActive=false,measurePoints=[],xrayRestore=null,mapInteracting=false,performanceDrainTimer=null,performanceRestoreTimer=null,performanceHardReleaseTimer=null,deferredDrainTimer=null,deferredWork=new Map(),transportRuntimeLastAt=0,transportVisible=true,transportSourceUrl=null,liveContextVisible=true,radarFrames=[],radarIndex=0,radarActive='A',cloudFrames=[],cloudIndex=0,cloudActive='A',selectedPoint=null,selectedFeature=null,selectedPropertyId=null,selectedMode='building',buildingRequestSeq=0,propertyHeartbeatTimer=null,propertyHeartbeatInFlight=false;
 
 function bpLocaleCode(){try{return window.BridgePointLanguage?.getLocale?.()||localStorage.getItem('bp-language')||document.documentElement.lang||'en'}catch(_){return'en'}}
 function bpMapCode(){const c=bpLocaleCode();if(window.BridgePointLanguage?.mapCode)return window.BridgePointLanguage.mapCode();if(c==='pt-BR')return'pt';if(c==='zh-Hans'||c==='zh-Hant')return'zh';if(c==='tl')return'fil';return String(c).split('-')[0]}
@@ -481,8 +481,38 @@ function renderImagery(d){
  if(!rows.length){host.innerHTML='<div class="hazard-item"><b>No verified aerial-history source is registered for this property yet.</b></div>';return}
  for(const x of rows.slice(0,12)){const row=document.createElement('div');row.className='hazard-item';const title=document.createElement('b');title.textContent=x.display_label||x.source_name||'Aerial reference';const meta=document.createElement('small');meta.textContent=[x.provider,x.captured_year,x.license_note].filter(Boolean).join(' · ')||'Verified remote source reference';row.append(title,meta);if(x.thumbnail_url){const img=document.createElement('img');img.className='media-thumb';img.loading='lazy';img.alt=x.display_label||'Aerial imagery';img.src=x.thumbnail_url;row.appendChild(img)}if(x.media_url){row.style.cursor='pointer';row.addEventListener('click',()=>window.open(x.media_url,'_blank','noopener,noreferrer'))}host.appendChild(row)}
 }
+async function refreshSelectedPropertyHeartbeat(seq,id){
+ if(!id||seq!==buildingRequestSeq||id!==selectedPropertyId||propertyHeartbeatInFlight)return;
+ propertyHeartbeatInFlight=true;
+ try{
+  const heartbeat=await rpc('bridgepoint_public_property_heartbeat_v5906',{p_property_id:id},4500);
+  if(seq!==buildingRequestSeq||id!==selectedPropertyId)return;
+  renderHeartbeat(heartbeat);
+  window.__BP_PROPERTY_HEARTBEAT_CLIENT_STATE__={status:heartbeat?.complete?(heartbeat.freshness||heartbeat.state||'AVAILABLE'):(heartbeat?.state||'LIMITED_DATA'),complete:!!heartbeat?.complete,updatedAt:Date.now(),propertyId:id};
+ }catch(e){
+  if(seq!==buildingRequestSeq||id!==selectedPropertyId)return;
+  setText('pHeartbeatState','RETRY SCHEDULED');
+  setText('pHeartbeatHeadline','The latest property heartbeat did not load. BridgePoint will retry automatically.');
+  setText('pHeartbeatWhy','Property identity is preserved; no score is fabricated. '+String(e?.message||e));
+  window.__BP_PROPERTY_HEARTBEAT_CLIENT_STATE__={status:'RETRY_SCHEDULED',complete:false,error:String(e?.message||e),updatedAt:Date.now(),propertyId:id};
+  console.warn('BridgePoint property heartbeat retry scheduled',e?.message||e);
+ }finally{propertyHeartbeatInFlight=false}
+}
+function startSelectedPropertyHeartbeat(seq,id){
+ clearInterval(propertyHeartbeatTimer);propertyHeartbeatTimer=null;
+ void refreshSelectedPropertyHeartbeat(seq,id);
+ const timer=setInterval(()=>{
+  const panel=$('buildingPanel');
+  if(seq!==buildingRequestSeq||id!==selectedPropertyId||!selectedPoint||!panel||panel.hidden){
+   clearInterval(timer);if(propertyHeartbeatTimer===timer)propertyHeartbeatTimer=null;return
+  }
+  void refreshSelectedPropertyHeartbeat(seq,id);
+ },30000);
+ propertyHeartbeatTimer=timer;
+}
 async function loadAdvancedPropertyIntel(seq){
  const id=selectedPropertyId;
+ clearInterval(propertyHeartbeatTimer);propertyHeartbeatTimer=null;
  if(!id){
   setText('pHeartbeatState','IDENTITY NOT LINKED');
   setText('pHeartbeatHeadline','This map building is not linked to a canonical scored property record yet.');
@@ -494,16 +524,7 @@ async function loadAdvancedPropertyIntel(seq){
   return
  }
  resetAdvancedPropertyIntel();
- try{
-  const publicHeartbeat=await rpc('bridgepoint_public_property_heartbeat_v5906',{p_property_id:id},2500);
-  if(seq!==buildingRequestSeq||id!==selectedPropertyId)return;
-  renderHeartbeat(publicHeartbeat);
- }catch(e){
-  if(seq!==buildingRequestSeq||id!==selectedPropertyId)return;
-  setText('pHeartbeatState','RETRY');
-  setText('pHeartbeatHeadline','Public heartbeat refresh failed; retrying on the next selection.');
-  setText('pHeartbeatWhy',String(e?.message||e));
- }
+ startSelectedPropertyHeartbeat(seq,id);
  if(!authSession?.access_token){
   try{
    const publicTimeline=await rpc('bridgepoint_public_property_timeline_v5908',{p_property_id:id,p_limit:40},3500);
