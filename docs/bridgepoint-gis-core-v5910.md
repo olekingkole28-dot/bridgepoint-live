@@ -94,6 +94,51 @@ Supported values: `earth`, `water`, and `vegetation`. A successful command shoul
 | Evidence ledger | Ready for authenticated events | Per-user, append-only for client roles, SHA-256 hash linked |
 | Real-world rendering | Ready with limits | Available imagery + source-tag-aware, material-inspired 3D styling |
 
+The in-app **PLUGIN CATALOG** lists all 40 names from the reference list, with a status and an execution note for each. These are functional references and routing hints—not a claim that all QGIS plugins are installed in BridgePoint.
+
+| Reference plugin | Current status | Router interpretation |
+|---|---|---|
+| SLYR (Community Edition) | Not configured | QGIS project/style conversion not run by the web app |
+| Georeferencer Extension | Not configured | No GCP-based raster warp |
+| GeoParquet Downloader | Not configured | No bulk GeoParquet ingestion job |
+| Data-Driven Input Mask | Not configured | No auto-generated PostGIS entry form |
+| Coordinates Converter | Partial | Decimal degrees and DMS; no UTM/projection transform |
+| D3 Data Visualization | Partial | Current overlays use MapLibre; no D3 operation |
+| Buffer by Percentage | Not configured | No percentage-based buffer |
+| Google Earth Engine | Not configured | No authenticated GEE job |
+| Point Sampling Tool | Not configured | No multi-band raster sampling operation |
+| Batch GPS Importer | Not configured | No GPX batch import/merge |
+| GIS Cloud Publisher | Not configured | No GIS Cloud publication endpoint |
+| GarminCustomMap | Not configured | No Garmin/KMZ export operation |
+| Coordinate Capture | Partial | Point inputs and rendered selection; no independent multi-CRS capture panel |
+| STAC API Browser | Ready with limits | Real Landsat STAC search and spectral imagery |
+| Geometry Paster | Not configured | No feature-to-feature geometry copy |
+| Bivariate Legend | Not configured | No dual-variable bivariate legend |
+| Terrain Shading | Partial | Existing DEM/hillshade state; no new raster computation |
+| WhiteboxTools | Not configured | No WhiteboxTools process |
+| Layout Loader | Not configured | No standardized map-layout engine |
+| GeoDataFarm | Not configured | No crop/soil observation feed |
+| Globe Builder | Partial | Existing interactive globe; no QGIS globe-builder import |
+| TomBio tools | Not configured | No biological survey pipeline |
+| Maps Printer | Partial | Satellite preview export; no bulk layout/PDF printer |
+| TrendsEarth | Not configured | No land-degradation/soil-carbon analysis |
+| Geoscience | Not configured | No geoscience package/source configured |
+| Street View | Not configured | No Street View provider integration |
+| Smart-Map | Not configured | No kriging/ML interpolation |
+| GeoCoding | Partial | Existing BridgePoint property/address lookup; this route does not fabricate a geocoding response |
+| QRealTime | Not configured | No ODK/Kobo/Mergin server connection |
+| Value Tool | Not configured | No cursor-based multi-raster sampling |
+| QuickOSM | Partial | OSM-derived map context; no Overpass key/value query |
+| ORS Tools | Not configured | No routing provider/key, routes or isochrones |
+| DSG Tools | Partial | Supabase/PostGIS infra exists; QGIS connection management is not exposed |
+| autoSaver | Partial | Authenticated hash-linked GIS event writes; no QGIS edit auto-save loop |
+| Discovery | Partial | BridgePoint property search exists; no unified PostgreSQL/GeoPackage/MSSQL registry search |
+| TUFLOW | Not configured | No hydrodynamic solver or flood simulation |
+| Get WKT | Ready with limits | GeoJSON to WKT/EWKT without reprojection or cadastral certification |
+| HCMGIS | Partial | Existing basemap/source layers; HCMGIS plugin itself is not run |
+| LF Tools | Not configured | No LF Tools process |
+| UMEP | Not configured | No UMEP/SOLWEIG microclimate model |
+
 TUFLOW, UMEP, WhiteboxTools batch workflows, exact roof photogrammetry, universal parcel coverage, and other external plugin-equivalent capabilities are not represented as completed integrations unless a separately configured solver/dataset/service is actually run.
 
 ## Realism is not the same as photographic truth
@@ -104,7 +149,7 @@ To achieve true per-building photographic realism globally, BridgePoint would st
 
 ## Evidence ledger security
 
-Migration: `20261016022500_bridgepoint_gis_core_audit_v5910.sql`.
+Migration: `20261016032028_bridgepoint_gis_core_audit_v5910.sql` (same version registered in Supabase migration history).
 
 The public-schema ledger is RLS-enabled. Authenticated users can select only their own events. Client roles have SELECT only and cannot directly INSERT/UPDATE/DELETE ledger rows; an authenticated, allow-listed RPC inserts a canonical per-user SHA-256-linked event with input/result manifests and source references. The chain is serialized per user using a transaction-scoped advisory lock.
 
