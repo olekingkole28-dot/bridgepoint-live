@@ -1,5 +1,5 @@
 const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
-window.__BP_APP_BUILD_VERSION__=5909;window.__BP_PUBLIC_MARKET_MAP_V5906__={publicMap:true,publicOpportunityLayers:true,updatedAt:Date.now()}
+window.__BP_APP_BUILD_VERSION__=5910;window.__BP_PUBLIC_MARKET_MAP_V5906__={publicMap:true,publicOpportunityLayers:true,updatedAt:Date.now()}
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const RPC=SUPA+'/rest/v1/rpc/';
 const $=id=>document.getElementById(id);
@@ -137,7 +137,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
 async function bootMap(){
- const mod=await import('./world-v2300-map.js?v=5907-public-listing-icons-bridges');world=mod.initWorld();window.__BP_V5000_WORLD=world;
+ const mod=await import('./world-v2300-map.js?v=5910-world-realism-gis-core');world=mod.initWorld();window.__BP_V5000_WORLD=world;
  const started=performance.now();
  while(!world?.map&&performance.now()-started<10000)await new Promise(r=>setTimeout(r,40));
  if(!world?.map)throw new Error('Map object readiness timeout');
@@ -151,6 +151,12 @@ async function bootMap(){
  void import('./world-v2300-spectral-imagery.js?v=5909-spectral-landsat')
   .then(m=>{window.__BP_SPECTRAL_IMAGERY_V5909__=m.initSpectralImagery(world)})
   .catch(e=>console.warn('BridgePoint spectral satellite layer unavailable',e));
+ void import('./world-v2300-realism.js?v=5910-world-materials')
+  .then(m=>{window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)})
+  .catch(e=>console.warn('BridgePoint real-world rendering mode unavailable',e));
+ void import('./gis-core-orchestrator-v5910.js?v=5910-gis-router')
+  .then(m=>{window.__BP_GIS_CORE_V5910__=m.initGisCore(world,rpc)})
+  .catch(e=>console.warn('BridgePoint GIS Core router unavailable',e));
  bindPerformanceGovernor();
  // V5614: register the lightweight weather-FX capability contract immediately.
  // Network fetches and active particle rendering stay behind the interaction/pressure governor.
@@ -1158,7 +1164,7 @@ async function start(){
  statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);
  tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?600000:300000);
  setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?300000:120000);
- if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5909',{updateViaCache:'none'}).catch(()=>{})
+ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5910',{updateViaCache:'none'}).catch(()=>{})
 }
 window.addEventListener('bridgepoint:softrefresh',()=>{
  try{queueAfterMap('status-pulse',loadStatus)}catch(_){}
