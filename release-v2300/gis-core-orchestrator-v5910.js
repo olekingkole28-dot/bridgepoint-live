@@ -238,10 +238,17 @@ export function initGisCore(target,rpc){
      const sat=window.__BP_SPECTRAL_IMAGERY_V5909__;
      if(!sat?.available||typeof sat.load!=='function')throw Object.assign(new Error('Satellite module is not ready; wait for the map to finish loading.'),{routeStatus:'blocked'});
      if(payload.composite&&['earth','water','vegetation'].includes(payload.composite)&&sat.root?.querySelector('[data-combo]'))sat.root.querySelector('[data-combo]').value=payload.composite;
-     data=await sat.load();
-     if(!data&&window.__BP_SPECTRAL_IMAGERY_V5909__?.loading)message='Satellite scene search started; check the satellite panel for source-reported status.';
-     else message='Requested a real Landsat scene for the current map viewport.';
-     sourceRefs.push({source_key:'LANDSAT_C2_L2',url:'https://planetarycomputer.microsoft.com/api/stac/v1/search',observed_at:window.__BP_SPECTRAL_IMAGERY_V5909__?.selectedAt||null});
+     await sat.load();
+     const scene=sat.scene;
+     const satelliteStatus=document.querySelector('#bp-spectral-imagery-v5909 [data-status]')?.textContent||'';
+     if(!scene){
+      statusValue='failed';message=satelliteStatus||'No Landsat scene loaded. Check the satellite panel and try a different date or location.';
+      warnings.push('No imagery source scene was selected; no output image was fabricated.');
+     }else{
+      data={scene_id:scene.id,platform:scene.properties?.platform||null,acquired_at:scene.properties?.datetime||null,scene_cloud_cover_pct:scene.properties?.['eo:cloud_cover']??null,composite:sat.combo||null};
+      message='Loaded real Landsat spectral tiles for the current map viewport.';
+      sourceRefs.push({source_key:'LANDSAT_C2_L2',url:'https://planetarycomputer.microsoft.com/api/stac/v1/search',item_id:scene.id,observed_at:scene.properties?.datetime||null});
+     }
      break;
     }
     case 'PROPERTY_GROUND_TRUTH':{
@@ -268,6 +275,7 @@ export function initGisCore(target,rpc){
     case 'HAZARD_INTERSECTION':{
      const geom=payload.geometry||(finitePair(payload.coordinates)?{type:'Point',coordinates:payload.coordinates}:null);
      if(!geom)throw Object.assign(new Error('Provide a GeoJSON geometry or coordinates. A polygon is best for parcel exposure; coordinates tests point exposure.'),{routeStatus:'blocked'});
+     if(!['Point','MultiPoint','Polygon','MultiPolygon'].includes(geom.type))throw Object.assign(new Error('Spatial intersection currently supports Point, MultiPoint, Polygon, and MultiPolygon inputs. This geometry type was not executed.'),{routeStatus:'blocked'});
      const feed=window.__BP_WORLD_TIME_SLIDER_V5908__;
      if(feed?.refresh)await feed.refresh();
      let feats=[];try{feats=map.querySourceFeatures(ACTIVITY_SOURCE)||[]}catch(_){}
@@ -275,7 +283,7 @@ export function initGisCore(target,rpc){
      const matches=[...unique.values()].filter(f=>spatialHit(geom,f.geometry));
      data={geometry_type:geom.type,source_events_checked:unique.size,intersecting_events:matches.length,events:matches.slice(0,100).map(f=>({id:f.id??f.properties?.event_id??null,event_type:f.properties?.event_type_key||f.properties?.family_key||null,observed_at:f.properties?.observed_at||f.properties?.event_time||f.properties?.valid_time||null,source_url:f.properties?.source_url||f.properties?.source_url_safe||null,geometry_type:f.geometry?.type||null})),observation_window:window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__?.selectedAt||null};
      if(!unique.size){statusValue='partial';message='No source activity features were queryable in the current view/time window; no exposure conclusion is drawn.';warnings.push('Try refresh after the event layer is visible, or navigate to the asset.')}
-     else{message='Checked only currently loaded source-reported activity geometries using local geometry intersection. This is not proof of damage; pagination outside the loaded viewport is not included.';sourceRefs.push({source_key:'BRIDGEPOINT_WORLD_ACTIVITY_V5908',url:'BridgePoint public world-activity API',viewport:window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__?.viewport||null});}
+     else{message='Checked only currently loaded source-reported activity geometries using local geometry intersection. This is not proof of damage; pagination outside the loaded viewport is not included.';sourceRefs.push({source_key:'BRIDGEPOINT_WORLD_ACTIVITY_V5908',rpc:'bridgepoint_public_world_activity_v5908',viewport:window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__?.viewport||null});}
      break;
     }
     case 'TERRAIN_ANALYSIS':{
@@ -310,8 +318,11 @@ export function initGisCore(target,rpc){
      if(!['png','tif'].includes(format))throw new Error('Export format must be png or tif.');
      const sat=window.__BP_SPECTRAL_IMAGERY_V5909__;
      if(!sat?.scene)throw Object.assign(new Error('Load a real satellite scene before exporting. The map view alone is not a source imagery file.'),{routeStatus:'blocked'});
-     data=await sat.export(format);
-     message='Requested a georeferenced satellite scene preview export, with source scene metadata preserved by the imagery module.';
+     await sat.export(format);
+     const exportStatus=document.querySelector('#bp-spectral-imagery-v5909 [data-status]')?.textContent||'';
+     data={scene_id:sat.scene.id,format,ui_status:exportStatus};
+     if(/failed|http \\d{3}|empty|load a scene/i.test(exportStatus)){statusValue='failed';message=exportStatus||'Satellite preview export failed.';}
+     else message='Requested a georeferenced satellite scene preview export, with source scene metadata preserved by the imagery module.';
      sourceRefs.push({source_key:'LANDSAT_C2_L2',item_id:sat.scene.id,acquired_at:sat.scene.properties?.datetime||null,url:'https://planetarycomputer.microsoft.com/api/stac/v1'});
      break;
     }
