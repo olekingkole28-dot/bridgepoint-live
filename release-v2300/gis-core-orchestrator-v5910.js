@@ -53,7 +53,7 @@ function finitePair(value){return Array.isArray(value)&&value.length===2&&Number
 function wktNumber(n){const v=Number(n);if(!Number.isFinite(v))throw new Error('Coordinates must be finite numbers');return Object.is(v,-0)?'0':String(v)}
 function pairWkt(p){if(!Array.isArray(p)||p.length<2)throw new Error('Invalid coordinate pair');return p.map(wktNumber).join(' ')}
 function wktCoords(coords,type){
- if(type==='Point')return pairWkt(coords);
+ if(type==='Point')return '('+pairWkt(coords)+')';
  if(type==='LineString')return '('+coords.map(pairWkt).join(', ')+')';
  if(type==='Polygon')return '('+coords.map(r=>'('+r.map(pairWkt).join(', ')+')').join(', ')+')';
  if(type==='MultiPoint')return '('+coords.map(p=>'('+pairWkt(p)+')').join(', ')+')';
@@ -175,7 +175,7 @@ export function initGisCore(target,rpc){
   '<div class="bpg-status" data-status>Waiting for a task.</div><pre class="bpg-out" data-output>Command output will appear here.</pre>'+
   '<div class="bpg-note">Only implemented operations run. Missing data/providers return explicit blocked or partial states. Signed-in users can write hash-linked audit events; public-only sessions cannot write an authenticated audit record.</div></div>';
  container.appendChild(root);
- const $=s=>root.querySelector(s),toggle=$('[data-toggle]'),panel=$('[data-panel]'),task=$('[data-task]'),input=$('[data-input]'),status=$('[data-status]'),output=$('[data-output]'),indicator=$('[data-indicator');
+ const $=s=>root.querySelector(s),toggle=$('[data-toggle]'),panel=$('[data-panel]'),task=$('[data-task]'),input=$('[data-input]'),status=$('[data-status]'),output=$('[data-output]'),indicator=$('[data-indicator]');
  const authRpc=()=>typeof window.__BP_OWNER_AUTH_RPC_V5910__==='function'?window.__BP_OWNER_AUTH_RPC_V5910__:(typeof window.__BP_OWNER_AUTH_RPC__==='function'?window.__BP_OWNER_AUTH_RPC__:null);
  let activeRun=null,disposed=false;
  const api={version:VERSION,map,catalog:CAPABILITIES,tasks:TASK_CATALOG,route,capabilities:()=>capabilityReport(),readAuditHistory,destroy(){disposed=true;root.remove()}};
@@ -237,12 +237,11 @@ export function initGisCore(target,rpc){
     case 'SATELLITE_ANALYSIS':{
      const sat=window.__BP_SPECTRAL_IMAGERY_V5909__;
      if(!sat?.available||typeof sat.load!=='function')throw Object.assign(new Error('Satellite module is not ready; wait for the map to finish loading.'),{routeStatus:'blocked'});
-     if(payload.composite&&['earth','water','vegetation'].includes(payload.composite)&&sat.root?.querySelector('[data-combo]'))sat.root.querySelector('[data-combo]').value=payload.composite==='water'?'water':'earth';
+     if(payload.composite&&['earth','water','vegetation'].includes(payload.composite)&&sat.root?.querySelector('[data-combo]'))sat.root.querySelector('[data-combo]').value=payload.composite;
      data=await sat.load();
      if(!data&&window.__BP_SPECTRAL_IMAGERY_V5909__?.loading)message='Satellite scene search started; check the satellite panel for source-reported status.';
      else message='Requested a real Landsat scene for the current map viewport.';
      sourceRefs.push({source_key:'LANDSAT_C2_L2',url:'https://planetarycomputer.microsoft.com/api/stac/v1/search',observed_at:window.__BP_SPECTRAL_IMAGERY_V5909__?.selectedAt||null});
-     metrics.map_zoom:undefined;
      break;
     }
     case 'PROPERTY_GROUND_TRUTH':{
