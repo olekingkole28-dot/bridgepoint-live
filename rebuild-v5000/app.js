@@ -1,5 +1,5 @@
 const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
-window.__BP_APP_BUILD_VERSION__=5906;window.__BP_PUBLIC_MARKET_MAP_V5906__={publicMap:true,publicOpportunityLayers:true,updatedAt:Date.now()}
+window.__BP_APP_BUILD_VERSION__=5907;window.__BP_PUBLIC_MARKET_MAP_V5906__={publicMap:true,publicOpportunityLayers:true,updatedAt:Date.now()}
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const RPC=SUPA+'/rest/v1/rpc/';
 const $=id=>document.getElementById(id);
@@ -939,7 +939,7 @@ function appOpportunityGeojson(geo){
  const base=geo?.type==='FeatureCollection'?geo:{type:'FeatureCollection',features:[]};
  return{...base,features:(base.features||[]).map(f=>{const p={...(f.properties||{})},key=String(p.icon_key||'GENERAL').toUpperCase();return{...f,properties:{...p,icon_key:key,color:APP_OPPORTUNITY_NEON[key]||APP_OPPORTUNITY_NEON.GENERAL,label:String(p.label||key.replaceAll('_',' ')+' opportunity')}}})}
 }
-async function refreshOpportunityBuildings(){if(mapBackgroundBlocked()){deferredWork.set('opportunities',refreshOpportunityBuildings);return}const map=world?.map,src=map?.getSource('bpOpportunities');if(!map||!src?.setData||map.isMoving?.())return;const seq=++opportunitySeq;const zoom=map.getZoom();const limit=BP_MOBILE?(zoom<3?25:zoom<6?35:zoom<10?55:90):(zoom<3?25:zoom<6?45:zoom<10?100:220);const b=map.getBounds();try{const d=await rpc('bridgepoint_public_opportunity_viewport_v5906',{p_west:b.getWest(),p_south:b.getSouth(),p_east:b.getEast(),p_north:b.getNorth(),p_limit:limit},3200);if(seq!==opportunitySeq||mapInteracting)return;queueAfterMap('opportunity-commit-'+seq,()=>{if(seq!==opportunitySeq||mapInteracting)return;const geo=appOpportunityGeojson(d?.geojson);src.setData(geo);try{if(map.getLayer('gta-opportunity-buildings'))map.setLayoutProperty('gta-opportunity-buildings','visibility','visible');if(map.getLayer('gta-opportunity-label'))map.setLayoutProperty('gta-opportunity-label','visibility','visible')}catch(_){}window.__BP_APP_OPPORTUNITY_STYLE_V5578__={mode:'APP_NEON_CLASSIFIED',wholeBuilding:true,icons:true,labels:true,features:geo.features.length,colors:APP_OPPORTUNITY_NEON,updatedAt:Date.now()}})}catch(e){if(seq===opportunitySeq)console.warn('opportunity overlay',e)}}
+async function refreshOpportunityBuildings(){if(mapBackgroundBlocked()){deferredWork.set('opportunities',refreshOpportunityBuildings);return}const map=world?.map,src=map?.getSource('bpOpportunities');if(!map||!src?.setData||map.isMoving?.())return;const seq=++opportunitySeq;const zoom=map.getZoom();const limit=BP_MOBILE?(zoom<3?25:zoom<6?35:zoom<10?55:90):(zoom<3?25:zoom<6?45:zoom<10?100:220);const b=map.getBounds();try{const d=await rpc('bridgepoint_public_opportunity_viewport_v5907',{p_west:b.getWest(),p_south:b.getSouth(),p_east:b.getEast(),p_north:b.getNorth(),p_limit:limit},3200);if(seq!==opportunitySeq||mapInteracting)return;queueAfterMap('opportunity-commit-'+seq,()=>{if(seq!==opportunitySeq||mapInteracting)return;const geo=appOpportunityGeojson(d?.geojson);src.setData(geo);try{if(map.getLayer('gta-opportunity-buildings'))map.setLayoutProperty('gta-opportunity-buildings','visibility','visible');if(map.getLayer('gta-opportunity-label'))map.setLayoutProperty('gta-opportunity-label','visibility','visible')}catch(_){}window.__BP_APP_OPPORTUNITY_STYLE_V5578__={mode:'APP_NEON_CLASSIFIED',wholeBuilding:true,icons:true,labels:true,features:geo.features.length,colors:APP_OPPORTUNITY_NEON,updatedAt:Date.now()}})}catch(e){if(seq===opportunitySeq)console.warn('opportunity overlay',e)}}
 function scheduleOpportunityBuildings(){clearTimeout(opportunityTimer);opportunityTimer=setTimeout(refreshOpportunityBuildings,BP_MOBILE?1100:650)}
 function startOpportunityBuildings(){const map=world?.map;if(!map||map.__bpOpportunityBound)return;map.__bpOpportunityBound=true;map.on('moveend',scheduleOpportunityBuildings);setTimeout(()=>queueAfterMap('opportunities',refreshOpportunityBuildings),BP_MOBILE?4200:520)}
 
@@ -1136,7 +1136,7 @@ async function start(){
  statusTimer=setInterval(()=>queueAfterMap('status-pulse',loadStatus),15000);
  tileTimer=setInterval(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?600000:300000);
  setTimeout(()=>queueAfterMap('tile-pulse',refreshTiles),BP_MOBILE?300000:120000);
- if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5881',{updateViaCache:'none'}).catch(()=>{})
+ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js?v=5907',{updateViaCache:'none'}).catch(()=>{})
 }
 window.addEventListener('bridgepoint:softrefresh',()=>{
  try{queueAfterMap('status-pulse',loadStatus)}catch(_){}

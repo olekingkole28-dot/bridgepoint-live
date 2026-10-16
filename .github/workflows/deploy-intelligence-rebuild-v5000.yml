@@ -464,7 +464,7 @@ jobs:
           grep -Fq 'id="fireUtilityBtn"' site/app/horizon-playable/v2-entry.html
 
           grep -Fq 'BP_FRONTEND_V5000' site/index.html
-          grep -Fq '__BP_APP_BUILD_VERSION__=5906' site/app.js
+          grep -Fq '__BP_APP_BUILD_VERSION__=5907' site/app.js
           grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' site/world-v2300-map.js
           grep -Fq '__BP_TECH_BASEMAP_V1116__' site/world-v2300-map.js
           grep -Fq '__BP_PUBLIC_TECH_FAST_V1117__' site/world-v2300-map.js
@@ -502,7 +502,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5512' site/app.js
           grep -Fq 'bridgepoint_public_building_parts_v5000' site/app.js
           grep -Fq 'bridgepoint_public_foundation_sample_v5011' site/app.js
-          grep -Fq 'bridgepoint_public_opportunity_viewport_v5906' site/app.js
+          grep -Fq 'bridgepoint_public_opportunity_viewport_v5907' site/app.js
           grep -Fq 'gta-place-label' site/world-v2300-map.js
           grep -Fq 'gta-road-label-major' site/world-v2300-map.js
           grep -Fq 'gta-poi-probe' site/world-v2300-map.js
@@ -729,7 +729,7 @@ jobs:
               && grep -Fq 'BP_FRONTEND_V5000' /tmp/app.html \
               && grep -Fq 'toggleLiveContext' /tmp/app.html \
               && grep -Fq 'data-nosnippet' /tmp/app.html \
-              && grep -Fq '__BP_APP_BUILD_VERSION__=5906' /tmp/app.js \
+              && grep -Fq '__BP_APP_BUILD_VERSION__=5907' /tmp/app.js \
               && grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' /tmp/world-v2300-map.js \
               && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js \
               && grep -Fq '__BP_PARCEL_BOUNDARY_VIEWER_V5577__' /tmp/parcel-boundary-viewer-v5403.js \
@@ -976,9 +976,25 @@ jobs:
 
               await p.goto('https://bridgepointintelligence.online/app/?qa=v5584-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               try{
-                await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000&&window.__BP_APP_BUILD_VERSION__===5906,{timeout:20000});
+                await p.waitForFunction(()=>window.__BP_FRONTEND_VERSION===5000&&window.__BP_APP_BUILD_VERSION__===5907,{timeout:20000});
               }catch(e){
-                const boot=await p.evaluate(()=>({url:location.href,readyState:document.readyState,frontend:window.__BP_FRONTEND_VERSION,app:window.__BP_APP_BUILD_VERSION__,scripts:[...document.scripts].map(s=>s.src).filter(Boolean),body:document.body.innerText.slice(0,300)}));
+                const boot=await p.evaluate(async()=>{
+                  let freshAsset={checked:false};
+                  try{
+                    const r=await fetch('/app.js?bp-smoke-diagnostic='+Date.now(),{cache:'no-store'});
+                    const t=await r.text();
+                    freshAsset={checked:true,status:r.status,ok:r.ok,contentType:r.headers.get('content-type'),cacheControl:r.headers.get('cache-control'),length:t.length,build5907:t.includes('__BP_APP_BUILD_VERSION__=5907'),rpc5907:t.includes('bridgepoint_public_opportunity_viewport_v5907'),buildSnippet:t.split('window.__BP_APP_BUILD_VERSION__').slice(1,2)[0]?.slice(0,90)||null};
+                  }catch(e){freshAsset={checked:true,error:String(e?.message||e)}}
+                  let workers=[];
+                  try{workers=await navigator.serviceWorker.getRegistrations().then(rs=>rs.map(r=>({scope:r.scope,active:r.active?.scriptURL||null,waiting:r.waiting?.scriptURL||null,installing:r.installing?.scriptURL||null})))}catch(e){workers=[{error:String(e?.message||e)}]}
+                  return{
+                    url:location.href,readyState:document.readyState,frontend:window.__BP_FRONTEND_VERSION,app:window.__BP_APP_BUILD_VERSION__,
+                    scripts:[...document.scripts].map(s=>({src:s.src,async:s.async,defer:s.defer,type:s.type})).filter(s=>s.src),
+                    appResources:performance.getEntriesByType('resource').filter(e=>e.name.includes('/app.js')).slice(-8).map(e=>({name:e.name,duration:Math.round(e.duration),transferSize:e.transferSize||0})),
+                    freshAsset,workerController:navigator.serviceWorker?.controller?.scriptURL||null,workers,
+                    appUpdate:window.__BP_APP_UPDATE__||null,body:document.body.innerText.slice(0,300)
+                  }
+                });
                 console.log('APP_BOOT_VERSION_TIMEOUT',JSON.stringify(boot));
                 throw e;
               }
@@ -1047,7 +1063,7 @@ jobs:
                 weatherFx:window.__bpWeatherV2300?.fx?.state?.capabilities||window.__bpWeatherFXV2300?.state?.capabilities||{}
                 };
               });
-              if(state.frontend!==5000||state.app!==5906||state.world!==5630||state.canvases!==1||state.architecture!=='MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY'||state.camera?.mode!=='FREE_FLY_SINGLE_VIEW'||state.camera?.singleView!==true||state.camera?.autoViewSwitching!==false||state.camera?.streetWalkMode!==false||state.camera?.buildingClickOverlook!==true||Number(state.maxPitch)<84||state.materials?.floorLines!==true||state.materials?.roofOverlays!==true||state.materials?.exactRoofs!==true||state.fine?.enabled!==false||!state.sources.city||!state.sources.cityRoofs||!state.sources.weatherShapes||!state.weatherLegend.present||!state.weatherLegend.more||state.weatherFx.rainSnowHail!==true||state.weatherFx.wildfireFlameParticles!==true||Object.values(state.layers).some(v=>v!==true))throw new Error('CURRENT_WORLD_REGRESSION '+JSON.stringify(state));
+              if(state.frontend!==5000||state.app!==5907||state.world!==5630||state.canvases!==1||state.architecture!=='MAPLIBRE_CITY_STRUCTURES_REAL_ROOFS_LIGHTWEIGHT_FREE_FLY'||state.camera?.mode!=='FREE_FLY_SINGLE_VIEW'||state.camera?.singleView!==true||state.camera?.autoViewSwitching!==false||state.camera?.streetWalkMode!==false||state.camera?.buildingClickOverlook!==true||Number(state.maxPitch)<84||state.materials?.floorLines!==true||state.materials?.roofOverlays!==true||state.materials?.exactRoofs!==true||state.fine?.enabled!==false||!state.sources.city||!state.sources.cityRoofs||!state.sources.weatherShapes||!state.weatherLegend.present||!state.weatherLegend.more||state.weatherFx.rainSnowHail!==true||state.weatherFx.wildfireFlameParticles!==true||Object.values(state.layers).some(v=>v!==true))throw new Error('CURRENT_WORLD_REGRESSION '+JSON.stringify(state));
               console.log('BRIDGEPOINT_CURRENT_WORLD_PASS',JSON.stringify(state));
 
               await p.evaluate(()=>{
