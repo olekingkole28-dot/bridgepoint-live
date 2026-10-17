@@ -5,6 +5,8 @@ const SOURCE_ID='bp-underground-xray-source-v5935';
 const GLOW_ID='bp-underground-xray-glow-v5935';
 const LINE_ID='bp-underground-xray-line-v5935';
 const FN='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-underground-xray-v5935';
+// Public rendering uses generalized TUNNELS_UNDERPASSES records only.
+// No pipe network or leak telemetry exists in the current materialized dataset; never infer either from tunnel geometry.
 const EMPTY=new Uint8Array();
 const CSS=`
 :is(#liveMap,#previewMap) #${ROOT_ID}{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;color:#eafaff;font:11px/1.35 system-ui,-apple-system,Segoe UI,sans-serif}
