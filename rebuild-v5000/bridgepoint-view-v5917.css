@@ -338,3 +338,7 @@ body.bpv-view-ready .bpv-topbar-persistent{
 .bpv-key-ribbon .bpv-live-inventory-chip b{font-size:8px;color:#fff;font-variant-numeric:tabular-nums}
 .bpv-key-ribbon [data-bpv-listings-rentals]{color:#fff;font-size:8px}
 @media(max-width:700px){.bpv-key-ribbon .bpv-live-inventory-chip{padding:3px 5px;gap:4px}.bpv-key-ribbon .bpv-live-inventory-chip b{font-size:7px}}
+
+/* V5938 optional overlay cards: glass, glow, and no default white inputs. */
+:is(#liveMap,#previewMap) #bp-sensor-layers-v5938,:is(#liveMap,#previewMap) #bp-underground-xray-v5935{color:#eafaff!important;border-radius:13px!important;}
+:is(#liveMap,#previewMap) #bp-sensor-layers-v5938 button,:is(#liveMap,#previewMap) #bp-underground-xray-v5935 button{font-family:inherit;}

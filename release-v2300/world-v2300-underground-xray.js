@@ -9,6 +9,7 @@ const FN='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-publ
 // No pipe network or leak telemetry exists in the current materialized dataset; never infer either from tunnel geometry.
 const EMPTY=new Uint8Array();
 const CSS=`
+:is(#liveMap,#previewMap) #${ROOT_ID}{padding:10px;border:1px solid rgba(111,226,255,.24);border-radius:13px;background:linear-gradient(135deg,rgba(5,22,34,.96),rgba(14,14,36,.94));box-shadow:0 8px 22px rgba(0,0,0,.22),inset 0 1px 0 rgba(211,250,255,.06);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 :is(#liveMap,#previewMap) #${ROOT_ID}{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;color:#eafaff;font:11px/1.35 system-ui,-apple-system,Segoe UI,sans-serif}
 :is(#liveMap,#previewMap) #${ROOT_ID} *{box-sizing:border-box}
 :is(#liveMap,#previewMap) #${ROOT_ID} .bpxr-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;align-items:center}
@@ -30,10 +31,10 @@ export function initUndergroundXray(target){
  if(!map||!container||typeof fetch!=='function')return null;
  if(window.__BP_UNDERGROUND_XRAY_V5935__?.map===map)return window.__BP_UNDERGROUND_XRAY_V5935__;
  if(!document.getElementById(STYLE_ID)){const style=document.createElement('style');style.id=STYLE_ID;style.textContent=CSS;document.head.appendChild(style)}
- const state={version:VERSION,map,enabled:true,available:true,coverage:null,source:'Overture public mapped tunnels/underpasses',leakTelemetryConnected:false,lastUpdated:Date.now()};
+ const state={version:VERSION,map,enabled:false,available:true,coverage:null,source:'Overture public mapped tunnels/underpasses',leakTelemetryConnected:false,lastUpdated:Date.now()};
  window.__BP_UNDERGROUND_XRAY_V5935__=state;
  const dock=document.createElement('section');dock.id=ROOT_ID;dock.setAttribute('aria-label','Underground X-ray map layer');
- dock.innerHTML='<div class="bpxr-row"><button class="bpxr-toggle" type="button" data-toggle aria-pressed="true">◈ UNDERGROUND X-RAY · ON</button><span class="bpxr-count" data-count>CHECKING COVERAGE</span></div><div class="bpxr-status" data-status>Loading source-backed tunnel and underpass coverage…</div><div class="bpxr-key"><span><i class="bpxr-swatch"></i> MAPPED PUBLIC TUNNEL / PASSAGE</span><span><i class="bpxr-swatch leak"></i> LEAK TELEMETRY NOT CONNECTED</span></div>';
+ dock.innerHTML='<div class="bpxr-row"><button class="bpxr-toggle" type="button" data-toggle aria-pressed="false">◈ UNDERGROUND X-RAY · OFF</button><span class="bpxr-count" data-count>UNLOADED</span></div><div class="bpxr-status" data-status><strong>Fast map mode.</strong> Public mapped tunnel/underpass geometry loads only when enabled. Pipes and live leak telemetry are not materialized.</div><div class="bpxr-key"><span><i class="bpxr-swatch"></i> MAPPED PUBLIC TUNNEL / PASSAGE</span><span><i class="bpxr-swatch leak"></i> NO LEAK TELEMETRY</span></div>';
  const $=s=>dock.querySelector(s),button=$('[data-toggle]'),status=$('[data-status]'),count=$('[data-count]');
  let disposed=false,mountTimer=null,tries=0,retryTimer=null,styleRetry=null;
  const opacityOriginal=new Map();
@@ -47,7 +48,7 @@ export function initUndergroundXray(target){
  }
  function syncButton(){button.setAttribute('aria-pressed',String(state.enabled));button.textContent=state.enabled?'◈ UNDERGROUND X-RAY · ON':'◈ UNDERGROUND X-RAY · OFF'}
  function ensureLayers(){
-  if(disposed||!map||typeof map.addSource!=='function')return false;
+  if(disposed||!state.enabled||!map||typeof map.addSource!=='function')return false;
   try{
    if(!map.isStyleLoaded?.())return false;
    if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{type:'vector',tiles:[FN+'?z={z}&x={x}&y={y}&v=5935'],minzoom:10,maxzoom:17,attribution:'Overture Maps public mapped tunnel and underpass geometry; generalized public display'});
@@ -79,9 +80,11 @@ export function initUndergroundXray(target){
   if(++tries<120)mountTimer=setTimeout(mount,150);
   else{dock.hidden=false;container.appendChild(dock);dock.dataset.mountFallback='1'}
  }
+ function deactivateLayers(){try{for(const id of [GLOW_ID,LINE_ID])if(map.getLayer(id))map.removeLayer(id);setXrayOpacity(false);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID)}catch(_){}}
  button.addEventListener('click',()=>{
   state.enabled=!state.enabled;state.lastUpdated=Date.now();syncButton();
-  if(!ensureLayers())setStatus('Map style is still loading. The X-ray layer will retry automatically.');
+  if(state.enabled){if(!ensureLayers())setStatus('Map style is loading. The X-ray layer will attach when ready.');void refreshCoverage()}
+  else{deactivateLayers();count.textContent='UNLOADED';setStatus('<strong>Fast map mode.</strong> Underground geometry is unloaded until switched on again.')}
  });
  function setStatus(value,error=false){status.textContent=value;status.dataset.error=error?'true':'false'}
  async function refreshCoverage(){
@@ -93,17 +96,13 @@ export function initUndergroundXray(target){
    setStatus(Number(d.mapped_tunnel_passage_records||0).toLocaleString()+' source-backed tunnel / underpass records across '+jur+' jurisdictions. '+pipe.toLocaleString()+' pipe records; '+leaks.toLocaleString()+' leak signals currently materialized. Exact depth and active leaks are not inferred from tunnel lines.');
   }catch(e){count.textContent='STATUS UNAVAILABLE';setStatus('Map layer is linked, but coverage statistics are temporarily unavailable. Unverified pipes and leaks will not be drawn.',true);console.warn('BridgePoint underground X-ray coverage status',e)}
  }
- const onStyle=()=>{if(!ensureLayers()&&!styleRetry)styleRetry=setTimeout(()=>{styleRetry=null;ensureLayers()},350)};
+ const onStyle=()=>{if(state.enabled&&!ensureLayers()&&!styleRetry)styleRetry=setTimeout(()=>{styleRetry=null;if(state.enabled)ensureLayers()},600)};
  map.on('styledata',onStyle);map.on('load',onStyle);map.on('zoomend',onStyle);
- ensureLayers();
- [200,650,1400,2600].forEach(ms=>setTimeout(()=>{if(!disposed)ensureLayers()},ms));
- retryTimer=setInterval(()=>{if(disposed){clearInterval(retryTimer);return}if(!map.getLayer(LINE_ID))ensureLayers()},2500);
- void refreshCoverage();
  mount();
- state.open=()=>{state.enabled=true;syncButton();ensureLayers();return state};
- state.close=()=>{state.enabled=false;syncButton();ensureLayers();return state};
+ state.open=()=>{state.enabled=true;syncButton();if(!ensureLayers())setStatus('Map style is loading. The X-ray layer will attach when ready.');void refreshCoverage();return state};
+ state.close=()=>{state.enabled=false;syncButton();deactivateLayers();count.textContent='UNLOADED';setStatus('<strong>Fast map mode.</strong> Underground geometry is unloaded until re-enabled.');return state};
  state.toggle=()=>{button.click();return state};
- state.destroy=()=>{disposed=true;clearTimeout(mountTimer);clearTimeout(styleRetry);clearInterval(retryTimer);map.off('styledata',onStyle);map.off('load',onStyle);map.off('zoomend',onStyle);try{for(const id of [GLOW_ID,LINE_ID])if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none');setXrayOpacity(false)}catch(_){}dock.remove();state.available=false};
- state.ready=!!map.getSource(SOURCE_ID);
+ state.destroy=()=>{disposed=true;clearTimeout(mountTimer);clearTimeout(styleRetry);clearInterval(retryTimer);map.off('styledata',onStyle);map.off('load',onStyle);map.off('zoomend',onStyle);deactivateLayers();dock.remove();state.available=false};
+ state.ready=false;
  return state;
 }

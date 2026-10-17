@@ -287,8 +287,8 @@ jobs:
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5935-underground-xray' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5935-underground-xray' site/landing.js
-          grep -Fq 'world-v2300-sensor-layers.js?v=5937-global-nightlights-history' site/app.js
-          grep -Fq 'world-v2300-sensor-layers.js?v=5937-global-nightlights-history' site/landing.js
+          grep -Fq 'world-v2300-sensor-layers.js?v=5938-lazy-overlays' site/app.js
+          grep -Fq 'world-v2300-sensor-layers.js?v=5938-lazy-overlays' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'bridgepoint-nasa-nightlights-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'streetlight_poles' site/world-v2300-sensor-layers.js
@@ -298,8 +298,8 @@ jobs:
           grep -Fq 'TUNNELS_UNDERPASSES' site/world-v2300-underground-xray.js
           grep -Fq 'No pipe network or leak telemetry' site/world-v2300-underground-xray.js
           grep -Fq 'bp-underground-xray-v5935' site/world-v2300-underground-xray.js
-          grep -Fq 'bridgepoint-map-key-v5920.js?v=5937-global-nightlights-history' site/index.html
-          grep -Fq 'bridgepoint-map-key-v5920.js?v=5937-global-nightlights-history' site/app/index.html
+          grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/index.html
+          grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/app/index.html
           grep -Fq 'Subsurface + Ocean-Depth X-Ray' site/bridgepoint-map-key-v5920.js
           grep -Fq 'world-v2300-realism.js?v=5910-world-materials' site/app.js
           grep -Fq 'gis-core-orchestrator-v5910.js?v=5910-gis-router' site/app.js
