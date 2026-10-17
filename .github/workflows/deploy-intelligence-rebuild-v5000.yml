@@ -288,6 +288,9 @@ jobs:
           grep -Fq 'TUNNELS_UNDERPASSES' site/world-v2300-underground-xray.js
           grep -Fq 'No pipe network or leak telemetry' site/world-v2300-underground-xray.js
           grep -Fq 'bp-underground-xray-v5935' site/world-v2300-underground-xray.js
+          grep -Fq 'bridgepoint-map-key-v5920.js?v=5935-underground-xray' site/index.html
+          grep -Fq 'bridgepoint-map-key-v5920.js?v=5935-underground-xray' site/app/index.html
+          grep -Fq 'Underground X-Ray · mapped tunnels / underpasses' site/bridgepoint-map-key-v5920.js
           grep -Fq 'world-v2300-realism.js?v=5910-world-materials' site/app.js
           grep -Fq 'gis-core-orchestrator-v5910.js?v=5910-gis-router' site/app.js
           grep -Fq 'PUBLIC_AUTO_MIN_ZOOM=4' site/parcel-boundary-viewer-v5403.js
