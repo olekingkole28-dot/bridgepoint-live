@@ -8,6 +8,9 @@ let summary=null,loading=null;
 const verticalNames={public_adjusting:'Public adjusting / claims',restoration:'Restoration',roofing:'Roofing',property_investment:'Property investment / acquisition',general_contracting:'General contracting / construction',development:'Development / redevelopment',solar:'Solar / property improvements'};
 const familyNames={property_damage:'Property damage',claims:'Claims',acquisition:'Acquisition',construction:'Construction',redevelopment:'Redevelopment',property_improvement:'Property improvements'};
 const mapColors=[
+ {key:'CLAIMS',name:'Public adjusting / claims',color:'#a98cff',desc:'Public adjuster / claims opportunity.'},
+ {key:'RESTORATION',name:'Restoration / property damage',color:'#ff4ea3',desc:'Restoration opportunity.'},
+ {key:'CONSTRUCTION',name:'General contracting / construction',color:'#ffb34a',desc:'General contractor / construction opportunity.'},
  {key:'ROOF',name:'Roofing / shingles',color:'#fff200',desc:'Roof or shingle opportunity match.'},
  {key:'STORM',name:'Storm / wind / hail',color:'#b026ff',desc:'Storm, wind, hail or weather opportunity match.'},
  {key:'FIRE',name:'Fire / burn / smoke',color:'#ff3b19',desc:'Fire-related opportunity match.'},
@@ -148,8 +151,9 @@ function mount(){
  const panel=document.getElementById('bpv-sidecar'),nav=panel?.querySelector('.bpv-sidecar-tabs'),opp=panel?.querySelector('[data-bpv-pane="opportunities"]');
  if(!panel||!nav||!opp)return false;
  addInventory();addMapKey(panel);
- const map=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map||window.__BP_V5000_WORLD__?.map;
+ const map=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map||window.__BP_V5000_WORLD?.map||window.__BP_V5000_WORLD__?.map;
  if(map)bindPopup(map);
+ if(!window.__BP_MAP_POPUP_BIND_LOOP_V5920__)window.__BP_MAP_POPUP_BIND_LOOP_V5920__=setInterval(()=>{const m=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map||window.__BP_V5000_WORLD?.map||window.__BP_V5000_WORLD__?.map;if(m){bindPopup(m);if(m.__bpOpportunityPopupV5920)clearInterval(window.__BP_MAP_POPUP_BIND_LOOP_V5920__)}},250);
  if(!window.__BP_MAP_KEY_INIT__){window.__BP_MAP_KEY_INIT__=true;void callSummary();setInterval(()=>{if(!document.hidden)void callSummary()},5*60*1000);const observer=new MutationObserver(()=>{if(summary)updateMetricPanel(summary.counts||{})});const metricGrid=document.getElementById('bpv-metric-grid');if(metricGrid)observer.observe(metricGrid,{childList:true,subtree:true})}
  return true;
 }
