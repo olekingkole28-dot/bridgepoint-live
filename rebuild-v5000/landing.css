@@ -201,3 +201,17 @@ body>header{z-index:50}body>main,body>.site-footer{z-index:2}
  #landingOpportunityFamilies{min-block-size:160px}
  #landingOpportunityStates{min-block-size:280px}
 }
+
+/* V5938 responsive landing guard: the product cards and footer must follow the mobile/tablet/desktop grid contract. */
+@media (min-width:1281px){
+  .cap-grid,.package-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  .footer-link-groups{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+}
+@media (min-width:601px) and (max-width:1280px){
+  .cap-grid,.package-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .footer-link-groups{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media (max-width:600px){
+  .cap-grid,.package-grid{grid-template-columns:minmax(0,1fr)!important}
+  .footer-link-groups{grid-template-columns:1fr!important}
+}

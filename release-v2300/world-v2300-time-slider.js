@@ -24,7 +24,7 @@ const CSS=`
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 [data-collapse]{min-height:23px;padding:4px 8px;margin-left:2px;font-size:12px;line-height:1}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed{width:min(300px,calc(100% - 24px));padding:8px 11px}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed .bpwt-head{margin-bottom:0}
-:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed>.bpwt-scale,:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed>.bpwt-controls,:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed>.bpwt-list,:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed>.bpwt-note{display:none!important}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed>.bpwt-scale,:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed>.bpwt-controls,:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed>.bpwt-filters,:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed>.bpwt-list,:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed>.bpwt-note{display:none!important}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-eyebrow{font-size:10px;letter-spacing:.13em;font-weight:900;color:#91eaff}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-status{font-variant-numeric:tabular-nums;color:#b6d2e0;font-size:11px}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-date{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 2px}
