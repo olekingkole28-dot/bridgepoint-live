@@ -21,7 +21,7 @@ const CSS=`
 :is(#liveMap,#previewMap) #${ROOT_ID} .bpxr-swatch{display:inline-block;width:12px;height:3px;border-radius:3px;background:#83ffff;box-shadow:0 0 6px #765bff}
 :is(#liveMap,#previewMap) #${ROOT_ID} .bpxr-swatch.leak{background:#ffb15e;box-shadow:none}
 `;
-function hexToBytes(v){const s=String(v||'').replace(/^\\\\x/,'');const out=new Uint8Array(Math.floor(s.length/2));for(let i=0;i<out.length;i++)out[i]=parseInt(s.slice(i*2,i*2+2),16);return out}
+function hexToBytes(v){const raw=String(v||'');const prefix=String.fromCharCode(92)+'x';const s=raw.startsWith(prefix)?raw.slice(2):raw;const out=new Uint8Array(Math.floor(s.length/2));for(let i=0;i<out.length;i++)out[i]=parseInt(s.slice(i*2,i*2+2),16);return out}
 async function fetchStatus(){const r=await fetch(FN+'?status=1',{headers:{Accept:'application/json'},cache:'no-store'});if(!r.ok)throw new Error('Coverage status HTTP '+r.status);const j=await r.json();if(j?.complete!==true)throw new Error(j?.error||'Coverage status unavailable');return j}
 export function initUndergroundXray(target){
  const map=target?.map||target,container=map?.getContainer?.();
