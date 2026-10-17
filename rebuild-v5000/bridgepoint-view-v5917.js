@@ -541,7 +541,16 @@ function renderListingCards(features,selectedId=null){
   if(imagePath){const img=document.createElement('img');img.className='bpv-listing-photo';img.loading='lazy';img.src=imagePath;img.alt='BridgePoint-hosted listing photo';img.onerror=()=>{img.remove();card.classList.add('bpv-no-photo')};card.appendChild(img)}
   else{const badge=node('div','bpv-listing-photo-empty','IMAGE NOT MATERIALIZED IN BRIDGEPOINT');card.appendChild(badge)}
   card.append(title,address,meta,source);
-  const note=node('p','bpv-listing-accuracy',p.accuracy_notice||'Listing status and address precision follow the source record; refresh source evidence before acting.');
+  const d=p.bridgepoint_detail&&typeof p.bridgepoint_detail==='object'?p.bridgepoint_detail:{};
+  const details=[];
+  if(d.case_number)details.push(['HUD CASE',d.case_number]);
+  if(d.date_acquired)details.push(['ACQUIRED',new Date(d.date_acquired).toLocaleDateString()]);
+  if(d.date_closed)details.push(['CLOSED',new Date(d.date_closed).toLocaleDateString()]);
+  if(d.date_reconciled)details.push(['RECONCILED',new Date(d.date_reconciled).toLocaleDateString()]);
+  if(d.regional_hoc)details.push(['REGIONAL OFFICE',d.regional_hoc]);
+  if(d.case_step_number)details.push(['CASE STEP',d.case_step_number]);
+  if(details.length){const dl=node('div','bpv-listing-detail-grid');for(const [k,v] of details){const bit=node('div','bpv-listing-detail');bit.append(node('small','',k),node('b','',String(v)));dl.appendChild(bit)}card.appendChild(dl)}
+  const note=node('p','bpv-listing-accuracy',p.accuracy_notice||'Source freshness and current availability are not confirmed unless shown in BridgePoint. No external listing link is provided.');
   card.appendChild(note);
   const act=node('button','bpv-listing-focus','FOCUS ON GLOBE');act.type='button';act.addEventListener('click',()=>{
    const center=featureCenter(f);if(center&&map)try{map.flyTo({center,zoom:Math.max(map.getZoom()||0,15),pitch:Math.max(map.getPitch()||0,45),duration:700})}catch(_){}
@@ -575,7 +584,7 @@ async function loadListings(force=false,queryOverride,selectedId=null){
    document.querySelectorAll('[data-bpv-listings-total]').forEach(n=>n.textContent=Number(s.total_records||0).toLocaleString());
    document.querySelectorAll('[data-bpv-listings-rentals]').forEach(n=>n.textContent=Number(s.rent_records||0).toLocaleString());
    if(summary){
-    summary.textContent=Number(s.total_records||0).toLocaleString()+' materialized listings · '+Number(s.rent_records||0).toLocaleString()+' rental/lease records · '+Number(s.sale_records||0).toLocaleString()+' for-sale records · '+Number(s.bridgepoint_photo_assets||0).toLocaleString()+' records with BridgePoint-hosted photo assets. '+Number(data?.matching_in_view||0).toLocaleString()+' match the current view/search.';
+    summary.textContent=Number(s.total_records||0).toLocaleString()+' stored records · '+Number(s.active_records||0).toLocaleString()+' fresh/current · '+Number(s.stale_records||0).toLocaleString()+' source-stale · '+Number(s.rent_records||0).toLocaleString()+' rental/lease records · '+Number(s.sale_records||0).toLocaleString()+' sale records · '+Number(s.bridgepoint_photo_assets||0).toLocaleString()+' BridgePoint-hosted photo assets. '+Number(data?.matching_in_view||0).toLocaleString()+' match this view/search.';
    }
    const src=ensureListingLayers(current)?current.getSource(BP_LISTINGS_SOURCE_V5927):null;
    if(src)src.setData(data?.geojson||{type:'FeatureCollection',features});
