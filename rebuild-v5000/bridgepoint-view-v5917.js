@@ -9,7 +9,7 @@ const home=!!$('#previewMap')&&!$('#liveMap');
 const mapHost=home?$('.preview'):document.querySelector('.map-surface.active')||$('.map-surface');
 const appMap=$('#liveMap');
 let map=null,idleTimer=0,moveUntil=0,selected={id:null,label:'',feature:null},activePanel='ai',metricsLoading=null,asking=false,searchVisible=true;
-let listingLoading=null,listingSummaryCache=null,listingFeaturesCache=[],listingOverlayOn=false,listingMapTimer=0,listingQueryValue='',listingSelectedId=null;
+let listingLoading=null,listingSummaryCache=null,listingFeaturesCache=[],listingOverlayOn=true,listingMapTimer=0,listingQueryValue='',listingSelectedId=null;
 const SLOT_INFO={
  ai:['BRIDGEPOINT AI','Ask a question about this selected property.'],
  xray:['X-RAY + INTERIOR','Source-backed parts, floors and plans only. No fabricated rooms.'],
@@ -492,7 +492,7 @@ const BP_LISTINGS_LABELS_V5927='bp-v5927-listings-labels';
 const BP_EMPTY_FEATURES_V5927={type:'FeatureCollection',features:[]};
 function ensureListingLayers(m=map){
  if(!m)return false;try{if(m.isStyleLoaded?.()!==true)return false;
-  if(!m.getSource(BP_LISTINGS_SOURCE_V5927))m.addSource(BP_LISTINGS_SOURCE_V5927,{type:'geojson',data:BP_EMPTY_FEATURES_V5927});
+  if(!m.getSource(BP_LISTINGS_SOURCE_V5927))m.addSource(BP_LISTINGS_SOURCE_V5927,{type:'geojson',data:{type:'FeatureCollection',features:listingFeaturesCache}});
   if(!m.getLayer(BP_LISTINGS_POINTS_V5927))m.addLayer({id:BP_LISTINGS_POINTS_V5927,type:'circle',source:BP_LISTINGS_SOURCE_V5927,minzoom:3,paint:{
    'circle-radius':['interpolate',['linear'],['zoom'],3,2.6,7,4.2,11,6.2,15,8],
    'circle-color':['coalesce',['get','display_color'],'#69dfff'],
@@ -613,8 +613,8 @@ async function openRealWorldEffects(initialWind=false){
 function toggleSearch(){
  const input=home?$('#landingPropertySearchInput'):$('#publicSearchInput'),form=home?$('#landingPropertySearch'):$('#publicSearchForm');
  if(!form||!input)return;
- searchVisible=!!form.hidden;form.hidden=!searchVisible;
- if(searchVisible)setTimeout(()=>input.focus({preventScroll:true}),50);
+ form.hidden=false;searchVisible=true;
+ try{input.focus({preventScroll:true})}catch(_){}
 }
 function buildPropertyPanel(){
  const p=$('#bpv-side-property-slots');if(p&&!p.children.length)makeSlots(p,'panel');
