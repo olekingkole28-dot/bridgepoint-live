@@ -488,25 +488,20 @@ function wholeEarth(){
 }
 const BP_LISTINGS_SOURCE_V5927='bp-v5927-listings-source';
 const BP_LISTINGS_POINTS_V5927='bp-v5927-listings-points';
-const BP_LISTINGS_LABELS_V5927='bp-v5927-listings-labels';
 const BP_EMPTY_FEATURES_V5927={type:'FeatureCollection',features:[]};
 function ensureListingLayers(m=map){
- if(!m)return false;try{if(m.isStyleLoaded?.()!==true)return false;
+ if(!m)return false;
+ try{
+  if(m.isStyleLoaded?.()!==true)return false;
   if(!m.getSource(BP_LISTINGS_SOURCE_V5927))m.addSource(BP_LISTINGS_SOURCE_V5927,{type:'geojson',data:{type:'FeatureCollection',features:listingFeaturesCache}});
   if(!m.getLayer(BP_LISTINGS_POINTS_V5927))m.addLayer({id:BP_LISTINGS_POINTS_V5927,type:'circle',source:BP_LISTINGS_SOURCE_V5927,minzoom:3,paint:{
-   'circle-radius':['interpolate',['linear'],['zoom'],3,2.6,7,4.2,11,6.2,15,8],
+   'circle-radius':['interpolate',['linear'],['zoom'],3,2.8,7,4.4,11,6.5,15,8.5],
    'circle-color':['coalesce',['get','display_color'],'#69dfff'],
-   'circle-opacity':.94,'circle-stroke-color':'#071820','circle-stroke-width':['interpolate',['linear'],['zoom'],4,.4,12,1.5]
+   'circle-opacity':.94,'circle-stroke-color':'#071820',
+   'circle-stroke-width':['interpolate',['linear'],['zoom'],4,.4,12,1.5]
   }});
-  if(!m.getLayer(BP_LISTINGS_LABELS_V5927))m.addLayer({id:BP_LISTINGS_LABELS_V5927,type:'symbol',source:BP_LISTINGS_SOURCE_V5927,minzoom:13,layout:{
-   'text-field':['coalesce',['get','address'],['get','title'],'Listing'],
-   'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],13,9,17,12],
-   'text-offset':[0,1.15],'text-max-width':16,'text-allow-overlap':false,'text-ignore-placement':false
-  },paint:{'text-color':'#eafaff','text-halo-color':'rgba(3,12,20,.92)','text-halo-width':1.4}});
-  const wantedVisibility=listingOverlayOn?'visible':'none';
-  for(const id of [BP_LISTINGS_POINTS_V5927,BP_LISTINGS_LABELS_V5927]){
-   try{if(m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!==wantedVisibility)m.setLayoutProperty(id,'visibility',wantedVisibility)}catch(_){}
-  }
+  const visibility=listingOverlayOn?'visible':'none';
+  try{if(m.getLayer(BP_LISTINGS_POINTS_V5927)&&(m.getLayoutProperty(BP_LISTINGS_POINTS_V5927,'visibility')||'visible')!==visibility)m.setLayoutProperty(BP_LISTINGS_POINTS_V5927,'visibility',visibility)}catch(_){}
   if(!m.__bpListingsClickBoundV5927){
    m.__bpListingsClickBoundV5927=true;
    m.on('click',BP_LISTINGS_POINTS_V5927,e=>{const f=e.features?.[0];if(!f)return;listingSelectedId=String(f.properties?.listing_id||f.id||'');openPanel('listings');void loadListings(false,listingQueryValue,listingSelectedId)});
@@ -519,7 +514,7 @@ function ensureListingLayers(m=map){
 function setListingOverlay(on){
  listingOverlayOn=!!on;ensureListingLayers(map);
  const wanted=listingOverlayOn?'visible':'none';
- for(const id of [BP_LISTINGS_POINTS_V5927,BP_LISTINGS_LABELS_V5927])try{if(map?.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')!==wanted)map.setLayoutProperty(id,'visibility',wanted)}catch(_){};
+ try{if(map?.getLayer(BP_LISTINGS_POINTS_V5927)&&(map.getLayoutProperty(BP_LISTINGS_POINTS_V5927,'visibility')||'visible')!==wanted)map.setLayoutProperty(BP_LISTINGS_POINTS_V5927,'visibility',wanted)}catch(_){};
 }
 function listingPhotoPath(raw){
  const v=typeof raw==='string'?raw:(raw?.storage_path||raw?.path||raw?.url||raw?.public_path||'');
