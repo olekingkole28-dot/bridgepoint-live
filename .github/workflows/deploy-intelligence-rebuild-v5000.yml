@@ -231,6 +231,7 @@ jobs:
           grep -Fq 'BridgePoint Intelligence pricing' site/pricing.html
           node --check site/app.js
           node --check site/bridgepoint-view-v5917.js
+          node --check site/bridgepoint-map-key-v5920.js
           grep -Fq 'bridgepoint-view-v5917.css' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css' site/app/index.html
           grep -Fq 'bridgepoint-view-v5917.js' site/index.html
