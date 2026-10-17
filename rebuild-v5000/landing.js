@@ -225,6 +225,9 @@ async function initMap(){
    void import('./world-v2300-spectral-imagery.js?v=5934-world-controls')
     .then(m=>{window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)})
     .catch(e=>console.warn('BridgePoint satellite filters unavailable',e));
+   void import('./world-v2300-underground-xray.js?v=5935-underground-xray')
+    .then(m=>{window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)})
+    .catch(e=>console.warn('BridgePoint Underground X-ray unavailable',e));
    void import('./world-v2300-realism.js?v=5926-world-sun-materials')
     .then(m=>{window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)})
     .catch(e=>console.warn('BridgePoint real-world rendering controls unavailable',e));
