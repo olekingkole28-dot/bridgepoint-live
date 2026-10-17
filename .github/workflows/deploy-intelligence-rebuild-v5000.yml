@@ -896,11 +896,11 @@ jobs:
               // The requested product surface no longer autoloads the walkthrough.
               // Verify that neither the website nor app injects the tour script, styles or overlay.
               await p.goto('https://bridgepointintelligence.online/?tourqa=1&v='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
-              await p.waitForTimeout(1200);
+              await new Promise(resolve=>setTimeout(resolve,1200));
               const landingTour=await p.evaluate(()=>({active:window.__BP_WALKTHROUGH_V5539__?.active===true,overlay:!!document.querySelector('#bpWalkthrough,.bp-tour-shade'),script:[...document.scripts].some(x=>/walkthrough-v5537\.js/i.test(x.src)),css:[...document.querySelectorAll('link[rel="stylesheet"]')].some(x=>/walkthrough-v5537\.css/i.test(x.href))}));
               if(landingTour.active||landingTour.overlay||landingTour.script||landingTour.css)throw new Error('LANDING_WALKTHROUGH_NOT_DISABLED '+JSON.stringify(landingTour));
               await p.goto('https://bridgepointintelligence.online/app/?tourqa=1&v='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
-              await p.waitForTimeout(1200);
+              await new Promise(resolve=>setTimeout(resolve,1200));
               const appTour=await p.evaluate(()=>({active:window.__BP_WALKTHROUGH_V5539__?.active===true,overlay:!!document.querySelector('#bpWalkthrough,.bp-tour-shade'),script:[...document.scripts].some(x=>/walkthrough-v5537\.js/i.test(x.src)),css:[...document.querySelectorAll('link[rel="stylesheet"]')].some(x=>/walkthrough-v5537\.css/i.test(x.href))}));
               if(appTour.active||appTour.overlay||appTour.script||appTour.css)throw new Error('APP_WALKTHROUGH_NOT_DISABLED '+JSON.stringify(appTour));
               console.log('BRIDGEPOINT_WALKTHROUGH_DISABLED_PASS',JSON.stringify({landingTour,appTour}));
