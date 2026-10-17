@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 if(window.__BRIDGEPOINT_VIEW_V5917__)return;
-window.__BRIDGEPOINT_VIEW_V5917__={version:5917,bootedAt:Date.now(),mode:'initializing'};
+window.__BRIDGEPOINT_VIEW_V5917__={version:5920,bootedAt:Date.now(),mode:'initializing'};
 const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
@@ -31,11 +31,12 @@ function openPanel(name){
  activePanel=name;
  p.hidden=false;document.body.classList.add('bpv-panel-open');
  p.dataset.panel=name;
- const titles={ai:'BRIDGEPOINT AI',opportunities:'BRIDGEPOINT OPPORTUNITIES',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',explore:'EXPLORE BRIDGEPOINT'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT VIEW';
+ const titles={ai:'BRIDGEPOINT AI',opportunities:'BRIDGEPOINT OPPORTUNITIES',mapkey:'BRIDGEPOINT MAP KEY',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',explore:'EXPLORE BRIDGEPOINT'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT VIEW';
  p.querySelectorAll('[data-bpv-panel]').forEach(b=>{const on=b.dataset.bpvPanel===name;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on?'true':'false')});
  p.querySelectorAll('[data-bpv-pane]').forEach(s=>{s.hidden=s.dataset.bpvPane!==name});
  if(name==='metrics')void loadMetrics();
- if(name==='opportunities')void loadOpportunityBreakdown();
+ if(name==='opportunities'){void window.__BP_MAP_KEY_REFRESH_V5920__?.(true);void loadOpportunityBreakdown()}
+ if(name==='mapkey')void window.__BP_MAP_KEY_REFRESH_V5920__?.(true);
  if(name==='property')refreshSlotLabels();
  if(name==='ai')setTimeout(()=>$('#bpv-ai-question')?.focus({preventScroll:true}),60);
 }
@@ -70,6 +71,7 @@ function makePanel(){
   '<nav class="bpv-sidecar-tabs" aria-label="BridgePoint View panels">'+
   '<button type="button" data-bpv-panel="ai">BRIDGEPOINT AI</button>'+
   '<button type="button" data-bpv-panel="opportunities">OPPORTUNITIES</button>'+
+  '<button type="button" data-bpv-panel="mapkey">MAP KEY</button>'+
   '<button type="button" data-bpv-panel="metrics">LIVE METRICS</button>'+
   '<button type="button" data-bpv-panel="property">PROPERTY</button>'+
   (home?'<button type="button" data-bpv-panel="explore">EXPLORE</button>':'')+
@@ -85,15 +87,15 @@ function makePanel(){
   (home?'<div id="bpv-home-copy-mount"></div>':'')+
   '</section>'+
   '<section data-bpv-pane="opportunities" hidden>'+
-  '<div class="bpv-pane-title"><b>Live opportunity inventory</b><small>Record-level counts from the current BridgePoint opportunity cohorts. Building geometry is tracked separately.</small></div>'+
-  '<div id="bpv-opportunity-summary" class="bpv-metric-grid"><div class="bpv-metric-card"><span>Opportunity records</span><b>CONNECTING</b><small>Refreshing from BridgePoint</small></div></div>'+
-  '<div class="bpv-opportunity-section"><div class="bpv-opportunity-section-head"><b>U.S. CUSTOMER-READY BY TYPE</b><small>Current READY cache generation; properties can appear in multiple types.</small></div><div id="bpv-opportunity-customer-types" class="bpv-opportunity-list"></div></div>'+
-  '<div class="bpv-opportunity-section"><div class="bpv-opportunity-section-head"><b>GLOBAL RISK-REVIEW TYPES</b><small>Exposure/resilience reviews, not proof of property damage.</small></div><div id="bpv-opportunity-global-types" class="bpv-opportunity-list"></div></div>'+
-  '<div class="bpv-opportunity-section"><div class="bpv-opportunity-section-head"><b>U.S. OPPORTUNITIES BY STATE</b><small>Customer-ready opportunity records and type mix.</small></div><div id="bpv-opportunity-states" class="bpv-opportunity-list"></div></div>'+
-  '<div class="bpv-opportunity-section"><div class="bpv-opportunity-section-head"><b>GLOBAL OPPORTUNITIES BY COUNTRY</b><small>Country totals deduplicate properties within that country; type counts may overlap.</small></div><div id="bpv-opportunity-countries" class="bpv-opportunity-list"></div></div>'+
+  '<div class="bpv-pane-title"><b>BridgePoint opportunity inventory</b><small>Main map inventory and separate customer-ready / international risk-review cohorts are counted independently.</small></div>'+
+  '<div id="bpv-opportunity-summary" class="bpv-metric-grid"><div class="bpv-metric-card"><span>Separate cohort records</span><b>CONNECTING</b><small>Refreshing customer-ready + risk-review cohorts</small></div></div>'+
+  '<div class="bpv-opportunity-section"><div class="bpv-opportunity-section-head"><b>U.S. CUSTOMER-READY COHORT BY TYPE</b><small>Current READY cache generation; properties can appear in multiple types. This is not the full map inventory.</small></div><div id="bpv-opportunity-customer-types" class="bpv-opportunity-list"></div></div>'+
+  '<div class="bpv-opportunity-section"><div class="bpv-opportunity-section-head"><b>INTERNATIONAL RISK-REVIEW COHORT BY TYPE</b><small>Exposure/resilience reviews, not proof of property damage or commercial intent.</small></div><div id="bpv-opportunity-global-types" class="bpv-opportunity-list"></div></div>'+
+  '<div class="bpv-opportunity-section"><div class="bpv-opportunity-section-head"><b>U.S. CUSTOMER-READY COHORT BY STATE</b><small>These state counts do not represent every main-map record.</small></div><div id="bpv-opportunity-states" class="bpv-opportunity-list"></div></div>'+
+  '<div class="bpv-opportunity-section"><div class="bpv-opportunity-section-head"><b>INTERNATIONAL RISK-REVIEW COHORT BY COUNTRY</b><small>These country totals are not the complete main-map country distribution.</small></div><div id="bpv-opportunity-countries" class="bpv-opportunity-list"></div></div>'+
   '<div class="bpv-opportunity-section"><div class="bpv-opportunity-section-head"><b>SEPARATE PUBLIC LISTING INVENTORY</b><small>Active HUD/FHA REO for-sale listings are separate from the opportunity-record total.</small></div><div id="bpv-opportunity-listing-summary" class="bpv-metric-grid"></div><details id="bpv-opportunity-listing-details" class="bpv-opportunity-details"><summary>VIEW ACTIVE LISTINGS BY STATE</summary><div id="bpv-opportunity-listing-states" class="bpv-opportunity-list"></div></details></div>'+
   '<p id="bpv-opportunity-updated" class="bpv-data-note">Waiting for the live BridgePoint opportunity breakdown.</p>'+
-  '<p class="bpv-data-note">Opportunity records are not building footprints or 3D models. The same property may qualify for multiple types. Separate cohorts are shown explicitly to avoid inflating the total.</p></section>'+
+  '<p class="bpv-data-note">Buildings and 3D models are geometry inventory, not opportunity records. Main map records, customer-ready records, global risk reviews and public listings are separate inventories and are not added together.</p></section>'+
   '<section data-bpv-pane="property" hidden><div class="bpv-pane-title"><b id="bpv-property-title">Selected property</b><small id="bpv-property-key">Choose a building on the globe to bind these intelligence slots to it.</small></div>'+
   '<div id="bpv-side-property-slots" class="bpv-slot-grid"></div><p class="bpv-data-note">Each slot stays attached to the selected BridgePoint building. An unavailable source is shown as unavailable rather than filled with a placeholder result.</p></section>'+
   '<section data-bpv-pane="controls" hidden><div class="bpv-pane-title"><b>BridgePoint Controls</b><small>Layers and map actions live here so the globe remains unobstructed.</small></div><div id="bpv-controls-mount"></div>'+

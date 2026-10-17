@@ -116,6 +116,8 @@ jobs:
           cp rebuild-v5000/landing.js site/landing.js
           cp rebuild-v5000/bridgepoint-view-v5917.css site/bridgepoint-view-v5917.css
           cp rebuild-v5000/bridgepoint-view-v5917.js site/bridgepoint-view-v5917.js
+          cp rebuild-v5000/bridgepoint-map-key-v5920.js site/bridgepoint-map-key-v5920.js
+          cp rebuild-v5000/bridgepoint-map-state-counts-v5923.js site/bridgepoint-map-state-counts-v5923.js
           cp rebuild-v5000/styles.css site/styles.css
           cp rebuild-v5000/app.js site/app.js
           cp rebuild-v5000/owner-everything.js site/owner-everything.js
@@ -230,6 +232,8 @@ jobs:
           grep -Fq 'BridgePoint Intelligence pricing' site/pricing.html
           node --check site/app.js
           node --check site/bridgepoint-view-v5917.js
+          node --check site/bridgepoint-map-key-v5920.js
+          node --check site/bridgepoint-map-state-counts-v5923.js
           grep -Fq 'bridgepoint-view-v5917.css' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css' site/app/index.html
           grep -Fq 'bridgepoint-view-v5917.js' site/index.html
