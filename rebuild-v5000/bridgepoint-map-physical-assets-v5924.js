@@ -49,7 +49,7 @@ function styleUI(){
  const s=el('style');s.id='bp-physical-assets-style-v5924';s.textContent=css;document.head.appendChild(s);
 }
 function mountPane(){
- return document.querySelector('[data-bpv-pane="mapkey"]')||document.querySelector('#bpv-sidecar [data-bpv-pane="eye"]')||document.querySelector('[data-bpv-pane="eye"]');
+ return document.querySelector('#bpv-sidecar [data-bpv-pane="controls"]')||document.querySelector('[data-bpv-pane="controls"]')||document.querySelector('[data-bpv-pane="mapkey"]')||document.querySelector('#bpv-sidecar [data-bpv-pane="eye"]')||document.querySelector('[data-bpv-pane="eye"]');
 }
 function addControls(){
  styleUI();const pane=mountPane();if(!pane)return false;
