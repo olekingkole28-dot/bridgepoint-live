@@ -277,10 +277,18 @@ jobs:
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
           grep -Fq 'world-v2300-clouds.js?v=5908-game-clouds' site/app.js
-          grep -Fq 'world-v2300-time-slider.js?v=5908-world-activity' site/app.js
-          grep -Fq 'world-v2300-spectral-imagery.js?v=5931-global-basemap-modes' site/app.js
+          grep -Fq 'world-v2300-time-slider.js?v=5933-world-controls' site/app.js
+          grep -Fq 'world-v2300-spectral-imagery.js?v=5933-world-controls' site/app.js
           grep -Fq 'world-v2300-realism.js?v=5910-world-materials' site/app.js
           grep -Fq 'gis-core-orchestrator-v5910.js?v=5910-gis-router' site/app.js
+          grep -Fq 'PUBLIC_AUTO_MIN_ZOOM=4' site/parcel-boundary-viewer-v5403.js
+          grep -Fq 'PUBLIC_AUTO_MAX_ZOOM=22' site/parcel-boundary-viewer-v5403.js
+          grep -Fq 'bpv-world-activity-slot' site/bridgepoint-view-v5917.js
+          grep -Fq 'bpv-satellite-slot' site/bridgepoint-view-v5917.js
+          grep -Fq 'bpwt-docked' site/world-v2300-time-slider.js
+          grep -Fq 'bps-docked' site/world-v2300-spectral-imagery.js
+          grep -Fq 'BRIDGEPOINT WORLD' site/bridgepoint-view-v5917.js
+          ! grep -Fq '.bpv-map-moving .bp-world-time-slider-v5908' site/bridgepoint-view-v5917.css
           grep -Fq 'bridgepoint_public_property_timeline_v5908' site/app.js
           grep -Fq 'package-entitlements' site/app.js
           grep -Fq 'VIEW ALL ' site/app.js
