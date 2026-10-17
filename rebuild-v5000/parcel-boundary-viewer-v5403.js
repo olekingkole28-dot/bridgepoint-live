@@ -16,11 +16,12 @@ const STATE_LABEL='bp-boundary-state-label-v5576';
 const GLOBAL_SOURCE='bp-boundary-global-status-v5750';
 const GLOBAL_DOT='bp-boundary-global-dot-v5750';
 const GLOBAL_LABEL='bp-boundary-global-label-v5750';
-const PUBLIC_AUTO_SOURCE='bp-public-auto-parcel-source-v5932';
-const PUBLIC_AUTO_GLOW='bp-public-auto-parcel-glow-v5932';
-const PUBLIC_AUTO_LINE='bp-public-auto-parcel-line-v5932';
-const PUBLIC_AUTO_MAX_ZOOM=11.45;
-const PUBLIC_AUTO_STATE_KEY='__BP_PUBLIC_AUTO_BOUNDARIES_V5932__';
+const PUBLIC_AUTO_SOURCE='bp-public-auto-parcel-source-v5933';
+const PUBLIC_AUTO_GLOW='bp-public-auto-parcel-glow-v5933';
+const PUBLIC_AUTO_LINE='bp-public-auto-parcel-line-v5933';
+const PUBLIC_AUTO_MIN_ZOOM=4;
+const PUBLIC_AUTO_MAX_ZOOM=22;
+const PUBLIC_AUTO_STATE_KEY='__BP_PUBLIC_AUTO_BOUNDARIES_V5933__';
 const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 let viewer=null, refreshTimer=null, statusTimer=null, mode='public';
 let lastGlobalRows=[];
@@ -334,31 +335,31 @@ function ensurePublicAutoBoundaryLayers(map){
     if(!map.isStyleLoaded?.())return false;
     const styleLayers=map.getStyle?.()?.layers||[];
     if(!styleLayers.some(layer=>layer.id==='gta-bg'))return false;
-    const bucket=Math.floor(Date.now()/20000);
+    const bucket=Math.floor(Date.now()/300000);
     if(!map.getSource(PUBLIC_AUTO_SOURCE)){
       map.addSource(PUBLIC_AUTO_SOURCE,{
         type:'vector',
         tiles:[publicAutoBoundaryTileUrl(bucket)],
-        minzoom:6,
-        maxzoom:12,
+        minzoom:PUBLIC_AUTO_MIN_ZOOM,
+        maxzoom:PUBLIC_AUTO_MAX_ZOOM,
         attribution:'BridgePoint publicly enabled parcel boundaries · approved source-rights only'
       });
     }
     const before=['gta-place-label','gta-poi-label','gta-opportunity-label'].find(id=>map.getLayer(id));
     if(!map.getLayer(PUBLIC_AUTO_GLOW)){
-      const layer={id:PUBLIC_AUTO_GLOW,type:'line',source:PUBLIC_AUTO_SOURCE,'source-layer':'parcels',minzoom:6,maxzoom:PUBLIC_AUTO_MAX_ZOOM,paint:{
+      const layer={id:PUBLIC_AUTO_GLOW,type:'line',source:PUBLIC_AUTO_SOURCE,'source-layer':'parcels',minzoom:PUBLIC_AUTO_MIN_ZOOM,maxzoom:PUBLIC_AUTO_MAX_ZOOM,paint:{
         'line-color':'#004cff',
-        'line-opacity':['interpolate',['linear'],['zoom'],6,.72,7,.68,9,.58,11.45,.48],
-        'line-width':['interpolate',['linear'],['zoom'],6,1.2,7,1.8,9,2.7,11.45,3.5],
-        'line-blur':['interpolate',['linear'],['zoom'],6,.5,9,1.2,11.45,1.7]
+        'line-opacity':['interpolate',['linear'],['zoom'],4,.24,5,.42,6,.72,7,.68,9,.58,14,.48,20,.4,22,.35],
+        'line-width':['interpolate',['linear'],['zoom'],4,.45,5,.75,6,1.2,7,1.8,9,2.7,14,3.5,20,6,22,8],
+        'line-blur':['interpolate',['linear'],['zoom'],4,.15,6,.5,9,1.2,14,1.7,20,2.7,22,3.2]
       }};
       if(before)map.addLayer(layer,before);else map.addLayer(layer);
     }
     if(!map.getLayer(PUBLIC_AUTO_LINE)){
-      const layer={id:PUBLIC_AUTO_LINE,type:'line',source:PUBLIC_AUTO_SOURCE,'source-layer':'parcels',minzoom:6,maxzoom:PUBLIC_AUTO_MAX_ZOOM,paint:{
+      const layer={id:PUBLIC_AUTO_LINE,type:'line',source:PUBLIC_AUTO_SOURCE,'source-layer':'parcels',minzoom:PUBLIC_AUTO_MIN_ZOOM,maxzoom:PUBLIC_AUTO_MAX_ZOOM,paint:{
         'line-color':'#73ffff',
-        'line-opacity':['interpolate',['linear'],['zoom'],6,.9,7,.97,11.45,1],
-        'line-width':['interpolate',['linear'],['zoom'],6,.28,7,.45,9,.72,11.45,.92]
+        'line-opacity':['interpolate',['linear'],['zoom'],4,.5,5,.7,6,.9,7,.97,14,1,22,1],
+        'line-width':['interpolate',['linear'],['zoom'],4,.14,5,.2,6,.28,7,.45,9,.72,14,.92,22,1.5]
       }};
       if(before)map.addLayer(layer,before);else map.addLayer(layer);
     }
@@ -373,22 +374,22 @@ function wirePublicAutoBoundaries(){
     .filter((m,i,a)=>m&&a.indexOf(m)===i);
   for(const map of maps){
     if(ensurePublicAutoBoundaryLayers(map)){
-      const state=window[PUBLIC_AUTO_STATE_KEY]||{version:5932,maps:[],enabled:true,mode:'public',maxZoom:PUBLIC_AUTO_MAX_ZOOM,updatedAt:Date.now()};
+      const state=window[PUBLIC_AUTO_STATE_KEY]||{version:5933,maps:[],enabled:true,mode:'public',maxZoom:PUBLIC_AUTO_MAX_ZOOM,updatedAt:Date.now()};
       if(!state.maps.includes(map))state.maps.push(map);
       state.updatedAt=Date.now();
       window[PUBLIC_AUTO_STATE_KEY]=state;
       continue;
     }
-    if(!map.__bpPublicAutoBoundaryRetry5932){
-      map.__bpPublicAutoBoundaryRetry5932=true;
+    if(!map.__bpPublicAutoBoundaryRetry5933){
+      map.__bpPublicAutoBoundaryRetry5933=true;
       const retry=()=>{
         if(ensurePublicAutoBoundaryLayers(map)){
           map.off('load',retry);map.off('styledata',retry);
-          const state=window[PUBLIC_AUTO_STATE_KEY]||{version:5932,maps:[],enabled:true,mode:'public',maxZoom:PUBLIC_AUTO_MAX_ZOOM,updatedAt:Date.now()};
+          const state=window[PUBLIC_AUTO_STATE_KEY]||{version:5933,maps:[],enabled:true,mode:'public',maxZoom:PUBLIC_AUTO_MAX_ZOOM,updatedAt:Date.now()};
           if(!state.maps.includes(map))state.maps.push(map);
           state.updatedAt=Date.now();
           window[PUBLIC_AUTO_STATE_KEY]=state;
-          map.__bpPublicAutoBoundaryRetry5932=false;
+          map.__bpPublicAutoBoundaryRetry5933=false;
         }
       };
       map.on('load',retry);map.on('styledata',retry);
