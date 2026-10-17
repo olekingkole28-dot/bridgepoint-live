@@ -217,6 +217,10 @@ async function initMap(){
   if(!world?.map)throw new Error('Shared BridgePoint world renderer unavailable');
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
+   // BridgePoint exposes the same 30-day source-event timeline on the website globe.
+   void import('./world-v2300-time-slider.js?v=5927-world-history')
+    .then(m=>{window.__BP_WORLD_TIME_SLIDER_V5908__=window.__BP_WORLD_TIME_SLIDER_V5908__?.map===map?window.__BP_WORLD_TIME_SLIDER_V5908__:m.initWorldTimeSlider(world,rpc)})
+    .catch(e=>console.warn('BridgePoint 30-day world change scrub unavailable',e));
    // BridgePoint satellite filters, daylight materials and sky layers also run on the homepage globe.
    void import('./world-v2300-spectral-imagery.js?v=5926-landsat-six-combinations')
     .then(m=>{window.__BP_SPECTRAL_IMAGERY_V5909__=m.initSpectralImagery(world)})
