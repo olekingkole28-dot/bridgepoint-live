@@ -119,6 +119,7 @@ function makeTopBarAndDock(){
  '<button type="button" data-bpv-action="opportunities">OPPORTUNITIES</button>'+
  '<button type="button" data-bpv-action="metrics">COUNTERS</button>'+
  '<button type="button" data-bpv-action="controls">LAYERS + TOOLS</button>'+
+  '<button type="button" data-bpv-action="satellite">SATELLITE FILTERS</button>'+
  '<button type="button" data-bpv-action="property">PROPERTY SLOTS</button>'+
  (home?'<button type="button" data-bpv-action="explore">EXPLORE</button>':'')+
  '<button type="button" class="bpv-whole-earth-short" data-bpv-action="whole">WHOLE EARTH</button></div>';
@@ -128,6 +129,15 @@ function makeTopBarAndDock(){
   if(a==='whole'){wholeEarth();return}
   if(a==='search'){toggleSearch();return}
   if(a==='premium'){document.querySelector('#landingFreePremiumTools,#appFreePremiumTools')?.click();return}
+  if(a==='satellite'){
+   const current=window.__BP_SPECTRAL_IMAGERY_V5909__;
+   if(current?.open){current.open();return}
+   const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+   void import('./world-v2300-spectral-imagery.js?v=5926-landsat-six-combinations')
+    .then(m=>{const api=window.__BP_SPECTRAL_IMAGERY_V5909__||m.initSpectralImagery(surfaceWorld);api?.open?.()})
+    .catch(e=>console.warn('BridgePoint satellite filters unavailable',e));
+   return;
+  }
   openPanel(a)
  }));
  return{top,dock,searchSlot:$('#bpv-search-slot'),actions:$('#bpv-dock-actions')};
