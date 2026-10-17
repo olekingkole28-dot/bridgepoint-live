@@ -59,7 +59,10 @@ const CSS=[
 '#liveMap #'+ROOT_ID+' .bps-actions button{flex:1 1 135px}',
 '#liveMap #'+ROOT_ID+' .bps-note{border-top:1px solid rgba(110,195,200,.16);margin-top:9px;padding-top:8px;color:#9ab9c4;font-size:9px;line-height:1.45}',
 '#liveMap #'+ROOT_ID+' .bps-close{padding:4px 8px;min-height:26px;font-size:12px}',
-'@media(max-width:700px){#liveMap #'+ROOT_ID+'{left:8px;top:8px;width:min(340px,calc(100% - 16px))}#liveMap #'+ROOT_ID+' .bps-panel{padding:10px}#liveMap #'+ROOT_ID+' .bps-title{font-size:13px}}'
+'@media(max-width:700px){#liveMap #'+ROOT_ID+'{left:8px;top:8px;width:min(340px,calc(100% - 16px))}#liveMap #'+ROOT_ID+' .bps-panel{padding:10px}#liveMap #'+ROOT_ID+' .bps-title{font-size:13px}}',
+':is(#liveMap,#previewMap) #'+ROOT_ID+'.bps-docked{position:relative!important;z-index:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;inset:auto!important;transform:none!important;width:100%!important;max-width:100%!important;margin:0!important;pointer-events:auto!important}',
+':is(#liveMap,#previewMap) #'+ROOT_ID+'.bps-docked .bps-trigger{display:block;width:100%!important;min-height:32px;text-align:center}',
+':is(#liveMap,#previewMap) #'+ROOT_ID+'.bps-docked .bps-panel{max-height:min(34dvh,320px);overflow-y:auto;margin-top:5px}'
 ].join('\n');
 
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -139,7 +142,7 @@ export function initSpectralImagery(target){
  if(!document.getElementById(STYLE_ID)){const style=document.createElement('style');style.id=STYLE_ID;style.textContent=CSS.replaceAll('#liveMap',':is(#liveMap,#previewMap)');document.head.appendChild(style)}
  const root=document.createElement('div');root.id=ROOT_ID;
  root.innerHTML=
-  '<button class="bps-trigger" type="button" data-toggle aria-expanded="false">🛰 FALSE-COLOR SATELLITE</button>'+
+  '<button class="bps-trigger" type="button" data-toggle aria-expanded="false">🛰 SATELLITE + COLOR</button>'+
   '<section class="bps-panel" data-panel hidden aria-label="Real satellite false-color imagery">'+
   '<div class="bps-head"><div><div class="bps-kicker">BRIDGEPOINT SPECTRAL VIEW</div><div class="bps-title">Real satellite bands. No AI-drawn pixels.</div></div><button class="bps-close" type="button" data-close aria-label="Close satellite panel">×</button></div>'+
   '<div class="bps-status" data-status role="status" aria-live="polite">Color modes work globally. Zoom to a region to request source Landsat bands.</div>'+
@@ -155,9 +158,23 @@ export function initSpectralImagery(target){
   '<div class="bps-note" data-description>False color remaps non-visible wavelengths into RGB. Scene cloud cover is a scene-wide estimate, not a cloud-free guarantee for the selected location. Exports are georeferenced scene previews (up to 2048 px), not the full-resolution source COG.</div>'+
   '<div class="bps-note">Attribution: USGS / NASA Landsat Collection 2 Level-2 · Microsoft Planetary Computer. Imagery is requested from the source at view time and is not silently copied into BridgePoint storage.</div>'+
   '</section>';
- container.appendChild(root);
+ const initialDock=document.querySelector('#bpv-satellite-slot')||document.querySelector('#bpv-dock');
+ if(initialDock){initialDock.appendChild(root);root.classList.add('bps-docked')}
+ else{container.appendChild(root);root.dataset.bpPendingDock='1';root.hidden=true}
  const $=sel=>root.querySelector(sel),toggle=$('[data-toggle]'),panel=$('[data-panel]'),status=$('[data-status]'),meta=$('[data-meta]'),comboSel=$('[data-combo]'),modeSel=$('[data-global-mode]'),opacity=$('[data-opacity]'),opacityLabel=$('[data-opacity-label]'),description=$('[data-description]');
  let controller=null,requestId=0,loadedCombo='earth',disposed=false,scene=null,enabled=false;
+ let mountTurns=0,mountHandle=null;
+ function mountToDock(){
+  if(disposed)return;
+  const target=document.querySelector('#bpv-satellite-slot')||document.querySelector('#bpv-dock');
+  if(target){
+   if(root.parentElement!==target)target.appendChild(root);
+   root.classList.add('bps-docked');root.hidden=false;delete root.dataset.bpPendingDock;return;
+  }
+  if(++mountTurns<120)mountHandle=setTimeout(mountToDock,150);
+  else{root.hidden=false;root.classList.remove('bps-docked');delete root.dataset.bpPendingDock}
+ }
+ if(root.dataset.bpPendingDock==='1')mountHandle=setTimeout(mountToDock,100);
  let currentBasemapMode='dark',defaultsCaptured=false,styleWaitPending=false;
  const originalPaint=new Map(),originalVisibility=new Map();
  const state={version:VERSION,map,available:true,enabled:false,loading:false,scene:null,basemapMode:'dark',source:'USGS_NASA_LANDSAT_C2_L2',attribution:ATTRIBUTION,
@@ -288,7 +305,7 @@ export function initSpectralImagery(target){
  function hideLayer(){
   enabled=false;state.enabled=false;
   try{if(map.getLayer(LAYER_ID))map.setLayoutProperty(LAYER_ID,'visibility','none')}catch(_){}
-  toggle.textContent='🛰 FALSE-COLOR SATELLITE';
+  toggle.textContent='🛰 SATELLITE + COLOR';
   if(scene)setStatus('Overlay hidden · '+scene.id);
   else setStatus('Overlay is off. Find a scene for the current view.');
  }
@@ -361,7 +378,7 @@ export function initSpectralImagery(target){
  const moveHandler=()=>{if(enabled&&scene){const text='Scene stays fixed while you pan. Refresh to fetch imagery for the new view.';setMeta(text+' '+scene.id+' · '+formatDate(scene.properties?.datetime));}};
  map.on('moveend',moveHandler);
  map.on('zoom',updateBasemapZoomCoverage);
- state.destroy=()=>{disposed=true;if(controller)controller.abort();map.off('moveend',moveHandler);map.off('zoom',updateBasemapZoomCoverage);clearOldLayer();root.remove();state.available=false};
+ state.destroy=()=>{disposed=true;clearTimeout(mountHandle);if(controller)controller.abort();map.off('moveend',moveHandler);map.off('zoom',updateBasemapZoomCoverage);clearOldLayer();root.remove();state.available=false};
  setStatus('Ready · choose a global color mode or load real Landsat source bands.');
  applyGlobalBasemapMode(readSavedBasemapMode(),false);
  return state;
