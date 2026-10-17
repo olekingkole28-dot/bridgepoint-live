@@ -1,5 +1,18 @@
 # BridgePoint Intelligence
 
+> **Open-source release note:** This repository is public and its first-party code/docs are licensed under Apache-2.0. The platform spans a second repository, `bridgepoint_data_studio`, for the Flutter application and related backend components. That companion repository is prepared with the same release docs but remains private until its owner/admin changes its visibility. Until then, the complete two-repository platform is **not yet fully public**. See [OPEN_SOURCE_SCOPE.md](OPEN_SOURCE_SCOPE.md) for the exact boundaries.
+
+BridgePoint Intelligence connects geospatial maps and 3D surfaces with property identity, source-backed physical-world context, claims-lifecycle workflows, and explainable evidence. This repository includes the public web/data surfaces, SQL migrations, Supabase Edge Functions, automation, tests, research pages, and selected utilities.
+
+- **What is included, what is not, and data/licence limits:** [OPEN_SOURCE_SCOPE.md](OPEN_SOURCE_SCOPE.md)
+- **Licence and third-party notices:** [LICENSE](LICENSE) · [NOTICE](NOTICE)
+- **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
+- **Security reporting:** [SECURITY.md](SECURITY.md)
+- **Copy-ready launch package:** [launch/OPEN_SOURCE_LAUNCH_KIT.md](launch/OPEN_SOURCE_LAUNCH_KIT.md)
+
+**Important:** the source licence does not grant access to production records, credentials, paid provider feeds, map/satellite imagery, customer data, or third-party datasets. Check the source and asset-specific terms before redistribution. A weather signal is context, not proof of damage.
+
+---
 **BridgePoint Intelligence** is a U.S. property and claims intelligence platform founded by **Kole Johnson**. It is built for commercial contractors, restoration firms, public and insurance adjusters, property operators, real-estate organizations, insurers, lenders, investors, and other teams that need property-level evidence to move into an operational workflow.
 
 
