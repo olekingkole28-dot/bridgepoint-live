@@ -96,7 +96,7 @@ function addMapKey(panel){
   {label:'Physical building shell',cls:'bpv-mapkey-swatch-building',desc:'Source facade colors where available; fallback gradient #7F878B. Gray is not an opportunity category.'},
   {label:'Roof shell / roof cap',cls:'bpv-mapkey-swatch-roof',desc:'Physical shell shader; a textured cap is not proof of an exact roof plane.'},
   {label:'Source-backed roof / plane outlines',color:'#f3df66',desc:'Gold outlines mark source-reported shape evidence; cyan outlines mark sourced roof-plane polygons. They remain georeferenced while panning/zooming; coverage varies and a full 3D pitched roof mesh is not available for every building.'},
-  {label:'Below-ground route overlay',color:'#ff648f',desc:'Pink dashed lines identify mapped tunnels/underpasses and eligible public subsurface records. Unverified buried utilities are not drawn.'},
+  {label:'Underground X-Ray · mapped tunnels / underpasses',color:'#8effff',desc:'Cyan centerlines with violet glow show generalized source-backed public tunnel/underpass geometry only. No pipe network or live leak telemetry is materialized; an empty area does not mean the underground is clear.'},
   {label:'Building outline / geometry edge',cls:'bpv-mapkey-swatch-outline',desc:'Pale cyan #88AEB7 to #D5E5E7 at close zoom.'},
   {label:'Floor-band shader',cls:'bpv-mapkey-swatch-floor',desc:'Optional bands derived from height/level attributes; not a verified interior plan.'},
   {label:'Night-window shader',cls:'bpv-mapkey-swatch-night',desc:'Warm/cool/mixed textures at supported night/high zoom; not live occupancy.'},
