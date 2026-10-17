@@ -140,7 +140,7 @@ function setLandingWeatherEnabled(world,on){
   if(!landingWeatherEnabled)return false;
   landingWeatherModules.weather?.setActive?.(true);landingWeatherModules.weather?.setRadar?.(false);
   try{for(const id of ['bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-points','bp-landing-weather-glow'])if(m.getLayer(id))m.setLayoutProperty(id,'visibility','visible')}catch(_){}
-  window.__BP_LANDING_VISUAL_WEATHER__={version:5822,...landingWeatherModules,enabled:true,mapShared:true,networkActivationDeferred:false,radarVisible:true,asyncAttach:true,updatedAt:Date.now()};
+  window.__BP_LANDING_VISUAL_WEATHER__={version:5822,...landingWeatherModules,enabled:true,mapShared:true,nationalWeather:true,networkActivationDeferred:false,radarVisible:true,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,asyncAttach:true,updatedAt:Date.now()};
   void startLandingNationalWeather(world).catch(e=>console.warn('BridgePoint national weather async',e));
   return true
  };
