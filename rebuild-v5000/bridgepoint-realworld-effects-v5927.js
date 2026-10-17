@@ -48,13 +48,13 @@ export function initBridgePointRealWorldEffects(target,rpc){
  addStyle();if(getComputedStyle(container).position==='static')container.style.position='relative';
  const root=document.createElement('section');root.id=ROOT_ID;root.hidden=true;root.setAttribute('aria-label','BridgePoint real-world effects');
  root.innerHTML='<div data-head><div><strong>BRIDGEPOINT · REAL-WORLD EFFECTS</strong><small>Source weather, atmosphere, wind and visible event geometry. Turn on only what you need.</small></div><button data-close type="button" aria-label="Close effects">×</button></div>'+
- '<div data-grid><button data-source aria-pressed="false">SOURCE WEATHER · OFF</button><button data-particles aria-pressed="false">3D RAIN / SNOW / HAIL · OFF</button><button data-flood aria-pressed="false">FLOOD ALERT SURFACES · OFF</button><button data-radar aria-pressed="false">NOAA RADAR · OFF</button><button data-wind aria-pressed="false">3D WIND STREAMLINES · OFF</button><button data-clouds aria-pressed="true">SKY CLOUD LAYERS · ON</button><button data-sun aria-pressed="false">SUN / SHADOW LIGHTING · OFF</button><button data-realism aria-pressed="false">SATELLITE / MATERIAL REALISM · OFF</button></div>'+
+ '<div data-grid><button data-source aria-pressed="false">SOURCE WEATHER · OFF</button><button data-particles aria-pressed="false">3D RAIN / SNOW / HAIL · OFF</button><button data-flood aria-pressed="false">FLOOD ALERT SURFACES · OFF</button><button data-radar aria-pressed="false">NOAA RADAR · OFF</button><button data-wind aria-pressed="false">3D WIND STREAMLINES · OFF</button><button data-clouds aria-pressed="true">SKY CLOUD LAYERS · ON</button><button data-sun aria-pressed="false">SUN / SHADOW LIGHTING · OFF</button><button data-celestial aria-pressed="false">SUN · MOON · STARS · PLANETS · OFF</button><button data-realism aria-pressed="false">SATELLITE / MATERIAL REALISM · OFF</button></div>'+
  '<div data-status>Ready. Source-backed features appear where feeds cover the current view.</div><p data-note>Radar, alerts and station observations are source-linked. Wind streamlines and canopy movement are schematic visualizations based on the nearest measured wind and rendered building footprints, not engineering CFD. Cloud layers are animated visual layers, not volumetric 3D clouds. Flood outlines are official alert geometry, not surveyed water depth.</p>';
  container.appendChild(root);
  const $=sel=>root.querySelector(sel);
- const st={map,container,root,weather:null,clouds:window.__BP_SKY_CLOUDS_V5908__||null,realism:window.__BP_WORLD_REALISM_V5910__||null,source:false,particles:false,flood:false,radar:false,wind:false,cloudsOn:true,sun:false,realismOn:false,windCanvas:null,sunCanvas:null,raf:0,windMove:null,windResize:null,sunMove:null,lightOriginal:null,treeOriginal:undefined,obstacles:[],obstaclesAt:0,disposed:false,rpc};
+ const st={map,container,root,weather:null,clouds:window.__BP_SKY_CLOUDS_V5908__||null,realism:window.__BP_WORLD_REALISM_V5910__||null,source:false,particles:false,flood:false,radar:false,wind:false,cloudsOn:true,sun:false,celestialOn:false,celestialApi:null,realismOn:false,windCanvas:null,sunCanvas:null,raf:0,windMove:null,windResize:null,sunMove:null,lightOriginal:null,treeOriginal:undefined,obstacles:[],obstaclesAt:0,disposed:false,rpc};
  const setStatus=s=>{const n=$('[data-status]');if(n)n.textContent=s};
- const paint=()=>{const vals=[['[data-source]','SOURCE WEATHER',st.source],['[data-particles]','3D RAIN / SNOW / HAIL',st.particles],['[data-flood]','FLOOD ALERT SURFACES',st.flood],['[data-radar]','NOAA RADAR',st.radar],['[data-wind]','3D WIND STREAMLINES',st.wind],['[data-clouds]','SKY CLOUD LAYERS',st.cloudsOn],['[data-sun]','SUN / SHADOW LIGHTING',st.sun],['[data-realism]','SATELLITE / MATERIAL REALISM',st.realismOn]];for(const [s,t,on] of vals){const b=$(s);if(b){b.textContent=t+' · '+(on?'ON':'OFF');b.setAttribute('aria-pressed',String(on))}}};
+ const paint=()=>{const vals=[['[data-source]','SOURCE WEATHER',st.source],['[data-particles]','3D RAIN / SNOW / HAIL',st.particles],['[data-flood]','FLOOD ALERT SURFACES',st.flood],['[data-radar]','NOAA RADAR',st.radar],['[data-wind]','3D WIND STREAMLINES',st.wind],['[data-clouds]','SKY CLOUD LAYERS',st.cloudsOn],['[data-sun]','SUN / SHADOW LIGHTING',st.sun],['[data-celestial]','SUN · MOON · STARS · PLANETS',st.celestialOn],['[data-realism]','SATELLITE / MATERIAL REALISM',st.realismOn]];for(const [s,t,on] of vals){const b=$(s);if(b){b.textContent=t+' · '+(on?'ON':'OFF');b.setAttribute('aria-pressed',String(on))}}};
  async function ensureWeather(){if(st.weather)return st.weather;const m=await import('./world-v2300-weather.js?v=5927-source-weather');st.weather=window.__bpWeatherV2300||m.initWeather(map,{deferActivation:true});if(!st.weather)throw new Error('Source weather engine unavailable');return st.weather}
  async function ensureClouds(){if(st.clouds)return st.clouds;const m=await import('./world-v2300-clouds.js?v=5927-clouds');st.clouds=window.__BP_SKY_CLOUDS_V5908__||m.initSkyClouds({map});return st.clouds}
  async function ensureRealism(){if(st.realism)return st.realism;const m=await import('./world-v2300-realism.js?v=5927-material-realism');st.realism=window.__BP_WORLD_REALISM_V5910__||m.initRealismMode({map});return st.realism}
@@ -70,6 +70,16 @@ export function initBridgePointRealWorldEffects(target,rpc){
   const r=12,g=ctx.createRadialGradient(x,y,r*.3,x,y,r*4.2);g.addColorStop(0,'rgba(255,245,183,.72)');g.addColorStop(.2,'rgba(255,219,117,.25)');g.addColorStop(1,'rgba(255,205,98,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r*4.2,0,Math.PI*2);ctx.fill();
   const disk=ctx.createRadialGradient(x-r*.3,y-r*.35,1,x,y,r);disk.addColorStop(0,'#fffef0');disk.addColorStop(.55,'#ffe8a1');disk.addColorStop(1,'#ffbb52');ctx.fillStyle=disk;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
   setStatus('Solar-position overlay · elevation '+Math.round(sun.elevation)+'° · azimuth '+Math.round(sun.azimuth)+'°. Displayed disk is a sky cue; map lighting uses this solar estimate.');
+ }
+ async function setCelestial(on){
+  st.celestialOn=!!on;
+  if(st.celestialOn){
+   const mod=await import('./bridgepoint-celestial-sky-v5928.js?v=5928-celestial-sky');
+   st.celestialApi=window.__BP_CELESTIAL_SKY_V5928__?.map===map?window.__BP_CELESTIAL_SKY_V5928__:mod.initBridgePointCelestialSky({map});
+   st.celestialApi?.open?.();
+   setStatus('Celestial sky active: approximate Sun/Moon and low-precision planet positions with a bright-star context layer. Tilt the map toward the sky. This is a screen-space sky cue, not a full 3D orbital simulator.');
+  }else{st.celestialApi?.close?.();setStatus('Celestial sky layer off.');}
+  paint();
  }
  async function setSun(on){
   st.sun=!!on;
@@ -160,8 +170,9 @@ export function initBridgePointRealWorldEffects(target,rpc){
  $('[data-wind]').onclick=()=>void setWind(!st.wind).catch(e=>setStatus(String(e?.message||e)));
  $('[data-clouds]').onclick=()=>void setClouds(!st.cloudsOn).catch(e=>setStatus(String(e?.message||e)));
  $('[data-sun]').onclick=()=>void setSun(!st.sun).catch(e=>setStatus(String(e?.message||e)));
+ $('[data-celestial]').onclick=()=>void setCelestial(!st.celestialOn).catch(e=>setStatus(String(e?.message||e)));
  $('[data-realism]').onclick=()=>void setRealism(!st.realismOn).catch(e=>setStatus(String(e?.message||e)));
- const api={version:VERSION,map,root,open,close,state:st,get current(){return{sourceWeather:st.source,particles:st.particles,flood:st.flood,radar:st.radar,wind:st.wind,clouds:st.cloudsOn,sun:st.sun,realism:st.realismOn}},destroy(){st.disposed=true;if(st.raf)cancelAnimationFrame(st.raf);st.windCanvas?.remove();st.sunCanvas?.remove();if(st.lightOriginal)try{map.setLight(st.lightOriginal)}catch(_){}try{if(st.treeOriginal!==undefined&&map.getLayer('gta-bp-tree3d-canopy'))map.setPaintProperty('gta-bp-tree3d-canopy','fill-extrusion-translate',st.treeOriginal)}catch(_){};st.root.remove()}};
+ const api={version:VERSION,map,root,open,close,state:st,get current(){return{sourceWeather:st.source,particles:st.particles,flood:st.flood,radar:st.radar,wind:st.wind,clouds:st.cloudsOn,sun:st.sun,celestial:st.celestialOn,realism:st.realismOn}},destroy(){st.disposed=true;if(st.raf)cancelAnimationFrame(st.raf);st.windCanvas?.remove();st.sunCanvas?.remove();if(st.lightOriginal)try{map.setLight(st.lightOriginal)}catch(_){}try{if(st.treeOriginal!==undefined&&map.getLayer('gta-bp-tree3d-canopy'))map.setPaintProperty('gta-bp-tree3d-canopy','fill-extrusion-translate',st.treeOriginal)}catch(_){};st.root.remove()}};
  window.__BP_REALWORLD_EFFECTS_V5927__=api;paint();return api;
 }
 export function openBridgePointRealWorldEffects(target,rpc,options={}){const api=initBridgePointRealWorldEffects(target,rpc);return api?.open(options)||null}
