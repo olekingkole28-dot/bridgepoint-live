@@ -17,7 +17,7 @@ const SLOT_INFO={
  street:['STREET-LEVEL VIEW','Street scene coverage is checked at this property; unavailable imagery stays clearly marked.'],
  aerial:['BRIDGEPOINT AERIAL VIEW','Source-dated aerial imagery appears when BridgePoint has a permitted source for this location.'],
  livecam:['BRIDGEPOINT LIVE CAMS','Live camera feeds appear only when a camera source is public or BridgePoint is authorized to display it; otherwise this slot shows coverage status.'],
- eye:['BRIDGEPOINT EYE VIEW','God’s-eye globe view with building-bound aerial, street, subsurface and timeline slots. Availability is checked per selected building.'],
+ eye:['BRIDGEPOINT WORLD VIEW','God’s-eye globe view with building-bound aerial, street, subsurface and timeline slots. Availability is checked per selected building.'],
  heartbeat:['PROPERTY HEARTBEAT','Latest evidence, change signals and source freshness when records exist.'],
  timeline:['PROPERTY TIMELINE','Property-linked weather, permits, imagery and change events when verified.'],
  roof:['ROOF + BUILDING PARTS','Roof and component geometry with source/confidence labels.'],
@@ -32,7 +32,7 @@ function openPanel(name){
  activePanel=name;
  p.hidden=false;document.body.classList.add('bpv-panel-open');
  p.dataset.panel=name;
- const titles={ai:'BRIDGEPOINT AI',opportunities:'BRIDGEPOINT OPPORTUNITIES',listings:'BRIDGEPOINT LISTINGS',mapkey:'BRIDGEPOINT MAP KEY',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',explore:'EXPLORE BRIDGEPOINT'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT EYE';
+ const titles={ai:'BRIDGEPOINT AI',opportunities:'BRIDGEPOINT OPPORTUNITIES',listings:'BRIDGEPOINT LISTINGS',mapkey:'BRIDGEPOINT MAP KEY',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',explore:'EXPLORE BRIDGEPOINT'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT WORLD';
  p.querySelectorAll('[data-bpv-panel]').forEach(b=>{const on=b.dataset.bpvPanel===name;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on?'true':'false')});
  p.querySelectorAll('[data-bpv-pane]').forEach(s=>{s.hidden=s.dataset.bpvPane!==name});
  if(name==='metrics')void loadMetrics();
@@ -68,10 +68,10 @@ function attachMap(m){
 function findMap(){return home?(window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map||null):(window.__BP_V5000_WORLD__?.map||null)}
 function installMapWatch(){const m=findMap();if(m){attachMap(m);return}let turns=0;const tick=()=>{if(map)return;const n=findMap();if(n){attachMap(n);return}if(++turns<300)setTimeout(tick,100)};setTimeout(tick,150)}
 function makePanel(){
- const p=node('aside','bpv-sidecar bpv-map-chrome');p.id='bpv-sidecar';p.hidden=true;p.setAttribute('aria-label','BridgePoint Eye control deck');
+ const p=node('aside','bpv-sidecar bpv-map-chrome');p.id='bpv-sidecar';p.hidden=true;p.setAttribute('aria-label','BridgePoint World control deck');
  p.innerHTML=
-  '<div class="bpv-sidecar-head"><div><span class="bpv-eyebrow">BRIDGEPOINT EYE</span><b id="bpv-sidecar-title">BRIDGEPOINT AI</b></div><button id="bpv-panel-close" type="button" aria-label="Close BridgePoint panel">×</button></div>'+
-  '<nav class="bpv-sidecar-tabs" aria-label="BridgePoint Eye panels">'+
+  '<div class="bpv-sidecar-head"><div><span class="bpv-eyebrow">BRIDGEPOINT WORLD</span><b id="bpv-sidecar-title">BRIDGEPOINT AI</b></div><button id="bpv-panel-close" type="button" aria-label="Close BridgePoint panel">×</button></div>'+
+  '<nav class="bpv-sidecar-tabs" aria-label="BridgePoint World panels">'+
   '<button type="button" data-bpv-panel="ai">BRIDGEPOINT AI</button>'+
   '<button type="button" data-bpv-panel="opportunities">OPPORTUNITIES</button>'+
   '<button type="button" data-bpv-panel="listings">LISTINGS</button>'+
@@ -124,9 +124,9 @@ function makePanel(){
 function makeTopBarAndDock(){
  if(!mapHost)return;
  const top=node('div','bpv-topbar bpv-topbar-persistent');
- top.innerHTML='<a class="bpv-brand" href="/" aria-label="BridgePoint Eye"><img src="/bridgepoint-mark.svg" alt=""><span><b>BRIDGEPOINT EYE</b><small>GLOBAL SPATIAL INTELLIGENCE</small></span></a><div class="bpv-topbar-right"><div id="bpv-language-slot" data-bp-language-mount="top" aria-label="BridgePoint language"></div><div id="bpv-account-slot"></div></div>';
+ top.innerHTML='<a class="bpv-brand" href="/" aria-label="BridgePoint World"><img src="/bridgepoint-mark.svg" alt=""><span><b>BRIDGEPOINT WORLD</b><small>GLOBAL SPATIAL INTELLIGENCE</small></span></a><div class="bpv-topbar-right"><div id="bpv-language-slot" data-bp-language-mount="top" aria-label="BridgePoint language"></div><div id="bpv-account-slot"></div></div>';
  const dock=node('div','bpv-dock bpv-dock-persistent');dock.id='bpv-dock';
- dock.innerHTML='<div class="bpv-dock-label"><div><b>BRIDGEPOINT EYE</b><span><i></i> LIVE · GLOBAL WORLD</span></div><button type="button" data-bpv-dock-hide aria-label="Minimize BridgePoint map card">MINIMIZE −</button></div><div id="bpv-search-slot" class="bpv-search-slot"></div><div id="bpv-dock-actions" class="bpv-dock-actions">'+
+ dock.innerHTML='<div class="bpv-dock-label"><div><b>BRIDGEPOINT WORLD</b><span><i></i> LIVE · GLOBAL WORLD</span></div><button type="button" data-bpv-dock-hide aria-label="Minimize BridgePoint map card">MINIMIZE −</button></div><div id="bpv-search-slot" class="bpv-search-slot"></div><div id="bpv-world-activity-slot" class="bpv-world-activity-slot" aria-label="World activity timeline"></div><div id="bpv-satellite-slot" class="bpv-satellite-slot" aria-label="Satellite and color controls"></div><div id="bpv-dock-actions" class="bpv-dock-actions">'+
  '<button type="button" data-bpv-action="ai">BRIDGEPOINT AI</button>'+
  '<button type="button" data-bpv-action="parcels">PARCEL BOUNDARIES</button>'+
  '<button type="button" data-bpv-action="mapkey">MAP KEY</button>'+
@@ -137,7 +137,7 @@ function makeTopBarAndDock(){
  '<button type="button" data-bpv-action="opportunities">OPPORTUNITIES</button>'+
  '<button type="button" data-bpv-action="metrics">COUNTERS</button>'+
  '<button type="button" data-bpv-action="controls">LAYERS + TOOLS</button>'+
-  '<button type="button" data-bpv-action="satellite">SATELLITE FILTERS</button>'+
+
  '<button type="button" data-bpv-action="motion">ORBIT & MOTION</button>'+
  '<button type="button" data-bpv-action="property">PROPERTY SLOTS</button>'+
  (home?'<button type="button" data-bpv-action="explore">EXPLORE</button>':'')+
@@ -146,7 +146,7 @@ function makeTopBarAndDock(){
  const languageSlot=$('#bpv-language-slot');
  const existingLanguage=document.querySelector('[data-bp-language="1"]');
  if(languageSlot&&existingLanguage&&existingLanguage.parentElement!==languageSlot)languageSlot.appendChild(existingLanguage);
- const reopen=node('button','bpv-dock-reopen','BRIDGEPOINT EYE · OPEN CARD');
+ const reopen=node('button','bpv-dock-reopen','BRIDGEPOINT WORLD · OPEN CARD');
  reopen.id='bpv-dock-reopen';reopen.type='button';reopen.hidden=true;
  reopen.addEventListener('click',()=>{dock.hidden=false;reopen.hidden=true;mapHost.classList.remove('bpv-dock-minimized')});
  mapHost.appendChild(reopen);
@@ -191,7 +191,7 @@ function makeSlots(container,kind){
   btn.innerHTML='<span class="bpv-slot-icon">'+({ai:'AI',xray:'X·RAY',underground:'SUB',street:'ST',aerial:'AIR',livecam:'LIVE',eye:'EYE',heartbeat:'♥',timeline:'T+',roof:'ROOF',provenance:'SRC'}[key]||'BP')+'</span><span>'+info[0]+'</span><span class="bpv-slot-arrow">↗</span>';
   const status=node('small','bpv-slot-status');
   status.dataset.bpvSlotStatus=key;
-  status.textContent=key==='ai'?'Ready':key==='xray'?'Checks source-backed parts and plans':key==='underground'?'Not yet verified for this property':key==='street'?'Coverage varies by property':key==='aerial'?'Source-backed imagery only':key==='livecam'?'Checking authorized live-camera coverage':key==='eye'?'BridgePoint Eye view ready; property coverage varies':key==='heartbeat'?'Waiting for property evidence':key==='timeline'?'Waiting for linked history':'Source availability checked by property';
+  status.textContent=key==='ai'?'Ready':key==='xray'?'Checks source-backed parts and plans':key==='underground'?'Not yet verified for this property':key==='street'?'Coverage varies by property':key==='aerial'?'Source-backed imagery only':key==='livecam'?'Checking authorized live-camera coverage':key==='eye'?'BridgePoint World view ready; property coverage varies':key==='heartbeat'?'Waiting for property evidence':key==='timeline'?'Waiting for linked history':'Source availability checked by property';
   const p=node('p','bpv-slot-note');p.textContent=info[1];
   card.append(btn,status,p);container.appendChild(card);
   btn.addEventListener('click',()=>activateSlot(key,kind));
