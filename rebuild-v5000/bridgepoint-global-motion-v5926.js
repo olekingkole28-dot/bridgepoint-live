@@ -106,7 +106,7 @@ function renderSummaries(){
  if(sat){
   if(s.operator_review_required)sat.textContent='SATELLITE SOURCE PAUSED · HTTP 403 from CelesTrak. Automated fetch stopped for human review; no satellite records are materialized yet.';
   else if(s.total_known_objects>0)sat.textContent='Orbital elements: '+fmt(s.total_known_objects)+' cached records · '+fmt(state.plottedSatellites)+' plotted · refreshed '+(s.source_fetched_at?new Date(s.source_fetched_at).toLocaleString():'time unavailable')+'. Positions are propagated estimates, not telemetry.';
-  else sat.textContent='Satellite catalogue has 0 materialized records. Source refresh status: '+(s.last_refresh_status||'WAITING')+'. No satellite points are fabricated.';
+  else sat.textContent='Satellite catalogue has 0 materialized records. Source refresh status: '+(s.last_refresh_status||'WAITING')+'. The catalog will stay honest until a permitted TLE source returns records.';
  }
  const flight=$('bpm-flight-status-v5926');
  if(flight){
@@ -232,7 +232,7 @@ async function loadSatellitePage(reset){
 }
 function propagateOne(item,lib,date){
  try{
-  if(!item._bpSatrec)item._bpSatrec=lib.json2satrec(item.omm);
+  if(!item._bpSatrec){const raw=item.omm||{};item._bpSatrec=raw.line1&&raw.line2&&typeof lib.twoline2satrec==='function'?lib.twoline2satrec(raw.line1,raw.line2):lib.json2satrec(raw);}
   const p=lib.propagate(item._bpSatrec,date);
   if(!p?.position||item._bpSatrec?.error>0)return null;
   const gmst=lib.gstime(date),geo=lib.eciToGeodetic(p.position,gmst);
