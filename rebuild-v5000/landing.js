@@ -344,7 +344,7 @@ function paintLiveCountryCounters(d){
  const rows=raw.filter(x=>Number(x.active_canonical)>0).map((x,i)=>{const code=String(x.country_code||'').toUpperCase(),value=Number(x.active_canonical||0);return{name:bpCountryName(code,code)+' · '+code,code,value,canonical:value,boundaries:Number(x.materialized_boundary_rows||0),updated_at:x.updated_at,color:BP_COVERAGE_COLORS[(i+1)%BP_COVERAGE_COLORS.length]}}).sort((a,b)=>b.value-a.value||a.code.localeCompare(b.code));
  const display=[{name:'United States · US',code:'US',value:Number.isFinite(us)?us:0,canonical:Number.isFinite(us)?us:0,boundaries:0,color:BP_COVERAGE_COLORS[0]},...rows].filter(x=>x.value>0);
  paintAnimatedCanonicalCounters(world);
- const countryCount=rows.length+(Number.isFinite(us)&&us>0?1:0),detail=fmt(countryCount)+' countries · '+fmt(boundaries)+' non-U.S. boundaries';
+ const countryCount=rows.length+(Number.isFinite(us)&&us>0?1:0),detail=fmt(countryCount)+' active countries · '+fmt(boundaries)+' non-U.S. boundaries';
  bpStableText('landingGlobalCountryMix',detail);bpLiveCacheWrite({globalCanonical:world,globalDetail:detail});
  bpDonut($('globalCountryDonut'),display,world);bpLegend($('globalCountryLegend'),display);
  const drop=$('landingGlobalCountryDropdown');
