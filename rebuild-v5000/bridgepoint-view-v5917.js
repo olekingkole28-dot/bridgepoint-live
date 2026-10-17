@@ -32,7 +32,7 @@ function openPanel(name){
  activePanel=name;
  p.hidden=false;document.body.classList.add('bpv-panel-open');
  p.dataset.panel=name;
- const titles={ai:'BRIDGEPOINT AI',opportunities:'BRIDGEPOINT OPPORTUNITIES',listings:'BRIDGEPOINT LISTINGS',mapkey:'BRIDGEPOINT MAP KEY',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',explore:'EXPLORE BRIDGEPOINT'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT VIEW';
+ const titles={ai:'BRIDGEPOINT AI',opportunities:'BRIDGEPOINT OPPORTUNITIES',listings:'BRIDGEPOINT LISTINGS',mapkey:'BRIDGEPOINT MAP KEY',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',explore:'EXPLORE BRIDGEPOINT'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT EYE';
  p.querySelectorAll('[data-bpv-panel]').forEach(b=>{const on=b.dataset.bpvPanel===name;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on?'true':'false')});
  p.querySelectorAll('[data-bpv-pane]').forEach(s=>{s.hidden=s.dataset.bpvPane!==name});
  if(name==='metrics')void loadMetrics();
@@ -68,10 +68,10 @@ function attachMap(m){
 function findMap(){return home?(window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map||null):(window.__BP_V5000_WORLD__?.map||null)}
 function installMapWatch(){const m=findMap();if(m){attachMap(m);return}let turns=0;const tick=()=>{if(map)return;const n=findMap();if(n){attachMap(n);return}if(++turns<300)setTimeout(tick,100)};setTimeout(tick,150)}
 function makePanel(){
- const p=node('aside','bpv-sidecar bpv-map-chrome');p.id='bpv-sidecar';p.hidden=true;p.setAttribute('aria-label','BridgePoint View control deck');
+ const p=node('aside','bpv-sidecar bpv-map-chrome');p.id='bpv-sidecar';p.hidden=true;p.setAttribute('aria-label','BridgePoint Eye control deck');
  p.innerHTML=
-  '<div class="bpv-sidecar-head"><div><span class="bpv-eyebrow">BRIDGEPOINT VIEW</span><b id="bpv-sidecar-title">BRIDGEPOINT AI</b></div><button id="bpv-panel-close" type="button" aria-label="Close BridgePoint panel">×</button></div>'+
-  '<nav class="bpv-sidecar-tabs" aria-label="BridgePoint View panels">'+
+  '<div class="bpv-sidecar-head"><div><span class="bpv-eyebrow">BRIDGEPOINT EYE</span><b id="bpv-sidecar-title">BRIDGEPOINT AI</b></div><button id="bpv-panel-close" type="button" aria-label="Close BridgePoint panel">×</button></div>'+
+  '<nav class="bpv-sidecar-tabs" aria-label="BridgePoint Eye panels">'+
   '<button type="button" data-bpv-panel="ai">BRIDGEPOINT AI</button>'+
   '<button type="button" data-bpv-panel="opportunities">OPPORTUNITIES</button>'+
   '<button type="button" data-bpv-panel="listings">LISTINGS</button>'+
@@ -124,7 +124,7 @@ function makePanel(){
 function makeTopBarAndDock(){
  if(!mapHost)return;
  const top=node('div','bpv-topbar bpv-topbar-persistent');
- top.innerHTML='<a class="bpv-brand" href="/" aria-label="BridgePoint View"><img src="/bridgepoint-mark.svg" alt=""><span><b>BRIDGEPOINT VIEW</b><small>GLOBAL SPATIAL INTELLIGENCE</small></span></a><div class="bpv-topbar-right"><div id="bpv-language-slot" data-bp-language-mount="top" aria-label="BridgePoint language"></div><div id="bpv-account-slot"></div></div>';
+ top.innerHTML='<a class="bpv-brand" href="/" aria-label="BridgePoint Eye"><img src="/bridgepoint-mark.svg" alt=""><span><b>BRIDGEPOINT EYE</b><small>GLOBAL SPATIAL INTELLIGENCE</small></span></a><div class="bpv-topbar-right"><div id="bpv-language-slot" data-bp-language-mount="top" aria-label="BridgePoint language"></div><div id="bpv-account-slot"></div></div>';
  const dock=node('div','bpv-dock bpv-dock-persistent');dock.id='bpv-dock';
  dock.innerHTML='<div class="bpv-dock-label"><div><b>BRIDGEPOINT EYE</b><span><i></i> LIVE · GLOBAL WORLD</span></div><button type="button" data-bpv-dock-hide aria-label="Minimize BridgePoint map card">MINIMIZE −</button></div><div id="bpv-search-slot" class="bpv-search-slot"></div><div id="bpv-dock-actions" class="bpv-dock-actions">'+
  '<button type="button" data-bpv-action="ai">BRIDGEPOINT AI</button>'+
