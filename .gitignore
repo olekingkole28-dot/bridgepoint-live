@@ -22,3 +22,19 @@ unreal/BridgePointHorizon/Content/Horizon/**/Imported/
 
 # Local asset provenance/acquisition receipts may contain account-specific information.
 *.asset-receipt.local.json
+
+# Local secrets/environment files: commit only explicit *.example templates
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.p12
+*.pfx
+*.privatekey
+service-account*.json
+credentials*.json
+local.settings.json
+supabase/.temp/
