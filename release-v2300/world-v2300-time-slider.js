@@ -9,7 +9,7 @@ const EMPTY={type:'FeatureCollection',features:[]};
 const DAY=86400000;
 
 const CSS=`
-#liveMap .bp-world-time-slider-v5908{
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908{
  position:absolute;z-index:18;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);
  width:min(620px,calc(100% - 24px));box-sizing:border-box;padding:12px 14px 11px;
  border:1px solid rgba(117,220,255,.42);border-radius:15px;
@@ -19,44 +19,61 @@ const CSS=`
  box-shadow:0 13px 40px rgba(0,0,0,.38),inset 0 1px rgba(255,255,255,.045);
  pointer-events:auto;
 }
-#liveMap .bp-world-time-slider-v5908 *{box-sizing:border-box}
-#liveMap .bp-world-time-slider-v5908 .bpwt-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
-#liveMap .bp-world-time-slider-v5908 [data-collapse]{min-height:23px;padding:4px 8px;margin-left:2px;font-size:12px;line-height:1}
-#liveMap .bp-world-time-slider-v5908.bpwt-collapsed{width:min(300px,calc(100% - 24px));padding:8px 11px}
-#liveMap .bp-world-time-slider-v5908.bpwt-collapsed .bpwt-head{margin-bottom:0}
-#liveMap .bp-world-time-slider-v5908.bpwt-collapsed>:not(.bpwt-head){display:none!important}
-#liveMap .bp-world-time-slider-v5908 .bpwt-eyebrow{font-size:10px;letter-spacing:.13em;font-weight:900;color:#91eaff}
-#liveMap .bp-world-time-slider-v5908 .bpwt-status{font-variant-numeric:tabular-nums;color:#b6d2e0;font-size:11px}
-#liveMap .bp-world-time-slider-v5908 .bpwt-date{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 2px}
-#liveMap .bp-world-time-slider-v5908 .bpwt-date strong{font-size:14px;letter-spacing:.01em;color:#fff}
-#liveMap .bp-world-time-slider-v5908 .bpwt-date span{font-size:11px;color:#9bbaca;text-align:right}
-#liveMap .bp-world-time-slider-v5908 input[type=range]{appearance:none;-webkit-appearance:none;width:100%;height:23px;display:block;margin:2px 0 0;background:transparent;cursor:pointer;touch-action:pan-y}
-#liveMap .bp-world-time-slider-v5908 input[type=range]::-webkit-slider-runnable-track{height:5px;border-radius:8px;background:linear-gradient(90deg,#427e9d,#8df1ff)}
-#liveMap .bp-world-time-slider-v5908 input[type=range]::-moz-range-track{height:5px;border-radius:8px;background:linear-gradient(90deg,#427e9d,#8df1ff)}
-#liveMap .bp-world-time-slider-v5908 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;margin-top:-6px;border-radius:50%;border:2px solid #dffbff;background:#27c8ff;box-shadow:0 0 0 4px rgba(39,200,255,.2),0 0 15px rgba(39,200,255,.7)}
-#liveMap .bp-world-time-slider-v5908 input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;border:2px solid #dffbff;background:#27c8ff;box-shadow:0 0 0 4px rgba(39,200,255,.2),0 0 15px rgba(39,200,255,.7)}
-#liveMap .bp-world-time-slider-v5908 .bpwt-scale{display:flex;justify-content:space-between;color:#83a3b6;font-size:10px;margin-top:-1px}
-#liveMap .bp-world-time-slider-v5908 .bpwt-controls{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:9px}
-#liveMap .bp-world-time-slider-v5908 button{appearance:none;border:1px solid rgba(136,208,235,.3);border-radius:8px;background:rgba(18,51,70,.8);color:#e8f8ff;font:800 11px/1 system-ui,-apple-system,Segoe UI,sans-serif;padding:8px 10px;cursor:pointer;min-height:30px}
-#liveMap .bp-world-time-slider-v5908 button:hover{background:rgba(30,90,116,.9)}
-#liveMap .bp-world-time-slider-v5908 button[aria-pressed=true]{background:#146e88;border-color:#63eaff;color:#fff}
-#liveMap .bp-world-time-slider-v5908 .bpwt-stats{margin-left:auto;color:#9fc4d6;font-size:10px;white-space:nowrap}
-#liveMap .bp-world-time-slider-v5908 .bpwt-note{border-top:1px solid rgba(120,190,219,.18);margin-top:8px;padding-top:7px;color:#9db7c6;font-size:10px;line-height:1.4}
-#liveMap .bp-world-time-slider-v5908 .bpwt-list{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;margin-top:7px;padding-bottom:2px}
-#liveMap .bp-world-time-slider-v5908 .bpwt-item{flex:1 0 145px;min-width:0;text-align:left;line-height:1.3;padding:7px 8px}
-#liveMap .bp-world-time-slider-v5908 .bpwt-item b{display:block;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#liveMap .bp-world-time-slider-v5908 .bpwt-item small{display:block;color:#9fc4d6;font-size:9px;margin-top:4px;white-space:nowrap}
-#liveMap .bp-world-time-slider-v5908 .bpwt-item[hidden]{display:none}
-#liveMap .bp-world-time-slider-v5908 .bpwt-error{color:#ffc5b4}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 *{box-sizing:border-box}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 [data-collapse]{min-height:23px;padding:4px 8px;margin-left:2px;font-size:12px;line-height:1}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed{width:min(300px,calc(100% - 24px));padding:8px 11px}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed .bpwt-head{margin-bottom:0}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed>:not(.bpwt-head){display:none!important}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-eyebrow{font-size:10px;letter-spacing:.13em;font-weight:900;color:#91eaff}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-status{font-variant-numeric:tabular-nums;color:#b6d2e0;font-size:11px}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-date{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 2px}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-date strong{font-size:14px;letter-spacing:.01em;color:#fff}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-date span{font-size:11px;color:#9bbaca;text-align:right}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 input[type=range]{appearance:none;-webkit-appearance:none;width:100%;height:23px;display:block;margin:2px 0 0;background:transparent;cursor:pointer;touch-action:pan-y}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 input[type=range]::-webkit-slider-runnable-track{height:5px;border-radius:8px;background:linear-gradient(90deg,#427e9d,#8df1ff)}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 input[type=range]::-moz-range-track{height:5px;border-radius:8px;background:linear-gradient(90deg,#427e9d,#8df1ff)}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;margin-top:-6px;border-radius:50%;border:2px solid #dffbff;background:#27c8ff;box-shadow:0 0 0 4px rgba(39,200,255,.2),0 0 15px rgba(39,200,255,.7)}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;border:2px solid #dffbff;background:#27c8ff;box-shadow:0 0 0 4px rgba(39,200,255,.2),0 0 15px rgba(39,200,255,.7)}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-scale{display:flex;justify-content:space-between;color:#83a3b6;font-size:10px;margin-top:-1px}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-controls{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:9px}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 button{appearance:none;border:1px solid rgba(136,208,235,.3);border-radius:8px;background:rgba(18,51,70,.8);color:#e8f8ff;font:800 11px/1 system-ui,-apple-system,Segoe UI,sans-serif;padding:8px 10px;cursor:pointer;min-height:30px}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 button:hover{background:rgba(30,90,116,.9)}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 button[aria-pressed=true]{background:#146e88;border-color:#63eaff;color:#fff}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-stats{margin-left:auto;color:#9fc4d6;font-size:10px;white-space:nowrap}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-note{border-top:1px solid rgba(120,190,219,.18);margin-top:8px;padding-top:7px;color:#9db7c6;font-size:10px;line-height:1.4}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-list{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;margin-top:7px;padding-bottom:2px}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-item{flex:1 0 145px;min-width:0;text-align:left;line-height:1.3;padding:7px 8px}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-item b{display:block;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-item small{display:block;color:#9fc4d6;font-size:9px;margin-top:4px;white-space:nowrap}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-item[hidden]{display:none}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-error{color:#ffc5b4}
 @media(max-width:700px){
- #liveMap .bp-world-time-slider-v5908{width:calc(100% - 14px);bottom:max(10px,env(safe-area-inset-bottom));padding:10px;border-radius:13px}
- #liveMap .bp-world-time-slider-v5908 .bpwt-eyebrow{font-size:9px}
- #liveMap .bp-world-time-slider-v5908 .bpwt-date strong{font-size:12px}
- #liveMap .bp-world-time-slider-v5908 .bpwt-date span{font-size:10px}
- #liveMap .bp-world-time-slider-v5908 .bpwt-controls{gap:5px}
- #liveMap .bp-world-time-slider-v5908 button{padding:8px 8px;font-size:10px}
- #liveMap .bp-world-time-slider-v5908 .bpwt-stats{flex:1 0 100%;margin:0}
- #liveMap .bp-world-time-slider-v5908 .bpwt-note{font-size:9px}
+ :is(#liveMap,#previewMap) .bp-world-time-slider-v5908{width:calc(100% - 14px);bottom:max(10px,env(safe-area-inset-bottom));padding:10px;border-radius:13px}
+ :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-eyebrow{font-size:9px}
+ :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-date strong{font-size:12px}
+ :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-date span{font-size:10px}
+ :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-controls{gap:5px}
+ :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 button{padding:8px 8px;font-size:10px}
+ :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-stats{flex:1 0 100%;margin:0}
+ :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-note{font-size:9px}
+}
+
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-standalone-open{
+ position:absolute!important;z-index:1405!important;left:50%!important;right:auto!important;
+ top:max(78px,calc(env(safe-area-inset-top) + 62px))!important;bottom:auto!important;
+ transform:translateX(-50%)!important;width:min(760px,calc(100% - 20px))!important;
+ max-height:calc(100dvh - 96px)!important;overflow:auto!important;
+ border-color:rgba(104,239,255,.72);box-shadow:0 24px 70px rgba(0,0,0,.62),0 0 36px rgba(30,190,230,.12)
+}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-standalone-open .bpwt-head{position:sticky;top:-12px;z-index:2;padding:3px 0 7px;background:linear-gradient(160deg,rgba(3,14,25,.99),rgba(4,21,34,.97))}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-standalone-open .bpwt-note{max-width:100%}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 [data-standalone]{margin-left:auto;white-space:nowrap}
+@media(max-width:700px){
+ :is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-standalone-open{left:6px!important;right:6px!important;top:max(74px,calc(env(safe-area-inset-top) + 58px))!important;transform:none!important;width:auto!important;max-height:calc(100dvh - 86px)!important;padding:9px!important}
+ :is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-standalone-open .bpwt-head{top:-9px;gap:5px;flex-wrap:wrap}
+ :is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-standalone-open .bpwt-eyebrow{font-size:8px;letter-spacing:.06em}
+ :is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-standalone-open .bpwt-status{font-size:9px}
 }
 `;
 
@@ -91,7 +108,7 @@ export function initWorldTimeSlider(target,rpc){
  if(!document.getElementById(STYLE_ID)){const style=document.createElement('style');style.id=STYLE_ID;style.textContent=CSS;document.head.appendChild(style)}
  const dock=document.createElement('section');dock.id=ROOT_ID;dock.className='bp-world-time-slider-v5908';dock.setAttribute('aria-label','World activity time slider');
  dock.innerHTML=`
-  <div class="bpwt-head"><span class="bpwt-eyebrow">WORLD ACTIVITY · 30-DAY SCRUB</span><span class="bpwt-status" data-status>CONNECTING</span><button type="button" data-collapse aria-expanded="true" aria-label="Collapse world activity controls">⌄</button></div>
+  <div class="bpwt-head"><span class="bpwt-eyebrow">WORLD ACTIVITY · 30-DAY SCRUB</span><span class="bpwt-status" data-status>CONNECTING</span><button type="button" data-standalone aria-pressed="false" aria-label="Open the 30-day world change panel">OPEN PANEL</button><button type="button" data-collapse aria-expanded="true" aria-label="Collapse world activity controls">⌄</button></div>
   <div class="bpwt-date"><strong data-date>Latest source observations</strong><span data-window>24-hour observation window</span></div>
   <input data-slider type="range" min="0" max="30" step="1" value="30" aria-label="Browse world activity from 30 days ago to now">
   <div class="bpwt-scale"><span>30 DAYS AGO</span><span>LIVE NOW</span></div>
@@ -106,7 +123,14 @@ export function initWorldTimeSlider(target,rpc){
   <div class="bpwt-note">Time-filtered source observations, not a historical rewind of building geometry or imagery. Forecasts/events are context—not proof of physical damage or sale intent.</div>`;
  container.appendChild(dock);
  const $=s=>dock.querySelector(s),slider=$('[data-slider]'),status=$('[data-status]'),date=$('[data-date]'),windowLabel=$('[data-window]'),stats=$('[data-stats]'),list=$('[data-list]'),liveBtn=$('[data-live]'),playBtn=$('[data-play]'),cloudBtn=$('[data-clouds]');
- const collapseBtn=$('[data-collapse]');
+ const collapseBtn=$('[data-collapse]'),standaloneBtn=$('[data-standalone]');
+ function setStandalone(on){
+  dock.classList.toggle('bpwt-standalone-open',!!on);
+  standaloneBtn?.setAttribute('aria-pressed',String(!!on));
+  if(standaloneBtn)standaloneBtn.textContent=on?'DOCK PANEL':'OPEN PANEL';
+  if(on){dock.classList.remove('bpwt-collapsed');collapseBtn?.setAttribute('aria-expanded','true')}
+ }
+ standaloneBtn?.addEventListener('click',()=>setStandalone(!dock.classList.contains('bpwt-standalone-open')));
  collapseBtn.addEventListener('click',()=>{
   const collapsed=dock.classList.toggle('bpwt-collapsed');
   collapseBtn.setAttribute('aria-expanded',String(!collapsed));
@@ -204,7 +228,7 @@ export function initWorldTimeSlider(target,rpc){
  document.addEventListener('visibilitychange',onVisibility);
  ensureLayers();[80,350,1000,2200].forEach(ms=>setTimeout(()=>{if(!disposed)ensureLayers()},ms));schedule(true,300);
  const poll=setInterval(()=>{if(disposed)return clearInterval(poll);if(!document.hidden&&Number(slider.value)>=30&&Date.now()-lastRequestAt>110000)schedule(false,0)},15000);
- const api={version:5908,map,dock,refresh:()=>refresh(true),setTimeOffsetDays(days){slider.value=String(Math.max(0,Math.min(30,30-Number(days||0))));live=Number(slider.value)>=30;schedule(true,0)},toggleClouds:()=>cloudBtn.click(),get state(){return window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__||null},destroy(){disposed=true;stopPlay();clearTimeout(timer);clearInterval(poll);map.off('moveend',onBounds);map.off('zoomend',onBounds);map.off('styledata',onStyle);document.removeEventListener('visibilitychange',onVisibility);dock.remove();try{map.getSource(SOURCE_ID)?.setData(EMPTY);if(map.getLayer(LAYER_LABEL))map.removeLayer(LAYER_LABEL);if(map.getLayer(LAYER_POINT))map.removeLayer(LAYER_POINT);if(map.getLayer(LAYER_LINE))map.removeLayer(LAYER_LINE);if(map.getLayer(LAYER_FILL))map.removeLayer(LAYER_FILL);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID)}catch(_){} }};
+ const api={version:5908,map,dock,refresh:()=>refresh(true),open(){setStandalone(true);return dock},close(){setStandalone(false);return dock},toggle(){setStandalone(!dock.classList.contains('bpwt-standalone-open'));return dock},setTimeOffsetDays(days){slider.value=String(Math.max(0,Math.min(30,30-Number(days||0))));live=Number(slider.value)>=30;schedule(true,0)},toggleClouds:()=>cloudBtn.click(),get state(){return window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__||null},destroy(){disposed=true;stopPlay();clearTimeout(timer);clearInterval(poll);map.off('moveend',onBounds);map.off('zoomend',onBounds);map.off('styledata',onStyle);document.removeEventListener('visibilitychange',onVisibility);dock.remove();try{map.getSource(SOURCE_ID)?.setData(EMPTY);if(map.getLayer(LAYER_LABEL))map.removeLayer(LAYER_LABEL);if(map.getLayer(LAYER_POINT))map.removeLayer(LAYER_POINT);if(map.getLayer(LAYER_LINE))map.removeLayer(LAYER_LINE);if(map.getLayer(LAYER_FILL))map.removeLayer(LAYER_FILL);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID)}catch(_){} }};
  window.__BP_WORLD_TIME_SLIDER_V5908__=api;
  return api;
 }
