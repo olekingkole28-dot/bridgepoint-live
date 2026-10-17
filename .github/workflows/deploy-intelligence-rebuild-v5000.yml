@@ -289,7 +289,7 @@ jobs:
           grep -Fq 'world-v2300-underground-xray.js?v=5935-underground-xray' site/landing.js
           grep -Fq 'world-v2300-sensor-layers.js?v=5937-global-nightlights-history' site/app.js
           grep -Fq 'world-v2300-sensor-layers.js?v=5937-global-nightlights-history' site/landing.js
-          grep -Fq 'GEBCO_Latest_2' site/world-v2300-sensor-layers.js
+          grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'bridgepoint-nasa-nightlights-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'streetlight_poles' site/world-v2300-sensor-layers.js
           grep -Fq 'data-filter-category' site/world-v2300-time-slider.js
