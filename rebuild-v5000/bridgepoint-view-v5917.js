@@ -31,10 +31,11 @@ function openPanel(name){
  activePanel=name;
  p.hidden=false;document.body.classList.add('bpv-panel-open');
  p.dataset.panel=name;
- const titles={ai:'BRIDGEPOINT AI',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',explore:'EXPLORE BRIDGEPOINT'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT VIEW';
+ const titles={ai:'BRIDGEPOINT AI',opportunities:'BRIDGEPOINT OPPORTUNITIES',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',explore:'EXPLORE BRIDGEPOINT'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT VIEW';
  p.querySelectorAll('[data-bpv-panel]').forEach(b=>{const on=b.dataset.bpvPanel===name;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on?'true':'false')});
  p.querySelectorAll('[data-bpv-pane]').forEach(s=>{s.hidden=s.dataset.bpvPane!==name});
  if(name==='metrics')void loadMetrics();
+ if(name==='opportunities')void loadOpportunityBreakdown();
  if(name==='property')refreshSlotLabels();
  if(name==='ai')setTimeout(()=>$('#bpv-ai-question')?.focus({preventScroll:true}),60);
 }
@@ -68,6 +69,7 @@ function makePanel(){
   '<div class="bpv-sidecar-head"><div><span class="bpv-eyebrow">BRIDGEPOINT VIEW</span><b id="bpv-sidecar-title">BRIDGEPOINT AI</b></div><button id="bpv-panel-close" type="button" aria-label="Close BridgePoint panel">×</button></div>'+
   '<nav class="bpv-sidecar-tabs" aria-label="BridgePoint View panels">'+
   '<button type="button" data-bpv-panel="ai">BRIDGEPOINT AI</button>'+
+  '<button type="button" data-bpv-panel="opportunities">OPPORTUNITIES</button>'+
   '<button type="button" data-bpv-panel="metrics">LIVE METRICS</button>'+
   '<button type="button" data-bpv-panel="property">PROPERTY</button>'+
   (home?'<button type="button" data-bpv-panel="explore">EXPLORE</button>':'')+
@@ -82,6 +84,16 @@ function makePanel(){
   '<p id="bpv-metric-updated" class="bpv-data-note">Waiting for the live counter source.</p>'+
   (home?'<div id="bpv-home-copy-mount"></div>':'')+
   '</section>'+
+  '<section data-bpv-pane="opportunities" hidden>'+
+  '<div class="bpv-pane-title"><b>Live opportunity inventory</b><small>Record-level counts from the current BridgePoint opportunity cohorts. Building geometry is tracked separately.</small></div>'+
+  '<div id="bpv-opportunity-summary" class="bpv-metric-grid"><div class="bpv-metric-card"><span>Opportunity records</span><b>CONNECTING</b><small>Refreshing from BridgePoint</small></div></div>'+
+  '<div class="bpv-opportunity-section"><div class="bpv-opportunity-section-head"><b>U.S. CUSTOMER-READY BY TYPE</b><small>Current READY cache generation; properties can appear in multiple types.</small></div><div id="bpv-opportunity-customer-types" class="bpv-opportunity-list"></div></div>'+
+  '<div class="bpv-opportunity-section"><div class="bpv-opportunity-section-head"><b>GLOBAL RISK-REVIEW TYPES</b><small>Exposure/resilience reviews, not proof of property damage.</small></div><div id="bpv-opportunity-global-types" class="bpv-opportunity-list"></div></div>'+
+  '<div class="bpv-opportunity-section"><div class="bpv-opportunity-section-head"><b>U.S. OPPORTUNITIES BY STATE</b><small>Customer-ready opportunity records and type mix.</small></div><div id="bpv-opportunity-states" class="bpv-opportunity-list"></div></div>'+
+  '<div class="bpv-opportunity-section"><div class="bpv-opportunity-section-head"><b>GLOBAL OPPORTUNITIES BY COUNTRY</b><small>Country totals deduplicate properties within that country; type counts may overlap.</small></div><div id="bpv-opportunity-countries" class="bpv-opportunity-list"></div></div>'+
+  '<div class="bpv-opportunity-section"><div class="bpv-opportunity-section-head"><b>SEPARATE PUBLIC LISTING INVENTORY</b><small>Active HUD/FHA REO for-sale listings are separate from the opportunity-record total.</small></div><div id="bpv-opportunity-listing-summary" class="bpv-metric-grid"></div><details id="bpv-opportunity-listing-details" class="bpv-opportunity-details"><summary>VIEW ACTIVE LISTINGS BY STATE</summary><div id="bpv-opportunity-listing-states" class="bpv-opportunity-list"></div></details></div>'+
+  '<p id="bpv-opportunity-updated" class="bpv-data-note">Waiting for the live BridgePoint opportunity breakdown.</p>'+
+  '<p class="bpv-data-note">Opportunity records are not building footprints or 3D models. The same property may qualify for multiple types. Separate cohorts are shown explicitly to avoid inflating the total.</p></section>'+
   '<section data-bpv-pane="property" hidden><div class="bpv-pane-title"><b id="bpv-property-title">Selected property</b><small id="bpv-property-key">Choose a building on the globe to bind these intelligence slots to it.</small></div>'+
   '<div id="bpv-side-property-slots" class="bpv-slot-grid"></div><p class="bpv-data-note">Each slot stays attached to the selected BridgePoint building. An unavailable source is shown as unavailable rather than filled with a placeholder result.</p></section>'+
   '<section data-bpv-pane="controls" hidden><div class="bpv-pane-title"><b>BridgePoint Controls</b><small>Layers and map actions live here so the globe remains unobstructed.</small></div><div id="bpv-controls-mount"></div>'+
@@ -102,6 +114,7 @@ function makeTopBarAndDock(){
  const dock=node('div','bpv-dock bpv-map-chrome');dock.id='bpv-dock';
  dock.innerHTML='<div class="bpv-dock-label"><b>BRIDGEPOINT VIEW</b><span><i></i> WHOLE EARTH · LIVE</span></div><div id="bpv-search-slot" class="bpv-search-slot"></div><div id="bpv-dock-actions" class="bpv-dock-actions">'+
  '<button type="button" data-bpv-action="ai">BRIDGEPOINT AI</button>'+
+ '<button type="button" data-bpv-action="opportunities">OPPORTUNITIES</button>'+
  '<button type="button" data-bpv-action="metrics">COUNTERS</button>'+
  '<button type="button" data-bpv-action="controls">LAYERS + TOOLS</button>'+
  '<button type="button" data-bpv-action="property">PROPERTY SLOTS</button>'+
@@ -343,6 +356,82 @@ async function loadMetrics(){
  })();
  try{return await metricsLoading}finally{metricsLoading=null}
 }
+
+let opportunityDashboardLoading=null,opportunityDashboardLast=null,opportunityDashboardLastAt=0;
+const OPPORTUNITY_TYPE_LABELS={roofing:'Roofing opportunities',property_investment:'Investor / acquisition',general_contracting:'General contracting / construction',restoration:'Restoration opportunities',public_adjusting:'Public adjusting / claims',development:'Development / redevelopment',PRECIPITATION_EXPOSURE_REVIEW:'Precipitation exposure review',FLOOD_RESILIENCE_REVIEW:'Flood resilience review',MULTI_HAZARD_RESILIENCE_REVIEW:'Multi-hazard resilience review'};
+const OPPORTUNITY_FAMILY_LABELS={property_damage:'Property damage',acquisition:'Acquisition',construction:'Construction',claims:'Claims',redevelopment:'Redevelopment',GLOBAL_PROPERTY_RISK:'Global property-risk review'};
+const OPPORTUNITY_STATE_NAMES={AK:'Alaska',AL:'Alabama',AR:'Arkansas',AZ:'Arizona',CA:'California',CO:'Colorado',CT:'Connecticut',DC:'District of Columbia',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',IA:'Iowa',ID:'Idaho',IL:'Illinois',IN:'Indiana',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',MA:'Massachusetts',MD:'Maryland',ME:'Maine',MI:'Michigan',MN:'Minnesota',MO:'Missouri',MS:'Mississippi',MT:'Montana',NC:'North Carolina',ND:'North Dakota',NE:'Nebraska',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NV:'Nevada',NY:'New York',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',PR:'Puerto Rico',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VA:'Virginia',VT:'Vermont',WA:'Washington',WI:'Wisconsin',WV:'West Virginia',WY:'Wyoming'};
+const OPPORTUNITY_COUNTRY_NAMES={CO:'Colombia',PA:'Panama'};
+function opportunityLabel(key){const k=String(key||'');return OPPORTUNITY_TYPE_LABELS[k]||OPPORTUNITY_TYPE_LABELS[k.toUpperCase()]||k.replaceAll('_',' ').toLowerCase().replace(/\b\w/g,m=>m.toUpperCase())}
+function opportunityFamilyLabel(key){const k=String(key||'');return OPPORTUNITY_FAMILY_LABELS[k]||k.replaceAll('_',' ').toLowerCase().replace(/\b\w/g,m=>m.toUpperCase())}
+function opportunityDate(value){if(!value)return'not reported';const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString()}
+function opportunityLocationLabel(code,kind){const c=String(code||'').toUpperCase();return kind==='country'?(OPPORTUNITY_COUNTRY_NAMES[c]||c):((OPPORTUNITY_STATE_NAMES[c]||c)+' · '+c)}
+function opportunityTextNode(tag,cls,value){const el=node(tag,cls);el.textContent=String(value??'');return el}
+function opportunityRow(title,count,meta,chips){
+ const row=node('article','bpv-opportunity-row'),info=node('div','bpv-opportunity-row-info');
+ const name=opportunityTextNode('b','',title),detail=opportunityTextNode('small','',meta||''),value=opportunityTextNode('strong','bpv-opportunity-value',metricFormat(count));
+ info.append(name,detail);row.append(info,value);
+ if(Array.isArray(chips)&&chips.length){const group=node('div','bpv-opportunity-chips');chips.forEach(t=>group.appendChild(opportunityTextNode('span','bpv-opportunity-chip',t)));row.appendChild(group)}
+ return row;
+}
+function setOpportunityRows(id,rows){const target=$('#'+id);if(!target)return;target.replaceChildren();if(!rows?.length){target.appendChild(opportunityTextNode('div','bpv-opportunity-empty','No records in this cohort.'));return}rows.forEach(r=>target.appendChild(r))}
+function setOpportunityCards(counts){
+ const target=$('#bpv-opportunity-summary');if(!target)return;
+ const cards=[
+  ['All opportunity records',counts.total_opportunities,metricFormat(counts.customer_ready_opportunities)+' U.S. customer-ready + '+metricFormat(counts.global_risk_opportunities)+' global risk-review records'],
+  ['Unique properties',counts.total_unique_properties,'Distinct properties in the two separate opportunity cohorts'],
+  ['Active jurisdictions',counts.active_jurisdictions,'15 U.S. states + 2 countries'],
+  ['U.S. customer-ready',counts.customer_ready_opportunities,'Current READY cache generation'],
+  ['Global risk reviews',counts.global_risk_opportunities,'Exposure/resilience review records, not confirmed damage'],
+  ['Active public REO listings',counts.active_reo_for_sale_listings,'Separate for-sale inventory; not added to opportunity total']
+ ];
+ target.replaceChildren(...cards.map(c=>metricCard(c[0],metricFormat(c[1]),c[2])));
+ const list=$('#bpv-opportunity-listing-summary');if(list)list.replaceChildren(
+  metricCard('Active HUD/FHA REO listings',metricFormat(counts.active_reo_for_sale_listings),'Public for-sale inventory snapshot'),
+  metricCard('States / jurisdictions with listings',metricFormat(counts.active_reo_states),'Separate listing footprint')
+ );
+}
+function renderOpportunityBreakdown(d){
+ const c=d?.counts||{};setOpportunityCards(c);
+ const customerTypes=Array.isArray(d.customer_ready_by_type)?d.customer_ready_by_type:[];
+ setOpportunityRows('bpv-opportunity-customer-types',customerTypes.map(t=>opportunityRow(opportunityLabel(t.vertical_key),t.opportunity_count,opportunityFamilyLabel(t.opportunity_family)+' · '+metricFormat(t.unique_properties)+' type-matched properties · '+metricFormat(t.state_count)+' states')));
+ const globalTypes=Array.isArray(d.global_risk_by_type)?d.global_risk_by_type:[];
+ setOpportunityRows('bpv-opportunity-global-types',globalTypes.map(t=>opportunityRow(opportunityLabel(t.opportunity_key),t.opportunity_count,opportunityLocationLabel(t.country_code,'country')+' · '+metricFormat(t.unique_properties)+' type-matched properties · evidence through '+opportunityDate(t.latest_evidence_at))));
+ const states=Array.isArray(d.customer_ready_by_state)?d.customer_ready_by_state:[];
+ setOpportunityRows('bpv-opportunity-states',states.map(s=>{
+  const types=Object.entries(s.by_type||{}).sort((a,b)=>Number(b[1])-Number(a[1])).map(([k,v])=>opportunityLabel(k)+' '+metricFormat(v));
+  return opportunityRow(opportunityLocationLabel(s.state_code,'state'),s.opportunity_count,metricFormat(s.unique_properties)+' distinct properties',types);
+ }));
+ const countries=Array.isArray(d.global_risk_by_country)?d.global_risk_by_country:[];
+ setOpportunityRows('bpv-opportunity-countries',countries.map(ct=>{
+  const types=Object.entries(ct.by_type||{}).sort((a,b)=>Number(b[1])-Number(a[1])).map(([k,v])=>opportunityLabel(k)+' '+metricFormat(v));
+  return opportunityRow(opportunityLocationLabel(ct.country_code,'country'),ct.opportunity_count,metricFormat(ct.unique_properties)+' distinct properties · '+metricFormat(ct.type_count)+' risk-review types',types);
+ }));
+ const listingStates=Array.isArray(d.active_reo_by_state)?d.active_reo_by_state:[];
+ setOpportunityRows('bpv-opportunity-listing-states',listingStates.map(st=>opportunityRow(opportunityLocationLabel(st.state_code,'state'),st.listing_count,'Active public HUD/FHA REO for-sale listings')));
+ const f=d.freshness||{},up=$('#bpv-opportunity-updated');
+ if(up)up.textContent='Dashboard generated '+opportunityDate(d.generated_at)+' · U.S. cache refreshed '+opportunityDate(f.customer_cache_refreshed_at)+' · global risk rows updated '+opportunityDate(f.global_risk_updated_at)+' · REO source checked '+opportunityDate(f.active_reo_source_checked_at);
+ window.__BRIDGEPOINT_OPPORTUNITY_DASHBOARD_V5919__={version:5919,generatedAt:d.generated_at,counts:c,updatedAt:Date.now()};
+}
+async function loadOpportunityBreakdown(){
+ if(opportunityDashboardLoading)return opportunityDashboardLoading;
+ if(opportunityDashboardLast&&Date.now()-opportunityDashboardLastAt<30000){renderOpportunityBreakdown(opportunityDashboardLast);return opportunityDashboardLast}
+ const summary=$('#bpv-opportunity-summary'),updated=$('#bpv-opportunity-updated');
+ if(summary&&!opportunityDashboardLast)summary.replaceChildren(metricCard('Opportunity records','CONNECTING','Refreshing current BridgePoint cohorts'));
+ opportunityDashboardLoading=(async()=>{
+  try{
+   const d=await rpc('bridgepoint_public_opportunity_breakdown_v5919',{},11000);
+   if(!d||d.complete!==true||Number(d.version)!==5919||!d.counts)throw new Error('Opportunity count contract is incomplete');
+   renderOpportunityBreakdown(d);opportunityDashboardLast=d;opportunityDashboardLastAt=Date.now();return d;
+  }catch(e){
+   if(updated)updated.textContent='Opportunity counts could not be refreshed. '+String(e?.message||e);
+   if(summary&&!opportunityDashboardLast)summary.replaceChildren(metricCard('Opportunity records','UNAVAILABLE','No current count is shown until BridgePoint refresh succeeds'));
+   return null;
+  }finally{opportunityDashboardLoading=null}
+ })();
+ return opportunityDashboardLoading;
+}
+
 function wholeEarth(){
  const m=map||findMap();if(!m)return;
  try{m.stop?.();m.easeTo({center:[0,20],zoom:home?(innerWidth<=620?1.05:1.25):(innerWidth<=760?1.05:1.25),pitch:0,bearing:0,duration:650,easing:t=>1-Math.pow(1-t,3)})}catch(_){try{m.jumpTo({center:[0,20],zoom:1.2,pitch:0,bearing:0})}catch(__){}}
@@ -426,7 +515,7 @@ function buildUI(){
  // Initialize truthful counter slots; panel fetch is on-demand to keep the map light.
  buildPropertyPanel();
  document.body.classList.add('bpv-view-ready');
- window.__BRIDGEPOINT_VIEW_V5917__={version:5917,bootedAt:Date.now(),mode:home?'WEBSITE_GLOBE':'APP_GLOBE',ready:true,features:['globe-first','movement-auto-hide','bridgepoint-ai','live-global-counters','property-slot-contract','one-panel-at-a-time'],home};
+ window.__BRIDGEPOINT_VIEW_V5917__={version:5919,bootedAt:Date.now(),mode:home?'WEBSITE_GLOBE':'APP_GLOBE',ready:true,features:['globe-first','movement-auto-hide','bridgepoint-ai','live-global-counters','live-opportunity-breakdown','property-slot-contract','one-panel-at-a-time'],home};
  installMapWatch();
 }
 function init(){
