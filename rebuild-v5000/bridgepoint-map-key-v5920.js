@@ -147,7 +147,7 @@ function bindPopup(map){
  if(bind())return;map.on('styledata',bind);[200,700,1600,3500].forEach(ms=>setTimeout(bind,ms));
 }
 function mount(){
- window.__BP_MAP_KEY_REFRESH_V5920__=loadSummary;
+ window.__BP_MAP_KEY_REFRESH_V5920__=callSummary;
  const panel=document.getElementById('bpv-sidecar'),nav=panel?.querySelector('.bpv-sidecar-tabs'),opp=panel?.querySelector('[data-bpv-pane="opportunities"]');
  if(!panel||!nav||!opp)return false;
  addInventory();addMapKey(panel);
