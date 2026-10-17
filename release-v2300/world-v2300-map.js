@@ -594,10 +594,34 @@ export function initWorld(options={}){
      {type:'Feature',geometry:{type:'Polygon',coordinates:treeCrownPoly(coord,trunk*1.08,8,seed+'|trunk0',1)},properties:{part:'tree_trunk',base_m:0,top_m:base*.62,trunk_color:trunkColor,height_truth:heightTruth,position_truth:positionTruth,truth:positionTruth}},
      {type:'Feature',geometry:{type:'Polygon',coordinates:treeCrownPoly(coord,trunk*.74,8,seed+'|trunk1',1)},properties:{part:'tree_trunk',base_m:base*.56,top_m:base,trunk_color:trunkColor,height_truth:heightTruth,position_truth:positionTruth,truth:positionTruth}}
     );
-    const tiers=evergreen
-      ?[[.9,0,.34,'#1f4b31'],[.72,.2,.58,'#285a38'],[.52,.44,.79,'#316842'],[.31,.67,1,'#3b754b']]
-      :[[.72,0,.36,'#315f37'],[1,.15,.63,'#3b7040'],[.86,.43,.84,'#4a8048'],[.57,.68,1,'#5a8d52']];
-    for(let ti=0;ti<tiers.length;ti++){const [rf,bf,tf,color]=tiers[ti];out.push({type:'Feature',geometry:{type:'Polygon',coordinates:treeCrownPoly(coord,crown*rf,evergreen?13:16,seed+'|crown'+ti,evergreen?.92:1)},properties:{part:'tree_canopy',base_m:base+span*bf,top_m:base+span*tf,canopy_color:color,crown_tier:ti,height_truth:heightTruth,position_truth:positionTruth,leaf_cycle:leaf,species,truth:heightTruth}})}
+    // BridgePoint procedural tree library: 10 crown silhouettes × 5 foliage palettes = 50 visual archetypes.
+    // Archetype variation is a rendering choice, not a claim about source-verified botanical species.
+    const treeProfiles=[
+     {name:'ROUND',r:[.68,.98,.84,.54],b:[0,.12,.43,.69],t:[.34,.63,.85,1],points:16,squash:1.00},
+     {name:'COLUMNAR',r:[.48,.60,.54,.42],b:[0,.18,.47,.73],t:[.30,.58,.83,1],points:14,squash:.72},
+     {name:'CONICAL',r:[1,.78,.54,.28],b:[0,.24,.51,.76],t:[.30,.59,.83,1],points:13,squash:.86},
+     {name:'UMBRELLA',r:[.45,.82,1,.72],b:[0,.16,.39,.64],t:[.30,.59,.82,1],points:18,squash:.78},
+     {name:'SPREADING',r:[.70,1,1.08,.82],b:[0,.15,.42,.70],t:[.34,.64,.85,1],points:17,squash:1.14},
+     {name:'PYRAMIDAL',r:[1,.78,.55,.36],b:[0,.22,.50,.73],t:[.28,.57,.82,1],points:12,squash:.78},
+     {name:'OVAL',r:[.62,.88,.94,.60],b:[0,.16,.42,.69],t:[.29,.61,.84,1],points:15,squash:1.20},
+     {name:'LAYERED',r:[.88,.70,1,.52],b:[0,.19,.48,.75],t:[.36,.60,.85,1],points:14,squash:.92},
+     {name:'COMPACT',r:[.62,.92,.70,.38],b:[0,.18,.48,.76],t:[.32,.63,.85,1],points:12,squash:1.04},
+     {name:'TALL_NARROW',r:[.36,.50,.44,.28],b:[0,.21,.49,.75],t:[.30,.61,.84,1],points:13,squash:.68}
+    ];
+    const treePalettes=[
+     {name:'DEEP_EVERGREEN',colors:['#163d2b','#1e4d32','#285c39','#367447']},
+     {name:'TEMPERATE_GREEN',colors:['#2d6036','#3a7140','#4a814a','#629359']},
+     {name:'TROPICAL_GREEN',colors:['#155447','#1b6c55','#27836a','#41a07e']},
+     {name:'AUTUMN_MIXED',colors:['#536832','#7b7733','#a36e34','#c18745']},
+     {name:'DRY_CLIMATE',colors:['#43562b','#596a32','#76813b','#969b51']}
+    ];
+    const archetypeHash=treeHash(seed+'|bridgepoint-tree-archetype-v5926'),shapeIndex=archetypeHash%treeProfiles.length;
+    const paletteIndex=(evergreen?(archetypeHash>>>5)%3:(archetypeHash>>>5)%treePalettes.length);
+    const profile=treeProfiles[shapeIndex],palette=treePalettes[paletteIndex],archetypeName=palette.name+' · '+profile.name,foliage=palette.colors;
+    for(let ti=0;ti<profile.r.length;ti++){
+     const color=foliage[Math.min(ti,foliage.length-1)],rf=profile.r[ti],bf=profile.b[ti],tf=profile.t[ti];
+     out.push({type:'Feature',geometry:{type:'Polygon',coordinates:treeCrownPoly(coord,crown*rf,profile.points,seed+'|'+archetypeName+'|crown'+ti,profile.squash)},properties:{part:'tree_canopy',base_m:base+span*bf,top_m:base+span*tf,canopy_color:color,crown_tier:ti,tree_archetype:archetypeName,tree_archetype_index:paletteIndex*10+shapeIndex,tree_species_source:species||null,height_truth:heightTruth,position_truth:positionTruth,leaf_cycle:leaf,species,truth:heightTruth}});
+    }
     used++
    }else if(kind==='streetlight'||cls==='street_lamp'){
     const ph=clamp(Number(p.height_m)||6.5,4,12);
