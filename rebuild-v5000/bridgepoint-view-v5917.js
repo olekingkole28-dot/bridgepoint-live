@@ -9,6 +9,7 @@ const home=!!$('#previewMap')&&!$('#liveMap');
 const mapHost=home?$('.preview'):document.querySelector('.map-surface.active')||$('.map-surface');
 const appMap=$('#liveMap');
 let map=null,idleTimer=0,moveUntil=0,selected={id:null,label:'',feature:null},activePanel='ai',metricsLoading=null,asking=false,searchVisible=true;
+let listingLoading=null,listingSummaryCache=null,listingFeaturesCache=[],listingOverlayOn=false,listingMapTimer=0,listingQueryValue='',listingSelectedId=null;
 const SLOT_INFO={
  ai:['BRIDGEPOINT AI','Ask a question about this selected property.'],
  xray:['X-RAY + INTERIOR','Source-backed parts, floors and plans only. No fabricated rooms.'],
@@ -53,6 +54,7 @@ function stopMoving(){
 }
 function attachMap(m){
  if(!m||map===m)return;map=m;
+ if(!m.__bpListingsEventsV5927){m.__bpListingsEventsV5927=true;m.on('moveend',()=>{if(!listingOverlayOn)return;clearTimeout(listingMapTimer);listingMapTimer=setTimeout(()=>void loadListings(true,listingQueryValue),520)});m.on('styledata',()=>{if(listingOverlayOn)ensureListingLayers(m)})}
  const start=()=>setMoving(),end=()=>stopMoving();
  for(const e of ['movestart','zoomstart','rotatestart','pitchstart','dragstart'])try{m.on(e,start)}catch(_){}
  for(const e of ['moveend','zoomend','rotateend','pitchend','dragend'])try{m.on(e,end)}catch(_){}
@@ -103,6 +105,7 @@ function makePanel(){
   '<section data-bpv-pane="listings" hidden><div class="bpv-pane-title"><b>BRIDGEPOINT · PROPERTY LISTINGS</b><small>View listing records and available BridgePoint-hosted images here. No outbound listing links.</small></div>'+
   '<form id="bpv-listings-search" class="bpv-listings-search"><input type="search" aria-label="Search BridgePoint listings" placeholder="Search address, city, rentals…"><button type="submit">SEARCH</button></form>'+
   '<div id="bpv-listings-summary" class="bpv-listings-summary">Loading materialized listing records…</div>'+
+  '<button type="button" id="bpv-listings-overlay-toggle" class="bpv-wide-action" aria-pressed="true">LISTING MAP OVERLAY · ON</button>'+
   '<div id="bpv-listings-items" class="bpv-listings-items"></div>'+
   '<p id="bpv-listings-note" class="bpv-data-note">Only records currently materialized into BridgePoint are shown. Source freshness, photo provenance, and address accuracy stay visible.</p></section>'+
   '<section data-bpv-pane="controls" hidden><div class="bpv-pane-title"><b>BridgePoint Controls</b><small>Layers and map actions live here so the globe remains unobstructed.</small></div><div id="bpv-controls-mount"></div>'+
@@ -113,6 +116,8 @@ function makePanel(){
  p.querySelectorAll('[data-bpv-panel]').forEach(b=>b.addEventListener('click',()=>openPanel(b.dataset.bpvPanel)));
  p.querySelectorAll('[data-bpv-prompt]').forEach(b=>b.addEventListener('click',()=>{$('#bpv-ai-question').value=b.dataset.bpvPrompt;openPanel('ai')}));
  $('#bpv-ai-form').addEventListener('submit',e=>{e.preventDefault();void askBridgePoint()});
+ $('#bpv-listings-search')?.addEventListener('submit',e=>{e.preventDefault();listingQueryValue=$('#bpv-listings-search input')?.value?.trim()||'';void loadListings(true,listingQueryValue)});
+ $('#bpv-listings-overlay-toggle')?.addEventListener('click',()=>{listingOverlayOn=!listingOverlayOn;setListingOverlay(listingOverlayOn);const b=$('#bpv-listings-overlay-toggle');if(b){b.textContent='LISTING MAP OVERLAY · '+(listingOverlayOn?'ON':'OFF');b.setAttribute('aria-pressed',String(listingOverlayOn))}if(listingOverlayOn)void loadListings(true,listingQueryValue)});
  $('#bpv-whole-earth').addEventListener('click',wholeEarth);
  return p;
 }
@@ -480,6 +485,110 @@ async function loadOpportunityBreakdown(){
 function wholeEarth(){
  const m=map||findMap();if(!m)return;
  try{m.stop?.();m.easeTo({center:[0,20],zoom:home?(innerWidth<=620?1.05:1.25):(innerWidth<=760?1.05:1.25),pitch:0,bearing:0,duration:650,easing:t=>1-Math.pow(1-t,3)})}catch(_){try{m.jumpTo({center:[0,20],zoom:1.2,pitch:0,bearing:0})}catch(__){}}
+}
+const BP_LISTINGS_SOURCE_V5927='bp-v5927-listings-source';
+const BP_LISTINGS_POINTS_V5927='bp-v5927-listings-points';
+const BP_LISTINGS_LABELS_V5927='bp-v5927-listings-labels';
+const BP_EMPTY_FEATURES_V5927={type:'FeatureCollection',features:[]};
+function ensureListingLayers(m=map){
+ if(!m)return false;try{if(m.isStyleLoaded?.()!==true)return false;
+  if(!m.getSource(BP_LISTINGS_SOURCE_V5927))m.addSource(BP_LISTINGS_SOURCE_V5927,{type:'geojson',data:BP_EMPTY_FEATURES_V5927});
+  if(!m.getLayer(BP_LISTINGS_POINTS_V5927))m.addLayer({id:BP_LISTINGS_POINTS_V5927,type:'circle',source:BP_LISTINGS_SOURCE_V5927,minzoom:3,paint:{
+   'circle-radius':['interpolate',['linear'],['zoom'],3,2.6,7,4.2,11,6.2,15,8],
+   'circle-color':['coalesce',['get','display_color'],'#69dfff'],
+   'circle-opacity':.94,'circle-stroke-color':'#071820','circle-stroke-width':['interpolate',['linear'],['zoom'],4,.4,12,1.5]
+  }});
+  if(!m.getLayer(BP_LISTINGS_LABELS_V5927))m.addLayer({id:BP_LISTINGS_LABELS_V5927,type:'symbol',source:BP_LISTINGS_SOURCE_V5927,minzoom:13,layout:{
+   'text-field':['coalesce',['get','address'],['get','title'],'Listing'],
+   'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],13,9,17,12],
+   'text-offset':[0,1.15],'text-max-width':16,'text-allow-overlap':false,'text-ignore-placement':false
+  },paint:{'text-color':'#eafaff','text-halo-color':'rgba(3,12,20,.92)','text-halo-width':1.4}});
+  m.setLayoutProperty(BP_LISTINGS_POINTS_V5927,'visibility',listingOverlayOn?'visible':'none');
+  m.setLayoutProperty(BP_LISTINGS_LABELS_V5927,'visibility',listingOverlayOn?'visible':'none');
+  if(!m.__bpListingsClickBoundV5927){
+   m.__bpListingsClickBoundV5927=true;
+   m.on('click',BP_LISTINGS_POINTS_V5927,e=>{const f=e.features?.[0];if(!f)return;listingSelectedId=String(f.properties?.listing_id||f.id||'');openPanel('listings');void loadListings(false,listingQueryValue,listingSelectedId)});
+   m.on('mouseenter',BP_LISTINGS_POINTS_V5927,()=>{try{m.getCanvas().style.cursor='pointer'}catch(_){}});
+   m.on('mouseleave',BP_LISTINGS_POINTS_V5927,()=>{try{m.getCanvas().style.cursor=''}catch(_){}});
+  }
+  return true;
+ }catch(e){console.warn('BridgePoint listing map layer',e);return false}
+}
+function setListingOverlay(on){
+ listingOverlayOn=!!on;ensureListingLayers(map);
+ for(const id of [BP_LISTINGS_POINTS_V5927,BP_LISTINGS_LABELS_V5927])try{if(map?.getLayer(id))map.setLayoutProperty(id,'visibility',listingOverlayOn?'visible':'none')}catch(_){}
+}
+function listingPhotoPath(raw){
+ const v=typeof raw==='string'?raw:(raw?.storage_path||raw?.path||raw?.url||raw?.public_path||'');
+ if(!v||typeof v!=='string')return null;
+ if(v.startsWith('/storage/v1/object/public/bridgepoint-listing-media/'))return v;
+ if(v.startsWith('/assets/bridgepoint-listings/'))return v;
+ return null;
+}
+function renderListingCards(features,selectedId=null){
+ const root=$('#bpv-listings-items');if(!root)return;
+ const frag=document.createDocumentFragment();let count=0;
+ for(const f of (features||[]).slice(0,35)){
+  const p=f.properties||{},card=node('article','bpv-listing-card');
+  card.dataset.listingId=String(p.listing_id||f.id||'');
+  const title=node('b','bpv-listing-title',p.title||p.address||'BridgePoint listing');
+  const address=node('div','bpv-listing-address',[p.address,p.city,p.state_code,p.postal_code].filter(Boolean).join(', ')||'Address not supplied by source');
+  const meta=node('div','bpv-listing-meta',[(p.listing_type||'LISTING').replaceAll('_',' '),(p.listing_status||'STATUS UNKNOWN').replaceAll('_',' '),p.price_amount!=null?new Intl.NumberFormat(undefined,{style:'currency',currency:p.price_currency||'USD',maximumFractionDigits:0}).format(Number(p.price_amount)):'Price not source-confirmed'].join(' · '));
+  const date=p.source_updated_at||p.source_checked_at;
+  const source=node('small','bpv-listing-source','BridgePoint source record · '+String(p.source_key||'source key unavailable').replaceAll('_',' ')+(date?' · source updated '+new Date(date).toLocaleDateString():' · source timestamp unavailable'));
+  const photoList=Array.isArray(p.bridgepoint_photo_assets)?p.bridgepoint_photo_assets:[];
+  let imagePath=null;for(const item of photoList){imagePath=listingPhotoPath(item);if(imagePath)break}
+  if(imagePath){const img=document.createElement('img');img.className='bpv-listing-photo';img.loading='lazy';img.src=imagePath;img.alt='BridgePoint-hosted listing photo';img.onerror=()=>{img.remove();card.classList.add('bpv-no-photo')};card.appendChild(img)}
+  else{const badge=node('div','bpv-listing-photo-empty','IMAGE NOT MATERIALIZED IN BRIDGEPOINT');card.appendChild(badge)}
+  card.append(title,address,meta,source);
+  const note=node('p','bpv-listing-accuracy',p.accuracy_notice||'Listing status and address precision follow the source record; refresh source evidence before acting.');
+  card.appendChild(note);
+  const act=node('button','bpv-listing-focus','FOCUS ON GLOBE');act.type='button';act.addEventListener('click',()=>{
+   const center=featureCenter(f);if(center&&map)try{map.flyTo({center,zoom:Math.max(map.getZoom()||0,15),pitch:Math.max(map.getPitch()||0,45),duration:700})}catch(_){}
+   listingSelectedId=card.dataset.listingId;document.querySelectorAll('.bpv-listing-card').forEach(x=>x.classList.toggle('selected',x.dataset.listingId===listingSelectedId));
+  });
+  card.appendChild(act);if(String(p.listing_id||f.id||'')===String(selectedId||listingSelectedId||''))card.classList.add('selected');
+  frag.appendChild(card);count++;
+ }
+ if(!count){const empty=node('div','bpv-listing-empty','No materialized listings match this map view and search. Clear the search or move the globe to another area.');frag.appendChild(empty)}
+ root.replaceChildren(frag);
+}
+function featureCenter(f){
+ const g=f?.geometry;if(!g)return null;if(g.type==='Point')return g.coordinates.slice(0,2);
+ const pts=[];const walk=x=>{if(!Array.isArray(x))return;if(x.length>=2&&typeof x[0]==='number'&&typeof x[1]==='number'){pts.push([x[0],x[1]]);return}for(const n of x)walk(n)};walk(g.coordinates);if(!pts.length)return null;
+ return [pts.reduce((a,p)=>a+p[0],0)/pts.length,pts.reduce((a,p)=>a+p[1],0)/pts.length];
+}
+async function loadListings(force=false,queryOverride,selectedId=null){
+ const summary=$('#bpv-listings-summary'),note=$('#bpv-listings-note');
+ if(listingLoading&&!force)return listingLoading;
+ const q=String(queryOverride??listingQueryValue??'').trim();listingQueryValue=q;
+ const current=map||findMap();if(!current){if(summary)summary.textContent='Waiting for the BridgePoint globe…';return null}
+ listingLoading=(async()=>{
+  try{
+   if(!listingSummaryCache||force)listingSummaryCache=await rpc('bridgepoint_public_listing_summary_v5927',{},6500);
+   const b=current.getBounds?.();
+   const args={p_west:b?.getWest?.()??-180,p_south:b?.getSouth?.()??-80,p_east:b?.getEast?.()??180,p_north:b?.getNorth?.()??80,p_limit:250,p_query:q};
+   const data=await rpc('bridgepoint_public_listings_viewport_v5927',args,9000);
+   const features=Array.isArray(data?.features)?data.features:(data?.geojson?.features||[]);
+   listingFeaturesCache=features;
+   if(summary){
+    const s=listingSummaryCache||{};
+    summary.textContent=Number(s.total_records||0).toLocaleString()+' materialized listings · '+Number(s.rent_records||0).toLocaleString()+' rental/lease records · '+Number(s.sale_records||0).toLocaleString()+' for-sale records · '+Number(s.bridgepoint_photo_assets||0).toLocaleString()+' records with BridgePoint-hosted photo assets. '+Number(data?.matching_in_view||0).toLocaleString()+' match the current view/search.';
+   }
+   const src=ensureListingLayers(current)?current.getSource(BP_LISTINGS_SOURCE_V5927):null;
+   if(src)src.setData(data?.geojson||{type:'FeatureCollection',features});
+   setListingOverlay(listingOverlayOn);
+   renderListingCards(features,selectedId);
+   if(note)note.textContent=(data?.truth_note||'Listings are returned from BridgePoint-materialized source records.')+' Listing cards do not open external websites.';
+   if(!data?.complete)throw new Error(data?.error||'Listing viewport is incomplete');
+   return data;
+  }catch(e){
+   if(summary)summary.textContent='Listings could not refresh: '+String(e?.message||e);
+   if(note)note.textContent='Existing BridgePoint data remains visible; refresh to retry.';
+   console.warn('BridgePoint listing inventory',e);return null;
+  }finally{listingLoading=null}
+ })();
+ return listingLoading;
 }
 function toggleParcelBoundaries(){
  const native=document.querySelector('.map-tools [data-layer="parcels"]');
