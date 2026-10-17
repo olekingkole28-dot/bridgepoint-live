@@ -142,3 +142,14 @@ body.bpv-app #mapStatus{position:static!important;padding:7px 3px;margin:0;backg
  body.bpv-app .building-panel{top:58px!important;bottom:91px!important;left:6px!important;right:6px!important;width:auto!important;max-height:calc(100dvh - 149px)!important}
 }
 @media(prefers-reduced-motion:reduce){.bpv-map-chrome,.bpv-sidecar{transition:none!important}}
+
+/* Honor the original map interaction busy state too. The View dock keeps
+   controls available at rest, but the search must not sit over navigation/zoom
+   controls during touch/pan interactions. */
+body.bpv-home.bp5507-mobile-busy #landingPropertySearch,
+body.bpv-app.bp5507-mobile-busy #publicSearchForm{
+ display:none!important;
+ opacity:0!important;
+ visibility:hidden!important;
+ pointer-events:none!important;
+}
