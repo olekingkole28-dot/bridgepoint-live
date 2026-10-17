@@ -503,8 +503,10 @@ function ensureListingLayers(m=map){
    'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],13,9,17,12],
    'text-offset':[0,1.15],'text-max-width':16,'text-allow-overlap':false,'text-ignore-placement':false
   },paint:{'text-color':'#eafaff','text-halo-color':'rgba(3,12,20,.92)','text-halo-width':1.4}});
-  m.setLayoutProperty(BP_LISTINGS_POINTS_V5927,'visibility',listingOverlayOn?'visible':'none');
-  m.setLayoutProperty(BP_LISTINGS_LABELS_V5927,'visibility',listingOverlayOn?'visible':'none');
+  const wantedVisibility=listingOverlayOn?'visible':'none';
+  for(const id of [BP_LISTINGS_POINTS_V5927,BP_LISTINGS_LABELS_V5927]){
+   try{if(m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!==wantedVisibility)m.setLayoutProperty(id,'visibility',wantedVisibility)}catch(_){}
+  }
   if(!m.__bpListingsClickBoundV5927){
    m.__bpListingsClickBoundV5927=true;
    m.on('click',BP_LISTINGS_POINTS_V5927,e=>{const f=e.features?.[0];if(!f)return;listingSelectedId=String(f.properties?.listing_id||f.id||'');openPanel('listings');void loadListings(false,listingQueryValue,listingSelectedId)});
@@ -516,7 +518,8 @@ function ensureListingLayers(m=map){
 }
 function setListingOverlay(on){
  listingOverlayOn=!!on;ensureListingLayers(map);
- for(const id of [BP_LISTINGS_POINTS_V5927,BP_LISTINGS_LABELS_V5927])try{if(map?.getLayer(id))map.setLayoutProperty(id,'visibility',listingOverlayOn?'visible':'none')}catch(_){}
+ const wanted=listingOverlayOn?'visible':'none';
+ for(const id of [BP_LISTINGS_POINTS_V5927,BP_LISTINGS_LABELS_V5927])try{if(map?.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')!==wanted)map.setLayoutProperty(id,'visibility',wanted)}catch(_){};
 }
 function listingPhotoPath(raw){
  const v=typeof raw==='string'?raw:(raw?.storage_path||raw?.path||raw?.url||raw?.public_path||'');
