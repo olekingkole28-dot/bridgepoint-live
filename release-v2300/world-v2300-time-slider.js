@@ -80,6 +80,11 @@ const CSS=`
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function sourceColor(p){
  const k=String(p?.event_type_key||p?.family_key||'').toUpperCase();
+ if(/LANDSLIDE|LANDSLIP|MASS_MOVEMENT|SLOPE_FAILURE/.test(k))return '#b18a59';
+ if(/VOLCANO|VOLCANIC|ERUPTION/.test(k))return '#fb6a40';
+ if(/OPPORTUNITY/.test(k))return '#59efb5';
+ if(/TERRAIN/.test(k))return '#d9b87a';
+ if(/ASSET_MATERIALIZED|NEW_MATERIALIZED_ASSET/.test(k))return '#66e9ff';
  if(/TORNADO|LIGHTNING|HAIL|WIND|SEVERE/.test(k))return '#ffb23d';
  if(/WILDFIRE|FIRE/.test(k))return '#ff593f';
  if(/FLOOD|WATER|RAIN/.test(k))return '#35c9ff';
@@ -120,7 +125,7 @@ export function initWorldTimeSlider(target,rpc){
    <span class="bpwt-stats" data-stats>Waiting for map bounds…</span>
   </div>
   <div class="bpwt-list" data-list aria-label="Recent source-reported changes"></div>
-  <div class="bpwt-note">Time-filtered source observations, not a historical rewind of building geometry or imagery. Forecasts/events are context—not proof of physical damage or sale intent.</div>`;
+  <div class="bpwt-note">Time-filtered source-reported hazards, global events, BridgePoint opportunity-record updates, newly materialized source assets and terrain-data refreshes—not a pixel-perfect historical replay. Opportunity/asset/terrain updates may describe data records rather than physical-world change; forecasts/alerts do not prove damage. Base imagery/building geometry are not rewound.</div>`;
  container.appendChild(dock);
  const $=s=>dock.querySelector(s),slider=$('[data-slider]'),status=$('[data-status]'),date=$('[data-date]'),windowLabel=$('[data-window]'),stats=$('[data-stats]'),list=$('[data-list]'),liveBtn=$('[data-live]'),playBtn=$('[data-play]'),cloudBtn=$('[data-clouds]');
  const collapseBtn=$('[data-collapse]'),standaloneBtn=$('[data-standalone]');
@@ -185,16 +190,16 @@ export function initWorldTimeSlider(target,rpc){
   const liveNow=Number(slider.value)>=30;
   lastMode=liveNow?'LIVE':'HISTORY';updateDate();setStatus(liveNow?'REFRESHING LIVE…':'LOADING HISTORY…');
   try{
-   const data=await rpc('bridgepoint_public_world_activity_v5908',args,6500);
+   const data=await rpc('bridgepoint_public_world_activity_v5927',args,6500);
    if(disposed||my!==seq)return;
    if(!data?.resolved||!data?.complete)throw new Error(data?.error||'ACTIVITY_FEED_UNAVAILABLE');
    const fc=data.geojson&&Array.isArray(data.geojson.features)?data.geojson:EMPTY;
    for(const f of fc.features){f.properties=f.properties||{};f.properties.display_color=sourceColor(f.properties)}
    map.getSource(SOURCE_ID).setData(fc);lastFeatures=fc.features;lastRequestAt=Date.now();
-   const hz=Number(data.hazard_observations||0),ge=Number(data.global_events||0),num=fc.features.length;
-   stats.textContent=num.toLocaleString()+' shown · '+hz.toLocaleString()+' hazards · '+ge.toLocaleString()+' global events';
-   buildList(lastFeatures);setStatus(liveNow?'LIVE · UPDATED':'HISTORY · LOADED');dock.dataset.version='5908';
-   window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__={version:5908,mode:lastMode,selectedAt:at.toISOString(),windowHours:24,returned:num,hazards:hz,globalEvents:ge,viewport:args,lastUpdatedAt:new Date(lastRequestAt).toISOString(),historicalReplay:false};
+   const hz=Number(data.hazard_observations||0),ge=Number(data.global_events||0),op=Number(data.opportunity_changes||0),assets=Number(data.newly_materialized_assets||0),terrain=Number(data.terrain_data_refreshes||0),num=fc.features.length;
+   stats.textContent=num.toLocaleString()+' shown · '+hz.toLocaleString()+' hazards · '+ge.toLocaleString()+' global events · '+op.toLocaleString()+' opportunity updates · '+assets.toLocaleString()+' new assets · '+terrain.toLocaleString()+' terrain refreshes';
+   buildList(lastFeatures);setStatus(liveNow?'LIVE · UPDATED':'HISTORY · LOADED');dock.dataset.version='5927';
+   window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__={version:5927,mode:lastMode,selectedAt:at.toISOString(),windowHours:24,returned:num,hazards:hz,globalEvents:ge,opportunityChanges:op,newMaterializedAssets:assets,terrainDataRefreshes:terrain,viewport:args,lastUpdatedAt:new Date(lastRequestAt).toISOString(),historicalReplay:false};
   }catch(e){
    if(disposed||my!==seq)return;
    setStatus('FEED RETRY',true);stats.textContent='Could not refresh source-reported activity.';console.warn('BridgePoint public world activity',e?.message||e);
