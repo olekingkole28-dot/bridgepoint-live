@@ -59,7 +59,7 @@ function attachMap(m){
 function findMap(){return home?(window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map||null):(window.__BP_V5000_WORLD__?.map||null)}
 function installMapWatch(){const m=findMap();if(m){attachMap(m);return}let turns=0;const tick=()=>{if(map)return;const n=findMap();if(n){attachMap(n);return}if(++turns<300)setTimeout(tick,100)};setTimeout(tick,150)}
 function makePanel(){
- const p=node('aside','bpv-sidecar');p.id='bpv-sidecar';p.hidden=true;p.setAttribute('aria-label','BridgePoint View control deck');
+ const p=node('aside','bpv-sidecar bpv-map-chrome');p.id='bpv-sidecar';p.hidden=true;p.setAttribute('aria-label','BridgePoint View control deck');
  p.innerHTML=
   '<div class="bpv-sidecar-head"><div><span class="bpv-eyebrow">BRIDGEPOINT VIEW</span><b id="bpv-sidecar-title">BRIDGEPOINT AI</b></div><button id="bpv-panel-close" type="button" aria-label="Close BridgePoint panel">×</button></div>'+
   '<nav class="bpv-sidecar-tabs" aria-label="BridgePoint View panels">'+
@@ -132,8 +132,9 @@ function makeSlots(container,kind){
 }
 function selectProperty(id,label,feature){
  selected={id:id||null,label:label||'Selected building',feature:feature||null};
- $('#bpv-property-title')&&( $('#bpv-property-title').textContent=selected.label||'Selected property');
- $('#bpv-property-key')&&($('#bpv-property-key').textContent=selected.id?'BridgePoint building ID · '+selected.id:'Selected BridgePoint structure · source ID pending');
+ const sTitle=$('#bpv-property-title'),sKey=$('#bpv-property-key'),titleText=selected.label||'Selected property',keyText=selected.id?'BridgePoint building ID · '+selected.id:'Selected BridgePoint structure · source ID pending';
+ if(sTitle&&sTitle.textContent!==titleText)sTitle.textContent=titleText;
+ if(sKey&&sKey.textContent!==keyText)sKey.textContent=keyText;
  refreshSlotLabels();
 }
 function refreshSlotLabels(){
@@ -147,7 +148,7 @@ function refreshSlotLabels(){
  const sTitle=$('#bpv-property-title'),sKey=$('#bpv-property-key');
  if(sTitle)sTitle.textContent=label;
  if(sKey)sKey.textContent=selected.id?'BridgePoint building ID · '+selected.id:'BridgePoint building selection · source ID pending';
- const slotStatus=(key,text)=>$$('[data-bpv-slot-status="'+key+'"]').forEach(el=>el.textContent=text);
+ const slotStatus=(key,text)=>$('[data-bpv-slot-status="'+key+'"]').forEach(el=>{if(el.textContent!==text)el.textContent=text});
  const props=selected.feature?.properties||{};
  const hasPart=Number(props.part_count||props.building_part_count||0)>0;
  const hasRoof=!!(props.roof_type||props.roof_geometry||props.roof_planes||props.roof_area_m2||props.roof_area_sqft);
@@ -217,8 +218,9 @@ function installAppSlots(){
  wrap.innerHTML='<div class="bpv-slot-section-head"><b>BRIDGEPOINT PROPERTY INTELLIGENCE</b><small>Property-linked data slots</small></div><p class="bpv-slot-footnote">Missing sources remain visible as unavailable; BridgePoint does not fill gaps with invented geometry or history.</p><div id="bpv-app-property-slots-grid" class="bpv-slot-grid"></div>';
  panel.appendChild(wrap);makeSlots($('#bpv-app-property-slots-grid'),'app');
  const update=()=>{const id=window.__BP_XRAY_STATE__?.buildingId||null;const title=$('#buildingTitle')?.textContent||'Selected building';selectProperty(id,title,window.__BP_SELECTED_BUILDING_FEATURE__||null)};
- const obs=new MutationObserver(()=>{if(!panel.hidden)update()});
- obs.observe(panel,{attributes:true,attributeFilter:['hidden'],childList:true,subtree:true,characterData:true});
+ const obs=new MutationObserver(update);
+ obs.observe(panel,{attributes:true,attributeFilter:['hidden'],childList:true});
+ const titleNode=$('#buildingTitle');if(titleNode)new MutationObserver(update).observe(titleNode,{childList:true,subtree:true,characterData:true});
  update();
 }
 async function rpc(name,args={},timeout=11000,token=null){
@@ -298,6 +300,8 @@ function toggleSearch(){
 function buildPropertyPanel(){
  const p=$('#bpv-side-property-slots');if(p&&!p.children.length)makeSlots(p,'panel');
 }
+
+window.addEventListener('bp:building-selected',e=>{const f=e.detail?.feature||null,p=f?.properties||{},id=p.building_id||f?.id||e.detail?.buildingId||window.__BP_XRAY_STATE__?.buildingId||null,label=p.full_address||p.address||p.display_name||p.name||(id?'Building #'+id:'Selected building');selectProperty(id,label,f)});
 function buildUI(){
  if(!mapHost||$('#bpv-dock'))return;
  document.body.classList.add(home?'bpv-home':'bpv-app');
@@ -311,6 +315,7 @@ function buildUI(){
   if(main&&content){
    const sections=Array.from(main.children).filter(el=>el!==$('.hero'));
    sections.forEach(el=>content.appendChild(el));
+   const footer=document.querySelector('body>footer');if(footer)content.appendChild(footer);
   }
   const form=$('#landingPropertySearch'),premium=$('#landingFreePremiumTools');
   if(form)ui.searchSlot.appendChild(form);
@@ -342,7 +347,7 @@ function buildUI(){
   const whole=$('#bpv-whole-earth');whole.addEventListener('click',wholeEarth);
  }
  const searchButton=node('button','','SEARCH');
- searchButton.type='button';searchButton.dataset.bpvAction='search';searchButton.addEventListener('click',toggleSearch);
+ searchButton.type='button';searchButton.dataset.bpvAction='search';searchButton.dataset.bpvBound='1';searchButton.addEventListener('click',toggleSearch);
  const premium=ui.actions.querySelector('#landingFreePremiumTools,#appFreePremiumTools');
  if(!premium){const b=node('button','','FREE PREMIUM TOOLS');b.type='button';b.dataset.bpvAction='premium';b.addEventListener('click',()=>document.querySelector('#landingFreePremiumTools,#appFreePremiumTools')?.click());ui.actions.insertBefore(b,ui.actions.querySelector('[data-bpv-action="ai"]'))}
  // Put search and account actions at rest; hide them together while the globe is moving.
