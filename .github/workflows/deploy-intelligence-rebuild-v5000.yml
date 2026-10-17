@@ -1066,6 +1066,7 @@ jobs:
               const basemapModeSmoke=await p.evaluate(()=>{
                 const api=window.__BP_SPECTRAL_IMAGERY_V5930__,m=api?.map,select=document.querySelector('#liveMap #bp-spectral-imagery-v5930 [data-global-mode]');
                 if(!m||!select)return {ok:false,reason:'missing global mode control'};
+                const originalCenter=m.getCenter(),originalZoom=m.getZoom(),combo=document.querySelector('#liveMap #bp-spectral-imagery-v5930 [data-combo]'),originalCombo=combo?.value;
                 m.jumpTo({center:[0,20],zoom:1});
                 select.value='vegetation';select.dispatchEvent(new Event('change',{bubbles:true}));
                 const globeBackground=m.getPaintProperty('gta-bg','background-color');
@@ -1075,6 +1076,8 @@ jobs:
                 const activeMode=api.basemapMode;
                 select.value='dark';select.dispatchEvent(new Event('change',{bubbles:true}));
                 const restoredBackground=m.getPaintProperty('gta-bg','background-color');
+                if(combo&&originalCombo)combo.value=originalCombo;
+                m.jumpTo({center:[originalCenter.lng,originalCenter.lat],zoom:originalZoom});
                 return {ok:activeMode==='vegetation'&&globeBackground==='#061b13'&&streetBackground===globeBackground&&globeSatellite==='visible'&&restoredBackground==='#040b12',activeMode,globeBackground,streetBackground,globeSatellite,restoredBackground};
               });
               if(!basemapModeSmoke.ok)throw new Error('GLOBAL_BASEMAP_MODE_SMOKE_FAILED '+JSON.stringify(basemapModeSmoke));
