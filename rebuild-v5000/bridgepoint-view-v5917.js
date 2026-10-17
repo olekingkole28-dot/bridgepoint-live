@@ -592,7 +592,15 @@ async function loadListings(force=false,queryOverride,selectedId=null){
 }
 function toggleParcelBoundaries(){
  const native=document.querySelector('.map-tools [data-layer="parcels"]');
- if(native){native.click();const on=native.classList.contains('active');$('[data-bpv-action="parcels"]').forEach(b=>{b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on))});return}
+ if(native&&!home){native.click();const on=native.classList.contains('active');$$('[data-bpv-action="parcels"]').forEach(b=>{b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on))});return}
+ const m=map||findMap(),ids=['gta-parcel','gta-parcel-glow','gta-parcel-halo'].filter(id=>m?.getLayer?.(id));
+ if(ids.length){
+  const currentlyOn=ids.some(id=>(m.getLayoutProperty(id,'visibility')||'visible')!=='none'),next=!currentlyOn;
+  ids.forEach(id=>{try{m.setLayoutProperty(id,'visibility',next?'visible':'none')}catch(_){}});
+  window.__BP_PARCEL_LAYER_STATE_V5927__={enabled:next,layerIds:ids,updatedAt:Date.now()};
+  $$('[data-bpv-action="parcels"]').forEach(b=>{b.classList.toggle('active',next);b.setAttribute('aria-pressed',String(next))});
+  return;
+ }
  const api=window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__;
  if(api?.open){api.open('public');return}
  const button=document.querySelector('#bpLandingBoundaryOpen5403,#bpAppBoundaryOpen5403');
