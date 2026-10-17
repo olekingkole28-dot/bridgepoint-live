@@ -237,6 +237,7 @@ jobs:
           grep -Fq 'bpv-map-moving' site/bridgepoint-view-v5917.js
           grep -Fq 'Worldwide stored boundary total' site/bridgepoint-view-v5917.js
           grep -Fq 'Active opportunity jurisdictions' site/bridgepoint-view-v5917.js
+          grep -Fq 'bpv-home.bp5507-mobile-busy #landingPropertySearch' site/bridgepoint-view-v5917.css
           grep -Fq 'active countries ·' site/landing.js
           grep -Fq 'Global jurisdictions' site/index.html
           grep -Fq 'landingOwnsCanonicalCounter' site/global-property-v957.js
