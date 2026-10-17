@@ -525,7 +525,18 @@ function buildUI(){
  // Put search and account actions at rest; hide them together while the globe is moving.
  ui.actions.insertBefore(searchButton,ui.actions.querySelector('[data-bpv-action="ai"]'));
  const panelOpenButtons=ui.actions.querySelectorAll('[data-bpv-action]');
- panelOpenButtons.forEach(b=>{if(b.dataset.bpvBound)return;b.dataset.bpvBound='1';b.addEventListener('click',()=>{const a=b.dataset.bpvAction;if(a==='search'){toggleSearch();return}if(a==='whole'){wholeEarth();return}if(a==='premium'){document.querySelector('#landingFreePremiumTools,#appFreePremiumTools')?.click();return}openPanel(a)})});
+ panelOpenButtons.forEach(b=>{if(b.dataset.bpvBound)return;b.dataset.bpvBound='1';b.addEventListener('click',()=>{const a=b.dataset.bpvAction;if(a==='search'){toggleSearch();return}if(a==='whole'){wholeEarth();return}if(a==='premium'){document.querySelector('#landingFreePremiumTools,#appFreePremiumTools')?.click();return}
+if(a==='motion'){openPanel('controls');window.__BP_GLOBAL_MOTION_V5926__?.open?.();return}
+if(a==='satellite'){
+ const current=window.__BP_SPECTRAL_IMAGERY_V5909__;
+ if(current?.open){current.open();return}
+ const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+ void import('./world-v2300-spectral-imagery.js?v=5926-landsat-six-combinations')
+  .then(m=>{const api=window.__BP_SPECTRAL_IMAGERY_V5909__||m.initSpectralImagery(surfaceWorld);api?.open?.()})
+  .catch(e=>console.warn('BridgePoint satellite filters unavailable',e));
+ return;
+}
+openPanel(a)})});
  // Initialize truthful counter slots; panel fetch is on-demand to keep the map light.
  buildPropertyPanel();
  document.body.classList.add('bpv-view-ready');
