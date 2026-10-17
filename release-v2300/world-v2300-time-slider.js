@@ -24,7 +24,7 @@ const CSS=`
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 [data-collapse]{min-height:23px;padding:4px 8px;margin-left:2px;font-size:12px;line-height:1}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed{width:min(300px,calc(100% - 24px));padding:8px 11px}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed .bpwt-head{margin-bottom:0}
-:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed>:not(.bpwt-head){display:none!important}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed>.bpwt-scale,:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed>.bpwt-controls,:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed>.bpwt-list,:is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-collapsed>.bpwt-note{display:none!important}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-eyebrow{font-size:10px;letter-spacing:.13em;font-weight:900;color:#91eaff}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-status{font-variant-numeric:tabular-nums;color:#b6d2e0;font-size:11px}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-date{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 2px}
@@ -118,9 +118,9 @@ export function initWorldTimeSlider(target,rpc){
  if(container.querySelector('#'+ROOT_ID))return window.__BP_WORLD_TIME_SLIDER_V5908__||null;
  if(getComputedStyle(container).position==='static')container.style.position='relative';
  if(!document.getElementById(STYLE_ID)){const style=document.createElement('style');style.id=STYLE_ID;style.textContent=CSS;document.head.appendChild(style)}
- const dock=document.createElement('section');dock.id=ROOT_ID;dock.className='bp-world-time-slider-v5908';dock.setAttribute('aria-label','World activity time slider');
+ const dock=document.createElement('section');dock.id=ROOT_ID;dock.className='bp-world-time-slider-v5908 bpwt-collapsed';dock.setAttribute('aria-label','World activity time slider');
  dock.innerHTML=`
-  <div class="bpwt-head"><span class="bpwt-eyebrow">WORLD ACTIVITY · 30-DAY SCRUB</span><span class="bpwt-status" data-status>CONNECTING</span><button type="button" data-standalone aria-pressed="false" aria-label="Expand the 30-day world activity controls inline">EXPAND TIMELINE</button><button type="button" data-collapse aria-expanded="true" aria-label="Collapse world activity controls">⌄</button></div>
+  <div class="bpwt-head"><span class="bpwt-eyebrow">WORLD ACTIVITY · 30-DAY SCRUB</span><span class="bpwt-status" data-status>CONNECTING</span><button type="button" data-standalone aria-pressed="false" aria-label="Expand the 30-day world activity controls inline">EXPAND TIMELINE</button><button type="button" data-collapse aria-expanded="false" aria-label="Expand world activity details">⌃</button></div>
   <div class="bpwt-date"><strong data-date>Latest source observations</strong><span data-window>24-hour observation window</span></div>
   <input data-slider type="range" min="0" max="30" step="1" value="30" aria-label="Browse world activity from 30 days ago to now">
   <div class="bpwt-scale"><span>30 DAYS AGO</span><span>LIVE NOW</span></div>
@@ -151,18 +151,17 @@ export function initWorldTimeSlider(target,rpc){
  const $=s=>dock.querySelector(s),slider=$('[data-slider]'),status=$('[data-status]'),date=$('[data-date]'),windowLabel=$('[data-window]'),stats=$('[data-stats]'),list=$('[data-list]'),liveBtn=$('[data-live]'),playBtn=$('[data-play]'),cloudBtn=$('[data-clouds]');
  const collapseBtn=$('[data-collapse]'),standaloneBtn=$('[data-standalone]');
  function setStandalone(on){
-  dock.classList.toggle('bpwt-standalone-open',!!on);
-  standaloneBtn?.setAttribute('aria-pressed',String(!!on));
-  if(standaloneBtn)standaloneBtn.textContent=on?'COLLAPSE TIMELINE':'EXPAND TIMELINE';
-  if(on){dock.classList.remove('bpwt-collapsed');collapseBtn?.setAttribute('aria-expanded','true')}
+  const expanded=!!on;
+  dock.classList.toggle('bpwt-standalone-open',expanded);
+  dock.classList.toggle('bpwt-collapsed',!expanded);
+  standaloneBtn?.setAttribute('aria-pressed',String(expanded));
+  if(standaloneBtn)standaloneBtn.textContent=expanded?'COLLAPSE TIMELINE':'EXPAND TIMELINE';
+  collapseBtn?.setAttribute('aria-expanded',String(expanded));
+  collapseBtn?.setAttribute('aria-label',expanded?'Collapse world activity details':'Expand world activity details');
+  if(collapseBtn)collapseBtn.textContent=expanded?'⌄':'⌃';
  }
- standaloneBtn?.addEventListener('click',()=>setStandalone(!dock.classList.contains('bpwt-standalone-open')));
- collapseBtn.addEventListener('click',()=>{
-  const collapsed=dock.classList.toggle('bpwt-collapsed');
-  collapseBtn.setAttribute('aria-expanded',String(!collapsed));
-  collapseBtn.setAttribute('aria-label',collapsed?'Expand world activity controls':'Collapse world activity controls');
-  collapseBtn.textContent=collapsed?'⌃':'⌄';
- });
+ standaloneBtn?.addEventListener('click',()=>setStandalone(dock.classList.contains('bpwt-collapsed')));
+ collapseBtn.addEventListener('click',()=>setStandalone(dock.classList.contains('bpwt-collapsed')));
  let seq=0,timer=null,playTimer=null,disposed=false,playing=false,live=true,lastFeatures=[],lastMode='LIVE',lastRequestAt=0;
  const setStatus=(s,err=false)=>{status.textContent=s;status.classList.toggle('bpwt-error',!!err)};
  function selectedAt(){const val=Number(slider.value);if(val>=30)return new Date();return new Date(Date.now()-(30-val)*DAY)}
@@ -254,7 +253,7 @@ export function initWorldTimeSlider(target,rpc){
  document.addEventListener('visibilitychange',onVisibility);
  ensureLayers();[80,350,1000,2200].forEach(ms=>setTimeout(()=>{if(!disposed)ensureLayers()},ms));schedule(true,300);
  const poll=setInterval(()=>{if(disposed)return clearInterval(poll);if(!document.hidden&&Number(slider.value)>=30&&Date.now()-lastRequestAt>110000)schedule(false,0)},15000);
- const api={version:5908,map,dock,refresh:()=>refresh(true),open(){setStandalone(true);return dock},close(){setStandalone(false);return dock},toggle(){setStandalone(!dock.classList.contains('bpwt-standalone-open'));return dock},setTimeOffsetDays(days){slider.value=String(Math.max(0,Math.min(30,30-Number(days||0))));live=Number(slider.value)>=30;schedule(true,0)},toggleClouds:()=>cloudBtn.click(),get state(){return window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__||null},destroy(){disposed=true;stopPlay();clearTimeout(timer);clearTimeout(mountHandle);clearInterval(poll);map.off('moveend',onBounds);map.off('zoomend',onBounds);map.off('styledata',onStyle);document.removeEventListener('visibilitychange',onVisibility);dock.remove();try{map.getSource(SOURCE_ID)?.setData(EMPTY);if(map.getLayer(LAYER_LABEL))map.removeLayer(LAYER_LABEL);if(map.getLayer(LAYER_POINT))map.removeLayer(LAYER_POINT);if(map.getLayer(LAYER_LINE))map.removeLayer(LAYER_LINE);if(map.getLayer(LAYER_FILL))map.removeLayer(LAYER_FILL);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID)}catch(_){} }};
+ const api={version:5908,map,dock,refresh:()=>refresh(true),open(){setStandalone(true);return dock},close(){setStandalone(false);return dock},toggle(){setStandalone(dock.classList.contains('bpwt-collapsed'));return dock},setTimeOffsetDays(days){slider.value=String(Math.max(0,Math.min(30,30-Number(days||0))));live=Number(slider.value)>=30;schedule(true,0)},toggleClouds:()=>cloudBtn.click(),get state(){return window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__||null},destroy(){disposed=true;stopPlay();clearTimeout(timer);clearTimeout(mountHandle);clearInterval(poll);map.off('moveend',onBounds);map.off('zoomend',onBounds);map.off('styledata',onStyle);document.removeEventListener('visibilitychange',onVisibility);dock.remove();try{map.getSource(SOURCE_ID)?.setData(EMPTY);if(map.getLayer(LAYER_LABEL))map.removeLayer(LAYER_LABEL);if(map.getLayer(LAYER_POINT))map.removeLayer(LAYER_POINT);if(map.getLayer(LAYER_LINE))map.removeLayer(LAYER_LINE);if(map.getLayer(LAYER_FILL))map.removeLayer(LAYER_FILL);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID)}catch(_){} }};
  window.__BP_WORLD_TIME_SLIDER_V5908__=api;
  return api;
 }
