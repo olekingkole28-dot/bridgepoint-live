@@ -171,7 +171,7 @@ function makeTopBarAndDock(){
    const current=window.__BP_SPECTRAL_IMAGERY_V5931__;
    if(current?.open){current.open();return}
    const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
-   void import('./world-v2300-spectral-imagery.js?v=5931-global-basemap-modes')
+   void import('./world-v2300-spectral-imagery.js?v=5933-world-controls')
     .then(m=>{const api=window.__BP_SPECTRAL_IMAGERY_V5931__||m.initSpectralImagery(surfaceWorld);api?.open?.()})
     .catch(e=>console.warn('BridgePoint satellite filters unavailable',e));
    return;
@@ -611,7 +611,7 @@ function toggleParcelBoundaries(){
 async function openWorldChanges(){
  const m=map||findMap(),world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  let api=window.__BP_WORLD_TIME_SLIDER_V5908__;
- if(!api||api.map!==m){const mod=await import('./world-v2300-time-slider.js?v=5927-world-history');api=mod.initWorldTimeSlider(world||{map:m},rpc);if(api)window.__BP_WORLD_TIME_SLIDER_V5908__=api}
+ if(!api||api.map!==m){const mod=await import('./world-v2300-time-slider.js?v=5933-world-controls');api=mod.initWorldTimeSlider(world||{map:m},rpc);if(api)window.__BP_WORLD_TIME_SLIDER_V5908__=api}
  if(api?.open)api.open();else openPanel('listings');
 }
 async function openRealWorldEffects(initialWind=false){
@@ -706,7 +706,7 @@ if(a==='satellite'){
  const current=window.__BP_SPECTRAL_IMAGERY_V5931__;
  if(current?.open){current.open();return}
  const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
- void import('./world-v2300-spectral-imagery.js?v=5931-global-basemap-modes')
+ void import('./world-v2300-spectral-imagery.js?v=5933-world-controls')
   .then(m=>{const api=window.__BP_SPECTRAL_IMAGERY_V5931__||m.initSpectralImagery(surfaceWorld);api?.open?.()})
   .catch(e=>console.warn('BridgePoint satellite filters unavailable',e));
  return;
