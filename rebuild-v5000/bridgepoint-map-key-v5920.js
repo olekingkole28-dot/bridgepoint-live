@@ -124,9 +124,8 @@ function addMapKey(panel){
  content.lastElementChild.append(el('p','bpv-mapkey-note','Layers render where source coverage, zoom and toggles support them. Geometry, opportunities, listings, imagery and hazard events are separate inventories.'));
  pane.append(head,content);panel.append(pane);
  const nav=panel.querySelector('.bpv-sidecar-tabs');
- if(nav&&!nav.querySelector('[data-bpv-panel="mapkey"]')){
-  const b=el('button','','MAP KEY');b.type='button';b.dataset.bpvPanel='mapkey';nav.append(b);
-  b.addEventListener('click',()=>{panel.hidden=false;panel.dataset.panel='mapkey';document.body.classList.add('bpv-panel-open');const t=panel.querySelector('#bpv-sidecar-title');if(t)t.textContent='BRIDGEPOINT MAP KEY';panel.querySelectorAll('[data-bpv-panel]').forEach(x=>{const on=x===b;x.classList.toggle('active',on);x.setAttribute('aria-pressed',String(on))});panel.querySelectorAll('[data-bpv-pane]').forEach(x=>{x.hidden=x!==pane});void callSummary()});
+ if(nav){let b=nav.querySelector('[data-bpv-panel="mapkey"]');if(!b){b=el('button','','MAP KEY');b.type='button';b.dataset.bpvPanel='mapkey';nav.append(b)}
+  if(!b.dataset.bpvMapKeyBound){b.dataset.bpvMapKeyBound='1';b.addEventListener('click',()=>{panel.hidden=false;panel.dataset.panel='mapkey';document.body.classList.add('bpv-panel-open');const t=panel.querySelector('#bpv-sidecar-title');if(t)t.textContent='BRIDGEPOINT MAP KEY';panel.querySelectorAll('[data-bpv-panel]').forEach(x=>{const on=x===b;x.classList.toggle('active',on);x.setAttribute('aria-pressed',String(on))});panel.querySelectorAll('[data-bpv-pane]').forEach(x=>{x.hidden=x!==pane});void callSummary()})}
  }
 }
 function popup(map,feature,lngLat){
@@ -145,10 +144,11 @@ function bindPopup(map){
  if(bind())return;map.on('styledata',bind);[200,700,1600,3500].forEach(ms=>setTimeout(bind,ms));
 }
 function mount(){
+ window.__BP_MAP_KEY_REFRESH_V5920__=loadSummary;
  const panel=document.getElementById('bpv-sidecar'),nav=panel?.querySelector('.bpv-sidecar-tabs'),opp=panel?.querySelector('[data-bpv-pane="opportunities"]');
  if(!panel||!nav||!opp)return false;
  addInventory();addMapKey(panel);
- const map=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map||window.__BP_V5000_WORLD?.map||window.__BP_V5000_WORLD?.map;
+ const map=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map||window.__BP_V5000_WORLD__?.map;
  if(map)bindPopup(map);
  if(!window.__BP_MAP_KEY_INIT__){window.__BP_MAP_KEY_INIT__=true;void callSummary();setInterval(()=>{if(!document.hidden)void callSummary()},5*60*1000);const observer=new MutationObserver(()=>{if(summary)updateMetricPanel(summary.counts||{})});const metricGrid=document.getElementById('bpv-metric-grid');if(metricGrid)observer.observe(metricGrid,{childList:true,subtree:true})}
  return true;
