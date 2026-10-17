@@ -145,10 +145,10 @@ async function bootMap(){
  void import('./world-v2300-clouds.js?v=5908-game-clouds')
   .then(m=>{window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
   .catch(e=>console.warn('BridgePoint sky clouds unavailable',e));
- void import('./world-v2300-time-slider.js?v=5933-world-controls')
+ void import('./world-v2300-time-slider.js?v=5934-world-controls')
   .then(m=>{window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)})
   .catch(e=>console.warn('BridgePoint world activity slider unavailable',e));
- void import('./world-v2300-spectral-imagery.js?v=5933-world-controls')
+ void import('./world-v2300-spectral-imagery.js?v=5934-world-controls')
   .then(m=>{window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)})
   .catch(e=>console.warn('BridgePoint spectral satellite layer unavailable',e));
  void import('./world-v2300-realism.js?v=5910-world-materials')
