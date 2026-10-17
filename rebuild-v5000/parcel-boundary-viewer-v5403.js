@@ -5,7 +5,7 @@ const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localh
 const FN=LOCAL_RUNTIME?location.origin+'/functions/v1/bridgepoint-parcel-boundary-tile-v5403':'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-parcel-boundary-tile-v5403';
 const SEARCH_FN=LOCAL_RUNTIME?location.origin+'/functions/v1/bridgepoint-boundary-search-v1091':'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-boundary-search-v1091';
 const PUBLIC_BUILDINGS='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-building-tile-v5019?z={z}&x={x}&y={y}&limit=7000';
-const VERSION=5637;
+const VERSION=5638;
 const SOURCE='bp-boundary-viewer-v5403';
 const GLOW='bp-boundary-glow-v5403';
 const LINE='bp-boundary-line-v5403';
@@ -16,6 +16,11 @@ const STATE_LABEL='bp-boundary-state-label-v5576';
 const GLOBAL_SOURCE='bp-boundary-global-status-v5750';
 const GLOBAL_DOT='bp-boundary-global-dot-v5750';
 const GLOBAL_LABEL='bp-boundary-global-label-v5750';
+const PUBLIC_AUTO_SOURCE='bp-public-auto-parcel-source-v5932';
+const PUBLIC_AUTO_GLOW='bp-public-auto-parcel-glow-v5932';
+const PUBLIC_AUTO_LINE='bp-public-auto-parcel-line-v5932';
+const PUBLIC_AUTO_MAX_ZOOM=11.45;
+const PUBLIC_AUTO_STATE_KEY='__BP_PUBLIC_AUTO_BOUNDARIES_V5932__';
 const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 let viewer=null, refreshTimer=null, statusTimer=null, mode='public';
 let lastGlobalRows=[];
@@ -317,6 +322,78 @@ function tileUrl(bucket){
 function authHeaders(){
   const t=token();
   return mode==='owner'&&t?{Authorization:'Bearer '+t}:{};
+}
+
+function publicAutoBoundaryTileUrl(bucket){
+  // Public mode is fixed for the always-on overlay; never inherit owner viewer state or credentials.
+  return FN+'?mode=public&z={z}&x={x}&y={y}&v='+encodeURIComponent(bucket);
+}
+function ensurePublicAutoBoundaryLayers(map){
+  if(!map||typeof map.addSource!=='function')return false;
+  try{
+    if(!map.isStyleLoaded?.())return false;
+    const styleLayers=map.getStyle?.()?.layers||[];
+    if(!styleLayers.some(layer=>layer.id==='gta-bg'))return false;
+    const bucket=Math.floor(Date.now()/20000);
+    if(!map.getSource(PUBLIC_AUTO_SOURCE)){
+      map.addSource(PUBLIC_AUTO_SOURCE,{
+        type:'vector',
+        tiles:[publicAutoBoundaryTileUrl(bucket)],
+        minzoom:6,
+        maxzoom:12,
+        attribution:'BridgePoint publicly enabled parcel boundaries · approved source-rights only'
+      });
+    }
+    const before=['gta-place-label','gta-poi-label','gta-opportunity-label'].find(id=>map.getLayer(id));
+    if(!map.getLayer(PUBLIC_AUTO_GLOW)){
+      const layer={id:PUBLIC_AUTO_GLOW,type:'line',source:PUBLIC_AUTO_SOURCE,'source-layer':'parcels',minzoom:6,maxzoom:PUBLIC_AUTO_MAX_ZOOM,paint:{
+        'line-color':'#004cff',
+        'line-opacity':['interpolate',['linear'],['zoom'],6,.72,7,.68,9,.58,11.45,.48],
+        'line-width':['interpolate',['linear'],['zoom'],6,1.2,7,1.8,9,2.7,11.45,3.5],
+        'line-blur':['interpolate',['linear'],['zoom'],6,.5,9,1.2,11.45,1.7]
+      }};
+      if(before)map.addLayer(layer,before);else map.addLayer(layer);
+    }
+    if(!map.getLayer(PUBLIC_AUTO_LINE)){
+      const layer={id:PUBLIC_AUTO_LINE,type:'line',source:PUBLIC_AUTO_SOURCE,'source-layer':'parcels',minzoom:6,maxzoom:PUBLIC_AUTO_MAX_ZOOM,paint:{
+        'line-color':'#73ffff',
+        'line-opacity':['interpolate',['linear'],['zoom'],6,.9,7,.97,11.45,1],
+        'line-width':['interpolate',['linear'],['zoom'],6,.28,7,.45,9,.72,11.45,.92]
+      }};
+      if(before)map.addLayer(layer,before);else map.addLayer(layer);
+    }
+    return true;
+  }catch(e){
+    console.warn('BridgePoint public auto parcel boundaries will retry',String(e?.message||e));
+    return false;
+  }
+}
+function wirePublicAutoBoundaries(){
+  const maps=[window.__BP_V5000_WORLD__?.map,window.__BP_V5000_WORLD?.map,window.__BP_LANDING_WORLD__?.map]
+    .filter((m,i,a)=>m&&a.indexOf(m)===i);
+  for(const map of maps){
+    if(ensurePublicAutoBoundaryLayers(map)){
+      const state=window[PUBLIC_AUTO_STATE_KEY]||{version:5932,maps:[],enabled:true,mode:'public',maxZoom:PUBLIC_AUTO_MAX_ZOOM,updatedAt:Date.now()};
+      if(!state.maps.includes(map))state.maps.push(map);
+      state.updatedAt=Date.now();
+      window[PUBLIC_AUTO_STATE_KEY]=state;
+      continue;
+    }
+    if(!map.__bpPublicAutoBoundaryRetry5932){
+      map.__bpPublicAutoBoundaryRetry5932=true;
+      const retry=()=>{
+        if(ensurePublicAutoBoundaryLayers(map)){
+          map.off('load',retry);map.off('styledata',retry);
+          const state=window[PUBLIC_AUTO_STATE_KEY]||{version:5932,maps:[],enabled:true,mode:'public',maxZoom:PUBLIC_AUTO_MAX_ZOOM,updatedAt:Date.now()};
+          if(!state.maps.includes(map))state.maps.push(map);
+          state.updatedAt=Date.now();
+          window[PUBLIC_AUTO_STATE_KEY]=state;
+          map.__bpPublicAutoBoundaryRetry5932=false;
+        }
+      };
+      map.on('load',retry);map.on('styledata',retry);
+    }
+  }
 }
 function addBoundaryLayers(map,bucket){
   const min=6;
@@ -646,12 +723,13 @@ function boot(){
   installStyle();
   wirePublicApp();
   wireOwner();
+  wirePublicAutoBoundaries();
   let n=0;
   const t=setInterval(()=>{
-    n++;wirePublicApp();wireOwner();
+    n++;wirePublicApp();wireOwner();wirePublicAutoBoundaries();
     if(n>120)clearInterval(t);
   },500);
 }
-const BOUNDARY_API={version:VERSION,open:openViewer,close:closeViewer,getMap:()=>viewer||window.__BP_BOUNDARY_VIEWER_MAP_V5585__||null,get mode(){return mode},get stateStatus(){return lastStateRows.slice()},stateFillLayer:STATE_FILL};window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5405__=BOUNDARY_API;
+const BOUNDARY_API={version:VERSION,open:openViewer,close:closeViewer,getMap:()=>viewer||window.__BP_BOUNDARY_VIEWER_MAP_V5585__||null,get mode(){return mode},get stateStatus(){return lastStateRows.slice()},stateFillLayer:STATE_FILL,enablePublicAutoBoundaries:wirePublicAutoBoundaries,publicAutoStateKey:PUBLIC_AUTO_STATE_KEY};window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5576__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__=BOUNDARY_API;window.__BP_PARCEL_BOUNDARY_VIEWER_V5405__=BOUNDARY_API;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
