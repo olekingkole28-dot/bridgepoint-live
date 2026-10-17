@@ -199,6 +199,7 @@ jobs:
           cp release-v2300/world-v2300-clouds.js site/world-v2300-clouds.js
           cp release-v2300/world-v2300-time-slider.js site/world-v2300-time-slider.js
           cp release-v2300/world-v2300-spectral-imagery.js site/world-v2300-spectral-imagery.js
+          cp release-v2300/world-v2300-underground-xray.js site/world-v2300-underground-xray.js
           cp release-v2300/world-v2300-realism.js site/world-v2300-realism.js
           cp release-v2300/gis-core-orchestrator-v5910.js site/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
@@ -210,6 +211,7 @@ jobs:
           cp release-v2300/world-v2300-clouds.js site/app/world-v2300-clouds.js
           cp release-v2300/world-v2300-time-slider.js site/app/world-v2300-time-slider.js
           cp release-v2300/world-v2300-spectral-imagery.js site/app/world-v2300-spectral-imagery.js
+          cp release-v2300/world-v2300-underground-xray.js site/app/world-v2300-underground-xray.js
           cp release-v2300/world-v2300-realism.js site/app/world-v2300-realism.js
           cp release-v2300/gis-core-orchestrator-v5910.js site/app/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-inspector.js site/app/world-v2300-inspector.js
@@ -273,12 +275,19 @@ jobs:
           node --input-type=module --check < site/world-v2300-clouds.js
           node --input-type=module --check < site/world-v2300-time-slider.js
           node --input-type=module --check < site/world-v2300-spectral-imagery.js
+          node --input-type=module --check < site/world-v2300-underground-xray.js
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
           grep -Fq 'world-v2300-clouds.js?v=5908-game-clouds' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
+          grep -Fq 'world-v2300-underground-xray.js?v=5935-underground-xray' site/app.js
+          grep -Fq 'world-v2300-underground-xray.js?v=5935-underground-xray' site/landing.js
+          grep -Fq 'bpv-underground-slot' site/bridgepoint-view-v5917.js
+          grep -Fq 'TUNNELS_UNDERPASSES' site/world-v2300-underground-xray.js
+          grep -Fq 'No pipe network or leak telemetry' site/world-v2300-underground-xray.js
+          grep -Fq 'bp-underground-xray-v5935' site/world-v2300-underground-xray.js
           grep -Fq 'world-v2300-realism.js?v=5910-world-materials' site/app.js
           grep -Fq 'gis-core-orchestrator-v5910.js?v=5910-gis-router' site/app.js
           grep -Fq 'PUBLIC_AUTO_MIN_ZOOM=4' site/parcel-boundary-viewer-v5403.js
