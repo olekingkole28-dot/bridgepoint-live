@@ -268,8 +268,9 @@ body.bpv-view-ready .bpv-topbar-persistent{
 .bpv-dock-persistent .bpv-dock-label b{font-size:10px;font-weight:950;letter-spacing:.14em;color:#edfbff}
 .bpv-dock-persistent .bpv-dock-label button{flex:0 0 auto;min-height:26px;padding:5px 8px;border:1px solid rgba(119,226,255,.28);border-radius:8px;background:rgba(7,24,35,.8);color:#96eaff;font:900 8px/1 system-ui,sans-serif}
 .bpv-dock-persistent .bpv-search-slot{min-width:0;width:100%}
-.bpv-dock-persistent .bpv-world-activity-slot,.bpv-dock-persistent .bpv-satellite-slot{display:block;min-width:0;width:100%;max-width:100%;position:relative;z-index:auto}
+.bpv-dock-persistent .bpv-world-activity-slot,.bpv-dock-persistent .bpv-underground-slot,.bpv-dock-persistent .bpv-satellite-slot{display:block;min-width:0;width:100%;max-width:100%;position:relative;z-index:auto}
 .bpv-dock-persistent .bpv-world-activity-slot{margin:5px 0 0}
+.bpv-dock-persistent .bpv-underground-slot{margin:5px 0 0;padding:5px 0;border-top:1px solid rgba(117,234,255,.12)}
 .bpv-dock-persistent .bpv-satellite-slot{margin:6px 0 0;padding-top:6px;border-top:1px solid rgba(117,234,255,.16)}
 .bpv-dock-persistent #landingPropertySearch,.bpv-dock-persistent #publicSearchForm{min-width:0;width:100%;max-width:100%;margin:0 0 7px}
 .bpv-dock-persistent .bpv-dock-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;min-width:0}
@@ -319,7 +320,8 @@ body.bpv-view-ready .bpv-topbar-persistent{
  .bpv-key-ribbon{left:5px;right:5px;top:max(52px,calc(env(safe-area-inset-top) + 48px));max-width:calc(100% - 10px);gap:8px;padding:5px 6px;border-radius:9px;font-size:7px}
  .bpv-dock-persistent{left:6px!important;right:6px!important;bottom:max(6px,env(safe-area-inset-bottom))!important;width:auto!important;max-width:none!important;max-height:min(42dvh,360px);padding:7px;border-radius:13px;transform:none!important}
  .bpv-dock-persistent .bpv-dock-label{margin:0 1px 6px;font-size:7px}
- .bpv-dock-persistent .bpv-world-activity-slot,.bpv-dock-persistent .bpv-satellite-slot{width:100%;max-width:100%;margin-top:4px}
+ .bpv-dock-persistent .bpv-world-activity-slot,.bpv-dock-persistent .bpv-underground-slot,.bpv-dock-persistent .bpv-satellite-slot{width:100%;max-width:100%;margin-top:4px}
+ .bpv-dock-persistent .bpv-underground-slot{padding-top:3px;padding-bottom:3px}
  .bpv-dock-persistent .bpv-satellite-slot{padding-top:4px}
  .bpv-dock-persistent .bpv-dock-label b{font-size:8px;letter-spacing:.08em}
  .bpv-dock-persistent .bpv-dock-label>div{gap:6px}
