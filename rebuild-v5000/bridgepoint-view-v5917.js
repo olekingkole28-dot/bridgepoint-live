@@ -25,9 +25,11 @@ function addClass(el,cls){if(el)el.classList.add(cls)}
 function closePanel(){const p=$('#bpv-sidecar');if(p)p.hidden=true;document.body.classList.remove('bpv-panel-open')}
 function openPanel(name){
  const p=$('#bpv-sidecar');if(!p)return;
+ if(home){const card=$('#previewCard');if(card&&!card.hidden)card.hidden=true}else{const sys=$('#systemPanel'),building=$('#buildingPanel');if(sys)sys.hidden=true;if(building)building.hidden=true}
  activePanel=name;
  p.hidden=false;document.body.classList.add('bpv-panel-open');
  p.dataset.panel=name;
+ const titles={ai:'BRIDGEPOINT AI',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',explore:'EXPLORE BRIDGEPOINT'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT VIEW';
  p.querySelectorAll('[data-bpv-panel]').forEach(b=>{const on=b.dataset.bpvPanel===name;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on?'true':'false')});
  p.querySelectorAll('[data-bpv-pane]').forEach(s=>{s.hidden=s.dataset.bpvPane!==name});
  if(name==='metrics')void loadMetrics();
@@ -353,7 +355,7 @@ function buildUI(){
  // Put search and account actions at rest; hide them together while the globe is moving.
  ui.actions.insertBefore(searchButton,ui.actions.querySelector('[data-bpv-action="ai"]'));
  const panelOpenButtons=ui.actions.querySelectorAll('[data-bpv-action]');
- panelOpenButtons.forEach(b=>{if(b.dataset.bpvBound)return;b.dataset.bpvBound='1';b.addEventListener('click',()=>{const a=b.dataset.bpvAction;if(a==='search'){toggleSearch();return}if(a==='whole'){wholeEarth();return}openPanel(a)})});
+ panelOpenButtons.forEach(b=>{if(b.dataset.bpvBound)return;b.dataset.bpvBound='1';b.addEventListener('click',()=>{const a=b.dataset.bpvAction;if(a==='search'){toggleSearch();return}if(a==='whole'){wholeEarth();return}if(a==='premium'){document.querySelector('#landingFreePremiumTools,#appFreePremiumTools')?.click();return}openPanel(a)})});
  // Initialize truthful counter slots; panel fetch is on-demand to keep the map light.
  buildPropertyPanel();
  document.body.classList.add('bpv-view-ready');
