@@ -278,7 +278,7 @@ jobs:
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
           grep -Fq 'world-v2300-clouds.js?v=5908-game-clouds' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=5908-world-activity' site/app.js
-          grep -Fq 'world-v2300-spectral-imagery.js?v=5909-spectral-landsat' site/app.js
+          grep -Fq 'world-v2300-spectral-imagery.js?v=5930-global-basemap-modes' site/app.js
           grep -Fq 'world-v2300-realism.js?v=5910-world-materials' site/app.js
           grep -Fq 'gis-core-orchestrator-v5910.js?v=5910-gis-router' site/app.js
           grep -Fq 'bridgepoint_public_property_timeline_v5908' site/app.js
@@ -1062,7 +1062,23 @@ jobs:
               await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5630&&!!window.__BP_V5000_WORLD?.map,{timeout:35000});
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
               await p.waitForFunction(()=>!!window.__BP_SKY_CLOUDS_V5908__&&!!window.__BP_WORLD_TIME_SLIDER_V5908__&&!!document.getElementById('bp-world-time-slider-v5908'),{timeout:20000});
-              await p.waitForFunction(()=>!!window.__BP_SPECTRAL_IMAGERY_V5909__?.available&&!!document.querySelector('#liveMap #bp-spectral-imagery-v5909 [data-toggle]'),{timeout:20000});
+              await p.waitForFunction(()=>!!window.__BP_SPECTRAL_IMAGERY_V5930__?.available&&!!document.querySelector('#liveMap #bp-spectral-imagery-v5930 [data-toggle]'),{timeout:20000});
+              const basemapModeSmoke=await p.evaluate(()=>{
+                const api=window.__BP_SPECTRAL_IMAGERY_V5930__,m=api?.map,select=document.querySelector('#liveMap #bp-spectral-imagery-v5930 [data-global-mode]');
+                if(!m||!select)return {ok:false,reason:'missing global mode control'};
+                m.jumpTo({center:[0,20],zoom:1});
+                select.value='vegetation';select.dispatchEvent(new Event('change',{bubbles:true}));
+                const globeBackground=m.getPaintProperty('gta-bg','background-color');
+                const globeSatellite=m.getLayoutProperty('gta-nasa','visibility');
+                m.jumpTo({zoom:16});
+                const streetBackground=m.getPaintProperty('gta-bg','background-color');
+                const activeMode=api.basemapMode;
+                select.value='dark';select.dispatchEvent(new Event('change',{bubbles:true}));
+                const restoredBackground=m.getPaintProperty('gta-bg','background-color');
+                return {ok:activeMode==='vegetation'&&globeBackground==='#061b13'&&streetBackground===globeBackground&&globeSatellite==='visible'&&restoredBackground==='#040b12',activeMode,globeBackground,streetBackground,globeSatellite,restoredBackground};
+              });
+              if(!basemapModeSmoke.ok)throw new Error('GLOBAL_BASEMAP_MODE_SMOKE_FAILED '+JSON.stringify(basemapModeSmoke));
+              console.log('BRIDGEPOINT_GLOBAL_BASEMAP_MODES_PASS',JSON.stringify(basemapModeSmoke));
               await p.waitForFunction(()=>!!window.__BP_WORLD_REALISM_V5910__?.setEnabled&&!!document.getElementById('bp-world-realism-v5910')&&!!window.__BP_GIS_CORE_V5910__?.route&&!!document.getElementById('bp-gis-core-v5910'),{timeout:20000});
               await p.waitForFunction(()=>!!window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__&&!!window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__,{timeout:30000});
               await p.waitForFunction(()=>{
