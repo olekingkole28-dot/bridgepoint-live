@@ -120,6 +120,7 @@ function makeTopBarAndDock(){
  '<button type="button" data-bpv-action="metrics">COUNTERS</button>'+
  '<button type="button" data-bpv-action="controls">LAYERS + TOOLS</button>'+
   '<button type="button" data-bpv-action="satellite">SATELLITE FILTERS</button>'+
+ '<button type="button" data-bpv-action="motion">ORBIT & MOTION</button>'+
  '<button type="button" data-bpv-action="property">PROPERTY SLOTS</button>'+
  (home?'<button type="button" data-bpv-action="explore">EXPLORE</button>':'')+
  '<button type="button" class="bpv-whole-earth-short" data-bpv-action="whole">WHOLE EARTH</button></div>';
@@ -129,6 +130,7 @@ function makeTopBarAndDock(){
   if(a==='whole'){wholeEarth();return}
   if(a==='search'){toggleSearch();return}
   if(a==='premium'){document.querySelector('#landingFreePremiumTools,#appFreePremiumTools')?.click();return}
+  if(a==='motion'){openPanel('controls');window.__BP_GLOBAL_MOTION_V5926__?.open?.();return}
   if(a==='satellite'){
    const current=window.__BP_SPECTRAL_IMAGERY_V5909__;
    if(current?.open){current.open();return}
