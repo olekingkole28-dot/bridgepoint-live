@@ -148,8 +148,8 @@ async function bootMap(){
  void import('./world-v2300-time-slider.js?v=5908-world-activity')
   .then(m=>{window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)})
   .catch(e=>console.warn('BridgePoint world activity slider unavailable',e));
- void import('./world-v2300-spectral-imagery.js?v=5930-global-basemap-modes')
-  .then(m=>{window.__BP_SPECTRAL_IMAGERY_V5930__=m.initSpectralImagery(world)})
+ void import('./world-v2300-spectral-imagery.js?v=5931-global-basemap-modes')
+  .then(m=>{window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)})
   .catch(e=>console.warn('BridgePoint spectral satellite layer unavailable',e));
  void import('./world-v2300-realism.js?v=5910-world-materials')
   .then(m=>{window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)})
