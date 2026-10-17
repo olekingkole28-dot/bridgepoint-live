@@ -120,6 +120,8 @@ jobs:
           cp rebuild-v5000/bridgepoint-map-state-counts-v5923.js site/bridgepoint-map-state-counts-v5923.js
           cp rebuild-v5000/bridgepoint-map-physical-assets-v5924.js site/bridgepoint-map-physical-assets-v5924.js
           cp rebuild-v5000/bridgepoint-global-motion-v5926.js site/bridgepoint-global-motion-v5926.js
+          cp rebuild-v5000/bridgepoint-realworld-effects-v5927.js site/bridgepoint-realworld-effects-v5927.js
+          cp rebuild-v5000/bridgepoint-realworld-effects-v5927.js site/app/bridgepoint-realworld-effects-v5927.js
           cp rebuild-v5000/styles.css site/styles.css
           cp rebuild-v5000/app.js site/app.js
           cp rebuild-v5000/owner-everything.js site/owner-everything.js
@@ -236,6 +238,8 @@ jobs:
           node --check site/bridgepoint-map-state-counts-v5923.js
           node --check site/bridgepoint-map-physical-assets-v5924.js
           node --check site/bridgepoint-global-motion-v5926.js
+          node --input-type=module --check < site/bridgepoint-realworld-effects-v5927.js
+          node --input-type=module --check < site/app/bridgepoint-realworld-effects-v5927.js
           test ! -e site/walkthrough-v5537.js
           test ! -e site/walkthrough-v5537.css
           test ! -e site/world-v2300-space.js
@@ -244,6 +248,12 @@ jobs:
           grep -Fq 'bridgepoint-view-v5917.css' site/app/index.html
           grep -Fq 'bridgepoint-view-v5917.js' site/index.html
           grep -Fq 'bridgepoint-view-v5917.js' site/app/index.html
+          grep -Fq 'bpv-dock-persistent' site/bridgepoint-view-v5917.css
+          grep -Fq 'bpv-key-ribbon' site/bridgepoint-view-v5917.css
+          grep -Fq 'PARCEL BOUNDARIES' site/bridgepoint-view-v5917.js
+          grep -Fq 'bridgepoint_public_listings_viewport_v5927' site/bridgepoint-view-v5917.js
+          grep -Fq 'bridgepoint-realworld-effects-v5927.js' site/intelligence-tools-v5507.js
+          grep -Fq 'data-bp-language-mount="top"' site/bridgepoint-view-v5917.js
           grep -Fq 'bpv-map-moving' site/bridgepoint-view-v5917.js
           grep -Fq 'Worldwide stored boundary total' site/bridgepoint-view-v5917.js
           grep -Fq 'Active opportunity jurisdictions' site/bridgepoint-view-v5917.js
