@@ -165,8 +165,11 @@ function install(map){
 async function boot(){
  void status().catch(e=>console.warn('BridgePoint global status',e));
  clearInterval(state.statusTimer);state.statusTimer=setInterval(()=>void status().catch(()=>{}),30000);
- clearInterval(state.liveTimer);state.liveTimer=setInterval(()=>void liveCounters().catch(()=>{}),2000);
- void liveCounters().catch(e=>console.warn('BridgePoint live counters',e));
+ clearInterval(state.liveTimer);
+ // The globe-first homepage has a dedicated animated canonical-counter writer.
+ // Do not run a second timer against the same DOM nodes; in the app, refresh at a calmer 10-second cadence.
+ const landingOwnsCanonicalCounter=!!document.getElementById('landingProperties')&&!!document.getElementById('landingGlobalProperties');
+ if(!landingOwnsCanonicalCounter){state.liveTimer=setInterval(()=>void liveCounters().catch(()=>{}),10000);void liveCounters().catch(e=>console.warn('BridgePoint live counters',e))}
  for(let i=0;i<100;i++){
   const m=currentMap();
   if(m){install(m);return}
