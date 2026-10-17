@@ -327,3 +327,8 @@ body.bpv-view-ready .bpv-topbar-persistent{
  .bpv-listings-items{grid-template-columns:minmax(0,1fr)}
  .bpv-listing-photo{height:120px}
 }
+
+.bpv-key-ribbon .bpv-live-inventory-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 6px;border:1px solid rgba(85,232,181,.26);border-radius:7px;background:rgba(12,70,58,.22);color:#b6ffde}
+.bpv-key-ribbon .bpv-live-inventory-chip b{font-size:8px;color:#fff;font-variant-numeric:tabular-nums}
+.bpv-key-ribbon [data-bpv-listings-rentals]{color:#fff;font-size:8px}
+@media(max-width:700px){.bpv-key-ribbon .bpv-live-inventory-chip{padding:3px 5px;gap:4px}.bpv-key-ribbon .bpv-live-inventory-chip b{font-size:7px}}
