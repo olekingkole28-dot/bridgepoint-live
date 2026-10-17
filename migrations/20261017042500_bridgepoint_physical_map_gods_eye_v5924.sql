@@ -110,8 +110,8 @@ BEGIN
     RAISE EXCEPTION 'Invalid BridgePoint viewport';
   END IF;
   v_south:=GREATEST(-90,p_south); v_north:=LEAST(90,p_north); v_west:=p_west; v_east:=p_east;
-  v_roof_limit:=LEAST(600,GREATEST(80,v_limit*2/3));
-  v_other_limit:=LEAST(180,GREATEST(30,v_limit/4));
+  v_roof_limit:=LEAST(550,GREATEST(50,v_limit*55/100));
+  v_other_limit:=LEAST(100,GREATEST(20,v_limit/10));
   IF p_zoom < 8.5 THEN
     RETURN jsonb_build_object('type','FeatureCollection','features','[]'::jsonb,
       'bridgepoint',jsonb_build_object('version',5924,'zoom',p_zoom,'features_loaded',0,
