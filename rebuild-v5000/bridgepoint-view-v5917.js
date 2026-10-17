@@ -264,28 +264,80 @@ async function askBridgePoint(){
  }catch(e){drawAnswer(null,'public',e)}
  finally{asking=false;if(submit){submit.disabled=false;submit.textContent='ASK BRIDGEPOINT'}}
 }
-function metricCard(label,value,caption){
- const x=node('article','bpv-metric-card'),a=node('span');a.textContent=label;const b=node('b');b.textContent=value;const c=node('small');c.textContent=caption||'LIVE · BRIDGEPOINT';x.append(a,b,c);return x;
+function metricCard(label,value,caption,key=''){
+ const x=node('article','bpv-metric-card'),a=node('span');a.textContent=label;
+ const b=node('b');b.textContent=String(value??'—');if(key)b.dataset.bpvMetricKey=key;
+ const d=node('small');d.textContent=caption||'BRIDGEPOINT VERIFIED SCOPE';x.append(a,b,d);return x;
+}
+function parseMetric(value){
+ if(value===null||value===undefined||value==='')return null;
+ const n=typeof value==='number'?value:Number(String(value).replace(/[,\s]/g,''));
+ return Number.isFinite(n)?n:null;
+}
+function metricFormat(value){const n=parseMetric(value);return n===null?'—':Math.round(n).toLocaleString()}
+function globalMetricRows(live,headline){
+ const raw=[
+  ['Worldwide canonical properties',live?.worldwide_canonical_total,'One verified total: U.S. public parcels + non-U.S. canonical properties','worldwide_canonical_total'],
+  ['U.S. public parcels',live?.us_public_parcels,'U.S. public-parcel scope only','us_public_parcels'],
+  ['Non-U.S. canonical properties',live?.global_non_us_canonical,'Non-U.S. scope; U.S. territories are not added twice','global_non_us_canonical'],
+  ['Active non-U.S. canonical countries',live?.active_non_us_country_count,'Countries with active non-U.S. canonical records','active_non_us_country_count'],
+  ['Worldwide map-ready building geometries',headline?.map_ready_buildings,'Building geometry count; not a property count','map_ready_buildings'],
+  ['Worldwide address records',headline?.world_address_records??headline?.address_records,'Global address index','world_address_records'],
+  ['Worldwide stored boundary total',headline?.world_stored_boundaries,'U.S. stored-boundary estimate + materialized non-U.S. rows; not canonical properties','world_stored_boundaries'],
+  ['U.S. stored-boundary estimate',headline?.us_stored_boundaries,'Estimated U.S. stored boundary count','us_stored_boundaries'],
+  ['Non-U.S. materialized boundary rows',live?.materialized_global_boundaries,'Materialized row count, kept separate from canonical properties','materialized_global_boundaries'],
+  ['Global 3D building models',headline?.global_3d_building_models,'Indexed 3D models; not every building has a model','global_3d_building_models'],
+  ['Global roof-shell buildings',headline?.global_roof_shell_buildings,'Roof-shell coverage; not exact roof-plane count','global_roof_shell_buildings'],
+  ['Global exact roof-plane records',headline?.global_exact_roof_plane_records,'Exact/source-backed roof-plane records','global_exact_roof_plane_records'],
+  ['Global transport source rows',headline?.global_transport_rows,'Transport source rows; not unique route count','global_transport_rows'],
+  ['Global live weather events',headline?.weather_events,'Current public event-feed count','weather_events'],
+  ['Worldwide active opportunities',headline?.opportunities_total,'Active U.S. + non-U.S. opportunity rows','opportunities_total'],
+  ['Unique opportunity properties',headline?.opportunity_properties,'Properties represented in the active opportunity set','opportunity_properties'],
+  ['Active opportunity jurisdictions',headline?.opportunity_jurisdictions,'States and countries with active opportunities','opportunity_jurisdictions'],
+  ['Countries represented in coverage',headline?.world_country_count,'Coverage register can include footholds/backlog; not all are active canonical','world_country_count']
+ ];
+ return raw.filter(x=>x[1]!==null&&x[1]!==undefined&&x[1]!=='').map(x=>({label:x[0],value:metricFormat(x[1]),numeric:parseMetric(x[1]),caption:x[2],key:x[3]}));
+}
+function animateGlobalMetric(el,start,end,duration=900){
+ if(!el||!Number.isFinite(start)||start<=0||!Number.isFinite(end)||end<=start||matchMedia('(prefers-reduced-motion: reduce)').matches){if(el)el.textContent=metricFormat(end);return}
+ const started=performance.now();
+ const draw=now=>{
+  const p=Math.min(1,(now-started)/duration),eased=1-Math.pow(1-p,3);
+  el.textContent=Math.round(start+(end-start)*eased).toLocaleString();
+  if(p<1)requestAnimationFrame(draw);else el.textContent=metricFormat(end);
+ };
+ requestAnimationFrame(draw);
 }
 async function loadMetrics(){
  if(metricsLoading)return metricsLoading;
  const grid=$('#bpv-metric-grid'),updated=$('#bpv-metric-updated');
+ const knownLive=home?(window.__BP_LIVE_COUNTRY_COUNTERS__||{}):(window.__BP_GLOBAL_PROPERTY_V957__?.liveData||window.__BP_LIVE_COUNTRY_COUNTERS__||{});
+ const knownHeadline=window.__BP_HEADLINE_V5822__||window.__BRIDGEPOINT_VIEW_METRICS__||{};
+ const knownRows=globalMetricRows(knownLive,knownHeadline);
+ const initialWorld=parseMetric(window.__BRIDGEPOINT_VIEW_METRICS__?.worldwide_canonical_total??knownLive.worldwide_canonical_total??(home?$('#landingGlobalProperties')?.textContent:null));
+ const initialHeadlineAt=knownHeadline.computed_at||knownHeadline.updated_at||null;
+ if(grid&&knownRows.length)grid.replaceChildren(...knownRows.map(x=>metricCard(x.label,x.value,x.caption,x.key)));
+ else if(grid)grid.replaceChildren(metricCard('Worldwide canonical properties','CONNECTING','Refreshing the verified BridgePoint global counter','worldwide_canonical_total'));
+ if(updated&&initialHeadlineAt)updated.textContent='Last known global metric snapshot · '+new Date(initialHeadlineAt).toLocaleString()+' · refreshing now';
  metricsLoading=(async()=>{
   try{
-   const d=await rpc('bridgepoint_public_live_counters_v5902',{},8500);
-   if(!grid)return d;
-   const rows=[
-    ['Global canonical properties',Number(d.worldwide_canonical_total||0).toLocaleString(),'Verified canonical counter'],
-    ['U.S. public parcels',Number(d.us_public_parcels||0).toLocaleString(),'U.S. parcel scope'],
-    ['Non-U.S. canonical properties',Number(d.global_non_us_canonical||0).toLocaleString(),'Global non-U.S. scope'],
-    ['Materialized global boundaries',Number(d.materialized_global_boundaries||0).toLocaleString(),'Boundary records · not canonical properties'],
-    ['Countries with active canonical data',Number(d.active_non_us_country_count||0).toLocaleString(),'Plus U.S. public parcel coverage']
-   ];
-   grid.replaceChildren(...rows.map(x=>metricCard(x[0],x[1],x[2])));
-   if(updated)updated.textContent='Counter payload updated '+new Date(d.updated_at||Date.now()).toLocaleString()+' · BridgePoint live contract '+(d.version||'');
-   window.__BRIDGEPOINT_VIEW_METRICS__={...d,viewUpdatedAt:Date.now()};
-   return d;
-  }catch(e){if(updated)updated.textContent='Live counter refresh failed. Existing displayed numbers are not re-labelled as current.';return null}
+   const [live,headline]=await Promise.all([
+    rpc('bridgepoint_public_live_counters_v5902',{},8500),
+    rpc('bridgepoint_public_headline_v5822',{},8500).catch(e=>{console.warn('BridgePoint global headline unavailable',e);return null})
+   ]);
+   if(!grid)return {live,headline};
+   const rows=globalMetricRows(live,headline||knownHeadline);
+   const currentWorld=parseMetric(live.worldwide_canonical_total);
+   grid.replaceChildren(...rows.map(x=>metricCard(x.label,x.value,x.caption,x.key)));
+   const valueEl=grid.querySelector('[data-bpv-metric-key="worldwide_canonical_total"]');
+   if(valueEl&&initialWorld!==null&&currentWorld!==null&&currentWorld>initialWorld)animateGlobalMetric(valueEl,initialWorld,currentWorld);
+   if(updated)updated.textContent='Verified BridgePoint counters updated '+new Date(live.updated_at||headline?.computed_at||Date.now()).toLocaleString()+' · live counter contract '+(live.version||'')+(headline?' · headline cache '+new Date(headline.computed_at||headline.cache_updated_at||Date.now()).toLocaleTimeString():' · headline metrics temporarily unavailable');
+   window.__BRIDGEPOINT_VIEW_METRICS__={...(headline||{}),...live,viewUpdatedAt:Date.now()};
+   return {live,headline};
+  }catch(e){
+   if(updated)updated.textContent='Live counter refresh failed. Existing values remain labelled as last known, not current.';
+   return null;
+  }
  })();
  try{return await metricsLoading}finally{metricsLoading=null}
 }
