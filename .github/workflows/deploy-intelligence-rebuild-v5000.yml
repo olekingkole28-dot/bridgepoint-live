@@ -691,7 +691,7 @@ jobs:
           grep -Fq '__BP_APP_MAIN_THREAD_GUARD_V5587__' site/app.js
           grep -Fq '__BP_APP_BOOT_PRIORITY_V5825__' site/app.js
           grep -Fq '__BP_CAMERA_AUTHORITY_V5827__' site/intelligence-global-v5507.js
-          grep -Fq '__BP_STARTUP_SCHEDULER_V5586__' site/app.js
+          grep -Fq '__BP_STARTUP_SCHEDULER_V5939__' site/app.js
           grep -Fq '__BP_MOBILE_MAP_INTERACTION_V5580__' site/intelligence-global-v5507.js
           grep -Fq 'BP_MOBILE' site/app.js
           grep -Fq 'scheduleOpportunityBuildings' site/app.js
