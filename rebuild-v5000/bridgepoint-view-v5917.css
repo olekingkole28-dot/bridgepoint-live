@@ -245,3 +245,85 @@ body.bpv-app #publicSearchResults{
  .bpv-dock-actions>button{padding:7px 3px!important;font-size:7px!important;letter-spacing:0!important;line-height:1.15;min-height:33px}
  .bpv-sidecar{left:6px!important;right:6px!important;width:auto!important;max-width:none!important}
 }
+
+
+/* BridgePoint Eye v5927 — persistent mobile map deck, local key, listings and top language */
+body.bpv-view-ready .bpv-topbar-persistent{
+ position:absolute!important;z-index:calc(var(--bpv-ui-z,1200) + 12)!important;
+ left:clamp(6px,1.8vw,18px)!important;right:clamp(6px,1.8vw,18px)!important;
+ top:max(5px,env(safe-area-inset-top))!important;display:flex!important;align-items:center!important;
+ justify-content:space-between!important;gap:8px!important;pointer-events:none!important;max-width:none!important
+}
+.bpv-topbar-persistent>*{pointer-events:auto!important;min-width:0}
+.bpv-topbar-right{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:0;max-width:72%}
+#bpv-language-slot{display:flex;align-items:center;justify-content:center;flex:0 1 auto;min-width:0}
+#bpv-language-slot .bp-language{position:static!important;left:auto!important;right:auto!important;bottom:auto!important;z-index:auto!important;flex:0 1 auto;max-width:100%;padding:6px 8px;border-radius:10px}
+#bpv-language-slot .bp-language select{max-width:105px!important;font-size:10px!important}
+#bpv-account-slot{min-width:0;max-width:100%;overflow:hidden}
+#bpv-account-slot .actions{max-width:100%;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none}
+#bpv-account-slot .actions::-webkit-scrollbar{display:none}
+.bpv-dock-persistent{z-index:calc(var(--bpv-ui-z,1200) + 8)!important;max-height:min(44dvh,440px);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;touch-action:pan-y;transition:opacity .2s ease,transform .2s ease}
+.bpv-dock-persistent[hidden],.bpv-dock-reopen[hidden]{display:none!important}
+.bpv-dock-persistent .bpv-dock-label{gap:10px;align-items:center}
+.bpv-dock-persistent .bpv-dock-label>div{min-width:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bpv-dock-persistent .bpv-dock-label b{font-size:10px;font-weight:950;letter-spacing:.14em;color:#edfbff}
+.bpv-dock-persistent .bpv-dock-label button{flex:0 0 auto;min-height:26px;padding:5px 8px;border:1px solid rgba(119,226,255,.28);border-radius:8px;background:rgba(7,24,35,.8);color:#96eaff;font:900 8px/1 system-ui,sans-serif}
+.bpv-dock-persistent .bpv-search-slot{min-width:0;width:100%}
+.bpv-dock-persistent #landingPropertySearch,.bpv-dock-persistent #publicSearchForm{min-width:0;width:100%;max-width:100%;margin:0 0 7px}
+.bpv-dock-persistent .bpv-dock-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;min-width:0}
+.bpv-dock-persistent .bpv-dock-actions>button{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.bpv-dock-persistent .bpv-dock-actions>button[data-bpv-action="parcels"]{border-color:rgba(243,223,102,.52);color:#fff2aa;background:linear-gradient(135deg,rgba(89,74,16,.45),rgba(19,33,41,.9))}
+.bpv-dock-persistent .bpv-dock-actions>button[data-bpv-action="listings"]{border-color:rgba(85,232,181,.48);color:#baffdf}
+.bpv-dock-persistent .bpv-dock-actions>button[data-bpv-action="worldchanges"]{border-color:rgba(183,147,255,.42)}
+.bpv-dock-reopen{position:absolute;z-index:calc(var(--bpv-ui-z,1200) + 8);left:50%;bottom:max(12px,env(safe-area-inset-bottom));transform:translateX(-50%);max-width:calc(100% - 24px);padding:11px 15px;border:1px solid rgba(111,235,255,.5);border-radius:14px;background:linear-gradient(125deg,rgba(5,36,53,.97),rgba(5,23,38,.97));color:#c6f8ff;font:950 10px/1.2 system-ui,sans-serif;letter-spacing:.08em;box-shadow:0 12px 35px rgba(0,0,0,.45);backdrop-filter:blur(12px)}
+.bpv-key-ribbon{position:absolute;z-index:calc(var(--bpv-ui-z,1200) + 6);left:12px;right:12px;top:max(58px,calc(env(safe-area-inset-top) + 52px));display:flex;align-items:center;gap:9px;max-width:calc(100% - 24px);padding:6px 8px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;border:1px solid rgba(105,221,255,.22);border-radius:12px;background:linear-gradient(115deg,rgba(3,14,23,.88),rgba(7,26,37,.78));color:#cdebf5;font:800 8px/1.2 system-ui,sans-serif;backdrop-filter:blur(10px);scrollbar-width:none;pointer-events:auto}
+.bpv-key-ribbon::-webkit-scrollbar{display:none}
+.bpv-key-ribbon>span{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto}
+.bpv-key-ribbon .bpv-key-ribbon-title{color:#7deaff;font-weight:950;letter-spacing:.12em}
+.bpv-key-ribbon i{display:inline-block;width:8px;height:8px;flex:0 0 8px;border-radius:3px;background:var(--key,#75eaff);box-shadow:0 0 8px color-mix(in srgb,var(--key,#75eaff) 40%,transparent)}
+.bpv-key-ribbon button{flex:0 0 auto;padding:5px 7px;border:1px solid rgba(105,221,255,.25);border-radius:7px;background:rgba(17,55,70,.85);color:#c3f6ff;font:900 8px/1 system-ui,sans-serif}
+.bpv-map-moving .bpv-dock-persistent,.bpv-map-moving .bpv-dock-persistent #landingPropertySearch,.bpv-map-moving .bpv-dock-persistent #publicSearchForm,
+.bpv-map-moving .bpv-dock-persistent #landingPropertySearch input,.bpv-map-moving .bpv-dock-persistent #publicSearchForm input,
+.bpv-map-moving .bpv-dock-persistent #landingPropertySearch button,.bpv-map-moving .bpv-dock-persistent #publicSearchForm>button{
+ opacity:1!important;visibility:visible!important;pointer-events:auto!important;transform:none!important
+}
+.bpv-listings-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:9px 0;min-width:0}
+.bpv-listings-search input{width:100%;min-width:0;box-sizing:border-box;border:1px solid rgba(116,225,255,.25);border-radius:9px;padding:10px;background:rgba(2,11,18,.66);color:#e9fbff;font:12px system-ui,sans-serif}
+.bpv-listings-search button,.bpv-listing-focus{min-width:0;border:1px solid rgba(105,226,255,.35);border-radius:8px;padding:8px;background:rgba(13,51,66,.85);color:#d8faff;font:900 9px system-ui,sans-serif}
+.bpv-listings-summary{margin:8px 0;padding:9px;border:1px solid rgba(98,223,255,.2);border-radius:10px;background:linear-gradient(125deg,rgba(20,80,98,.2),rgba(8,23,35,.56));font-size:10px;line-height:1.5;color:#acdeeb;overflow-wrap:anywhere}
+.bpv-listings-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0}
+.bpv-listing-card{min-width:0;overflow:hidden;border:1px solid rgba(122,216,242,.17);border-radius:12px;padding:9px;background:linear-gradient(145deg,rgba(5,17,27,.85),rgba(9,36,48,.67));box-shadow:inset 0 1px rgba(255,255,255,.035)}
+.bpv-listing-card.selected{border-color:rgba(92,239,195,.68);box-shadow:0 0 0 1px rgba(92,239,195,.15)}
+.bpv-listing-title{display:block;font-size:11px;line-height:1.35;color:#f3fcff;overflow-wrap:anywhere}
+.bpv-listing-address,.bpv-listing-meta{margin-top:5px;color:#a8cbd7;font-size:9px;line-height:1.45;overflow-wrap:anywhere}
+.bpv-listing-meta{color:#93f0d0;text-transform:uppercase;letter-spacing:.02em}
+.bpv-listing-source,.bpv-listing-accuracy{display:block;margin-top:6px;color:#7799a8;font-size:8px;line-height:1.45;overflow-wrap:anywhere}
+.bpv-listing-accuracy{color:#9ab4c0}
+.bpv-listing-photo{width:100%;height:88px;object-fit:cover;border-radius:8px;margin:0 0 7px;background:#071720}
+.bpv-listing-photo-empty{height:64px;display:flex;align-items:center;justify-content:center;text-align:center;padding:8px;margin-bottom:7px;border:1px dashed rgba(122,216,242,.18);border-radius:8px;background:linear-gradient(135deg,rgba(22,57,69,.28),rgba(4,14,24,.5));color:#648a9a;font-size:8px;letter-spacing:.08em}
+.bpv-listing-focus{width:100%;margin-top:7px;min-height:32px;color:#a9f2ff}
+.bpv-listing-empty{grid-column:1/-1;border:1px dashed rgba(122,216,242,.25);border-radius:10px;padding:14px;color:#9dbac7;font-size:10px;line-height:1.5}
+@media(max-width:700px){
+ body.bpv-view-ready .bpv-topbar-persistent{left:5px!important;right:5px!important;top:max(4px,env(safe-area-inset-top))!important;gap:4px!important}
+ .bpv-topbar-persistent .bpv-brand{padding:4px 6px;gap:4px;border-radius:9px;max-width:116px}
+ .bpv-topbar-persistent .bpv-brand img{width:23px;height:23px;flex:0 0 23px}
+ .bpv-topbar-persistent .bpv-brand b{font-size:7px;letter-spacing:.06em}
+ .bpv-topbar-persistent .bpv-brand small{display:none}
+ .bpv-topbar-right{gap:4px;max-width:calc(100% - 120px)}
+ #bpv-language-slot .bp-language{padding:5px 5px;border-radius:8px}
+ #bpv-language-slot .bp-language select{max-width:86px!important;font-size:9px!important}
+ #bpv-account-slot .actions{gap:3px;padding:2px;border-radius:8px;max-width:calc(100vw - 225px)}
+ #bpv-account-slot .actions button{min-height:27px;padding:5px 6px;font-size:7px;white-space:nowrap}
+ .bpv-key-ribbon{left:5px;right:5px;top:max(52px,calc(env(safe-area-inset-top) + 48px));max-width:calc(100% - 10px);gap:8px;padding:5px 6px;border-radius:9px;font-size:7px}
+ .bpv-dock-persistent{left:6px!important;right:6px!important;bottom:max(6px,env(safe-area-inset-bottom))!important;width:auto!important;max-width:none!important;max-height:min(42dvh,360px);padding:7px;border-radius:13px;transform:none!important}
+ .bpv-dock-persistent .bpv-dock-label{margin:0 1px 6px;font-size:7px}
+ .bpv-dock-persistent .bpv-dock-label b{font-size:8px;letter-spacing:.08em}
+ .bpv-dock-persistent .bpv-dock-label>div{gap:6px}
+ .bpv-dock-persistent .bpv-dock-label>div span{font-size:7px}
+ .bpv-dock-persistent .bpv-dock-label button{font-size:7px;padding:5px 6px;min-height:24px}
+ .bpv-dock-persistent .bpv-dock-actions{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+ .bpv-dock-persistent .bpv-dock-actions>button{min-height:31px;padding:6px 3px;font-size:7px;line-height:1.12;letter-spacing:0;white-space:normal;text-overflow:clip;overflow-wrap:anywhere}
+ .bpv-dock-reopen{left:6px;right:6px;bottom:max(6px,env(safe-area-inset-bottom));width:auto;max-width:none;transform:none;padding:10px}
+ .bpv-listings-items{grid-template-columns:minmax(0,1fr)}
+ .bpv-listing-photo{height:120px}
+}
