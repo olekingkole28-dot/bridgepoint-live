@@ -168,11 +168,11 @@ function makeTopBarAndDock(){
   if(a==='windfx'){void openRealWorldEffects(true);return}
   if(a==='motion'){openPanel('controls');window.__BP_GLOBAL_MOTION_V5926__?.open?.();return}
   if(a==='satellite'){
-   const current=window.__BP_SPECTRAL_IMAGERY_V5909__;
+   const current=window.__BP_SPECTRAL_IMAGERY_V5930__;
    if(current?.open){current.open();return}
    const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
-   void import('./world-v2300-spectral-imagery.js?v=5926-landsat-six-combinations')
-    .then(m=>{const api=window.__BP_SPECTRAL_IMAGERY_V5909__||m.initSpectralImagery(surfaceWorld);api?.open?.()})
+   void import('./world-v2300-spectral-imagery.js?v=5930-global-basemap-modes')
+    .then(m=>{const api=window.__BP_SPECTRAL_IMAGERY_V5930__||m.initSpectralImagery(surfaceWorld);api?.open?.()})
     .catch(e=>console.warn('BridgePoint satellite filters unavailable',e));
    return;
   }
@@ -703,11 +703,11 @@ if(a==='weatherfx'){void openRealWorldEffects(false);return}
 if(a==='windfx'){void openRealWorldEffects(true);return}
 if(a==='motion'){openPanel('controls');window.__BP_GLOBAL_MOTION_V5926__?.open?.();return}
 if(a==='satellite'){
- const current=window.__BP_SPECTRAL_IMAGERY_V5909__;
+ const current=window.__BP_SPECTRAL_IMAGERY_V5930__;
  if(current?.open){current.open();return}
  const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
- void import('./world-v2300-spectral-imagery.js?v=5926-landsat-six-combinations')
-  .then(m=>{const api=window.__BP_SPECTRAL_IMAGERY_V5909__||m.initSpectralImagery(surfaceWorld);api?.open?.()})
+ void import('./world-v2300-spectral-imagery.js?v=5930-global-basemap-modes')
+  .then(m=>{const api=window.__BP_SPECTRAL_IMAGERY_V5930__||m.initSpectralImagery(surfaceWorld);api?.open?.()})
   .catch(e=>console.warn('BridgePoint satellite filters unavailable',e));
  return;
 }
