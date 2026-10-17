@@ -151,7 +151,8 @@ jobs:
           cp rebuild-v5000/bridgepoint-mark.svg site/bridgepoint-mark.svg
           cp rebuild-v5000/bridgepoint-favicon-48.png site/bridgepoint-favicon-48.png
           # The walkthrough and separate space renderer are retired from the public product surface.
-          rm -f site/walkthrough-v5537.js site/walkthrough-v5537.css site/world-v2300-space.js site/app/world-v2300-space.js
+          # The onboarding walkthrough is retired. Keep the space module required by the verified globe renderer.
+          rm -f site/walkthrough-v5537.js site/walkthrough-v5537.css
           mkdir -p site/assets
           cp -a rebuild-v5000/assets/. site/assets/
           rm -rf site/terms site/privacy
@@ -191,6 +192,7 @@ jobs:
           # Carry forward only the proven map engine pieces used by the new shell.
           cp release-v2300/world-v2300-config.js site/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/world-v2300-map.js
+          cp release-v2300/world-v2300-space.js site/world-v2300-space.js
           cp release-v2300/world-v2300-worker.js site/world-v2300-worker.js
           cp release-v2300/world-v2300-weather.js site/world-v2300-weather.js
           cp release-v2300/world-v2300-present-weather.js site/world-v2300-present-weather.js
@@ -201,6 +203,7 @@ jobs:
           cp release-v2300/gis-core-orchestrator-v5910.js site/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/app/world-v2300-map.js
+          cp release-v2300/world-v2300-space.js site/app/world-v2300-space.js
           cp release-v2300/world-v2300-worker.js site/app/world-v2300-worker.js
           cp release-v2300/world-v2300-weather.js site/app/world-v2300-weather.js
           cp release-v2300/world-v2300-present-weather.js site/app/world-v2300-present-weather.js
@@ -246,8 +249,8 @@ jobs:
           node --input-type=module --check < site/app/bridgepoint-celestial-sky-v5928.js
           test ! -e site/walkthrough-v5537.js
           test ! -e site/walkthrough-v5537.css
-          test ! -e site/world-v2300-space.js
-          test ! -e site/app/world-v2300-space.js
+          test -s site/world-v2300-space.js
+          test -s site/app/world-v2300-space.js
           grep -Fq 'bridgepoint-view-v5917.css' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css' site/app/index.html
           grep -Fq 'bridgepoint-view-v5917.js' site/index.html
@@ -396,9 +399,9 @@ jobs:
           grep -Fq "vis(map,'gta-opportunity-buildings',z>=11.8)" site/world-v2300-map.js
           grep -Fq 'window.__BP_LANDING_WORLD__=world' site/landing.js
           grep -Fq '__BP_WORLD_CORE_READY__' site/world-v2300-map.js
-          ! grep -Fq "world-v2300-space.js" site/world-v2300-map.js
-          test ! -e site/world-v2300-space.js
-          test ! -e site/app/world-v2300-space.js
+          grep -Fq "world-v2300-space.js" site/world-v2300-map.js
+          test -s site/world-v2300-space.js
+          test -s site/app/world-v2300-space.js
           grep -Fq '__BP_BRIDGE3D_V5540__' site/world-v2300-map.js
           grep -Fq '__BP_LANDMARK3D_V5542__' site/world-v2300-map.js
           grep -Fq '__BP_BRIDGE3D_V5542__' site/world-v2300-map.js
@@ -457,8 +460,8 @@ jobs:
           grep -Fq 'SIGNUP_SUCCESS' site/landing.js
           node --check site/world-v2300-config.js
           node --check site/world-v2300-map.js
-          test ! -e site/world-v2300-space.js
-          test ! -e site/app/world-v2300-space.js
+          test -s site/world-v2300-space.js
+          test -s site/app/world-v2300-space.js
           node --check site/world-v2300-worker.js
           node --check site/world-v2300-weather.js
           node --check site/world-v2300-present-weather.js
