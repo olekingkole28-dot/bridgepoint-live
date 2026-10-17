@@ -161,7 +161,7 @@ function syncSelectors(){
 }
 function buildSelector(force=false){
  let wrap=document.querySelector('['+SELECTOR+'="1"]');
- const mount=document.getElementById('appLanguageMount')||document.querySelector('.app-shell .topbar-actions [data-bp-language-mount="app"]')||document.querySelector('[data-bp-language-mount="app"]');
+ const mount=document.getElementById('bpv-language-slot')||document.querySelector('[data-bp-language-mount="top"]')||document.getElementById('appLanguageMount')||document.querySelector('.app-shell .topbar-actions [data-bp-language-mount="app"]')||document.querySelector('[data-bp-language-mount="app"]');
  if(!wrap){
   wrap=mount||document.createElement('div');
   wrap.classList.add('bp-language','notranslate');
