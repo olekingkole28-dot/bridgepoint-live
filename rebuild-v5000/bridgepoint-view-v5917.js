@@ -9,6 +9,7 @@ const home=!!$('#previewMap')&&!$('#liveMap');
 const mapHost=home?$('.preview'):document.querySelector('.map-surface.active')||$('.map-surface');
 const appMap=$('#liveMap');
 let map=null,idleTimer=0,moveUntil=0,selected={id:null,label:'',feature:null},activePanel='ai',metricsLoading=null,asking=false,searchVisible=true;
+let listingLoading=null,listingSummaryCache=null,listingSummaryAt=0,listingFeaturesCache=[],listingOverlayOn=true,listingMapTimer=0,listingLastViewportAt=0,listingQueryValue='',listingSelectedId=null,listingRefreshTimer=0;
 const SLOT_INFO={
  ai:['BRIDGEPOINT AI','Ask a question about this selected property.'],
  xray:['X-RAY + INTERIOR','Source-backed parts, floors and plans only. No fabricated rooms.'],
@@ -31,10 +32,11 @@ function openPanel(name){
  activePanel=name;
  p.hidden=false;document.body.classList.add('bpv-panel-open');
  p.dataset.panel=name;
- const titles={ai:'BRIDGEPOINT AI',opportunities:'BRIDGEPOINT OPPORTUNITIES',mapkey:'BRIDGEPOINT MAP KEY',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',explore:'EXPLORE BRIDGEPOINT'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT VIEW';
+ const titles={ai:'BRIDGEPOINT AI',opportunities:'BRIDGEPOINT OPPORTUNITIES',listings:'BRIDGEPOINT LISTINGS',mapkey:'BRIDGEPOINT MAP KEY',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',explore:'EXPLORE BRIDGEPOINT'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT EYE';
  p.querySelectorAll('[data-bpv-panel]').forEach(b=>{const on=b.dataset.bpvPanel===name;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on?'true':'false')});
  p.querySelectorAll('[data-bpv-pane]').forEach(s=>{s.hidden=s.dataset.bpvPane!==name});
  if(name==='metrics')void loadMetrics();
+ if(name==='listings')void loadListings(true);
  if(name==='opportunities'){void window.__BP_MAP_KEY_REFRESH_V5920__?.(true);void loadOpportunityBreakdown()}
  if(name==='mapkey')void window.__BP_MAP_KEY_REFRESH_V5920__?.(true);
  if(name==='property')refreshSlotLabels();
@@ -52,6 +54,7 @@ function stopMoving(){
 }
 function attachMap(m){
  if(!m||map===m)return;map=m;
+ if(!m.__bpListingsEventsV5927){m.__bpListingsEventsV5927=true;m.on('moveend',()=>{if(!listingOverlayOn)return;clearTimeout(listingMapTimer);const wait=Math.max(700,3800-(Date.now()-listingLastViewportAt));listingMapTimer=setTimeout(()=>{listingLastViewportAt=Date.now();void loadListings(true,listingQueryValue)},wait)});m.on('styledata',()=>{if(listingOverlayOn)ensureListingLayers(m)});setTimeout(()=>{if(!m.__bpListingsBootedV5927){m.__bpListingsBootedV5927=true;listingLastViewportAt=Date.now();void loadListings(true,listingQueryValue)}},1300);if(!listingRefreshTimer)listingRefreshTimer=setInterval(()=>{if(!document.hidden){listingSummaryCache=null;void loadListings(true,listingQueryValue)}},300000)}
  const start=()=>setMoving(),end=()=>stopMoving();
  for(const e of ['movestart','zoomstart','rotatestart','pitchstart','dragstart'])try{m.on(e,start)}catch(_){}
  for(const e of ['moveend','zoomend','rotateend','pitchend','dragend'])try{m.on(e,end)}catch(_){}
@@ -65,12 +68,13 @@ function attachMap(m){
 function findMap(){return home?(window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map||null):(window.__BP_V5000_WORLD__?.map||null)}
 function installMapWatch(){const m=findMap();if(m){attachMap(m);return}let turns=0;const tick=()=>{if(map)return;const n=findMap();if(n){attachMap(n);return}if(++turns<300)setTimeout(tick,100)};setTimeout(tick,150)}
 function makePanel(){
- const p=node('aside','bpv-sidecar bpv-map-chrome');p.id='bpv-sidecar';p.hidden=true;p.setAttribute('aria-label','BridgePoint View control deck');
+ const p=node('aside','bpv-sidecar bpv-map-chrome');p.id='bpv-sidecar';p.hidden=true;p.setAttribute('aria-label','BridgePoint Eye control deck');
  p.innerHTML=
-  '<div class="bpv-sidecar-head"><div><span class="bpv-eyebrow">BRIDGEPOINT VIEW</span><b id="bpv-sidecar-title">BRIDGEPOINT AI</b></div><button id="bpv-panel-close" type="button" aria-label="Close BridgePoint panel">×</button></div>'+
-  '<nav class="bpv-sidecar-tabs" aria-label="BridgePoint View panels">'+
+  '<div class="bpv-sidecar-head"><div><span class="bpv-eyebrow">BRIDGEPOINT EYE</span><b id="bpv-sidecar-title">BRIDGEPOINT AI</b></div><button id="bpv-panel-close" type="button" aria-label="Close BridgePoint panel">×</button></div>'+
+  '<nav class="bpv-sidecar-tabs" aria-label="BridgePoint Eye panels">'+
   '<button type="button" data-bpv-panel="ai">BRIDGEPOINT AI</button>'+
   '<button type="button" data-bpv-panel="opportunities">OPPORTUNITIES</button>'+
+  '<button type="button" data-bpv-panel="listings">LISTINGS</button>'+
   '<button type="button" data-bpv-panel="mapkey">MAP KEY</button>'+
   '<button type="button" data-bpv-panel="metrics">LIVE METRICS</button>'+
   '<button type="button" data-bpv-panel="property">PROPERTY</button>'+
@@ -98,6 +102,12 @@ function makePanel(){
   '<p class="bpv-data-note">Buildings and 3D models are geometry inventory, not opportunity records. Main map records, customer-ready records, global risk reviews and public listings are separate inventories and are not added together.</p></section>'+
   '<section data-bpv-pane="property" hidden><div class="bpv-pane-title"><b id="bpv-property-title">Selected property</b><small id="bpv-property-key">Choose a building on the globe to bind these intelligence slots to it.</small></div>'+
   '<div id="bpv-side-property-slots" class="bpv-slot-grid"></div><p class="bpv-data-note">Each slot stays attached to the selected BridgePoint building. An unavailable source is shown as unavailable rather than filled with a placeholder result.</p></section>'+
+  '<section data-bpv-pane="listings" hidden><div class="bpv-pane-title"><b>BRIDGEPOINT · PROPERTY LISTINGS</b><small>View listing records and available BridgePoint-hosted images here. No outbound listing links.</small></div>'+
+  '<form id="bpv-listings-search" class="bpv-listings-search"><input type="search" aria-label="Search BridgePoint listings" placeholder="Search address, city, rentals…"><button type="submit">SEARCH</button></form>'+
+  '<div id="bpv-listings-summary" class="bpv-listings-summary">Loading materialized listing records…</div>'+
+  '<button type="button" id="bpv-listings-overlay-toggle" class="bpv-wide-action" aria-pressed="true">LISTING MAP OVERLAY · ON</button>'+
+  '<div id="bpv-listings-items" class="bpv-listings-items"></div>'+
+  '<p id="bpv-listings-note" class="bpv-data-note">Only records currently materialized into BridgePoint are shown. Source freshness, photo provenance, and address accuracy stay visible.</p></section>'+
   '<section data-bpv-pane="controls" hidden><div class="bpv-pane-title"><b>BridgePoint Controls</b><small>Layers and map actions live here so the globe remains unobstructed.</small></div><div id="bpv-controls-mount"></div>'+
   '<button type="button" class="bpv-wide-action" id="bpv-whole-earth">RETURN TO WHOLE EARTH</button></section>'+
   (home?'<section data-bpv-pane="explore" hidden><div class="bpv-pane-title"><b>Explore BridgePoint</b><small>Supporting information, access, updates and platform details—behind the globe, not over it.</small></div><div id="bpv-explore-mount"></div></section>':'');
@@ -106,28 +116,66 @@ function makePanel(){
  p.querySelectorAll('[data-bpv-panel]').forEach(b=>b.addEventListener('click',()=>openPanel(b.dataset.bpvPanel)));
  p.querySelectorAll('[data-bpv-prompt]').forEach(b=>b.addEventListener('click',()=>{$('#bpv-ai-question').value=b.dataset.bpvPrompt;openPanel('ai')}));
  $('#bpv-ai-form').addEventListener('submit',e=>{e.preventDefault();void askBridgePoint()});
+ $('#bpv-listings-search')?.addEventListener('submit',e=>{e.preventDefault();listingQueryValue=$('#bpv-listings-search input')?.value?.trim()||'';void loadListings(true,listingQueryValue)});
+ $('#bpv-listings-overlay-toggle')?.addEventListener('click',()=>{listingOverlayOn=!listingOverlayOn;setListingOverlay(listingOverlayOn);const b=$('#bpv-listings-overlay-toggle');if(b){b.textContent='LISTING MAP OVERLAY · '+(listingOverlayOn?'ON':'OFF');b.setAttribute('aria-pressed',String(listingOverlayOn))}if(listingOverlayOn)void loadListings(true,listingQueryValue)});
  $('#bpv-whole-earth').addEventListener('click',wholeEarth);
  return p;
 }
 function makeTopBarAndDock(){
  if(!mapHost)return;
- const top=node('div','bpv-topbar bpv-map-chrome');
- top.innerHTML='<a class="bpv-brand" href="/" aria-label="BridgePoint View"><img src="/bridgepoint-mark.svg" alt=""><span><b>BRIDGEPOINT VIEW</b><small>GLOBAL SPATIAL INTELLIGENCE</small></span></a><div id="bpv-account-slot"></div>';
- const dock=node('div','bpv-dock bpv-map-chrome');dock.id='bpv-dock';
- dock.innerHTML='<div class="bpv-dock-label"><b>BRIDGEPOINT VIEW</b><span><i></i> WHOLE EARTH · LIVE</span></div><div id="bpv-search-slot" class="bpv-search-slot"></div><div id="bpv-dock-actions" class="bpv-dock-actions">'+
+ const top=node('div','bpv-topbar bpv-topbar-persistent');
+ top.innerHTML='<a class="bpv-brand" href="/" aria-label="BridgePoint Eye"><img src="/bridgepoint-mark.svg" alt=""><span><b>BRIDGEPOINT EYE</b><small>GLOBAL SPATIAL INTELLIGENCE</small></span></a><div class="bpv-topbar-right"><div id="bpv-language-slot" data-bp-language-mount="top" aria-label="BridgePoint language"></div><div id="bpv-account-slot"></div></div>';
+ const dock=node('div','bpv-dock bpv-dock-persistent');dock.id='bpv-dock';
+ dock.innerHTML='<div class="bpv-dock-label"><div><b>BRIDGEPOINT EYE</b><span><i></i> LIVE · GLOBAL WORLD</span></div><button type="button" data-bpv-dock-hide aria-label="Minimize BridgePoint map card">MINIMIZE −</button></div><div id="bpv-search-slot" class="bpv-search-slot"></div><div id="bpv-dock-actions" class="bpv-dock-actions">'+
  '<button type="button" data-bpv-action="ai">BRIDGEPOINT AI</button>'+
+ '<button type="button" data-bpv-action="parcels">PARCEL BOUNDARIES</button>'+
+ '<button type="button" data-bpv-action="mapkey">MAP KEY</button>'+
+ '<button type="button" data-bpv-action="listings">LISTINGS</button>'+
+ '<button type="button" data-bpv-action="worldchanges">30-DAY HISTORY</button>'+
+ '<button type="button" data-bpv-action="weatherfx">WEATHER FX</button>'+
+ '<button type="button" data-bpv-action="windfx">3D WIND</button>'+
  '<button type="button" data-bpv-action="opportunities">OPPORTUNITIES</button>'+
  '<button type="button" data-bpv-action="metrics">COUNTERS</button>'+
  '<button type="button" data-bpv-action="controls">LAYERS + TOOLS</button>'+
+  '<button type="button" data-bpv-action="satellite">SATELLITE FILTERS</button>'+
+ '<button type="button" data-bpv-action="motion">ORBIT & MOTION</button>'+
  '<button type="button" data-bpv-action="property">PROPERTY SLOTS</button>'+
  (home?'<button type="button" data-bpv-action="explore">EXPLORE</button>':'')+
  '<button type="button" class="bpv-whole-earth-short" data-bpv-action="whole">WHOLE EARTH</button></div>';
  mapHost.append(top,dock);
+ const languageSlot=$('#bpv-language-slot');
+ const existingLanguage=document.querySelector('[data-bp-language="1"]');
+ if(languageSlot&&existingLanguage&&existingLanguage.parentElement!==languageSlot)languageSlot.appendChild(existingLanguage);
+ const reopen=node('button','bpv-dock-reopen','BRIDGEPOINT EYE · OPEN CARD');
+ reopen.id='bpv-dock-reopen';reopen.type='button';reopen.hidden=true;
+ reopen.addEventListener('click',()=>{dock.hidden=false;reopen.hidden=true;mapHost.classList.remove('bpv-dock-minimized')});
+ mapHost.appendChild(reopen);
+ dock.querySelector('[data-bpv-dock-hide]').addEventListener('click',()=>{dock.hidden=true;reopen.hidden=false;mapHost.classList.add('bpv-dock-minimized')});
+ const keyRibbon=node('div','bpv-key-ribbon');
+ keyRibbon.id='bpv-key-ribbon';
+ keyRibbon.innerHTML='<span class="bpv-key-ribbon-title">MAP KEY</span><span><i style="--key:#f3df66"></i> ROOF TRUTH</span><span><i style="--key:#65e3ff"></i> ROOF PLANES</span><span><i style="--key:#55e8b5"></i> RENTAL <b data-bpv-listings-rentals>0</b></span><span><i style="--key:#ff648f"></i> SUBSURFACE</span><span class="bpv-live-inventory-chip">LISTINGS <b data-bpv-listings-total>SYNCING</b></span><button type="button" data-bpv-key-open>FULL KEY ↗</button>';
+ keyRibbon.querySelector('[data-bpv-key-open]').addEventListener('click',()=>openPanel('mapkey'));
+ mapHost.appendChild(keyRibbon);
  dock.querySelectorAll('[data-bpv-action]').forEach(b=>b.addEventListener('click',()=>{
   const a=b.dataset.bpvAction;
   if(a==='whole'){wholeEarth();return}
   if(a==='search'){toggleSearch();return}
   if(a==='premium'){document.querySelector('#landingFreePremiumTools,#appFreePremiumTools')?.click();return}
+  if(a==='parcels'){toggleParcelBoundaries();return}
+  if(a==='listings'){openPanel('listings');return}
+  if(a==='worldchanges'){void openWorldChanges();return}
+  if(a==='weatherfx'){void openRealWorldEffects(false);return}
+  if(a==='windfx'){void openRealWorldEffects(true);return}
+  if(a==='motion'){openPanel('controls');window.__BP_GLOBAL_MOTION_V5926__?.open?.();return}
+  if(a==='satellite'){
+   const current=window.__BP_SPECTRAL_IMAGERY_V5909__;
+   if(current?.open){current.open();return}
+   const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+   void import('./world-v2300-spectral-imagery.js?v=5926-landsat-six-combinations')
+    .then(m=>{const api=window.__BP_SPECTRAL_IMAGERY_V5909__||m.initSpectralImagery(surfaceWorld);api?.open?.()})
+    .catch(e=>console.warn('BridgePoint satellite filters unavailable',e));
+   return;
+  }
   openPanel(a)
  }));
  return{top,dock,searchSlot:$('#bpv-search-slot'),actions:$('#bpv-dock-actions')};
@@ -438,11 +486,145 @@ function wholeEarth(){
  const m=map||findMap();if(!m)return;
  try{m.stop?.();m.easeTo({center:[0,20],zoom:home?(innerWidth<=620?1.05:1.25):(innerWidth<=760?1.05:1.25),pitch:0,bearing:0,duration:650,easing:t=>1-Math.pow(1-t,3)})}catch(_){try{m.jumpTo({center:[0,20],zoom:1.2,pitch:0,bearing:0})}catch(__){}}
 }
+const BP_LISTINGS_SOURCE_V5927='bp-v5927-listings-source';
+const BP_LISTINGS_POINTS_V5927='bp-v5927-listings-points';
+const BP_LISTINGS_LABELS_V5927='bp-v5927-listings-labels';
+const BP_EMPTY_FEATURES_V5927={type:'FeatureCollection',features:[]};
+function ensureListingLayers(m=map){
+ if(!m)return false;try{if(m.isStyleLoaded?.()!==true)return false;
+  if(!m.getSource(BP_LISTINGS_SOURCE_V5927))m.addSource(BP_LISTINGS_SOURCE_V5927,{type:'geojson',data:{type:'FeatureCollection',features:listingFeaturesCache}});
+  if(!m.getLayer(BP_LISTINGS_POINTS_V5927))m.addLayer({id:BP_LISTINGS_POINTS_V5927,type:'circle',source:BP_LISTINGS_SOURCE_V5927,minzoom:3,paint:{
+   'circle-radius':['interpolate',['linear'],['zoom'],3,2.6,7,4.2,11,6.2,15,8],
+   'circle-color':['coalesce',['get','display_color'],'#69dfff'],
+   'circle-opacity':.94,'circle-stroke-color':'#071820','circle-stroke-width':['interpolate',['linear'],['zoom'],4,.4,12,1.5]
+  }});
+  if(!m.getLayer(BP_LISTINGS_LABELS_V5927))m.addLayer({id:BP_LISTINGS_LABELS_V5927,type:'symbol',source:BP_LISTINGS_SOURCE_V5927,minzoom:13,layout:{
+   'text-field':['coalesce',['get','address'],['get','title'],'Listing'],
+   'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],13,9,17,12],
+   'text-offset':[0,1.15],'text-max-width':16,'text-allow-overlap':false,'text-ignore-placement':false
+  },paint:{'text-color':'#eafaff','text-halo-color':'rgba(3,12,20,.92)','text-halo-width':1.4}});
+  m.setLayoutProperty(BP_LISTINGS_POINTS_V5927,'visibility',listingOverlayOn?'visible':'none');
+  m.setLayoutProperty(BP_LISTINGS_LABELS_V5927,'visibility',listingOverlayOn?'visible':'none');
+  if(!m.__bpListingsClickBoundV5927){
+   m.__bpListingsClickBoundV5927=true;
+   m.on('click',BP_LISTINGS_POINTS_V5927,e=>{const f=e.features?.[0];if(!f)return;listingSelectedId=String(f.properties?.listing_id||f.id||'');openPanel('listings');void loadListings(false,listingQueryValue,listingSelectedId)});
+   m.on('mouseenter',BP_LISTINGS_POINTS_V5927,()=>{try{m.getCanvas().style.cursor='pointer'}catch(_){}});
+   m.on('mouseleave',BP_LISTINGS_POINTS_V5927,()=>{try{m.getCanvas().style.cursor=''}catch(_){}});
+  }
+  return true;
+ }catch(e){console.warn('BridgePoint listing map layer',e);return false}
+}
+function setListingOverlay(on){
+ listingOverlayOn=!!on;ensureListingLayers(map);
+ for(const id of [BP_LISTINGS_POINTS_V5927,BP_LISTINGS_LABELS_V5927])try{if(map?.getLayer(id))map.setLayoutProperty(id,'visibility',listingOverlayOn?'visible':'none')}catch(_){}
+}
+function listingPhotoPath(raw){
+ const v=typeof raw==='string'?raw:(raw?.storage_path||raw?.path||raw?.url||raw?.public_path||'');
+ if(!v||typeof v!=='string')return null;
+ if(v.startsWith('/storage/v1/object/public/bridgepoint-listing-media/'))return v;
+ if(v.startsWith('/assets/bridgepoint-listings/'))return v;
+ return null;
+}
+function renderListingCards(features,selectedId=null){
+ const root=$('#bpv-listings-items');if(!root)return;
+ const frag=document.createDocumentFragment();let count=0;
+ for(const f of (features||[]).slice(0,35)){
+  const p=f.properties||{},card=node('article','bpv-listing-card');
+  card.dataset.listingId=String(p.listing_id||f.id||'');
+  const title=node('b','bpv-listing-title',p.title||p.address||'BridgePoint listing');
+  const address=node('div','bpv-listing-address',[p.address,p.city,p.state_code,p.postal_code].filter(Boolean).join(', ')||'Address not supplied by source');
+  const meta=node('div','bpv-listing-meta',[(p.listing_type||'LISTING').replaceAll('_',' '),(p.listing_status||'STATUS UNKNOWN').replaceAll('_',' '),p.price_amount!=null?new Intl.NumberFormat(undefined,{style:'currency',currency:p.price_currency||'USD',maximumFractionDigits:0}).format(Number(p.price_amount)):'Price not source-confirmed'].join(' · '));
+  const date=p.source_updated_at||p.source_checked_at;
+  const source=node('small','bpv-listing-source','BridgePoint source record · '+String(p.source_key||'source key unavailable').replaceAll('_',' ')+(date?' · source updated '+new Date(date).toLocaleDateString():' · source timestamp unavailable'));
+  const photoList=Array.isArray(p.bridgepoint_photo_assets)?p.bridgepoint_photo_assets:[];
+  let imagePath=null;for(const item of photoList){imagePath=listingPhotoPath(item);if(imagePath)break}
+  if(imagePath){const img=document.createElement('img');img.className='bpv-listing-photo';img.loading='lazy';img.src=imagePath;img.alt='BridgePoint-hosted listing photo';img.onerror=()=>{img.remove();card.classList.add('bpv-no-photo')};card.appendChild(img)}
+  else{const badge=node('div','bpv-listing-photo-empty','IMAGE NOT MATERIALIZED IN BRIDGEPOINT');card.appendChild(badge)}
+  card.append(title,address,meta,source);
+  const note=node('p','bpv-listing-accuracy',p.accuracy_notice||'Listing status and address precision follow the source record; refresh source evidence before acting.');
+  card.appendChild(note);
+  const act=node('button','bpv-listing-focus','FOCUS ON GLOBE');act.type='button';act.addEventListener('click',()=>{
+   const center=featureCenter(f);if(center&&map)try{map.flyTo({center,zoom:Math.max(map.getZoom()||0,15),pitch:Math.max(map.getPitch()||0,45),duration:700})}catch(_){}
+   listingSelectedId=card.dataset.listingId;document.querySelectorAll('.bpv-listing-card').forEach(x=>x.classList.toggle('selected',x.dataset.listingId===listingSelectedId));
+  });
+  card.appendChild(act);if(String(p.listing_id||f.id||'')===String(selectedId||listingSelectedId||''))card.classList.add('selected');
+  frag.appendChild(card);count++;
+ }
+ if(!count){const empty=node('div','bpv-listing-empty','No materialized listings match this map view and search. Clear the search or move the globe to another area.');frag.appendChild(empty)}
+ root.replaceChildren(frag);
+}
+function featureCenter(f){
+ const g=f?.geometry;if(!g)return null;if(g.type==='Point')return g.coordinates.slice(0,2);
+ const pts=[];const walk=x=>{if(!Array.isArray(x))return;if(x.length>=2&&typeof x[0]==='number'&&typeof x[1]==='number'){pts.push([x[0],x[1]]);return}for(const n of x)walk(n)};walk(g.coordinates);if(!pts.length)return null;
+ return [pts.reduce((a,p)=>a+p[0],0)/pts.length,pts.reduce((a,p)=>a+p[1],0)/pts.length];
+}
+async function loadListings(force=false,queryOverride,selectedId=null){
+ const summary=$('#bpv-listings-summary'),note=$('#bpv-listings-note');
+ const q=String(queryOverride??listingQueryValue??'').trim();listingQueryValue=q;
+ if(listingLoading)return listingLoading;
+ const current=map||findMap();if(!current){if(summary)summary.textContent='Waiting for the BridgePoint globe…';return null}
+ listingLoading=(async()=>{
+  try{
+   if(!listingSummaryCache||Date.now()-listingSummaryAt>300000){listingSummaryCache=await rpc('bridgepoint_public_listing_summary_v5927',{},6500);listingSummaryAt=Date.now()}
+   const b=current.getBounds?.();
+   const args={p_west:b?.getWest?.()??-180,p_south:b?.getSouth?.()??-80,p_east:b?.getEast?.()??180,p_north:b?.getNorth?.()??80,p_limit:250,p_query:q};
+   const data=await rpc('bridgepoint_public_listings_viewport_v5927',args,9000);
+   const features=Array.isArray(data?.features)?data.features:(data?.geojson?.features||[]);
+   listingFeaturesCache=features;
+   const s=listingSummaryCache||{};
+   document.querySelectorAll('[data-bpv-listings-total]').forEach(n=>n.textContent=Number(s.total_records||0).toLocaleString());
+   document.querySelectorAll('[data-bpv-listings-rentals]').forEach(n=>n.textContent=Number(s.rent_records||0).toLocaleString());
+   if(summary){
+    summary.textContent=Number(s.total_records||0).toLocaleString()+' materialized listings · '+Number(s.rent_records||0).toLocaleString()+' rental/lease records · '+Number(s.sale_records||0).toLocaleString()+' for-sale records · '+Number(s.bridgepoint_photo_assets||0).toLocaleString()+' records with BridgePoint-hosted photo assets. '+Number(data?.matching_in_view||0).toLocaleString()+' match the current view/search.';
+   }
+   const src=ensureListingLayers(current)?current.getSource(BP_LISTINGS_SOURCE_V5927):null;
+   if(src)src.setData(data?.geojson||{type:'FeatureCollection',features});
+   setListingOverlay(listingOverlayOn);
+   renderListingCards(features,selectedId);
+   if(note)note.textContent=(data?.truth_note||'Listings are returned from BridgePoint-materialized source records.')+' Listing cards do not open external websites.';
+   if(!data?.complete)throw new Error(data?.error||'Listing viewport is incomplete');
+   return data;
+  }catch(e){
+   if(summary)summary.textContent='Listings could not refresh: '+String(e?.message||e);
+   if(note)note.textContent='Existing BridgePoint data remains visible; refresh to retry.';
+   console.warn('BridgePoint listing inventory',e);return null;
+  }finally{listingLoading=null;if(listingQueryValue!==q)setTimeout(()=>void loadListings(true,listingQueryValue),120)}
+ })();
+ return listingLoading;
+}
+function toggleParcelBoundaries(){
+ const native=document.querySelector('.map-tools [data-layer="parcels"]');
+ if(native&&!home){native.click();const on=native.classList.contains('active');$$('[data-bpv-action="parcels"]').forEach(b=>{b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on))});return}
+ const m=map||findMap(),ids=['gta-parcel','gta-parcel-glow','gta-parcel-halo'].filter(id=>m?.getLayer?.(id));
+ if(ids.length){
+  const currentlyOn=ids.some(id=>(m.getLayoutProperty(id,'visibility')||'visible')!=='none'),next=!currentlyOn;
+  ids.forEach(id=>{try{m.setLayoutProperty(id,'visibility',next?'visible':'none')}catch(_){}});
+  window.__BP_PARCEL_LAYER_STATE_V5927__={enabled:next,layerIds:ids,updatedAt:Date.now()};
+  $$('[data-bpv-action="parcels"]').forEach(b=>{b.classList.toggle('active',next);b.setAttribute('aria-pressed',String(next))});
+  return;
+ }
+ const api=window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5577__;
+ if(api?.open){api.open('public');return}
+ const button=document.querySelector('#bpLandingBoundaryOpen5403,#bpAppBoundaryOpen5403');
+ if(button){button.click();return}
+}
+async function openWorldChanges(){
+ const m=map||findMap(),world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+ let api=window.__BP_WORLD_TIME_SLIDER_V5908__;
+ if(!api||api.map!==m){const mod=await import('./world-v2300-time-slider.js?v=5927-world-history');api=mod.initWorldTimeSlider(world||{map:m},rpc);if(api)window.__BP_WORLD_TIME_SLIDER_V5908__=api}
+ if(api?.open)api.open();else openPanel('listings');
+}
+async function openRealWorldEffects(initialWind=false){
+ const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+ if(!world?.map)throw new Error('BridgePoint globe not ready');
+ const mod=await import('./bridgepoint-realworld-effects-v5927.js?v=5927-toggleable-world-fx');
+ const api=mod.initBridgePointRealWorldEffects(world,rpc);await api?.open?.({initialWind});
+}
 function toggleSearch(){
  const input=home?$('#landingPropertySearchInput'):$('#publicSearchInput'),form=home?$('#landingPropertySearch'):$('#publicSearchForm');
  if(!form||!input)return;
- searchVisible=!!form.hidden;form.hidden=!searchVisible;
- if(searchVisible)setTimeout(()=>input.focus({preventScroll:true}),50);
+ form.hidden=false;searchVisible=true;
+ try{input.focus({preventScroll:true})}catch(_){}
 }
 function buildPropertyPanel(){
  const p=$('#bpv-side-property-slots');if(p&&!p.children.length)makeSlots(p,'panel');
@@ -465,7 +647,7 @@ function buildUI(){
    const footer=document.querySelector('body>footer');if(footer)content.appendChild(footer);
   }
   const form=$('#landingPropertySearch'),premium=$('#landingFreePremiumTools');
-  if(form)ui.searchSlot.appendChild(form);
+  if(form){ui.searchSlot.appendChild(form);form.hidden=false;searchVisible=true;}
   if(premium)ui.actions.insertBefore(premium,ui.actions.querySelector('[data-bpv-action="ai"]'));
   if(premium){premium.classList.add('bpv-premium-button');premium.textContent='FREE PREMIUM TOOLS';}
   const copyPane=$('#bpv-home-copy-mount');if(copyPane)copyPane.querySelector('.copy')?.classList.add('bpv-moved-home-copy');
@@ -490,7 +672,7 @@ function buildUI(){
    else{p.hidden=false;p.style.display='block'}
   };
   const form=$('#publicSearchForm'),tools=$('.map-tools'),premium=$('#appFreePremiumTools');
-  if(form)ui.searchSlot.appendChild(form);
+  if(form){ui.searchSlot.appendChild(form);form.hidden=false;searchVisible=true;}
   if(premium){ui.actions.insertBefore(premium,ui.actions.querySelector('[data-bpv-action="ai"]'));premium.classList.add('bpv-premium-button');premium.textContent='FREE PREMIUM TOOLS'}
   const controls=$('#bpv-controls-mount');
   if(tools&&controls)controls.appendChild(tools);
@@ -513,7 +695,23 @@ function buildUI(){
  // Put search and account actions at rest; hide them together while the globe is moving.
  ui.actions.insertBefore(searchButton,ui.actions.querySelector('[data-bpv-action="ai"]'));
  const panelOpenButtons=ui.actions.querySelectorAll('[data-bpv-action]');
- panelOpenButtons.forEach(b=>{if(b.dataset.bpvBound)return;b.dataset.bpvBound='1';b.addEventListener('click',()=>{const a=b.dataset.bpvAction;if(a==='search'){toggleSearch();return}if(a==='whole'){wholeEarth();return}if(a==='premium'){document.querySelector('#landingFreePremiumTools,#appFreePremiumTools')?.click();return}openPanel(a)})});
+ panelOpenButtons.forEach(b=>{if(b.dataset.bpvBound)return;b.dataset.bpvBound='1';b.addEventListener('click',()=>{const a=b.dataset.bpvAction;if(a==='search'){toggleSearch();return}if(a==='whole'){wholeEarth();return}if(a==='premium'){document.querySelector('#landingFreePremiumTools,#appFreePremiumTools')?.click();return}
+if(a==='parcels'){toggleParcelBoundaries();return}
+if(a==='listings'){openPanel('listings');return}
+if(a==='worldchanges'){void openWorldChanges();return}
+if(a==='weatherfx'){void openRealWorldEffects(false);return}
+if(a==='windfx'){void openRealWorldEffects(true);return}
+if(a==='motion'){openPanel('controls');window.__BP_GLOBAL_MOTION_V5926__?.open?.();return}
+if(a==='satellite'){
+ const current=window.__BP_SPECTRAL_IMAGERY_V5909__;
+ if(current?.open){current.open();return}
+ const surfaceWorld=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+ void import('./world-v2300-spectral-imagery.js?v=5926-landsat-six-combinations')
+  .then(m=>{const api=window.__BP_SPECTRAL_IMAGERY_V5909__||m.initSpectralImagery(surfaceWorld);api?.open?.()})
+  .catch(e=>console.warn('BridgePoint satellite filters unavailable',e));
+ return;
+}
+openPanel(a)})});
  // Initialize truthful counter slots; panel fetch is on-demand to keep the map light.
  buildPropertyPanel();
  document.body.classList.add('bpv-view-ready');

@@ -1,0 +1,38 @@
+# BridgePoint Eye — live build and gap ledger (v5928)
+
+This is the tracked implementation ledger for the live website globe and app. A feature is marked **implemented on this branch** only when there is code and, where relevant, a working data endpoint. It is not marked deployed until the production workflow passes. Data inventory counts are records, not necessarily unique physical assets.
+
+## Implemented on this branch — deployment still needs verification
+
+- **Persistent phone deck:** fixed search field within the bottom BridgePoint Eye card; minimize/reopen control; top language selector; mobile overflow containment; always-visible compact map-key ribbon; parcel-boundary action; listings, 30-day history, weather effects, wind, satellite filters and motion controls.
+- **Internal listings panel and map overlay:** cards stay inside BridgePoint; cards do not navigate to publisher listing pages; source dates, record type/status, price when supplied, and accuracy notes appear inside BridgePoint. A photo appears only when a licensed BridgePoint-hosted media path exists. Map overlay queries the records materialized for the current viewport and refreshes automatically.
+- **Current listings inventory:** 622 materialized HUD/FHA REO for-sale records from one source; zero rental/lease records and zero materialized BridgePoint-hosted photo assets in the verified snapshot. Last source update observed: 2026-07-21. This is not a global millions-listing feed.
+- **30-day world activity:** new `bridgepoint_public_world_activity_v5927` endpoint and a UI caller that exposes source-reported hazards/global events plus opportunity-record updates, newly materialized source asset records and terrain-data refreshes. Those data-record events are explicitly not presented as proof of physical damage or physical change. The timeline is not a historical rewind of imagery/building geometry.
+- **Source-backed physical layer:** roof shapes/planes, rooftop solar, utility-scale solar-site boundaries, pools, tunnels/underpasses and eligible public subsurface geometry. Verified counts from the live data snapshot: 698,097 roof geometry records, 56,450 shape-truth records, 255,726 roof-plane records, 45,597 LiDAR-derived roof records, 2,151 rooftop-solar records, 6,611 solar-site boundaries, 8,586 pools, 180 tunnels/underpasses, and 0 public subsurface utility records. These are source records, not unique buildings; roof coverage is incomplete.
+- **Toggleable real-world effects:** source weather/radar, supported rain/snow/hail/storm/fire particles, flood alert polygons, stylized animated clouds, solar-position lighting cue, observed-wind streamlines around visible building footprints, and material/satellite display modes. Wind flow is schematic, not CFD; current flood outlines are alert boundaries, not measured flood depth; cloud treatment is not yet volumetric 3D weather.
+- **Celestial sky cue:** approximate Sun, Moon/phase, bright-star context and low-precision planet positions when zoomed to the ground and tilted toward the horizon. It is a screen-space sky layer over the shared map, not a full physically rendered 3D sky/orbital simulation.
+- **Road and transit materials:** improved asphalt-like line surfaces/casings, rail-tie lines/twin-rail rendering, and source-backed emissive lamp heads; sidewalks/streetlights still depend on geographic source coverage.
+- **Global motion:** satellite catalogue/propagation and nearby public aircraft feed integration have source-aware status. Satellite positions from TLE are calculated estimates; the aircraft query is a bounded nearby feed, not a global universal feed. Camera and train sources remain individually rights- and source-gated.
+- **Previously retired elements:** the walkthrough and separate space-view renderer remain removed; the globe/map stays the primary interface.
+
+## Still required / honest blockers
+
+1. **Millions of live sale and rental listings, globally.** The current 622-record HUD snapshot is not enough. Bulk display of listings and photos needs public-domain or explicitly licensed feeds with permission to display and persist the relevant fields/images. Portal crawling or copying source photos without rights is not acceptable. The panel supports internal cards and licensed BridgePoint-hosted photos, but an authorized global listing feed, refresh worker and photo ingestion/materialization are not yet connected.
+2. **Image materialization.** No BridgePoint-hosted listing photo assets are currently recorded. The UI intentionally shows an internal no-photo placeholder until permitted assets are actually hosted. Publisher images must not be hotlinked or copied absent rights.
+3. **Pitched 3D roofs for all buildings.** Existing roof-plane/shape evidence covers only part of building geometry. Do not report complete global pitch-correct roof meshes.
+4. **Underground utility networks/leak detection.** The public subsurface map currently contains zero materialized public utility features. Known tunnels/underpasses are a separate layer. Do not draw fictional pipes or leak points.
+5. **True water-depth flood simulation, volumetric rain/snow/hail clouds and terrain-conforming CFD.** Current effect layers are source-driven visual overlays/particles, not full physical solvers. Exact water depth requires source observations/modelled depth data; building-flood contact requires compatible geometry and height/depth data.
+6. **Public camera feeds, globally live flights, trains and satellites.** Each feed must have a legal, stable public endpoint and licensing/terms verified. No empty/generated substitutes for missing cameras or train coordinates.
+7. **AAA vehicle and aircraft control.** Current road-drive work is a map-driven simulation with prototype cockpit controls, not a production AAA vehicle mesh/interior or aircraft model with fully simulated physics.
+8. **Trees and infrastructure variety.** More species, accurate 3D canopy/branch meshes, source coverage for sidewalks/signs/lamps, and lighting should be added incrementally from source-backed attributes. A target count of tree types is not equivalent to an available global botanical model set.
+9. **Historical changes.** The activity scrub returns source observations and database/materialization events for the selected time window. It does not reconstruct past imagery, all parcel/building geometry changes, or verified landslide/volcano polygons where no source records exist.
+10. **Ship verification.** Run build syntax checks, app + website smoke tests (including an actual phone viewport), and production cutover. Keep feature changes visible as they merge; do not report them live before deployment checks pass.
+
+## Rules for future changes
+
+- BridgePoint keeps listing details and interaction in its own UI; don't create external listing-card clickthroughs.
+- Show source attribution/freshness/accuracy inside BridgePoint; source provenance may remain available in detail panels.
+- Never inflate counts using duplicated layers, opportunity category rows, or placeholders; separate source records from unique physical assets.
+- Keep worker requests bounded and pressure-aware, with a cache and single-flight refresh.
+- Desktop and phone layouts must fit within the viewport; persistent UI may be minimized/reopened but must not disappear just because the camera moves.
+- Merge and verify each increment instead of waiting for the entire long roadmap to finish.

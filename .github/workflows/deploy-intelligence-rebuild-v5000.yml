@@ -119,6 +119,11 @@ jobs:
           cp rebuild-v5000/bridgepoint-map-key-v5920.js site/bridgepoint-map-key-v5920.js
           cp rebuild-v5000/bridgepoint-map-state-counts-v5923.js site/bridgepoint-map-state-counts-v5923.js
           cp rebuild-v5000/bridgepoint-map-physical-assets-v5924.js site/bridgepoint-map-physical-assets-v5924.js
+          cp rebuild-v5000/bridgepoint-global-motion-v5926.js site/bridgepoint-global-motion-v5926.js
+          cp rebuild-v5000/bridgepoint-realworld-effects-v5927.js site/bridgepoint-realworld-effects-v5927.js
+          cp rebuild-v5000/bridgepoint-realworld-effects-v5927.js site/app/bridgepoint-realworld-effects-v5927.js
+          cp rebuild-v5000/bridgepoint-celestial-sky-v5928.js site/bridgepoint-celestial-sky-v5928.js
+          cp rebuild-v5000/bridgepoint-celestial-sky-v5928.js site/app/bridgepoint-celestial-sky-v5928.js
           cp rebuild-v5000/styles.css site/styles.css
           cp rebuild-v5000/app.js site/app.js
           cp rebuild-v5000/owner-everything.js site/owner-everything.js
@@ -142,11 +147,11 @@ jobs:
           cp rebuild-v5000/scenario-lab-v5525.css site/scenario-lab-v5525.css
           cp rebuild-v5000/qr-house-v5521.js site/qr-house-v5521.js
           cp rebuild-v5000/refresh-v5535.js site/refresh-v5535.js
-          cp rebuild-v5000/walkthrough-v5537.js site/walkthrough-v5537.js
-          cp rebuild-v5000/walkthrough-v5537.css site/walkthrough-v5537.css
           cp rebuild-v5000/404.html site/404.html
           cp rebuild-v5000/bridgepoint-mark.svg site/bridgepoint-mark.svg
           cp rebuild-v5000/bridgepoint-favicon-48.png site/bridgepoint-favicon-48.png
+          # The walkthrough and separate space renderer are retired from the public product surface.
+          rm -f site/walkthrough-v5537.js site/walkthrough-v5537.css site/world-v2300-space.js site/app/world-v2300-space.js
           mkdir -p site/assets
           cp -a rebuild-v5000/assets/. site/assets/
           rm -rf site/terms site/privacy
@@ -186,7 +191,6 @@ jobs:
           # Carry forward only the proven map engine pieces used by the new shell.
           cp release-v2300/world-v2300-config.js site/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/world-v2300-map.js
-          cp release-v2300/world-v2300-space.js site/world-v2300-space.js
           cp release-v2300/world-v2300-worker.js site/world-v2300-worker.js
           cp release-v2300/world-v2300-weather.js site/world-v2300-weather.js
           cp release-v2300/world-v2300-present-weather.js site/world-v2300-present-weather.js
@@ -197,7 +201,6 @@ jobs:
           cp release-v2300/gis-core-orchestrator-v5910.js site/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/app/world-v2300-map.js
-          cp release-v2300/world-v2300-space.js site/app/world-v2300-space.js
           cp release-v2300/world-v2300-worker.js site/app/world-v2300-worker.js
           cp release-v2300/world-v2300-weather.js site/app/world-v2300-weather.js
           cp release-v2300/world-v2300-present-weather.js site/app/world-v2300-present-weather.js
@@ -236,10 +239,27 @@ jobs:
           node --check site/bridgepoint-map-key-v5920.js
           node --check site/bridgepoint-map-state-counts-v5923.js
           node --check site/bridgepoint-map-physical-assets-v5924.js
+          node --check site/bridgepoint-global-motion-v5926.js
+          node --input-type=module --check < site/bridgepoint-realworld-effects-v5927.js
+          node --input-type=module --check < site/app/bridgepoint-realworld-effects-v5927.js
+          node --input-type=module --check < site/bridgepoint-celestial-sky-v5928.js
+          node --input-type=module --check < site/app/bridgepoint-celestial-sky-v5928.js
+          test ! -e site/walkthrough-v5537.js
+          test ! -e site/walkthrough-v5537.css
+          test ! -e site/world-v2300-space.js
+          test ! -e site/app/world-v2300-space.js
           grep -Fq 'bridgepoint-view-v5917.css' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css' site/app/index.html
           grep -Fq 'bridgepoint-view-v5917.js' site/index.html
           grep -Fq 'bridgepoint-view-v5917.js' site/app/index.html
+          grep -Fq 'bpv-dock-persistent' site/bridgepoint-view-v5917.css
+          grep -Fq 'bpv-key-ribbon' site/bridgepoint-view-v5917.css
+          grep -Fq 'PARCEL BOUNDARIES' site/bridgepoint-view-v5917.js
+          grep -Fq 'bridgepoint_public_listings_viewport_v5927' site/bridgepoint-view-v5917.js
+          grep -Fq 'bridgepoint-realworld-effects-v5927.js' site/intelligence-tools-v5507.js
+          grep -Fq 'bridgepoint-celestial-sky-v5928.js' site/bridgepoint-realworld-effects-v5927.js
+          grep -Fq 'WORLD_CHANGES' site/intelligence-tools-v5507.js
+          grep -Fq 'data-bp-language-mount="top"' site/bridgepoint-view-v5917.js
           grep -Fq 'bpv-map-moving' site/bridgepoint-view-v5917.js
           grep -Fq 'Worldwide stored boundary total' site/bridgepoint-view-v5917.js
           grep -Fq 'Active opportunity jurisdictions' site/bridgepoint-view-v5917.js
@@ -289,7 +309,6 @@ jobs:
           node --check site/scenario-lab-v5525.js
           node --check site/qr-house-v5521.js
           node --check site/refresh-v5535.js
-          node --check site/walkthrough-v5537.js
           grep -Fq 'intelligence-tools-v5507.js' site/index.html
           grep -Fq 'intelligence-tools-v5507.js' site/app/index.html
           grep -Fq 'FREE PREMIUM TOOLS' site/intelligence-tools-v5507.js
@@ -333,19 +352,11 @@ jobs:
           grep -Fq "updateViaCache:'none'" site/app/horizon/play/app.js
           grep -Fq '/refresh-v5535.js' site/index.html
           grep -Fq '/refresh-v5535.js' site/app/index.html
-          grep -Fq '__BP_WALKTHROUGH_V5539__' site/walkthrough-v5537.js
-          grep -Fq 'MOLLY SAYS' site/walkthrough-v5537.js
-          grep -Fq "MOLLY_GUIDE='/assets/molly-materson-bridgepoint.webp'" site/walkthrough-v5537.js
-          grep -Fq 'card.dataset.dock=dock' site/walkthrough-v5537.js
-          grep -Fq 'data-has-target="1"' site/walkthrough-v5537.css
-          grep -Fq 'bp-tour-shade' site/walkthrough-v5537.js
-          grep -Fq 'bp-tour-shade' site/walkthrough-v5537.css
-          ! grep -Fq 'box-shadow:0 0 0 9999px' site/walkthrough-v5537.css
-          ! grep -Fq '.bp-tour-dim{position:absolute;inset:0;background:rgba(0,5,9,.83);backdrop-filter:blur(7px)' site/walkthrough-v5537.css
+          test ! -e site/walkthrough-v5537.js
+          test ! -e site/walkthrough-v5537.css
           grep -Fq 'rel="preload" as="image" href="/assets/molly-materson-bridgepoint.webp"' site/index.html
           grep -Fq 'rel="preload" as="image" href="/assets/molly-materson-bridgepoint.webp"' site/app/index.html
-          grep -Fq 'demo3D' site/walkthrough-v5537.js
-          grep -Fq 'qaBypass' site/walkthrough-v5537.js
+          test ! -e site/walkthrough-v5537.js
           ! grep -Fq '/walkthrough-v5537.js' site/index.html
           ! grep -Fq '/walkthrough-v5537.js' site/app/index.html
           ! grep -Fq '/walkthrough-v5537.css' site/index.html
@@ -385,9 +396,9 @@ jobs:
           grep -Fq "vis(map,'gta-opportunity-buildings',z>=11.8)" site/world-v2300-map.js
           grep -Fq 'window.__BP_LANDING_WORLD__=world' site/landing.js
           grep -Fq '__BP_WORLD_CORE_READY__' site/world-v2300-map.js
-          grep -Fq "world-v2300-space.js" site/world-v2300-map.js
-          grep -Fq '__BP_SPACE_V5532__' site/world-v2300-space.js
-          grep -Fq '__BP_SPACE_V5536__' site/world-v2300-space.js
+          ! grep -Fq "world-v2300-space.js" site/world-v2300-map.js
+          test ! -e site/world-v2300-space.js
+          test ! -e site/app/world-v2300-space.js
           grep -Fq '__BP_BRIDGE3D_V5540__' site/world-v2300-map.js
           grep -Fq '__BP_LANDMARK3D_V5542__' site/world-v2300-map.js
           grep -Fq '__BP_BRIDGE3D_V5542__' site/world-v2300-map.js
@@ -424,12 +435,6 @@ jobs:
           grep -Fq "querySourceFeatures?.('ofm',{sourceLayer:'transportation'" site/world-v2300-map.js
           grep -Fq 'cancelPendingTileRequestsWhileZooming:true' site/world-v2300-map.js
           grep -Fq 'statueOfLibertyGenericModel:false' site/world-v2300-map.js
-          grep -Fq "host.addEventListener('wheel'" site/world-v2300-space.js
-          grep -Fq 'SUN-CENTERED SOLAR SYSTEM' site/world-v2300-space.js
-          grep -Fq 'PLANETS · TRUE RELATIVE DIAMETER SCALE' site/world-v2300-space.js
-          grep -Fq 'get mounted(){return!!c}' site/world-v2300-space.js
-          grep -Fq 'JPL-style approximate positions' site/world-v2300-space.js
-          grep -Fq 'STELLAR / MILKY WAY SCALE' site/world-v2300-space.js
           grep -Fq '__BP_LANDING_MAP_BOOT__' site/landing.js
           grep -Fq 'appFreePremiumTools' site/app/index.html
           grep -Fq 'landingPropertySearch' site/index.html
@@ -452,7 +457,8 @@ jobs:
           grep -Fq 'SIGNUP_SUCCESS' site/landing.js
           node --check site/world-v2300-config.js
           node --check site/world-v2300-map.js
-          node --check site/world-v2300-space.js
+          test ! -e site/world-v2300-space.js
+          test ! -e site/app/world-v2300-space.js
           node --check site/world-v2300-worker.js
           node --check site/world-v2300-weather.js
           node --check site/world-v2300-present-weather.js
@@ -779,11 +785,11 @@ jobs:
               && grep -Fq '__BP_APP_BUILD_VERSION__=5910' /tmp/app.js \
               && grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' /tmp/world-v2300-map.js \
               && grep -Fq '__BP_SKY_CLOUDS_V5908__' /tmp/world-v2300-clouds.js \
-              && grep -Fq 'bridgepoint_public_world_activity_v5908' /tmp/world-v2300-time-slider.js \
+              && grep -Fq 'bridgepoint_public_world_activity_v5927' /tmp/world-v2300-time-slider.js \
               && grep -Fq 'https://planetarycomputer.microsoft.com/api/stac/v1/search' /tmp/world-v2300-spectral-imagery.js \
               && grep -Fq 'window.__BP_REAL_WORLD_MODE_V5910__' /tmp/world-v2300-realism.js \
               && grep -Fq 'BridgePoint GIS Core Orchestration Engine' /tmp/gis-core-orchestrator-v5910.js \
-              && grep -Fq '__BP_WALKTHROUGH_V5539__' /tmp/walkthrough-v5537.js \
+              && test ! -s /tmp/walkthrough-v5537.js \
               && grep -Fq '__BP_PARCEL_BOUNDARY_VIEWER_V5577__' /tmp/parcel-boundary-viewer-v5403.js \
               && grep -Fq 'bridgepoint_frontend_status_v5000' /tmp/app.js \
               && grep -Fq 'bindPerformanceGovernor' /tmp/app.js \

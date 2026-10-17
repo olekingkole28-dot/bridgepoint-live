@@ -81,7 +81,7 @@ const CSS = `
 
 function addStyle(){
   if(document.getElementById(STYLE_ID))return;
-  const style=document.createElement('style');style.id=STYLE_ID;style.textContent=CSS;document.head.appendChild(style);
+  const style=document.createElement('style');style.id=STYLE_ID;style.textContent=CSS.replaceAll('#liveMap',':is(#liveMap,#previewMap)');document.head.appendChild(style);
 }
 
 export function initSkyClouds(target){

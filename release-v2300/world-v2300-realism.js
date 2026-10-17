@@ -27,7 +27,7 @@ export function initRealismMode(target){
  if(window.__BP_WORLD_REALISM_V5910__?.map===map)return window.__BP_WORLD_REALISM_V5910__;
  if(container.querySelector('#'+ROOT_ID))return window.__BP_WORLD_REALISM_V5910__||null;
  if(getComputedStyle(container).position==='static')container.style.position='relative';
- if(!document.getElementById(STYLE_ID)){const s=document.createElement('style');s.id=STYLE_ID;s.textContent=CSS;document.head.appendChild(s)}
+ if(!document.getElementById(STYLE_ID)){const s=document.createElement('style');s.id=STYLE_ID;s.textContent=CSS.replaceAll('#liveMap',':is(#liveMap,#previewMap)');document.head.appendChild(s)}
  const root=document.createElement('section');root.id=ROOT_ID;root.setAttribute('aria-label','Real-world rendering controls');
  root.innerHTML=
   '<button class="bpr-trigger" type="button" data-toggle aria-pressed="false"><span>🌍 REAL-WORLD MODE</span><span class="bpr-dot" aria-hidden="true"></span></button>'+

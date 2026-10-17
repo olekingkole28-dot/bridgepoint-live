@@ -7,9 +7,12 @@ const SOURCE_ID='bp-spectral-imagery-source-v5909';
 const LAYER_ID='bp-spectral-imagery-raster-v5909';
 const ATTRIBUTION='Landsat Collection 2 Level-2 · USGS/NASA · Microsoft Planetary Computer';
 const COMBOS={
+ natural:{label:'Natural Color · Red / Green / Blue',assets:['red','green','blue'],description:'Visible-band composite approximating natural color. Haze, clouds and acquisition date affect appearance.'},
  earth:{label:'Earth-as-Art · SWIR-2 / NIR / Red',assets:['swir22','nir08','red'],description:'Bright green/yellow vegetation; dark water channels; strong landform contrast.'},
  water:{label:'Water & Soil · SWIR-1 / NIR / Red',assets:['swir16','nir08','red'],description:'Emphasizes moisture, sediment, soil, and vegetation boundaries.'},
- vegetation:{label:'Vegetation · NIR / Red / Green',assets:['nir08','red','green'],description:'Classic infrared false color; healthy vegetation responds strongly in red.'}
+ vegetation:{label:'Vegetation · NIR / Red / Green',assets:['nir08','red','green'],description:'Classic infrared false color; healthy vegetation responds strongly in red.'},
+ geology:{label:'Geology / Burn Scars · SWIR-2 / SWIR-1 / Red',assets:['swir22','swir16','red'],description:'Highlights mineral/soil contrasts and some burn-scar patterns. It is not an automatic damage verdict.'},
+ agriculture:{label:'Agriculture · NIR / SWIR-1 / Green',assets:['nir08','swir16','green'],description:'Emphasizes vegetation vigor and moisture differences for landscape/agricultural interpretation.'}
 };
 const CSS=[
 '#liveMap #'+ROOT_ID+'{position:absolute;z-index:22;left:12px;top:12px;width:min(350px,calc(100% - 24px));box-sizing:border-box;color:#eaf8ff;font:12px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;pointer-events:none}',
@@ -48,7 +51,7 @@ function sceneCandidates(features){
  return (Array.isArray(features)?features:[]).filter(f=>{
   const platform=String(f?.properties?.platform||'').toLowerCase();
   const a=f?.assets||{};
-  return /^landsat-[89]$/.test(platform)&&!!f.id&&!!a.red&&!!a.nir08&&!!a.swir22&&!!a.swir16&&!!a.green;
+  return /^landsat-[89]$/.test(platform)&&!!f.id&&!!a.red&&!!a.green&&!!a.blue&&!!a.nir08&&!!a.swir22&&!!a.swir16;
  }).sort((a,b)=>{
   const ca=cloudCover(a),cb=cloudCover(b),qa=ca<=35?0:1,qb=cb<=35?0:1;
   if(qa!==qb)return qa-qb;
@@ -111,7 +114,7 @@ export function initSpectralImagery(target){
  if(window.__BP_SPECTRAL_IMAGERY_V5909__?.map===map)return window.__BP_SPECTRAL_IMAGERY_V5909__;
  if(container.querySelector('#'+ROOT_ID))return window.__BP_SPECTRAL_IMAGERY_V5909__||null;
  if(getComputedStyle(container).position==='static')container.style.position='relative';
- if(!document.getElementById(STYLE_ID)){const style=document.createElement('style');style.id=STYLE_ID;style.textContent=CSS;document.head.appendChild(style)}
+ if(!document.getElementById(STYLE_ID)){const style=document.createElement('style');style.id=STYLE_ID;style.textContent=CSS.replaceAll('#liveMap',':is(#liveMap,#previewMap)');document.head.appendChild(style)}
  const root=document.createElement('div');root.id=ROOT_ID;
  root.innerHTML=
   '<button class="bps-trigger" type="button" data-toggle aria-expanded="false">🛰 FALSE-COLOR SATELLITE</button>'+
@@ -120,7 +123,7 @@ export function initSpectralImagery(target){
   '<div class="bps-status" data-status role="status" aria-live="polite">Zoom into a land area, then find a clear Landsat scene.</div>'+
   '<div class="bps-meta" data-meta>Source: USGS/NASA Landsat Collection 2 Level-2, served by Microsoft Planetary Computer. Target scene resolution: approximately 30 m.</div>'+
   '<label for="bp-spectral-combo-v5909">SPECTRAL COMBINATION</label>'+
-  '<select id="bp-spectral-combo-v5909" data-combo><option value="earth">Earth-as-Art · SWIR-2 / NIR / Red</option><option value="water">Water & Soil · SWIR-1 / NIR / Red</option><option value="vegetation">Vegetation · NIR / Red / Green</option></select>'+
+  '<select id="bp-spectral-combo-v5909" data-combo><option value="natural">Natural Color · Red / Green / Blue</option><option value="earth">Earth-as-Art · SWIR-2 / NIR / Red</option><option value="water">Water & Soil · SWIR-1 / NIR / Red</option><option value="vegetation">Vegetation · NIR / Red / Green</option><option value="geology">Geology / Burn Scars · SWIR-2 / SWIR-1 / Red</option><option value="agriculture">Agriculture · NIR / SWIR-1 / Green</option></select>'+
   '<label for="bp-spectral-opacity-v5909">IMAGERY OPACITY <span data-opacity-label>78%</span></label><input id="bp-spectral-opacity-v5909" type="range" min="20" max="100" value="78" data-opacity aria-label="Satellite imagery opacity">'+
   '<div class="bps-actions"><button type="button" data-load>FIND / REFRESH SCENE</button><button type="button" data-hide>HIDE OVERLAY</button></div>'+
   '<div class="bps-actions"><button type="button" data-png>EXPORT PNG PREVIEW</button><button type="button" data-tif>EXPORT RGB GEOTIFF</button></div>'+
@@ -138,6 +141,15 @@ export function initSpectralImagery(target){
   async export(format){return exportPreview(format)}
  };
  window.__BP_SPECTRAL_IMAGERY_V5909__=state;
+  // The existing BridgePoint SAT button opens the real spectral controls.
+  document.querySelectorAll('[data-base="satellite"]').forEach(button=>{
+    if(button.dataset.bpSpectralBound==='1')return;
+    button.dataset.bpSpectralBound='1';
+    button.addEventListener('click',()=>setTimeout(()=>{
+      state.open();
+      if(!scene)setStatus('Choose a Landsat band combination, then find a source scene for this view.')
+    },90));
+  });
  const setStatus=(txt,error=false)=>{status.textContent=txt;status.dataset.error=error?'true':'false'};
  const setMeta=txt=>{meta.textContent=txt};
  toggle.addEventListener('click',()=>{if(panel.hidden)state.open();else state.close()});
