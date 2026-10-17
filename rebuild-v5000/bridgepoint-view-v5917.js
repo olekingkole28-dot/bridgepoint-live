@@ -9,7 +9,7 @@ const home=!!$('#previewMap')&&!$('#liveMap');
 const mapHost=home?$('.preview'):document.querySelector('.map-surface.active')||$('.map-surface');
 const appMap=$('#liveMap');
 let map=null,idleTimer=0,moveUntil=0,selected={id:null,label:'',feature:null},activePanel='ai',metricsLoading=null,asking=false,searchVisible=true;
-let listingLoading=null,listingSummaryCache=null,listingFeaturesCache=[],listingOverlayOn=true,listingMapTimer=0,listingQueryValue='',listingSelectedId=null;
+let listingLoading=null,listingSummaryCache=null,listingSummaryAt=0,listingFeaturesCache=[],listingOverlayOn=true,listingMapTimer=0,listingLastViewportAt=0,listingQueryValue='',listingSelectedId=null;
 const SLOT_INFO={
  ai:['BRIDGEPOINT AI','Ask a question about this selected property.'],
  xray:['X-RAY + INTERIOR','Source-backed parts, floors and plans only. No fabricated rooms.'],
@@ -54,7 +54,7 @@ function stopMoving(){
 }
 function attachMap(m){
  if(!m||map===m)return;map=m;
- if(!m.__bpListingsEventsV5927){m.__bpListingsEventsV5927=true;m.on('moveend',()=>{if(!listingOverlayOn)return;clearTimeout(listingMapTimer);listingMapTimer=setTimeout(()=>void loadListings(true,listingQueryValue),520)});m.on('styledata',()=>{if(listingOverlayOn)ensureListingLayers(m)})}
+ if(!m.__bpListingsEventsV5927){m.__bpListingsEventsV5927=true;m.on('moveend',()=>{if(!listingOverlayOn)return;clearTimeout(listingMapTimer);const wait=Math.max(700,3800-(Date.now()-listingLastViewportAt));listingMapTimer=setTimeout(()=>{listingLastViewportAt=Date.now();void loadListings(true,listingQueryValue)},wait)});m.on('styledata',()=>{if(listingOverlayOn)ensureListingLayers(m)});setTimeout(()=>{if(!m.__bpListingsBootedV5927){m.__bpListingsBootedV5927=true;listingLastViewportAt=Date.now();void loadListings(true,listingQueryValue)}},1300)}
  const start=()=>setMoving(),end=()=>stopMoving();
  for(const e of ['movestart','zoomstart','rotatestart','pitchstart','dragstart'])try{m.on(e,start)}catch(_){}
  for(const e of ['moveend','zoomend','rotateend','pitchend','dragend'])try{m.on(e,end)}catch(_){}
@@ -560,12 +560,12 @@ function featureCenter(f){
 }
 async function loadListings(force=false,queryOverride,selectedId=null){
  const summary=$('#bpv-listings-summary'),note=$('#bpv-listings-note');
- if(listingLoading&&!force)return listingLoading;
  const q=String(queryOverride??listingQueryValue??'').trim();listingQueryValue=q;
+ if(listingLoading)return listingLoading;
  const current=map||findMap();if(!current){if(summary)summary.textContent='Waiting for the BridgePoint globe…';return null}
  listingLoading=(async()=>{
   try{
-   if(!listingSummaryCache||force)listingSummaryCache=await rpc('bridgepoint_public_listing_summary_v5927',{},6500);
+   if(!listingSummaryCache||Date.now()-listingSummaryAt>300000){listingSummaryCache=await rpc('bridgepoint_public_listing_summary_v5927',{},6500);listingSummaryAt=Date.now()}
    const b=current.getBounds?.();
    const args={p_west:b?.getWest?.()??-180,p_south:b?.getSouth?.()??-80,p_east:b?.getEast?.()??180,p_north:b?.getNorth?.()??80,p_limit:250,p_query:q};
    const data=await rpc('bridgepoint_public_listings_viewport_v5927',args,9000);
@@ -586,7 +586,7 @@ async function loadListings(force=false,queryOverride,selectedId=null){
    if(summary)summary.textContent='Listings could not refresh: '+String(e?.message||e);
    if(note)note.textContent='Existing BridgePoint data remains visible; refresh to retry.';
    console.warn('BridgePoint listing inventory',e);return null;
-  }finally{listingLoading=null}
+  }finally{listingLoading=null;if(listingQueryValue!==q)setTimeout(()=>void loadListings(true,listingQueryValue),120)}
  })();
  return listingLoading;
 }
