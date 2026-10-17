@@ -222,8 +222,8 @@ async function initMap(){
     .then(m=>{window.__BP_WORLD_TIME_SLIDER_V5908__=window.__BP_WORLD_TIME_SLIDER_V5908__?.map===map?window.__BP_WORLD_TIME_SLIDER_V5908__:m.initWorldTimeSlider(world,rpc)})
     .catch(e=>console.warn('BridgePoint 30-day world change scrub unavailable',e));
    // BridgePoint satellite filters, daylight materials and sky layers also run on the homepage globe.
-   void import('./world-v2300-spectral-imagery.js?v=5930-global-basemap-modes')
-    .then(m=>{window.__BP_SPECTRAL_IMAGERY_V5930__=m.initSpectralImagery(world)})
+   void import('./world-v2300-spectral-imagery.js?v=5931-global-basemap-modes')
+    .then(m=>{window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)})
     .catch(e=>console.warn('BridgePoint satellite filters unavailable',e));
    void import('./world-v2300-realism.js?v=5926-world-sun-materials')
     .then(m=>{window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)})
