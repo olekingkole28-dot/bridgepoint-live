@@ -37,6 +37,10 @@ const CSS=`
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;border:2px solid #dffbff;background:#27c8ff;box-shadow:0 0 0 4px rgba(39,200,255,.2),0 0 15px rgba(39,200,255,.7)}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-scale{display:flex;justify-content:space-between;color:#83a3b6;font-size:10px;margin-top:-1px}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-controls{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:9px}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-filters{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(90px,.65fr);gap:6px;margin-top:8px}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-filters label{display:grid;gap:3px;min-width:0;color:#a8d7e5;font-size:8px;font-weight:900;letter-spacing:.06em}
+:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-filters select{width:100%;min-width:0;min-height:30px;padding:6px 7px;border:1px solid rgba(125,223,250,.34);border-radius:7px;background:#081b29;color:#e9fbff;font:700 10px system-ui,sans-serif}
+@media(max-width:700px){:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-filters{grid-template-columns:1fr 1fr;gap:5px}:is(#liveMap,#previewMap) .bp-world-time-slider-v5908 .bpwt-filters label:last-child{grid-column:1/-1}}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 button{appearance:none;border:1px solid rgba(136,208,235,.3);border-radius:8px;background:rgba(18,51,70,.8);color:#e8f8ff;font:800 11px/1 system-ui,-apple-system,Segoe UI,sans-serif;padding:8px 10px;cursor:pointer;min-height:30px}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 button:hover{background:rgba(30,90,116,.9)}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908 button[aria-pressed=true]{background:#146e88;border-color:#63eaff;color:#fff}
@@ -120,7 +124,7 @@ export function initWorldTimeSlider(target,rpc){
  if(!document.getElementById(STYLE_ID)){const style=document.createElement('style');style.id=STYLE_ID;style.textContent=CSS;document.head.appendChild(style)}
  const dock=document.createElement('section');dock.id=ROOT_ID;dock.className='bp-world-time-slider-v5908 bpwt-collapsed';dock.setAttribute('aria-label','World activity time slider');
  dock.innerHTML=`
-  <div class="bpwt-head"><span class="bpwt-eyebrow">WORLD ACTIVITY · 30-DAY SCRUB</span><span class="bpwt-status" data-status>CONNECTING</span><button type="button" data-standalone aria-pressed="false" aria-label="Expand the 30-day world activity controls inline">EXPAND TIMELINE</button><button type="button" data-collapse aria-expanded="false" aria-label="Expand world activity details">⌃</button></div>
+  <div class="bpwt-head"><span class="bpwt-eyebrow">WORLD HISTORY · 30-DAY CHANGE SCRUB</span><span class="bpwt-status" data-status>CONNECTING</span><button type="button" data-standalone aria-pressed="false" aria-label="Expand the 30-day world activity controls inline">EXPAND TIMELINE</button><button type="button" data-collapse aria-expanded="false" aria-label="Expand world activity details">⌃</button></div>
   <div class="bpwt-date"><strong data-date>Latest source observations</strong><span data-window>24-hour observation window</span></div>
   <input data-slider type="range" min="0" max="30" step="1" value="30" aria-label="Browse world activity from 30 days ago to now">
   <div class="bpwt-scale"><span>30 DAYS AGO</span><span>LIVE NOW</span></div>
@@ -128,11 +132,17 @@ export function initWorldTimeSlider(target,rpc){
    <button type="button" data-live aria-pressed="true">● LIVE</button>
    <button type="button" data-play aria-pressed="false">▶ PLAY</button>
    <button type="button" data-clouds aria-pressed="true">☁ CLOUDS ON</button>
+   <button type="button" data-nightlights aria-pressed="true">✦ LIGHTS AUTO · ON</button>
    <button type="button" data-refresh>↻ REFRESH</button>
    <span class="bpwt-stats" data-stats>Waiting for map bounds…</span>
   </div>
+  <div class="bpwt-filters" aria-label="World history filters">
+   <label>CHANGE TYPE<select data-filter-category><option value="all">All change signals</option><option value="storms">Storms / severe weather</option><option value="flood">Flooding / water</option><option value="wildfire">Wildfire / burn perimeter</option><option value="lights">Night lights / possible outage</option><option value="underground">Underground / tunnels / transit</option><option value="buildings">Buildings / roofs</option><option value="solar">Rooftop solar</option><option value="boundaries">Parcels / boundary lines</option><option value="infrastructure">Roads / bridges / lamps</option><option value="terrain">Terrain / coast / erosion</option><option value="opportunities">Opportunity / market updates</option><option value="assets">Newly indexed assets</option></select></label>
+   <label>RECORD CLASS<select data-filter-domain><option value="all">All source records</option><option value="HAZARD">Hazard observations</option><option value="GLOBAL_EVENT">Global source events</option><option value="NEW_MATERIALIZED_ASSET">Newly indexed assets</option><option value="OPPORTUNITY_CHANGE">Opportunity updates</option><option value="TERRAIN_DATA_REFRESH">Terrain refreshes</option></select></label>
+   <label>TIME WINDOW<select data-window-hours><option value="6">Previous 6 hours</option><option value="24" selected>Previous 24 hours</option><option value="72">Previous 3 days</option><option value="168">Previous 7 days</option></select></label>
+  </div>
   <div class="bpwt-list" data-list aria-label="Recent source-reported changes"></div>
-  <div class="bpwt-note">Time-filtered source-reported hazards, global events, BridgePoint opportunity-record updates, newly materialized source assets and terrain-data refreshes—not a pixel-perfect historical replay. Opportunity/asset/terrain updates may describe data records rather than physical-world change; forecasts/alerts do not prove damage. Base imagery/building geometry are not rewound.</div>`;
+  <div class="bpwt-note">Source-reported hazards/events, first-indexed assets, opportunity records and terrain refreshes are date-filtered; NASA VIIRS daily night imagery follows the selected time. Newly indexed buildings/solar do not prove construction date, dimming is not proof of outage, and boundary movement needs versioned geometry. Burn acreage is shown only when a source perimeter exists. Current imagery/geometry are not fully rewound.</div>`;
  function mountInCard(){
   const target=document.querySelector('#bpv-world-activity-slot')||document.querySelector('#bpv-dock');
   if(!target)return false;
@@ -149,7 +159,7 @@ export function initWorldTimeSlider(target,rpc){
   mountHandle=setTimeout(retryMount,100);
  }
  const $=s=>dock.querySelector(s),slider=$('[data-slider]'),status=$('[data-status]'),date=$('[data-date]'),windowLabel=$('[data-window]'),stats=$('[data-stats]'),list=$('[data-list]'),liveBtn=$('[data-live]'),playBtn=$('[data-play]'),cloudBtn=$('[data-clouds]');
- const collapseBtn=$('[data-collapse]'),standaloneBtn=$('[data-standalone]');
+ const collapseBtn=$('[data-collapse]'),standaloneBtn=$('[data-standalone]'),categoryFilter=$('[data-filter-category]'),domainFilter=$('[data-filter-domain]'),hoursSelect=$('[data-window-hours]'),nightlightsBtn=$('[data-nightlights]');
  function setStandalone(on){
   const expanded=!!on;
   dock.classList.toggle('bpwt-standalone-open',expanded);
@@ -162,10 +172,10 @@ export function initWorldTimeSlider(target,rpc){
  }
  standaloneBtn?.addEventListener('click',()=>setStandalone(dock.classList.contains('bpwt-collapsed')));
  collapseBtn.addEventListener('click',()=>setStandalone(dock.classList.contains('bpwt-collapsed')));
- let seq=0,timer=null,playTimer=null,disposed=false,playing=false,live=true,lastFeatures=[],lastMode='LIVE',lastRequestAt=0;
+ let seq=0,timer=null,playTimer=null,disposed=false,playing=false,live=true,lastFeatures=[],lastMode='LIVE',lastRequestAt=0,lastSummary={};
  const setStatus=(s,err=false)=>{status.textContent=s;status.classList.toggle('bpwt-error',!!err)};
  function selectedAt(){const val=Number(slider.value);if(val>=30)return new Date();return new Date(Date.now()-(30-val)*DAY)}
- function updateDate(){const d=selectedAt();date.textContent=Number(slider.value)>=30?'LIVE · '+dateLabel(d):dateLabel(d);windowLabel.textContent='Previous 24h ending at selected time'}
+ function updateDate(){const d=selectedAt(),hours=Number(hoursSelect.value||24);date.textContent=Number(slider.value)>=30?'LIVE · '+dateLabel(d):dateLabel(d);windowLabel.textContent='Previous '+(hours===168?'7 days':hours===72?'3 days':hours+'h')+' ending at selected time';window.dispatchEvent(new CustomEvent('bp:world-time-change',{detail:{selectedAt:d.toISOString(),live:Number(slider.value)>=30,windowHours:hours}}))}
  function clearLayers(){
   try{if(map.getSource(SOURCE_ID))map.getSource(SOURCE_ID).setData(EMPTY)}catch(_){}
   lastFeatures=[];list.textContent='';stats.textContent='No source observations in this view/window.';
@@ -189,6 +199,17 @@ export function initWorldTimeSlider(target,rpc){
   if(Math.abs(east-west)<.02){west=Math.max(-180,west-.01);east=Math.min(180,east+.01);if(west===east){west=-180;east=180}}
   return{p_west:west,p_south:south,p_east:east,p_north:north};
  }
+ function filterFeature(f){
+ const p=f?.properties||{},s=[p.event_type_key,p.family_key,p.title,p.description,p.source_label,p.domain].filter(Boolean).join(' ').toUpperCase(),cat=String(categoryFilter.value||'all');
+ if(domainFilter.value!=='all'&&String(p.domain||'')!==domainFilter.value)return false;
+ const q={storms:/STORM|HURRICANE|CYCLONE|TORNADO|SEVERE|WIND|LIGHTNING|HAIL|THUNDER|TROPICAL/,flood:/FLOOD|INUNDATION|WATER_LEVEL|SURGE|RIVER/,wildfire:/WILDFIRE|BURNED AREA|BURN PERIMETER|FIRE PERIMETER|FIRE/,lights:/NIGHT.?LIGHT|LIGHT DIM|POWER OUTAGE|ELECTRIC|GRID OUTAGE/,underground:/TUNNEL|UNDERGROUND|SUBSURFACE|SEWER|PIPE|TRANSIT|SUBWAY|CATACOMB|PASSAGE|MANHOLE/,buildings:/BUILDING|STRUCTURE|ROOF|FOOTPRINT/,solar:/SOLAR|PHOTOVOLTAIC|PV SYSTEM/,boundaries:/BOUNDARY|PARCEL|CADASTRAL|PROPERTY.LINE|LOT.LINE/,infrastructure:/ROAD|BRIDGE|RAIL|TRANSPORT|STREETLIGHT|STREET.LAMP|TRAFFIC.SIGNAL|POWER.POLE/,terrain:/TERRAIN|ELEVATION|BATHYMETRY|COAST|SHORE|LANDSLIDE|EROSION|SLOPE/,opportunities:/OPPORTUNITY|MARKET/,assets:/NEW_MATERIALIZED_ASSET|ASSET_MATERIALIZED|FIRST.INDEXED/};
+ return !q[cat]||q[cat].test(s);
+ }
+ function renderFiltered(){
+ const shown=lastFeatures.filter(filterFeature);try{map.getSource(SOURCE_ID)?.setData({type:'FeatureCollection',features:shown})}catch(_){}
+ const z=lastSummary;stats.textContent=shown.length.toLocaleString()+' matching / '+lastFeatures.length.toLocaleString()+' records · '+Number(z.hazards||0).toLocaleString()+' hazards · '+Number(z.globals||0).toLocaleString()+' global events · '+Number(z.assets||0).toLocaleString()+' new records · '+Number(z.terrain||0).toLocaleString()+' terrain refreshes';buildList(shown);
+ window.__BP_WORLD_ACTIVITY_FILTERS_V5937__={category:categoryFilter.value,domain:domainFilter.value,windowHours:Number(hoursSelect.value||24),shown:shown.length,total:lastFeatures.length,updatedAt:new Date().toISOString()};
+ }
  function buildList(features){
   list.textContent='';
   const rows=[...features].sort((a,b)=>String(b?.properties?.observed_at||'').localeCompare(String(a?.properties?.observed_at||''))).slice(0,4);
@@ -206,7 +227,7 @@ export function initWorldTimeSlider(target,rpc){
   if(disposed)return;
   ensureLayers();
   if(!map.getSource(SOURCE_ID)){setStatus('MAP STYLE LOADING');if(force)setTimeout(()=>refresh(true),500);return}
-  const my=++seq,at=selectedAt(),args={...boundsArgs(),p_at:at.toISOString(),p_window_hours:24,p_limit:600};
+  const my=++seq,at=selectedAt(),windowHours=Number(hoursSelect.value||24),args={...boundsArgs(),p_at:at.toISOString(),p_window_hours:windowHours,p_limit:600};
   const liveNow=Number(slider.value)>=30;
   lastMode=liveNow?'LIVE':'HISTORY';updateDate();setStatus(liveNow?'REFRESHING LIVE…':'LOADING HISTORY…');
   try{
@@ -215,19 +236,17 @@ export function initWorldTimeSlider(target,rpc){
    if(!data?.resolved||!data?.complete)throw new Error(data?.error||'ACTIVITY_FEED_UNAVAILABLE');
    const fc=data.geojson&&Array.isArray(data.geojson.features)?data.geojson:EMPTY;
    for(const f of fc.features){f.properties=f.properties||{};f.properties.display_color=sourceColor(f.properties)}
-   map.getSource(SOURCE_ID).setData(fc);lastFeatures=fc.features;lastRequestAt=Date.now();
-   const hz=Number(data.hazard_observations||0),ge=Number(data.global_events||0),op=Number(data.opportunity_changes||0),assets=Number(data.newly_materialized_assets||0),terrain=Number(data.terrain_data_refreshes||0),num=fc.features.length;
-   stats.textContent=num.toLocaleString()+' shown · '+hz.toLocaleString()+' hazards · '+ge.toLocaleString()+' global events · '+op.toLocaleString()+' opportunity updates · '+assets.toLocaleString()+' new assets · '+terrain.toLocaleString()+' terrain refreshes';
-   buildList(lastFeatures);setStatus(liveNow?'LIVE · UPDATED':'HISTORY · LOADED');dock.dataset.version='5927';
-   window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__={version:5927,mode:lastMode,selectedAt:at.toISOString(),windowHours:24,returned:num,hazards:hz,globalEvents:ge,opportunityChanges:op,newMaterializedAssets:assets,terrainDataRefreshes:terrain,viewport:args,lastUpdatedAt:new Date(lastRequestAt).toISOString(),historicalReplay:false};
+   lastFeatures=fc.features;lastRequestAt=Date.now();
+   const hz=Number(data.hazard_observations||0),ge=Number(data.global_events||0),op=Number(data.opportunity_changes||0),assets=Number(data.newly_materialized_assets||0),terrain=Number(data.terrain_data_refreshes||0);lastSummary={hazards:hz,globals:ge,opportunities:op,assets,terrain};renderFiltered();setStatus(liveNow?'LIVE · SOURCES UPDATED':'HISTORY · SOURCE SNAPSHOT');dock.dataset.version='5937';
+   window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__={version:5937,mode:lastMode,selectedAt:at.toISOString(),windowHours,returned:lastFeatures.length,hazards:hz,globalEvents:ge,opportunityChanges:op,newMaterializedAssets:assets,terrainDataRefreshes:terrain,viewport:args,lastUpdatedAt:new Date(lastRequestAt).toISOString(),historicalReplay:false,filters:{category:categoryFilter.value,domain:domainFilter.value}};window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5937__=window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__;
   }catch(e){
    if(disposed||my!==seq)return;
    setStatus('FEED RETRY',true);stats.textContent='Could not refresh source-reported activity.';console.warn('BridgePoint public world activity',e?.message||e);
   }
  }
  function schedule(force=false,delay=220){clearTimeout(timer);timer=setTimeout(()=>void refresh(force),delay)}
- slider.addEventListener('input',()=>{playing&&stopPlay();live=Number(slider.value)>=30;liveBtn.setAttribute('aria-pressed',String(live));schedule(true,120)});
- liveBtn.addEventListener('click',()=>{slider.value='30';live=true;liveBtn.setAttribute('aria-pressed','true');stopPlay();schedule(true,0)});
+ slider.addEventListener('input',()=>{playing&&stopPlay();live=Number(slider.value)>=30;liveBtn.setAttribute('aria-pressed',String(live));updateDate();schedule(true,120)});
+ liveBtn.addEventListener('click',()=>{slider.value='30';live=true;liveBtn.setAttribute('aria-pressed','true');stopPlay();updateDate();schedule(true,0)});
  function stopPlay(){playing=false;clearInterval(playTimer);playTimer=null;playBtn.textContent='▶ PLAY';playBtn.setAttribute('aria-pressed','false')}
  playBtn.addEventListener('click',()=>{
   if(playing){stopPlay();return}
@@ -240,7 +259,7 @@ export function initWorldTimeSlider(target,rpc){
   },1650);
   schedule(true,0);
  });
- $('[data-refresh]').addEventListener('click',()=>schedule(true,0));
+ categoryFilter.addEventListener('change',renderFiltered);domainFilter.addEventListener('change',renderFiltered);hoursSelect.addEventListener('change',()=>schedule(true,0));nightlightsBtn.addEventListener('click',()=>window.dispatchEvent(new Event('bp:nightlights-toggle')));$('[data-refresh]').addEventListener('click',()=>schedule(true,0));
  cloudBtn.addEventListener('click',()=>{
   const cloud=window.__BP_SKY_CLOUDS_V5908__;
   if(cloud?.toggle){const enabled=cloud.toggle();cloudBtn.setAttribute('aria-pressed',String(enabled));cloudBtn.textContent=enabled?'☁ CLOUDS ON':'☁ CLOUDS OFF'}
@@ -253,7 +272,7 @@ export function initWorldTimeSlider(target,rpc){
  document.addEventListener('visibilitychange',onVisibility);
  ensureLayers();[80,350,1000,2200].forEach(ms=>setTimeout(()=>{if(!disposed)ensureLayers()},ms));schedule(true,300);
  const poll=setInterval(()=>{if(disposed)return clearInterval(poll);if(!document.hidden&&Number(slider.value)>=30&&Date.now()-lastRequestAt>110000)schedule(false,0)},15000);
- const api={version:5908,map,dock,refresh:()=>refresh(true),open(){setStandalone(true);return dock},close(){setStandalone(false);return dock},toggle(){setStandalone(dock.classList.contains('bpwt-collapsed'));return dock},setTimeOffsetDays(days){slider.value=String(Math.max(0,Math.min(30,30-Number(days||0))));live=Number(slider.value)>=30;schedule(true,0)},toggleClouds:()=>cloudBtn.click(),get state(){return window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__||null},destroy(){disposed=true;stopPlay();clearTimeout(timer);clearTimeout(mountHandle);clearInterval(poll);map.off('moveend',onBounds);map.off('zoomend',onBounds);map.off('styledata',onStyle);document.removeEventListener('visibilitychange',onVisibility);dock.remove();try{map.getSource(SOURCE_ID)?.setData(EMPTY);if(map.getLayer(LAYER_LABEL))map.removeLayer(LAYER_LABEL);if(map.getLayer(LAYER_POINT))map.removeLayer(LAYER_POINT);if(map.getLayer(LAYER_LINE))map.removeLayer(LAYER_LINE);if(map.getLayer(LAYER_FILL))map.removeLayer(LAYER_FILL);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID)}catch(_){} }};
+ const api={version:5937,map,dock,refresh:()=>refresh(true),open(){setStandalone(true);return dock},close(){setStandalone(false);return dock},toggle(){setStandalone(dock.classList.contains('bpwt-collapsed'));return dock},setTimeOffsetDays(days){slider.value=String(Math.max(0,Math.min(30,30-Number(days||0))));live=Number(slider.value)>=30;updateDate();schedule(true,0)},toggleClouds:()=>cloudBtn.click(),get state(){return window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__||null},destroy(){disposed=true;stopPlay();clearTimeout(timer);clearTimeout(mountHandle);clearInterval(poll);map.off('moveend',onBounds);map.off('zoomend',onBounds);map.off('styledata',onStyle);document.removeEventListener('visibilitychange',onVisibility);categoryFilter.removeEventListener('change',renderFiltered);domainFilter.removeEventListener('change',renderFiltered);dock.remove();try{map.getSource(SOURCE_ID)?.setData(EMPTY);if(map.getLayer(LAYER_LABEL))map.removeLayer(LAYER_LABEL);if(map.getLayer(LAYER_POINT))map.removeLayer(LAYER_POINT);if(map.getLayer(LAYER_LINE))map.removeLayer(LAYER_LINE);if(map.getLayer(LAYER_FILL))map.removeLayer(LAYER_FILL);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID)}catch(_){} }};
  window.__BP_WORLD_TIME_SLIDER_V5908__=api;
  return api;
 }

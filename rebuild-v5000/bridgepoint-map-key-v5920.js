@@ -96,7 +96,8 @@ function addMapKey(panel){
   {label:'Physical building shell',cls:'bpv-mapkey-swatch-building',desc:'Source facade colors where available; fallback gradient #7F878B. Gray is not an opportunity category.'},
   {label:'Roof shell / roof cap',cls:'bpv-mapkey-swatch-roof',desc:'Physical shell shader; a textured cap is not proof of an exact roof plane.'},
   {label:'Source-backed roof / plane outlines',color:'#f3df66',desc:'Gold outlines mark source-reported shape evidence; cyan outlines mark sourced roof-plane polygons. They remain georeferenced while panning/zooming; coverage varies and a full 3D pitched roof mesh is not available for every building.'},
-  {label:'Underground X-Ray · mapped tunnels / underpasses',color:'#8effff',desc:'Cyan centerlines with violet glow show generalized source-backed public tunnel/underpass geometry only. No pipe network or live leak telemetry is materialized; an empty area does not mean the underground is clear.'},
+  {label:'NASA daily night lights',color:'#ffd27a',desc:'Daily NASA VIIRS Day/Night Band imagery, with daylight pixels masked to solar position. Clouds/lunar conditions can mimic dimming; this is not a confirmed outage.'},
+   {label:'Subsurface + Ocean-Depth X-Ray',color:'#8effff',desc:'Cyan/violet lines show generalized public mapped tunnels/underpasses; mint markers show public transit access; GEBCO latest adds global color-coded elevation/ocean depth. No public pipe/leak telemetry is implied; a blank area is not proof the underground is clear.'},
   {label:'Building outline / geometry edge',cls:'bpv-mapkey-swatch-outline',desc:'Pale cyan #88AEB7 to #D5E5E7 at close zoom.'},
   {label:'Floor-band shader',cls:'bpv-mapkey-swatch-floor',desc:'Optional bands derived from height/level attributes; not a verified interior plan.'},
   {label:'Night-window shader',cls:'bpv-mapkey-swatch-night',desc:'Warm/cool/mixed textures at supported night/high zoom; not live occupancy.'},
@@ -113,7 +114,7 @@ function addMapKey(panel){
   {label:'Rooftop solar detail',color:'#37e6ff',desc:'Cyan geometry for source-mapped rooftop solar features; individual panel rows are not implied.'},
   {label:'Utility-scale solar site boundary',color:'#b6ff6b',desc:'Lime polygon from the public-domain USGS/Lawrence Berkeley National Laboratory photovoltaic database; facility boundary, not field survey or individual panel geometry.'},
   {label:'Pools / mapped property water',color:'#258fff',desc:'Blue source-backed pool geometry; not flood status.'},
-  {label:'Streetlights / lamps',color:'#ffe8a8',desc:'Warm pale-yellow #FFE8A8 lamps over gray poles.'},
+  {label:'Streetlights / lamps',color:'#ffe8a8',desc:'Warm gold glow and 3D poles at materialized OpenStreetMap lamp coordinates. Coverage is only what BridgePoint has ingested; pole heights may use display defaults.'},
   {label:'Landmarks / masonry',color:'#817a6d',desc:'Stone-gray / earth-toned physical shaders, not opportunities.'}
  ]);
  section('IMAGERY, RADAR + WEATHER / HAZARDS','',[
