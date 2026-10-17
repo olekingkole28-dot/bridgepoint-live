@@ -200,3 +200,48 @@ body.bpv-app.bp5507-mobile-busy #publicSearchForm{
 .bpv-opportunity-popup-type{font-size:10px;line-height:1.4;color:#3b5862;text-transform:capitalize}
 .bpv-opportunity-popup-meta{font-size:10px;line-height:1.5;color:#213d46;margin:0}.bpv-opportunity-popup-note{font-size:9px;line-height:1.5;color:#586c72}
 @media(max-width:620px){.bpv-mapkey-section{padding:9px}.bpv-mapkey-row{grid-template-columns:24px minmax(0,1fr);gap:7px}.bpv-mapkey-swatch{width:22px;height:21px}.bpv-map-key-content{max-height:66vh}}
+
+
+/* V5927 · hard phone-width containment for search, tools and side panels */
+html,body{max-width:100%;overflow-x:clip}
+body.bpv-home #previewMap,body.bpv-app #liveMap,
+body.bpv-home .preview,body.bpv-app .map-surface,
+body.bpv-home .bpv-search-slot,body.bpv-app .bpv-search-slot,
+body.bpv-home #landingPropertySearch,body.bpv-app #publicSearchForm{box-sizing:border-box;min-width:0;max-width:100%;width:100%}
+body.bpv-home #landingPropertySearch,body.bpv-app #publicSearchForm{
+ display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:stretch!important;
+ gap:6px!important;position:relative!important;left:auto!important;right:auto!important;transform:none!important;
+ inset:auto!important;padding:0!important;margin:0 0 7px!important;overflow:visible!important
+}
+body.bpv-home #landingPropertySearch input,body.bpv-app #publicSearchForm input{
+ display:block!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;max-width:100%!important;
+ flex:initial!important;padding:0 9px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+body.bpv-home #landingPropertySearch button,body.bpv-app #publicSearchForm>button{
+ box-sizing:border-box!important;min-width:56px!important;max-width:76px!important;width:auto!important;
+ padding:0 9px!important;white-space:nowrap;flex:0 0 auto!important
+}
+body.bpv-home #landingPropertySearch .landing-search-results,
+body.bpv-app #publicSearchResults{
+ box-sizing:border-box!important;position:absolute!important;left:0!important;right:0!important;top:calc(100% + 4px)!important;
+ width:100%!important;max-width:100%!important;min-width:0!important;max-height:min(42dvh,300px)!important;
+ overflow:auto!important;overscroll-behavior:contain;z-index:1420!important
+}
+.bpv-dock, .bpv-dock *,.bpv-sidecar,.bpv-sidecar *{box-sizing:border-box}
+.bpv-dock{min-width:0;max-width:calc(100vw - 12px);overflow:visible}
+.bpv-dock-actions{min-width:0;max-width:100%;grid-template-columns:repeat(3,minmax(0,1fr))}
+.bpv-dock-actions>button{min-width:0;max-width:100%;overflow-wrap:anywhere}
+.bpv-sidecar{min-width:0;max-width:calc(100vw - 12px)}
+.bpv-sidecar>[data-bpv-pane]{min-width:0;max-width:100%;overflow-wrap:anywhere}
+@media(max-width:700px){
+ body.bpv-home .preview,body.bpv-app .map-surface{overflow:hidden}
+ body.bpv-home #landingPropertySearch,body.bpv-app #publicSearchForm{
+  grid-template-columns:minmax(0,1fr) minmax(54px,64px)!important;gap:5px!important
+ }
+ body.bpv-home #landingPropertySearch input,body.bpv-app #publicSearchForm input{font-size:11px!important;padding:0 8px!important}
+ body.bpv-home #landingPropertySearch button,body.bpv-app #publicSearchForm>button{min-width:54px!important;max-width:64px!important;padding:0 6px!important;font-size:8px!important}
+ .bpv-dock{left:6px!important;right:6px!important;transform:none!important;width:auto!important;max-width:none!important}
+ .bpv-dock-actions{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:4px!important}
+ .bpv-dock-actions>button{padding:7px 3px!important;font-size:7px!important;letter-spacing:0!important;line-height:1.15;min-height:33px}
+ .bpv-sidecar{left:6px!important;right:6px!important;width:auto!important;max-width:none!important}
+}
