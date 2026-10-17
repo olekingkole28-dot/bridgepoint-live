@@ -303,6 +303,39 @@ function paintHeadline(d){
  window.__BP_HEADLINE_V5822__={...d,paintedAt:Date.now()};document.documentElement.dataset.bpHeadlineReady='1';return true
 }
 function cachedHeadline(){try{return JSON.parse(localStorage.getItem(BP_HEADLINE_CACHE_KEY)||'null')}catch(_){return null}}
+let canonicalSessionBaseline=null,canonicalLastVerified=null,canonicalAnimFrame=0;
+function paintAnimatedCanonicalCounters(world){
+ const ids=['landingProperties','landingGlobalProperties','globalCountryTotal'];
+ const badge=$('landingCanonicalDelta');
+ if(canonicalSessionBaseline===null||canonicalLastVerified===null){
+  cancelAnimationFrame(canonicalAnimFrame);canonicalAnimFrame=0;
+  canonicalSessionBaseline=world;canonicalLastVerified=world;
+  for(const id of ids)bpStableText(id,fmt(world));
+  if(badge)badge.textContent='LIVE · VERIFIED BASELINE · NET Δ +0';
+  return;
+ }
+ const previousVerified=canonicalLastVerified;
+ canonicalLastVerified=world;
+ if(world>previousVerified){
+  cancelAnimationFrame(canonicalAnimFrame);
+  const shown=Number(String($(ids[0])?.textContent||'').replace(/[^0-9-]/g,''));
+  const start=Number.isFinite(shown)&&shown>0?shown:previousVerified;
+  const t0=performance.now(),duration=900;
+  const tick=now=>{
+   const p=Math.min(1,(now-t0)/duration),eased=1-Math.pow(1-p,3);
+   const value=Math.round(start+(world-start)*eased);
+   for(const id of ids)bpStableText(id,fmt(value));
+   if(p<1)canonicalAnimFrame=requestAnimationFrame(tick);
+   else{for(const id of ids)bpStableText(id,fmt(world));canonicalAnimFrame=0}
+  };
+  canonicalAnimFrame=requestAnimationFrame(tick);
+ }else if(world!==previousVerified){
+  cancelAnimationFrame(canonicalAnimFrame);canonicalAnimFrame=0;
+  for(const id of ids)bpStableText(id,fmt(world));
+ }
+ const delta=world-canonicalSessionBaseline;
+ if(badge)badge.textContent='LIVE · NET Δ '+(delta>=0?'+':'')+fmt(delta)+' VERIFIED SINCE OPEN';
+}
 let liveCountryCounterLoading=null;
 function paintLiveCountryCounters(d){
  if(!d||typeof d!=='object')return false;
@@ -310,7 +343,7 @@ function paintLiveCountryCounters(d){
  if(!Number.isFinite(world))return false;
  const rows=raw.filter(x=>Number(x.active_canonical)>0).map((x,i)=>{const code=String(x.country_code||'').toUpperCase(),value=Number(x.active_canonical||0);return{name:bpCountryName(code,code)+' · '+code,code,value,canonical:value,boundaries:Number(x.materialized_boundary_rows||0),updated_at:x.updated_at,color:BP_COVERAGE_COLORS[(i+1)%BP_COVERAGE_COLORS.length]}}).sort((a,b)=>b.value-a.value||a.code.localeCompare(b.code));
  const display=[{name:'United States · US',code:'US',value:Number.isFinite(us)?us:0,canonical:Number.isFinite(us)?us:0,boundaries:0,color:BP_COVERAGE_COLORS[0]},...rows].filter(x=>x.value>0);
- for(const id of ['landingProperties','landingGlobalProperties','globalCountryTotal'])bpStableText(id,fmt(world));
+ paintAnimatedCanonicalCounters(world);
  const countryCount=rows.length+(Number.isFinite(us)&&us>0?1:0),detail=fmt(countryCount)+' countries · '+fmt(boundaries)+' non-U.S. boundaries';
  bpStableText('landingGlobalCountryMix',detail);bpLiveCacheWrite({globalCanonical:world,globalDetail:detail});
  bpDonut($('globalCountryDonut'),display,world);bpLegend($('globalCountryLegend'),display);
