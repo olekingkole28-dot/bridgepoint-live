@@ -217,6 +217,16 @@ async function initMap(){
   if(!world?.map)throw new Error('Shared BridgePoint world renderer unavailable');
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
+   // BridgePoint satellite filters, daylight materials and sky layers also run on the homepage globe.
+   void import('./world-v2300-spectral-imagery.js?v=5926-landsat-six-combinations')
+    .then(m=>{window.__BP_SPECTRAL_IMAGERY_V5909__=m.initSpectralImagery(world)})
+    .catch(e=>console.warn('BridgePoint satellite filters unavailable',e));
+   void import('./world-v2300-realism.js?v=5926-world-sun-materials')
+    .then(m=>{window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)})
+    .catch(e=>console.warn('BridgePoint real-world rendering controls unavailable',e));
+   void import('./world-v2300-clouds.js?v=5926-sky-clouds')
+    .then(m=>{window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
+    .catch(e=>console.warn('BridgePoint sky clouds unavailable',e));
   window.__BP_LANDING_MAP_BOOT__={stage:'world-ready',maplibre:true,module:true,world:true,at:Date.now()};
   startLandingOpportunities(world);startLandingListings(world);
   window.__BP_LANDING_RENDERER_PARITY__={sharedModule:true,version:5513,container:'previewMap',sameWorldRendererAsApp:true,sameWeatherEngineAsApp:true,updatedAt:Date.now()};
@@ -230,7 +240,7 @@ async function initMap(){
    $('previewMeta').textContent=h.toFixed(1)+' m rendered height · same live BridgePoint World renderer as the app';
    $('previewCard').hidden=false
   });
-  let bpUserMapGesture=false;const previewEl=$('previewMap');for(const ev of ['pointerdown','touchstart','wheel'])previewEl?.addEventListener(ev,()=>{bpUserMapGesture=true},{passive:true});map.on('move',()=>{$('previewCard').hidden=true;if(bpUserMapGesture){const s=document.querySelector('.preview-sample');if(s){s.style.opacity='0';s.style.pointerEvents='none';s.style.transform='translateY(6px)'}}});
+  let bpUserMapGesture=false;const previewEl=$('previewMap');for(const ev of ['pointerdown','touchstart','wheel'])previewEl?.addEventListener(ev,()=>{bpUserMapGesture=true},{passive:true});const hidePreviewSample=()=>{const sample=document.querySelector('.preview-sample');if(!sample)return;sample.style.setProperty('opacity','0','important');sample.style.setProperty('pointer-events','none','important');sample.style.setProperty('transform','translateY(6px)','important');sample.setAttribute('aria-hidden','true')};map.on('move',()=>{$('previewCard').hidden=true;if(bpUserMapGesture)hidePreviewSample()});map.on('moveend',()=>{if(bpUserMapGesture)hidePreviewSample()});
   try{
    if(!map.isStyleLoaded?.())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
    const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5822-visual-v5882'),import('./world-v2300-present-weather.js?v=5544')]);
