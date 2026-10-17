@@ -125,7 +125,7 @@ BEGIN
             WHEN 'WATER' THEN '#00a8ff' WHEN 'SOLAR' THEN '#ffe600' WHEN 'DEVELOPMENT' THEN '#00f0ff'
             WHEN 'INVESTMENT' THEN '#39ff88' WHEN 'COMPLIANCE' THEN '#ff8a00' ELSE '#ff2bd6' END,
           'label',CASE icon_key
-            WHEN 'ROOF' THEN 'Roof opportunity' WHEN 'STORM' THEN 'Storm opportunity'
+            WHEN 'CLAIMS' THEN 'Claims opportunity' WHEN 'RESTORATION' THEN 'Restoration opportunity' WHEN 'CONSTRUCTION' THEN 'Construction opportunity' WHEN 'ROOF' THEN 'Roof opportunity' WHEN 'STORM' THEN 'Storm opportunity'
             WHEN 'FIRE' THEN 'Fire opportunity' WHEN 'WATER' THEN 'Water opportunity'
             WHEN 'SOLAR' THEN 'Solar opportunity' WHEN 'DEVELOPMENT' THEN 'Development opportunity'
             WHEN 'INVESTMENT' THEN 'Investment opportunity' WHEN 'COMPLIANCE' THEN 'Compliance opportunity'
@@ -246,7 +246,7 @@ BEGIN
             WHEN 'WATER' THEN '#00a8ff' WHEN 'SOLAR' THEN '#ffe600' WHEN 'DEVELOPMENT' THEN '#00f0ff'
             WHEN 'INVESTMENT' THEN '#39ff88' WHEN 'COMPLIANCE' THEN '#ff8a00' ELSE '#ff2bd6' END,
           'label',CASE icon_key
-            WHEN 'ROOF' THEN 'Roof opportunity' WHEN 'STORM' THEN 'Storm opportunity'
+            WHEN 'CLAIMS' THEN 'Claims opportunity' WHEN 'RESTORATION' THEN 'Restoration opportunity' WHEN 'CONSTRUCTION' THEN 'Construction opportunity' WHEN 'ROOF' THEN 'Roof opportunity' WHEN 'STORM' THEN 'Storm opportunity'
             WHEN 'FIRE' THEN 'Fire opportunity' WHEN 'WATER' THEN 'Water opportunity'
             WHEN 'SOLAR' THEN 'Solar opportunity' WHEN 'DEVELOPMENT' THEN 'Development opportunity'
             WHEN 'INVESTMENT' THEN 'Investment opportunity' WHEN 'COMPLIANCE' THEN 'Compliance opportunity'
