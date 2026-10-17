@@ -94,7 +94,9 @@ function addMapKey(panel){
  content.lastElementChild.append(el('p','bpv-mapkey-note','Color is a category code, not a damage verdict, buyer intent or guarantee of work. Counts are records, not unique buildings; one property can qualify for multiple types.'));
  section('BUILDINGS, ROOFS + 3D SHADERS','Physical geometry/shaders describe buildings and surfaces, not opportunities.',[
   {label:'Physical building shell',cls:'bpv-mapkey-swatch-building',desc:'Source facade colors where available; fallback gradient #7F878B. Gray is not an opportunity category.'},
-  {label:'Roof shell / roof cap',cls:'bpv-mapkey-swatch-roof',desc:'White/material-textured tops. Metal gray, tile/clay terracotta, shingles gray/brown, slate dark blue-gray. Visual caps are not always exact roof planes.'},
+  {label:'Roof shell / roof cap',cls:'bpv-mapkey-swatch-roof',desc:'Physical shell shader; a textured cap is not proof of an exact roof plane.'},
+  {label:'Source-backed roof / plane outlines',color:'#f3df66',desc:'Gold outlines mark source-reported shape evidence; cyan outlines mark sourced roof-plane polygons. They remain georeferenced while panning/zooming; coverage varies and a full 3D pitched roof mesh is not available for every building.'},
+  {label:'Below-ground route overlay',color:'#ff648f',desc:'Pink dashed lines identify mapped tunnels/underpasses and eligible public subsurface records. Unverified buried utilities are not drawn.'},
   {label:'Building outline / geometry edge',cls:'bpv-mapkey-swatch-outline',desc:'Pale cyan #88AEB7 to #D5E5E7 at close zoom.'},
   {label:'Floor-band shader',cls:'bpv-mapkey-swatch-floor',desc:'Optional bands derived from height/level attributes; not a verified interior plan.'},
   {label:'Night-window shader',cls:'bpv-mapkey-swatch-night',desc:'Warm/cool/mixed textures at supported night/high zoom; not live occupancy.'},
@@ -108,8 +110,9 @@ function addMapKey(panel){
  ]);
  section('TREES + PROPERTY OBJECTS','',[
   {label:'3D trees / vegetation',cls:'bpv-mapkey-swatch-tree',desc:'Evergreen canopy #285837, deciduous #397344, trunk #5B412D.'},
-  {label:'Rooftop solar detail',color:'#244c68',desc:'Deep blue #244C68 panels where source geometry exists.'},
-  {label:'Pools / mapped property water',color:'#328fbd',desc:'Blue #328FBD, not flood status.'},
+  {label:'Rooftop solar detail',color:'#37e6ff',desc:'Cyan geometry for source-mapped rooftop solar features; individual panel rows are not implied.'},
+  {label:'Utility-scale solar site boundary',color:'#b6ff6b',desc:'Lime polygon from the public-domain USGS/Lawrence Berkeley National Laboratory photovoltaic database; facility boundary, not field survey or individual panel geometry.'},
+  {label:'Pools / mapped property water',color:'#258fff',desc:'Blue source-backed pool geometry; not flood status.'},
   {label:'Streetlights / lamps',color:'#ffe8a8',desc:'Warm pale-yellow #FFE8A8 lamps over gray poles.'},
   {label:'Landmarks / masonry',color:'#817a6d',desc:'Stone-gray / earth-toned physical shaders, not opportunities.'}
  ]);
