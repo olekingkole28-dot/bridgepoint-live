@@ -779,7 +779,7 @@ jobs:
               && grep -Fq '__BP_APP_BUILD_VERSION__=5910' /tmp/app.js \
               && grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' /tmp/world-v2300-map.js \
               && grep -Fq '__BP_SKY_CLOUDS_V5908__' /tmp/world-v2300-clouds.js \
-              && grep -Fq 'bridgepoint_public_world_activity_v5908' /tmp/world-v2300-time-slider.js \
+              && grep -Fq 'bridgepoint_public_world_activity_v5927' /tmp/world-v2300-time-slider.js \
               && grep -Fq 'https://planetarycomputer.microsoft.com/api/stac/v1/search' /tmp/world-v2300-spectral-imagery.js \
               && grep -Fq 'window.__BP_REAL_WORLD_MODE_V5910__' /tmp/world-v2300-realism.js \
               && grep -Fq 'BridgePoint GIS Core Orchestration Engine' /tmp/gis-core-orchestrator-v5910.js \
