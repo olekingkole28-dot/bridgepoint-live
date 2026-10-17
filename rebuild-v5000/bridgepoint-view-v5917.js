@@ -38,7 +38,7 @@ function openPanel(name){
 }
 function setMoving(){
  moveUntil=Date.now()+850;
- document.body.classList.add('bpv-globe-moving');
+ document.body.classList.add('bpv-map-moving');
  clearTimeout(idleTimer);
  idleTimer=setTimeout(()=>{if(Date.now()>=moveUntil){document.body.classList.remove('bpv-globe-moving');return}setMoving()},900);
 }
@@ -243,7 +243,7 @@ function drawAnswer(d,mode,err){
  if(!root)return;
  if(err){root.replaceChildren();const b=node('b','', 'BridgePoint AI could not reach its answer service.');const p=node('p','',String(err.message||err)+' Try again in a moment.');root.append(b,p);return}
  const answer=mode==='auth'?(d?.summary||d?.headline||d?.message||'BridgePoint has not returned an answer for this question.'): (d?.answer||d?.message||'BridgePoint has not returned an answer for this question.');
- const title=mode==='auth'?(d?.headline||'BridgePoint AI'):('BridgePoint Guide · '+(d?.mode||'public-safe answer'));
+ const title=mode==='auth'?(d?.headline||'BridgePoint AI'):('BridgePoint AI · '+(d?.mode||'public-safe answer'));
  const scope=d?.grounding_notice||d?.notice||d?.privacy_notice||'Answer supplied by BridgePoint.';
  root.replaceChildren();const b=node('b');b.textContent=title;const p=node('p');p.textContent=answer;const small=node('small');small.textContent=scope;root.append(b,p,small);
  if(facts){facts.replaceChildren();const rows=Array.isArray(d?.facts)?d.facts:[];for(const f of rows.slice(0,8)){const item=node('article','bpv-fact');const h=node('b');h.textContent=f.title||f.name||f.topic||'BridgePoint fact';const t=node('p');t.textContent=f.fact_text||f.summary||f.description||f.status||JSON.stringify(f);item.append(h,t);facts.appendChild(item)}}
