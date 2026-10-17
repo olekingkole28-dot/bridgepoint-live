@@ -1,10 +1,10 @@
-const VERSION=5909;
+const VERSION=5930;
 const STAC_SEARCH='https://planetarycomputer.microsoft.com/api/stac/v1/search';
 const DATA_API='https://planetarycomputer.microsoft.com/api/data/v1/item/';
-const ROOT_ID='bp-spectral-imagery-v5909';
-const STYLE_ID='bp-spectral-imagery-style-v5909';
-const SOURCE_ID='bp-spectral-imagery-source-v5909';
-const LAYER_ID='bp-spectral-imagery-raster-v5909';
+const ROOT_ID='bp-spectral-imagery-v5930';
+const STYLE_ID='bp-spectral-imagery-style-v5930';
+const SOURCE_ID='bp-spectral-imagery-source-v5930';
+const LAYER_ID='bp-spectral-imagery-raster-v5930';
 const ATTRIBUTION='Landsat Collection 2 Level-2 · USGS/NASA · Microsoft Planetary Computer';
 const COMBOS={
  natural:{label:'Natural Color · Red / Green / Blue',assets:['red','green','blue'],description:'Visible-band composite approximating natural color. Haze, clouds and acquisition date affect appearance.'},
@@ -14,6 +14,28 @@ const COMBOS={
  geology:{label:'Geology / Burn Scars · SWIR-2 / SWIR-1 / Red',assets:['swir22','swir16','red'],description:'Highlights mineral/soil contrasts and some burn-scar patterns. It is not an automatic damage verdict.'},
  agriculture:{label:'Agriculture · NIR / SWIR-1 / Green',assets:['nir08','swir16','green'],description:'Emphasizes vegetation vigor and moisture differences for landscape/agricultural interpretation.'}
 };
+
+const GLOBAL_BASEMAP_MODES={
+ dark:{label:'Dark Intelligence (default)',background:'#040b12',water:'#0c3d56',waterOpacity:.97,landcoverOpacity:null,landuseOpacity:null,majorRoad:'#53717c',localRoad:'#45616b',roof:'#ffffff',rasterHue:0,rasterSaturation:0,rasterContrast:0,rasterOpacity:.95,usgsOpacity:.95,oamOpacity:.95},
+ natural:{label:'Natural Satellite',background:'#06120f',water:'#1b5c70',waterOpacity:.42,landcoverOpacity:.09,landuseOpacity:.08,majorRoad:'#b2c9c1',localRoad:'#5d8b83',roof:'#c2b9a4',rasterHue:0,rasterSaturation:.12,rasterContrast:.12,rasterOpacity:.94,usgsOpacity:.9,oamOpacity:.96},
+ earth:{label:'Earth-as-Art',background:'#15190c',water:'#68742e',waterOpacity:.36,landcoverOpacity:.06,landuseOpacity:.06,majorRoad:'#d3cc79',localRoad:'#89934b',roof:'#b2a35e',rasterHue:38,rasterSaturation:.32,rasterContrast:.16,rasterOpacity:.96,usgsOpacity:.92,oamOpacity:.97},
+ water:{label:'Water & Soil',background:'#041522',water:'#087ba7',waterOpacity:.36,landcoverOpacity:.055,landuseOpacity:.045,majorRoad:'#76d0e5',localRoad:'#398ca2',roof:'#81aab8',rasterHue:148,rasterSaturation:.3,rasterContrast:.16,rasterOpacity:.96,usgsOpacity:.92,oamOpacity:.97},
+ vegetation:{label:'Vegetation',background:'#061b13',water:'#14584c',waterOpacity:.38,landcoverOpacity:.075,landuseOpacity:.055,majorRoad:'#9bcbaa',localRoad:'#548b72',roof:'#91a978',rasterHue:68,rasterSaturation:.3,rasterContrast:.15,rasterOpacity:.96,usgsOpacity:.92,oamOpacity:.97},
+ geology:{label:'Geology / Burn Scars',background:'#1a100e',water:'#684239',waterOpacity:.34,landcoverOpacity:.055,landuseOpacity:.05,majorRoad:'#d5a17e',localRoad:'#976952',roof:'#a57961',rasterHue:315,rasterSaturation:.34,rasterContrast:.2,rasterOpacity:.96,usgsOpacity:.92,oamOpacity:.97},
+ agriculture:{label:'Agriculture',background:'#1b1608',water:'#3b6878',waterOpacity:.38,landcoverOpacity:.07,landuseOpacity:.055,majorRoad:'#d4c17e',localRoad:'#99854b',roof:'#b8a878',rasterHue:74,rasterSaturation:.28,rasterContrast:.14,rasterOpacity:.96,usgsOpacity:.92,oamOpacity:.97}
+};
+const BASEMAP_PAINT_PROPERTIES={
+ 'gta-bg':['background-color'],'gta-water':['fill-color','fill-opacity'],
+ 'gta-landcover':['fill-opacity'],'gta-landuse':['fill-opacity'],
+ 'gta-road-major':['line-color'],'gta-road-local':['line-color'],
+ 'gta-city-building-roof-caps':['fill-extrusion-color'],'gta-city-roofs':['fill-extrusion-color'],
+ 'gta-context-roofs':['fill-extrusion-color'],'gta-bp-roofs':['fill-extrusion-color'],'gta-exact-roof':['fill-extrusion-color'],
+ 'gta-nasa':['raster-hue-rotate','raster-saturation','raster-contrast','raster-opacity'],
+ 'gta-usgs':['raster-hue-rotate','raster-saturation','raster-contrast','raster-opacity'],
+ 'gta-oam':['raster-hue-rotate','raster-saturation','raster-contrast','raster-opacity']
+};
+const BASEMAP_RASTER_LAYERS=['gta-nasa','gta-usgs','gta-oam'];
+const BASEMAP_STORAGE_KEY='bp-global-map-mode-v5930';
 const CSS=[
 '#liveMap #'+ROOT_ID+'{position:absolute;z-index:22;left:12px;top:12px;width:min(350px,calc(100% - 24px));box-sizing:border-box;color:#eaf8ff;font:12px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;pointer-events:none}',
 '#liveMap #'+ROOT_ID+' *{box-sizing:border-box}',
@@ -111,8 +133,8 @@ function waitForStyle(map){
 export function initSpectralImagery(target){
  const map=target?.map||target,container=map?.getContainer?.();
  if(!map||!container||typeof fetch!=='function')return null;
- if(window.__BP_SPECTRAL_IMAGERY_V5909__?.map===map)return window.__BP_SPECTRAL_IMAGERY_V5909__;
- if(container.querySelector('#'+ROOT_ID))return window.__BP_SPECTRAL_IMAGERY_V5909__||null;
+ if(window.__BP_SPECTRAL_IMAGERY_V5930__?.map===map)return window.__BP_SPECTRAL_IMAGERY_V5930__;
+ if(container.querySelector('#'+ROOT_ID))return window.__BP_SPECTRAL_IMAGERY_V5930__||null;
  if(getComputedStyle(container).position==='static')container.style.position='relative';
  if(!document.getElementById(STYLE_ID)){const style=document.createElement('style');style.id=STYLE_ID;style.textContent=CSS.replaceAll('#liveMap',':is(#liveMap,#previewMap)');document.head.appendChild(style)}
  const root=document.createElement('div');root.id=ROOT_ID;
@@ -120,27 +142,33 @@ export function initSpectralImagery(target){
   '<button class="bps-trigger" type="button" data-toggle aria-expanded="false">🛰 FALSE-COLOR SATELLITE</button>'+
   '<section class="bps-panel" data-panel hidden aria-label="Real satellite false-color imagery">'+
   '<div class="bps-head"><div><div class="bps-kicker">BRIDGEPOINT SPECTRAL VIEW</div><div class="bps-title">Real satellite bands. No AI-drawn pixels.</div></div><button class="bps-close" type="button" data-close aria-label="Close satellite panel">×</button></div>'+
-  '<div class="bps-status" data-status role="status" aria-live="polite">Zoom into a land area, then find a clear Landsat scene.</div>'+
+  '<div class="bps-status" data-status role="status" aria-live="polite">Color modes work globally. Zoom to a region to request source Landsat bands.</div>'+
   '<div class="bps-meta" data-meta>Source: USGS/NASA Landsat Collection 2 Level-2, served by Microsoft Planetary Computer. Target scene resolution: approximately 30 m.</div>'+
-  '<label for="bp-spectral-combo-v5909">SPECTRAL COMBINATION</label>'+
-  '<select id="bp-spectral-combo-v5909" data-combo><option value="natural">Natural Color · Red / Green / Blue</option><option value="earth">Earth-as-Art · SWIR-2 / NIR / Red</option><option value="water">Water & Soil · SWIR-1 / NIR / Red</option><option value="vegetation">Vegetation · NIR / Red / Green</option><option value="geology">Geology / Burn Scars · SWIR-2 / SWIR-1 / Red</option><option value="agriculture">Agriculture · NIR / SWIR-1 / Green</option></select>'+
-  '<label for="bp-spectral-opacity-v5909">IMAGERY OPACITY <span data-opacity-label>78%</span></label><input id="bp-spectral-opacity-v5909" type="range" min="20" max="100" value="78" data-opacity aria-label="Satellite imagery opacity">'+
+  '<label for="bp-global-map-mode-v5930">GLOBAL MAP COLOR MODE · INSTANT / ALL ZOOMS</label>'+
+  '<select id="bp-global-map-mode-v5930" data-global-mode aria-label="Global map color mode"><option value="dark">Dark Intelligence · Default / Reset</option><option value="natural">Natural Satellite</option><option value="earth">Earth-as-Art</option><option value="water">Water &amp; Soil</option><option value="vegetation">Vegetation</option><option value="geology">Geology / Burn Scars</option><option value="agriculture">Agriculture</option></select>'+
+  '<div class="bps-note">Mode changes apply immediately from globe to street scale. Satellite tiles appear where source coverage exists; the selected color palette remains active globally. Date-specific Landsat composites are loaded separately below.</div>'+
+  '<label for="bp-spectral-combo-v5930">LANDSAT SPECTRAL COMBINATION · SOURCE DATA</label>'+
+  '<select id="bp-spectral-combo-v5930" data-combo><option value="natural">Natural Color · Red / Green / Blue</option><option value="earth">Earth-as-Art · SWIR-2 / NIR / Red</option><option value="water">Water & Soil · SWIR-1 / NIR / Red</option><option value="vegetation">Vegetation · NIR / Red / Green</option><option value="geology">Geology / Burn Scars · SWIR-2 / SWIR-1 / Red</option><option value="agriculture">Agriculture · NIR / SWIR-1 / Green</option></select>'+
+  '<label for="bp-spectral-opacity-v5930">IMAGERY OPACITY <span data-opacity-label>78%</span></label><input id="bp-spectral-opacity-v5930" type="range" min="20" max="100" value="78" data-opacity aria-label="Satellite imagery opacity">'+
   '<div class="bps-actions"><button type="button" data-load>FIND / REFRESH SCENE</button><button type="button" data-hide>HIDE OVERLAY</button></div>'+
   '<div class="bps-actions"><button type="button" data-png>EXPORT PNG PREVIEW</button><button type="button" data-tif>EXPORT RGB GEOTIFF</button></div>'+
   '<div class="bps-note" data-description>False color remaps non-visible wavelengths into RGB. Scene cloud cover is a scene-wide estimate, not a cloud-free guarantee for the selected location. Exports are georeferenced scene previews (up to 2048 px), not the full-resolution source COG.</div>'+
   '<div class="bps-note">Attribution: USGS / NASA Landsat Collection 2 Level-2 · Microsoft Planetary Computer. Imagery is requested from the source at view time and is not silently copied into BridgePoint storage.</div>'+
   '</section>';
  container.appendChild(root);
- const $=sel=>root.querySelector(sel),toggle=$('[data-toggle]'),panel=$('[data-panel]'),status=$('[data-status]'),meta=$('[data-meta]'),comboSel=$('[data-combo]'),opacity=$('[data-opacity]'),opacityLabel=$('[data-opacity-label]'),description=$('[data-description]');
+ const $=sel=>root.querySelector(sel),toggle=$('[data-toggle]'),panel=$('[data-panel]'),status=$('[data-status]'),meta=$('[data-meta]'),comboSel=$('[data-combo]'),modeSel=$('[data-global-mode]'),opacity=$('[data-opacity]'),opacityLabel=$('[data-opacity-label]'),description=$('[data-description]');
  let controller=null,requestId=0,loadedCombo='earth',disposed=false,scene=null,enabled=false;
- const state={version:VERSION,map,available:true,enabled:false,loading:false,scene:null,source:'USGS_NASA_LANDSAT_C2_L2',attribution:ATTRIBUTION,
+ let currentBasemapMode='dark',defaultsCaptured=false,styleWaitPending=false;
+ const originalPaint=new Map(),originalVisibility=new Map();
+ const state={version:VERSION,map,available:true,enabled:false,loading:false,scene:null,basemapMode:'dark',source:'USGS_NASA_LANDSAT_C2_L2',attribution:ATTRIBUTION,
+  setBasemapMode(mode){return applyGlobalBasemapMode(mode)},
   open(){panel.hidden=false;toggle.setAttribute('aria-expanded','true')},
   close(){panel.hidden=true;toggle.setAttribute('aria-expanded','false')},
   async load(){return loadScene()},
   hide(){hideLayer()},
   async export(format){return exportPreview(format)}
  };
- window.__BP_SPECTRAL_IMAGERY_V5909__=state;
+ window.__BP_SPECTRAL_IMAGERY_V5930__=state;
   // The existing BridgePoint SAT button opens the real spectral controls.
   document.querySelectorAll('[data-base="satellite"]').forEach(button=>{
     if(button.dataset.bpSpectralBound==='1')return;
@@ -151,7 +179,93 @@ export function initSpectralImagery(target){
     },90));
   });
  const setStatus=(txt,error=false)=>{status.textContent=txt;status.dataset.error=error?'true':'false'};
+ 
  const setMeta=txt=>{meta.textContent=txt};
+ function captureBasemapDefaults(){
+  if(defaultsCaptured)return true;
+  try{if(!map.isStyleLoaded?.())return false}catch(_){return false}
+  for(const [id,props] of Object.entries(BASEMAP_PAINT_PROPERTIES)){
+   if(!map.getLayer(id))continue;
+   const values={};
+   for(const prop of props){try{const value=map.getPaintProperty(id,prop);if(value!==undefined&&value!==null)values[prop]=value}catch(_){}}
+   originalPaint.set(id,values);
+  }
+  for(const id of BASEMAP_RASTER_LAYERS){
+   if(!map.getLayer(id))continue;
+   try{originalVisibility.set(id,map.getLayoutProperty(id,'visibility')||'visible')}catch(_){originalVisibility.set(id,'visible')}
+  }
+  defaultsCaptured=true;
+  return true;
+ }
+ function safeSetPaint(id,property,value){try{if(map.getLayer(id))map.setPaintProperty(id,property,value)}catch(_){}}
+ function safeSetVisibility(id,value){try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',value)}catch(_){}}
+ function readSavedBasemapMode(){
+  try{const saved=window.localStorage?.getItem(BASEMAP_STORAGE_KEY);return Object.prototype.hasOwnProperty.call(GLOBAL_BASEMAP_MODES,saved)?saved:'dark'}catch(_){return 'dark'}
+ }
+ function updateBasemapZoomCoverage(){
+  if(currentBasemapMode==='dark'||!map.getLayer('gta-nasa'))return;
+  // Blue Marble is a global low-zoom backdrop. Avoid blurry over-zoom at street level;
+  // permitted local USGS and OpenAerialMap imagery remain enabled where their tiles exist.
+  safeSetVisibility('gta-nasa',map.getZoom()<=8.15?'visible':'none');
+  safeSetVisibility('gta-usgs','visible');
+  safeSetVisibility('gta-oam','visible');
+ }
+ function applyGlobalBasemapMode(rawMode,persist=true){
+  const mode=Object.prototype.hasOwnProperty.call(GLOBAL_BASEMAP_MODES,rawMode)?rawMode:'dark';
+  const previousMode=currentBasemapMode;
+  currentBasemapMode=mode;
+  state.basemapMode=mode;
+  if(modeSel)modeSel.value=mode;
+  if(persist){try{window.localStorage?.setItem(BASEMAP_STORAGE_KEY,mode)}catch(_){}}
+  if(!captureBasemapDefaults()){
+   if(!styleWaitPending){
+    styleWaitPending=true;
+    void waitForStyle(map).then(()=>{
+     styleWaitPending=false;
+     if(disposed)return;
+     if(captureBasemapDefaults())applyGlobalBasemapMode(currentBasemapMode,false);
+    }).catch(()=>{styleWaitPending=false});
+   }
+   return true;
+  }
+  const cfg=GLOBAL_BASEMAP_MODES[mode];
+  if(mode==='dark'){
+   for(const [id,values] of originalPaint.entries())for(const [prop,value] of Object.entries(values))safeSetPaint(id,prop,value);
+   for(const [id,visibility] of originalVisibility.entries())safeSetVisibility(id,visibility);
+   if(previousMode!=='dark'&&(enabled||scene))hideLayer();
+   setStatus('DARK INTELLIGENCE ACTIVE · default BridgePoint map styling restored.');
+  }else{
+   safeSetPaint('gta-bg','background-color',cfg.background);
+   safeSetPaint('gta-water','fill-color',cfg.water);
+   safeSetPaint('gta-water','fill-opacity',cfg.waterOpacity);
+   safeSetPaint('gta-landcover','fill-opacity',cfg.landcoverOpacity);
+   safeSetPaint('gta-landuse','fill-opacity',cfg.landuseOpacity);
+   safeSetPaint('gta-road-major','line-color',cfg.majorRoad);
+   safeSetPaint('gta-road-local','line-color',cfg.localRoad);
+   for(const id of ['gta-city-building-roof-caps','gta-city-roofs','gta-context-roofs','gta-bp-roofs','gta-exact-roof'])safeSetPaint(id,'fill-extrusion-color',cfg.roof);
+   for(const id of BASEMAP_RASTER_LAYERS){
+    safeSetPaint(id,'raster-hue-rotate',cfg.rasterHue);
+    safeSetPaint(id,'raster-saturation',cfg.rasterSaturation);
+    safeSetPaint(id,'raster-contrast',cfg.rasterContrast);
+   }
+   safeSetPaint('gta-nasa','raster-opacity',cfg.rasterOpacity);
+   safeSetPaint('gta-usgs','raster-opacity',cfg.usgsOpacity);
+   safeSetPaint('gta-oam','raster-opacity',cfg.oamOpacity);
+   updateBasemapZoomCoverage();
+   setStatus(cfg.label.toUpperCase()+' ACTIVE · global color mode changed immediately; imagery detail depends on source coverage.');
+  }
+  try{map.triggerRepaint?.()}catch(_){}
+  return true;
+ }
+ modeSel?.addEventListener('change',()=>{
+  const mode=modeSel.value;
+  if(mode!=='dark'&&COMBOS[mode]){
+   comboSel.value=mode;
+   description.textContent=COMBOS[mode].description;
+  }
+  applyGlobalBasemapMode(mode);
+ });
+
  toggle.addEventListener('click',()=>{if(panel.hidden)state.open();else state.close()});
  $('[data-close]').addEventListener('click',()=>state.close());
  $('[data-load]').addEventListener('click',()=>{void loadScene()});
@@ -162,6 +276,7 @@ export function initSpectralImagery(target){
  });
  comboSel.addEventListener('change',()=>{
   description.textContent=COMBOS[comboSel.value]?.description||COMBOS.earth.description;
+  if(GLOBAL_BASEMAP_MODES[comboSel.value])applyGlobalBasemapMode(comboSel.value);
   if(scene&&enabled)void loadScene();
  });
  $('[data-png]').addEventListener('click',()=>void exportPreview('png'));
@@ -241,7 +356,9 @@ export function initSpectralImagery(target){
  }
  const moveHandler=()=>{if(enabled&&scene){const text='Scene stays fixed while you pan. Refresh to fetch imagery for the new view.';setMeta(text+' '+scene.id+' · '+formatDate(scene.properties?.datetime));}};
  map.on('moveend',moveHandler);
- state.destroy=()=>{disposed=true;if(controller)controller.abort();map.off('moveend',moveHandler);clearOldLayer();root.remove();state.available=false};
- setStatus('Ready · select a spectral blend and find a real scene.');
+ map.on('zoom',updateBasemapZoomCoverage);
+ state.destroy=()=>{disposed=true;if(controller)controller.abort();map.off('moveend',moveHandler);map.off('zoom',updateBasemapZoomCoverage);clearOldLayer();root.remove();state.available=false};
+ setStatus('Ready · choose a global color mode or load real Landsat source bands.');
+ applyGlobalBasemapMode(readSavedBasemapMode(),false);
  return state;
 }
