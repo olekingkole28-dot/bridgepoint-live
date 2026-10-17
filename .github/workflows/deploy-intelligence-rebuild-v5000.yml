@@ -114,6 +114,8 @@ jobs:
           cp rebuild-v5000/owner/local-node/index.html site/app/local-node/index.html
           cp rebuild-v5000/landing.css site/landing.css
           cp rebuild-v5000/landing.js site/landing.js
+          cp rebuild-v5000/bridgepoint-view-v5917.css site/bridgepoint-view-v5917.css
+          cp rebuild-v5000/bridgepoint-view-v5917.js site/bridgepoint-view-v5917.js
           cp rebuild-v5000/styles.css site/styles.css
           cp rebuild-v5000/app.js site/app.js
           cp rebuild-v5000/owner-everything.js site/owner-everything.js
@@ -227,6 +229,13 @@ jobs:
           grep -Fq 'BridgePoint Intelligence pricing' site/pricing/index.html
           grep -Fq 'BridgePoint Intelligence pricing' site/pricing.html
           node --check site/app.js
+          node --check site/bridgepoint-view-v5917.js
+          grep -Fq 'bridgepoint-view-v5917.css' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.js' site/app/index.html
+          grep -Fq 'bpv-map-moving' site/bridgepoint-view-v5917.js
+          grep -Fq 'landingOwnsCanonicalCounter' site/global-property-v957.js
           node --input-type=module --check < site/world-v2300-clouds.js
           node --input-type=module --check < site/world-v2300-time-slider.js
           node --input-type=module --check < site/world-v2300-spectral-imagery.js
