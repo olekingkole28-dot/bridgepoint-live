@@ -14,7 +14,9 @@ const SLOT_INFO={
  xray:['X-RAY + INTERIOR','Source-backed parts, floors and plans only. No fabricated rooms.'],
  underground:['UNDERGROUND + UTILITIES','Pipe and subsurface records appear only when a lawful source is linked to this property.'],
  street:['STREET-LEVEL VIEW','Street scene coverage is checked at this property; unavailable imagery stays clearly marked.'],
- aerial:['AERIAL + IMAGERY','Source-dated aerial context appears when permitted imagery is available.'],
+ aerial:['BRIDGEPOINT AERIAL VIEW','Source-dated aerial imagery appears when BridgePoint has a permitted source for this location.'],
+ livecam:['BRIDGEPOINT LIVE CAMS','Live camera feeds appear only when a camera source is public or BridgePoint is authorized to display it; otherwise this slot shows coverage status.'],
+ eye:['BRIDGEPOINT EYE VIEW','God’s-eye globe view with building-bound aerial, street, subsurface and timeline slots. Availability is checked per selected building.'],
  heartbeat:['PROPERTY HEARTBEAT','Latest evidence, change signals and source freshness when records exist.'],
  timeline:['PROPERTY TIMELINE','Property-linked weather, permits, imagery and change events when verified.'],
  roof:['ROOF + BUILDING PARTS','Roof and component geometry with source/confidence labels.'],
@@ -123,10 +125,10 @@ function makeSlots(container,kind){
   card.dataset.bpvSlot=key;
   const btn=node('button','bpv-slot-title');
   btn.type='button';btn.dataset.bpvSlotAction=key;
-  btn.innerHTML='<span class="bpv-slot-icon">'+({ai:'AI',xray:'X·RAY',underground:'SUB',street:'ST',aerial:'AIR',heartbeat:'♥',timeline:'T+',roof:'ROOF',provenance:'SRC'}[key]||'BP')+'</span><span>'+info[0]+'</span><span class="bpv-slot-arrow">↗</span>';
+  btn.innerHTML='<span class="bpv-slot-icon">'+({ai:'AI',xray:'X·RAY',underground:'SUB',street:'ST',aerial:'AIR',livecam:'LIVE',eye:'EYE',heartbeat:'♥',timeline:'T+',roof:'ROOF',provenance:'SRC'}[key]||'BP')+'</span><span>'+info[0]+'</span><span class="bpv-slot-arrow">↗</span>';
   const status=node('small','bpv-slot-status');
   status.dataset.bpvSlotStatus=key;
-  status.textContent=key==='ai'?'Ready':key==='xray'?'Checks source-backed parts and plans':key==='underground'?'Not yet verified for this property':key==='street'?'Coverage varies by property':key==='aerial'?'Source-backed imagery only':key==='heartbeat'?'Waiting for property evidence':key==='timeline'?'Waiting for linked history':'Source availability checked by property';
+  status.textContent=key==='ai'?'Ready':key==='xray'?'Checks source-backed parts and plans':key==='underground'?'Not yet verified for this property':key==='street'?'Coverage varies by property':key==='aerial'?'Source-backed imagery only':key==='livecam'?'Checking authorized live-camera coverage':key==='eye'?'BridgePoint Eye view ready; property coverage varies':key==='heartbeat'?'Waiting for property evidence':key==='timeline'?'Waiting for linked history':'Source availability checked by property';
   const p=node('p','bpv-slot-note');p.textContent=info[1];
   card.append(btn,status,p);container.appendChild(card);
   btn.addEventListener('click',()=>activateSlot(key,kind));
@@ -180,10 +182,10 @@ function activateSlot(key,kind){
   openPanel('property');
   return;
  }
- if(key==='aerial'||key==='street'){
+ if(key==='aerial'||key==='street'||key==='livecam'||key==='eye'){
   openPanel('controls');
   const tools=$('#bp5507-tools');
-  if(tools){const p=tools.querySelector('[data-tool="'+(key==='aerial'?'IMAGERY':'DRIVE')+'"]');if(p){p.click();return}}
+  if(tools){const toolKey=key==='aerial'||key==='eye'?'IMAGERY':key==='livecam'?'CAMERAS':'DRIVE';const p=tools.querySelector('[data-tool="'+toolKey+'"]');if(p){p.click();return}}
   showSlotMessage(key,'This BridgePoint layer is not enabled for the selected location yet. The property slot stays attached; no external imagery is substituted.');
   return;
  }
