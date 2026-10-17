@@ -11,7 +11,7 @@ const LAYERS={
 };
 const INFO={
  roof:{title:'Roof geometry / shape evidence',color:'#f3df66',note:'Source-backed outlines and roof planes. Complete pitch-correct 3D roof meshes are not available for every building.'},
- solar:{title:'Solar arrays / rooftop solar',color:'#37e6ff',note:'Mapped solar features; an array record is not necessarily an individual panel.'},
+ solar:{title:'Solar arrays + rooftop solar',color:'#37e6ff',note:'Cyan marks roof-linked solar features; lime marks utility-scale facility boundaries, not individual panels.'},
  pool:{title:'Pools / property water',color:'#258fff',note:'Source-mapped pool polygons; not a flood signal.'},
  underground:{title:'Below ground / tunnels',color:'#ff648f',note:'Mapped tunnels/underpasses plus eligible public subsurface records. No utility pipes are invented.'}
 };
@@ -84,7 +84,7 @@ function renderCounts(){
  const fields=[
  ['roof_geometry_records','Roof geometry records'],['roof_shape_truth_records','Shape-backed roof records'],
  ['roof_plane_records','Roof-plane records'],['lidar_roof_records','LiDAR-derived roof records'],
- ['solar_array_records','Mapped solar features'],['pool_records','Mapped pools'],
+ ['solar_array_records','Rooftop solar features'],['solar_farm_records','Utility-scale solar sites'],['pool_records','Mapped pools'],
  ['tunnel_underpass_records','Tunnels / underpasses'],['public_subsurface_records','Public subsurface records']
  ];
  grid.replaceChildren();fields.forEach(([k,label])=>{const card=el('div','bp-pa-stat');card.append(el('strong','',fmt(summary[k])),el('small','',label));grid.append(card)});
@@ -109,9 +109,9 @@ function installLayers(){
    'line-color':['case',['==',['get','shape_truth'],true],'#fff0a0',['==',['get','truth_class'],'SOURCE_ROOF_PLANE'],'#6deaff','#b8afff'],
    'line-width':['interpolate',['linear'],['zoom'],10.5,.6,13,1.2,16,2.3,20,3.1],'line-opacity':0.92
   }});
-  add('bp-v5924-solar-fill',{id:'bp-v5924-solar-fill',type:'fill',source:'bpV5924PhysicalAssets',filter:['all',['==',['get','bp_layer'],'solar'],['==',['geometry-type'],'Polygon']],minzoom:10,paint:{'fill-color':'#37e6ff','fill-opacity':0.55}});
-  add('bp-v5924-solar-outline',{id:'bp-v5924-solar-outline',type:'line',source:'bpV5924PhysicalAssets',filter:['==',['get','bp_layer'],'solar'],minzoom:10,paint:{'line-color':'#c4fbff','line-width':['interpolate',['linear'],['zoom'],10,.8,15,2,20,3],'line-opacity':0.96}});
-  add('bp-v5924-solar-points',{id:'bp-v5924-solar-points',type:'circle',source:'bpV5924PhysicalAssets',filter:['all',['==',['get','bp_layer'],'solar'],['==',['geometry-type'],'Point']],minzoom:10,paint:{'circle-radius':['interpolate',['linear'],['zoom'],10,2.5,15,5,20,8],'circle-color':'#37e6ff','circle-stroke-color':'#e9fdff','circle-stroke-width':1.1}});
+  add('bp-v5924-solar-fill',{id:'bp-v5924-solar-fill',type:'fill',source:'bpV5924PhysicalAssets',filter:['all',['any',['==',['get','bp_layer'],'solar'],['==',['get','bp_layer'],'solar_farm']],['==',['geometry-type'],'Polygon']],minzoom:10,paint:{'fill-color':['case',['==',['get','bp_layer'],'solar_farm'],'#b6ff6b','#37e6ff'],'fill-opacity':0.55}});
+  add('bp-v5924-solar-outline',{id:'bp-v5924-solar-outline',type:'line',source:'bpV5924PhysicalAssets',filter:['any',['==',['get','bp_layer'],'solar'],['==',['get','bp_layer'],'solar_farm']],minzoom:10,paint:{'line-color':['case',['==',['get','bp_layer'],'solar_farm'],'#e2ffb9','#c4fbff'],'line-width':['interpolate',['linear'],['zoom'],10,.8,15,2,20,3],'line-opacity':0.96}});
+  add('bp-v5924-solar-points',{id:'bp-v5924-solar-points',type:'circle',source:'bpV5924PhysicalAssets',filter:['all',['any',['==',['get','bp_layer'],'solar'],['==',['get','bp_layer'],'solar_farm']],['==',['geometry-type'],'Point']],minzoom:10,paint:{'circle-radius':['interpolate',['linear'],['zoom'],10,2.5,15,5,20,8],'circle-color':['case',['==',['get','bp_layer'],'solar_farm'],'#b6ff6b','#37e6ff'],'circle-stroke-color':'#e9fdff','circle-stroke-width':1.1}});
   add('bp-v5924-pool-fill',{id:'bp-v5924-pool-fill',type:'fill',source:'bpV5924PhysicalAssets',filter:['all',['==',['get','bp_layer'],'pool'],['==',['geometry-type'],'Polygon']],minzoom:10,paint:{'fill-color':'#258fff','fill-opacity':0.68}});
   add('bp-v5924-pool-outline',{id:'bp-v5924-pool-outline',type:'line',source:'bpV5924PhysicalAssets',filter:['==',['get','bp_layer'],'pool'],minzoom:10,paint:{'line-color':'#a9e5ff','line-width':['interpolate',['linear'],['zoom'],10,.8,15,2,20,3],'line-opacity':1}});
   add('bp-v5924-pool-points',{id:'bp-v5924-pool-points',type:'circle',source:'bpV5924PhysicalAssets',filter:['all',['==',['get','bp_layer'],'pool'],['==',['geometry-type'],'Point']],minzoom:10,paint:{'circle-radius':['interpolate',['linear'],['zoom'],10,3,15,5,20,8],'circle-color':'#258fff','circle-stroke-color':'#d5efff','circle-stroke-width':1.1}});
