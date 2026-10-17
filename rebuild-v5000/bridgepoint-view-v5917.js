@@ -9,7 +9,7 @@ const home=!!$('#previewMap')&&!$('#liveMap');
 const mapHost=home?$('.preview'):document.querySelector('.map-surface.active')||$('.map-surface');
 const appMap=$('#liveMap');
 let map=null,idleTimer=0,moveUntil=0,selected={id:null,label:'',feature:null},activePanel='ai',metricsLoading=null,asking=false,searchVisible=true;
-let listingLoading=null,listingSummaryCache=null,listingSummaryAt=0,listingFeaturesCache=[],listingOverlayOn=true,listingMapTimer=0,listingLastViewportAt=0,listingQueryValue='',listingSelectedId=null;
+let listingLoading=null,listingSummaryCache=null,listingSummaryAt=0,listingFeaturesCache=[],listingOverlayOn=true,listingMapTimer=0,listingLastViewportAt=0,listingQueryValue='',listingSelectedId=null,listingRefreshTimer=0;
 const SLOT_INFO={
  ai:['BRIDGEPOINT AI','Ask a question about this selected property.'],
  xray:['X-RAY + INTERIOR','Source-backed parts, floors and plans only. No fabricated rooms.'],
@@ -54,7 +54,7 @@ function stopMoving(){
 }
 function attachMap(m){
  if(!m||map===m)return;map=m;
- if(!m.__bpListingsEventsV5927){m.__bpListingsEventsV5927=true;m.on('moveend',()=>{if(!listingOverlayOn)return;clearTimeout(listingMapTimer);const wait=Math.max(700,3800-(Date.now()-listingLastViewportAt));listingMapTimer=setTimeout(()=>{listingLastViewportAt=Date.now();void loadListings(true,listingQueryValue)},wait)});m.on('styledata',()=>{if(listingOverlayOn)ensureListingLayers(m)});setTimeout(()=>{if(!m.__bpListingsBootedV5927){m.__bpListingsBootedV5927=true;listingLastViewportAt=Date.now();void loadListings(true,listingQueryValue)}},1300)}
+ if(!m.__bpListingsEventsV5927){m.__bpListingsEventsV5927=true;m.on('moveend',()=>{if(!listingOverlayOn)return;clearTimeout(listingMapTimer);const wait=Math.max(700,3800-(Date.now()-listingLastViewportAt));listingMapTimer=setTimeout(()=>{listingLastViewportAt=Date.now();void loadListings(true,listingQueryValue)},wait)});m.on('styledata',()=>{if(listingOverlayOn)ensureListingLayers(m)});setTimeout(()=>{if(!m.__bpListingsBootedV5927){m.__bpListingsBootedV5927=true;listingLastViewportAt=Date.now();void loadListings(true,listingQueryValue)}},1300);if(!listingRefreshTimer)listingRefreshTimer=setInterval(()=>{if(!document.hidden){listingSummaryCache=null;void loadListings(true,listingQueryValue)}},300000)}
  const start=()=>setMoving(),end=()=>stopMoving();
  for(const e of ['movestart','zoomstart','rotatestart','pitchstart','dragstart'])try{m.on(e,start)}catch(_){}
  for(const e of ['moveend','zoomend','rotateend','pitchend','dragend'])try{m.on(e,end)}catch(_){}
@@ -153,7 +153,7 @@ function makeTopBarAndDock(){
  dock.querySelector('[data-bpv-dock-hide]').addEventListener('click',()=>{dock.hidden=true;reopen.hidden=false;mapHost.classList.add('bpv-dock-minimized')});
  const keyRibbon=node('div','bpv-key-ribbon');
  keyRibbon.id='bpv-key-ribbon';
- keyRibbon.innerHTML='<span class="bpv-key-ribbon-title">MAP KEY</span><span><i style="--key:#f3df66"></i> ROOF TRUTH</span><span><i style="--key:#65e3ff"></i> ROOF PLANES</span><span><i style="--key:#55e8b5"></i> RENTAL</span><span><i style="--key:#ff648f"></i> SUBSURFACE</span><button type="button" data-bpv-key-open>FULL KEY ↗</button>';
+ keyRibbon.innerHTML='<span class="bpv-key-ribbon-title">MAP KEY</span><span><i style="--key:#f3df66"></i> ROOF TRUTH</span><span><i style="--key:#65e3ff"></i> ROOF PLANES</span><span><i style="--key:#55e8b5"></i> RENTAL <b data-bpv-listings-rentals>0</b></span><span><i style="--key:#ff648f"></i> SUBSURFACE</span><span class="bpv-live-inventory-chip">LISTINGS <b data-bpv-listings-total>SYNCING</b></span><button type="button" data-bpv-key-open>FULL KEY ↗</button>';
  keyRibbon.querySelector('[data-bpv-key-open]').addEventListener('click',()=>openPanel('mapkey'));
  mapHost.appendChild(keyRibbon);
  dock.querySelectorAll('[data-bpv-action]').forEach(b=>b.addEventListener('click',()=>{
@@ -571,8 +571,10 @@ async function loadListings(force=false,queryOverride,selectedId=null){
    const data=await rpc('bridgepoint_public_listings_viewport_v5927',args,9000);
    const features=Array.isArray(data?.features)?data.features:(data?.geojson?.features||[]);
    listingFeaturesCache=features;
+   const s=listingSummaryCache||{};
+   document.querySelectorAll('[data-bpv-listings-total]').forEach(n=>n.textContent=Number(s.total_records||0).toLocaleString());
+   document.querySelectorAll('[data-bpv-listings-rentals]').forEach(n=>n.textContent=Number(s.rent_records||0).toLocaleString());
    if(summary){
-    const s=listingSummaryCache||{};
     summary.textContent=Number(s.total_records||0).toLocaleString()+' materialized listings · '+Number(s.rent_records||0).toLocaleString()+' rental/lease records · '+Number(s.sale_records||0).toLocaleString()+' for-sale records · '+Number(s.bridgepoint_photo_assets||0).toLocaleString()+' records with BridgePoint-hosted photo assets. '+Number(data?.matching_in_view||0).toLocaleString()+' match the current view/search.';
    }
    const src=ensureListingLayers(current)?current.getSource(BP_LISTINGS_SOURCE_V5927):null;
