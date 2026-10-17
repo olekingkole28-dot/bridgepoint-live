@@ -119,6 +119,7 @@ jobs:
           cp rebuild-v5000/bridgepoint-map-key-v5920.js site/bridgepoint-map-key-v5920.js
           cp rebuild-v5000/bridgepoint-map-state-counts-v5923.js site/bridgepoint-map-state-counts-v5923.js
           cp rebuild-v5000/bridgepoint-map-physical-assets-v5924.js site/bridgepoint-map-physical-assets-v5924.js
+          cp rebuild-v5000/bridgepoint-global-motion-v5926.js site/bridgepoint-global-motion-v5926.js
           cp rebuild-v5000/styles.css site/styles.css
           cp rebuild-v5000/app.js site/app.js
           cp rebuild-v5000/owner-everything.js site/owner-everything.js
@@ -234,6 +235,7 @@ jobs:
           node --check site/bridgepoint-map-key-v5920.js
           node --check site/bridgepoint-map-state-counts-v5923.js
           node --check site/bridgepoint-map-physical-assets-v5924.js
+          node --check site/bridgepoint-global-motion-v5926.js
           test ! -e site/walkthrough-v5537.js
           test ! -e site/walkthrough-v5537.css
           test ! -e site/world-v2300-space.js
