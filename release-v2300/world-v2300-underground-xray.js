@@ -37,10 +37,11 @@ export function initUndergroundXray(target){
  const opacityOriginal=new Map();
  function captureOpacity(id,prop){const k=id+'|'+prop;if(opacityOriginal.has(k))return;let value;try{value=map.getPaintProperty(id,prop)}catch(_){}opacityOriginal.set(k,{has:value!==undefined,value})}
  function setXrayOpacity(on){
+  const active=!!on&&Number(map.getZoom?.()||0)>=10;
   const ids=['gta-context-buildings','gta-city-buildings','gta-exact-building','gta-bp-buildings'];
-  for(const id of ids){if(!map.getLayer(id))continue;const prop='fill-extrusion-opacity';captureOpacity(id,prop);try{map.setPaintProperty(id,prop,on?0.24:(opacityOriginal.get(id+'|'+prop).has?opacityOriginal.get(id+'|'+prop).value:null))}catch(_){}}
+  for(const id of ids){if(!map.getLayer(id))continue;const prop='fill-extrusion-opacity';captureOpacity(id,prop);try{map.setPaintProperty(id,prop,active?0.24:(opacityOriginal.get(id+'|'+prop).has?opacityOriginal.get(id+'|'+prop).value:null))}catch(_){}}
   const roofIds=['gta-city-roofs','gta-bp-roofs','gta-context-roofs','gta-exact-roof','gta-city-building-roof-caps'];
-  for(const id of roofIds){if(!map.getLayer(id))continue;const type=map.getLayer(id).type,prop=type==='fill-extrusion'?'fill-extrusion-opacity':'fill-opacity';captureOpacity(id,prop);try{map.setPaintProperty(id,prop,on?0.32:(opacityOriginal.get(id+'|'+prop).has?opacityOriginal.get(id+'|'+prop).value:null))}catch(_){}}
+  for(const id of roofIds){if(!map.getLayer(id))continue;const type=map.getLayer(id).type,prop=type==='fill-extrusion'?'fill-extrusion-opacity':'fill-opacity';captureOpacity(id,prop);try{map.setPaintProperty(id,prop,active?0.32:(opacityOriginal.get(id+'|'+prop).has?opacityOriginal.get(id+'|'+prop).value:null))}catch(_){}}
  }
  function syncButton(){button.setAttribute('aria-pressed',String(state.enabled));button.textContent=state.enabled?'◈ UNDERGROUND X-RAY · ON':'◈ UNDERGROUND X-RAY · OFF'}
  function ensureLayers(){
@@ -91,7 +92,7 @@ export function initUndergroundXray(target){
   }catch(e){count.textContent='STATUS UNAVAILABLE';setStatus('Map layer is linked, but coverage statistics are temporarily unavailable. Unverified pipes and leaks will not be drawn.',true);console.warn('BridgePoint underground X-ray coverage status',e)}
  }
  const onStyle=()=>{if(!ensureLayers()&&!styleRetry)styleRetry=setTimeout(()=>{styleRetry=null;ensureLayers()},350)};
- map.on('styledata',onStyle);map.on('load',onStyle);
+ map.on('styledata',onStyle);map.on('load',onStyle);map.on('zoomend',onStyle);
  ensureLayers();
  [200,650,1400,2600].forEach(ms=>setTimeout(()=>{if(!disposed)ensureLayers()},ms));
  retryTimer=setInterval(()=>{if(disposed){clearInterval(retryTimer);return}if(!map.getLayer(LINE_ID))ensureLayers()},2500);
@@ -100,7 +101,7 @@ export function initUndergroundXray(target){
  state.open=()=>{state.enabled=true;syncButton();ensureLayers();return state};
  state.close=()=>{state.enabled=false;syncButton();ensureLayers();return state};
  state.toggle=()=>{button.click();return state};
- state.destroy=()=>{disposed=true;clearTimeout(mountTimer);clearTimeout(styleRetry);clearInterval(retryTimer);map.off('styledata',onStyle);map.off('load',onStyle);try{map.setPaintProperty(GLOW_ID,'visibility','none');map.setLayoutProperty(LINE_ID,'visibility','none')}catch(_){}dock.remove();state.available=false};
+ state.destroy=()=>{disposed=true;clearTimeout(mountTimer);clearTimeout(styleRetry);clearInterval(retryTimer);map.off('styledata',onStyle);map.off('load',onStyle);map.off('zoomend',onStyle);try{for(const id of [GLOW_ID,LINE_ID])if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none');setXrayOpacity(false)}catch(_){}dock.remove();state.available=false};
  state.ready=!!map.getSource(SOURCE_ID);
  return state;
 }
