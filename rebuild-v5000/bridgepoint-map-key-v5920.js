@@ -103,7 +103,7 @@ function addMapKey(panel){
   {label:'3D terrain / hill relief',cls:'bpv-mapkey-swatch-terrain',desc:'DEM elevation with light/shadow shading describes landform, not parcel value or hazard level.'}
  ]);
  section('PARCELS, ROADS + BRIDGES','',[
-  {label:'Parcel boundaries',color:'#b9ffe3',desc:'Mint #B9FFE3 with green glow #2CF3A3; selected parcel #58E3A4.'},
+  {label:'Public parcel boundaries',color:'#73ffff',desc:'Automatic cyan #73FFFF parcel lines with royal-blue glow #004CFF, only where approved public source rights permit. Owner-only parcel detail remains private.'},
   {label:'Major roads',color:'#53717c',desc:'Blue-gray #53717C; yellow dashed marking #F2C94C.'},
   {label:'3D road / bridge decks, rails and piers',cls:'bpv-mapkey-swatch-bridge',desc:'Charcoal deck #111315, yellow stripe #F2C94C, pale rails, gray piers #7F817D.'},
   {label:'Waterways / mapped water',color:'#2bc5ff',desc:'Cyan #2BC5FF; mapped water is not itself a flood warning.'}
