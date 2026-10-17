@@ -1,10 +1,10 @@
-const VERSION=5930;
+const VERSION=5931;
 const STAC_SEARCH='https://planetarycomputer.microsoft.com/api/stac/v1/search';
 const DATA_API='https://planetarycomputer.microsoft.com/api/data/v1/item/';
-const ROOT_ID='bp-spectral-imagery-v5930';
-const STYLE_ID='bp-spectral-imagery-style-v5930';
-const SOURCE_ID='bp-spectral-imagery-source-v5930';
-const LAYER_ID='bp-spectral-imagery-raster-v5930';
+const ROOT_ID='bp-spectral-imagery-v5931';
+const STYLE_ID='bp-spectral-imagery-style-v5931';
+const SOURCE_ID='bp-spectral-imagery-source-v5931';
+const LAYER_ID='bp-spectral-imagery-raster-v5931';
 const ATTRIBUTION='Landsat Collection 2 Level-2 · USGS/NASA · Microsoft Planetary Computer';
 const COMBOS={
  natural:{label:'Natural Color · Red / Green / Blue',assets:['red','green','blue'],description:'Visible-band composite approximating natural color. Haze, clouds and acquisition date affect appearance.'},
@@ -35,7 +35,7 @@ const BASEMAP_PAINT_PROPERTIES={
  'gta-oam':['raster-hue-rotate','raster-saturation','raster-contrast','raster-opacity']
 };
 const BASEMAP_RASTER_LAYERS=['gta-nasa','gta-usgs','gta-oam'];
-const BASEMAP_STORAGE_KEY='bp-global-map-mode-v5930';
+const BASEMAP_STORAGE_KEY='bp-global-map-mode-v5931';
 const CSS=[
 '#liveMap #'+ROOT_ID+'{position:absolute;z-index:22;left:12px;top:12px;width:min(350px,calc(100% - 24px));box-sizing:border-box;color:#eaf8ff;font:12px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;pointer-events:none}',
 '#liveMap #'+ROOT_ID+' *{box-sizing:border-box}',
@@ -133,8 +133,8 @@ function waitForStyle(map){
 export function initSpectralImagery(target){
  const map=target?.map||target,container=map?.getContainer?.();
  if(!map||!container||typeof fetch!=='function')return null;
- if(window.__BP_SPECTRAL_IMAGERY_V5930__?.map===map)return window.__BP_SPECTRAL_IMAGERY_V5930__;
- if(container.querySelector('#'+ROOT_ID))return window.__BP_SPECTRAL_IMAGERY_V5930__||null;
+ if(window.__BP_SPECTRAL_IMAGERY_V5931__?.map===map)return window.__BP_SPECTRAL_IMAGERY_V5931__;
+ if(container.querySelector('#'+ROOT_ID))return window.__BP_SPECTRAL_IMAGERY_V5931__||null;
  if(getComputedStyle(container).position==='static')container.style.position='relative';
  if(!document.getElementById(STYLE_ID)){const style=document.createElement('style');style.id=STYLE_ID;style.textContent=CSS.replaceAll('#liveMap',':is(#liveMap,#previewMap)');document.head.appendChild(style)}
  const root=document.createElement('div');root.id=ROOT_ID;
@@ -144,12 +144,12 @@ export function initSpectralImagery(target){
   '<div class="bps-head"><div><div class="bps-kicker">BRIDGEPOINT SPECTRAL VIEW</div><div class="bps-title">Real satellite bands. No AI-drawn pixels.</div></div><button class="bps-close" type="button" data-close aria-label="Close satellite panel">×</button></div>'+
   '<div class="bps-status" data-status role="status" aria-live="polite">Color modes work globally. Zoom to a region to request source Landsat bands.</div>'+
   '<div class="bps-meta" data-meta>Source: USGS/NASA Landsat Collection 2 Level-2, served by Microsoft Planetary Computer. Target scene resolution: approximately 30 m.</div>'+
-  '<label for="bp-global-map-mode-v5930">GLOBAL MAP COLOR MODE · INSTANT / ALL ZOOMS</label>'+
-  '<select id="bp-global-map-mode-v5930" data-global-mode aria-label="Global map color mode"><option value="dark">Dark Intelligence · Default / Reset</option><option value="natural">Natural Satellite</option><option value="earth">Earth-as-Art</option><option value="water">Water &amp; Soil</option><option value="vegetation">Vegetation</option><option value="geology">Geology / Burn Scars</option><option value="agriculture">Agriculture</option></select>'+
+  '<label for="bp-global-map-mode-v5931">GLOBAL MAP COLOR MODE · INSTANT / ALL ZOOMS</label>'+
+  '<select id="bp-global-map-mode-v5931" data-global-mode aria-label="Global map color mode"><option value="dark">Dark Intelligence · Default / Reset</option><option value="natural">Natural Satellite</option><option value="earth">Earth-as-Art</option><option value="water">Water &amp; Soil</option><option value="vegetation">Vegetation</option><option value="geology">Geology / Burn Scars</option><option value="agriculture">Agriculture</option></select>'+
   '<div class="bps-note">Mode changes apply immediately from globe to street scale. Satellite tiles appear where source coverage exists; the selected color palette remains active globally. Date-specific Landsat composites are loaded separately below.</div>'+
-  '<label for="bp-spectral-combo-v5930">LANDSAT SPECTRAL COMBINATION · SOURCE DATA</label>'+
-  '<select id="bp-spectral-combo-v5930" data-combo><option value="natural">Natural Color · Red / Green / Blue</option><option value="earth">Earth-as-Art · SWIR-2 / NIR / Red</option><option value="water">Water & Soil · SWIR-1 / NIR / Red</option><option value="vegetation">Vegetation · NIR / Red / Green</option><option value="geology">Geology / Burn Scars · SWIR-2 / SWIR-1 / Red</option><option value="agriculture">Agriculture · NIR / SWIR-1 / Green</option></select>'+
-  '<label for="bp-spectral-opacity-v5930">IMAGERY OPACITY <span data-opacity-label>78%</span></label><input id="bp-spectral-opacity-v5930" type="range" min="20" max="100" value="78" data-opacity aria-label="Satellite imagery opacity">'+
+  '<label for="bp-spectral-combo-v5931">LANDSAT SPECTRAL COMBINATION · SOURCE DATA</label>'+
+  '<select id="bp-spectral-combo-v5931" data-combo><option value="natural">Natural Color · Red / Green / Blue</option><option value="earth">Earth-as-Art · SWIR-2 / NIR / Red</option><option value="water">Water & Soil · SWIR-1 / NIR / Red</option><option value="vegetation">Vegetation · NIR / Red / Green</option><option value="geology">Geology / Burn Scars · SWIR-2 / SWIR-1 / Red</option><option value="agriculture">Agriculture · NIR / SWIR-1 / Green</option></select>'+
+  '<label for="bp-spectral-opacity-v5931">IMAGERY OPACITY <span data-opacity-label>78%</span></label><input id="bp-spectral-opacity-v5931" type="range" min="20" max="100" value="78" data-opacity aria-label="Satellite imagery opacity">'+
   '<div class="bps-actions"><button type="button" data-load>FIND / REFRESH SCENE</button><button type="button" data-hide>HIDE OVERLAY</button></div>'+
   '<div class="bps-actions"><button type="button" data-png>EXPORT PNG PREVIEW</button><button type="button" data-tif>EXPORT RGB GEOTIFF</button></div>'+
   '<div class="bps-note" data-description>False color remaps non-visible wavelengths into RGB. Scene cloud cover is a scene-wide estimate, not a cloud-free guarantee for the selected location. Exports are georeferenced scene previews (up to 2048 px), not the full-resolution source COG.</div>'+
@@ -168,7 +168,7 @@ export function initSpectralImagery(target){
   hide(){hideLayer()},
   async export(format){return exportPreview(format)}
  };
- window.__BP_SPECTRAL_IMAGERY_V5930__=state;
+ window.__BP_SPECTRAL_IMAGERY_V5931__=state;
   // The existing BridgePoint SAT button opens the real spectral controls.
   document.querySelectorAll('[data-base="satellite"]').forEach(button=>{
     if(button.dataset.bpSpectralBound==='1')return;
@@ -230,9 +230,13 @@ export function initSpectralImagery(target){
   }
   const cfg=GLOBAL_BASEMAP_MODES[mode];
   if(mode==='dark'){
-   for(const [id,values] of originalPaint.entries())for(const [prop,value] of Object.entries(values))safeSetPaint(id,prop,value);
-   for(const [id,visibility] of originalVisibility.entries())safeSetVisibility(id,visibility);
-   if(previousMode!=='dark'&&(enabled||scene))hideLayer();
+   // On initial load the baseline is already active; avoid needlessly recompiling every map layer.
+   // Restore snapshots only when leaving a non-dark color mode.
+   if(previousMode!=='dark'){
+    for(const [id,values] of originalPaint.entries())for(const [prop,value] of Object.entries(values))safeSetPaint(id,prop,value);
+    for(const [id,visibility] of originalVisibility.entries())safeSetVisibility(id,visibility);
+    if(enabled||scene)hideLayer();
+   }
    setStatus('DARK INTELLIGENCE ACTIVE · default BridgePoint map styling restored.');
   }else{
    safeSetPaint('gta-bg','background-color',cfg.background);
