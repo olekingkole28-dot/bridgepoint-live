@@ -647,7 +647,7 @@ function buildUI(){
    const footer=document.querySelector('body>footer');if(footer)content.appendChild(footer);
   }
   const form=$('#landingPropertySearch'),premium=$('#landingFreePremiumTools');
-  if(form){ui.searchSlot.appendChild(form);form.hidden=false;searchVisible=true;}
+  if(form){let cap=ui.searchSlot.querySelector('.bpv-search-caption');if(!cap){cap=node('div','bpv-search-caption');cap.textContent='BRIDGEPOINT PROPERTY LOOKUP';cap.style.cssText='font:900 9px/1.3 system-ui,sans-serif;letter-spacing:.12em;color:#80b2c6;margin:0 0 6px;padding:0 1px';ui.searchSlot.appendChild(cap)}ui.searchSlot.appendChild(form);form.hidden=false;searchVisible=true;}
   if(premium)ui.actions.insertBefore(premium,ui.actions.querySelector('[data-bpv-action="ai"]'));
   if(premium){premium.classList.add('bpv-premium-button');premium.textContent='FREE PREMIUM TOOLS';}
   const copyPane=$('#bpv-home-copy-mount');if(copyPane)copyPane.querySelector('.copy')?.classList.add('bpv-moved-home-copy');
@@ -672,7 +672,7 @@ function buildUI(){
    else{p.hidden=false;p.style.display='block'}
   };
   const form=$('#publicSearchForm'),tools=$('.map-tools'),premium=$('#appFreePremiumTools');
-  if(form){ui.searchSlot.appendChild(form);form.hidden=false;searchVisible=true;}
+  if(form){let cap=ui.searchSlot.querySelector('.bpv-search-caption');if(!cap){cap=node('div','bpv-search-caption');cap.textContent='BRIDGEPOINT PROPERTY LOOKUP';cap.style.cssText='font:900 9px/1.3 system-ui,sans-serif;letter-spacing:.12em;color:#80b2c6;margin:0 0 6px;padding:0 1px';ui.searchSlot.appendChild(cap)}ui.searchSlot.appendChild(form);form.hidden=false;searchVisible=true;}
   if(premium){ui.actions.insertBefore(premium,ui.actions.querySelector('[data-bpv-action="ai"]'));premium.classList.add('bpv-premium-button');premium.textContent='FREE PREMIUM TOOLS'}
   const controls=$('#bpv-controls-mount');
   if(tools&&controls)controls.appendChild(tools);
