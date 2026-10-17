@@ -82,7 +82,7 @@ function addControls(){
 function renderCounts(){
  const grid=document.getElementById('bp-pa-counts-v5924');if(!grid||!summary)return;
  const fields=[
- ['roof_geometry_records','Roof geometry records'],['roof_shape_truth_records','Shape-backed roof records'],
+ ['roof_geometry_records','Source building / roof geometry rows'],['roof_shape_truth_records','Shape-backed roof records'],
  ['roof_plane_records','Roof-plane records'],['lidar_roof_records','LiDAR-derived roof records'],
  ['solar_array_records','Rooftop solar features'],['solar_farm_records','Utility-scale solar sites'],['pool_records','Mapped pools'],
  ['tunnel_underpass_records','Tunnels / underpasses'],['public_subsurface_records','Public subsurface records']
@@ -135,7 +135,7 @@ async function loadViewport(force=false){
   const d=await rpc('bridgepoint_public_physical_map_viewport_v5924',{p_west:coords[0],p_south:coords[1],p_east:coords[2],p_north:coords[3],p_zoom:zoom,p_limit:350},12000);
   if(mySeq!==requestSeq||!map)return null;
   if(!d||d.type!=='FeatureCollection'||!Array.isArray(d.features))throw new Error('Invalid source geometry response');
-  installLayers();const src=map.getSource('bpV5924PhysicalAssets');if(src)src.setData({type:'FeatureCollection',features:d.features});
+  if(!installLayers())throw new Error('Physical map layers are not ready');const src=map.getSource('bpV5924PhysicalAssets');if(!src)throw new Error('Physical map source is not ready');src.setData({type:'FeatureCollection',features:d.features});
   viewportCount=d.features.length;lastUpdated=Date.now();const counts={};d.features.forEach(f=>{const k=f?.properties?.bp_layer||'other';counts[k]=(counts[k]||0)+1});
   window.__BP_PHYSICAL_VIEWPORT_V5924__={features:viewportCount,byLayer:counts,at:lastUpdated,bounds:coords,zoom,meta:d.bridgepoint||{}};
   setStatus('Visible source features: '+fmt(viewportCount)+' · roofs '+fmt(counts.roof||0)+' · solar '+fmt(counts.solar||0)+' · pools '+fmt(counts.pool||0)+' · below-ground '+fmt(counts.underground||0)+' · '+timeLabel(lastUpdated));
