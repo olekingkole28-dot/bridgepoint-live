@@ -215,3 +215,10 @@ body>header{z-index:50}body>main,body>.site-footer{z-index:2}
   .cap-grid,.package-grid{grid-template-columns:minmax(0,1fr)!important}
   .footer-link-groups{grid-template-columns:1fr!important}
 }
+
+/* V5939 optional live layers: BridgePoint dark-glass visual language. */
+.preview-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0}
+.landing-weather-activation{flex:none;min-height:28px;padding:6px 9px;border:1px solid rgba(98,230,255,.42);border-radius:9px;background:linear-gradient(135deg,rgba(8,42,59,.96),rgba(28,28,68,.96));box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 5px 16px rgba(0,0,0,.22);color:#dffaff;font:900 8px/1.1 Inter,system-ui,sans-serif;letter-spacing:.055em;white-space:nowrap;cursor:pointer}
+.landing-weather-activation[aria-pressed="true"]{border-color:rgba(87,255,218,.75);background:linear-gradient(135deg,rgba(4,92,90,.96),rgba(31,51,98,.96));box-shadow:0 0 13px rgba(70,224,255,.12),inset 0 1px 0 rgba(255,255,255,.06);color:#fff}
+.landing-weather-activation:focus-visible{outline:2px solid #68e5ff;outline-offset:2px}
+@media(max-width:620px){.preview-head{padding:0 8px}.preview-head-actions{gap:4px}.preview-head-actions>small{display:none}.landing-weather-activation{padding:6px 7px;font-size:7px;letter-spacing:.02em}}

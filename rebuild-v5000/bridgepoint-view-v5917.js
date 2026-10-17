@@ -9,7 +9,7 @@ const home=!!$('#previewMap')&&!$('#liveMap');
 const mapHost=home?$('.preview'):document.querySelector('.map-surface.active')||$('.map-surface');
 const appMap=$('#liveMap');
 let map=null,idleTimer=0,moveUntil=0,selected={id:null,label:'',feature:null},activePanel='ai',metricsLoading=null,asking=false,searchVisible=true;
-let listingLoading=null,listingSummaryCache=null,listingSummaryAt=0,listingFeaturesCache=[],listingOverlayOn=true,listingMapTimer=0,listingLastViewportAt=0,listingQueryValue='',listingSelectedId=null,listingRefreshTimer=0;
+let listingLoading=null,listingSummaryCache=null,listingSummaryAt=0,listingFeaturesCache=[],listingOverlayOn=false,listingMapTimer=0,listingLastViewportAt=0,listingQueryValue='',listingSelectedId=null,listingRefreshTimer=0;
 const SLOT_INFO={
  ai:['BRIDGEPOINT AI','Ask a question about this selected property.'],
  xray:['X-RAY + INTERIOR','Source-backed parts, floors and plans only. No fabricated rooms.'],
@@ -54,7 +54,7 @@ function stopMoving(){
 }
 function attachMap(m){
  if(!m||map===m)return;map=m;
- if(!m.__bpListingsEventsV5927){m.__bpListingsEventsV5927=true;m.on('moveend',()=>{if(!listingOverlayOn)return;clearTimeout(listingMapTimer);const wait=Math.max(700,3800-(Date.now()-listingLastViewportAt));listingMapTimer=setTimeout(()=>{listingLastViewportAt=Date.now();void loadListings(true,listingQueryValue)},wait)});m.on('styledata',()=>{if(listingOverlayOn)ensureListingLayers(m)});setTimeout(()=>{if(!m.__bpListingsBootedV5927){m.__bpListingsBootedV5927=true;listingLastViewportAt=Date.now();void loadListings(true,listingQueryValue)}},1300);if(!listingRefreshTimer)listingRefreshTimer=setInterval(()=>{if(!document.hidden){listingSummaryCache=null;void loadListings(true,listingQueryValue)}},300000)}
+ if(!m.__bpListingsEventsV5927){m.__bpListingsEventsV5927=true;m.on('moveend',()=>{if(!listingOverlayOn)return;clearTimeout(listingMapTimer);const wait=Math.max(700,3800-(Date.now()-listingLastViewportAt));listingMapTimer=setTimeout(()=>{listingLastViewportAt=Date.now();void loadListings(true,listingQueryValue)},wait)});m.on('styledata',()=>{if(listingOverlayOn)ensureListingLayers(m)});/* Listings remain unloaded until the Listings panel or overlay toggle is used. */}
  const start=()=>setMoving(),end=()=>stopMoving();
  for(const e of ['movestart','zoomstart','rotatestart','pitchstart','dragstart'])try{m.on(e,start)}catch(_){}
  for(const e of ['moveend','zoomend','rotateend','pitchend','dragend'])try{m.on(e,end)}catch(_){}

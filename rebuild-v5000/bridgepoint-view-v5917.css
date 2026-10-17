@@ -342,3 +342,10 @@ body.bpv-view-ready .bpv-topbar-persistent{
 /* V5938 optional overlay cards: glass, glow, and no default white inputs. */
 :is(#liveMap,#previewMap) #bp-sensor-layers-v5938,:is(#liveMap,#previewMap) #bp-underground-xray-v5935{color:#eafaff!important;border-radius:13px!important;}
 :is(#liveMap,#previewMap) #bp-sensor-layers-v5938 button,:is(#liveMap,#previewMap) #bp-underground-xray-v5935 button{font-family:inherit;}
+
+
+/* V5939: match new BridgePoint sidecar inputs to the existing glass-card system. */
+#bpv-sidecar input,#bpv-sidecar textarea,#bpv-sidecar select{display:block;width:100%;min-width:0;box-sizing:border-box;border:1px solid rgba(116,225,255,.25);border-radius:10px;padding:10px 11px;background:linear-gradient(135deg,rgba(3,16,25,.97),rgba(7,27,39,.95));color:#eafaff;font:12px/1.45 Inter,system-ui,sans-serif;box-shadow:inset 0 1px 0 rgba(255,255,255,.035);outline:none;color-scheme:dark}
+#bpv-sidecar input::placeholder,#bpv-sidecar textarea::placeholder{color:#7394a5;opacity:1}
+#bpv-sidecar input:focus,#bpv-sidecar textarea:focus,#bpv-sidecar select:focus{border-color:rgba(98,230,255,.76);box-shadow:0 0 0 2px rgba(98,230,255,.12),inset 0 1px 0 rgba(255,255,255,.04)}
+#bpv-sidecar textarea{resize:vertical;min-height:74px}
