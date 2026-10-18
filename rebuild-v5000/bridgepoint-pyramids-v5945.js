@@ -281,12 +281,12 @@
     const rng = seededRandom(item.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) + (granite ? 711 : 0));
     const base = granite ? [132, 76, 57] : [197, 171, 126];
     ctx.fillStyle = 'rgb(' + base.join(',') + ')'; ctx.fillRect(0, 0, 1024, 1024);
-    const cols = granite ? 30 : 42, rows = 60;
-    const cw = 1024 / cols, ch = 1024 / rows;
+    const canvasSize = 512, cols = granite ? 30 : 42, rows = 60;
+    const cw = canvasSize / cols, ch = canvasSize / rows;
     for (let row = 0; row < rows; row++) {
       let x = row % 2 ? -cw * 0.5 : 0;
       let col = 0;
-      while (x < 1024) {
+      while (x < canvasSize) {
         const width = cw * (0.68 + rng() * 0.5);
         const y = row * ch;
         const variation = granite ? 16 : 20;
@@ -311,7 +311,7 @@
     ctx.lineWidth = granite ? 2.5 : 2.0;
     for (let row = 0; row <= rows; row++) {
       const y = row * ch;
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1024, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvasSize, y); ctx.stroke();
     }
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
