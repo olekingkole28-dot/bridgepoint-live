@@ -3,7 +3,7 @@
 if(window.__BP_GLOBAL_MOTION_V5926__)return;
 const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
-const SOURCE='https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=JSON';
+const SOURCE='https://tle.ivanstanojevic.me/api/tle/';
 const FLIGHT_ROOT='https://api.adsb.lol/v2/point/';
 const EMPTY={type:'FeatureCollection',features:[]};
 const state={map:null,satApi:null,satelliteEnabled:false,aircraftEnabled:false,followSatellite:false,followAircraft:false,
@@ -104,7 +104,7 @@ function renderSummaries(){
  const badge=$('bpm-badge-v5926');if(badge)badge.textContent='COUNTERS '+(m.refreshed_at?new Date(m.refreshed_at).toLocaleTimeString():'WAITING');
  const sat=$('bpm-sat-status-v5926');
  if(sat){
-  if(s.operator_review_required)sat.textContent='SATELLITE SOURCE PAUSED · HTTP 403 from CelesTrak. Automated fetch stopped for human review; no satellite records are materialized yet.';
+  if(s.operator_review_required)sat.textContent='SATELLITE SOURCE REFRESH PAUSED · '+fmt(s.total_known_objects)+' cached orbital records remain preserved. New source refresh is paused for provider review; any displayed positions remain propagated estimates, not telemetry.';
   else if(s.total_known_objects>0)sat.textContent='Orbital elements: '+fmt(s.total_known_objects)+' cached records · '+fmt(state.plottedSatellites)+' plotted · refreshed '+(s.source_fetched_at?new Date(s.source_fetched_at).toLocaleString():'time unavailable')+'. Positions are propagated estimates, not telemetry.';
   else sat.textContent='Satellite catalogue has 0 materialized records. Source refresh status: '+(s.last_refresh_status||'WAITING')+'. The catalog will stay honest until a permitted TLE source returns records.';
  }
@@ -203,7 +203,7 @@ async function loadSatLib(){
 }
 async function loadSatellitePage(reset){
  const status=$('bpm-sat-status-v5926');const summary=state.summaries.satellite||{};
- if(summary.operator_review_required){if(status)status.textContent='Satellite refresh is paused after upstream HTTP 403. No repeated source request will be made until provider access is reviewed.';return}
+ if(summary.operator_review_required&&Number(summary.total_known_objects||0)<=0){if(status)status.textContent='Satellite source refresh is paused for provider review; there are no cached orbit records to display. No upstream refresh request will be repeated.';return}
  if(state.satellitePageLoading)return;
  if(reset){state.catalog=[];state.catalogAfter=null;state.catalogHasMore=false;state.plottedSatellites=0}
  state.satellitePageLoading=true;renderSummaries();
@@ -215,7 +215,7 @@ async function loadSatellitePage(reset){
   for(const item of d.items){
    if(!item?.omm||!/^\d{1,9}$/.test(String(item.norad_cat_id||'')))continue;
    if(!state.catalog.some(x=>String(x.norad_cat_id)===String(item.norad_cat_id))){
-    state.catalog.push({norad_cat_id:String(item.norad_cat_id),object_name:item.object_name||('NORAD '+item.norad_cat_id),object_type:item.object_type||item.omm.OBJECT_TYPE||'UNKNOWN',epoch:item.epoch,omm:item.omm,source_url:item.source_url||SOURCE});
+    state.catalog.push({norad_cat_id:String(item.norad_cat_id),object_name:item.object_name||('NORAD '+item.norad_cat_id),object_type:item.object_type||item.omm.OBJECT_TYPE||'UNKNOWN',epoch:item.epoch,omm:item.omm,source_key:item.source_key||d.source_key||summary.source_key||'PUBLIC_TLE_API',source_url:item.source_url||d.source_url||summary.source_url||SOURCE});
     imported++;
    }
   }
@@ -251,7 +251,7 @@ function propagateCatalog(){
   features.push({type:'Feature',geometry:{type:'Point',coordinates:[g.lon,g.lat]},properties:{
    norad_cat_id:item.norad_cat_id,object_name:item.object_name,object_type:String(item.object_type||item.omm?.OBJECT_TYPE||'UNKNOWN').toUpperCase(),
    latitude:g.lat,longitude:g.lon,altitude_km:g.alt,epoch:item.epoch||item.omm?.EPOCH||null,
-   source_key:'CELESTRAK_GP_ACTIVE_OMM',truth_class:'PROPAGATED_ORBIT_ESTIMATE'
+   source_key:item.source_key||state.summaries.satellite?.source_key||'PUBLIC_TLE_API',source_url:item.source_url||state.summaries.satellite?.source_url||SOURCE,truth_class:'PROPAGATED_ORBIT_ESTIMATE'
   }});
   if(state.selectedSatellite&&String(state.selectedSatellite.id)===String(item.norad_cat_id)){
    state.selectedSatellite.latitude=g.lat;state.selectedSatellite.longitude=g.lon;state.selectedSatellite.altitudeKm=g.alt;
@@ -269,7 +269,7 @@ async function drawSelectedSatelliteTrail(){
  for(let minute=-25;minute<=90;minute+=3){
   const pos=propagateOne(item,state.satApi,new Date(now+minute*60000));if(pos)coords.push([pos.lon,pos.lat]);
  }
- setData('bpV5926SatelliteTrail',coords.length>1?{type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'LineString',coordinates:coords},properties:{norad_cat_id:s.id,source_key:'CELESTRAK_GP_ACTIVE_OMM',truth_class:'PROPAGATED_ORBIT_PATH_ESTIMATE'}}]}:EMPTY);
+ setData('bpV5926SatelliteTrail',coords.length>1?{type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'LineString',coordinates:coords},properties:{norad_cat_id:s.id,source_key:item.source_key||state.summaries.satellite?.source_key||'PUBLIC_TLE_API',source_url:item.source_url||state.summaries.satellite?.source_url||SOURCE,truth_class:'PROPAGATED_ORBIT_PATH_ESTIMATE'}}]}:EMPTY);
 }
 function followSat(){
  const s=state.selectedSatellite;if(!s||!state.map){setStatus('Select a satellite point first.');return}
