@@ -1,11 +1,11 @@
 # BridgePoint Intelligence
 
 
-> **The map is just the beginning.** BridgePoint Intelligence is building an explorable, data-connected **3D digital twin of the physical world**—bringing together the globe, 3D buildings and terrain, property identity, parcel context, weather and hazard signals, and source-backed intelligence in one geospatial platform.
+> **One explorable, data-connected **3D digital twin of the entire globe**. BridgePoint Intelligence brings together a global 3D view, terrain and building context, property identity, parcel context, weather and hazard signals, and source-backed intelligence in one geospatial platform. Geographic detail and data coverage vary by region and source.
 >
 > 🌎 **Explore the live platform:** https://bridgepointintelligence.online/
 > 
-> **Open source:** This repository is one part of the BridgePoint codebase. The companion Flutter application and related app/backend components live in [bridgepoint_data_studio](https://github.com/olekingkole28-dot/bridgepoint_data_studio).
+> **Open source:** This repository is one part of the BridgePoint codebase, a globe-scale digital-twin and geospatial intelligence project with a reported 412M+ canonical property records worldwide. The companion Flutter application and related app/backend components live in [bridgepoint_data_studio](https://github.com/olekingkole28-dot/bridgepoint_data_studio).
 >
 > **What makes it different:** not simply a basemap or static 3D scene. BridgePoint connects physical-world geography to property records, building geometry, environmental context, evidence provenance, and workflows—where data is available and licensed for use. Coverage and detail vary by region and source; a global view does not mean every feature is complete everywhere.
 
@@ -17,7 +17,7 @@
 - **Research and technical notes:** https://bridgepointintelligence.online/articles/
 - **Source scope, licensing, and limitations:** [OPEN_SOURCE_SCOPE.md](OPEN_SOURCE_SCOPE.md)
 
-**Search terms:** global digital twin, 3D globe, geospatial intelligence, 3D mapping, property intelligence, digital twin platform, open-source GIS, building footprints, parcel data, terrain mapping, weather intelligence, claims intelligence, spatial data, physical-world AI.
+**Search terms:** global 3D digital twin, digital twin of the entire globe, digital twin of Earth, 3D globe mapping, geospatial intelligence, global GIS, open-source GIS, geospatial platform, property intelligence, property data, canonical property records, building footprints, parcel data, 3D terrain, building geometry, spatial data, weather and hazard intelligence, disaster intelligence, insurance claims intelligence, claims lifecycle, Flutter GIS, Supabase GIS, physical-world AI.
 
 ---
 
@@ -38,14 +38,14 @@ BridgePoint Intelligence connects geospatial maps and 3D surfaces with property 
 **BridgePoint Intelligence** is a U.S. property and claims intelligence platform founded by **Kole Johnson**. It is built for commercial contractors, restoration firms, public and insurance adjusters, property operators, real-estate organizations, insurers, lenders, investors, and other teams that need property-level evidence to move into an operational workflow.
 
 
-## Current national scale — September 15, 2026
+## Global canonical property scale — October 18, 2026
 
-BridgePoint Intelligence currently reports **169,634,995 canonical U.S. property/parcel identity records**. This is the canonical identity layer, **not** a claim that 169,634,995 parcel-boundary polygons have been materialized.
+BridgePoint Intelligence's current reported platform count is **412M+ canonical property records worldwide**. This is a global canonical-identity count. It is **not** a count of completed parcel-boundary polygons, fully modeled buildings, matched owner records, roof geometries, or equally complete data coverage in every country.
 
-At the September 15 checkpoint, BridgePoint separately measured approximately **142,849,508 normalized/public address records**, **83,858,024 stored parcel-boundary rows**, and **31,282,151 property-to-boundary links**. The current parcel scoreboard showed **55 of 56 required jurisdictions** fresh and approved while final boundary reconciliation remained in progress.
+BridgePoint is building a globe-scale geospatial system, while the precision, recency, licensing, and availability of individual datasets and 3D details vary by region and source. Canonical property identities, parcel geometry, building geometry, addresses, and evidence-backed intelligence are distinct layers and should not be treated as interchangeable metrics.
 
-- National scale brief: https://bridgepointintelligence.online/articles/bridgepoint-169634995-canonical-property-identities-2026-09-15.html
-- Parcel-boundary build status: https://bridgepointintelligence.online/articles/bridgepoint-parcel-boundary-progress-2026-09-15.html
+For context only, see the **historical U.S. build snapshot from September 15, 2026**: [archived national scale brief](https://bridgepointintelligence.online/articles/bridgepoint-169634995-canonical-property-identities-2026-09-15.html) and [parcel-boundary build status](https://bridgepointintelligence.online/articles/bridgepoint-parcel-boundary-progress-2026-09-15.html). Those dated U.S. snapshots predate the current global total and should not be mistaken for the current worldwide count.
+
 - Live machine-readable facts: https://bridgepointintelligence.online/discovery-facts.json
 - Press facts: https://bridgepointintelligence.online/press/
 
