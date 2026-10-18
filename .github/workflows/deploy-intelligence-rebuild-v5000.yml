@@ -116,6 +116,9 @@ jobs:
           cp rebuild-v5000/landing.js site/landing.js
           cp rebuild-v5000/bridgepoint-view-v5917.css site/bridgepoint-view-v5917.css
           cp rebuild-v5000/bridgepoint-landmarks-v5940.js site/bridgepoint-landmarks-v5940.js
+          # Mirror the licensed 3D scan into the same-origin static artifact; avoid browser CORS failures.
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 240 'https://zenodo.org/records/10355435/files/8e808365b5a6453497826b114b02f155.glb' -o site/assets/statue-of-liberty-scan-v5940.glb
+          test "$(stat -c%s site/assets/statue-of-liberty-scan-v5940.glb)" -gt 20000000
           cp rebuild-v5000/bridgepoint-view-v5917.js site/bridgepoint-view-v5917.js
           cp rebuild-v5000/bridgepoint-map-key-v5920.js site/bridgepoint-map-key-v5920.js
           cp rebuild-v5000/bridgepoint-map-state-counts-v5923.js site/bridgepoint-map-state-counts-v5923.js
@@ -268,6 +271,8 @@ jobs:
           grep -Fq 'bridgepoint-landmarks-v5940.js' site/app/index.html
           grep -Fq 'PROFILE_ESTIMATED_NOT_SURVEYED' site/bridgepoint-landmarks-v5940.js
           test -s site/assets/great-wall-overview-v5940.geojson
+          test -s site/assets/statue-of-liberty-scan-v5940.glb
+          grep -Fq "const STATUE_SCAN_URL = '/assets/statue-of-liberty-scan-v5940.glb'" site/bridgepoint-landmarks-v5940.js
           node -e "const d=JSON.parse(require('fs').readFileSync('site/assets/great-wall-overview-v5940.geojson','utf8'));if(d.features.length!==270)process.exit(1)"
           grep -Fq 'PARCEL BOUNDARIES' site/bridgepoint-view-v5917.js
           grep -Fq 'bridgepoint_public_listings_viewport_v5927' site/bridgepoint-view-v5917.js
