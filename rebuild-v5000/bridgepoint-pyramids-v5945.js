@@ -19,6 +19,8 @@
     {
       id: 'khufu', name: 'Great Pyramid of Khufu', short: 'KHUFU',
       coordinates: [31.13421, 29.97917], osmWay: 4420397,
+      locationSourceUrl: 'https://www.openstreetmap.org/way/4420397',
+      dimensionsSourceUrl: 'https://egymonuments.gov.eg/monuments/the-great-pyramid/',
       baseWidthM: 230.33, baseDepthM: 230.33,
       currentHeightM: 138.5, originalHeightM: 146.6,
       slopeDegrees: 51.84, topCasing: false, graniteBaseM: 0,
@@ -30,7 +32,9 @@
     },
     {
       id: 'khafre', name: 'Pyramid of Khafre', short: 'KHAFRE',
-      coordinates: [31.13074, 29.97599], osmWay: null,
+      coordinates: [31.13074, 29.97599], osmWay: 4420396,
+      locationSourceUrl: 'https://www.openstreetmap.org/way/4420396',
+      dimensionsSourceUrl: 'https://egymonuments.gov.eg/en/monuments/pyramid-complex-of-khafre-khefren',
       baseWidthM: 215.25, baseDepthM: 215.25,
       currentHeightM: 136.4, originalHeightM: 143.5,
       slopeDegrees: 53.1667, topCasing: true, graniteBaseM: 1.5,
@@ -43,6 +47,8 @@
     {
       id: 'menkaure', name: 'Pyramid of Menkaure', short: 'MENKAURE',
       coordinates: [31.12826, 29.97251], osmWay: 4420398,
+      locationSourceUrl: 'https://www.openstreetmap.org/way/4420398',
+      dimensionsSourceUrl: 'https://egymonuments.gov.eg/en/monuments/pyramid-complex-of-menkaure',
       baseWidthM: 102.2, baseDepthM: 104.6,
       currentHeightM: 61.0, originalHeightM: 65.5,
       slopeDegrees: 51.34, topCasing: false, graniteBaseM: 20.0,
@@ -126,7 +132,8 @@
         slope_degrees: item.slopeDegrees, core_material: item.coreMaterial,
         casing_material: item.casingMaterial, osm_way: item.osmWay,
         coordinate_source: item.osmWay ? 'OpenStreetMap building feature centroid (way ' + item.osmWay + ')' : 'OpenStreetMap-derived map centroid; way ID not independently confirmed',
-        source_dimensions: item.sourceDimensions
+        source_dimensions: item.sourceDimensions, location_source_url: item.locationSourceUrl,
+        dimension_source_url: item.dimensionsSourceUrl, orientation_status: 'CARDINAL_ALIGNED_APPROXIMATION'
       },
       geometry: { type: 'Polygon', coordinates: [corners] }
     };
@@ -221,7 +228,7 @@
     const root = document.createElement('div');
     root.className = 'bp-pyramid-popup-v5945';
     const title = document.createElement('b'); title.textContent = item.name; root.appendChild(title);
-    const intro = document.createElement('div'); intro.textContent = 'Procedural 3D monument · surveyed dimensions · georeferenced footprint'; root.appendChild(intro);
+    const intro = document.createElement('div'); intro.textContent = 'Procedural 3D solid · published dimensions · mapped location'; root.appendChild(intro);
     const dl = document.createElement('dl');
     const facts = [
       ['Present height', item.currentHeightM.toFixed(1) + ' m'],
@@ -239,8 +246,13 @@
       dl.append(dt, dd);
     }
     root.appendChild(dl);
+    const sourceLinks = document.createElement('div'); sourceLinks.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;font-size:11px';
+    for (const [label, href] of [['Mapped location', item.locationSourceUrl], ['Dimension reference', item.dimensionsSourceUrl]]) {
+      const link = document.createElement('a'); link.href = href; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = label; link.style.color = '#145d78'; sourceLinks.appendChild(link);
+    }
+    root.appendChild(sourceLinks);
     const note = document.createElement('small');
-    note.textContent = 'Footprint center: ' + (item.osmWay ? 'OpenStreetMap way ' + item.osmWay : 'OpenStreetMap-derived place centroid') + '. The sides are cardinal-aligned in the model. Published dimensions differ slightly between references; values shown here are recorded in the layer metadata. This is a procedural present-day silhouette, not a laser scan or reconstruction of every stone.';
+    note.textContent = 'Center: ' + item.coordinates.map(n => Number(n).toFixed(5)).join(', ') + ' (longitude, latitude). Mapped source: OpenStreetMap way ' + item.osmWay + '. Base dimensions and heights use published measurements. Current outline is a procedural, cardinal-aligned present-day silhouette—not a survey-grade polygon, laser scan, or per-stone photogrammetry model.';
     root.appendChild(note);
     popup.setLngLat(item.coordinates).setDOMContent(root).addTo(map);
   }
@@ -280,8 +292,9 @@
     const ctx = canvas.getContext('2d');
     const rng = seededRandom(item.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) + (granite ? 711 : 0));
     const base = granite ? [132, 76, 57] : [197, 171, 126];
-    ctx.fillStyle = 'rgb(' + base.join(',') + ')'; ctx.fillRect(0, 0, 1024, 1024);
-    const canvasSize = 512, cols = granite ? 30 : 42, rows = 60;
+    const canvasSize = 512;
+    ctx.fillStyle = 'rgb(' + base.join(',') + ')'; ctx.fillRect(0, 0, canvasSize, canvasSize);
+    const cols = granite ? 30 : 42, rows = Math.max(48, Math.round(item.currentHeightM / (granite ? 0.8 : 1.1)));
     const cw = canvasSize / cols, ch = canvasSize / rows;
     for (let row = 0; row < rows; row++) {
       let x = row % 2 ? -cw * 0.5 : 0;
@@ -499,7 +512,8 @@
     for (const p of PYRAMIDS) {
       pyramids[p.id] = {
         id: p.id, name: p.name, coordinates: p.coordinates.slice(),
-        osmWay: p.osmWay, baseWidthM: p.baseWidthM, baseDepthM: p.baseDepthM,
+        osmWay: p.osmWay, locationSourceUrl: p.locationSourceUrl, dimensionsSourceUrl: p.dimensionsSourceUrl,
+        baseWidthM: p.baseWidthM, baseDepthM: p.baseDepthM,
         currentHeightM: p.currentHeightM, originalHeightM: p.originalHeightM,
         slopeDegrees: p.slopeDegrees, coreMaterial: p.coreMaterial,
         casingMaterial: p.casingMaterial, presentDaySilhouette: true,
@@ -577,6 +591,6 @@
   window.__BP_PYRAMIDS_V5945__ = {
     version: VERSION, status: 'booting', loadedOnDemand: true, geometry: 'procedural Three.js 3D pyramid meshes',
     coordinatesCrs: 'EPSG:4326', source: 'OpenStreetMap feature centroids + published architectural dimensions',
-    pyramids: {}, attachedMaps: 0, updatedAt: Date.now()
+    pyramids: {}, attachedMaps: MAPS.size, updatedAt: Date.now()
   };
 })();
