@@ -116,6 +116,7 @@ jobs:
           cp rebuild-v5000/landing.js site/landing.js
           cp rebuild-v5000/bridgepoint-view-v5917.css site/bridgepoint-view-v5917.css
           cp rebuild-v5000/bridgepoint-landmarks-v5940.js site/bridgepoint-landmarks-v5940.js
+          cp rebuild-v5000/bridgepoint-pyramids-v5945.js site/bridgepoint-pyramids-v5945.js
           # Mirror the licensed 3D scan into the same-origin static artifact; avoid browser CORS failures.
           curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 240 'https://zenodo.org/records/10355435/files/8e808365b5a6453497826b114b02f155.glb' -o /tmp/statue-of-liberty-scan-source.glb
           test "$(stat -c%s /tmp/statue-of-liberty-scan-source.glb)" -gt 20000000
@@ -227,8 +228,9 @@ jobs:
           cp release-v2300/world-v2300-bootstrap.js site/app/world-v2300-bootstrap.js
           cp release-v2300/world-v2300.css site/app/world-v2300.css
 
-          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
-          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js -o site/vendor/three.module.js
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/dist/pmtiles.js -o site/vendor/pmtiles.js
 
           printf '%s\n' 'bridgepointintelligence.online' > site/CNAME
@@ -271,6 +273,19 @@ jobs:
           grep -Fq 'bpv-key-ribbon' site/bridgepoint-view-v5917.css
           grep -Fq 'V5940: unify card actions' site/bridgepoint-view-v5917.css
           grep -Fq 'bridgepoint-landmarks-v5940.js' site/index.html
+          test -s site/bridgepoint-pyramids-v5945.js
+          grep -Fq 'bridgepoint-pyramids-v5945.js?v=5945-giza-3d' site/index.html
+          test -s site/vendor/three.module.js
+          grep -Fq './vendor/three.module.js?v=169-local' site/bridgepoint-pyramids-v5945.js
+          grep -Fq 'bridgepoint-pyramids-v5945.js?v=5945-giza-3d' site/app/index.html
+          grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
+          grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
+          grep -Fq 'bridge-ground-join' site/app.js
+          grep -Fq 'bridge-ground-join' site/landing.js
+          grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
+          grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
+          grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
+          grep -Fq 'currentHeightM: 61.0' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'bridgepoint-landmarks-v5940.js' site/app/index.html
           grep -Fq 'PROFILE_ESTIMATED_NOT_SURVEYED' site/bridgepoint-landmarks-v5940.js
           test -s site/assets/great-wall-overview-v5940.geojson
@@ -698,10 +713,15 @@ jobs:
           grep -Fq 'toggleLiveContext' site/app/index.html
           grep -Fq 'app.js?v=5945-coastal-dive' site/app/index.html
           grep -Fq 'landing.js?v=5945-coastal-dive' site/index.html
-           grep -Fq 'world-v2300-map.js?v=5946-bridge-connect' site/app.js
-           grep -Fq 'world-v2300-map.js?v=5946-bridge-connect' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=5946-bridge-connect' site/index.html
-           grep -Fq 'world-v2300-map.js?v=5946-bridge-connect' site/app/index.html
+           grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/app.js
+           grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/index.html
+           grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/app/index.html
+          grep -Fq 'maplibre-gl@5.24.0/dist/maplibre-gl.js' .github/workflows/deploy-intelligence-rebuild-v5000.yml
+          grep -Fq 'maplibre-gl.js?v=524-v5945' site/index.html
+          grep -Fq 'maplibre-gl.js?v=524-v5945' site/app/index.html
+          test -s site/vendor/maplibre-gl.js
+          test -s site/vendor/maplibre-gl.css
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/app/index.html
@@ -1325,6 +1345,24 @@ jobs:
               // Deployment smoke stops at the rendered-building click contract.
               // The dedicated Android Building Inspector workflow is the deep panel/marker gate.
               console.log('BRIDGEPOINT_BUILDING_CLICK_PASS',JSON.stringify(clicked));
+              await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                if(!m)throw new Error('PYRAMID_SMOKE_MAP_UNAVAILABLE');
+                m.jumpTo({center:[31.1322,29.9763],zoom:14.2,pitch:40,bearing:0});
+              });
+              await p.waitForFunction(()=>{
+                const s=window.__BP_PYRAMIDS_V5945__;
+                return s?.version===5945&&s.attachedMaps>=1&&!!s.footprintLayer&&!!s.layerAdded&&s.pyramids?.khufu?.rendered===true&&s.pyramids?.khafre?.rendered===true&&s.pyramids?.menkaure?.rendered===true;
+              },{timeout:45000});
+              const gizaPyramids=await p.evaluate(()=>{
+                const s=window.__BP_PYRAMIDS_V5945__,m=window.__BP_V5000_WORLD?.map;
+                return{version:s?.version,status:s?.status,attachedMaps:s?.attachedMaps,footprintLayer:!!s?.footprintLayer,layerAdded:!!m?.getLayer('bp-v5945-pyramids-3d'),rendered:s?.rendered,
+                  khufu:s?.pyramids?.khufu||null,khafre:s?.pyramids?.khafre||null,menkaure:s?.pyramids?.menkaure||null,
+                  localThree:performance.getEntriesByType('resource').some(r=>r.name.includes('/vendor/three.module.js'))};
+              });
+              for(const id of ['khufu','khafre','menkaure'])if(!gizaPyramids[id]||!gizaPyramids[id].rendered)throw new Error('GIZA_3D_PYRAMID_NOT_RENDERED '+id+' '+JSON.stringify(gizaPyramids));
+              if(!gizaPyramids.localThree||!gizaPyramids.footprintLayer||!gizaPyramids.layerAdded)throw new Error('GIZA_3D_PYRAMID_RENDERER_OR_ASSET_MISSING '+JSON.stringify(gizaPyramids));
+              console.log('BRIDGEPOINT_GIZA_3D_PYRAMIDS_PASS',JSON.stringify(gizaPyramids));
 
               const severe=fatal.filter(x=>!/ResizeObserver loop/i.test(x));
               if(severe.length)throw new Error('ANDROID_PAGEERROR '+JSON.stringify(severe.slice(-5)));

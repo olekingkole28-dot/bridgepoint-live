@@ -730,42 +730,94 @@ export function initWorld(options={}){
  function bridge3dMeters(a,b){const lat=((a?.[1]||0)+(b?.[1]||0))*.5*Math.PI/180,dx=((b?.[0]||0)-(a?.[0]||0))*111320*Math.cos(lat),dy=((b?.[1]||0)-(a?.[1]||0))*110540;return Math.hypot(dx,dy)}
  function bridgePointAlong(line,distance){let left=distance;for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],len=bridge3dMeters(a,b);if(len<.05)continue;if(left<=len){const t=left/len;return[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]}left-=len}return line[line.length-1]?.slice(0,2)||null}
  function bridgeLineLength(line){let total=0;for(let i=1;i<line.length;i++)total+=bridge3dMeters(line[i-1],line[i]);return total}
- function bridgeApproachRampFeatures(line,width,base,common,connected={start:false,end:false}){
+ function bridgeGroundRoadLines(){
+  let features=[];try{features=map.querySourceFeatures?.('ofm',{sourceLayer:'transportation',validate:false})||[]}catch(_){features=[]}
+  const output=[],seen=new Set();
+  for(const ft of features){
+   const p=ft.properties||{},brunnel=String(p.brunnel||'').toLowerCase(),bridge=String(p.bridge||'').toLowerCase();
+   if(brunnel==='bridge'||bridge==='yes'||bridge==='true'||brunnel==='tunnel')continue;
+   const cls=String(p.class||'').toLowerCase();if(!cls)continue;
+   const geom=ft.geometry,lines=geom?.type==='LineString'?[geom.coordinates]:geom?.type==='MultiLineString'?(geom.coordinates||[]):[];
+   for(const raw of lines){
+    const line=(raw||[]).filter(q=>Array.isArray(q)&&Number.isFinite(+q[0])&&Number.isFinite(+q[1]));if(line.length<2)continue;
+    const a=line[0],b=line[line.length-1],key=[cls,[a[0].toFixed(5),a[1].toFixed(5)].join(','),[b[0].toFixed(5),b[1].toFixed(5)].join(',')].sort().join('|');
+    if(seen.has(key))continue;seen.add(key);output.push({line,width:bridge3dWidth(p),class:cls});
+   }
+  }
+  return output
+ }
+ function bridgeRampPath(end,inside,width,length,groundRoadLines,bridgeClass='road'){
+  let best=null,bestDistance=18;const bridgeKind=String(bridgeClass).toLowerCase(),railBridge=['rail','transit'].includes(bridgeKind),pedBridge=['path','footway','cycleway','steps','pedestrian'].includes(bridgeKind);
+  for(const road of groundRoadLines){
+   const line=road.line;if(!Array.isArray(line)||line.length<2)continue;const groundClass=String(road.class||'').toLowerCase(),groundRail=['rail','transit'].includes(groundClass),groundPed=['path','footway','cycleway','steps','pedestrian'].includes(groundClass);if(railBridge!==groundRail||(!pedBridge&&groundPed)||(pedBridge&&!groundPed))continue;
+   const d0=bridge3dMeters(end,line[0]),d1=bridge3dMeters(end,line[line.length-1]);
+   const d=Math.min(d0,d1);
+   if(d<bestDistance){bestDistance=d;best={line:d0<=d1?line:line.slice().reverse(),distance:d,width:road.width||width,class:groundClass}}
+  }
+  if(best){
+   const points=[end];let traveled=0,previous=end;
+   for(const point of best.line){
+    const seg=bridge3dMeters(previous,point);if(seg<.25)continue;
+    const remaining=length-traveled;
+    if(seg>remaining){
+     const t=remaining/seg;points.push([previous[0]+(point[0]-previous[0])*t,previous[1]+(point[1]-previous[1])*t]);traveled=length;break
+    }
+    points.push(point);traveled+=seg;previous=point;
+    if(traveled>=length)break
+   }
+   if(points.length>=3&&traveled>=Math.min(12,length*.45))return{points,length:traveled,groundWidth:best.width,groundClass:best.class,source:'MAPPED_GROUND_ROAD_ENDPOINT',connectionDistanceM:best.distance}
+  }
+  const dist=bridge3dMeters(end,inside);
+  if(dist<.1)return null;
+  const dx=(end[0]-inside[0])/dist,dy=(end[1]-inside[1])/dist;
+  const mLon=111320*Math.max(.12,Math.cos(end[1]*Math.PI/180)),mLat=110540;
+  const points=[end],steps=Math.max(6,Math.ceil(length/(MOBILE?6:3.5)));
+  for(let i=1;i<=steps;i++){const d=length*i/steps;points.push([end[0]+dx*d/mLon,end[1]+dy*d/mLat])}
+  return{points,length,groundWidth:width,groundClass:'fallback',source:'STRAIGHT_CENTERLINE_ESTIMATE_FALLBACK',connectionDistanceM:null}
+ }
+ function bridgeApproachRampFeatures(line,width,base,common,connected={start:false,end:false},groundRoadLines=[]){
   if(!Array.isArray(line)||line.length<2||base<2.5)return[];
-  const length=bridgeLineLength(line);if(length<35)return[];
-  const parts=[],segments=MOBILE?4:6,rampLength=Math.min(24,Math.max(15,length*.16));
+  const length=Math.min(54,Math.max(24,base*6.5)),parts=[];
   for(const atStart of [true,false]){
    if(atStart?connected.start:connected.end)continue;
-   const end=atStart?line[0]:line[line.length-1],inside=atStart?line[1]:line[line.length-2],dist=bridge3dMeters(end,inside);if(dist<.1)continue;
-   const dx=(end[0]-inside[0])/dist,dy=(end[1]-inside[1])/dist;
-   const mLon=111320*Math.max(.12,Math.cos(end[1]*Math.PI/180)),mLat=110540;
-   const pointAt=d=>[end[0]+dx*d/mLon,end[1]+dy*d/mLat];
-   for(let i=0;i<segments;i++){
-    const a=pointAt(rampLength*i/segments),b=pointAt(rampLength*(i+1)/segments),poly=ribbonLinePoly([a,b],Math.max(1.5,width*.5));
-    if(!poly)continue;
-    const height=.12+(base+.44)*(1-i/(segments-1));
-    parts.push({type:'Feature',geometry:{type:'Polygon',coordinates:poly},properties:{...common,part:'bridge_ramp',base_m:0,deck_top_m:height,ramp_truth:'CENTERLINE_DERIVED_APPROACH_NOT_ENGINEERING_SURVEY'}});
+   const end=atStart?line[0]:line[line.length-1],inside=atStart?line[1]:line[line.length-2];
+   const approach=bridgeRampPath(end,inside,width,length,groundRoadLines,common?.bridge_class||'road');if(!approach)continue;
+   const raw=approach.points,dense=[raw[0]];
+   for(let j=1;j<raw.length;j++){
+    const a=raw[j-1],b=raw[j],dist=bridge3dMeters(a,b),steps=Math.max(1,Math.ceil(dist/(MOBILE?6:3.5)));
+    for(let k=1;k<=steps;k++){const t=k/steps;dense.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t])}
+   }
+   let total=0;for(let j=1;j<dense.length;j++)total+=bridge3dMeters(dense[j-1],dense[j]);if(total<8)continue;
+   let traversed=0;
+   for(let i=1;i<dense.length;i++){
+    const a=dense[i-1],b=dense[i],seg=bridge3dMeters(a,b);if(seg<.15)continue;
+    const t=Math.min(1,Math.max(0,(traversed+seg*.5)/total));
+    const top=.12+(base+.44)*(1-t);
+    const fullWidth=width+(approach.groundWidth-width)*t;
+    const poly=ribbonLinePoly([a,b],Math.max(1.35,fullWidth*.5));
+    if(poly)parts.push({type:'Feature',geometry:{type:'Polygon',coordinates:poly},properties:{...common,part:'bridge_ramp',base_m:0,deck_top_m:top,ramp_source:approach.source,ramp_ground_class:approach.groundClass,ramp_length_m:Math.round(total),ramp_connection_distance_m:approach.connectionDistanceM==null?null:Math.round(approach.connectionDistanceM*10)/10,ramp_truth:approach.source==='MAPPED_GROUND_ROAD_ENDPOINT'?'MAPPED_GROUND_ROAD_CENTERLINE_CONNECTION_WITH_ESTIMATED_VERTICAL_PROFILE':'STRAIGHT_CENTERLINE_ESTIMATE_NOT_ENGINEERING_SURVEY'}});
+    traversed+=seg
    }
   }
   return parts
  }
-
  function bridgeSourceFeatures(){let fs=[];try{fs=map.queryRenderedFeatures({layers:['gta-bridge-deck']})||[]}catch(_){fs=[]}if(!fs.length)try{fs=map.querySourceFeatures?.('ofm',{sourceLayer:'transportation',filter:['==',['get','brunnel'],'bridge'],validate:false})||[]}catch(_){fs=[]}return fs}
+ function setBridge2DVisible(on){for(const id of ['gta-bridge-shadow','gta-bridge-deck','gta-bridge-center','gta-bridge-centerline','gta-bridge-rails'])vis(map,id,on)}
  function rebuildBridge3D(delay=MOBILE?420:(LOW?300:180),allowMotion=false){
   clearTimeout(bridge3dTimer);bridge3dTimer=setTimeout(()=>{
    const src=map.getSource('bpBridge3D'),z=map.getZoom();if(!src)return;
-   if(z<BRIDGE_3D_MIN){if(!allowMotion)src.setData(EMPTY);window.__BP_BRIDGE3D_V5590__={version:5590,status:'lod-off',segments:0,minZoom:BRIDGE_3D_MIN,globalSource:true,updatedAt:Date.now()};return}
+   if(z<BRIDGE_3D_MIN){if(!allowMotion)src.setData(EMPTY);setBridge2DVisible(true);window.__BP_BRIDGE3D_V5590__={version:5590,status:'lod-off',segments:0,minZoom:BRIDGE_3D_MIN,bridge2DVisible:true,globalSource:true,updatedAt:Date.now()};return}
    if(moving&&!allowMotion)return;
    const build=()=>{
     if(moving&&!allowMotion)return;
-    const fs=bridgeSourceFeatures(),out=[],seenLines=new Set(),bridgeKeys=new Set(),cap=allowMotion?(MOBILE?28:75):(z<12?(MOBILE?65:(TIER==='HIGH'?200:150)):(MOBILE?95:(TIER==='HIGH'?280:190))),supports=z>=BRIDGE_SUPPORT_MIN;
+    const fs=bridgeSourceFeatures(),groundRoadLines=bridgeGroundRoadLines(),out=[],seenLines=new Set(),bridgeKeys=new Set(),cap=allowMotion?(MOBILE?28:75):(z<12?(MOBILE?65:(TIER==='HIGH'?200:150)):(MOBILE?95:(TIER==='HIGH'?280:190))),supports=z>=BRIDGE_SUPPORT_MIN;
     // Track bridge line ends in small spatial buckets. Vector-tile cut ends that
     // meet another bridge line are continuation points, not real road approaches.
     const endpointBuckets=new Map(),endpointSeen=new Set(),endpointCell=.0001;
     const addEndpoint=(point,key)=>{const cellKey=Math.floor(point[0]/endpointCell)+','+Math.floor(point[1]/endpointCell),entry={point,lineKey:key};if(!endpointBuckets.has(cellKey))endpointBuckets.set(cellKey,[]);endpointBuckets.get(cellKey).push(entry)};
     for(const candidate of fs){const cp=candidate.properties||{},cg=candidate.geometry,cls=String(cp.class||'').toLowerCase()||'road',w=bridge3dWidth(cp),candidateLines=cg?.type==='LineString'?[cg.coordinates]:cg?.type==='MultiLineString'?(cg.coordinates||[]):[];for(const raw of candidateLines){const line=(raw||[]).filter(q=>Array.isArray(q)&&Number.isFinite(+q[0])&&Number.isFinite(+q[1]));if(line.length<2)continue;const a=line[0],b=line[line.length-1],ea=[a[0].toFixed(5),a[1].toFixed(5)].join(','),eb=[b[0].toFixed(5),b[1].toFixed(5)].join(','),key=[cls,Math.round(w*10),line.length,...([ea,eb].sort())].join('|');if(endpointSeen.has(key))continue;endpointSeen.add(key);addEndpoint(a,key);addEndpoint(b,key)}}
     const endpointContinues=(point,key)=>{try{const px=map.project(point),canvas=map.getCanvas();if(px.x<8||px.y<8||px.x>canvas.clientWidth-8||px.y>canvas.clientHeight-8)return true}catch(_){}const cx=Math.floor(point[0]/endpointCell),cy=Math.floor(point[1]/endpointCell),lonCellM=111320*Math.max(.12,Math.cos(point[1]*Math.PI/180))*endpointCell,rx=Math.min(12,Math.max(1,Math.ceil(6.5/Math.max(1,lonCellM))+1));for(let dx=-rx;dx<=rx;dx++)for(let dy=-1;dy<=1;dy++){const near=endpointBuckets.get((cx+dx)+','+(cy+dy));if(near&&near.some(e=>e.lineKey!==key&&bridge3dMeters(point,e.point)<6.5))return true}return false};
-    let linesBuilt=0,rails=0,piers=0,surfaces=0,centers=0,ramps=0,truncated=false;
+    let linesBuilt=0,rails=0,piers=0,surfaces=0,centers=0,ramps=0,groundConnectedRamps=0,fallbackRamps=0,truncated=false;
     outer:for(const ft of fs){
      const p=ft.properties||{},g=ft.geometry,lines=g?.type==='LineString'?[g.coordinates]:g?.type==='MultiLineString'?(g.coordinates||[]):[],w=bridge3dWidth(p),base=bridge3dBase(p,w),cls=String(p.class||'').toLowerCase()||'road',bridgeId=String(ft.id??p.osm_id??p.id??[p.ref||'',p.name||'',cls].join('|'));bridgeKeys.add(bridgeId);
      for(const rawLine of lines){
@@ -777,7 +829,7 @@ export function initWorld(options={}){
       const common={bridge_id:bridgeId,bridge_name:String(p.name||''),bridge_class:cls,source:'OPENFREEMAP_OSM_TRANSPORTATION',truth:'SOURCE_BRIDGE_CENTERLINE_DERIVED_CONTINUOUS_3D'};
       out.push({type:'Feature',geometry:{type:'Polygon',coordinates:deck},properties:{...common,part:'bridge_deck',base_m:base,deck_top_m:base+.42,width_m:w}});
       out.push({type:'Feature',geometry:{type:'Polygon',coordinates:surface},properties:{...common,part:'bridge_surface',surface_base_m:base+.415,surface_top_m:base+.56,width_m:w}});surfaces++;
-      if(length>=35){const connectedEnds={start:endpointContinues(a,lineKey),end:endpointContinues(b,lineKey)},rampFeatures=bridgeApproachRampFeatures(line,w,base,common,connectedEnds);out.push(...rampFeatures);ramps+=rampFeatures.length}
+      if(length>=35){const connectedEnds={start:endpointContinues(a,lineKey),end:endpointContinues(b,lineKey)},rampFeatures=bridgeApproachRampFeatures(line,w,base,common,connectedEnds,groundRoadLines);out.push(...rampFeatures);ramps+=rampFeatures.length;groundConnectedRamps+=rampFeatures.filter(r=>r.properties?.ramp_source==='MAPPED_GROUND_ROAD_ENDPOINT').length;fallbackRamps+=rampFeatures.filter(r=>r.properties?.ramp_source==='STRAIGHT_CENTERLINE_ESTIMATE_FALLBACK').length}
       if(supports&&['motorway','trunk','primary','secondary','tertiary'].includes(cls)){
        const stripe=ribbonLinePoly(line,clamp(w*.018,.06,.14));if(stripe){out.push({type:'Feature',geometry:{type:'Polygon',coordinates:stripe},properties:{...common,part:'bridge_center',stripe_base_m:base+.565,stripe_top_m:base+.59,stripe_color:'#f2c94c'}});centers++}
       }
@@ -795,7 +847,8 @@ export function initWorld(options={}){
      }
     }
     src.setData({type:'FeatureCollection',features:out});
-    window.__BP_BRIDGE3D_V5590__={version:5590,status:'ready',sourceLayer:'OpenMapTiles transportation / brunnel=bridge',sourceMode:'rendered-first',renderedBridgeFeatures:bridgeKeys.size,continuousLines:linesBuilt,surfaces,approachRampSegments:ramps,centerStripes:centers,rails,piers,truncated,minZoom:BRIDGE_3D_MIN,supportMinZoom:BRIDGE_SUPPORT_MIN,globalSource:true,onDemandViewportMaterialization:true,continuousDuringGestures:allowMotion,roadSurfaceRaisedWithBridge:true,groundRoadExcluded:true,continuousJoinGeometry:true,syntheticPiers:false,centerlineDerivedSupportPiers:true,approachRamps:'CENTERLINE_DERIVED_VISUAL_ONLY',railingsRequireSourceAttribute:true,updatedAt:Date.now()}
+    const bridge2DVisible=!(out.length>0&&!truncated);setBridge2DVisible(bridge2DVisible);
+    window.__BP_BRIDGE3D_V5590__={version:5590,status:'ready',sourceLayer:'OpenMapTiles transportation / brunnel=bridge',sourceMode:'rendered-first',renderedBridgeFeatures:bridgeKeys.size,continuousLines:linesBuilt,surfaces,approachRampSegments:ramps,groundConnectedRamps,fallbackRamps,centerStripes:centers,rails,piers,truncated,minZoom:BRIDGE_3D_MIN,supportMinZoom:BRIDGE_SUPPORT_MIN,globalSource:true,onDemandViewportMaterialization:true,continuousDuringGestures:allowMotion,roadSurfaceRaisedWithBridge:true,groundRoadExcluded:true,continuousJoinGeometry:true,bridge2DVisible,approachRamps:'MAPPED_GROUND_ROAD_ENDPOINT_WHEN_AVAILABLE',railingsRequireSourceAttribute:true,updatedAt:Date.now()}
    };
    if(allowMotion)requestAnimationFrame(build);else if('requestIdleCallback'in window)requestIdleCallback(build,{timeout:MOBILE?1200:700});else setTimeout(build,MOBILE?80:30)
   },delay)
