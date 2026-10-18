@@ -268,9 +268,9 @@ async function initMap(){
   void import('./world-v2300-sensor-layers.js?v=5946-source-status')
    .then(m=>{window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)})
    .catch(e=>console.warn('BridgePoint NASA night lights, GEBCO depth and mapped streetlights unavailable',e));
-   void import('./world-v2300-realism.js?v=5946-stale-recovery')
-    .then(m=>{window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)})
-    .catch(e=>console.warn('BridgePoint real-world rendering controls unavailable',e));
+   void import('./world-v2300-realism.js?v=5947-control-recovery')
+    .then(m=>{window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world);if(!window.__BP_WORLD_REALISM_V5910__?.setEnabled)throw new Error('REALISM_API_NOT_INITIALIZED')})
+    .catch(e=>{window.__BP_MODULE_ERRORS_V5946__={...(window.__BP_MODULE_ERRORS_V5946__||{}),realism:String(e?.stack||e)};console.warn('BridgePoint real-world rendering controls unavailable',e)});
    void import('./world-v2300-clouds.js?v=5926-sky-clouds')
     .then(m=>{window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
     .catch(e=>console.warn('BridgePoint sky clouds unavailable',e));
