@@ -802,7 +802,7 @@ export function initWorld(options={}){
   return parts
  }
  function bridgeSourceFeatures(){let fs=[];try{fs=map.queryRenderedFeatures({layers:['gta-bridge-deck']})||[]}catch(_){fs=[]}if(!fs.length)try{fs=map.querySourceFeatures?.('ofm',{sourceLayer:'transportation',filter:['==',['get','brunnel'],'bridge'],validate:false})||[]}catch(_){fs=[]}return fs}
- function setBridge2DVisible(on){for(const id of ['gta-bridge-shadow','gta-bridge-deck','gta-bridge-centerline','gta-bridge-rails'])vis(map,id,on)}
+ function setBridge2DVisible(on){for(const id of ['gta-bridge-shadow','gta-bridge-deck','gta-bridge-center','gta-bridge-centerline','gta-bridge-rails'])vis(map,id,on)}
  function rebuildBridge3D(delay=MOBILE?420:(LOW?300:180),allowMotion=false){
   clearTimeout(bridge3dTimer);bridge3dTimer=setTimeout(()=>{
    const src=map.getSource('bpBridge3D'),z=map.getZoom();if(!src)return;
