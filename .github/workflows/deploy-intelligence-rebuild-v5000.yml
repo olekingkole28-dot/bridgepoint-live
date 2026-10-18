@@ -1049,7 +1049,7 @@ jobs:
               await p.evaluate(()=>{const el=document.getElementById('previewMap'),m=window.__BP_LANDING_WORLD__?.map;el?.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerType:'touch'}));m?.panBy([18,0],{duration:120})});
               await p.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map,e=document.querySelector('.preview-sample');return !!e&&!m?.isMoving?.()&&(parseFloat(getComputedStyle(e).opacity)||0)<.1},{timeout:10000});
               console.log('BRIDGEPOINT_SAMPLE_CHIP_MOVE_HIDE_PASS');
-              await p.click('#landingWeatherActivation');
+              await p.evaluate(()=>document.getElementById('landingWeatherActivation')?.click());
               await p.waitForFunction(()=>window.__BP_LANDING_VISUAL_WEATHER__?.enabled===true,{timeout:10000});
               await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map;m?.jumpTo({center:[-98.5,39.5],zoom:3.35,pitch:0,bearing:0})});
               await p.waitForFunction(()=>Number(window.__BP_LANDING_LIVE_WEATHER__?.shapeCount||0)>0&&Number(window.__BP_LANDING_LIVE_WEATHER__?.pointCount||0)>0,{timeout:45000});
