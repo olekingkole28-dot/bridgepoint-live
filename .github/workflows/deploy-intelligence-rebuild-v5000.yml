@@ -328,9 +328,12 @@ jobs:
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5938-lazy-overlays' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5938-lazy-overlays' site/landing.js
-          grep -Fq 'world-v2300-sensor-layers.js?v=5945-coastal-dive' site/app.js
-          grep -Fq 'world-v2300-sensor-layers.js?v=5945-coastal-dive' site/landing.js
+          grep -Fq 'world-v2300-sensor-layers.js?v=5946-source-status' site/app.js
+          grep -Fq 'world-v2300-sensor-layers.js?v=5946-source-status' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
+          grep -Fq 'nightTilesReady' site/world-v2300-sensor-layers.js
+          grep -Fq 'depthImageTilesReady' site/world-v2300-sensor-layers.js
+          grep -Fq 'GEBCO depth tile error' site/world-v2300-sensor-layers.js
           grep -Fq 'bridgepoint-nasa-nightlights-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'streetlight_poles' site/world-v2300-sensor-layers.js
           grep -Fq 'data-filter-category' site/world-v2300-time-slider.js
@@ -735,8 +738,8 @@ jobs:
           grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/app/index.html
           grep -Fq 'bridgepoint-view-v5917.js?v=5945-properties-fixed' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/index.html
-          grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/index.html
-           grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5946-source-status' site/index.html
+           grep -Fq 'intelligence-tools-v5507.js?v=5946-source-status' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/app/index.html
            grep -Fq 'bridgepoint-landmarks-v5940.js?v=5945-map-ready' site/index.html
