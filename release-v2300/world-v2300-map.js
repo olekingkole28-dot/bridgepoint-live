@@ -746,13 +746,13 @@ export function initWorld(options={}){
   }
   return output
  }
- function bridgeRampPath(end,inside,width,length,groundRoadLines){
-  let best=null,bestDistance=18;
+ function bridgeRampPath(end,inside,width,length,groundRoadLines,bridgeClass='road'){
+  let best=null,bestDistance=18;const bridgeKind=String(bridgeClass).toLowerCase(),railBridge=['rail','transit'].includes(bridgeKind),pedBridge=['path','footway','cycleway','steps','pedestrian'].includes(bridgeKind);
   for(const road of groundRoadLines){
-   const line=road.line;if(!Array.isArray(line)||line.length<2)continue;
+   const line=road.line;if(!Array.isArray(line)||line.length<2)continue;const groundClass=String(road.class||'').toLowerCase(),groundRail=['rail','transit'].includes(groundClass),groundPed=['path','footway','cycleway','steps','pedestrian'].includes(groundClass);if(railBridge!==groundRail||(!pedBridge&&groundPed)||(pedBridge&&!groundPed))continue;
    const d0=bridge3dMeters(end,line[0]),d1=bridge3dMeters(end,line[line.length-1]);
    const d=Math.min(d0,d1);
-   if(d<bestDistance){bestDistance=d;best={line:d0<=d1?line:line.slice().reverse(),distance:d,width:road.width||width}}
+   if(d<bestDistance){bestDistance=d;best={line:d0<=d1?line:line.slice().reverse(),distance:d,width:road.width||width,class:groundClass}}
   }
   if(best){
    const points=[end];let traveled=0,previous=end;
@@ -765,7 +765,7 @@ export function initWorld(options={}){
     points.push(point);traveled+=seg;previous=point;
     if(traveled>=length)break
    }
-   if(points.length>=3&&traveled>=Math.min(12,length*.45))return{points,length:traveled,groundWidth:best.width,source:'MAPPED_GROUND_ROAD_ENDPOINT',connectionDistanceM:best.distance}
+   if(points.length>=3&&traveled>=Math.min(12,length*.45))return{points,length:traveled,groundWidth:best.width,groundClass:best.class,source:'MAPPED_GROUND_ROAD_ENDPOINT',connectionDistanceM:best.distance}
   }
   const dist=bridge3dMeters(end,inside);
   if(dist<.1)return null;
@@ -773,7 +773,7 @@ export function initWorld(options={}){
   const mLon=111320*Math.max(.12,Math.cos(end[1]*Math.PI/180)),mLat=110540;
   const points=[end],steps=Math.max(6,Math.ceil(length/(MOBILE?6:3.5)));
   for(let i=1;i<=steps;i++){const d=length*i/steps;points.push([end[0]+dx*d/mLon,end[1]+dy*d/mLat])}
-  return{points,length,groundWidth:width,source:'STRAIGHT_CENTERLINE_ESTIMATE_FALLBACK',connectionDistanceM:null}
+  return{points,length,groundWidth:width,groundClass:'fallback',source:'STRAIGHT_CENTERLINE_ESTIMATE_FALLBACK',connectionDistanceM:null}
  }
  function bridgeApproachRampFeatures(line,width,base,common,connected={start:false,end:false},groundRoadLines=[]){
   if(!Array.isArray(line)||line.length<2||base<2.5)return[];
@@ -781,7 +781,7 @@ export function initWorld(options={}){
   for(const atStart of [true,false]){
    if(atStart?connected.start:connected.end)continue;
    const end=atStart?line[0]:line[line.length-1],inside=atStart?line[1]:line[line.length-2];
-   const approach=bridgeRampPath(end,inside,width,length,groundRoadLines);if(!approach)continue;
+   const approach=bridgeRampPath(end,inside,width,length,groundRoadLines,common?.bridge_class||'road');if(!approach)continue;
    const raw=approach.points,dense=[raw[0]];
    for(let j=1;j<raw.length;j++){
     const a=raw[j-1],b=raw[j],dist=bridge3dMeters(a,b),steps=Math.max(1,Math.ceil(dist/(MOBILE?6:3.5)));
@@ -795,7 +795,7 @@ export function initWorld(options={}){
     const top=.12+(base+.44)*(1-t);
     const fullWidth=width+(approach.groundWidth-width)*t;
     const poly=ribbonLinePoly([a,b],Math.max(1.35,fullWidth*.5));
-    if(poly)parts.push({type:'Feature',geometry:{type:'Polygon',coordinates:poly},properties:{...common,part:'bridge_ramp',base_m:0,deck_top_m:top,ramp_source:approach.source,ramp_length_m:Math.round(total),ramp_connection_distance_m:approach.connectionDistanceM==null?null:Math.round(approach.connectionDistanceM*10)/10,ramp_truth:approach.source==='MAPPED_GROUND_ROAD_ENDPOINT'?'MAPPED_GROUND_ROAD_CENTERLINE_CONNECTION_WITH_ESTIMATED_VERTICAL_PROFILE':'STRAIGHT_CENTERLINE_ESTIMATE_NOT_ENGINEERING_SURVEY'}});
+    if(poly)parts.push({type:'Feature',geometry:{type:'Polygon',coordinates:poly},properties:{...common,part:'bridge_ramp',base_m:0,deck_top_m:top,ramp_source:approach.source,ramp_ground_class:approach.groundClass,ramp_length_m:Math.round(total),ramp_connection_distance_m:approach.connectionDistanceM==null?null:Math.round(approach.connectionDistanceM*10)/10,ramp_truth:approach.source==='MAPPED_GROUND_ROAD_ENDPOINT'?'MAPPED_GROUND_ROAD_CENTERLINE_CONNECTION_WITH_ESTIMATED_VERTICAL_PROFILE':'STRAIGHT_CENTERLINE_ESTIMATE_NOT_ENGINEERING_SURVEY'}});
     traversed+=seg
    }
   }
