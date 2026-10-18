@@ -24,8 +24,9 @@ const CSS=`
 export function initRealismMode(target){
  const map=target?.map||target,container=map?.getContainer?.();
  if(!map||!container)return null;
- if(window.__BP_WORLD_REALISM_V5910__?.map===map)return window.__BP_WORLD_REALISM_V5910__;
- if(container.querySelector('#'+ROOT_ID))return window.__BP_WORLD_REALISM_V5910__||null;
+ if(window.__BP_WORLD_REALISM_V5910__?.map===map&&typeof window.__BP_WORLD_REALISM_V5910__?.setEnabled==='function')return window.__BP_WORLD_REALISM_V5910__;
+ const staleRoot=container.querySelector('#'+ROOT_ID);
+ if(staleRoot){const current=window.__BP_WORLD_REALISM_V5910__;if(current?.map===map&&typeof current.setEnabled==='function')return current;staleRoot.remove();}
  if(getComputedStyle(container).position==='static')container.style.position='relative';
  if(!document.getElementById(STYLE_ID)){const s=document.createElement('style');s.id=STYLE_ID;s.textContent=CSS.replaceAll('#liveMap',':is(#liveMap,#previewMap)');document.head.appendChild(s)}
  const root=document.createElement('section');root.id=ROOT_ID;root.setAttribute('aria-label','Real-world rendering controls');
