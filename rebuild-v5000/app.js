@@ -159,12 +159,12 @@ async function bootMap(){
   void import('./world-v2300-sensor-layers.js?v=5946-source-status')
    .then(m=>{window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)})
    .catch(e=>console.warn('BridgePoint NASA night lights, GEBCO depth and mapped streetlights unavailable',e));
- void import('./world-v2300-realism.js?v=5946-stale-recovery')
-  .then(m=>{window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)})
-  .catch(e=>console.warn('BridgePoint real-world rendering mode unavailable',e));
- void import('./gis-core-orchestrator-v5910.js?v=5946-stale-recovery')
-  .then(m=>{window.__BP_GIS_CORE_V5910__=m.initGisCore(world,rpc)})
-  .catch(e=>console.warn('BridgePoint GIS Core router unavailable',e));
+ void import('./world-v2300-realism.js?v=5947-control-recovery')
+  .then(m=>{window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world);if(!window.__BP_WORLD_REALISM_V5910__?.setEnabled)throw new Error('REALISM_API_NOT_INITIALIZED')})
+  .catch(e=>{window.__BP_MODULE_ERRORS_V5946__={...(window.__BP_MODULE_ERRORS_V5946__||{}),realism:String(e?.stack||e)};console.warn('BridgePoint real-world rendering mode unavailable',e)});
+ void import('./gis-core-orchestrator-v5910.js?v=5947-control-recovery')
+  .then(m=>{window.__BP_GIS_CORE_V5910__=m.initGisCore(world,rpc);if(!window.__BP_GIS_CORE_V5910__?.route)throw new Error('GIS_CORE_API_NOT_INITIALIZED')})
+  .catch(e=>{window.__BP_MODULE_ERRORS_V5946__={...(window.__BP_MODULE_ERRORS_V5946__||{}),gisCore:String(e?.stack||e)};console.warn('BridgePoint GIS Core router unavailable',e)});
  bindPerformanceGovernor();
  // V5614: register the lightweight weather-FX capability contract immediately.
  // Network fetches and active particle rendering stay behind the interaction/pressure governor.
