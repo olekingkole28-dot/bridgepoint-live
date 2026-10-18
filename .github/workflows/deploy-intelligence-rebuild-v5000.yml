@@ -1411,6 +1411,39 @@ jobs:
               if(!gizaPyramids.localThree||!gizaPyramids.footprintLayer||!gizaPyramids.layerAdded)throw new Error('GIZA_3D_PYRAMID_RENDERER_OR_ASSET_MISSING '+JSON.stringify(gizaPyramids));
               console.log('BRIDGEPOINT_GIZA_3D_PYRAMIDS_PASS',JSON.stringify(gizaPyramids));
 
+              await p.waitForFunction(()=>!!window.__BP_SENSOR_LAYERS_V5945__?.snapshot&&!!window.__BP_V5000_WORLD?.map?.isStyleLoaded(),{timeout:20000});
+              const sensorToggleSmoke=await p.evaluate(()=>{
+                const api=window.__BP_SENSOR_LAYERS_V5945__;
+                const before=api.snapshot();
+                api.toggleLights();
+                const lights=api.snapshot();
+                api.toggleLights();
+                api.toggleSurface();
+                const depth=api.snapshot();
+                api.toggleSurface();
+                const after=api.snapshot();
+                return {before,lights:{enabled:lights.lights,layer:lights.nightLayer,sourceLoaded:lights.nightTilesReady,error:lights.lastLayerError},
+                  depth:{enabled:depth.surface,layer:depth.depthLayer,source:depth.depthSource,imageTilesReady:depth.depthImageTilesReady,terrainTilesReady:depth.depthTerrainTilesReady,error:depth.lastLayerError},
+                  restored:{lights:after.lights,surface:after.surface,diving:after.diving}};
+              });
+              if(!sensorToggleSmoke.lights.enabled||!sensorToggleSmoke.lights.layer||
+                !sensorToggleSmoke.depth.enabled||!sensorToggleSmoke.depth.layer||!sensorToggleSmoke.depth.source||
+                sensorToggleSmoke.restored.lights||sensorToggleSmoke.restored.surface)throw new Error('SENSOR_LAYER_TOGGLE_FAILED '+JSON.stringify(sensorToggleSmoke));
+              console.log('BRIDGEPOINT_SENSOR_LAYER_TOGGLES_PASS',JSON.stringify(sensorToggleSmoke));
+
+              await p.click('#bp5507-tools > button');
+              await p.waitForFunction(()=>document.getElementById('bp5507-tool-panel')?.hidden===false&&!!document.querySelector('#bp5507-tool-panel [data-tool="FLIGHT_SIM"]'),{timeout:10000});
+              await p.click('#bp5507-tool-panel [data-tool="FLIGHT_SIM"]');
+              await p.waitForFunction(()=>window.__BP_FLIGHT_SIM_STATE_V5948__?.active===true&&!!document.querySelector('#bp5507-flight-cockpit .controls')&&!!document.querySelector('#bp5507-flight-cockpit [data-bank]'),{timeout:15000});
+              await p.click('#bp5507-flight-cockpit [data-turn="12"]');
+              await p.waitForFunction(()=>window.__BP_FLIGHT_SIM_STATE_V5948__?.active===true&&Number.isFinite(window.__BP_FLIGHT_SIM_STATE_V5948__?.targetHeading)&&!!document.querySelector('#bp5507-flight-cockpit [data-altitude]'),{timeout:5000});
+              const flightSmoke=await p.evaluate(()=>({state:window.__BP_FLIGHT_SIM_STATE_V5948__||null,cockpit:!!document.querySelector('#bp5507-flight-cockpit .glass'),
+                bankGauge:!!document.querySelector('#bp5507-flight-cockpit [data-bank]'),controls:[...document.querySelectorAll('#bp5507-flight-cockpit .controls button')].length}));
+              if(!flightSmoke.state?.active||flightSmoke.controls<8||!flightSmoke.cockpit||!flightSmoke.bankGauge)throw new Error('FLIGHT_SIM_COCKPIT_FAILED '+JSON.stringify(flightSmoke));
+              console.log('BRIDGEPOINT_FLIGHT_SIM_COCKPIT_PASS',JSON.stringify(flightSmoke));
+              await p.click('#bp5507-hud [data-exit]');
+              await p.waitForFunction(()=>window.__BP_FLIGHT_SIM_STATE_V5948__?.active===false,{timeout:5000});
+
               const severe=fatal.filter(x=>!/ResizeObserver loop/i.test(x));
               if(severe.length)throw new Error('ANDROID_PAGEERROR '+JSON.stringify(severe.slice(-5)));
               console.log('BRIDGEPOINT_V5410_ANDROID_SMOKE_PASS');
