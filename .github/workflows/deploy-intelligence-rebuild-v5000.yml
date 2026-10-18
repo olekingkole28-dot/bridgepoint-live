@@ -305,8 +305,8 @@ jobs:
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5938-lazy-overlays' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5938-lazy-overlays' site/landing.js
-          grep -Fq 'world-v2300-sensor-layers.js?v=5938-lazy-overlays' site/app.js
-          grep -Fq 'world-v2300-sensor-layers.js?v=5938-lazy-overlays' site/landing.js
+          grep -Fq 'world-v2300-sensor-layers.js?v=5945-coastal-dive' site/app.js
+          grep -Fq 'world-v2300-sensor-layers.js?v=5945-coastal-dive' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'bridgepoint-nasa-nightlights-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'streetlight_poles' site/world-v2300-sensor-layers.js
