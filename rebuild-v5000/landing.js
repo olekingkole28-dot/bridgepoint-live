@@ -268,7 +268,7 @@ async function initMap(){
   void import('./world-v2300-sensor-layers.js?v=5946-source-status')
    .then(m=>{window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)})
    .catch(e=>console.warn('BridgePoint NASA night lights, GEBCO depth and mapped streetlights unavailable',e));
-   void import('./world-v2300-realism.js?v=5926-world-sun-materials')
+   void import('./world-v2300-realism.js?v=5946-stale-recovery')
     .then(m=>{window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)})
     .catch(e=>console.warn('BridgePoint real-world rendering controls unavailable',e));
    void import('./world-v2300-clouds.js?v=5926-sky-clouds')
