@@ -800,6 +800,7 @@ jobs:
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/?v5410=${q}" -o /tmp/root.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app/?v5410=${q}" -o /tmp/app.html || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/app.js?v5910=${q}" -o /tmp/app.js || true
+            curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/bridgepoint-landmarks-v5940.js?v5940=${q}" -o /tmp/landmarks-v5940.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-map.js?v5628=${q}" -o /tmp/world-v2300-map.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-clouds.js?v5910=${q}" -o /tmp/world-v2300-clouds.js || true
             curl --retry 3 --retry-all-errors --retry-delay 1 -fsSL -H 'Cache-Control: no-cache' "${O}/world-v2300-time-slider.js?v5910=${q}" -o /tmp/world-v2300-time-slider.js || true
@@ -828,6 +829,8 @@ jobs:
               && grep -Fq 'toggleLiveContext' /tmp/app.html \
               && grep -Fq 'data-nosnippet' /tmp/app.html \
               && grep -Fq '__BP_APP_BUILD_VERSION__=5910' /tmp/app.js \
+              && grep -Fq 'window.__BP_LANDMARKS_V5940__' /tmp/landmarks-v5940.js \
+              && grep -Fq 'bp-v5940-statue-scan' /tmp/landmarks-v5940.js \
               && grep -Fq '__BP_WORLD_RENDER_VERSION__=5630' /tmp/world-v2300-map.js \
               && grep -Fq '__BP_SKY_CLOUDS_V5908__' /tmp/world-v2300-clouds.js \
               && grep -Fq 'bridgepoint_public_world_activity_v5927' /tmp/world-v2300-time-slider.js \
@@ -1073,6 +1076,39 @@ jobs:
               console.log('BRIDGEPOINT_RESPONSIVE_LANDING_PASS',JSON.stringify({phone,tablet,desktop}));
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
 
+              // Live landmark smoke: source route must materialize in map layers, and the Statue scan must finish drawing.
+              await p.waitForFunction(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map;
+                const a=window.__BP_LANDMARKS_V5940__;
+                return !!m&&a?.version===5940&&Number(a.attachedMaps)>=1&&!!m.getLayer('bp-v5940-wall-route-line');
+              },{timeout:25000});
+              const savedLandmarkCamera=await p.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map;if(!m)return null;
+                const c=m.getCenter();const saved={center:[c.lng,c.lat],zoom:m.getZoom(),pitch:m.getPitch(),bearing:m.getBearing()};
+                m.jumpTo({center:[116.017,40.356],zoom:6.2,pitch:28,bearing:0});return saved;
+              });
+              if(!savedLandmarkCamera)throw new Error('LANDMARK_PUBLIC_MAP_MISSING');
+              await p.waitForFunction(()=>Number(window.__BP_GREAT_WALL_V5940__?.routeFeatures||0)>0,{timeout:60000});
+              const wallSmoke=await p.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map;let rendered=0;
+                try{rendered=m?.queryRenderedFeatures({layers:['bp-v5940-wall-route-line']}).length||0}catch(_){}
+                return {version:window.__BP_LANDMARKS_V5940__?.version||0,layer:!!m?.getLayer('bp-v5940-wall-route-line'),renderedRouteFeatures:rendered,state:window.__BP_GREAT_WALL_V5940__||null};
+              });
+              if(!wallSmoke.layer||Number(wallSmoke.state?.routeFeatures)<1)throw new Error('GREAT_WALL_ROUTE_MATERIALIZATION_FAILED '+JSON.stringify(wallSmoke));
+              console.log('BRIDGEPOINT_GREAT_WALL_LANDMARK_PASS',JSON.stringify(wallSmoke));
+              await p.evaluate(()=>window.__BP_LANDING_WORLD__?.map?.jumpTo({center:[-74.044643,40.689211],zoom:15.1,pitch:50,bearing:-20}));
+              await p.waitForFunction(()=>{
+                const s=window.__BP_STATUE_SCAN_V5940__;const m=window.__BP_LANDING_WORLD__?.map;
+                return !!s&&(s.rendered===true||!!s.renderError||s.status==='scan-load-failed'||s.status==='threejs-import-failed')&&(!!m?.getLayer('bp-v5940-statue-scan')||!!s.renderError||s.status==='scan-load-failed'||s.status==='threejs-import-failed');
+              },{timeout:120000});
+              const statueSmoke=await p.evaluate(()=>{
+                const s=window.__BP_STATUE_SCAN_V5940__;const m=window.__BP_LANDING_WORLD__?.map;
+                return {status:s?.status||'missing',rendered:s?.rendered===true,renderError:s?.renderError||null,layer:!!m?.getLayer('bp-v5940-statue-scan'),officialHeightM:s?.officialHeightM||93,source:s?.source||''};
+              });
+              if(statueSmoke.status!=='loaded-source-scan'||!statueSmoke.rendered||!statueSmoke.layer)throw new Error('STATUE_3D_SCAN_MATERIALIZATION_FAILED '+JSON.stringify(statueSmoke));
+              console.log('BRIDGEPOINT_STATUE_3D_SCAN_PASS',JSON.stringify(statueSmoke));
+              await p.evaluate(saved=>{if(saved)window.__BP_LANDING_WORLD__?.map?.jumpTo({center:saved.center,zoom:saved.zoom,pitch:saved.pitch,bearing:saved.bearing})},savedLandmarkCamera);
+
               const report=await p.goto('https://bridgepointintelligence.online/sample/storm-opportunity/?qa='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               if(!report||report.status()>=400)throw new Error('SAMPLE_REPORT_HTTP_'+report?.status());
               const reportText=await p.evaluate(()=>document.body.innerText);
@@ -1106,6 +1142,11 @@ jobs:
                 throw e;
               }
               await p.waitForFunction(()=>window.__BP_WORLD_RENDER_VERSION__===5630&&!!window.__BP_V5000_WORLD?.map,{timeout:35000});
+              await p.waitForFunction(()=>{
+                const m=window.__BP_V5000_WORLD?.map;const a=window.__BP_LANDMARKS_V5940__;
+                return !!m&&a?.version===5940&&Number(a.attachedMaps)>=1&&!!m.getLayer('bp-v5940-wall-route-line');
+              },{timeout:25000});
+              console.log('BRIDGEPOINT_APP_LANDMARK_RUNTIME_PASS',JSON.stringify({version:window.__BP_LANDMARKS_V5940__?.version,attachedMaps:window.__BP_LANDMARKS_V5940__?.attachedMaps,wallLayer:!!window.__BP_V5000_WORLD?.map?.getLayer('bp-v5940-wall-route-line')}));
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
               await p.waitForFunction(()=>!!window.__BP_SKY_CLOUDS_V5908__&&!!window.__BP_WORLD_TIME_SLIDER_V5908__&&!!document.getElementById('bp-world-time-slider-v5908'),{timeout:20000});
               await p.waitForFunction(()=>!!window.__BP_SPECTRAL_IMAGERY_V5931__?.available&&!!document.querySelector('#liveMap #bp-spectral-imagery-v5931 [data-toggle]'),{timeout:20000});
