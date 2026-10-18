@@ -1175,7 +1175,8 @@ jobs:
                 const m=window.__BP_V5000_WORLD?.map;const a=window.__BP_LANDMARKS_V5940__;
                 return !!m&&a?.version===5940&&Number(a.attachedMaps)>=1&&!!m.getLayer('bp-v5940-wall-route-line');
               },{timeout:25000});
-              console.log('BRIDGEPOINT_APP_LANDMARK_RUNTIME_PASS',JSON.stringify({version:window.__BP_LANDMARKS_V5940__?.version,attachedMaps:window.__BP_LANDMARKS_V5940__?.attachedMaps,wallLayer:!!window.__BP_V5000_WORLD?.map?.getLayer('bp-v5940-wall-route-line')}));
+              const appLandmarkRuntime=await p.evaluate(()=>({version:window.__BP_LANDMARKS_V5940__?.version,attachedMaps:window.__BP_LANDMARKS_V5940__?.attachedMaps,wallLayer:!!window.__BP_V5000_WORLD?.map?.getLayer('bp-v5940-wall-route-line')}));
+              console.log('BRIDGEPOINT_APP_LANDMARK_RUNTIME_PASS',JSON.stringify(appLandmarkRuntime));
               await p.waitForFunction(()=>document.querySelectorAll('#liveMap canvas').length===1,{timeout:25000});
               await p.waitForFunction(()=>!!window.__BP_SKY_CLOUDS_V5908__&&!!window.__BP_WORLD_TIME_SLIDER_V5908__&&!!document.getElementById('bp-world-time-slider-v5908'),{timeout:20000});
               await p.waitForFunction(()=>!!window.__BP_SPECTRAL_IMAGERY_V5931__?.available&&!!document.querySelector('#liveMap #bp-spectral-imagery-v5931 [data-toggle]'),{timeout:20000});
