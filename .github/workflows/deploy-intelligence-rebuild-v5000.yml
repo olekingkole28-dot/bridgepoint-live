@@ -345,8 +345,8 @@ jobs:
           grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/index.html
           grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/app/index.html
           grep -Fq 'Subsurface + Ocean-Depth X-Ray' site/bridgepoint-map-key-v5920.js
-          grep -Fq 'world-v2300-realism.js?v=5910-world-materials' site/app.js
-          grep -Fq 'gis-core-orchestrator-v5910.js?v=5910-gis-router' site/app.js
+          grep -Fq 'world-v2300-realism.js?v=5946-stale-recovery' site/app.js
+          grep -Fq 'gis-core-orchestrator-v5910.js?v=5946-stale-recovery' site/app.js
           grep -Fq 'PUBLIC_AUTO_MIN_ZOOM=4' site/parcel-boundary-viewer-v5403.js
           grep -Fq 'PUBLIC_AUTO_MAX_ZOOM=22' site/parcel-boundary-viewer-v5403.js
           grep -Fq 'bpv-world-activity-slot' site/bridgepoint-view-v5917.js
@@ -725,8 +725,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=5945-coastal-dive' site/app/index.html
-          grep -Fq 'landing.js?v=5945-coastal-dive' site/index.html
+          grep -Fq 'app.js?v=5946-stale-recovery' site/app/index.html
+          grep -Fq 'landing.js?v=5946-stale-recovery' site/index.html
            grep -Fq 'world-v2300-map.js?v=5948-water-surface' site/app.js
            grep -Fq 'world-v2300-map.js?v=5948-water-surface' site/landing.js
            grep -Fq 'world-v2300-map.js?v=5948-water-surface' site/index.html
@@ -1024,8 +1024,8 @@ jobs:
               console.log('BRIDGEPOINT_WALKTHROUGH_DISABLED_PASS',JSON.stringify({landingTour,appTour}));
               const fatal=[];p.on('pageerror',e=>{fatal.push(String(e.message||e));console.log('BROWSER_PAGEERROR',String(e.stack||e.message||e))});
               p.on('console',m=>{const t=m.text();if(/BridgePoint|premium|global runtime|module|Failed to load|SyntaxError|ReferenceError|TypeError/i.test(t))console.log('BROWSER_CONSOLE',m.type(),t)});
-              p.on('requestfailed',req=>{const u=req.url();if(/intelligence-(tools|global)-v5507\.js/.test(u))console.log('BROWSER_REQUEST_FAILED',u,JSON.stringify(req.failure()||{}))});
-              p.on('response',res=>{const u=res.url();if(/intelligence-(tools|global)-v5507\.js/.test(u))console.log('BROWSER_MODULE_RESPONSE',res.status(),res.headers()['content-type']||'',u)});
+              p.on('requestfailed',req=>{const u=req.url();if(/intelligence-(tools|global)-v5507\.js|world-v2300-realism\.js|gis-core-orchestrator-v5910\.js/.test(u))console.log('BROWSER_REQUEST_FAILED',u,JSON.stringify(req.failure()||{}))});
+              p.on('response',res=>{const u=res.url();if(/intelligence-(tools|global)-v5507\.js|world-v2300-realism\.js|gis-core-orchestrator-v5910\.js/.test(u))console.log('BROWSER_MODULE_RESPONSE',res.status(),res.headers()['content-type']||'',u)});
               p.on('response',res=>{if(res.status()>=400)console.log('BROWSER_HTTP_ERROR',res.status(),res.url())});
 
               await p.goto('https://bridgepointintelligence.online/?qa=v5400-'+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
@@ -1237,7 +1237,7 @@ jobs:
               });
               if(!basemapModeSmoke.ok)throw new Error('GLOBAL_BASEMAP_MODE_SMOKE_FAILED '+JSON.stringify(basemapModeSmoke));
               console.log('BRIDGEPOINT_GLOBAL_BASEMAP_MODES_PASS',JSON.stringify(basemapModeSmoke));
-              await p.waitForFunction(()=>!!window.__BP_WORLD_REALISM_V5910__?.setEnabled&&!!document.getElementById('bp-world-realism-v5910')&&!!window.__BP_GIS_CORE_V5910__?.route&&!!document.getElementById('bp-gis-core-v5910'),{timeout:20000});
+              await p.waitForFunction(()=>!!window.__BP_WORLD_REALISM_V5910__?.setEnabled&&!!document.getElementById('bp-world-realism-v5910')&&!!window.__BP_GIS_CORE_V5910__?.route&&!!document.getElementById('bp-gis-core-v5910'),{timeout:20000}).catch(async err=>{const d=await p.evaluate(()=>({map:!!window.__BP_V5000_WORLD?.map,realism:!!window.__BP_WORLD_REALISM_V5910__?.setEnabled,realismRoot:!!document.getElementById('bp-world-realism-v5910'),gis:!!window.__BP_GIS_CORE_V5910__?.route,gisRoot:!!document.getElementById('bp-gis-core-v5910'),moduleErrors:window.__BP_MODULE_ERRORS_V5946__||null}));throw new Error('REALISM_GIS_BOOT_FAILED '+JSON.stringify(d)+' '+String(err?.message||err))});
               await p.waitForFunction(()=>!!window.__BP_INTELLIGENCE_GLOBAL_RUNTIME_V5507__&&!!window.__BP_INTELLIGENCE_PREMIUM_TOOLS_V5507__,{timeout:30000});
               await p.waitForFunction(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
