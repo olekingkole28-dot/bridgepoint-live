@@ -1345,6 +1345,24 @@ jobs:
               // Deployment smoke stops at the rendered-building click contract.
               // The dedicated Android Building Inspector workflow is the deep panel/marker gate.
               console.log('BRIDGEPOINT_BUILDING_CLICK_PASS',JSON.stringify(clicked));
+              await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                if(!m)throw new Error('PYRAMID_SMOKE_MAP_UNAVAILABLE');
+                m.jumpTo({center:[31.1322,29.9763],zoom:14.2,pitch:40,bearing:0});
+              });
+              await p.waitForFunction(()=>{
+                const s=window.__BP_PYRAMIDS_V5945__;
+                return s?.version===5945&&s.attachedMaps>=1&&!!s.footprintLayer&&!!s.layerAdded&&s.pyramids?.khufu?.rendered===true&&s.pyramids?.khafre?.rendered===true&&s.pyramids?.menkaure?.rendered===true;
+              },{timeout:45000});
+              const gizaPyramids=await p.evaluate(()=>{
+                const s=window.__BP_PYRAMIDS_V5945__,m=window.__BP_V5000_WORLD?.map;
+                return{version:s?.version,status:s?.status,attachedMaps:s?.attachedMaps,footprintLayer:!!s?.footprintLayer,layerAdded:!!m?.getLayer('bp-v5945-pyramids-3d'),rendered:s?.rendered,
+                  khufu:s?.pyramids?.khufu||null,khafre:s?.pyramids?.khafre||null,menkaure:s?.pyramids?.menkaure||null,
+                  localThree:performance.getEntriesByType('resource').some(r=>r.name.includes('/vendor/three.module.js'))};
+              });
+              for(const id of ['khufu','khafre','menkaure'])if(!gizaPyramids[id]||!gizaPyramids[id].rendered)throw new Error('GIZA_3D_PYRAMID_NOT_RENDERED '+id+' '+JSON.stringify(gizaPyramids));
+              if(!gizaPyramids.localThree||!gizaPyramids.footprintLayer||!gizaPyramids.layerAdded)throw new Error('GIZA_3D_PYRAMID_RENDERER_OR_ASSET_MISSING '+JSON.stringify(gizaPyramids));
+              console.log('BRIDGEPOINT_GIZA_3D_PYRAMIDS_PASS',JSON.stringify(gizaPyramids));
 
               const severe=fatal.filter(x=>!/ResizeObserver loop/i.test(x));
               if(severe.length)throw new Error('ANDROID_PAGEERROR '+JSON.stringify(severe.slice(-5)));
