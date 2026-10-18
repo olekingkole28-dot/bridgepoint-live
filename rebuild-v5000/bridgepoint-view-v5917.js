@@ -215,7 +215,7 @@ function refreshSlotLabels(){
  const sTitle=$('#bpv-property-title'),sKey=$('#bpv-property-key');
  if(sTitle)sTitle.textContent=label;
  if(sKey)sKey.textContent=selected.id?'BridgePoint building ID · '+selected.id:'BridgePoint building selection · source ID pending';
- const slotStatus=(key,text)=>$('[data-bpv-slot-status="'+key+'"]').forEach(el=>{if(el.textContent!==text)el.textContent=text});
+ const slotStatus=(key,text)=>$$('[data-bpv-slot-status="'+key+'"]').forEach(el=>{if(el.textContent!==text)el.textContent=text});
  const props=selected.feature?.properties||{};
  const hasPart=Number(props.part_count||props.building_part_count||0)>0;
  const hasRoof=!!(props.roof_type||props.roof_geometry||props.roof_planes||props.roof_area_m2||props.roof_area_sqft);
