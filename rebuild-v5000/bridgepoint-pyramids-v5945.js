@@ -30,7 +30,7 @@
     },
     {
       id: 'khafre', name: 'Pyramid of Khafre', short: 'KHAFRE',
-      coordinates: [31.13074, 29.97599], osmWay: 4420396,
+      coordinates: [31.13074, 29.97599], osmWay: null,
       baseWidthM: 215.25, baseDepthM: 215.25,
       currentHeightM: 136.4, originalHeightM: 143.5,
       slopeDegrees: 53.13, topCasing: true, graniteBaseM: 1.5,
@@ -125,7 +125,7 @@
         base_area_m2: Math.round(item.baseWidthM * item.baseDepthM),
         slope_degrees: item.slopeDegrees, core_material: item.coreMaterial,
         casing_material: item.casingMaterial, osm_way: item.osmWay,
-        coordinate_source: 'OpenStreetMap building feature centroid',
+        coordinate_source: item.osmWay ? 'OpenStreetMap building feature centroid (way ' + item.osmWay + ')' : 'OpenStreetMap-derived map centroid; way ID not independently confirmed',
         source_dimensions: item.sourceDimensions
       },
       geometry: { type: 'Polygon', coordinates: [corners] }
@@ -148,6 +148,7 @@
 
   function installStyle(map, state) {
     if (!map || state.installing || !map.getStyle || !map.getStyle()) return;
+    if (state.layerRequested && !map.getLayer('bp-v5945-pyramids-3d')) { state.layerRequested = false; state.layerAdded = false; state.modelReady = false; }
     state.installing = true;
     try {
       ensureSource(map, 'bp-v5945-pyramid-footprints', EMPTY);
@@ -239,7 +240,7 @@
     }
     root.appendChild(dl);
     const note = document.createElement('small');
-    note.textContent = 'Footprint centroid: OSM way ' + item.osmWay + '. The sides are cardinal-aligned in the model. Published dimensions differ slightly between references; values shown here are recorded in the layer metadata. This is a procedural present-day silhouette, not a laser scan or reconstruction of every stone.';
+    note.textContent = 'Footprint center: ' + (item.osmWay ? 'OpenStreetMap way ' + item.osmWay : 'OpenStreetMap-derived place centroid') + '. The sides are cardinal-aligned in the model. Published dimensions differ slightly between references; values shown here are recorded in the layer metadata. This is a procedural present-day silhouette, not a laser scan or reconstruction of every stone.';
     root.appendChild(note);
     popup.setLngLat(item.coordinates).setDOMContent(root).addTo(map);
   }
@@ -270,14 +271,17 @@
     };
   }
 
+  const STONE_TEXTURES = new Map();
   function stoneTexture(THREE, item, granite = false) {
+    const textureKey = granite ? 'shared-granite' : 'shared-limestone';
+    if (STONE_TEXTURES.has(textureKey)) return STONE_TEXTURES.get(textureKey);
     const canvas = document.createElement('canvas');
-    canvas.width = 1024; canvas.height = 1024;
+    canvas.width = 512; canvas.height = 512;
     const ctx = canvas.getContext('2d');
     const rng = seededRandom(item.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) + (granite ? 711 : 0));
     const base = granite ? [132, 76, 57] : [197, 171, 126];
     ctx.fillStyle = 'rgb(' + base.join(',') + ')'; ctx.fillRect(0, 0, 1024, 1024);
-    const cols = granite ? 44 : 66, rows = Math.max(48, Math.round(item.currentHeightM / (granite ? 0.8 : 1.1)));
+    const cols = granite ? 30 : 42, rows = 60;
     const cw = 1024 / cols, ch = 1024 / rows;
     for (let row = 0; row < rows; row++) {
       let x = row % 2 ? -cw * 0.5 : 0;
@@ -312,7 +316,7 @@
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 2;
-    textureRefs.add(texture);
+    textureRefs.add(texture); STONE_TEXTURES.set(textureKey, texture);
     return texture;
   }
 
@@ -453,7 +457,7 @@
           mapRef.triggerRepaint();
         },
         render(gl, args) {
-          if (!inGizaView(this.map, LABEL_ZOOM) || !this.models) return;
+          if (!inGizaView(this.map, RENDER_ZOOM) || !this.models) return;
           try {
             const projection = new THREE.Matrix4().fromArray(args.defaultProjectionData.mainMatrix);
             this.renderer.resetState();
@@ -511,7 +515,7 @@
     }
     window.__BP_PYRAMIDS_V5945__ = {
       version: VERSION, status, coordinatesCrs: 'EPSG:4326', geometry: 'procedural Three.js 3D pyramid meshes',
-      loadedOnDemand: true, gizaBounds: GIZA_BOUNDS, modelReady: !!(STATES.get(map || null)?.modelReady),
+      loadedOnDemand: true, gizaBounds: GIZA_BOUNDS, attachedMaps: MAPS.size, modelReady: !!(map && STATES.get(map)?.modelReady),
       footprintLayer: !!(map && map.getLayer && map.getLayer('bp-v5945-pyramid-hit')),
       layerAdded: !!(map && map.getLayer && map.getLayer('bp-v5945-pyramids-3d')),
       rendered: PYRAMIDS.some(p => pyramids[p.id].rendered), source: 'OpenStreetMap feature centroids + published architectural dimensions',
@@ -540,6 +544,7 @@
   function attachMap(map) {
     if (!map || STATES.has(map)) return;
     MAPS.add(map);
+    if (window.__BP_PYRAMIDS_V5945__) window.__BP_PYRAMIDS_V5945__.attachedMaps = MAPS.size;
     const state = {
       styleReady: false, installing: false, listeners: false, timer: 0,
       layerRequested: false, layerAdded: false, modelReady: false,
