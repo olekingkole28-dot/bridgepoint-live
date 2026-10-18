@@ -692,7 +692,7 @@ jobs:
           grep -Fq 'bridgepoint-view-v5917.css?v=5941-dark-glass-controls' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=5941-dark-glass-controls' site/app/index.html
           grep -Fq 'bridgepoint-view-v5917.js?v=5939-demand-only' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=5939-demand-only' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=5941-dark-glass-controls' site/index.html
           grep -Fq 'bottomNav' site/app/index.html
           grep -Fq 'bindPerformanceGovernor' site/app.js
           grep -Fq '__BP_MAP_CLICK_FASTPATH_V5557__' site/app.js
