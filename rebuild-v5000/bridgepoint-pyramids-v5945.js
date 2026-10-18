@@ -33,7 +33,7 @@
       coordinates: [31.13074, 29.97599], osmWay: null,
       baseWidthM: 215.25, baseDepthM: 215.25,
       currentHeightM: 136.4, originalHeightM: 143.5,
-      slopeDegrees: 53.13, topCasing: true, graniteBaseM: 1.5,
+      slopeDegrees: 53.1667, topCasing: true, graniteBaseM: 1.5,
       coreMaterial: 'local limestone blocks',
       casingMaterial: 'polished Tura limestone casing preserved on the upper portion; pink granite at the bottom course',
       finish: 'weathered limestone courses with surviving upper casing',
@@ -428,6 +428,7 @@
         }
       }
       if (layer.renderer) layer.renderer.dispose();
+      STONE_TEXTURES.clear(); textureRefs.clear();
     } catch (_) {}
   }
 
