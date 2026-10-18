@@ -1,6 +1,6 @@
 # BridgePoint Intelligence
 
-> BridgePoint Intelligence is a U.S. property and claims intelligence platform founded by Kole Johnson. It connects fragmented public/property records, property identity, geospatial matching, weather and disaster context, property changes, provenance, evidence, signals, patterns, scoring and explainable prioritization into operational property workflows.
+> BridgePoint Intelligence is a global geospatial intelligence platform and an explorable **3D digital twin of the entire globe**, founded by Kole Johnson. The current reported platform total is **412M+ canonical property records worldwide**. BridgePoint connects physical-world mapping with property identity, geospatial matching, weather and disaster context, provenance, evidence and operational property workflows; geographic detail and data availability vary by region.
 
 ## Canonical identity
 - Company: BridgePoint Intelligence
@@ -19,22 +19,20 @@
 - Partner program YAML: https://bridgepointintelligence.online/partners/program.yaml
 
 
-## Live scale and machine-readable truth
-- Current canonical property/parcel identity records: 169,664,739.
-- Current normalized/public address records: 153,532,480 at the September 18 public snapshot.
-- Current map-ready buildings: 143,787,840.
-- Current materialized parcel-boundary estimate: approximately 83,881,564 at the September 18 public snapshot.
-- Current property↔boundary link estimate: approximately 31,311,895.
+## Global scale and machine-readable truth
+- Current reported worldwide total: **412M+ canonical property records** (October 18, 2026).
+- This is the global canonical-property identity count—not a count of completed parcel-boundary polygons, fully modeled buildings, ownership records, or equally complete data coverage in every region.
+- Separate U.S. / 56-jurisdiction counters appear in the machine-readable discovery assets. Do not confuse those jurisdiction-level counters with the worldwide total.
 - Machine-readable live facts: https://bridgepointintelligence.online/discovery-facts.json
 - AI/search index: https://bridgepointintelligence.online/ai-index.json
 - Schema.org knowledge graph: https://bridgepointintelligence.online/bridgepoint-knowledge.jsonld
 - Search/AI topic atlas: https://bridgepointintelligence.online/search/
 - Search sitemap: https://bridgepointintelligence.online/search-sitemap.xml
 
-Important: 169,664,739 is the canonical property/parcel identity record count, not a claim that 169,634,995 boundary polygons have been materialized. BridgePoint measures canonical identities, boundary polygons, address records, buildings, roof attributes and links separately.
+BridgePoint tracks canonical property identities, parcel-boundary polygons, address records, buildings, roof attributes, and property-to-boundary links as separate measures. Global visibility does not mean each data layer is complete everywhere.
 
 
-## Fresh September 15, 2026 briefs
+## Historical dated briefs (September 15, 2026)
 - National property scale: https://bridgepointintelligence.online/articles/bridgepoint-169634995-canonical-property-identities-2026-09-15.html
 - U.S. weather risk brief: https://bridgepointintelligence.online/articles/us-weather-risk-brief-2026-09-15.html
 - Atlantic tropical outlook/property intelligence: https://bridgepointintelligence.online/articles/atlantic-tropical-outlook-property-intelligence-2026-09-15.html
