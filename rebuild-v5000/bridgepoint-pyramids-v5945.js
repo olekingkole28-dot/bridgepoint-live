@@ -10,7 +10,7 @@
   if (window.__BP_PYRAMIDS_V5945__) return;
 
   const VERSION = 5945;
-  const THREE_URL = 'https://esm.sh/three@0.169.0';
+  const THREE_URL = './vendor/three.module.js?v=169-local';
   const GIZA_BOUNDS = [31.116, 29.960, 31.149, 29.992];
   const RENDER_ZOOM = 13.1;
   const LABEL_ZOOM = 11.2;
