@@ -349,3 +349,95 @@ body.bpv-view-ready .bpv-topbar-persistent{
 #bpv-sidecar input::placeholder,#bpv-sidecar textarea::placeholder{color:#7394a5;opacity:1}
 #bpv-sidecar input:focus,#bpv-sidecar textarea:focus,#bpv-sidecar select:focus{border-color:rgba(98,230,255,.76);box-shadow:0 0 0 2px rgba(98,230,255,.12),inset 0 1px 0 rgba(255,255,255,.04)}
 #bpv-sidecar textarea{resize:vertical;min-height:74px}
+
+
+/* V5940: unify card actions, filters, and failure/option controls with BridgePoint's dark glass UI. */
+#bpv-sidecar button,
+#previewCard button,
+body.bpv-app .building-panel button,
+body.bpv-app .system-panel button,
+body.bpv-home .system-panel button,
+body.bpv-home .map-tools button,
+body.bpv-app .map-tools button,
+#bpv-sidecar [role="button"] {
+  appearance:none!important;
+  -webkit-appearance:none!important;
+  border:1px solid rgba(117,234,255,.26)!important;
+  border-radius:10px!important;
+  background:linear-gradient(140deg,rgba(15,48,63,.96),rgba(6,23,35,.98))!important;
+  color:#dff9ff!important;
+  box-shadow:inset 0 1px rgba(255,255,255,.045),0 4px 12px rgba(0,0,0,.16)!important;
+  font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif!important;
+  font-weight:800!important;
+  text-shadow:none!important;
+  transition:background .16s ease,border-color .16s ease,box-shadow .16s ease,transform .16s ease!important;
+}
+#bpv-sidecar button:hover,
+#previewCard button:hover,
+body.bpv-app .building-panel button:hover,
+body.bpv-app .system-panel button:hover,
+body.bpv-home .system-panel button:hover,
+body.bpv-home .map-tools button:hover,
+body.bpv-app .map-tools button:hover,
+#bpv-sidecar [role="button"]:hover {
+  border-color:rgba(117,234,255,.66)!important;
+  background:linear-gradient(140deg,rgba(22,87,111,.98),rgba(9,40,57,.99))!important;
+  box-shadow:0 0 0 2px rgba(117,234,255,.07),0 7px 18px rgba(0,0,0,.24)!important;
+}
+#bpv-sidecar button:active,
+#previewCard button:active,
+body.bpv-app .building-panel button:active,
+body.bpv-app .system-panel button:active {transform:translateY(1px)!important}
+#bpv-sidecar button:focus-visible,
+#previewCard button:focus-visible,
+body.bpv-app .building-panel button:focus-visible,
+body.bpv-app .system-panel button:focus-visible {
+  outline:2px solid rgba(117,234,255,.9)!important;
+  outline-offset:2px!important;
+}
+#bpv-sidecar button[aria-pressed="true"],
+#bpv-sidecar button[aria-selected="true"],
+#bpv-sidecar button[data-active="true"],
+#previewCard button[aria-pressed="true"],
+body.bpv-app .map-tools button[aria-pressed="true"] {
+  border-color:rgba(102,240,181,.66)!important;
+  background:linear-gradient(135deg,rgba(14,99,77,.94),rgba(8,50,52,.98))!important;
+  color:#d1ffed!important;
+}
+#bpv-sidecar button:disabled,
+#previewCard button:disabled,
+body.bpv-app .building-panel button:disabled,
+body.bpv-app .system-panel button:disabled {
+  opacity:.48!important;
+  cursor:not-allowed!important;
+  box-shadow:none!important;
+}
+#bpv-sidecar #bpv-panel-close {
+  flex:0 0 auto!important;
+  width:32px!important;
+  min-width:32px!important;
+  min-height:32px!important;
+  padding:0!important;
+  border-radius:10px!important;
+  background:rgba(9,26,37,.95)!important;
+  color:#c2ebf5!important;
+  font-size:20px!important;
+  line-height:1!important;
+}
+#bpv-sidecar .bpv-sidecar-tabs button {
+  min-height:34px!important;
+  padding:8px 10px!important;
+  letter-spacing:.04em!important;
+  overflow-wrap:anywhere;
+}
+@media(max-width:700px){
+  #bpv-sidecar button,#previewCard button,
+  body.bpv-app .building-panel button,body.bpv-app .system-panel button,
+  body.bpv-home .system-panel button,body.bpv-home .map-tools button,
+  body.bpv-app .map-tools button,#bpv-sidecar [role="button"] {
+    min-height:31px!important;
+    padding:7px 8px!important;
+    border-radius:9px!important;
+    font-size:10px!important;
+  }
+}
