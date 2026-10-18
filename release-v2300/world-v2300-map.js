@@ -730,11 +730,12 @@ export function initWorld(options={}){
  function bridge3dMeters(a,b){const lat=((a?.[1]||0)+(b?.[1]||0))*.5*Math.PI/180,dx=((b?.[0]||0)-(a?.[0]||0))*111320*Math.cos(lat),dy=((b?.[1]||0)-(a?.[1]||0))*110540;return Math.hypot(dx,dy)}
  function bridgePointAlong(line,distance){let left=distance;for(let i=1;i<line.length;i++){const a=line[i-1],b=line[i],len=bridge3dMeters(a,b);if(len<.05)continue;if(left<=len){const t=left/len;return[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]}left-=len}return line[line.length-1]?.slice(0,2)||null}
  function bridgeLineLength(line){let total=0;for(let i=1;i<line.length;i++)total+=bridge3dMeters(line[i-1],line[i]);return total}
- function bridgeApproachRampFeatures(line,width,base,common){
+ function bridgeApproachRampFeatures(line,width,base,common,connected={start:false,end:false}){
   if(!Array.isArray(line)||line.length<2||base<2.5)return[];
   const length=bridgeLineLength(line);if(length<35)return[];
-  const parts=[],segments=4,rampLength=Math.min(24,Math.max(15,length*.16));
+  const parts=[],segments=MOBILE?4:6,rampLength=Math.min(24,Math.max(15,length*.16));
   for(const atStart of [true,false]){
+   if(atStart?connected.start:connected.end)continue;
    const end=atStart?line[0]:line[line.length-1],inside=atStart?line[1]:line[line.length-2],dist=bridge3dMeters(end,inside);if(dist<.1)continue;
    const dx=(end[0]-inside[0])/dist,dy=(end[1]-inside[1])/dist;
    const mLon=111320*Math.max(.12,Math.cos(end[1]*Math.PI/180)),mLat=110540;
@@ -742,7 +743,7 @@ export function initWorld(options={}){
    for(let i=0;i<segments;i++){
     const a=pointAt(rampLength*i/segments),b=pointAt(rampLength*(i+1)/segments),poly=ribbonLinePoly([a,b],Math.max(1.5,width*.5));
     if(!poly)continue;
-    const height=i===segments-1?.12:Math.max(.12,base*(1-(i+1)/segments));
+    const height=.12+(base+.44)*(1-i/(segments-1));
     parts.push({type:'Feature',geometry:{type:'Polygon',coordinates:poly},properties:{...common,part:'bridge_ramp',base_m:0,deck_top_m:height,ramp_truth:'CENTERLINE_DERIVED_APPROACH_NOT_ENGINEERING_SURVEY'}});
    }
   }
@@ -1275,7 +1276,7 @@ export function initWorld(options={}){
   try{
    const usable=map.isStyleLoaded?.()===true;
    if(!usable)return false;
-   installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();bindBuildingHitLayers();setBase('gta');disableFineDetail();try{for(const id of ['gta-bridge3d-pier','gta-bridge3d-deck','gta-bridge3d-surface','gta-bridge3d-center','gta-bridge3d-rail'])if(map.getLayer(id)&&map.getLayer('gta-country'))map.moveLayer(id,'gta-country')}catch(_){};rebuildLandmark3D(0);rebuildBridge3D(0);startParcelFlow();syncBuildingShells();
+   installBridgePointIcons(map);installBuildingMaterials(map);installWorldMaterials(map);sky();terrain();bindUI();bindBuildingHitLayers();setBase('gta');disableFineDetail();try{const before=map.getLayer('gta-road-label-major')?'gta-road-label-major':null;for(const id of ['gta-bridge3d-pier','gta-bridge3d-deck','gta-bridge3d-ramp','gta-bridge3d-surface','gta-bridge3d-center','gta-bridge3d-rail'])if(map.getLayer(id)){if(before)map.moveLayer(id,before);else map.moveLayer(id)}}catch(_){};rebuildLandmark3D(0);rebuildBridge3D(0);startParcelFlow();syncBuildingShells();
    window.__BP_CAMERA_MODE__={mode:'FREE_FLY_SINGLE_VIEW',singleView:true,autoViewSwitching:false,streetWalkMode:false,maxPitch:85,minZoom:2.2,maxZoom:22,manualPitch:true,manualRotation:true,buildingClickOverlook:true,updatedAt:Date.now()};
    window.__BP_WORLD_CORE_READY__={version:5519,ready:true,styleUsable:true,styleLoaded:!!map.isStyleLoaded?.(),materials:!!window.__BP_BUILDING_MATERIALS__,camera:!!window.__BP_CAMERA_MODE__,updatedAt:Date.now()};
    worldCoreReady=true;setTimeout(scheduleExact,MOBILE?350:220);if(map.getZoom()>=12.6)setTimeout(()=>scheduleLivingWorld(0),MOBILE?700:180);setStatus('BridgePoint World v5628 · owner-style fast tech map · white roofs · labels · realistic tree LOD');return true
