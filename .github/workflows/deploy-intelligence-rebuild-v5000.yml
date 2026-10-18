@@ -698,6 +698,10 @@ jobs:
           grep -Fq 'toggleLiveContext' site/app/index.html
           grep -Fq 'app.js?v=5945-coastal-dive' site/app/index.html
           grep -Fq 'landing.js?v=5945-coastal-dive' site/index.html
+           grep -Fq 'world-v2300-map.js?v=5946-bridge-connect' site/app.js
+           grep -Fq 'world-v2300-map.js?v=5946-bridge-connect' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=5946-bridge-connect' site/index.html
+           grep -Fq 'world-v2300-map.js?v=5946-bridge-connect' site/app/index.html
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/app/index.html
