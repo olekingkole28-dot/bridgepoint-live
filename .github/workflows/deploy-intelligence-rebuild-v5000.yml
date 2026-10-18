@@ -696,14 +696,20 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=5939-demand-only' site/app/index.html
-          grep -Fq 'landing.js?v=5939-demand-only' site/index.html
+          grep -Fq 'app.js?v=5945-coastal-dive' site/app/index.html
+          grep -Fq 'landing.js?v=5945-coastal-dive' site/index.html
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=5942-scroll-stable' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=5945-properties-fixed' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/index.html
-          grep -Fq 'bottomNav' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/index.html
+           grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/app/index.html
+           grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
+           grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/app/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5945-map-ready' site/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5945-map-ready' site/app/index.html
+           grep -Fq 'bottomNav' site/app/index.html
           grep -Fq 'bindPerformanceGovernor' site/app.js
           grep -Fq '__BP_MAP_CLICK_FASTPATH_V5557__' site/app.js
           grep -Fq '__BP_MAP_STABILITY_V5580__' site/app.js
