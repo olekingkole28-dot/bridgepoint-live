@@ -275,6 +275,10 @@ jobs:
           test -s site/bridgepoint-pyramids-v5945.js
           grep -Fq 'bridgepoint-pyramids-v5945.js?v=5945-giza-3d' site/index.html
           grep -Fq 'bridgepoint-pyramids-v5945.js?v=5945-giza-3d' site/app/index.html
+          grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
+          grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
+          grep -Fq 'bridge-ground-join' site/app.js
+          grep -Fq 'bridge-ground-join' site/landing.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
@@ -706,10 +710,10 @@ jobs:
           grep -Fq 'toggleLiveContext' site/app/index.html
           grep -Fq 'app.js?v=5945-coastal-dive' site/app/index.html
           grep -Fq 'landing.js?v=5945-coastal-dive' site/index.html
-           grep -Fq 'world-v2300-map.js?v=5946-bridge-connect' site/app.js
-           grep -Fq 'world-v2300-map.js?v=5946-bridge-connect' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=5946-bridge-connect' site/index.html
-           grep -Fq 'world-v2300-map.js?v=5946-bridge-connect' site/app/index.html
+           grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/app.js
+           grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/index.html
+           grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/app/index.html
           grep -Fq 'maplibre-gl@5.24.0/dist/maplibre-gl.js' .github/workflows/deploy-intelligence-rebuild-v5000.yml
           grep -Fq 'maplibre-gl.js?v=524-v5945' site/index.html
           grep -Fq 'maplibre-gl.js?v=524-v5945' site/app/index.html
