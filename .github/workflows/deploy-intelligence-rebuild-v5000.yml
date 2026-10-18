@@ -404,6 +404,9 @@ jobs:
           grep -Fq 'cameraEvery=DRIVE_MOBILE?75:54' site/intelligence-tools-v5507.js
           grep -Fq 'const flightMobile=' site/intelligence-tools-v5507.js
           grep -Fq 'flightMobile?90:60' site/intelligence-tools-v5507.js
+          grep -Fq 'localRuntime=' site/intelligence-tools-v5507.js
+          grep -Fq '__BP_FLIGHT_SIM_STATE_V5948__' site/intelligence-tools-v5507.js
+          grep -Fq 'data-bank' site/intelligence-tools-v5507.js
           grep -Fq 'data-bank' site/intelligence-tools-v5507.js
           grep -Fq '+10 MPH' site/road-drive-v5527.js
           grep -Fq 'FREE · UNLIMITED · Still being actively improved' site/intelligence-tools-v5507.js
@@ -744,8 +747,8 @@ jobs:
           grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/app/index.html
           grep -Fq 'bridgepoint-view-v5917.js?v=5945-properties-fixed' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/index.html
-          grep -Fq 'intelligence-tools-v5507.js?v=5948-flight-dynamics' site/index.html
-           grep -Fq 'intelligence-tools-v5507.js?v=5948-flight-dynamics' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=5949-flight-tools-open' site/index.html
+           grep -Fq 'intelligence-tools-v5507.js?v=5949-flight-tools-open' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/app/index.html
            grep -Fq 'bridgepoint-landmarks-v5940.js?v=5945-map-ready' site/index.html
