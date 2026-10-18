@@ -197,7 +197,7 @@ function attachMap(){
 }
 async function loadSatLib(){
  if(state.satApi)return state.satApi;
- const lib=await import('https://esm.sh/satellite.js@6.0.2');
+ const lib=await import('./vendor/satellite.es.js?v=602-local');
  if(typeof lib.json2satrec!=='function'||typeof lib.propagate!=='function')throw new Error('SATELLITE_LIBRARY_API_UNAVAILABLE');
  state.satApi=lib;return lib;
 }
