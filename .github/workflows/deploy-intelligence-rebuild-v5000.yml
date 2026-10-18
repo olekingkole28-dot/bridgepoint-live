@@ -228,8 +228,8 @@ jobs:
           cp release-v2300/world-v2300-bootstrap.js site/app/world-v2300-bootstrap.js
           cp release-v2300/world-v2300.css site/app/world-v2300.css
 
-          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
-          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js -o site/vendor/maplibre-gl.js
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css -o site/vendor/maplibre-gl.css
           curl --retry 4 --retry-all-errors --retry-delay 2 -fsSL https://cdn.jsdelivr.net/npm/pmtiles@4.5.0/dist/pmtiles.js -o site/vendor/pmtiles.js
 
           printf '%s\n' 'bridgepointintelligence.online' > site/CNAME
@@ -710,6 +710,11 @@ jobs:
            grep -Fq 'world-v2300-map.js?v=5946-bridge-connect' site/landing.js
            grep -Fq 'world-v2300-map.js?v=5946-bridge-connect' site/index.html
            grep -Fq 'world-v2300-map.js?v=5946-bridge-connect' site/app/index.html
+          grep -Fq 'maplibre-gl@5.24.0/dist/maplibre-gl.js' .github/workflows/deploy-intelligence-rebuild-v5000.yml
+          grep -Fq 'maplibre-gl.js?v=524-v5945' site/index.html
+          grep -Fq 'maplibre-gl.js?v=524-v5945' site/app/index.html
+          test -s site/vendor/maplibre-gl.js
+          test -s site/vendor/maplibre-gl.css
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/app/index.html
