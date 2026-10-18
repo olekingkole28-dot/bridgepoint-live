@@ -759,6 +759,12 @@ export function initWorld(options={}){
    const build=()=>{
     if(moving&&!allowMotion)return;
     const fs=bridgeSourceFeatures(),out=[],seenLines=new Set(),bridgeKeys=new Set(),cap=allowMotion?(MOBILE?28:75):(z<12?(MOBILE?65:(TIER==='HIGH'?200:150)):(MOBILE?95:(TIER==='HIGH'?280:190))),supports=z>=BRIDGE_SUPPORT_MIN;
+    // Track bridge line ends in small spatial buckets. Vector-tile cut ends that
+    // meet another bridge line are continuation points, not real road approaches.
+    const endpointBuckets=new Map(),endpointSeen=new Set(),endpointCell=.0001;
+    const addEndpoint=(point,key)=>{const cellKey=Math.floor(point[0]/endpointCell)+','+Math.floor(point[1]/endpointCell),entry={point,lineKey:key};if(!endpointBuckets.has(cellKey))endpointBuckets.set(cellKey,[]);endpointBuckets.get(cellKey).push(entry)};
+    for(const candidate of fs){const cp=candidate.properties||{},cg=candidate.geometry,cls=String(cp.class||'').toLowerCase()||'road',w=bridge3dWidth(cp),candidateLines=cg?.type==='LineString'?[cg.coordinates]:cg?.type==='MultiLineString'?(cg.coordinates||[]):[];for(const raw of candidateLines){const line=(raw||[]).filter(q=>Array.isArray(q)&&Number.isFinite(+q[0])&&Number.isFinite(+q[1]));if(line.length<2)continue;const a=line[0],b=line[line.length-1],ea=[a[0].toFixed(5),a[1].toFixed(5)].join(','),eb=[b[0].toFixed(5),b[1].toFixed(5)].join(','),key=[cls,Math.round(w*10),line.length,...([ea,eb].sort())].join('|');if(endpointSeen.has(key))continue;endpointSeen.add(key);addEndpoint(a,key);addEndpoint(b,key)}}
+    const endpointContinues=(point,key)=>{try{const px=map.project(point),canvas=map.getCanvas();if(px.x<8||px.y<8||px.x>canvas.clientWidth-8||px.y>canvas.clientHeight-8)return true}catch(_){}const cx=Math.floor(point[0]/endpointCell),cy=Math.floor(point[1]/endpointCell),lonCellM=111320*Math.max(.12,Math.cos(point[1]*Math.PI/180))*endpointCell,rx=Math.min(12,Math.max(1,Math.ceil(6.5/Math.max(1,lonCellM))+1));for(let dx=-rx;dx<=rx;dx++)for(let dy=-1;dy<=1;dy++){const near=endpointBuckets.get((cx+dx)+','+(cy+dy));if(near&&near.some(e=>e.lineKey!==key&&bridge3dMeters(point,e.point)<6.5))return true}return false};
     let linesBuilt=0,rails=0,piers=0,surfaces=0,centers=0,ramps=0,truncated=false;
     outer:for(const ft of fs){
      const p=ft.properties||{},g=ft.geometry,lines=g?.type==='LineString'?[g.coordinates]:g?.type==='MultiLineString'?(g.coordinates||[]):[],w=bridge3dWidth(p),base=bridge3dBase(p,w),cls=String(p.class||'').toLowerCase()||'road',bridgeId=String(ft.id??p.osm_id??p.id??[p.ref||'',p.name||'',cls].join('|'));bridgeKeys.add(bridgeId);
@@ -771,7 +777,7 @@ export function initWorld(options={}){
       const common={bridge_id:bridgeId,bridge_name:String(p.name||''),bridge_class:cls,source:'OPENFREEMAP_OSM_TRANSPORTATION',truth:'SOURCE_BRIDGE_CENTERLINE_DERIVED_CONTINUOUS_3D'};
       out.push({type:'Feature',geometry:{type:'Polygon',coordinates:deck},properties:{...common,part:'bridge_deck',base_m:base,deck_top_m:base+.42,width_m:w}});
       out.push({type:'Feature',geometry:{type:'Polygon',coordinates:surface},properties:{...common,part:'bridge_surface',surface_base_m:base+.415,surface_top_m:base+.56,width_m:w}});surfaces++;
-      if(length>=35){const rampFeatures=bridgeApproachRampFeatures(line,w,base,common);out.push(...rampFeatures);ramps+=rampFeatures.length}
+      if(length>=35){const connectedEnds={start:endpointContinues(a,lineKey),end:endpointContinues(b,lineKey)},rampFeatures=bridgeApproachRampFeatures(line,w,base,common,connectedEnds);out.push(...rampFeatures);ramps+=rampFeatures.length}
       if(supports&&['motorway','trunk','primary','secondary','tertiary'].includes(cls)){
        const stripe=ribbonLinePoly(line,clamp(w*.018,.06,.14));if(stripe){out.push({type:'Feature',geometry:{type:'Polygon',coordinates:stripe},properties:{...common,part:'bridge_center',stripe_base_m:base+.565,stripe_top_m:base+.59,stripe_color:'#f2c94c'}});centers++}
       }
