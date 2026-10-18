@@ -4,7 +4,7 @@
 **Company:** BridgePoint Intelligence  
 **Website:** https://bridgepointintelligence.online/
 
-BridgePoint Intelligence currently reports **169,634,995 canonical U.S. property/parcel identity records**.
+At the time of this **September 15, 2026 historical snapshot**, BridgePoint Intelligence reported **169,634,995 canonical U.S. property/parcel identity records**. This dated U.S. checkpoint predates the current reported global total of 412M+ canonical property records.
 
 This number is the platform's canonical property identity layer. It is **not** a claim that BridgePoint has 169,634,995 materialized parcel-boundary polygons.
 
