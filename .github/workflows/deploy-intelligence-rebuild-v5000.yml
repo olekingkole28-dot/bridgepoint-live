@@ -1074,10 +1074,6 @@ jobs:
               }});
               if(usWeather.shapes<1||usWeather.points<1||!usWeather.radar||!usWeather.weatherLegend||!usWeather.weatherMore||usWeather.lines<1||usWeather.renderedPoints<1||!/EVENTS/.test(usWeather.count))throw new Error('US_WEATHER_GLOBE_REGRESSION '+JSON.stringify(usWeather));
               console.log('BRIDGEPOINT_US_WEATHER_ON_GLOBE_PASS',JSON.stringify(usWeather));
-              const cols=async(width,height)=>{await p.setViewport({width,height,deviceScaleFactor:2,isMobile:true,hasTouch:true});await new Promise(r=>setTimeout(r,350));return p.evaluate(()=>{const gridCols=sel=>{const el=document.querySelector(sel);if(!el)return 0;const v=getComputedStyle(el).gridTemplateColumns.trim();return v?v.split(/\s+/).length:0};return{w:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth+2,products:gridCols('.cap-grid'),packages:gridCols('#landingPackages'),footer:gridCols('.footer-link-groups')}})};
-              const phone=await cols(390,844),tablet=await cols(820,1180),desktop=await cols(1440,900);
-              if(phone.overflow||tablet.overflow||desktop.overflow||phone.products!==1||phone.packages!==1||phone.footer!==1||tablet.products!==2||tablet.packages!==2||tablet.footer!==2||desktop.products!==3||desktop.packages!==3||desktop.footer!==4)throw new Error('RESPONSIVE_LANDING_REGRESSION '+JSON.stringify({phone,tablet,desktop}));
-              console.log('BRIDGEPOINT_RESPONSIVE_LANDING_PASS',JSON.stringify({phone,tablet,desktop}));
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
 
               // Live landmark smoke: source route must materialize in map layers, and the Statue scan must finish drawing.
@@ -1117,6 +1113,14 @@ jobs:
               if(statueSmoke.status!=='loaded-source-scan'||!statueSmoke.rendered||!statueSmoke.layer)throw new Error('STATUE_3D_SCAN_MATERIALIZATION_FAILED '+JSON.stringify(statueSmoke));
               console.log('BRIDGEPOINT_STATUE_3D_SCAN_PASS',JSON.stringify(statueSmoke));
               await p.evaluate(saved=>{if(saved)window.__BP_LANDING_WORLD__?.map?.jumpTo({center:saved.center,zoom:saved.zoom,pitch:saved.pitch,bearing:saved.bearing})},savedLandmarkCamera);
+
+              const cols=async(width,height)=>{await p.setViewport({width,height,deviceScaleFactor:2,isMobile:true,hasTouch:true});await new Promise(r=>setTimeout(r,350));return p.evaluate(()=>{const gridCols=sel=>{const el=document.querySelector(sel);if(!el)return 0;const v=getComputedStyle(el).gridTemplateColumns.trim();return v?v.split(/\s+/).length:0};const gridDetails=sel=>{const el=document.querySelector(sel);if(!el)return null;const cs=getComputedStyle(el);return{display:cs.display,template:cs.gridTemplateColumns,style:el.getAttribute('style'),className:el.className}};return{w:innerWidth,mobileQuery:matchMedia('(max-width:600px)').matches,landingStylesheets:[...document.styleSheets].map(x=>x.href).filter(x=>/landing\\.css/.test(x||'')),overflow:document.documentElement.scrollWidth>innerWidth+2,products:gridCols('.cap-grid'),packages:gridCols('#landingPackages'),footer:gridCols('.footer-link-groups'),gridDetails:{products:gridDetails('.cap-grid'),packages:gridDetails('#landingPackages'),footer:gridDetails('.footer-link-groups')}}})};
+              const phone=await cols(390,844),tablet=await cols(820,1180),desktop=await cols(1440,900);
+              if(phone.overflow||tablet.overflow||desktop.overflow||phone.products!==1||phone.packages!==1||phone.footer!==1||tablet.products!==2||tablet.packages!==2||tablet.footer!==2||desktop.products!==3||desktop.packages!==3||desktop.footer!==4)throw new Error('RESPONSIVE_LANDING_REGRESSION '+JSON.stringify({phone,tablet,desktop}));
+              console.log('BRIDGEPOINT_RESPONSIVE_LANDING_PASS',JSON.stringify({phone,tablet,desktop}));
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+
+
 
               const report=await p.goto('https://bridgepointintelligence.online/sample/storm-opportunity/?qa='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
               if(!report||report.status()>=400)throw new Error('SAMPLE_REPORT_HTTP_'+report?.status());
