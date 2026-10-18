@@ -404,7 +404,7 @@ jobs:
           grep -Fq 'cameraEvery=DRIVE_MOBILE?75:54' site/intelligence-tools-v5507.js
           grep -Fq 'const flightMobile=' site/intelligence-tools-v5507.js
           grep -Fq 'flightMobile?90:60' site/intelligence-tools-v5507.js
-          grep -Fq 'BANK '+bankText() site/intelligence-tools-v5507.js
+          grep -Fq 'data-bank' site/intelligence-tools-v5507.js
           grep -Fq '+10 MPH' site/road-drive-v5527.js
           grep -Fq 'FREE · UNLIMITED · Still being actively improved' site/intelligence-tools-v5507.js
           grep -Fq 'STILL BEING WORKED ON · Tool visuals and features are actively being improved.' site/intelligence-tools-v5507.js
