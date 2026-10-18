@@ -143,7 +143,7 @@
       Math.min(a[1], b[1]) <= view[3];
   }
 
-  function wallSegmentPolygon(a, b, widthM) {
+  function wallSegmentPolygon(map, a, b, widthM) {
     const midLat = ((a[1] + b[1]) * 0.5) * Math.PI / 180;
     const metersLon = Math.max(1000, 111320 * Math.cos(midLat));
     const metersLat = 110540;
@@ -160,15 +160,27 @@
       [a[0] - nx, a[1] - ny],
       [a[0] + nx, a[1] + ny]
     ];
+    let terrainBaseM = 0;
+    try {
+      if (map && typeof map.queryTerrainElevation === 'function') {
+        const sampled = map.queryTerrainElevation({
+          lng: (a[0] + b[0]) * 0.5,
+          lat: (a[1] + b[1]) * 0.5
+        }, { exaggerated: false });
+        if (Number.isFinite(sampled)) terrainBaseM = sampled;
+      }
+    } catch (_) {}
     return {
       type: 'Feature',
       properties: {
         part: 'estimated-wall-body',
-        base_m: 0,
-        top_m: WALL_HEIGHT_M_EST,
+        base_m: terrainBaseM,
+        top_m: terrainBaseM + WALL_HEIGHT_M_EST,
+        terrain_base_m: terrainBaseM,
         width_m_estimate: WALL_WIDTH_M_EST,
         height_m_estimate: WALL_HEIGHT_M_EST,
         measurement_status: 'PROFILE_ESTIMATED_NOT_SURVEYED',
+        elevation_status: terrainBaseM === 0 ? 'DEM_UNAVAILABLE_OR_ZERO' : 'SAMPLED_MAP_TERRAIN',
         source_region_geometry: 'MIT regional route GeoJSON'
       },
       geometry: { type: 'Polygon', coordinates: [ring] }
@@ -356,7 +368,7 @@
       const dx = (b.box[0] + b.box[2]) * 0.5, dy = (b.box[1] + b.box[3]) * 0.5;
       return ((cx-center.lng)**2 + (cy-center.lat)**2) - ((dx-center.lng)**2 + (dy-center.lat)**2);
     });
-    const maxRegions = zoom < 5.7 ? (mobile ? 1 : 2) : zoom < 9.5 ? (mobile ? 2 : 3) : (mobile ? 3 : 4);
+    const maxRegions = zoom < 5.7 ? 8 : zoom < 7.5 ? (mobile ? 4 : 6) : zoom < 9.5 ? (mobile ? 2 : 3) : (mobile ? 3 : 4);
     const chosen = candidates.slice(0, maxRegions);
     if (!chosen.length) {
       setSourceData(map, 'bp-v5940-wall-route', EMPTY);
@@ -407,10 +419,11 @@
       }
       setSourceData(map, 'bp-v5940-wall-route', { type: 'FeatureCollection', features: routeFeatures });
 
+      let extrudedSegments = 0;
       if (zoom < 11.2) {
         setSourceData(map, 'bp-v5940-wall-body', EMPTY);
       } else {
-        const maxSegments = mobile ? (zoom < 13.5 ? 220 : 420) : (zoom < 13.5 ? 650 : 1100);
+        const maxSegments = mobile ? (zoom < 13.5 ? 120 : 240) : (zoom < 13.5 ? 500 : 900);
         const segStride = zoom < 12.5 ? 5 : zoom < 14.5 ? 2 : 1;
         const body = [];
         for (const line of sourceSegments) {
@@ -419,13 +432,14 @@
             const a = line[i - 1], b = line[i];
             if (!a || !b || !segmentInView(a, b, view)) continue;
             if ((seen++ % segStride) !== 0) continue;
-            const poly = wallSegmentPolygon(a, b, WALL_WIDTH_M_EST);
+            const poly = wallSegmentPolygon(map, a, b, WALL_WIDTH_M_EST);
             if (poly) body.push(poly);
             if (body.length >= maxSegments) break;
           }
           if (body.length >= maxSegments) break;
         }
         setSourceData(map, 'bp-v5940-wall-body', { type: 'FeatureCollection', features: body });
+        extrudedSegments = body.length;
       }
       state.status = 'Great Wall route active';
       if (intersects(boundsArray(map, 0), [114, 36, 125, 43]) && zoom >= 5.2) {
@@ -437,7 +451,7 @@
         version: VERSION,
         status: 'viewport-driven-route-loaded',
         routeFeatures: routeFeatures.length,
-        extrudedSegments: zoom >= 11.2 ? body.length : 0,
+        extrudedSegments,
         regions: chosen.map(r => r.id),
         source: 'MIT regional GeoJSON route trace',
         profile: 'estimated 6.5 m height × 5 m width where no surveyed cross-section is available',
@@ -511,7 +525,7 @@
       version: VERSION,
       status: 'loading-on-close-zoom-only',
       source: 'Metron3D Statue of Liberty 3D Scan',
-      license: 'CC BY 4.0; attribution preserved',
+      license: 'Creative Commons Attribution; attribution preserved',
       officialHeightM: STATUE_HEIGHT_M,
       sourceUrl: 'https://zenodo.org/records/10355435',
       updatedAt: Date.now()
@@ -550,7 +564,7 @@
                 version: VERSION,
                 status: 'loaded-source-scan',
                 source: 'Metron3D Statue of Liberty 3D Scan · Zenodo DOI 10.5281/zenodo.10355435',
-                license: 'CC BY 4.0; attribution preserved',
+                license: 'Creative Commons Attribution; attribution preserved',
                 officialHeightM: STATUE_HEIGHT_M,
                 facingDegrees: STATUE_FACING_DEG,
                 sourceModelHeightUnits: prepared.sourceHeight,
@@ -649,13 +663,14 @@
   window.__BP_LANDMARKS_V5940__ = {
     version: VERSION,
     status: 'ready',
+    attribution: 'Statue scan: Metron3D / Sketchfab, Creative Commons Attribution. Great Wall line: Adl3rAi, MIT. Wall profile is estimated; source notes regional geometry limitations.',
     statue: {
       coordinates: STATUE,
       height_m: STATUE_HEIGHT_M,
       facing_degrees: STATUE_FACING_DEG,
       geometry: 'Metron3D laser scan; loaded only when zoomed in to Liberty Island',
       source: 'https://zenodo.org/records/10355435',
-      license: 'CC BY 4.0'
+      license: 'Creative Commons Attribution'
     },
     greatWall: {
       routeSource: 'Adl3rAi/The-Great-Wall-of-China-geodata',
