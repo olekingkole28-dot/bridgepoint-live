@@ -1449,6 +1449,26 @@ jobs:
               await p.click('#bp5507-hud [data-exit]');
               await p.waitForFunction(()=>window.__BP_FLIGHT_SIM_STATE_V5948__?.active===false,{timeout:5000});
 
+              await p.waitForFunction(()=>{
+                const s=window.__BP_GLOBAL_MOTION_V5926__?.state?.summaries?.satellite;
+                return !!window.__BP_GLOBAL_MOTION_V5926__?.setSatellitesEnabled&&Number(s?.total_known_objects||0)>0;
+              },{timeout:20000});
+              const satelliteTrackingSmoke=await p.evaluate(async()=>{
+                const api=window.__BP_GLOBAL_MOTION_V5926__;
+                await api.setSatellitesEnabled(true);
+                const s=api.state,m=s.map;
+                return {enabled:s.satelliteEnabled,totalKnown:s.catalogKnown,catalogLoaded:s.catalog.length,
+                  plottedPositions:s.plottedSatellites,pointLayer:!!m?.getLayer('bp-v5926-satellite-points'),
+                  sourceKey:s.summaries.satellite?.source_key,sourceUrl:s.summaries.satellite?.source_url,
+                  propagationLibraryLoaded:performance.getEntriesByType('resource').some(r=>r.name.includes('/vendor/satellite.es.js'))};
+              });
+              if(!satelliteTrackingSmoke.enabled||satelliteTrackingSmoke.totalKnown<1||satelliteTrackingSmoke.catalogLoaded<1||
+                satelliteTrackingSmoke.plottedPositions<1||!satelliteTrackingSmoke.pointLayer||
+                satelliteTrackingSmoke.sourceKey!=='TLE_API_IVANSTANOJEVIC'||!satelliteTrackingSmoke.propagationLibraryLoaded)
+                throw new Error('SATELLITE_TRACKING_MATERIALIZATION_FAILED '+JSON.stringify(satelliteTrackingSmoke));
+              console.log('BRIDGEPOINT_SATELLITE_TRACKING_PASS',JSON.stringify(satelliteTrackingSmoke));
+              await p.evaluate(()=>window.__BP_GLOBAL_MOTION_V5926__?.setSatellitesEnabled(false));
+
               const severe=fatal.filter(x=>!/ResizeObserver loop/i.test(x));
               if(severe.length)throw new Error('ANDROID_PAGEERROR '+JSON.stringify(severe.slice(-5)));
               console.log('BRIDGEPOINT_V5410_ANDROID_SMOKE_PASS');
