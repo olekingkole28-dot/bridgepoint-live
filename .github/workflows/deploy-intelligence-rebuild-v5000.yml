@@ -117,8 +117,11 @@ jobs:
           cp rebuild-v5000/bridgepoint-view-v5917.css site/bridgepoint-view-v5917.css
           cp rebuild-v5000/bridgepoint-landmarks-v5940.js site/bridgepoint-landmarks-v5940.js
           # Mirror the licensed 3D scan into the same-origin static artifact; avoid browser CORS failures.
-          curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 240 'https://zenodo.org/records/10355435/files/8e808365b5a6453497826b114b02f155.glb' -o site/assets/statue-of-liberty-scan-v5940.glb
-          test "$(stat -c%s site/assets/statue-of-liberty-scan-v5940.glb)" -gt 20000000
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 240 'https://zenodo.org/records/10355435/files/8e808365b5a6453497826b114b02f155.glb' -o /tmp/statue-of-liberty-scan-source.glb
+          test "$(stat -c%s /tmp/statue-of-liberty-scan-source.glb)" -gt 20000000
+          # Build a phone-friendly LOD while retaining the licensed source scan and attribution.
+          npx --yes @gltf-transform/cli@4.5.1 simplify /tmp/statue-of-liberty-scan-source.glb site/assets/statue-of-liberty-scan-v5940.glb --ratio 0.3 --error 0.001
+          test -s site/assets/statue-of-liberty-scan-v5940.glb
           cp rebuild-v5000/bridgepoint-view-v5917.js site/bridgepoint-view-v5917.js
           cp rebuild-v5000/bridgepoint-map-key-v5920.js site/bridgepoint-map-key-v5920.js
           cp rebuild-v5000/bridgepoint-map-state-counts-v5923.js site/bridgepoint-map-state-counts-v5923.js
