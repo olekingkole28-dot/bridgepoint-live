@@ -568,7 +568,8 @@
                 officialHeightM: STATUE_HEIGHT_M,
                 facingDegrees: STATUE_FACING_DEG,
                 sourceModelHeightUnits: prepared.sourceHeight,
-                loadedAt: Date.now()
+                loadedAt: Date.now(),
+                rendered: false
               };
               setChip(state, 'STATUE OF LIBERTY · 3D SCAN', 'Metron3D scan · scaled to 93.0 m ground-to-torch', true);
               mapRef.triggerRepaint();
@@ -596,9 +597,17 @@
             this.camera.projectionMatrix = projection.multiply(model);
             this.renderer.resetState();
             this.renderer.render(this.scene, this.camera);
+            const renderStatus = window.__BP_STATUE_SCAN_V5940__;
+            if (renderStatus) {
+              renderStatus.rendered = true;
+              renderStatus.renderedAt = Date.now();
+              delete renderStatus.renderError;
+            }
           } catch (error) {
             if (!state.renderWarned) {
               state.renderWarned = true;
+              const renderStatus = window.__BP_STATUE_SCAN_V5940__;
+              if (renderStatus) renderStatus.renderError = String(error && error.message || error || '3D render skipped');
               console.warn('BridgePoint statue render skipped', error);
             }
           }
