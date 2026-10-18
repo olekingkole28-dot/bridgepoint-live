@@ -267,6 +267,8 @@ jobs:
           grep -Fq 'bridgepoint-landmarks-v5940.js' site/index.html
           grep -Fq 'bridgepoint-landmarks-v5940.js' site/app/index.html
           grep -Fq 'PROFILE_ESTIMATED_NOT_SURVEYED' site/bridgepoint-landmarks-v5940.js
+          test -s site/assets/great-wall-overview-v5940.geojson
+          node -e "const d=JSON.parse(require('fs').readFileSync('site/assets/great-wall-overview-v5940.geojson','utf8'));if(d.features.length!==270)process.exit(1)"
           grep -Fq 'PARCEL BOUNDARIES' site/bridgepoint-view-v5917.js
           grep -Fq 'bridgepoint_public_listings_viewport_v5927' site/bridgepoint-view-v5917.js
           grep -Fq 'bridgepoint-realworld-effects-v5927.js' site/intelligence-tools-v5507.js
@@ -1096,6 +1098,11 @@ jobs:
               });
               if(!wallSmoke.layer||Number(wallSmoke.state?.routeFeatures)<1)throw new Error('GREAT_WALL_ROUTE_MATERIALIZATION_FAILED '+JSON.stringify(wallSmoke));
               console.log('BRIDGEPOINT_GREAT_WALL_LANDMARK_PASS',JSON.stringify(wallSmoke));
+              await p.evaluate(()=>window.__BP_LANDING_WORLD__?.map?.jumpTo({center:[116.017,40.356],zoom:14.4,pitch:55,bearing:-6}));
+              await p.waitForFunction(()=>Number(window.__BP_GREAT_WALL_V5940__?.extrudedSegments||0)>0,{timeout:60000});
+              const wall3DSmoke=await p.evaluate(()=>({status:window.__BP_GREAT_WALL_V5940__?.status||'',extrudedSegments:window.__BP_GREAT_WALL_V5940__?.extrudedSegments||0,bodyLayer:!!window.__BP_LANDING_WORLD__?.map?.getLayer('bp-v5940-wall-body'),mobileLOD:window.__BP_GREAT_WALL_V5940__?.mobileLOD===true}));
+              if(wall3DSmoke.extrudedSegments<1||!wall3DSmoke.bodyLayer)throw new Error('GREAT_WALL_3D_BODY_FAILED '+JSON.stringify(wall3DSmoke));
+              console.log('BRIDGEPOINT_GREAT_WALL_3D_BODY_PASS',JSON.stringify(wall3DSmoke));
               await p.evaluate(()=>window.__BP_LANDING_WORLD__?.map?.jumpTo({center:[-74.044643,40.689211],zoom:15.1,pitch:50,bearing:-20}));
               await p.waitForFunction(()=>{
                 const s=window.__BP_STATUE_SCAN_V5940__;const m=window.__BP_LANDING_WORLD__?.map;
