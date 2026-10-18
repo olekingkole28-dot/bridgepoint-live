@@ -12,7 +12,7 @@
   const STATUE = [-74.044643, 40.689211];
   const STATUE_HEIGHT_M = 93.0;
   const STATUE_FACING_DEG = 135;
-  const STATUE_SCAN_URL = 'https://zenodo.org/records/10355435/files/8e808365b5a6453497826b114b02f155.glb';
+  const STATUE_SCAN_URL = '/assets/statue-of-liberty-scan-v5940.glb';
   const THREE_URL = 'https://esm.sh/three@0.169.0';
   const GLTF_URL = 'https://esm.sh/three@0.169.0/examples/jsm/loaders/GLTFLoader.js';
   const WALL_WIDTH_M_EST = 5.0;
@@ -602,7 +602,7 @@
       version: VERSION,
       status: 'loading-on-close-zoom-only',
       source: 'Metron3D Statue of Liberty 3D Scan',
-      license: 'Zenodo record attribution preserved; reuse license must be confirmed from the source record',
+      license: 'CC BY; attributed to Metron3D / Sketchfab source record',
       officialHeightM: STATUE_HEIGHT_M,
       sourceUrl: 'https://zenodo.org/records/10355435',
       updatedAt: Date.now()
@@ -641,7 +641,7 @@
                 version: VERSION,
                 status: 'loaded-source-scan',
                 source: 'Metron3D Statue of Liberty 3D Scan · Zenodo DOI 10.5281/zenodo.10355435',
-                license: 'Creative Commons Attribution; attribution preserved',
+                license: 'CC BY; attributed to Metron3D / Sketchfab source record',
                 officialHeightM: STATUE_HEIGHT_M,
                 facingDegrees: STATUE_FACING_DEG,
                 sourceModelHeightUnits: prepared.sourceHeight,
@@ -749,7 +749,7 @@
   window.__BP_LANDMARKS_V5940__ = {
     version: VERSION,
     status: 'ready',
-    attribution: 'Statue scan: Metron3D / Sketchfab, Creative Commons Attribution. Great Wall line: Adl3rAi, MIT. Wall profile is estimated; source notes regional geometry limitations.',
+    attribution: 'Statue scan: Metron3D / Sketchfab, CC BY. Great Wall line: Adl3rAi, MIT. Wall profile is estimated; source notes regional geometry limitations.',
     statue: {
       coordinates: STATUE,
       height_m: STATUE_HEIGHT_M,
