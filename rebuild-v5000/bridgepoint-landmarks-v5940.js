@@ -1,6 +1,6 @@
 /* BridgePoint source-backed landmarks v5940
  * Statue of Liberty: Metron3D laser scan (CC BY), lazy-loaded on close view only.
- * Great Wall: regional GeoJSON route trace (MIT), lazy-loaded by viewport.
+ * Great Wall: simplified full-route overview at wide zoom + regional GeoJSON at close zoom (MIT).
  * Wall height/width are explicitly estimated where no surveyed cross-section exists.
  */
 (() => {
@@ -17,6 +17,7 @@
   const GLTF_URL = 'https://esm.sh/three@0.169.0/examples/jsm/loaders/GLTFLoader.js';
   const WALL_WIDTH_M_EST = 5.0;
   const WALL_HEIGHT_M_EST = 6.5;
+  const OVERVIEW_SOURCE = '/assets/great-wall-overview-v5940.geojson';
   const REGION_SOURCE = 'https://raw.githubusercontent.com/Adl3rAi/The-Great-Wall-of-China-geodata/main/';
   const REGIONS = [
     { id: 'gansu', box: [92.0, 35.0, 107.6, 42.8], url: 'direction/gansu.geojson' },
@@ -30,6 +31,7 @@
   ];
 
   const REGION_CACHE = new Map();
+  let overviewPromise = null;
   const MAPS = new Set();
   const MAP_STATE = new WeakMap();
   const featureBounds = new WeakMap();
@@ -89,6 +91,27 @@
     const result = [minX, minY, maxX, maxY];
     featureBounds.set(feature, result);
     return result;
+  }
+
+  async function loadOverview() {
+    if (!overviewPromise) {
+      overviewPromise = fetch(OVERVIEW_SOURCE, {
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'force-cache'
+      }).then(response => {
+        if (!response.ok) throw new Error('Overview route HTTP ' + response.status);
+        return response.json();
+      }).then(data => {
+        if (!data || !Array.isArray(data.features)) throw new Error('Invalid overview route GeoJSON');
+        return data.features.filter(f => f && f.geometry &&
+          (f.geometry.type === 'LineString' || f.geometry.type === 'MultiLineString'));
+      }).catch(error => {
+        overviewPromise = null;
+        throw error;
+      });
+    }
+    return overviewPromise;
   }
 
   async function loadRegion(region) {
@@ -349,6 +372,7 @@
   }
 
   async function updateWall(map, state) {
+    const requestId = ++state.wallRequest;
     const zoom = Number(map.getZoom());
     const mobile = !!(window.matchMedia && window.matchMedia('(max-width: 720px)').matches) ||
       (navigator.deviceMemory && navigator.deviceMemory <= 4);
@@ -361,6 +385,60 @@
       return;
     }
 
+    if (zoom < 7.5) {
+      state.wallBusy = true;
+      try {
+        const overview = await loadOverview();
+        if (state.wallRequest !== requestId || !state.styleReady) return;
+        const stride = getStride(zoom, mobile);
+        const routeFeatures = [];
+        for (const feature of overview) {
+          const fb = getFeatureBounds(feature);
+          if (!intersects(fb, view)) continue;
+          const originalParts = lineParts(feature.geometry);
+          const simplifiedParts = originalParts.map(part => thinLine(part, stride)).filter(part => part.length >= 2);
+          if (!simplifiedParts.length) continue;
+          const geometry = simplifiedParts.length === 1
+            ? { type: 'LineString', coordinates: simplifiedParts[0] }
+            : { type: 'MultiLineString', coordinates: simplifiedParts };
+          routeFeatures.push({
+            type: 'Feature',
+            properties: Object.assign({}, feature.properties || {}, {
+              bp_source: 'Adl3rAi/The-Great-Wall-of-China-geodata/direction/fulldirection.geojson',
+              bp_source_license: 'MIT',
+              bp_geometry_truth: 'SIMPLIFIED_SOURCE_ROUTE_OVERVIEW'
+            }),
+            geometry
+          });
+        }
+        setSourceData(map, 'bp-v5940-wall-route', { type: 'FeatureCollection', features: routeFeatures });
+        setSourceData(map, 'bp-v5940-wall-body', EMPTY);
+        state.status = 'Great Wall overview route active';
+        if (intersects(boundsArray(map, 0), [114, 36, 125, 43]) && zoom >= 5.2) {
+          setChip(state, 'GREAT WALL OF CHINA', 'Simplified source route · detailed regional geometry loads closer in', true);
+        } else if (!state.statueActive) {
+          setChip(state, '', '', false);
+        }
+        window.__BP_GREAT_WALL_V5940__ = {
+          version: VERSION,
+          status: 'viewport-driven-overview-loaded',
+          routeFeatures: routeFeatures.length,
+          extrudedSegments: 0,
+          regions: ['overview'],
+          source: 'MIT simplified overview route',
+          mobileLOD: mobile,
+          overviewBytes: 404581,
+          updatedAt: Date.now()
+        };
+        return;
+      } catch (error) {
+        console.warn('BridgePoint Great Wall overview route', error);
+        state.status = 'overview route unavailable; falling back to regional data';
+      } finally {
+        state.wallBusy = false;
+      }
+    }
+
     const candidates = REGIONS.filter(r => regionIntersects(r, view));
     const center = map.getCenter();
     candidates.sort((a, b) => {
@@ -368,7 +446,7 @@
       const dx = (b.box[0] + b.box[2]) * 0.5, dy = (b.box[1] + b.box[3]) * 0.5;
       return ((cx-center.lng)**2 + (cy-center.lat)**2) - ((dx-center.lng)**2 + (dy-center.lat)**2);
     });
-    const maxRegions = zoom < 5.7 ? 8 : zoom < 7.5 ? (mobile ? 4 : 6) : zoom < 9.5 ? (mobile ? 2 : 3) : (mobile ? 3 : 4);
+    const maxRegions = zoom < 9.5 ? (mobile ? 2 : 3) : (mobile ? 3 : 4);
     const chosen = candidates.slice(0, maxRegions);
     if (!chosen.length) {
       setSourceData(map, 'bp-v5940-wall-route', EMPTY);
@@ -376,7 +454,6 @@
       return;
     }
 
-    const requestId = ++state.wallRequest;
     state.wallBusy = true;
     try {
       const results = await Promise.all(chosen.map(async region => {
