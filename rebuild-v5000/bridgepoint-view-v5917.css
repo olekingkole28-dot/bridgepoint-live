@@ -441,3 +441,23 @@ body.bpv-app .system-panel button:disabled {
     font-size:10px!important;
   }
 }
+
+
+/* V5942: keep the bottom map dock centered while scrolling controls.
+   The map-motion selector's translateY must not replace the dock's translateX(-50%). */
+body.bpv-map-moving .bpv-dock{
+  opacity:1!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+  transform:translateX(-50%)!important;
+}
+@media(max-width:700px){
+  body.bpv-map-moving .bpv-dock{transform:none!important}
+}
+/* Scrolling a panel is UI interaction, not map movement. Keep fixed panels stationary. */
+body.bpv-map-moving #bpv-sidecar,
+body.bpv-map-moving #previewCard,
+body.bpv-map-moving .building-panel,
+body.bpv-map-moving .system-panel{
+  transform:none!important;
+}
