@@ -345,8 +345,8 @@ jobs:
           grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/index.html
           grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/app/index.html
           grep -Fq 'Subsurface + Ocean-Depth X-Ray' site/bridgepoint-map-key-v5920.js
-          grep -Fq 'world-v2300-realism.js?v=5946-stale-recovery' site/app.js
-          grep -Fq 'gis-core-orchestrator-v5910.js?v=5946-stale-recovery' site/app.js
+          grep -Fq 'world-v2300-realism.js?v=5947-control-recovery' site/app.js
+          grep -Fq 'gis-core-orchestrator-v5910.js?v=5947-control-recovery' site/app.js
           grep -Fq 'PUBLIC_AUTO_MIN_ZOOM=4' site/parcel-boundary-viewer-v5403.js
           grep -Fq 'PUBLIC_AUTO_MAX_ZOOM=22' site/parcel-boundary-viewer-v5403.js
           grep -Fq 'bpv-world-activity-slot' site/bridgepoint-view-v5917.js
@@ -728,8 +728,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=5946-stale-recovery' site/app/index.html
-          grep -Fq 'landing.js?v=5946-stale-recovery' site/index.html
+          grep -Fq 'app.js?v=5947-control-recovery' site/app/index.html
+          grep -Fq 'landing.js?v=5947-control-recovery' site/index.html
            grep -Fq 'world-v2300-map.js?v=5948-water-surface' site/app.js
            grep -Fq 'world-v2300-map.js?v=5948-water-surface' site/landing.js
            grep -Fq 'world-v2300-map.js?v=5948-water-surface' site/index.html
