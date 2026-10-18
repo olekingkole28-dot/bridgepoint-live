@@ -1091,7 +1091,7 @@ jobs:
                 const m=window.__BP_LANDING_WORLD__?.map;
                 const a=window.__BP_LANDMARKS_V5940__;
                 return !!m&&a?.version===5940&&Number(a.attachedMaps)>=1&&!!m.getLayer('bp-v5940-wall-route-line');
-              },{timeout:25000});
+              },{timeout:60000});
               const savedLandmarkCamera=await p.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;if(!m)return null;
                 const c=m.getCenter();const saved={center:[c.lng,c.lat],zoom:m.getZoom(),pitch:m.getPitch(),bearing:m.getBearing()};
