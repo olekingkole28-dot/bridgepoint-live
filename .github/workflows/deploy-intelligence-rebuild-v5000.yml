@@ -1359,6 +1359,33 @@ jobs:
               // Deployment smoke stops at the rendered-building click contract.
               // The dedicated Android Building Inspector workflow is the deep panel/marker gate.
               console.log('BRIDGEPOINT_BUILDING_CLICK_PASS',JSON.stringify(clicked));
+
+              await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                if(!m)throw new Error('GLOBAL_SURFACE_MAP_UNAVAILABLE');
+                m.jumpTo({center:[20,10],zoom:2.2,pitch:0,bearing:0});
+              });
+              await p.waitForFunction(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                return !!m?.getSource('bpNeOcean5948')&&!!m?.getSource('bpNeLand5948')&&
+                  !!m?.getSource('bpNeLakes5948')&&!!m?.getLayer('bp-ne-ocean-fallback-v5948')&&
+                  !!m?.getLayer('bp-ne-land-fallback-v5948')&&!!m?.getLayer('bp-ne-lakes-fallback-v5948')&&
+                  m.isSourceLoaded('bpNeOcean5948')&&m.isSourceLoaded('bpNeLand5948');
+              },{timeout:30000});
+              const globalSurface=await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                const count=id=>{try{return (m.querySourceFeatures(id)||[]).length}catch(_){return 0}};
+                const project=xy=>{try{return m.queryRenderedFeatures(m.project(xy),{layers:['bp-ne-ocean-fallback-v5948']}).length}catch(_){return 0}};
+                return {oceanSource:!!m?.getSource('bpNeOcean5948'),landSource:!!m?.getSource('bpNeLand5948'),
+                  lakeSource:!!m?.getSource('bpNeLakes5948'),oceanLayer:!!m?.getLayer('bp-ne-ocean-fallback-v5948'),
+                  landLayer:!!m?.getLayer('bp-ne-land-fallback-v5948'),lakeLayer:!!m?.getLayer('bp-ne-lakes-fallback-v5948'),
+                  oceanFeatures:count('bpNeOcean5948'),landFeatures:count('bpNeLand5948'),lakeFeatures:count('bpNeLakes5948'),
+                  oceanAtSouthAtlantic:project([-30,-20]),zoom:m.getZoom()};
+              });
+              if(!globalSurface.oceanSource||!globalSurface.landSource||!globalSurface.lakeSource||
+                !globalSurface.oceanLayer||!globalSurface.landLayer||!globalSurface.lakeLayer||
+                globalSurface.oceanFeatures<1||globalSurface.landFeatures<1)throw new Error('GLOBAL_SURFACE_FALLBACK_FAILED '+JSON.stringify(globalSurface));
+              console.log('BRIDGEPOINT_GLOBAL_SURFACE_FALLBACK_PASS',JSON.stringify(globalSurface));
               await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
                 if(!m)throw new Error('PYRAMID_SMOKE_MAP_UNAVAILABLE');
