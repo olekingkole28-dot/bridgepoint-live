@@ -691,7 +691,7 @@
       attachMap(map);
     }
     window.__BP_LANDMARKS_V5940__.attachedMaps = MAPS.size;
-    if (MAPS.size < 2 && !discoverMaps.stopped) {
+    if (MAPS.size === 0 && !discoverMaps.stopped) {
       discoverMaps.attempts = (discoverMaps.attempts || 0) + 1;
       if (discoverMaps.attempts >= 80) discoverMaps.stopped = true;
       else setTimeout(discoverMaps, 600);
