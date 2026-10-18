@@ -9,7 +9,7 @@
   "public_evidence": [
     {
       "type": "PodcastEpisode",
-      "name": "Boroughs & Burbs Ep.240 \u2014 Beyond the Listing",
+      "name": "Boroughs & Burbs Ep.240 — Beyond the Listing",
       "url": "https://www.podscan.fm/podcasts/boroughs-amp-burbs-the-national-real-estate-conversation-2/episodes/beyond-the-listing-how-ai-and-property-intelligence-are-changing-the-way-we-evaluate-real-estate-boroughs-and-burbs-ep240-1"
     }
   ],
@@ -45,7 +45,7 @@
           "title": "3D property maps and digital-twin workflows",
           "product": "INTELLIGENCE",
           "url": "https://bridgepointintelligence.online/search/3d-property-maps-digital-twin/",
-          "keywords": "3D property maps, digital twin, 3D GIS, building intelligence"
+          "keywords": "global 3D digital twin, digital twin of the entire globe, digital twin of Earth, planetary digital twin, 3D globe, global GIS, geospatial intelligence, 3D property maps, digital twin, 3D GIS, building intelligence"
         },
         {
           "slug": "parcel-boundaries-property-identity",
@@ -224,15 +224,17 @@
     "metrics": {
       "map_ready_buildings": 192755136,
       "roof_shell_buildings": 192755136,
-      "roof_shell_coverage_pct": 100.0,
+      "roof_shell_coverage_pct": 100,
       "canonical_property_records": 171592728,
       "normalized_address_records": 156184506,
       "source_backed_roof_records": 698097,
       "lidar_refined_roof_buildings": 7530,
       "materialized_boundary_estimate": 83512730,
       "public_parcel_identity_records": 171592728,
-      "canonical_property_record_label": "canonical property/parcel identity records",
-      "property_boundary_link_estimate": 31956612
+      "canonical_property_record_label": "U.S. canonical property/parcel identity records (56-jurisdiction counter)",
+      "property_boundary_link_estimate": 31956612,
+      "global_canonical_property_records_reported": "412M+",
+      "global_canonical_property_records_as_of": "2026-10-18"
     },
     "coverage": {
       "fl_oid_remaining": 0,
@@ -537,10 +539,11 @@
       }
     ],
     "accuracy_notes": [
-      "169.6M-scale canonical property/parcel identity records are not the same as 169.6M materialized boundary polygons.",
-      "Boundary and property\u2194boundary link counts are separate live measures.",
+      "412M+ is the reported worldwide canonical-property total; the detailed canonical_property_records counter below is a separate U.S. / 56-jurisdiction measure.",
+      "Boundary and property↔boundary link counts are separate live measures.",
       "Roof shell coverage is not the same as source-backed roof material/pitch/shape coverage.",
-      "Weather exposure is context, not proof of physical damage or an insurance outcome."
+      "Weather exposure is context, not proof of physical damage or an insurance outcome.",
+      "A global canonical identity count is not a count of fully materialized parcel polygons or a guarantee of complete geographic coverage."
     ],
     "intelligence_app": "https://bridgepointintelligence.online/app/",
     "horizon_year_one_demand": {
@@ -556,6 +559,15 @@
   "representation_rules": [
     "Canonical property/parcel identities are not the same as materialized boundary polygons.",
     "Weather exposure is not proof of damage.",
-    "Roof shell coverage is not source-backed material/pitch/shape coverage."
-  ]
+    "Roof shell coverage is not source-backed material/pitch/shape coverage.",
+    "The 412M+ reported canonical property total is worldwide; the detailed 56-jurisdiction counter is U.S.-specific and must be labeled separately."
+  ],
+  "description": "Open-source global 3D digital twin and geospatial intelligence platform connecting globe-scale mapping, terrain, buildings, property identity, parcel context, weather/hazard signals, and source-backed workflows. Current reported scale: 412M+ canonical property records worldwide; coverage varies by region.",
+  "global_scale": {
+    "metric": "canonical_property_records",
+    "value": "412M+",
+    "scope": "worldwide",
+    "as_of": "2026-10-18",
+    "note": "Current project-reported global canonical-identity count. Distinct from parcel-boundary polygons, fully modeled buildings, owner records, and uniform geographic coverage."
+  }
 }
