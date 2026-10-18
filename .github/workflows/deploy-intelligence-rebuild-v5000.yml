@@ -116,6 +116,7 @@ jobs:
           cp rebuild-v5000/landing.js site/landing.js
           cp rebuild-v5000/bridgepoint-view-v5917.css site/bridgepoint-view-v5917.css
           cp rebuild-v5000/bridgepoint-landmarks-v5940.js site/bridgepoint-landmarks-v5940.js
+          cp rebuild-v5000/bridgepoint-pyramids-v5945.js site/bridgepoint-pyramids-v5945.js
           # Mirror the licensed 3D scan into the same-origin static artifact; avoid browser CORS failures.
           curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 240 'https://zenodo.org/records/10355435/files/8e808365b5a6453497826b114b02f155.glb' -o /tmp/statue-of-liberty-scan-source.glb
           test "$(stat -c%s /tmp/statue-of-liberty-scan-source.glb)" -gt 20000000
@@ -271,6 +272,13 @@ jobs:
           grep -Fq 'bpv-key-ribbon' site/bridgepoint-view-v5917.css
           grep -Fq 'V5940: unify card actions' site/bridgepoint-view-v5917.css
           grep -Fq 'bridgepoint-landmarks-v5940.js' site/index.html
+          test -s site/bridgepoint-pyramids-v5945.js
+          grep -Fq 'bridgepoint-pyramids-v5945.js?v=5945-giza-3d' site/index.html
+          grep -Fq 'bridgepoint-pyramids-v5945.js?v=5945-giza-3d' site/app/index.html
+          grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
+          grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
+          grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
+          grep -Fq 'currentHeightM: 61.0' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'bridgepoint-landmarks-v5940.js' site/app/index.html
           grep -Fq 'PROFILE_ESTIMATED_NOT_SURVEYED' site/bridgepoint-landmarks-v5940.js
           test -s site/assets/great-wall-overview-v5940.geojson
