@@ -202,8 +202,9 @@ function spatialHit(targetGeom,eventGeom){
 export function initGisCore(target,rpc){
  const map=target?.map||target,container=map?.getContainer?.();
  if(!map||!container)return null;
- if(window.__BP_GIS_CORE_V5910__?.map===map)return window.__BP_GIS_CORE_V5910__;
- if(container.querySelector('#'+ROOT_ID))return window.__BP_GIS_CORE_V5910__||null;
+ if(window.__BP_GIS_CORE_V5910__?.map===map&&typeof window.__BP_GIS_CORE_V5910__?.route==='function')return window.__BP_GIS_CORE_V5910__;
+ const staleRoot=container.querySelector('#'+ROOT_ID);
+ if(staleRoot){const current=window.__BP_GIS_CORE_V5910__;if(current?.map===map&&typeof current.route==='function')return current;staleRoot.remove();}
  if(getComputedStyle(container).position==='static')container.style.position='relative';
  if(!document.getElementById(STYLE_ID)){const st=document.createElement('style');st.id=STYLE_ID;st.textContent=CSS;document.head.appendChild(st)}
  const root=document.createElement('section');root.id=ROOT_ID;root.setAttribute('aria-label','BridgePoint GIS Core Orchestration Engine');
