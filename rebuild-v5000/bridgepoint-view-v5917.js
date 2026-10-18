@@ -61,7 +61,7 @@ function attachMap(m){
  if(mapHost){
   mapHost.addEventListener('pointerdown',e=>{if(e.target.closest('button,a,input,textarea,form,[role="button"],.bpv-sidecar'))return;setMoving()},{passive:true,capture:true});
   mapHost.addEventListener('touchstart',e=>{if(e.target.closest('button,a,input,textarea,form,[role="button"],.bpv-sidecar'))return;setMoving()},{passive:true,capture:true});
-  mapHost.addEventListener('wheel',()=>setMoving(),{passive:true,capture:true});
+  mapHost.addEventListener('wheel',e=>{if(e.target&&e.target.closest('#bpv-sidecar,.bpv-dock,#previewCard,.building-panel,.system-panel,.map-tools,[data-bpv-pane],.bpv-sidecar-tabs'))return;setMoving()},{passive:true,capture:true});
  }
  window.__BRIDGEPOINT_VIEW_V5917__={version:5917,mode:home?'WEBSITE_GLOBE':'APP_GLOBE',mapAttached:true,attachedAt:Date.now(),map,moving:false};
 }
