@@ -1,5 +1,27 @@
 # BridgePoint Intelligence
 
+
+> **The map is just the beginning.** BridgePoint Intelligence is building an explorable, data-connected **3D digital twin of the physical world**—bringing together the globe, 3D buildings and terrain, property identity, parcel context, weather and hazard signals, and source-backed intelligence in one geospatial platform.
+>
+> 🌎 **Explore the live platform:** https://bridgepointintelligence.online/
+> 
+> **Open source:** This repository is one part of the BridgePoint codebase. The companion Flutter application and related app/backend components live in [bridgepoint_data_studio](https://github.com/olekingkole28-dot/bridgepoint_data_studio).
+>
+> **What makes it different:** not simply a basemap or static 3D scene. BridgePoint connects physical-world geography to property records, building geometry, environmental context, evidence provenance, and workflows—where data is available and licensed for use. Coverage and detail vary by region and source; a global view does not mean every feature is complete everywhere.
+
+## Explore BridgePoint
+
+- **Live interactive globe and map:** https://bridgepointintelligence.online/
+- **Property and claims intelligence:** https://bridgepointintelligence.online/claims-terminal/
+- **Free tools:** https://bridgepointintelligence.online/free-tools/
+- **Research and technical notes:** https://bridgepointintelligence.online/articles/
+- **Source scope, licensing, and limitations:** [OPEN_SOURCE_SCOPE.md](OPEN_SOURCE_SCOPE.md)
+
+**Search terms:** global digital twin, 3D globe, geospatial intelligence, 3D mapping, property intelligence, digital twin platform, open-source GIS, building footprints, parcel data, terrain mapping, weather intelligence, claims intelligence, spatial data, physical-world AI.
+
+---
+
+
 > **Open-source release note:** This repository is public and its first-party code/docs are licensed under Apache-2.0. The platform spans a second repository, `bridgepoint_data_studio`, for the Flutter application and related backend components. Both repositories are now public, including the companion Flutter application and related backend components. The source release is publicly inspectable, while production data, credentials, third-party datasets, external provider access, and some deployment prerequisites remain outside the source-code grant. Review the release scope and security notices before deploying. See [OPEN_SOURCE_SCOPE.md](OPEN_SOURCE_SCOPE.md) for the exact boundaries.
 
 BridgePoint Intelligence connects geospatial maps and 3D surfaces with property identity, source-backed physical-world context, claims-lifecycle workflows, and explainable evidence. This repository includes the public web/data surfaces, SQL migrations, Supabase Edge Functions, automation, tests, research pages, and selected utilities.
