@@ -115,6 +115,7 @@ jobs:
           cp rebuild-v5000/landing.css site/landing.css
           cp rebuild-v5000/landing.js site/landing.js
           cp rebuild-v5000/bridgepoint-view-v5917.css site/bridgepoint-view-v5917.css
+          cp rebuild-v5000/bridgepoint-landmarks-v5940.js site/bridgepoint-landmarks-v5940.js
           cp rebuild-v5000/bridgepoint-view-v5917.js site/bridgepoint-view-v5917.js
           cp rebuild-v5000/bridgepoint-map-key-v5920.js site/bridgepoint-map-key-v5920.js
           cp rebuild-v5000/bridgepoint-map-state-counts-v5923.js site/bridgepoint-map-state-counts-v5923.js
@@ -243,6 +244,7 @@ jobs:
           grep -Fq 'BridgePoint Intelligence pricing' site/pricing.html
           node --check site/app.js
           node --check site/bridgepoint-view-v5917.js
+          node --check site/bridgepoint-landmarks-v5940.js
           node --check site/bridgepoint-map-key-v5920.js
           node --check site/bridgepoint-map-state-counts-v5923.js
           node --check site/bridgepoint-map-physical-assets-v5924.js
@@ -261,6 +263,10 @@ jobs:
           grep -Fq 'bridgepoint-view-v5917.js' site/app/index.html
           grep -Fq 'bpv-dock-persistent' site/bridgepoint-view-v5917.css
           grep -Fq 'bpv-key-ribbon' site/bridgepoint-view-v5917.css
+          grep -Fq 'V5940: unify card actions' site/bridgepoint-view-v5917.css
+          grep -Fq 'bridgepoint-landmarks-v5940.js' site/index.html
+          grep -Fq 'bridgepoint-landmarks-v5940.js' site/app/index.html
+          grep -Fq 'PROFILE_ESTIMATED_NOT_SURVEYED' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'PARCEL BOUNDARIES' site/bridgepoint-view-v5917.js
           grep -Fq 'bridgepoint_public_listings_viewport_v5927' site/bridgepoint-view-v5917.js
           grep -Fq 'bridgepoint-realworld-effects-v5927.js' site/intelligence-tools-v5507.js
