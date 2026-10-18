@@ -63,8 +63,8 @@ function addPanel(){
    const copy=el('span');copy.append(el('b','',label),el('small','',note));row.append(input,copy);controls.append(row);
    input.addEventListener('change',()=>fn(input.checked));
   };
-  addToggle('bpm-sat-enable','Show satellite ground tracks','Estimated positions propagated from public GP orbital elements; not live spacecraft telemetry.',false,async on=>{state.satelliteEnabled=on;if(on)await loadSatellitePage(true);else{state.selectedSatellite=null;state.followSatellite=false;setData('bpV5926Satellites',EMPTY);setData('bpV5926SatelliteTrail',EMPTY)}});
-  addToggle('bpm-flight-enable','Show nearby public aircraft','ADSB.lol open feed · current map center ±250 nautical miles · refreshed about every 45 seconds.',false,async on=>{state.aircraftEnabled=on;if(on)await refreshFlights(true);else{state.followAircraft=false;state.selectedAircraft=null;state.aircraft=[];setData('bpV5926Aircraft',EMPTY);clearTimeout(state.flightTimer)}});
+  addToggle('bpm-sat-enable','Show satellite ground tracks','Estimated positions propagated from public GP orbital elements; not live spacecraft telemetry.',false,async on=>{await setSatellitesEnabled(on)});
+  addToggle('bpm-flight-enable','Show nearby public aircraft','ADSB.lol open feed · current map center ±250 nautical miles · refreshed about every 45 seconds.',false,async on=>{await setAircraftEnabled(on)});
   const actions=el('div','bpm-buttons');
   const satPage=el('button','bpm-btn','Load next satellite page');satPage.type='button';satPage.id='bpm-load-sat-page';satPage.addEventListener('click',()=>loadSatellitePage(false));
   const satFollow=el('button','bpm-btn','Follow selected satellite');satFollow.type='button';satFollow.id='bpm-sat-follow';satFollow.addEventListener('click',()=>followSat());
@@ -74,7 +74,7 @@ function addPanel(){
   const selected=el('div','bpm-selected','Click a satellite or aircraft point on the map to inspect it.');selected.id='bpm-selected-v5926';
   const satStatus=el('div','bpm-status','Loading BridgePoint source status…');satStatus.id='bpm-sat-status-v5926';
   const flightStatus=el('div','bpm-status','Live aircraft feed is off.');flightStatus.id='bpm-flight-status-v5926';
-  const foot=el('p','bpm-note','Counters are source records, not unique physical objects. Live feeds can be region-limited. A blocked or absent source is never replaced with invented camera streams, train positions, pipes or satellite telemetry.');
+  const foot=el('p','bpm-note','SOURCE COVERAGE: satellite positions are propagated orbital estimates, not onboard telemetry; aircraft are ADSB.lol positions within 250 nautical miles of the map center. Transit/rail features are static public geometry, not live train positions. No authorized global AIS vessel feed or licensed global camera catalog is connected yet, so ships and cameras remain unavailable rather than using invented tracks.');
   const feed=el('div','bpm-feed');feed.append(el('b','', 'FEED COVERAGE'),foot,selected,satStatus,flightStatus);
   box.append(head,grid,controls,actions,feed);
  }
@@ -320,6 +320,10 @@ async function refreshFlights(force){
   if(state.aircraftEnabled){clearTimeout(state.flightTimer);state.flightTimer=setTimeout(()=>refreshFlights(false),45000)}
  }
 }
+function syncLayerVisibility(){const m=state.map;if(!m)return;for(const [id,on] of [['bp-v5926-satellite-trail',state.satelliteEnabled],['bp-v5926-satellite-points',state.satelliteEnabled],['bp-v5926-aircraft-points',state.aircraftEnabled]]){try{if(m.getLayer(id))m.setLayoutProperty(id,'visibility',on?'visible':'none')}catch(_){}}}
+async function setSatellitesEnabled(on){state.satelliteEnabled=!!on;if(!state.map)attachMap();if(state.map){buildLayers();syncLayerVisibility()}const t=$('bpm-sat-enable');if(t)t.checked=state.satelliteEnabled;if(state.satelliteEnabled)await loadSatellitePage(true);else{state.selectedSatellite=null;state.followSatellite=false;setData('bpV5926Satellites',EMPTY);setData('bpV5926SatelliteTrail',EMPTY)}syncLayerVisibility();renderSummaries();return state.satelliteEnabled}
+async function setAircraftEnabled(on){state.aircraftEnabled=!!on;if(!state.map)attachMap();if(state.map){buildLayers();syncLayerVisibility()}const t=$('bpm-flight-enable');if(t)t.checked=state.aircraftEnabled;if(state.aircraftEnabled)await refreshFlights(true);else{state.followAircraft=false;state.selectedAircraft=null;state.aircraft=[];setData('bpV5926Aircraft',EMPTY);clearTimeout(state.flightTimer)}syncLayerVisibility();renderSummaries();return state.aircraftEnabled}
+
 function setStatus(message){const n=$('bpm-sat-status-v5926');if(n)n.textContent=message}
 function open(){
  if(!addPanel())return false;
@@ -333,7 +337,7 @@ function boot(){
  if(state.satelliteEnabled&&state.summaries.satellite?.total_known_objects>0&&!state.summaries.satellite.operator_review_required)void loadSatellitePage(true);
  if(state.summaryTimer===null)state.summaryTimer=setInterval(()=>{if(!document.hidden){addPanel();void refreshSummaries()}},5*60*1000);
 }
-window.__BP_GLOBAL_MOTION_V5926__={version:5926,open,refreshSummaries,loadSatellitePage,refreshFlights,followSat,followPlane,state};
+window.__BP_GLOBAL_MOTION_V5926__={version:5926,open,refreshSummaries,loadSatellitePage,refreshFlights,followSat,followPlane,setSatellitesEnabled,setAircraftEnabled,state};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 const observer=new MutationObserver(()=>{if(!$('bp-global-motion-v5926'))addPanel();if(!state.map)attachMap()});
 if(document.documentElement)observer.observe(document.documentElement,{childList:true,subtree:true});

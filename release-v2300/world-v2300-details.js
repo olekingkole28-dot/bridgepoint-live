@@ -51,10 +51,10 @@ function infrastructure(map){
 
   const bridgeFilter=['==',['coalesce',['get','brunnel'],''],'bridge'];
   add(map,{id:'gta-bridge-shadow',type:'line',source:'ofm','source-layer':'transportation',minzoom:11.5,filter:bridgeFilter,layout:{'line-cap':'round','line-join':'round'},paint:{
-    'line-color':'#020609','line-width':['interpolate',['exponential',1.3],['zoom'],11.5,2.2,16,8,20,18],'line-opacity':.72,'line-blur':1.5
+    'line-color':'#020609','line-width':['interpolate',['exponential',1.26],['zoom'],11.5,3,16,9.5,20,20],'line-opacity':.8,'line-blur':1.1
   }});
   add(map,{id:'gta-bridge-deck',type:'line',source:'ofm','source-layer':'transportation',minzoom:11.5,filter:bridgeFilter,layout:{'line-cap':'round','line-join':'round'},paint:{
-    'line-color':'#b9d5da','line-width':['interpolate',['exponential',1.3],['zoom'],11.5,1.1,16,5.1,20,13],'line-opacity':.98
+    'line-color':'#34444d','line-width':['interpolate',['exponential',1.26],['zoom'],11.5,1.7,16,6.4,20,15.5],'line-opacity':.99
   }});
   add(map,{id:'gta-bridge-center',type:'line',source:'ofm','source-layer':'transportation',minzoom:15,filter:bridgeFilter,paint:{
     'line-color':'#f6d36a','line-width':['interpolate',['linear'],['zoom'],15,.26,20,.9],'line-opacity':.82,'line-dasharray':[2,2]

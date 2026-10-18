@@ -771,6 +771,10 @@
     updatedAt: Date.now()
   };
 
+  const pendingMap=window.__BP_PENDING_LANDMARK_MAP_V5940__;
+  if(pendingMap&&typeof pendingMap.on==='function')attachMap(pendingMap);
+  window.addEventListener('bp:world-map-ready-v5940',event=>{const readyMap=event&&event.detail&&event.detail.map;if(readyMap&&typeof readyMap.on==='function')attachMap(readyMap);if(window.__BP_LANDMARKS_V5940__)window.__BP_LANDMARKS_V5940__.attachedMaps=MAPS.size});
+
   function discoverMaps() {
     const maps = currentMaps();
     for (const map of maps) {
