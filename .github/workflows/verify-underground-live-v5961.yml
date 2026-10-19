@@ -44,7 +44,7 @@ jobs:
           (async()=>{
             const browser=await puppeteer.launch({
               executablePath:process.env.CHROME,headless:true,
-              args:['--no-sandbox','--disable-setuid-sandbox','--disable-dev-shm-usage','--use-gl=angle','--enable-webgl','--ignore-gpu-blocklist']
+              args:['--no-sandbox','--disable-setuid-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--disable-gpu-sandbox']
             });
             const page=await browser.newPage({viewport:{width:1440,height:960},deviceScaleFactor:1});
             const errors=[];
