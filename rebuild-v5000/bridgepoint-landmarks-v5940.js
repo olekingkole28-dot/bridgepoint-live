@@ -480,6 +480,8 @@
           regions: ['overview'],
           source: 'MIT simplified overview route',
           mobileLOD: mobile,
+          mapCenter: mapCenter ? [mapCenter.lng, mapCenter.lat] : null,
+          mapZoom: zoom,
           overviewBytes: 404581,
           updatedAt: Date.now()
         };
@@ -610,6 +612,11 @@
         source: 'MIT regional GeoJSON route trace',
         profile: 'estimated 6.5 m height × 5 m width where no surveyed cross-section is available',
         groundAnchor: 'native terrain drape with zero-metre ground-relative base; finite DEM sample required before a body segment is emitted',
+        groundModel: 'MAPLIBRE_TERRAIN_RELATIVE',
+        groundRelativeBaseM: 0,
+        estimatedTopHeightM: WALL_HEIGHT_M_EST,
+        mapCenter: mapCenter ? [mapCenter.lng, mapCenter.lat] : null,
+        mapZoom: zoom,
         terrainSamplesAttempted,
         terrainSamplesMissing,
         groundAnchoredSegments: extrudedSegments,
