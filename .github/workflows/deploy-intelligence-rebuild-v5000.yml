@@ -348,7 +348,7 @@ jobs:
           grep -Fq 'bp-underground-volume-v5951' site/world-v2300-underground-xray.js
           grep -Fq 'refreshVolumeGeometry' site/world-v2300-underground-xray.js
           grep -Fq 'TubeGeometry' site/world-v2300-underground-xray.js
-          grep -Fq '5960-global-clusters-volume' site/bridgepoint-view-v5917.js
+          grep -Fq 'const VERSION=5960' site/world-v2300-underground-xray.js
           grep -Fq 'if (!Number.isFinite(terrainBaseM)) return null' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/index.html
           grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/app/index.html
