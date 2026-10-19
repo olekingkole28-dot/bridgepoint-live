@@ -742,8 +742,8 @@ jobs:
            grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/app/index.html
-           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5954-terrain-relative-wall' site/index.html
-           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5954-terrain-relative-wall' site/app/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5955-visible-body' site/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5955-visible-body' site/app/index.html
            grep -Fq 'bottomNav' site/app/index.html
           grep -Fq 'bindPerformanceGovernor' site/app.js
           grep -Fq '__BP_MAP_CLICK_FASTPATH_V5557__' site/app.js
