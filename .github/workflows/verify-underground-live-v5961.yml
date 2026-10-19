@@ -1,0 +1,109 @@
+name: Visual QA — Underground Global Clusters and 3D Tubes V5961
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-underground-xray.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+      - '.github/workflows/verify-underground-live-v5961.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out production source
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser automation
+        run: |
+          npm install --no-save puppeteer-core@24.10.2
+      - name: Audit global cluster badges and local 3D geometry
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium || true)
+          if [ -z "$CHROME" ]; then
+            echo "Chrome/Chromium unavailable on this runner."
+            exit 1
+          fi
+          export CHROME
+          cat > /tmp/underground-v5961-audit.cjs <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          (async()=>{
+            const browser=await puppeteer.launch({
+              executablePath:process.env.CHROME,headless:true,
+              args:['--no-sandbox','--disable-setuid-sandbox','--disable-dev-shm-usage','--use-gl=angle','--enable-webgl','--ignore-gpu-blocklist']
+            });
+            const page=await browser.newPage({viewport:{width:1440,height:960},deviceScaleFactor:1});
+            const errors=[];
+            page.on('pageerror',e=>errors.push('pageerror: '+String(e?.message||e)));
+            page.on('console',m=>{if(m.type()==='error')errors.push('console: '+m.text())});
+            try{
+              await page.goto('https://bridgepointintelligence.online/?underground-qa=5961',{waitUntil:'domcontentloaded',timeout:100000});
+              await page.waitForFunction(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map;
+                return !!m&&typeof m.getZoom==='function'&&m.isStyleLoaded?.();
+              },{timeout:120000});
+              await page.waitForFunction(()=>!!document.querySelector('#bp-underground-xray-v5951 [data-toggle]'),{timeout:90000});
+              const before=await page.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map;
+                const b=document.querySelector('#bp-underground-xray-v5951 [data-toggle]');
+                return {zoom:m?.getZoom(),center:m?.getCenter?.()?.toArray?.(),projection:m?.getProjection?.()?.type,toggle:b?.textContent};
+              });
+              await page.evaluate(()=>document.querySelector('#bp-underground-xray-v5951 [data-toggle]').click());
+              await page.waitForFunction(()=>{
+                const s=window.__BP_UNDERGROUND_XRAY_V5951__,m=window.__BP_LANDING_WORLD__?.map;
+                return s?.enabled===true&&s?.globalClusters?.count>0&&!!m?.getLayer('bp-underground-global-clusters-badge-v5961');
+              },{timeout:45000});
+              const global=await page.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_UNDERGROUND_XRAY_V5951__;
+                const layer='bp-underground-global-clusters-badge-v5961';
+                let rendered=0;try{rendered=m.queryRenderedFeatures({layers:[layer]}).length}catch(e){return{queryError:String(e)}}
+                return {enabled:s?.enabled,clusters:s?.globalClusters,zoom:m?.getZoom(),projection:m?.getProjection?.()?.type,clusterLayer:!!m?.getLayer(layer),renderedClusters:rendered,records:s?.coverage?.mapped_tunnel_passage_records,pipes:s?.coverage?.mapped_pipe_records};
+              });
+              await page.screenshot({path:'/tmp/underground-global-v5961.png',fullPage:false});
+              const mjs=await page.evaluate(async()=>{
+                const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_UNDERGROUND_XRAY_V5951__;
+                m.jumpTo({center:[-74.054938,40.634734],zoom:11.5,pitch:55,bearing:0});
+                return await new Promise(resolve=>m.once('idle',()=>resolve({center:m.getCenter().toArray(),zoom:m.getZoom(),projection:m.getProjection?.()?.type,enabled:s?.enabled})));
+              });
+              await page.waitForFunction(()=>{
+                const s=window.__BP_UNDERGROUND_XRAY_V5951__;
+                return !!s?.volume&&s.volume.features>0&&s.volume.meshCount>0;
+              },{timeout:65000});
+              const local=await page.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_UNDERGROUND_XRAY_V5951__;
+                return {zoom:m?.getZoom(),center:m?.getCenter?.()?.toArray?.(),projection:m?.getProjection?.()?.type,
+                  volume:s?.volume,volumeLayer:!!m?.getLayer('bp-underground-volume-v5951'),
+                  lineLayer:!!m?.getLayer('bp-underground-xray-line-v5951'),status:document.querySelector('#bp-underground-xray-v5951 [data-status]')?.textContent};
+              });
+              await page.screenshot({path:'/tmp/underground-local-v5961.png',fullPage:false});
+              console.log('UNDERGROUND_VISUAL_AUDIT',JSON.stringify({before,global,mjs,local,errors:errors.slice(-25)}));
+              if(!global.clusterLayer||!global.clusters?.count||global.renderedClusters<1)throw new Error('GLOBAL_CLUSTER_BADGES_NOT_RENDERED '+JSON.stringify(global));
+              if(!local.volumeLayer||!local.volume?.meshCount||local.volume.meshCount<1)throw new Error('LOCAL_3D_TUBES_NOT_RENDERED '+JSON.stringify(local));
+              const fatal=errors.filter(e=>/underground|three|webgl|custom layer/i.test(e)&&!/ResizeObserver loop/i.test(e));
+              if(fatal.length)throw new Error('UNDERGROUND_RENDER_ERRORS '+JSON.stringify(fatal));
+              console.log('UNDERGROUND_VISUAL_AUDIT_PASS');
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+          node /tmp/underground-v5961-audit.cjs
+      - name: Upload audit screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: underground-visual-audit-v5961
+          path: /tmp/underground-*-v5961.png
+          if-no-files-found: ignore
