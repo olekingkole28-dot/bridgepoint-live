@@ -72,7 +72,7 @@ function syncMapIcon(){
   if(!installUndergroundIcon())return;
   if(!map.getLayer(ICON_LAYER_ID)){
    const before=['gta-place-label','gta-poi-label','gta-opportunity-label','gta-city-buildings','gta-context-buildings'].find(id=>map.getLayer(id));
-   const layer={id:ICON_LAYER_ID,type:'symbol',source:SOURCE_ID,'source-layer':'underground_markers',minzoom:3,maxzoom:17,
+   const layer={id:ICON_LAYER_ID,type:'symbol',source:SOURCE_ID,'source-layer':'underground_markers',minzoom:0,maxzoom:17,
     layout:{
      'symbol-placement':'point','icon-image':ICON_IMAGE_ID,
      'icon-size':['interpolate',['linear'],['zoom'],3,.42,5,.46,8,.52,10,.58,12,.66,14,.76,17,.9],
@@ -92,7 +92,7 @@ function ensureLayers(){
   if(disposed||!state.enabled||!map||typeof map.addSource!=='function')return false;
   try{
    if(!map.isStyleLoaded?.())return false;
-   if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{type:'vector',tiles:[FN+'?z={z}&x={x}&y={y}&v=5951'],minzoom:3,maxzoom:17,attribution:'OpenStreetMap contributors (ODbL-1.0); source-mapped tunnel / underpass geometry'});
+   if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{type:'vector',tiles:[FN+'?z={z}&x={x}&y={y}&v=5951'],minzoom:0,maxzoom:17,attribution:'OpenStreetMap contributors (ODbL-1.0); source-mapped tunnel / underpass geometry'});
    const before=['gta-place-label','gta-poi-label','gta-opportunity-label','gta-city-buildings','gta-context-buildings'].find(id=>map.getLayer(id));
    if(!map.getLayer(GLOW_ID)){
     const layer={id:GLOW_ID,type:'line',source:SOURCE_ID,'source-layer':'underground',minzoom:10,maxzoom:17,layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#7257ff','line-opacity':.72,'line-width':['interpolate',['linear'],['zoom'],10,1.8,12,3.5,14,5.5,17,7.5],'line-blur':['interpolate',['linear'],['zoom'],10,1.2,14,2.4,17,3.2]}};
