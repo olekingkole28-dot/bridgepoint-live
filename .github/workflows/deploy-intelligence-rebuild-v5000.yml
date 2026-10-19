@@ -329,8 +329,8 @@ jobs:
           grep -Fq 'world-v2300-clouds.js?v=5908-game-clouds' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
-          grep -Fq 'world-v2300-underground-xray.js?v=5962-global-route-retry' site/app.js
-          grep -Fq 'world-v2300-underground-xray.js?v=5962-global-route-retry' site/landing.js
+          grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
+          grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' site/app.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' site/landing.js
           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5965-landmarks-and-effects' site/app.js
