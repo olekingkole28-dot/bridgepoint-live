@@ -333,6 +333,12 @@ jobs:
           grep -Fq 'world-v2300-underground-xray.js?v=5962-global-route-retry' site/landing.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' site/app.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' site/landing.js
+          grep -Fq 'bridgepoint-landmarks-v5940.js?v=5965-landmarks-and-effects' site/app.js
+          grep -Fq 'bridgepoint-landmarks-v5940.js?v=5965-landmarks-and-effects' site/landing.js
+          grep -Fq 'window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map' site/app.js
+          grep -Fq '__BP_PENDING_LANDMARK_MAP_V5940__=world.map' site/landing.js
+          grep -Fq "bp:world-map-ready-v5940" site/app.js
+          grep -Fq "bp:world-map-ready-v5940" site/landing.js
           grep -Fq 'initInfrastructureVolume(world)' site/app.js
           grep -Fq 'initInfrastructureVolume(world)' site/landing.js
           grep -Fq 'US_Electric_Power_Transmission_Lines' site/world-v2300-infrastructure-volume-v5962.js
@@ -745,8 +751,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=5964-property-card-identity' site/app/index.html
-          grep -Fq 'landing.js?v=5963-property-timeline-retry' site/index.html
+          grep -Fq 'app.js?v=5965-landmarks-and-effects' site/app/index.html
+          grep -Fq 'landing.js?v=5965-landmarks-and-effects' site/index.html
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/app.js
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/landing.js
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/index.html
@@ -765,8 +771,8 @@ jobs:
            grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/app/index.html
-           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5958-highzoom-body' site/index.html
-           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5958-highzoom-body' site/app/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5965-landmarks-and-effects' site/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5965-landmarks-and-effects' site/app/index.html
            grep -Fq 'bottomNav' site/app/index.html
           grep -Fq 'bindPerformanceGovernor' site/app.js
           grep -Fq '__BP_MAP_CLICK_FASTPATH_V5557__' site/app.js
