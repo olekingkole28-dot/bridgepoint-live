@@ -550,14 +550,14 @@
       setSourceData(map, 'bp-v5940-wall-route', { type: 'FeatureCollection', features: routeFeatures });
 
       let extrudedSegments = 0;
+      let terrainSamplesAttempted = 0;
+      let terrainSamplesMissing = 0;
       if (zoom < 11.2) {
         setSourceData(map, 'bp-v5940-wall-body', EMPTY);
       } else {
         const maxSegments = mobile ? (zoom < 13.5 ? 120 : 240) : (zoom < 13.5 ? 500 : 900);
         const segStride = zoom < 12.5 ? 5 : zoom < 14.5 ? 2 : 1;
         const body = [];
-        let terrainSamplesAttempted = 0;
-        let terrainSamplesMissing = 0;
         const maxTerrainSamples = maxSegments * 4;
         let sampleBudgetExhausted = false;
         for (const line of sourceSegments) {
