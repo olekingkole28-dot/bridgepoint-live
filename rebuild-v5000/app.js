@@ -156,6 +156,9 @@ async function bootMap(){
  void import('./world-v2300-underground-xray.js?v=5961-global-clusters-badges')
   .then(m=>{window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)})
   .catch(e=>console.warn('BridgePoint Underground X-ray unavailable',e));
+ void import('./world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers')
+  .then(m=>{window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)})
+  .catch(e=>console.warn('BridgePoint power grid and FCC tower volume unavailable',e));
   void import('./world-v2300-sensor-layers.js?v=5945-coastal-dive')
    .then(m=>{window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)})
    .catch(e=>console.warn('BridgePoint NASA night lights, GEBCO depth and mapped streetlights unavailable',e));
