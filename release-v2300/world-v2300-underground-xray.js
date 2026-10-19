@@ -4,6 +4,8 @@ const STYLE_ID='bp-underground-xray-style-v5951';
 const SOURCE_ID='bp-underground-xray-source-v5951';
 const GLOW_ID='bp-underground-xray-glow-v5951';
 const LINE_ID='bp-underground-xray-line-v5951';
+const VOLUME_LAYER_ID='bp-underground-volume-v5951';
+const THREE_URL='./vendor/three.module.js?v=169-local';
 const FN='https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-public-underground-xray-v5935';
 // Public rendering uses generalized TUNNELS_UNDERPASSES records only.
 // No pipe network or leak telemetry exists in the current materialized dataset; never infer either from tunnel geometry.
@@ -38,6 +40,7 @@ export function initUndergroundXray(target){
  const $=s=>dock.querySelector(s),button=$('[data-toggle]'),status=$('[data-status]'),count=$('[data-count]');
  let disposed=false,mountTimer=null,tries=0,retryTimer=null,styleRetry=null;
  const opacityOriginal=new Map();
+ let volumeScene=null,volumeRenderer=null,volumeLayer=null,threePromise=null,volumeRefreshTimer=null;
  function captureOpacity(id,prop){const k=id+'|'+prop;if(opacityOriginal.has(k))return;let value;try{value=map.getPaintProperty(id,prop)}catch(_){}opacityOriginal.set(k,{has:value!==undefined,value})}
  function setXrayOpacity(on){
   const active=!!on&&Number(map.getZoom?.()||0)>=10;
@@ -45,6 +48,20 @@ export function initUndergroundXray(target){
   for(const id of ids){if(!map.getLayer(id))continue;const prop='fill-extrusion-opacity';captureOpacity(id,prop);try{map.setPaintProperty(id,prop,active?0.24:(opacityOriginal.get(id+'|'+prop).has?opacityOriginal.get(id+'|'+prop).value:null))}catch(_){}}
   const roofIds=['gta-city-roofs','gta-bp-roofs','gta-context-roofs','gta-exact-roof','gta-city-building-roof-caps'];
   for(const id of roofIds){if(!map.getLayer(id))continue;const type=map.getLayer(id).type,prop=type==='fill-extrusion'?'fill-extrusion-opacity':'fill-opacity';captureOpacity(id,prop);try{map.setPaintProperty(id,prop,active?0.32:(opacityOriginal.get(id+'|'+prop).has?opacityOriginal.get(id+'|'+prop).value:null))}catch(_){}}
+ }
+ function setXraySurface(on){
+  const active=!!on&&Number(map.getZoom?.()||0)>=8.5;
+  let layers=[];try{layers=map.getStyle?.()?.layers||[]}catch(_){}
+  for(const layer of layers){
+   if(!layer?.id)continue;
+   if(layer.type==='raster'){
+    const prop='raster-opacity';captureOpacity(layer.id,prop);const old=opacityOriginal.get(layer.id+'|'+prop);
+    try{map.setPaintProperty(layer.id,prop,active?0.16:(old?.has?old.value:null))}catch(_){}
+   }else if(layer.type==='background'){
+    const prop='background-color';captureOpacity(layer.id,prop);const old=opacityOriginal.get(layer.id+'|'+prop);
+    try{map.setPaintProperty(layer.id,prop,active?'#06111a':(old?.has?old.value:null))}catch(_){}
+   }
+  }
  }
  function syncButton(){button.setAttribute('aria-pressed',String(state.enabled));button.textContent=state.enabled?'◈ UNDERGROUND X-RAY · ON':'◈ UNDERGROUND X-RAY · OFF';syncMapIcon()}
  const ICON_LAYER_ID='bp-underground-feature-icons-v5951';
@@ -104,10 +121,129 @@ function ensureLayers(){
    }
    for(const id of [GLOW_ID,LINE_ID])if(map.getLayer(id))map.setLayoutProperty(id,'visibility',state.enabled?'visible':'none');
    setXrayOpacity(state.enabled);
+   setXraySurface(state.enabled);
    syncMapIcon();
    return true;
   }catch(e){console.warn('BridgePoint underground X-ray retries after style readiness',String(e?.message||e));return false}
  }
+
+ // Procedural underground tubes use source-backed visible line geometry; unmeasured depths are schematic estimates.
+ function projectionType(){try{return map.getProjection?.()?.type||'mercator'}catch(_){return 'mercator'}}
+ function syncXrayProjection(){
+  if(!state.enabled)return;
+  const zoom=Number(map.getZoom?.()||0),current=projectionType();
+  if(state.originalProjection==null)state.originalProjection=current;
+  if(zoom>=8.5&&state.originalProjection==='globe'&&current!=='mercator'){
+   try{map.setProjection?.({type:'mercator'});state.projectionChanged=true}catch(e){console.warn('BridgePoint underground projection switch',e)}
+  }else if(zoom<8.5&&state.projectionChanged){
+   try{map.setProjection?.({type:state.originalProjection});state.projectionChanged=false}catch(e){console.warn('BridgePoint underground projection restore',e)}
+  }
+ }
+ function restoreXrayProjection(){
+  if(state.projectionChanged&&state.originalProjection)try{map.setProjection?.({type:state.originalProjection})}catch(e){console.warn('BridgePoint underground projection restore',e)}
+  state.projectionChanged=false;state.originalProjection=null;
+ }
+ function loadThree(){if(!threePromise)threePromise=import(THREE_URL).then(m=>m.default||m).catch(e=>{threePromise=null;throw e});return threePromise}
+ function linePaths(g){if(!g)return[];if(g.type==='LineString')return[g.coordinates||[]];if(g.type==='MultiLineString')return g.coordinates||[];if(g.type==='GeometryCollection')return(g.geometries||[]).flatMap(linePaths);return[]}
+ function numberFrom(v){if(typeof v==='number'&&Number.isFinite(v))return v;const m=String(v??'').trim().match(/-?\d+(?:[.,]\d+)?/);if(!m)return null;const n=Number(m[0].replace(',','.'));return Number.isFinite(n)?n:null}
+ function depthInfo(props){
+  const p=props||{},tags=p.tags&&typeof p.tags==='object'?p.tags:{},a={...tags,...p};
+  for(const k of ['depth_m','burial_depth_m','tunnel_depth_m','depthMeters']){const n=numberFrom(a[k]);if(n!==null&&n>0&&n<300)return{meters:n,measured:true}}
+  for(const k of ['depth_ft','depth_feet','burial_depth_ft']){const n=numberFrom(a[k]);if(n!==null&&n>0&&n<1000)return{meters:n*.3048,measured:true}}
+  const raw=numberFrom(a.depth);if(raw!==null&&raw>0&&raw<300)return{meters:raw,measured:true};
+  const t=[a.utility_type,a.infrastructure_type,a.kind,a.class,a.subtype,a.tunnel,a.railway,a.water,a.power].filter(Boolean).join(' ').toLowerCase();
+  if(/subway|metro|rail|train/.test(t))return{meters:9.1,measured:false};
+  if(/sewer|storm.?drain|waste.?water/.test(t))return{meters:4.6,measured:false};
+  if(/water.?main|water.?pipe/.test(t))return{meters:1.52,measured:false};
+  if(/gas|electric|power|cable/.test(t))return{meters:.91,measured:false};
+  if(/footway|pedestrian|passage/.test(t))return{meters:2.4,measured:false};
+  if(/underpass/.test(t))return{meters:3.7,measured:false};
+  return{meters:5.5,measured:false};
+ }
+ function diameterInfo(props,type){
+  const p=props||{},tags=p.tags&&typeof p.tags==='object'?p.tags:{},a={...tags,...p};
+  for(const k of ['diameter_m','pipe_diameter_m']){const n=numberFrom(a[k]);if(n!==null&&n>0&&n<100)return{meters:n,measured:true}}
+  for(const k of ['diameter_ft','diameter_feet']){const n=numberFrom(a[k]);if(n!==null&&n>0&&n<1000)return{meters:n*.3048,measured:true}}
+  const raw=numberFrom(a.diameter);
+  if(raw!==null&&raw>0&&raw<10000){const txt=String(a.diameter).toLowerCase(),m=txt.match(/(mm|millimet(?:er|re)s?|cm|centimet(?:er|re)s?|ft|feet|in|inch|inches)/);let value=raw;
+   if(m&&/mm|millimet/.test(m[1]))value=raw/1000;else if(m&&/cm|centimet/.test(m[1]))value=raw/100;else if(m&&/ft|feet/.test(m[1]))value=raw*.3048;else if(m&&/in|inch/.test(m[1]))value=raw*.0254;else if(raw>100)value=raw/1000;else if(raw>5)value=raw/100;
+   if(value>0&&value<100)return{meters:value,measured:true}
+  }
+  if(/rail|subway|train/.test(type))return{meters:1.8,measured:false};
+  if(/sewer|storm/.test(type))return{meters:1.1,measured:false};
+  if(/water/.test(type))return{meters:.25,measured:false};
+  if(/gas|electric|power|cable/.test(type))return{meters:.12,measured:false};
+  if(/passage|pedestrian|footway/.test(type))return{meters:.55,measured:false};
+  return{meters:1.05,measured:false};
+ }
+ function utilityStyle(props){
+  const p=props||{},tags=p.tags&&typeof p.tags==='object'?p.tags:{},t=[tags.utility,tags.power,tags.water,tags.sewer,p.utility_type,p.infrastructure_type,p.kind,p.class,p.subtype,tags.railway,tags.tunnel].filter(Boolean).join(' ').toLowerCase();
+  if(/water/.test(t))return{type:'water',color:0x39a7ff};
+  if(/sewer|storm.?drain|waste.?water/.test(t))return{type:'sewer',color:0x3dff9e};
+  if(/gas/.test(t))return{type:'gas',color:0xffb34f};
+  if(/electric|power|cable/.test(t))return{type:'electric',color:0xff4f65};
+  if(/rail|subway|metro|train/.test(t))return{type:'transit',color:0xb08cff};
+  if(/passage|pedestrian|footway/.test(t))return{type:'passage',color:0xe5a0ff};
+  return{type:'tunnel / underpass',color:0x73f4ff};
+ }
+ function visibleLineFeatures(){
+  const out=[],seen=new Set();
+  const collect=(features,layer)=>{for(const f of features||[]){const p=f?.properties||{},g=f?.geometry;
+   const eligible=layer==='underground'||p.bp_layer==='underground'||/TUNNEL|UNDERPASS|SUBSURFACE|PIPE|SEWER|CABLE|UTILITY/i.test([p.kind,p.class,p.layer_key,p.utility_type,p.infrastructure_type].filter(Boolean).join(' '));
+   if(!eligible||!g||!linePaths(g).some(a=>Array.isArray(a)&&a.length>=2))continue;
+   const id=p.osm_id||p.source_record_id||p.id||f.id,key=String(id||JSON.stringify(g.coordinates||[]).slice(0,220));if(seen.has(key))continue;seen.add(key);out.push(f);if(out.length>=140)return;
+  }};
+  try{collect(map.querySourceFeatures(SOURCE_ID,{sourceLayer:'underground'}),'underground')}catch(_){}
+  try{collect(map.querySourceFeatures('bpV5924PhysicalAssets'),'physical')}catch(_){}
+  return out.slice(0,140);
+ }
+ function disposeVolumeScene(){if(!volumeScene)return;for(const o of [...volumeScene.children]){volumeScene.remove(o);try{o.geometry?.dispose?.()}catch(_){}for(const m of (Array.isArray(o.material)?o.material:[o.material]))try{m?.dispose?.()}catch(_){}}}
+ function ensureVolumeLayer(THREE){
+  if(map.getLayer(VOLUME_LAYER_ID)&&volumeScene)return true;
+  const layer={id:VOLUME_LAYER_ID,type:'custom',renderingMode:'3d',
+   onAdd:(m,gl)=>{const r=new THREE.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:false,alpha:true});r.autoClear=false;volumeRenderer=r;volumeScene=new THREE.Scene();layer.camera=new THREE.Camera();layer.renderer=r;layer.scene=volumeScene},
+   render:(gl,matrix)=>{if(!layer.renderer||!layer.scene||!layer.camera)return;layer.camera.projectionMatrix.fromArray(matrix);try{layer.renderer.resetState?.();if(layer.renderer.state?.reset)layer.renderer.state.reset()}catch(_){}layer.renderer.render(layer.scene,layer.camera)},
+   onRemove:()=>{disposeVolumeScene();try{layer.renderer?.dispose?.()}catch(_){}volumeScene=null;volumeRenderer=null;layer.renderer=null;layer.scene=null;layer.camera=null;volumeLayer=null}
+  };
+  try{map.addLayer(layer);volumeLayer=layer;return!!volumeScene}catch(e){console.warn('BridgePoint underground volume layer',e);return false}
+ }
+ function mercatorPoint(THREE,c,depth){
+  const MC=window.maplibregl?.MercatorCoordinate||window.MapLibreGL?.MercatorCoordinate;if(!MC?.fromLngLat)return null;
+  const lng=Number(c?.[0]),lat=Number(c?.[1]);if(!Number.isFinite(lng)||!Number.isFinite(lat)||Math.abs(lat)>85.0511)return null;
+  let ground=0;try{const h=Number(map.queryTerrainElevation?.({lng,lat}));if(Number.isFinite(h))ground=h}catch(_){}
+  const mc=MC.fromLngLat({lng,lat},ground-depth);return new THREE.Vector3(mc.x,mc.y,mc.z);
+ }
+ function buildFeatureMeshes(THREE,f){
+  const p=f?.properties||{},sty=utilityStyle(p),dep=depthInfo(p),dia=diameterInfo(p,sty.type),radiusMeters=Math.max(.65,dia.meters*.5),objects=[];
+  for(const raw of linePaths(f.geometry)){const coords=(raw||[]).filter(c=>Array.isArray(c)&&c.length>=2&&Number.isFinite(Number(c[0]))&&Number.isFinite(Number(c[1])));if(coords.length<2)continue;
+   const pts=coords.map(c=>mercatorPoint(THREE,c,dep.meters)).filter(Boolean);if(pts.length<2)continue;
+   const MC=window.maplibregl?.MercatorCoordinate||window.MapLibreGL?.MercatorCoordinate,mcu=MC?.fromLngLat?MC.fromLngLat({lng:Number(coords[0][0]),lat:Number(coords[0][1])},0).meterInMercatorCoordinateUnits():0;
+   if(!Number.isFinite(mcu)||mcu<=0)continue;
+   const curve=new THREE.CatmullRomCurve3(pts,false,'centripetal'),r=mcu*radiusMeters,segments=Math.min(180,Math.max(18,coords.length*5));
+   const glow=new THREE.Mesh(new THREE.TubeGeometry(curve,segments,r*2.5,7,false),new THREE.MeshBasicMaterial({color:sty.color,transparent:true,opacity:.14,blending:THREE.AdditiveBlending,depthTest:false,depthWrite:false,side:THREE.DoubleSide}));
+   const core=new THREE.Mesh(new THREE.TubeGeometry(curve,segments,r,7,false),new THREE.MeshBasicMaterial({color:sty.color,transparent:true,opacity:.96,depthTest:false,depthWrite:false,side:THREE.DoubleSide}));
+   glow.renderOrder=900;core.renderOrder=901;objects.push(glow,core)
+  }
+  return{objects,measuredDepth:dep.measured,measuredDiameter:dia.measured,type:sty.type}
+ }
+ async function refreshVolumeGeometry(){
+  if(disposed||!state.enabled)return;
+  if(Number(map.getZoom?.()||0)<8.5){disposeVolumeScene();return}
+  syncXrayProjection();if(projectionType()==='globe')return;
+  try{const THREE=await loadThree();if(disposed||!state.enabled||Number(map.getZoom?.()||0)<8.5||!map.isStyleLoaded?.())return;
+   if(!ensureVolumeLayer(THREE))throw new Error('3D volume layer could not attach');
+   disposeVolumeScene();const features=visibleLineFeatures();let meshCount=0,measuredDepth=0,measuredDiameter=0;
+   for(const f of features){const b=buildFeatureMeshes(THREE,f);for(const mesh of b.objects){volumeScene.add(mesh);meshCount++}if(b.measuredDepth)measuredDepth++;if(b.measuredDiameter)measuredDiameter++}
+   state.volume={features:features.length,meshCount,measuredDepthCount:measuredDepth,measuredDiameterCount:measuredDiameter,estimatedDepthCount:Math.max(0,features.length-measuredDepth),updatedAt:Date.now()};
+   setStatus(features.length
+    ?'3D subsurface view · '+features.length.toLocaleString()+' source-backed route features · '+measuredDepth.toLocaleString()+' measured-depth attributes and '+Math.max(0,features.length-measuredDepth).toLocaleString()+' estimated depths. Tube diameter is visually emphasized for legibility; estimates are not survey-grade.'
+    :'Underground X-ray is on. Global cluster icons remain visible; zoom to a mapped tunnel/underpass at 10+ for local 3D tubes. Pipe and cable features appear only when source geometry is materialized.');
+   try{map.triggerRepaint?.()}catch(_){}
+  }catch(e){console.warn('BridgePoint underground 3D volume refresh',e);setStatus('Underground icons are active; local 3D tubes will retry when source geometry and renderer are ready.')}
+ }
+ function scheduleVolumeRefresh(){clearTimeout(volumeRefreshTimer);volumeRefreshTimer=setTimeout(()=>void refreshVolumeGeometry(),240)}
+ function removeVolumeLayer(){disposeVolumeScene();try{if(map.getLayer(VOLUME_LAYER_ID))map.removeLayer(VOLUME_LAYER_ID)}catch(_){}try{volumeRenderer?.dispose?.()}catch(_){}volumeRenderer=null;volumeScene=null;volumeLayer=null}
+
  function mount(){
   if(disposed)return;
   const targetDock=document.querySelector('#bpv-underground-slot')||document.querySelector('#bpv-dock');
@@ -122,11 +258,11 @@ function ensureLayers(){
   if(++tries<120)mountTimer=setTimeout(mount,150);
   else{dock.hidden=false;container.appendChild(dock);dock.dataset.mountFallback='1'}
  }
- function deactivateLayers(){try{for(const id of [ICON_LAYER_ID,GLOW_ID,LINE_ID])if(map.getLayer(id))map.removeLayer(id);setXrayOpacity(false);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID)}catch(_){}}
+ function deactivateLayers(){try{for(const id of [ICON_LAYER_ID,GLOW_ID,LINE_ID])if(map.getLayer(id))map.removeLayer(id);removeVolumeLayer();setXrayOpacity(false);setXraySurface(false);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID);restoreXrayProjection()}catch(_){}}
  button.addEventListener('click',()=>{
   state.enabled=!state.enabled;state.lastUpdated=Date.now();syncButton();
-  if(state.enabled){if(!ensureLayers())setStatus('Map style is loading. The X-ray layer will attach when ready.');syncMapIcon();void refreshCoverage()}
-  else{deactivateLayers();syncMapIcon();count.textContent='UNLOADED';setStatus('<strong>Fast map mode.</strong> Underground geometry is unloaded until switched on again.')}
+  if(state.enabled){if(!ensureLayers())setStatus('Map style is loading. The X-ray layer will attach when ready.');syncMapIcon();void refreshCoverage();scheduleVolumeRefresh()}
+  else{deactivateLayers();syncMapIcon();count.textContent='UNLOADED';setStatus('Fast map mode. Underground geometry is unloaded until switched on again.')}
  });
  function setStatus(value,error=false){status.textContent=value;status.dataset.error=error?'true':'false'}
  async function refreshCoverage(){
@@ -138,13 +274,14 @@ function ensureLayers(){
    setStatus(Number(d.mapped_tunnel_passage_records||0).toLocaleString()+' source-backed tunnel / underpass records across '+jur+' jurisdictions. '+pipe.toLocaleString()+' pipe records; '+leaks.toLocaleString()+' leak signals currently materialized. Exact depth and active leaks are not inferred from tunnel lines.');
   }catch(e){count.textContent='STATUS UNAVAILABLE';setStatus('Map layer is linked, but coverage statistics are temporarily unavailable. Unverified pipes and leaks will not be drawn.',true);console.warn('BridgePoint underground X-ray coverage status',e)}
  }
- const onStyle=()=>{if(state.enabled){if(!ensureLayers()&&!styleRetry)styleRetry=setTimeout(()=>{styleRetry=null;if(state.enabled)ensureLayers()},600);syncMapIcon()}};
- map.on('styledata',onStyle);map.on('load',onStyle);map.on('zoomend',onStyle);
+ const onStyle=()=>{if(state.enabled){if(!ensureLayers()&&!styleRetry)styleRetry=setTimeout(()=>{styleRetry=null;if(state.enabled)ensureLayers()},600);syncMapIcon();scheduleVolumeRefresh()}};
+ const onVolumeMove=()=>{if(state.enabled)scheduleVolumeRefresh()};
+ map.on('styledata',onStyle);map.on('load',onStyle);map.on('zoomend',onStyle);map.on('moveend',onVolumeMove);map.on('idle',onVolumeMove);
  mount();
- state.open=()=>{state.enabled=true;syncButton();if(!ensureLayers())setStatus('Map style is loading. The X-ray layer will attach when ready.');syncMapIcon();void refreshCoverage();return state};
- state.close=()=>{state.enabled=false;syncButton();deactivateLayers();syncMapIcon();count.textContent='UNLOADED';setStatus('<strong>Fast map mode.</strong> Underground geometry is unloaded until re-enabled.');return state};
+ state.open=()=>{state.enabled=true;syncButton();if(!ensureLayers())setStatus('Map style is loading. The X-ray layer will attach when ready.');syncMapIcon();void refreshCoverage();scheduleVolumeRefresh();return state};
+ state.close=()=>{state.enabled=false;syncButton();deactivateLayers();syncMapIcon();count.textContent='UNLOADED';setStatus('Fast map mode. Underground geometry is unloaded until re-enabled.');return state};
  state.toggle=()=>{button.click();return state};
- state.destroy=()=>{disposed=true;clearTimeout(mountTimer);clearTimeout(styleRetry);clearInterval(retryTimer);map.off('styledata',onStyle);map.off('load',onStyle);map.off('zoomend',onStyle);deactivateLayers();dock.remove();state.available=false};
+ state.destroy=()=>{disposed=true;clearTimeout(mountTimer);clearTimeout(styleRetry);clearTimeout(volumeRefreshTimer);clearInterval(retryTimer);map.off('styledata',onStyle);map.off('load',onStyle);map.off('zoomend',onStyle);map.off('moveend',onVolumeMove);map.off('idle',onVolumeMove);deactivateLayers();dock.remove();state.available=false};
  state.ready=false;
  return state;
 }
