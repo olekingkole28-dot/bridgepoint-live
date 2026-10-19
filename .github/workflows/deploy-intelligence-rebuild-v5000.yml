@@ -318,8 +318,8 @@ jobs:
           grep -Fq 'world-v2300-clouds.js?v=5908-game-clouds' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
-          grep -Fq 'world-v2300-underground-xray.js?v=5950-regional-icons' site/app.js
-          grep -Fq 'world-v2300-underground-xray.js?v=5950-regional-icons' site/landing.js
+          grep -Fq 'world-v2300-underground-xray.js?v=5951-global-clusters' site/app.js
+          grep -Fq 'world-v2300-underground-xray.js?v=5951-global-clusters' site/landing.js
           grep -Fq 'world-v2300-sensor-layers.js?v=5945-coastal-dive' site/app.js
           grep -Fq 'world-v2300-sensor-layers.js?v=5945-coastal-dive' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
@@ -330,11 +330,13 @@ jobs:
           grep -Fq 'bpv-underground-slot' site/bridgepoint-view-v5917.js
           grep -Fq 'TUNNELS_UNDERPASSES' site/world-v2300-underground-xray.js
           grep -Fq 'No pipe network or leak telemetry' site/world-v2300-underground-xray.js
-          grep -Fq 'bp-underground-xray-v5935' site/world-v2300-underground-xray.js
-          grep -Fq 'bp-underground-feature-icons-v5950' site/world-v2300-underground-xray.js
-          grep -Fq "tiles:[FN+'?z={z}&x={x}&y={y}&v=5935'],minzoom:3,maxzoom:17" site/world-v2300-underground-xray.js
-          grep -Fq "'source-layer':'underground',minzoom:3,maxzoom:17" site/world-v2300-underground-xray.js
-          grep -Fq "'symbol-placement':'line-center'" site/world-v2300-underground-xray.js
+          grep -Fq 'bp-underground-xray-v5951' site/world-v2300-underground-xray.js
+          grep -Fq 'bp-underground-feature-icons-v5951' site/world-v2300-underground-xray.js
+          grep -Fq "tiles:[FN+'?z={z}&x={x}&y={y}&v=5951'],minzoom:0,maxzoom:17" site/world-v2300-underground-xray.js
+          grep -Fq "'source-layer':'underground_markers',minzoom:0,maxzoom:17" site/world-v2300-underground-xray.js
+          grep -Fq "'symbol-placement':'point'" site/world-v2300-underground-xray.js
+          grep -Fq "'source-layer':'underground_markers',minzoom:0,maxzoom:17" site/world-v2300-underground-xray.js
+          grep -Fq "feature_count" site/world-v2300-underground-xray.js
           grep -Fq 'if (!Number.isFinite(terrainBaseM)) return null' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/index.html
           grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/app/index.html
@@ -716,8 +718,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=5950-regional-icons' site/app/index.html
-          grep -Fq 'landing.js?v=5950-regional-icons' site/index.html
+          grep -Fq 'app.js?v=5951-global-clusters' site/app/index.html
+          grep -Fq 'landing.js?v=5951-global-clusters' site/index.html
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/app.js
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/landing.js
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/index.html
