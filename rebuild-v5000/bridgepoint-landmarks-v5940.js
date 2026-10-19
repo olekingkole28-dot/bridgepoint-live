@@ -183,7 +183,10 @@
       [a[0] - nx, a[1] - ny],
       [a[0] + nx, a[1] + ny]
     ];
-    let terrainBaseM = 0;
+
+    // Never use zero as a fallback: zero is a real elevation, but a missing DEM
+    // sample is unknown. Unknown-height segments stay as the terrain-draped line.
+    let terrainBaseM = null;
     try {
       if (map && typeof map.queryTerrainElevation === 'function') {
         const sampled = map.queryTerrainElevation({
@@ -193,6 +196,8 @@
         if (Number.isFinite(sampled)) terrainBaseM = sampled;
       }
     } catch (_) {}
+    if (!Number.isFinite(terrainBaseM)) return null;
+
     return {
       type: 'Feature',
       properties: {
@@ -203,12 +208,36 @@
         width_m_estimate: WALL_WIDTH_M_EST,
         height_m_estimate: WALL_HEIGHT_M_EST,
         measurement_status: 'PROFILE_ESTIMATED_NOT_SURVEYED',
-        elevation_status: terrainBaseM === 0 ? 'DEM_UNAVAILABLE_OR_ZERO' : 'SAMPLED_MAP_TERRAIN',
+        elevation_status: 'SAMPLED_MAP_TERRAIN',
+        ground_anchor: 'FINITE_DEM_SAMPLE',
         source_region_geometry: 'MIT regional route GeoJSON'
       },
       geometry: { type: 'Polygon', coordinates: [ring] }
     };
   }
+
+  function wallSegmentPolygons(map, a, b, widthM, maxLengthM = 90) {
+    const midLat = ((a[1] + b[1]) * 0.5) * Math.PI / 180;
+    const metersLon = Math.max(1000, 111320 * Math.cos(midLat));
+    const dx = (b[0] - a[0]) * metersLon;
+    const dy = (b[1] - a[1]) * 110540;
+    const length = Math.hypot(dx, dy);
+    if (!Number.isFinite(length) || length < 0.4) return { features: [], missing: 0, attempted: 0 };
+    // Split longer source edges so each rendered piece follows its own terrain sample.
+    const steps = Math.max(1, Math.min(32, Math.ceil(length / maxLengthM)));
+    const features = [];
+    let missing = 0;
+    for (let i = 0; i < steps; i++) {
+      const t0 = i / steps, t1 = (i + 1) / steps;
+      const p0 = [a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0];
+      const p1 = [a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1];
+      const feature = wallSegmentPolygon(map, p0, p1, widthM);
+      if (feature) features.push(feature);
+      else missing++;
+    }
+    return { features, missing, attempted: steps };
+  }
+
 
   function setSourceData(map, id, data) {
     try {
@@ -503,20 +532,34 @@
         const maxSegments = mobile ? (zoom < 13.5 ? 120 : 240) : (zoom < 13.5 ? 500 : 900);
         const segStride = zoom < 12.5 ? 5 : zoom < 14.5 ? 2 : 1;
         const body = [];
+        let terrainSamplesAttempted = 0;
+        let terrainSamplesMissing = 0;
         for (const line of sourceSegments) {
           let seen = 0;
           for (let i = 1; i < line.length; i++) {
             const a = line[i - 1], b = line[i];
             if (!a || !b || !segmentInView(a, b, view)) continue;
             if ((seen++ % segStride) !== 0) continue;
-            const poly = wallSegmentPolygon(map, a, b, WALL_WIDTH_M_EST);
-            if (poly) body.push(poly);
+            const mesh = wallSegmentPolygons(map, a, b, WALL_WIDTH_M_EST);
+            terrainSamplesAttempted += mesh.attempted;
+            terrainSamplesMissing += mesh.missing;
+            for (const poly of mesh.features) {
+              if (body.length >= maxSegments) break;
+              body.push(poly);
+            }
             if (body.length >= maxSegments) break;
           }
           if (body.length >= maxSegments) break;
         }
         setSourceData(map, 'bp-v5940-wall-body', { type: 'FeatureCollection', features: body });
         extrudedSegments = body.length;
+        state.groundRetryCount = terrainSamplesMissing > 0
+          ? Math.min(3, (state.groundRetryCount || 0) + 1)
+          : 0;
+        if (terrainSamplesMissing > 0 && state.groundRetryCount <= 3) {
+          // DEM tiles may still be arriving. Retry a few times; never float on z=0.
+          scheduleUpdate(map, state, false);
+        }
       }
       state.status = 'Great Wall route active';
       if (intersects(boundsArray(map, 0), [114, 36, 125, 43]) && zoom >= 5.2) {
@@ -532,6 +575,11 @@
         regions: chosen.map(r => r.id),
         source: 'MIT regional GeoJSON route trace',
         profile: 'estimated 6.5 m height × 5 m width where no surveyed cross-section is available',
+        groundAnchor: 'finite terrain elevation samples only; missing DEM samples are omitted, never replaced with zero',
+        terrainSamplesAttempted,
+        terrainSamplesMissing,
+        groundAnchoredSegments: extrudedSegments,
+        groundRetryCount: state.groundRetryCount || 0,
         mobileLOD: mobile,
         updatedAt: Date.now()
       };
@@ -735,7 +783,7 @@
     MAPS.add(map);
     const state = {
       styleReady: false, installing: false, listeners: false, timer: 0,
-      wallRequest: 0, wallBusy: false, status: 'waiting for map style',
+      wallRequest: 0, wallBusy: false, status: 'waiting for map style', groundRetryCount: 0,
       statueLayerRequested: false, statueLoaded: false, statueActive: false,
       chip: null, renderWarned: false
     };
