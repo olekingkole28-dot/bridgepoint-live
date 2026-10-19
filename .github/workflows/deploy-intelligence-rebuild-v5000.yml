@@ -742,8 +742,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=5961-global-clusters' site/app/index.html
-          grep -Fq 'landing.js?v=5961-global-clusters' site/index.html
+          grep -Fq 'app.js?v=5962-power-grid-fcc-towers' site/app/index.html
+          grep -Fq 'landing.js?v=5962-power-grid-fcc-towers' site/index.html
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/app.js
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/landing.js
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/index.html
