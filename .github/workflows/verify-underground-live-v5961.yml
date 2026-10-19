@@ -106,7 +106,7 @@ jobs:
               await page.screenshot({path:'/tmp/underground-global-v5961.png',fullPage:false});
               const mjs=await page.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_UNDERGROUND_XRAY_V5951__;
-                m.jumpTo({center:[-74.054938,40.634734],zoom:11.5,pitch:55,bearing:0});
+                m.jumpTo({center:[-74.182921,40.566216],zoom:11.5,pitch:55,bearing:0});
                 return {center:m.getCenter().toArray(),zoom:m.getZoom(),projection:m.getProjection?.()?.type,enabled:s?.enabled};
               });
               await new Promise(resolve=>setTimeout(resolve,2500));
