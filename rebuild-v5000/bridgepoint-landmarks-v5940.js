@@ -184,8 +184,10 @@
       [a[0] + nx, a[1] + ny]
     ];
 
-    // Never use zero as a fallback: zero is a real elevation, but a missing DEM
-    // sample is unknown. Unknown-height segments stay as the terrain-draped line.
+    // Use a real DEM sample to confirm terrain data is available for this segment.
+    // In MapLibre fill-extrusion, base/height are offsets above the terrain surface;
+    // base_m=0 means start at ground. Do not feed absolute sea-level elevation into
+    // fill-extrusion-base, or the wall will float hundreds of metres above mountains.
     let terrainBaseM = null;
     try {
       if (map && typeof map.queryTerrainElevation === 'function') {
@@ -202,14 +204,14 @@
       type: 'Feature',
       properties: {
         part: 'estimated-wall-body',
-        base_m: terrainBaseM,
-        top_m: terrainBaseM + WALL_HEIGHT_M_EST,
+        base_m: 0,
+        top_m: WALL_HEIGHT_M_EST,
         terrain_base_m: terrainBaseM,
         width_m_estimate: WALL_WIDTH_M_EST,
         height_m_estimate: WALL_HEIGHT_M_EST,
         measurement_status: 'PROFILE_ESTIMATED_NOT_SURVEYED',
         elevation_status: 'SAMPLED_MAP_TERRAIN',
-        ground_anchor: 'FINITE_DEM_SAMPLE',
+        ground_anchor: 'TERRAIN_DRAPED_ZERO_BASE',
         source_region_geometry: 'MIT regional route GeoJSON'
       },
       geometry: { type: 'Polygon', coordinates: [ring] }
@@ -382,6 +384,13 @@
         state.listeners = true;
         map.on('moveend', () => scheduleUpdate(map, state));
         map.on('zoomend', () => scheduleUpdate(map, state));
+        // Terrain DEM tiles often arrive after the vector route. Retry when the
+        // raster-dem source updates instead of giving up before elevations resolve.
+        map.on('sourcedata', event => {
+          if (event && event.sourceId === 'dem' && (state.groundRetryCount || 0) > 0) {
+            scheduleUpdate(map, state, false, 450);
+          }
+        });
       }
       scheduleUpdate(map, state, true);
     } catch (error) {
@@ -392,12 +401,13 @@
     }
   }
 
-  function scheduleUpdate(map, state, immediate = false) {
+  function scheduleUpdate(map, state, immediate = false, delayMs = null) {
     if (state.timer) clearTimeout(state.timer);
+    const delay = Number.isFinite(delayMs) ? Math.max(0, delayMs) : (immediate ? 50 : 280);
     state.timer = setTimeout(() => {
       state.timer = 0;
       updateMap(map, state);
-    }, immediate ? 50 : 280);
+    }, delay);
   }
 
   async function updateWall(map, state) {
@@ -470,6 +480,8 @@
           regions: ['overview'],
           source: 'MIT simplified overview route',
           mobileLOD: mobile,
+          mapCenter: mapCenter ? [mapCenter.lng, mapCenter.lat] : null,
+          mapZoom: zoom,
           overviewBytes: 404581,
           updatedAt: Date.now()
         };
@@ -540,14 +552,16 @@
       setSourceData(map, 'bp-v5940-wall-route', { type: 'FeatureCollection', features: routeFeatures });
 
       let extrudedSegments = 0;
+      let terrainSamplesAttempted = 0;
+      let terrainSamplesMissing = 0;
       if (zoom < 11.2) {
         setSourceData(map, 'bp-v5940-wall-body', EMPTY);
       } else {
         const maxSegments = mobile ? (zoom < 13.5 ? 120 : 240) : (zoom < 13.5 ? 500 : 900);
         const segStride = zoom < 12.5 ? 5 : zoom < 14.5 ? 2 : 1;
         const body = [];
-        let terrainSamplesAttempted = 0;
-        let terrainSamplesMissing = 0;
+        const maxTerrainSamples = maxSegments * 4;
+        let sampleBudgetExhausted = false;
         for (const line of sourceSegments) {
           let seen = 0;
           for (let i = 1; i < line.length; i++) {
@@ -562,18 +576,25 @@
               if (body.length >= maxSegments) break;
               body.push(poly);
             }
-            if (body.length >= maxSegments) break;
+            if (body.length >= maxSegments || terrainSamplesAttempted >= maxTerrainSamples) {
+              sampleBudgetExhausted = terrainSamplesAttempted >= maxTerrainSamples;
+              break;
+            }
           }
-          if (body.length >= maxSegments) break;
+          if (body.length >= maxSegments || sampleBudgetExhausted) break;
         }
         setSourceData(map, 'bp-v5940-wall-body', { type: 'FeatureCollection', features: body });
         extrudedSegments = body.length;
+        const previousGroundRetries = state.groundRetryCount || 0;
         state.groundRetryCount = terrainSamplesMissing > 0
-          ? Math.min(3, (state.groundRetryCount || 0) + 1)
+          ? Math.min(8, previousGroundRetries + 1)
           : 0;
-        if (terrainSamplesMissing > 0 && state.groundRetryCount <= 3) {
-          // DEM tiles may still be arriving. Retry a few times; never float on z=0.
-          scheduleUpdate(map, state, false);
+        const retryDelaysMs = [350, 650, 1050, 1650, 2400, 3400, 4800, 6500];
+        if (terrainSamplesMissing > 0 && previousGroundRetries < retryDelaysMs.length) {
+          // DEM tiles can arrive asynchronously after the route geometry. Retry with
+          // a bounded backoff; no wall body is emitted for sections without a real
+          // DEM sample, and no absolute terrain elevation is misused as an extrusion base.
+          scheduleUpdate(map, state, false, retryDelaysMs[previousGroundRetries]);
         }
       }
       state.status = 'Great Wall route active';
@@ -590,7 +611,12 @@
         regions: chosen.map(r => r.id),
         source: 'MIT regional GeoJSON route trace',
         profile: 'estimated 6.5 m height × 5 m width where no surveyed cross-section is available',
-        groundAnchor: 'finite terrain elevation samples only; missing DEM samples are omitted, never replaced with zero',
+        groundAnchor: 'native terrain drape with zero-metre ground-relative base; finite DEM sample required before a body segment is emitted',
+        groundModel: 'MAPLIBRE_TERRAIN_RELATIVE',
+        groundRelativeBaseM: 0,
+        estimatedTopHeightM: WALL_HEIGHT_M_EST,
+        mapCenter: mapCenter ? [mapCenter.lng, mapCenter.lat] : null,
+        mapZoom: zoom,
         terrainSamplesAttempted,
         terrainSamplesMissing,
         groundAnchoredSegments: extrudedSegments,
