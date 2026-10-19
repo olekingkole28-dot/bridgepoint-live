@@ -289,6 +289,8 @@ jobs:
           grep -Fq 'bridgepoint-landmarks-v5940.js' site/app/index.html
           grep -Fq 'PROFILE_ESTIMATED_NOT_SURVEYED' site/bridgepoint-landmarks-v5940.js
           grep -Fq "ground_anchor: 'TERRAIN_DRAPED_ZERO_BASE'" site/bridgepoint-landmarks-v5940.js
+          grep -Fq 'segmentProjectsIntoViewport' site/bridgepoint-landmarks-v5940.js
+          grep -Fq '!segmentProjectsIntoViewport(map, a, b, 40)' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'base_m: 0' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'top_m: WALL_HEIGHT_M_EST' site/bridgepoint-landmarks-v5940.js
           grep -Fq "event.sourceId === 'dem'" site/bridgepoint-landmarks-v5940.js
@@ -742,8 +744,8 @@ jobs:
            grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/app/index.html
-           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5955-visible-body' site/index.html
-           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5955-visible-body' site/app/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5956-screen-space-body' site/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5956-screen-space-body' site/app/index.html
            grep -Fq 'bottomNav' site/app/index.html
           grep -Fq 'bindPerformanceGovernor' site/app.js
           grep -Fq '__BP_MAP_CLICK_FASTPATH_V5557__' site/app.js
@@ -1154,7 +1156,7 @@ jobs:
               });
               if(!wallSmoke.layer||Number(wallSmoke.state?.routeFeatures)<1||wallSmoke.renderedRouteFeatures<1)throw new Error('GREAT_WALL_ROUTE_MATERIALIZATION_FAILED '+JSON.stringify(wallSmoke));
               console.log('BRIDGEPOINT_GREAT_WALL_LANDMARK_PASS',JSON.stringify(wallSmoke));
-              await p.evaluate(()=>window.__BP_LANDING_WORLD__?.map?.jumpTo({center:[116.017,40.356],zoom:14.4,pitch:55,bearing:-6}));
+              await p.evaluate(()=>window.__BP_LANDING_WORLD__?.map?.jumpTo({center:[116.017,40.356],zoom:16.2,pitch:62,bearing:-6}));
               await p.waitForFunction(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_GREAT_WALL_V5940__;
                 return !!m?.getTerrain?.()&&!!m?.getLayer('bp-v5940-wall-body')&&Number(s?.extrudedSegments||0)>0;
