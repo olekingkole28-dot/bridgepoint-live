@@ -40,7 +40,7 @@ export function initUndergroundXray(target){
  const $=s=>dock.querySelector(s),button=$('[data-toggle]'),status=$('[data-status]'),count=$('[data-count]');
  let disposed=false,mountTimer=null,tries=0,retryTimer=null,styleRetry=null;
  const opacityOriginal=new Map();
- let volumeScene=null,volumeRenderer=null,volumeLayer=null,threePromise=null,volumeRefreshTimer=null;
+ let volumeScene=null,volumeRenderer=null,volumeLayer=null,threePromise=null,volumeRefreshTimer=null,emptyGeometryRetries=0;
  function captureOpacity(id,prop){const k=id+'|'+prop;if(opacityOriginal.has(k))return;let value;try{value=map.getPaintProperty(id,prop)}catch(_){}opacityOriginal.set(k,{has:value!==undefined,value})}
  function setXrayOpacity(on){
   const active=!!on&&Number(map.getZoom?.()||0)>=10;
@@ -270,7 +270,7 @@ function ensureLayers(){
   const mc=MC.fromLngLat({lng,lat},ground-depth);return new THREE.Vector3(mc.x,mc.y,mc.z);
  }
  function buildFeatureMeshes(THREE,f){
-  const p=f?.properties||{},sty=utilityStyle(p),dep=depthInfo(p),dia=diameterInfo(p,sty.type),radiusMeters=Math.max(.65,dia.meters*.5),objects=[];
+  const p=f?.properties||{},sty=utilityStyle(p),dep=depthInfo(p),dia=diameterInfo(p,sty.type),radiusMeters=Math.max(1.6,dia.meters*.5),objects=[];
   for(const raw of linePaths(f.geometry)){const coords=(raw||[]).filter(c=>Array.isArray(c)&&c.length>=2&&Number.isFinite(Number(c[0]))&&Number.isFinite(Number(c[1])));if(coords.length<2)continue;
    const pts=coords.map(c=>mercatorPoint(THREE,c,dep.meters)).filter(Boolean);if(pts.length<2)continue;
    const MC=window.maplibregl?.MercatorCoordinate||window.MapLibreGL?.MercatorCoordinate,mcu=MC?.fromLngLat?MC.fromLngLat({lng:Number(coords[0][0]),lat:Number(coords[0][1])},0).meterInMercatorCoordinateUnits():0;
@@ -293,13 +293,14 @@ function ensureLayers(){
    disposeVolumeScene();const features=visibleLineFeatures();let meshCount=0,measuredDepth=0,measuredDiameter=0;
    for(const f of features){const b=buildFeatureMeshes(THREE,f);for(const mesh of b.objects){volumeScene.add(mesh);meshCount++}if(b.measuredDepth)measuredDepth++;if(b.measuredDiameter)measuredDiameter++}
    state.volume={features:features.length,meshCount,measuredDepthCount:measuredDepth,measuredDiameterCount:measuredDiameter,estimatedDepthCount:Math.max(0,features.length-measuredDepth),updatedAt:Date.now()};
+   if(features.length){emptyGeometryRetries=0}else if(emptyGeometryRetries<5){emptyGeometryRetries++;scheduleVolumeRefresh(900)}else{emptyGeometryRetries=0}
    setStatus(features.length
     ?'3D subsurface view · '+features.length.toLocaleString()+' source-backed route features · '+measuredDepth.toLocaleString()+' measured-depth attributes and '+Math.max(0,features.length-measuredDepth).toLocaleString()+' estimated depths. Tube diameter is visually emphasized for legibility; estimates are not survey-grade.'
     :'Underground X-ray is on. Global cluster icons remain visible; zoom to a mapped tunnel/underpass at 10+ for local 3D tubes. Pipe and cable features appear only when source geometry is materialized.');
    try{map.triggerRepaint?.()}catch(_){}
   }catch(e){console.warn('BridgePoint underground 3D volume refresh',e);setStatus('Underground icons are active; local 3D tubes will retry when source geometry and renderer are ready.')}
  }
- function scheduleVolumeRefresh(){clearTimeout(volumeRefreshTimer);volumeRefreshTimer=setTimeout(()=>void refreshVolumeGeometry(),240)}
+ function scheduleVolumeRefresh(delayMs=240){clearTimeout(volumeRefreshTimer);volumeRefreshTimer=setTimeout(()=>void refreshVolumeGeometry(),Math.max(100,Number(delayMs)||240))}
  function removeVolumeLayer(){disposeVolumeScene();try{if(map.getLayer(VOLUME_LAYER_ID))map.removeLayer(VOLUME_LAYER_ID)}catch(_){}try{volumeRenderer?.dispose?.()}catch(_){}volumeRenderer=null;volumeScene=null;volumeLayer=null}
 
  function mount(){
@@ -334,12 +335,13 @@ function ensureLayers(){
  }
  const onStyle=()=>{if(state.enabled){if(!ensureLayers()&&!styleRetry)styleRetry=setTimeout(()=>{styleRetry=null;if(state.enabled)ensureLayers()},600);syncMapIcon();void ensureGlobalClusters();scheduleVolumeRefresh()}};
  const onVolumeMove=()=>{if(state.enabled)scheduleVolumeRefresh()};
- map.on('styledata',onStyle);map.on('load',onStyle);map.on('zoomend',onStyle);map.on('moveend',onVolumeMove);map.on('idle',onVolumeMove);
+ const onUndergroundSourceData=e=>{if(state.enabled&&e?.sourceId===SOURCE_ID)scheduleVolumeRefresh(360)};
+ map.on('styledata',onStyle);map.on('load',onStyle);map.on('zoomend',onStyle);map.on('moveend',onVolumeMove);map.on('idle',onVolumeMove);map.on('sourcedata',onUndergroundSourceData);
  mount();
  state.open=()=>{state.enabled=true;syncButton();if(!ensureLayers())setStatus('Map style is loading. The X-ray layer will attach when ready.');syncMapIcon();void refreshCoverage();scheduleVolumeRefresh();return state};
  state.close=()=>{state.enabled=false;syncButton();deactivateLayers();syncMapIcon();count.textContent='UNLOADED';setStatus('Fast map mode. Underground geometry is unloaded until re-enabled.');return state};
  state.toggle=()=>{button.click();return state};
- state.destroy=()=>{disposed=true;clearTimeout(mountTimer);clearTimeout(styleRetry);clearTimeout(volumeRefreshTimer);clearInterval(retryTimer);map.off('styledata',onStyle);map.off('load',onStyle);map.off('zoomend',onStyle);map.off('moveend',onVolumeMove);map.off('idle',onVolumeMove);deactivateLayers();dock.remove();state.available=false};
+ state.destroy=()=>{disposed=true;clearTimeout(mountTimer);clearTimeout(styleRetry);clearTimeout(volumeRefreshTimer);clearInterval(retryTimer);map.off('styledata',onStyle);map.off('load',onStyle);map.off('zoomend',onStyle);map.off('moveend',onVolumeMove);map.off('idle',onVolumeMove);map.off('sourcedata',onUndergroundSourceData);deactivateLayers();dock.remove();state.available=false};
  state.ready=false;
  return state;
 }
