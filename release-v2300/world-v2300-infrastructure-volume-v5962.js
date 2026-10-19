@@ -136,7 +136,7 @@ export function initInfrastructureVolume(target){
       const t=j/count;
       const lng=at[0]+(next[0]-at[0])*t+(-dy/n)*(offset/(111320*Math.max(.08,Math.cos(lat))));
       const latv=at[1]+(next[1]-at[1])*t+(dx/n)*(offset/110540);
-      const z=height+a*(Math.cosh((t-.5)*distance/a)-Math.cosh(distance/(2*a));
+      const z=height+a*(Math.cosh((t-.5)*distance/a)-Math.cosh(distance/(2*a)));
       const pt=mcPoint(THREE,[lng,latv],z);
       if(j>0&&previousPoint)wireLines.push(previousPoint.x,previousPoint.y,previousPoint.z,pt.x,pt.y,pt.z);
       previousPoint=pt;
