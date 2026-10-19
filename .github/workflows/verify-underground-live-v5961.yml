@@ -51,12 +51,40 @@ jobs:
             page.on('pageerror',e=>errors.push('pageerror: '+String(e?.message||e)));
             page.on('console',m=>{if(m.type()==='error')errors.push('console: '+m.text())});
             try{
-              await page.goto('https://bridgepointintelligence.online/?underground-qa=5961',{waitUntil:'domcontentloaded',timeout:100000});
-              await page.waitForFunction(()=>{
-                const m=window.__BP_LANDING_WORLD__?.map;
-                return !!m&&typeof m.getZoom==='function'&&!!m.getCanvas?.();
-              },{timeout:180000});
-              await page.waitForFunction(()=>!!document.querySelector('#bp-underground-xray-v5951 [data-toggle]'),{timeout:120000});
+              await page.goto('https://bridgepointintelligence.online/',{waitUntil:'domcontentloaded',timeout:100000});
+              await new Promise(resolve=>setTimeout(resolve,12000));
+              const bootProbe=await page.evaluate(()=>{
+                const candidates=[
+                  window.__BP_LANDING_WORLD__?.map,
+                  window.__bpLandingWorldV5420?.map,
+                  window.__BP_V5000_WORLD__?.map
+                ].filter(Boolean);
+                return {
+                  readyState:document.readyState,title:document.title,url:location.href,
+                  mapCount:candidates.length,
+                  maps:candidates.map(m=>({zoom:m?.getZoom?.(),projection:m?.getProjection?.()?.type,canvas:!!m?.getCanvas?.(),styleLoaded:!!m?.isStyleLoaded?.()})),
+                  landingWorld:!!window.__BP_LANDING_WORLD__,
+                  landingMapBoot:window.__BP_LANDING_MAP_BOOT__||null,
+                  maplibre:!!window.maplibregl,
+                  previewMap:!!document.querySelector('#previewMap'),
+                  mapSurface:!!document.querySelector('.preview'),
+                  canvasCount:document.querySelectorAll('canvas').length,
+                  undergroundControl:!!document.querySelector('#bp-underground-xray-v5951 [data-toggle]'),
+                  scripts:Array.from(document.scripts).map(s=>s.src).filter(x=>/landing\\.js|maplibre|underground/.test(x)).slice(-12)
+                };
+              });
+              await page.screenshot({path:'/tmp/underground-boot-v5961.png',fullPage:false});
+              console.log('UNDERGROUND_BOOT_DIAGNOSTIC',JSON.stringify(bootProbe));
+              try{
+                await page.waitForFunction(()=>{
+                  const m=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map;
+                  return !!m&&typeof m.getZoom==='function'&&!!m.getCanvas?.();
+                },{timeout:60000});
+              }catch(e){
+                const after=await page.evaluate(()=>({readyState:document.readyState,landingWorld:!!window.__BP_LANDING_WORLD__,landingMapBoot:window.__BP_LANDING_MAP_BOOT__||null,maplibre:!!window.maplibregl,canvasCount:document.querySelectorAll('canvas').length,undergroundControl:!!document.querySelector('#bp-underground-xray-v5951 [data-toggle]'),bodyText:document.body?.innerText?.slice(0,900)}));
+                throw new Error('BridgePoint globe did not boot in headless QA. Initial='+JSON.stringify(bootProbe)+' after='+JSON.stringify(after)+' wait='+String(e?.message||e));
+              }
+              await page.waitForFunction(()=>!!document.querySelector('#bp-underground-xray-v5951 [data-toggle]'),{timeout:60000});
               const before=await page.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;
                 const b=document.querySelector('#bp-underground-xray-v5951 [data-toggle]');
