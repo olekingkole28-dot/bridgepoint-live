@@ -2,7 +2,7 @@ const VERSION=5962;
 const ROOT='bp-infrastructure-volume-v5962';
 const CSS_ID=ROOT+'-style';
 const POWER_URL='https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/US_Electric_Power_Transmission_Lines/FeatureServer/0/query';
-const FCC_URL='https://services.arcgis.com/XG15cJAlne2vxtgt/ArcGIS/rest/services/NMSZ_HSIP2015_Layers_2018/FeatureServer/24/query';
+const FCC_URL='https://services.arcgis.com/XG15cJAlne2vxtgt/ArcGIS/rest/services/Antenna_Structure_Registrate1/FeatureServer/45/query';
 const POWER_SRC='bp-infra-power-source-v5962',TOWER_SRC='bp-infra-fcc-tower-source-v5962';
 const POWER_LINE='bp-infra-power-route-v5962',POWER_GLOW='bp-infra-power-glow-v5962',TOWER_DOTS='bp-infra-fcc-tower-dots-v5962',VOLUME_LAYER='bp-infra-volume-custom-v5962';
 const THREE_URL='./vendor/three.module.js?v=169-local';
@@ -148,7 +148,7 @@ export function initInfrastructureVolume(target){
   for(const f of towers.features||[]){
    if(towerN>=300)break;
    if(f?.geometry?.type!=='Point')continue;
-   const c=f.geometry.coordinates,p=f.properties||{},raw=cleanNumber(p.STRUCHT),height=raw&&raw>0?Math.min(300,raw):35;
+   const c=f.geometry.coordinates,p=f.properties||{},raw=cleanNumber(p.Strucht??p.STRUCHT),height=raw&&raw>0?Math.min(300,raw):35;
    addTowerWire(towerLines,c,height,Math.max(9,height*.28),THREE);towerN++;
   }
   if(towerLines.length){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(towerLines,3));const o=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0xffc25d,transparent:true,opacity:.85,depthTest:false}));o.renderOrder=920;scene.add(o)}
@@ -202,7 +202,7 @@ export function initInfrastructureVolume(target){
   try{
    const [p,t]=await Promise.all([
     requestFeatures(POWER_URL,normalized,'OBJECTID,ID,TYPE,STATUS,VOLTAGE,VOLT_CLASS,OWNER,SOURCEDATE,VAL_DATE,INFERRED',500,abortCtl.signal),
-    requestFeatures(FCC_URL,normalized,'OBJECTID,REGNUM,ENTITY,STRUCHT,STRUCADD,STRUCCITY,STRUCSTATE,CONTNAME,CONTSTATE,FAASTUDY',500,abortCtl.signal)
+    requestFeatures(FCC_URL,normalized,'OBJECTID,RegNum,Entity,Strucht,LocAdd,LocCity,LocState,ContName,ContState,FAAstudy',500,abortCtl.signal)
    ]);
    if(seq!==requestSeq||dead)return;
    const pf=(p.features||[]).filter(f=>f?.geometry?.type==='LineString'||f?.geometry?.type==='MultiLineString');
