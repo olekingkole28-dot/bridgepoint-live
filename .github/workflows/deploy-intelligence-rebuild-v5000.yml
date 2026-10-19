@@ -1159,10 +1159,40 @@ jobs:
                 const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_GREAT_WALL_V5940__;
                 return !!m?.getTerrain?.()&&!!m?.getLayer('bp-v5940-wall-body')&&Number(s?.extrudedSegments||0)>0;
               },{timeout:60000});
-              await p.waitForFunction(()=>{
-                const m=window.__BP_LANDING_WORLD__?.map;
-                try{return !!m?.getLayer('bp-v5940-wall-body')&&m.queryRenderedFeatures({layers:['bp-v5940-wall-body']}).length>0}catch(_){return false}
-              },{timeout:20000});
+              try {
+                await p.waitForFunction(()=>{
+                  const m=window.__BP_LANDING_WORLD__?.map;
+                  try{return !!m?.getLayer('bp-v5940-wall-body')&&m.queryRenderedFeatures({layers:['bp-v5940-wall-body']}).length>0}catch(_){return false}
+                },{timeout:20000});
+              } catch (bodyVisibilityError) {
+                const bodyDiag=await p.evaluate(()=>{
+                  const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_GREAT_WALL_V5940__;
+                  const src=m?.getSource('bp-v5940-wall-body');
+                  let sourceFeatures=[],sourceError=null,renderedBody=0,renderedRoute=0,firstFeature=null,firstProject=null,bodyPaint=null,terrainAtCenter=null;
+                  try{sourceFeatures=m?.querySourceFeatures('bp-v5940-wall-body')||[]}catch(e){sourceError=String(e?.message||e)}
+                  try{renderedBody=m?.queryRenderedFeatures({layers:['bp-v5940-wall-body']}).length||0}catch(_){}
+                  try{renderedRoute=m?.queryRenderedFeatures({layers:['bp-v5940-wall-route-line']}).length||0}catch(_){}
+                  try{bodyPaint=m?.getPaintProperty('bp-v5940-wall-body','fill-extrusion-height')}catch(_){}
+                  const c=m?.getCenter?.();
+                  try{terrainAtCenter=c?m.queryTerrainElevation({lng:c.lng,lat:c.lat},{exaggerated:false}):null}catch(_){}
+                  const data=src?._data||src?._options?.data||null;
+                  const internalCount=Array.isArray(data?.features)?data.features.length:null;
+                  const fs=sourceFeatures.length?sourceFeatures:(Array.isArray(data?.features)?data.features:[]);
+                  if(fs.length){
+                    const f=fs[0],coords=f.geometry?.coordinates?.[0]?.[0]||f.geometry?.coordinates?.[0]||null;
+                    firstFeature={type:f.geometry?.type,properties:f.properties||{},coordinate:coords};
+                    if(Array.isArray(coords)&&Number.isFinite(coords[0])&&Number.isFinite(coords[1])){
+                      try{const p=m.project(coords);firstProject={x:p.x,y:p.y,width:m.getCanvas().clientWidth,height:m.getCanvas().clientHeight,inViewport:p.x>=0&&p.y>=0&&p.x<=m.getCanvas().clientWidth&&p.y<=m.getCanvas().clientHeight}}catch(_){}
+                    }
+                  }
+                  return {center:c?[c.lng,c.lat]:null,zoom:m?.getZoom?.(),pitch:m?.getPitch?.(),terrainEnabled:!!m?.getTerrain?.(),
+                    terrainAtCenter,layer:!!m?.getLayer('bp-v5940-wall-body'),source:!!src,internalSourceFeatureCount:internalCount,
+                    querySourceFeatureCount:sourceFeatures.length,renderedBody,renderedRoute,sourceError,firstFeature,firstProject,bodyPaint,
+                    canvas:m?{width:m.getCanvas().clientWidth,height:m.getCanvas().clientHeight}:null,state:s||null};
+                });
+                console.log('BRIDGEPOINT_GREAT_WALL_BODY_VISIBILITY_DIAGNOSTIC',JSON.stringify(bodyDiag));
+                throw new Error('GREAT_WALL_BODY_NOT_RENDERED '+String(bodyVisibilityError?.message||bodyVisibilityError)+' '+JSON.stringify(bodyDiag));
+              }
               const wall3DSmoke=await p.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_GREAT_WALL_V5940__;
                 let rendered=0;try{rendered=m?.queryRenderedFeatures({layers:['bp-v5940-wall-body']}).length||0}catch(_){}
