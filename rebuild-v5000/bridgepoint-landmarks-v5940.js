@@ -317,7 +317,7 @@
         ]
       });
       ensureSource(map, 'bp-v5940-wall-route', EMPTY);
-      ensureSource(map, 'bp-v5940-wall-body', EMPTY);
+      ensureSource(map, 'bp-v5940-wall-body', EMPTY, { maxzoom: 18, tolerance: 0, buffer: 128 });
 
       ensureLayer(map, {
         id: 'bp-v5940-wall-body',
