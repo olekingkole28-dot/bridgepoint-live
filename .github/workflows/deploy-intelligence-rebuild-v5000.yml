@@ -288,7 +288,7 @@ jobs:
           grep -Fq 'currentHeightM: 61.0' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'bridgepoint-landmarks-v5940.js' site/app/index.html
           grep -Fq 'PROFILE_ESTIMATED_NOT_SURVEYED' site/bridgepoint-landmarks-v5940.js
-          grep -Fq 'ground_anchor: \'TERRAIN_DRAPED_ZERO_BASE\'' site/bridgepoint-landmarks-v5940.js
+          grep -Fq "ground_anchor: 'TERRAIN_DRAPED_ZERO_BASE'" site/bridgepoint-landmarks-v5940.js
           grep -Fq 'base_m: 0' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'top_m: WALL_HEIGHT_M_EST' site/bridgepoint-landmarks-v5940.js
           grep -Fq "event.sourceId === 'dem'" site/bridgepoint-landmarks-v5940.js
