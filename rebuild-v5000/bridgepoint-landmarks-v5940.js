@@ -417,6 +417,7 @@
       (navigator.deviceMemory && navigator.deviceMemory <= 4);
     const pad = zoom < 5.5 ? 3.8 : zoom < 7.5 ? 1.8 : zoom < 9.5 ? 0.65 : zoom < 11.5 ? 0.24 : zoom < 13.5 ? 0.09 : 0.035;
     const view = boundsArray(map, pad);
+    const bodyView = boundsArray(map, 0);
     const mapCenter = map.getCenter && map.getCenter();
     const centerBox = mapCenter && Number.isFinite(mapCenter.lng) && Number.isFinite(mapCenter.lat)
       ? [mapCenter.lng - 0.12, mapCenter.lat - 0.10, mapCenter.lng + 0.12, mapCenter.lat + 0.10]
@@ -566,8 +567,10 @@
           let seen = 0;
           for (let i = 1; i < line.length; i++) {
             const a = line[i - 1], b = line[i];
-            if (!a || !b || (!segmentInView(a, b, view) &&
-              !(centerBox && segmentInView(a, b, centerBox)))) continue;
+            // Only materialize 3D wall body segments in the actual viewport.
+            // The expanded center fallback is useful for route loading, but using it
+            // here can consume the mobile mesh budget on off-screen segments.
+            if (!a || !b || !segmentInView(a, b, bodyView)) continue;
             if ((seen++ % segStride) !== 0) continue;
             const mesh = wallSegmentPolygons(map, a, b, WALL_WIDTH_M_EST);
             terrainSamplesAttempted += mesh.attempted;
