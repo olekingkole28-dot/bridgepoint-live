@@ -288,6 +288,10 @@ jobs:
           grep -Fq 'currentHeightM: 61.0' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'bridgepoint-landmarks-v5940.js' site/app/index.html
           grep -Fq 'PROFILE_ESTIMATED_NOT_SURVEYED' site/bridgepoint-landmarks-v5940.js
+          grep -Fq 'ground_anchor: \'TERRAIN_DRAPED_ZERO_BASE\'' site/bridgepoint-landmarks-v5940.js
+          grep -Fq 'base_m: 0' site/bridgepoint-landmarks-v5940.js
+          grep -Fq 'top_m: WALL_HEIGHT_M_EST' site/bridgepoint-landmarks-v5940.js
+          grep -Fq "event.sourceId === 'dem'" site/bridgepoint-landmarks-v5940.js
           test -s site/assets/great-wall-overview-v5940.geojson
           test -s site/assets/statue-of-liberty-scan-v5940.glb
           grep -Fq "const STATUE_SCAN_URL = '/assets/statue-of-liberty-scan-v5940.glb'" site/bridgepoint-landmarks-v5940.js
@@ -738,8 +742,8 @@ jobs:
            grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/app/index.html
-           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5949-ground-anchor' site/index.html
-           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5949-ground-anchor' site/app/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5954-terrain-relative-wall' site/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5954-terrain-relative-wall' site/app/index.html
            grep -Fq 'bottomNav' site/app/index.html
           grep -Fq 'bindPerformanceGovernor' site/app.js
           grep -Fq '__BP_MAP_CLICK_FASTPATH_V5557__' site/app.js
