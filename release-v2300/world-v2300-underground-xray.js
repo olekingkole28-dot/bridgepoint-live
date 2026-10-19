@@ -1,4 +1,4 @@
-const VERSION=5949;
+const VERSION=5950;
 const ROOT_ID='bp-underground-xray-v5935';
 const STYLE_ID='bp-underground-xray-style-v5935';
 const SOURCE_ID='bp-underground-xray-source-v5935';
@@ -34,7 +34,7 @@ export function initUndergroundXray(target){
  const state={version:VERSION,map,enabled:false,available:true,coverage:null,source:'Overture public mapped tunnels/underpasses',iconLayer:'tile-backed tunnel / underpass center markers',leakTelemetryConnected:false,lastUpdated:Date.now()};
  window.__BP_UNDERGROUND_XRAY_V5935__=state;
  const dock=document.createElement('section');dock.id=ROOT_ID;dock.setAttribute('aria-label','Underground X-ray map layer');
- dock.innerHTML='<div class="bpxr-row"><button class="bpxr-toggle" type="button" data-toggle aria-pressed="false">◈ UNDERGROUND X-RAY · OFF</button><span class="bpxr-count" data-count>UNLOADED</span></div><div class="bpxr-status" data-status><strong>Fast map mode.</strong> Click to reveal a clear marker at source-mapped tunnel / underpass geometry, as well as the glowing path itself. Utility pipes appear only where real data exist.</div><div class="bpxr-key"><span><i class="bpxr-swatch"></i> GLOWING PATH = MAPPED ROUTE</span><span><i class="bpxr-swatch" style="background:#eaffff;box-shadow:0 0 8px #62edff"></i> ICON = MAPPED TUNNEL / UNDERPASS</span></div><div class="bpxr-status">Source coverage only · no fabricated sewers, pipes, depths, or leak points.</div>';
+ dock.innerHTML='<div class="bpxr-row"><button class="bpxr-toggle" type="button" data-toggle aria-pressed="false">◈ UNDERGROUND X-RAY · OFF</button><span class="bpxr-count" data-count>UNLOADED</span></div><div class="bpxr-status" data-status><strong>Fast map mode.</strong> Click to reveal a clear marker at source-mapped tunnel / underpass geometry, as well as the glowing path itself. Utility pipes appear only where real data exist.</div><div class="bpxr-key"><span><i class="bpxr-swatch"></i> GLOWING PATH = MAPPED ROUTE</span><span><i class="bpxr-swatch" style="background:#eaffff;box-shadow:0 0 8px #62edff"></i> ICON = MAPPED TUNNEL / UNDERPASS</span></div><div class="bpxr-status">Icons appear at regional zoom; zoom closer for glowing routes. Source coverage only · no fabricated sewers, pipes, depths, or leak points.</div>';
  const $=s=>dock.querySelector(s),button=$('[data-toggle]'),status=$('[data-status]'),count=$('[data-count]');
  let disposed=false,mountTimer=null,tries=0,retryTimer=null,styleRetry=null;
  const opacityOriginal=new Map();
@@ -47,8 +47,8 @@ export function initUndergroundXray(target){
   for(const id of roofIds){if(!map.getLayer(id))continue;const type=map.getLayer(id).type,prop=type==='fill-extrusion'?'fill-extrusion-opacity':'fill-opacity';captureOpacity(id,prop);try{map.setPaintProperty(id,prop,active?0.32:(opacityOriginal.get(id+'|'+prop).has?opacityOriginal.get(id+'|'+prop).value:null))}catch(_){}}
  }
  function syncButton(){button.setAttribute('aria-pressed',String(state.enabled));button.textContent=state.enabled?'◈ UNDERGROUND X-RAY · ON':'◈ UNDERGROUND X-RAY · OFF';syncMapIcon()}
- const ICON_LAYER_ID='bp-underground-feature-icons-v5949';
-const ICON_IMAGE_ID='bp-underground-feature-sprite-v5949';
+ const ICON_LAYER_ID='bp-underground-feature-icons-v5950';
+const ICON_IMAGE_ID='bp-underground-feature-sprite-v5950';
 function installUndergroundIcon(){
  if(map.hasImage?.(ICON_IMAGE_ID))return true;
  try{
@@ -72,10 +72,10 @@ function syncMapIcon(){
   if(!installUndergroundIcon())return;
   if(!map.getLayer(ICON_LAYER_ID)){
    const before=['gta-place-label','gta-poi-label','gta-opportunity-label','gta-city-buildings','gta-context-buildings'].find(id=>map.getLayer(id));
-   const layer={id:ICON_LAYER_ID,type:'symbol',source:SOURCE_ID,'source-layer':'underground',minzoom:10,maxzoom:17,
+   const layer={id:ICON_LAYER_ID,type:'symbol',source:SOURCE_ID,'source-layer':'underground',minzoom:3,maxzoom:17,
     layout:{
      'symbol-placement':'line-center','icon-image':ICON_IMAGE_ID,
-     'icon-size':['interpolate',['linear'],['zoom'],10,.42,12,.52,14,.68,17,.9],
+     'icon-size':['interpolate',['linear'],['zoom'],3,.22,5,.27,8,.35,10,.42,12,.52,14,.68,17,.9],
      'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-padding':1,
      'icon-rotation-alignment':'viewport','icon-pitch-alignment':'viewport','visibility':'visible'
     },paint:{'icon-opacity':1}
@@ -88,7 +88,7 @@ function ensureLayers(){
   if(disposed||!state.enabled||!map||typeof map.addSource!=='function')return false;
   try{
    if(!map.isStyleLoaded?.())return false;
-   if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{type:'vector',tiles:[FN+'?z={z}&x={x}&y={y}&v=5935'],minzoom:10,maxzoom:17,attribution:'Overture Maps public mapped tunnel and underpass geometry; generalized public display'});
+   if(!map.getSource(SOURCE_ID))map.addSource(SOURCE_ID,{type:'vector',tiles:[FN+'?z={z}&x={x}&y={y}&v=5935'],minzoom:3,maxzoom:17,attribution:'Overture Maps public mapped tunnel and underpass geometry; generalized public display'});
    const before=['gta-place-label','gta-poi-label','gta-opportunity-label','gta-city-buildings','gta-context-buildings'].find(id=>map.getLayer(id));
    if(!map.getLayer(GLOW_ID)){
     const layer={id:GLOW_ID,type:'line',source:SOURCE_ID,'source-layer':'underground',minzoom:10,maxzoom:17,layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#7257ff','line-opacity':.72,'line-width':['interpolate',['linear'],['zoom'],10,1.8,12,3.5,14,5.5,17,7.5],'line-blur':['interpolate',['linear'],['zoom'],10,1.2,14,2.4,17,3.2]}};
