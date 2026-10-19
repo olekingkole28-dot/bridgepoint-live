@@ -166,6 +166,24 @@
       Math.min(a[1], b[1]) <= view[3];
   }
 
+  // Pitched/globe getBounds() is only a geographic envelope, not the visible
+  // screen polygon. A segment can be inside that envelope but project beyond
+  // the canvas. Keep 3D wall geometry near the camera's actual visible pixels.
+  function segmentProjectsIntoViewport(map, a, b, marginPx = 40) {
+    try {
+      const canvas = map && map.getCanvas && map.getCanvas();
+      if (!canvas) return false;
+      const width = canvas.clientWidth || canvas.width || 0;
+      const height = canvas.clientHeight || canvas.height || 0;
+      const projected = map.project([(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5]);
+      return Number.isFinite(projected.x) && Number.isFinite(projected.y) &&
+        projected.x >= -marginPx && projected.x <= width + marginPx &&
+        projected.y >= -marginPx && projected.y <= height + marginPx;
+    } catch (_) {
+      return false;
+    }
+  }
+
   function wallSegmentPolygon(map, a, b, widthM) {
     const midLat = ((a[1] + b[1]) * 0.5) * Math.PI / 180;
     const metersLon = Math.max(1000, 111320 * Math.cos(midLat));
@@ -570,7 +588,8 @@
             // Only materialize 3D wall body segments in the actual viewport.
             // The expanded center fallback is useful for route loading, but using it
             // here can consume the mobile mesh budget on off-screen segments.
-            if (!a || !b || !segmentInView(a, b, bodyView)) continue;
+            if (!a || !b || !segmentInView(a, b, bodyView) ||
+                !segmentProjectsIntoViewport(map, a, b, 40)) continue;
             if ((seen++ % segStride) !== 0) continue;
             const mesh = wallSegmentPolygons(map, a, b, WALL_WIDTH_M_EST);
             terrainSamplesAttempted += mesh.attempted;
