@@ -143,6 +143,9 @@ async function bootMap(){
  if(!world?.map)throw new Error('Map object readiness timeout');
  window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map;
  try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'app'}}))}catch(_){}
+ void import('./bridgepoint-landmarks-v5940.js?v=5965-landmarks-and-effects')
+  .then(()=>{try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'app-module-ready'}}))}catch(_){};if(window.__BP_LANDMARKS_V5940__)window.__BP_LANDMARKS_V5940__.attachedMaps=Math.max(1,Number(window.__BP_LANDMARKS_V5940__.attachedMaps||0))})
+  .catch(e=>console.warn('BridgePoint app landmarks loader unavailable',e));
  // Non-blocking world ambience and public time-scrubber modules.
  void import('./world-v2300-clouds.js?v=5908-game-clouds')
   .then(m=>{window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
@@ -153,7 +156,7 @@ async function bootMap(){
  void import('./world-v2300-spectral-imagery.js?v=5934-world-controls')
   .then(m=>{window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)})
   .catch(e=>console.warn('BridgePoint spectral satellite layer unavailable',e));
- void import('./world-v2300-underground-xray.js?v=5962-global-route-retry')
+ void import('./world-v2300-underground-xray.js?v=5965-landmarks-and-effects')
   .then(m=>{window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)})
   .catch(e=>console.warn('BridgePoint Underground X-ray unavailable',e));
  void import('./world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers')
