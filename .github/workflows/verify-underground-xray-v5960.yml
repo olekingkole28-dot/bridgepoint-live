@@ -42,6 +42,6 @@ jobs:
           grep -Fq 'estimatedDepthCount' release-v2300/world-v2300-underground-xray.js
           grep -Fq 'syncXrayProjection' release-v2300/world-v2300-underground-xray.js
           grep -Fq 'initUndergroundXray(world)' rebuild-v5000/app.js
-          grep -Fq 'world-v2300-underground-xray.js?v=5960-global-clusters-volume' rebuild-v5000/app.js
-          grep -Fq 'world-v2300-underground-xray.js?v=5960-global-clusters-volume' rebuild-v5000/landing.js
+          grep -Fq 'world-v2300-underground-xray.js?v=5961-global-clusters-badges' rebuild-v5000/app.js
+          grep -Fq 'world-v2300-underground-xray.js?v=5961-global-clusters-badges' rebuild-v5000/landing.js
           echo 'Underground X-ray source, volume-rendering contract, projection cleanup, and cache-busting checks passed.'
