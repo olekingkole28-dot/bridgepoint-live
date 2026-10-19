@@ -329,7 +329,7 @@
           'fill-extrusion-opacity': 0.98,
           'fill-extrusion-base': ['to-number', ['get', 'base_m'], 0],
           'fill-extrusion-height': ['to-number', ['get', 'top_m'], WALL_HEIGHT_M_EST],
-          'fill-extrusion-vertical-gradient': true
+          'fill-extrusion-vertical-gradient': false
         }
       });
       ensureLayer(map, {
