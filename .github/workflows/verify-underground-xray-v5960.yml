@@ -37,6 +37,7 @@ jobs:
           set -euo pipefail
           grep -Fq 'bp-underground-volume-v5951' release-v2300/world-v2300-underground-xray.js
           grep -Fq 'TubeGeometry' release-v2300/world-v2300-underground-xray.js
+          grep -Fq 'defaultProjectionData?.mainMatrix' release-v2300/world-v2300-underground-xray.js
           grep -Fq 'querySourceFeatures' release-v2300/world-v2300-underground-xray.js
           grep -Fq 'estimatedDepthCount' release-v2300/world-v2300-underground-xray.js
           grep -Fq 'syncXrayProjection' release-v2300/world-v2300-underground-xray.js
