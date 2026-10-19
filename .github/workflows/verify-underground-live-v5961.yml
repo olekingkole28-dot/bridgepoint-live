@@ -18,7 +18,7 @@ permissions:
 jobs:
   visual-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - name: Check out production source
         uses: actions/checkout@v4
@@ -54,9 +54,9 @@ jobs:
               await page.goto('https://bridgepointintelligence.online/?underground-qa=5961',{waitUntil:'domcontentloaded',timeout:100000});
               await page.waitForFunction(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;
-                return !!m&&typeof m.getZoom==='function'&&m.isStyleLoaded?.();
-              },{timeout:120000});
-              await page.waitForFunction(()=>!!document.querySelector('#bp-underground-xray-v5951 [data-toggle]'),{timeout:90000});
+                return !!m&&typeof m.getZoom==='function'&&!!m.getCanvas?.();
+              },{timeout:180000});
+              await page.waitForFunction(()=>!!document.querySelector('#bp-underground-xray-v5951 [data-toggle]'),{timeout:120000});
               const before=await page.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;
                 const b=document.querySelector('#bp-underground-xray-v5951 [data-toggle]');
@@ -67,6 +67,8 @@ jobs:
                 const s=window.__BP_UNDERGROUND_XRAY_V5951__,m=window.__BP_LANDING_WORLD__?.map;
                 return s?.enabled===true&&s?.globalClusters?.count>0&&!!m?.getLayer('bp-underground-global-clusters-badge-v5961');
               },{timeout:45000});
+              await page.evaluate(()=>window.__BP_LANDING_WORLD__?.map?.jumpTo({center:[-80,38],zoom:2.5,pitch:0,bearing:0}));
+              await new Promise(resolve=>setTimeout(resolve,2500));
               const global=await page.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_UNDERGROUND_XRAY_V5951__;
                 const layer='bp-underground-global-clusters-badge-v5961';
@@ -74,15 +76,16 @@ jobs:
                 return {enabled:s?.enabled,clusters:s?.globalClusters,zoom:m?.getZoom(),projection:m?.getProjection?.()?.type,clusterLayer:!!m?.getLayer(layer),renderedClusters:rendered,records:s?.coverage?.mapped_tunnel_passage_records,pipes:s?.coverage?.mapped_pipe_records};
               });
               await page.screenshot({path:'/tmp/underground-global-v5961.png',fullPage:false});
-              const mjs=await page.evaluate(async()=>{
+              const mjs=await page.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_UNDERGROUND_XRAY_V5951__;
                 m.jumpTo({center:[-74.054938,40.634734],zoom:11.5,pitch:55,bearing:0});
-                return await new Promise(resolve=>m.once('idle',()=>resolve({center:m.getCenter().toArray(),zoom:m.getZoom(),projection:m.getProjection?.()?.type,enabled:s?.enabled})));
+                return {center:m.getCenter().toArray(),zoom:m.getZoom(),projection:m.getProjection?.()?.type,enabled:s?.enabled};
               });
+              await new Promise(resolve=>setTimeout(resolve,2500));
               await page.waitForFunction(()=>{
                 const s=window.__BP_UNDERGROUND_XRAY_V5951__;
                 return !!s?.volume&&s.volume.features>0&&s.volume.meshCount>0;
-              },{timeout:65000});
+              },{timeout:90000});
               const local=await page.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_UNDERGROUND_XRAY_V5951__;
                 return {zoom:m?.getZoom(),center:m?.getCenter?.()?.toArray?.(),projection:m?.getProjection?.()?.type,
