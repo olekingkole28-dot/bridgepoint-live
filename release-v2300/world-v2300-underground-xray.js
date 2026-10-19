@@ -66,19 +66,35 @@ export function initUndergroundXray(target){
     if(before)map.addLayer(layer,before);else map.addLayer(layer);
    }
    map.setLayoutProperty(ICON_ID,'visibility','visible');
-   // Icon data are derived from the same visible map bounds as the requested X-ray.
-   // A global "things exist somewhere" pin would mislead users about local coverage.
+   // Derive one marker from each real tunnel/underpass feature loaded in the visible vector tiles.
+   // This keeps icons attached to sourced geometries and avoids inventing global asset locations.
    const b=map.getBounds(),z=map.getZoom();
-   if(!b||z<5){map.getSource(ICON_ID).setData({type:'FeatureCollection',features:[]});return}
-   void fetchStatus().then(d=>{
-    if(!state.enabled||!map.getSource(ICON_ID))return;
-    const raw=Array.isArray(d.preview_features)?d.preview_features:[];
-    const features=raw.filter(f=>{
-     const p=f?.geometry?.coordinates;
-     return Array.isArray(p)&&Number.isFinite(p[0])&&Number.isFinite(p[1])&&p[0]>=b.getWest()&&p[0]<=b.getEast()&&p[1]>=b.getSouth()&&p[1]<=b.getNorth();
-    }).slice(0,1500).map(f=>({type:'Feature',geometry:f.geometry,properties:{iconLabel:'⬇'}}));
-    map.getSource(ICON_ID).setData({type:'FeatureCollection',features});
-   }).catch(()=>{});
+   if(!b||z<10){map.getSource(ICON_ID).setData({type:'FeatureCollection',features:[]});return}
+   const features=[];
+   let rows=[];
+   try{rows=map.querySourceFeatures(SOURCE_ID,{sourceLayer:'underground'})||[]}catch(_){}
+   const seen=new Set();
+   const inBounds=(p)=>p&&Number.isFinite(p[0])&&Number.isFinite(p[1])&&p[0]>=b.getWest()&&p[0]<=b.getEast()&&p[1]>=b.getSouth()&&p[1]<=b.getNorth();
+   const addLine=(coords,props)=>{
+    if(!Array.isArray(coords)||coords.length<2)return;
+    let total=0,lengths=[];
+    for(let i=1;i<coords.length;i++){const a=coords[i-1],d=coords[i];const len=Math.hypot((d[0]-a[0])*Math.cos((d[1]+a[1])*Math.PI/360),d[1]-a[1]);lengths.push(len);total+=len}
+    if(!total)return;
+    let remain=total/2,mid=coords[0];
+    for(let i=1;i<coords.length;i++){const len=lengths[i-1];if(remain<=len){const t=len?remain/len:0;mid=[coords[i-1][0]+(coords[i][0]-coords[i-1][0])*t,coords[i-1][1]+(coords[i][1]-coords[i-1][1])*t];break}remain-=len}
+    if(!inBounds(mid))return;
+    const key=mid[0].toFixed(5)+','+mid[1].toFixed(5);
+    if(seen.has(key))return;seen.add(key);
+    features.push({type:'Feature',geometry:{type:'Point',coordinates:mid},properties:{iconLabel:'⬇',assetType:'Mapped tunnel / underpass',sourceFeatureId:String(props?.id||props?.osm_id||'source-feature')}});
+   };
+   for(const feature of rows){
+    if(features.length>=800)break;
+    const geom=feature?.geometry,props=feature?.properties||{};
+    if(!geom)continue;
+    if(geom.type==='LineString')addLine(geom.coordinates,props);
+    else if(geom.type==='MultiLineString')for(const line of geom.coordinates||[])addLine(line,props);
+   }
+   map.getSource(ICON_ID).setData({type:'FeatureCollection',features});
   }catch(e){console.warn('BridgePoint underground icon layer',String(e?.message||e))}
  }
  function ensureLayers(){
