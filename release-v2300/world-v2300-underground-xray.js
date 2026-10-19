@@ -104,6 +104,7 @@ function ensureLayers(){
    }
    for(const id of [GLOW_ID,LINE_ID])if(map.getLayer(id))map.setLayoutProperty(id,'visibility',state.enabled?'visible':'none');
    setXrayOpacity(state.enabled);
+   syncMapIcon();
    return true;
   }catch(e){console.warn('BridgePoint underground X-ray retries after style readiness',String(e?.message||e));return false}
  }
