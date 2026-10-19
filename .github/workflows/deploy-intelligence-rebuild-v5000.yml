@@ -326,8 +326,8 @@ jobs:
           grep -Fq 'world-v2300-clouds.js?v=5908-game-clouds' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
-          grep -Fq 'world-v2300-underground-xray.js?v=5951-global-clusters' site/app.js
-          grep -Fq 'world-v2300-underground-xray.js?v=5951-global-clusters' site/landing.js
+          grep -Fq 'world-v2300-underground-xray.js?v=5960-global-clusters-volume' site/app.js
+          grep -Fq 'world-v2300-underground-xray.js?v=5960-global-clusters-volume' site/landing.js
           grep -Fq 'world-v2300-sensor-layers.js?v=5945-coastal-dive' site/app.js
           grep -Fq 'world-v2300-sensor-layers.js?v=5945-coastal-dive' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
@@ -345,6 +345,10 @@ jobs:
           grep -Fq "'symbol-placement':'point'" site/world-v2300-underground-xray.js
           grep -Fq "'source-layer':'underground_markers',minzoom:0,maxzoom:17" site/world-v2300-underground-xray.js
           grep -Fq "feature_count" site/world-v2300-underground-xray.js
+          grep -Fq 'bp-underground-volume-v5951' site/world-v2300-underground-xray.js
+          grep -Fq 'refreshVolumeGeometry' site/world-v2300-underground-xray.js
+          grep -Fq 'TubeGeometry' site/world-v2300-underground-xray.js
+          grep -Fq 'const VERSION=5960' site/world-v2300-underground-xray.js
           grep -Fq 'if (!Number.isFinite(terrainBaseM)) return null' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/index.html
           grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/app/index.html
