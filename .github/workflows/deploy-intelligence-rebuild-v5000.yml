@@ -292,6 +292,7 @@ jobs:
           grep -Fq 'segmentProjectsIntoViewport' site/bridgepoint-landmarks-v5940.js
           grep -Fq '!segmentProjectsIntoViewport(map, a, b, 40)' site/bridgepoint-landmarks-v5940.js
           grep -Fq "'fill-extrusion-vertical-gradient': false" site/bridgepoint-landmarks-v5940.js
+          grep -Fq "bp-v5940-wall-body', EMPTY, { maxzoom: 18, tolerance: 0, buffer: 128 }" site/bridgepoint-landmarks-v5940.js
           grep -Fq 'base_m: 0' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'top_m: WALL_HEIGHT_M_EST' site/bridgepoint-landmarks-v5940.js
           grep -Fq "event.sourceId === 'dem'" site/bridgepoint-landmarks-v5940.js
@@ -745,8 +746,8 @@ jobs:
            grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/app/index.html
-           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5957-no-gradient' site/index.html
-           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5957-no-gradient' site/app/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5958-highzoom-body' site/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5958-highzoom-body' site/app/index.html
            grep -Fq 'bottomNav' site/app/index.html
           grep -Fq 'bindPerformanceGovernor' site/app.js
           grep -Fq '__BP_MAP_CLICK_FASTPATH_V5557__' site/app.js
