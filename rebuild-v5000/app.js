@@ -153,7 +153,7 @@ async function bootMap(){
  void import('./world-v2300-spectral-imagery.js?v=5934-world-controls')
   .then(m=>{window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)})
   .catch(e=>console.warn('BridgePoint spectral satellite layer unavailable',e));
- void import('./world-v2300-underground-xray.js?v=5949-source-icons')
+ void import('./world-v2300-underground-xray.js?v=5950-regional-icons')
   .then(m=>{window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)})
   .catch(e=>console.warn('BridgePoint Underground X-ray unavailable',e));
   void import('./world-v2300-sensor-layers.js?v=5945-coastal-dive')
