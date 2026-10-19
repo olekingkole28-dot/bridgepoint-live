@@ -1,0 +1,104 @@
+name: Visual QA — Power Grid and FCC Towers V5962
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-infrastructure-volume-v5962.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+      - '.github/workflows/verify-infrastructure-live-v5962.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  viewport-render-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out production source
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser automation
+        run: npm install --no-save puppeteer-core@24.10.2
+      - name: Inspect real viewport data and 3D tower/cable rendering
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium || true)
+          if [ -z "$CHROME" ]; then echo "Chrome/Chromium unavailable"; exit 1; fi
+          export CHROME LIBGL_ALWAYS_SOFTWARE=1
+          cat > /tmp/infrastructure-v5962-audit.cjs <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          (async()=>{
+            const browser=await puppeteer.launch({
+              executablePath:process.env.CHROME,headless:true,
+              args:['--no-sandbox','--disable-setuid-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--disable-gpu-sandbox']
+            });
+            const page=await browser.newPage({viewport:{width:1440,height:960},deviceScaleFactor:1});
+            const errors=[];
+            page.on('pageerror',e=>errors.push('pageerror: '+String(e?.message||e)));
+            page.on('console',m=>{if(m.type()==='error')errors.push('console: '+m.text())});
+            try{
+              await page.goto('https://bridgepointintelligence.online/',{waitUntil:'domcontentloaded',timeout:100000});
+              await new Promise(resolve=>setTimeout(resolve,12000));
+              const boot=await page.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map;
+                return {title:document.title,landingMapBoot:window.__BP_LANDING_MAP_BOOT__||null,map:!!m,canvas:!!m?.getCanvas?.(),
+                  webgl:!!window.maplibregl,ready:document.readyState};
+              });
+              console.log('INFRA_BOOT',JSON.stringify(boot));
+              await page.waitForFunction(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map;
+                return !!m&&typeof m.getZoom==='function'&&!!m.getCanvas?.();
+              },{timeout:90000});
+              await page.waitForFunction(()=>{
+                return !!document.querySelector('#bp-infrastructure-volume-v5962 [data-toggle]');
+              },{timeout:90000});
+              await page.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map;
+                m?.jumpTo({center:[-74.05,40.73],zoom:9.5,pitch:50,bearing:0});
+              });
+              await new Promise(resolve=>setTimeout(resolve,4000));
+              await page.screenshot({path:'/tmp/infrastructure-local-v5962-before.png',fullPage:false});
+              await page.evaluate(()=>document.querySelector('#bp-infrastructure-volume-v5962 [data-toggle]')?.click());
+              await page.waitForFunction(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map;
+                const s=window.__BP_INFRASTRUCTURE_VOLUME_V5962__;
+                return !!m&&s?.enabled===true&&s.powerFeatures>0&&s.towerFeatures>0&&s.volume?.towers>0&&s.volume?.catenarySpans>0;
+              },{timeout:120000});
+              const results=await page.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map,s=window.__BP_INFRASTRUCTURE_VOLUME_V5962__;
+                let routes=0,towers=0;
+                try{routes=m.queryRenderedFeatures({layers:['bp-infra-power-route-v5962']}).length}catch(_){}
+                try{towers=m.queryRenderedFeatures({layers:['bp-infra-fcc-tower-dots-v5962']}).length}catch(_){}
+                return {zoom:m?.getZoom(),center:m?.getCenter?.()?.toArray?.(),projection:m?.getProjection?.()?.type,
+                  enabled:s?.enabled,powerFeatures:s?.powerFeatures,towerFeatures:s?.towerFeatures,volume:s?.volume,
+                  routeLayer:!!m?.getLayer('bp-infra-power-route-v5962'),towerLayer:!!m?.getLayer('bp-infra-fcc-tower-dots-v5962'),
+                  volumeLayer:!!m?.getLayer('bp-infra-volume-custom-v5962'),renderedRouteFeatures:routes,renderedTowerFeatures:towers,
+                  sourceNotes:s?.estimates,status:document.querySelector('#bp-infrastructure-volume-v5962 [data-status]')?.textContent};
+              });
+              await page.screenshot({path:'/tmp/infrastructure-local-v5962-after.png',fullPage:false});
+              console.log('INFRA_VISUAL_AUDIT',JSON.stringify({results,errors:errors.slice(-20)}));
+              if(!results.routeLayer||!results.towerLayer||!results.volumeLayer||results.renderedRouteFeatures<1||results.renderedTowerFeatures<1||!results.volume?.meshes)throw new Error('INFRASTRUCTURE_LAYERS_NOT_RENDERED '+JSON.stringify(results));
+              const fatal=errors.filter(e=>/infrastructure|power grid|three|webgl|custom layer|fcc/i.test(e)&&!/ResizeObserver loop/i.test(e));
+              if(fatal.length)throw new Error('INFRASTRUCTURE_RENDER_ERRORS '+JSON.stringify(fatal));
+              console.log('INFRA_VISUAL_AUDIT_PASS');
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+          NODE_PATH="$GITHUB_WORKSPACE/node_modules" node /tmp/infrastructure-v5962-audit.cjs
+      - name: Upload viewport audit screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: infrastructure-visual-audit-v5962
+          path: /tmp/infrastructure-*-v5962-*.png
+          if-no-files-found: ignore
