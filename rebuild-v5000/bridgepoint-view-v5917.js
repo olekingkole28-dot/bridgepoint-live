@@ -54,32 +54,6 @@ function stopMoving(){
 }
 function attachMap(m){
  if(!m||map===m)return;map=m;
-  // The underground module was copied into production but never imported by the world UI.
-  // Attach it only after this real MapLibre map is available; the module owns its own visible dock control.
-  if(!m.__bpUndergroundXrayLoaderV5960){
-   m.__bpUndergroundXrayLoaderV5960=true;
-   void import('./world-v2300-underground-xray.js?v=5960-global-clusters-volume')
-    .then(mod=>{
-     if(map!==m)return;
-     const api=window.__BP_UNDERGROUND_XRAY_V5951__?.map===m
-      ?window.__BP_UNDERGROUND_XRAY_V5951__
-      :mod.initUndergroundXray({map:m});
-     if(api){window.__BP_UNDERGROUND_XRAY_V5951__=api;api.loaderVersion=5960}
-    })
-    .catch(e=>{
-     console.warn('BridgePoint global underground X-ray failed to load',e);
-     const slot=document.querySelector('#bpv-underground-slot');
-     if(slot&&!slot.querySelector('[data-bp-underground-retry]')){
-      const retry=node('button','bpv-action','UNDERGROUND X-RAY · RETRY');
-      retry.type='button';retry.dataset.bpUndergroundRetry='1';
-      retry.addEventListener('click',()=>{retry.disabled=true;void import('./world-v2300-underground-xray.js?v=5960-global-clusters-volume')
-       .then(mod=>mod.initUndergroundXray({map:m}))
-       .then(api=>{if(api)window.__BP_UNDERGROUND_XRAY_V5951__=api})
-       .catch(err=>{console.warn('BridgePoint underground retry failed',err);retry.disabled=false})});
-      slot.appendChild(retry);
-     }
-    });
-  }
  if(!m.__bpListingsEventsV5927){m.__bpListingsEventsV5927=true;m.on('moveend',()=>{if(!listingOverlayOn)return;clearTimeout(listingMapTimer);const wait=Math.max(700,3800-(Date.now()-listingLastViewportAt));listingMapTimer=setTimeout(()=>{listingLastViewportAt=Date.now();void loadListings(true,listingQueryValue)},wait)});m.on('styledata',()=>{if(listingOverlayOn)ensureListingLayers(m)});/* Listings remain unloaded until the Listings panel or overlay toggle is used. */}
  const start=()=>setMoving(),end=()=>stopMoving();
  for(const e of ['movestart','zoomstart','rotatestart','pitchstart','dragstart'])try{m.on(e,start)}catch(_){}
