@@ -1,0 +1,46 @@
+name: Verify BridgePoint Underground X-ray V5960
+
+on:
+  pull_request:
+    paths:
+      - 'release-v2300/world-v2300-underground-xray.js'
+      - 'rebuild-v5000/bridgepoint-view-v5917.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/landing.js'
+      - '.github/workflows/verify-underground-xray-v5960.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-and-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out proposed changes
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < release-v2300/world-v2300-underground-xray.js
+          node --check rebuild-v5000/bridgepoint-view-v5917.js
+          node --check rebuild-v5000/app.js
+          node --check rebuild-v5000/landing.js
+      - name: Verify volume-rendering contract and cache-busting
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'bp-underground-volume-v5951' release-v2300/world-v2300-underground-xray.js
+          grep -Fq 'TubeGeometry' release-v2300/world-v2300-underground-xray.js
+          grep -Fq 'querySourceFeatures' release-v2300/world-v2300-underground-xray.js
+          grep -Fq 'estimatedDepthCount' release-v2300/world-v2300-underground-xray.js
+          grep -Fq 'syncXrayProjection' release-v2300/world-v2300-underground-xray.js
+          grep -Fq 'initUndergroundXray({map:m})' rebuild-v5000/bridgepoint-view-v5917.js
+          grep -Fq 'world-v2300-underground-xray.js?v=5960-global-clusters-volume' rebuild-v5000/app.js
+          grep -Fq 'world-v2300-underground-xray.js?v=5960-global-clusters-volume' rebuild-v5000/landing.js
+          echo 'Underground X-ray source, volume-rendering contract, projection cleanup, and cache-busting checks passed.'
