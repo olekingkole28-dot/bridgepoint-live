@@ -407,10 +407,21 @@
       (navigator.deviceMemory && navigator.deviceMemory <= 4);
     const pad = zoom < 5.5 ? 3.8 : zoom < 7.5 ? 1.8 : zoom < 9.5 ? 0.65 : zoom < 11.5 ? 0.24 : zoom < 13.5 ? 0.09 : 0.035;
     const view = boundsArray(map, pad);
+    const mapCenter = map.getCenter && map.getCenter();
+    const centerBox = mapCenter && Number.isFinite(mapCenter.lng) && Number.isFinite(mapCenter.lat)
+      ? [mapCenter.lng - 0.12, mapCenter.lat - 0.10, mapCenter.lng + 0.12, mapCenter.lat + 0.10]
+      : null;
     const chinaBox = [73, 24, 135, 55];
-    if (zoom < 4.0 || !intersects(view, chinaBox)) {
+    const centerInChina = !!centerBox && intersects(centerBox, chinaBox);
+    if (zoom < 4.0 || (!intersects(view, chinaBox) && !centerInChina)) {
       setSourceData(map, 'bp-v5940-wall-route', EMPTY);
       setSourceData(map, 'bp-v5940-wall-body', EMPTY);
+      state.status = 'outside Great Wall coverage viewport';
+      window.__BP_GREAT_WALL_V5940__ = {
+        version: VERSION, status: 'outside-china-viewport', routeFeatures: 0, extrudedSegments: 0,
+        mapCenter: mapCenter ? [mapCenter.lng, mapCenter.lat] : null,
+        source: 'MIT regional route GeoJSON', updatedAt: Date.now()
+      };
       return;
     }
 
@@ -421,9 +432,12 @@
         if (state.wallRequest !== requestId || !state.styleReady) return;
         const stride = getStride(zoom, mobile);
         const routeFeatures = [];
+        // This is already a simplified, 270-feature overview. Keep the entire route
+        // in the source at wide zoom and let the map renderer clip to the viewport.
+        // View-bounds filtering here could remove all nearby routes when a pitched,
+        // mobile map reports a stale or narrow geographic envelope.
         for (const feature of overview) {
-          const fb = getFeatureBounds(feature);
-          if (!intersects(fb, view)) continue;
+          if (!feature || !feature.geometry) continue;
           const originalParts = lineParts(feature.geometry);
           const simplifiedParts = originalParts.map(part => thinLine(part, stride)).filter(part => part.length >= 2);
           if (!simplifiedParts.length) continue;
@@ -468,7 +482,7 @@
       }
     }
 
-    const candidates = REGIONS.filter(r => regionIntersects(r, view));
+    const candidates = REGIONS.filter(r => regionIntersects(r, view) || (centerBox && regionIntersects(r, centerBox)));
     const center = map.getCenter();
     candidates.sort((a, b) => {
       const cx = (a.box[0] + a.box[2]) * 0.5, cy = (a.box[1] + a.box[3]) * 0.5;
@@ -499,7 +513,7 @@
       for (const item of results) {
         for (const feature of item.features) {
           const fb = getFeatureBounds(feature);
-          if (!intersects(fb, view)) continue;
+          if (!intersects(fb, view) && !(centerBox && intersects(fb, centerBox))) continue;
           const originalParts = lineParts(feature.geometry);
           const simplifiedParts = [];
           for (const part of originalParts) {
@@ -538,7 +552,8 @@
           let seen = 0;
           for (let i = 1; i < line.length; i++) {
             const a = line[i - 1], b = line[i];
-            if (!a || !b || !segmentInView(a, b, view)) continue;
+            if (!a || !b || (!segmentInView(a, b, view) &&
+              !(centerBox && segmentInView(a, b, centerBox)))) continue;
             if ((seen++ % segStride) !== 0) continue;
             const mesh = wallSegmentPolygons(map, a, b, WALL_WIDTH_M_EST);
             terrainSamplesAttempted += mesh.attempted;
