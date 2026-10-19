@@ -1,0 +1,48 @@
+name: Verify BridgePoint Infrastructure Volume V5962
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-infrastructure-volume-v5962.js'
+      - 'rebuild-v5000/app.js'
+      - 'rebuild-v5000/landing.js'
+      - 'rebuild-v5000/index.html'
+      - 'rebuild-v5000/app-index.html'
+      - '.github/workflows/verify-infrastructure-volume-v5962.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-and-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out proposed changes
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module --check < release-v2300/world-v2300-infrastructure-volume-v5962.js
+          node --check rebuild-v5000/app.js
+          node --check rebuild-v5000/landing.js
+      - name: Verify live data contracts and globe hooks
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'US_Electric_Power_Transmission_Lines' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'Antenna Structure' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'STRUCHT' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'Math.cosh' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'Tube' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'initInfrastructureVolume(world)' rebuild-v5000/app.js
+          grep -Fq 'initInfrastructureVolume(world)' rebuild-v5000/landing.js
+          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' rebuild-v5000/app.js
+          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' rebuild-v5000/landing.js
+          echo 'Infrastructure-volume syntax and source-contract checks passed.'
