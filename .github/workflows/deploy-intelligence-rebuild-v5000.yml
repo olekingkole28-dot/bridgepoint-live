@@ -377,6 +377,9 @@ jobs:
           grep -Fq 'BRIDGEPOINT WORLD' site/bridgepoint-view-v5917.js
           ! grep -Fq '.bpv-map-moving .bp-world-time-slider-v5908' site/bridgepoint-view-v5917.css
           grep -Fq 'bridgepoint_public_property_timeline_v5908' site/app.js
+          grep -Fq 'function renderTimelineNotice' site/app.js
+          grep -Fq 'RETRY PROPERTY LOOKUP' site/app.js
+          grep -Fq 'if(!sameBuilding)resetPropertyCard();' site/app.js
           grep -Fq 'package-entitlements' site/app.js
           grep -Fq 'VIEW ALL ' site/app.js
           grep -Fq 'package-feature-toggle' site/styles.css
@@ -742,7 +745,7 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=5963-property-timeline-retry' site/app/index.html
+          grep -Fq 'app.js?v=5964-property-card-identity' site/app/index.html
           grep -Fq 'landing.js?v=5963-property-timeline-retry' site/index.html
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/app.js
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/landing.js
