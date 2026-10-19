@@ -1,4 +1,4 @@
-const VERSION=5951;
+const VERSION=5960;
 const ROOT_ID='bp-underground-xray-v5951';
 const STYLE_ID='bp-underground-xray-style-v5951';
 const SOURCE_ID='bp-underground-xray-source-v5951';
@@ -228,8 +228,10 @@ function ensureLayers(){
  }
  async function refreshVolumeGeometry(){
   if(disposed||!state.enabled)return;
+  // Check projection before the low-zoom exit so returning to global view restores the original globe.
+  syncXrayProjection();
   if(Number(map.getZoom?.()||0)<8.5){disposeVolumeScene();return}
-  syncXrayProjection();if(projectionType()==='globe')return;
+  if(projectionType()==='globe')return;
   try{const THREE=await loadThree();if(disposed||!state.enabled||Number(map.getZoom?.()||0)<8.5||!map.isStyleLoaded?.())return;
    if(!ensureVolumeLayer(THREE))throw new Error('3D volume layer could not attach');
    disposeVolumeScene();const features=visibleLineFeatures();let meshCount=0,measuredDepth=0,measuredDiameter=0;
