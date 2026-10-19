@@ -40,7 +40,7 @@ jobs:
           grep -Fq 'Antenna Structure' release-v2300/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'STRUCHT' release-v2300/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'Math.cosh' release-v2300/world-v2300-infrastructure-volume-v5962.js
-          grep -Fq 'Tube' release-v2300/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'LineSegments' release-v2300/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'initInfrastructureVolume(world)' rebuild-v5000/app.js
           grep -Fq 'initInfrastructureVolume(world)' rebuild-v5000/landing.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' rebuild-v5000/app.js
