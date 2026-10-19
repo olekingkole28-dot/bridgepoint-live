@@ -202,7 +202,7 @@ function ensureLayers(){
   if(map.getLayer(VOLUME_LAYER_ID)&&volumeScene)return true;
   const layer={id:VOLUME_LAYER_ID,type:'custom',renderingMode:'3d',
    onAdd:(m,gl)=>{const r=new THREE.WebGLRenderer({canvas:m.getCanvas(),context:gl,antialias:false,alpha:true});r.autoClear=false;volumeRenderer=r;volumeScene=new THREE.Scene();layer.camera=new THREE.Camera();layer.renderer=r;layer.scene=volumeScene},
-   render:(gl,matrix)=>{if(!layer.renderer||!layer.scene||!layer.camera)return;layer.camera.projectionMatrix.fromArray(matrix);try{layer.renderer.resetState?.();if(layer.renderer.state?.reset)layer.renderer.state.reset()}catch(_){}layer.renderer.render(layer.scene,layer.camera)},
+   render:(gl,args)=>{if(!layer.renderer||!layer.scene||!layer.camera)return;const matrix=args?.defaultProjectionData?.mainMatrix||args?.modelViewProjectionMatrix||args;if(!matrix||typeof matrix.length!=='number'||matrix.length<16)return;layer.camera.projectionMatrix.fromArray(matrix);try{layer.renderer.resetState?.();if(layer.renderer.state?.reset)layer.renderer.state.reset()}catch(_){}layer.renderer.render(layer.scene,layer.camera)},
    onRemove:()=>{disposeVolumeScene();try{layer.renderer?.dispose?.()}catch(_){}volumeScene=null;volumeRenderer=null;layer.renderer=null;layer.scene=null;layer.camera=null;volumeLayer=null}
   };
   try{map.addLayer(layer);volumeLayer=layer;return!!volumeScene}catch(e){console.warn('BridgePoint underground volume layer',e);return false}
