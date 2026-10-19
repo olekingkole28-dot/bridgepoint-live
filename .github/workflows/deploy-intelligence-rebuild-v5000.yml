@@ -1140,17 +1140,43 @@ jobs:
               });
               if(!savedLandmarkCamera)throw new Error('LANDMARK_PUBLIC_MAP_MISSING');
               await p.waitForFunction(()=>Number(window.__BP_GREAT_WALL_V5940__?.routeFeatures||0)>0,{timeout:60000});
+              await p.waitForFunction(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_GREAT_WALL_V5940__;
+                if(!m||!m.getLayer('bp-v5940-wall-route-line')||Number(s?.routeFeatures||0)<1)return false;
+                try{return m.queryRenderedFeatures({layers:['bp-v5940-wall-route-line']}).length>0}catch(_){return false}
+              },{timeout:20000});
               const wallSmoke=await p.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;let rendered=0;
                 try{rendered=m?.queryRenderedFeatures({layers:['bp-v5940-wall-route-line']}).length||0}catch(_){}
-                return {version:window.__BP_LANDMARKS_V5940__?.version||0,layer:!!m?.getLayer('bp-v5940-wall-route-line'),renderedRouteFeatures:rendered,state:window.__BP_GREAT_WALL_V5940__||null};
+                const center=m?.getCenter?.();
+                return {version:window.__BP_LANDMARKS_V5940__?.version||0,layer:!!m?.getLayer('bp-v5940-wall-route-line'),renderedRouteFeatures:rendered,
+                  mapCenter:center?[center.lng,center.lat]:null,zoom:m?.getZoom?.()||null,state:window.__BP_GREAT_WALL_V5940__||null};
               });
-              if(!wallSmoke.layer||Number(wallSmoke.state?.routeFeatures)<1)throw new Error('GREAT_WALL_ROUTE_MATERIALIZATION_FAILED '+JSON.stringify(wallSmoke));
+              if(!wallSmoke.layer||Number(wallSmoke.state?.routeFeatures)<1||wallSmoke.renderedRouteFeatures<1)throw new Error('GREAT_WALL_ROUTE_MATERIALIZATION_FAILED '+JSON.stringify(wallSmoke));
               console.log('BRIDGEPOINT_GREAT_WALL_LANDMARK_PASS',JSON.stringify(wallSmoke));
               await p.evaluate(()=>window.__BP_LANDING_WORLD__?.map?.jumpTo({center:[116.017,40.356],zoom:14.4,pitch:55,bearing:-6}));
-              await p.waitForFunction(()=>Number(window.__BP_GREAT_WALL_V5940__?.extrudedSegments||0)>0,{timeout:60000});
-              const wall3DSmoke=await p.evaluate(()=>({status:window.__BP_GREAT_WALL_V5940__?.status||'',extrudedSegments:window.__BP_GREAT_WALL_V5940__?.extrudedSegments||0,bodyLayer:!!window.__BP_LANDING_WORLD__?.map?.getLayer('bp-v5940-wall-body'),mobileLOD:window.__BP_GREAT_WALL_V5940__?.mobileLOD===true}));
-              if(wall3DSmoke.extrudedSegments<1||!wall3DSmoke.bodyLayer)throw new Error('GREAT_WALL_3D_BODY_FAILED '+JSON.stringify(wall3DSmoke));
+              await p.waitForFunction(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_GREAT_WALL_V5940__;
+                return !!m?.getTerrain?.()&&!!m?.getLayer('bp-v5940-wall-body')&&Number(s?.extrudedSegments||0)>0;
+              },{timeout:60000});
+              await p.waitForFunction(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map;
+                try{return !!m?.getLayer('bp-v5940-wall-body')&&m.queryRenderedFeatures({layers:['bp-v5940-wall-body']}).length>0}catch(_){return false}
+              },{timeout:20000});
+              const wall3DSmoke=await p.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_GREAT_WALL_V5940__;
+                let rendered=0;try{rendered=m?.queryRenderedFeatures({layers:['bp-v5940-wall-body']}).length||0}catch(_){}
+                return {status:s?.status||'',extrudedSegments:s?.extrudedSegments||0,bodyLayer:!!m?.getLayer('bp-v5940-wall-body'),
+                  mobileLOD:s?.mobileLOD===true,renderedBodyFeatures:rendered,terrainEnabled:!!m?.getTerrain?.(),
+                  groundAnchor:s?.groundAnchor||'',groundModel:s?.groundModel||'',groundRelativeBaseM:s?.groundRelativeBaseM,
+                  estimatedTopHeightM:s?.estimatedTopHeightM,terrainSamplesAttempted:s?.terrainSamplesAttempted||0,
+                  terrainSamplesMissing:s?.terrainSamplesMissing||0,groundAnchoredSegments:s?.groundAnchoredSegments||0,
+                  groundRetryCount:s?.groundRetryCount||0,mapCenter:m?.getCenter?.()?.toArray?.()||null};
+              });
+              if(wall3DSmoke.extrudedSegments<1||!wall3DSmoke.bodyLayer||wall3DSmoke.renderedBodyFeatures<1||!wall3DSmoke.terrainEnabled||
+                 wall3DSmoke.groundModel!=='MAPLIBRE_TERRAIN_RELATIVE'||wall3DSmoke.groundRelativeBaseM!==0||
+                 wall3DSmoke.estimatedTopHeightM<=0||wall3DSmoke.terrainSamplesAttempted<1||wall3DSmoke.groundAnchoredSegments<1)
+                throw new Error('GREAT_WALL_3D_BODY_FAILED '+JSON.stringify(wall3DSmoke));
               console.log('BRIDGEPOINT_GREAT_WALL_3D_BODY_PASS',JSON.stringify(wall3DSmoke));
               await p.evaluate(()=>window.__BP_LANDING_WORLD__?.map?.jumpTo({center:[-74.044643,40.689211],zoom:15.1,pitch:50,bearing:-20}));
               await p.waitForFunction(()=>{
