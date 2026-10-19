@@ -66,6 +66,11 @@ export function initUndergroundXray(target){
  function syncButton(){button.setAttribute('aria-pressed',String(state.enabled));button.textContent=state.enabled?'◈ UNDERGROUND X-RAY · ON':'◈ UNDERGROUND X-RAY · OFF';syncMapIcon()}
  const ICON_LAYER_ID='bp-underground-feature-icons-v5951';
 const ICON_IMAGE_ID='bp-underground-feature-sprite-v5951';
+const CLUSTER_SOURCE_ID='bp-underground-global-clusters-source-v5961';
+const CLUSTER_GLOW_ID='bp-underground-global-clusters-glow-v5961';
+const CLUSTER_BADGE_ID='bp-underground-global-clusters-badge-v5961';
+const CLUSTER_COUNT_ID='bp-underground-global-clusters-count-v5961';
+let globalClusterData=null,globalClusterPromise=null;
 function installUndergroundIcon(){
  if(map.hasImage?.(ICON_IMAGE_ID))return true;
  try{
@@ -89,7 +94,7 @@ function syncMapIcon(){
   if(!installUndergroundIcon())return;
   if(!map.getLayer(ICON_LAYER_ID)){
    const before=['gta-place-label','gta-poi-label','gta-opportunity-label','gta-city-buildings','gta-context-buildings'].find(id=>map.getLayer(id));
-   const layer={id:ICON_LAYER_ID,type:'symbol',source:SOURCE_ID,'source-layer':'underground_markers',minzoom:0,maxzoom:17,
+   const layer={id:ICON_LAYER_ID,type:'symbol',source:SOURCE_ID,'source-layer':'underground_markers',minzoom:8,maxzoom:17,
     layout:{
      'symbol-placement':'point','icon-image':ICON_IMAGE_ID,
      'icon-size':['interpolate',['linear'],['zoom'],3,.42,5,.46,8,.52,10,.58,12,.66,14,.76,17,.9],
@@ -105,6 +110,56 @@ function syncMapIcon(){
   }else map.setLayoutProperty(ICON_LAYER_ID,'visibility','visible');
  }catch(e){console.warn('BridgePoint underground source-geometry icons',String(e?.message||e))}
 }
+
+async function ensureGlobalClusters(){
+ if(disposed||!state.enabled||!map.isStyleLoaded?.())return false;
+ if(!globalClusterData&&!globalClusterPromise){
+  globalClusterPromise=(async()=>{
+   try{
+    const r=await fetch(FN+'?clusters=1&v=5961',{headers:{Accept:'application/geo+json'},cache:'no-store'});
+    if(!r.ok)throw new Error('Global cluster HTTP '+r.status);
+    const d=await r.json();
+    if(d?.type!=='FeatureCollection'||!Array.isArray(d.features))throw new Error('Invalid global cluster collection');
+    globalClusterData=d;
+   }finally{globalClusterPromise=null}
+  })();
+ }
+ if(!globalClusterData&&globalClusterPromise)try{await globalClusterPromise}catch(e){console.warn('BridgePoint global underground cluster badges',e);return false}
+ if(disposed||!state.enabled||!map.isStyleLoaded?.()||!globalClusterData)return false;
+ try{
+  if(!map.getSource(CLUSTER_SOURCE_ID))map.addSource(CLUSTER_SOURCE_ID,{type:'geojson',data:globalClusterData});
+  else map.getSource(CLUSTER_SOURCE_ID).setData(globalClusterData);
+  const before=['gta-place-label','gta-poi-label','gta-opportunity-label','gta-city-buildings','gta-context-buildings'].find(id=>map.getLayer(id));
+  if(!map.getLayer(CLUSTER_GLOW_ID)){
+   const layer={id:CLUSTER_GLOW_ID,type:'circle',source:CLUSTER_SOURCE_ID,maxzoom:8,
+    paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,15,2,17,4,19,7,22],
+     'circle-color':'#20e7ff','circle-opacity':.22,'circle-blur':.65,'circle-stroke-color':'#61f3ff','circle-stroke-opacity':.55,'circle-stroke-width':1}};
+   if(before)map.addLayer(layer,before);else map.addLayer(layer);
+  }else map.setLayoutProperty(CLUSTER_GLOW_ID,'visibility','visible');
+  if(!map.getLayer(CLUSTER_BADGE_ID)){
+   const layer={id:CLUSTER_BADGE_ID,type:'circle',source:CLUSTER_SOURCE_ID,maxzoom:8,
+    paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,8,2,10,4,12,7,14],
+     'circle-color':'#072332','circle-opacity':.99,'circle-stroke-color':'#8bfbff','circle-stroke-width':2.4,'circle-stroke-opacity':1}};
+   if(before)map.addLayer(layer,before);else map.addLayer(layer);
+  }else map.setLayoutProperty(CLUSTER_BADGE_ID,'visibility','visible');
+  if(!map.getLayer(CLUSTER_COUNT_ID)){
+   const layer={id:CLUSTER_COUNT_ID,type:'symbol',source:CLUSTER_SOURCE_ID,maxzoom:8,
+    layout:{'text-field':['to-string',['get','feature_count']],
+     'text-font':['Open Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],0,9,3,11,6,13],
+     'text-allow-overlap':true,'text-ignore-placement':true,'text-padding':0,'text-anchor':'center','text-offset':[0,0]},
+    paint:{'text-color':'#f1ffff','text-halo-color':'#03131c','text-halo-width':1.4}};
+   if(before)map.addLayer(layer,before);else map.addLayer(layer);
+  }else map.setLayoutProperty(CLUSTER_COUNT_ID,'visibility','visible');
+  state.globalClusters={count:globalClusterData.features.length,
+   sourceRecords:globalClusterData.features.reduce((sum,f)=>sum+Number(f?.properties?.feature_count||0),0),updatedAt:Date.now()};
+  return true;
+ }catch(e){console.warn('BridgePoint global underground clusters did not attach',e);return false}
+}
+function removeGlobalClusters(){
+ for(const id of [CLUSTER_COUNT_ID,CLUSTER_BADGE_ID,CLUSTER_GLOW_ID])try{if(map.getLayer(id))map.removeLayer(id)}catch(_){}
+ try{if(map.getSource(CLUSTER_SOURCE_ID))map.removeSource(CLUSTER_SOURCE_ID)}catch(_){}
+}
+
 function ensureLayers(){
   if(disposed||!state.enabled||!map||typeof map.addSource!=='function')return false;
   try{
@@ -123,6 +178,7 @@ function ensureLayers(){
    setXrayOpacity(state.enabled);
    setXraySurface(state.enabled);
    syncMapIcon();
+   void ensureGlobalClusters();
    return true;
   }catch(e){console.warn('BridgePoint underground X-ray retries after style readiness',String(e?.message||e));return false}
  }
@@ -260,7 +316,7 @@ function ensureLayers(){
   if(++tries<120)mountTimer=setTimeout(mount,150);
   else{dock.hidden=false;container.appendChild(dock);dock.dataset.mountFallback='1'}
  }
- function deactivateLayers(){try{for(const id of [ICON_LAYER_ID,GLOW_ID,LINE_ID])if(map.getLayer(id))map.removeLayer(id);removeVolumeLayer();setXrayOpacity(false);setXraySurface(false);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID);restoreXrayProjection()}catch(_){}}
+ function deactivateLayers(){try{for(const id of [ICON_LAYER_ID,GLOW_ID,LINE_ID])if(map.getLayer(id))map.removeLayer(id);removeGlobalClusters();removeVolumeLayer();setXrayOpacity(false);setXraySurface(false);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID);restoreXrayProjection()}catch(_){}}
  button.addEventListener('click',()=>{
   state.enabled=!state.enabled;state.lastUpdated=Date.now();syncButton();
   if(state.enabled){if(!ensureLayers())setStatus('Map style is loading. The X-ray layer will attach when ready.');syncMapIcon();void refreshCoverage();scheduleVolumeRefresh()}
@@ -276,7 +332,7 @@ function ensureLayers(){
    setStatus(Number(d.mapped_tunnel_passage_records||0).toLocaleString()+' source-backed tunnel / underpass records across '+jur+' jurisdictions. '+pipe.toLocaleString()+' pipe records; '+leaks.toLocaleString()+' leak signals currently materialized. Exact depth and active leaks are not inferred from tunnel lines.');
   }catch(e){count.textContent='STATUS UNAVAILABLE';setStatus('Map layer is linked, but coverage statistics are temporarily unavailable. Unverified pipes and leaks will not be drawn.',true);console.warn('BridgePoint underground X-ray coverage status',e)}
  }
- const onStyle=()=>{if(state.enabled){if(!ensureLayers()&&!styleRetry)styleRetry=setTimeout(()=>{styleRetry=null;if(state.enabled)ensureLayers()},600);syncMapIcon();scheduleVolumeRefresh()}};
+ const onStyle=()=>{if(state.enabled){if(!ensureLayers()&&!styleRetry)styleRetry=setTimeout(()=>{styleRetry=null;if(state.enabled)ensureLayers()},600);syncMapIcon();void ensureGlobalClusters();scheduleVolumeRefresh()}};
  const onVolumeMove=()=>{if(state.enabled)scheduleVolumeRefresh()};
  map.on('styledata',onStyle);map.on('load',onStyle);map.on('zoomend',onStyle);map.on('moveend',onVolumeMove);map.on('idle',onVolumeMove);
  mount();
