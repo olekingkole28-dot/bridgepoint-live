@@ -208,6 +208,7 @@ jobs:
           cp release-v2300/world-v2300-time-slider.js site/world-v2300-time-slider.js
           cp release-v2300/world-v2300-spectral-imagery.js site/world-v2300-spectral-imagery.js
           cp release-v2300/world-v2300-underground-xray.js site/world-v2300-underground-xray.js
+          cp release-v2300/world-v2300-infrastructure-volume-v5962.js site/world-v2300-infrastructure-volume-v5962.js
           cp release-v2300/world-v2300-sensor-layers.js site/world-v2300-sensor-layers.js
           cp release-v2300/world-v2300-realism.js site/world-v2300-realism.js
           cp release-v2300/gis-core-orchestrator-v5910.js site/gis-core-orchestrator-v5910.js
@@ -221,6 +222,7 @@ jobs:
           cp release-v2300/world-v2300-time-slider.js site/app/world-v2300-time-slider.js
           cp release-v2300/world-v2300-spectral-imagery.js site/app/world-v2300-spectral-imagery.js
           cp release-v2300/world-v2300-underground-xray.js site/app/world-v2300-underground-xray.js
+          cp release-v2300/world-v2300-infrastructure-volume-v5962.js site/app/world-v2300-infrastructure-volume-v5962.js
           cp release-v2300/world-v2300-sensor-layers.js site/app/world-v2300-sensor-layers.js
           cp release-v2300/world-v2300-realism.js site/app/world-v2300-realism.js
           cp release-v2300/gis-core-orchestrator-v5910.js site/app/gis-core-orchestrator-v5910.js
@@ -319,6 +321,7 @@ jobs:
           node --input-type=module --check < site/world-v2300-time-slider.js
           node --input-type=module --check < site/world-v2300-spectral-imagery.js
           node --input-type=module --check < site/world-v2300-underground-xray.js
+          node --input-type=module --check < site/world-v2300-infrastructure-volume-v5962.js
           node --input-type=module --check < site/world-v2300-sensor-layers.js
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
@@ -328,6 +331,13 @@ jobs:
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5961-global-clusters-badges' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5961-global-clusters-badges' site/landing.js
+          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' site/app.js
+          grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' site/landing.js
+          grep -Fq 'initInfrastructureVolume(world)' site/app.js
+          grep -Fq 'initInfrastructureVolume(world)' site/landing.js
+          grep -Fq 'US_Electric_Power_Transmission_Lines' site/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'STRUCHT' site/world-v2300-infrastructure-volume-v5962.js
+          grep -Fq 'catenary' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'world-v2300-sensor-layers.js?v=5945-coastal-dive' site/app.js
           grep -Fq 'world-v2300-sensor-layers.js?v=5945-coastal-dive' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
