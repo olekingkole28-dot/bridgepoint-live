@@ -46,7 +46,41 @@ export function initUndergroundXray(target){
   const roofIds=['gta-city-roofs','gta-bp-roofs','gta-context-roofs','gta-exact-roof','gta-city-building-roof-caps'];
   for(const id of roofIds){if(!map.getLayer(id))continue;const type=map.getLayer(id).type,prop=type==='fill-extrusion'?'fill-extrusion-opacity':'fill-opacity';captureOpacity(id,prop);try{map.setPaintProperty(id,prop,active?0.32:(opacityOriginal.get(id+'|'+prop).has?opacityOriginal.get(id+'|'+prop).value:null))}catch(_){}}
  }
- function syncButton(){button.setAttribute('aria-pressed',String(state.enabled));button.textContent=state.enabled?'◈ UNDERGROUND X-RAY · ON':'◈ UNDERGROUND X-RAY · OFF'}
+ function syncButton(){button.setAttribute('aria-pressed',String(state.enabled));button.textContent=state.enabled?'◈ UNDERGROUND X-RAY · ON':'◈ UNDERGROUND X-RAY · OFF';syncMapIcon()}
+ const ICON_ID='bp-underground-map-icon-v5949';
+ function syncMapIcon(){
+  if(!state.enabled){if(map.getLayer(ICON_ID))try{map.removeLayer(ICON_ID)}catch(_){}if(map.getSource(ICON_ID))try{map.removeSource(ICON_ID)}catch(_){}return}
+  if(!map.isStyleLoaded?.())return;
+  try{
+   if(!map.getSource(ICON_ID)){
+    map.addSource(ICON_ID,{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+   }
+   if(!map.getLayer(ICON_ID)){
+    const before=['gta-place-label','gta-poi-label','gta-opportunity-label'].find(id=>map.getLayer(id));
+    const layer={id:ICON_ID,type:'symbol',source:ICON_ID,layout:{
+      'text-field':['get','iconLabel'],'text-font':['Open Sans Bold','Arial Unicode MS Bold'],
+      'text-size':['interpolate',['linear'],['zoom'],8,10,11,12,14,15,17,18],
+      'text-anchor':'center','text-allow-overlap':true,'text-ignore-placement':true,
+      'icon-allow-overlap':true,'icon-ignore-placement':true
+     },paint:{'text-color':'#eaffff','text-halo-color':'#092332','text-halo-width':2,'text-halo-blur':.5}};
+    if(before)map.addLayer(layer,before);else map.addLayer(layer);
+   }
+   map.setLayoutProperty(ICON_ID,'visibility','visible');
+   // Icon data are derived from the same visible map bounds as the requested X-ray.
+   // A global "things exist somewhere" pin would mislead users about local coverage.
+   const b=map.getBounds(),z=map.getZoom();
+   if(!b||z<5){map.getSource(ICON_ID).setData({type:'FeatureCollection',features:[]});return}
+   void fetchStatus().then(d=>{
+    if(!state.enabled||!map.getSource(ICON_ID))return;
+    const raw=Array.isArray(d.preview_features)?d.preview_features:[];
+    const features=raw.filter(f=>{
+     const p=f?.geometry?.coordinates;
+     return Array.isArray(p)&&Number.isFinite(p[0])&&Number.isFinite(p[1])&&p[0]>=b.getWest()&&p[0]<=b.getEast()&&p[1]>=b.getSouth()&&p[1]<=b.getNorth();
+    }).slice(0,1500).map(f=>({type:'Feature',geometry:f.geometry,properties:{iconLabel:'⬇'}}));
+    map.getSource(ICON_ID).setData({type:'FeatureCollection',features});
+   }).catch(()=>{});
+  }catch(e){console.warn('BridgePoint underground icon layer',String(e?.message||e))}
+ }
  function ensureLayers(){
   if(disposed||!state.enabled||!map||typeof map.addSource!=='function')return false;
   try{
@@ -83,8 +117,8 @@ export function initUndergroundXray(target){
  function deactivateLayers(){try{for(const id of [GLOW_ID,LINE_ID])if(map.getLayer(id))map.removeLayer(id);setXrayOpacity(false);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID)}catch(_){}}
  button.addEventListener('click',()=>{
   state.enabled=!state.enabled;state.lastUpdated=Date.now();syncButton();
-  if(state.enabled){if(!ensureLayers())setStatus('Map style is loading. The X-ray layer will attach when ready.');void refreshCoverage()}
-  else{deactivateLayers();count.textContent='UNLOADED';setStatus('<strong>Fast map mode.</strong> Underground geometry is unloaded until switched on again.')}
+  if(state.enabled){if(!ensureLayers())setStatus('Map style is loading. The X-ray layer will attach when ready.');syncMapIcon();void refreshCoverage()}
+  else{deactivateLayers();syncMapIcon();count.textContent='UNLOADED';setStatus('<strong>Fast map mode.</strong> Underground geometry is unloaded until switched on again.')}
  });
  function setStatus(value,error=false){status.textContent=value;status.dataset.error=error?'true':'false'}
  async function refreshCoverage(){
@@ -96,11 +130,11 @@ export function initUndergroundXray(target){
    setStatus(Number(d.mapped_tunnel_passage_records||0).toLocaleString()+' source-backed tunnel / underpass records across '+jur+' jurisdictions. '+pipe.toLocaleString()+' pipe records; '+leaks.toLocaleString()+' leak signals currently materialized. Exact depth and active leaks are not inferred from tunnel lines.');
   }catch(e){count.textContent='STATUS UNAVAILABLE';setStatus('Map layer is linked, but coverage statistics are temporarily unavailable. Unverified pipes and leaks will not be drawn.',true);console.warn('BridgePoint underground X-ray coverage status',e)}
  }
- const onStyle=()=>{if(state.enabled&&!ensureLayers()&&!styleRetry)styleRetry=setTimeout(()=>{styleRetry=null;if(state.enabled)ensureLayers()},600)};
+ const onStyle=()=>{if(state.enabled){if(!ensureLayers()&&!styleRetry)styleRetry=setTimeout(()=>{styleRetry=null;if(state.enabled)ensureLayers()},600);syncMapIcon()}};
  map.on('styledata',onStyle);map.on('load',onStyle);map.on('zoomend',onStyle);
  mount();
- state.open=()=>{state.enabled=true;syncButton();if(!ensureLayers())setStatus('Map style is loading. The X-ray layer will attach when ready.');void refreshCoverage();return state};
- state.close=()=>{state.enabled=false;syncButton();deactivateLayers();count.textContent='UNLOADED';setStatus('<strong>Fast map mode.</strong> Underground geometry is unloaded until re-enabled.');return state};
+ state.open=()=>{state.enabled=true;syncButton();if(!ensureLayers())setStatus('Map style is loading. The X-ray layer will attach when ready.');syncMapIcon();void refreshCoverage();return state};
+ state.close=()=>{state.enabled=false;syncButton();deactivateLayers();syncMapIcon();count.textContent='UNLOADED';setStatus('<strong>Fast map mode.</strong> Underground geometry is unloaded until re-enabled.');return state};
  state.toggle=()=>{button.click();return state};
  state.destroy=()=>{disposed=true;clearTimeout(mountTimer);clearTimeout(styleRetry);clearInterval(retryTimer);map.off('styledata',onStyle);map.off('load',onStyle);map.off('zoomend',onStyle);deactivateLayers();dock.remove();state.available=false};
  state.ready=false;
