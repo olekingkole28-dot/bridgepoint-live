@@ -318,8 +318,8 @@ jobs:
           grep -Fq 'world-v2300-clouds.js?v=5908-game-clouds' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
-          grep -Fq 'world-v2300-underground-xray.js?v=5938-lazy-overlays' site/app.js
-          grep -Fq 'world-v2300-underground-xray.js?v=5938-lazy-overlays' site/landing.js
+          grep -Fq 'world-v2300-underground-xray.js?v=5949-source-icons' site/app.js
+          grep -Fq 'world-v2300-underground-xray.js?v=5949-source-icons' site/landing.js
           grep -Fq 'world-v2300-sensor-layers.js?v=5945-coastal-dive' site/app.js
           grep -Fq 'world-v2300-sensor-layers.js?v=5945-coastal-dive' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
@@ -331,6 +331,9 @@ jobs:
           grep -Fq 'TUNNELS_UNDERPASSES' site/world-v2300-underground-xray.js
           grep -Fq 'No pipe network or leak telemetry' site/world-v2300-underground-xray.js
           grep -Fq 'bp-underground-xray-v5935' site/world-v2300-underground-xray.js
+          grep -Fq 'bp-underground-feature-icons-v5949' site/world-v2300-underground-xray.js
+          grep -Fq "'symbol-placement':'line-center'" site/world-v2300-underground-xray.js
+          grep -Fq 'if (!Number.isFinite(terrainBaseM)) return null' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/index.html
           grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/app/index.html
           grep -Fq 'Subsurface + Ocean-Depth X-Ray' site/bridgepoint-map-key-v5920.js
@@ -711,8 +714,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=5945-coastal-dive' site/app/index.html
-          grep -Fq 'landing.js?v=5945-coastal-dive' site/index.html
+          grep -Fq 'app.js?v=5949-underground-icons' site/app/index.html
+          grep -Fq 'landing.js?v=5949-underground-icons' site/index.html
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/app.js
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/landing.js
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/index.html
@@ -731,8 +734,8 @@ jobs:
            grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/app/index.html
-           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5945-map-ready' site/index.html
-           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5945-map-ready' site/app/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5949-ground-anchor' site/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5949-ground-anchor' site/app/index.html
            grep -Fq 'bottomNav' site/app/index.html
           grep -Fq 'bindPerformanceGovernor' site/app.js
           grep -Fq '__BP_MAP_CLICK_FASTPATH_V5557__' site/app.js
