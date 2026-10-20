@@ -73,11 +73,13 @@ class RealityAssetManifestTests(unittest.TestCase):
 
     def test_bad_geometry_bounds_are_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_glb(root / "pilot-block.glb")
             asset = valid_asset()
             asset["boundsWgs84"] = [-73.99, 40.72, -73.98, 40.73]
             asset["longitude"] = 0
             with self.assertRaisesRegex(ValueError, "anchor"):
-                validate_manifest_data({"schemaVersion": 1, "assets": [asset]}, Path(tmp))
+                validate_manifest_data({"schemaVersion": 1, "assets": [asset]}, root)
 
     def test_missing_attribution_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
