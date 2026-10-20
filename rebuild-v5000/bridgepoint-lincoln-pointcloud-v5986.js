@@ -33,6 +33,7 @@
       datasetDoi: '10.26301/90yg-1054',
       datasetUrl: DATASET_URL,
       pointCloudMetadata: SOURCE_URL,
+      pointCloudProxy: PROXY_BASE,
       pointCount: 665663299,
       sourceDataIsStreamedNotMirrored: true,
       license: SOURCE_LICENSE,
@@ -65,24 +66,87 @@
     });
   }
 
+  const PROXY_BASE = 'https://xdfsjztwgsbmabshzsjw.supabase.co/functions/v1/bridgepoint-lincoln-lidar-proxy-v5987/';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
+
+  function currentAuthToken() {
+    try {
+      const s = JSON.parse(localStorage.getItem('bp_auth_v5045') || 'null');
+      return typeof s?.access_token === 'string' ? s.access_token : '';
+    } catch (_) { return ''; }
+  }
+
+  function proxySourceUrl(raw) {
+    try {
+      const u = new URL(String(raw), window.location.href);
+      const b = new URL(SOURCE_BASE);
+      if (u.origin !== b.origin || !u.pathname.startsWith(b.pathname)) return '';
+      const tail = u.pathname.slice(b.pathname.length);
+      return PROXY_BASE + '90yg-1054_lidar_terrestrial/' + tail + u.search;
+    } catch (_) { return ''; }
+  }
+
+  function authenticatedHeaders(inputHeaders, initHeaders) {
+    const headers = new Headers(inputHeaders || undefined);
+    if (initHeaders) new Headers(initHeaders).forEach((v, k) => headers.set(k, v));
+    const token = currentAuthToken();
+    if (token) {
+      headers.set('apikey', SUPABASE_PUBLISHABLE_KEY);
+      headers.set('authorization', 'Bearer ' + token);
+    }
+    // Potree marks some GET range requests with this non-essential content type.
+    // The byte-range header is what matters; omitting it avoids needless preflight.
+    if (headers.get('content-type') === 'multipart/byteranges') headers.delete('content-type');
+    return headers;
+  }
+
   function patchRangeFetch() {
     if (originalFetch || typeof window.fetch !== 'function') return;
     originalFetch = window.fetch.bind(window);
     window.fetch = (input, init) => {
       try {
-        const url = typeof input === 'string' ? input : (input && input.url) || '';
-        if (url.startsWith(SOURCE_BASE) && init && init.headers) {
-          const headers = new Headers(init.headers);
-          // The source viewer's Potree loader sends this non-essential content-type on ranged GETs.
-          // Dropping it avoids triggering an unnecessary CORS preflight; the Range request remains intact.
-          if (headers.get('content-type') === 'multipart/byteranges') {
-            headers.delete('content-type');
-            init = Object.assign({}, init, { headers });
-          }
+        const raw = typeof input === 'string' ? input : (input && input.url) || '';
+        const proxied = proxySourceUrl(raw);
+        if (proxied) {
+          const inputHeaders = input instanceof Request ? input.headers : null;
+          const headers = authenticatedHeaders(inputHeaders, init && init.headers);
+          const requestInput = input instanceof Request ? new Request(proxied, input) : proxied;
+          return originalFetch(requestInput, Object.assign({}, init || {}, { headers }));
         }
-      } catch (_) {}
+      } catch (error) {
+        publish('proxy-request-setup-error', { detail: String(error && error.message || error) });
+      }
       return originalFetch(input, init);
     };
+
+    // Potree 1.8 uses XMLHttpRequest for octree metadata, hierarchy, and point nodes.
+    // Rewrite those source-host URLs as well so every LOD request uses the same byte-range proxy.
+    const proto = XMLHttpRequest.prototype;
+    if (!proto.__bpLincolnProxyPatched5987) {
+      const open = proto.open;
+      const send = proto.send;
+      proto.open = function(method, url, ...args) {
+        const proxied = proxySourceUrl(url);
+        this.__bpLincolnProxy5987 = !!proxied;
+        return open.call(this, method, proxied || url, ...args);
+      };
+      proto.send = function(body) {
+        if (this.__bpLincolnProxy5987) {
+          const token = currentAuthToken();
+          if (token) {
+            try { this.setRequestHeader('apikey', SUPABASE_PUBLISHABLE_KEY); } catch (_) {}
+            try { this.setRequestHeader('authorization', 'Bearer ' + token); } catch (_) {}
+          } else {
+            publish('sign-in-required-for-lidar', {
+              detail: 'Sign in to BridgePoint to stream the original Lincoln LiDAR into the 3D globe.',
+              requiresPackage: false
+            });
+          }
+        }
+        return send.call(this, body);
+      };
+      Object.defineProperty(proto, '__bpLincolnProxyPatched5987', { value: true });
+    }
   }
 
   async function ensureRuntime() {
@@ -160,6 +224,15 @@
 
   function startPointCloud(map, state, Potree) {
     if (state.loadPromise || state.cloud || !mapNearScan(map)) return;
+    if (!currentAuthToken()) {
+      publish('sign-in-required-for-lidar', {
+        mapZoom: map.getZoom(),
+        detail: 'Sign in to BridgePoint to stream the original Lincoln LiDAR into the globe.',
+        requiresPackage: false
+      });
+      updateCard(state, 'SIGN IN TO STREAM ORIGINAL LiDAR · NO PACKAGE REQUIRED');
+      return;
+    }
     state.loadPromise = true;
     publish('streaming-original-octree', { mapZoom: map.getZoom(), sourceUrl: SOURCE_URL });
     updateCard(state, 'STREAMING ORIGINAL LiDAR · 665.7M SOURCE POINTS');
