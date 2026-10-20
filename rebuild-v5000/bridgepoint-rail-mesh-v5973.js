@@ -854,6 +854,10 @@
     clearTimeout(state.rebuildTimer);
     state.rebuildTimer = setTimeout(() => {
       state.rebuildTimer = null;
+      if (state.loading) {
+        scheduleRebuild(map, state, 160);
+        return;
+      }
       void rebuild(map, state, 'viewport');
     }, delay);
   }
@@ -930,7 +934,12 @@
     addStatusCard(map, state);
     const onMoveEnd = () => { if (state.active) scheduleRebuild(map, state, 100); };
     const onSourceData = event => {
-      if (state.active && event?.sourceId === RAIL_SOURCE && event.isSourceLoaded) scheduleRebuild(map, state, 180);
+      if (!state.active || !event) return;
+      // The track builder refuses to place meshes until terrain is genuinely sampled.
+      // Rebuild after DEM tiles arrive as well as when rail vector tiles settle.
+      if ((event.sourceId === RAIL_SOURCE && event.isSourceLoaded) || event.sourceId === 'dem') {
+        scheduleRebuild(map, state, event.sourceId === 'dem' ? 280 : 180);
+      }
     };
     map.on('moveend', onMoveEnd);
     map.on('zoomend', onMoveEnd);
