@@ -119,6 +119,23 @@ async function diagnostics(page) {
     const before = await diagnostics(page);
     assert.equal(before.railVersion, 5969, 'cache-busted live rail module did not initialize');
     assert.equal(before.meshVersion, 5973, '3D rail mesh module did not initialize');
+    const openLiveCard = await page.evaluate(() => {
+      const visible = b => {
+        const r = b.getBoundingClientRect(), s = getComputedStyle(b);
+        return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';
+      };
+      const button = [...document.querySelectorAll('.bp-live-rail-toggle-v5969')].find(visible);
+      if (!button) return false;
+      button.click();
+      return true;
+    });
+    assert.ok(openLiveCard, 'live train information card toggle is missing');
+
+    await page.waitForFunction(() => [...document.querySelectorAll('.bp-rail-mesh-toggle-v5973')].some(button => {
+      const r = button.getBoundingClientRect(), s = getComputedStyle(button);
+      return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';
+    }), { timeout: 15000 });
+
     const selected = await page.evaluate(() => {
       const visible = b => {
         const r = b.getBoundingClientRect(), s = getComputedStyle(b);
@@ -127,9 +144,14 @@ async function diagnostics(page) {
       const button = [...document.querySelectorAll('.bp-rail-mesh-toggle-v5973')].find(visible);
       if (!button) return null;
       button.click();
-      return { buttonId: button.id, mapId: button.parentElement?.id || '', text: (button.textContent || '').trim() };
+      return {
+        buttonId: button.id,
+        mapId: button.dataset.mapId || button.closest('.bp-live-rail-panel-v5969')?.id?.replace(/^bp-live-rail-panel-v5969-/, '') || '',
+        insideTrainCard: !!button.closest('.bp-live-rail-panel-v5969'),
+        text: (button.textContent || '').trim()
+      };
     });
-    assert.ok(selected, 'no visible 3D RAIL + TRAINS control attached to the map');
+    assert.ok(selected && selected.insideTrainCard, '3D RAIL + TRAINS control must be inside the live train information card');
 
     // This explicit user-style interaction must automatically focus MBTA coverage
     // and enable the live source. It is not allowed to turn on for general visitors.
