@@ -191,7 +191,7 @@ async function diagnostics(page) {
       target.zoomTo(zoom, { duration: 0 });
     }, { mapId, zoom });
 
-    await setMapZoom(selected.mapId, 4);
+    await setMapZoom(selected.mapId, 2);
     await page.waitForFunction(mapId => {
       const worlds = [
         window.__BP_LANDING_WORLD__, window.__bpLandingWorldV5420,
