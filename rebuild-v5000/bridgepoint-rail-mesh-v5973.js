@@ -417,10 +417,10 @@
       const p = feature.geometry?.coordinates;
       if (!Array.isArray(p) || !p.every(Number.isFinite)) return false;
       if (!boundsData) return true;
-      // Keep a small margin around the camera footprint so trains can move naturally into view.
+      // Keep a modest margin around the camera footprint so nearby consist cars can enter.
       const width = boundsData.east - boundsData.west, height = boundsData.north - boundsData.south;
-      return p[0] >= boundsData.west - width * 0.18 && p[0] <= boundsData.east + width * 0.18 &&
-        p[1] >= boundsData.south - height * 0.18 && p[1] <= boundsData.north + height * 0.18;
+      return p[0] >= boundsData.west - width * 0.22 && p[0] <= boundsData.east + width * 0.22 &&
+        p[1] >= boundsData.south - height * 0.22 && p[1] <= boundsData.north + height * 0.22;
     }).slice(0, Math.min(MAX_TRAIN_CARS, MOBILE ? 100 : 180));
 
     const prepared = [];
@@ -442,6 +442,7 @@
         id: safe(p.vehicleId || p.label, 64),
         label: safe(p.label || p.vehicleId, 48),
         routeName: safe(p.routeName || 'MBTA rail', 100),
+        headsign: safe(p.headsign || '', 80),
         routeType,
         coordinates: c,
         local: localPoint(c, anchor, elevation, anchorTerrainM),
@@ -585,8 +586,9 @@
       group, vehicles: prepared.length, skippedNoTerrain,
       featureCount: all.length,
       trains: prepared.map(t => ({
-        id: t.id, label: t.label, routeName: t.routeName, routeType: t.routeType,
-        coordinates: t.coordinates, bearing: t.bearing, speedMph: t.speedMph, kind: t.kind
+        id: t.id, label: t.label, routeName: t.routeName, headsign: t.headsign, routeType: t.routeType,
+        coordinates: t.coordinates, bearing: t.bearing, speedMph: t.speedMph, kind: t.kind,
+        carCount: Math.max(1, Number(t.carCount) || 1)
       }))
     };
   }
