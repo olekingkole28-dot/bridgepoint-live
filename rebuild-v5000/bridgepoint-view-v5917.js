@@ -126,14 +126,14 @@ function makeTopBarAndDock(){
  const top=node('div','bpv-topbar bpv-topbar-persistent');
  top.innerHTML='<a class="bpv-brand" href="/" aria-label="BridgePoint World"><img src="/bridgepoint-mark.svg" alt=""><span><b>BRIDGEPOINT WORLD</b><small>GLOBAL SPATIAL INTELLIGENCE</small></span></a><div class="bpv-topbar-right"><div id="bpv-language-slot" data-bp-language-mount="top" aria-label="BridgePoint language"></div><div id="bpv-account-slot"></div></div>';
  const dock=node('div','bpv-dock bpv-dock-persistent');dock.id='bpv-dock';
- dock.innerHTML='<div class="bpv-dock-label"><div><b>BRIDGEPOINT WORLD</b><span><i></i> LIVE · GLOBAL WORLD</span></div><button type="button" data-bpv-dock-hide aria-label="Minimize BridgePoint map card">MINIMIZE −</button></div><div id="bpv-search-slot" class="bpv-search-slot"></div><div id="bpv-world-activity-slot" class="bpv-world-activity-slot" aria-label="World activity timeline"></div><div id="bpv-underground-slot" class="bpv-underground-slot" aria-label="Underground X-ray map controls"></div><div id="bpv-satellite-slot" class="bpv-satellite-slot" aria-label="Satellite and color controls"></div><div id="bpv-dock-actions" class="bpv-dock-actions">'+
+ dock.innerHTML='<div class="bpv-dock-label"><div><b>BRIDGEPOINT WORLD</b><span><i></i> LIVE · GLOBAL WORLD</span></div><button type="button" data-bpv-dock-hide aria-label="Minimize BridgePoint map card">MINIMIZE −</button></div><div id="bpv-dock-account-row" class="bpv-dock-account-row" aria-label="Account, language and refresh controls"></div><div id="bpv-search-slot" class="bpv-search-slot"></div><div id="bpv-world-activity-slot" class="bpv-world-activity-slot" aria-label="World activity timeline"></div><div id="bpv-underground-slot" class="bpv-underground-slot" aria-label="Underground X-ray map controls"></div><div id="bpv-satellite-slot" class="bpv-satellite-slot" aria-label="Satellite and color controls"></div><div id="bpv-dock-actions" class="bpv-dock-actions">'+
  '<button type="button" data-bpv-action="ai">BRIDGEPOINT AI</button>'+
  '<button type="button" data-bpv-action="parcels">PARCEL BOUNDARIES</button>'+
  '<button type="button" data-bpv-action="mapkey">MAP KEY</button>'+
  '<button type="button" data-bpv-action="listings">LISTINGS</button>'+
  '<button type="button" data-bpv-action="worldchanges">30-DAY HISTORY</button>'+
- '<button type="button" data-bpv-action="weatherfx">WEATHER FX</button>'+
- '<button type="button" data-bpv-action="windfx">3D WIND</button>'+
+ '<button type="button" class="bpv-weather-fx-btn" data-bpv-action="weatherfx">WEATHER FX</button>'+
+ '<button type="button" class="bpv-wind-voxels-btn" data-bpv-action="windfx">3D WIND</button>'+
  '<button type="button" data-bpv-action="volumetric">VOLUMETRIC FIELDS</button>'+
  '<button type="button" data-bpv-action="opportunities">OPPORTUNITIES</button>'+
  '<button type="button" data-bpv-action="metrics">COUNTERS</button>'+
@@ -144,6 +144,10 @@ function makeTopBarAndDock(){
  (home?'<button type="button" data-bpv-action="explore">EXPLORE</button>':'')+
  '<button type="button" class="bpv-whole-earth-short" data-bpv-action="whole">WHOLE EARTH</button></div>';
  mapHost.append(top,dock);
+ const accountRow=$('#bpv-dock-account-row'),topRight=top.querySelector('.bpv-topbar-right');
+ const placeAccountActions=()=>{const mobile=!!window.matchMedia?.('(max-width:700px)').matches,target=mobile?accountRow:top;if(topRight&&target&&topRight.parentElement!==target)target.appendChild(topRight)};
+ placeAccountActions();window.addEventListener('resize',placeAccountActions,{passive:true});
+ try{window.matchMedia?.('(max-width:700px)').addEventListener?.('change',placeAccountActions)}catch(_){}
  const languageSlot=$('#bpv-language-slot');
  const existingLanguage=document.querySelector('[data-bp-language="1"]');
  if(languageSlot&&existingLanguage&&existingLanguage.parentElement!==languageSlot)languageSlot.appendChild(existingLanguage);
@@ -166,7 +170,7 @@ function makeTopBarAndDock(){
   if(a==='listings'){openPanel('listings');return}
   if(a==='worldchanges'){void openWorldChanges();return}
   if(a==='weatherfx'){void openRealWorldEffects(false);return}
-  if(a==='windfx'){void openRealWorldEffects(true);return}
+  if(a==='windfx'){void openVolumetricFields(true).catch(e=>console.warn('BridgePoint 3D wind unavailable',e));return}
   if(a==='volumetric'){void openVolumetricFields().catch(e=>console.warn('BridgePoint volumetric fields unavailable',e));return}
   if(a==='motion'){openPanel('controls');window.__BP_GLOBAL_MOTION_V5926__?.open?.();return}
   if(a==='satellite'){
@@ -619,14 +623,15 @@ async function openWorldChanges(){
 async function openRealWorldEffects(initialWind=false){
  const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  if(!world?.map)throw new Error('BridgePoint globe not ready');
- const mod=await import('./bridgepoint-realworld-effects-v5927.js?v=5927-toggleable-world-fx');
+ const mod=await import('./bridgepoint-realworld-effects-v5927.js?v=5981-weather-interactions');
  const api=mod.initBridgePointRealWorldEffects(world,rpc);await api?.open?.({initialWind});
 }
-async function openVolumetricFields(){
+async function openVolumetricFields(initialWind=false){
  const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  if(!world?.map)throw new Error('BridgePoint globe not ready');
- const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=5978-wind-rf-voxels');
+ const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=5981-wind-weather-fallback');
  const api=mod.initBridgePointVolumetricFields(world);api?.open?.();
+ if(initialWind)await api?.setWind?.(true);
 }
 function toggleSearch(){
  const input=home?$('#landingPropertySearchInput'):$('#publicSearchInput'),form=home?$('#landingPropertySearch'):$('#publicSearchForm');
@@ -708,7 +713,7 @@ if(a==='parcels'){toggleParcelBoundaries();return}
 if(a==='listings'){openPanel('listings');return}
 if(a==='worldchanges'){void openWorldChanges();return}
 if(a==='weatherfx'){void openRealWorldEffects(false);return}
-if(a==='windfx'){void openRealWorldEffects(true);return}
+if(a==='windfx'){void openVolumetricFields(true).catch(e=>console.warn('BridgePoint 3D wind unavailable',e));return}
   if(a==='volumetric'){void openVolumetricFields().catch(e=>console.warn('BridgePoint volumetric fields unavailable',e));return}
 if(a==='motion'){openPanel('controls');window.__BP_GLOBAL_MOTION_V5926__?.open?.();return}
 if(a==='satellite'){
