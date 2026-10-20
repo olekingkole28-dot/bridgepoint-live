@@ -1,11 +1,7 @@
 name: Verify BridgePoint Live Rail Production
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "tools/reality_assets/test_live_rail_browser.cjs"
-      - ".github/workflows/verify-live-rail-production-v5972.yml"
+  workflow_dispatch:
   workflow_run:
     workflows: ["Deploy BridgePoint Intelligence V5000 Rebuild"]
     types: [completed]
@@ -19,7 +15,7 @@ concurrency:
 
 jobs:
   live-rail-production-smoke:
-    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:

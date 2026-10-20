@@ -153,6 +153,30 @@ async function diagnostics(page) {
     });
     assert.ok(selected && selected.insideTrainCard, '3D RAIL + TRAINS control must be inside the live train information card');
 
+    const cardActions = await page.evaluate(mapId => {
+      const card = [...document.querySelectorAll('.bp-live-rail-panel-v5969')]
+        .find(node => node.id.endsWith('-' + mapId));
+      if (!card) return null;
+      const box = card.getBoundingClientRect();
+      const visibleInsideCard = button => {
+        const r = button.getBoundingClientRect(), style = getComputedStyle(button);
+        return r.width > 0 && r.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' &&
+          r.bottom > box.top && r.top < box.bottom;
+      };
+      const buttons = [...card.querySelectorAll('button')];
+      return {
+        insideCard: true,
+        meshToggle: buttons.some(b => b.classList.contains('bp-rail-mesh-toggle-v5973') && visibleInsideCard(b)),
+        focus: buttons.some(b => /Focus MBTA Coverage/i.test(b.textContent || '') && visibleInsideCard(b)),
+        stopFollow: buttons.some(b => /Stop train follow/i.test(b.textContent || '') && visibleInsideCard(b)),
+        rebuild: buttons.some(b => /REBUILD TRACK \+ CARS/i.test(b.textContent || '') && visibleInsideCard(b))
+      };
+    }, selected.mapId);
+    assert.ok(cardActions?.meshToggle, '3D enable/disable action is not visible in the train card');
+    assert.ok(cardActions?.focus, 'Focus MBTA Coverage is not visible in the train card');
+    assert.ok(cardActions?.stopFollow, 'Stop train follow is not visible in the train card');
+    assert.ok(cardActions?.rebuild, 'Rebuild Track + Cars is not visible in the train card');
+
     // This explicit user-style interaction must automatically focus MBTA coverage
     // and enable the live source. It is not allowed to turn on for general visitors.
     await page.waitForFunction(mapId => {
