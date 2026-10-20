@@ -790,10 +790,10 @@ jobs:
           test -s site/vendor/maplibre-gl.js
           test -s site/vendor/maplibre-gl.css
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=5981-bottom-controls-card' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=5981-bottom-controls-card' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=5981-weather-dock-fix' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=5981-bottom-controls-card' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=5982-mobile-controls-resilient' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=5982-mobile-controls-resilient' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=5982-mobile-controls-resilient' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=5982-mobile-controls-resilient' site/index.html
           grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/index.html
            grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
