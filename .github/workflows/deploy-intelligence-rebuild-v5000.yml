@@ -350,8 +350,8 @@ jobs:
           test -s site/assets/bp-potree-lincoln-runtime/workers/laz-perf.wasm
           grep -Fq '665663299' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'Potree.updatePointClouds([cloud]' site/bridgepoint-lincoln-pointcloud-v5986.js
-          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=5997-perspective-camera' site/index.html
-          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=5997-perspective-camera' site/app/index.html
+          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6002-axis-order-fix' site/index.html
+          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6002-axis-order-fix' site/app/index.html
           grep -Fq "const PROJ4_URL = POTREE_BASE + 'libs/proj4/proj4.js'" site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'if (!window.proj4) await loadScript(PROJ4_URL)' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'new Potree.Renderer(state.renderer)' site/bridgepoint-lincoln-pointcloud-v5986.js
@@ -362,7 +362,7 @@ jobs:
           test -s site/assets/eiffel-tower-koterstudios-v5983.glb
           grep -Fq "const EIFFEL_SCAN_URL = '/assets/eiffel-tower-koterstudios-v5983.glb'" site/bridgepoint-eiffel-tower-v5983.js
           grep -Fq 'koterstudios / koters' site/bridgepoint-eiffel-tower-v5983.js
-          grep -Fq 'bridgepoint-eiffel-tower-v5983.js?v=5983-eiffel-source-mesh' site/index.html
+          grep -Fq 'bridgepoint-eiffel-tower-v5983.js?v=6001-style-persistence' site/index.html
           grep -Fq 'const STATUE_FIGURE_HEIGHT_M = 46.05' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'const STATUE_PEDESTAL_TOP_M = 46.94' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'sourceRoot.scale.setScalar(STATUE_FIGURE_HEIGHT_M / sourceHeight)' site/bridgepoint-landmarks-v5940.js
