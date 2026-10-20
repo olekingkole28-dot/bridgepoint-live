@@ -132,8 +132,8 @@
         event.stopPropagation();
         try {
           map.stop();
-          map.flyTo({ center: LOCATION, zoom: 14.2, pitch: 42, bearing: 0, duration: 1800, essential: true });
-          publish('flying-to-landmark', { target: LOCATION.slice(), zoom: 14.2 });
+          map.flyTo({ center: LOCATION, zoom: 18.0, pitch: 55, bearing: 0, duration: 1800, essential: true });
+          publish('flying-to-landmark', { target: LOCATION.slice(), zoom: 18.0 });
         } catch (error) {
           publish('focus-error', { detail: String(error && error.message || error) });
         }
@@ -164,7 +164,7 @@
       event.stopPropagation();
       try {
         map.stop();
-        map.flyTo({ center: LOCATION, zoom: 15.3, pitch: 48, bearing: 0, duration: 1500, essential: true });
+        map.flyTo({ center: LOCATION, zoom: 18.0, pitch: 55, bearing: 0, duration: 1500, essential: true });
       } catch (error) {
         publish('focus-error', { detail: String(error && error.message || error) });
       }
@@ -226,8 +226,8 @@
         if (wantsLincolnFocus && !state.autoFocused) {
           state.autoFocused = true;
           map.stop();
-          map.flyTo({ center: LOCATION, zoom: 15.2, pitch: 48, bearing: 0, duration: 1600, essential: true });
-          publish('autofocus-lincoln-memorial', { target: LOCATION.slice(), zoom: 15.2, pitch: 48 });
+          map.flyTo({ center: LOCATION, zoom: 18.0, pitch: 55, bearing: 0, duration: 1600, essential: true });
+          publish('autofocus-lincoln-memorial', { target: LOCATION.slice(), zoom: 18.0, pitch: 55 });
         }
       } catch (error) {
         publish('attach-error', { detail: String(error && error.message || error) });
