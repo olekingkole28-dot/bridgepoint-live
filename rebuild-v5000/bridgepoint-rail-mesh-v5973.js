@@ -737,7 +737,10 @@
     state.button.setAttribute('aria-hidden', 'true');
     toggle.classList.add('bp-rail-mesh-toggle-v5973');
     toggle.dataset.mapId = state.container.id || '';
-    if (actions.parentElement !== livePanel) livePanel.appendChild(actions);
+    if (actions.parentElement !== livePanel) {
+      const insertionPoint = livePanel.querySelector('.bp-lr-stat') || null;
+      livePanel.insertBefore(actions, insertionPoint);
+    }
     Object.assign(state.panel.style, {
       position: 'static', top: 'auto', right: 'auto', width: '100%', maxWidth: '100%',
       maxHeight: 'none', margin: '9px 0 0', overflow: 'visible', zIndex: 'auto',
