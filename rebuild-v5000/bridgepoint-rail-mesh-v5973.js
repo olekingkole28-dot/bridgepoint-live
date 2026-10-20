@@ -455,9 +455,35 @@
       });
     }
 
+    // Multiple telemetry pings can belong to the same physical train consist. Do not
+    // pretend each ping is a different train; build adjacent cars only when the source
+    // supplies an explicit car count, otherwise leave count unknown and show one observed unit.
+    const consistUnits = [];
+    for (const train of prepared) {
+      const reportedCars = Number(train.carCount);
+      const carCount = Number.isInteger(reportedCars) && reportedCars >= 1
+        ? Math.min(reportedCars, 12) : 1;
+      const yaw = train.bearing === null ? 0 : Math.PI - train.bearing * Math.PI / 180;
+      const halfLength = train.length * 0.5;
+      for (let car = 0; car < carCount; car++) {
+        const longitudinal = (car - (carCount - 1) / 2) * (train.length * 0.91);
+        const dx = Math.sin(yaw) * longitudinal;
+        const dz = Math.cos(yaw) * longitudinal;
+        consistUnits.push({
+          ...train,
+          id: train.id + (carCount > 1 ? ':car-' + (car + 1) : ''),
+          parentVehicleId: train.id,
+          carIndex: car + 1,
+          carCount,
+          local: { x: train.local.x + dx, y: train.local.y, z: train.local.z + dz },
+          label: carCount > 1 ? train.label + ' · CAR ' + (car + 1) : train.label
+        });
+      }
+    }
+
     const group = new THREE.Group();
-    if (!prepared.length) return { group, vehicles: 0, skippedNoTerrain, featureCount: all.length };
-    const max = prepared.length;
+    if (!consistUnits.length) return { group, vehicles: 0, skippedNoTerrain, featureCount: all.length };
+    const max = consistUnits.length;
     // Shared low-poly rolling-stock kit: one instanced set per car keeps draw calls low.
     // Side windows, front windshields, bogies, wheels, end lights and route-color bands
     // are deliberately separate, readable forms rather than a single box.
@@ -534,7 +560,8 @@
     };
 
     let wheelIndex = 0, lampIndex = 0;
-    prepared.forEach((train, index) => {
+    const consistCount = new Map();
+    consistUnits.forEach((train, index) => {
       const angle = train.bearing === null ? 0 : Math.PI - train.bearing * Math.PI / 180;
       const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, angle, 0));
       const scale = new THREE.Vector3(train.width / 3.05, train.height / 3.7, train.length / 26.4);
@@ -588,8 +615,9 @@
       trains: prepared.map(t => ({
         id: t.id, label: t.label, routeName: t.routeName, headsign: t.headsign, routeType: t.routeType,
         coordinates: t.coordinates, bearing: t.bearing, speedMph: t.speedMph, kind: t.kind,
-        carCount: Math.max(1, Number(t.carCount) || 1)
-      }))
+        carCount: Number.isInteger(Number(t.carCount)) && Number(t.carCount) > 0 ? Number(t.carCount) : null
+      })),
+      renderedCars: consistUnits.length
     };
   }
 
