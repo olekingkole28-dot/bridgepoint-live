@@ -273,7 +273,7 @@
         container.appendChild(button);
       }
       button.addEventListener('click', () => {
-        const panel = $('bp-reality-assets-v5968-' + safeId);
+        const panel = $('bp-reality-assets-v5968');
         if (!panel) return;
         panel.hidden = !panel.hidden;
         if (!panel.hidden) void renderCatalog(map, safeId);
@@ -282,7 +282,7 @@
     let panel = $('bp-reality-assets-v5968-' + safeId);
     if (!panel) {
       panel = document.createElement('section');
-      panel.id = 'bp-reality-assets-v5968-' + safeId;
+      panel.id = 'bp-reality-assets-v5968';
       panel.hidden = true;
       panel.innerHTML = '<div class="bp-ra-head"><div><div class="bp-ra-kicker">BRIDGEPOINT · REALITY ASSETS</div><div class="bp-ra-title">Photogrammetry / 3D capture</div></div><button type="button" class="bp-ra-close" aria-label="Close 3D capture panel">×</button></div><div class="bp-ra-sub">Reviewed, source-backed meshes load only when requested and close to their mapped region. One mesh at a time.</div><div id="bp-reality-assets-status-v5968" class="bp-ra-status" role="status">Checking the capture catalog…</div><div id="bp-reality-assets-list-v5968"></div><p class="bp-ra-note">A capture is only shown when its model, geographic alignment, acquisition date, attribution and licence are recorded. Missing assets are never replaced with invented geometry.</p>';
       container.appendChild(panel);
