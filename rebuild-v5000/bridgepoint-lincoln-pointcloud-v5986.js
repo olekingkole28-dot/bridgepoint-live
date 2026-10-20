@@ -15,6 +15,7 @@
   const SOURCE_URL = 'https://pointcloud.ucsd.edu/archive_temp/oh3d_store/oh3d-vis/datasets/90yg-1054/potree/90yg-1054_lidar_terrestrial/metadata.json';
   const SOURCE_BASE = 'https://pointcloud.ucsd.edu/archive_temp/oh3d_store/oh3d-vis/datasets/90yg-1054/potree/90yg-1054_lidar_terrestrial/';
   const POTREE_BASE = 'https://pointcloud.ucsd.edu/archive_temp/oh3d_store/oh3d-vis/base_potree_template/';
+  const PROJ4_URL = POTREE_BASE + 'libs/proj4/proj4.js';
   const LOCAL_WORKER_ROOT = window.location.origin + '/assets/bp-potree-lincoln-runtime';
   const DATASET_URL = 'https://openheritage3d.org/project.php?id=90yg-1054';
   const SOURCE_LICENSE = 'CC BY-NC-SA 4.0';
@@ -99,12 +100,18 @@
       if (!window.TWEEN) {
         await loadScript(POTREE_BASE + 'libs/tween/tween.min.js');
       }
-      if (!window.Potree || !window.Potree.loadPointCloud) {
+      // Potree 1.8 references the global proj4 during module evaluation; load it first.
+      if (!window.proj4) await loadScript(PROJ4_URL);
+      if (!window.Potree || !window.Potree.loadPointCloud || !window.Potree.updatePointClouds) {
         await loadScript(POTREE_BASE + 'build/potree/potree.js');
       }
-      if (!window.THREE || !window.Potree || !window.Potree.updatePointClouds) {
-        throw new Error('Potree / THREE runtime exports were not created');
-      }
+      const runtimeMissing = [];
+      if (!window.THREE) runtimeMissing.push('THREE');
+      if (!window.proj4) runtimeMissing.push('proj4');
+      if (!window.Potree) runtimeMissing.push('Potree');
+      if (window.Potree && !window.Potree.loadPointCloud) runtimeMissing.push('Potree.loadPointCloud');
+      if (window.Potree && !window.Potree.updatePointClouds) runtimeMissing.push('Potree.updatePointClouds');
+      if (runtimeMissing.length) throw new Error('LINCOLN_POTREE_RUNTIME_MISSING ' + runtimeMissing.join(', '));
       // Keep the Brotli decoder worker same-origin; point data itself remains streamed from the publisher.
       window.Potree.scriptPath = LOCAL_WORKER_ROOT;
       window.Potree.resourcePath = LOCAL_WORKER_ROOT + '/resources';
