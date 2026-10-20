@@ -105,8 +105,8 @@ async function diagnostics(page) {
     await page.goto(freshUrl.toString(), { waitUntil: 'domcontentloaded', timeout: WAIT_MS });
     await page.waitForFunction(() => {
       const scripts = [...document.scripts].map(script => script.src);
-      return scripts.some(src => src.includes('bridgepoint-live-rail-v5969.js?v=5973-source-speed-follow')) &&
-        scripts.some(src => src.includes('bridgepoint-rail-mesh-v5973.js?v=5973'));
+      return scripts.some(src => src.includes('bridgepoint-live-rail-v5969.js?v=5976-bounded-retry')) &&
+        scripts.some(src => src.includes('bridgepoint-rail-mesh-v5973.js?v=5976-rail-source-capture'));
     }, { timeout: 30000 });
     await page.waitForFunction(() => {
       const rail = window.__BP_LIVE_RAIL_V5969__;
@@ -141,13 +141,22 @@ async function diagnostics(page) {
       return !!mesh?.active && !!rail?.enabled;
     }, { timeout: 20000 }, selected.mapId);
 
+    // Validate the hardest visual dependency independently: geometry must materialize
+    // from the real map railway layer and sampled ground before train telemetry can pass.
+    await page.waitForFunction(mapId => {
+      const mesh = (window.__BP_RAIL_MESH_V5973__?.getState?.() || []).find(s => s.mapId === mapId);
+      return !!mesh && mesh.active && mesh.layerAdded &&
+        mesh.railSegments > 0 && mesh.sleepers > 0 && mesh.lineFeatureCount > 0;
+    }, { timeout: 35000, polling: 750 }, selected.mapId);
+
+    // Now validate the external feed separately. A telemetry outage must never prevent
+    // real track geometry from being materialized, but it must not create fake train meshes.
     await page.waitForFunction(mapId => {
       const states = window.__BP_LIVE_RAIL_V5969__?.getState?.() || [];
       return states.some(s => s.mapId === mapId && s.enabled && s.lastSuccessAt && s.featureCount > 0);
     }, { timeout: SOURCE_WAIT_MS }, selected.mapId);
 
-    // Require actual Three.js rolling-stock instances AND real railway line geometry,
-    // not just point markers or a successful API response.
+    // Require actual Three.js rolling-stock instances after genuine source coordinates arrive.
     await page.waitForFunction(mapId => {
       const mesh = (window.__BP_RAIL_MESH_V5973__?.getState?.() || []).find(s => s.mapId === mapId);
       return !!mesh && mesh.active && mesh.layerAdded &&
