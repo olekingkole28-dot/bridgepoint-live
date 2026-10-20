@@ -461,3 +461,25 @@ body.bpv-map-moving .building-panel,
 body.bpv-map-moving .system-panel{
   transform:none!important;
 }
+
+
+/* Mobile control consolidation: keep account and map controls inside the persistent bottom card. */
+.bpv-dock-account-row,.bpv-map-controls-slot{display:block;min-width:0;width:100%;max-width:100%;margin:4px 0 0}
+.bpv-dock-account-row:empty,.bpv-map-controls-slot:empty{display:none!important}
+.bpv-dock-account-row .bpv-topbar-right{display:flex!important;align-items:center;justify-content:space-between!important;gap:6px!important;width:100%!important;max-width:100%!important;min-width:0!important;flex-wrap:wrap}
+.bpv-dock-account-row #bpv-language-slot{flex:0 1 auto;max-width:100%}
+.bpv-dock-account-row #bpv-account-slot{flex:1 1 220px;width:auto;min-width:0;max-width:100%;overflow:visible}
+.bpv-dock-account-row #bpv-account-slot .actions{display:flex;align-items:center;justify-content:flex-end;gap:4px;flex-wrap:wrap;max-width:100%;min-width:0;overflow:visible!important;padding:3px;margin:0}
+.bpv-dock-account-row #bpv-account-slot .actions button{min-height:29px;padding:6px 8px;font-size:8px}
+.bpv-map-controls-slot .maplibregl-ctrl-top-right{position:static!important;top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;display:flex!important;align-items:center;justify-content:flex-start;gap:5px;float:none!important;clear:none!important;margin:0!important;transform:none!important;max-width:100%}
+.bpv-map-controls-slot .maplibregl-ctrl-top-right .maplibregl-ctrl{float:none!important;clear:none!important;margin:0!important}
+.bpv-map-controls-slot .maplibregl-ctrl-group{display:flex!important;align-items:center;flex-direction:row!important;overflow:hidden}
+.bpv-map-controls-slot .maplibregl-ctrl-group button{width:32px;height:32px;min-width:32px;min-height:32px}
+.bpv-map-controls-slot .maplibregl-ctrl-attrib{max-width:min(55vw,330px);font-size:8px}
+@media(max-width:700px){
+ .bpv-dock-account-row{padding-bottom:4px;border-bottom:1px solid rgba(117,234,255,.12)}
+ .bpv-dock-account-row .bpv-topbar-right{gap:5px!important}
+ .bpv-map-controls-slot{padding:1px 0 4px;border-bottom:1px solid rgba(117,234,255,.12)}
+ .bpv-map-controls-slot .maplibregl-ctrl-top-right{flex-wrap:wrap;gap:5px!important}
+ .bpv-map-controls-slot .maplibregl-ctrl-attrib{max-width:48vw}
+}
