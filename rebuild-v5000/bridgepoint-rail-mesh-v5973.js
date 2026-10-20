@@ -878,8 +878,8 @@
       state.statusNode = panel.querySelector('.bp-rm-status');
       state.metrics = Object.fromEntries(['trains', 'rails', 'sleepers', 'live'].map(key =>
         [key, panel.querySelector('[data-metric="' + key + '"] strong')]));
-      state.toggleButton = panel.querySelector('.bp-rm-primary');
-      state.refreshButton = panel.querySelector('.bp-rm-rebuild');
+      state.toggleButton = panel.querySelector('.bp-rm-primary') || container.querySelector('.bp-rm-primary');
+      state.refreshButton = panel.querySelector('.bp-rm-rebuild') || container.querySelector('.bp-rm-rebuild');
     }
     state.button = button;
     state.panel = panel;
