@@ -1,5 +1,5 @@
 /* BridgePoint source-backed landmarks v5940
- * Statue of Liberty: Metron3D laser scan (CC BY), lazy-loaded on close view only.
+ * Statue of Liberty: Metron3D figure scan (CC BY), raised onto the 46.94 m pedestal; lazy-loaded on close view only.
  * Great Wall: simplified full-route overview at wide zoom + regional GeoJSON at close zoom (MIT).
  * Wall height/width are explicitly estimated where no surveyed cross-section exists.
  */
@@ -10,7 +10,9 @@
   const VERSION = 5940;
   const EMPTY = { type: 'FeatureCollection', features: [] };
   const STATUE = [-74.044643, 40.689211];
-  const STATUE_HEIGHT_M = 93.0;
+  const STATUE_HEIGHT_M = 93.0; // Official ground-to-torch total, rounded.
+  const STATUE_FIGURE_HEIGHT_M = 46.05;
+  const STATUE_PEDESTAL_TOP_M = 46.94;
   const STATUE_FACING_DEG = 135;
   const STATUE_SCAN_URL = '/assets/statue-of-liberty-scan-v5940.glb';
   const THREE_URL = 'https://esm.sh/three@0.169.0';
@@ -682,7 +684,9 @@
     size = box.getSize(new THREE.Vector3());
     const sourceHeight = Math.max(size.x, size.y, size.z);
     if (!Number.isFinite(sourceHeight) || sourceHeight <= 0) throw new Error('Scan dimensions unavailable');
-    sourceRoot.scale.setScalar(STATUE_HEIGHT_M / sourceHeight);
+    // The GLB is the statue figure, not the star-shaped Fort Wood base. Scale
+    // to the figure's measured height; the renderer anchors its feet at pedestal top.
+    sourceRoot.scale.setScalar(STATUE_FIGURE_HEIGHT_M / sourceHeight);
     sourceRoot.updateMatrixWorld(true);
     box = new THREE.Box3().setFromObject(sourceRoot);
     sourceRoot.position.x -= (box.min.x + box.max.x) * 0.5;
@@ -708,13 +712,15 @@
     if (state.statueLayerRequested || !nearStatue(map)) return;
     state.statueLayerRequested = true;
     state.statueActive = true;
-    setChip(state, 'STATUE OF LIBERTY', 'Loading source laser scan · 93.0 m ground-to-torch', true);
+    setChip(state, 'STATUE OF LIBERTY', 'Loading scan · 46.05 m figure above 46.94 m pedestal · 93.0 m overall', true);
     window.__BP_STATUE_SCAN_V5940__ = {
       version: VERSION,
       status: 'loading-on-close-zoom-only',
       source: 'Metron3D Statue of Liberty 3D Scan',
       license: 'CC BY; attributed to Metron3D / Sketchfab source record',
       officialHeightM: STATUE_HEIGHT_M,
+      figureHeightM: STATUE_FIGURE_HEIGHT_M,
+      pedestalTopOffsetM: STATUE_PEDESTAL_TOP_M,
       sourceUrl: 'https://zenodo.org/records/10355435',
       updatedAt: Date.now()
     };
@@ -754,12 +760,14 @@
                 source: 'Metron3D Statue of Liberty 3D Scan · Zenodo DOI 10.5281/zenodo.10355435',
                 license: 'CC BY; attributed to Metron3D / Sketchfab source record',
                 officialHeightM: STATUE_HEIGHT_M,
+                figureHeightM: STATUE_FIGURE_HEIGHT_M,
+                pedestalTopOffsetM: STATUE_PEDESTAL_TOP_M,
                 facingDegrees: STATUE_FACING_DEG,
                 sourceModelHeightUnits: prepared.sourceHeight,
                 loadedAt: Date.now(),
                 rendered: false
               };
-              setChip(state, 'STATUE OF LIBERTY · 3D SCAN', 'Metron3D scan · scaled to 93.0 m ground-to-torch', true);
+              setChip(state, 'STATUE OF LIBERTY · 3D SCAN', 'Metron3D scan · figure on pedestal · 93.0 m ground-to-torch', true);
               mapRef.triggerRepaint();
             } catch (error) {
               this.failed = true;
@@ -779,7 +787,10 @@
             const terrain = typeof this.map.queryTerrainElevation === 'function'
               ? (this.map.queryTerrainElevation({ lng: STATUE[0], lat: STATUE[1] }, { exaggerated: false }) || 0)
               : 0;
-            const modelMatrix = this.map.transform.getMatrixForModel(STATUE, terrain);
+            // Anchor the bronze figure at the top of the star-shaped Fort Wood
+            // pedestal, not at ground level. 46.94 m + 46.05 m ≈ 93 m overall.
+            const figureBaseAltitude = terrain + STATUE_PEDESTAL_TOP_M;
+            const modelMatrix = this.map.transform.getMatrixForModel(STATUE, figureBaseAltitude);
             const projection = new THREE.Matrix4().fromArray(args.defaultProjectionData.mainMatrix);
             const model = new THREE.Matrix4().fromArray(modelMatrix);
             this.camera.projectionMatrix = projection.multiply(model);
@@ -789,6 +800,12 @@
             if (renderStatus) {
               renderStatus.rendered = true;
               renderStatus.renderedAt = Date.now();
+              if (!renderStatus.placement) renderStatus.placement = {
+                terrainElevationM: terrain,
+                figureBaseAboveGroundM: STATUE_PEDESTAL_TOP_M,
+                figureHeightM: STATUE_FIGURE_HEIGHT_M,
+                groundToTorchM: STATUE_PEDESTAL_TOP_M + STATUE_FIGURE_HEIGHT_M
+              };
               delete renderStatus.renderError;
             }
           } catch (error) {
@@ -836,7 +853,7 @@
     else if (state.status !== 'Great Wall route active') setChip(state, '', '', false);
     await updateWall(map, state);
     if (inStatueArea && state.statueLoaded) {
-      setChip(state, 'STATUE OF LIBERTY · 3D SCAN', 'Metron3D scan · 93.0 m ground-to-torch', true);
+      setChip(state, 'STATUE OF LIBERTY · 3D SCAN', 'Metron3D scan · figure on pedestal · 93.0 m ground-to-torch', true);
     }
     if (zoom < 11.2) setSourceData(map, 'bp-v5940-wall-body', EMPTY);
   }
