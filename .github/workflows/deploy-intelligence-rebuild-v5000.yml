@@ -350,10 +350,12 @@ jobs:
           test -s site/assets/bp-potree-lincoln-runtime/workers/laz-perf.wasm
           grep -Fq '665663299' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'Potree.updatePointClouds([cloud]' site/bridgepoint-lincoln-pointcloud-v5986.js
-          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=5987-proj4-runtime-fix' site/index.html
-          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=5987-proj4-runtime-fix' site/app/index.html
+          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=5988-native-potree-renderer' site/index.html
+          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=5988-native-potree-renderer' site/app/index.html
           grep -Fq "const PROJ4_URL = POTREE_BASE + 'libs/proj4/proj4.js'" site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'if (!window.proj4) await loadScript(PROJ4_URL)' site/bridgepoint-lincoln-pointcloud-v5986.js
+          grep -Fq 'new Potree.Renderer(state.renderer)' site/bridgepoint-lincoln-pointcloud-v5986.js
+          grep -Fq 'state.potreeRenderer.render(state.scene, state.camera)' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq '10.26301/90yg-1054' site/bridgepoint-lincoln-memorial-v5984.js
           grep -Fq 'sourceDataEmbeddedOrRedistributed: false' site/bridgepoint-lincoln-memorial-v5984.js
           grep -Fq 'bridgepoint-lincoln-memorial-v5984.js?v=5985-lincoln-direct-focus-and-scan' site/index.html
