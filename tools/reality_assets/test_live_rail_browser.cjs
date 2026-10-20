@@ -45,6 +45,7 @@ async function diagnostics(page) {
           bounds: bounds ? [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()] : null,
           canvasCount: m.getContainer().querySelectorAll('canvas').length,
           railLayerPresent: !!m.getLayer?.('bp-live-rail-points-v5969'),
+          railPointVisibility: (() => { try { return m.getLayoutProperty('bp-live-rail-points-v5969', 'visibility') || 'visible'; } catch (_) { return 'missing'; } })(),
           railSourcePresent: !!m.getSource?.('bp-live-rail-source-v5969'),
           meshLayerPresent: !!m.getLayer?.('bp-rail-meshes-v5973'),
           visible3DCount
@@ -146,6 +147,7 @@ async function diagnostics(page) {
     assert.ok(meshState.railSegments > 0, 'no raised rail geometry was produced from the railway source');
     assert.ok(meshState.sleepers > 0, 'no solid track sleepers were produced');
     assert.ok(map && map.meshLayerPresent, '3D mesh layer is missing on the focused map');
+    assert.equal(map.railPointVisibility, 'none', 'flat vehicle markers must be hidden while 3D trains are materialized');
     assert.ok(map.canvasCount >= 1, 'base map canvas disappeared');
     assert.ok(Math.abs(map.center[0] + 71.0589) < 2 && Math.abs(map.center[1] - 42.3601) < 2,
       '3D rail control did not position the map over the Boston MBTA coverage area');
