@@ -483,8 +483,11 @@
               this.reportedRendered = true;
               state.renderedAsset = asset.id;
               state.renderedAt = Date.now();
-              setStatus('Rendered source mesh · ' + asset.title + ' · ' + asset.license + '.');
-              renderCatalog(map, safeId);
+              void renderCatalog(map, safeId).then(() => {
+                if (activeLayer === this && this.reportedRendered) {
+                  setStatus('Rendered source mesh · ' + asset.title + ' · ' + asset.license + '.');
+                }
+              });
             }
           } catch (error) {
             if (!this.renderWarned) {
