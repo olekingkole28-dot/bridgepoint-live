@@ -120,9 +120,8 @@
       chip = document.createElement('div');
       chip.className = 'bp-lincoln-scan-chip-v5984';
       chip.innerHTML =
-        '<span><b>LINCOLN MEMORIAL · REAL LiDAR</b><small>Focus the globe or explore the interior and seated Lincoln in the source scan</small></span>' +
-        '<button type="button" class="bp-lincoln-focus-v5984">FOCUS MAP</button>' +
-        '<a href="' + VIEWER_URL + '" target="_blank" rel="noopener noreferrer">OPEN SCAN ↗</a>';
+        '<span><b>LINCOLN MEMORIAL · ORIGINAL LiDAR</b><small>CyArk / DJS Associates · 665.7M source points · CC BY-NC-SA 4.0 · rendered on this globe</small></span>' +
+        '<button type="button" class="bp-lincoln-focus-v5984">FOCUS SCAN</button>';
       container.appendChild(chip);
     }
     const focusButton = chip.querySelector('.bp-lincoln-focus-v5984');
@@ -140,11 +139,7 @@
         }
       });
     }
-    const scanLink = chip.querySelector('a[href]');
-    if (scanLink && scanLink.dataset.bound !== 'true') {
-      scanLink.dataset.bound = 'true';
-      scanLink.addEventListener('click', event => event.stopPropagation());
-    }
+
     state.chip = chip;
   }
 
@@ -161,12 +156,20 @@
     info.textContent = 'CyArk and DJS Associates terrestrial LiDAR, captured April 28–May 1, 2014. The source-hosted point cloud includes the interior chamber and seated Lincoln statue.';
     const license = document.createElement('p');
     license.textContent = 'Open Heritage 3D · 11.36 GB source dataset · CC BY-NC-SA 4.0.';
-    const link = document.createElement('a');
-    link.href = VIEWER_URL;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.textContent = 'OPEN INTERIOR + LINCOLN LASER SCAN ↗';
-    root.append(title, info, license, link);
+    const focus = document.createElement('button');
+    focus.type = 'button';
+    focus.textContent = 'FOCUS ORIGINAL LiDAR ON THE GLOBE';
+    focus.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        map.stop();
+        map.flyTo({ center: LOCATION, zoom: 15.3, pitch: 48, bearing: 0, duration: 1500, essential: true });
+      } catch (error) {
+        publish('focus-error', { detail: String(error && error.message || error) });
+      }
+    });
+    root.append(title, info, license, focus);
     new window.maplibregl.Popup({ closeButton: true, closeOnClick: true, maxWidth: '300px' })
       .setLngLat(LOCATION).setDOMContent(root).addTo(map);
   }
