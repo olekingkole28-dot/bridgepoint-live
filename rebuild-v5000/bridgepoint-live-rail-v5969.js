@@ -19,6 +19,7 @@
   const SOURCE_ID = 'bp-live-rail-source-v5969';
   const GLOW_ID = 'bp-live-rail-glow-v5969';
   const POINT_ID = 'bp-live-rail-points-v5969';
+  const HIT_ID = 'bp-live-rail-hit-v5969';
   const LABEL_ID = 'bp-live-rail-labels-v5969';
 
   const MAPS = new Set();
@@ -239,6 +240,16 @@
         }
       });
       addLayer(map, {
+        id: HIT_ID, type: 'circle', source: SOURCE_ID, minzoom: 4.5,
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4.5, 9, 8, 12, 12, 15, 17, 18],
+          'circle-color': '#ffffff',
+          'circle-opacity': 0.001,
+          'circle-stroke-opacity': 0,
+          'circle-pitch-alignment': 'map'
+        }
+      });
+      addLayer(map, {
         id: LABEL_ID, type: 'symbol', source: SOURCE_ID, minzoom: 12,
         layout: {
           'text-field': ['coalesce', ['get', 'routeShortName'], ['get', 'routeName']],
@@ -249,11 +260,15 @@
         },
         paint: { 'text-color': '#F4FDFF', 'text-halo-color': '#08141C', 'text-halo-width': 1.2 }
       });
+      const normalVisible = state.enabled && !state.meshMode;
+      const hitVisible = state.enabled && !!state.meshMode;
       for (const id of [GLOW_ID, POINT_ID, LABEL_ID]) {
-        if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', state.enabled ? 'visible' : 'none');
+        if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', normalVisible ? 'visible' : 'none');
       }
+      if (map.getLayer(HIT_ID)) map.setLayoutProperty(HIT_ID, 'visibility', hitVisible ? 'visible' : 'none');
       if (!state.layerInteractionsBound) {
         map.on('click', POINT_ID, event => showPopup(map, event));
+        map.on('click', HIT_ID, event => showPopup(map, event));
         map.on('mouseenter', POINT_ID, () => { try { map.getCanvas().style.cursor = 'pointer'; } catch (_) {} });
         map.on('mouseleave', POINT_ID, () => { try { map.getCanvas().style.cursor = ''; } catch (_) {} });
         state.layerInteractionsBound = true;
@@ -468,9 +483,13 @@
   }
 
   function setVisibility(map, enabled) {
+    const state = MAP_STATE.get(map);
+    const normalVisible = !!enabled && !state?.meshMode;
+    const hitVisible = !!enabled && !!state?.meshMode;
     for (const id of [GLOW_ID, POINT_ID, LABEL_ID]) {
-      try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', enabled ? 'visible' : 'none'); } catch (_) {}
+      try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', normalVisible ? 'visible' : 'none'); } catch (_) {}
     }
+    try { if (map.getLayer(HIT_ID)) map.setLayoutProperty(HIT_ID, 'visibility', hitVisible ? 'visible' : 'none'); } catch (_) {}
   }
 
   function scheduleNext(map, state) {
@@ -724,7 +743,7 @@
       readinessTimer: null, readinessRetries: 0,
       snapshot: { features: [], newestReportMs: 0 }, status: 'Live rail is off.', error: null,
       lastSuccessAt: null, lastSourceReportMs: null, observerRetries: 0,
-      motionHistory: new Map(), followVehicleId: null
+      motionHistory: new Map(), followVehicleId: null, meshMode: false
     };
     MAP_STATE.set(map, state);
     buildUI(map, state);
@@ -773,7 +792,8 @@
           featureCount: state?.snapshot?.features?.length || 0,
           lastSuccessAt: state?.lastSuccessAt || null,
           newestSourceReportAt: state?.lastSourceReportMs || null,
-          followingVehicleId: state?.followVehicleId || null
+          followingVehicleId: state?.followVehicleId || null,
+          displayMode: state?.meshMode ? 'mesh' : 'map'
         };
       });
     },
@@ -785,6 +805,14 @@
         geometry: { type: 'Point', coordinates: [...feature.geometry.coordinates] },
         properties: { ...feature.properties }
       })) : [];
+    },
+    setDisplayMode(mapId, mode = 'map') {
+      const entry = [...MAPS].map(map => ({ map, state: MAP_STATE.get(map) }))
+        .find(({ state }) => state && state.container?.id === mapId);
+      if (!entry) return false;
+      entry.state.meshMode = mode === 'mesh';
+      setVisibility(entry.map, entry.state.enabled);
+      return entry.state.meshMode;
     },
     enrichVehicleMotion,
     haversineMeters,
