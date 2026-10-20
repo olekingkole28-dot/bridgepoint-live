@@ -5,6 +5,7 @@ on:
     branches: ["**"]
     paths:
       - "rebuild-v5000/bridgepoint-reality-assets-v5968.js"
+      - "rebuild-v5000/bridgepoint-live-rail-v5969.js"
       - "rebuild-v5000/assets/reality-assets/**"
       - "tools/reality_assets/**"
       - ".github/workflows/validate-reality-assets-v5968.yml"
@@ -37,5 +38,9 @@ jobs:
         run: python tools/reality_assets/validate_manifest.py
       - name: Test catalog validator
         run: python -m unittest tools.reality_assets.test_manifest_validator
+      - name: Check live rail module syntax
+        run: node --check rebuild-v5000/bridgepoint-live-rail-v5969.js
+      - name: Test live rail source normalization
+        run: node tools/reality_assets/test_live_rail.mjs
       - name: Check whitespace/errors
         run: git diff --check
