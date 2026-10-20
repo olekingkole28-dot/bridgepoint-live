@@ -101,9 +101,11 @@
 
     for (const vehicle of payload.data) {
       const a = vehicle && vehicle.attributes || {};
-      const longitude = Number(a.longitude), latitude = Number(a.latitude);
+      const longitude = a.longitude, latitude = a.latitude;
       const reportedMs = Date.parse(a.updated_at || '');
-      if (!Number.isFinite(longitude) || !Number.isFinite(latitude) ||
+      // Do not coerce null/empty/missing coordinates into 0,0.
+      if (typeof longitude !== 'number' || typeof latitude !== 'number' ||
+          !Number.isFinite(longitude) || !Number.isFinite(latitude) ||
           longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90 ||
           !Number.isFinite(reportedMs)) continue;
       const ageMs = fetchedAt - reportedMs;
@@ -121,8 +123,8 @@
       const label = safeText(a.label || vehicle.id || 'Rail vehicle', 48);
       const routeName = safeText(ra.long_name || ra.short_name || routeId || 'MBTA rail', 100);
       const headsign = safeText(ta.headsign || '', 100);
-      const bearing = Number(a.bearing);
-      const speed = Number(a.speed);
+      const bearing = typeof a.bearing === 'number' && Number.isFinite(a.bearing) ? a.bearing : null;
+      const speed = typeof a.speed === 'number' && Number.isFinite(a.speed) && a.speed >= 0 ? a.speed : null;
 
       newestReportMs = Math.max(newestReportMs, reportedMs);
       features.push({
@@ -421,6 +423,22 @@
     }, REFRESH_INTERVAL_MS);
   }
 
+  function pruneExpiredFeatures(map, state) {
+    const now = Date.now();
+    const prior = state.snapshot?.features || [];
+    const features = prior.filter(feature => {
+      const timestamp = Date.parse(feature?.properties?.updatedAt || '');
+      return Number.isFinite(timestamp) && timestamp <= now + 120000 && now - timestamp <= FRESHNESS_LIMIT_MS;
+    });
+    if (features.length !== prior.length) {
+      const newestReportMs = features.reduce((latest, feature) => Math.max(latest, Date.parse(feature.properties.updatedAt)), 0);
+      state.snapshot = { ...(state.snapshot || {}), features, newestReportMs };
+      try { map.getSource(SOURCE_ID)?.setData({ type: 'FeatureCollection', features }); } catch (_) {}
+      renderState(state, state.snapshot);
+    }
+    return features.length;
+  }
+
   async function fetchVehicles(map, state, forced) {
     if (!state.enabled || state.loading) return;
     if (!ensureLayers(map, state)) {
@@ -461,8 +479,9 @@
       }
       renderState(state, snapshot);
     } catch (error) {
+      const stillFresh = pruneExpiredFeatures(map, state);
       const reason = error?.name === 'AbortError' ? 'request timed out after 12 seconds' : safeText(error?.message || error, 150);
-      const last = state.lastSuccessAt ? ' Last successful request: ' + timeText(state.lastSuccessAt) + '; retained markers are not automatically refreshed.' : ' No previous source positions are available.';
+      const last = state.lastSuccessAt ? ' Last successful request: ' + timeText(state.lastSuccessAt) + '; ' + fmt(stillFresh) + ' prior position(s) remain within the 3-minute freshness limit.' : ' No previous source positions are available.';
       setStatus(state, 'MBTA feed unavailable: ' + reason + '.' + last, true);
       console.warn('BridgePoint MBTA live rail feed', error);
     } finally {
