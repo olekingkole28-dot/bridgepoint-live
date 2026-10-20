@@ -47,6 +47,14 @@ jobs:
           fi
           CHROME_PATH="$CHROME" node tools/reality_assets/test_live_rail_browser.cjs
 
+      - name: Upload final close-up rail screenshot
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bp-live-rail-closeup-final
+          path: /tmp/bp-live-rail-smoke-final.png
+          if-no-files-found: error
+
       - name: Upload diagnostics on failure
         if: failure()
         uses: actions/upload-artifact@v4

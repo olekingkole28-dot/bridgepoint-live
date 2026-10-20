@@ -46,6 +46,7 @@ async function diagnostics(page) {
           id: m.getContainer().id,
           center: center ? [center.lng, center.lat] : null,
           zoom: m.getZoom?.() ?? null,
+          pitch: m.getPitch?.() ?? null,
           bounds: bounds ? [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()] : null,
           canvasCount: m.getContainer().querySelectorAll('canvas').length,
           railLayerPresent: !!m.getLayer?.('bp-live-rail-points-v5969'),
@@ -194,7 +195,7 @@ async function diagnostics(page) {
       const mesh = (window.__BP_RAIL_MESH_V5973__?.getState?.() || []).find(s => s.mapId === mapId);
       return !!mesh && mesh.active && mesh.layerAdded &&
         mesh.railSegments > 0 && mesh.sleepers > 0 && mesh.lineFeatureCount > 0;
-    }, { timeout: 35000, polling: 750 }, selected.mapId);
+    }, { timeout: 55000, polling: 750 }, selected.mapId);
 
     // Now validate the external feed separately. A telemetry outage must never prevent
     // real track geometry from being materialized, but it must not create fake train meshes.
@@ -262,6 +263,42 @@ async function diagnostics(page) {
       return !!target && target.getZoom() >= 11.35 &&
         target.getLayoutProperty('bp-live-rail-points-v5969', 'visibility') === 'none';
     }, { timeout: 15000 }, selected.mapId);
+
+    // Check the detailed rolling-stock view at a closer, pitched camera — zoom 12.2
+    // makes a 26 m railcar only a few pixels long. The source feed stays enabled;
+    // 14.5 + a 52° pitch is the actual visual-audit view for wheels/windows/side labels.
+    await page.evaluate(mapId => {
+      const worlds = [
+        window.__BP_LANDING_WORLD__, window.__bpLandingWorldV5420,
+        window.__BP_V5000_WORLD, window.__BP_V5000_WORLD__, window.__BP_WORLD
+      ].filter(Boolean);
+      const target = worlds.map(world => world.map).find(candidate =>
+        candidate && candidate.getContainer?.().id === mapId);
+      if (!target) throw new Error('Could not locate map for close-up rail inspection');
+      target.jumpTo({ zoom: 14.5, pitch: 52 });
+    }, selected.mapId);
+    await page.waitForFunction(mapId => {
+      const worlds = [
+        window.__BP_LANDING_WORLD__, window.__bpLandingWorldV5420,
+        window.__BP_V5000_WORLD, window.__BP_V5000_WORLD__, window.__BP_WORLD
+      ].filter(Boolean);
+      const target = worlds.map(world => world.map).find(candidate =>
+        candidate && candidate.getContainer?.().id === mapId);
+      return !!target && target.getZoom() >= 14.4 && target.getPitch() >= 50;
+    }, { timeout: 15000 }, selected.mapId);
+    // Allow the viewport-driven 3D rebuild and WebGL repaint to settle after camera motion.
+    await new Promise(resolve => setTimeout(resolve, 6000));
+    const closeup = await diagnostics(page);
+    const closeupRailState = closeup.railStates.find(s => s.mapId === selected.mapId && s.enabled && s.featureCount > 0);
+    const closeupMeshState = closeup.meshStates.find(s => s.mapId === selected.mapId && s.active && s.layerAdded);
+    const closeupMap = closeup.maps.find(m => m.id === selected.mapId);
+    assert.ok(closeupMeshState?.vehicles > 0, 'no 3D train meshes remained at close-up zoom');
+    assert.ok(closeupMeshState?.railSegments > 0 && closeupMeshState?.sleepers > 0,
+      'raised rail geometry disappeared at close-up zoom');
+    assert.ok(closeupMap?.zoom >= 14.4 && closeupMap?.pitch >= 50,
+      'camera did not reach the expected close-up pitched train view');
+    assert.equal(closeupMap?.railPointVisibility, 'none', 'flat live dots must yield to the close-up 3D cars');
+    await page.screenshot({ path: '/tmp/bp-live-rail-smoke-final.png', fullPage: false });
     assert.ok(mbtaResponses.some(r => r.status === 200), 'no successful MBTA source response was observed');
     // If a transient request failed but a later request recovered and yielded the fresh
     // source-timestamped records asserted above, report it rather than falsely failing the
@@ -277,13 +314,14 @@ async function diagnostics(page) {
       freshSourceVehicles: railState.featureCount,
       lastSuccessfulRequestAt: railState.lastSuccessAt,
       newestSourceReportAt: railState.newestSourceReportAt,
-      meshStatus: meshState.status,
-      materialized3DTrains: meshState.vehicles,
-      sourceMappedRailFeatures: meshState.lineFeatureCount,
-      raisedRailSegments: meshState.railSegments,
-      solidSleepers: meshState.sleepers,
-      terrainSkippedGeometry: meshState.skippedNoTerrain,
-      map,
+      meshStatus: closeupMeshState.status,
+      materialized3DTrains: closeupMeshState.vehicles,
+      sourceMappedRailFeatures: closeupMeshState.lineFeatureCount,
+      raisedRailSegments: closeupMeshState.railSegments,
+      solidSleepers: closeupMeshState.sleepers,
+      terrainSkippedGeometry: closeupMeshState.skippedNoTerrain,
+      initialFocusedMap: map,
+      closeupMap,
       moduleResponses,
       mbtaResponses,
       failedMbta,
