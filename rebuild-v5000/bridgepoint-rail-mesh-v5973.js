@@ -22,6 +22,10 @@
   const MAX_RAIL_SEGMENTS = 3500;
   const MAX_SLEEPERS = 1800;
   const MAX_TRAIN_CARS = 240;
+  const RAIL_CAPTURE_LAYER_IDS = [
+    'gta-rail', 'gta-rail-ballast', 'gta-rail-ties', 'gta-rail-steel',
+    'gta-rail-highlight', 'gta-bridge-rails'
+  ];
   const SLEEPER_SPACING = 5.5;
   const MOBILE = matchMedia('(max-width: 760px), (pointer: coarse)').matches;
 
@@ -122,32 +126,52 @@
   }
 
   function captureVisibleRailFeatures(map, state) {
-    // The map's own GTA rail layer is the authoritative style filter (class rail/transit).
-    // Capture its currently rendered geometries before replacing the 2D linework. This
-    // prevents a race where querySourceFeatures contains many transport features but no
-    // already-loaded rail segments at the instant the user enables 3D mode.
+    // The application's visible GTA track stack uses gta-rail-ballast/ties/steel/highlight
+    // and deliberately hides the original base-style gta-rail layer. Query the actual visible
+    // rail-only render layers; their style filters provide provenance without fabricating lines.
     const captured = [];
-    for (const layerId of ['gta-rail', 'gta-bridge-rails']) {
+    const capturedKeys = new Set();
+    const capturedLayers = [];
+    for (const layerId of RAIL_CAPTURE_LAYER_IDS) {
       try {
-        if (!map.getLayer(layerId)) continue;
+        const layer = map.getLayer(layerId);
+        if (!layer) continue;
+        const visibility = map.getLayoutProperty?.(layerId, 'visibility') ?? layer.layout?.visibility ?? 'visible';
+        if (visibility === 'none') continue;
         const rows = map.queryRenderedFeatures({ layers: [layerId] }) || [];
+        let layerAdded = false;
         for (const feature of rows) {
           if (!feature?.geometry || !['LineString', 'MultiLineString'].includes(feature.geometry.type)) continue;
+          const coords = feature.geometry.type === 'LineString'
+            ? feature.geometry.coordinates : feature.geometry.coordinates?.flat(1);
+          const first = coords?.[0], last = coords?.[coords.length - 1];
+          if (!Array.isArray(first) || !Array.isArray(last)) continue;
+          const key = [
+            feature.id ?? feature.properties?.id ?? '',
+            Math.round(Number(first[0]) * 100000), Math.round(Number(first[1]) * 100000),
+            Math.round(Number(last[0]) * 100000), Math.round(Number(last[1]) * 100000), coords.length
+          ].join(':');
+          if (capturedKeys.has(key)) continue;
+          capturedKeys.add(key);
           captured.push({
             id: feature.id ?? feature.properties?.id ?? '',
             type: 'Feature',
             geometry: feature.geometry,
             properties: feature.properties || {},
-            __bpRailLayerVerified: true
+            __bpRailLayerVerified: true,
+            __bpRailLayerId: layerId
           });
+          layerAdded = true;
           if (captured.length >= MAX_TRACK_FEATURES * 2) break;
         }
+        if (layerAdded) capturedLayers.push(layerId);
       } catch (_) {}
       if (captured.length >= MAX_TRACK_FEATURES * 2) break;
     }
     if (captured.length) {
       state.cachedRailFeatures = captured.slice(0, MAX_TRACK_FEATURES * 2);
       state.lastRailCaptureAt = Date.now();
+      state.lastRailCaptureLayers = capturedLayers;
     }
     return captured;
   }
@@ -176,15 +200,10 @@
       }
     };
 
-    // Capture the map-native rail paths FIRST while its normal rail layer remains visible.
-    // The rendered query is already filtered by the actual map style and gives us real
-    // source geometry even if querySourceFeatures is between tile updates.
-    if (state && map.getLayer('gta-rail') &&
-        (map.getLayoutProperty('gta-rail', 'visibility') || 'visible') !== 'none') {
-      pushRows(captureVisibleRailFeatures(map, state));
-    } else {
-      pushRows(state?.cachedRailFeatures || []);
-    }
+    // Capture the active 3D-looking rail stack first. The base gta-rail is purposely hidden
+    // by the world details module, so do not gate capture on that one layer's visibility.
+    if (state) pushRows(captureVisibleRailFeatures(map, state));
+    pushRows(state?.cachedRailFeatures || []);
 
     // Query every vector source which publishes this layer. Do not stop at the first
     // non-empty response: a source may have road fragments but no rail segments loaded.
@@ -260,7 +279,8 @@
         sourceIds,
         sample,
         cachedRenderedRailFeatures: cached.length,
-        lastRailCaptureAt: state.lastRailCaptureAt || null
+        lastRailCaptureAt: state.lastRailCaptureAt || null,
+        capturedRailLayerIds: state.lastRailCaptureLayers || []
       };
     }
     return [...unique.values()];
@@ -1222,7 +1242,7 @@
       anchor: null, anchorElevationM: null, status: 'off', error: null, statusNode: null,
       metrics: null, stats: {}, trains: [], trackDirections: [], rebuildTimer: null,
       pollTimer: null, lastVehicleSignature: '', renderWarned: false, previousRailVisibility: null,
-      cachedRailFeatures: [], lastRailCaptureAt: null, railSourceDiagnostics: null
+      cachedRailFeatures: [], lastRailCaptureAt: null, lastRailCaptureLayers: [], railSourceDiagnostics: null
     };
     STATES.set(map, state);
     addStatusCard(map, state);
