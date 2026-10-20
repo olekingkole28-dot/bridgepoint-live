@@ -86,7 +86,13 @@ const CSS=`
 }
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-docked.bpwt-standalone-open{position:relative!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;inset:auto!important;transform:none!important;width:100%!important;max-height:none!important;overflow:visible!important}
 :is(#liveMap,#previewMap) .bp-world-time-slider-v5908.bpwt-docked.bpwt-standalone-open .bpwt-head{position:static!important;top:auto!important;background:transparent!important}
-`;
+
+/* Keep the time scrubber in the BridgePoint bottom card for any map host id. */
+.bp-world-time-slider-v5908.bpwt-docked{position:relative!important;z-index:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;inset:auto!important;transform:none!important;width:100%!important;max-width:100%!important;max-height:none!important;overflow:visible!important;margin:5px 0 0!important;padding:8px!important}
+.bp-world-time-slider-v5908.bpwt-docked.bpwt-standalone-open{position:relative!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;inset:auto!important;transform:none!important;width:100%!important;max-height:none!important;overflow:visible!important}
+.bp-world-time-slider-v5908.bpwt-docked.bpwt-standalone-open .bpwt-head{position:static!important;top:auto!important;background:transparent!important}
+
+`; 
 
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function sourceColor(p){
@@ -132,7 +138,7 @@ export function initWorldTimeSlider(target,rpc){
    <button type="button" data-live aria-pressed="true">● LIVE</button>
    <button type="button" data-play aria-pressed="false">▶ PLAY</button>
    <button type="button" data-clouds aria-pressed="true">☁ CLOUDS ON</button>
-   <button type="button" data-nightlights aria-pressed="true">✦ LIGHTS AUTO · ON</button>
+   <button type="button" data-nightlights aria-pressed="false">✦ NASA LIGHTS · OFF</button>
    <button type="button" data-refresh>↻ REFRESH</button>
    <span class="bpwt-stats" data-stats>Waiting for map bounds…</span>
   </div>
@@ -154,8 +160,7 @@ export function initWorldTimeSlider(target,rpc){
  let mountTurns=0,mountHandle=null;
  if(!mountInCard()){
   dock.hidden=true;
-  container.appendChild(dock);
-  const retryMount=()=>{if(disposed)return;if(mountInCard())return;if(++mountTurns<100){mountHandle=setTimeout(retryMount,150)}else{dock.hidden=false;dock.classList.remove('bpwt-docked')}};
+  const retryMount=()=>{if(disposed)return;if(mountInCard())return;mountTurns++;mountHandle=setTimeout(retryMount,mountTurns<100?150:800)};
   mountHandle=setTimeout(retryMount,100);
  }
  const $=s=>dock.querySelector(s),slider=$('[data-slider]'),status=$('[data-status]'),date=$('[data-date]'),windowLabel=$('[data-window]'),stats=$('[data-stats]'),list=$('[data-list]'),liveBtn=$('[data-live]'),playBtn=$('[data-play]'),cloudBtn=$('[data-clouds]');
@@ -259,7 +264,7 @@ export function initWorldTimeSlider(target,rpc){
   },1650);
   schedule(true,0);
  });
- categoryFilter.addEventListener('change',renderFiltered);domainFilter.addEventListener('change',renderFiltered);hoursSelect.addEventListener('change',()=>schedule(true,0));nightlightsBtn.addEventListener('click',()=>window.dispatchEvent(new Event('bp:nightlights-toggle')));$('[data-refresh]').addEventListener('click',()=>schedule(true,0));
+ categoryFilter.addEventListener('change',renderFiltered);domainFilter.addEventListener('change',renderFiltered);hoursSelect.addEventListener('change',()=>schedule(true,0));const syncNightlightsButton=enabled=>{nightlightsBtn.setAttribute('aria-pressed',String(!!enabled));nightlightsBtn.textContent=enabled?'✦ NASA LIGHTS · ON':'✦ NASA LIGHTS · OFF'};const onNightlightsState=e=>syncNightlightsButton(!!e?.detail?.enabled);window.addEventListener('bp:nightlights-state',onNightlightsState);nightlightsBtn.addEventListener('click',()=>{const sensor=window.__BP_SENSOR_LAYERS_V5945__;if(sensor?.toggleLights)syncNightlightsButton(sensor.toggleLights());else window.dispatchEvent(new Event('bp:nightlights-toggle'))});$('[data-refresh]').addEventListener('click',()=>schedule(true,0));
  cloudBtn.addEventListener('click',()=>{
   const cloud=window.__BP_SKY_CLOUDS_V5908__;
   if(cloud?.toggle){const enabled=cloud.toggle();cloudBtn.setAttribute('aria-pressed',String(enabled));cloudBtn.textContent=enabled?'☁ CLOUDS ON':'☁ CLOUDS OFF'}
@@ -272,7 +277,7 @@ export function initWorldTimeSlider(target,rpc){
  document.addEventListener('visibilitychange',onVisibility);
  ensureLayers();[80,350,1000,2200].forEach(ms=>setTimeout(()=>{if(!disposed)ensureLayers()},ms));schedule(true,300);
  const poll=setInterval(()=>{if(disposed)return clearInterval(poll);if(!document.hidden&&Number(slider.value)>=30&&Date.now()-lastRequestAt>110000)schedule(false,0)},15000);
- const api={version:5937,map,dock,refresh:()=>refresh(true),open(){setStandalone(true);return dock},close(){setStandalone(false);return dock},toggle(){setStandalone(dock.classList.contains('bpwt-collapsed'));return dock},setTimeOffsetDays(days){slider.value=String(Math.max(0,Math.min(30,30-Number(days||0))));live=Number(slider.value)>=30;updateDate();schedule(true,0)},toggleClouds:()=>cloudBtn.click(),get state(){return window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__||null},destroy(){disposed=true;stopPlay();clearTimeout(timer);clearTimeout(mountHandle);clearInterval(poll);map.off('moveend',onBounds);map.off('zoomend',onBounds);map.off('styledata',onStyle);document.removeEventListener('visibilitychange',onVisibility);categoryFilter.removeEventListener('change',renderFiltered);domainFilter.removeEventListener('change',renderFiltered);dock.remove();try{map.getSource(SOURCE_ID)?.setData(EMPTY);if(map.getLayer(LAYER_LABEL))map.removeLayer(LAYER_LABEL);if(map.getLayer(LAYER_POINT))map.removeLayer(LAYER_POINT);if(map.getLayer(LAYER_LINE))map.removeLayer(LAYER_LINE);if(map.getLayer(LAYER_FILL))map.removeLayer(LAYER_FILL);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID)}catch(_){} }};
+ const api={version:5937,map,dock,refresh:()=>refresh(true),open(){setStandalone(true);return dock},close(){setStandalone(false);return dock},toggle(){setStandalone(dock.classList.contains('bpwt-collapsed'));return dock},setTimeOffsetDays(days){slider.value=String(Math.max(0,Math.min(30,30-Number(days||0))));live=Number(slider.value)>=30;updateDate();schedule(true,0)},toggleClouds:()=>cloudBtn.click(),get state(){return window.__BP_WORLD_ACTIVITY_SLIDER_STATE_V5908__||null},destroy(){disposed=true;stopPlay();clearTimeout(timer);clearTimeout(mountHandle);clearInterval(poll);map.off('moveend',onBounds);map.off('zoomend',onBounds);map.off('styledata',onStyle);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('bp:nightlights-state',onNightlightsState);categoryFilter.removeEventListener('change',renderFiltered);domainFilter.removeEventListener('change',renderFiltered);dock.remove();try{map.getSource(SOURCE_ID)?.setData(EMPTY);if(map.getLayer(LAYER_LABEL))map.removeLayer(LAYER_LABEL);if(map.getLayer(LAYER_POINT))map.removeLayer(LAYER_POINT);if(map.getLayer(LAYER_LINE))map.removeLayer(LAYER_LINE);if(map.getLayer(LAYER_FILL))map.removeLayer(LAYER_FILL);if(map.getSource(SOURCE_ID))map.removeSource(SOURCE_ID)}catch(_){} }};
  window.__BP_WORLD_TIME_SLIDER_V5908__=api;
  return api;
 }
