@@ -206,12 +206,15 @@
     return found;
   }
 
+  // Expanded scan envelope: keep the point cloud mounted while the camera pans
+  // across the portico, Lincoln chamber, stair runs, paths, and scanned landscaping.
+  const SCAN_BOUNDS = [-77.0530, 38.8872, -77.0473, 38.8913];
   function mapNearScan(map) {
     try {
       if (!map || Number(map.getZoom()) < 13.35) return false;
       const b = map.getBounds();
-      return LOCATION[0] >= b.getWest() && LOCATION[0] <= b.getEast() &&
-        LOCATION[1] >= b.getSouth() && LOCATION[1] <= b.getNorth();
+      return b.getEast() >= SCAN_BOUNDS[0] && b.getWest() <= SCAN_BOUNDS[2] &&
+        b.getNorth() >= SCAN_BOUNDS[1] && b.getSouth() <= SCAN_BOUNDS[3];
     } catch (_) { return false; }
   }
 
@@ -251,11 +254,15 @@
       cloud.material.opacity = 1.0;
       cloud.material.useEDL = false;
       cloud.visible = true;
-      // The source is local XYZ (not georeferenced); orient Z-up into the map model's Y-up frame
-      // and place the survey's documented Potree viewing target on the memorial's ground anchor.
-      cloud.rotation.set(-Math.PI / 2, 0, 0);
-      // Point-cloud metadata reports the source vertical minimum at -15.335 m; lift that lower bound to the terrain anchor.
-      cloud.position.set(-GROUND_ANCHOR_LOCAL[0], 15.335, GROUND_ANCHOR_LOCAL[1]);
+      // Source is local XYZ (not georeferenced). The publisher's Potree preset looks
+      // toward target [3.929,12.983,6.182] from local negative-Y; that is the portico
+      // facing east toward the Reflecting Pool. Rotate Z-up to map Y-up, then yaw +90°
+      // so local -Y faces geographic east, matching the real memorial approach.
+      cloud.rotation.set(-Math.PI / 2, Math.PI / 2, 0);
+      // Apply the same yaw to the local target: after rotation, source target (x,y)
+      // maps to (-y,-x). This translation keeps that target over the surveyed site anchor.
+      // Source vertical minimum is -15.335 m; lift it to the terrain ground anchor.
+      cloud.position.set(GROUND_ANCHOR_LOCAL[1], 15.335, GROUND_ANCHOR_LOCAL[0]);
       cloud.updateMatrix();
       state.scene.add(cloud);
       state.loadPromise = false;
