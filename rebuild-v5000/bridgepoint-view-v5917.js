@@ -133,8 +133,8 @@ function makeTopBarAndDock(){
  '<button type="button" data-bpv-action="listings">LISTINGS</button>'+
  '<button type="button" data-bpv-action="worldchanges">30-DAY HISTORY</button>'+
  '<button type="button" class="bpv-weather-fx-btn" data-bpv-action="weatherfx">WEATHER FX</button>'+
- '<button type="button" class="bpv-wind-voxels-btn" data-bpv-action="windfx">3D WIND</button>'+
- '<button type="button" data-bpv-action="volumetric">VOLUMETRIC FIELDS</button>'+
+ '<button type="button" class="bpv-wind-voxels-btn" data-bpv-action="windfx">WIND + DRONE</button>'+
+ '<button type="button" data-bpv-action="volumetric">WIND / RF FIELDS</button>'+
  '<button type="button" data-bpv-action="opportunities">OPPORTUNITIES</button>'+
  '<button type="button" data-bpv-action="metrics">COUNTERS</button>'+
  '<button type="button" data-bpv-action="controls">LAYERS + TOOLS</button>'+
@@ -646,7 +646,7 @@ async function openRealWorldEffects(initialWind=false){
 async function openVolumetricFields(initialWind=false){
  const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  if(!world?.map)throw new Error('BridgePoint globe not ready');
- const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=5989-roof-collision-and-wake');
+ const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=5990-dense-wind-drone-flight');
  const api=mod.initBridgePointVolumetricFields(world);api?.open?.();
  if(initialWind)await api?.setWind?.(true);
 }
