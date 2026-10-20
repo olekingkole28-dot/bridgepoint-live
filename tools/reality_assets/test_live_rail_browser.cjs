@@ -106,8 +106,8 @@ async function diagnostics(page) {
     await page.goto(freshUrl.toString(), { waitUntil: 'domcontentloaded', timeout: WAIT_MS });
     await page.waitForFunction(() => {
       const scripts = [...document.scripts].map(script => script.src);
-      return scripts.some(src => src.includes('bridgepoint-live-rail-v5969.js?v=5978-futuristic-train-cards')) &&
-        scripts.some(src => src.includes('bridgepoint-rail-mesh-v5973.js?v=5978-futuristic-consists'));
+      return scripts.some(src => src.includes('bridgepoint-live-rail-v5969.js?v=5980-global-train-dots')) &&
+        scripts.some(src => src.includes('bridgepoint-rail-mesh-v5973.js?v=5980-visible-detail-rails'));
     }, { timeout: 30000 });
     await page.waitForFunction(() => {
       const rail = window.__BP_LIVE_RAIL_V5969__;
