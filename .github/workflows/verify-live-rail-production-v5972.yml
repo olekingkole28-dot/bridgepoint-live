@@ -1,0 +1,60 @@
+name: Verify BridgePoint Live Rail Production
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "tools/reality_assets/test_live_rail_browser.cjs"
+      - ".github/workflows/verify-live-rail-production-v5972.yml"
+  workflow_run:
+    workflows: ["Deploy BridgePoint Intelligence V5000 Rebuild"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bp-live-rail-production-smoke
+  cancel-in-progress: false
+
+jobs:
+  live-rail-production-smoke:
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install lightweight browser driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm init -y >/dev/null 2>&1 || true
+          npm install --no-save --no-audit --no-fund puppeteer-core@24
+
+      - name: Smoke-test live source-backed rail positions
+        shell: bash
+        env:
+          BP_PUBLIC_ORIGIN: https://bridgepointintelligence.online/
+        run: |
+          set -euo pipefail
+          CHROME="$(command -v google-chrome || command -v chromium-browser || command -v chromium || true)"
+          if [[ -z "$CHROME" ]]; then
+            echo "No Chrome/Chromium executable is available on this runner."
+            exit 1
+          fi
+          CHROME_PATH="$CHROME" node tools/reality_assets/test_live_rail_browser.cjs
+
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bp-live-rail-production-smoke-failure
+          path: /tmp/bp-live-rail-smoke-failure.png
+          if-no-files-found: ignore
