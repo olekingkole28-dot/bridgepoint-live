@@ -48,6 +48,7 @@ const payload = {
         bearing: 105,
         speed: null,
         current_status: 'STOPPED_AT',
+        car_count: 4,
         updated_at: recent
       },
       relationships: {
@@ -98,6 +99,7 @@ assert.equal(snapshot.ignoredStale, 1);
 assert.equal(snapshot.features[0].properties.routeName, 'Blue Line');
 assert.equal(snapshot.features[0].properties.headsign, 'Wonderland');
 assert.equal(snapshot.features[0].properties.routeColor, '#003DA5');
+assert.equal(snapshot.features[0].properties.carCount, 4, 'explicit feed-reported consist count must be preserved');
 assert.equal(snapshot.features[0].properties.source, 'MBTA_V3_API');
 
 const empty = api.parseSnapshot({ data: [], included: [] }, now);

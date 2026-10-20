@@ -119,6 +119,23 @@ async function diagnostics(page) {
     const before = await diagnostics(page);
     assert.equal(before.railVersion, 5969, 'cache-busted live rail module did not initialize');
     assert.equal(before.meshVersion, 5973, '3D rail mesh module did not initialize');
+    const openLiveCard = await page.evaluate(() => {
+      const visible = b => {
+        const r = b.getBoundingClientRect(), s = getComputedStyle(b);
+        return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';
+      };
+      const button = [...document.querySelectorAll('.bp-live-rail-toggle-v5969')].find(visible);
+      if (!button) return false;
+      button.click();
+      return true;
+    });
+    assert.ok(openLiveCard, 'live train information card toggle is missing');
+
+    await page.waitForFunction(() => [...document.querySelectorAll('.bp-rail-mesh-toggle-v5973')].some(button => {
+      const r = button.getBoundingClientRect(), s = getComputedStyle(button);
+      return r.width > 0 && r.height > 0 && s.display !== 'none' && s.visibility !== 'hidden';
+    }), { timeout: 15000 });
+
     const selected = await page.evaluate(() => {
       const visible = b => {
         const r = b.getBoundingClientRect(), s = getComputedStyle(b);
@@ -127,9 +144,14 @@ async function diagnostics(page) {
       const button = [...document.querySelectorAll('.bp-rail-mesh-toggle-v5973')].find(visible);
       if (!button) return null;
       button.click();
-      return { buttonId: button.id, mapId: button.parentElement?.id || '', text: (button.textContent || '').trim() };
+      return {
+        buttonId: button.id,
+        mapId: button.dataset.mapId || button.closest('.bp-live-rail-panel-v5969')?.id?.replace(/^bp-live-rail-panel-v5969-/, '') || '',
+        insideTrainCard: !!button.closest('.bp-live-rail-panel-v5969'),
+        text: (button.textContent || '').trim()
+      };
     });
-    assert.ok(selected, 'no visible 3D RAIL + TRAINS control attached to the map');
+    assert.ok(selected && selected.insideTrainCard, '3D RAIL + TRAINS control must be inside the live train information card');
 
     // This explicit user-style interaction must automatically focus MBTA coverage
     // and enable the live source. It is not allowed to turn on for general visitors.
@@ -174,10 +196,47 @@ async function diagnostics(page) {
     assert.ok(meshState.railSegments > 0, 'no raised rail geometry was produced from the railway source');
     assert.ok(meshState.sleepers > 0, 'no solid track sleepers were produced');
     assert.ok(map && map.meshLayerPresent, '3D mesh layer is missing on the focused map');
-    assert.equal(map.railPointVisibility, 'none', 'flat vehicle markers must be hidden while 3D trains are materialized');
+    assert.equal(map.railPointVisibility, 'none', 'flat vehicle markers must be hidden beside detailed rolling stock at close zoom');
     assert.ok(map.canvasCount >= 1, 'base map canvas disappeared');
     assert.ok(Math.abs(map.center[0] + 71.0589) < 2 && Math.abs(map.center[1] - 42.3601) < 2,
       '3D rail control did not position the map over the Boston MBTA coverage area');
+
+    // Overview altitude must keep live source dots visible even while 3D mesh mode is active.
+    const setMapZoom = async (mapId, zoom) => page.evaluate(({ mapId, zoom }) => {
+      const worlds = [
+        window.__BP_LANDING_WORLD__, window.__bpLandingWorldV5420,
+        window.__BP_V5000_WORLD, window.__BP_V5000_WORLD__, window.__BP_WORLD
+      ].filter(Boolean);
+      const target = worlds.map(world => world.map).find(candidate =>
+        candidate && candidate.getContainer?.().id === mapId);
+      if (!target) throw new Error('Could not locate map for live-rail altitude test');
+      target.zoomTo(zoom, { duration: 0 });
+    }, { mapId, zoom });
+
+    await setMapZoom(selected.mapId, 2);
+    await page.waitForFunction(mapId => {
+      const worlds = [
+        window.__BP_LANDING_WORLD__, window.__bpLandingWorldV5420,
+        window.__BP_V5000_WORLD, window.__BP_V5000_WORLD__, window.__BP_WORLD
+      ].filter(Boolean);
+      const target = worlds.map(world => world.map).find(candidate =>
+        candidate && candidate.getContainer?.().id === mapId);
+      const rail = (window.__BP_LIVE_RAIL_V5969__?.getState?.() || []).find(state => state.mapId === mapId);
+      return !!target && target.getZoom() < 11.35 && !!rail?.enabled &&
+        target.getLayoutProperty('bp-live-rail-points-v5969', 'visibility') === 'visible';
+    }, { timeout: 15000 }, selected.mapId);
+
+    await setMapZoom(selected.mapId, 12.5);
+    await page.waitForFunction(mapId => {
+      const worlds = [
+        window.__BP_LANDING_WORLD__, window.__bpLandingWorldV5420,
+        window.__BP_V5000_WORLD, window.__BP_V5000_WORLD__, window.__BP_WORLD
+      ].filter(Boolean);
+      const target = worlds.map(world => world.map).find(candidate =>
+        candidate && candidate.getContainer?.().id === mapId);
+      return !!target && target.getZoom() >= 11.35 &&
+        target.getLayoutProperty('bp-live-rail-points-v5969', 'visibility') === 'none';
+    }, { timeout: 15000 }, selected.mapId);
     assert.ok(mbtaResponses.some(r => r.status === 200), 'no successful MBTA source response was observed');
     assert.deepEqual(failedMbta, [], 'MBTA API requests failed at the network layer');
 

@@ -225,17 +225,17 @@
     try {
       if (!map.getSource(SOURCE_ID)) map.addSource(SOURCE_ID, { type: 'geojson', data: EMPTY });
       addLayer(map, {
-        id: GLOW_ID, type: 'circle', source: SOURCE_ID, minzoom: 4.5,
+        id: GLOW_ID, type: 'circle', source: SOURCE_ID, minzoom: 0,
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4.5, 4.5, 8, 6.5, 12, 8, 17, 10],
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 4.5, 2, 5, 4.5, 5.8, 8, 6.5, 12, 8, 17, 10],
           'circle-color': ['coalesce', ['get', 'routeColor'], '#35D7F5'],
-          'circle-opacity': 0.24, 'circle-blur': 0.6
+          'circle-opacity': 0.34, 'circle-blur': 0.42
         }
       });
       addLayer(map, {
-        id: POINT_ID, type: 'circle', source: SOURCE_ID, minzoom: 4.5,
+        id: POINT_ID, type: 'circle', source: SOURCE_ID, minzoom: 0,
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 4.5, 2.6, 8, 3.6, 12, 4.7, 17, 5.8],
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 4.4, 2, 4.0, 4.5, 3.2, 8, 3.6, 12, 4.7, 17, 5.8],
           'circle-color': ['coalesce', ['get', 'routeColor'], '#35D7F5'],
           'circle-opacity': 0.98, 'circle-stroke-color': '#F4FDFF', 'circle-stroke-width': 1.1,
           'circle-pitch-alignment': 'map'
@@ -262,7 +262,7 @@
         },
         paint: { 'text-color': '#F4FDFF', 'text-halo-color': '#08141C', 'text-halo-width': 1.2 }
       });
-      const normalVisible = state.enabled && !state.meshMode;
+      const normalVisible = shouldShowLiveRailDots(map, state, state.enabled);
       const hitVisible = state.enabled && !!state.meshMode;
       for (const id of [GLOW_ID, POINT_ID, LABEL_ID]) {
         if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', normalVisible ? 'visible' : 'none');
@@ -484,9 +484,18 @@
     }
   }
 
+  function shouldShowLiveRailDots(map, state, enabled = state?.enabled) {
+    if (!enabled) return false;
+    let zoom = NaN;
+    try { zoom = Number(map?.getZoom?.()); } catch (_) {}
+    // At an overview altitude, retain source-backed dots even in 3D mesh mode;
+    // at close range they yield to detailed 3D rolling stock and remain clickable.
+    return !state?.meshMode || !Number.isFinite(zoom) || zoom < 11.35;
+  }
+
   function setVisibility(map, enabled) {
     const state = MAP_STATE.get(map);
-    const normalVisible = !!enabled && !state?.meshMode;
+    const normalVisible = shouldShowLiveRailDots(map, state, enabled);
     const hitVisible = !!enabled && !!state?.meshMode;
     for (const id of [GLOW_ID, POINT_ID, LABEL_ID]) {
       try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', normalVisible ? 'visible' : 'none'); } catch (_) {}
@@ -783,6 +792,7 @@
     };
     map.on('style.load', ready);
     map.on('load', ready);
+    map.on('zoomend', () => setVisibility(map, state.enabled));
     if (map.isStyleLoaded?.()) ready();
     map.on('remove', () => {
       clearTimeout(state.timer);

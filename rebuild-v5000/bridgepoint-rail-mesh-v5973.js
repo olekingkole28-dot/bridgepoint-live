@@ -720,6 +720,42 @@
     } catch (_) {}
   }
 
+  function dockStatusCardControls(map, state) {
+    const livePanel = state.container?.querySelector?.('.bp-live-rail-panel-v5969');
+    if (!livePanel || !state.button || !state.panel) return false;
+    state.button.hidden = false;
+    state.button.removeAttribute('aria-hidden');
+    state.button.dataset.mapId = state.container.id || '';
+    Object.assign(state.button.style, {
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      width: '100%', minHeight: '36px', margin: '8px 0 0', padding: '8px 10px',
+      border: '1px solid rgba(104,225,255,.48)', borderRadius: '9px',
+      background: 'linear-gradient(135deg,#102b3a,#155064)', color: '#e7faff',
+      font: '850 10px system-ui,sans-serif', letterSpacing: '.06em', cursor: 'pointer'
+    });
+    if (state.button.parentElement !== livePanel) livePanel.appendChild(state.button);
+    Object.assign(state.panel.style, {
+      position: 'static', top: 'auto', right: 'auto', width: '100%', maxWidth: '100%',
+      maxHeight: 'none', margin: '9px 0 0', overflow: 'visible', zIndex: 'auto',
+      boxShadow: 'none'
+    });
+    if (state.panel.parentElement !== livePanel) livePanel.appendChild(state.panel);
+    state.cardDocked = true;
+    return true;
+  }
+
+  function watchForLiveRailCard(map, state) {
+    if (dockStatusCardControls(map, state) || state.uiObserver) return;
+    const observer = new MutationObserver(() => {
+      if (dockStatusCardControls(map, state)) {
+        observer.disconnect();
+        state.uiObserver = null;
+      }
+    });
+    state.uiObserver = observer;
+    observer.observe(state.container, { childList: true, subtree: true });
+  }
+
   function addStatusCard(map, state) {
     css();
     const container = state.container;
@@ -734,7 +770,7 @@
       button.className = 'bp-rail-mesh-toggle-v5973';
       button.textContent = '3D RAIL + TRAINS';
       button.title = 'Materialize source-mapped railway track geometry and 3D rolling stock (MBTA live feed pilot)';
-      // Keep controls in the train intelligence card instead of scattering map buttons.
+      // The launcher is docked into the live train information card below, not left as a floating map control.
       button.hidden = true;
       button.setAttribute('aria-hidden', 'true');
       button.addEventListener('click', () => { void toggleMeshMode(map, state); });
@@ -848,6 +884,7 @@
     }
     state.button = button;
     state.panel = panel;
+    watchForLiveRailCard(map, state);
   }
 
   function renderMetrics(state) {
@@ -1216,6 +1253,8 @@
       scheduleRebuild(map, state, 450);
     });
     map.on('remove', () => {
+      state.uiObserver?.disconnect?.();
+      state.uiObserver = null;
       clearTimeout(state.rebuildTimer);
       clearTimeout(state.pollTimer);
       restore2DRail(state);
