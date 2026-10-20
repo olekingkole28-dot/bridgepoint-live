@@ -457,6 +457,9 @@
     const group = new THREE.Group();
     if (!prepared.length) return { group, vehicles: 0, skippedNoTerrain, featureCount: all.length };
     const max = prepared.length;
+    // Shared low-poly rolling-stock kit: one instanced set per car keeps draw calls low.
+    // Side windows, front windshields, bogies, wheels, end lights and route-color bands
+    // are deliberately separate, readable forms rather than a single box.
     const bodyGeometry = new THREE.BoxGeometry(3.05, 3.1, 26.4);
     bodyGeometry.translate(0, 1.94, 0);
     const roofGeometry = new THREE.BoxGeometry(2.48, 0.24, 24.7);
@@ -467,23 +470,34 @@
     windowLeftGeometry.translate(-1.49, 2.55, 0);
     const windowRightGeometry = new THREE.BoxGeometry(0.045, 0.58, 18.5);
     windowRightGeometry.translate(1.49, 2.55, 0);
+    const windscreenGeometry = new THREE.BoxGeometry(1.72, 0.78, 0.07);
+    windscreenGeometry.translate(0, 2.72, 13.16);
+    const rearGlassGeometry = new THREE.BoxGeometry(1.42, 0.52, 0.07);
+    rearGlassGeometry.translate(0, 2.62, -13.16);
     const stripeLeftGeometry = new THREE.BoxGeometry(0.065, 0.15, 24.2);
     stripeLeftGeometry.translate(-1.52, 1.47, 0);
     const stripeRightGeometry = new THREE.BoxGeometry(0.065, 0.15, 24.2);
     stripeRightGeometry.translate(1.52, 1.47, 0);
-    const wheelGeometry = new THREE.CylinderGeometry(0.36, 0.36, 0.19, 10);
+    const routeNameplateGeometry = new THREE.BoxGeometry(0.055, 0.31, 11.2);
+    routeNameplateGeometry.translate(1.555, 2.02, 0);
+    const bogieGeometry = new THREE.BoxGeometry(2.38, 0.46, 4.9);
+    bogieGeometry.translate(0, 0.47, 0);
+    const wheelGeometry = new THREE.CylinderGeometry(0.36, 0.36, 0.19, 12);
     wheelGeometry.rotateZ(Math.PI / 2);
     const lampGeometry = new THREE.BoxGeometry(0.13, 0.11, 0.12);
-    /* instance matrices place the pair of lamps at the actual train ends */
+    const sideLampGeometry = new THREE.BoxGeometry(0.08, 0.08, 0.08);
 
     const materials = {
       body: new THREE.MeshStandardMaterial({ color: '#d9e1e4', roughness: 0.58, metalness: 0.24 }),
       roof: new THREE.MeshStandardMaterial({ color: '#7e8c92', roughness: 0.72, metalness: 0.3 }),
       under: new THREE.MeshStandardMaterial({ color: '#293239', roughness: 0.8, metalness: 0.28 }),
-      glass: new THREE.MeshStandardMaterial({ color: '#15252f', roughness: 0.22, metalness: 0.25 }),
-      stripe: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.55, metalness: 0.15 }),
+      glass: new THREE.MeshStandardMaterial({ color: '#10232f', roughness: 0.18, metalness: 0.32, emissive: '#071721', emissiveIntensity: 0.28 }),
+      stripe: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.38, metalness: 0.22 }),
+      routePlate: new THREE.MeshStandardMaterial({ color: '#0b1822', roughness: 0.32, metalness: 0.35 }),
+      bogie: new THREE.MeshStandardMaterial({ color: '#202b31', roughness: 0.76, metalness: 0.52 }),
       wheel: new THREE.MeshStandardMaterial({ color: '#34383b', roughness: 0.78, metalness: 0.72 }),
-      lamp: new THREE.MeshStandardMaterial({ color: '#fff0be', emissive: '#ffe4a3', emissiveIntensity: 0.8, roughness: 0.25, metalness: 0.1 })
+      lamp: new THREE.MeshStandardMaterial({ color: '#fff0be', emissive: '#ffe4a3', emissiveIntensity: 0.8, roughness: 0.25, metalness: 0.1 }),
+      accentLamp: new THREE.MeshStandardMaterial({ color: '#6deaff', emissive: '#24cfff', emissiveIntensity: 0.75, roughness: 0.3, metalness: 0.1 })
     };
 
     const instanced = [];
@@ -503,10 +517,15 @@
     const under = createInstances(underGeometry, materials.under, max);
     const glassL = createInstances(windowLeftGeometry, materials.glass, max);
     const glassR = createInstances(windowRightGeometry, materials.glass, max);
+    const windscreen = createInstances(windscreenGeometry, materials.glass, max);
+    const rearGlass = createInstances(rearGlassGeometry, materials.glass, max);
     const stripeL = createInstances(stripeLeftGeometry, materials.stripe, max, true);
     const stripeR = createInstances(stripeRightGeometry, materials.stripe, max, true);
+    const routePlate = createInstances(routeNameplateGeometry, materials.routePlate, max, true);
+    const bogies = createInstances(bogieGeometry, materials.bogie, max * 2);
     const wheels = createInstances(wheelGeometry, materials.wheel, max * 8);
     const lamps = createInstances(lampGeometry, materials.lamp, max * 2);
+    const sideLamps = createInstances(sideLampGeometry, materials.accentLamp, max * 4);
 
     const localPosition = (train, lx, ly, lz, q, scale) => {
       const local = new THREE.Vector3(lx * scale.x, ly * scale.y, lz * scale.z).applyQuaternion(q);
@@ -520,18 +539,30 @@
       const scale = new THREE.Vector3(train.width / 3.05, train.height / 3.7, train.length / 26.4);
       const position = new THREE.Vector3(train.local.x, train.local.y + 0.22, train.local.z);
       const matrix = new THREE.Matrix4().compose(position, q, scale);
-      for (const mesh of [body, roof, under, glassL, glassR, stripeL, stripeR]) {
+      for (const mesh of [body, roof, under, glassL, glassR, windscreen, rearGlass, stripeL, stripeR, routePlate]) {
         mesh.setMatrixAt(index, matrix);
       }
       const routeColor = new THREE.Color(train.routeColor);
       stripeL.setColorAt(index, routeColor);
       stripeR.setColorAt(index, routeColor);
+      routePlate.setColorAt(index, routeColor);
 
+      // Distinct two-bogie undercarriage and eight metal wheel faces per rail vehicle.
+      for (const z of [-7.4, 7.4]) {
+        const bogiePos = localPosition(train, 0, 0.22, z, q, scale);
+        bogies.setMatrixAt(index * 2 + (z > 0 ? 1 : 0),
+          new THREE.Matrix4().compose(bogiePos, q, scale));
+      }
       for (const side of [-1, 1]) {
         for (const z of [-7.7, -6.5, 6.5, 7.7]) {
           const wheelPos = localPosition(train, side * 1.26, 0.35, z, q, scale);
           const wheelMatrix = new THREE.Matrix4().compose(wheelPos, q, scale);
           wheels.setMatrixAt(wheelIndex++, wheelMatrix);
+        }
+        for (const z of [-1, 1]) {
+          const sidePos = localPosition(train, side * 1.57, 2.18, z * (train.length * 0.5 - 1.1), q, scale);
+          sideLamps.setMatrixAt((index * 4) + (side > 0 ? 2 : 0) + (z > 0 ? 1 : 0),
+            new THREE.Matrix4().compose(sidePos, q, new THREE.Vector3(1, 1, 1)));
         }
       }
       for (const z of [-1, 1]) {
@@ -540,9 +571,11 @@
         lamps.setMatrixAt(lampIndex++, new THREE.Matrix4().compose(lampPos, q, new THREE.Vector3(1, 1, 1)));
       }
     });
-    body.count = roof.count = under.count = glassL.count = glassR.count = stripeL.count = stripeR.count = prepared.length;
+    body.count = roof.count = under.count = glassL.count = glassR.count = windscreen.count = rearGlass.count = stripeL.count = stripeR.count = routePlate.count = prepared.length;
+    bogies.count = prepared.length * 2;
     wheels.count = wheelIndex;
     lamps.count = lampIndex;
+    sideLamps.count = prepared.length * 4;
     for (const mesh of instanced) {
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
