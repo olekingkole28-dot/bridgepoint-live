@@ -323,8 +323,8 @@ jobs:
           grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5980-visible-detail-rails' site/app/index.html
           grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
           grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
-          grep -Fq 'bridge-ground-join' site/app.js
-          grep -Fq 'bridge-ground-join' site/landing.js
+          grep -Fq '6001-auto-detail-lod' site/app.js
+          grep -Fq '6001-auto-detail-lod' site/landing.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
@@ -819,10 +819,10 @@ jobs:
           grep -Fq 'toggleLiveContext' site/app/index.html
           grep -Fq 'app.js?v=5981-mobile-controls' site/app/index.html
           grep -Fq 'landing.js?v=5981-mobile-controls' site/index.html
-           grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/app.js
-           grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/index.html
-           grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/app/index.html
+           grep -Fq 'world-v2300-map.js?v=6001-auto-detail-lod' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6001-auto-detail-lod' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6001-auto-detail-lod' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6001-auto-detail-lod' site/app/index.html
           grep -Fq 'maplibre-gl@5.24.0/dist/maplibre-gl.js' .github/workflows/deploy-intelligence-rebuild-v5000.yml
           grep -Fq 'maplibre-gl.js?v=524-v5945' site/index.html
           grep -Fq 'maplibre-gl.js?v=524-v5945' site/app/index.html
@@ -837,8 +837,8 @@ jobs:
            grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/app/index.html
-           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5966-statue-pedestal-aligned' site/index.html
-           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5966-statue-pedestal-aligned' site/app/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=6001-style-persistence' site/index.html
+           grep -Fq 'bridgepoint-landmarks-v5940.js?v=6001-style-persistence' site/app/index.html
            grep -Fq 'bottomNav' site/app/index.html
           grep -Fq 'bindPerformanceGovernor' site/app.js
           grep -Fq '__BP_MAP_CLICK_FASTPATH_V5557__' site/app.js
