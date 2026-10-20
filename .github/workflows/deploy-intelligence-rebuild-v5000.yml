@@ -48,7 +48,9 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+          node --check rebuild-v5000/bridgepoint-reality-assets-v5968.js
           python3 tools/reality_assets/validate_manifest.py
+          python3 -m unittest tools.reality_assets.test_manifest_validator
           rm -rf site
           mkdir -p site
           git fetch origin live-artifact:refs/remotes/origin/live-artifact --depth=1
