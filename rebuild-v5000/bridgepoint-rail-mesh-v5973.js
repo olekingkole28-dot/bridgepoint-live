@@ -1092,6 +1092,8 @@
       });
     },
     isRailFeature,
+    sourceRailFeatures,
+    captureVisibleRailFeatures,
     metersApart,
     localPoint
   };
