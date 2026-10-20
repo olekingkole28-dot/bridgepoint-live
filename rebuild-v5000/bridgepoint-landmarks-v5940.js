@@ -709,7 +709,12 @@
   }
 
   function ensureStatueLayer(map, state) {
-    if (state.statueLayerRequested || !nearStatue(map)) return;
+    if (!nearStatue(map)) return;
+    if (map.getLayer('bp-v5940-statue-scan')) {
+      state.statueLayerRequested = true;
+      return;
+    }
+    if (state.statueLayerRequested) return;
     state.statueLayerRequested = true;
     state.statueActive = true;
     setChip(state, 'STATUE OF LIBERTY', 'Loading scan · 46.05 m figure above 46.94 m pedestal · 93.0 m overall', true);
@@ -726,7 +731,11 @@
     };
 
     loadThreeModules().then(({ THREE, GLTFLoader }) => {
-      if (!nearStatue(map) || !state.styleReady || map.getLayer('bp-v5940-statue-scan')) return;
+      if (!nearStatue(map) || !state.styleReady || map.getLayer('bp-v5940-statue-scan')) {
+        state.statueLayerRequested = !!map.getLayer('bp-v5940-statue-scan');
+        if (!state.statueLayerRequested) state.statueLoaded = false;
+        return;
+      }
       const customLayer = {
         id: 'bp-v5940-statue-scan',
         type: 'custom',
@@ -829,6 +838,8 @@
             }
           }); } catch (_) {}
           try { this.renderer && this.renderer.dispose(); } catch (_) {}
+          state.statueLayerRequested = false;
+          state.statueLoaded = false;
         }
       };
       if (!map.getLayer('bp-v5940-statue-scan')) map.addLayer(customLayer);
