@@ -217,6 +217,18 @@
         }
         update(map, state);
         publish('attached', { attachedMaps: MAPS.size, markerLayer: !!map.getLayer(LAYER_ID) });
+        const wantsLincolnFocus = (() => {
+          try {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('landmark') === 'lincoln' || params.get('focus') === 'lincoln';
+          } catch (_) { return false; }
+        })();
+        if (wantsLincolnFocus && !state.autoFocused) {
+          state.autoFocused = true;
+          map.stop();
+          map.flyTo({ center: LOCATION, zoom: 15.2, pitch: 48, bearing: 0, duration: 1600, essential: true });
+          publish('autofocus-lincoln-memorial', { target: LOCATION.slice(), zoom: 15.2, pitch: 48 });
+        }
       } catch (error) {
         publish('attach-error', { detail: String(error && error.message || error) });
       }
