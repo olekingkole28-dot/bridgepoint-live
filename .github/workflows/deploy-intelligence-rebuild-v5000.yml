@@ -49,6 +49,7 @@ jobs:
         run: |
           set -euxo pipefail
           node --check rebuild-v5000/bridgepoint-reality-assets-v5968.js
+          node --check rebuild-v5000/bridgepoint-volumetric-fields-v5978.js
           node --check rebuild-v5000/bridgepoint-live-rail-v5969.js
           node tools/reality_assets/test_live_rail.mjs
           node --check rebuild-v5000/bridgepoint-rail-mesh-v5973.js
@@ -142,6 +143,8 @@ jobs:
           cp rebuild-v5000/bridgepoint-global-motion-v5926.js site/bridgepoint-global-motion-v5926.js
           cp rebuild-v5000/bridgepoint-realworld-effects-v5927.js site/bridgepoint-realworld-effects-v5927.js
           cp rebuild-v5000/bridgepoint-realworld-effects-v5927.js site/app/bridgepoint-realworld-effects-v5927.js
+          cp rebuild-v5000/bridgepoint-volumetric-fields-v5978.js site/bridgepoint-volumetric-fields-v5978.js
+          cp rebuild-v5000/bridgepoint-volumetric-fields-v5978.js site/app/bridgepoint-volumetric-fields-v5978.js
           cp rebuild-v5000/bridgepoint-celestial-sky-v5928.js site/bridgepoint-celestial-sky-v5928.js
           cp rebuild-v5000/bridgepoint-celestial-sky-v5928.js site/app/bridgepoint-celestial-sky-v5928.js
           cp rebuild-v5000/styles.css site/styles.css
