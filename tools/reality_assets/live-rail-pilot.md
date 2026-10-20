@@ -8,7 +8,7 @@ This is the first source-backed live transit integration for BridgePoint. It is 
 - Data credit: **MassDOT / MBTA**
 - Feed type: vehicle positions, with related route and trip metadata.
 - Mode filter: GTFS route types 0, 1, 2 (tram/light rail, subway, rail); route data is shown only when the source returns valid geometry/metadata.
-- A request is made only after the viewer enables **LIVE RAIL**. While enabled on a visible page, refreshes are at least 60 seconds apart. MBTA documents a 20-request/minute limit without an API key; this viewer is configured substantially below that limit.
+- A request is made only after the viewer enables **LIVE RAIL**. **Focus MBTA Coverage** flies to the Boston-area network at a controlled city zoom so regional markers can be seen without searching the entire globe. While enabled on a visible page, refreshes are at least 60 seconds apart. MBTA documents a 20-request/minute limit without an API key; this viewer is configured substantially below that limit.
 - Positions without valid coordinates or a usable source timestamp are skipped. Reports older than 3 minutes are not displayed. Each popup shows the source timestamp and age.
 - Failure preserves the last response only as a visibly last-good snapshot; it never synthesizes replacement vehicles. Disabling the layer stops further polling and hides the layer.
 - Current UI labels and rail positions are the source’s values; no passenger/person identity or camera tracking is involved.
