@@ -52,10 +52,10 @@ export function initBridgePointRealWorldEffects(target,rpc){
  '<div data-status>Ready. Source-backed features appear where feeds cover the current view.</div><p data-note>Radar, alerts and station observations are source-linked. Wind streamlines and canopy movement are schematic visualizations based on the nearest measured wind and rendered building footprints, not engineering CFD. Cloud layers are animated visual layers, not volumetric 3D clouds. Flood outlines are official alert geometry, not surveyed water depth.</p>';
  container.appendChild(root);
  const $=sel=>root.querySelector(sel);
- const st={map,container,root,weather:null,clouds:window.__BP_SKY_CLOUDS_V5908__||null,realism:window.__BP_WORLD_REALISM_V5910__||null,source:false,particles:false,flood:false,radar:false,wind:false,cloudsOn:true,sun:false,celestialOn:false,celestialApi:null,realismOn:false,windCanvas:null,sunCanvas:null,raf:0,windMove:null,windResize:null,sunMove:null,lightOriginal:null,treeOriginal:undefined,obstacles:[],obstaclesAt:0,disposed:false,rpc};
+ const st={map,container,root,weather:null,clouds:window.__BP_SKY_CLOUDS_V5908__||null,realism:window.__BP_WORLD_REALISM_V5910__||null,source:false,particles:false,flood:false,radar:false,wind:false,cloudsOn:true,sun:false,celestialOn:false,celestialApi:null,realismOn:false,windCanvas:null,sunCanvas:null,raf:0,windMove:null,windResize:null,sunMove:null,lightOriginal:null,treeOriginal:undefined,obstacles:[],obstaclesAt:0,windFallback:null,windRefreshTimer:0,windResolveSeq:0,windListeners:false,disposed:false,rpc};
  const setStatus=s=>{const n=$('[data-status]');if(n)n.textContent=s};
  const paint=()=>{const vals=[['[data-source]','SOURCE WEATHER',st.source],['[data-particles]','3D RAIN / SNOW / HAIL',st.particles],['[data-flood]','FLOOD ALERT SURFACES',st.flood],['[data-radar]','NOAA RADAR',st.radar],['[data-wind]','3D WIND STREAMLINES',st.wind],['[data-clouds]','SKY CLOUD LAYERS',st.cloudsOn],['[data-sun]','SUN / SHADOW LIGHTING',st.sun],['[data-celestial]','SUN · MOON · STARS · PLANETS',st.celestialOn],['[data-realism]','SATELLITE / MATERIAL REALISM',st.realismOn]];for(const [s,t,on] of vals){const b=$(s);if(b){b.textContent=t+' · '+(on?'ON':'OFF');b.setAttribute('aria-pressed',String(on))}}};
- async function ensureWeather(){if(st.weather)return st.weather;const m=await import('./world-v2300-weather.js?v=5927-source-weather');st.weather=window.__bpWeatherV2300||m.initWeather(map,{deferActivation:true});if(!st.weather)throw new Error('Source weather engine unavailable');return st.weather}
+ async function ensureWeather(){if(st.weather)return st.weather;const m=await import('./world-v2300-weather.js?v=5981-source-weather-robust');st.weather=window.__bpWeatherV2300||m.initWeather(map,{deferActivation:true});if(!st.weather)throw new Error('Source weather engine unavailable');return st.weather}
  async function ensureClouds(){if(st.clouds)return st.clouds;const m=await import('./world-v2300-clouds.js?v=5927-clouds');st.clouds=window.__BP_SKY_CLOUDS_V5908__||m.initSkyClouds({map});return st.clouds}
  async function ensureRealism(){if(st.realism)return st.realism;const m=await import('./world-v2300-realism.js?v=5927-material-realism');st.realism=window.__BP_WORLD_REALISM_V5910__||m.initRealismMode({map});return st.realism}
  function sunCanvas(){if(!st.sunCanvas){st.sunCanvas=document.createElement('canvas');st.sunCanvas.className='bp-rwe-sun-canvas';st.sunCanvas.setAttribute('aria-hidden','true');container.appendChild(st.sunCanvas)}return st.sunCanvas}
@@ -113,12 +113,37 @@ export function initBridgePointRealWorldEffects(target,rpc){
   try{if(st.treeOriginal!==undefined&&map.getLayer('gta-bp-tree3d-canopy'))map.setPaintProperty('gta-bp-tree3d-canopy','fill-extrusion-translate',st.treeOriginal)}catch(_){}
   st.treeOriginal=undefined;
  }
+ async function resolveWindSource(){
+  const seq=++st.windResolveSeq,wx=await ensureWeather();
+  try{await wx.refresh(true)}catch(_){}
+  if(st.disposed||!st.wind||seq!==st.windResolveSeq)return null;
+  const measured=getWind(wx.getScene?.()||{},map);
+  if(measured){st.windFallback=null;return {...measured,modelled:false,source:'Mapped weather observation'}}
+  const c=map.getCenter(),key=(+c.lat).toFixed(1)+','+(+c.lng).toFixed(1),now=Date.now();
+  if(st.windFallback&&st.windFallback.key===key&&now-st.windFallback.at<120000)return st.windFallback.wind;
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),9000);
+  try{
+   setStatus('No mapped station wind in this view. Fetching current gridded wind conditions…');
+   const url=new URL('https://api.open-meteo.com/v1/forecast');
+   url.searchParams.set('latitude',String(+c.lat));url.searchParams.set('longitude',String(+c.lng));
+   url.searchParams.set('current','wind_speed_10m,wind_direction_10m');
+   url.searchParams.set('wind_speed_unit','mph');url.searchParams.set('timezone','auto');
+   const response=await fetch(url.toString(),{headers:{Accept:'application/json'},cache:'no-store',signal:controller.signal});
+   if(!response.ok)throw new Error('Current wind model HTTP '+response.status);
+   const data=await response.json(),current=data?.current||{};
+   const speed=Number(current.wind_speed_10m),direction=Number(current.wind_direction_10m);
+   if(!Number.isFinite(speed)||!Number.isFinite(direction))throw new Error('Current wind model has no usable speed/direction');
+   const wind={speed,direction,lng:+c.lng,lat:+c.lat,modelled:true,source:'Open-Meteo current weather model'};
+   if(seq===st.windResolveSeq&&!st.disposed)st.windFallback={key,at:Date.now(),wind};
+   return wind;
+  }finally{clearTimeout(timeout)}
+ }
  function drawWind(now){
   if(st.disposed||!st.wind||document.hidden||!st.windCanvas)return;
-  const scene=st.weather?.getScene?.()||{},o=getWind(scene,map),c=st.windCanvas,w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight),dpr=Math.min(window.devicePixelRatio||1,1.5);
+  const scene=st.weather?.getScene?.()||{},measured=getWind(scene,map),o=measured||(st.windFallback?.wind||null),c=st.windCanvas,w=Math.max(1,container.clientWidth),h=Math.max(1,container.clientHeight),dpr=Math.min(window.devicePixelRatio||1,1.5);
   if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){c.width=Math.round(w*dpr);c.height=Math.round(h*dpr)}
   const ctx=c.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
-  if(!o){setStatus('Waiting for a mapped weather observation containing measured wind speed and direction. No wind field is fabricated.');st.raf=requestAnimationFrame(drawWind);return}
+  if(!o){setStatus('Wind is waiting for a mapped observation or current weather-model response. No wind field is fabricated.');st.raf=requestAnimationFrame(drawWind);return}
   const obs=obstacleList(),angle=(o.direction+180-(map.getBearing?.()||0))*Math.PI/180,ux=Math.sin(angle),uy=-Math.cos(angle),px=-uy,py=ux;
   const span=Math.hypot(w,h)+80,spacing=w<500?25:31,count=clamp(Math.floor((Math.abs(ux)>Math.abs(uy)?h:w)/spacing),12,82),phase=(now*.028)%24;ctx.lineWidth=1.25;ctx.lineCap='round';ctx.lineJoin='round';
   for(let n=0;n<count;n++){const lateral=(n-(count-1)/2)*spacing,midX=w/2+px*lateral,midY=h/2+py*lateral;let x,y;if(Math.abs(ux)>Math.abs(uy)){x=ux>0?-34:w+34;y=clamp(midY,-15,h+15)}else{y=uy>0?-34:h+34;x=clamp(midX,-15,w+15)}
@@ -126,29 +151,47 @@ export function initBridgePointRealWorldEffects(target,rpc){
    ctx.strokeStyle='rgba(92,223,255,'+(.27+((n*3+phase)%24)/24*.26)+')';ctx.stroke();if(arrow){ctx.beginPath();ctx.moveTo(arrow.x,arrow.y);ctx.lineTo(arrow.x-arrow.vx*7-arrow.vy*4,arrow.y-arrow.vy*7+arrow.vx*4);ctx.lineTo(arrow.x-arrow.vx*7+arrow.vy*4,arrow.y-arrow.vy*7-arrow.vx*4);ctx.closePath();ctx.fillStyle='rgba(205,250,255,.8)';ctx.fill()}
   }
   try{const id='gta-bp-tree3d-canopy';if(map.getLayer(id)){if(st.treeOriginal===undefined)st.treeOriginal=map.getPaintProperty(id,'fill-extrusion-translate')||[0,0];map.setPaintProperty(id,'fill-extrusion-translate',[Math.sin(now*.0024)*Math.min(5,o.speed*.12),Math.cos(now*.0018)*Math.min(2,o.speed*.035)])}}catch(_){}
-  const note=$('[data-note]');if(note)note.textContent='Nearest measured wind: '+Math.round(o.speed)+' mph at '+Math.round(o.direction)+'°. Lines bend around visible building footprints; schematic map overlay, not CFD.';
+  const note=$('[data-note]');if(note)note.textContent=(o.modelled?'Current wind estimate from the Open-Meteo weather model: ':'Mapped weather observation: ')+Math.round(o.speed)+' mph from '+Math.round(o.direction)+'°. Local building-flow visuals are heuristic, not CFD or measured rooftop turbulence.';
   st.raf=requestAnimationFrame(drawWind);
  }
  async function setSource(on){
   const wx=await ensureWeather();st.source=!!on;wx.setActive(st.source);wx.fx?.setEnabled?.(st.particles);
-  setStatus(st.source?'Source weather enabled; available alerts, storms, fires, observations and water-level points will refresh with the view.':'Source weather overlays are off; physical map layers stay intact.');paint();
+  if(st.source){
+   try{await wx.refresh(true)}catch(_){}
+   const c=wx.state?.counts||{},total=Number(c.alerts||0)+Number(c.fires||0)+Number(c.storms||0)+Number(c.observations||0)+Number(c.quakes||0)+Number(c.water||0);
+   setStatus(total?'Source weather refreshed for this viewport · '+Number(c.alerts||0)+' alerts · '+Number(c.storms||0)+' storms · '+Number(c.fires||0)+' fires · '+Number(c.observations||0)+' observations.':'Weather source refreshed. No source-backed alerts, storms, fires, stations or water features are currently materialized in this viewport; move or zoom to inspect another area.');
+  }else setStatus('Source weather overlays off. Wind and radar controls remain independently controlled.');
+  paint();try{map.triggerRepaint?.()}catch(_){}
  }
  async function setParticles(on){
   const wx=await ensureWeather();st.particles=!!on;
-  if(on&&!st.source){st.source=true;wx.setActive(true)}
-  wx.fx?.setEnabled?.(st.particles);paint();setStatus(on?'Animated rain/snow/hail and supported storm/funnel/fire effects on where the current source scene supports them.':'Animated particle effects off. Source polygons can stay on.');
+  if(on&&!st.source){st.source=true;wx.setActive(true);try{await wx.refresh(true)}catch(_){}}
+  wx.fx?.setEnabled?.(st.particles);paint();setStatus(on?'Particle effects are enabled. Rain, snow, hail and event effects are visible only when current weather conditions support them.':'Animated particle effects off. Source polygons can stay on.');try{map.triggerRepaint?.()}catch(_){}
  }
  async function setFlood(on){
-  const wx=await ensureWeather();st.flood=!!on;if(on&&!st.source){st.source=true;wx.setActive(true)}if(on)wx.fx?.setEnabled?.(st.particles);
-  for(const id of ['bp2300-fx-flood-fill','bp2300-fx-flood-line'])setVis(map,id,st.flood);
-  paint();setStatus(st.flood?'Flood-alert polygon overlay on. Source outlines show alert geometry, not exact measured flood depths.':'Flood-only surface filter off.');
+  const wx=await ensureWeather();st.flood=!!on;if(on&&!st.source){st.source=true;wx.setActive(true);try{await wx.refresh(true)}catch(_){}}
+  if(on)wx.fx?.setEnabled?.(st.particles);
+  // Current BridgePoint weather layers use wx-alert-fill / wx-alert-line;
+  // bp2300-fx-flood-* were retired from the active map.
+  for(const id of ['wx-alert-fill','wx-alert-line','bp2300-fx-flood-fill','bp2300-fx-flood-line'])setVis(map,id,st.flood||st.source);
+  paint();setStatus(st.flood?'Weather alert footprints are visible where matching source polygons exist; they are not surveyed water depths.':'Flood-only filter off. Other alert visibility follows SOURCE WEATHER.');try{map.triggerRepaint?.()}catch(_){}
  }
- async function setRadar(on){const wx=await ensureWeather();st.radar=!!on;wx.setRadar(st.radar);paint();setStatus(st.radar?'NOAA radar enabled where provider coverage exists.':'NOAA radar disabled.')}
+ async function setRadar(on){const wx=await ensureWeather();st.radar=!!on;wx.setRadar(st.radar);paint();setStatus(st.radar?'NOAA radar layer is ON. Echoes appear only where the live radar provider reports precipitation; clear areas may look blank.':'NOAA radar disabled.');try{map.triggerRepaint?.()}catch(_){}}
  async function setWind(on){
   st.wind=!!on;
-  if(on){const wx=await ensureWeather();if(!st.source){st.source=true;wx.setActive(true)}wx.fx?.setEnabled?.(st.particles);if(!st.windCanvas){st.windCanvas=document.createElement('canvas');st.windCanvas.className='bp-rwe-wind-canvas';st.windCanvas.setAttribute('aria-hidden','true');container.appendChild(st.windCanvas)}st.raf=requestAnimationFrame(drawWind);st.windMove=st.windMove||(()=>{st.obstaclesAt=0});st.resize=st.resize||(()=>{st.obstaclesAt=0});map.on('moveend',st.windMove);map.on('resize',st.resize)}
-  else{if(st.raf)cancelAnimationFrame(st.raf);st.raf=0;stopWind();if(st.windMove)map.off('moveend',st.windMove);if(st.resize)map.off('resize',st.resize);st.windMove=null;st.resize=null}
-  paint();if(!on)setStatus('Wind visualization off; tree-canopy translation restored.');
+  if(on){
+   const wx=await ensureWeather();if(!st.source){st.source=true;wx.setActive(true)}wx.fx?.setEnabled?.(st.particles);
+   if(!st.windCanvas){st.windCanvas=document.createElement('canvas');st.windCanvas.className='bp-rwe-wind-canvas';st.windCanvas.setAttribute('aria-hidden','true');container.appendChild(st.windCanvas)}
+   st.windMove=st.windMove||(()=>{st.obstaclesAt=0;clearTimeout(st.windRefreshTimer);st.windRefreshTimer=setTimeout(()=>{if(st.wind)void resolveWindSource().then(()=>{if(st.windCanvas&&!st.raf)st.raf=requestAnimationFrame(drawWind)}).catch(e=>setStatus('Wind refresh failed: '+String(e?.message||e)));},900)});
+   st.resize=st.resize||(()=>{st.obstaclesAt=0});if(!st.windListeners){map.on('moveend',st.windMove);map.on('resize',st.resize);st.windListeners=true}
+   setStatus('Loading current wind for the visible map…');
+   try{await resolveWindSource()}catch(e){setStatus('Current wind unavailable: '+String(e?.message||e)+' · available station observations will still be used when present.')}
+   if(st.wind&&!st.raf)st.raf=requestAnimationFrame(drawWind);
+  }else{
+   if(st.raf)cancelAnimationFrame(st.raf);st.raf=0;stopWind();st.windResolveSeq++;clearTimeout(st.windRefreshTimer);
+   if(st.windListeners){map.off('moveend',st.windMove);map.off('resize',st.resize);st.windListeners=false}st.windMove=null;st.resize=null;st.windFallback=null;
+  }
+  paint();if(!on)setStatus('Wind visualization off; tree-canopy translation restored.');else try{map.triggerRepaint?.()}catch(_){}
  }
  async function setClouds(on){const cloud=await ensureClouds();st.cloudsOn=!!on;cloud.setEnabled(st.cloudsOn);paint()}
  async function setRealism(on){const real=await ensureRealism();st.realismOn=!!on;real.setEnabled(st.realismOn);paint()}
