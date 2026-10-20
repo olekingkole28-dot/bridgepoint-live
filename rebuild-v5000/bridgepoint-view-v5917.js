@@ -133,7 +133,7 @@ function makeTopBarAndDock(){
  '<button type="button" data-bpv-action="listings">LISTINGS</button>'+
  '<button type="button" data-bpv-action="worldchanges">30-DAY HISTORY</button>'+
  '<button type="button" data-bpv-action="weatherfx">WEATHER FX</button>'+
- '<button type="button" data-bpv-action="windfx">3D WIND</button>'
+ '<button type="button" data-bpv-action="windfx">3D WIND</button>'+
  '<button type="button" data-bpv-action="volumetric">VOLUMETRIC FIELDS</button>'+
  '<button type="button" data-bpv-action="opportunities">OPPORTUNITIES</button>'+
  '<button type="button" data-bpv-action="metrics">COUNTERS</button>'+
