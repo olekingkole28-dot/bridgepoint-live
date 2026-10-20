@@ -358,7 +358,7 @@ jobs:
           grep -Fq 'state.potreeRenderer.render(state.scene, state.camera)' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq '10.26301/90yg-1054' site/bridgepoint-lincoln-memorial-v5984.js
           grep -Fq 'sourceDataEmbeddedOrRedistributed: false' site/bridgepoint-lincoln-memorial-v5984.js
-          grep -Fq 'bridgepoint-lincoln-memorial-v5984.js?v=5996-washington-focus' site/index.html
+          grep -Fq 'bridgepoint-lincoln-memorial-v5984.js?v=5998-closeup-focus' site/index.html
           test -s site/assets/eiffel-tower-koterstudios-v5983.glb
           grep -Fq "const EIFFEL_SCAN_URL = '/assets/eiffel-tower-koterstudios-v5983.glb'" site/bridgepoint-eiffel-tower-v5983.js
           grep -Fq 'koterstudios / koters' site/bridgepoint-eiffel-tower-v5983.js
