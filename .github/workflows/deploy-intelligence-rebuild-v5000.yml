@@ -351,7 +351,7 @@ jobs:
           grep -Fq '665663299' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'Potree.updatePointClouds([cloud]' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=5986-original-lidar-world-render' site/index.html
-          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=5986-original-lidar-world-render' site/app-index.html
+          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=5986-original-lidar-world-render' site/app/index.html
           grep -Fq '10.26301/90yg-1054' site/bridgepoint-lincoln-memorial-v5984.js
           grep -Fq 'sourceDataEmbeddedOrRedistributed: false' site/bridgepoint-lincoln-memorial-v5984.js
           grep -Fq 'bridgepoint-lincoln-memorial-v5984.js?v=5985-lincoln-direct-focus-and-scan' site/index.html
