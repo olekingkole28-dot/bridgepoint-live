@@ -126,7 +126,7 @@ function makeTopBarAndDock(){
  const top=node('div','bpv-topbar bpv-topbar-persistent');
  top.innerHTML='<a class="bpv-brand" href="/" aria-label="BridgePoint World"><img src="/bridgepoint-mark.svg" alt=""><span><b>BRIDGEPOINT WORLD</b><small>GLOBAL SPATIAL INTELLIGENCE</small></span></a><div class="bpv-topbar-right"><div id="bpv-language-slot" data-bp-language-mount="top" aria-label="BridgePoint language"></div><div id="bpv-account-slot"></div></div>';
  const dock=node('div','bpv-dock bpv-dock-persistent');dock.id='bpv-dock';
- dock.innerHTML='<div class="bpv-dock-label"><div><b>BRIDGEPOINT WORLD</b><span><i></i> LIVE · GLOBAL WORLD</span></div><button type="button" data-bpv-dock-hide aria-label="Minimize BridgePoint map card">MINIMIZE −</button></div><div id="bpv-dock-account-row" class="bpv-dock-account-row" aria-label="Account, language and refresh controls"></div><div id="bpv-search-slot" class="bpv-search-slot"></div><div id="bpv-world-activity-slot" class="bpv-world-activity-slot" aria-label="World activity timeline"></div><div id="bpv-underground-slot" class="bpv-underground-slot" aria-label="Underground X-ray map controls"></div><div id="bpv-satellite-slot" class="bpv-satellite-slot" aria-label="Satellite and color controls"></div><div id="bpv-dock-actions" class="bpv-dock-actions">'+
+ dock.innerHTML='<div class="bpv-dock-label"><div><b>BRIDGEPOINT WORLD</b><span><i></i> LIVE · GLOBAL WORLD</span></div><button type="button" data-bpv-dock-hide aria-label="Minimize BridgePoint map card">MINIMIZE −</button></div><div id="bpv-dock-account-row" class="bpv-dock-account-row" aria-label="Account, language and refresh controls"></div><div id="bpv-map-controls-slot" class="bpv-map-controls-slot" aria-label="Map zoom and orientation controls"></div><div id="bpv-search-slot" class="bpv-search-slot"></div><div id="bpv-world-activity-slot" class="bpv-world-activity-slot" aria-label="World activity timeline"></div><div id="bpv-underground-slot" class="bpv-underground-slot" aria-label="Underground X-ray map controls"></div><div id="bpv-satellite-slot" class="bpv-satellite-slot" aria-label="Satellite and color controls"></div><div id="bpv-dock-actions" class="bpv-dock-actions">'+
  '<button type="button" data-bpv-action="ai">BRIDGEPOINT AI</button>'+
  '<button type="button" data-bpv-action="parcels">PARCEL BOUNDARIES</button>'+
  '<button type="button" data-bpv-action="mapkey">MAP KEY</button>'+
@@ -144,10 +144,14 @@ function makeTopBarAndDock(){
  (home?'<button type="button" data-bpv-action="explore">EXPLORE</button>':'')+
  '<button type="button" class="bpv-whole-earth-short" data-bpv-action="whole">WHOLE EARTH</button></div>';
  mapHost.append(top,dock);
- const accountRow=$('#bpv-dock-account-row'),topRight=top.querySelector('.bpv-topbar-right');
+ const accountRow=$('#bpv-dock-account-row'),topRight=top.querySelector('.bpv-topbar-right'),mapControlsSlot=$('#bpv-map-controls-slot');
  const placeAccountActions=()=>{const mobile=!!window.matchMedia?.('(max-width:700px)').matches,target=mobile?accountRow:top;if(topRight&&target&&topRight.parentElement!==target)target.appendChild(topRight)};
  placeAccountActions();window.addEventListener('resize',placeAccountActions,{passive:true});
  try{window.matchMedia?.('(max-width:700px)').addEventListener?.('change',placeAccountActions)}catch(_){}
+ let mapControlsParent=null,mapControlsNext=null;
+ const placeMapControls=()=>{const controls=mapHost.querySelector('.maplibregl-ctrl-top-right');if(!controls||!mapControlsSlot)return;if(!mapControlsParent){mapControlsParent=controls.parentElement;mapControlsNext=controls.nextSibling}const mobile=!!window.matchMedia?.('(max-width:700px)').matches;if(mobile){if(controls.parentElement!==mapControlsSlot)mapControlsSlot.appendChild(controls)}else if(mapControlsParent&&controls.parentElement!==mapControlsParent){mapControlsParent.insertBefore(controls,mapControlsNext&&mapControlsNext.parentElement===mapControlsParent?mapControlsNext:null)}};
+ placeMapControls();try{map?.on?.('load',placeMapControls);map?.on?.('idle',placeMapControls)}catch(_){}
+ const mapControlsObserver=new MutationObserver(placeMapControls);mapControlsObserver.observe(mapHost,{childList:true,subtree:true});
  const languageSlot=$('#bpv-language-slot');
  const existingLanguage=document.querySelector('[data-bp-language="1"]');
  if(languageSlot&&existingLanguage&&existingLanguage.parentElement!==languageSlot)languageSlot.appendChild(existingLanguage);
