@@ -53,6 +53,10 @@ async function diagnostics(page) {
           id: m.getContainer().id,
           center: c ? [c.lng, c.lat] : null,
           zoom: m.getZoom?.() ?? null,
+          bounds: (() => {
+            const b = m.getBounds?.();
+            return b ? [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()] : null;
+          })(),
           canvasCount: m.getContainer().querySelectorAll('canvas').length,
           layerPresent: !!m.getLayer?.('bp-live-rail-points-v5969'),
           sourcePresent: !!m.getSource?.('bp-live-rail-source-v5969'),
@@ -155,6 +159,22 @@ async function diagnostics(page) {
       const states = window.__BP_LIVE_RAIL_V5969__?.getState?.() || [];
       return states.some(s => s.enabled && s.lastSuccessAt && s.featureCount > 0);
     }, { timeout: SOURCE_WAIT_MS });
+
+    // State can update before MapLibre has rendered the GeoJSON in a frame.
+    // Require at least one point in the actual rendered-feature query before passing.
+    await page.waitForFunction(mapId => {
+      const maps = [
+        window.__BP_LANDING_WORLD__, window.__bpLandingWorldV5420,
+        window.__BP_V5000_WORLD, window.__BP_V5000_WORLD__, window.__BP_WORLD
+      ].filter(Boolean).map(w => w.map).filter(m => m && m.getContainer);
+      const m = maps.find(map => map.getContainer().id === mapId);
+      if (!m || !m.getLayer?.('bp-live-rail-points-v5969')) return false;
+      try {
+        return m.queryRenderedFeatures({ layers: ['bp-live-rail-points-v5969'] }).length > 0;
+      } catch (_) {
+        return false;
+      }
+    }, { timeout: 12000 }, panelInfo.mapId);
 
     const after = await diagnostics(page);
     const state = after.states.find(s => s.enabled && s.lastSuccessAt && s.featureCount > 0);
