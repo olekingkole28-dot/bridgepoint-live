@@ -499,7 +499,7 @@
           disposeObject(THREE, this.scene);
           try { this.renderer?.dispose(); } catch (_) {}
           if (activeLayer === this) activeLayer = null;
-          if (activeMap === mapRef) activeMap = null;
+          if (activeMap === map) activeMap = null;
           if (state.loadedAsset === asset.id) state.loadedAsset = null;
         }
       };
