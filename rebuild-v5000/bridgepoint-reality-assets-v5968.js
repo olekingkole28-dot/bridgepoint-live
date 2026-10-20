@@ -224,6 +224,25 @@
     return { scene, root, sourceHeightUnits: height, scale: asset.targetHeightMeters / height };
   }
 
+
+  function publishWindObstacle(asset) {
+    if (!asset) return;
+    const lng=Number(asset.longitude??asset.lng),lat=Number(asset.latitude??asset.lat),height=Number(asset.targetHeightMeters??asset.heightM??asset.height_m);
+    const bounds=asset.boundsWgs84??asset.bboxWgs84??asset.boundsLonLat??asset.bounds;
+    if (![lng,lat,height].every(Number.isFinite)||!Array.isArray(bounds)||bounds.length<4) return;
+    const [west,south,east,north]=bounds.map(Number);if(![west,south,east,north].every(Number.isFinite)||west>east||south>north)return;
+    const width=(east-west)*111320*Math.max(.12,Math.cos(lat*Math.PI/180)),depth=(north-south)*110540,radius=Math.max(3,Math.hypot(width,depth)*.5);
+    const registry=window.__BP_WIND_FLOW_OBSTACLES__||(window.__BP_WIND_FLOW_OBSTACLES__=[]),id='reviewed-mesh:'+String(asset.id);
+    const item={id,coordinates:[lng,lat],heightM:height,radiusM:radius,porosity:.12,footprintLonLat:[[west,south],[east,south],[east,north],[west,north]]};
+    const pos=registry.findIndex(x=>x?.id===id);if(pos>=0)registry[pos]=item;else registry.push(item);
+    window.dispatchEvent(new CustomEvent('bp:wind-obstacles-updated',{detail:{id}}));
+  }
+  function removeWindObstacle(assetId) {
+    const registry=window.__BP_WIND_FLOW_OBSTACLES__;if(!Array.isArray(registry))return;
+    const id='reviewed-mesh:'+String(assetId);window.__BP_WIND_FLOW_OBSTACLES__=registry.filter(x=>x?.id!==id);
+    window.dispatchEvent(new CustomEvent('bp:wind-obstacles-updated',{detail:{id,removed:true}}));
+  }
+
   function setStatus(message, isError = false) {
     lastMessage = safeText(message, 320);
     lastError = isError ? lastMessage : null;
@@ -483,6 +502,7 @@
               this.reportedRendered = true;
               state.renderedAsset = asset.id;
               state.renderedAt = Date.now();
+              publishWindObstacle(asset);
               void renderCatalog(map, safeId).then(() => {
                 if (activeLayer === this && this.reportedRendered) {
                   setStatus('Rendered source mesh · ' + asset.title + ' · ' + asset.license + '.');
@@ -502,6 +522,7 @@
           disposeObject(THREE, this.scene);
           try { this.renderer?.dispose(); } catch (_) {}
           if (activeLayer === this) activeLayer = null;
+          removeWindObstacle(asset.id);
           if (activeMap === map) activeMap = null;
           if (state.loadedAsset === asset.id) state.loadedAsset = null;
         }

@@ -50,6 +50,12 @@ The browser's 3D Wind control renders a compact set of animated flow paths at ne
 
 This is a responsive visual approximation for the open web map, not a Navier–Stokes/CFD solve and not a claim of measured street-level wind. Most scanned meshes use coarse obstacle proxies rather than per-triangle collision, and terrain response is available only where DEM elevation queries succeed. Source/model wind direction and speed remain distinct from simulated local flow.
 
+## Dense wind and drone visualizer (v5991)
+
+The shared bottom BridgePoint dock hosts dense wind controls and a browser drone simulator. Wind is displayed as fine continuous 3D filaments assembled into a merged mesh; their brightness travels along the geometry, not as separate particle dots. The flow field incorporates the current source wind direction, visible building and vegetation features, DEM elevation where available, and bounds-based obstacle proxies for loaded 3D assets when licensed metadata includes a usable geographic footprint.
+
+Drone mode uses a procedural polygonal quadcopter with spinning rotors, a follow camera, touchscreen/keyboard controls, and a local route planner that weights mapped obstacle clearance, terrain slope, and approximate headwind. It periodically replans during movement. Night-vision and thermal modes are visual palettes, not actual infrared sensors. Soil and methane remain source-gated; the UI does not fabricate sensor readings. Pink FCC RF planning spheres are nominal distance envelopes, not verified live 5G coverage, and do not affect physical airflow. This is an interactive visual approximation, not a validated CFD solver or a physical drone controller.
+
 ## Rendering architecture
 Progressively enhance from WebGPU -> WebGL2 -> CPU/canvas fallback. Use quadtree/tile world partitioning, camera-frustum culling, distance-based LOD, pooled GPU buffers, instancing, adaptive particle budgets and temporal interpolation. Never allocate nationwide cinematic particles.
 
