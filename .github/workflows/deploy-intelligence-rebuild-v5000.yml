@@ -50,6 +50,7 @@ jobs:
           set -euxo pipefail
           node --check rebuild-v5000/bridgepoint-reality-assets-v5968.js
           node --check rebuild-v5000/bridgepoint-volumetric-fields-v5978.js
+          node --check rebuild-v5000/bridgepoint-view-v5917.js
           node --check rebuild-v5000/bridgepoint-live-rail-v5969.js
           node tools/reality_assets/test_live_rail.mjs
           node --check rebuild-v5000/bridgepoint-rail-mesh-v5973.js
