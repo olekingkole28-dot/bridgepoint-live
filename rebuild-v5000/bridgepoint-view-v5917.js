@@ -133,7 +133,8 @@ function makeTopBarAndDock(){
  '<button type="button" data-bpv-action="listings">LISTINGS</button>'+
  '<button type="button" data-bpv-action="worldchanges">30-DAY HISTORY</button>'+
  '<button type="button" data-bpv-action="weatherfx">WEATHER FX</button>'+
- '<button type="button" data-bpv-action="windfx">3D WIND</button>'+
+ '<button type="button" data-bpv-action="windfx">3D WIND</button>'
+ '<button type="button" data-bpv-action="volumetric">VOLUMETRIC FIELDS</button>'+
  '<button type="button" data-bpv-action="opportunities">OPPORTUNITIES</button>'+
  '<button type="button" data-bpv-action="metrics">COUNTERS</button>'+
  '<button type="button" data-bpv-action="controls">LAYERS + TOOLS</button>'+
@@ -166,6 +167,7 @@ function makeTopBarAndDock(){
   if(a==='worldchanges'){void openWorldChanges();return}
   if(a==='weatherfx'){void openRealWorldEffects(false);return}
   if(a==='windfx'){void openRealWorldEffects(true);return}
+  if(a==='volumetric'){void openVolumetricFields().catch(e=>console.warn('BridgePoint volumetric fields unavailable',e));return}
   if(a==='motion'){openPanel('controls');window.__BP_GLOBAL_MOTION_V5926__?.open?.();return}
   if(a==='satellite'){
    const current=window.__BP_SPECTRAL_IMAGERY_V5931__;
@@ -620,6 +622,12 @@ async function openRealWorldEffects(initialWind=false){
  const mod=await import('./bridgepoint-realworld-effects-v5927.js?v=5927-toggleable-world-fx');
  const api=mod.initBridgePointRealWorldEffects(world,rpc);await api?.open?.({initialWind});
 }
+async function openVolumetricFields(){
+ const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
+ if(!world?.map)throw new Error('BridgePoint globe not ready');
+ const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=5978-wind-rf-voxels');
+ const api=mod.initBridgePointVolumetricFields(world);api?.open?.();
+}
 function toggleSearch(){
  const input=home?$('#landingPropertySearchInput'):$('#publicSearchInput'),form=home?$('#landingPropertySearch'):$('#publicSearchForm');
  if(!form||!input)return;
@@ -701,6 +709,7 @@ if(a==='listings'){openPanel('listings');return}
 if(a==='worldchanges'){void openWorldChanges();return}
 if(a==='weatherfx'){void openRealWorldEffects(false);return}
 if(a==='windfx'){void openRealWorldEffects(true);return}
+  if(a==='volumetric'){void openVolumetricFields().catch(e=>console.warn('BridgePoint volumetric fields unavailable',e));return}
 if(a==='motion'){openPanel('controls');window.__BP_GLOBAL_MOTION_V5926__?.open?.();return}
 if(a==='satellite'){
  const current=window.__BP_SPECTRAL_IMAGERY_V5931__;
