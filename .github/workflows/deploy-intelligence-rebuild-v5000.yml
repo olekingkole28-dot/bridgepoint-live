@@ -294,10 +294,10 @@ jobs:
           grep -Fq 'bridgepoint-pyramids-v5945.js?v=5945-giza-3d' site/app/index.html
           test -s site/bridgepoint-live-rail-v5969.js
           test -s site/bridgepoint-rail-mesh-v5973.js
-          grep -Fq 'bridgepoint-live-rail-v5969.js?v=5976-bounded-retry' site/index.html
-          grep -Fq 'bridgepoint-live-rail-v5969.js?v=5976-bounded-retry' site/app/index.html
-          grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5976-rail-source-capture' site/index.html
-          grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5976-rail-source-capture' site/app/index.html
+          grep -Fq 'bridgepoint-live-rail-v5969.js?v=5978-futuristic-train-cards' site/index.html
+          grep -Fq 'bridgepoint-live-rail-v5969.js?v=5978-futuristic-train-cards' site/app/index.html
+          grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5978-futuristic-consists' site/index.html
+          grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5978-futuristic-consists' site/app/index.html
           grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
           grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
           grep -Fq 'bridge-ground-join' site/app.js
