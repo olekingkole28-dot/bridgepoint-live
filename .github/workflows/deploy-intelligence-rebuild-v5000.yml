@@ -56,6 +56,7 @@ jobs:
           node tools/reality_assets/test_live_rail.mjs
           node --check rebuild-v5000/bridgepoint-rail-mesh-v5973.js
           node --check rebuild-v5000/bridgepoint-eiffel-tower-v5983.js
+          node --check rebuild-v5000/bridgepoint-lincoln-memorial-v5984.js
           node tools/reality_assets/test_rail_mesh_geometry.mjs
           python3 tools/reality_assets/validate_manifest.py
           python3 -m unittest tools.reality_assets.test_manifest_validator
@@ -134,6 +135,7 @@ jobs:
           cp rebuild-v5000/bridgepoint-rail-mesh-v5973.js site/bridgepoint-rail-mesh-v5973.js
           cp rebuild-v5000/bridgepoint-pyramids-v5945.js site/bridgepoint-pyramids-v5945.js
           cp rebuild-v5000/bridgepoint-eiffel-tower-v5983.js site/bridgepoint-eiffel-tower-v5983.js
+          cp rebuild-v5000/bridgepoint-lincoln-memorial-v5984.js site/bridgepoint-lincoln-memorial-v5984.js
           # Mirror the licensed 3D scan into the same-origin static artifact; avoid browser CORS failures.
           curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 240 'https://zenodo.org/records/10355435/files/8e808365b5a6453497826b114b02f155.glb' -o /tmp/statue-of-liberty-scan-source.glb
           test "$(stat -c%s /tmp/statue-of-liberty-scan-source.glb)" -gt 20000000
@@ -331,6 +333,10 @@ jobs:
           test -s site/assets/statue-of-liberty-scan-v5940.glb
           grep -Fq "const STATUE_SCAN_URL = '/assets/statue-of-liberty-scan-v5940.glb'" site/bridgepoint-landmarks-v5940.js
           test -s site/bridgepoint-eiffel-tower-v5983.js
+          test -s site/bridgepoint-lincoln-memorial-v5984.js
+          grep -Fq '10.26301/90yg-1054' site/bridgepoint-lincoln-memorial-v5984.js
+          grep -Fq 'sourceDataEmbeddedOrRedistributed: false' site/bridgepoint-lincoln-memorial-v5984.js
+          grep -Fq 'bridgepoint-lincoln-memorial-v5984.js?v=5984-lincoln-lidar-interior' site/index.html
           test -s site/assets/eiffel-tower-koterstudios-v5983.glb
           grep -Fq "const EIFFEL_SCAN_URL = '/assets/eiffel-tower-koterstudios-v5983.glb'" site/bridgepoint-eiffel-tower-v5983.js
           grep -Fq 'koterstudios / koters' site/bridgepoint-eiffel-tower-v5983.js
@@ -1513,6 +1519,25 @@ jobs:
                 assetRequested:performance.getEntriesByType('resource').some(r=>r.name.includes('eiffel-tower-koterstudios-v5983.glb'))}));
               if(!eiffel.layer||!eiffel.assetRequested||eiffel.state?.rendered!==true)throw new Error('EIFFEL_TOWER_MATERIALIZATION_FAILED '+JSON.stringify(eiffel));
               console.log('BRIDGEPOINT_EIFFEL_TOWER_MATERIALIZATION_PASS',JSON.stringify(eiffel));
+
+              await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                if(!m)throw new Error('LINCOLN_MEMORIAL_SMOKE_MAP_UNAVAILABLE');
+                m.jumpTo({center:[-77.0502,38.8893],zoom:14.1,pitch:42,bearing:0});
+              });
+              await p.waitForFunction(()=>{
+                const s=window.__BP_LINCOLN_MEMORIAL_V5984__;
+                const m=window.__BP_V5000_WORLD?.map;
+                return s?.version===5984&&s?.attachedMaps>=1&&!!m?.getLayer('bp-lincoln-memorial-label-v5984')&&
+                  !!document.querySelector('.bp-lincoln-scan-chip-v5984[data-show="true"]');
+              },{timeout:30000});
+              const lincoln=await p.evaluate(()=>({state:window.__BP_LINCOLN_MEMORIAL_V5984__||null,
+                markerLayer:!!window.__BP_V5000_WORLD?.map?.getLayer('bp-lincoln-memorial-label-v5984'),
+                scanLink:document.querySelector('.bp-lincoln-scan-chip-v5984 a')?.href||null,
+                promptVisible:document.querySelector('.bp-lincoln-scan-chip-v5984')?.dataset.show==='true'}));
+              if(!lincoln.markerLayer||!lincoln.promptVisible||!String(lincoln.scanLink||'').includes('pointcloud.ucsd.edu'))
+                throw new Error('LINCOLN_MEMORIAL_SCAN_ACCESS_FAILED '+JSON.stringify(lincoln));
+              console.log('BRIDGEPOINT_LINCOLN_MEMORIAL_SCAN_ACCESS_PASS',JSON.stringify(lincoln));
 
               const severe=fatal.filter(x=>!/ResizeObserver loop/i.test(x));
               if(severe.length)throw new Error('ANDROID_PAGEERROR '+JSON.stringify(severe.slice(-5)));
