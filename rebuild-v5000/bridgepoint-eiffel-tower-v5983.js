@@ -245,6 +245,8 @@
             });
             this.renderer && this.renderer.dispose();
           } catch (_) {}
+          state.layerAdded = false;
+          state.layerRequested = false;
         }
       };
       map.addLayer(layer);
