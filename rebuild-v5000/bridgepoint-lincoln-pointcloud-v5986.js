@@ -85,40 +85,9 @@
     };
   }
 
-  async function sourceCorsAvailable() {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
-    try {
-      const response = await fetch(SOURCE_URL, {
-        mode: 'cors',
-        credentials: 'omit',
-        cache: 'no-store',
-        signal: controller.signal
-      });
-      return response.ok;
-    } catch (_) {
-      // The official host serves its interactive viewer but does not grant this
-      // page cross-origin access to the raw octree. Use that viewer in-app rather
-      // than leaving a native point-cloud layer in an endless streaming state.
-      return false;
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
   async function ensureRuntime() {
     if (runtimePromise) return runtimePromise;
     runtimePromise = (async () => {
-      const sourceCors = await sourceCorsAvailable();
-      if (!sourceCors) {
-        publish('source-hosted-viewer-only', {
-          sourceCorsAvailable: false,
-          sourceViewerUrl: POTREE_BASE + '?vtype=oh3d&doi=90yg-1054',
-          reason: 'The original scan host does not allow direct cross-origin point-cloud fetches from BridgePoint.',
-          sourceDataEmbeddedOrRedistributed: false
-        });
-        return { sourceViewerOnly: true };
-      }
       if (!window.THREE) {
         await loadScript(POTREE_BASE + 'libs/three.js/build/three.min.js');
       }
@@ -335,22 +304,8 @@
       if (state.installing || state.layerAdded || !map.getStyle || !map.getStyle()) return;
       state.installing = true;
       try {
-        const runtime = await ensureRuntime();
+        const { THREE, Potree } = await ensureRuntime();
         if (!map.getStyle || !map.getStyle()) return;
-        if (runtime.sourceViewerOnly) {
-          state.layerAdded = true;
-          state.sourceViewerOnly = true;
-          updateCard(state, 'ORIGINAL LiDAR · EXPLORE THE EMBEDDED SCAN');
-          publish('source-hosted-viewer-only', {
-            attachedMaps: MAPS.size,
-            layerId: LAYER_ID,
-            sourceCorsAvailable: false,
-            sourceViewerUrl: POTREE_BASE + '?vtype=oh3d&doi=90yg-1054',
-            sourceDataEmbeddedOrRedistributed: false
-          });
-          return;
-        }
-        const { THREE, Potree } = runtime;
         if (!map.getLayer(LAYER_ID)) map.addLayer(buildLayer(map, state, THREE, Potree));
         state.layerAdded = true;
         map.on('moveend', () => { if (mapNearScan(map)) startPointCloud(map, state, Potree); map.triggerRepaint(); });
