@@ -279,11 +279,52 @@
     const destination = el('div', '', p.headsign ? 'Destination: ' + p.headsign : 'Destination unavailable in source');
     const report = el('div', '', 'Reported: ' + timeText(p.updatedAt));
     const status = el('div', '', 'Status: ' + (p.currentStatus || 'unavailable'));
+    const sourceSpeed = typeof p.speedMph === 'number' && Number.isFinite(p.speedMph)
+      ? p.speedMph.toFixed(1) + ' mph' : 'not reported / not inferable yet';
+    const speed = el('div', '', 'Speed: ' + sourceSpeed + (p.speedSource ? ' · ' + String(p.speedSource).replace(/_/g, ' ').toLowerCase() : ''));
+    const facing = typeof p.effectiveBearingDegrees === 'number' && Number.isFinite(p.effectiveBearingDegrees)
+      ? Math.round(p.effectiveBearingDegrees) + '° from north'
+      : 'direction unavailable';
+    const heading = el('div', '', 'Heading: ' + facing);
     const freshness = el('div', '', 'Source age: ' + fmt(p.ageSeconds) + ' seconds');
-    [vehicle, destination, report, status, freshness].forEach(node => {
+    [vehicle, destination, report, status, speed, heading, freshness].forEach(node => {
       Object.assign(node.style, { display: 'block', marginTop: '4px', fontSize: '10px' });
     });
-    content.append(title, vehicle, destination, report, status, freshness);
+    content.append(title, vehicle, destination, report, status, speed, heading, freshness);
+
+    const actions = el('div');
+    Object.assign(actions.style, { display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' });
+    const followButton = el('button', '', 'FOLLOW THIS TRAIN');
+    followButton.type = 'button';
+    Object.assign(followButton.style, {
+      border: '1px solid #8ad8e8', borderRadius: '7px', padding: '6px 9px',
+      background: '#123543', color: '#ecfbff', font: '800 10px system-ui,sans-serif', cursor: 'pointer'
+    });
+    followButton.addEventListener('click', () => {
+      const state = MAP_STATE.get(map);
+      if (!state || !p.vehicleId) return;
+      if (state.followVehicleId === p.vehicleId) {
+        state.followVehicleId = null;
+        followButton.textContent = 'FOLLOW THIS TRAIN';
+        setStatus(state, 'Train follow stopped.');
+        return;
+      }
+      state.followVehicleId = p.vehicleId;
+      followButton.textContent = 'STOP FOLLOWING';
+      followButton.style.background = '#174b39';
+      const coords = feature.geometry?.coordinates || event.lngLat.toArray();
+      map.easeTo({
+        center: coords,
+        zoom: Math.max(Number(map.getZoom()) || 0, 14),
+        pitch: Math.max(Number(map.getPitch()) || 0, 48),
+        bearing: typeof p.effectiveBearingDegrees === 'number' ? p.effectiveBearingDegrees : map.getBearing(),
+        duration: 900,
+        essential: true
+      });
+      setStatus(state, 'Following ' + (p.routeName || 'rail') + ' vehicle ' + p.label + ' · camera updates when the source reports a new position.');
+    });
+    actions.appendChild(followButton);
+    content.appendChild(actions);
     try {
       popup = new window.maplibregl.Popup({ closeButton: true, closeOnClick: true, maxWidth: '290px' })
         .setLngLat(event.lngLat)
@@ -514,6 +555,7 @@
       let payload;
       try { payload = JSON.parse(raw); } catch (_) { throw new Error('MBTA response was not valid JSON.'); }
       const snapshot = parseSnapshot(payload, Date.now());
+      enrichVehicleMotion(snapshot, state);
       state.snapshot = snapshot;
       state.lastSuccessAt = Date.now();
       state.lastSourceReportMs = snapshot.newestReportMs || null;
@@ -526,6 +568,7 @@
         setStatus(state, 'SOURCE LIVE · ' + fmt(snapshot.features.length) + ' rail vehicle positions within the 3-minute freshness limit · newest source report ' + (age == null ? 'time unavailable' : age + ' sec old') + '. ' + (forced ? 'Manual refresh complete.' : 'Automatic refresh enabled.'));
       }
       renderState(state, snapshot);
+      followLatestPosition(map, state);
     } catch (error) {
       const stillFresh = pruneExpiredFeatures(map, state);
       const reason = error?.name === 'AbortError' ? 'request timed out after 12 seconds' : safeText(error?.message || error, 150);
@@ -538,6 +581,107 @@
       renderState(state);
       scheduleNext(map, state);
     }
+  }
+
+  function haversineMeters(a, b) {
+    const rad = n => n * Math.PI / 180;
+    const lat1 = rad(a[1]), lat2 = rad(b[1]);
+    const dLat = lat2 - lat1, dLon = rad(b[0] - a[0]);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+    return 6371008.8 * 2 * Math.atan2(Math.sqrt(Math.max(0, h)), Math.sqrt(Math.max(0, 1 - h)));
+  }
+
+  function bearingBetween(a, b) {
+    const rad = n => n * Math.PI / 180;
+    return (Math.atan2(
+      Math.sin(rad(b[0] - a[0])) * Math.cos(rad(b[1])),
+      Math.cos(rad(a[1])) * Math.sin(rad(b[1])) -
+        Math.sin(rad(a[1])) * Math.cos(rad(b[1])) * Math.cos(rad(b[0] - a[0]))
+    ) * 180 / Math.PI + 360) % 360;
+  }
+
+  function enrichVehicleMotion(snapshot, state) {
+    if (!state.motionHistory) state.motionHistory = new Map();
+    const history = state.motionHistory;
+    for (const feature of snapshot.features || []) {
+      const p = feature.properties || {};
+      const id = String(p.vehicleId || '');
+      const coords = feature.geometry?.coordinates;
+      const reportedAt = Date.parse(p.updatedAt || '');
+      if (!id || !Array.isArray(coords) || coords.length < 2 ||
+          !coords.every(Number.isFinite) || !Number.isFinite(reportedAt)) continue;
+      const prior = history.get(id);
+      let inferredSpeedMps = null, inferredBearing = null;
+      if (prior && reportedAt > prior.reportedAt && Array.isArray(prior.coordinates)) {
+        const seconds = (reportedAt - prior.reportedAt) / 1000;
+        const distance = haversineMeters(prior.coordinates, coords);
+        const speed = seconds > 0 ? distance / seconds : NaN;
+        if (seconds >= 1 && seconds <= 600 && Number.isFinite(speed) && speed <= 70) {
+          inferredSpeedMps = speed;
+          if (distance >= 1.5) inferredBearing = bearingBetween(prior.coordinates, coords);
+        }
+      }
+      const sourceSpeed = typeof p.speedMps === 'number' && Number.isFinite(p.speedMps) && p.speedMps >= 0
+        ? p.speedMps : null;
+      const previousDisplaySpeed = prior?.displaySpeedMps ?? null;
+      const selectedSpeed = sourceSpeed !== null ? sourceSpeed
+        : inferredSpeedMps !== null ? inferredSpeedMps
+        : reportedAt === prior?.reportedAt ? previousDisplaySpeed : null;
+      const sourceBearing = typeof p.bearing === 'number' && Number.isFinite(p.bearing) ? p.bearing : null;
+      const effectiveBearing = sourceBearing !== null ? sourceBearing
+        : inferredBearing !== null ? inferredBearing
+        : (reportedAt === prior?.reportedAt ? (prior?.effectiveBearing ?? null) : null);
+
+      p.speedMps = selectedSpeed;
+      p.speedMph = selectedSpeed === null ? null : selectedSpeed * 2.2369362921;
+      p.speedSource = sourceSpeed !== null ? 'MBTA_REPORTED'
+        : inferredSpeedMps !== null ? 'OBSERVED_BETWEEN_SOURCE_REPORTS'
+        : (reportedAt === prior?.reportedAt && previousDisplaySpeed !== null)
+          ? 'RECENT_OBSERVATION' : 'UNAVAILABLE';
+      p.effectiveBearingDegrees = effectiveBearing;
+      p.bearingSource = sourceBearing !== null ? 'MBTA_REPORTED'
+        : inferredBearing !== null ? 'OBSERVED_BETWEEN_SOURCE_REPORTS'
+        : (reportedAt === prior?.reportedAt && effectiveBearing !== null)
+          ? 'RECENT_OBSERVATION' : 'UNAVAILABLE';
+
+      const next = reportedAt > (prior?.reportedAt ?? -Infinity)
+        ? { coordinates: [coords[0], coords[1]], reportedAt, displaySpeedMps: selectedSpeed, effectiveBearing }
+        : prior || { coordinates: [coords[0], coords[1]], reportedAt, displaySpeedMps: selectedSpeed, effectiveBearing };
+      if (prior && reportedAt === prior.reportedAt) {
+        next.displaySpeedMps = selectedSpeed;
+        next.effectiveBearing = effectiveBearing;
+      }
+      history.set(id, next);
+    }
+    if (history.size > 800) {
+      const oldest = [...history.entries()].sort((a, b) => a[1].reportedAt - b[1].reportedAt).slice(0, history.size - 500);
+      for (const [id] of oldest) history.delete(id);
+    }
+  }
+
+  function followLatestPosition(map, state) {
+    if (!state?.followVehicleId || !state.snapshot?.features) return;
+    const feature = state.snapshot.features.find(item => item.properties?.vehicleId === state.followVehicleId);
+    if (!feature) {
+      setStatus(state, 'Following vehicle is temporarily absent from the latest feed; camera lock is retained for its next valid report.');
+      return;
+    }
+    const coords = feature.geometry?.coordinates;
+    if (!Array.isArray(coords) || !coords.every(Number.isFinite)) return;
+    const p = feature.properties || {};
+    const center = map.getCenter?.();
+    const movedMeters = center ? haversineMeters([center.lng, center.lat], coords) : Infinity;
+    if (movedMeters < 12) return;
+    try {
+      map.easeTo({
+        center: coords,
+        zoom: Math.max(Number(map.getZoom()) || 0, 14),
+        pitch: Math.max(Number(map.getPitch()) || 0, 48),
+        bearing: typeof p.effectiveBearingDegrees === 'number' ? p.effectiveBearingDegrees : map.getBearing(),
+        duration: 900,
+        essential: true
+      });
+    } catch (_) {}
   }
 
   async function setEnabled(map, state, enabled) {
@@ -579,7 +723,8 @@
       layersReady: false, layerInteractionsBound: false, timer: null,
       readinessTimer: null, readinessRetries: 0,
       snapshot: { features: [], newestReportMs: 0 }, status: 'Live rail is off.', error: null,
-      lastSuccessAt: null, lastSourceReportMs: null, observerRetries: 0
+      lastSuccessAt: null, lastSourceReportMs: null, observerRetries: 0,
+      motionHistory: new Map(), followVehicleId: null
     };
     MAP_STATE.set(map, state);
     buildUI(map, state);
@@ -627,10 +772,23 @@
           status: state?.status || '',
           featureCount: state?.snapshot?.features?.length || 0,
           lastSuccessAt: state?.lastSuccessAt || null,
-          newestSourceReportAt: state?.lastSourceReportMs || null
+          newestSourceReportAt: state?.lastSourceReportMs || null,
+          followingVehicleId: state?.followVehicleId || null
         };
       });
     },
+    getFeatures(mapId = '') {
+      const entry = [...MAPS].map(map => ({ map, state: MAP_STATE.get(map) }))
+        .find(({ state }) => state && (!mapId || state.container?.id === mapId));
+      return entry ? (entry.state.snapshot?.features || []).map(feature => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [...feature.geometry.coordinates] },
+        properties: { ...feature.properties }
+      })) : [];
+    },
+    enrichVehicleMotion,
+    haversineMeters,
+    bearingBetween,
     parseSnapshot
   };
   window.__BP_LIVE_RAIL_V5969__ = api;
