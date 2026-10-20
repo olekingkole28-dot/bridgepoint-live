@@ -23,6 +23,10 @@ async function diagnostics(page) {
     const maps = worlds.map(w => w.map).filter(m => m && m.getContainer);
     return {
       url: location.href,
+      scriptReferences: [...document.scripts].map(script => script.src).filter(src =>
+        /bridgepoint-(?:live-rail|rail-mesh)-v5973|bridgepoint-live-rail-v5969/.test(src)),
+      loadedModuleResources: performance.getEntriesByType('resource').map(entry => entry.name).filter(url =>
+        /bridgepoint-(?:live-rail|rail-mesh)-v5973|bridgepoint-live-rail-v5969/.test(url)),
       railVersion: rail?.version ?? null,
       meshVersion: mesh?.version ?? null,
       railStates: rail?.getState?.() || [],
@@ -89,7 +93,16 @@ async function diagnostics(page) {
       }
     });
 
-    await page.goto(ORIGIN, { waitUntil: 'domcontentloaded', timeout: WAIT_MS });
+    // GitHub Pages/CDN may temporarily serve the prior HTML after a new deploy.
+    // Disable browser cache and use a unique URL so the smoke measures current wiring,
+    // not a previously cached landing document.
+    const cdp = await page.target().createCDPSession();
+    await cdp.send('Network.enable');
+    await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
+    await page.setExtraHTTPHeaders({ 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' });
+    const freshUrl = new URL(ORIGIN);
+    freshUrl.searchParams.set('bprailsmoke', String(Date.now()) + '-' + (process.env.GITHUB_RUN_ID || 'local'));
+    await page.goto(freshUrl.toString(), { waitUntil: 'domcontentloaded', timeout: WAIT_MS });
     await page.waitForFunction(() => {
       const rail = window.__BP_LIVE_RAIL_V5969__;
       const mesh = window.__BP_RAIL_MESH_V5973__;
