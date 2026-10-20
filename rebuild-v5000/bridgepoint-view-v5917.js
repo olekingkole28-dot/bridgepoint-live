@@ -646,7 +646,7 @@ async function openRealWorldEffects(initialWind=false){
 async function openVolumetricFields(initialWind=false){
  const world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  if(!world?.map)throw new Error('BridgePoint globe not ready');
- const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=5988-terrain-wind-lift');
+ const mod=await import('./bridgepoint-volumetric-fields-v5978.js?v=5989-roof-collision-and-wake');
  const api=mod.initBridgePointVolumetricFields(world);api?.open?.();
  if(initialWind)await api?.setWind?.(true);
 }

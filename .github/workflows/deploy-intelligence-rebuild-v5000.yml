@@ -831,7 +831,8 @@ jobs:
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=5982-mobile-controls-resilient' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=5982-mobile-controls-resilient' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=5988-terrain-wind-lift' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=5989-roof-collision-and-wake' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=5989-roof-collision-and-wake' site/app/index.html
           grep -Fq 'bridgepoint-view-v5917.js?v=5988-terrain-wind-lift' site/app/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=5982-mobile-controls-resilient' site/index.html
           grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/index.html
