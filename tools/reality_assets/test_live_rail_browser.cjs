@@ -174,7 +174,7 @@ async function diagnostics(page) {
       } catch (_) {
         return false;
       }
-    }, { timeout: 12000 }, panelInfo.mapId);
+    }, { timeout: 25000, polling: 500 }, panelInfo.mapId);
 
     const after = await diagnostics(page);
     const state = after.states.find(s => s.enabled && s.lastSuccessAt && s.featureCount > 0);
