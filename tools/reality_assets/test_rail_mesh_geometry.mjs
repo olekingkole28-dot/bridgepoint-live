@@ -65,16 +65,22 @@ const renderedRail = {
   geometry: { type: 'LineString', coordinates: [[-71.08, 42.34], [-71.07, 42.35], [-71.06, 42.36]] },
   properties: { class: 'primary', subclass: 'road' }
 };
+const railLayers = [
+  { id: 'gta-rail', type: 'line', source: 'ofm', 'source-layer': 'transportation', layout: { visibility: 'none' } },
+  { id: 'gta-rail-ballast', type: 'line', source: 'ofm', 'source-layer': 'transportation', layout: { visibility: 'visible' } },
+  { id: 'gta-rail-ties', type: 'line', source: 'ofm', 'source-layer': 'transportation', layout: { visibility: 'visible' } },
+  { id: 'gta-rail-steel', type: 'line', source: 'ofm', 'source-layer': 'transportation', layout: { visibility: 'visible' } }
+];
 const fakeMap = {
   getContainer: () => ({ id: 'test-map' }),
   getSource: id => id === 'ofm' ? {} : null,
-  getStyle: () => ({
-    layers: [{ id: 'gta-rail', type: 'line', source: 'ofm', 'source-layer': 'transportation' }]
-  }),
-  getLayer: id => id === 'gta-rail' ? { id: 'gta-rail' } : null,
-  getLayoutProperty: () => 'visible',
+  getStyle: () => ({ layers: railLayers }),
+  getLayer: id => railLayers.find(layer => layer.id === id) || null,
+  getLayoutProperty: (id, key) => railLayers.find(layer => layer.id === id)?.layout?.[key],
   querySourceFeatures: () => [],
-  queryRenderedFeatures: query => query?.layers?.includes('gta-rail') ? [renderedRail] : []
+  // The base gta-rail style is hidden. The visible detail layers carry the railway filter.
+  queryRenderedFeatures: query => query?.layers?.some(id =>
+    ['gta-rail-ballast', 'gta-rail-ties', 'gta-rail-steel'].includes(id)) ? [renderedRail] : []
 };
 const railState = { cachedRailFeatures: [] };
 const tracks = api.sourceRailFeatures(fakeMap, railState);
@@ -83,6 +89,8 @@ assert.equal(railState.cachedRailFeatures.length, 1, 'captured line geometry sho
 assert.equal(tracks[0].coordinates.length, 3);
 assert.equal(railState.railSourceDiagnostics.lineFeatureCount, 1);
 assert.equal(railState.railSourceDiagnostics.cachedRenderedRailFeatures, 1);
+assert.ok(railState.railSourceDiagnostics.capturedRailLayerIds.includes('gta-rail-ballast'),
+  'visible GTA rail-detail layer should be the source of captured track geometry when base gta-rail is hidden');
 assert.equal(railState.railSourceDiagnostics.sample[0].class, 'primary',
   'a line returned by the explicit gta-rail style is trusted even if tile tags vary');
 const emptyMap = {
