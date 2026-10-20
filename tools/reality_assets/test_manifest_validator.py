@@ -61,7 +61,7 @@ class RealityAssetManifestTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             asset = valid_asset()
             asset["modelUrl"] = "https://example.org/mesh.glb"
-            with self.assertRaisesRegex(ValueError, "same-origin"):
+            with self.assertRaisesRegex(ValueError, "below /assets/reality-assets/"):
                 validate_manifest_data({"schemaVersion": 1, "assets": [asset]}, Path(tmp))
 
     def test_path_traversal_is_rejected(self):
