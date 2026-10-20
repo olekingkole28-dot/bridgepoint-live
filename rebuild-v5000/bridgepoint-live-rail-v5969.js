@@ -140,6 +140,8 @@
           headsign,
           routeColor: routeColor(ra.color, routeId),
           routeType: Number(ra.type),
+          carCount: Number.isInteger(Number(a.car_count || a.cars || vehicle.attributes?.car_count)) && Number(a.car_count || a.cars || vehicle.attributes?.car_count) > 0
+            ? Math.min(12, Number(a.car_count || a.cars || vehicle.attributes?.car_count)) : null,
           bearing: Number.isFinite(bearing) ? bearing : null,
           speedMps: Number.isFinite(speed) && speed >= 0 ? speed : null,
           currentStatus: safeText(a.current_status || 'STATUS UNAVAILABLE', 40),
