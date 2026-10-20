@@ -6,6 +6,9 @@ on:
     paths:
       - "rebuild-v5000/bridgepoint-reality-assets-v5968.js"
       - "rebuild-v5000/bridgepoint-live-rail-v5969.js"
+      - "rebuild-v5000/bridgepoint-rail-mesh-v5973.js"
+      - "tools/reality_assets/test_live_rail.mjs"
+      - "tools/reality_assets/test_rail_mesh_geometry.mjs"
       - "rebuild-v5000/assets/reality-assets/**"
       - "tools/reality_assets/**"
       - ".github/workflows/validate-reality-assets-v5968.yml"
@@ -42,5 +45,9 @@ jobs:
         run: node --check rebuild-v5000/bridgepoint-live-rail-v5969.js
       - name: Test live rail source normalization
         run: node tools/reality_assets/test_live_rail.mjs
+      - name: Check 3D rail mesh module syntax
+        run: node --check rebuild-v5000/bridgepoint-rail-mesh-v5973.js
+      - name: Test 3D rail geometry and terrain anchors
+        run: node tools/reality_assets/test_rail_mesh_geometry.mjs
       - name: Check whitespace/errors
         run: git diff --check

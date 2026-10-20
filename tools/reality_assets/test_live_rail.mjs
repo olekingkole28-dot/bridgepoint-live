@@ -103,9 +103,36 @@ assert.equal(snapshot.features[0].properties.source, 'MBTA_V3_API');
 const empty = api.parseSnapshot({ data: [], included: [] }, now);
 assert.equal(empty.features.length, 0, 'empty source result stays empty; no placeholders are created');
 
+// Motion is derived only across distinct, timestamped source reports; no simulated speed.
+const motionState = { motionHistory: new Map() };
+const t1 = Date.parse('2026-10-19T20:59:00Z');
+const t2 = Date.parse('2026-10-19T20:59:30Z');
+const makeFeature = (longitude, updatedAt) => ({
+  type: 'Feature',
+  geometry: { type: 'Point', coordinates: [longitude, 42.36] },
+  properties: {
+    vehicleId: 'B-motion-1',
+    updatedAt: new Date(updatedAt).toISOString(),
+    speedMps: null,
+    bearing: null
+  }
+});
+const firstMotion = { features: [makeFeature(-71.060, t1)] };
+api.enrichVehicleMotion(firstMotion, motionState);
+assert.equal(firstMotion.features[0].properties.speedMph, null, 'no prior report means no inferred speed');
+const secondMotion = { features: [makeFeature(-71.059, t2)] };
+api.enrichVehicleMotion(secondMotion, motionState);
+assert.ok(secondMotion.features[0].properties.speedMph > 4 &&
+  secondMotion.features[0].properties.speedMph < 10, 'timestamped displacement should yield a plausible measured mph value');
+assert.equal(secondMotion.features[0].properties.speedSource, 'OBSERVED_BETWEEN_SOURCE_REPORTS');
+assert.ok(Math.abs(secondMotion.features[0].properties.effectiveBearingDegrees - 90) < 3,
+  'observed eastbound movement should yield eastbound heading');
+assert.equal(api.getFeatures('no-such-map').length, 0);
+assert.equal(api.setDisplayMode('no-such-map', 'mesh'), false, 'mesh mode only applies to an attached map');
+
 assert.throws(
   () => api.parseSnapshot({ included: [] }, now),
   /expected JSON:API vehicle format/
 );
 
-console.log('Live rail data tests passed.');
+console.log('Live rail data and motion tests passed.');
