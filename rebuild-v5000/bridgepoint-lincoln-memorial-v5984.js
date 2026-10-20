@@ -35,68 +35,8 @@
     '.bp-lincoln-popup-v5984 strong{display:block;font-size:14px;margin-bottom:5px}',
     '.bp-lincoln-popup-v5984 p{margin:5px 0;color:#4a5660}',
     '.bp-lincoln-popup-v5984 a{display:block;margin-top:8px;padding:9px 10px;border-radius:8px;text-align:center;text-decoration:none;font-weight:800;background:#173c51;color:#fff}'
-    '.bp-lincoln-popup-v5984 button{display:block;width:100%;margin-top:8px;padding:10px;border:0;border-radius:8px;text-align:center;text-decoration:none;font:800 12px/1.3 system-ui,sans-serif;background:#173c51;color:#fff;cursor:pointer}',
-    '#bp-lincoln-scan-modal-v5984{position:fixed;inset:0;z-index:2147483646;display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:#02080c;color:#edfaff;font:12px/1.4 system-ui,sans-serif}',
-    '#bp-lincoln-scan-modal-v5984[hidden]{display:none!important}',
-    '#bp-lincoln-scan-modal-v5984 .bp-lincoln-modal-head-v5984{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:rgba(5,15,23,.98);border-bottom:1px solid rgba(106,225,255,.28);min-height:56px}',
-    '#bp-lincoln-scan-modal-v5984 .bp-lincoln-modal-head-v5984 b{display:block;color:#f6fbff;font-size:12px;letter-spacing:.03em}',
-    '#bp-lincoln-scan-modal-v5984 .bp-lincoln-modal-head-v5984 small{display:block;margin-top:3px;color:#9fb9c8;font-size:10px;font-weight:500}',
-    '#bp-lincoln-scan-modal-v5984 .bp-lincoln-close-v5984{flex:0 0 auto;padding:10px 12px;border:1px solid rgba(141,218,244,.35);border-radius:9px;background:#133246;color:#f4fbff;font:800 11px/1.2 system-ui,sans-serif;cursor:pointer}',
-    '#bp-lincoln-scan-modal-v5984 iframe{display:block;width:100%;height:100%;min-height:0;border:0;background:#02080c}',
-    '#bp-lincoln-scan-modal-v5984 .bp-lincoln-modal-credit-v5984{padding:6px 12px;background:#07111a;color:#9db9c8;font-size:10px}',
-    '@media(max-width:600px){#bp-lincoln-scan-modal-v5984 .bp-lincoln-modal-head-v5984{padding:8px;gap:6px}#bp-lincoln-scan-modal-v5984 .bp-lincoln-modal-head-v5984 b{font-size:10px}#bp-lincoln-scan-modal-v5984 .bp-lincoln-modal-head-v5984 small{font-size:9px}#bp-lincoln-scan-modal-v5984 .bp-lincoln-close-v5984{padding:9px 8px;font-size:10px;max-width:112px}}'
   ].join('');
   document.head.appendChild(css);
-
-  function ensureScanModal() {
-    let modal = document.getElementById('bp-lincoln-scan-modal-v5984');
-    if (modal) return modal;
-    modal = document.createElement('section');
-    modal.id = 'bp-lincoln-scan-modal-v5984';
-    modal.hidden = true;
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('aria-label', 'Original Lincoln Memorial LiDAR scan');
-    modal.innerHTML =
-      '<header class="bp-lincoln-modal-head-v5984">' +
-        '<div><b>LINCOLN MEMORIAL · ORIGINAL TERRESTRIAL LiDAR</b>' +
-        '<small>CyArk / DJS Associates · seated Lincoln, interior, exterior and roof survey layers</small></div>' +
-        '<button class="bp-lincoln-close-v5984" type="button">RETURN TO WORLD ✕</button>' +
-      '</header>' +
-      '<iframe title="Original Lincoln Memorial laser scan viewer" loading="eager" allow="fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" src="about:blank"></iframe>' +
-      '<footer class="bp-lincoln-modal-credit-v5984">Original scan streamed from Open Heritage 3D · DOI 10.26301/90yg-1054 · CC BY-NC-SA 4.0 · data remains on the source host.</footer>';
-    document.body.appendChild(modal);
-    const frame = modal.querySelector('iframe');
-    const close = () => {
-      modal.hidden = true;
-      if (frame) frame.src = 'about:blank';
-      modal.__bpPrevOverflow = null;
-      document.documentElement.style.overflow = '';
-      try { modal.__bpOpener && modal.__bpOpener.focus && modal.__bpOpener.focus(); } catch (_) {}
-    };
-    modal.querySelector('.bp-lincoln-close-v5984')?.addEventListener('click', close);
-    modal.__bpClose = close;
-    document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && !modal.hidden) close();
-    });
-    return modal;
-  }
-
-  function openScanViewer() {
-    const modal = ensureScanModal();
-    const frame = modal.querySelector('iframe');
-    modal.__bpOpener = document.activeElement;
-    modal.__bpPrevOverflow = document.documentElement.style.overflow;
-    document.documentElement.style.overflow = 'hidden';
-    modal.hidden = false;
-    if (frame && frame.getAttribute('src') === 'about:blank') frame.src = VIEWER_URL;
-    publish('embedded-source-scan-open', {
-      embeddedViewerInBridgePoint: true,
-      sourceDataEmbeddedOrRedistributed: false,
-      sourceViewerUrl: VIEWER_URL,
-      scanPointCount: 665663299
-    });
-  }
 
   function foundMaps() {
     const worlds = [
@@ -180,9 +120,9 @@
       chip = document.createElement('div');
       chip.className = 'bp-lincoln-scan-chip-v5984';
       chip.innerHTML =
-        '<span><b>LINCOLN MEMORIAL · REAL LiDAR</b><small>Explore the source scan without leaving BridgePoint</small></span>' +
+        '<span><b>LINCOLN MEMORIAL · REAL LiDAR</b><small>Focus the globe or explore the interior and seated Lincoln in the source scan</small></span>' +
         '<button type="button" class="bp-lincoln-focus-v5984">FOCUS MAP</button>' +
-        '<button type="button" class="bp-lincoln-open-scan-v5984">EXPLORE LiDAR ↗</button>';
+        '<a href="' + VIEWER_URL + '" target="_blank" rel="noopener noreferrer">OPEN SCAN ↗</a>';
       container.appendChild(chip);
     }
     const focusButton = chip.querySelector('.bp-lincoln-focus-v5984');
@@ -200,14 +140,10 @@
         }
       });
     }
-    const scanButton = chip.querySelector('.bp-lincoln-open-scan-v5984');
-    if (scanButton && scanButton.dataset.bound !== 'true') {
-      scanButton.dataset.bound = 'true';
-      scanButton.addEventListener('click', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        openScanViewer();
-      });
+    const scanLink = chip.querySelector('a[href]');
+    if (scanLink && scanLink.dataset.bound !== 'true') {
+      scanLink.dataset.bound = 'true';
+      scanLink.addEventListener('click', event => event.stopPropagation());
     }
     state.chip = chip;
   }
@@ -225,14 +161,11 @@
     info.textContent = 'CyArk and DJS Associates terrestrial LiDAR, captured April 28–May 1, 2014. The source-hosted point cloud includes the interior chamber and seated Lincoln statue.';
     const license = document.createElement('p');
     license.textContent = 'Open Heritage 3D · 11.36 GB source dataset · CC BY-NC-SA 4.0.';
-    const link = document.createElement('button');
-    link.type = 'button';
-    link.textContent = 'EXPLORE ORIGINAL INTERIOR + LINCOLN LiDAR ↗';
-    link.addEventListener('click', event => {
-      event.preventDefault();
-      event.stopPropagation();
-      openScanViewer();
-    });
+    const link = document.createElement('a');
+    link.href = VIEWER_URL;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'OPEN INTERIOR + LINCOLN LASER SCAN ↗';
     root.append(title, info, license, link);
     new window.maplibregl.Popup({ closeButton: true, closeOnClick: true, maxWidth: '300px' })
       .setLngLat(LOCATION).setDOMContent(root).addTo(map);
