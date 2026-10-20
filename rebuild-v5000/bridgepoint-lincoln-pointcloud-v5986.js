@@ -311,6 +311,12 @@
         state.Potree = Potree;
         state.gl = gl;
         state.scene = new THREE.Scene();
+        // MapLibre rebuilds custom layers when the basemap style changes. Preserve the cached octree
+        // and reattach it to the fresh scene so a stale global status cannot mask a missing scan.
+        if (state.cloud) {
+          state.cloud.visible = mapNearScan(mapRef);
+          state.scene.add(state.cloud);
+        }
         // Potree clones the camera and calls updateProjectionMatrix while building its point-cloud frustum.
         // Use a PerspectiveCamera (not the base THREE.Camera, which has no updateProjectionMatrix method).
         state.camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1e12);
@@ -384,28 +390,40 @@
         }
       },
       onRemove() {
+        try { state.cloud?.parent?.remove(state.cloud); } catch (_) {}
+        try { state.potreeRenderer?.dispose?.(); } catch (_) {}
         try { state.renderer?.dispose(); } catch (_) {}
+        state.renderer = null;
+        state.potreeRenderer = null;
+        state.gl = null;
+        state.scene = null;
+        state.camera = null;
+        state.layerAdded = false;
+        // Keep state.cloud and its loaded octree nodes for restoration by the next onAdd.
       }
     };
   }
 
   async function attach(map) {
     if (!map || STATES.has(map)) return;
-    const state = { map, installing: false, layerAdded: false, loadPromise: false, cloud: null, scene: null, camera: null, renderer: null, statusText: '' };
+    const state = { map, installing: false, layerAdded: false, eventsBound: false, loadPromise: false, cloud: null, scene: null, camera: null, renderer: null, statusText: '' };
     STATES.set(map, state);
     MAPS.add(map);
     const install = async () => {
-      if (state.installing || state.layerAdded || !map.getStyle || !map.getStyle()) return;
+      if (state.installing || !map.getStyle || !map.getStyle()) return;
       state.installing = true;
       try {
         const { THREE, Potree } = await ensureRuntime();
         if (!map.getStyle || !map.getStyle()) return;
         if (!map.getLayer(LAYER_ID)) map.addLayer(buildLayer(map, state, THREE, Potree));
-        state.layerAdded = true;
-        map.on('moveend', () => { if (mapNearScan(map)) startPointCloud(map, state, Potree); map.triggerRepaint(); });
-        map.on('zoomend', () => { if (mapNearScan(map)) startPointCloud(map, state, Potree); map.triggerRepaint(); });
+        state.layerAdded = !!map.getLayer(LAYER_ID);
+        if (!state.eventsBound) {
+          map.on('moveend', () => { if (mapNearScan(map)) startPointCloud(map, state, Potree); map.triggerRepaint(); });
+          map.on('zoomend', () => { if (mapNearScan(map)) startPointCloud(map, state, Potree); map.triggerRepaint(); });
+          state.eventsBound = true;
+        }
         if (mapNearScan(map)) startPointCloud(map, state, Potree);
-        publish('layer-attached', { attachedMaps: MAPS.size, layerId: LAYER_ID });
+        publish('layer-attached', { attachedMaps: MAPS.size, layerId: LAYER_ID, layerPresent: !!map.getLayer(LAYER_ID) });
       } catch (error) {
         publish('layer-install-error', { detail: String(error && error.message || error) });
         console.warn('BridgePoint Lincoln point-cloud install', error);

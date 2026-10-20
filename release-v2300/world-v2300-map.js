@@ -998,7 +998,8 @@ export function initWorld(options={}){
   vis(map,'gta-exact-floor-lines',exactReady&&floors&&!cityReady);
   vis(map,'gta-exact-roof',exactReady&&!cityReady);
   vis(map,'gta-building-outline',exactReady&&!cityReady);
-  const closeRealism=realismOn&&detailSettled&&z>=(MOBILE?17.25:16.75);
+  const autoDetailOn=detailSettled&&z>=(MOBILE?15.8:15.2),detailModeOn=realismOn||autoDetailOn;
+  const closeRealism=detailModeOn&&detailSettled&&z>=(MOBILE?17.25:16.15);
   const realismSource=bpReady?'bp':(exactReady&&!cityReady?'exact':'context');
   for(const id of [
    'gta-context-building-shadow','gta-context-facade-detail','gta-context-building-parts','gta-context-night-windows',
@@ -1006,7 +1007,7 @@ export function initWorld(options={}){
    'gta-exact-building-shadow','gta-exact-facade-detail','gta-exact-night-windows'
   ]){
    let show=false;
-   if(realismOn&&detailSettled){
+   if(detailModeOn&&detailSettled){
     if(id==='gta-context-building-shadow')show=realismSource==='context'&&z>=11.2;
     else if(id==='gta-bp-building-shadow')show=realismSource==='bp'&&z>=11.4;
     else if(id==='gta-exact-building-shadow')show=realismSource==='exact'&&z>=DETAIL_MIN;
