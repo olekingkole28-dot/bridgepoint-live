@@ -99,10 +99,7 @@
           'text-anchor': 'top',
           'text-offset': [0, 1.3],
           'text-max-width': 15,
-          'text-allow-overlap': false,
-          'icon-image': 'marker-15',
-          'icon-size': 1.0,
-          'icon-allow-overlap': false
+          'text-allow-overlap': false
         },
         paint: {
           'text-color': '#ffe6b4',
