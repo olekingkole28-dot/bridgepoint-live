@@ -375,7 +375,7 @@
       focus.title = 'Move the map to the MBTA rail network in Boston';
       focus.addEventListener('click', () => {
         try {
-          map.easeTo({ center: [-71.0589, 42.3601], zoom: Math.max(Number(map.getZoom()) || 0, 12.2), pitch: Math.max(Number(map.getPitch()) || 0, 32), duration: 850, essential: true });
+          map.easeTo({ center: [-71.0589, 42.3601], zoom: Math.max(Math.min(Number(map.getZoom()) || 0, 14), 12.2), pitch: Math.max(Number(map.getPitch()) || 0, 32), duration: 850, essential: true });
           setStatus(state, state.enabled ? 'Focusing on the MBTA network · source updates remain enabled.' : 'Focused on Boston · enable live rail to request MBTA positions.');
         } catch (_) {
           setStatus(state, 'Could not move the map to the MBTA coverage area.', true);
