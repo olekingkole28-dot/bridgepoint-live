@@ -54,4 +54,43 @@ const north = api.localPoint([-71.0589, 42.361], [-71.0589, 42.36], 7, 7);
 assert.ok(north.z < 0, 'northward movement should map to negative Three.js local z');
 assert.equal(north.y, 0);
 
-console.log('Rail geometry and terrain-anchor tests passed.');
+// Reproduce the important browser fallback: the existing gta-rail style layer has
+// rendered real line geometry, even if querySourceFeatures returns no rail tiles at
+// that instant. The materializer must capture and use that geometry, never invent a route.
+const renderedRail = {
+  id: 144,
+  type: 'Feature',
+  source: 'ofm',
+  sourceLayer: 'transportation',
+  geometry: { type: 'LineString', coordinates: [[-71.08, 42.34], [-71.07, 42.35], [-71.06, 42.36]] },
+  properties: { class: 'primary', subclass: 'road' }
+};
+const fakeMap = {
+  getContainer: () => ({ id: 'test-map' }),
+  getSource: id => id === 'ofm' ? {} : null,
+  getStyle: () => ({
+    layers: [{ id: 'gta-rail', type: 'line', source: 'ofm', 'source-layer': 'transportation' }]
+  }),
+  getLayer: id => id === 'gta-rail' ? { id: 'gta-rail' } : null,
+  getLayoutProperty: () => 'visible',
+  querySourceFeatures: () => [],
+  queryRenderedFeatures: query => query?.layers?.includes('gta-rail') ? [renderedRail] : []
+};
+const railState = { cachedRailFeatures: [] };
+const tracks = api.sourceRailFeatures(fakeMap, railState);
+assert.equal(tracks.length, 1, 'style-rendered railway geometry should be captured when source query is empty');
+assert.equal(railState.cachedRailFeatures.length, 1, 'captured line geometry should be cached for the mesh build');
+assert.equal(tracks[0].coordinates.length, 3);
+assert.equal(railState.railSourceDiagnostics.lineFeatureCount, 1);
+assert.equal(railState.railSourceDiagnostics.cachedRenderedRailFeatures, 1);
+assert.equal(railState.railSourceDiagnostics.sample[0].class, 'primary',
+  'a line returned by the explicit gta-rail style is trusted even if tile tags vary');
+const emptyMap = {
+  ...fakeMap,
+  queryRenderedFeatures: () => [],
+  querySourceFeatures: () => []
+};
+const emptyTracks = api.sourceRailFeatures(emptyMap, { cachedRailFeatures: [] });
+assert.equal(emptyTracks.length, 0, 'no rail geometry must remain empty rather than synthesize tracks');
+
+console.log('Rail geometry, terrain anchors, and rendered-source fallback tests passed.');
