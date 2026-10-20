@@ -99,7 +99,9 @@ async function diagnostics(page) {
     const cdp = await page.target().createCDPSession();
     await cdp.send('Network.enable');
     await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
-    await page.setExtraHTTPHeaders({ 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' });
+    // Do not set Cache-Control/Pragma as global extra headers: those non-safelisted
+    // headers also go to api-v3.mbta.com and can force a failed cross-origin preflight.
+    // Network.setCacheDisabled + a unique homepage query is enough for this HTML check.
     const freshUrl = new URL(ORIGIN);
     freshUrl.searchParams.set('bprailsmoke', String(Date.now()) + '-' + (process.env.GITHUB_RUN_ID || 'local'));
     await page.goto(freshUrl.toString(), { waitUntil: 'domcontentloaded', timeout: WAIT_MS });
