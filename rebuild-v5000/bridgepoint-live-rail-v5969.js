@@ -207,7 +207,16 @@
 
   function ensureLayers(map, state) {
     let ready = false;
-    try { ready = map.isStyleLoaded?.() === true; } catch (_) {}
+    try {
+      // BridgePoint's live style can report not-fully-loaded while its authoritative
+      // OpenFreeMap source is already installed. Use the same source-backed readiness
+      // gate as the existing V2300 renderer, with a guarded style-layer fallback.
+      ready = map.isStyleLoaded?.() === true || !!map.getSource?.('ofm');
+      if (!ready) {
+        const style = map.getStyle?.();
+        ready = Array.isArray(style?.layers) && style.layers.length > 0;
+      }
+    } catch (_) {}
     if (!ready) return false;
 
     try {
@@ -359,7 +368,20 @@
       const refreshWrap = el('div');
       refreshWrap.style.display = 'flex';
       refreshWrap.style.justifyContent = 'flex-end';
-      refreshWrap.appendChild(refresh);
+      refreshWrap.style.flexWrap = 'wrap';
+      refreshWrap.style.gap = '6px';
+      const focus = el('button', 'bp-lr-refresh', 'Focus MBTA Coverage');
+      focus.type = 'button';
+      focus.title = 'Move the map to the MBTA rail network in Boston';
+      focus.addEventListener('click', () => {
+        try {
+          map.easeTo({ center: [-71.0589, 42.3601], zoom: Math.max(Math.min(Number(map.getZoom()) || 0, 14), 12.2), pitch: Math.max(Number(map.getPitch()) || 0, 32), duration: 850, essential: true });
+          setStatus(state, state.enabled ? 'Focusing on the MBTA network · source updates remain enabled.' : 'Focused on Boston · enable live rail to request MBTA positions.');
+        } catch (_) {
+          setStatus(state, 'Could not move the map to the MBTA coverage area.', true);
+        }
+      });
+      refreshWrap.append(focus, refresh);
 
       const note = el('p', 'bp-lr-note', 'Coverage is limited to the MBTA network. Positions are not universal U.S. or global train coverage, and a reported position can be delayed. A blank feed is never replaced by a simulated vehicle.');
       const attribution = document.createElement('a');
@@ -439,12 +461,38 @@
     return features.length;
   }
 
+  function scheduleStyleRetry(map, state) {
+    if (!state.enabled || state.loading) return;
+    if (state.readinessRetries >= 30) {
+      setStatus(state, 'The map style is still initializing. The layer will retry on the next style event; use Focus MBTA Coverage or toggle LIVE RAIL off and on later.', true);
+      return;
+    }
+    clearTimeout(state.readinessTimer);
+    state.readinessRetries++;
+    state.readinessTimer = setTimeout(() => {
+      state.readinessTimer = null;
+      if (!state.enabled || state.loading) return;
+      if (ensureLayers(map, state)) {
+        state.readinessRetries = 0;
+        setVisibility(map, true);
+        setStatus(state, 'Map style ready · requesting source-backed MBTA rail positions…');
+        void fetchVehicles(map, state, false);
+      } else {
+        scheduleStyleRetry(map, state);
+      }
+    }, 800);
+  }
+
   async function fetchVehicles(map, state, forced) {
     if (!state.enabled || state.loading) return;
     if (!ensureLayers(map, state)) {
-      setStatus(state, 'Map style is not ready; the rail layer will retry after the map finishes loading.');
+      setStatus(state, 'Map style is not ready; retrying layer setup without requesting the feed yet.');
+      scheduleStyleRetry(map, state);
       return;
     }
+    clearTimeout(state.readinessTimer);
+    state.readinessTimer = null;
+    state.readinessRetries = 0;
     state.loading = true;
     renderState(state);
     setStatus(state, 'Requesting the MBTA source feed…');
@@ -496,18 +544,23 @@
     state.enabled = !!enabled;
     if (state.checkbox) state.checkbox.checked = state.enabled;
     if (!ensureLayers(map, state)) {
-      setStatus(state, 'Map style is not ready; wait for map initialization and try again.');
-      state.enabled = false;
-      if (state.checkbox) state.checkbox.checked = false;
+      setStatus(state, 'Map style is initializing; the layer will retry automatically when ready.');
+      scheduleStyleRetry(map, state);
       renderState(state);
       return;
     }
+    clearTimeout(state.readinessTimer);
+    state.readinessTimer = null;
+    state.readinessRetries = 0;
     setVisibility(map, state.enabled);
     if (state.enabled) {
       if (state.refreshButton) state.refreshButton.disabled = false;
       await fetchVehicles(map, state, true);
     } else {
       clearTimeout(state.timer);
+      clearTimeout(state.readinessTimer);
+      state.readinessTimer = null;
+      state.readinessRetries = 0;
       state.snapshot = state.snapshot || { features: [], newestReportMs: 0 };
       setStatus(state, 'Live rail paused. No additional feed requests will be made until enabled again.');
       if (state.refreshButton) state.refreshButton.disabled = true;
@@ -524,6 +577,7 @@
     const state = {
       version: VERSION, map, container, safeId, enabled: false, loading: false,
       layersReady: false, layerInteractionsBound: false, timer: null,
+      readinessTimer: null, readinessRetries: 0,
       snapshot: { features: [], newestReportMs: 0 }, status: 'Live rail is off.', error: null,
       lastSuccessAt: null, lastSourceReportMs: null, observerRetries: 0
     };
@@ -532,8 +586,13 @@
 
     const ready = () => {
       if (ensureLayers(map, state)) {
+        clearTimeout(state.readinessTimer);
+        state.readinessTimer = null;
+        state.readinessRetries = 0;
         setVisibility(map, state.enabled);
         if (state.enabled && !state.loading) void fetchVehicles(map, state, false);
+      } else if (state.enabled) {
+        scheduleStyleRetry(map, state);
       }
     };
     map.on('style.load', ready);
@@ -541,6 +600,7 @@
     if (map.isStyleLoaded?.()) ready();
     map.on('remove', () => {
       clearTimeout(state.timer);
+      clearTimeout(state.readinessTimer);
       if (popup) { try { popup.remove(); } catch (_) {} popup = null; }
       setVisibility(map, false);
     });
