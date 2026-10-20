@@ -50,6 +50,7 @@ jobs:
           set -euxo pipefail
           node --check rebuild-v5000/bridgepoint-reality-assets-v5968.js
           node --check rebuild-v5000/bridgepoint-volumetric-fields-v5978.js
+          node --check rebuild-v5000/bridgepoint-realworld-effects-v5927.js
           node --check rebuild-v5000/bridgepoint-view-v5917.js
           node --check rebuild-v5000/bridgepoint-live-rail-v5969.js
           node tools/reality_assets/test_live_rail.mjs
@@ -353,7 +354,7 @@ jobs:
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
           grep -Fq 'world-v2300-clouds.js?v=5908-game-clouds' site/app.js
-          grep -Fq 'world-v2300-time-slider.js?v=5934-world-controls' site/app.js
+          grep -Fq 'world-v2300-time-slider.js?v=5981-bottom-dock-fix' site/app.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
@@ -370,8 +371,8 @@ jobs:
           grep -Fq 'US_Electric_Power_Transmission_Lines' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'STRUCHT' site/world-v2300-infrastructure-volume-v5962.js
           grep -Fq 'catenary' site/world-v2300-infrastructure-volume-v5962.js
-          grep -Fq 'world-v2300-sensor-layers.js?v=5945-coastal-dive' site/app.js
-          grep -Fq 'world-v2300-sensor-layers.js?v=5945-coastal-dive' site/landing.js
+          grep -Fq 'world-v2300-sensor-layers.js?v=5981-nasa-nightlights-state' site/app.js
+          grep -Fq 'world-v2300-sensor-layers.js?v=5981-nasa-nightlights-state' site/landing.js
           grep -Fq 'bridgepoint-gebco-depth-image-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'bridgepoint-nasa-nightlights-v5937' site/world-v2300-sensor-layers.js
           grep -Fq 'streetlight_poles' site/world-v2300-sensor-layers.js
@@ -777,8 +778,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=5965-landmarks-and-effects' site/app/index.html
-          grep -Fq 'landing.js?v=5965-landmarks-and-effects' site/index.html
+          grep -Fq 'app.js?v=5981-mobile-controls' site/app/index.html
+          grep -Fq 'landing.js?v=5981-mobile-controls' site/index.html
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/app.js
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/landing.js
            grep -Fq 'world-v2300-map.js?v=5947-bridge-ground-join' site/index.html
@@ -789,10 +790,10 @@ jobs:
           test -s site/vendor/maplibre-gl.js
           test -s site/vendor/maplibre-gl.css
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=5978-volumetric-fields' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=5942-centered-dock' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=5981-bottom-controls-card' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=5981-bottom-controls-card' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=5981-weather-dock-fix' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=5981-bottom-controls-card' site/index.html
           grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/index.html
            grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
