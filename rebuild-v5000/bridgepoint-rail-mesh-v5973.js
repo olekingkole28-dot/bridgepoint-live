@@ -650,7 +650,7 @@
           ctx.fillStyle = '#ffffff';
           ctx.shadowColor = 'rgba(0,0,0,.95)';
           ctx.shadowBlur = 3;
-          let label = String((train.routeName || 'RAIL') + ' • ' + (train.headsign || train.label || train.id || '')).replace(/\\s+/g, ' ').trim();
+          let label = String((train.routeName || 'RAIL') + ' • ' + (train.headsign || train.label || train.id || '')).replace(/\s+/g, ' ').trim();
           while (label.length > 4 && ctx.measureText(label).width > 472) label = label.slice(0, -2) + '…';
           ctx.fillText(label, 22, y + 16);
           ctx.shadowBlur = 0;
