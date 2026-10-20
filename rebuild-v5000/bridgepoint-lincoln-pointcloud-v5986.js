@@ -111,6 +111,7 @@
       if (!window.Potree) runtimeMissing.push('Potree');
       if (window.Potree && !window.Potree.loadPointCloud) runtimeMissing.push('Potree.loadPointCloud');
       if (window.Potree && !window.Potree.updatePointClouds) runtimeMissing.push('Potree.updatePointClouds');
+      if (window.Potree && !window.Potree.Renderer) runtimeMissing.push('Potree.Renderer');
       if (runtimeMissing.length) throw new Error('LINCOLN_POTREE_RUNTIME_MISSING ' + runtimeMissing.join(', '));
       // Keep the Brotli decoder worker same-origin; point data itself remains streamed from the publisher.
       window.Potree.scriptPath = LOCAL_WORKER_ROOT;
@@ -228,12 +229,14 @@
         });
         state.renderer.autoClear = false;
         state.renderer.setPixelRatio(1);
+        if (typeof Potree.Renderer !== 'function') throw new Error('Potree.Renderer export is unavailable');
+        state.potreeRenderer = new Potree.Renderer(state.renderer);
         state.lastStatusAt = 0;
         updateCard(state, 'ORIGINAL LiDAR · 665.7M SOURCE POINTS · ZOOM IN');
         publish('map-render-layer-installed', { attachedMaps: MAPS.size, layerId: LAYER_ID });
       },
       render(gl, args) {
-        if (!state.map || !state.renderer || !state.scene || !state.camera) return;
+        if (!state.map || !state.renderer || !state.potreeRenderer || !state.scene || !state.camera) return;
         const near = mapNearScan(state.map);
         const cloud = state.cloud;
         if (!near || !cloud) {
@@ -259,7 +262,10 @@
           state.renderer.resetState();
           Potree.updatePointClouds([cloud], state.camera, state.renderer);
           state.renderer.resetState();
-          state.renderer.render(state.scene, state.camera);
+          // Potree's custom renderer binds its octree visibility textures and point shaders;
+          // a plain Three.js scene render does not perform those point-cloud passes correctly.
+          state.potreeRenderer.render(state.scene, state.camera);
+          state.renderer.resetState();
           const nodes = Number(cloud.numVisibleNodes || 0);
           const points = Number(cloud.numVisiblePoints || 0);
           const now = Date.now();
