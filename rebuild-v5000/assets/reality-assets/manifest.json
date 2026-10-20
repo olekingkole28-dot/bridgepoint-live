@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-19T00:00:00Z",
+  "notes": "An intentionally empty catalog. Add only redistributable, calibrated, source-backed GLB meshes with the metadata required by the schema. No mesh is implied by an empty entry.",
+  "assets": []
+}

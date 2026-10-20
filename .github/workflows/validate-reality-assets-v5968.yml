@@ -1,0 +1,41 @@
+name: Validate BridgePoint Reality Mesh Assets
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "rebuild-v5000/bridgepoint-reality-assets-v5968.js"
+      - "rebuild-v5000/assets/reality-assets/**"
+      - "tools/reality_assets/**"
+      - ".github/workflows/validate-reality-assets-v5968.yml"
+  pull_request:
+    paths:
+      - "rebuild-v5000/bridgepoint-reality-assets-v5968.js"
+      - "rebuild-v5000/assets/reality-assets/**"
+      - "tools/reality_assets/**"
+      - ".github/workflows/validate-reality-assets-v5968.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Check browser module syntax
+        run: node --check rebuild-v5000/bridgepoint-reality-assets-v5968.js
+      - name: Validate published mesh catalog
+        run: python tools/reality_assets/validate_manifest.py
+      - name: Test catalog validator
+        run: python -m unittest tools.reality_assets.test_manifest_validator
+      - name: Check whitespace/errors
+        run: git diff --check

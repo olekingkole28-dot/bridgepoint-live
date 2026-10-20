@@ -7,6 +7,8 @@ on:
     branches: [main]
     paths:
       - 'rebuild-v5000/**'
+      - 'tools/reality_assets/**'
+      - '.github/workflows/validate-reality-assets-v5968.yml'
       - 'release-v2300/**'
       - 'pricing/**'
       - 'newsroom/**'
@@ -46,6 +48,9 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+          node --check rebuild-v5000/bridgepoint-reality-assets-v5968.js
+          python3 tools/reality_assets/validate_manifest.py
+          python3 -m unittest tools.reality_assets.test_manifest_validator
           rm -rf site
           mkdir -p site
           git fetch origin live-artifact:refs/remotes/origin/live-artifact --depth=1
@@ -116,6 +121,7 @@ jobs:
           cp rebuild-v5000/landing.js site/landing.js
           cp rebuild-v5000/bridgepoint-view-v5917.css site/bridgepoint-view-v5917.css
           cp rebuild-v5000/bridgepoint-landmarks-v5940.js site/bridgepoint-landmarks-v5940.js
+          cp rebuild-v5000/bridgepoint-reality-assets-v5968.js site/bridgepoint-reality-assets-v5968.js
           cp rebuild-v5000/bridgepoint-pyramids-v5945.js site/bridgepoint-pyramids-v5945.js
           # Mirror the licensed 3D scan into the same-origin static artifact; avoid browser CORS failures.
           curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 240 'https://zenodo.org/records/10355435/files/8e808365b5a6453497826b114b02f155.glb' -o /tmp/statue-of-liberty-scan-source.glb
