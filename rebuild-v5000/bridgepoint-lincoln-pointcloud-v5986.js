@@ -270,6 +270,10 @@
       // toward target [3.929,12.983,6.182] from local negative-Y; that is the portico
       // facing east toward the Reflecting Pool. Rotate Z-up to map Y-up, then yaw +90°
       // so local -Y faces geographic east, matching the real memorial approach.
+      // Apply tilt first, then yaw in WORLD Y. Default XYZ composes these in the wrong
+      // order and tips the scan's vertical Z axis sideways, leaving the monument buried/misaligned.
+      // YXZ yields R_yaw * R_tilt: source Z stays vertical and source -Y faces geographic east.
+      cloud.rotation.order = 'YXZ';
       cloud.rotation.set(-Math.PI / 2, Math.PI / 2, 0);
       // Apply the same yaw to the local target: after rotation, source target (x,y)
       // maps to (-y,-x). This translation keeps that target over the surveyed site anchor.
