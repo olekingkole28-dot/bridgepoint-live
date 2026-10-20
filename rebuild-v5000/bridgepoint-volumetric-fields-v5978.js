@@ -36,7 +36,7 @@ function clearGroup(g){if(!g)return;const geos=new Set(),mats=new Set();while(g.
    if(!r.ok)throw new Error('Current wind model HTTP '+r.status);
    const d=await r.json(),current=d?.current||{},speed=Number(current.wind_speed_10m),direction=Number(current.wind_direction_10m);
    if(!Number.isFinite(speed)||!Number.isFinite(direction))throw new Error('Wind model returned no current speed/direction');
-   const wind={speed,direction,lng:c.lng,lat:c.lat,distance:0,modelled:true,source:'Open-Meteo current weather model'};
+   const wind={speed,direction,dir:direction,lng:c.lng,lat:c.lat,distance:0,modelled:true,source:'Open-Meteo current weather model'};
    if(seq===st.windModelSeq)st.windModelCache={key,at:Date.now(),wind};
    return wind;
   }finally{clearTimeout(timer)}
