@@ -173,7 +173,8 @@
       // The source is local XYZ (not georeferenced); orient Z-up into the map model's Y-up frame
       // and place the survey's documented Potree viewing target on the memorial's ground anchor.
       cloud.rotation.set(-Math.PI / 2, 0, 0);
-      cloud.position.set(-GROUND_ANCHOR_LOCAL[0], 0, GROUND_ANCHOR_LOCAL[1]);
+      // Point-cloud metadata reports the source vertical minimum at -15.335 m; lift that lower bound to the terrain anchor.
+      cloud.position.set(-GROUND_ANCHOR_LOCAL[0], 15.335, GROUND_ANCHOR_LOCAL[1]);
       cloud.updateMatrix();
       state.scene.add(cloud);
       state.loadPromise = false;
@@ -250,6 +251,7 @@
           state.scene.updateMatrixWorld(true);
           state.renderer.resetState();
           Potree.updatePointClouds([cloud], state.camera, state.renderer);
+          state.renderer.resetState();
           state.renderer.render(state.scene, state.camera);
           const nodes = Number(cloud.numVisibleNodes || 0);
           const points = Number(cloud.numVisiblePoints || 0);
