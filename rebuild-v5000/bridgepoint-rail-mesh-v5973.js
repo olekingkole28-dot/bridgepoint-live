@@ -632,6 +632,9 @@
       const checkbox = panel.querySelector('input[type="checkbox"]');
       if (checkbox && !checkbox.checked) checkbox.click();
     }
+    // In mesh mode, hide the visible 2D train circles/labels but retain an almost
+    // transparent click-target so users can still inspect speed/heading and follow trains.
+    window[LIVE_API_KEY]?.setDisplayMode?.(container.id, 'mesh');
     try {
       map.easeTo({
         center: [-71.0589, 42.3601],
@@ -863,6 +866,7 @@
         state.active = false;
         clearTimeout(state.pollTimer);
         clearTimeout(state.rebuildTimer);
+        window[LIVE_API_KEY]?.setDisplayMode?.(state.container.id, 'map');
         restore2DRail(state);
         if (state.customLayer?.scene) disposeRendered(state);
         status(state, '3D rail meshes off · source data is unchanged; map-native rail styling restored.');
@@ -900,6 +904,7 @@
       renderMetrics(state);
     } catch (error) {
       state.active = false;
+      window[LIVE_API_KEY]?.setDisplayMode?.(state.container.id, 'map');
       restore2DRail(state);
       status(state, 'The 3D rail renderer could not initialize: ' + safe(error?.message || error, 180), true);
       console.warn('BridgePoint rail mesh activation', error);
