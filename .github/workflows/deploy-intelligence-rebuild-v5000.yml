@@ -1218,6 +1218,47 @@ jobs:
               console.log('BRIDGEPOINT_US_WEATHER_ON_GLOBE_PASS',JSON.stringify(usWeather));
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
 
+              // Deep LiDAR smoke runs before Great Wall assertions so a separate wall issue cannot hide scan results.
+              const lincolnOriginalCamera=await p.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map;
+                if(!m)throw new Error('LINCOLN_POINTSCAN_PUBLIC_MAP_MISSING');
+                const cc=m.getCenter();
+                const saved={center:[cc.lng,cc.lat],zoom:m.getZoom(),pitch:m.getPitch(),bearing:m.getBearing()};
+                m.jumpTo({center:[-77.0502,38.8893],zoom:15.4,pitch:52,bearing:-12});
+                return saved;
+              });
+              await p.waitForFunction(()=>{
+                const s=window.__BP_LINCOLN_POINTSCAN_V5986__;
+                const m=window.__BP_LANDING_WORLD__?.map;
+                return s?.version===5986&&s?.rendered===true&&Number(s?.visibleNodes)>0&&
+                  Number(s?.visiblePoints)>0&&!!m?.getLayer('bp-lincoln-point-scan-v5986');
+              },{timeout:120000});
+              const lincolnPointscan=await p.evaluate(()=>{
+                const s=window.__BP_LINCOLN_POINTSCAN_V5986__;
+                const m=window.__BP_LANDING_WORLD__?.map;
+                return {
+                  state:s||null,
+                  layer:!!m?.getLayer('bp-lincoln-point-scan-v5986'),
+                  status:s?.status||'missing',
+                  rendered:s?.rendered===true,
+                  visibleNodes:Number(s?.visibleNodes||0),
+                  visiblePoints:Number(s?.visiblePoints||0),
+                  mapZoom:m?.getZoom?.()||null,
+                  center:m?.getCenter?.()?.toArray?.()||null,
+                  sourceRequests:performance.getEntriesByType('resource')
+                    .filter(r=>/90yg-1054|DecoderWorker_brotli|laz-perf\\.wasm/.test(r.name))
+                    .map(r=>({url:r.name,duration:Math.round(r.duration),size:r.transferSize||0})).slice(-24)
+                };
+              });
+              if(!lincolnPointscan.layer||!lincolnPointscan.rendered||
+                 lincolnPointscan.visibleNodes<1||lincolnPointscan.visiblePoints<1)
+                throw new Error('LINCOLN_ORIGINAL_LIDAR_NOT_RENDERING '+JSON.stringify(lincolnPointscan));
+              console.log('BRIDGEPOINT_LINCOLN_ORIGINAL_POINTCLOUD_RENDER_PASS',JSON.stringify(lincolnPointscan));
+              await p.evaluate(saved=>{
+                const m=window.__BP_LANDING_WORLD__?.map;if(!m||!saved)return;
+                m.jumpTo({center:saved.center,zoom:saved.zoom,pitch:saved.pitch,bearing:saved.bearing});
+              },lincolnOriginalCamera);
+
               // Live landmark smoke: source route must materialize in map layers, and the Statue scan must finish drawing.
               await p.waitForFunction(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map;
