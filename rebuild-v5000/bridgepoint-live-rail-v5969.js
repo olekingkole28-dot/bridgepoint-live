@@ -162,7 +162,7 @@
     const style = el('style');
     style.id = 'bp-live-rail-style-v5969';
     style.textContent = [
-      '#bp-live-rail-panel-v5969{position:absolute;z-index:41;top:max(76px,calc(env(safe-area-inset-top) + 72px));right:10px;width:min(360px,calc(100% - 20px));max-height:min(58dvh,480px);overflow:auto;box-sizing:border-box;padding:12px;border:1px solid rgba(104,225,255,.36);border-radius:13px;background:linear-gradient(150deg,rgba(5,19,28,.98),rgba(3,10,17,.98));box-shadow:0 15px 42px rgba(0,0,0,.4);color:#e7f8ff;font:12px/1.45 system-ui,sans-serif}',
+      '.bp-live-rail-panel-v5969{position:absolute;z-index:41;top:max(76px,calc(env(safe-area-inset-top) + 72px));right:10px;width:min(360px,calc(100% - 20px));max-height:min(58dvh,480px);overflow:auto;box-sizing:border-box;padding:12px;border:1px solid rgba(104,225,255,.36);border-radius:13px;background:linear-gradient(150deg,rgba(5,19,28,.98),rgba(3,10,17,.98));box-shadow:0 15px 42px rgba(0,0,0,.4);color:#e7f8ff;font:12px/1.45 system-ui,sans-serif}',
       '.bp-live-rail-panel-v5969[hidden]{display:none!important}',
       '.bp-live-rail-panel-v5969 *{box-sizing:border-box}',
       '.bp-live-rail-panel-v5969 .bp-lr-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}',
@@ -180,7 +180,7 @@
       '.bp-live-rail-panel-v5969 .bp-lr-card small{display:block;font-size:10px;color:#a8c5d1;margin-top:3px}',
       '.bp-live-rail-panel-v5969 .bp-lr-attr{color:#8ceaff;font-size:10px;text-decoration:underline}',
       '.bp-live-rail-toggle-v5969{border:1px solid rgba(104,225,255,.42)!important;background:#0c2632!important;color:#e7faff!important;font-weight:850!important}',
-      '@media(max-width:520px){#bp-live-rail-panel-v5969{right:8px;width:calc(100% - 16px);max-height:48dvh;padding:10px}.bp-live-rail-panel-v5969 .bp-lr-title{font-size:13px}}'
+      '@media(max-width:520px){.bp-live-rail-panel-v5969{right:8px;width:calc(100% - 16px);max-height:48dvh;padding:10px}.bp-live-rail-panel-v5969 .bp-lr-title{font-size:13px}}'
     ].join('');
     document.head.appendChild(style);
   }
