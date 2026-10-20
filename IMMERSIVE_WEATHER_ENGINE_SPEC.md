@@ -44,6 +44,12 @@ Enable building/terrain interaction only where 3D geometry and elevation exist. 
 - Snow/ice: effect density and surface state follow source-supported area, type and recency.
 - Power outage: source-backed affected area/service territory shading; local emissive/flicker effects only where outage state is actually known.
 
+## Current wind-flow implementation (v5987)
+
+The browser's 3D Wind control renders a compact set of animated flow paths at near-ground, mid-building, and elevated layers instead of a grid of oversized cubes. Paths are seeded from the current viewport's upwind edge and integrated through local obstacle and terrain heuristics. Rendered building polygons provide footprint/height colliders; downwind wakes reduce flow speed and add restrained lateral motion. Where the active style has no DEM terrain, the wind control temporarily enables a Terrarium raster-DEM source for ground elevation and restores the previous terrain state when disabled. Loaded landmark/scan layers may contribute conservative footprint proxies through the wind-obstacle registry.
+
+This is a responsive visual approximation for the open web map, not a Navier–Stokes/CFD solve and not a claim of measured street-level wind. Most scanned meshes use coarse obstacle proxies rather than per-triangle collision, and terrain response is available only where DEM elevation queries succeed. Source/model wind direction and speed remain distinct from simulated local flow.
+
 ## Rendering architecture
 Progressively enhance from WebGPU -> WebGL2 -> CPU/canvas fallback. Use quadtree/tile world partitioning, camera-frustum culling, distance-based LOD, pooled GPU buffers, instancing, adaptive particle budgets and temporal interpolation. Never allocate nationwide cinematic particles.
 
