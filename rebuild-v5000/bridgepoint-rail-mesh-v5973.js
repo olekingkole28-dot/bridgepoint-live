@@ -68,6 +68,10 @@
       '.bp-rail-mesh-panel-v5973 .bp-rm-stat strong{display:block;font-size:16px;color:#fff}',
       '.bp-rail-mesh-panel-v5973 .bp-rm-stat small{display:block;font-size:9px;color:#a7bec8;margin-top:3px}',
       '.bp-rail-mesh-panel-v5973 .bp-rm-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}',
+      '.bp-live-rail-panel-v5969 .bp-rm-actions{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0 0;padding-top:8px;border-top:1px solid rgba(104,225,255,.18)}',
+      '.bp-live-rail-panel-v5969 .bp-rm-btn{border:1px solid rgba(172,218,232,.3);border-radius:7px;padding:7px 9px;background:#1b2c35;color:#f0fbff;cursor:pointer;font:800 10px system-ui,sans-serif}',
+      '.bp-live-rail-panel-v5969 .bp-rm-primary{border-color:rgba(104,225,255,.48);background:linear-gradient(135deg,#102b3a,#155064);color:#e7faff}',
+      '.bp-live-rail-panel-v5969 .bp-rm-btn:disabled{opacity:.38;cursor:not-allowed}',
       '.bp-rail-mesh-panel-v5973 .bp-rm-btn{border:1px solid rgba(172,218,232,.3);border-radius:7px;padding:7px 9px;background:#1b2c35;color:#f0fbff;cursor:pointer;font:800 10px system-ui,sans-serif}',
       '.bp-rail-mesh-panel-v5973 .bp-rm-foot{color:#96aeb9;font-size:9px;margin-top:8px}',
       '@media(max-width:520px){.bp-rail-mesh-panel-v5973{right:8px;width:calc(100% - 16px);max-height:42dvh;padding:10px}}'
@@ -721,19 +725,19 @@
   }
 
   function dockStatusCardControls(map, state) {
+    if (state.cardDocked) return true;
     const livePanel = state.container?.querySelector?.('.bp-live-rail-panel-v5969');
-    if (!livePanel || !state.button || !state.panel) return false;
-    state.button.hidden = false;
-    state.button.removeAttribute('aria-hidden');
-    state.button.dataset.mapId = state.container.id || '';
-    Object.assign(state.button.style, {
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      width: '100%', minHeight: '36px', margin: '8px 0 0', padding: '8px 10px',
-      border: '1px solid rgba(104,225,255,.48)', borderRadius: '9px',
-      background: 'linear-gradient(135deg,#102b3a,#155064)', color: '#e7faff',
-      font: '850 10px system-ui,sans-serif', letterSpacing: '.06em', cursor: 'pointer'
-    });
-    if (state.button.parentElement !== livePanel) livePanel.appendChild(state.button);
+    if (!livePanel || !state.panel) return false;
+    const actions = state.panel.querySelector('.bp-rm-actions');
+    const toggle = actions?.querySelector('.bp-rm-primary');
+    if (!actions || !toggle) return false;
+    // Keep the 3D actions visible at the top level of the train information card.
+    // Detailed 3D status/metrics expand below them after activation.
+    state.button.hidden = true;
+    state.button.setAttribute('aria-hidden', 'true');
+    toggle.classList.add('bp-rail-mesh-toggle-v5973');
+    toggle.dataset.mapId = state.container.id || '';
+    if (actions.parentElement !== livePanel) livePanel.appendChild(actions);
     Object.assign(state.panel.style, {
       position: 'static', top: 'auto', right: 'auto', width: '100%', maxWidth: '100%',
       maxHeight: 'none', margin: '9px 0 0', overflow: 'visible', zIndex: 'auto',
@@ -827,16 +831,6 @@
       statusNode.textContent = 'Off · no new track meshes are being materialized.';
       const actions = document.createElement('div');
       actions.className = 'bp-rm-actions';
-      const focus = document.createElement('button');
-      focus.className = 'bp-rm-btn';
-      focus.textContent = 'Focus Boston live feed';
-      focus.type = 'button';
-      focus.addEventListener('click', () => {
-        try {
-          map.easeTo({ center: [-71.0589, 42.3601], zoom: Math.max(Math.min(Number(map.getZoom()) || 0, 14), 12.2), pitch: Math.max(Number(map.getPitch()) || 0, 42), duration: 850, essential: true });
-          status(state, state.active ? 'Focusing on source-backed MBTA vehicles.' : 'Boston focused · turn 3D RAIL + TRAINS on to materialize geometry.');
-        } catch (_) {}
-      });
       const stopFollow = document.createElement('button');
       stopFollow.className = 'bp-rm-btn';
       stopFollow.textContent = 'Stop train follow';
@@ -849,16 +843,17 @@
         for (const b of followButtons) b.click();
       });
       const toggle = document.createElement('button');
-      toggle.className = 'bp-rm-btn bp-rm-primary';
+      toggle.className = 'bp-rm-btn bp-rm-primary bp-rail-mesh-toggle-v5973';
       toggle.type = 'button';
       toggle.textContent = 'ENABLE 3D RAIL + TRAINS';
       toggle.addEventListener('click', () => { void toggleMeshMode(map, state); });
       const refresh = document.createElement('button');
-      refresh.className = 'bp-rm-btn';
+      refresh.className = 'bp-rm-btn bp-rm-rebuild';
       refresh.type = 'button';
       refresh.textContent = 'REBUILD TRACK + CARS';
       refresh.addEventListener('click', () => { if (state.active) scheduleRebuild(map, state, 0); });
-      actions.append(toggle, focus, stopFollow, refresh);
+      state.refreshButton = refresh;
+      actions.append(toggle, stopFollow, refresh);
 
       const source = document.createElement('a');
       source.href = 'https://www.openstreetmap.org/copyright';
@@ -881,6 +876,7 @@
       state.metrics = Object.fromEntries(['trains', 'rails', 'sleepers', 'live'].map(key =>
         [key, panel.querySelector('[data-metric="' + key + '"] strong')]));
       state.toggleButton = panel.querySelector('.bp-rm-primary');
+      state.refreshButton = panel.querySelector('.bp-rm-rebuild');
     }
     state.button = button;
     state.panel = panel;
@@ -901,6 +897,7 @@
       state.toggleButton.textContent = state.active ? 'DISABLE 3D RAIL + TRAINS' : 'ENABLE 3D RAIL + TRAINS';
       state.toggleButton.setAttribute('aria-pressed', String(state.active));
     }
+    if (state.refreshButton) state.refreshButton.disabled = !state.active;
   }
 
   function triggerLiveRail(map, state) {
