@@ -350,8 +350,8 @@ jobs:
           test -s site/assets/bp-potree-lincoln-runtime/workers/laz-perf.wasm
           grep -Fq '665663299' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'Potree.updatePointClouds([cloud]' site/bridgepoint-lincoln-pointcloud-v5986.js
-          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=5995-public-octree' site/index.html
-          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=5995-public-octree' site/app/index.html
+          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=5997-perspective-camera' site/index.html
+          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=5997-perspective-camera' site/app/index.html
           grep -Fq "const PROJ4_URL = POTREE_BASE + 'libs/proj4/proj4.js'" site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'if (!window.proj4) await loadScript(PROJ4_URL)' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'new Potree.Renderer(state.renderer)' site/bridgepoint-lincoln-pointcloud-v5986.js
