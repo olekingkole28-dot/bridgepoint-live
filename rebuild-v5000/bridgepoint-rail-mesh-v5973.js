@@ -460,10 +460,13 @@
     // pretend each ping is a different train; build adjacent cars only when the source
     // supplies an explicit car count, otherwise leave count unknown and show one observed unit.
     const consistUnits = [];
+    const maxRenderedCars = Math.min(MAX_TRAIN_CARS, MOBILE ? 100 : 180);
     for (const train of prepared) {
+      if (consistUnits.length >= maxRenderedCars) break;
       const reportedCars = Number(train.carCount);
-      const carCount = Number.isInteger(reportedCars) && reportedCars >= 1
+      const requestedCars = Number.isInteger(reportedCars) && reportedCars >= 1
         ? Math.min(reportedCars, 12) : 1;
+      const carCount = Math.min(requestedCars, maxRenderedCars - consistUnits.length);
       const yaw = train.bearing === null ? 0 : Math.PI - train.bearing * Math.PI / 180;
       for (let car = 0; car < carCount; car++) {
         const longitudinal = (car - (carCount - 1) / 2) * (train.length * 0.91);
