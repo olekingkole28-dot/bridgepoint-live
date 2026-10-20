@@ -1034,7 +1034,14 @@
     };
     STATES.set(map, state);
     addStatusCard(map, state);
-    const onMoveEnd = () => { if (state.active) scheduleRebuild(map, state, 100); };
+    const onMoveEnd = () => {
+      if (!state.active) return;
+      // Re-expose the real map-native rail layer during viewport changes so its
+      // newly visible geometries can be captured before the next 3D rebuild.
+      restore2DRail(state);
+      state.cachedRailFeatures = [];
+      scheduleRebuild(map, state, 240);
+    };
     const onSourceData = event => {
       if (!state.active || !event) return;
       // The track builder refuses to place meshes until terrain is genuinely sampled.
@@ -1049,7 +1056,8 @@
     map.on('style.load', () => {
       if (!state.active) return;
       state.layerAdded = false;
-      hide2DRail(state);
+      restore2DRail(state);
+      state.cachedRailFeatures = [];
       scheduleRebuild(map, state, 450);
     });
     map.on('remove', () => {
