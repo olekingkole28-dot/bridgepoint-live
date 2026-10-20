@@ -174,10 +174,47 @@ async function diagnostics(page) {
     assert.ok(meshState.railSegments > 0, 'no raised rail geometry was produced from the railway source');
     assert.ok(meshState.sleepers > 0, 'no solid track sleepers were produced');
     assert.ok(map && map.meshLayerPresent, '3D mesh layer is missing on the focused map');
-    assert.equal(map.railPointVisibility, 'none', 'flat vehicle markers must be hidden while 3D trains are materialized');
+    assert.equal(map.railPointVisibility, 'none', 'flat vehicle markers must be hidden beside detailed rolling stock at close zoom');
     assert.ok(map.canvasCount >= 1, 'base map canvas disappeared');
     assert.ok(Math.abs(map.center[0] + 71.0589) < 2 && Math.abs(map.center[1] - 42.3601) < 2,
       '3D rail control did not position the map over the Boston MBTA coverage area');
+
+    // Overview altitude must keep live source dots visible even while 3D mesh mode is active.
+    const setMapZoom = async (mapId, zoom) => page.evaluate(({ mapId, zoom }) => {
+      const worlds = [
+        window.__BP_LANDING_WORLD__, window.__bpLandingWorldV5420,
+        window.__BP_V5000_WORLD, window.__BP_V5000_WORLD__, window.__BP_WORLD
+      ].filter(Boolean);
+      const target = worlds.map(world => world.map).find(candidate =>
+        candidate && candidate.getContainer?.().id === mapId);
+      if (!target) throw new Error('Could not locate map for live-rail altitude test');
+      target.zoomTo(zoom, { duration: 0 });
+    }, { mapId, zoom });
+
+    await setMapZoom(selected.mapId, 4);
+    await page.waitForFunction(mapId => {
+      const worlds = [
+        window.__BP_LANDING_WORLD__, window.__bpLandingWorldV5420,
+        window.__BP_V5000_WORLD, window.__BP_V5000_WORLD__, window.__BP_WORLD
+      ].filter(Boolean);
+      const target = worlds.map(world => world.map).find(candidate =>
+        candidate && candidate.getContainer?.().id === mapId);
+      const rail = (window.__BP_LIVE_RAIL_V5969__?.getState?.() || []).find(state => state.mapId === mapId);
+      return !!target && target.getZoom() < 11.35 && !!rail?.enabled &&
+        target.getLayoutProperty('bp-live-rail-points-v5969', 'visibility') === 'visible';
+    }, { timeout: 15000 }, selected.mapId);
+
+    await setMapZoom(selected.mapId, 12.5);
+    await page.waitForFunction(mapId => {
+      const worlds = [
+        window.__BP_LANDING_WORLD__, window.__bpLandingWorldV5420,
+        window.__BP_V5000_WORLD, window.__BP_V5000_WORLD__, window.__BP_WORLD
+      ].filter(Boolean);
+      const target = worlds.map(world => world.map).find(candidate =>
+        candidate && candidate.getContainer?.().id === mapId);
+      return !!target && target.getZoom() >= 11.35 &&
+        target.getLayoutProperty('bp-live-rail-points-v5969', 'visibility') === 'none';
+    }, { timeout: 15000 }, selected.mapId);
     assert.ok(mbtaResponses.some(r => r.status === 200), 'no successful MBTA source response was observed');
     assert.deepEqual(failedMbta, [], 'MBTA API requests failed at the network layer');
 
