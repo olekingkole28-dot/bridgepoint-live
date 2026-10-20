@@ -621,7 +621,7 @@ function toggleParcelBoundaries(){
 async function openWorldChanges(){
  const m=map||findMap(),world=home?window.__BP_LANDING_WORLD__:window.__BP_V5000_WORLD__;
  let api=window.__BP_WORLD_TIME_SLIDER_V5908__;
- if(!api||api.map!==m){const mod=await import('./world-v2300-time-slider.js?v=5934-world-controls');api=mod.initWorldTimeSlider(world||{map:m},rpc);if(api)window.__BP_WORLD_TIME_SLIDER_V5908__=api}
+ if(!api||api.map!==m){const mod=await import('./world-v2300-time-slider.js?v=5981-bottom-dock-fix');api=mod.initWorldTimeSlider(world||{map:m},rpc);if(api)window.__BP_WORLD_TIME_SLIDER_V5908__=api}
  if(api?.open)api.open();else openPanel('listings');
 }
 async function openRealWorldEffects(initialWind=false){
