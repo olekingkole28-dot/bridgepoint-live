@@ -578,6 +578,10 @@
       state.snapshot = snapshot;
       state.lastSuccessAt = Date.now();
       state.lastSourceReportMs = snapshot.newestReportMs || null;
+      state.consecutiveFailures = 0;
+      state.lastNetworkFailureAt = null;
+      clearTimeout(state.retryTimer);
+      state.retryTimer = null;
       try { map.getSource(SOURCE_ID)?.setData({ type: 'FeatureCollection', features: snapshot.features }); } catch (_) {}
       if (!snapshot.features.length) {
         const extra = snapshot.ignoredStale ? ' ' + fmt(snapshot.ignoredStale) + ' stale reports were dropped.' : '';
@@ -591,8 +595,20 @@
     } catch (error) {
       const stillFresh = pruneExpiredFeatures(map, state);
       const reason = error?.name === 'AbortError' ? 'request timed out after 12 seconds' : safeText(error?.message || error, 150);
+      state.consecutiveFailures = (state.consecutiveFailures || 0) + 1;
+      state.lastNetworkFailureAt = Date.now();
       const last = state.lastSuccessAt ? ' Last successful request: ' + timeText(state.lastSuccessAt) + '; ' + fmt(stillFresh) + ' prior position(s) remain within the 3-minute freshness limit.' : ' No previous source positions are available.';
-      setStatus(state, 'MBTA feed unavailable: ' + reason + '.' + last, true);
+      if (state.enabled && state.consecutiveFailures <= 2 && !state.retryTimer) {
+        const delay = state.consecutiveFailures === 1 ? 4000 : 10000;
+        setStatus(state, 'MBTA feed temporarily unavailable: ' + reason + '. Retrying once in ' + Math.round(delay / 1000) + ' seconds.' + last, true);
+        state.retryTimer = setTimeout(() => {
+          state.retryTimer = null;
+          if (state.enabled && document.visibilityState !== 'hidden') void fetchVehicles(map, state, false);
+          else if (state.enabled) scheduleNext(map, state);
+        }, delay);
+      } else {
+        setStatus(state, 'MBTA feed unavailable: ' + reason + '. Automatic polling will retry in up to 60 seconds.' + last, true);
+      }
       console.warn('BridgePoint MBTA live rail feed', error);
     } finally {
       clearTimeout(timeout);
@@ -722,8 +738,11 @@
     } else {
       clearTimeout(state.timer);
       clearTimeout(state.readinessTimer);
+      clearTimeout(state.retryTimer);
       state.readinessTimer = null;
+      state.retryTimer = null;
       state.readinessRetries = 0;
+      state.consecutiveFailures = 0;
       state.snapshot = state.snapshot || { features: [], newestReportMs: 0 };
       setStatus(state, 'Live rail paused. No additional feed requests will be made until enabled again.');
       if (state.refreshButton) state.refreshButton.disabled = true;
@@ -740,7 +759,8 @@
     const state = {
       version: VERSION, map, container, safeId, enabled: false, loading: false,
       layersReady: false, layerInteractionsBound: false, timer: null,
-      readinessTimer: null, readinessRetries: 0,
+      readinessTimer: null, readinessRetries: 0, retryTimer: null, consecutiveFailures: 0,
+      lastNetworkFailureAt: null,
       snapshot: { features: [], newestReportMs: 0 }, status: 'Live rail is off.', error: null,
       lastSuccessAt: null, lastSourceReportMs: null, observerRetries: 0,
       motionHistory: new Map(), followVehicleId: null, meshMode: false
@@ -765,6 +785,7 @@
     map.on('remove', () => {
       clearTimeout(state.timer);
       clearTimeout(state.readinessTimer);
+      clearTimeout(state.retryTimer);
       if (popup) { try { popup.remove(); } catch (_) {} popup = null; }
       setVisibility(map, false);
     });
@@ -793,7 +814,10 @@
           lastSuccessAt: state?.lastSuccessAt || null,
           newestSourceReportAt: state?.lastSourceReportMs || null,
           followingVehicleId: state?.followVehicleId || null,
-          displayMode: state?.meshMode ? 'mesh' : 'map'
+          displayMode: state?.meshMode ? 'mesh' : 'map',
+          consecutiveFailures: state?.consecutiveFailures || 0,
+          retryScheduled: !!state?.retryTimer,
+          lastNetworkFailureAt: state?.lastNetworkFailureAt || null
         };
       });
     },
