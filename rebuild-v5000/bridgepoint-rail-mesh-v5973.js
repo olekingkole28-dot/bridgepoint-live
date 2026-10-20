@@ -172,6 +172,16 @@
       }
     };
 
+    // Capture the map-native rail paths FIRST while its normal rail layer remains visible.
+    // The rendered query is already filtered by the actual map style and gives us real
+    // source geometry even if querySourceFeatures is between tile updates.
+    if (state && map.getLayer('gta-rail') &&
+        (map.getLayoutProperty('gta-rail', 'visibility') || 'visible') !== 'none') {
+      pushRows(captureVisibleRailFeatures(map, state));
+    } else {
+      pushRows(state?.cachedRailFeatures || []);
+    }
+
     // Query every vector source which publishes this layer. Do not stop at the first
     // non-empty response: a source may have road fragments but no rail segments loaded.
     let style;
@@ -191,15 +201,10 @@
       if (features.length >= MAX_TRACK_FEATURES * 8) break;
     }
 
-    // Capture style-filtered, actually rendered rail geometries while GTA rail is still
-    // visible. This is also a robust fallback for source queries during tile transitions.
+    // Cached geometries are appended only if not already seen. They are retained for a
+    // short camera transition while the newly focused viewport's vector tiles arrive.
     const cached = state?.cachedRailFeatures || [];
     pushRows(cached);
-    if (state && map.getLayer('gta-rail') &&
-        (map.getLayoutProperty('gta-rail', 'visibility') || 'visible') !== 'none') {
-      const rendered = captureVisibleRailFeatures(map, state);
-      pushRows(rendered);
-    }
 
     const rawCount = features.length;
     const sample = features.slice(0, 4).map(feature => ({
