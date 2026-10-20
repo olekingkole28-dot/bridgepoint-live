@@ -56,7 +56,7 @@
     style.id = 'bp-rail-mesh-style-v5973';
     style.textContent = [
       '.bp-rail-mesh-toggle-v5973{border:1px solid rgba(104,225,255,.62)!important;background:linear-gradient(135deg,#0b5368,#111f3c)!important;color:#effaff!important;font-weight:900!important;letter-spacing:.05em!important;box-shadow:0 0 18px rgba(45,196,231,.14)!important}',
-      '.bp-rail-mesh-panel-v5973{position:absolute;z-index:43;top:max(196px,calc(env(safe-area-inset-top) + 190px));right:10px;width:min(365px,calc(100% - 20px));max-height:min(46dvh,390px);overflow:auto;box-sizing:border-box;padding:12px;border:1px solid rgba(88,223,255,.36);border-radius:12px;background:linear-gradient(155deg,rgba(5,18,31,.97),rgba(9,36,49,.96));box-shadow:0 16px 48px rgba(0,0,0,.48),inset 0 0 22px rgba(45,193,225,.05);backdrop-filter:blur(16px);0 16px 40px rgba(0,0,0,.42);color:#ebf8fc;font:12px/1.45 system-ui,sans-serif}',
+      '.bp-rail-mesh-panel-v5973{position:absolute;z-index:43;top:max(196px,calc(env(safe-area-inset-top) + 190px));right:10px;width:min(365px,calc(100% - 20px));max-height:min(46dvh,390px);overflow:auto;box-sizing:border-box;padding:12px;border:1px solid rgba(88,223,255,.36);border-radius:12px;background:linear-gradient(155deg,rgba(5,18,31,.97),rgba(9,36,49,.96));box-shadow:0 16px 48px rgba(0,0,0,.48),inset 0 0 22px rgba(45,193,225,.05);backdrop-filter:blur(16px);color:#ebf8fc;font:12px/1.45 system-ui,sans-serif}',
       '.bp-rail-mesh-panel-v5973[hidden]{display:none!important}',
       '.bp-rail-mesh-panel-v5973 *{box-sizing:border-box}',
       '.bp-rail-mesh-panel-v5973 .bp-rm-title{font-size:13px;font-weight:950;color:#fff}',
@@ -443,6 +443,7 @@
         label: safe(p.label || p.vehicleId, 48),
         routeName: safe(p.routeName || 'MBTA rail', 100),
         headsign: safe(p.headsign || '', 80),
+        carCount: Number.isInteger(Number(p.carCount)) && Number(p.carCount) > 0 ? Math.min(12, Number(p.carCount)) : null,
         routeType,
         coordinates: c,
         local: localPoint(c, anchor, elevation, anchorTerrainM),
@@ -464,7 +465,6 @@
       const carCount = Number.isInteger(reportedCars) && reportedCars >= 1
         ? Math.min(reportedCars, 12) : 1;
       const yaw = train.bearing === null ? 0 : Math.PI - train.bearing * Math.PI / 180;
-      const halfLength = train.length * 0.5;
       for (let car = 0; car < carCount; car++) {
         const longitudinal = (car - (carCount - 1) / 2) * (train.length * 0.91);
         const dx = Math.sin(yaw) * longitudinal;
@@ -507,6 +507,8 @@
     stripeRightGeometry.translate(1.52, 1.47, 0);
     const routeNameplateGeometry = new THREE.BoxGeometry(0.055, 0.31, 11.2);
     routeNameplateGeometry.translate(1.555, 2.02, 0);
+    const routeNameplateLeftGeometry = new THREE.BoxGeometry(0.055, 0.31, 11.2);
+    routeNameplateLeftGeometry.translate(-1.555, 2.02, 0);
     const bogieGeometry = new THREE.BoxGeometry(2.38, 0.46, 4.9);
     bogieGeometry.translate(0, 0.47, 0);
     const wheelGeometry = new THREE.CylinderGeometry(0.36, 0.36, 0.19, 12);
@@ -520,7 +522,7 @@
       under: new THREE.MeshStandardMaterial({ color: '#293239', roughness: 0.8, metalness: 0.28 }),
       glass: new THREE.MeshStandardMaterial({ color: '#10232f', roughness: 0.18, metalness: 0.32, emissive: '#071721', emissiveIntensity: 0.28 }),
       stripe: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.38, metalness: 0.22 }),
-      routePlate: new THREE.MeshStandardMaterial({ color: '#0b1822', roughness: 0.32, metalness: 0.35 }),
+      routePlate: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.32, metalness: 0.35 }),
       bogie: new THREE.MeshStandardMaterial({ color: '#202b31', roughness: 0.76, metalness: 0.52 }),
       wheel: new THREE.MeshStandardMaterial({ color: '#34383b', roughness: 0.78, metalness: 0.72 }),
       lamp: new THREE.MeshStandardMaterial({ color: '#fff0be', emissive: '#ffe4a3', emissiveIntensity: 0.8, roughness: 0.25, metalness: 0.1 }),
@@ -549,6 +551,7 @@
     const stripeL = createInstances(stripeLeftGeometry, materials.stripe, max, true);
     const stripeR = createInstances(stripeRightGeometry, materials.stripe, max, true);
     const routePlate = createInstances(routeNameplateGeometry, materials.routePlate, max, true);
+    const routePlateL = createInstances(routeNameplateLeftGeometry, materials.routePlate, max, true);
     const bogies = createInstances(bogieGeometry, materials.bogie, max * 2);
     const wheels = createInstances(wheelGeometry, materials.wheel, max * 8);
     const lamps = createInstances(lampGeometry, materials.lamp, max * 2);
@@ -567,13 +570,14 @@
       const scale = new THREE.Vector3(train.width / 3.05, train.height / 3.7, train.length / 26.4);
       const position = new THREE.Vector3(train.local.x, train.local.y + 0.22, train.local.z);
       const matrix = new THREE.Matrix4().compose(position, q, scale);
-      for (const mesh of [body, roof, under, glassL, glassR, windscreen, rearGlass, stripeL, stripeR, routePlate]) {
+      for (const mesh of [body, roof, under, glassL, glassR, windscreen, rearGlass, stripeL, stripeR, routePlate, routePlateL]) {
         mesh.setMatrixAt(index, matrix);
       }
       const routeColor = new THREE.Color(train.routeColor);
       stripeL.setColorAt(index, routeColor);
       stripeR.setColorAt(index, routeColor);
       routePlate.setColorAt(index, routeColor);
+      routePlateL.setColorAt(index, routeColor);
 
       // Distinct two-bogie undercarriage and eight metal wheel faces per rail vehicle.
       for (const z of [-7.4, 7.4]) {
@@ -599,16 +603,93 @@
         lamps.setMatrixAt(lampIndex++, new THREE.Matrix4().compose(lampPos, q, new THREE.Vector3(1, 1, 1)));
       }
     });
-    body.count = roof.count = under.count = glassL.count = glassR.count = windscreen.count = rearGlass.count = stripeL.count = stripeR.count = routePlate.count = prepared.length;
-    bogies.count = prepared.length * 2;
+
+    // Render route/destination text on both sides through one shared atlas and one mesh.
+    // This preserves readable train identification without hundreds of extra draw calls.
+    let trainLabelMesh = null;
+    try {
+      const rowHeight = 32;
+      const labelCanvas = document.createElement('canvas');
+      labelCanvas.width = 512;
+      labelCanvas.height = Math.max(rowHeight, consistUnits.length * rowHeight);
+      const ctx = labelCanvas.getContext('2d');
+      if (ctx) {
+        const positions = [];
+        const uvs = [];
+        const indices = [];
+        const addQuad = (train, side, row) => {
+          const angle = train.bearing === null ? 0 : Math.PI - train.bearing * Math.PI / 180;
+          const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, angle, 0));
+          const scale = new THREE.Vector3(train.width / 3.05, train.height / 3.7, train.length / 26.4);
+          const start = positions.length / 3;
+          const local = [
+            [side * 1.592, 1.895, -5.08],
+            [side * 1.592, 1.895,  5.08],
+            [side * 1.592, 2.145,  5.08],
+            [side * 1.592, 2.145, -5.08]
+          ];
+          for (const [x, y, z] of local) {
+            const v = new THREE.Vector3(x * scale.x, y * scale.y, z * scale.z).applyQuaternion(q);
+            positions.push(train.local.x + v.x, train.local.y + 0.22 + v.y, train.local.z + v.z);
+          }
+          const top = 1 - row / labelCanvas.height;
+          const bottom = 1 - (row + rowHeight) / labelCanvas.height;
+          const reverse = side < 0;
+          uvs.push(reverse ? 1 : 0, bottom, reverse ? 0 : 1, bottom,
+                   reverse ? 0 : 1, top, reverse ? 1 : 0, top);
+          indices.push(start, start + 1, start + 2, start, start + 2, start + 3);
+        };
+
+        consistUnits.forEach((train, index) => {
+          const y = index * rowHeight;
+          ctx.clearRect(0, y, labelCanvas.width, rowHeight);
+          ctx.fillStyle = train.routeColor || '#37d9ff';
+          ctx.fillRect(8, y + 9, 5, 14);
+          ctx.font = '700 15px system-ui, sans-serif';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = 'rgba(0,0,0,.95)';
+          ctx.shadowBlur = 3;
+          let label = String((train.routeName || 'RAIL') + ' • ' + (train.headsign || train.label || train.id || '')).replace(/\\s+/g, ' ').trim();
+          while (label.length > 4 && ctx.measureText(label).width > 472) label = label.slice(0, -2) + '…';
+          ctx.fillText(label, 22, y + 16);
+          ctx.shadowBlur = 0;
+          addQuad(train, 1, y);
+          addQuad(train, -1, y);
+        });
+
+        const labelGeometry = new THREE.BufferGeometry();
+        labelGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        labelGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        labelGeometry.setIndex(indices);
+        const labelTexture = new THREE.CanvasTexture(labelCanvas);
+        labelTexture.generateMipmaps = false;
+        labelTexture.minFilter = THREE.LinearFilter;
+        labelTexture.magFilter = THREE.LinearFilter;
+        labelTexture.needsUpdate = true;
+        const labelMaterial = new THREE.MeshBasicMaterial({
+          map: labelTexture, transparent: true, depthWrite: false,
+          side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1
+        });
+        trainLabelMesh = new THREE.Mesh(labelGeometry, labelMaterial);
+        trainLabelMesh.frustumCulled = false;
+        trainLabelMesh.renderOrder = 2;
+        group.add(trainLabelMesh);
+      }
+    } catch (labelError) {
+      console.warn('[BridgePoint rail] side labels skipped safely:', labelError);
+    }
+
+    body.count = roof.count = under.count = glassL.count = glassR.count = windscreen.count = rearGlass.count = stripeL.count = stripeR.count = routePlate.count = routePlateL.count = consistUnits.length;
+    bogies.count = consistUnits.length * 2;
     wheels.count = wheelIndex;
     lamps.count = lampIndex;
-    sideLamps.count = prepared.length * 4;
+    sideLamps.count = consistUnits.length * 4;
     for (const mesh of instanced) {
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
-    group.userData.vehicleMeshes = instanced;
+    group.userData.vehicleMeshes = trainLabelMesh ? [...instanced, trainLabelMesh] : instanced;
     return {
       group, vehicles: prepared.length, skippedNoTerrain,
       featureCount: all.length,
@@ -628,6 +709,7 @@
         if (object.geometry?.dispose) object.geometry.dispose();
         const list = Array.isArray(object.material) ? object.material : (object.material ? [object.material] : []);
         for (const material of list) {
+          if (material?.map?.dispose) material.map.dispose();
           if (material?.dispose) material.dispose();
         }
       });
