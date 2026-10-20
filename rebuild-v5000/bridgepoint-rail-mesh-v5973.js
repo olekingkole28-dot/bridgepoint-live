@@ -117,30 +117,107 @@
       ['rail', 'subway', 'light_rail', 'tram', 'monorail', 'narrow_gauge', 'funicular'].includes(railway);
   }
 
-  function sourceRailFeatures(map) {
-    let features = [];
-    try {
-      if (map.getSource(RAIL_SOURCE)) {
-        features = map.querySourceFeatures(RAIL_SOURCE, { sourceLayer: RAIL_SOURCE_LAYER, validate: false }) || [];
-      }
-    } catch (_) {}
-    if (!features.length) {
-      // Some map skins use a different vector-source ID. Discover it from the live style.
-      let style;
-      try { style = map.getStyle?.(); } catch (_) {}
-      const sourceIds = [...new Set((style?.layers || [])
-        .filter(layer => layer['source-layer'] === RAIL_SOURCE_LAYER && layer.source)
-        .map(layer => layer.source))];
-      for (const sourceId of sourceIds) {
-        try {
-          const next = map.querySourceFeatures(sourceId, { sourceLayer: RAIL_SOURCE_LAYER, validate: false }) || [];
-          if (next.length) { features = next; break; }
-        } catch (_) {}
-      }
+  function captureVisibleRailFeatures(map, state) {
+    // The map's own GTA rail layer is the authoritative style filter (class rail/transit).
+    // Capture its currently rendered geometries before replacing the 2D linework. This
+    // prevents a race where querySourceFeatures contains many transport features but no
+    // already-loaded rail segments at the instant the user enables 3D mode.
+    const captured = [];
+    for (const layerId of ['gta-rail', 'gta-bridge-rails']) {
+      try {
+        if (!map.getLayer(layerId)) continue;
+        const rows = map.queryRenderedFeatures({ layers: [layerId] }) || [];
+        for (const feature of rows) {
+          if (!feature?.geometry || !['LineString', 'MultiLineString'].includes(feature.geometry.type)) continue;
+          captured.push({
+            id: feature.id ?? feature.properties?.id ?? '',
+            type: 'Feature',
+            geometry: feature.geometry,
+            properties: feature.properties || {},
+            __bpRailLayerVerified: true
+          });
+          if (captured.length >= MAX_TRACK_FEATURES * 2) break;
+        }
+      } catch (_) {}
+      if (captured.length >= MAX_TRACK_FEATURES * 2) break;
     }
+    if (captured.length) {
+      state.cachedRailFeatures = captured.slice(0, MAX_TRACK_FEATURES * 2);
+      state.lastRailCaptureAt = Date.now();
+    }
+    return captured;
+  }
+
+  function sourceRailFeatures(map, state) {
+    const features = [];
+    const seenSource = new Set();
+    const pushRows = rows => {
+      for (const feature of rows || []) {
+        if (!feature?.geometry) continue;
+        const geom = feature.geometry;
+        if (geom.type !== 'LineString' && geom.type !== 'MultiLineString') continue;
+        const coords = geom.type === 'LineString' ? geom.coordinates : geom.coordinates?.flat(1);
+        const first = coords?.[0], last = coords?.[coords.length - 1];
+        if (!Array.isArray(first) || !Array.isArray(last)) continue;
+        const key = [
+          feature.id ?? feature.properties?.id ?? '',
+          Math.round(Number(first[0]) * 100000), Math.round(Number(first[1]) * 100000),
+          Math.round(Number(last[0]) * 100000), Math.round(Number(last[1]) * 100000),
+          coords.length
+        ].join(':');
+        if (seenSource.has(key)) continue;
+        seenSource.add(key);
+        features.push(feature);
+        if (features.length >= MAX_TRACK_FEATURES * 8) return;
+      }
+    };
+
+    // Query every vector source which publishes this layer. Do not stop at the first
+    // non-empty response: a source may have road fragments but no rail segments loaded.
+    let style;
+    try { style = map.getStyle?.(); } catch (_) {}
+    const sourceIds = [...new Set([
+      RAIL_SOURCE,
+      ...(style?.layers || [])
+        .filter(layer => layer['source-layer'] === RAIL_SOURCE_LAYER && layer.source)
+        .map(layer => layer.source)
+    ])];
+    for (const sourceId of sourceIds) {
+      try {
+        if (map.getSource(sourceId)) {
+          pushRows(map.querySourceFeatures(sourceId, { sourceLayer: RAIL_SOURCE_LAYER }) || []);
+        }
+      } catch (_) {}
+      if (features.length >= MAX_TRACK_FEATURES * 8) break;
+    }
+
+    // Capture style-filtered, actually rendered rail geometries while GTA rail is still
+    // visible. This is also a robust fallback for source queries during tile transitions.
+    const cached = state?.cachedRailFeatures || [];
+    pushRows(cached);
+    if (state && map.getLayer('gta-rail') &&
+        (map.getLayoutProperty('gta-rail', 'visibility') || 'visible') !== 'none') {
+      const rendered = captureVisibleRailFeatures(map, state);
+      pushRows(rendered);
+    }
+
+    const rawCount = features.length;
+    const sample = features.slice(0, 4).map(feature => ({
+      id: feature.id ?? null,
+      type: feature.geometry?.type || null,
+      class: safe(feature.properties?.class || '', 36),
+      subclass: safe(feature.properties?.subclass || '', 36),
+      railway: safe(feature.properties?.railway || '', 36),
+      sourceLayer: safe(feature.sourceLayer || feature.source_layer || '', 48),
+      coordinates: Array.isArray(feature.geometry?.coordinates) ? feature.geometry.coordinates.length : null
+    }));
     const unique = new Map();
+    let classified = 0, lineCount = 0;
     for (const feature of features) {
-      if (!isRailFeature(feature) || !feature.geometry) continue;
+      // A feature returned from gta-rail / bridge-rails already passed the map style's
+      // railway-only filter, even if the vector tile's tags use a less-common schema.
+      if (!(feature.__bpRailLayerVerified || state?.cachedRailFeatures?.some(f => f === feature) || isRailFeature(feature)) || !feature.geometry) continue;
+      classified++;
       const geom = feature.geometry;
       if (geom.type !== 'LineString' && geom.type !== 'MultiLineString') continue;
       const lines = geom.type === 'LineString' ? [geom.coordinates] : geom.coordinates;
@@ -154,14 +231,28 @@
           Math.round(last[0] * 100000), Math.round(last[1] * 100000),
           line.length
         ].join(':');
-        if (!unique.has(key)) unique.set(key, {
-          id: key,
-          coordinates: line,
-          properties: feature.properties || {}
-        });
+        if (!unique.has(key)) {
+          unique.set(key, {
+            id: key,
+            coordinates: line,
+            properties: feature.properties || {}
+          });
+          lineCount++;
+        }
         if (unique.size >= MAX_TRACK_FEATURES) break;
       }
       if (unique.size >= MAX_TRACK_FEATURES) break;
+    }
+    if (state) {
+      state.railSourceDiagnostics = {
+        rawLineFeatures: rawCount,
+        classifiedRailFeatures: classified,
+        lineFeatureCount: lineCount,
+        sourceIds,
+        sample,
+        cachedRenderedRailFeatures: cached.length,
+        lastRailCaptureAt: state.lastRailCaptureAt || null
+      };
     }
     return [...unique.values()];
   }
@@ -238,7 +329,7 @@
   }
 
   function buildTrackGeometry(map, anchor, anchorTerrainM, state) {
-    const sourceFeatures = sourceRailFeatures(map);
+    const sourceFeatures = sourceRailFeatures(map, state);
     const rails = [], sleepers = [], bearingSegments = [];
     let pointCount = 0, railSegments = 0, sleeperCount = 0, missingElevation = 0;
     const pointCap = MOBILE ? 760 : MAX_TRACK_POINTS;
@@ -731,6 +822,7 @@
 
   function hide2DRail(state) {
     const map = state.map;
+    if (state.previousRailVisibility !== null && state.previousRailVisibility !== undefined) return;
     try {
       if (map.getLayer('gta-rail')) {
         state.previousRailVisibility = map.getLayoutProperty('gta-rail', 'visibility') || 'visible';
@@ -816,8 +908,10 @@
         sleepers: track.sleepers,
         trains: trainData.vehicles,
         skippedNoTerrain: track.missingElevation + trainData.skippedNoTerrain,
-        liveSourceReports: trainData.featureCount
+        liveSourceReports: trainData.featureCount,
+        railSourceDiagnostics: state.railSourceDiagnostics || null
       };
+      if (track.railSegments > 0) hide2DRail(state);
       state.trains = trainData.trains || [];
       state.trackDirections = track.trackDirections;
       renderMetrics(state);
@@ -880,7 +974,9 @@
       state.active = true;
       state.panel.hidden = false;
       status(state, 'Loading Three.js mesh renderer and focusing the live MBTA rail area…');
-      hide2DRail(state);
+      // Keep existing 2D railway vectors visible until the first ground-anchored 3D
+      // track mesh is successfully built. The mesh pass captures their rendered
+      // geometry as a fallback, then hides 2D lines only when solid meshes exist.
       triggerLiveRail(map, state);
       const THREE = await loadThree();
       state.THREE = THREE;
@@ -928,7 +1024,8 @@
       layerAdded: false, customLayer: null, trackGroup: null, trainGroup: null,
       anchor: null, anchorElevationM: null, status: 'off', error: null, statusNode: null,
       metrics: null, stats: {}, trains: [], trackDirections: [], rebuildTimer: null,
-      pollTimer: null, lastVehicleSignature: '', renderWarned: false, previousRailVisibility: null
+      pollTimer: null, lastVehicleSignature: '', renderWarned: false, previousRailVisibility: null,
+      cachedRailFeatures: [], lastRailCaptureAt: null, railSourceDiagnostics: null
     };
     STATES.set(map, state);
     addStatusCard(map, state);
@@ -984,6 +1081,7 @@
           lineFeatureCount: state.stats.lineFeatureCount || 0,
           liveSourceReports: state.stats.liveSourceReports || 0,
           skippedNoTerrain: state.stats.skippedNoTerrain || 0,
+          railSourceDiagnostics: state.railSourceDiagnostics || null,
           updatedAt: Date.now()
         };
       });
