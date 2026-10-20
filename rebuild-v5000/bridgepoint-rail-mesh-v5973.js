@@ -378,7 +378,7 @@
     const wheelGeometry = new THREE.CylinderGeometry(0.36, 0.36, 0.19, 10);
     wheelGeometry.rotateZ(Math.PI / 2);
     const lampGeometry = new THREE.BoxGeometry(0.13, 0.11, 0.12);
-    lampGeometry.translate(0, 2.05, 13.08);
+    /* instance matrices place the pair of lamps at the actual train ends */
 
     const materials = {
       body: new THREE.MeshStandardMaterial({ color: '#d9e1e4', roughness: 0.58, metalness: 0.24 }),
@@ -693,8 +693,11 @@
           }
         },
         onRemove() {
+          try { disposeGroup(this.scene); } catch (_) {}
           try { this.scene?.clear(); } catch (_) {}
           try { this.renderer?.dispose(); } catch (_) {}
+          state.customLayer = null;
+          state.layerAdded = false;
         }
       }, before);
       state.layerAdded = true;
@@ -718,7 +721,7 @@
   function restore2DRail(state) {
     const map = state.map;
     try {
-      if (map.getLayer('gta-rail')) map.setLayoutProperty('gta-rail', 'visibility', state.previousRailVisibility || 'visible');
+      if (map.getLayer('gta-rail')) map.setLayoutProperty('gta-rail', 'visibility', state.previousRailVisibility ?? 'visible');
     } catch (_) {}
     state.previousRailVisibility = null;
   }
@@ -795,7 +798,12 @@
       state.trackGroup = trackGroup;
       state.trainGroup = trainData.group;
       state.customLayer.scene.clear();
-      state.customLayer.scene.add(trackGroup, trainData.group);
+      const ambient = new THREE_NS.AmbientLight(0xffffff, 1.25);
+      const keyLight = new THREE_NS.DirectionalLight(0xffffff, 1.75);
+      keyLight.position.set(90, 145, 80);
+      const fillLight = new THREE_NS.DirectionalLight(0xbedce6, 0.48);
+      fillLight.position.set(-65, 35, -50);
+      state.customLayer.scene.add(ambient, keyLight, fillLight, trackGroup, trainData.group);
       state.anchor = anchorCoord;
       state.anchorElevationM = anchorElev;
       state.stats = {
@@ -925,6 +933,7 @@
     map.on('style.load', () => {
       if (!state.active) return;
       state.layerAdded = false;
+      hide2DRail(state);
       scheduleRebuild(map, state, 450);
     });
     map.on('remove', () => {
