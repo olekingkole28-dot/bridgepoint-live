@@ -1031,8 +1031,16 @@
 
   function restore2DRail(state) {
     const map = state.map;
+    const saved = state.previousRailVisibility;
     try {
-      if (map.getLayer('gta-rail')) map.setLayoutProperty('gta-rail', 'visibility', state.previousRailVisibility ?? 'visible');
+      if (saved && typeof saved === 'object') {
+        for (const [layerId, visibility] of Object.entries(saved)) {
+          if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', visibility);
+        }
+      } else if (saved !== null && saved !== undefined && map.getLayer('gta-rail')) {
+        // Backward-compatible restore for any state written by the older single-layer version.
+        map.setLayoutProperty('gta-rail', 'visibility', saved);
+      }
     } catch (_) {}
     state.previousRailVisibility = null;
   }
@@ -1040,12 +1048,19 @@
   function hide2DRail(state) {
     const map = state.map;
     if (state.previousRailVisibility !== null && state.previousRailVisibility !== undefined) return;
-    try {
-      if (map.getLayer('gta-rail')) {
-        state.previousRailVisibility = map.getLayoutProperty('gta-rail', 'visibility') || 'visible';
-        map.setLayoutProperty('gta-rail', 'visibility', 'none');
-      }
-    } catch (_) {}
+    const previous = {};
+    for (const layerId of RAIL_CAPTURE_LAYER_IDS) {
+      try {
+        const layer = map.getLayer(layerId);
+        if (!layer) continue;
+        const visibility = map.getLayoutProperty?.(layerId, 'visibility') ?? layer.layout?.visibility ?? 'visible';
+        previous[layerId] = visibility;
+        if (visibility !== 'none') map.setLayoutProperty(layerId, 'visibility', 'none');
+      } catch (_) {}
+    }
+    // Only lock in this snapshot when at least one of the current source-backed track layers
+    // exists. If the map is still loading style layers, a later successful rebuild can retry.
+    if (Object.keys(previous).length) state.previousRailVisibility = previous;
   }
 
   function disposeRendered(state) {
