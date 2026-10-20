@@ -311,7 +311,9 @@
         state.Potree = Potree;
         state.gl = gl;
         state.scene = new THREE.Scene();
-        state.camera = new THREE.Camera();
+        // Potree clones the camera and calls updateProjectionMatrix while building its point-cloud frustum.
+        // Use a PerspectiveCamera (not the base THREE.Camera, which has no updateProjectionMatrix method).
+        state.camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1e12);
         state.renderer = new THREE.WebGLRenderer({
           canvas: mapRef.getCanvas(),
           context: gl,
