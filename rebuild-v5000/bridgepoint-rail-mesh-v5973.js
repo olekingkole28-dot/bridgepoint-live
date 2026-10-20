@@ -649,18 +649,9 @@
       button.className = 'bp-rail-mesh-toggle-v5973';
       button.textContent = '3D RAIL + TRAINS';
       button.title = 'Materialize source-mapped railway track geometry and 3D rolling stock (MBTA live feed pilot)';
-      const tools = document.querySelector('.map-tools');
-      if (container.id === 'liveMap' && tools) {
-        tools.appendChild(button);
-      } else {
-        Object.assign(button.style, {
-          position: 'absolute', zIndex: '44', right: '12px',
-          top: 'max(156px,calc(env(safe-area-inset-top) + 152px))',
-          minHeight: '34px', borderRadius: '8px', padding: '7px 9px',
-          cursor: 'pointer', font: '850 10px system-ui,sans-serif'
-        });
-        container.appendChild(button);
-      }
+      // Keep controls in the train intelligence card instead of scattering map buttons.
+      button.hidden = true;
+      button.setAttribute('aria-hidden', 'true');
       button.addEventListener('click', () => { void toggleMeshMode(map, state); });
     }
 
@@ -736,7 +727,17 @@
         const followButtons = [...document.querySelectorAll('.maplibregl-popup button')].filter(b => /STOP FOLLOWING/.test(b.textContent || ''));
         for (const b of followButtons) b.click();
       });
-      actions.append(focus, stopFollow);
+      const toggle = document.createElement('button');
+      toggle.className = 'bp-rm-btn bp-rm-primary';
+      toggle.type = 'button';
+      toggle.textContent = 'ENABLE 3D RAIL + TRAINS';
+      toggle.addEventListener('click', () => { void toggleMeshMode(map, state); });
+      const refresh = document.createElement('button');
+      refresh.className = 'bp-rm-btn';
+      refresh.type = 'button';
+      refresh.textContent = 'REBUILD TRACK + CARS';
+      refresh.addEventListener('click', () => { if (state.active) scheduleRebuild(map, state, 0); });
+      actions.append(toggle, focus, stopFollow, refresh);
 
       const source = document.createElement('a');
       source.href = 'https://www.openstreetmap.org/copyright';
@@ -748,6 +749,7 @@
       noPretend.className = 'bp-rm-foot';
       noPretend.textContent = 'This pass is a low-polygon procedural rolling-stock mesh, not a drone scan of the vehicle. Operator-specific licensed GLB/photogrammetry assets can replace the mesh later. Route-color stripes describe the feed route; they are not a claim about verified vehicle livery.';
       panel.append(head, desc, stats, statusNode, actions, source, noPretend);
+      state.toggleButton = toggle;
       container.appendChild(panel);
       state.statusNode = statusNode;
       state.metrics = Object.fromEntries(['trains', 'rails', 'sleepers', 'live'].map(key =>
@@ -757,6 +759,7 @@
       state.statusNode = panel.querySelector('.bp-rm-status');
       state.metrics = Object.fromEntries(['trains', 'rails', 'sleepers', 'live'].map(key =>
         [key, panel.querySelector('[data-metric="' + key + '"] strong')]));
+      state.toggleButton = panel.querySelector('.bp-rm-primary');
     }
     state.button = button;
     state.panel = panel;
@@ -771,6 +774,10 @@
     if (state.button) {
       state.button.textContent = state.active ? '3D RAIL + TRAINS ✓' : '3D RAIL + TRAINS';
       state.button.setAttribute('aria-pressed', String(state.active));
+    }
+    if (state.toggleButton) {
+      state.toggleButton.textContent = state.active ? 'DISABLE 3D RAIL + TRAINS' : 'ENABLE 3D RAIL + TRAINS';
+      state.toggleButton.setAttribute('aria-pressed', String(state.active));
     }
   }
 
