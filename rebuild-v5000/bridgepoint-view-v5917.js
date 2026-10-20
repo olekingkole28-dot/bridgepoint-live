@@ -145,13 +145,26 @@ function makeTopBarAndDock(){
  '<button type="button" class="bpv-whole-earth-short" data-bpv-action="whole">WHOLE EARTH</button></div>';
  mapHost.append(top,dock);
  const accountRow=$('#bpv-dock-account-row'),topRight=top.querySelector('.bpv-topbar-right'),mapControlsSlot=$('#bpv-map-controls-slot');
- const placeAccountActions=()=>{const mobile=!!window.matchMedia?.('(max-width:700px)').matches,target=mobile?accountRow:top;if(topRight&&target&&topRight.parentElement!==target)target.appendChild(topRight)};
+ const isPhone=()=>!!window.matchMedia?.('(max-width:700px)').matches;
+ const placeAccountActions=()=>{const target=isPhone()?accountRow:top;if(topRight&&target&&topRight.parentElement!==target)target.appendChild(topRight)};
  placeAccountActions();window.addEventListener('resize',placeAccountActions,{passive:true});
  try{window.matchMedia?.('(max-width:700px)').addEventListener?.('change',placeAccountActions)}catch(_){}
- let mapControlsParent=null,mapControlsNext=null;
- const placeMapControls=()=>{const controls=mapHost.querySelector('.maplibregl-ctrl-top-right');if(!controls||!mapControlsSlot)return;if(!mapControlsParent){mapControlsParent=controls.parentElement;mapControlsNext=controls.nextSibling}const mobile=!!window.matchMedia?.('(max-width:700px)').matches;if(mobile){if(controls.parentElement!==mapControlsSlot)mapControlsSlot.appendChild(controls)}else if(mapControlsParent&&controls.parentElement!==mapControlsParent){mapControlsParent.insertBefore(controls,mapControlsNext&&mapControlsNext.parentElement===mapControlsParent?mapControlsNext:null)}};
- placeMapControls();try{map?.on?.('load',placeMapControls);map?.on?.('idle',placeMapControls)}catch(_){}
- const mapControlsObserver=new MutationObserver(placeMapControls);mapControlsObserver.observe(mapHost,{childList:true,subtree:true});
+ let mapControlsParent=null,mapControlsNext=null,mapControlsWasMoved=false;
+ const placeMapControls=()=>{
+  // MapLibre can attach this wrapper to the inner map canvas rather than the preview shell,
+  // so use a scoped query first and then a document-level fallback.
+  const controls=mapHost.querySelector('.maplibregl-ctrl-top-right')||document.querySelector('.maplibregl-ctrl-top-right');
+  const slot=document.querySelector('#bpv-map-controls-slot')||mapControlsSlot;
+  if(!controls||!slot)return;
+  if(!mapControlsWasMoved){mapControlsParent=controls.parentElement;mapControlsNext=controls.nextSibling;mapControlsWasMoved=true}
+  if(isPhone()){
+   if(controls.parentElement!==slot)slot.appendChild(controls);
+  }else if(mapControlsParent&&controls.parentElement!==mapControlsParent){
+   mapControlsParent.insertBefore(controls,mapControlsNext&&mapControlsNext.parentElement===mapControlsParent?mapControlsNext:null);
+  }
+ };
+ placeMapControls();try{map?.on?.('load',placeMapControls);map?.on?.('idle',placeMapControls);map?.on?.('resize',placeMapControls)}catch(_){}
+ const mapControlsObserver=new MutationObserver(placeMapControls);mapControlsObserver.observe(document.body,{childList:true,subtree:true});
  const languageSlot=$('#bpv-language-slot');
  const existingLanguage=document.querySelector('[data-bp-language="1"]');
  if(languageSlot&&existingLanguage&&existingLanguage.parentElement!==languageSlot)languageSlot.appendChild(existingLanguage);
