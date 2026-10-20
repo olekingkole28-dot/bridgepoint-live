@@ -55,6 +55,7 @@ jobs:
           node --check rebuild-v5000/bridgepoint-live-rail-v5969.js
           node tools/reality_assets/test_live_rail.mjs
           node --check rebuild-v5000/bridgepoint-rail-mesh-v5973.js
+          node --check rebuild-v5000/bridgepoint-eiffel-tower-v5983.js
           node tools/reality_assets/test_rail_mesh_geometry.mjs
           python3 tools/reality_assets/validate_manifest.py
           python3 -m unittest tools.reality_assets.test_manifest_validator
@@ -132,12 +133,17 @@ jobs:
           cp rebuild-v5000/bridgepoint-live-rail-v5969.js site/bridgepoint-live-rail-v5969.js
           cp rebuild-v5000/bridgepoint-rail-mesh-v5973.js site/bridgepoint-rail-mesh-v5973.js
           cp rebuild-v5000/bridgepoint-pyramids-v5945.js site/bridgepoint-pyramids-v5945.js
+          cp rebuild-v5000/bridgepoint-eiffel-tower-v5983.js site/bridgepoint-eiffel-tower-v5983.js
           # Mirror the licensed 3D scan into the same-origin static artifact; avoid browser CORS failures.
           curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 240 'https://zenodo.org/records/10355435/files/8e808365b5a6453497826b114b02f155.glb' -o /tmp/statue-of-liberty-scan-source.glb
           test "$(stat -c%s /tmp/statue-of-liberty-scan-source.glb)" -gt 20000000
           # Build a phone-friendly LOD while retaining the licensed source scan and attribution.
           npx --yes @gltf-transform/cli@4.5.1 simplify /tmp/statue-of-liberty-scan-source.glb site/assets/statue-of-liberty-scan-v5940.glb --ratio 0.3 --error 0.001
           test -s site/assets/statue-of-liberty-scan-v5940.glb
+          # Mirror a public CC BY 4.0 Eiffel Tower source mesh from the Zenodo record indexed from Sketchfab/Objaverse.
+          curl --retry 4 --retry-all-errors --retry-delay 2 -fL --connect-timeout 20 --max-time 240 'https://zenodo.org/records/10353458/files/0efc103a12ad4c34b09a37e5050f8b23.glb' -o site/assets/eiffel-tower-koterstudios-v5983.glb
+          test "$(stat -c%s site/assets/eiffel-tower-koterstudios-v5983.glb)" -gt 15000000
+          test -s site/assets/eiffel-tower-koterstudios-v5983.glb
           cp rebuild-v5000/bridgepoint-view-v5917.js site/bridgepoint-view-v5917.js
           cp rebuild-v5000/bridgepoint-map-key-v5920.js site/bridgepoint-map-key-v5920.js
           cp rebuild-v5000/bridgepoint-map-state-counts-v5923.js site/bridgepoint-map-state-counts-v5923.js
@@ -324,6 +330,11 @@ jobs:
           test -s site/assets/great-wall-overview-v5940.geojson
           test -s site/assets/statue-of-liberty-scan-v5940.glb
           grep -Fq "const STATUE_SCAN_URL = '/assets/statue-of-liberty-scan-v5940.glb'" site/bridgepoint-landmarks-v5940.js
+          test -s site/bridgepoint-eiffel-tower-v5983.js
+          test -s site/assets/eiffel-tower-koterstudios-v5983.glb
+          grep -Fq "const EIFFEL_SCAN_URL = '/assets/eiffel-tower-koterstudios-v5983.glb'" site/bridgepoint-eiffel-tower-v5983.js
+          grep -Fq 'koterstudios / koters' site/bridgepoint-eiffel-tower-v5983.js
+          grep -Fq 'bridgepoint-eiffel-tower-v5983.js?v=5983-eiffel-source-mesh' site/index.html
           grep -Fq 'const STATUE_FIGURE_HEIGHT_M = 46.05' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'const STATUE_PEDESTAL_TOP_M = 46.94' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'sourceRoot.scale.setScalar(STATUE_FIGURE_HEIGHT_M / sourceHeight)' site/bridgepoint-landmarks-v5940.js
@@ -1487,6 +1498,21 @@ jobs:
               for(const id of ['khufu','khafre','menkaure'])if(!gizaPyramids[id]||!gizaPyramids[id].rendered)throw new Error('GIZA_3D_PYRAMID_NOT_RENDERED '+id+' '+JSON.stringify(gizaPyramids));
               if(!gizaPyramids.localThree||!gizaPyramids.footprintLayer||!gizaPyramids.layerAdded)throw new Error('GIZA_3D_PYRAMID_RENDERER_OR_ASSET_MISSING '+JSON.stringify(gizaPyramids));
               console.log('BRIDGEPOINT_GIZA_3D_PYRAMIDS_PASS',JSON.stringify(gizaPyramids));
+
+              await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                if(!m)throw new Error('EIFFEL_SMOKE_MAP_UNAVAILABLE');
+                m.jumpTo({center:[2.2945,48.8584],zoom:15.2,pitch:58,bearing:0});
+              });
+              await p.waitForFunction(()=>{
+                const s=window.__BP_EIFFEL_TOWER_V5983__;
+                return s?.version===5983&&s?.rendered===true&&s?.loaded===true&&s?.finalHeightM===330;
+              },{timeout:90000});
+              const eiffel=await p.evaluate(()=>({state:window.__BP_EIFFEL_TOWER_V5983__||null,
+                layer:!!window.__BP_V5000_WORLD?.map?.getLayer('bp-eiffel-tower-source-mesh-v5983'),
+                assetRequested:performance.getEntriesByType('resource').some(r=>r.name.includes('eiffel-tower-koterstudios-v5983.glb'))}));
+              if(!eiffel.layer||!eiffel.assetRequested||eiffel.state?.rendered!==true)throw new Error('EIFFEL_TOWER_MATERIALIZATION_FAILED '+JSON.stringify(eiffel));
+              console.log('BRIDGEPOINT_EIFFEL_TOWER_MATERIALIZATION_PASS',JSON.stringify(eiffel));
 
               const severe=fatal.filter(x=>!/ResizeObserver loop/i.test(x));
               if(severe.length)throw new Error('ANDROID_PAGEERROR '+JSON.stringify(severe.slice(-5)));
