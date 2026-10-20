@@ -150,7 +150,7 @@ async function bootMap(){
  void import('./world-v2300-clouds.js?v=5908-game-clouds')
   .then(m=>{window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
   .catch(e=>console.warn('BridgePoint sky clouds unavailable',e));
- void import('./world-v2300-time-slider.js?v=5934-world-controls')
+ void import('./world-v2300-time-slider.js?v=5981-bottom-dock-fix')
   .then(m=>{window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)})
   .catch(e=>console.warn('BridgePoint world activity slider unavailable',e));
  void import('./world-v2300-spectral-imagery.js?v=5934-world-controls')
@@ -162,7 +162,7 @@ async function bootMap(){
  void import('./world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers')
   .then(m=>{window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)})
   .catch(e=>console.warn('BridgePoint power grid and FCC tower volume unavailable',e));
-  void import('./world-v2300-sensor-layers.js?v=5945-coastal-dive')
+  void import('./world-v2300-sensor-layers.js?v=5981-nasa-nightlights-state')
    .then(m=>{window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)})
    .catch(e=>console.warn('BridgePoint NASA night lights, GEBCO depth and mapped streetlights unavailable',e));
  void import('./world-v2300-realism.js?v=5910-world-materials')
