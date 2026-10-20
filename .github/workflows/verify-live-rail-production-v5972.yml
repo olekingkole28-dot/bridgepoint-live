@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: bp-live-rail-production-smoke
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   live-rail-production-smoke:
