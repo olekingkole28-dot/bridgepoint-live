@@ -128,6 +128,7 @@ assert.equal(secondMotion.features[0].properties.speedSource, 'OBSERVED_BETWEEN_
 assert.ok(Math.abs(secondMotion.features[0].properties.effectiveBearingDegrees - 90) < 3,
   'observed eastbound movement should yield eastbound heading');
 assert.equal(api.getFeatures('no-such-map').length, 0);
+assert.equal(api.setDisplayMode('no-such-map', 'mesh'), false, 'mesh mode only applies to an attached map');
 
 assert.throws(
   () => api.parseSnapshot({ included: [] }, now),
