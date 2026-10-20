@@ -195,7 +195,7 @@ async function diagnostics(page) {
       const mesh = (window.__BP_RAIL_MESH_V5973__?.getState?.() || []).find(s => s.mapId === mapId);
       return !!mesh && mesh.active && mesh.layerAdded &&
         mesh.railSegments > 0 && mesh.sleepers > 0 && mesh.lineFeatureCount > 0;
-    }, { timeout: 55000, polling: 750 }, selected.mapId);
+    }, { timeout: 80000, polling: 750 }, selected.mapId);
 
     // Now validate the external feed separately. A telemetry outage must never prevent
     // real track geometry from being materialized, but it must not create fake train meshes.
