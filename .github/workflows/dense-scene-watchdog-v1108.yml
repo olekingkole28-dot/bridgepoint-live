@@ -140,7 +140,7 @@ jobs:
               // Dense Manhattan building scene.
               await page.evaluate(()=>{
                 window.__BP_MAP_USER_INTENT_AT__=Date.now();
-                window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:12.2,pitch:60,bearing:-22});
+                window.__BP_V5000_WORLD.map.jumpTo({center:[-74.006,40.7128],zoom:14.2,pitch:60,bearing:-22});
               });
               await sleep(6500);
               const city=await page.evaluate(()=>{
