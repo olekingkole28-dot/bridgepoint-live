@@ -361,10 +361,12 @@ jobs:
           grep -Fq 'Potree.updatePointClouds([cloud]' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan' site/index.html
           grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan' site/app/index.html
-          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7009-activate-photo-mesh' site/index.html
-          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7009-activate-photo-mesh' site/app/index.html
+          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7010-lazy-lidar-mesh' site/index.html
+          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7010-lazy-lidar-mesh' site/app/index.html
           test -s site/bridgepoint-nyc-lidar-v7000.js
           node --check site/bridgepoint-nyc-lidar-v7000.js
+          grep -Fq "publish('overlay-idle-ready'" site/bridgepoint-nyc-lidar-v7000.js
+          grep -Fq 'async function ensureOverlayRuntime(map, state)' site/bridgepoint-nyc-lidar-v7000.js
           grep -Fq 'GRID_TO_TRUE_NORTH_RADIANS = -0.00018468388351200875' site/bridgepoint-nyc-lidar-v7000.js
           grep -Fq 'axis === 2 ? -1 : 1' site/bridgepoint-nyc-lidar-v7000.js
           grep -Fq 'z:-(Number(anchor.projectedYFeet)-Number(baseAnchor.projectedYFeet))*FT_TO_M' site/bridgepoint-nyc-lidar-v7000.js
