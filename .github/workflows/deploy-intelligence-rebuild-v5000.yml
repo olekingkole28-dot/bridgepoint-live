@@ -829,10 +829,10 @@ jobs:
           test -s site/vendor/maplibre-gl.js
           test -s site/vendor/maplibre-gl.css
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6010-unified-bottom-deck' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6010-unified-bottom-deck' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6011-unified-bottom-deck' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6011-unified-bottom-deck' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6012-remainder-controls' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6012-remainder-controls' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6012-remainder-controls' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6012-remainder-controls' site/index.html
           grep -Fq 'function setDockMaximized(on)' site/bridgepoint-view-v5917.js
           grep -Fq 'dock.appendChild(keyRibbon)' site/bridgepoint-view-v5917.js
           grep -Fq 'Unified bottom command deck' site/bridgepoint-view-v5917.css
@@ -1595,15 +1595,14 @@ jobs:
                 const s=window.__BP_LINCOLN_MEMORIAL_V5984__;
                 const m=window.__BP_V5000_WORLD?.map;
                 return s?.version===5984&&s?.attachedMaps>=1&&!!m?.getLayer('bp-lincoln-memorial-label-v5984')&&
-                  !!document.querySelector('.bp-lincoln-scan-chip-v5984[data-show="true"]');
+                  !document.querySelector('.bp-lincoln-scan-chip-v5984');
               },{timeout:30000});
               const lincoln=await p.evaluate(()=>({state:window.__BP_LINCOLN_MEMORIAL_V5984__||null,
                 markerLayer:!!window.__BP_V5000_WORLD?.map?.getLayer('bp-lincoln-memorial-label-v5984'),
-                scanLink:document.querySelector('.bp-lincoln-scan-chip-v5984 a')?.href||null,
-                promptVisible:document.querySelector('.bp-lincoln-scan-chip-v5984')?.dataset.show==='true'}));
-              if(!lincoln.markerLayer||!lincoln.promptVisible||!String(lincoln.scanLink||'').includes('pointcloud.ucsd.edu'))
-                throw new Error('LINCOLN_MEMORIAL_SCAN_ACCESS_FAILED '+JSON.stringify(lincoln));
-              console.log('BRIDGEPOINT_LINCOLN_MEMORIAL_SCAN_ACCESS_PASS',JSON.stringify(lincoln));
+                standaloneButtonRemoved:!document.querySelector('.bp-lincoln-scan-chip-v5984')}));
+              if(!lincoln.markerLayer||!lincoln.standaloneButtonRemoved)
+                throw new Error('LINCOLN_MEMORIAL_RENDERING_OR_BUTTON_REGRESSION '+JSON.stringify(lincoln));
+              console.log('BRIDGEPOINT_LINCOLN_MEMORIAL_BUTTON_REMOVED_PASS',JSON.stringify(lincoln));
 
               const severe=fatal.filter(x=>!/ResizeObserver loop/i.test(x));
               if(severe.length)throw new Error('ANDROID_PAGEERROR '+JSON.stringify(severe.slice(-5)));
