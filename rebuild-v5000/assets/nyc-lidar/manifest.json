@@ -1,6 +1,6 @@
 {
-  "version": 7000,
-  "status": "MATERIALIZED_LIDAR_WITH_ORTHOPHOTO_TEXTURED_SURFACE",
+  "version": 7001,
+  "status": "MATERIALIZED_LIDAR_WITH_ROOF_ORTHOPHOTO_AND_VERTICAL_WALLS",
   "tileId": "987210",
   "source": {
     "provider": "NYC Office of Technology and Innovation (OTI) / NYC OpenData",
@@ -39,7 +39,7 @@
   },
   "noisePointsExcludedFromDisplay": 62525,
   "samplePoints": 180000,
-  "sampleStrategy": "Seeded random sample of measured LAS returns; nested 12k, 75k and 180k LODs; RGB sampled from georeferenced NYS natural-color aerial orthophoto.",
+  "sampleStrategy": "Seeded random sample of actual LAS source returns; same points in all nested LODs; RGB sampled per point from georeferenced aerial orthophoto pixels in EPSG:3857.",
   "pointClassificationColors": {
     "0": [
       150,
@@ -218,7 +218,7 @@
       "colorizedFromActualImagery": true
     }
   ],
-  "builtAtUtc": "2026-10-21T07:22:58Z",
+  "builtAtUtc": "2026-10-21T06:48:47Z",
   "buildSeconds": 11.39,
   "sampleBinaryEncoding": {
     "positions": "signed int16 x/y/z, each multiplied by 0.02 metres to recover local coordinates",
@@ -234,11 +234,21 @@
     "nominalResolution": "12 inch (source varies 6\u201312 inches)",
     "captureWindow": "2022\u20132025 composite",
     "format": "JPEG natural-color orthophoto export",
+    "imageFile": "nyc-midtown-ortho-2023.jpg",
+    "imageSize": [
+      4096,
+      4096
+    ],
+    "exportBboxEPSG3857": [
+      -8236336.702764434,
+      4974519.002195202,
+      -8235332.14490842,
+      4975527.445913679
+    ],
     "imagerySha256": "64d2eb933accb77ea16d0819203f06f788538ec5f6b9d863c04dc9110e4fc59a",
     "pixelColorizedReturns": 180000,
     "pointCoveragePercent": 100.0,
-    "method": "For each measured LiDAR return, transform EPSG:2263 XY to EPSG:3857, sample the georeferenced orthophoto pixel, and store that real RGB value alongside the measured XYZ return. This textures roof/ground return colors; it does not synthesize fa\u00e7ade photographs.",
-    "pixelMaterialization": "RGB sampled into each LiDAR point; source orthophoto also draped onto a LiDAR-derived surface mesh."
+    "method": "For each measured LiDAR return, transform EPSG:2263 XY to EPSG:3857, sample the georeferenced orthophoto pixel, and store that real RGB value alongside the measured XYZ return. This textures roof/ground return colors; it does not synthesize fa\u00e7ade photographs."
   },
   "materialization": {
     "method": "Orthophoto RGB draped onto source LiDAR returns",
@@ -251,38 +261,54 @@
     "sourcePointGeometryPreserved": true,
     "syntheticGeometryAdded": false,
     "buildSeconds": 6.02,
-    "surfaceMesh": "Measured LiDAR maximum-height surface grid with real aerial orthophoto texture; roof/ground texture is true-color nadir imagery, not synthetic facade photography."
+    "surfaceMesh": "Cell-local LiDAR surface mesh with current NYS true-color nadir ortho imagery only on upward-facing roofs/ground",
+    "verticalWalls": "Separate neutral shaded vertical facade quads from LiDAR height discontinuities; no stretched top-down photo and no invented windows",
+    "wallQuadCount": 20372,
+    "roofPhotoTexture": true,
+    "sidePhotoTexture": false,
+    "coordinateGrid": "Cell footprints snapped to EPSG:2263 cell bins, eliminating the earlier half-cell drift"
   },
   "surfaceMesh": {
-    "file": "nyc-midtown-987210-surface-1m.bin.gz",
+    "file": "nyc-midtown-987210-surface-2m.bin.gz",
     "encoding": "gzip(binary)",
     "gridSpacingMetres": 2.0,
-    "gridWidth": 383,
-    "gridHeight": 383,
-    "vertexCount": 146689,
-    "triangleCount": 291848,
-    "indexCount": 875544,
-    "binaryLayout": "int16le xyz positions quantized at 0.02m, uint16le normalized UV pairs, uint32le triangle indices; sections contiguous in that order",
+    "gridWidth": 381,
+    "gridHeight": 381,
+    "vertexCount": 580644,
+    "triangleCount": 290322,
+    "indexCount": 870966,
+    "binaryLayout": "int16le xyz positions at 0.02m, uint16le normalized UV pairs, uint32le triangle indices; cell-local vertices split across roof edges",
     "positionScaleMeters": 0.02,
     "uvEncoding": "uint16 normalized 0..65535",
     "indexEncoding": "uint32le",
-    "rawBytes": 4969066,
-    "gzipBytes": 1947117,
-    "sha256": "df6f9d5fd9c4662b9222c04633806c1905a9234477c7641722117ab0dda13ed1",
+    "rawBytes": 9290304,
+    "gzipBytes": 3206692,
+    "sha256": "820b9b53ad7e94d19c677c52af164f026b8e36dfcf49a6929d9c4fe7322bff07",
     "textureFile": "nyc-midtown-ortho-2023.webp",
     "textureFormat": "WebP",
     "textureSize": [
-      2048,
-      2048
+      4096,
+      4096
     ],
-    "textureSha256": "a0b86ded8c694f3cb167031f3234ef178981dbf604997df5955563c9f978b14c",
-    "heightMethod": "maximum measured source LAS return per 1m XY cell; only empty cells nearest-filled from measured neighbors",
+    "textureSha256": "bc08cc52a6098a9c7f10804292f59de42b845f58313bad5e591caf3c8fd7bb63",
+    "heightMethod": "Measured maximum LAS return per 2m cell; adjacent-cell corners are smoothed only across small height differences so abrupt building edges remain discontinuities",
     "sourcePointCount": 17523220,
     "sourceTileSha256": "5b13a1bc879797d88a0d4cc0ccdd946c9a93fb09586e9c74a2a264e08976f74b",
     "imagerySource": "NYS Latest Orthoimagery 2022\u20132025 natural color",
     "photorealisticRoofDrape": true,
     "facadePhotoCoverage": false,
-    "coveragePercent": 98.957,
-    "materializedAtUtc": "2026-10-21T07:21:52Z"
+    "coveragePercent": 99.9986,
+    "materializedAtUtc": "2026-10-21T07:42:15Z",
+    "wallFile": "nyc-midtown-987210-walls-2m.bin.gz",
+    "wallVertexCount": 81488,
+    "wallIndexCount": 122232,
+    "wallTriangleCount": 40744,
+    "wallQuadCount": 20372,
+    "wallRawBytes": 1222320,
+    "wallGzipBytes": 366783,
+    "wallSha256": "a3f3af5efa4213ac63dc33abfaf2fcb450377c308cc75f91f8f487766ff3d75d",
+    "wallBinaryLayout": "int16le xyz positions at 0.02m, uint8 RGB wall-shading colors, uint32le triangle indices",
+    "wallMaterial": "untextured neutral shaded vertical faces derived from measured LiDAR roof boundaries",
+    "wallMethod": "Vertical quads between sustained flat elevated LiDAR roof regions and adjacent lower surface/ground returns"
   }
 }

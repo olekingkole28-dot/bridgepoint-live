@@ -5,10 +5,10 @@
  */
 (() => {
   'use strict';
-  if (window.__BP_NYC_LIDAR_V7000_BOOTED__) return;
-  window.__BP_NYC_LIDAR_V7000_BOOTED__ = true;
+  if (window.__BP_NYC_LIDAR_V7001_BOOTED__) return;
+  window.__BP_NYC_LIDAR_V7001_BOOTED__ = true;
 
-  const VERSION = 7000;
+  const VERSION = 7001;
   const MANIFEST_URL = '/assets/nyc-lidar/manifest.json';
   const LAYER_ID = 'bp-nyc-exact-lidar-v7000';
   const SOURCE_URL = 'https://data.cityofnewyork.us/City-Government/Topobathymetric-LiDAR-Data-2017-/7sc8-jtbz';
@@ -24,7 +24,7 @@
   let threePromise = null;
   let attachedCount = 0;
 
-  const BUILDING_LAYER_RE = /(?:building|roof|floor.line|facade|night.window|landmark3d|tree|vegetation|canopy|foliage)/i;
+  const BUILDING_LAYER_RE = /(?:building|roof|floor.line|facade|structure|reality|night.window|landmark3d)/i;
 
   function publish(status, extra = {}) {
     window.__BP_NYC_LIDAR_V7000__ = Object.assign({
@@ -177,14 +177,15 @@
   }
 
   async function ensureSurfaceMesh(map, state) {
-    if (state.surfaceMesh) return state.surfaceMesh;
+    if (state.surfaceMesh && state.wallMesh) return state.surfaceMesh;
     if (state.surfacePromise) return state.surfacePromise;
     const meta = state.manifest.surfaceMesh;
-    if (!meta) return null;
+    if (!meta || !meta.wallFile) throw new Error('NYC_LIDAR_VERTICAL_WALL_ASSET_MISSING');
     state.surfacePromise = (async () => {
-      const [THREE, raw] = await Promise.all([
+      const [THREE, raw, wallRaw] = await Promise.all([
         loadThree(),
-        decodeGzipAsset('/assets/nyc-lidar/' + meta.file)
+        decodeGzipAsset('/assets/nyc-lidar/' + meta.file),
+        decodeGzipAsset('/assets/nyc-lidar/' + meta.wallFile)
       ]);
       const texture = await new Promise((resolve, reject) => {
         const loader = new THREE.TextureLoader();
@@ -194,7 +195,7 @@
       const indexCount = Number(meta.indexCount);
       const expected = vertices * 10 + indexCount * 4;
       if (!Number.isInteger(vertices) || !Number.isInteger(indexCount) || raw.byteLength !== expected) {
-        throw new Error('NYC_LIDAR_SURFACE_BINARY_SIZE_MISMATCH expected=' + expected + ' actual=' + raw.byteLength);
+        throw new Error('NYC_LIDAR_ROOF_BINARY_SIZE_MISMATCH expected=' + expected + ' actual=' + raw.byteLength);
       }
       const q = new Int16Array(raw, 0, vertices * 3);
       const positions = new Float32Array(vertices * 3);
@@ -212,27 +213,62 @@
       texture.anisotropy = Math.min(4, state.renderer?.capabilities?.getMaxAnisotropy?.() || 1);
       texture.needsUpdate = true;
       const material = new THREE.MeshBasicMaterial({
-        map: texture, side: THREE.DoubleSide, depthTest: true, depthWrite: true,
+        map: texture, side: THREE.FrontSide, depthTest: true, depthWrite: true,
         transparent: false, toneMapped: false
       });
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.name = 'NYC measured LiDAR surface · true-color aerial roof drape';
-      mesh.frustumCulled = false;
-      mesh.renderOrder = 10;
-      mesh.visible = false;
-      state.scene?.add(mesh);
+      const roof = new THREE.Mesh(geometry, material);
+      roof.name = 'NYC measured LiDAR surface · aerial texture on roof/ground faces only';
+      roof.frustumCulled = false;
+      roof.renderOrder = 10;
+      roof.visible = false;
+
+      const wallVertices = Number(meta.wallVertexCount);
+      const wallIndexCount = Number(meta.wallIndexCount);
+      const wallExpected = wallVertices * 9 + wallIndexCount * 4;
+      if (!Number.isInteger(wallVertices) || !Number.isInteger(wallIndexCount) || wallVertices < 4 || wallRaw.byteLength !== wallExpected) {
+        texture.dispose?.();
+        geometry.dispose?.();
+        throw new Error('NYC_LIDAR_WALL_BINARY_SIZE_MISMATCH expected=' + wallExpected + ' actual=' + wallRaw.byteLength);
+      }
+      const wq = new Int16Array(wallRaw, 0, wallVertices * 3);
+      const wallPositions = new Float32Array(wallVertices * 3);
+      for (let i = 0; i < wallPositions.length; i++) wallPositions[i] = wq[i] * scale;
+      const wallColors = new Uint8Array(wallRaw, wallVertices * 6, wallVertices * 3);
+      const wallIndices = new Uint32Array(wallRaw.slice(wallVertices * 9, wallVertices * 9 + wallIndexCount * 4));
+      const wallGeometry = new THREE.BufferGeometry();
+      wallGeometry.setAttribute('position', new THREE.BufferAttribute(wallPositions, 3));
+      wallGeometry.setAttribute('color', new THREE.BufferAttribute(wallColors, 3, true));
+      wallGeometry.setIndex(new THREE.BufferAttribute(wallIndices, 1));
+      wallGeometry.computeVertexNormals();
+      // The aerial ortho is nadir-only. Facades therefore use clean LiDAR-derived vertical planes,
+      // shaded from neutral per-face colors rather than incorrectly stretching the roof photo down the sides.
+      const wallMaterial = new THREE.MeshBasicMaterial({
+        vertexColors: true, side: THREE.DoubleSide, depthTest: true, depthWrite: true,
+        transparent: false, toneMapped: false
+      });
+      const walls = new THREE.Mesh(wallGeometry, wallMaterial);
+      walls.name = 'NYC LiDAR-derived vertical building walls · neutral shaded, no false facade photo';
+      walls.frustumCulled = false;
+      walls.renderOrder = 11;
+      walls.visible = false;
+      state.scene?.add(roof);
+      state.scene?.add(walls);
       state.surfaceTexture = texture;
-      state.surfaceMesh = mesh;
-      publish('photorealistic-surface-ready', {
+      state.surfaceMesh = roof;
+      state.wallMesh = walls;
+      publish('roof-drape-and-vertical-walls-ready', {
         tileId: state.manifest.tileId,
         surfaceVertices: vertices,
         surfaceTriangles: Number(meta.triangleCount),
+        verticalWallQuads: Number(meta.wallQuadCount),
+        verticalWallTriangles: Number(meta.wallTriangleCount),
         gridSpacingMetres: Number(meta.gridSpacingMetres),
-        textureSource: 'NYS Latest Orthoimagery 2022–2025',
-        textureBytes: meta.textureFile,
-        facadePhotoCoverage: false
+        roofTextureSource: 'NYS Latest Orthoimagery 2022–2025',
+        roofTextureFile: meta.textureFile,
+        facadePhotoCoverage: false,
+        facadeGeometrySource: 'Measured LiDAR height discontinuities'
       });
-      return mesh;
+      return roof;
     })().catch(error => {
       state.surfacePromise = null;
       throw error;
@@ -243,7 +279,14 @@
   function restoreSurfaceFilters(map, state) {
     for (const [id, previous] of state.savedFilters) {
       if (!map.getLayer(id)) continue;
-      try { map.setFilter(id, previous == null ? null : previous); } catch (_) {}
+      try {
+        map.setLayoutProperty(id, 'visibility', previous.visibility || 'visible');
+      } catch (_) {
+        try { map.setLayerZoomRange(id, previous.minzoom ?? 0, previous.maxzoom ?? 24); } catch (_) {}
+      }
+      if (previous.hasFilter) {
+        try { map.setFilter(id, previous.filter ?? null); } catch (_) {}
+      }
     }
     state.savedFilters.clear();
     state.maskActive = false;
@@ -254,19 +297,31 @@
       if (state.maskActive || state.savedFilters.size) restoreSurfaceFilters(map, state);
       return;
     }
+    // The LiDAR/photomesh is the single source of visible structure geometry in this close view.
+    // Hide, rather than spatially filtering, all legacy building/roof layers: vector-tile clipping
+    // can make spatial within-tile filters keep misaligned footprints that must be replaced.
     const layers = map.getStyle()?.layers || [];
-    const polygon = state.tilePolygon;
     for (const layer of layers) {
       const id = String(layer.id || '');
-      if (!BUILDING_LAYER_RE.test(id) || id === LAYER_ID || layer.type === 'background' || layer.type === 'custom') continue;
+      if (!BUILDING_LAYER_RE.test(id) || id === LAYER_ID || layer.type === 'background') continue;
+      if (state.savedFilters.has(id)) continue;
+      const minzoom = Number.isFinite(layer.minzoom) ? layer.minzoom : 0;
+      const maxzoom = Number.isFinite(layer.maxzoom) ? layer.maxzoom : 24;
+      let filter = null, hasFilter = false, visibility = 'visible';
+      try { filter = map.getFilter(id); hasFilter = true; } catch (_) {}
+      try { visibility = map.getLayoutProperty(id, 'visibility') || 'visible'; } catch (_) {}
+      state.savedFilters.set(id, { visibility, filter, hasFilter, minzoom, maxzoom, type: layer.type });
       try {
-        if (!state.savedFilters.has(id)) state.savedFilters.set(id, map.getFilter(id) ?? null);
-        const original = state.savedFilters.get(id);
-        const outsideTile = ['!', ['within', polygon]];
-        const next = original ? ['all', original, outsideTile] : outsideTile;
-        map.setFilter(id, next);
+        map.setLayoutProperty(id, 'visibility', 'none');
       } catch (error) {
-        state.filterErrors.push({ id, error: String(error && error.message || error) });
+        // Fallback for custom render layers that do not expose layout visibility in this style.
+        try { map.setLayerZoomRange(id, 24, 25); }
+        catch (fallbackError) {
+          state.filterErrors.push({
+            id,
+            error: String(fallbackError && fallbackError.message || error)
+          });
+        }
       }
     }
     state.maskActive = state.savedFilters.size > 0;
@@ -292,6 +347,11 @@
       visible: level >= 0,
       photorealisticSurfaceMesh: !!state.surfaceMesh,
       surfaceMeshVisible: !!state.surfaceMesh && state.surfaceMesh.visible,
+      verticalWallMeshVisible: !!state.wallMesh && state.wallMesh.visible,
+      verticalWallQuads: state.manifest.surfaceMesh?.wallQuadCount || 0,
+      facadePhotoCoverage: false,
+      duplicateBuildingPolicy: 'legacy building and roof layers hidden while detailed NYC LiDAR tier is active',
+      hiddenLegacyLayerIds: [...state.savedFilters.keys()].slice(0, 60),
       surfaceMeshGridSpacingMetres: state.manifest.surfaceMesh?.gridSpacingMetres || null,
       aerialTextureSource: state.manifest.imagery?.sourceProduct || null
     });
@@ -304,6 +364,7 @@
     if (level < 0) {
       for (const mesh of state.meshes.values()) mesh.visible = false;
       if (state.surfaceMesh) state.surfaceMesh.visible = false;
+      if (state.wallMesh) state.wallMesh.visible = false;
       state.activeLevel = -1;
       suppressLegacySurfaces(map, state, false);
       updateStatus(map, state, 'waiting-for-nyc-tile-viewport');
@@ -316,6 +377,7 @@
       if (state.wantedLevel !== level) return reconcile(map, state);
       for (const [tier, mesh] of state.meshes) mesh.visible = tier === level;
       if (state.surfaceMesh) state.surfaceMesh.visible = level === 2;
+      if (state.wallMesh) state.wallMesh.visible = level === 2;
       state.activeLevel = level;
       suppressLegacySurfaces(map, state, level === 2 && Number(map.getZoom()) >= 17.2);
       map.triggerRepaint();
@@ -326,12 +388,14 @@
       if (fallback >= 0) {
         for (const [tier, mesh] of state.meshes) mesh.visible = tier === fallback;
         if (state.surfaceMesh) state.surfaceMesh.visible = fallback === 2;
+        if (state.wallMesh) state.wallMesh.visible = fallback === 2;
         state.activeLevel = fallback;
         suppressLegacySurfaces(map, state, false);
         updateStatus(map, state, 'rendering-fallback-lod');
       } else {
         for (const mesh of state.meshes.values()) mesh.visible = false;
         if (state.surfaceMesh) state.surfaceMesh.visible = false;
+        if (state.wallMesh) state.wallMesh.visible = false;
         state.activeLevel = -1;
         suppressLegacySurfaces(map, state, false);
         publish('tile-load-error', {
@@ -398,7 +462,9 @@
         suppressLegacySurfaces(state.map, state, false);
         try { state.renderer?.dispose?.(); } catch (_) {}
         try { state.surfaceMesh?.geometry?.dispose?.(); state.surfaceMesh?.material?.map?.dispose?.(); state.surfaceMesh?.material?.dispose?.(); } catch (_) {}
+        try { state.wallMesh?.geometry?.dispose?.(); state.wallMesh?.material?.dispose?.(); } catch (_) {}
         state.surfaceMesh = null;
+        state.wallMesh = null;
         state.surfaceTexture = null;
         state.surfacePromise = null;
         state.renderer = null;
@@ -416,7 +482,7 @@
     const state = {
       map, manifest: null, scene: null, camera: null, renderer: null, gl: null,
       installing: false, layerAdded: false, activeLevel: -1, wantedLevel: -1,
-      meshes: new Map(), loads: new Map(), surfaceMesh: null, surfaceTexture: null, surfacePromise: null, savedFilters: new Map(), maskActive: false,
+      meshes: new Map(), loads: new Map(), surfaceMesh: null, wallMesh: null, surfaceTexture: null, surfacePromise: null, savedFilters: new Map(), maskActive: false,
       filterErrors: [], lastError: null, tilePolygon: null, moveTimer: null, autoFocused: false
     };
     MAPS.set(map, state);
