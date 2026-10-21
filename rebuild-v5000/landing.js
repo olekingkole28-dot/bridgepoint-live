@@ -138,7 +138,7 @@ function setLandingWeatherEnabled(world,on){
    landingWeatherModules={weather:wm.initWeather(world.map),present:pm.initPresentWeather(world.map)}
   }
   if(!landingWeatherEnabled)return false;
-  landingWeatherModules.weather?.setActive?.(true);landingWeatherModules.weather?.setRadar?.(false);
+  landingWeatherModules.weather?.setActive?.(true);landingWeatherModules.weather?.setRadar?.(true);
   try{for(const id of ['bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-points','bp-landing-weather-glow'])if(m.getLayer(id))m.setLayoutProperty(id,'visibility','visible')}catch(_){}
   window.__BP_LANDING_VISUAL_WEATHER__={version:5822,...landingWeatherModules,enabled:true,mapShared:true,nationalWeather:true,networkActivationDeferred:false,radarVisible:true,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,asyncAttach:true,updatedAt:Date.now()};
   void startLandingNationalWeather(world).catch(e=>console.warn('BridgePoint national weather async',e));
@@ -301,7 +301,7 @@ async function initMap(){
   let bpUserMapGesture=false;const previewEl=$('previewMap');for(const ev of ['pointerdown','touchstart','wheel'])previewEl?.addEventListener(ev,()=>{bpUserMapGesture=true},{passive:true});const hidePreviewSample=()=>{const sample=document.querySelector('.preview-sample');if(!sample)return;sample.style.setProperty('opacity','0','important');sample.style.setProperty('pointer-events','none','important');sample.style.setProperty('transform','translateY(6px)','important');sample.setAttribute('aria-hidden','true')};map.on('move',()=>{$('previewCard').hidden=true;if(bpUserMapGesture)hidePreviewSample()});map.on('moveend',()=>{if(bpUserMapGesture)hidePreviewSample()});
   const weatherButton=$('landingWeatherActivation');
   if(weatherButton&&!weatherButton.dataset.bpBound){weatherButton.dataset.bpBound='1';weatherButton.addEventListener('click',()=>{void setLandingWeatherEnabled(world,!landingWeatherEnabled)})}
-  void setLandingWeatherEnabled(world,false);
+  void setLandingWeatherEnabled(world,true);
  }catch(e){
   const msg=String(e?.stack||e?.message||e||'UNKNOWN_MAP_BOOT_ERROR');
   window.__BP_LANDING_MAP_BOOT__={stage:'error',error:msg,maplibre:!!window.maplibregl,module:!!window.__BP_WORLD_RENDER_VERSION__,provisional:!!window.__bpLandingWorldV5420?.map,at:Date.now()};
