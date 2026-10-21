@@ -193,7 +193,7 @@
     "photorealisticRoofDrape": true,
     "facadePhotoCoverage": false,
     "coveragePercent": 99.9986,
-    "materializedAtUtc": "2026-10-21T13:23:47Z",
+    "materializedAtUtc": "2026-10-21T20:12:20Z",
     "wallFile": "nyc-midtown-987210-walls-2m.bin.gz",
     "wallVertexCount": 130396,
     "wallIndexCount": 195594,
@@ -277,5 +277,5 @@
     ],
     "chunkStrategy": "independent gzip row chunks with chunk-local indices"
   },
-  "builtAtUtc": "2026-10-21T13:23:54Z"
+  "builtAtUtc": "2026-10-21T20:12:28Z"
 }
