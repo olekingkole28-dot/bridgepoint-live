@@ -26,13 +26,13 @@ const SLOT_INFO={
 function node(tag,cls,html){const n=document.createElement(tag);if(cls)n.className=cls;if(html!==undefined)n.innerHTML=html;return n}
 function addClass(el,cls){if(el)el.classList.add(cls)}
 function setDockMaximized(on){const d=$('#bpv-dock'),b=$('[data-bpv-dock-expand]');if(!d)return;d.classList.toggle('bpv-dock-maximized',!!on);if(b){b.textContent=on?'RESTORE ↘':'MAXIMIZE ↗';b.setAttribute('aria-pressed',String(!!on))}}
-function closePanel(){const p=$('#bpv-sidecar');if(p)p.hidden=true;document.body.classList.remove('bpv-panel-open');setDockMaximized(false)}
+function closePanel(){const p=$('#bpv-sidecar');if(p)p.hidden=true;document.body.classList.remove('bpv-panel-open');const rail=$('#bpv-mapkey-rail');if(rail)rail.setAttribute('aria-expanded','false');setDockMaximized(false)}
 function openPanel(name){
  const p=$('#bpv-sidecar');if(!p)return;
- if(home){const card=$('#previewCard');if(card&&!card.hidden)card.hidden=true}else{const sys=$('#systemPanel'),building=$('#buildingPanel');if(sys)sys.hidden=true;if(building)building.hidden=true}
+ if(home){const card=$('#previewCard');if(card&&!card.hidden&&name!=='mapkey')card.hidden=true}else if(name!=='mapkey'){const sys=$('#systemPanel'),building=$('#buildingPanel');if(sys)sys.hidden=true;if(building)building.hidden=true}
  activePanel=name;
- p.hidden=false;document.body.classList.add('bpv-panel-open');setDockMaximized(true);
- p.dataset.panel=name;
+ p.hidden=false;p.dataset.panel=name;document.body.classList.add('bpv-panel-open');setDockMaximized(name!=='mapkey');
+ const rail=$('#bpv-mapkey-rail');if(rail)rail.setAttribute('aria-expanded',String(name==='mapkey'));
  const titles={ai:'BRIDGEPOINT AI',opportunities:'BRIDGEPOINT OPPORTUNITIES',listings:'BRIDGEPOINT LISTINGS',mapkey:'BRIDGEPOINT MAP KEY',metrics:'BRIDGEPOINT METRICS',property:'BRIDGEPOINT PROPERTY',controls:'BRIDGEPOINT CONTROLS',explore:'EXPLORE BRIDGEPOINT'};const title=$('#bpv-sidecar-title');if(title)title.textContent=titles[name]||'BRIDGEPOINT WORLD';
  p.querySelectorAll('[data-bpv-panel]').forEach(b=>{const on=b.dataset.bpvPanel===name;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on?'true':'false')});
  p.querySelectorAll('[data-bpv-pane]').forEach(s=>{s.hidden=s.dataset.bpvPane!==name});
@@ -42,7 +42,7 @@ function openPanel(name){
  if(name==='mapkey')void window.__BP_MAP_KEY_REFRESH_V5920__?.(true);
  if(name==='property')refreshSlotLabels();
  if(name==='ai')setTimeout(()=>$('#bpv-ai-question')?.focus({preventScroll:true}),60);
- requestAnimationFrame(()=>{try{p.scrollIntoView({block:'start',behavior:'smooth'})}catch(_){}});
+ if(name!=='mapkey')requestAnimationFrame(()=>{try{p.scrollIntoView({block:'start',behavior:'smooth'})}catch(_){}});
 }
 function setMoving(){
  moveUntil=Date.now()+850;
@@ -130,8 +130,8 @@ function makeTopBarAndDock(){
  const dock=node('div','bpv-dock bpv-dock-persistent');dock.id='bpv-dock';dock.hidden=true;
  dock.innerHTML='<div class="bpv-dock-label"><div><b>BRIDGEPOINT WORLD</b><span><i></i> LIVE · GLOBAL WORLD</span></div><div class="bpv-dock-window-actions"><button type="button" data-bpv-dock-expand aria-label="Maximize BridgePoint map card" aria-pressed="false">MAXIMIZE ↗</button><button type="button" data-bpv-dock-hide aria-label="Minimize BridgePoint map card">MINIMIZE −</button></div></div><div id="bpv-dock-account-row" class="bpv-dock-account-row" aria-label="Account, language and refresh controls"></div><div id="bpv-map-controls-slot" class="bpv-map-controls-slot" aria-label="Map zoom and orientation controls"></div><div id="bpv-search-slot" class="bpv-search-slot"></div><div id="bpv-premium-tools-slot" class="bpv-premium-tools-slot" aria-label="Free premium tools"></div><div id="bpv-property-card-slot" class="bpv-property-card-slot" aria-label="Selected property card"></div><div id="bpv-status-panel-slot" class="bpv-status-panel-slot" aria-label="System status panel"></div><div id="bpv-world-activity-slot" class="bpv-world-activity-slot" aria-label="World activity timeline"></div><div id="bpv-underground-slot" class="bpv-underground-slot" aria-label="Underground X-ray map controls"></div><div id="bpv-satellite-slot" class="bpv-satellite-slot" aria-label="Satellite and color controls"></div><div id="bpv-dock-actions" class="bpv-dock-actions">'+
  '<button type="button" data-bpv-action="ai">BRIDGEPOINT AI</button>'+
- '<button type="button" data-bpv-action="parcels">PARCEL BOUNDARIES</button>'+
- '<button type="button" data-bpv-action="mapkey">MAP KEY</button>'+
+ '<button type="button" data-bpv-action="parcels" title="Toggle public parcel lines on the globe">PARCEL LINES</button>'+
+ '<button type="button" data-bpv-action="boundaryviewer" title="Open the Public Parcel Boundary Map Viewer">PUBLIC PARCEL VIEWER</button>'+
  '<button type="button" data-bpv-action="listings">LISTINGS</button>'+
  '<button type="button" data-bpv-action="worldchanges">30-DAY HISTORY</button>'+
  '<button type="button" class="bpv-weather-fx-btn" data-bpv-action="weatherfx">WEATHER FX</button>'+
@@ -159,11 +159,18 @@ function makeTopBarAndDock(){
  mapHost.appendChild(reopen);
  dock.querySelector('[data-bpv-dock-expand]').addEventListener('click',()=>setDockMaximized(!dock.classList.contains('bpv-dock-maximized')));
  dock.querySelector('[data-bpv-dock-hide]').addEventListener('click',()=>{setDockMaximized(false);dock.hidden=true;reopen.hidden=false;mapHost.classList.add('bpv-dock-minimized')});
- const keyRibbon=node('div','bpv-key-ribbon');
- keyRibbon.id='bpv-key-ribbon';
- keyRibbon.innerHTML='<span class="bpv-key-ribbon-title">MAP KEY</span><span><i style="--key:#f3df66"></i> ROOF TRUTH</span><span><i style="--key:#65e3ff"></i> ROOF PLANES</span><span><i style="--key:#55e8b5"></i> RENTAL <b data-bpv-listings-rentals>0</b></span><span><i style="--key:#ff648f"></i> SUBSURFACE</span><span class="bpv-live-inventory-chip">LISTINGS <b data-bpv-listings-total>SYNCING</b></span><button type="button" data-bpv-key-open>FULL KEY ↗</button>';
- keyRibbon.querySelector('[data-bpv-key-open]').addEventListener('click',()=>openPanel('mapkey'));
- dock.appendChild(keyRibbon);
+ const keyRail=node('button','bpv-mapkey-rail','MAP KEY');
+ keyRail.id='bpv-mapkey-rail';keyRail.type='button';
+ keyRail.title='Open or close the weather and map-symbol legend';
+ keyRail.setAttribute('aria-label','Open map and weather legend');
+ keyRail.setAttribute('aria-controls','bpv-sidecar');
+ keyRail.setAttribute('aria-expanded','false');
+ keyRail.addEventListener('click',()=>{
+  const panel=$('#bpv-sidecar');
+  if(panel&&!panel.hidden&&panel.dataset.panel==='mapkey'){closePanel();return}
+  openPanel('mapkey');
+ });
+ document.body.appendChild(keyRail);
  const auxiliarySlot=$('#bpv-external-tools-slot');
  const auxiliarySelectors=['#bp5507-tools','#bp5507-hud','#bp5507-key-panel','#bp-realworld-effects-v5927','#bpRoadDrive','.bp-rd-drive-controls','#bp-world-realism-v5910','.bp-reality-toggle-v5968','.bp-live-rail-toggle-v5969','#bp-reality-assets-v5968','[id^="bp-reality-assets-v5968-"]','.bp-live-rail-panel-v5969'];
  const placeAuxiliaryControls=()=>{
@@ -185,6 +192,12 @@ function makeTopBarAndDock(){
   if(a==='whole'){wholeEarth();return}
   if(a==='search'){toggleSearch();return}
   if(a==='premium'){document.querySelector('#landingFreePremiumTools,#appFreePremiumTools')?.click();return}
+  if(a==='boundaryviewer'){
+   const api=window.__BP_PARCEL_BOUNDARY_VIEWER_V5403__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5404__||window.__BP_PARCEL_BOUNDARY_VIEWER_V5405__;
+   if(api&&typeof api.open==='function')void api.open('public').catch(e=>console.warn('BridgePoint public parcel viewer unavailable',e));
+   else console.warn('BridgePoint public parcel viewer is not ready yet');
+   return;
+  }
   if(a==='parcels'){toggleParcelBoundaries();return}
   if(a==='listings'){openPanel('listings');return}
   if(a==='worldchanges'){setDockMaximized(true);void openWorldChanges();return}

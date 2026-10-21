@@ -686,3 +686,63 @@ body.bpv-view-ready .bpv-dock-persistent.bpv-dock-maximized .bpv-dock-window-act
   visibility:visible!important;opacity:1!important;pointer-events:auto!important
  }
 }
+
+
+/* V6034 — Public parcel viewer lives in the card; the weather/map key opens from a slim left rail. */
+.bpv-key-ribbon{display:none!important}
+.bpv-mapkey-rail{
+ position:fixed!important;z-index:calc(var(--bpv-ui-z,1200) + 18)!important;
+ left:0!important;right:auto!important;top:50%!important;bottom:auto!important;
+ transform:translateY(-50%)!important;display:flex!important;
+ align-items:center!important;justify-content:center!important;
+ box-sizing:border-box!important;width:31px!important;min-width:31px!important;
+ min-height:104px!important;max-height:38dvh;margin:0!important;padding:12px 6px!important;
+ border:1px solid rgba(117,234,255,.4)!important;border-left:0!important;border-radius:0 10px 10px 0!important;
+ background:linear-gradient(180deg,rgba(4,27,39,.97),rgba(3,13,22,.96))!important;
+ color:#baf4ff!important;font:950 9px/1 system-ui,sans-serif!important;letter-spacing:.12em!important;
+ writing-mode:vertical-rl;text-orientation:mixed;white-space:nowrap;
+ box-shadow:0 8px 26px rgba(0,0,0,.36),inset 0 1px rgba(255,255,255,.05)!important;
+ -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);cursor:pointer;touch-action:manipulation;
+}
+.bpv-mapkey-rail[aria-expanded="true"]{
+ border-color:rgba(117,234,255,.8)!important;
+ background:linear-gradient(180deg,rgba(18,88,110,.98),rgba(7,31,44,.98))!important;
+ color:#fff!important;box-shadow:0 0 18px rgba(85,220,255,.2)!important;
+}
+.bpv-mapkey-rail:focus-visible{outline:2px solid #8af0ff!important;outline-offset:3px}
+#bpv-sidecar[data-panel="mapkey"]{
+ position:fixed!important;z-index:calc(var(--bpv-ui-z,1200) + 14)!important;
+ left:36px!important;right:auto!important;
+ top:max(66px,calc(env(safe-area-inset-top) + 58px))!important;
+ bottom:calc(max(10px,env(safe-area-inset-bottom)) + min(44dvh,440px) + 12px)!important;
+ width:min(360px,calc(100vw - 48px))!important;max-width:none!important;max-height:none!important;
+ border-radius:0 16px 16px 0!important;display:flex!important;overflow:hidden!important;
+}
+#bpv-sidecar[data-panel="mapkey"] .bpv-sidecar-tabs{display:none!important}
+#bpv-sidecar[data-panel="mapkey"] [data-bpv-pane="mapkey"]{
+ display:flex!important;flex:1 1 auto;flex-direction:column;min-height:0;overflow:hidden;
+}
+#bpv-sidecar[data-panel="mapkey"] .bpv-map-key-content{
+ max-height:none!important;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+}
+#bpv-sidecar[data-panel="mapkey"] .bpv-mapkey-section{padding:10px}
+#bpv-sidecar[data-panel="mapkey"] .bpv-mapkey-section h3{font-size:10px}
+#bpv-sidecar[data-panel="mapkey"] .bpv-mapkey-row b{font-size:11px}
+#bpv-sidecar[data-panel="mapkey"] .bpv-mapkey-row small{font-size:10px;line-height:1.5}
+#bpv-sidecar[data-panel="mapkey"] .bpv-pane-title>small{font-size:10px;line-height:1.5}
+.bpv-dock-actions>button[data-bpv-action="boundaryviewer"]{
+ border-color:rgba(116,232,255,.5)!important;
+ background:linear-gradient(135deg,rgba(11,78,99,.92),rgba(6,31,47,.96))!important;
+ color:#cefbff!important;
+}
+@media(max-width:700px){
+ #bpv-sidecar[data-panel="mapkey"]{
+  left:33px!important;right:auto!important;
+  top:max(58px,calc(env(safe-area-inset-top) + 52px))!important;
+  bottom:calc(max(6px,env(safe-area-inset-bottom)) + min(42dvh,360px) + 10px)!important;
+  width:min(320px,calc(100vw - 43px))!important;
+  border-radius:0 12px 12px 0!important;
+ }
+ .bpv-mapkey-rail{width:29px!important;min-width:29px!important;min-height:95px!important;font-size:8px!important}
+ #bpv-sidecar[data-panel="mapkey"] .bpv-sidecar-head{padding:10px}
+}

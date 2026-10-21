@@ -690,23 +690,10 @@ function closeViewer(){
 }
 
 function wirePublicApp(){
-  const tools=document.querySelector('.map-tools');
-  if(tools&&!document.getElementById('bpAppBoundaryOpen5403')){
-    const b=document.createElement('button');
-    b.id='bpAppBoundaryOpen5403';b.type='button';b.className='bp-boundary-open5403';b.textContent='BOUNDARY VIEW';
-    b.title='Open the rights-cleared parcel boundary viewer';
-    b.onclick=()=>openViewer('public');
-    tools.appendChild(b);
-  }
-  const preview=document.getElementById('previewMap');
-  if(preview&&!document.getElementById('bpLandingBoundaryOpen5403')){
-    const cs=getComputedStyle(preview);
-    if(cs.position==='static')preview.style.position='relative';
-    const b=document.createElement('button');
-    b.id='bpLandingBoundaryOpen5403';b.type='button';b.textContent='PARCEL BOUNDARIES';
-    b.onclick=()=>openViewer('public');
-    preview.appendChild(b);
-  }
+  // Keep the public viewer accessible from the BridgePoint card only; remove legacy
+  // launchers that used to float over the globe or sit behind the card.
+  document.getElementById('bpAppBoundaryOpen5403')?.remove();
+  document.getElementById('bpLandingBoundaryOpen5403')?.remove();
 }
 function wireOwner(){
   if(!ownerAllowed())return;
