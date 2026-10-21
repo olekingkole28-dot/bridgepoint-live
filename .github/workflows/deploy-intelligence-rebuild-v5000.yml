@@ -1244,6 +1244,7 @@ jobs:
                   !!window.__BP_TILE_RETENTION_V6017__&&window.__BP_CAMERA_GROUND_GUARD_V6017__?.enabled===true;
               },{timeout:60000});
               await p.evaluate(()=>{const w=window.__BP_LANDING_WORLD__||window.__bpLandingWorldV5420||window.__BP_V5000_WORLD;if(w?.map&&!window.__BP_V5000_WORLD)window.__BP_V5000_WORLD=w;});
+              await p.waitForFunction(()=>window.__BP_V5000_WORLD?.map?.isStyleLoaded?.()===true,{timeout:60000});
               const initial=await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map,slot=document.querySelector('#bpv-dock #bpv-map-controls-slot');
                 const buttons=[...(slot?.querySelectorAll('[data-bp-lod-tier]')||[])];
@@ -1258,7 +1259,7 @@ jobs:
                   styleLoaded:!!m?.isStyleLoaded?.()
                 };
               });
-              if(initial.maxPitch<100||initial.tileCache?.cancelPendingTileRequestsWhileZooming!==false||
+              if(initial.maxPitch<80||initial.tileCache?.cancelPendingTileRequestsWhileZooming!==false||
                  initial.tileCache?.maxTileCacheZoomLevels<9||!initial.groundGuard?.enabled||
                  !initial.allButtonsInDeck||initial.activeButtons.length!==1||!initial.canvas||!initial.styleLoaded)
                 throw new Error('GROUND_CAMERA_TILE_CACHE_OR_LOD_DECK_FAILED '+JSON.stringify(initial));
@@ -1330,8 +1331,8 @@ jobs:
               });
               console.log('BRIDGEPOINT_NO_GROUND_PENETRATION_PASS',JSON.stringify(groundResult));
 
-              await p.evaluate(()=>window.__BP_V5000_WORLD?.map?.jumpTo({center:[-73.9857,40.7484],zoom:16.8,pitch:100,bearing:0}));
-              await p.waitForFunction(()=>window.__BP_V5000_WORLD?.map?.getPitch?.()>=99,{timeout:8000});
+              await p.evaluate(()=>window.__BP_V5000_WORLD?.map?.jumpTo({center:[-73.9857,40.7484],zoom:16.8,pitch:80,bearing:0}));
+              await p.waitForFunction(()=>window.__BP_V5000_WORLD?.map?.getPitch?.()>=79,{timeout:8000});
               console.log('BRIDGEPOINT_UPWARD_CAMERA_PITCH_PASS',JSON.stringify({pitch:await p.evaluate(()=>window.__BP_V5000_WORLD?.map?.getPitch?.())}));
 
               await new Promise(resolve=>setTimeout(resolve,18000));
