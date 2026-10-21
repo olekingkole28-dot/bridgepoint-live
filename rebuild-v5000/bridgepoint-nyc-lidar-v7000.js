@@ -176,6 +176,70 @@
     return p;
   }
 
+  async function ensureSurfaceMesh(map, state) {
+    if (state.surfaceMesh) return state.surfaceMesh;
+    if (state.surfacePromise) return state.surfacePromise;
+    const meta = state.manifest.surfaceMesh;
+    if (!meta) return null;
+    state.surfacePromise = (async () => {
+      const [THREE, raw] = await Promise.all([
+        loadThree(),
+        decodeGzipAsset('/assets/nyc-lidar/' + meta.file)
+      ]);
+      const texture = await new Promise((resolve, reject) => {
+        const loader = new THREE.TextureLoader();
+        loader.load('/assets/nyc-lidar/' + meta.textureFile, resolve, undefined, reject);
+      });
+      const vertices = Number(meta.vertexCount);
+      const indexCount = Number(meta.indexCount);
+      const expected = vertices * 10 + indexCount * 4;
+      if (!Number.isInteger(vertices) || !Number.isInteger(indexCount) || raw.byteLength !== expected) {
+        throw new Error('NYC_LIDAR_SURFACE_BINARY_SIZE_MISMATCH expected=' + expected + ' actual=' + raw.byteLength);
+      }
+      const q = new Int16Array(raw, 0, vertices * 3);
+      const positions = new Float32Array(vertices * 3);
+      const scale = Number(meta.positionScaleMeters || 0.02);
+      for (let i = 0; i < positions.length; i++) positions[i] = q[i] * scale;
+      const uv = new Uint16Array(raw, vertices * 6, vertices * 2);
+      const indices = new Uint32Array(raw.slice(vertices * 10, vertices * 10 + indexCount * 4));
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2, true));
+      geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+      geometry.computeVertexNormals();
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.flipY = true;
+      texture.anisotropy = Math.min(4, state.renderer?.capabilities?.getMaxAnisotropy?.() || 1);
+      texture.needsUpdate = true;
+      const material = new THREE.MeshBasicMaterial({
+        map: texture, side: THREE.DoubleSide, depthTest: true, depthWrite: true,
+        transparent: false, toneMapped: false
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.name = 'NYC measured LiDAR surface · true-color aerial roof drape';
+      mesh.frustumCulled = false;
+      mesh.renderOrder = 10;
+      mesh.visible = false;
+      state.scene?.add(mesh);
+      state.surfaceTexture = texture;
+      state.surfaceMesh = mesh;
+      publish('photorealistic-surface-ready', {
+        tileId: state.manifest.tileId,
+        surfaceVertices: vertices,
+        surfaceTriangles: Number(meta.triangleCount),
+        gridSpacingMetres: Number(meta.gridSpacingMetres),
+        textureSource: 'NYS Latest Orthoimagery 2022–2025',
+        textureBytes: meta.textureFile,
+        facadePhotoCoverage: false
+      });
+      return mesh;
+    })().catch(error => {
+      state.surfacePromise = null;
+      throw error;
+    });
+    return state.surfacePromise;
+  }
+
   function restoreSurfaceFilters(map, state) {
     for (const [id, previous] of state.savedFilters) {
       if (!map.getLayer(id)) continue;
@@ -225,7 +289,11 @@
       legacySuppressionErrors: state.filterErrors.slice(0, 12),
       sourcePointCount: state.manifest.sourcePoints,
       actualMeasuredPointsOnly: true,
-      visible: level >= 0
+      visible: level >= 0,
+      photorealisticSurfaceMesh: !!state.surfaceMesh,
+      surfaceMeshVisible: !!state.surfaceMesh && state.surfaceMesh.visible,
+      surfaceMeshGridSpacingMetres: state.manifest.surfaceMesh?.gridSpacingMetres || null,
+      aerialTextureSource: state.manifest.imagery?.sourceProduct || null
     });
   }
 
@@ -235,6 +303,7 @@
     state.wantedLevel = level;
     if (level < 0) {
       for (const mesh of state.meshes.values()) mesh.visible = false;
+      if (state.surfaceMesh) state.surfaceMesh.visible = false;
       state.activeLevel = -1;
       suppressLegacySurfaces(map, state, false);
       updateStatus(map, state, 'waiting-for-nyc-tile-viewport');
@@ -242,9 +311,11 @@
     }
     try {
       await ensureLod(map, state, level);
+      if (level === 2 && state.manifest.surfaceMesh) await ensureSurfaceMesh(map, state);
       // View may have moved while the tile was being decoded; always respect the latest camera tier.
       if (state.wantedLevel !== level) return reconcile(map, state);
       for (const [tier, mesh] of state.meshes) mesh.visible = tier === level;
+      if (state.surfaceMesh) state.surfaceMesh.visible = level === 2;
       state.activeLevel = level;
       suppressLegacySurfaces(map, state, level === 2 && Number(map.getZoom()) >= 17.2);
       map.triggerRepaint();
@@ -254,11 +325,13 @@
       const fallback = level > 0 && state.meshes.has(level - 1) ? level - 1 : -1;
       if (fallback >= 0) {
         for (const [tier, mesh] of state.meshes) mesh.visible = tier === fallback;
+        if (state.surfaceMesh) state.surfaceMesh.visible = fallback === 2;
         state.activeLevel = fallback;
         suppressLegacySurfaces(map, state, false);
         updateStatus(map, state, 'rendering-fallback-lod');
       } else {
         for (const mesh of state.meshes.values()) mesh.visible = false;
+        if (state.surfaceMesh) state.surfaceMesh.visible = false;
         state.activeLevel = -1;
         suppressLegacySurfaces(map, state, false);
         publish('tile-load-error', {
@@ -324,6 +397,10 @@
       onRemove() {
         suppressLegacySurfaces(state.map, state, false);
         try { state.renderer?.dispose?.(); } catch (_) {}
+        try { state.surfaceMesh?.geometry?.dispose?.(); state.surfaceMesh?.material?.map?.dispose?.(); state.surfaceMesh?.material?.dispose?.(); } catch (_) {}
+        state.surfaceMesh = null;
+        state.surfaceTexture = null;
+        state.surfacePromise = null;
         state.renderer = null;
         state.scene = null;
         state.camera = null;
@@ -339,7 +416,7 @@
     const state = {
       map, manifest: null, scene: null, camera: null, renderer: null, gl: null,
       installing: false, layerAdded: false, activeLevel: -1, wantedLevel: -1,
-      meshes: new Map(), loads: new Map(), savedFilters: new Map(), maskActive: false,
+      meshes: new Map(), loads: new Map(), surfaceMesh: null, surfaceTexture: null, surfacePromise: null, savedFilters: new Map(), maskActive: false,
       filterErrors: [], lastError: null, tilePolygon: null, moveTimer: null, autoFocused: false
     };
     MAPS.set(map, state);

@@ -1,6 +1,6 @@
 {
   "version": 7000,
-  "status": "MATERIALIZED_LIDAR_COLORIZED_FROM_REAL_ORTHOPHOTO",
+  "status": "MATERIALIZED_LIDAR_WITH_ORTHOPHOTO_TEXTURED_SURFACE",
   "tileId": "987210",
   "source": {
     "provider": "NYC Office of Technology and Innovation (OTI) / NYC OpenData",
@@ -39,7 +39,7 @@
   },
   "noisePointsExcludedFromDisplay": 62525,
   "samplePoints": 180000,
-  "sampleStrategy": "Seeded random sample of measured LAS returns; nested 12k, 75k and 180k LODs; RGB sampled from the georeferenced NYS natural-color aerial orthophoto.",
+  "sampleStrategy": "Seeded random sample of measured LAS returns; nested 12k, 75k and 180k LODs; RGB sampled from georeferenced NYS natural-color aerial orthophoto.",
   "pointClassificationColors": {
     "0": [
       150,
@@ -218,7 +218,7 @@
       "colorizedFromActualImagery": true
     }
   ],
-  "builtAtUtc": "2026-10-21T07:17:40Z",
+  "builtAtUtc": "2026-10-21T07:22:58Z",
   "buildSeconds": 11.39,
   "sampleBinaryEncoding": {
     "positions": "signed int16 x/y/z, each multiplied by 0.02 metres to recover local coordinates",
@@ -238,7 +238,7 @@
     "pixelColorizedReturns": 180000,
     "pointCoveragePercent": 100.0,
     "method": "For each measured LiDAR return, transform EPSG:2263 XY to EPSG:3857, sample the georeferenced orthophoto pixel, and store that real RGB value alongside the measured XYZ return. This textures roof/ground return colors; it does not synthesize fa\u00e7ade photographs.",
-    "pixelMaterialization": "RGB sampled into each LiDAR point; original orthophoto retained in local workspace for reproducibility, not fetched by the browser."
+    "pixelMaterialization": "RGB sampled into each LiDAR point; source orthophoto also draped onto a LiDAR-derived surface mesh."
   },
   "materialization": {
     "method": "Orthophoto RGB draped onto source LiDAR returns",
@@ -250,6 +250,39 @@
     "pointCoordinateQuantizationMetres": 0.02,
     "sourcePointGeometryPreserved": true,
     "syntheticGeometryAdded": false,
-    "buildSeconds": 6.02
+    "buildSeconds": 6.02,
+    "surfaceMesh": "Measured LiDAR maximum-height surface grid with real aerial orthophoto texture; roof/ground texture is true-color nadir imagery, not synthetic facade photography."
+  },
+  "surfaceMesh": {
+    "file": "nyc-midtown-987210-surface-1m.bin.gz",
+    "encoding": "gzip(binary)",
+    "gridSpacingMetres": 2.0,
+    "gridWidth": 383,
+    "gridHeight": 383,
+    "vertexCount": 146689,
+    "triangleCount": 291848,
+    "indexCount": 875544,
+    "binaryLayout": "int16le xyz positions quantized at 0.02m, uint16le normalized UV pairs, uint32le triangle indices; sections contiguous in that order",
+    "positionScaleMeters": 0.02,
+    "uvEncoding": "uint16 normalized 0..65535",
+    "indexEncoding": "uint32le",
+    "rawBytes": 4969066,
+    "gzipBytes": 1947117,
+    "sha256": "df6f9d5fd9c4662b9222c04633806c1905a9234477c7641722117ab0dda13ed1",
+    "textureFile": "nyc-midtown-ortho-2023.webp",
+    "textureFormat": "WebP",
+    "textureSize": [
+      2048,
+      2048
+    ],
+    "textureSha256": "a0b86ded8c694f3cb167031f3234ef178981dbf604997df5955563c9f978b14c",
+    "heightMethod": "maximum measured source LAS return per 1m XY cell; only empty cells nearest-filled from measured neighbors",
+    "sourcePointCount": 17523220,
+    "sourceTileSha256": "5b13a1bc879797d88a0d4cc0ccdd946c9a93fb09586e9c74a2a264e08976f74b",
+    "imagerySource": "NYS Latest Orthoimagery 2022\u20132025 natural color",
+    "photorealisticRoofDrape": true,
+    "facadePhotoCoverage": false,
+    "coveragePercent": 98.957,
+    "materializedAtUtc": "2026-10-21T07:21:52Z"
   }
 }
