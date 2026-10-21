@@ -1330,7 +1330,7 @@ jobs:
                 const m=window.__BP_V5000_WORLD?.map,free=m?.getFreeCameraOptions?.(),pos=free?.position;
                 const MC=window.maplibregl?.MercatorCoordinate||pos?.constructor;
                 const ground=m?.queryTerrainElevation?.(m.getCenter(),{exaggerated:true});
-                return !!m&&window.__BP_TERRAIN_VISUAL_STATE__?.enabled===true&&
+                return !!m&&m.isStyleLoaded?.()===true&&
                   Number.isFinite(ground)&&ground>1&&!!pos&&
                   typeof pos.toLngLat==='function'&&typeof pos.toAltitude==='function'&&
                   typeof MC?.fromLngLat==='function';
