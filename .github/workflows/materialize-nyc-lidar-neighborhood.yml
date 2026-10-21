@@ -26,7 +26,6 @@ jobs:
         with:
           ref: main
           fetch-depth: 1
-          token: \${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -82,5 +81,5 @@ jobs:
 
       - name: Redeploy the static BridgePoint map with materialized tiles
         env:
-          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: gh workflow run deploy-intelligence-rebuild-v5000.yml --ref main
