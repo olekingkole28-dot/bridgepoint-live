@@ -9,6 +9,8 @@ on:
     paths:
       - 'rebuild-v5000/**'
       - 'release-v2300/**'
+      - 'ops/headless_app_synthetic_v2101.mjs'
+      - '.github/workflows/headless-app-synthetic-v2101.yml'
 
 permissions:
   contents: read
