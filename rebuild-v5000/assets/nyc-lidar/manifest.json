@@ -1,19 +1,19 @@
 {
-  "version": 7001,
-  "status": "MATERIALIZED_LIDAR_WITH_ROOF_ORTHOPHOTO_AND_VERTICAL_WALLS",
+  "version": 7002,
+  "status": "MATERIALIZED_EXACT_LIDAR_WITH_ORTHOPHOTO_SURFACE_AND_VERTICAL_WALLS",
   "tileId": "987210",
   "source": {
-    "provider": "NYC Office of Technology and Innovation (OTI) / NYC OpenData",
+    "provider": "NYC Office of Technology and Innovation / NYC OpenData",
     "dataset": "Topobathymetric LiDAR Data (2017)",
     "datasetUrl": "https://data.cityofnewyork.us/City-Government/Topobathymetric-LiDAR-Data-2017-/7sc8-jtbz",
     "metadataUrl": "https://github.com/CityOfNewYork/nyc-geo-metadata/blob/main/Metadata/Metadata_TopobathymetricClassifiedPointCloud.md",
     "archiveUrl": "https://data.cityofnewyork.us/api/views/7sc8-jtbz/files/dfe8b336-0307-4235-b00e-2742d8ac552a?download=true&filename=TopoBathymetric_Classified_LAZ.zip",
     "archiveMember": "TopoBathymetric_Classified_LAZ/987210.laz",
-    "archiveMemberMethod": "ZIP_STORED_RANGE_READ",
+    "archiveMemberMethod": "ZIP_STORED_BYTE_RANGE_READ",
     "archivePayloadBytes": 83335676,
     "archivePayloadOffset": 98238470151,
     "tileSha256": "5b13a1bc879797d88a0d4cc0ccdd946c9a93fb09586e9c74a2a264e08976f74b",
-    "licenseNote": "Public NYC Open Data dataset; retain source attribution and consult source metadata/NYC Open Data terms for downstream reuse."
+    "licenseNote": "Public NYC Open Data dataset; retain source attribution and consult NYC Open Data terms for downstream reuse."
   },
   "acquisition": {
     "topographicCaptureStart": "2017-05-03",
@@ -22,7 +22,7 @@
   },
   "coordinateReference": {
     "horizontal": "EPSG:2263 NAD83 / New York Long Island (US survey feet)",
-    "vertical": "EPSG:6360 NAVD88 height (US survey feet), Geoid 12B",
+    "vertical": "NAVD88 Geoid 12B elevation (US survey feet)",
     "sourceScaleFeet": [
       0.01,
       0.01,
@@ -31,117 +31,23 @@
   },
   "sourcePoints": 17523220,
   "pointsScanned": 17523220,
-  "sourceClassCounts": {
-    "1": 15650362,
-    "2": 1809287,
-    "7": 62525,
-    "25": 1046
-  },
-  "noisePointsExcludedFromDisplay": 62525,
   "samplePoints": 180000,
-  "sampleStrategy": "Seeded random sample of actual LAS source returns; same points in all nested LODs; RGB sampled per point from georeferenced aerial orthophoto pixels in EPSG:3857.",
-  "pointClassificationColors": {
-    "0": [
-      150,
-      164,
-      177
-    ],
-    "1": [
-      162,
-      174,
-      184
-    ],
-    "2": [
-      128,
-      145,
-      140
-    ],
-    "3": [
-      102,
-      174,
-      111
-    ],
-    "4": [
-      74,
-      157,
-      91
-    ],
-    "5": [
-      43,
-      125,
-      66
-    ],
-    "6": [
-      210,
-      226,
-      237
-    ],
-    "8": [
-      206,
-      183,
-      255
-    ],
-    "9": [
-      64,
-      153,
-      230
-    ],
-    "10": [
-      220,
-      169,
-      98
-    ],
-    "11": [
-      221,
-      197,
-      142
-    ],
-    "12": [
-      170,
-      144,
-      189
-    ],
-    "13": [
-      245,
-      204,
-      97
-    ],
-    "14": [
-      255,
-      226,
-      119
-    ],
-    "15": [
-      235,
-      169,
-      91
-    ],
-    "16": [
-      244,
-      186,
-      122
-    ],
-    "17": [
-      192,
-      202,
-      212
-    ]
+  "sampleStrategy": "Seeded random sample of measured LAS returns; same nested return sample across 3 LOD tiers; RGB sampled from the registered NYS orthophoto.",
+  "anchor": {
+    "longitude": -73.98375963642462,
+    "latitude": 40.74650784628517,
+    "projectedXFeet": 988750.0,
+    "projectedYFeet": 211250.0,
+    "verticalOriginFeet": 41.13999938964844,
+    "verticalOriginMethod": "median of measured LAS class-2 ground returns within 200 ft of tile center",
+    "enuAxes": "local X=east, Y=up, Z=north",
+    "feetToMeters": 0.3048006096012192
   },
   "tileBoundsSourceFeet": {
     "xmin": 987500.0,
     "ymin": 210000.0,
     "xmax": 990000.0,
     "ymax": 212500.0
-  },
-  "anchor": {
-    "longitude": -73.98375963642462,
-    "latitude": 40.746507846285155,
-    "projectedXFeet": 988750.0,
-    "projectedYFeet": 211250.0,
-    "verticalOriginFeet": 41.13999938964844,
-    "verticalOriginMethod": "median of source LAS class-2 ground points within 200 ft of tile center",
-    "enuAxes": "local X=east, Y=up, Z=north",
-    "feetToMeters": 0.3048006096012192
   },
   "boundsWgs84": {
     "polygon": [
@@ -155,7 +61,7 @@
       ],
       [
         -73.97924735572035,
-        40.74993805722433
+        40.74993805722432
       ],
       [
         -73.98827024438826,
@@ -178,10 +84,10 @@
       "pointCount": 12000,
       "file": "nyc-midtown-987210-lod0.bin.gz",
       "encoding": "gzip(binary)",
-      "binaryLayout": "int16le xyz positions quantized at 0.02 metres followed by uint8 RGB colors sampled from NYC-region aerial orthophoto",
+      "binaryLayout": "int16le xyz positions quantized at 0.02 metres followed by uint8 RGB from NYS orthophoto",
       "rawBytes": 108000,
-      "gzipBytes": 103383,
-      "sha256": "f350d1348fb114bf1f22cd0e4a4be58bbbd6c55640cec59ed6546036cddb6dcd",
+      "gzipBytes": 103308,
+      "sha256": "be113d6d68e1981499e676f079fca8e402c243ff5f07a7db8e0246fd6b3bc364",
       "positionEncoding": "int16le",
       "positionScaleMeters": 0.02,
       "colorSource": "NYS Latest Orthoimagery 2022\u20132025 natural-color orthophoto",
@@ -193,10 +99,10 @@
       "pointCount": 75000,
       "file": "nyc-midtown-987210-lod1.bin.gz",
       "encoding": "gzip(binary)",
-      "binaryLayout": "int16le xyz positions quantized at 0.02 metres followed by uint8 RGB colors sampled from NYC-region aerial orthophoto",
+      "binaryLayout": "int16le xyz positions quantized at 0.02 metres followed by uint8 RGB from NYS orthophoto",
       "rawBytes": 675000,
-      "gzipBytes": 643283,
-      "sha256": "d4175eb8ce97505a3104f02cdc18239d5f6e8b6b1111e46391f002f6c669923f",
+      "gzipBytes": 643588,
+      "sha256": "476d4657322958f33d178b446a89647c77028b8b9c5ad51588b280fdb5d98309",
       "positionEncoding": "int16le",
       "positionScaleMeters": 0.02,
       "colorSource": "NYS Latest Orthoimagery 2022\u20132025 natural-color orthophoto",
@@ -208,50 +114,42 @@
       "pointCount": 180000,
       "file": "nyc-midtown-987210-lod2.bin.gz",
       "encoding": "gzip(binary)",
-      "binaryLayout": "int16le xyz positions quantized at 0.02 metres followed by uint8 RGB colors sampled from NYC-region aerial orthophoto",
+      "binaryLayout": "int16le xyz positions quantized at 0.02 metres followed by uint8 RGB from NYS orthophoto",
       "rawBytes": 1620000,
-      "gzipBytes": 1543100,
-      "sha256": "c33c9d96a9c4b0084f44714f05eb03b43c38d5d655d5991a589b2c0e2a1237fb",
+      "gzipBytes": 1543357,
+      "sha256": "1ceed72d40ed54b57144e2af37828264c0e6376ee28471e015e175a0ea817e4c",
       "positionEncoding": "int16le",
       "positionScaleMeters": 0.02,
       "colorSource": "NYS Latest Orthoimagery 2022\u20132025 natural-color orthophoto",
       "colorizedFromActualImagery": true
     }
   ],
-  "builtAtUtc": "2026-10-21T06:48:47Z",
-  "buildSeconds": 11.39,
-  "sampleBinaryEncoding": {
-    "positions": "signed int16 x/y/z, each multiplied by 0.02 metres to recover local coordinates",
-    "colors": "uint8 RGB; normalized at render time",
-    "coordinateQuantizationMetres": 0.02
-  },
   "imagery": {
     "provider": "New York State ITS Geospatial Services",
     "service": "https://orthos.its.ny.gov/arcgis/rest/services/wms/Latest/MapServer",
     "serviceUrl": "https://orthos.its.ny.gov/arcgis/rest/services/wms/Latest/MapServer/export",
-    "description": "Latest NYS orthoimagery service; combined aerial orthophotography from 2022\u20132025, natural color, nominal 12-inch resolution.",
+    "description": "Latest NYS orthoimagery, combined 2022\u20132025 natural-color imagery; image export centered on each measured LiDAR tile.",
     "sourceProduct": "Latest New York State Orthoimagery",
-    "nominalResolution": "12 inch (source varies 6\u201312 inches)",
+    "nominalResolution": "source varies; 4096px local export",
     "captureWindow": "2022\u20132025 composite",
-    "format": "JPEG natural-color orthophoto export",
-    "imageFile": "nyc-midtown-ortho-2023.jpg",
+    "format": "WebP natural-color orthophoto texture derived from the NYS JPEG export",
+    "imageFile": "nyc-midtown-987210-ortho.webp",
     "imageSize": [
       4096,
       4096
     ],
     "exportBboxEPSG3857": [
-      -8236336.702764434,
-      4974519.002195202,
-      -8235332.14490842,
-      4975527.445913679
+      -8236336.728626235,
+      4974519.002286071,
+      -8235332.170771235,
+      4975527.44600407
     ],
-    "imagerySha256": "64d2eb933accb77ea16d0819203f06f788538ec5f6b9d863c04dc9110e4fc59a",
-    "pixelColorizedReturns": 180000,
-    "pointCoveragePercent": 100.0,
-    "method": "For each measured LiDAR return, transform EPSG:2263 XY to EPSG:3857, sample the georeferenced orthophoto pixel, and store that real RGB value alongside the measured XYZ return. This textures roof/ground return colors; it does not synthesize fa\u00e7ade photographs."
+    "imagerySha256": "9ec9ba3548a243b5c978f1fb04613f34a2abe4ec24050455ef8f6391eadf1e79",
+    "sourceExportSha256": "e5d83b1c12a02e4c6a10ecbb005f1c9b45e4339988f12f8ad95bf361676bf1c3",
+    "method": "Real orthophoto pixels draped onto measured LiDAR roof and ground surface; vertical facade planes remain separately LiDAR-derived."
   },
   "materialization": {
-    "method": "Orthophoto RGB draped onto source LiDAR returns",
+    "method": "Measured NYC OpenData LiDAR returns materialized as roof-supported 2m triangles plus a measured-ground DTM and registered NYS orthophoto drape",
     "renderablePointCounts": [
       12000,
       75000,
@@ -260,13 +158,12 @@
     "pointCoordinateQuantizationMetres": 0.02,
     "sourcePointGeometryPreserved": true,
     "syntheticGeometryAdded": false,
-    "buildSeconds": 6.02,
-    "surfaceMesh": "Cell-local LiDAR surface mesh with current NYS true-color nadir ortho imagery only on upward-facing roofs/ground",
-    "verticalWalls": "Separate neutral shaded vertical facade quads from LiDAR height discontinuities; no stretched top-down photo and no invented windows",
-    "wallQuadCount": 20372,
+    "surfaceMesh": "Nadir photo mesh uses source-derived elevated roof-mask cells plus measured class-2 ground; non-roof unclassified returns are not elevated mesh vertices, and corner smoothing is edge-preserving",
+    "verticalWalls": "Neutral shaded vertical quads derived from roof-mask boundaries against the measured-ground DTM; no nadir imagery is stretched onto facades",
+    "wallQuadCount": 32599,
     "roofPhotoTexture": true,
     "sidePhotoTexture": false,
-    "coordinateGrid": "Cell footprints snapped to EPSG:2263 cell bins, eliminating the earlier half-cell drift"
+    "coordinateGrid": "Cell footprints snapped to EPSG:2263 2m bins and independently anchored per LiDAR tile"
   },
   "surfaceMesh": {
     "file": null,
@@ -277,39 +174,41 @@
     "vertexCount": 580644,
     "triangleCount": 290322,
     "indexCount": 870966,
-    "binaryLayout": "int16le xyz positions at 0.02m, uint16le normalized UV pairs, uint32le triangle indices; cell-local vertices split across roof edges",
+    "binaryLayout": "int16le xyz positions at 0.02m, uint16le normalized UV pairs, uint32le chunk-local triangle indices",
     "positionScaleMeters": 0.02,
     "uvEncoding": "uint16 normalized 0..65535",
     "indexEncoding": "uint32le",
     "rawBytes": 9290304,
-    "gzipBytes": 3211783,
-    "sha256": "1ad2528c95eb06ffba934e78e9b2a557eea1e56c136d4f2a395c7396e960fd33",
-    "textureFile": "nyc-midtown-ortho-2023.webp",
+    "gzipBytes": 3081134,
+    "textureFile": "nyc-midtown-987210-ortho.webp",
     "textureFormat": "WebP",
     "textureSize": [
       4096,
       4096
     ],
-    "textureSha256": "bc08cc52a6098a9c7f10804292f59de42b845f58313bad5e591caf3c8fd7bb63",
-    "heightMethod": "Measured maximum LAS return per 2m cell; adjacent-cell corners are smoothed only across small height differences so abrupt building edges remain discontinuities",
+    "textureSha256": "9ec9ba3548a243b5c978f1fb04613f34a2abe4ec24050455ef8f6391eadf1e79",
     "sourcePointCount": 17523220,
     "sourceTileSha256": "5b13a1bc879797d88a0d4cc0ccdd946c9a93fb09586e9c74a2a264e08976f74b",
     "imagerySource": "NYS Latest Orthoimagery 2022\u20132025 natural color",
     "photorealisticRoofDrape": true,
     "facadePhotoCoverage": false,
     "coveragePercent": 99.9986,
-    "materializedAtUtc": "2026-10-21T07:42:15Z",
+    "materializedAtUtc": "2026-10-21T09:48:40Z",
     "wallFile": "nyc-midtown-987210-walls-2m.bin.gz",
-    "wallVertexCount": 81488,
-    "wallIndexCount": 122232,
-    "wallTriangleCount": 40744,
-    "wallQuadCount": 20372,
-    "wallRawBytes": 1222320,
-    "wallGzipBytes": 366783,
-    "wallSha256": "a3f3af5efa4213ac63dc33abfaf2fcb450377c308cc75f91f8f487766ff3d75d",
+    "wallVertexCount": 130396,
+    "wallIndexCount": 195594,
+    "wallTriangleCount": 65198,
+    "wallQuadCount": 32599,
+    "wallRawBytes": 1955940,
+    "wallGzipBytes": 586034,
+    "wallSha256": "4ad7b48ede5f595588e8058024f98796b4c862d1d4e8ee2d4c36fd10deb9003c",
     "wallBinaryLayout": "int16le xyz positions at 0.02m, uint8 RGB wall-shading colors, uint32le triangle indices",
-    "wallMaterial": "untextured neutral shaded vertical faces derived from measured LiDAR roof boundaries",
-    "wallMethod": "Vertical quads between sustained flat elevated LiDAR roof regions and adjacent lower surface/ground returns",
+    "wallMaterial": "neutral shaded vertical faces derived from measured LiDAR roof boundaries",
+    "wallMethod": "vertical quads between sustained elevated LiDAR roof-mask regions and the measured-ground DTM",
+    "surfaceClassPolicy": "real orthophoto draped only over source-derived elevated roof-mask cells and measured class-2 ground; non-roof unclassified returns do not become elevated photo-mesh vertices",
+    "cornerSmoothing": "corner-specific local means restricted to the same roof/ground class and neighboring heights within 1.5 metres; larger breaks stay sharp",
+    "triangulationMethod": "two triangles per measured 2m cell with independent cell-local vertices so roof-ground and roof-height breaks do not stretch across facades",
+    "obliqueImageryAvailable": false,
     "chunks": [
       {
         "part": 0,
@@ -322,9 +221,8 @@
         "indexCount": 219456,
         "triangleCount": 73152,
         "rawBytes": 2340864,
-        "gzipBytes": 807926,
-        "sha256": "9a930142169357f72a5c1713dc1a2f02cbbba5641133960e33ee5e279b9fbb2c",
-        "base64Length": 1077236,
+        "gzipBytes": 779046,
+        "sha256": "cd585a743f415373ca937e1e9bb8c314e9d5439a706e36da15e58f10357d1508",
         "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
         "positionScaleMeters": 0.02
       },
@@ -339,9 +237,8 @@
         "indexCount": 219456,
         "triangleCount": 73152,
         "rawBytes": 2340864,
-        "gzipBytes": 808852,
-        "sha256": "39f88eacfb7afcf8c8c3728fd9181462b7b26be654d337d2173ac7a479fba2fb",
-        "base64Length": 1078472,
+        "gzipBytes": 773920,
+        "sha256": "e813d25937bc47db9d693b68fbcf4354cc9d6a5c9dc92a0718c3a27a443aa657",
         "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
         "positionScaleMeters": 0.02
       },
@@ -356,9 +253,8 @@
         "indexCount": 219456,
         "triangleCount": 73152,
         "rawBytes": 2340864,
-        "gzipBytes": 810113,
-        "sha256": "5c4a149440192e7b8c731162009fa2646c037cc182b1df0eeac2cf4ce40bcd10",
-        "base64Length": 1080152,
+        "gzipBytes": 776590,
+        "sha256": "7b3dc506c8541a2e04699d590f4f7ce67b2251b874229bdfc4bd6fc422b3d44c",
         "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
         "positionScaleMeters": 0.02
       },
@@ -373,13 +269,13 @@
         "indexCount": 212598,
         "triangleCount": 70866,
         "rawBytes": 2267712,
-        "gzipBytes": 784892,
-        "sha256": "05fc17d6d98b84f3be1b214faa26afd422b6eadb887c5eec16274e5e5e7f8284",
-        "base64Length": 1046524,
+        "gzipBytes": 751578,
+        "sha256": "2d9a1852be70dbeea212f2ab9aca6149a77fd363ddbce2de58cb6a2b263aa148",
         "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
         "positionScaleMeters": 0.02
       }
     ],
-    "chunkStrategy": "Independent gzip row chunks. Chunk-local indices are rebased; adjacent cells stay independent as in the source surface mesh."
-  }
+    "chunkStrategy": "independent gzip row chunks with chunk-local indices"
+  },
+  "builtAtUtc": "2026-10-21T09:48:49Z"
 }

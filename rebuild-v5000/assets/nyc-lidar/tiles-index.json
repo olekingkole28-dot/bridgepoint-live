@@ -3,7 +3,7 @@
   "baseTileId": "987210",
   "coordinateReference": "EPSG:2263 NAD83 / New York Long Island (US survey feet); local vertical datum NAVD88 Geoid12B ft",
   "sourceDataset": "https://data.cityofnewyork.us/City-Government/Topobathymetric-LiDAR-Data-2017-/7sc8-jtbz",
-  "surfaceMethod": "measured LiDAR cell-local 2m mesh with real NYS orthophoto roofs/ground and separate LiDAR-derived vertical walls",
+  "surfaceMethod": "edge-preserving LiDAR roof-mask triangles + measured-ground DTM, registered nadir orthophoto, and separate neutral vertical walls",
   "tiles": [
     {
       "tileId": "985207",
@@ -193,7 +193,7 @@
           ],
           [
             -73.97924735572035,
-            40.74993805722433
+            40.74993805722432
           ],
           [
             -73.98827024438826,
@@ -211,11 +211,11 @@
       },
       "anchor": {
         "longitude": -73.98375963642462,
-        "latitude": 40.746507846285155,
+        "latitude": 40.74650784628517,
         "projectedXFeet": 988750.0,
         "projectedYFeet": 211250.0,
         "verticalOriginFeet": 41.13999938964844,
-        "verticalOriginMethod": "median of source LAS class-2 ground points within 200 ft of tile center",
+        "verticalOriginMethod": "median of measured LAS class-2 ground returns within 200 ft of tile center",
         "enuAxes": "local X=east, Y=up, Z=north",
         "feetToMeters": 0.3048006096012192
       }
@@ -394,5 +394,5 @@
     }
   ],
   "tileCount": 9,
-  "generatedAtUtc": "2026-10-21T09:34:06Z"
+  "generatedAtUtc": "2026-10-21T09:54:54Z"
 }

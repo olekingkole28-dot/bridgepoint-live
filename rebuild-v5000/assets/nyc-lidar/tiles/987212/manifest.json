@@ -149,7 +149,7 @@
     "method": "Real orthophoto pixels draped onto measured LiDAR roof and ground surface; vertical facade planes remain separately LiDAR-derived."
   },
   "materialization": {
-    "method": "Measured NYC OpenData LiDAR returns plus a cell-local DSM surface mesh and real NYS orthophoto drape",
+    "method": "Measured NYC OpenData LiDAR returns materialized as roof-supported 2m triangles plus a measured-ground DTM and registered NYS orthophoto drape",
     "renderablePointCounts": [
       12000,
       75000,
@@ -158,9 +158,9 @@
     "pointCoordinateQuantizationMetres": 0.02,
     "sourcePointGeometryPreserved": true,
     "syntheticGeometryAdded": false,
-    "surfaceMesh": "Measured max return per 2m cell; corners only smoothed across small height differences to preserve sharp roof edges",
-    "verticalWalls": "Neutral shaded vertical quads derived from sustained LiDAR roof-boundary discontinuities; not photographic facade imagery",
-    "wallQuadCount": 17265,
+    "surfaceMesh": "Nadir photo mesh uses source-derived elevated roof-mask cells plus measured class-2 ground; non-roof unclassified returns are not elevated mesh vertices, and corner smoothing is edge-preserving",
+    "verticalWalls": "Neutral shaded vertical quads derived from roof-mask boundaries against the measured-ground DTM; no nadir imagery is stretched onto facades",
+    "wallQuadCount": 28253,
     "roofPhotoTexture": true,
     "sidePhotoTexture": false,
     "coordinateGrid": "Cell footprints snapped to EPSG:2263 2m bins and independently anchored per LiDAR tile"
@@ -179,7 +179,7 @@
     "uvEncoding": "uint16 normalized 0..65535",
     "indexEncoding": "uint32le",
     "rawBytes": 9290304,
-    "gzipBytes": 3203429,
+    "gzipBytes": 3028118,
     "textureFile": "nyc-midtown-987212-ortho.webp",
     "textureFormat": "WebP",
     "textureSize": [
@@ -193,18 +193,22 @@
     "photorealisticRoofDrape": true,
     "facadePhotoCoverage": false,
     "coveragePercent": 99.9952,
-    "materializedAtUtc": "2026-10-21T09:31:59Z",
+    "materializedAtUtc": "2026-10-21T09:52:31Z",
     "wallFile": "nyc-midtown-987212-walls-2m.bin.gz",
-    "wallVertexCount": 69060,
-    "wallIndexCount": 103590,
-    "wallTriangleCount": 34530,
-    "wallQuadCount": 17265,
-    "wallRawBytes": 1035900,
-    "wallGzipBytes": 312565,
-    "wallSha256": "1dd60052db0cf18111ca2246908a1d609bc3f6901574b51039d3c530d9b6a673",
+    "wallVertexCount": 113012,
+    "wallIndexCount": 169518,
+    "wallTriangleCount": 56506,
+    "wallQuadCount": 28253,
+    "wallRawBytes": 1695180,
+    "wallGzipBytes": 504296,
+    "wallSha256": "79fc1a160348d273da75722bb91a2acb06d11896e026eb08cc8c39f9f2545ee6",
     "wallBinaryLayout": "int16le xyz positions at 0.02m, uint8 RGB wall-shading colors, uint32le triangle indices",
     "wallMaterial": "neutral shaded vertical faces derived from measured LiDAR roof boundaries",
-    "wallMethod": "vertical quads between sustained elevated LiDAR regions and adjacent lower measured surfaces",
+    "wallMethod": "vertical quads between sustained elevated LiDAR roof-mask regions and the measured-ground DTM",
+    "surfaceClassPolicy": "real orthophoto draped only over source-derived elevated roof-mask cells and measured class-2 ground; non-roof unclassified returns do not become elevated photo-mesh vertices",
+    "cornerSmoothing": "corner-specific local means restricted to the same roof/ground class and neighboring heights within 1.5 metres; larger breaks stay sharp",
+    "triangulationMethod": "two triangles per measured 2m cell with independent cell-local vertices so roof-ground and roof-height breaks do not stretch across facades",
+    "obliqueImageryAvailable": false,
     "chunks": [
       {
         "part": 0,
@@ -217,8 +221,8 @@
         "indexCount": 219456,
         "triangleCount": 73152,
         "rawBytes": 2340864,
-        "gzipBytes": 807959,
-        "sha256": "3b3217d5aadbd1fa10d5ac5eebd6d202fe9fa93bf290fc46027570f8c9b60f86",
+        "gzipBytes": 769297,
+        "sha256": "9d493220f2bef1f334e3c66ea32daf5d8103689ec5170bb8a41fb127e0159b24",
         "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
         "positionScaleMeters": 0.02
       },
@@ -233,8 +237,8 @@
         "indexCount": 219456,
         "triangleCount": 73152,
         "rawBytes": 2340864,
-        "gzipBytes": 808902,
-        "sha256": "a8bea54f610b599e5ff3891db20d6509475300f13a2b1977d79de70e31ff57b3",
+        "gzipBytes": 763559,
+        "sha256": "d483978634562d0d084b684dbcf61b480acc2a866fdd4672a26279e8301e4b81",
         "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
         "positionScaleMeters": 0.02
       },
@@ -249,8 +253,8 @@
         "indexCount": 219456,
         "triangleCount": 73152,
         "rawBytes": 2340864,
-        "gzipBytes": 804461,
-        "sha256": "84321cc6224c0a9602adafff79ad1716797e27691bdd548cca4f6380acc73a15",
+        "gzipBytes": 756134,
+        "sha256": "fcf1ca470dc908d6d69a819dcad58e90c569a8c188eb1f4023e43c64c2dc14b7",
         "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
         "positionScaleMeters": 0.02
       },
@@ -265,13 +269,13 @@
         "indexCount": 212598,
         "triangleCount": 70866,
         "rawBytes": 2267712,
-        "gzipBytes": 782107,
-        "sha256": "0518e3aa002e4180ac11ef23f97e2990e52435af339cf391ea4614a3a40eadaa",
+        "gzipBytes": 739128,
+        "sha256": "7d1000a152fe616fbaea7efd104c403edd0d187e9b9a89ad4b33de94d586fbc1",
         "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
         "positionScaleMeters": 0.02
       }
     ],
     "chunkStrategy": "independent gzip row chunks with chunk-local indices"
   },
-  "builtAtUtc": "2026-10-21T09:32:05Z"
+  "builtAtUtc": "2026-10-21T09:52:39Z"
 }
