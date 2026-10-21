@@ -483,3 +483,99 @@ body.bpv-map-moving .system-panel{
  .bpv-map-controls-slot .maplibregl-ctrl-top-right{flex-wrap:wrap;gap:5px!important}
  .bpv-map-controls-slot .maplibregl-ctrl-attrib{max-width:48vw}
 }
+
+
+/* Unified bottom command deck: all map chrome belongs to one expandable card. */
+.bpv-dock{display:flex;flex-direction:column;align-items:stretch;gap:7px;max-height:calc(100dvh - 18px);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(117,234,255,.35) transparent}
+.bpv-dock::-webkit-scrollbar{width:5px}
+.bpv-dock::-webkit-scrollbar-thumb{border-radius:8px;background:rgba(117,234,255,.34)}
+.bpv-dock[hidden]{display:none!important}
+.bpv-dock-window-actions{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex:0 0 auto}
+.bpv-dock-window-actions button{min-height:29px;padding:6px 8px;font-size:8px;white-space:nowrap}
+.bpv-dock.bpv-dock-maximized{width:min(1460px,calc(100% - 16px));max-height:calc(100dvh - 12px);padding:12px 14px;border-color:rgba(117,234,255,.52);box-shadow:0 18px 70px rgba(0,0,0,.62),0 0 24px rgba(0,203,255,.08),inset 0 1px rgba(255,255,255,.07)}
+.bpv-dock.bpv-dock-maximized .bpv-dock-actions{gap:7px}
+.bpv-dock.bpv-dock-maximized>.bpv-sidecar{max-height:min(67dvh,760px)}
+.bpv-dock .bpv-dock-label{position:sticky;top:-1px;z-index:8;padding:3px 1px 7px;background:linear-gradient(180deg,rgba(3,12,19,.98),rgba(3,12,19,.88));border-bottom:1px solid rgba(117,234,255,.12)}
+.bpv-dock .bpv-dock-label>div:first-child{min-width:0}
+.bpv-dock .bpv-dock-label b{color:#eaffff;text-shadow:0 0 12px rgba(77,225,255,.14)}
+.bpv-dock button{box-sizing:border-box;max-width:100%;border-color:rgba(117,234,255,.25);border-radius:10px;color:#def9ff;font-family:ui-sans-serif,system-ui,sans-serif;transition:border-color .16s ease,background-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.bpv-dock button:not(.maplibregl-ctrl-group button){background:linear-gradient(145deg,rgba(12,35,49,.96),rgba(5,18,28,.98));box-shadow:inset 0 1px rgba(255,255,255,.045),0 2px 8px rgba(0,0,0,.15)}
+.bpv-dock button:not(.maplibregl-ctrl-group button):hover,.bpv-dock button:not(.maplibregl-ctrl-group button):focus-visible{border-color:rgba(108,235,255,.75);background:linear-gradient(145deg,rgba(16,73,91,.98),rgba(8,33,49,.98));box-shadow:0 0 0 1px rgba(73,213,255,.1),0 0 16px rgba(33,191,255,.1);outline:none}
+.bpv-dock button[aria-pressed="true"],.bpv-dock button.active,.bpv-dock button[data-active="1"]{border-color:rgba(105,245,207,.62)!important;background:linear-gradient(135deg,rgba(14,100,89,.96),rgba(14,45,65,.98))!important;color:#d1fff0!important;box-shadow:inset 0 1px rgba(255,255,255,.08),0 0 12px rgba(48,232,194,.08)!important}
+.bpv-dock button:disabled{opacity:.42;cursor:not-allowed}
+.bpv-dock input,.bpv-dock select,.bpv-dock textarea{box-sizing:border-box;max-width:100%;border:1px solid rgba(117,234,255,.24)!important;border-radius:10px!important;background:rgba(2,11,19,.94)!important;color:#e8fbff!important;box-shadow:inset 0 1px rgba(255,255,255,.025)!important}
+.bpv-dock input::placeholder,.bpv-dock textarea::placeholder{color:#7f9dab!important}
+.bpv-dock .bpv-dock-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(116px,1fr));align-items:stretch;justify-content:stretch;gap:6px}
+.bpv-dock .bpv-dock-actions>button{width:100%;min-width:0;min-height:35px;padding:8px 9px;line-height:1.2;white-space:normal;overflow-wrap:anywhere;text-align:center;font-size:9px;letter-spacing:.045em}
+.bpv-dock .bpv-dock-actions>button[data-bpv-action="ai"]{background:linear-gradient(135deg,rgba(17,113,147,.98),rgba(40,62,137,.98))!important;border-color:rgba(117,234,255,.53)!important}
+.bpv-dock .bpv-premium-button{background:linear-gradient(135deg,rgba(13,93,75,.96),rgba(8,48,57,.98))!important;border-color:rgba(91,240,183,.4)!important;color:#c9ffeb!important}
+.bpv-dock-account-row:empty,.bpv-map-controls-slot:empty,.bpv-search-slot:empty,.bpv-world-activity-slot:empty,.bpv-underground-slot:empty,.bpv-satellite-slot:empty,.bpv-property-card-slot:empty,.bpv-status-panel-slot:empty,.bpv-external-tools-slot:empty{display:none!important}
+.bpv-dock-account-row,.bpv-map-controls-slot,.bpv-property-card-slot,.bpv-status-panel-slot,.bpv-external-tools-slot{width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+.bpv-dock-account-row{padding:3px 0 6px;border-bottom:1px solid rgba(117,234,255,.12)}
+.bpv-dock-account-row .bpv-topbar-right{display:flex!important;align-items:center;justify-content:space-between!important;gap:6px!important;width:100%!important;max-width:100%!important;min-width:0!important;flex-wrap:wrap}
+.bpv-dock-account-row #bpv-language-slot{flex:0 1 auto;max-width:100%}
+.bpv-dock-account-row #bpv-account-slot{flex:1 1 220px;width:auto;min-width:0;max-width:100%;overflow:visible}
+.bpv-dock-account-row #bpv-account-slot .actions{display:flex;align-items:center;justify-content:flex-end;gap:4px;flex-wrap:wrap;max-width:100%;min-width:0;overflow:visible!important;padding:3px;margin:0}
+.bpv-dock-account-row #bpv-account-slot .actions button{min-height:29px;padding:6px 8px;font-size:8px}
+.bpv-map-controls-slot{padding:3px 0 6px;border-bottom:1px solid rgba(117,234,255,.12)}
+.bpv-map-controls-slot .maplibregl-ctrl-top-right{position:static!important;top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;display:flex!important;align-items:center;justify-content:flex-start;gap:5px;float:none!important;clear:none!important;margin:0!important;transform:none!important;max-width:100%}
+.bpv-map-controls-slot .maplibregl-ctrl-top-right .maplibregl-ctrl{float:none!important;clear:none!important;margin:0!important}
+.bpv-map-controls-slot .maplibregl-ctrl-group{display:flex!important;align-items:center;flex-direction:row!important;overflow:hidden;background:linear-gradient(145deg,rgba(4,20,31,.98),rgba(7,33,45,.98))!important;border:1px solid rgba(117,234,255,.3)!important;border-radius:10px!important;box-shadow:0 0 16px rgba(0,197,255,.08)!important}
+.bpv-map-controls-slot .maplibregl-ctrl-group button{width:32px;height:32px;min-width:32px;min-height:32px;padding:0!important;background-color:transparent!important;border-color:rgba(117,234,255,.16)!important;border-radius:0!important;filter:brightness(0) invert(1);box-shadow:none!important}
+.bpv-map-controls-slot .maplibregl-ctrl-group button:hover{background-color:rgba(117,234,255,.14)!important}
+.bpv-map-controls-slot .maplibregl-ctrl-attrib{max-width:min(55vw,330px);font-size:8px;background:rgba(4,17,27,.88)!important;color:#9dc4d2!important;border:1px solid rgba(117,234,255,.12);border-radius:7px}
+.bpv-map-controls-slot .maplibregl-ctrl-attrib a{color:#78e8ff!important}
+.bpv-dock .bpv-key-ribbon{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;z-index:auto!important;display:flex;flex-wrap:wrap;align-items:center;gap:7px 10px;width:100%!important;max-width:100%!important;margin:0;padding:8px 9px;overflow:visible;white-space:normal;border:1px solid rgba(105,221,255,.23);border-radius:12px;background:linear-gradient(115deg,rgba(3,14,23,.96),rgba(7,26,37,.92));box-sizing:border-box}
+.bpv-dock .bpv-key-ribbon>span{white-space:normal;overflow-wrap:anywhere}
+.bpv-dock .bpv-key-ribbon button{flex:0 0 auto;min-height:28px;padding:6px 8px;font-size:8px}
+.bpv-dock .bpv-sidecar{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;transform:none!important;width:100%!important;max-width:100%!important;height:auto!important;max-height:min(55dvh,600px);min-height:0;margin:2px 0 0!important;display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(117,234,255,.34);border-radius:15px;background:linear-gradient(160deg,rgba(3,12,19,.98),rgba(4,20,31,.97));box-shadow:inset 0 1px rgba(255,255,255,.05),0 8px 28px rgba(0,0,0,.25);backdrop-filter:blur(18px) saturate(125%);-webkit-backdrop-filter:blur(18px) saturate(125%)}
+.bpv-dock .bpv-sidecar[hidden],.bpv-dock .bpv-sidecar>[data-bpv-pane][hidden]{display:none!important}
+.bpv-dock .bpv-sidecar-head{flex:0 0 auto;padding:11px 12px 8px}
+.bpv-dock .bpv-sidecar-tabs{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:5px;overflow:visible;padding:7px;border-bottom:1px solid rgba(117,234,255,.14)}
+.bpv-dock .bpv-sidecar-tabs button{flex:1 1 105px;min-width:0;min-height:33px;padding:7px 8px;font-size:8px;white-space:normal;line-height:1.15}
+.bpv-dock .bpv-sidecar>[data-bpv-pane]{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:10px;max-height:none}
+.bpv-dock .bpv-sidecar .bpv-pane-title,.bpv-dock .bpv-sidecar .bpv-opportunity-section-head{overflow-wrap:anywhere}
+.bpv-dock .bpv-map-controls-slot .maplibregl-ctrl-attrib-button{filter:brightness(0) invert(1)}
+.bpv-dock .map-tools{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;transform:none!important;width:100%!important;max-width:100%!important;display:grid!important;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:6px;padding:0;margin:8px 0;background:transparent!important;box-shadow:none!important;border:0!important}
+.bpv-dock .map-tools button{min-width:0;min-height:34px;padding:8px 9px;line-height:1.2;white-space:normal;overflow-wrap:anywhere;text-align:center;background:linear-gradient(145deg,rgba(12,35,49,.96),rgba(5,18,28,.98))!important;border:1px solid rgba(117,234,255,.25)!important;border-radius:10px!important;color:#def9ff!important}
+.bpv-dock .map-tools button.active,.bpv-dock .map-tools button[aria-pressed="true"]{background:linear-gradient(135deg,rgba(14,100,89,.96),rgba(14,45,65,.98))!important;border-color:rgba(105,245,207,.62)!important}
+.bpv-dock #mapStatus,.bpv-dock .map-status{position:relative!important;inset:auto!important;max-width:100%!important;width:100%!important;margin:7px 0;padding:8px 10px;border:1px solid rgba(117,234,255,.16);border-radius:9px;background:rgba(3,15,24,.9);color:#9fc8d8;font-size:10px;line-height:1.4;overflow-wrap:anywhere}
+.bpv-dock .bpv-property-card-slot:empty,.bpv-dock .bpv-status-panel-slot:empty{display:none!important}
+.bpv-dock #previewCard,.bpv-dock .building-panel,.bpv-dock .system-panel{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;transform:none!important;z-index:auto!important;width:100%!important;max-width:100%!important;height:auto!important;max-height:min(36dvh,360px)!important;overflow:auto!important;box-sizing:border-box;margin:7px 0!important;flex:0 0 auto}
+.bpv-dock.bpv-dock-maximized #previewCard,.bpv-dock.bpv-dock-maximized .building-panel,.bpv-dock.bpv-dock-maximized .system-panel{max-height:min(52dvh,600px)!important}
+.bpv-dock #previewCard[hidden],.bpv-dock .building-panel[hidden],.bpv-dock .system-panel[hidden]{display:none!important}
+.bpv-dock #previewCard .preview-tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;max-width:100%}
+.bpv-dock #previewCard .preview-tabs button{min-width:0;min-height:40px;padding:7px 8px;text-align:left;overflow-wrap:anywhere;background:linear-gradient(145deg,rgba(12,35,49,.96),rgba(5,18,28,.98))!important;color:#def9ff!important}
+.bpv-dock #previewCard .preview-actions{display:flex;flex-wrap:wrap;gap:6px}
+.bpv-dock #previewCard .preview-actions>*{min-width:0;flex:1 1 120px;text-align:center}
+.bpv-dock .bpv-external-tools-slot{display:grid;grid-template-columns:minmax(0,1fr);gap:7px}
+.bpv-dock .bpv-contained-control{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;transform:none!important;z-index:auto!important;width:100%!important;max-width:100%!important;height:auto!important;max-height:min(47dvh,520px)!important;overflow:auto!important;box-sizing:border-box;margin:5px 0!important;pointer-events:auto!important}
+.bpv-dock #bp5507-tools{display:block!important;width:100%!important;max-width:100%!important;padding:0!important;margin:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
+.bpv-dock #bp5507-tools>button{display:none!important}
+.bpv-dock #bp5507-tool-panel:not([hidden]){display:block!important;position:relative!important;inset:auto!important;width:100%!important;max-width:100%!important;max-height:min(47dvh,520px)!important;overflow:auto!important;margin:5px 0!important;border:1px solid rgba(117,234,255,.32)!important;border-radius:13px!important;background:linear-gradient(150deg,rgba(3,15,24,.98),rgba(5,33,46,.98))!important;color:#eaf9ff!important;box-shadow:0 10px 28px rgba(0,0,0,.3)!important}
+.bpv-dock #bp5507-tools [data-close],.bpv-dock #bp5507-hud [data-exit]{min-width:34px;min-height:32px}
+.bpv-dock #bp5507-hud:not([hidden]),.bpv-dock #bp5507-key-panel:not([hidden]),.bpv-dock #bp-realworld-effects-v5927:not([hidden]),.bpv-dock #bpRoadDrive:not([hidden]),.bpv-dock .bp-rd-drive-controls:not([hidden]){display:block!important;position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;transform:none!important;z-index:auto!important;width:100%!important;max-width:100%!important;max-height:min(47dvh,520px)!important;overflow:auto!important;margin:5px 0!important;pointer-events:auto!important}
+.bpv-dock #bp5507-hud[hidden],.bpv-dock #bp5507-key-panel[hidden],.bpv-dock #bp-realworld-effects-v5927[hidden],.bpv-dock #bpRoadDrive[hidden],.bpv-dock #bp5507-tool-panel[hidden]{display:none!important}
+.bpv-dock #bp-realworld-effects-v5927{padding:10px!important;border-radius:13px!important}
+.bpv-dock .bpv-dock-reopen,#bpv-dock-reopen{position:absolute;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:calc(var(--bpv-ui-z,1200) + 3);max-width:calc(100% - 16px);min-height:40px;padding:10px 15px;border:1px solid rgba(117,234,255,.5);border-radius:12px;background:linear-gradient(135deg,rgba(6,41,57,.98),rgba(7,25,48,.98));color:#dffaff;box-shadow:0 0 26px rgba(45,204,255,.15);font:950 10px/1 system-ui,sans-serif;letter-spacing:.08em;white-space:normal}
+@media(max-width:700px){
+ .bpv-dock{left:6px;transform:none;width:calc(100% - 12px);bottom:max(6px,env(safe-area-inset-bottom));padding:8px;max-height:calc(100dvh - 12px)}
+ .bpv-dock.bpv-dock-maximized{left:4px;transform:none;width:calc(100% - 8px);bottom:max(4px,env(safe-area-inset-bottom));max-height:calc(100dvh - 8px);padding:9px}
+ .bpv-dock-label{gap:7px;font-size:7px;flex-wrap:wrap}
+ .bpv-dock .bpv-dock-label>div:first-child{flex:1 1 125px}
+ .bpv-dock-window-actions{gap:4px}
+ .bpv-dock-window-actions button{min-height:28px;padding:6px 7px;font-size:7px;letter-spacing:.02em}
+ .bpv-dock .bpv-dock-actions{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+ .bpv-dock .bpv-dock-actions>button{min-height:33px;padding:7px 4px;font-size:7px;letter-spacing:.01em;line-height:1.12}
+ .bpv-dock .bpv-map-controls-slot .maplibregl-ctrl-top-right{flex-wrap:wrap;gap:5px!important}
+ .bpv-dock .bpv-map-controls-slot .maplibregl-ctrl-attrib{max-width:48vw}
+ .bpv-dock .bpv-map-controls-slot .maplibregl-ctrl-group button{width:30px;height:30px;min-width:30px;min-height:30px}
+ .bpv-dock .bpv-sidecar{max-height:min(52dvh,520px);border-radius:13px}
+ .bpv-dock.bpv-dock-maximized>.bpv-sidecar{max-height:min(66dvh,680px)}
+ .bpv-dock .bpv-sidecar-tabs button{flex:1 1 85px;font-size:7px;padding:7px 6px}
+ .bpv-dock .map-tools{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .bpv-dock #previewCard,.bpv-dock .building-panel,.bpv-dock .system-panel{max-height:30dvh!important}
+ .bpv-dock.bpv-dock-maximized #previewCard,.bpv-dock.bpv-dock-maximized .building-panel,.bpv-dock.bpv-dock-maximized .system-panel{max-height:48dvh!important}
+ .bpv-dock .bpv-key-ribbon{gap:6px 8px;padding:7px}
+ .bpv-dock #bp5507-tool-panel:not([hidden]),.bpv-dock #bp5507-hud:not([hidden]),.bpv-dock #bp5507-key-panel:not([hidden]),.bpv-dock #bp-realworld-effects-v5927:not([hidden]),.bpv-dock #bpRoadDrive:not([hidden]),.bpv-dock .bp-rd-drive-controls:not([hidden]){max-height:min(42dvh,420px)!important}
+}
