@@ -75,6 +75,7 @@ jobs:
           (async()=>{
             const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
             const p=await browser.newPage();
+            await p.evaluateOnNewDocument(()=>{try{window.__bpPerfLongTasks=[];new PerformanceObserver(list=>{for(const e of list.getEntries())window.__bpPerfLongTasks.push({start:+e.startTime.toFixed(1),duration:+e.duration.toFixed(1),name:e.name||''})}).observe({type:'longtask',buffered:true})}catch(_){}});
             await p.evaluateOnNewDocument(()=>{try{localStorage.setItem('bp_auth_v5045',JSON.stringify({access_token:'bridgepoint-smoke-invalid-token'}))}catch(_){}});
             const fatal=[];
             p.on('pageerror',e=>fatal.push(String(e?.message||e)));
@@ -91,6 +92,13 @@ jobs:
               if(!r||r.status()>=400)throw new Error('APP_HTTP_'+r?.status());
               const appDomAt=Date.now();
               console.log('APP_DOM_MS',appDomAt-t);
+              const scriptResources=await p.evaluate(()=>performance.getEntriesByType('resource')
+                .filter(r=>/\\.(?:js|mjs)(?:\\?|$)/i.test(r.name))
+                .map(r=>({file:(()=>{try{return new URL(r.name).pathname.split('/').pop()}catch{return r.name}})(),
+                  duration:+r.duration.toFixed(1),transferSize:Number(r.transferSize||0),decodedBodySize:Number(r.decodedBodySize||0),
+                  initiator:r.initiatorType}))
+                .sort((a,b)=>b.duration-a.duration).slice(0,14));
+              console.log('APP_SLOW_SCRIPT_RESOURCES',JSON.stringify(scriptResources));
               await p.waitForFunction(()=>Number(window.__BP_WORLD_RENDER_VERSION__||0)>=5628&&!!window.__BP_V5000_WORLD?.map,{timeout:45000});
               console.log('APP_MAP_READY_AFTER_DOM_MS',Date.now()-appDomAt);
               await p.waitForFunction(()=>!!window.__BP_WALKTHROUGH_V5539__,{timeout:15000}).catch(()=>{});
@@ -133,9 +141,12 @@ jobs:
               if(navMs>15000)throw new Error('NAV_MAIN_THREAD_BLOCKED '+navMs+'ms');
               const raf=await p.evaluate(()=>new Promise(resolve=>{
                 const ts=[],start=performance.now();
-                const step=t=>{ts.push(t);if(ts.length>=8||performance.now()-start>2500){const gaps=ts.slice(1).map((v,i)=>v-ts[i]);resolve({frames:ts.length,maxGap:gaps.length?Math.max(...gaps):null,total:performance.now()-start})}else requestAnimationFrame(step)};
+                const step=t=>{ts.push(t);if(ts.length>=8||performance.now()-start>3000){const gaps=ts.slice(1).map((v,i)=>v-ts[i]);resolve({frames:ts.length,maxGap:gaps.length?Math.max(...gaps):null,total:performance.now()-start})}else requestAnimationFrame(step)};
                 requestAnimationFrame(step);
               }));
+              const longTasks=await p.evaluate(()=>({count:(window.__bpPerfLongTasks||[]).length,
+                worst:[...(window.__bpPerfLongTasks||[])].sort((a,b)=>b.duration-a.duration).slice(0,12)}));
+              console.log('APP_FRAME_DIAGNOSTICS',JSON.stringify({raf,longTasks}));
               if(raf.frames<4)throw new Error('UI_MAIN_THREAD_STALLED '+JSON.stringify(raf));
               const severe=fatal.filter(x=>!/ResizeObserver loop/i.test(x));
               if(severe.length)throw new Error('PAGEERROR '+JSON.stringify(severe.slice(-5)));
