@@ -463,11 +463,11 @@ def make_manifest(tile, source, out_dir, anchor, bounds_wgs84, image_bbox, lods,
             "method":"Real orthophoto pixels draped onto measured LiDAR roof and ground surface; vertical facade planes remain separately LiDAR-derived."
         },
         "materialization":{
-            "method":"Measured NYC OpenData LiDAR returns plus a cell-local DSM surface mesh and real NYS orthophoto drape",
+            "method":"Measured NYC OpenData LiDAR returns materialized as roof-supported 2m triangles plus a measured-ground DTM and registered NYS orthophoto drape",
             "renderablePointCounts":LOD_COUNTS,"pointCoordinateQuantizationMetres":POSITION_SCALE_M,
             "sourcePointGeometryPreserved":True,"syntheticGeometryAdded":False,
-            "surfaceMesh":"Measured max return per 2m cell; corners only smoothed across small height differences to preserve sharp roof edges",
-            "verticalWalls":"Neutral shaded vertical quads derived from sustained LiDAR roof-boundary discontinuities; not photographic facade imagery",
+            "surfaceMesh":"Nadir photo mesh uses source-derived elevated roof-mask cells plus measured class-2 ground; non-roof unclassified returns are not elevated mesh vertices, and corner smoothing is edge-preserving",
+            "verticalWalls":"Neutral shaded vertical quads derived from roof-mask boundaries against the measured-ground DTM; no nadir imagery is stretched onto facades",
             "wallQuadCount":surface_meta["wallQuadCount"],"roofPhotoTexture":True,"sidePhotoTexture":False,
             "coordinateGrid":"Cell footprints snapped to EPSG:2263 2m bins and independently anchored per LiDAR tile"
         },
@@ -540,7 +540,7 @@ def main():
         "version":7002,"baseTileId":"987210",
         "coordinateReference":"EPSG:2263 NAD83 / New York Long Island (US survey feet); local vertical datum NAVD88 Geoid12B ft",
         "sourceDataset":SOURCE_DATASET_URL,
-        "surfaceMethod":"measured LiDAR cell-local 2m mesh with real NYS orthophoto roofs/ground and separate LiDAR-derived vertical walls",
+        "surfaceMethod":"edge-preserving LiDAR roof-mask triangles + measured-ground DTM, registered nadir orthophoto, and separate neutral vertical walls",
         "tiles":records,
         "tileCount":len(records),
         "generatedAtUtc":time.strftime("%Y-%m-%dT%H:%M:%SZ",time.gmtime())
