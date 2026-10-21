@@ -655,3 +655,34 @@ body.bpv-view-ready .bpv-dock-persistent.bpv-dock-maximized .bpv-dock-window-act
 body.bpv-view-ready .bpv-dock-persistent.bpv-dock-maximized .bpv-dock-window-actions button{
  position:relative!important;z-index:61!important;pointer-events:auto!important;min-height:32px!important
 }
+
+
+/* v6033: mobile deck stays below the top bar; its minimize control cannot be covered. */
+@media(max-width:700px){
+ body.bpv-view-ready .bpv-dock-persistent:not([hidden]):not(.bpv-dock-maximized){
+  position:absolute!important;top:auto!important;bottom:max(6px,env(safe-area-inset-bottom))!important;
+  height:auto!important;max-height:min(42dvh,360px)!important;
+  overflow-x:hidden!important;overflow-y:auto!important
+ }
+ body.bpv-view-ready .bpv-dock-persistent.bpv-dock-maximized{
+  position:fixed!important;top:max(66px,calc(env(safe-area-inset-top) + 58px))!important;
+  right:6px!important;bottom:max(6px,env(safe-area-inset-bottom))!important;left:6px!important;
+  width:auto!important;height:auto!important;max-width:none!important;max-height:none!important;
+  transform:none!important;overflow-x:hidden!important;overflow-y:auto!important;
+  z-index:calc(var(--bpv-ui-z,1200) + 8)!important
+ }
+ body.bpv-view-ready .bpv-dock-persistent.bpv-dock-maximized>.bpv-dock-label{
+  position:sticky!important;top:0!important;z-index:100!important;display:flex!important;
+  align-items:center!important;justify-content:space-between!important;gap:6px!important;
+  opacity:1!important;visibility:visible!important;transform:none!important;pointer-events:auto!important;
+  background:linear-gradient(180deg,rgba(3,12,19,.995),rgba(3,12,19,.97))!important
+ }
+ body.bpv-view-ready .bpv-dock-persistent.bpv-dock-maximized .bpv-dock-window-actions{
+  display:flex!important;position:relative!important;z-index:101!important;flex:0 0 auto!important;
+  visibility:visible!important;opacity:1!important;pointer-events:auto!important
+ }
+ body.bpv-view-ready .bpv-dock-persistent.bpv-dock-maximized .bpv-dock-window-actions button{
+  position:relative!important;z-index:102!important;min-height:34px!important;
+  visibility:visible!important;opacity:1!important;pointer-events:auto!important
+ }
+}

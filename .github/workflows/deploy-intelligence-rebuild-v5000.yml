@@ -314,6 +314,8 @@ jobs:
           grep -Fq 'bpv-dock-persistent' site/bridgepoint-view-v5917.css
            grep -Fq 'bpv-premium-tools-slot' site/bridgepoint-view-v5917.js
            grep -Fq 'bpv-dock-persistent.bpv-dock-maximized>.bpv-dock-label' site/bridgepoint-view-v5917.css
+           grep -Fq 'position:fixed!important;top:max(66px,calc(env(safe-area-inset-top) + 58px))!important' site/bridgepoint-view-v5917.css
+           grep -Fq 'body.bpv-view-ready .bpv-dock-persistent:not([hidden]):not(.bpv-dock-maximized)' site/bridgepoint-view-v5917.css
           grep -Fq 'bpv-key-ribbon' site/bridgepoint-view-v5917.css
           grep -Fq 'V5940: unify card actions' site/bridgepoint-view-v5917.css
           grep -Fq 'bridgepoint-landmarks-v5940.js' site/index.html
@@ -889,8 +891,8 @@ jobs:
           test -s site/vendor/maplibre-gl.js
           test -s site/vendor/maplibre-gl.css
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6032-premium-slot-close-safe' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6032-premium-slot-close-safe' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6033-mobile-dock-close-safe' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6033-mobile-dock-close-safe' site/app/index.html
           grep -Fq 'bridgepoint-view-v5917.js?v=6032-premium-slot-close-safe' site/app/index.html
           grep -Fq 'bridgepoint-view-v5917.js?v=6032-premium-slot-close-safe' site/index.html
           grep -Fq 'function setDockMaximized(on)' site/bridgepoint-view-v5917.js
