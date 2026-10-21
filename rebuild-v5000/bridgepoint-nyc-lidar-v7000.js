@@ -327,12 +327,15 @@
   }
 
   function fullyCoveredByActiveTiles(map, state) {
-    const active = [...state.tiles.values()].filter(t => t.activeLevel === 2 && t.surfaceGroup?.visible);
-    if (!active.length) return false;
+    const catalog = state.tileCatalogRecords?.length ? state.tileCatalogRecords : [...state.tiles.values()].map(t => ({tileId:t.tileId,boundsWgs84:t.manifest.boundsWgs84}));
+    const intersecting = catalog.filter(record => intersects(map, record));
+    if (!intersecting.length) return false;
+    const loaded = intersecting.map(record => state.tiles.get(String(record.tileId)));
+    if (loaded.some(t => !t || t.activeLevel !== 2 || !t.surfaceGroup?.visible)) return false;
     try {
       const bounds = map.getBounds();
-      const extent = active.reduce((a, t) => {
-        const b = t.manifest.boundsWgs84;
+      const extent = intersecting.reduce((a, record) => {
+        const b = record.boundsWgs84;
         return {west:Math.min(a.west,b.west),south:Math.min(a.south,b.south),east:Math.max(a.east,b.east),north:Math.max(a.north,b.north)};
       }, {west:Infinity,south:Infinity,east:-Infinity,north:-Infinity});
       // A small safety inset stops whole-layer suppression when even a sliver of the viewport
@@ -559,6 +562,7 @@
       if (index.version !== VERSION || !Array.isArray(index.tiles)) {
         throw new Error('NYC_LIDAR_TILE_INDEX_INVALID');
       }
+      state.tileCatalogRecords = index.tiles;
       const others = index.tiles.filter(r => String(r.tileId) !== CENTER_TILE_ID);
       const results = await Promise.allSettled(others.map(async record => {
         const url = record.manifest.startsWith('/')
@@ -578,6 +582,7 @@
         availableTileIds:[...state.tiles.keys()]
       });
     } catch (error) {
+      state.tileCatalogRecords = [...state.tiles.values()].map(t => ({tileId:t.tileId,boundsWgs84:t.manifest.boundsWgs84}));
       state.catalogErrors.push({tileId:'catalog',error:String(error && error.message || error)});
       publish('center-lidar-only-catalog-fallback', {
         tileCount:state.tiles.size, catalogErrors:state.catalogErrors.slice(0,12)

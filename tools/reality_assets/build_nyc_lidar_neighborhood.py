@@ -364,7 +364,7 @@ def build_surface_and_walls(tile, source, image_bbox, anchor, out_dir, image_pat
                 push_wall([(east,tb,north),(west,ta,north),(west,base_h,north),(east,base_h,north)],"south")
             ta,tb = float(corner_se[j,i]),float(corner_ne[j,i])
             lowi = min(i+1,nx-1)
-            base_h = float(ground[j,lowi]) if i+1>=nx else max(float(ground[j,lowi]),float(top[j,lowi+1]))
+            base_h = float(ground[j,lowi]) if i+1>=nx else max(float(ground[j,lowi]),float(top[j,lowi]))
             if (i+1>=nx or not roof_mask[j,i+1]) and min(ta,tb)-base_h > 3.0/FT_TO_M:
                 push_wall([(east,ta,north),(east,tb,south),(east,base_h,south),(east,base_h,north)],"east")
             ta,tb = float(corner_sw[j,i]),float(corner_nw[j,i])
