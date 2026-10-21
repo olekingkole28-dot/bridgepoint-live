@@ -514,6 +514,7 @@
           tile.pendingRoofGroup = nextRoofGroup;
           tile.surfaceReady = false;
           root.visible = !!state.overlayEnabled;
+          try { reconcile(map, state); } catch (_) {}
         }
         // Progressive visible rows: do not wait for every chunk in the tile or every
         // neighboring tile before showing the photo drape.
@@ -775,7 +776,10 @@
     const level = center?.activeLevel ?? -1;
     const lodMeta = level >= 0 ? center.manifest.lods[level] : null;
     const activeTiles = [...state.tiles.values()].filter(t => t.activeLevel >= 0);
-    const surfaceTiles = [...state.tiles.values()].filter(t => t.activeLevel === 2 && t.surfaceGroup?.visible);
+    const surfaceVisibleTiles = [...state.tiles.values()].filter(t =>
+      t.surfaceGroup?.visible && (t.surfaceReady || (t.pendingRoofGroup?.children?.length || 0) > 0));
+    const surfaceTiles = surfaceVisibleTiles.filter(t => t.surfaceReady);
+    const centerSurfaceTier = center?.surfaceLevel >= 0 ? SURFACE_TIERS[center.surfaceLevel] : null;
     publish(status, {
       attachedMaps: attachedCount, layerInstalled: !!map.getLayer(LAYER_ID),
       tileId: CENTER_TILE_ID,
@@ -784,13 +788,19 @@
       activeLod: level, activeLodName: lodMeta?.name || null,
       visiblePoints: level >= 0 ? lodMeta.pointCount : 0,
       sourcePointCount: center?.manifest.sourcePoints || 17523220,
-      actualMeasuredPointsOnly: true, visible: activeTiles.length > 0,
-      photorealisticSurfaceMesh: surfaceTiles.length > 0,
-      surfaceMeshVisible: !!center?.surfaceGroup?.visible,
-      verticalWallMeshVisible: !!center?.wallMesh?.visible,
-      verticalWallQuads: surfaceTiles.reduce((n,t)=>n+Number(t.manifest.surfaceMesh?.wallQuadCount||0),0),
+      actualMeasuredPointsOnly: true, visible: activeTiles.length > 0 || surfaceVisibleTiles.length > 0,
+      photorealisticSurfaceMesh: surfaceVisibleTiles.length > 0,
+      surfaceMeshVisible: surfaceVisibleTiles.length > 0,
+      surfaceMeshReady: surfaceTiles.length > 0,
+      surfaceMeshReadyTileCount: surfaceTiles.length,
+      surfaceMeshLoadingTileIds: [...state.tiles.values()].filter(t=>t.surfaceTaskActive || t.surfaceQueued).map(t=>t.tileId),
+      surfaceLodName: centerSurfaceTier?.name || null,
+      surfaceLodStrideMetres: centerSurfaceTier ? centerSurfaceTier.stride * 2 : null,
+      surfaceTextureSize: center?.surfaceTextureSize || 0,
+      verticalWallMeshVisible: [...state.tiles.values()].some(t=>!!t.wallMesh?.visible),
+      verticalWallQuads: surfaceVisibleTiles.reduce((n,t)=>n+Number(t.manifest.surfaceMesh?.wallQuadCount||0),0),
       facadePhotoCoverage: false,
-      duplicateBuildingPolicy: 'Gold LOD features are clipped inside active LiDAR tiles; full layers are hidden only when the viewport is completely covered',
+      duplicateBuildingPolicy: 'Gold LOD features are clipped inside fully streamed LiDAR tiles; photo surface remains progressive while chunks arrive',
       coverageFilterActive: state.coverageFilterActive,
       coverageFilteredLayerIds: state.coverageFilteredLayerIds.slice(0,60),
       hiddenLegacyLayerIds: [...state.savedFilters.keys()].slice(0,60),
@@ -800,7 +810,7 @@
       aerialTextureSource: center?.manifest.imagery?.sourceProduct || 'NYS Latest Orthoimagery',
       tileCount: state.tiles.size,
       activeTileIds: activeTiles.map(t=>t.tileId),
-      surfaceTileIds: surfaceTiles.map(t=>t.tileId),
+      surfaceTileIds: surfaceVisibleTiles.map(t=>t.tileId),
       failedTileIds: [...state.tiles.values()].filter(t=>t.lastError).map(t=>({tileId:t.tileId,error:t.lastError})),
       lastError: state.lastError
     });
@@ -839,7 +849,10 @@
         const visibleMesh = tile.meshes.get(level) ||
           (fallbackLevel < level ? tile.meshes.get(fallbackLevel) : null) ||
           [...tile.meshes.entries()].filter(([tier]) => tier < level).sort((a,b)=>b[0]-a[0])[0]?.[1] || null;
-        for (const [tier, mesh] of tile.meshes) mesh.visible = !!(state.overlayEnabled && !tile.surfaceReady && mesh === visibleMesh);
+        const photoChunkAlreadyVisible = (tile.pendingRoofGroup?.children?.length || 0) > 0;
+        for (const [tier, mesh] of tile.meshes) {
+          mesh.visible = !!(state.overlayEnabled && !tile.surfaceReady && !photoChunkAlreadyVisible && mesh === visibleMesh);
+        }
         if (!visibleMesh && !tile.loads.has(fallbackLevel) && !tile.loads.has(level)) {
           ensureLod(map, state, tile, fallbackLevel).then(() => reconcile(map, state)).catch(error => {
             tile.lastError = String(error && error.message || error);
@@ -1058,7 +1071,7 @@
     button.style.cssText='flex:1;min-height:42px;border:1px solid rgba(67,231,255,.6);border-radius:8px;background:linear-gradient(135deg,#0a3542,#10212d);color:#c7f8ff;font:900 11px/1.25 system-ui,sans-serif;letter-spacing:.035em;padding:8px;cursor:pointer';
     const note=document.createElement('span');note.textContent='Verified NYC coverage only · source geometry';note.style.cssText='font-size:10px;color:#a4c9d3;flex:1 1 100%';
     const paint=()=>{button.setAttribute('aria-pressed',String(state.overlayEnabled));button.textContent='LiDAR / PHOTOGRAPH MESH OVERLAY: '+(state.overlayEnabled?'ON':'OFF');};
-    button.addEventListener('click',()=>{state.overlayEnabled=!state.overlayEnabled;try{localStorage.setItem(OVERLAY_STORAGE_KEY,state.overlayEnabled?'1':'0')}catch(_){}try{if(map.getLayer(LAYER_ID))map.setLayoutProperty(LAYER_ID,'visibility',state.overlayEnabled?'visible':'none')}catch(_){}if(!state.overlayEnabled)suppressLegacySurfaces(map,state,false);paint();reconcile(map,state);publish(state.overlayEnabled?'overlay-enabled':'overlay-disabled',{overlayEnabled:state.overlayEnabled});});
+    button.addEventListener('click',()=>{state.overlayEnabled=!state.overlayEnabled;try{localStorage.setItem(OVERLAY_STORAGE_KEY,state.overlayEnabled?'1':'0')}catch(_){}if(state.overlayEnabled){for(const tile of state.tiles.values())tile.surfaceFailedLevel=-1;}try{if(map.getLayer(LAYER_ID))map.setLayoutProperty(LAYER_ID,'visibility',state.overlayEnabled?'visible':'none')}catch(_){}if(!state.overlayEnabled)suppressLegacySurfaces(map,state,false);paint();reconcile(map,state);publish(state.overlayEnabled?'overlay-enabled':'overlay-disabled',{overlayEnabled:state.overlayEnabled});});
     wrap.append(button,note);slot.append(wrap);paint();
   }
 
