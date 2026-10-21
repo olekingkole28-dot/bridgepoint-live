@@ -587,6 +587,9 @@ jobs:
           ! grep -Fq '/walkthrough-v5537.css' site/index.html
           ! grep -Fq '/walkthrough-v5537.css' site/app/index.html
           grep -Fq 'bp5507-live-hit' site/intelligence-global-v5507.js
+          ! grep -Fq 'MAP KEY · WEATHER + WORLD' site/intelligence-global-v5507.js
+          grep -Fq 'intelligence-global-v5507.js?v=6039-left-mapkey-only' site/index.html
+          grep -Fq 'intelligence-global-v5507.js?v=6039-left-mapkey-only' site/app/index.html
           ! grep -Fq "source('bp5507-live',fc())" site/intelligence-global-v5507.js
           ! grep -Fq '3D HOUSE QR' site/intelligence-tools-v5507.js
           grep -Fq 'Use two fingers and swipe / scroll up' site/intelligence-global-v5507.js
