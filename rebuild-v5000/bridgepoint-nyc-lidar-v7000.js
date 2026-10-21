@@ -23,15 +23,16 @@
     () => window.__BP_V5000_WORLD__
   ];
   const MAPS = new WeakMap();
-  const OVERLAY_STORAGE_KEY = 'bp-nyc-lidar-overlay-v7003';
+  const OVERLAY_STORAGE_KEY = 'bp-nyc-lidar-overlay-v7006';
   const JSON_CACHE = new Map();
   let threePromise = null;
   let attachedCount = 0;
 
   const BUILDING_LAYER_RE = /(?:building|roof|floor.line|facade|structure|reality|night.window|landmark3d)/i;
   // EPSG:2263 grid north at the center tile is 0.010581607° east of true north.
-  // Rotate the shared local scene into the map's true east/up/north frame before projection.
-  const GRID_TO_TRUE_NORTH_RADIANS = 0.00018468388351200875;
+  // MapLibre's getMatrixForModel expects local +Z toward the south; the LAS grid is +Y north.
+  // Flip northing into the MapLibre model frame, then rotate grid north back toward true north.
+  const GRID_TO_TRUE_NORTH_RADIANS = -0.00018468388351200875;
 
   function publish(status, extra = {}) {
     window.__BP_NYC_LIDAR_V7000__ = Object.assign({
@@ -136,7 +137,10 @@
     const quantizedPositions = new Int16Array(raw, 0, count * 3);
     const positions = new Float32Array(count * 3);
     const positionScale = Number(meta.positionScaleMeters || 0.02);
-    for (let i = 0; i < positions.length; i++) positions[i] = quantizedPositions[i] * positionScale;
+    for (let i = 0; i < positions.length; i++) {
+      const axis = i % 3;
+      positions[i] = quantizedPositions[i] * positionScale * (axis === 2 ? -1 : 1);
+    }
     const colors = new Uint8Array(raw, count * 6, count * 3);
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -220,7 +224,10 @@
         }
         const q = new Int16Array(raw, 0, vertices * 3);
         const positions = new Float32Array(vertices * 3);
-        for (let i = 0; i < positions.length; i++) positions[i] = q[i] * scale;
+        for (let i = 0; i < positions.length; i++) {
+          const axis = i % 3;
+          positions[i] = q[i] * scale * (axis === 2 ? -1 : 1);
+        }
         const uv = new Uint16Array(raw, vertices * 6, vertices * 2);
         const indices = new Uint32Array(raw.slice(vertices * 10, vertices * 10 + indexCount * 4));
         const geometry = new THREE.BufferGeometry();
@@ -244,7 +251,10 @@
       }
       const wq = new Int16Array(wallRaw, 0, wallVertices * 3);
       const wallPositions = new Float32Array(wallVertices * 3);
-      for (let i = 0; i < wallPositions.length; i++) wallPositions[i] = wq[i] * scale;
+      for (let i = 0; i < wallPositions.length; i++) {
+        const axis = i % 3;
+        wallPositions[i] = wq[i] * scale * (axis === 2 ? -1 : 1);
+      }
       const wallColors = new Uint8Array(wallRaw, wallVertices * 6, wallVertices * 3);
       const wallIndices = new Uint32Array(wallRaw.slice(wallVertices * 9, wallVertices * 9 + wallIndexCount * 4));
       const wallGeometry = new THREE.BufferGeometry();
@@ -622,7 +632,7 @@
     return {
       x:(Number(anchor.projectedXFeet)-Number(baseAnchor.projectedXFeet))*FT_TO_M,
       y:(Number(anchor.verticalOriginFeet)-Number(baseAnchor.verticalOriginFeet))*FT_TO_M,
-      z:(Number(anchor.projectedYFeet)-Number(baseAnchor.projectedYFeet))*FT_TO_M
+      z:-(Number(anchor.projectedYFeet)-Number(baseAnchor.projectedYFeet))*FT_TO_M
     };
   }
 
@@ -717,7 +727,9 @@
       eventsBound:false, autoFocused:false
     };
     MAPS.set(map, state);
-    try { state.overlayEnabled = localStorage.getItem(OVERLAY_STORAGE_KEY) === '1'; } catch (_) { state.overlayEnabled = false; }
+    // Always start OFF on a fresh page load, even if an earlier build saved the toggle as ON.
+    state.overlayEnabled = false;
+    try { localStorage.removeItem(OVERLAY_STORAGE_KEY); } catch (_) {}
     addOverlayControl(map,state); addCoverageMarker(map); map.on('style.load',()=>{addCoverageMarker(map);addOverlayControl(map,state)});
     attachedCount++;
     publish('attaching-map', {attachedMaps:attachedCount});
