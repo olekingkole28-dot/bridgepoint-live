@@ -413,7 +413,7 @@ jobs:
           grep -Fq 'sourceRoot.scale.setScalar(STATUE_FIGURE_HEIGHT_M / sourceHeight)' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'getMatrixForModel(STATUE, figureBaseAltitude)' site/bridgepoint-landmarks-v5940.js
           node -e "const d=JSON.parse(require('fs').readFileSync('site/assets/great-wall-overview-v5940.geojson','utf8'));if(d.features.length!==270)process.exit(1)"
-          grep -Fq 'PUBLIC PARCEL VIEWER' site/bridgepoint-view-v5917.js
+          grep -Fq 'Public Parcel Viewer' site/bridgepoint-view-v5917.js
           grep -Fq 'data-bpv-action="boundaryviewer"' site/bridgepoint-view-v5917.js
           grep -Fq 'bridgepoint_public_listings_viewport_v5927' site/bridgepoint-view-v5917.js
           grep -Fq 'bridgepoint-realworld-effects-v5927.js' site/intelligence-tools-v5507.js
@@ -894,8 +894,8 @@ jobs:
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=6035-futuristic-command-deck' site/index.html
           grep -Fq 'bridgepoint-view-v5917.css?v=6035-futuristic-command-deck' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6035-grouped-deck-more-info' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6035-grouped-deck-more-info' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6036-command-deck-top-order' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6036-command-deck-top-order' site/index.html
           grep -Fq 'function setDockMaximized(on)' site/bridgepoint-view-v5917.js
           grep -Fq 'document.body.appendChild(keyRail)' site/bridgepoint-view-v5917.js
           grep -Fq 'p.removeAttribute('"'"'data-panel'"'"')' site/bridgepoint-view-v5917.js

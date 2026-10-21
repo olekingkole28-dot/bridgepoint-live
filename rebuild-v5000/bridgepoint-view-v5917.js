@@ -133,7 +133,7 @@ function makeTopBarAndDock(){
  '<div id="bpv-map-controls-slot" class="bpv-map-controls-slot" aria-label="Map zoom and orientation controls"></div>'+
  '<div id="bpv-search-slot" class="bpv-search-slot"></div>'+
  '<div id="bpv-premium-tools-slot" class="bpv-premium-tools-slot" aria-label="Free premium tools"></div>'+
- '<div id="bpv-property-card-slot" class="bpv-property-card-slot" aria-label="Selected property card"></div>'+
+
  '<div id="bpv-dock-actions" class="bpv-dock-actions bpv-command-groups">'+
   '<section class="bpv-command-group" data-bpv-command-section="environment" aria-label="Weather and environment tools">'+
    '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">☁</span><span><b>WEATHER & ENVIRONMENT</b><small>Storm effects, wind and signal fields</small></span></div>'+
@@ -168,6 +168,7 @@ function makeTopBarAndDock(){
    '<div class="bpv-command-inline-slot" id="bpv-satellite-slot" aria-label="Satellite imagery and color controls"></div>'+
   '</section>'+
  '</div>'+
+ '<div id="bpv-property-card-slot" class="bpv-property-card-slot" aria-label="Selected property card"></div>'+
  '<details id="bpv-more-info" class="bpv-more-info"><summary><span class="bpv-more-icon" aria-hidden="true">ⓘ</span><span class="bpv-more-copy"><b>MORE INFO</b><small>System status, data notes, source coverage and fine print</small></span><span class="bpv-more-chevron" aria-hidden="true">⌄</span></summary>'+
   '<div class="bpv-more-info-content"><p class="bpv-more-info-intro">BridgePoint keeps the map clear while you explore. Open this section when you need system status, data-source notes, coverage limitations or additional explanation.</p>'+
    '<div id="bpv-external-tools-slot" class="bpv-external-tools-slot" aria-label="Active tool controls and visualizations"></div>'+
