@@ -615,7 +615,8 @@ jobs:
           grep -Fq 'stableSingleFrameBuildingHit:true' site/world-v2300-map.js
           grep -Fq 'syntheticLandmarksDisabled:true' site/world-v2300-map.js
           grep -Fq "querySourceFeatures?.('ofm',{sourceLayer:'transportation'" site/world-v2300-map.js
-          grep -Fq 'cancelPendingTileRequestsWhileZooming:true' site/world-v2300-map.js
+          grep -Fq 'cancelPendingTileRequestsWhileZooming:false' site/world-v2300-map.js
+          grep -Fq 'maxTileCacheZoomLevels:9' site/world-v2300-map.js
           grep -Fq 'statueOfLibertyGenericModel:false' site/world-v2300-map.js
           grep -Fq '__BP_LANDING_MAP_BOOT__' site/landing.js
           grep -Fq 'appFreePremiumTools' site/app/index.html
@@ -806,7 +807,8 @@ jobs:
           grep -Fq '__BP_EXACT_DETAIL_STATE__' site/world-v2300-map.js
           grep -Fq 'streetLevelClamped' site/world-v2300-map.js
           grep -Fq 'gta-bp-landmark3d-body' site/world-v2300-map.js
-          grep -Fq 'cancelPendingTileRequestsWhileZooming:true' site/world-v2300-map.js
+          grep -Fq 'cancelPendingTileRequestsWhileZooming:false' site/world-v2300-map.js
+          grep -Fq 'maxTileCacheZoomLevels:9' site/world-v2300-map.js
           grep -Fq 'wx-radar-haze' site/world-v2300-weather.js
           grep -Fq 'NOHRSC_Snow_Analysis' site/world-v2300-weather.js
           ! grep -Fq "map.getSource('selected')?.setData" site/world-v2300-map.js
