@@ -492,7 +492,7 @@ body.bpv-map-moving .system-panel{
 .bpv-dock[hidden]{display:none!important}
 .bpv-dock-window-actions{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex:0 0 auto}
 .bpv-dock-window-actions button{min-height:29px;padding:6px 8px;font-size:8px;white-space:nowrap}
-.bpv-dock.bpv-dock-maximized{width:min(1460px,calc(100% - 16px));max-height:calc(100dvh - 12px);padding:12px 14px;border-color:rgba(117,234,255,.52);box-shadow:0 18px 70px rgba(0,0,0,.62),0 0 24px rgba(0,203,255,.08),inset 0 1px rgba(255,255,255,.07)}
+.bpv-dock.bpv-dock-maximized{width:min(1460px,calc(100% - 16px));max-height:calc(100dvh - 88px);padding:12px 14px;border-color:rgba(117,234,255,.52);box-shadow:0 18px 70px rgba(0,0,0,.62),0 0 24px rgba(0,203,255,.08),inset 0 1px rgba(255,255,255,.07)}
 .bpv-dock.bpv-dock-maximized .bpv-dock-actions{gap:7px}
 .bpv-dock.bpv-dock-maximized>.bpv-sidecar{max-height:min(67dvh,760px)}
 .bpv-dock .bpv-dock-label{position:sticky;top:-1px;z-index:8;padding:3px 1px 7px;background:linear-gradient(180deg,rgba(3,12,19,.98),rgba(3,12,19,.88));border-bottom:1px solid rgba(117,234,255,.12)}
@@ -560,7 +560,7 @@ body.bpv-map-moving .system-panel{
 .bpv-dock .bpv-dock-reopen,#bpv-dock-reopen{position:absolute;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:calc(var(--bpv-ui-z,1200) + 3);max-width:calc(100% - 16px);min-height:40px;padding:10px 15px;border:1px solid rgba(117,234,255,.5);border-radius:12px;background:linear-gradient(135deg,rgba(6,41,57,.98),rgba(7,25,48,.98));color:#dffaff;box-shadow:0 0 26px rgba(45,204,255,.15);font:950 10px/1 system-ui,sans-serif;letter-spacing:.08em;white-space:normal}
 @media(max-width:700px){
  .bpv-dock{left:6px;transform:none;width:calc(100% - 12px);bottom:max(6px,env(safe-area-inset-bottom));padding:8px;max-height:calc(100dvh - 12px)}
- .bpv-dock.bpv-dock-maximized{left:4px;transform:none;width:calc(100% - 8px);bottom:max(4px,env(safe-area-inset-bottom));max-height:calc(100dvh - 8px);padding:9px}
+ .bpv-dock.bpv-dock-maximized{left:4px;transform:none;width:calc(100% - 8px);bottom:max(4px,env(safe-area-inset-bottom));max-height:calc(100dvh - 90px);padding:9px}
  .bpv-dock-label{gap:7px;font-size:7px;flex-wrap:wrap}
  .bpv-dock .bpv-dock-label>div:first-child{flex:1 1 125px}
  .bpv-dock-window-actions{gap:4px}
