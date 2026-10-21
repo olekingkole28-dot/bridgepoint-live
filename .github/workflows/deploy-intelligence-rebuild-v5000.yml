@@ -1327,9 +1327,9 @@ jobs:
                   Number.isFinite(m.queryTerrainElevation?.(m.getCenter(),{exaggerated:true}));
               },{timeout:25000});
               const attempted=await p.evaluate(()=>{
-                const m=window.__BP_V5000_WORLD.map,MC=window.maplibregl?.MercatorCoordinate,center=m.getCenter();
-                const ground=m.queryTerrainElevation(center,{exaggerated:true}),free=m.getFreeCameraOptions?.();
-                if(!Number.isFinite(ground)||!free?.position||!MC?.fromLngLat)return{ok:false,ground};
+                const m=window.__BP_V5000_WORLD.map,center=m.getCenter();
+                const ground=m.queryTerrainElevation(center,{exaggerated:true}),free=m.getFreeCameraOptions?.(),MC=window.maplibregl?.MercatorCoordinate||free?.position?.constructor;
+                if(!Number.isFinite(ground)||!free?.position||!MC?.fromLngLat)return{ok:false,ground,hasCamera:!!free,hasPosition:!!free?.position,hasGlobalMC:!!window.maplibregl?.MercatorCoordinate,coordinateFactory:typeof MC?.fromLngLat,hasToLngLat:typeof free?.position?.toLngLat==='function',hasToAltitude:typeof free?.position?.toAltitude==='function'};
                 free.position=MC.fromLngLat([center.lng,center.lat],ground-8);
                 m.setFreeCameraOptions(free);
                 return{ok:true,ground};
