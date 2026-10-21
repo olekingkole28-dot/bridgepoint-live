@@ -1243,7 +1243,7 @@ jobs:
                 return !!m&&!!slot&&['GOLD','SILVER','BRONZE'].every(t=>!!slot.querySelector('[data-bp-lod-tier="'+t+'"]'))&&
                   !!window.__BP_TILE_RETENTION_V6017__&&window.__BP_CAMERA_GROUND_GUARD_V6017__?.enabled===true;
               },{timeout:60000});
-    await p.evaluate(()=>{const w=window.__BP_LANDING_WORLD__||window.__bpLandingWorldV5420||window.__BP_V5000_WORLD;if(w?.map&&!window.__BP_V5000_WORLD)window.__BP_V5000_WORLD=w;});
+              await p.evaluate(()=>{const w=window.__BP_LANDING_WORLD__||window.__bpLandingWorldV5420||window.__BP_V5000_WORLD;if(w?.map&&!window.__BP_V5000_WORLD)window.__BP_V5000_WORLD=w;});
               const initial=await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map,slot=document.querySelector('#bpv-dock #bpv-map-controls-slot');
                 const buttons=[...(slot?.querySelectorAll('[data-bp-lod-tier]')||[])];
