@@ -459,7 +459,7 @@ def make_manifest(tile, source, out_dir, anchor, bounds_wgs84, image_bbox, lods,
             "metadataUrl":SOURCE_DOC_URL, "archiveUrl":ARCHIVE_URL,
             "archiveMember":f"TopoBathymetric_Classified_LAZ/{tile['id']}.laz",
             "archiveMemberMethod":"ZIP_STORED_BYTE_RANGE_READ",
-            "archivePayloadBytes":int(tile["archiveBytes"]), "archivePayloadOffset":int(tile["archiveOffset"]),
+            "archivePayloadBytes":int(tile["archiveBytes"]), "archivePayloadOffset":int(tile["archivePayloadOffset"] if "archivePayloadOffset" in tile else tile["archiveOffset"]),
             "tileSha256":sha256_file(source),
             "licenseNote":"Public NYC Open Data dataset; retain source attribution and consult NYC Open Data terms for downstream reuse."
         },
