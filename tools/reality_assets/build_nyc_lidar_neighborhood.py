@@ -97,6 +97,25 @@ def fetch_laz(tile: dict, destination: Path) -> None:
     temp.replace(destination)
     print("SOURCE_RANGE_READY", tile["id"], len(raw), flush=True)
 
+def fetch_laz_payload(payload_offset: int, payload_bytes: int, tile_id: str, destination: Path) -> None:
+    """Fetch a manifest-recorded raw LAZ payload offset (the center tile header was audited separately)."""
+    if destination.exists() and destination.stat().st_size == payload_bytes:
+        print("SOURCE_CACHE_HIT", tile_id, destination.stat().st_size, flush=True)
+        return
+    start = int(payload_offset)
+    size = int(payload_bytes)
+    if start < 0 or size < 227:
+        raise RuntimeError(f"Invalid audited LAZ payload range for {tile_id}: offset={start}, bytes={size}")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temp = destination.with_suffix(destination.suffix + ".partial")
+    print("SOURCE_PAYLOAD_RANGE_START", tile_id, start, size, flush=True)
+    raw = range_get(start, start + size - 1, timeout=240)
+    if raw[:4] != b"LASF":
+        raise RuntimeError(f"Audited LAZ payload is not LAS/LAZ for {tile_id}: {raw[:8].hex()}")
+    temp.write_bytes(raw)
+    temp.replace(destination)
+    print("SOURCE_RANGE_READY", tile_id, len(raw), flush=True)
+
 def fetch_orthophoto(tile: dict, anchor_x: float, anchor_y: float, out_jpg: Path):
     to3857 = Transformer.from_crs(2263, 3857, always_xy=True)
     cx, cy = to3857.transform(anchor_x, anchor_y)
@@ -496,7 +515,7 @@ def main():
     bounds_meta = center.get("tileBoundsSourceFeet", {})
     center_tile = {
         "id":"987210",
-        "archiveOffset":int(src_meta["archivePayloadOffset"]),
+        "archivePayloadOffset":int(src_meta["archivePayloadOffset"]),
         "archiveBytes":int(src_meta["archivePayloadBytes"]),
         "bounds":[float(bounds_meta["xmin"]),float(bounds_meta["ymin"]),
                   float(bounds_meta["xmax"]),float(bounds_meta["ymax"])],
@@ -509,7 +528,10 @@ def main():
         out_dir = LIDAR_ROOT if tile["id"] == "987210" else TILE_ROOT / tile["id"]
         out_dir.mkdir(parents=True, exist_ok=True)
         source = Path(os.environ.get("BRIDGEPOINT_LIDAR_CACHE", "/tmp/bridgepoint-nyc-lidar")) / f"{tile['id']}.laz"
-        fetch_laz(tile, source)
+        if tile["id"] == "987210":
+            fetch_laz_payload(tile["archivePayloadOffset"], tile["archiveBytes"], tile["id"], source)
+        else:
+            fetch_laz(tile, source)
         xmin,ymin,xmax,ymax = tile["bounds"]
         anchor_x, anchor_y = round((xmin+xmax)/2.0, 2), round((ymin+ymax)/2.0, 2)
         to4326 = Transformer.from_crs(2263, 4326, always_xy=True)
