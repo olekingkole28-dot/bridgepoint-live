@@ -176,10 +176,12 @@ function makeTopBarAndDock(){
  const placeAuxiliaryControls=()=>{
   if(!auxiliarySlot)return;
   for(const selector of auxiliarySelectors)document.querySelectorAll(selector).forEach(el=>{
-   if(!el||el.closest('#bpv-sidecar')||el.closest('.maplibregl-popup')||auxiliarySlot.contains(el))return;
+   const dockableControlSelector='#bp-world-realism-v5910,.bp-reality-toggle-v5968,.bp-live-rail-toggle-v5969,#bp-reality-assets-v5968,[id^="bp-reality-assets-v5968-"],.bp-live-rail-panel-v5969';
+   const dockableControl=!!el?.matches?.(dockableControlSelector);
+   if(!el||(el.closest('#bpv-sidecar')&&!dockableControl)||el.closest('.maplibregl-popup')||auxiliarySlot.contains(el))return;
    auxiliarySlot.appendChild(el);el.classList.add('bpv-contained-control');
   });
-  const activePanels=auxiliarySlot.querySelectorAll('#bp5507-tool-panel:not([hidden]),#bp5507-hud:not([hidden]),#bp5507-key-panel:not([hidden]),#bp-realworld-effects-v5927:not([hidden]),#bpRoadDrive:not([hidden]),.bp-rd-drive-controls:not([hidden])');
+  const activePanels=auxiliarySlot.querySelectorAll('#bp5507-tool-panel:not([hidden]),#bp5507-hud:not([hidden]),#bp5507-key-panel:not([hidden]),#bp-realworld-effects-v5927:not([hidden]),#bpRoadDrive:not([hidden]),.bp-rd-drive-controls:not([hidden]),#bp-world-realism-v5910 .bpr-panel:not([hidden]),#bp-reality-assets-v5968:not([hidden]),[id^="bp-reality-assets-v5968-"]:not([hidden]),.bp-live-rail-panel-v5969:not([hidden])');
   if(Array.from(activePanels).some(el=>getComputedStyle(el).display!=='none'))setDockMaximized(true);
  };
  placeAuxiliaryControls();
