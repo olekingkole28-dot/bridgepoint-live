@@ -28,7 +28,7 @@ function solarAltitude(lon:number,lat:number,at:Date){
 async function upstream(b:any,date:string|null){
  const q=new URLSearchParams({
   SERVICE:"WMS",VERSION:"1.1.1",REQUEST:"GetMap",
-  LAYERS:"VIIRS_SNPP_DayNightBand_ENCC",STYLES:"",
+  LAYERS:"VIIRS_SNPP_GapFilled_BRDF_Corrected_DayNightBand_Radiance",STYLES:"",
   FORMAT:"image/png",TRANSPARENT:"TRUE",
   WIDTH:String(SIZE),HEIGHT:String(SIZE),SRS:"EPSG:3857",
   BBOX:[b.west,b.south,b.east,b.north].join(",")
@@ -113,7 +113,7 @@ Deno.serve(async(req:Request)=>{
   return new Response(image,{headers:{
    ...CORS,"content-type":"image/png",
    "cache-control":"public,max-age=600,stale-while-revalidate=1800",
-   "x-bridgepoint-source":"NASA GIBS VIIRS SNPP Day/Night Band ENCC",
+   "x-bridgepoint-source":"NASA GIBS VIIRS SNPP Gap-Filled BRDF-Corrected Day/Night Band Radiance",
    "x-bridgepoint-observation-date":usedDate,
    "x-bridgepoint-mask-time":requestedAt,
    "x-bridgepoint-night-mask":"solar-altitude-below-minus-6-degrees",
