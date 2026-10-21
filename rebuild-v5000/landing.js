@@ -239,7 +239,7 @@ async function initMap(){
  if(!window.maplibregl){window.__BP_LANDING_MAP_BOOT__={stage:'error',error:'MAPLIBRE_UNAVAILABLE',maplibre:false,at:Date.now()};return}
  try{
   window.__BP_LANDING_MAP_BOOT__={stage:'importing-world',maplibre:true,at:Date.now()};
-  const mod=await import('./world-v2300-map.js?v=6017-ground-tile-cache');
+  const mod=await import('./world-v2300-map.js?v=6037-gold-default-lod');
   window.__BP_LANDING_MAP_BOOT__={stage:'initializing-world',maplibre:true,module:true,at:Date.now()};
   const world=mod.initWorld({
    containerId:'previewMap',
@@ -254,7 +254,7 @@ async function initMap(){
   if(!world?.map)throw new Error('Shared BridgePoint world renderer unavailable');
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
-   void import('./world-v2300-lod-controls.js?v=6017-dock-card').then(m=>{window.__BP_LOD_CONTROL_LANDING_V6016__=m.initWorldLodControls(world,{surface:'landing'})}).catch(e=>console.warn('BridgePoint homepage LOD controls unavailable',e));
+   void import('./world-v2300-lod-controls.js?v=6037-gold-default-lod').then(m=>{window.__BP_LOD_CONTROL_LANDING_V6016__=m.initWorldLodControls(world,{surface:'landing'})}).catch(e=>console.warn('BridgePoint homepage LOD controls unavailable',e));
   // Explicitly connect the landmark module to the newly created homepage map.
   // Do not depend on its polling loop winning a race with slow mobile/globe startup.
   window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map;

@@ -79,7 +79,9 @@ function addInventory(){
  const oldHead=pane.querySelector('.bpv-pane-title');if(oldHead?.nextSibling)pane.insertBefore(box,oldHead.nextSibling);else pane.prepend(box);
 }
 function addMapKey(panel){
- if(!panel||panel.querySelector('[data-bpv-pane="mapkey"]'))return;
+ if(!panel)return;
+ panel.querySelectorAll('.bpv-sidecar-tabs [data-bpv-panel="mapkey"]').forEach(b=>b.remove());
+ if(panel.querySelector('[data-bpv-pane="mapkey"]'))return;
  const pane=el('section','');pane.dataset.bpvPane='mapkey';pane.hidden=true;
  const head=el('div','bpv-pane-title');head.append(el('b','','BRIDGEPOINT MAP KEY'),el('small','','Opportunity colors, 3D materials, terrain, weather and transport shaders used on this map.'));
  const content=el('div','bpv-map-key-content');
@@ -130,11 +132,23 @@ function addMapKey(panel){
  ]);
  content.lastElementChild.append(el('p','bpv-mapkey-note','Layers render where source coverage, zoom and toggles support them. Geometry, opportunities, listings, imagery and hazard events are separate inventories.'));
  pane.append(head,content);panel.append(pane);
- const nav=panel.querySelector('.bpv-sidecar-tabs');
- if(nav){let b=nav.querySelector('[data-bpv-panel="mapkey"]');if(!b){b=el('button','','MAP KEY');b.type='button';b.dataset.bpvPanel='mapkey';nav.append(b)}
-  if(!b.dataset.bpvMapKeyBound){b.dataset.bpvMapKeyBound='1';b.addEventListener('click',()=>{panel.hidden=false;panel.dataset.panel='mapkey';document.body.classList.add('bpv-panel-open');const t=panel.querySelector('#bpv-sidecar-title');if(t)t.textContent='BRIDGEPOINT MAP KEY';panel.querySelectorAll('[data-bpv-panel]').forEach(x=>{const on=x===b;x.classList.toggle('active',on);x.setAttribute('aria-pressed',String(on))});panel.querySelectorAll('[data-bpv-pane]').forEach(x=>{x.hidden=x!==pane});void callSummary()})}
- }
+ // Vertical rail is the sole Map Key launcher.
+ panel.querySelectorAll('.bpv-sidecar-tabs [data-bpv-panel="mapkey"]').forEach(b=>b.remove());
 }
+function openMapKey(){
+ if(!mount())return false;
+ const panel=document.getElementById('bpv-sidecar'),pane=panel?.querySelector('[data-bpv-pane="mapkey"]');
+ if(!panel||!pane)return false;
+ panel.hidden=false;panel.dataset.panel='mapkey';pane.hidden=false;document.body.classList.add('bpv-panel-open');
+ const title=panel.querySelector('#bpv-sidecar-title');if(title)title.textContent='BRIDGEPOINT MAP KEY';
+ panel.querySelectorAll('[data-bpv-panel]').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-pressed','false')});
+ panel.querySelectorAll('[data-bpv-pane]').forEach(s=>{s.hidden=s!==pane});
+ const rail=document.getElementById('bpv-mapkey-rail');if(rail)rail.setAttribute('aria-expanded','true');
+ const dock=document.getElementById('bpv-dock');dock?.classList.remove('bpv-dock-maximized');
+ const maximize=dock?.querySelector('[data-bpv-dock-expand]');if(maximize){maximize.textContent='MAXIMIZE ↗';maximize.setAttribute('aria-pressed','false')}
+ void callSummary();return true;
+}
+window.__BP_OPEN_MAP_KEY_V5920__=openMapKey;
 function popup(map,feature,lngLat){
  if(!map||!feature||!window.maplibregl?.Popup)return;const p=feature.properties||{},root=el('div','bpv-opportunity-popup');
  const title=el('strong','bpv-opportunity-popup-title',p.specific_opportunity||p.label||'BridgePoint opportunity'),badge=el('span','bpv-opportunity-popup-badge',p.map_color_label||p.icon_key||'General');badge.style.background=String(p.color||'#ff2bd6');
@@ -155,6 +169,8 @@ function mount(){
  const panel=document.getElementById('bpv-sidecar'),nav=panel?.querySelector('.bpv-sidecar-tabs'),opp=panel?.querySelector('[data-bpv-pane="opportunities"]');
  if(!panel||!nav||!opp)return false;
  addInventory();addMapKey(panel);
+ const mapPane=panel.querySelector('[data-bpv-pane="mapkey"]');
+ if(panel.dataset.panel==='mapkey'&&mapPane)mapPane.hidden=false;
  const map=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map||window.__BP_V5000_WORLD?.map||window.__BP_V5000_WORLD__?.map;
  if(map)bindPopup(map);
  if(!window.__BP_MAP_POPUP_BIND_LOOP_V5920__)window.__BP_MAP_POPUP_BIND_LOOP_V5920__=setInterval(()=>{const m=window.__BP_LANDING_WORLD__?.map||window.__bpLandingWorldV5420?.map||window.__BP_V5000_WORLD?.map||window.__BP_V5000_WORLD__?.map;if(m){bindPopup(m);if(m.__bpOpportunityPopupV5920)clearInterval(window.__BP_MAP_POPUP_BIND_LOOP_V5920__)}},250);

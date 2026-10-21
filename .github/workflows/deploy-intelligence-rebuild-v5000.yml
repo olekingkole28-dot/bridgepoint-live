@@ -361,8 +361,8 @@ jobs:
           grep -Fq 'Potree.updatePointClouds([cloud]' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan' site/index.html
           grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan' site/app/index.html
-          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7008-coverage-marker-card-only' site/index.html
-          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7008-coverage-marker-card-only' site/app/index.html
+          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7009-activate-photo-mesh' site/index.html
+          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7009-activate-photo-mesh' site/app/index.html
           test -s site/bridgepoint-nyc-lidar-v7000.js
           node --check site/bridgepoint-nyc-lidar-v7000.js
           grep -Fq 'GRID_TO_TRUE_NORTH_RADIANS = -0.00018468388351200875' site/bridgepoint-nyc-lidar-v7000.js
@@ -486,8 +486,8 @@ jobs:
           grep -Fq 'clusters=1&v=5961' site/world-v2300-underground-xray.js
           grep -Fq 'bp-underground-global-clusters-badge-v5961' site/world-v2300-underground-xray.js
           grep -Fq 'if (!Number.isFinite(terrainBaseM)) return null' site/bridgepoint-landmarks-v5940.js
-          grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/index.html
-          grep -Fq 'bridgepoint-map-key-v5920.js?v=5938-lazy-overlays' site/app/index.html
+          grep -Fq 'bridgepoint-map-key-v5920.js?v=6037-mapkey-drawer-fix' site/index.html
+          grep -Fq 'bridgepoint-map-key-v5920.js?v=6037-mapkey-drawer-fix' site/app/index.html
           grep -Fq 'Subsurface + Ocean-Depth X-Ray' site/bridgepoint-map-key-v5920.js
           grep -Fq 'world-v2300-realism.js?v=5910-world-materials' site/app.js
           grep -Fq 'gis-core-orchestrator-v5910.js?v=5910-gis-router' site/app.js
@@ -873,14 +873,14 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=5981-mobile-controls' site/app/index.html
-          grep -Fq 'landing.js?v=5981-mobile-controls' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6017-ground-tile-cache' site/app.js
-           grep -Fq 'world-v2300-map.js?v=6017-ground-tile-cache' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=6017-ground-tile-cache' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6017-ground-tile-cache' site/app/index.html
-           grep -Fq 'world-v2300-lod-controls.js?v=6017-dock-card' site/app.js
-           grep -Fq 'world-v2300-lod-controls.js?v=6017-dock-card' site/landing.js
+          grep -Fq 'app.js?v=6037-gold-default-lod' site/app/index.html
+          grep -Fq 'landing.js?v=6037-gold-default-lod' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6037-gold-default-lod' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6037-gold-default-lod' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6037-gold-default-lod' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6037-gold-default-lod' site/app/index.html
+           grep -Fq 'world-v2300-lod-controls.js?v=6037-gold-default-lod' site/app.js
+           grep -Fq 'world-v2300-lod-controls.js?v=6037-gold-default-lod' site/landing.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
            grep -Fq 'syncWorldLodLayerRanges' site/world-v2300-map.js
            grep -Fq 'data-bp-lod-tier' site/world-v2300-lod-controls.js
@@ -892,10 +892,10 @@ jobs:
           test -s site/vendor/maplibre-gl.js
           test -s site/vendor/maplibre-gl.css
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6035-futuristic-command-deck' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6035-futuristic-command-deck' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6036-command-deck-top-order' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6036-command-deck-top-order' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6037-mapkey-mesh-gold-fix' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6037-mapkey-mesh-gold-fix' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6037-mapkey-mesh-gold-fix' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6037-mapkey-mesh-gold-fix' site/index.html
           grep -Fq 'function setDockMaximized(on)' site/bridgepoint-view-v5917.js
           grep -Fq 'document.body.appendChild(keyRail)' site/bridgepoint-view-v5917.js
           grep -Fq 'p.removeAttribute('"'"'data-panel'"'"')' site/bridgepoint-view-v5917.js
@@ -904,6 +904,9 @@ jobs:
           grep -Fq 'bpv-command-group' site/bridgepoint-view-v5917.css
           grep -Fq 'bpv-more-info' site/bridgepoint-view-v5917.css
           grep -Fq 'WEATHER & ENVIRONMENT' site/bridgepoint-view-v5917.js
+          grep -Fq '__BP_OPEN_MAP_KEY_V5920__=openMapKey' site/bridgepoint-map-key-v5920.js
+          grep -Fq 'focusCoverageForOverlay' site/bridgepoint-nyc-lidar-v7000.js
+          grep -Fq "window.__BP_LOD_RENDERING_V6016__?.tier||'GOLD'" site/world-v2300-map.js
           grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/index.html
            grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
@@ -1274,8 +1277,8 @@ jobs:
               });
               if(initial.maxPitch<80||initial.tileCache?.cancelPendingTileRequestsWhileZooming!==false||
                  initial.tileCache?.maxTileCacheZoomLevels<9||!initial.groundGuard?.enabled||
-                 !initial.allButtonsInDeck||initial.activeButtons.length!==1||!initial.canvas)
-                throw new Error('GROUND_CAMERA_TILE_CACHE_OR_LOD_DECK_FAILED '+JSON.stringify(initial));
+                 !initial.allButtonsInDeck||initial.activeButtons.length!==1||initial.activeButtons[0]!=='GOLD'||!initial.canvas)
+                throw new Error('GROUND_CAMERA_TILE_CACHE_OR_GOLD_DEFAULT_LOD_FAILED '+JSON.stringify(initial));
               console.log('BRIDGEPOINT_GROUND_CAMERA_TILE_RETENTION_CARD_PASS',JSON.stringify(initial));
 
               await p.evaluate(()=>{

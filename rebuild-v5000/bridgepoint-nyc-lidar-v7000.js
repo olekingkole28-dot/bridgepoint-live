@@ -840,6 +840,7 @@
       failedTileIds: [...state.tiles.values()].filter(t=>t.lastError).map(t=>({tileId:t.tileId,error:t.lastError})),
       lastError: state.lastError
     });
+    state.paintOverlayButton?.();
   }
 
   async function reconcileVisibleTiles(map, state) {
@@ -1085,6 +1086,17 @@
     }
   }
 
+  function focusCoverageForOverlay(map,state) {
+    const anchor=state?.baseManifest?.anchor;
+    if(!map||!state?.overlayEnabled||!anchor)return false;
+    const zoom=Number(map.getZoom?.());
+    if(!Number.isFinite(zoom)||zoom<12||!intersects(map,state.baseManifest)){
+      try{map.stop?.();map.flyTo({center:[Number(anchor.longitude),Number(anchor.latitude)],zoom:15.5,pitch:55,bearing:0,duration:1500,essential:true});return true}
+      catch(error){state.lastError='NYC scan focus failed: '+String(error?.message||error);publish('scan-focus-error',{error:state.lastError})}
+    }
+    return false;
+  }
+
   function addCoverageMarker(map,state) {
     if (!map || !map.addSource || !map.addLayer) return;
     const sourceId='bp-lidar-coverage-source-v7003',circleId='bp-lidar-coverage-marker-v7003',labelId='bp-lidar-coverage-label-v7003';
@@ -1103,9 +1115,25 @@
     wrap.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;margin:8px 0 0;padding:10px 12px;border:1px solid rgba(67,231,255,.38);border-radius:10px;background:rgba(4,19,29,.94);color:#eafaff;font:700 12px/1.3 system-ui,sans-serif;box-sizing:border-box';
     const button=document.createElement('button');button.type='button';button.setAttribute('aria-pressed','false');
     button.style.cssText='flex:1;min-height:42px;border:1px solid rgba(67,231,255,.6);border-radius:8px;background:linear-gradient(135deg,#0a3542,#10212d);color:#c7f8ff;font:900 11px/1.25 system-ui,sans-serif;letter-spacing:.035em;padding:8px;cursor:pointer';
-    const note=document.createElement('span');note.textContent='Verified NYC coverage only · source geometry';note.style.cssText='font-size:10px;color:#a4c9d3;flex:1 1 100%';
-    const paint=()=>{button.setAttribute('aria-pressed',String(state.overlayEnabled));button.textContent='LiDAR / PHOTOGRAPH MESH OVERLAY: '+(state.overlayEnabled?'ON':'OFF');};
-    button.addEventListener('click',()=>{state.overlayEnabled=!state.overlayEnabled;try{localStorage.setItem(OVERLAY_STORAGE_KEY,state.overlayEnabled?'1':'0')}catch(_){}if(state.overlayEnabled){for(const tile of state.tiles.values())tile.surfaceFailedLevel=-1;}try{if(map.getLayer(LAYER_ID))map.setLayoutProperty(LAYER_ID,'visibility',state.overlayEnabled?'visible':'none')}catch(_){}if(!state.overlayEnabled)suppressLegacySurfaces(map,state,false);syncCoverageMarkerVisibility(map,state);paint();reconcile(map,state);publish(state.overlayEnabled?'overlay-enabled':'overlay-disabled',{overlayEnabled:state.overlayEnabled});});
+    const note=document.createElement('span');note.textContent='Turn on to fly to the NYC scan and stream its registered photograph mesh.';note.style.cssText='font-size:10px;color:#a4c9d3;flex:1 1 100%';
+    const paint=()=>{
+      const photoVisible=[...state.tiles.values()].some(tile=>tile.surfaceGroup?.visible&&(tile.surfaceReady||(tile.pendingRoofGroup?.children?.length||0)>0));
+      button.setAttribute('aria-pressed',String(state.overlayEnabled));
+      button.textContent='LiDAR / PHOTO MESH: '+(!state.overlayEnabled?'OFF':photoVisible?'ON · MESH VISIBLE':'ON · LOADING MESH');
+      note.textContent=!state.overlayEnabled?'Turn on to fly to the NYC scan and stream its registered photograph mesh.'
+        :state.lastError?'Overlay error · '+String(state.lastError).slice(0,120)
+        :photoVisible?'Registered NYS orthophoto + measured LiDAR mesh is rendering.'
+        :'Flying to the NYC scan · loading orthophoto texture and measured surface chunks.';
+    };
+    state.paintOverlayButton=paint;
+    button.addEventListener('click',()=>{
+      state.overlayEnabled=!state.overlayEnabled;try{localStorage.setItem(OVERLAY_STORAGE_KEY,state.overlayEnabled?'1':'0')}catch(_){}
+      if(state.overlayEnabled){state.lastError=null;for(const tile of state.tiles.values()){tile.surfaceFailedLevel=-1;tile.lastError=null}focusCoverageForOverlay(map,state)}
+      try{if(map.getLayer(LAYER_ID))map.setLayoutProperty(LAYER_ID,'visibility',state.overlayEnabled?'visible':'none')}catch(_){}
+      if(!state.overlayEnabled)suppressLegacySurfaces(map,state,false);
+      syncCoverageMarkerVisibility(map,state);paint();reconcile(map,state);
+      publish(state.overlayEnabled?'overlay-enabled':'overlay-disabled',{overlayEnabled:state.overlayEnabled});
+    });
     wrap.append(button,note);slot.append(wrap);paint();
   }
 
@@ -1130,6 +1158,7 @@
     loadJson(CENTER_MANIFEST_URL).then(async manifest => {
       if (!Array.isArray(manifest.lods) || manifest.lods.length !== 3) throw new Error('NYC_LIDAR_CENTER_MANIFEST_INVALID');
       await loadTileCatalog(state, manifest);
+      if(state.overlayEnabled)focusCoverageForOverlay(map,state);
       const THREE = await loadThree();
       const install = () => {
         if (state.installing || !map.getStyle || !map.getStyle()) return;
@@ -1158,7 +1187,9 @@
         tileCount:state.tiles.size, availableTileIds:[...state.tiles.keys()]
       });
     }).catch(error => {
-      publish('manifest-load-error', {error:String(error && error.message || error),attachedMaps:attachedCount});
+      state.lastError=String(error && error.message || error);
+      state.paintOverlayButton?.();
+      publish('manifest-load-error', {error:state.lastError,attachedMaps:attachedCount});
     });
   }
 

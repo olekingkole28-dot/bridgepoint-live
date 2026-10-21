@@ -77,7 +77,7 @@ function makePanel(){
   '<button type="button" data-bpv-panel="ai">BRIDGEPOINT AI</button>'+
   '<button type="button" data-bpv-panel="opportunities">OPPORTUNITIES</button>'+
   '<button type="button" data-bpv-panel="listings">LISTINGS</button>'+
-  '<button type="button" data-bpv-panel="mapkey">MAP KEY</button>'+
+
   '<button type="button" data-bpv-panel="metrics">LIVE METRICS</button>'+
   '<button type="button" data-bpv-panel="property">PROPERTY</button>'+
   (home?'<button type="button" data-bpv-panel="explore">EXPLORE</button>':'')+
@@ -198,8 +198,17 @@ function makeTopBarAndDock(){
   const panel=$('#bpv-sidecar');
   if(panel&&!panel.hidden&&panel.dataset.panel==='mapkey'){closePanel();return}
   openPanel('mapkey');
+  const showLegend=()=>{try{return window.__BP_OPEN_MAP_KEY_V5920__?.()===true}catch(_){return false}};
+  if(!showLegend()){let tries=0;const retry=()=>{if(showLegend())return;if(++tries<30)setTimeout(retry,150)};setTimeout(retry,80)}
  });
  document.body.appendChild(keyRail);
+ const removeLegacyMapKeys=()=>{
+  document.querySelectorAll('.bpv-key-ribbon,#bpv-key-ribbon,[data-bpv-key-open]').forEach(el=>{if(el.id!=='bpv-mapkey-rail')el.remove()});
+  document.querySelectorAll('button').forEach(btn=>{if(btn.id==='bpv-mapkey-rail')return;const label=String(btn.textContent||'').replace(/\s+/g,' ').trim().toUpperCase();if(label==='MAP KEY'||label==='FULL KEY ↗'||btn.matches('[data-bpv-panel="mapkey"],[data-bpv-action="mapkey"]'))btn.remove()});
+ };
+ removeLegacyMapKeys();
+ const legacyKeyObserver=new MutationObserver(removeLegacyMapKeys);
+ [mapHost,document.getElementById('bpv-sidecar'),document.querySelector('.map-tools')].filter(Boolean).forEach(target=>legacyKeyObserver.observe(target,{childList:true,subtree:true}));
  const auxiliarySlot=$('#bpv-external-tools-slot');
  const auxiliarySelectors=['#bp5507-tools','#bp5507-hud','#bp5507-key-panel','#bp-realworld-effects-v5927','#bpRoadDrive','.bp-rd-drive-controls','#bp-world-realism-v5910','.bp-reality-toggle-v5968','.bp-live-rail-toggle-v5969','#bp-reality-assets-v5968','[id^="bp-reality-assets-v5968-"]','.bp-live-rail-panel-v5969'];
  const placeAuxiliaryControls=()=>{
