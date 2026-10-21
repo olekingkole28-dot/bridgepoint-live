@@ -116,6 +116,7 @@ jobs:
               args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']
             });
             const page=await browser.newPage();
+            await page.evaluateOnNewDocument(()=>{try{localStorage.setItem('bp_auth_v5045',JSON.stringify({access_token:'bridgepoint-smoke-invalid-token'}))}catch(_){}});
             try{
               await browser.defaultBrowserContext().overridePermissions(O,['geolocation']);
               await page.setGeolocation({latitude:41.55,longitude:-72.65,accuracy:25});
