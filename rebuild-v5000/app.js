@@ -144,34 +144,46 @@ async function bootMap(){
   void import('./world-v2300-lod-controls.js?v=6038-world-lod-range-apply').then(m=>{window.__BP_LOD_CONTROL_APP_V6016__=m.initWorldLodControls(world,{surface:'app'})}).catch(e=>console.warn('BridgePoint LOD controls unavailable',e));
  window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map;
  try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'app'}}))}catch(_){}
- void import('./bridgepoint-landmarks-v5940.js?v=5966-statue-pedestal-aligned')
-  .then(()=>{try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'app-module-ready'}}))}catch(_){};if(window.__BP_LANDMARKS_V5940__)window.__BP_LANDMARKS_V5940__.attachedMaps=Math.max(1,Number(window.__BP_LANDMARKS_V5940__.attachedMaps||0))})
-  .catch(e=>console.warn('BridgePoint app landmarks loader unavailable',e));
- // Non-blocking world ambience and public time-scrubber modules.
- void import('./world-v2300-clouds.js?v=6015-opt-in-clouds')
-  .then(m=>{window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
-  .catch(e=>console.warn('BridgePoint sky clouds unavailable',e));
- void import('./world-v2300-time-slider.js?v=6015-nasa-toggle-opt-in-layers')
-  .then(m=>{window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)})
-  .catch(e=>console.warn('BridgePoint world activity slider unavailable',e));
- void import('./world-v2300-spectral-imagery.js?v=5934-world-controls')
-  .then(m=>{window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)})
-  .catch(e=>console.warn('BridgePoint spectral satellite layer unavailable',e));
- void import('./world-v2300-underground-xray.js?v=5965-landmarks-and-effects')
-  .then(m=>{window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)})
-  .catch(e=>console.warn('BridgePoint Underground X-ray unavailable',e));
- void import('./world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers')
-  .then(m=>{window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)})
-  .catch(e=>console.warn('BridgePoint power grid and FCC tower volume unavailable',e));
-  void import('./world-v2300-sensor-layers.js?v=6015-nasa-light-toggle')
-   .then(m=>{window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)})
-   .catch(e=>console.warn('BridgePoint NASA night lights, GEBCO depth and mapped streetlights unavailable',e));
- void import('./world-v2300-realism.js?v=5910-world-materials')
-  .then(m=>{window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)})
-  .catch(e=>console.warn('BridgePoint real-world rendering mode unavailable',e));
- void import('./gis-core-orchestrator-v5910.js?v=5910-gis-router')
-  .then(m=>{window.__BP_GIS_CORE_V5910__=m.initGisCore(world,rpc)})
-  .catch(e=>console.warn('BridgePoint GIS Core router unavailable',e));
+ // The shell already includes a static landmark loader. Signal it instead of evaluating
+ // a second copy of the same module under a different URL.
+ try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'app-module-ready'}}))}catch(_){}
+ if(window.__BP_LANDMARKS_V5940__)window.__BP_LANDMARKS_V5940__.attachedMaps=Math.max(1,Number(window.__BP_LANDMARKS_V5940__.attachedMaps||0));
+
+ // Initialize optional map overlays only after the first core map load. Serializing their
+ // initialization avoids a burst of source/layer changes during the first Gold LOD render.
+ const optionalWorldJobs=[
+  ['clouds',async()=>{const m=await import('./world-v2300-clouds.js?v=6015-opt-in-clouds');window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)}],
+  ['time-slider',async()=>{const m=await import('./world-v2300-time-slider.js?v=6015-nasa-toggle-opt-in-layers');window.__BP_WORLD_TIME_SLIDER_V5908__=m.initWorldTimeSlider(world,rpc)}],
+  ['spectral-imagery',async()=>{const m=await import('./world-v2300-spectral-imagery.js?v=5934-world-controls');window.__BP_SPECTRAL_IMAGERY_V5931__=m.initSpectralImagery(world)}],
+  ['underground',async()=>{const m=await import('./world-v2300-underground-xray.js?v=5965-landmarks-and-effects');window.__BP_UNDERGROUND_XRAY_V5935__=m.initUndergroundXray(world)}],
+  ['infrastructure',async()=>{const m=await import('./world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers');window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)}],
+  ['sensors',async()=>{const m=await import('./world-v2300-sensor-layers.js?v=6015-nasa-light-toggle');window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)}],
+  ['realism',async()=>{const m=await import('./world-v2300-realism.js?v=5910-world-materials');window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)}],
+  ['gis-core',async()=>{const m=await import('./gis-core-orchestrator-v5910.js?v=5910-gis-router');window.__BP_GIS_CORE_V5910__=m.initGisCore(world,rpc)}]
+ ];
+ let optionalWorldIndex=0,optionalWorldStarted=false;
+ const runNextOptionalWorldModule=()=>{
+  if(optionalWorldIndex>=optionalWorldJobs.length||document.hidden)return;
+  const launch=()=>{
+   if(document.hidden){setTimeout(runNextOptionalWorldModule,900);return}
+   const [name,run]=optionalWorldJobs[optionalWorldIndex++];
+   Promise.resolve().then(run)
+    .catch(e=>console.warn('BridgePoint optional world module '+name+' unavailable',e))
+    .finally(()=>setTimeout(runNextOptionalWorldModule,160));
+  };
+  if(typeof window.requestIdleCallback==='function')window.requestIdleCallback(launch,{timeout:1200});
+  else setTimeout(launch,450);
+ };
+ const startOptionalWorldModules=()=>{
+  if(optionalWorldStarted)return;
+  optionalWorldStarted=true;
+  setTimeout(runNextOptionalWorldModule,260);
+ };
+ if(world.map.loaded?.()||world.map.isStyleLoaded?.())startOptionalWorldModules();
+ else world.map.once?.('load',startOptionalWorldModules);
+ document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&optionalWorldStarted&&optionalWorldIndex<optionalWorldJobs.length)runNextOptionalWorldModule();
+ },{passive:true});
  bindPerformanceGovernor();
  // V5614: register the lightweight weather-FX capability contract immediately.
  // Network fetches and active particle rendering stay behind the interaction/pressure governor.
