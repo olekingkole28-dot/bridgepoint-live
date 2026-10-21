@@ -1115,6 +1115,72 @@ jobs:
           grep -Fq 'current-map-entry.js' /tmp/discover.html
           echo BRIDGEPOINT_V5100_COMBINED_SURFACES_PASS
 
+      - name: Eiffel Tower anchor and duplicate-block smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          (async()=>{
+            const browser=await puppeteer.launch({
+              headless:true, executablePath:process.env.CHROME_PATH, protocolTimeout:90000,
+              args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']
+            });
+            try{
+              const p=await browser.newPage();
+              p.setDefaultTimeout(15000);
+              await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.goto('https://bridgepointintelligence.online/?eiffel-anchor-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
+              await p.waitForFunction(()=>!!window.__BP_LANDING_WORLD__?.map&&!!window.__BP_EIFFEL_TOWER_V5983_BOOTED__,{timeout:75000});
+              await p.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__.map;
+                m.stop?.();
+                m.jumpTo({center:[2.2945,48.85826],zoom:15.2,pitch:58,bearing:0});
+              });
+              await p.waitForFunction(()=>{
+                const s=window.__BP_EIFFEL_TOWER_V5983__;
+                return s?.version===5983&&s?.rendered===true&&s?.loaded===true&&s?.placementFixVersion===6020&&
+                  s?.coordinates?.[0]===2.2945&&s?.coordinates?.[1]===48.85826;
+              },{timeout:90000});
+              const report=await p.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_EIFFEL_TOWER_V5983__;
+                const guard=m?.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6020__||window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6020__||null;
+                const mustFilter=['gta-context-buildings','gta-context-roofs','gta-context-floor-lines','gta-bp-buildings','gta-bp-roofs'];
+                const filtered=mustFilter.map(id=>{
+                  const f=m?.getFilter(id),serialized=JSON.stringify(f||null);
+                  return{id,exists:!!m?.getLayer(id),filtered:serialized.includes('5013364')&&serialized.includes('eiffel tower')};
+                });
+                const px=m?.project([2.2945,48.85826]);
+                const candidates=px&&m?m.queryRenderedFeatures(px,{layers:mustFilter.filter(id=>m.getLayer(id))}):[];
+                const eiffelBlocks=candidates.filter(f=>{
+                  const p=f.properties||{},name=String(p.name||p['name:en']||p['name:fr']||'').toLowerCase();
+                  return Number(f.id)===5013364||Number(p.osm_id||p.osm_way_id||p.way_id||p.id)===5013364||
+                    ['eiffel tower','tour eiffel','tour eiffel de paris'].includes(name);
+                }).map(f=>({id:f.id,layer:f.layer?.id,properties:f.properties}));
+                return{
+                  rendered:s?.rendered,loaded:s?.loaded,coordinates:s?.coordinates,placementFixVersion:s?.placementFixVersion,
+                  height:s?.finalHeightM,layer:!!m?.getLayer('bp-eiffel-tower-source-mesh-v5983'),
+                  suppression:guard,filtered,renderedEiffelBlocks:eiffelBlocks,
+                  status:s?.status,duplicateSuppression:s?.duplicateSuppression||null
+                };
+              });
+              if(!report.rendered||!report.loaded||report.placementFixVersion!==6020||!report.layer)
+                throw new Error('EIFFEL_SOURCE_MESH_NOT_RENDERED '+JSON.stringify(report));
+              if(!report.suppression?.active||!['gta-context-buildings','gta-context-roofs'].every(id=>report.suppression.filteredLayers.includes(id)))
+                throw new Error('EIFFEL_GENERIC_BLOCK_GUARD_NOT_ACTIVE '+JSON.stringify(report));
+              if(report.filtered.some(x=>x.exists&&!x.filtered))
+                throw new Error('EIFFEL_GENERIC_LAYER_MISSING_FILTER '+JSON.stringify(report.filtered));
+              if(report.renderedEiffelBlocks.length)
+                throw new Error('EIFFEL_DUPLICATE_BLOCK_STILL_RENDERED '+JSON.stringify(report.renderedEiffelBlocks));
+              console.log('BRIDGEPOINT_EIFFEL_TOWER_ANCHOR_AND_DUPLICATE_FILTER_PASS',JSON.stringify(report));
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
       - name: Focused ground-camera and retained-LOD smoke
         shell: bash
         run: |
