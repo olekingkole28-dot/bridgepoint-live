@@ -29,6 +29,9 @@
   let attachedCount = 0;
 
   const BUILDING_LAYER_RE = /(?:building|roof|floor.line|facade|structure|reality|night.window|landmark3d)/i;
+  // EPSG:2263 grid north at the center tile is 0.010581607° east of true north.
+  // Rotate the shared local scene into the map's true east/up/north frame before projection.
+  const GRID_TO_TRUE_NORTH_RADIANS = 0.00018468388351200875;
 
   function publish(status, extra = {}) {
     window.__BP_NYC_LIDAR_V7000__ = Object.assign({
@@ -283,48 +286,134 @@
     return tile.surfacePromise;
   }
 
-  function restoreSurfaceFilters(map, state) {
-    for (const [id, previous] of state.savedFilters) {
-      if (!map.getLayer(id)) continue;
-      try {
-        map.setLayoutProperty(id, 'visibility', previous.visibility || 'visible');
-      } catch (error) {
-        try { map.setLayerZoomRange(id, previous.minzoom ?? 0, previous.maxzoom ?? 24); } catch (_) {}
-      }
-      if (previous.hasFilter) {
-        try { map.setFilter(id, previous.filter ?? null); } catch (_) {}
-    }
-    }
-    state.savedFilters.clear();
-    state.maskActive = false;
+  function activeCoveragePolygons(state) {
+    return [...state.tiles.values()]
+      .filter(tile => tile.activeLevel === 2 && tile.surfaceGroup?.visible)
+      .map(tile => {
+        const ring = tile.manifest?.boundsWgs84?.polygon;
+        if (!Array.isArray(ring) || ring.length < 4) return null;
+        return { type: 'Polygon', coordinates: [ring] };
+      })
+      .filter(Boolean);
   }
 
-  function suppressLegacySurfaces(map, state, active) {
-    if (!active) {
-      if (state.maskActive || state.savedFilters.size) restoreSurfaceFilters(map, state);
+  // Convert legacy MapLibre filters into expression syntax before combining them
+  // with "within". Filters already using expression operators pass through unchanged.
+  function asFilterExpression(filter) {
+    if (!Array.isArray(filter) || typeof filter[0] !== 'string') return filter;
+    const op = filter[0];
+    if (op === 'all' || op === 'any') return [op, ...filter.slice(1).map(asFilterExpression)];
+    if (op === 'none') return ['!', ['any', ...filter.slice(1).map(asFilterExpression)]];
+    if (['==', '!=', '<', '<=', '>', '>='].includes(op) && typeof filter[1] === 'string') {
+      const field = filter[1];
+      const lhs = field === '$type' ? ['geometry-type'] : field === '$id' ? ['id'] : ['get', field];
+      return [op, lhs, filter[2], ...filter.slice(3)];
+    }
+    if ((op === 'in' || op === '!in') && typeof filter[1] === 'string') {
+      const field = filter[1];
+      const lhs = field === '$type' ? ['geometry-type'] : field === '$id' ? ['id'] : ['get', field];
+      const included = ['in', lhs, ['literal', filter.slice(2)]];
+      return op === 'in' ? included : ['!', included];
+    }
+    if (op === '!has') return ['!', ['has', filter[1]]];
+    return filter;
+  }
+
+  function restoreLayerState(map, id, previous) {
+    if (!map.getLayer(id)) return;
+    try { map.setLayoutProperty(id, 'visibility', previous.visibility || 'visible'); } catch (_) {}
+    try { map.setLayerZoomRange(id, previous.minzoom ?? 0, previous.maxzoom ?? 24); } catch (_) {}
+    try { map.setFilter(id, previous.hasFilter ? (previous.filter ?? null) : null); } catch (_) {}
+  }
+
+  function restoreSurfaceFilters(map, state) {
+    for (const [id, previous] of state.savedFilters) restoreLayerState(map, id, previous);
+    state.savedFilters.clear();
+    state.maskActive = false;
+    state.coverageFilterActive = false;
+    state.coverageFilteredLayerIds = [];
+  }
+
+  function suppressLegacySurfaces(map, state, enabled, fullViewportCovered) {
+    if (!enabled) {
+      if (state.maskActive || state.coverageFilterActive || state.savedFilters.size) restoreSurfaceFilters(map, state);
       return;
     }
+
+    const polygons = activeCoveragePolygons(state);
+    if (!polygons.length) {
+      if (state.maskActive || state.coverageFilterActive || state.savedFilters.size) restoreSurfaceFilters(map, state);
+      return;
+    }
+
+    const exclusion = ['!', ['any', ...polygons.map(polygon => ['within', polygon])]];
+    const filteredIds = [];
     const layers = map.getStyle()?.layers || [];
     for (const layer of layers) {
       const id = String(layer.id || '');
       if (!BUILDING_LAYER_RE.test(id) || id === LAYER_ID || layer.type === 'background') continue;
-      if (state.savedFilters.has(id)) continue;
-      const minzoom = Number.isFinite(layer.minzoom) ? layer.minzoom : 0;
-      const maxzoom = Number.isFinite(layer.maxzoom) ? layer.maxzoom : 24;
-      let filter = null, hasFilter = false, visibility = 'visible';
-      try { filter = map.getFilter(id); hasFilter = true; } catch (_) {}
-      try { visibility = map.getLayoutProperty(id, 'visibility') || 'visible'; } catch (_) {}
-      state.savedFilters.set(id, { visibility, filter, hasFilter, minzoom, maxzoom, type: layer.type });
-      try {
-        map.setLayoutProperty(id, 'visibility', 'none');
-      } catch (error) {
-        try { map.setLayerZoomRange(id, 24, 25); }
-        catch (fallbackError) {
-          state.filterErrors.push({id, error: String(fallbackError && fallbackError.message || error)});
+      if (!state.savedFilters.has(id)) {
+        let filter = null, hasFilter = false, visibility = 'visible';
+        try { filter = map.getFilter(id); hasFilter = true; } catch (_) {}
+        try { visibility = map.getLayoutProperty(id, 'visibility') || 'visible'; } catch (_) {}
+        state.savedFilters.set(id, {
+          visibility, filter, hasFilter,
+          minzoom: Number.isFinite(layer.minzoom) ? layer.minzoom : 0,
+          maxzoom: Number.isFinite(layer.maxzoom) ? layer.maxzoom : 24,
+          type: layer.type, source: layer.source || null
+        });
+      }
+      const previous = state.savedFilters.get(id);
+
+      // When the complete viewport is covered, suppress all duplicate building layers.
+      if (fullViewportCovered) {
+        try {
+          if (previous.hasFilter) map.setFilter(id, previous.filter ?? null);
+          else map.setFilter(id, null);
+        } catch (_) {}
+        try {
+          map.setLayoutProperty(id, 'visibility', 'none');
+        } catch (error) {
+          try { map.setLayerZoomRange(id, 24, 25); }
+          catch (fallbackError) {
+            const message = String(fallbackError && fallbackError.message || error);
+            if (!state.filterErrors.some(item => item.id === id && item.error === message)) state.filterErrors.push({ id, error: message });
+          }
         }
+        continue;
+      }
+
+      // Partial viewport coverage must not leave an entire city's Gold LOD layer over
+      // the scan. Keep buildings outside the LiDAR footprint, but exclude features that
+      // are fully inside active scan tiles so the measured textured mesh is visible alone.
+      try { map.setLayoutProperty(id, 'visibility', previous.visibility || 'visible'); } catch (_) {}
+      try { map.setLayerZoomRange(id, previous.minzoom ?? 0, previous.maxzoom ?? 24); } catch (_) {}
+
+      // Custom GL layers cannot be clipped with feature filters; keep them visible until
+      // the viewport is fully covered, when the safe whole-layer suppression above applies.
+      if (!previous.source || previous.type === 'custom') {
+        try { map.setFilter(id, previous.hasFilter ? (previous.filter ?? null) : null); } catch (_) {}
+        continue;
+      }
+
+      try {
+        const base = previous.hasFilter && previous.filter != null
+          ? asFilterExpression(previous.filter)
+          : true;
+        const combined = base === true ? exclusion : ['all', base, exclusion];
+        map.setFilter(id, combined);
+        filteredIds.push(id);
+      } catch (error) {
+        // Preserve the original LOD rather than blanking a layer if this style's source
+        // does not support geometry filtering. The exact source mesh continues rendering.
+        try { map.setFilter(id, previous.hasFilter ? (previous.filter ?? null) : null); } catch (_) {}
+        const message = String(error && error.message || error);
+        if (!state.filterErrors.some(item => item.id === id && item.error === message)) state.filterErrors.push({ id, error: message });
       }
     }
-    state.maskActive = state.savedFilters.size > 0;
+    state.maskActive = !!fullViewportCovered && state.savedFilters.size > 0;
+    state.coverageFilterActive = !fullViewportCovered && filteredIds.length > 0;
+    state.coverageFilteredLayerIds = filteredIds.slice(0, 60);
   }
 
   function fullyCoveredByActiveTiles(map, state) {
@@ -369,7 +458,9 @@
       verticalWallMeshVisible: !!center?.wallMesh?.visible,
       verticalWallQuads: surfaceTiles.reduce((n,t)=>n+Number(t.manifest.surfaceMesh?.wallQuadCount||0),0),
       facadePhotoCoverage: false,
-      duplicateBuildingPolicy: 'existing building/roof layers are hidden only while loaded LiDAR surfaces cover the full viewport',
+      duplicateBuildingPolicy: 'Gold LOD features are clipped inside active LiDAR tiles; full layers are hidden only when the viewport is completely covered',
+      coverageFilterActive: state.coverageFilterActive,
+      coverageFilteredLayerIds: state.coverageFilteredLayerIds.slice(0,60),
       hiddenLegacyLayerIds: [...state.savedFilters.keys()].slice(0,60),
       suppressedLegacyLayerCount: state.savedFilters.size,
       legacySuppressionErrors: state.filterErrors.slice(0,12),
@@ -423,7 +514,7 @@
         tile.activeLevel = fallback;
       }
     }
-    suppressLegacySurfaces(map, state, state.overlayEnabled && fullyCoveredByActiveTiles(map, state));
+    suppressLegacySurfaces(map, state, state.overlayEnabled, state.overlayEnabled && fullyCoveredByActiveTiles(map, state));
     map.triggerRepaint();
     updateStatus(map, state, 'rendering-source-lidar-neighborhood');
     if (zoom >= 17.2 && [...state.tiles.values()].some(t=>t.activeLevel===2 && t.surfaceGroup?.visible)) {
@@ -463,6 +554,7 @@
         state.map = mapRef;
         state.gl = gl;
         state.scene = new THREE.Scene();
+        state.scene.rotation.y = GRID_TO_TRUE_NORTH_RADIANS;
         state.camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1e12);
         state.renderer = new THREE.WebGLRenderer({
           canvas: mapRef.getCanvas(), context: gl, antialias: false, alpha: true,
@@ -620,6 +712,7 @@
       map, baseManifest:null, baseAnchor:null, tiles:new Map(), catalogErrors:[],
       scene:null, camera:null, renderer:null, gl:null,
       installing:false, layerAdded:false, overlayEnabled:false, savedFilters:new Map(), maskActive:false,
+      coverageFilterActive:false, coverageFilteredLayerIds:[],
       filterErrors:[], lastError:null, reconciling:false, reconcilePending:false,
       eventsBound:false, autoFocused:false
     };
