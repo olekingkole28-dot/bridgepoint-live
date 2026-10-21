@@ -128,7 +128,7 @@ function makeTopBarAndDock(){
  const top=node('div','bpv-topbar bpv-topbar-persistent');
  top.innerHTML='<a class="bpv-brand" href="/" aria-label="BridgePoint World"><img src="/bridgepoint-mark.svg" alt=""><span><b>BRIDGEPOINT WORLD</b><small>GLOBAL SPATIAL INTELLIGENCE</small></span></a><div class="bpv-topbar-right"><div id="bpv-language-slot" data-bp-language-mount="top" aria-label="BridgePoint language"></div><div id="bpv-account-slot"></div></div>';
  const dock=node('div','bpv-dock bpv-dock-persistent');dock.id='bpv-dock';dock.hidden=true;
- dock.innerHTML='<div class="bpv-dock-label"><div><b>BRIDGEPOINT WORLD</b><span><i></i> LIVE · GLOBAL WORLD</span></div><div class="bpv-dock-window-actions"><button type="button" data-bpv-dock-expand aria-label="Maximize BridgePoint map card" aria-pressed="false">MAXIMIZE ↗</button><button type="button" data-bpv-dock-hide aria-label="Minimize BridgePoint map card">MINIMIZE −</button></div></div><div id="bpv-dock-account-row" class="bpv-dock-account-row" aria-label="Account, language and refresh controls"></div><div id="bpv-map-controls-slot" class="bpv-map-controls-slot" aria-label="Map zoom and orientation controls"></div><div id="bpv-search-slot" class="bpv-search-slot"></div><div id="bpv-property-card-slot" class="bpv-property-card-slot" aria-label="Selected property card"></div><div id="bpv-status-panel-slot" class="bpv-status-panel-slot" aria-label="System status panel"></div><div id="bpv-world-activity-slot" class="bpv-world-activity-slot" aria-label="World activity timeline"></div><div id="bpv-underground-slot" class="bpv-underground-slot" aria-label="Underground X-ray map controls"></div><div id="bpv-satellite-slot" class="bpv-satellite-slot" aria-label="Satellite and color controls"></div><div id="bpv-dock-actions" class="bpv-dock-actions">'+
+ dock.innerHTML='<div class="bpv-dock-label"><div><b>BRIDGEPOINT WORLD</b><span><i></i> LIVE · GLOBAL WORLD</span></div><div class="bpv-dock-window-actions"><button type="button" data-bpv-dock-expand aria-label="Maximize BridgePoint map card" aria-pressed="false">MAXIMIZE ↗</button><button type="button" data-bpv-dock-hide aria-label="Minimize BridgePoint map card">MINIMIZE −</button></div></div><div id="bpv-dock-account-row" class="bpv-dock-account-row" aria-label="Account, language and refresh controls"></div><div id="bpv-map-controls-slot" class="bpv-map-controls-slot" aria-label="Map zoom and orientation controls"></div><div id="bpv-search-slot" class="bpv-search-slot"></div><div id="bpv-premium-tools-slot" class="bpv-premium-tools-slot" aria-label="Free premium tools"></div><div id="bpv-property-card-slot" class="bpv-property-card-slot" aria-label="Selected property card"></div><div id="bpv-status-panel-slot" class="bpv-status-panel-slot" aria-label="System status panel"></div><div id="bpv-world-activity-slot" class="bpv-world-activity-slot" aria-label="World activity timeline"></div><div id="bpv-underground-slot" class="bpv-underground-slot" aria-label="Underground X-ray map controls"></div><div id="bpv-satellite-slot" class="bpv-satellite-slot" aria-label="Satellite and color controls"></div><div id="bpv-dock-actions" class="bpv-dock-actions">'+
  '<button type="button" data-bpv-action="ai">BRIDGEPOINT AI</button>'+
  '<button type="button" data-bpv-action="parcels">PARCEL BOUNDARIES</button>'+
  '<button type="button" data-bpv-action="mapkey">MAP KEY</button>'+
@@ -683,7 +683,7 @@ function buildUI(){
   const form=$('#landingPropertySearch'),premium=$('#landingFreePremiumTools');
   const previewHead=$('.preview-head');if(previewHead)previewHead.hidden=true;
   if(form){let cap=ui.searchSlot.querySelector('.bpv-search-caption');if(!cap){cap=node('div','bpv-search-caption');cap.textContent='BRIDGEPOINT PROPERTY LOOKUP';cap.style.cssText='font:900 9px/1.3 system-ui,sans-serif;letter-spacing:.12em;color:#80b2c6;margin:0 0 6px;padding:0 1px';ui.searchSlot.appendChild(cap)}ui.searchSlot.appendChild(form);form.hidden=false;searchVisible=true;}
-  if(premium)ui.actions.insertBefore(premium,ui.actions.querySelector('[data-bpv-action="ai"]'));
+  const premiumSlot=$('#bpv-premium-tools-slot');if(premium&&premiumSlot&&premium.parentElement!==premiumSlot)premiumSlot.appendChild(premium);
   if(premium){premium.classList.add('bpv-premium-button');premium.textContent='FREE PREMIUM TOOLS';}
   const copyPane=$('#bpv-home-copy-mount');if(copyPane)copyPane.querySelector('.copy')?.classList.add('bpv-moved-home-copy');
   const previewCard=$('#previewCard');if(previewCard){previewCard.classList.add('bpv-map-chrome');const propertySlot=$('#bpv-property-card-slot');if(propertySlot&&previewCard.parentElement!==propertySlot)propertySlot.appendChild(previewCard);installHomeSlots();const ob=new MutationObserver(()=>{if(!previewCard.hidden){const t=$('#previewTitle')?.textContent||'Selected building';const id=(t.match(/#(\d+)/)||[])[1];selectProperty(id||null,t,selected.feature)}});ob.observe(previewCard,{attributes:true,attributeFilter:['hidden']})}
@@ -708,7 +708,7 @@ function buildUI(){
   };
   const form=$('#publicSearchForm'),tools=$('.map-tools'),premium=$('#appFreePremiumTools');
   if(form){let cap=ui.searchSlot.querySelector('.bpv-search-caption');if(!cap){cap=node('div','bpv-search-caption');cap.textContent='BRIDGEPOINT PROPERTY LOOKUP';cap.style.cssText='font:900 9px/1.3 system-ui,sans-serif;letter-spacing:.12em;color:#80b2c6;margin:0 0 6px;padding:0 1px';ui.searchSlot.appendChild(cap)}ui.searchSlot.appendChild(form);form.hidden=false;searchVisible=true;}
-  if(premium){ui.actions.insertBefore(premium,ui.actions.querySelector('[data-bpv-action="ai"]'));premium.classList.add('bpv-premium-button');premium.textContent='FREE PREMIUM TOOLS'}
+  if(premium){const premiumSlot=$('#bpv-premium-tools-slot');if(premium&&premiumSlot&&premium.parentElement!==premiumSlot)premiumSlot.appendChild(premium);premium.classList.add('bpv-premium-button');premium.textContent='FREE PREMIUM TOOLS'}
   const controls=$('#bpv-controls-mount');
   if(tools&&controls)controls.appendChild(tools);
   const status=$('#mapStatus');if(status&&controls)controls.appendChild(status);
@@ -727,8 +727,11 @@ function buildUI(){
  }
  const searchButton=node('button','','SEARCH');
  searchButton.type='button';searchButton.dataset.bpvAction='search';searchButton.dataset.bpvBound='1';searchButton.addEventListener('click',toggleSearch);
- const premium=ui.actions.querySelector('#landingFreePremiumTools,#appFreePremiumTools');
- if(!premium){const b=node('button','','FREE PREMIUM TOOLS');b.type='button';b.dataset.bpvAction='premium';b.addEventListener('click',()=>document.querySelector('#landingFreePremiumTools,#appFreePremiumTools')?.click());ui.actions.insertBefore(b,ui.actions.querySelector('[data-bpv-action="ai"]'))}
+ const premium=document.querySelector('#landingFreePremiumTools,#appFreePremiumTools');
+ const premiumSlot=$('#bpv-premium-tools-slot');
+ if(premium&&premiumSlot&&premium.parentElement!==premiumSlot)premiumSlot.appendChild(premium);
+ if(premium){premium.classList.add('bpv-premium-button');premium.textContent='FREE PREMIUM TOOLS';}
+ if(!premium&&premiumSlot){const b=node('button','bpv-premium-button','FREE PREMIUM TOOLS');b.type='button';b.addEventListener('click',()=>document.querySelector('#bp5507-tools>button')?.click());premiumSlot.appendChild(b)}
  // Put search and account actions at rest; hide them together while the globe is moving.
  ui.actions.insertBefore(searchButton,ui.actions.querySelector('[data-bpv-action="ai"]'));
  const panelOpenButtons=ui.actions.querySelectorAll('[data-bpv-action]');
