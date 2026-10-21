@@ -100,12 +100,12 @@ export function initBridgePointRealWorldEffects(target,rpc){
   const w=container.clientWidth||1,h=container.clientHeight||1;if(map.getZoom()<10)return st.obstacles;
   const layers=(map.getStyle()?.layers||[]).filter(l=>l.type==='fill-extrusion'&&/building|structure|city/i.test(l.id)).map(l=>l.id).filter(id=>map.getLayer(id)).slice(0,12);if(!layers.length)return st.obstacles;
   let fs=[];try{fs=map.queryRenderedFeatures({layers})||[]}catch(_){}
-  const seen=new Set();for(const f of fs){if(st.obstacles.length>=300)break;const key=String(f.id??f.properties?.building_id??'')+'|'+String(f.sourceLayer||'');if(seen.has(key))continue;seen.add(key);
+  const seen=new Set(),maxObstacles=w<500?65:110;let scanned=0;for(const f of fs){if(++scanned>700||st.obstacles.length>=maxObstacles)break;const key=String(f.id??f.properties?.building_id??'')+'|'+String(f.sourceLayer||'');if(seen.has(key))continue;seen.add(key);
    const pts=[],walk=v=>{if(!Array.isArray(v))return;if(v.length>=2&&typeof v[0]==='number'&&typeof v[1]==='number'){pts.push([v[0],v[1]]);return}for(const n of v)walk(n)};walk(f.geometry?.coordinates);if(!pts.length)continue;
    let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;for(const ll of pts){let p;try{p=map.project(ll)}catch(_){continue}x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);y0=Math.min(y0,p.y);y1=Math.max(y1,p.y)}
    const bw=x1-x0,bh=y1-y0;if(!Number.isFinite(bw)||!Number.isFinite(bh)||bw<2||bh<3||bw>220||bh>300||x1<0||x0>w||y1<0||y0>h)continue;
    st.obstacles.push({x:(x0+x1)/2,y:(y0+y1)/2,rx:Math.max(7,bw*.5+8),ry:Math.max(7,bh*.5+8)});
-  }return st.obstacles;
+  }st.obstacles.sort((a,b)=>Math.hypot(a.x-w/2,a.y-h/2)-Math.hypot(b.x-w/2,b.y-h/2));return st.obstacles;
  }
  function stopWind(){
   if(st.windCanvas){st.windCanvas.remove();st.windCanvas=null}
@@ -145,12 +145,12 @@ export function initBridgePointRealWorldEffects(target,rpc){
   const ctx=c.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
   if(!o){setStatus('Wind is waiting for a mapped observation or current weather-model response. No wind field is fabricated.');st.raf=requestAnimationFrame(drawWind);return}
   const obs=obstacleList(),angle=(o.direction+180-(map.getBearing?.()||0))*Math.PI/180,ux=Math.sin(angle),uy=-Math.cos(angle),px=-uy,py=ux;
-  const span=Math.hypot(w,h)+80,spacing=w<500?25:31,count=clamp(Math.floor((Math.abs(ux)>Math.abs(uy)?h:w)/spacing),12,82),phase=(now*.028)%24;ctx.lineWidth=1.25;ctx.lineCap='round';ctx.lineJoin='round';
+  const span=Math.hypot(w,h)+80,spacing=w<500?25:31,count=clamp(Math.floor((Math.abs(ux)>Math.abs(uy)?h:w)/spacing),8,w<500?18:32),phase=(now*.028)%24;ctx.lineWidth=1.25;ctx.lineCap='round';ctx.lineJoin='round';
   for(let n=0;n<count;n++){const lateral=(n-(count-1)/2)*spacing,midX=w/2+px*lateral,midY=h/2+py*lateral;let x,y;if(Math.abs(ux)>Math.abs(uy)){x=ux>0?-34:w+34;y=clamp(midY,-15,h+15)}else{y=uy>0?-34:h+34;x=clamp(midX,-15,w+15)}
-   ctx.beginPath();ctx.moveTo(x,y);let arrow=null;for(let j=0;j<Math.min(220,Math.ceil(span/7));j++){let vx=ux,vy=uy;for(const b of obs){const dx=x-b.x,dy=y-b.y,ell=(dx*dx)/(b.rx*b.rx)+(dy*dy)/(b.ry*b.ry);if(ell<3){const d=Math.max(3,Math.hypot(dx,dy)),force=Math.min(2.25,(3-ell)*.62);vx+=dx/d*force;vy+=dy/d*force}}const nrm=Math.max(.01,Math.hypot(vx,vy));vx/=nrm;vy/=nrm;x+=vx*7;y+=vy*7;ctx.lineTo(x,y);if(j%30===Math.floor(phase/3))arrow={x,y,vx,vy};if(x<-42||x>w+42||y<-42||y>h+42)break}
+   ctx.beginPath();ctx.moveTo(x,y);let arrow=null;for(let j=0;j<Math.min(120,Math.ceil(span/10));j++){let vx=ux,vy=uy;for(const b of obs){const dx=x-b.x,dy=y-b.y,ell=(dx*dx)/(b.rx*b.rx)+(dy*dy)/(b.ry*b.ry);if(ell<3){const d=Math.max(3,Math.hypot(dx,dy)),force=Math.min(2.25,(3-ell)*.62);vx+=dx/d*force;vy+=dy/d*force}}const nrm=Math.max(.01,Math.hypot(vx,vy));vx/=nrm;vy/=nrm;x+=vx*7;y+=vy*7;ctx.lineTo(x,y);if(j%30===Math.floor(phase/3))arrow={x,y,vx,vy};if(x<-42||x>w+42||y<-42||y>h+42)break}
    ctx.strokeStyle='rgba(92,223,255,'+(.27+((n*3+phase)%24)/24*.26)+')';ctx.stroke();if(arrow){ctx.beginPath();ctx.moveTo(arrow.x,arrow.y);ctx.lineTo(arrow.x-arrow.vx*7-arrow.vy*4,arrow.y-arrow.vy*7+arrow.vx*4);ctx.lineTo(arrow.x-arrow.vx*7+arrow.vy*4,arrow.y-arrow.vy*7-arrow.vx*4);ctx.closePath();ctx.fillStyle='rgba(205,250,255,.8)';ctx.fill()}
   }
-  try{const id='gta-bp-tree3d-canopy';if(map.getLayer(id)){if(st.treeOriginal===undefined)st.treeOriginal=map.getPaintProperty(id,'fill-extrusion-translate')||[0,0];map.setPaintProperty(id,'fill-extrusion-translate',[Math.sin(now*.0024)*Math.min(5,o.speed*.12),Math.cos(now*.0018)*Math.min(2,o.speed*.035)])}}catch(_){}
+  try{const id='gta-bp-tree3d-canopy';if(map.getLayer(id)){if(st.treeOriginal===undefined)st.treeOriginal=map.getPaintProperty(id,'fill-extrusion-translate')||[0,0];if(now-(st.lastTreeSwayAt||0)>=160){st.lastTreeSwayAt=now;map.setPaintProperty(id,'fill-extrusion-translate',[Math.sin(now*.0024)*Math.min(5,o.speed*.12),Math.cos(now*.0018)*Math.min(2,o.speed*.035)])}}}catch(_){}
   const note=$('[data-note]');if(note)note.textContent=(o.modelled?'Current wind estimate from the Open-Meteo weather model: ':'Mapped weather observation: ')+Math.round(o.speed)+' mph from '+Math.round(o.direction)+'°. Local building-flow visuals are heuristic, not CFD or measured rooftop turbulence.';
   st.raf=requestAnimationFrame(drawWind);
  }
