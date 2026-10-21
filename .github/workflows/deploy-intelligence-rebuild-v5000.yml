@@ -590,6 +590,7 @@ jobs:
           ! grep -Fq 'MAP KEY · WEATHER + WORLD' site/intelligence-global-v5507.js
           grep -Fq 'intelligence-global-v5507.js?v=6039-left-mapkey-only' site/index.html
           grep -Fq 'intelligence-global-v5507.js?v=6039-left-mapkey-only' site/app/index.html
+          grep -Fq "from'/intelligence-global-v5507.js?v=6039-left-mapkey-only'" site/intelligence-tools-v5507.js
           ! grep -Fq "source('bp5507-live',fc())" site/intelligence-global-v5507.js
           ! grep -Fq '3D HOUSE QR' site/intelligence-tools-v5507.js
           grep -Fq 'Use two fingers and swipe / scroll up' site/intelligence-global-v5507.js
@@ -910,8 +911,8 @@ jobs:
           grep -Fq '__BP_OPEN_MAP_KEY_V5920__=openMapKey' site/bridgepoint-map-key-v5920.js
           grep -Fq 'focusCoverageForOverlay' site/bridgepoint-nyc-lidar-v7000.js
           grep -Fq "window.__BP_LOD_RENDERING_V6016__?.tier||'GOLD'" site/world-v2300-map.js
-          grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/index.html
-           grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/app/index.html
+          grep -Fq 'intelligence-tools-v5507.js?v=6039-left-mapkey-only' site/index.html
+           grep -Fq 'intelligence-tools-v5507.js?v=6039-left-mapkey-only' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/app/index.html
            grep -Fq 'bridgepoint-landmarks-v5940.js?v=6001-style-persistence' site/index.html
