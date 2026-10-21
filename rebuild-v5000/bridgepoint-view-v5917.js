@@ -146,17 +146,10 @@ function makeTopBarAndDock(){
  (home?'<button type="button" data-bpv-action="explore">EXPLORE</button>':'')+
  '<button type="button" class="bpv-whole-earth-short" data-bpv-action="whole">WHOLE EARTH</button></div><div id="bpv-external-tools-slot" class="bpv-external-tools-slot" aria-label="Additional weather, visualization and drive controls"></div>';
  mapHost.append(top,dock);
- const accountRow=$('#bpv-dock-account-row'),topRight=top.querySelector('.bpv-topbar-right'),mapControlsSlot=$('#bpv-map-controls-slot');
- const placeAccountActions=()=>{if(topRight&&accountRow&&topRight.parentElement!==accountRow)accountRow.appendChild(topRight)};
- placeAccountActions();
- const placeMapControls=()=>{
-  const controls=mapHost.querySelector('.maplibregl-ctrl-top-right')||document.querySelector('.maplibregl-ctrl-top-right');
-  const slot=document.querySelector('#bpv-map-controls-slot')||mapControlsSlot;
-  if(!controls||!slot)return;
-  if(controls.parentElement!==slot)slot.appendChild(controls);
- };
- placeMapControls();try{map?.on?.('load',placeMapControls);map?.on?.('idle',placeMapControls);map?.on?.('resize',placeMapControls)}catch(_){}
- const mapControlsObserver=new MutationObserver(placeMapControls);mapControlsObserver.observe(document.body,{childList:true,subtree:true});
+ // Keep account/refresh actions in the persistent top bar.
+ // MapLibre zoom and navigation controls remain on the map surface; the separate
+ // WORLD DETAIL (GOLD/SILVER/BRONZE) control stays in #bpv-map-controls-slot.
+
  const languageSlot=$('#bpv-language-slot');
  const existingLanguage=document.querySelector('[data-bp-language="1"]');
  if(languageSlot&&existingLanguage&&existingLanguage.parentElement!==languageSlot)languageSlot.appendChild(existingLanguage);

@@ -603,3 +603,23 @@ body.bpv-map-moving .system-panel{
  .bpv-dock #bp-world-realism-v5910 .bpr-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
  .bpv-dock #bp-reality-assets-v5968,.bpv-dock [id^="bp-reality-assets-v5968-"],.bpv-dock .bp-live-rail-panel-v5969{grid-column:1/-1}
 }
+
+
+/* Restore native map zoom/navigation controls to the screen rather than the bottom deck.
+   Position them below the top bar and map-key ribbon so controls never cover each other. */
+body.bpv-view-ready .maplibregl-ctrl-top-right{
+  top:88px!important;right:10px!important;
+  z-index:calc(var(--bpv-ui-z,1200) + 6)!important;
+}
+@media(max-width:700px){
+  body.bpv-view-ready .maplibregl-ctrl-top-right{
+    top:calc(env(safe-area-inset-top) + 92px)!important;
+    right:7px!important;
+  }
+}
+/* The LOD tier panel remains in the deck, independently of native map zoom controls. */
+body.bpv-view-ready #bpv-map-controls-slot>.bp-lod-controls-v6017{
+  position:relative!important;top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;
+  transform:none!important;width:100%!important;max-width:100%!important;margin:4px 0 0!important;
+}
+

@@ -887,10 +887,10 @@ jobs:
           test -s site/vendor/maplibre-gl.js
           test -s site/vendor/maplibre-gl.css
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6012-remainder-controls' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6012-remainder-controls' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6015-wind-rf-filter-panel' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6015-wind-rf-filter-panel' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6030-topbar-zoom-controls' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6030-topbar-zoom-controls' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6030-topbar-zoom-controls' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6030-topbar-zoom-controls' site/index.html
           grep -Fq 'function setDockMaximized(on)' site/bridgepoint-view-v5917.js
           grep -Fq 'dock.appendChild(keyRibbon)' site/bridgepoint-view-v5917.js
           grep -Fq 'dockableControlSelector' site/bridgepoint-view-v5917.js
