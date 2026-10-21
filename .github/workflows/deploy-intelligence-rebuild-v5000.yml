@@ -365,11 +365,13 @@ jobs:
           test -s site/assets/eiffel-tower-koterstudios-v5983.glb
           grep -Fq "const EIFFEL_SCAN_URL = '/assets/eiffel-tower-koterstudios-v5983.glb'" site/bridgepoint-eiffel-tower-v5983.js
           grep -Fq 'koterstudios / koters' site/bridgepoint-eiffel-tower-v5983.js
-          grep -Fq 'bridgepoint-eiffel-tower-v5983.js?v=6020-eiffel-anchor-duplicate-filter' site/index.html
-          grep -Fq 'bridgepoint-eiffel-tower-v5983.js?v=6020-eiffel-anchor-duplicate-filter' site/app/index.html
+          grep -Fq 'bridgepoint-eiffel-tower-v5983.js?v=6021-eiffel-filter-lifecycle' site/index.html
+          grep -Fq 'bridgepoint-eiffel-tower-v5983.js?v=6021-eiffel-filter-lifecycle' site/app/index.html
           grep -Fq 'const EIFFEL = [2.2945, 48.85826]' site/bridgepoint-eiffel-tower-v5983.js
           grep -Fq 'const OSM_EIFFEL_WAY_ID = 5013364;' site/bridgepoint-eiffel-tower-v5983.js
           grep -Fq 'function suppressGenericEiffelTowerExtrusions(map)' site/bridgepoint-eiffel-tower-v5983.js
+          grep -Fq 'function ensureEiffelDuplicateGuardLifecycle(map)' site/bridgepoint-eiffel-tower-v5983.js
+          grep -Fq "map.on('idle', apply)" site/bridgepoint-eiffel-tower-v5983.js
           grep -Fq 'const STATUE_FIGURE_HEIGHT_M = 46.05' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'const STATUE_PEDESTAL_TOP_M = 46.94' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'sourceRoot.scale.setScalar(STATUE_FIGURE_HEIGHT_M / sourceHeight)' site/bridgepoint-landmarks-v5940.js
@@ -1144,12 +1146,12 @@ jobs:
               });
               await p.waitForFunction(()=>{
                 const s=window.__BP_EIFFEL_TOWER_V5983__;
-                return s?.version===5983&&s?.rendered===true&&s?.loaded===true&&s?.placementFixVersion===6020&&
+                return s?.version===5983&&s?.rendered===true&&s?.loaded===true&&s?.placementFixVersion===6021&&
                   s?.coordinates?.[0]===2.2945&&s?.coordinates?.[1]===48.85826;
               },{timeout:90000});
               const report=await p.evaluate(()=>{
                 const m=window.__BP_LANDING_WORLD__?.map,s=window.__BP_EIFFEL_TOWER_V5983__;
-                const guard=m?.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6020__||window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6020__||null;
+                const guard=m?.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6021__||window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6021__||null;
                 const mustFilter=['gta-context-buildings','gta-context-roofs','gta-context-floor-lines','gta-bp-buildings','gta-bp-roofs'];
                 const filtered=mustFilter.map(id=>{
                   const f=m?.getFilter(id),serialized=JSON.stringify(f||null);
@@ -1840,7 +1842,7 @@ jobs:
               },{timeout:90000});
               const eiffel=await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
-                const suppression=m?.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6020__||null;
+                const suppression=m?.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6021__||null;
                 const filterIds=['gta-context-buildings','gta-context-roofs','gta-context-floor-lines','gta-bp-buildings','gta-bp-roofs'];
                 return{state:window.__BP_EIFFEL_TOWER_V5983__||null,
                   layer:!!m?.getLayer('bp-eiffel-tower-source-mesh-v5983'),

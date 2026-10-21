@@ -79,11 +79,11 @@
 
   function suppressGenericEiffelTowerExtrusions(map) {
     const result = {
-      version: 6020, active: false, osmWayId: OSM_EIFFEL_WAY_ID,
+      version: 6021, active: false, osmWayId: OSM_EIFFEL_WAY_ID,
       anchor: EIFFEL.slice(), filteredLayers: [], failedLayers: [], updatedAt: Date.now()
     };
     if (!map || !map.isStyleLoaded?.()) {
-      window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6020__ = result;
+      window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6021__ = result;
       return result;
     }
     for (const id of EIFFEL_GENERIC_BUILDING_LAYERS) {
@@ -107,9 +107,42 @@
     result.active = ['gta-context-buildings', 'gta-context-roofs']
       .every(id => result.filteredLayers.includes(id)) && result.failedLayers.length === 0;
     result.updatedAt = Date.now();
-    map.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6020__ = result;
-    window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6020__ = result;
+    map.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6021__ = result;
+    window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6021__ = result;
     return result;
+  }
+
+  function ensureEiffelDuplicateGuardLifecycle(map) {
+    if (!map || map.__bpEiffelDuplicateGuardLifecycleV6021) return;
+    map.__bpEiffelDuplicateGuardLifecycleV6021 = true;
+    let applying = false;
+    const apply = () => {
+      if (applying || !map.isStyleLoaded?.()) return;
+      applying = true;
+      try {
+        const status = suppressGenericEiffelTowerExtrusions(map);
+        if (status.active) {
+          const current = window.__BP_EIFFEL_TOWER_V5983__;
+          if (current && current.coordinates?.[0] === EIFFEL[0] && current.coordinates?.[1] === EIFFEL[1]) {
+            current.duplicateSuppression = status;
+            current.duplicateSuppressionAppliedAt = Date.now();
+          }
+        }
+      } catch (error) {
+        window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6021__ = {
+          version: 6021, active: false, error: String(error && error.message || error),
+          updatedAt: Date.now()
+        };
+      } finally {
+        applying = false;
+      }
+    };
+    // install() may be called after style.load while tiles/style sources are still loading.
+    // load + idle guarantee the one-off guard is retried after that timing window.
+    map.on('style.load', apply);
+    map.on('load', apply);
+    map.on('idle', apply);
+    apply();
   }
 
   function ensureChip(map, state) {
@@ -196,7 +229,7 @@
   function publish(status, extra = {}) {
     window.__BP_EIFFEL_TOWER_V5983__ = Object.assign({
       version: VERSION, status, coordinates: EIFFEL.slice(), coordinatesCrs: 'EPSG:4326',
-      placementFixVersion: 6020, osmWayId: OSM_EIFFEL_WAY_ID,
+      placementFixVersion: 6021, osmWayId: OSM_EIFFEL_WAY_ID,
       asset: EIFFEL_SCAN_URL, sourceUrl: MODEL_SOURCE, sourceRecord: ZENODO_SOURCE,
       creator: 'koterstudios / koters', license: 'CC BY 4.0 as stated on Sketchfab source page',
       sourceGeometry: 'Sketchfab/Objaverse GLB source mesh; not represented as a laser survey',
@@ -208,6 +241,7 @@
     if (state.installing || !map || !map.getStyle || !map.getStyle()) return;
     state.installing = true;
     try {
+      ensureEiffelDuplicateGuardLifecycle(map);
       const duplicateSuppression = suppressGenericEiffelTowerExtrusions(map);
       setLabel(map);
       ensureChip(map, state);
@@ -215,10 +249,6 @@
         state.listeners = true;
         map.on('moveend', () => update(map, state));
         map.on('zoomend', () => update(map, state));
-        map.on('style.load', () => {
-          const duplicateSuppression = suppressGenericEiffelTowerExtrusions(map);
-          publish('style-restored-eiffel-duplicate-guard', { duplicateSuppression });
-        });
       }
       if (nearEiffel(map)) await addModelLayer(map, state);
       else publish('waiting-for-close-view', { attachedMaps: MAPS.size, duplicateSuppression });
@@ -292,7 +322,7 @@
               terrainElevationM: groundM, baseAboveTerrainM: 0, sourceHeightUnits: this.sourceHeight,
               finalHeightM: OFFICIAL_HEIGHT_M, mapZoom: this.map.getZoom(),
               placement: { longitude: EIFFEL[0], latitude: EIFFEL[1], osmWayId: OSM_EIFFEL_WAY_ID, verticalReference: 'sampled live terrain elevation', anchor: 'mapped tower center; model bottom aligned to terrain', scale: 'normalized to 330 m overall height' },
-              duplicateSuppression: this.map.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6020__ || null
+              duplicateSuppression: this.map.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6021__ || null
             });
             if (state.chip) state.chip.dataset.show = 'true';
           } catch (error) {
@@ -344,6 +374,7 @@
     MAPS.add(map);
     const state = { installing: false, listeners: false, layerRequested: false, layerAdded: false, chip: null };
     STATES.set(map, state);
+    ensureEiffelDuplicateGuardLifecycle(map);
     const ready = () => install(map, state);
     map.on('style.load', ready);
     map.on('load', ready);
