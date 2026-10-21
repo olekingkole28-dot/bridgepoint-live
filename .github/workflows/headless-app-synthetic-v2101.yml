@@ -49,12 +49,19 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Playwright Chromium
+      - name: Prepare Playwright with system Chromium
         shell: bash
         run: |
           set -euo pipefail
           npm install --no-save playwright@1.55.0
-          npx playwright install --with-deps chromium
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium || true)
+          if [ -z "$CHROME" ]; then
+            echo "System Chrome is unavailable; falling back to Playwright Chromium download"
+            npx playwright install chromium
+          else
+            echo "Using preinstalled browser: $CHROME"
+            echo "CHROME_PATH=$CHROME" >> "$GITHUB_ENV"
+          fi
 
       - name: Run headless customer-path synthetic
         env:
