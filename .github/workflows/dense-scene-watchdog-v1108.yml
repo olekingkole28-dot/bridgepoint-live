@@ -9,6 +9,7 @@ on:
     paths:
       - 'release-v2300/**'
       - 'rebuild-v5000/**'
+      - '.github/workflows/dense-scene-watchdog-v1108.yml'
 
 permissions:
   contents: read
