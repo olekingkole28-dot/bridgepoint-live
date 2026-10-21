@@ -1,0 +1,225 @@
+{
+  "version": 7000,
+  "status": "MATERIALIZED_SAMPLE_FROM_SOURCE_LAZ",
+  "tileId": "987210",
+  "source": {
+    "provider": "NYC Office of Technology and Innovation (OTI) / NYC OpenData",
+    "dataset": "Topobathymetric LiDAR Data (2017)",
+    "datasetUrl": "https://data.cityofnewyork.us/City-Government/Topobathymetric-LiDAR-Data-2017-/7sc8-jtbz",
+    "metadataUrl": "https://github.com/CityOfNewYork/nyc-geo-metadata/blob/main/Metadata/Metadata_TopobathymetricClassifiedPointCloud.md",
+    "archiveUrl": "https://data.cityofnewyork.us/api/views/7sc8-jtbz/files/dfe8b336-0307-4235-b00e-2742d8ac552a?download=true&filename=TopoBathymetric_Classified_LAZ.zip",
+    "archiveMember": "TopoBathymetric_Classified_LAZ/987210.laz",
+    "archiveMemberMethod": "ZIP_STORED_RANGE_READ",
+    "archivePayloadBytes": 83335676,
+    "archivePayloadOffset": 98238470151,
+    "tileSha256": "5b13a1bc879797d88a0d4cc0ccdd946c9a93fb09586e9c74a2a264e08976f74b",
+    "licenseNote": "Public NYC Open Data dataset; retain source attribution and consult source metadata/NYC Open Data terms for downstream reuse."
+  },
+  "acquisition": {
+    "topographicCaptureStart": "2017-05-03",
+    "topographicCaptureEnd": "2017-05-17",
+    "nominalPulseDensity": "at least 8 pulses/m2 for citywide topographic data"
+  },
+  "coordinateReference": {
+    "horizontal": "EPSG:2263 NAD83 / New York Long Island (US survey feet)",
+    "vertical": "EPSG:6360 NAVD88 height (US survey feet), Geoid 12B",
+    "sourceScaleFeet": [
+      0.01,
+      0.01,
+      0.01
+    ]
+  },
+  "sourcePoints": 17523220,
+  "pointsScanned": 17523220,
+  "sourceClassCounts": {
+    "1": 15650362,
+    "2": 1809287,
+    "7": 62525,
+    "25": 1046
+  },
+  "noisePointsExcludedFromDisplay": 62525,
+  "samplePoints": 180000,
+  "sampleStrategy": "Seeded random source-point sample; nested 12k, 75k and 180k tiers. Coordinates are 2cm-quantized measured returns, not procedural building geometry.",
+  "pointClassificationColors": {
+    "0": [
+      150,
+      164,
+      177
+    ],
+    "1": [
+      162,
+      174,
+      184
+    ],
+    "2": [
+      128,
+      145,
+      140
+    ],
+    "3": [
+      102,
+      174,
+      111
+    ],
+    "4": [
+      74,
+      157,
+      91
+    ],
+    "5": [
+      43,
+      125,
+      66
+    ],
+    "6": [
+      210,
+      226,
+      237
+    ],
+    "8": [
+      206,
+      183,
+      255
+    ],
+    "9": [
+      64,
+      153,
+      230
+    ],
+    "10": [
+      220,
+      169,
+      98
+    ],
+    "11": [
+      221,
+      197,
+      142
+    ],
+    "12": [
+      170,
+      144,
+      189
+    ],
+    "13": [
+      245,
+      204,
+      97
+    ],
+    "14": [
+      255,
+      226,
+      119
+    ],
+    "15": [
+      235,
+      169,
+      91
+    ],
+    "16": [
+      244,
+      186,
+      122
+    ],
+    "17": [
+      192,
+      202,
+      212
+    ]
+  },
+  "tileBoundsSourceFeet": {
+    "xmin": 987500.0,
+    "ymin": 210000.0,
+    "xmax": 990000.0,
+    "ymax": 212500.0
+  },
+  "anchor": {
+    "longitude": -73.98375963642462,
+    "latitude": 40.746507846285155,
+    "projectedXFeet": 988750.0,
+    "projectedYFeet": 211250.0,
+    "verticalOriginFeet": 41.13999938964844,
+    "verticalOriginMethod": "median of source LAS class-2 ground points within 200 ft of tile center",
+    "enuAxes": "local X=east, Y=up, Z=north",
+    "feetToMeters": 0.3048006096012192
+  },
+  "boundsWgs84": {
+    "polygon": [
+      [
+        -73.98827145247874,
+        40.74307745691317
+      ],
+      [
+        -73.97924949311115,
+        40.74307618479965
+      ],
+      [
+        -73.97924735572035,
+        40.74993805722433
+      ],
+      [
+        -73.98827024438826,
+        40.74993932946763
+      ],
+      [
+        -73.98827145247874,
+        40.74307745691317
+      ]
+    ],
+    "west": -73.98827145247874,
+    "south": 40.74307618479965,
+    "east": -73.97924735572035,
+    "north": 40.74993932946763
+  },
+  "lods": [
+    {
+      "level": 0,
+      "name": "CITY_TILE",
+      "pointCount": 12000,
+      "file": "nyc-midtown-987210-lod0.bin.gz",
+      "encoding": "gzip(binary)",
+      "binaryLayout": "int16le xyz coordinates quantized at 0.02 metres followed by uint8 RGB colors",
+      "rawBytes": 108000,
+      "gzipBytes": 88486,
+      "sha256": "4316c6c3176c3abe58a2f785ff68b0739df03799b338ce220ee0e3e66c5f671e",
+      "base64File": "nyc-midtown-987210-lod0.bin.gz.b64",
+      "positionEncoding": "int16le",
+      "positionScaleMeters": 0.02
+    },
+    {
+      "level": 1,
+      "name": "BLOCKS",
+      "pointCount": 75000,
+      "file": "nyc-midtown-987210-lod1.bin.gz",
+      "encoding": "gzip(binary)",
+      "binaryLayout": "int16le xyz coordinates quantized at 0.02 metres followed by uint8 RGB colors",
+      "rawBytes": 675000,
+      "gzipBytes": 537920,
+      "sha256": "0944ad8886dc607d7e8ccc6c6d74a05c01cef217f26d68475a2f8a17da620388",
+      "base64File": "nyc-midtown-987210-lod1.bin.gz.b64",
+      "positionEncoding": "int16le",
+      "positionScaleMeters": 0.02
+    },
+    {
+      "level": 2,
+      "name": "DETAIL",
+      "pointCount": 180000,
+      "file": "nyc-midtown-987210-lod2.bin.gz",
+      "encoding": "gzip(binary)",
+      "binaryLayout": "int16le xyz coordinates quantized at 0.02 metres followed by uint8 RGB colors",
+      "rawBytes": 1620000,
+      "gzipBytes": 1286474,
+      "sha256": "8c66793d1dc32425f84681617c17279dfd2b983a3060c484808724bd876146b3",
+      "base64File": "nyc-midtown-987210-lod2.bin.gz.b64",
+      "positionEncoding": "int16le",
+      "positionScaleMeters": 0.02
+    }
+  ],
+  "builtAtUtc": "2026-10-21T06:48:47Z",
+  "buildSeconds": 11.39,
+  "sampleBinaryEncoding": {
+    "positions": "signed int16 x/y/z, each multiplied by 0.02 metres to recover local coordinates",
+    "colors": "uint8 RGB; normalized at render time",
+    "coordinateQuantizationMetres": 0.02
+  }
+}
