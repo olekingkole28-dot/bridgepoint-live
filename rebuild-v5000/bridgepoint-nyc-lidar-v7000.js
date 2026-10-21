@@ -1078,13 +1078,21 @@
     }
   }
 
-  function addCoverageMarker(map) {
+  function syncCoverageMarkerVisibility(map,state) {
+    const visible=!!state?.overlayEnabled;
+    for(const id of ['bp-lidar-coverage-marker-v7003','bp-lidar-coverage-label-v7003']) {
+      try { if(map.getLayer(id)) map.setLayoutProperty(id,'visibility',visible?'visible':'none'); } catch (_) {}
+    }
+  }
+
+  function addCoverageMarker(map,state) {
     if (!map || !map.addSource || !map.addLayer) return;
     const sourceId='bp-lidar-coverage-source-v7003',circleId='bp-lidar-coverage-marker-v7003',labelId='bp-lidar-coverage-label-v7003';
     try {
       if (!map.getSource(sourceId)) map.addSource(sourceId,{type:'geojson',data:{type:'FeatureCollection',features:[{type:'Feature',properties:{name:'New York City LiDAR / photo mesh',tileCount:9},geometry:{type:'Point',coordinates:[-73.99,40.75]}}]}});
       if (!map.getLayer(circleId)) map.addLayer({id:circleId,type:'circle',source:sourceId,minzoom:0,maxzoom:12,paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,4,5,6,10,9,12,11],'circle-color':'#43e7ff','circle-stroke-color':'#ffffff','circle-stroke-width':1.5,'circle-opacity':0.95,'circle-blur':0.08}});
       if (!map.getLayer(labelId)) map.addLayer({id:labelId,type:'symbol',source:sourceId,minzoom:0,maxzoom:5,layout:{'text-field':'NYC LiDAR','text-size':11,'text-offset':[0,1.4],'text-allow-overlap':true},paint:{'text-color':'#e8fbff','text-halo-color':'#06202a','text-halo-width':1.5}});
+      syncCoverageMarkerVisibility(map,state);
       if (!map.__bpLidarCoverageClickV7003) {map.__bpLidarCoverageClickV7003=true;map.on('click',circleId,()=>map.flyTo({center:[-73.99,40.75],zoom:15.5,pitch:55,duration:1800}));map.on('mouseenter',circleId,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',circleId,()=>{map.getCanvas().style.cursor=''});}
     } catch (_) {}
   }
@@ -1097,7 +1105,7 @@
     button.style.cssText='flex:1;min-height:42px;border:1px solid rgba(67,231,255,.6);border-radius:8px;background:linear-gradient(135deg,#0a3542,#10212d);color:#c7f8ff;font:900 11px/1.25 system-ui,sans-serif;letter-spacing:.035em;padding:8px;cursor:pointer';
     const note=document.createElement('span');note.textContent='Verified NYC coverage only · source geometry';note.style.cssText='font-size:10px;color:#a4c9d3;flex:1 1 100%';
     const paint=()=>{button.setAttribute('aria-pressed',String(state.overlayEnabled));button.textContent='LiDAR / PHOTOGRAPH MESH OVERLAY: '+(state.overlayEnabled?'ON':'OFF');};
-    button.addEventListener('click',()=>{state.overlayEnabled=!state.overlayEnabled;try{localStorage.setItem(OVERLAY_STORAGE_KEY,state.overlayEnabled?'1':'0')}catch(_){}if(state.overlayEnabled){for(const tile of state.tiles.values())tile.surfaceFailedLevel=-1;}try{if(map.getLayer(LAYER_ID))map.setLayoutProperty(LAYER_ID,'visibility',state.overlayEnabled?'visible':'none')}catch(_){}if(!state.overlayEnabled)suppressLegacySurfaces(map,state,false);paint();reconcile(map,state);publish(state.overlayEnabled?'overlay-enabled':'overlay-disabled',{overlayEnabled:state.overlayEnabled});});
+    button.addEventListener('click',()=>{state.overlayEnabled=!state.overlayEnabled;try{localStorage.setItem(OVERLAY_STORAGE_KEY,state.overlayEnabled?'1':'0')}catch(_){}if(state.overlayEnabled){for(const tile of state.tiles.values())tile.surfaceFailedLevel=-1;}try{if(map.getLayer(LAYER_ID))map.setLayoutProperty(LAYER_ID,'visibility',state.overlayEnabled?'visible':'none')}catch(_){}if(!state.overlayEnabled)suppressLegacySurfaces(map,state,false);syncCoverageMarkerVisibility(map,state);paint();reconcile(map,state);publish(state.overlayEnabled?'overlay-enabled':'overlay-disabled',{overlayEnabled:state.overlayEnabled});});
     wrap.append(button,note);slot.append(wrap);paint();
   }
 
@@ -1116,7 +1124,7 @@
     // Always start OFF on a fresh page load, even if an earlier build saved the toggle as ON.
     state.overlayEnabled = false;
     try { localStorage.removeItem(OVERLAY_STORAGE_KEY); } catch (_) {}
-    addOverlayControl(map,state); addCoverageMarker(map); map.on('style.load',()=>{addCoverageMarker(map);addOverlayControl(map,state)});
+    addOverlayControl(map,state); addCoverageMarker(map,state); map.on('style.load',()=>{addCoverageMarker(map,state);addOverlayControl(map,state)});
     attachedCount++;
     publish('attaching-map', {attachedMaps:attachedCount});
     loadJson(CENTER_MANIFEST_URL).then(async manifest => {

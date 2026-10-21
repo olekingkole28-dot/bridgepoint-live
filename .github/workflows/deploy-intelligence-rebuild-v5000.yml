@@ -357,8 +357,8 @@ jobs:
           grep -Fq 'Potree.updatePointClouds([cloud]' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan' site/index.html
           grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan' site/app/index.html
-          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7007-progressive-photo-mesh-lod' site/index.html
-          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7007-progressive-photo-mesh-lod' site/app/index.html
+          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7008-coverage-marker-card-only' site/index.html
+          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7008-coverage-marker-card-only' site/app/index.html
           test -s site/bridgepoint-nyc-lidar-v7000.js
           node --check site/bridgepoint-nyc-lidar-v7000.js
           grep -Fq 'GRID_TO_TRUE_NORTH_RADIANS = -0.00018468388351200875' site/bridgepoint-nyc-lidar-v7000.js
