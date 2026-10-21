@@ -1111,6 +1111,138 @@ jobs:
           grep -Fq 'current-map-entry.js' /tmp/discover.html
           echo BRIDGEPOINT_V5100_COMBINED_SURFACES_PASS
 
+      - name: Focused ground-camera and retained-LOD smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
+          cd /tmp
+          npm init -y >/dev/null 2>&1 || true
+          npm install puppeteer-core@24 --no-audit --no-fund >/dev/null 2>&1
+          CHROME_PATH="$CHROME" node <<'NODE'
+          const puppeteer=require('puppeteer-core');
+          (async()=>{
+            const browser=await puppeteer.launch({
+              headless:true,
+              executablePath:process.env.CHROME_PATH,
+              protocolTimeout:90000,
+              args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']
+            });
+            try{
+              const p=await browser.newPage();
+              p.setDefaultTimeout(15000);
+              await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
+              await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
+              await p.goto('https://bridgepointintelligence.online/app/?lod-camera-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
+              await p.waitForFunction(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                const slot=document.querySelector('#bpv-dock #bpv-map-controls-slot');
+                return !!m&&!!slot&&['GOLD','SILVER','BRONZE'].every(t=>!!slot.querySelector('[data-bp-lod-tier="'+t+'"]'))&&
+                  !!window.__BP_TILE_RETENTION_V6017__&&window.__BP_CAMERA_GROUND_GUARD_V6017__?.enabled===true;
+              },{timeout:60000});
+              const initial=await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map,slot=document.querySelector('#bpv-dock #bpv-map-controls-slot');
+                const buttons=[...(slot?.querySelectorAll('[data-bp-lod-tier]')||[])];
+                return{
+                  url:location.href,
+                  maxPitch:m?.getMaxPitch?.()??null,
+                  tileCache:window.__BP_TILE_RETENTION_V6017__||null,
+                  groundGuard:window.__BP_CAMERA_GROUND_GUARD_V6017__||null,
+                  allButtonsInDeck:buttons.length===3&&buttons.every(b=>b.closest('#bpv-dock #bpv-map-controls-slot')),
+                  activeButtons:buttons.filter(b=>b.getAttribute('aria-pressed')==='true').map(b=>b.dataset.bpLodTier),
+                  canvas:!!document.querySelector('#liveMap canvas'),
+                  styleLoaded:!!m?.isStyleLoaded?.()
+                };
+              });
+              if(initial.maxPitch<100||initial.tileCache?.cancelPendingTileRequestsWhileZooming!==false||
+                 initial.tileCache?.maxTileCacheZoomLevels<9||!initial.groundGuard?.enabled||
+                 !initial.allButtonsInDeck||initial.activeButtons.length!==1||!initial.canvas||!initial.styleLoaded)
+                throw new Error('GROUND_CAMERA_TILE_CACHE_OR_LOD_DECK_FAILED '+JSON.stringify(initial));
+              console.log('BRIDGEPOINT_GROUND_CAMERA_TILE_RETENTION_CARD_PASS',JSON.stringify(initial));
+
+              await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD.map;
+                m.stop?.();m.jumpTo({center:[-73.9857,40.7484],zoom:16.8,pitch:52,bearing:0});
+              });
+              const tiers=[];
+              for(const tier of ['GOLD','SILVER','BRONZE']){
+                await p.evaluate(t=>{
+                  const b=document.querySelector('#bpv-dock #bpv-map-controls-slot [data-bp-lod-tier="'+t+'"]');
+                  if(!b)throw new Error('LOD_BUTTON_NOT_IN_DECK '+t);
+                  b.click();
+                },tier);
+                await p.waitForFunction(t=>{
+                  const m=window.__BP_V5000_WORLD?.map,c=window.__BP_LOD_CONTROL_V6016__;
+                  const runtime=window.__BP_WORLD_LOD_RUNTIME_V6016__;
+                  const buttons=[...(document.querySelectorAll('#bpv-dock #bpv-map-controls-slot [data-bp-lod-tier]')||[])];
+                  return !!m&&c?.tier===t&&runtime?.tier===t&&
+                    buttons.filter(b=>b.getAttribute('aria-pressed')==='true').length===1&&
+                    buttons.find(b=>b.getAttribute('aria-pressed')==='true')?.dataset.bpLodTier===t&&
+                    !!m.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail');
+                },{timeout:12000},tier);
+                tiers.push(await p.evaluate(t=>{
+                  const m=window.__BP_V5000_WORLD.map,layer=m.getStyle().layers.find(x=>x.id==='gta-bp-facade-detail');
+                  return{tier:t,controller:window.__BP_LOD_CONTROL_V6016__?.tier,
+                    renderer:window.__BP_WORLD_LOD_RUNTIME_V6016__?.tier,
+                    facadeMinZoom:Number(layer?.minzoom),
+                    active:[...document.querySelectorAll('#bpv-dock #bpv-map-controls-slot [data-bp-lod-tier]')].filter(b=>b.getAttribute('aria-pressed')==='true').map(b=>b.dataset.bpLodTier)};
+                },tier));
+              }
+              if(!(tiers[0].facadeMinZoom<tiers[1].facadeMinZoom&&tiers[1].facadeMinZoom<tiers[2].facadeMinZoom))
+                throw new Error('LOD_TIERS_DID_NOT_CHANGE_FACADE_DETAIL_RANGE '+JSON.stringify(tiers));
+              console.log('BRIDGEPOINT_LOD_TIER_BUTTON_RENDERING_PASS',JSON.stringify(tiers));
+
+              await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD.map;
+                m.stop?.();m.jumpTo({center:[-73.9857,40.7484],zoom:16.8,pitch:52,bearing:0});
+              });
+              await p.waitForFunction(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                return !!m&&window.__BP_TERRAIN_VISUAL_STATE__?.enabled===true&&
+                  Number.isFinite(m.queryTerrainElevation?.(m.getCenter(),{exaggerated:true}));
+              },{timeout:25000});
+              const attempted=await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD.map,MC=window.maplibregl?.MercatorCoordinate,center=m.getCenter();
+                const ground=m.queryTerrainElevation(center,{exaggerated:true}),free=m.getFreeCameraOptions?.();
+                if(!Number.isFinite(ground)||!free?.position||!MC?.fromLngLat)return{ok:false,ground};
+                free.position=MC.fromLngLat([center.lng,center.lat],ground-8);
+                m.setFreeCameraOptions(free);
+                return{ok:true,ground};
+              });
+              if(!attempted.ok)throw new Error('TERRAIN_ELEVATION_NOT_AVAILABLE_FOR_GROUND_CLAMP_TEST '+JSON.stringify(attempted));
+              await new Promise(resolve=>setTimeout(resolve,100));
+              await p.evaluate(()=>window.__BP_V5000_WORLD?.map?.fire?.('move'));
+              await p.waitForFunction(()=>{
+                const m=window.__BP_V5000_WORLD?.map,free=m?.getFreeCameraOptions?.(),pos=free?.position;
+                if(!m||!pos)return false;
+                const loc=pos.toLngLat(),ground=m.queryTerrainElevation(loc,{exaggerated:true}),alt=pos.toAltitude();
+                return window.__BP_CAMERA_GROUND_GUARD_V6017__?.clamped===true&&Number.isFinite(ground)&&Number.isFinite(alt)&&alt>=ground+1.2;
+              },{timeout:7000});
+              const groundResult=await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD.map,pos=m.getFreeCameraOptions().position,loc=pos.toLngLat();
+                return{clamped:window.__BP_CAMERA_GROUND_GUARD_V6017__?.clamped===true,
+                  altitudeMeters:pos.toAltitude(),terrainMeters:m.queryTerrainElevation(loc,{exaggerated:true}),
+                  clearanceMeters:window.__BP_CAMERA_GROUND_GUARD_V6017__?.clearanceMeters??null};
+              });
+              console.log('BRIDGEPOINT_NO_GROUND_PENETRATION_PASS',JSON.stringify(groundResult));
+
+              await p.evaluate(()=>window.__BP_V5000_WORLD?.map?.jumpTo({center:[-73.9857,40.7484],zoom:16.8,pitch:100,bearing:0}));
+              await p.waitForFunction(()=>window.__BP_V5000_WORLD?.map?.getPitch?.()>=99,{timeout:8000});
+              console.log('BRIDGEPOINT_UPWARD_CAMERA_PITCH_PASS',JSON.stringify({pitch:await p.evaluate(()=>window.__BP_V5000_WORLD?.map?.getPitch?.())}));
+
+              await new Promise(resolve=>setTimeout(resolve,18000));
+              const retained=await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map,c=m?.__BP_LIVING_TILE_CACHE_V6017__;
+                return c?{radiusMeters:c.radiusMeters,buildingFeatures:c.base?.length||0,treeFeatures:c.trees?.length||0,
+                  currentCenter:c.center,updatedAt:c.updatedAt}:null;
+              });
+              if(!retained||!(retained.radiusMeters>0))throw new Error('NEARBY_TILE_FEATURE_CACHE_NOT_INITIALIZED '+JSON.stringify(retained));
+              console.log('BRIDGEPOINT_NEARBY_TILE_CACHE_PASS',JSON.stringify(retained));
+              await p.evaluate(()=>window.__BP_V5000_WORLD?.map?.jumpTo({center:[0,20],zoom:1.2,pitch:0,bearing:0}));
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+
       - name: Android smoke
         shell: bash
         run: |
