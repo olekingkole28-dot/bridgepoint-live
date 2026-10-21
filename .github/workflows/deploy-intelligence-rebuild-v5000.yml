@@ -1587,7 +1587,7 @@ jobs:
               console.log('BRIDGEPOINT_BUILDING_CLICK_PASS',JSON.stringify(clicked));
               await p.waitForFunction(()=>window.__BP_LOD_CONTROL_V6016__?.version===6016&&document.querySelector('[data-bp-lod-tier="GOLD"]')&&document.querySelector('[data-bp-lod-tier="SILVER"]')&&document.querySelector('[data-bp-lod-tier="BRONZE"]'),{timeout:20000});
               await p.evaluate(()=>{const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('LOD_SMOKE_MAP_UNAVAILABLE');m.stop?.();m.jumpTo({center:[-73.9857,40.7484],zoom:16.6,pitch:52,bearing:0})});
-              await p.waitForTimeout(1800);
+              await new Promise(resolve=>setTimeout(resolve,1800));
               await p.evaluate(()=>document.querySelector('[data-bp-lod-tier="GOLD"]').click());
               await p.waitForFunction(()=>{const c=window.__BP_LOD_CONTROL_V6016__,m=window.__BP_V5000_WORLD?.map,l=m?.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail');return c?.tier==='GOLD'&&l&&Number(l.minzoom)<=14.9},{timeout:15000});
               await p.waitForFunction(()=>{const m=window.__BP_V5000_WORLD?.map;return !!m&&['gta-bp-facade-detail','gta-context-facade-detail'].some(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')==='visible')},{timeout:15000});
