@@ -107,6 +107,28 @@
     return 2;
   }
 
+  // The photo surface has its own adaptive LOD so it exists before the closest zoom.
+  // Vertices are sampled from the measured 2 m mesh; the imagery always comes from the
+  // registered NYS orthophoto. High zooms refine the same surface instead of replacing it
+  // with an unrelated building model.
+  const SURFACE_TIERS = [
+    { minZoom: 12.0, stride: 16, textureSize: 512,  name: 'CITY_PREVIEW' },
+    { minZoom: 14.0, stride: 8,  textureSize: 1024, name: 'BLOCK_PREVIEW' },
+    { minZoom: 15.7, stride: 4,  textureSize: 1024, name: 'STREET_DETAIL' },
+    { minZoom: 17.2, stride: 1,  textureSize: 2048, name: 'FULL_2M_DETAIL' }
+  ];
+
+  function wantedSurfaceLod(map, manifest) {
+    if (!intersects(map, manifest)) return -1;
+    const z = Number(map.getZoom());
+    if (!Number.isFinite(z) || z < SURFACE_TIERS[0].minZoom) return -1;
+    let level = 0;
+    for (let i = 1; i < SURFACE_TIERS.length; i++) {
+      if (z >= SURFACE_TIERS[i].minZoom) level = i;
+    }
+    return level;
+  }
+
   async function decodeGzipAsset(url) {
     const response = await fetch(url, { cache: 'force-cache' });
     if (!response.ok) throw new Error('NYC_LIDAR_ASSET_HTTP_' + response.status + ' ' + url);
@@ -183,122 +205,422 @@
     return task;
   }
 
-  async function ensureSurfaceMesh(state, tile) {
-    if (tile.surfaceGroup) return tile.surfaceGroup;
-    if (tile.surfacePromise) return tile.surfacePromise;
+  function disposeRoofGroup(root, group) {
+    if (!group) return;
+    try { root?.remove(group); } catch (_) {}
+    try {
+      group.traverse?.(node => {
+        try { node.geometry?.dispose?.(); } catch (_) {}
+      });
+    } catch (_) {}
+  }
+
+  function createSurfaceChunkGeometry(THREE, raw, part, scale, stride) {
+    const vertices = Number(part.vertexCount);
+    const indexCount = Number(part.indexCount);
+    const expected = vertices * 10 + indexCount * 4;
+    if (!Number.isInteger(vertices) || !Number.isInteger(indexCount) ||
+        vertices < 4 || indexCount < 6 || raw.byteLength !== expected) {
+      throw new Error('NYC_LIDAR_ROOF_CHUNK_SIZE_MISMATCH expected=' + expected + ' actual=' + raw.byteLength);
+    }
+    const sourcePositions = new Int16Array(raw, 0, vertices * 3);
+    const sourceUvs = new Uint16Array(raw, vertices * 6, vertices * 2);
+    let positions, uvs, indices;
+
+    if (stride <= 1) {
+      positions = new Float32Array(vertices * 3);
+      for (let i = 0; i < positions.length; i++) {
+        const axis = i % 3;
+        positions[i] = sourcePositions[i] * scale * (axis === 2 ? -1 : 1);
+      }
+      uvs = sourceUvs.slice();
+      const indicesOffset = vertices * 10;
+      indices = new Uint32Array(raw.slice(indicesOffset, indicesOffset + indexCount * 4));
+      // The local north axis was flipped to match MapLibre (+Z south), so every triangle
+      // must reverse winding; otherwise FrontSide roof triangles are back-face culled.
+      for (let i = 0; i < indices.length; i += 3) {
+        const swap = indices[i + 1];
+        indices[i + 1] = indices[i + 2];
+        indices[i + 2] = swap;
+      }
+    } else {
+      const gridWidth = Number(part.gridWidth);
+      const gridRows = Number(part.gridRows);
+      if (!Number.isInteger(gridWidth) || !Number.isInteger(gridRows) ||
+          gridWidth < 1 || gridRows < 1 || gridWidth * gridRows * 4 !== vertices) {
+        throw new Error('NYC_LIDAR_SURFACE_GRID_SHAPE_INVALID');
+      }
+      const coarseRows = Math.ceil(gridRows / stride);
+      const coarseCols = Math.ceil(gridWidth / stride);
+      const coarseCells = coarseRows * coarseCols;
+      positions = new Float32Array(coarseCells * 12);
+      uvs = new Uint16Array(coarseCells * 8);
+      indices = new Uint32Array(coarseCells * 6);
+
+      function copyCorner(sourceVertex, targetVertex) {
+        const src3 = sourceVertex * 3, dst3 = targetVertex * 3;
+        positions[dst3] = sourcePositions[src3] * scale;
+        positions[dst3 + 1] = sourcePositions[src3 + 1] * scale;
+        positions[dst3 + 2] = -sourcePositions[src3 + 2] * scale;
+        const src2 = sourceVertex * 2, dst2 = targetVertex * 2;
+        uvs[dst2] = sourceUvs[src2];
+        uvs[dst2 + 1] = sourceUvs[src2 + 1];
+      }
+
+      let cellIndex = 0;
+      for (let row = 0; row < gridRows; row += stride) {
+        const rowEnd = Math.min(gridRows, row + stride) - 1;
+        for (let col = 0; col < gridWidth; col += stride) {
+          const colEnd = Math.min(gridWidth, col + stride) - 1;
+          // Pull the outer corners from the real measured 2 m cells. This expands each
+          // selected quad to the full coarse footprint while preserving correctly registered UVs.
+          const sw = (row * gridWidth + col) * 4;
+          const se = (row * gridWidth + colEnd) * 4 + 1;
+          const nw = (rowEnd * gridWidth + col) * 4 + 2;
+          const ne = (rowEnd * gridWidth + colEnd) * 4 + 3;
+          const base = cellIndex * 4;
+          copyCorner(sw, base);
+          copyCorner(se, base + 1);
+          copyCorner(nw, base + 2);
+          copyCorner(ne, base + 3);
+          const p = cellIndex * 6;
+          // Winding is reversed because northing is represented as negative local Z.
+          indices[p] = base;
+          indices[p + 1] = base + 1;
+          indices[p + 2] = base + 2;
+          indices[p + 3] = base + 1;
+          indices[p + 4] = base + 3;
+          indices[p + 5] = base + 2;
+          cellIndex++;
+        }
+      }
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2, true));
+    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+    // MeshBasicMaterial is used for orthophoto roofs/ground, so vertex normals are
+    // unnecessary. Skipping the full normals pass removes a large CPU stall on phones.
+    return geometry;
+  }
+
+  async function loadScaledOrthophotoTexture(state, tile, THREE, requestedSize) {
+    if (tile.surfaceTexture && Number(tile.surfaceTextureSize || 0) >= requestedSize) {
+      return tile.surfaceTexture;
+    }
+    if (tile.surfaceTexturePromise) {
+      await tile.surfaceTexturePromise;
+      if (tile.surfaceTexture && Number(tile.surfaceTextureSize || 0) >= requestedSize) {
+        return tile.surfaceTexture;
+      }
+    }
+
+    const loadSize = Math.min(
+      requestedSize,
+      Number(state.renderer?.capabilities?.maxTextureSize || 4096),
+      2048
+    );
+    const task = (async () => {
+      const url = assetUrl(tile, tile.manifest.surfaceMesh.textureFile);
+      const response = await fetch(url, { cache: 'force-cache' });
+      if (!response.ok) throw new Error('NYC_LIDAR_TEXTURE_HTTP_' + response.status + ' ' + url);
+      const blob = await response.blob();
+      let source = null;
+      let objectUrl = null;
+      try {
+        if (typeof createImageBitmap === 'function') {
+          source = await createImageBitmap(blob);
+        } else {
+          objectUrl = URL.createObjectURL(blob);
+          source = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('NYC_LIDAR_TEXTURE_DECODE_FAILED ' + tile.tileId));
+            img.src = objectUrl;
+          });
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = loadSize;
+        canvas.height = loadSize;
+        const context = canvas.getContext('2d', { alpha: false, desynchronized: true });
+        if (!context) throw new Error('NYC_LIDAR_TEXTURE_CANVAS_UNAVAILABLE');
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
+        context.drawImage(source, 0, 0, loadSize, loadSize);
+        if (source && typeof source.close === 'function') source.close();
+        source = null;
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.flipY = true;
+        texture.anisotropy = Math.min(2, state.renderer?.capabilities?.getMaxAnisotropy?.() || 1);
+        texture.needsUpdate = true;
+        const old = tile.surfaceTexture;
+        tile.surfaceTexture = texture;
+        tile.surfaceTextureSize = loadSize;
+        if (tile.surfaceMaterial) {
+          tile.surfaceMaterial.map = texture;
+          tile.surfaceMaterial.needsUpdate = true;
+        }
+        if (old && old !== texture) {
+          try { old.dispose(); } catch (_) {}
+        }
+        return texture;
+      } finally {
+        if (source && typeof source.close === 'function') {
+          try { source.close(); } catch (_) {}
+        }
+        if (objectUrl) {
+          try { URL.revokeObjectURL(objectUrl); } catch (_) {}
+        }
+      }
+    })();
+    tile.surfaceTexturePromise = task;
+    try {
+      return await task;
+    } finally {
+      if (tile.surfaceTexturePromise === task) tile.surfaceTexturePromise = null;
+    }
+  }
+
+  async function ensureWallMesh(state, tile, THREE) {
+    if (tile.wallMesh || tile.wallPromise) return tile.wallPromise || tile.wallMesh;
+    const meta = tile.manifest.surfaceMesh;
+    tile.wallPromise = (async () => {
+      const raw = await decodeGzipAsset(assetUrl(tile, meta.wallFile));
+      const scale = Number(meta.positionScaleMeters || 0.02);
+      const vertexCount = Number(meta.wallVertexCount);
+      const indexCount = Number(meta.wallIndexCount);
+      const expected = vertexCount * 9 + indexCount * 4;
+      if (!Number.isInteger(vertexCount) || !Number.isInteger(indexCount) ||
+          vertexCount < 4 || indexCount < 6 || raw.byteLength !== expected) {
+        throw new Error('NYC_LIDAR_WALL_BINARY_SIZE_MISMATCH tile=' + tile.tileId + ' expected=' + expected + ' actual=' + raw.byteLength);
+      }
+      const q = new Int16Array(raw, 0, vertexCount * 3);
+      const positions = new Float32Array(vertexCount * 3);
+      for (let i = 0; i < positions.length; i++) {
+        const axis = i % 3;
+        positions[i] = q[i] * scale * (axis === 2 ? -1 : 1);
+      }
+      const colors = new Uint8Array(raw, vertexCount * 6, vertexCount * 3).slice();
+      const indices = new Uint32Array(raw.slice(vertexCount * 9, vertexCount * 9 + indexCount * 4));
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3, true));
+      geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+      // The neutral wall material is unlit too; no normal calculation required.
+      const material = new THREE.MeshBasicMaterial({
+        vertexColors: true, side: THREE.DoubleSide, depthTest: true, depthWrite: true,
+        transparent: false, toneMapped: false
+      });
+      const walls = new THREE.Mesh(geometry, material);
+      walls.name = 'NYC LiDAR-derived vertical walls · tile ' + tile.tileId + ' · no fake facade photo';
+      walls.frustumCulled = false;
+      walls.renderOrder = 11;
+      walls.visible = !!(state.overlayEnabled && tile.surfaceGroup?.visible);
+      tile.wallMesh = walls;
+      tile.surfaceGroup?.add(walls);
+      try { state.map?.triggerRepaint?.(); } catch (_) {}
+      return walls;
+    })().catch(error => {
+      tile.wallPromise = null;
+      throw error;
+    });
+    return tile.wallPromise;
+  }
+
+  function orderedSurfaceChunks(map, tile, chunks) {
+    const bounds = tile.manifest.boundsWgs84;
+    const centerLat = Number(map?.getCenter?.().lat);
+    if (!Number.isFinite(centerLat) || !(bounds.north > bounds.south)) {
+      return chunks.slice().sort((a, b) => Number(a.rowStart || 0) - Number(b.rowStart || 0));
+    }
+    const fraction = Math.max(0, Math.min(1, (centerLat - bounds.south) / (bounds.north - bounds.south)));
+    const height = Number(tile.manifest.surfaceMesh.gridHeight || 1);
+    return chunks.slice().sort((a, b) => {
+      const af = (Number(a.rowStart || 0) + Number(a.gridRows || 0) / 2) / height;
+      const bf = (Number(b.rowStart || 0) + Number(b.gridRows || 0) / 2) / height;
+      return Math.abs(af - fraction) - Math.abs(bf - fraction);
+    });
+  }
+
+  async function ensureSurfaceMesh(state, map, tile, level) {
+    if (tile.surfaceReady && tile.surfaceLevel === level) return tile.surfaceGroup;
     const meta = tile.manifest.surfaceMesh;
     const chunks = Array.isArray(meta?.chunks) && meta.chunks.length ? meta.chunks : (meta?.file ? [meta] : []);
     if (!chunks.length || !meta?.wallFile || !meta?.textureFile) {
       throw new Error('NYC_LIDAR_ROOF_CHUNKS_WALL_OR_TEXTURE_MISSING ' + tile.tileId);
     }
-    tile.surfacePromise = (async () => {
-      const [THREE, rawChunks, wallRaw] = await Promise.all([
-        loadThree(),
-        Promise.all(chunks.map(c => decodeGzipAsset(assetUrl(tile, c.file)))),
-        decodeGzipAsset(assetUrl(tile, meta.wallFile))
-      ]);
-      const texture = await new Promise((resolve, reject) => {
-        new THREE.TextureLoader().load(assetUrl(tile, meta.textureFile), resolve, undefined, reject);
-      });
-      const scale = Number(meta.positionScaleMeters || 0.02);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.flipY = true;
-      texture.anisotropy = Math.min(4, state.renderer?.capabilities?.getMaxAnisotropy?.() || 1);
-      texture.needsUpdate = true;
+    const tier = SURFACE_TIERS[level];
+    const THREE = await loadThree();
+    await loadScaledOrthophotoTexture(state, tile, THREE, tier.textureSize);
+
+    if (!tile.surfaceGroup) {
       const root = new THREE.Group();
-      root.name = 'NYC measured LiDAR tile ' + tile.tileId + ' · registered roof/ground photo mesh + vertical walls';
+      root.name = 'NYC measured LiDAR tile ' + tile.tileId + ' · registered photo mesh + vertical walls';
       setOffset(root, tile);
-      const roofGroup = new THREE.Group();
-      roofGroup.name = 'Measured 2m roof and street-surface chunks · tile ' + tile.tileId;
-      const roofMaterial = new THREE.MeshBasicMaterial({
-        map: texture, side: THREE.FrontSide, depthTest: true, depthWrite: true,
+      const material = new THREE.MeshBasicMaterial({
+        map: tile.surfaceTexture, side: THREE.FrontSide, depthTest: true, depthWrite: true,
         transparent: false, toneMapped: false
       });
-      let roofVerticesTotal = 0, roofTrianglesTotal = 0;
-      for (let n = 0; n < chunks.length; n++) {
-        const part = chunks[n], raw = rawChunks[n];
-        const vertices = Number(part.vertexCount), indexCount = Number(part.indexCount);
-        const expected = vertices * 10 + indexCount * 4;
-        if (!Number.isInteger(vertices) || !Number.isInteger(indexCount) || raw.byteLength !== expected) {
-          throw new Error('NYC_LIDAR_ROOF_CHUNK_SIZE_MISMATCH tile=' + tile.tileId + ' part=' + n + ' expected=' + expected + ' actual=' + raw.byteLength);
+      tile.surfaceMaterial = material;
+      tile.surfaceGroup = root;
+      state.scene?.add(root);
+    } else if (tile.surfaceMaterial && tile.surfaceMaterial.map !== tile.surfaceTexture) {
+      tile.surfaceMaterial.map = tile.surfaceTexture;
+      tile.surfaceMaterial.needsUpdate = true;
+    }
+
+    const root = tile.surfaceGroup;
+    root.visible = !!state.overlayEnabled;
+    ensureWallMesh(state, tile, THREE).catch(error => {
+      tile.wallError = String(error && error.message || error);
+      publish('surface-wall-load-error', { tileId: tile.tileId, error: tile.wallError });
+    });
+
+    const scale = Number(meta.positionScaleMeters || 0.02);
+    const nextRoofGroup = new THREE.Group();
+    nextRoofGroup.name = 'Registered ' + tier.name + ' photogrammetry/orthophoto surface · tile ' + tile.tileId;
+    nextRoofGroup.visible = false;
+    root.add(nextRoofGroup);
+    let firstChunkAdded = false;
+    const orderedChunks = orderedSurfaceChunks(map, tile, chunks);
+
+    try {
+      for (const part of orderedChunks) {
+        // Camera moves and tier changes must not leave a stale mesh job competing with the
+        // requested one. The next render pass will enqueue the latest tier.
+        if (!state.overlayEnabled || tile.wantedSurfaceLevel !== level) {
+          disposeRoofGroup(root, nextRoofGroup);
+          if (tile.roofGroup) tile.roofGroup.visible = !!state.overlayEnabled;
+          tile.surfaceReady = !!(tile.surfaceLevel >= 0 && tile.roofGroup);
+          root.visible = !!state.overlayEnabled;
+          try { map.triggerRepaint(); } catch (_) {}
+          return null;
         }
-        const q = new Int16Array(raw, 0, vertices * 3);
-        const positions = new Float32Array(vertices * 3);
-        for (let i = 0; i < positions.length; i++) {
-          const axis = i % 3;
-          positions[i] = q[i] * scale * (axis === 2 ? -1 : 1);
-        }
-        const uv = new Uint16Array(raw, vertices * 6, vertices * 2);
-        const indices = new Uint32Array(raw.slice(vertices * 10, vertices * 10 + indexCount * 4));
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2, true));
-        geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-        geometry.computeVertexNormals();
-        const mesh = new THREE.Mesh(geometry, roofMaterial);
-        mesh.name = 'NYC LiDAR aerial roof/ground row chunk ' + n + ' · tile ' + tile.tileId;
+
+        const raw = await decodeGzipAsset(assetUrl(tile, part.file));
+        const geometry = createSurfaceChunkGeometry(THREE, raw, part, scale, tier.stride);
+        const mesh = new THREE.Mesh(geometry, tile.surfaceMaterial);
+        mesh.name = 'NYC registered orthophoto surface ' + tier.name + ' · chunk ' + part.part + ' · tile ' + tile.tileId;
         mesh.frustumCulled = false;
         mesh.renderOrder = 10;
-        roofGroup.add(mesh);
-        roofVerticesTotal += vertices;
-        roofTrianglesTotal += Number(part.triangleCount || indexCount / 3);
+        nextRoofGroup.add(mesh);
+
+        if (!firstChunkAdded) {
+          firstChunkAdded = true;
+          if (tile.roofGroup) tile.roofGroup.visible = false;
+          nextRoofGroup.visible = !!state.overlayEnabled;
+          tile.pendingRoofGroup = nextRoofGroup;
+          tile.surfaceReady = false;
+          root.visible = !!state.overlayEnabled;
+        }
+        // Progressive visible rows: do not wait for every chunk in the tile or every
+        // neighboring tile before showing the photo drape.
+        try { map.triggerRepaint(); } catch (_) {}
       }
 
-      const wallVertices = Number(meta.wallVertexCount), wallIndexCount = Number(meta.wallIndexCount);
-      const wallExpected = wallVertices * 9 + wallIndexCount * 4;
-      if (!Number.isInteger(wallVertices) || !Number.isInteger(wallIndexCount) || wallVertices < 4 || wallRaw.byteLength !== wallExpected) {
-        throw new Error('NYC_LIDAR_WALL_BINARY_SIZE_MISMATCH tile=' + tile.tileId + ' expected=' + wallExpected + ' actual=' + wallRaw.byteLength);
+      if (!firstChunkAdded) throw new Error('NYC_LIDAR_SURFACE_NO_CHUNKS_BUILT ' + tile.tileId);
+      if (tile.wantedSurfaceLevel !== level || !state.overlayEnabled) {
+        disposeRoofGroup(root, nextRoofGroup);
+        if (tile.roofGroup) tile.roofGroup.visible = !!state.overlayEnabled;
+        tile.surfaceReady = !!(tile.surfaceLevel >= 0 && tile.roofGroup);
+        root.visible = !!state.overlayEnabled;
+        return null;
       }
-      const wq = new Int16Array(wallRaw, 0, wallVertices * 3);
-      const wallPositions = new Float32Array(wallVertices * 3);
-      for (let i = 0; i < wallPositions.length; i++) {
-        const axis = i % 3;
-        wallPositions[i] = wq[i] * scale * (axis === 2 ? -1 : 1);
+
+      if (tile.roofGroup && tile.roofGroup !== nextRoofGroup) {
+        disposeRoofGroup(root, tile.roofGroup);
       }
-      const wallColors = new Uint8Array(wallRaw, wallVertices * 6, wallVertices * 3);
-      const wallIndices = new Uint32Array(wallRaw.slice(wallVertices * 9, wallVertices * 9 + wallIndexCount * 4));
-      const wallGeometry = new THREE.BufferGeometry();
-      wallGeometry.setAttribute('position', new THREE.BufferAttribute(wallPositions, 3));
-      wallGeometry.setAttribute('color', new THREE.BufferAttribute(wallColors, 3, true));
-      wallGeometry.setIndex(new THREE.BufferAttribute(wallIndices, 1));
-      wallGeometry.computeVertexNormals();
-      const wallMaterial = new THREE.MeshBasicMaterial({
-        vertexColors: true, side: THREE.DoubleSide, depthTest: true, depthWrite: true,
-        transparent: false, toneMapped: false
-      });
-      const walls = new THREE.Mesh(wallGeometry, wallMaterial);
-      walls.name = 'NYC LiDAR-derived vertical walls · tile ' + tile.tileId + ' · no fake facade photo';
-      walls.frustumCulled = false;
-      walls.renderOrder = 11;
-      roofGroup.visible = false;
-      walls.visible = false;
-      root.add(roofGroup);
-      root.add(walls);
-      root.visible = false;
-      state.scene?.add(root);
-      tile.surfaceTexture = texture;
-      tile.surfaceMaterial = roofMaterial;
-      tile.surfaceGroup = root;
-      tile.roofGroup = roofGroup;
-      tile.wallMesh = walls;
+      tile.roofGroup = nextRoofGroup;
+      tile.pendingRoofGroup = null;
+      tile.surfaceLevel = level;
+      tile.surfaceReady = true;
+      root.visible = !!state.overlayEnabled;
+      nextRoofGroup.visible = !!state.overlayEnabled;
+      if (tile.wallMesh) tile.wallMesh.visible = !!state.overlayEnabled;
+      tile.surfaceTextureSize = Number(tile.surfaceTextureSize || tier.textureSize);
+      tile.lastError = null;
       publish('orthophoto-roof-ground-and-lidar-walls-ready', {
-        tileId: tile.tileId, surfaceVertices: roofVerticesTotal, surfaceTriangles: roofTrianglesTotal,
-        surfaceChunkCount: chunks.length, verticalWallQuads: Number(meta.wallQuadCount),
+        tileId: tile.tileId, surfaceLodName: tier.name, surfaceLod: level,
+        surfaceStrideMetres: tier.stride * 2, surfaceVertices: nextRoofGroup.children.reduce((n, m) => n + Number(m.geometry?.attributes?.position?.count || 0), 0),
+        surfaceChunkCount: nextRoofGroup.children.length, verticalWallQuads: Number(meta.wallQuadCount),
         verticalWallTriangles: Number(meta.wallTriangleCount), gridSpacingMetres: Number(meta.gridSpacingMetres),
         roofTextureSource: tile.manifest.imagery?.sourceProduct || 'NYS Latest Orthoimagery',
-        roofTextureFile: meta.textureFile, facadePhotoCoverage: false
+        roofTextureSize: tile.surfaceTextureSize, facadePhotoCoverage: false
       });
+      try { map.triggerRepaint(); } catch (_) {}
       return root;
-    })().catch(error => {
-      tile.surfacePromise = null;
+    } catch (error) {
+      disposeRoofGroup(root, nextRoofGroup);
+      if (tile.roofGroup) tile.roofGroup.visible = !!state.overlayEnabled;
+      tile.pendingRoofGroup = null;
+      tile.surfaceReady = !!(tile.surfaceLevel >= 0 && tile.roofGroup);
+      root.visible = !!state.overlayEnabled;
       throw error;
-    });
-    return tile.surfacePromise;
+    }
+  }
+
+  function surfaceTileDistance(map, tile) {
+    try {
+      const center = map.getCenter();
+      const a = tile.manifest.anchor;
+      const latScale = 111320;
+      const lonScale = latScale * Math.max(0.1, Math.cos(Number(center.lat) * Math.PI / 180));
+      const dx = (Number(a.longitude) - Number(center.lng)) * lonScale;
+      const dy = (Number(a.latitude) - Number(center.lat)) * latScale;
+      return Math.hypot(dx, dy);
+    } catch (_) { return 0; }
+  }
+
+  function pumpSurfaceQueue(map, state) {
+    while (state.surfaceWorkers < 2 && state.surfaceQueue.length) {
+      const tile = state.surfaceQueue.shift();
+      tile.surfaceQueued = false;
+      const level = tile.wantedSurfaceLevel;
+      if (!state.overlayEnabled || level < 0 ||
+          (tile.surfaceReady && tile.surfaceLevel === level) ||
+          tile.surfaceFailedLevel === level) continue;
+
+      tile.surfaceTaskActive = true;
+      state.surfaceWorkers++;
+      const task = ensureSurfaceMesh(state, map, tile, level);
+      tile.surfacePromise = task;
+      task.catch(error => {
+        tile.lastError = String(error && error.message || error);
+        tile.surfaceFailedLevel = level;
+        state.lastError = tile.tileId + ': ' + tile.lastError;
+        publish('surface-mesh-load-error', { tileId: tile.tileId, surfaceLod: level, error: tile.lastError });
+      }).finally(() => {
+        if (tile.surfacePromise === task) tile.surfacePromise = null;
+        tile.surfaceTaskActive = false;
+        state.surfaceWorkers = Math.max(0, state.surfaceWorkers - 1);
+        if (state.overlayEnabled && tile.wantedSurfaceLevel >= 0 &&
+            !(tile.surfaceReady && tile.surfaceLevel === tile.wantedSurfaceLevel) &&
+            tile.surfaceFailedLevel !== tile.wantedSurfaceLevel) {
+          queueSurfaceMesh(map, state, tile, tile.wantedSurfaceLevel);
+        }
+        reconcile(map, state);
+        pumpSurfaceQueue(map, state);
+      });
+    }
+  }
+
+  function queueSurfaceMesh(map, state, tile, level) {
+    tile.wantedSurfaceLevel = level;
+    if (level < 0 || !state.overlayEnabled ||
+        (tile.surfaceReady && tile.surfaceLevel === level) ||
+        tile.surfaceTaskActive || tile.surfaceQueued ||
+        tile.surfaceFailedLevel === level) return;
+    tile.surfaceQueued = true;
+    state.surfaceQueue.push(tile);
+    state.surfaceQueue.sort((a, b) => surfaceTileDistance(map, a) - surfaceTileDistance(map, b));
+    pumpSurfaceQueue(map, state);
   }
 
   function activeCoveragePolygons(state) {
     return [...state.tiles.values()]
-      .filter(tile => tile.activeLevel === 2 && tile.surfaceGroup?.visible)
+      .filter(tile => tile.surfaceReady && tile.surfaceLevel >= 0 && tile.surfaceGroup?.visible)
       .map(tile => {
         const ring = tile.manifest?.boundsWgs84?.polygon;
         if (!Array.isArray(ring) || ring.length < 4) return null;
@@ -431,7 +753,7 @@
     const intersecting = catalog.filter(record => intersects(map, record));
     if (!intersecting.length) return false;
     const loaded = intersecting.map(record => state.tiles.get(String(record.tileId)));
-    if (loaded.some(t => !t || t.activeLevel !== 2 || !t.surfaceGroup?.visible)) return false;
+    if (loaded.some(t => !t || !t.surfaceReady || t.surfaceLevel < 0 || !t.surfaceGroup?.visible)) return false;
     try {
       const bounds = map.getBounds();
       const extent = intersecting.reduce((a, record) => {
@@ -489,48 +811,70 @@
     const zoom = Number(map.getZoom());
     for (const tile of state.tiles.values()) {
       const level = state.overlayEnabled ? wantedLod(map, tile.manifest) : -1;
+      const surfaceLevel = state.overlayEnabled ? wantedSurfaceLod(map, tile.manifest) : -1;
       tile.wantedLevel = level;
-      if (level < 0) {
+      tile.wantedSurfaceLevel = surfaceLevel;
+
+      if (surfaceLevel < 0 && level < 0) {
         for (const mesh of tile.meshes.values()) mesh.visible = false;
         if (tile.surfaceGroup) tile.surfaceGroup.visible = false;
+        if (tile.roofGroup) tile.roofGroup.visible = false;
+        if (tile.pendingRoofGroup) tile.pendingRoofGroup.visible = false;
+        if (tile.wallMesh) tile.wallMesh.visible = false;
         tile.activeLevel = -1;
         continue;
       }
-      try {
-        await ensureLod(map, state, tile, level);
-        if (level === 2) await ensureSurfaceMesh(state, tile);
-        // Camera can move during a download. Apply the latest choice, not the stale one.
-        const latest = wantedLod(map, tile.manifest);
-        if (latest !== level) {
-          state.reconcilePending = true;
-          continue;
+
+      // Show an already-cached surface immediately; leave the point LOD visible only as a
+      // fallback until all chunks for the currently displayed photo LOD have finished.
+      if (tile.surfaceGroup) {
+        tile.surfaceGroup.visible = !!state.overlayEnabled;
+        if (tile.roofGroup) tile.roofGroup.visible = !!(state.overlayEnabled && tile.surfaceReady && surfaceLevel >= 0 && tile.surfaceLevel === surfaceLevel);
+        if (tile.pendingRoofGroup) tile.pendingRoofGroup.visible = !!(state.overlayEnabled && !tile.surfaceReady);
+        if (tile.wallMesh) tile.wallMesh.visible = !!state.overlayEnabled;
+      }
+
+      if (level >= 0) {
+        const fallbackLevel = surfaceLevel >= 0 ? 0 : level;
+        const visibleMesh = tile.meshes.get(level) ||
+          (fallbackLevel < level ? tile.meshes.get(fallbackLevel) : null) ||
+          [...tile.meshes.entries()].filter(([tier]) => tier < level).sort((a,b)=>b[0]-a[0])[0]?.[1] || null;
+        for (const [tier, mesh] of tile.meshes) mesh.visible = !!(state.overlayEnabled && !tile.surfaceReady && mesh === visibleMesh);
+        if (!visibleMesh && !tile.loads.has(fallbackLevel) && !tile.loads.has(level)) {
+          ensureLod(map, state, tile, fallbackLevel).then(() => reconcile(map, state)).catch(error => {
+            tile.lastError = String(error && error.message || error);
+            state.lastError = tile.tileId + ': ' + tile.lastError;
+            publish('point-lod-load-error', { tileId: tile.tileId, lod: fallbackLevel, error: tile.lastError });
+          });
         }
-        for (const [tier, mesh] of tile.meshes) mesh.visible = tier === level;
-        if (tile.surfaceGroup) {
-          tile.surfaceGroup.visible = level === 2;
-          if (tile.roofGroup) tile.roofGroup.visible = level === 2;
-          if (tile.wallMesh) tile.wallMesh.visible = level === 2;
-        }
-        tile.activeLevel = level;
-        tile.lastError = null;
-      } catch (error) {
-        tile.lastError = String(error && error.message || error);
-        state.lastError = tile.tileId + ': ' + tile.lastError;
-        const fallback = tile.meshes.has(level) ? level : (level > 0 && tile.meshes.has(level - 1) ? level - 1 : -1);
-        for (const [tier, mesh] of tile.meshes) mesh.visible = tier === fallback;
-        if (tile.surfaceGroup) tile.surfaceGroup.visible = false;
-        if (tile.roofGroup) tile.roofGroup.visible = false;
-        if (tile.wallMesh) tile.wallMesh.visible = false;
-        tile.activeLevel = fallback;
+        tile.activeLevel = visibleMesh && visibleMesh.visible ? (tile.meshes.has(level) ? level : fallbackLevel) : -1;
+      } else {
+        for (const mesh of tile.meshes.values()) mesh.visible = false;
+        tile.activeLevel = -1;
+      }
+
+      if (surfaceLevel >= 0 && !(tile.surfaceReady && tile.surfaceLevel === surfaceLevel)) {
+        queueSurfaceMesh(map, state, tile, surfaceLevel);
+      }
+      if (surfaceLevel >= 0 && tile.surfaceReady && tile.surfaceLevel === surfaceLevel) {
+        if (tile.roofGroup) tile.roofGroup.visible = !!state.overlayEnabled;
+        if (tile.wallMesh) tile.wallMesh.visible = !!state.overlayEnabled;
+        // A ready photo mesh replaces sampled points to prevent speckles/double geometry.
+        for (const mesh of tile.meshes.values()) mesh.visible = false;
+      } else if (tile.surfaceReady && tile.surfaceLevel >= 0 && surfaceLevel >= 0) {
+        // Keep the existing photo LOD visible while a sharper/coarser replacement is built.
+        if (tile.roofGroup) tile.roofGroup.visible = !!state.overlayEnabled;
       }
     }
+
     suppressLegacySurfaces(map, state, state.overlayEnabled, state.overlayEnabled && fullyCoveredByActiveTiles(map, state));
     map.triggerRepaint();
     updateStatus(map, state, 'rendering-source-lidar-neighborhood');
-    if (zoom >= 17.2 && [...state.tiles.values()].some(t=>t.activeLevel===2 && t.surfaceGroup?.visible)) {
+    if (zoom >= 12 && [...state.tiles.values()].some(t=>t.surfaceGroup?.visible)) {
       publish('rendering-source-lidar-neighborhood', {
         ...window.__BP_NYC_LIDAR_V7000__,
-        fullViewportSurfaceCoverage: fullyCoveredByActiveTiles(map, state)
+        fullViewportSurfaceCoverage: fullyCoveredByActiveTiles(map, state),
+        surfaceLodNames: SURFACE_TIERS.map(t=>t.name)
       });
     }
   }
@@ -646,8 +990,10 @@
       assetBase:String(record.assetBase || '/assets/nyc-lidar/'),
       offset:offsetFor(manifest.anchor, state.baseAnchor),
       meshes:new Map(), loads:new Map(), surfaceGroup:null, surfacePromise:null,
-      surfaceTexture:null, surfaceMaterial:null, roofGroup:null, wallMesh:null,
-      activeLevel:-1, wantedLevel:-1, lastError:null
+      surfaceTexture:null, surfaceTextureSize:0, surfaceTexturePromise:null,
+      surfaceMaterial:null, roofGroup:null, pendingRoofGroup:null, wallMesh:null, wallPromise:null,
+      surfaceReady:false, surfaceLevel:-1, wantedSurfaceLevel:-1,
+      surfaceQueued:false, surfaceTaskActive:false, surfaceFailedLevel:-1, lastError:null
     };
     state.tiles.set(tile.tileId, tile);
     return tile;
@@ -723,6 +1069,7 @@
       scene:null, camera:null, renderer:null, gl:null,
       installing:false, layerAdded:false, overlayEnabled:false, savedFilters:new Map(), maskActive:false,
       coverageFilterActive:false, coverageFilteredLayerIds:[],
+      surfaceQueue:[], surfaceWorkers:0,
       filterErrors:[], lastError:null, reconciling:false, reconcilePending:false,
       eventsBound:false, autoFocused:false
     };
