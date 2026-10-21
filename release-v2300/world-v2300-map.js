@@ -1117,11 +1117,15 @@ export function initWorld(options={}){
    if(!layerState.buildings)return;
    const mode=window.__BP_BUILDING_SHELL_MODE__||{},needsClose=z>=FACADE_DETAIL_MIN&&mode.closeTexturedShell!==true;
    if(lodWatchStable<2||(!moving&&!mode.fineDetailDeferred&&!needsClose))return;
+   if(worldClientPressureBlocked()){
+    window.__BP_BUILDING_SHELL_SYNC_V6043__={deferred:true,reason:'stationary-lod-pressure',zoom:z,until:Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0),updatedAt:Date.now()};
+    return;
+   }
    moving=false;
    buildingShellQuietUntil=0;
-   syncBuildingShells();
-   if(z>=DETAIL_MIN&&exactCount===0)scheduleExact(0);
-   window.__BP_STATIONARY_LOD_WATCHDOG__={forced:true,stableTicks:lodWatchStable,zoom:z,pitch:map.getPitch(),closeTextured:!!window.__BP_BUILDING_SHELL_MODE__?.closeTexturedShell,roofMode:window.__BP_BUILDING_SHELL_MODE__?.roofMode||null,updatedAt:Date.now()}
+   syncBuildingShellsWhenSafe('stationary-lod-watchdog');
+   if(z>=DETAIL_MIN&&exactCount===0)scheduleExact(MOBILE?900:0);
+   window.__BP_STATIONARY_LOD_WATCHDOG__={forced:true,stableTicks:lodWatchStable,zoom:z,pitch:map.getPitch(),pressureAware:true,closeTextured:!!window.__BP_BUILDING_SHELL_MODE__?.closeTexturedShell,roofMode:window.__BP_BUILDING_SHELL_MODE__?.roofMode||null,updatedAt:Date.now()}
   },500)
  }
  function startWaterMotion(){
@@ -1147,6 +1151,20 @@ export function initWorld(options={}){
   return roofVisible||floorVisible
  }
  function worldClientPressureBlocked(){return worldMapSurfaceInactive()||Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0)>performance.now()}
+ function syncBuildingShellsWhenSafe(reason='source-update'){
+  if(worldMapSurfaceInactive()||moving||map.isMoving?.())return;
+  if(worldClientPressureBlocked()){
+   window.__BP_BUILDING_SHELL_SYNC_V6043__={deferred:true,reason,zoom:map.getZoom(),until:Number(window.__BP_INTERACTION_PRIORITY_UNTIL__||0),updatedAt:Date.now()};
+   clearTimeout(map.__bpBuildingShellPressureSyncTimer);
+   map.__bpBuildingShellPressureSyncTimer=setTimeout(()=>syncBuildingShellsWhenSafe(reason),MOBILE?900:280);
+   return;
+  }
+  const started=performance.now();
+  try{syncBuildingShells()}catch(e){console.warn('Building shell sync',e)}
+  const durationMs=Math.round((performance.now()-started)*10)/10;
+  window.__BP_BUILDING_SHELL_SYNC_V6043__={deferred:false,reason,zoom:map.getZoom(),durationMs,updatedAt:Date.now()};
+  if(durationMs>80)console.info('BridgePoint shell sync yielded to pressure guard',durationMs+'ms',reason);
+ }
  function armFineDetailSettle(delay=MOBILE?1650:180){
   clearTimeout(map.__bpBuildingFineSettle);
   map.__bpBuildingFineSettle=setTimeout(()=>{
@@ -1410,9 +1428,9 @@ export function initWorld(options={}){
    bpGlobalLodSyncTimer=setTimeout(()=>{if(moving||map.isMoving?.())return;refreshGlobalLodPaint();window.__BP_SOURCE_BURST_GUARD_V5592__={version:5592,heavyRebuildsOnSourceData:false,coalescedPaintOnly:true,updatedAt:Date.now()}},MOBILE?900:320);
    return
   }
-  if(e?.sourceId==='bpBuildings'){clearTimeout(bpCitySyncTimer);bpCitySyncTimer=setTimeout(()=>{if(!moving&&!map.isMoving?.())syncBuildingShells()},MOBILE?420:140);return}
+  if(e?.sourceId==='bpBuildings'){clearTimeout(bpCitySyncTimer);bpCitySyncTimer=setTimeout(()=>syncBuildingShellsWhenSafe('bpBuildings-sourcedata'),MOBILE?520:160);return}
   if(e?.sourceId!=='bpCityStructures'&&e?.sourceId!=='bpCityRoofs')return;
-  clearTimeout(bpCitySyncTimer);bpCitySyncTimer=setTimeout(()=>{if(!moving&&!map.isMoving?.())syncBuildingShells()},MOBILE?500:180)
+  clearTimeout(bpCitySyncTimer);bpCitySyncTimer=setTimeout(()=>syncBuildingShellsWhenSafe(e?.sourceId==='bpCityRoofs'?'bpCityRoofs-sourcedata':'bpCityStructures-sourcedata'),MOBILE?600:200)
  });
  const canvas=map.getCanvas();
  const clearTouchState=()=>{activeTouchPointers.clear();touchPointer=null;touchNative=null};
