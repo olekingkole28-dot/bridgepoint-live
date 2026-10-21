@@ -73,7 +73,10 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rebuild-v5000/assets/nyc-lidar/tiles rebuild-v5000/assets/nyc-lidar/tiles-index.json
+          git add rebuild-v5000/assets/nyc-lidar/manifest.json \\
+                  rebuild-v5000/assets/nyc-lidar/nyc-midtown-987210-* \\
+                  rebuild-v5000/assets/nyc-lidar/tiles \\
+                  rebuild-v5000/assets/nyc-lidar/tiles-index.json
           if git diff --cached --quiet; then
             echo "No generated asset changes; deployment dispatch still follows."
           else
