@@ -365,7 +365,11 @@ jobs:
           test -s site/assets/eiffel-tower-koterstudios-v5983.glb
           grep -Fq "const EIFFEL_SCAN_URL = '/assets/eiffel-tower-koterstudios-v5983.glb'" site/bridgepoint-eiffel-tower-v5983.js
           grep -Fq 'koterstudios / koters' site/bridgepoint-eiffel-tower-v5983.js
-          grep -Fq 'bridgepoint-eiffel-tower-v5983.js?v=6001-style-persistence' site/index.html
+          grep -Fq 'bridgepoint-eiffel-tower-v5983.js?v=6020-eiffel-anchor-duplicate-filter' site/index.html
+          grep -Fq 'bridgepoint-eiffel-tower-v5983.js?v=6020-eiffel-anchor-duplicate-filter' site/app/index.html
+          grep -Fq 'const EIFFEL = [2.2945, 48.85826]' site/bridgepoint-eiffel-tower-v5983.js
+          grep -Fq 'const OSM_EIFFEL_WAY_ID = 5013364;' site/bridgepoint-eiffel-tower-v5983.js
+          grep -Fq 'function suppressGenericEiffelTowerExtrusions(map)' site/bridgepoint-eiffel-tower-v5983.js
           grep -Fq 'const STATUE_FIGURE_HEIGHT_M = 46.05' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'const STATUE_PEDESTAL_TOP_M = 46.94' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'sourceRoot.scale.setScalar(STATUE_FIGURE_HEIGHT_M / sourceHeight)' site/bridgepoint-landmarks-v5940.js
@@ -1762,17 +1766,30 @@ jobs:
               await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
                 if(!m)throw new Error('EIFFEL_SMOKE_MAP_UNAVAILABLE');
-                m.jumpTo({center:[2.2945,48.8584],zoom:15.2,pitch:58,bearing:0});
+                m.jumpTo({center:[2.2945,48.85826],zoom:15.2,pitch:58,bearing:0});
               });
               await p.waitForFunction(()=>{
                 const s=window.__BP_EIFFEL_TOWER_V5983__;
                 return s?.version===5983&&s?.rendered===true&&s?.loaded===true&&s?.finalHeightM===330;
               },{timeout:90000});
-              const eiffel=await p.evaluate(()=>({state:window.__BP_EIFFEL_TOWER_V5983__||null,
-                layer:!!window.__BP_V5000_WORLD?.map?.getLayer('bp-eiffel-tower-source-mesh-v5983'),
-                assetRequested:performance.getEntriesByType('resource').some(r=>r.name.includes('eiffel-tower-koterstudios-v5983.glb'))}));
+              const eiffel=await p.evaluate(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                const suppression=m?.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6020__||null;
+                const filterIds=['gta-context-buildings','gta-context-roofs','gta-context-floor-lines','gta-bp-buildings','gta-bp-roofs'];
+                return{state:window.__BP_EIFFEL_TOWER_V5983__||null,
+                  layer:!!m?.getLayer('bp-eiffel-tower-source-mesh-v5983'),
+                  assetRequested:performance.getEntriesByType('resource').some(r=>r.name.includes('eiffel-tower-koterstudios-v5983.glb')),
+                  suppression,
+                  coreFilters:filterIds.map(id=>({id,filtered:JSON.stringify(m?.getFilter(id)||null).includes('5013364')&&JSON.stringify(m?.getFilter(id)||null).includes('eiffel tower')}))};
+              });
               if(!eiffel.layer||!eiffel.assetRequested||eiffel.state?.rendered!==true)throw new Error('EIFFEL_TOWER_MATERIALIZATION_FAILED '+JSON.stringify(eiffel));
-              console.log('BRIDGEPOINT_EIFFEL_TOWER_MATERIALIZATION_PASS',JSON.stringify(eiffel));
+              if(eiffel.state?.coordinates?.[1]!==48.85826||eiffel.state?.placementFixVersion!==6020)
+                throw new Error('EIFFEL_TOWER_ANCHOR_NOT_UPDATED '+JSON.stringify(eiffel.state));
+              if(!eiffel.suppression?.active||!['gta-context-buildings','gta-context-roofs'].every(id=>eiffel.suppression.filteredLayers.includes(id)))
+                throw new Error('EIFFEL_TOWER_DUPLICATE_BLOCK_NOT_SUPPRESSED '+JSON.stringify(eiffel.suppression));
+              if(eiffel.coreFilters.some(x=>!x.filtered))
+                throw new Error('EIFFEL_TOWER_GENERIC_BUILDING_FILTER_MISSING '+JSON.stringify(eiffel.coreFilters));
+              console.log('BRIDGEPOINT_EIFFEL_TOWER_ANCHOR_AND_DUPLICATE_FILTER_PASS',JSON.stringify(eiffel));
 
               await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map;

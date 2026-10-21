@@ -210,7 +210,7 @@
     try {
       const duplicateSuppression = suppressGenericEiffelTowerExtrusions(map);
       setLabel(map);
-      ensureChip(map);
+      ensureChip(map, state);
       if (!state.listeners) {
         state.listeners = true;
         map.on('moveend', () => update(map, state));
