@@ -773,12 +773,12 @@ jobs:
           grep -Fq "authoritative:bpReady?'BRIDGEPOINT_PUBLIC_BUILDINGS_V5019':(cityReady?'BRIDGEPOINT_CITY_STRUCTURES_V5371':'GLOBAL_CONTEXT_FALLBACK')" site/world-v2300-map.js
           grep -Fq 'exactHeightTransport:true' site/world-v2300-map.js
           grep -Fq 'realRoofGeometry:true' site/world-v2300-map.js
-          grep -Fq 'maxPitch:85' site/world-v2300-map.js
+          grep -Fq 'maxPitch:110' site/world-v2300-map.js
           grep -Fq "mode:'FREE_FLY_SINGLE_VIEW'" site/world-v2300-map.js
           grep -Fq 'buildingClickOverlook:true' site/world-v2300-map.js
           grep -Fq "displaySource:bpReady?'BRIDGEPOINT_PUBLIC_BUILDINGS_V5019':(cityReady?'BRIDGEPOINT_CITY_STRUCTURES_V5371':'OPENFREEMAP_GLOBAL_BUILDING')" site/world-v2300-map.js
           grep -Fq 'bridgePointHandoff:false' site/app.js
-          grep -Fq 'maxPitch:85' site/world-v2300-map.js
+          grep -Fq 'maxPitch:110' site/world-v2300-map.js
           grep -Fq 'autoViewSwitching:false' site/world-v2300-map.js
           grep -Fq 'streetWalkMode:false' site/world-v2300-map.js
           ! grep -Fq 'installWalkUI();' site/world-v2300-map.js
