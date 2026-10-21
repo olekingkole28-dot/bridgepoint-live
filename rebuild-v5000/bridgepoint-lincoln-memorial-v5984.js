@@ -25,12 +25,6 @@
   const css = document.createElement('style');
   css.id = 'bp-lincoln-memorial-v5984-style';
   css.textContent = [
-    '.bp-lincoln-scan-chip-v5984{position:absolute;z-index:1103;left:50%;bottom:max(18px,calc(env(safe-area-inset-bottom) + 18px));transform:translateX(-50%);display:flex;max-width:calc(100% - 24px);padding:9px 12px;border:1px solid rgba(255,220,150,.55);border-radius:14px;background:rgba(8,18,27,.96);box-shadow:0 8px 24px rgba(0,0,0,.4);color:#fff4dc;font:700 11px/1.35 system-ui,sans-serif;text-align:left;gap:10px;align-items:center}',
-    '.bp-lincoln-scan-chip-v5984[data-show="true"]{display:flex}',
-    '.bp-lincoln-scan-chip-v5984 small{display:block;color:#bed1dc;font-size:9px;font-weight:500;margin-top:2px}',
-    '.bp-lincoln-scan-chip-v5984 a{display:inline-block;flex:0 0 auto;padding:9px 11px;border-radius:9px;background:#f3ca83;color:#20180e;text-decoration:none;font-weight:800;white-space:nowrap}',
-    '.bp-lincoln-scan-chip-v5984 button{display:inline-block;flex:0 0 auto;padding:9px 11px;border:1px solid rgba(255,230,180,.35);border-radius:9px;background:rgba(35,65,82,.95);color:#fff1dc;font:800 10px/1.2 system-ui,sans-serif;white-space:nowrap;cursor:pointer}',
-    '@media(max-width:460px){.bp-lincoln-scan-chip-v5984{width:calc(100% - 20px);max-width:none;left:10px;right:10px;transform:none;justify-content:space-between;gap:7px;padding:8px}.bp-lincoln-scan-chip-v5984 span{min-width:0;flex:1 1 auto}.bp-lincoln-scan-chip-v5984 small{max-width:170px}.bp-lincoln-scan-chip-v5984 button,.bp-lincoln-scan-chip-v5984 a{white-space:normal;max-width:105px;text-align:center;padding:8px 7px;font-size:9px}}',
     '.bp-lincoln-popup-v5984{font:12px/1.45 system-ui,sans-serif;color:#1a222a;min-width:210px;max-width:270px}',
     '.bp-lincoln-popup-v5984 strong{display:block;font-size:14px;margin-bottom:5px}',
     '.bp-lincoln-popup-v5984 p{margin:5px 0;color:#4a5660}',
@@ -112,35 +106,11 @@
   }
 
   function ensureChip(map, state) {
+    // The standalone bottom LiDAR banner/button has been retired. Keep the
+    // landmark marker, source metadata and close-range renderer independent.
     const container = map.getContainer && map.getContainer();
-    if (!container) return;
-    let chip = container.querySelector('.bp-lincoln-scan-chip-v5984');
-    if (!chip || !chip.querySelector('.bp-lincoln-focus-v5984')) {
-      if (chip) chip.remove();
-      chip = document.createElement('div');
-      chip.className = 'bp-lincoln-scan-chip-v5984';
-      chip.innerHTML =
-        '<span><b>LINCOLN MEMORIAL · ORIGINAL LiDAR</b><small>CyArk / DJS Associates · 665.7M source points · CC BY-NC-SA 4.0 · rendered on this globe</small></span>' +
-        '<button type="button" class="bp-lincoln-focus-v5984">FOCUS SCAN</button>';
-      container.appendChild(chip);
-    }
-    const focusButton = chip.querySelector('.bp-lincoln-focus-v5984');
-    if (focusButton && focusButton.dataset.bound !== 'true') {
-      focusButton.dataset.bound = 'true';
-      focusButton.addEventListener('click', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        try {
-          map.stop();
-          map.flyTo({ center: LOCATION, zoom: 18.0, pitch: 55, bearing: 0, duration: 1800, essential: true });
-          publish('flying-to-landmark', { target: LOCATION.slice(), zoom: 18.0 });
-        } catch (error) {
-          publish('focus-error', { detail: String(error && error.message || error) });
-        }
-      });
-    }
-
-    state.chip = chip;
+    if (container) container.querySelectorAll('.bp-lincoln-scan-chip-v5984').forEach(chip => chip.remove());
+    state.chip = null;
   }
 
   function popup(map) {
