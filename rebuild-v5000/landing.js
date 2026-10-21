@@ -262,7 +262,7 @@ async function initMap(){
    .then(()=>{try{window.dispatchEvent(new CustomEvent('bp:world-map-ready-v5940',{detail:{map:world.map,source:'landing-module-ready'}}))}catch(_){};if(window.__BP_LANDMARKS_V5940__)window.__BP_LANDMARKS_V5940__.attachedMaps=Math.max(1,Number(window.__BP_LANDMARKS_V5940__.attachedMaps||0))})
    .catch(e=>console.warn('BridgePoint homepage landmarks loader unavailable',e));
    // BridgePoint exposes the same 30-day source-event timeline on the website globe.
-   void import('./world-v2300-time-slider.js?v=5981-bottom-dock-fix')
+   void import('./world-v2300-time-slider.js?v=6015-nasa-toggle-opt-in-layers')
     .then(m=>{window.__BP_WORLD_TIME_SLIDER_V5908__=window.__BP_WORLD_TIME_SLIDER_V5908__?.map===map?window.__BP_WORLD_TIME_SLIDER_V5908__:m.initWorldTimeSlider(world,rpc)})
     .catch(e=>console.warn('BridgePoint 30-day world change scrub unavailable',e));
    // BridgePoint satellite filters, daylight materials and sky layers also run on the homepage globe.
@@ -275,13 +275,13 @@ async function initMap(){
   void import('./world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers')
    .then(m=>{window.__BP_INFRASTRUCTURE_VOLUME_V5962__=m.initInfrastructureVolume(world)})
    .catch(e=>console.warn('BridgePoint power grid and FCC tower volume unavailable',e));
-  void import('./world-v2300-sensor-layers.js?v=5981-nasa-nightlights-state')
+  void import('./world-v2300-sensor-layers.js?v=6015-nasa-light-toggle')
    .then(m=>{window.__BP_SENSOR_LAYERS_V5945__=m.initSensorLayers(world)})
    .catch(e=>console.warn('BridgePoint NASA night lights, GEBCO depth and mapped streetlights unavailable',e));
    void import('./world-v2300-realism.js?v=5926-world-sun-materials')
     .then(m=>{window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)})
     .catch(e=>console.warn('BridgePoint real-world rendering controls unavailable',e));
-   void import('./world-v2300-clouds.js?v=5926-sky-clouds')
+   void import('./world-v2300-clouds.js?v=6015-opt-in-clouds')
     .then(m=>{window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
     .catch(e=>console.warn('BridgePoint sky clouds unavailable',e));
   window.__BP_LANDING_MAP_BOOT__={stage:'world-ready',maplibre:true,module:true,world:true,at:Date.now()};

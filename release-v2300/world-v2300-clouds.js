@@ -88,7 +88,7 @@ export function initSkyClouds(target){
   const map=target?.map||target;
   const container=map?.getContainer?.();
   if(!map||!container)return null;
-  if(container.querySelector('.'+ROOT_CLASS))return window.__BP_SKY_CLOUDS_V5908__||null;
+  if(container.querySelector('.'+ROOT_CLASS)){const existing=window.__BP_SKY_CLOUDS_V5908__;if(existing?.map===map)return existing;container.querySelectorAll('.'+ROOT_CLASS).forEach(node=>node.remove())}
   addStyle();
   if(getComputedStyle(container).position==='static')container.style.position='relative';
   const overlay=document.createElement('div');
@@ -96,7 +96,7 @@ export function initSkyClouds(target){
   overlay.setAttribute('aria-hidden','true');
   overlay.innerHTML='<div class="bp-sky-cloud-bank bp-sky-cloud-high"></div><div class="bp-sky-cloud-bank bp-sky-cloud-mid"></div><div class="bp-sky-cloud-bank bp-sky-cloud-low"></div>';
   container.appendChild(overlay);
-  let enabled=true,lastActive=false,disposed=false;
+  let enabled=false,lastActive=false,disposed=false;
   const sync=()=>{
     if(disposed)return;
     const zoom=Number(map.getZoom?.()||0),pitch=Number(map.getPitch?.()||0);
@@ -113,7 +113,7 @@ export function initSkyClouds(target){
   document.addEventListener('visibilitychange',onVisibility);
   sync();
   const api={
-    version:5908,enabled:true,overlay,
+    version:5908,map,overlay,get enabled(){return enabled},
     setEnabled(value){enabled=!!value;sync();return enabled},
     toggle(){return this.setEnabled(!enabled)},
     get state(){return window.__BP_SKY_CLOUDS_STATE_V5908__||{version:5908,enabled,visible:false}},
@@ -125,6 +125,6 @@ export function initSkyClouds(target){
     }
   };
   window.__BP_SKY_CLOUDS_V5908__=api;
-  window.addEventListener('bp:sky-cloud-toggle',()=>api.toggle());
+  window.addEventListener('bp:sky-cloud-toggle',event=>{if(event?.detail?.map&&event.detail.map!==map)return;api.toggle()});
   return api;
 }
