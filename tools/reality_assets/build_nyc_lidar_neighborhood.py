@@ -264,26 +264,44 @@ def build_surface_and_walls(tile, source, image_bbox, anchor, out_dir, image_pat
     roof_mask = keep[labels]
     print("SURFACE_GRID", tile["id"], nx, ny, "occupied", top_populated, "roof_cells", int(roof_mask.sum()), "components", int(keep.sum()-1), flush=True)
 
-    # A separate, cell-local mesh preserves measured roof edges rather than stretching triangles down facades.
-    def corner_height(j, i, h0):
-        vals = [float(h0)]
-        for jj, ii in ((j-1,i-1),(j-1,i),(j,i-1),(j,i),(j-1,i+1),(j+1,i-1),(j+1,i+1),(j+1,i)):
-            if 0 <= jj < ny and 0 <= ii < nx:
-                h = float(top[jj, ii])
-                if abs((h - h0) * FT_TO_M) <= 3.5:
-                    vals.append(h)
+    # Keep the photo mesh to roof-supported LiDAR cells plus the measured-ground DTM.
+    # Unclassified tree crowns and isolated high returns must not become needle-like roof
+    # triangles when the camera tilts. Other scene layers can render vegetation separately.
+    surface_height = np.where(roof_mask, top, ground).astype(np.float32, copy=False)
+
+    # Build distinct corners for each cell. Smooth only within the same roof/ground class and
+    # only when neighboring measured heights differ by <= 1.5 m; building edges stay sharp.
+    corner_neighbors = {
+        "sw": ((0,0), (0,-1), (-1,0), (-1,-1)),
+        "se": ((0,0), (0,1), (-1,0), (-1,1)),
+        "nw": ((0,0), (0,-1), (1,0), (1,-1)),
+        "ne": ((0,0), (0,1), (1,0), (1,1)),
+    }
+    def corner_height(j, i, corner):
+        h0 = float(surface_height[j, i])
+        is_roof = bool(roof_mask[j, i])
+        vals = [h0]
+        for dj, di in corner_neighbors[corner][1:]:
+            jj, ii = j + dj, i + di
+            if not (0 <= jj < ny and 0 <= ii < nx):
+                continue
+            if bool(roof_mask[jj, ii]) != is_roof:
+                continue
+            h = float(surface_height[jj, ii])
+            if abs((h - h0) * FT_TO_M) <= 1.5:
+                vals.append(h)
         return float(np.mean(vals))
+
     corner_sw = np.empty((ny,nx), dtype=np.float32)
     corner_se = np.empty((ny,nx), dtype=np.float32)
     corner_nw = np.empty((ny,nx), dtype=np.float32)
     corner_ne = np.empty((ny,nx), dtype=np.float32)
     for j in range(ny):
         for i in range(nx):
-            h0 = float(top[j,i])
-            corner_sw[j,i] = corner_height(j,i,h0)
-            corner_se[j,i] = corner_height(j,i,h0)
-            corner_nw[j,i] = corner_height(j,i,h0)
-            corner_ne[j,i] = corner_height(j,i,h0)
+            corner_sw[j,i] = corner_height(j,i,"sw")
+            corner_se[j,i] = corner_height(j,i,"se")
+            corner_nw[j,i] = corner_height(j,i,"nw")
+            corner_ne[j,i] = corner_height(j,i,"ne")
 
     # Vectorized cell-corner positions and exact orthophoto UVs.
     x0 = xmin + np.arange(nx, dtype=np.float64) * cell_ft
@@ -357,22 +375,22 @@ def build_surface_and_walls(tile, source, image_bbox, anchor, out_dir, image_pat
             west, east = xmin+i*cell_ft, min(xmin+(i+1)*cell_ft, xmax)
             ta,tb = float(corner_nw[j,i]),float(corner_ne[j,i])
             lowj = min(j+1,ny-1)
-            base_h = float(ground[lowj,i]) if j+1>=ny else max(float(ground[lowj,i]),float(top[j+1,i]))
+            base_h = float(ground[lowj,i]) if j+1>=ny else max(float(ground[lowj,i]),float(surface_height[lowj,i]))
             if (j+1>=ny or not roof_mask[j+1,i]) and min(ta,tb)-base_h > 3.0/FT_TO_M:
                 push_wall([(west,ta,south),(east,tb,south),(east,base_h,south),(west,base_h,south)],"north")
             ta,tb = float(corner_sw[j,i]),float(corner_se[j,i])
             lowj = max(j-1,0)
-            base_h = float(ground[lowj,i]) if j==0 else max(float(ground[lowj,i]),float(top[j-1,i]))
+            base_h = float(ground[lowj,i]) if j==0 else max(float(ground[lowj,i]),float(surface_height[lowj,i]))
             if (j==0 or not roof_mask[j-1,i]) and min(ta,tb)-base_h > 3.0/FT_TO_M:
                 push_wall([(east,tb,north),(west,ta,north),(west,base_h,north),(east,base_h,north)],"south")
             ta,tb = float(corner_se[j,i]),float(corner_ne[j,i])
             lowi = min(i+1,nx-1)
-            base_h = float(ground[j,lowi]) if i+1>=nx else max(float(ground[j,lowi]),float(top[j,lowi]))
+            base_h = float(ground[j,lowi]) if i+1>=nx else max(float(ground[j,lowi]),float(surface_height[j,lowi]))
             if (i+1>=nx or not roof_mask[j,i+1]) and min(ta,tb)-base_h > 3.0/FT_TO_M:
                 push_wall([(east,ta,north),(east,tb,south),(east,base_h,south),(east,base_h,north)],"east")
             ta,tb = float(corner_sw[j,i]),float(corner_nw[j,i])
             lowi = max(i-1,0)
-            base_h = float(ground[j,lowi]) if i==0 else max(float(ground[j,lowi]),float(top[j,lowi]))
+            base_h = float(ground[j,lowi]) if i==0 else max(float(ground[j,lowi]),float(surface_height[j,lowi]))
             if (i==0 or not roof_mask[j,i-1]) and min(ta,tb)-base_h > 3.0/FT_TO_M:
                 push_wall([(west,tb,south),(west,ta,north),(west,base_h,north),(west,base_h,south)],"west")
     wall_pos_arr = np.asarray(wall_pos, dtype="<i2").reshape((-1,3))
@@ -403,7 +421,11 @@ def build_surface_and_walls(tile, source, image_bbox, anchor, out_dir, image_pat
         "wallRawBytes":len(wall_raw), "wallGzipBytes":len(wall_gz), "wallSha256":hashlib.sha256(wall_gz).hexdigest(),
         "wallBinaryLayout":"int16le xyz positions at 0.02m, uint8 RGB wall-shading colors, uint32le triangle indices",
         "wallMaterial":"neutral shaded vertical faces derived from measured LiDAR roof boundaries",
-        "wallMethod":"vertical quads between sustained elevated LiDAR regions and adjacent lower measured surfaces",
+        "wallMethod":"vertical quads between sustained elevated LiDAR roof-mask regions and the measured-ground DTM",
+        "surfaceClassPolicy":"real orthophoto draped only over source-derived elevated roof-mask cells and measured class-2 ground; non-roof unclassified returns do not become elevated photo-mesh vertices",
+        "cornerSmoothing":"corner-specific local means restricted to the same roof/ground class and neighboring heights within 1.5 metres; larger breaks stay sharp",
+        "triangulationMethod":"two triangles per measured 2m cell with independent cell-local vertices so roof-ground and roof-height breaks do not stretch across facades",
+        "obliqueImageryAvailable":False,
         "chunks":chunks, "chunkStrategy":"independent gzip row chunks with chunk-local indices"
     }
     return surface_meta
