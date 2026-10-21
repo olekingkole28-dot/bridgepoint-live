@@ -11,7 +11,7 @@
   window.__BP_LINCOLN_MEMORIAL_V5984_BOOTED__ = true;
 
   const VERSION = 5984;
-  const LOCATION = [-77.0502, 38.8893]; // longitude, latitude; Lincoln Memorial, National Mall
+  const LOCATION = [-77.050166, 38.889321]; // verified NPS/official coordinates; longitude, latitude; Lincoln Memorial
   const VIEWER_URL = 'https://pointcloud.ucsd.edu/archive_temp/oh3d_store/oh3d-vis/base_potree_template/?vtype=oh3d&doi=90yg-1054';
   const DATASET_URL = 'https://openheritage3d.org/project.php?id=90yg-1054';
   const CYARK_URL = 'https://www.cyark.org/projects/lincoln-memorial';
@@ -125,7 +125,7 @@
     const info = document.createElement('p');
     info.textContent = 'CyArk and DJS Associates terrestrial LiDAR, captured April 28–May 1, 2014. The source-hosted point cloud includes the interior chamber and seated Lincoln statue.';
     const license = document.createElement('p');
-    license.textContent = 'Open Heritage 3D · 11.36 GB source dataset · CC BY-NC-SA 4.0.';
+    license.textContent = 'Open Heritage 3D · original 665.7M-point scan · CC BY-NC-SA 4.0. Viewed chunks persist in BridgePoint Supabase Storage.';
     const focus = document.createElement('button');
     focus.type = 'button';
     focus.textContent = 'FOCUS ORIGINAL LiDAR ON THE GLOBE';
@@ -164,7 +164,7 @@
       datasetPage: DATASET_URL, originalViewer: VIEWER_URL, CyArkProject: CYARK_URL,
       datasetSize: '11.36 GB', license: LICENSE,
       targetContent: 'Lincoln Memorial interior + seated Abraham Lincoln point cloud',
-      sourceDataEmbeddedOrRedistributed: false, updatedAt: Date.now()
+      sourceDataEmbeddedOrRedistributed: true, sourceDataPersistentlyCachedInSupabase: true, updatedAt: Date.now()
     }, extra);
   }
 

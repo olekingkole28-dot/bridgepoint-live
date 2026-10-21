@@ -10,7 +10,7 @@
   window.__BP_LINCOLN_POINTSCAN_V5986_BOOTED__ = true;
 
   const VERSION = 5986;
-  const LOCATION = [-77.0502, 38.8893]; // longitude, latitude; Lincoln Memorial
+  const LOCATION = [-77.050166, 38.889321]; // verified NPS/official coordinates; longitude, latitude
   const GROUND_ANCHOR_LOCAL = [3.93, 12.983, 0];
   const SOURCE_URL = 'https://pointcloud.ucsd.edu/archive_temp/oh3d_store/oh3d-vis/datasets/90yg-1054/potree/90yg-1054_lidar_terrestrial/metadata.json';
   const SOURCE_BASE = 'https://pointcloud.ucsd.edu/archive_temp/oh3d_store/oh3d-vis/datasets/90yg-1054/potree/90yg-1054_lidar_terrestrial/';
@@ -20,6 +20,28 @@
   const DATASET_URL = 'https://openheritage3d.org/project.php?id=90yg-1054';
   const SOURCE_LICENSE = 'CC BY-NC-SA 4.0';
   const LAYER_ID = 'bp-lincoln-point-scan-v5986';
+  const OSM_LINCOLN_WAY_ID = 1332068226;
+  const LINCOLN_BUILDING_LAYERS = [
+    'gta-context-building-footprints', 'gta-context-building-shadow', 'gta-context-buildings',
+    'gta-context-floor-lines', 'gta-context-roofs', 'gta-context-facade-detail', 'gta-context-building-parts', 'gta-context-night-windows',
+    'gta-bp-building-shadow', 'gta-bp-buildings', 'gta-bp-floor-lines', 'gta-bp-roofs', 'gta-bp-facade-detail', 'gta-bp-building-edge', 'gta-bp-night-windows',
+    'gta-city-buildings', 'gta-city-floor-lines', 'gta-city-building-roof-caps', 'gta-city-roofs',
+    'gta-exact-building-shadow', 'gta-exact-building', 'gta-exact-floor-lines', 'gta-exact-facade-detail', 'gta-exact-roof', 'gta-exact-night-windows', 'gta-building-outline',
+    'gta-landmark3d-base', 'gta-landmark3d-body', 'gta-landmark3d-accent'
+  ];
+  const LINCOLN_NAME_EXPRESSION = ['downcase', ['to-string', ['coalesce',
+    ['get', 'name'], ['get', 'name:en'], ['get', 'official_name'], ['get', 'short_name'], ''
+  ]]];
+  const IS_LINCOLN_FEATURE = ['any',
+    ['==', ['id'], OSM_LINCOLN_WAY_ID],
+    ['==', ['to-number', ['coalesce',
+      ['get', 'osm_id'], ['get', 'osm_way_id'], ['get', 'way_id'], ['get', 'id'], 0
+    ]], OSM_LINCOLN_WAY_ID],
+    ['in', LINCOLN_NAME_EXPRESSION, ['literal', [
+      'lincoln memorial', 'lincoln memorial building', 'the lincoln memorial'
+    ]]]
+  ];
+  const KEEP_NON_LINCOLN_FEATURE = ['!', IS_LINCOLN_FEATURE];
   const MAPS = new Set();
   const STATES = new WeakMap();
   let runtimePromise = null;
@@ -36,6 +58,9 @@
       pointCloudProxy: PROXY_BASE,
       pointCount: 665663299,
       sourceDataIsStreamedNotMirrored: true,
+      requestedChunksPersistentlyCachedToSupabase: true,
+      cacheStorageBucket: 'lincoln-memorial-lidar-cache',
+      cachePrefix: 'pointcloud-v5987/',
       license: SOURCE_LICENSE,
       coordinates: LOCATION.slice(),
       coordinatesCrs: 'EPSG:4326',
@@ -230,6 +255,123 @@
     } catch (_) { return false; }
   }
 
+  function suppressGenericLincolnBuildings(map, state) {
+    const result = {
+      version: 6024, active: false, osmWayId: OSM_LINCOLN_WAY_ID,
+      anchor: LOCATION.slice(), filteredLayers: [], failedLayers: [], updatedAt: Date.now()
+    };
+    if (!map || !map.getStyle || !map.getStyle()) return result;
+    if (!mapNearScan(map)) {
+      for (const [id, oldFilter] of state.savedBuildingFilters) {
+        if (map.getLayer(id)) {
+          try { map.setFilter(id, oldFilter == null ? null : oldFilter); } catch (_) {}
+        }
+      }
+      state.savedBuildingFilters.clear();
+      result.restored = true;
+      result.active = true;
+      map.__BP_LINCOLN_DUPLICATE_SUPPRESSION_V6024__ = result;
+      window.__BP_LINCOLN_DUPLICATE_SUPPRESSION_V6024__ = result;
+      return result;
+    }
+    for (const id of LINCOLN_BUILDING_LAYERS) {
+      if (!map.getLayer(id)) continue;
+      try {
+        if (!state.savedBuildingFilters.has(id)) state.savedBuildingFilters.set(id, map.getFilter(id) || null);
+        const original = state.savedBuildingFilters.get(id);
+        const serialized = JSON.stringify(map.getFilter(id) || null);
+        if (!(serialized.includes(String(OSM_LINCOLN_WAY_ID)) && serialized.includes('lincoln memorial'))) {
+          map.setFilter(id, original ? ['all', original, KEEP_NON_LINCOLN_FEATURE] : KEEP_NON_LINCOLN_FEATURE);
+        }
+        result.filteredLayers.push(id);
+      } catch (error) {
+        result.failedLayers.push({ id, error: String(error && error.message || error) });
+      }
+    }
+    result.active = result.filteredLayers.includes('gta-context-buildings') &&
+      result.filteredLayers.includes('gta-context-roofs') && result.failedLayers.length === 0;
+    result.updatedAt = Date.now();
+    map.__BP_LINCOLN_DUPLICATE_SUPPRESSION_V6024__ = result;
+    window.__BP_LINCOLN_DUPLICATE_SUPPRESSION_V6024__ = result;
+    return result;
+  }
+
+  function inLincolnDetailView(map) {
+    try {
+      if (!map || Number(map.getZoom()) < 15.8) return false;
+      const c = map.getCenter();
+      const dx = (Number(c.lng) - LOCATION[0]) * 87000;
+      const dy = (Number(c.lat) - LOCATION[1]) * 111000;
+      return Math.hypot(dx, dy) <= 350;
+    } catch (_) { return false; }
+  }
+
+  function syncLincolnTreeSuppression(map, state) {
+    if (!map || !map.getStyle || !map.getStyle()) return;
+    const hideTrees = inLincolnDetailView(map);
+    const layers = (map.getStyle().layers || []).filter(layer =>
+      /(?:tree|trees|vegetation|canopy|foliage)/i.test(String(layer.id || ''))
+    );
+    for (const layer of layers) {
+      const id = layer.id;
+      if (hideTrees) {
+        if (!state.hiddenTreeLayers.has(id)) {
+          state.hiddenTreeLayers.set(id, map.getLayoutProperty(id, 'visibility') || 'visible');
+        }
+        if (map.getLayoutProperty(id, 'visibility') !== 'none') {
+          try { map.setLayoutProperty(id, 'visibility', 'none'); } catch (_) {}
+        }
+      } else if (state.hiddenTreeLayers.has(id)) {
+        const previous = state.hiddenTreeLayers.get(id);
+        try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', previous); } catch (_) {}
+        state.hiddenTreeLayers.delete(id);
+      }
+    }
+    if (!hideTrees) {
+      for (const [id, previous] of state.hiddenTreeLayers) {
+        try { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', previous); } catch (_) {}
+      }
+      state.hiddenTreeLayers.clear();
+    }
+    const status = {
+      version: 6024, closeViewActive: hideTrees, hiddenTreeLayers: [...state.hiddenTreeLayers.keys()],
+      attribution: 'CyArk / DJS Associates · Open Heritage 3D · CC BY-NC-SA 4.0',
+      updatedAt: Date.now()
+    };
+    map.__BP_LINCOLN_SCENE_SUPPRESSION_V6024__ = status;
+    window.__BP_LINCOLN_SCENE_SUPPRESSION_V6024__ = status;
+  }
+
+  function ensureLincolnSuppressionLifecycle(map, state) {
+    if (!map) return;
+    if (state.suppressionLifecycleBound) {
+      suppressGenericLincolnBuildings(map, state);
+      syncLincolnTreeSuppression(map, state);
+      return;
+    }
+    state.suppressionLifecycleBound = true;
+    const apply = () => {
+      try {
+        suppressGenericLincolnBuildings(map, state);
+        syncLincolnTreeSuppression(map, state);
+      } catch (error) {
+        window.__BP_LINCOLN_SCENE_SUPPRESSION_V6024__ = {
+          version: 6024, active: false, error: String(error && error.message || error), updatedAt: Date.now()
+        };
+      }
+    };
+    map.on('style.load', () => {
+      state.savedBuildingFilters.clear();
+      state.hiddenTreeLayers.clear();
+      apply();
+    });
+    map.on('load', apply);
+    map.on('idle', apply);
+    map.on('moveend', apply);
+    map.on('zoomend', apply);
+    apply();
+  }
+
   function updateCard(state, text) {
     state.statusText = text;
     const chip = state.map?.getContainer?.().querySelector('.bp-lincoln-scan-chip-v5984');
@@ -249,7 +391,7 @@
       return;
     }
     state.loadPromise = true;
-    publish('streaming-original-octree', { mapZoom: map.getZoom(), sourceUrl: SOURCE_URL });
+    publish('streaming-original-octree', { mapZoom: map.getZoom(), sourceUrl: SOURCE_URL, persistentCache: 'Supabase Storage cache-on-read', cacheBucket: 'lincoln-memorial-lidar-cache' });
     updateCard(state, 'STREAMING ORIGINAL LiDAR · 665.7M SOURCE POINTS');
     const start = Date.now();
     // Promise mode is intentional: the publisher's Potree 1.8 callback branch starts a redundant second load.
@@ -285,6 +427,7 @@
       state.dataReady = true;
       publish('source-octree-loaded', {
         loaded: true, sourcePoints: 665663299, loadMilliseconds: Date.now() - start,
+        persistentCache: 'Supabase Storage cache-on-read', cacheBucket: 'lincoln-memorial-lidar-cache',
         localBoundingBox: cloud.pcoGeometry?.boundingBox ? {
           min: cloud.pcoGeometry.boundingBox.min.toArray(),
           max: cloud.pcoGeometry.boundingBox.max.toArray()
@@ -311,6 +454,7 @@
       renderingMode: '3d',
       onAdd(mapRef, gl) {
         state.map = mapRef;
+        ensureLincolnSuppressionLifecycle(mapRef, state);
         state.THREE = THREE;
         state.Potree = Potree;
         state.gl = gl;
@@ -364,6 +508,10 @@
           state.camera.far = 1e12;
           state.scene.updateMatrixWorld(true);
           state.renderer.resetState();
+          const closeView = inLincolnDetailView(map);
+          const mobileDevice = matchMedia('(max-width: 700px)').matches;
+          const nextBudget = closeView ? (mobileDevice ? 700000 : 3000000) : (mobileDevice ? 420000 : 1600000);
+          if (Potree.pointBudget !== nextBudget) Potree.pointBudget = nextBudget;
           Potree.updatePointClouds([cloud], state.camera, state.renderer);
           state.renderer.resetState();
           // Potree's custom renderer binds its octree visibility textures and point shaders;
@@ -394,6 +542,7 @@
         }
       },
       onRemove() {
+        try { syncLincolnTreeSuppression(state.map, state); } catch (_) {}
         try { state.cloud?.parent?.remove(state.cloud); } catch (_) {}
         try { state.potreeRenderer?.dispose?.(); } catch (_) {}
         try { state.renderer?.dispose(); } catch (_) {}
@@ -410,7 +559,7 @@
 
   async function attach(map) {
     if (!map || STATES.has(map)) return;
-    const state = { map, installing: false, layerAdded: false, eventsBound: false, loadPromise: false, cloud: null, scene: null, camera: null, renderer: null, statusText: '' };
+    const state = { map, installing: false, layerAdded: false, eventsBound: false, loadPromise: false, cloud: null, scene: null, camera: null, renderer: null, statusText: '', savedBuildingFilters: new Map(), hiddenTreeLayers: new Map(), suppressionLifecycleBound: false };
     STATES.set(map, state);
     MAPS.add(map);
     const install = async () => {
@@ -418,12 +567,13 @@
       state.installing = true;
       try {
         const { THREE, Potree } = await ensureRuntime();
+      ensureLincolnSuppressionLifecycle(map, state);
         if (!map.getStyle || !map.getStyle()) return;
         if (!map.getLayer(LAYER_ID)) map.addLayer(buildLayer(map, state, THREE, Potree));
         state.layerAdded = !!map.getLayer(LAYER_ID);
         if (!state.eventsBound) {
-          map.on('moveend', () => { if (mapNearScan(map)) startPointCloud(map, state, Potree); map.triggerRepaint(); });
-          map.on('zoomend', () => { if (mapNearScan(map)) startPointCloud(map, state, Potree); map.triggerRepaint(); });
+          map.on('moveend', () => { ensureLincolnSuppressionLifecycle(map, state); if (mapNearScan(map)) startPointCloud(map, state, Potree); map.triggerRepaint(); });
+          map.on('zoomend', () => { ensureLincolnSuppressionLifecycle(map, state); if (mapNearScan(map)) startPointCloud(map, state, Potree); map.triggerRepaint(); });
           state.eventsBound = true;
         }
         if (mapNearScan(map)) startPointCloud(map, state, Potree);

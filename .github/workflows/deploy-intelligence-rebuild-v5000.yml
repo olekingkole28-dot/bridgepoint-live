@@ -352,14 +352,14 @@ jobs:
           test -s site/assets/bp-potree-lincoln-runtime/workers/laz-perf.wasm
           grep -Fq '665663299' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'Potree.updatePointClouds([cloud]' site/bridgepoint-lincoln-pointcloud-v5986.js
-          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6002-axis-order-fix' site/index.html
-          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6002-axis-order-fix' site/app/index.html
+          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6024-supabase-persistent-cache-and-suppression' site/index.html
+          grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6024-supabase-persistent-cache-and-suppression' site/app/index.html
           grep -Fq "const PROJ4_URL = POTREE_BASE + 'libs/proj4/proj4.js'" site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'if (!window.proj4) await loadScript(PROJ4_URL)' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'new Potree.Renderer(state.renderer)' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'state.potreeRenderer.render(state.scene, state.camera)' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq '10.26301/90yg-1054' site/bridgepoint-lincoln-memorial-v5984.js
-          grep -Fq 'sourceDataEmbeddedOrRedistributed: false' site/bridgepoint-lincoln-memorial-v5984.js
+          grep -Fq 'sourceDataEmbeddedOrRedistributed: true' site/bridgepoint-lincoln-memorial-v5984.js
           grep -Fq 'bridgepoint-lincoln-memorial-v5984.js?v=6013-no-standalone-button' site/index.html
           grep -Fq 'bridgepoint-lincoln-memorial-v5984.js?v=6013-no-standalone-button' site/app/index.html
           test -s site/assets/eiffel-tower-koterstudios-v5983.glb
@@ -1463,7 +1463,8 @@ jobs:
                 const s=window.__BP_LINCOLN_POINTSCAN_V5986__;
                 const m=window.__BP_LANDING_WORLD__?.map;
                 return s?.version===5986&&s?.rendered===true&&Number(s?.visibleNodes)>0&&
-                  Number(s?.visiblePoints)>0&&!!m?.getLayer('bp-lincoln-point-scan-v5986');
+                  Number(s?.visiblePoints)>0&&!!m?.getLayer('bp-lincoln-point-scan-v5986')&&
+                  (m?.__BP_LINCOLN_DUPLICATE_SUPPRESSION_V6024__?.active===true);
               },{timeout:120000});
               const lincolnPointscan=await p.evaluate(()=>{
                 const s=window.__BP_LINCOLN_POINTSCAN_V5986__;
