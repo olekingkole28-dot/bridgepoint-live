@@ -180,54 +180,70 @@
     if (state.surfaceMesh && state.wallMesh) return state.surfaceMesh;
     if (state.surfacePromise) return state.surfacePromise;
     const meta = state.manifest.surfaceMesh;
-    if (!meta || !meta.wallFile) throw new Error('NYC_LIDAR_VERTICAL_WALL_ASSET_MISSING');
+    const chunks = Array.isArray(meta?.chunks) && meta.chunks.length ? meta.chunks : (meta?.file ? [meta] : []);
+    if (!chunks.length || !meta?.wallFile) throw new Error('NYC_LIDAR_ROOF_CHUNKS_OR_WALL_ASSET_MISSING');
     state.surfacePromise = (async () => {
-      const [THREE, raw, wallRaw] = await Promise.all([
+      const [THREE, rawChunks, wallRaw] = await Promise.all([
         loadThree(),
-        decodeGzipAsset('/assets/nyc-lidar/' + meta.file),
+        Promise.all(chunks.map(c => decodeGzipAsset('/assets/nyc-lidar/' + c.file))),
         decodeGzipAsset('/assets/nyc-lidar/' + meta.wallFile)
       ]);
       const texture = await new Promise((resolve, reject) => {
         const loader = new THREE.TextureLoader();
         loader.load('/assets/nyc-lidar/' + meta.textureFile, resolve, undefined, reject);
       });
-      const vertices = Number(meta.vertexCount);
-      const indexCount = Number(meta.indexCount);
-      const expected = vertices * 10 + indexCount * 4;
-      if (!Number.isInteger(vertices) || !Number.isInteger(indexCount) || raw.byteLength !== expected) {
-        throw new Error('NYC_LIDAR_ROOF_BINARY_SIZE_MISMATCH expected=' + expected + ' actual=' + raw.byteLength);
-      }
-      const q = new Int16Array(raw, 0, vertices * 3);
-      const positions = new Float32Array(vertices * 3);
       const scale = Number(meta.positionScaleMeters || 0.02);
-      for (let i = 0; i < positions.length; i++) positions[i] = q[i] * scale;
-      const uv = new Uint16Array(raw, vertices * 6, vertices * 2);
-      const indices = new Uint32Array(raw.slice(vertices * 10, vertices * 10 + indexCount * 4));
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2, true));
-      geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-      geometry.computeVertexNormals();
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.flipY = true;
       texture.anisotropy = Math.min(4, state.renderer?.capabilities?.getMaxAnisotropy?.() || 1);
       texture.needsUpdate = true;
-      const material = new THREE.MeshBasicMaterial({
+      // Each roof/ground row chunk is independent but shares one real aerial texture and one
+      // material. Cell-local vertices keep sharp roof edges; independent gzip chunks deploy safely.
+      const roofGroup = new THREE.Group();
+      roofGroup.name = 'NYC measured LiDAR roof/ground photomesh chunks';
+      let roofVerticesTotal = 0, roofTrianglesTotal = 0;
+      const roofMaterial = new THREE.MeshBasicMaterial({
         map: texture, side: THREE.FrontSide, depthTest: true, depthWrite: true,
         transparent: false, toneMapped: false
       });
-      const roof = new THREE.Mesh(geometry, material);
-      roof.name = 'NYC measured LiDAR surface · aerial texture on roof/ground faces only';
-      roof.frustumCulled = false;
-      roof.renderOrder = 10;
-      roof.visible = false;
+      for (let n = 0; n < chunks.length; n++) {
+        const part = chunks[n];
+        const raw = rawChunks[n];
+        const vertices = Number(part.vertexCount);
+        const indexCount = Number(part.indexCount);
+        const expected = vertices * 10 + indexCount * 4;
+        if (!Number.isInteger(vertices) || !Number.isInteger(indexCount) || raw.byteLength !== expected) {
+          roofMaterial.dispose?.();
+          texture.dispose?.();
+          throw new Error('NYC_LIDAR_ROOF_CHUNK_SIZE_MISMATCH part=' + n + ' expected=' + expected + ' actual=' + raw.byteLength);
+        }
+        const q = new Int16Array(raw, 0, vertices * 3);
+        const positions = new Float32Array(vertices * 3);
+        for (let i = 0; i < positions.length; i++) positions[i] = q[i] * scale;
+        const uv = new Uint16Array(raw, vertices * 6, vertices * 2);
+        const indices = new Uint32Array(raw.slice(vertices * 10, vertices * 10 + indexCount * 4));
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2, true));
+        geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+        geometry.computeVertexNormals();
+        const mesh = new THREE.Mesh(geometry, roofMaterial);
+        mesh.name = 'NYC LiDAR aerial roof/ground surface row chunk ' + n;
+        mesh.frustumCulled = false;
+        mesh.renderOrder = 10;
+        roofGroup.add(mesh);
+        roofVerticesTotal += vertices;
+        roofTrianglesTotal += Number(part.triangleCount || indexCount / 3);
+      }
+      roofGroup.visible = false;
 
       const wallVertices = Number(meta.wallVertexCount);
       const wallIndexCount = Number(meta.wallIndexCount);
       const wallExpected = wallVertices * 9 + wallIndexCount * 4;
       if (!Number.isInteger(wallVertices) || !Number.isInteger(wallIndexCount) || wallVertices < 4 || wallRaw.byteLength !== wallExpected) {
+        roofGroup.traverse(o => { try { o.geometry?.dispose?.(); } catch (_) {} });
+        roofMaterial.dispose?.();
         texture.dispose?.();
-        geometry.dispose?.();
         throw new Error('NYC_LIDAR_WALL_BINARY_SIZE_MISMATCH expected=' + wallExpected + ' actual=' + wallRaw.byteLength);
       }
       const wq = new Int16Array(wallRaw, 0, wallVertices * 3);
@@ -240,8 +256,8 @@
       wallGeometry.setAttribute('color', new THREE.BufferAttribute(wallColors, 3, true));
       wallGeometry.setIndex(new THREE.BufferAttribute(wallIndices, 1));
       wallGeometry.computeVertexNormals();
-      // The aerial ortho is nadir-only. Facades therefore use clean LiDAR-derived vertical planes,
-      // shaded from neutral per-face colors rather than incorrectly stretching the roof photo down the sides.
+      // The aerial ortho is nadir-only. Facades use separate LiDAR-derived vertical planes,
+      // shaded from neutral colors rather than stretching rooftop imagery down the sides.
       const wallMaterial = new THREE.MeshBasicMaterial({
         vertexColors: true, side: THREE.DoubleSide, depthTest: true, depthWrite: true,
         transparent: false, toneMapped: false
@@ -251,15 +267,17 @@
       walls.frustumCulled = false;
       walls.renderOrder = 11;
       walls.visible = false;
-      state.scene?.add(roof);
+      state.scene?.add(roofGroup);
       state.scene?.add(walls);
       state.surfaceTexture = texture;
-      state.surfaceMesh = roof;
+      state.surfaceMaterial = roofMaterial;
+      state.surfaceMesh = roofGroup;
       state.wallMesh = walls;
       publish('roof-drape-and-vertical-walls-ready', {
         tileId: state.manifest.tileId,
-        surfaceVertices: vertices,
-        surfaceTriangles: Number(meta.triangleCount),
+        surfaceVertices: roofVerticesTotal,
+        surfaceTriangles: roofTrianglesTotal,
+        surfaceChunkCount: chunks.length,
         verticalWallQuads: Number(meta.wallQuadCount),
         verticalWallTriangles: Number(meta.wallTriangleCount),
         gridSpacingMetres: Number(meta.gridSpacingMetres),
@@ -268,7 +286,7 @@
         facadePhotoCoverage: false,
         facadeGeometrySource: 'Measured LiDAR height discontinuities'
       });
-      return roof;
+      return roofGroup;
     })().catch(error => {
       state.surfacePromise = null;
       throw error;
@@ -461,9 +479,12 @@
       onRemove() {
         suppressLegacySurfaces(state.map, state, false);
         try { state.renderer?.dispose?.(); } catch (_) {}
-        try { state.surfaceMesh?.geometry?.dispose?.(); state.surfaceMesh?.material?.map?.dispose?.(); state.surfaceMesh?.material?.dispose?.(); } catch (_) {}
+        try { state.surfaceMesh?.traverse?.(object => object.geometry?.dispose?.()); } catch (_) {}
+        try { state.surfaceMaterial?.dispose?.(); } catch (_) {}
+        try { state.surfaceTexture?.dispose?.(); } catch (_) {}
         try { state.wallMesh?.geometry?.dispose?.(); state.wallMesh?.material?.dispose?.(); } catch (_) {}
         state.surfaceMesh = null;
+        state.surfaceMaterial = null;
         state.wallMesh = null;
         state.surfaceTexture = null;
         state.surfacePromise = null;
@@ -482,7 +503,7 @@
     const state = {
       map, manifest: null, scene: null, camera: null, renderer: null, gl: null,
       installing: false, layerAdded: false, activeLevel: -1, wantedLevel: -1,
-      meshes: new Map(), loads: new Map(), surfaceMesh: null, wallMesh: null, surfaceTexture: null, surfacePromise: null, savedFilters: new Map(), maskActive: false,
+      meshes: new Map(), loads: new Map(), surfaceMesh: null, surfaceMaterial: null, wallMesh: null, surfaceTexture: null, surfacePromise: null, savedFilters: new Map(), maskActive: false,
       filterErrors: [], lastError: null, tilePolygon: null, moveTimer: null, autoFocused: false
     };
     MAPS.set(map, state);

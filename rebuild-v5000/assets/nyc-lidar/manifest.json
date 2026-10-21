@@ -269,8 +269,8 @@
     "coordinateGrid": "Cell footprints snapped to EPSG:2263 cell bins, eliminating the earlier half-cell drift"
   },
   "surfaceMesh": {
-    "file": "nyc-midtown-987210-surface-2m.bin.gz",
-    "encoding": "gzip(binary)",
+    "file": null,
+    "encoding": "gzip(binary chunk array)",
     "gridSpacingMetres": 2.0,
     "gridWidth": 381,
     "gridHeight": 381,
@@ -282,8 +282,8 @@
     "uvEncoding": "uint16 normalized 0..65535",
     "indexEncoding": "uint32le",
     "rawBytes": 9290304,
-    "gzipBytes": 3206692,
-    "sha256": "820b9b53ad7e94d19c677c52af164f026b8e36dfcf49a6929d9c4fe7322bff07",
+    "gzipBytes": 3211783,
+    "sha256": "1ad2528c95eb06ffba934e78e9b2a557eea1e56c136d4f2a395c7396e960fd33",
     "textureFile": "nyc-midtown-ortho-2023.webp",
     "textureFormat": "WebP",
     "textureSize": [
@@ -309,6 +309,77 @@
     "wallSha256": "a3f3af5efa4213ac63dc33abfaf2fcb450377c308cc75f91f8f487766ff3d75d",
     "wallBinaryLayout": "int16le xyz positions at 0.02m, uint8 RGB wall-shading colors, uint32le triangle indices",
     "wallMaterial": "untextured neutral shaded vertical faces derived from measured LiDAR roof boundaries",
-    "wallMethod": "Vertical quads between sustained flat elevated LiDAR roof regions and adjacent lower surface/ground returns"
+    "wallMethod": "Vertical quads between sustained flat elevated LiDAR roof regions and adjacent lower surface/ground returns",
+    "chunks": [
+      {
+        "part": 0,
+        "file": "nyc-midtown-987210-surface-2m-part-00.bin.gz",
+        "rowStart": 0,
+        "rowEndExclusive": 96,
+        "gridWidth": 381,
+        "gridRows": 96,
+        "vertexCount": 146304,
+        "indexCount": 219456,
+        "triangleCount": 73152,
+        "rawBytes": 2340864,
+        "gzipBytes": 807926,
+        "sha256": "9a930142169357f72a5c1713dc1a2f02cbbba5641133960e33ee5e279b9fbb2c",
+        "base64Length": 1077236,
+        "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
+        "positionScaleMeters": 0.02
+      },
+      {
+        "part": 1,
+        "file": "nyc-midtown-987210-surface-2m-part-01.bin.gz",
+        "rowStart": 96,
+        "rowEndExclusive": 192,
+        "gridWidth": 381,
+        "gridRows": 96,
+        "vertexCount": 146304,
+        "indexCount": 219456,
+        "triangleCount": 73152,
+        "rawBytes": 2340864,
+        "gzipBytes": 808852,
+        "sha256": "39f88eacfb7afcf8c8c3728fd9181462b7b26be654d337d2173ac7a479fba2fb",
+        "base64Length": 1078472,
+        "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
+        "positionScaleMeters": 0.02
+      },
+      {
+        "part": 2,
+        "file": "nyc-midtown-987210-surface-2m-part-02.bin.gz",
+        "rowStart": 192,
+        "rowEndExclusive": 288,
+        "gridWidth": 381,
+        "gridRows": 96,
+        "vertexCount": 146304,
+        "indexCount": 219456,
+        "triangleCount": 73152,
+        "rawBytes": 2340864,
+        "gzipBytes": 810113,
+        "sha256": "5c4a149440192e7b8c731162009fa2646c037cc182b1df0eeac2cf4ce40bcd10",
+        "base64Length": 1080152,
+        "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
+        "positionScaleMeters": 0.02
+      },
+      {
+        "part": 3,
+        "file": "nyc-midtown-987210-surface-2m-part-03.bin.gz",
+        "rowStart": 288,
+        "rowEndExclusive": 381,
+        "gridWidth": 381,
+        "gridRows": 93,
+        "vertexCount": 141732,
+        "indexCount": 212598,
+        "triangleCount": 70866,
+        "rawBytes": 2267712,
+        "gzipBytes": 784892,
+        "sha256": "05fc17d6d98b84f3be1b214faa26afd422b6eadb887c5eec16274e5e5e7f8284",
+        "base64Length": 1046524,
+        "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
+        "positionScaleMeters": 0.02
+      }
+    ],
+    "chunkStrategy": "Independent gzip row chunks. Chunk-local indices are rebased; adjacent cells stay independent as in the source surface mesh."
   }
 }
