@@ -312,6 +312,8 @@ jobs:
           grep -Fq 'bridgepoint-view-v5917.js' site/index.html
           grep -Fq 'bridgepoint-view-v5917.js' site/app/index.html
           grep -Fq 'bpv-dock-persistent' site/bridgepoint-view-v5917.css
+           grep -Fq 'bpv-premium-tools-slot' site/bridgepoint-view-v5917.js
+           grep -Fq 'bpv-dock-persistent.bpv-dock-maximized>.bpv-dock-label' site/bridgepoint-view-v5917.css
           grep -Fq 'bpv-key-ribbon' site/bridgepoint-view-v5917.css
           grep -Fq 'V5940: unify card actions' site/bridgepoint-view-v5917.css
           grep -Fq 'bridgepoint-landmarks-v5940.js' site/index.html
@@ -887,10 +889,10 @@ jobs:
           test -s site/vendor/maplibre-gl.js
           test -s site/vendor/maplibre-gl.css
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6031-card-closed-topgap' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6031-card-closed-topgap' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6031-card-closed-topgap' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6031-card-closed-topgap' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6032-premium-slot-close-safe' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6032-premium-slot-close-safe' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6032-premium-slot-close-safe' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6032-premium-slot-close-safe' site/index.html
           grep -Fq 'function setDockMaximized(on)' site/bridgepoint-view-v5917.js
           grep -Fq 'dock.appendChild(keyRibbon)' site/bridgepoint-view-v5917.js
           grep -Fq 'dockableControlSelector' site/bridgepoint-view-v5917.js
