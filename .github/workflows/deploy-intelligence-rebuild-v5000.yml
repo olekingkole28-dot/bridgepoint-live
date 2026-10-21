@@ -833,9 +833,9 @@ jobs:
           grep -Fq 'bridgepoint-view-v5917.css?v=6010-unified-bottom-deck' site/app/index.html
           grep -Fq 'bridgepoint-view-v5917.js?v=6011-unified-bottom-deck' site/app/index.html
           grep -Fq 'bridgepoint-view-v5917.js?v=6011-unified-bottom-deck' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=5989-roof-collision-and-wake' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=5988-terrain-wind-lift' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6010-unified-bottom-deck' site/index.html
+          grep -Fq 'function setDockMaximized(on)' site/bridgepoint-view-v5917.js
+          grep -Fq 'dock.appendChild(keyRibbon)' site/bridgepoint-view-v5917.js
+          grep -Fq 'Unified bottom command deck' site/bridgepoint-view-v5917.css
           grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/index.html
            grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/app/index.html
            grep -Fq 'bridgepoint-global-motion-v5926.js?v=5945-motion-controls' site/index.html
