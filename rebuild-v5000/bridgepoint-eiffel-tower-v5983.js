@@ -10,13 +10,40 @@
   window.__BP_EIFFEL_TOWER_V5983_BOOTED__ = true;
 
   const VERSION = 5983;
-  const EIFFEL = [2.2945, 48.8584]; // longitude, latitude
+  const EIFFEL = [2.2945, 48.85826]; // longitude, latitude; mapped tower center, OSM way 5013364
+  const OSM_EIFFEL_WAY_ID = 5013364;
   const OFFICIAL_HEIGHT_M = 330;
   const EIFFEL_SCAN_URL = '/assets/eiffel-tower-koterstudios-v5983.glb';
   const THREE_URL = 'https://esm.sh/three@0.169.0';
   const GLTF_URL = 'https://esm.sh/three@0.169.0/examples/jsm/loaders/GLTFLoader.js';
   const MODEL_SOURCE = 'https://sketchfab.com/3d-models/eiffel-tower-0efc103a12ad4c34b09a37e5050f8b23';
   const ZENODO_SOURCE = 'https://zenodo.org/records/10353458';
+  // Exclude the OSM tower footprint from generic solid building/roof rendering.
+  // Keep the detailed Eiffel mesh as the single rendered tower body.
+  const EIFFEL_GENERIC_BUILDING_LAYERS = [
+    'gta-context-building-footprints', 'gta-context-building-shadow',
+    'gta-context-buildings', 'gta-context-floor-lines', 'gta-context-roofs',
+    'gta-context-facade-detail', 'gta-context-building-parts', 'gta-context-night-windows',
+    'gta-bp-building-shadow', 'gta-bp-buildings', 'gta-bp-floor-lines',
+    'gta-bp-roofs', 'gta-bp-facade-detail', 'gta-bp-building-edge', 'gta-bp-night-windows',
+    'gta-city-buildings', 'gta-city-floor-lines', 'gta-city-building-roof-caps', 'gta-city-roofs',
+    'gta-exact-building-shadow', 'gta-exact-building', 'gta-exact-floor-lines',
+    'gta-exact-facade-detail', 'gta-exact-roof', 'gta-exact-night-windows', 'gta-building-outline',
+    'gta-landmark3d-base', 'gta-landmark3d-body', 'gta-landmark3d-accent'
+  ];
+  const EIFFEL_NAME_EXPRESSION = ['downcase', ['to-string', ['coalesce',
+    ['get', 'name'], ['get', 'name:en'], ['get', 'name:fr'], ['get', 'official_name'], ''
+  ]]];
+  const IS_EIFFEL_FEATURE = ['any',
+    ['==', ['id'], OSM_EIFFEL_WAY_ID],
+    ['==', ['to-number', ['coalesce',
+      ['get', 'osm_id'], ['get', 'osm_way_id'], ['get', 'way_id'], ['get', 'id'], 0
+    ]], OSM_EIFFEL_WAY_ID],
+    ['in', EIFFEL_NAME_EXPRESSION, ['literal', [
+      'eiffel tower', 'tour eiffel', 'tour eiffel de paris'
+    ]]]
+  ];
+  const KEEP_NON_EIFFEL_BUILDING = ['!', IS_EIFFEL_FEATURE];
   const MAPS = new Set();
   const STATES = new WeakMap();
   let modulesPromise = null;
@@ -48,6 +75,41 @@
       return EIFFEL[0] >= b.getWest() && EIFFEL[0] <= b.getEast() &&
         EIFFEL[1] >= b.getSouth() && EIFFEL[1] <= b.getNorth();
     } catch (_) { return false; }
+  }
+
+  function suppressGenericEiffelTowerExtrusions(map) {
+    const result = {
+      version: 6020, active: false, osmWayId: OSM_EIFFEL_WAY_ID,
+      anchor: EIFFEL.slice(), filteredLayers: [], failedLayers: [], updatedAt: Date.now()
+    };
+    if (!map || !map.isStyleLoaded?.()) {
+      window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6020__ = result;
+      return result;
+    }
+    for (const id of EIFFEL_GENERIC_BUILDING_LAYERS) {
+      if (!map.getLayer(id)) continue;
+      try {
+        const existing = map.getFilter(id);
+        const serialized = JSON.stringify(existing || null);
+        // Reapply after style changes without stacking duplicate filters.
+        if (serialized.includes(String(OSM_EIFFEL_WAY_ID)) && serialized.includes('eiffel tower')) {
+          result.filteredLayers.push(id);
+          continue;
+        }
+        map.setFilter(id, existing
+          ? ['all', existing, KEEP_NON_EIFFEL_BUILDING]
+          : KEEP_NON_EIFFEL_BUILDING);
+        result.filteredLayers.push(id);
+      } catch (error) {
+        result.failedLayers.push({ id, error: String(error && error.message || error) });
+      }
+    }
+    result.active = ['gta-context-buildings', 'gta-context-roofs']
+      .every(id => result.filteredLayers.includes(id)) && result.failedLayers.length === 0;
+    result.updatedAt = Date.now();
+    map.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6020__ = result;
+    window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6020__ = result;
+    return result;
   }
 
   function ensureChip(map, state) {
@@ -134,6 +196,7 @@
   function publish(status, extra = {}) {
     window.__BP_EIFFEL_TOWER_V5983__ = Object.assign({
       version: VERSION, status, coordinates: EIFFEL.slice(), coordinatesCrs: 'EPSG:4326',
+      placementFixVersion: 6020, osmWayId: OSM_EIFFEL_WAY_ID,
       asset: EIFFEL_SCAN_URL, sourceUrl: MODEL_SOURCE, sourceRecord: ZENODO_SOURCE,
       creator: 'koterstudios / koters', license: 'CC BY 4.0 as stated on Sketchfab source page',
       sourceGeometry: 'Sketchfab/Objaverse GLB source mesh; not represented as a laser survey',
@@ -145,15 +208,20 @@
     if (state.installing || !map || !map.getStyle || !map.getStyle()) return;
     state.installing = true;
     try {
+      const duplicateSuppression = suppressGenericEiffelTowerExtrusions(map);
       setLabel(map);
-      ensureChip(map, state);
+      ensureChip(map);
       if (!state.listeners) {
         state.listeners = true;
         map.on('moveend', () => update(map, state));
         map.on('zoomend', () => update(map, state));
+        map.on('style.load', () => {
+          const duplicateSuppression = suppressGenericEiffelTowerExtrusions(map);
+          publish('style-restored-eiffel-duplicate-guard', { duplicateSuppression });
+        });
       }
       if (nearEiffel(map)) await addModelLayer(map, state);
-      else publish('waiting-for-close-view', { attachedMaps: MAPS.size });
+      else publish('waiting-for-close-view', { attachedMaps: MAPS.size, duplicateSuppression });
     } catch (error) {
       publish('install-error', { detail: String(error && error.message || error) });
       console.warn('BridgePoint Eiffel Tower setup', error);
@@ -223,7 +291,8 @@
               loaded: true, rendered: true, renderedAt: Date.now(),
               terrainElevationM: groundM, baseAboveTerrainM: 0, sourceHeightUnits: this.sourceHeight,
               finalHeightM: OFFICIAL_HEIGHT_M, mapZoom: this.map.getZoom(),
-              placement: { longitude: EIFFEL[0], latitude: EIFFEL[1], verticalReference: 'sampled live terrain elevation', scale: 'normalized to 330 m overall height' }
+              placement: { longitude: EIFFEL[0], latitude: EIFFEL[1], osmWayId: OSM_EIFFEL_WAY_ID, verticalReference: 'sampled live terrain elevation', anchor: 'mapped tower center; model bottom aligned to terrain', scale: 'normalized to 330 m overall height' },
+              duplicateSuppression: this.map.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6020__ || null
             });
             if (state.chip) state.chip.dataset.show = 'true';
           } catch (error) {
