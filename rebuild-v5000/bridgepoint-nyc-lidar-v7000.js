@@ -1128,13 +1128,93 @@
     state.paintOverlayButton=paint;
     button.addEventListener('click',()=>{
       state.overlayEnabled=!state.overlayEnabled;try{localStorage.setItem(OVERLAY_STORAGE_KEY,state.overlayEnabled?'1':'0')}catch(_){}
-      if(state.overlayEnabled){state.lastError=null;for(const tile of state.tiles.values()){tile.surfaceFailedLevel=-1;tile.lastError=null}focusCoverageForOverlay(map,state)}
-      try{if(map.getLayer(LAYER_ID))map.setLayoutProperty(LAYER_ID,'visibility',state.overlayEnabled?'visible':'none')}catch(_){}
-      if(!state.overlayEnabled)suppressLegacySurfaces(map,state,false);
-      syncCoverageMarkerVisibility(map,state);paint();reconcile(map,state);
-      publish(state.overlayEnabled?'overlay-enabled':'overlay-disabled',{overlayEnabled:state.overlayEnabled});
+      if(state.overlayEnabled){
+        state.lastError=null;
+        for(const tile of state.tiles.values()){tile.surfaceFailedLevel=-1;tile.lastError=null}
+        if(state.baseManifest)focusCoverageForOverlay(map,state);
+        syncCoverageMarkerVisibility(map,state);paint();
+        void ensureOverlayRuntime(map,state).then(()=>{
+          if(!state.overlayEnabled)return;
+          focusCoverageForOverlay(map,state);
+          reconcile(map,state);paint();
+        }).catch(error=>{
+          state.lastError=String(error&&error.message||error);
+          paint();publish('overlay-runtime-error',{error:state.lastError});
+        });
+      }else{
+        try{if(map.getLayer(LAYER_ID))map.setLayoutProperty(LAYER_ID,'visibility','none')}catch(_){}
+        suppressLegacySurfaces(map,state,false);
+        syncCoverageMarkerVisibility(map,state);paint();reconcile(map,state);
+      }
+      publish(state.overlayEnabled?'overlay-enabled':'overlay-disabled',{
+        overlayEnabled:state.overlayEnabled,lazyInitialization:true
+      });
     });
     wrap.append(button,note);slot.append(wrap);paint();
+  }
+
+  async function ensureOverlayRuntime(map, state) {
+    if (!map || !state) return false;
+    if (map.getLayer(LAYER_ID) && state.layerAdded) {
+      bindEvents(map, state);
+      reconcile(map, state);
+      return true;
+    }
+    if (state.overlayRuntimePromise) return state.overlayRuntimePromise;
+    state.overlayRuntimePromise = (async () => {
+      if (!state.baseManifest) {
+        const manifest = await loadJson(CENTER_MANIFEST_URL);
+        if (!Array.isArray(manifest.lods) || manifest.lods.length !== 3) {
+          throw new Error('NYC_LIDAR_CENTER_MANIFEST_INVALID');
+        }
+        await loadTileCatalog(state, manifest);
+      }
+      if (!state.overlayEnabled) return false;
+      const THREE = await loadThree();
+      if (!map.isStyleLoaded?.()) {
+        await new Promise(resolve => {
+          let done = false;
+          const finish = () => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            map.off?.('style.load', finish);
+            map.off?.('load', finish);
+            resolve();
+          };
+          const timer = setTimeout(finish, 7000);
+          map.once?.('style.load', finish);
+          map.once?.('load', finish);
+        });
+      }
+      if (!state.overlayEnabled) return false;
+      if (!map.isStyleLoaded?.()) throw new Error('NYC_LIDAR_MAP_STYLE_NOT_READY');
+      if (!map.getLayer(LAYER_ID)) {
+        state.installing = true;
+        try {
+          map.addLayer(customLayer(map, state, THREE));
+        } finally {
+          state.installing = false;
+        }
+      }
+      state.layerAdded = !!map.getLayer(LAYER_ID);
+      if (!state.layerAdded) throw new Error('NYC_LIDAR_LAYER_INSTALL_FAILED');
+      bindEvents(map, state);
+      reconcile(map, state);
+      publish('overlay-runtime-ready', {
+        overlayEnabled: true, tileCount: state.tiles.size,
+        layerAdded: state.layerAdded, lazyInitialization: true
+      });
+      return true;
+    })().catch(error => {
+      state.lastError = String(error && error.message || error);
+      state.paintOverlayButton?.();
+      publish('overlay-runtime-error', {error: state.lastError});
+      throw error;
+    }).finally(() => {
+      state.overlayRuntimePromise = null;
+    });
+    return state.overlayRuntimePromise;
   }
 
   function attach(map) {
@@ -1155,42 +1235,38 @@
     addOverlayControl(map,state); addCoverageMarker(map,state); map.on('style.load',()=>{addCoverageMarker(map,state);addOverlayControl(map,state)});
     attachedCount++;
     publish('attaching-map', {attachedMaps:attachedCount});
-    loadJson(CENTER_MANIFEST_URL).then(async manifest => {
-      if (!Array.isArray(manifest.lods) || manifest.lods.length !== 3) throw new Error('NYC_LIDAR_CENTER_MANIFEST_INVALID');
-      await loadTileCatalog(state, manifest);
-      if(state.overlayEnabled)focusCoverageForOverlay(map,state);
-      const THREE = await loadThree();
-      const install = () => {
-        if (state.installing || !map.getStyle || !map.getStyle()) return;
-        state.installing = true;
-        try {
-          if (!map.getLayer(LAYER_ID)) map.addLayer(customLayer(map,state,THREE));
-          state.layerAdded = !!map.getLayer(LAYER_ID);
-          state.installing = false;
-          bindEvents(map,state);
-          reconcile(map,state);
-        } catch (error) {
-          state.installing = false;
-          state.lastError = String(error && error.message || error);
-          publish('layer-install-error', {error:state.lastError,attachedMaps:attachedCount});
-        }
-      };
-      map.on('style.load', () => {
-        state.savedFilters.clear();
-        state.maskActive = false;
-        install();
-      });
-      map.on('load', install);
-      if (map.isStyleLoaded && map.isStyleLoaded()) install();
-      else publish('waiting-for-map-style', {
-        tileId:CENTER_TILE_ID, boundsWgs84:manifest.boundsWgs84,
-        tileCount:state.tiles.size, availableTileIds:[...state.tiles.keys()]
-      });
-    }).catch(error => {
-      state.lastError=String(error && error.message || error);
-      state.paintOverlayButton?.();
-      publish('manifest-load-error', {error:state.lastError,attachedMaps:attachedCount});
+    map.on('style.load', () => {
+      state.savedFilters.clear();
+      state.maskActive = false;
+      state.layerAdded = !!map.getLayer(LAYER_ID);
+      addCoverageMarker(map,state);
+      addOverlayControl(map,state);
+      if (state.overlayEnabled) {
+        void ensureOverlayRuntime(map,state).catch(error => {
+          state.lastError=String(error&&error.message||error);
+          state.paintOverlayButton?.();
+        });
+      }
     });
+    const urlLidar = String(new URLSearchParams(window.location.search).get('lidar') || '').toLowerCase();
+    const explicitLidarRequest = ['nyc','new-york','newyork'].includes(urlLidar);
+    if (explicitLidarRequest) {
+      state.overlayEnabled = true;
+      syncCoverageMarkerVisibility(map,state);
+      state.paintOverlayButton?.();
+      void ensureOverlayRuntime(map,state).then(() => {
+        focusCoverageForOverlay(map,state);
+      }).catch(error => {
+        state.lastError=String(error&&error.message||error);
+        state.paintOverlayButton?.();
+      });
+    } else {
+      publish('overlay-idle-ready', {
+        overlayEnabled: false, lazyInitialization: true,
+        manifestLoaded: false, tileCatalogLoaded: false, threeLoaded: false,
+        customWebGLLayerAdded: false
+      });
+    }
   }
 
   function bindEvents(map,state) {
