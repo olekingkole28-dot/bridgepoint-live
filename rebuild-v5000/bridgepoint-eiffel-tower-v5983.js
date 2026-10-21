@@ -79,11 +79,13 @@
 
   function suppressGenericEiffelTowerExtrusions(map) {
     const result = {
-      version: 6021, active: false, osmWayId: OSM_EIFFEL_WAY_ID,
-      anchor: EIFFEL.slice(), filteredLayers: [], failedLayers: [], updatedAt: Date.now()
+      version: 6022, active: false, osmWayId: OSM_EIFFEL_WAY_ID,
+      anchor: EIFFEL.slice(), waitingForStyle: false, filteredLayers: [], failedLayers: [], updatedAt: Date.now()
     };
-    if (!map || !map.isStyleLoaded?.()) {
-      window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6021__ = result;
+    // Style tiles may still be loading even though the target layers already exist.
+    if (!map || typeof map.getLayer !== 'function' || !map.getStyle?.()) {
+      result.waitingForStyle = true;
+      window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6022__ = result;
       return result;
     }
     for (const id of EIFFEL_GENERIC_BUILDING_LAYERS) {
@@ -107,17 +109,17 @@
     result.active = ['gta-context-buildings', 'gta-context-roofs']
       .every(id => result.filteredLayers.includes(id)) && result.failedLayers.length === 0;
     result.updatedAt = Date.now();
-    map.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6021__ = result;
-    window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6021__ = result;
+    map.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6022__ = result;
+    window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6022__ = result;
     return result;
   }
 
   function ensureEiffelDuplicateGuardLifecycle(map) {
-    if (!map || map.__bpEiffelDuplicateGuardLifecycleV6021) return;
-    map.__bpEiffelDuplicateGuardLifecycleV6021 = true;
+    if (!map || map.__bpEiffelDuplicateGuardLifecycleV6022) return;
+    map.__bpEiffelDuplicateGuardLifecycleV6022 = true;
     let applying = false;
     const apply = () => {
-      if (applying || !map.isStyleLoaded?.()) return;
+      if (applying || !map.getStyle?.() || !map.getLayer('gta-context-buildings') || !map.getLayer('gta-context-roofs')) return;
       applying = true;
       try {
         const status = suppressGenericEiffelTowerExtrusions(map);
@@ -129,8 +131,8 @@
           }
         }
       } catch (error) {
-        window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6021__ = {
-          version: 6021, active: false, error: String(error && error.message || error),
+        window.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6022__ = {
+          version: 6022, active: false, error: String(error && error.message || error),
           updatedAt: Date.now()
         };
       } finally {
@@ -229,7 +231,7 @@
   function publish(status, extra = {}) {
     window.__BP_EIFFEL_TOWER_V5983__ = Object.assign({
       version: VERSION, status, coordinates: EIFFEL.slice(), coordinatesCrs: 'EPSG:4326',
-      placementFixVersion: 6021, osmWayId: OSM_EIFFEL_WAY_ID,
+      placementFixVersion: 6022, osmWayId: OSM_EIFFEL_WAY_ID,
       asset: EIFFEL_SCAN_URL, sourceUrl: MODEL_SOURCE, sourceRecord: ZENODO_SOURCE,
       creator: 'koterstudios / koters', license: 'CC BY 4.0 as stated on Sketchfab source page',
       sourceGeometry: 'Sketchfab/Objaverse GLB source mesh; not represented as a laser survey',
@@ -322,7 +324,7 @@
               terrainElevationM: groundM, baseAboveTerrainM: 0, sourceHeightUnits: this.sourceHeight,
               finalHeightM: OFFICIAL_HEIGHT_M, mapZoom: this.map.getZoom(),
               placement: { longitude: EIFFEL[0], latitude: EIFFEL[1], osmWayId: OSM_EIFFEL_WAY_ID, verticalReference: 'sampled live terrain elevation', anchor: 'mapped tower center; model bottom aligned to terrain', scale: 'normalized to 330 m overall height' },
-              duplicateSuppression: this.map.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6021__ || null
+              duplicateSuppression: this.map.__BP_EIFFEL_DUPLICATE_SUPPRESSION_V6022__ || null
             });
             if (state.chip) state.chip.dataset.show = 'true';
           } catch (error) {
