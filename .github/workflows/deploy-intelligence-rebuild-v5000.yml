@@ -356,8 +356,8 @@ jobs:
           grep -Fq 'Potree.updatePointClouds([cloud]' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan' site/index.html
           grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan' site/app/index.html
-          grep -Fq 'bridgepoint-nyc-lidar-v7007-progressive-photo-mesh-lod' site/index.html
-          grep -Fq 'bridgepoint-nyc-lidar-v7007-progressive-photo-mesh-lod' site/app/index.html
+          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7007-progressive-photo-mesh-lod' site/index.html
+          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7007-progressive-photo-mesh-lod' site/app/index.html
           test -s site/bridgepoint-nyc-lidar-v7000.js
           node --check site/bridgepoint-nyc-lidar-v7000.js
           grep -Fq 'GRID_TO_TRUE_NORTH_RADIANS = -0.00018468388351200875' site/bridgepoint-nyc-lidar-v7000.js
@@ -1236,13 +1236,14 @@ jobs:
               p.setDefaultTimeout(15000);
               await p.setUserAgent('Mozilla/5.0 (Linux; Android 16; Pixel 9a) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36');
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
-              await p.goto('https://bridgepointintelligence.online/app/?lod-camera-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
+              await p.goto('https://bridgepointintelligence.online/?lod-camera-smoke='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
               await p.waitForFunction(()=>{
-                const m=window.__BP_V5000_WORLD?.map;
+                const m=(window.__BP_LANDING_WORLD__||window.__bpLandingWorldV5420||window.__BP_V5000_WORLD)?.map;
                 const slot=document.querySelector('#bpv-dock #bpv-map-controls-slot');
                 return !!m&&!!slot&&['GOLD','SILVER','BRONZE'].every(t=>!!slot.querySelector('[data-bp-lod-tier="'+t+'"]'))&&
                   !!window.__BP_TILE_RETENTION_V6017__&&window.__BP_CAMERA_GROUND_GUARD_V6017__?.enabled===true;
               },{timeout:60000});
+    await p.evaluate(()=>{const w=window.__BP_LANDING_WORLD__||window.__bpLandingWorldV5420||window.__BP_V5000_WORLD;if(w?.map&&!window.__BP_V5000_WORLD)window.__BP_V5000_WORLD=w;});
               const initial=await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map,slot=document.querySelector('#bpv-dock #bpv-map-controls-slot');
                 const buttons=[...(slot?.querySelectorAll('[data-bp-lod-tier]')||[])];
@@ -1253,7 +1254,7 @@ jobs:
                   groundGuard:window.__BP_CAMERA_GROUND_GUARD_V6017__||null,
                   allButtonsInDeck:buttons.length===3&&buttons.every(b=>b.closest('#bpv-dock #bpv-map-controls-slot')),
                   activeButtons:buttons.filter(b=>b.getAttribute('aria-pressed')==='true').map(b=>b.dataset.bpLodTier),
-                  canvas:!!document.querySelector('#liveMap canvas'),
+                  canvas:!!document.querySelector('#previewMap canvas,#liveMap canvas'),
                   styleLoaded:!!m?.isStyleLoaded?.()
                 };
               });
