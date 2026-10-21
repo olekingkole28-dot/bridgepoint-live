@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Wait for matching production build
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && (contains(join(github.event.head_commit.modified, ','), 'rebuild-v5000/') || contains(join(github.event.head_commit.modified, ','), 'release-v2300/'))
         shell: bash
         run: |
           set -euo pipefail
