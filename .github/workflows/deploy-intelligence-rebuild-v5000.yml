@@ -356,9 +356,14 @@ jobs:
           grep -Fq 'Potree.updatePointClouds([cloud]' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan' site/index.html
           grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan' site/app/index.html
-          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7004-overlay-toggle-and-global-coverage' site/index.html
-          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7004-overlay-toggle-and-global-coverage' site/app/index.html
+          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7005-registered-grid-and-tile-clipping' site/index.html
+          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7005-registered-grid-and-tile-clipping' site/app/index.html
           test -s site/bridgepoint-nyc-lidar-v7000.js
+          node --check site/bridgepoint-nyc-lidar-v7000.js
+          grep -Fq 'GRID_TO_TRUE_NORTH_RADIANS = 0.00018468388351200875' site/bridgepoint-nyc-lidar-v7000.js
+          grep -Fq 'function activeCoveragePolygons(state)' site/bridgepoint-nyc-lidar-v7000.js
+          grep -Fq "['within', polygon]" site/bridgepoint-nyc-lidar-v7000.js
+          grep -Fq 'coverageFilterActive' site/bridgepoint-nyc-lidar-v7000.js
           test -s site/assets/nyc-lidar/manifest.json
           python3 - <<'PY'
           import gzip, json, pathlib
