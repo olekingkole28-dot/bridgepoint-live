@@ -53,6 +53,10 @@ jobs:
               assert len(m['lods'])==3 and m['boundsWgs84']['polygon']
               sm=m['surfaceMesh']
               assert len(sm['chunks'])>=1 and sm['wallFile']
+              assert 'roof-mask cells' in sm.get('surfaceClassPolicy',''), sm.get('surfaceClassPolicy')
+              assert 'same roof/ground class' in sm.get('cornerSmoothing',''), sm.get('cornerSmoothing')
+              assert sm.get('obliqueImageryAvailable') is False, sm.get('obliqueImageryAvailable')
+              assert 'two triangles per measured 2m cell' in sm.get('triangulationMethod',''), sm.get('triangulationMethod')
               for lod in m['lods']:
                   p=(mp.parent/lod['file']) if entry['tileId']!='987210' else (root/lod['file'])
                   assert p.is_file() and p.stat().st_size>1000, (entry['tileId'],p)
@@ -69,7 +73,10 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add rebuild-v5000/assets/nyc-lidar/tiles rebuild-v5000/assets/nyc-lidar/tiles-index.json
+          git add rebuild-v5000/assets/nyc-lidar/manifest.json \
+                  rebuild-v5000/assets/nyc-lidar/nyc-midtown-987210-* \
+                  rebuild-v5000/assets/nyc-lidar/tiles \
+                  rebuild-v5000/assets/nyc-lidar/tiles-index.json
           if git diff --cached --quiet; then
             echo "No generated asset changes; deployment dispatch still follows."
           else

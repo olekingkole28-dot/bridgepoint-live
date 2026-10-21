@@ -121,10 +121,19 @@
   function wantedSurfaceLod(map, manifest) {
     if (!intersects(map, manifest)) return -1;
     const z = Number(map.getZoom());
+    const pitch = Number(map.getPitch?.() || 0);
     if (!Number.isFinite(z) || z < SURFACE_TIERS[0].minZoom) return -1;
+
+    // An oblique camera exposes height discontinuities that a nadir preview can hide.
+    // Refine earlier while tilted; the current coarse tier stays visible as the next
+    // tier's chunks stream in, so the angle correction does not introduce a blank frame.
+    const pitched = pitch >= 42;
+    const thresholds = pitched
+      ? [12.0, 13.5, 15.0, 16.2]
+      : SURFACE_TIERS.map(t => t.minZoom);
     let level = 0;
     for (let i = 1; i < SURFACE_TIERS.length; i++) {
-      if (z >= SURFACE_TIERS[i].minZoom) level = i;
+      if (z >= thresholds[i]) level = i;
     }
     return level;
   }
@@ -463,6 +472,23 @@
         map: tile.surfaceTexture, side: THREE.FrontSide, depthTest: true, depthWrite: true,
         transparent: false, toneMapped: false
       });
+      // The only source imagery here is nadir orthophoto. Never smear it down a steep
+      // cell-to-cell height break: vertical-looking faces stay neutral until real oblique
+      // facade imagery is available from a licensed source.
+      material.extensions = Object.assign({}, material.extensions || {}, { derivatives: true });
+      material.onBeforeCompile = shader => {
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', '#include <common>\nvarying vec3 vBpLidarLocalPosition;')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBpLidarLocalPosition = transformed;');
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nvarying vec3 vBpLidarLocalPosition;')
+          .replace('#include <map_fragment>', [
+            '#include <map_fragment>',
+            'vec3 bpLidarFaceNormal = normalize(cross(dFdx(vBpLidarLocalPosition), dFdy(vBpLidarLocalPosition)));',
+            'if (abs(bpLidarFaceNormal.y) < 0.68) { diffuseColor.rgb = vec3(0.48, 0.52, 0.56); }'
+          ].join('\n'));
+      };
+      material.customProgramCacheKey = () => 'bp-nyc-lidar-nadir-only-face-mask-v7003';
       tile.surfaceMaterial = material;
       tile.surfaceGroup = root;
       state.scene?.add(root);

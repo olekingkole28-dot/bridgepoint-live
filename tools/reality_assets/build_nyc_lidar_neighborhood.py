@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Build a georeferenced 3x3 NYC LiDAR + orthophoto neighborhood for BridgePoint.
 
-Downloads only the eight neighboring members from the public NYC OpenData ZIP by byte range.
-The center tile already lives at rebuild-v5000/assets/nyc-lidar/manifest.json.
-All geometry remains in its own EPSG:2263 tile-local anchor; the browser aligns tile anchors
-against the existing center anchor. Roof/ground imagery is nadir orthophoto only. Facade planes
-come from measured LiDAR discontinuities and are deliberately not labeled as photo-textured.
+Downloads the center tile and eight adjacent members from the public NYC OpenData ZIP by byte range.
+The center manifest and assets are regenerated in place, not carried forward as an old mesh.
+All geometry remains in its own EPSG:2263 tile-local anchor; the browser aligns tile anchors.
+Nadir orthophoto is applied to roof-supported LiDAR cells and the measured-ground DTM only.
+Facade planes are LiDAR-derived neutral quads; no unlicensed or invented facade photos are used.
 """
 from __future__ import annotations
 import base64, gzip, hashlib, io, json, math, os, random, struct, sys, time
@@ -96,6 +96,25 @@ def fetch_laz(tile: dict, destination: Path) -> None:
     temp.write_bytes(raw)
     temp.replace(destination)
     print("SOURCE_RANGE_READY", tile["id"], len(raw), flush=True)
+
+def fetch_laz_payload(payload_offset: int, payload_bytes: int, tile_id: str, destination: Path) -> None:
+    """Fetch a manifest-recorded raw LAZ payload offset (the center tile header was audited separately)."""
+    if destination.exists() and destination.stat().st_size == payload_bytes:
+        print("SOURCE_CACHE_HIT", tile_id, destination.stat().st_size, flush=True)
+        return
+    start = int(payload_offset)
+    size = int(payload_bytes)
+    if start < 0 or size < 227:
+        raise RuntimeError(f"Invalid audited LAZ payload range for {tile_id}: offset={start}, bytes={size}")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temp = destination.with_suffix(destination.suffix + ".partial")
+    print("SOURCE_PAYLOAD_RANGE_START", tile_id, start, size, flush=True)
+    raw = range_get(start, start + size - 1, timeout=240)
+    if raw[:4] != b"LASF":
+        raise RuntimeError(f"Audited LAZ payload is not LAS/LAZ for {tile_id}: {raw[:8].hex()}")
+    temp.write_bytes(raw)
+    temp.replace(destination)
+    print("SOURCE_RANGE_READY", tile_id, len(raw), flush=True)
 
 def fetch_orthophoto(tile: dict, anchor_x: float, anchor_y: float, out_jpg: Path):
     to3857 = Transformer.from_crs(2263, 3857, always_xy=True)
@@ -264,26 +283,44 @@ def build_surface_and_walls(tile, source, image_bbox, anchor, out_dir, image_pat
     roof_mask = keep[labels]
     print("SURFACE_GRID", tile["id"], nx, ny, "occupied", top_populated, "roof_cells", int(roof_mask.sum()), "components", int(keep.sum()-1), flush=True)
 
-    # A separate, cell-local mesh preserves measured roof edges rather than stretching triangles down facades.
-    def corner_height(j, i, h0):
-        vals = [float(h0)]
-        for jj, ii in ((j-1,i-1),(j-1,i),(j,i-1),(j,i),(j-1,i+1),(j+1,i-1),(j+1,i+1),(j+1,i)):
-            if 0 <= jj < ny and 0 <= ii < nx:
-                h = float(top[jj, ii])
-                if abs((h - h0) * FT_TO_M) <= 3.5:
-                    vals.append(h)
+    # Keep the photo mesh to roof-supported LiDAR cells plus the measured-ground DTM.
+    # Unclassified tree crowns and isolated high returns must not become needle-like roof
+    # triangles when the camera tilts. Other scene layers can render vegetation separately.
+    surface_height = np.where(roof_mask, top, ground).astype(np.float32, copy=False)
+
+    # Build distinct corners for each cell. Smooth only within the same roof/ground class and
+    # only when neighboring measured heights differ by <= 1.5 m; building edges stay sharp.
+    corner_neighbors = {
+        "sw": ((0,0), (0,-1), (-1,0), (-1,-1)),
+        "se": ((0,0), (0,1), (-1,0), (-1,1)),
+        "nw": ((0,0), (0,-1), (1,0), (1,-1)),
+        "ne": ((0,0), (0,1), (1,0), (1,1)),
+    }
+    def corner_height(j, i, corner):
+        h0 = float(surface_height[j, i])
+        is_roof = bool(roof_mask[j, i])
+        vals = [h0]
+        for dj, di in corner_neighbors[corner][1:]:
+            jj, ii = j + dj, i + di
+            if not (0 <= jj < ny and 0 <= ii < nx):
+                continue
+            if bool(roof_mask[jj, ii]) != is_roof:
+                continue
+            h = float(surface_height[jj, ii])
+            if abs((h - h0) * FT_TO_M) <= 1.5:
+                vals.append(h)
         return float(np.mean(vals))
+
     corner_sw = np.empty((ny,nx), dtype=np.float32)
     corner_se = np.empty((ny,nx), dtype=np.float32)
     corner_nw = np.empty((ny,nx), dtype=np.float32)
     corner_ne = np.empty((ny,nx), dtype=np.float32)
     for j in range(ny):
         for i in range(nx):
-            h0 = float(top[j,i])
-            corner_sw[j,i] = corner_height(j,i,h0)
-            corner_se[j,i] = corner_height(j,i,h0)
-            corner_nw[j,i] = corner_height(j,i,h0)
-            corner_ne[j,i] = corner_height(j,i,h0)
+            corner_sw[j,i] = corner_height(j,i,"sw")
+            corner_se[j,i] = corner_height(j,i,"se")
+            corner_nw[j,i] = corner_height(j,i,"nw")
+            corner_ne[j,i] = corner_height(j,i,"ne")
 
     # Vectorized cell-corner positions and exact orthophoto UVs.
     x0 = xmin + np.arange(nx, dtype=np.float64) * cell_ft
@@ -357,22 +394,22 @@ def build_surface_and_walls(tile, source, image_bbox, anchor, out_dir, image_pat
             west, east = xmin+i*cell_ft, min(xmin+(i+1)*cell_ft, xmax)
             ta,tb = float(corner_nw[j,i]),float(corner_ne[j,i])
             lowj = min(j+1,ny-1)
-            base_h = float(ground[lowj,i]) if j+1>=ny else max(float(ground[lowj,i]),float(top[j+1,i]))
+            base_h = float(ground[lowj,i]) if j+1>=ny else max(float(ground[lowj,i]),float(surface_height[lowj,i]))
             if (j+1>=ny or not roof_mask[j+1,i]) and min(ta,tb)-base_h > 3.0/FT_TO_M:
                 push_wall([(west,ta,south),(east,tb,south),(east,base_h,south),(west,base_h,south)],"north")
             ta,tb = float(corner_sw[j,i]),float(corner_se[j,i])
             lowj = max(j-1,0)
-            base_h = float(ground[lowj,i]) if j==0 else max(float(ground[lowj,i]),float(top[j-1,i]))
+            base_h = float(ground[lowj,i]) if j==0 else max(float(ground[lowj,i]),float(surface_height[lowj,i]))
             if (j==0 or not roof_mask[j-1,i]) and min(ta,tb)-base_h > 3.0/FT_TO_M:
                 push_wall([(east,tb,north),(west,ta,north),(west,base_h,north),(east,base_h,north)],"south")
             ta,tb = float(corner_se[j,i]),float(corner_ne[j,i])
             lowi = min(i+1,nx-1)
-            base_h = float(ground[j,lowi]) if i+1>=nx else max(float(ground[j,lowi]),float(top[j,lowi]))
+            base_h = float(ground[j,lowi]) if i+1>=nx else max(float(ground[j,lowi]),float(surface_height[j,lowi]))
             if (i+1>=nx or not roof_mask[j,i+1]) and min(ta,tb)-base_h > 3.0/FT_TO_M:
                 push_wall([(east,ta,north),(east,tb,south),(east,base_h,south),(east,base_h,north)],"east")
             ta,tb = float(corner_sw[j,i]),float(corner_nw[j,i])
             lowi = max(i-1,0)
-            base_h = float(ground[j,lowi]) if i==0 else max(float(ground[j,lowi]),float(top[j,lowi]))
+            base_h = float(ground[j,lowi]) if i==0 else max(float(ground[j,lowi]),float(surface_height[j,lowi]))
             if (i==0 or not roof_mask[j,i-1]) and min(ta,tb)-base_h > 3.0/FT_TO_M:
                 push_wall([(west,tb,south),(west,ta,north),(west,base_h,north),(west,base_h,south)],"west")
     wall_pos_arr = np.asarray(wall_pos, dtype="<i2").reshape((-1,3))
@@ -403,7 +440,11 @@ def build_surface_and_walls(tile, source, image_bbox, anchor, out_dir, image_pat
         "wallRawBytes":len(wall_raw), "wallGzipBytes":len(wall_gz), "wallSha256":hashlib.sha256(wall_gz).hexdigest(),
         "wallBinaryLayout":"int16le xyz positions at 0.02m, uint8 RGB wall-shading colors, uint32le triangle indices",
         "wallMaterial":"neutral shaded vertical faces derived from measured LiDAR roof boundaries",
-        "wallMethod":"vertical quads between sustained elevated LiDAR regions and adjacent lower measured surfaces",
+        "wallMethod":"vertical quads between sustained elevated LiDAR roof-mask regions and the measured-ground DTM",
+        "surfaceClassPolicy":"real orthophoto draped only over source-derived elevated roof-mask cells and measured class-2 ground; non-roof unclassified returns do not become elevated photo-mesh vertices",
+        "cornerSmoothing":"corner-specific local means restricted to the same roof/ground class and neighboring heights within 1.5 metres; larger breaks stay sharp",
+        "triangulationMethod":"two triangles per measured 2m cell with independent cell-local vertices so roof-ground and roof-height breaks do not stretch across facades",
+        "obliqueImageryAvailable":False,
         "chunks":chunks, "chunkStrategy":"independent gzip row chunks with chunk-local indices"
     }
     return surface_meta
@@ -441,11 +482,11 @@ def make_manifest(tile, source, out_dir, anchor, bounds_wgs84, image_bbox, lods,
             "method":"Real orthophoto pixels draped onto measured LiDAR roof and ground surface; vertical facade planes remain separately LiDAR-derived."
         },
         "materialization":{
-            "method":"Measured NYC OpenData LiDAR returns plus a cell-local DSM surface mesh and real NYS orthophoto drape",
+            "method":"Measured NYC OpenData LiDAR returns materialized as roof-supported 2m triangles plus a measured-ground DTM and registered NYS orthophoto drape",
             "renderablePointCounts":LOD_COUNTS,"pointCoordinateQuantizationMetres":POSITION_SCALE_M,
             "sourcePointGeometryPreserved":True,"syntheticGeometryAdded":False,
-            "surfaceMesh":"Measured max return per 2m cell; corners only smoothed across small height differences to preserve sharp roof edges",
-            "verticalWalls":"Neutral shaded vertical quads derived from sustained LiDAR roof-boundary discontinuities; not photographic facade imagery",
+            "surfaceMesh":"Nadir photo mesh uses source-derived elevated roof-mask cells plus measured class-2 ground; non-roof unclassified returns are not elevated mesh vertices, and corner smoothing is edge-preserving",
+            "verticalWalls":"Neutral shaded vertical quads derived from roof-mask boundaries against the measured-ground DTM; no nadir imagery is stretched onto facades",
             "wallQuadCount":surface_meta["wallQuadCount"],"roofPhotoTexture":True,"sidePhotoTexture":False,
             "coordinateGrid":"Cell footprints snapped to EPSG:2263 2m bins and independently anchored per LiDAR tile"
         },
@@ -470,16 +511,27 @@ def main():
     if not CENTER_MANIFEST_PATH.exists():
         raise FileNotFoundError(f"Central pilot manifest missing: {CENTER_MANIFEST_PATH}")
     center = json.loads(CENTER_MANIFEST_PATH.read_text(encoding="utf-8-sig"))
-    center_record = {
-        "tileId":"987210","manifest":"manifest.json","assetBase":"/assets/nyc-lidar/",
-        "boundsWgs84":center["boundsWgs84"],"anchor":center["anchor"]
+    src_meta = center.get("source", {})
+    bounds_meta = center.get("tileBoundsSourceFeet", {})
+    center_tile = {
+        "id":"987210",
+        "archivePayloadOffset":int(src_meta["archivePayloadOffset"]),
+        "archiveBytes":int(src_meta["archivePayloadBytes"]),
+        "bounds":[float(bounds_meta["xmin"]),float(bounds_meta["ymin"]),
+                  float(bounds_meta["xmax"]),float(bounds_meta["ymax"])],
+        "pointCount":int(center["sourcePoints"])
     }
-    records = [center_record]
-    for tile in NEIGHBOR_TILES:
-        out_dir = TILE_ROOT / tile["id"]
+    # Rebuild all nine tiles together so the center cannot stay on a legacy DSM mesh.
+    records = []
+    build_tiles = [center_tile, *NEIGHBOR_TILES]
+    for tile in build_tiles:
+        out_dir = LIDAR_ROOT if tile["id"] == "987210" else TILE_ROOT / tile["id"]
         out_dir.mkdir(parents=True, exist_ok=True)
         source = Path(os.environ.get("BRIDGEPOINT_LIDAR_CACHE", "/tmp/bridgepoint-nyc-lidar")) / f"{tile['id']}.laz"
-        fetch_laz(tile, source)
+        if tile["id"] == "987210":
+            fetch_laz_payload(tile["archivePayloadOffset"], tile["archiveBytes"], tile["id"], source)
+        else:
+            fetch_laz(tile, source)
         xmin,ymin,xmax,ymax = tile["bounds"]
         anchor_x, anchor_y = round((xmin+xmax)/2.0, 2), round((ymin+ymax)/2.0, 2)
         to4326 = Transformer.from_crs(2263, 4326, always_xy=True)
@@ -495,14 +547,16 @@ def main():
         ortho_jpg = cache_dir / f"{tile['id']}-ortho.jpg"
         image_bbox = fetch_orthophoto(tile, anchor_x, anchor_y, ortho_jpg)
         image = Image.open(ortho_jpg).convert("RGB")
-        # Determine the exact tile-local vertical anchor from measured ground before quantizing any points.
+        # Compute a per-tile ground anchor before quantizing points or building roof/ground surfaces.
         surface = build_surface_and_walls(tile, source, image_bbox, anchor, out_dir, ortho_jpg)
         lods = write_lod_assets(tile, source, image, image_bbox, anchor, out_dir)
         bnds = tile_bounds_wgs84(tile)
         manifest_path = make_manifest(tile, source, out_dir, anchor, bnds, image_bbox, lods, surface, sha256_file(ortho_jpg))
+        is_center = tile["id"] == "987210"
         records.append({
-            "tileId":tile["id"],"manifest":f"tiles/{tile['id']}/manifest.json",
-            "assetBase":f"/assets/nyc-lidar/tiles/{tile['id']}/",
+            "tileId":tile["id"],
+            "manifest":"manifest.json" if is_center else f"tiles/{tile['id']}/manifest.json",
+            "assetBase":"/assets/nyc-lidar/" if is_center else f"/assets/nyc-lidar/tiles/{tile['id']}/",
             "boundsWgs84":bnds,"anchor":anchor
         })
         print("TILE_MATERIALIZED",tile["id"],"sourceSha256",sha256_file(source),
@@ -518,7 +572,7 @@ def main():
         "version":7002,"baseTileId":"987210",
         "coordinateReference":"EPSG:2263 NAD83 / New York Long Island (US survey feet); local vertical datum NAVD88 Geoid12B ft",
         "sourceDataset":SOURCE_DATASET_URL,
-        "surfaceMethod":"measured LiDAR cell-local 2m mesh with real NYS orthophoto roofs/ground and separate LiDAR-derived vertical walls",
+        "surfaceMethod":"edge-preserving LiDAR roof-mask triangles + measured-ground DTM, registered nadir orthophoto, and separate neutral vertical walls",
         "tiles":records,
         "tileCount":len(records),
         "generatedAtUtc":time.strftime("%Y-%m-%dT%H:%M:%SZ",time.gmtime())
