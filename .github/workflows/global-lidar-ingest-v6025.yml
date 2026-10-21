@@ -25,12 +25,12 @@ jobs:
         worker: [0, 1, 2, 3, 4, 5, 6, 7]
     env:
       SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
-      POTREE_HOME: "${{ runner.temp }}/bridgepoint-potree-2.1.4"
+      POTREE_HOME: "${{ github.workspace }}/.cache/bridgepoint-potree-2.1.4"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v4
         with:
-          path: "${{ runner.temp }}/bridgepoint-potree-2.1.4"
+          path: "${{ github.workspace }}/.cache/bridgepoint-potree-2.1.4"
           key: bridgepoint-potreeconverter-2.1.4-ubuntu-v1
       - name: Install PotreeConverter build dependencies and cached converter
         shell: bash
