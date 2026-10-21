@@ -356,8 +356,8 @@ jobs:
           grep -Fq 'Potree.updatePointClouds([cloud]' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan' site/index.html
           grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan' site/app/index.html
-          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7003-nyc-neighborhood-tile-coverage' site/index.html
-          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7003-nyc-neighborhood-tile-coverage' site/app/index.html
+          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7004-overlay-toggle-and-global-coverage' site/index.html
+          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7004-overlay-toggle-and-global-coverage' site/app/index.html
           test -s site/bridgepoint-nyc-lidar-v7000.js
           test -s site/assets/nyc-lidar/manifest.json
           python3 - <<'PY'

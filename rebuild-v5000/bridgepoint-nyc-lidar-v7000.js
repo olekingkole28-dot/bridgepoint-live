@@ -5,8 +5,8 @@
  */
 (() => {
   'use strict';
-  if (window.__BP_NYC_LIDAR_V7002_BOOTED__) return;
-  window.__BP_NYC_LIDAR_V7002_BOOTED__ = true;
+  if (window.__BP_NYC_LIDAR_V7003_BOOTED__) return;
+  window.__BP_NYC_LIDAR_V7003_BOOTED__ = true;
 
   const VERSION = 7002;
   const CENTER_TILE_ID = '987210';
@@ -23,6 +23,7 @@
     () => window.__BP_V5000_WORLD__
   ];
   const MAPS = new WeakMap();
+  const OVERLAY_STORAGE_KEY = 'bp-nyc-lidar-overlay-v7003';
   const JSON_CACHE = new Map();
   let threePromise = null;
   let attachedCount = 0;
@@ -386,7 +387,7 @@
     if (!state.baseManifest || !state.scene || state.installing) return;
     const zoom = Number(map.getZoom());
     for (const tile of state.tiles.values()) {
-      const level = wantedLod(map, tile.manifest);
+      const level = state.overlayEnabled ? wantedLod(map, tile.manifest) : -1;
       tile.wantedLevel = level;
       if (level < 0) {
         for (const mesh of tile.meshes.values()) mesh.visible = false;
@@ -422,7 +423,7 @@
         tile.activeLevel = fallback;
       }
     }
-    suppressLegacySurfaces(map, state, fullyCoveredByActiveTiles(map, state));
+    suppressLegacySurfaces(map, state, state.overlayEnabled && fullyCoveredByActiveTiles(map, state));
     map.triggerRepaint();
     updateStatus(map, state, 'rendering-source-lidar-neighborhood');
     if (zoom >= 17.2 && [...state.tiles.values()].some(t=>t.activeLevel===2 && t.surfaceGroup?.visible)) {
@@ -502,7 +503,7 @@
           state.camera.far = 1e12;
           state.scene.updateMatrixWorld(true);
           state.renderer.resetState();
-          state.renderer.render(state.scene, state.camera);
+          if (state.overlayEnabled) state.renderer.render(state.scene, state.camera);
           state.renderer.resetState();
         } catch (error) {
           state.lastError = String(error && error.message || error);
@@ -590,16 +591,41 @@
     }
   }
 
+  function addCoverageMarker(map) {
+    if (!map || !map.addSource || !map.addLayer) return;
+    const sourceId='bp-lidar-coverage-source-v7003',circleId='bp-lidar-coverage-marker-v7003',labelId='bp-lidar-coverage-label-v7003';
+    try {
+      if (!map.getSource(sourceId)) map.addSource(sourceId,{type:'geojson',data:{type:'FeatureCollection',features:[{type:'Feature',properties:{name:'New York City LiDAR / photo mesh',tileCount:9},geometry:{type:'Point',coordinates:[-73.99,40.75]}}]}});
+      if (!map.getLayer(circleId)) map.addLayer({id:circleId,type:'circle',source:sourceId,minzoom:0,maxzoom:12,paint:{'circle-radius':['interpolate',['linear'],['zoom'],0,4,5,6,10,9,12,11],'circle-color':'#43e7ff','circle-stroke-color':'#ffffff','circle-stroke-width':1.5,'circle-opacity':0.95,'circle-blur':0.08}});
+      if (!map.getLayer(labelId)) map.addLayer({id:labelId,type:'symbol',source:sourceId,minzoom:0,maxzoom:5,layout:{'text-field':'NYC LiDAR','text-size':11,'text-offset':[0,1.4],'text-allow-overlap':true},paint:{'text-color':'#e8fbff','text-halo-color':'#06202a','text-halo-width':1.5}});
+      if (!map.__bpLidarCoverageClickV7003) {map.__bpLidarCoverageClickV7003=true;map.on('click',circleId,()=>map.flyTo({center:[-73.99,40.75],zoom:15.5,pitch:55,duration:1800}));map.on('mouseenter',circleId,()=>{map.getCanvas().style.cursor='pointer'});map.on('mouseleave',circleId,()=>{map.getCanvas().style.cursor=''});}
+    } catch (_) {}
+  }
+  function addOverlayControl(map,state) {
+    const slot=document.getElementById('bpv-map-controls-slot');
+    if (!slot || slot.querySelector('[data-bp-lidar-toggle-v7003]')) return;
+    const wrap=document.createElement('div');wrap.dataset.bpLidarToggleV7003='true';
+    wrap.style.cssText='display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;margin:8px 0 0;padding:10px 12px;border:1px solid rgba(67,231,255,.38);border-radius:10px;background:rgba(4,19,29,.94);color:#eafaff;font:700 12px/1.3 system-ui,sans-serif;box-sizing:border-box';
+    const button=document.createElement('button');button.type='button';button.setAttribute('aria-pressed','false');
+    button.style.cssText='flex:1;min-height:42px;border:1px solid rgba(67,231,255,.6);border-radius:8px;background:linear-gradient(135deg,#0a3542,#10212d);color:#c7f8ff;font:900 11px/1.25 system-ui,sans-serif;letter-spacing:.035em;padding:8px;cursor:pointer';
+    const note=document.createElement('span');note.textContent='Verified NYC coverage only · source geometry';note.style.cssText='font-size:10px;color:#a4c9d3;flex:1 1 100%';
+    const paint=()=>{button.setAttribute('aria-pressed',String(state.overlayEnabled));button.textContent='LiDAR / PHOTOGRAPH MESH OVERLAY: '+(state.overlayEnabled?'ON':'OFF');};
+    button.addEventListener('click',()=>{state.overlayEnabled=!state.overlayEnabled;try{localStorage.setItem(OVERLAY_STORAGE_KEY,state.overlayEnabled?'1':'0')}catch(_){}try{if(map.getLayer(LAYER_ID))map.setLayoutProperty(LAYER_ID,'visibility',state.overlayEnabled?'visible':'none')}catch(_){}if(!state.overlayEnabled)suppressLegacySurfaces(map,state,false);paint();reconcile(map,state);publish(state.overlayEnabled?'overlay-enabled':'overlay-disabled',{overlayEnabled:state.overlayEnabled});});
+    wrap.append(button,note);slot.append(wrap);paint();
+  }
+
   function attach(map) {
     if (!map || MAPS.has(map)) return;
     const state = {
       map, baseManifest:null, baseAnchor:null, tiles:new Map(), catalogErrors:[],
       scene:null, camera:null, renderer:null, gl:null,
-      installing:false, layerAdded:false, savedFilters:new Map(), maskActive:false,
+      installing:false, layerAdded:false, overlayEnabled:false, savedFilters:new Map(), maskActive:false,
       filterErrors:[], lastError:null, reconciling:false, reconcilePending:false,
       eventsBound:false, autoFocused:false
     };
     MAPS.set(map, state);
+    try { state.overlayEnabled = localStorage.getItem(OVERLAY_STORAGE_KEY) === '1'; } catch (_) { state.overlayEnabled = false; }
+    addOverlayControl(map,state); addCoverageMarker(map); map.on('style.load',()=>{addCoverageMarker(map);addOverlayControl(map,state)});
     attachedCount++;
     publish('attaching-map', {attachedMaps:attachedCount});
     loadJson(CENTER_MANIFEST_URL).then(async manifest => {
