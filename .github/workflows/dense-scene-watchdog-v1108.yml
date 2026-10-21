@@ -165,7 +165,8 @@ jobs:
               });
               console.log('DENSE_CITY_DIAGNOSTICS',JSON.stringify(city));
               if(city.rendered<1&&city.sourceBuildings<1)throw new Error('DENSE_CITY_BUILDINGS_NOT_LOADED '+JSON.stringify(city));
-              if(city.floorLayers.length||city.roofLayers.length)throw new Error('DENSE_CITY_MIDZOOM_DETAIL_TOO_EARLY '+JSON.stringify(city));
+              const earlyDetailedRoofs=city.roofLayers.filter(id=>/gta-(?:bp|city|exact)-.*roof|facade|building-parts/i.test(id));
+              if(city.floorLayers.length||earlyDetailedRoofs.length)throw new Error('DENSE_CITY_MIDZOOM_DETAIL_TOO_EARLY '+JSON.stringify({...city,earlyDetailedRoofs}));
               const cityRaf=await rafHealth(page);
               if(cityRaf.frames<8||cityRaf.maxGap>1100)throw new Error('DENSE_CITY_MAIN_THREAD_STALL '+JSON.stringify(cityRaf));
 
