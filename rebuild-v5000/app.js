@@ -1190,12 +1190,12 @@ async function start(){
  const appBootStarted=performance.now();
  window.__BP_APP_BOOT_PRIORITY_V5906__={version:5906,stage:'public-map-start',startedAt:Date.now()};
  enhanceInspectorUI();closeSystem();bindAuthUI();
- await restoreAuth();
- const verifiedSession=await requireAuthenticatedAppSession();
- // Public map access is intentionally independent of account access. Saved items,
- // claims, workflow actions and owner controls continue to use authenticated RPCs.
- const authReady=Promise.resolve(verifiedSession);
- window.__BP_APP_BOOT_PRIORITY_V5906__={version:5906,stage:'starting-public-map',signedIn:!!verifiedSession,startedAt:Date.now()};
+ // Public map startup must never wait for network auth validation. Restore/verify the
+ // account in parallel; saved workspace and owner actions remain auth-gated below.
+ const authReady=restoreAuth()
+  .then(()=>requireAuthenticatedAppSession())
+  .catch(error=>{console.warn('background app auth verification',error);renderAuthState();return null});
+ window.__BP_APP_BOOT_PRIORITY_V5906__={version:5906,stage:'starting-public-map',authVerificationBackground:true,startedAt:Date.now()};
  const mapReady=bootMap();
  const landingPackage=localStorage.getItem('bp_landing_package');
  if(landingPackage){pendingPackageKey=landingPackage;localStorage.removeItem('bp_landing_package')}
