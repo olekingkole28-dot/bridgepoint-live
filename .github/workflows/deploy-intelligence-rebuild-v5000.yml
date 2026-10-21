@@ -235,6 +235,7 @@ jobs:
           # Carry forward only the proven map engine pieces used by the new shell.
           cp release-v2300/world-v2300-config.js site/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/world-v2300-map.js
+          cp release-v2300/world-v2300-lod-controls.js site/world-v2300-lod-controls.js
           cp release-v2300/world-v2300-space.js site/world-v2300-space.js
           cp release-v2300/world-v2300-worker.js site/world-v2300-worker.js
           cp release-v2300/world-v2300-weather.js site/world-v2300-weather.js
@@ -249,6 +250,7 @@ jobs:
           cp release-v2300/gis-core-orchestrator-v5910.js site/gis-core-orchestrator-v5910.js
           cp release-v2300/world-v2300-config.js site/app/world-v2300-config.js
           cp release-v2300/world-v2300-map.js site/app/world-v2300-map.js
+          cp release-v2300/world-v2300-lod-controls.js site/app/world-v2300-lod-controls.js
           cp release-v2300/world-v2300-space.js site/app/world-v2300-space.js
           cp release-v2300/world-v2300-worker.js site/app/world-v2300-worker.js
           cp release-v2300/world-v2300-weather.js site/app/world-v2300-weather.js
@@ -637,6 +639,8 @@ jobs:
           grep -Fq 'SIGNUP_SUCCESS' site/landing.js
           node --check site/world-v2300-config.js
           node --check site/world-v2300-map.js
+          node --check site/world-v2300-lod-controls.js
+          node --check site/app/world-v2300-lod-controls.js
           test -s site/world-v2300-space.js
           test -s site/app/world-v2300-space.js
           node --check site/world-v2300-worker.js
@@ -826,10 +830,17 @@ jobs:
           grep -Fq 'toggleLiveContext' site/app/index.html
           grep -Fq 'app.js?v=5981-mobile-controls' site/app/index.html
           grep -Fq 'landing.js?v=5981-mobile-controls' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6001-auto-detail-lod' site/app.js
-           grep -Fq 'world-v2300-map.js?v=6001-auto-detail-lod' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=6001-auto-detail-lod' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6001-auto-detail-lod' site/app/index.html
+           grep -Fq 'world-v2300-map.js?v=6016-tiered-lod' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6016-tiered-lod' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6016-tiered-lod' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6016-tiered-lod' site/app/index.html
+           grep -Fq 'world-v2300-lod-controls.js?v=6016-tiered-lod' site/app.js
+           grep -Fq 'world-v2300-lod-controls.js?v=6016-tiered-lod' site/landing.js
+           grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
+           grep -Fq 'syncWorldLodLayerRanges' site/world-v2300-map.js
+           grep -Fq 'data-bp-lod-tier' site/world-v2300-lod-controls.js
+           test -s site/world-v2300-lod-controls.js
+           test -s site/app/world-v2300-lod-controls.js
           grep -Fq 'maplibre-gl@5.24.0/dist/maplibre-gl.js' .github/workflows/deploy-intelligence-rebuild-v5000.yml
           grep -Fq 'maplibre-gl.js?v=524-v5945' site/index.html
           grep -Fq 'maplibre-gl.js?v=524-v5945' site/app/index.html
@@ -1574,6 +1585,23 @@ jobs:
               // Deployment smoke stops at the rendered-building click contract.
               // The dedicated Android Building Inspector workflow is the deep panel/marker gate.
               console.log('BRIDGEPOINT_BUILDING_CLICK_PASS',JSON.stringify(clicked));
+              await p.waitForFunction(()=>window.__BP_LOD_CONTROL_V6016__?.version===6016&&document.querySelector('[data-bp-lod-tier="GOLD"]')&&document.querySelector('[data-bp-lod-tier="SILVER"]')&&document.querySelector('[data-bp-lod-tier="BRONZE"]'),{timeout:20000});
+              await p.evaluate(()=>{const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('LOD_SMOKE_MAP_UNAVAILABLE');m.stop?.();m.jumpTo({center:[-73.9857,40.7484],zoom:16.6,pitch:52,bearing:0})});
+              await p.waitForTimeout(1800);
+              await p.evaluate(()=>document.querySelector('[data-bp-lod-tier="GOLD"]').click());
+              await p.waitForFunction(()=>{const c=window.__BP_LOD_CONTROL_V6016__,m=window.__BP_V5000_WORLD?.map,l=m?.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail');return c?.tier==='GOLD'&&l&&Number(l.minzoom)<=14.9},{timeout:15000});
+              await p.waitForFunction(()=>{const m=window.__BP_V5000_WORLD?.map;return !!m&&['gta-bp-facade-detail','gta-context-facade-detail'].some(id=>m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')==='visible')},{timeout:15000});
+              const goldLod=await p.evaluate(()=>{const m=window.__BP_V5000_WORLD?.map;return{tier:window.__BP_LOD_CONTROL_V6016__?.tier,layerMinZoom:m?.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail')?.minzoom,facadeVisibility:['gta-bp-facade-detail','gta-context-facade-detail'].filter(id=>m?.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')==='visible'),button:document.querySelector('[data-bp-lod-tier="GOLD"]')?.getAttribute('aria-pressed'),runtime:window.__BP_WORLD_LOD_RUNTIME_V6016__||null}});
+              if(goldLod.tier!=='GOLD'||!(goldLod.layerMinZoom<=14.9)||!goldLod.facadeVisibility.length||goldLod.button!=='true')throw new Error('GOLD_LOD_DID_NOT_CHANGE_RENDERER '+JSON.stringify(goldLod));
+              await p.evaluate(()=>document.querySelector('[data-bp-lod-tier="SILVER"]').click());
+              await p.waitForFunction(()=>{const c=window.__BP_LOD_CONTROL_V6016__,m=window.__BP_V5000_WORLD?.map,l=m?.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail');return c?.tier==='SILVER'&&l&&Number(l.minzoom)>14.9&&Number(l.minzoom)<=15.8},{timeout:15000});
+              const silverLod=await p.evaluate(()=>({tier:window.__BP_LOD_CONTROL_V6016__?.tier,layerMinZoom:window.__BP_V5000_WORLD?.map?.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail')?.minzoom,button:document.querySelector('[data-bp-lod-tier="SILVER"]')?.getAttribute('aria-pressed')}));
+              if(silverLod.tier!=='SILVER'||!(silverLod.layerMinZoom>goldLod.layerMinZoom&&silverLod.layerMinZoom<=15.8)||silverLod.button!=='true')throw new Error('SILVER_LOD_DID_NOT_CHANGE_RENDERER '+JSON.stringify({goldLod,silverLod}));
+              await p.evaluate(()=>document.querySelector('[data-bp-lod-tier="BRONZE"]').click());
+              await p.waitForFunction(()=>{const c=window.__BP_LOD_CONTROL_V6016__,m=window.__BP_V5000_WORLD?.map,l=m?.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail'),expected=matchMedia('(max-width: 620px)').matches?17.25:16.15;return c?.tier==='BRONZE'&&l&&Number(l.minzoom)===expected&&m.getLayoutProperty('gta-bp-facade-detail','visibility')==='none'&&m.getLayoutProperty('gta-context-facade-detail','visibility')==='none'},{timeout:15000});
+              const bronzeLod=await p.evaluate(()=>({tier:window.__BP_LOD_CONTROL_V6016__?.tier,layerMinZoom:window.__BP_V5000_WORLD?.map?.getStyle?.().layers?.find(x=>x.id==='gta-bp-facade-detail')?.minzoom,button:document.querySelector('[data-bp-lod-tier="BRONZE"]')?.getAttribute('aria-pressed')}));
+              if(bronzeLod.tier!=='BRONZE'||bronzeLod.button!=='true')throw new Error('BRONZE_LOD_DID_NOT_RESTORE_LIGHT_RENDERING '+JSON.stringify(bronzeLod));
+              console.log('BRIDGEPOINT_WORLD_LOD_TIERED_RENDERING_PASS',JSON.stringify({goldLod,silverLod,bronzeLod}));
               await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map;
                 if(!m)throw new Error('PYRAMID_SMOKE_MAP_UNAVAILABLE');
