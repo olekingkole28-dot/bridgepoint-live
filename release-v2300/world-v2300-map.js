@@ -964,8 +964,12 @@ export function initWorld(options={}){
  }
  function syncParcelShells(){layerState.parcels=false;for(const id of ['gta-parcel-glow','gta-parcel-halo','gta-parcel'])vis(map,id,false);return false}
  function syncWorldLodLayerRanges(lod=activeWorldLodProfile()){
-   if(!map.isStyleLoaded?.())return false;
-   if(map.__bpLodRangeProfile===lod.tier)return true;
+   const styleLayers=map.getStyle?.()?.layers;
+   if(!Array.isArray(styleLayers)||!styleLayers.length)return false;
+   // Layer ranges can be updated as soon as the style exposes layers; waiting for
+   // isStyleLoaded() can leave all tiers stuck at their old zoom thresholds.
+   const profileKey=lod.tier+':'+styleLayers.length;
+   if(map.__bpLodRangeProfile===profileKey)return true;
    const ranges=[
     ['gta-context-roofs',lod.roofMin],['gta-bp-roofs',lod.roofMin],['gta-city-roofs',lod.roofMin],
     ['gta-context-floor-lines',lod.floorMin],['gta-bp-floor-lines',lod.floorMin],['gta-city-floor-lines',lod.floorMin],['gta-exact-floor-lines',lod.floorMin],
@@ -982,8 +986,10 @@ export function initWorld(options={}){
    ];
    let found=0;
    for(const [id,min] of ranges){if(!map.getLayer(id))continue;try{map.setLayerZoomRange(id,Math.max(0,Math.min(21.99,Number(min)||0)),22);found++}catch(e){console.warn('BridgePoint LOD layer range',id,String(e?.message||e))}}
-   map.__bpLodRangeProfile=lod.tier;
-   window.__BP_WORLD_LOD_RUNTIME_V6016__={version:6016,tier:lod.tier,adjustedLayerRanges:found,updatedAt:Date.now()};
+   if(found>0){
+    map.__bpLodRangeProfile=profileKey;
+    window.__BP_WORLD_LOD_RUNTIME_V6016__={version:6016,tier:lod.tier,adjustedLayerRanges:found,layerCount:styleLayers.length,updatedAt:Date.now()};
+   }
    return found>0
   }
   function syncBuildingShells(force=false){
@@ -1453,5 +1459,28 @@ export function initWorld(options={}){
    },{enableHighAccuracy:false,timeout:Number.isFinite(opts.timeout)?Number(opts.timeout):7000,maximumAge:120000})
   })
  }
- const api={version:VERSION,map,state,space,setBase,setLodTier:tier=>{const selected=String(tier||'GOLD').toUpperCase()==='GOLD'?'GOLD':String(tier||'GOLD').toUpperCase()==='SILVER'?'SILVER':'BRONZE';window.__BP_LOD_RENDERING_V6016__={...(window.__BP_LOD_RENDERING_V6016__||{}),version:6016,tier:selected,updatedAt:Date.now()};map.__bpLodRangeProfile=null;const apply=()=>{const lod=activeWorldLodProfile();syncWorldLodLayerRanges(lod);terrain();syncBuildingShells(true);scheduleLivingWorld(90);rebuildBridge3D(100);rebuildRoad3D(100);map.triggerRepaint?.();return lod};if(map.isStyleLoaded?.())apply();else map.once('load',apply);return window.__BP_LOD_RENDERING_V6016__},startForViewer,enterWalk:()=>false,exitWalk:()=>false,walkStep:()=>false,turnWalk:()=>false,refresh:()=>{terrain();exact();syncBuildingShells()},selectBuildingAtPoint:point=>{const layers=buildingHitLayers(true);let features=[];try{features=map.queryRenderedFeatures(point,{layers})||[]}catch(_){};return chooseBuilding({point,lngLat:map.unproject(point),features})},onBuildingSelect:fn=>{buildingSelectHandler=typeof fn==='function'?fn:null;return()=>{if(buildingSelectHandler===fn)buildingSelectHandler=null}}};window[globalKey]=api;if(globalKey==='__bpWorldV2300')window.__bpWorldV2300=api;return api;
+ const api={version:VERSION,map,state,space,setBase,setLodTier:tier=>{
+  const selected=String(tier||'GOLD').toUpperCase()==='GOLD'?'GOLD':String(tier||'GOLD').toUpperCase()==='SILVER'?'SILVER':'BRONZE';
+  window.__BP_LOD_RENDERING_V6016__={...(window.__BP_LOD_RENDERING_V6016__||{}),version:6016,tier:selected,updatedAt:Date.now()};
+  map.__bpLodRangeProfile=null;
+  const apply=()=>{
+   const lod=activeWorldLodProfile();
+   const rangesApplied=syncWorldLodLayerRanges(lod);
+   const finishRender=()=>{
+    const current=activeWorldLodProfile();
+    syncWorldLodLayerRanges(current);
+    if(!map.isStyleLoaded?.())return false;
+    terrain();syncBuildingShells(true);scheduleLivingWorld(90);rebuildBridge3D(100);rebuildRoad3D(100);
+    map.triggerRepaint?.();return true;
+   };
+   // Apply supported zoom gates immediately, then finish geometry work once the
+   // style settles. The load event may already have fired while sources remain busy.
+   if(map.isStyleLoaded?.())finishRender();
+   else{map.once('load',finishRender);map.once('idle',finishRender)}
+   map.triggerRepaint?.();
+   return{...lod,rangesApplied};
+  };
+  apply();
+  return window.__BP_LOD_RENDERING_V6016__;
+},startForViewer,enterWalk:()=>false,exitWalk:()=>false,walkStep:()=>false,turnWalk:()=>false,refresh:()=>{terrain();exact();syncBuildingShells()},selectBuildingAtPoint:point=>{const layers=buildingHitLayers(true);let features=[];try{features=map.queryRenderedFeatures(point,{layers})||[]}catch(_){};return chooseBuilding({point,lngLat:map.unproject(point),features})},onBuildingSelect:fn=>{buildingSelectHandler=typeof fn==='function'?fn:null;return()=>{if(buildingSelectHandler===fn)buildingSelectHandler=null}}};window[globalKey]=api;if(globalKey==='__bpWorldV2300')window.__bpWorldV2300=api;return api;
 }

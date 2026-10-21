@@ -1294,7 +1294,7 @@ jobs:
                 },tier);
                 await p.waitForFunction(t=>{
                   const m=window.__BP_V5000_WORLD?.map,c=window.__BP_LOD_CONTROL_V6016__;
-                  const runtime=window.__BP_LOD_RENDERING_V6016__;
+                  const runtime=window.__BP_WORLD_LOD_RUNTIME_V6016__;
                   const buttons=[...(document.querySelectorAll('#bpv-dock #bpv-map-controls-slot [data-bp-lod-tier]')||[])];
                   return !!m&&c?.tier===t&&runtime?.tier===t&&
                     buttons.filter(b=>b.getAttribute('aria-pressed')==='true').length===1&&
