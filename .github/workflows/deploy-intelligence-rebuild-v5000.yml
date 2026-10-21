@@ -830,12 +830,12 @@ jobs:
           grep -Fq 'toggleLiveContext' site/app/index.html
           grep -Fq 'app.js?v=5981-mobile-controls' site/app/index.html
           grep -Fq 'landing.js?v=5981-mobile-controls' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6016-tiered-lod' site/app.js
-           grep -Fq 'world-v2300-map.js?v=6016-tiered-lod' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=6016-tiered-lod' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6016-tiered-lod' site/app/index.html
-           grep -Fq 'world-v2300-lod-controls.js?v=6016-tiered-lod' site/app.js
-           grep -Fq 'world-v2300-lod-controls.js?v=6016-tiered-lod' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6017-ground-tile-cache' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6017-ground-tile-cache' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6017-ground-tile-cache' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6017-ground-tile-cache' site/app/index.html
+           grep -Fq 'world-v2300-lod-controls.js?v=6017-dock-card' site/app.js
+           grep -Fq 'world-v2300-lod-controls.js?v=6017-dock-card' site/landing.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
            grep -Fq 'syncWorldLodLayerRanges' site/world-v2300-map.js
            grep -Fq 'data-bp-lod-tier' site/world-v2300-lod-controls.js
@@ -1586,6 +1586,10 @@ jobs:
               // The dedicated Android Building Inspector workflow is the deep panel/marker gate.
               console.log('BRIDGEPOINT_BUILDING_CLICK_PASS',JSON.stringify(clicked));
               await p.waitForFunction(()=>window.__BP_LOD_CONTROL_V6016__?.version===6016&&document.querySelector('[data-bp-lod-tier="GOLD"]')&&document.querySelector('[data-bp-lod-tier="SILVER"]')&&document.querySelector('[data-bp-lod-tier="BRONZE"]'),{timeout:20000});
+              await p.waitForFunction(()=>document.querySelector('#bpv-map-controls-slot [data-bp-lod-tier="GOLD"]'),{timeout:15000});
+              const cameraRetention=await p.evaluate(()=>({maxPitch:window.__BP_V5000_WORLD?.map?.getMaxPitch?.()??null,groundGuard:window.__BP_CAMERA_GROUND_GUARD_V6017__?.enabled===true,tileCache:window.__BP_TILE_RETENTION_V6017__||null,inDock:!!document.querySelector('#bpv-map-controls-slot [data-bp-lod-tier="GOLD"]')}));
+              if(!(cameraRetention.maxPitch>=100)||!cameraRetention.groundGuard||cameraRetention.tileCache?.cancelPendingTileRequestsWhileZooming!==false||!cameraRetention.inDock)throw new Error('BRIDGEPOINT_GROUND_CAMERA_TILE_RETENTION_OR_CARD_FAILED '+JSON.stringify(cameraRetention));
+              console.log('BRIDGEPOINT_GROUND_CAMERA_TILE_RETENTION_CARD_PASS',JSON.stringify(cameraRetention));
               await p.evaluate(()=>{const m=window.__BP_V5000_WORLD?.map;if(!m)throw new Error('LOD_SMOKE_MAP_UNAVAILABLE');m.stop?.();m.jumpTo({center:[-73.9857,40.7484],zoom:16.6,pitch:52,bearing:0})});
               await new Promise(resolve=>setTimeout(resolve,1800));
               await p.evaluate(()=>document.querySelector('[data-bp-lod-tier="GOLD"]').click());
