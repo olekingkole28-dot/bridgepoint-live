@@ -413,7 +413,8 @@ jobs:
           grep -Fq 'sourceRoot.scale.setScalar(STATUE_FIGURE_HEIGHT_M / sourceHeight)' site/bridgepoint-landmarks-v5940.js
           grep -Fq 'getMatrixForModel(STATUE, figureBaseAltitude)' site/bridgepoint-landmarks-v5940.js
           node -e "const d=JSON.parse(require('fs').readFileSync('site/assets/great-wall-overview-v5940.geojson','utf8'));if(d.features.length!==270)process.exit(1)"
-          grep -Fq 'PARCEL BOUNDARIES' site/bridgepoint-view-v5917.js
+          grep -Fq 'PUBLIC PARCEL VIEWER' site/bridgepoint-view-v5917.js
+          grep -Fq 'data-bpv-action="boundaryviewer"' site/bridgepoint-view-v5917.js
           grep -Fq 'bridgepoint_public_listings_viewport_v5927' site/bridgepoint-view-v5917.js
           grep -Fq 'bridgepoint-realworld-effects-v5927.js' site/intelligence-tools-v5507.js
           grep -Fq 'bridgepoint-celestial-sky-v5928.js' site/bridgepoint-realworld-effects-v5927.js
@@ -891,12 +892,13 @@ jobs:
           test -s site/vendor/maplibre-gl.js
           test -s site/vendor/maplibre-gl.css
           grep -Fq 'landing.css?v=5941-mobile-grid' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6033-mobile-dock-close-safe' site/index.html
-          grep -Fq 'bridgepoint-view-v5917.css?v=6033-mobile-dock-close-safe' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6032-premium-slot-close-safe' site/app/index.html
-          grep -Fq 'bridgepoint-view-v5917.js?v=6032-premium-slot-close-safe' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6034-left-map-key' site/index.html
+          grep -Fq 'bridgepoint-view-v5917.css?v=6034-left-map-key' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6034-parcel-viewer-left-map-key' site/app/index.html
+          grep -Fq 'bridgepoint-view-v5917.js?v=6034-parcel-viewer-left-map-key' site/index.html
           grep -Fq 'function setDockMaximized(on)' site/bridgepoint-view-v5917.js
-          grep -Fq 'dock.appendChild(keyRibbon)' site/bridgepoint-view-v5917.js
+          grep -Fq 'document.body.appendChild(keyRail)' site/bridgepoint-view-v5917.js
+          grep -Fq 'p.removeAttribute('"'"'data-panel'"'"')' site/bridgepoint-view-v5917.js
           grep -Fq 'dockableControlSelector' site/bridgepoint-view-v5917.js
           grep -Fq 'Unified bottom command deck' site/bridgepoint-view-v5917.css
           grep -Fq 'intelligence-tools-v5507.js?v=5945-flight-deck' site/index.html
