@@ -161,15 +161,19 @@ async function bootMap(){
   ['realism',async()=>{const m=await import('./world-v2300-realism.js?v=5910-world-materials');window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)}],
   ['gis-core',async()=>{const m=await import('./gis-core-orchestrator-v5910.js?v=5910-gis-router');window.__BP_GIS_CORE_V5910__=m.initGisCore(world,rpc)}]
  ];
- let optionalWorldIndex=0,optionalWorldStarted=false;
+ let optionalWorldIndex=0,optionalWorldStarted=false,optionalWorldBusy=false,optionalWorldScheduled=false;
  const runNextOptionalWorldModule=()=>{
-  if(optionalWorldIndex>=optionalWorldJobs.length||document.hidden)return;
+  if(optionalWorldIndex>=optionalWorldJobs.length||document.hidden||optionalWorldBusy||optionalWorldScheduled)return;
+  optionalWorldScheduled=true;
   const launch=()=>{
+   optionalWorldScheduled=false;
    if(document.hidden){setTimeout(runNextOptionalWorldModule,900);return}
+   if(optionalWorldBusy)return;
    const [name,run]=optionalWorldJobs[optionalWorldIndex++];
+   optionalWorldBusy=true;
    Promise.resolve().then(run)
     .catch(e=>console.warn('BridgePoint optional world module '+name+' unavailable',e))
-    .finally(()=>setTimeout(runNextOptionalWorldModule,160));
+    .finally(()=>{optionalWorldBusy=false;setTimeout(runNextOptionalWorldModule,160)});
   };
   if(typeof window.requestIdleCallback==='function')window.requestIdleCallback(launch,{timeout:1200});
   else setTimeout(launch,450);
