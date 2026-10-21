@@ -1,0 +1,398 @@
+{
+  "version": 7002,
+  "baseTileId": "987210",
+  "coordinateReference": "EPSG:2263 NAD83 / New York Long Island (US survey feet); local vertical datum NAVD88 Geoid12B ft",
+  "sourceDataset": "https://data.cityofnewyork.us/City-Government/Topobathymetric-LiDAR-Data-2017-/7sc8-jtbz",
+  "surfaceMethod": "measured LiDAR cell-local 2m mesh with real NYS orthophoto roofs/ground and separate LiDAR-derived vertical walls",
+  "tiles": [
+    {
+      "tileId": "985207",
+      "manifest": "tiles/985207/manifest.json",
+      "assetBase": "/assets/nyc-lidar/tiles/985207/",
+      "boundsWgs84": {
+        "polygon": [
+          [
+            -73.99729369082786,
+            40.736216143027974
+          ],
+          [
+            -73.98827269640454,
+            40.73621557770553
+          ],
+          [
+            -73.98827148857141,
+            40.74307742946935
+          ],
+          [
+            -73.99729341209628,
+            40.74307799484947
+          ],
+          [
+            -73.99729369082786,
+            40.736216143027974
+          ]
+        ],
+        "west": -73.99729369082786,
+        "south": 40.73621557770553,
+        "east": -73.98827148857141,
+        "north": 40.74307799484947
+      },
+      "anchor": {
+        "longitude": -73.9927828400195,
+        "latitude": 40.73964686170243,
+        "projectedXFeet": 986249.99,
+        "projectedYFeet": 208749.99,
+        "verticalOriginFeet": 36.880001068115234,
+        "verticalOriginMethod": "median of measured LAS class-2 ground returns within 200 ft of tile center",
+        "enuAxes": "local X=east, Y=up, Z=north",
+        "feetToMeters": 0.3048006096012192
+      }
+    },
+    {
+      "tileId": "985210",
+      "manifest": "tiles/985210/manifest.json",
+      "assetBase": "/assets/nyc-lidar/tiles/985210/",
+      "boundsWgs84": {
+        "polygon": [
+          [
+            -73.99729341209517,
+            40.74307802229696
+          ],
+          [
+            -73.98827148856658,
+            40.743077456916836
+          ],
+          [
+            -73.98827028047981,
+            40.74993932947129
+          ],
+          [
+            -73.99729313330505,
+            40.74993989490913
+          ],
+          [
+            -73.99729341209517,
+            40.74307802229696
+          ]
+        ],
+        "west": -73.99729341209517,
+        "south": 40.743077456916836,
+        "east": -73.98827028047981,
+        "north": 40.74993989490913
+      },
+      "anchor": {
+        "longitude": -73.9927820966565,
+        "latitude": 40.746508765082936,
+        "projectedXFeet": 986249.99,
+        "projectedYFeet": 211250.0,
+        "verticalOriginFeet": 35.93000030517578,
+        "verticalOriginMethod": "median of measured LAS class-2 ground returns within 200 ft of tile center",
+        "enuAxes": "local X=east, Y=up, Z=north",
+        "feetToMeters": 0.3048006096012192
+      }
+    },
+    {
+      "tileId": "985212",
+      "manifest": "tiles/985212/manifest.json",
+      "assetBase": "/assets/nyc-lidar/tiles/985212/",
+      "boundsWgs84": {
+        "polygon": [
+          [
+            -73.99729313330505,
+            40.74993989490913
+          ],
+          [
+            -73.98827028047981,
+            40.74993932947129
+          ],
+          [
+            -73.98826907214897,
+            40.75680116782331
+          ],
+          [
+            -73.9972928544586,
+            40.75680173331879
+          ],
+          [
+            -73.99729313330505,
+            40.74993989490913
+          ]
+        ],
+        "west": -73.99729313330505,
+        "south": 40.74993932947129,
+        "east": -73.98826907214897,
+        "north": 40.75680173331879
+      },
+      "anchor": {
+        "longitude": -73.99278135314631,
+        "latitude": 40.75337060686256,
+        "projectedXFeet": 986249.99,
+        "projectedYFeet": 213749.99,
+        "verticalOriginFeet": 33.369998931884766,
+        "verticalOriginMethod": "median of measured LAS class-2 ground returns within 200 ft of tile center",
+        "enuAxes": "local X=east, Y=up, Z=north",
+        "feetToMeters": 0.3048006096012192
+      }
+    },
+    {
+      "tileId": "987207",
+      "manifest": "tiles/987207/manifest.json",
+      "assetBase": "/assets/nyc-lidar/tiles/987207/",
+      "boundsWgs84": {
+        "polygon": [
+          [
+            -73.98827266032042,
+            40.73621557770186
+          ],
+          [
+            -73.97925166614583,
+            40.73621430572462
+          ],
+          [
+            -73.97924952920754,
+            40.74307615735865
+          ],
+          [
+            -73.98827145248359,
+            40.743077429465664
+          ],
+          [
+            -73.98827266032042,
+            40.73621557770186
+          ]
+        ],
+        "west": -73.98827266032042,
+        "south": 40.73621430572462,
+        "east": -73.97924952920754,
+        "north": 40.743077429465664
+      },
+      "anchor": {
+        "longitude": -73.98376134508567,
+        "latitude": 40.73964594300346,
+        "projectedXFeet": 988749.99,
+        "projectedYFeet": 208749.99,
+        "verticalOriginFeet": 29.06999969482422,
+        "verticalOriginMethod": "median of measured LAS class-2 ground returns within 200 ft of tile center",
+        "enuAxes": "local X=east, Y=up, Z=north",
+        "feetToMeters": 0.3048006096012192
+      }
+    },
+    {
+      "tileId": "987210",
+      "manifest": "manifest.json",
+      "assetBase": "/assets/nyc-lidar/",
+      "boundsWgs84": {
+        "polygon": [
+          [
+            -73.98827145247874,
+            40.74307745691317
+          ],
+          [
+            -73.97924949311115,
+            40.74307618479965
+          ],
+          [
+            -73.97924735572035,
+            40.74993805722433
+          ],
+          [
+            -73.98827024438826,
+            40.74993932946763
+          ],
+          [
+            -73.98827145247874,
+            40.74307745691317
+          ]
+        ],
+        "west": -73.98827145247874,
+        "south": 40.74307618479965,
+        "east": -73.97924735572035,
+        "north": 40.74993932946763
+      },
+      "anchor": {
+        "longitude": -73.98375963642462,
+        "latitude": 40.746507846285155,
+        "projectedXFeet": 988750.0,
+        "projectedYFeet": 211250.0,
+        "verticalOriginFeet": 41.13999938964844,
+        "verticalOriginMethod": "median of source LAS class-2 ground points within 200 ft of tile center",
+        "enuAxes": "local X=east, Y=up, Z=north",
+        "feetToMeters": 0.3048006096012192
+      }
+    },
+    {
+      "tileId": "987212",
+      "manifest": "tiles/987212/manifest.json",
+      "assetBase": "/assets/nyc-lidar/tiles/987212/",
+      "boundsWgs84": {
+        "polygon": [
+          [
+            -73.98827024438826,
+            40.74993932946763
+          ],
+          [
+            -73.97924739181191,
+            40.74993805723082
+          ],
+          [
+            -73.97924525399303,
+            40.756799895453014
+          ],
+          [
+            -73.9882690360537,
+            40.75680116781963
+          ],
+          [
+            -73.98827024438826,
+            40.74993932946763
+          ]
+        ],
+        "west": -73.98827024438826,
+        "south": 40.74993805723082,
+        "east": -73.97924525399303,
+        "north": 40.75680116781963
+      },
+      "anchor": {
+        "longitude": -73.98375799961177,
+        "latitude": 40.75336968797612,
+        "projectedXFeet": 988749.99,
+        "projectedYFeet": 213749.99,
+        "verticalOriginFeet": 68.66999816894531,
+        "verticalOriginMethod": "median of measured LAS class-2 ground returns within 200 ft of tile center",
+        "enuAxes": "local X=east, Y=up, Z=north",
+        "feetToMeters": 0.3048006096012192
+      }
+    },
+    {
+      "tileId": "990207",
+      "manifest": "tiles/990207/manifest.json",
+      "assetBase": "/assets/nyc-lidar/tiles/990207/",
+      "boundsWgs84": {
+        "polygon": [
+          [
+            -73.97925163006171,
+            40.73621430571812
+          ],
+          [
+            -73.97023067241133,
+            40.736212327095444
+          ],
+          [
+            -73.97022760635944,
+            40.743074205975105
+          ],
+          [
+            -73.97924949311115,
+            40.74307618479965
+          ],
+          [
+            -73.97925163006171,
+            40.73621430571812
+          ]
+        ],
+        "west": -73.97925163006171,
+        "south": 40.736212327095444,
+        "east": -73.97022760635944,
+        "north": 40.74307618479965
+      },
+      "anchor": {
+        "longitude": -73.9747398504859,
+        "latitude": 40.739644345058345,
+        "projectedXFeet": 991249.99,
+        "projectedYFeet": 208750.0,
+        "verticalOriginFeet": 14.34000015258789,
+        "verticalOriginMethod": "median of measured LAS class-2 ground returns within 200 ft of tile center",
+        "enuAxes": "local X=east, Y=up, Z=north",
+        "feetToMeters": 0.3048006096012192
+      }
+    },
+    {
+      "tileId": "990210",
+      "manifest": "tiles/990210/manifest.json",
+      "assetBase": "/assets/nyc-lidar/tiles/990210/",
+      "boundsWgs84": {
+        "polygon": [
+          [
+            -73.97924949311115,
+            40.74307618479965
+          ],
+          [
+            -73.9702275702716,
+            40.74307420596577
+          ],
+          [
+            -73.97022450359665,
+            40.74993605074108
+          ],
+          [
+            -73.97924735572892,
+            40.749938029776835
+          ],
+          [
+            -73.97924949311115,
+            40.74307618479965
+          ]
+        ],
+        "west": -73.97924949311115,
+        "south": 40.74307420596577,
+        "east": -73.97022450359665,
+        "north": 40.749938029776835
+      },
+      "anchor": {
+        "longitude": -73.97473724872714,
+        "latitude": 40.7465061932843,
+        "projectedXFeet": 991249.99,
+        "projectedYFeet": 211249.99,
+        "verticalOriginFeet": 22.770000457763672,
+        "verticalOriginMethod": "median of measured LAS class-2 ground returns within 200 ft of tile center",
+        "enuAxes": "local X=east, Y=up, Z=north",
+        "feetToMeters": 0.3048006096012192
+      }
+    },
+    {
+      "tileId": "990212",
+      "manifest": "tiles/990212/manifest.json",
+      "assetBase": "/assets/nyc-lidar/tiles/990212/",
+      "boundsWgs84": {
+        "polygon": [
+          [
+            -73.97924735572035,
+            40.74993805722432
+          ],
+          [
+            -73.97022450358438,
+            40.74993607818856
+          ],
+          [
+            -73.97022143626532,
+            40.75679794365629
+          ],
+          [
+            -73.9792452178892,
+            40.75679992289399
+          ],
+          [
+            -73.97924735572035,
+            40.74993805722432
+          ]
+        ],
+        "west": -73.97924735572035,
+        "south": 40.74993607818856,
+        "east": -73.97022143626532,
+        "north": 40.75679992289399
+      },
+      "anchor": {
+        "longitude": -73.97473464641152,
+        "latitude": 40.753368089699286,
+        "projectedXFeet": 991249.99,
+        "projectedYFeet": 213750.0,
+        "verticalOriginFeet": 46.130001068115234,
+        "verticalOriginMethod": "median of measured LAS class-2 ground returns within 200 ft of tile center",
+        "enuAxes": "local X=east, Y=up, Z=north",
+        "feetToMeters": 0.3048006096012192
+      }
+    }
+  ],
+  "tileCount": 9,
+  "generatedAtUtc": "2026-10-21T08:00:20Z"
+}

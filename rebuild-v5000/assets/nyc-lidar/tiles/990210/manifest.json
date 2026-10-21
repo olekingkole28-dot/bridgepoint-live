@@ -1,0 +1,277 @@
+{
+  "version": 7002,
+  "status": "MATERIALIZED_EXACT_LIDAR_WITH_ORTHOPHOTO_SURFACE_AND_VERTICAL_WALLS",
+  "tileId": "990210",
+  "source": {
+    "provider": "NYC Office of Technology and Innovation / NYC OpenData",
+    "dataset": "Topobathymetric LiDAR Data (2017)",
+    "datasetUrl": "https://data.cityofnewyork.us/City-Government/Topobathymetric-LiDAR-Data-2017-/7sc8-jtbz",
+    "metadataUrl": "https://github.com/CityOfNewYork/nyc-geo-metadata/blob/main/Metadata/Metadata_TopobathymetricClassifiedPointCloud.md",
+    "archiveUrl": "https://data.cityofnewyork.us/api/views/7sc8-jtbz/files/dfe8b336-0307-4235-b00e-2742d8ac552a?download=true&filename=TopoBathymetric_Classified_LAZ.zip",
+    "archiveMember": "TopoBathymetric_Classified_LAZ/990210.laz",
+    "archiveMemberMethod": "ZIP_STORED_BYTE_RANGE_READ",
+    "archivePayloadBytes": 98559423,
+    "archivePayloadOffset": 100473369180,
+    "tileSha256": "80089d120bc26761c94c5022153ea6beb98271721e5d15f5ff08a5a4e713a38b",
+    "licenseNote": "Public NYC Open Data dataset; retain source attribution and consult NYC Open Data terms for downstream reuse."
+  },
+  "acquisition": {
+    "topographicCaptureStart": "2017-05-03",
+    "topographicCaptureEnd": "2017-05-17",
+    "nominalPulseDensity": "at least 8 pulses/m2 for citywide topographic data"
+  },
+  "coordinateReference": {
+    "horizontal": "EPSG:2263 NAD83 / New York Long Island (US survey feet)",
+    "vertical": "NAVD88 Geoid 12B elevation (US survey feet)",
+    "sourceScaleFeet": [
+      0.01,
+      0.01,
+      0.01
+    ]
+  },
+  "sourcePoints": 20487770,
+  "pointsScanned": 20487770,
+  "samplePoints": 180000,
+  "sampleStrategy": "Seeded random sample of measured LAS returns; same nested return sample across 3 LOD tiers; RGB sampled from the registered NYS orthophoto.",
+  "anchor": {
+    "longitude": -73.97473724872714,
+    "latitude": 40.7465061932843,
+    "projectedXFeet": 991249.99,
+    "projectedYFeet": 211249.99,
+    "verticalOriginFeet": 22.770000457763672,
+    "verticalOriginMethod": "median of measured LAS class-2 ground returns within 200 ft of tile center",
+    "enuAxes": "local X=east, Y=up, Z=north",
+    "feetToMeters": 0.3048006096012192
+  },
+  "tileBoundsSourceFeet": {
+    "xmin": 990000.0,
+    "ymin": 210000.0,
+    "xmax": 992499.99,
+    "ymax": 212499.99
+  },
+  "boundsWgs84": {
+    "polygon": [
+      [
+        -73.97924949311115,
+        40.74307618479965
+      ],
+      [
+        -73.9702275702716,
+        40.74307420596577
+      ],
+      [
+        -73.97022450359665,
+        40.74993605074108
+      ],
+      [
+        -73.97924735572892,
+        40.749938029776835
+      ],
+      [
+        -73.97924949311115,
+        40.74307618479965
+      ]
+    ],
+    "west": -73.97924949311115,
+    "south": 40.74307420596577,
+    "east": -73.97022450359665,
+    "north": 40.749938029776835
+  },
+  "lods": [
+    {
+      "level": 0,
+      "name": "CITY_TILE",
+      "pointCount": 12000,
+      "file": "nyc-midtown-990210-lod0.bin.gz",
+      "encoding": "gzip(binary)",
+      "binaryLayout": "int16le xyz positions quantized at 0.02 metres followed by uint8 RGB from NYS orthophoto",
+      "rawBytes": 108000,
+      "gzipBytes": 103450,
+      "sha256": "53ba3ebca7f05eed579814ce1825eb28dc681145b19e27026a25f8a0cdd1d624",
+      "positionEncoding": "int16le",
+      "positionScaleMeters": 0.02,
+      "colorSource": "NYS Latest Orthoimagery 2022\u20132025 natural-color orthophoto",
+      "colorizedFromActualImagery": true
+    },
+    {
+      "level": 1,
+      "name": "BLOCKS",
+      "pointCount": 75000,
+      "file": "nyc-midtown-990210-lod1.bin.gz",
+      "encoding": "gzip(binary)",
+      "binaryLayout": "int16le xyz positions quantized at 0.02 metres followed by uint8 RGB from NYS orthophoto",
+      "rawBytes": 675000,
+      "gzipBytes": 643621,
+      "sha256": "f944de427f667f04baaeb900cb91d4d66fee7f610133adb56f81ae0822b96457",
+      "positionEncoding": "int16le",
+      "positionScaleMeters": 0.02,
+      "colorSource": "NYS Latest Orthoimagery 2022\u20132025 natural-color orthophoto",
+      "colorizedFromActualImagery": true
+    },
+    {
+      "level": 2,
+      "name": "DETAIL",
+      "pointCount": 180000,
+      "file": "nyc-midtown-990210-lod2.bin.gz",
+      "encoding": "gzip(binary)",
+      "binaryLayout": "int16le xyz positions quantized at 0.02 metres followed by uint8 RGB from NYS orthophoto",
+      "rawBytes": 1620000,
+      "gzipBytes": 1543708,
+      "sha256": "bf9744b8c046a9a4b328af83cebd5d4b9674f69e588a475c8cb74b712fbda037",
+      "positionEncoding": "int16le",
+      "positionScaleMeters": 0.02,
+      "colorSource": "NYS Latest Orthoimagery 2022\u20132025 natural-color orthophoto",
+      "colorizedFromActualImagery": true
+    }
+  ],
+  "imagery": {
+    "provider": "New York State ITS Geospatial Services",
+    "service": "https://orthos.its.ny.gov/arcgis/rest/services/wms/Latest/MapServer",
+    "serviceUrl": "https://orthos.its.ny.gov/arcgis/rest/services/wms/Latest/MapServer/export",
+    "description": "Latest NYS orthoimagery, combined 2022\u20132025 natural-color imagery; image export centered on each measured LiDAR tile.",
+    "sourceProduct": "Latest New York State Orthoimagery",
+    "nominalResolution": "source varies; 4096px local export",
+    "captureWindow": "2022\u20132025 composite",
+    "format": "WebP natural-color orthophoto texture derived from the NYS JPEG export",
+    "imageFile": "nyc-midtown-990210-ortho.webp",
+    "imageSize": [
+      4096,
+      4096
+    ],
+    "exportBboxEPSG3857": [
+      -8235332.361022011,
+      4974518.759400572,
+      -8234327.803167011,
+      4975527.203118571
+    ],
+    "imagerySha256": "dd26cd0e7d7c29269775fd1e70dd1b84ef37ade4e1dd5ab68e3c41bd3df0b687",
+    "sourceExportSha256": "2682a0a8fe3a6534bdbd7cff40adf364fb267fa3132275e5016d1a2c95e0697b",
+    "method": "Real orthophoto pixels draped onto measured LiDAR roof and ground surface; vertical facade planes remain separately LiDAR-derived."
+  },
+  "materialization": {
+    "method": "Measured NYC OpenData LiDAR returns plus a cell-local DSM surface mesh and real NYS orthophoto drape",
+    "renderablePointCounts": [
+      12000,
+      75000,
+      180000
+    ],
+    "pointCoordinateQuantizationMetres": 0.02,
+    "sourcePointGeometryPreserved": true,
+    "syntheticGeometryAdded": false,
+    "surfaceMesh": "Measured max return per 2m cell; corners only smoothed across small height differences to preserve sharp roof edges",
+    "verticalWalls": "Neutral shaded vertical quads derived from sustained LiDAR roof-boundary discontinuities; not photographic facade imagery",
+    "wallQuadCount": 19976,
+    "roofPhotoTexture": true,
+    "sidePhotoTexture": false,
+    "coordinateGrid": "Cell footprints snapped to EPSG:2263 2m bins and independently anchored per LiDAR tile"
+  },
+  "surfaceMesh": {
+    "file": null,
+    "encoding": "gzip(binary chunk array)",
+    "gridSpacingMetres": 2.0,
+    "gridWidth": 381,
+    "gridHeight": 381,
+    "vertexCount": 580644,
+    "triangleCount": 290322,
+    "indexCount": 870966,
+    "binaryLayout": "int16le xyz positions at 0.02m, uint16le normalized UV pairs, uint32le chunk-local triangle indices",
+    "positionScaleMeters": 0.02,
+    "uvEncoding": "uint16 normalized 0..65535",
+    "indexEncoding": "uint32le",
+    "rawBytes": 9290304,
+    "gzipBytes": 3216402,
+    "textureFile": "nyc-midtown-990210-ortho.webp",
+    "textureFormat": "WebP",
+    "textureSize": [
+      4096,
+      4096
+    ],
+    "textureSha256": "dd26cd0e7d7c29269775fd1e70dd1b84ef37ade4e1dd5ab68e3c41bd3df0b687",
+    "sourcePointCount": 20487770,
+    "sourceTileSha256": "80089d120bc26761c94c5022153ea6beb98271721e5d15f5ff08a5a4e713a38b",
+    "imagerySource": "NYS Latest Orthoimagery 2022\u20132025 natural color",
+    "photorealisticRoofDrape": true,
+    "facadePhotoCoverage": false,
+    "coveragePercent": 98.7779,
+    "materializedAtUtc": "2026-10-21T07:59:24Z",
+    "wallFile": "nyc-midtown-990210-walls-2m.bin.gz",
+    "wallVertexCount": 79904,
+    "wallIndexCount": 119856,
+    "wallTriangleCount": 39952,
+    "wallQuadCount": 19976,
+    "wallRawBytes": 1198560,
+    "wallGzipBytes": 359476,
+    "wallSha256": "4ebf40c96f6a70c609ce9f5d7ceff069563a49249d519efd36e2a96bf075d633",
+    "wallBinaryLayout": "int16le xyz positions at 0.02m, uint8 RGB wall-shading colors, uint32le triangle indices",
+    "wallMaterial": "neutral shaded vertical faces derived from measured LiDAR roof boundaries",
+    "wallMethod": "vertical quads between sustained elevated LiDAR regions and adjacent lower measured surfaces",
+    "chunks": [
+      {
+        "part": 0,
+        "file": "nyc-midtown-990210-surface-2m-part-00.bin.gz",
+        "rowStart": 0,
+        "rowEndExclusive": 96,
+        "gridWidth": 381,
+        "gridRows": 96,
+        "vertexCount": 146304,
+        "indexCount": 219456,
+        "triangleCount": 73152,
+        "rawBytes": 2340864,
+        "gzipBytes": 807450,
+        "sha256": "f66f85a1e4626e9b47ddbd4412ac85405ff3534d6ce02b950b6fef1d46bea6b3",
+        "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
+        "positionScaleMeters": 0.02
+      },
+      {
+        "part": 1,
+        "file": "nyc-midtown-990210-surface-2m-part-01.bin.gz",
+        "rowStart": 96,
+        "rowEndExclusive": 192,
+        "gridWidth": 381,
+        "gridRows": 96,
+        "vertexCount": 146304,
+        "indexCount": 219456,
+        "triangleCount": 73152,
+        "rawBytes": 2340864,
+        "gzipBytes": 810372,
+        "sha256": "c01136377189ac5ea7b4039518169c6d9f91134a11d6d29bdb62e8f2c7c86b33",
+        "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
+        "positionScaleMeters": 0.02
+      },
+      {
+        "part": 2,
+        "file": "nyc-midtown-990210-surface-2m-part-02.bin.gz",
+        "rowStart": 192,
+        "rowEndExclusive": 288,
+        "gridWidth": 381,
+        "gridRows": 96,
+        "vertexCount": 146304,
+        "indexCount": 219456,
+        "triangleCount": 73152,
+        "rawBytes": 2340864,
+        "gzipBytes": 811069,
+        "sha256": "0141514c612185de16f8f2556eb51a9e875e2c128f0a4b780e1e2dfecabbf100",
+        "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
+        "positionScaleMeters": 0.02
+      },
+      {
+        "part": 3,
+        "file": "nyc-midtown-990210-surface-2m-part-03.bin.gz",
+        "rowStart": 288,
+        "rowEndExclusive": 381,
+        "gridWidth": 381,
+        "gridRows": 93,
+        "vertexCount": 141732,
+        "indexCount": 212598,
+        "triangleCount": 70866,
+        "rawBytes": 2267712,
+        "gzipBytes": 787511,
+        "sha256": "aa82a6ae96c3f5cb70c59aa39db3fcf467d7bf5c8bf386abe36013d68f2b5718",
+        "binaryLayout": "int16le xyz positions, uint16le normalized UV pairs, uint32le local triangle indices",
+        "positionScaleMeters": 0.02
+      }
+    ],
+    "chunkStrategy": "independent gzip row chunks with chunk-local indices"
+  },
+  "builtAtUtc": "2026-10-21T07:59:34Z"
+}
