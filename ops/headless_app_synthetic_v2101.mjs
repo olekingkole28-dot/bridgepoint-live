@@ -7,7 +7,11 @@ const targets=(process.env.HEADLESS_TARGETS||'https://bridgepointintelligence.on
 const artifactDir=path.resolve('headless-artifacts');
 await fs.mkdir(artifactDir,{recursive:true});
 const report={version:VERSION,generated_at:new Date().toISOString(),targets:[],complete:true};
-const browser=await chromium.launch({headless:true});
+const browser=await chromium.launch({
+  headless:true,
+  ...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{}),
+  args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']
+});
 
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const num=s=>Number(String(s||'').replace(/[^0-9.-]/g,''));
