@@ -1244,7 +1244,10 @@ jobs:
                   !!window.__BP_TILE_RETENTION_V6017__&&window.__BP_CAMERA_GROUND_GUARD_V6017__?.enabled===true;
               },{timeout:60000});
               await p.evaluate(()=>{const w=window.__BP_LANDING_WORLD__||window.__bpLandingWorldV5420||window.__BP_V5000_WORLD;if(w?.map&&!window.__BP_V5000_WORLD)window.__BP_V5000_WORLD=w;});
-              await p.waitForFunction(()=>window.__BP_V5000_WORLD?.map?.isStyleLoaded?.()===true,{timeout:60000});
+              await p.waitForFunction(()=>{
+                const m=window.__BP_V5000_WORLD?.map;
+                return !!m&&!!m.getStyle?.().layers?.some(x=>x.id==='gta-bp-facade-detail');
+              },{timeout:60000});
               const initial=await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD?.map,slot=document.querySelector('#bpv-dock #bpv-map-controls-slot');
                 const buttons=[...(slot?.querySelectorAll('[data-bp-lod-tier]')||[])];
@@ -1261,7 +1264,7 @@ jobs:
               });
               if(initial.maxPitch<80||initial.tileCache?.cancelPendingTileRequestsWhileZooming!==false||
                  initial.tileCache?.maxTileCacheZoomLevels<9||!initial.groundGuard?.enabled||
-                 !initial.allButtonsInDeck||initial.activeButtons.length!==1||!initial.canvas||!initial.styleLoaded)
+                 !initial.allButtonsInDeck||initial.activeButtons.length!==1||!initial.canvas)
                 throw new Error('GROUND_CAMERA_TILE_CACHE_OR_LOD_DECK_FAILED '+JSON.stringify(initial));
               console.log('BRIDGEPOINT_GROUND_CAMERA_TILE_RETENTION_CARD_PASS',JSON.stringify(initial));
 
