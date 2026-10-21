@@ -57,6 +57,7 @@
       pointCloudMetadata: SOURCE_URL,
       pointCloudProxy: PROXY_BASE,
       pointCount: 665663299,
+      visibleOnlyWhenGoldLodSelected: true,
       sourceDataIsStreamedNotMirrored: true,
       requestedChunksPersistentlyCachedToSupabase: true,
       cacheStorageBucket: 'lincoln-memorial-lidar-cache',
@@ -255,13 +256,20 @@
     } catch (_) { return false; }
   }
 
+  function goldLodSelected() {
+    const controller = window.__BP_LOD_CONTROL_V6016__;
+    const runtime = window.__BP_LOD_RENDERING_V6016__ || window.__BP_WORLD_LOD_RUNTIME_V6016__;
+    const tier = String(controller?.tier || runtime?.tier || runtime?.currentTier || 'BRONZE').toUpperCase();
+    return tier === 'GOLD';
+  }
+
   function suppressGenericLincolnBuildings(map, state) {
     const result = {
       version: 6024, active: false, osmWayId: OSM_LINCOLN_WAY_ID,
       anchor: LOCATION.slice(), filteredLayers: [], failedLayers: [], updatedAt: Date.now()
     };
     if (!map || !map.getStyle || !map.getStyle()) return result;
-    if (!mapNearScan(map)) {
+    if (!mapNearScan(map) || !goldLodSelected()) {
       for (const [id, oldFilter] of state.savedBuildingFilters) {
         if (map.getLayer(id)) {
           try { map.setFilter(id, oldFilter == null ? null : oldFilter); } catch (_) {}
@@ -308,7 +316,7 @@
 
   function syncLincolnTreeSuppression(map, state) {
     if (!map || !map.getStyle || !map.getStyle()) return;
-    const hideTrees = inLincolnDetailView(map);
+    const hideTrees = goldLodSelected() && inLincolnDetailView(map);
     const layers = (map.getStyle().layers || []).filter(layer =>
       /(?:tree|trees|vegetation|canopy|foliage)/i.test(String(layer.id || ''))
     );
@@ -380,7 +388,7 @@
   }
 
   function startPointCloud(map, state, Potree) {
-    if (state.loadPromise || state.cloud || !mapNearScan(map)) return;
+    if (state.loadPromise || state.cloud || !mapNearScan(map) || !goldLodSelected()) return;
     if (!currentAuthToken()) {
       publish('sign-in-required-for-lidar', {
         mapZoom: map.getZoom(),
@@ -462,7 +470,7 @@
         // MapLibre rebuilds custom layers when the basemap style changes. Preserve the cached octree
         // and reattach it to the fresh scene so a stale global status cannot mask a missing scan.
         if (state.cloud) {
-          state.cloud.visible = mapNearScan(mapRef);
+          state.cloud.visible = mapNearScan(mapRef) && goldLodSelected();
           state.scene.add(state.cloud);
         }
         // Potree clones the camera and calls updateProjectionMatrix while building its point-cloud frustum.
@@ -485,7 +493,14 @@
       },
       render(gl, args) {
         if (!state.map || !state.renderer || !state.potreeRenderer || !state.scene || !state.camera) return;
-        const near = mapNearScan(state.map);
+        const map = state.map;
+        const goldActive = goldLodSelected();
+        if (state.lastGoldActive !== goldActive) {
+          state.lastGoldActive = goldActive;
+          suppressGenericLincolnBuildings(map, state);
+          syncLincolnTreeSuppression(map, state);
+        }
+        const near = mapNearScan(map) && goldActive;
         const cloud = state.cloud;
         if (!near || !cloud) {
           if (cloud) cloud.visible = false;
@@ -572,11 +587,11 @@
         if (!map.getLayer(LAYER_ID)) map.addLayer(buildLayer(map, state, THREE, Potree));
         state.layerAdded = !!map.getLayer(LAYER_ID);
         if (!state.eventsBound) {
-          map.on('moveend', () => { ensureLincolnSuppressionLifecycle(map, state); if (mapNearScan(map)) startPointCloud(map, state, Potree); map.triggerRepaint(); });
-          map.on('zoomend', () => { ensureLincolnSuppressionLifecycle(map, state); if (mapNearScan(map)) startPointCloud(map, state, Potree); map.triggerRepaint(); });
+          map.on('moveend', () => { ensureLincolnSuppressionLifecycle(map, state); if (mapNearScan(map) && goldLodSelected()) startPointCloud(map, state, Potree); map.triggerRepaint(); });
+          map.on('zoomend', () => { ensureLincolnSuppressionLifecycle(map, state); if (mapNearScan(map) && goldLodSelected()) startPointCloud(map, state, Potree); map.triggerRepaint(); });
           state.eventsBound = true;
         }
-        if (mapNearScan(map)) startPointCloud(map, state, Potree);
+        if (mapNearScan(map) && goldLodSelected()) startPointCloud(map, state, Potree);
         publish('layer-attached', { attachedMaps: MAPS.size, layerId: LAYER_ID, layerPresent: !!map.getLayer(LAYER_ID) });
       } catch (error) {
         publish('layer-install-error', { detail: String(error && error.message || error) });

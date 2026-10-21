@@ -164,7 +164,7 @@
       datasetPage: DATASET_URL, originalViewer: VIEWER_URL, CyArkProject: CYARK_URL,
       datasetSize: '11.36 GB', license: LICENSE,
       targetContent: 'Lincoln Memorial interior + seated Abraham Lincoln point cloud',
-      sourceDataEmbeddedOrRedistributed: true, sourceDataPersistentlyCachedInSupabase: true, updatedAt: Date.now()
+      sourceDataEmbeddedOrRedistributed: false, sourceDataPersistentlyCachedInSupabase: true, updatedAt: Date.now()
     }, extra);
   }
 
