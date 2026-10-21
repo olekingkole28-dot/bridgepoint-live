@@ -235,7 +235,7 @@ async function initMap(){
    if(!map.isStyleLoaded?.())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
    const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=5822-visual-v5882'),import('./world-v2300-present-weather.js?v=5544')]);
    const weather=wm.initWeather(world.map),present=pm.initPresentWeather(world.map);
-   weather?.setActive?.(true);weather?.setRadar?.(false);
+   weather?.setActive?.(true);weather?.setRadar?.(true);
    void startLandingNationalWeather(world).catch(e=>console.warn('BridgePoint national weather async',e));
    window.__BP_LANDING_VISUAL_WEATHER__={version:5822,enabled:true,weather,present,mapShared:true,nationalWeather:true,radarVisible:true,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,asyncAttach:true,updatedAt:Date.now()}
   }catch(e){console.warn('BridgePoint preview weather',e)}
