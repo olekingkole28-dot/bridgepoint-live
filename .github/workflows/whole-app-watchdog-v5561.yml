@@ -75,7 +75,7 @@ jobs:
           (async()=>{
             const browser=await puppeteer.launch({headless:true,executablePath:process.env.CHROME_PATH,args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
             const p=await browser.newPage();
-            await p.evaluateOnNewDocument(()=>{try{window.__bpPerfLongTasks=[];new PerformanceObserver(list=>{for(const e of list.getEntries())window.__bpPerfLongTasks.push({start:+e.startTime.toFixed(1),duration:+e.duration.toFixed(1),name:e.name||''})}).observe({type:'longtask',buffered:true})}catch(_){}});
+            await p.evaluateOnNewDocument(()=>{try{window.__bpPerfLongTasks=[];new PerformanceObserver(list=>{for(const e of list.getEntries())window.__bpPerfLongTasks.push({start:+e.startTime.toFixed(1),duration:+e.duration.toFixed(1),name:e.name||'',attribution:(e.attribution||[]).map(a=>({name:a.name||'',entryType:a.entryType||'',containerType:a.containerType||'',containerName:a.containerName||'',containerSrc:a.containerSrc||''}))})}).observe({type:'longtask',buffered:true})}catch(_){}});
             await p.evaluateOnNewDocument(()=>{try{localStorage.setItem('bp_auth_v5045',JSON.stringify({access_token:'bridgepoint-smoke-invalid-token'}))}catch(_){}});
             const fatal=[];
             p.on('pageerror',e=>fatal.push(String(e?.message||e)));
@@ -93,7 +93,7 @@ jobs:
               const appDomAt=Date.now();
               console.log('APP_DOM_MS',appDomAt-t);
               const scriptResources=await p.evaluate(()=>performance.getEntriesByType('resource')
-                .filter(r=>/\\.(?:js|mjs)(?:\\?|$)/i.test(r.name))
+                .filter(r=>/\.(?:js|mjs)(?:\?|$)/i.test(r.name))
                 .map(r=>({file:(()=>{try{return new URL(r.name).pathname.split('/').pop()}catch{return r.name}})(),
                   duration:+r.duration.toFixed(1),transferSize:Number(r.transferSize||0),decodedBodySize:Number(r.decodedBodySize||0),
                   initiator:r.initiatorType}))
@@ -145,7 +145,8 @@ jobs:
                 requestAnimationFrame(step);
               }));
               const longTasks=await p.evaluate(()=>({count:(window.__bpPerfLongTasks||[]).length,
-                worst:[...(window.__bpPerfLongTasks||[])].sort((a,b)=>b.duration-a.duration).slice(0,12)}));
+                worst:[...(window.__bpPerfLongTasks||[])].sort((a,b)=>b.duration-a.duration).slice(0,18),
+                latest:[...(window.__bpPerfLongTasks||[])].slice(-18)}));
               console.log('APP_FRAME_DIAGNOSTICS',JSON.stringify({raf,longTasks}));
               if(raf.frames<4)throw new Error('UI_MAIN_THREAD_STALLED '+JSON.stringify(raf));
               const severe=fatal.filter(x=>!/ResizeObserver loop/i.test(x));
