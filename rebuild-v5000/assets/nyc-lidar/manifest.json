@@ -1,6 +1,6 @@
 {
   "version": 7000,
-  "status": "MATERIALIZED_SAMPLE_FROM_SOURCE_LAZ",
+  "status": "MATERIALIZED_LIDAR_COLORIZED_FROM_REAL_ORTHOPHOTO",
   "tileId": "987210",
   "source": {
     "provider": "NYC Office of Technology and Innovation (OTI) / NYC OpenData",
@@ -39,7 +39,7 @@
   },
   "noisePointsExcludedFromDisplay": 62525,
   "samplePoints": 180000,
-  "sampleStrategy": "Seeded random source-point sample; nested 12k, 75k and 180k tiers. Coordinates are 2cm-quantized measured returns, not procedural building geometry.",
+  "sampleStrategy": "Seeded random sample of measured LAS returns; nested 12k, 75k and 180k LODs; RGB sampled from the georeferenced NYS natural-color aerial orthophoto.",
   "pointClassificationColors": {
     "0": [
       150,
@@ -178,13 +178,14 @@
       "pointCount": 12000,
       "file": "nyc-midtown-987210-lod0.bin.gz",
       "encoding": "gzip(binary)",
-      "binaryLayout": "int16le xyz coordinates quantized at 0.02 metres followed by uint8 RGB colors",
+      "binaryLayout": "int16le xyz positions quantized at 0.02 metres followed by uint8 RGB colors sampled from NYC-region aerial orthophoto",
       "rawBytes": 108000,
-      "gzipBytes": 88486,
-      "sha256": "4316c6c3176c3abe58a2f785ff68b0739df03799b338ce220ee0e3e66c5f671e",
-      "base64File": "nyc-midtown-987210-lod0.bin.gz.b64",
+      "gzipBytes": 103383,
+      "sha256": "f350d1348fb114bf1f22cd0e4a4be58bbbd6c55640cec59ed6546036cddb6dcd",
       "positionEncoding": "int16le",
-      "positionScaleMeters": 0.02
+      "positionScaleMeters": 0.02,
+      "colorSource": "NYS Latest Orthoimagery 2022\u20132025 natural-color orthophoto",
+      "colorizedFromActualImagery": true
     },
     {
       "level": 1,
@@ -192,13 +193,14 @@
       "pointCount": 75000,
       "file": "nyc-midtown-987210-lod1.bin.gz",
       "encoding": "gzip(binary)",
-      "binaryLayout": "int16le xyz coordinates quantized at 0.02 metres followed by uint8 RGB colors",
+      "binaryLayout": "int16le xyz positions quantized at 0.02 metres followed by uint8 RGB colors sampled from NYC-region aerial orthophoto",
       "rawBytes": 675000,
-      "gzipBytes": 537920,
-      "sha256": "0944ad8886dc607d7e8ccc6c6d74a05c01cef217f26d68475a2f8a17da620388",
-      "base64File": "nyc-midtown-987210-lod1.bin.gz.b64",
+      "gzipBytes": 643283,
+      "sha256": "d4175eb8ce97505a3104f02cdc18239d5f6e8b6b1111e46391f002f6c669923f",
       "positionEncoding": "int16le",
-      "positionScaleMeters": 0.02
+      "positionScaleMeters": 0.02,
+      "colorSource": "NYS Latest Orthoimagery 2022\u20132025 natural-color orthophoto",
+      "colorizedFromActualImagery": true
     },
     {
       "level": 2,
@@ -206,20 +208,48 @@
       "pointCount": 180000,
       "file": "nyc-midtown-987210-lod2.bin.gz",
       "encoding": "gzip(binary)",
-      "binaryLayout": "int16le xyz coordinates quantized at 0.02 metres followed by uint8 RGB colors",
+      "binaryLayout": "int16le xyz positions quantized at 0.02 metres followed by uint8 RGB colors sampled from NYC-region aerial orthophoto",
       "rawBytes": 1620000,
-      "gzipBytes": 1286474,
-      "sha256": "8c66793d1dc32425f84681617c17279dfd2b983a3060c484808724bd876146b3",
-      "base64File": "nyc-midtown-987210-lod2.bin.gz.b64",
+      "gzipBytes": 1543100,
+      "sha256": "c33c9d96a9c4b0084f44714f05eb03b43c38d5d655d5991a589b2c0e2a1237fb",
       "positionEncoding": "int16le",
-      "positionScaleMeters": 0.02
+      "positionScaleMeters": 0.02,
+      "colorSource": "NYS Latest Orthoimagery 2022\u20132025 natural-color orthophoto",
+      "colorizedFromActualImagery": true
     }
   ],
-  "builtAtUtc": "2026-10-21T06:48:47Z",
+  "builtAtUtc": "2026-10-21T07:17:40Z",
   "buildSeconds": 11.39,
   "sampleBinaryEncoding": {
     "positions": "signed int16 x/y/z, each multiplied by 0.02 metres to recover local coordinates",
     "colors": "uint8 RGB; normalized at render time",
     "coordinateQuantizationMetres": 0.02
+  },
+  "imagery": {
+    "provider": "New York State ITS Geospatial Services",
+    "service": "https://orthos.its.ny.gov/arcgis/rest/services/wms/Latest/MapServer",
+    "serviceUrl": "https://orthos.its.ny.gov/arcgis/rest/services/wms/Latest/MapServer/export",
+    "description": "Latest NYS orthoimagery service; combined aerial orthophotography from 2022\u20132025, natural color, nominal 12-inch resolution.",
+    "sourceProduct": "Latest New York State Orthoimagery",
+    "nominalResolution": "12 inch (source varies 6\u201312 inches)",
+    "captureWindow": "2022\u20132025 composite",
+    "format": "JPEG natural-color orthophoto export",
+    "imagerySha256": "64d2eb933accb77ea16d0819203f06f788538ec5f6b9d863c04dc9110e4fc59a",
+    "pixelColorizedReturns": 180000,
+    "pointCoveragePercent": 100.0,
+    "method": "For each measured LiDAR return, transform EPSG:2263 XY to EPSG:3857, sample the georeferenced orthophoto pixel, and store that real RGB value alongside the measured XYZ return. This textures roof/ground return colors; it does not synthesize fa\u00e7ade photographs.",
+    "pixelMaterialization": "RGB sampled into each LiDAR point; original orthophoto retained in local workspace for reproducibility, not fetched by the browser."
+  },
+  "materialization": {
+    "method": "Orthophoto RGB draped onto source LiDAR returns",
+    "renderablePointCounts": [
+      12000,
+      75000,
+      180000
+    ],
+    "pointCoordinateQuantizationMetres": 0.02,
+    "sourcePointGeometryPreserved": true,
+    "syntheticGeometryAdded": false,
+    "buildSeconds": 6.02
   }
 }
