@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Build a georeferenced 3x3 NYC LiDAR + orthophoto neighborhood for BridgePoint.
 
-Downloads only the eight neighboring members from the public NYC OpenData ZIP by byte range.
-The center tile already lives at rebuild-v5000/assets/nyc-lidar/manifest.json.
-All geometry remains in its own EPSG:2263 tile-local anchor; the browser aligns tile anchors
-against the existing center anchor. Roof/ground imagery is nadir orthophoto only. Facade planes
-come from measured LiDAR discontinuities and are deliberately not labeled as photo-textured.
+Downloads the center tile and eight adjacent members from the public NYC OpenData ZIP by byte range.
+The center manifest and assets are regenerated in place, not carried forward as an old mesh.
+All geometry remains in its own EPSG:2263 tile-local anchor; the browser aligns tile anchors.
+Nadir orthophoto is applied to roof-supported LiDAR cells and the measured-ground DTM only.
+Facade planes are LiDAR-derived neutral quads; no unlicensed or invented facade photos are used.
 """
 from __future__ import annotations
 import base64, gzip, hashlib, io, json, math, os, random, struct, sys, time
@@ -492,13 +492,21 @@ def main():
     if not CENTER_MANIFEST_PATH.exists():
         raise FileNotFoundError(f"Central pilot manifest missing: {CENTER_MANIFEST_PATH}")
     center = json.loads(CENTER_MANIFEST_PATH.read_text(encoding="utf-8-sig"))
-    center_record = {
-        "tileId":"987210","manifest":"manifest.json","assetBase":"/assets/nyc-lidar/",
-        "boundsWgs84":center["boundsWgs84"],"anchor":center["anchor"]
+    src_meta = center.get("source", {})
+    bounds_meta = center.get("tileBoundsSourceFeet", {})
+    center_tile = {
+        "id":"987210",
+        "archiveOffset":int(src_meta["archivePayloadOffset"]),
+        "archiveBytes":int(src_meta["archivePayloadBytes"]),
+        "bounds":[float(bounds_meta["xmin"]),float(bounds_meta["ymin"]),
+                  float(bounds_meta["xmax"]),float(bounds_meta["ymax"])],
+        "pointCount":int(center["sourcePoints"])
     }
-    records = [center_record]
-    for tile in NEIGHBOR_TILES:
-        out_dir = TILE_ROOT / tile["id"]
+    # Rebuild all nine tiles together so the center cannot stay on a legacy DSM mesh.
+    records = []
+    build_tiles = [center_tile, *NEIGHBOR_TILES]
+    for tile in build_tiles:
+        out_dir = LIDAR_ROOT if tile["id"] == "987210" else TILE_ROOT / tile["id"]
         out_dir.mkdir(parents=True, exist_ok=True)
         source = Path(os.environ.get("BRIDGEPOINT_LIDAR_CACHE", "/tmp/bridgepoint-nyc-lidar")) / f"{tile['id']}.laz"
         fetch_laz(tile, source)
@@ -517,14 +525,16 @@ def main():
         ortho_jpg = cache_dir / f"{tile['id']}-ortho.jpg"
         image_bbox = fetch_orthophoto(tile, anchor_x, anchor_y, ortho_jpg)
         image = Image.open(ortho_jpg).convert("RGB")
-        # Determine the exact tile-local vertical anchor from measured ground before quantizing any points.
+        # Compute a per-tile ground anchor before quantizing points or building roof/ground surfaces.
         surface = build_surface_and_walls(tile, source, image_bbox, anchor, out_dir, ortho_jpg)
         lods = write_lod_assets(tile, source, image, image_bbox, anchor, out_dir)
         bnds = tile_bounds_wgs84(tile)
         manifest_path = make_manifest(tile, source, out_dir, anchor, bnds, image_bbox, lods, surface, sha256_file(ortho_jpg))
+        is_center = tile["id"] == "987210"
         records.append({
-            "tileId":tile["id"],"manifest":f"tiles/{tile['id']}/manifest.json",
-            "assetBase":f"/assets/nyc-lidar/tiles/{tile['id']}/",
+            "tileId":tile["id"],
+            "manifest":"manifest.json" if is_center else f"tiles/{tile['id']}/manifest.json",
+            "assetBase":"/assets/nyc-lidar/" if is_center else f"/assets/nyc-lidar/tiles/{tile['id']}/",
             "boundsWgs84":bnds,"anchor":anchor
         })
         print("TILE_MATERIALIZED",tile["id"],"sourceSha256",sha256_file(source),
