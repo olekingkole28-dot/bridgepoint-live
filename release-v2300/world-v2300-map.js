@@ -506,7 +506,7 @@ export function initWorld(options={}){
   }catch(_){}
  };
  map.once('load',()=>{guardAttribution();setTimeout(guardAttribution,120);setTimeout(guardAttribution,700)});map.once('idle',guardAttribution);
- let detailSeq=0,livingSeq=0,detailTimer=0,lightTimer=0,solarTimer=0,waterTimer=0,landmark3dTimer=0,bridge3dTimer=0,postMoveSettleTimer=0,motionWorldTimer=0,lastMotionWorldAt=0,road3dTimer=0,autoCameraTimer=0,lodWatchTimer=0,lodWatchSig='',lodWatchStable=0,autoCameraApplying=false,streetFxRaf=0,streetFxLastConditionAt=0,streetFxCondition=null,parcelPulseTimer=0,parcelPulsePhase=0,hoverFrame=0,lastHoverAt=0,exactCount=0,livingCount=0,base='gta',moving=false,terrainOn=false,walkMode=false,workerReq=0,lastTouchBuildingAt=0,lastBuildingClickAt=0,touchPointer=null,touchNative=null,buildingSelectHandler=null,selectionBusyUntil=0,activeTouchPointers=new Set(),lastExactFetchAt=0,lastLivingFetchAt=0,lastMotionEndAt=0,buildingShellQuietUntil=0,streetPhotoState={sequenceId:null,frames:[],index:-1,loadedCenter:null,loading:false},layerState={parcels:false,buildings:true};const worker=new Worker('./world-v2300-worker.js?v=5312',{type:'module'}),workerWait=new Map();
+ let detailSeq=0,livingSeq=0,detailTimer=0,lightTimer=0,solarTimer=0,waterTimer=0,landmark3dTimer=0,bridge3dTimer=0,bridge3dBuildSeq=0,postMoveSettleTimer=0,motionWorldTimer=0,lastMotionWorldAt=0,road3dTimer=0,autoCameraTimer=0,lodWatchTimer=0,lodWatchSig='',lodWatchStable=0,autoCameraApplying=false,streetFxRaf=0,streetFxLastConditionAt=0,streetFxCondition=null,parcelPulseTimer=0,parcelPulsePhase=0,hoverFrame=0,lastHoverAt=0,exactCount=0,livingCount=0,base='gta',moving=false,terrainOn=false,walkMode=false,workerReq=0,lastTouchBuildingAt=0,lastBuildingClickAt=0,touchPointer=null,touchNative=null,buildingSelectHandler=null,selectionBusyUntil=0,activeTouchPointers=new Set(),lastExactFetchAt=0,lastLivingFetchAt=0,lastMotionEndAt=0,buildingShellQuietUntil=0,streetPhotoState={sequenceId:null,frames:[],index:-1,loadedCenter:null,loading:false},layerState={parcels:false,buildings:true};const worker=new Worker('./world-v2300-worker.js?v=5312',{type:'module'}),workerWait=new Map();
  worker.onmessage=e=>{const m=e.data||{},r=workerWait.get(m.requestId);if(r){workerWait.delete(m.requestId);r(m)}};
  const prepare=(features,max)=>new Promise(resolve=>{const requestId=++workerReq;workerWait.set(requestId,resolve);worker.postMessage({type:'prepare',requestId,features,max});setTimeout(()=>{if(workerWait.has(requestId)){workerWait.delete(requestId);resolve({buildings:fc(features.slice(0,max)),roofs:EMPTY,count:Math.min(features.length,max)})}},2500)});
  const setStatus=t=>{const e=document.getElementById('mapStatus');if(e)e.textContent=t};
@@ -821,19 +821,20 @@ export function initWorld(options={}){
  function bridgeSourceFeatures(){let fs=[];const renderedBridgeLayer=!!map.getLayer('gta-bridge-deck');if(renderedBridgeLayer){try{fs=map.queryRenderedFeatures({layers:['gta-bridge-deck']})||[]}catch(_){fs=[]}}else{try{fs=map.querySourceFeatures?.('ofm',{sourceLayer:'transportation',filter:['==',['get','brunnel'],'bridge'],validate:false})||[]}catch(_){fs=[]}}return fs.slice(0,MOBILE?220:450)}
  function setBridge2DVisible(on){for(const id of ['gta-bridge-shadow','gta-bridge-deck','gta-bridge-center','gta-bridge-centerline','gta-bridge-rails'])vis(map,id,on)}
  function rebuildBridge3D(delay=MOBILE?420:(LOW?300:180),allowMotion=false){
-  clearTimeout(bridge3dTimer);bridge3dTimer=setTimeout(()=>{
+  const buildSeq=++bridge3dBuildSeq;clearTimeout(bridge3dTimer);bridge3dTimer=setTimeout(()=>{
    const src=map.getSource('bpBridge3D'),z=map.getZoom(),lod=activeWorldLodProfile();if(!src)return;
    if(z<lod.bridgeMin){if(!allowMotion)src.setData(EMPTY);setBridge2DVisible(true);window.__BP_BRIDGE3D_V5590__={version:5590,status:'lod-off',segments:0,minZoom:lod.bridgeMin,bridge2DVisible:true,globalSource:true,updatedAt:Date.now()};return}
    if(moving&&!allowMotion)return;
-   const build=()=>{
-    if(moving&&!allowMotion)return;
-    const fs=bridgeSourceFeatures(),out=[],seenLines=new Set(),bridgeKeys=new Set(),cap=allowMotion?(MOBILE?18:50):(z<12?(MOBILE?35:(TIER==='HIGH'?140:100)):(MOBILE?48:(TIER==='HIGH'?140:100))),supports=z>=lod.bridgeSupportMin;
-    const bridgeBuildStarted=performance.now(),rampCap=MOBILE?12:30;let groundRoadLines=null,rampCount=0;
+   const build=async()=>{
+    if((moving&&!allowMotion)||buildSeq!==bridge3dBuildSeq)return;
+    const fs=bridgeSourceFeatures(),out=[],seenLines=new Set(),bridgeKeys=new Set(),cap=allowMotion?(MOBILE?12:35):(z<12?(MOBILE?24:(TIER==='HIGH'?110:80)):(z<15.2?(MOBILE?18:55):(MOBILE?48:(TIER==='HIGH'?140:100)))),supports=z>=Math.max(lod.bridgeSupportMin,15.2);
+    const bridgeBuildStarted=performance.now(),rampCap=z>=15.2?(MOBILE?4:10):0;let groundRoadLines=null,rampCount=0;
     // Track bridge line ends in small spatial buckets. Vector-tile cut ends that
     // meet another bridge line are continuation points, not real road approaches.
     const endpointBuckets=new Map(),endpointSeen=new Set(),endpointCell=.0001;
     const addEndpoint=(point,key)=>{const cellKey=Math.floor(point[0]/endpointCell)+','+Math.floor(point[1]/endpointCell),entry={point,lineKey:key};if(!endpointBuckets.has(cellKey))endpointBuckets.set(cellKey,[]);endpointBuckets.get(cellKey).push(entry)};
-    for(const candidate of fs){const cp=candidate.properties||{},cg=candidate.geometry,cls=String(cp.class||'').toLowerCase()||'road',w=bridge3dWidth(cp),candidateLines=cg?.type==='LineString'?[cg.coordinates]:cg?.type==='MultiLineString'?(cg.coordinates||[]):[];for(const raw of candidateLines){const line=(raw||[]).filter(q=>Array.isArray(q)&&Number.isFinite(+q[0])&&Number.isFinite(+q[1]));if(line.length<2)continue;const a=line[0],b=line[line.length-1],ea=[a[0].toFixed(5),a[1].toFixed(5)].join(','),eb=[b[0].toFixed(5),b[1].toFixed(5)].join(','),key=[cls,Math.round(w*10),line.length,...([ea,eb].sort())].join('|');if(endpointSeen.has(key))continue;endpointSeen.add(key);addEndpoint(a,key);addEndpoint(b,key)}}
+    let candidateScan=0;
+    for(const candidate of fs){const cp=candidate.properties||{},cg=candidate.geometry,cls=String(cp.class||'').toLowerCase()||'road',w=bridge3dWidth(cp),candidateLines=cg?.type==='LineString'?[cg.coordinates]:cg?.type==='MultiLineString'?(cg.coordinates||[]):[];for(const raw of candidateLines){const line=(raw||[]).filter(q=>Array.isArray(q)&&Number.isFinite(+q[0])&&Number.isFinite(+q[1]));if(line.length<2)continue;const a=line[0],b=line[line.length-1],ea=[a[0].toFixed(5),a[1].toFixed(5)].join(','),eb=[b[0].toFixed(5),b[1].toFixed(5)].join(','),key=[cls,Math.round(w*10),line.length,...([ea,eb].sort())].join('|');if(endpointSeen.has(key))continue;endpointSeen.add(key);addEndpoint(a,key);addEndpoint(b,key)}if(++candidateScan%12===0){await new Promise(resolve=>setTimeout(resolve,0));if(buildSeq!==bridge3dBuildSeq||(moving&&!allowMotion))return}}
     const endpointContinues=(point,key)=>{try{const px=map.project(point),canvas=map.getCanvas();if(px.x<8||px.y<8||px.x>canvas.clientWidth-8||px.y>canvas.clientHeight-8)return true}catch(_){}const cx=Math.floor(point[0]/endpointCell),cy=Math.floor(point[1]/endpointCell),lonCellM=111320*Math.max(.12,Math.cos(point[1]*Math.PI/180))*endpointCell,rx=Math.min(12,Math.max(1,Math.ceil(6.5/Math.max(1,lonCellM))+1));for(let dx=-rx;dx<=rx;dx++)for(let dy=-1;dy<=1;dy++){const near=endpointBuckets.get((cx+dx)+','+(cy+dy));if(near&&near.some(e=>e.lineKey!==key&&bridge3dMeters(point,e.point)<6.5))return true}return false};
     let linesBuilt=0,rails=0,piers=0,surfaces=0,centers=0,ramps=0,groundConnectedRamps=0,fallbackRamps=0,truncated=false;
     outer:for(const ft of fs){
@@ -857,16 +858,18 @@ export function initWorld(options={}){
         for(const side of [-1,1]){const rail=ribbonLinePoly(line,.09,side*(w*.5+.28));if(rail){out.push({type:'Feature',geometry:{type:'Polygon',coordinates:rail},properties:{...common,part:'bridge_rail',rail_base_m:base+.48,rail_top_m:base+1.55,detail_truth:'SOURCE_ATTRIBUTE_DERIVED'}});rails++}}
        }
        if(lineLength>=35&&['motorway','trunk','primary','secondary','tertiary','rail','transit'].includes(cls)){
-        const spacing=clamp(length/Math.max(2,Math.ceil(length/30)),18,32);
-        for(let at=spacing;at<length-spacing*.45&&piers<900;at+=spacing){const mid=bridgePointAlong(line,at);if(!mid)continue;const pier=circlePoly(mid,clamp(w*.075,.25,.72),8);if(!pier)continue;out.push({type:'Feature',geometry:{type:'Polygon',coordinates:pier},properties:{...common,part:'bridge_pier',pier_top_m:base+.02,pier_truth:'CENTERLINE_DERIVED_VISUAL_SUPPORT_NOT_ENGINEERING_SURVEY'}});piers++}
+        const spacing=clamp(lineLength/Math.max(2,Math.ceil(lineLength/30)),18,32);
+        for(let at=spacing;at<lineLength-spacing*.45&&piers<(MOBILE?120:360);at+=spacing){const mid=bridgePointAlong(line,at);if(!mid)continue;const pier=circlePoly(mid,clamp(w*.075,.25,.72),8);if(!pier)continue;out.push({type:'Feature',geometry:{type:'Polygon',coordinates:pier},properties:{...common,part:'bridge_pier',pier_top_m:base+.02,pier_truth:'CENTERLINE_DERIVED_VISUAL_SUPPORT_NOT_ENGINEERING_SURVEY'}});piers++}
        }
       }
-      linesBuilt++
+      linesBuilt++;
+      if(linesBuilt%3===0){await new Promise(resolve=>setTimeout(resolve,0));if(buildSeq!==bridge3dBuildSeq||(moving&&!allowMotion))return}
      }
     }
+    if(buildSeq!==bridge3dBuildSeq||(moving&&!allowMotion))return;
     src.setData({type:'FeatureCollection',features:out});
     const bridge2DVisible=!(out.length>0&&!truncated);setBridge2DVisible(bridge2DVisible);
-    window.__BP_BRIDGE3D_V5590__={version:5590,status:'ready',sourceLayer:'OpenMapTiles transportation / brunnel=bridge',sourceMode:'rendered-first',renderedBridgeFeatures:bridgeKeys.size,continuousLines:linesBuilt,surfaces,approachRampSegments:ramps,groundConnectedRamps,fallbackRamps,centerStripes:centers,rails,piers,truncated,minZoom:BRIDGE_3D_MIN,supportMinZoom:BRIDGE_SUPPORT_MIN,globalSource:true,onDemandViewportMaterialization:true,continuousDuringGestures:allowMotion,roadSurfaceRaisedWithBridge:true,groundRoadExcluded:true,continuousJoinGeometry:true,roadFeatureCap:MOBILE?300:700,bridgeFeatureCap:MOBILE?220:450,rampCount,rampCap,durationMs:Math.round((performance.now()-bridgeBuildStarted)*10)/10,bridge2DVisible,approachRamps:'MAPPED_GROUND_ROAD_ENDPOINT_WHEN_AVAILABLE',railingsRequireSourceAttribute:true,updatedAt:Date.now()}
+    window.__BP_BRIDGE3D_V5590__={version:5590,status:'ready',sourceLayer:'OpenMapTiles transportation / brunnel=bridge',sourceMode:'rendered-first',renderedBridgeFeatures:bridgeKeys.size,continuousLines:linesBuilt,surfaces,approachRampSegments:ramps,groundConnectedRamps,fallbackRamps,centerStripes:centers,rails,piers,truncated,minZoom:BRIDGE_3D_MIN,supportMinZoom:BRIDGE_SUPPORT_MIN,globalSource:true,onDemandViewportMaterialization:true,continuousDuringGestures:allowMotion,roadSurfaceRaisedWithBridge:true,groundRoadExcluded:true,continuousJoinGeometry:true,roadFeatureCap:MOBILE?120:300,bridgeFeatureCap:MOBILE?220:450,rampCount,rampCap,yieldEveryBridgeLines:3,buildSeq,durationMs:Math.round((performance.now()-bridgeBuildStarted)*10)/10,bridge2DVisible,approachRamps:'MAPPED_GROUND_ROAD_ENDPOINT_WHEN_AVAILABLE',railingsRequireSourceAttribute:true,updatedAt:Date.now()}
    };
    if(allowMotion)requestAnimationFrame(build);else if('requestIdleCallback'in window)requestIdleCallback(build,{timeout:MOBILE?1200:700});else setTimeout(build,MOBILE?80:30)
   },delay)
