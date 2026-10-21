@@ -1,0 +1,60 @@
+name: BridgePoint Global LiDAR Materialization v6025
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/global-lidar-ingest-v6025.yml"
+      - "scripts/global-lidar-ingest-v6025.py"
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: bridgepoint-global-lidar-materializer-v6025
+  cancel-in-progress: false
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        worker: [0, 1, 2, 3, 4, 5, 6, 7]
+    env:
+      SUPABASE_URL: https://xdfsjztwgsbmabshzsjw.supabase.co
+      POTREE_HOME: "${{ runner.temp }}/bridgepoint-potree-2.1.4"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: "${{ runner.temp }}/bridgepoint-potree-2.1.4"
+          key: bridgepoint-potreeconverter-2.1.4-ubuntu-v1
+      - name: Install PotreeConverter build dependencies and cached converter
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake git libtbb-dev
+          if [[ ! -x "$POTREE_HOME/build/PotreeConverter" ]]; then
+            rm -rf "$POTREE_HOME"
+            mkdir -p "$POTREE_HOME"
+            git clone --depth 1 --branch 2.1.4 https://github.com/potree/PotreeConverter.git "$POTREE_HOME/source"
+            cmake -S "$POTREE_HOME/source" -B "$POTREE_HOME/build" -DCMAKE_BUILD_TYPE=Release
+            cmake --build "$POTREE_HOME/build" --parallel 2
+          fi
+          test -x "$POTREE_HOME/build/PotreeConverter"
+          "$POTREE_HOME/build/PotreeConverter" --help | head -35
+      - name: Install pinned LAS and CRS libraries
+        run: python -m pip install --disable-pip-version-check "requests==2.32.5" "laspy[lazrs]==2.6.1" "pyproj==3.7.2"
+      - name: Verify renewable GitHub OIDC endpoint
+        shell: bash
+        run: |
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_URL"
+          test -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+      - name: Convert and materialize one license-approved scan tile
+        env:
+          WORKER_INDEX: "${{ matrix.worker }}"
+        run: python scripts/global-lidar-ingest-v6025.py --worker "$WORKER_INDEX" --converter "$POTREE_HOME/build/PotreeConverter"
