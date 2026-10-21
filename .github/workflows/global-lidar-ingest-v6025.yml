@@ -42,7 +42,7 @@ jobs:
             rm -rf "$POTREE_HOME"
             mkdir -p "$POTREE_HOME"
             git clone --depth 1 --branch 2.1.4 https://github.com/potree/PotreeConverter.git "$POTREE_HOME/source"
-            cmake -S "$POTREE_HOME/source" -B "$POTREE_HOME/build" -DCMAKE_BUILD_TYPE=Release
+            cmake -S "$POTREE_HOME/source" -B "$POTREE_HOME/build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
             cmake --build "$POTREE_HOME/build" --parallel 2
           fi
           test -x "$POTREE_HOME/build/PotreeConverter"
