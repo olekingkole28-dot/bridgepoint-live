@@ -128,24 +128,52 @@ function makeTopBarAndDock(){
  const top=node('div','bpv-topbar bpv-topbar-persistent');
  top.innerHTML='<a class="bpv-brand" href="/" aria-label="BridgePoint World"><img src="/bridgepoint-mark.svg" alt=""><span><b>BRIDGEPOINT WORLD</b><small>GLOBAL SPATIAL INTELLIGENCE</small></span></a><div class="bpv-topbar-right"><div id="bpv-language-slot" data-bp-language-mount="top" aria-label="BridgePoint language"></div><div id="bpv-account-slot"></div></div>';
  const dock=node('div','bpv-dock bpv-dock-persistent');dock.id='bpv-dock';dock.hidden=true;
- dock.innerHTML='<div class="bpv-dock-label"><div><b>BRIDGEPOINT WORLD</b><span><i></i> LIVE · GLOBAL WORLD</span></div><div class="bpv-dock-window-actions"><button type="button" data-bpv-dock-expand aria-label="Maximize BridgePoint map card" aria-pressed="false">MAXIMIZE ↗</button><button type="button" data-bpv-dock-hide aria-label="Minimize BridgePoint map card">MINIMIZE −</button></div></div><div id="bpv-dock-account-row" class="bpv-dock-account-row" aria-label="Account, language and refresh controls"></div><div id="bpv-map-controls-slot" class="bpv-map-controls-slot" aria-label="Map zoom and orientation controls"></div><div id="bpv-search-slot" class="bpv-search-slot"></div><div id="bpv-premium-tools-slot" class="bpv-premium-tools-slot" aria-label="Free premium tools"></div><div id="bpv-property-card-slot" class="bpv-property-card-slot" aria-label="Selected property card"></div><div id="bpv-status-panel-slot" class="bpv-status-panel-slot" aria-label="System status panel"></div><div id="bpv-world-activity-slot" class="bpv-world-activity-slot" aria-label="World activity timeline"></div><div id="bpv-underground-slot" class="bpv-underground-slot" aria-label="Underground X-ray map controls"></div><div id="bpv-satellite-slot" class="bpv-satellite-slot" aria-label="Satellite and color controls"></div><div id="bpv-dock-actions" class="bpv-dock-actions">'+
- '<button type="button" data-bpv-action="ai">BRIDGEPOINT AI</button>'+
- '<button type="button" data-bpv-action="parcels" title="Toggle public parcel lines on the globe">PARCEL LINES</button>'+
- '<button type="button" data-bpv-action="boundaryviewer" title="Open the Public Parcel Boundary Map Viewer">PUBLIC PARCEL VIEWER</button>'+
- '<button type="button" data-bpv-action="listings">LISTINGS</button>'+
- '<button type="button" data-bpv-action="worldchanges">30-DAY HISTORY</button>'+
- '<button type="button" class="bpv-weather-fx-btn" data-bpv-action="weatherfx">WEATHER FX</button>'+
- '<button type="button" class="bpv-wind-voxels-btn" data-bpv-action="windfx">WIND + DRONE</button>'+
- '<button type="button" data-bpv-action="volumetric">WIND / RF FIELDS</button>'+
- '<button type="button" data-bpv-action="opportunities">OPPORTUNITIES</button>'+
- '<button type="button" data-bpv-action="metrics">COUNTERS</button>'+
- '<button type="button" data-bpv-action="controls">LAYERS + TOOLS</button>'+
-
- '<button type="button" data-bpv-action="motion">ORBIT & MOTION</button>'+
- '<button type="button" data-bpv-action="property">PROPERTY SLOTS</button>'+
- (home?'<button type="button" data-bpv-action="explore">EXPLORE</button>':'')+
- '<button type="button" class="bpv-whole-earth-short" data-bpv-action="whole">WHOLE EARTH</button></div><div id="bpv-external-tools-slot" class="bpv-external-tools-slot" aria-label="Additional weather, visualization and drive controls"></div>';
- mapHost.append(top,dock);
+ dock.innerHTML='<div class="bpv-dock-label"><div><b>BRIDGEPOINT WORLD</b><span><i></i> LIVE · GLOBAL WORLD</span></div><div class="bpv-dock-window-actions"><button type="button" data-bpv-dock-expand aria-label="Maximize BridgePoint map card" aria-pressed="false">MAXIMIZE ↗</button><button type="button" data-bpv-dock-hide aria-label="Minimize BridgePoint map card">MINIMIZE −</button></div></div>'+
+ '<div id="bpv-dock-account-row" class="bpv-dock-account-row" aria-label="Account, language and refresh controls"></div>'+
+ '<div id="bpv-map-controls-slot" class="bpv-map-controls-slot" aria-label="Map zoom and orientation controls"></div>'+
+ '<div id="bpv-search-slot" class="bpv-search-slot"></div>'+
+ '<div id="bpv-premium-tools-slot" class="bpv-premium-tools-slot" aria-label="Free premium tools"></div>'+
+ '<div id="bpv-property-card-slot" class="bpv-property-card-slot" aria-label="Selected property card"></div>'+
+ '<div id="bpv-dock-actions" class="bpv-dock-actions bpv-command-groups">'+
+  '<section class="bpv-command-group" data-bpv-command-section="environment" aria-label="Weather and environment tools">'+
+   '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">☁</span><span><b>WEATHER & ENVIRONMENT</b><small>Storm effects, wind and signal fields</small></span></div>'+
+   '<div class="bpv-command-grid" data-bpv-command-grid="environment">'+
+    '<button type="button" class="bpv-command-btn bpv-weather-fx-btn" data-bpv-action="weatherfx" title="Open animated weather effects"><span class="bpv-command-icon" aria-hidden="true">☁</span><span class="bpv-command-label">Weather FX</span></button>'+
+    '<button type="button" class="bpv-command-btn bpv-wind-voxels-btn" data-bpv-action="windfx" title="Explore wind flow and drone routes"><span class="bpv-command-icon" aria-hidden="true">≋</span><span class="bpv-command-label">Wind + Drone</span></button>'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="volumetric" title="Open wind and RF field visualizations"><span class="bpv-command-icon" aria-hidden="true">⌁</span><span class="bpv-command-label">Wind / RF Fields</span></button>'+
+   '</div><div class="bpv-command-inline-slot" id="bpv-world-activity-slot" aria-label="Weather timeline and world activity"></div>'+
+  '</section>'+
+  '<section class="bpv-command-group" data-bpv-command-section="property" aria-label="Property intelligence tools">'+
+   '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">◈</span><span><b>PROPERTY INTELLIGENCE</b><small>Search properties, inspect records and explore opportunities</small></span></div>'+
+   '<div class="bpv-command-grid" data-bpv-command-grid="property">'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="ai" title="Ask BridgePoint AI"><span class="bpv-command-icon" aria-hidden="true">✧</span><span class="bpv-command-label">BridgePoint AI</span></button>'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="listings" title="Browse materialized property listings"><span class="bpv-command-icon" aria-hidden="true">▤</span><span class="bpv-command-label">Listings</span></button>'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="opportunities" title="Open qualified property opportunities"><span class="bpv-command-icon" aria-hidden="true">◉</span><span class="bpv-command-label">Opportunities</span></button>'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="metrics" title="View live platform counters"><span class="bpv-command-icon" aria-hidden="true">▦</span><span class="bpv-command-label">Live Counters</span></button>'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="property" title="Open intelligence slots for the selected property"><span class="bpv-command-icon" aria-hidden="true">⌂</span><span class="bpv-command-label">Property Slots</span></button>'+
+    (home?'<button type="button" class="bpv-command-btn" data-bpv-action="explore" title="Explore platform details"><span class="bpv-command-icon" aria-hidden="true">◇</span><span class="bpv-command-label">Explore</span></button>':'')+
+   '</div>'+
+  '</section>'+
+  '<section class="bpv-command-group" data-bpv-command-section="map" aria-label="Map and layer controls">'+
+   '<div class="bpv-command-heading"><span class="bpv-command-heading-icon" aria-hidden="true">⌖</span><span><b>MAP & LAYERS</b><small>Boundaries, terrain, history and world navigation</small></span></div>'+
+   '<div class="bpv-command-grid" data-bpv-command-grid="map">'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="parcels" title="Toggle public parcel lines on the globe"><span class="bpv-command-icon" aria-hidden="true">⌗</span><span class="bpv-command-label">Parcel Lines</span></button>'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="boundaryviewer" title="Open the Public Parcel Boundary Map Viewer"><span class="bpv-command-icon" aria-hidden="true">▧</span><span class="bpv-command-label">Public Parcel Viewer</span></button>'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="worldchanges" title="Explore available 30-day world changes"><span class="bpv-command-icon" aria-hidden="true">↻</span><span class="bpv-command-label">30-Day History</span></button>'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="controls" title="Open map layers and additional tools"><span class="bpv-command-icon" aria-hidden="true">☷</span><span class="bpv-command-label">Layers + Tools</span></button>'+
+    '<button type="button" class="bpv-command-btn" data-bpv-action="motion" title="Open orbit and motion controls"><span class="bpv-command-icon" aria-hidden="true">⟳</span><span class="bpv-command-label">Orbit & Motion</span></button>'+
+    '<button type="button" class="bpv-command-btn bpv-whole-earth-short" data-bpv-action="whole" title="Return to the whole Earth view"><span class="bpv-command-icon" aria-hidden="true">◎</span><span class="bpv-command-label">Whole Earth</span></button>'+
+   '</div>'+
+   '<div class="bpv-command-inline-slot" id="bpv-underground-slot" aria-label="Underground and infrastructure controls"></div>'+
+   '<div class="bpv-command-inline-slot" id="bpv-satellite-slot" aria-label="Satellite imagery and color controls"></div>'+
+  '</section>'+
+ '</div>'+
+ '<details id="bpv-more-info" class="bpv-more-info"><summary><span class="bpv-more-icon" aria-hidden="true">ⓘ</span><span class="bpv-more-copy"><b>MORE INFO</b><small>System status, data notes, source coverage and fine print</small></span><span class="bpv-more-chevron" aria-hidden="true">⌄</span></summary>'+
+  '<div class="bpv-more-info-content"><p class="bpv-more-info-intro">BridgePoint keeps the map clear while you explore. Open this section when you need system status, data-source notes, coverage limitations or additional explanation.</p>'+
+   '<div id="bpv-external-tools-slot" class="bpv-external-tools-slot" aria-label="Active tool controls and visualizations"></div>'+
+   '<div id="bpv-status-panel-slot" class="bpv-status-panel-slot" aria-label="System status panel"></div>'+
+   '<div class="bpv-more-info-note"><b>DATA & COVERAGE NOTES</b><p>Available layers depend on source coverage, zoom level, data freshness, and permitted display rights. A missing layer does not prove that a feature or hazard is absent. Weather and hazard overlays provide context and are not a property-damage determination.</p></div>'+
+  '</div></details>'; mapHost.append(top,dock);
  // Keep account/refresh actions in the persistent top bar.
  // MapLibre zoom and navigation controls remain on the map surface; the separate
  // WORLD DETAIL (GOLD/SILVER/BRONZE) control stays in #bpv-map-controls-slot.
@@ -182,7 +210,7 @@ function makeTopBarAndDock(){
    auxiliarySlot.appendChild(el);el.classList.add('bpv-contained-control');
   });
   const activePanels=auxiliarySlot.querySelectorAll('#bp5507-tool-panel:not([hidden]),#bp5507-hud:not([hidden]),#bp5507-key-panel:not([hidden]),#bp-realworld-effects-v5927:not([hidden]),#bpRoadDrive:not([hidden]),.bp-rd-drive-controls:not([hidden]),#bp-world-realism-v5910 .bpr-panel:not([hidden]),#bp-reality-assets-v5968:not([hidden]),[id^="bp-reality-assets-v5968-"]:not([hidden]),.bp-live-rail-panel-v5969:not([hidden])');
-  if(Array.from(activePanels).some(el=>getComputedStyle(el).display!=='none'))setDockMaximized(true);
+  if(Array.from(activePanels).some(el=>getComputedStyle(el).display!=='none')){const info=$('#bpv-more-info');if(info)info.open=true;setDockMaximized(true);}
  };
  placeAuxiliaryControls();
  const auxiliaryObserver=new MutationObserver(placeAuxiliaryControls);
@@ -682,6 +710,7 @@ function buildUI(){
  document.body.classList.add(home?'bpv-home':'bpv-app');
  const panel=makePanel(),ui=makeTopBarAndDock();
  ui.dock.appendChild(panel);
+ const moreInfo=$('#bpv-more-info');if(moreInfo)ui.dock.appendChild(moreInfo);
  if(home){
   const nav=$('.site-nav'),actions=nav?.querySelector('.actions'),copy=$('.hero .copy'),main=$('main');
   if(actions)$('#bpv-account-slot').append(actions);
@@ -717,7 +746,7 @@ function buildUI(){
    const p=$('#systemPanel');if(!p)return;
    const visible=!p.hidden&&getComputedStyle(p).display!=='none';
    if(visible){p.hidden=true;p.style.display='none'}
-   else{p.hidden=false;p.style.display='block'}
+   else{p.hidden=false;p.style.display='block';const info=$('#bpv-more-info');if(info)info.open=true}
   };
   const form=$('#publicSearchForm'),tools=$('.map-tools'),premium=$('#appFreePremiumTools');
   if(form){let cap=ui.searchSlot.querySelector('.bpv-search-caption');if(!cap){cap=node('div','bpv-search-caption');cap.textContent='BRIDGEPOINT PROPERTY LOOKUP';cap.style.cssText='font:900 9px/1.3 system-ui,sans-serif;letter-spacing:.12em;color:#80b2c6;margin:0 0 6px;padding:0 1px';ui.searchSlot.appendChild(cap)}ui.searchSlot.appendChild(form);form.hidden=false;searchVisible=true;}
@@ -738,15 +767,15 @@ function buildUI(){
  if(mapToolsPanel){
   const whole=$('#bpv-whole-earth');whole.addEventListener('click',wholeEarth);
  }
- const searchButton=node('button','','SEARCH');
- searchButton.type='button';searchButton.dataset.bpvAction='search';searchButton.dataset.bpvBound='1';searchButton.addEventListener('click',toggleSearch);
+ const searchButton=node('button','bpv-command-btn','<span class="bpv-command-icon" aria-hidden="true">⌕</span><span class="bpv-command-label">Search</span>');
+ searchButton.type='button';searchButton.title='Search addresses and properties';searchButton.setAttribute('aria-label','Search addresses and properties');searchButton.dataset.bpvAction='search';searchButton.dataset.bpvBound='1';searchButton.addEventListener('click',toggleSearch);
  const premium=document.querySelector('#landingFreePremiumTools,#appFreePremiumTools');
  const premiumSlot=$('#bpv-premium-tools-slot');
  if(premium&&premiumSlot&&premium.parentElement!==premiumSlot)premiumSlot.appendChild(premium);
  if(premium){premium.classList.add('bpv-premium-button');premium.textContent='FREE PREMIUM TOOLS';}
  if(!premium&&premiumSlot){const b=node('button','bpv-premium-button','FREE PREMIUM TOOLS');b.type='button';b.addEventListener('click',()=>document.querySelector('#bp5507-tools>button')?.click());premiumSlot.appendChild(b)}
  // Put search and account actions at rest; hide them together while the globe is moving.
- ui.actions.insertBefore(searchButton,ui.actions.querySelector('[data-bpv-action="ai"]'));
+ const propertyGrid=ui.dock.querySelector('[data-bpv-command-grid="property"]');if(propertyGrid)propertyGrid.prepend(searchButton);
  const panelOpenButtons=ui.actions.querySelectorAll('[data-bpv-action]');
  panelOpenButtons.forEach(b=>{if(b.dataset.bpvBound)return;b.dataset.bpvBound='1';b.addEventListener('click',()=>{const a=b.dataset.bpvAction;if(a==='search'){toggleSearch();return}if(a==='whole'){wholeEarth();return}if(a==='premium'){document.querySelector('#landingFreePremiumTools,#appFreePremiumTools')?.click();return}
 if(a==='parcels'){toggleParcelBoundaries();return}
