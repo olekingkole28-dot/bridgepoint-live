@@ -172,7 +172,7 @@ function makeTopBarAndDock(){
  keyRibbon.querySelector('[data-bpv-key-open]').addEventListener('click',()=>openPanel('mapkey'));
  dock.appendChild(keyRibbon);
  const auxiliarySlot=$('#bpv-external-tools-slot');
- const auxiliarySelectors=['#bp5507-tools','#bp5507-hud','#bp5507-key-panel','#bp-realworld-effects-v5927','#bpRoadDrive','.bp-rd-drive-controls','#bp-world-realism-v5910','.bp-reality-toggle-v5968','.bp-live-rail-toggle-v5969','[id^="bp-reality-assets-v5968-"]','.bp-live-rail-panel-v5969'];
+ const auxiliarySelectors=['#bp5507-tools','#bp5507-hud','#bp5507-key-panel','#bp-realworld-effects-v5927','#bpRoadDrive','.bp-rd-drive-controls','#bp-world-realism-v5910','.bp-reality-toggle-v5968','.bp-live-rail-toggle-v5969','#bp-reality-assets-v5968','[id^="bp-reality-assets-v5968-"]','.bp-live-rail-panel-v5969'];
  const placeAuxiliaryControls=()=>{
   if(!auxiliarySlot)return;
   for(const selector of auxiliarySelectors)document.querySelectorAll(selector).forEach(el=>{
