@@ -332,8 +332,8 @@ jobs:
           grep -Fq 'bridgepoint-rail-mesh-v5973.js?v=5980-visible-detail-rails' site/app/index.html
           grep -Fq 'MAPPED_GROUND_ROAD_ENDPOINT' site/world-v2300-map.js
           grep -Fq 'groundConnectedRamps' site/world-v2300-map.js
-          grep -Fq '6037-gold-default-lod' site/app.js
-          grep -Fq '6037-gold-default-lod' site/landing.js
+          grep -Fq '6038-world-lod-range-apply' site/app.js
+          grep -Fq '6038-world-lod-range-apply' site/landing.js
           grep -Fq 'OpenStreetMap feature centroid' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 138.5' site/bridgepoint-pyramids-v5945.js
           grep -Fq 'currentHeightM: 136.4' site/bridgepoint-pyramids-v5945.js
@@ -873,14 +873,14 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6037-gold-default-lod' site/app/index.html
-          grep -Fq 'landing.js?v=6037-gold-default-lod' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6037-gold-default-lod' site/app.js
-           grep -Fq 'world-v2300-map.js?v=6037-gold-default-lod' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=6037-gold-default-lod' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6037-gold-default-lod' site/app/index.html
-           grep -Fq 'world-v2300-lod-controls.js?v=6037-gold-default-lod' site/app.js
-           grep -Fq 'world-v2300-lod-controls.js?v=6037-gold-default-lod' site/landing.js
+          grep -Fq 'app.js?v=6038-world-lod-range-apply' site/app/index.html
+          grep -Fq 'landing.js?v=6038-world-lod-range-apply' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6038-world-lod-range-apply' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6038-world-lod-range-apply' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6038-world-lod-range-apply' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6038-world-lod-range-apply' site/app/index.html
+           grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/app.js
+           grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/landing.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
            grep -Fq 'syncWorldLodLayerRanges' site/world-v2300-map.js
            grep -Fq 'data-bp-lod-tier' site/world-v2300-lod-controls.js

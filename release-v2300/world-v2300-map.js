@@ -1469,7 +1469,7 @@ export function initWorld(options={}){
    const finishRender=()=>{
     const current=activeWorldLodProfile();
     syncWorldLodLayerRanges(current);
-    if(!map.isStyleLoaded?.())return false;
+    if(!map.isStyleLoaded?.()){map.once('idle',finishRender);return false;}
     terrain();syncBuildingShells(true);scheduleLivingWorld(90);rebuildBridge3D(100);rebuildRoad3D(100);
     map.triggerRepaint?.();return true;
    };
