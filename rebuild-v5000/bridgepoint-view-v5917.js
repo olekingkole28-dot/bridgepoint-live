@@ -26,7 +26,7 @@ const SLOT_INFO={
 function node(tag,cls,html){const n=document.createElement(tag);if(cls)n.className=cls;if(html!==undefined)n.innerHTML=html;return n}
 function addClass(el,cls){if(el)el.classList.add(cls)}
 function setDockMaximized(on){const d=$('#bpv-dock'),b=$('[data-bpv-dock-expand]');if(!d)return;d.classList.toggle('bpv-dock-maximized',!!on);if(b){b.textContent=on?'RESTORE ↘':'MAXIMIZE ↗';b.setAttribute('aria-pressed',String(!!on))}}
-function closePanel(){const p=$('#bpv-sidecar');if(p)p.hidden=true;document.body.classList.remove('bpv-panel-open');const rail=$('#bpv-mapkey-rail');if(rail)rail.setAttribute('aria-expanded','false');setDockMaximized(false)}
+function closePanel(){const p=$('#bpv-sidecar');if(p){p.hidden=true;p.removeAttribute('data-panel')}document.body.classList.remove('bpv-panel-open');const rail=$('#bpv-mapkey-rail');if(rail)rail.setAttribute('aria-expanded','false');setDockMaximized(false)}
 function openPanel(name){
  const p=$('#bpv-sidecar');if(!p)return;
  if(home){const card=$('#previewCard');if(card&&!card.hidden&&name!=='mapkey')card.hidden=true}else if(name!=='mapkey'){const sys=$('#systemPanel'),building=$('#buildingPanel');if(sys)sys.hidden=true;if(building)building.hidden=true}
