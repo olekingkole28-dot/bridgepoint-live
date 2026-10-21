@@ -356,8 +356,8 @@ jobs:
           grep -Fq 'Potree.updatePointClouds([cloud]' site/bridgepoint-lincoln-pointcloud-v5986.js
           grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan' site/index.html
           grep -Fq 'bridgepoint-lincoln-pointcloud-v5986.js?v=6025-gold-lod-only-lincoln-scan' site/app/index.html
-          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7006-south-axis-fix-default-off' site/index.html
-          grep -Fq 'bridgepoint-nyc-lidar-v7000.js?v=7006-south-axis-fix-default-off' site/app/index.html
+          grep -Fq 'bridgepoint-nyc-lidar-v7007-progressive-photo-mesh-lod' site/index.html
+          grep -Fq 'bridgepoint-nyc-lidar-v7007-progressive-photo-mesh-lod' site/app/index.html
           test -s site/bridgepoint-nyc-lidar-v7000.js
           node --check site/bridgepoint-nyc-lidar-v7000.js
           grep -Fq 'GRID_TO_TRUE_NORTH_RADIANS = -0.00018468388351200875' site/bridgepoint-nyc-lidar-v7000.js
@@ -367,6 +367,12 @@ jobs:
           grep -Fq 'function activeCoveragePolygons(state)' site/bridgepoint-nyc-lidar-v7000.js
           grep -Fq "['within', polygon]" site/bridgepoint-nyc-lidar-v7000.js
           grep -Fq 'coverageFilterActive' site/bridgepoint-nyc-lidar-v7000.js
+          grep -Fq 'function wantedSurfaceLod(map, manifest)' site/bridgepoint-nyc-lidar-v7000.js
+          grep -Fq 'function createSurfaceChunkGeometry(THREE, raw, part, scale, stride)' site/bridgepoint-nyc-lidar-v7000.js
+          grep -Fq 'indices[i + 1] = indices[i + 2]' site/bridgepoint-nyc-lidar-v7000.js
+          grep -Fq 'function loadScaledOrthophotoTexture(state, tile, THREE, requestedSize)' site/bridgepoint-nyc-lidar-v7000.js
+          grep -Fq 'while (state.surfaceWorkers < 2' site/bridgepoint-nyc-lidar-v7000.js
+          grep -Fq 'surfaceMeshReadyTileCount' site/bridgepoint-nyc-lidar-v7000.js
           test -s site/assets/nyc-lidar/manifest.json
           python3 - <<'PY'
           import gzip, json, pathlib
