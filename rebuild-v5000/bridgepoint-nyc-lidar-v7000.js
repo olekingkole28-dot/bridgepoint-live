@@ -478,15 +478,15 @@
       material.extensions = Object.assign({}, material.extensions || {}, { derivatives: true });
       material.onBeforeCompile = shader => {
         shader.vertexShader = shader.vertexShader
-          .replace('#include <common>', '#include <common>\\nvarying vec3 vBpLidarLocalPosition;')
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\\nvBpLidarLocalPosition = transformed;');
+          .replace('#include <common>', '#include <common>\nvarying vec3 vBpLidarLocalPosition;')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBpLidarLocalPosition = transformed;');
         shader.fragmentShader = shader.fragmentShader
-          .replace('#include <common>', '#include <common>\\nvarying vec3 vBpLidarLocalPosition;')
+          .replace('#include <common>', '#include <common>\nvarying vec3 vBpLidarLocalPosition;')
           .replace('#include <map_fragment>', [
             '#include <map_fragment>',
             'vec3 bpLidarFaceNormal = normalize(cross(dFdx(vBpLidarLocalPosition), dFdy(vBpLidarLocalPosition)));',
             'if (abs(bpLidarFaceNormal.y) < 0.68) { diffuseColor.rgb = vec3(0.48, 0.52, 0.56); }'
-          ].join('\\n'));
+          ].join('\n'));
       };
       material.customProgramCacheKey = () => 'bp-nyc-lidar-nadir-only-face-mask-v7003';
       tile.surfaceMaterial = material;
