@@ -28,7 +28,7 @@ function precip(o){const s=text([o?.weather,o?.present_weather,o?.weather_text,o
 function baseLayers(map){
  for(const id of ['wx-alerts','wx-fires','wx-quakes','wx-storms','wx-thermal','wx-obs','wx-water'])if(!map.getSource(id))map.addSource(id,{type:'geojson',data:EMPTY});
  if(!map.getSource('wx-radar'))try{map.addSource('wx-radar',{type:'raster',tiles:[RADAR],tileSize:256,minzoom:2,maxzoom:14,attribution:'NOAA/NWS radar'})}catch(_){}
- if(!map.getSource('wx-snow-depth'))try{map.addSource('wx-snow-depth',{type:'raster',tiles:[SNOW_DEPTH],tileSize:256,minzoom:4,maxzoom:12,attribution:'NOAA/NWS NOHRSC National Snow Analysis · modeled/assimilated 1-km snow depth'})}catch(_){}
+ if(!map.getSource('wx-snow-depth'))try{map.addSource('wx-snow-depth',{type:'raster',tiles:[SNOW_DEPTH],bounds:[-180,15,-50,75],tileSize:256,minzoom:4,maxzoom:12,attribution:'NOAA/NWS NOHRSC National Snow Analysis · modeled/assimilated 1-km snow depth'})}catch(_){}
  const before=map.getLayer('gta-exact-building')?'gta-exact-building':undefined;
  add(map,{id:'wx-snow-depth',type:'raster',source:'wx-snow-depth',minzoom:4,maxzoom:15,paint:{'raster-opacity':['interpolate',['linear'],['zoom'],4,.14,8,.2,13,.24,15,.18],'raster-saturation':-.18,'raster-contrast':.08,'raster-fade-duration':0}},before);
  add(map,{id:'wx-alert-fill',type:'fill',source:'wx-alerts',paint:{'fill-color':['match',['upcase',['coalesce',['get','phenom'],'']],'TO','#ff3c6e','SV','#ffb84a','FF','#34d7ff','FA','#34d7ff','HU','#d764ff','TR','#d764ff','#ff9a56'],'fill-opacity':.19}},before);
