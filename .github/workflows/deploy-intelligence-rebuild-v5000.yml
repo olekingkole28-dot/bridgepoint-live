@@ -449,7 +449,7 @@ jobs:
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' site/app.js
           grep -Fq 'world-v2300-infrastructure-volume-v5962.js?v=5962-power-grid-fcc-towers' site/landing.js
-          grep -Fq 'bridgepoint-landmarks-v5940.js?v=5966-statue-pedestal-aligned' site/app.js
+          grep -Fq 'bp:world-map-ready-v5940' site/app.js
           grep -Fq 'bridgepoint-landmarks-v5940.js?v=5966-statue-pedestal-aligned' site/landing.js
           grep -Fq 'window.__BP_PENDING_LANDMARK_MAP_V5940__=world.map' site/app.js
           grep -Fq '__BP_PENDING_LANDMARK_MAP_V5940__=world.map' site/landing.js
