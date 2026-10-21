@@ -207,7 +207,8 @@ function makeTopBarAndDock(){
    return;
   }
   openPanel(a)
- }));
+  });
+ });
  return{top,dock,searchSlot:$('#bpv-search-slot'),actions:$('#bpv-dock-actions')};
 }
 function makeSlots(container,kind){
