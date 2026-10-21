@@ -235,15 +235,18 @@ def build_surface_and_walls(tile, source, image_bbox, anchor, out_dir, image_pat
         raise RuntimeError(f"Unexpected scan count for {tile['id']}: {scanned}")
     top_valid = np.isfinite(top)
     top_populated = int(top_valid.sum())
-    if top_populated < int(nx * ny * 0.90):
-        raise RuntimeError(f"LiDAR occupancy too low for {tile['id']}: {top_populated}/{nx*ny}")
-    top = top[tuple(distance_transform_edt(~top_valid, return_distances=False, return_indices=True))]
+    # Open water/occluded patches can legitimately have no top-surface returns. Keep these
+    # cells, but never propagate a neighboring roof height across the gap: use only the nearest
+    # measured class-2 ground height for empty DSM cells, preserving flat water/ground context.
+    if top_populated < int(nx * ny * 0.75):
+        raise RuntimeError(f"LiDAR top-surface occupancy too low for safe materialization of {tile['id']}: {top_populated}/{nx*ny}")
     ground_valid = ground_count > 0
     ground = np.full((ny, nx), np.nan, dtype=np.float32)
     np.divide(ground_sum, ground_count, out=ground, where=ground_valid)
     if not ground_valid.any():
         raise RuntimeError(f"No measured ground class points for {tile['id']}")
     ground = ground[tuple(distance_transform_edt(~ground_valid, return_distances=False, return_indices=True))]
+    top = np.where(top_valid, top, ground).astype(np.float32, copy=False)
     if center_ground:
         anchor["verticalOriginFeet"] = float(np.median(np.concatenate(center_ground)))
         anchor["verticalOriginMethod"] = "median of measured LAS class-2 ground returns within 200 ft of tile center"
