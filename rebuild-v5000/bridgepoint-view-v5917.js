@@ -687,8 +687,7 @@ function buildUI(){
    sections.forEach(el=>content.appendChild(el));
    const footer=document.querySelector('body>footer');if(footer)content.appendChild(footer);
   }
-  const form=$('#landingPropertySearch'),premium=$('#landingFreePremiumTools'),layersToggle=$('#landingWeatherActivation');
-  if(layersToggle&&ui.actions&&!ui.actions.contains(layersToggle)){layersToggle.classList.add('bpv-contained-control-button');ui.actions.insertBefore(layersToggle,ui.actions.querySelector('[data-bpv-action="weatherfx"]')||null)}
+  const form=$('#landingPropertySearch'),premium=$('#landingFreePremiumTools');
   const previewHead=$('.preview-head');if(previewHead)previewHead.hidden=true;
   if(form){let cap=ui.searchSlot.querySelector('.bpv-search-caption');if(!cap){cap=node('div','bpv-search-caption');cap.textContent='BRIDGEPOINT PROPERTY LOOKUP';cap.style.cssText='font:900 9px/1.3 system-ui,sans-serif;letter-spacing:.12em;color:#80b2c6;margin:0 0 6px;padding:0 1px';ui.searchSlot.appendChild(cap)}ui.searchSlot.appendChild(form);form.hidden=false;searchVisible=true;}
   if(premium)ui.actions.insertBefore(premium,ui.actions.querySelector('[data-bpv-action="ai"]'));
