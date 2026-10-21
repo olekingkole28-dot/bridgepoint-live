@@ -1319,12 +1319,19 @@ jobs:
 
               await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map;
+                // Free-camera terrain clamping is defined against the Mercator camera coordinate type.
+                // Switch only this isolated smoke-test map to Mercator before injecting a below-ground camera.
+                m.setProjection?.({type:'mercator'});
                 m.stop?.();m.jumpTo({center:[-73.9857,40.7484],zoom:16.8,pitch:52,bearing:0});
               });
               await p.waitForFunction(()=>{
-                const m=window.__BP_V5000_WORLD?.map;
+                const m=window.__BP_V5000_WORLD?.map,free=m?.getFreeCameraOptions?.(),pos=free?.position;
+                const MC=window.maplibregl?.MercatorCoordinate||pos?.constructor;
+                const ground=m?.queryTerrainElevation?.(m.getCenter(),{exaggerated:true});
                 return !!m&&window.__BP_TERRAIN_VISUAL_STATE__?.enabled===true&&
-                  Number.isFinite(m.queryTerrainElevation?.(m.getCenter(),{exaggerated:true}));
+                  Number.isFinite(ground)&&ground>1&&!!pos&&
+                  typeof pos.toLngLat==='function'&&typeof pos.toAltitude==='function'&&
+                  typeof MC?.fromLngLat==='function';
               },{timeout:25000});
               const attempted=await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map,center=m.getCenter();
