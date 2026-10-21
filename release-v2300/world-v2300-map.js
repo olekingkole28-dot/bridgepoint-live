@@ -1394,7 +1394,7 @@ export function initWorld(options={}){
    if(groundCameraBusy||!terrainOn||!map.isStyleLoaded?.()||typeof map.queryTerrainElevation!=='function')return false;
    const z=map.getZoom(),pitch=map.getPitch();if(z<15.2&&pitch<88)return false;
    const now=performance.now();if(now-lastGroundCameraCheckAt<45&&!map.isZooming?.())return false;lastGroundCameraCheckAt=now;
-   const camera=map.getFreeCameraOptions?.(),position=camera?.position,MC=window.maplibregl?.MercatorCoordinate;
+   const camera=map.getFreeCameraOptions?.(),position=camera?.position,MC=window.maplibregl?.MercatorCoordinate||position?.constructor;
    if(!camera||!position||typeof position.toLngLat!=='function'||typeof position.toAltitude!=='function'||!MC?.fromLngLat)return false;
    try{const loc=position.toLngLat(),ground=map.queryTerrainElevation(loc,{exaggerated:true}),altitude=position.toAltitude();if(!Number.isFinite(ground)||!Number.isFinite(altitude))return false;
     const clearance=z>=20.5?1.4:z>=18.5?2.4:z>=16.8?4.5:10;if(altitude>=ground+clearance)return false;
