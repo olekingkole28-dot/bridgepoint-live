@@ -1,7 +1,7 @@
 import{VERSION}from'./world-v2300-config.js';
 import{initWorld}from'./world-v2300-map.js';
 import{initDetails}from'./world-v2300-details.js';
-import{initWeather}from'./world-v2300-weather.js';
+import{initWeather}from'./world-v2300-weather.js?v=6040-idle-weather';
 import{initPresentWeather}from'./world-v2300-present-weather.js';
 import{initWeatherKey}from'./world-v2300-weather-key.js';
 import{initWeatherPersistence}from'./world-v2300-weather-persistence.js';
