@@ -55,10 +55,22 @@ function baseLayers(map){
 }
 
 
-function captureWeatherGLState(gl, locations) {
+const LEGACY_NATIVE_WEATHER_LAYERS=['wx-snow-depth','wx-alert-fill','wx-alert-line','wx-fire-fill','wx-fire-line','wx-thermal','wx-quake-glow','wx-quake','wx-storm-glow','wx-storm','wx-obs','wx-water'];
+function hideLegacyNativeWeatherLayers(map){
+ for(const id of LEGACY_NATIVE_WEATHER_LAYERS)try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none')}catch(_){}
+}
+function captureWeatherGLState(gl, locations, vaoExt = null, isolatedVao = false) {
   const enabled = name => { try { return gl.isEnabled(gl[name]); } catch (_) { return false; } };
   const parameter = name => { try { return gl.getParameter(gl[name]); } catch (_) { return null; } };
-  const attributes = locations.filter(a => a >= 0).map(location => {
+  let vaoMode = 'none', vaoBinding = null;
+  try {
+    if (typeof gl.bindVertexArray === 'function' && gl.VERTEX_ARRAY_BINDING != null) {
+      vaoMode = 'native'; vaoBinding = gl.getParameter(gl.VERTEX_ARRAY_BINDING);
+    } else if (vaoExt?.bindVertexArrayOES && vaoExt.VERTEX_ARRAY_BINDING_OES != null) {
+      vaoMode = 'extension'; vaoBinding = gl.getParameter(vaoExt.VERTEX_ARRAY_BINDING_OES);
+    }
+  } catch (_) {}
+  const attributes = isolatedVao ? [] : locations.filter(a => a >= 0).map(location => {
     try {
       return {
         location,
@@ -80,20 +92,33 @@ function captureWeatherGLState(gl, locations) {
     colorMask: parameter('COLOR_WRITEMASK'), srcRgb: parameter('BLEND_SRC_RGB'),
     dstRgb: parameter('BLEND_DST_RGB'), srcA: parameter('BLEND_SRC_ALPHA'),
     dstA: parameter('BLEND_DST_ALPHA'), eqRgb: parameter('BLEND_EQUATION_RGB'),
-    eqA: parameter('BLEND_EQUATION_ALPHA'), attributes
+    eqA: parameter('BLEND_EQUATION_ALPHA'), attributes, vaoMode, vaoBinding, vaoExt, isolatedVao
   };
+}
+function bindWeatherVertexArray(gl, vao, mode, vaoExt) {
+  if (!vao) return;
+  try {
+    if (mode === 'native') gl.bindVertexArray(vao);
+    else if (mode === 'extension') vaoExt?.bindVertexArrayOES?.(vao);
+  } catch (_) {}
 }
 function restoreWeatherGLState(gl, state) {
   if (!state) return;
   const capability = (name, value) => { try { if (value) gl.enable(gl[name]); else gl.disable(gl[name]); } catch (_) {} };
-  for (const a of state.attributes || []) {
-    try {
-      if (a.buffer) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, a.buffer);
-        gl.vertexAttribPointer(a.location, a.size, a.type, !!a.normalized, a.stride, a.offset);
-      }
-      if (a.enabled) gl.enableVertexAttribArray(a.location); else gl.disableVertexAttribArray(a.location);
-    } catch (_) {}
+  try {
+    if (state.vaoMode === 'native') gl.bindVertexArray(state.vaoBinding);
+    else if (state.vaoMode === 'extension') state.vaoExt?.bindVertexArrayOES?.(state.vaoBinding);
+  } catch (_) {}
+  if (!state.isolatedVao) {
+    for (const a of state.attributes || []) {
+      try {
+        if (a.buffer) {
+          gl.bindBuffer(gl.ARRAY_BUFFER, a.buffer);
+          gl.vertexAttribPointer(a.location, a.size, a.type, !!a.normalized, a.stride, a.offset);
+        }
+        if (a.enabled) gl.enableVertexAttribArray(a.location); else gl.disableVertexAttribArray(a.location);
+      } catch (_) {}
+    }
   }
   try { if (state.depthMask != null) gl.depthMask(state.depthMask); } catch (_) {}
   try { if (state.colorMask) gl.colorMask(...Array.from(state.colorMask)); } catch (_) {}
@@ -109,7 +134,7 @@ function restoreWeatherGLState(gl, state) {
 
 function createFx(map){
  if(window.__bpWeatherFXV2300)return window.__bpWeatherFXV2300;
- let scene={...EMPTY_SCENE},enabled=true,moving=false,quality=1,fps=60,bad=0,good=0,lastFrame=0,lastWater=0,timer=0,shaderReady=false,activeParticles=0,program=null,buffer=null,attrs=null,generatedAt=null,monitorRaf=0,nearestObsCache=null,nearestObsCacheAt=0,nearestObsCacheValid=false,animationCheckAt=0,animationCheckCached=false,waterPulse=false;let particleLayerRetryAt=0;let schedulerMode='uninitialized';
+ let scene={...EMPTY_SCENE},enabled=true,moving=false,quality=1,fps=60,bad=0,good=0,lastFrame=0,lastWater=0,timer=0,shaderReady=false,activeParticles=0,program=null,buffer=null,attrs=null,weatherVao=null,weatherVaoExt=null,weatherVaoMode='none',generatedAt=null,monitorRaf=0,nearestObsCache=null,nearestObsCacheAt=0,nearestObsCacheValid=false,animationCheckAt=0,animationCheckCached=false,waterPulse=false;let particleLayerRetryAt=0;let schedulerMode='uninitialized';
  function publishSchedulerState(mode){if(mode===schedulerMode)return;schedulerMode=mode;window.__BP_WEATHER_RENDER_SCHEDULER_V6040__={version:6040,mode,enabled,moving,waterHazardAnimation:waterPulse,visibleAnimatedEffects:animationCheckCached,estimatedFps:+fps.toFixed(1),qualityScale:+quality.toFixed(2),activeParticles,maxPoints:MAX_POINTS,counts:{fires:scene.fires.length,storms:scene.storms.length,observations:scene.observations.length,alerts:scene.alerts.length},updatedAt:Date.now()}}
  const ids=['bp2300-fx-flood','bp2300-fx-ice','bp2300-fx-burn','bp2300-fx-containment','bp2300-fx-tornado-src','bp2300-fx-hurricane-src','bp2300-fx-flood-depth-src','bp2300-fx-snow-depth-src','bp2300-fx-lava-src','bp2300-fx-wet-ground-src'];
  function ensureNative(){
@@ -194,8 +219,8 @@ function createFx(map){
  function initGl(gl){const v2=typeof WebGL2RenderingContext!=='undefined'&&gl instanceof WebGL2RenderingContext,head=v2?'#version 300 es\n':'',vin=v2?'in':'attribute',vout=v2?'out':'varying',fin=v2?'in':'varying',fout=v2?'out vec4 outColor;':'',write=v2?'outColor':'gl_FragColor';const vs=`${head}precision mediump float;${vin} vec2 a_pos;${vin} float a_size;${vin} float a_kind;${vin} float a_alpha;${vin} float a_phase;${vin} float a_aux;uniform float u_dpr;${vout} float v_kind;${vout} float v_alpha;${vout} float v_phase;${vout} float v_aux;void main(){gl_Position=vec4(a_pos,0.,1.);gl_PointSize=max(1.,a_size*u_dpr);v_kind=a_kind;v_alpha=a_alpha;v_phase=a_phase;v_aux=a_aux;}`;const fs=`${head}precision mediump float;${fin} float v_kind;${fin} float v_alpha;${fin} float v_phase;${fin} float v_aux;${fout}void main(){vec2 q=gl_PointCoord-vec2(.5);float a=0.;vec3 c=vec3(1.);if(v_kind<.5){float x=q.x+v_aux*q.y;a=(1.-smoothstep(.035,.11,abs(x)))*(1.-smoothstep(.17,.5,abs(q.y)));c=vec3(.48,.72,.84);}else if(v_kind<1.5){float d=length(q);a=1.-smoothstep(.28,.49,d);c=vec3(.96,.99,1.);}else if(v_kind<2.5){float d=length(q);a=1.-smoothstep(.28,.49,d);c=vec3(.82,.95,1.);}else if(v_kind<3.5){float d=length(vec2(q.x*.82,q.y));a=1.-smoothstep(.18,.5,d);float y=clamp(gl_PointCoord.y,0.,1.);c=mix(vec3(1.,.12,.02),mix(vec3(1.,.48,.03),vec3(1.,.98,.78),y),smoothstep(.12,.88,y));}else if(v_kind<4.5){float d=length(q);a=(1.-smoothstep(.12,.5,d))*.76;c=mix(vec3(.16,.18,.19),vec3(.48,.51,.52),v_phase);}else if(v_kind<5.5){float d=length(vec2(q.x,q.y*.72));a=(1.-smoothstep(.08,.5,d))*.72;c=vec3(.72,.78,.80);}else if(v_kind<6.5){float x=abs(q.x+sin(q.y*10.+v_phase*6.28)*.11);a=(1.-smoothstep(.008,.085,x))*(1.-smoothstep(.38,.5,abs(q.y)));c=vec3(.72,.87,.94);}else if(v_kind<7.5){float d=length(vec2(q.x*.45,q.y));a=1.-smoothstep(.2,.5,d);c=vec3(.08,.07,.065);}else if(v_kind<8.5){float x=abs(q.x+sin(q.y*15.+v_phase*6.28)*.065);float mainBolt=(1.-smoothstep(.012,.075,x))*(1.-smoothstep(.43,.5,abs(q.y)));float bx1=abs(q.x-(.12+(q.y+.10)*.72+sin(q.y*31.+v_phase)*.02));float branch1=(1.-smoothstep(.008,.055,bx1))*step(-.15,q.y)*(1.-step(.16,q.y));float bx2=abs(q.x-(-.10-(q.y-.02)*.62+sin(q.y*27.+v_phase*2.)*.02));float branch2=(1.-smoothstep(.008,.05,bx2))*step(.02,q.y)*(1.-step(.28,q.y));a=max(mainBolt,max(branch1,branch2));c=vec3(.92,.98,1.);}else if(v_kind<9.5){float d=length(q);a=(1.-smoothstep(.04,.5,d))*.52;c=vec3(.78,.88,1.);}else if(v_kind<10.5){float d=length(q);float rr=v_phase*.47;a=(1.-smoothstep(.006,.028,abs(d-rr)))*(1.-v_phase);c=vec3(1.,.29,.63);}else{float d=length(q);a=(1.-smoothstep(.05,.49,d))*.66;c=mix(vec3(1.,.08,.01),vec3(1.,.7,.08),smoothstep(.12,.46,gl_PointCoord.y));}a*=v_alpha;if(a<.008)discard;${write}=vec4(c,a);}`;program=gl.createProgram();gl.attachShader(program,compile(gl,gl.VERTEX_SHADER,vs));gl.attachShader(program,compile(gl,gl.FRAGMENT_SHADER,fs));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(program)||'shader link');buffer=gl.createBuffer();attrs={pos:gl.getAttribLocation(program,'a_pos'),size:gl.getAttribLocation(program,'a_size'),kind:gl.getAttribLocation(program,'a_kind'),alpha:gl.getAttribLocation(program,'a_alpha'),phase:gl.getAttribLocation(program,'a_phase'),aux:gl.getAttribLocation(program,'a_aux'),dpr:gl.getUniformLocation(program,'u_dpr')};shaderReady=true}
  const custom={
    id:'bp2300-weather-fx-gpu',type:'custom',renderingMode:'2d',
-   onAdd(_m,gl){try{initGl(gl)}catch(e){shaderReady=false;console.warn('V2300 weather GPU',e)}},
-   onRemove(_m,gl){try{if(buffer)gl.deleteBuffer(buffer);if(program)gl.deleteProgram(program)}catch(_){}shaderReady=false},
+   onAdd(_m,gl){try{initGl(gl);weatherVao=null;weatherVaoExt=null;weatherVaoMode='none';try{if(typeof gl.createVertexArray==='function'&&typeof gl.bindVertexArray==='function'){weatherVao=gl.createVertexArray();if(weatherVao)weatherVaoMode='native'}else{weatherVaoExt=gl.getExtension?.('OES_vertex_array_object')||null;if(weatherVaoExt){weatherVao=weatherVaoExt.createVertexArrayOES();if(weatherVao)weatherVaoMode='extension'}}}catch(_){weatherVao=null;weatherVaoMode='none'}}catch(e){shaderReady=false;console.warn('V2300 weather GPU',e)}},
+   onRemove(_m,gl){try{if(weatherVao&&weatherVaoMode==='native')gl.deleteVertexArray(weatherVao);else if(weatherVao&&weatherVaoMode==='extension')weatherVaoExt?.deleteVertexArrayOES?.(weatherVao);if(buffer)gl.deleteBuffer(buffer);if(program)gl.deleteProgram(program)}catch(_){}weatherVao=null;weatherVaoExt=null;weatherVaoMode='none';shaderReady=false},
    render(gl){
     const diagnostic=window.__BP_WEATHER_FX_DIAGNOSTIC_V6050__||(window.__BP_WEATHER_FX_DIAGNOSTIC_V6050__={renderCalls:0,skippedCalls:0,particleErrors:0,updatedAt:0});
     const animationNeeded=particleAnimationNeeded();
@@ -207,7 +232,8 @@ function createFx(map){
     if(!n){diagnostic.lastZeroParticlesAt=Date.now();return}
     let saved=null;
     try{
-     saved=captureWeatherGLState(gl,[attrs.pos,attrs.size,attrs.kind,attrs.alpha,attrs.phase,attrs.aux]);
+     saved=captureWeatherGLState(gl,[attrs.pos,attrs.size,attrs.kind,attrs.alpha,attrs.phase,attrs.aux],weatherVaoExt,!!weatherVao);
+     bindWeatherVertexArray(gl,weatherVao,weatherVaoMode,weatherVaoExt);
      gl.useProgram(program);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
      gl.bufferData(gl.ARRAY_BUFFER,DATA.subarray(0,n*STRIDE),gl.DYNAMIC_DRAW);
      const stride=STRIDE*4;
@@ -233,7 +259,7 @@ function createFx(map){
   if(!active){for(const g of (scene.geysers||[]).filter(x=>x?.active!==false&&x?.is_active!==false).slice(0,LOW?1:MOBILE?2:4)){const c=eventCenter(g);if(c&&project(c)){active=true;break}}}
   if(!active&&z>=1){for(const o of (scene.observations||[])){const visibility=Number(o.visibility_mi??o.visibility_miles),raw=text([o.weather,o.present_weather,o.weather_text,o.rawdata].filter(Boolean).join(' ')),c=eventCenter(o);if(c&&project(c)&&((Number.isFinite(visibility)&&visibility>0&&visibility<1)||/\bfz\b|\bfg\b|fog|mist/.test(raw))){active=true;break}}}
   if(!active&&z>=1){const limit=LOW?3:MOBILE?6:10;for(const f of scene.fires.slice(0,limit*3)){const c=center(f.geometry);if(c&&project(c)){active=true;break}}}if(!active){const limit=LOW?2:MOBILE?3:5;for(const s of scene.storms.slice(0,limit*4)){const c={lng:+s.lng,lat:+s.lat};if(Number.isFinite(c.lng)&&Number.isFinite(c.lat)&&project(c)){active=true;break}}}if(!active){const limit=LOW?6:18,nowMs=Date.now();for(let i=0;i<Math.min(scene.lightning.length,limit);i++){const s=scene.lightning[i],at=Date.parse(s.time||s.observed_at||s.timestamp||generatedAt||'');if(Number.isFinite(at)&&nowMs-at>=0&&nowMs-at<5000){const c={lng:+(s.lng??s.longitude),lat:+(s.lat??s.latitude)};if(Number.isFinite(c.lng)&&Number.isFinite(c.lat)&&project(c)){active=true;break}}}}animationCheckCached=active;return active}
- function schedule(){clearTimeout(timer);timer=0;if(!enabled){publishSchedulerState('disabled');return}if(document.hidden){publishSchedulerState('hidden');return}if(!renderSurfaceActive()){publishSchedulerState('offscreen');return}const animated=particleAnimationNeeded();if(animated&&!map.getLayer(custom.id))installParticleLayer();if(!animated&&!waterPulse){publishSchedulerState('idle');return}publishSchedulerState(animated?'animated':'water-hazard');if(animated&&!monitorRaf)monitorRaf=requestAnimationFrame(monitor);const delay=animated?(moving?(MOBILE?140:100):(LOW?66:MOBILE?66:TIER==='HIGH'?35:45)):850;timer=setTimeout(()=>{timer=0;if(!enabled||document.hidden||!renderSurfaceActive())return;if(particleAnimationNeeded(true))map.triggerRepaint();if(waterPulse)water(performance.now());schedule()},delay)}
+ function schedule(){clearTimeout(timer);timer=0;if(!enabled){publishSchedulerState('disabled');return}if(document.hidden){publishSchedulerState('hidden');return}if(!renderSurfaceActive()){publishSchedulerState('offscreen');return}const animated=particleAnimationNeeded();if(!map.getLayer(custom.id))installParticleLayer();if(!animated&&!waterPulse){publishSchedulerState('idle');return}publishSchedulerState(animated?'animated':'water-hazard');if(animated&&!monitorRaf)monitorRaf=requestAnimationFrame(monitor);const delay=animated?(moving?(MOBILE?140:100):(LOW?66:MOBILE?66:TIER==='HIGH'?35:45)):850;timer=setTimeout(()=>{timer=0;if(!enabled||document.hidden||!renderSurfaceActive())return;if(particleAnimationNeeded(true))map.triggerRepaint();if(waterPulse)water(performance.now());schedule()},delay)}
  function monitor(t){monitorRaf=0;if(!renderSurfaceActive()||document.hidden||!particleAnimationNeeded()){lastFrame=0;return}if(lastFrame){const f=1000/Math.max(5,t-lastFrame);fps=fps*.92+Math.min(60,f)*.08;if(fps<(MOBILE?40:48)){bad++;good=0}else if(fps>54){good++;bad=Math.max(0,bad-2)}else{bad=Math.max(0,bad-1);good=Math.max(0,good-1)}if(bad>65){quality=clamp(quality*.8,.28,1);bad=0}else if(good>300&&quality<1){quality=clamp(quality+.06,.28,1);good=0}}lastFrame=t;monitorRaf=requestAnimationFrame(monitor)}
  function setScene(x={},meta={}){scene={...EMPTY_SCENE,...x};generatedAt=meta.generated_at||x.generated_at||generatedAt||new Date().toISOString();nearestObsCacheValid=false;animationCheckAt=0;waterPulse=scene.alerts.some(flood)||scene.storms.length>0;native();water(performance.now());schedule();return api.state}
  function setEnabled(v){enabled=!!v;for(const id of ['bp2300-fx-flood-fill','bp2300-fx-flood-line','bp2300-fx-ice-fill','bp2300-fx-ice-line','bp2300-fx-burn','bp2300-fx-containment','bp2300-fx-tornado','bp2300-fx-hurricane','bp2300-fx-flood-depth-volume','bp2300-fx-snow-depth-volume','bp2300-fx-wet-ground','bp2300-fx-lava-glow','bp2300-fx-lava-flow'])try{map.setLayoutProperty(id,'visibility',enabled?'visible':'none')}catch(_){}animationCheckAt=0;if(enabled)schedule();else{clearTimeout(timer);timer=0;if(monitorRaf)cancelAnimationFrame(monitorRaf);monitorRaf=0;activeParticles=0;animationCheckCached=false;publishSchedulerState('disabled')}}
@@ -253,7 +279,7 @@ function createFx(map){
 }
 
 export function initWeather(map,opts={}){
- if(window.__bpWeatherV2300)return window.__bpWeatherV2300;baseLayers(map);const fx=createFx(map);let active=opts?.deferActivation!==true,radar=false,last=0,seq=0,timer=0,radarMotionTimer=0,radarPhase=0,scene={...EMPTY_SCENE};if(!active)fx.setEnabled(false);
+ if(window.__bpWeatherV2300&&window.__bpWeatherV2300.map===map)return window.__bpWeatherV2300;baseLayers(map);hideLegacyNativeWeatherLayers(map);const fx=createFx(map);let active=opts?.deferActivation!==true,radar=false,last=0,seq=0,timer=0,radarMotionTimer=0,radarPhase=0,scene={...EMPTY_SCENE};if(!active)fx.setEnabled(false);
  function nearest(a){if(!a.length)return null;const c=map.getCenter();let b=null,d0=Infinity;for(const o of a){if(!Number.isFinite(+o.lng)||!Number.isFinite(+o.lat))continue;const d=(+o.lng-c.lng)**2+(+o.lat-c.lat)**2;if(d<d0){d0=d;b=o}}return b}
  function atmosphere(a){const o=nearest(a);if(!o)return;const visibility=clamp(Number(o.visibility_mi??10),.05,50),cond=text([o.weather,o.rawdata].filter(Boolean).join(' ')),storm=/\bts\b|thunder|storm|squall|tornado|hurricane/.test(cond),fog=visibility<1;try{map.setSky({'sky-color':storm?'#26313b':fog?'#68777c':'#102d3e','horizon-color':storm?'#53606a':fog?'#849196':'#31515e','fog-color':storm?'#69747d':fog?'#9aa4a6':'#718a92','sky-horizon-blend':fog?.035:.18,'horizon-fog-blend':fog?.25:.04,'fog-ground-blend':fog?.08:0,'atmosphere-blend':['interpolate',['linear'],['zoom'],0,.5,6,.22,10,fog?.08:0]});map.setLight({anchor:'map',color:storm?'#9faab2':fog?'#c4cccd':'#e5f7ff',intensity:storm?.27:fog?.34:.48,position:[1.2,205,38]})}catch(_){}}
  function layers(){setSource(map,'wx-alerts',fc(scene.alerts.map(x=>geom(x.geometry,{...(x.properties||{}),source:x.properties?.source||'NOAA/NWS'}))));setSource(map,'wx-fires',fc(scene.fires.map(x=>geom(x.geometry,{id:x.id,name:x.name,acres:x.acres,contained_pct:x.contained_pct,source:x.source}))));setSource(map,'wx-quakes',fc(scene.earthquakes.map(x=>point(x.lng,x.lat,x))));setSource(map,'wx-storms',fc(scene.storms.map(x=>point(x.lng,x.lat,x))));setSource(map,'wx-thermal',fc(scene.thermal.map(x=>point(x.lng,x.lat,x))));setSource(map,'wx-obs',fc(scene.observations.map(x=>point(x.lng,x.lat,x))));setSource(map,'wx-water',fc(scene.water_levels.map(x=>point(x.lng,x.lat,x))))}
@@ -262,8 +288,12 @@ export function initWeather(map,opts={}){
  function stopRadarMotion(){if(radarMotionTimer){clearInterval(radarMotionTimer);radarMotionTimer=0}}
  function startRadarMotion(){stopRadarMotion();if(!radar||document.hidden)return;try{if(map.getLayer('wx-radar')){map.setPaintProperty('wx-radar','raster-opacity',LOW?.54:.70);map.setPaintProperty('wx-radar','raster-brightness-max',1)}if(map.getLayer('wx-radar-haze'))map.setPaintProperty('wx-radar-haze','raster-opacity',LOW?.14:.18);keepWeatherReferenceLinesOnTop();window.__BP_RADAR_RENDER_V5822__={version:5822,stableGroundDrape:true,below3D:true,sourceMaxZoom:14,animatedPaint:false,maxDisplayZoom:24,updatedAt:Date.now()}}catch(_){}}
  function setRadar(v){radar=!!v;for(const id of ['wx-radar-haze','wx-radar'])try{map.setLayoutProperty(id,'visibility',radar?'visible':'none')}catch(_){}if(radar)startRadarMotion();else stopRadarMotion();keepWeatherReferenceLinesOnTop();document.querySelector('[data-layer="radar"]')?.classList.toggle('active',radar)}
- function setActive(v){active=!!v;for(const id of ['wx-snow-depth','wx-alert-fill','wx-alert-line','wx-fire-fill','wx-fire-line','wx-thermal','wx-quake-glow','wx-quake','wx-storm-glow','wx-storm','wx-obs','wx-water'])try{map.setLayoutProperty(id,'visibility',active?'visible':'none')}catch(_){}fx.setEnabled(active);if(active)refresh(true)}
+ function setActive(v){active=!!v;hideLegacyNativeWeatherLayers(map);fx.setEnabled(active);if(active){if(!map.getLayer(custom.id))installParticleLayer();refresh(true)}else{try{map.setLayoutProperty(custom.id,'visibility','none')}catch(_){}}}
  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopRadarMotion();else if(radar)startRadarMotion()});
  map.on('moveend',()=>{clearTimeout(timer);timer=setTimeout(()=>refresh(false),MOBILE?450:(LOW?500:280))});map.on('zoomend',()=>{if(!MOBILE)refresh(false)});document.querySelector('[data-layer="radar"]')?.addEventListener('click',e=>setRadar(e.currentTarget.classList.contains('active')));document.querySelector('[data-layer="signals"]')?.addEventListener('click',e=>setActive(e.currentTarget.classList.contains('active')));refresh(true);setInterval(()=>document.querySelector('[data-surface="map"]')?.classList.contains('active')&&refresh(false),60000);
- const api={version:VERSION,refresh,setRadar,setActive,fx,getScene:()=>scene,localConditions:(lng,lat)=>fx.localConditions(lng,lat),get state(){return{active,radar,last,fx:fx.state,counts:{alerts:scene.alerts.length,fires:scene.fires.length,storms:scene.storms.length,observations:scene.observations.length,lightning:scene.lightning.length,water:scene.water_levels.length}}}};window.__bpWeatherV2300=api;return api
+ const api={version:VERSION,map,refresh,setRadar,setActive,fx,getScene:()=>scene,localConditions:(lng,lat)=>fx.localConditions(lng,lat),get state(){return{active,radar,last,fx:fx.state,counts:{alerts:scene.alerts.length,fires:scene.fires.length,storms:scene.storms.length,observations:scene.observations.length,lightning:scene.lightning.length,water:scene.water_levels.length}}}};
+ const graphicsDiag=window.__BP_WEATHER_GL_HEALTH_V6057__={version:6057,contextLosses:0,contextRestores:0,lastContextLossAt:null,lastContextRestoreAt:null,updatedAt:Date.now()};
+ try{const canvas=map.getCanvas();if(canvas&&!canvas.__bpWeatherGlDiag6057){canvas.__bpWeatherGlDiag6057=true;canvas.addEventListener('webglcontextlost',()=>{graphicsDiag.contextLosses++;graphicsDiag.lastContextLossAt=Date.now();graphicsDiag.updatedAt=Date.now()});canvas.addEventListener('webglcontextrestored',()=>{graphicsDiag.contextRestores++;graphicsDiag.lastContextRestoreAt=Date.now();graphicsDiag.updatedAt=Date.now()})}}catch(_){}
+ window.__BP_CINEMATIC_WEATHER_RUNTIME__={version:6057,renderer:'isolated-webgl-particle-layer',defaultOn:true,map,get enabled(){return active},get layerAttached(){try{return !!map.getLayer('bp2300-weather-fx-gpu')}catch(_){return false}},get particleCount(){return fx.state.activeParticles||0},get canvasCount(){try{return map.getContainer().querySelectorAll('canvas').length}catch(_){return 0}},get contextLosses(){return Number(graphicsDiag.contextLosses)||0},get sceneCounts(){return{alerts:scene.alerts.length,fires:scene.fires.length,storms:scene.storms.length,observations:scene.observations.length,lightning:scene.lightning.length}},get legacyOverlaysHidden(){return LEGACY_NATIVE_WEATHER_LAYERS.every(id=>{try{return !map.getLayer(id)||(map.getLayoutProperty(id,'visibility')||'visible')==='none'}catch(_){return false}})}};
+ window.__bpWeatherV2300=api;return api
 }
