@@ -552,6 +552,7 @@ jobs:
           grep -Fq 'const thinColumns = 126, thinRows = 56, maxThin = MOBILE ? 750 : 850;' site/world-v2300-clouds.js
           grep -Fq 'thinLayerFormationCount: thin.length' site/world-v2300-clouds.js
           grep -Fq 'function terrainElevationAt(lng, lat)' site/world-v2300-clouds.js
+          grep -Fq 'sub-sea-level samples use mean-sea-level 0 m fallback' site/world-v2300-clouds.js
           grep -Fq 'const altitude = ground + baseAgl + range * 0.5;' site/world-v2300-clouds.js
           grep -Fq 'const vertical = cloudRange * (i === 0 ? 0.43 : 0.40 + hash(k, i, 6) * 0.035);' site/world-v2300-clouds.js
           grep -Fq 'const smallColumns = 140, smallRows = 62, maxSingles = MOBILE ? 700 : 760;' site/world-v2300-clouds.js
