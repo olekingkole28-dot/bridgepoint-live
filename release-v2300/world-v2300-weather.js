@@ -1,5 +1,5 @@
 import{VERSION,EMPTY,MOBILE,LOW,TIER,edge,bbox,fc,clamp}from'./world-v2300-config.js';
-import{initRainLayer}from'./world-v2300-rain.js?v=6058-geospatial-rain';
+import{initRainLayer}from'./world-v2300-rain.js?v=6059-street-rain';
 window.__BP_WEATHER_PERFORMANCE_V5822__={version:5822,stableRadarDrape:true,radarBelow3D:true,motionRepaintBudgeted:true,updatedAt:Date.now()};
 
 const RADAR='https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity_time/ImageServer/WMSServer?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=1&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256';
@@ -190,7 +190,7 @@ function createFx(map){
   if(precipCells.length){
    const total=Math.max(24,Math.floor(BUDGET.precip*q)),perCell=globalView?Math.min(30,Math.max(8,Math.floor(total/precipCells.length))):Math.max(16,Math.floor(total/precipCells.length));
    precipCells.forEach((cell,ci)=>{
-    if(pr==='rain'&&z>=8)return;
+    if(pr==='rain'&&z>=16)return;
     const {o:obs,kind:pr,c:precipCenter,p:precipPoint}=cell,kind=pr==='rain'?0:pr==='snow'?1:2,sp=pr==='snow'?.000055:pr==='hail'?.00034:.00023;
     const miles=Number(obs.precipitation_radius_mi??obs.rain_radius_mi??(pr==='hail'?18:pr==='snow'?42:32)),rawRadius=radiusPx(precipCenter,Number.isFinite(miles)&&miles>0?miles:32);
     const radius=globalView?clamp(rawRadius,4,10):z<5?clamp(rawRadius,8,22):clamp(rawRadius,18,z>=8?180:125);
@@ -256,7 +256,7 @@ function createFx(map){
  map.on('styledata',recoverParticleLayer);map.on('load',recoverParticleLayer);map.on('idle',recoverParticleLayer);
  function water(t){if(t-lastWater<850)return;lastWater=t;const hazard=waterPulse;try{if(map.getLayer('gta-water')){map.setPaintProperty('gta-water','fill-color',hazard?'#0b3a53':'#082d44');map.setPaintProperty('gta-water','fill-opacity',hazard?.955+.025*Math.sin(t*.003):.98)}}catch(_){}}
  function renderSurfaceActive(){try{const c=map.getContainer?.(),s=c?.closest?.('[data-surface]');return !s||(s.hidden!==true&&s.classList.contains('active'))}catch{return true}}
- function particleAnimationNeeded(force=false){const now=performance.now();if(!force&&now-animationCheckAt<240)return animationCheckCached;animationCheckAt=now;if(!enabled||document.hidden||!renderSurfaceActive()){animationCheckCached=false;return false}const z=map.getZoom(),sampleLimit=LOW?100:MOBILE?180:300;let active=(scene.observations||[]).slice(0,sampleLimit).some(o=>{if(precip(o)==='none')return false;const c=eventCenter(o);return !!(c&&project(c))});
+ function particleAnimationNeeded(force=false){const now=performance.now();if(!force&&now-animationCheckAt<240)return animationCheckCached;animationCheckAt=now;if(!enabled||document.hidden||!renderSurfaceActive()){animationCheckCached=false;return false}const z=map.getZoom(),sampleLimit=LOW?100:MOBILE?180:300;let active=(scene.observations||[]).slice(0,sampleLimit).some(o=>{const kind=precip(o);if(kind==='none'||(z>=16&&kind==='rain'))return false;const c=eventCenter(o);return !!(c&&project(c))});
   if(!active&&z>=1){for(const a of (scene.alerts||[]).filter(tornado).slice(0,LOW?1:MOBILE?2:4)){const c=eventCenter(a);if(c&&project(c)){active=true;break}}}
   if(!active&&z>=1){for(const e of (scene.earthquakes||[]).slice(0,LOW?3:MOBILE?5:10)){const raw=e.time||e.observed_at||e.origin_time||e.timestamp||generatedAt||'',stamp=Date.parse(raw),age=Date.now()-stamp,c=eventCenter(e);if(c&&Number.isFinite(stamp)&&age>=0&&age<=90000&&project(c)){active=true;break}}}
   if(!active){for(const v of (scene.volcanoes||[]).filter(activeEruption).slice(0,LOW?1:MOBILE?2:4)){const c=eventCenter(v);if(c&&project(c)){active=true;break}}}
