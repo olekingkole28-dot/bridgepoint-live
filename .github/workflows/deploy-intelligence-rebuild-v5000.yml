@@ -531,7 +531,7 @@ jobs:
           grep -Fq 'version: 6077, map, overlay' site/world-v2300-clouds.js
           grep -Fq 'const billow = 1.0 +' site/world-v2300-clouds.js
           grep -Fq 'activeMacroCells' site/world-v2300-clouds.js
-          grep -Fq 'MOBILE?6:7,3,hash(q.gx,q.gy,i+973)' site/world-v2300-clouds.js
+          grep -Fq 'MOBILE?8:9,3,hash(q.gx,q.gy,i+973)' site/world-v2300-clouds.js
           grep -Fq 'Height/latitude-aware modelled atmospheric flow and hemisphere-aware cyclone circulation; no source-backed global upper-air wind grid is connected' site/world-v2300-clouds.js
           grep -Fq 'coverageVersion: 6077' site/world-v2300-clouds.js
           grep -Fq 'if (field.score > 0.58) continue;' site/world-v2300-clouds.js
