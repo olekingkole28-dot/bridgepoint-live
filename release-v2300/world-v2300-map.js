@@ -1419,7 +1419,7 @@ export function initWorld(options={}){
  setTimeout(()=>clearInterval(worldCoreRecovery),12000);
  let groundCameraBusy=false,lastGroundCameraCheckAt=0;
   function clampCameraAboveTerrain(){
-   if(groundCameraBusy||!terrainOn||!map.isStyleLoaded?.()||typeof map.queryTerrainElevation!=='function')return false;
+   if(groundCameraBusy||!terrainOn||typeof map.queryTerrainElevation!=='function')return false;
    const z=map.getZoom(),pitch=map.getPitch();if(z<15.2&&pitch<88)return false;
    const now=performance.now();if(now-lastGroundCameraCheckAt<45&&!map.isZooming?.())return false;lastGroundCameraCheckAt=now;
    const camera=map.getFreeCameraOptions?.(),position=camera?.position,MC=window.maplibregl?.MercatorCoordinate||position?.constructor;

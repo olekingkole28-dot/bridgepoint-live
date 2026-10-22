@@ -662,7 +662,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6055-early-layer-attach' site/app/index.html
+          grep -Fq 'app.js?v=6056-ground-camera-readiness' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -885,12 +885,12 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6055-early-layer-attach' site/app/index.html
-          grep -Fq 'landing.js?v=6055-early-layer-attach' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6043-satellite-imagery-layer-order' site/app.js
-           grep -Fq 'world-v2300-map.js?v=6043-satellite-imagery-layer-order' site/landing.js
-           grep -Fq 'world-v2300-map.js?v=6043-satellite-imagery-layer-order' site/index.html
-           grep -Fq 'world-v2300-map.js?v=6043-satellite-imagery-layer-order' site/app/index.html
+          grep -Fq 'app.js?v=6056-ground-camera-readiness' site/app/index.html
+          grep -Fq 'landing.js?v=6056-ground-camera-readiness' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/app.js
+           grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/landing.js
+           grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/index.html
+           grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/app/index.html
            grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/app.js
            grep -Fq 'world-v2300-lod-controls.js?v=6038-world-lod-range-apply' site/landing.js
            grep -Fq 'function activeWorldLodProfile()' site/world-v2300-map.js
@@ -1450,12 +1450,23 @@ jobs:
               if(!attempted.ok)throw new Error('TERRAIN_ELEVATION_NOT_AVAILABLE_FOR_GROUND_CLAMP_TEST '+JSON.stringify(attempted));
               await new Promise(resolve=>setTimeout(resolve,100));
               await p.evaluate(()=>window.__BP_V5000_WORLD?.map?.fire?.('move'));
-              await p.waitForFunction(()=>{
-                const m=window.__BP_V5000_WORLD?.map,free=m?.getFreeCameraOptions?.(),pos=free?.position;
-                if(!m||!pos)return false;
-                const loc=pos.toLngLat(),ground=m.queryTerrainElevation(loc,{exaggerated:true}),alt=pos.toAltitude();
-                return window.__BP_CAMERA_GROUND_GUARD_V6017__?.clamped===true&&Number.isFinite(ground)&&Number.isFinite(alt)&&alt>=ground+1.2;
-              },{timeout:7000});
+              try {
+                await p.waitForFunction(()=>{
+                  const m=window.__BP_V5000_WORLD?.map,free=m?.getFreeCameraOptions?.(),pos=free?.position;
+                  if(!m||!pos)return false;
+                  const loc=pos.toLngLat(),ground=m.queryTerrainElevation(loc,{exaggerated:true}),alt=pos.toAltitude();
+                  return window.__BP_CAMERA_GROUND_GUARD_V6017__?.clamped===true&&Number.isFinite(ground)&&Number.isFinite(alt)&&alt>=ground+1.2;
+                },{timeout:7000});
+              } catch(error) {
+                const groundDiag=await p.evaluate(()=>{
+                  const m=window.__BP_V5000_WORLD?.map,free=m?.getFreeCameraOptions?.(),pos=free?.position;
+                  let ground=null,altitude=null,loc=null;
+                  try{loc=pos?.toLngLat?.()||null;ground=loc?m?.queryTerrainElevation?.(loc,{exaggerated:true}):null;altitude=pos?.toAltitude?.()??null}catch(_){}
+                  return{styleLoaded:m?.isStyleLoaded?.()===true,terrain:!!m?.getTerrain?.(),terrainEnabled:window.__BP_TERRAIN_APPLIED_MAP__===m,
+                    ground,altitude,pitch:m?.getPitch?.(),guard:window.__BP_CAMERA_GROUND_GUARD_V6017__||null};
+                });
+                throw new Error('NO_GROUND_PENETRATION_CLAMP '+JSON.stringify(groundDiag)+' '+String(error?.message||error));
+              }
               const groundResult=await p.evaluate(()=>{
                 const m=window.__BP_V5000_WORLD.map,pos=m.getFreeCameraOptions().position,loc=pos.toLngLat();
                 return{clamped:window.__BP_CAMERA_GROUND_GUARD_V6017__?.clamped===true,
