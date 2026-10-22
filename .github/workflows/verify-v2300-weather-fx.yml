@@ -117,6 +117,7 @@ jobs:
               p.on('console',m=>{const t=m.text();if(m.type()==='error'&&!/favicon/i.test(t)&&!/Failed to load resource: the server responded with a status of 404/i.test(t))errors.push(t)});
               await p.setRequestInterception(true);
               const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,x-client-info,apikey,content-type','Access-Control-Allow-Methods':'POST,OPTIONS'};
+              let rainVisualOnly = false;
               p.on('request',req=>{
                 const u=req.url();
                 if(u.includes('/functions/v1/bridgepoint-world-effects-v2190')){
@@ -124,6 +125,16 @@ jobs:
                   const poly=(x,y,r)=>({type:'Polygon',coordinates:[[[x-r,y-r],[x+r,y-r],[x+r,y+r],[x-r,y+r],[x-r,y-r]]]});
                   const now=new Date().toISOString();
                   const body={complete:true,generated_at:now,sources:['NOAA/NWS gate','NIFC/WFIGS gate','USGS gate'],alerts:[{geometry:poly(-87.3425,41.538,.025),properties:{phenom:'TO',event:'Tornado Warning'}},{geometry:poly(-87.40,41.50,.04),properties:{phenom:'FF',event:'Flash Flood Warning'}},{geometry:poly(-87.29,41.56,.035),properties:{event:'Ice Storm Warning'}}],fires:[{id:'gate-fire',name:'Gate Fire',acres:48000,contained_pct:37,source:'NIFC/WFIGS',geometry:poly(-87.325,41.53,.018)}],earthquakes:[{lng:-87.31,lat:41.55,magnitude:4.2}],storms:[{id:'gate-storm',name:'Gate Hurricane',lng:-87.37,lat:41.57,wind_mph:128,eye_radius_mi:11}],thermal:[{lng:-87.326,lat:41.531,frp:92}],observations:[{lng:-87.3425,lat:41.538,temperature_f:72,cloud_fraction:.92,visibility_mi:.65,weather:'Thunderstorms with heavy rain',wind_speed_mph:31,wind_dir_deg:235}],lightning_activity:[{lng:-87.34,lat:41.541,observed_at:now,exact_strike:false,source:'NOAA/NWS METAR thunderstorm activity'}],burn_scars:[{source:'authoritative-gate',geometry:poly(-87.318,41.522,.012)}],water_levels:[{lng:-87.36,lat:41.51,water_level_m:1.4,source:'NOAA CO-OPS'}]};
+                  if (rainVisualOnly) {
+                    body.alerts = [];
+                    body.fires = [];
+                    body.earthquakes = [];
+                    body.storms = [];
+                    body.thermal = [];
+                    body.lightning_activity = [];
+                    body.burn_scars = [];
+                    body.water_levels = [];
+                  }
                   return req.respond({status:200,headers:{...cors,'Content-Type':'application/json'},body:JSON.stringify(body)});
                 }
                 req.continue();
@@ -149,6 +160,13 @@ jobs:
               assert.equal(out.fx.sharedMapLibreWebGLContext,true);assert.equal(out.fx.secondaryCanvases,0);assert.equal(out.fx.shaderReady,true);assert(out.fx.activeParticles>40);
               assert(out.fx.budgets.maxPoints<=760);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);
               assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,1);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
+              rainVisualOnly = true;
+              await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
+              await p.waitForFunction(()=>{
+                const s=window.__bpWeatherV2300?.state?.counts;
+                return !!s&&s.alerts===0&&s.fires===0&&s.storms===0&&s.lightning===0&&s.water===0&&s.observations===1;
+              },{timeout:15000});
+              await new Promise(r=>setTimeout(r,550));
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:14.5,pitch:58,bearing:-12}));
               await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6068__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true&&r.state?.overlayAttached===true&&r.state?.renderedStreaks>40&&r.state?.projectionMode==='geographic-map-project';},{timeout:15000});
               const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6068__,s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:m.getZoom(),version:r?.version,state:r?.state,overlayAttached:!!document.getElementById('bp2300-rain-geographic-svg-v6068'),cloudLocalFormations:Number(s.localCloudFormations||0),cloudDiag:{enabled:s.enabled,visible:s.visible,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,localCloudFormations:s.localCloudFormations,rainCellShelfClouds:s.rainCellShelfClouds,cloudFormations:s.cloudFormations,rendererError:s.rendererError,projectionMode:s.projectionMode}}});
