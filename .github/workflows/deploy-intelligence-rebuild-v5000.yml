@@ -530,6 +530,9 @@ jobs:
           grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' site/app.js
           grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' site/landing.js
           grep -Fq 'enabled = CLOUDS_ONLY_PHASE() ? false : !!value;' site/world-v2300-rain.js
+          grep -Fq "const CLOUD_PHASE_HIDDEN_LAYERS=['bp-radar-a','bp-radar-b','bp5510-global-imerg'" site/world-v2300-weather.js
+          grep -Fq 'active=CLOUDS_ONLY_PHASE()?true:!!v' site/world-v2300-weather.js
+          grep -Fq 'uniform highp float u_motion_time' site/world-v2300-clouds.js
           grep -Fq 'async function toggleNasaNightlights()' site/world-v2300-time-slider.js
           grep -Fq 'async function toggleSkyClouds()' site/world-v2300-time-slider.js
           grep -Fq 'streetlight_poles' site/world-v2300-sensor-layers.js
