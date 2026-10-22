@@ -1323,6 +1323,7 @@ jobs:
                  button:!!document.querySelector('#bp-world-time-slider-v5908 [data-clouds]'),
                  base:window.__BP_LANDING_WORLD__?.state?.base||window.__BP_LANDING_WORLD__?.base||'gta',
                  enabled:window.__BP_SKY_CLOUDS_V5908__?.enabled===true,
+                 controllerVersion:window.__BP_SKY_CLOUDS_V5908__?.version,
                  pressed:document.querySelector('#bp-world-time-slider-v5908 [data-clouds]')?.getAttribute('aria-pressed')
                }));
                if(!cloudBaseline.button||!cloudBaseline.enabled||cloudBaseline.controllerVersion!==6074||cloudBaseline.base!=='satellite'||cloudBaseline.pressed!=='true')
