@@ -432,6 +432,7 @@ jobs:
           grep -Fq 'Global jurisdictions' site/index.html
           grep -Fq 'landingOwnsCanonicalCounter' site/global-property-v957.js
           node --input-type=module --check < site/world-v2300-clouds.js
+          node --input-type=module --check < site/world-v2300-weather.js
           node --input-type=module --check < site/world-v2300-time-slider.js
           node --input-type=module --check < site/world-v2300-spectral-imagery.js
           node --input-type=module --check < site/world-v2300-underground-xray.js
@@ -442,8 +443,17 @@ jobs:
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
           grep -Fq 'world-v2300-clouds.js?v=6055-early-layer-attach' site/app.js
           grep -Fq 'world-v2300-clouds.js?v=6055-early-layer-attach' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6052-weather-default-on' site/app.js
-          grep -Fq 'world-v2300-weather.js?v=6052-weather-default-on' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6057-cinematic-weather-gl-isolation' site/app.js
+          grep -Fq 'world-v2300-weather.js?v=6057-cinematic-weather-gl-isolation' site/landing.js
+          grep -Fq 'bindWeatherVertexArray(gl,weatherVao,weatherVaoMode,weatherVaoExt)' site/world-v2300-weather.js
+          grep -Fq 'isolatedVao' site/world-v2300-weather.js
+          grep -Fq 'window.__BP_WEATHER_GL_HEALTH_V6057__' site/world-v2300-weather.js
+          grep -Fq 'window.__BP_CINEMATIC_WEATHER_RUNTIME__' site/world-v2300-weather.js
+          grep -Fq "id:'bp2300-weather-fx-gpu',type:'custom'" site/world-v2300-weather.js
+          grep -Fq 'if(!map.getLayer(custom.id))installParticleLayer()' site/world-v2300-weather.js
+          grep -Fq 'hideLegacyNativeWeatherLayers(map)' site/world-v2300-weather.js
+          grep -Fq "renderer:'v2300-cinematic-fx'" site/app.js
+          grep -Fq "renderer:'isolated-webgl-particle-layer'" site/landing.js
           grep -Fq 'world-v2300-time-slider.js?v=6055-early-layer-attach' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6055-early-layer-attach' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
@@ -662,7 +672,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6056-ground-camera-readiness' site/app/index.html
+          grep -Fq 'app.js?v=6057-cinematic-weather-gl-isolation' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -885,8 +895,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6056-ground-camera-readiness' site/app/index.html
-          grep -Fq 'landing.js?v=6056-ground-camera-readiness' site/index.html
+          grep -Fq 'app.js?v=6057-cinematic-weather-gl-isolation' site/app/index.html
+          grep -Fq 'landing.js?v=6057-cinematic-weather-gl-isolation' site/index.html
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/app.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/index.html
@@ -1604,26 +1614,29 @@ jobs:
               console.log('BRIDGEPOINT_SAMPLE_CHIP_MOVE_HIDE_PASS');
               await p.waitForFunction(()=>window.__BP_LANDING_VISUAL_WEATHER__?.enabled===true,{timeout:10000});
               await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map;m?.jumpTo({center:[-98.5,39.5],zoom:3.35,pitch:0,bearing:0})});
-              await p.waitForFunction(()=>Number(window.__BP_LANDING_LIVE_WEATHER__?.shapeCount||0)>0&&Number(window.__BP_LANDING_LIVE_WEATHER__?.pointCount||0)>0,{timeout:45000});
-              await p.waitForFunction(()=>{const m=window.__BP_LANDING_WORLD__?.map;if(!m)return false;try{return m.queryRenderedFeatures({layers:['bp-landing-weather-points']}).length>0&&m.queryRenderedFeatures({layers:['bp-landing-weather-line']}).length>0}catch{return false}},{timeout:30000});
               await p.waitForFunction(()=>{
-                const m=window.__BP_LANDING_WORLD__?.map;if(!m)return false;
-                const ids=['bp-landing-radar-a','bp-landing-radar-b'];
-                const rasterVisible=ids.some(id=>m.getLayer(id)&&((m.getLayoutProperty(id,'visibility')||'visible')!=='none')&&Number(m.getPaintProperty(id,'raster-opacity')||0)>.2);
-                return rasterVisible&&window.__BP_LANDING_RADAR_STATE__?.visible===true;
+                const m=window.__BP_LANDING_WORLD__?.map,r=window.__BP_CINEMATIC_WEATHER_RUNTIME__;
+                return !!m&&!!r&&r.version===6057&&r.enabled===true&&r.layerAttached===true&&
+                  !!m.getLayer('bp2300-weather-fx-gpu')&&r.legacyOverlaysHidden===true&&
+                  document.querySelectorAll('#previewMap canvas').length===1;
               },{timeout:30000});
-              const usWeather=await p.evaluate(()=>{const m=window.__BP_LANDING_WORLD__?.map;return{
-                shapes:window.__BP_LANDING_LIVE_WEATHER__?.shapeCount||0,
-                points:window.__BP_LANDING_LIVE_WEATHER__?.pointCount||0,
-                radar:window.__BP_LANDING_RADAR_STATE__?.visible===true,
-                weatherLegend:!!document.getElementById('landingWeatherLegend'),
-                weatherMore:!!document.getElementById('landingWeatherToggle'),
-                count:document.getElementById('landingWeatherCount')?.textContent||'',
-                lines:m?m.queryRenderedFeatures({layers:['bp-landing-weather-line']}).length:0,
-                renderedPoints:m?m.queryRenderedFeatures({layers:['bp-landing-weather-points']}).length:0
-              }});
-              if(usWeather.shapes<1||usWeather.points<1||!usWeather.radar||!usWeather.weatherLegend||!usWeather.weatherMore||usWeather.lines<1||usWeather.renderedPoints<1||!/EVENTS/.test(usWeather.count))throw new Error('US_WEATHER_GLOBE_REGRESSION '+JSON.stringify(usWeather));
-              console.log('BRIDGEPOINT_US_WEATHER_ON_GLOBE_PASS',JSON.stringify(usWeather));
+              await new Promise(r=>setTimeout(r,7000));
+              const usWeather=await p.evaluate(()=>{
+                const m=window.__BP_LANDING_WORLD__?.map,r=window.__BP_CINEMATIC_WEATHER_RUNTIME__||{},diag=window.__BP_WEATHER_GL_HEALTH_V6057__||{};
+                const legacy=['bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-points','bp-landing-weather-glow','bp-landing-weather-hit','bp-landing-radar-a','bp-landing-radar-b'];
+                return{
+                  version:r.version||0,renderer:r.renderer||'',enabled:r.enabled===true,layerAttached:r.layerAttached===true,
+                  particles:Number(r.particleCount)||0,canvasCount:document.querySelectorAll('#previewMap canvas').length,
+                  contextLosses:Number(diag.contextLosses)||0,contextRestores:Number(diag.contextRestores)||0,
+                  legacyLayersVisible:legacy.some(id=>m?.getLayer(id)&&((m.getLayoutProperty(id,'visibility')||'visible')!=='none')),
+                  rendererLegacyLayersHidden:r.legacyOverlaysHidden===true,
+                  weatherLegend:!!document.getElementById('landingWeatherLegend'),
+                  weatherMore:!!document.getElementById('landingWeatherToggle'),
+                  count:document.getElementById('landingWeatherCount')?.textContent||''
+                }
+              });
+              if(usWeather.version!==6057||usWeather.renderer!=='isolated-webgl-particle-layer'||!usWeather.enabled||!usWeather.layerAttached||usWeather.canvasCount!==1||usWeather.contextLosses>0||usWeather.legacyLayersVisible||!usWeather.rendererLegacyLayersHidden||!usWeather.weatherLegend||!usWeather.weatherMore)throw new Error('CINEMATIC_WEATHER_ON_GLOBE_REGRESSION '+JSON.stringify(usWeather));
+              console.log('BRIDGEPOINT_CINEMATIC_WEATHER_ON_GLOBE_PASS',JSON.stringify(usWeather));
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
 
               // Deep LiDAR smoke runs before Great Wall assertions so a separate wall issue cannot hide scan results.
