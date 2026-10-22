@@ -847,7 +847,7 @@ jobs:
           grep -Fq "ensureWeatherRasterPair('Radar')" site/app.js
           ! grep -Fq "ensureWeatherRasterPair('Cloud')" site/app.js
           ! grep -Fq 'bridgepoint-noaa-cloud-frames-v215' site/app.js
-          grep -Fq 'atmosphereFogClouds:false' site/world-v2300-weather.js
+          grep -Fq 'atmosphereFogClouds:true' site/world-v2300-weather.js
           grep -Fq 'gta-bp-facade-detail' site/world-v2300-map.js
           grep -Fq 'gta-context-facade-detail' site/world-v2300-map.js
           grep -Fq 'gta-exact-facade-detail' site/world-v2300-map.js
