@@ -530,7 +530,7 @@ jobs:
           grep -Fq 'sparse high-level cloud cells; live wind-vector coupling is not yet source-backed' site/world-v2300-clouds.js
           grep -Fq 'coverageVersion: 6073' site/world-v2300-clouds.js
           grep -Fq 'broad * 0.72 + edgeNoise * 0.28 > 0.58' site/world-v2300-clouds.js
-          grep -Fq 'const waveX = (gx + 0.5) / columns * TAU' site/world-v2300-clouds.js
+          grep -Fq 'const waveX = (gx + 0.5) / cols * TAU' site/world-v2300-clouds.js
           grep -Fq 'globalCloudPuffs' site/world-v2300-clouds.js
           grep -Fq 'const thinColumns = 126, thinRows = 56, maxThin = MOBILE ? 140 : 180;' site/world-v2300-clouds.js
           grep -Fq 'thinLayerFormationCount: thin.length' site/world-v2300-clouds.js
