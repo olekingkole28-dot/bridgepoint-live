@@ -114,6 +114,27 @@ jobs:
               assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,1);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
               assert.equal(errors.length,0,errors.join('\n'));
               console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({particles:out.fx.activeParticles,quality:out.fx.qualityScale,fps:out.fx.fps,maxPoints:out.fx.budgets.maxPoints,canvases:out.totalCanvases}));
+              await p.evaluate(()=>{
+                const m=window.__bpWorldV2300.map;
+                m.stop?.();
+                m.jumpTo({center:[-87.3425,41.538],zoom:1.25,pitch:0,bearing:0});
+              });
+              await new Promise(resolve=>setTimeout(resolve,700));
+              await p.waitForFunction(()=>window.__bpWeatherV2300?.fx?.state?.activeParticles>0,{timeout:10000});
+              const globe=await p.evaluate(()=>{
+                const m=window.__bpWorldV2300?.map,fx=window.__bpWeatherV2300?.fx?.state;
+                const d=window.__BP_WEATHER_FX_DIAGNOSTIC_V6050__||{};
+                return{zoom:m?.getZoom?.(),activeParticles:fx?.activeParticles,maxPoints:fx?.budgets?.maxPoints,
+                  singleCanvas:document.querySelectorAll('canvas').length===1,
+                  rendererErrors:d.particleErrors||0,lastParticleError:d.lastParticleError||null,
+                  capabilities:fx?.capabilities||{}};
+              });
+              assert(globe.zoom<3,'GLOBAL_VIEW_WEATHER_TEST_DID_NOT_REACH_GLOBE '+JSON.stringify(globe));
+              assert(globe.activeParticles>0,'GLOBAL_VIEW_WEATHER_EFFECTS_NOT_VISIBLE '+JSON.stringify(globe));
+              assert(globe.activeParticles<=globe.maxPoints,'GLOBAL_VIEW_WEATHER_BUDGET_EXCEEDED '+JSON.stringify(globe));
+              assert.equal(globe.singleCanvas,true,'GLOBAL_VIEW_SECONDARY_CANVAS '+JSON.stringify(globe));
+              assert.equal(globe.rendererErrors,0,'GLOBAL_VIEW_WEATHER_RENDER_ERRORS '+JSON.stringify(globe));
+              console.log('BRIDGEPOINT_GLOBAL_VIEW_WEATHER_EFFECTS_PASS',JSON.stringify(globe));
             }finally{await browser.close()}
           })().catch(e=>{console.error(e.stack||e);process.exit(1)});
           NODE
