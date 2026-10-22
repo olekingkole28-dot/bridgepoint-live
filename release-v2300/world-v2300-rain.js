@@ -96,7 +96,7 @@ function firstLayer(map, ids) {
 
 export function initRainLayer(map, getScene = () => ({})) {
   if (map.__bpRainRendererV6058) return map.__bpRainRendererV6058;
-  let enabled = true, buffer = null, vao = null, vaoExt = null, vaoMode = 'none';
+  let enabled = true, buffer = null, bufferAllocated = false, vao = null, vaoExt = null, vaoMode = 'none';
   let programCache = new Map(), scene = {}, cells = [], drops = [], cellMemories = new Map();
   let animationRaf = 0, groundTimer = 0, lastRepaint = 0, vertexCount = 0;
   let rendererError = null, droppedFrames = 0, lastRenderAt = 0, lastGroundUpdate = 0, puddleCount = 0;
@@ -135,7 +135,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       if (!map.getLayer(LAYER_ID)) map.addLayer({
         id: LAYER_ID, type: 'custom', renderingMode: '3d', minzoom: 8,
         onAdd(_map, gl) {
-          buffer = gl.createBuffer(); vao = null; vaoExt = null; vaoMode = 'none';
+          buffer = gl.createBuffer(); bufferAllocated = false; vao = null; vaoExt = null; vaoMode = 'none';
           try {
             if (typeof gl.createVertexArray === 'function' && typeof gl.bindVertexArray === 'function') {
               vao = gl.createVertexArray(); if (vao) vaoMode = 'native';
@@ -152,7 +152,7 @@ export function initRainLayer(map, getScene = () => ({})) {
             else if (vao && vaoMode === 'extension') vaoExt?.deleteVertexArrayOES?.(vao);
             for (const info of programCache.values()) if (info.program) gl.deleteProgram(info.program);
           } catch (_) {}
-          buffer = null; vao = null; vaoMode = 'none'; programCache = new Map();
+          buffer = null; bufferAllocated = false; vao = null; vaoMode = 'none'; programCache = new Map();
         },
         render(gl, args) { renderRain(gl, args); }
       }, firstLayer(map, ['gta-context-buildings', 'gta-exact-building', 'gta-bp-buildings', 'gta-selected-body']));
@@ -328,7 +328,11 @@ export function initRainLayer(map, getScene = () => ({})) {
       const cosLat = Math.max(0.12, Math.cos(lat * RAD));
       const lng = d.lng + Math.sin(d.windHeading) * shiftM / (111320 * cosLat);
       const topAlt = d.groundM + fallAgl, bottomAlt = d.groundM + lowerAgl;
-      const c = mercator(lng, lat, topAlt), b = mercator(lng, lat, bottomAlt);
+      const c = mercator(lng, lat, topAlt);
+      const tiltM = Math.min(4.5, d.windMps * d.segmentM / 8.5);
+      const bLat = clamp(lat + Math.cos(d.windHeading) * tiltM / 111320, -84, 84);
+      const bLng = lng + Math.sin(d.windHeading) * tiltM / (111320 * Math.max(0.12, Math.cos(bLat * RAD)));
+      const b = mercator(bLng, bLat, bottomAlt);
       const halfW = c.unit * d.widthM * 0.5, halfSide = c.unit * d.widthM * 0.06;
       const lx = Math.cos(d.windHeading) * halfW, ly = -Math.sin(d.windHeading) * halfW;
       const bx = Math.sin(d.windHeading) * halfSide, by = Math.cos(d.windHeading) * halfSide;
@@ -362,7 +366,7 @@ export function initRainLayer(map, getScene = () => ({})) {
         else if (vaoMode === 'extension') vaoExt?.bindVertexArrayOES?.(vao);
       }
       gl.useProgram(info.program); gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-      if (!buffer.__bpRainAllocated) { gl.bufferData(gl.ARRAY_BUFFER, vertexData.byteLength, gl.DYNAMIC_DRAW); buffer.__bpRainAllocated = true; }
+      if (!bufferAllocated) { gl.bufferData(gl.ARRAY_BUFFER, vertexData.byteLength, gl.DYNAMIC_DRAW); bufferAllocated = true; }
       gl.bufferSubData(gl.ARRAY_BUFFER, 0, vertexData.subarray(0, n * FLOATS_PER_VERTEX));
       const stride = FLOATS_PER_VERTEX * Float32Array.BYTES_PER_ELEMENT;
       gl.enableVertexAttribArray(a.pos); gl.vertexAttribPointer(a.pos, 3, gl.FLOAT, false, stride, 0);
