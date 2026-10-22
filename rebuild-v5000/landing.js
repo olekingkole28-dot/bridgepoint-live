@@ -126,8 +126,8 @@ async function startLandingNationalWeather(world){
 }
 function hideLegacyLandingWeather(targetMap=map){
  const m=targetMap;if(!m)return;
- for(const id of ['bp-landing-radar-a','bp-landing-radar-b','bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-points','bp-landing-weather-glow','bp-landing-weather-hit'])try{if(m.getLayer(id))m.setLayoutProperty(id,'visibility','none')}catch(_){}
- for(const id of ['bp-landing-radar-a','bp-landing-radar-b'])try{if(m.getLayer(id))m.setPaintProperty(id,'raster-opacity',0)}catch(_){}
+ for(const id of ['bp-landing-radar-a','bp-landing-radar-b','bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-points','bp-landing-weather-glow','bp-landing-weather-hit'])try{if(m.getLayer(id)&&(m.getLayoutProperty(id,'visibility')||'visible')!=='none')m.setLayoutProperty(id,'visibility','none')}catch(_){}
+ for(const id of ['bp-landing-radar-a','bp-landing-radar-b'])try{if(m.getLayer(id)&&Number(m.getPaintProperty(id,'raster-opacity')??1)!==0)m.setPaintProperty(id,'raster-opacity',0)}catch(_){}
  window.__BP_LANDING_LEGACY_WEATHER_HIDDEN_V6057__={hidden:true,renderer:'cinematic-v2300-only',updatedAt:Date.now()}
 }
 function setLandingWeatherEnabled(world,on){
