@@ -38,7 +38,7 @@ function makeShaders(webgl2, shaderData = null) {
     (webgl2 ? 'in vec3 v_local;\nin float v_tint;\nout vec4 bpColor;\n' : 'varying vec3 v_local;\nvarying float v_tint;\n') +
     'uniform float u_time;\n' +
     'float noise3(vec3 p){vec3 q=floor(p);vec3 f=fract(p);f=f*f*(3.0-2.0*f);float n=q.x+q.y*57.0+q.z*113.0;float a=fract(sin(n)*43758.5453);float b=fract(sin(n+1.0)*43758.5453);float c=fract(sin(n+57.0)*43758.5453);float d=fract(sin(n+58.0)*43758.5453);float e=fract(sin(n+113.0)*43758.5453);float f1=fract(sin(n+114.0)*43758.5453);float g=fract(sin(n+170.0)*43758.5453);float h=fract(sin(n+171.0)*43758.5453);return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}\n' +
-    'void main(){vec3 n=normalize(v_local);float edge=clamp(0.58+abs(v_local.z)*0.18,0.0,1.0);float broad=noise3(v_local*3.0+vec3(u_time*0.004,v_tint*1.7,0.0));float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float fine=noise3(v_local*27.0+vec3(u_time*0.008,v_tint*11.0,0.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.37+detail*0.34+billow*0.29;float sculpt=smoothstep(0.20,0.68,density);float silver=clamp(0.18+diffuse*0.86+broad*0.08+detail*0.07+billow*0.06,0.0,1.0);vec3 lit=mix(vec3(0.28,0.36,0.46),vec3(0.99,0.995,1.0),silver);float underside=pow(max(0.0,-n.z),1.35);lit=mix(lit,vec3(0.27,0.35,0.46),underside*0.48);lit=mix(lit,vec3(0.84,0.89,0.96),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*0.19);float rainCell=smoothstep(1.1,1.3,v_tint);float stormCell=smoothstep(0.89,0.95,v_tint)*(1.0-rainCell);float hurricaneCell=smoothstep(1.00,1.07,v_tint)*(1.0-rainCell);lit=mix(lit,vec3(0.27,0.33,0.42),rainCell*0.68);lit=mix(lit,vec3(0.19,0.23,0.30),stormCell*0.46+hurricaneCell*0.62);float alphaBase=edge*(0.20+sculpt*0.47+diffuse*0.17+fine*0.08)*(1.0+rainCell*1.8+stormCell*0.14+hurricaneCell*0.24);float thinCell=1.0-smoothstep(0.19,0.26,v_tint);float alpha=clamp(mix(alphaBase,alphaBase*0.60,thinCell),0.035,0.96);' +
+    'void main(){vec3 n=normalize(v_local);float edge=clamp(0.58+abs(v_local.z)*0.18,0.0,1.0);float broad=noise3(v_local*3.0+vec3(u_time*0.004,v_tint*1.7,0.0));float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float fine=noise3(v_local*27.0+vec3(u_time*0.008,v_tint*11.0,0.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.37+detail*0.34+billow*0.29;float sculpt=smoothstep(0.20,0.68,density);float silver=clamp(0.18+diffuse*0.86+broad*0.08+detail*0.07+billow*0.06,0.0,1.0);vec3 lit=mix(vec3(0.28,0.36,0.46),vec3(0.99,0.995,1.0),silver);float underside=pow(max(0.0,-n.z),1.35);lit=mix(lit,vec3(0.27,0.35,0.46),underside*0.48);lit=mix(lit,vec3(0.84,0.89,0.96),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*0.19);float rainCell=smoothstep(1.1,1.3,v_tint);float stormCell=smoothstep(0.89,0.95,v_tint)*(1.0-rainCell);float hurricaneCell=smoothstep(1.00,1.07,v_tint)*(1.0-rainCell);lit=mix(lit,vec3(0.27,0.33,0.42),rainCell*0.68);lit=mix(lit,vec3(0.19,0.23,0.30),stormCell*0.46+hurricaneCell*0.62);float alphaBase=edge*(0.20+sculpt*0.47+diffuse*0.17+fine*0.08)*(1.0+rainCell*1.8+stormCell*0.14+hurricaneCell*0.24);float thinCell=1.0-smoothstep(0.19,0.26,v_tint);float alpha=clamp(mix(alphaBase,alphaBase*0.66,thinCell),0.035,0.96);' +
     (webgl2 ? 'bpColor=vec4(lit,alpha);' : 'gl_FragColor=vec4(lit,alpha);') +
     '}';
   return { vertex, fragment, projectionAware };
@@ -717,7 +717,7 @@ export function initSkyClouds(target) {
       const range = topAgl - baseAgl;
       const altitude = ground + baseAgl + range * 0.5;
       const vertical = range * verticalFraction;
-      addGlobalPuff(lng,lat,altitude,radius*(0.72+hash(q.gx,q.gy,985)*0.20),radius*(0.56+hash(q.gx,q.gy,986)*0.30),vertical,0.26+hash(q.gx,q.gy,987)*0.40,6,2,hash(q.gx,q.gy,988));
+      addGlobalPuff(lng,lat,altitude,radius*(0.72+hash(q.gx,q.gy,985)*0.20),radius*(0.56+hash(q.gx,q.gy,986)*0.30),vertical,0.26+hash(q.gx,q.gy,987)*0.40,8,2,hash(q.gx,q.gy,988));
     }
 
     // Layer 3 — sparse high-level cloudlets in the gaps between denser cloud banks.
@@ -749,7 +749,7 @@ export function initSkyClouds(target) {
       vertices: new Float32Array(vertices),
       indices: new Uint16Array(indices),
       formationCount: macro.length + fine.length + singles.length + thin.length,
-      macroRadiusMinKm: 320, macroRadiusMaxKm: 760, thinLayerSlices: 9, thinLayerStacks: 2, singleLayerSlices: 6, singleLayerStacks: 2,
+      macroRadiusMinKm: 320, macroRadiusMaxKm: 760, thinLayerSlices: 9, thinLayerStacks: 2, singleLayerSlices: 8, singleLayerStacks: 2,
       heightResolvedWindPuffs, modelledWindPuffs, windSampleSignature: windSampleSignature === 'uninitialized' ? 'no-height-resolved-wind-grid' : windSampleSignature,
       macroFormationCount: macro.length,
       fineFormationCount: fine.length,
@@ -970,7 +970,7 @@ function generateGeometry() {
       const wind=cloudWindVectorFor(lng,lat,altitude,scene,windContext);
       if(wind.sourceBacked)localWindSourcePuffs++;else localWindModelledPuffs++;
       makePuffGeometry(null,MC,vertices,indices,getLon(lng),clamp(lat,-82,82),altitude,rx,ry,rz,tint,
-        lowCost?(MOBILE?6:7):(MOBILE?8:9),lowCost?3:6,seed,wind.dx,wind.dy);
+        lowCost?(MOBILE?6:7):(MOBILE?8:9),lowCost?2:6,seed,wind.dx,wind.dy);
     }
     const globeScale = z <= 8.5;
     for (let k = 0; k < formations.length; k++) {
