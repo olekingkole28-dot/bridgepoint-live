@@ -1,130 +1,471 @@
-const STYLE_ID='bp-sky-clouds-style-v5908';
-const ROOT_CLASS='bp-sky-cloudfield-v5908';
+const STYLE_ID = 'bp-sky-clouds-style-v6029';
+const ROOT_CLASS = 'bp-sky-cloudfield-v5908';
+const LAYER_ID = 'bp-sky-cloud-volume-v6029';
+const MOBILE = (typeof innerWidth === 'number' && innerWidth <= 760) || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+const TAU = Math.PI * 2;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const fract = v => v - Math.floor(v);
+const hash = (a, b, c = 0) => fract(Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453123);
+const number = (v, fallback = 0) => Number.isFinite(Number(v)) ? Number(v) : fallback;
 
-const CSS = `
-#liveMap .bp-sky-cloudfield-v5908{
-  position:absolute;inset:0;overflow:hidden;z-index:4;pointer-events:none;
-  opacity:0;visibility:hidden;contain:paint;isolation:isolate;
-  transition:opacity .7s ease,visibility .7s ease;
-  --bp-cloud-white:rgba(247,252,255,.84);
-  --bp-cloud-light:rgba(220,239,252,.72);
-  --bp-cloud-shadow:rgba(101,142,170,.2);
-  mask-image:linear-gradient(to bottom,rgba(0,0,0,.1) 0%,#000 9%,#000 31%,rgba(0,0,0,.62) 39%,transparent 49%);
-  -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,.1) 0%,#000 9%,#000 31%,rgba(0,0,0,.62) 39%,transparent 49%);
-}
-#liveMap .bp-sky-cloudfield-v5908[data-active="true"]{opacity:1;visibility:visible}
-#liveMap .bp-sky-cloudfield-v5908 .bp-sky-cloud-bank{
-  position:absolute;left:0;width:100%;height:44%;background-repeat:repeat-x;
-  background-size:50% 100%;will-change:background-position;transform:translateZ(0);
-  filter:drop-shadow(0 8px 14px rgba(5,24,42,.13));
-}
-#liveMap .bp-sky-cloudfield-v5908 .bp-sky-cloud-bank::after{
-  content:"";position:absolute;inset:0;
-  background:linear-gradient(180deg,rgba(255,255,255,.1) 0%,transparent 24%,rgba(47,87,115,.14) 67%,transparent 100%);
-  mix-blend-mode:multiply;
-}
-#liveMap .bp-sky-cloudfield-v5908 .bp-sky-cloud-high{
-  top:1%;height:32%;opacity:.48;filter:blur(1.2px) drop-shadow(0 3px 10px rgba(4,20,34,.09));
-  background-image:
-    radial-gradient(ellipse 8% 36% at 9% 70%,var(--bp-cloud-white) 0%,rgba(235,247,255,.63) 44%,transparent 100%),
-    radial-gradient(ellipse 6% 28% at 15% 56%,rgba(255,255,255,.86) 0%,rgba(225,241,251,.55) 50%,transparent 100%),
-    radial-gradient(ellipse 13% 38% at 23% 71%,rgba(248,252,255,.78) 0%,rgba(214,235,249,.52) 48%,transparent 100%),
-    radial-gradient(ellipse 7% 30% at 32% 62%,rgba(255,255,255,.78) 0%,rgba(226,240,251,.48) 48%,transparent 100%),
-    radial-gradient(ellipse 12% 36% at 39% 72%,rgba(250,253,255,.78) 0%,rgba(210,231,245,.45) 50%,transparent 100%),
-    radial-gradient(ellipse 8% 33% at 47% 57%,rgba(255,255,255,.84) 0%,rgba(226,240,250,.52) 48%,transparent 100%),
-    radial-gradient(ellipse 13% 38% at 57% 72%,rgba(249,252,255,.82) 0%,rgba(209,231,246,.49) 52%,transparent 100%),
-    radial-gradient(ellipse 7% 30% at 66% 60%,rgba(255,255,255,.82) 0%,rgba(225,240,251,.52) 49%,transparent 100%),
-    radial-gradient(ellipse 12% 38% at 76% 72%,rgba(248,252,255,.8) 0%,rgba(209,230,245,.5) 52%,transparent 100%),
-    radial-gradient(ellipse 7% 29% at 85% 58%,rgba(255,255,255,.78) 0%,rgba(220,238,249,.48) 50%,transparent 100%),
-    radial-gradient(ellipse 11% 35% at 95% 70%,rgba(248,252,255,.8) 0%,rgba(209,230,245,.46) 52%,transparent 100%);
-  animation:bp-cloud-drift-high-v5908 155s linear infinite;
-}
-#liveMap .bp-sky-cloudfield-v5908 .bp-sky-cloud-mid{
-  top:9%;height:39%;opacity:.64;filter:blur(2.2px) drop-shadow(0 8px 17px rgba(4,18,31,.14));
-  background-image:
-    radial-gradient(ellipse 11% 47% at 4% 69%,rgba(248,252,255,.86) 0%,rgba(222,239,250,.71) 42%,transparent 100%),
-    radial-gradient(ellipse 7% 36% at 12% 47%,rgba(255,255,255,.91) 0%,rgba(218,238,250,.64) 48%,transparent 100%),
-    radial-gradient(ellipse 13% 49% at 23% 70%,rgba(246,251,255,.86) 0%,rgba(197,225,243,.65) 51%,transparent 100%),
-    radial-gradient(ellipse 8% 36% at 34% 54%,rgba(255,255,255,.88) 0%,rgba(215,237,251,.68) 48%,transparent 100%),
-    radial-gradient(ellipse 15% 48% at 45% 72%,rgba(246,251,255,.87) 0%,rgba(194,222,240,.66) 52%,transparent 100%),
-    radial-gradient(ellipse 10% 37% at 58% 52%,rgba(255,255,255,.85) 0%,rgba(217,236,248,.66) 50%,transparent 100%),
-    radial-gradient(ellipse 15% 48% at 69% 70%,rgba(245,250,255,.86) 0%,rgba(190,220,240,.66) 52%,transparent 100%),
-    radial-gradient(ellipse 9% 36% at 82% 52%,rgba(255,255,255,.86) 0%,rgba(215,236,250,.62) 50%,transparent 100%),
-    radial-gradient(ellipse 14% 46% at 93% 69%,rgba(247,251,255,.85) 0%,rgba(194,224,242,.64) 53%,transparent 100%);
-  animation:bp-cloud-drift-mid-v5908 105s linear infinite;
-}
-#liveMap .bp-sky-cloudfield-v5908 .bp-sky-cloud-low{
-  top:17%;height:35%;opacity:.26;filter:blur(4px) drop-shadow(0 7px 12px rgba(3,18,31,.12));
-  background-image:
-    radial-gradient(ellipse 15% 47% at 8% 70%,rgba(184,213,234,.7) 0%,rgba(226,241,251,.55) 46%,transparent 100%),
-    radial-gradient(ellipse 11% 38% at 19% 51%,rgba(239,248,255,.75) 0%,rgba(193,222,241,.48) 48%,transparent 100%),
-    radial-gradient(ellipse 17% 48% at 32% 73%,rgba(183,212,233,.65) 0%,rgba(224,240,252,.5) 51%,transparent 100%),
-    radial-gradient(ellipse 12% 38% at 46% 52%,rgba(241,249,255,.72) 0%,rgba(191,220,239,.46) 48%,transparent 100%),
-    radial-gradient(ellipse 17% 48% at 60% 72%,rgba(183,211,233,.67) 0%,rgba(221,239,250,.49) 51%,transparent 100%),
-    radial-gradient(ellipse 11% 38% at 74% 51%,rgba(241,249,255,.71) 0%,rgba(191,220,239,.45) 48%,transparent 100%),
-    radial-gradient(ellipse 17% 47% at 90% 72%,rgba(183,211,233,.65) 0%,rgba(221,239,250,.47) 51%,transparent 100%);
-  animation:bp-cloud-drift-low-v5908 205s linear infinite;
-}
-@keyframes bp-cloud-drift-high-v5908{from{background-position:0 0}to{background-position:100% 0}}
-@keyframes bp-cloud-drift-mid-v5908{from{background-position:100% 0}to{background-position:0 0}}
-@keyframes bp-cloud-drift-low-v5908{from{background-position:0 0}to{background-position:100% 0}}
-@media(max-width:700px){
-  #liveMap .bp-sky-cloudfield-v5908{mask-image:linear-gradient(to bottom,transparent 0%,#000 13%,#000 29%,transparent 44%);-webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 13%,#000 29%,transparent 44%)}
-  #liveMap .bp-sky-cloudfield-v5908 .bp-sky-cloud-high{opacity:.32;animation-duration:210s}
-  #liveMap .bp-sky-cloudfield-v5908 .bp-sky-cloud-mid{opacity:.42;animation-duration:160s}
-  #liveMap .bp-sky-cloudfield-v5908 .bp-sky-cloud-low{opacity:.17;animation-duration:260s}
-}
-@media(prefers-reduced-motion:reduce){
-  #liveMap .bp-sky-cloudfield-v5908 .bp-sky-cloud-bank{animation:none!important}
-}
-`;
+const CSS = [
+  ':is(#liveMap,#previewMap) .' + ROOT_CLASS + '{position:absolute;inset:0;z-index:4;overflow:hidden;pointer-events:none;visibility:hidden;opacity:0;contain:paint;isolation:isolate;transition:opacity .32s ease,visibility .32s ease;}',
+  ':is(#liveMap,#previewMap) .' + ROOT_CLASS + '[data-active="true"]{visibility:visible;opacity:1;}',
+  ':is(#liveMap,#previewMap) .' + ROOT_CLASS + '::before{content:"";position:absolute;inset:0;opacity:0;background:linear-gradient(180deg,rgba(23,51,70,.11),rgba(8,24,40,.06) 45%,rgba(16,34,48,.02));mix-blend-mode:soft-light;transition:opacity .32s ease;}',
+  ':is(#liveMap,#previewMap) .' + ROOT_CLASS + '[data-active="true"]::before{opacity:.8;}',
+  '@media(prefers-reduced-motion:reduce){:is(#liveMap,#previewMap) .' + ROOT_CLASS + '{transition:none;}}'
+].join('');
 
-function addStyle(){
-  if(document.getElementById(STYLE_ID))return;
-  const style=document.createElement('style');style.id=STYLE_ID;style.textContent=CSS.replaceAll('#liveMap',':is(#liveMap,#previewMap)');document.head.appendChild(style);
+function makeShaders(webgl2) {
+  const vertex = (webgl2 ? '#version 300 es\n' : '') +
+    'precision highp float;\n' +
+    (webgl2 ? 'in vec3 a_pos;\nin vec3 a_local;\nin float a_tint;\nout vec3 v_local;\nout float v_tint;\n' :
+      'attribute vec3 a_pos;\nattribute vec3 a_local;\nattribute float a_tint;\nvarying vec3 v_local;\nvarying float v_tint;\n') +
+    'uniform mat4 u_matrix;\n' +
+    'void main(){v_local=a_local;v_tint=a_tint;gl_Position=u_matrix*vec4(a_pos,1.0);}';
+
+  const fragment = (webgl2 ? '#version 300 es\n' : '') +
+    'precision mediump float;\n' +
+    (webgl2 ? 'in vec3 v_local;\nin float v_tint;\nout vec4 bpColor;\n' : 'varying vec3 v_local;\nvarying float v_tint;\n') +
+    'uniform float u_time;\n' +
+    'float noise3(vec3 p){vec3 q=floor(p);vec3 f=fract(p);f=f*f*(3.0-2.0*f);float n=q.x+q.y*57.0+q.z*113.0;float a=fract(sin(n)*43758.5453);float b=fract(sin(n+1.0)*43758.5453);float c=fract(sin(n+57.0)*43758.5453);float d=fract(sin(n+58.0)*43758.5453);float e=fract(sin(n+113.0)*43758.5453);float f1=fract(sin(n+114.0)*43758.5453);float g=fract(sin(n+170.0)*43758.5453);float h=fract(sin(n+171.0)*43758.5453);return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}\n' +
+    'void main(){vec3 n=normalize(v_local);float edge=clamp((1.0-length(v_local))*3.2,0.0,1.0);float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float silver=clamp(0.28+diffuse*0.72+detail*0.17+billow*0.11,0.0,1.0);vec3 lit=mix(vec3(0.27,0.37,0.47),vec3(0.94,0.975,1.0),silver);lit=mix(lit,vec3(0.88,0.92,0.97),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0)))),2.0)*0.13);float alpha=clamp(edge*(0.39+detail*0.11+diffuse*0.15),0.05,0.60);' +
+    (webgl2 ? 'bpColor=vec4(lit,alpha);' : 'gl_FragColor=vec4(lit,alpha);') +
+    '}';
+  return { vertex, fragment };
 }
 
-export function initSkyClouds(target){
-  const map=target?.map||target;
-  const container=map?.getContainer?.();
-  if(!map||!container)return null;
-  if(container.querySelector('.'+ROOT_CLASS)){const existing=window.__BP_SKY_CLOUDS_V5908__;if(existing?.map===map)return existing;container.querySelectorAll('.'+ROOT_CLASS).forEach(node=>node.remove())}
-  addStyle();
-  if(getComputedStyle(container).position==='static')container.style.position='relative';
-  const overlay=document.createElement('div');
-  overlay.className=ROOT_CLASS;
-  overlay.setAttribute('aria-hidden','true');
-  overlay.innerHTML='<div class="bp-sky-cloud-bank bp-sky-cloud-high"></div><div class="bp-sky-cloud-bank bp-sky-cloud-mid"></div><div class="bp-sky-cloud-bank bp-sky-cloud-low"></div>';
-  container.appendChild(overlay);
-  let enabled=false,lastActive=false,disposed=false;
-  const sync=()=>{
-    if(disposed)return;
-    const zoom=Number(map.getZoom?.()||0),pitch=Number(map.getPitch?.()||0);
-    const active=enabled&&!document.hidden&&zoom>=7.2&&pitch>=24;
-    if(active!==lastActive){
-      lastActive=active;
-      overlay.dataset.active=active?'true':'false';
+function compileShader(gl, type, source) {
+  const shader = gl.createShader(type);
+  if (!shader) throw new Error('Cloud shader allocation failed');
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    const error = gl.getShaderInfoLog(shader) || 'Cloud shader compilation failed';
+    gl.deleteShader(shader);
+    throw new Error(error);
+  }
+  return shader;
+}
+function compileProgram(gl, webgl2) {
+  const code = makeShaders(webgl2);
+  const vs = compileShader(gl, gl.VERTEX_SHADER, code.vertex);
+  const fs = compileShader(gl, gl.FRAGMENT_SHADER, code.fragment);
+  const program = gl.createProgram();
+  if (!program) throw new Error('Cloud shader program allocation failed');
+  gl.attachShader(program, vs); gl.attachShader(program, fs); gl.linkProgram(program);
+  gl.deleteShader(vs); gl.deleteShader(fs);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    const error = gl.getProgramInfoLog(program) || 'Cloud shader linking failed';
+    gl.deleteProgram(program);
+    throw new Error(error);
+  }
+  return program;
+}
+function coordsOf(feature) {
+  const points = [];
+  const visit = value => {
+    if (!Array.isArray(value)) return;
+    if (value.length >= 2 && Number.isFinite(Number(value[0])) && Number.isFinite(Number(value[1]))) {
+      points.push([Number(value[0]), Number(value[1])]); return;
     }
-    overlay.dataset.zoomBand=zoom>=14?'city':zoom>=9?'town':'regional';
-    window.__BP_SKY_CLOUDS_STATE_V5908__={version:5908,enabled,visible:active,kind:'stylized animated sky clouds',meteorologicalObservation:false,zoom,pitch,updatedAt:Date.now()};
+    for (const item of value) visit(item);
   };
-  const onVisibility=()=>sync();
-  map.on?.('move',sync);map.on?.('resize',sync);map.on?.('styledata',sync);
-  document.addEventListener('visibilitychange',onVisibility);
-  sync();
-  const api={
-    version:5908,map,overlay,get enabled(){return enabled},
-    setEnabled(value){enabled=!!value;sync();return enabled},
-    toggle(){return this.setEnabled(!enabled)},
-    get state(){return window.__BP_SKY_CLOUDS_STATE_V5908__||{version:5908,enabled,visible:false}},
-    destroy(){
-      if(disposed)return;disposed=true;
-      map.off?.('move',sync);map.off?.('resize',sync);map.off?.('styledata',sync);
-      document.removeEventListener('visibilitychange',onVisibility);
+  visit(feature?.geometry?.coordinates);
+  return points;
+}
+function centerOf(feature) {
+  const points = coordsOf(feature);
+  if (!points.length) return null;
+  let lng = 0, lat = 0;
+  for (const point of points) { lng += point[0]; lat += point[1]; }
+  return [lng / points.length, lat / points.length];
+}
+function collectHeightFeatures(scene) {
+  const raw = scene?.cloud_top_height_samples || scene?.cloud_top_heights || scene?.cloudHeightSamples || [];
+  const list = Array.isArray(raw) ? raw : Array.isArray(raw?.features) ? raw.features.map(f => ({ ...f.properties, lng: f.geometry?.coordinates?.[0], lat: f.geometry?.coordinates?.[1] })) : [];
+  return list.filter(x => Number.isFinite(Number(x?.lng)) && Number.isFinite(Number(x?.lat)) &&
+    (Number.isFinite(Number(x?.cloud_top_height_m)) || Number.isFinite(Number(x?.cloudTopHeightM))));
+}
+function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, rx, ry, rz, tint, slices = 8, stacks = 5) {
+  const c = MC.fromLngLat({ lng, lat }, Math.max(0, altitude));
+  const unit = c.meterInMercatorCoordinateUnits();
+  const base = vertices.length / 7;
+  for (let j = 0; j <= stacks; j++) {
+    const v = j / stacks, phi = Math.PI * v;
+    const sz = Math.cos(phi), ring = Math.sin(phi);
+    for (let i = 0; i <= slices; i++) {
+      const u = i / slices, theta = TAU * u;
+      const lx = Math.cos(theta) * ring;
+      const ly = Math.sin(theta) * ring;
+      vertices.push(c.x + lx * rx * unit, c.y + ly * ry * unit, c.z + sz * rz * unit, lx, ly, sz, tint);
+    }
+  }
+  for (let j = 0; j < stacks; j++) for (let i = 0; i < slices; i++) {
+    const a = base + j * (slices + 1) + i, b = a + slices + 1;
+    indices.push(a, b, a + 1, b, b + 1, a + 1);
+  }
+}
+function makeFunnelGeometry(MC, vertices, indices, lng, lat, altitudeTop, tint) {
+  const center = MC.fromLngLat({ lng, lat }, 0), unit = center.meterInMercatorCoordinateUnits();
+  const base = vertices.length / 7, rings = 11, segments = 12;
+  const bottomM = 220, topM = 5600;
+  for (let j = 0; j <= rings; j++) {
+    const t = j / rings;
+    const zM = 220 + t * (Math.max(altitudeTop, 3500) - 220);
+    const radius = bottomM + Math.pow(t, 0.9) * (Math.min(2600, topM) - bottomM);
+    for (let i = 0; i <= segments; i++) {
+      const a = TAU * i / segments, lx = Math.cos(a), ly = Math.sin(a);
+      vertices.push(center.x + lx * radius * unit, center.y + ly * radius * unit, center.z + zM * unit,
+        lx * radius / topM, ly * radius / topM, t, tint);
+    }
+  }
+  for (let j = 0; j < rings; j++) for (let i = 0; i < segments; i++) {
+    const a = base + j * (segments + 1) + i, b = a + segments + 1;
+    indices.push(a, a + 1, b, a + 1, b + 1, b);
+  }
+}
+
+export function initSkyClouds(target) {
+  const map = target?.map || target;
+  const container = map?.getContainer?.();
+  const MC = window.maplibregl?.MercatorCoordinate || window.MapLibreGL?.MercatorCoordinate;
+  if (!map || !container || !MC?.fromLngLat) return null;
+  if (window.__BP_SKY_CLOUDS_V5908__?.map === map) return window.__BP_SKY_CLOUDS_V5908__;
+
+  if (!document.getElementById(STYLE_ID)) {
+    const style = document.createElement('style'); style.id = STYLE_ID; style.textContent = CSS;
+    document.head.appendChild(style);
+  }
+  if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
+  let overlay = container.querySelector('.' + ROOT_CLASS);
+  if (!overlay) {
+    overlay = document.createElement('div'); overlay.className = ROOT_CLASS;
+    overlay.setAttribute('aria-hidden', 'true'); overlay.dataset.active = 'false';
+    container.appendChild(overlay);
+  }
+
+  let enabled = false, disposed = false, raf = 0, rebuildTimer = 0, refreshHandle = 0;
+  let lastFrame = 0, vertexData = new Float32Array(0), indexData = new Uint16Array(0);
+  let geometryDirty = true, formationCount = 0, measuredCount = 0, funnelCount = 0, stormCount = 0;
+  let heightSource = 'not connected', rendererError = null, program = null, vbo = null, ibo = null, glRef = null;
+  let attrs = null, uniforms = null, layerInstalled = false, originalFog, fogCaptured = false;
+  const canvas = map.getCanvas?.(), originalFilter = canvas?.style?.filter || '';
+  const originalWillChange = canvas?.style?.willChange || '', originalTransition = canvas?.style?.transition || '';
+
+  function getScene() {
+    return window.__bpWeatherV2300?.getScene?.() ||
+      window.__bpPresentWeatherV2301?.getScene?.() ||
+      window.__bpWeatherFXV2300?.state?.scene ||
+      window.__BP_WEATHER_SCENE_V2300__ || {};
+  }
+  function publishState() {
+    const state = {
+      version: 6029, enabled, visible: enabled && !document.hidden,
+      kind: 'georeferenced 3D cloud-volume layer',
+      renderer: 'single shared MapLibre WebGL context',
+      cloudFormations: formationCount, measuredCloudSamples: measuredCount,
+      cloudHeightSource: heightSource,
+      cloudHeightMode: measuredCount ? 'source-backed cloud-top height samples, with procedural fill between samples' : 'procedural altitude only; measured global cloud-top heights are not connected',
+      warningFunnels: funnelCount, hurricaneStormVolumes: stormCount,
+      funnelCaveat: funnelCount ? 'Illustrative funnel context inside active tornado-warning geometry; a warning is not confirmation of a tornado.' : null,
+      rendererError, zoom: number(map.getZoom?.()), pitch: number(map.getPitch?.()), updatedAt: Date.now()
+    };
+    window.__BP_SKY_CLOUDS_STATE_V5908__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6029__ = state;
+    window.dispatchEvent(new CustomEvent('bp:sky-cloud-state', { detail: state }));
+    return state;
+  }
+  function setWorldGrade(on) {
+    if (canvas?.style) {
+      canvas.style.transition = 'filter .32s ease';
+      canvas.style.willChange = on ? 'filter' : originalWillChange;
+      canvas.style.filter = on ? 'contrast(1.16) saturate(.78) brightness(.91)' : originalFilter;
+      if (!on) canvas.style.transition = originalTransition;
+    }
+    try {
+      if (!fogCaptured) {
+        const f = map.getStyle?.()?.fog;
+        originalFog = f ? JSON.parse(JSON.stringify(f)) : null;
+        fogCaptured = true;
+      }
+      if (typeof map.setFog === 'function') {
+        map.setFog(on ? {
+          color: '#92a3af', 'high-color': '#29475b', 'space-color': '#07131f',
+          'horizon-blend': 0.12, 'star-intensity': 0, range: [0.55, 9.5]
+        } : originalFog);
+      }
+    } catch (_) {}
+    overlay.dataset.grade = on ? 'cinematic-atmosphere' : 'normal';
+  }
+  function cleanupGpu(gl) {
+    try { if (vbo) gl.deleteBuffer(vbo); } catch (_) {}
+    try { if (ibo) gl.deleteBuffer(ibo); } catch (_) {}
+    try { if (program) gl.deleteProgram(program); } catch (_) {}
+    vbo = null; ibo = null; program = null; attrs = null; uniforms = null; glRef = null;
+  }
+  const cloudLayer = {
+    id: LAYER_ID, type: 'custom', renderingMode: '3d',
+    onAdd(_map, gl) {
+      glRef = gl;
+      try {
+        const webgl2 = String(gl.getParameter(gl.VERSION) || '').includes('WebGL 2');
+        program = compileProgram(gl, webgl2); vbo = gl.createBuffer(); ibo = gl.createBuffer();
+        if (!vbo || !ibo) throw new Error('Cloud geometry buffer allocation failed');
+        attrs = { pos: gl.getAttribLocation(program, 'a_pos'), local: gl.getAttribLocation(program, 'a_local'), tint: gl.getAttribLocation(program, 'a_tint') };
+        uniforms = { matrix: gl.getUniformLocation(program, 'u_matrix'), time: gl.getUniformLocation(program, 'u_time') };
+        geometryDirty = true; rendererError = null;
+      } catch (error) {
+        rendererError = String(error?.message || error).slice(0, 180); cleanupGpu(gl);
+      }
+      publishState();
+    },
+    render(gl, args) {
+      if (!enabled || document.hidden || disposed || !program || !vbo || !ibo || indexData.length < 3) return;
+      const matrix = args?.defaultProjectionData?.mainMatrix || args?.modelViewProjectionMatrix || args;
+      if (!matrix || typeof matrix.length !== 'number' || matrix.length < 16) return;
+      try {
+        const current = {
+          program: gl.getParameter(gl.CURRENT_PROGRAM), array: gl.getParameter(gl.ARRAY_BUFFER_BINDING),
+          element: gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING), depth: gl.isEnabled(gl.DEPTH_TEST),
+          blend: gl.isEnabled(gl.BLEND), cull: gl.isEnabled(gl.CULL_FACE),
+          depthMask: gl.getParameter(gl.DEPTH_WRITEMASK),
+          srcRgb: gl.getParameter(gl.BLEND_SRC_RGB), dstRgb: gl.getParameter(gl.BLEND_DST_RGB),
+          srcA: gl.getParameter(gl.BLEND_SRC_ALPHA), dstA: gl.getParameter(gl.BLEND_DST_ALPHA),
+          eqRgb: gl.getParameter(gl.BLEND_EQUATION_RGB), eqA: gl.getParameter(gl.BLEND_EQUATION_ALPHA)
+        };
+        gl.useProgram(program); gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+        if (geometryDirty) {
+          gl.bufferData(gl.ARRAY_BUFFER, vertexData, gl.STATIC_DRAW);
+          gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+          gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indexData, gl.STATIC_DRAW);
+          geometryDirty = false;
+        } else gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+        const stride = 7 * Float32Array.BYTES_PER_ELEMENT;
+        const enabledBefore = [attrs.pos, attrs.local, attrs.tint].map(a => gl.getVertexAttrib(a, gl.VERTEX_ATTRIB_ARRAY_ENABLED));
+        gl.enableVertexAttribArray(attrs.pos); gl.vertexAttribPointer(attrs.pos, 3, gl.FLOAT, false, stride, 0);
+        gl.enableVertexAttribArray(attrs.local); gl.vertexAttribPointer(attrs.local, 3, gl.FLOAT, false, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
+        gl.enableVertexAttribArray(attrs.tint); gl.vertexAttribPointer(attrs.tint, 1, gl.FLOAT, false, stride, 6 * Float32Array.BYTES_PER_ELEMENT);
+        gl.uniformMatrix4fv(uniforms.matrix, false, matrix);
+        gl.uniform1f(uniforms.time, (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000);
+        gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
+        gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.disable(gl.CULL_FACE); gl.depthMask(false);
+        gl.drawElements(gl.TRIANGLES, indexData.length, gl.UNSIGNED_SHORT, 0);
+        [attrs.pos, attrs.local, attrs.tint].forEach((a, i) => { if (!enabledBefore[i]) gl.disableVertexAttribArray(a); });
+        gl.depthMask(current.depthMask);
+        if (current.depth) gl.enable(gl.DEPTH_TEST); else gl.disable(gl.DEPTH_TEST);
+        if (current.blend) gl.enable(gl.BLEND); else gl.disable(gl.BLEND);
+        if (current.cull) gl.enable(gl.CULL_FACE); else gl.disable(gl.CULL_FACE);
+        gl.blendFuncSeparate(current.srcRgb, current.dstRgb, current.srcA, current.dstA);
+        gl.blendEquationSeparate(current.eqRgb, current.eqA);
+        gl.useProgram(current.program); gl.bindBuffer(gl.ARRAY_BUFFER, current.array); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, current.element);
+      } catch (error) {
+        rendererError = String(error?.message || error).slice(0, 180); publishState();
+      }
+    },
+    onRemove(_map, gl) { if (gl) cleanupGpu(gl); layerInstalled = false; }
+  };
+
+  function addLayerIfReady() {
+    if (disposed || layerInstalled || !map.isStyleLoaded?.() || map.getLayer?.(LAYER_ID)) return;
+    try {
+      const firstSymbol = map.getStyle?.()?.layers?.find(l => l.type === 'symbol')?.id;
+      map.addLayer(cloudLayer, firstSymbol);
+      layerInstalled = true;
+      if (enabled) map.triggerRepaint?.();
+    } catch (error) {
+      rendererError = String(error?.message || error).slice(0, 180); publishState();
+    }
+  }
+
+  function generateGeometry() {
+    if (disposed || !enabled) return;
+    const bounds = map.getBounds?.();
+    if (!bounds) return;
+    const z = number(map.getZoom?.()), west0 = number(bounds.getWest()), east0 = number(bounds.getEast());
+    const south = clamp(number(bounds.getSouth(), -55), -78, 82), north = clamp(number(bounds.getNorth(), 70), -78, 82);
+    const west = Math.min(west0, east0), east = Math.max(west0, east0);
+    const cell = z < 1.2 ? 14 : z < 3 ? 7 : z < 5 ? 2.7 : z < 7 ? 0.85 : z < 9 ? 0.27 : z < 11 ? 0.085 : z < 13 ? 0.026 : z < 15 ? 0.008 : 0.003;
+    const maxForm = MOBILE ? 26 : (z < 2 ? 155 : 118);
+    const vertices = [], indices = [], formations = [];
+    measuredCount = 0; funnelCount = 0; stormCount = 0;
+    const scene = getScene();
+    const measured = collectHeightFeatures(scene);
+    measuredCount = measured.length;
+    heightSource = measuredCount ? String(measured[0]?.source || measured[0]?.provenance || 'world-effects cloud-height samples') : 'not connected';
+    const stormList = Array.isArray(scene?.storms) ? scene.storms : [];
+    const alerts = Array.isArray(scene?.alerts) ? scene.alerts : [];
+    const getLon = lng => ((((lng + 180) % 360) + 360) % 360) - 180;
+    function addFormation(lng, lat, radiusM, baseM, topM, seed, kind = 'ordinary') {
+      if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 82 || formations.length >= maxForm) return;
+      formations.push({ lng: getLon(lng), lat, radiusM: clamp(radiusM, 600, 95000),
+        baseM: clamp(baseM, 450, 14000), topM: clamp(topM, baseM + 180, 18500), seed, kind });
+    }
+
+    /* Current source-backed cloud-top heights win over visual-fill altitude when provided. */
+    for (const sample of measured.slice(0, MOBILE ? 7 : 35)) {
+      const top = number(sample.cloud_top_height_m, number(sample.cloudTopHeightM));
+      if (top < 200 || top > 23000) continue;
+      addFormation(number(sample.lng), number(sample.lat), number(sample.radius_m || sample.radius_meters, 6500),
+        number(sample.cloud_base_height_m, top * 0.64), top, hash(number(sample.lng), number(sample.lat), 8), 'measured');
+    }
+
+    /* Source-reported tropical/cyclone centers create spiral cloud-band context. */
+    for (const storm of stormList.slice(0, MOBILE ? 1 : 4)) {
+      const lng = number(storm.lng, number(storm.longitude, NaN)), lat = number(storm.lat, number(storm.latitude, NaN));
+      if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 82) continue;
+      const name = String(storm.name || storm.event || storm.type || '').toLowerCase();
+      const hurricane = /hurricane|tropical|cyclone|typhoon/.test(name) || number(storm.wind_mph) >= 64 || number(storm.wind_kt) >= 56;
+      const radius = clamp(number(storm.eye_radius_mi, 18) * 1609.34, 18000, 95000);
+      const turns = hurricane ? 9 : 4;
+      for (let i = 0; i < turns; i++) {
+        const a = i * 2.399 + hash(lng, lat, i) * 0.7;
+        const r = radius * (0.35 + 0.75 * (i / turns));
+        const dlat = (r * Math.sin(a)) / 111320;
+        const dlng = (r * Math.cos(a)) / (111320 * Math.max(0.12, Math.cos(lat * Math.PI / 180)));
+        addFormation(lng + dlng, lat + dlat, radius * (hurricane ? 0.42 : 0.30),
+          2600 + hash(lng, lat, i + 20) * 3000, 7500 + hash(lng, lat, i + 30) * 6700,
+          hash(lng, lat, i + 40), hurricane ? 'hurricane' : 'storm');
+      }
+      if (hurricane) stormCount++;
+    }
+
+    /* Warning polygons are explicitly illustrative context, not confirmed tornado tracks. */
+    for (const alert of alerts) {
+      const p = alert?.properties || alert || {};
+      const desc = String([p.phenom, p.event, p.headline, p.event_name, p.description].join(' ')).toLowerCase();
+      if (!(/\btornado\b/.test(desc) || String(p.phenom || '').toUpperCase() === 'TO')) continue;
+      const center = centerOf(alert);
+      if (center) { addFormation(center[0], center[1], 10000, 3000, 11000, hash(center[0], center[1], 88), 'funnel'); funnelCount++; }
+    }
+
+    /* Deterministic global cloud cover, regenerated only after a camera settles. */
+    const pad = cell * 1.4;
+    const lngStart = Math.floor((west - pad) / cell), lngEnd = Math.ceil((east + pad) / cell);
+    const latStart = Math.floor((south - pad) / cell), latEnd = Math.ceil((north + pad) / cell);
+    const loopMax = 12000; let visited = 0;
+    for (let yi = latStart; yi <= latEnd && formations.length < maxForm && visited < loopMax; yi++) {
+      for (let xi = lngStart; xi <= lngEnd && formations.length < maxForm && visited < loopMax; xi++) {
+        visited++;
+        const seed = hash(xi, yi, 2), coverage = hash(xi, yi, 5);
+        if (coverage > 0.43) continue;
+        const lat = clamp((yi + 0.18 + seed * 0.64) * cell, -77, 81);
+        const lng = (xi + 0.18 + hash(xi, yi, 4) * 0.64) * cell;
+        const cloudSize = cell * 111320 * (0.34 + hash(xi, yi, 6) * 0.40);
+        const latitudeScale = Math.max(0.13, Math.cos(lat * Math.PI / 180));
+        const radius = clamp(cloudSize * Math.sqrt(latitudeScale), z < 2 ? 18000 : 650, 90000);
+        const top = 3600 + hash(xi, yi, 9) * 7600;
+        const base = Math.max(650, top * (0.31 + hash(xi, yi, 10) * 0.38));
+        addFormation(lng, lat, radius, base, top, seed, 'ordinary');
+      }
+    }
+    if (!formations.length) addFormation(number(map.getCenter?.()?.lng), number(map.getCenter?.()?.lat), 8000, 2200, 8500, 0.43);
+
+    function puff(lng, lat, altitude, rx, ry, rz, seed, tint, detailed) {
+      makePuffGeometry(null, MC, vertices, indices, getLon(lng), clamp(lat, -82, 82),
+        altitude, rx, ry, rz, tint, detailed ? 8 : 6, detailed ? 5 : 4);
+    }
+    for (let k = 0; k < formations.length; k++) {
+      const f = formations[k], n = MOBILE ? 3 : 5;
+      for (let i = 0; i < n; i++) {
+        const a = i * 2.399 + f.seed * 5.3;
+        const ring = i === 0 ? 0 : f.radiusM * (0.20 + hash(k, i, 1) * 0.46);
+        const lat = f.lat + Math.sin(a) * ring / 111320;
+        const lng = f.lng + Math.cos(a) * ring / (111320 * Math.max(0.12, Math.cos(f.lat * Math.PI / 180)));
+        const scaleX = i === 0 ? 1.00 : 0.45 + hash(k, i, 3) * 0.54;
+        const scaleY = i === 0 ? 0.76 : 0.44 + hash(k, i, 4) * 0.48;
+        const altitude = f.baseM + (f.topM - f.baseM) * (i === 0 ? 0.42 : 0.18 + hash(k, i, 5) * 0.70);
+        const vertical = Math.max(260, (f.topM - f.baseM) * (i === 0 ? 0.42 : 0.24 + hash(k, i, 6) * 0.23));
+        puff(lng, lat, altitude, f.radiusM * scaleX, f.radiusM * scaleY, vertical, f.seed, f.kind === 'hurricane' ? 0.84 : 0.22 + hash(k, i, 7) * 0.52, true);
+      }
+      if (f.kind === 'funnel' && !MOBILE) makeFunnelGeometry(MC, vertices, indices, f.lng, f.lat, f.topM, 0.92);
+    }
+    /* Cap is intentionally bounded for low-memory phones; 16-bit indices avoid uint-index extensions. */
+    const vertexCount = Math.min(Math.floor(vertices.length / 7), 65530);
+    const cappedVertices = vertices.slice(0, vertexCount * 7);
+    const cappedIndices = indices.filter(i => i < vertexCount);
+    vertexData = new Float32Array(cappedVertices);
+    indexData = new Uint16Array(cappedIndices);
+    formationCount = formations.length;
+    geometryDirty = true;
+    rendererError = null;
+    publishState();
+    map.triggerRepaint?.();
+  }
+
+  function scheduleGeometry(delay = 180) {
+    clearTimeout(rebuildTimer);
+    rebuildTimer = setTimeout(() => {
+      if (enabled && !disposed) {
+        try { generateGeometry(); }
+        catch (error) { rendererError = String(error?.message || error).slice(0, 180); publishState(); }
+      }
+    }, delay);
+  }
+  function tick() {
+    if (disposed || !enabled || document.hidden) { raf = 0; return; }
+    const now = performance.now();
+    if (now - lastFrame >= (MOBILE ? 66 : 33)) {
+      lastFrame = now;
+      if (layerInstalled) map.triggerRepaint?.();
+    }
+    raf = requestAnimationFrame(tick);
+  }
+  function startAnimation() { if (!raf && enabled && !document.hidden) raf = requestAnimationFrame(tick); }
+  function stopAnimation() { if (raf) cancelAnimationFrame(raf); raf = 0; }
+
+  function setEnabled(value) {
+    enabled = !!value;
+    overlay.dataset.active = enabled && !document.hidden ? 'true' : 'false';
+    setWorldGrade(enabled);
+    if (enabled) {
+      addLayerIfReady();
+      scheduleGeometry(40);
+      startAnimation();
+    } else {
+      stopAnimation(); clearTimeout(rebuildTimer);
+      vertexData = new Float32Array(0); indexData = new Uint16Array(0);
+      geometryDirty = true; formationCount = 0; measuredCount = 0; funnelCount = 0; stormCount = 0;
+    }
+    publishState(); map.triggerRepaint?.();
+    return enabled;
+  }
+  function toggle() { return setEnabled(!enabled); }
+  function onVisibility() {
+    overlay.dataset.active = enabled && !document.hidden ? 'true' : 'false';
+    if (enabled && !document.hidden) { scheduleGeometry(0); startAnimation(); } else stopAnimation();
+    publishState();
+  }
+  function onMoveEnd() { if (enabled) scheduleGeometry(200); }
+  function onStyleData() { if (!layerInstalled && enabled) addLayerIfReady(); }
+
+  map.on?.('moveend', onMoveEnd); map.on?.('zoomend', onMoveEnd); map.on?.('resize', onMoveEnd);
+  map.on?.('styledata', onStyleData);
+  document.addEventListener('visibilitychange', onVisibility);
+  const onToggleEvent = event => { if (event?.detail?.map && event.detail.map !== map) return; toggle(); };
+  window.addEventListener('bp:sky-cloud-toggle', onToggleEvent);
+  if (map.isStyleLoaded?.()) addLayerIfReady();
+  else map.once?.('load', addLayerIfReady);
+
+  const api = {
+    version: 6029, map, overlay,
+    get enabled() { return enabled; },
+    setEnabled, toggle,
+    get state() { return window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
+    destroy() {
+      if (disposed) return; disposed = true;
+      stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle);
+      map.off?.('moveend', onMoveEnd); map.off?.('zoomend', onMoveEnd); map.off?.('resize', onMoveEnd); map.off?.('styledata', onStyleData);
+      document.removeEventListener('visibilitychange', onVisibility); window.removeEventListener('bp:sky-cloud-toggle', onToggleEvent);
+      setWorldGrade(false);
+      try { if (map.getLayer?.(LAYER_ID)) map.removeLayer(LAYER_ID); } catch (_) {}
       overlay.remove();
+      if (window.__BP_SKY_CLOUDS_V5908__ === api) delete window.__BP_SKY_CLOUDS_V5908__;
     }
   };
-  window.__BP_SKY_CLOUDS_V5908__=api;
-  window.addEventListener('bp:sky-cloud-toggle',event=>{if(event?.detail?.map&&event.detail.map!==map)return;api.toggle()});
+  window.__BP_SKY_CLOUDS_V5908__ = api;
+  publishState();
+  if (enabled) setEnabled(true);
   return api;
 }
