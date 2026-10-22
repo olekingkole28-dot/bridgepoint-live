@@ -1628,7 +1628,7 @@ jobs:
                 const m=window.__BP_LANDING_WORLD__?.map,r=window.__BP_CINEMATIC_WEATHER_RUNTIME__||{},diag=window.__BP_WEATHER_GL_HEALTH_V6057__||{};
                 const legacy=['bp-landing-weather-fill','bp-landing-weather-line','bp-landing-weather-points','bp-landing-weather-glow','bp-landing-weather-hit','bp-landing-radar-a','bp-landing-radar-b'];
                 return{
-                  version:r.version||0,renderer:r.renderer||'',enabled:r.enabled===true,layerAttached:r.layerAttached===true,
+                  version:r.version||0,renderer:r.renderer||'',enabled:r.enabled===true,layerAttached:r.layerAttached===true,shaderReady:r.shaderReady===true,
                   particles:Number(r.particleCount)||0,canvasCount:document.querySelectorAll('#previewMap canvas').length,
                   contextLosses:Number(diag.contextLosses)||0,contextRestores:Number(diag.contextRestores)||0,
                   legacyLayersVisible:legacy.some(id=>m?.getLayer(id)&&((m.getLayoutProperty(id,'visibility')||'visible')!=='none')),
