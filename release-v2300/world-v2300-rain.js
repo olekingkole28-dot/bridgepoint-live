@@ -570,7 +570,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       if (safeNum(map.getZoom?.(), 0) < 10) { animationRaf = 0; return; }
       if (t - lastRepaint >= 33) {
         lastRepaint = t;
-        try { map.triggerRepaint?.(); } catch (_) {}
+        try { drawProjectedRain(t); } catch (e) { rendererError = String(e?.message || e).slice(0, 200); publishDiagnostic(); }
       }
       animationRaf = requestAnimationFrame(loop);
     };
@@ -579,26 +579,30 @@ export function initRainLayer(map, getScene = () => ({})) {
   function stopAnimation() {
     if (animationRaf) cancelAnimationFrame(animationRaf);
     animationRaf = 0;
+    renderedStreaks = 0;
+    for (const path of rainPaths) { try { path.setAttribute('d', ''); } catch (_) {} }
   }
   function publishDiagnostic() {
     const d = window.__BP_RAIN_RENDERER_V6068__ || (window.__BP_RAIN_RENDERER_V6068__ = {});
-    Object.assign(d, { version: VERSION, renderer: 'georeferenced-3D-rain-ribbons', enabled,
-      worldAnchored: true, layerAttached: !!map.getLayer?.(LAYER_ID), shaderVariants: programCache.size,
-      projectionAware: Array.from(programCache.values()).some(info => info.projectionAware), projectionMode: lastProjectionMode,
-      projectionUniformsBound, rainCellCount: cells.length, particleSeeds: drops.length, activeVertices: vertexCount, puddleCount,
+    Object.assign(d, { version: VERSION, renderer: 'geographic-map-projected-short-streaks', enabled,
+      worldAnchored: true, layerAttached: !!rainSvg, overlayAttached: !!rainSvg, shaderVariants: 0,
+      projectionAware: true, projectionMode: 'geographic-map-project', projectionUniformsBound: false,
+      rainCellCount: cells.length, particleSeeds: drops.length, renderedStreaks, activeVertices: vertexCount, puddleCount,
       groundSourceAttached: !!map.getSource?.(GROUND_SOURCE), rendererError, droppedFrames, lastRenderAt,
       lastGroundUpdate, updatedAt: Date.now(), zoom: safeNum(map.getZoom?.(), 0) });
   }
   function setEnabled(value) {
     enabled = !!value;
     try {
-      for (const id of [LAYER_ID, WET_LAYER, PUDDLE_LAYER, PUDDLE_GLINT]) {
+      for (const id of [WET_LAYER, PUDDLE_LAYER, PUDDLE_GLINT]) {
         const current = map.getLayoutProperty?.(id, 'visibility'), wanted = enabled ? 'visible' : 'none';
         if (map.getLayer?.(id) && current !== wanted) map.setLayoutProperty(id, 'visibility', wanted);
       }
+      if (rainSvg) rainSvg.style.display = enabled ? 'block' : 'none';
     } catch (_) {}
-    if (enabled && cells.length && safeNum(map.getZoom?.(), 0) >= 10) startAnimation();
-    else stopAnimation();
+    if (enabled && cells.length && safeNum(map.getZoom?.(), 0) >= 10) {
+      startAnimation(); drawProjectedRain(performance.now());
+    } else stopAnimation();
     publishDiagnostic();
   }
 
@@ -613,9 +617,10 @@ export function initRainLayer(map, getScene = () => ({})) {
     else if (enabled && cells.length && safeNum(map.getZoom?.(), 0) >= 10) startAnimation();
   });
   const api = { version: VERSION, map, setScene: refreshScene, setEnabled,
-    get state() { return { version: VERSION, enabled, layerAttached: !!map.getLayer?.(LAYER_ID),
-      shaderVariants: programCache.size, projectionAware: Array.from(programCache.values()).some(info => info.projectionAware),
-       projectionMode: lastProjectionMode, projectionUniformsBound, rainCellCount: cells.length, particleSeeds: drops.length, activeVertices: vertexCount,
+    get state() { return { version: VERSION, enabled, layerAttached: !!rainSvg, overlayAttached: !!rainSvg,
+      renderer: 'geographic-map-projected-short-streaks', shaderVariants: 0, projectionAware: true,
+      projectionMode: 'geographic-map-project', projectionUniformsBound: false, rainCellCount: cells.length,
+      particleSeeds: drops.length, renderedStreaks, activeVertices: vertexCount,
       anchorFingerprint: drops.slice(0, 8).map(d => `${d.lng.toFixed(5)},${d.lat.toFixed(5)},${d.baseAglM.toFixed(0)}`).join('|'),
       puddleCount, rendererError, droppedFrames, lastRenderAt, lastGroundUpdate, worldAnchored: true }; } };
   map.__bpRainRendererV6068 = api;
