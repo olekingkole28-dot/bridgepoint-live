@@ -8,7 +8,7 @@ const EARTH_CIRCUMFERENCE = 40075016.68557849;
 const RAD = Math.PI / 180;
 const MOBILE = (typeof innerWidth === 'number' && innerWidth <= 760) ||
   /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent || '');
-const MAX_DROPS = MOBILE ? 2400 : 7600;
+const MAX_DROPS = MOBILE ? 1600 : 6000;
 const FLOATS_PER_VERTEX = 5;
 const vertexData = new Float32Array(MAX_DROPS * 6 * FLOATS_PER_VERTEX);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -282,14 +282,14 @@ export function initRainLayer(map, getScene = () => ({})) {
       const thunder = /thunderstorm|\bts\b|squall/.test(rawWeather(o));
       let radiusM;
       if (Number.isFinite(supplied) && supplied > 0) radiusM = clamp(supplied * 1609.34, 2200, 26000);
-      else radiusM = thunder ? 9800 : 5600;
+      else radiusM = thunder ? 3200 : 2200;
       let p = null;
       try { p = map.project([c.lng, c.lat]); } catch (_) {}
       const margin = radiusM / Math.max(0.4, metersPerPixel(c.lat, z));
       if (p && (p.x < -margin || p.x > w + margin || p.y < -margin || p.y > h + margin)) return null;
       const wind = windOf(o), key = c.lng.toFixed(3) + ':' + c.lat.toFixed(3);
       return { key, obs: o, lng: c.lng, lat: c.lat, radiusM, thunderstorm: thunder,
-        baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 1650 : 1050), 650, 4200),
+        baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 900 : 750), 650, 4200),
         wind, groundM: groundElevation(map, c.lng, c.lat), seenAt: Date.now() };
     }).filter(Boolean);
     const view = center ? { lng: center.lng, lat: center.lat } : { lng: 0, lat: 0 };
