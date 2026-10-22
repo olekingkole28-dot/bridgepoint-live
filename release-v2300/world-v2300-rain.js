@@ -1,4 +1,5 @@
 const VERSION = 6068;
+const CLOUDS_ONLY_PHASE = () => window.__BP_CLOUDS_ONLY_PHASE_V6070__ === true;
 const LAYER_ID = 'bp2300-rain-world-volume-v6068';
 const GROUND_SOURCE = 'bp2300-rain-ground-source-v6068';
 const WET_LAYER = 'bp2300-rain-wet-ground-v6068';
@@ -102,7 +103,7 @@ function firstLayer(map, ids) {
 
 export function initRainLayer(map, getScene = () => ({})) {
   if (map.__bpRainRendererV6068) return map.__bpRainRendererV6068;
-  let enabled = true, buffer = null, bufferAllocated = false, vao = null, vaoExt = null, vaoMode = 'none';
+  let enabled = !CLOUDS_ONLY_PHASE(), buffer = null, bufferAllocated = false, vao = null, vaoExt = null, vaoMode = 'none';
   let programCache = new Map(), scene = {}, cells = [], drops = [], cellMemories = new Map();
   let animationRaf = 0, groundTimer = 0, lastRepaint = 0, vertexCount = 0;
   let rendererError = null, droppedFrames = 0, lastRenderAt = 0, lastGroundUpdate = 0, puddleCount = 0;
@@ -133,7 +134,8 @@ export function initRainLayer(map, getScene = () => ({})) {
       }, before);
       for (const id of [WET_LAYER, PUDDLE_LAYER, PUDDLE_GLINT]) {
         const current = map.getLayoutProperty?.(id, 'visibility');
-        if (map.getLayer?.(id) && current === 'none' && enabled) map.setLayoutProperty(id, 'visibility', 'visible');
+        const wanted = enabled ? 'visible' : 'none';
+        if (map.getLayer?.(id) && current !== wanted) map.setLayoutProperty(id, 'visibility', wanted);
       }
     } catch (e) { rendererError = 'ground layers: ' + String(e?.message || e).slice(0, 160); }
   }
@@ -592,7 +594,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       lastGroundUpdate, updatedAt: Date.now(), zoom: safeNum(map.getZoom?.(), 0) });
   }
   function setEnabled(value) {
-    enabled = !!value;
+    enabled = CLOUDS_ONLY_PHASE() ? false : !!value;
     try {
       for (const id of [WET_LAYER, PUDDLE_LAYER, PUDDLE_GLINT]) {
         const current = map.getLayoutProperty?.(id, 'visibility'), wanted = enabled ? 'visible' : 'none';
