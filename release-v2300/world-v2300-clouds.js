@@ -618,7 +618,7 @@ function generateGeometry() {
     }
 
     // A warning polygon is illustrative context, not confirmation of a tornado.
-    for (const alert of alerts) {
+    for (const alert of (window.__BP_CLOUDS_ONLY_PHASE_V6070__ === true ? [] : alerts)) {
       if (formations.length >= maxForm) break;
       const p = alert?.properties || alert || {};
       const desc = String([p.phenom, p.event, p.headline, p.event_name, p.description].join(' ')).toLowerCase();
