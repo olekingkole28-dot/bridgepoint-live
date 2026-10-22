@@ -16,13 +16,21 @@ const CSS = [
   '@media(prefers-reduced-motion:reduce){:is(#liveMap,#previewMap) .' + ROOT_CLASS + '{transition:none;}}'
 ].join('');
 
-function makeShaders(webgl2) {
-  const vertex = (webgl2 ? '#version 300 es\n' : '') +
+function makeShaders(webgl2, shaderData = null) {
+  const projectionAware = !!(webgl2 && shaderData &&
+    typeof shaderData.vertexShaderPrelude === 'string' && shaderData.vertexShaderPrelude.length &&
+    typeof shaderData.define === 'string');
+  const projectionPreamble = projectionAware
+    ? shaderData.vertexShaderPrelude + '\n' + shaderData.define + '\n'
+    : '';
+  const vertex = (webgl2 ? '#version 300 es\n' : '') + projectionPreamble +
     'precision highp float;\n' +
-    (webgl2 ? 'in vec3 a_pos;\nin vec3 a_local;\nin float a_tint;\nout vec3 v_local;\nout float v_tint;\n' :
-      'attribute vec3 a_pos;\nattribute vec3 a_local;\nattribute float a_tint;\nvarying vec3 v_local;\nvarying float v_tint;\n') +
-    'uniform mat4 u_matrix;\n' +
-    'void main(){v_local=a_local;v_tint=a_tint;gl_Position=u_matrix*vec4(a_pos,1.0);}';
+    (webgl2
+      ? 'in vec3 a_pos;\nin float a_altitude;\nin vec3 a_local;\nin float a_tint;\nout vec3 v_local;\nout float v_tint;\n'
+      : 'attribute vec3 a_pos;\nattribute float a_altitude;\nattribute vec3 a_local;\nattribute float a_tint;\nvarying vec3 v_local;\nvarying float v_tint;\n') +
+    (projectionAware ? '' : 'uniform mat4 u_matrix;\n') +
+    'void main(){v_local=a_local;v_tint=a_tint;gl_Position=' +
+    (projectionAware ? 'projectTileFor3D(a_pos.xy,a_altitude)' : 'u_matrix*vec4(a_pos,1.0)') + ';}';
 
   const fragment = (webgl2 ? '#version 300 es\n' : '') +
     'precision mediump float;\n' +
@@ -32,9 +40,8 @@ function makeShaders(webgl2) {
     'void main(){vec3 n=normalize(v_local);float edge=clamp(0.58+abs(v_local.z)*0.18,0.0,1.0);float broad=noise3(v_local*3.0+vec3(u_time*0.004,v_tint*1.7,0.0));float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float fine=noise3(v_local*27.0+vec3(u_time*0.008,v_tint*11.0,0.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.42+detail*0.33+billow*0.25;float sculpt=smoothstep(0.22,0.66,density);float silver=clamp(0.24+diffuse*0.77+broad*0.08+detail*0.08+billow*0.05,0.0,1.0);vec3 lit=mix(vec3(0.30,0.39,0.48),vec3(0.98,0.99,1.0),silver);lit=mix(lit,vec3(0.84,0.89,0.95),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*0.16);float alpha=clamp(edge*(0.18+sculpt*0.42+diffuse*0.16+fine*0.07),0.045,0.72);' +
     (webgl2 ? 'bpColor=vec4(lit,alpha);' : 'gl_FragColor=vec4(lit,alpha);') +
     '}';
-  return { vertex, fragment };
+  return { vertex, fragment, projectionAware };
 }
-
 function compileShader(gl, type, source) {
   const shader = gl.createShader(type);
   if (!shader) throw new Error('Cloud shader allocation failed');
@@ -47,8 +54,8 @@ function compileShader(gl, type, source) {
   }
   return shader;
 }
-function compileProgram(gl, webgl2) {
-  const code = makeShaders(webgl2);
+function compileProgram(gl, webgl2, shaderData = null) {
+  const code = makeShaders(webgl2, shaderData);
   const vs = compileShader(gl, gl.VERTEX_SHADER, code.vertex);
   const fs = compileShader(gl, gl.FRAGMENT_SHADER, code.fragment);
   const program = gl.createProgram();
@@ -143,7 +150,7 @@ function collectHeightFeatures(scene) {
 function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, rx, ry, rz, tint, slices = 8, stacks = 5) {
   const c = MC.fromLngLat({ lng, lat }, Math.max(0, altitude));
   const unit = c.meterInMercatorCoordinateUnits();
-  const base = vertices.length / 7;
+  const base = vertices.length / 8;
   for (let j = 0; j <= stacks; j++) {
     const v = j / stacks, phi = Math.PI * v;
     const sz = Math.cos(phi), ring = Math.sin(phi);
@@ -151,7 +158,7 @@ function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, 
       const u = i / slices, theta = TAU * u;
       const lx = Math.cos(theta) * ring;
       const ly = Math.sin(theta) * ring;
-      vertices.push(c.x + lx * rx * unit, c.y + ly * ry * unit, c.z + sz * rz * unit, lx, ly, sz, tint);
+      vertices.push(c.x + lx * rx * unit, c.y + ly * ry * unit, c.z + sz * rz * unit, altitude + sz * rz, lx, ly, sz, tint);
     }
   }
   for (let j = 0; j < stacks; j++) for (let i = 0; i < slices; i++) {
@@ -161,7 +168,7 @@ function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, 
 }
 function makeFunnelGeometry(MC, vertices, indices, lng, lat, altitudeTop, tint) {
   const center = MC.fromLngLat({ lng, lat }, 0), unit = center.meterInMercatorCoordinateUnits();
-  const base = vertices.length / 7, rings = 11, segments = 12;
+  const base = vertices.length / 8, rings = 11, segments = 12;
   const bottomM = 220, topM = 5600;
   for (let j = 0; j <= rings; j++) {
     const t = j / rings;
@@ -169,7 +176,7 @@ function makeFunnelGeometry(MC, vertices, indices, lng, lat, altitudeTop, tint) 
     const radius = bottomM + Math.pow(t, 0.9) * (Math.min(2600, topM) - bottomM);
     for (let i = 0; i <= segments; i++) {
       const a = TAU * i / segments, lx = Math.cos(a), ly = Math.sin(a);
-      vertices.push(center.x + lx * radius * unit, center.y + ly * radius * unit, center.z + zM * unit,
+      vertices.push(center.x + lx * radius * unit, center.y + ly * radius * unit, center.z + zM * unit, zM,
         lx * radius / topM, ly * radius / topM, t, tint);
     }
   }
@@ -202,8 +209,9 @@ export function initSkyClouds(target) {
   let vertexData = new Float32Array(0), indexData = new Uint16Array(0);
   let globalCloudGeometryCache = null;
   let geometryDirty = true, formationCount = 0, measuredCount = 0, funnelCount = 0, stormCount = 0;
-  let heightSource = 'not connected', rendererError = null, program = null, vbo = null, ibo = null, glRef = null;
-  let attrs = null, uniforms = null, layerInstalled = false, originalFog, fogCaptured = false;
+  let heightSource = 'not connected', rendererError = null, vbo = null, ibo = null, glRef = null;
+  const programCache = new Map();
+  let activeProgramInfo = null, layerInstalled = false, originalFog, fogCaptured = false;
   const canvas = map.getCanvas?.(), originalFilter = canvas?.style?.filter || '';
   const originalWillChange = canvas?.style?.willChange || '', originalTransition = canvas?.style?.transition || '';
 
@@ -215,10 +223,11 @@ export function initSkyClouds(target) {
   }
   function publishState() {
     const state = {
-      version: 6045, map, enabled, visible: enabled && !document.hidden,
+      version: 6046, map, enabled, visible: enabled && !document.hidden,
       kind: 'georeferenced 3D cloud-volume layer',
       renderer: 'single shared MapLibre WebGL context',
       cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0,
+      projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       persistentGlobalCloudField: true, localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), redrawIntervalMs: MOBILE ? 220 : 125, measuredCloudSamples: measuredCount,
       cloudHeightSource: heightSource,
       cloudHeightMode: measuredCount ? 'source-backed cloud-top height samples, with procedural fill between samples' : 'procedural altitude only; measured global cloud-top heights are not connected',
@@ -230,6 +239,7 @@ export function initSkyClouds(target) {
     window.__BP_SKY_CLOUDS_STATE_V6029__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6031__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6045__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6046__ = state;
     window.dispatchEvent(new CustomEvent('bp:sky-cloud-state', { detail: state }));
     return state;
   }
@@ -255,22 +265,54 @@ export function initSkyClouds(target) {
     } catch (_) {}
     overlay.dataset.grade = on ? 'cinematic-atmosphere' : 'normal';
   }
+  function getProgramInfo(gl, shaderData) {
+    const webgl2 = String(gl.getParameter(gl.VERSION) || '').includes('WebGL 2');
+    const projectionAware = !!(webgl2 && shaderData &&
+      typeof shaderData.vertexShaderPrelude === 'string' && shaderData.vertexShaderPrelude.length &&
+      typeof shaderData.define === 'string');
+    const key = projectionAware ? String(shaderData.variantName || 'projection') : 'legacy-mercator';
+    if (programCache.has(key)) return programCache.get(key);
+    const program = compileProgram(gl, webgl2, projectionAware ? shaderData : null);
+    const info = {
+      key, program, projectionAware,
+      attrs: {
+        pos: gl.getAttribLocation(program, 'a_pos'),
+        altitude: gl.getAttribLocation(program, 'a_altitude'),
+        local: gl.getAttribLocation(program, 'a_local'),
+        tint: gl.getAttribLocation(program, 'a_tint')
+      },
+      uniforms: {
+        matrix: gl.getUniformLocation(program, 'u_matrix'),
+        time: gl.getUniformLocation(program, 'u_time'),
+        projectionMatrix: gl.getUniformLocation(program, 'u_projection_matrix'),
+        projectionFallbackMatrix: gl.getUniformLocation(program, 'u_projection_fallback_matrix'),
+        projectionTileMercatorCoords: gl.getUniformLocation(program, 'u_projection_tile_mercator_coords'),
+        projectionClippingPlane: gl.getUniformLocation(program, 'u_projection_clipping_plane'),
+        projectionTransition: gl.getUniformLocation(program, 'u_projection_transition')
+      }
+    };
+    programCache.set(key, info); activeProgramInfo = info;
+    return info;
+  }
+
   function cleanupGpu(gl) {
     try { if (vbo) gl.deleteBuffer(vbo); } catch (_) {}
     try { if (ibo) gl.deleteBuffer(ibo); } catch (_) {}
-    try { if (program) gl.deleteProgram(program); } catch (_) {}
-    vbo = null; ibo = null; program = null; attrs = null; uniforms = null; glRef = null;
+    for (const info of programCache.values()) {
+      try { if (info?.program) gl.deleteProgram(info.program); } catch (_) {}
+    }
+    programCache.clear(); activeProgramInfo = null;
+    vbo = null; ibo = null; glRef = null;
   }
   const cloudLayer = {
     id: LAYER_ID, type: 'custom', renderingMode: '3d',
     onAdd(_map, gl) {
       glRef = gl;
       try {
-        const webgl2 = String(gl.getParameter(gl.VERSION) || '').includes('WebGL 2');
-        program = compileProgram(gl, webgl2); vbo = gl.createBuffer(); ibo = gl.createBuffer();
+        // The correct GPU program is compiled lazily for each MapLibre projection variant.
+        vbo = gl.createBuffer(); ibo = gl.createBuffer();
         if (!vbo || !ibo) throw new Error('Cloud geometry buffer allocation failed');
-        attrs = { pos: gl.getAttribLocation(program, 'a_pos'), local: gl.getAttribLocation(program, 'a_local'), tint: gl.getAttribLocation(program, 'a_tint') };
-        uniforms = { matrix: gl.getUniformLocation(program, 'u_matrix'), time: gl.getUniformLocation(program, 'u_time') };
+        programCache.clear(); activeProgramInfo = null;
         geometryDirty = true; rendererError = null;
       } catch (error) {
         rendererError = String(error?.message || error).slice(0, 180); cleanupGpu(gl);
@@ -278,13 +320,15 @@ export function initSkyClouds(target) {
       publishState();
     },
     render(gl, args) {
-      if (!enabled || document.hidden || disposed || !program || !vbo || !ibo || indexData.length < 3) return;
-      const matrix = args?.defaultProjectionData?.mainMatrix || args?.modelViewProjectionMatrix || args;
-      if (!matrix || typeof matrix.length !== 'number' || matrix.length < 16) return;
+      if (!enabled || document.hidden || disposed || !vbo || !ibo || indexData.length < 3) return;
       let saved = null;
       try {
-        saved = captureCloudGLState(gl, [attrs.pos, attrs.local, attrs.tint]);
-        gl.useProgram(program);
+        const info = getProgramInfo(gl, args?.shaderData);
+        if (!info?.program) return;
+        const matrix = args?.defaultProjectionData?.mainMatrix || args?.modelViewProjectionMatrix || args;
+        if (!info.projectionAware && (!matrix || typeof matrix.length !== 'number' || matrix.length < 16)) return;
+        saved = captureCloudGLState(gl, [info.attrs.pos, info.attrs.altitude, info.attrs.local, info.attrs.tint]);
+        gl.useProgram(info.program);
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         if (geometryDirty) {
           gl.bufferData(gl.ARRAY_BUFFER, vertexData, gl.STATIC_DRAW);
@@ -292,12 +336,23 @@ export function initSkyClouds(target) {
           gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indexData, gl.STATIC_DRAW);
           geometryDirty = false;
         } else gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
-        const stride = 7 * Float32Array.BYTES_PER_ELEMENT;
-        gl.enableVertexAttribArray(attrs.pos); gl.vertexAttribPointer(attrs.pos, 3, gl.FLOAT, false, stride, 0);
-        gl.enableVertexAttribArray(attrs.local); gl.vertexAttribPointer(attrs.local, 3, gl.FLOAT, false, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
-        gl.enableVertexAttribArray(attrs.tint); gl.vertexAttribPointer(attrs.tint, 1, gl.FLOAT, false, stride, 6 * Float32Array.BYTES_PER_ELEMENT);
-        gl.uniformMatrix4fv(uniforms.matrix, false, matrix);
-        gl.uniform1f(uniforms.time, (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000);
+        const stride = 8 * Float32Array.BYTES_PER_ELEMENT;
+        gl.enableVertexAttribArray(info.attrs.pos); gl.vertexAttribPointer(info.attrs.pos, 3, gl.FLOAT, false, stride, 0);
+        gl.enableVertexAttribArray(info.attrs.altitude); gl.vertexAttribPointer(info.attrs.altitude, 1, gl.FLOAT, false, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
+        gl.enableVertexAttribArray(info.attrs.local); gl.vertexAttribPointer(info.attrs.local, 3, gl.FLOAT, false, stride, 4 * Float32Array.BYTES_PER_ELEMENT);
+        gl.enableVertexAttribArray(info.attrs.tint); gl.vertexAttribPointer(info.attrs.tint, 1, gl.FLOAT, false, stride, 7 * Float32Array.BYTES_PER_ELEMENT);
+        if (info.projectionAware) {
+          const p = args?.defaultProjectionData;
+          if (!p) throw new Error('MapLibre projection uniforms unavailable for 3D clouds');
+          gl.uniformMatrix4fv(info.uniforms.projectionMatrix, false, p.mainMatrix);
+          gl.uniformMatrix4fv(info.uniforms.projectionFallbackMatrix, false, p.fallbackMatrix);
+          gl.uniform4fv(info.uniforms.projectionTileMercatorCoords, p.tileMercatorCoords);
+          gl.uniform4fv(info.uniforms.projectionClippingPlane, p.clippingPlane);
+          gl.uniform1f(info.uniforms.projectionTransition, p.projectionTransition);
+        } else {
+          gl.uniformMatrix4fv(info.uniforms.matrix, false, matrix);
+        }
+        gl.uniform1f(info.uniforms.time, (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000);
         gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
         gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.disable(gl.CULL_FACE); gl.depthMask(false);
@@ -490,11 +545,11 @@ export function initSkyClouds(target) {
     }
     /* Cap is intentionally bounded for low-memory phones; 16-bit indices avoid uint-index extensions. */
     const global = buildGlobalCloudGeometry();
-    const globalVertexCount = Math.floor(global.vertices.length / 7);
-    const localVertexCount = Math.min(Math.floor(vertices.length / 7), 65530 - globalVertexCount);
-    vertexData = new Float32Array(global.vertices.length + localVertexCount * 7);
+    const globalVertexCount = Math.floor(global.vertices.length / 8);
+    const localVertexCount = Math.min(Math.floor(vertices.length / 8), 65530 - globalVertexCount);
+    vertexData = new Float32Array(global.vertices.length + localVertexCount * 8);
     vertexData.set(global.vertices, 0);
-    vertexData.set(vertices.slice(0, localVertexCount * 7), global.vertices.length);
+    vertexData.set(vertices.slice(0, localVertexCount * 8), global.vertices.length);
     const mergedIndices = new Uint16Array(global.indices.length + indices.length);
     mergedIndices.set(global.indices, 0);
     let mergedCount = global.indices.length;
@@ -563,10 +618,10 @@ export function initSkyClouds(target) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6045, map, overlay,
+    version: 6046, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
-    get state() { return window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
+    get state() { return window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
     destroy() {
       if (disposed) return; disposed = true;
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle);
