@@ -1,7 +1,7 @@
 import{VERSION}from'./world-v2300-config.js';
 import{initWorld}from'./world-v2300-map.js';
 import{initDetails}from'./world-v2300-details.js';
-import{initWeather}from'./world-v2300-weather.js?v=6042-lazy-weather-gpu';
+import{initWeather}from'./world-v2300-weather.js?v=6057-cinematic-weather-gl-isolation';
 import{initPresentWeather}from'./world-v2300-present-weather.js';
 import{initWeatherKey}from'./world-v2300-weather-key.js';
 import{initWeatherPersistence}from'./world-v2300-weather-persistence.js';
