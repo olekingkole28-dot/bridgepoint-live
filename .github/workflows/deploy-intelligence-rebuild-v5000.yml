@@ -529,7 +529,8 @@ jobs:
           grep -Fq 'MOBILE ? 8 : 9, 6, hash(q.gx, q.gy, i + 973)' site/world-v2300-clouds.js
           grep -Fq 'cloud-bank motion; wind-field coupling is not yet source-backed' site/world-v2300-clouds.js
           grep -Fq 'coverageVersion: 6070' site/world-v2300-clouds.js
-          grep -Fq 'broad * 0.58 + fine * 0.42 > 0.64' site/world-v2300-clouds.js
+          grep -Fq 'broad * 0.72 + edgeNoise * 0.28 > 0.58' site/world-v2300-clouds.js
+          grep -Fq 'const waveX = (gx + 0.5) / columns * TAU' site/world-v2300-clouds.js
           grep -Fq 'globalCloudPuffs' site/world-v2300-clouds.js
           grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' site/app.js
           grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' site/landing.js
