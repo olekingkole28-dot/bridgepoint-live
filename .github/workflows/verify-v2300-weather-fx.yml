@@ -11,6 +11,15 @@ on:
       - 'release-v2300/world-v2300-map.js'
       - 'release-v2300/world-v2300-config.js'
       - '.github/workflows/verify-v2300-weather-fx.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'release-v2300/world-v2300-weather.js'
+      - 'release-v2300/world-v2300-rain.js'
+      - 'release-v2300/world-v2300-clouds.js'
+      - 'release-v2300/world-v2300-map.js'
+      - 'release-v2300/world-v2300-config.js'
+      - '.github/workflows/verify-v2300-weather-fx.yml'
 
 permissions:
   contents: read
