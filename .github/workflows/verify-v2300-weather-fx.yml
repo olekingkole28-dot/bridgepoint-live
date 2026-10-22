@@ -161,7 +161,7 @@ jobs:
               assert.equal(stormCloudDiag.globalThinLayerStacks,2,'thin cloud geometry must stay thin and low-cost');
               assert.equal(stormCloudDiag.globalSingleLayerSlices,8,'isolated cloud silhouettes must be rounded at global zoom');
               assert.equal(stormCloudDiag.globalSingleLayerStacks,2,'isolated clouds must preserve low vertex cost');
-              assert(stormCloudDiag.globalMacroRadiusMaxKm>=760,'large global cloud banks must extend to regional scale');
+              assert(stormCloudDiag.globalMacroRadiusMaxKm>=900,'large global cloud banks must extend to regional scale');
               assert(stormCloudDiag.hurricaneEyeWallCloudCenters>=18,'source hurricane must build a distinct eyewall ring');
               assert(stormCloudDiag.hurricaneSpiralCloudCenters>=24,'source hurricane must produce multiple curved spiral arms');
               assert(stormCloudDiag.hurricaneEyeRadiusKm>0&&String(stormCloudDiag.hurricaneEyeRadiusSource).includes('source'),'fixture hurricane eye radius must be source-backed');
