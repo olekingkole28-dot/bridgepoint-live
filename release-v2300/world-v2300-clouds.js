@@ -630,7 +630,7 @@ export function initSkyClouds(target) {
       const lng = (((( -180 + q.gx * 9 + (hash(q.gx, q.gy, 906) - 0.5) * 5.2) + 180) % 360 + 360) % 360) - 180;
       const ground = terrainElevationAt(lng, lat);
       const latScale = Math.sqrt(Math.max(0.16, Math.cos(lat * Math.PI / 180)));
-      const bankRadius = clamp(111320 * (2.70 + hash(q.gx, q.gy, 907) * 3.95) * latScale, 320000, 760000);
+      const bankRadius = clamp(111320 * (3.00 + hash(q.gx, q.gy, 907) * 4.90) * latScale, 400000, 900000);
       const baseAgl = 2200 + hash(q.gx, q.gy, 908) * 2200;
       const topAgl = Math.max(baseAgl + 6500, 10800 + hash(q.gx, q.gy, 909) * 6800);
       const range = topAgl - baseAgl;
@@ -741,7 +741,7 @@ export function initSkyClouds(target) {
       const lng = (((( -180 + q.gx * (360 / thinColumns) + (hash(q.gx, q.gy, 994) - 0.5) * 1.3) + 180) % 360 + 360) % 360) - 180;
       const ground = terrainElevationAt(lng, lat);
       const latScale = Math.sqrt(Math.max(0.16, Math.cos(lat * Math.PI / 180)));
-      const radius = clamp((190000 + hash(q.gx, q.gy, 995) * 260000) * latScale, 165000, 450000);
+      const radius = clamp((245000 + hash(q.gx, q.gy, 995) * 335000) * latScale, 190000, 580000);
       const baseAgl = 6800 + hash(q.gx, q.gy, 996) * 1700;
       const topAgl = Math.max(baseAgl + 2600, 11200 + hash(q.gx, q.gy, 997) * 4500);
       const range = topAgl - baseAgl;
@@ -753,7 +753,7 @@ export function initSkyClouds(target) {
       vertices: new Float32Array(vertices),
       indices: new Uint16Array(indices),
       formationCount: macro.length + fine.length + singles.length + thin.length,
-      macroRadiusMinKm: 320, macroRadiusMaxKm: 760, thinLayerSlices: 9, thinLayerStacks: 2, singleLayerSlices: 8, singleLayerStacks: 2,
+      macroRadiusMinKm: 400, macroRadiusMaxKm: 900, thinLayerSlices: 9, thinLayerStacks: 2, singleLayerSlices: 8, singleLayerStacks: 2,
       heightResolvedWindPuffs, modelledWindPuffs, windSampleSignature: windSampleSignature === 'uninitialized' ? 'no-height-resolved-wind-grid' : windSampleSignature,
       macroFormationCount: macro.length,
       fineFormationCount: fine.length,
