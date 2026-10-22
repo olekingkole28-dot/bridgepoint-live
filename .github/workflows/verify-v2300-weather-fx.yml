@@ -36,6 +36,10 @@ jobs:
           curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o /tmp/bp2300wx/vendor/maplibre-gl.css
           grep -Fq 'sharedMapLibreWebGLContext:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'rainSnowHail:true' /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq "if(pr==='rain')return;" /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq 'minzoom: 14' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'const VERSION = 6061;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'world-v2300-rain.js?v=6061-world-anchored-rain' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'wildfireFlameParticles:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'tornadoCone:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'hurricaneSpiralEye:true' /tmp/bp2300wx/world-v2300-weather.js
@@ -111,6 +115,18 @@ jobs:
               assert.equal(out.fx.sharedMapLibreWebGLContext,true);assert.equal(out.fx.secondaryCanvases,0);assert.equal(out.fx.shaderReady,true);assert(out.fx.activeParticles>40);
               assert(out.fx.budgets.maxPoints<=760);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);
               assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,1);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
+              await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:14.5,pitch:58,bearing:-12}));
+              await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6061__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true;},{timeout:15000});
+              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6061__;return{zoom:m.getZoom(),version:r?.version,minzoom:m.getLayer('bp2300-rain-world-volume-v6061')?.minzoom,state:r?.state,layerAttached:!!m.getLayer('bp2300-rain-world-volume-v6061')}});
+              assert(rainOut.zoom>=14,'rain renderer test must be above geographic rain activation zoom');
+              assert.equal(rainOut.version,6061,'updated world-anchored rain renderer must be loaded');
+              assert.equal(rainOut.minzoom,14,'geographic rain must start before the former zoom-16-only threshold');
+              assert.equal(rainOut.layerAttached,true,'geographic 3D rain layer must be attached');
+              assert.equal(rainOut.state.worldAnchored,true,'rain layer must report its geographic 3D renderer');
+              assert(rainOut.state.rainCellCount>0&&rainOut.state.particleSeeds>0,'source-backed rain observations must create geographically anchored drops');
+              assert(rainOut.state.activeVertices>0,'the 3D rain layer must actually generate render vertices at close zoom');
+              assert.equal(rainOut.state.rendererError,null,'rain renderer must not report a runtime error');
+              console.log('BRIDGEPOINT_WORLD_ANCHORED_RAIN_PASS',JSON.stringify({zoom:rainOut.zoom,version:rainOut.version,minzoom:rainOut.minzoom,cells:rainOut.state.rainCellCount,seeds:rainOut.state.particleSeeds,vertices:rainOut.state.activeVertices,puddles:rainOut.state.puddleCount}));
               assert.equal(errors.length,0,errors.join('\n'));
               console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({particles:out.fx.activeParticles,quality:out.fx.qualityScale,fps:out.fx.fps,maxPoints:out.fx.budgets.maxPoints,canvases:out.totalCanvases,projection:out.projection}));
             }finally{await browser.close()}
