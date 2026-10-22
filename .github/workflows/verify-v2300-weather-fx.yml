@@ -7,6 +7,7 @@ on:
     paths:
       - 'release-v2300/world-v2300-weather.js'
       - 'release-v2300/world-v2300-rain.js'
+      - 'release-v2300/world-v2300-clouds.js'
       - 'release-v2300/world-v2300-map.js'
       - 'release-v2300/world-v2300-config.js'
       - '.github/workflows/verify-v2300-weather-fx.yml'
@@ -32,6 +33,7 @@ jobs:
           cp release-v2300/world-v2300-worker.js /tmp/bp2300wx/world-v2300-worker.js
           cp release-v2300/world-v2300-weather.js /tmp/bp2300wx/world-v2300-weather.js
           cp release-v2300/world-v2300-rain.js /tmp/bp2300wx/world-v2300-rain.js
+          cp release-v2300/world-v2300-clouds.js /tmp/bp2300wx/world-v2300-clouds.js
           curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o /tmp/bp2300wx/vendor/maplibre-gl.js
           curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o /tmp/bp2300wx/vendor/maplibre-gl.css
           grep -Fq 'sharedMapLibreWebGLContext:true' /tmp/bp2300wx/world-v2300-weather.js
@@ -40,8 +42,11 @@ jobs:
           grep -Fq 'retireLegacyScreenSpaceRain' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "id: LAYER_ID, type: 'custom', renderingMode: '3d', minzoom: 10" /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'const VERSION = 6062;' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'world-v2300-rain.js?v=6062-world-anchored-rain-streaks' /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq 'const VERSION = 6064;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'world-v2300-rain.js?v=6064-cloud-projection-rain' /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq 'u_projection_tile_mercator_coords' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'u_projection_fallback_matrix' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'const MAX_DROPS = MOBILE ? 6000 : 14000;' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'wildfireFlameParticles:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'tornadoCone:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'hurricaneSpiralEye:true' /tmp/bp2300wx/world-v2300-weather.js
@@ -57,6 +62,7 @@ jobs:
           <script type="module">
             import {initWorld} from './world-v2300-map.js';
             import {initWeather} from './world-v2300-weather.js';
+            import {initSkyClouds} from './world-v2300-clouds.js';
             const world=initWorld();window.__bpWorldV2300=world;
             // Production-map integration is verified by V5000. This weather gate removes
             // third-party tile latency while retaining the production MapLibre canvas/context.
@@ -67,6 +73,7 @@ jobs:
                 const style=world?.map?.getStyle?.();
                 if(!style||!Array.isArray(style.layers)||!style.layers.length)return;
                 window.__bpWeatherV2300=initWeather(world.map);
+                window.__bpRainCloudAnchorTest=initSkyClouds(world);
                 window.__BP_WX_TEST_READY__=true;
               }catch(e){window.__BP_WX_TEST_ERROR__=String(e?.stack||e)}
             };
@@ -111,6 +118,7 @@ jobs:
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:10.5,pitch:58,bearing:-12}));
               await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
               await p.waitForFunction(()=>window.__bpWeatherV2300?.state?.counts?.alerts===3,{timeout:15000});
+              await p.waitForFunction(()=>Number(window.__BP_SKY_CLOUDS_STATE_V5908__?.localCloudFormations||0)>0,{timeout:15000});
               await p.waitForFunction(()=>window.__bpWeatherV2300?.fx?.state?.shaderReady===true,{timeout:15000});
               await p.waitForFunction(()=>window.__bpWeatherV2300?.fx?.state?.activeParticles>40,{timeout:15000});
               await new Promise(r=>setTimeout(r,1200));
@@ -121,17 +129,26 @@ jobs:
               assert(out.fx.budgets.maxPoints<=760);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);
               assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,1);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:14.5,pitch:58,bearing:-12}));
-              await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6062__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true;},{timeout:15000});
-              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6062__;return{zoom:m.getZoom(),version:r?.version,state:r?.state,layerAttached:!!m.getLayer('bp2300-rain-world-volume-v6062')}});
+              await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6064__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true&&r.state?.projectionUniformsBound===true&&r.state?.projectionMode==='maplibre-projectTileFor3D';},{timeout:15000});
+              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6064__;return{zoom:m.getZoom(),version:r?.version,state:r?.state,layerAttached:!!m.getLayer('bp2300-rain-world-volume-v6064')}});
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-zoom14-5.png',fullPage:false});
               assert(rainOut.zoom>=10,'rain renderer test must be above geographic rain activation zoom');
               assert.equal(rainOut.version,6062,'updated world-anchored rain renderer must be loaded');
               assert.equal(rainOut.layerAttached,true,'geographic 3D rain layer must be attached');
               assert.equal(rainOut.state.worldAnchored,true,'rain layer must report its geographic 3D renderer');
+              assert.equal(rainOut.state.projectionAware,true,'rain must use MapLibre 3D projection like the cloud renderer');
+              assert.equal(rainOut.state.projectionUniformsBound,true,'rain must bind main/fallback/tile/clipping/transition projection uniforms');
+              assert.equal(rainOut.state.projectionMode,'maplibre-projectTileFor3D','rain must render through the cloud-compatible world projection path');
+              assert(Number(window.__BP_SKY_CLOUDS_STATE_V5908__?.localCloudFormations)>0,'the live rain observation must create a matching 3D cloud formation');
               assert(rainOut.state.rainCellCount>0&&rainOut.state.particleSeeds>0,'source-backed rain observations must create geographically anchored drops');
               assert(rainOut.state.activeVertices>0,'the 3D rain layer must actually generate render vertices at close zoom');
               assert.equal(rainOut.state.rendererError,null,'rain renderer must not report a runtime error');
               console.log('BRIDGEPOINT_WORLD_ANCHORED_RAIN_PASS',JSON.stringify({zoom:rainOut.zoom,version:rainOut.version,cells:rainOut.state.rainCellCount,seeds:rainOut.state.particleSeeds,vertices:rainOut.state.activeVertices,puddles:rainOut.state.puddleCount}));
+              const anchorBefore=rainOut.state.anchorFingerprint;
+              await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3325,41.538],zoom:14.5,pitch:58,bearing:-12}));
+              await new Promise(r=>setTimeout(r,650));
+              const anchorAfter=await p.evaluate(()=>window.__BP_RAIN_RENDERER_V6064__?.state?.anchorFingerprint);
+              assert.equal(anchorAfter,anchorBefore,'rain geographic particle seeds must remain fixed when the camera pans');
               assert.equal(errors.length,0,errors.join('\n'));
               console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({particles:out.fx.activeParticles,quality:out.fx.qualityScale,fps:out.fx.fps,maxPoints:out.fx.budgets.maxPoints,canvases:out.totalCanvases,projection:out.projection}));
             }finally{await browser.close()}
