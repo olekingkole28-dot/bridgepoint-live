@@ -288,6 +288,7 @@ async function initMap(){
    landingWeatherModules.weather?.setRadar?.(false);
    landingWeatherModules.present?.setActive?.(true);
    hideLegacyLandingWeather(world.map);
+   window.__BP_LANDING_VISUAL_WEATHER__={version:6070,enabled:true,cloudsOnlyPhase:true,visualWeatherEffectsEnabled:false,renderer:'isolated-webgl-particle-layer',...landingWeatherModules,mapShared:true,legacyOverlaysHidden:true,radarVisible:false,nationalWeather:true,sourceWeatherFeedActive:true,updatedAt:Date.now()};
    if($('landingWeatherCount'))$('landingWeatherCount').textContent='CLOUDS ONLY · DATA LIVE';
    if($('landingWeatherTime'))$('landingWeatherTime').textContent='Global clouds are the only weather visuals in this phase. Source weather reports remain live for storm-cloud positioning.';
   }).catch(e=>console.warn('BridgePoint cloud-phase weather feeds unavailable',e));
