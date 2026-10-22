@@ -51,14 +51,15 @@ jobs:
           grep -Fq 'retireLegacyScreenSpaceRain' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "id: LAYER_ID, type: 'custom', renderingMode: '3d', minzoom: 10" /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'const VERSION = 6066;' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'world-v2300-rain.js?v=6066-local-rain-cell-footprint' /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq 'const VERSION = 6067;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'world-v2300-rain.js?v=6067-short-world-rain' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'u_projection_tile_mercator_coords' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'u_projection_fallback_matrix' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'const MAX_DROPS = MOBILE ? 900 : 3600;' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'screenScaleM * 2.6' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'screenScaleM * 0.75' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.06, 90, 180);' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'metersPerPixel(lat, zoom) * 0.78' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'segmentM: 7 + hash(seedBase, i, 23) * 12' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'segmentM: 1.2 + hash(seedBase, i, 23) * 2.4' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'else radiusM = thunder ? 900 : 650;' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq '(thunderstorm ? 900 : 650);' /tmp/bp2300wx/world-v2300-clouds.js
           grep -Fq 'thunderstorm ? 450 : 350' /tmp/bp2300wx/world-v2300-clouds.js
@@ -146,12 +147,12 @@ jobs:
               assert(out.fx.budgets.maxPoints<=760);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);
               assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,1);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:14.5,pitch:58,bearing:-12}));
-              await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6066__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true&&r.state?.projectionUniformsBound===true&&r.state?.projectionMode==='maplibre-projectTileFor3D';},{timeout:15000});
-              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6066__,s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:m.getZoom(),version:r?.version,state:r?.state,layerAttached:!!m.getLayer('bp2300-rain-world-volume-v6066'),cloudLocalFormations:Number(s.localCloudFormations||0),cloudDiag:{enabled:s.enabled,visible:s.visible,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,localCloudFormations:s.localCloudFormations,rainCellShelfClouds:s.rainCellShelfClouds,cloudFormations:s.cloudFormations,rendererError:s.rendererError,projectionMode:s.projectionMode}}});
+              await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6067__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true&&r.state?.projectionUniformsBound===true&&r.state?.projectionMode==='maplibre-projectTileFor3D';},{timeout:15000});
+              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6067__,s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:m.getZoom(),version:r?.version,state:r?.state,layerAttached:!!m.getLayer('bp2300-rain-world-volume-v6067'),cloudLocalFormations:Number(s.localCloudFormations||0),cloudDiag:{enabled:s.enabled,visible:s.visible,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,localCloudFormations:s.localCloudFormations,rainCellShelfClouds:s.rainCellShelfClouds,cloudFormations:s.cloudFormations,rendererError:s.rendererError,projectionMode:s.projectionMode}}});
               console.log('BRIDGEPOINT_RAIN_CLOUD_DIAG',JSON.stringify(rainOut.cloudDiag));
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-zoom14-5.png',fullPage:false});
               assert(rainOut.zoom>=10,'rain renderer test must be above geographic rain activation zoom');
-              assert.equal(rainOut.version,6066,'v6066 cloud-footprint world-anchored rain renderer must be loaded');
+              assert.equal(rainOut.version,6067,'v6067 cloud-footprint world-anchored rain renderer must be loaded');
               assert.equal(rainOut.layerAttached,true,'geographic 3D rain layer must be attached');
               assert.equal(rainOut.state.worldAnchored,true,'rain layer must report its geographic 3D renderer');
               assert.equal(rainOut.state.projectionAware,true,'rain must use MapLibre 3D projection like the cloud renderer');
@@ -168,7 +169,7 @@ jobs:
               const anchorBefore=rainOut.state.anchorFingerprint;
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3325,41.538],zoom:14.5,pitch:58,bearing:-12}));
               await new Promise(r=>setTimeout(r,650));
-              const anchorAfter=await p.evaluate(()=>window.__BP_RAIN_RENDERER_V6066__?.state?.anchorFingerprint);
+              const anchorAfter=await p.evaluate(()=>window.__BP_RAIN_RENDERER_V6067__?.state?.anchorFingerprint);
               assert.equal(anchorAfter,anchorBefore,'rain geographic particle seeds must remain fixed when the camera pans');
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-after-pan.png',fullPage:false});
               assert.equal(errors.length,0,errors.join('\n'));
