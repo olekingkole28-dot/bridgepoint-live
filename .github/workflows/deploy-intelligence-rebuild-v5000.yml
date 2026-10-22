@@ -695,6 +695,7 @@ jobs:
           test -s site/app/world-v2300-space.js
           node --check site/world-v2300-worker.js
           node --check site/world-v2300-weather.js
+          node --check site/world-v2300-clouds.js
           node --check site/world-v2300-present-weather.js
           node --check site/app/world-v2300-weather.js
           node --check site/app/world-v2300-present-weather.js
