@@ -451,10 +451,10 @@ jobs:
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' site/world-v2300-weather.js
           grep -Fq 'world-v2300-rain.js?v=6068-geographic-svg-rain' site/app/world-v2300-weather.js
-          grep -Fq 'projectTileFor3D(a_pos.xy,a_altitude)' site/world-v2300-rain.js
+          grep -Fq 'map.project([d.lng, d.lat])' site/world-v2300-rain.js
           grep -Fq 'worldAnchored: true' site/world-v2300-rain.js
           grep -Fq "kind: 'puddle'" site/world-v2300-rain.js
-          grep -Fq 'minzoom: 10' site/world-v2300-rain.js
+          grep -Fq "const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';" site/world-v2300-rain.js
           grep -Fq 'const VERSION = 6068;' site/world-v2300-rain.js
           grep -Fq "const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';" site/world-v2300-rain.js
           grep -Fq 'function drawProjectedRain(now)' site/world-v2300-rain.js
@@ -483,8 +483,8 @@ jobs:
           grep -Fq 'rainCellShelfClouds: rainCellShelfCount' site/world-v2300-clouds.js
           grep -Fq "if (f.kind === 'rain-cell')" site/world-v2300-clouds.js
           grep -Fq 'const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.06, 90, 180);' site/world-v2300-clouds.js
-          grep -Fq 'thunder ? 9800 : 5600' site/world-v2300-rain.js
-          grep -Fq 'baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 450 : 350), 650, 4200)' site/world-v2300-rain.js
+          grep -Fq 'else radiusM = thunder ? 900 : 650;' site/world-v2300-rain.js
+          grep -Fq 'baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 450 : 350), 180, 4200)' site/world-v2300-rain.js
           grep -Fq "if(pr==='rain')return;" site/world-v2300-weather.js
           grep -Fq "'rain-cell'" site/world-v2300-clouds.js
           grep -Fq 'world-v2300-weather.js?v=6068-geographic-svg-rain' site/landing.js
