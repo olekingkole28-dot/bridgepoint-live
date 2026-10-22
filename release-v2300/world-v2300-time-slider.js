@@ -137,7 +137,7 @@ export function initWorldTimeSlider(target,rpc){
   <div class="bpwt-controls">
    <button type="button" data-live aria-pressed="true">● LIVE</button>
    <button type="button" data-play aria-pressed="false">▶ PLAY</button>
-   <button type="button" data-clouds aria-pressed="false" title="Switch the globe to NASA Blue Marble / satellite imagery and enable 3D cloud volumes">☁ NASA EARTH + 3D CLOUDS · OFF</button>
+   <button type="button" data-clouds aria-pressed="true" title="NASA Earth imagery with persistent 3D cloud volumes and local storm effects">☁ NASA EARTH + 3D CLOUDS · ON</button>
    <button type="button" data-nightlights aria-pressed="false">✦ NASA LIGHTS · OFF</button>
    <button type="button" data-refresh>↻ REFRESH</button>
    <span class="bpwt-stats" data-stats>Waiting for map bounds…</span>
@@ -265,10 +265,14 @@ export function initWorldTimeSlider(target,rpc){
   schedule(true,0);
  });
  categoryFilter.addEventListener('change',renderFiltered);domainFilter.addEventListener('change',renderFiltered);hoursSelect.addEventListener('change',()=>schedule(true,0));const syncNightlightsButton=enabled=>{nightlightsBtn.setAttribute('aria-pressed',String(!!enabled));nightlightsBtn.textContent=enabled?'✦ NASA LIGHTS · ON':'✦ NASA LIGHTS · OFF'};const onNightlightsState=e=>{if(e?.detail?.map&&e.detail.map!==map)return;syncNightlightsButton(!!e?.detail?.enabled)};window.addEventListener('bp:nightlights-state',onNightlightsState);let nightlightsToggleBusy=false;async function toggleNasaNightlights(){if(nightlightsToggleBusy)return;nightlightsToggleBusy=true;nightlightsBtn.disabled=true;try{let sensor=window.__BP_SENSOR_LAYERS_V5945__;if(!sensor||sensor.map!==map||typeof sensor.toggleLights!=='function'){const mod=await import('./world-v2300-sensor-layers.js?v=6027-nasa-nightlight-corrected-radiance');sensor=window.__BP_SENSOR_LAYERS_V5945__;if(!sensor||sensor.map!==map)sensor=mod.initSensorLayers(map)}if(!sensor||sensor.map!==map||typeof sensor.toggleLights!=='function')throw new Error('night-light controller did not attach to this map');const enabled=!!sensor.toggleLights();syncNightlightsButton(enabled);setStatus(enabled?'NASA NIGHT LIGHTS ON · requesting VIIRS tiles':'NASA NIGHT LIGHTS OFF · optional imagery removed')}catch(error){setStatus('NASA NIGHT LIGHTS UNAVAILABLE · '+String(error?.message||error).slice(0,90),true);console.warn('BridgePoint NASA night-lights toggle failed',error)}finally{nightlightsToggleBusy=false;nightlightsBtn.disabled=false}}nightlightsBtn.addEventListener('click',()=>{void toggleNasaNightlights()});$('[data-refresh]').addEventListener('click',()=>schedule(true,0));
- let cloudToggleBusy=false,cloudSavedBase=null;
+ let cloudToggleBusy=false,cloudSavedBase=null,defaultCloudModeSynced=false;
  function cloudWorldApi(){return [window.__BP_V5000_WORLD,window.__BP_LANDING_WORLD__,window.__BP_OWNER_WORLD__].find(w=>w?.map===map&&typeof w.setBase==='function')||null}
  function cloudCurrentBase(){const w=cloudWorldApi(),active=w?.base??w?.state?.base;if(w)return active==='satellite'?'satellite':'gta';return window.__BP_TECH_BASEMAP_V1116__?.activeBase==='satellite'?'satellite':'gta'}
  function setCloudEarthBase(mode){const w=cloudWorldApi();if(w){w.setBase(mode);return}try{const sat=mode==='satellite';for(const id of ['gta-nasa','gta-usgs','gta-oam'])if(map.getLayer(id))map.setLayoutProperty(id,'visibility',sat?'visible':'none');map.triggerRepaint?.()}catch(_){}}
+ function syncCloudButton(enabled){cloudBtn.setAttribute('aria-pressed',String(!!enabled));cloudBtn.textContent=enabled?'☁ NASA EARTH + 3D CLOUDS · ON':'☁ NASA EARTH + 3D CLOUDS · OFF'}
+ function adoptDefaultCloudMode(){if(defaultCloudModeSynced)return;const cloud=window.__BP_SKY_CLOUDS_V5908__;if(!cloud||cloud.map!==map||typeof cloud.setEnabled!=='function'||!cloud.enabled)return;cloudSavedBase=cloudCurrentBase();setCloudEarthBase('satellite');defaultCloudModeSynced=true;syncCloudButton(true)}
+ window.addEventListener('bp:sky-cloud-state',e=>{if(e?.detail?.map&&e.detail.map!==map)return;const enabled=!!e?.detail?.enabled;syncCloudButton(enabled);if(enabled&&!cloudToggleBusy)adoptDefaultCloudMode()});
+ setTimeout(adoptDefaultCloudMode,0);
  async function toggleSkyClouds(){
   if(cloudToggleBusy)return;cloudToggleBusy=true;cloudBtn.disabled=true;
   try{
@@ -282,6 +286,7 @@ export function initWorldTimeSlider(target,rpc){
    if(enabling){
     cloudSavedBase=cloudCurrentBase();
     setCloudEarthBase('satellite');
+    defaultCloudModeSynced=true;
     cloud.setEnabled(true);
    }else{
     cloud.setEnabled(false);
