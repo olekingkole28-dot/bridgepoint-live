@@ -882,8 +882,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6041-serial-world-startup' site/app/index.html
-          grep -Fq 'landing.js?v=6038-world-lod-range-apply' site/index.html
+          grep -Fq 'app.js?v=6042-stable-earth-cloud-entry' site/app/index.html
+          grep -Fq 'landing.js?v=6042-earth-cloud-entry' site/index.html
            grep -Fq 'world-v2300-map.js?v=6038-world-lod-range-apply' site/app.js
            grep -Fq 'world-v2300-map.js?v=6038-world-lod-range-apply' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6038-world-lod-range-apply' site/index.html
