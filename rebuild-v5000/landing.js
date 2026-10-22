@@ -147,7 +147,7 @@ function setLandingWeatherEnabled(world,on){
  if(!m)return Promise.resolve(false);
  const enable=async()=>{
   if(!landingWeatherModules){
-   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=6066-local-rain-cell-footprint'),import('./world-v2300-present-weather.js?v=5544')]);
+   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=6067-short-world-rain'),import('./world-v2300-present-weather.js?v=5544')]);
    landingWeatherModules={weather:wm.initWeather(world.map),present:pm.initPresentWeather(world.map)}
   }
   if(!landingWeatherEnabled)return false;
@@ -273,7 +273,7 @@ async function initMap(){
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
   // Start persistent global 3D clouds immediately on the homepage globe, before other visual modules.
-  void import('./world-v2300-clouds.js?v=6067-rain-cell-cloud-footprint')
+  void import('./world-v2300-clouds.js?v=6068-low-rain-shelf')
    .then(m=>{window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
    .catch(e=>console.warn('BridgePoint global 3D cloud field unavailable',e));
    void import('./world-v2300-lod-controls.js?v=6038-world-lod-range-apply').then(m=>{window.__BP_LOD_CONTROL_LANDING_V6016__=m.initWorldLodControls(world,{surface:'landing'})}).catch(e=>console.warn('BridgePoint homepage LOD controls unavailable',e));
