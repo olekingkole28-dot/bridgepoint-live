@@ -147,7 +147,7 @@ function setLandingWeatherEnabled(world,on){
  if(!m)return Promise.resolve(false);
  const enable=async()=>{
   if(!landingWeatherModules){
-   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=6060-rain-guard-order'),import('./world-v2300-present-weather.js?v=5544')]);
+   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=6061-world-anchored-rain'),import('./world-v2300-present-weather.js?v=5544')]);
    landingWeatherModules={weather:wm.initWeather(world.map),present:pm.initPresentWeather(world.map)}
   }
   if(!landingWeatherEnabled)return false;

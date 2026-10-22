@@ -123,7 +123,7 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  const styleReady=()=>{try{return map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch{return false}};
  if(!styleReady())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
  try{
-  const wm=await import('./world-v2300-weather.js?v=6060-rain-guard-order');
+  const wm=await import('./world-v2300-weather.js?v=6061-world-anchored-rain');
   const weather=wm.initWeather(map,{deferActivation:!activate});
   let present=window.__bpPresentWeatherV2301||null;
   if(activate){
