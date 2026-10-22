@@ -8,7 +8,7 @@ const EARTH_CIRCUMFERENCE = 40075016.68557849;
 const RAD = Math.PI / 180;
 const MOBILE = (typeof innerWidth === 'number' && innerWidth <= 760) ||
   /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent || '');
-const MAX_DROPS = MOBILE ? 6000 : 14000;
+const MAX_DROPS = MOBILE ? 1600 : 6000;
 const FLOATS_PER_VERTEX = 5;
 const vertexData = new Float32Array(MAX_DROPS * 6 * FLOATS_PER_VERTEX);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
