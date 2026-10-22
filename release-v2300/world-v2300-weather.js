@@ -1,5 +1,5 @@
 import{VERSION,EMPTY,MOBILE,LOW,TIER,edge,bbox,fc,clamp}from'./world-v2300-config.js';
-import{initRainLayer}from'./world-v2300-rain.js?v=6061-world-anchored-rain';
+import{initRainLayer}from'./world-v2300-rain.js?v=6062-world-anchored-rain-streaks';
 window.__BP_WEATHER_PERFORMANCE_V5822__={version:5822,stableRadarDrape:true,radarBelow3D:true,motionRepaintBudgeted:true,updatedAt:Date.now()};
 
 const RADAR='https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity_time/ImageServer/WMSServer?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=1&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256';
