@@ -452,6 +452,9 @@ jobs:
           grep -Fq 'projectTileFor3D(a_pos.xy,a_altitude)' site/world-v2300-rain.js
           grep -Fq 'worldAnchored: true' site/world-v2300-rain.js
           grep -Fq "kind: 'puddle'" site/world-v2300-rain.js
+          grep -Fq 'minzoom: 16' site/world-v2300-rain.js
+          grep -Fq 'adaptiveWidthM' site/world-v2300-rain.js
+          grep -Fq "if(pr==='rain'&&z>=16)return;" site/world-v2300-weather.js
           grep -Fq "'rain-cell'" site/world-v2300-clouds.js
           grep -Fq 'world-v2300-weather.js?v=6059-street-rain' site/landing.js
           grep -Fq 'bindWeatherVertexArray(gl,weatherVao,weatherVaoMode,weatherVaoExt)' site/world-v2300-weather.js
