@@ -592,6 +592,13 @@ export function initSkyClouds(target) {
   function buildGlobalCloudGeometry() {
     if (globalCloudGeometryCache) return globalCloudGeometryCache;
     const vertices = [], indices = [], macroCandidates = [];
+    const windScene = getScene();
+    let heightResolvedWindPuffs = 0, modelledWindPuffs = 0;
+    const addGlobalPuff = (lng,lat,altitude,rx,ry,rz,tint,slices,stacks,seed) => {
+      const wind=cloudWindVectorFor(lng,lat,altitude,windScene);
+      if(wind.sourceBacked)heightResolvedWindPuffs++;else modelledWindPuffs++;
+      makePuffGeometry(null,MC,vertices,indices,lng,lat,altitude,rx,ry,rz,tint,slices,stacks,seed,wind.dx,wind.dy);
+    };
     const columns = 40, rows = 18, maxMacro = MOBILE ? 110 : 130;
     const cloudScore = (gx, gy, cols, rowCount, edgeSeed) => {
       const waveX = (gx + 0.5) / cols * TAU;
@@ -609,7 +616,7 @@ export function initSkyClouds(target) {
     for (let gy = 0; gy < rows; gy++) for (let gx = 0; gx < columns; gx++) {
       const field = cloudScore(gx, gy, columns, rows, 902);
       if (field.score > 0.58) continue;
-      macroCandidates.push({ gx, gy, rank: hash(gx, gy, 903), seed: hash(gx, gy, 904), cloudness: 1 - field.broad });
+      macroCandidates.push({ gx, gy, rank: field.score + hash(gx, gy, 903) * 0.035, seed: hash(gx, gy, 904), cloudness: 1 - field.broad });
     }
     macroCandidates.sort((a, b) => a.rank - b.rank);
     const macro = macroCandidates.slice(0, maxMacro);
@@ -619,7 +626,7 @@ export function initSkyClouds(target) {
       const lng = (((( -180 + q.gx * 9 + (hash(q.gx, q.gy, 906) - 0.5) * 5.2) + 180) % 360 + 360) % 360) - 180;
       const ground = terrainElevationAt(lng, lat);
       const latScale = Math.sqrt(Math.max(0.16, Math.cos(lat * Math.PI / 180)));
-      const bankRadius = clamp(111320 * (2.00 + hash(q.gx, q.gy, 907) * 2.90) * latScale, 220000, 560000);
+      const bankRadius = clamp(111320 * (2.70 + hash(q.gx, q.gy, 907) * 3.95) * latScale, 320000, 760000);
       const baseAgl = 2200 + hash(q.gx, q.gy, 908) * 2200;
       const topAgl = Math.max(baseAgl + 6500, 10800 + hash(q.gx, q.gy, 909) * 6800);
       const range = topAgl - baseAgl;
@@ -634,8 +641,7 @@ export function initSkyClouds(target) {
         const centerFraction = i === 0 ? 0.50 : 0.48 + hash(k, i, 913) * 0.04;
         const altitude = puffGround + baseAgl + range * centerFraction;
         const vertical = range * (0.425 + hash(k, i, 914) * 0.035);
-        makePuffGeometry(null, MC, vertices, indices, puffLng, puffLat, altitude, rx, ry, vertical,
-          0.30 + hash(q.gx, q.gy, 915) * 0.30, MOBILE ? 6 : 7, 4, hash(q.gx, q.gy, i + 973));
+        addGlobalPuff(puffLng,puffLat,altitude,rx,ry,vertical,0.30+hash(q.gx,q.gy,915)*0.30,MOBILE?6:7,3,hash(q.gx,q.gy,i+973));
       }
     }
 
@@ -669,9 +675,7 @@ export function initSkyClouds(target) {
       const range = topAgl - baseAgl;
       const altitude = ground + baseAgl + range * (0.49 + hash(q.gx, q.gy, 958) * 0.02);
       const vertical = range * (0.40 + hash(q.gx, q.gy, 959) * 0.04);
-      makePuffGeometry(null, MC, vertices, indices, lng, lat, altitude, radius,
-        radius * (0.58 + hash(q.gx, q.gy, 960) * 0.28), vertical,
-        0.28 + hash(q.gx, q.gy, 961) * 0.34, MOBILE ? 5 : 6, 4, hash(q.gx, q.gy, 962));
+      addGlobalPuff(lng,lat,altitude,radius,radius*(0.58+hash(q.gx,q.gy,960)*0.28),vertical,0.28+hash(q.gx,q.gy,961)*0.34,MOBILE?5:6,3,hash(q.gx,q.gy,962));
     }
 
     // Layer 2b — preserve the independent small-cloud population around the planet.
@@ -682,7 +686,7 @@ export function initSkyClouds(target) {
     for (let gy = 0; gy < smallRows; gy++) for (let gx = 0; gx < smallColumns; gx++) {
       const field = cloudScore(gx, gy, smallColumns, smallRows, 967);
       if (field.score > 0.58) continue;
-      smallCandidates.push({ gx, gy, rank: hash(gx, gy, 968), cloudness: 1 - field.broad });
+      smallCandidates.push({ gx, gy, rank: field.score + hash(gx, gy, 968) * 0.04, cloudness: 1 - field.broad });
     }
     smallCandidates.sort((a, b) => a.rank - b.rank);
     const singles = smallCandidates.slice(0, maxSingles);
@@ -713,10 +717,7 @@ export function initSkyClouds(target) {
       const range = topAgl - baseAgl;
       const altitude = ground + baseAgl + range * 0.5;
       const vertical = range * verticalFraction;
-      makePuffGeometry(null, MC, vertices, indices, lng, lat, altitude,
-        radius * (0.72 + hash(q.gx, q.gy, 985) * 0.20),
-        radius * (0.56 + hash(q.gx, q.gy, 986) * 0.30), vertical,
-        0.26 + hash(q.gx, q.gy, 987) * 0.40, 4, 3, hash(q.gx, q.gy, 988));
+      addGlobalPuff(lng,lat,altitude,radius*(0.72+hash(q.gx,q.gy,985)*0.20),radius*(0.56+hash(q.gx,q.gy,986)*0.30),vertical,0.26+hash(q.gx,q.gy,987)*0.40,6,2,hash(q.gx,q.gy,988));
     }
 
     // Layer 3 — sparse high-level cloudlets in the gaps between denser cloud banks.
@@ -736,21 +737,20 @@ export function initSkyClouds(target) {
       const lng = (((( -180 + q.gx * (360 / thinColumns) + (hash(q.gx, q.gy, 994) - 0.5) * 1.3) + 180) % 360 + 360) % 360) - 180;
       const ground = terrainElevationAt(lng, lat);
       const latScale = Math.sqrt(Math.max(0.16, Math.cos(lat * Math.PI / 180)));
-      const radius = clamp((145000 + hash(q.gx, q.gy, 995) * 190000) * latScale, 125000, 335000);
+      const radius = clamp((190000 + hash(q.gx, q.gy, 995) * 260000) * latScale, 165000, 450000);
       const baseAgl = 6800 + hash(q.gx, q.gy, 996) * 1700;
       const topAgl = Math.max(baseAgl + 2600, 11200 + hash(q.gx, q.gy, 997) * 4500);
       const range = topAgl - baseAgl;
       const altitude = ground + baseAgl + range * 0.5;
       const vertical = range * (0.30 + hash(q.gx, q.gy, 998) * 0.07);
-      makePuffGeometry(null, MC, vertices, indices, lng, lat, altitude, radius,
-        radius * (0.78 + hash(q.gx, q.gy, 999) * 0.28), vertical,
-        0.12 + hash(q.gx, q.gy, 1000) * 0.07, 8, 2, hash(q.gx, q.gy, 1001));
+      addGlobalPuff(lng,lat,altitude,radius,radius*(0.78+hash(q.gx,q.gy,999)*0.28),vertical,0.12+hash(q.gx,q.gy,1000)*0.07,9,2,hash(q.gx,q.gy,1001));
     }
     globalCloudGeometryCache = {
       vertices: new Float32Array(vertices),
       indices: new Uint16Array(indices),
       formationCount: macro.length + fine.length + singles.length + thin.length,
-      macroRadiusMinKm: 220, macroRadiusMaxKm: 560, thinLayerSlices: 8, thinLayerStacks: 2,
+      macroRadiusMinKm: 320, macroRadiusMaxKm: 760, thinLayerSlices: 9, thinLayerStacks: 2, singleLayerSlices: 6, singleLayerStacks: 2,
+      heightResolvedWindPuffs, modelledWindPuffs,
       macroFormationCount: macro.length,
       fineFormationCount: fine.length,
       isolatedFormationCount: singles.length,
