@@ -780,7 +780,7 @@ function generateGeometry() {
     if (disposed || !enabled) return;
     const z = number(map.getZoom?.());
     const overviewClouds = z <= 8.5;
-    const maxForm = z <= 5.5 ? (MOBILE ? 44 : 96) : z <= 8.5 ? (MOBILE ? 44 : 88) : (MOBILE ? 18 : 30);
+    const maxForm = z <= 5.5 ? (MOBILE ? 44 : 96) : z <= 8.5 ? (MOBILE ? 44 : 88) : (MOBILE ? 44 : 30);
     const vertices = [], indices = [], formations = [];
     measuredCount = 0; funnelCount = 0; stormCount = 0; rainCellShelfCount = 0; sourceCloudObservationCount = 0;
     hurricaneSpiralCloudCenters = 0; hurricaneCloudShieldRadiusKm = 0;
