@@ -55,7 +55,7 @@ jobs:
           grep -Fq "const RAIN_OVERLAY_ID = 'bp2300-rain-geographic-svg-v6068';" /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'function drawProjectedRain(now)' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'map.project([d.lng, d.lat])' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'world-v2300-rain.js?v=6068-geographic-svg-rain' /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq 'world-v2300-rain.js?v=6070-clouds-only-phase' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "lastProjectionMode = 'geographic-map-project'" /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'map.project([d.lng, d.lat])' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'const MAX_DROPS = MOBILE ? 900 : 3600;' /tmp/bp2300wx/world-v2300-rain.js
