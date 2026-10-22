@@ -171,8 +171,14 @@ function createFx(map){
    onAdd(_m,gl){try{initGl(gl)}catch(e){shaderReady=false;console.warn('V2300 weather GPU',e)}},
    onRemove(_m,gl){try{if(buffer)gl.deleteBuffer(buffer);if(program)gl.deleteProgram(program)}catch(_){}shaderReady=false},
    render(gl){
-    if(!enabled||!shaderReady||!particleAnimationNeeded())return;
-    const n=particles(performance.now());if(!n)return;
+    const diagnostic=window.__BP_WEATHER_FX_DIAGNOSTIC_V6050__||(window.__BP_WEATHER_FX_DIAGNOSTIC_V6050__={renderCalls:0,skippedCalls:0,particleErrors:0,updatedAt:0});
+    const animationNeeded=particleAnimationNeeded();
+    diagnostic.renderCalls++;diagnostic.enabled=enabled;diagnostic.shaderReady=shaderReady;diagnostic.animationNeeded=animationNeeded;diagnostic.updatedAt=Date.now();
+    if(!enabled||!shaderReady||!animationNeeded){diagnostic.skippedCalls++;diagnostic.lastSkip=!enabled?'disabled':!shaderReady?'shader-not-ready':'animation-gate';return}
+    let n=0;
+    try{n=particles(performance.now());diagnostic.particleCount=n;diagnostic.particlesUpdatedAt=Date.now()}
+    catch(e){diagnostic.particleErrors++;diagnostic.lastParticleError=String(e?.stack||e);console.warn('V2300 weather particle update',e);return}
+    if(!n){diagnostic.lastZeroParticlesAt=Date.now();return}
     let saved=null;
     try{
      saved=captureWeatherGLState(gl,[attrs.pos,attrs.size,attrs.kind,attrs.alpha,attrs.phase,attrs.aux]);

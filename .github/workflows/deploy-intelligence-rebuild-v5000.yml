@@ -442,8 +442,8 @@ jobs:
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
           grep -Fq 'world-v2300-clouds.js?v=6048-cloud-continuity' site/app.js
           grep -Fq 'world-v2300-clouds.js?v=6048-cloud-continuity' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6049-world-anchored-cinematic-hazards' site/app.js
-          grep -Fq 'world-v2300-weather.js?v=6049-world-anchored-cinematic-hazards' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6050-weather-render-diagnostics' site/app.js
+          grep -Fq 'world-v2300-weather.js?v=6050-weather-render-diagnostics' site/landing.js
           grep -Fq 'world-v2300-time-slider.js?v=6048-cloud-continuity' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6048-cloud-continuity' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
