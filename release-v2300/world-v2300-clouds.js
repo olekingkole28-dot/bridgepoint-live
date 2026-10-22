@@ -619,7 +619,7 @@ export function initSkyClouds(target) {
       makePuffGeometry(null, MC, vertices, indices, lng, lat, altitude,
         radius * (0.72 + hash(q.gx, q.gy, 985) * 0.20),
         radius * (0.56 + hash(q.gx, q.gy, 986) * 0.30), vertical,
-        0.26 + hash(q.gx, q.gy, 987) * 0.40, 7, 5, hash(q.gx, q.gy, 988));
+        0.26 + hash(q.gx, q.gy, 987) * 0.40, 6, 4, hash(q.gx, q.gy, 988));
     }
 
     // Layer 3 — sparse high-level cloudlets in the gaps between denser cloud banks.
