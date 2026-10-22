@@ -253,7 +253,8 @@ export function initSkyClouds(target) {
       persistentGlobalCloudField: true, localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount,
       cloudHeightSource: heightSource,
       layerPresent: !!map.getLayer?.(LAYER_ID), layerInstalled,
-      layerRetryAttempts, mapStyleLoaded: map.isStyleLoaded?.() === true, documentHidden: !!document.hidden,
+      layerRetryAttempts, mapStyleLoaded: map.isStyleLoaded?.() === true,
+      mapStyleLayerCount: map.getStyle?.()?.layers?.length ?? 0, documentHidden: !!document.hidden,
       cloudHeightMode: measuredCount ? 'source-backed cloud-top height samples, with procedural fill between samples' : 'procedural altitude only; measured global cloud-top heights are not connected',
       warningFunnels: funnelCount, hurricaneStormVolumes: stormCount,
       funnelCaveat: funnelCount ? 'Illustrative funnel context inside active tornado-warning geometry; a warning is not confirmation of a tornado.' : null,
@@ -431,7 +432,11 @@ export function initSkyClouds(target) {
   }
   function addLayerIfReady() {
     if (disposed) return;
-    if (!map.isStyleLoaded?.()) { scheduleLayerRetry(240); return; }
+    // A style may expose its layer graph before all sources/tiles finish loading.
+    // Attempt attachment as soon as the graph exists; MapLibre errors are caught below
+    // and retried without blocking the existing map or cloud geometry.
+    const style = map.getStyle?.();
+    if (!style || !Array.isArray(style.layers)) { scheduleLayerRetry(240); publishState(); return; }
     if (map.getLayer?.(LAYER_ID)) {
       layerInstalled = true;
       clearLayerRetry();
