@@ -51,11 +51,12 @@ jobs:
           grep -Fq 'retireLegacyScreenSpaceRain' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "id: LAYER_ID, type: 'custom', renderingMode: '3d', minzoom: 10" /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'const VERSION = 6064;' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'world-v2300-rain.js?v=6064-cloud-projection-rain' /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq 'const VERSION = 6065;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'world-v2300-rain.js?v=6065-rain-visible-curtain' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'u_projection_tile_mercator_coords' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'u_projection_fallback_matrix' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'const MAX_DROPS = MOBILE ? 1600 : 6000;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'const MAX_DROPS = MOBILE ? 2400 : 7600;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'screenScaleM * 42' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'wildfireFlameParticles:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'tornadoCone:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'hurricaneSpiralEye:true' /tmp/bp2300wx/world-v2300-weather.js
@@ -138,8 +139,8 @@ jobs:
               assert(out.fx.budgets.maxPoints<=760);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);
               assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,1);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:14.5,pitch:58,bearing:-12}));
-              await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6064__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true&&r.state?.projectionUniformsBound===true&&r.state?.projectionMode==='maplibre-projectTileFor3D';},{timeout:15000});
-              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6064__;return{zoom:m.getZoom(),version:r?.version,state:r?.state,layerAttached:!!m.getLayer('bp2300-rain-world-volume-v6064'),cloudLocalFormations:Number(window.__BP_SKY_CLOUDS_STATE_V5908__?.localCloudFormations||0)}});
+              await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6065__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true&&r.state?.projectionUniformsBound===true&&r.state?.projectionMode==='maplibre-projectTileFor3D';},{timeout:15000});
+              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6065__;return{zoom:m.getZoom(),version:r?.version,state:r?.state,layerAttached:!!m.getLayer('bp2300-rain-world-volume-v6065'),cloudLocalFormations:Number(window.__BP_SKY_CLOUDS_STATE_V5908__?.localCloudFormations||0)}});
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-zoom14-5.png',fullPage:false});
               assert(rainOut.zoom>=10,'rain renderer test must be above geographic rain activation zoom');
               assert.equal(rainOut.version,6064,'cloud-compatible world-anchored rain renderer must be loaded');
@@ -156,8 +157,9 @@ jobs:
               const anchorBefore=rainOut.state.anchorFingerprint;
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3325,41.538],zoom:14.5,pitch:58,bearing:-12}));
               await new Promise(r=>setTimeout(r,650));
-              const anchorAfter=await p.evaluate(()=>window.__BP_RAIN_RENDERER_V6064__?.state?.anchorFingerprint);
+              const anchorAfter=await p.evaluate(()=>window.__BP_RAIN_RENDERER_V6065__?.state?.anchorFingerprint);
               assert.equal(anchorAfter,anchorBefore,'rain geographic particle seeds must remain fixed when the camera pans');
+              await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-after-pan.png',fullPage:false});
               assert.equal(errors.length,0,errors.join('\n'));
               console.log('BRIDGEPOINT_V2300_WEATHER_FX_ANDROID_PASS',JSON.stringify({particles:out.fx.activeParticles,quality:out.fx.qualityScale,fps:out.fx.fps,maxPoints:out.fx.budgets.maxPoints,canvases:out.totalCanvases,projection:out.projection}));
             }finally{await browser.close()}
@@ -168,6 +170,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bridgepoint-world-anchored-rain-visual-qa
-          path: /tmp/bp2300wx/world-anchored-rain-zoom14-5.png
+          path: /tmp/bp2300wx/world-anchored-rain-*.png
           if-no-files-found: ignore
           retention-days: 7
