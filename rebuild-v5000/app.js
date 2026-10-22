@@ -1,3 +1,4 @@
+window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;
 const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co';
 window.__BP_APP_BUILD_VERSION__=5910;window.__BP_PUBLIC_MARKET_MAP_V5906__={publicMap:true,publicOpportunityLayers:true,updatedAt:Date.now()}
 const KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25';
@@ -123,17 +124,17 @@ async function initSharedVisualWeather(targetWorld,{activate=true}={}){
  const styleReady=()=>{try{return map.isStyleLoaded?.()===true||!!map.getSource?.('ofm')}catch{return false}};
  if(!styleReady())await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;resolve()};map.once?.('load',finish);setTimeout(finish,5000)});
  try{
-  const wm=await import('./world-v2300-weather.js?v=6068-geographic-svg-rain');
+  const wm=await import('./world-v2300-weather.js?v=6070-clouds-only-phase');
   const weather=wm.initWeather(map,{deferActivation:!activate});
   let present=window.__bpPresentWeatherV2301||null;
   if(activate){
    weather?.setActive?.(true);
-   const pm=await import('./world-v2300-present-weather.js?v=5544');
+   const pm=await import('./world-v2300-present-weather.js?v=6070-clouds-only-phase');
    present=pm.initPresentWeather(map);
    present?.setActive?.(true)
   }
   weather?.setRadar?.(false);
-  window.__BP_SHARED_VISUAL_WEATHER__={version:6057,weather,present,mapShared:true,capabilitiesRegistered:true,networkActivationDeferred:!activate,streetWalkLiveSimulation:false,cinematicFx:true,legacyOverlaysHidden:true,renderer:'isolated-webgl-particle-layer',radarVisible:false,radarOwnedByAppLiveStack:false,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,globalFx:true,updatedAt:Date.now()};
+  window.__BP_SHARED_VISUAL_WEATHER__={version:6057,weather,present,mapShared:true,capabilitiesRegistered:true,networkActivationDeferred:!activate,streetWalkLiveSimulation:false,cinematicFx:window.__BP_CLOUDS_ONLY_PHASE_V6070__!==true,cloudsOnlyPhase:window.__BP_CLOUDS_ONLY_PHASE_V6070__===true,visualWeatherEffectsEnabled:window.__BP_CLOUDS_ONLY_PHASE_V6070__!==true,legacyOverlaysHidden:true,renderer:'isolated-webgl-particle-layer',radarVisible:false,radarOwnedByAppLiveStack:false,radarAnimatedAtCloseZoom:false,radarGroundDrape:true,globalFx:true,updatedAt:Date.now()};
   return window.__BP_SHARED_VISUAL_WEATHER__
  }catch(e){console.warn('BridgePoint shared visual weather',e);return null}
 }
@@ -154,7 +155,7 @@ async function bootMap(){
  // initialization avoids a burst of source/layer changes during the first Gold LOD render.
  // Initialize the persistent global 3D cloud field as soon as the core map exists;
  // do not make the globe wait behind the idle-only optional module queue.
- void import('./world-v2300-clouds.js?v=6068-low-rain-shelf')
+ void import('./world-v2300-clouds.js?v=6070-global-cloud-coverage')
   .then(m=>{if(world?.map)window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
   .catch(e=>console.warn('BridgePoint global 3D cloud field unavailable',e));
  const optionalWorldJobs=[
