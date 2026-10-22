@@ -750,7 +750,7 @@ export function initSkyClouds(target) {
       indices: new Uint16Array(indices),
       formationCount: macro.length + fine.length + singles.length + thin.length,
       macroRadiusMinKm: 320, macroRadiusMaxKm: 760, thinLayerSlices: 9, thinLayerStacks: 2, singleLayerSlices: 6, singleLayerStacks: 2,
-      heightResolvedWindPuffs, modelledWindPuffs,
+      heightResolvedWindPuffs, modelledWindPuffs, windSampleSignature: windSampleSignature === 'uninitialized' ? 'no-height-resolved-wind-grid' : windSampleSignature,
       macroFormationCount: macro.length,
       fineFormationCount: fine.length,
       isolatedFormationCount: singles.length,
@@ -1079,11 +1079,18 @@ function scheduleGeometry(delay = 180) {
     publishState();
   }
   function onMoveEnd() { if (enabled) publishState(); }
+  let windSampleSignature = 'uninitialized';
   function onWeatherUpdated() {
-    // Weather arrives after the global cloud field starts. Rebuild the local
-    // rain-cell cloud formations from the same observation coordinates/heights
-    // so precipitation has a real 3D cloud base over its reported rain footprint.
-    if (enabled && !disposed) scheduleGeometry(0);
+    // Refresh only the optional upper-air sample field when a new weather scene arrives.
+    // Rebuild the global cloud buffers only when the height-resolved wind grid changes.
+    if (!enabled || disposed) return;
+    const scene = getScene();
+    windSampleScene = null; windSampleCache = [];
+    const samples = collectHeightResolvedWindSamples(scene);
+    const nextSignature = samples.length + ':' + samples.slice(0,8).map(x=>`${x.lng.toFixed(2)},${x.lat.toFixed(2)},${Math.round(x.altitude)},${Math.round(x.east*10)},${Math.round(x.north*10)},${x.timestamp||''}`).join('|');
+    if (samples.length && globalCloudGeometryCache && nextSignature !== globalCloudGeometryCache.windSampleSignature) globalCloudGeometryCache = null;
+    windSampleSignature = nextSignature;
+    scheduleGeometry(0);
   }
   function onStyleData() { if (enabled && !map.getLayer?.(LAYER_ID)) { layerRetryAttempts = 0; addLayerIfReady(); } }
   function onLayerIdle() { if (enabled && !disposed && !map.getLayer?.(LAYER_ID)) { layerRetryAttempts = 0; addLayerIfReady(); } }
@@ -1101,10 +1108,10 @@ function scheduleGeometry(delay = 180) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6076, map, overlay,
+    version: 6077, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
-    get state() { return window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6075__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
+    get state() { return window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ || window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
     destroy() {
       if (disposed) return; disposed = true;
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle); clearLayerRetry();
