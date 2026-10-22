@@ -1,5 +1,5 @@
 import{VERSION,EMPTY,MOBILE,LOW,TIER,edge,bbox,fc,clamp}from'./world-v2300-config.js';
-import{initRainLayer}from'./world-v2300-rain.js?v=6066-local-rain-cell-footprint';
+import{initRainLayer}from'./world-v2300-rain.js?v=6067-short-world-rain';
 
 function retireLegacyScreenSpaceRain() {
   // V1997/V2081 draws source events into a viewport-sized canvas. That old layer
