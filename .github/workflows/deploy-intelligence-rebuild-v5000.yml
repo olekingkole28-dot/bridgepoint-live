@@ -538,12 +538,12 @@ jobs:
           grep -Fq 'hurricaneCloudShieldRadiusKm' site/world-v2300-clouds.js
           grep -Fq 'if (field.score <= 0.58 || field.score > 0.90) continue;' site/world-v2300-clouds.js
           grep -Fq 'maxThin = MOBILE ? 750 : 850' site/world-v2300-clouds.js
-          grep -Fq '105000, 285000' site/world-v2300-clouds.js
+          grep -Fq '125000, 335000' site/world-v2300-clouds.js
           grep -Fq 'maxMacro = MOBILE ? 110 : 130' site/world-v2300-clouds.js
           grep -Fq 'globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0' site/world-v2300-clouds.js
           grep -Fq 'if (Number(existingCloudController.version) >= 6076' site/world-v2300-clouds.js
           grep -Fq 'const columns = 40, rows = 18, maxMacro = MOBILE ? 110 : 130;' site/world-v2300-clouds.js
-          grep -Fq '145000, 330000' site/world-v2300-clouds.js
+          grep -Fq '220000, 560000' site/world-v2300-clouds.js
           grep -Fq '0.26 + hash(q.gx, q.gy, 987) * 0.40, 4, 3, hash(q.gx, q.gy, 988));' site/world-v2300-clouds.js
           grep -Fq 'const thinColumns = 126, thinRows = 56, maxThin = MOBILE ? 750 : 850;' site/world-v2300-clouds.js
           grep -Fq 'thinLayerFormationCount: thin.length' site/world-v2300-clouds.js
