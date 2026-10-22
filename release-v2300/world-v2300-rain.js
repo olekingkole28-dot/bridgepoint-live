@@ -115,19 +115,19 @@ export function initRainLayer(map, getScene = () => ({})) {
       if (!map.getLayer(WET_LAYER)) map.addLayer({
         id: WET_LAYER, type: 'fill', source: GROUND_SOURCE, minzoom: 8,
         filter: ['==', ['get', 'kind'], 'wet-ground'],
-        paint: { 'fill-color': '#263e49', 'fill-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.015, 0.25, 0.055, 0.65, 0.095, 1, 0.14] }
+        paint: { 'fill-color': '#263e49', 'fill-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.025, 0.25, 0.075, 0.65, 0.14, 1, 0.19] }
       }, before);
       if (!map.getLayer(PUDDLE_LAYER)) map.addLayer({
         id: PUDDLE_LAYER, type: 'fill', source: GROUND_SOURCE, minzoom: 13.5,
         filter: ['==', ['get', 'kind'], 'puddle'],
         paint: { 'fill-color': ['match', ['get', 'shade'], 1, '#2b5b6b', 2, '#355a65', '#254b5d'],
-          'fill-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.015, 0.2, 0.1, 0.6, 0.2, 1, 0.29] }
+          'fill-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.025, 0.2, 0.19, 0.6, 0.34, 1, 0.48] }
       }, before);
       if (!map.getLayer(PUDDLE_GLINT)) map.addLayer({
         id: PUDDLE_GLINT, type: 'line', source: GROUND_SOURCE, minzoom: 14,
         filter: ['==', ['get', 'kind'], 'puddle'],
         paint: { 'line-color': '#a9deea', 'line-width': ['interpolate', ['linear'], ['zoom'], 14, 0.2, 17, 0.75, 20, 1.15],
-          'line-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.015, 0.25, 0.1, 0.7, 0.22, 1, 0.3], 'line-blur': 0.25 }
+          'line-opacity': ['interpolate', ['linear'], ['get', 'wetness'], 0, 0.025, 0.25, 0.18, 0.7, 0.38, 1, 0.58], 'line-blur': 0.25 }
       }, before);
       for (const id of [WET_LAYER, PUDDLE_LAYER, PUDDLE_GLINT]) {
         const current = map.getLayoutProperty?.(id, 'visibility');
@@ -294,7 +294,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     }).filter(Boolean);
     const view = center ? { lng: center.lng, lat: center.lat } : { lng: 0, lat: 0 };
     candidates.sort((a, b) => distanceMeters(a, view) - distanceMeters(b, view));
-    return candidates.slice(0, z >= 13 ? (MOBILE ? 2 : 4) : (MOBILE ? 3 : 6));
+    return candidates.slice(0, z >= 13 ? (MOBILE ? 4 : 8) : (MOBILE ? 5 : 10));
   }
 
   function makeDropSeeds(nextCells) {
@@ -430,10 +430,10 @@ export function initRainLayer(map, getScene = () => ({})) {
     const canvas = map.getCanvas?.();
     if (z >= 13.5 && canvas && center) {
       const maxRadius = clamp(metersPerPixel(center.lat, z) * Math.min(canvas.clientWidth || 400, canvas.clientHeight || 700) * 0.26, 90, 850);
-      const spacing = MOBILE ? 46 : 38;
+      const spacing = MOBILE ? 32 : 28;
       const iy0 = Math.floor((center.lat * 111320) / spacing), ix0 = Math.floor((center.lng * 111320 * Math.cos(center.lat * RAD)) / spacing);
       const reach = Math.ceil(maxRadius / spacing) + 1;
-      const budget = MOBILE ? 56 : 176;
+      const budget = MOBILE ? 96 : 240;
       const localCells = ordered.filter(mem => mem.wetness > 0.09 && now - mem.lastRainAt <= 9 * 60 * 1000 &&
         distanceMeters(mem.cell, center) <= mem.cell.radiusM);
       let made = 0;
@@ -448,7 +448,7 @@ export function initRainLayer(map, getScene = () => ({})) {
           if (distanceMeters(at, center) > maxRadius) continue;
           const mem = localCells.find(m => distanceMeters(at, m.cell) <= m.cell.radiusM);
           if (!mem || hash(seed, 9, 4) > (MOBILE ? 0.34 : 0.42)) continue;
-          const size = 0.75 + hash(seed, 13, 3) * 3.2, length = size * (0.45 + hash(seed, 16, 5) * 0.65);
+          const size = clamp(metersPerPixel(lat, z) * (0.55 + hash(seed, 13, 3) * 1.55), 2.2, 26), length = size * (0.55 + hash(seed, 16, 5) * 0.9);
           const rotation = hash(seed, 19, 7) * Math.PI;
           features.push({ type: 'Feature',
             geometry: { type: 'Polygon', coordinates: [puddlePolygon(lng, lat, size, length, rotation, seed, 8)] },
