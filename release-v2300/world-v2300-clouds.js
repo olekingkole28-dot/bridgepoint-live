@@ -275,7 +275,8 @@ export function initSkyClouds(target) {
       terrainHeightQueries++;
       if (typeof raw === 'number' && Number.isFinite(raw)) {
         terrainHeightKnownSamples++;
-        const height = clamp(Math.max(0, raw) + 450, 450, 9500);
+        // Cloud altitudes are heights above the sampled land surface, or mean-sea-level 0 m when the DEM returns a sub-sea-level bed. Bathymetry is not used as the sea-surface height.
+        const height = clamp(raw < 0 ? 0 : raw, 0, 9500);
         terrainHeightCache.set(key, height);
         return height;
       }
@@ -373,6 +374,7 @@ export function initSkyClouds(target) {
       projectionShaderVariantNames: Array.from(programCache.keys()),
       persistentGlobalCloudField: true, globalCoverageModel: 'three procedural spatial layers: broad connected regional cloud banks, 700/760 rounded individual cloud cells and 750/850 thin high-level puffs; global satellite cloud-mask feed not yet connected', localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), rainCellShelfClouds: rainCellShelfCount, redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount, sourceCloudObservationFormations: sourceCloudObservationCount,
       cloudHeightSource: heightSource,
+      cloudWaterHeightReference: terrainQueryAvailable ? 'Map terrain heights on land; sub-sea-level samples use mean-sea-level 0 m fallback. Tides, inland water levels and verified bathymetry are not connected.' : 'No terrain elevation query; 0 m mean-sea-level fallback over water; source-backed water levels and bathymetry are not connected.',
       layerPresent: !!map.getLayer?.(LAYER_ID), layerInstalled,
       layerRetryAttempts, mapStyleLoaded: map.isStyleLoaded?.() === true,
       mapStyleLayerCount: map.getStyle?.()?.layers?.length ?? 0, documentHidden: !!document.hidden,
@@ -778,7 +780,7 @@ function generateGeometry() {
     if (disposed || !enabled) return;
     const z = number(map.getZoom?.());
     const overviewClouds = z <= 8.5;
-    const maxForm = z <= 5.5 ? (MOBILE ? 44 : 96) : z <= 8.5 ? (MOBILE ? 44 : 88) : (MOBILE ? 18 : 40);
+    const maxForm = z <= 5.5 ? (MOBILE ? 44 : 96) : z <= 8.5 ? (MOBILE ? 44 : 88) : (MOBILE ? 18 : 30);
     const vertices = [], indices = [], formations = [];
     measuredCount = 0; funnelCount = 0; stormCount = 0; rainCellShelfCount = 0; sourceCloudObservationCount = 0;
     hurricaneSpiralCloudCenters = 0; hurricaneCloudShieldRadiusKm = 0;
@@ -972,7 +974,7 @@ function generateGeometry() {
       const wind=cloudWindVectorFor(lng,lat,altitude,scene,windContext);
       if(wind.sourceBacked)localWindSourcePuffs++;else localWindModelledPuffs++;
       makePuffGeometry(null,MC,vertices,indices,getLon(lng),clamp(lat,-82,82),altitude,rx,ry,rz,tint,
-        lowCost?(MOBILE?6:7):(MOBILE?8:9),lowCost?2:6,seed,wind.dx,wind.dy);
+        lowCost?(MOBILE?6:7):(MOBILE?7:8),lowCost?2:3,seed,wind.dx,wind.dy);
     }
     const globeScale = z <= 8.5;
     for (let k = 0; k < formations.length; k++) {
