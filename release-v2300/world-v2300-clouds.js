@@ -552,7 +552,42 @@ function generateGeometry() {
         baseM: clamp(baseM, 450, 14000), topM: clamp(topM, baseM + 180, 18500), seed, kind });
     }
 
-    // These features are anchored to coordinates supplied by the weather/source scene.
+    // Rain-only cloud anchors: source-reported precipitation observations get a local 3D cloud base.
+    // This supplements, rather than replaces, the persistent global cloud field and existing cloud shader.
+    const rainAnchorObservations = (Array.isArray(scene?.observations) ? scene.observations : [])
+      .filter(o => {
+        const raw = String([o?.weather, o?.present_weather, o?.weather_text, o?.wx, o?.condition, o?.conditions, o?.rawdata]
+          .filter(Boolean).join(' ')).toLowerCase();
+        if (/hail|graupel|ice pellet|snow|flurr|blizzard/.test(raw) && !/freezing rain/.test(raw)) return false;
+        return /\bra\b|\bdz\b|rain|drizzle|shower|thunderstorm|\bts\b/.test(raw);
+      })
+      .filter(o => Number.isFinite(Number(o?.lng ?? o?.longitude)) && Number.isFinite(Number(o?.lat ?? o?.latitude)))
+      .sort((a, b) => {
+        const c = map.getCenter?.();
+        if (!c) return 0;
+        const da = Math.hypot((Number(a.lng ?? a.longitude) - c.lng) * Math.cos(c.lat * Math.PI / 180), Number(a.lat ?? a.latitude) - c.lat);
+        const db = Math.hypot((Number(b.lng ?? b.longitude) - c.lng) * Math.cos(c.lat * Math.PI / 180), Number(b.lat ?? b.latitude) - c.lat);
+        return da - db;
+      });
+    for (const sample of rainAnchorObservations.slice(0, MOBILE ? 2 : 4)) {
+      const lng = number(sample.lng, number(sample.longitude, NaN));
+      const lat = number(sample.lat, number(sample.latitude, NaN));
+      if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+      const raw = String([sample.weather, sample.present_weather, sample.weather_text, sample.wx, sample.condition, sample.rawdata]
+        .filter(Boolean).join(' ')).toLowerCase();
+      const thunderstorm = /thunderstorm|\bts\b|squall/.test(raw);
+      const elevation = Math.max(0, number(map.queryTerrainElevation?.([lng, lat]), 0));
+      const baseAgl = clamp(number(sample.cloud_base_height_m, number(sample.cloudBaseHeightM, thunderstorm ? 1650 : 1050)), 650, 4200);
+      const top = clamp(number(sample.cloud_top_height_m, number(sample.cloudTopHeightM, thunderstorm ? 10400 : 6500)), baseAgl + 500, 16000);
+      const suppliedRadius = number(sample.precipitation_radius_mi, number(sample.rain_radius_mi, NaN));
+      const radiusM = Number.isFinite(suppliedRadius) && suppliedRadius > 0
+        ? clamp(suppliedRadius * 1609.34, 2200, 26000)
+        : (thunderstorm ? 9800 : 5600);
+      addFormation(lng, lat, radiusM, elevation + baseAgl, elevation + top,
+        hash(lng, lat, 6058), 'rain-cell');
+    }
+
+    // Existing source-measured cloud-height samples stay intact.
     for (const sample of measured.slice(0, MOBILE ? 7 : 35)) {
       const top = number(sample.cloud_top_height_m, number(sample.cloudTopHeightM));
       if (top < 200 || top > 23000) continue;
