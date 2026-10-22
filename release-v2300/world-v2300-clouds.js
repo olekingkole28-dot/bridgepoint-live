@@ -476,10 +476,18 @@ export function initSkyClouds(target) {
     const vertices = [], indices = [], macroCandidates = [];
     const columns = 40, rows = 18, maxMacro = MOBILE ? 110 : 150;
     for (let gy = 0; gy < rows; gy++) for (let gx = 0; gx < columns; gx++) {
-      const broad = hash(Math.floor(gx / 3), Math.floor(gy / 2), 901);
-      const fine = hash(gx, gy, 902);
-      if (broad * 0.58 + fine * 0.42 > 0.64) continue;
-      macroCandidates.push({ gx, gy, rank: hash(gx, gy, 903), seed: hash(gx, gy, 904) });
+      // A low-frequency, wrap-safe wave field supplies coherent planetary cloud bands.
+      // The small deterministic term roughens the edge; it no longer chooses isolated
+      // cells independently, which was the source of the patchwork/brick-cloud look.
+      const waveX = (gx + 0.5) / columns * TAU;
+      const waveY = (gy + 0.5) / rows * TAU - Math.PI;
+      const wave = 0.52 * Math.sin(waveX * 1.25 + Math.sin(waveY * 1.7) * 1.3) +
+        0.29 * Math.cos(waveY * 2.1 - waveX * 0.37) +
+        0.19 * Math.sin(waveX * 0.61 + waveY * 1.3);
+      const broad = clamp(0.5 + 0.5 * wave, 0, 1);
+      const edgeNoise = hash(gx, gy, 902);
+      if (broad * 0.72 + edgeNoise * 0.28 > 0.58) continue;
+      macroCandidates.push({ gx, gy, rank: hash(gx, gy, 903), seed: hash(gx, gy, 904), cloudness: 1 - broad });
     }
     macroCandidates.sort((a, b) => a.rank - b.rank);
     const macro = macroCandidates.slice(0, maxMacro);
