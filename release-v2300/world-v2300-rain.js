@@ -312,7 +312,7 @@ export function initRainLayer(map, getScene = () => ({})) {
         const fallSpeedMps = 7.5 + hash(seedBase, i, 19) * 4.5;
         all.push({ lng, lat, groundM, baseAglM, windHeading: cell.wind.heading, windMps: cell.wind.mps,
           phase: hash(seedBase, i, 17), fallRate: fallSpeedMps / Math.max(300, baseAglM),
-          segmentM: 18 + hash(seedBase, i, 23) * 42, widthM: 0.16 + hash(seedBase, i, 29) * 0.20,
+          segmentM: 7 + hash(seedBase, i, 23) * 12, widthM: 0.10 + hash(seedBase, i, 29) * 0.12,
           alpha: 0.54 + hash(seedBase, i, 31) * 0.34 });
       }
     }
@@ -333,7 +333,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     for (const d of drops) {
       if (n >= MAX_DROPS * 6) break;
       const screenScaleM = metersPerPixel(d.lat, zoom);
-      const segmentM = Math.min(d.baseAglM * 0.82, Math.max(d.segmentM, screenScaleM * 20));
+      const segmentM = Math.min(d.baseAglM * 0.18, Math.max(d.segmentM, screenScaleM * 2.6));
       const phase = mod(d.phase + seconds * d.fallRate, 1);
       const fallAgl = d.baseAglM * (1 - phase), lowerAgl = Math.max(0, fallAgl - segmentM);
       const shiftM = Math.min(220, d.windMps * (d.baseAglM - fallAgl) / Math.max(5, 8.5));
@@ -346,7 +346,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       const bLat = clamp(lat + Math.cos(d.windHeading) * tiltM / 111320, -84, 84);
       const bLng = lng + Math.sin(d.windHeading) * tiltM / (111320 * Math.max(0.12, Math.cos(bLat * RAD)));
       const b = mercator(bLng, bLat, bottomAlt);
-      const adaptiveWidthM = Math.max(d.widthM, metersPerPixel(lat, zoom) * 1.3);
+      const adaptiveWidthM = Math.max(d.widthM, metersPerPixel(lat, zoom) * 0.78);
       const halfW = c.unit * adaptiveWidthM * 0.5, halfSide = c.unit * adaptiveWidthM * 0.06;
       const lx = Math.cos(d.windHeading) * halfW, ly = -Math.sin(d.windHeading) * halfW;
       const bx = Math.sin(d.windHeading) * halfSide, by = Math.cos(d.windHeading) * halfSide;
