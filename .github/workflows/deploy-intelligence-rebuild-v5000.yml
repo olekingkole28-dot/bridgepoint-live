@@ -1638,7 +1638,7 @@ jobs:
                   count:document.getElementById('landingWeatherCount')?.textContent||''
                 }
               });
-              if(usWeather.version!==6057||usWeather.renderer!=='isolated-webgl-particle-layer'||!usWeather.enabled||!usWeather.layerAttached||usWeather.canvasCount!==1||usWeather.contextLosses>0||usWeather.legacyLayersVisible||!usWeather.rendererLegacyLayersHidden||!usWeather.weatherLegend||!usWeather.weatherMore)throw new Error('CINEMATIC_WEATHER_ON_GLOBE_REGRESSION '+JSON.stringify(usWeather));
+              if(usWeather.version!==6057||usWeather.renderer!=='isolated-webgl-particle-layer'||!usWeather.enabled||!usWeather.layerAttached||!usWeather.shaderReady||usWeather.canvasCount!==1||usWeather.contextLosses>0||usWeather.legacyLayersVisible||!usWeather.rendererLegacyLayersHidden||!usWeather.weatherLegend||!usWeather.weatherMore)throw new Error('CINEMATIC_WEATHER_ON_GLOBE_REGRESSION '+JSON.stringify(usWeather));
               console.log('BRIDGEPOINT_CINEMATIC_WEATHER_ON_GLOBE_PASS',JSON.stringify(usWeather));
               await p.setViewport({width:390,height:844,deviceScaleFactor:2,isMobile:true,hasTouch:true});
 
