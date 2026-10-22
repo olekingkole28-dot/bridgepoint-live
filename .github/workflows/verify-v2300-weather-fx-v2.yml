@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'release-v2300/world-v2300-weather.js'
+      - 'release-v2300/world-v2300-rain.js'
       - '.github/workflows/verify-v2300-weather-fx-v2.yml'
 
 permissions:
@@ -24,7 +25,7 @@ jobs:
           CHROME=$(command -v google-chrome || command -v chromium-browser || command -v chromium)
           rm -rf /tmp/bp2300wx2 && mkdir -p /tmp/bp2300wx2/vendor
           origin='https://bridgepointintelligence.online/app'
-          for f in world-v2300-config.js world-v2300-map.js world-v2300-weather.js world-v2300-inspector.js world-v2300-bootstrap.js world-v2300-worker.js world-v2300.css vendor/maplibre-gl-v1995.js vendor/maplibre-gl-v1995.css vendor/three.module.min.js vendor/OrbitControls.js; do
+          for f in world-v2300-config.js world-v2300-map.js world-v2300-weather.js world-v2300-rain.js world-v2300-inspector.js world-v2300-bootstrap.js world-v2300-worker.js world-v2300.css vendor/maplibre-gl-v1995.js vendor/maplibre-gl-v1995.css vendor/three.module.min.js vendor/OrbitControls.js; do
             mkdir -p "/tmp/bp2300wx2/$(dirname "$f")"
             curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL "$origin/$f?wx2=${GITHUB_SHA}-$(date +%s)" -o "/tmp/bp2300wx2/$f"
           done
