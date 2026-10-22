@@ -444,8 +444,8 @@ jobs:
           grep -Fq 'world-v2300-clouds.js?v=6031-earth-cloud-mode-stable-gl' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6031-stable-webgl-state' site/app.js
           grep -Fq 'world-v2300-weather.js?v=6031-stable-webgl-state' site/landing.js
-          grep -Fq 'world-v2300-time-slider.js?v=6015-nasa-toggle-opt-in-layers' site/app.js
-          grep -Fq 'world-v2300-time-slider.js?v=6015-nasa-toggle-opt-in-layers' site/landing.js
+          grep -Fq 'world-v2300-time-slider.js?v=6031-earth-cloud-toggle-stable' site/app.js
+          grep -Fq 'world-v2300-time-slider.js?v=6031-earth-cloud-toggle-stable' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
