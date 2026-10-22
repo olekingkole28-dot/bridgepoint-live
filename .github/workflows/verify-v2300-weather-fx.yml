@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'release-v2300/world-v2300-weather.js'
+      - 'release-v2300/world-v2300-rain.js'
       - 'release-v2300/world-v2300-map.js'
       - 'release-v2300/world-v2300-config.js'
       - '.github/workflows/verify-v2300-weather-fx.yml'
@@ -30,6 +31,7 @@ jobs:
           cp release-v2300/world-v2300-space.js /tmp/bp2300wx/world-v2300-space.js
           cp release-v2300/world-v2300-worker.js /tmp/bp2300wx/world-v2300-worker.js
           cp release-v2300/world-v2300-weather.js /tmp/bp2300wx/world-v2300-weather.js
+          cp release-v2300/world-v2300-rain.js /tmp/bp2300wx/world-v2300-rain.js
           curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js -o /tmp/bp2300wx/vendor/maplibre-gl.js
           curl --retry 4 --retry-all-errors --retry-delay 1 -fsSL https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css -o /tmp/bp2300wx/vendor/maplibre-gl.css
           grep -Fq 'sharedMapLibreWebGLContext:true' /tmp/bp2300wx/world-v2300-weather.js
