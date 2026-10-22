@@ -1,5 +1,5 @@
 name: Deploy BridgePoint Intelligence V5000 Rebuild
-# combined surface republish: distribution-network-v5202 · NASA Earth + stable 3D cloud/WebGL renderer v6031 · entrypoint cache v6043 satellite basemap order · final imagery layer-order fix
+# combined surface republish: distribution-network-v5202 · NASA Earth + stable 3D cloud/WebGL renderer v6031 · entrypoint cache v6043 satellite basemap order · final imagery layer-order fix · restore prior basemap from world state v6044
 
 on:
   workflow_dispatch:
@@ -444,8 +444,8 @@ jobs:
           grep -Fq 'world-v2300-clouds.js?v=6031-earth-cloud-mode-stable-gl' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6031-stable-webgl-state' site/app.js
           grep -Fq 'world-v2300-weather.js?v=6031-stable-webgl-state' site/landing.js
-          grep -Fq 'world-v2300-time-slider.js?v=6032-earth-cloud-toggle-world-api' site/app.js
-          grep -Fq 'world-v2300-time-slider.js?v=6032-earth-cloud-toggle-world-api' site/landing.js
+          grep -Fq 'world-v2300-time-slider.js?v=6044-earth-cloud-toggle-state-base' site/app.js
+          grep -Fq 'world-v2300-time-slider.js?v=6044-earth-cloud-toggle-state-base' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
@@ -882,8 +882,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6043-satellite-imagery-layer-order' site/app/index.html
-          grep -Fq 'landing.js?v=6043-satellite-imagery-layer-order' site/index.html
+          grep -Fq 'app.js?v=6044-earth-cloud-toggle-state-base' site/app/index.html
+          grep -Fq 'landing.js?v=6044-earth-cloud-toggle-state-base' site/index.html
            grep -Fq 'world-v2300-map.js?v=6043-satellite-imagery-layer-order' site/app.js
            grep -Fq 'world-v2300-map.js?v=6043-satellite-imagery-layer-order' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6043-satellite-imagery-layer-order' site/index.html
@@ -1235,23 +1235,23 @@ jobs:
               console.log('BRIDGEPOINT_EIFFEL_TOWER_ANCHOR_AND_DUPLICATE_FILTER_PASS',JSON.stringify(report));
                const cloudBaseline=await p.evaluate(()=>({
                  button:!!document.querySelector('#bp-world-time-slider-v5908 [data-clouds]'),
-                 base:window.__BP_LANDING_WORLD__?.base||'gta',
+                 base:window.__BP_LANDING_WORLD__?.state?.base||window.__BP_LANDING_WORLD__?.base||'gta',
                  enabled:window.__BP_SKY_CLOUDS_V5908__?.enabled===true
                }));
                if(!cloudBaseline.button||cloudBaseline.enabled)throw new Error('NASA_EARTH_CLOUD_BUTTON_NOT_READY '+JSON.stringify(cloudBaseline));
                await p.evaluate(()=>document.querySelector('#bp-world-time-slider-v5908 [data-clouds]')?.click());
                await p.waitForFunction(()=>{
                  const w=window.__BP_LANDING_WORLD__,m=w?.map,c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6031__,b=document.querySelector('#bp-world-time-slider-v5908 [data-clouds]');
-                 return b?.getAttribute('aria-pressed')==='true'&&w?.base==='satellite'&&c?.enabled===true&&!!m?.getLayer('bp-sky-cloud-volume-v6029')&&Number(s?.cloudFormations)>0;
+                 return b?.getAttribute('aria-pressed')==='true'&&(w?.state?.base==='satellite'||w?.base==='satellite')&&c?.enabled===true&&!!m?.getLayer('bp-sky-cloud-volume-v6029')&&Number(s?.cloudFormations)>0;
                },{timeout:15000});
-               const cloudOn=await p.evaluate(()=>({base:window.__BP_LANDING_WORLD__?.base,state:window.__BP_SKY_CLOUDS_STATE_V6031__||null,layer:!!window.__BP_LANDING_WORLD__?.map?.getLayer('bp-sky-cloud-volume-v6029')}));
+               const cloudOn=await p.evaluate(()=>({base:window.__BP_LANDING_WORLD__?.state?.base||window.__BP_LANDING_WORLD__?.base,state:window.__BP_SKY_CLOUDS_STATE_V6031__||null,layer:!!window.__BP_LANDING_WORLD__?.map?.getLayer('bp-sky-cloud-volume-v6029')}));
                console.log('BRIDGEPOINT_NASA_EARTH_3D_CLOUD_MODE_PASS',JSON.stringify(cloudOn));
                await p.evaluate(()=>document.querySelector('#bp-world-time-slider-v5908 [data-clouds]')?.click());
                await p.waitForFunction(base=>{
                  const w=window.__BP_LANDING_WORLD__,c=window.__BP_SKY_CLOUDS_V5908__,b=document.querySelector('#bp-world-time-slider-v5908 [data-clouds]');
-                 return b?.getAttribute('aria-pressed')==='false'&&c?.enabled===false&&w?.base===base;
+                 return b?.getAttribute('aria-pressed')==='false'&&c?.enabled===false&&(w?.state?.base||w?.base)===base;
                },{timeout:15000},cloudBaseline.base);
-               console.log('BRIDGEPOINT_NASA_EARTH_CLOUD_MODE_RESTORE_PASS',JSON.stringify({base:await p.evaluate(()=>window.__BP_LANDING_WORLD__?.base)}));
+               console.log('BRIDGEPOINT_NASA_EARTH_CLOUD_MODE_RESTORE_PASS',JSON.stringify({base:await p.evaluate(()=>window.__BP_LANDING_WORLD__?.state?.base||window.__BP_LANDING_WORLD__?.base)}));
 
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exit(1)});
