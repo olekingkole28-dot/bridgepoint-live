@@ -30,7 +30,7 @@ function makeShaders(webgl2, shaderData = null) {
       : 'attribute vec3 a_pos;\nattribute float a_altitude;\nattribute vec3 a_local;\nattribute float a_tint;\nvarying vec3 v_local;\nvarying float v_tint;\n') +
     (projectionAware ? '' : 'uniform mat4 u_matrix;\n') +
     'uniform highp float u_motion_time;\n' +
-    'void main(){v_local=a_local;v_tint=a_tint;float rainCell=smoothstep(1.1,1.3,a_tint);float seed=floor(a_pos.x*19.0)+floor(a_pos.y*19.0)*57.0;float windAngle=fract(sin(seed*12.9898+23.7)*43758.5453)*6.2831853;float stormSpeed=mix(0.00000016,0.00000038,smoothstep(0.88,1.06,a_tint));float driftSpeed=stormSpeed*(1.0-rainCell);vec2 advect=vec2(cos(windAngle),sin(windAngle))*u_motion_time*driftSpeed;gl_Position=' +
+    'void main(){v_local=a_local;v_tint=a_tint;float rainCell=smoothstep(1.1,1.3,a_tint);float seed=floor(a_tint*1000.0);float windAngle=fract(sin(seed*12.9898+23.7)*43758.5453)*6.2831853;float stormSpeed=mix(0.00000016,0.00000038,smoothstep(0.88,1.06,a_tint));float driftSpeed=stormSpeed*(1.0-rainCell);vec2 advect=vec2(cos(windAngle),sin(windAngle))*u_motion_time*driftSpeed;gl_Position=' +
     (projectionAware ? 'projectTileFor3D(a_pos.xy+advect,a_altitude)' : 'u_matrix*vec4(a_pos.xy+advect,a_pos.z,1.0)') + ';}';
 
   const fragment = (webgl2 ? '#version 300 es\n' : '') +
@@ -474,7 +474,7 @@ export function initSkyClouds(target) {
   function buildGlobalCloudGeometry() {
     if (globalCloudGeometryCache) return globalCloudGeometryCache;
     const vertices = [], indices = [], macroCandidates = [];
-    const columns = 40, rows = 18, maxMacro = MOBILE ? 170 : 160;
+    const columns = 40, rows = 18, maxMacro = MOBILE ? 110 : 150;
     for (let gy = 0; gy < rows; gy++) for (let gx = 0; gx < columns; gx++) {
       const broad = hash(Math.floor(gx / 3), Math.floor(gy / 2), 901);
       const fine = hash(gx, gy, 902);
@@ -506,7 +506,7 @@ export function initSkyClouds(target) {
     }
 
     // A finer, fixed geographic lattice keeps recognizable 3D clouds present on close zooms.
-    const fineColumns = 84, fineRows = 38, maxFine = MOBILE ? 340 : 300;
+    const fineColumns = 84, fineRows = 38, maxFine = MOBILE ? 150 : 240;
     const activeMacroCells = new Set(macro.map(q => `${q.gx}:${q.gy}`));
     const fineCandidates = [];
     for (let gy = 0; gy < fineRows; gy++) for (let gx = 0; gx < fineColumns; gx++) {
