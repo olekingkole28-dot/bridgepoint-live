@@ -29,8 +29,8 @@ function makeShaders(webgl2, shaderData = null) {
       ? 'in vec3 a_pos;\nin float a_altitude;\nin vec3 a_local;\nin float a_tint;\nout vec3 v_local;\nout float v_tint;\n'
       : 'attribute vec3 a_pos;\nattribute float a_altitude;\nattribute vec3 a_local;\nattribute float a_tint;\nvarying vec3 v_local;\nvarying float v_tint;\n') +
     (projectionAware ? '' : 'uniform mat4 u_matrix;\n') +
-    'uniform float u_time;\n' +
-    'void main(){v_local=a_local;v_tint=a_tint;float rainCell=smoothstep(1.1,1.3,a_tint);float seed=floor(a_tint*1000.0);float windAngle=fract(sin(seed*12.9898+23.7)*43758.5453)*6.2831853;float stormSpeed=mix(0.00000016,0.00000038,smoothstep(0.88,1.06,a_tint));float driftSpeed=stormSpeed*(1.0-rainCell);vec2 advect=vec2(cos(windAngle),sin(windAngle))*u_time*driftSpeed;gl_Position=' +
+    'uniform highp float u_motion_time;\n' +
+    'void main(){v_local=a_local;v_tint=a_tint;float rainCell=smoothstep(1.1,1.3,a_tint);float seed=floor(a_tint*1000.0);float windAngle=fract(sin(seed*12.9898+23.7)*43758.5453)*6.2831853;float stormSpeed=mix(0.00000016,0.00000038,smoothstep(0.88,1.06,a_tint));float driftSpeed=stormSpeed*(1.0-rainCell);vec2 advect=vec2(cos(windAngle),sin(windAngle))*u_motion_time*driftSpeed;gl_Position=' +
     (projectionAware ? 'projectTileFor3D(a_pos.xy+advect,a_altitude)' : 'u_matrix*vec4(a_pos.xy+advect,a_pos.z,1.0)') + ';}';
 
   const fragment = (webgl2 ? '#version 300 es\n' : '') +
@@ -312,6 +312,7 @@ export function initSkyClouds(target) {
       uniforms: {
         matrix: gl.getUniformLocation(program, 'u_matrix'),
         time: gl.getUniformLocation(program, 'u_time'),
+        motionTime: gl.getUniformLocation(program, 'u_motion_time'),
         projectionMatrix: gl.getUniformLocation(program, 'u_projection_matrix'),
         projectionFallbackMatrix: gl.getUniformLocation(program, 'u_projection_fallback_matrix'),
         projectionTileMercatorCoords: gl.getUniformLocation(program, 'u_projection_tile_mercator_coords'),
@@ -400,7 +401,9 @@ export function initSkyClouds(target) {
         } else {
           gl.uniformMatrix4fv(info.uniforms.matrix, false, matrix);
         }
-        gl.uniform1f(info.uniforms.time, (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000);
+        const cloudTime = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
+        gl.uniform1f(info.uniforms.time, cloudTime);
+        if (info.uniforms.motionTime) gl.uniform1f(info.uniforms.motionTime, cloudTime);
         gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
         gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.disable(gl.CULL_FACE); gl.depthMask(false);
