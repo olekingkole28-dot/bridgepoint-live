@@ -717,7 +717,7 @@ function generateGeometry() {
       const raw = String([sample.weather, sample.present_weather, sample.weather_text, sample.wx, sample.condition, sample.rawdata]
         .filter(Boolean).join(' ')).toLowerCase();
       const thunderstorm = /thunderstorm|\bts\b|squall/.test(raw);
-      const elevation = Math.max(0, number(map.queryTerrainElevation?.([lng, lat]), 0));
+      const elevation = terrainElevationAt(lng, lat);
       const baseAgl = clamp(number(sample.cloud_base_height_m, number(sample.cloudBaseHeightM, thunderstorm ? 450 : 350)), 180, 4200);
       const top = clamp(number(sample.cloud_top_height_m, number(sample.cloudTopHeightM, thunderstorm ? 2800 : 1800)), baseAgl + 500, 16000);
       const suppliedRadius = number(sample.precipitation_radius_mi, number(sample.rain_radius_mi, NaN));
@@ -749,8 +749,12 @@ function generateGeometry() {
         const r = radius * (0.35 + 0.75 * (i / turns));
         const dlat = (r * Math.sin(a)) / 111320;
         const dlng = (r * Math.cos(a)) / (111320 * Math.max(0.12, Math.cos(lat * Math.PI / 180)));
-        addFormation(lng + dlng, lat + dlat, radius * (hurricane ? 0.42 : 0.30),
-          2600 + hash(lng, lat, i + 20) * 3000, 7500 + hash(lng, lat, i + 30) * 6700,
+        const cloudLng = lng + dlng, cloudLat = lat + dlat;
+        const ground = terrainElevationAt(cloudLng, cloudLat);
+        const baseAgl = 2600 + hash(lng, lat, i + 20) * 3000;
+        const topAgl = 7500 + hash(lng, lat, i + 30) * 6700;
+        addFormation(cloudLng, cloudLat, radius * (hurricane ? 0.42 : 0.30),
+          ground + baseAgl, ground + topAgl,
           hash(lng, lat, i + 40), hurricane ? 'hurricane' : 'storm');
       }
       if (hurricane) stormCount++;
@@ -799,7 +803,7 @@ function generateGeometry() {
         const { o, lng, lat, raw, fraction } = item;
         const thunder = /thunderstorm|squall|hail|blizzard/.test(raw);
         const wet = /rain|drizzle|shower|snow/.test(raw);
-        const elevation = Math.max(0, number(map.queryTerrainElevation?.([lng, lat]), 0));
+        const elevation = terrainElevationAt(lng, lat);
         const baseAgl = clamp(number(o?.cloud_base_height_m, number(o?.cloudBaseHeightM, thunder ? 700 : wet ? 950 : 1250)), 300, 5000);
         const top = clamp(number(o?.cloud_top_height_m, number(o?.cloudTopHeightM, thunder ? 11500 : wet ? 7600 : 5200)), baseAgl + 1200, 17000);
         const observedRadius = number(o?.cloud_radius_m, number(o?.radius_m, NaN));
@@ -836,8 +840,9 @@ function generateGeometry() {
         const lng = f.lng + Math.cos(a) * ring / (111320 * Math.max(0.12, Math.cos(f.lat * Math.PI / 180)));
         const scaleX = i === 0 ? 1.00 : 0.50 + hash(k, i, 3) * 0.24;
         const scaleY = i === 0 ? 0.82 : 0.54 + hash(k, i, 4) * 0.22;
-        const altitude = f.baseM + (f.topM - f.baseM) * (i === 0 ? 0.50 : 0.44 + hash(k, i, 5) * 0.12);
-        const vertical = Math.max(1200, (f.topM - f.baseM) * (i === 0 ? 0.68 : 0.54 + hash(k, i, 6) * 0.12));
+        const cloudRange = f.topM - f.baseM;
+        const altitude = f.baseM + cloudRange * (i === 0 ? 0.50 : 0.48 + hash(k, i, 5) * 0.04);
+        const vertical = cloudRange * (i === 0 ? 0.43 : 0.40 + hash(k, i, 6) * 0.035);
         puff(lng, lat, altitude, f.radiusM * scaleX, f.radiusM * scaleY, vertical, f.seed,
           f.kind === 'rain-cell' ? 1.35 : f.kind === 'hurricane' ? 1.02 + hash(k, i, 7) * 0.05 : f.kind === 'storm' ? 0.90 + hash(k, i, 7) * 0.07 : f.kind === 'funnel' ? 1.14 : 0.22 + hash(k, i, 7) * 0.52);
       }
