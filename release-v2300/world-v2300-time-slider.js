@@ -138,6 +138,7 @@ export function initWorldTimeSlider(target,rpc){
    <button type="button" data-live aria-pressed="true">● LIVE</button>
    <button type="button" data-play aria-pressed="false">▶ PLAY</button>
    <button type="button" data-clouds aria-pressed="true" title="NASA Earth imagery with persistent 3D cloud volumes and local storm effects">☁ NASA EARTH + 3D CLOUDS · ON</button>
+   <button type="button" data-skyview aria-pressed="false" title="Look above the street-level horizon into the height-aware sky and cloud volumes">⬆ LOOK UP · SKY VIEW</button>
    <button type="button" data-nightlights aria-pressed="false">✦ NASA LIGHTS · OFF</button>
    <button type="button" data-refresh>↻ REFRESH</button>
    <span class="bpwt-stats" data-stats>Waiting for map bounds…</span>
@@ -163,7 +164,7 @@ export function initWorldTimeSlider(target,rpc){
   const retryMount=()=>{if(disposed)return;if(mountInCard())return;mountTurns++;mountHandle=setTimeout(retryMount,mountTurns<100?150:800)};
   mountHandle=setTimeout(retryMount,100);
  }
- const $=s=>dock.querySelector(s),slider=$('[data-slider]'),status=$('[data-status]'),date=$('[data-date]'),windowLabel=$('[data-window]'),stats=$('[data-stats]'),list=$('[data-list]'),liveBtn=$('[data-live]'),playBtn=$('[data-play]'),cloudBtn=$('[data-clouds]');
+ const $=s=>dock.querySelector(s),slider=$('[data-slider]'),status=$('[data-status]'),date=$('[data-date]'),windowLabel=$('[data-window]'),stats=$('[data-stats]'),list=$('[data-list]'),liveBtn=$('[data-live]'),playBtn=$('[data-play]'),cloudBtn=$('[data-clouds]'),skyViewBtn=$('[data-skyview]');
  const collapseBtn=$('[data-collapse]'),standaloneBtn=$('[data-standalone]'),categoryFilter=$('[data-filter-category]'),domainFilter=$('[data-filter-domain]'),hoursSelect=$('[data-window-hours]'),nightlightsBtn=$('[data-nightlights]');
  function setStandalone(on){
   const expanded=!!on;
@@ -305,6 +306,52 @@ export function initWorldTimeSlider(target,rpc){
    console.warn('BridgePoint NASA Earth + cloud toggle failed',error)
   }finally{cloudToggleBusy=false;cloudBtn.disabled=false}
  }
+ 
+ let skyViewBusy=false,skyViewRestore=null;
+ function skyProjectionType(){return String(map.getProjection?.()?.type||'mercator')}
+ function syncSkyViewButton(active){skyViewBtn?.setAttribute('aria-pressed',String(!!active));if(skyViewBtn)skyViewBtn.textContent=active?'⬇ RETURN TO STREET':'⬆ LOOK UP · SKY VIEW'}
+ async function toggleSkyView(){
+  if(skyViewBusy||!skyViewBtn)return;
+  skyViewBusy=true;skyViewBtn.disabled=true;
+  try{
+   if(!skyViewRestore){
+    if(typeof map.setProjection!=='function'||typeof map.setMaxPitch!=='function'||typeof map.setCenterClampedToGround!=='function')throw new Error('free sky camera API unavailable');
+    const center=map.getCenter(),projection=skyProjectionType(),previousPitch=map.getPitch(),previousMaxPitch=map.getMaxPitch?.()??85;
+    skyViewRestore={center:[center.lng,center.lat],zoom:map.getZoom(),bearing:map.getBearing(),pitch:previousPitch,projection, maxPitch:previousMaxPitch};
+    map.stop?.();
+    map.setProjection({type:'mercator'});
+    map.setCenterClampedToGround(false);
+    map.setMaxPitch(160);
+    map.jumpTo({center:skyViewRestore.center,zoom:Math.max(15.2,skyViewRestore.zoom),bearing:skyViewRestore.bearing,pitch:145});
+    map.triggerRepaint?.();
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    if(map.getProjection?.()?.type!=='mercator'||map.getMaxPitch?.()<145||map.getPitch()<120)throw new Error('camera did not reach an above-horizon sky angle');
+    syncSkyViewButton(true);
+    setStatus('SKY VIEW ON · looking above the street horizon · press RETURN TO STREET to restore');
+   }else{
+    const restore=skyViewRestore;
+    map.stop?.();
+    map.setProjection({type:restore.projection==='globe'?'globe':restore.projection});
+    map.setMaxPitch(Math.max(60,Math.min(restore.maxPitch,restore.projection==='globe'?85:160)));
+    map.setCenterClampedToGround(true);
+    map.jumpTo({center:restore.center,zoom:restore.zoom,bearing:restore.bearing,pitch:Math.max(0,Math.min(restore.pitch,restore.projection==='globe'?85:restore.maxPitch))});
+    map.triggerRepaint?.();
+    skyViewRestore=null;
+    syncSkyViewButton(false);
+    setStatus('STREET VIEW RESTORED · location and camera pitch restored');
+   }
+  }catch(error){
+   const restore=skyViewRestore;
+   if(restore){
+    try{map.stop?.();map.setProjection({type:restore.projection==='globe'?'globe':restore.projection});map.setMaxPitch(Math.max(60,Math.min(restore.maxPitch,restore.projection==='globe'?85:160)));map.setCenterClampedToGround(true);map.jumpTo({center:restore.center,zoom:restore.zoom,bearing:restore.bearing,pitch:Math.max(0,Math.min(restore.pitch,restore.projection==='globe'?85:restore.maxPitch))});}catch(_){}
+   }
+   skyViewRestore=null;syncSkyViewButton(false);
+   setStatus('SKY VIEW UNAVAILABLE · '+String(error?.message||error).slice(0,100),true);
+   console.warn('BridgePoint sky-facing camera failed',error);
+  }finally{skyViewBusy=false;skyViewBtn.disabled=false}
+ }
+ skyViewBtn?.addEventListener('click',()=>{void toggleSkyView()});
+
  cloudBtn.addEventListener('click',()=>{void toggleSkyClouds()});
  const onBounds=()=>schedule(false,360),onStyle=()=>{ensureLayers();if(!map.getSource(SOURCE_ID))setTimeout(ensureLayers,250)};
  map.on('moveend',onBounds);map.on('zoomend',onBounds);map.on('styledata',onStyle);
