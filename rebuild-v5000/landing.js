@@ -274,7 +274,7 @@ async function initMap(){
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
   // Start persistent global 3D clouds immediately on the homepage globe, before other visual modules.
-  void import('./world-v2300-clouds.js?v=6074-runtime-handoff-large-banks')
+  void import('./world-v2300-clouds.js?v=6075-global-coverage-fill')
    .then(m=>{window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
    .catch(e=>console.warn('BridgePoint global 3D cloud field unavailable',e));
   // Keep source weather feeds live for real storm-cloud locations, with non-cloud visuals locked off.
