@@ -1,5 +1,5 @@
 name: Deploy BridgePoint Intelligence V5000 Rebuild
-# combined surface republish: distribution-network-v5202
+# combined surface republish: distribution-network-v5202 · NASA Earth + stable 3D cloud/WebGL renderer v6031
 
 on:
   workflow_dispatch:
