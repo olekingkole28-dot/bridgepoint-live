@@ -257,6 +257,9 @@ export function initSkyClouds(target) {
   let enabled = true, disposed = false, animationTimer = 0, rebuildTimer = 0, refreshHandle = 0, layerRetryTimer = 0, layerRetryAttempts = 0, lastLayerHealthCheckAt = 0;
   let rainCellShelfCount = 0, sourceCloudObservationCount = 0;
   let hurricaneSpiralCloudCenters = 0, hurricaneCloudShieldRadiusKm = 0;
+  let hurricaneEyeWallCloudCenters = 0, hurricaneEyeRadiusKm = 0;
+  let hurricaneEyeRadiusSource = 'no current source-backed hurricane';
+  let localWindSourcePuffs = 0, localWindModelledPuffs = 0;
   let vertexData = new Float32Array(0), indexData = new Uint16Array(0);
   let globalCloudGeometryCache = null;
   let geometryDirty = true, formationCount = 0, measuredCount = 0, funnelCount = 0, stormCount = 0;
