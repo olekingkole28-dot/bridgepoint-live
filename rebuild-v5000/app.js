@@ -831,8 +831,8 @@ function weatherColorExpr(){return['match',['get','type'],'WILDFIRE','#ff744f','
 function liveLayerIds(){return['bp-radar-a','bp-radar-b','bp-v5004-weather-shape-fill','bp-v5004-weather-shape-line','bp-v5004-weather-point-glow','bp-v5004-weather-points','bp-v5004-weather-hit']}
 function hideLegacyLiveContextLayers(map=world?.map){
  if(!map)return;
- for(const id of liveLayerIds())try{if(map.getLayer(id))map.setLayoutProperty(id,'visibility','none')}catch(_){}
- for(const id of ['bp-radar-a','bp-radar-b'])try{if(map.getLayer(id))map.setPaintProperty(id,'raster-opacity',0)}catch(_){}
+ for(const id of liveLayerIds())try{if(map.getLayer(id)&&(map.getLayoutProperty(id,'visibility')||'visible')!=='none')map.setLayoutProperty(id,'visibility','none')}catch(_){}
+ for(const id of ['bp-radar-a','bp-radar-b'])try{if(map.getLayer(id)&&Number(map.getPaintProperty(id,'raster-opacity')??1)!==0)map.setPaintProperty(id,'raster-opacity',0)}catch(_){}
  const legend=$('liveWeatherLegend');if(legend)legend.hidden=true;
  window.__BP_LEGACY_WEATHER_OVERLAYS_V6057__={hidden:true,renderer:'cinematic-v2300-only',updatedAt:Date.now()}
 }
