@@ -583,7 +583,7 @@ function generateGeometry() {
       const suppliedRadius = number(sample.precipitation_radius_mi, number(sample.rain_radius_mi, NaN));
       const radiusM = Number.isFinite(suppliedRadius) && suppliedRadius > 0
         ? clamp(suppliedRadius * 1609.34, 2200, 26000)
-        : (thunderstorm ? 3200 : 2200);
+        : (thunderstorm ? 900 : 650);
       addFormation(lng, lat, radiusM, elevation + baseAgl, elevation + top,
         hash(lng, lat, 6058), 'rain-cell');
     }
