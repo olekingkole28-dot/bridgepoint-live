@@ -775,21 +775,25 @@ export function initSkyClouds(target) {
 function generateGeometry() {
     if (disposed || !enabled) return;
     const z = number(map.getZoom?.());
-    const maxForm = MOBILE ? 18 : (number(map.getZoom?.(), 10) <= 5.5 ? 40 : 28);
+    const overviewClouds = z <= 8.5;
+    const maxForm = z <= 5.5 ? (MOBILE ? 44 : 96) : z <= 8.5 ? (MOBILE ? 44 : 88) : (MOBILE ? 18 : 40);
     const vertices = [], indices = [], formations = [];
     measuredCount = 0; funnelCount = 0; stormCount = 0; rainCellShelfCount = 0; sourceCloudObservationCount = 0;
     hurricaneSpiralCloudCenters = 0; hurricaneCloudShieldRadiusKm = 0;
+    hurricaneEyeWallCloudCenters = 0; hurricaneEyeRadiusKm = 0; hurricaneEyeRadiusSource = 'no current source-backed hurricane';
+    localWindSourcePuffs = 0; localWindModelledPuffs = 0;
     const scene = getScene();
     const measured = collectHeightFeatures(scene);
     measuredCount = measured.length;
     heightSource = measuredCount ? String(measured[0]?.source || measured[0]?.provenance || 'world-effects cloud-height samples') : 'not connected';
-    const stormList = Array.isArray(scene?.storms) ? scene.storms : [];
+    const stormScore = st => { const name=String(st.name||st.event||st.type||'').toLowerCase(); return (/hurricane|tropical|cyclone|typhoon/.test(name)||number(st.wind_mph,number(st.wind_kt,0)*1.15078)>=64)?2:1; };
+    const stormList = (Array.isArray(scene?.storms)?scene.storms:[]).slice().sort((a,b)=>stormScore(b)-stormScore(a));
     const alerts = Array.isArray(scene?.alerts) ? scene.alerts : [];
     const getLon = lng => ((((lng + 180) % 360) + 360) % 360) - 180;
-    function addFormation(lng, lat, radiusM, baseM, topM, seed, kind = 'ordinary') {
+    function addFormation(lng, lat, radiusM, baseM, topM, seed, kind = 'ordinary', windContext = null) {
       if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 82 || formations.length >= maxForm) return;
       formations.push({ lng: getLon(lng), lat, radiusM: clamp(radiusM, 600, 520000),
-        baseM: clamp(baseM, 450, 14000), topM: clamp(topM, baseM + 180, 18500), seed, kind });
+        baseM: clamp(baseM, 450, 14000), topM: clamp(topM, baseM + 180, 18500), seed, kind, windContext });
     }
 
     // Rain-only cloud anchors: source-reported precipitation observations get a local 3D cloud base.
@@ -835,42 +839,65 @@ function generateGeometry() {
         number(sample.cloud_base_height_m, top * 0.64), top, hash(number(sample.lng), number(sample.lat), 8), 'measured');
     }
 
-    // Cyclone/storm geometry uses the supplied storm coordinates, not camera bounds.
-    for (const storm of stormList.slice(0, MOBILE ? 1 : 4)) {
+    // Weather geometry is anchored to source storm coordinates, never the camera center.
+    // A hurricane is an eye + eyewall + three curved spiral arms, rather than a filled blob.
+    for (const storm of stormList.filter(st=>Number.isFinite(number(st.lng,number(st.longitude,NaN)))&&Number.isFinite(number(st.lat,number(st.latitude,NaN)))).slice(0, overviewClouds ? (MOBILE?1:2) : (MOBILE?1:4))) {
       const lng = number(storm.lng, number(storm.longitude, NaN)), lat = number(storm.lat, number(storm.latitude, NaN));
       if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 82) continue;
       const name = String(storm.name || storm.event || storm.type || '').toLowerCase();
-      const hurricane = /hurricane|tropical|cyclone|typhoon/.test(name) || number(storm.wind_mph) >= 64 || number(storm.wind_kt) >= 56;
-      // Eye radius describes the small eye, not the much larger cloud shield. Prefer an
-      // explicitly supplied cloud-shield radius; otherwise use a cyclone-scale envelope.
+      const windMph = clamp(number(storm.wind_mph,number(storm.wind_kt,0)*1.15078),0,220);
+      const hurricane = /hurricane|tropical|cyclone|typhoon/.test(name) || windMph >= 64;
       const suppliedShieldMi = number(storm.cloud_shield_radius_mi,
         number(storm.cloudShieldRadiusMi, number(storm.cloud_radius_mi,
           number(storm.cloudRadiusMi, number(storm.radius_mi, NaN)))));
-      const shieldRadiusM = Number.isFinite(suppliedShieldMi) && suppliedShieldMi > 0
-        ? clamp(suppliedShieldMi * 1609.34, hurricane ? 320000 : 85000, hurricane ? 980000 : 420000)
-        : (hurricane ? 520000 : 180000);
-      const turns = hurricane ? 14 : 6;
-      const phase = hash(lng, lat, 6059) * TAU;
-      for (let i = 0; i < turns; i++) {
-        const t = i / Math.max(1, turns - 1);
-        const a = phase + t * TAU * (hurricane ? 1.45 : 0.9) + Math.sin(t * TAU * 2) * 0.06;
-        const r = shieldRadiusM * (hurricane ? 0.40 + 0.55 * t : 0.28 + 0.66 * t);
-        const dlat = (r * Math.sin(a)) / 111320;
-        const dlng = (r * Math.cos(a)) / (111320 * Math.max(0.12, Math.cos(lat * Math.PI / 180)));
-        const cloudLng = lng + dlng, cloudLat = lat + dlat;
-        const ground = terrainElevationAt(cloudLng, cloudLat);
-        const baseAgl = 2600 + hash(lng, lat, i + 20) * 3000;
-        const topAgl = 7500 + hash(lng, lat, i + 30) * 6700;
-        const before = formations.length;
-        addFormation(cloudLng, cloudLat, shieldRadiusM * (hurricane ? 0.30 : 0.24),
-          ground + baseAgl, ground + topAgl,
-          hash(lng, lat, i + 40), hurricane ? 'hurricane' : 'storm');
-        if (hurricane && formations.length > before) {
-          hurricaneSpiralCloudCenters++;
-          hurricaneCloudShieldRadiusKm = Math.max(hurricaneCloudShieldRadiusKm, shieldRadiusM / 1000);
+      const suppliedShieldKm = number(storm.cloud_shield_radius_km,number(storm.cloudShieldRadiusKm,number(storm.cloud_radius_km,NaN)));
+      const sourceShieldM = Number.isFinite(suppliedShieldKm)&&suppliedShieldKm>0?suppliedShieldKm*1000:Number.isFinite(suppliedShieldMi)&&suppliedShieldMi>0?suppliedShieldMi*1609.34:NaN;
+      const shieldRadiusM = Number.isFinite(sourceShieldM)&&sourceShieldM>0
+        ? clamp(sourceShieldM,hurricane?320000:120000,hurricane?980000:600000)
+        : (hurricane?520000:300000);
+      const eyeKm = number(storm.eye_radius_km,number(storm.eyeRadiusKm,NaN));
+      const eyeMi = number(storm.eye_radius_mi,number(storm.eyeRadiusMi,NaN));
+      const eyeRawM = Number.isFinite(eyeKm)&&eyeKm>0?eyeKm*1000:Number.isFinite(eyeMi)&&eyeMi>0?eyeMi*1609.34:NaN;
+      const eyeRadiusM = Number.isFinite(eyeRawM)?clamp(eyeRawM,6000,75000):28000;
+      const context = {centerLng:lng,centerLat:lat,shieldRadiusM,eyeRadiusM,windMph};
+      const phase = hash(lng,lat,6059)*TAU;
+      if(hurricane){
+        const wallCount = 18;
+        for(let i=0;i<wallCount&&formations.length<maxForm;i++){
+          const a=phase+i*TAU/wallCount, r=eyeRadiusM*1.55;
+          const cloudLng=lng+Math.cos(a)*r/(111320*Math.max(0.12,Math.cos(lat*Math.PI/180)));
+          const cloudLat=lat+Math.sin(a)*r/111320,ground=terrainElevationAt(cloudLng,cloudLat);
+          const baseAgl=2700+hash(lng,lat,i+6200)*1800,topAgl=11500+hash(lng,lat,i+6210)*4200;
+          const before=formations.length;
+          addFormation(cloudLng,cloudLat,Math.max(6500,eyeRadiusM*0.62),ground+baseAgl,ground+topAgl,hash(lng,lat,i+6220),'hurricane-eyewall',context);
+          if(formations.length>before)hurricaneEyeWallCloudCenters++;
         }
+        hurricaneEyeRadiusKm=Math.max(hurricaneEyeRadiusKm,eyeRadiusM/1000);
+        hurricaneEyeRadiusSource=Number.isFinite(eyeRawM)?'source storm eye radius':'modelled 28 km fallback; provider eye radius missing';
+        const spiralCount=MOBILE?24:30,arms=3,steps=Math.ceil(spiralCount/arms);
+        for(let i=0;i<spiralCount&&formations.length<maxForm;i++){
+          const arm=i%arms,step=Math.floor(i/arms),t=step/Math.max(1,steps-1);
+          const angle=phase+arm*TAU/arms+t*TAU*1.18+Math.sin(t*TAU*2+arm)*0.045;
+          const r=eyeRadiusM*2.8+t*Math.max(0,shieldRadiusM*0.94-eyeRadiusM*2.8);
+          const cloudLng=lng+Math.cos(angle)*r/(111320*Math.max(0.12,Math.cos(lat*Math.PI/180)));
+          const cloudLat=lat+Math.sin(angle)*r/111320,ground=terrainElevationAt(cloudLng,cloudLat);
+          const baseAgl=2400+hash(lng,lat,i+6300)*3200,topAgl=10000+hash(lng,lat,i+6310)*6200;
+          const before=formations.length;
+          addFormation(cloudLng,cloudLat,shieldRadiusM*0.075,ground+baseAgl,ground+topAgl,hash(lng,lat,i+6320),'hurricane-spiral',context);
+          if(formations.length>before)hurricaneSpiralCloudCenters++;
+        }
+        hurricaneCloudShieldRadiusKm=Math.max(hurricaneCloudShieldRadiusKm,shieldRadiusM/1000);
+        stormCount++;
+      }else{
+        const bandCount=overviewClouds?(MOBILE?6:10):4;
+        for(let i=0;i<bandCount&&formations.length<maxForm;i++){
+          const t=i/Math.max(1,bandCount-1),angle=phase+t*TAU*0.42+Math.sin(t*TAU*1.6)*0.22;
+          const r=shieldRadiusM*(0.18+0.78*t),cloudLng=lng+Math.cos(angle)*r/(111320*Math.max(0.12,Math.cos(lat*Math.PI/180))),cloudLat=lat+Math.sin(angle)*r/111320;
+          const ground=terrainElevationAt(cloudLng,cloudLat),baseAgl=1700+hash(lng,lat,i+6400)*2600,topAgl=8500+hash(lng,lat,i+6410)*6500;
+          addFormation(cloudLng,cloudLat,shieldRadiusM*0.10,ground+baseAgl,ground+topAgl,hash(lng,lat,i+6420),'storm',context);
+        }
+        stormCount++;
       }
-      if (hurricane) stormCount++;
     }
 
     // During clouds-only review, turn real weather-station cloud observations into cloud
@@ -939,17 +966,17 @@ function generateGeometry() {
       if (center) { addFormation(center[0], center[1], 10000, 3000, 11000, hash(center[0], center[1], 88), 'funnel'); funnelCount++; }
     }
 
-    function puff(lng, lat, altitude, rx, ry, rz, seed, tint, lowCost = false) {
-      // Retain a higher-detail local mesh, but use fewer vertices for distant global clouds.
-      makePuffGeometry(null, MC, vertices, indices, getLon(lng), clamp(lat, -82, 82),
-        altitude, rx, ry, rz, tint, lowCost ? (MOBILE ? 6 : 7) : (MOBILE ? 8 : 9),
-        lowCost ? 4 : 6, seed);
+    function puff(lng,lat,altitude,rx,ry,rz,seed,tint,lowCost=false,windContext=null){
+      const wind=cloudWindVectorFor(lng,lat,altitude,scene,windContext);
+      if(wind.sourceBacked)localWindSourcePuffs++;else localWindModelledPuffs++;
+      makePuffGeometry(null,MC,vertices,indices,getLon(lng),clamp(lat,-82,82),altitude,rx,ry,rz,tint,
+        lowCost?(MOBILE?6:7):(MOBILE?8:9),lowCost?3:6,seed,wind.dx,wind.dy);
     }
-    const globeScale = z <= 5.5;
+    const globeScale = z <= 8.5;
     for (let k = 0; k < formations.length; k++) {
       const f = formations[k], n = globeScale
-        ? ((f.kind === 'hurricane' || f.kind === 'storm') ? 2 : 1)
-        : (MOBILE ? 3 : 5);
+        ? ((f.kind === 'hurricane-eyewall' || f.kind === 'hurricane-spiral' || f.kind === 'hurricane' || f.kind === 'storm') ? 2 : 1)
+        : (MOBILE ? 3 : 4);
       for (let i = 0; i < n; i++) {
         const a = i * 2.399 + f.seed * 5.3;
         const ring = i === 0 ? 0 : f.radiusM * (0.16 + hash(k, i, 1) * 0.24);
@@ -961,23 +988,23 @@ function generateGeometry() {
         const altitude = f.baseM + cloudRange * (i === 0 ? 0.50 : 0.48 + hash(k, i, 5) * 0.04);
         const vertical = cloudRange * (i === 0 ? 0.43 : 0.40 + hash(k, i, 6) * 0.035);
         puff(lng, lat, altitude, f.radiusM * scaleX, f.radiusM * scaleY, vertical, f.seed,
-          f.kind === 'rain-cell' ? 1.35 : f.kind === 'hurricane' ? 1.045 + hash(k, i, 7) * 0.035 : f.kind === 'storm' ? 0.90 + hash(k, i, 7) * 0.07 : f.kind === 'funnel' ? 1.14 : 0.22 + hash(k, i, 7) * 0.52, globeScale);
+          f.kind === 'rain-cell' ? 1.35 : f.kind === 'hurricane' ? 1.045 + hash(k, i, 7) * 0.035 : f.kind === 'hurricane-eyewall' ? 0.72 + hash(k,i,7)*0.10 : f.kind === 'hurricane-spiral' ? 0.88 + hash(k,i,7)*0.08 : f.kind === 'storm' ? 0.90 + hash(k, i, 7) * 0.07 : f.kind === 'funnel' ? 1.14 : 0.22 + hash(k, i, 7) * 0.52, globeScale, f.windContext);
       }
       if (f.kind === 'rain-cell') {
         // Distinct low rain-cloud shelf: same world coordinates and cloud base as rain seeds.
         const shelfAltitude = f.baseM + clamp((f.topM - f.baseM) * 0.12, 160, 260);
         puff(f.lng, f.lat, shelfAltitude, f.radiusM * 0.38, f.radiusM * 0.30,
-          clamp((f.topM - f.baseM) * 0.18, 260, 520), 1.35, 1.35, globeScale);
+          clamp((f.topM - f.baseM) * 0.18, 260, 520), 1.35, 1.35, globeScale, f.windContext);
         rainCellShelfCount++;
       }
       if (f.kind === 'funnel' && !MOBILE) makeFunnelGeometry(MC, vertices, indices, f.lng, f.lat, f.topM, 0.92);
     }
     const global = buildGlobalCloudGeometry();
-    const globalVertexCount = Math.floor(global.vertices.length / 8);
-    const localVertexCount = Math.min(Math.floor(vertices.length / 8), 65530 - globalVertexCount);
-    vertexData = new Float32Array(global.vertices.length + localVertexCount * 8);
+    const globalVertexCount = Math.floor(global.vertices.length / 10);
+    const localVertexCount = Math.min(Math.floor(vertices.length / 10), 65530 - globalVertexCount);
+    vertexData = new Float32Array(global.vertices.length + localVertexCount * 10);
     vertexData.set(global.vertices, 0);
-    vertexData.set(vertices.slice(0, localVertexCount * 8), global.vertices.length);
+    vertexData.set(vertices.slice(0, localVertexCount * 10), global.vertices.length);
     const mergedIndices = new Uint16Array(global.indices.length + indices.length);
     mergedIndices.set(global.indices, 0);
     let mergedCount = global.indices.length;
