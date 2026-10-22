@@ -223,12 +223,13 @@ export function initSkyClouds(target) {
   }
   function publishState() {
     const state = {
-      version: 6046, map, enabled, visible: enabled && !document.hidden,
+      version: 6047, map, enabled, visible: enabled && !document.hidden,
       kind: 'georeferenced 3D cloud-volume layer',
       renderer: 'single shared MapLibre WebGL context',
       cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0,
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
-      persistentGlobalCloudField: true, localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), redrawIntervalMs: MOBILE ? 220 : 125, measuredCloudSamples: measuredCount,
+      projectionShaderVariantNames: Array.from(programCache.keys()),
+      persistentGlobalCloudField: true, localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), redrawIntervalMs: MOBILE ? 250 : 160, measuredCloudSamples: measuredCount,
       cloudHeightSource: heightSource,
       cloudHeightMode: measuredCount ? 'source-backed cloud-top height samples, with procedural fill between samples' : 'procedural altitude only; measured global cloud-top heights are not connected',
       warningFunnels: funnelCount, hurricaneStormVolumes: stormCount,
@@ -240,6 +241,7 @@ export function initSkyClouds(target) {
     window.__BP_SKY_CLOUDS_STATE_V6031__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6045__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6046__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6047__ = state;
     window.dispatchEvent(new CustomEvent('bp:sky-cloud-state', { detail: state }));
     return state;
   }
@@ -292,6 +294,7 @@ export function initSkyClouds(target) {
       }
     };
     programCache.set(key, info); activeProgramInfo = info;
+    publishState();
     return info;
   }
 
@@ -618,10 +621,10 @@ export function initSkyClouds(target) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6046, map, overlay,
+    version: 6047, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
-    get state() { return window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
+    get state() { return window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
     destroy() {
       if (disposed) return; disposed = true;
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle);
