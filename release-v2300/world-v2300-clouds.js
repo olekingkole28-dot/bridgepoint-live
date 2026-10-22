@@ -577,12 +577,12 @@ function generateGeometry() {
         .filter(Boolean).join(' ')).toLowerCase();
       const thunderstorm = /thunderstorm|\bts\b|squall/.test(raw);
       const elevation = Math.max(0, number(map.queryTerrainElevation?.([lng, lat]), 0));
-      const baseAgl = clamp(number(sample.cloud_base_height_m, number(sample.cloudBaseHeightM, thunderstorm ? 1650 : 1050)), 650, 4200);
-      const top = clamp(number(sample.cloud_top_height_m, number(sample.cloudTopHeightM, thunderstorm ? 10400 : 6500)), baseAgl + 500, 16000);
+      const baseAgl = clamp(number(sample.cloud_base_height_m, number(sample.cloudBaseHeightM, thunderstorm ? 900 : 750)), 650, 4200);
+      const top = clamp(number(sample.cloud_top_height_m, number(sample.cloudTopHeightM, thunderstorm ? 6500 : 3500)), baseAgl + 500, 16000);
       const suppliedRadius = number(sample.precipitation_radius_mi, number(sample.rain_radius_mi, NaN));
       const radiusM = Number.isFinite(suppliedRadius) && suppliedRadius > 0
         ? clamp(suppliedRadius * 1609.34, 2200, 26000)
-        : (thunderstorm ? 9800 : 5600);
+        : (thunderstorm ? 3200 : 2200);
       addFormation(lng, lat, radiusM, elevation + baseAgl, elevation + top,
         hash(lng, lat, 6058), 'rain-cell');
     }
