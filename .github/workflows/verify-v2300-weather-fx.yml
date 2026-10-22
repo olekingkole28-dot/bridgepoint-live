@@ -37,6 +37,8 @@ jobs:
           grep -Fq 'sharedMapLibreWebGLContext:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'rainSnowHail:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "if(pr==='rain')return;" /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq 'retireLegacyScreenSpaceRain' /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq '__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "id: LAYER_ID, type: 'custom', renderingMode: '3d', minzoom: 10" /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'const VERSION = 6062;' /tmp/bp2300wx/world-v2300-rain.js
           grep -Fq 'world-v2300-rain.js?v=6062-world-anchored-rain-streaks' /tmp/bp2300wx/world-v2300-weather.js
@@ -50,7 +52,7 @@ jobs:
           <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
           <link rel="stylesheet" href="./vendor/maplibre-gl.css">
           <style>html,body,[data-surface="map"],#liveMap{margin:0;width:100%;height:100%;overflow:hidden;background:#071017}#mapStatus,#mapResults{position:absolute;z-index:5}.maplibregl-control-container{display:none}</style></head>
-          <body><section data-surface="map" class="active"><button data-base="gta" class="active">MAP</button><button data-base="satellite">SAT</button><button data-layer="parcels">PARCELS</button><button data-layer="buildings" class="active">3D</button><button data-layer="signals" class="active">LIVE</button><button data-layer="radar">RADAR</button><button id="locateMe">LOCATE</button><button id="resetMap">RESET</button><div id="liveMap"></div><div id="mapStatus"></div><div id="mapResults"></div></section>
+          <body><section data-surface="map" class="active"><button data-base="gta" class="active">MAP</button><button data-base="satellite">SAT</button><button data-layer="parcels">PARCELS</button><button data-layer="buildings" class="active">3D</button><button data-layer="signals" class="active">LIVE</button><button data-layer="radar">RADAR</button><button id="locateMe">LOCATE</button><button id="resetMap">RESET</button><div id="liveMap"></div><div id="mapStatus"></div><div id="mapResults"></div></section><canvas id="bp2081WeatherCanvas"></canvas>
           <script src="./vendor/maplibre-gl.js"></script>
           <script type="module">
             import {initWorld} from './world-v2300-map.js';
@@ -103,6 +105,9 @@ jobs:
               await p.goto('http://127.0.0.1:8770/',{waitUntil:'domcontentloaded',timeout:20000});
               await p.waitForFunction(()=>window.__BP_WX_TEST_READY__===true||window.__BP_WX_TEST_ERROR__,{timeout:25000});
               const initErr=await p.evaluate(()=>window.__BP_WX_TEST_ERROR__||null);assert.equal(initErr,null,initErr||'');
+              const retired=await p.evaluate(()=>({canvasGone:!document.getElementById('bp2081WeatherCanvas'),blocked:window.__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__?.legacyRuntimeBlocked===true}));
+              assert.equal(retired.canvasGone,true,'legacy screen-space weather canvas must be removed');
+              assert.equal(retired.blocked,true,'legacy screen-space weather runtime must be blocked');
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:10.5,pitch:58,bearing:-12}));
               await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
               await p.waitForFunction(()=>window.__bpWeatherV2300?.state?.counts?.alerts===3,{timeout:15000});
