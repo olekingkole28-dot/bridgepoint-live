@@ -29,7 +29,7 @@ function makeShaders(webgl2) {
     (webgl2 ? 'in vec3 v_local;\nin float v_tint;\nout vec4 bpColor;\n' : 'varying vec3 v_local;\nvarying float v_tint;\n') +
     'uniform float u_time;\n' +
     'float noise3(vec3 p){vec3 q=floor(p);vec3 f=fract(p);f=f*f*(3.0-2.0*f);float n=q.x+q.y*57.0+q.z*113.0;float a=fract(sin(n)*43758.5453);float b=fract(sin(n+1.0)*43758.5453);float c=fract(sin(n+57.0)*43758.5453);float d=fract(sin(n+58.0)*43758.5453);float e=fract(sin(n+113.0)*43758.5453);float f1=fract(sin(n+114.0)*43758.5453);float g=fract(sin(n+170.0)*43758.5453);float h=fract(sin(n+171.0)*43758.5453);return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,f1,f.x),mix(g,h,f.x),f.y),f.z);}\n' +
-    'void main(){vec3 n=normalize(v_local);float edge=clamp(0.63+abs(v_local.z)*0.19,0.0,1.0);float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float silver=clamp(0.28+diffuse*0.72+detail*0.17+billow*0.11,0.0,1.0);vec3 lit=mix(vec3(0.27,0.37,0.47),vec3(0.94,0.975,1.0),silver);lit=mix(lit,vec3(0.88,0.92,0.97),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*0.13);float alpha=clamp(edge*(0.39+detail*0.11+diffuse*0.15),0.05,0.60);' +
+    'void main(){vec3 n=normalize(v_local);float edge=clamp(0.58+abs(v_local.z)*0.18,0.0,1.0);float broad=noise3(v_local*3.0+vec3(u_time*0.004,v_tint*1.7,0.0));float detail=noise3(v_local*7.0+vec3(u_time*0.018,v_tint*4.0,0.0));float billow=noise3(v_local*15.0+vec3(0.0,u_time*0.012,v_tint*8.0));float fine=noise3(v_local*27.0+vec3(u_time*0.008,v_tint*11.0,0.0));float diffuse=max(0.0,dot(n,normalize(vec3(-0.42,0.55,0.72))));float density=broad*0.42+detail*0.33+billow*0.25;float sculpt=smoothstep(0.22,0.66,density);float silver=clamp(0.24+diffuse*0.77+broad*0.08+detail*0.08+billow*0.05,0.0,1.0);vec3 lit=mix(vec3(0.27,0.37,0.47),vec3(0.95,0.98,1.0),silver);lit=mix(lit,vec3(0.84,0.89,0.95),pow(max(0.0,1.0-abs(dot(n,normalize(vec3(0.2,0.0,1.0))))),2.0)*0.16);float alpha=clamp(edge*(0.13+sculpt*0.37+diffuse*0.14+fine*0.07),0.025,0.60);' +
     (webgl2 ? 'bpColor=vec4(lit,alpha);' : 'gl_FragColor=vec4(lit,alpha);') +
     '}';
   return { vertex, fragment };
@@ -161,7 +161,7 @@ export function initSkyClouds(target) {
   }
   function publishState() {
     const state = {
-      version: 6029, enabled, visible: enabled && !document.hidden,
+      version: 6030, enabled, visible: enabled && !document.hidden,
       kind: 'georeferenced 3D cloud-volume layer',
       renderer: 'single shared MapLibre WebGL context',
       cloudFormations: formationCount, measuredCloudSamples: measuredCount,
@@ -286,8 +286,9 @@ export function initSkyClouds(target) {
     const z = number(map.getZoom?.()), west0 = number(bounds.getWest()), east0 = number(bounds.getEast());
     const south = clamp(number(bounds.getSouth(), -55), -78, 82), north = clamp(number(bounds.getNorth(), 70), -78, 82);
     const west = Math.min(west0, east0), east = Math.max(west0, east0);
-    const cell = z < 1.2 ? 14 : z < 3 ? 7 : z < 5 ? 2.7 : z < 7 ? 0.85 : z < 9 ? 0.27 : z < 11 ? 0.085 : z < 13 ? 0.026 : z < 15 ? 0.008 : 0.003;
-    const maxForm = MOBILE ? 26 : (z < 2 ? 155 : 118);
+    const cell = z < 1.2 ? 9 : z < 3 ? 6.5 : z < 5 ? 2.7 : z < 7 ? 0.85 : z < 9 ? 0.27 : z < 11 ? 0.085 : z < 13 ? 0.026 : z < 15 ? 0.008 : 0.003;
+    /* Keep the mesh under 16-bit index limits while increasing close-range shape detail. */
+    const maxForm = MOBILE ? 24 : (z < 2 ? 125 : z < 9 ? 105 : 95);
     const vertices = [], indices = [], formations = [];
     measuredCount = 0; funnelCount = 0; stormCount = 0;
     const scene = getScene();
@@ -299,7 +300,7 @@ export function initSkyClouds(target) {
     const getLon = lng => ((((lng + 180) % 360) + 360) % 360) - 180;
     function addFormation(lng, lat, radiusM, baseM, topM, seed, kind = 'ordinary') {
       if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 82 || formations.length >= maxForm) return;
-      formations.push({ lng: getLon(lng), lat, radiusM: clamp(radiusM, 600, 95000),
+      formations.push({ lng: getLon(lng), lat, radiusM: clamp(radiusM, 600, 520000),
         baseM: clamp(baseM, 450, 14000), topM: clamp(topM, baseM + 180, 18500), seed, kind });
     }
 
@@ -340,34 +341,48 @@ export function initSkyClouds(target) {
       if (center) { addFormation(center[0], center[1], 10000, 3000, 11000, hash(center[0], center[1], 88), 'funnel'); funnelCount++; }
     }
 
-    /* Deterministic global cloud cover, regenerated only after a camera settles. */
+    /* Sample the full visible world before applying the mesh budget. The previous
+       row-major loop hit its cloud cap in the first few rows, so globe-level
+       clouds appeared in one band instead of across the full planet. */
     const pad = cell * 1.4;
     const lngStart = Math.floor((west - pad) / cell), lngEnd = Math.ceil((east + pad) / cell);
     const latStart = Math.floor((south - pad) / cell), latEnd = Math.ceil((north + pad) / cell);
-    const loopMax = 12000; let visited = 0;
-    for (let yi = latStart; yi <= latEnd && formations.length < maxForm && visited < loopMax; yi++) {
-      for (let xi = lngStart; xi <= lngEnd && formations.length < maxForm && visited < loopMax; xi++) {
-        visited++;
-        const seed = hash(xi, yi, 2), coverage = hash(xi, yi, 5);
-        if (coverage > 0.43) continue;
-        const lat = clamp((yi + 0.18 + seed * 0.64) * cell, -77, 81);
-        const lng = (xi + 0.18 + hash(xi, yi, 4) * 0.64) * cell;
-        const cloudSize = cell * 111320 * (0.34 + hash(xi, yi, 6) * 0.40);
-        const latitudeScale = Math.max(0.13, Math.cos(lat * Math.PI / 180));
-        const radius = clamp(cloudSize * Math.sqrt(latitudeScale), z < 2 ? 18000 : 650, 90000);
-        const top = 3600 + hash(xi, yi, 9) * 7600;
-        const base = Math.max(650, top * (0.31 + hash(xi, yi, 10) * 0.38));
-        addFormation(lng, lat, radius, base, top, seed, 'ordinary');
-      }
+    const gridX = Math.max(1, lngEnd - lngStart + 1), gridY = Math.max(1, latEnd - latStart + 1);
+    const totalCells = gridX * gridY, sampleCount = Math.min(totalCells, 12000);
+    const candidates = [];
+    for (let sample = 0; sample < sampleCount; sample++) {
+      const linear = totalCells <= sampleCount ? sample : Math.floor((sample + 0.5) * totalCells / sampleCount);
+      const xi = lngStart + (linear % gridX), yi = latStart + Math.floor(linear / gridX);
+      const seed = hash(xi, yi, 2);
+      const macroCover = hash(Math.floor(xi / 2), Math.floor(yi / 2), 5);
+      const microCover = hash(xi, yi, 5);
+      const coverage = macroCover * 0.68 + microCover * 0.32;
+      if (coverage > 0.58) continue;
+      candidates.push({ xi, yi, seed, rank: hash(xi, yi, 33) });
+    }
+    /* A stable spatial hash ranks candidate cells, producing even globe coverage
+       without loading or sorting an unbounded number of close-range grid cells. */
+    candidates.sort((a, b) => a.rank - b.rank);
+    for (const candidate of candidates) {
+      if (formations.length >= maxForm) break;
+      const { xi, yi, seed } = candidate;
+      const lat = clamp((yi + 0.18 + seed * 0.64) * cell, -77, 81);
+      const lng = (xi + 0.18 + hash(xi, yi, 4) * 0.64) * cell;
+      const cloudSize = cell * 111320 * (0.38 + hash(xi, yi, 6) * 0.46);
+      const latitudeScale = Math.max(0.13, Math.cos(lat * Math.PI / 180));
+      const radius = clamp(cloudSize * Math.sqrt(latitudeScale), z < 2 ? 100000 : 650, z < 2 ? 520000 : 90000);
+      const top = 3600 + hash(xi, yi, 9) * 7600;
+      const base = Math.max(650, top * (0.31 + hash(xi, yi, 10) * 0.38));
+      addFormation(lng, lat, radius, base, top, seed, 'ordinary');
     }
     if (!formations.length) addFormation(number(map.getCenter?.()?.lng), number(map.getCenter?.()?.lat), 8000, 2200, 8500, 0.43);
 
     function puff(lng, lat, altitude, rx, ry, rz, seed, tint, detailed) {
       makePuffGeometry(null, MC, vertices, indices, getLon(lng), clamp(lat, -82, 82),
-        altitude, rx, ry, rz, tint, detailed ? 8 : 6, detailed ? 5 : 4);
+        altitude, rx, ry, rz, tint, detailed ? (z >= 9 ? 11 : 9) : 7, detailed ? (z >= 9 ? 7 : 6) : 5);
     }
     for (let k = 0; k < formations.length; k++) {
-      const f = formations[k], n = MOBILE ? 3 : 5;
+      const f = formations[k], n = MOBILE ? 3 : (z < 2 ? 6 : 5);
       for (let i = 0; i < n; i++) {
         const a = i * 2.399 + f.seed * 5.3;
         const ring = i === 0 ? 0 : f.radiusM * (0.20 + hash(k, i, 1) * 0.46);
@@ -421,7 +436,7 @@ export function initSkyClouds(target) {
     setWorldGrade(enabled);
     if (enabled) {
       addLayerIfReady();
-      scheduleGeometry(40);
+      scheduleGeometry(0);
       startAnimation();
     } else {
       stopAnimation(); clearTimeout(rebuildTimer);
@@ -449,7 +464,7 @@ export function initSkyClouds(target) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6029, map, overlay,
+    version: 6030, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
     get state() { return window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
