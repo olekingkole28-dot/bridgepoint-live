@@ -8,7 +8,7 @@ const EARTH_CIRCUMFERENCE = 40075016.68557849;
 const RAD = Math.PI / 180;
 const MOBILE = (typeof innerWidth === 'number' && innerWidth <= 760) ||
   /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent || '');
-const MAX_DROPS = MOBILE ? 1600 : 6000;
+const MAX_DROPS = MOBILE ? 900 : 3600;
 const FLOATS_PER_VERTEX = 5;
 const vertexData = new Float32Array(MAX_DROPS * 6 * FLOATS_PER_VERTEX);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -289,7 +289,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       if (p && (p.x < -margin || p.x > w + margin || p.y < -margin || p.y > h + margin)) return null;
       const wind = windOf(o), key = c.lng.toFixed(3) + ':' + c.lat.toFixed(3);
       return { key, obs: o, lng: c.lng, lat: c.lat, radiusM, thunderstorm: thunder,
-        baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 900 : 750), 650, 4200),
+        baseAglM: clamp(safeNum(o.cloud_base_height_m ?? o.cloudBaseHeightM, thunder ? 450 : 350), 180, 4200),
         wind, groundM: groundElevation(map, c.lng, c.lat), seenAt: Date.now() };
     }).filter(Boolean);
     const view = center ? { lng: center.lng, lat: center.lat } : { lng: 0, lat: 0 };
@@ -333,7 +333,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     for (const d of drops) {
       if (n >= MAX_DROPS * 6) break;
       const screenScaleM = metersPerPixel(d.lat, zoom);
-      const segmentM = Math.min(d.baseAglM * 0.88, Math.max(d.segmentM, screenScaleM * 42));
+      const segmentM = Math.min(d.baseAglM * 0.82, Math.max(d.segmentM, screenScaleM * 20));
       const phase = mod(d.phase + seconds * d.fallRate, 1);
       const fallAgl = d.baseAglM * (1 - phase), lowerAgl = Math.max(0, fallAgl - segmentM);
       const shiftM = Math.min(220, d.windMps * (d.baseAglM - fallAgl) / Math.max(5, 8.5));
@@ -346,7 +346,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       const bLat = clamp(lat + Math.cos(d.windHeading) * tiltM / 111320, -84, 84);
       const bLng = lng + Math.sin(d.windHeading) * tiltM / (111320 * Math.max(0.12, Math.cos(bLat * RAD)));
       const b = mercator(bLng, bLat, bottomAlt);
-      const adaptiveWidthM = Math.max(d.widthM, metersPerPixel(lat, zoom) * 1.85);
+      const adaptiveWidthM = Math.max(d.widthM, metersPerPixel(lat, zoom) * 1.3);
       const halfW = c.unit * adaptiveWidthM * 0.5, halfSide = c.unit * adaptiveWidthM * 0.06;
       const lx = Math.cos(d.windHeading) * halfW, ly = -Math.sin(d.windHeading) * halfW;
       const bx = Math.sin(d.windHeading) * halfSide, by = Math.cos(d.windHeading) * halfSide;
