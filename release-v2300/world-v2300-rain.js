@@ -1,9 +1,9 @@
-const VERSION = 6065;
-const LAYER_ID = 'bp2300-rain-world-volume-v6065';
-const GROUND_SOURCE = 'bp2300-rain-ground-source-v6065';
-const WET_LAYER = 'bp2300-rain-wet-ground-v6065';
-const PUDDLE_LAYER = 'bp2300-rain-puddle-fill-v6065';
-const PUDDLE_GLINT = 'bp2300-rain-puddle-glint-v6065';
+const VERSION = 6066;
+const LAYER_ID = 'bp2300-rain-world-volume-v6066';
+const GROUND_SOURCE = 'bp2300-rain-ground-source-v6066';
+const WET_LAYER = 'bp2300-rain-wet-ground-v6066';
+const PUDDLE_LAYER = 'bp2300-rain-puddle-fill-v6066';
+const PUDDLE_GLINT = 'bp2300-rain-puddle-glint-v6066';
 const EARTH_CIRCUMFERENCE = 40075016.68557849;
 const RAD = Math.PI / 180;
 const MOBILE = (typeof innerWidth === 'number' && innerWidth <= 760) ||
@@ -100,7 +100,7 @@ function firstLayer(map, ids) {
 }
 
 export function initRainLayer(map, getScene = () => ({})) {
-  if (map.__bpRainRendererV6065) return map.__bpRainRendererV6065;
+  if (map.__bpRainRendererV6066) return map.__bpRainRendererV6066;
   let enabled = true, buffer = null, bufferAllocated = false, vao = null, vaoExt = null, vaoMode = 'none';
   let programCache = new Map(), scene = {}, cells = [], drops = [], cellMemories = new Map();
   let animationRaf = 0, groundTimer = 0, lastRepaint = 0, vertexCount = 0;
@@ -282,7 +282,7 @@ export function initRainLayer(map, getScene = () => ({})) {
       const thunder = /thunderstorm|\bts\b|squall/.test(rawWeather(o));
       let radiusM;
       if (Number.isFinite(supplied) && supplied > 0) radiusM = clamp(supplied * 1609.34, 2200, 26000);
-      else radiusM = thunder ? 3200 : 2200;
+      else radiusM = thunder ? 900 : 650;
       let p = null;
       try { p = map.project([c.lng, c.lat]); } catch (_) {}
       const margin = radiusM / Math.max(0.4, metersPerPixel(c.lat, z));
@@ -516,7 +516,7 @@ export function initRainLayer(map, getScene = () => ({})) {
     animationRaf = 0;
   }
   function publishDiagnostic() {
-    const d = window.__BP_RAIN_RENDERER_V6065__ || (window.__BP_RAIN_RENDERER_V6065__ = {});
+    const d = window.__BP_RAIN_RENDERER_V6066__ || (window.__BP_RAIN_RENDERER_V6066__ = {});
     Object.assign(d, { version: VERSION, renderer: 'georeferenced-3D-rain-ribbons', enabled,
       worldAnchored: true, layerAttached: !!map.getLayer?.(LAYER_ID), shaderVariants: programCache.size,
       projectionAware: Array.from(programCache.values()).some(info => info.projectionAware), projectionMode: lastProjectionMode,
@@ -553,8 +553,8 @@ export function initRainLayer(map, getScene = () => ({})) {
        projectionMode: lastProjectionMode, projectionUniformsBound, rainCellCount: cells.length, particleSeeds: drops.length, activeVertices: vertexCount,
       anchorFingerprint: drops.slice(0, 8).map(d => `${d.lng.toFixed(5)},${d.lat.toFixed(5)},${d.baseAglM.toFixed(0)}`).join('|'),
       puddleCount, rendererError, droppedFrames, lastRenderAt, lastGroundUpdate, worldAnchored: true }; } };
-  map.__bpRainRendererV6065 = api;
-  window.__BP_RAIN_RENDERER_V6065__ = api;
+  map.__bpRainRendererV6066 = api;
+  window.__BP_RAIN_RENDERER_V6066__ = api;
   refreshScene(getScene?.() || {});
   return api;
 }
