@@ -444,8 +444,8 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6070-global-cloud-coverage' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6070-global-cloud-coverage' site/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6071-rounded-billow-cloud-banks' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6071-rounded-billow-cloud-banks' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app.js
           grep -Fq 'world-v2300-rain.js?v=6070-clouds-only-phase' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
@@ -524,6 +524,10 @@ jobs:
           grep -Fq 'bridgepoint-nasa-nightlights-v5937' site/world-v2300-sensor-layers.js
           grep -Fq "kind: 'georeferenced 3D cloud-volume layer'" site/world-v2300-clouds.js
           grep -Fq 'version: 6048, map, overlay' site/world-v2300-clouds.js
+          grep -Fq 'const billow = 1.0 +' site/world-v2300-clouds.js
+          grep -Fq 'activeMacroCells' site/world-v2300-clouds.js
+          grep -Fq 'MOBILE ? 8 : 9, 6, hash(q.gx, q.gy, i + 973)' site/world-v2300-clouds.js
+          grep -Fq 'cloud-bank motion; wind-field coupling is not yet source-backed' site/world-v2300-clouds.js
           grep -Fq 'coverageVersion: 6070' site/world-v2300-clouds.js
           grep -Fq 'broad * 0.58 + fine * 0.42 > 0.64' site/world-v2300-clouds.js
           grep -Fq 'globalCloudPuffs' site/world-v2300-clouds.js
@@ -1958,7 +1962,7 @@ jobs:
                   eventPointsVisible:visible('bp-v5004-weather-points'),eventShapesVisible:visible('bp-v5004-weather-shape-line'),
                   cloudsEnabled:window.__BP_SKY_CLOUDS_STATE_V5908__?.enabled===true,globalCloudFormations:Number(window.__BP_SKY_CLOUDS_STATE_V5908__?.globalCloudFormations)||0};
               });
-              if(!defaultWeather.schedulerEnabled||!defaultWeather.sharedMap||!defaultWeather.liveWeatherEnabled||!defaultWeather.weatherEffectsDisabled||defaultWeather.eventPointsVisible||defaultWeather.eventShapesVisible||!defaultWeather.cloudsEnabled||defaultWeather.globalCloudFormations<500)
+              if(!defaultWeather.schedulerEnabled||!defaultWeather.sharedMap||!defaultWeather.liveWeatherEnabled||!defaultWeather.weatherEffectsDisabled||defaultWeather.eventPointsVisible||defaultWeather.eventShapesVisible||!defaultWeather.cloudsEnabled||defaultWeather.globalCloudFormations<450)
                 throw new Error('DEFAULT_SOURCE_BACKED_WEATHER_OR_CLOUD_RUNTIME_NOT_ACTIVE '+JSON.stringify(defaultWeather));
               console.log('BRIDGEPOINT_DEFAULT_SOURCE_BACKED_WEATHER_AND_CLOUDS_ON_PASS',JSON.stringify(defaultWeather));
 
