@@ -444,8 +444,8 @@ jobs:
           node --input-type=module --check < site/world-v2300-realism.js
           node --input-type=module --check < site/gis-core-orchestrator-v5910.js
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
-          grep -Fq 'world-v2300-clouds.js?v=6072-tall-discrete-cumulus' site/app.js
-          grep -Fq 'world-v2300-clouds.js?v=6072-tall-discrete-cumulus' site/landing.js
+          grep -Fq 'world-v2300-clouds.js?v=6073-height-aware-three-layers' site/app.js
+          grep -Fq 'world-v2300-clouds.js?v=6073-height-aware-three-layers' site/landing.js
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app.js
           grep -Fq 'world-v2300-rain.js?v=6070-clouds-only-phase' site/world-v2300-weather.js
           grep -Fq 'retireLegacyScreenSpaceRain' site/world-v2300-weather.js
@@ -527,15 +527,20 @@ jobs:
           grep -Fq 'const billow = 1.0 +' site/world-v2300-clouds.js
           grep -Fq 'activeMacroCells' site/world-v2300-clouds.js
           grep -Fq 'MOBILE ? 8 : 9, 7, hash(q.gx, q.gy, i + 973)' site/world-v2300-clouds.js
-          grep -Fq 'separate cloud banks and independent cloud cells; live wind-vector coupling is not yet source-backed' site/world-v2300-clouds.js
-          grep -Fq 'coverageVersion: 6072' site/world-v2300-clouds.js
+          grep -Fq 'sparse high-level cloud cells; live wind-vector coupling is not yet source-backed' site/world-v2300-clouds.js
+          grep -Fq 'coverageVersion: 6073' site/world-v2300-clouds.js
           grep -Fq 'broad * 0.72 + edgeNoise * 0.28 > 0.58' site/world-v2300-clouds.js
           grep -Fq 'const waveX = (gx + 0.5) / columns * TAU' site/world-v2300-clouds.js
           grep -Fq 'globalCloudPuffs' site/world-v2300-clouds.js
+          grep -Fq 'const thinColumns = 126, thinRows = 56, maxThin = MOBILE ? 140 : 180;' site/world-v2300-clouds.js
+          grep -Fq 'thinLayerFormationCount: thin.length' site/world-v2300-clouds.js
+          grep -Fq 'function terrainElevationAt(lng, lat)' site/world-v2300-clouds.js
+          grep -Fq 'const altitude = ground + baseAgl + range * 0.5;' site/world-v2300-clouds.js
+          grep -Fq 'const vertical = cloudRange * (i === 0 ? 0.43 : 0.40 + hash(k, i, 6) * 0.035);' site/world-v2300-clouds.js
           grep -Fq 'const smallColumns = 140, smallRows = 62, maxSingles = MOBILE ? 700 : 760;' site/world-v2300-clouds.js
           grep -Fq 'isolatedFormationCount: singles.length' site/world-v2300-clouds.js
           grep -Fq 'underside*0.48' site/world-v2300-clouds.js
-          grep -Fq 'multiscale cloud banks plus independently distributed cumulus cells' site/world-v2300-clouds.js
+          grep -Fq 'three layers: tall large-scale cumulus banks, independent terrain-cleared cumulus cells' site/world-v2300-clouds.js
           grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' site/app.js
           grep -Fq 'window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;' site/landing.js
           grep -Fq 'enabled = CLOUDS_ONLY_PHASE() ? false : !!value;' site/world-v2300-rain.js
@@ -736,7 +741,7 @@ jobs:
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/app.js
           grep -Fq 'activateLiveWeather();' site/app.js
           grep -Fq 'enabled:true,serializedWeather:true' site/app.js
-          grep -Fq 'app.js?v=6072-tall-discrete-cumulus' site/app/index.html
+          grep -Fq 'app.js?v=6073-height-aware-three-layers' site/app/index.html
           grep -Fq 'bridgepoint_public_weather_bootstrap_v5823' site/landing.js
           grep -Fq 'WMO_CAP_WARNING' site/app.js
           grep -Fq 'WMO_CAP_WARNING' site/landing.js
@@ -959,8 +964,8 @@ jobs:
           grep -Fq 'Terms of Use' site/terms/index.html
           grep -Fq 'Privacy Notice' site/privacy/index.html
           grep -Fq 'toggleLiveContext' site/app/index.html
-          grep -Fq 'app.js?v=6072-tall-discrete-cumulus' site/app/index.html
-          grep -Fq 'landing.js?v=6072-tall-discrete-cumulus' site/index.html
+          grep -Fq 'app.js?v=6073-height-aware-three-layers' site/app/index.html
+          grep -Fq 'landing.js?v=6073-height-aware-three-layers' site/index.html
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/app.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/landing.js
            grep -Fq 'world-v2300-map.js?v=6056-ground-camera-readiness' site/index.html
@@ -1342,7 +1347,7 @@ jobs:
                try {
                  await p.waitForFunction(()=>{
                    const w=window.__BP_LANDING_WORLD__,m=w?.map,c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6047__,b=document.querySelector('#bp-world-time-slider-v5908 [data-clouds]');
-                   return b?.getAttribute('aria-pressed')==='true'&&(w?.state?.base==='satellite'||w?.base==='satellite')&&c?.enabled===true&&!!m?.getLayer('bp-sky-cloud-volume-v6029')&&Number(s?.cloudFormations)>0&&s?.version===6072;
+                   return b?.getAttribute('aria-pressed')==='true'&&(w?.state?.base==='satellite'||w?.base==='satellite')&&c?.enabled===true&&!!m?.getLayer('bp-sky-cloud-volume-v6029')&&Number(s?.cloudFormations)>0&&s?.version===6073;
                  },{timeout:15000});
                } catch(error) {
                  const state=await p.evaluate(()=>({
@@ -1362,7 +1367,7 @@ jobs:
                    styleLayerCount:window.__BP_SKY_CLOUDS_STATE_V6047__?.mapStyleLayerCount,
                    layer:!!window.__BP_LANDING_WORLD__?.map?.getLayer('bp-sky-cloud-volume-v6029')
                  }));
-                 if(state.pressed!=='true'||state.enabled!==true||state.base!=='satellite'||state.layer!==true||Number(state.cloudFormations)<=0||state.version!==6072)
+                 if(state.pressed!=='true'||state.enabled!==true||state.base!=='satellite'||state.layer!==true||Number(state.cloudFormations)<=0||state.version!==6073)
                    throw new Error('NASA_EARTH_CLOUD_ON_TOGGLE_FAILED '+JSON.stringify(state)+' '+String(error?.message||error));
                  console.log('BRIDGEPOINT_NASA_EARTH_CLOUD_MODE_ON_STATE_CONFIRMED_AFTER_WAIT',JSON.stringify({...state,waitTimedOut:true}));
                }
@@ -1375,7 +1380,7 @@ jobs:
                 });
                 await p.waitForFunction(()=>{
                   const m=window.__BP_LANDING_WORLD__?.map,c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6047__;
-                  return !!m&&m.getZoom()<=1.3&&c?.enabled===true&&s?.version===6072&&s?.projectionMode==='MapLibre shaderData projectTileFor3D'&&s?.persistentGlobalCloudField===true&&
+                  return !!m&&m.getZoom()<=1.3&&c?.enabled===true&&s?.version===6073&&s?.projectionMode==='MapLibre shaderData projectTileFor3D'&&s?.persistentGlobalCloudField===true&&
                     Number(s?.globalCloudFormations)>150&&Number(s?.projectionShaderVariants)>0&&!!m.getLayer('bp-sky-cloud-volume-v6029');
                 },{timeout:18000});
                 const globeClouds=await p.evaluate(()=>window.__BP_SKY_CLOUDS_STATE_V6047__||null);
