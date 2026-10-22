@@ -235,7 +235,7 @@ export function initSkyClouds(target) {
   }
 
   let enabled = true, disposed = false, animationTimer = 0, rebuildTimer = 0, refreshHandle = 0, layerRetryTimer = 0, layerRetryAttempts = 0, lastLayerHealthCheckAt = 0;
-  let rainCellShelfCount = 0;
+  let rainCellShelfCount = 0, sourceCloudObservationCount = 0;
   let vertexData = new Float32Array(0), indexData = new Uint16Array(0);
   let globalCloudGeometryCache = null;
   let geometryDirty = true, formationCount = 0, measuredCount = 0, funnelCount = 0, stormCount = 0;
@@ -260,7 +260,7 @@ export function initSkyClouds(target) {
       cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6070, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, cloudMotion: 'GPU vertex advection with spatially coherent cloud-bank motion; wind-field coupling is not yet source-backed',
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
-      persistentGlobalCloudField: true, globalCoverageModel: 'procedural macro mask with clustered sub-clouds; satellite cloud-mask feed not yet connected', localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), rainCellShelfClouds: rainCellShelfCount, redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount,
+      persistentGlobalCloudField: true, globalCoverageModel: 'clustered procedural macro mask plus live source-observation cloud anchors; satellite cloud-mask feed not yet connected', localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), rainCellShelfClouds: rainCellShelfCount, redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount, sourceCloudObservationFormations: sourceCloudObservationCount,
       cloudHeightSource: heightSource,
       layerPresent: !!map.getLayer?.(LAYER_ID), layerInstalled,
       layerRetryAttempts, mapStyleLoaded: map.isStyleLoaded?.() === true,
@@ -563,7 +563,7 @@ function generateGeometry() {
     const z = number(map.getZoom?.());
     const maxForm = MOBILE ? 18 : 40;
     const vertices = [], indices = [], formations = [];
-    measuredCount = 0; funnelCount = 0; stormCount = 0; rainCellShelfCount = 0;
+    measuredCount = 0; funnelCount = 0; stormCount = 0; rainCellShelfCount = 0; sourceCloudObservationCount = 0;
     const scene = getScene();
     const measured = collectHeightFeatures(scene);
     measuredCount = measured.length;
@@ -638,6 +638,62 @@ function generateGeometry() {
           hash(lng, lat, i + 40), hurricane ? 'hurricane' : 'storm');
       }
       if (hurricane) stormCount++;
+    }
+
+    // During clouds-only review, turn real weather-station cloud observations into cloud
+    // volumes—not rain particles or precipitation overlays. At globe zoom, spread the
+    // selected anchors geographically; near the ground, prioritize nearby reports.
+    if (window.__BP_CLOUDS_ONLY_PHASE_V6070__ === true) {
+      const rawCloudReports = (Array.isArray(scene?.observations) ? scene.observations : [])
+        .map(o => {
+          const lng = number(o?.lng, number(o?.longitude, NaN));
+          const lat = number(o?.lat, number(o?.latitude, NaN));
+          const raw = String([o?.weather, o?.present_weather, o?.weather_text, o?.wx, o?.condition, o?.conditions, o?.rawdata]
+            .filter(Boolean).join(' ')).toLowerCase();
+          const rawFraction = number(o?.cloud_fraction, number(o?.cloudFraction, number(o?.cloud_cover, number(o?.cloudCover, NaN))));
+          const fraction = Number.isFinite(rawFraction) ? clamp(rawFraction > 1 ? rawFraction / 100 : rawFraction, 0, 1) :
+            (/thunderstorm|squall|rain|drizzle|shower|snow|hail|overcast|broken clouds|scattered clouds|fog|mist/.test(raw) ? 0.72 : NaN);
+          return { o, lng, lat, raw, fraction };
+        })
+        .filter(x => Number.isFinite(x.lng) && Number.isFinite(x.lat) && Math.abs(x.lat) <= 82 &&
+          Number.isFinite(x.fraction) && x.fraction >= 0.24);
+      const zoom = number(map.getZoom?.(), 10), center = map.getCenter?.();
+      let selectedReports = rawCloudReports;
+      if (zoom <= 5.5) {
+        const cells = new Map();
+        for (const item of rawCloudReports) {
+          const gx = Math.floor((getLon(item.lng) + 180) / 12);
+          const gy = Math.floor((item.lat + 84) / 12);
+          const cell = gx + ':' + gy;
+          const previous = cells.get(cell);
+          if (!previous || item.fraction > previous.fraction) cells.set(cell, item);
+        }
+        selectedReports = Array.from(cells.values()).sort((a,b) =>
+          hash(Math.floor(a.lng / 12), Math.floor(a.lat / 12), 6071) -
+          hash(Math.floor(b.lng / 12), Math.floor(b.lat / 12), 6071));
+      } else if (center) {
+        selectedReports.sort((a,b) => {
+          const da = Math.hypot((a.lng - center.lng) * Math.cos(center.lat * Math.PI / 180), a.lat - center.lat);
+          const db = Math.hypot((b.lng - center.lng) * Math.cos(center.lat * Math.PI / 180), b.lat - center.lat);
+          return da - db || b.fraction - a.fraction;
+        });
+      }
+      for (const item of selectedReports.slice(0, MOBILE ? 5 : 12)) {
+        if (formations.length >= maxForm) break;
+        const { o, lng, lat, raw, fraction } = item;
+        const thunder = /thunderstorm|squall|hail|blizzard/.test(raw);
+        const wet = /rain|drizzle|shower|snow/.test(raw);
+        const elevation = Math.max(0, number(map.queryTerrainElevation?.([lng, lat]), 0));
+        const baseAgl = clamp(number(o?.cloud_base_height_m, number(o?.cloudBaseHeightM, thunder ? 700 : wet ? 950 : 1250)), 300, 5000);
+        const top = clamp(number(o?.cloud_top_height_m, number(o?.cloudTopHeightM, thunder ? 11500 : wet ? 7600 : 5200)), baseAgl + 1200, 17000);
+        const observedRadius = number(o?.cloud_radius_m, number(o?.radius_m, NaN));
+        const radiusM = Number.isFinite(observedRadius) && observedRadius > 0
+          ? clamp(observedRadius, 18000, 170000)
+          : clamp(26000 + fraction * 90000, 32000, 125000);
+        addFormation(lng, lat, radiusM, elevation + baseAgl, elevation + top,
+          hash(lng, lat, 6071), thunder ? 'storm' : 'observed');
+        sourceCloudObservationCount++;
+      }
     }
 
     // A warning polygon is illustrative context, not confirmation of a tornado.
