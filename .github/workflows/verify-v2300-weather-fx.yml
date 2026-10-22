@@ -37,9 +37,9 @@ jobs:
           grep -Fq 'sharedMapLibreWebGLContext:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'rainSnowHail:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq "if(pr==='rain')return;" /tmp/bp2300wx/world-v2300-weather.js
-          grep -Fq 'minzoom: 14' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'const VERSION = 6061;' /tmp/bp2300wx/world-v2300-rain.js
-          grep -Fq 'world-v2300-rain.js?v=6061-world-anchored-rain' /tmp/bp2300wx/world-v2300-weather.js
+          grep -Fq "id: LAYER_ID, type: 'custom', renderingMode: '3d', minzoom: 10" /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'const VERSION = 6062;' /tmp/bp2300wx/world-v2300-rain.js
+          grep -Fq 'world-v2300-rain.js?v=6062-world-anchored-rain-streaks' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'wildfireFlameParticles:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'tornadoCone:true' /tmp/bp2300wx/world-v2300-weather.js
           grep -Fq 'hurricaneSpiralEye:true' /tmp/bp2300wx/world-v2300-weather.js
@@ -116,11 +116,11 @@ jobs:
               assert(out.fx.budgets.maxPoints<=760);assert(out.fx.qualityScale>=.28&&out.fx.qualityScale<=1);
               assert.equal(out.w.counts.alerts,3);assert.equal(out.w.counts.fires,1);assert.equal(out.w.counts.storms,1);assert.equal(out.w.counts.lightning,1);assert.equal(out.w.counts.water,1);
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:14.5,pitch:58,bearing:-12}));
-              await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6061__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true;},{timeout:15000});
-              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6061__;return{zoom:m.getZoom(),version:r?.version,state:r?.state,layerAttached:!!m.getLayer('bp2300-rain-world-volume-v6061')}});
+              await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6062__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true;},{timeout:15000});
+              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6062__;return{zoom:m.getZoom(),version:r?.version,state:r?.state,layerAttached:!!m.getLayer('bp2300-rain-world-volume-v6062')}});
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-zoom14-5.png',fullPage:false});
-              assert(rainOut.zoom>=14,'rain renderer test must be above geographic rain activation zoom');
-              assert.equal(rainOut.version,6061,'updated world-anchored rain renderer must be loaded');
+              assert(rainOut.zoom>=10,'rain renderer test must be above geographic rain activation zoom');
+              assert.equal(rainOut.version,6062,'updated world-anchored rain renderer must be loaded');
               assert.equal(rainOut.layerAttached,true,'geographic 3D rain layer must be attached');
               assert.equal(rainOut.state.worldAnchored,true,'rain layer must report its geographic 3D renderer');
               assert(rainOut.state.rainCellCount>0&&rainOut.state.particleSeeds>0,'source-backed rain observations must create geographically anchored drops');
