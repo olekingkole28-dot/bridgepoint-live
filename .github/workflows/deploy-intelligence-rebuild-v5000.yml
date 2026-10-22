@@ -1342,7 +1342,7 @@ jobs:
                try {
                  await p.waitForFunction(()=>{
                    const w=window.__BP_LANDING_WORLD__,m=w?.map,c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6047__,b=document.querySelector('#bp-world-time-slider-v5908 [data-clouds]');
-                   return b?.getAttribute('aria-pressed')==='true'&&(w?.state?.base==='satellite'||w?.base==='satellite')&&c?.enabled===true&&!!m?.getLayer('bp-sky-cloud-volume-v6029')&&Number(s?.cloudFormations)>0&&s?.version===6048;
+                   return b?.getAttribute('aria-pressed')==='true'&&(w?.state?.base==='satellite'||w?.base==='satellite')&&c?.enabled===true&&!!m?.getLayer('bp-sky-cloud-volume-v6029')&&Number(s?.cloudFormations)>0&&s?.version===6072;
                  },{timeout:15000});
                } catch(error) {
                  const state=await p.evaluate(()=>({
@@ -1362,7 +1362,7 @@ jobs:
                    styleLayerCount:window.__BP_SKY_CLOUDS_STATE_V6047__?.mapStyleLayerCount,
                    layer:!!window.__BP_LANDING_WORLD__?.map?.getLayer('bp-sky-cloud-volume-v6029')
                  }));
-                 if(state.pressed!=='true'||state.enabled!==true||state.base!=='satellite'||state.layer!==true||Number(state.cloudFormations)<=0||state.version!==6048)
+                 if(state.pressed!=='true'||state.enabled!==true||state.base!=='satellite'||state.layer!==true||Number(state.cloudFormations)<=0||state.version!==6072)
                    throw new Error('NASA_EARTH_CLOUD_ON_TOGGLE_FAILED '+JSON.stringify(state)+' '+String(error?.message||error));
                  console.log('BRIDGEPOINT_NASA_EARTH_CLOUD_MODE_ON_STATE_CONFIRMED_AFTER_WAIT',JSON.stringify({...state,waitTimedOut:true}));
                }
@@ -1375,7 +1375,7 @@ jobs:
                 });
                 await p.waitForFunction(()=>{
                   const m=window.__BP_LANDING_WORLD__?.map,c=window.__BP_SKY_CLOUDS_V5908__,s=window.__BP_SKY_CLOUDS_STATE_V6047__;
-                  return !!m&&m.getZoom()<=1.3&&c?.enabled===true&&s?.version===6048&&s?.projectionMode==='MapLibre shaderData projectTileFor3D'&&s?.persistentGlobalCloudField===true&&
+                  return !!m&&m.getZoom()<=1.3&&c?.enabled===true&&s?.version===6072&&s?.projectionMode==='MapLibre shaderData projectTileFor3D'&&s?.persistentGlobalCloudField===true&&
                     Number(s?.globalCloudFormations)>150&&Number(s?.projectionShaderVariants)>0&&!!m.getLayer('bp-sky-cloud-volume-v6029');
                 },{timeout:18000});
                 const globeClouds=await p.evaluate(()=>window.__BP_SKY_CLOUDS_STATE_V6047__||null);
