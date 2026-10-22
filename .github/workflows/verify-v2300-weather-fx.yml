@@ -153,6 +153,14 @@ jobs:
               await p.evaluate(()=>window.__bpWeatherV2300.refresh(true));
               await p.waitForFunction(()=>window.__bpWeatherV2300?.state?.counts?.alerts===3,{timeout:15000});
               await p.waitForFunction(()=>Number(window.__BP_SKY_CLOUDS_STATE_V5908__?.localCloudFormations||0)>0,{timeout:15000});
+              const stormCloudDiag=await p.evaluate(()=>{const s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{version:s.version,globalCloudFormations:s.globalCloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalThinLayerStacks:s.globalThinLayerStacks,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneCloudShieldRadiusKm:s.hurricaneCloudShieldRadiusKm,rendererError:s.rendererError};});
+              console.log('BRIDGEPOINT_ROUNDED_GLOBAL_CLOUDS_AND_HURRICANE_SPIRAL_DIAG',JSON.stringify(stormCloudDiag));
+              assert(stormCloudDiag.globalCloudFormations>=1600,'mobile global field must retain approximately 1,620 formations');
+              assert.equal(stormCloudDiag.globalThinLayerSlices,8,'thin global clouds must use a rounded eight-segment silhouette');
+              assert.equal(stormCloudDiag.globalThinLayerStacks,2,'thin cloud geometry must stay thin and low-cost');
+              assert(stormCloudDiag.globalMacroRadiusMaxKm>=560,'large global cloud banks must extend to a regional scale');
+              assert(stormCloudDiag.hurricaneSpiralCloudCenters>=14,'source hurricane must produce a curved cloud-shield spiral with 14 centers');
+              assert(stormCloudDiag.hurricaneCloudShieldRadiusKm>=520,'hurricane cloud shield must use storm-scale radius, not eye radius');
               await p.waitForFunction(()=>window.__bpWeatherV2300?.fx?.state?.shaderReady===true,{timeout:15000});
               await p.waitForFunction(()=>window.__bpWeatherV2300?.fx?.state?.activeParticles>40,{timeout:15000});
               await new Promise(r=>setTimeout(r,1200));
@@ -171,7 +179,7 @@ jobs:
               await new Promise(r=>setTimeout(r,550));
               await p.evaluate(()=>window.__bpWorldV2300.map.jumpTo({center:[-87.3425,41.538],zoom:14.5,pitch:58,bearing:-12}));
               await p.waitForFunction(()=>{const r=window.__BP_RAIN_RENDERER_V6068__;return !!r&&r.state?.rainCellCount>0&&r.state?.particleSeeds>0&&r.state?.activeVertices>0&&r.state?.worldAnchored===true&&r.state?.overlayAttached===true&&r.state?.renderedStreaks>40&&r.state?.projectionMode==='geographic-map-project';},{timeout:15000});
-              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6068__,s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:m.getZoom(),version:r?.version,state:r?.state,overlayAttached:!!document.getElementById('bp2300-rain-geographic-svg-v6068'),cloudLocalFormations:Number(s.localCloudFormations||0),cloudDiag:{enabled:s.enabled,visible:s.visible,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,localCloudFormations:s.localCloudFormations,rainCellShelfClouds:s.rainCellShelfClouds,cloudFormations:s.cloudFormations,rendererError:s.rendererError,projectionMode:s.projectionMode}}});
+              const rainOut=await p.evaluate(()=>{const m=window.__bpWorldV2300.map,r=window.__BP_RAIN_RENDERER_V6068__,s=window.__BP_SKY_CLOUDS_STATE_V5908__||{};return{zoom:m.getZoom(),version:r?.version,state:r?.state,overlayAttached:!!document.getElementById('bp2300-rain-geographic-svg-v6068'),cloudLocalFormations:Number(s.localCloudFormations||0),cloudDiag:{enabled:s.enabled,visible:s.visible,layerPresent:s.layerPresent,layerInstalled:s.layerInstalled,localCloudFormations:s.localCloudFormations,rainCellShelfClouds:s.rainCellShelfClouds,cloudFormations:s.cloudFormations,globalThinLayerSlices:s.globalThinLayerSlices,globalThinLayerStacks:s.globalThinLayerStacks,globalMacroRadiusMaxKm:s.globalMacroRadiusMaxKm,hurricaneSpiralCloudCenters:s.hurricaneSpiralCloudCenters,hurricaneCloudShieldRadiusKm:s.hurricaneCloudShieldRadiusKm,rendererError:s.rendererError,projectionMode:s.projectionMode}}});
               console.log('BRIDGEPOINT_RAIN_CLOUD_DIAG',JSON.stringify(rainOut.cloudDiag));
               await p.screenshot({path:'/tmp/bp2300wx/world-anchored-rain-zoom14-5.png',fullPage:false});
               assert(rainOut.zoom>=10,'rain renderer test must be above geographic rain activation zoom');
