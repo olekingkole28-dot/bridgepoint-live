@@ -501,8 +501,8 @@ jobs:
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/index.html
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app/index.html
           grep -Fq 'world-v2300-weather.js?v=6070-clouds-only-phase' site/app/world-v2300-bootstrap.js
-          grep -Fq 'world-v2300-time-slider.js?v=6055-early-layer-attach' site/app.js
-          grep -Fq 'world-v2300-time-slider.js?v=6055-early-layer-attach' site/landing.js
+          grep -Fq 'world-v2300-time-slider.js?v=6076-rounded-cloud-banks' site/app.js
+          grep -Fq 'world-v2300-time-slider.js?v=6076-rounded-cloud-banks' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/app.js
           grep -Fq 'world-v2300-underground-xray.js?v=5965-landmarks-and-effects' site/landing.js
