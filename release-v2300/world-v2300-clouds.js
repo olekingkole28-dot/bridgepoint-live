@@ -62,6 +62,59 @@ function compileProgram(gl, webgl2) {
   }
   return program;
 }
+
+function captureCloudGLState(gl, locations) {
+  const enabled = name => { try { return gl.isEnabled(gl[name]); } catch (_) { return false; } };
+  const parameter = name => { try { return gl.getParameter(gl[name]); } catch (_) { return null; } };
+  const attributes = locations.filter(a => a >= 0).map(location => {
+    try {
+      return {
+        location,
+        enabled: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_ENABLED),
+        buffer: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING),
+        size: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_SIZE),
+        type: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_TYPE),
+        normalized: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_NORMALIZED),
+        stride: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_STRIDE),
+        offset: gl.getVertexAttribOffset(location, gl.VERTEX_ATTRIB_ARRAY_POINTER)
+      };
+    } catch (_) { return null; }
+  }).filter(Boolean);
+  return {
+    program: parameter('CURRENT_PROGRAM'), array: parameter('ARRAY_BUFFER_BINDING'),
+    element: parameter('ELEMENT_ARRAY_BUFFER_BINDING'), depth: enabled('DEPTH_TEST'),
+    blend: enabled('BLEND'), cull: enabled('CULL_FACE'), stencil: enabled('STENCIL_TEST'),
+    scissor: enabled('SCISSOR_TEST'), depthMask: parameter('DEPTH_WRITEMASK'),
+    colorMask: parameter('COLOR_WRITEMASK'), srcRgb: parameter('BLEND_SRC_RGB'),
+    dstRgb: parameter('BLEND_DST_RGB'), srcA: parameter('BLEND_SRC_ALPHA'),
+    dstA: parameter('BLEND_DST_ALPHA'), eqRgb: parameter('BLEND_EQUATION_RGB'),
+    eqA: parameter('BLEND_EQUATION_ALPHA'), attributes
+  };
+}
+function restoreCloudGLState(gl, state) {
+  if (!state) return;
+  const capability = (name, value) => { try { if (value) gl.enable(gl[name]); else gl.disable(gl[name]); } catch (_) {} };
+  for (const a of state.attributes || []) {
+    try {
+      if (a.buffer) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, a.buffer);
+        gl.vertexAttribPointer(a.location, a.size, a.type, !!a.normalized, a.stride, a.offset);
+      }
+      if (a.enabled) gl.enableVertexAttribArray(a.location); else gl.disableVertexAttribArray(a.location);
+    } catch (_) {}
+  }
+  try { if (state.depthMask != null) gl.depthMask(state.depthMask); } catch (_) {}
+  try { if (state.colorMask) gl.colorMask(...Array.from(state.colorMask)); } catch (_) {}
+  capability('DEPTH_TEST', state.depth); capability('BLEND', state.blend);
+  capability('CULL_FACE', state.cull); capability('STENCIL_TEST', state.stencil);
+  capability('SCISSOR_TEST', state.scissor);
+  try { if ([state.srcRgb,state.dstRgb,state.srcA,state.dstA].every(v => v != null)) gl.blendFuncSeparate(state.srcRgb,state.dstRgb,state.srcA,state.dstA); } catch (_) {}
+  try { if (state.eqRgb != null && state.eqA != null) gl.blendEquationSeparate(state.eqRgb,state.eqA); } catch (_) {}
+  try { gl.useProgram(state.program); } catch (_) {}
+  try { gl.bindBuffer(gl.ARRAY_BUFFER, state.array); } catch (_) {}
+  try { gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, state.element); } catch (_) {}
+}
+
 function coordsOf(feature) {
   const points = [];
   const visit = value => {
@@ -161,7 +214,7 @@ export function initSkyClouds(target) {
   }
   function publishState() {
     const state = {
-      version: 6030, enabled, visible: enabled && !document.hidden,
+      version: 6031, map, enabled, visible: enabled && !document.hidden,
       kind: 'georeferenced 3D cloud-volume layer',
       renderer: 'single shared MapLibre WebGL context',
       cloudFormations: formationCount, measuredCloudSamples: measuredCount,
@@ -173,6 +226,7 @@ export function initSkyClouds(target) {
     };
     window.__BP_SKY_CLOUDS_STATE_V5908__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6029__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6031__ = state;
     window.dispatchEvent(new CustomEvent('bp:sky-cloud-state', { detail: state }));
     return state;
   }
@@ -224,17 +278,11 @@ export function initSkyClouds(target) {
       if (!enabled || document.hidden || disposed || !program || !vbo || !ibo || indexData.length < 3) return;
       const matrix = args?.defaultProjectionData?.mainMatrix || args?.modelViewProjectionMatrix || args;
       if (!matrix || typeof matrix.length !== 'number' || matrix.length < 16) return;
+      let saved = null;
       try {
-        const current = {
-          program: gl.getParameter(gl.CURRENT_PROGRAM), array: gl.getParameter(gl.ARRAY_BUFFER_BINDING),
-          element: gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING), depth: gl.isEnabled(gl.DEPTH_TEST),
-          blend: gl.isEnabled(gl.BLEND), cull: gl.isEnabled(gl.CULL_FACE),
-          depthMask: gl.getParameter(gl.DEPTH_WRITEMASK),
-          srcRgb: gl.getParameter(gl.BLEND_SRC_RGB), dstRgb: gl.getParameter(gl.BLEND_DST_RGB),
-          srcA: gl.getParameter(gl.BLEND_SRC_ALPHA), dstA: gl.getParameter(gl.BLEND_DST_ALPHA),
-          eqRgb: gl.getParameter(gl.BLEND_EQUATION_RGB), eqA: gl.getParameter(gl.BLEND_EQUATION_ALPHA)
-        };
-        gl.useProgram(program); gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+        saved = captureCloudGLState(gl, [attrs.pos, attrs.local, attrs.tint]);
+        gl.useProgram(program);
+        gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
         if (geometryDirty) {
           gl.bufferData(gl.ARRAY_BUFFER, vertexData, gl.STATIC_DRAW);
           gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
@@ -242,7 +290,6 @@ export function initSkyClouds(target) {
           geometryDirty = false;
         } else gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
         const stride = 7 * Float32Array.BYTES_PER_ELEMENT;
-        const enabledBefore = [attrs.pos, attrs.local, attrs.tint].map(a => gl.getVertexAttrib(a, gl.VERTEX_ATTRIB_ARRAY_ENABLED));
         gl.enableVertexAttribArray(attrs.pos); gl.vertexAttribPointer(attrs.pos, 3, gl.FLOAT, false, stride, 0);
         gl.enableVertexAttribArray(attrs.local); gl.vertexAttribPointer(attrs.local, 3, gl.FLOAT, false, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
         gl.enableVertexAttribArray(attrs.tint); gl.vertexAttribPointer(attrs.tint, 1, gl.FLOAT, false, stride, 6 * Float32Array.BYTES_PER_ELEMENT);
@@ -252,23 +299,20 @@ export function initSkyClouds(target) {
         gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.disable(gl.CULL_FACE); gl.depthMask(false);
         gl.drawElements(gl.TRIANGLES, indexData.length, gl.UNSIGNED_SHORT, 0);
-        [attrs.pos, attrs.local, attrs.tint].forEach((a, i) => { if (!enabledBefore[i]) gl.disableVertexAttribArray(a); });
-        gl.depthMask(current.depthMask);
-        if (current.depth) gl.enable(gl.DEPTH_TEST); else gl.disable(gl.DEPTH_TEST);
-        if (current.blend) gl.enable(gl.BLEND); else gl.disable(gl.BLEND);
-        if (current.cull) gl.enable(gl.CULL_FACE); else gl.disable(gl.CULL_FACE);
-        gl.blendFuncSeparate(current.srcRgb, current.dstRgb, current.srcA, current.dstA);
-        gl.blendEquationSeparate(current.eqRgb, current.eqA);
-        gl.useProgram(current.program); gl.bindBuffer(gl.ARRAY_BUFFER, current.array); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, current.element);
+        rendererError = null;
       } catch (error) {
         rendererError = String(error?.message || error).slice(0, 180); publishState();
+      } finally {
+        restoreCloudGLState(gl, saved);
       }
     },
     onRemove(_map, gl) { if (gl) cleanupGpu(gl); layerInstalled = false; }
   };
 
   function addLayerIfReady() {
-    if (disposed || layerInstalled || !map.isStyleLoaded?.() || map.getLayer?.(LAYER_ID)) return;
+    if (disposed || !map.isStyleLoaded?.()) return;
+    if (map.getLayer?.(LAYER_ID)) { layerInstalled = true; return; }
+    layerInstalled = false;
     try {
       const firstSymbol = map.getStyle?.()?.layers?.find(l => l.type === 'symbol')?.id;
       map.addLayer(cloudLayer, firstSymbol);
@@ -288,7 +332,7 @@ export function initSkyClouds(target) {
     const west = Math.min(west0, east0), east = Math.max(west0, east0);
     const cell = z < 1.2 ? 9 : z < 3 ? 6.5 : z < 5 ? 2.7 : z < 7 ? 0.85 : z < 9 ? 0.27 : z < 11 ? 0.085 : z < 13 ? 0.026 : z < 15 ? 0.008 : 0.003;
     /* Keep the mesh under 16-bit index limits while increasing close-range shape detail. */
-    const maxForm = MOBILE ? 24 : (z < 2 ? 125 : z < 9 ? 105 : 95);
+    const maxForm = MOBILE ? (z < 2 ? 54 : 38) : (z < 2 ? 125 : z < 9 ? 105 : 95);
     const vertices = [], indices = [], formations = [];
     measuredCount = 0; funnelCount = 0; stormCount = 0;
     const scene = getScene();
@@ -391,7 +435,7 @@ export function initSkyClouds(target) {
         const scaleX = i === 0 ? 1.00 : 0.45 + hash(k, i, 3) * 0.54;
         const scaleY = i === 0 ? 0.76 : 0.44 + hash(k, i, 4) * 0.48;
         const altitude = f.baseM + (f.topM - f.baseM) * (i === 0 ? 0.42 : 0.18 + hash(k, i, 5) * 0.70);
-        const vertical = Math.max(260, (f.topM - f.baseM) * (i === 0 ? 0.42 : 0.24 + hash(k, i, 6) * 0.23));
+        const vertical = Math.max(420, (f.topM - f.baseM) * (i === 0 ? 0.54 : 0.34 + hash(k, i, 6) * 0.20));
         puff(lng, lat, altitude, f.radiusM * scaleX, f.radiusM * scaleY, vertical, f.seed, f.kind === 'hurricane' ? 0.84 : 0.22 + hash(k, i, 7) * 0.52, true);
       }
       if (f.kind === 'funnel' && !MOBILE) makeFunnelGeometry(MC, vertices, indices, f.lng, f.lat, f.topM, 0.92);
@@ -421,7 +465,7 @@ export function initSkyClouds(target) {
   function tick() {
     if (disposed || !enabled || document.hidden) { raf = 0; return; }
     const now = performance.now();
-    if (now - lastFrame >= (MOBILE ? 66 : 33)) {
+    if (now - lastFrame >= (MOBILE ? 100 : 50)) {
       lastFrame = now;
       if (layerInstalled) map.triggerRepaint?.();
     }
@@ -453,7 +497,7 @@ export function initSkyClouds(target) {
     publishState();
   }
   function onMoveEnd() { if (enabled) scheduleGeometry(200); }
-  function onStyleData() { if (!layerInstalled && enabled) addLayerIfReady(); }
+  function onStyleData() { if (enabled) addLayerIfReady(); }
 
   map.on?.('moveend', onMoveEnd); map.on?.('zoomend', onMoveEnd); map.on?.('resize', onMoveEnd);
   map.on?.('styledata', onStyleData);
@@ -467,7 +511,7 @@ export function initSkyClouds(target) {
     version: 6030, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
-    get state() { return window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
+    get state() { return window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
     destroy() {
       if (disposed) return; disposed = true;
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle);

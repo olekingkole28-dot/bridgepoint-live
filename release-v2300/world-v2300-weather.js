@@ -47,6 +47,59 @@ function baseLayers(map){
  try{for(const id of ['wx-radar-haze','wx-radar'])if(before&&map.getLayer(id))map.moveLayer(id,before)}catch(_){}
 }
 
+
+function captureWeatherGLState(gl, locations) {
+  const enabled = name => { try { return gl.isEnabled(gl[name]); } catch (_) { return false; } };
+  const parameter = name => { try { return gl.getParameter(gl[name]); } catch (_) { return null; } };
+  const attributes = locations.filter(a => a >= 0).map(location => {
+    try {
+      return {
+        location,
+        enabled: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_ENABLED),
+        buffer: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_BUFFER_BINDING),
+        size: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_SIZE),
+        type: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_TYPE),
+        normalized: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_NORMALIZED),
+        stride: gl.getVertexAttrib(location, gl.VERTEX_ATTRIB_ARRAY_STRIDE),
+        offset: gl.getVertexAttribOffset(location, gl.VERTEX_ATTRIB_ARRAY_POINTER)
+      };
+    } catch (_) { return null; }
+  }).filter(Boolean);
+  return {
+    program: parameter('CURRENT_PROGRAM'), array: parameter('ARRAY_BUFFER_BINDING'),
+    element: parameter('ELEMENT_ARRAY_BUFFER_BINDING'), depth: enabled('DEPTH_TEST'),
+    blend: enabled('BLEND'), cull: enabled('CULL_FACE'), stencil: enabled('STENCIL_TEST'),
+    scissor: enabled('SCISSOR_TEST'), depthMask: parameter('DEPTH_WRITEMASK'),
+    colorMask: parameter('COLOR_WRITEMASK'), srcRgb: parameter('BLEND_SRC_RGB'),
+    dstRgb: parameter('BLEND_DST_RGB'), srcA: parameter('BLEND_SRC_ALPHA'),
+    dstA: parameter('BLEND_DST_ALPHA'), eqRgb: parameter('BLEND_EQUATION_RGB'),
+    eqA: parameter('BLEND_EQUATION_ALPHA'), attributes
+  };
+}
+function restoreWeatherGLState(gl, state) {
+  if (!state) return;
+  const capability = (name, value) => { try { if (value) gl.enable(gl[name]); else gl.disable(gl[name]); } catch (_) {} };
+  for (const a of state.attributes || []) {
+    try {
+      if (a.buffer) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, a.buffer);
+        gl.vertexAttribPointer(a.location, a.size, a.type, !!a.normalized, a.stride, a.offset);
+      }
+      if (a.enabled) gl.enableVertexAttribArray(a.location); else gl.disableVertexAttribArray(a.location);
+    } catch (_) {}
+  }
+  try { if (state.depthMask != null) gl.depthMask(state.depthMask); } catch (_) {}
+  try { if (state.colorMask) gl.colorMask(...Array.from(state.colorMask)); } catch (_) {}
+  capability('DEPTH_TEST', state.depth); capability('BLEND', state.blend);
+  capability('CULL_FACE', state.cull); capability('STENCIL_TEST', state.stencil);
+  capability('SCISSOR_TEST', state.scissor);
+  try { if ([state.srcRgb,state.dstRgb,state.srcA,state.dstA].every(v => v != null)) gl.blendFuncSeparate(state.srcRgb,state.dstRgb,state.srcA,state.dstA); } catch (_) {}
+  try { if (state.eqRgb != null && state.eqA != null) gl.blendEquationSeparate(state.eqRgb,state.eqA); } catch (_) {}
+  try { gl.useProgram(state.program); } catch (_) {}
+  try { gl.bindBuffer(gl.ARRAY_BUFFER, state.array); } catch (_) {}
+  try { gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, state.element); } catch (_) {}
+}
+
 function createFx(map){
  if(window.__bpWeatherFXV2300)return window.__bpWeatherFXV2300;
  let scene={...EMPTY_SCENE},enabled=true,moving=false,quality=1,fps=60,bad=0,good=0,lastFrame=0,lastWater=0,timer=0,shaderReady=false,activeParticles=0,program=null,buffer=null,attrs=null,generatedAt=null,monitorRaf=0,nearestObsCache=null,nearestObsCacheAt=0,nearestObsCacheValid=false,animationCheckAt=0,animationCheckCached=false,waterPulse=false;let particleLayerRetryAt=0;let schedulerMode='uninitialized';
@@ -79,7 +132,30 @@ function createFx(map){
  }
  function compile(gl,type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s)||'shader compile');return s}
  function initGl(gl){const v2=typeof WebGL2RenderingContext!=='undefined'&&gl instanceof WebGL2RenderingContext,head=v2?'#version 300 es\n':'',vin=v2?'in':'attribute',vout=v2?'out':'varying',fin=v2?'in':'varying',fout=v2?'out vec4 outColor;':'',write=v2?'outColor':'gl_FragColor';const vs=`${head}precision mediump float;${vin} vec2 a_pos;${vin} float a_size;${vin} float a_kind;${vin} float a_alpha;${vin} float a_phase;${vin} float a_aux;uniform float u_dpr;${vout} float v_kind;${vout} float v_alpha;${vout} float v_phase;${vout} float v_aux;void main(){gl_Position=vec4(a_pos,0.,1.);gl_PointSize=max(1.,a_size*u_dpr);v_kind=a_kind;v_alpha=a_alpha;v_phase=a_phase;v_aux=a_aux;}`;const fs=`${head}precision mediump float;${fin} float v_kind;${fin} float v_alpha;${fin} float v_phase;${fin} float v_aux;${fout}void main(){vec2 q=gl_PointCoord-vec2(.5);float a=0.;vec3 c=vec3(1.);if(v_kind<.5){float x=q.x+v_aux*q.y;a=(1.-smoothstep(.035,.11,abs(x)))*(1.-smoothstep(.17,.5,abs(q.y)));c=vec3(.48,.72,.84);}else if(v_kind<1.5){float d=length(q);a=1.-smoothstep(.28,.49,d);c=vec3(.96,.99,1.);}else if(v_kind<2.5){float d=length(q);a=1.-smoothstep(.28,.49,d);c=vec3(.82,.95,1.);}else if(v_kind<3.5){float d=length(vec2(q.x*.82,q.y));a=1.-smoothstep(.18,.5,d);float y=clamp(gl_PointCoord.y,0.,1.);c=mix(vec3(1.,.12,.02),mix(vec3(1.,.48,.03),vec3(1.,.98,.78),y),smoothstep(.12,.88,y));}else if(v_kind<4.5){float d=length(q);a=(1.-smoothstep(.12,.5,d))*.76;c=mix(vec3(.16,.18,.19),vec3(.48,.51,.52),v_phase);}else if(v_kind<5.5){float d=length(vec2(q.x,q.y*.72));a=(1.-smoothstep(.08,.5,d))*.72;c=vec3(.72,.78,.80);}else if(v_kind<6.5){float d=length(q);a=1.-smoothstep(.18,.5,d);c=vec3(.80,.92,.97);}else if(v_kind<7.5){float d=length(vec2(q.x*.45,q.y));a=1.-smoothstep(.2,.5,d);c=vec3(.08,.07,.065);}else{float x=abs(q.x+sin(q.y*17.+v_phase*6.28)*.08);a=(1.-smoothstep(.02,.1,x))*(1.-smoothstep(.42,.5,abs(q.y)));c=vec3(.94,.99,1.);}a*=v_alpha;if(a<.008)discard;${write}=vec4(c,a);}`;program=gl.createProgram();gl.attachShader(program,compile(gl,gl.VERTEX_SHADER,vs));gl.attachShader(program,compile(gl,gl.FRAGMENT_SHADER,fs));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(program)||'shader link');buffer=gl.createBuffer();attrs={pos:gl.getAttribLocation(program,'a_pos'),size:gl.getAttribLocation(program,'a_size'),kind:gl.getAttribLocation(program,'a_kind'),alpha:gl.getAttribLocation(program,'a_alpha'),phase:gl.getAttribLocation(program,'a_phase'),aux:gl.getAttribLocation(program,'a_aux'),dpr:gl.getUniformLocation(program,'u_dpr')};shaderReady=true}
- const custom={id:'bp2300-weather-fx-gpu',type:'custom',renderingMode:'2d',onAdd(_m,gl){try{initGl(gl)}catch(e){shaderReady=false;console.warn('V2300 weather GPU',e)}},onRemove(_m,gl){try{if(buffer)gl.deleteBuffer(buffer);if(program)gl.deleteProgram(program)}catch(_){}shaderReady=false},render(gl){if(!enabled||!shaderReady||!particleAnimationNeeded())return;const n=particles(performance.now());if(!n)return;gl.useProgram(program);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,DATA.subarray(0,n*STRIDE),gl.DYNAMIC_DRAW);const stride=STRIDE*4;for(const [loc,size,off] of [[attrs.pos,2,0],[attrs.size,1,2],[attrs.kind,1,3],[attrs.alpha,1,4],[attrs.phase,1,5],[attrs.aux,1,6]]){if(loc<0)continue;gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,size,gl.FLOAT,false,stride,off*4)}gl.uniform1f(attrs.dpr,Math.max(1,gl.drawingBufferWidth/Math.max(1,map.getCanvas().clientWidth)));gl.disable(gl.DEPTH_TEST);gl.depthMask(false);gl.enable(gl.BLEND);gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);gl.drawArrays(gl.POINTS,0,n);gl.depthMask(true);gl.bindBuffer(gl.ARRAY_BUFFER,null);gl.useProgram(null)}};
+ const custom={
+   id:'bp2300-weather-fx-gpu',type:'custom',renderingMode:'2d',
+   onAdd(_m,gl){try{initGl(gl)}catch(e){shaderReady=false;console.warn('V2300 weather GPU',e)}},
+   onRemove(_m,gl){try{if(buffer)gl.deleteBuffer(buffer);if(program)gl.deleteProgram(program)}catch(_){}shaderReady=false},
+   render(gl){
+    if(!enabled||!shaderReady||!particleAnimationNeeded())return;
+    const n=particles(performance.now());if(!n)return;
+    let saved=null;
+    try{
+     saved=captureWeatherGLState(gl,[attrs.pos,attrs.size,attrs.kind,attrs.alpha,attrs.phase,attrs.aux]);
+     gl.useProgram(program);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+     gl.bufferData(gl.ARRAY_BUFFER,DATA.subarray(0,n*STRIDE),gl.DYNAMIC_DRAW);
+     const stride=STRIDE*4;
+     for(const [loc,size,off] of [[attrs.pos,2,0],[attrs.size,1,2],[attrs.kind,1,3],[attrs.alpha,1,4],[attrs.phase,1,5],[attrs.aux,1,6]]){
+      if(loc<0)continue;gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,size,gl.FLOAT,false,stride,off*4)
+     }
+     gl.uniform1f(attrs.dpr,Math.max(1,gl.drawingBufferWidth/Math.max(1,map.getCanvas().clientWidth)));
+     gl.disable(gl.DEPTH_TEST);gl.depthMask(false);gl.enable(gl.BLEND);
+     gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+     gl.drawArrays(gl.POINTS,0,n);
+    }catch(e){console.warn('V2300 weather GPU draw',e)}
+    finally{restoreWeatherGLState(gl,saved)}
+   }
+  };
  function install(){ensureNative()}
  function installParticleLayer(){if(map.getLayer(custom.id))return true;const now=performance.now();if(now<particleLayerRetryAt)return false;try{map.addLayer(custom);return !!map.getLayer(custom.id)}catch(e){particleLayerRetryAt=now+1200;console.warn('V2300 weather custom layer deferred',e);return false}}
  function water(t){if(t-lastWater<850)return;lastWater=t;const hazard=waterPulse;try{if(map.getLayer('gta-water')){map.setPaintProperty('gta-water','fill-color',hazard?'#0b3a53':'#082d44');map.setPaintProperty('gta-water','fill-opacity',hazard?.955+.025*Math.sin(t*.003):.98)}}catch(_){}}
