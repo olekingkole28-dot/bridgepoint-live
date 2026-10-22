@@ -446,7 +446,7 @@ jobs:
           grep -Fq 'Real satellite bands. No AI-drawn pixels.' site/world-v2300-spectral-imagery.js
           grep -Fq 'world-v2300-clouds.js?v=6058-rain-cloud-anchor' site/app.js
           grep -Fq 'world-v2300-clouds.js?v=6058-rain-cloud-anchor' site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6059-street-rain' site/app.js
+          grep -Fq 'world-v2300-weather.js?v=6060-rain-guard-order' site/app.js
           grep -Fq 'world-v2300-rain.js?v=6059-street-rain' site/world-v2300-weather.js
           grep -Fq 'world-v2300-rain.js?v=6059-street-rain' site/app/world-v2300-weather.js
           grep -Fq 'projectTileFor3D(a_pos.xy,a_altitude)' site/world-v2300-rain.js
@@ -456,7 +456,7 @@ jobs:
           grep -Fq 'adaptiveWidthM' site/world-v2300-rain.js
           grep -Fq "if(pr==='rain'&&z>=16)return;" site/world-v2300-weather.js
           grep -Fq "'rain-cell'" site/world-v2300-clouds.js
-          grep -Fq 'world-v2300-weather.js?v=6059-street-rain' site/landing.js
+          grep -Fq 'world-v2300-weather.js?v=6060-rain-guard-order' site/landing.js
           grep -Fq 'bindWeatherVertexArray(gl,weatherVao,weatherVaoMode,weatherVaoExt)' site/world-v2300-weather.js
           grep -Fq 'isolatedVao' site/world-v2300-weather.js
           grep -Fq 'window.__BP_WEATHER_GL_HEALTH_V6057__' site/world-v2300-weather.js
@@ -466,9 +466,9 @@ jobs:
           grep -Fq 'hideLegacyNativeWeatherLayers(map)' site/world-v2300-weather.js
           grep -Fq "renderer:'v2300-cinematic-fx'" site/app.js
           grep -Fq "renderer:'isolated-webgl-particle-layer'" site/landing.js
-          grep -Fq 'world-v2300-weather.js?v=6059-street-rain' site/index.html
-          grep -Fq 'world-v2300-weather.js?v=6059-street-rain' site/app/index.html
-          grep -Fq 'world-v2300-weather.js?v=6059-street-rain' site/app/world-v2300-bootstrap.js
+          grep -Fq 'world-v2300-weather.js?v=6060-rain-guard-order' site/index.html
+          grep -Fq 'world-v2300-weather.js?v=6060-rain-guard-order' site/app/index.html
+          grep -Fq 'world-v2300-weather.js?v=6060-rain-guard-order' site/app/world-v2300-bootstrap.js
           grep -Fq 'world-v2300-time-slider.js?v=6055-early-layer-attach' site/app.js
           grep -Fq 'world-v2300-time-slider.js?v=6055-early-layer-attach' site/landing.js
           grep -Fq 'world-v2300-spectral-imagery.js?v=5934-world-controls' site/app.js
