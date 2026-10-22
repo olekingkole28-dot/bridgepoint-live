@@ -508,7 +508,7 @@ export function initSkyClouds(target) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6030, map, overlay,
+    version: 6031, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
     get state() { return window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
