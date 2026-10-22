@@ -1,5 +1,30 @@
 import{VERSION,EMPTY,MOBILE,LOW,TIER,edge,bbox,fc,clamp}from'./world-v2300-config.js';
 import{initRainLayer}from'./world-v2300-rain.js?v=6062-world-anchored-rain-streaks';
+
+function retireLegacyScreenSpaceRain() {
+  // V1997/V2081 draws source events into a viewport-sized canvas. That old layer
+  // is the screen-locked precipitation users can still see sliding during camera moves.
+  // Block its loader before it executes, then remove any canvas already attached.
+  try { window.__bridgepointGpuWeatherRuntimeV2081 = true; } catch (_) {}
+  let removed = false;
+  try {
+    const canvas = document.getElementById('bp2081WeatherCanvas');
+    if (canvas) {
+      try { canvas.style.display = 'none'; canvas.style.visibility = 'hidden'; } catch (_) {}
+      try { canvas.remove(); removed = true; } catch (_) {}
+    }
+  } catch (_) {}
+  const prior = window.__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__;
+  window.__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__ = {
+    version: 6063,
+    legacyRuntimeBlocked: true,
+    legacyRainCanvasRemoved: removed || !!prior?.legacyRainCanvasRemoved,
+    renderer: 'geographically-anchored-v2300',
+    updatedAt: Date.now()
+  };
+  return window.__BP_SCREEN_SPACE_RAIN_RETIRE_V6063__;
+}
+
 window.__BP_WEATHER_PERFORMANCE_V5822__={version:5822,stableRadarDrape:true,radarBelow3D:true,motionRepaintBudgeted:true,updatedAt:Date.now()};
 
 const RADAR='https://mapservices.weather.noaa.gov/eventdriven/services/radar/radar_base_reflectivity_time/ImageServer/WMSServer?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=1&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256';
@@ -282,7 +307,7 @@ function createFx(map){
  const api={version:VERSION,map,setScene,setEnabled,refreshNative:native,localConditions,get scene(){return scene},get state(){return{enabled,moving,tier:TIER,mobile:MOBILE,low:LOW,qualityScale:+quality.toFixed(2),fps:+fps.toFixed(1),shaderReady,activeParticles,secondaryCanvases:0,sharedMapLibreWebGLContext:true,budgets:{...BUDGET,maxPoints:MAX_POINTS},capabilities:{atmosphereFogClouds:true,rainSnowHail:true,precipitationParticlesSmall:true,precipitationWeatherCellAnchored:true,noaaSnowDepthAnalysis:true,snowDepthVolumeSourceGated:true,radarEchoHaze:true,radarCrispTopLayer:true,tornadoCone:true,rotatingTornadoVortex:true,hurricaneSpiralEye:true,hemisphereAwareStormRotation:true,lightning:true,lightningCloudFlash:true,forkedLightningBolts:true,earthquakeLayer:true,seismicRippleRings:true,floodIce:true,floodDepthVolumeSourceGated:true,wildfireFlameParticles:true,firePerimeterAnchored:true,smoke:true,ash:true,authoritativeBurnScarOnly:true,thermalContainment:true,dynamicWater:true,wetGroundAccumulationSourceGated:true,volcanicLavaFlowSourceGated:true,geyserJetsSourceGated:true,localizedFogSourceGated:true,adaptiveLOD:true,viewportCulling:true},generatedAt}}};window.__bpWeatherFXV2300=api;return api
 }
 
-export function initWeather(map,opts={}){
+export function initWeather(map,opts={}){retireLegacyScreenSpaceRain();
  if(window.__bpWeatherV2300&&window.__bpWeatherV2300.map===map)return window.__bpWeatherV2300;baseLayers(map);hideLegacyNativeWeatherLayers(map);const fx=createFx(map);let active=opts?.deferActivation!==true,radar=false,last=0,seq=0,timer=0,radarMotionTimer=0,radarPhase=0,scene={...EMPTY_SCENE};const rain=initRainLayer(map,()=>scene);if(!active){fx.setEnabled(false);rain.setEnabled(false);}
  function nearest(a){if(!a.length)return null;const c=map.getCenter();let b=null,d0=Infinity;for(const o of a){if(!Number.isFinite(+o.lng)||!Number.isFinite(+o.lat))continue;const d=(+o.lng-c.lng)**2+(+o.lat-c.lat)**2;if(d<d0){d0=d;b=o}}return b}
  function atmosphere(a){const o=nearest(a);if(!o)return;const visibility=clamp(Number(o.visibility_mi??10),.05,50),cond=text([o.weather,o.rawdata].filter(Boolean).join(' ')),storm=/\bts\b|thunder|storm|squall|tornado|hurricane/.test(cond),fog=visibility<1;try{map.setSky({'sky-color':storm?'#26313b':fog?'#68777c':'#102d3e','horizon-color':storm?'#53606a':fog?'#849196':'#31515e','fog-color':storm?'#69747d':fog?'#9aa4a6':'#718a92','sky-horizon-blend':fog?.035:.18,'horizon-fog-blend':fog?.25:.04,'fog-ground-blend':fog?.08:0,'atmosphere-blend':['interpolate',['linear'],['zoom'],0,.5,6,.22,10,fog?.08:0]});map.setLight({anchor:'map',color:storm?'#9faab2':fog?'#c4cccd':'#e5f7ff',intensity:storm?.27:fog?.34:.48,position:[1.2,205,38]})}catch(_){}}
