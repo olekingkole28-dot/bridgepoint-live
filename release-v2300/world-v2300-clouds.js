@@ -220,7 +220,25 @@ export function initSkyClouds(target) {
   const container = map?.getContainer?.();
   const MC = window.maplibregl?.MercatorCoordinate || window.MapLibreGL?.MercatorCoordinate;
   if (!map || !container || !MC?.fromLngLat) return null;
-  if (window.__BP_SKY_CLOUDS_V5908__?.map === map) return window.__BP_SKY_CLOUDS_V5908__;
+  const existingCloudController = window.__BP_SKY_CLOUDS_V5908__;
+  if (existingCloudController?.map === map) {
+    const existingState = window.__BP_SKY_CLOUDS_STATE_V6074__ ||
+      window.__BP_SKY_CLOUDS_STATE_V6073__ ||
+      window.__BP_SKY_CLOUDS_STATE_V6047__ ||
+      existingCloudController.state || null;
+    // Cache-busted modules still share this global controller slot. Never silently
+    // return a legacy controller whose geometry predates the requested cloud field.
+    if (Number(existingCloudController.version) >= 6074 &&
+        Number(existingState?.coverageVersion || existingState?.version) >= 6074) {
+      return existingCloudController;
+    }
+    try { existingCloudController.destroy?.(); } catch (error) {
+      console.warn('[BridgePoint clouds] legacy controller teardown failed', error);
+    }
+    if (window.__BP_SKY_CLOUDS_V5908__ === existingCloudController) {
+      try { delete window.__BP_SKY_CLOUDS_V5908__; } catch (_) {}
+    }
+  }
 
   if (!document.getElementById(STYLE_ID)) {
     const style = document.createElement('style'); style.id = STYLE_ID; style.textContent = CSS;
@@ -273,10 +291,10 @@ export function initSkyClouds(target) {
   }
   function publishState() {
     const state = {
-      version: 6073, map, enabled, visible: enabled && !document.hidden,
+      version: 6074, map, enabled, visible: enabled && !document.hidden ,
       kind: 'georeferenced 3D cloud-volume layer',
       renderer: 'shared MapLibre WebGL context with isolated cloud vertex state where supported',
-      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6073, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: 'GPU vertex advection of large cloud banks, independent cumulus and sparse high-level cloud cells; live wind-vector coupling is not yet source-backed',
+      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6074, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: 'GPU vertex advection of large cloud banks, independent cumulus and sparse high-level cloud cells; live wind-vector coupling is not yet source-backed',
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
       persistentGlobalCloudField: true, globalCoverageModel: 'three layers: tall large-scale cumulus banks, independent terrain-cleared cumulus cells, and sparse high-level puffy cloudlets; satellite cloud-mask feed not yet connected', localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), rainCellShelfClouds: rainCellShelfCount, redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount, sourceCloudObservationFormations: sourceCloudObservationCount,
@@ -297,6 +315,7 @@ export function initSkyClouds(target) {
     window.__BP_SKY_CLOUDS_STATE_V6047__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6072__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6073__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6074__ = state;
     window.dispatchEvent(new CustomEvent('bp:sky-cloud-state', { detail: state }));
     return state;
   }
@@ -495,7 +514,7 @@ export function initSkyClouds(target) {
   function buildGlobalCloudGeometry() {
     if (globalCloudGeometryCache) return globalCloudGeometryCache;
     const vertices = [], indices = [], macroCandidates = [];
-    const columns = 40, rows = 18, maxMacro = MOBILE ? 34 : 42;
+    const columns = 40, rows = 18, maxMacro = MOBILE ? 48 : 60;
     const cloudScore = (gx, gy, cols, rowCount, edgeSeed) => {
       const waveX = (gx + 0.5) / cols * TAU;
       const waveY = (gy + 0.5) / rowCount * TAU - Math.PI;
@@ -522,7 +541,7 @@ export function initSkyClouds(target) {
       const lng = (((( -180 + q.gx * 9 + (hash(q.gx, q.gy, 906) - 0.5) * 5.2) + 180) % 360 + 360) % 360) - 180;
       const ground = terrainElevationAt(lng, lat);
       const latScale = Math.sqrt(Math.max(0.16, Math.cos(lat * Math.PI / 180)));
-      const bankRadius = clamp(111320 * (0.58 + hash(q.gx, q.gy, 907) * 0.48) * latScale, 52000, 126000);
+      const bankRadius = clamp(111320 * (0.68 + hash(q.gx, q.gy, 907) * 0.72) * latScale, 68000, 168000);
       const baseAgl = 2200 + hash(q.gx, q.gy, 908) * 2200;
       const topAgl = Math.max(baseAgl + 6500, 10800 + hash(q.gx, q.gy, 909) * 6800);
       const range = topAgl - baseAgl;
@@ -619,7 +638,7 @@ export function initSkyClouds(target) {
       makePuffGeometry(null, MC, vertices, indices, lng, lat, altitude,
         radius * (0.72 + hash(q.gx, q.gy, 985) * 0.20),
         radius * (0.56 + hash(q.gx, q.gy, 986) * 0.30), vertical,
-        0.26 + hash(q.gx, q.gy, 987) * 0.40, 6, 4, hash(q.gx, q.gy, 988));
+        0.26 + hash(q.gx, q.gy, 987) * 0.40, 5, 4, hash(q.gx, q.gy, 988));
     }
 
     // Layer 3 — sparse high-level cloudlets in the gaps between denser cloud banks.
@@ -957,10 +976,10 @@ function scheduleGeometry(delay = 180) {
   else map.once?.('load', addLayerIfReady);
 
   const api = {
-    version: 6048, map, overlay,
+    version: 6074, map, overlay,
     get enabled() { return enabled; },
     setEnabled, toggle,
-    get state() { return window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
+    get state() { return window.__BP_SKY_CLOUDS_STATE_V6074__ || window.__BP_SKY_CLOUDS_STATE_V6073__ || window.__BP_SKY_CLOUDS_STATE_V6047__ || window.__BP_SKY_CLOUDS_STATE_V6046__ || window.__BP_SKY_CLOUDS_STATE_V6045__ || window.__BP_SKY_CLOUDS_STATE_V6031__ || window.__BP_SKY_CLOUDS_STATE_V6029__ || window.__BP_SKY_CLOUDS_STATE_V5908__ || null; },
     destroy() {
       if (disposed) return; disposed = true;
       stopAnimation(); clearTimeout(rebuildTimer); clearTimeout(refreshHandle); clearLayerRetry();
