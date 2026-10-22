@@ -648,7 +648,7 @@ export function initSkyClouds(target) {
         const centerFraction = i === 0 ? 0.50 : 0.48 + hash(k, i, 913) * 0.04;
         const altitude = puffGround + baseAgl + range * centerFraction;
         const vertical = range * (0.425 + hash(k, i, 914) * 0.035);
-        addGlobalPuff(puffLng,puffLat,altitude,rx,ry,vertical,0.30+hash(q.gx,q.gy,915)*0.30,MOBILE?6:7,3,hash(q.gx,q.gy,i+973));
+        addGlobalPuff(puffLng,puffLat,altitude,rx,ry,vertical,0.30+hash(q.gx,q.gy,915)*0.30,MOBILE?8:9,3,hash(q.gx,q.gy,i+973));
       }
     }
 
