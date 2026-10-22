@@ -282,7 +282,7 @@ async function initMap(){
    void import('./world-v2300-realism.js?v=5926-world-sun-materials')
     .then(m=>{window.__BP_WORLD_REALISM_V5910__=m.initRealismMode(world)})
     .catch(e=>console.warn('BridgePoint real-world rendering controls unavailable',e));
-   void import('./world-v2300-clouds.js?v=6029-georeferenced-3d-clouds')
+   void import('./world-v2300-clouds.js?v=6030-instant-global-clouds')
     .then(m=>{window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
     .catch(e=>console.warn('BridgePoint sky clouds unavailable',e));
   window.__BP_LANDING_MAP_BOOT__={stage:'world-ready',maplibre:true,module:true,world:true,at:Date.now()};
