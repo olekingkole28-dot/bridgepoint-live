@@ -143,7 +143,7 @@ function createFx(map){
  function push(n,x,y,size,kind,alpha,phase,aux,w,h){if(n>=MAX_POINTS||x<-size||x>w+size||y<-size||y>h+size)return n;const o=n*STRIDE;DATA[o]=x/w*2-1;DATA[o+1]=1-y/h*2;DATA[o+2]=size;DATA[o+3]=kind;DATA[o+4]=alpha;DATA[o+5]=phase;DATA[o+6]=aux;return n+1}
  function particles(t){
   if(!enabled||document.hidden){activeParticles=0;return 0}
-  const cv=map.getCanvas(),w=cv.clientWidth||1,h=cv.clientHeight||1,z=map.getZoom(),q=clamp(quality*(moving?(MOBILE?.18:.42):1),MOBILE?.16:.22,1),o=nearestObs(),wv=wind(o),TAU=Math.PI*2;let n=0;
+  const cv=map.getCanvas(),w=cv.clientWidth||1,h=cv.clientHeight||1,z=map.getZoom(),q=clamp(quality*(moving?(MOBILE?.24:.42):1),MOBILE?.16:.22,1),o=nearestObs(),wv=wind(o),TAU=Math.PI*2;let n=0;
   const pr=precip(o),precipCenter=o&&Number.isFinite(+o.lng)&&Number.isFinite(+o.lat)?{lng:+o.lng,lat:+o.lat}:null,precipPoint=precipCenter?project(precipCenter):null;
   if(z>=5&&pr!=='none'&&precipPoint){
    const kind=pr==='rain'?0:pr==='snow'?1:2,count=Math.floor(BUDGET.precip*q),sp=pr==='snow'?.000055:pr==='hail'?.00034:.00023;
