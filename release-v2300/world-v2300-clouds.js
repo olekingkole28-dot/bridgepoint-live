@@ -26,12 +26,12 @@ function makeShaders(webgl2, shaderData = null) {
   const vertex = (webgl2 ? '#version 300 es\n' : '') + projectionPreamble +
     'precision highp float;\n' +
     (webgl2
-      ? 'in vec3 a_pos;\nin float a_altitude;\nin vec3 a_local;\nin float a_tint;\nout vec3 v_local;\nout float v_tint;\n'
-      : 'attribute vec3 a_pos;\nattribute float a_altitude;\nattribute vec3 a_local;\nattribute float a_tint;\nvarying vec3 v_local;\nvarying float v_tint;\n') +
+      ? 'in vec3 a_pos;\nin float a_altitude;\nin vec3 a_local;\nin float a_tint;\nin vec2 a_wind;\nout vec3 v_local;\nout float v_tint;\n'
+      : 'attribute vec3 a_pos;\nattribute float a_altitude;\nattribute vec3 a_local;\nattribute float a_tint;\nattribute vec2 a_wind;\nvarying vec3 v_local;\nvarying float v_tint;\n') +
     (projectionAware ? '' : 'uniform mat4 u_matrix;\n') +
     'uniform highp float u_motion_time;\n' +
-    'void main(){v_local=a_local;v_tint=a_tint;float rainCell=smoothstep(1.1,1.3,a_tint);float seed=floor(a_tint*1000.0);float windAngle=fract(sin(seed*12.9898+23.7)*43758.5453)*6.2831853;float stormSpeed=mix(0.00000016,0.00000038,smoothstep(0.88,1.06,a_tint));float driftSpeed=stormSpeed*(1.0-rainCell);vec2 advect=vec2(cos(windAngle),sin(windAngle))*u_motion_time*driftSpeed;gl_Position=' +
-    (projectionAware ? 'projectTileFor3D(a_pos.xy+advect,a_altitude)' : 'u_matrix*vec4(a_pos.xy+advect,a_pos.z,1.0)') + ';}';
+    'void main(){v_local=a_local;v_tint=a_tint;vec2 advect=a_wind*u_motion_time;vec2 moved=vec2(fract(a_pos.x+advect.x),clamp(a_pos.y+advect.y,0.0005,0.9995));gl_Position=' +
+    (projectionAware ? 'projectTileFor3D(moved,a_altitude)' : 'u_matrix*vec4(moved,a_pos.z,1.0)') + ';}';
 
   const fragment = (webgl2 ? '#version 300 es\n' : '') +
     'precision mediump float;\n' +
@@ -168,10 +168,10 @@ function collectHeightFeatures(scene) {
   return list.filter(x => Number.isFinite(Number(x?.lng)) && Number.isFinite(Number(x?.lat)) &&
     (Number.isFinite(Number(x?.cloud_top_height_m)) || Number.isFinite(Number(x?.cloudTopHeightM))));
 }
-function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, rx, ry, rz, tint, slices = 8, stacks = 5, shapeSeed = 0) {
+function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, rx, ry, rz, tint, slices = 8, stacks = 5, shapeSeed = 0, windX = 0, windY = 0) {
   const c = MC.fromLngLat({ lng, lat }, Math.max(0, altitude));
   const unit = c.meterInMercatorCoordinateUnits();
-  const base = vertices.length / 8;
+  const base = vertices.length / 10;
   for (let j = 0; j <= stacks; j++) {
     const v = j / stacks, phi = Math.PI * v;
     const sz = Math.cos(phi), ring = Math.sin(phi);
@@ -187,7 +187,7 @@ function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, 
       const lx = Math.cos(theta) * ring * billow;
       const ly = Math.sin(theta) * ring * billow;
       const lz = sz * billow;
-      vertices.push(c.x + lx * rx * unit, c.y + ly * ry * unit, c.z + lz * rz * unit, altitude + lz * rz, lx, ly, lz, tint);
+      vertices.push(c.x + lx * rx * unit, c.y + ly * ry * unit, c.z + lz * rz * unit, altitude + lz * rz, lx, ly, lz, tint, windX, windY);
     }
   }
   for (let j = 0; j < stacks; j++) for (let i = 0; i < slices; i++) {
@@ -197,7 +197,7 @@ function makePuffGeometry(THREEless, MC, vertices, indices, lng, lat, altitude, 
 }
 function makeFunnelGeometry(MC, vertices, indices, lng, lat, altitudeTop, tint) {
   const center = MC.fromLngLat({ lng, lat }, 0), unit = center.meterInMercatorCoordinateUnits();
-  const base = vertices.length / 8, rings = 11, segments = 12;
+  const base = vertices.length / 10, rings = 11, segments = 12;
   const bottomM = 220, topM = 5600;
   for (let j = 0; j <= rings; j++) {
     const t = j / rings;
@@ -206,7 +206,7 @@ function makeFunnelGeometry(MC, vertices, indices, lng, lat, altitudeTop, tint) 
     for (let i = 0; i <= segments; i++) {
       const a = TAU * i / segments, lx = Math.cos(a), ly = Math.sin(a);
       vertices.push(center.x + lx * radius * unit, center.y + ly * radius * unit, center.z + zM * unit, zM,
-        lx * radius / topM, ly * radius / topM, t, tint);
+        lx * radius / topM, ly * radius / topM, t, tint, 0, 0);
     }
   }
   for (let j = 0; j < rings; j++) for (let i = 0; i < segments; i++) {
@@ -222,7 +222,7 @@ export function initSkyClouds(target) {
   if (!map || !container || !MC?.fromLngLat) return null;
   const existingCloudController = window.__BP_SKY_CLOUDS_V5908__;
   if (existingCloudController?.map === map) {
-    const existingState = window.__BP_SKY_CLOUDS_STATE_V6076__ ||
+    const existingState = window.__BP_SKY_CLOUDS_STATE_V6077__ || window.__BP_SKY_CLOUDS_STATE_V6076__ ||
       window.__BP_SKY_CLOUDS_STATE_V6075__ ||
       window.__BP_SKY_CLOUDS_STATE_V6074__ ||
       window.__BP_SKY_CLOUDS_STATE_V6073__ ||
@@ -230,8 +230,8 @@ export function initSkyClouds(target) {
       existingCloudController.state || null;
     // Cache-busted modules still share this global controller slot. Never silently
     // return a legacy controller whose geometry predates the requested cloud field.
-    if (Number(existingCloudController.version) >= 6076 &&
-        Number(existingState?.coverageVersion || existingState?.version) >= 6076) {
+    if (Number(existingCloudController.version) >= 6077 &&
+        Number(existingState?.coverageVersion || existingState?.version) >= 6077) {
       return existingCloudController;
     }
     try { existingCloudController.destroy?.(); } catch (error) {
@@ -283,6 +283,7 @@ export function initSkyClouds(target) {
     return 0;
   }
   let activeProgramInfo = null, layerInstalled = false, originalFog, fogCaptured = false;
+  const motionEpoch = typeof performance !== 'undefined' ? performance.now() : Date.now();
   const canvas = map.getCanvas?.(), originalFilter = canvas?.style?.filter || '';
   const originalWillChange = canvas?.style?.willChange || '', originalTransition = canvas?.style?.transition || '';
 
@@ -292,20 +293,88 @@ export function initSkyClouds(target) {
       window.__bpWeatherFXV2300?.state?.scene ||
       window.__BP_WEATHER_SCENE_V2300__ || {};
   }
+
+  const WORLD_CIRCUMFERENCE_M = 40075016.68557849;
+  const smooth01 = (edge0,edge1,value) => { const t=clamp((value-edge0)/Math.max(1e-6,edge1-edge0),0,1); return t*t*(3-2*t); };
+  let windSampleScene = null, windSampleCache = [];
+  function collectHeightResolvedWindSamples(scene) {
+    if(scene===windSampleScene)return windSampleCache;
+    windSampleScene=scene;windSampleCache=[];
+    const rows=[],flatten=value=>{if(Array.isArray(value))rows.push(...value);else if(Array.isArray(value?.features))rows.push(...value.features);else if(Array.isArray(value?.samples))rows.push(...value.samples);else if(Array.isArray(value?.data))rows.push(...value.data);};
+    [scene?.cloud_wind_grid,scene?.cloudWindGrid,scene?.upper_air_winds,scene?.upperAirWinds,scene?.wind_profiles,scene?.windProfiles,scene?.wind_grid,scene?.windGrid].forEach(flatten);
+    const now=Date.now();
+    for(const item of rows.slice(0,1800)){
+      const p=item?.properties||item||{},coords=item?.geometry?.coordinates;
+      const lng=number(p.lng,number(p.longitude,Array.isArray(coords)?number(coords[0],NaN):NaN));
+      const lat=number(p.lat,number(p.latitude,Array.isArray(coords)?number(coords[1],NaN):NaN));
+      const pressure=number(p.pressure_hpa,number(p.pressureHpa,NaN));
+      const altitude=number(p.altitude_m,number(p.altitudeM,number(p.geopotential_height_m,number(p.geopotentialHeightM,number(p.height_m,number(p.heightM,number(p.level_m,Number.isFinite(pressure)&&pressure>0&&pressure<=1100?44330*(1-Math.pow(pressure/1013.25,0.1903)):NaN)))))));
+      const timestamp=p.valid_time||p.validTime||p.observed_at||p.observedAt||p.timestamp||p.time||null;
+      if(timestamp!=null){let ms=typeof timestamp==='number'?timestamp:Date.parse(timestamp);if(Number.isFinite(ms)&&ms>0){if(ms<1e12)ms*=1000;if(ms<now-6*3600000||ms>now+3600000)continue;}}
+      let east=number(p.eastward_wind_mps,number(p.u_wind_mps,number(p.u_mps,NaN)));
+      let north=number(p.northward_wind_mps,number(p.v_wind_mps,number(p.v_mps,NaN)));
+      if(!Number.isFinite(east)||!Number.isFinite(north)){
+        const dir=number(p.wind_dir_deg,number(p.wind_direction_deg,number(p.windDirectionDeg,number(p.direction_deg,NaN))));
+        const kt=number(p.wind_speed_kt,NaN),mph=number(p.wind_speed_mph,NaN);
+        const speed=number(p.wind_speed_mps,number(p.wind_speed_ms,number(p.speed_mps,Number.isFinite(kt)?kt*0.514444:Number.isFinite(mph)?mph*0.44704:NaN)));
+        if(!Number.isFinite(dir)||!Number.isFinite(speed))continue;
+        const to=(dir+180)*Math.PI/180;east=Math.sin(to)*speed;north=Math.cos(to)*speed;
+      }
+      if(![lng,lat,altitude,east,north].every(Number.isFinite)||Math.abs(lat)>86||Math.abs(east)>100||Math.abs(north)>100)continue;
+      windSampleCache.push({lng:((((lng+180)%360)+360)%360)-180,lat,altitude,east,north,source:String(p.source||p.provenance||'height-resolved upper-air wind sample'),timestamp});
+    }
+    return windSampleCache;
+  }
+  function cloudWindVectorFor(lng,lat,altitude,scene,stormContext=null){
+    const samples=collectHeightResolvedWindSamples(scene);
+    let best=null,bestScore=Infinity;const latCos=Math.max(0.12,Math.cos(lat*Math.PI/180));
+    for(const sample of samples){
+      const dLng=((((sample.lng-lng+540)%360)+360)%360)-180;
+      const distanceKm=Math.hypot(dLng*latCos,sample.lat-lat)*111.32,heightDelta=Math.abs(sample.altitude-altitude);
+      if(distanceKm>1800||heightDelta>6500)continue;
+      const score=distanceKm+heightDelta/35;if(score<bestScore){bestScore=score;best=sample;}
+    }
+    let east=0,north=0,mode='modelled-latitude-altitude-flow';
+    if(best){east=best.east;north=best.north;mode='height-resolved-source-wind';}
+    else{
+      let cyclone=stormContext;
+      if(!cyclone){
+        let nearest=Infinity;
+        for(const st of (Array.isArray(scene?.storms)?scene.storms:[])){
+          const slng=number(st.lng,number(st.longitude,NaN)),slat=number(st.lat,number(st.latitude,NaN));if(!Number.isFinite(slng)||!Number.isFinite(slat))continue;
+          const dx=((((lng-slng+540)%360)+360)%360)-180,d=Math.hypot(dx*Math.cos(slat*Math.PI/180),lat-slat)*111320;
+          const rad=number(st.cloud_shield_radius_m,number(st.cloudShieldRadiusM,number(st.cloud_radius_m,number(st.cloudRadiusM,NaN))));
+          const limit=Number.isFinite(rad)&&rad>0?Math.min(1200000,Math.max(120000,rad*1.3)):700000;
+          if(d<limit&&d<nearest){nearest=d;const eyeMi=number(st.eye_radius_mi,18);cyclone={centerLng:slng,centerLat:slat,shieldRadiusM:limit/1.3,eyeRadiusM:clamp(eyeMi*1609.34,6000,75000),windMph:clamp(number(st.wind_mph,number(st.wind_kt,0)*1.15078),35,190)};}
+        }
+      }
+      if(cyclone){
+        const dx=(((((lng-cyclone.centerLng+540)%360)+360)%360)-180)*Math.cos(cyclone.centerLat*Math.PI/180)*111320,dy=(lat-cyclone.centerLat)*111320,r=Math.max(1,Math.hypot(dx,dy));
+        const shield=Math.max(1,Number(cyclone.shieldRadiusM)||520000),eye=Math.max(1,Number(cyclone.eyeRadiusM)||28000),peak=clamp((Number(cyclone.windMph)||70)*0.44704*0.42,5,38),speed=peak*clamp((shield-r)/Math.max(1,shield-eye),0.16,1),hemisphere=cyclone.centerLat>=0?1:-1;
+        east=-dy/r*speed*hemisphere;north=dx/r*speed*hemisphere;mode='modelled-cyclone-circulation';
+      }else{
+        const a=Math.abs(lat),upper=clamp((altitude-1800)/10000,0,1),tropics=1-smooth01(18,31,a),midlat=smooth01(26,38,a)*(1-smooth01(54,66,a)),polar=smooth01(60,76,a);
+        east=-(7+7*upper)*tropics+(9+13*upper)*midlat-(4+7*upper)*polar;
+        north=Math.sin((lng*0.035+lat*0.11)*Math.PI/180)*(1.2+upper*1.8);
+      }
+    }
+    const scale=1/(WORLD_CIRCUMFERENCE_M*latCos);
+    return {dx:east*scale,dy:-north*scale,mode,speedMps:Math.hypot(east,north),sourceBacked:mode==='height-resolved-source-wind'};
+  }
   function publishState() {
     const state = {
-      version: 6076, map, enabled, visible: enabled && !document.hidden,
+      version: 6077, map, enabled, visible: enabled && !document.hidden,
       kind: 'georeferenced 3D cloud-volume layer',
       renderer: 'shared MapLibre WebGL context with isolated cloud vertex state where supported',
-      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6076, globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneCloudShieldRadiusKm, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: 'GPU vertex advection of broad cloud banks, independent cumulus and high-level cloud puffs; live wind-vector coupling is not yet source-backed',
+      cloudFormations: formationCount, globalCloudFormations: globalCloudGeometryCache?.formationCount || 0, coverageVersion: 6077, globalMacroRadiusMinKm: globalCloudGeometryCache?.macroRadiusMinKm || 0, globalMacroRadiusMaxKm: globalCloudGeometryCache?.macroRadiusMaxKm || 0, globalThinLayerSlices: globalCloudGeometryCache?.thinLayerSlices || 0, globalThinLayerStacks: globalCloudGeometryCache?.thinLayerStacks || 0, globalSingleLayerSlices: globalCloudGeometryCache?.singleLayerSlices || 0, globalSingleLayerStacks: globalCloudGeometryCache?.singleLayerStacks || 0, hurricaneSpiralCloudCenters, hurricaneEyeWallCloudCenters, hurricaneEyeRadiusKm, hurricaneEyeRadiusSource, hurricaneCloudShieldRadiusKm, globalHeightResolvedWindPuffs: globalCloudGeometryCache?.heightResolvedWindPuffs || 0, globalModelledWindPuffs: globalCloudGeometryCache?.modelledWindPuffs || 0, localWindSourcePuffs, localWindModelledPuffs, globalMacroFormations: globalCloudGeometryCache?.macroFormationCount || 0, globalFineFormations: globalCloudGeometryCache?.fineFormationCount || 0, globalIsolatedFormations: globalCloudGeometryCache?.isolatedFormationCount || 0, globalThinLayerFormations: globalCloudGeometryCache?.thinLayerFormationCount || 0, globalCloudPuffs: globalCloudGeometryCache?.puffCount || 0, globalTerrainQuerySamples: terrainHeightKnownSamples, terrainRelativeCloudBases: terrainQueryAvailable, cloudMotion: (globalCloudGeometryCache?.heightResolvedWindPuffs || 0) > 0 ? 'Height-resolved source wind advects matched cloud puffs; modelled atmospheric flow fills unmatched locations' : 'Height/latitude-aware modelled atmospheric flow and hemisphere-aware cyclone circulation; no source-backed global upper-air wind grid is connected',
       projectionMode: 'MapLibre shaderData projectTileFor3D', projectionShaderVariants: programCache.size,
       projectionShaderVariantNames: Array.from(programCache.keys()),
-      persistentGlobalCloudField: true, globalCoverageModel: 'three procedural layers: enlarged rounded regional cloud banks, 700/760 individual cloud cells, and 750/850 rounded high-level cloud puffs; global satellite cloud-mask feed not yet connected', localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), rainCellShelfClouds: rainCellShelfCount, redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount, sourceCloudObservationFormations: sourceCloudObservationCount,
+      persistentGlobalCloudField: true, globalCoverageModel: 'three procedural spatial layers: broad connected regional cloud banks, 700/760 rounded individual cloud cells and 750/850 thin high-level puffs; global satellite cloud-mask feed not yet connected', localCloudFormations: Math.max(0, formationCount - (globalCloudGeometryCache?.formationCount || 0)), rainCellShelfClouds: rainCellShelfCount, redrawIntervalMs: MOBILE ? 450 : 300, measuredCloudSamples: measuredCount, sourceCloudObservationFormations: sourceCloudObservationCount,
       cloudHeightSource: heightSource,
       layerPresent: !!map.getLayer?.(LAYER_ID), layerInstalled,
       layerRetryAttempts, mapStyleLoaded: map.isStyleLoaded?.() === true,
       mapStyleLayerCount: map.getStyle?.()?.layers?.length ?? 0, documentHidden: !!document.hidden,
-      cloudHeightMode: measuredCount ? 'source-backed cloud-top height samples, with procedural fill between samples' : 'procedural altitude only; measured global cloud-top heights are not connected',
+      cloudHeightMode: measuredCount ? 'source-backed local cloud-top height samples with procedural fill between samples; a complete global cloud-height field is not connected' : 'procedural altitude only; measured global cloud-top heights are not connected',
       warningFunnels: funnelCount, hurricaneStormVolumes: stormCount,
       funnelCaveat: funnelCount ? 'Illustrative funnel context inside active tornado-warning geometry; a warning is not confirmation of a tornado.' : null,
       rendererError, zoom: number(map.getZoom?.()), pitch: number(map.getPitch?.()), updatedAt: Date.now()
@@ -321,6 +390,7 @@ export function initSkyClouds(target) {
     window.__BP_SKY_CLOUDS_STATE_V6074__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6075__ = state;
     window.__BP_SKY_CLOUDS_STATE_V6076__ = state;
+    window.__BP_SKY_CLOUDS_STATE_V6077__ = state;
     window.dispatchEvent(new CustomEvent('bp:sky-cloud-state', { detail: state }));
     return state;
   }
@@ -360,7 +430,8 @@ export function initSkyClouds(target) {
         pos: gl.getAttribLocation(program, 'a_pos'),
         altitude: gl.getAttribLocation(program, 'a_altitude'),
         local: gl.getAttribLocation(program, 'a_local'),
-        tint: gl.getAttribLocation(program, 'a_tint')
+        tint: gl.getAttribLocation(program, 'a_tint'),
+        wind: gl.getAttribLocation(program, 'a_wind')
       },
       uniforms: {
         matrix: gl.getUniformLocation(program, 'u_matrix'),
@@ -428,7 +499,7 @@ export function initSkyClouds(target) {
         if (!info?.program) return;
         const matrix = args?.defaultProjectionData?.mainMatrix || args?.modelViewProjectionMatrix || args;
         if (!info.projectionAware && (!matrix || typeof matrix.length !== 'number' || matrix.length < 16)) return;
-        saved = captureCloudGLState(gl, [info.attrs.pos, info.attrs.altitude, info.attrs.local, info.attrs.tint], cloudVaoExt, !!cloudVao);
+        saved = captureCloudGLState(gl, [info.attrs.pos, info.attrs.altitude, info.attrs.local, info.attrs.tint, info.attrs.wind], cloudVaoExt, !!cloudVao);
         bindCloudVertexArray(gl, cloudVao, cloudVaoMode, cloudVaoExt);
         gl.useProgram(info.program);
         gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -438,11 +509,12 @@ export function initSkyClouds(target) {
           gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indexData, gl.STATIC_DRAW);
           geometryDirty = false;
         } else gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
-        const stride = 8 * Float32Array.BYTES_PER_ELEMENT;
+        const stride = 10 * Float32Array.BYTES_PER_ELEMENT;
         gl.enableVertexAttribArray(info.attrs.pos); gl.vertexAttribPointer(info.attrs.pos, 3, gl.FLOAT, false, stride, 0);
         gl.enableVertexAttribArray(info.attrs.altitude); gl.vertexAttribPointer(info.attrs.altitude, 1, gl.FLOAT, false, stride, 3 * Float32Array.BYTES_PER_ELEMENT);
         gl.enableVertexAttribArray(info.attrs.local); gl.vertexAttribPointer(info.attrs.local, 3, gl.FLOAT, false, stride, 4 * Float32Array.BYTES_PER_ELEMENT);
         gl.enableVertexAttribArray(info.attrs.tint); gl.vertexAttribPointer(info.attrs.tint, 1, gl.FLOAT, false, stride, 7 * Float32Array.BYTES_PER_ELEMENT);
+        gl.enableVertexAttribArray(info.attrs.wind); gl.vertexAttribPointer(info.attrs.wind, 2, gl.FLOAT, false, stride, 8 * Float32Array.BYTES_PER_ELEMENT);
         if (info.projectionAware) {
           const p = args?.defaultProjectionData;
           if (!p) throw new Error('MapLibre projection uniforms unavailable for 3D clouds');
@@ -455,8 +527,9 @@ export function initSkyClouds(target) {
           gl.uniformMatrix4fv(info.uniforms.matrix, false, matrix);
         }
         const cloudTime = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
+        const motionTime = Math.max(0, ((typeof performance !== 'undefined' ? performance.now() : Date.now()) - motionEpoch) / 1000);
         gl.uniform1f(info.uniforms.time, cloudTime);
-        if (info.uniforms.motionTime) gl.uniform1f(info.uniforms.motionTime, cloudTime);
+        if (info.uniforms.motionTime) gl.uniform1f(info.uniforms.motionTime, motionTime);
         gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
         gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.disable(gl.CULL_FACE); gl.depthMask(false);
