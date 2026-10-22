@@ -1,3 +1,4 @@
+window.__BP_CLOUDS_ONLY_PHASE_V6070__=true;
 window.__BP_LIVE_COUNTRY_COUNTERS_VERSION__=5902;
 const LOCAL_RUNTIME=location.hostname==='127.0.0.1'||location.hostname==='localhost';const SUPA='https://xdfsjztwgsbmabshzsjw.supabase.co',KEY='sb_publishable_lM9oWQeHjBmgOIiteeOicQ_PTyAeF25',RPC=SUPA+'/rest/v1/rpc/',AUTH_STORE='bp_auth_v5045';const H={'apikey':KEY,'Content-Type':'application/json','Accept':'application/json'};let mode='signup',installPrompt=null,map=null,landingWeatherTimer=0,landingWeatherRetryTimer=0,landingWeatherEnabled=false,landingWeatherActivationPromise=null,landingWeatherModules=null,landingOpportunityTimer=0,landingOpportunitySeq=0,landingListingTimer=0,landingListingSeq=0,backdropFrame=0;const $=id=>document.getElementById(id),fmt=n=>Number(n||0).toLocaleString();async function rpc(n,a={},ms=5000){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms),localNames=['bridgepoint_frontend_status_v5000','bridgepoint_data_sprint_status_v5106','bridgepoint_public_global_status_v957','bridgepoint_public_global_coverage_v5601','bridgepoint_public_global_coverage_v5597','bridgepoint_public_live_counters_v5902'],base=LOCAL_RUNTIME&&localNames.includes(n)?location.origin+'/rest/v1/rpc/':RPC;try{const r=await fetch(base+n,{method:'POST',headers:H,body:JSON.stringify(a),signal:c.signal,cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.message||d.error||('HTTP '+r.status));return d}finally{clearTimeout(t)}}function saveSession(d){if(!d?.access_token)return false;if(!d.expires_at&&d.expires_in)d.expires_at=Math.floor(Date.now()/1000)+Number(d.expires_in);localStorage.setItem(AUTH_STORE,JSON.stringify(d));return true}function hashSession(){const h=new URLSearchParams(location.hash.replace(/^#/,''));if(!h.get('access_token'))return false;saveSession({access_token:h.get('access_token'),refresh_token:h.get('refresh_token'),expires_in:h.get('expires_in')});history.replaceState(null,'',location.pathname+location.search);location.replace('/app/');return true}function setMode(v){mode=v==='signin'?'signin':'signup';const s=mode==='signup';$('nameField').hidden=!s;$('authTitle').textContent=s?'Start using BridgePoint':'Welcome back';$('authEyebrow').textContent=s?'CREATE YOUR BRIDGEPOINT ACCOUNT':'SIGN IN TO BRIDGEPOINT';$('authIntro').textContent=s?'Your account connects Saved, package access, Claims and Workflow to the same BridgePoint identity.':'Sign in to continue into your BridgePoint workspace.';$('authSubmit').textContent=s?'CREATE ACCOUNT':'SIGN IN';$('authSwitch').textContent=s?'Already have an account? Sign in':'Need an account? Create one';$('authPassword').autocomplete=s?'new-password':'current-password';$('authMessage').textContent=''}function openAuth(v){setMode(v||'signup');$('authModal').hidden=false;setTimeout(()=>$('authEmail').focus(),50)}async function submit(e){e.preventDefault();const email=$('authEmail').value.trim(),password=$('authPassword').value,name=$('authName').value.trim(),m=$('authMessage'),b=$('authSubmit');b.disabled=true;m.textContent=mode==='signup'?'Creating your BridgePoint account…':'Signing in…';try{const path=mode==='signup'?'signup':'token?grant_type=password',body=mode==='signup'?{email,password,data:{display_name:name||email.split('@')[0],signup_source:'bridgepoint_landing'}}:{email,password};const r=await fetch(SUPA+'/auth/v1/'+path,{method:'POST',headers:H,body:JSON.stringify(body),cache:'no-store'}),d=await r.json().catch(()=>({}));if(!r.ok){window.BridgePointAcquisition?.send?.(mode==='signup'?'SIGNUP_ERROR':'SIGNIN_ERROR',{auth_surface:'landing',http_status:r.status});throw new Error(d.msg||d.message||d.error_description||d.error||('HTTP '+r.status))}const hasSession=saveSession(d);if(mode==='signup'){window.BridgePointAcquisition?.send?.('SIGNUP_SUCCESS',{auth_surface:'landing',session_returned:hasSession,confirmation_required:!hasSession});if(d?.user?.id)window.BridgePointAcquisition?.identify?.(d.user.id,{auth_surface:'landing',signup_source:'bridgepoint_landing'});if(hasSession){m.textContent='Account ready. Opening BridgePoint…';const target=localStorage.getItem('bp_landing_package')?'/app/?page=packages':'/app/';setTimeout(()=>location.assign(target),250)}else m.textContent='Account created. Check your email if confirmation is required, then sign in.'}else{if(!hasSession)throw new Error('No session returned. Please retry.');window.BridgePointAcquisition?.send?.('SIGNIN_SUCCESS',{auth_surface:'landing'});if(d?.user?.id)window.BridgePointAcquisition?.identify?.(d.user.id,{auth_surface:'landing'});m.textContent='Account ready. Opening BridgePoint…';const target=localStorage.getItem('bp_landing_package')?'/app/?page=packages':'/app/';setTimeout(()=>location.assign(target),250)}}catch(err){m.textContent=String(err.message||err)}finally{b.disabled=false}}
 function landingWeatherColorExpr(){return['match',['get','type'],'WILDFIRE','#ff744f','FIRE_WEATHER','#ff9c5a','TORNADO','#d596ff','STORM','#7b8cff','HAIL','#c9efff','LIGHTNING','#ffe16d','FLOOD','#4ca7ff','HURRICANE','#65e6ff','HURRICANE_CONE','#65e6ff','HURRICANE_TRACK','#65e6ff','WIND','#9ad7ff','RAIN','#68b9ff','SNOW','#dff7ff','ICE','#b8efff','VOLCANO','#ff615c','EARTHQUAKE','#ffc45b','DROUGHT','#d9a25f','DUST','#c9a978','LANDSLIDE','#b88963','HEAT','#ff795f','GLOBAL_HAZARD','#5ce0ff','WMO_CAP_WARNING',['match',['get','severity'],'Extreme','#ff3b30','Severe','#ff8a3d','Moderate','#ffd34d','Minor','#59e4ff','#8fb2c2'],'WEATHER_REPORT','#b9d6df','#9ab8c5']}
@@ -131,15 +132,15 @@ function hideLegacyLandingWeather(targetMap=map){
  window.__BP_LANDING_LEGACY_WEATHER_HIDDEN_V6057__={hidden:true,renderer:'cinematic-v2300-only',updatedAt:Date.now()}
 }
 function setLandingWeatherEnabled(world,on){
- landingWeatherEnabled=!!on;
+ landingWeatherEnabled=window.__BP_CLOUDS_ONLY_PHASE_V6070__===true?false:!!on;
  const button=$('landingWeatherActivation');
  if(button){button.setAttribute('aria-pressed',String(landingWeatherEnabled));button.textContent='CINEMATIC FX · '+(landingWeatherEnabled?'ON':'OFF');button.title=landingWeatherEnabled?'Source-backed cinematic 3D weather effects are enabled':'Resume cinematic 3D weather effects'}
  const m=world?.map;ensureLandingWeatherLegend();hideLegacyLandingWeather(m);
  if(!landingWeatherEnabled){
   clearInterval(landingWeatherTimer);landingWeatherTimer=0;clearTimeout(landingWeatherRetryTimer);landingWeatherRetryTimer=0;clearInterval(landingRadarTimer);landingRadarTimer=0;
-  try{landingWeatherModules?.weather?.setRadar?.(false);landingWeatherModules?.weather?.setActive?.(false);landingWeatherModules?.present?.setActive?.(false)}catch(_){}
-  if($('landingWeatherCount'))$('landingWeatherCount').textContent='FX PAUSED';
-  if($('landingWeatherTime'))$('landingWeatherTime').textContent='Cinematic weather particle effects are paused. Legacy flat icons and animated radar remain disabled.';
+  try{landingWeatherModules?.weather?.setRadar?.(false);if(window.__BP_CLOUDS_ONLY_PHASE_V6070__===true){landingWeatherModules?.weather?.setActive?.(true);landingWeatherModules?.present?.setActive?.(true)}else{landingWeatherModules?.weather?.setActive?.(false);landingWeatherModules?.present?.setActive?.(false)}}catch(_){}
+  if($('landingWeatherCount'))$('landingWeatherCount').textContent=window.__BP_CLOUDS_ONLY_PHASE_V6070__===true?'CLOUDS ONLY · DATA LIVE':'FX PAUSED';
+  if($('landingWeatherTime'))$('landingWeatherTime').textContent=window.__BP_CLOUDS_ONLY_PHASE_V6070__===true?'Global clouds are the only weather visuals in this phase. Source weather reports remain live for storm-cloud positioning.':'Cinematic weather particle effects are paused. Legacy flat icons and animated radar remain disabled.';
   if(window.__BP_LANDING_RADAR_STATE__)window.__BP_LANDING_RADAR_STATE__={...window.__BP_LANDING_RADAR_STATE__,visible:false,enabled:false,updatedAt:Date.now()};
   window.__BP_LANDING_VISUAL_WEATHER__={version:6057,enabled:false,cinematicFx:true,renderer:'isolated-webgl-particle-layer',mapShared:true,legacyOverlaysHidden:true,radarVisible:false,updatedAt:Date.now()};
   return Promise.resolve(false)
@@ -147,7 +148,7 @@ function setLandingWeatherEnabled(world,on){
  if(!m)return Promise.resolve(false);
  const enable=async()=>{
   if(!landingWeatherModules){
-   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=6068-geographic-svg-rain'),import('./world-v2300-present-weather.js?v=5544')]);
+   const [wm,pm]=await Promise.all([import('./world-v2300-weather.js?v=6070-clouds-only-phase'),import('./world-v2300-present-weather.js?v=6070-clouds-only-phase')]);
    landingWeatherModules={weather:wm.initWeather(world.map),present:pm.initPresentWeather(world.map)}
   }
   if(!landingWeatherEnabled)return false;
@@ -273,9 +274,23 @@ async function initMap(){
   map=world.map;
   window.__BP_LANDING_WORLD__=world;
   // Start persistent global 3D clouds immediately on the homepage globe, before other visual modules.
-  void import('./world-v2300-clouds.js?v=6068-low-rain-shelf')
+  void import('./world-v2300-clouds.js?v=6070-global-cloud-coverage')
    .then(m=>{window.__BP_SKY_CLOUDS_V5908__=m.initSkyClouds(world)})
    .catch(e=>console.warn('BridgePoint global 3D cloud field unavailable',e));
+  // Keep source weather feeds live for real storm-cloud locations, with non-cloud visuals locked off.
+  void Promise.all([
+   import('./world-v2300-weather.js?v=6070-clouds-only-phase'),
+   import('./world-v2300-present-weather.js?v=6070-clouds-only-phase')
+  ]).then(([wm,pm])=>{
+   if(!world?.map)return;
+   landingWeatherModules={weather:wm.initWeather(world.map),present:pm.initPresentWeather(world.map)};
+   landingWeatherModules.weather?.setActive?.(true);
+   landingWeatherModules.weather?.setRadar?.(false);
+   landingWeatherModules.present?.setActive?.(true);
+   hideLegacyLandingWeather(world.map);
+   if($('landingWeatherCount'))$('landingWeatherCount').textContent='CLOUDS ONLY · DATA LIVE';
+   if($('landingWeatherTime'))$('landingWeatherTime').textContent='Global clouds are the only weather visuals in this phase. Source weather reports remain live for storm-cloud positioning.';
+  }).catch(e=>console.warn('BridgePoint cloud-phase weather feeds unavailable',e));
    void import('./world-v2300-lod-controls.js?v=6038-world-lod-range-apply').then(m=>{window.__BP_LOD_CONTROL_LANDING_V6016__=m.initWorldLodControls(world,{surface:'landing'})}).catch(e=>console.warn('BridgePoint homepage LOD controls unavailable',e));
   // Explicitly connect the landmark module to the newly created homepage map.
   // Do not depend on its polling loop winning a race with slow mobile/globe startup.
