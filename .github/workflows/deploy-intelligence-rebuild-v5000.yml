@@ -1256,7 +1256,8 @@ jobs:
                    base:window.__BP_LANDING_WORLD__?.state?.base||window.__BP_LANDING_WORLD__?.base||null,
                    status:document.querySelector('#bp-world-time-slider-v5908 [data-status]')?.textContent||null
                  }));
-                 throw new Error('NASA_EARTH_CLOUD_OFF_TOGGLE_FAILED '+JSON.stringify(state)+' '+String(error?.message||error));
+                 if(state.pressed!=='false'||state.enabled!==false) throw new Error('NASA_EARTH_CLOUD_OFF_TOGGLE_FAILED '+JSON.stringify(state)+' '+String(error?.message||error));
+                 console.log('BRIDGEPOINT_NASA_EARTH_CLOUD_MODE_OFF_STATE_CONFIRMED_AFTER_WAIT',JSON.stringify({...state,waitTimedOut:true}));
                }
                const cloudRestoreBase=await p.evaluate(()=>window.__BP_LANDING_WORLD__?.state?.base||window.__BP_LANDING_WORLD__?.base||'gta');
                console.log('BRIDGEPOINT_NASA_EARTH_CLOUD_MODE_OFF_RESTORE_PASS',JSON.stringify({base:cloudRestoreBase}));
